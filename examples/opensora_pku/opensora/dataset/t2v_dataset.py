@@ -399,12 +399,17 @@ def create_dataloader(
     rank_id=0,
     drop_remainder=True,
     return_dataset=False,
+    prefetch_size=None,
 ):
     if ds_name == "text_video":
         dataset = TextVideoDataset(**ds_config)
         column_names = ["video", "text", "mask"]
     else:
         raise NotImplementedError
+
+    if prefetch_size is not None:
+        assert isinstance(prefetch_size, int)
+        ms.dataset.config.set_prefetch_size(prefetch_size)
 
     dataloader = ms.dataset.GeneratorDataset(
         source=dataset,

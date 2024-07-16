@@ -621,19 +621,19 @@ class ImageHintTimeEmbedding(nn.Cell):
         self.image_norm = LayerNorm(time_embed_dim)
         self.input_hint_block = nn.SequentialCell(
             nn.Conv2d(3, 16, 3, pad_mode="pad", padding=1, has_bias=True),
-            nn.SiLU(),
+            SiLU(),
             nn.Conv2d(16, 16, 3, pad_mode="pad", padding=1, has_bias=True),
-            nn.SiLU(),
+            SiLU(),
             nn.Conv2d(16, 32, 3, pad_mode="pad", padding=1, stride=2, has_bias=True),
-            nn.SiLU(),
+            SiLU(),
             nn.Conv2d(32, 32, 3, pad_mode="pad", padding=1, has_bias=True),
-            nn.SiLU(),
+            SiLU(),
             nn.Conv2d(32, 96, 3, pad_mode="pad", padding=1, stride=2, has_bias=True),
-            nn.SiLU(),
+            SiLU(),
             nn.Conv2d(96, 96, 3, pad_mode="pad", padding=1, has_bias=True),
-            nn.SiLU(),
+            SiLU(),
             nn.Conv2d(96, 256, 3, pad_mode="pad", padding=1, stride=2, has_bias=True),
-            nn.SiLU(),
+            SiLU(),
             nn.Conv2d(256, 4, 3, pad_mode="pad", padding=1, has_bias=True),
         )
 
@@ -709,7 +709,7 @@ def get_fourier_embeds_from_boundingbox(embed_dim, box):
 
     batch_size, num_boxes = box.shape[:2]
 
-    emb = 100 ** (ops.arange(embed_dim) / embed_dim)
+    emb = 100 ** (ops.arange(embed_dim).to(dtype=box.dtype) / embed_dim)
     emb = emb[None, None, None].to(dtype=box.dtype)
     emb = emb * box.unsqueeze(-1)
 
@@ -734,9 +734,9 @@ class GLIGENTextBoundingboxProjection(nn.Cell):
         if feature_type == "text-only":
             self.linears = nn.SequentialCell(
                 nn.Dense(self.positive_len + self.position_dim, 512),
-                nn.SiLU(),
+                SiLU(),
                 nn.Dense(512, 512),
-                nn.SiLU(),
+                SiLU(),
                 nn.Dense(512, out_dim),
             )
             self.null_positive_feature = ms.Parameter(ops.zeros([self.positive_len]), name="null_positive_feature")
@@ -744,16 +744,16 @@ class GLIGENTextBoundingboxProjection(nn.Cell):
         elif feature_type == "text-image":
             self.linears_text = nn.SequentialCell(
                 nn.Dense(self.positive_len + self.position_dim, 512),
-                nn.SiLU(),
+                SiLU(),
                 nn.Dense(512, 512),
-                nn.SiLU(),
+                SiLU(),
                 nn.Dense(512, out_dim),
             )
             self.linears_image = nn.SequentialCell(
                 nn.Dense(self.positive_len + self.position_dim, 512),
-                nn.SiLU(),
+                SiLU(),
                 nn.Dense(512, 512),
-                nn.SiLU(),
+                SiLU(),
                 nn.Dense(512, out_dim),
             )
             self.null_text_feature = ms.Parameter(ops.zeros([self.positive_len]), name="null_text_feature")

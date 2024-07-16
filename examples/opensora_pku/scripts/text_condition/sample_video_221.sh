@@ -11,4 +11,5 @@ python opensora/sample/sample_t2v.py \
     --fps 24 \
     --guidance_scale 7.5 \
     --num_sampling_steps 150 \
+    --enable_flash_attention "True" \
     --enable_tiling
