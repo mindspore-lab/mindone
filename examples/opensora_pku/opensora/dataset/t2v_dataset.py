@@ -263,7 +263,7 @@ class TextVideoDataset:
             # apply normalization
             pixel_values = (pixel_values / 127.5 - 1.0).astype(np.float32)
 
-        return pixel_values.astype(np.float32), text.astype(np.float32), mask.astype(np.uint8)
+        return pixel_values.astype(np.float32), text.astype(np.float32), mask.astype(np.int32)
 
     def parse_dataset_text(self, text_file):
         with open(text_file, "r") as f:
