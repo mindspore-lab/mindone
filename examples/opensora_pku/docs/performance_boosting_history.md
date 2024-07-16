@@ -6,7 +6,7 @@ History:
 
 
 - 2024.07.16
-  Major Updates:
+  Major Updates ([PR#596](https://github.com/mindspore-lab/mindone/pull/596)):
   1. Update CANN version ([CANN C18(0517)](https://repo.mindspore.cn/ascend/ascend910/20240517/)->[CANN C18(0705)](https://repo.mindspore.cn/ascend/ascend910/20240705/)) and MindSpore version ([MS2.3_master(0615)](https://repo.mindspore.cn/mindspore/mindspore/version/202406/20240615/master_20240615020018_43ccb91e45899b64fe31d304497ab17e3ada3cea_newest/unified/) -> [MS2.3_master(0705)](https://repo.mindspore.cn/mindspore/mindspore/version/202407/20240705/master_20240705220018_51f414917fd9a312dd43ea62eea61cf37c3dfbd6_newest/unified/));
   2. Enable optimizer parallelism fusion by default (See `enable_parallel_fusion` in train args);
   3. Change FlashAttention default layout from `BNSD` to `BSH` (See `mindone.models.modules.flash_attention`);
