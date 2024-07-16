@@ -504,7 +504,7 @@ def main(args):
 
     # trainer (standalone and distributed)
     # BUG: not saving weights properly in graph mode when offloading is enabled
-    ema = EMA(latent_diffusion_with_loss.network, ema_decay=0.9999, offloading=True) if args.use_ema else None
+    ema = EMA(latent_diffusion_with_loss.network, ema_decay=0.9999, offloading=False) if args.use_ema else None
 
     net_with_grads = TrainOneStepWrapper(
         latent_diffusion_with_loss,
