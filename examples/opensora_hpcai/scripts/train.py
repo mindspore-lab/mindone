@@ -211,8 +211,7 @@ def main(args):
         img_h, img_w = args.image_size if isinstance(args.image_size, list) else (args.image_size, args.image_size)
         if args.pre_patchify:
             img_h, img_w = args.max_image_size, args.max_image_size
-        input_size = (args.num_frames, img_h, img_w)
-        latent_size = vae.get_latent_size(input_size)
+        latent_size = vae.get_latent_size((args.num_frames, img_h, img_w))
     else:
         # vae cache
         vae = None
@@ -264,7 +263,7 @@ def main(args):
                 "num_recompute_blocks": args.num_recompute_blocks,
             }
         )
-        logger.info(f"STDiT2 input size: {input_size if args.bucket_config is None else 'Variable'}")
+        logger.info(f"STDiT2 input size: {latent_size if args.bucket_config is None else 'Variable'}")
         latte_model = STDiT2_XL_2(**model_extra_args)
     else:
         raise ValueError(f"Unknown model version: {args.model_version}")
@@ -504,7 +503,7 @@ def main(args):
         loss_scaler.last_overflow_iter = last_overflow_iter
 
     # trainer (standalone and distributed)
-    # BUG: not saving weights properly when offloading is enabled
+    # BUG: not saving weights properly in graph mode when offloading is enabled
     ema = EMA(latent_diffusion_with_loss.network, ema_decay=0.9999, offloading=True) if args.use_ema else None
 
     net_with_grads = TrainOneStepWrapper(
