@@ -265,26 +265,70 @@ def main(args):
     # 4. build training utils: lr, optim, callbacks, trainer
     if args.scale_lr:
         learning_rate = args.start_learning_rate * args.batch_size * args.gradient_accumulation_steps * device_num
+        end_learning_rate = args.end_learning_rate * args.batch_size * args.gradient_accumulation_steps * device_num
     else:
         learning_rate = args.start_learning_rate
+        end_learning_rate = args.end_learning_rate
+
+    if args.dataset_sink_mode and args.sink_size != -1:
+        assert args.sink_size > 0, f"Expect that sink size is a positive integer, but got {args.sink_size}"
+        steps_per_sink = args.sink_size
+    else:
+        steps_per_sink = dataset_size
+
     if args.max_train_steps is not None:
         assert args.max_train_steps > 0, f"max_train_steps should a positive integer, but got {args.max_train_steps}"
         assert (
-            args.max_train_steps >= dataset_size
-        ), f"Expect that the max_train_steps is no less than the number of batches, but got {args.max_train_steps} and {dataset_size}"
-        args.epochs = args.max_train_steps // dataset_size
-        logger.info(f"Forcing training epochs to {args.epochs} when using max_train_steps {args.max_train_steps}")
+            args.max_train_steps >= steps_per_sink
+        ), f"Expect that the max_train_steps is no less than {steps_per_sink}, but got {args.max_train_steps}"
+        total_train_steps = args.max_train_steps
+        args.epochs = total_train_steps // dataset_size
+    else:
+        # use args.epochs
+        assert (
+            args.epochs is not None and args.epochs > 0
+        ), f"When args.max_train_steps is not provided, args.epochs must be a positive integer! but got {args.epochs}"
+        total_train_steps = args.epochs * dataset_size
+
+    sink_epochs = total_train_steps // steps_per_sink
+    total_train_steps = sink_epochs * steps_per_sink
+
+    if steps_per_sink == dataset_size:
+        logger.info(
+            f"Number of training steps: {total_train_steps}; Number of epochs {args.epochs}; Number of batches in a epoch {dataset_size}"
+        )
+        assert (
+            total_train_steps > 0
+        ), f"Expect that args.epochs x dataset_size > dataset_size, but epochs is {args.epochs} and dataset_size is {dataset_size}."
+    else:
+        logger.info(
+            f"Number of training steps: {total_train_steps}; Number of sink epochs {sink_epochs}; Number of batches in a sink {steps_per_sink}"
+        )
+        assert (
+            total_train_steps > 0
+        ), f"Expect that total_train_steps > sink size, but max_train_steps is {total_train_steps} and sink size is {steps_per_sink}."
+
     if args.checkpointing_steps is not None:
         assert (
             args.checkpointing_steps > 0
         ), f"checkpointing_steps should a positive integer, but got {args.checkpointing_steps}"
         logger.info(f"Saving checkpoints every {args.checkpointing_steps} steps")
+        if not args.step_mode:
+            logger.info("Force step mode to be True")
         args.step_mode = True
         args.ckpt_save_interval = args.checkpointing_steps
+    else:
+        assert (
+            args.ckpt_save_interval > 0
+        ), f"Expect to have args.ckpt_save_interval as a positive integer, but got {args.ckpt_save_interval}"
+        logger.info(f"Saving checkpoints every {args.ckpt_save_interval} epochs")
+        if args.step_mode:
+            logger.info("Force step mode to be False")
+        args.step_mode = False
 
     # build learning rate scheduler
     if not args.lr_decay_steps:
-        args.lr_decay_steps = args.epochs * dataset_size - args.lr_warmup_steps  # fix lr scheduling
+        args.lr_decay_steps = total_train_steps - args.lr_warmup_steps  # fix lr scheduling
         if args.lr_decay_steps <= 0:
             logger.warning(
                 f"decay_steps is {args.lr_decay_steps}, please check epochs, dataset_size and warmup_steps. "
@@ -299,10 +343,10 @@ def main(args):
         steps_per_epoch=dataset_size,
         name=args.lr_scheduler,
         lr=learning_rate,
-        end_lr=args.end_learning_rate,
+        end_lr=end_learning_rate,
         warmup_steps=args.lr_warmup_steps,
         decay_steps=args.lr_decay_steps,
-        num_epochs=args.epochs,
+        total_steps=total_train_steps,
     )
     set_all_reduce_fusion(
         latent_diffusion_with_loss.trainable_params(),
@@ -446,7 +490,7 @@ def main(args):
                 f"Optimizer epsilon: {args.optim_eps}",
                 f"Weight decay: {args.weight_decay}",
                 f"Grad accumulation steps: {args.gradient_accumulation_steps}",
-                f"Num epochs: {args.epochs}",
+                f"Num of training steps: {total_train_steps}",
                 f"Loss scaler: {args.loss_scaler_type}",
                 f"Init loss scale: {args.init_loss_scale}",
                 f"Grad clipping: {args.clip_grad}",
@@ -467,15 +511,8 @@ def main(args):
             yaml.safe_dump(vars(args), stream=f, default_flow_style=False, sort_keys=False)
 
     # 6. train
-    assert (
-        args.sink_size == -1 or args.sink_size > 0
-    ), f"Expect that sink_size is either -1 (number of batches) or a positive integer, but got {args.sink_size}"
-    if args.sink_size > 0:
-        assert (
-            args.sink_size <= dataset_size
-        ), f"Expect that sink size is no greater than the number of batches, but got {args.sink_size} and {dataset_size}"
     model.train(
-        args.epochs,
+        sink_epochs,
         dataset,
         callbacks=callback,
         dataset_sink_mode=args.dataset_sink_mode,
