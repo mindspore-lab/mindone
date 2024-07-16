@@ -128,6 +128,13 @@ def main(args):
     ae_time_stride = 4
     video_length = args.num_frames // ae_time_stride + 1
     FA_dtype = get_precision(args.precision) if get_precision(args.precision) != ms.float32 else ms.bfloat16
+    assert not args.multi_scale, "Multi-scale training is not supported now!"
+    assert (
+        args.compress_kv_factor >= 1
+    ), f"Expect that compress_kv_factor is greater than zero, but got {args.compress_kv_factor}"
+    assert (
+        args.num_no_recompute >= 0 and args.num_no_recompute <= 28
+    ), f"Expect that the number of no recomputation is within [0, the total number of transformer blocks (28)], but got {args.num_no_recompute}"
     latte_model = Latte_models[args.model](
         in_channels=ae_channel_config[args.ae],
         out_channels=ae_channel_config[args.ae] * 2,
@@ -205,6 +212,14 @@ def main(args):
 
     # 2.3 ldm with loss
     diffusion = create_diffusion(timestep_respacing="")
+    assert args.use_image_num >= 0, f"Expect to have use_image_num>=0, but got {args.use_image_num}"
+    if args.use_image_num > 0:
+        logger.info("Enable video-image-joint training")
+        if args.use_img_from_vid:
+            args.image_data = ""
+    else:
+        logger.info("Training on video datasets only.")
+        args.image_data = ""
     latent_diffusion_with_loss = DiffusionWithLoss(
         latte_model,
         diffusion,
@@ -215,7 +230,10 @@ def main(args):
         use_image_num=args.use_image_num,
         dtype=model_dtype,
     )
-
+    split_time_upsample = True
+    assert not (
+        args.num_frames % 2 == 0 and split_time_upsample
+    ), "num of frames must be odd if split_time_upsample is True"
     # 3. create dataset
     assert args.dataset == "t2v", "Support t2v dataset only."
     ds_config = dict(
@@ -332,7 +350,9 @@ def main(args):
         if args.use_ema
         else None
     )
-
+    assert (
+        args.gradient_accumulation_steps > 0
+    ), f"Expect gradient_accumulation_steps is a positive integer, but got {args.gradient_accumulation_steps}"
     net_with_grads = TrainOneStepWrapper(
         latent_diffusion_with_loss,
         optimizer=optimizer,
@@ -447,6 +467,13 @@ def main(args):
             yaml.safe_dump(vars(args), stream=f, default_flow_style=False, sort_keys=False)
 
     # 6. train
+    assert (
+        args.sink_size == -1 or args.sink_size > 0
+    ), f"Expect that sink_size is either -1 (number of batches) or a positive integer, but got {args.sink_size}"
+    if args.sink_size > 0:
+        assert (
+            args.sink_size <= dataset_size
+        ), f"Expect that sink size is no greater than the number of batches, but got {args.sink_size} and {dataset_size}"
     model.train(
         args.epochs,
         dataset,
