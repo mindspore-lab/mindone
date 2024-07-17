@@ -263,6 +263,7 @@ msrun --master_port=8200 --worker_num=8 --local_worker_num=8 --log_dir="output_l
     --use_parallel True \
     ... # pass other arguments, please refer to the single-device training script.
 ```
+For more details, please take `scripts/causalvae/train_with_gan_loss_multi_device.sh` as an example.
 
 #### Multi-Stage Training
 
