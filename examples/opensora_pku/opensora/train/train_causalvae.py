@@ -208,7 +208,7 @@ def main(args):
                     f"Checkpoint will be saved every {ckpt_save_interval * steps_per_sink} steps."
                 )
     if step_mode != args.step_mode:
-        logger.logging("Using args.save_steps to determine whether to use step mode to save ckpt.")
+        logger.info("Using args.save_steps to determine whether to use step mode to save ckpt.")
         if args.save_steps is None:
             logger.warning(f"args.save_steps is not provided. Force step_mode to {step_mode}!")
         else:
