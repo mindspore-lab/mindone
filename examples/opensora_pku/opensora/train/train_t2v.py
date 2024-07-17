@@ -295,18 +295,29 @@ def main(args):
 
     if steps_per_sink == dataset_size:
         logger.info(
-            f"Number of training steps: {total_train_steps}; Number of epochs {args.epochs}; Number of batches in a epoch {dataset_size}"
+            f"Number of training steps: {total_train_steps}; Number of epochs: {args.epochs}; Number of batches in a epoch (dataset_size): {dataset_size}"
         )
-        assert (
-            total_train_steps > 0
-        ), f"Expect that args.epochs x dataset_size > dataset_size, but epochs is {args.epochs} and dataset_size is {dataset_size}."
+        if args.max_train_steps is not None:
+            assert (
+                total_train_steps > 0
+            ), f"Expect that args.max_train_steps > dataset_size, but args.max_train_steps is {args.max_train_steps} and dataset_size is {dataset_size}."
+        else:
+            assert (
+                total_train_steps > 0
+            ), f"Expect that args.epochs x dataset_size > dataset_size, but epochs is {args.epochs} and dataset_size is {dataset_size}."
     else:
         logger.info(
-            f"Number of training steps: {total_train_steps}; Number of sink epochs {sink_epochs}; Number of batches in a sink {steps_per_sink}"
+            f"Number of training steps: {total_train_steps}; Number of sink epochs: {sink_epochs}; Number of batches in a sink (sink_size): {steps_per_sink}"
         )
-        assert (
-            total_train_steps > 0
-        ), f"Expect that total_train_steps > sink size, but max_train_steps is {total_train_steps} and sink size is {steps_per_sink}."
+        if args.max_train_steps is not None:
+            assert (
+                total_train_steps > 0
+            ), f"Expect that args.max_train_steps > sink size, but args.max_train_steps is {args.max_train_steps} and sink size is {steps_per_sink}."
+        else:
+            assert total_train_steps > 0, (
+                f"Expect that args.epochs x dataset_size > sink size, but args.epochs is {args.epochs}, dataset size is {dataset_size},"
+                + f" and sink size is {steps_per_sink}."
+            )
 
     if args.checkpointing_steps is None:
         ckpt_save_interval = args.ckpt_save_interval

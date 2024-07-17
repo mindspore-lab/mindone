@@ -400,7 +400,7 @@ We use `msrun` to launch the parallel training tasks. For single-node multi-devi
 
 There are some arguments related to the training dataset path:
 - `video_data` or `image_data`: the text file to the video/image dataset. The text file should contain N lines corresponding to N datasets. Each line should have two or three items. If two items are available, they correspond to the video folder and the annotation json file. If three items are available, they correspond to the video folder, the text embedding cache folder, and the annotation json file.
-- `pretrained`: the pretrained checkpoint to be loaded as initial weights before training. if not provided, the LatteT2V will use random initialization.
+- `pretrained`: the pretrained checkpoint to be loaded as initial weights before training. If not provided, the LatteT2V will use random initialization.
 
 For the detailed explanations for other arguments, please refer to the document for [training arguments](docs/training_args.md).
 
