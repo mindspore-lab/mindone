@@ -7,7 +7,7 @@ albumentations
 pandas
 imagesize
 toolz
-pillow==9.1.1
+pillow==10.3.0
 tqdm
 mindcv
 decord
