@@ -90,9 +90,10 @@ class TrainOneStepWrapper(nn.TrainOneStepWithLossScaleCell):
         # zero init
         self.zero_helper = zero_helper
         self.zero_stage = zero_helper.zero_stage if zero_helper is not None else 0
-        self.need_dp = zero_helper.need_dp if zero_helper is not None else False
         self.run_optimizer = zero_helper.run_optimizer if zero_helper is not None else self.optimizer
         self.grad_reducer = self.grad_reducer if self.zero_stage in [0, 1] else nn.Identity()
+        if self.zero_stage != 0:
+            self.zero_helper.split_params()
 
     def construct(self, *inputs):
         # compute loss
@@ -113,13 +114,10 @@ class TrainOneStepWrapper(nn.TrainOneStepWithLossScaleCell):
 
         # 1. compute gradients (of the up-scaled loss w.r.t. the model weights)
         grads = self.grad(self.network, weights)(*inputs, scaling_sens_filled)
+
         # Gradient communication
-        if self.zero_stage == 1:
-            grads = self.zero_helper.split_gradients(grads)
-        if self.zero_stage == 2:
-            grads = self.zero_helper.reduce_scatter_gradients(grads)
-        if self.need_dp:
-            grads = self.zero_helper.dp_allreduce_gradients(grads)
+        grads = self.zero_helper.cal_gradients(grads)
+
         if self.accum_steps == 1:
             grads = self.grad_reducer(grads)
             scaling_sens = ops.depend(scaling_sens, grads)
