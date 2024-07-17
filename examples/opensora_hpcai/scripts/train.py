@@ -536,6 +536,7 @@ def main(args):
             rank_id=rank_id,
             ckpt_save_dir=ckpt_dir,
             ema=ema,
+            save_ema_only=False,
             ckpt_save_policy="latest_k",
             ckpt_max_keep=args.ckpt_max_keep,
             step_mode=step_mode,
