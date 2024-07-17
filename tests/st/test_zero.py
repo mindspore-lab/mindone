@@ -43,6 +43,7 @@ class TestNet(nn.Cell):
         self.conv2.bias.parallel_optimizer = False
         self.dense.recompute()
         self.conv1.to_float(ms.float16)
+        self.dense.to_float(ms.float32)
 
     def construct(self, x):
         y = self.conv1(x) * self.p
@@ -57,7 +58,7 @@ def test_zero(x, y, zero_stage=0):
     print("-" * 30)
     print("-" * 6, f"zero_stage={zero_stage}", "-" * 6)
     print("-" * 30)
-    net = TestNet()
+    net = nn.WithLossCell(TestNet(), nn.MSELoss())
     opt = nn.AdamWeightDecay(net.trainable_params(), learning_rate=1e-3)
     train_net = prepare_train_network(net, opt, zero_stage=zero_stage, op_group=GlobalComm.WORLD_COMM_GROUP)
 
