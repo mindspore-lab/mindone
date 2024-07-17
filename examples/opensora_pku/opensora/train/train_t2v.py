@@ -74,6 +74,7 @@ def main(args):
         optimizer_weight_shard_size=args.optimizer_weight_shard_size,
         sp_size=args.sp_size,
         jit_level=args.jit_level,
+        enable_parallel_fusion=args.enable_parallel_fusion,
     )
     set_logger(name="", output_dir=args.output_dir, rank=rank_id, log_level=eval(args.log_level))
 

@@ -30,6 +30,7 @@ def init_env(
     optimizer_weight_shard_size: int = 8,
     sp_size: int = 1,
     jit_level: str = None,
+    enable_parallel_fusion: bool = False,
 ) -> Tuple[int, int, int]:
     """
     Initialize MindSpore environment.
