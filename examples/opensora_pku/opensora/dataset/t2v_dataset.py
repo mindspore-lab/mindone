@@ -14,7 +14,7 @@ import mindspore as ms
 
 from .transform import create_video_transforms, t5_text_preprocessing
 
-logger = logging.getLogger()
+logger = logging.getLogger(__name__)
 
 
 class TextVideoDataset:
@@ -263,7 +263,7 @@ class TextVideoDataset:
             # apply normalization
             pixel_values = (pixel_values / 127.5 - 1.0).astype(np.float32)
 
-        return pixel_values.astype(np.float32), text.astype(np.float32), mask.astype(np.uint8)
+        return pixel_values.astype(np.float32), text.astype(np.float32), mask.astype(np.int32)
 
     def parse_dataset_text(self, text_file):
         with open(text_file, "r") as f:
@@ -303,6 +303,7 @@ class TextVideoDataset:
     def get_vid_cap_list(self):
         vid_cap_lists = []
         video_dataset = self.parse_dataset_text(self.video_data)
+        assert len(video_dataset) > 0, f"The video dataset {self.video_data} must not be empty!"
 
         for item in video_dataset:
             anno = item["annotation"]

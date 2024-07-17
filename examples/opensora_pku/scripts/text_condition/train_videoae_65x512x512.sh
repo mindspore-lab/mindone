@@ -46,3 +46,4 @@ msrun --bind_core=True --worker_num=8 --local_worker_num=8 --master_port=9000 --
       --use_parallel True \
       --parallel_mode "data" \
       --num_no_recompute 6 \
+      --sink_size -1 \

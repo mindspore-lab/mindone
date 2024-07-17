@@ -1,7 +1,11 @@
+import logging
+
 from opensora.acceleration.parallel_states import hccl_info
 
 import mindspore as ms
 from mindspore import Tensor, nn, ops
+
+logger = logging.getLogger(__name__)
 
 
 class _SingleAll2ALL(nn.Cell):
@@ -104,7 +108,7 @@ def prepare_parallel_data(
         # 1. for video states
         padding_needed_v = (sp_size - video_states.shape[2] % sp_size) % sp_size
         if padding_needed_v > 0:
-            print("Doing video padding")
+            logger.debug("Doing video padding")
             # B, C, T, H, W -> B, C, T', H, W
             video_states = ops.pad(video_states, (0, 0, 0, 0, 0, padding_needed_v), mode="constant", value=0)
             video_noise = ops.pad(video_noise, (0, 0, 0, 0, 0, padding_needed_v), mode="constant", value=0)

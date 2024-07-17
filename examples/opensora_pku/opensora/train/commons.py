@@ -14,7 +14,7 @@ from mindspore.nn.wrap.loss_scale import DynamicLossScaleUpdateCell
 from mindone.utils.config import str2bool
 from mindone.utils.seed import set_random_seed
 
-logger = logging.getLogger()
+logger = logging.getLogger(__name__)
 
 
 def init_env(
@@ -24,12 +24,12 @@ def init_env(
     max_device_memory: str = None,
     device_target: str = "Ascend",
     parallel_mode: str = "data",
-    enable_dvm: bool = False,
     mempool_block_size: str = "9GB",
     global_bf16: bool = False,
     strategy_ckpt_save_file: str = "",
     optimizer_weight_shard_size: int = 8,
     sp_size: int = 1,
+    enable_parallel_fusion: bool = False,
 ) -> Tuple[int, int, int]:
     """
     Initialize MindSpore environment.
@@ -46,6 +46,8 @@ def init_env(
 
     if max_device_memory is not None:
         ms.set_context(max_device_memory=max_device_memory)
+    if enable_parallel_fusion:
+        ms.set_context(graph_kernel_flags="--enable_parallel_fusion --enable_expand_ops=AdamApplyOneWithDecayAssign")
 
     if distributed:
         ms.set_context(
@@ -94,9 +96,6 @@ def init_env(
             ascend_config={"precision_mode": "allow_fp32_to_fp16"},  # TODO: tune for better precision
         )
 
-    if enable_dvm:
-        print("enable dvm")
-        ms.set_context(enable_graph_kernel=True, graph_kernel_flags="--disable_cluster_ops=Pow,Select")
     if global_bf16:
         print("Using global bf16")
         ms.set_context(
@@ -146,7 +145,6 @@ def parse_train_args(parser):
         choices=["data", "optim", "semi"],
         help="parallel mode: data, optim",
     )
-    parser.add_argument("--enable_dvm", default=False, type=str2bool, help="enable dvm mode")
     parser.add_argument("--seed", default=3407, type=int, help="data path")
     parser.add_argument(
         "--mempool_block_size",
@@ -197,8 +195,12 @@ def parse_train_args(parser):
     parser.add_argument("--gradient_accumulation_steps", default=1, type=int, help="gradient accumulation steps")
     parser.add_argument("--weight_decay", default=1e-2, type=float, help="Weight decay.")
     parser.add_argument("--lr_warmup_steps", default=1000, type=int, help="warmup steps")
-    parser.add_argument("--start_learning_rate", default=1e-5, type=float, help="The initial learning rate for Adam.")
-    parser.add_argument("--end_learning_rate", default=1e-7, type=float, help="The end learning rate for Adam.")
+    parser.add_argument(
+        "--start_learning_rate", default=1e-5, type=float, help="The initial learning rate for the optimizer."
+    )
+    parser.add_argument(
+        "--end_learning_rate", default=1e-7, type=float, help="The end learning rate for the optimizer."
+    )
     parser.add_argument("--lr_decay_steps", default=0, type=int, help="lr decay steps.")
     parser.add_argument("--lr_scheduler", default="cosine_decay", type=str, help="scheduler.")
     parser.add_argument(
@@ -218,7 +220,7 @@ def parse_train_args(parser):
         "--epochs",
         default=10,
         type=int,
-        help="epochs. If dataset_sink_mode is on, epochs is with respect to dataset sink size. Otherwise, it's w.r.t the dataset size.",
+        help="epochs. When epochs is specified, the total number of training steps = epochs x num_batches",
     )
     parser.add_argument("--dataloader_num_workers", default=12, type=int, help="num workers for dataloder")
     parser.add_argument("--max_rowsize", default=64, type=int, help="max rowsize for data loading")
