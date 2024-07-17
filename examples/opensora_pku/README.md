@@ -74,7 +74,6 @@ You contributions are welcome.
 * [Installation](#installation)
 * [Model Weights](#model-weights)
 * [Inference](#inference)
-* [Data Processing](#data-processing)
 * [Training](#training)
 * [Acknowledgement](#acknowledgement)
 
@@ -230,7 +229,7 @@ Please edit the `master_port` to a different port number in the range 1024 to 65
 
 **Step 1: Downloading Datasets**:
 
-To train the causal vae model, you need to prepare a video dataset. You can download this video dataset from [Open-Sora-Dataset-v1.1.0](https://huggingface.co/datasets/LanguageBind/Open-Sora-Plan-v1.1.0/tree/main). Afterwards, you can revise the `--video_path` in `scripts/causalvae/train.sh` to the video folder path of your downloaded dataset.
+To train the causal vae model, you need to prepare a video dataset. You can download this video dataset from [Open-Sora-Dataset-v1.1.0](https://huggingface.co/datasets/LanguageBind/Open-Sora-Plan-v1.1.0/tree/main). Afterwards, you can revise the `--video_path` in the training script to the video folder path of your downloaded dataset.
 
 **Step 2: Converting Pretrained Weights**:
 
@@ -247,10 +246,12 @@ Please also download [lpips_vgg-426bf45c.ckpt](https://download-mindspore.osinfr
 
 #### Standalone Training
 
-To launch a single-card training, you can refer to `scripts/causalvae/train.sh` and run:
+To launch a single-card training using perceputal loss, you can refer to `scripts/causalvae/train_without_gan_loss.sh` and run:
 ```bash
-bash scripts/causalvae/train.sh
+bash scripts/causalvae/train_without_gan_loss.sh
 ```
+
+If you want to train causalvae with perceputal loss and GAN loss, you can refer to `scripts/causalvae/train_with_gan_loss.sh`.
 
 #### Multi-Device Training
 
@@ -260,14 +261,14 @@ For parallel training, please use `msrun` and pass `--use_parallel=True`.
 msrun --master_port=8200 --worker_num=8 --local_worker_num=8 --log_dir="output_log"  \
     python opensora/train/train_causalvae.py  \
     --use_parallel True \
-    ... # pass other arguments, please refer to scripts/causalvae/train.sh
+    ... # pass other arguments, please refer to the single-device training script.
 ```
 
 #### Multi-Stage Training
 
 As stated in [Training Details](https://github.com/PKU-YuanGroup/Open-Sora-Plan/blob/main/docs/Report-v1.1.0.md#training-details), the authors trained for 100k steps in the first stage with a video shape of 9×256×256. Then they increased the frame count from 9 to 25 and found that this significantly improved the model's performance. In the first two stages, they enabled the learnable mixed factor in `TimeUpsampleRes2x` and `TimeDownsampleRes2x`. In the third stage, they reinitialized the mixed factor to 0.5 (sigmoid(0.5) = 0.6225) to further enhance the model's capabilities.
 
-You can revise `scripts/causalvae/train.sh` for each stage accordingly.
+You can revise `--video_num_frames` and `--resolution` in the training scripts under `scripts/causalvae/` for each stage accordingly.
 
 
 ### Training Diffusion Model

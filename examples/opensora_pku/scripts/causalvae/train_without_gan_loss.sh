@@ -21,4 +21,3 @@ python opensora/train/train_causalvae.py \
     --mode 0 \
     --init_loss_scale 128 \
     --jit_level "O0" \
-    # --use_discriminator True \
