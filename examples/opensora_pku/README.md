@@ -406,7 +406,7 @@ For the detailed explanations for other arguments, please refer to the document 
 
 > Note:
 > - In Graph mode (default), MindSpore takes about 10~20 mins for graph compilation.
-> - For acceleration, we set the `dataset_sink_mode` to True by default. For more information about data sink mode, see [MindSpore doc for data sink](https://www.mindspore.cn/docs/en/master/api_python/mindspore/mindspore.data_sink.html). In data sink mode, `sink_size` is a positive integer or $-1$ (the sink size is same to the number batches in an epoch). Training loss is computed for every `sink_size` batches, and the `max_train_steps` should be no less than `sink_size`. By default, `sink_size` equals to the total number batches in an epoch.
+> - For acceleration, we set the `dataset_sink_mode` to True by default. For more information about data sink mode, see [MindSpore doc for data sink](https://www.mindspore.cn/docs/en/master/api_python/mindspore/mindspore.data_sink.html).
 
 #### Parallel Training
 
