@@ -1,6 +1,4 @@
 """Train step wrapper supporting setting drop overflow update, ema etc"""
-import logging
-
 from packaging import version
 
 import mindspore as ms
@@ -10,14 +8,9 @@ from mindspore.boost.grad_accumulation import gradient_accumulation_op as _grad_
 from mindspore.boost.grad_accumulation import gradient_clear_op as _grad_clear_op
 from mindspore.common import RowTensor
 from mindspore.common import dtype as mstype
-from mindspore.communication import get_group_size, get_rank
-from mindspore.context import ParallelMode
 from mindspore.ops import composite as C
 from mindspore.ops import functional as F
 from mindspore.ops import operations as P
-from mindspore.parallel._utils import _get_parallel_mode
-
-_logger = logging.getLogger(__name__)
 
 _grad_scale = C.MultitypeFuncGraph("grad_scale")
 reciprocal = P.Reciprocal()
@@ -38,47 +31,6 @@ def tensor_grad_scale_row_tensor(scale, grad):
     )
 
 
-_optim_allgather = ops.MultitypeFuncGraph("optim_allgather")
-
-
-@_optim_allgather.register("Function", "Bool", "Tensor", "Tensor", "Bool")
-def _run_optim_allgather(allgather, last_assign, variable, value, need_allgather):
-    if need_allgather:
-        value = allgather(value)
-    if last_assign:
-        ops.assign(variable, value)
-    return True
-
-
-_dp_allreduce = ops.MultitypeFuncGraph("dp_allreduce")
-
-
-@_dp_allreduce.register("Function", "Tensor", "Tensor")
-def _run_dp_allreduce(dp_allreduce, dp_group_size, gradient):
-    gradient = dp_allreduce(gradient) / dp_group_size
-    return gradient
-
-
-_stage2_reduce_scatter = ops.MultitypeFuncGraph("stage2_reduce_scatter")
-
-
-@_stage2_reduce_scatter.register("Function", "Tensor", "Tensor", "Bool")
-def _run_stage2_reduce_scatter(reduce_scatter, op_group_size, gradient, need_reduce_scatter):
-    if need_reduce_scatter:
-        gradient = reduce_scatter(gradient) / op_group_size
-    return gradient
-
-
-_stage1_split_grad = ops.MultitypeFuncGraph("stage1_split_grad")
-
-
-@_stage1_split_grad.register("Function", "Int", "Tensor", "Bool")
-def _run_stage1_split_grad(split, op_rank_id, gradient, need_split):
-    if need_split:
-        gradient = split(gradient)[op_rank_id]
-    return gradient
-
-
 class TrainOneStepWrapper(nn.TrainOneStepWithLossScaleCell):
     """TrainStep with ema and clip grad.
 
@@ -87,15 +39,7 @@ class TrainOneStepWrapper(nn.TrainOneStepWithLossScaleCell):
         scale_sense (Union[Tensor, Cell]): If this value is a Cell, it will be called
             to update loss scale. If this value is a Tensor, the loss scale can be modified by `set_sense_scale`,
             the shape should be :math:`()` or :math:`(1,)`.
-        zero_stage (`int`, *optional*): Stage setting of ZeRO, default is 0.
-            - zero_stage is 0: Normal optimizer update.
-            - zero_stage is 1: Split optimizer parameters and gradients, manually updating optimizer parameters.
-            - zero_stage is 2: Split optimizer parameters, replace gradients allreduce with reducescatter,
-                manually updating optimizer parameters.
-            - zero_stage is 3: Split optimizer parameters, normal optimizer update.
-        optimizer_offload (`bool`, *optional*): Only take effect when optimizer is AdamWeightDecay, default is False.
-        op_group (`str`, *optional*): The name of the optimizer parallel communication group, default is None.
-        dp_group (`str`, *optional*): The name of the data parallel communication group, default is None.
+        zero_helper (class): Zero redundancy optimizer(ZeRO) build helper, default is None.
 
     Returns:
         Tuple of 3 Tensor, the loss, overflow flag and current loss scale value.
@@ -117,10 +61,7 @@ class TrainOneStepWrapper(nn.TrainOneStepWithLossScaleCell):
         clip_grad=False,
         clip_norm=1.0,
         verbose=False,
-        zero_stage: int = 0,
-        optimizer_offload: bool = False,
-        op_group: str = None,
-        dp_group: str = None,
+        zero_helper=None,
     ):
         super().__init__(network, optimizer, scale_sense)
         self.ema = ema
@@ -145,158 +86,13 @@ class TrainOneStepWrapper(nn.TrainOneStepWithLossScaleCell):
 
         self.map = ops.Map()
         self.partial = ops.Partial()
-        # init ZeRO settings
-        self.is_data_parallel = _get_parallel_mode() == ParallelMode.DATA_PARALLEL
-        self.zero_stage = zero_stage
-        if not self.is_data_parallel:
-            self.zero_stage = 0
-        if self.zero_stage != 0:
-            self.op_group = op_group
-            self.ori_parameters = self.optimizer._parameters
-            self.split_op = ops.Identity()
-            self.op_allgather = ops.Identity()
-            self.op_reduce_scatter = ops.Identity()
-            self.dp_allreduce = ops.Identity()
-            self.op_group_size = get_group_size(self.op_group) if self.is_data_parallel else 1
-            self.op_rank_id = get_rank(self.op_group) if self.is_data_parallel else 0
-            self.need_dp = False
-            self.last_assign = False
-            self.dp_group_size = 1
-            self.need_allgather = [False] * len(self.optimizer._parameters)
-            if self.zero_stage in [2, 3]:
-                self.grad_reducer = nn.Identity()
-            if self.zero_stage in [1, 2]:
-                _logger.info("Clone optimizer.parameters, will increase memory.")
-                # Because the first input of MindSpore optimizer must be ms.Parameter,
-                # copy optimizer.parameters for optimizer parameters update.
-                # It will increase 1/n parameters' memory.
-                self.optimizer.parameters = self.optimizer.parameters.clone(prefix="wrapper", init="same")
-                self.optimizer._parameters = self.optimizer.parameters
-                self.last_assign = True
-            if self.zero_stage in [1, 2, 3]:
-                if self.zero_stage == 2:
-                    self.op_reduce_scatter = ops.ReduceScatter(op=ops.ReduceOp.SUM, group=self.op_group)
-                if self.zero_stage in [1, 2]:
-                    # AllGather the parameters after optimizer calculate to update the parameters in train network.
-                    self.op_allgather = ops.AllGather(group=self.op_group)
-                self.need_dp = dp_group is not None
-                if self.need_dp:
-                    # Set it when op_group is not the WORLD_COMM_GROUP.
-                    self.dp_allreduce = ops.AllReduce(op=ops.ReduceOp.SUM, group=dp_group)
-                    self.dp_group_size = ms.Tensor(get_group_size(group=dp_group), ms.float32)
-                self.split_op = ops.Split(0, self.op_group_size)  # optimizer parallel split
-                self.split_params()
-            self.need_allgather = tuple(self.need_allgather)
-            if optimizer_offload:
-                if isinstance(self.optimizer, nn.AdamWeightDecay):
-                    nn.AdamWeightDecay.target("CPU")
-                    _logger.info("Set optimizer run offload.")
-                else:
-                    _logger.warning("optimizer_offload only take effect when optimizer is AdamWeightDecay.")
-                    optimizer_offload = False
-            _logger.info(
-                f"Build TrainOneStepWrapper with ZeRO stage: {self.zero_stage}, "
-                f"optimizer_offload: {optimizer_offload}, "
-                f"op_group_size: {self.op_group_size} "
-                f"op_rank_id: {self.op_rank_id} "
-                f"dp_group_size: {self.dp_group_size} "
-            )
 
-    def split_param(self, param):
-        return self.split_op(param)[self.op_rank_id]
-
-    def get_optimizer_param_tuples(self):
-        param_tuples = []
-        if ms.get_context("mode") == ms.PYNATIVE_MODE:
-            for name in self.optimizer._params_list:
-                if name in ["_parameters", "parameters"]:
-                    continue
-                _logger.debug(f"Add optimizer param_tuples {name}")
-                param_tuples.append(getattr(self.optimizer, name))
-        else:
-            for attr in self.optimizer.__dict__:
-                if isinstance(getattr(self.optimizer, attr), ms.ParameterTuple):
-                    if attr in ["_parameters", "parameters"]:
-                        continue
-                    _logger.debug(f"Add optimizer param_tuples {attr}")
-                    param_tuples.append(getattr(self.optimizer, attr))
-        return param_tuples
-
-    def split_params(self):
-        param_tuples = self.get_optimizer_param_tuples()
-        for i, param in enumerate(self.optimizer._parameters):
-            _logger.debug(f"Split optimizer param {param.name} {param.shape}")
-            # If zero_stage is 3, the parameters in train network have been split,
-            # use parameter in param_tuples to get batch size.
-            if self.zero_stage == 3:
-                if param_tuples:
-                    B = param_tuples[0][i].shape[0]
-                else:
-                    continue
-            else:
-                B = param.shape[0]
-            _logger.debug(f"Do split with zero_stage {self.zero_stage}")
-            if param.parallel_optimizer and B >= self.op_group_size and B % self.op_group_size == 0:
-                if self.zero_stage in [1, 2]:
-                    self.need_allgather[i] = True
-                    ori_shape = param.shape
-                    param.assign_value(self.split_param(param))
-                    _logger.debug(f"Optimizer {param.name} from {ori_shape} to {param.shape}")
-                for param_tuple in param_tuples:
-                    ori_shape = param_tuple[i].shape
-                    param_tuple[i].assign_value(self.split_param(param_tuple[i]))
-                    _logger.debug(f"Optimizer {param_tuple[i].name} from {ori_shape} to {param_tuple[i].shape}")
-
-    def reduce_scatter_gradients(self, gradients):
-        dtype = gradients[0].dtype
-        gradients = self.hyper_map(
-            ops.partial(
-                _stage2_reduce_scatter,
-                self.op_reduce_scatter,
-                ms.Tensor(self.op_group_size, dtype),
-            ),
-            gradients,
-            self.need_allgather,
-        )
-        return gradients
-
-    def dp_allreduce_gradients(self, gradients):
-        dtype = gradients[0].dtype
-        gradients = self.hyper_map(
-            ops.partial(
-                _dp_allreduce,
-                self.dp_allreduce,
-                ms.Tensor(self.dp_group_size, dtype),
-            ),
-            gradients,
-        )
-        return gradients
-
-    def split_gradients(self, gradients):
-        gradients = self.hyper_map(
-            ops.partial(
-                _stage1_split_grad,
-                self.split_op,
-                self.op_rank_id,
-            ),
-            gradients,
-            self.need_allgather,
-        )
-        return gradients
-
-    def run_optimizer(self, grads):
-        optim_result = self.optimizer(grads)
-        if self.zero_stage == 1 or self.zero_stage == 2:
-            optim_result = ops.depend(
-                self.hyper_map(
-                    ops.partial(_optim_allgather, self.op_allgather, self.last_assign),
-                    self.ori_parameters,
-                    self.optimizer._parameters,
-                    self.need_allgather,
-                ),
-                optim_result,
-            )
-        return optim_result
+        # zero init
+        self.zero_helper = zero_helper
+        self.zero_stage = zero_helper.zero_stage if zero_helper is not None else 0
+        self.need_dp = zero_helper.need_dp if zero_helper is not None else False
+        self.run_optimizer = zero_helper.run_optimizer if zero_helper is not None else self.optimizer
+        self.grad_reducer = self.grad_reducer if self.zero_stage in [0, 1] else nn.Identity()
 
     def construct(self, *inputs):
         # compute loss
@@ -317,12 +113,13 @@ class TrainOneStepWrapper(nn.TrainOneStepWithLossScaleCell):
 
         # 1. compute gradients (of the up-scaled loss w.r.t. the model weights)
         grads = self.grad(self.network, weights)(*inputs, scaling_sens_filled)
+        # Gradient communication
         if self.zero_stage == 1:
-            grads = self.split_gradients(grads)
+            grads = self.zero_helper.split_gradients(grads)
         if self.zero_stage == 2:
-            grads = self.reduce_scatter_gradients(grads)
+            grads = self.zero_helper.reduce_scatter_gradients(grads)
         if self.need_dp:
-            grads = self.dp_allreduce_gradients(grads)
+            grads = self.zero_helper.dp_allreduce_gradients(grads)
         if self.accum_steps == 1:
             grads = self.grad_reducer(grads)
             scaling_sens = ops.depend(scaling_sens, grads)

@@ -68,7 +68,7 @@ def test_zero(x, y, zero_stage=0):
 
 if __name__ == "__main__":
     group_size, rank_id = init_env(mode=0, distribute=True, save_graph=True)
-    set_logger(output_dir="logs", rank=rank_id, log_level="DEBUG")
+    set_logger(name="", output_dir="logs", rank=rank_id, log_level="DEBUG")
     x = ms.Tensor(np.random.uniform(-1, 1, (1, 2, 5, 5)).astype(np.float32) * (get_rank() + 1))
     y = ms.Tensor(np.random.uniform(-1, 1, (1, 2, 5, 5)).astype(np.float32) * (get_rank() + 1))
     # test_zero(x, y, zero_stage=0)
