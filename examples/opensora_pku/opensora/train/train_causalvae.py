@@ -461,10 +461,11 @@ def main(args):
                     ckpt_name = f"vae_3d-e{cur_epoch}.ckpt" if not use_step_unit else f"vae_3d-s{cur_global_step}.ckpt"
                     if ema is not None:
                         ema.swap_before_eval()
-
-                    ckpt_manager.save(ae, None, ckpt_name=ckpt_name, append_dict=None)
+                    ae_with_loss.autoencoder.set_train(False)
+                    ckpt_manager.save(ae_with_loss.autoencoder, None, ckpt_name=ckpt_name, append_dict=None)
                     if ema is not None:
                         ema.swap_after_eval()
+                    ae_with_loss.autoencoder.set_train(True)
             if cur_global_step == total_train_steps:
                 break
             # TODO: eval while training
