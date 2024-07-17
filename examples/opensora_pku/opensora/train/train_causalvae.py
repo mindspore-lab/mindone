@@ -3,6 +3,7 @@ Train AutoEncoders with GAN loss
 """
 import json
 import logging
+import math
 import os
 import shutil
 import sys
@@ -113,6 +114,9 @@ def main(args):
     # D with loss
     if use_discriminator:
         disc_with_loss = DiscriminatorWithLoss(ae, disc, disc_start, use_3d_disc=use_3d_disc)
+        assert (
+            not args.dataset_sink_mode
+        ), "Training with gan loss does not support data sink mode! Please use --dataset_sink_mode False."
 
     tot_params, trainable_params = count_params(ae_with_loss)
     logger.info("Total params {:,}; Trainable params {:,}".format(tot_params, trainable_params))
@@ -148,32 +152,96 @@ def main(args):
         rank_id=rank_id,
         ds_name="video",
     )
-    num_batches = train_loader.get_dataset_size()
+    dataset_size = train_loader.get_dataset_size()
 
     # 5. build training utils
     # torch scale lr by: model.learning_rate = accumulate_grad_batches * ngpu * bs * base_lr
     if args.scale_lr:
         learning_rate = args.start_learning_rate * args.batch_size * args.gradient_accumulation_steps * device_num
+        end_learning_rate = args.end_learning_rate * args.batch_size * args.gradient_accumulation_steps * device_num
     else:
         learning_rate = args.start_learning_rate
-    if args.max_steps is not None and args.max_steps > 0:
-        args.epochs = args.max_steps // num_batches
-        logger.info("max_steps is set, override epochs to {}".format(args.epochs))
-    if args.save_steps is not None and args.save_steps > 0:
-        args.step_mode = True  # use step mode to save ckpt
-        args.ckpt_save_interval = args.save_steps
-        logger.info("save_steps is set, override ckpt_save_interval to {}".format(args.ckpt_save_interval))
+        end_learning_rate = args.end_learning_rate
+    if args.dataset_sink_mode and args.sink_size != -1:
+        assert args.sink_size > 0, f"Expect that sink size is a positive integer, but got {args.sink_size}"
+        steps_per_sink = args.sink_size
+    else:
+        steps_per_sink = dataset_size
 
+    if args.max_steps is not None:
+        assert args.max_steps > 0, f"max_steps should a positive integer, but got {args.max_steps}"
+        total_train_steps = args.max_steps
+        args.epochs = math.ceil(total_train_steps / dataset_size)
+    else:
+        # use args.epochs
+        assert (
+            args.epochs is not None and args.epochs > 0
+        ), f"When args.max_steps is not provided, args.epochs must be a positive integer! but got {args.epochs}"
+        total_train_steps = args.epochs * dataset_size
+
+    sink_epochs = math.ceil(total_train_steps / steps_per_sink)
+    total_train_steps = sink_epochs * steps_per_sink
+    if steps_per_sink == dataset_size:
+        logger.info(
+            f"Number of training steps: {total_train_steps}; Number of epochs: {args.epochs}; Number of batches in a epoch (dataset_size): {dataset_size}"
+        )
+    else:
+        logger.info(
+            f"Number of training steps: {total_train_steps}; Number of sink epochs: {sink_epochs}; Number of batches in a sink (sink_size): {steps_per_sink}"
+        )
+
+    if args.save_steps is None:
+        ckpt_save_interval = args.ckpt_save_interval
+        step_mode = False
+        use_step_unit = False
+    else:
+        step_mode = not args.dataset_sink_mode
+        use_step_unit = True
+        if not args.dataset_sink_mode:
+            ckpt_save_interval = args.save_steps
+        else:
+            # still need to count interval in sink epochs
+            ckpt_save_interval = max(1, args.save_steps // steps_per_sink)
+            if args.save_steps % steps_per_sink != 0:
+                logger.warning(
+                    f"`save_steps` must be times of sink size or dataset_size under dataset sink mode."
+                    f"Checkpoint will be saved every {ckpt_save_interval * steps_per_sink} steps."
+                )
+    if step_mode != args.step_mode:
+        logger.logging("Using args.save_steps to determine whether to use step mode to save ckpt.")
+        if args.save_steps is None:
+            logger.warning(f"args.save_steps is not provided. Force step_mode to {step_mode}!")
+        else:
+            logger.warning(
+                f"args.save_steps is provided. data sink mode is {args.dataset_sink_mode}. Force step mode to {step_mode}!"
+            )
+    logger.info(
+        "ckpt_save_interval: {} {}".format(
+            ckpt_save_interval, "steps" if (not args.dataset_sink_mode and step_mode) else "sink epochs"
+        )
+    )
+
+    # build learning rate scheduler
     if not args.lr_decay_steps:
-        args.lr_decay_steps = max(1, args.epochs * num_batches - args.lr_warmup_steps)
+        args.lr_decay_steps = total_train_steps - args.lr_warmup_steps  # fix lr scheduling
+        if args.lr_decay_steps <= 0:
+            logger.warning(
+                f"decay_steps is {args.lr_decay_steps}, please check epochs, dataset_size and warmup_steps. "
+                f"Will force decay_steps to be set to 1."
+            )
+            args.lr_decay_steps = 1
+    assert (
+        args.lr_warmup_steps >= 0
+    ), f"Expect args.lr_warmup_steps to be no less than zero,  but got {args.lr_warmup_steps}"
+
     lr = create_scheduler(
-        steps_per_epoch=num_batches,
+        steps_per_epoch=dataset_size,
         name=args.lr_scheduler,
         lr=learning_rate,
-        end_lr=args.end_learning_rate,
+        end_lr=end_learning_rate,
         warmup_steps=args.lr_warmup_steps,
         decay_steps=args.lr_decay_steps,
-        num_epochs=args.epochs,
+        total_steps=total_train_steps,
     )
 
     # build optimizer
@@ -272,8 +340,7 @@ def main(args):
                 f"Number of frames: {args.video_num_frames}",
                 f"Weight decay: {args.weight_decay}",
                 f"Grad accumulation steps: {args.gradient_accumulation_steps}",
-                f"Num epochs: {args.epochs}",
-                f"Number of batches: {num_batches}",
+                f"Num of training steps: {total_train_steps}",
                 f"Loss scaler: {args.loss_scaler_type}",
                 f"Init loss scale: {args.init_loss_scale}",
                 f"Grad clipping: {args.clip_grad}",
@@ -303,9 +370,10 @@ def main(args):
                 ckpt_save_dir=ckpt_dir,
                 ema=ema,
                 ckpt_save_policy="latest_k",
-                step_mode=args.step_mode,
                 ckpt_max_keep=args.ckpt_max_keep,
-                ckpt_save_interval=args.ckpt_save_interval,
+                step_mode=step_mode,
+                use_step_unit=use_step_unit,
+                ckpt_save_interval=ckpt_save_interval,
                 log_interval=args.log_interval,
                 start_epoch=start_epoch,
                 model_name="vae_3d",
@@ -324,7 +392,7 @@ def main(args):
                 yaml.safe_dump(vars(args), stream=f, default_flow_style=False, sort_keys=False)
 
         model.train(
-            args.epochs,
+            sink_epochs,
             train_loader,
             callbacks=callback,
             dataset_sink_mode=args.dataset_sink_mode,
@@ -348,7 +416,7 @@ def main(args):
                 start_time_s = time.time()
                 x = data["video"]
 
-                global_step = epoch * num_batches + step
+                global_step = epoch * dataset_size + step
                 global_step = ms.Tensor(global_step, dtype=ms.int64)
 
                 # NOTE: inputs must match the order in GeneratorWithLoss.construct
@@ -357,7 +425,7 @@ def main(args):
                 if global_step >= disc_start:
                     loss_disc_t, overflow_d, scaling_sens_d = training_step_disc(x, global_step)
 
-                cur_global_step = epoch * num_batches + step + 1  # starting from 1 for logging
+                cur_global_step = epoch * dataset_size + step + 1  # starting from 1 for logging
                 if overflow:
                     logger.warning(f"Overflow occurs in step {cur_global_step}")
 
@@ -373,9 +441,11 @@ def main(args):
                     else:
                         loss_log_file.write(f"{cur_global_step}\t{loss_ae:.7f}\t{0.0}\t{step_time:.2f}\n")
                     loss_log_file.flush()
+                if cur_global_step == total_train_steps:
+                    break
 
             epoch_cost = time.time() - start_time_e
-            per_step_time = epoch_cost / num_batches
+            per_step_time = epoch_cost / dataset_size
             cur_epoch = epoch + 1
             logger.info(
                 f"Epoch:[{int(cur_epoch):>3d}/{int(args.epochs):>3d}], "
@@ -383,18 +453,20 @@ def main(args):
             )
             if rank_id == 0:
                 if (
-                    (cur_epoch % args.ckpt_save_interval == 0 and not args.step_mode)
-                    or (cur_global_step % args.ckpt_save_interval == 0 and args.step_mode)
+                    (cur_epoch % ckpt_save_interval == 0 and not step_mode)
+                    or (cur_global_step % ckpt_save_interval == 0 and step_mode)
                     or (cur_epoch == args.epochs)
+                    or (cur_global_step == total_train_steps)
                 ):
-                    ckpt_name = f"vae_3d-e{cur_epoch}.ckpt"
+                    ckpt_name = f"vae_3d-e{cur_epoch}.ckpt" if not use_step_unit else f"vae_3d-s{cur_global_step}.ckpt"
                     if ema is not None:
                         ema.swap_before_eval()
 
                     ckpt_manager.save(ae, None, ckpt_name=ckpt_name, append_dict=None)
                     if ema is not None:
                         ema.swap_after_eval()
-
+            if cur_global_step == total_train_steps:
+                break
             # TODO: eval while training
         loss_log_file.close()
 
