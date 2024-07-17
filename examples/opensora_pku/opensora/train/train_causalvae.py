@@ -441,6 +441,21 @@ def main(args):
                     else:
                         loss_log_file.write(f"{cur_global_step}\t{loss_ae:.7f}\t{0.0}\t{step_time:.2f}\n")
                     loss_log_file.flush()
+
+                if rank_id == 0 and step_mode:
+                    cur_epoch = epoch + 1
+                    if (cur_global_step % ckpt_save_interval == 0) or (cur_global_step == total_train_steps):
+                        ckpt_name = (
+                            f"vae_3d-e{cur_epoch}.ckpt" if not use_step_unit else f"vae_3d-s{cur_global_step}.ckpt"
+                        )
+                        if ema is not None:
+                            ema.swap_before_eval()
+                        ae_with_loss.autoencoder.set_train(False)
+                        ckpt_manager.save(ae_with_loss.autoencoder, None, ckpt_name=ckpt_name, append_dict=None)
+                        if ema is not None:
+                            ema.swap_after_eval()
+                        ae_with_loss.autoencoder.set_train(True)
+
                 if cur_global_step == total_train_steps:
                     break
 
@@ -451,13 +466,9 @@ def main(args):
                 f"Epoch:[{int(cur_epoch):>3d}/{int(args.epochs):>3d}], "
                 f"epoch time:{epoch_cost:.2f}s, per step time:{per_step_time*1000:.2f}ms, "
             )
-            if rank_id == 0:
-                if (
-                    (cur_epoch % ckpt_save_interval == 0 and not step_mode)
-                    or (cur_global_step % ckpt_save_interval == 0 and step_mode)
-                    or (cur_epoch == args.epochs)
-                    or (cur_global_step == total_train_steps)
-                ):
+
+            if rank_id == 0 and not step_mode:
+                if (cur_epoch % ckpt_save_interval == 0) or (cur_epoch == args.epochs):
                     ckpt_name = f"vae_3d-e{cur_epoch}.ckpt" if not use_step_unit else f"vae_3d-s{cur_global_step}.ckpt"
                     if ema is not None:
                         ema.swap_before_eval()
@@ -466,6 +477,7 @@ def main(args):
                     if ema is not None:
                         ema.swap_after_eval()
                     ae_with_loss.autoencoder.set_train(True)
+
             if cur_global_step == total_train_steps:
                 break
             # TODO: eval while training
