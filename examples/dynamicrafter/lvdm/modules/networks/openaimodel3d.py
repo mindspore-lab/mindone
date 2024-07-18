@@ -12,8 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ============================================================================
-from abc import abstractmethod
 import logging
+from abc import abstractmethod
 
 from lvdm.modules.attention import SpatialTransformer, TemporalTransformer
 from lvdm.modules.networks.util import (
@@ -22,10 +22,10 @@ from lvdm.modules.networks.util import (
     conv_nd,
     linear,
     normalization,
-    timestep_embedding,
-    zero_module,
     rearrange_in_gn5d_bs,
     rearrange_out_gn5d,
+    timestep_embedding,
+    zero_module,
 )
 
 import mindspore as ms
@@ -184,7 +184,9 @@ class ResBlock(TimestepBlock):
         # self.in_layers_norm = normalization(
         #     channels, norm_in_5d=norm_in_5d
         # )  # TODO: this is group norm actually, wrong naming. but renaming requires update of ckpt param name or mapping dict.
-        self.in_layers_norm = normalization(channels)  # TODO: this is group norm actually, wrong naming. but renaming requires update of ckpt param name or mapping dict.
+        self.in_layers_norm = normalization(
+            channels
+        )  # TODO: this is group norm actually, wrong naming. but renaming requires update of ckpt param name or mapping dict.
         self.in_layers_silu = nn.SiLU().to_float(self.dtype)
         self.in_layers_conv = conv_nd(
             dims, channels, self.out_channels, 3, padding=1, has_bias=True, pad_mode="pad"
@@ -305,25 +307,33 @@ class TemporalConvBlock(nn.Cell):
         self.conv1 = nn.SequentialCell(
             normalization(in_dim),
             SiLU(),
-            nn.Conv3d(in_dim, out_dim, th_kernel_shape, pad_mode="pad", padding=th_padding_shape, has_bias=True).to_float(ms.float16),
+            nn.Conv3d(
+                in_dim, out_dim, th_kernel_shape, pad_mode="pad", padding=th_padding_shape, has_bias=True
+            ).to_float(ms.float16),
         )
         self.conv2 = nn.SequentialCell(
             normalization(out_dim),
             SiLU(),
             nn.Dropout(1 - dropout) if is_old_ms_version() else nn.Dropout(p=dropout),
-            nn.Conv3d(out_dim, in_dim, tw_kernel_shape, pad_mode="pad", padding=tw_padding_shape, has_bias=True).to_float(ms.float16),
+            nn.Conv3d(
+                out_dim, in_dim, tw_kernel_shape, pad_mode="pad", padding=tw_padding_shape, has_bias=True
+            ).to_float(ms.float16),
         )
         self.conv3 = nn.SequentialCell(
             normalization(out_dim),
             SiLU(),
             nn.Dropout(1 - dropout) if is_old_ms_version() else nn.Dropout(p=dropout),
-            nn.Conv3d(out_dim, in_dim, th_kernel_shape, pad_mode="pad", padding=th_padding_shape, has_bias=True).to_float(ms.float16),
+            nn.Conv3d(
+                out_dim, in_dim, th_kernel_shape, pad_mode="pad", padding=th_padding_shape, has_bias=True
+            ).to_float(ms.float16),
         )
         self.conv4 = nn.SequentialCell(
             normalization(out_dim),
             SiLU(),
             nn.Dropout(1 - dropout) if is_old_ms_version() else nn.Dropout(p=dropout),
-            nn.Conv3d(out_dim, in_dim, tw_kernel_shape, pad_mode="pad", padding=tw_padding_shape, has_bias=True).to_float(ms.float16),
+            nn.Conv3d(
+                out_dim, in_dim, tw_kernel_shape, pad_mode="pad", padding=tw_padding_shape, has_bias=True
+            ).to_float(ms.float16),
         )
 
         # zero out the last layer params,so the conv block is identity
@@ -415,43 +425,44 @@ class UNetModel(nn.Cell):
                                     increased efficiency.
     """
 
-    def __init__(self,
-                 in_channels,
-                 model_channels,
-                 out_channels,
-                 num_res_blocks,
-                 attention_resolutions,
-                 dropout=0.0,
-                 channel_mult=(1, 2, 4, 8),
-                 conv_resample=True,
-                 dims=2,
-                 context_dim=None,
-                 use_scale_shift_norm=False,
-                 resblock_updown=False,
-                 num_heads=-1,
-                 num_head_channels=-1,
-                 transformer_depth=1,
-                 use_linear=False,
-                 temporal_conv=False,
-                 tempspatial_aware=False,
-                 temporal_attention=True,
-                 use_relative_position=True,
-                 use_causal_attention=False,
-                 temporal_length=None,
-                 use_fp16=False,
-                 addition_attention=False,
-                 temporal_selfatt_only=True,
-                 image_cross_attention=False,
-                 image_cross_attention_scale_learnable=False,
-                 default_fs=4,
-                 fs_condition=False,
-                 enable_flash_attention=False,
-                ):
+    def __init__(
+        self,
+        in_channels,
+        model_channels,
+        out_channels,
+        num_res_blocks,
+        attention_resolutions,
+        dropout=0.0,
+        channel_mult=(1, 2, 4, 8),
+        conv_resample=True,
+        dims=2,
+        context_dim=None,
+        use_scale_shift_norm=False,
+        resblock_updown=False,
+        num_heads=-1,
+        num_head_channels=-1,
+        transformer_depth=1,
+        use_linear=False,
+        temporal_conv=False,
+        tempspatial_aware=False,
+        temporal_attention=True,
+        use_relative_position=True,
+        use_causal_attention=False,
+        temporal_length=None,
+        use_fp16=False,
+        addition_attention=False,
+        temporal_selfatt_only=True,
+        image_cross_attention=False,
+        image_cross_attention_scale_learnable=False,
+        default_fs=4,
+        fs_condition=False,
+        enable_flash_attention=False,
+    ):
         super(UNetModel, self).__init__()
         if num_heads == -1:
-            assert num_head_channels != -1, 'Either num_heads or num_head_channels has to be set'
+            assert num_head_channels != -1, "Either num_heads or num_head_channels has to be set"
         if num_head_channels == -1:
-            assert num_heads != -1, 'Either num_heads or num_head_channels has to be set'
+            assert num_heads != -1, "Either num_heads or num_head_channels has to be set"
 
         self.in_channels = in_channels
         self.model_channels = model_channels
@@ -473,7 +484,7 @@ class UNetModel(nn.Cell):
         self.fs_condition = fs_condition
         self.enable_flash_attention = enable_flash_attention
 
-        ## Time embedding blocks
+        # Time embedding blocks
         self.time_embed = nn.SequentialCell(
             linear(model_channels, time_embed_dim, dtype=self.dtype),
             nn.SiLU().to_float(self.dtype),
@@ -485,17 +496,23 @@ class UNetModel(nn.Cell):
                 nn.SiLU().to_float(self.dtype),
                 linear(time_embed_dim, time_embed_dim, dtype=self.dtype),
             )
-            self.fps_embedding[-1].weight.set_data(initializer("zeros", self.fps_embedding[-1].weight.shape, self.fps_embedding[-1].weight.dtype))
-            self.fps_embedding[-1].bias.set_data(initializer("zeros", self.fps_embedding[-1].bias.shape, self.fps_embedding[-1].bias.dtype))
+            self.fps_embedding[-1].weight.set_data(
+                initializer("zeros", self.fps_embedding[-1].weight.shape, self.fps_embedding[-1].weight.dtype)
+            )
+            self.fps_embedding[-1].bias.set_data(
+                initializer("zeros", self.fps_embedding[-1].bias.shape, self.fps_embedding[-1].bias.dtype)
+            )
 
-        ## Input Block
+        # Input Block
         self.input_blocks = nn.CellList(
             [
-                TimestepEmbedSequential(conv_nd(dims, in_channels, model_channels, 3, padding=1, has_bias=True, pad_mode="pad"))
+                TimestepEmbedSequential(
+                    conv_nd(dims, in_channels, model_channels, 3, padding=1, has_bias=True, pad_mode="pad")
+                )
             ]
         )
         if self.addition_attention:
-            self.init_attn=TimestepEmbedSequential(
+            self.init_attn = TimestepEmbedSequential(
                 TemporalTransformer(
                     model_channels,
                     n_heads=8,
@@ -506,8 +523,8 @@ class UNetModel(nn.Cell):
                     causal_attention=False,
                     relative_position=use_relative_position,
                     temporal_length=temporal_length,
-                    )
                 )
+            )
 
         input_block_chans = [model_channels]
         ch = model_channels
@@ -536,7 +553,8 @@ class UNetModel(nn.Cell):
                     layers.append(
                         SpatialTransformer(
                             ch,
-                            num_heads, dim_head,
+                            num_heads,
+                            dim_head,
                             depth=transformer_depth,
                             context_dim=context_dim,
                             use_linear=use_linear,
@@ -612,7 +630,7 @@ class UNetModel(nn.Cell):
                 image_cross_attention=self.image_cross_attention,
                 image_cross_attention_scale_learnable=self.image_cross_attention_scale_learnable,
                 enable_flash_attention=self.enable_flash_attention,
-            )
+            ),
         ]
         if self.temporal_attention:
             layers.append(
@@ -638,13 +656,13 @@ class UNetModel(nn.Cell):
                 use_scale_shift_norm=use_scale_shift_norm,
                 tempspatial_aware=tempspatial_aware,
                 use_temporal_conv=temporal_conv,
-                )
+            )
         )
 
-        ## Middle Block
+        # Middle Block
         self.middle_block = TimestepEmbedSequential(*layers)
 
-        ## Output Block
+        # Output Block
         self.output_blocks = nn.CellList([])
         for level, mult in list(enumerate(channel_mult))[::-1]:
             for i in range(num_res_blocks + 1):
@@ -723,30 +741,30 @@ class UNetModel(nn.Cell):
         )
 
     def construct(self, x, timesteps, context=None, features_adapter=None, fs=None, **kwargs):
-        b,_,t,_,_ = x.shape
+        b, _, t, _, _ = x.shape
         t_emb = timestep_embedding(timesteps, self.model_channels, repeat_only=False).astype(x.dtype)
         emb = self.time_embed(t_emb)
-        
-        ## repeat t times for context [(b t) 77 768] & time embedding
-        ## check if we use per-frame image conditioning
+
+        # repeat t times for context [(b t) 77 768] & time embedding
+        # check if we use per-frame image conditioning
         _, l_context, _ = context.shape
-        if l_context == 77 + t*16: ## !!! HARD CODE here
-            context_text, context_img = context[:,:77,:], context[:,77:,:]
+        if l_context == 77 + t * 16:  # !!! HARD CODE here
+            context_text, context_img = context[:, :77, :], context[:, 77:, :]
             context_text = context_text.repeat_interleave(repeats=t, dim=0)
 
             # context_img = rearrange(context_img, 'b (t l) c -> (b t) l c', t=t)
             b, tl, c = context_img.shape
-            context_img = ops.reshape(context_img, (b*t, tl // t, c))  # (b*t l c)
+            context_img = ops.reshape(context_img, (b * t, tl // t, c))  # (b*t l c)
 
             context = ops.cat([context_text, context_img], axis=1)
         else:
             context = context.repeat_interleave(repeats=t, dim=0)
         emb = emb.repeat_interleave(repeats=t, dim=0)
-        
-        ## always in shape (b t) c h w, except for temporal layer
+
+        # always in shape (b t) c h w, except for temporal layer
         x = rearrange_out_gn5d(x)
 
-        ## combine emb
+        # combine emb
         if self.fs_condition:
             if fs is None:
                 fs = ms.Tensor([self.default_fs] * b, dtype=ms.int64)
@@ -763,17 +781,17 @@ class UNetModel(nn.Cell):
             h = module(h, emb, context=context, batch_size=b)
             if id == 0 and self.addition_attention:
                 h = self.init_attn(h, emb, context=context, batch_size=b)
-            ## plug-in adapter features
-            if ((id+1)%3 == 0) and features_adapter is not None:
+            # plug-in adapter features
+            if ((id + 1) % 3 == 0) and features_adapter is not None:
                 h = h + features_adapter[adapter_idx]
                 adapter_idx += 1
             hs.append(h)
         if features_adapter is not None:
-            assert len(features_adapter)==adapter_idx, 'Wrong features_adapter'
+            assert len(features_adapter) == adapter_idx, "Wrong features_adapter"
 
         h = self.middle_block(h, emb, context=context, batch_size=b)
         for i, module in enumerate(self.output_blocks):
-            hs_pop = hs[-(i+1)]
+            hs_pop = hs[-(i + 1)]
             h = ops.cat([h, hs_pop], axis=1)
             h = module(h, emb, context=context, batch_size=b)
         h = h.astype(x.dtype)

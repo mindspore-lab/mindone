@@ -12,6 +12,7 @@ from gm.util import default, exists
 
 import mindspore as ms
 from mindspore import nn, ops
+
 # from mindspore.ops._tracefunc import trace
 
 try:

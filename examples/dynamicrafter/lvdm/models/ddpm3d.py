@@ -15,17 +15,15 @@
 import logging
 from functools import partial
 from typing import Union
-import random
 
 import numpy as np
+from lvdm.models.utils_diffusion import make_beta_schedule, rescale_zero_terminal_snr
 
 import mindspore as ms
 from mindspore import Parameter, Tensor
 from mindspore import dtype as mstype
 from mindspore import nn, ops
-from mindspore.nn import AdamWeightDecay
 
-from lvdm.models.utils_diffusion import make_beta_schedule, rescale_zero_terminal_snr
 from mindone.utils.config import instantiate_from_config
 from mindone.utils.misc import default, exists, extract_into_tensor
 
@@ -186,14 +184,14 @@ class DDPM(nn.Cell):
 
     def predict_start_from_z_and_v(self, x_t, t, v):
         return (
-                extract_into_tensor(self.sqrt_alphas_cumprod, t, x_t.shape) * x_t -
-                extract_into_tensor(self.sqrt_one_minus_alphas_cumprod, t, x_t.shape) * v
+            extract_into_tensor(self.sqrt_alphas_cumprod, t, x_t.shape) * x_t
+            - extract_into_tensor(self.sqrt_one_minus_alphas_cumprod, t, x_t.shape) * v
         )
 
     def predict_eps_from_z_and_v(self, x_t, t, v):
         return (
-                extract_into_tensor(self.sqrt_alphas_cumprod, t, x_t.shape) * v +
-                extract_into_tensor(self.sqrt_one_minus_alphas_cumprod, t, x_t.shape) * x_t
+            extract_into_tensor(self.sqrt_alphas_cumprod, t, x_t.shape) * v
+            + extract_into_tensor(self.sqrt_one_minus_alphas_cumprod, t, x_t.shape) * x_t
         )
 
 
@@ -219,7 +217,7 @@ class LatentDiffusion(DDPM):
         base_scale=0.7,
         turning_step=400,
         interp_mode=False,
-        fps_condition_type='fs',
+        fps_condition_type="fs",
         perframe_ae=False,
         logdir=None,
         rand_cond_frame=False,
@@ -274,9 +272,9 @@ class LatentDiffusion(DDPM):
 
         self.uniform_int = ops.UniformInt()
         self.cond_stage_forward = cond_stage_forward
-        assert(encoder_type in ["2d", "3d"])
+        assert encoder_type in ["2d", "3d"]
         self.encoder_type = encoder_type
-        assert(uncond_type in ["zero_embed", "empty_seq"])
+        assert uncond_type in ["zero_embed", "empty_seq"]
         self.uncond_type = uncond_type
         self.uncond_prob = uncond_prob
         self.restarted_from_ckpt = False
@@ -332,23 +330,22 @@ class LatentDiffusion(DDPM):
         return ms.Tensor(tokenized_res)
 
     def decode_core(self, z, **kwargs):
-        # import pdb;pdb.set_trace()
         if self.encoder_type == "2d" and z.dim() == 5:
             b, _, t, _, _ = z.shape
             # z = rearrange(z, 'b c t h w -> (b t) c h w')
-            z = ops.transpose(z, (0, 2, 1, 3, 4))  #  (b c t h w) -> (b t c h w)
+            z = ops.transpose(z, (0, 2, 1, 3, 4))  # (b c t h w) -> (b t c h w)
             z = ops.reshape(z, (-1, z.shape[2], z.shape[3], z.shape[4]))  # (b t c h w) -> ((b t) c h w)
             reshape_back = True
         else:
             reshape_back = False
-            
-        if not self.perframe_ae:    
-            z = 1. / self.scale_factor * z
+
+        if not self.perframe_ae:
+            z = 1.0 / self.scale_factor * z
             results = self.first_stage_model.decode(z)
         else:
             results = []
             for index in range(z.shape[0]):
-                frame_z = 1. / self.scale_factor * z[index:index+1,:,:,:]
+                frame_z = 1.0 / self.scale_factor * z[index : index + 1, :, :, :]
                 frame_result = self.first_stage_model.decode(frame_z)
                 results.append(frame_result)
             results = ops.cat(results, axis=0)
@@ -371,13 +368,15 @@ class LatentDiffusion(DDPM):
         else:
             reshape_back = False
 
-        ## consume more chip memory but faster
+        # consume more chip memory but faster
         if not self.perframe_ae:
             results = ops.stop_gradient(self.scale_factor * self.first_stage_model.encode(x))
-        else:  ## consume less chip memory but slower
+        else:  # consume less chip memory but slower
             results = []
             for index in range(x.shape[0]):
-                frame_result = ops.stop_gradient(self.scale_factor * self.first_stage_model.encode(x[index:index+1,:,:,:]))
+                frame_result = ops.stop_gradient(
+                    self.scale_factor * self.first_stage_model.encode(x[index : index + 1, :, :, :])
+                )
                 results.append(frame_result)
             results = ops.cat(results, axis=0)
 
@@ -431,7 +430,7 @@ class LatentDiffusion(DDPM):
 
     def get_learned_conditioning(self, c):
         if self.cond_stage_forward is None:
-            tokens, _ = self.cond_stage_model.tokenize(c)   # text -> tensor
+            tokens, _ = self.cond_stage_model.tokenize(c)  # text -> tensor
             c = self.cond_stage_model.encode(Tensor(tokens))
         else:
             raise NotImplementedError
@@ -560,7 +559,15 @@ class LatentDiffusionWithEmbedding(LatentDiffusion):
 
 
 class LatentVisualDiffusion(LatentDiffusion):
-    def __init__(self, img_cond_stage_config, image_proj_stage_config, freeze_embedder=True, image_proj_model_trainable=True, *args, **kwargs):
+    def __init__(
+        self,
+        img_cond_stage_config,
+        image_proj_stage_config,
+        freeze_embedder=True,
+        image_proj_model_trainable=True,
+        *args,
+        **kwargs,
+    ):
         super().__init__(*args, **kwargs)
         self.image_proj_model_trainable = image_proj_model_trainable
         self._init_embedder(img_cond_stage_config, freeze_embedder)

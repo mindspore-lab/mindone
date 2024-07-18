@@ -9,9 +9,11 @@ import mindspore as ms
 from mindspore import Tensor, nn, ops
 from mindspore.ops import composite as C
 from mindspore.ops import functional as F
+
+# from mindone.utils.amp import auto_mixed_precision
+
 # from mindspore.train.amp import AMP_BLACK_LIST, AMP_WHITE_LIST, _auto_black_list, _auto_white_list
 
-from mindone.utils.amp import auto_mixed_precision 
 
 def exists(x):
     return x is not None

@@ -14,11 +14,12 @@
 # ============================================================================
 import numpy as np
 from lvdm.modules.networks.util import make_ddim_sampling_parameters, make_ddim_timesteps, noise_like, rescale_noise_cfg
-from mindone.utils.misc import extract_into_tensor
 from tqdm import tqdm
 
 import mindspore as ms
 import mindspore.ops as ops
+
+from mindone.utils.misc import extract_into_tensor
 
 
 class DDIMSampler(object):
@@ -94,7 +95,7 @@ class DDIMSampler(object):
         unconditional_conditioning=None,
         precision=None,
         fs=None,
-        timestep_spacing='uniform', #uniform_trailing for starting from last timestep
+        timestep_spacing="uniform",  # uniform_trailing for starting from last timestep
         guidance_rescale=0.0,
         **kwargs,
     ):
@@ -275,10 +276,10 @@ class DDIMSampler(object):
                 assert len(v) == 1
                 unconditional_conditioning[k] = v[0]
 
-        if unconditional_conditioning is None or unconditional_guidance_scale == 1.:
-            model_output = self.model.apply_model(x, t, c, **kwargs) # unet denoiser
+        if unconditional_conditioning is None or unconditional_guidance_scale == 1.0:
+            model_output = self.model.apply_model(x, t, c, **kwargs)  # unet denoiser
         else:
-            ### do_classifier_free_guidance
+            # do_classifier_free_guidance
             if isinstance(c, ms.Tensor) or isinstance(c, dict):
                 e_t_cond = self.model.apply_model(x, t, c, **kwargs)
                 e_t_uncond = self.model.apply_model(x, t, unconditional_conditioning, **kwargs)
@@ -324,7 +325,7 @@ class DDIMSampler(object):
         if self.model.use_dynamic_rescale:
             scale_t = ops.full(size, self.ddim_scale_arr[index], dtype=self.ddim_scale_arr[index].dtype)
             prev_scale_t = ops.full(size, self.ddim_scale_arr_prev[index], dtype=self.ddim_scale_arr_prev[index].dtype)
-            rescale = (prev_scale_t / scale_t)
+            rescale = prev_scale_t / scale_t
             pred_x0 *= rescale
 
         if quantize_denoised:

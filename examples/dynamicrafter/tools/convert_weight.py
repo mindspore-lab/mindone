@@ -1,9 +1,10 @@
 import argparse
 
-import torch
-import mindspore as ms
 import numpy as np
+import torch
 from tqdm import tqdm
+
+import mindspore as ms
 
 """
 Usage: python convert_weight.py \
@@ -14,6 +15,7 @@ Usage: python convert_weight.py \
 
 Note: There are three resolutions: 256, 512, 1024. Please make sure the resolution is correct.
 """
+
 
 def convert_pt2ms(pt_param, ms_param, pt_weight, save_fp):
     """#gap PT weights not exists in MS weights, but it's reasonable."""
@@ -51,12 +53,14 @@ def convert_pt2ms(pt_param, ms_param, pt_weight, save_fp):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--src_param", type=str, default="./pt_param_1024.txt", help="path to torch checkpoint param text")
-    parser.add_argument("--target_param", type=str, default="./ms_param_1024.txt", help="path to mindspore checkpoint param text")
-    parser.add_argument("--src_ckpt", type=str, help="path to torch checkpoint path")
     parser.add_argument(
-        "--target_ckpt", type=str, help="target file path to save the converted checkpoint"
+        "--src_param", type=str, default="./pt_param_1024.txt", help="path to torch checkpoint param text"
     )
+    parser.add_argument(
+        "--target_param", type=str, default="./ms_param_1024.txt", help="path to mindspore checkpoint param text"
+    )
+    parser.add_argument("--src_ckpt", type=str, help="path to torch checkpoint path")
+    parser.add_argument("--target_ckpt", type=str, help="target file path to save the converted checkpoint")
     args = parser.parse_args()
 
     convert_pt2ms(args.src_param, args.target_param, args.src_ckpt, args.target_ckpt)

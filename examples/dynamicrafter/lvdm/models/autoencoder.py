@@ -1,8 +1,8 @@
 import sys
+
 sys.path.append("../stable_diffusion_v2")
 
 from ldm.models.autoencoder import AutoencoderKL as AutoencoderKL_SD
-
 
 __all__ = ["AutoencoderKL"]
 
