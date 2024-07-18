@@ -5,4 +5,4 @@ python eval_common_metric.py \
     --num_frames 20 \
     --crop_size 64 \
     --device 'Ascend' \
-    --metric 'ssim'
+    --metric 'psnr'

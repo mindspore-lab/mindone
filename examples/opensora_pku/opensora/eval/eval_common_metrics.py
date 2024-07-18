@@ -183,7 +183,7 @@ def main():
     parser.add_argument("--batch_size", type=int, default=2, help="Batch size to use")
     parser.add_argument("--real_video_dir", type=str, help=("the path of real videos`"))
     parser.add_argument("--generated_video_dir", type=str, help=("the path of generated videos`"))
-    parser.add_argument("--device", type=str, default=None, help="Device to use. Like cuda, cuda:0 or cpu")
+    parser.add_argument("--device", type=str, default=None, help="Device to use. Like GPU or Ascend")
     parser.add_argument(
         "--num_workers",
         type=int,
