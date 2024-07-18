@@ -210,7 +210,6 @@ class STDiT2(nn.Cell):
         no_temporal_pos_emb=False,
         caption_channels=4096,
         model_max_length=120,
-        dtype=dtype.float32,
         freeze=None,
         qk_norm=False,
         enable_flashattn=False,
@@ -226,7 +225,6 @@ class STDiT2(nn.Cell):
         self.out_channels = in_channels * 2 if pred_sigma else in_channels
         self.hidden_size = hidden_size
         self.num_heads = num_heads
-        self.dtype = dtype
         self.no_temporal_pos_emb = no_temporal_pos_emb
         self.depth = depth
         self.mlp_ratio = mlp_ratio
