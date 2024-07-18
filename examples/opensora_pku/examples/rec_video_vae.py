@@ -2,18 +2,27 @@ import argparse
 import logging
 import os
 import sys
+from typing import Tuple
 
 import numpy as np
 from tqdm import tqdm
 
 import mindspore as ms
 from mindspore import nn
+from mindspore.communication.management import get_group_size, get_rank, init
 
 mindone_lib_path = os.path.abspath("../../")
 sys.path.insert(0, mindone_lib_path)
+from opensora.acceleration.parallel_states import (
+    get_sequence_parallel_state,
+    hccl_info,
+    initialize_sequence_parallel_state,
+)
+
 from mindone.utils.amp import auto_mixed_precision
 from mindone.utils.config import str2bool
 from mindone.utils.logger import set_logger
+from mindone.utils.seed import set_random_seed
 from mindone.visualize.videos import save_videos
 
 sys.path.append(".")
@@ -25,20 +34,96 @@ from opensora.models.ae.videobase.modules.updownsample import TrilinearInterpola
 from opensora.utils.utils import get_precision
 
 logger = logging.getLogger(__name__)
-ms.context.set_context(jit_config={"jit_level": "O0"})  # O0: KBK, O1:DVM, O2: GE
 
 
-def init_env(args):
-    # no parallel mode currently
-    device_id = int(os.getenv("DEVICE_ID", 0))
-    ms.set_context(
-        mode=args.mode,
-        device_target=args.device,
-        device_id=device_id,
+def init_env(
+    mode: int = ms.GRAPH_MODE,
+    seed: int = 42,
+    distributed: bool = False,
+    max_device_memory: str = None,
+    device_target: str = "Ascend",
+    parallel_mode: str = "data",
+    precision_mode: str = None,
+    global_bf16: bool = False,
+    sp_size: int = 1,
+    jit_level: str = "O0",  # using kbk mode
+) -> Tuple[int, int, int]:
+    """
+    Initialize MindSpore environment.
+
+    Args:
+        mode: MindSpore execution mode. Default is 0 (ms.GRAPH_MODE).
+        seed: The seed value for reproducibility. Default is 42.
+        distributed: Whether to enable distributed training. Default is False.
+    Returns:
+        A tuple containing the device ID, rank ID and number of devices.
+    """
+    set_random_seed(seed)
+
+    if max_device_memory is not None:
+        ms.set_context(max_device_memory=max_device_memory)
+
+    if distributed:
+        ms.set_context(
+            mode=mode,
+            device_target=device_target,
+        )
+        if parallel_mode == "optim":
+            print("use optim parallel")
+            ms.set_auto_parallel_context(
+                parallel_mode=ms.ParallelMode.SEMI_AUTO_PARALLEL,
+                enable_parallel_optimizer=True,
+            )
+            init()
+            device_num = get_group_size()
+            rank_id = get_rank()
+        else:
+            init()
+            device_num = get_group_size()
+            rank_id = get_rank()
+            logger.debug(f"rank_id: {rank_id}, device_num: {device_num}")
+            ms.reset_auto_parallel_context()
+
+            ms.set_auto_parallel_context(
+                parallel_mode=ms.ParallelMode.DATA_PARALLEL,
+                gradients_mean=True,
+                device_num=device_num,
+            )
+
+        var_info = ["device_num", "rank_id", "device_num / 8", "rank_id / 8"]
+        var_value = [device_num, rank_id, int(device_num / 8), int(rank_id / 8)]
+        logger.info(dict(zip(var_info, var_value)))
+
+    else:
+        device_num = 1
+        rank_id = 0
+        ms.set_context(
+            mode=mode,
+            device_target=device_target,
+        )
+    if jit_level is not None:
+        if mode == 1:
+            print(f"Only graph mode supports jit_level! Will ignore jit_level {jit_level} in Pynative mode.")
+        else:
+            jit_dict = {"O0": "KBK", "O1": "DVM", "O2": "GE"}
+            print(f"Using jit_level: {jit_dict[jit_level]}")
+            ms.context.set_context(jit_config={"jit_level": jit_level})  # O0: KBK, O1:DVM, O2: GE
+    if global_bf16:
+        print("Using global bf16")
+        assert jit_level is not None and jit_level == "O2", "global_bf16 is supported in GE mode only!"
+        ms.set_context(
+            ascend_config={"precision_mode": "allow_mix_precision_bf16"}
+        )  # reset ascend precison mode globally
+
+    if precision_mode is not None and len(precision_mode) > 0:
+        ms.set_context(ascend_config={"precision_mode": precision_mode})
+
+    assert device_num >= sp_size and device_num % sp_size == 0, (
+        f"unable to use sequence parallelism, " f"device num: {device_num}, sp size: {sp_size}"
     )
-    if args.precision_mode is not None:
-        ms.set_context(ascend_config={"precision_mode": args.precision_mode})
-    return device_id
+    initialize_sequence_parallel_state(sp_size)
+
+    return rank_id, device_num
 
 
 def transform_to_rgb(x, rescale_to_uint8=True):
@@ -61,7 +146,17 @@ def main(args):
     batch_size = args.batch_size
     num_workers = args.num_workers
     assert args.dataset_name == "video", "Only support video reconstruction!"
-    init_env(args)
+    rank_id, device_num = init_env(
+        args.mode,
+        seed=args.seed,
+        distributed=args.use_parallel,
+        device_target=args.device,
+        max_device_memory=args.max_device_memory,
+        parallel_mode=args.parallel_mode,
+        precision_mode=args.precision_mode,
+        sp_size=args.sp_size,
+        jit_level=args.jit_level,
+    )
 
     if not os.path.exists(args.generated_video_dir):
         os.makedirs(args.generated_video_dir, exist_ok=True)
@@ -115,7 +210,9 @@ def main(args):
         batch_size=batch_size,
         ds_name=args.dataset_name,
         num_parallel_workers=num_workers,
-        shuffle=False,
+        shuffle=False,  # be in order
+        device_num=device_num if not get_sequence_parallel_state() else (device_num // hccl_info.world_size),
+        rank_id=rank_id if not get_sequence_parallel_state() else hccl_info.group_id,
         drop_remainder=False,
     )
     num_batches = dataloader.get_dataset_size()
@@ -194,6 +291,14 @@ if __name__ == "__main__":
                 if bf16 or fp16, amp_level==O2, part of layers will compute in bf16 or fp16 such as matmul, dense, conv.",
     )
     parser.add_argument("--device", type=str, default="Ascend", help="Ascend or GPU")
+    parser.add_argument("--max_device_memory", type=str, default=None, help="e.g. `30GB` for 910a, `59GB` for 910b")
+    parser.add_argument("--mode", default=0, type=int, help="Specify the mode: 0 for graph mode, 1 for pynative mode")
+    parser.add_argument("--use_parallel", default=False, type=str2bool, help="use parallel")
+    parser.add_argument(
+        "--parallel_mode", default="data", type=str, choices=["data", "optim"], help="parallel mode: data, optim"
+    )
+    parser.add_argument("--jit_level", default="O0", help="Set jit level: # O0: KBK, O1:DVM, O2: GE")
+    parser.add_argument("--seed", type=int, default=4, help="Inference seed")
     parser.add_argument(
         "--precision_mode",
         default="must_keep_origin_dtype",
@@ -203,6 +308,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--dataset_name", default="video", type=str, choices=["image", "video"], help="dataset name, image or video"
     )
+    parser.add_argument("--sp_size", type=int, default=1, help="For sequence parallel")
 
     args = parser.parse_args()
     main(args)
