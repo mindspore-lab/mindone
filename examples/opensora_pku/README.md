@@ -272,6 +272,28 @@ As stated in [Training Details](https://github.com/PKU-YuanGroup/Open-Sora-Plan/
 You can revise `--video_num_frames` and `--resolution` in the training scripts under `scripts/causalvae/` for each stage accordingly.
 
 
+
+#### Inference After Training
+
+After training, you will find the checkpoint files under the `ckpt/` folder of the output directory. To evaluate the reconstruction of the checkpoint file, you can take `scripts/causalvae/gen_video.sh` and revise it like:
+
+```bash
+python examples/rec_video_vae.py \
+    --batch_size 1 \
+    --real_video_dir input_real_video_dir \
+    --generated_video_dir output_generated_video_dir \
+    --device Ascend \
+    --sample_fps 10 \
+    --sample_rate 1 \
+    --num_frames 9 \  # revise according to your training stage
+    --resolution 256 \ # revise according to your training stage
+    --crop_size 256 \ # revise according to your training stage
+    --num_workers 8 \
+    --ckpt /path/to/your/.ckpt/file
+```
+
+Runing this command will generate reconstructed videos under the given `output_generated_video_dir`. You can then evalute some common metrics (e.g., ssim, psnr) using the script under `opensora/eval/script`.
+
 ### Training Diffusion Model
 
 #### Preparation

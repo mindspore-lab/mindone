@@ -58,8 +58,8 @@ def init_env(args):
             )
         else:
             jit_dict = {"O0": "KBK", "O1": "DVM", "O2": "GE"}
-            print(f"Using args.jit_level: {jit_dict[args.jit_level]}")
-            ms.context.set_context(jit_config={"args.jit_level": args.jit_level})  # O0: KBK, O1:DVM, O2: GE
+            print(f"Using jit_level: {jit_dict[args.jit_level]}")
+            ms.context.set_context(jit_config={"jit_level": args.jit_level})  # O0: KBK, O1:DVM, O2: GE
     return device_id
 
 
@@ -252,6 +252,6 @@ if __name__ == "__main__":
         action="store_true",
         help="whether to use grid to show original and reconstructed data",
     )
-    parser.add_argument("--args.jit_level", default="O0", help="Set jit level: # O0: KBK, O1:DVM, O2: GE")
+    parser.add_argument("--jit_level", default="O0", help="Set jit level: # O0: KBK, O1:DVM, O2: GE")
     args = parser.parse_args()
     main(args)

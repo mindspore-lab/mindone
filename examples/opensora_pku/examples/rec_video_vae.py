@@ -13,11 +13,6 @@ from mindspore.communication.management import get_group_size, get_rank, init
 
 mindone_lib_path = os.path.abspath("../../")
 sys.path.insert(0, mindone_lib_path)
-from opensora.acceleration.parallel_states import (
-    get_sequence_parallel_state,
-    hccl_info,
-    initialize_sequence_parallel_state,
-)
 
 from mindone.utils.amp import auto_mixed_precision
 from mindone.utils.config import str2bool
@@ -26,6 +21,11 @@ from mindone.utils.seed import set_random_seed
 from mindone.visualize.videos import save_videos
 
 sys.path.append(".")
+from opensora.acceleration.parallel_states import (
+    get_sequence_parallel_state,
+    hccl_info,
+    initialize_sequence_parallel_state,
+)
 from opensora.models.ae import getae_wrapper
 from opensora.models.ae.videobase.dataset_videobase import VideoDataset, create_dataloader
 
@@ -196,6 +196,7 @@ def main(args):
                 sample_stride=sample_rate,
                 sample_n_frames=num_frames,
                 return_image=False,
+                dynamic_start_index=args.dynamic_start_index,
             )
         )
         split_time_upsample = True
@@ -297,7 +298,6 @@ if __name__ == "__main__":
     )
     parser.add_argument("--device", type=str, default="Ascend", help="Ascend or GPU")
     parser.add_argument("--max_device_memory", type=str, default=None, help="e.g. `30GB` for 910a, `59GB` for 910b")
-    parser.add_argument("--mode", default=0, type=int, help="Specify the mode: 0 for graph mode, 1 for pynative mode")
     parser.add_argument("--use_parallel", default=False, type=str2bool, help="use parallel")
     parser.add_argument(
         "--parallel_mode", default="data", type=str, choices=["data", "optim"], help="parallel mode: data, optim"
@@ -314,6 +314,11 @@ if __name__ == "__main__":
         "--dataset_name", default="video", type=str, choices=["image", "video"], help="dataset name, image or video"
     )
     parser.add_argument("--sp_size", type=int, default=1, help="For sequence parallel")
+    parser.add_argument(
+        "--dynamic_start_index",
+        action="store_true",
+        help="Whether to use a random frame as the starting frame for reconstruction. Default is False for the ease of evaluation.",
+    )
 
     args = parser.parse_args()
     main(args)
