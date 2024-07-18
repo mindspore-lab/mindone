@@ -125,10 +125,12 @@ class VideoAutoencoderKL(nn.Cell):
             x = self.module.encode(x) * self.scale_factor
         else:
             bs = self.micro_batch_size
-            x_out = []
+            # Not sure whether to enter the for loop because of dynamic shape,
+            # avoid initialize x_out as an empty list
+            x_out = [self.module.encode(x[:bs]) * self.scale_factor]
             # FIXME: supported in graph mode? or use split
-            for i in range(0, x.shape[0], bs):
-                x_bs = x[i : i + bs]
+            for i in range(bs, x.shape[0], bs):
+                x_bs = x[i: i + bs]
                 x_bs = self.module.encode(x_bs) * self.scale_factor
                 x_out.append(x_bs)
             x = ops.cat(x_out, axis=0)
