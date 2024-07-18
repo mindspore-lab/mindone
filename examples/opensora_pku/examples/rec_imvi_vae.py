@@ -153,7 +153,7 @@ def main(args):
     init_env(args)
     set_logger(name="", output_dir=args.output_path, rank=0)
 
-    kwarg = {}
+    kwarg = {"model_config": args.model_config}
     vae = getae_wrapper(args.ae)(args.model_path, **kwarg)
     if args.enable_tiling:
         vae.vae.enable_tiling()
@@ -214,6 +214,11 @@ if __name__ == "__main__":
     parser.add_argument("--rec_path", type=str, default="")
     parser.add_argument("--ae", type=str, default="CausalVAEModel_4x8x8")
     parser.add_argument("--model_path", type=str, default="results/pretrained")
+    parser.add_argument(
+        "--model_config",
+        default="scripts/causalvae/release.json",
+        help="the model configuration file for the causalvae.",
+    )
     parser.add_argument("--fps", type=int, default=30)
     parser.add_argument("--resolution", type=int, default=None)
     parser.add_argument("--crop_size", type=int, default=None)

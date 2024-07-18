@@ -163,7 +163,7 @@ def main(args):
 
     set_logger(name="", output_dir=args.generated_video_dir, rank=0)
 
-    kwarg = {}
+    kwarg = {"model_config": args.model_config}
     vae = getae_wrapper(args.ae)(args.ckpt, **kwarg)
     if args.enable_tiling:
         vae.vae.enable_tiling()
@@ -265,6 +265,11 @@ if __name__ == "__main__":
     parser.add_argument("--real_video_dir", type=str, default="")
     parser.add_argument("--generated_video_dir", type=str, default="")
     parser.add_argument("--ckpt", type=str, default="results/pretrained/causal_vae.ckpt")
+    parser.add_argument(
+        "--model_config",
+        default="scripts/causalvae/release.json",
+        help="the model configuration file for the causalvae.",
+    )
     parser.add_argument("--sample_fps", type=int, default=30)
     parser.add_argument("--resolution", type=int, default=512)
     parser.add_argument("--crop_size", type=int, default=512)

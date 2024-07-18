@@ -284,8 +284,6 @@ def main(args):
     # TODO: resume Discriminator if used
     ckpt_dir = os.path.join(args.output_dir, "ckpt")
     os.makedirs(ckpt_dir, exist_ok=True)
-    # save config.json to ckpt_dir
-    json.dump(ae.config, open(os.path.join(ckpt_dir, "config.json"), "w"))
     start_epoch = 0
     if args.resume_from_checkpoint:
         resume_ckpt = (
