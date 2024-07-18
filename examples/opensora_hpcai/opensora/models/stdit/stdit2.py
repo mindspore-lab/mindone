@@ -388,9 +388,9 @@ class STDiT2(nn.Cell):
         S = H * W
         scale = rs / self.input_sq_size
         base_size = round(S**0.5)
-        # BUG MS2.3rc1: ops.meshgrid() bprop is not supported
 
         if spatial_pos is None:
+            # Position embedding doesn't need gradient
             pos_emb = ops.stop_gradient(self.pos_embed(H, W, scale=scale, base_size=base_size))
         else:
             pos_emb = spatial_pos
