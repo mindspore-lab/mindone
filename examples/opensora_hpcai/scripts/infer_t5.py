@@ -52,6 +52,20 @@ def init_env(
     """
     set_random_seed(seed)
 
+    if mode == ms.GRAPH_MODE:
+        try:
+            if jit_level in ["O0", "O1", "O2"]:
+                ms.set_context(jit_config={"jit_level": jit_level})
+            else:
+                logger.warning(
+                    f"Unsupport jit_level: {jit_level}. The framework automatically selects the execution method"
+                )
+        except Exception:
+            logger.warning(
+                "The current jit_level is not suitable because current MindSpore version or mode does not match,"
+                "please ensure the MindSpore version >= ms2.3_0615."
+            )
+
     if max_device_memory is not None:
         ms.set_context(max_device_memory=max_device_memory)
 
@@ -82,19 +96,6 @@ def init_env(
         ms.set_context(
             mode=mode,
             device_target=device_target,
-        )
-
-    try:
-        if jit_level in ["O0", "O1", "O2"]:
-            ms.set_context(jit_config={"jit_level": jit_level})
-        else:
-            logger.warning(
-                f"Unsupport jit_level: {jit_level}. The framework automatically selects the execution method"
-            )
-    except Exception:
-        logger.warning(
-            "The current jit_level is not suitable because current MindSpore version or mode does not match,"
-            "please ensure the MindSpore version >= ms2.3_0615, and use GRAPH_MODE."
         )
 
     return rank_id, device_num
