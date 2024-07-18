@@ -39,7 +39,6 @@ from opensora.utils.dataset_utils import create_video_transforms
 from opensora.utils.utils import get_precision
 
 logger = logging.getLogger(__name__)
-ms.context.set_context(jit_config={"jit_level": "O0"})  # O0: KBK, O1:DVM, O2: GE
 
 
 def init_env(args):
@@ -52,6 +51,15 @@ def init_env(args):
     )
     if args.precision_mode is not None:
         ms.set_context(ascend_config={"precision_mode": args.precision_mode})
+    if args.jit_level is not None:
+        if args.mode == 1:
+            print(
+                f"Only graph mode supports args.jit_level! Will ignore args.jit_level {args.jit_level} in Pynative mode."
+            )
+        else:
+            jit_dict = {"O0": "KBK", "O1": "DVM", "O2": "GE"}
+            print(f"Using args.jit_level: {jit_dict[args.jit_level]}")
+            ms.context.set_context(jit_config={"args.jit_level": args.jit_level})  # O0: KBK, O1:DVM, O2: GE
     return device_id
 
 
@@ -239,5 +247,6 @@ if __name__ == "__main__":
         action="store_true",
         help="whether to use grid to show original and reconstructed data",
     )
+    parser.add_argument("--args.jit_level", default="O0", help="Set jit level: # O0: KBK, O1:DVM, O2: GE")
     args = parser.parse_args()
     main(args)
