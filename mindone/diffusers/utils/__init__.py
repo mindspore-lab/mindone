@@ -31,6 +31,7 @@ from .export_utils import export_to_gif, export_to_obj, export_to_ply, export_to
 from .hub_utils import PushToHubMixin, _add_variant, _get_model_file, extract_commit_hash, http_user_agent
 from .import_utils import (
     BACKENDS_MAPPING,
+    DIFFUSERS_SLOW_IMPORT,
     _LazyModule,
     is_bs4_available,
     is_ftfy_available,

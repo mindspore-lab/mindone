@@ -59,6 +59,7 @@ _import_structure = {
         "StableDiffusionXLImg2ImgPipeline",
         "StableDiffusionXLInpaintPipeline",
         "StableDiffusionImg2ImgPipeline",
+        "DanceDiffusionPipeline",
     ],
     "schedulers": [
         "ConsistencyDecoderScheduler",

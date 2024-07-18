@@ -13,6 +13,9 @@ _import_structure = {
     "stable_diffusion_3": [
         "StableDiffusion3Pipeline",
     ],
+    "dance_diffusion": [
+        "DanceDiffusionPipeline",
+    ],
     "stable_diffusion_xl": [
         "StableDiffusionXLPipeline",
         "StableDiffusionXLInpaintPipeline",

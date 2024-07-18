@@ -35,6 +35,11 @@ else:
 
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
 
+ENV_VARS_TRUE_VALUES = {"1", "ON", "YES", "TRUE"}
+
+DIFFUSERS_SLOW_IMPORT = os.environ.get("DIFFUSERS_SLOW_IMPORT", "FALSE").upper()
+DIFFUSERS_SLOW_IMPORT = DIFFUSERS_SLOW_IMPORT in ENV_VARS_TRUE_VALUES
+
 # (sayakpaul): importlib.util.find_spec("opencv-python") returns None even when it's installed.
 # _opencv_available = importlib.util.find_spec("opencv-python") is not None
 try:
