@@ -71,7 +71,7 @@ class VideoDataset:
         self.dynamic_start_index = dynamic_start_index
         if not self.dynamic_start_index:
             logger.info(
-                "Warning!!! Using a fix start index strategy for frame sampling. Better to use it for inference not training!"
+                f"Always using the first frame as the start index for {sample_n_frames} frames sampling. Better to use it for inference not training!"
             )
 
         self.pixel_transforms = create_video_transforms(

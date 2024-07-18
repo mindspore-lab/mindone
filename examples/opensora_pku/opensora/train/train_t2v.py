@@ -9,7 +9,7 @@ import mindspore as ms
 from mindspore import Model, nn
 from mindspore.train.callback import TimeMonitor
 
-mindone_lib_path = os.path.abspath(os.path.abspath("../../"))
+mindone_lib_path = os.path.abspath("../../")
 sys.path.insert(0, mindone_lib_path)
 sys.path.append("./")
 

@@ -36,9 +36,11 @@ from argparse import ArgumentDefaultsHelpFormatter, ArgumentParser
 import numpy as np
 from decord import VideoReader
 
+mindone_lib_path = os.path.abspath("../../")
+sys.path.insert(0, mindone_lib_path)
 sys.path.append(".")
-from opensora.eval.cal_fvd import calculate_fvd
-from opensora.eval.cal_lpips import calculate_lpips
+# from opensora.eval.cal_fvd import calculate_fvd
+# from opensora.eval.cal_lpips import calculate_lpips
 from opensora.eval.cal_psnr import calculate_psnr
 
 try:
@@ -153,7 +155,8 @@ def calculate_common_metric(args, dataloader):
         generated_videos = batch_data["generated"]
         assert real_videos.shape[2] == generated_videos.shape[2]
         if args.metric == "fvd":
-            tmp_list = list(calculate_fvd(real_videos, generated_videos, method=args.fvd_method)["value"].values())
+            raise ValueError
+            # tmp_list = list(calculate_fvd(real_videos, generated_videos, method=args.fvd_method)["value"].values())
         elif args.metric == "ssim":
             tmp_list = list(calculate_ssim(real_videos, generated_videos)["value"].values())
         elif args.metric == "psnr":
@@ -168,12 +171,13 @@ def calculate_common_metric(args, dataloader):
             else:
                 continue
         else:
-            tmp_list = list(
-                calculate_lpips(
-                    real_videos,
-                    generated_videos,
-                )["value"].values()
-            )
+            raise ValueError
+            # tmp_list = list(
+            #     calculate_lpips(
+            #         real_videos,
+            #         generated_videos,
+            #     )["value"].values()
+            # )
         score_list += tmp_list
     return np.mean(score_list)
 
