@@ -9,8 +9,8 @@ from tqdm import tqdm
 Usage: python convert_weight.py \
             --src_param ./pt_param_1024.txt \
             --target_param ./ms_param_1024.txt \
-            --src_ckpt /path/to/pt_model_1024.ckpt \
-            --target_ckpt /path/to/ms_model_1024.ckpt
+            --src_ckpt /path/to/pt/model_1024.ckpt \
+            --target_ckpt /path/to/ms/model_1024.ckpt
 
 Note: There are three resolutions: 256, 512, 1024. Please make sure the resolution is correct.
 """

@@ -264,38 +264,7 @@ class DDIMSampler(object):
             is_video = True
         else:
             is_video = False
-        """
-        if unconditional_conditioning is None or unconditional_guidance_scale == 1.0:
-            model_output = self.model.apply_model(x, t, c, **kwargs) # unet denoiser
-        else:
-            x_in = ops.concat((x, x), axis=0)
-            t_in = ops.concat((t, t), axis=0)
-            if isinstance(c, dict):
-                assert isinstance(unconditional_conditioning, dict)
-                c_in = dict()
-                for k in c:
-                    if isinstance(c[k], list):
-                        c_in[k] = [
-                            ops.concat([unconditional_conditioning[k][i], c[k][i]], axis=0) for i in range(len(c[k]))
-                            # ops.concat([unconditional_conditioning[k][i], c[k][i]]) for i in range(len(c[k]), axis=0)
-                        ]
-                    else:
-                        c_in[k] = ops.concat([unconditional_conditioning[k], c[k]])
-            elif isinstance(c, list):
-                c_in = list()
-                assert isinstance(unconditional_conditioning, list)
-                for i in range(len(c)):
-                    c_in.append(ops.concat([unconditional_conditioning[i], c[i]], axis=0))
-            else:
-                c_in = ops.concat([unconditional_conditioning, c], axis=0)
-            model_uncond, model_t = self.split(
-                self.model.apply_model(x_in, t_in, c_in, **kwargs)
-            )
-            model_output = model_uncond + unconditional_guidance_scale * (model_t - model_uncond)
 
-            if guidance_rescale > 0.0:
-                model_output = rescale_noise_cfg(model_output, model_t, guidance_rescale=guidance_rescale)
-        """
         for k, v in c.items():
             if isinstance(v, list):
                 assert len(v) == 1

@@ -2,29 +2,10 @@
 # and https://github.com/lucidrains/imagen-pytorch/blob/main/imagen_pytorch/imagen_pytorch.py
 # and https://github.com/tencent-ailab/IP-Adapter/blob/main/ip_adapter/resampler.py
 import math
-# import torch
-# import torch.nn as nn
-import mindspore
+
 from mindspore import ops, nn, Parameter
 
-# class ImageProjModel(nn.Module):
-#     """Projection Model"""
-#     def __init__(self, cross_attention_dim=1024, clip_embeddings_dim=1024, clip_extra_context_tokens=4):
-#         super().__init__()        
-#         self.cross_attention_dim = cross_attention_dim
-#         self.clip_extra_context_tokens = clip_extra_context_tokens
-#         self.proj = nn.Dense(clip_embeddings_dim, self.clip_extra_context_tokens * cross_attention_dim)
-#         self.norm = nn.LayerNorm(cross_attention_dim)
-        
-#     def forward(self, image_embeds):
-#         #embeds = image_embeds
-#         embeds = image_embeds.type(list(self.proj.parameters())[0].dtype)
-#         clip_extra_context_tokens = self.proj(embeds).reshape(-1, self.clip_extra_context_tokens, self.cross_attention_dim)
-#         clip_extra_context_tokens = self.norm(clip_extra_context_tokens)
-#         return clip_extra_context_tokens
 
-
-# FFN
 def FeedForward(dim, mult=4):
     inner_dim = int(dim * mult)
     return nn.SequentialCell(

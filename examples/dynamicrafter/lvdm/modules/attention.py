@@ -109,8 +109,6 @@ class RelativePosition(nn.Cell):
         super().__init__()
         self.num_units = num_units
         self.max_relative_position = max_relative_position
-        # self.embeddings_table = ms.Parameter(ms.Tensor(max_relative_position * 2 + 1, num_units))
-        # nn.init.xavier_uniform_(self.embeddings_table)
         self.embeddings_table = ms.Parameter(initializer(XavierUniform(), shape=(max_relative_position * 2 + 1, num_units), dtype=ms.float32))
 
     def forward(self, length_q, length_k):
@@ -285,7 +283,6 @@ class CrossAttention(nn.Cell):
                     out = out + self.image_cross_attention_scale * out_ip * (ops.tanh(self.alpha)+1)
                 else:
                     out = out + self.image_cross_attention_scale * out_ip
-                # del out_ip
 
         else:  # vanilla attention
             # (b, n, h*d) -> (b*h, n, d)
@@ -348,7 +345,6 @@ class Attention(nn.Cell):
         # attn = self.softmax(sim.astype(ms.float32)).astype(v.dtype)
         attn = ops.softmax(sim, axis=-1)
         out = ops.matmul(attn, v)
-        # del v
 
         if self.relative_position:
             raise NotImplementedError
@@ -363,11 +359,9 @@ class Attention(nn.Cell):
             v_ip = self._rearrange_in(v_ip, self.head_num)
             sim_ip = ops.matmul(q, ops.transpose(k_ip, (0, 2, 1))) * self.scale
             # del k_ip
-            # del q
             sim_ip = sim_ip.softmax(axis=-1)
             out_ip = ops.matmul(sim_ip, v_ip)
             out_ip = self._rearrange_out(out_ip, self.head_num)
-            # del v_ip
 
 
         if out_ip is not None:
@@ -375,7 +369,6 @@ class Attention(nn.Cell):
                 out = out + self.image_cross_attention_scale * out_ip * (ops.tanh(self.alpha)+1)
             else:
                 out = out + self.image_cross_attention_scale * out_ip
-            # del out_ip
         return out
 
     def _rearrange_in(self, x: ms.Tensor, h: int):
@@ -447,7 +440,6 @@ class BasicTransformerBlock(nn.Cell):
         self.norm3 = nn.LayerNorm([dim], epsilon=1e-05).to_float(dtype)
 
     def construct(self, x, context=None):
-        # import pdb;pdb.set_trace()
         x = self.attn1(self.norm1(x), context=context if self.disable_self_attn else None) + x
         x = self.attn2(self.norm2(x), context=context) + x
         x = self.ff(self.norm3(x)) + x
@@ -523,8 +515,6 @@ class SpatialTransformer(nn.Cell):
             self.proj_out = zero_module(nn.Dense(in_channels, inner_dim).to_float(dtype))
 
         self.use_linear = use_linear
-        # self.reshape = ops.Reshape()
-        # self.transpose = ops.Transpose()
 
     def construct(self, x, context=None, **kwargs):
         # note: if no context is given, cross-attention defaults to self-attention
@@ -568,7 +558,7 @@ class TemporalTransformer(nn.Cell):
         disable_self_attn=False,
         use_linear=False,
         only_self_att=True,
-        multiply_zero=False,  # from MS
+        multiply_zero=False,
         causal_attention=False,
         causal_block_size=1,
         relative_position=False,
@@ -625,8 +615,6 @@ class TemporalTransformer(nn.Cell):
             )
         else:
             self.proj_out = zero_module(nn.Dense(in_channels, inner_dim).to_float(self.dtype))
-            # if self.use_adaptor:
-            #     self.adaptor_out = nn.Dense(frames, frames).to_float(self.dtype)  # todo: what frames
         self.use_linear = use_linear
 
     def construct(self, x, context=None):
@@ -641,43 +629,26 @@ class TemporalTransformer(nn.Cell):
 
 
         # b c t h w -> (b h w) c t
-        # x = rearrange(x, 'b c t h w -> (b h w) c t').contiguous()
         x = ops.transpose(x, (0, 3, 4, 1, 2))
         x = ops.reshape(x, (-1, x.shape[3], x.shape[4]))
         if not self.use_linear:
             x = self.proj_in(x)
         # bhw c t -> bhw t c
-        # x = rearrange(x, 'bhw c t -> bhw t c').contiguous()
         x = ops.transpose(x, (0, 2, 1))
         if self.use_linear:
             x = self.proj_in(x)
 
-        # if not self.use_linear:
-        #     # b c t h w -> b h w c t -> (b h w) c t
-        #     x = ops.transpose(x, (0, 3, 4, 1, 2))
-        #     x = ops.reshape(x, (-1, x.shape[3], x.shape[4]))
-        #     x = self.proj_in(x)
-        # # [16384, 16, 320]
-        # if self.use_linear:
-        #     # (b t) c h w -> b t c h w -> b h w t c -> b (h w) t c
-        #     x = ops.reshape(x, (x.shape[0] // t, t, x.shape[1], x.shape[2], x.shape[3]))
-        #     # x = ops.reshape(x, (x.shape[0] // self.frames, self.frames, x.shape[1], x.shape[2], x.shape[3]))
-        #     x = ops.transpose(x, (0, 3, 4, 1, 2))
-        #     x = ops.reshape(x, (x.shape[0], -1, x.shape[3], x.shape[4]))  # todo: what frames
-        #     x = self.proj_in(x)
-
-            """NotImplemented
-            temp_mask = None
-            if self.causal_attention:
-                # slice the from mask map
-                temp_mask = self.mask[:,:t,:t].to(x.device)
-
-            if temp_mask is not None:
-                mask = temp_mask.to(x.device)
-                mask = repeat(mask, 'l i j -> (l bhw) i j', bhw=b*h*w)
-            else:
-                mask = None
-            """
+        # TODO: NotImplemented
+        # temp_mask = None
+        # if self.causal_attention:
+        #     # slice the from mask map
+        #     temp_mask = self.mask[:,:t,:t].to(x.device)
+        # if temp_mask is not None:
+        #     mask = temp_mask.to(x.device)
+        #     mask = repeat(mask, 'l i j -> (l bhw) i j', bhw=b*h*w)
+        # else:
+        #     mask = None
+        
         if self.only_self_att:
             # x = ops.transpose(x, (0, 2, 1))
             for i, block in enumerate(self.transformer_blocks):
@@ -689,7 +660,6 @@ class TemporalTransformer(nn.Cell):
             x = ops.reshape(x, (b, x.shape[0] // b, x.shape[1], x.shape[2]))
             x = ops.transpose(x, (0, 1, 3, 2))
             for i, block in enumerate(self.transformer_blocks):
-                # context[i] = repeat(context[i], '(b f) l con -> b (f r) l con', r=(h*w)//self.frames, f=self.frames).contiguous()
                 # (b f) l con -> b f l con
                 context[i] = ops.reshape(
                     context[i],

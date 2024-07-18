@@ -64,10 +64,8 @@ class TimestepEmbedSequential(nn.SequentialCell, TimestepBlock):
                 x = layer(x, context)
             elif isinstance(layer, TemporalTransformer):
                 x = rearrange_in_gn5d_bs(x, batch_size)
-                # x = rearrange(x, '(b f) c h w -> b c f h w', b=batch_size)
                 x = layer(x, context)
                 x = rearrange_out_gn5d(x)
-                # x = rearrange(x, 'b c f h w -> (b f) c h w')
             else:
                 x = layer(x)
         return x
@@ -208,7 +206,6 @@ class ResBlock(TimestepBlock):
             ),
         )
 
-        # self.out_layers_norm = normalization(self.out_channels, norm_in_5d=norm_in_5d)
         self.out_layers_norm = normalization(self.out_channels)
         self.out_layers_silu = nn.SiLU().to_float(self.dtype)
 
@@ -278,10 +275,8 @@ class ResBlock(TimestepBlock):
         h = self.skip_connection(x) + h
 
         if self.use_temporal_conv and batch_size:
-            # h = rearrange(h, '(b t) c h w -> b c t h w', b=batch_size)
             h = rearrange_in_gn5d_bs(h, batch_size)
             h = self.temopral_conv(h)
-            # h = rearrange(h, 'b c t h w -> (b t) c h w')
             h = rearrange_out_gn5d(h)
         return h
 
@@ -308,27 +303,23 @@ class TemporalConvBlock(nn.Cell):
 
         # conv layers
         self.conv1 = nn.SequentialCell(
-            # nn.GroupNorm(32, in_dim),
             normalization(in_dim),
             SiLU(),
             nn.Conv3d(in_dim, out_dim, th_kernel_shape, pad_mode="pad", padding=th_padding_shape, has_bias=True).to_float(ms.float16),
         )
         self.conv2 = nn.SequentialCell(
-            # nn.GroupNorm(32, out_dim),
             normalization(out_dim),
             SiLU(),
             nn.Dropout(1 - dropout) if is_old_ms_version() else nn.Dropout(p=dropout),
             nn.Conv3d(out_dim, in_dim, tw_kernel_shape, pad_mode="pad", padding=tw_padding_shape, has_bias=True).to_float(ms.float16),
         )
         self.conv3 = nn.SequentialCell(
-            # nn.GroupNorm(32, out_dim),
             normalization(out_dim),
             SiLU(),
             nn.Dropout(1 - dropout) if is_old_ms_version() else nn.Dropout(p=dropout),
             nn.Conv3d(out_dim, in_dim, th_kernel_shape, pad_mode="pad", padding=th_padding_shape, has_bias=True).to_float(ms.float16),
         )
         self.conv4 = nn.SequentialCell(
-            # nn.GroupNorm(32, out_dim),
             normalization(out_dim),
             SiLU(),
             nn.Dropout(1 - dropout) if is_old_ms_version() else nn.Dropout(p=dropout),
@@ -485,14 +476,12 @@ class UNetModel(nn.Cell):
         ## Time embedding blocks
         self.time_embed = nn.SequentialCell(
             linear(model_channels, time_embed_dim, dtype=self.dtype),
-            # SiLU(),
             nn.SiLU().to_float(self.dtype),
             linear(time_embed_dim, time_embed_dim, dtype=self.dtype),
         )
         if fs_condition:
             self.fps_embedding = nn.SequentialCell(
                 linear(model_channels, time_embed_dim, dtype=self.dtype),
-                # SiLU(),
                 nn.SiLU().to_float(self.dtype),
                 linear(time_embed_dim, time_embed_dim, dtype=self.dtype),
             )
@@ -734,7 +723,6 @@ class UNetModel(nn.Cell):
         )
 
     def construct(self, x, timesteps, context=None, features_adapter=None, fs=None, **kwargs):
-        # import pdb;pdb.set_trace()
         b,_,t,_,_ = x.shape
         t_emb = timestep_embedding(timesteps, self.model_channels, repeat_only=False).astype(x.dtype)
         emb = self.time_embed(t_emb)
@@ -756,13 +744,11 @@ class UNetModel(nn.Cell):
         emb = emb.repeat_interleave(repeats=t, dim=0)
         
         ## always in shape (b t) c h w, except for temporal layer
-        # x = rearrange(x, 'b c t h w -> (b t) c h w')
         x = rearrange_out_gn5d(x)
 
         ## combine emb
         if self.fs_condition:
             if fs is None:
-                # fs = torch.tensor([self.default_fs] * b, dtype=torch.long, device=x.device)
                 fs = ms.Tensor([self.default_fs] * b, dtype=ms.int64)
             fs_emb = timestep_embedding(fs, self.model_channels, repeat_only=False).astype(x.dtype)
 
@@ -794,9 +780,5 @@ class UNetModel(nn.Cell):
         y = self.out(h)
 
         # reshape back to (b c t h w)
-        # y = rearrange(y, '(b t) c h w -> b c t h w', b=b)
         y = rearrange_in_gn5d_bs(y, b)
-        # bt, c, h, w = y.shape
-        # y = ops.reshape(y, (b, bt // b, c, h, w))
-        # y = ops.transpose(y, (0, 2, 1, 3, 4))
         return y
