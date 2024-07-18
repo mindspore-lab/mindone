@@ -229,7 +229,7 @@ Please edit the `master_port` to a different port number in the range 1024 to 65
 
 **Step 1: Downloading Datasets**:
 
-To train the causal vae model, you need to prepare a video dataset. You can download this video dataset from [Open-Sora-Dataset-v1.1.0](https://huggingface.co/datasets/LanguageBind/Open-Sora-Plan-v1.1.0/tree/main). Afterwards, you can revise the `--video_path` in the training script to the video folder path of your downloaded dataset.
+To train the causal vae model, you need to prepare a video dataset. You can download this video dataset from [Open-Sora-Dataset-v1.1.0](https://huggingface.co/datasets/LanguageBind/Open-Sora-Plan-v1.1.0/tree/main). We give a tutorial on how to download these datasets. See [downloading tutorial](./tools/download/README.md). Afterwards, you can revise the `--video_path` in the training script to the video folder path of your downloaded dataset.
 
 **Step 2: Converting Pretrained Weights**:
 
@@ -310,7 +310,9 @@ Each video-text dataset has two annotation json files. For example, the mixkit d
 ```
 
 
-To prepare the training datasets, please first download the video and image datasets in [Open-Sora-Dataset-v1.1.0](https://huggingface.co/datasets/LanguageBind/Open-Sora-Plan-v1.1.0/tree/main). You need to download **at least one video dataset and one image dataset** to enable video-image joint training. After downloading all datasets, you can place images/videos under the folder `datasets`, which looks like:
+To prepare the training datasets, please first download the video and image datasets in [Open-Sora-Dataset-v1.1.0](https://huggingface.co/datasets/LanguageBind/Open-Sora-Plan-v1.1.0/tree/main). We give a tutorial on how to download these datasets. See [downloading tutorial](./tools/download/README.md).
+
+You need to download **at least one video dataset and one image dataset** to enable video-image joint training. After downloading all datasets, you can place images/videos under the folder `datasets`, which looks like:
 ```bash
 datasets/
 ├───images/  # Human-160k
