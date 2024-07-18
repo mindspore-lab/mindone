@@ -326,7 +326,10 @@ def main(args):
             )
     logger.info(
         "ckpt_save_interval: {} {}".format(
-            ckpt_save_interval, "steps" if (not args.dataset_sink_mode and step_mode) else "sink epochs"
+            ckpt_save_interval,
+            "steps"
+            if (not args.dataset_sink_mode and step_mode)
+            else ("epochs" if steps_per_sink == dataset_size else "sink epochs"),
         )
     )
     # build learning rate scheduler
@@ -473,6 +476,7 @@ def main(args):
         key_info += "\n".join(
             [
                 f"MindSpore mode[GRAPH(0)/PYNATIVE(1)]: {args.mode}",
+                f"Jit level: {args.jit_level}",
                 f"Distributed mode: {args.use_parallel}"
                 + (f"\nParallel mode: {args.parallel_mode}" if args.use_parallel else ""),
                 f"Num params: {num_params:,} (latte: {num_params_latte:,}, vae: {num_params_vae:,})",
