@@ -43,16 +43,23 @@ _import_structure = {
         "StableCascadePriorPipeline",
     ],
     "stable_diffusion": [
-        "StableDiffusionPipeline",
+        "StableDiffusionDepth2ImgPipeline",
+        "StableDiffusionImageVariationPipeline",
         "StableDiffusionImg2ImgPipeline",
+        "StableDiffusionInpaintPipeline",
+        "StableDiffusionInstructPix2PixPipeline",
+        "StableDiffusionLatentUpscalePipeline",
+        "StableDiffusionPipeline",
+        "StableDiffusionUpscalePipeline",
     ],
     "stable_diffusion_3": [
         "StableDiffusion3Pipeline",
     ],
     "stable_diffusion_xl": [
-        "StableDiffusionXLPipeline",
         "StableDiffusionXLInpaintPipeline",
         "StableDiffusionXLImg2ImgPipeline",
+        "StableDiffusionXLInstructPix2PixPipeline",
+        "StableDiffusionXLPipeline",
     ],
     "stable_video_diffusion": ["StableVideoDiffusionPipeline"],
     "wuerstchen": [
@@ -96,11 +103,21 @@ if TYPE_CHECKING:
     from .latent_consistency_models import LatentConsistencyModelImg2ImgPipeline, LatentConsistencyModelPipeline
     from .pipeline_utils import DiffusionPipeline, ImagePipelineOutput
     from .stable_cascade import StableCascadeCombinedPipeline, StableCascadeDecoderPipeline, StableCascadePriorPipeline
-    from .stable_diffusion import StableDiffusionImg2ImgPipeline, StableDiffusionPipeline
+    from .stable_diffusion import (
+        StableDiffusionDepth2ImgPipeline,
+        StableDiffusionImageVariationPipeline,
+        StableDiffusionImg2ImgPipeline,
+        StableDiffusionInpaintPipeline,
+        StableDiffusionInstructPix2PixPipeline,
+        StableDiffusionLatentUpscalePipeline,
+        StableDiffusionPipeline,
+        StableDiffusionUpscalePipeline,
+    )
     from .stable_diffusion_3 import StableDiffusion3Pipeline
     from .stable_diffusion_xl import (
         StableDiffusionXLImg2ImgPipeline,
         StableDiffusionXLInpaintPipeline,
+        StableDiffusionXLInstructPix2PixPipeline,
         StableDiffusionXLPipeline,
     )
     from .stable_video_diffusion import StableVideoDiffusionPipeline
