@@ -24,7 +24,7 @@ from opensora.acceleration.communications import AllGather
 from opensora.acceleration.parallel_states import get_sequence_parallel_state, hccl_info
 
 import mindspore as ms
-from mindspore import ops
+from mindspore import mint, ops
 
 logger = logging.getLogger(__name__)
 
@@ -230,10 +230,10 @@ class VideoGenPipeline(DiffusionPipeline):
 
         bs_embed, seq_len, _ = prompt_embeds.shape
         # duplicate text embeddings and attention mask for each generation per prompt, using mps friendly method
-        prompt_embeds = prompt_embeds.repeat_interleave(num_videos_per_prompt, 1)
+        prompt_embeds = mint.tile(prompt_embeds, (1, num_videos_per_prompt, 1))
         prompt_embeds = prompt_embeds.view(bs_embed * num_videos_per_prompt, seq_len, -1)
         prompt_embeds_attention_mask = prompt_embeds_attention_mask.view(bs_embed, -1)
-        prompt_embeds_attention_mask = prompt_embeds_attention_mask.repeat_interleave(num_videos_per_prompt, 0)
+        prompt_embeds_attention_mask = mint.tile(prompt_embeds_attention_mask, (num_videos_per_prompt, 1))
 
         # get unconditional embeddings for classifier free guidance
         if do_classifier_free_guidance and negative_prompt_embeds is None:
@@ -266,7 +266,7 @@ class VideoGenPipeline(DiffusionPipeline):
 
             negative_prompt_embeds = negative_prompt_embeds.to(dtype=dtype)
 
-            negative_prompt_embeds = negative_prompt_embeds.repeat_interleave(num_videos_per_prompt, 1)
+            negative_prompt_embeds = mint.tile(negative_prompt_embeds, (1, num_videos_per_prompt, 1))
             negative_prompt_embeds = negative_prompt_embeds.view(batch_size * num_videos_per_prompt, seq_len, -1)
 
             # For classifier free guidance, we need to do two forward passes.
@@ -681,7 +681,7 @@ class VideoGenPipeline(DiffusionPipeline):
         if do_classifier_free_guidance:
             prompt_embeds = ops.cat([negative_prompt_embeds, prompt_embeds], axis=0)
             if prompt_embeds_mask is not None:
-                prompt_embeds_mask = prompt_embeds_mask.repeat_interleave(2, 0)
+                prompt_embeds_mask = mint.tile(prompt_embeds_mask, (2, 1))
 
         # 4. Prepare timesteps
         self.scheduler.set_timesteps(num_inference_steps)
@@ -736,7 +736,7 @@ class VideoGenPipeline(DiffusionPipeline):
                 elif len(current_timestep.shape) == 0:
                     current_timestep = current_timestep[None]
                 # broadcast to batch dimension in a way that's compatible with ONNX/Core ML
-                current_timestep = current_timestep.repeat_interleave(latent_model_input.shape[0], 0)
+                current_timestep = mint.tile(current_timestep, (latent_model_input.shape[0]))
                 # predict noise model_output
                 noise_pred = self.transformer(
                     latent_model_input,  # (b c t h w)

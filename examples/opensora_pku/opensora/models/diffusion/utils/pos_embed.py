@@ -9,7 +9,7 @@
 
 import numpy as np
 
-from mindspore import nn, ops
+from mindspore import mint, nn, ops
 
 
 def get_2d_sincos_pos_embed(
@@ -225,7 +225,7 @@ class PositionGetter2D(object):
             y = ops.arange(0, h)
             self.cache_positions[h, w] = ms_cartesian_prod(y, x)  # (h, w, 2)
         pos = self.cache_positions[h, w].reshape(1, h * w, 2)
-        pos = ops.repeat_interleave(pos, b, axis=0).copy()
+        pos = mint.tile(pos, (b, 1, 1)).copy()
         return pos
 
 
@@ -249,5 +249,5 @@ class PositionGetter1D(object):
             x = ops.arange(0, length)
             self.cache_positions[length] = x  # (l, )
         pos = self.cache_positions[length].reshape(1, length)
-        pos = ops.repeat_interleave(pos, b, axis=0).copy()
+        pos = mint.tile(pos, (b, 1)).copy()
         return pos

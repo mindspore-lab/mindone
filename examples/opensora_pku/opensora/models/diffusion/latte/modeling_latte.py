@@ -8,7 +8,7 @@ from opensora.acceleration.parallel_states import get_sequence_parallel_state, h
 from opensora.models.diffusion.utils.pos_embed import PositionGetter1D, PositionGetter2D, get_1d_sincos_pos_embed
 
 import mindspore as ms
-from mindspore import nn, ops
+from mindspore import mint, nn, ops
 
 from mindone.diffusers.configuration_utils import ConfigMixin, register_to_config
 
@@ -406,14 +406,14 @@ class LatteT2V(ModelMixin, ConfigMixin):
         if encoder_attention_mask is not None and encoder_attention_mask.ndim == 2:  # ndim == 2 means no image joint
             encoder_attention_mask = encoder_attention_mask.unsqueeze(1)
             # b 1 l -> (b f) 1 l
-            encoder_attention_mask = encoder_attention_mask.to(ms.int32).repeat_interleave(frame, dim=0)
+            encoder_attention_mask = mint.tile(encoder_attention_mask, (frame, 1, 1))
             encoder_attention_mask = encoder_attention_mask.to(self.dtype)
         elif encoder_attention_mask is not None and encoder_attention_mask.ndim == 3:  # ndim == 3 means image joint
             encoder_attention_mask_video = encoder_attention_mask[:, :1, ...]
-            encoder_attention_mask_video = encoder_attention_mask_video.to(ms.int32).repeat_interleave(frame, dim=1)
-            encoder_attention_mask_image = encoder_attention_mask[:, 1:, ...].to(ms.int32)
+            encoder_attention_mask_video = mint.tile(encoder_attention_mask_video, (1, frame, 1))
+            encoder_attention_mask_image = encoder_attention_mask[:, 1:, ...]
             encoder_attention_mask = ops.cat([encoder_attention_mask_video, encoder_attention_mask_image], axis=1)
-            # b n l -> (b n) l
+            # b n l -> (b n) 1 l
             encoder_attention_mask = encoder_attention_mask.view(-1, encoder_attention_mask.shape[-1]).unsqueeze(1)
             encoder_attention_mask = encoder_attention_mask.to(self.dtype)
 
@@ -450,7 +450,7 @@ class LatteT2V(ModelMixin, ConfigMixin):
             if use_image_num != 0 and self.training:
                 encoder_hidden_states_video = encoder_hidden_states[:, :1, ...]
                 # b 1 t d -> b (1 f) t d
-                encoder_hidden_states_video = encoder_hidden_states_video.repeat_interleave(frame, dim=1)
+                encoder_hidden_states_video = mint.tile(encoder_hidden_states_video, (1, frame, 1, 1))
                 encoder_hidden_states_image = encoder_hidden_states[:, 1:, ...]
                 encoder_hidden_states = ops.cat([encoder_hidden_states_video, encoder_hidden_states_image], axis=1)
                 # b f t d -> (b f) t d
@@ -459,15 +459,15 @@ class LatteT2V(ModelMixin, ConfigMixin):
                 )
             else:
                 # b t d -> (b f) t d
-                encoder_hidden_states_spatial = encoder_hidden_states.repeat_interleave(frame, dim=0)
+                encoder_hidden_states_spatial = mint.tile(encoder_hidden_states_spatial, (frame, 1, 1))
         else:
-            encoder_hidden_states_spatial = encoder_hidden_states.repeat_interleave(frame, dim=0)  # for graph mode
+            encoder_hidden_states_spatial = mint.tile(encoder_hidden_states_spatial, (frame, 1, 1))
 
         # prepare timesteps for spatial and temporal block
         # b d -> (b f) d
-        timestep_spatial = timestep.repeat_interleave(frame + use_image_num, dim=0)
+        timestep_spatial = mint.tile(timestep, (frame + use_image_num, 1))
         # b d -> (b p) d
-        timestep_temp = timestep.repeat_interleave(num_patches, dim=0)
+        timestep_temp = mint.tile(timestep, (num_patches, 1))
 
         # BS H -> S B H
         if get_sequence_parallel_state():
@@ -518,7 +518,7 @@ class LatteT2V(ModelMixin, ConfigMixin):
         elif self.norm_type == "ada_norm_single":
             # b d -> (b f) d
             assert embedded_timestep is not None, "embedded_timestep is expected to be not None"
-            embedded_timestep = embedded_timestep.repeat_interleave(frame + use_image_num, dim=0)
+            embedded_timestep = mint.tile(embedded_timestep, (frame + use_image_num, 1))
             shift, scale = (self.scale_shift_table[None] + embedded_timestep[:, None]).chunk(2, axis=1)
             hidden_states = self.norm_out(hidden_states)
             # Modulation

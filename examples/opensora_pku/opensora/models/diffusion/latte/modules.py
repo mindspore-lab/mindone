@@ -13,7 +13,7 @@ from opensora.models.diffusion.utils.pos_embed import (
 )
 
 import mindspore as ms
-from mindspore import Parameter, nn, ops
+from mindspore import Parameter, mint, nn, ops
 from mindspore.common.initializer import initializer
 
 from mindone.diffusers.models.activations import GEGLU, GELU, ApproximateGELU
@@ -373,10 +373,10 @@ class MultiHeadAttention(nn.Cell):
 
         if out_dim == 3:
             if attention_mask.shape[0] < batch_size * head_size:
-                attention_mask = attention_mask.repeat_interleave(head_size, 0)
+                attention_mask = mint.tile(attention_mask, (head_size, 1, 1))
         elif out_dim == 4:
             attention_mask = attention_mask.unsqueeze(1)
-            attention_mask = attention_mask.repeat_interleave(head_size, 1)
+            attention_mask = mint.tile(attention_mask, (1, head_size, 1, 1))
 
         return attention_mask
 
@@ -492,7 +492,7 @@ class MultiHeadAttention(nn.Cell):
             elif len(last_shape) == 1:
                 encoder_hidden_states = hidden_states.permute(0, 2, 1)
                 if last_shape[0] % 2 == 1:
-                    first_frame_pad = encoder_hidden_states[:, :, :1].repeat_interleave(self.kernel_size - 1, -1)
+                    first_frame_pad = mint.tile(encoder_hidden_states[:, :, :1], (1, 1, self.kernel_size - 1))
                     encoder_hidden_states = ops.concat((first_frame_pad, encoder_hidden_states), axis=2)
                 encoder_hidden_states = self.sr(encoder_hidden_states).permute(0, 2, 1)
             else:
@@ -566,7 +566,7 @@ class MultiHeadAttention(nn.Cell):
                     assert mask.dim() == 4, f"Expect to have 4-dim mask for FA, but got mask shape {mask.shape}"
                     # (b, h, 1, k_n) - > (b, h, q_n, k_n), manual broadcast
                     if mask.shape[-2] == 1:
-                        mask = mask.repeat(q.shape[-2], axis=-2)
+                        mask = mint.tile(mask, (1, 1, q.shape[-2], 1))
 
                 out = self.flash_attention(q, k, v, mask)
                 b, h_, n, d = out.shape
@@ -632,7 +632,7 @@ class MultiHeadAttention(nn.Cell):
                     assert mask.dim() == 4, f"Expect to have 4-dim mask for FA, but got mask shape {mask.shape}"
                     # (b, h, 1, k_n) - > (b, h, q_n, k_n), manual broadcast
                     if mask.shape[-2] == 1:
-                        mask = mask.repeat(q_n, axis=-2)
+                        mask = mint.tile(mask, (1, 1, q_n, 1))
 
                 out = self.flash_attention(q, k, v, mask)
                 if self.layout == "BNSD":
@@ -718,7 +718,7 @@ class CombinedTimestepSizeEmbeddings(nn.Cell):
             size = size[:, None]
 
         if size.shape[0] != batch_size:
-            size = size.repeat_interleave(batch_size // size.shape[0], 1)
+            size = mint.tile(size, (batch_size // size.shape[0], 1))
             if size.shape[0] != batch_size:
                 raise ValueError(f"`batch_size` should be {size.shape[0]} but found {batch_size}.")
 
