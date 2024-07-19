@@ -9,6 +9,12 @@ _import_structure = {
     "stable_diffusion": [
         "StableDiffusionPipeline",
         "StableDiffusionImg2ImgPipeline",
+        "StableDiffusionInpaintPipeline",
+        "StableDiffusionInstructPix2PixPipeline",
+        "StableDiffusionDepth2ImgPipeline",
+        "StableDiffusionImageVariationPipeline",
+        "StableDiffusionLatentUpscalePipeline",
+        "StableDiffusionUpscalePipeline",
     ],
     "stable_diffusion_3": [
         "StableDiffusion3Pipeline",
@@ -17,6 +23,7 @@ _import_structure = {
         "StableDiffusionXLPipeline",
         "StableDiffusionXLInpaintPipeline",
         "StableDiffusionXLImg2ImgPipeline",
+        "StableDiffusionXLInstructPix2PixPipeline",
     ],
     "pipeline_utils": [
         "DiffusionPipeline",
@@ -30,9 +37,20 @@ if TYPE_CHECKING:
     from .pipeline_utils import DiffusionPipeline, ImagePipelineOutput
     from .stable_diffusion import StableDiffusionImg2ImgPipeline, StableDiffusionPipeline
     from .stable_diffusion_3 import StableDiffusion3Pipeline
+    from .stable_diffusion import (
+        StableDiffusionDepth2ImgPipeline,
+        StableDiffusionImageVariationPipeline,
+        StableDiffusionImg2ImgPipeline,
+        StableDiffusionInpaintPipeline,
+        StableDiffusionInstructPix2PixPipeline,
+        StableDiffusionLatentUpscalePipeline,
+        StableDiffusionPipeline,
+        StableDiffusionUpscalePipeline,
+    )
     from .stable_diffusion_xl import (
         StableDiffusionXLImg2ImgPipeline,
         StableDiffusionXLInpaintPipeline,
+        StableDiffusionXLInstructPix2PixPipeline,
         StableDiffusionXLPipeline,
     )
 else:

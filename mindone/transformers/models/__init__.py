@@ -1,1 +1,1 @@
-from . import clip, t5
+from . import bit, clip, dpt, t5

@@ -32,6 +32,7 @@ from .hub_utils import PushToHubMixin, _add_variant, _get_model_file, extract_co
 from .import_utils import (
     BACKENDS_MAPPING,
     _LazyModule,
+    is_invisible_watermark_available,
     is_bs4_available,
     is_ftfy_available,
     is_opencv_available,

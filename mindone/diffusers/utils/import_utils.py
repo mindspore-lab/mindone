@@ -75,6 +75,9 @@ except importlib_metadata.PackageNotFoundError:
     _bs4_available = False
 
 
+_invisible_watermark_available = True
+
+
 def is_opencv_available():
     return _opencv_available
 
@@ -85,6 +88,10 @@ def is_ftfy_available():
 
 def is_bs4_available():
     return _bs4_available
+
+
+def is_invisible_watermark_available():
+    return _invisible_watermark_available
 
 
 # docstyle-ignore
