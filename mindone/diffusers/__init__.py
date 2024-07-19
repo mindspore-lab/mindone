@@ -108,6 +108,7 @@ _import_structure = {
         "EulerDiscreteScheduler",
         "FlowMatchEulerDiscreteScheduler",
         "HeunDiscreteScheduler",
+        "IPNDMScheduler",
         "KDPM2AncestralDiscreteScheduler",
         "KDPM2DiscreteScheduler",
         "LCMScheduler",
