@@ -459,9 +459,9 @@ class LatteT2V(ModelMixin, ConfigMixin):
                 )
             else:
                 # b t d -> (b f) t d
-                encoder_hidden_states_spatial = mint.tile(encoder_hidden_states, (frame, 1, 1))
+                encoder_hidden_states_spatial = mint.tile(encoder_hidden_states_spatial, (frame, 1, 1))
         else:
-            encoder_hidden_states_spatial = mint.tile(encoder_hidden_states, (frame, 1, 1))
+            encoder_hidden_states_spatial = mint.tile(encoder_hidden_states_spatial, (frame, 1, 1))
 
         # prepare timesteps for spatial and temporal block
         # b d -> (b f) d
