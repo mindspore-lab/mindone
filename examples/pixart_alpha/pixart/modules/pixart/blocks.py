@@ -315,7 +315,7 @@ class CaptionEmbedder(nn.Cell):
             drop_ids = ops.rand(caption.shape[0]) < self.uncond_prob
         else:
             drop_ids = force_drop_ids == 1
-        caption = ops.where(drop_ids[:, None, None], self.y_embedding[None, ...], caption)
+        caption = ops.where(drop_ids[:, None, None], self.y_embedding[None, ...].to(caption.dtype), caption)
         return caption
 
     def construct(self, caption: Tensor, force_drop_ids: Optional[Tensor] = None) -> Tensor:
