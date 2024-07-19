@@ -64,6 +64,7 @@ class VideoDataset:
         sample_rate=1,
         crop_size=None,
         resolution=128,
+        output_columns=["real", "generated"],
     ) -> None:
         super().__init__()
         self.real_video_files = self.combine_without_prefix(real_video_dir)
@@ -72,6 +73,7 @@ class VideoDataset:
         self.sample_rate = sample_rate
         self.crop_size = crop_size
         self.short_size = resolution
+        self.output_columns = output_columns
 
         self.pixel_transforms = create_video_transforms(
             size=self.short_size,
@@ -79,7 +81,7 @@ class VideoDataset:
             random_crop=False,
             disable_flip=True,
             num_frames=num_frames,
-            transform_backend="al",
+            backend="al",
         )
 
     def __len__(self):
@@ -93,7 +95,7 @@ class VideoDataset:
         print(real_video_file, generated_video_file)
         real_video_tensor = self._load_video(real_video_file)
         generated_video_tensor = self._load_video(generated_video_file)
-        return {"real": real_video_tensor, "generated": generated_video_tensor}
+        return real_video_tensor, generated_video_tensor
 
     def _load_video(self, video_path):
         num_frames = self.num_frames
@@ -112,11 +114,8 @@ class VideoDataset:
             s = 0
             e = total_frames
             num_frames = int(total_frames / sample_frames_len * num_frames)
-            print(
-                f"sample_frames_len {sample_frames_len}, only can sample {num_frames * sample_rate}",
-                video_path,
-                total_frames,
-            )
+            print(f"Video total number of frames {total_frames} is less than the target num_frames {sample_frames_len}")
+            print(video_path)
 
         frame_id_list = np.linspace(s, e - 1, num_frames, dtype=int)
         pixel_values = decord_vr.get_batch(frame_id_list).asnumpy()
@@ -235,6 +234,7 @@ def main():
         shuffle=False,
         drop_remainder=False,
     )
+    dataloader = dataloader.create_dict_iterator(1, output_numpy=True)
     metric_score = calculate_common_metric(args, dataloader)
     print("metric: ", args.metric, " ", metric_score)
 
