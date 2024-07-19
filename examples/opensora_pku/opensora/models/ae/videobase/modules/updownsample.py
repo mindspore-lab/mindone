@@ -1,7 +1,7 @@
 from typing import Tuple, Union
 
 import mindspore as ms
-from mindspore import mint, nn, ops
+from mindspore import nn, ops
 
 from .conv import CausalConv3d
 from .ops import cast_tuple
@@ -169,7 +169,8 @@ class TimeDownsample2x(nn.Cell):
 
     def construct(self, x):
         first_frame = x[:, :, :1, :, :]
-        first_frame_pad = mint.tile(first_frame, (1, 1, self.time_pad, 1, 1))
+        # first_frame_pad = ops.repeat_interleave(first_frame, self.time_pad, axis=2)
+        first_frame_pad = ops.cat([first_frame] * self.time_pad, axis=2)
         x = ops.concat((first_frame_pad, x), axis=2)
 
         if not self.replace_avgpool3d:
@@ -235,7 +236,8 @@ class TimeDownsampleRes2x(nn.Cell):
         alpha = ops.sigmoid(self.mix_factor)
 
         first_frame = x[:, :, :1, :, :]
-        first_frame_pad = mint.tile(first_frame, (1, 1, self.time_pad, 1, 1))
+        # first_frame_pad = ops.repeat_interleave(first_frame, self.time_pad, axis=2)
+        first_frame_pad = ops.cat([first_frame] * self.time_pad, axis=2)
         x = ops.concat((first_frame_pad, x), axis=2)
 
         conv_out = self.conv(x)
