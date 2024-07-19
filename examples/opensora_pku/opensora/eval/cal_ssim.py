@@ -1,6 +1,5 @@
 import cv2
 import numpy as np
-from tqdm import tqdm
 
 from mindspore import ops
 
@@ -59,7 +58,7 @@ def calculate_ssim(videos1, videos2):
 
     ssim_results = []
 
-    for video_num in tqdm(range(videos1.shape[0])):
+    for video_num in range(videos1.shape[0]):
         # get a video
         # video [timestamps, channel, h, w]
         video1 = videos1[video_num]
@@ -71,8 +70,8 @@ def calculate_ssim(videos1, videos2):
             # img [timestamps[x], channel, h, w]
             # img [channel, h, w] numpy
 
-            img1 = video1[clip_timestamp].numpy()
-            img2 = video2[clip_timestamp].numpy()
+            img1 = video1[clip_timestamp]
+            img2 = video2[clip_timestamp]
 
             # calculate ssim of a video
             ssim_results_of_a_video.append(calculate_ssim_function(img1, img2))

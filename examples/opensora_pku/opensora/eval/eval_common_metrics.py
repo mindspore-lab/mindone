@@ -92,10 +92,13 @@ class VideoDataset:
             raise IndexError
         real_video_file = self.real_video_files[index]
         generated_video_file = self.generated_video_files[index]
-        print(real_video_file, generated_video_file)
+        if os.path.basename(real_video_file) != os.path.basename(generated_video_file):
+            print(
+                f"Warning! video file name mismatch! real and generated {os.path.basename(real_video_file)} and {os.path.basename(generated_video_file)}"
+            )
         real_video_tensor = self._load_video(real_video_file)
         generated_video_tensor = self._load_video(generated_video_file)
-        return real_video_tensor, generated_video_tensor
+        return real_video_tensor.astype(np.float32), generated_video_tensor.astype(np.float32)
 
     def _load_video(self, video_path):
         num_frames = self.num_frames
@@ -130,8 +133,8 @@ class VideoDataset:
         output = self.pixel_transforms(**inputs)
 
         pixel_values = np.stack(list(output.values()), axis=0)
-        # (t h w c) -> (c t h w)
-        pixel_values = np.transpose(pixel_values, (3, 0, 1, 2))
+        # (t h w c) -> (t c h w)
+        pixel_values = np.transpose(pixel_values, (0, 3, 1, 2))
         pixel_values = pixel_values / 255.0
         return pixel_values
 
