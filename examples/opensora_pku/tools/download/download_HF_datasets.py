@@ -1,3 +1,4 @@
+import argparse
 import os
 
 from huggingface_hub import hf_hub_download
@@ -87,10 +88,19 @@ def download_files(repo_id, local_dir, subfolder, filenames):
 
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "-o",
+        "--output_dir",
+        type=str,
+        required=True,
+        help="The local directory where the downloaded datasets will be saved.",
+    )
+    args = parser.parse_args()
     #################################################################################
     #                       Download Datasets from HF                               #
     #################################################################################
-    local_dir = "D://PKUopensora//Open-Sora-Plan-v1.1.0"  # revise to your local directory
+    local_dir = args.output_dir
     repo_id = "LanguageBind/Open-Sora-Plan-v1.1.0"
 
     # download json files

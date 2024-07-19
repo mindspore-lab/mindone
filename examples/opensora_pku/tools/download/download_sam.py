@@ -1,3 +1,4 @@
+import argparse
 import os
 import subprocess
 
@@ -5,8 +6,20 @@ import pandas as pd
 import tqdm
 
 # download text file from https://ai.meta.com/datasets/segment-anything-downloads/
-text_file = "D://PKUopensora//Open-Sora-Plan-v1.1.0//SA-1B//sa-1b-links.txt"
-local_folder = "D://PKUopensora//Open-Sora-Plan-v1.1.0//SA-1B"
+parser = argparse.ArgumentParser()
+parser.add_argument("-i", "--input_text", type=str, required=True, help="The input text file. ")
+parser.add_argument(
+    "-o",
+    "--output_dir",
+    type=str,
+    required=True,
+    help="The local directory where the downloaded datasets will be saved.",
+)
+args = parser.parse_args()
+
+text_file = args.input_text
+local_folder = args.output_dir
+
 if not os.path.exists(local_folder):
     os.makedirs(local_folder)
 df = pd.read_csv(text_file, sep="\t")
