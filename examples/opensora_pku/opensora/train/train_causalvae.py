@@ -23,7 +23,8 @@ from opensora.models.ae.videobase.dataset_videobase import VideoDataset, create_
 from opensora.models.ae.videobase.losses.net_with_loss import DiscriminatorWithLoss, GeneratorWithLoss
 from opensora.models.ae.videobase.modules.updownsample import TrilinearInterpolate
 from opensora.models.ae.videobase.utils.model_utils import resolve_str_to_obj
-from opensora.train.commons import create_loss_scaler, init_env, parse_args
+from opensora.train.commons import create_loss_scaler, parse_args
+from opensora.utils.ms_utils import init_env
 from opensora.utils.utils import get_precision
 
 from mindone.trainers.callback import EvalSaveCallback, OverflowMonitor, ProfilerCallback

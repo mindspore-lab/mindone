@@ -8,22 +8,9 @@ sys.path.append(".")
 mindone_lib_path = os.path.abspath("../../")
 sys.path.insert(0, mindone_lib_path)
 from opensora.models.ae.videobase.causal_vae.modeling_causalvae import CausalVAEModel
+from opensora.utils.ms_utils import init_env
 
 import mindspore as ms
-
-ms.context.set_context(jit_config={"jit_level": "O1"})  # O0: KBK, O1:DVM, O2: GE
-
-
-def init_env(args):
-    # no parallel mode currently
-    device_id = int(os.getenv("DEVICE_ID", 0))
-    ms.set_context(
-        mode=0,
-        device_target=args.device,
-        device_id=device_id,
-    )
-
-    return device_id
 
 
 def inflate(args):
@@ -108,7 +95,8 @@ if __name__ == "__main__":
     )
     parser.add_argument("--model_config", type=str, default="scripts/causalvae/release.json")
     parser.add_argument("--device", type=str, default="Ascend", help="Ascend or GPU")
+    parser.add_argument("--jit_level", type=str, default="O1", help="Set jit level: # O0: KBK, O1:DVM, O2: GE")
     args = parser.parse_args()
-    init_env(args)
+    init_env(mode=0, device_target=args.device, jit_level=args.jit_level)
 
     inflate(args)

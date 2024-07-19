@@ -33,34 +33,11 @@ from mindone.visualize.videos import save_videos
 sys.path.append(".")
 from opensora.models.ae import getae_wrapper
 from opensora.models.ae.videobase.modules.updownsample import TrilinearInterpolate
-
-# from opensora.models.ae.videobase.causal_vae.modeling_causalvae import TimeDownsample2x, TimeUpsample2x
 from opensora.utils.dataset_utils import create_video_transforms
+from opensora.utils.ms_utils import init_env
 from opensora.utils.utils import get_precision
 
 logger = logging.getLogger(__name__)
-
-
-def init_env(args):
-    # no parallel mode currently
-    device_id = int(os.getenv("DEVICE_ID", 0))
-    ms.set_context(
-        mode=args.mode,
-        device_target=args.device,
-        device_id=device_id,
-    )
-    if args.precision_mode is not None:
-        ms.set_context(ascend_config={"precision_mode": args.precision_mode})
-    if args.jit_level is not None:
-        if args.mode == 1:
-            print(
-                f"Only graph mode supports args.jit_level! Will ignore args.jit_level {args.jit_level} in Pynative mode."
-            )
-        else:
-            jit_dict = {"O0": "KBK", "O1": "DVM", "O2": "GE"}
-            print(f"Using jit_level: {jit_dict[args.jit_level]}")
-            ms.context.set_context(jit_config={"jit_level": args.jit_level})  # O0: KBK, O1:DVM, O2: GE
-    return device_id
 
 
 def read_video(video_path: str, num_frames: int, sample_rate: int) -> ms.Tensor:
@@ -150,7 +127,13 @@ def transform_to_rgb(x, rescale_to_uint8=True):
 
 
 def main(args):
-    init_env(args)
+    init_env(
+        mode=args.mode,
+        device_target=args.device,
+        precision_mode=args.precision_mode,
+        jit_level=args.jit_level,
+    )
+
     set_logger(name="", output_dir=args.output_path, rank=0)
 
     kwarg = {"model_config": args.model_config}

@@ -22,7 +22,8 @@ from opensora.models.diffusion.latte.modeling_latte import Latte_models, LayerNo
 from opensora.models.diffusion.latte.modules import Attention
 from opensora.models.diffusion.latte.net_with_loss import DiffusionWithLoss
 from opensora.models.text_encoder.t5 import T5Embedder
-from opensora.train.commons import create_loss_scaler, init_env, parse_args
+from opensora.train.commons import create_loss_scaler, parse_args
+from opensora.utils.ms_utils import init_env
 from opensora.utils.utils import get_precision
 
 from mindone.trainers.callback import EvalSaveCallback, OverflowMonitor, ProfilerCallbackEpoch
