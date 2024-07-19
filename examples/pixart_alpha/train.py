@@ -192,6 +192,8 @@ def main(args):
         column_names=["x", "text_emb", "text_mask"],
         shuffle=True,
         num_parallel_workers=args.num_parallel_workers,
+        num_shards=device_num,
+        shard_id=rank_id,
     )
     dataset = dataset.batch(args.batch_size, drop_remainder=True)
     dataset_size = dataset.get_dataset_size()

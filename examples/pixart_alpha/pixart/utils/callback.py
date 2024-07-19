@@ -134,5 +134,6 @@ class TimeMonitor(Callback):
     def on_train_epoch_end(self, run_context: RunContext) -> None:
         epoch_duration = time.time() - self.epoch_start_time
         avg_time = np.mean(self.durations)
+        self.durations = list()
         logger.info(f"Total training time for single epoch: {epoch_duration:.3f} seconds")
         logger.info(f"Average step time: {avg_time:.3f} seconds")
