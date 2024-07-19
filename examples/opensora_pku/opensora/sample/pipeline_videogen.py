@@ -736,7 +736,7 @@ class VideoGenPipeline(DiffusionPipeline):
                 elif len(current_timestep.shape) == 0:
                     current_timestep = current_timestep[None]
                 # broadcast to batch dimension in a way that's compatible with ONNX/Core ML
-                current_timestep = mint.tile(current_timestep, (latent_model_input.shape[0]))
+                current_timestep = mint.tile(current_timestep, (latent_model_input.shape[0],))
                 # predict noise model_output
                 noise_pred = self.transformer(
                     latent_model_input,  # (b c t h w)
