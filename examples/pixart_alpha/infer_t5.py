@@ -51,7 +51,7 @@ class TextDataset:
 
 def init_env(args) -> None:
     set_random_seed(args.seed)
-    ms.set_context(mode=args.mode, device_target=args.device_target, jit_config=dict(jit_level="O2"))
+    ms.set_context(mode=args.mode, device_target=args.device_target, jit_config=dict(jit_level="O1"))
 
 
 def main(args):
