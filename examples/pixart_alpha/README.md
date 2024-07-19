@@ -122,11 +122,11 @@ For detail usage of the training script, you can run `python train.py -h`.
 
 ### Training
 
-| Model       | Context       | Global Batch Size x Grad. Accu. | Max. Resolution | Acceleration | FPS (img/s) |
+| Model       | Context       | Global Batch Size x Grad. Accu. | Resolution | Acceleration | FPS (img/s) |
 |-------------|---------------|---------------------------------|-----------------|--------------|-------------|
 | PixArt-XL-2 | D910*x4-MS2.3 | 64x1                            | 512x512         | FP16, FA, O1 | 67.58       |
 
-> Context: {Ascend chip}-{number of NPUs}-{mindspore version}.
-> Acceleration: FP16: float16 computation; FA: Flash Attention enabled; O1: Refer to Mindspore `jit_level` document.
-> Max. Resolution: The maximum resolution of the image in training.
-> FPS: images per second during training. average training time (s/step) = batch_size / FPS
+- Context: {Ascend chip}-{number of NPUs}-{mindspore version}.
+- Acceleration: FP16: float16 computation; FA: Flash Attention enabled; O1: Refer to Mindspore `jit_level` document.
+- Resolution: The resolution of the image in training.
+- FPS: images per second during training. average training time (s/step) = batch_size / FPS
