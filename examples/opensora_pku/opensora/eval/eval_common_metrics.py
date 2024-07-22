@@ -41,7 +41,7 @@ mindone_lib_path = os.path.abspath("../../")
 sys.path.insert(0, mindone_lib_path)
 sys.path.append(".")
 # from opensora.eval.cal_fvd import calculate_fvd
-# from opensora.eval.cal_lpips import calculate_lpips
+from opensora.eval.cal_lpips import calculate_lpips
 from opensora.eval.cal_psnr import calculate_psnr
 
 try:
@@ -182,13 +182,13 @@ def calculate_common_metric(args, dataloader, dataset_size):
             else:
                 continue
         else:
-            raise ValueError
-            # tmp_list = list(
-            #     calculate_lpips(
-            #         real_videos,
-            #         generated_videos,
-            #     )["value"].values()
-            # )
+            print("calculate_lpips...")
+            tmp_list = list(
+                calculate_lpips(
+                    real_videos,
+                    generated_videos,
+                )["value"].values()
+            )
         score_list += tmp_list
     return np.mean(score_list)
 
