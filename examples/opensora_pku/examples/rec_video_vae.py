@@ -86,6 +86,8 @@ def main(args):
         raise ValueError(f"Unsupported precision {args.precision}")
 
     ds_config = dict(
+        data_file_path=args.data_file_path,
+        video_column=args.video_column,
         data_folder=real_video_dir,
         size=resolution,
         crop_size=crop_size,
@@ -136,12 +138,16 @@ def main(args):
         for idx, video in enumerate(video_recon):
             file_name = os.path.basename(eval(str(file_paths))[idx])
             output_path = os.path.join(generated_video_dir, file_name)
+            if not os.path.exists(os.path.dirname(output_path)):
+                os.mkdir(os.path.dirname(output_path))
             if args.output_origin:
                 os.makedirs(os.path.join(generated_video_dir, "origin/"), exist_ok=True)
                 origin_output_path = os.path.join(generated_video_dir, "origin/", file_name)
                 save_data = transform_to_rgb(x[idx : idx + 1].to(ms.float32).asnumpy(), rescale_to_uint8=False)
                 # (b c t h w) -> (b t h w c)
                 save_data = np.transpose(save_data, (0, 2, 3, 4, 1))
+                if not os.path.exists(os.path.dirname(origin_output_path)):
+                    os.mkdir(os.path.dirname(origin_output_path))
                 save_videos(
                     save_data,
                     origin_output_path,
@@ -221,6 +227,16 @@ if __name__ == "__main__":
         action="store_true",
         help="Whether to use a random frame as the starting frame for reconstruction. Default is False for the ease of evaluation.",
     )
-
+    parser.add_argument(
+        "--data_file_path",
+        default=None,
+        help="The data file path where the video paths are recorded. Now support json and csv file"
+        "If not provided, will search all videos under `video_path` in a recursive manner.",
+    )
+    parser.add_argument(
+        "--video_column",
+        default="video",
+        help="The column of video file path in `data_file_path`. Defaults to `video`.",
+    )
     args = parser.parse_args()
     main(args)

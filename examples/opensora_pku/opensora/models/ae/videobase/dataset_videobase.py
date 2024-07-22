@@ -1,6 +1,5 @@
 import copy
 import csv
-import glob
 import json
 import logging
 import os
@@ -24,12 +23,16 @@ def read_gif(gif_path, mode="RGB"):
 
 
 def get_video_path_list(folder):
-    # TODO: find recursively
+    video_paths = []
     fmts = ["avi", "mp4", "gif"]
-    out = []
-    for fmt in fmts:
-        out += glob.glob(os.path.join(folder, f"*.{fmt}"))
-    return sorted(out)
+
+    for root, dirs, files in os.walk(folder):
+        for file in files:
+            for fmt in fmts:
+                if file.endswith(f".{fmt}"):
+                    video_paths.append(os.path.join(root, file))
+
+    return sorted(video_paths)
 
 
 class VideoDataset:
@@ -55,7 +58,7 @@ class VideoDataset:
             self.parse_data_file(data_file_path)
             self.read_from_data_file = True
         else:
-            logger.info(f"loading videos from video folder {data_folder} ...")
+            logger.info(f"loading videos from video folder {data_folder} recursively...")
             self.dataset = get_video_path_list(data_folder)
             self.read_from_data_file = False
 

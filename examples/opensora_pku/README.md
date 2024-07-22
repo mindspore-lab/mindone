@@ -229,7 +229,7 @@ Please edit the `master_port` to a different port number in the range 1024 to 65
 
 **Step 1: Downloading Datasets**:
 
-To train the causal vae model, you need to prepare a video dataset. You can download this video dataset from [Open-Sora-Dataset-v1.1.0](https://huggingface.co/datasets/LanguageBind/Open-Sora-Plan-v1.1.0/tree/main). We give a tutorial on how to download these datasets. See [downloading tutorial](./tools/download/README.md). Afterwards, you can revise the `--video_path` in the training script to the video folder path of your downloaded dataset.
+To train the causal vae model, you need to prepare a video dataset. You can download this video dataset from [Open-Sora-Dataset-v1.1.0](https://huggingface.co/datasets/LanguageBind/Open-Sora-Plan-v1.1.0/tree/main). We give a tutorial on how to download these datasets. See [downloading tutorial](./tools/download/README.md).
 
 **Step 2: Converting Pretrained Weights**:
 
@@ -245,6 +245,31 @@ python tools/model_conversion/inflate_vae2d_to_vae3d.py \
 Please also download [lpips_vgg-426bf45c.ckpt](https://download-mindspore.osinfra.cn/toolkits/mindone/autoencoders/lpips_vgg-426bf45c.ckpt) and put it under `pretrained/` for training with lpips loss.
 
 #### Standalone Training
+
+After downloading the datasets and preparing the pretrained weight, you can revise the `--video_path` in the training script to the video folder path of your downloaded dataset. This will allow the training script to load all video files under `video_path` in a **recursive manner**, and use them as the training data. Make sure the `--load_from_checkpoint` is set to the pretrained weight, e.g., `pretrained/causal_vae_488_init.ckpt`.
+
+
+<details>
+<summary>How to define the train and test set?</summary>
+
+If you need to define the video files in the training set, please use a csv file with only one column, like:
+```csv
+"video"
+folder_name/video_name_01.mp4
+folder_name/video_name_02.mp4
+...
+```
+Afterwards, you should revise the training script as below:
+```bash
+python opensora/train/train_causalvae.py \
+    --data_file_path path/to/train_set/csv/file \
+    --video_column "video" \
+    --video_path path/to/downloaded/dataset \
+    # pass other arguments
+```
+
+Similarly, you can create a csv file to include the test set videos, and pass the csv file to `--data_file_path` in `examples/rec_video_vae.py`.
+</details>
 
 To launch a single-card training using perceputal loss, you can refer to `scripts/causalvae/train_without_gan_loss.sh` and run:
 ```bash

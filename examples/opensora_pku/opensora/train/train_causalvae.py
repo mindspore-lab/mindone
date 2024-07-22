@@ -518,7 +518,7 @@ def parse_causalvae_train_args(parser):
         "--data_file_path",
         default=None,
         help="The data file path where the video paths are recorded. Now support json and csv file"
-        "If not provided, will search all videos under `video_path` in a non-recursive manner.",
+        "If not provided, will search all videos under `video_path` in a recursive manner.",
     )
     parser.add_argument(
         "--video_column",
