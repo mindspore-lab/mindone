@@ -168,6 +168,8 @@ def main(args):
         video_recon = vae.decode(latents)  # b t c h w
 
     save_fp = os.path.join(args.output_path, args.rec_path)
+    if ".avi" in os.path.basename(save_fp):
+        save_fp = save_fp.replace(".avi", ".mp4")
     if video_recon.shape[1] == 1:
         x = video_recon[0, 0, :, :, :].squeeze().to(ms.float32).asnumpy()
         original_rgb = x_vae[0, 0, :, :, :].squeeze().to(ms.float32).asnumpy()

@@ -22,8 +22,6 @@ def trans(x):
 
 
 def calculate_psnr(videos1, videos2):
-    print("calculate_psnr...")
-
     # videos [batch_size, timestamps, channel, h, w]
 
     assert videos1.shape == videos2.shape

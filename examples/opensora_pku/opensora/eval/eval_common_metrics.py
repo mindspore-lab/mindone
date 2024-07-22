@@ -28,6 +28,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
+import math
 import os
 import os.path as osp
 import sys
@@ -69,6 +70,9 @@ class VideoDataset:
         super().__init__()
         self.real_video_files = self.combine_without_prefix(real_video_dir)
         self.generated_video_files = self.combine_without_prefix(generated_video_dir)
+        assert (
+            len(self.real_video_files) == len(self.generated_video_files) and len(self.real_video_files) > 0
+        ), "Expect that the real and generated folders are not empty and contain the equal number of videos!"
         self.num_frames = num_frames
         self.sample_rate = sample_rate
         self.crop_size = crop_size
@@ -92,7 +96,7 @@ class VideoDataset:
             raise IndexError
         real_video_file = self.real_video_files[index]
         generated_video_file = self.generated_video_files[index]
-        if os.path.basename(real_video_file) != os.path.basename(generated_video_file):
+        if os.path.basename(real_video_file).split(".")[0] != os.path.basename(generated_video_file).split(".")[0]:
             print(
                 f"Warning! video file name mismatch! real and generated {os.path.basename(real_video_file)} and {os.path.basename(generated_video_file)}"
             )
@@ -140,7 +144,7 @@ class VideoDataset:
 
     def combine_without_prefix(self, folder_path, prefix="."):
         folder = []
-        os.makedirs(folder_path, exist_ok=True)
+        assert os.path.exists(folder_path), f"Expect that {folder_path} exist!"
         for name in os.listdir(folder_path):
             if name[0] == prefix:
                 continue
@@ -150,18 +154,23 @@ class VideoDataset:
         return folder
 
 
-def calculate_common_metric(args, dataloader):
+def calculate_common_metric(args, dataloader, dataset_size):
     score_list = []
-    for batch_data in tqdm(dataloader):  # {'real': real_video_tensor, 'generated':generated_video_tensor }
+    for batch_data in tqdm(
+        dataloader, total=dataset_size
+    ):  # {'real': real_video_tensor, 'generated':generated_video_tensor }
         real_videos = batch_data["real"]
         generated_videos = batch_data["generated"]
         assert real_videos.shape[2] == generated_videos.shape[2]
         if args.metric == "fvd":
+            print("calculate fvd...")
             raise ValueError
             # tmp_list = list(calculate_fvd(real_videos, generated_videos, method=args.fvd_method)["value"].values())
         elif args.metric == "ssim":
+            print("calculate ssim...")
             tmp_list = list(calculate_ssim(real_videos, generated_videos)["value"].values())
         elif args.metric == "psnr":
+            print("calculate psnr...")
             tmp_list = list(calculate_psnr(real_videos, generated_videos)["value"].values())
         elif args.metric == "flolpips":
             if flolpips_isavailable:
@@ -237,8 +246,9 @@ def main():
         shuffle=False,
         drop_remainder=False,
     )
+    dataset_size = math.ceil(len(dataset) / float(args.batch_size))
     dataloader = dataloader.create_dict_iterator(1, output_numpy=True)
-    metric_score = calculate_common_metric(args, dataloader)
+    metric_score = calculate_common_metric(args, dataloader, dataset_size)
     print("metric: ", args.metric, " ", metric_score)
 
 
