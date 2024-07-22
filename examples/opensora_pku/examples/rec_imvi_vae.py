@@ -225,7 +225,7 @@ if __name__ == "__main__":
     parser.add_argument("--device", type=str, default="Ascend", help="Ascend or GPU")
     parser.add_argument(
         "--precision_mode",
-        default="must_keep_origin_dtype",
+        default=None,
         type=str,
         help="If specified, set the precision mode for Ascend configurations.",
     )

@@ -216,7 +216,7 @@ if __name__ == "__main__":
     parser.add_argument("--seed", type=int, default=4, help="Inference seed")
     parser.add_argument(
         "--precision_mode",
-        default="must_keep_origin_dtype",
+        default=None,
         type=str,
         help="If specified, set the precision mode for Ascend configurations.",
     )
