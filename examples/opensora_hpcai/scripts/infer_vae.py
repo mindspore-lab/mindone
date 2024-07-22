@@ -61,7 +61,7 @@ def init_env(
                 )
         except Exception:
             logger.warning(
-                "The current jit_level is not suitable because current MindSpore version or mode does not match,"
+                "The current jit_level is not suitable because current MindSpore version does not match,"
                 "please ensure the MindSpore version >= ms2.3_0615."
             )
 
