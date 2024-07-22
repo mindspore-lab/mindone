@@ -8,9 +8,9 @@ Here we provide an efficient MindSpore version of [Open-Sora-Plan](https://githu
 
 |        Official News from OpenSora-PKU  | MindSpore Support     |
 | ------------------ | ---------- |
-| **[2024.05.27]** 🚀🚀🚀 PKU launched Open-Sora Plan v1.1.0, which significantly improves video quality and length, and is fully open source! Please check out their latest [report](https://github.com/PKU-YuanGroup/Open-Sora-Plan/blob/main/docs/Report-v1.1.0.md). | ✅ V.1.1.0 CausalVAE inference and LatteT2V infernece & two-stage training (`65x512x512`, `221x512x512`) |
+| **[2024.05.27]** 🚀🚀🚀 PKU launched Open-Sora Plan v1.1.0, which significantly improves video quality and length, and is fully open source! Please check out their latest [report](https://github.com/PKU-YuanGroup/Open-Sora-Plan/blob/main/docs/Report-v1.1.0.md). | ✅ V.1.1.0 CausalVAE inference and LatteT2V infernece & three-stage training (`65x512x512`, `221x512x512`, `513x512x512`) |
 | **[2024.04.09]** 🚀 PKU shared the latest exploration on metamorphic time-lapse video generation: [MagicTime](https://github.com/PKU-YuanGroup/MagicTime), and the dataset for train (updating): [Open-Sora-Dataset](https://github.com/PKU-YuanGroup/Open-Sora-Dataset).| N.A.  |
-| **[2024.04.07]** 🔥🔥🔥 PKU released Open-Sora-Plan v1.0.0. See their [report]([docs/Report-v1.0.0.md](https://github.com/PKU-YuanGroup/Open-Sora-Plan/blob/main/docs/Report-v1.0.0.md)). | ✅ CausalVAE+LatteT2V+T5 inference and three-stage training (`65x512x512`, `221x512x512`, `65x512x512`)  |
+| **[2024.04.07]** 🔥🔥🔥 PKU released Open-Sora-Plan v1.0.0. See their [report](https://github.com/PKU-YuanGroup/Open-Sora-Plan/blob/main/docs/Report-v1.0.0.md). | ✅ CausalVAE+LatteT2V+T5 inference and three-stage training (`17×256×256`, `65×256×256`, `65x512x512`)  |
 | **[2024.03.27]** 🚀🚀🚀 PKU released the report of [VideoCausalVAE](https://github.com/PKU-YuanGroup/Open-Sora-Plan/blob/main/docs/Train_And_Eval_CausalVideoVAE.md), which supports both images and videos.  | ✅ CausalVAE training and inference |
 | **[2024.03.10]** 🚀🚀🚀 PKU supports training a latent size of 225×90×90 (t×h×w), which means to **train 1 minute of 1080P video with 30FPS** (2× interpolated frames and 2× super resolution) under class-condition.| frame interpolation and super-resolution are under-development.|
 | **[2024.03.08]** PKU support the training code of text condition with 16 frames of 512x512. |   ✅ CausalVAE+LatteT2V+T5 training (`16x512x512`)|
@@ -48,17 +48,17 @@ Videos are saved to `.gif` for display. See the text prompts in `examples/prompt
 
 - 📍 **Open-Sora-Plan v1.1.0** with the following features
     - ✅ Sequence parallelism
-    - ✅ CausalVAE-4x8x8 inference. Supports video reconstruction.
+    - ✅ CausalVAE-4x8x8 training and inference. Supports video reconstruction.
     - ✅ T5 TextEncoder model inference.
-    - ✅ Text-to-video generation in 512x512 resolution and up to 221 frames.
-    - ✅ Three-stage training: i) 65x512x512 pretraining; ii) 221x512x512 finetuning;
+    - ✅ Text-to-video generation in 512x512 resolution and up to 513 frames.
+    - ✅ Three-stage training: i) 65x512x512 pretraining; ii) 221x512x512 finetuning; iii) 513x512x512 finetuning.
     - ✅ Acceleration methods: flash attention, recompute (graident checkpointing), mixed precision, data parallelism, optimizer-parallel, etc..
+    - ✅ Evaluation metrics : PSNR and SSIM.
 
 
 ### TODO
-* [ ] Third-stage training script **[WIP]**
-* [ ] Scaling model parameters and dataset size.
-* [ ] Evaluation of various metrics.
+* [ ] Scaling model parameters and dataset size **[WIP]**.
+* [ ] Evaluation of various metrics **[WIP]**.
 
 You contributions are welcome.
 
