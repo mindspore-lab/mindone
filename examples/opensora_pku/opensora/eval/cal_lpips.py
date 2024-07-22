@@ -2,7 +2,6 @@ import os
 
 import numpy as np
 from opensora.models.ae.videobase.losses.lpips import LPIPS
-from tqdm import tqdm
 
 import mindspore as ms
 from mindspore import ops
@@ -17,6 +16,7 @@ assert os.path.exists(lpips_ckpt_path), (
 )
 loss_fn.load_from_pretrained(lpips_ckpt_path)
 # loss_fn = lpips.LPIPS(net='alex', spatial=spatial, lpips=False) # Can also set net = 'squeeze' or 'vgg'
+print("Calculating LPIPS loss using VGG16.")
 
 
 def trans(x):
@@ -44,7 +44,7 @@ def calculate_lpips(videos1, videos2):
 
     lpips_results = []
 
-    for video_num in tqdm(range(videos1.shape[0])):
+    for video_num in range(videos1.shape[0]):
         # get a video
         # video [timestamps, channel, h, w]
         video1 = videos1[video_num]

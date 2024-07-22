@@ -319,6 +319,28 @@ python examples/rec_video_vae.py \
 
 Runing this command will generate reconstructed videos under the given `output_generated_video_dir`. You can then evalute some common metrics (e.g., ssim, psnr) using the script under `opensora/eval/script`.
 
+#### Performance
+
+Taking the stage-1 training as an example, we record the training speed as follows:
+
+| Model           | Context        | Precision | BS  | NPUs | num_frames + num_images | Resolution  | With GAN loss  | Train T. (s/step) |
+|:----------------|:---------------|:----------|:---:|:----:|:-----------------------:|:-----------:|:-----------:|:-----------------:|
+| CausalVAE_4x8x8  | D910\*-[CANN C18(0705)](https://repo.mindspore.cn/ascend/ascend910/20240705/)-[MS2.3_master(0705)](https://repo.mindspore.cn/mindspore/mindspore/version/202407/20240705/master_20240705220018_51f414917fd9a312dd43ea62eea61cf37c3dfbd6_newest/unified/) | BF16      |  1  |  8   |         9         | 256x256     |  False |     0.97      |
+| CausalVAE_4x8x8  | D910\*-[CANN C18(0705)](https://repo.mindspore.cn/ascend/ascend910/20240705/)-[MS2.3_master(0705)](https://repo.mindspore.cn/mindspore/mindspore/version/202407/20240705/master_20240705220018_51f414917fd9a312dd43ea62eea61cf37c3dfbd6_newest/unified/) | FP32      |  1  |  8   |         9         | 256x256     |  True |     1.63        |
+
+#### Example of Training Experiment
+
+To validate the training script, we run 8-card parallel training of CausalVAE_4x8x8 with GAN loss using the [UCF-101 dataset](https://www.crcv.ucf.edu/research/data-sets/ucf101/). The training set consists of 10656 videos and the test set consists of 2664 videos.
+
+We revise the `video_path` of `scripts/causalvae/train_with_gan_loss_multi_device.sh` to the UCF-101 training set, and then start training. After training, we run inference with the checkpoint using `scripts/causalvae/gen_video.sh` to save the generated videos. Then we revise the `real_video_dir` and `generated_video_dir` in `opensora/eval/scripts/cal_ssim.sh` to the video folder of the test set and the video folder of the generated videos to evaluate SSIM scores. The similar process is needed to evaluate PSNR scores using `opensora/eval/scripts/cal_psnr.sh`
+
+Here are the evaluation metrics of the checkpoint file trained for 135k steps:
+
+| Train Steps | With GAN loss | PSNR | SSIM |
+| --- | ---| ---|---|
+|135000 | True|29.8343 | 0.8893|
+
+
 ### Training Diffusion Model
 
 #### Preparation

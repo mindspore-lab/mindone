@@ -156,6 +156,7 @@ class VideoDataset:
 
 def calculate_common_metric(args, dataloader, dataset_size):
     score_list = []
+    index = 0
     for batch_data in tqdm(
         dataloader, total=dataset_size
     ):  # {'real': real_video_tensor, 'generated':generated_video_tensor }
@@ -163,14 +164,17 @@ def calculate_common_metric(args, dataloader, dataset_size):
         generated_videos = batch_data["generated"]
         assert real_videos.shape[2] == generated_videos.shape[2]
         if args.metric == "fvd":
-            print("calculate fvd...")
+            if index == 0:
+                print("calculate fvd...")
             raise ValueError
             # tmp_list = list(calculate_fvd(real_videos, generated_videos, method=args.fvd_method)["value"].values())
         elif args.metric == "ssim":
-            print("calculate ssim...")
+            if index == 0:
+                print("calculate ssim...")
             tmp_list = list(calculate_ssim(real_videos, generated_videos)["value"].values())
         elif args.metric == "psnr":
-            print("calculate psnr...")
+            if index == 0:
+                print("calculate psnr...")
             tmp_list = list(calculate_psnr(real_videos, generated_videos)["value"].values())
         elif args.metric == "flolpips":
             if flolpips_isavailable:
@@ -182,13 +186,15 @@ def calculate_common_metric(args, dataloader, dataset_size):
             else:
                 continue
         else:
-            print("calculate_lpips...")
+            if index == 0:
+                print("calculate_lpips...")
             tmp_list = list(
                 calculate_lpips(
                     real_videos,
                     generated_videos,
                 )["value"].values()
             )
+        index += 1
         score_list += tmp_list
     return np.mean(score_list)
 
