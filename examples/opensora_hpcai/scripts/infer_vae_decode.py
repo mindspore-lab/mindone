@@ -30,7 +30,19 @@ logger = logging.getLogger(__name__)
 
 def init_env(args):
     # no parallel mode currently
-    ms.set_context(mode=args.mode)  # needed for MS2.0
+    if args.mode == ms.GRAPH_MODE:
+        try:
+            if args.jit_level in ["O0", "O1", "O2"]:
+                ms.set_context(jit_config={"jit_level": args.jit_level})
+            else:
+                logger.warning(
+                    f"Unsupport jit_level: {args.jit_level}. The framework automatically selects the execution method"
+                )
+        except Exception:
+            logger.warning(
+                "The current jit_level is not suitable because current MindSpore version or mode does not match,"
+                "please ensure the MindSpore version >= ms2.3_0615."
+            )
     device_id = int(os.getenv("DEVICE_ID", 0))
     ms.set_context(
         mode=args.mode,
@@ -180,6 +192,16 @@ def parse_args():
     # MS new args
     parser.add_argument("--device_target", type=str, default="Ascend", help="Ascend or GPU")
     parser.add_argument("--mode", type=int, default=0, help="Running in GRAPH_MODE(0) or PYNATIVE_MODE(1) (default=0)")
+    parser.add_argument(
+        "--jit_level",
+        default="O0",
+        type=str,
+        choices=["O0", "O1", "O2"],
+        help="Used to control the compilation optimization level. Supports [“O0”, “O1”, “O2”]."
+        "O0: Except for optimizations that may affect functionality, all other optimizations are turned off, adopt KernelByKernel execution mode."
+        "O1: Using commonly used optimizations and automatic operator fusion optimizations, adopt KernelByKernel execution mode."
+        "O2: Ultimate performance optimization, adopt Sink execution mode.",
+    )
     parser.add_argument("--seed", type=int, default=4, help="Inference seed")
 
     default_args = parser.parse_args()
