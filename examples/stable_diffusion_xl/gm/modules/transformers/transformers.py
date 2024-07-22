@@ -11,7 +11,7 @@ from mindspore import Tensor, ops
 def scaled_dot_product_attention(query, key, value, attn_mask=None, dtype=None):
     # force fp16 precision calculation
     origin_dtype = query.dtype
-    dtype = dtype or origin_dtype
+    dtype = origin_dtype if dtype is None else dtype
     if dtype is not None:
         query, key, value = query.astype(dtype), key.astype(dtype), value.astype(dtype)
 
