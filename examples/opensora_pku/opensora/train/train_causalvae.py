@@ -259,7 +259,7 @@ def main(args):
         weight_decay=args.weight_decay,
         lr=lr,
     )
-    loss_scaler_ae = create_loss_scaler(args) if args.precision != "fp32" else ms.Tensor(1.0)
+    loss_scaler_ae = create_loss_scaler(args)
 
     if use_discriminator:
         optim_disc = create_optimizer(
@@ -270,7 +270,7 @@ def main(args):
             group_strategy=args.group_strategy,
             weight_decay=args.weight_decay,
         )
-        loss_scaler_disc = create_loss_scaler(args) if args.precision != "fp32" else ms.Tensor(1.0)
+        loss_scaler_disc = create_loss_scaler(args)
 
     ema = (
         EMA(
@@ -297,9 +297,9 @@ def main(args):
             ae_with_loss, optim_ae, resume_ckpt
         )
         loss_scaler_ae.loss_scale_value = loss_scale
-        loss_scaler_ae.cur_iter = cur_iter
+        loss_scaler_ae.cur_iter = cur_iter.to(ms.int32)
         loss_scaler_ae.last_overflow_iter = last_overflow_iter
-        logger.info(f"Resume training from {resume_ckpt}")
+        logger.info(f"Resume autoencoder training from {resume_ckpt}")
     # training step
     training_step_ae = TrainOneStepWrapper(
         ae_with_loss,
@@ -313,6 +313,20 @@ def main(args):
     )
 
     if use_discriminator:
+        if args.resume_from_checkpoint:
+            resume_ckpt = (
+                os.path.join(ckpt_dir, "train_resume_disc.ckpt")
+                if isinstance(args.resume_from_checkpoint, bool)
+                else args.resume_from_checkpoint
+            )
+
+            start_epoch, loss_scale, cur_iter, last_overflow_iter = resume_train_network(
+                disc_with_loss, optim_disc, resume_ckpt
+            )
+            loss_scaler_disc.loss_scale_value = loss_scale
+            loss_scaler_disc.cur_iter = cur_iter.to(ms.int32)
+            loss_scaler_disc.last_overflow_iter = last_overflow_iter
+            logger.info(f"Resume discriminator training from {resume_ckpt}")
         training_step_disc = TrainOneStepWrapper(
             disc_with_loss,
             optimizer=optim_disc,
@@ -379,6 +393,7 @@ def main(args):
                 start_epoch=start_epoch,
                 model_name="vae_3d",
                 record_lr=False,
+                save_training_resume=args.save_training_resume,
             )
             callback.append(save_cb)
             if args.profile:
@@ -451,11 +466,30 @@ def main(args):
                         )
                         if ema is not None:
                             ema.swap_before_eval()
-                        ae_with_loss.autoencoder.set_train(False)
+                        ae_with_loss.set_train(False)
+                        disc_with_loss.set_train(False)
                         ckpt_manager.save(ae_with_loss.autoencoder, None, ckpt_name=ckpt_name, append_dict=None)
+                        if args.save_training_resume:
+                            ms.save_checkpoint(
+                                training_step_ae,
+                                os.path.join(ckpt_dir, "train_resume.ckpt"),
+                                append_dict={
+                                    "epoch_num": cur_epoch - 1,
+                                    "loss_scale": loss_scaler_ae.loss_scale_value,
+                                },
+                            )
+                            ms.save_checkpoint(
+                                training_step_disc,
+                                os.path.join(ckpt_dir, "train_resume_disc.ckpt"),
+                                append_dict={
+                                    "epoch_num": cur_epoch - 1,
+                                    "loss_scale": loss_scaler_disc.loss_scale_value,
+                                },
+                            )
                         if ema is not None:
                             ema.swap_after_eval()
-                        ae_with_loss.autoencoder.set_train(True)
+                        ae_with_loss.set_train(True)
+                        disc_with_loss.set_train(True)
 
                 if cur_global_step == total_train_steps:
                     break
@@ -473,11 +507,30 @@ def main(args):
                     ckpt_name = f"vae_3d-e{cur_epoch}.ckpt" if not use_step_unit else f"vae_3d-s{cur_global_step}.ckpt"
                     if ema is not None:
                         ema.swap_before_eval()
-                    ae_with_loss.autoencoder.set_train(False)
+                    ae_with_loss.set_train(False)
+                    disc_with_loss.set_train(False)
                     ckpt_manager.save(ae_with_loss.autoencoder, None, ckpt_name=ckpt_name, append_dict=None)
+                    if args.save_training_resume:
+                        ms.save_checkpoint(
+                            training_step_ae,
+                            os.path.join(ckpt_dir, "train_resume.ckpt"),
+                            append_dict={
+                                "epoch_num": cur_epoch - 1,
+                                "loss_scale": loss_scaler_ae.loss_scale_value,
+                            },
+                        )
+                        ms.save_checkpoint(
+                            training_step_disc,
+                            os.path.join(ckpt_dir, "train_resume_disc.ckpt"),
+                            append_dict={
+                                "epoch_num": cur_epoch - 1,
+                                "loss_scale": loss_scaler_disc.loss_scale_value,
+                            },
+                        )
                     if ema is not None:
                         ema.swap_after_eval()
-                    ae_with_loss.autoencoder.set_train(True)
+                    ae_with_loss.set_train(True)
+                    disc_with_loss.set_train(True)
 
             if cur_global_step == total_train_steps:
                 break
@@ -541,9 +594,14 @@ def parse_causalvae_train_args(parser):
         "--random_crop", default=False, type=str2bool, help="Whether to use random crop. If False, use center crop"
     )
     parser.add_argument("--jit_level", default="O0", help="Set jit level: # O0: KBK, O1:DVM, O2: GE")
+    parser.add_argument(
+        "--save_training_resume", type=str2bool, default=True, help="Whether to save the training resume checkpoint."
+    )
     return parser
 
 
 if __name__ == "__main__":
     args = parse_args(additional_parse_args=parse_causalvae_train_args)
+    if args.resume_from_checkpoint == "True":
+        args.resume_from_checkpoint = True
     main(args)

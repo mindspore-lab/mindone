@@ -630,4 +630,6 @@ def parse_t2v_train_args(parser):
 if __name__ == "__main__":
     logger.debug("process id:", os.getpid())
     args = parse_args(additional_parse_args=parse_t2v_train_args)
+    if args.resume_from_checkpoint == "True":
+        args.resume_from_checkpoint = True
     main(args)

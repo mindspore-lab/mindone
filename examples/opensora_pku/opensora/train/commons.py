@@ -180,7 +180,7 @@ def parse_train_args(parser):
         "--resume_from_checkpoint",
         default=False,
         type=str,
-        help="It can be a string for path to resume checkpoint, or a bool False for not resuming.(default=False)",
+        help="It can be a string for path to resume checkpoint, or a bool False for not resuming, or a bool True to use default train_resume.ckpt.",
     )
     parser.add_argument("--ckpt_save_interval", default=1, type=int, help="save checkpoint every this epochs or steps")
     parser.add_argument("--ckpt_max_keep", default=10, type=int, help="Maximum number of checkpoints to keep")

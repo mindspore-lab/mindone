@@ -18,6 +18,6 @@ python opensora/train/train_causalvae.py \
     --clip_grad True \
     --weight_decay 0.0 \
     --mode 0 \
-    --init_loss_scale 128 \
+    --init_loss_scale 1 \
     --jit_level "O0" \
     --use_discriminator True \

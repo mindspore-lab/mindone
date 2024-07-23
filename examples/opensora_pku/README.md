@@ -277,6 +277,8 @@ bash scripts/causalvae/train_without_gan_loss.sh
 ```
 
 If you want to train causalvae with perceputal loss and GAN loss, you can refer to `scripts/causalvae/train_with_gan_loss.sh`.
+> Note:
+> Supports resume training by setting `--resume_training_checkpoint True`. It is the same for the multi-device training script.
 
 #### Multi-Device Training
 
@@ -487,6 +489,7 @@ For the detailed explanations for other arguments, please refer to the document 
 > Note:
 > - In Graph mode (default), MindSpore takes about 10~20 mins for graph compilation.
 > - For acceleration, we set the `dataset_sink_mode` to True by default. For more information about data sink mode, see [MindSpore doc for data sink](https://www.mindspore.cn/docs/en/master/api_python/mindspore/mindspore.data_sink.html).
+>  Supports resume training by setting `--resume_training_checkpoint True`.
 
 #### Parallel Training
 
