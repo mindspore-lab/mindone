@@ -211,7 +211,7 @@ msrun --master_port=8200 --worker_num=8 --local_worker_num=8 --log_dir="output_l
     ... # pass other arguments
 ```
 
-The command above will run a 8-card inference and save the log files into "output_log". `--master_port` specifies the Scheduler binding port number. `--worker_num` and `--local_worker_num` should be the same to the number of running devices, e.g., 8.
+The command above will run a 8-card inference and save the log files into "output_log". `--master_port` specifies the scheduler binding port number. `--worker_num` and `--local_worker_num` should be the same to the number of running devices, e.g., 8.
 
 In case of the following error:
 ```bash
@@ -277,8 +277,9 @@ bash scripts/causalvae/train_without_gan_loss.sh
 ```
 
 If you want to train causalvae with perceputal loss and GAN loss, you can refer to `scripts/causalvae/train_with_gan_loss.sh`.
+
 > Note:
-> Supports resume training by setting `--resume_training_checkpoint True`. It is the same for the multi-device training script.
+> - Supports resume training by setting `--resume_training_checkpoint True`. It is the same for the multi-device training script.
 
 #### Multi-Device Training
 
@@ -325,7 +326,7 @@ Runing this command will generate reconstructed videos under the given `output_g
 
 Taking the stage-1 training as an example, we record the training speed as follows:
 
-| Model           | Context        | Precision | BS  | NPUs | num_frames + num_images | Resolution  | With GAN loss  | Train T. (s/step) |
+| Model           | Context        | Precision | BS  | NPUs | num_frames | Resolution  | With GAN loss  | Train T. (s/step) |
 |:----------------|:---------------|:----------|:---:|:----:|:-----------------------:|:-----------:|:-----------:|:-----------------:|
 | CausalVAE_4x8x8  | D910\*-[CANN C18(0705)](https://repo.mindspore.cn/ascend/ascend910/20240705/)-[MS2.3_master(0705)](https://repo.mindspore.cn/mindspore/mindspore/version/202407/20240705/master_20240705220018_51f414917fd9a312dd43ea62eea61cf37c3dfbd6_newest/unified/) | BF16      |  1  |  8   |         9         | 256x256     |  False |     0.97      |
 | CausalVAE_4x8x8  | D910\*-[CANN C18(0705)](https://repo.mindspore.cn/ascend/ascend910/20240705/)-[MS2.3_master(0705)](https://repo.mindspore.cn/mindspore/mindspore/version/202407/20240705/master_20240705220018_51f414917fd9a312dd43ea62eea61cf37c3dfbd6_newest/unified/) | FP32      |  1  |  8   |         9         | 256x256     |  True |     1.63        |
@@ -453,7 +454,7 @@ python tools/model_conversion/convert_latte.py \
   --target LanguageBind/Open-Sora-Plan-v1.1.0/t2v.ckpt
 ```
 
-> **Since [Vchitect/Latte](https://huggingface.co/maxin-cn/Latte/tree/main) has deleted `t2v.pt` from their HF repo, please download `t2v.ckpt` from this [URL](https://download-mindspore.osinfra.cn/toolkits/mindone/opensora-pku/tv2.ckpt). There is no need to convert it.**
+> **Since [Vchitect/Latte](https://huggingface.co/maxin-cn/Latte/tree/main) has deleted `t2v.pt` from their HF repo, please download `t2v.ckpt` from this [URL](https://download-mindspore.osinfra.cn/toolkits/mindone/opensora-pku/t2v.ckpt). There is no need to convert it.**
 
 #### Example of Training Scripts
 Here we choose an example of training scripts (`train_videoae_65x512x512.sh`) and explain the meanings of some experimental arguments. This is an example of parallel training script which uses data parallelism. If you want to try single-device training, please refer to `train_videoae_65x512x512_single_device.sh`.
@@ -489,7 +490,7 @@ For the detailed explanations for other arguments, please refer to the document 
 > Note:
 > - In Graph mode (default), MindSpore takes about 10~20 mins for graph compilation.
 > - For acceleration, we set the `dataset_sink_mode` to True by default. For more information about data sink mode, see [MindSpore doc for data sink](https://www.mindspore.cn/docs/en/master/api_python/mindspore/mindspore.data_sink.html).
->  Supports resume training by setting `--resume_training_checkpoint True`.
+> - Supports resume training by setting `--resume_training_checkpoint True`.
 
 #### Parallel Training
 
@@ -499,9 +500,9 @@ Before launching the first-stage training, please make sure you set the three pa
 # start 65x512x512 pretraining, 8 NPUs
 bash scripts/text_condition/train_videoae_65x512x512.sh
 ```
-During training, the training logs will be saved under `parallel_logs/` folder of the specified output directory. The loss values and average per step time will saved in `result.log` in the output directory.
+During training, the training logs will be saved under `parallel_logs/` folder of the specified output directory, e.g., `parallel_logs/worker_0.log`. The loss values and average per step time will saved in `result.log` in the output directory.
 
-After the first-stage training, if using data parallelism (the default parallel mode), the checkpoint files will be saved under `ckpt/` folder. If using optimizer parallelism, there will be multiple checkpoint shards saved in the `ckpt/`. See the following method on how to merge multiple checkpoint shards into a full checkpoint file.
+After the first-stage training, if data parallelism (the default parallel mode) is applied, the checkpoint files will be saved under `ckpt/` folder. If optimizer parallelism is applied (setting `--parallel_mode` to "optim"), there will be multiple checkpoint shards saved in the `ckpt/`. See the following method on how to merge multiple checkpoint shards into a full checkpoint file.
 <details>
 <summary>How to merge multiple checkpoint shards</summary>
 
@@ -513,25 +514,26 @@ Afterwards, you will obtain a full checkpoint file under `output_dir/ckpt/rank_0
 
 </details>
 
-> If you want to run inference with a checkpoint file, please revise the script `scripts/text_condition/sample_video.sh` and append `--pretrained_ckpt path/to/your.ckpt` to the end of the inference command.
+> Note:
+> - If you want to run inference with a checkpoint file, please revise the script `scripts/text_condition/sample_video.sh` and append `--pretrained_ckpt path/to/your.ckpt` to the end of the inference command.
 
 Then please revise `scripts/text_condition/train_videoae_221x512x512.sh`, and change `--pretrained` to the full checkpoint path from the `65x512x512` stage. Then run:
 
 ```bash
-# (experimental) start 221x512x512 finetuning, 8 NPUs
+# start 221x512x512 finetuning, 8 NPUs
 bash scripts/text_condition/train_videoae_221x512x512_sp.sh
 ```
-
-> You can try modifying `--dataloader_num_workers` and `--dataloader_prefetch_size` on `train_videoae_221x512x512_sp.sh` to speed up when you have enough cpu memory.
+> Note:
+> - You can try modifying `--dataloader_num_workers` and `--dataloader_prefetch_size` on `train_videoae_221x512x512_sp.sh` to speed up when you have enough cpu memory.
 
 Simiarly, please revise the `--pretrained` to the checkpoint path from the `221x512x512` stage, and then start the third-stage training:
 
 ```bash
-# (experimental) start 513x512x512 finetuning, 8 NPUs
+# start 513x512x512 finetuning, 8 NPUs
 bash scripts/text_condition/train_videoae_513x512x512_sp.sh
 ```
 > Note:
-> You can try modifying `--dataloader_num_workers` and `--dataloader_prefetch_size` on `train_videoae_513x512x512_sp.sh` to speed up when you have enough cpu memory.
+> - You can try modifying `--dataloader_num_workers` and `--dataloader_prefetch_size` on `train_videoae_513x512x512_sp.sh` to speed up when you have enough cpu memory.
 
 
 #### Overfitting Experiment
