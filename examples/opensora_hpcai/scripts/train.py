@@ -130,6 +130,10 @@ def init_env(
     if global_bf16:
         ms.set_context(ascend_config={"precision_mode": "allow_mix_precision_bf16"})
 
+    if mode == 0:
+        # FIXME: this is a fix for dynamic shape training in graph mode. may remove in future version.
+        ms.set_context(graph_kernel_flags="--disable_packet_ops=Reshape")
+
     return rank_id, device_num
 
 
@@ -642,6 +646,5 @@ def main(args):
 
 if __name__ == "__main__":
     logger.debug("process id:", os.getpid())
-    ms.set_context(graph_kernel_flags="--disable_packet_ops=Reshape")
     args = parse_args()
     main(args)
