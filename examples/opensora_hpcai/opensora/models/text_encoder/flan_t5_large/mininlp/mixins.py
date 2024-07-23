@@ -23,6 +23,7 @@ import numpy as np
 from tokenizers import AddedToken
 
 import mindspore
+import mindspore as ms
 from mindspore import Tensor
 from mindspore import log as logger
 from mindspore import ops
