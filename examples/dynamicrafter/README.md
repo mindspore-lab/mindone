@@ -18,6 +18,10 @@ pip install -r requirements.txt
 ```
 ## Inference
 
+### Prepare prompts
+
+Download the prompts from [here](https://download-mindspore.osinfra.cn/toolkits/mindone/dynamicrafter/prompts.zip) and then place them as directory `prompts/`.
+
 ### Prepare model weights
 
 We provide weight conversion script `tools/convert_weight.py` to convert the original Pytorch model weights to MindSpore model weights. Pytorch model weights can be accessed via links below.
@@ -49,7 +53,7 @@ sh scripts/run/run_infer.sh [RESUOUTION] [CKPT_PATH]
 
 > [RESLLUTION] can be 256, 512 or 1024.
 
-Inference speed on 910*
+Inference speed on 910*:
 
 |Model|Resolution|mode|jit_level|Speed(s/video)|
 |:---------|:---------|:--------|:--------|:--------|
