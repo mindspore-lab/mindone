@@ -502,10 +502,10 @@ class PatchEmbed(nn.Cell):
         if self.manual_pad:
             # work with pad_mode = valid
             if h % self.patch_size[0] != 0:
-                pad_h = ops.zeros((b, c, self.patch_size[0] - h % self.patch_size[0], w)), x.dtype)
+                pad_h = ops.zeros((b, c, self.patch_size[0] - h % self.patch_size[0], w), x.dtype)
                 x = ops.cat([x, pad_h], 2)
-            if w % self.pathc_size[1] != 0:
-                pad_w = ops.zeros(b, c, x.shape[-2], self.patch_size[1] - w % self.patch_size[1], x.dtype)
+            if w % self.patch_size[1] != 0:
+                pad_w = ops.zeros((b, c, x.shape[-2], self.patch_size[1] - w % self.patch_size[1]), x.dtype)
                 x = ops.cat([x, pad_w], 3)
         x = self.proj(x)
         x = ops.reshape(x, (b, self.embed_dim, -1))
