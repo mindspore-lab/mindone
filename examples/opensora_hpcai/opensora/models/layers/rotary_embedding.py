@@ -90,7 +90,7 @@ class RotaryEmbedding(nn.Cell):
         self.default_seq_dim = -3 if seq_before_head_dim else -2
 
         # interpolation factors
-        # assert interpolate_factor >= 1.0
+        assert interpolate_factor >= 1.0
         self.interpolate_factor = interpolate_factor
 
         # xpos

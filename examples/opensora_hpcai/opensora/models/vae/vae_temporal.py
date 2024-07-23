@@ -41,8 +41,8 @@ class CausalConv3d(nn.Cell):
 
         time_kernel_size, height_kernel_size, width_kernel_size = kernel_size
 
-        # assert is_odd(height_kernel_size) and is_odd(width_kernel_size)
-        # assert pad_mode == "constant"
+        assert is_odd(height_kernel_size) and is_odd(width_kernel_size)
+        assert pad_mode == "constant"
 
         dilation = kwargs.pop("dilation", 1)
         stride = strides[0] if strides is not None else kwargs.pop("stride", 1)
@@ -278,7 +278,6 @@ class Decoder(nn.Cell):
         self.num_groups = num_groups
         self.embedding_dim = latent_embed_dim
         self.s_stride = 1
-        # assert self.s_stride == 1
 
         self.activation_fn = get_activation_fn(activation_fn)
         self.activate = self.activation_fn()

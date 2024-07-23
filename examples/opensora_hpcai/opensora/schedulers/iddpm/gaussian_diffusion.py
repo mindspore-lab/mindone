@@ -48,8 +48,8 @@ class GaussianDiffusion:
 
         # 1. pre-compute scheduler vars in numpy using float64 for accuracy.
         betas = np.array(betas, dtype=np.float64)
-        # assert len(betas.shape) == 1, "betas must be 1-D"
-        # assert (betas > 0).all() and (betas <= 1).all()
+        assert len(betas.shape) == 1, "betas must be 1-D"
+        assert (betas > 0).all() and (betas <= 1).all()
 
         self.num_timesteps = int(betas.shape[0])
 
@@ -57,7 +57,7 @@ class GaussianDiffusion:
         self.alphas_cumprod = np.cumprod(alphas, axis=0)
         self.alphas_cumprod_prev = np.append(1.0, self.alphas_cumprod[:-1])
         self.alphas_cumprod_next = np.append(self.alphas_cumprod[1:], 0.0)
-        # assert self.alphas_cumprod_prev.shape == (self.num_timesteps,)
+        assert self.alphas_cumprod_prev.shape == (self.num_timesteps,)
 
         # calculations for diffusion q(x_t | x_{t-1}) and others
         self.sqrt_alphas_cumprod = np.sqrt(self.alphas_cumprod)

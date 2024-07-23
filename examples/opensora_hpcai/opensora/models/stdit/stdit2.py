@@ -47,7 +47,7 @@ class STDiT2Block(nn.Cell):
         self.hidden_size = hidden_size
         self.enable_flashattn = enable_flashattn
 
-        # assert not enable_layernorm_kernel, "Not implemented"
+        assert not enable_layernorm_kernel, "Not implemented"
         if enable_sequence_parallelism:
             raise NotImplementedError("Sequence parallelism is not supported yet.")
         else:
@@ -283,7 +283,7 @@ class STDiT2(nn.Cell):
         self.final_layer = T2IFinalLayer(hidden_size, np.prod(self.patch_size).item(), self.out_channels)
 
         # multi_res
-        # assert self.hidden_size % 3 == 0, "hidden_size must be divisible by 3"
+        assert self.hidden_size % 3 == 0, "hidden_size must be divisible by 3"
         self.csize_embedder = SizeEmbedder(self.hidden_size // 3)
         self.ar_embedder = SizeEmbedder(self.hidden_size // 3)
         self.fl_embedder = SizeEmbedder(self.hidden_size)  # new

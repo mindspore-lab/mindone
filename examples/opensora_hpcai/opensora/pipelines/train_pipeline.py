@@ -156,7 +156,6 @@ class DiffusionWithLoss(nn.Cell):
         model_log_variance = frac * max_log + (1 - frac) * min_log
         pred_xstart = self.diffusion.predict_xstart_from_eps(x_t=x_t, t=t, eps=model_output)
         model_mean, _, _ = self.diffusion.q_posterior_mean_variance(x_start=pred_xstart, x_t=x_t, t=t)
-        # assert model_mean.shape == model_log_variance.shape == pred_xstart.shape == x_t.shape
         # p_mean_variance end
         kl = normal_kl(true_mean, true_log_variance_clipped, model_mean, model_log_variance)
         kl = mean_flat(kl, frames_mask=frames_mask, patch_mask=patch_mask) / ms.numpy.log(2.0)  # TODO:

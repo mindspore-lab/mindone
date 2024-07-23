@@ -103,7 +103,7 @@ class MultiHeadCrossAttention(nn.Cell):
 
     def __init__(self, d_model, num_heads, attn_drop=0.0, proj_drop=0.0, has_bias=True, enable_flash_attention=False):
         super().__init__()
-        # assert d_model % num_heads == 0, "d_model must be divisible by num_heads"
+        assert d_model % num_heads == 0, "d_model must be divisible by num_heads"
 
         self.d_model = d_model
         self.num_heads = num_heads
@@ -118,7 +118,7 @@ class MultiHeadCrossAttention(nn.Cell):
         )
         if self.enable_flash_attention:
             attn_dtype = ms.bfloat16
-            # assert attn_drop == 0.0, "attn drop is not supported in FA currently."
+            assert attn_drop == 0.0, "attn drop is not supported in FA currently."
             self.flash_attention = MSFlashAttention(
                 head_dim=self.head_dim,
                 head_num=self.num_heads,
@@ -217,7 +217,7 @@ class SelfAttention(nn.Cell):
         rope=None,
     ):
         super().__init__()
-        # assert dim % num_heads == 0, "dim should be divisible by num_heads"
+        assert dim % num_heads == 0, "dim should be divisible by num_heads"
         self.num_heads = num_heads
         head_dim = dim // num_heads
         self.head_dim = head_dim
@@ -698,7 +698,7 @@ class PositionEmbedding2D(nn.Cell):
     def __init__(self, dim: int):
         super().__init__()
         self.dim = dim
-        # assert dim % 4 == 0, "dim must be divisible by 4"
+        assert dim % 4 == 0, "dim must be divisible by 4"
         half_dim = dim // 2
         self.inv_freq = Tensor(1.0 / (10000 ** (np.arange(0, half_dim, 2) / half_dim)), dtype=ms.float32)
 

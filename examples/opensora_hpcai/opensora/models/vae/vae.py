@@ -295,7 +295,6 @@ class VideoAutoencoderPipeline(nn.Cell):
             return x
 
     def construct(self, x):
-        # assert self.cal_loss, "This method is only available when cal_loss is True"
         z, posterior_mean, posterior_logvar, x_z = self.encode(x)
         x_rec, x_z_rec = self.decode(z, num_frames=x_z.shape[2])
         return x_rec, x_z_rec, z, posterior_mean, posterior_logvar, x_z
