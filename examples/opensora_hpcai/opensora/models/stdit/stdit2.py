@@ -23,8 +23,9 @@ from opensora.models.layers.blocks import (
 from opensora.models.layers.rotary_embedding import RotaryEmbedding
 
 import mindspore as ms
-from mindspore import Parameter, Tensor, dtype, load_checkpoint, load_param_into_net, nn, ops
+from mindspore import Parameter, Tensor, dtype, load_checkpoint, load_param_into_net, mint, nn, ops
 from mindspore.common.initializer import XavierUniform, initializer
+from mindspore.ops.function.array_func import repeat_interleave_ext as repeat_interleave
 
 from mindone.models.utils import constant_, normal_, xavier_uniform_
 
@@ -46,7 +47,7 @@ class STDiT2Block(nn.Cell):
         self.hidden_size = hidden_size
         self.enable_flashattn = enable_flashattn
 
-        assert not enable_layernorm_kernel, "Not implemented"
+        # assert not enable_layernorm_kernel, "Not implemented"
         if enable_sequence_parallelism:
             raise NotImplementedError("Sequence parallelism is not supported yet.")
         else:
@@ -112,37 +113,37 @@ class STDiT2Block(nn.Cell):
     ):
         B, N, C = x.shape
 
-        shift_msa, scale_msa, gate_msa, shift_mlp, scale_mlp, gate_mlp = (
-            self.scale_shift_table[None] + t.reshape(B, 6, -1)
-        ).chunk(6, axis=1)
-        shift_tmp, scale_tmp, gate_tmp = (self.scale_shift_table_temporal[None] + t_tmp.reshape(B, 3, -1)).chunk(
-            3, axis=1
+        shift_msa, scale_msa, gate_msa, shift_mlp, scale_mlp, gate_mlp = mint.chunk(
+            self.scale_shift_table[None] + t.reshape(B, 6, -1), 6, 1
+        )
+        shift_tmp, scale_tmp, gate_tmp = mint.chunk(
+            self.scale_shift_table_temporal[None] + t_tmp.reshape(B, 3, -1), 3, 1
         )
 
         shift_msa_zero, scale_msa_zero, gate_msa_zero, shift_mlp_zero, scale_mlp_zero, gate_mlp_zero = (None,) * 6
         shift_tmp_zero, scale_tmp_zero, gate_tmp_zero = (None,) * 3
-        if frames_mask is not None:
-            shift_msa_zero, scale_msa_zero, gate_msa_zero, shift_mlp_zero, scale_mlp_zero, gate_mlp_zero = (
-                self.scale_shift_table[None] + t0.reshape(B, 6, -1)
-            ).chunk(6, axis=1)
-            shift_tmp_zero, scale_tmp_zero, gate_tmp_zero = (
-                self.scale_shift_table_temporal[None] + t0_tmp.reshape(B, 3, -1)
-            ).chunk(3, axis=1)
+        if True:
+            shift_msa_zero, scale_msa_zero, gate_msa_zero, shift_mlp_zero, scale_mlp_zero, gate_mlp_zero = mint.chunk(
+                self.scale_shift_table[None] + t0.reshape(B, 6, -1), 6, 1
+            )
+            shift_tmp_zero, scale_tmp_zero, gate_tmp_zero = mint.chunk(
+                self.scale_shift_table_temporal[None] + t0_tmp.reshape(B, 3, -1), 3, 1
+            )
 
         # modulate
         x_m = t2i_modulate(self.norm1(x), shift_msa, scale_msa)
-        if frames_mask is not None:
+        if True:
             x_m_zero = t2i_modulate(self.norm1(x), shift_msa_zero, scale_msa_zero)
             x_m = self.t_mask_select(frames_mask, x_m, x_m_zero, T, S)
 
         # spatial branch
         x_s = x_m.reshape(B * T, S, C)  # B (T S) C -> (B T) S C
         if spatial_mask is not None:
-            spatial_mask = ops.repeat_interleave(spatial_mask.to(ms.int32), T, axis=0)  # B S -> (B T) S
+            spatial_mask = repeat_interleave(spatial_mask.to(ms.int32), T, 0)  # B S -> (B T) S
         x_s = self.attn(x_s, mask=spatial_mask)
         x_s = x_s.reshape(B, T * S, C)  # (B T) S C -> B (T S) C
 
-        if frames_mask is not None:
+        if True:
             x_s_zero = gate_msa_zero * x_s
             x_s = gate_msa * x_s
             x_s = self.t_mask_select(frames_mask, x_s, x_s_zero, T, S)
@@ -152,18 +153,18 @@ class STDiT2Block(nn.Cell):
 
         # modulate
         x_m = t2i_modulate(self.norm_temp(x), shift_tmp, scale_tmp)
-        if frames_mask is not None:
+        if True:
             x_m_zero = t2i_modulate(self.norm_temp(x), shift_tmp_zero, scale_tmp_zero)
             x_m = self.t_mask_select(frames_mask, x_m, x_m_zero, T, S)
 
         # temporal branch
         x_t = x_m.reshape(B, T, S, C).swapaxes(1, 2).reshape(B * S, T, C)  # B (T S) C -> (B S) T C
         if temporal_mask is not None:
-            temporal_mask = ops.repeat_interleave(temporal_mask.to(ms.int32), S, axis=0)  # B T -> (B S) T
+            temporal_mask = repeat_interleave(temporal_mask.to(ms.int32), S, 0)  # B T -> (B S) T
         x_t = self.attn_temp(x_t, mask=temporal_mask, freqs_cis=temporal_pos)
         x_t = x_t.reshape(B, S, T, C).swapaxes(1, 2).reshape(B, T * S, C)  # (B S) T C -> B (T S) C
 
-        if frames_mask is not None:
+        if True:
             x_t_zero = gate_tmp_zero * x_t
             x_t = gate_tmp * x_t
             x_t = self.t_mask_select(frames_mask, x_t, x_t_zero, T, S)
@@ -176,13 +177,13 @@ class STDiT2Block(nn.Cell):
 
         # modulate
         x_m = t2i_modulate(self.norm2(x), shift_mlp, scale_mlp)
-        if frames_mask is not None:
+        if True:
             x_m_zero = t2i_modulate(self.norm2(x), shift_mlp_zero, scale_mlp_zero)
             x_m = self.t_mask_select(frames_mask, x_m, x_m_zero, T, S)
 
         # mlp
         x_mlp = self.mlp(x_m)
-        if frames_mask is not None:
+        if True:
             x_mlp_zero = gate_mlp_zero * x_mlp
             x_mlp = gate_mlp * x_mlp
             x_mlp = self.t_mask_select(frames_mask, x_mlp, x_mlp_zero, T, S)
@@ -231,7 +232,7 @@ class STDiT2(nn.Cell):
         self.enable_flashattn = enable_flashattn
         self.enable_layernorm_kernel = enable_layernorm_kernel
 
-        assert patchify_conv3d_replace in [None, "linear", "conv2d"]
+        # assert patchify_conv3d_replace in [None, "linear", "conv2d"]
 
         # support dynamic input
         self.patch_size = patch_size
@@ -242,11 +243,11 @@ class STDiT2(nn.Cell):
         if patchify_conv3d_replace is None:
             self.x_embedder = PatchEmbed3D(patch_size, in_channels, hidden_size)
         elif patchify_conv3d_replace == "linear":
-            assert patch_size[0] == 1 and patch_size[1] == patch_size[2]
+            # assert patch_size[0] == 1 and patch_size[1] == patch_size[2]
             print("Replace conv3d patchify with linear layer")
             self.x_embedder = LinearPatchEmbed(patch_size[1], in_channels, hidden_size, bias=True)
         elif patchify_conv3d_replace == "conv2d":
-            assert patch_size[0] == 1 and patch_size[1] == patch_size[2]
+            # assert patch_size[0] == 1 and patch_size[1] == patch_size[2]
             print("Replace conv3d patchify with conv2d layer")
             self.x_embedder = PatchEmbed(patch_size[1], in_channels, hidden_size, bias=True)
 
@@ -282,7 +283,7 @@ class STDiT2(nn.Cell):
         self.final_layer = T2IFinalLayer(hidden_size, np.prod(self.patch_size).item(), self.out_channels)
 
         # multi_res
-        assert self.hidden_size % 3 == 0, "hidden_size must be divisible by 3"
+        # assert self.hidden_size % 3 == 0, "hidden_size must be divisible by 3"
         self.csize_embedder = SizeEmbedder(self.hidden_size // 3)
         self.ar_embedder = SizeEmbedder(self.hidden_size // 3)
         self.fl_embedder = SizeEmbedder(self.hidden_size)  # new
@@ -292,7 +293,7 @@ class STDiT2(nn.Cell):
         self.initialize_weights()
         self.initialize_temporal()
         if freeze is not None:
-            assert freeze in ["not_temporal", "text"]
+            # assert freeze in ["not_temporal", "text"]
             if freeze == "not_temporal":
                 self.freeze_not_temporal()
             elif freeze == "text":
@@ -385,7 +386,7 @@ class STDiT2(nn.Cell):
         T, H, W = self.get_dynamic_size(x)
         S = H * W
         scale = rs / self.input_sq_size
-        base_size = round(S**0.5)
+        base_size = int(round(S ** Tensor(0.5)))
         # BUG MS2.3rc1: ops.meshgrid() bprop is not supported
 
         if spatial_pos is None:
@@ -416,7 +417,7 @@ class STDiT2(nn.Cell):
         t_tmp_mlp = self.t_block_temp(t_tmp)  # [B, 3*C]
 
         t0_spc, t0_spc_mlp, t0_tmp_mlp = None, None, None
-        if frames_mask is not None:
+        if True:
             t0_timestep = ops.zeros_like(timestep)
             t0 = self.t_embedder(t0_timestep)
             t0_spc = t0 + data_info
@@ -466,7 +467,7 @@ class STDiT2(nn.Cell):
         if cfg_channel is None:
             cfg_channel = model_out.shape[1] // 2
         eps, rest = model_out[:, :cfg_channel], model_out[:, cfg_channel:]
-        cond_eps, uncond_eps = ops.split(eps, len(eps) // 2, axis=0)
+        cond_eps, uncond_eps = mint.split(eps, len(eps) // 2, 0)
         half_eps = uncond_eps + cfg_scale * (cond_eps - uncond_eps)
         eps = ops.cat([half_eps, half_eps], axis=0)
         return ops.cat([eps, rest], axis=1)
@@ -558,12 +559,12 @@ class STDiT2(nn.Cell):
             if self.patchify_conv3d_replace == "linear":
                 if len(sd[key_3d].shape) == 5:
                     conv3d_weight = sd.pop(key_3d)  # c_out, c_in, 1, 2, 2
-                    assert conv3d_weight.shape[-3] == 1
+                    # assert conv3d_weight.shape[-3] == 1
                     sd[key_3d] = Parameter(conv3d_weight.reshape(conv3d_weight.shape[0], -1), name=key_3d)
             elif self.patchify_conv3d_replace == "conv2d":
                 if len(sd[key_3d].shape) == 5:
                     conv3d_weight = sd.pop(key_3d)  # c_out, c_in, 1, 2, 2
-                    assert conv3d_weight.shape[-3] == 1
+                    # assert conv3d_weight.shape[-3] == 1
                     sd[key_3d] = Parameter(conv3d_weight.squeeze(axis=-3), name=key_3d)
 
             # Loading PixArt weights (T5's sequence length is 120 vs. 200 in STDiT2).

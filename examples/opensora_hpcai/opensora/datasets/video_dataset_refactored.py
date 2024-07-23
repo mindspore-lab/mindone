@@ -83,12 +83,12 @@ class VideoDatasetRefactored(BaseDataset):
 
         self.output_columns = output_columns
         if self._buckets is not None:
-            assert vae_latent_folder is None, "`vae_latent_folder` is not supported with bucketing"
+            # assert vae_latent_folder is None, "`vae_latent_folder` is not supported with bucketing"
             self.output_columns += ["bucket_id"]  # pass bucket id information to transformations
 
         if self._pre_patchify:
             self._patch_size = patch_size
-            assert self._patch_size[0] == 1
+            # assert self._patch_size[0] == 1
             self._embed_dim = embed_dim
             self._num_heads = num_heads
             self._input_sq_size = input_sq_size

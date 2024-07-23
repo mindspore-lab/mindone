@@ -4,7 +4,7 @@ import os
 from transformers import PretrainedConfig
 
 import mindspore as ms
-from mindspore import nn, ops
+from mindspore import mint, nn, ops
 
 from .autoencoder_kl import AutoencoderKL as AutoencoderKL_SD
 from .vae_temporal import VAE_Temporal_SD  # noqa: F401
@@ -49,7 +49,7 @@ class AutoencoderKL(AutoencoderKL_SD):
         """For latent caching usage"""
         h = self.encoder(x)
         moments = self.quant_conv(h)
-        mean, logvar = self.split(moments)
+        mean, logvar = mint.split(moments, moments.shape[1] // 2, 1)
         logvar = ops.clip_by_value(logvar, -30.0, 20.0)
         std = self.exp(0.5 * logvar)
 
@@ -125,9 +125,11 @@ class VideoAutoencoderKL(nn.Cell):
             x = self.module.encode(x) * self.scale_factor
         else:
             bs = self.micro_batch_size
-            x_out = []
+            # Not sure whether to enter the for loop because of dynamic shape,
+            # avoid initialize x_out as an empty list
+            x_out = [self.module.encode(x[:bs]) * self.scale_factor]
             # FIXME: supported in graph mode? or use split
-            for i in range(0, x.shape[0], bs):
+            for i in range(bs, x.shape[0], bs):
                 x_bs = x[i : i + bs]
                 x_bs = self.module.encode(x_bs) * self.scale_factor
                 x_out.append(x_bs)
@@ -293,7 +295,7 @@ class VideoAutoencoderPipeline(nn.Cell):
             return x
 
     def construct(self, x):
-        assert self.cal_loss, "This method is only available when cal_loss is True"
+        # assert self.cal_loss, "This method is only available when cal_loss is True"
         z, posterior_mean, posterior_logvar, x_z = self.encode(x)
         x_rec, x_z_rec = self.decode(z, num_frames=x_z.shape[2])
         return x_rec, x_z_rec, z, posterior_mean, posterior_logvar, x_z
