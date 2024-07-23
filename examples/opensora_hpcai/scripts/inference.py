@@ -270,10 +270,10 @@ def main(args):
         )
         text_tokens, mask = Tensor(text_tokens, dtype=ms.int32), Tensor(mask, dtype=ms.uint8)
         text_emb = None
-        if args.dtype in ["fp16", "bf16"]:
-            text_encoder = auto_mixed_precision(text_encoder, amp_level="O2", dtype=dtype_map[args.dtype])
+        # TODO: use FA in T5
+        if args.t5_dtype in ["fp16", "bf16"]:
+            text_encoder = auto_mixed_precision(text_encoder, amp_level="O2", dtype=dtype_map[args.t5_dtype])
         logger.info(f"Num tokens: {mask.asnumpy().sum(2)}")
-
     else:
         assert not args.use_parallel, "parallel inference is not supported for t5 cached sampling currently."
         if args.model_version == "v1.1":
@@ -599,6 +599,13 @@ def parse_args():
     )
     parser.add_argument(
         "--vae_dtype",
+        default="fp32",
+        type=str,
+        choices=["bf16", "fp16", "fp32"],
+        help="what data type to use for latte. Default is `fp16`, which corresponds to ms.float16",
+    )
+    parser.add_argument(
+        "--t5_dtype",
         default="fp32",
         type=str,
         choices=["bf16", "fp16", "fp32"],
