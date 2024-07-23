@@ -425,7 +425,7 @@ class T2IFinalLayer(nn.Cell):
         shift, scale = mint.chunk(self.scale_shift_table[None] + t[:, None], 2, 1)
         x = t2i_modulate(self.norm_final(x), shift, scale)
 
-        if True:
+        if frames_mask is not None:
             shift_zero, scale_zero = mint.chunk(self.scale_shift_table[None] + t0[:, None], 2, 1)
             x_zero = t2i_modulate(self.norm_final(x), shift_zero, scale_zero)
             x = self.t_mask_select(frames_mask, x, x_zero, T, S)

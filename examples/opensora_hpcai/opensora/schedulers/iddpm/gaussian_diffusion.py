@@ -293,7 +293,7 @@ class GaussianDiffusion:
                  - 'sample': a random sample from the model.
                  - 'pred_xstart': a prediction of x_0.
         """
-        if True:
+        if frames_mask is not None:
             if frames_mask.shape[0] != x.shape[0]:
                 frames_mask = repeat_interleave(frames_mask.reshape(1, -1), 2, 0)  # HACK
             mask_t = (frames_mask * len(self.betas)).astype(np.int32)
@@ -328,7 +328,7 @@ class GaussianDiffusion:
             out["mean"] = self.condition_mean(cond_fn, out, x, t, model_kwargs=model_kwargs)
         sample = out["mean"] + nonzero_mask * ops.exp(0.5 * out["log_variance"]) * noise
 
-        if True:
+        if frames_mask is not None:
             mask_t_lower = (mask_t < t.unsqueeze(1))[:, None, :, None, None]
             sample = ops.where(Tensor(mask_t_lower), x0, sample)  # FIXME: numpy
 

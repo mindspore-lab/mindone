@@ -122,7 +122,7 @@ class STDiT2Block(nn.Cell):
 
         shift_msa_zero, scale_msa_zero, gate_msa_zero, shift_mlp_zero, scale_mlp_zero, gate_mlp_zero = (None,) * 6
         shift_tmp_zero, scale_tmp_zero, gate_tmp_zero = (None,) * 3
-        if True:
+        if frames_mask is not None:
             shift_msa_zero, scale_msa_zero, gate_msa_zero, shift_mlp_zero, scale_mlp_zero, gate_mlp_zero = mint.chunk(
                 self.scale_shift_table[None] + t0.reshape(B, 6, -1), 6, 1
             )
@@ -132,7 +132,7 @@ class STDiT2Block(nn.Cell):
 
         # modulate
         x_m = t2i_modulate(self.norm1(x), shift_msa, scale_msa)
-        if True:
+        if frames_mask is not None:
             x_m_zero = t2i_modulate(self.norm1(x), shift_msa_zero, scale_msa_zero)
             x_m = self.t_mask_select(frames_mask, x_m, x_m_zero, T, S)
 
@@ -143,7 +143,7 @@ class STDiT2Block(nn.Cell):
         x_s = self.attn(x_s, mask=spatial_mask)
         x_s = x_s.reshape(B, T * S, C)  # (B T) S C -> B (T S) C
 
-        if True:
+        if frames_mask is not None:
             x_s_zero = gate_msa_zero * x_s
             x_s = gate_msa * x_s
             x_s = self.t_mask_select(frames_mask, x_s, x_s_zero, T, S)
@@ -153,7 +153,7 @@ class STDiT2Block(nn.Cell):
 
         # modulate
         x_m = t2i_modulate(self.norm_temp(x), shift_tmp, scale_tmp)
-        if True:
+        if frames_mask is not None:
             x_m_zero = t2i_modulate(self.norm_temp(x), shift_tmp_zero, scale_tmp_zero)
             x_m = self.t_mask_select(frames_mask, x_m, x_m_zero, T, S)
 
@@ -164,7 +164,7 @@ class STDiT2Block(nn.Cell):
         x_t = self.attn_temp(x_t, mask=temporal_mask, freqs_cis=temporal_pos)
         x_t = x_t.reshape(B, S, T, C).swapaxes(1, 2).reshape(B, T * S, C)  # (B S) T C -> B (T S) C
 
-        if True:
+        if frames_mask is not None:
             x_t_zero = gate_tmp_zero * x_t
             x_t = gate_tmp * x_t
             x_t = self.t_mask_select(frames_mask, x_t, x_t_zero, T, S)
@@ -177,13 +177,13 @@ class STDiT2Block(nn.Cell):
 
         # modulate
         x_m = t2i_modulate(self.norm2(x), shift_mlp, scale_mlp)
-        if True:
+        if frames_mask is not None:
             x_m_zero = t2i_modulate(self.norm2(x), shift_mlp_zero, scale_mlp_zero)
             x_m = self.t_mask_select(frames_mask, x_m, x_m_zero, T, S)
 
         # mlp
         x_mlp = self.mlp(x_m)
-        if True:
+        if frames_mask is not None:
             x_mlp_zero = gate_mlp_zero * x_mlp
             x_mlp = gate_mlp * x_mlp
             x_mlp = self.t_mask_select(frames_mask, x_mlp, x_mlp_zero, T, S)
@@ -293,11 +293,12 @@ class STDiT2(nn.Cell):
         self.initialize_weights()
         self.initialize_temporal()
         if freeze is not None:
-            # assert freeze in ["not_temporal", "text"]
             if freeze == "not_temporal":
                 self.freeze_not_temporal()
             elif freeze == "text":
                 self.freeze_text()
+            else:
+                raise NotImplementedError
 
         # sequence parallel related configs
         self.enable_sequence_parallelism = enable_sequence_parallelism
@@ -417,7 +418,7 @@ class STDiT2(nn.Cell):
         t_tmp_mlp = self.t_block_temp(t_tmp)  # [B, 3*C]
 
         t0_spc, t0_spc_mlp, t0_tmp_mlp = None, None, None
-        if True:
+        if frames_mask is not None:
             t0_timestep = ops.zeros_like(timestep)
             t0 = self.t_embedder(t0_timestep)
             t0_spc = t0 + data_info
@@ -559,12 +560,12 @@ class STDiT2(nn.Cell):
             if self.patchify_conv3d_replace == "linear":
                 if len(sd[key_3d].shape) == 5:
                     conv3d_weight = sd.pop(key_3d)  # c_out, c_in, 1, 2, 2
-                    # assert conv3d_weight.shape[-3] == 1
+                    assert conv3d_weight.shape[-3] == 1
                     sd[key_3d] = Parameter(conv3d_weight.reshape(conv3d_weight.shape[0], -1), name=key_3d)
             elif self.patchify_conv3d_replace == "conv2d":
                 if len(sd[key_3d].shape) == 5:
                     conv3d_weight = sd.pop(key_3d)  # c_out, c_in, 1, 2, 2
-                    # assert conv3d_weight.shape[-3] == 1
+                    assert conv3d_weight.shape[-3] == 1
                     sd[key_3d] = Parameter(conv3d_weight.squeeze(axis=-3), name=key_3d)
 
             # Loading PixArt weights (T5's sequence length is 120 vs. 200 in STDiT2).

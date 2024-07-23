@@ -185,7 +185,7 @@ class DiffusionWithLoss(nn.Cell):
         noise = ops.randn_like(x)
         x_t = self.diffusion.q_sample(x.to(ms.float32), t, noise=noise)
 
-        if True:
+        if frames_mask is not None:
             t0 = ops.zeros_like(t)
             x_t0 = self.diffusion.q_sample(x, t0, noise=noise)
             x_t = ops.where(frames_mask[:, None, :, None, None], x_t, x_t0)
@@ -318,7 +318,7 @@ class DiffusionWithLossFiTLike(DiffusionWithLoss):
         noise = ops.randn_like(x)
         x_t = self.diffusion.q_sample(x.to(ms.float32), t, noise=noise)
 
-        if True:
+        if frames_mask is not None:
             t0 = ops.zeros_like(t)
             x_t0 = self.diffusion.q_sample(x.to(ms.float32), t0, noise=noise)
             x_t = ops.where(frames_mask[:, None, :, None, None], x_t, x_t0)
