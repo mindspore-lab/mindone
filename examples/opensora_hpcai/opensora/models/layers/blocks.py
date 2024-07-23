@@ -485,10 +485,13 @@ class PatchEmbed(nn.Cell):
         patch_size (int): Patch token size. Default: 4.
         in_chans (int): Number of input image channels. Default: 3.
         embed_dim (int): Number of linear projection output channels. Default: 96.
-        manual_pad (bool): pad independently. If True, pad_mode in conv will be set to "valid" and padding is done before conv. If False, pad_mode is "same" in conv. Default: False
+        manual_pad (bool): pad independently. If True, pad_mode in conv will be set to "valid" and padding is done before conv. \
+                If False, pad_mode is "same" in conv. Default: False
     """
 
-    def __init__(self, patch_size: int = 2, in_chans: int = 3, embed_dim: int = 96, bias: bool = True, manual_pad:bool = False):
+    def __init__(
+        self, patch_size: int = 2, in_chans: int = 3, embed_dim: int = 96, bias: bool = True, manual_pad: bool = False
+    ):
         super().__init__()
         self.patch_size: Tuple = (patch_size, patch_size) if isinstance(patch_size, int) else patch_size
         self.embed_dim = embed_dim
@@ -497,6 +500,7 @@ class PatchEmbed(nn.Cell):
         self.proj = nn.Conv2d(
             in_chans, embed_dim, kernel_size=patch_size, stride=patch_size, pad_mode=pad_mode, has_bias=bias
         )
+        self.manual_pad = manual_pad
 
     def construct(self, x: Tensor) -> Tensor:
         b, c, h, w = x.shape

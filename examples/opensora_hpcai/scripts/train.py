@@ -525,7 +525,7 @@ def main(args):
         ema=ema,
     )
 
-    if (args.mode==0) and (args.bucket_config is not None):
+    if (args.mode == 0) and (args.bucket_config is not None):
         video = ms.Tensor(shape=[None, None, 3, None, None], dtype=ms.float32)
         caption = ms.Tensor(shape=[None, 200, 4096], dtype=ms.float32)
         mask = ms.Tensor(shape=[None, 200], dtype=ms.uint8)

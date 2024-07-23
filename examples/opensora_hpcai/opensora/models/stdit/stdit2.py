@@ -239,7 +239,9 @@ class STDiT2(nn.Cell):
         self.pos_embed = PositionEmbedding2D(hidden_size)
 
         self.patchify_conv3d_replace = patchify_conv3d_replace
-        assert not (manual_pad and patchify_conv3d_replace != "conv2d"), 'manual_pad is only supported for conv2d patchify.'
+        assert not (
+            manual_pad and patchify_conv3d_replace != "conv2d"
+        ), "manual_pad is only supported for conv2d patchify."
         if patchify_conv3d_replace is None:
             self.x_embedder = PatchEmbed3D(patch_size, in_channels, hidden_size)
         elif patchify_conv3d_replace == "linear":

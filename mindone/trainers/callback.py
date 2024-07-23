@@ -141,7 +141,12 @@ class EvalSaveCallback(Callback):
                 append_dict = {"lora_rank": self.lora_rank} if self.use_lora else None
                 if self.ema is not None:
                     if not self.save_ema_only:
-                        self.ckpt_manager.save(self.net_to_save, None, ckpt_name=ckpt_name.replace(".ckpt", "_nonema.ckpt"), append_dict=append_dict)
+                        self.ckpt_manager.save(
+                            self.net_to_save,
+                            None,
+                            ckpt_name=ckpt_name.replace(".ckpt", "_nonema.ckpt"),
+                            append_dict=append_dict,
+                        )
                     # swap ema weight and network weight
                     self.ema.swap_before_eval()
 
@@ -225,7 +230,12 @@ class EvalSaveCallback(Callback):
                 append_dict = {"lora_rank": self.lora_rank} if self.use_lora else None
                 if self.ema is not None:
                     if not self.save_ema_only:
-                        self.ckpt_manager.save(self.net_to_save, None, ckpt_name=ckpt_name.replace(".ckpt", "_nonema.ckpt"), append_dict=append_dict)
+                        self.ckpt_manager.save(
+                            self.net_to_save,
+                            None,
+                            ckpt_name=ckpt_name.replace(".ckpt", "_nonema.ckpt"),
+                            append_dict=append_dict,
+                        )
                     # swap ema weight and network weight
                     self.ema.swap_before_eval()
 

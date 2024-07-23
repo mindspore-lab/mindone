@@ -7,7 +7,17 @@ from ..models.layers.blocks import Attention, LayerNorm, LlamaRMSNorm, PositionE
 from ..models.text_encoder.flan_t5_large.t5 import T5LayerNorm
 
 # SORA's whitelist (FP32) operators
-WHITELIST_OPS = [LayerNorm, Attention, LlamaRMSNorm, SiLU, GELU, GroupNorm, PositionEmbedding2D, SinusoidalEmbedding, T5LayerNorm]
+WHITELIST_OPS = [
+    LayerNorm,
+    Attention,
+    LlamaRMSNorm,
+    SiLU,
+    GELU,
+    GroupNorm,
+    PositionEmbedding2D,
+    SinusoidalEmbedding,
+    T5LayerNorm,
+]
 
 logger = logging.getLogger(__name__)
 
