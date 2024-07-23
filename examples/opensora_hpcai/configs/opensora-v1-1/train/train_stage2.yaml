@@ -2,6 +2,7 @@
 model_version: v1.1
 pretrained_model_path: "models/opensora_v1.1_stage2.ckpt"
 model_max_length: 200
+manual_pad: True
 
 enable_flash_attention: True
 use_recompute: True

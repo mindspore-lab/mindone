@@ -219,6 +219,7 @@ class STDiT2(nn.Cell):
         use_recompute=False,
         num_recompute_blocks=None,
         patchify_conv3d_replace=None,
+        manual_pad=False,
     ):
         super().__init__()
         self.pred_sigma = pred_sigma
@@ -232,24 +233,23 @@ class STDiT2(nn.Cell):
         self.enable_flashattn = enable_flashattn
         self.enable_layernorm_kernel = enable_layernorm_kernel
 
-        # assert patchify_conv3d_replace in [None, "linear", "conv2d"]
-
         # support dynamic input
         self.patch_size = patch_size
         self.input_sq_size = input_sq_size
         self.pos_embed = PositionEmbedding2D(hidden_size)
 
         self.patchify_conv3d_replace = patchify_conv3d_replace
+        assert not (manual_pad and patchify_conv3d_replace != "conv2d"), 'manual_pad is only supported for conv2d patchify.'
         if patchify_conv3d_replace is None:
             self.x_embedder = PatchEmbed3D(patch_size, in_channels, hidden_size)
         elif patchify_conv3d_replace == "linear":
-            # assert patch_size[0] == 1 and patch_size[1] == patch_size[2]
+            assert patch_size[0] == 1 and patch_size[1] == patch_size[2]
             print("Replace conv3d patchify with linear layer")
             self.x_embedder = LinearPatchEmbed(patch_size[1], in_channels, hidden_size, bias=True)
         elif patchify_conv3d_replace == "conv2d":
-            # assert patch_size[0] == 1 and patch_size[1] == patch_size[2]
+            assert patch_size[0] == 1 and patch_size[1] == patch_size[2]
             print("Replace conv3d patchify with conv2d layer")
-            self.x_embedder = PatchEmbed(patch_size[1], in_channels, hidden_size, bias=True)
+            self.x_embedder = PatchEmbed(patch_size[1], in_channels, hidden_size, bias=True, manual_pad=manual_pad)
 
         self.t_embedder = TimestepEmbedder(hidden_size)
         self.t_block = nn.SequentialCell(nn.SiLU(), nn.Dense(hidden_size, 6 * hidden_size))

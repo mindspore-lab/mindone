@@ -242,6 +242,7 @@ def main(args):
         in_channels=VAE_Z_CH,
         model_max_length=args.model_max_length,
         patchify_conv3d_replace=patchify_conv3d_replace,  # for Ascend
+        manual_pad=args.manual_pad,
         enable_flashattn=args.enable_flash_attention,
         use_recompute=args.use_recompute,
     )
@@ -524,41 +525,43 @@ def main(args):
         ema=ema,
     )
 
-    video = ms.Tensor(shape=[None, None, 3, None, None], dtype=ms.float32)
-    caption = ms.Tensor(shape=[None, 200, 4096], dtype=ms.float32)
-    mask = ms.Tensor(shape=[None, 200], dtype=ms.uint8)
-    frames_mask = ms.Tensor(shape=[None, None], dtype=ms.bool_)
-    num_frames = ms.Tensor(
-        shape=[
-            None,
-        ],
-        dtype=ms.float32,
-    )
-    height = ms.Tensor(
-        shape=[
-            None,
-        ],
-        dtype=ms.float32,
-    )
-    width = ms.Tensor(
-        shape=[
-            None,
-        ],
-        dtype=ms.float32,
-    )
-    fps = ms.Tensor(
-        shape=[
-            None,
-        ],
-        dtype=ms.float32,
-    )
-    ar = ms.Tensor(
-        shape=[
-            None,
-        ],
-        dtype=ms.float32,
-    )
-    net_with_grads.set_inputs(video, caption, mask, frames_mask, num_frames, height, width, fps, ar)
+    if (args.mode==0) and (args.bucket_config is not None):
+        video = ms.Tensor(shape=[None, None, 3, None, None], dtype=ms.float32)
+        caption = ms.Tensor(shape=[None, 200, 4096], dtype=ms.float32)
+        mask = ms.Tensor(shape=[None, 200], dtype=ms.uint8)
+        frames_mask = ms.Tensor(shape=[None, None], dtype=ms.bool_)
+        num_frames = ms.Tensor(
+            shape=[
+                None,
+            ],
+            dtype=ms.float32,
+        )
+        height = ms.Tensor(
+            shape=[
+                None,
+            ],
+            dtype=ms.float32,
+        )
+        width = ms.Tensor(
+            shape=[
+                None,
+            ],
+            dtype=ms.float32,
+        )
+        fps = ms.Tensor(
+            shape=[
+                None,
+            ],
+            dtype=ms.float32,
+        )
+        ar = ms.Tensor(
+            shape=[
+                None,
+            ],
+            dtype=ms.float32,
+        )
+        net_with_grads.set_inputs(video, caption, mask, frames_mask, num_frames, height, width, fps, ar)
+        logger.info("Dynamic inputs are initialized for bucket config training in Graph mode!")
 
     if args.global_bf16:
         model = Model(net_with_grads, amp_level="O0")
