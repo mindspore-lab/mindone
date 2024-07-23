@@ -603,7 +603,7 @@ class T5Stack(T5PreTrainedModel):
             assert self.is_decoder, f"`use_cache` can only be set to `True` if {self} is used as a decoder"
 
         if attention_mask is None:
-            attention_mask = ops.ones((batch_size, mask_seq_length), ms.float32)
+            attention_mask = ops.ones((batch_size, mask_seq_length), inputs_embeds.dtype)
         if self.is_decoder and encoder_attention_mask is None and encoder_hidden_states is not None:
             encoder_seq_length = encoder_hidden_states.shape[1]
             encoder_attention_mask = ops.ones((batch_size, encoder_seq_length), ms.int64)
@@ -614,7 +614,7 @@ class T5Stack(T5PreTrainedModel):
 
         # We can provide a self-attention mask of dimensions [batch_size, from_seq_length, to_seq_length]
         # ourselves in which case we just need to make it broadcastable to all heads.
-        extended_attention_mask = self.get_extended_attention_mask(attention_mask, input_shape)
+        extended_attention_mask = self.get_extended_attention_mask(attention_mask, input_shape, dtype=inputs_embeds.dtype)
 
         # If a 2D or 3D attention mask is provided for the cross-attention
         # we need to make broadcastable to [batch_size, num_heads, seq_length, seq_length]
