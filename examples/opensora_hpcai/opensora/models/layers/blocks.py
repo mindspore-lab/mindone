@@ -487,16 +487,26 @@ class PatchEmbed(nn.Cell):
         embed_dim (int): Number of linear projection output channels. Default: 96.
     """
 
-    def __init__(self, patch_size: int = 2, in_chans: int = 3, embed_dim: int = 96, bias: bool = True):
+    def __init__(self, patch_size: int = 2, in_chans: int = 3, embed_dim: int = 96, bias: bool = True, pad_mode:str = 'valid'):
         super().__init__()
         self.patch_size: Tuple = (patch_size, patch_size) if isinstance(patch_size, int) else patch_size
         self.embed_dim = embed_dim
+        # FIXME: pad_mode="same" not supported in dynamic shape training in graph mode. may change in future version.
         self.proj = nn.Conv2d(
-            in_chans, embed_dim, kernel_size=patch_size, stride=patch_size, pad_mode="valid", has_bias=bias
+            in_chans, embed_dim, kernel_size=patch_size, stride=patch_size, pad_mode=pad_mode, has_bias=bias
         )
+        self.manual_pad = (pad_mode == "valid")
 
     def construct(self, x: Tensor) -> Tensor:
         b, c, h, w = x.shape
+        if self.manual_pad:
+            # work with pad_mode = valid
+            if h % self.patch_size[0] != 0:
+                pad_h = ops.zeros((b, c, self.patch_size[0] - h % self.patch_size[0], w)), x.dtype)
+                x = ops.cat([x, pad_h], 2)
+            if w % self.pathc_size[1] != 0:
+                pad_w = ops.zeros(b, c, x.shape[-2], self.patch_size[1] - w % self.patch_size[1], x.dtype)
+                x = ops.cat([x, pad_w], 3)
         x = self.proj(x)
         x = ops.reshape(x, (b, self.embed_dim, -1))
         x = ops.transpose(x, (0, 2, 1))  # B Ph*Pw C
