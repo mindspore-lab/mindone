@@ -232,7 +232,7 @@ class UNet1DModel(ModelMixin, ConfigMixin):
             timestep_embed = self.time_mlp(timestep_embed)
         else:
             timestep_embed = timestep_embed[..., None]
-            timestep_embed = timestep_embed.repeat([1, 1, sample.shape[2]]).to(sample.dtype)
+            timestep_embed = timestep_embed.tile((1, 1, sample.shape[2])).to(sample.dtype)
             timestep_embed = timestep_embed.broadcast_to((sample.shape[:1] + timestep_embed.shape[1:]))
 
         # 2. down

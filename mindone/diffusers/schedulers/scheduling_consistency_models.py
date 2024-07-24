@@ -355,8 +355,8 @@ class CMStochasticIterativeScheduler(SchedulerMixin, ConfigMixin):
                 "See `StableDiffusionPipeline` for a usage example."
             )
 
-        sigma_min = self.config.sigma_min
-        sigma_max = self.config.sigma_max
+        sigma_min = ms.tensor(self.config.sigma_min)
+        sigma_max = ms.tensor(self.config.sigma_max)
 
         if self.step_index is None:
             self._init_step_index(timestep)

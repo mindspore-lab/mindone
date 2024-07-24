@@ -11,13 +11,13 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-import math
 from typing import Optional, Tuple, Union
 
 import mindspore as ms
 from mindspore import nn, ops
 
 from ..activations import get_activation
+from ..normalization import GroupNorm
 from ..resnet import Downsample1D, ResidualTemporalBlock1D, Upsample1D, rearrange_dims
 
 
@@ -219,7 +219,7 @@ class OutConv1DBlock(nn.Cell):
     def __init__(self, num_groups_out: int, out_channels: int, embed_dim: int, act_fn: str):
         super().__init__()
         self.final_conv1d_1 = nn.Conv1d(embed_dim, embed_dim, 5, padding=2, has_bias=True, pad_mode="pad")
-        self.final_conv1d_gn = nn.GroupNorm(num_groups_out, embed_dim)
+        self.final_conv1d_gn = GroupNorm(num_groups_out, embed_dim)
         self.final_conv1d_act = get_activation(act_fn)()
         self.final_conv1d_2 = nn.Conv1d(embed_dim, out_channels, 1, has_bias=True, pad_mode="valid")
 
@@ -279,15 +279,16 @@ class Downsample1d(nn.Cell):
         self.pad_mode = pad_mode
         kernel_1d = ms.tensor(_kernels[kernel])
         self.pad = kernel_1d.shape[0] // 2 - 1
-        self.register_buffer("kernel", kernel_1d)
+        self.kernel = ms.Parameter(kernel_1d, name="kernel")
 
     def construct(self, hidden_states: ms.Tensor) -> ms.Tensor:
-        hidden_states = ops.pad(hidden_states, (self.pad,) * 2, self.pad_mode)
+        dtype = hidden_states.dtype
+        hidden_states = _pad(hidden_states, (self.pad,) * 2, self.pad_mode)
         weight = hidden_states.new_zeros([hidden_states.shape[1], hidden_states.shape[1], self.kernel.shape[0]])
         indices = ops.arange(hidden_states.shape[1])
-        kernel = self.kernel.to(weight.dtype)[None, :].broadcast_to(hidden_states.shape[1], -1)
+        kernel = self.kernel.to(weight.dtype)[None, :].broadcast_to((hidden_states.shape[1], -1))
         weight[indices, indices] = kernel
-        return ops.conv1d(hidden_states, weight, stride=2)
+        return ops.conv1d(hidden_states.float(), weight.float(), stride=2).to(dtype)
 
 
 class Upsample1d(nn.Cell):
@@ -296,13 +297,13 @@ class Upsample1d(nn.Cell):
         self.pad_mode = pad_mode
         kernel_1d = ms.tensor(_kernels[kernel]) * 2
         self.pad = kernel_1d.shape[0] // 2 - 1
-        self.register_buffer("kernel", kernel_1d)
+        self.kernel = ms.Parameter(kernel_1d, name="kernel")
 
     def construct(self, hidden_states: ms.Tensor, temb: Optional[ms.Tensor] = None) -> ms.Tensor:
-        hidden_states = ops.pad(hidden_states, ((self.pad + 1) // 2,) * 2, self.pad_mode)
+        hidden_states = _pad(hidden_states, ((self.pad + 1) // 2,) * 2, self.pad_mode)
         weight = hidden_states.new_zeros([hidden_states.shape[1], hidden_states.shape[1], self.kernel.shape[0]])
         indices = ops.arange(hidden_states.shape[1])
-        kernel = self.kernel.to(weight.dtype)[None, :].broadcast_to(hidden_states.shape[1], -1)
+        kernel = self.kernel.to(weight.dtype)[None, :].broadcast_to((hidden_states.shape[1], -1))
         weight[indices, indices] = kernel
         return _conv_transpose1d(hidden_states, weight, stride=2, padding=self.pad * 2 + 1)
 
@@ -311,19 +312,19 @@ class SelfAttention1d(nn.Cell):
     def __init__(self, in_channels: int, n_head: int = 1, dropout_rate: float = 0.0):
         super().__init__()
         self.channels = in_channels
-        self.group_norm = nn.GroupNorm(1, num_channels=in_channels)
+        self.group_norm = GroupNorm(1, num_channels=in_channels)
         self.num_heads = n_head
 
         self.query = nn.Dense(self.channels, self.channels)
         self.key = nn.Dense(self.channels, self.channels)
         self.value = nn.Dense(self.channels, self.channels)
 
-        self.proj_attn = nn.Dense(self.channels, self.channels, bias=True)
+        self.proj_attn = nn.Dense(self.channels, self.channels, has_bias=True)
 
         self.dropout = nn.Dropout(p=dropout_rate)
 
     def transpose_for_scores(self, projection: ms.Tensor) -> ms.Tensor:
-        new_projection_shape = projection.size()[:-1] + (self.num_heads, -1)
+        new_projection_shape = projection.shape[:-1] + (self.num_heads, -1)
         # move heads to 2nd position (B, T, H * D) -> (B, T, H, D) -> (B, H, T, D)
         new_projection = projection.view(new_projection_shape).permute(0, 2, 1, 3)
         return new_projection
@@ -333,7 +334,7 @@ class SelfAttention1d(nn.Cell):
         batch, channel_dim, seq = hidden_states.shape
 
         hidden_states = self.group_norm(hidden_states)
-        hidden_states = hidden_states.transpose(1, 2)
+        hidden_states = hidden_states.transpose(0, 2, 1)
 
         query_proj = self.query(hidden_states)
         key_proj = self.key(hidden_states)
@@ -343,21 +344,21 @@ class SelfAttention1d(nn.Cell):
         key_states = self.transpose_for_scores(key_proj)
         value_states = self.transpose_for_scores(value_proj)
 
-        scale = 1 / math.sqrt(math.sqrt(key_states.shape[-1]))
+        scale = float(1 / ops.sqrt(ops.sqrt(ms.tensor(key_states.shape[-1], dtype=ms.float64))))
 
-        attention_scores = ops.matmul(query_states * scale, key_states.transpose(-1, -2) * scale)
+        attention_scores = ops.matmul(query_states * scale, key_states.transpose(0, 1, -1, -2) * scale)
         attention_probs = ops.softmax(attention_scores, axis=-1)
 
         # compute attention output
         hidden_states = ops.matmul(attention_probs, value_states)
 
         hidden_states = hidden_states.permute(0, 2, 1, 3)
-        new_hidden_states_shape = hidden_states.size()[:-2] + (self.channels,)
+        new_hidden_states_shape = hidden_states.shape[:-2] + (self.channels,)
         hidden_states = hidden_states.view(new_hidden_states_shape)
 
         # compute next hidden_states
         hidden_states = self.proj_attn(hidden_states)
-        hidden_states = hidden_states.transpose(1, 2)
+        hidden_states = hidden_states.transpose(0, 2, 1)
         hidden_states = self.dropout(hidden_states)
 
         output = hidden_states + residual
@@ -375,12 +376,12 @@ class ResConvBlock(nn.Cell):
             self.conv_skip = nn.Conv1d(in_channels, out_channels, 1, pad_mode="valid")
 
         self.conv_1 = nn.Conv1d(in_channels, mid_channels, 5, padding=2, has_bias=True, pad_mode="pad")
-        self.group_norm_1 = nn.GroupNorm(1, mid_channels)
+        self.group_norm_1 = GroupNorm(1, mid_channels)
         self.gelu_1 = nn.GELU()
         self.conv_2 = nn.Conv1d(mid_channels, out_channels, 5, padding=2, has_bias=True, pad_mode="pad")
 
         if not self.is_last:
-            self.group_norm_2 = nn.GroupNorm(1, out_channels)
+            self.group_norm_2 = GroupNorm(1, out_channels)
             self.gelu_2 = nn.GELU()
 
     def construct(self, hidden_states: ms.Tensor) -> ms.Tensor:
@@ -699,48 +700,95 @@ def _conv_transpose1d(input, weight, bias=None, stride=1, padding=0, output_padd
     # Equivalence of torch.nn.functional.conv_transpose1d
     assert output_padding == 0, "Only support output_padding == 0 so far."
 
-    if isinstance(stride, tuple):
-        stride = stride[0]
-    if isinstance(dilation, tuple):
-        dilation = dilation[0]
-    if isinstance(padding, tuple):
-        padding = padding[0]
+    if isinstance(stride, int):
+        stride = (1, stride)
+    elif isinstance(stride, tuple):
+        stride = (1, stride[0])
+
+    if isinstance(dilation, int):
+        dilation = (dilation, dilation)
+    elif isinstance(dilation, tuple):
+        dilation = (dilation[0], dilation[0])
+
+    if isinstance(padding, int):
+        padding = (0, 0, padding, padding)
+    elif isinstance(padding, tuple):
+        padding = (0, 0, padding[0], padding[0])
 
     # InferShape manually
     # Format adapted from https://pytorch.org/docs/stable/generated/torch.nn.functional.conv_transpose1d.html
-    batch_size, in_channels, iW = input.shape
-    _, out_channels_divide_groups, kW = weight.shape
+    input = input.unsqueeze(2)
+    weight = weight.unsqueeze(2)
+    batch_size, in_channels, iH, iW = input.shape
+    _, out_channels_divide_groups, kH, kW = weight.shape
 
     out_channels = out_channels_divide_groups * groups
-    # outW = (iW - 1) * stride - 2 * padding + dilation * (kW - 1) + 1
+    outH = (iH - 1) * stride[0] - (padding[0] + padding[1]) + dilation[0] * (kH - 1) + 1
+    outW = (iW - 1) * stride[1] - (padding[2] + padding[3]) + dilation[1] * (kW - 1) + 1
 
-    if bias is None:
-        op_conv_transpose1d = nn.Conv1dTranspose(
-            in_channels=in_channels,
-            out_channels=out_channels,
-            kernel_size=kW,
-            stride=stride,
-            pad_mode="pad",
-            padding=padding,
-            dilation=dilation,
-            weight_init=weight,
-            group=groups,
-        )
-    else:
-        op_conv_transpose1d = nn.Conv1dTranspose(
-            in_channels=in_channels,
-            out_channels=out_channels,
-            kernel_size=kW,
-            stride=stride,
-            pad_mode="pad",
-            padding=padding,
-            dilation=dilation,
-            group=groups,
-            has_bias=True,
-            weight_init=weight,
-            bias_init=bias,
-        )
+    op_conv_transpose2d = ops.Conv2DTranspose(
+        out_channel=out_channels,
+        kernel_size=(kH, kW),
+        pad_mode="pad",
+        pad=padding,
+        stride=stride,
+        dilation=dilation,
+        group=groups,
+    )
+    outputs = op_conv_transpose2d(input, weight.to(input.dtype), (batch_size, out_channels, outH, outW)).squeeze(2)
 
-    outputs = op_conv_transpose1d(input)
+    if bias is not None:
+        assert isinstance(bias, ms.Tensor) and bias.ndim == 1
+        bias = bias.reshape(1, -1, 1)
+        outputs += bias
 
     return outputs
+
+
+def _pad(input, pad, mode="constant", value=0):
+    assert mode in ["constant", "replicate", "reflect"], "Unsupported padding mode"
+
+    padding = [0, 0, 0, 0]
+    if isinstance(pad, tuple):
+        pad = list(pad)
+    padding[: len(pad)] = pad
+
+    left, right, top, bottom = padding
+    batch_size, height, width = input.shape
+
+    padded_height = height + top + bottom
+    padded_width = width + left + right
+
+    output = ops.full((batch_size, padded_height, padded_width), value, dtype=input.dtype)
+    output[:, top : top + height, left : left + width] = input
+
+    if mode == "replicate":
+        if top > 0:
+            output[:, :top, left : left + width] = input[:, 0:1, :].broadcast_to((batch_size, top, width))
+        if bottom > 0:
+            output[:, top + height :, left : left + width] = input[:, -1:, :].broadcast_to((batch_size, bottom, width))
+        if left > 0:
+            output[:, :, :left] = output[:, :, left : left + 1].broadcast_to((batch_size, padded_height, left))
+        if right > 0:
+            output[:, :, left + width :] = output[:, :, left + width - 1 : left + width].broadcast_to(
+                (batch_size, padded_height, right)
+            )
+    elif mode == "reflect":
+        if top > 0:
+            output[:, :top, left : left + width] = (
+                input[:, 1 : top + 1, :].flip(dims=[1]).broadcast_to((batch_size, top, width))
+            )
+        if bottom > 0:
+            output[:, top + height :, left : left + width] = (
+                input[:, -bottom - 1 : -1, :].flip(dims=[1]).broadcast_to((batch_size, bottom, width))
+            )
+        if left > 0:
+            output[:, :, :left] = (
+                output[:, :, left + 1 : 2 * left + 1].flip(dims=[2]).broadcast_to((batch_size, padded_height, left))
+            )
+        if right > 0:
+            right_edge = max(0, left + width - right - 2)
+            output[:, :, left + width :] = output[:, :, left + width - 2 : right_edge : -1].broadcast_to(
+                (batch_size, padded_height, right)
+            )
+    return output
