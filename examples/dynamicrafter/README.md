@@ -62,15 +62,17 @@ Download the prompts from [here](https://download-mindspore.osinfra.cn/toolkits/
 
 We provide weight conversion script `tools/convert_weight.py` to convert the original Pytorch model weights to MindSpore model weights. Pytorch model weights can be accessed via links below.
 
-|Model|Resolution|Pytorch Checkpoint|
+|Model|Resolution(H\*W)|Pytorch Checkpoint|
 |:---------|:---------|:--------|
-|DynamiCrafter1024|576x1024|[Hugging Face](https://huggingface.co/Doubiiu/DynamiCrafter_1024/blob/main/model.ckpt)|
-|DynamiCrafter512|320x512|[Hugging Face](https://huggingface.co/Doubiiu/DynamiCrafter_512/blob/main/model.ckpt)|
-|DynamiCrafter256|256x256|[Hugging Face](https://huggingface.co/Doubiiu/DynamiCrafter/blob/main/model.ckpt)|
+|DynamiCrafter1024|576\*1024|[Hugging Face](https://huggingface.co/Doubiiu/DynamiCrafter_1024/blob/main/model.ckpt)|
+|DynamiCrafter512|320\*512|[Hugging Face](https://huggingface.co/Doubiiu/DynamiCrafter_512/blob/main/model.ckpt)|
+|DynamiCrafter256|256\*256|[Hugging Face](https://huggingface.co/Doubiiu/DynamiCrafter/blob/main/model.ckpt)|
+|CLIP-ViT-H-14-laion2B-s32B-b79K |/|[Hugging Face](https://huggingface.co/laion/CLIP-ViT-H-14-laion2B-s32B-b79K/tree/main)|
 
 
 The text files in `tools/` mark the model parameters mapping between Pytorch and MindSpore version. Select the ones according to the model you want to convert, and then run the following command to convert weight (e.g. 576\*1024).
 
+**Note:** Please download the CLIP model stated above from hugging face, convert it to MindSpore version (parameters mapping: `tools/pt_vit-h-14.txt` and `tools/ms_vit-h-14.txt`), and then add the ckpt path under `cond_stage_config` and `img_cond_stage_config` in yaml config file.
 
 ```shell
 cd tools
