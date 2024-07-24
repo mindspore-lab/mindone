@@ -1,9 +1,19 @@
 # DynamiCrafter
 
-This repository is the MindSpore implementation of [DynamiCrafter](https://arxiv.org/abs/2310.12190).
+This repository is the MindSpore implementation of [DynamiCrafter](https://arxiv.org/abs/2310.12190)[<a href="#references">1</a>].
 
 
-## Demo
+DynamiCrafter is an effective framework for animating open-domain images. The key idea is to utilize the motion prior of text-to-video diffusion models by incorporating the image into the generative process as guidance. Given an image, the model first projects it into a text-aligned rich context representation space using a query transformer, which facilitates the video model to digest the image content in a compatible fashion. To supplement with more precise image information, the full image is further fed to the diffusion model by concatenating it with the initial noises. The model structure of DynamiCrafter is shown below.
+
+<p align="center">
+  <img src="https://github.com/user-attachments/assets/0ad522cc-fa0d-4ae6-8215-7ab56340151a" width=900 />
+</p>
+<p align="center">
+  <em> Figure 1. The Model Structure of DynamiCrafter. [<a href="#references">1</a>] </em>
+</p>
+
+
+## 1. Demo
 
 We provide image to video generation with three resolutions: 256 (256\*256), 512 (320\*512), 1024 (576\*1024).
 
@@ -34,16 +44,15 @@ We provide image to video generation with three resolutions: 256 (256\*256), 512
 | <p align="center"><img width="200" src="https://github.com/user-attachments/assets/90ea568f-3980-4d5b-9ea8-43d3dc0bccec"/><br/>"a campfire on the beach and the ocean waves in the background"</p> | <video width="300" src="https://github.com/user-attachments/assets/e9c108a5-1f38-4486-ad8b-bfcd8b8eed96"/> |
 | <p align="center"><img width="200" src="https://github.com/user-attachments/assets/a6d7951d-7d3f-4ddd-9225-6b71fe79ef7d"/><br/>"girl with fires and smoke on his head"</p> | <video width="300" src="https://github.com/user-attachments/assets/c3cb4ef9-681a-404c-a7cb-babf0a74acc3"/> |
 
-## Dependency
+## 2. Dependency
 
-[MindSpore](https://www.mindspore.cn/install) 2.3
-
-[CANN](https://repo.mindspore.cn/ascend/ascend910/20240705/) C18(0705)
+- [MindSpore](https://www.mindspore.cn/install) 2.3
+- [CANN](https://repo.mindspore.cn/ascend/ascend910/20240705/) C18(0705)
 
 ```shell
 pip install -r requirements.txt
 ```
-## Inference
+## 3. Inference
 
 ### Prepare prompts
 
@@ -82,8 +91,12 @@ sh scripts/run/run_infer.sh [RESUOUTION] [CKPT_PATH]
 
 Inference speed on 910*:
 
-|Model|Resolution|mode|jit_level|Speed(s/video)|
+|Model|Resolution|MindSpore mode|jit_level|Speed(s/video)|
 |:---------|:---------|:--------|:--------|:--------|
 |DynamiCrafter1024|576x1024|GRAPH|O1|71|
 |DynamiCrafter512|320x512|GRAPH|O1|21|
 |DynamiCrafter256|256x256|GRAPH|O1|13|
+
+# References
+
+[1] Jinbo Xing, et al. DynamiCrafter: Animating Open-domain Images with Video Diffusion Priors. ECCV 2024.
