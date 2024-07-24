@@ -72,7 +72,7 @@ def init_env(
             ascend_config={"precision_mode": "allow_fp32_to_fp16"},
         )
         if parallel_mode == "optim":
-            print("use optim parallel")
+            logger.info("use optim parallel")
             ms.set_auto_parallel_context(
                 parallel_mode=ms.ParallelMode.SEMI_AUTO_PARALLEL,
                 parallel_optimizer_config={"optimizer_weight_shard_size": optimizer_weight_shard_size},
@@ -87,6 +87,7 @@ def init_env(
             rank_id = get_rank()
         elif parallel_mode == "data":
             init()
+            logger.info("use data parallel")
             device_num = get_group_size()
             rank_id = get_rank()
             logger.debug(f"rank_id: {rank_id}, device_num: {device_num}")
@@ -115,15 +116,26 @@ def init_env(
 
     if jit_level is not None:
         if mode == 1:
-            print(f"Only graph mode supports jit_level! Will ignore jit_level {jit_level} in Pynative mode.")
+            logger.info(f"Only graph mode supports jit_level! Will ignore jit_level {jit_level} in Pynative mode.")
         else:
-            jit_dict = {"O0": "KBK", "O1": "DVM", "O2": "GE"}
-            print(f"Using jit_level: {jit_dict[jit_level]}")
-            ms.context.set_context(jit_config={"jit_level": jit_level})  # O0: KBK, O1:DVM, O2: GE
+            try:
+                if jit_level in ["O0", "O1", "O2"]:
+                    logger.info(f"Using jit_level: {jit_level}")
+                    ms.context.set_context(jit_config={"jit_level": jit_level})  # O0: KBK, O1:DVM, O2: GE
+                else:
+                    logger.warning(
+                        f"Unsupport jit_level: {jit_level}. The framework automatically selects the execution method"
+                    )
+            except Exception:
+                logger.warning(
+                    "The current jit_level is not suitable because current MindSpore version does not match,"
+                    "please upgrade the MindSpore version."
+                )
+                raise Exception
     if precision_mode is not None and len(precision_mode) > 0:
         ms.set_context(ascend_config={"precision_mode": precision_mode})
     if global_bf16:
-        print("Using global bf16")
+        logger.info("Using global bf16")
         assert jit_level is not None and jit_level == "O2", "global_bf16 is supported in GE mode only!"
         ms.set_context(ascend_config={"precision_mode": "allow_mix_precision_bf16"})
 
