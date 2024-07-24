@@ -4,6 +4,7 @@ from ..utils import _LazyModule
 
 # These modules contain pipelines from multiple libraries/frameworks
 _import_structure = {
+    "dance_diffusion": ["DanceDiffusionPipeline"],
     "ddim": ["DDIMPipeline"],
     "ddpm": ["DDPMPipeline"],
     "stable_diffusion": [
@@ -12,9 +13,6 @@ _import_structure = {
     ],
     "stable_diffusion_3": [
         "StableDiffusion3Pipeline",
-    ],
-    "dance_diffusion": [
-        "DanceDiffusionPipeline",
     ],
     "stable_diffusion_xl": [
         "StableDiffusionXLPipeline",

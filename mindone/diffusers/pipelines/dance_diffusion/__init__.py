@@ -1,10 +1,10 @@
 from typing import TYPE_CHECKING
 
-from ...utils import DIFFUSERS_SLOW_IMPORT, _LazyModule
+from ...utils import _LazyModule
 
 _import_structure = {"pipeline_dance_diffusion": ["DanceDiffusionPipeline"]}
 
-if TYPE_CHECKING or DIFFUSERS_SLOW_IMPORT:
+if TYPE_CHECKING:
     from .pipeline_dance_diffusion import DanceDiffusionPipeline
 else:
     import sys
