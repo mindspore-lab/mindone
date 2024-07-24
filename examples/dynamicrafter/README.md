@@ -15,9 +15,9 @@ DynamiCrafter is an effective framework for animating open-domain images. The ke
 
 ## 1. Demo
 
-We provide image to video generation with three resolutions: 256 (256\*256), 512 (320\*512), 1024 (576\*1024).
+We provide image to video generation with three resolutions: 576x1024, 320x512, 256x256.
 
-### 576*1024
+### 576x1024
 
 | Input                                                                                                                                                                                                            | Output                                                                                                                 |
 |------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|------------------------------------------------------------------------------------------------------------------------|
@@ -26,7 +26,7 @@ We provide image to video generation with three resolutions: 256 (256\*256), 512
 | <p align="center"><img width="300" src="https://github.com/user-attachments/assets/f9a762a8-ad18-4f00-b3b9-bae8eced7c0d"/><br/>"fireworks display"</p> | <video width="300" src="https://github.com/user-attachments/assets/149cd613-a2c7-488e-a674-eff04b4fbf93"/> |
 | <p align="center"><img width="300" src="https://github.com/user-attachments/assets/f02c1f95-bd02-4ef7-9059-05919257eea5"/><br/>"a beautiful woman with long hair and a dress blowing in the wind"</p> | <video width="300" src="https://github.com/user-attachments/assets/dd2e7e92-085e-4432-af49-72619dd9ea4f"/> |
 
-### 320*512
+### 320x512
 
 | Input                                                                                                                                                                                                            | Output                                                                                                                 |
 |------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|------------------------------------------------------------------------------------------------------------------------|
@@ -35,7 +35,7 @@ We provide image to video generation with three resolutions: 256 (256\*256), 512
 | <p align="center"><img width="300" src="https://github.com/user-attachments/assets/8ef652da-9cae-4817-bbb0-67468a08f623"/><br/>"a sailboat sailing in rough seas with a dramatic sunset"</p> | <video width="300" src="https://github.com/user-attachments/assets/da1d0dc6-d1bf-4a4e-9011-3928778013fb"/> |
 | <p align="center"><img width="300" src="https://github.com/user-attachments/assets/72f0a39c-69ee-472c-8916-f5566dbf1805"/><br/>"a group of penguins walking on a beach"</p> | <video width="300" src="https://github.com/user-attachments/assets/de878fd4-d399-47ed-bcee-9d10fc297464"/> |
 
-### 256*256
+### 256x256
 
 | Input                                                                                                                                                                                                            | Output                                                                                                                 |
 |------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|------------------------------------------------------------------------------------------------------------------------|
@@ -46,8 +46,8 @@ We provide image to video generation with three resolutions: 256 (256\*256), 512
 
 ## 2. Dependency
 
-- [MindSpore](https://www.mindspore.cn/install) 2.3
-- [CANN](https://repo.mindspore.cn/ascend/ascend910/20240705/) C18(0705)
+- [MindSpore 2.3](https://www.mindspore.cn/install)
+- [CANN C18(0705)](https://repo.mindspore.cn/ascend/ascend910/20240705/)
 
 ```shell
 pip install -r requirements.txt
@@ -62,15 +62,15 @@ Download the prompts from [here](https://download-mindspore.osinfra.cn/toolkits/
 
 We provide weight conversion script `tools/convert_weight.py` to convert the original Pytorch model weights to MindSpore model weights. Pytorch model weights can be accessed via links below.
 
-|Model|Resolution(H\*W)|Pytorch Checkpoint|
+|Model|Resolution(HxW)|Pytorch Checkpoint|
 |:---------|:---------|:--------|
-|DynamiCrafter1024|576\*1024|[Hugging Face](https://huggingface.co/Doubiiu/DynamiCrafter_1024/blob/main/model.ckpt)|
-|DynamiCrafter512|320\*512|[Hugging Face](https://huggingface.co/Doubiiu/DynamiCrafter_512/blob/main/model.ckpt)|
-|DynamiCrafter256|256\*256|[Hugging Face](https://huggingface.co/Doubiiu/DynamiCrafter/blob/main/model.ckpt)|
+|DC1024|576x1024|[Hugging Face](https://huggingface.co/Doubiiu/DynamiCrafter_1024/blob/main/model.ckpt)|
+|DC512|320x512|[Hugging Face](https://huggingface.co/Doubiiu/DynamiCrafter_512/blob/main/model.ckpt)|
+|DC256|256x256|[Hugging Face](https://huggingface.co/Doubiiu/DynamiCrafter/blob/main/model.ckpt)|
 |CLIP-ViT-H-14-laion2B-s32B-b79K |/|[Hugging Face](https://huggingface.co/laion/CLIP-ViT-H-14-laion2B-s32B-b79K/tree/main)|
 
 
-The text files in `tools/` mark the model parameters mapping between Pytorch and MindSpore version. Select the ones according to the model you want to convert, and then run the following command to convert weight (e.g. 576\*1024).
+The text files in `tools/` mark the model parameters mapping between Pytorch and MindSpore version. Select the ones according to the model you want to convert, and then run the following command to convert weight (e.g. 576x1024).
 
 **Note:** Please download the CLIP model stated above from hugging face, convert it to MindSpore version (parameters mapping: `tools/pt_vit-h-14.txt` and `tools/ms_vit-h-14.txt`), and then add the ckpt path under `cond_stage_config` and `img_cond_stage_config` in yaml config file.
 
@@ -93,12 +93,19 @@ sh scripts/run/run_infer.sh [RESUOUTION] [CKPT_PATH]
 
 Inference speed on Ascend 910* NPU:
 
-|Model|Resolution(H\*W)\*frames|MindSpore mode|jit_level|Context|Speed(s/video)|
-|:---------|:---------|:--------|:--------|:--------|:--------|
-|DynamiCrafter1024|576\*1024\*16|GRAPH|O1|D910*-[MindSpore](https://www.mindspore.cn/install) 2.3-[CANN](https://repo.mindspore.cn/ascend/ascend910/20240705/) C18(0705)|71|
-|DynamiCrafter512|320\*512\*16|GRAPH|O1|D910*-[MindSpore](https://www.mindspore.cn/install) 2.3-[CANN](https://repo.mindspore.cn/ascend/ascend910/20240705/) C18(0705)|21|
-|DynamiCrafter256|256\*256\*16|GRAPH|O1|D910*-[MindSpore](https://www.mindspore.cn/install) 2.3-[CANN](https://repo.mindspore.cn/ascend/ascend910/20240705/) C18(0705)|13|
+| Model      |     Context | jit_level | Precision |  Scheduler   | Steps              |  Resolution <br> (framesxHxW)   |      Batch Size  |  NPUs |  Speed <br> (step/s)     | Time <br>  (s/video)     |
+|---------------|:-----------|:------------:|:------------:|:------------:|:------------------:|:----------------:|:----------------:|:----------------:|:----------------:|:----------------:|
+| DC1024 | D910*-[MS 2.3](https://www.mindspore.cn/install)-[CANN C18(0705)](https://repo.mindspore.cn/ascend/ascend910/20240705/)  | O1 | FP16 | DDIM | 50 |  16x576x1024 | 1 | 1 |  0.70 | 71 |
+| DC512 | D910*-[MS 2.3](https://www.mindspore.cn/install)-[CANN C18(0705)](https://repo.mindspore.cn/ascend/ascend910/20240705/)  | O1 | FP16 | DDIM  | 50 |  16x320x512  | 1 | 1 | 2.38  | 21 |
+| DC256 | D910*-[MS 2.3](https://www.mindspore.cn/install)-[CANN C18(0705)](https://repo.mindspore.cn/ascend/ascend910/20240705/)  | O1 | FP16 | DDIM  | 50 |  16x256x256  | 1 | 1 |  3.85 | 13 |
 
-# References
+> Context: {Ascend chip}-{mindspore version}-{cann version}.
+>
+> Speed (step/s): sampling speed measured in the number of sampling steps per second.
+>
+> Time (s/video): the time cost here only contains the ddim sampling process, vae encoding and decoding are not included.
+
+
+## References
 
 [1] Jinbo Xing, et al. DynamiCrafter: Animating Open-domain Images with Video Diffusion Priors. ECCV 2024.
