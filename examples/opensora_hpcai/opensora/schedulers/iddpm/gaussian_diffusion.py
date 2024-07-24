@@ -295,7 +295,7 @@ class GaussianDiffusion:
         """
         if frames_mask is not None:
             if frames_mask.shape[0] != x.shape[0]:
-                frames_mask = repeat_interleave(frames_mask.reshape(1, -1), 2, 0)  # HACK
+                frames_mask = frames_mask.reshape(1, -1).repeat(2, axis=0)  # HACK
             mask_t = (frames_mask * len(self.betas)).astype(np.int32)
 
             # x0: copy unchanged x values
