@@ -8,8 +8,7 @@ import mindspore as ms
 
 """
 Usage: python convert_weight.py \
-            --src_param ./pt_param_1024.txt \
-            --target_param ./ms_param_1024.txt \
+            --model_name 1024 \
             --src_ckpt /path/to/pt/model_1024.ckpt \
             --target_ckpt /path/to/ms/model_1024.ckpt
 
@@ -54,13 +53,23 @@ def convert_pt2ms(pt_param, ms_param, pt_weight, save_fp):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "--src_param", type=str, default="./pt_param_1024.txt", help="path to torch checkpoint param text"
+        "--model_name",
+        type=str,
+        choices=["256", "512", "1024", "clip"],
+        default="1024",
+        help="path to torch checkpoint param text",
     )
-    parser.add_argument(
-        "--target_param", type=str, default="./ms_param_1024.txt", help="path to mindspore checkpoint param text"
-    )
-    parser.add_argument("--src_ckpt", type=str, help="path to torch checkpoint path")
-    parser.add_argument("--target_ckpt", type=str, help="target file path to save the converted checkpoint")
+    parser.add_argument("--src_ckpt", type=str, help="path to the torch checkpoint")
+    parser.add_argument("--target_ckpt", type=str, help="path to save the converted MindSpore checkpoint")
     args = parser.parse_args()
+    if args.model_name == "256":
+        src_param = "pt_param_256.txt"
+        target_param = "ms_param_256.txt"
+    elif args.model_name in ["512", "1024"]:
+        src_param = "pt_param_512_1024.txt"
+        target_param = "ms_param_512_1024.txt"
+    else:
+        src_param = "pt_clip-vit-h-14.txt"
+        target_param = "ms_clip-vit-h-14.txt"
 
-    convert_pt2ms(args.src_param, args.target_param, args.src_ckpt, args.target_ckpt)
+    convert_pt2ms(src_param, target_param, args.src_ckpt, args.target_ckpt)
