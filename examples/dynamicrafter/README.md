@@ -89,13 +89,13 @@ sh scripts/run/run_infer.sh [RESUOUTION] [CKPT_PATH]
 
 > [RESLLUTION] can be 256, 512 or 1024.
 
-Inference speed on 910*:
+Inference speed on Ascend 910* NPU:
 
-|Model|Resolution|MindSpore mode|jit_level|Speed(s/video)|
-|:---------|:---------|:--------|:--------|:--------|
-|DynamiCrafter1024|576x1024|GRAPH|O1|71|
-|DynamiCrafter512|320x512|GRAPH|O1|21|
-|DynamiCrafter256|256x256|GRAPH|O1|13|
+|Model|Resolution(H\*W)\*frames|MindSpore mode|jit_level|Context|Speed(s/video)|
+|:---------|:---------|:--------|:--------|:--------|:--------|
+|DynamiCrafter1024|576\*1024\*16|GRAPH|O1|D910*-[MindSpore](https://www.mindspore.cn/install) 2.3-[CANN](https://repo.mindspore.cn/ascend/ascend910/20240705/) C18(0705)|71|
+|DynamiCrafter512|320\*512\*16|GRAPH|O1|D910*-[MindSpore](https://www.mindspore.cn/install) 2.3-[CANN](https://repo.mindspore.cn/ascend/ascend910/20240705/) C18(0705)|21|
+|DynamiCrafter256|256\*256\*16|GRAPH|O1|D910*-[MindSpore](https://www.mindspore.cn/install) 2.3-[CANN](https://repo.mindspore.cn/ascend/ascend910/20240705/) C18(0705)|13|
 
 # References
 
