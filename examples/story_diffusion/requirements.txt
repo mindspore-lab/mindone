@@ -1,5 +1,4 @@
 gradio==4.22.0
-xformers==0.0.20
 transformers==4.36.2
 huggingface-hub==0.20.2
 spaces==0.19.4
