@@ -52,7 +52,7 @@ def main(args):
     )
     if args.exp_name is not None and len(args.exp_name) > 0:
         args.output_dir = os.path.join(args.output_dir, args.exp_name)
-    set_logger(output_dir=args.output_dir, rank=rank_id, log_level=eval(args.log_level))
+    set_logger(name="", output_dir=args.output_dir, rank=rank_id, log_level=eval(args.log_level))
 
     # Load Config
     model_config = os.path.join("opensora/models/ae/videobase/causal_vae/", getae_model_config(args.ae))

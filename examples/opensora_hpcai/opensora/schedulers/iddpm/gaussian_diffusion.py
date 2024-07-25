@@ -348,7 +348,7 @@ class GaussianDiffusion:
         cond_fn=None,
         model_kwargs=None,
         progress=False,
-        frames_mask: Optional[Tensor] = None,
+        frames_mask: Optional[np.ndarray] = None,
     ):
         """
         Generate samples from the model.
@@ -391,7 +391,7 @@ class GaussianDiffusion:
         cond_fn=None,
         model_kwargs=None,
         progress=False,
-        frames_mask: Optional[Tensor] = None,
+        frames_mask: Optional[np.ndarray] = None,
     ):
         """
         Generate samples from the model and yield intermediate samples from
@@ -432,18 +432,40 @@ class GaussianDiffusion:
     def ddim_sample(
         self,
         model,
-        x,
+        x: Tensor,
         t,
         clip_denoised=True,
         denoised_fn=None,
         cond_fn=None,
         model_kwargs=None,
         eta=0.0,
+        frames_mask: Optional[np.ndarray] = None,
     ):
         """
         Sample x_{t-1} from the model using DDIM.
         Same usage as p_sample().
         """
+        if frames_mask is not None:
+            if frames_mask.shape[0] != x.shape[0]:
+                frames_mask = frames_mask.reshape(1, -1).repeat(2, axis=0)  # HACK
+            mask_t = (frames_mask * len(self.betas)).astype(np.int32)
+
+            # x0: copy unchanged x values
+            # x_noise: add noise to x values
+            x0 = x.copy()
+            x_noise = x0 * _extract_into_tensor(self.sqrt_alphas_cumprod, t, x.shape) + ops.randn_like(
+                x
+            ) * _extract_into_tensor(self.sqrt_one_minus_alphas_cumprod, t, x.shape)
+
+            # active noise addition
+            mask_t_equall = (mask_t == t.unsqueeze(1))[:, None, :, None, None]
+            x = ops.where(Tensor(mask_t_equall), x_noise, x0)  # FIXME: numpy
+
+            # create frames_mask
+            mask_t_upper = (mask_t > t.unsqueeze(1))[:, None, :, None, None]
+            batch_size = x.shape[0]
+            model_kwargs["frames_mask"] = Tensor(mask_t_upper.reshape(batch_size, -1), dtype=ms.bool_)  # FIXME: numpy
+
         out = self.p_mean_variance(
             model,
             x,
@@ -467,6 +489,11 @@ class GaussianDiffusion:
         mean_pred = out["pred_xstart"] * ops.sqrt(alpha_bar_prev) + ops.sqrt(1 - alpha_bar_prev - sigma**2) * eps
         nonzero_mask = (t != 0).float().view(-1, *([1] * (len(x.shape) - 1)))  # no noise when t == 0
         sample = mean_pred + nonzero_mask * sigma * noise
+
+        if frames_mask is not None:
+            mask_t_lower = (mask_t < t.unsqueeze(1))[:, None, :, None, None]
+            sample = ops.where(Tensor(mask_t_lower), x0, sample)  # FIXME: numpy
+
         return {"sample": sample, "pred_xstart": out["pred_xstart"]}
 
     def ddim_reverse_sample(
@@ -517,7 +544,7 @@ class GaussianDiffusion:
         model_kwargs=None,
         progress=False,
         eta=0.0,
-        frames_mask: Optional[Tensor] = None,  # TODO: integrate support
+        frames_mask: Optional[np.ndarray] = None,
     ):
         """
         Generate samples from the model using DDIM.
@@ -534,6 +561,7 @@ class GaussianDiffusion:
             model_kwargs=model_kwargs,
             progress=progress,
             eta=eta,
+            frames_mask=frames_mask,
         ):
             final = sample
         return final["sample"]
@@ -549,6 +577,7 @@ class GaussianDiffusion:
         model_kwargs=None,
         progress=False,
         eta=0.0,
+        frames_mask: Optional[np.ndarray] = None,
     ):
         """
         Use DDIM to sample from the model and yield intermediate samples from
@@ -582,6 +611,7 @@ class GaussianDiffusion:
                 cond_fn=cond_fn,
                 model_kwargs=model_kwargs,
                 eta=eta,
+                frames_mask=frames_mask,
             )
             yield out
             img = out["sample"]

@@ -86,7 +86,7 @@ Other useful documents and links are listed below.
 ## Installation
 1. Use python>=3.8 [[install]](https://www.python.org/downloads/)
 
-2. Install MindSpore 2.3 master (0615daily) according to the [website](https://repo.mindspore.cn/mindspore/mindspore/version/202406/20240615/master_20240615020018_43ccb91e45899b64fe31d304497ab17e3ada3cea_newest/unified/). Select the corresponding wheel file based your computer's OS and the python verison. Please use C18 CANN (0517) which can be downloaded from [here](https://repo.mindspore.cn/ascend/ascend910/20240517/).
+2. Install MindSpore 2.3 master (0705daily) according to the [website](https://repo.mindspore.cn/mindspore/mindspore/version/202407/20240705/master_20240705220018_51f414917fd9a312dd43ea62eea61cf37c3dfbd6_newest/unified/). Select the corresponding wheel file based your computer's OS and the python verison. Please use C18 CANN (0705) which can be downloaded from [here](https://repo.mindspore.cn/ascend/ascend910/20240705/).
 
 
 3. Install requirements
@@ -228,7 +228,11 @@ Please edit the `master_port` to a different port number in the range 1024 to 65
 
 #### Preparation
 
-To train the causal vae model, you need to prepare a video dataset. You can download this video dataset from [Open-Sora-Dataset-v1.1.0](https://huggingface.co/datasets/LanguageBind/Open-Sora-Plan-v1.1.0/tree/main).
+**Step 1: Downloading Datasets**:
+
+To train the causal vae model, you need to prepare a video dataset. You can download this video dataset from [Open-Sora-Dataset-v1.1.0](https://huggingface.co/datasets/LanguageBind/Open-Sora-Plan-v1.1.0/tree/main). Afterwards, you can revise the `--video_path` in `scripts/causalvae/train.sh` to the video folder path of your downloaded dataset.
+
+**Step 2: Converting Pretrained Weights**:
 
 Causal video vae can be initialized from vae 2d for better convergence. This can be done by inflating the 2d vae model checkpoint as follows:
 
@@ -237,13 +241,13 @@ python tools/model_conversion/inflate_vae2d_to_vae3d.py \
     --src /path/to/vae_2d.ckpt  \
     --target pretrained/causal_vae_488_init.ckpt
 ```
-> In case you lack vae 2d checkpoint in mindspore format, please use `tools/model_conversion/convert_vae.py` for model conversion, e.g. after downloading the [sd-vae-ft-mse](https://huggingface.co/stabilityai/sd-vae-ft-mse/tree/main) weights.
+> In case you lack vae 2d checkpoint in mindspore format, please use `tools/model_conversion/convert_vae.py` for model conversion, e.g., after downloading the [sd-vae-ft-mse](https://huggingface.co/stabilityai/sd-vae-ft-mse/tree/main) weights.
 
 Please also download [lpips_vgg-426bf45c.ckpt](https://download-mindspore.osinfra.cn/toolkits/mindone/autoencoders/lpips_vgg-426bf45c.ckpt) and put it under `pretrained/` for training with lpips loss.
 
 #### Standalone Training
 
-To launch a single-card training, you can refer to `scripts/causalvae/train.sh`. Please revise the `--video_path` to the path of the folder where the videos are stored, and run:
+To launch a single-card training, you can refer to `scripts/causalvae/train.sh` and run:
 ```bash
 bash scripts/causalvae/train.sh
 ```
@@ -256,12 +260,109 @@ For parallel training, please use `msrun` and pass `--use_parallel=True`.
 msrun --master_port=8200 --worker_num=8 --local_worker_num=8 --log_dir="output_log"  \
     python opensora/train/train_causalvae.py  \
     --use_parallel True \
-    ... # pass other arguments
+    ... # pass other arguments, please refer to scripts/causalvae/train.sh
 ```
 
 ### Training Diffusion Model
 
 #### Preparation
+
+**Step 1: Downloading Datasets**:
+
+The [Open-Sora-Dataset-v1.1.0](https://huggingface.co/datasets/LanguageBind/Open-Sora-Plan-v1.1.0/tree/main) includes three image-text datasets and three video-text datasets. As reported in [Report v1.1.0](https://github.com/PKU-YuanGroup/Open-Sora-Plan/blob/main/docs/Report-v1.1.0.md), the three image-text datasets are:
+| Name | Image Source | Text Captioner | Num pair |
+|---|---|---|---|
+| SAM-11M | [SAM](https://ai.meta.com/datasets/segment-anything/) |  [LLaVA](https://github.com/haotian-liu/LLaVA) |  11,185,255 |
+| Anytext-3M-en | [Anytext](https://github.com/tyxsspa/AnyText) |  [InternVL-1.5](https://github.com/OpenGVLab/InternVL) |  1,886,137 |
+| Human-160k | [Laion](https://laion.ai/blog/laion-5b/) |  [InternVL-1.5](https://github.com/OpenGVLab/InternVL) |  162,094 |
+
+
+The three video-text datasets are:
+| Name | Hours | Num frames | Num pair |
+|---|---|---|---|
+| [Mixkit](https://mixkit.co/) | 42.0h |  65 |  54,735 |
+|   |  |  513 |  1,997 |
+| [Pixabay](https://pixabay.com/) | 353.3h |  65 | 601,513 |
+|   |  |  513 |  51,483 |
+| [Pexel](https://www.pexels.com/) | 2561.9h |  65 |  3,832,666 |
+|   |  |  513 |  271,782 |
+
+Each video-text dataset has two annotation json files. For example, the mixkit dataset has `video_mixkit_65f_54735.json` which includes $54735$ video(65 frames)-text pairs and `video_mixkit_513f_1997.json` which includes $1997$ video(513 frames)-text pairs. The annotation json contains three keys: `path` corresponding to the video path, `cap` corresponding to the caption, and `frame_idx` corresponding to the frame indexes range. An example of annotation json file is shown below:
+
+```json
+[
+  {
+    "path": "Fish/mixkit-multicolored-coral-shot-with-fish-projections-4020.mp4",
+    "frame_idx": "0:513",
+    "cap": "The video presents a continuous exploration of a vibrant underwater coral environment,...",
+  }
+  ...
+]
+```
+
+
+To prepare the training datasets, please first download the video and image datasets in [Open-Sora-Dataset-v1.1.0](https://huggingface.co/datasets/LanguageBind/Open-Sora-Plan-v1.1.0/tree/main). You need to download **at least one video dataset and one image dataset** to enable video-image joint training. After downloading all datasets, you can place images/videos under the folder `datasets`, which looks like:
+```bash
+datasets/
+├───images/  # Human-160k
+├───anytext3m/  # Anytext-3M-en
+├───sam/  # SAM-11M
+├───pixabay_v2/  # Pixabay
+├───pexels/  # Pexel
+└───mixkit/  # Mixkit
+```
+You can place the json files under the folder `anno_jsons`. The folder structure is:
+```bash
+anno_jsons/
+├───video_pixabay_65f_601513.json
+├───video_pixabay_513f_51483.json
+├───video_pexel_65f_3832666.json
+├───video_pexel_513f_271782.json
+├───video_mixkit_65f_54735.json
+├───video_mixkit_513f_1997.json
+├───human_images_162094.json
+├───anytext_en_1886137.json
+└───sam_image_11185255.json
+```
+
+**Step 2: Extracting Embedding Cache**:
+
+Next, please extract the text embeddings and save them in the disk for training acceleration. For each json file, you need to run the following command accordingly and save the t5 embeddings cache in the `output_path`.  
+
+```bash
+python opensora/sample/sample_text_embed.py \
+    --data_file_path /path/to/caption.json \
+    --output_path /path/to/text_embed_folder \
+```
+To extract text embeddings for all annotation json files using a single card, you can refer to `scripts/embedding_cache/extract_all.sh`. If you want to try extracting embedding cache using multiple cards in a single node, please refer to `scripts/embedding_cache/extract_multi.sh`.
+
+The text embeddings are extracted and saved under the specified `output_path`. The `output_path` folder structure is similar to, e.g.,:
+```bash
+datasets/
+├───mixkit-t5-emb-len=300_65f/
+│   ├───Airplane/
+│   │       ├───[video-file-name]-frame_idx-0:65.npz
+│   │       ├───[video-file-name]-frame_idx-65:130.npz
+│   │       └───...
+│   └───...
+└───mixkit-t5-emb-len=300_513f/
+    ├───Airplane/
+    │       ├───[video-file-name]-frame_idx-0:513.npz
+    │       ├───[video-file-name]-frame_idx-513:1026.npz
+    │       └───...
+    └───...
+```
+**Step 3: Revising the Paths**:
+
+After extracting the embedding cache, you will have the following three paths ready:
+```text
+images/videos path: e.g., datasets/images/
+t5 embedding path: e.g., datasets/images-t5-emb-len=300/
+annotation json path: e.g., anno_jsons/human_images162094.json
+```
+In the dataset file, for example, `scripts/train_data/image_data.txt`, each line represents one dataset. Each line includes three paths: the images/videos folder, the t5 embedding cache folder, and the path to the annotation json file. Please revise them accordingly to the paths on your disk.
+
+**Step 4: Converting Pretrained Weights**:
 
 The first-stage training depends on the `t2v.pt` from [Vchitect/Latte](https://huggingface.co/maxin-cn/Latte/tree/main). Please download `t2v.pt` and place it under `LanguageBind/Open-Sora-Plan-v1.1.0/t2v.pt`. Then run model conversion with:
 ```bash
@@ -272,20 +373,8 @@ python tools/model_conversion/convert_latte.py \
 
 > **Since [Vchitect/Latte](https://huggingface.co/maxin-cn/Latte/tree/main) has deleted `t2v.pt` from their HF repo, please download `t2v.ckpt` from this [URL](https://download-mindspore.osinfra.cn/toolkits/mindone/opensora-pku/tv2.ckpt). There is no need to convert it.**
 
-The [Open-Sora-Dataset-v1.1.0](https://huggingface.co/datasets/LanguageBind/Open-Sora-Plan-v1.1.0/tree/main) includes three image datasets and three video datasets, as recorded in `scripts/train_data/image_data.txt` and `scripts/train_data/video_data.txt`. Each line includes the paths to three folders/files: the video folder, the t5 embedding cache folder, and the path to the annotation json file.
-
-For acceleration, we pre-compute the t5 embedding before training the diffusion transformer. For each json file, for example, `video_mixkit_65f_54735.json` or `video_mixkit_513f_1997.json`, you need to run the following command accordingly and save the t5 embeddings cache in a different `output_path`.  
-
-```bash
-python opensora/sample/sample_text_embed.py \
-    --data_file_path /path/to/caption.json \
-    --output_path /path/to/text_embed_folder \
-```
-
-After t5 embedding cache, please revise `scripts/train_data/image_data.txt` and `scripts/train_data/video_data.txt` to include the three folders/files: the video folder, the t5 embedding cache folder, and the path to the annotation json file.
-
 #### Example of Training Scripts
-Here we choose an example of training scripts (`train_videoae_65x512x512.sh`) and explain the meanings of some experimental arguments.
+Here we choose an example of training scripts (`train_videoae_65x512x512.sh`) and explain the meanings of some experimental arguments. This is an example of parallel training script which uses data parallelism. If you want to try single-device training, please refer to `train_videoae_65x512x512_single_device.sh`.
 
 There some hyper-parameters that may vary between different experiments:
 ```shell
@@ -311,30 +400,55 @@ We use `msrun` to launch the parallel training tasks. For single-node multi-devi
 
 There are some arguments related to the training dataset path:
 - `video_data` or `image_data`: the text file to the video/image dataset. The text file should contain N lines corresponding to N datasets. Each line should have two or three items. If two items are available, they correspond to the video folder and the annotation json file. If three items are available, they correspond to the video folder, the text embedding cache folder, and the annotation json file.
-- `pretrained`: the pretrained checkpoint to be loaded as initial weights before training.
+- `pretrained`: the pretrained checkpoint to be loaded as initial weights before training. If not provided, the LatteT2V will use random initialization.
+
+For the detailed explanations for other arguments, please refer to the document for [training arguments](docs/training_args.md).
+
+> Note:
+> - In Graph mode (default), MindSpore takes about 10~20 mins for graph compilation.
+> - For acceleration, we set the `dataset_sink_mode` to True by default. For more information about data sink mode, see [MindSpore doc for data sink](https://www.mindspore.cn/docs/en/master/api_python/mindspore/mindspore.data_sink.html).
 
 #### Parallel Training
 
-Before launching the first-stage training, please make sure you set the text embedding cache folder correctly in `image_data.txt` and `video_data.txt`.
+Before launching the first-stage training, please make sure you set the three paths correctly in `image_data.txt` and `video_data.txt`.
 
 ```bash
 # start 65x512x512 pretraining, 8 NPUs
 bash scripts/text_condition/train_videoae_65x512x512.sh
 ```
-After the first-stage training, there will be multiple checkpoint shards saved in the `output_dir/ckpt`. Please run the following command to combine the multiple checkpoint shards into a full one:
+During training, the training logs will be saved under `parallel_logs/` folder of the specified output directory. The loss values and average per step time will saved in `result.log` in the output directory.
+
+After the first-stage training, if using data parallelism (the default parallel mode), the checkpoint files will be saved under `ckpt/` folder. If using optimizer parallelism, there will be multiple checkpoint shards saved in the `ckpt/`. See the following method on how to merge multiple checkpoint shards into a full checkpoint file.
+<details>
+<summary>How to merge multiple checkpoint shards</summary>
+
+Please run the following command to combine the multiple checkpoint shards into a full one:
 ```
 python tools/ckpt/combine_ckpt.py --src output_dir/ckpt --dest output_dir/ckpt --strategy_ckpt output_dir/src_strategy.ckpt
 ```
 Afterwards, you will obtain a full checkpoint file under `output_dir/ckpt/rank_0/full_0.ckpt`.
-> If you want to run inference with this full checkpoint file, please revise the script `scripts/text_condition/sample_video.sh` and append `--pretrained_ckpt output_dir/ckpt_full/rank_0/full_0.ckpt` to the end of the inference command.
+
+</details>
+
+> If you want to run inference with a checkpoint file, please revise the script `scripts/text_condition/sample_video.sh` and append `--pretrained_ckpt path/to/your.ckpt` to the end of the inference command.
 
 Then please revise `scripts/text_condition/train_videoae_221x512x512.sh`, and change `--pretrained` to the full checkpoint path from the `65x512x512` stage. Then run:
 
 ```bash
-# start 221x512x512 finetuning, 8 NPUs
+# (experimental) start 221x512x512 finetuning, 8 NPUs
 bash scripts/text_condition/train_videoae_221x512x512_sp.sh
 ```
-Simiarly, please revise the `--pretrained` to the full checkpoint path from the `221x512x512` stage, and then start the third-stage training (to be released soon).
+
+> You can try modifying `--dataloader_num_workers` and `--dataloader_prefetch_size` on `train_videoae_221x512x512_sp.sh` to speed up when you have enough cpu memory.
+
+Simiarly, please revise the `--pretrained` to the checkpoint path from the `221x512x512` stage, and then start the third-stage training:
+
+```bash
+# (experimental) start 513x512x512 finetuning, 8 NPUs
+bash scripts/text_condition/train_videoae_513x512x512_sp.sh
+```
+> Note:
+> You can try modifying `--dataloader_num_workers` and `--dataloader_prefetch_size` on `train_videoae_513x512x512_sp.sh` to speed up when you have enough cpu memory.
 
 
 #### Overfitting Experiment
@@ -353,13 +467,17 @@ The checkpoint after 3000 steps generated videos similar to the original videos,
 
 We evaluated the training performance on MindSpore and Ascend NPUs. The results are as follows.
 
-| Model           | Context        | Precision | BS | NPUs | num_frames + num_images| Resolution  | Train T. (s/step) |
-|:----------------|:---------------|:----------|:--:|:----:|:-----------:|:-----------:|:--------------:|
-| LatteT2V-XL/122 | D910\*-[CANN C18(0517)](https://repo.mindspore.cn/ascend/ascend910/20240517/)-[MS2.3_master(0615)](https://repo.mindspore.cn/mindspore/mindspore/version/202406/20240615/master_20240615020018_43ccb91e45899b64fe31d304497ab17e3ada3cea_newest/unified/) | BF16      | 2  |  8   |   17 + 4    | 512x512     |  2.54  |
-| LatteT2V-XL/122 | D910\*-[CANN C18(0517)](https://repo.mindspore.cn/ascend/ascend910/20240517/)-[MS2.3_master(0615)](https://repo.mindspore.cn/mindspore/mindspore/version/202406/20240615/master_20240615020018_43ccb91e45899b64fe31d304497ab17e3ada3cea_newest/unified/) | BF16      | 2  |  8   |   65 + 16   | 512x512     |  10.57  |
-| LatteT2V-XL/122 | D910\*-[CANN C18(0517)](https://repo.mindspore.cn/ascend/ascend910/20240517/)-[MS2.3_master(0615)](https://repo.mindspore.cn/mindspore/mindspore/version/202406/20240615/master_20240615020018_43ccb91e45899b64fe31d304497ab17e3ada3cea_newest/unified/) | BF16      | 2  |  8   |   65 + 4   | 512x512     |  7.50 |
-| LatteT2V-XL/122 | D910\*-[CANN C18(0517)](https://repo.mindspore.cn/ascend/ascend910/20240517/)-[MS2.3_master(0615)](https://repo.mindspore.cn/mindspore/mindspore/version/202406/20240615/master_20240615020018_43ccb91e45899b64fe31d304497ab17e3ada3cea_newest/unified/) | BF16      | 1  |  8   |   221 + 4   | 512x512     | 7.18 |
+| Model           | Context        | Precision | BS  | NPUs | num_frames + num_images | Resolution  | Train T. (s/step) |
+|:----------------|:---------------|:----------|:---:|:----:|:-----------------------:|:-----------:|:-----------------:|
+| LatteT2V-XL/122 | D910\*-[CANN C18(0705)](https://repo.mindspore.cn/ascend/ascend910/20240705/)-[MS2.3_master(0705)](https://repo.mindspore.cn/mindspore/mindspore/version/202407/20240705/master_20240705220018_51f414917fd9a312dd43ea62eea61cf37c3dfbd6_newest/unified/) | BF16      |  2  |  8   |         17 + 4          | 512x512     |       2.45        |
+| LatteT2V-XL/122 | D910\*-[CANN C18(0705)](https://repo.mindspore.cn/ascend/ascend910/20240705/)-[MS2.3_master(0705)](https://repo.mindspore.cn/mindspore/mindspore/version/202407/20240705/master_20240705220018_51f414917fd9a312dd43ea62eea61cf37c3dfbd6_newest/unified/) | BF16      |  2  |  8   |         65 + 16         | 512x512     |       9.36       |
+| LatteT2V-XL/122 | D910\*-[CANN C18(0705)](https://repo.mindspore.cn/ascend/ascend910/20240705/)-[MS2.3_master(0705)](https://repo.mindspore.cn/mindspore/mindspore/version/202407/20240705/master_20240705220018_51f414917fd9a312dd43ea62eea61cf37c3dfbd6_newest/unified/) | BF16      |  2  |  8   |         65 + 4          | 512x512     |       7.02        |
+| LatteT2V-XL/122 | D910\*-[CANN C18(0705)](https://repo.mindspore.cn/ascend/ascend910/20240705/)-[MS2.3_master(0705)](https://repo.mindspore.cn/mindspore/mindspore/version/202407/20240705/master_20240705220018_51f414917fd9a312dd43ea62eea61cf37c3dfbd6_newest/unified/) | BF16      |  1  |  8   |         221 + 4         | 512x512     |       7.18        |
+| LatteT2V-XL/122 | D910\*-[CANN C18(0705)](https://repo.mindspore.cn/ascend/ascend910/20240705/)-[MS2.3_master(0705)](https://repo.mindspore.cn/mindspore/mindspore/version/202407/20240705/master_20240705220018_51f414917fd9a312dd43ea62eea61cf37c3dfbd6_newest/unified/) | BF16      |  1  |  8   |         513 + 8         | 512x512     |        12.3       |
+
 > Context: {NPU type}-{CANN version}-{MindSpore version}
+
+See [Performance Boosting History](docs/performance_boosting_history.md) 🚀🚀🚀 on how we achieve the state of the art performance.
 
 ## 👍 Acknowledgement
 * [Latte](https://github.com/Vchitect/Latte): The **main codebase** we built upon and it is an wonderful video generated model.

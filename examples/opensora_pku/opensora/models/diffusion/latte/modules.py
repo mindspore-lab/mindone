@@ -292,6 +292,7 @@ class MultiHeadAttention(nn.Cell):
                     fix_head_dims=[72],
                     attention_dropout=attn_drop,
                     dtype=self.FA_dtype,
+                    input_layout=self.layout,
                 )
         else:
             self.attention = Attention(
@@ -617,10 +618,16 @@ class MultiHeadAttention(nn.Cell):
                 self.apply_rope(q, k, v, position_q, position_k)
 
             if self.enable_flash_attention:
-                # reshape qkv shape ((b n h*d) -> (b h n d))and mask dtype for FA input format
-                q = q.view(q_b, q_n, h, -1).transpose(0, 2, 1, 3)
-                k = k.view(k_b, k_n, h, -1).transpose(0, 2, 1, 3)
-                v = v.view(v_b, v_n, h, -1).transpose(0, 2, 1, 3)
+                # (b n h*d) -> (b n h d)
+                q = q.view(q_b, q_n, h, -1)
+                k = k.view(k_b, k_n, h, -1)
+                v = v.view(v_b, v_n, h, -1)
+                if self.layout == "BNSD":
+                    # reshape qkv shape ((b n h d) -> (b h n d))
+                    q = q.transpose(0, 2, 1, 3)
+                    k = k.transpose(0, 2, 1, 3)
+                    v = v.transpose(0, 2, 1, 3)
+
                 if mask is not None:
                     assert mask.dim() == 4, f"Expect to have 4-dim mask for FA, but got mask shape {mask.shape}"
                     # (b, h, 1, k_n) - > (b, h, q_n, k_n), manual broadcast
@@ -628,9 +635,12 @@ class MultiHeadAttention(nn.Cell):
                         mask = mask.repeat(q_n, axis=-2)
 
                 out = self.flash_attention(q, k, v, mask)
-                b, h, n, d = out.shape
-                # reshape FA output to original attn input format, (b h n d) -> (b n h*d)
-                out = out.transpose(0, 2, 1, 3).view(b, n, -1)
+                if self.layout == "BNSD":
+                    # reshape FA output to original attn input format, (b h n d) -> (b n h d)
+                    out = out.transpose(0, 2, 1, 3)
+                b, n, h, d = out.shape
+                # (b n h d)->(b n h*d)
+                out = out.view(b, n, -1)
             else:
                 # (b, n, h*d) -> (b*h, n, d)
                 q = self._rearange_in(q, h)

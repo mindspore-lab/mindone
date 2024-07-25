@@ -541,7 +541,7 @@ class VideoGenPipeline(DiffusionPipeline):
         padding_needed = (sp_size - video_states.shape[2] % sp_size) % sp_size
         temp_attention_mask = None
         if padding_needed > 0:
-            print("Doing video padding")
+            logger.debug("Doing video padding")
             # B, C, T, H, W -> B, C, T', H, W
             video_states = ops.pad(video_states, (0, 0, 0, 0, 0, padding_needed), mode="constant", value=0)
 

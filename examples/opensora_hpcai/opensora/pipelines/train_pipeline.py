@@ -45,7 +45,6 @@ class DiffusionWithLoss(nn.Cell):
         cond_stage_trainable: bool = False,
         text_emb_cached: bool = True,
         video_emb_cached: bool = False,
-        micro_batch_size: int = None,
     ):
         super().__init__()
         # TODO: is set_grad() necessary?
@@ -59,7 +58,6 @@ class DiffusionWithLoss(nn.Cell):
 
         self.text_emb_cached = text_emb_cached
         self.video_emb_cached = video_emb_cached
-        self.micro_batch_size = micro_batch_size
 
         if self.text_emb_cached:
             self.text_encoder = None
@@ -81,74 +79,11 @@ class DiffusionWithLoss(nn.Cell):
 
         return text_emb
 
-    def vae_encode(self, x):
-        image_latents = self.vae.encode(x)
-        image_latents = image_latents * self.scale_factor
-        return image_latents
-
-    def vae_decode(self, x):
-        """
-        Args:
-            x: (b c h w), denoised latent
-        Return:
-            y: (b H W 3), batch of images, normalized to [0, 1]
-        """
-        b, c, h, w = x.shape
-
-        y = self.vae.decode(x / self.scale_factor)
-        y = ops.clip_by_value((y + 1.0) / 2.0, clip_value_min=0.0, clip_value_max=1.0)
-
-        # (b 3 H W) -> (b H W 3)
-        y = ops.transpose(y, (0, 2, 3, 1))
-
-        return y
-
-    def vae_decode_video(self, x):
-        """
-        Args:
-            x: (b f c h w), denoised latent
-        Return:
-            y: (b f H W 3), batch of images, normalized to [0, 1]
-        """
-        b, f, c, h, w = x.shape
-        y = []
-        for x_sample in x:
-            y.append(self.vae_decode(x_sample))
-
-        y = ops.stack(y, axis=0)
-
-        return y
-
     def get_latents(self, x):
-        if x.dim() == 5:
-            # "b f c h w -> (b f) c h w"
-            B, F, C, H, W = x.shape
-            if C != 3:
-                raise ValueError("Expect input shape (b f 3 h w), but get {}".format(x.shape))
-            x = ops.reshape(x, (-1, C, H, W))
-
-            if self.micro_batch_size is not None:
-                # split into smaller frames to reduce memory cost
-                x = ops.split(x, self.micro_batch_size, axis=0)
-                z_clips = []
-                for clip in x:
-                    z_clips.append(ops.stop_gradient(self.vae_encode(clip)))
-                z = ops.cat(z_clips, axis=0)
-            else:
-                z = ops.stop_gradient(self.vae_encode(x))
-
-            # (b*f c h w) -> (b f c h w)
-            z = ops.reshape(z, (B, F, z.shape[1], z.shape[2], z.shape[3]))
-
-            # (b f c h w) -> (b c f h w)
-            z = ops.transpose(z, (0, 2, 1, 3, 4))
-        elif x.dim() == 4:
-            B, C, H, W = x.shape
-            if C != 3:
-                raise ValueError("Expect input shape (b f 3 h w), but get {}".format(x.shape))
-            z = ops.stop_gradient(self.vae_encode(x))
-        else:
-            raise ValueError("Incorrect Dimensions of x")
+        """
+        x: (b c t h w)
+        """
+        z = ops.stop_gradient(self.vae.encode(x))
         return z
 
     def construct(
@@ -182,11 +117,11 @@ class DiffusionWithLoss(nn.Cell):
                 unet2d input/output shape: (b c h w)
         """
         # 1. get image/video latents z using vae
+        # (b f c h w) -> (b c f h w)
+        x = ops.transpose(x, (0, 2, 1, 3, 4))
+
         if not self.video_emb_cached:
             x = self.get_latents(x)
-        else:
-            # (b f c h w) -> (b c f h w)
-            x = ops.transpose(x, (0, 2, 1, 3, 4))
 
         # 2. get conditions
         if not self.text_emb_cached:
@@ -301,7 +236,7 @@ class DiffusionWithLossFiTLike(DiffusionWithLoss):
         max_image_size: int = 512,
         vae_downsample_rate: float = 8.0,
         in_channels: int = 4,
-        **kwargs
+        **kwargs,
     ):
         super().__init__(*args, **kwargs)
         self.p = patch_size
@@ -425,7 +360,8 @@ class DiffusionWithLossFiTLike(DiffusionWithLoss):
 
         # Learn the variance using the variational bound, but don't let it affect our mean prediction.
         patch_mask = temporal_mask[:, :, None, None] * spatial_mask[:, None, :, None]
-        patch_mask = self.unpatchify(ops.tile(patch_mask, (1, 1, 1, D)))  # b c t h w
+        pm_dtype = patch_mask.dtype
+        patch_mask = self.unpatchify(ops.tile(patch_mask.to(ms.int32), (1, 1, 1, D)).to(pm_dtype))  # b c t h w
         vb = self._cal_vb(
             ops.stop_gradient(model_output),
             model_var_values,
