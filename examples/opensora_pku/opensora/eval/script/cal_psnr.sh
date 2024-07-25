@@ -6,4 +6,4 @@ python opensora/eval/eval_common_metrics.py \
     --crop_size 256 \
     --resolution 256 \
     --device 'Ascend' \
-    --metric 'ssim'
+    --metric 'psnr'

@@ -9,7 +9,7 @@ import mindspore as ms
 from mindspore import Model, nn
 from mindspore.train.callback import TimeMonitor
 
-mindone_lib_path = os.path.abspath(os.path.abspath("../../"))
+mindone_lib_path = os.path.abspath("../../")
 sys.path.insert(0, mindone_lib_path)
 sys.path.append("./")
 
@@ -22,7 +22,8 @@ from opensora.models.diffusion.latte.modeling_latte import Latte_models, LayerNo
 from opensora.models.diffusion.latte.modules import Attention
 from opensora.models.diffusion.latte.net_with_loss import DiffusionWithLoss
 from opensora.models.text_encoder.t5 import T5Embedder
-from opensora.train.commons import create_loss_scaler, init_env, parse_args
+from opensora.train.commons import create_loss_scaler, parse_args
+from opensora.utils.ms_utils import init_env
 from opensora.utils.utils import get_precision
 
 from mindone.trainers.callback import EvalSaveCallback, OverflowMonitor, ProfilerCallbackEpoch
@@ -38,7 +39,6 @@ from mindone.utils.params import count_params
 
 os.environ["HCCL_CONNECT_TIMEOUT"] = "6000"
 os.environ["MS_ASCEND_CHECK_OVERFLOW_MODE"] = "INFNAN_MODE"
-ms.context.set_context(jit_config={"jit_level": "O1"})  # O0: KBK, O1:DVM, O2: GE
 logger = logging.getLogger(__name__)
 
 
@@ -74,6 +74,8 @@ def main(args):
         strategy_ckpt_save_file=os.path.join(args.output_dir, "src_strategy.ckpt") if save_src_strategy else "",
         optimizer_weight_shard_size=args.optimizer_weight_shard_size,
         sp_size=args.sp_size,
+        jit_level=args.jit_level,
+        enable_parallel_fusion=args.enable_parallel_fusion,
     )
     set_logger(name="", output_dir=args.output_dir, rank=rank_id, log_level=eval(args.log_level))
 
@@ -325,7 +327,10 @@ def main(args):
             )
     logger.info(
         "ckpt_save_interval: {} {}".format(
-            ckpt_save_interval, "steps" if (not args.dataset_sink_mode and step_mode) else "sink epochs"
+            ckpt_save_interval,
+            "steps"
+            if (not args.dataset_sink_mode and step_mode)
+            else ("epochs" if steps_per_sink == dataset_size else "sink epochs"),
         )
     )
     # build learning rate scheduler
@@ -472,6 +477,7 @@ def main(args):
         key_info += "\n".join(
             [
                 f"MindSpore mode[GRAPH(0)/PYNATIVE(1)]: {args.mode}",
+                f"Jit level: {args.jit_level}",
                 f"Distributed mode: {args.use_parallel}"
                 + (f"\nParallel mode: {args.parallel_mode}" if args.use_parallel else ""),
                 f"Num params: {num_params:,} (latte: {num_params_latte:,}, vae: {num_params_vae:,})",
@@ -617,10 +623,13 @@ def parse_t2v_train_args(parser):
     parser.add_argument(
         "--enable_parallel_fusion", default=True, type=str2bool, help="Whether to parallel fusion for AdamW"
     )
+    parser.add_argument("--jit_level", default="O1", help="Set jit level: # O0: KBK, O1:DVM, O2: GE")
     return parser
 
 
 if __name__ == "__main__":
     logger.debug("process id:", os.getpid())
     args = parse_args(additional_parse_args=parse_t2v_train_args)
+    if args.resume_from_checkpoint == "True":
+        args.resume_from_checkpoint = True
     main(args)

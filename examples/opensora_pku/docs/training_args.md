@@ -89,7 +89,7 @@ This document includes the training arguments of [`opensora/train/train_t2v.py`]
 
 
 ## Callbacks and Logging
-- `resume_from_checkpoint` (type: bool, default: False): whether to resume training from `train_resume.ckpt`.
+- `resume_from_checkpoint` (type: bool or str, default: False): if it is a bool value, it means whether to resume training from `train_resume.ckpt`. If it is a string, it is the resume checkpoint path to be loaded.
 - `ckpt_save_interval` (type: int, default: 1): the interval of saving checkpoints. If `step_mode` is True, it will save checkpoints every this step number.  If `step_mode` is False, it will save checkpoints every this epoch number.
 - `checkpointing_steps` (type: int, default: None): Save a checkpoint of the training state every X steps. It `checkpointing_steps` is not specified, it will use `ckpt_save_interval` as the checkpoint saving interval (epochs), and set `step_mode` to False. If `checkpointing_steps` is provided, it will overwrite `ckpt_save_interval` to the same value as `checkpointing_steps`, and set `step_mode` to True.
 - `ckpt_max_keep` (type: int, default: 10): the maximum number of checkpoints to keep.

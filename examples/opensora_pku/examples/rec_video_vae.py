@@ -11,34 +11,21 @@ from mindspore import nn
 
 mindone_lib_path = os.path.abspath("../../")
 sys.path.insert(0, mindone_lib_path)
+
 from mindone.utils.amp import auto_mixed_precision
 from mindone.utils.config import str2bool
 from mindone.utils.logger import set_logger
 from mindone.visualize.videos import save_videos
 
 sys.path.append(".")
+from opensora.acceleration.parallel_states import get_sequence_parallel_state, hccl_info
 from opensora.models.ae import getae_wrapper
 from opensora.models.ae.videobase.dataset_videobase import VideoDataset, create_dataloader
-
-# from opensora.models.ae.videobase.causal_vae.modeling_causalvae import TimeDownsample2x, TimeUpsample2x
 from opensora.models.ae.videobase.modules.updownsample import TrilinearInterpolate
+from opensora.utils.ms_utils import init_env
 from opensora.utils.utils import get_precision
 
 logger = logging.getLogger(__name__)
-ms.context.set_context(jit_config={"jit_level": "O0"})  # O0: KBK, O1:DVM, O2: GE
-
-
-def init_env(args):
-    # no parallel mode currently
-    device_id = int(os.getenv("DEVICE_ID", 0))
-    ms.set_context(
-        mode=args.mode,
-        device_target=args.device,
-        device_id=device_id,
-    )
-    if args.precision_mode is not None:
-        ms.set_context(ascend_config={"precision_mode": args.precision_mode})
-    return device_id
 
 
 def transform_to_rgb(x, rescale_to_uint8=True):
@@ -61,14 +48,24 @@ def main(args):
     batch_size = args.batch_size
     num_workers = args.num_workers
     assert args.dataset_name == "video", "Only support video reconstruction!"
-    init_env(args)
+    rank_id, device_num = init_env(
+        args.mode,
+        seed=args.seed,
+        distributed=args.use_parallel,
+        device_target=args.device,
+        max_device_memory=args.max_device_memory,
+        parallel_mode=args.parallel_mode,
+        precision_mode=args.precision_mode,
+        sp_size=args.sp_size,
+        jit_level=args.jit_level,
+    )
 
     if not os.path.exists(args.generated_video_dir):
         os.makedirs(args.generated_video_dir, exist_ok=True)
 
     set_logger(name="", output_dir=args.generated_video_dir, rank=0)
 
-    kwarg = {}
+    kwarg = {"model_config": args.model_config}
     vae = getae_wrapper(args.ae)(args.ckpt, **kwarg)
     if args.enable_tiling:
         vae.vae.enable_tiling()
@@ -89,6 +86,8 @@ def main(args):
         raise ValueError(f"Unsupported precision {args.precision}")
 
     ds_config = dict(
+        data_file_path=args.data_file_path,
+        video_column=args.video_column,
         data_folder=real_video_dir,
         size=resolution,
         crop_size=crop_size,
@@ -101,6 +100,7 @@ def main(args):
                 sample_stride=sample_rate,
                 sample_n_frames=num_frames,
                 return_image=False,
+                dynamic_start_index=args.dynamic_start_index,
             )
         )
         split_time_upsample = True
@@ -115,7 +115,9 @@ def main(args):
         batch_size=batch_size,
         ds_name=args.dataset_name,
         num_parallel_workers=num_workers,
-        shuffle=False,
+        shuffle=False,  # be in order
+        device_num=device_num if not get_sequence_parallel_state() else (device_num // hccl_info.world_size),
+        rank_id=rank_id if not get_sequence_parallel_state() else hccl_info.group_id,
         drop_remainder=False,
     )
     num_batches = dataloader.get_dataset_size()
@@ -135,13 +137,19 @@ def main(args):
         video_recon = vae.decode(latents)
         for idx, video in enumerate(video_recon):
             file_name = os.path.basename(eval(str(file_paths))[idx])
+            if ".avi" in os.path.basename(file_name):
+                file_name = file_name.replace(".avi", ".mp4")
             output_path = os.path.join(generated_video_dir, file_name)
+            if not os.path.exists(os.path.dirname(output_path)):
+                os.mkdir(os.path.dirname(output_path))
             if args.output_origin:
                 os.makedirs(os.path.join(generated_video_dir, "origin/"), exist_ok=True)
                 origin_output_path = os.path.join(generated_video_dir, "origin/", file_name)
                 save_data = transform_to_rgb(x[idx : idx + 1].to(ms.float32).asnumpy(), rescale_to_uint8=False)
                 # (b c t h w) -> (b t h w c)
                 save_data = np.transpose(save_data, (0, 2, 3, 4, 1))
+                if not os.path.exists(os.path.dirname(origin_output_path)):
+                    os.mkdir(os.path.dirname(origin_output_path))
                 save_videos(
                     save_data,
                     origin_output_path,
@@ -168,6 +176,11 @@ if __name__ == "__main__":
     parser.add_argument("--real_video_dir", type=str, default="")
     parser.add_argument("--generated_video_dir", type=str, default="")
     parser.add_argument("--ckpt", type=str, default="results/pretrained/causal_vae.ckpt")
+    parser.add_argument(
+        "--model_config",
+        default="scripts/causalvae/release.json",
+        help="the model configuration file for the causalvae.",
+    )
     parser.add_argument("--sample_fps", type=int, default=30)
     parser.add_argument("--resolution", type=int, default=512)
     parser.add_argument("--crop_size", type=int, default=512)
@@ -194,15 +207,38 @@ if __name__ == "__main__":
                 if bf16 or fp16, amp_level==O2, part of layers will compute in bf16 or fp16 such as matmul, dense, conv.",
     )
     parser.add_argument("--device", type=str, default="Ascend", help="Ascend or GPU")
+    parser.add_argument("--max_device_memory", type=str, default=None, help="e.g. `30GB` for 910a, `59GB` for 910b")
+    parser.add_argument("--use_parallel", default=False, type=str2bool, help="use parallel")
+    parser.add_argument(
+        "--parallel_mode", default="data", type=str, choices=["data", "optim"], help="parallel mode: data, optim"
+    )
+    parser.add_argument("--jit_level", default="O0", help="Set jit level: # O0: KBK, O1:DVM, O2: GE")
+    parser.add_argument("--seed", type=int, default=4, help="Inference seed")
     parser.add_argument(
         "--precision_mode",
-        default="must_keep_origin_dtype",
+        default=None,
         type=str,
         help="If specified, set the precision mode for Ascend configurations.",
     )
     parser.add_argument(
         "--dataset_name", default="video", type=str, choices=["image", "video"], help="dataset name, image or video"
     )
-
+    parser.add_argument("--sp_size", type=int, default=1, help="For sequence parallel")
+    parser.add_argument(
+        "--dynamic_start_index",
+        action="store_true",
+        help="Whether to use a random frame as the starting frame for reconstruction. Default is False for the ease of evaluation.",
+    )
+    parser.add_argument(
+        "--data_file_path",
+        default=None,
+        help="The data file path where the video paths are recorded. Now support json and csv file"
+        "If not provided, will search all videos under `video_path` in a recursive manner.",
+    )
+    parser.add_argument(
+        "--video_column",
+        default="video",
+        help="The column of video file path in `data_file_path`. Defaults to `video`.",
+    )
     args = parser.parse_args()
     main(args)
