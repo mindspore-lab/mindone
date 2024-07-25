@@ -2,8 +2,9 @@ import logging
 from typing import Optional, Tuple
 
 import mindspore as ms
-from mindspore import Tensor, mint, nn, ops
+from mindspore import Tensor, nn, ops
 
+from ..models.layers.operation_selector import get_split_op
 from ..schedulers.iddpm import SpacedDiffusion
 from ..schedulers.iddpm.diffusion_utils import (
     _extract_into_tensor,
@@ -68,6 +69,8 @@ class DiffusionWithLoss(nn.Cell):
         if self.cond_stage_trainable and self.text_encoder:
             self.text_encoder.set_train(True)
             self.text_encoder.set_grad(True)
+
+        self.split = get_split_op()
 
     def get_condition_embeddings(self, text_tokens, **kwargs):
         # text conditions inputs for cross-attention
@@ -208,7 +211,7 @@ class DiffusionWithLoss(nn.Cell):
 
         # (b c t h w),
         B, C, F = x_t.shape[:3]
-        model_output, model_var_values = mint.split(model_output, C, 1)
+        model_output, model_var_values = self.split(model_output, C, 1)
 
         # Learn the variance using the variational bound, but don't let it affect our mean prediction.
         vb = self._cal_vb(ops.stop_gradient(model_output), model_var_values, x, x_t, t, frames_mask)
@@ -238,6 +241,8 @@ class DiffusionWithLossFiTLike(DiffusionWithLoss):
 
         if not self.video_emb_cached:
             raise ValueError("Video embedding caching must be provided.")
+
+        self.split = get_split_op()
 
     def construct(
         self,
@@ -345,7 +350,7 @@ class DiffusionWithLossFiTLike(DiffusionWithLoss):
 
         # (b c t h w),
         B, C, F = x_t.shape[:3]
-        model_output, model_var_values = mint.split(model_output, C, 1)
+        model_output, model_var_values = self.split(model_output, C, 1)
 
         # Learn the variance using the variational bound, but don't let it affect our mean prediction.
         patch_mask = temporal_mask[:, :, None, None] * spatial_mask[:, None, :, None]

@@ -272,7 +272,9 @@ def main(args):
         text_emb = None
         # TODO: use FA in T5
         if args.t5_dtype in ["fp16", "bf16"]:
-            text_encoder = auto_mixed_precision(text_encoder, amp_level="O2", dtype=dtype_map[args.t5_dtype], custom_fp32_cells=WHITELIST_OPS)
+            text_encoder = auto_mixed_precision(
+                text_encoder, amp_level="O2", dtype=dtype_map[args.t5_dtype], custom_fp32_cells=WHITELIST_OPS
+            )
         logger.info(f"Num tokens: {mask.asnumpy().sum(2)}")
     else:
         assert not args.use_parallel, "parallel inference is not supported for t5 cached sampling currently."

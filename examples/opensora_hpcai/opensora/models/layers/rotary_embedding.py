@@ -13,7 +13,8 @@ import numpy as np
 
 import mindspore as ms
 from mindspore import Parameter, Tensor, dtype, mint, nn, ops
-from mindspore.ops.function.array_func import repeat_interleave_ext as repeat_interleave
+
+from .operation_selector import get_repeat_interleave_op
 
 
 def rotate_half(x: Tensor) -> Tensor:
@@ -100,6 +101,8 @@ class RotaryEmbedding(nn.Cell):
             self.scale = Tensor((np.arange(0, dim, 2) + 0.4 * dim) / (1.4 * dim), dtype=dtype.float32)
             self.scale_base = xpos_scale_base
 
+        self.repeat_interleave = get_repeat_interleave_op()
+
     def get_seq_pos(self, seq_len, dtype, offset=0):
         return (ops.arange(seq_len, dtype=dtype) + offset) / self.interpolate_factor
 
@@ -143,7 +146,7 @@ class RotaryEmbedding(nn.Cell):
 
     def construct(self, t: Tensor, seq_len=None, offset=0) -> Tensor:
         freqs = t.astype(self.freqs.dtype)[..., None] * self.freqs
-        return repeat_interleave(freqs, 2, -1)  # ... n -> ... (n r), r = 2
+        return self.repeat_interleave(freqs, 2, -1)  # ... n -> ... (n r), r = 2
 
 
 def rope_1d(x: Tensor, freqs_cis: Tensor) -> Tensor:

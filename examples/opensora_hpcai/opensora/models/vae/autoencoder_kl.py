@@ -1,6 +1,7 @@
 import mindspore as ms
-from mindspore import mint, nn, ops
+from mindspore import nn, ops
 
+from ..layers.operation_selector import get_split_op
 from .modules import Decoder, Encoder
 
 __all__ = ["AutoencoderKL"]
@@ -32,6 +33,7 @@ class AutoencoderKL(nn.Cell):
 
         self.exp = ops.Exp()
         self.stdnormal = ops.StandardNormal()
+        self.split = get_split_op()
 
     def init_from_ckpt(
         self, path, ignore_keys=list(), remove_prefix=["first_stage_model.", "autoencoder.", "spatial_vae.module."]
@@ -65,7 +67,7 @@ class AutoencoderKL(nn.Cell):
         # return latent distribution, N(mean, logvar)
         h = self.encoder(x)
         moments = self.quant_conv(h)
-        mean, logvar = mint.split(moments, moments.shape[1] // 2, 1)
+        mean, logvar = self.split(moments, moments.shape[1] // 2, 1)
 
         return mean, logvar
 

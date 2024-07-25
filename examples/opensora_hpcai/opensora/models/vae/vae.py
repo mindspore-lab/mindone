@@ -4,8 +4,9 @@ import os
 from transformers import PretrainedConfig
 
 import mindspore as ms
-from mindspore import mint, nn, ops
+from mindspore import nn, ops
 
+from ..layers.operation_selector import get_split_op
 from .autoencoder_kl import AutoencoderKL as AutoencoderKL_SD
 from .vae_temporal import VAE_Temporal_SD  # noqa: F401
 
@@ -32,6 +33,7 @@ SDXL_CONFIG.update({"resolution": 512})
 class AutoencoderKL(AutoencoderKL_SD):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.split = get_split_op()
 
     def init_from_ckpt(self, path, ignore_keys=list()):
         if not os.path.exists(path):
@@ -49,7 +51,7 @@ class AutoencoderKL(AutoencoderKL_SD):
         """For latent caching usage"""
         h = self.encoder(x)
         moments = self.quant_conv(h)
-        mean, logvar = mint.split(moments, moments.shape[1] // 2, 1)
+        mean, logvar = self.split(moments, moments.shape[1] // 2, 1)
         logvar = ops.clip_by_value(logvar, -30.0, 20.0)
         std = self.exp(0.5 * logvar)
 

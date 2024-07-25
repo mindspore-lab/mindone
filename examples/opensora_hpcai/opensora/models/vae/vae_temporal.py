@@ -3,7 +3,9 @@ from typing import Tuple, Union
 from packaging import version
 
 import mindspore as ms
-from mindspore import mint, nn, ops
+from mindspore import nn, ops
+
+from ..layers.operation_selector import get_split_op
 
 
 def divisible_by(num, den):
@@ -451,6 +453,8 @@ class VAE_Temporal(nn.Cell):
             # self.post_quant_conv.recompute()
             # self.decoder.recompute()
 
+        self.split = get_split_op()
+
     def recompute(self, b):
         if not b._has_config_recompute:
             b.recompute()
@@ -493,7 +497,7 @@ class VAE_Temporal(nn.Cell):
 
         encoded_feature = self.encoder(x)
         moments = self.quant_conv(encoded_feature).to(x.dtype)
-        mean, logvar = mint.split(moments, moments.shape[1] // 2, 1)
+        mean, logvar = self.split(moments, moments.shape[1] // 2, 1)
 
         return mean, logvar
 

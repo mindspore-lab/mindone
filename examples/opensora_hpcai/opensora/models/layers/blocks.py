@@ -5,13 +5,13 @@ from typing import Optional, Tuple, Type, Union
 import numpy as np
 
 import mindspore as ms
-from mindspore import Parameter, Tensor, mint, nn, ops
+from mindspore import Parameter, Tensor, nn, ops
 from mindspore.common.initializer import initializer
-from mindspore.ops.function.array_func import repeat_interleave_ext as repeat_interleave
 
 from mindone.models.modules.flash_attention import FLASH_IS_AVAILABLE, MSFlashAttention
 from mindone.models.modules.pos_embed import _get_1d_sincos_pos_embed_from_grid, _get_2d_sincos_pos_embed_from_grid
 
+from .operation_selector import get_chunk_op, get_repeat_interleave_op, get_split_op
 from .rotary_embedding import rope_1d
 
 
@@ -37,6 +37,9 @@ class Attention(nn.Cell):
         self.scale = dim_head**-0.5
         self.attn_drop = nn.Dropout(p=attn_drop)
         self.attn_dtype = attn_dtype
+
+        # adapt for dynamic shape training in graph mode
+        self.repeat_interleave = get_repeat_interleave_op()
 
     def construct(self, q: Tensor, k: Tensor, v: Tensor, mask: Optional[Tensor] = None) -> Tensor:
         """
@@ -71,7 +74,7 @@ class Attention(nn.Cell):
         if mask is not None:
             # (b 1 n_k) -> (b*h 1 n_k)
             # NOTE: due to uint8 not supported in CANN0630, cast mask to int32
-            mask = repeat_interleave(mask.to(ms.int32), h, 0)
+            mask = self.repeat_interleave(mask.to(ms.int32), h, 0)
             mask = mask.to(ms.bool_)
             sim = ops.masked_fill(sim, mask, -ms.numpy.inf)
 
@@ -134,6 +137,11 @@ class MultiHeadCrossAttention(nn.Cell):
         self.proj = nn.Dense(d_model, d_model, has_bias=has_bias).to_float(attn_dtype)
         self.proj_drop = nn.Dropout(p=proj_drop).to_float(attn_dtype)
 
+        # adapt for dynamic shape training in graph mode
+        self.repeat_interleave = get_repeat_interleave_op()
+        self.chunk = get_chunk_op()
+        self.split = get_split_op()
+
     def construct(self, x, cond, mask=None):
         """
         Inputs:
@@ -160,7 +168,7 @@ class MultiHeadCrossAttention(nn.Cell):
 
         # kv: (B N_k C*2) -> (B N_k 2 C) -> (B N_k 2 num_head head_dim).
         kv = ops.reshape(kv, (B, N_k, 2, self.num_heads, self.head_dim))
-        k, v = mint.split(kv, 1, 2)
+        k, v = self.split(kv, 1, 2)
         # (b n h d)
         k = ops.squeeze(k, axis=2)
         v = ops.squeeze(v, axis=2)
@@ -176,8 +184,7 @@ class MultiHeadCrossAttention(nn.Cell):
                 # (b n_k) -> (b 1 1 n_k), will be broadcast according to qk sim, e.g. (b num_heads n_q n_k)
                 mask = mask[:, None, None, :]
                 # (b 1 1 n_k) -> (b 1 n_q n_k)
-                # mask = ops.repeat_interleave(mask.to(ms.uint8), q.shape[-2], axis=-2)
-                mask = repeat_interleave(mask.to(ms.int32), int(q.shape[1]), -2)
+                mask = self.repeat_interleave(mask.to(ms.int32), int(q.shape[1]), -2)
             x = self.flash_attention(q, k, v, mask=mask)
 
             # FA attn_mask def: retention and 1 indicates discard. Input tensor of shape :math:`(B, N1, S1, S2)`, `(B, 1, S1, S2)` `(S1, S2)`
@@ -249,6 +256,11 @@ class SelfAttention(nn.Cell):
         self.proj = nn.Dense(dim, dim, weight_init="XavierUniform", bias_init="Zero").to_float(attn_dtype)
         self.proj_drop = nn.Dropout(p=proj_drop).to_float(attn_dtype)
 
+        # adapt for dynamic shape training in graph mode
+        self.repeat_interleave = get_repeat_interleave_op()
+        self.chunk = get_chunk_op()
+        self.split = get_split_op()
+
     def construct(self, x, mask=None, freqs_cis: Optional[Tensor] = None):
         """
         x: (b n c)
@@ -260,7 +272,7 @@ class SelfAttention(nn.Cell):
         qkv = self.qkv(x)
         # (b, n, 3*h*d) -> (b, n, 3, h, d)
         qkv = ops.reshape(qkv, (B, N, 3, self.num_heads, self.head_dim))
-        q, k, v = mint.split(qkv, 1, 2)  # (b n h d)
+        q, k, v = self.split(qkv, 1, 2)  # (b n h d)
         q = ops.squeeze(q, axis=2)
         k = ops.squeeze(k, axis=2)
         v = ops.squeeze(v, axis=2)
@@ -282,7 +294,7 @@ class SelfAttention(nn.Cell):
             if mask is not None:
                 mask = mask[:, None, None, :]
                 # mask: (b n_k) -> (b 1 n_q n_k)
-                mask = repeat_interleave(mask.to(ms.int32), int(q.shape[1]), -2)
+                mask = self.repeat_interleave(mask.to(ms.int32), int(q.shape[1]), -2)
             out = self.flash_attention(q, k, v, mask=mask)
         else:
             if mask is not None:
@@ -401,6 +413,7 @@ class T2IFinalLayer(nn.Cell):
         self.out_channels = out_channels
         self.d_t = d_t
         self.d_s = d_s
+        self.chunk = get_chunk_op()
 
     @staticmethod
     def t_mask_select(x_mask: Tensor, x: Tensor, masked_x: Tensor, T: int, S: int) -> Tensor:
@@ -422,11 +435,11 @@ class T2IFinalLayer(nn.Cell):
             T = self.d_t
         if S is None:
             S = self.d_s
-        shift, scale = mint.chunk(self.scale_shift_table[None] + t[:, None], 2, 1)
+        shift, scale = self.chunk(self.scale_shift_table[None] + t[:, None], 2, 1)
         x = t2i_modulate(self.norm_final(x), shift, scale)
 
         if frames_mask is not None:
-            shift_zero, scale_zero = mint.chunk(self.scale_shift_table[None] + t0[:, None], 2, 1)
+            shift_zero, scale_zero = self.chunk(self.scale_shift_table[None] + t0[:, None], 2, 1)
             x_zero = t2i_modulate(self.norm_final(x), shift_zero, scale_zero)
             x = self.t_mask_select(frames_mask, x, x_zero, T, S)
 
@@ -685,12 +698,13 @@ class SizeEmbedder(nn.Cell):
         )
         self.outdim = hidden_size
         self.timestep_embedding = SinusoidalEmbedding(frequency_embedding_size)
+        self.repeat_interleave = get_repeat_interleave_op()
 
     def construct(self, s: Tensor, bs: Tensor) -> Tensor:
         if s.ndim == 1:
             s = s[:, None]
         if s.shape[0] != bs:
-            s = repeat_interleave(s, bs // s.shape[0], 0)
+            s = self.repeat_interleave(s, bs // s.shape[0], 0)
         b, dims = s.shape[0], s.shape[1]
         s = s.reshape(b * dims)  # b d -> (b d)
         s_freq = self.timestep_embedding(s)

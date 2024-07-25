@@ -21,6 +21,7 @@ mindone_lib_path = os.path.abspath(os.path.join(__dir__, "../../../"))
 sys.path.insert(0, mindone_lib_path)
 sys.path.insert(0, os.path.abspath(os.path.join(__dir__, "..")))
 from args_train import parse_args
+from opensora.models.layers.operation_selector import set_dynamic_mode
 from opensora.models.stdit import STDiT2_XL_2, STDiT_XL_2
 from opensora.models.vae.vae import SD_CONFIG, OpenSoraVAE_V1_2, VideoAutoencoderKL
 from opensora.pipelines import DiffusionWithLoss, DiffusionWithLossFiTLike
@@ -172,6 +173,9 @@ def main(args):
         debug=args.debug,
     )
     set_logger(name="", output_dir=args.output_path, rank=rank_id, log_level=eval(args.log_level))
+    if args.bucket_config is not None:
+        logger.info("Dynamic shape mode enabled, repeat_interleave/split/chunk will be called from mint module")
+        set_dynamic_mode(True)
 
     # 2. model initiate and weight loading
     dtype_map = {"fp16": ms.float16, "bf16": ms.bfloat16}

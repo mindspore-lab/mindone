@@ -8,10 +8,10 @@ from functools import partial
 from typing import Optional
 
 import numpy as np
+from opensora.models.layers.operation_selector import get_split_op
 
 import mindspore as ms
-from mindspore import Tensor, mint, ops
-from mindspore.ops.function.array_func import repeat_interleave_ext as repeat_interleave
+from mindspore import Tensor, ops
 
 from .diffusion_utils import (
     ModelMeanType,
@@ -104,6 +104,8 @@ class GaussianDiffusion:
         # new
         self.log_betas = to_mindspore(self.log_betas)
 
+        self.split = get_split_op()
+
     def q_mean_variance(self, x_start, t):
         """
         Get the distribution q(x_t | x_0).
@@ -176,7 +178,7 @@ class GaussianDiffusion:
         else:
             extra = None
         if self.model_var_type in [ModelVarType.LEARNED, ModelVarType.LEARNED_RANGE]:
-            model_output, model_var_values = mint.split(model_output, C, 1)
+            model_output, model_var_values = self.split(model_output, C, 1)
 
             min_log = _extract_into_tensor(self.posterior_log_variance_clipped, t, x.shape)
             max_log = _extract_into_tensor(self.log_betas, t, x.shape)
