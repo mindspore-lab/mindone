@@ -20,7 +20,6 @@ batch_size: 1
 # sampling
 sampling_steps: 30
 guidance_scale: 7.0
-guidance_channels: 3
 seed: 42
 sampling: rflow
 

@@ -101,6 +101,6 @@ def get_references(
                     with open(ref, "rb") as f:
                         frames = Image.open(f).convert("RGB")
                     frames = get_references.img_transforms(np.array(frames))
-                subref.append(frames)
+                subref.append(frames[None, ...].swapaxes(1, 2))  # add batch dimension. TODO: avoid double axes swap
         references.append(subref)
     return references

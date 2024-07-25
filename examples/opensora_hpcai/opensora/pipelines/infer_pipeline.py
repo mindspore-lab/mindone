@@ -74,15 +74,9 @@ class InferPipeline:
         """
         Image encoding with spatial vae
         Args:
-            x: (b c h w), image
+            x: (b c t h w), image (t=1) or video
         """
-        if isinstance(self.vae, VideoAutoencoderKL):
-            spatial_vae = self.vae
-        elif isinstance(self.vae, VideoAutoencoderPipeline):
-            spatial_vae = self.vae.spatial_vae
-        # TODO: unify scale inside vae class
-        image_latents = ops.stop_gradient(spatial_vae.module.encode(x) * spatial_vae.scale_factor)
-        return image_latents
+        return self.vae.encode(x)
 
     def vae_decode(self, x: Tensor) -> Tensor:
         """

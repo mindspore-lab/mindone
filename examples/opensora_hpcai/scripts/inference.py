@@ -396,7 +396,7 @@ def main(args):
             if ref is not None:
                 for k in range(len(ref)):
                     try:
-                        ref[k] = pipeline.vae_encode(Tensor(ref[k])).asnumpy().swapaxes(0, 1)
+                        ref[k] = pipeline.vae_encode(Tensor(ref[k])).asnumpy()[0]
                     except RuntimeError as e:
                         logger.error(
                             f"Failed to embed reference video {args.reference_path[i : i + args.batch_size][k]}."

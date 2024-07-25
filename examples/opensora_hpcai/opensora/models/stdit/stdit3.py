@@ -376,7 +376,7 @@ class STDiT3(nn.Cell):
         # cast to float32 for better accuracy
         return x.astype(dtype.float32)
 
-    def construct_with_cfg(self, x, timestep, y, cfg_scale, cfg_channel=None, **kwargs):
+    def construct_with_cfg(self, x, timestep, y, cfg_scale, **kwargs):
         # https://github.com/openai/glide-text2im/blob/main/notebooks/text2im.ipynb
         half = x[: len(x) // 2]
         combined = ops.cat([half, half], axis=0)
