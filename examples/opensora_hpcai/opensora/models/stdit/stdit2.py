@@ -20,7 +20,7 @@ from opensora.models.layers.blocks import (
     approx_gelu,
     t2i_modulate,
 )
-from opensora.models.layers.operation_selector import get_chunk_op, get_split_op
+from opensora.models.layers.operation_selector import check_dynamic_mode, get_chunk_op, get_split_op
 from opensora.models.layers.rotary_embedding import RotaryEmbedding
 
 import mindspore as ms
@@ -320,6 +320,7 @@ class STDiT2(nn.Cell):
 
         # adapt for dynamic shape training in graph mode
         self.split = get_split_op()
+        self.is_dynamic_shape = check_dynamic_mode()
 
     def recompute(self, b):
         if not b._has_config_recompute:
@@ -395,7 +396,11 @@ class STDiT2(nn.Cell):
         T, H, W = self.get_dynamic_size(x)
         S = H * W
         scale = rs / self.input_sq_size
-        base_size = int(round(S ** Tensor(0.5)))
+        if self.is_dynamic_shape:
+            # tricky adaptation for dynamic shape in graph mode. Though it also works for static shape, it degrades performance by 50 ms per step.
+            base_size = int(round(S ** Tensor(0.5)))
+        else:
+            base_size = round(S**0.5)
         # BUG MS2.3rc1: ops.meshgrid() bprop is not supported
 
         if spatial_pos is None:
