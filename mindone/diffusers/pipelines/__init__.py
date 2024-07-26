@@ -6,6 +6,7 @@ from ..utils import _LazyModule
 _import_structure = {
     "blip_diffusion": ["BlipDiffusionPipeline"],
     "consistency_models": ["ConsistencyModelPipeline"],
+    "dance_diffusion": ["DanceDiffusionPipeline"],
     "ddim": ["DDIMPipeline"],
     "ddpm": ["DDPMPipeline"],
     "kandinsky": [

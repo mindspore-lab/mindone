@@ -52,6 +52,7 @@ _import_structure = {
     "pipelines": [
         "BlipDiffusionPipeline",
         "ConsistencyModelPipeline",
+        "DanceDiffusionPipeline",
         "DDIMPipeline",
         "DDPMPipeline",
         "DiffusionPipeline",
