@@ -72,7 +72,7 @@ We provide weight conversion script `tools/convert_weight.py` to convert the ori
 
 The text files in `tools/` mark the model parameters mapping between Pytorch and MindSpore version. Set `--model_name` as one of ["256", "512", "1024", "clip"] according to the model you want to convert, and then run the following command to convert weight (e.g. 576x1024).
 
-**Note:** Please download the CLIP model stated above from hugging face, convert it to MindSpore version, and then add the ckpt path under `cond_stage_config` and `img_cond_stage_config` in the yaml config file.
+**Note:** The parameters of CLIP model stated above are contained in dynamicrafter ckpt, so it is not necessary to convert and use it seperately.
 
 ```shell
 cd tools

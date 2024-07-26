@@ -160,7 +160,7 @@ class DDIMSampler(object):
     ):
         b = shape[0]
         if x_T is None:
-            img = ms.ops.StandardNormal()(shape)
+            img = ms.Tensor(np.random.randn(*shape), dtype=ms.float32)
         else:
             img = x_T
         if precision is not None:

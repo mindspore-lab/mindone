@@ -4,6 +4,7 @@ from typing import Union
 
 import numpy as np
 from lvdm.models.utils_diffusion import make_beta_schedule, rescale_zero_terminal_snr
+from lvdm.modules.networks.util import rearrange_in_gn5d_bs, rearrange_out_gn5d
 
 import mindspore as ms
 from mindspore import Parameter, Tensor
@@ -388,6 +389,14 @@ class LatentDiffusion(DDPM):
         prev_sample = self.model(x_noisy, t, **cond, **kwargs)
 
         return prev_sample
+
+    def get_latent_z(self, videos):
+        b, c, t, h, w = videos.shape
+        x = rearrange_out_gn5d(videos)
+        z = self.encode_first_stage(x)
+        z = rearrange_in_gn5d_bs(z, b=b)
+
+        return z
 
     def get_latents_2d(self, x):
         B, C, H, W = x.shape

@@ -2,7 +2,6 @@ import glob
 import os
 
 import numpy as np
-from lvdm.modules.networks.util import rearrange_in_gn5d_bs, rearrange_out_gn5d
 from PIL import Image
 
 import mindspore as ms
@@ -108,11 +107,3 @@ def save_results_seperate(prompt, samples, filename, fakedir, fps=10, loop=False
         path = os.path.join(savedirs[idx], f'{filename.split(".")[0]}_sample{idx}.mp4')
         video_transform = _transform_before_save(video)
         save_videos(video_transform, path)
-
-
-def get_latent_z(model, videos):
-    b, c, t, h, w = videos.shape
-    x = rearrange_out_gn5d(videos)
-    z = model.encode_first_stage(x)
-    z = rearrange_in_gn5d_bs(z, b=b)
-    return z

@@ -19,7 +19,7 @@ sys.path.insert(0, mindone_lib_path)
 sys.path.insert(0, os.path.abspath(os.path.join(__dir__, "..")))
 
 from lvdm.models.samplers.ddim import DDIMSampler
-from utils import get_latent_z, load_data_prompts, save_results_seperate
+from utils import load_data_prompts, save_results_seperate
 
 from mindone.utils.amp import auto_mixed_precision
 from mindone.utils.config import instantiate_from_config, str2bool
@@ -118,7 +118,7 @@ def image_guided_synthesis(
     cond_emb = model.get_learned_conditioning(prompts)
     cond = {"c_crossattn": [ops.cat([cond_emb, img_emb], axis=1)]}
     if model.model.conditioning_key == "hybrid":
-        z = get_latent_z(model, videos)  # b c t h w
+        z = model.get_latent_z(videos)  # b c t h w
         if loop or interp:
             img_cat_cond = ops.zeros_like(z)
             img_cat_cond[:, :, 0, :, :] = z[:, :, 0, :, :]
