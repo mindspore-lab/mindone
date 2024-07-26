@@ -12,7 +12,8 @@ styles = {k["name"]: (k["prompt"], k["negative_prompt"]) for k in style_list}
 # TODO: remove in future when mindone is ready for install
 mindone_lib_path = os.path.abspath("../..")
 sys.path.insert(0, mindone_lib_path)
-from utils.gradio_utils import SpatialAttnProcessor2_0, cal_attn_mask_xl
+
+from utils.gradio_utils import SpatialAttnProcessor2_0, get_attention_mask_dict
 
 from mindone.diffusers import StableDiffusionXLPipeline
 from mindone.diffusers.models.attention_processor import AttnProcessor
@@ -37,29 +38,18 @@ init_env(mode=1, device_target="GPU")
 STYLE_NAMES = list(styles.keys())
 DEFAULT_STYLE_NAME = "(No style)"
 MAX_SEED = np.iinfo(np.int32).max
-global models_dict
-use_va = False
+
 models_dict = {
     "Juggernaut": "RunDiffusion/Juggernaut-XL-v8",
     "RealVision": "SG161222/RealVisXL_V4.0",
     "SDXL": "stabilityai/stable-diffusion-xl-base-1.0",
     "Unstable": "stablediffusionapi/sdxl-unstable-diffusers-y",
 }
-
-global attn_count, total_count, id_length, total_length, cur_step, cur_model_type
-global write
-global sa32, sa64
-global height, width
-attn_count = 0
 total_count = 0
-cur_step = 0
-id_length = 4
-total_length = 5
-cur_model_type = ""
-global attn_procs, unet
+id_length = 1
+total_length = id_length + 1
 attn_procs = {}
-#
-write = False
+
 # strength of consistent self-attention: the larger, the stronger
 sa32 = 0.5
 sa64 = 0.5
@@ -80,9 +70,15 @@ pipe = StableDiffusionXLPipeline.from_pretrained(
 pipe.scheduler = DDIMScheduler.from_config(pipe.scheduler.config)
 pipe.scheduler.set_timesteps(50)
 unet = pipe.unet
+
 prompt = "An astronaut riding a green horse"
-# breakpoint()
-images = pipe(prompt=prompt)
+
+images = pipe(prompt=prompt)[0]
+images[0].save("image.png")
+
+atten_mask_dict = get_attention_mask_dict(
+    [32, 16], [sa32, sa64], total_length, id_length, height, width, dtype=ms.float16
+)
 # Insert PairedAttention
 for name in unet.attn_processors.keys():
     cross_attention_dim = None if name.endswith("attn1.processor") else unet.config.cross_attention_dim
@@ -95,24 +91,34 @@ for name in unet.attn_processors.keys():
         block_id = int(name[len("down_blocks.")])
         hidden_size = unet.config.block_out_channels[block_id]
     if cross_attention_dim is None and (name.startswith("up_blocks")):
-        attn_procs[name] = SpatialAttnProcessor2_0(id_length=id_length)
+        attn_procs[name] = SpatialAttnProcessor2_0(
+            id_length=id_length,
+            attention_masks=atten_mask_dict,
+        )
         total_count += 1
     else:
         attn_procs[name] = AttnProcessor()
 print("successsfully load consistent self-attention")
 print(f"number of replaced processors: {total_count}")
 unet.set_attn_processor(copy.deepcopy(attn_procs))
-global mask1024, mask4096
-mask1024, mask4096 = cal_attn_mask_xl(total_length, id_length, sa32, sa64, height, width, dtype=ms.float16)
+
+
+def set_unet_variable(unet, target_name, target_value):
+    for name in unet.attn_processors.keys():
+        cross_attention_dim = None if name.endswith("attn1.processor") else unet.config.cross_attention_dim
+        if cross_attention_dim is None and (name.startswith("up_blocks")):
+            assert hasattr(unet.attn_processors[name], target_name)
+            setattr(unet.attn_processors[name], target_name, target_value)
+    print(f"Set `{target_name}` for all consistent self-attentions to be {target_value}")
+
 
 guidance_scale = 5.0
 seed = 2047
-id_length = 4
-num_steps = 50
+num_steps = 25
 general_prompt = "a man with a black suit"
 negative_prompt = (
-    "naked, deformed, bad anatomy, disfigured, poorly drawn face, mutation, extra limb, ugly"
-    + ", disgusting, poorly drawn hands, missing limb, floating limbs, disconnected limbs, blurry, watermarks, oversaturated, distorted hands, amputation"
+    "naked, deformed, bad anatomy, disfigured, poorly drawn face, mutation, extra limb, ugly, disgusting, poorly drawn hands, missing limb,"
+    + " floating limbs, disconnected limbs, blurry, watermarks, oversaturated, distorted hands, amputation"
 )
 prompt_array = [
     "wake up in the bed",
@@ -142,9 +148,9 @@ prompts = [general_prompt + "," + prompt for prompt in prompt_array]
 id_prompts = prompts[:id_length]
 real_prompts = prompts[id_length:]
 
-write = True
-cur_step = 0
-attn_count = 0
+# write = True
+set_unet_variable(unet, "write", True)
+
 id_prompts, negative_prompt = apply_style(style_name, id_prompts, negative_prompt)
 id_images = pipe(
     id_prompts,
@@ -156,12 +162,18 @@ id_images = pipe(
     generator=generator,
 )[0]
 
-write = False
-for id_image in id_images:
-    pass
+output_dir = "outputs"
+os.makedirs(output_dir, exist_ok=True)
+# write = False
+
+set_unet_variable(unet, "write", False)
+for i, id_image in enumerate(id_images):
+    save_fp = os.path.join(output_dir, f"id_{i}.png")
+    id_image.save(save_fp)
 real_images = []
+
 for real_prompt in real_prompts:
-    cur_step = 0
+    set_unet_variable(unet, "cur_step", 0)
     real_prompt = apply_style_positive(style_name, real_prompt)
     real_images.append(
         pipe(
@@ -172,8 +184,9 @@ for real_prompt in real_prompts:
             width=width,
             negative_prompt=negative_prompt,
             generator=generator,
-        ).images[0]
+        )[0]
     )
-for real_image in real_images:
+for i, real_image in enumerate(real_images):
     # display(real_image)
-    pass
+    save_fp = os.path.join(output_dir, f"real_{i}.png")
+    id_image.save(save_fp)

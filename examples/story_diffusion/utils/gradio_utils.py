@@ -9,34 +9,7 @@ from mindspore import ops
 from mindone.diffusers.models.attention_processor import Attention
 
 
-def scaled_dot_product_attention(
-    query, key, value, attn_mask=None, dropout_p=0.0, is_causal=False, scale=None, training=False
-) -> ms.Tensor:
-    L, S = query.shape[-2], key.shape[-2]
-    scale_factor = 1 / (query.shape[-1] ** 0.5) if scale is None else scale
-    _dtype = query.dtype
-    attn_bias = ops.zeros(L, S, dtype=query.dtype)
-    if is_causal:
-        assert attn_mask is None
-        temp_mask = ops.ones(L, S, dtype=ms.bool_).tril(diagonal=0)
-        attn_bias.masked_fill_(not temp_mask, -1e5)
-        attn_bias.to(query.dtype)
-
-    if attn_mask is not None:
-        if attn_mask.dtype == ms.bool_:
-            attn_bias.masked_fill_(not attn_mask, -1e5)
-        else:
-            attn_bias += attn_mask
-    attn_weight = ops.matmul(query, key.swapaxes(-2, -1)) * scale_factor
-    attn_weight += attn_bias
-    attn_weight = ops.softmax(attn_weight.to(ms.float32), axis=-1)
-    attn_weight = ops.dropout(attn_weight, p=dropout_p, training=training)
-    out = ops.matmul(attn_weight, value)
-    out = out.astype(_dtype)
-    return out
-
-
-# @ms.jit_class
+@ms.jit_class
 class SpatialAttnProcessor2_0:
     r"""
     Attention processor for IP-Adapater.
@@ -51,7 +24,16 @@ class SpatialAttnProcessor2_0:
             the weight scale of image prompt.
     """
 
-    def __init__(self, hidden_size=None, cross_attention_dim=None, id_length=4, dtype=ms.float16):
+    def __init__(
+        self,
+        hidden_size=None,
+        cross_attention_dim=None,
+        id_length=4,
+        dtype=ms.float16,
+        attention_masks={},
+        write=False,
+        cur_step=0,
+    ):
         super().__init__()
 
         self.dtype = dtype
@@ -60,54 +42,70 @@ class SpatialAttnProcessor2_0:
         self.total_length = id_length + 1
         self.id_length = id_length
         self.id_bank = {}
+        self.attention_masks = attention_masks
+        assert len(self.attention_masks) > 0, "attention_masks must not be empty"
+        self.write = write
+        self.cur_step = cur_step
+
+    def scaled_dot_product_attention(
+        self, query, key, value, attn_mask=None, dropout_p=0.0, is_causal=False, scale=None, training=False
+    ) -> ms.Tensor:
+        L, S = query.shape[-2], key.shape[-2]
+        scale_factor = 1 / (query.shape[-1] ** 0.5) if scale is None else scale
+        _dtype = query.dtype
+        attn_bias = ops.zeros((L, S), dtype=ms.float32)
+        if is_causal:
+            assert attn_mask is None
+            temp_mask = ops.ones((L, S), dtype=ms.bool_).tril(diagonal=0)
+            attn_bias = attn_bias.masked_fill(~temp_mask, -1e5)
+            attn_bias.to(query.dtype)
+
+        if attn_mask is not None:
+            if attn_mask.dtype == ms.bool_:
+                attn_bias = attn_bias.masked_fill(~attn_mask, -1e5)
+            else:
+                attn_bias += attn_mask
+        attn_weight = ops.matmul(query, key.swapaxes(-2, -1)) * scale_factor
+        attn_weight = attn_weight.to(ms.float32)
+        attn_weight += attn_bias
+        attn_weight = ops.softmax(attn_weight, axis=-1)
+        attn_weight = ops.dropout(attn_weight, p=dropout_p, training=training)
+        out = ops.matmul(attn_weight.to(_dtype), value)
+        out = out.astype(_dtype)
+        return out
 
     def __call__(self, attn, hidden_states, encoder_hidden_states=None, attention_mask=None, temb=None):
-        # un_cond_hidden_states, cond_hidden_states = hidden_states.chunk(2)
-        # un_cond_hidden_states = self.__call2__(attn, un_cond_hidden_states,encoder_hidden_states,attention_mask,temb)
-        # 生成一个0到1之间的随机数
-        global total_count, attn_count, cur_step, mask256, mask1024, mask4096
-        global sa16, sa32, sa64
-        global write
-        if write:
-            self.id_bank[cur_step] = [hidden_states[: self.id_length], hidden_states[self.id_length :]]
+        if self.write:
+            self.id_bank[self.cur_step] = [hidden_states[: self.id_length], hidden_states[self.id_length :]]
         else:
             encoder_hidden_states = ops.cat(
-                self.id_bank[cur_step][0], hidden_states[:1], self.id_bank[cur_step][1], hidden_states[1:]
+                [self.id_bank[self.cur_step][0], hidden_states[:1], self.id_bank[self.cur_step][1], hidden_states[1:]]
             )
-        # 判断随机数是否大于0.5
-        if cur_step < 5:
+        # skip in early step
+        if self.cur_step < 5:
             hidden_states = self.__call2__(attn, hidden_states, encoder_hidden_states, attention_mask, temb)
         else:  # 256 1024 4096
             random_number = random.random()
-            if cur_step < 20:
+            if self.cur_step < 20:
                 rand_num = 0.3
             else:
                 rand_num = 0.1
             if random_number > rand_num:
-                if not write:
-                    if hidden_states.shape[1] == 32 * 32:
-                        attention_mask = mask1024[mask1024.shape[0] // self.total_length * self.id_length :]
-                    elif hidden_states.shape[1] == 16 * 16:
-                        attention_mask = mask256[mask256.shape[0] // self.total_length * self.id_length :]
-                    else:
-                        attention_mask = mask4096[mask4096.shape[0] // self.total_length * self.id_length :]
+                nums_tokens = hidden_states.shape[1]
+                assert (
+                    nums_tokens in self.attention_masks
+                ), f"The input num_tokens is not supported. Supported num_tokens: { self.attention_masks.keys()}"
+                attention_mask = self.attention_masks[nums_tokens]
+                target_len = attention_mask.shape[0] // self.total_length * self.id_length
+                if not self.write:
+                    attention_mask = attention_mask[target_len:]
                 else:
-                    if hidden_states.shape[1] == 32 * 32:
-                        attention_mask = mask1024[: mask1024.shape[0] // self.total_length * self.id_length]
-                    elif hidden_states.shape[1] == 16 * 16:
-                        attention_mask = mask256[: mask256.shape[0] // self.total_length * self.id_length]
-                    else:
-                        attention_mask = mask4096[: mask4096.shape[0] // self.total_length * self.id_length]
+                    attention_mask = attention_mask[:target_len, :target_len]
                 hidden_states = self.__call1__(attn, hidden_states, encoder_hidden_states, attention_mask, temb)
             else:
                 hidden_states = self.__call2__(attn, hidden_states, None, attention_mask, temb)
-        attn_count += 1
-        if attn_count == total_count:
-            attn_count = 0
-            cur_step += 1
-            mask256, mask1024, mask4096 = cal_attn_mask(
-                self.total_length, self.id_length, sa16, sa32, sa64, dtype=self.dtype
-            )
+
+        self.cur_step += 1
 
         return hidden_states
 
@@ -120,8 +118,7 @@ class SpatialAttnProcessor2_0:
         temb: Optional[ms.Tensor] = None,
     ) -> ms.Tensor:
         residual = hidden_states
-        if encoder_hidden_states is not None:
-            raise Exception("not implement")
+
         if attn.spatial_norm is not None:
             hidden_states = attn.spatial_norm(hidden_states, temb)
         input_ndim = hidden_states.ndim
@@ -163,11 +160,11 @@ class SpatialAttnProcessor2_0:
         key = key.view(batch_size, -1, attn.heads, head_dim).swapaxes(1, 2)
         value = value.view(batch_size, -1, attn.heads, head_dim).swapaxes(1, 2)
 
-        hidden_states = scaled_dot_product_attention(
+        hidden_states = self.scaled_dot_product_attention(
             query, key, value, attn_mask=attention_mask, dropout_p=0.0, is_causal=False
         )
 
-        hidden_states = hidden_states.swapaxes(1, 2).reshape(batch_size, -1, attn.heads * head_dim)
+        hidden_states = hidden_states.swapaxes(1, 2).reshape(total_batch_size, -1, attn.heads * head_dim)
         hidden_states = hidden_states.to(query.dtype)
 
         # linear proj
@@ -211,9 +208,7 @@ class SpatialAttnProcessor2_0:
         else:
             batch_size, channel, height, width = None, None, None, None
 
-        batch_size, sequence_length, _ = (
-            hidden_states.shape if encoder_hidden_states is None else encoder_hidden_states.shape
-        )
+        batch_size, sequence_length, channel = hidden_states.shape
         attention_mask = attn.prepare_attention_mask(attention_mask, sequence_length, batch_size)
 
         if attn.group_norm is not None:
@@ -223,8 +218,10 @@ class SpatialAttnProcessor2_0:
 
         if encoder_hidden_states is None:
             encoder_hidden_states = hidden_states
-        elif attn.norm_cross:
-            encoder_hidden_states = attn.norm_encoder_hidden_states(encoder_hidden_states)
+        else:
+            encoder_hidden_states = encoder_hidden_states.view(
+                -1, self.id_length + 1, sequence_length, channel
+            ).reshape(-1, (self.id_length + 1) * sequence_length, channel)
 
         key = attn.to_k(encoder_hidden_states)
         value = attn.to_v(encoder_hidden_states)
@@ -288,6 +285,31 @@ def cal_attn_mask_xl(total_length, id_length, sa32, sa64, height, width, dtype=m
     mask1024 = ops.cat([bool_matrix1024.unsqueeze(1)] * nums_1024, axis=1).reshape(-1, total_length * nums_1024)
     mask4096 = ops.cat([bool_matrix4096.unsqueeze(1)] * nums_4096, axis=1).reshape(-1, total_length * nums_4096)
     return mask1024, mask4096
+
+
+def calculate_attention_mask(total_length, id_length, down_scale, height, width, threshold=0.5, dtype=ms.float16):
+    nums = (height // down_scale) * (width // down_scale)
+    bool_matrix = ops.rand((1, total_length * nums), dtype=dtype) < threshold
+    bool_matrix = ops.cat([bool_matrix] * total_length, axis=0)
+    for i in range(total_length):
+        bool_matrix[i : i + 1, id_length * nums :] = False
+        bool_matrix[i : i + 1, i * nums : (i + 1) * nums] = True
+    mask = ops.cat([bool_matrix.unsqueeze(1)] * nums, axis=1).reshape(-1, total_length * nums)
+    return mask
+
+
+def get_attention_mask_dict(
+    down_scales_list, thresholds_list, total_length, id_length, height, width, dtype=ms.float16
+):
+    atten_masks = {}
+    down_scales_list = set(down_scales_list)
+    assert len(down_scales_list) == len(thresholds_list)
+    for down_scale, threshold in zip(down_scales_list, thresholds_list):
+        nums_tokens = (height // down_scale) * (width // down_scale)
+        atten_masks[nums_tokens] = calculate_attention_mask(
+            total_length, id_length, down_scale, height, width, threshold, dtype
+        )
+    return atten_masks
 
 
 def cal_attn_indice_xl_effcient_memory(total_length, id_length, sa32, sa64, height, width, dtype=ms.float16):
