@@ -134,7 +134,7 @@ class CellUtilMixin:
         # effectively the same as removing these entirely.
         extended_attention_mask = extended_attention_mask.astype(dtype=dtype)  # fp16 compatibility
         extended_attention_mask = (1.0 - extended_attention_mask) * Tensor(
-            np.finfo(mindspore.dtype_to_nptype(dtype)).min
+            float.fromhex("-0x1.fe00000000000p+127"), dtype=mindspore.bfloat16
         )
         return extended_attention_mask
 
