@@ -5,7 +5,7 @@ export GLOG_v=2
 
 # hyper-parameters
 image_size=512  # the image size of frames, same to image height and image width
-use_image_num=4  # to include n number of images in an input sample
+use_image_num=8  # to include n number of images in an input sample
 num_frames=221  # to sample m frames from a single video. The total number of images： num_frames + use_image_num
 model_dtype="bf16" # the data type used for mixed precision of the diffusion transformer model (LatteT2V).
 amp_level="O2" # the default auto mixed precision level for LatteT2V.
@@ -46,4 +46,5 @@ msrun --bind_core=True --worker_num=8 --local_worker_num=8 --master_port=9000 --
     --use_parallel True \
     --parallel_mode "data" \
     --sp_size 8 \
-    --max_device_memory 59GB
+    --max_device_memory 59GB \
+    --sink_size -1 \

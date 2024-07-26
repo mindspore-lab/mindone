@@ -34,7 +34,7 @@ class CausalVAEModel(VideoBaseAE):
         double_z: bool = True,
         embed_dim: int = 4,
         num_res_blocks: int = 2,
-        loss_type: str = "opensora.models.ae.videobase.losses.LPIPSWithDiscriminator",  # ignore
+        loss_type: str = "opensora.models.ae.videobase.losses.LPIPSWithDiscriminator3D",  # ignore
         loss_params: dict = {  # ignore
             "kl_weight": 0.000001,
             "logvar_init": 0.0,
@@ -42,31 +42,31 @@ class CausalVAEModel(VideoBaseAE):
             "disc_weight": 0.5,
         },
         q_conv: str = "CausalConv3d",
-        encoder_conv_in: str = "CausalConv3d",
+        encoder_conv_in: str = "Conv2d",
         encoder_conv_out: str = "CausalConv3d",
-        encoder_attention: str = "AttnBlock3D",
+        encoder_attention: str = "AttnBlock3DFix",
         encoder_resnet_blocks: Tuple[str] = (
-            "ResnetBlock3D",
-            "ResnetBlock3D",
+            "ResnetBlock2D",
+            "ResnetBlock2D",
             "ResnetBlock3D",
             "ResnetBlock3D",
         ),
         encoder_spatial_downsample: Tuple[str] = (
-            "SpatialDownsample2x",
-            "SpatialDownsample2x",
-            "SpatialDownsample2x",
+            "Downsample",
+            "Downsample",
+            "Downsample",
             "",
         ),
         encoder_temporal_downsample: Tuple[str] = (
             "",
-            "TimeDownsample2x",
-            "TimeDownsample2x",
+            "TimeDownsampleRes2x",
+            "TimeDownsampleRes2x",
             "",
         ),
         encoder_mid_resnet: str = "ResnetBlock3D",
         decoder_conv_in: str = "CausalConv3d",
         decoder_conv_out: str = "CausalConv3d",
-        decoder_attention: str = "AttnBlock3D",
+        decoder_attention: str = "AttnBlock3DFix",
         decoder_resnet_blocks: Tuple[str] = (
             "ResnetBlock3D",
             "ResnetBlock3D",
@@ -79,7 +79,7 @@ class CausalVAEModel(VideoBaseAE):
             "SpatialUpsample2x",
             "SpatialUpsample2x",
         ),
-        decoder_temporal_upsample: Tuple[str] = ("", "", "TimeUpsample2x", "TimeUpsample2x"),
+        decoder_temporal_upsample: Tuple[str] = ("", "", "TimeUpsampleRes2x", "TimeUpsampleRes2x"),
         decoder_mid_resnet: str = "ResnetBlock3D",
         ckpt_path=None,
         ignore_keys=[],
@@ -243,8 +243,9 @@ class CausalVAEModel(VideoBaseAE):
         if checkpoint_path is None or len(checkpoint_path) == 0:
             # search for ckpt under pretrained_model_path
             ckpt_paths = glob.glob(os.path.join(pretrained_model_path, "*.ckpt"))
-            assert len(ckpt_paths) == 1, f"Expect to find one checkpoint file under {pretrained_model_path}"
-            f", but found {len(ckpt_paths)} files that end with `.ckpt`"
+            assert (
+                len(ckpt_paths) == 1
+            ), f"Expect to find one checkpoint file under {pretrained_model_path}, but found {len(ckpt_paths)} files that end with `.ckpt`"
             ckpt = ckpt_paths[0]
         else:
             ckpt = checkpoint_path

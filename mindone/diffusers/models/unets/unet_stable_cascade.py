@@ -91,7 +91,7 @@ class GlobalResponseNorm(nn.Cell):
         self.beta = ms.Parameter(ops.zeros((1, 1, 1, dim)), name="beta")
 
     def construct(self, x):
-        agg_norm = ops.norm(x, ord=2, dim=(1, 2), keepdim=True).to(x.dtype)
+        agg_norm = ops.norm(x, ord="fro", dim=(1, 2), keepdim=True).to(x.dtype)
         stand_div_norm = agg_norm / (agg_norm.mean(axis=-1, keep_dims=True) + 1e-6)
         return self.gamma * (x * stand_div_norm) + self.beta + x
 
@@ -549,7 +549,7 @@ class StableCascadeUNet(ModelMixin, ConfigMixin):
                         x = block(x)
                 if i < len(repmap):
                     x = repmap[i](x)
-            level_outputs.insert(0, x)
+            level_outputs = [x] + level_outputs
         return level_outputs
 
     def _up_decode(self, level_outputs, r_embed, clip):

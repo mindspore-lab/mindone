@@ -145,7 +145,7 @@ class Text2ImgEmbedder(Embedder):
         negative_prompt_embeds = self.text_encoder(
             *uc_clip_tokens.split(1),
             *uc_time_tokens.split(1),
-            force_zero_embeddings=["txt"] if not self.is_legacy else []
+            force_zero_embeddings=["txt"] if not self.is_legacy else [],
         )
         vector = ops.concat((negative_prompt_embeds[0], pos_prompt_embeds[0]), 0)
         crossattn = ops.concat((negative_prompt_embeds[1], pos_prompt_embeds[1]), 0)

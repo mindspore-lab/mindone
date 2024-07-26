@@ -10,7 +10,7 @@ from PIL import Image
 
 import mindspore as ms
 
-logger = logging.getLogger()
+logger = logging.getLogger(__name__)
 
 
 def get_image_path_list(folder):
