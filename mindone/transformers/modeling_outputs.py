@@ -47,6 +47,25 @@ class BaseModelOutput(ModelOutput):
 
 
 @dataclass
+class BaseModelOutputWithNoAttention(ModelOutput):
+    """
+    Base class for model's outputs, with potential hidden states.
+
+    Args:
+        last_hidden_state (`torch.FloatTensor` of shape `(batch_size, num_channels, height, width)`):
+            Sequence of hidden-states at the output of the last layer of the model.
+        hidden_states (`tuple(torch.FloatTensor)`, *optional*, returned when `output_hidden_states=True` is passed or when `config.output_hidden_states=True`):
+            Tuple of `torch.FloatTensor` (one for the output of the embeddings, if the model has an embedding layer, +
+            one for the output of each layer) of shape `(batch_size, num_channels, height, width)`.
+
+            Hidden-states of the model at the output of each layer plus the optional initial embedding outputs.
+    """
+
+    last_hidden_state: ms.Tensor = None
+    hidden_states: Optional[Tuple[ms.Tensor, ...]] = None
+
+
+@dataclass
 class BaseModelOutputWithPooling(ModelOutput):
     """
     Base class for model's outputs that also contains a pooling of the last hidden states.
@@ -76,6 +95,28 @@ class BaseModelOutputWithPooling(ModelOutput):
     pooler_output: ms.Tensor = None
     hidden_states: Optional[Tuple[ms.Tensor, ...]] = None
     attentions: Optional[Tuple[ms.Tensor, ...]] = None
+
+
+@dataclass
+class BaseModelOutputWithPoolingAndNoAttention(ModelOutput):
+    """
+    Base class for model's outputs that also contains a pooling of the last hidden states.
+
+    Args:
+        last_hidden_state (`torch.FloatTensor` of shape `(batch_size, num_channels, height, width)`):
+            Sequence of hidden-states at the output of the last layer of the model.
+        pooler_output (`torch.FloatTensor` of shape `(batch_size, hidden_size)`):
+            Last layer hidden-state after a pooling operation on the spatial dimensions.
+        hidden_states (`tuple(torch.FloatTensor)`, *optional*, returned when `output_hidden_states=True` is passed or when `config.output_hidden_states=True`):
+            Tuple of `torch.FloatTensor` (one for the output of the embeddings, if the model has an embedding layer, +
+            one for the output of each layer) of shape `(batch_size, num_channels, height, width)`.
+
+            Hidden-states of the model at the output of each layer plus the optional initial embedding outputs.
+    """
+
+    last_hidden_state: ms.Tensor = None
+    pooler_output: ms.Tensor = None
+    hidden_states: Optional[Tuple[ms.Tensor, ...]] = None
 
 
 @dataclass
@@ -293,3 +334,60 @@ class BaseModelOutputWithPoolingAndCrossAttentions(ModelOutput):
     past_key_values: Optional[Tuple[Tuple[ms.Tensor]]] = None
     attentions: Optional[Tuple[ms.Tensor, ...]] = None
     cross_attentions: Optional[Tuple[ms.Tensor, ...]] = None
+
+
+@dataclass
+class DepthEstimatorOutput(ModelOutput):
+    """
+    Base class for outputs of depth estimation models.
+
+    Args:
+        loss (`torch.FloatTensor` of shape `(1,)`, *optional*, returned when `labels` is provided):
+            Classification (or regression if config.num_labels==1) loss.
+        predicted_depth (`torch.FloatTensor` of shape `(batch_size, height, width)`):
+            Predicted depth for each pixel.
+
+        hidden_states (`tuple(torch.FloatTensor)`, *optional*, returned when `output_hidden_states=True` is passed or when `config.output_hidden_states=True`):
+            Tuple of `torch.FloatTensor` (one for the output of the embeddings, if the model has an embedding layer, +
+            one for the output of each layer) of shape `(batch_size, num_channels, height, width)`.
+
+            Hidden-states of the model at the output of each layer plus the optional initial embedding outputs.
+        attentions (`tuple(torch.FloatTensor)`, *optional*, returned when `output_attentions=True` is passed or when `config.output_attentions=True`):
+            Tuple of `torch.FloatTensor` (one for each layer) of shape `(batch_size, num_heads, patch_size,
+            sequence_length)`.
+
+            Attentions weights after the attention softmax, used to compute the weighted average in the self-attention
+            heads.
+    """
+
+    loss: Optional[ms.Tensor] = None
+    predicted_depth: ms.Tensor = None
+    hidden_states: Optional[Tuple[ms.Tensor, ...]] = None
+    attentions: Optional[Tuple[ms.Tensor, ...]] = None
+
+
+@dataclass
+class BackboneOutput(ModelOutput):
+    """
+    Base class for outputs of backbones.
+
+    Args:
+        feature_maps (`tuple(torch.FloatTensor)` of shape `(batch_size, num_channels, height, width)`):
+            Feature maps of the stages.
+        hidden_states (`tuple(torch.FloatTensor)`, *optional*, returned when `output_hidden_states=True` is passed or when `config.output_hidden_states=True`):
+            Tuple of `torch.FloatTensor` (one for the output of the embeddings + one for the output of each layer) of
+            shape `(batch_size, sequence_length, hidden_size)` or `(batch_size, num_channels, height, width)`,
+            depending on the backbone.
+
+            Hidden-states of the model at the output of each stage plus the initial embedding outputs.
+        attentions (`tuple(torch.FloatTensor)`, *optional*, returned when `output_attentions=True` is passed or when `config.output_attentions=True`):
+            Tuple of `torch.FloatTensor` (one for each layer) of shape `(batch_size, num_heads, sequence_length,
+            sequence_length)`. Only applicable if the backbone uses attention.
+
+            Attentions weights after the attention softmax, used to compute the weighted average in the self-attention
+            heads.
+    """
+
+    feature_maps: Tuple[ms.Tensor] = None
+    hidden_states: Optional[Tuple[ms.Tensor, ...]] = None
+    attentions: Optional[Tuple[ms.Tensor, ...]] = None
