@@ -17,7 +17,6 @@ import mindspore as ms
 from mindspore import nn, ops
 
 from ...configuration_utils import ConfigMixin, register_to_config
-from ..activations import SiLU
 from ..attention_processor import Attention
 from ..embeddings import get_timestep_embedding
 from ..modeling_utils import ModelMixin
@@ -63,9 +62,9 @@ class T5FilmDecoder(ModelMixin, ConfigMixin):
 
         self.conditioning_emb = nn.SequentialCell(
             nn.Dense(d_model, d_model * 4, has_bias=False),
-            SiLU(),
+            nn.SiLU(),
             nn.Dense(d_model * 4, d_model * 4, has_bias=False),
-            SiLU(),
+            nn.SiLU(),
         )
 
         self.position_encoding = nn.Embedding(targets_length, d_model)

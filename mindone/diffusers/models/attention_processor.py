@@ -827,8 +827,9 @@ class JointAttnProcessor:
         key = attn.head_to_batch_dim(key)
         value = attn.head_to_batch_dim(value)
 
-        attention_probs = attn.get_attention_scores(query, key, attention_mask)
-        hidden_states = ops.bmm(attention_probs, value)
+        hidden_states = ops.operations.nn_ops.FlashAttentionScore(1, scale_value=attn.scale)(
+            query.to(ms.float16), key.to(ms.float16), value.to(ms.float16), None, None, None, attention_mask
+        )[3].to(query.dtype)
         hidden_states = attn.batch_to_head_dim(hidden_states)
         hidden_states = hidden_states.to(query.dtype)
 

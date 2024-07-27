@@ -20,7 +20,7 @@ from mindspore import nn, ops
 from ...configuration_utils import ConfigMixin, register_to_config
 from ...loaders import UNet2DConditionLoadersMixin
 from ...utils import logging
-from ..activations import SiLU, get_activation
+from ..activations import get_activation
 from ..attention import Attention, FeedForward
 from ..attention_processor import CROSS_ATTENTION_PROCESSORS, AttentionProcessor, AttnProcessor
 from ..embeddings import TimestepEmbedding, Timesteps
@@ -189,9 +189,9 @@ class I2VGenXLUNet(ModelMixin, ConfigMixin, UNet2DConditionLoadersMixin):
         # image embedding
         self.image_latents_proj_in = nn.SequentialCell(
             nn.Conv2d(4, in_channels * 4, 3, pad_mode="pad", padding=1, has_bias=True),
-            SiLU(),
+            nn.SiLU(),
             nn.Conv2d(in_channels * 4, in_channels * 4, 3, stride=1, pad_mode="pad", padding=1, has_bias=True),
-            SiLU(),
+            nn.SiLU(),
             nn.Conv2d(in_channels * 4, in_channels, 3, stride=1, pad_mode="pad", padding=1, has_bias=True),
         )
         self.image_latents_temporal_encoder = I2VGenXLTransformerTemporalEncoder(
@@ -203,10 +203,10 @@ class I2VGenXLUNet(ModelMixin, ConfigMixin, UNet2DConditionLoadersMixin):
         )
         self.image_latents_context_embedding = nn.SequentialCell(
             nn.Conv2d(4, in_channels * 8, 3, pad_mode="pad", padding=1, has_bias=True),
-            SiLU(),
+            nn.SiLU(),
             nn.AdaptiveAvgPool2d((32, 32)),
             nn.Conv2d(in_channels * 8, in_channels * 16, 3, stride=2, pad_mode="pad", padding=1, has_bias=True),
-            SiLU(),
+            nn.SiLU(),
             nn.Conv2d(in_channels * 16, cross_attention_dim, 3, stride=2, pad_mode="pad", padding=1, has_bias=True),
         )
 
@@ -218,11 +218,11 @@ class I2VGenXLUNet(ModelMixin, ConfigMixin, UNet2DConditionLoadersMixin):
         self.time_embedding = TimestepEmbedding(timestep_input_dim, time_embed_dim, act_fn="silu")
         self.context_embedding = nn.SequentialCell(
             nn.Dense(cross_attention_dim, time_embed_dim),
-            SiLU(),
+            nn.SiLU(),
             nn.Dense(time_embed_dim, cross_attention_dim * in_channels),
         )
         self.fps_embedding = nn.SequentialCell(
-            nn.Dense(timestep_input_dim, time_embed_dim), SiLU(), nn.Dense(time_embed_dim, time_embed_dim)
+            nn.Dense(timestep_input_dim, time_embed_dim), nn.SiLU(), nn.Dense(time_embed_dim, time_embed_dim)
         )
 
         # blocks

@@ -19,7 +19,7 @@ import numpy as np
 import mindspore as ms
 from mindspore import nn, ops
 
-from .activations import FP32SiLU, SiLU, get_activation
+from .activations import FP32SiLU, get_activation
 from .attention_processor import Attention
 
 
@@ -621,19 +621,19 @@ class ImageHintTimeEmbedding(nn.Cell):
         self.image_norm = LayerNorm(time_embed_dim)
         self.input_hint_block = nn.SequentialCell(
             nn.Conv2d(3, 16, 3, pad_mode="pad", padding=1, has_bias=True),
-            SiLU(),
+            nn.SiLU(),
             nn.Conv2d(16, 16, 3, pad_mode="pad", padding=1, has_bias=True),
-            SiLU(),
+            nn.SiLU(),
             nn.Conv2d(16, 32, 3, pad_mode="pad", padding=1, stride=2, has_bias=True),
-            SiLU(),
+            nn.SiLU(),
             nn.Conv2d(32, 32, 3, pad_mode="pad", padding=1, has_bias=True),
-            SiLU(),
+            nn.SiLU(),
             nn.Conv2d(32, 96, 3, pad_mode="pad", padding=1, stride=2, has_bias=True),
-            SiLU(),
+            nn.SiLU(),
             nn.Conv2d(96, 96, 3, pad_mode="pad", padding=1, has_bias=True),
-            SiLU(),
+            nn.SiLU(),
             nn.Conv2d(96, 256, 3, pad_mode="pad", padding=1, stride=2, has_bias=True),
-            SiLU(),
+            nn.SiLU(),
             nn.Conv2d(256, 4, 3, pad_mode="pad", padding=1, has_bias=True),
         )
 
@@ -734,9 +734,9 @@ class GLIGENTextBoundingboxProjection(nn.Cell):
         if feature_type == "text-only":
             self.linears = nn.SequentialCell(
                 nn.Dense(self.positive_len + self.position_dim, 512),
-                SiLU(),
+                nn.SiLU(),
                 nn.Dense(512, 512),
-                SiLU(),
+                nn.SiLU(),
                 nn.Dense(512, out_dim),
             )
             self.null_positive_feature = ms.Parameter(ops.zeros([self.positive_len]), name="null_positive_feature")
@@ -744,16 +744,16 @@ class GLIGENTextBoundingboxProjection(nn.Cell):
         elif feature_type == "text-image":
             self.linears_text = nn.SequentialCell(
                 nn.Dense(self.positive_len + self.position_dim, 512),
-                SiLU(),
+                nn.SiLU(),
                 nn.Dense(512, 512),
-                SiLU(),
+                nn.SiLU(),
                 nn.Dense(512, out_dim),
             )
             self.linears_image = nn.SequentialCell(
                 nn.Dense(self.positive_len + self.position_dim, 512),
-                SiLU(),
+                nn.SiLU(),
                 nn.Dense(512, 512),
-                SiLU(),
+                nn.SiLU(),
                 nn.Dense(512, out_dim),
             )
             self.null_text_feature = ms.Parameter(ops.zeros([self.positive_len]), name="null_text_feature")
@@ -863,7 +863,7 @@ class PixArtAlphaTextProjection(nn.Cell):
         if act_fn == "gelu_tanh":
             self.act_1 = nn.GELU(approximate=True)
         elif act_fn == "silu":
-            self.act_1 = SiLU()
+            self.act_1 = nn.SiLU()
         elif act_fn == "silu_fp32":
             self.act_1 = FP32SiLU()
         else:
