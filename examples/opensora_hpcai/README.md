@@ -28,9 +28,9 @@ The following videos are generated based on MindSpore and Ascend 910*.
 
 ### OpenSora 1.2 Demo
 
-| 4s 720×1280                                                                                                                                                                                                                                     |
-|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| https://github.com/user-attachments/assets/7d9c812b-1642-4019-99da-dabf94c41596 https://github.com/user-attachments/assets/9f463262-9ee0-4931-9d39-63fe925cbe6e https://github.com/user-attachments/assets/e0fa61bd-8bd0-40aa-9ea6-c587d492482a |
+| 4s 720×1280                                                                                     | 4s 720×1280                                                                                     | 4s 720×1280                                                                                     |
+|-------------------------------------------------------------------------------------------------|-------------------------------------------------------------------------------------------------|-------------------------------------------------------------------------------------------------|
+| <video src="https://github.com/user-attachments/assets/7d9c812b-1642-4019-99da-dabf94c41596" /> | <video src="https://github.com/user-attachments/assets/9f463262-9ee0-4931-9d39-63fe925cbe6e" /> | <video src="https://github.com/user-attachments/assets/e0fa61bd-8bd0-40aa-9ea6-c587d492482a" /> |
 
 > [!TIP]
 > To generate better looking videos, you can try generating in two stages: Text-to-Image and then Image-to-Video.
