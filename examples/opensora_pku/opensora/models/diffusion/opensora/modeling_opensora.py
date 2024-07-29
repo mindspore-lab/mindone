@@ -28,7 +28,7 @@ from .modules import (
 logger = logging.getLogger(__name__)
 
 
-class LatteT2V(ModelMixin, ConfigMixin):
+class OpenSoraT2V(ModelMixin, ConfigMixin):
     _supports_gradient_checkpointing = True
 
     """
@@ -625,22 +625,3 @@ class LatteT2V(ModelMixin, ConfigMixin):
             m, u = ms.load_param_into_net(self, sd)
             print("net param not load: ", m, len(m))
             print("ckpt param not load: ", u, len(u))
-
-
-def LatteT2V_XL_122(**kwargs):
-    return LatteT2V(
-        num_layers=28,
-        attention_head_dim=72,
-        num_attention_heads=16,
-        patch_size_t=1,
-        patch_size=2,
-        norm_type="ada_norm_single",
-        caption_channels=4096,
-        cross_attention_dim=1152,
-        **kwargs,
-    )
-
-
-Latte_models = {
-    "LatteT2V-XL/122": LatteT2V_XL_122,
-}

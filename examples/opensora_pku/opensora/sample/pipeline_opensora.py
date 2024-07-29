@@ -17,7 +17,6 @@ import logging
 import math
 import re
 import urllib.parse as ul
-from dataclasses import dataclass
 from typing import Callable, List, Optional, Tuple, Union
 
 from opensora.acceleration.communications import AllGather
@@ -42,8 +41,8 @@ try:
 except Exception:
     is_ftfy_available = False
 
-from mindone.diffusers.pipelines.pipeline_utils import DiffusionPipeline
-from mindone.diffusers.utils import BaseOutput
+from mindone.diffusers.pipelines.pipeline_utils import DiffusionPipeline, ImagePipelineOutput
+from mindone.diffusers.utils import BACKENDS_MAPPING, deprecate, is_bs4_available, is_ftfy_available
 
 EXAMPLE_DOC_STRING = """
     Examples:
@@ -62,12 +61,49 @@ EXAMPLE_DOC_STRING = """
 """
 
 
-@dataclass
-class VideoPipelineOutput(BaseOutput):
-    video: ms.Tensor
+# Copied from diffusers.pipelines.stable_diffusion.pipeline_stable_diffusion.retrieve_timesteps
+def retrieve_timesteps(
+    scheduler,
+    num_inference_steps: Optional[int] = None,
+    timesteps: Optional[List[int]] = None,
+    **kwargs,
+):
+    """
+    Calls the scheduler's `set_timesteps` method and retrieves timesteps from the scheduler after the call. Handles
+    custom timesteps. Any kwargs will be supplied to `scheduler.set_timesteps`.
+
+    Args:
+        scheduler (`SchedulerMixin`):
+            The scheduler to get timesteps from.
+        num_inference_steps (`int`):
+            The number of diffusion steps used when generating samples with a pre-trained model. If used, `timesteps`
+            must be `None`.
+        timesteps (`List[int]`, *optional*):
+                Custom timesteps used to support arbitrary spacing between timesteps. If `None`, then the default
+                timestep spacing strategy of the scheduler is used. If `timesteps` is passed, `num_inference_steps`
+                must be `None`.
+
+    Returns:
+        `Tuple[torch.Tensor, int]`: A tuple where the first element is the timestep schedule from the scheduler and the
+        second element is the number of inference steps.
+    """
+    if timesteps is not None:
+        accepts_timesteps = "timesteps" in set(inspect.signature(scheduler.set_timesteps).parameters.keys())
+        if not accepts_timesteps:
+            raise ValueError(
+                f"The current scheduler class {scheduler.__class__}'s `set_timesteps` does not support custom"
+                f" timestep schedules. Please check whether you are using the correct scheduler."
+            )
+        scheduler.set_timesteps(timesteps=timesteps, **kwargs)
+        timesteps = scheduler.timesteps
+        num_inference_steps = len(timesteps)
+    else:
+        scheduler.set_timesteps(num_inference_steps, **kwargs)
+        timesteps = scheduler.timesteps
+    return timesteps, num_inference_steps
 
 
-class VideoGenPipeline(DiffusionPipeline):
+class OpenSoraPipeline(DiffusionPipeline):
     r"""
     Pipeline for text-to-image generation using PixArt-Alpha.
 
@@ -146,11 +182,14 @@ class VideoGenPipeline(DiffusionPipeline):
         prompt: Union[str, List[str]],
         do_classifier_free_guidance: bool = True,
         negative_prompt: str = "",
-        num_videos_per_prompt: int = 1,
+        num_images_per_prompt: int = 1,
         prompt_embeds: Optional[ms.Tensor] = None,
         negative_prompt_embeds: Optional[ms.Tensor] = None,
+        prompt_attention_mask: Optional[ms.Tensor] = None,
+        negative_prompt_attention_mask: Optional[ms.Tensor] = None,
         clean_caption: bool = False,
-        mask_feature: bool = False,  # do not mask embedding, otherwise dynamic shape error
+        max_sequence_length: int = 120,
+        **kwargs,
     ):
         r"""
         Encodes the prompt into text encoder hidden states.
@@ -164,20 +203,24 @@ class VideoGenPipeline(DiffusionPipeline):
                 PixArt-Alpha, this should be "".
             do_classifier_free_guidance (`bool`, *optional*, defaults to `True`):
                 whether to use classifier free guidance or not
-            num_videos_per_prompt (`int`, *optional*, defaults to 1):
-                number of videos that should be generated per prompt
+            num_images_per_prompt (`int`, *optional*, defaults to 1):
+                number of images that should be generated per prompt
             prompt_embeds (`ms.Tensor`, *optional*):
                 Pre-generated text embeddings. Can be used to easily tweak text inputs, *e.g.* prompt weighting. If not
                 provided, text embeddings will be generated from `prompt` input argument.
             negative_prompt_embeds (`ms.Tensor`, *optional*):
                 Pre-generated negative text embeddings. For PixArt-Alpha, it's should be the embeddings of the ""
                 string.
-            clean_caption (bool, defaults to `False`):
+            clean_caption (`bool`, defaults to `False`):
                 If `True`, the function will preprocess and clean the provided caption before encoding.
-            mask_feature: (bool, defaults to `False`):
-                If `True`, the function will mask the text embeddings.
+            max_sequence_length (`int`, defaults to 120): Maximum sequence length to use for the prompt.
         """
-        embeds_initially_provided = prompt_embeds is not None and negative_prompt_embeds is not None
+        if "mask_feature" in kwargs:
+            deprecation_message = (
+                "The use of `mask_feature` is deprecated. It is no longer used in any computation and "
+                "that doesn't affect the end results. It will be removed in a future version."
+            )
+            deprecate("mask_feature", "1.0.0", deprecation_message, standard_warn=False)
 
         if prompt is not None and isinstance(prompt, str):
             batch_size = 1
@@ -187,7 +230,7 @@ class VideoGenPipeline(DiffusionPipeline):
             batch_size = prompt_embeds.shape[0]
 
         # See Section 3.1. of the paper.
-        max_length = 300
+        max_length = max_sequence_length
 
         if prompt_embeds is None:
             prompt = self._text_preprocessing(prompt, clean_caption=clean_caption)
@@ -211,13 +254,12 @@ class VideoGenPipeline(DiffusionPipeline):
                     f" {max_length} tokens: {removed_text}"
                 )
 
-            attention_mask = ms.Tensor(text_inputs.attention_mask)
-            prompt_embeds_attention_mask = attention_mask
+            prompt_attention_mask = ms.Tensor(text_inputs.attention_mask)
 
-            prompt_embeds = self.text_encoding_func(text_input_ids, attention_mask=attention_mask)
+            prompt_embeds = self.text_encoding_func(text_input_ids, attention_mask=prompt_attention_mask)
             prompt_embeds = prompt_embeds[0] if isinstance(prompt_embeds, (list, tuple)) else prompt_embeds
         else:
-            prompt_embeds_attention_mask = ops.ones_like(prompt_embeds)
+            prompt_attention_mask = ops.ones_like(prompt_embeds)
 
         if self.text_encoder is not None:
             dtype = self.text_encoder.dtype
@@ -230,10 +272,10 @@ class VideoGenPipeline(DiffusionPipeline):
 
         bs_embed, seq_len, _ = prompt_embeds.shape
         # duplicate text embeddings and attention mask for each generation per prompt, using mps friendly method
-        prompt_embeds = prompt_embeds.repeat_interleave(num_videos_per_prompt, 1)
-        prompt_embeds = prompt_embeds.view(bs_embed * num_videos_per_prompt, seq_len, -1)
-        prompt_embeds_attention_mask = prompt_embeds_attention_mask.view(bs_embed, -1)
-        prompt_embeds_attention_mask = prompt_embeds_attention_mask.repeat_interleave(num_videos_per_prompt, 0)
+        prompt_embeds = prompt_embeds.repeat_interleave(num_images_per_prompt, 1)
+        prompt_embeds = prompt_embeds.view(bs_embed * num_images_per_prompt, seq_len, -1)
+        prompt_attention_mask = prompt_attention_mask.view(bs_embed, -1)
+        prompt_attention_mask = prompt_attention_mask.repeat_interleave(num_images_per_prompt, 0)
 
         # get unconditional embeddings for classifier free guidance
         if do_classifier_free_guidance and negative_prompt_embeds is None:
@@ -249,10 +291,10 @@ class VideoGenPipeline(DiffusionPipeline):
                 add_special_tokens=True,
                 return_tensors=None,
             )
-            attention_mask = ms.Tensor(uncond_input.attention_mask)
+            negative_prompt_attention_mask = ms.Tensor(uncond_input.attention_mask)
             negative_prompt_embeds = self.text_encoding_func(
                 ms.Tensor(uncond_input.input_ids),
-                attention_mask=attention_mask,
+                attention_mask=negative_prompt_attention_mask,
             )
             negative_prompt_embeds = (
                 negative_prompt_embeds[0]
@@ -266,39 +308,19 @@ class VideoGenPipeline(DiffusionPipeline):
 
             negative_prompt_embeds = negative_prompt_embeds.to(dtype=dtype)
 
-            negative_prompt_embeds = negative_prompt_embeds.repeat_interleave(num_videos_per_prompt, 1)
-            negative_prompt_embeds = negative_prompt_embeds.view(batch_size * num_videos_per_prompt, seq_len, -1)
+            negative_prompt_embeds = negative_prompt_embeds.repeat_interleave(num_images_per_prompt, 1)
+            negative_prompt_embeds = negative_prompt_embeds.view(batch_size * num_images_per_prompt, seq_len, -1)
 
             # For classifier free guidance, we need to do two forward passes.
             # Here we concatenate the unconditional and text embeddings into a single batch
             # to avoid doing two forward passes
         else:
             negative_prompt_embeds = None
+            negative_prompt_attention_mask = None
 
         # print(prompt_embeds.shape) # 1 120 4096
         # print(negative_prompt_embeds.shape) # 1 120 4096
-
-        # Perform additional masking.
-        if mask_feature and not embeds_initially_provided:
-            prompt_embeds = prompt_embeds.unsqueeze(1)
-            masked_prompt_embeds, keep_indices = self.mask_text_embeddings(prompt_embeds, prompt_embeds_attention_mask)
-            masked_prompt_embeds = masked_prompt_embeds.squeeze(1)
-            masked_negative_prompt_embeds = (
-                negative_prompt_embeds[:, :keep_indices, :] if negative_prompt_embeds is not None else None
-            )
-
-            # import torch.nn.functional as F
-
-            # padding = (0, 0, 0, 113)  # (左, 右, 下, 上)
-            # masked_prompt_embeds_ = F.pad(masked_prompt_embeds, padding, "constant", 0)
-            # masked_negative_prompt_embeds_ = F.pad(masked_negative_prompt_embeds, padding, "constant", 0)
-
-            # print(masked_prompt_embeds == masked_prompt_embeds_[:, :masked_negative_prompt_embeds.shape[1], ...])
-
-            return masked_prompt_embeds, masked_negative_prompt_embeds
-            # return masked_prompt_embeds_, masked_negative_prompt_embeds_
-
-        return (prompt_embeds, prompt_embeds_attention_mask), negative_prompt_embeds
+        return prompt_embeds, prompt_attention_mask, negative_prompt_embeds, negative_prompt_attention_mask
 
     # Copied from diffusers.pipelines.stable_diffusion.pipeline_stable_diffusion.StableDiffusionPipeline.prepare_extra_step_kwargs
     def prepare_extra_step_kwargs(self, generator, eta):
@@ -321,13 +343,18 @@ class VideoGenPipeline(DiffusionPipeline):
     def check_inputs(
         self,
         prompt,
+        num_frames,
         height,
         width,
         negative_prompt,
         callback_steps,
         prompt_embeds=None,
         negative_prompt_embeds=None,
+        prompt_attention_mask=None,
+        negative_prompt_attention_mask=None,
     ):
+        if num_frames <= 0:
+            raise ValueError(f"`num_frames` have to be positive but is {num_frames}.")
         if height % 8 != 0 or width % 8 != 0:
             raise ValueError(f"`height` and `width` have to be divisible by 8 but are {height} and {width}.")
 
@@ -356,6 +383,11 @@ class VideoGenPipeline(DiffusionPipeline):
                 f"Cannot forward both `prompt`: {prompt} and `negative_prompt_embeds`:"
                 f" {negative_prompt_embeds}. Please make sure to only forward one of the two."
             )
+        if prompt_embeds is not None and prompt_attention_mask is None:
+            raise ValueError("Must provide `prompt_attention_mask` when specifying `prompt_embeds`.")
+
+        if negative_prompt_embeds is not None and negative_prompt_attention_mask is None:
+            raise ValueError("Must provide `negative_prompt_attention_mask` when specifying `negative_prompt_embeds`.")
 
         if negative_prompt is not None and negative_prompt_embeds is not None:
             raise ValueError(
@@ -370,14 +402,22 @@ class VideoGenPipeline(DiffusionPipeline):
                     f" got: `prompt_embeds` {prompt_embeds.shape} != `negative_prompt_embeds`"
                     f" {negative_prompt_embeds.shape}."
                 )
+            if prompt_attention_mask.shape != negative_prompt_attention_mask.shape:
+                raise ValueError(
+                    "`prompt_attention_mask` and `negative_prompt_attention_mask` must have the same shape when passed directly, but"
+                    f" got: `prompt_attention_mask` {prompt_attention_mask.shape} != `negative_prompt_attention_mask`"
+                    f" {negative_prompt_attention_mask.shape}."
+                )
 
     # Copied from diffusers.pipelines.deepfloyd_if.pipeline_if.IFPipeline._text_preprocessing
     def _text_preprocessing(self, text, clean_caption=False):
-        if clean_caption and not is_bs4_available:
+        if clean_caption and not is_bs4_available():
+            logger.warning(BACKENDS_MAPPING["bs4"][-1].format("Setting `clean_caption=True`"))
             logger.warn("Setting `clean_caption` to False...")
             clean_caption = False
 
-        if clean_caption and not is_ftfy_available:
+        if clean_caption and not is_ftfy_available():
+            logger.warning(BACKENDS_MAPPING["ftfy"][-1].format("Setting `clean_caption=True`"))
             logger.warn("Setting `clean_caption` to False...")
             clean_caption = False
 
@@ -560,7 +600,7 @@ class VideoGenPipeline(DiffusionPipeline):
         num_inference_steps: int = 20,
         timesteps: List[int] = None,
         guidance_scale: float = 4.5,
-        num_videos_per_prompt: Optional[int] = 1,
+        num_images_per_prompt: Optional[int] = 1,
         num_frames: Optional[int] = None,
         height: Optional[int] = None,
         width: Optional[int] = None,
@@ -568,14 +608,19 @@ class VideoGenPipeline(DiffusionPipeline):
         generator=None,
         latents: Optional[ms.Tensor] = None,
         prompt_embeds: Optional[ms.Tensor] = None,
+        prompt_attention_mask: Optional[ms.Tensor] = None,
         negative_prompt_embeds: Optional[ms.Tensor] = None,
+        negative_prompt_attention_mask: Optional[ms.Tensor] = None,
         output_type: Optional[str] = "pil",
+        return_dict: bool = True,
         callback: Optional[Callable[[int, int, ms.Tensor], None]] = None,
         callback_steps: int = 1,
         clean_caption: bool = True,
-        mask_feature: bool = False,  # do not mask text embedding to avoid dynamic shape error
         enable_temporal_attentions: bool = True,
-    ) -> Union[VideoPipelineOutput, Tuple]:
+        use_resolution_binning: bool = True,
+        max_sequence_length: int = 300,
+        **kwargs,
+    ) -> Union[ImagePipelineOutput, Tuple]:
         """
         Function invoked when calling the pipeline for generation.
 
@@ -599,7 +644,7 @@ class VideoGenPipeline(DiffusionPipeline):
                 Paper](https://arxiv.org/pdf/2205.11487.pdf). Guidance scale is enabled by setting `guidance_scale >
                 1`. Higher guidance scale encourages to generate images that are closely linked to the text `prompt`,
                 usually at the expense of lower image quality.
-            num_videos_per_prompt (`int`, *optional*, defaults to 1):
+            num_images_per_prompt (`int`, *optional*, defaults to 1):
                 The number of videos to generate per prompt.
             height (`int`, *optional*, defaults to self.unet.config.sample_size):
                 The height in pixels of the generated image.
@@ -635,7 +680,7 @@ class VideoGenPipeline(DiffusionPipeline):
                 Whether or not to clean the caption before creating embeddings. Requires `beautifulsoup4` and `ftfy` to
                 be installed. If the dependencies are not installed, the embeddings will be created from the raw
                 prompt.
-            mask_feature (`bool` defaults to `True`): If set to `True`, the text embeddings will be masked.
+            max_sequence_length (`int`, defaults to 120): Maximum sequence length to use for the prompt.
 
         Examples:
 
@@ -645,9 +690,21 @@ class VideoGenPipeline(DiffusionPipeline):
                 returned where the first element is a list with the generated images
         """
         # 1. Check inputs. Raise error if not correct
-        # height = height or self.transformer.config.sample_size * self.vae_scale_factor
-        # width = width or self.transformer.config.sample_size * self.vae_scale_factor
-        self.check_inputs(prompt, height, width, negative_prompt, callback_steps, prompt_embeds, negative_prompt_embeds)
+        num_frames = num_frames or self.transformer.config.sample_size_t * self.vae.vae_scale_factor[0]
+        height = height or self.transformer.config.sample_size[0] * self.vae.vae_scale_factor[1]
+        width = width or self.transformer.config.sample_size[1] * self.vae.vae_scale_factor[2]
+        self.check_inputs(
+            prompt,
+            num_frames,
+            height,
+            width,
+            negative_prompt,
+            callback_steps,
+            prompt_embeds,
+            negative_prompt_embeds,
+            prompt_attention_mask,
+            negative_prompt_attention_mask,
+        )
 
         # 2. Default height and width to transformer
         if prompt is not None and isinstance(prompt, str):
@@ -663,34 +720,35 @@ class VideoGenPipeline(DiffusionPipeline):
         do_classifier_free_guidance = guidance_scale > 1.0
 
         # 3. Encode input prompt
-        prompt_embeds, negative_prompt_embeds = self.encode_prompt(
+        (
+            prompt_embeds,
+            prompt_attention_mask,
+            negative_prompt_embeds,
+            negative_prompt_attention_mask,
+        ) = self.encode_prompt(
             prompt,
             do_classifier_free_guidance,
             negative_prompt=negative_prompt,
-            num_videos_per_prompt=num_videos_per_prompt,
+            num_images_per_prompt=num_images_per_prompt,
             prompt_embeds=prompt_embeds,
             negative_prompt_embeds=negative_prompt_embeds,
+            prompt_attention_mask=prompt_attention_mask,
+            negative_prompt_attention_mask=negative_prompt_attention_mask,
             clean_caption=clean_caption,
-            mask_feature=mask_feature,
+            max_sequence_length=max_sequence_length,
         )
-        if not mask_feature:
-            prompt_embeds, prompt_embeds_mask = prompt_embeds
-        else:
-            # text embed has been masked
-            prompt_embeds_mask = None
+
         if do_classifier_free_guidance:
             prompt_embeds = ops.cat([negative_prompt_embeds, prompt_embeds], axis=0)
-            if prompt_embeds_mask is not None:
-                prompt_embeds_mask = prompt_embeds_mask.repeat_interleave(2, 0)
+            prompt_attention_mask = ops.cat([negative_prompt_attention_mask, prompt_attention_mask], axis=0)
 
         # 4. Prepare timesteps
-        self.scheduler.set_timesteps(num_inference_steps)
-        timesteps = self.scheduler.timesteps.to(ms.int32)
+        timesteps, num_inference_steps = retrieve_timesteps(self.scheduler, num_inference_steps, timesteps)
 
         # 5. Prepare latents.
         latent_channels = self.transformer.config.in_channels
         latents = self.prepare_latents(
-            batch_size * num_videos_per_prompt,
+            batch_size * num_images_per_prompt,
             latent_channels,
             num_frames,
             height,
@@ -726,8 +784,6 @@ class VideoGenPipeline(DiffusionPipeline):
 
                 current_timestep = t
                 if not isinstance(current_timestep, ms.Tensor):
-                    # TODO: this requires sync between CPU and GPU. So try to pass timesteps as tensors if you can
-                    # This would be a good case for the `match` statement (Python 3.10+)
                     if isinstance(current_timestep, float):
                         dtype = ms.float32
                     else:
@@ -737,14 +793,20 @@ class VideoGenPipeline(DiffusionPipeline):
                     current_timestep = current_timestep[None]
                 # broadcast to batch dimension in a way that's compatible with ONNX/Core ML
                 current_timestep = current_timestep.repeat_interleave(latent_model_input.shape[0], 0)
+                if prompt_embeds.ndim == 3:
+                    prompt_embeds = prompt_embeds.unsqueeze(1)  # b l d -> b 1 l d
+                if prompt_attention_mask.ndim == 2:
+                    prompt_attention_mask = prompt_attention_mask.unsqueeze(1)  # b l -> b 1 l
+                attention_mask = ops.ones_like(latent_model_input)[:, 0]
                 # predict noise model_output
                 noise_pred = self.transformer(
                     latent_model_input,  # (b c t h w)
+                    attention_mask=attention_mask,
                     encoder_hidden_states=prompt_embeds,  # (b n c)
+                    encoder_attention_mask=prompt_attention_mask,  # (b n)
                     timestep=current_timestep,  # (b)
                     added_cond_kwargs=added_cond_kwargs,
                     enable_temporal_attentions=enable_temporal_attentions,
-                    encoder_attention_mask=prompt_embeds_mask,  # (b n)
                     temp_attention_mask=temp_attention_mask,
                 )
 
@@ -776,13 +838,14 @@ class VideoGenPipeline(DiffusionPipeline):
             latents = ops.concat(latents_list, axis=2)[:, :, :num_frames]
 
         if not output_type == "latents":
-            video = self.decode_latents(latents)
-            video = video[:, :num_frames, :height, :width]
+            image = self.decode_latents(latents)
+            image = image[:, :num_frames, :height, :width]
         else:
-            video = latents
-            return VideoPipelineOutput(video=video)
+            image = latents
+        if not return_dict:
+            return (image,)
 
-        return VideoPipelineOutput(video=video)
+        return ImagePipelineOutput(images=image)
 
     def decode_latents_per_sample(self, latents):
         # video = self.vae.decode(latents)

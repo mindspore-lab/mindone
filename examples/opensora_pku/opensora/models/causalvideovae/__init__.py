@@ -1,3 +1,5 @@
+from .model.causal_vae import CausalVAEModelWrapper
+
 ae_stride_config = {
     "CausalVAEModel_D4_2x8x8": [2, 8, 8],
     "CausalVAEModel_D8_2x8x8": [2, 8, 8],

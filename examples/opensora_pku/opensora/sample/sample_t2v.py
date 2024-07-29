@@ -20,14 +20,14 @@ sys.path.insert(0, mindone_lib_path)
 sys.path.append(os.path.abspath("./"))
 from opensora.acceleration.parallel_states import get_sequence_parallel_state, hccl_info
 from opensora.dataset.text_dataset import create_dataloader
-from opensora.models.ae import ae_stride_config, getae_wrapper
-from opensora.models.ae.videobase.modules.updownsample import TrilinearInterpolate
-from opensora.models.diffusion.latte.modeling_latte import LatteT2V, LayerNorm
-from opensora.models.diffusion.latte.modules import Attention
+from opensora.models.causalvideovae import CausalVAEModelWrapper, ae_stride_config
+from opensora.models.causalvideovae.model.modules.updownsample import TrilinearInterpolate
+from opensora.models.diffusion.opensora.modeling_opensora import LayerNorm, OpenSoraT2V
+from opensora.models.diffusion.opensora.modules import Attention
 from opensora.models.text_encoder.t5 import T5Embedder
+from opensora.sample.pipeline_opensora import OpenSoraPipeline
 from opensora.utils.ms_utils import init_env
 from opensora.utils.utils import _check_cfgs_in_parser, get_precision
-from pipeline_videogen import VideoGenPipeline
 
 from mindone.diffusers.schedulers import DDIMScheduler, DDPMScheduler, EulerDiscreteScheduler, PNDMScheduler
 from mindone.utils.amp import auto_mixed_precision
@@ -48,7 +48,7 @@ def parse_args():
         type=str,
         help="path to load a config yaml file that describes the setting which will override the default arguments",
     )
-    parser.add_argument("--model_path", type=str, default="LanguageBind/Open-Sora-Plan-v1.1.0")
+    parser.add_argument("--model_path", type=str, default="LanguageBind/Open-Sora-Plan-v1.2.0")
     parser.add_argument(
         "--pretrained_ckpt",
         type=str,
@@ -94,7 +94,9 @@ def parse_args():
         default=False,
         help="Whether to enable vae decoding to process temporal frames as small, overlapped chunks. Defaults to False.",
     )
-
+    parser.add_argument("--model_3d", action="store_true")
+    parser.add_argument("--udit", action="store_true")
+    parser.add_argument("--save_memory", action="store_true")
     parser.add_argument("--batch_size", default=1, type=int, help="batch size for dataloader")
     # MS new args
     parser.add_argument("--device", type=str, default="Ascend", help="Ascend or GPU")
@@ -199,10 +201,19 @@ if __name__ == "__main__":
 
     # 2. vae model initiate and weight loading
     logger.info("vae init")
-    vae = getae_wrapper(args.ae)(args.model_path, subfolder="vae")
+    vae = CausalVAEModelWrapper(args.model_path, subfolder="vae")
     if args.enable_tiling:
         vae.vae.enable_tiling()
         vae.vae.tile_overlap_factor = args.tile_overlap_factor
+        vae.vae.tile_sample_min_size = 512
+        vae.vae.tile_latent_min_size = 64
+        vae.vae.tile_sample_min_size_t = 29
+        vae.vae.tile_latent_min_size_t = 8
+        if args.save_memory:
+            vae.vae.tile_sample_min_size = 256
+            vae.vae.tile_latent_min_size = 32
+            vae.vae.tile_sample_min_size_t = 29
+            vae.vae.tile_latent_min_size_t = 8
     vae.vae_scale_factor = ae_stride_config[args.ae]
     # use amp level O2 for causal 3D VAE with bfloat16 or float16
     vae_dtype = get_precision(args.vae_precision)
@@ -296,7 +307,7 @@ if __name__ == "__main__":
     # 4. latte model initiate and weight loading
     logger.info(f"Latte-{args.version} init")
     FA_dtype = get_precision(args.precision) if get_precision(args.precision) != ms.float32 else ms.bfloat16
-    transformer_model = LatteT2V.from_pretrained(
+    transformer_model = OpenSoraT2V.from_pretrained(
         args.model_path,
         subfolder=args.version,
         checkpoint_path=args.pretrained_ckpt,
@@ -331,6 +342,7 @@ if __name__ == "__main__":
         param.requires_grad = False
 
     logger.info("T5 init")
+    # TODO: replace T5 with mT5
     text_encoder = T5Embedder(
         dir_or_name=args.text_encoder_name,
         cache_dir="./",
@@ -355,7 +367,7 @@ if __name__ == "__main__":
         raise ValueError(f"Not supported sampling method {args.sample_method}")
 
     text_encoder = text_encoder.model
-    pipeline = VideoGenPipeline(
+    pipeline = OpenSoraPipeline(
         vae=vae,
         text_encoder=text_encoder,
         tokenizer=tokenizer,
@@ -393,19 +405,29 @@ if __name__ == "__main__":
     for step, data in tqdm(enumerate(ds_iter), total=dataset_size):
         prompt = [x for x in data["caption"]]
         file_paths = data["file_path"]
+        positive_prompt = (
+            "(masterpiece), (best quality), (ultra-detailed), {}. emotional, "
+            + "harmonious, vignette, 4k epic detailed, shot on kodak, 35mm photo, sharp focus, high budget, cinemascope, moody, epic, gorgeous"
+        )
+        negative_prompt = (
+            "nsfw, lowres, bad anatomy, bad hands, text, error, missing fingers, "
+            + "extra digit, fewer digits, cropped, worst quality, low quality, normal quality, jpeg artifacts, signature, watermark, username, blurry"
+        )
+
         videos = (
             pipeline(
-                prompt,
+                positive_prompt.format(prompt),
+                negative_prompt=negative_prompt,
                 num_frames=args.num_frames,
                 height=args.height,
                 width=args.width,
                 num_inference_steps=args.num_sampling_steps,
                 guidance_scale=args.guidance_scale,
                 enable_temporal_attentions=not args.force_images,
-                mask_feature=False,
                 output_type="latents" if args.save_latents else "pil",
+                max_sequence_length=512,
             )
-            .video.to(ms.float32)
+            .images.to(ms.float32)
             .asnumpy()
         )
 
