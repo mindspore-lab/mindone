@@ -160,9 +160,13 @@ def main(args):
     else:
         captions = args.captions
 
+    align, latent_condition_frame_length = 0, args.condition_frame_length  # frames alignment for video looping
     if args.model_version == "v1" and args.loop > 1:
         args.loop = 1
         logger.warning("OpenSora v1 doesn't support iterative video generation. Setting loop to 1.")
+    elif args.model_version == "v1.2":
+        align = 5
+        latent_condition_frame_length = round(latent_condition_frame_length / 17 * 5)
 
     captions = process_prompts(captions, args.loop)  # in v1.1 and above, each loop can have a different caption
     captions, base_data_idx = data_parallel_split(captions, rank_id, device_num)  # split for data parallel
@@ -415,9 +419,9 @@ def main(args):
                     new_strategy = [
                         loop_i,
                         len(references[j]) - 1,
-                        -args.condition_frame_length,
+                        -latent_condition_frame_length,
                         0,
-                        args.condition_frame_length,
+                        latent_condition_frame_length,
                         args.condition_frame_edit,
                     ]
                     if frames_mask_strategy[j] is None:
@@ -431,7 +435,7 @@ def main(args):
             z = np.random.randn(ns, VAE_Z_CH, *latent_size).astype(np.float32)
 
             if args.model_version != "v1":
-                z, frames_mask = apply_mask_strategy(z, references, frames_mask_strategy, loop_i)
+                z, frames_mask = apply_mask_strategy(z, references, frames_mask_strategy, loop_i, align)
                 frames_mask = Tensor(frames_mask, dtype=ms.float32)
 
             z = ms.Tensor(z, dtype=ms.float32)
@@ -459,7 +463,7 @@ def main(args):
                 inputs, frames_mask=frames_mask, num_frames=num_frames, additional_kwargs=model_args
             )
             # TODO: adjust to decoder time compression
-            latents.append(to_numpy(latent)[:, :, args.condition_frame_length if loop_i > 0 else 0 :])
+            latents.append(to_numpy(latent)[:, :, latent_condition_frame_length if loop_i > 0 else 0 :])
             if samples is not None:
                 videos.append(to_numpy(samples)[:, args.condition_frame_length if loop_i > 0 else 0 :])
             batch_time = time.time() - start_time

@@ -64,7 +64,6 @@ def process_mask_strategies(
 
 
 def find_nearest_point(start_pos, align_pos, max_value):
-    # FIXME: wrong, fix later
     t = start_pos // align_pos
     if start_pos % align_pos > align_pos / 2 and t < max_value // align_pos - 1:
         t += 1
@@ -89,7 +88,7 @@ def apply_mask_strategy(
                         ref_start = ref.shape[1] + ref_start  # ref: [C, T, H, W]
                     if target_start < 0:
                         target_start = z.shape[2] + target_start  # z: [B, C, T, H, W]
-                    if align is not None:
+                    if align:
                         ref_start = find_nearest_point(ref_start, align, ref.shape[1])
                         target_start = find_nearest_point(target_start, align, z.shape[2])
                     length = min(length, z.shape[2] - target_start, ref.shape[1] - ref_start)

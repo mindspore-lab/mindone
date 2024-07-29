@@ -41,13 +41,13 @@ Prepare the model checkpoints of T5, VAE, and STDiT and put them under `models/`
     Put them under `models/t5-v1_1-xxl` folder. Rename `t5_v1_1_xxl-d35f27a3.ckpt` to `model.ckpt` if error raised.
 
 - VAE:
-  
+
   **OpenSora v1.2**:
   Download from [Hugging Face](https://huggingface.co/hpcai-tech/OpenSora-VAE-v1.2) and convert to MS checkpoint:
   ```shell
   python tools/convert_vae_3d.py --src path/to/OpenSora-VAE-v1.2/model.safetensors --target models/OpenSora-VAE-v1.2/model.ckpt
   ```
-  
+
   **OpenSora v1.1 and below**:
   Download from [Hugging Face](https://huggingface.co/stabilityai/sd-vae-ft-mse-original/tree/main) and convert to MS checkpoint:
   ```shell
