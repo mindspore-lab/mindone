@@ -97,10 +97,9 @@ class RelativePosition(nn.Cell):
             initializer(XavierUniform(), shape=(max_relative_position * 2 + 1, num_units), dtype=ms.float32)
         )
 
-    def forward(self, length_q, length_k):
-        device = self.embeddings_table.device
-        range_vec_q = ops.arange(length_q, device=device)
-        range_vec_k = ops.arange(length_k, device=device)
+    def construct(self, length_q, length_k):
+        range_vec_q = ops.arange(length_q)
+        range_vec_k = ops.arange(length_k)
         distance_mat = range_vec_k[None, :] - range_vec_q[:, None]
         distance_mat_clipped = ops.clamp(distance_mat, -self.max_relative_position, self.max_relative_position)
         final_mat = distance_mat_clipped + self.max_relative_position
