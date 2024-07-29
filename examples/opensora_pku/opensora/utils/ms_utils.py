@@ -112,6 +112,7 @@ def init_env(
         ms.set_context(
             mode=mode,
             device_target=device_target,
+            device_id=device_id,
             ascend_config={"precision_mode": "allow_fp32_to_fp16"},
             device_id=device_id,
         )
