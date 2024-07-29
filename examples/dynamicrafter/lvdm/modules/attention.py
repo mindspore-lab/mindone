@@ -311,10 +311,9 @@ class Attention(nn.Cell):
     def construct(self, q, k, v, k_ip, v_ip, out_ip, mask):
         sim = ops.matmul(q, ops.transpose(k, (0, 2, 1))) * self.scale
         if self.relative_position:
-            # len_q, len_k, len_v = q.shape[1], k.shape[1], v.shape[1]
-            len_q, len_k = q.shape[1], k.shape[1]
+            len_q, len_k, len_v = q.shape[1], k.shape[1], v.shape[1]
             k2 = self.relative_position_k(len_q, len_k)
-            sim2 = ops.matmul(q, ops.transpose(k2, (0, 2, 1))) * self.scale
+            sim2 = ops.matmul(q.transpose(1, 0, 2), k2.transpose(0, 2, 1)).transpose(1, 0, 2) * self.scale
             sim += sim2
         # del k
 
@@ -336,10 +335,9 @@ class Attention(nn.Cell):
         out = ops.matmul(attn, v)
 
         if self.relative_position:
-            raise NotImplementedError
-            # v2 = self.relative_position_v(len_q, len_v)
-            # out2 = einsum('b t s, t s d -> b t d', sim, v2) # FIXME
-            # out += out2
+            v2 = self.relative_position_v(len_q, len_v)
+            out2 = ops.matmul(sim.transpose(1, 0, 2), v2).transpose(1, 0, 2)
+            out += out2
         out = self._rearrange_out(out, self.head_num)
 
         # for image cross-attention

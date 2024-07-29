@@ -42,7 +42,7 @@ class TimestepEmbedSequential(nn.SequentialCell, TimestepBlock):
     support it as an extra input.
     """
 
-    def construct(self, x, emb, context=None, batch_size=None):  # FIXME: why batch_size=2??
+    def construct(self, x, emb, context=None, batch_size=None):
         for layer in self:
             if isinstance(layer, TimestepBlock):
                 x = layer(x, emb, batch_size=batch_size)
@@ -167,9 +167,7 @@ class ResBlock(TimestepBlock):
         self.identity = Identity()
         self.split = ops.Split(1, 2)
 
-        # self.in_layers_norm = normalization(
-        #     channels, norm_in_5d=norm_in_5d
-        # )  # TODO: this is group norm actually, wrong naming. but renaming requires update of ckpt param name or mapping dict.
+        # self.in_layers_norm = normalization(channels, norm_in_5d=norm_in_5d)
         self.in_layers_norm = normalization(
             channels
         )  # TODO: this is group norm actually, wrong naming. but renaming requires update of ckpt param name or mapping dict.
