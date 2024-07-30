@@ -34,7 +34,7 @@ def init_env(mode, device_target):
     return device_id
 
 
-init_env(mode=1, device_target="GPU")
+init_env(mode=1, device_target="Ascend")
 STYLE_NAMES = list(styles.keys())
 DEFAULT_STYLE_NAME = "(No style)"
 MAX_SEED = np.iinfo(np.int32).max
@@ -46,7 +46,7 @@ models_dict = {
     "Unstable": "stablediffusionapi/sdxl-unstable-diffusers-y",
 }
 total_count = 0
-id_length = 1
+id_length = 4
 total_length = id_length + 1
 attn_procs = {}
 
@@ -168,14 +168,14 @@ os.makedirs(output_dir, exist_ok=True)
 
 set_unet_variable(unet, "write", False)
 for i, id_image in enumerate(id_images):
-    save_fp = os.path.join(output_dir, f"id_{i}.png")
+    save_fp = os.path.join(output_dir, f"id_{i}-{id_prompts[i][:100]}.png")
     id_image.save(save_fp)
 real_images = []
 
 for real_prompt in real_prompts:
     set_unet_variable(unet, "cur_step", 0)
     real_prompt = apply_style_positive(style_name, real_prompt)
-    real_images.append(
+    real_images.extend(
         pipe(
             real_prompt,
             num_inference_steps=num_steps,
@@ -188,5 +188,5 @@ for real_prompt in real_prompts:
     )
 for i, real_image in enumerate(real_images):
     # display(real_image)
-    save_fp = os.path.join(output_dir, f"real_{i}.png")
+    save_fp = os.path.join(output_dir, f"real_{i}-{real_prompts[i][:100]}.png")
     id_image.save(save_fp)
