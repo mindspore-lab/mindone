@@ -1,18 +1,29 @@
-"""fred adapted from xxx, convert pytorch_model.bin to model.safetensors"""
+import os
+import sys
+from pathlib import Path
+
+import numpy as np
+from jsonargparse.typing import Path_fr, path_type
+from omegaconf import OmegaConf
+
+from mindspore import Parameter, load_param_into_net, save_checkpoint
+
+sys.path.append(os.path.join(os.path.dirname(__file__), "../"))
+from sgm.helpers import create_model_sv3d as create_model
+
+Path_dcc = path_type("dcc")  # path to a directory that can be created if it does not exist
+
 
 import argparse
 import os
 from collections import defaultdict
-from typing import Dict, List, Optional, Set, Tuple
+from typing import Dict, List, Optional, Tuple
 
 import torch
-from huggingface_hub import CommitInfo, CommitOperationAdd, HfApi, hf_hub_download
-from huggingface_hub.file_download import repo_folder_name
-from safetensors.torch import _find_shared_tensors, _is_complete, load_file, save_file
+from huggingface_hub import HfApi, hf_hub_download
 
-# import os
-# os.environ['HF_TOKEN'] = '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'
-ConversionResult = Tuple[List["CommitOperationAdd"], List[Tuple[str, "Exception"]]]
+# from huggingface_hub.file_download import repo_folder_name
+from safetensors.torch import _find_shared_tensors, _is_complete, load_file, save_file
 
 
 def _remove_duplicate_names(
@@ -96,12 +107,6 @@ def check_file_size(sf_filename: str, pt_filename: str):
 
     if (sf_size - pt_size) / pt_size > 0.01:
         raise RuntimeError()
-        # (
-        #     f"""The file size different is more than 1%:
-        #  - {sf_filename}: {sf_size}
-        #  - {pt_filename}: {pt_size}
-        #  """
-        # )
 
 
 def rename(pt_filename: str) -> str:
@@ -113,7 +118,7 @@ def rename(pt_filename: str) -> str:
 
 def convert_single(
     model_id: str, *, revision: Optional[str], folder: str, token: Optional[str], discard_names: List[str]
-) -> ConversionResult:
+):
     pt_filename = hf_hub_download(
         repo_id=model_id, revision=revision, filename="pytorch_model.bin", token=token, cache_dir=folder
     )
@@ -121,9 +126,8 @@ def convert_single(
     sf_name = "model.safetensors"
     sf_filename = os.path.join(folder, sf_name)
     convert_file(pt_filename, sf_filename, discard_names)
-    operations = [CommitOperationAdd(path_in_repo=sf_name, path_or_fileobj=sf_filename)]
     errors: List[Tuple[str, "Exception"]] = []
-    return operations, errors
+    return errors
 
 
 def convert_file(
@@ -157,60 +161,69 @@ def convert_file(
             raise RuntimeError(f"The output tensors do not match for key {k}")
 
 
-def convert_generic(
-    model_id: str, *, revision=Optional[str], folder: str, filenames: Set[str], token: Optional[str]
-) -> ConversionResult:
-    operations = []
-    errors = []
-
-    extensions = set([".bin", ".ckpt"])
-    for filename in filenames:
-        prefix, ext = os.path.splitext(filename)
-        if ext in extensions:
-            pt_filename = hf_hub_download(model_id, revision=revision, filename=filename, token=token, cache_dir=folder)
-            dirname, raw_filename = os.path.split(filename)
-            if raw_filename == "pytorch_model.bin":
-                # XXX: This is a special case to handle `transformers` and the
-                # `transformers` part of the model which is actually loaded by `transformers`.
-                sf_in_repo = os.path.join(dirname, "model.safetensors")
-            else:
-                sf_in_repo = f"{prefix}.safetensors"
-            sf_filename = os.path.join(folder, sf_in_repo)
-            try:
-                convert_file(pt_filename, sf_filename, discard_names=[])
-                operations.append(CommitOperationAdd(path_in_repo=sf_in_repo, path_or_fileobj=sf_filename))
-            except Exception as e:
-                errors.append((pt_filename, e))
-    return operations, errors
-
-
-def convert(
+def convert_bin2safetensors(
     api: "HfApi", model_id: str, revision: Optional[str] = None, force: bool = False
-) -> Tuple["CommitInfo", List[Tuple[str, "Exception"]]]:
-    info = api.model_info(model_id, revision=revision)
-    filenames = set(s.rfilename for s in info.siblings)
-
-    # with TemporaryDirectory() as d:
-    d = os.environ["HF_HOME"]
-    folder = os.path.join(d, "hub", repo_folder_name(repo_id=model_id, repo_type="model"))
-    print(f"current folder is {folder}")
+) -> List[Tuple[str, "Exception"]]:
+    filenames = set("pytorch_model.bin")
+    # Uncomment this if you have hf access smoothly
+    # info = api.model_info(model_id, revision=revision)
+    # filenames = set(s.rfilename for s in info.siblings)
+    folder = "./ckpts"
     os.makedirs(folder, exist_ok=True)
-    library_name = getattr(info, "library_name", None)
+    print(f"current folder is {folder}")
+
+    library_name = "transformers"
     if any(filename.endswith(".safetensors") for filename in filenames) and not force:
         raise AlreadyExists(f"Model {model_id} is already converted, skipping..")
     elif library_name == "transformers":
         discard_names = get_discard_names(model_id, revision=revision, folder=folder, token=api.token)
         if "pytorch_model.bin" in filenames:
-            operations, errors = convert_single(
+            errors = convert_single(
                 model_id, revision=revision, folder=folder, token=api.token, discard_names=discard_names
             )
         else:
             raise RuntimeError(f"Model {model_id} doesn't seem to be a valid pytorch model. Cannot convert")
-    else:
-        operations, errors = convert_generic(
-            model_id, revision=revision, folder=folder, filenames=filenames, token=api.token
-        )
     return errors
+
+
+def convert_torch2ms(pt_weights_file: Path_fr, config: Path_fr, out_dir: Optional[Path_dcc] = None):
+    """
+    Convert PyTorch weights to MindSpore format.
+
+    Args:
+        pt_weights_file: Path to the PyTorch weights file.
+        config: Path to the VideoLDM config file.
+        out_dir: (optional) Path to directory where the converted checkpoint will be saved.
+                If not provided, the converted checkpoint will be saved in the same directory as the PyTorch checkpoint.
+    Raises:
+        ValueError: If some parameters were not loaded during the conversion process.
+    """
+    pt_weights_file = Path(pt_weights_file)
+    pt_ckpt = load_file(pt_weights_file)
+    pt_keys = list(pt_ckpt.keys())
+
+    config = OmegaConf.load(config.absolute)
+    network, _ = create_model(config, freeze=True)
+    ms_weights = network.parameters_dict()
+    ms_keys = list(ms_weights.keys())
+
+    # after sorting, PyTorch and MindSpore parameters are aligned
+    pt_keys = sorted(pt_keys)
+    ms_keys = sorted(ms_keys)
+
+    for pt_key, ms_key in zip(pt_keys, ms_keys):
+        ms_weights[ms_key] = Parameter(np.array(pt_ckpt[pt_key]), name=ms_key)
+
+    param_not_load, _ = load_param_into_net(network, ms_weights)
+    if param_not_load:
+        raise ValueError(f"Something went wrong. The following parameters were not loaded: \n{param_not_load}")
+
+    out_dir = pt_weights_file.parent / "ms_models" if out_dir is None else Path(out_dir)
+    out_dir.mkdir(parents=True, exist_ok=True)
+    out_dir = out_dir / (pt_weights_file.stem + ".ckpt")
+
+    save_checkpoint(network, str(out_dir))
+    print(f"Conversion completed. Checkpoint is saved to: \n{out_dir}")
 
 
 if __name__ == "__main__":
@@ -222,46 +235,41 @@ if __name__ == "__main__":
     """
     parser = argparse.ArgumentParser(description=DESCRIPTION)
     parser.add_argument(
-        "model_id",
+        "--model_id",
+        default="facebook/dino-vitb16",
         type=str,
         help="The name of the model on the hub to convert. E.g. `gpt2` or `facebook/wav2vec2-base-960h`",
-    )
-    parser.add_argument(
-        "--revision",
-        type=str,
-        help="The revision to convert",
-    )
-    parser.add_argument(
-        "--force",
-        action="store_true",
-        help="Create the PR even if it already exists of if the model was already converted.",
     )
     parser.add_argument(
         "-y",
         action="store_true",
         help="Ignore safety prompt",
     )
+    parser.add_argument(
+        "--src",
+        type=str,
+        default="PATH",
+        help="path to torch checkpoint path",
+    )
+    parser.add_argument(
+        "--target",
+        type=str,
+        default="PATH",
+        help="target file path to save the converted checkpoint",
+    )
     args = parser.parse_args()
 
-    # import huggingface_hub
-    # huggingface_hub.login(token='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')
+    # torch2ms
+    convert_torch2ms(args.src, args.target)
 
+    # bin2safetensors
     model_id = args.model_id
     api = HfApi()
     if args.y:
         txt = "y"
-    else:
-        txt = input(
-            "This conversion script will unpickle a pickled file, which is inherently unsafe. If you do not trust this file, we invite you to use"
-            " https://huggingface.co/spaces/safetensors/convert or google colab or other hosted solution to avoid potential issues with this file."
-            " Continue [Y/n] ?"
-        )
-    if txt.lower() in {"", "y"}:
-        commit_info, errors = convert(api, model_id, revision=args.revision, force=args.force)
-        string = """### Success 🔥 Yay! This model was successfully converted"""
-        if errors:
-            string += "\nErrors during conversion:\n"
-            string += "\n".join(f"Error while converting {filename}: {e}, skipped conversion" for filename, e in errors)
-        print(string)
-    else:
-        print(f"Answer was {txt} aborting.")
+    commit_info, errors = convert_bin2safetensors(api, model_id, force=args.force)
+    string = """### Success 🔥 Yay! This model was successfully converted"""
+    if errors:
+        string += "\nErrors during conversion:\n"
+        string += "\n".join(f"Error while converting {filename}: {e}, skipped conversion" for filename, e in errors)
+    print(string)

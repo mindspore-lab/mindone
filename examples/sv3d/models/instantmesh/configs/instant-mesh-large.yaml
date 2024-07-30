@@ -1,9 +1,8 @@
 model_config:
   encoder_model_name: 'facebook/dino-vitb16'
-  json: '/mnt/disk4/fredhong/.cache/hf/hub/models--facebook--dino-vitb16/snapshots/f205d5d8e640a89a2b8ef0369670dfc37cc07fc2/preprocessor_config.json'
   target: models.instantmesh.models.lrm_mesh.InstantMesh
   params:
-    encoder_model_name: '/mnt/disk4/fredhong/.cache/hf/hub/models--facebook--dino-vitb16/snapshots/f205d5d8e640a89a2b8ef0369670dfc37cc07fc2'  # coz needs to enforce the is_local flag (with pretrained_model_name_or_path as dir), thus here put in the abs path as a workaround
+    encoder_model_name: './ckpts'  # coz needs to enforce the is_local flag (with pretrained_model_name_or_path as dir), thus here put in the abs path as a workaround
     triplane_low_res: 32
     triplane_high_res: 64
     triplane_dim: 80
@@ -13,6 +12,5 @@ model_config:
 
 
 infer_config:
-  # model_path: ckpts/instant_mesh_large.ckpt  # by default as in torch, the model loaded from hf, let's do conversion insitu
   texture_resolution: 1024
   render_resolution: 512
