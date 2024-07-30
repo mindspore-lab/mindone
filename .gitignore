@@ -216,3 +216,4 @@ aclinit.json
 
 # Deep Learning Experiment
 outputs/
+.out

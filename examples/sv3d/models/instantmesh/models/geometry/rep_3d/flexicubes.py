@@ -367,8 +367,8 @@ class FlexiCubes(nn.Cell):
         assert edges_weight.shape[edge_dim] == 2
         edges_weight = ops.cat(
             [
-                mint.index_select(input=edges_weight, index=ms.Tensor(1), dim=edge_dim),
-                -mint.index_select(input=edges_weight, index=ms.Tensor(0), dim=edge_dim),
+                mint.index_select(input=edges_weight, index=ms.Tensor([1]), dim=edge_dim),
+                -mint.index_select(input=edges_weight, index=ms.Tensor([0]), dim=edge_dim),
             ],
             edge_dim,
         )
@@ -477,11 +477,11 @@ class FlexiCubes(nn.Cell):
             gamma_13 = (quad_gamma[:, 1] * quad_gamma[:, 3]).sum(-1, keepdims=True)
         else:
             quad_gamma = mint.index_select(input=vd_gamma, index=quad_vd_idx.reshape(-1), dim=0).reshape(-1, 4)
-            gamma_02 = mint.index_select(input=quad_gamma, index=ms.Tensor(0), dim=1) * mint.index_select(
-                input=quad_gamma, index=ms.Tensor(2), dim=1
+            gamma_02 = mint.index_select(input=quad_gamma, index=ms.Tensor([0]), dim=1) * mint.index_select(
+                input=quad_gamma, index=ms.Tensor([2]), dim=1
             )
-            gamma_13 = mint.index_select(input=quad_gamma, index=ms.Tensor(1), dim=1) * mint.index_select(
-                input=quad_gamma, index=ms.Tensor(3), dim=1
+            gamma_13 = mint.index_select(input=quad_gamma, index=ms.Tensor([1]), dim=1) * mint.index_select(
+                input=quad_gamma, index=ms.Tensor([3]), dim=1
             )
         if not training:
             mask = (gamma_02 > gamma_13).squeeze(1)
@@ -492,12 +492,12 @@ class FlexiCubes(nn.Cell):
         else:
             vd_quad = mint.index_select(input=vd, index=quad_vd_idx.reshape(-1), dim=0).reshape(-1, 4, 3)
             vd_02 = (
-                mint.index_select(input=vd_quad, index=ms.Tensor(0), dim=1)
-                + mint.index_select(input=vd_quad, index=ms.Tensor(2), dim=1)
+                mint.index_select(input=vd_quad, index=ms.Tensor([0]), dim=1)
+                + mint.index_select(input=vd_quad, index=ms.Tensor([2]), dim=1)
             ) / 2
             vd_13 = (
-                mint.index_select(input=vd_quad, index=ms.Tensor(1), dim=1)
-                + mint.index_select(input=vd_quad, index=ms.Tensor(3), dim=1)
+                mint.index_select(input=vd_quad, index=ms.Tensor([1]), dim=1)
+                + mint.index_select(input=vd_quad, index=ms.Tensor([3]), dim=1)
             ) / 2
             weight_sum = (gamma_02 + gamma_13) + 1e-8
             vd_center = (
