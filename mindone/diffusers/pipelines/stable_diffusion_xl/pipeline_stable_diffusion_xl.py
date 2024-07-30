@@ -215,7 +215,8 @@ class StableDiffusionXLPipeline(
 
         self.default_sample_size = self.unet.config.sample_size
 
-        self.watermark = None
+        if add_watermarker:
+            logger.warning("watermarker is not supported!")
 
     def encode_prompt(
         self,

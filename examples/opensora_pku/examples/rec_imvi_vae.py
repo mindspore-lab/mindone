@@ -33,26 +33,11 @@ from mindone.visualize.videos import save_videos
 sys.path.append(".")
 from opensora.models.ae import getae_wrapper
 from opensora.models.ae.videobase.modules.updownsample import TrilinearInterpolate
-
-# from opensora.models.ae.videobase.causal_vae.modeling_causalvae import TimeDownsample2x, TimeUpsample2x
 from opensora.utils.dataset_utils import create_video_transforms
+from opensora.utils.ms_utils import init_env
 from opensora.utils.utils import get_precision
 
 logger = logging.getLogger(__name__)
-ms.context.set_context(jit_config={"jit_level": "O0"})  # O0: KBK, O1:DVM, O2: GE
-
-
-def init_env(args):
-    # no parallel mode currently
-    device_id = int(os.getenv("DEVICE_ID", 0))
-    ms.set_context(
-        mode=args.mode,
-        device_target=args.device,
-        device_id=device_id,
-    )
-    if args.precision_mode is not None:
-        ms.set_context(ascend_config={"precision_mode": args.precision_mode})
-    return device_id
 
 
 def read_video(video_path: str, num_frames: int, sample_rate: int) -> ms.Tensor:
@@ -142,10 +127,16 @@ def transform_to_rgb(x, rescale_to_uint8=True):
 
 
 def main(args):
-    init_env(args)
+    init_env(
+        mode=args.mode,
+        device_target=args.device,
+        precision_mode=args.precision_mode,
+        jit_level=args.jit_level,
+    )
+
     set_logger(name="", output_dir=args.output_path, rank=0)
 
-    kwarg = {}
+    kwarg = {"model_config": args.model_config}
     vae = getae_wrapper(args.ae)(args.model_path, **kwarg)
     if args.enable_tiling:
         vae.vae.enable_tiling()
@@ -177,6 +168,8 @@ def main(args):
         video_recon = vae.decode(latents)  # b t c h w
 
     save_fp = os.path.join(args.output_path, args.rec_path)
+    if ".avi" in os.path.basename(save_fp):
+        save_fp = save_fp.replace(".avi", ".mp4")
     if video_recon.shape[1] == 1:
         x = video_recon[0, 0, :, :, :].squeeze().to(ms.float32).asnumpy()
         original_rgb = x_vae[0, 0, :, :, :].squeeze().to(ms.float32).asnumpy()
@@ -206,6 +199,11 @@ if __name__ == "__main__":
     parser.add_argument("--rec_path", type=str, default="")
     parser.add_argument("--ae", type=str, default="CausalVAEModel_4x8x8")
     parser.add_argument("--model_path", type=str, default="results/pretrained")
+    parser.add_argument(
+        "--model_config",
+        default="scripts/causalvae/release.json",
+        help="the model configuration file for the causalvae.",
+    )
     parser.add_argument("--fps", type=int, default=30)
     parser.add_argument("--resolution", type=int, default=None)
     parser.add_argument("--crop_size", type=int, default=None)
@@ -227,7 +225,7 @@ if __name__ == "__main__":
     parser.add_argument("--device", type=str, default="Ascend", help="Ascend or GPU")
     parser.add_argument(
         "--precision_mode",
-        default="must_keep_origin_dtype",
+        default=None,
         type=str,
         help="If specified, set the precision mode for Ascend configurations.",
     )
@@ -239,5 +237,6 @@ if __name__ == "__main__":
         action="store_true",
         help="whether to use grid to show original and reconstructed data",
     )
+    parser.add_argument("--jit_level", default="O0", help="Set jit level: # O0: KBK, O1:DVM, O2: GE")
     args = parser.parse_args()
     main(args)
