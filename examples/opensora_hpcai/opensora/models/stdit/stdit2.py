@@ -20,6 +20,7 @@ from opensora.models.layers.blocks import (
     approx_gelu,
     t2i_modulate,
 )
+from opensora.models.layers.operation_selector import check_dynamic_mode, get_chunk_op, get_split_op
 from opensora.models.layers.rotary_embedding import RotaryEmbedding
 
 import mindspore as ms
@@ -87,6 +88,9 @@ class STDiT2Block(nn.Cell):
         )
         self.scale_shift_table_temporal = Parameter(ops.randn(3, hidden_size) / hidden_size**0.5)  # new
 
+        # adapt for dynamic shape training in graph mode
+        self.chunk = get_chunk_op()
+
     @staticmethod
     def t_mask_select(x_mask: Tensor, x: Tensor, masked_x: Tensor, T: int, S: int) -> Tensor:
         x = x.reshape(x.shape[0], T, S, x.shape[-1])  # B (T S) C -> B T S C
@@ -112,22 +116,22 @@ class STDiT2Block(nn.Cell):
     ):
         B, N, C = x.shape
 
-        shift_msa, scale_msa, gate_msa, shift_mlp, scale_mlp, gate_mlp = (
-            self.scale_shift_table[None] + t.reshape(B, 6, -1)
-        ).chunk(6, axis=1)
-        shift_tmp, scale_tmp, gate_tmp = (self.scale_shift_table_temporal[None] + t_tmp.reshape(B, 3, -1)).chunk(
-            3, axis=1
+        shift_msa, scale_msa, gate_msa, shift_mlp, scale_mlp, gate_mlp = self.chunk(
+            self.scale_shift_table[None] + t.reshape(B, 6, -1), 6, 1
+        )
+        shift_tmp, scale_tmp, gate_tmp = self.chunk(
+            self.scale_shift_table_temporal[None] + t_tmp.reshape(B, 3, -1), 3, 1
         )
 
         shift_msa_zero, scale_msa_zero, gate_msa_zero, shift_mlp_zero, scale_mlp_zero, gate_mlp_zero = (None,) * 6
         shift_tmp_zero, scale_tmp_zero, gate_tmp_zero = (None,) * 3
         if frames_mask is not None:
-            shift_msa_zero, scale_msa_zero, gate_msa_zero, shift_mlp_zero, scale_mlp_zero, gate_mlp_zero = (
-                self.scale_shift_table[None] + t0.reshape(B, 6, -1)
-            ).chunk(6, axis=1)
-            shift_tmp_zero, scale_tmp_zero, gate_tmp_zero = (
-                self.scale_shift_table_temporal[None] + t0_tmp.reshape(B, 3, -1)
-            ).chunk(3, axis=1)
+            shift_msa_zero, scale_msa_zero, gate_msa_zero, shift_mlp_zero, scale_mlp_zero, gate_mlp_zero = self.chunk(
+                self.scale_shift_table[None] + t0.reshape(B, 6, -1), 6, 1
+            )
+            shift_tmp_zero, scale_tmp_zero, gate_tmp_zero = self.chunk(
+                self.scale_shift_table_temporal[None] + t0_tmp.reshape(B, 3, -1), 3, 1
+            )
 
         # modulate
         x_m = t2i_modulate(self.norm1(x), shift_msa, scale_msa)
@@ -138,7 +142,7 @@ class STDiT2Block(nn.Cell):
         # spatial branch
         x_s = x_m.reshape(B * T, S, C)  # B (T S) C -> (B T) S C
         if spatial_mask is not None:
-            spatial_mask = ops.repeat_interleave(spatial_mask.to(ms.int32), T, axis=0)  # B S -> (B T) S
+            spatial_mask = self.repeat_interleave(spatial_mask.to(ms.int32), T, 0)  # B S -> (B T) S
         x_s = self.attn(x_s, mask=spatial_mask)
         x_s = x_s.reshape(B, T * S, C)  # (B T) S C -> B (T S) C
 
@@ -159,7 +163,7 @@ class STDiT2Block(nn.Cell):
         # temporal branch
         x_t = x_m.reshape(B, T, S, C).swapaxes(1, 2).reshape(B * S, T, C)  # B (T S) C -> (B S) T C
         if temporal_mask is not None:
-            temporal_mask = ops.repeat_interleave(temporal_mask.to(ms.int32), S, axis=0)  # B T -> (B S) T
+            temporal_mask = self.repeat_interleave(temporal_mask.to(ms.int32), S, 0)  # B T -> (B S) T
         x_t = self.attn_temp(x_t, mask=temporal_mask, freqs_cis=temporal_pos)
         x_t = x_t.reshape(B, S, T, C).swapaxes(1, 2).reshape(B, T * S, C)  # (B S) T C -> B (T S) C
 
@@ -218,6 +222,7 @@ class STDiT2(nn.Cell):
         use_recompute=False,
         num_recompute_blocks=None,
         patchify_conv3d_replace=None,
+        manual_pad=False,
     ):
         super().__init__()
         self.pred_sigma = pred_sigma
@@ -231,14 +236,15 @@ class STDiT2(nn.Cell):
         self.enable_flashattn = enable_flashattn
         self.enable_layernorm_kernel = enable_layernorm_kernel
 
-        assert patchify_conv3d_replace in [None, "linear", "conv2d"]
-
         # support dynamic input
         self.patch_size = patch_size
         self.input_sq_size = input_sq_size
         self.pos_embed = PositionEmbedding2D(hidden_size)
 
         self.patchify_conv3d_replace = patchify_conv3d_replace
+        assert not (
+            manual_pad and patchify_conv3d_replace != "conv2d"
+        ), "manual_pad is only supported for conv2d patchify."
         if patchify_conv3d_replace is None:
             self.x_embedder = PatchEmbed3D(patch_size, in_channels, hidden_size)
         elif patchify_conv3d_replace == "linear":
@@ -248,7 +254,7 @@ class STDiT2(nn.Cell):
         elif patchify_conv3d_replace == "conv2d":
             assert patch_size[0] == 1 and patch_size[1] == patch_size[2]
             print("Replace conv3d patchify with conv2d layer")
-            self.x_embedder = PatchEmbed(patch_size[1], in_channels, hidden_size, bias=True)
+            self.x_embedder = PatchEmbed(patch_size[1], in_channels, hidden_size, bias=True, manual_pad=manual_pad)
 
         self.t_embedder = TimestepEmbedder(hidden_size)
         self.t_block = nn.SequentialCell(nn.SiLU(), nn.Dense(hidden_size, 6 * hidden_size))
@@ -292,11 +298,12 @@ class STDiT2(nn.Cell):
         self.initialize_weights()
         self.initialize_temporal()
         if freeze is not None:
-            assert freeze in ["not_temporal", "text"]
             if freeze == "not_temporal":
                 self.freeze_not_temporal()
             elif freeze == "text":
                 self.freeze_text()
+            else:
+                raise NotImplementedError
 
         # sequence parallel related configs
         self.enable_sequence_parallelism = enable_sequence_parallelism
@@ -310,6 +317,10 @@ class STDiT2(nn.Cell):
                 # recompute the first N blocks
                 if i < num_recompute_blocks:
                     self.recompute(block)
+
+        # adapt for dynamic shape training in graph mode
+        self.split = get_split_op()
+        self.is_dynamic_shape = check_dynamic_mode()
 
     def recompute(self, b):
         if not b._has_config_recompute:
@@ -385,7 +396,11 @@ class STDiT2(nn.Cell):
         T, H, W = self.get_dynamic_size(x)
         S = H * W
         scale = rs / self.input_sq_size
-        base_size = round(S**0.5)
+        if self.is_dynamic_shape:
+            # tricky adaptation for dynamic shape in graph mode. Though it also works for static shape, it degrades performance by 50 ms per step.
+            base_size = int(round(S ** Tensor(0.5)))
+        else:
+            base_size = round(S**0.5)
         # BUG MS2.3rc1: ops.meshgrid() bprop is not supported
 
         if spatial_pos is None:
@@ -466,7 +481,7 @@ class STDiT2(nn.Cell):
         if cfg_channel is None:
             cfg_channel = model_out.shape[1] // 2
         eps, rest = model_out[:, :cfg_channel], model_out[:, cfg_channel:]
-        cond_eps, uncond_eps = ops.split(eps, len(eps) // 2, axis=0)
+        cond_eps, uncond_eps = self.split(eps, len(eps) // 2, 0)
         half_eps = uncond_eps + cfg_scale * (cond_eps - uncond_eps)
         eps = ops.cat([half_eps, half_eps], axis=0)
         return ops.cat([eps, rest], axis=1)

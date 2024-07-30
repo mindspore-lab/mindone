@@ -21,6 +21,7 @@ mindone_lib_path = os.path.abspath(os.path.join(__dir__, "../../../"))
 sys.path.insert(0, mindone_lib_path)
 sys.path.insert(0, os.path.abspath(os.path.join(__dir__, "..")))
 from args_train import parse_args
+from opensora.models.layers.operation_selector import set_dynamic_mode
 from opensora.models.stdit import STDiT2_XL_2, STDiT_XL_2
 from opensora.models.vae.vae import SD_CONFIG, OpenSoraVAE_V1_2, VideoAutoencoderKL
 from opensora.pipelines import DiffusionWithLoss, DiffusionWithLossFiTLike
@@ -53,6 +54,7 @@ def init_env(
     parallel_mode: str = "data",
     jit_level: str = "O0",
     global_bf16: bool = False,
+    dynamic_shape: bool = False,
     debug: bool = False,
 ) -> Tuple[int, int]:
     """
@@ -130,6 +132,14 @@ def init_env(
     if global_bf16:
         ms.set_context(ascend_config={"precision_mode": "allow_mix_precision_bf16"})
 
+    if dynamic_shape:
+        logger.info("Dynamic shape mode enabled, repeat_interleave/split/chunk will be called from mint module")
+        set_dynamic_mode(True)
+        if mode == 0:
+            # FIXME: this is a temp fix for dynamic shape training in graph mode. may remove in future version.
+            # can append adamw fusion flag if use nn.AdamW optimzation for acceleration
+            ms.set_context(graph_kernel_flags="--disable_packet_ops=Reshape")
+
     return rank_id, device_num
 
 
@@ -165,6 +175,7 @@ def main(args):
         parallel_mode=args.parallel_mode,
         jit_level=args.jit_level,
         global_bf16=args.global_bf16,
+        dynamic_shape=(args.bucket_config is not None),
         debug=args.debug,
     )
     set_logger(name="", output_dir=args.output_path, rank=rank_id, log_level=eval(args.log_level))
@@ -238,6 +249,7 @@ def main(args):
         in_channels=VAE_Z_CH,
         model_max_length=args.model_max_length,
         patchify_conv3d_replace=patchify_conv3d_replace,  # for Ascend
+        manual_pad=args.manual_pad,
         enable_flashattn=args.enable_flash_attention,
         use_recompute=args.use_recompute,
     )
@@ -520,6 +532,44 @@ def main(args):
         ema=ema,
     )
 
+    if (args.mode == 0) and (args.bucket_config is not None):
+        video = ms.Tensor(shape=[None, None, 3, None, None], dtype=ms.float32)
+        caption = ms.Tensor(shape=[None, 200, 4096], dtype=ms.float32)
+        mask = ms.Tensor(shape=[None, 200], dtype=ms.uint8)
+        frames_mask = ms.Tensor(shape=[None, None], dtype=ms.bool_)
+        num_frames = ms.Tensor(
+            shape=[
+                None,
+            ],
+            dtype=ms.float32,
+        )
+        height = ms.Tensor(
+            shape=[
+                None,
+            ],
+            dtype=ms.float32,
+        )
+        width = ms.Tensor(
+            shape=[
+                None,
+            ],
+            dtype=ms.float32,
+        )
+        fps = ms.Tensor(
+            shape=[
+                None,
+            ],
+            dtype=ms.float32,
+        )
+        ar = ms.Tensor(
+            shape=[
+                None,
+            ],
+            dtype=ms.float32,
+        )
+        net_with_grads.set_inputs(video, caption, mask, frames_mask, num_frames, height, width, fps, ar)
+        logger.info("Dynamic inputs are initialized for bucket config training in Graph mode!")
+
     if args.global_bf16:
         model = Model(net_with_grads, amp_level="O0")
     else:
@@ -536,6 +586,7 @@ def main(args):
             rank_id=rank_id,
             ckpt_save_dir=ckpt_dir,
             ema=ema,
+            save_ema_only=False,
             ckpt_save_policy="latest_k",
             ckpt_max_keep=args.ckpt_max_keep,
             step_mode=step_mode,
