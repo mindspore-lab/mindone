@@ -19,9 +19,9 @@ from mindone.visualize.videos import save_videos
 
 sys.path.append(".")
 from opensora.acceleration.parallel_states import get_sequence_parallel_state, hccl_info
-from opensora.models.ae import getae_wrapper
-from opensora.models.ae.videobase.dataset_videobase import VideoDataset, create_dataloader
-from opensora.models.ae.videobase.modules.updownsample import TrilinearInterpolate
+from opensora.models import CausalVAEModelWrapper
+from opensora.models.causalvideovae.model.dataset_videobase import VideoDataset, create_dataloader
+from opensora.models.causalvideovae.model.modules.updownsample import TrilinearInterpolate
 from opensora.utils.ms_utils import init_env
 from opensora.utils.utils import get_precision
 
@@ -66,10 +66,15 @@ def main(args):
     set_logger(name="", output_dir=args.generated_video_dir, rank=0)
 
     kwarg = {"model_config": args.model_config}
-    vae = getae_wrapper(args.ae)(args.ckpt, **kwarg)
+    vae = CausalVAEModelWrapper(args.model_path, **kwarg)
     if args.enable_tiling:
         vae.vae.enable_tiling()
         vae.vae.tile_overlap_factor = args.tile_overlap_factor
+        if args.save_memory:
+            vae.vae.tile_sample_min_size = args.tile_sample_min_size
+            vae.vae.tile_latent_min_size = 32
+            vae.vae.tile_sample_min_size_t = 29
+            vae.vae.tile_latent_min_size_t = 8
 
     vae.set_train(False)
     for param in vae.get_parameters():
@@ -195,7 +200,9 @@ if __name__ == "__main__":
     parser.add_argument("--batch_size", type=int, default=1)
     parser.add_argument("--num_workers", type=int, default=8)
     parser.add_argument("--tile_overlap_factor", type=float, default=0.25)
+    parser.add_argument("--tile_sample_min_size", type=int, default=256)
     parser.add_argument("--enable_tiling", action="store_true")
+    parser.add_argument("--save_memory", action="store_true")
     parser.add_argument("--output_origin", action="store_true")
     parser.add_argument("--mode", default=0, type=int, help="Specify the mode: 0 for graph mode, 1 for pynative mode")
     parser.add_argument(

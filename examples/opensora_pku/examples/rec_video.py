@@ -107,7 +107,7 @@ def main(args):
         vae.vae.enable_tiling()
         vae.vae.tile_overlap_factor = args.tile_overlap_factor
         if args.save_memory:
-            vae.vae.tile_sample_min_size = 256
+            vae.vae.tile_sample_min_size = args.tile_sample_min_size
             vae.vae.tile_latent_min_size = 32
             vae.vae.tile_sample_min_size_t = 29
             vae.vae.tile_latent_min_size_t = 8
