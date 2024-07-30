@@ -1,29 +1,28 @@
+import argparse
 import os
 import sys
 from pathlib import Path
 
 import numpy as np
+import torch
 from jsonargparse.typing import Path_fr, path_type
 from omegaconf import OmegaConf
 
 from mindspore import Parameter, load_param_into_net, save_checkpoint
 
 sys.path.append(os.path.join(os.path.dirname(__file__), "../"))
-from sgm.helpers import create_model_sv3d as create_model
-
-Path_dcc = path_type("dcc")  # path to a directory that can be created if it does not exist
-
-
-import argparse
-import os
 from collections import defaultdict
 from typing import Dict, List, Optional, Tuple
 
-import torch
 from huggingface_hub import HfApi, hf_hub_download
 
 # from huggingface_hub.file_download import repo_folder_name
 from safetensors.torch import _find_shared_tensors, _is_complete, load_file, save_file
+from sgm.helpers import create_model_sv3d as create_model
+
+from mindone.transformers import PreTrainedModel, ViTConfig
+
+Path_dcc = path_type("dcc")  # path to a directory that can be created if it does not exist
 
 
 def _remove_duplicate_names(
@@ -226,6 +225,23 @@ def convert_torch2ms(pt_weights_file: Path_fr, config: Path_fr, out_dir: Optiona
     print(f"Conversion completed. Checkpoint is saved to: \n{out_dir}")
 
 
+def download_ckpt(ckpt_3d_name="instant_mesh_large"):
+    model_ckpt_path = hf_hub_download(
+        repo_id="TencentARC/InstantMesh", filename=f"{ckpt_3d_name}.ckpt", repo_type="model"
+    )
+    print(f"finish 3d ckpt downloading at {model_ckpt_path}")
+
+    ptmodel = PreTrainedModel.from_pretrained("facebook/dino-vitb16")
+    print(ptmodel)
+
+    class ViTPreTrainedModel(PreTrainedModel):
+        config_class = ViTConfig
+        base_model_prefix = "vit"
+
+    pout = ViTPreTrainedModel.from_pretrained("facebook/dino-vitb16")
+    print(pout)
+
+
 if __name__ == "__main__":
     DESCRIPTION = """
     Simple utility tool to convert automatically some weights on the hub to `safetensors` format.
@@ -258,6 +274,11 @@ if __name__ == "__main__":
         help="target file path to save the converted checkpoint",
     )
     args = parser.parse_args()
+
+    # download torch ckpts
+    _download_ckpt = False
+    if _download_ckpt:
+        download_ckpt()
 
     # torch2ms
     convert_torch2ms(args.src, args.target)

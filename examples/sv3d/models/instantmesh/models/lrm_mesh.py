@@ -149,6 +149,19 @@ class InstantMesh(nn.Cell):
         deformation = ops.cat(final_def, axis=0)
         return sdf, deformation, sdf_reg_loss, weight
 
+    def extract_mesh_triplane_feat_marching_cubes(self, planes):
+        """
+        Takes triplane features to generate SDF and hence raw mesh extraction with the marching cubes.
+        """
+        init_position = self.geometry.verts.unsqueeze(0).expand((planes.shape[0], -1, -1))
+        sdf, _, _ = self.synthesizer.get_geometry_prediction(
+            planes,
+            init_position,
+            self.geometry.indices,
+        )
+        sdf = sdf.reshape((sdf.shape[0], self.grid_res + 1, self.grid_res + 1, self.grid_res + 1))
+        return sdf
+
     def get_geometry_prediction(self, planes=None):
         """
         Function to generate mesh with give triplanes
@@ -349,18 +362,15 @@ class InstantMesh(nn.Cell):
 
         return {"planes": planes, **out}
 
-    def extract_mesh(
+    def extract_mesh_with_texture(
         self,
         planes: ms.Tensor,
-        use_texture_map: bool = False,
-        texture_resolution: int = 1024,
         **kwargs,
     ):
         """
         Extract a 3D mesh from FlexiCubes. Only support batch_size 1.
         :param planes: triplane features
         :param use_texture_map: use texture map or vertex color
-        :param texture_resolution: the resolution of texure map
         """
         assert planes.shape[0] == 1
 
@@ -368,10 +378,9 @@ class InstantMesh(nn.Cell):
         mesh_v, mesh_f, sdf, deformation, v_deformed, sdf_reg_loss = self.get_geometry_prediction(planes)
         vertices, faces = mesh_v[0], mesh_f[0]
 
-        if not use_texture_map:
-            # query vertex colors
-            vertices_tensor = vertices.unsqueeze(0)
-            vertices_colors = self.synthesizer.get_texture_prediction(planes, vertices_tensor).clamp(0, 1).squeeze(0)
-            vertices_colors = (vertices_colors * 255).astype(ms.uint8)
+        # query vertex colors
+        vertices_tensor = vertices.unsqueeze(0)
+        vertices_colors = self.synthesizer.get_texture_prediction(planes, vertices_tensor).clamp(0, 1).squeeze(0)
+        vertices_colors = (vertices_colors * 255).astype(ms.uint8)
 
-            return vertices, faces, vertices_colors
+        return vertices, faces, vertices_colors

@@ -1,32 +1,28 @@
 """Note that the rendering part of instantmesh is one by cuda rasterization extension, thus not implemented at the moment."""
-import argparse
 import os
 import sys
-from pathlib import Path
+
+sys.path.append("../..")
+import argparse
 
 import imageio
+import mcubes
 import numpy as np
 from einops import rearrange
+from loguru import logger
 from models.instantmesh.utils.camera_util import get_sv3d_input_cameras
-from models.instantmesh.utils.mesh_util import save_obj  # no need texture map can have same good result
+
+# from models.instantmesh.utils.mesh_util import save_obj
 from models.instantmesh.utils.train_util import instantiate_from_config
 from omegaconf import OmegaConf
+from PIL import Image
+from transformers import ViTImageProcessor
 
 import mindspore as ms
 from mindspore import Tensor, nn
-from mindspore.dataset.vision import Inter, Resize, ToPIL
-
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
-print(sys.path)
-sys.path.append("../..")
-from loguru import logger
-from transformers import ViTImageProcessor
+from mindspore.dataset.vision import ToPIL
 
 from mindone.utils.seed import set_random_seed
-
-__dir__ = os.path.dirname(os.path.abspath(__file__))
-mindone_lib_path = os.path.abspath(os.path.join(__dir__, "../../"))
-sys.path.insert(0, mindone_lib_path)
 
 # os.environ['ASCEND_GLOBAL_LOG_LEVEL'] = '3'
 # os.environ['ASCEND_SLOG_PRINT_TO_STDOUT'] = '1'
@@ -35,18 +31,12 @@ sys.path.insert(0, mindone_lib_path)
 def args_parse():
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "--input_vid",
-        default="/mnt/disk4/fredhong/from_local/download_from_910b_git_clone_fred_fork/mindone/examples/sv3d/models/instantmesh/data/ascend.mp4",
-        help="it has to be the 21 frames vid from sv3d output",
+        "--input_vid", default="INPUT_MULTIVIEW_IMG_VID_PATH", help="it has to be the 21 frames vid from sv3d output"
     )  # TODO make sure that read in video will have the exactly same nparr from the sv3d output. OTHERWISE need to dump npz from sv3d and read in.
-    parser.add_argument("--name", default="akun_instantmesh_ms")
+    parser.add_argument("--name", default="anya_ms")
     parser.add_argument("--scale", type=float, default=1.0, help="Scale of generated object.")
     parser.add_argument(
-        "--config",
-        type=str,
-        # default='configs/instant-mesh-large.yaml',
-        default="PATH",
-        help="Path to config file.",
+        "--config", type=str, default="models/instantmesh/configs/instant-mesh-large.yaml", help="Path to config file."
     )
     parser.add_argument("--output_path", type=str, default="outputs", help="Output directory.")
     args = parser.parse_args()
@@ -64,47 +54,40 @@ class InstantMeshPipeline(nn.Cell):
         logger.info(f"registered cam shape is {input_cam.shape}")
         logger.info(f"registered cam dtype is {input_cam.dtype}")
         planes = self.model.forward_planes(inputs, input_cam)
-        mesh_out = self.model.extract_mesh(planes, **self.infer_config)
+        # Uncomment this when Flexicubes available for ms
+        # mesh_out = self.model.extract_mesh_with_texture(planes, **self.infer_config)
+        logger.info(
+            "No support for Flexicubes at the moment, due to the MS operator issues. "
+            "Use a vanilla marching cube to extract meshes from SDF..."
+        )
+        mesh_out = self.model.extract_mesh_triplane_feat_marching_cubes(planes)
         return mesh_out
 
 
 if __name__ == "__main__":
     args = args_parse()
 
-    ms.context.set_context(
+    ms.set_context(
         mode=1,
         device_target="Ascend",
-        device_id=7,
+        # device_target='CPU',
+        device_id=6,
+        pynative_synchronize=True,
     )
     set_random_seed(42)
-    # ms.set_context(mode=1, device_target='Ascend', device_id=6,
-    #             #    enable_graph_kernel=True,
-    #             #    jit_config={"jit_level": "O0"} # maintain as kbk
-    #                )
     config = OmegaConf.load(args.config)
     config_name = os.path.basename(args.config).replace(".yaml", "")
     model_config = config.model_config
     infer_config = config.infer_config
 
     # read the vid and proc accordingly
-    # input_vid_arr = imageio.mimread(args.input_vid)
-    # images = np.asarray(input_vid_arr, dtype=np.float32) / 255.0
-
-    images = np.load(
-        "/mnt/disk4/fredhong/from_local/download_from_910b_git_clone_fred_fork/mindone/examples/sv3d/fred_test_imageio/video.npy"
-    )
-
-    # images = rearrange(images, 'b h w c -> b c h w') # THIS CAVEAT, n c h w cannot FOR ms.vision.Resize
+    input_vid_arr = imageio.mimread(args.input_vid)
+    images = np.asarray(input_vid_arr, dtype=np.uint8)
 
     logger.info("loading instantmesh model for multiview to 3d generation...")
     model = instantiate_from_config(model_config)
-    # model_ckpt_path = hf_hub_download(repo_id="TencentARC/InstantMesh",
-    #                                   filename=f"{config_name.replace('-', '_')}.ckpt", repo_type="model",
-    #                                   local_dir="/mnt/disk4/fredhong/.cache/hf/hub/models--TencentARC--InstantMesh/snapshots/b785b4ecfb6636ef34a08c748f96f6a5686244d0/"
-    #                                   )
-
-    model_ckpt_path = "instant_mesh_large_only_type_toms.ckpt"  # model_ckpt_path.replace('.ckpt', '_ms.ckpt')
-    state_dict = ms.load_checkpoint(model_ckpt_path)
+    model_ckpt_path = ".ckpts"
+    state_dict = ms.load_checkpoint(os.path.join(model_ckpt_path, "instant_mesh_large_ms.ckpt"))
     state_dict = {k[14:]: v for k, v in state_dict.items() if k.startswith("lrm_generator.")}
     m, u = ms.load_param_into_net(model, state_dict, strict_load=True)
     mesh_path = os.path.join(args.output_path, "meshes")
@@ -112,26 +95,24 @@ if __name__ == "__main__":
     # np img preprocessing
     name = args.name
     logger.info(f"Creating {name} ...")
-    resizer = Resize(
-        [320, 320],
-        #  Inter.BICUBIC
-        Inter.ANTIALIAS,
-    )
     topil = ToPIL()
     logger.info(f"the imgae shape is {images.shape}")
 
-    # FIXME ms.vision.Resizer only takes int, cannot be float, different output caused here
-    images = np.array([resizer(topil(img)) for img in images])  # img: n h w c
+    # note that ms.vision.Resizer only takes int, cannot be float
+    # therefore the output clip results are slightly different from torch, which causes the triplane transformer output nan features
+    # thus fc cannot have the mesh...
+    # the workaround here is to use PIL built-in resize
+    images = np.array([(topil(img)).resize((320, 320), Image.LANCZOS) for img in images])  # img: n h w c
     images = images.astype("float32") / 255.0
     images = images.clip(min=0, max=1)
     images = np.expand_dims(images, axis=0)  # b n h w c
     images = rearrange(images, "b n h w c -> b n c h w")  # b n c h w
 
     _debug_dump_vid = False
-    _use_torchvision_arr = True
+    _use_torchvision_arr = False
     if _debug_dump_vid:
-        # test = rearrange(images[0], 't c h w -> t h w c')
-        imageio.mimwrite("resized_antialias_video.mp4", (images[0] * 255).astype(np.uint8))
+        test = rearrange(images[0], "t c h w -> t h w c") * 255
+        imageio.mimwrite("resized_antialias_video_jul29.mp4", test.astype(np.uint8))
     if _use_torchvision_arr:  # here load in the same image tensor as the torch version
         images = np.load("resized_np_arr.npy")  # b n c h w
 
@@ -152,10 +133,18 @@ if __name__ == "__main__":
         do_resize=False,
     )["pixel_values"]
     inputs = ms.Tensor(inputs).reshape(B, N, C, H, W)
-
     pipeline = InstantMeshPipeline(infer_config, model)
     mesh_out = pipeline(inputs, radius=4.0 * args.scale)
     mesh_path_sample = os.path.join(mesh_path, f"{name}.obj")
-    vertices, faces, vertex_colors = mesh_out
-    save_obj(vertices, faces, vertex_colors, mesh_path_sample)
+    # Uncomment this when Flexicubes available for ms
+    # vertices, faces, vertex_colors = mesh_out
+    # save_obj(
+    #     vertices,
+    #     faces,
+    #     vertex_colors,
+    #     mesh_path_sample
+    # )
+    sdf = mesh_out
+    verts, faces = mcubes.marching_cubes(sdf.asnumpy().squeeze(0), 0)
+    mcubes.export_obj(verts, faces, mesh_path_sample)
     logger.info(f"Mesh saved to {mesh_path}")
