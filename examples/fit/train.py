@@ -22,7 +22,6 @@ from mindspore import Model, nn
 from mindspore.nn.wrap.loss_scale import DynamicLossScaleUpdateCell
 from mindspore.train.callback import TimeMonitor
 
-from mindone.env import init_train_env
 from mindone.models.fit import FiT_models
 
 # load training modules
@@ -33,6 +32,7 @@ from mindone.trainers.lr_schedule import create_scheduler
 from mindone.trainers.optim import create_optimizer
 from mindone.trainers.train_step import TrainOneStepWrapper
 from mindone.utils.amp import auto_mixed_precision
+from mindone.utils.env import init_train_env
 from mindone.utils.logger import set_logger
 from mindone.utils.params import count_params
 

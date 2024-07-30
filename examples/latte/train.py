@@ -26,7 +26,6 @@ sys.path.insert(0, mindone_lib_path)
 from diffusion import create_diffusion
 from modules.autoencoder import SD_CONFIG, AutoencoderKL
 
-from mindone.env import init_train_env
 from mindone.models.latte import Latte_models
 
 # load training modules
@@ -37,6 +36,7 @@ from mindone.trainers.lr_schedule import create_scheduler
 from mindone.trainers.optim import create_optimizer
 from mindone.trainers.train_step import TrainOneStepWrapper
 from mindone.utils.amp import auto_mixed_precision
+from mindone.utils.env import init_train_env
 from mindone.utils.logger import set_logger
 from mindone.utils.params import count_params
 
