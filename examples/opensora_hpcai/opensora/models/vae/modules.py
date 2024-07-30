@@ -2,7 +2,7 @@ import logging
 
 import numpy as np
 
-from mindspore import nn, ops
+from mindspore import mint, nn, ops
 
 _logger = logging.getLogger(__name__)
 
@@ -58,8 +58,7 @@ class Downsample(nn.Cell):
 
     def construct(self, x):
         if self.with_conv:
-            pad = ((0, 0), (0, 0), (0, 1), (0, 1))
-            x = nn.Pad(paddings=pad)(x)
+            x = mint.pad(x, (0, 1, 0, 1))
             x = self.conv(x)
         else:
             x = ops.AvgPool(kernel_size=2, stride=2)(x)

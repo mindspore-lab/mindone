@@ -506,7 +506,7 @@ def main(args):
         loss_scaler.last_overflow_iter = last_overflow_iter
 
     # trainer (standalone and distributed)
-    # BUG: not saving weights properly when offloading is enabled
+    # BUG: not saving weights properly in graph mode when offloading is enabled
     ema = EMA(latent_diffusion_with_loss.network, ema_decay=0.9999, offloading=False) if args.use_ema else None
 
     net_with_grads = TrainOneStepWrapper(

@@ -10,7 +10,7 @@ from typing import Optional
 import numpy as np
 
 import mindspore as ms
-from mindspore import Tensor, ops
+from mindspore import Tensor, mint, ops
 
 from .diffusion_utils import (
     ModelMeanType,
@@ -179,7 +179,7 @@ class GaussianDiffusion:
             extra = None
         if self.model_var_type in [ModelVarType.LEARNED, ModelVarType.LEARNED_RANGE]:
             assert model_output.shape == (B, C * 2, F, *x.shape[3:])
-            model_output, model_var_values = ops.split(model_output, C, axis=1)
+            model_output, model_var_values = mint.split(model_output, C, 1)
 
             min_log = _extract_into_tensor(self.posterior_log_variance_clipped, t, x.shape)
             max_log = _extract_into_tensor(self.log_betas, t, x.shape)
