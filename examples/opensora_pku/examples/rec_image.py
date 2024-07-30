@@ -1,10 +1,10 @@
 """
-Run causal vae reconstruction on a given video.
+Run causal vae reconstruction on a given image
 Usage example:
-python examples/rec_video.py \
+python examples/rec_image.py \
     --model_path path/to/vae/ckpt \
-    --video_path test.mp4 \
-    --rec_path rec.mp4 \
+    --image_path test.png \
+    --rec_path rec.png \
     --sample_rate 1 \
     --num_frames 65 \
     --resolution 512 \
@@ -14,11 +14,9 @@ python examples/rec_video.py \
 import argparse
 import logging
 import os
-import random
 import sys
 
 import numpy as np
-from decord import VideoReader, cpu
 from PIL import Image
 
 import mindspore as ms
@@ -28,7 +26,6 @@ mindone_lib_path = os.path.abspath("../../")
 sys.path.insert(0, mindone_lib_path)
 from mindone.utils.amp import auto_mixed_precision
 from mindone.utils.logger import set_logger
-from mindone.visualize.videos import save_videos
 
 sys.path.append(".")
 from opensora.models import CausalVAEModelWrapper
@@ -38,31 +35,6 @@ from opensora.utils.ms_utils import init_env
 from opensora.utils.utils import get_precision
 
 logger = logging.getLogger(__name__)
-
-
-def read_video(video_path: str, num_frames: int, sample_rate: int) -> ms.Tensor:
-    decord_vr = VideoReader(video_path, ctx=cpu(0))
-    total_frames = len(decord_vr)
-    sample_frames_len = sample_rate * num_frames
-
-    if total_frames > sample_frames_len:
-        s = random.randint(0, total_frames - sample_frames_len - 1)
-        s = 0
-        e = s + sample_frames_len
-        num_frames = num_frames
-    else:
-        s = 0
-        e = total_frames
-        num_frames = int(total_frames / sample_frames_len * num_frames)
-        print(
-            f"sample_frames_len {sample_frames_len}, only can sample {num_frames * sample_rate}",
-            video_path,
-            total_frames,
-        )
-
-    frame_id_list = np.linspace(s, e - 1, num_frames, dtype=int)
-    video_data = decord_vr.get_batch(frame_id_list).asnumpy()
-    return video_data
 
 
 def preprocess(video_data, height: int = 128, width: int = 128):
@@ -92,6 +64,8 @@ def transform_to_rgb(x, rescale_to_uint8=True):
 
 
 def main(args):
+    image_path = args.image_path
+    short_size = args.short_size
     init_env(
         mode=args.mode,
         device_target=args.device,
@@ -106,11 +80,6 @@ def main(args):
     if args.enable_tiling:
         vae.vae.enable_tiling()
         vae.vae.tile_overlap_factor = args.tile_overlap_factor
-        if args.save_memory:
-            vae.vae.tile_sample_min_size = 256
-            vae.vae.tile_latent_min_size = 32
-            vae.vae.tile_sample_min_size_t = 29
-            vae.vae.tile_latent_min_size_t = 8
 
     vae.set_train(False)
     for param in vae.get_parameters():
@@ -125,34 +94,23 @@ def main(args):
         amp_level = "O0"
     else:
         raise ValueError(f"Unsupported precision {args.precision}")
-
-    x_vae = preprocess(read_video(args.video_path, args.num_frames, args.sample_rate), args.height, args.width)
+    input_x = np.array(Image.open(image_path))
+    x_vae = preprocess(input_x[None, :], short_size, short_size)  # use image as a single-frame video
     dtype = get_precision(args.precision)
     x_vae = ms.Tensor(x_vae, dtype).unsqueeze(0)  # b c t h w
     latents = vae.encode(x_vae)
     latents = latents.to(dtype)
-    video_recon = vae.decode(latents)  # b t c h w
+    image_recon = vae.decode(latents)  # b t c h w
 
     save_fp = os.path.join(args.output_path, args.rec_path)
-    if ".avi" in os.path.basename(save_fp):
-        save_fp = save_fp.replace(".avi", ".mp4")
-    if video_recon.shape[1] == 1:
-        x = video_recon[0, 0, :, :, :].squeeze().to(ms.float32).asnumpy()
-        original_rgb = x_vae[0, 0, :, :, :].squeeze().to(ms.float32).asnumpy()
-        x = transform_to_rgb(x).transpose(1, 2, 0)  # c h w -> h w c
-        original_rgb = transform_to_rgb(original_rgb).transpose(1, 2, 0)  # c h w -> h w c
-
-        image = Image.fromarray(np.concatenate([x, original_rgb], axis=1) if args.grid else x)
-        save_fp = save_fp.replace("mp4", "jpg")
-        image.save(save_fp)
-    else:
-        save_video_data = video_recon.transpose(0, 1, 3, 4, 2).to(ms.float32).asnumpy()  # (b t c h w) -> (b t h w c)
-        save_video_data = transform_to_rgb(save_video_data, rescale_to_uint8=False)
-        original_rgb = transform_to_rgb(x_vae.to(ms.float32).asnumpy(), rescale_to_uint8=False).transpose(
-            0, 2, 3, 4, 1
-        )  # (b c t h w) -> (b t h w c)
-        save_video_data = np.concatenate([original_rgb, save_video_data], axis=3) if args.grid else save_video_data
-        save_videos(save_video_data, save_fp, loop=0, fps=args.fps)
+    x = image_recon[0, 0, :, :, :]
+    x = x.squeeze().asnumpy()
+    x = transform_to_rgb(x)
+    x = x.transpose(1, 2, 0)
+    if args.grid:
+        x = np.concatenate([input_x, x], axis=1)
+    image = Image.fromarray(x)
+    image.save(args.rec_path)
     if args.grid:
         logger.info(f"Save original vs. reconstructed data to {save_fp}")
     else:
@@ -161,7 +119,7 @@ def main(args):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--video_path", type=str, default="")
+    parser.add_argument("--image_path", type=str, default="")
     parser.add_argument("--rec_path", type=str, default="")
     parser.add_argument("--ae", type=str, default="CausalVAEModel_4x8x8")
     parser.add_argument("--model_path", type=str, default="results/pretrained")
@@ -170,15 +128,10 @@ if __name__ == "__main__":
         default="scripts/causalvae/release.json",
         help="the model configuration file for the causalvae.",
     )
-    parser.add_argument("--fps", type=int, default=30)
-    parser.add_argument("--height", type=int, default=336)
-    parser.add_argument("--width", type=int, default=336)
-    parser.add_argument("--num_frames", type=int, default=65)
-    parser.add_argument("--sample_rate", type=int, default=1)
+    parser.add_argument("--short_size", type=int, default=336)
     parser.add_argument("--tile_overlap_factor", type=float, default=0.25)
     parser.add_argument("--tile_sample_min_size", type=int, default=256)
     parser.add_argument("--enable_tiling", action="store_true")
-    parser.add_argument("--save_memory", action="store_true")
     # ms related
     parser.add_argument("--mode", default=0, type=int, help="Specify the mode: 0 for graph mode, 1 for pynative mode")
     parser.add_argument(
