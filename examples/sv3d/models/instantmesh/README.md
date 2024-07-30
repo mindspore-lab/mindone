@@ -50,7 +50,7 @@ Using the multiview images input from 3D mesh extracted from [the sv3d pipeline]
 | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | <div class="sketchfab-embed-wrapper"><iframe title="akun_ms" frameborder="0" allowfullscreen mozallowfullscreen="true" webkitallowfullscreen="true" allow="autoplay; fullscreen; xr-spatial-tracking" xr-spatial-tracking execution-while-out-of-viewport execution-while-not-rendered web-share src="https://sketchfab.com/models/c8b5b475529d48589b85746aab638d2b/embed"></iframe></div> | <div class="sketchfab-embed-wrapper"><iframe title="anya_ms" frameborder="0" allowfullscreen mozallowfullscreen="true" webkitallowfullscreen="true" allow="autoplay; fullscreen; xr-spatial-tracking" xr-spatial-tracking execution-while-out-of-viewport execution-while-not-rendered web-share src="https://sketchfab.com/models/180fd247ba2f4437ac665114a4cd4dca/embed"></iframe></div> |
 
-The illustrations here are better viewed in viewers that with html support (e.g., the vscode built-in viewer).
+The illustrations here are better viewed in viewers than with HTML support (e.g., the vscode built-in viewer).
 
 ## Environments
 
@@ -79,9 +79,9 @@ Ascend Driver:                   23.0.rc3.6
 
 ## Pretrained Models
 
-To better accomodate the mindone transformer codebase, we provide an out-of-the-box [checkpoints conversion script](../../tools/convert_instantmesh_ckpt.py) that works seamlessly with the mindspore version of transformers.
+To better accommodate the mindone transformer codebase, we provide an out-of-the-box [checkpoints conversion script](../../tools/convert_instantmesh_ckpt.py) that works seamlessly with the mindspore version of transformers.
 
-The image features are extracted with dino-vit which has dependency on HuggingFace's transformer package. We reuse [the MindSpore's implementation](https://github.com/mindspore-lab/mindone/blob/master/mindone/transformers/modeling_utils.py#L499) and the only challenge remains to be that `.bin` checkpoint is not supported by MindSpore off-the-shelf. The checkpoint script above serves the easy conversion purposes and ensure that the dino-vit is still based on `MSPreTrainedModel` safe and sound.
+The image features are extracted with dino-vit, which depends on HuggingFace's transformer package. We reuse [the MindSpore's implementation](https://github.com/mindspore-lab/mindone/blob/master/mindone/transformers/modeling_utils.py#L499) and the only challenge remains to be that `.bin` checkpoint of [dino-vit](https://huggingface.co/facebook/dino-vitb16/tree/main) is not supported by MindSpore off-the-shelf. The checkpoint script above serves easy conversion purposes and ensures that dino-vit is still based on `MSPreTrainedModel` safe and sound.
 
 ## Inference
 
