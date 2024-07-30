@@ -1,5 +1,5 @@
 type: ddim
-target: mindone.schedulers.ddim_schedule.DDIMScheduler
+target: ad.schedulers.ddim_schedule.DDIMScheduler
 params:
   num_train_timesteps: 1000
   beta_start: 0.00085

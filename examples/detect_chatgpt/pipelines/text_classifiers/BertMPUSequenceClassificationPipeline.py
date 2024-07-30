@@ -5,7 +5,7 @@ import numpy as np
 
 import mindspore as ms
 
-from mindone.preprocess import en_cleaning, zh_cleaning
+from .preprocess import en_cleaning, zh_cleaning
 
 
 class BertMPUSequenceClassificationPipeline:
