@@ -81,6 +81,8 @@ Ascend Driver:                   23.0.rc3.6
 
 To better accomodate the mindone transformer codebase, we provide an out-of-the-box [checkpoints conversion script](../../tools/convert_instantmesh_ckpt.py) that works seamlessly with the mindspore version of transformers.
 
+The image features are extracted with dino-vit which has dependency on HuggingFace's transformer package. We reuse [the MindSpore's implementation](https://github.com/mindspore-lab/mindone/blob/master/mindone/transformers/modeling_utils.py#L499) and the only challenge remains to be that `.bin` checkpoint is not supported by MindSpore off-the-shelf. The checkpoint script above serves the easy conversion purposes and ensure that the dino-vit is still based on `MSPreTrainedModel` safe and sound.
+
 ## Inference
 
 ```shell
@@ -90,7 +92,7 @@ python mv2mesh_instantmesh.py --ckpt PATH_TO_CKPT \
 
 ## Acknowledgements
 
-1. "InstantMesh: Efficient 3D Mesh Generation from a Single Image with Sparse-view Large Reconstruction Models"
-2. PLACEHOLDER-LRM.
-3. FlexiCubes.
-4. Marching Cubes.
+1. Shen, Tianchang, et al. "Flexible Isosurface Extraction for Gradient-Based Mesh Optimization." ACM Trans. Graph. 42.4 (2023): 37-1.
+2. Hong, Yicong, et al. "Lrm: Large reconstruction model for single image to 3d." arXiv preprint arXiv:2311.04400 (2023).
+3. Shen, Tianchang, et al. "Flexible Isosurface Extraction for Gradient-Based Mesh Optimization." ACM Trans. Graph. 42.4 (2023): 37-1.
+4. Lorensen, William E., and Harvey E. Cline. "Marching cubes: A high resolution 3D surface construction algorithm." Seminal graphics: pioneering efforts that shaped the field. 1998. 347-353.
