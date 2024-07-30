@@ -274,12 +274,41 @@ class TimeUpsampleRes2x(nn.Cell):
             x, x_ = x[:, :, :1], x[:, :, 1:]
             ori_dtype = x.dtype
             # FIXME: ms2.2.10 cannot support trilinear on 910b
-            x_ = self.intepolate(x_).to(ori_dtype)
+            x_ = self.intepolate(x_, scale_factor=(2.0, 1.0, 1.0)).to(ori_dtype)
             x = ops.concat([x, x_], axis=2)
 
         return alpha * x + (1 - alpha) * self.conv(x)
 
 
 class TrilinearInterpolate(nn.Cell):
-    def construct(self, x):
-        return ops.interpolate(x, scale_factor=(2.0, 1.0, 1.0), mode="trilinear")
+    def construct(self, x, scale_factor):
+        return ops.interpolate(x, scale_factor=scale_factor, mode="trilinear")
+
+
+class Spatial2xTime2x3DUpsample(nn.Cell):
+    def __init__(self, in_channels, out_channels):
+        super().__init__()
+        self.conv = CausalConv3d(in_channels, out_channels, kernel_size=3, padding=1)
+        self.intepolate = TrilinearInterpolate()
+
+    def forward(self, x):
+        if x.shape[2] > 1:
+            x, x_ = x[:, :, :1], x[:, :, 1:]
+            x_ = self.intepolate(x_, scale_factor=(2.0, 2.0, 2.0))
+            x = self.intepolate(x, scale_factor=(1.0, 2.0, 2.0))
+            x = ops.cat([x, x_], axis=2)
+        else:
+            x = self.intepolate(x, scale_factor=(1.0, 2.0, 2.0))
+        return self.conv(x)
+
+
+class Spatial2xTime2x3DDownsample(nn.Cell):
+    def __init__(self, in_channels, out_channels):
+        super().__init__()
+        self.conv = CausalConv3d(in_channels, out_channels, kernel_size=3, padding=0, stride=2)
+        self.pad = ops.Pad(paddings=((0, 0), (0, 0), (0, 0), (0, 1), (0, 1)))
+
+    def forward(self, x):
+        x = self.pad(x)
+        x = self.conv(x)
+        return x
