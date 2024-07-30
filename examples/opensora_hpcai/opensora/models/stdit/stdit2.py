@@ -23,7 +23,7 @@ from opensora.models.layers.blocks import (
 from opensora.models.layers.rotary_embedding import RotaryEmbedding
 
 import mindspore as ms
-from mindspore import Parameter, Tensor, dtype, load_checkpoint, load_param_into_net, nn, ops
+from mindspore import Parameter, Tensor, dtype, load_checkpoint, load_param_into_net, mint, nn, ops
 from mindspore.common.initializer import XavierUniform, initializer
 
 from mindone.models.utils import constant_, normal_, xavier_uniform_
@@ -316,7 +316,7 @@ class STDiT2(nn.Cell):
             b.recompute()
         if isinstance(b, nn.CellList):
             self.recompute(b[-1])
-        else:
+        elif ms.get_context("mode") == ms.GRAPH_MODE:
             b.add_flags(output_no_recompute=True)
 
     def get_dynamic_size(self, x: Tensor) -> Tuple[int, int, int]:
@@ -466,7 +466,7 @@ class STDiT2(nn.Cell):
         if cfg_channel is None:
             cfg_channel = model_out.shape[1] // 2
         eps, rest = model_out[:, :cfg_channel], model_out[:, cfg_channel:]
-        cond_eps, uncond_eps = ops.split(eps, len(eps) // 2, axis=0)
+        cond_eps, uncond_eps = mint.split(eps, len(eps) // 2, 0)
         half_eps = uncond_eps + cfg_scale * (cond_eps - uncond_eps)
         eps = ops.cat([half_eps, half_eps], axis=0)
         return ops.cat([eps, rest], axis=1)
