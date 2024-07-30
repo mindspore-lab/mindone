@@ -8,11 +8,14 @@ logger = logging.getLogger(__name__)
 
 
 class CausalVAEModelWrapper(nn.Cell):
-    def __init__(self, model_path, subfolder=None, cache_dir=None, **kwargs):
+    def __init__(self, model_path, subfolder=None, cache_dir=None, use_ema=False, **kwargs):
         super(CausalVAEModelWrapper, self).__init__()
         # if os.path.exists(ckpt):
         # self.vae = CausalVAEModel.load_from_checkpoint(ckpt)
         self.vae = CausalVAEModel.from_pretrained(model_path, subfolder=subfolder, cache_dir=cache_dir, **kwargs)
+        if use_ema:
+            self.vae.init_from_ema(model_path)
+            self.vae = self.vae.ema
 
     def encode(self, x):  # b c t h w
         # x = self.vae.encode(x)

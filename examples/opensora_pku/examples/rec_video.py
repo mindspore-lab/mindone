@@ -31,8 +31,8 @@ from mindone.utils.logger import set_logger
 from mindone.visualize.videos import save_videos
 
 sys.path.append(".")
-from opensora.models.ae import getae_wrapper
-from opensora.models.ae.videobase.modules.updownsample import TrilinearInterpolate
+from opensora.models import CausalVAEModelWrapper
+from opensora.models.causalvideovae.model.modules.updownsample import TrilinearInterpolate
 from opensora.utils.dataset_utils import create_video_transforms
 from opensora.utils.ms_utils import init_env
 from opensora.utils.utils import get_precision
@@ -65,10 +65,10 @@ def read_video(video_path: str, num_frames: int, sample_rate: int) -> ms.Tensor:
     return video_data
 
 
-def preprocess(video_data, resolution=128, crop_size=128):
+def preprocess(video_data, height: int = 128, width: int = 128):
     num_frames = video_data.shape[0]
     video_transform = create_video_transforms(
-        resolution, crop_size, num_frames=num_frames, backend="al", disable_flip=True
+        (height, width), (height, width), num_frames=num_frames, backend="al", disable_flip=True
     )
 
     inputs = {"image": video_data[0]}
@@ -137,10 +137,15 @@ def main(args):
     set_logger(name="", output_dir=args.output_path, rank=0)
 
     kwarg = {"model_config": args.model_config}
-    vae = getae_wrapper(args.ae)(args.model_path, **kwarg)
+    vae = CausalVAEModelWrapper(args.model_path, **kwarg)
     if args.enable_tiling:
         vae.vae.enable_tiling()
         vae.vae.tile_overlap_factor = args.tile_overlap_factor
+        if args.save_memory:
+            vae.vae.tile_sample_min_size = 256
+            vae.vae.tile_latent_min_size = 32
+            vae.vae.tile_sample_min_size_t = 29
+            vae.vae.tile_latent_min_size_t = 8
 
     vae.set_train(False)
     for param in vae.get_parameters():
@@ -156,7 +161,7 @@ def main(args):
     else:
         raise ValueError(f"Unsupported precision {args.precision}")
 
-    x_vae = preprocess(read_video(args.video_path, args.num_frames, args.sample_rate), args.resolution, args.crop_size)
+    x_vae = preprocess(read_video(args.video_path, args.num_frames, args.sample_rate), args.height, args.width)
     dtype = get_precision(args.precision)
     x_vae = ms.Tensor(x_vae, dtype).unsqueeze(0)  # b c t h w
 
@@ -205,13 +210,15 @@ if __name__ == "__main__":
         help="the model configuration file for the causalvae.",
     )
     parser.add_argument("--fps", type=int, default=30)
-    parser.add_argument("--resolution", type=int, default=None)
-    parser.add_argument("--crop_size", type=int, default=None)
+    parser.add_argument("--height", type=int, default=336)
+    parser.add_argument("--width", type=int, default=336)
     parser.add_argument("--num_frames", type=int, default=65)
     parser.add_argument("--sample_rate", type=int, default=1)
     parser.add_argument("--tile_overlap_factor", type=float, default=0.25)
+    parser.add_argument("--tile_sample_min_size", type=int, default=256)
     parser.add_argument("--enable_tiling", action="store_true")
     parser.add_argument("--enable_time_chunk", action="store_true")
+    parser.add_argument("--save_memory", action="store_true")
     # ms related
     parser.add_argument("--mode", default=0, type=int, help="Specify the mode: 0 for graph mode, 1 for pynative mode")
     parser.add_argument(

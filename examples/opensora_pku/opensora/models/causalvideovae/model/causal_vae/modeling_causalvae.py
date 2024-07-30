@@ -34,13 +34,6 @@ class CausalVAEModel(VideoBaseAE):
         double_z: bool = True,
         embed_dim: int = 4,
         num_res_blocks: int = 2,
-        loss_type: str = "opensora.models.ae.videobase.losses.LPIPSWithDiscriminator3D",  # ignore
-        loss_params: dict = {  # ignore
-            "kl_weight": 0.000001,
-            "logvar_init": 0.0,
-            "disc_start": 2001,
-            "disc_weight": 0.5,
-        },
         q_conv: str = "CausalConv3d",
         encoder_conv_in: str = "Conv2d",
         encoder_conv_out: str = "CausalConv3d",
@@ -81,6 +74,7 @@ class CausalVAEModel(VideoBaseAE):
         ),
         decoder_temporal_upsample: Tuple[str] = ("", "", "TimeUpsampleRes2x", "TimeUpsampleRes2x"),
         decoder_mid_resnet: str = "ResnetBlock3D",
+        use_quant_layer: bool = True,
         ckpt_path=None,
         ignore_keys=[],
         monitor=None,
@@ -128,10 +122,6 @@ class CausalVAEModel(VideoBaseAE):
             dtype=dtype,
             upcast_sigmoid=upcast_sigmoid,
         )
-        quant_conv_cls = resolve_str_to_obj(q_conv)
-        self.quant_conv = quant_conv_cls(2 * z_channels, 2 * embed_dim, 1)
-        self.post_quant_conv = quant_conv_cls(embed_dim, z_channels, 1)
-
         self.embed_dim = embed_dim
 
         if monitor is not None:
@@ -148,12 +138,28 @@ class CausalVAEModel(VideoBaseAE):
         # self.encoder.recompute()
         # self.decoder.recompute()
         self.tile_sample_min_size = 256
-        self.tile_sample_min_size_t = 65
+        self.tile_sample_min_size_t = 33
         self.tile_latent_min_size = int(self.tile_sample_min_size / (2 ** (len(hidden_size_mult) - 1)))
-        t_down_ratio = [i for i in encoder_temporal_downsample if len(i) > 0]
-        self.tile_latent_min_size_t = int((self.tile_sample_min_size_t - 1) / (2 ** len(t_down_ratio))) + 1
-        self.tile_overlap_factor = 0.25
+        # t_down_ratio = [i for i in encoder_temporal_downsample if len(i) > 0]
+        # self.tile_latent_min_size_t = int((self.tile_sample_min_size_t - 1) / (2 ** len(t_down_ratio))) + 1
+        self.tile_latent_min_size_t = 16
+        self.tile_overlap_factor = 0.125
         self.use_tiling = False
+        self.use_quant_layer = use_quant_layer
+        if self.use_quant_layer:
+            quant_conv_cls = resolve_str_to_obj(q_conv)
+            self.quant_conv = quant_conv_cls(2 * z_channels, 2 * embed_dim, 1)
+            self.post_quant_conv = quant_conv_cls(embed_dim, z_channels, 1)
+
+    def get_encoder(self):
+        if self.use_quant_layer:
+            return [self.quant_conv, self.encoder]
+        return [self.encoder]
+
+    def get_decoder(self):
+        if self.use_quant_layer:
+            return [self.post_quant_conv, self.decoder]
+        return [self.decoder]
 
     def init_from_vae2d(self, path):
         # default: tail init
@@ -223,6 +229,17 @@ class CausalVAEModel(VideoBaseAE):
                     logger.info("Deleting key {} from state_dict.".format(k))
                     del sd[k]
 
+        if "ema_state_dict" in sd and len(sd["ema_state_dict"]) > 0 and os.environ.get("NOT_USE_EMA_MODEL", 0) == 0:
+            logger.info("Load from ema model!")
+            sd = sd["ema_state_dict"]
+            sd = {key.replace("module.", ""): value for key, value in sd.items()}
+        elif "state_dict" in sd:
+            logger.info("Load from normal model!")
+            if "gen_model" in sd["state_dict"]:
+                sd = sd["state_dict"]["gen_model"]
+            else:
+                sd = sd["state_dict"]
+
         ms.load_param_into_net(self, sd, strict_load=False)
         logger.info(f"Restored from {path}")
 
@@ -256,8 +273,9 @@ class CausalVAEModel(VideoBaseAE):
     def _encode(self, x):
         # return latent distribution, N(mean, logvar)
         h = self.encoder(x)
-        moments = self.quant_conv(h)
-        mean, logvar = self.split(moments)
+        if self.use_quant_layer:
+            h = self.quant_conv(h)
+        mean, logvar = self.split(h)
 
         return mean, logvar
 
@@ -306,7 +324,8 @@ class CausalVAEModel(VideoBaseAE):
                     j : j + self.tile_sample_min_size,
                 ]
                 tile = self.encoder(tile)
-                tile = self.quant_conv(tile)
+                if self.use_quant_layer:
+                    tile = self.quant_conv(tile)
                 row += (tile,)
             rows += (row,)
 
@@ -357,7 +376,8 @@ class CausalVAEModel(VideoBaseAE):
             or z.shape[-3] > self.tile_latent_min_size_t
         ):
             return self.tiled_decode(z)
-        z = self.post_quant_conv(z)
+        if self.use_quant_layer:
+            z = self.post_quant_conv(z)
         dec = self.decoder(z)
         return dec
 
@@ -379,7 +399,8 @@ class CausalVAEModel(VideoBaseAE):
                     i : i + self.tile_latent_min_size,
                     j : j + self.tile_latent_min_size,
                 ]
-                tile = self.post_quant_conv(tile)
+                if self.use_quant_layer:
+                    tile = self.post_quant_conv(tile)
                 decoded = self.decoder(tile)
                 row.append(decoded)
             rows.append(row)
