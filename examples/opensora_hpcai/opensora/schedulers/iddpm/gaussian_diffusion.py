@@ -8,6 +8,7 @@ from functools import partial
 from typing import Optional
 
 import numpy as np
+from opensora.models.layers.operation_selector import get_split_op
 
 import mindspore as ms
 from mindspore import Tensor, ops
@@ -103,6 +104,8 @@ class GaussianDiffusion:
         # new
         self.log_betas = to_mindspore(self.log_betas)
 
+        self.split = get_split_op()
+
     def q_mean_variance(self, x_start, t):
         """
         Get the distribution q(x_t | x_0).
@@ -126,7 +129,6 @@ class GaussianDiffusion:
         """
         if noise is None:
             noise = ops.randn_like(x_start)
-        assert noise.shape == x_start.shape
         return (
             _extract_into_tensor(self.sqrt_alphas_cumprod, t, x_start.shape) * x_start
             + _extract_into_tensor(self.sqrt_one_minus_alphas_cumprod, t, x_start.shape) * noise
@@ -137,7 +139,6 @@ class GaussianDiffusion:
         Compute the mean and variance of the diffusion posterior:
             q(x_{t-1} | x_t, x_0)
         """
-        assert x_start.shape == x_t.shape
         posterior_mean = (
             _extract_into_tensor(self.posterior_mean_coef1, t, x_t.shape) * x_start
             + _extract_into_tensor(self.posterior_mean_coef2, t, x_t.shape) * x_t
@@ -171,15 +172,13 @@ class GaussianDiffusion:
 
         B, C, F = x.shape[:3]
 
-        assert t.shape == (B,)
         model_output = model(x, t, **model_kwargs)
         if isinstance(model_output, tuple):
             model_output, extra = model_output
         else:
             extra = None
         if self.model_var_type in [ModelVarType.LEARNED, ModelVarType.LEARNED_RANGE]:
-            assert model_output.shape == (B, C * 2, F, *x.shape[3:])
-            model_output, model_var_values = ops.split(model_output, C, axis=1)
+            model_output, model_var_values = self.split(model_output, C, 1)
 
             min_log = _extract_into_tensor(self.posterior_log_variance_clipped, t, x.shape)
             max_log = _extract_into_tensor(self.log_betas, t, x.shape)
@@ -226,7 +225,6 @@ class GaussianDiffusion:
         }
 
     def _predict_xstart_from_eps(self, x_t, t, eps):
-        assert x_t.shape == eps.shape
         return (
             _extract_into_tensor(self.sqrt_recip_alphas_cumprod, t, x_t.shape) * x_t
             - _extract_into_tensor(self.sqrt_recipm1_alphas_cumprod, t, x_t.shape) * eps
@@ -400,7 +398,6 @@ class GaussianDiffusion:
         Returns a generator over dicts, where each dict is the return value of
         p_sample().
         """
-        assert isinstance(shape, (tuple, list))
         if noise is not None:
             img = noise
         else:
@@ -510,7 +507,6 @@ class GaussianDiffusion:
         """
         Sample x_{t+1} from the model using DDIM reverse ODE.
         """
-        assert eta == 0.0, "Reverse ODE only for deterministic path"
         out = self.p_mean_variance(
             model,
             x,
@@ -584,7 +580,6 @@ class GaussianDiffusion:
         each timestep of DDIM.
         Same usage as p_sample_loop_progressive().
         """
-        assert isinstance(shape, (tuple, list))
         if noise is not None:
             img = noise
         else:
@@ -633,7 +628,6 @@ class GaussianDiffusion:
         decoder_nll = -discretized_gaussian_log_likelihood(
             x_start, means=out["mean"], log_scales=0.5 * out["log_variance"]
         )
-        assert decoder_nll.shape == x_start.shape
         decoder_nll = mean_flat(decoder_nll) / Tensor(np.log(2.0))
         decoder_nll = decoder_nll.to(kl.dtype)
 

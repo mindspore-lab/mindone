@@ -7,12 +7,14 @@ _import_structure = {
     "pipeline_stable_diffusion_xl": ["StableDiffusionXLPipeline"],
     "pipeline_stable_diffusion_xl_img2img": ["StableDiffusionXLImg2ImgPipeline"],
     "pipeline_stable_diffusion_xl_inpaint": ["StableDiffusionXLInpaintPipeline"],
+    "pipeline_stable_diffusion_xl_instruct_pix2pix": ["StableDiffusionXLInstructPix2PixPipeline"],
 }
 
 if TYPE_CHECKING:
     from .pipeline_stable_diffusion_xl import StableDiffusionXLPipeline, StableDiffusionXLPipelineOutput
     from .pipeline_stable_diffusion_xl_img2img import StableDiffusionXLImg2ImgPipeline
     from .pipeline_stable_diffusion_xl_inpaint import StableDiffusionXLInpaintPipeline
+    from .pipeline_stable_diffusion_xl_instruct_pix2pix import StableDiffusionXLInstructPix2PixPipeline
 
 else:
     import sys

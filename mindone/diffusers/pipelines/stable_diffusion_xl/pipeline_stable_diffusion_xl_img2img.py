@@ -236,7 +236,8 @@ class StableDiffusionXLImg2ImgPipeline(
         self.vae_scale_factor = 2 ** (len(self.vae.config.block_out_channels) - 1)
         self.image_processor = VaeImageProcessor(vae_scale_factor=self.vae_scale_factor)
 
-        self.watermark = None
+        if add_watermarker:
+            logger.warning("watermarker is not supported!")
 
     def encode_prompt(
         self,
@@ -1258,10 +1259,6 @@ class StableDiffusionXLImg2ImgPipeline(
                 self.vae.to(dtype=ms.float16)
         else:
             image = latents
-
-        # apply watermark if available
-        if self.watermark is not None:
-            image = self.watermark.apply_watermark(image)
 
         image = self.image_processor.postprocess(image, output_type=output_type)
 

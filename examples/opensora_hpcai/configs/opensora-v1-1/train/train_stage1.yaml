@@ -2,11 +2,12 @@
 model_version: v1.1
 pretrained_model_path: "models/PixArt-XL-2-1024-MS.ckpt"
 model_max_length: 200
+manual_pad: True
 
 enable_flash_attention: True
 use_recompute: True
 
-vae_micro_batch_size: 4
+# vae_micro_batch_size: 4
 vae_dtype: bf16
 
 # data
