@@ -27,7 +27,7 @@ sys.path.insert(0, mindone_lib_path)
 from diffusion import create_diffusion
 from modules.autoencoder import SD_CONFIG, AutoencoderKL
 
-from mindone.env import init_train_env
+from mindone.utils.env import init_train_env
 from mindone.models.dit import DiT_models
 
 # load training modules
