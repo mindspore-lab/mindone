@@ -12,14 +12,14 @@ export GLOG_v=2
 # dynamic shape acceleration
 export MS_DEV_ENABLE_KERNEL_PACKET=on
 
-output_dir=outputs/kbk_opensora1.1_stage2_dynamic_shape
+output_dir=outputs/opensora1.1_stage2_dynamic_shape
 
 msrun --bind_core=True --master_port=8207 --worker_num=8 --local_worker_num=8 --log_dir=$output_dir  \
 	python scripts/train.py \
 	--config configs/opensora-v1-1/train/train_stage2.yaml \
-	--csv_path datasets/sora_overfitting_dataset_0410/vcg_200.csv \
-	--video_folder datasets/sora_overfitting_dataset_0410 \
-	--text_embed_folder datasets/sora_overfitting_dataset_0410/t5_emb_200/ \
+	--csv_path datasets/mixkit-100videos/video_caption_train.csv \
+	--video_folder datasets/mixkit-100videos/mixkit \
+	--text_embed_folder datasets/mikit-100videos/t5_emb_200 \
   --use_parallel True \
   --jit_level O0 \
   --dataset_sink_mode=False \
