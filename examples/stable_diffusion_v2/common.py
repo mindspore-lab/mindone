@@ -18,6 +18,7 @@ def init_env(
     seed: int = 42,
     distributed: bool = False,
     device_target: Optional[str] = "Ascend",
+    jit_level: str = "O2",
     enable_modelarts: bool = False,
     num_workers: int = 1,
     json_data_path: Optional[str] = None,
@@ -40,6 +41,20 @@ def init_env(
         A tuple containing the device ID, rank ID and number of devices.
     """
     set_random_seed(seed)
+    if mode == ms.GRAPH_MODE:
+        try:
+            if jit_level in ["O0", "O1", "O2"]:
+                ms.set_context(jit_config={"jit_level": jit_level})
+                _logger.info(f"set jit_level: {jit_level}.")
+            else:
+                _logger.warning(
+                    f"Unsupport jit_level: {jit_level}. The framework automatically selects the execution method"
+                )
+        except Exception:
+            _logger.warning(
+                "The current jit_level is not suitable because current MindSpore version does not match,"
+                "please ensure the MindSpore version >= ms2.3_0615."
+            )
 
     if debug and mode == ms.GRAPH_MODE:  # force PyNative mode when debugging
         _logger.warning("Debug mode is on, switching execution mode to PyNative.")
