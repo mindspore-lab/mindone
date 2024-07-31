@@ -2,6 +2,7 @@
 
 ## Introduction
 
+PixArt-\Sigma is a Diffusion Transformer model~(DiT) capable of directly generating images at 4K resolution. PixArt-\Sigma represents a significant advancement over its predecessor, PixArt-\alpha, offering images of markedly higher fidelity and improved alignment with text prompts. A key feature of PixArt-\Sigma is its training efficiency. Leveraging the foundational pre-training of PixArt-\alpha, it evolves from the 'weaker' baseline to a 'stronger' model via incorporating higher quality data, a process called "weak-to-strong training". The advancements in PixArt-\Sigma are twofold: (1) High-Quality Training Data: PixArt-\Sigma incorporates superior-quality image data, paired with more precise and detailed image captions. (2) Efficient Token Compression: a novel attention module within the DiT framework is proposed that compresses both keys and values, significantly improving efficiency and facilitating ultra-high-resolution image generation. Thanks to these improvements, PixArt-\Sigma achieves superior image quality and user prompt adherence capabilities with significantly smaller model size (0.6B parameters) than existing text-to-image diffusion models, such as SDXL (2.6B parameters) and SD Cascade (5.1B parameters). Moreover, PixArt-\Sigma's capability to generate 4K images supports the creation of high-resolution posters and wallpapers, efficiently bolstering the production of high-quality visual content in industries such as film and gaming.
 
 ## Requirement
 
@@ -56,4 +57,4 @@ The following demo image is generated using the default prompt with the command:
 ```bash
 python sample.py -c configs/inference/pixart-sigma-1024-MS.yaml --image_width 1024 --image_height 512 --seed 1024
 ```
-<p align="center"><img width="1024" src="https://github.com/zhtmike/mindone/assets/8342575/741e7a0a-11ab-4377-a8cd-77e689353c1f"/>
+<p align="center"><img width="1024" src="https://github.com/user-attachments/assets/d2a4a391-744e-4ae8-a035-427a26e2c655"/>
