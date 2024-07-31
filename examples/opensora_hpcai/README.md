@@ -144,9 +144,8 @@ Other useful documents and links are listed below.
 
 ## Installation
 
-1. Install MindSpore 2.3rc1 according to the [official instruction](https://www.mindspore.cn/install)
-> To use flash attention, it's recommended to use mindspore 2.3rc2 (release soon).
-
+1. Install MindSpore according to the [official instructions](https://www.mindspore.cn/install).
+    For Ascend devices, please install **CANN driver C18 (0705)** from [here](https://repo.mindspore.cn/ascend/ascend910/20240705/) and install **MindSpore 2.3** from [here](https://www.mindspore.cn/install).
 
 2. Install requirements
 ```bash
@@ -421,9 +420,6 @@ video_embed_folder
 Stand-alone training for Stage 1 of OpenSora v1.1:
 
 ```shell
-export MS_ENABLE_ACLNN=1
-export GRAPH_OP_RUN=1
-
 python scripts/train.py --config configs/opensora-v1-1/train/train_stage1.yaml \
     --csv_path /path/to/video_caption.csv \
     --video_folder /path/to/video_folder \
@@ -437,9 +433,6 @@ You can find more in [T5 text embeddings](#cache-text-embeddings) and [VAE Video
 For parallel training, use `msrun` and along with `--use_parallel=True`:
 
 ```shell
-export MS_ENABLE_ACLNN=1
-export GRAPH_OP_RUN=1
-
 msrun --master_port=8200 --worker_num=8 --local_worker_num=8 --log_dir=$output_dir  \
     python scripts/train.py --config configs/opensora-v1-1/train/train_stage1.yaml \
     --csv_path /path/to/video_caption.csv \
@@ -457,6 +450,8 @@ This can be enabled in one of two ways:
 1. Provide variable sized VAE embeddings with the `--vae_latent_folder` option.
 2. Use `bucket_config` for training with videos in their original format. More on the bucket configuration can be found
    in [Multi-resolution Training with Buckets](./docs/quick_start.md#4-multi-resolution-training-with-buckets-opensora-v11-only).
+
+   Detailed running command can be referred in `scripts/run/run_train_os_v1.1_stage2.sh`
 
 
 ### Open-Sora 1.0 Training
@@ -498,9 +493,40 @@ You may also see the example shell scripts in `scripts/run` for quick reference.
 
 We evaluated the training performance on MindSpore and Ascend NPUs. The results are as follows.
 
-| Model       | Context      | Precision | BS | NPUs | Resolution | Train T. (s/step) |
-|:------------|:-------------|:----------|:--:|:----:|:----------:|:-----------------:|
-| STDiT2-XL/2 | D910\*-MS2.3 | BF16      | 1  |  1   | 16x512x512 |       2.80        |
+| Model       | Context      | jit_level | Precision | BS | NPUs | Resolution(framesxHxW) | Train T. (s/step) |
+|:------------|:-------------|:--------|:---------:|:--:|:----:|:----------------------:|:-----------------:|
+| STDiT2-XL/2 | D910\*-[CANN C18(0517)](https://repo.mindspore.cn/ascend/ascend910/20240517/)-[MS2.3_master(0615)](https://repo.mindspore.cn/mindspore/mindspore/version/202406/20240615/master_20240615020018_43ccb91e45899b64fe31d304497ab17e3ada3cea_newest/unified/)  |    O1  |    BF16   |  1 |  8   |       16x512x512       |        2.00       |
+| STDiT2-XL/2 | D910\*-[CANN C18(0517)](https://repo.mindspore.cn/ascend/ascend910/20240517/)-[MS2.3_master(0615)](https://repo.mindspore.cn/mindspore/mindspore/version/202406/20240615/master_20240615020018_43ccb91e45899b64fe31d304497ab17e3ada3cea_newest/unified/)  |    O1  |    BF16   |  1 |  8   |       64x512x512       |        8.30       |
+| STDiT2-XL/2 | D910\*-[CANN C18(0517)](https://repo.mindspore.cn/ascend/ascend910/20240517/)-[MS2.3_master(0615)](https://repo.mindspore.cn/mindspore/mindspore/version/202406/20240615/master_20240615020018_43ccb91e45899b64fe31d304497ab17e3ada3cea_newest/unified/) |    O1  |    BF16   |  1 |  8   |       24x576x1024      |        8.22       |
+| STDiT2-XL/2 | D910\*-[CANN C18(0705)](https://repo.mindspore.cn/ascend/ascend910/20240705/)-[MS2.3](https://www.mindspore.cn/install) |    O1  |    BF16   |  1 |  8   |       24x576x1024      |        **7.82**       |
+| STDiT2-XL/2 | D910\*-[CANN C18(0517)](https://repo.mindspore.cn/ascend/ascend910/20240517/)-[MS2.3_master(0615)](https://repo.mindspore.cn/mindspore/mindspore/version/202406/20240615/master_20240615020018_43ccb91e45899b64fe31d304497ab17e3ada3cea_newest/unified/) |    O1  |    BF16   |  1 |  8   |       64x576x1024      |        21.15      |
+| STDiT2-XL/2 | D910\*-[CANN C18(0517)](https://repo.mindspore.cn/ascend/ascend910/20240517/)-[MS2.3_master(0615)](https://repo.mindspore.cn/mindspore/mindspore/version/202406/20240615/master_20240615020018_43ccb91e45899b64fe31d304497ab17e3ada3cea_newest/unified/) |    O1  |    BF16   |  1 |  8   |       24x1024x1024     |        16.98      |
+> Context: {G:GPU, D:Ascend}{chip type}-{mindspore version}.
+
+>Note that the above performance uses both t5 cached embedding data and vae cached latent data.
+
+** Tips ** for performance optimization: to speed up training, you can set `dataset_sink_mode` as True and reduce `num_recompute_blocks` from 28 to a number that doesn't lead to out-of-memory.
+
+Here are some generation results after fine-tuning STDiT2 on small dataset.
+
+<table class="center">
+<tr>
+  <td width=50% style="text-align:center;"><b>576x1024x48</b></td>
+  <td width=50% style="text-align:center;"><b>576x1024x48</b></td>
+  </tr>
+<tr>
+  <td width=50%><video src="https://github.com/mindspore-lab/mindone/assets/52945530/4df1dabf-1a7c-45d9-b005-08f6c2d26dfe" autoplay></td>
+  <td width=50%><video src="https://github.com/mindspore-lab/mindone/assets/52945530/6e735171-042f-4b8d-a12c-4ddd5b2b4382" autoplay></td>
+</tr>
+<tr>
+  <td width=50% style="text-align:center;"><b>576x1024x48</b></td>
+  <td width=50% style="text-align:center;"><b>576x1024x48</b></td>
+  </tr>
+<tr>
+  <td width=50%><video src="https://github.com/mindspore-lab/mindone/assets/52945530/ab627b2c-d932-4c9d-84f4-afe0c9d5d5ce" autoplay></td>
+  <td width=50%><video src="https://github.com/mindspore-lab/mindone/assets/52945530/532f9d62-9b16-44dc-bd7a-4a24bd930e21" autoplay></td>
+</tr>
+</table>
 
 
 ### Open-Sora 1.0
@@ -541,19 +567,21 @@ Note that training on 300 frames at 512x512 resolution is achieved by optimizati
 
 #### Text-to-Video Generation after Fine-tuning
 
-Here are some generation results after fine-tuning STDiT on a subset of WebVid dataset in 512x512x64 resolution.
+Here are some generation results after fine-tuning STDiT on a subset of WebVid dataset.
 
-https://github.com/SamitHuang/mindone/assets/8156835/f00ad2bd-56e7-448c-9f85-c58888dca609
+<table class="center">
+<tr>
+  <td width=33% style="text-align:center;"><b>512x512x64</b></td>
+  <td width=33% style="text-align:center;"><b>512x512x64</b></td>
+  <td width=33% style="text-align:center;"><b>512x512x64</b></td>
+</tr>
+<tr>
+  <td width=33%><video src="https://github.com/SamitHuang/mindone/assets/8156835/c82c059f-57da-44e5-933b-66ccf9e59ea0"></td>
+  <td width=33%><video src="https://github.com/SamitHuang/mindone/assets/8156835/f00ad2bd-56e7-448c-9f85-c58888dca609"></td>
+  <td width=33%><video src="https://github.com/SamitHuang/mindone/assets/8156835/51b4a431-195b-4a53-b177-e58a7aa7276c"></td>
+</tr>
+</table>
 
-Prompt: The girl received flowers as a gift. a gift for my birthday. the guy gave a girl flowers
-
-https://github.com/SamitHuang/mindone/assets/8156835/c82c059f-57da-44e5-933b-66ccf9e59ea0
-
-Prompt: Cloudy moscow kremlin time lapse
-
-https://github.com/SamitHuang/mindone/assets/8156835/51b4a431-195b-4a53-b177-e58a7aa7276c
-
-Prompt: A baker turns freshly baked loaves of sourdough bread
 
 #### Quality Evaluation
 For quality evaluation, please refer to the original HPC-AI Tech [evaluation doc](https://github.com/hpcaitech/Open-Sora/blob/main/eval/README.md) for video generation quality evaluation.
@@ -657,7 +685,7 @@ We evaluated the training performance on MindSpore and Ascend NPUs. The results 
 
 | Model       | Context      | Precision | BS | NPUs | Max. Resolution | Train T. (s/step) |
 |:------------|:-------------|:----------|:--:|:----:|:---------------:|:-----------------:|
-| STDiT2-XL/2 | D910\*-MS2.3 | BF16      | 1  |  4   | 16x512x512      |       2.3         |
+| STDiT2-XL/2 | D910\*-MS2.3_master | BF16      | 1  |  4   | 16x512x512      |       2.3         |
 
 
 ### FiT-Like Inference
@@ -676,9 +704,17 @@ Make sure that the `max_image_size` parameter remains consistent between your tr
 
 Here are some generation results after fine-tuning STDiT on small dataset:
 
-[16x384x672](https://github.com/zhtmike/mindone/assets/8342575/97d8f37d-8ac3-49a8-af6d-5103f299e481)
+<table class="center">
+<tr>
+  <td style="text-align:center;"><b>384x672x16</b></td>
+  <td style="text-align:center;"><b>672x384x16</b></td>
+</tr>
+<tr>
+  <td><video src="https://github.com/zhtmike/mindone/assets/8342575/97d8f37d-8ac3-49a8-af6d-5103f299e481" autoplay></td>
+  <td><video src="https://github.com/zhtmike/mindone/assets/8342575/abefa666-8e88-4eef-974e-a4d4bfa1cd53" autoplay></td>
+</tr>
+</table>
 
-[16x672x384](https://github.com/zhtmike/mindone/assets/8342575/abefa666-8e88-4eef-974e-a4d4bfa1cd53)
 
 
 ## Contribution

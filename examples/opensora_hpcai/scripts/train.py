@@ -21,24 +21,23 @@ mindone_lib_path = os.path.abspath(os.path.join(__dir__, "../../../"))
 sys.path.insert(0, mindone_lib_path)
 sys.path.insert(0, os.path.abspath(os.path.join(__dir__, "..")))
 from args_train import parse_args
+from opensora.models.layers.operation_selector import set_dynamic_mode
 from opensora.models.stdit import STDiT2_XL_2, STDiT_XL_2
 from opensora.models.vae.vae import SD_CONFIG, OpenSoraVAE_V1_2, VideoAutoencoderKL
 from opensora.pipelines import DiffusionWithLoss, DiffusionWithLossFiTLike
 from opensora.schedulers.iddpm import create_diffusion
 from opensora.utils.amp import auto_mixed_precision
+from opensora.utils.ema import EMA
+from opensora.utils.model_utils import WHITELIST_OPS
 
 from mindone.trainers.callback import EvalSaveCallback, OverflowMonitor, ProfilerCallbackEpoch
 from mindone.trainers.checkpoint import resume_train_network
-from mindone.trainers.ema import EMA
 from mindone.trainers.lr_schedule import create_scheduler
 from mindone.trainers.optim import create_optimizer
 from mindone.trainers.train_step import TrainOneStepWrapper
 from mindone.utils.logger import set_logger
 from mindone.utils.params import count_params
 from mindone.utils.seed import set_random_seed
-
-# from opensora.utils.model_utils import WHITELIST_OPS
-
 
 os.environ["HCCL_CONNECT_TIMEOUT"] = "6000"
 os.environ["MS_ASCEND_CHECK_OVERFLOW_MODE"] = "INFNAN_MODE"
@@ -53,8 +52,9 @@ def init_env(
     max_device_memory: str = None,
     device_target: str = "Ascend",
     parallel_mode: str = "data",
-    enable_dvm: bool = False,
+    jit_level: str = "O0",
     global_bf16: bool = False,
+    dynamic_shape: bool = False,
     debug: bool = False,
 ) -> Tuple[int, int]:
     """
@@ -116,13 +116,29 @@ def init_env(
             pynative_synchronize=debug,
         )
 
-    if enable_dvm:
-        print("enable dvm")
-        # FIXME: the graph_kernel_flags settting is a temp solution to fix dvm loss convergence in ms2.3-rc2. Refine it for future ms version.
-        ms.set_context(enable_graph_kernel=True, graph_kernel_flags="--disable_cluster_ops=Pow,Select")
+    try:
+        if jit_level in ["O0", "O1", "O2"]:
+            ms.set_context(jit_config={"jit_level": jit_level})
+        else:
+            logger.warning(
+                f"Unsupport jit_level: {jit_level}. The framework automatically selects the execution method"
+            )
+    except Exception:
+        logger.warning(
+            "The current jit_level is not suitable because current MindSpore version or mode does not match,"
+            "please ensure the MindSpore version >= ms2.3_0615, and use GRAPH_MODE."
+        )
 
     if global_bf16:
         ms.set_context(ascend_config={"precision_mode": "allow_mix_precision_bf16"})
+
+    if dynamic_shape:
+        logger.info("Dynamic shape mode enabled, repeat_interleave/split/chunk will be called from mint module")
+        set_dynamic_mode(True)
+        if mode == 0:
+            # FIXME: this is a temp fix for dynamic shape training in graph mode. may remove in future version.
+            # can append adamw fusion flag if use nn.AdamW optimzation for acceleration
+            ms.set_context(graph_kernel_flags="--disable_packet_ops=Reshape")
 
     return rank_id, device_num
 
@@ -157,8 +173,9 @@ def main(args):
         device_target=args.device_target,
         max_device_memory=args.max_device_memory,
         parallel_mode=args.parallel_mode,
-        enable_dvm=args.enable_dvm,
+        jit_level=args.jit_level,
         global_bf16=args.global_bf16,
+        dynamic_shape=(args.bucket_config is not None),
         debug=args.debug,
     )
     set_logger(name="", output_dir=args.output_path, rank=rank_id, log_level=eval(args.log_level))
@@ -205,8 +222,7 @@ def main(args):
         img_h, img_w = args.image_size if isinstance(args.image_size, list) else (args.image_size, args.image_size)
         if args.pre_patchify:
             img_h, img_w = args.max_image_size, args.max_image_size
-        input_size = (args.num_frames, img_h, img_w)
-        latent_size = vae.get_latent_size(input_size)
+        latent_size = vae.get_latent_size((args.num_frames, img_h, img_w))
     else:
         # vae cache
         vae = None
@@ -233,6 +249,7 @@ def main(args):
         in_channels=VAE_Z_CH,
         model_max_length=args.model_max_length,
         patchify_conv3d_replace=patchify_conv3d_replace,  # for Ascend
+        manual_pad=args.manual_pad,
         enable_flashattn=args.enable_flash_attention,
         use_recompute=args.use_recompute,
     )
@@ -251,7 +268,13 @@ def main(args):
         logger.info(f"STDiT input size: {latent_size}")
         latte_model = STDiT_XL_2(**model_extra_args)
     elif args.model_version == "v1.1":
-        model_extra_args.update({"input_sq_size": 512, "qk_norm": True})
+        model_extra_args.update(
+            {
+                "input_sq_size": 512,
+                "qk_norm": True,
+                "num_recompute_blocks": args.num_recompute_blocks,
+            }
+        )
         logger.info(f"STDiT2 input size: {latent_size if args.bucket_config is None else 'Variable'}")
         latte_model = STDiT2_XL_2(**model_extra_args)
     else:
@@ -264,7 +287,7 @@ def main(args):
                 latte_model,
                 amp_level=args.amp_level,
                 dtype=dtype_map[args.dtype],
-                # custom_fp32_cells=WHITELIST_OPS
+                custom_fp32_cells=WHITELIST_OPS,
             )
     # load checkpoint
     if len(args.pretrained_model_path) > 0:
@@ -324,6 +347,7 @@ def main(args):
             video_column=args.video_column,
             caption_column=args.caption_column,
             disable_flip=args.disable_flip,
+            filter_data=args.filter_data,
         )
         dataloader = create_dataloader(
             ds_config,
@@ -354,6 +378,7 @@ def main(args):
             sample_stride=args.frame_stride,
             frames_mask_generator=mask_gen,
             buckets=buckets,
+            filter_data=args.filter_data,
             output_columns=["video", "caption", "mask", "fps", "num_frames", "frames_mask"],
             pre_patchify=args.pre_patchify,
             patch_size=latte_model.patch_size,
@@ -493,14 +518,8 @@ def main(args):
         loss_scaler.last_overflow_iter = last_overflow_iter
 
     # trainer (standalone and distributed)
-    ema = (
-        EMA(
-            latent_diffusion_with_loss.network,
-            ema_decay=0.9999,
-        )
-        if args.use_ema
-        else None
-    )
+    # BUG: not saving weights properly when offloading is enabled
+    ema = EMA(latent_diffusion_with_loss.network, ema_decay=0.9999, offloading=False) if args.use_ema else None
 
     net_with_grads = TrainOneStepWrapper(
         latent_diffusion_with_loss,
@@ -512,6 +531,44 @@ def main(args):
         clip_norm=args.max_grad_norm,
         ema=ema,
     )
+
+    if (args.mode == 0) and (args.bucket_config is not None):
+        video = ms.Tensor(shape=[None, None, 3, None, None], dtype=ms.float32)
+        caption = ms.Tensor(shape=[None, 200, 4096], dtype=ms.float32)
+        mask = ms.Tensor(shape=[None, 200], dtype=ms.uint8)
+        frames_mask = ms.Tensor(shape=[None, None], dtype=ms.bool_)
+        num_frames = ms.Tensor(
+            shape=[
+                None,
+            ],
+            dtype=ms.float32,
+        )
+        height = ms.Tensor(
+            shape=[
+                None,
+            ],
+            dtype=ms.float32,
+        )
+        width = ms.Tensor(
+            shape=[
+                None,
+            ],
+            dtype=ms.float32,
+        )
+        fps = ms.Tensor(
+            shape=[
+                None,
+            ],
+            dtype=ms.float32,
+        )
+        ar = ms.Tensor(
+            shape=[
+                None,
+            ],
+            dtype=ms.float32,
+        )
+        net_with_grads.set_inputs(video, caption, mask, frames_mask, num_frames, height, width, fps, ar)
+        logger.info("Dynamic inputs are initialized for bucket config training in Graph mode!")
 
     if args.global_bf16:
         model = Model(net_with_grads, amp_level="O0")
@@ -529,6 +586,7 @@ def main(args):
             rank_id=rank_id,
             ckpt_save_dir=ckpt_dir,
             ema=ema,
+            save_ema_only=False,
             ckpt_save_policy="latest_k",
             ckpt_max_keep=args.ckpt_max_keep,
             step_mode=step_mode,

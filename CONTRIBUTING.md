@@ -135,13 +135,47 @@ now `pre-commit` will run automatically on `git commit`!
 ## Releasing
 
 A reminder for the maintainers on how to deploy.
-Make sure all your changes are committed (including an entry in HISTORY.md).
-Then run:
 
-```shell
-bump2version patch # possible: major / minor / patch
-git push
-git push --tags
-```
+1.  Make some pull requests, merge all changes from feature branch to master/main.
 
-GitHub Action will then deploy to PyPI if tests pass.
+2.  Update `CHANGELOG.md` manually. Make sure it follows the [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) standard.
+    Be noticed that GitHub workflow will read changelog and extract release notes automatically.
+
+3.  Add the changelog changes:
+
+    ```bash
+    git add CHANGELOG.md
+    ```
+
+4.  Update version number and create a commit, tag(can also be patch or major).
+
+    ```bash
+    hatch version patch
+    git add mindone/version.py
+    git commit -m "bump version to $(hatch version)"
+    git tag "v$(hatch version)"
+    ```
+
+5.  Push these commits to master/main:
+
+    ```bash
+    git push
+    ```
+
+    Before proceeding to the next step, please check workflows triggered by this push have passed.
+
+6.  Push the tags to master/main, creating the new release on both GitHub and PyPI:
+
+    ```bash
+    git push --tags
+    ```
+
+    Only tag name started with 'v'(lower case) will leverage GitHub release workflow.
+
+    Or, if you didn't add a tag in step 4, you can manually create a new release in https://github.com/mindspore-lab/mindone/releases/new.
+    Create a new tag `vx.x.x`. GitHub Action will then deploy to PyPI if tests pass.
+
+7.  Check the PyPI listing page to make sure that the README, release
+    notes, and roadmap display properly.
+
+8.  Optional. Create new branch `vx.x.x` if needed.

@@ -4,7 +4,6 @@ import logging
 import os
 import sys
 import time
-from typing import Tuple
 
 import numpy as np
 import pandas as pd
@@ -14,18 +13,19 @@ from tqdm import tqdm
 
 import mindspore as ms
 from mindspore import nn
-from mindspore.communication.management import get_group_size, get_rank, init
 
 # TODO: remove in future when mindone is ready for install
 mindone_lib_path = os.path.abspath("../../")
 sys.path.insert(0, mindone_lib_path)
 sys.path.append(os.path.abspath("./"))
+from opensora.acceleration.parallel_states import get_sequence_parallel_state, hccl_info
 from opensora.dataset.text_dataset import create_dataloader
 from opensora.models.ae import ae_stride_config, getae_wrapper
 from opensora.models.ae.videobase.modules.updownsample import TrilinearInterpolate
 from opensora.models.diffusion.latte.modeling_latte import LatteT2V, LayerNorm
 from opensora.models.diffusion.latte.modules import Attention
 from opensora.models.text_encoder.t5 import T5Embedder
+from opensora.utils.ms_utils import init_env
 from opensora.utils.utils import _check_cfgs_in_parser, get_precision
 from pipeline_videogen import VideoGenPipeline
 
@@ -34,89 +34,9 @@ from mindone.utils.amp import auto_mixed_precision
 from mindone.utils.config import str2bool
 from mindone.utils.logger import set_logger
 from mindone.utils.params import count_params
-from mindone.utils.seed import set_random_seed
 from mindone.visualize.videos import save_videos
 
 logger = logging.getLogger(__name__)
-ms.context.set_context(jit_config={"jit_level": "O0"})  # O0: KBK, O1:DVM, O2: GE
-
-
-def init_env(
-    mode: int = ms.GRAPH_MODE,
-    seed: int = 42,
-    distributed: bool = False,
-    max_device_memory: str = None,
-    device_target: str = "Ascend",
-    parallel_mode: str = "data",
-    enable_dvm: bool = False,
-    precision_mode: str = None,
-    global_bf16: bool = False,
-) -> Tuple[int, int, int]:
-    """
-    Initialize MindSpore environment.
-
-    Args:
-        mode: MindSpore execution mode. Default is 0 (ms.GRAPH_MODE).
-        seed: The seed value for reproducibility. Default is 42.
-        distributed: Whether to enable distributed training. Default is False.
-    Returns:
-        A tuple containing the device ID, rank ID and number of devices.
-    """
-    set_random_seed(seed)
-
-    if max_device_memory is not None:
-        ms.set_context(max_device_memory=max_device_memory)
-
-    if distributed:
-        ms.set_context(
-            mode=mode,
-            device_target=device_target,
-        )
-        if parallel_mode == "optim":
-            print("use optim parallel")
-            ms.set_auto_parallel_context(
-                parallel_mode=ms.ParallelMode.SEMI_AUTO_PARALLEL,
-                enable_parallel_optimizer=True,
-            )
-            init()
-            device_num = get_group_size()
-            rank_id = get_rank()
-        else:
-            init()
-            device_num = get_group_size()
-            rank_id = get_rank()
-            logger.debug(f"rank_id: {rank_id}, device_num: {device_num}")
-            ms.reset_auto_parallel_context()
-
-            ms.set_auto_parallel_context(
-                parallel_mode=ms.ParallelMode.DATA_PARALLEL,
-                gradients_mean=True,
-                device_num=device_num,
-            )
-
-        var_info = ["device_num", "rank_id", "device_num / 8", "rank_id / 8"]
-        var_value = [device_num, rank_id, int(device_num / 8), int(rank_id / 8)]
-        logger.info(dict(zip(var_info, var_value)))
-
-    else:
-        device_num = 1
-        rank_id = 0
-        ms.set_context(
-            mode=mode,
-            device_target=device_target,
-        )
-
-    if enable_dvm:
-        print("enable dvm")
-        ms.set_context(enable_graph_kernel=True, graph_kernel_flags="--disable_cluster_ops=Pow,Select")
-    if precision_mode is not None and len(precision_mode) > 0:
-        ms.set_context(ascend_config={"precision_mode": precision_mode})
-    if global_bf16:
-        print("Using global bf16")
-        ms.set_context(
-            ascend_config={"precision_mode": "allow_mix_precision_bf16"}
-        )  # reset ascend precison mode globally
-    return rank_id, device_num
 
 
 def parse_args():
@@ -146,6 +66,8 @@ def parse_args():
     parser.add_argument("--height", type=int, default=512)
     parser.add_argument("--width", type=int, default=512)
     parser.add_argument("--ae", type=str, default="CausalVAEModel_4x8x8")
+
+    parser.add_argument("--sp_size", type=int, default=1, help="For sequence parallel")
 
     parser.add_argument("--text_encoder_name", type=str, default="DeepFloyd/t5-v1_1-xxl")
     parser.add_argument("--save_img_path", type=str, default="./sample_videos/t2v")
@@ -182,8 +104,7 @@ def parse_args():
     parser.add_argument(
         "--parallel_mode", default="data", type=str, choices=["data", "optim"], help="parallel mode: data, optim"
     )
-    parser.add_argument("--enable_dvm", default=False, type=str2bool, help="enable dvm mode")
-
+    parser.add_argument("--jit_level", default="O0", help="Set jit level: # O0: KBK, O1:DVM, O2: GE")
     parser.add_argument("--seed", type=int, default=4, help="Inference seed")
     parser.add_argument(
         "--enable_flash_attention",
@@ -207,6 +128,12 @@ def parse_args():
         type=str,
         choices=["bf16", "fp16"],
         help="what data type to use for vae. Default is `bf16`, which corresponds to ms.bfloat16",
+    )
+    parser.add_argument(
+        "--vae_keep_gn_fp32",
+        default=False,
+        type=str2bool,
+        help="whether keep GroupNorm in fp32. Defaults to False in inference mode. If training vae, better set it to True",
     )
     parser.add_argument(
         "--text_encoder_precision",
@@ -264,9 +191,10 @@ if __name__ == "__main__":
         device_target=args.device,
         max_device_memory=args.max_device_memory,
         parallel_mode=args.parallel_mode,
-        enable_dvm=args.enable_dvm,
         precision_mode=args.precision_mode,
         global_bf16=args.global_bf16,
+        sp_size=args.sp_size,
+        jit_level=args.jit_level,
     )
 
     # 2. vae model initiate and weight loading
@@ -278,9 +206,12 @@ if __name__ == "__main__":
     vae.vae_scale_factor = ae_stride_config[args.ae]
     # use amp level O2 for causal 3D VAE with bfloat16 or float16
     vae_dtype = get_precision(args.vae_precision)
-    custom_fp32_cells = [nn.GroupNorm] if vae_dtype == ms.float16 else [nn.AvgPool2d, TrilinearInterpolate]
+    if vae_dtype == ms.float16:
+        custom_fp32_cells = [nn.GroupNorm] if args.vae_keep_gn_fp32 else []
+    else:
+        custom_fp32_cells = [nn.AvgPool2d, TrilinearInterpolate]
     vae = auto_mixed_precision(vae, amp_level="O2", dtype=vae_dtype, custom_fp32_cells=custom_fp32_cells)
-    logger.info(f"Use amp level O2 for causal 3D VAE with dtype={vae_dtype}")
+    logger.info(f"Use amp level O2 for causal 3D VAE with dtype={vae_dtype}, custom_fp32_cells: {custom_fp32_cells}")
     vae.set_train(False)
     for param in vae.get_parameters():  # freeze vae
         param.requires_grad = False
@@ -329,8 +260,8 @@ if __name__ == "__main__":
         num_parallel_workers=12,
         max_rowsize=32,
         shuffle=False,  # be in order
-        device_num=device_num,
-        rank_id=rank_id,
+        device_num=device_num if not get_sequence_parallel_state() else (device_num // hccl_info.world_size),
+        rank_id=rank_id if not get_sequence_parallel_state() else hccl_info.group_id,
         drop_remainder=False,
     )
     dataset_size = dataset.get_dataset_size()
@@ -445,8 +376,9 @@ if __name__ == "__main__":
             f"Num of samples: {n}",
             f"Num params: {num_params:,} (latte: {num_params_latte:,}, vae: {num_params_vae:,})",
             f"Num trainable params: {num_params_trainable:,}",
-            f"Use model dtype: {dtype}",
-            f"Use FA: {args.enable_flash_attention}",
+            f"Transformer dtype: {dtype}",
+            f"VAE dtype: {vae_dtype}",
+            f"Text encoder dtype: {text_encoder_dtype}",
             f"Sampling steps {args.num_sampling_steps}",
             f"Sampling method: {args.sample_method}",
             f"CFG guidance scale: {args.guidance_scale}",
@@ -476,19 +408,25 @@ if __name__ == "__main__":
             .video.to(ms.float32)
             .asnumpy()
         )
-        for i_sample in range(args.batch_size):
-            file_path = os.path.join(save_dir, file_paths[i_sample])
-            assert ext in file_path, f"Only support saving as {ext} files, but got {file_path}."
-            if args.save_latents:
-                np.save(file_path, videos[i_sample : i_sample + 1])
-            else:
-                if args.force_images:
-                    image = videos[i_sample, 0]  # (b t h w c)  -> (h, w, c)
-                    image = (image * 255).round().clip(0, 255).astype(np.uint8)
-                    Image.from_numpy(image).save(file_path)
+
+        if get_sequence_parallel_state() and hccl_info.rank % hccl_info.world_size != 0:
+            pass
+        else:
+            # save result
+            for i_sample in range(args.batch_size):
+                file_path = os.path.join(save_dir, file_paths[i_sample])
+                assert ext in file_path, f"Only support saving as {ext} files, but got {file_path}."
+                if args.save_latents:
+                    np.save(file_path, videos[i_sample : i_sample + 1])
                 else:
-                    save_video_data = videos[i_sample : i_sample + 1]  # (b t h w c)
-                    save_videos(save_video_data, file_path, loop=0, fps=args.fps)
+                    if args.force_images:
+                        image = videos[i_sample, 0]  # (b t h w c)  -> (h, w, c)
+                        image = (image * 255).round().clip(0, 255).astype(np.uint8)
+                        Image.from_numpy(image).save(file_path)
+                    else:
+                        save_video_data = videos[i_sample : i_sample + 1]  # (b t h w c)
+                        save_videos(save_video_data, file_path, loop=0, fps=args.fps)
+
     end_time = time.time()
     time_cost = end_time - start_time
     logger.info(f"Inference time cost: {time_cost:0.3f}s")

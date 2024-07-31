@@ -4,6 +4,7 @@ import logging
 import os
 from typing import Any, Dict, Optional
 
+from opensora.acceleration.parallel_states import get_sequence_parallel_state, hccl_info
 from opensora.models.diffusion.utils.pos_embed import PositionGetter1D, PositionGetter2D, get_1d_sincos_pos_embed
 
 import mindspore as ms
@@ -161,10 +162,22 @@ class LatteT2V(ModelMixin, ConfigMixin):
                 interpolation_scale_1d = self.config.video_length // 16  # => 16 (= 16 Latte) has interpolation scale 1
         # interpolation_scale_1d = self.config.video_length // 5  #
         interpolation_scale_1d = max(interpolation_scale_1d, 1)
-        temp_pos_embed = get_1d_sincos_pos_embed(
-            inner_dim, video_length, interpolation_scale=interpolation_scale_1d
-        )  # 1152 hidden size
-        self.temp_pos_embed = ms.Parameter(ms.Tensor(temp_pos_embed).float().unsqueeze(0), requires_grad=False)
+
+        if get_sequence_parallel_state():
+            self.sp_size = hccl_info.world_size
+            rank_offset = hccl_info.rank % hccl_info.world_size
+            video_length = (self.video_length + self.sp_size - 1) // self.sp_size * self.sp_size
+            temp_pos_embed = get_1d_sincos_pos_embed(
+                inner_dim, video_length, interpolation_scale=interpolation_scale_1d
+            )  # 1152 hidden size
+            video_length //= self.sp_size
+            self.temp_pos_st = rank_offset * video_length
+            self.temp_pos_ed = (rank_offset + 1) * video_length
+        else:
+            temp_pos_embed = get_1d_sincos_pos_embed(
+                inner_dim, video_length, interpolation_scale=interpolation_scale_1d
+            )  # 1152 hidden size
+        self.temp_pos_embed = ms.Parameter(ms.Tensor(temp_pos_embed).float(), requires_grad=False)
 
         rope_scaling = None
         if self.use_rope:
@@ -269,7 +282,7 @@ class LatteT2V(ModelMixin, ConfigMixin):
 
         self.blocks = nn.CellList(
             [
-                LatteT2VBlock(d, self.temp_pos_embed, self.transformer_blocks[d], self.temporal_transformer_blocks[d])
+                LatteT2VBlock(d, self.transformer_blocks[d], self.temporal_transformer_blocks[d])
                 for d in range(num_layers)
             ]
         )
@@ -324,6 +337,7 @@ class LatteT2V(ModelMixin, ConfigMixin):
         cross_attention_kwargs: Dict[str, Any] = None,
         attention_mask: Optional[ms.Tensor] = None,
         encoder_attention_mask: Optional[ms.Tensor] = None,
+        temp_attention_mask: Optional[ms.Tensor] = None,
         use_image_num: int = 0,
         enable_temporal_attentions: bool = True,
     ):
@@ -380,8 +394,9 @@ class LatteT2V(ModelMixin, ConfigMixin):
             attention_mask = ops.ones((input_batch_size, frame + use_image_num, h, w), dtype=hidden_states.dtype)
         attention_mask = self.vae_to_diff_mask(attention_mask, use_image_num)
         dtype = attention_mask.dtype
-        attention_mask_compress = self.compress_maxpool2d(attention_mask)
-        attention_mask_compress = attention_mask_compress.to(dtype)
+        attention_mask_compress = (
+            self.compress_maxpool2d(attention_mask).to(dtype) if self.compress_kv_factor != 1 else attention_mask
+        )
 
         attention_mask = self.make_attn_mask(attention_mask, frame, hidden_states.dtype)
         attention_mask_compress = self.make_attn_mask(attention_mask_compress, frame, hidden_states.dtype)
@@ -391,12 +406,12 @@ class LatteT2V(ModelMixin, ConfigMixin):
         if encoder_attention_mask is not None and encoder_attention_mask.ndim == 2:  # ndim == 2 means no image joint
             encoder_attention_mask = encoder_attention_mask.unsqueeze(1)
             # b 1 l -> (b f) 1 l
-            encoder_attention_mask = encoder_attention_mask.repeat_interleave(frame, dim=0)
+            encoder_attention_mask = encoder_attention_mask.to(ms.int32).repeat_interleave(frame, dim=0)
             encoder_attention_mask = encoder_attention_mask.to(self.dtype)
         elif encoder_attention_mask is not None and encoder_attention_mask.ndim == 3:  # ndim == 3 means image joint
             encoder_attention_mask_video = encoder_attention_mask[:, :1, ...]
-            encoder_attention_mask_video = encoder_attention_mask_video.repeat_interleave(frame, dim=1)
-            encoder_attention_mask_image = encoder_attention_mask[:, 1:, ...]
+            encoder_attention_mask_video = encoder_attention_mask_video.to(ms.int32).repeat_interleave(frame, dim=1)
+            encoder_attention_mask_image = encoder_attention_mask[:, 1:, ...].to(ms.int32)
             encoder_attention_mask = ops.cat([encoder_attention_mask_video, encoder_attention_mask_image], axis=1)
             # b n l -> (b n) l
             encoder_attention_mask = encoder_attention_mask.view(-1, encoder_attention_mask.shape[-1]).unsqueeze(1)
@@ -454,6 +469,18 @@ class LatteT2V(ModelMixin, ConfigMixin):
         # b d -> (b p) d
         timestep_temp = timestep.repeat_interleave(num_patches, dim=0)
 
+        # BS H -> S B H
+        if get_sequence_parallel_state():
+            timestep_temp = timestep_temp.view(input_batch_size * num_patches, 6, -1).swapaxes(0, 1).contiguous()
+            # f, h -> f, 1, h
+            temp_pos_embed = self.temp_pos_embed[self.temp_pos_st : self.temp_pos_ed].unsqueeze(1)
+        else:
+            temp_pos_embed = self.temp_pos_embed[: self.video_length].unsqueeze(0)
+            if temp_pos_embed.shape[1] != frame:
+                temp_pos_embed = ops.pad(
+                    temp_pos_embed, (0, 0, 0, frame - temp_pos_embed.shape[1]), mode="constant", value=0
+                )
+
         pos_hw, pos_t = None, None
         if self.use_rope:
             pos_hw, pos_t = self.make_position(input_batch_size, frame, use_image_num, height, width)
@@ -475,6 +502,9 @@ class LatteT2V(ModelMixin, ConfigMixin):
                 pos_hw=pos_hw,
                 pos_t=pos_t,
                 hw=hw,
+                num_patches=num_patches,
+                temp_pos_embed=temp_pos_embed,
+                temp_attention_mask=temp_attention_mask,
             )
 
         # if self.is_input_patches:
@@ -539,8 +569,9 @@ class LatteT2V(ModelMixin, ConfigMixin):
         if checkpoint_path is None or len(checkpoint_path) == 0:
             # search for ckpt under pretrained_model_path
             ckpt_paths = glob.glob(os.path.join(pretrained_model_path, "*.ckpt"))
-            assert len(ckpt_paths) == 1, f"Expect to find one checkpoint file under {pretrained_model_path}"
-            f", but found {len(ckpt_paths)} files that end with `.ckpt`"
+            assert (
+                len(ckpt_paths) == 1
+            ), f"Expect to find one checkpoint file under {pretrained_model_path}, but found {len(ckpt_paths)} files that end with `.ckpt`"
             ckpt = ckpt_paths[0]
         else:
             ckpt = checkpoint_path
@@ -579,10 +610,13 @@ class LatteT2V(ModelMixin, ConfigMixin):
             print(f"WARNING: {ckpt_path} not found. No checkpoint loaded!!")
         else:
             sd = ms.load_checkpoint(ckpt_path)
-            # filter 'network.' prefix
+            # filter 'network.' prefix and ignore 'temp_pos_embed'
             rm_prefix = ["network."]
             all_pnames = list(sd.keys())
             for pname in all_pnames:
+                if "temp_pos_embed" in pname:
+                    sd.pop(pname)
+                    continue
                 for pre in rm_prefix:
                     if pname.startswith(pre):
                         new_pname = pname.replace(pre, "")

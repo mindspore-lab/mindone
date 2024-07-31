@@ -13,8 +13,8 @@ from PIL import Image
 from t2i_utils import read_images
 
 sys.path.append("../../")  # FIXME: remove in future when mindone is ready for install
-from mindone.env import init_train_env
 from mindone.utils import set_logger
+from mindone.utils.env import init_train_env
 
 sys.path.append("../stable_diffusion_xl/")
 from gm.helpers import SD_XL_BASE_RATIOS, VERSION2SPECS, create_model, init_sampling

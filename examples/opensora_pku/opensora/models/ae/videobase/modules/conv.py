@@ -153,7 +153,8 @@ class CausalConv3d(nn.Cell):
         # x: (bs, Cin, T, H, W )
         if self.temporal_padding:
             first_frame = x[:, :, :1, :, :]
-            first_frame_pad = ops.repeat_interleave(first_frame, self.time_pad, axis=2)
+            # first_frame_pad = ops.repeat_interleave(first_frame, self.time_pad, axis=2)
+            first_frame_pad = ops.cat([first_frame] * self.time_pad, axis=2)
             x = ops.concat((first_frame_pad, x), axis=2)
 
         return self.conv(x)

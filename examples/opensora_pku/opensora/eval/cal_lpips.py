@@ -1,14 +1,22 @@
-import lpips
-import numpy as np
-from tqdm import tqdm
+import os
 
+import numpy as np
+from opensora.models.ae.videobase.losses.lpips import LPIPS
+
+import mindspore as ms
 from mindspore import ops
 
 spatial = True  # Return a spatial map of perceptual distance.
-
+lpips_ckpt_path = os.path.join("pretrained", "lpips_vgg-426bf45c.ckpt")
 # Linearly calibrated models (LPIPS)
-loss_fn = lpips.LPIPS(net="alex", spatial=spatial)  # Can also set net = 'squeeze' or 'vgg'
+loss_fn = LPIPS()  # freeze params inside
+assert os.path.exists(lpips_ckpt_path), (
+    f"LPIPS ckpt path {lpips_ckpt_path} is not existent. "
+    + "Please download it from https://download-mindspore.osinfra.cn/toolkits/mindone/autoencoders/lpips_vgg-426bf45c.ckpt and put it under pretrained/"
+)
+loss_fn.load_from_pretrained(lpips_ckpt_path)
 # loss_fn = lpips.LPIPS(net='alex', spatial=spatial, lpips=False) # Can also set net = 'squeeze' or 'vgg'
+print("Calculating LPIPS loss using VGG16.")
 
 
 def trans(x):
@@ -24,7 +32,6 @@ def trans(x):
 
 def calculate_lpips(videos1, videos2):
     # image should be RGB, IMPORTANT: normalized to [-1,1]
-    print("calculate_lpips...")
 
     assert videos1.shape == videos2.shape
 
@@ -37,11 +44,13 @@ def calculate_lpips(videos1, videos2):
 
     lpips_results = []
 
-    for video_num in tqdm(range(videos1.shape[0])):
+    for video_num in range(videos1.shape[0]):
         # get a video
         # video [timestamps, channel, h, w]
         video1 = videos1[video_num]
         video2 = videos2[video_num]
+        video1 = ms.Tensor(video1, dtype=ms.float32)
+        video2 = ms.Tensor(video2, dtype=ms.float32)
 
         lpips_results_of_a_video = []
         for clip_timestamp in range(len(video1)):
@@ -53,7 +62,7 @@ def calculate_lpips(videos1, videos2):
             img2 = video2[clip_timestamp].unsqueeze(0)
 
             # calculate lpips of a video
-            lpips_results_of_a_video.append(loss_fn(img1, img2).mean().tolist())
+            lpips_results_of_a_video.append(loss_fn(img1, img2).mean().asnumpy().tolist())
         lpips_results.append(lpips_results_of_a_video)
 
     lpips_results = np.array(lpips_results)

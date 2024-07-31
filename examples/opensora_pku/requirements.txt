@@ -18,4 +18,5 @@ tokenizers>=0.15.2
 sentencepiece
 transformers>=4.39.3
 pyav
+bs4
 huggingface_hub>=0.22.2

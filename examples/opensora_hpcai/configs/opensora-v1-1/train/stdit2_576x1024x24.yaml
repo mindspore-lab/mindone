@@ -5,6 +5,7 @@ model_max_length: 200
 
 enable_flash_attention: True
 use_recompute: True
+jit_level: "O1"
 
 # data
 image_size: [ 576, 1024 ]
@@ -18,6 +19,8 @@ max_rowsize: 256
 amp_level: "O2"
 dtype: "bf16"
 init_loss_scale: 65536
+vae_dtype: "bf16"
+# vae_micro_batch_size: 8
 
 # training hyper-params
 scheduler: "constant"

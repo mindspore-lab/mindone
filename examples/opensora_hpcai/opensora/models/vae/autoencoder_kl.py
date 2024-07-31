@@ -1,6 +1,7 @@
 import mindspore as ms
 from mindspore import nn, ops
 
+from ..layers.operation_selector import get_split_op
 from .modules import Decoder, Encoder
 
 __all__ = ["AutoencoderKL"]
@@ -21,7 +22,7 @@ class AutoencoderKL(nn.Cell):
         self.image_key = image_key
         self.encoder = Encoder(**ddconfig)
         self.decoder = Decoder(**ddconfig)
-        assert ddconfig["double_z"]
+        # assert ddconfig["double_z"]
         self.quant_conv = nn.Conv2d(2 * ddconfig["z_channels"], 2 * embed_dim, 1, pad_mode="valid", has_bias=True)
         self.post_quant_conv = nn.Conv2d(embed_dim, ddconfig["z_channels"], 1, pad_mode="valid", has_bias=True)
         self.embed_dim = embed_dim
@@ -31,20 +32,17 @@ class AutoencoderKL(nn.Cell):
         if ckpt_path is not None:
             self.init_from_ckpt(ckpt_path, ignore_keys=ignore_keys)
 
-        self.split = ops.Split(axis=1, output_num=2)
         self.exp = ops.Exp()
         self.stdnormal = ops.StandardNormal()
-        
+        self.split = get_split_op()
+
         if use_recompute:
             print("D--: spatial vae recompute")
             self.recompute(self.encoder)
             self.recompute(self.quant_conv)
             self.recompute(self.post_quant_conv)
             self.recompute(self.decoder)
-            # self.encoder.recompute()
-            # self.quant_conv.recompute()
-            # self.post_quant_conv.recompute()
-            # self.decoder.recompute()
+
 
     def recompute(self, b):
         if not b._has_config_recompute:
@@ -86,7 +84,7 @@ class AutoencoderKL(nn.Cell):
         # return latent distribution, N(mean, logvar)
         h = self.encoder(x)
         moments = self.quant_conv(h)
-        mean, logvar = self.split(moments)
+        mean, logvar = self.split(moments, moments.shape[1] // 2, 1)
 
         return mean, logvar
 

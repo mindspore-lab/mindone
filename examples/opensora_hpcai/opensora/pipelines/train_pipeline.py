@@ -4,6 +4,7 @@ from typing import Optional, Tuple
 import mindspore as ms
 from mindspore import Tensor, nn, ops
 
+from ..models.layers.operation_selector import get_split_op
 from ..schedulers.iddpm import SpacedDiffusion
 from ..schedulers.iddpm.diffusion_utils import (
     _extract_into_tensor,
@@ -68,6 +69,8 @@ class DiffusionWithLoss(nn.Cell):
         if self.cond_stage_trainable and self.text_encoder:
             self.text_encoder.set_train(True)
             self.text_encoder.set_grad(True)
+
+        self.split = get_split_op()
 
     def get_condition_embeddings(self, text_tokens, **kwargs):
         # text conditions inputs for cross-attention
@@ -156,7 +159,6 @@ class DiffusionWithLoss(nn.Cell):
         model_log_variance = frac * max_log + (1 - frac) * min_log
         pred_xstart = self.diffusion.predict_xstart_from_eps(x_t=x_t, t=t, eps=model_output)
         model_mean, _, _ = self.diffusion.q_posterior_mean_variance(x_start=pred_xstart, x_t=x_t, t=t)
-        # assert model_mean.shape == model_log_variance.shape == pred_xstart.shape == x_t.shape
         # p_mean_variance end
         kl = normal_kl(true_mean, true_log_variance_clipped, model_mean, model_log_variance)
         kl = mean_flat(kl, frames_mask=frames_mask, patch_mask=patch_mask) / ms.numpy.log(2.0)  # TODO:
@@ -209,8 +211,7 @@ class DiffusionWithLoss(nn.Cell):
 
         # (b c t h w),
         B, C, F = x_t.shape[:3]
-        assert model_output.shape == (B, C * 2, F) + x_t.shape[3:]
-        model_output, model_var_values = ops.split(model_output, C, axis=1)
+        model_output, model_var_values = self.split(model_output, C, 1)
 
         # Learn the variance using the variational bound, but don't let it affect our mean prediction.
         vb = self._cal_vb(ops.stop_gradient(model_output), model_var_values, x, x_t, t, frames_mask)
@@ -228,7 +229,7 @@ class DiffusionWithLossFiTLike(DiffusionWithLoss):
         max_image_size: int = 512,
         vae_downsample_rate: float = 8.0,
         in_channels: int = 4,
-        **kwargs
+        **kwargs,
     ):
         super().__init__(*args, **kwargs)
         self.p = patch_size
@@ -240,6 +241,8 @@ class DiffusionWithLossFiTLike(DiffusionWithLoss):
 
         if not self.video_emb_cached:
             raise ValueError("Video embedding caching must be provided.")
+
+        self.split = get_split_op()
 
     def construct(
         self,
@@ -347,12 +350,12 @@ class DiffusionWithLossFiTLike(DiffusionWithLoss):
 
         # (b c t h w),
         B, C, F = x_t.shape[:3]
-        assert model_output.shape == (B, C * 2, F) + x_t.shape[3:]
-        model_output, model_var_values = ops.split(model_output, C, axis=1)
+        model_output, model_var_values = self.split(model_output, C, 1)
 
         # Learn the variance using the variational bound, but don't let it affect our mean prediction.
         patch_mask = temporal_mask[:, :, None, None] * spatial_mask[:, None, :, None]
-        patch_mask = self.unpatchify(ops.tile(patch_mask, (1, 1, 1, D)))  # b c t h w
+        pm_dtype = patch_mask.dtype
+        patch_mask = self.unpatchify(ops.tile(patch_mask.to(ms.int32), (1, 1, 1, D)).to(pm_dtype))  # b c t h w
         vb = self._cal_vb(
             ops.stop_gradient(model_output),
             model_var_values,

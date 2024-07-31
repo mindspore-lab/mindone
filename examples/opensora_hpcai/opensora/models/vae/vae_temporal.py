@@ -4,6 +4,7 @@ from packaging import version
 
 import mindspore as ms
 from mindspore import nn, ops
+from ..layers.operation_selector import get_split_op
 
 
 def divisible_by(num, den):
@@ -441,7 +442,7 @@ class VAE_Temporal(nn.Cell):
         )
         self.split = ops.Split(axis=1, output_num=2)
         self.stdnormal = ops.StandardNormal()
-        
+
         if use_recompute:
             print("D--: temporal vae recompute")
             self.recompute(self.encoder)
@@ -453,6 +454,8 @@ class VAE_Temporal(nn.Cell):
             # self.post_quant_conv.recompute()
             # self.decoder.recompute()
 
+        self.split = get_split_op()
+
     def recompute(self, b):
         if not b._has_config_recompute:
             b.recompute()
@@ -460,8 +463,6 @@ class VAE_Temporal(nn.Cell):
             self.recompute(b[-1])
         else:
             b.add_flags(output_no_recompute=True)
-
-
 
     def get_latent_size(self, input_size):
         latent_size = []
@@ -497,7 +498,7 @@ class VAE_Temporal(nn.Cell):
 
         encoded_feature = self.encoder(x)
         moments = self.quant_conv(encoded_feature).to(x.dtype)
-        mean, logvar = self.split(moments)
+        mean, logvar = self.split(moments, moments.shape[1] // 2, 1)
 
         return mean, logvar
 

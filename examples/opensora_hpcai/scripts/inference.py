@@ -35,13 +35,19 @@ from mindone.visualize.videos import save_videos
 logger = logging.getLogger(__name__)
 
 
+def to_numpy(x: Tensor) -> np.ndarray:
+    if x.dtype == ms.bfloat16:
+        x = x.astype(ms.float32)
+    return x.asnumpy()
+
+
 def init_env(
     mode: int = ms.GRAPH_MODE,
     seed: int = 42,
     distributed: bool = False,
     max_device_memory: str = None,
     device_target: str = "Ascend",
-    enable_dvm: bool = False,
+    jit_level: str = "O0",
     debug: bool = False,
 ):
     """
@@ -87,9 +93,18 @@ def init_env(
             pynative_synchronize=debug,
         )
 
-    if enable_dvm:
-        # FIXME: the graph_kernel_flags settting is a temp solution to fix dvm loss convergence in ms2.3-rc2. Refine it for future ms version.
-        ms.set_context(enable_graph_kernel=True, graph_kernel_flags="--disable_cluster_ops=Pow,Select")
+    try:
+        if jit_level in ["O0", "O1", "O2"]:
+            ms.set_context(jit_config={"jit_level": jit_level})
+        else:
+            logger.warning(
+                f"Unsupport jit_level: {jit_level}. The framework automatically selects the execution method"
+            )
+    except Exception:
+        logger.warning(
+            "The current jit_level is not suitable because current MindSpore version or mode does not match,"
+            "please ensure the MindSpore version >= ms2.3_0615, and use GRAPH_MODE."
+        )
 
     return rank_id, device_num
 
@@ -118,12 +133,12 @@ def main(args):
         save_dir = f"{args.output_path}/{time_str}"
     else:
         save_dir = f"{args.output_path}"
-
     os.makedirs(save_dir, exist_ok=True)
-    if args.save_latent:
-        latent_dir = os.path.join(args.output_path, "denoised_latents")
-        os.makedirs(latent_dir, exist_ok=True)
     set_logger(name="", output_dir=save_dir)
+
+    latent_dir = os.path.join(args.output_path, "denoised_latents")
+    if args.save_latent:
+        os.makedirs(latent_dir, exist_ok=True)
 
     # 1. init env
     rank_id, device_num = init_env(
@@ -131,7 +146,7 @@ def main(args):
         args.seed,
         args.use_parallel,
         device_target=args.device_target,
-        enable_dvm=args.enable_dvm,
+        jit_level=args.jit_level,
         debug=args.debug,
     )
 
@@ -255,10 +270,12 @@ def main(args):
         )
         text_tokens, mask = Tensor(text_tokens, dtype=ms.int32), Tensor(mask, dtype=ms.uint8)
         text_emb = None
-        if args.dtype in ["fp16", "bf16"]:
-            text_encoder = auto_mixed_precision(text_encoder, amp_level="O2", dtype=dtype_map[args.dtype])
+        # TODO: use FA in T5
+        if args.t5_dtype in ["fp16", "bf16"]:
+            text_encoder = auto_mixed_precision(
+                text_encoder, amp_level="O2", dtype=dtype_map[args.t5_dtype], custom_fp32_cells=WHITELIST_OPS
+            )
         logger.info(f"Num tokens: {mask.asnumpy().sum(2)}")
-
     else:
         assert not args.use_parallel, "parallel inference is not supported for t5 cached sampling currently."
         if args.model_version == "v1.1":
@@ -293,7 +310,7 @@ def main(args):
         num_inference_steps=args.sampling_steps,
         guidance_rescale=args.guidance_scale,
         guidance_channels=args.guidance_channels,
-        ddim_sampling=args.ddim_sampling,  # TODO: add ddim support for OpenSora v1.1
+        ddim_sampling=args.ddim_sampling,
         micro_batch_size=args.vae_micro_batch_size,
     )
     if args.pre_patchify:
@@ -428,9 +445,9 @@ def main(args):
             samples, latent = pipeline(
                 inputs, frames_mask=frames_mask, num_frames=args.num_frames, additional_kwargs=model_args
             )
-            latents.append(latent.asnumpy()[:, :, args.condition_frame_length if loop_i > 0 else 0 :])
+            latents.append(to_numpy(latent)[:, :, args.condition_frame_length if loop_i > 0 else 0 :])
             if samples is not None:
-                videos.append(samples.asnumpy()[:, args.condition_frame_length if loop_i > 0 else 0 :])
+                videos.append(to_numpy(samples)[:, args.condition_frame_length if loop_i > 0 else 0 :])
             batch_time = time.time() - start_time
             logger.info(
                 f"Batch time cost: {batch_time:.3f}s, sampling speed: {args.sampling_steps * ns / batch_time:.2f} step/s"
@@ -520,7 +537,16 @@ def parse_args():
         default=17,
         help="If not None, split batch_size*num_frames into smaller ones for VAE encoding to reduce memory limitation. Used by temporal vae",
     )
-    parser.add_argument("--enable_dvm", default=False, type=str2bool, help="enable dvm mode")
+    parser.add_argument(
+        "--jit_level",
+        default="O0",
+        type=str,
+        choices=["O0", "O1", "O2"],
+        help="Used to control the compilation optimization level. Supports [“O0”, “O1”, “O2”]."
+        "O0: Except for optimizations that may affect functionality, all other optimizations are turned off, adopt KernelByKernel execution mode."
+        "O1: Using commonly used optimizations and automatic operator fusion optimizations, adopt KernelByKernel execution mode."
+        "O2: Ultimate performance optimization, adopt Sink execution mode.",
+    )
     parser.add_argument("--sampling_steps", type=int, default=50, help="Diffusion Sampling Steps")
     parser.add_argument("--guidance_scale", type=float, default=8.5, help="the scale for classifier-free guidance")
     parser.add_argument(
@@ -579,6 +605,13 @@ def parse_args():
         type=str,
         choices=["bf16", "fp16", "fp32"],
         help="what data type to use for latte. Default is `fp16`, which corresponds to ms.float16",
+    )
+    parser.add_argument(
+        "--t5_dtype",
+        default="fp32",
+        type=str,
+        choices=["bf16", "fp16", "fp32"],
+        help="what data type to use for T5. Default is `fp16`, which corresponds to ms.float16",
     )
     parser.add_argument(
         "--amp_level",

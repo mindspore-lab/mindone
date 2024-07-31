@@ -6,9 +6,6 @@ export MS_MEMORY_STATISTIC=0
 
 export MS_DATASET_SINK_QUEUE=4
 
-# enable kbk: 1
-export MS_ENABLE_ACLNN=1
-export GRAPH_OP_RUN=1
 
 # log level
 export GLOG_v=2

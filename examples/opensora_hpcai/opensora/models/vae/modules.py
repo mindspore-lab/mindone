@@ -167,7 +167,7 @@ class AttnBlock(nn.Cell):
 
 
 def make_attn(in_channels, attn_type="vanilla"):
-    assert attn_type in ["vanilla", "vanilla3D"], f"attn_type {attn_type} not supported"
+    # assert attn_type in ["vanilla", "vanilla3D"], f"attn_type {attn_type} not supported"
     _logger.debug(f"making attention of type '{attn_type}' with {in_channels} in_channels")
     if attn_type == "vanilla":
         return AttnBlock(in_channels)

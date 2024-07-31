@@ -1,0 +1,35 @@
+name: docs
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+    branches:
+      - master
+
+permissions:
+  contents: write
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+            fetch-depth: 0
+      - name: Install Hatch
+        uses: pypa/hatch@install
+      - name: Install dependencies
+        run: |
+          hatch run python -m pip install --upgrade pip
+          hatch run pip install -e ".[docs]"
+          hatch run pip install mindspore
+      - name: Build site
+        run: hatch run mkdocs build
+      - name: Deploy to gh-pages
+        if: github.event_name == 'push' && github.repository == 'mindspore-lab/mindone'
+        run: |
+          git config --global user.name MkDocs Deployer
+          git config --global user.email mkdocs@bot.com
+          hatch run mike deploy -u -p $(hatch version | cut -d. -f1,2) latest
+          hatch run mike set-default -p latest

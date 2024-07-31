@@ -1,4 +1,5 @@
 import logging
+import math
 import os
 import sys
 
@@ -8,10 +9,11 @@ import mindspore as ms
 from mindspore import Model, nn
 from mindspore.train.callback import TimeMonitor
 
-mindone_lib_path = os.path.abspath(os.path.abspath("../../"))
+mindone_lib_path = os.path.abspath("../../")
 sys.path.insert(0, mindone_lib_path)
 sys.path.append("./")
-# from mindcv.optim.adamw import AdamW
+
+from opensora.acceleration.parallel_states import get_sequence_parallel_state, hccl_info
 from opensora.dataset.t2v_dataset import create_dataloader
 from opensora.models.ae import ae_channel_config, ae_stride_config, getae_wrapper
 from opensora.models.ae.videobase.modules.updownsample import TrilinearInterpolate
@@ -20,10 +22,11 @@ from opensora.models.diffusion.latte.modeling_latte import Latte_models, LayerNo
 from opensora.models.diffusion.latte.modules import Attention
 from opensora.models.diffusion.latte.net_with_loss import DiffusionWithLoss
 from opensora.models.text_encoder.t5 import T5Embedder
-from opensora.train.commons import create_loss_scaler, init_env, parse_args
+from opensora.train.commons import create_loss_scaler, parse_args
+from opensora.utils.ms_utils import init_env
 from opensora.utils.utils import get_precision
 
-from mindone.trainers.callback import EvalSaveCallback, OverflowMonitor, ProfilerCallback
+from mindone.trainers.callback import EvalSaveCallback, OverflowMonitor, ProfilerCallbackEpoch
 from mindone.trainers.checkpoint import resume_train_network
 from mindone.trainers.ema import EMA
 from mindone.trainers.lr_schedule import create_scheduler
@@ -36,7 +39,6 @@ from mindone.utils.params import count_params
 
 os.environ["HCCL_CONNECT_TIMEOUT"] = "6000"
 os.environ["MS_ASCEND_CHECK_OVERFLOW_MODE"] = "INFNAN_MODE"
-ms.context.set_context(jit_config={"jit_level": "O1"})  # O0: KBK, O1:DVM, O2: GE
 logger = logging.getLogger(__name__)
 
 
@@ -67,15 +69,15 @@ def main(args):
         device_target=args.device,
         max_device_memory=args.max_device_memory,
         parallel_mode=args.parallel_mode,
-        enable_dvm=args.enable_dvm,
         mempool_block_size=args.mempool_block_size,
         global_bf16=args.global_bf16,
         strategy_ckpt_save_file=os.path.join(args.output_dir, "src_strategy.ckpt") if save_src_strategy else "",
         optimizer_weight_shard_size=args.optimizer_weight_shard_size,
+        sp_size=args.sp_size,
+        jit_level=args.jit_level,
+        enable_parallel_fusion=args.enable_parallel_fusion,
     )
-    set_logger(output_dir=args.output_dir, rank=rank_id, log_level=eval(args.log_level))
-    if args.use_deepspeed:
-        raise NotImplementedError
+    set_logger(name="", output_dir=args.output_dir, rank=rank_id, log_level=eval(args.log_level))
 
     train_with_vae_latent = args.vae_latent_folder is not None and len(args.vae_latent_folder) > 0
     if train_with_vae_latent:
@@ -87,10 +89,13 @@ def main(args):
     else:
         logger.info("vae init")
         vae = getae_wrapper(args.ae)(args.ae_path, subfolder="vae")
-        vae_dtype = ms.bfloat16
-        custom_fp32_cells = [nn.GroupNorm] if vae_dtype == ms.float16 else [nn.AvgPool2d, TrilinearInterpolate]
+        vae_dtype = get_precision(args.vae_precision)
+        if vae_dtype == ms.float16:
+            custom_fp32_cells = [nn.GroupNorm] if args.vae_keep_gn_fp32 else []
+        else:
+            custom_fp32_cells = [nn.AvgPool2d, TrilinearInterpolate]
         vae = auto_mixed_precision(vae, amp_level="O2", dtype=vae_dtype, custom_fp32_cells=custom_fp32_cells)
-        logger.info(f"Use amp level O2 for causal 3D VAE. Use dtype {vae_dtype}")
+        logger.info(f"Use amp level O2 for causal 3D VAE with dtype={vae_dtype}, custom_fp32_cells {custom_fp32_cells}")
 
         vae.set_train(False)
         for param in vae.get_parameters():  # freeze vae
@@ -126,6 +131,13 @@ def main(args):
     ae_time_stride = 4
     video_length = args.num_frames // ae_time_stride + 1
     FA_dtype = get_precision(args.precision) if get_precision(args.precision) != ms.float32 else ms.bfloat16
+    assert not args.multi_scale, "Multi-scale training is not supported now!"
+    assert (
+        args.compress_kv_factor >= 1
+    ), f"Expect that compress_kv_factor is greater than zero, but got {args.compress_kv_factor}"
+    assert (
+        args.num_no_recompute >= 0 and args.num_no_recompute <= 28
+    ), f"Expect that the number of no recomputation is within [0, the total number of transformer blocks (28)], but got {args.num_no_recompute}"
     latte_model = Latte_models[args.model](
         in_channels=ae_channel_config[args.ae],
         out_channels=ae_channel_config[args.ae] * 2,
@@ -157,15 +169,19 @@ def main(args):
     else:
         model_dtype = get_precision(args.precision)
         if not args.global_bf16:
+            if model_dtype == ms.float16:
+                custom_fp32_cells = [LayerNorm, Attention, nn.SiLU, nn.GELU]
+            else:
+                custom_fp32_cells = [nn.MaxPool2d, LayerNorm, nn.SiLU, nn.GELU]
             latte_model = auto_mixed_precision(
                 latte_model,
                 amp_level=args.amp_level,
                 dtype=model_dtype,
-                custom_fp32_cells=[LayerNorm, Attention, nn.SiLU, nn.GELU]
-                if model_dtype == ms.float16
-                else [nn.MaxPool2d, LayerNorm, nn.SiLU, nn.GELU],
+                custom_fp32_cells=custom_fp32_cells,
             )
-            logger.info(f"Set mixed precision to {args.amp_level} with dtype={args.precision}")
+            logger.info(
+                f"Set mixed precision to {args.amp_level} with dtype={args.precision}, custom_fp32_cells: {custom_fp32_cells}"
+            )
         else:
             logger.info(f"Using global bf16 for latte t2v model. Force model dtype from {model_dtype} to ms.bfloat16")
             model_dtype = ms.bfloat16
@@ -186,7 +202,7 @@ def main(args):
             model_max_length=args.model_max_length,
         )
         # mixed precision
-        text_encoder_dtype = ms.bfloat16  # using bf16 for text encoder and vae
+        text_encoder_dtype = get_precision(args.text_encoder_precision)  # using bf16 for text encoder and vae
         text_encoder = auto_mixed_precision(text_encoder, amp_level="O2", dtype=text_encoder_dtype)
         text_encoder.dtype = text_encoder_dtype
         logger.info(f"Use amp level O2 for text encoder T5 with dtype={text_encoder_dtype}")
@@ -195,9 +211,18 @@ def main(args):
     else:
         text_encoder = None
         tokenizer = None
+        text_encoder_dtype = None
 
     # 2.3 ldm with loss
     diffusion = create_diffusion(timestep_respacing="")
+    assert args.use_image_num >= 0, f"Expect to have use_image_num>=0, but got {args.use_image_num}"
+    if args.use_image_num > 0:
+        logger.info("Enable video-image-joint training")
+        if args.use_img_from_vid:
+            args.image_data = ""
+    else:
+        logger.info("Training on video datasets only.")
+        args.image_data = ""
     latent_diffusion_with_loss = DiffusionWithLoss(
         latte_model,
         diffusion,
@@ -208,7 +233,10 @@ def main(args):
         use_image_num=args.use_image_num,
         dtype=model_dtype,
     )
-
+    split_time_upsample = True
+    assert not (
+        args.num_frames % 2 == 0 and split_time_upsample
+    ), "num of frames must be odd if split_time_upsample is True"
     # 3. create dataset
     assert args.dataset == "t2v", "Support t2v dataset only."
     ds_config = dict(
@@ -228,41 +256,104 @@ def main(args):
         ds_config,
         batch_size=args.batch_size,
         shuffle=True,
-        device_num=device_num,
-        rank_id=rank_id,
+        device_num=device_num if not get_sequence_parallel_state() else (device_num // hccl_info.world_size),
+        rank_id=rank_id if not get_sequence_parallel_state() else hccl_info.group_id,
         num_parallel_workers=args.dataloader_num_workers,
         max_rowsize=args.max_rowsize,
+        prefetch_size=args.dataloader_prefetch_size,
     )
     dataset_size = dataset.get_dataset_size()
     assert dataset_size > 0, "Incorrect dataset size. Please check your dataset size and your global batch size"
 
     # 4. build training utils: lr, optim, callbacks, trainer
-    if args.max_train_steps is not None and args.max_train_steps > 0:
-        args.epochs = args.max_train_steps // dataset_size
-        logger.info(f"Forcing training epochs to {args.epochs} when using max_train_steps {args.max_train_steps}")
-    if args.checkpointing_steps is not None and args.checkpointing_steps > 0:
-        logger.info(f"Saving checkpoints every {args.checkpointing_steps} steps")
-        args.step_mode = True
-        args.ckpt_save_interval = args.checkpointing_steps
+    if args.scale_lr:
+        learning_rate = args.start_learning_rate * args.batch_size * args.gradient_accumulation_steps * device_num
+        end_learning_rate = args.end_learning_rate * args.batch_size * args.gradient_accumulation_steps * device_num
+    else:
+        learning_rate = args.start_learning_rate
+        end_learning_rate = args.end_learning_rate
 
+    if args.dataset_sink_mode and args.sink_size != -1:
+        assert args.sink_size > 0, f"Expect that sink size is a positive integer, but got {args.sink_size}"
+        steps_per_sink = args.sink_size
+    else:
+        steps_per_sink = dataset_size
+
+    if args.max_train_steps is not None:
+        assert args.max_train_steps > 0, f"max_train_steps should a positive integer, but got {args.max_train_steps}"
+        total_train_steps = args.max_train_steps
+        args.epochs = math.ceil(total_train_steps / dataset_size)
+    else:
+        # use args.epochs
+        assert (
+            args.epochs is not None and args.epochs > 0
+        ), f"When args.max_train_steps is not provided, args.epochs must be a positive integer! but got {args.epochs}"
+        total_train_steps = args.epochs * dataset_size
+
+    sink_epochs = math.ceil(total_train_steps / steps_per_sink)
+    total_train_steps = sink_epochs * steps_per_sink
+
+    if steps_per_sink == dataset_size:
+        logger.info(
+            f"Number of training steps: {total_train_steps}; Number of epochs: {args.epochs}; Number of batches in a epoch (dataset_size): {dataset_size}"
+        )
+    else:
+        logger.info(
+            f"Number of training steps: {total_train_steps}; Number of sink epochs: {sink_epochs}; Number of batches in a sink (sink_size): {steps_per_sink}"
+        )
+
+    if args.checkpointing_steps is None:
+        ckpt_save_interval = args.ckpt_save_interval
+        step_mode = False
+    else:
+        step_mode = not args.dataset_sink_mode
+        if not args.dataset_sink_mode:
+            ckpt_save_interval = args.checkpointing_steps
+        else:
+            # still need to count interval in sink epochs
+            ckpt_save_interval = max(1, args.checkpointing_steps // steps_per_sink)
+            if args.checkpointing_steps % steps_per_sink != 0:
+                logger.warning(
+                    f"`checkpointing_steps` must be times of sink size or dataset_size under dataset sink mode."
+                    f"Checkpoint will be saved every {ckpt_save_interval * steps_per_sink} steps."
+                )
+    if step_mode != args.step_mode:
+        logger.logging("Using args.checkpointing_steps to determine whether to use step mode to save ckpt.")
+        if args.checkpointing_steps is None:
+            logger.warning(f"args.checkpointing_steps is not provided. Force step_mode to {step_mode}!")
+        else:
+            logger.warning(
+                f"args.checkpointing_steps is provided. data sink mode is {args.dataset_sink_mode}. Force step mode to {step_mode}!"
+            )
+    logger.info(
+        "ckpt_save_interval: {} {}".format(
+            ckpt_save_interval,
+            "steps"
+            if (not args.dataset_sink_mode and step_mode)
+            else ("epochs" if steps_per_sink == dataset_size else "sink epochs"),
+        )
+    )
     # build learning rate scheduler
     if not args.lr_decay_steps:
-        args.lr_decay_steps = args.epochs * dataset_size - args.lr_warmup_steps  # fix lr scheduling
+        args.lr_decay_steps = total_train_steps - args.lr_warmup_steps  # fix lr scheduling
         if args.lr_decay_steps <= 0:
             logger.warning(
                 f"decay_steps is {args.lr_decay_steps}, please check epochs, dataset_size and warmup_steps. "
                 f"Will force decay_steps to be set to 1."
             )
             args.lr_decay_steps = 1
+    assert (
+        args.lr_warmup_steps >= 0
+    ), f"Expect args.lr_warmup_steps to be no less than zero,  but got {args.lr_warmup_steps}"
 
     lr = create_scheduler(
         steps_per_epoch=dataset_size,
         name=args.lr_scheduler,
-        lr=args.start_learning_rate,
-        end_lr=args.end_learning_rate,
+        lr=learning_rate,
+        end_lr=end_learning_rate,
         warmup_steps=args.lr_warmup_steps,
         decay_steps=args.lr_decay_steps,
-        num_epochs=args.epochs,
+        total_steps=total_train_steps,
     )
     set_all_reduce_fusion(
         latent_diffusion_with_loss.trainable_params(),
@@ -310,7 +401,9 @@ def main(args):
         if args.use_ema
         else None
     )
-
+    assert (
+        args.gradient_accumulation_steps > 0
+    ), f"Expect gradient_accumulation_steps is a positive integer, but got {args.gradient_accumulation_steps}"
     net_with_grads = TrainOneStepWrapper(
         latent_diffusion_with_loss,
         optimizer=optimizer,
@@ -357,8 +450,9 @@ def main(args):
             ema=ema,
             ckpt_save_policy="latest_k",
             ckpt_max_keep=ckpt_max_keep,
-            step_mode=args.step_mode,
-            ckpt_save_interval=args.ckpt_save_interval,
+            step_mode=step_mode,
+            use_step_unit=(args.checkpointing_steps is not None),
+            ckpt_save_interval=ckpt_save_interval,
             log_interval=args.log_interval,
             start_epoch=start_epoch,
             model_name=args.model.replace("/", "-"),
@@ -368,7 +462,7 @@ def main(args):
         )
         callback.append(save_cb)
         if args.profile:
-            callback.append(ProfilerCallback())
+            callback.append(ProfilerCallbackEpoch(2, 2, "./profile_data"))
 
     # 5. log and save config
     if rank_id == 0:
@@ -383,14 +477,20 @@ def main(args):
         key_info += "\n".join(
             [
                 f"MindSpore mode[GRAPH(0)/PYNATIVE(1)]: {args.mode}",
-                f"Distributed mode: {args.use_parallel}" + f"\nParallel mode: {args.parallel_mode}"
-                if args.use_parallel
-                else "",
+                f"Jit level: {args.jit_level}",
+                f"Distributed mode: {args.use_parallel}"
+                + (f"\nParallel mode: {args.parallel_mode}" if args.use_parallel else ""),
                 f"Num params: {num_params:,} (latte: {num_params_latte:,}, vae: {num_params_vae:,})",
                 f"Num trainable params: {num_params_trainable:,}",
-                f"Use model dtype: {model_dtype}",
-                f"AMP level: {args.amp_level}" if not args.global_bf16 else "Global BF16: True",
-                f"Learning rate: {args.start_learning_rate}",
+                f"Transformer model dtype: {model_dtype}",
+                f"Transformer AMP level: {args.amp_level}" if not args.global_bf16 else "Global BF16: True",
+                f"VAE dtype: {vae_dtype} (amp level O2)"
+                + (
+                    f"\nText encoder dtype: {text_encoder_dtype} (amp level O2)"
+                    if text_encoder_dtype is not None
+                    else ""
+                ),
+                f"Learning rate: {learning_rate}",
                 f"Batch size: {args.batch_size}",
                 f"Image size: {args.max_image_size}",
                 f"Number of frames: {args.num_frames}",
@@ -399,7 +499,7 @@ def main(args):
                 f"Optimizer epsilon: {args.optim_eps}",
                 f"Weight decay: {args.weight_decay}",
                 f"Grad accumulation steps: {args.gradient_accumulation_steps}",
-                f"Num epochs: {args.epochs}",
+                f"Num of training steps: {total_train_steps}",
                 f"Loss scaler: {args.loss_scaler_type}",
                 f"Init loss scale: {args.init_loss_scale}",
                 f"Grad clipping: {args.clip_grad}",
@@ -421,7 +521,7 @@ def main(args):
 
     # 6. train
     model.train(
-        args.epochs,
+        sink_epochs,
         dataset,
         callbacks=callback,
         dataset_sink_mode=args.dataset_sink_mode,
@@ -432,7 +532,7 @@ def main(args):
 
 def parse_t2v_train_args(parser):
     parser.add_argument("--output_dir", default="outputs/", help="The directory where training results are saved.")
-    parser.add_argument("--dataset", type=str, required=True)
+    parser.add_argument("--dataset", type=str, default="t2v")
     parser.add_argument("--image_data", type=str, required=True)
     parser.add_argument("--video_data", type=str, required=True)
     parser.add_argument(
@@ -448,23 +548,20 @@ def parse_t2v_train_args(parser):
         help="Whether to use T5 embedding cache. Must be provided in image/video_data.",
     )
     parser.add_argument("--vae_latent_folder", default=None, type=str, help="root dir for the vae latent data")
-    parser.add_argument("--model", type=str, default="DiT-XL/122")
-    parser.add_argument("--num_classes", type=int, default=1000)
-    parser.add_argument("--ae", type=str, default="stabilityai/sd-vae-ft-mse")
-    parser.add_argument("--ae_path", type=str, default="stabilityai/sd-vae-ft-mse")
+    parser.add_argument("--model", type=str, default="LatteT2V-XL/122")
+    parser.add_argument("--ae", type=str, default="CausalVAEModel_4x8x8")
+    parser.add_argument("--ae_path", type=str, default="LanguageBind/Open-Sora-Plan-v1.1.0")
 
     parser.add_argument("--num_frames", type=int, default=17)
     parser.add_argument("--max_image_size", type=int, default=512)
     parser.add_argument("--compress_kv", action="store_true")
     parser.add_argument("--compress_kv_factor", type=int, default=1)
     parser.add_argument("--use_rope", action="store_true")
-    parser.add_argument("--attention_mode", type=str, choices=["xformers", "math", "flash"], default="math")
     parser.add_argument("--pretrained", type=str, default=None)
 
     parser.add_argument("--tile_overlap_factor", type=float, default=0.25)
     parser.add_argument("--enable_tiling", action="store_true")
 
-    parser.add_argument("--video_folder", type=str, default="")
     parser.add_argument("--text_encoder_name", type=str, default="DeepFloyd/t5-v1_1-xxl")
     parser.add_argument("--model_max_length", type=int, default=300)
     parser.add_argument("--multi_scale", action="store_true")
@@ -472,7 +569,6 @@ def parse_t2v_train_args(parser):
     # parser.add_argument("--enable_tracker", action="store_true")
     parser.add_argument("--use_image_num", type=int, default=0)
     parser.add_argument("--use_img_from_vid", action="store_true")
-    parser.add_argument("--use_deepspeed", action="store_true")
     parser.add_argument(
         "--max_train_steps",
         type=int,
@@ -489,9 +585,6 @@ def parse_t2v_train_args(parser):
             " training using `--resume_from_checkpoint`."
         ),
     )
-    parser.add_argument(
-        "--sd_scale_factor", type=float, default=0.18215, help="VAE scale factor of Stable Diffusion model."
-    )
 
     parser.add_argument(
         "--enable_flip",
@@ -505,10 +598,38 @@ def parse_t2v_train_args(parser):
         help="If use_recompute is True, `num_no_recompute` blocks will be removed from the recomputation list."
         "This is a positive integer which can be tuned based on the memory usage.",
     )
+    parser.add_argument("--dataloader_prefetch_size", type=int, default=None, help="minddata prefetch size setting")
+    parser.add_argument("--sp_size", type=int, default=1, help="For sequence parallel")
+    parser.add_argument(
+        "--vae_keep_gn_fp32",
+        default=False,
+        type=str2bool,
+        help="whether keep GroupNorm in fp32. Defaults to False in inference mode. If training vae, better set it to True",
+    )
+    parser.add_argument(
+        "--vae_precision",
+        default="fp16",
+        type=str,
+        choices=["bf16", "fp16"],
+        help="what data type to use for vae. Default is `fp16`, which corresponds to ms.float16",
+    )
+    parser.add_argument(
+        "--text_encoder_precision",
+        default="bf16",
+        type=str,
+        choices=["bf16", "fp16"],
+        help="what data type to use for T5 text encoder. Default is `bf16`, which corresponds to ms.bfloat16",
+    )
+    parser.add_argument(
+        "--enable_parallel_fusion", default=True, type=str2bool, help="Whether to parallel fusion for AdamW"
+    )
+    parser.add_argument("--jit_level", default="O1", help="Set jit level: # O0: KBK, O1:DVM, O2: GE")
     return parser
 
 
 if __name__ == "__main__":
     logger.debug("process id:", os.getpid())
     args = parse_args(additional_parse_args=parse_t2v_train_args)
+    if args.resume_from_checkpoint == "True":
+        args.resume_from_checkpoint = True
     main(args)
