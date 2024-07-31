@@ -1,44 +1,11 @@
-Here we provide various examples for image/video/audio generation models built on MindSpore.
+multi modal & text to image/video/audio models
 
-<details open markdown>
-<summary> Image Generation </summary>
+| model   |  codebase style | original repo
+| :---   |  :--  | :-
+| [stable diffusion](https://github.com/mindspore-lab/mindone/blob/master/examples/stable_diffusion_v2) | Stability AI official | https://github.com/Stability-AI/stablediffusion
+| [stable diffusion xl](https://github.com/mindspore-lab/mindone/blob/master/examples/stable_diffusion_xl)  | Stability AI official| https://github.com/Stability-AI/generative-models |
+| [dit](https://github.com/mindspore-lab/mindone/blob/master/examples/dit)     | Facebook Research official | https://github.com/facebookresearch/DiT
+| [latte](https://github.com/mindspore-lab/mindone/blob/master/examples/latte)     | Vchitect Shanghai AI Laboratory official | https://github.com/Vchitect/Latte |
+| [open sora](https://github.com/mindspore-lab/mindone/blob/master/examples/opensora_hpcai)      | HPC-AI Tech official | https://github.com/hpcaitech/Open-Sora
+| [open sora plan](https://github.com/mindspore-lab/mindone/blob/master/examples/opensora_pku) | PKU-YuanGroup official | https://github.com/PKU-YuanGroup/Open-Sora-Plan
 
-- [x] [Stable Diffusion](stable_diffusion_v2/README.md) #rich pipelines
-- [x] [SDXL](stable_diffusion_xl/README.md)  🔥
-- [x] [Diffsuion Transformer (DiT)](dit/README.md)
-- [x] [Flexible Diffusion Transformer (FiT)](fit/README.md)
-- [x] [t2i-adapter](t2i_adapter/README.md) #Controllable
-- [x] [ip-adapter](ip_adapter/README.md) #Controllable
-- [x] [Pangu Draw v3](pangu_draw_v3/README.md) #Chinese
-
-</details>
-
-
-<details open markdown>
-<summary> Video Generation </summary>
-
-- [x] [AnimateDiff](animatediff/README.md)
-- [x] [Stable Video Diffusion](svd/README.md)
-- [x] [Video Diffusion Transformer (Latte)](latte/README.md) 🔥
-- [x] [VideoComposer](videocomposer/README.md)
-- [x] [Tune-A-Video](tuneavideo/README.md)
-- [x] [Text2Video Zero](text2video_zero/README.md)
-
-</details>
-
-
-<details open markdown>
-<summary> Audio Generation </summary>
-
-- [x] [Tango](tango/README.md)
-
-</details>
-
-
-<details open markdown>
-<summary> Sora-like Projects</summary>
-
-- [x] [PKU Open-Sora-Plan](opensora_pku/README.md)
-- [x] [hpcaitech Open-Sora](opensora_hpcai/README.md)
-
-</details>
