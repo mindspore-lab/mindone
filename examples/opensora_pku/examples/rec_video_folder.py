@@ -39,9 +39,7 @@ def transform_to_rgb(x, rescale_to_uint8=True):
 def main(args):
     real_video_dir = args.real_video_dir
     generated_video_dir = args.generated_video_dir
-
-    resolution = args.resolution
-    crop_size = args.crop_size
+    height, width = args.height, args.width
     num_frames = args.num_frames
     sample_rate = args.sample_rate
     sample_fps = args.sample_fps
@@ -65,8 +63,8 @@ def main(args):
 
     set_logger(name="", output_dir=args.generated_video_dir, rank=0)
 
-    kwarg = {"model_config": args.model_config}
-    vae = CausalVAEModelWrapper(args.model_path, **kwarg)
+    kwarg = {"ae_config": args.ae_config}
+    vae = CausalVAEModelWrapper(args.ae_path, **kwarg)
     if args.enable_tiling:
         vae.vae.enable_tiling()
         vae.vae.tile_overlap_factor = args.tile_overlap_factor
@@ -94,8 +92,8 @@ def main(args):
         data_file_path=args.data_file_path,
         video_column=args.video_column,
         data_folder=real_video_dir,
-        size=resolution,
-        crop_size=crop_size,
+        size=(height, width),
+        crop_size=(height, width),
         disable_flip=True,
         random_crop=False,
     )
@@ -177,18 +175,17 @@ def main(args):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--ae", type=str, default="CausalVAEModel_4x8x8")
     parser.add_argument("--real_video_dir", type=str, default="")
     parser.add_argument("--generated_video_dir", type=str, default="")
     parser.add_argument("--ckpt", type=str, default="results/pretrained/causal_vae.ckpt")
     parser.add_argument(
-        "--model_config",
+        "--ae_config",
         default="scripts/causalvae/release.json",
         help="the model configuration file for the causalvae.",
     )
     parser.add_argument("--sample_fps", type=int, default=30)
-    parser.add_argument("--resolution", type=int, default=512)
-    parser.add_argument("--crop_size", type=int, default=512)
+    parser.add_argument("--height", type=int, default=512)
+    parser.add_argument("--width", type=int, default=512)
     parser.add_argument("--num_frames", type=int, default=17)
     parser.add_argument("--sample_rate", type=int, default=1)
     parser.add_argument(

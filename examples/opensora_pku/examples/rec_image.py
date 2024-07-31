@@ -2,14 +2,13 @@
 Run causal vae reconstruction on a given image
 Usage example:
 python examples/rec_image.py \
-    --model_path path/to/vae/ckpt \
+    --ae_path path/to/vae/ckpt \
     --image_path test.png \
     --rec_path rec.png \
     --sample_rate 1 \
     --num_frames 65 \
     --resolution 512 \
     --crop_size 512 \
-    --ae CausalVAEModel_4x8x8 \
 """
 import argparse
 import logging
@@ -75,8 +74,8 @@ def main(args):
 
     set_logger(name="", output_dir=args.output_path, rank=0)
 
-    kwarg = {"model_config": args.model_config}
-    vae = CausalVAEModelWrapper(args.model_path, **kwarg)
+    kwarg = {"ae_config": args.ae_config}
+    vae = CausalVAEModelWrapper(args.ae_path, **kwarg)
     if args.enable_tiling:
         vae.vae.enable_tiling()
         vae.vae.tile_overlap_factor = args.tile_overlap_factor
@@ -121,10 +120,9 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--image_path", type=str, default="")
     parser.add_argument("--rec_path", type=str, default="")
-    parser.add_argument("--ae", type=str, default="CausalVAEModel_4x8x8")
-    parser.add_argument("--model_path", type=str, default="results/pretrained")
+    parser.add_argument("--ae_path", type=str, default="results/pretrained")
     parser.add_argument(
-        "--model_config",
+        "--ae_config",
         default="scripts/causalvae/release.json",
         help="the model configuration file for the causalvae.",
     )
