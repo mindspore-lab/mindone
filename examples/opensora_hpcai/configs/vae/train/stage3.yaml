@@ -9,7 +9,7 @@ kl_loss_weight: 1.e-6
 use_real_rec_loss: True
 use_z_rec_loss: False
 use_image_identity_loss: False
-mixed_strategy: "mixed_video_image"
+mixed_strategy: "mixed_video_image"  # TODO: use mixed_video_random after dynamic shape adaptation
 mixed_image_ratio: 0.2
 
 # data
@@ -17,12 +17,11 @@ dataset_name: "video"
 csv_path: "../videocomposer/datasets/webvid5_copy.csv"
 video_folder: "../videocomposer/datasets/webvid5"
 frame_stride: 1
-num_frames: 33
+num_frames: 33  # TODO: set 33 after dynamic shape adaptation and posterior concat fixed 
 image_size: 256
 
-# TODO: use micro_frame_size 17
-micro_frame_size: null
-micro_batch_size: null
+micro_frame_size: 17
+micro_batch_size: 4
 # flip: True
 
 # training recipe
@@ -45,3 +44,6 @@ scheduler: "constant"
 use_ema: False
 
 output_path: "outputs/vae_stage2"
+
+# ms settting
+jit_level: O1

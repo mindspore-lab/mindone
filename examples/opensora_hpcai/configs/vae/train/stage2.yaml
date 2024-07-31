@@ -9,7 +9,7 @@ kl_loss_weight: 1.e-6
 use_real_rec_loss: False 
 use_z_rec_loss: True
 use_image_identity_loss: False
-mixed_strategy: "mixed_video_image" # TODO: test it in dynamic mode
+mixed_strategy: "mixed_video_image"
 mixed_image_ratio: 0.2
 
 # data
@@ -27,13 +27,13 @@ micro_batch_size: null
 # training recipe
 seed: 42
 use_discriminator: False
-dtype: "fp16"
+dtype: "bf16"
 batch_size: 1
 clip_grad: True
 max_grad_norm: 1.0
 start_learning_rate: 1.e-5
 scale_lr: False
-use_recompute: False
+use_recompute: True
 
 epochs: 500
 ckpt_save_interval: 100
@@ -43,3 +43,6 @@ scheduler: "constant"
 use_ema: False
 
 output_path: "outputs/vae_stage2"
+
+# ms settting
+jit_level: O1

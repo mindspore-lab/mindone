@@ -126,7 +126,7 @@ def init_env(
             device_target=device_target,
             pynative_synchronize=debug,
         )
-    
+
     if mode == 0:
         ms.set_context(jit_config={"jit_level": jit_level})
 
@@ -159,7 +159,7 @@ def main(args):
     else:
         if len(args.image_size) == 2:
             assert args.image_size[0] == args.image_size[1], 'Currently only h==w is supported'
-        image_size = args.image_size[0] 
+        image_size = args.image_size[0]
 
     ds_config = dict(
         csv_path=args.csv_path,
@@ -274,7 +274,7 @@ def main(args):
         EMA(
             ae,
             ema_decay=args.ema_decay,
-            offloading=True,
+            offloading=False,
         )
         if args.use_ema
         else None

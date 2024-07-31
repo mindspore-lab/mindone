@@ -38,7 +38,7 @@ def parse_train_args(parser):
     parser.add_argument("--video_column", default="video", type=str, help="name of column for videos saved in csv file")
     parser.add_argument("--random_crop", default=False, type=str2bool, help="randonly crop the image")
     parser.add_argument("--flip", default=False, type=str2bool, help="flip the image")
-    
+
     parser.add_argument(
         "--caption_column", default="caption", type=str, help="name of column for captions saved in csv file"
     )
@@ -68,7 +68,7 @@ def parse_train_args(parser):
     parser.add_argument("--use_real_rec_loss", default=False, type=str2bool, help="use vae 2d x reconstruction loss")
     parser.add_argument("--use_z_rec_loss", default=False, type=str2bool, help="use spatial vae z reconstruction loss")
     parser.add_argument("--use_image_identity_loss", default=False, type=str2bool, help="use image identity reguralization loss for temporal vae encoder")
-    # data 
+    # data
     parser.add_argument("--mixed_strategy", type=str, default=None, help="video and image mixed strategy")
     parser.add_argument("--mixed_image_ratio", default=0., type=float, help="image ratio in mixed video and image data training")
 
@@ -81,7 +81,7 @@ def parse_train_args(parser):
     parser.add_argument(
         "--parallel_mode", default="data", type=str, choices=["data", "optim"], help="parallel mode: data, optim"
     )
-    parser.add_argument("--jit_level", default="O2", type=str, help="O0 kbk, O1 dvm, O2 ge")
+    parser.add_argument("--jit_level", default="O0", type=str, help="O0 kbk, O1 dvm, O2 ge")
 
     # training hyper-params
     parser.add_argument(
@@ -90,7 +90,7 @@ def parse_train_args(parser):
         type=str,
         help="It can be a string for path to resume checkpoint, or a bool False for not resuming.(default=False)",
     )
-    parser.add_argument("--optim", default="adamw", type=str, help="optimizer")
+    parser.add_argument("--optim", default="adamw_re", type=str, help="optimizer")
     parser.add_argument(
         "--betas",
         type=float,
@@ -99,7 +99,7 @@ def parse_train_args(parser):
         help="Specify the [beta1, beta2] parameter for the AdamW optimizer.",
     )
     parser.add_argument(
-        "--optim_eps", type=float, default=1e-6, help="Specify the eps parameter for the AdamW optimizer."
+        "--optim_eps", type=float, default=1e-8, help="Specify the eps parameter for the AdamW optimizer."
     )
     parser.add_argument(
         "--group_strategy",
