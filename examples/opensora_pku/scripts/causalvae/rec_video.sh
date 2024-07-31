@@ -1,5 +1,5 @@
 python examples/rec_video.py \
-    --ae_path LanguageBind/Open-Sora-Plan-v1.2.0/vae \
+    --ae_path LanguageBind/Open-Sora-Plan-v1.2.0/vae/causalvae_d4_488.ckpt \
     --video_path test.mp4 \
     --rec_path rec.mp4 \
     --device Ascend \

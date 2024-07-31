@@ -82,6 +82,7 @@ class CausalConv3d(nn.Cell):
         assert isinstance(padding, int)
         kernel_size = cast_tuple(kernel_size, 3)
         time_kernel_size, height_kernel_size, width_kernel_size = kernel_size
+        self.time_kernel_size = time_kernel_size
 
         assert is_odd(height_kernel_size) and is_odd(width_kernel_size)
 
@@ -103,14 +104,6 @@ class CausalConv3d(nn.Cell):
         else:
             padding = list(cast_tuple(padding, 3))
         """
-
-        # pad temporal dimension by k-1, manually
-        self.time_pad = dilation[0] * (time_kernel_size - 1) + (1 - stride[0])
-        if self.time_pad >= 1:
-            self.temporal_padding = True
-        else:
-            self.temporal_padding = False
-
         # pad h,w dimensions if used, by conv3d API
         # diff from torch: bias, pad_mode
 
@@ -151,10 +144,10 @@ class CausalConv3d(nn.Cell):
 
     def construct(self, x):
         # x: (bs, Cin, T, H, W )
-        if self.temporal_padding:
+        # first_frame_pad = ops.repeat_interleave(first_frame, (self.time_kernel_size - 1), axis=2)
+        if self.time_kernel_size - 1 > 0:
             first_frame = x[:, :, :1, :, :]
-            # first_frame_pad = ops.repeat_interleave(first_frame, self.time_pad, axis=2)
-            first_frame_pad = ops.cat([first_frame] * self.time_pad, axis=2)
+            first_frame_pad = ops.cat([first_frame] * (self.time_kernel_size - 1), axis=2)
             x = ops.concat((first_frame_pad, x), axis=2)
 
         return self.conv(x)
