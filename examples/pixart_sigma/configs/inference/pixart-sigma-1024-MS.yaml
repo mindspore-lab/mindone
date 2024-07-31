@@ -1,0 +1,17 @@
+# model
+image_height: 1024
+image_width: 1024
+sample_size: 128
+checkpoint: "models/PixArt-Sigma-XL-2-1024-MS.ckpt"
+vae_root: "models/vae"
+text_encoder_root: "models/text_encoder"
+tokenizer_root: "models/tokenizer"
+sd_scale_factor: 0.13025
+enable_flash_attention: True
+dtype: "fp16"
+
+# sampling
+sampling_steps: 50
+guidance_scale: 4.5
+seed: 42
+ddim_sampling: True
