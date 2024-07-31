@@ -23,7 +23,6 @@ from opensora.models.vae.losses import GeneratorWithLoss
 from opensora.datasets.vae_dataset import create_dataloader
 from opensora.models.vae.vae import OpenSoraVAE_V1_2
 
-from mindone.env import init_train_env
 from mindone.trainers.callback import EvalSaveCallback, OverflowMonitor, ProfilerCallback
 from mindone.trainers.checkpoint import CheckpointManager, resume_train_network
 from mindone.trainers.ema import EMA
