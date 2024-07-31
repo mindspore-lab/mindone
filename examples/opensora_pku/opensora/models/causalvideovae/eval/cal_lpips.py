@@ -1,7 +1,7 @@
 import os
 
 import numpy as np
-from opensora.models.ae.videobase.losses.lpips import LPIPS
+from opensora.models.causalvideovae.model.losses.lpips import LPIPS
 
 import mindspore as ms
 from mindspore import ops

@@ -75,7 +75,7 @@
     "kl_weight": 1e-06,
     "logvar_init": 0.0
   },
-  "loss_type": "opensora.models.ae.videobase.losses.LPIPSWithDiscriminator",
+  "loss_type": "opensora.models.causalvideovae.model.losses.LPIPSWithDiscriminator",
   "lr": 1e-05,
   "num_res_blocks": 2,
   "out_channels": 3,

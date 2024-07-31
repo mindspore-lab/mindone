@@ -9,7 +9,6 @@ python examples/rec_video.py \
     --num_frames 65 \
     --height 480 \
     --width 640 \
-    --crop_size 512 \
 """
 import argparse
 import logging

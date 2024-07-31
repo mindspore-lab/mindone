@@ -1,7 +1,7 @@
 import importlib
 
 Module = str
-MODULES_BASE = "opensora.models.ae.videobase.modules."
+MODULES_BASE = "opensora.models.causalvideovae.model.modules."
 
 
 def resolve_str_to_obj(str_val, append=True):

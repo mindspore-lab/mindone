@@ -32,7 +32,7 @@ import os.path as osp
 from argparse import ArgumentDefaultsHelpFormatter, ArgumentParser
 
 import clip
-from opensora.models.ae.videobase.dataset_videobase import create_dataloader
+from opensora.models.causalvideovae.model.dataset_videobase import create_dataloader
 from PIL import Image
 
 try:

@@ -16,7 +16,7 @@ sys.path.append("./")
 from opensora.acceleration.parallel_states import get_sequence_parallel_state, hccl_info
 from opensora.dataset.t2v_dataset import create_dataloader
 from opensora.models.ae import ae_channel_config, ae_stride_config, getae_wrapper
-from opensora.models.ae.videobase.modules.updownsample import TrilinearInterpolate
+from opensora.models.causalvideovae.model.modules.updownsample import TrilinearInterpolate
 from opensora.models.diffusion.diffusion import create_diffusion_T as create_diffusion
 from opensora.models.diffusion.latte.modeling_latte import Latte_models, LayerNorm
 from opensora.models.diffusion.latte.modules import Attention

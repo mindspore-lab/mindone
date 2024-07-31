@@ -5,6 +5,8 @@ from .normalize import GroupNormExtend, Normalize
 from .resnet_block import ResnetBlock2D, ResnetBlock3D
 from .updownsample import (  # TimeDownsampleResAdv2x,; TimeUpsampleResAdv2x
     Downsample,
+    Spatial2xTime2x3DDownsample,
+    Spatial2xTime2x3DUpsample,
     SpatialDownsample2x,
     SpatialUpsample2x,
     TimeDownsample2x,

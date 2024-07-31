@@ -286,12 +286,13 @@ class TrilinearInterpolate(nn.Cell):
 
 
 class Spatial2xTime2x3DUpsample(nn.Cell):
-    def __init__(self, in_channels, out_channels):
+    def __init__(self, in_channels, out_channels, dtype=ms.float32):
         super().__init__()
+        self.dtype = dtype
         self.conv = CausalConv3d(in_channels, out_channels, kernel_size=3, padding=1)
         self.intepolate = TrilinearInterpolate()
 
-    def forward(self, x):
+    def construct(self, x):
         if x.shape[2] > 1:
             x, x_ = x[:, :, :1], x[:, :, 1:]
             x_ = self.intepolate(x_, scale_factor=(2.0, 2.0, 2.0))
@@ -303,12 +304,13 @@ class Spatial2xTime2x3DUpsample(nn.Cell):
 
 
 class Spatial2xTime2x3DDownsample(nn.Cell):
-    def __init__(self, in_channels, out_channels):
+    def __init__(self, in_channels, out_channels, dtype=ms.float32):
         super().__init__()
+        self.dtype = dtype
         self.conv = CausalConv3d(in_channels, out_channels, kernel_size=3, padding=0, stride=2)
         self.pad = ops.Pad(paddings=((0, 0), (0, 0), (0, 0), (0, 1), (0, 1)))
 
-    def forward(self, x):
+    def construct(self, x):
         x = self.pad(x)
         x = self.conv(x)
         return x

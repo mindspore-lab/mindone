@@ -18,11 +18,11 @@ from mindspore.train.callback import TimeMonitor
 sys.path.append(".")
 mindone_lib_path = os.path.abspath("../../")
 sys.path.insert(0, mindone_lib_path)
-from opensora.models.ae.videobase.causal_vae.modeling_causalvae import CausalVAEModel
-from opensora.models.ae.videobase.dataset_videobase import VideoDataset, create_dataloader
-from opensora.models.ae.videobase.losses.net_with_loss import DiscriminatorWithLoss, GeneratorWithLoss
-from opensora.models.ae.videobase.modules.updownsample import TrilinearInterpolate
-from opensora.models.ae.videobase.utils.model_utils import resolve_str_to_obj
+from opensora.models.causalvideovae.model import CausalVAEModel
+from opensora.models.causalvideovae.model.dataset_videobase import VideoDataset, create_dataloader
+from opensora.models.causalvideovae.model.losses.net_with_loss import DiscriminatorWithLoss, GeneratorWithLoss
+from opensora.models.causalvideovae.model.modules.updownsample import TrilinearInterpolate
+from opensora.models.causalvideovae.model.utils.model_utils import resolve_str_to_obj
 from opensora.train.commons import create_loss_scaler, parse_args
 from opensora.utils.ms_utils import init_env
 from opensora.utils.utils import get_precision
@@ -71,10 +71,10 @@ def main(args):
     if use_discriminator:
         disc_type = model_config["loss_type"]
         if "LPIPSWithDiscriminator3D" in disc_type:
-            disc_type = "opensora.models.ae.videobase.losses.discriminator.NLayerDiscriminator3D"
+            disc_type = "opensora.models.causalvideovae.model.losses.discriminator.NLayerDiscriminator3D"
             use_3d_disc = True
         elif "LPIPSWithDiscriminator" in disc_type:
-            disc_type = "opensora.models.ae.videobase.losses.discriminator.NLayerDiscriminator"
+            disc_type = "opensora.models.causalvideovae.model.losses.discriminator.NLayerDiscriminator"
             use_3d_disc = False
         disc = resolve_str_to_obj(disc_type, append=False)()
     else:

@@ -51,7 +51,7 @@ try:
 except Exception:
     flolpips_isavailable = False
 from opensora.eval.cal_ssim import calculate_ssim
-from opensora.models.ae.videobase.dataset_videobase import create_dataloader
+from opensora.models.causalvideovae.model.dataset_videobase import create_dataloader
 from opensora.utils.dataset_utils import create_video_transforms
 from tqdm import tqdm
 

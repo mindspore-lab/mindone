@@ -7,8 +7,8 @@ python examples/rec_image.py \
     --rec_path rec.png \
     --sample_rate 1 \
     --num_frames 65 \
-    --resolution 512 \
-    --crop_size 512 \
+    --height 512 \
+    --width 512 \
 """
 import argparse
 import logging
