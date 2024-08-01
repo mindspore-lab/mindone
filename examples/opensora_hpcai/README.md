@@ -133,7 +133,7 @@ Your contributions are welcome.
 * [Data Processing](#data-processing)
 * [Training](#training)
 * [Evaluation](#evaluation)
-- [VAE Training & Evaluation](#vae-training--evaluation)
+* [VAE Training & Evaluation](#vae-training--evaluation)
 * [Contribution](#contribution)
 * [Acknowledgement](#acknowledgement)
 
@@ -591,7 +591,6 @@ For quality evaluation, please refer to the original HPC-AI Tech [evaluation doc
 A 3D-VAE pipeline consisting of a spatial VAE followed by a temporal VAE is trained in OpenSora v1.1. For more details, refer to [VAE Documentation](https://github.com/hpcaitech/Open-Sora/blob/main/docs/vae.md).
 
 ### Prepare Pretrained Weights
-Before you run the following commands, follow our [Installation Documentation](docs/installation.md) to install the required dependencies for VAE and Evaluation.
 
 - Download pretained VAE-2D checkpoint from [PixArt-alpha/pixart_sigma_sdxlvae_T5_diffusers](https://huggingface.co/PixArt-alpha/pixart_sigma_sdxlvae_T5_diffusers/tree/main/vae) if you aim to train VAE-3D from spatial VAE initialization.
 
@@ -607,7 +606,7 @@ Before you run the following commands, follow our [Installation Documentation](d
     python tools/convert_vae1.2.py --src /path/OpenSora-VAE-v1.2/models.safetensors --target models/OpenSora-VAE-v1.2/sdxl_vae.ckpt
     ```
 
-- Download lpips mindspore checkpoint from [here](https://download-mindspore.osinfra.cn/toolkits/mindone/autoencoders/lpips_vgg-426bf45c.ckpt)
+- Download lpips mindspore checkpoint from [here](https://download-mindspore.osinfra.cn/toolkits/mindone/autoencoders/lpips_vgg-426bf45c.ckpt) and put it under 'models/'
 
 
 ### Data Preprocess
@@ -648,7 +647,7 @@ You can change the `csv_path` and `video_folder` to evaluate on your own data.
 Here, we report the training performance and evaluation results on the UCF-101 dataset.
 
 | Model       | Context      | jit_level | Precision | BS | NPUs | Resolution(framesxHxW) | Train T. (s/step) |    PSNR   |   SSIM  |
-|:------------|:-------------|:--------|:---------:|:--:|:----:|:----------------------:|:-----------------:|
+|:------------|:-------------|:--------|:---------:|:--:|:----:|:----------------------:|:-----------------:|:-----------------:|:-----------------:|
 | STDiT2-XL/2 | D910\*-[CANN C18(0705)](https://repo.mindspore.cn/ascend/ascend910/20240705/)-[MS2.3](https://www.mindspore.cn/install) |    O1  |    BF16   |  1 |  8   |       17x256x256      |       0.97        |    29.29      |    0.88    |
 > Context: {G:GPU, D:Ascend}{chip type}-{mindspore version}.
 
