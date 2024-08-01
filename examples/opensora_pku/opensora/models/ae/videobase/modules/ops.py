@@ -1,14 +1,15 @@
 import mindspore as ms
-from mindspore import ops
+from mindspore import nn
 
 
 def nonlinearity(x, upcast=False):
     # swish
-    ori_dtype = x.dtype
-    if upcast:
-        return x * (ops.sigmoid(x.astype(ms.float32))).astype(ori_dtype)
-    else:
-        return x * (ops.sigmoid(x))
+    # ori_dtype = x.dtype
+    # if upcast:
+    #     return x * (ops.sigmoid(x.astype(ms.float32))).astype(ori_dtype)
+    # else:
+    #     return x * (ops.sigmoid(x))
+    return nn.SiLU()(x.astype(ms.float32) if upcast else x)
 
 
 def divisible_by(num, den):

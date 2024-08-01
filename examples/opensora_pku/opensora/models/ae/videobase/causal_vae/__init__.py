@@ -1,4 +1,6 @@
+import json
 import logging
+import os
 
 from mindspore import nn
 
@@ -12,7 +14,18 @@ class CausalVAEModelWrapper(nn.Cell):
         super(CausalVAEModelWrapper, self).__init__()
         # if os.path.exists(ckpt):
         # self.vae = CausalVAEModel.load_from_checkpoint(ckpt)
-        self.vae = CausalVAEModel.from_pretrained(model_path, subfolder=subfolder, cache_dir=cache_dir, **kwargs)
+        if model_path.endswith(".ckpt"):
+            assert os.path.exists(model_path), f"The provided checkpoint path {model_path} does not exist!"
+            assert "model_config" in kwargs, "Expect to get `model_config` in key arguments!"
+            model_config = kwargs["model_config"]
+            assert os.path.exists(model_config), f"{model_config} does not exist!"
+            model_config = json.load(open(model_config, "r"))
+            ae = CausalVAEModel.from_config(model_config)
+            ae.init_from_ckpt(model_path)
+            self.vae = ae
+        else:
+            assert os.path.isdir(model_path), f"{model_path} is not a directory!"
+            self.vae = CausalVAEModel.from_pretrained(model_path, subfolder=subfolder, cache_dir=cache_dir, **kwargs)
 
     def encode(self, x):  # b c t h w
         # x = self.vae.encode(x)

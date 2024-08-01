@@ -190,6 +190,7 @@ class STDiT(nn.Cell):
         use_recompute=False,
         num_recompute_blocks=None,
         patchify_conv3d_replace=None,
+        manual_pad=False,
     ):
         super().__init__()
         self.pred_sigma = pred_sigma
@@ -213,6 +214,7 @@ class STDiT(nn.Cell):
         self.time_scale = time_scale
 
         assert patchify_conv3d_replace in [None, "linear", "conv2d"]
+        assert not manual_pad, "manual_pad not supported for STDiT v1"
 
         pos_embed = self.get_spatial_pos_embed()
         pos_embed_temporal = self.get_temporal_pos_embed()

@@ -15,7 +15,7 @@ from mindspore.train.callback import LossMonitor, TimeMonitor
 
 sys.path.append("../../")  # FIXME: remove in future when mindone is ready for install
 from mindone.data import create_dataloader
-from mindone.env import init_train_env
+from mindone.utils.env import init_train_env
 
 sys.path.append("../stable_diffusion_v2/")
 from ldm.data.transforms import TokenizerWrapper

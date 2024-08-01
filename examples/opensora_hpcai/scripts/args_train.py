@@ -68,6 +68,14 @@ def parse_train_args(parser):
         help="patchify_conv3d_replace, conv2d - equivalent conv2d to replace conv3d patchify, linear - equivalent linear layer to replace conv3d patchify  ",
     )
     parser.add_argument(
+        "--manual_pad",
+        type=str2bool,
+        default=False,
+        help="whether pad independently for conv2d patchify. \
+            If True, pad_mode in conv will be set to 'valid' and padding is done before conv. If False, pad_mode is 'same' in conv. \
+            Set True for bucket config training in graph mode. Default: False",
+    )
+    parser.add_argument(
         "--vae_type",
         type=str,
         default=None,

@@ -288,10 +288,12 @@ def main(args):
         )
         text_tokens, mask = Tensor(text_tokens, dtype=ms.int32), Tensor(mask, dtype=ms.uint8)
         text_emb = None
+        # TODO: use FA in T5
         if args.t5_dtype in ["fp16", "bf16"]:
-            text_encoder = auto_mixed_precision(text_encoder, amp_level="O2", dtype=dtype_map[args.t5_dtype])
+            text_encoder = auto_mixed_precision(
+                text_encoder, amp_level="O2", dtype=dtype_map[args.t5_dtype], custom_fp32_cells=WHITELIST_OPS
+            )
         logger.info(f"Num tokens: {mask.asnumpy().sum(2)}")
-
     else:
         assert not args.use_parallel, "parallel inference is not supported for t5 cached sampling currently."
         if args.model_version != "v1":

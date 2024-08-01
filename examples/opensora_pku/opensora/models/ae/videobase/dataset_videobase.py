@@ -1,6 +1,5 @@
 import copy
 import csv
-import glob
 import json
 import logging
 import os
@@ -24,12 +23,16 @@ def read_gif(gif_path, mode="RGB"):
 
 
 def get_video_path_list(folder):
-    # TODO: find recursively
+    video_paths = []
     fmts = ["avi", "mp4", "gif"]
-    out = []
-    for fmt in fmts:
-        out += glob.glob(os.path.join(folder, f"*.{fmt}"))
-    return sorted(out)
+
+    for root, dirs, files in os.walk(folder):
+        for file in files:
+            for fmt in fmts:
+                if file.endswith(f".{fmt}"):
+                    video_paths.append(os.path.join(root, file))
+
+    return sorted(video_paths)
 
 
 class VideoDataset:
@@ -46,7 +49,8 @@ class VideoDataset:
         transform_backend="al",
         video_column="video",
         disable_flip=True,
-        dynamic_sample=False,
+        dynamic_sample=False,  # random sample rate
+        dynamic_start_index=True,  # random start index
         output_columns=["video", "path"],
     ):
         if data_file_path is not None:
@@ -54,7 +58,7 @@ class VideoDataset:
             self.parse_data_file(data_file_path)
             self.read_from_data_file = True
         else:
-            logger.info(f"loading videos from video folder {data_folder} ...")
+            logger.info(f"loading videos from video folder {data_folder} recursively...")
             self.dataset = get_video_path_list(data_folder)
             self.read_from_data_file = False
 
@@ -67,6 +71,11 @@ class VideoDataset:
         self.sample_n_frames = sample_n_frames
         self.return_image = return_image
         self.dynamic_sample = dynamic_sample
+        self.dynamic_start_index = dynamic_start_index
+        if not self.dynamic_start_index:
+            logger.info(
+                f"Always using the first frame as the start index for {sample_n_frames} frames sampling. Better to use it for inference not training!"
+            )
 
         self.pixel_transforms = create_video_transforms(
             size=size,
@@ -132,7 +141,10 @@ class VideoDataset:
             else:
                 sample_stride = self.sample_stride
             clip_length = min(video_length, (self.sample_n_frames - 1) * sample_stride + 1)
-            start_idx = random.randint(0, video_length - clip_length)
+            if self.dynamic_start_index:
+                start_idx = random.randint(0, video_length - clip_length)
+            else:
+                start_idx = 0
             batch_index = np.linspace(start_idx, start_idx + clip_length - 1, self.sample_n_frames, dtype=int)
         else:
             batch_index = [random.randint(0, video_length - 1)]

@@ -23,9 +23,6 @@ class LPIPS(nn.Cell):
         self.lin4 = NetLinLayer(self.chns[4], use_dropout=use_dropout)
         # load NetLin metric layers
 
-        self.lins = [self.lin0, self.lin1, self.lin2, self.lin3, self.lin4]
-        self.lins = nn.CellList(self.lins)
-
         # create vision backbone and load pretrained weights
         self.net = vgg16(pretrained=True, requires_grad=False)
 
@@ -55,11 +52,12 @@ class LPIPS(nn.Cell):
         in0_input, in1_input = (self.scaling_layer(input), self.scaling_layer(target))
         outs0, outs1 = self.net(in0_input), self.net(in1_input)
         val = 0  # ms.Tensor(0, dtype=input.dtype)
+        lins = [self.lin0, self.lin1, self.lin2, self.lin3, self.lin4]
         for kk in range(len(self.chns)):
             diff = (normalize_tensor(outs0[kk]) - normalize_tensor(outs1[kk])) ** 2
             # res += spatial_average(lins[kk](diff), keepdim=True)
             # lin_layer = lins[kk]
-            val += ops.mean(self.lins[kk](diff), axis=[2, 3], keep_dims=True)
+            val += ops.mean(lins[kk](diff), axis=[2, 3], keep_dims=True)
         return val
 
 

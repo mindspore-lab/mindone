@@ -384,7 +384,8 @@ class StableDiffusionXLInpaintPipeline(
             vae_scale_factor=self.vae_scale_factor, do_normalize=False, do_binarize=True, do_convert_grayscale=True
         )
 
-        self.watermark = None
+        if add_watermarker:
+            logger.warning("watermarker is not supported!")
 
     # Copied from diffusers.pipelines.stable_diffusion_xl.pipeline_stable_diffusion_xl.StableDiffusionXLPipeline.encode_prompt
     def encode_prompt(
