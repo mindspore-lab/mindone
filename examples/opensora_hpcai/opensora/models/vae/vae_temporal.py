@@ -439,7 +439,7 @@ class VAE_Temporal(nn.Cell):
         self.split = ops.Split(axis=1, output_num=2)
         self.stdnormal = ops.StandardNormal()
         self.split = get_split_op()
-        
+
         if use_recompute:
             self.recompute(self.encoder)
             self.recompute(self.quant_conv)
