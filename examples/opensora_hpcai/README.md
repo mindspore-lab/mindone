@@ -133,6 +133,7 @@ Your contributions are welcome.
 * [Data Processing](#data-processing)
 * [Training](#training)
 * [Evaluation](#evaluation)
+* [VAE Training & Evaluation](#vae-training--evaluation)
 * [Contribution](#contribution)
 * [Acknowledgement](#acknowledgement)
 
@@ -238,6 +239,9 @@ parameters is 724M. More information about training can be found in HPC-AI Tech'
 
 
 ## Inference
+
+### Open-Sora 1.2 Command Line Inference
+
 
 
 ### Open-Sora 1.1 Command Line Inference
@@ -582,6 +586,72 @@ Here are some generation results after fine-tuning STDiT on a subset of WebVid d
 #### Quality Evaluation
 For quality evaluation, please refer to the original HPC-AI Tech [evaluation doc](https://github.com/hpcaitech/Open-Sora/blob/main/eval/README.md) for video generation quality evaluation.
 
+## VAE Training & Evaluation
+
+A 3D-VAE pipeline consisting of a spatial VAE followed by a temporal VAE is trained in OpenSora v1.1. For more details, refer to [VAE Documentation](https://github.com/hpcaitech/Open-Sora/blob/main/docs/vae.md).
+
+### Prepare Pretrained Weights
+
+- Download pretained VAE-2D checkpoint from [PixArt-alpha/pixart_sigma_sdxlvae_T5_diffusers](https://huggingface.co/PixArt-alpha/pixart_sigma_sdxlvae_T5_diffusers/tree/main/vae) if you aim to train VAE-3D from spatial VAE initialization.
+
+    Convert to ms checkpoint:
+    ```
+    python tools/convert_vae1.2.py --src /path/to/pixart_sigma_sdxlvae_T5_diffusers/vae/diffusion_pytorch_model.safetensors --target models/sdxl_vae.ckpt --from_vae2d
+    ```
+
+- Downalod pretrained VAE-3D checkpoint from [hpcai-tech/OpenSora-VAE-v1.2](https://huggingface.co/hpcai-tech/OpenSora-VAE-v1.2/tree/main) if you aim to train VAEA-3D from the VAE-3D model pre-trained with 3 stages.
+
+    Convert to ms checkpoint:
+    ```
+    python tools/convert_vae1.2.py --src /path/OpenSora-VAE-v1.2/models.safetensors --target models/OpenSora-VAE-v1.2/sdxl_vae.ckpt
+    ```
+
+- Download lpips mindspore checkpoint from [here](https://download-mindspore.osinfra.cn/toolkits/mindone/autoencoders/lpips_vgg-426bf45c.ckpt) and put it under 'models/'
+
+
+### Data Preprocess
+If you want to train your own VAE, we need to prepare data in the csv following the [data processing](#data-processing) pipeline, then run the following commands.
+Note that you need to adjust the number of trained epochs (`epochs`) in the config file accordingly with respect to your own csv data size.
+
+Task UCF-101 for example. After downloading the [UCF-101](https://www.crcv.ucf.edu/data/UCF101.php) dataset and extract it to `datasets/UCF-101` folder, we can get the csv annotation by running  `python tools/annotate_vae_ucf101.py`.
+
+The resulting train/test annotation csv files, which constain the relative video paths for train/test, will be saved as `datasets/ucf101_train.csv` and `datasets/ucf101_test.csv`.
+
+### Training
+```bash
+# stage 1 training, 8 NPUs
+msrun --worker_num=8 --local_work_num=8 \
+python scripts/train_vae.py --config configs/vae/train/stage1.yaml --use_parallel=True --csv_path datasets/ucf101_train.csv --video_folder datasets/UCF-101
+
+# stage 2 training, 8 NPUs
+msrun --worker_num=8 --local_work_num=8 \
+python scripts/train_vae.py --config configs/vae/train/stage2.yaml --use_parallel=True --csv_path datasets/ucf101_train.csv --video_folder datasets/UCF-101
+
+# stage 3 training, 8 NPUs
+msrun --worker_num=8 --local_work_num=8 \
+python scripts/train_vae.py --config configs/vae/train/stage3.yaml --use_parallel=True --csv_path datasets/ucf101_train.csv --video_folder datasets/UCF-101
+```
+
+You can change the `csv_path` and `video_folder` to train on your own data.
+
+###  Performance Evaluation
+To evaluate the VAE performance, you need to run VAE inference first to generate the videos, then calculate scores on the generated videos:
+
+```bash
+# video generation and evaluation
+python scripts/inference_vae.py --ckpt_path /path/to/you_vae_ckpt --image_size 256 --num_frames=17 --csv_path datasets/ucf101_test.csv --video_folder datasets/UCF-101
+```
+
+You can change the `csv_path` and `video_folder` to evaluate on your own data.
+
+Here, we report the training performance and evaluation results on the UCF-101 dataset.
+
+| Model       | Context      | jit_level | Precision | BS | NPUs | Resolution(framesxHxW) | Train T. (s/step) |    PSNR   |   SSIM  |
+|:------------|:-------------|:--------|:---------:|:--:|:----:|:----------------------:|:-----------------:|:-----------------:|:-----------------:|
+| STDiT2-XL/2 | D910\*-[CANN C18(0705)](https://repo.mindspore.cn/ascend/ascend910/20240705/)-[MS2.3](https://www.mindspore.cn/install) |    O1  |    BF16   |  1 |  8   |       17x256x256      |       0.97        |    29.29      |    0.88    |
+> Context: {G:GPU, D:Ascend}{chip type}-{mindspore version}.
+
+Note that we train with mixed video ang image strategy i.e. `--mixed_strategy=mixed_video_image` for stage 3 instead of random number of frames (`mixed_video_random`). Random frame training will be supported in the future.
 
 ## Training and Inference Using the FiT-Like Pipeline
 
