@@ -42,9 +42,11 @@ logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
 
 
 # Copied from diffusers.pipelines.stable_diffusion.pipeline_stable_diffusion_img2img.retrieve_latents
-def retrieve_latents(vae, encoder_output: ms.Tensor, sample_mode: str = "sample"):
+def retrieve_latents(
+    vae, encoder_output: ms.Tensor, generator: Optional[np.random.Generator] = None, sample_mode: str = "sample"
+):
     if sample_mode == "sample":
-        return vae.diag_gauss_dist.sample(encoder_output)
+        return vae.diag_gauss_dist.sample(encoder_output, generator=generator)
     elif sample_mode == "argmax":
         return vae.diag_gauss_dist.mode(encoder_output)
     # This branch is not needed because the encoder_output type is ms.Tensor as per AutoencoderKLOutput change
@@ -868,11 +870,12 @@ class StableDiffusionXLControlNetInpaintPipeline(
 
         if isinstance(generator, list):
             image_latents = [
-                retrieve_latents(self.vae, self.vae.encode(image[i : i + 1])[0]) for i in range(image.shape[0])
+                retrieve_latents(self.vae, self.vae.encode(image[i : i + 1])[0], generator)
+                for i in range(image.shape[0])
             ]
             image_latents = ops.cat(image_latents, axis=0)
         else:
-            image_latents = retrieve_latents(self.vae, self.vae.encode(image)[0])
+            image_latents = retrieve_latents(self.vae, self.vae.encode(image)[0], generator)
 
         if self.vae.config.force_upcast:
             self.vae.to(dtype)

@@ -75,9 +75,11 @@ def rescale_noise_cfg(noise_cfg, noise_pred_text, guidance_rescale=0.0):
     return noise_cfg
 
 
-def retrieve_latents(vae, encoder_output: ms.Tensor, sample_mode: str = "sample"):
+def retrieve_latents(
+    vae, encoder_output: ms.Tensor, generator: Optional[np.random.Generator] = None, sample_mode: str = "sample"
+):
     if sample_mode == "sample":
-        return vae.diag_gauss_dist.sample(encoder_output)
+        return vae.diag_gauss_dist.sample(encoder_output, generator=generator)
     elif sample_mode == "argmax":
         return vae.diag_gauss_dist.mode(encoder_output)
     # This branch is not needed because the encoder_output type is ms.Tensor as per AutoencoderKLOutput change
@@ -629,11 +631,12 @@ class StableDiffusionXLImg2ImgPipeline(
 
             elif isinstance(generator, list):
                 init_latents = [
-                    retrieve_latents(self.vae, self.vae.encode(image[i : i + 1])[0]) for i in range(batch_size)
+                    retrieve_latents(self.vae, self.vae.encode(image[i : i + 1])[0], generator)
+                    for i in range(batch_size)
                 ]
                 init_latents = ops.cat(init_latents, axis=0)
             else:
-                init_latents = retrieve_latents(self.vae, self.vae.encode(image)[0])
+                init_latents = retrieve_latents(self.vae, self.vae.encode(image)[0], generator)
 
             if self.vae.config.force_upcast:
                 self.vae.to(dtype)
