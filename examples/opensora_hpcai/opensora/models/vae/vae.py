@@ -91,6 +91,7 @@ class VideoAutoencoderKL(nn.Cell):
         # For training, we should refine to 0.13025.
         self.scale_factor = scale_factor
         self.split = get_split_op()
+        self.scale_factor = 0.18215
 
     @staticmethod
     def rearrange_in(x):

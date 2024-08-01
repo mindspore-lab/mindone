@@ -280,7 +280,6 @@ class Decoder(nn.Cell):
         self.num_groups = num_groups
         self.embedding_dim = latent_embed_dim
         self.s_stride = 1
-        assert self.s_stride == 1
 
         self.activation_fn = get_activation_fn(activation_fn)
         self.activate = self.activation_fn()
@@ -439,14 +438,13 @@ class VAE_Temporal(nn.Cell):
         )
         self.split = ops.Split(axis=1, output_num=2)
         self.stdnormal = ops.StandardNormal()
-
+        self.split = get_split_op()
+        
         if use_recompute:
             self.recompute(self.encoder)
             self.recompute(self.quant_conv)
             self.recompute(self.post_quant_conv)
             self.recompute(self.decoder)
-
-        self.split = get_split_op()
 
     def recompute(self, b):
         if not b._has_config_recompute:
