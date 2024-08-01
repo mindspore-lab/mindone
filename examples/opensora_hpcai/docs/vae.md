@@ -10,6 +10,3 @@ Then convert the torch checkpoint to mindspore format with the following script:
 ```
 python tools/convert_vae1.2.py --src /path/to/pixart_sigma_sdxlvae_T5_diffusers/vae/diffusion_pytorch_model.safetensors --target models/sdxl_vae.ckpt --from_vae2d
 ```
-
-
-

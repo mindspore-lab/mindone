@@ -9,9 +9,9 @@ import albumentations
 import cv2
 import imageio
 import numpy as np
-import mindspore as ms
 from decord import VideoReader
-from PIL import Image, ImageSequence
+
+import mindspore as ms
 
 logger = logging.getLogger()
 
@@ -68,10 +68,10 @@ class VideoDataset:
         transform_backend="al",
         video_column="video",
     ):
-        '''
+        """
         size: image resize size
         crop_size: crop size after resize operation
-        '''
+        """
         logger.info(f"loading annotations from {csv_path} ...")
 
         if csv_path is not None:
@@ -213,7 +213,7 @@ def check_sanity(x, save_fp="./tmp.gif"):
     imageio.mimsave(save_fp, x, duration=1 / 8.0, loop=1)
 
 
-class BatchTransform():
+class BatchTransform:
     def __init__(self, mixed_strategy, mixed_image_ratio=0.2):
         self.mixed_strategy = mixed_strategy
         self.mixed_image_ratio = mixed_image_ratio
@@ -223,11 +223,11 @@ class BatchTransform():
         if self.mixed_strategy == "mixed_video_image":
             if random.random() < self.mixed_image_ratio:
                 x = x[:, :, :1, :, :]
-        elif self.mixed_strategy == "mixed_video_random":  
+        elif self.mixed_strategy == "mixed_video_random":
             # TODO: somehow it's slow. consider do it with tensor in NetWithLoss
             length = random.randint(1, x.shape[2])
             x = x[:, :, :length, :, :]
-        elif self.mixed_strategy == "image_only":  
+        elif self.mixed_strategy == "image_only":
             x = x[:, :, :1, :, :]
         else:
             raise ValueError
@@ -238,7 +238,7 @@ def create_dataloader(
     ds_config,
     batch_size,
     mixed_strategy=None,
-    mixed_image_ratio=0.,
+    mixed_image_ratio=0.0,
     num_parallel_workers=12,
     max_rowsize=32,
     shuffle=True,
@@ -248,11 +248,11 @@ def create_dataloader(
 ):
     """
     Args:
-        mixed_strategy: 
+        mixed_strategy:
             None - all output batches are videoes [bs, c, T, h, w]
             mixed_video_image - with prob of mixed_image_ratio, output batch are images [b, c, 1, h, w]
             mixed_video_random - output batch has a random number of frames [bs, c, t, h, w],  t is the same of samples in a batch
-        mixed_image_ratio: 
+        mixed_image_ratio:
         ds_config, dataset config, args for ImageDataset or VideoDataset
         ds_name: dataset name, image or video
     """
@@ -282,17 +282,17 @@ def create_dataloader(
     if mixed_strategy is not None:
         batch_map_fn = BatchTransform(mixed_strategy, mixed_image_ratio)
         dl = dl.map(
-                operations=batch_map_fn,
-                input_columns=["video"],
-                num_parallel_workers=1,
-            )
+            operations=batch_map_fn,
+            input_columns=["video"],
+            num_parallel_workers=1,
+        )
 
     return dl
 
 
 if __name__ == "__main__":
-    test = 'dl'
-    if test == 'dataset':
+    test = "dl"
+    if test == "dataset":
         ds_config = dict(
             data_folder="../videocomposer/datasets/webvid5",
             random_crop=True,
@@ -319,10 +319,12 @@ if __name__ == "__main__":
         )
 
         # test loader
-        dl = create_dataloader(ds_config, 4, 
-                mixed_strategy='mixed_video_random',
-                mixed_image_ratio=0.2,
-                )
+        dl = create_dataloader(
+            ds_config,
+            4,
+            mixed_strategy="mixed_video_random",
+            mixed_image_ratio=0.2,
+        )
 
         num_batches = dl.get_dataset_size()
         # ms.set_context(mode=0)

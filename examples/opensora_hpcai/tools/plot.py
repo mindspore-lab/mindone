@@ -6,8 +6,10 @@ python tools/plot.py --input path/to/exp1/result.log path/to/exp2/result.log  \
 
 
 import argparse
+
 import matplotlib
-matplotlib.use('Agg')
+
+matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import pandas as pd
 

@@ -40,7 +40,7 @@ class GeneratorWithLoss(nn.Cell):
 
         self.use_real_rec_loss = use_real_rec_loss
         self.use_z_rec_loss = use_z_rec_loss
-        self.use_image_identity_loss =use_image_identity_loss
+        self.use_image_identity_loss = use_image_identity_loss
 
     def kl(self, mean, logvar):
         # cast to fp32 to avoid overflow in exp and sum ops.
@@ -54,13 +54,15 @@ class GeneratorWithLoss(nn.Cell):
         )
         return kl_loss
 
-    def vae_loss_fn(self, x, recons, mean, logvar, nll_weights=None, no_perceptual=False, no_kl=False, pixelwise_mean=False):
-        '''
+    def vae_loss_fn(
+        self, x, recons, mean, logvar, nll_weights=None, no_perceptual=False, no_kl=False, pixelwise_mean=False
+    ):
+        """
         return:
-            nll_loss: weighted sum of pixel reconstruction loss and perceptual loss 
-            weighted_nll_loss:  weighted mean of nll_loss 
+            nll_loss: weighted sum of pixel reconstruction loss and perceptual loss
+            weighted_nll_loss:  weighted mean of nll_loss
             weighted_kl_loss: KL divergence on posterior
-        '''
+        """
         bs = x.shape[0]
         # (b c t h w) -> (b*t c h w)
         x = _rearrange_in(x)
@@ -69,7 +71,7 @@ class GeneratorWithLoss(nn.Cell):
         # reconstruction loss in pixels
         # FIXME: debugging: use pixelwise mean to reduce loss scale
         if pixelwise_mean:
-            rec_loss = ((x - recons)**2).mean()
+            rec_loss = ((x - recons) ** 2).mean()
         else:
             rec_loss = ops.abs(x - recons)
 
@@ -96,7 +98,6 @@ class GeneratorWithLoss(nn.Cell):
 
         return nll_loss, weighted_nll_loss, weighted_kl_loss
 
-
     def construct(self, x: ms.Tensor, global_step: ms.Tensor = -1, weights: ms.Tensor = None, cond=None):
         """
         x: input images or videos, images: (b c 1 h w), videos: (b c t h w)
@@ -105,33 +106,46 @@ class GeneratorWithLoss(nn.Cell):
         """
 
         # 3d vae forward, get posterior (mean, logvar) and recons
-        # x -> VAE2d-Enc -> x_z -> TemporalVAE-Enc -> z ~ posterior -> TempVAE-Dec -> x_z_rec -> VAE2d-Dec -> x_rec 
+        # x -> VAE2d-Enc -> x_z -> TemporalVAE-Enc -> z ~ posterior -> TempVAE-Dec -> x_z_rec -> VAE2d-Dec -> x_rec
         x_rec, x_z_rec, z, posterior_mean, posterior_logvar, x_z = self.autoencoder(x)
         # FIXME: debugging
-        x_rec, x_z_rec, z, posterior_mean, posterior_logvar, x_z = x_rec.to(ms.float32), x_z_rec.to(ms.float32), z.to(ms.float32), posterior_mean.to(ms.float32), posterior_logvar.to(ms.float32), x_z.to(ms.float32)
+        x_rec, x_z_rec, z, posterior_mean, posterior_logvar, x_z = (
+            x_rec.to(ms.float32),
+            x_z_rec.to(ms.float32),
+            z.to(ms.float32),
+            posterior_mean.to(ms.float32),
+            posterior_logvar.to(ms.float32),
+            x_z.to(ms.float32),
+        )
 
         frames = x.shape[2]
-        
+
         # Loss compute
-        # 1. VAE 2d, video frames x reconstruction loss 
+        # 1. VAE 2d, video frames x reconstruction loss
         # TODO: loss dtype setting
         if self.use_real_rec_loss:
             # x: (b 3 t h w)
-            _, weighted_nll_loss, weighted_kl_loss = self.vae_loss_fn(x, x_rec, posterior_mean, posterior_logvar, no_perceptual=False)
+            _, weighted_nll_loss, weighted_kl_loss = self.vae_loss_fn(
+                x, x_rec, posterior_mean, posterior_logvar, no_perceptual=False
+            )
             loss = weighted_nll_loss + weighted_kl_loss
         else:
             loss = 0
-            
-        # 2. temporal vae, spatial latent x_z reconstruction loss  
+
+        # 2. temporal vae, spatial latent x_z reconstruction loss
         if self.use_z_rec_loss:
             # x_z: (b 4 t h//8 w//8)
             # NOTE: since KL loss on posterior is the same as that in part 1. We can skip it.
-            _, weighted_nll_loss_z, _ = self.vae_loss_fn(x_z, x_z_rec, posterior_mean, posterior_logvar, no_perceptual=True, no_kl=True)
-            loss += weighted_nll_loss_z 
+            _, weighted_nll_loss_z, _ = self.vae_loss_fn(
+                x_z, x_z_rec, posterior_mean, posterior_logvar, no_perceptual=True, no_kl=True
+            )
+            loss += weighted_nll_loss_z
 
-        # 3. identity regularization loss for pure image input 
+        # 3. identity regularization loss for pure image input
         if self.use_image_identity_loss and frames == 1:
-            _, image_identity_loss, _ = self.vae_loss_fn(x_z, z, posterior_mean, posterior_logvar, no_perceptual=True, no_kl=True)
+            _, image_identity_loss, _ = self.vae_loss_fn(
+                x_z, z, posterior_mean, posterior_logvar, no_perceptual=True, no_kl=True
+            )
             loss += image_identity_loss
 
         return loss

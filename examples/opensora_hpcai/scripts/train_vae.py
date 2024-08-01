@@ -1,15 +1,15 @@
 import logging
-from typing import Tuple
 import os
 import shutil
 import sys
 import time
+from typing import Tuple
 
 import yaml
 
 import mindspore as ms
-from mindspore.communication.management import get_group_size, get_rank, init
 from mindspore import Model, nn
+from mindspore.communication.management import get_group_size, get_rank, init
 from mindspore.nn.wrap.loss_scale import DynamicLossScaleUpdateCell
 from mindspore.train.callback import TimeMonitor
 
@@ -19,8 +19,8 @@ sys.path.insert(0, mindone_lib_path)
 sys.path.insert(0, os.path.abspath(os.path.join(__dir__, "..")))
 
 from args_train_vae import parse_args
-from opensora.models.vae.losses import GeneratorWithLoss
 from opensora.datasets.vae_dataset import create_dataloader
+from opensora.models.vae.losses import GeneratorWithLoss
 from opensora.models.vae.vae import OpenSoraVAE_V1_2
 
 from mindone.trainers.callback import EvalSaveCallback, OverflowMonitor, ProfilerCallback
@@ -30,7 +30,6 @@ from mindone.trainers.lr_schedule import create_scheduler
 from mindone.trainers.optim import create_optimizer
 from mindone.trainers.train_step import TrainOneStepWrapper
 from mindone.utils.amp import auto_mixed_precision
-from mindone.utils.config import instantiate_from_config
 from mindone.utils.logger import set_logger
 from mindone.utils.params import count_params
 from mindone.utils.seed import set_random_seed
@@ -61,7 +60,7 @@ def init_env(
     max_device_memory: str = None,
     device_target: str = "Ascend",
     parallel_mode: str = "data",
-    jit_level: str='O2',
+    jit_level: str = "O2",
     global_bf16: bool = False,
     debug: bool = False,
 ) -> Tuple[int, int]:
@@ -157,7 +156,7 @@ def main(args):
         image_size = args.image_size
     else:
         if len(args.image_size) == 2:
-            assert args.image_size[0] == args.image_size[1], 'Currently only h==w is supported'
+            assert args.image_size[0] == args.image_size[1], "Currently only h==w is supported"
         image_size = args.image_size[0]
 
     ds_config = dict(
@@ -190,7 +189,9 @@ def main(args):
     if args.model_type == "OpenSoraVAE_V1_2":
         logger.info(f"Loading autoencoder from {args.pretrained_model_path}")
         if args.micro_frame_size != 17:
-            logger.warning("If you are finetuning VAE3d pretrained from OpenSora v1.2, it's safer to set micro_frame_size to 17 for consistency with previous training stages.")
+            logger.warning(
+                "If you are finetuning VAE3d pretrained from OpenSora v1.2, it's safer to set micro_frame_size to 17 for consistency."
+            )
         ae = OpenSoraVAE_V1_2(
             micro_batch_size=args.micro_batch_size,
             micro_frame_size=args.micro_frame_size,
@@ -209,9 +210,12 @@ def main(args):
     # TODO: set softmax, sigmoid computed in FP32. manually set inside network since they are ops, instead of layers whose precision will be set by AMP level.
     if args.dtype in ["fp16", "bf16"]:
         dtype = {"fp16": ms.float16, "bf16": ms.bfloat16}[args.dtype]
-        ae = auto_mixed_precision(ae, args.amp_level, dtype,
-                custom_fp32_cells=[nn.GroupNorm] if args.vae_keep_gn_fp32 else [],
-                )
+        ae = auto_mixed_precision(
+            ae,
+            args.amp_level,
+            dtype,
+            custom_fp32_cells=[nn.GroupNorm] if args.vae_keep_gn_fp32 else [],
+        )
 
     # 4. build net with loss
     ae_with_loss = GeneratorWithLoss(
@@ -222,7 +226,7 @@ def main(args):
         use_z_rec_loss=args.use_z_rec_loss,
         use_image_identity_loss=args.use_image_identity_loss,
         dtype=args.dtype,
-        )
+    )
 
     tot_params, trainable_params = count_params(ae_with_loss)
     logger.info("Total params {:,}; Trainable params {:,}".format(tot_params, trainable_params))
@@ -237,8 +241,10 @@ def main(args):
     if not args.decay_steps:
         args.decay_steps = max(1, args.epochs * dataset_size - args.warmup_steps)
 
-    if args.scheduler != 'constant':
-        assert args.optim != 'adamw_exp', 'For dynamic LR, mindspore.experimental.optim.AdamW needs to work with LRScheduler'
+    if args.scheduler != "constant":
+        assert (
+            args.optim != "adamw_exp"
+        ), "For dynamic LR, mindspore.experimental.optim.AdamW needs to work with LRScheduler"
         lr = create_scheduler(
             steps_per_epoch=dataset_size,
             name=args.scheduler,
@@ -403,9 +409,6 @@ def main(args):
                 if step % args.log_interval == 0:
                     loss_ae = float(loss_ae_t.asnumpy())
                     logger.info(f"E: {epoch+1}, S: {step+1}, Loss ae: {loss_ae:.4f}, Step time: {step_time*1000:.2f}ms")
-                    if global_step >= disc_start:
-                        loss_disc = float(loss_disc_t.asnumpy())
-                        logger.info(f"Loss disc: {loss_disc:.4f}")
 
             epoch_cost = time.time() - start_time_e
             per_step_time = epoch_cost / dataset_size

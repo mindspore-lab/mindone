@@ -4,6 +4,7 @@ from packaging import version
 
 import mindspore as ms
 from mindspore import nn, ops
+
 from ..layers.operation_selector import get_split_op
 
 
@@ -342,9 +343,6 @@ class Decoder(nn.Cell):
 
         self.conv_out = self.conv_fn(filters, in_out_channels, 3)
 
-        # recompute
-        # for block in self.res_blocks:
-        #    block.recompute()
 
     @staticmethod
     def rearrange(x, ts, hs=1, ws=1):
@@ -444,15 +442,10 @@ class VAE_Temporal(nn.Cell):
         self.stdnormal = ops.StandardNormal()
 
         if use_recompute:
-            print("D--: temporal vae recompute")
             self.recompute(self.encoder)
             self.recompute(self.quant_conv)
             self.recompute(self.post_quant_conv)
             self.recompute(self.decoder)
-            # self.encoder.recompute()
-            # self.quant_conv.recompute()
-            # self.post_quant_conv.recompute()
-            # self.decoder.recompute()
 
         self.split = get_split_op()
 

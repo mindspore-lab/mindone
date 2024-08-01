@@ -590,7 +590,7 @@ For quality evaluation, please refer to the original HPC-AI Tech [evaluation doc
 
 A 3D-VAE pipeline consisting of a spatial VAE followed by a temporal VAE is trained in OpenSora v1.1. For more details, refer to [VAE Documentation](https://github.com/hpcaitech/Open-Sora/blob/main/docs/vae.md).
 
-### Prepare Pretrained Weights 
+### Prepare Pretrained Weights
 Before you run the following commands, follow our [Installation Documentation](docs/installation.md) to install the required dependencies for VAE and Evaluation.
 
 - Download pretained VAE-2D checkpoint from [PixArt-alpha/pixart_sigma_sdxlvae_T5_diffusers](https://huggingface.co/PixArt-alpha/pixart_sigma_sdxlvae_T5_diffusers/tree/main/vae) if you aim to train VAE-3D from spatial VAE initialization.
@@ -616,34 +616,34 @@ Note that you need to adjust the number of trained epochs (`epochs`) in the conf
 
 Task UCF-101 for example. After downloading the [UCF-101](https://www.crcv.ucf.edu/data/UCF101.php) dataset and extract it to `datasets/UCF-101` folder, we can get the csv annotation by running  `python tools/ucf101_annot.py`.
 
-The resulting train/test annotation csv files, which constain the relative video paths for train/test, will be saved as `datasets/ucf101_train.csv` and `datasets/ucf101_test.csv`. 
+The resulting train/test annotation csv files, which constain the relative video paths for train/test, will be saved as `datasets/ucf101_train.csv` and `datasets/ucf101_test.csv`.
 
 ### Training
 ```bash
 # stage 1 training, 8 NPUs
 msrun --worker_num=8 --local_work_num=8 \
-python scripts/train_vae.py --config configs/vae/train/stage1.yaml --use_parallel=True --csv_path datasets/ucf101_train.csv --video_folder datasets/UCF-101 
+python scripts/train_vae.py --config configs/vae/train/stage1.yaml --use_parallel=True --csv_path datasets/ucf101_train.csv --video_folder datasets/UCF-101
 
 # stage 2 training, 8 NPUs
 msrun --worker_num=8 --local_work_num=8 \
-python scripts/train_vae.py --config configs/vae/train/stage2.yaml --use_parallel=True --csv_path datasets/ucf101_train.csv --video_folder datasets/UCF-101 
+python scripts/train_vae.py --config configs/vae/train/stage2.yaml --use_parallel=True --csv_path datasets/ucf101_train.csv --video_folder datasets/UCF-101
 
 # stage 3 training, 8 NPUs
 msrun --worker_num=8 --local_work_num=8 \
-python scripts/train_vae.py --config configs/vae/train/stage3.yaml --use_parallel=True --csv_path datasets/ucf101_train.csv --video_folder datasets/UCF-101 
+python scripts/train_vae.py --config configs/vae/train/stage3.yaml --use_parallel=True --csv_path datasets/ucf101_train.csv --video_folder datasets/UCF-101
 ```
 
-You can change the `csv_path` and `video_folder` to train on your own data. 
+You can change the `csv_path` and `video_folder` to train on your own data.
 
 ###  Evaluation
 To evaluate the VAE performance, you need to run VAE inference first to generate the videos, then calculate scores on the generated videos:
 
 ```bash
 # video generation and evaluation
-python scripts/inference_vae.py --ckpt_path /path/to/you_vae_ckpt --image_size 256 --num_frames=17 --csv_path datasets/ucf101_test.csv --video_folder datasets/UCF-101 
+python scripts/inference_vae.py --ckpt_path /path/to/you_vae_ckpt --image_size 256 --num_frames=17 --csv_path datasets/ucf101_test.csv --video_folder datasets/UCF-101
 ```
 
-You can change the `csv_path` and `video_folder` to evaluate on your own data. 
+You can change the `csv_path` and `video_folder` to evaluate on your own data.
 
 
 ## Training and Inference Using the FiT-Like Pipeline

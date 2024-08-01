@@ -6,9 +6,6 @@ from transformers import PretrainedConfig
 import mindspore as ms
 from mindspore import nn, ops
 
-import mindspore as ms
-from mindspore import nn, ops
-
 from ..layers.operation_selector import get_split_op
 from .autoencoder_kl import AutoencoderKL as AutoencoderKL_SD
 from .vae_temporal import VAE_Temporal_SD  # noqa: F401
@@ -93,6 +90,7 @@ class VideoAutoencoderKL(nn.Cell):
         # To re-use the trained model, we need to keep this mistake.
         # For training, we should refine to 0.13025.
         self.scale_factor = scale_factor
+        self.split = get_split_op()
 
     @staticmethod
     def rearrange_in(x):
@@ -132,9 +130,10 @@ class VideoAutoencoderKL(nn.Cell):
             # x = self.module.encode(x).latent_dist.sample().mul_(0.18215)
             x = self.module.encode(x) * self.scale_factor
         else:
-            bs = self.micro_batch_size
+            # x_splits = self.split(x, self.micro_batch_size, 0)
             # Not sure whether to enter the for loop because of dynamic shape,
             # avoid initialize x_out as an empty list
+            bs = self.micro_batch_size
             x_out = [self.module.encode(x[:bs]) * self.scale_factor]
             # FIXME: supported in graph mode? or use split
             for i in range(bs, x.shape[0], bs):
@@ -207,7 +206,7 @@ class VideoAutoencoderPipelineConfig(PretrainedConfig):
         self.micro_frame_size = micro_frame_size
         self.shift = shift
         self.scale = scale
-        self.concat_posterior = concat_posterior,
+        self.concat_posterior = (concat_posterior,)
         super().__init__(**kwargs)
 
 
@@ -258,6 +257,8 @@ class VideoAutoencoderPipeline(nn.Cell):
         self.shift = ms.Parameter(shift, requires_grad=False)
         self.freeze_vae_2d = config.freeze_vae_2d
         self.concat_posterior = config.concat_posterior
+
+        self.split = get_split_op()
 
     def encode(self, x):
         if self.freeze_vae_2d:
@@ -348,10 +349,10 @@ def OpenSoraVAE_V1_2(
     cal_loss=False,
     use_recompute=False,
 ):
-    '''
+    """
     ckpt_path: path to the checkpoint of the overall model (vae2d + temporal vae)
     vae_2d_ckpt_path: path to the checkpoint of the vae 2d model. It will only be loaded when `ckpt_path` not provided.
-    '''
+    """
     vae_2d = dict(
         type="VideoAutoencoderKL",
         config=SDXL_CONFIG,
