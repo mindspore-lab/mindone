@@ -343,7 +343,6 @@ class Decoder(nn.Cell):
 
         self.conv_out = self.conv_fn(filters, in_out_channels, 3)
 
-
     @staticmethod
     def rearrange(x, ts, hs=1, ws=1):
         # "B (C ts hs ws) T H W -> B C (T ts) (H hs) (W ws)",

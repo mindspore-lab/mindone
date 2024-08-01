@@ -1,7 +1,7 @@
 import glob
+import math
 import os
 import random
-import math
 
 root_dir = "UCF-101/"
 train_ratio = 0.8
@@ -20,16 +20,18 @@ num_test = num_samples - num_train
 train_set = sorted(all_files[:num_train])
 test_set = sorted(all_files[num_train:])
 
+
 # save csv
 def save_csv(fns, save_path):
     with open(save_path, "w") as fp:
         fp.write("video\n")
         for i, fn in enumerate(fns):
             rel_path = fn.replace(root_dir, "")
-            if i != len(fns)-1:
-                fp.write(f"{rel_path}\n") 
+            if i != len(fns) - 1:
+                fp.write(f"{rel_path}\n")
             else:
-                fp.write(f"{rel_path}") 
+                fp.write(f"{rel_path}")
+
 
 save_csv(train_set, "ucf101_train.csv")
 save_csv(test_set, "ucf101_test.csv")

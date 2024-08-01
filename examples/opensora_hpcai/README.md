@@ -614,7 +614,7 @@ Before you run the following commands, follow our [Installation Documentation](d
 If you want to train your own VAE, we need to prepare data in the csv following the [data processing](#data-processing) pipeline, then run the following commands.
 Note that you need to adjust the number of trained epochs (`epochs`) in the config file accordingly with respect to your own csv data size.
 
-Task UCF-101 for example. After downloading the [UCF-101](https://www.crcv.ucf.edu/data/UCF101.php) dataset and extract it to `datasets/UCF-101` folder, we can get the csv annotation by running  `python tools/ucf101_annot.py`.
+Task UCF-101 for example. After downloading the [UCF-101](https://www.crcv.ucf.edu/data/UCF101.php) dataset and extract it to `datasets/UCF-101` folder, we can get the csv annotation by running  `python tools/annotate_vae_ucf101.py`.
 
 The resulting train/test annotation csv files, which constain the relative video paths for train/test, will be saved as `datasets/ucf101_train.csv` and `datasets/ucf101_test.csv`.
 
@@ -635,7 +635,7 @@ python scripts/train_vae.py --config configs/vae/train/stage3.yaml --use_paralle
 
 You can change the `csv_path` and `video_folder` to train on your own data.
 
-###  Evaluation
+###  Performance Evaluation
 To evaluate the VAE performance, you need to run VAE inference first to generate the videos, then calculate scores on the generated videos:
 
 ```bash
@@ -645,6 +645,14 @@ python scripts/inference_vae.py --ckpt_path /path/to/you_vae_ckpt --image_size 2
 
 You can change the `csv_path` and `video_folder` to evaluate on your own data.
 
+Here, we report the training performance and evaluation results on the UCF-101 dataset.
+
+| Model       | Context      | jit_level | Precision | BS | NPUs | Resolution(framesxHxW) | Train T. (s/step) |    PSNR   |   SSIM  |
+|:------------|:-------------|:--------|:---------:|:--:|:----:|:----------------------:|:-----------------:|
+| STDiT2-XL/2 | D910\*-[CANN C18(0705)](https://repo.mindspore.cn/ascend/ascend910/20240705/)-[MS2.3](https://www.mindspore.cn/install) |    O1  |    BF16   |  1 |  8   |       17x256x256      |       0.97        |    29.29      |    0.88    |
+> Context: {G:GPU, D:Ascend}{chip type}-{mindspore version}.
+
+Note that we train with mixed video ang image strategy i.e. `--mixed_strategy=mixed_video_image` for stage 3 instead of random number of frames (`mixed_video_random`). Random frame training will be supported in the future.
 
 ## Training and Inference Using the FiT-Like Pipeline
 
