@@ -126,7 +126,7 @@ def parse_train_args(parser):
         type=str,
         default=None,
         help="Grouping strategy for weight decay. If `norm_and_bias`, weight decay filter list is [beta, gamma, bias]. \
-                If None, filter list is [layernorm, bias]. Default: None
+                If None, filter list is [layernorm, bias]. Default: None",
     )
 
     parser.add_argument("--weight_decay", default=1e-6, type=float, help="Weight decay.")

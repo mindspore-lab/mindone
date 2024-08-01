@@ -43,7 +43,6 @@ class AutoencoderKL(nn.Cell):
             self.recompute(self.post_quant_conv)
             self.recompute(self.decoder)
 
-
     def recompute(self, b):
         if not b._has_config_recompute:
             b.recompute()

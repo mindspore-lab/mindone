@@ -23,6 +23,7 @@ from PIL import Image
 from skimage.metrics import peak_signal_noise_ratio as calc_psnr
 from skimage.metrics import structural_similarity as calc_ssim
 from tqdm import tqdm
+
 import mindspore as ms
 
 __dir__ = os.path.dirname(os.path.abspath(__file__))
@@ -81,7 +82,7 @@ def main(args):
     ascend_config = {"precision_mode": "must_keep_origin_dtype"}
     ms.set_context(mode=args.mode, ascend_config=ascend_config)
     set_logger(name="", output_dir=args.output_path, rank=0)
-    
+
     # build model
     if args.use_temporal_vae:
         model = OpenSoraVAE_V1_2(
@@ -108,15 +109,14 @@ def main(args):
         logger.info(f"Set mixed precision to O2 with dtype={args.dtype}")
     else:
         amp_level = "O0"
-    
+
     # build dataset
     if isinstance(args.image_size, int):
         image_size = args.image_size
     else:
         if len(args.image_size) == 2:
-            assert args.image_size[0] == args.image_size[1], 'Currently only h==w is supported'
-        image_size = args.image_size[0] 
-
+            assert args.image_size[0] == args.image_size[1], "Currently only h==w is supported"
+        image_size = args.image_size[0]
 
     ds_config = dict(
         csv_path=args.csv_path,
@@ -133,7 +133,7 @@ def main(args):
         ds_config,
         args.batch_size,
         mixed_strategy=None,
-        mixed_image_ratio=0.,
+        mixed_image_ratio=0.0,
         num_parallel_workers=8,
         max_rowsize=256,
         shuffle=False,
@@ -269,8 +269,16 @@ def parse_args():
     parser.add_argument("--use_temporal_vae", default=True, type=str2bool, help="if False, just use spatial vae")
     parser.add_argument("--encode_only", default=False, type=str2bool, help="only encode to save z or distribution")
     parser.add_argument("--video_column", default="video", type=str, help="name of column for videos saved in csv file")
-    parser.add_argument("--mixed_strategy", type=str, default=None, choices=[None, "mixed_video_image", "image_only"], help="video and image mixed strategy.")
-    parser.add_argument("--mixed_image_ratio", default=0., type=float, help="image ratio in mixed video and image data training")
+    parser.add_argument(
+        "--mixed_strategy",
+        type=str,
+        default=None,
+        choices=[None, "mixed_video_image", "image_only"],
+        help="video and image mixed strategy.",
+    )
+    parser.add_argument(
+        "--mixed_image_ratio", default=0.0, type=float, help="image ratio in mixed video and image data training"
+    )
     parser.add_argument(
         "--save_z_dist",
         default=False,

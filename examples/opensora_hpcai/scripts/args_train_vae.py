@@ -48,12 +48,8 @@ def parse_train_args(parser):
         "--add_datetime", default=True, type=str, help="If True, add datetime subfolder under output_path"
     )
     # model
-    parser.add_argument(
-        "--model_type", default="OpenSora-VAE-v1.2", type=str, help="VAE model type"
-    )
-    parser.add_argument(
-        "--freeze_vae_2d", default=True, type=str2bool, help="Freeze 2d vae"
-    )
+    parser.add_argument("--model_type", default="OpenSora-VAE-v1.2", type=str, help="VAE model type")
+    parser.add_argument("--freeze_vae_2d", default=True, type=str2bool, help="Freeze 2d vae")
     parser.add_argument(
         "--use_discriminator", default=False, type=str2bool, help="Use discriminator for adversarial training."
     )
@@ -64,13 +60,20 @@ def parse_train_args(parser):
         help="Specify the pretrained model path",
     )
     parser.add_argument("--perceptual_loss_weight", default=0.1, type=float, help="perceptual (lpips) loss weight")
-    parser.add_argument("--kl_loss_weight", default=1.e-6, type=float, help="KL loss weight")
+    parser.add_argument("--kl_loss_weight", default=1.0e-6, type=float, help="KL loss weight")
     parser.add_argument("--use_real_rec_loss", default=False, type=str2bool, help="use vae 2d x reconstruction loss")
     parser.add_argument("--use_z_rec_loss", default=False, type=str2bool, help="use spatial vae z reconstruction loss")
-    parser.add_argument("--use_image_identity_loss", default=False, type=str2bool, help="use image identity reguralization loss for temporal vae encoder")
+    parser.add_argument(
+        "--use_image_identity_loss",
+        default=False,
+        type=str2bool,
+        help="use image identity reguralization loss for temporal vae encoder",
+    )
     # data
     parser.add_argument("--mixed_strategy", type=str, default=None, help="video and image mixed strategy")
-    parser.add_argument("--mixed_image_ratio", default=0., type=float, help="image ratio in mixed video and image data training")
+    parser.add_argument(
+        "--mixed_image_ratio", default=0.0, type=float, help="image ratio in mixed video and image data training"
+    )
 
     # ms
     parser.add_argument("--debug", type=str2bool, default=False, help="Execute inference in debug mode.")
@@ -106,8 +109,9 @@ def parse_train_args(parser):
         type=str,
         default=None,
         help="Grouping strategy for weight decay. If `norm_and_bias`, weight decay filter list is [beta, gamma, bias]. \
-                If None, filter list is [layernorm, bias], Default: None")
-    parser.add_argument("--weight_decay", default=0., type=float, help="Weight decay.")
+                If None, filter list is [layernorm, bias], Default: None",
+    )
+    parser.add_argument("--weight_decay", default=0.0, type=float, help="Weight decay.")
     parser.add_argument("--seed", default=3407, type=int, help="data path")
     parser.add_argument("--warmup_steps", default=1000, type=int, help="warmup steps")
     parser.add_argument("--batch_size", default=10, type=int, help="batch size")

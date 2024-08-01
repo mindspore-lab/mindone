@@ -47,7 +47,7 @@ def convert(source_fp, target_fp, from_vae2d=False):
         data = sd_pt[name_pt].cpu().detach().numpy().reshape(shape_ms)
 
         data = ms.Tensor(input_data=data.astype(np.float32), dtype=ms.float32)
-        target_data.append({"name": name_ms, "data": data}) #ms.Tensor(data, dtype=ms.float32)})
+        target_data.append({"name": name_ms, "data": data})  # ms.Tensor(data, dtype=ms.float32)})
 
     print("Total params converted: ", len(target_data))
     ms.save_checkpoint(target_data, target_fp)
