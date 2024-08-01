@@ -40,16 +40,26 @@ Prepare the model checkpoints of T5, VAE, and STDiT and put them under `models/`
 
     Put them under `models/t5-v1_1-xxl` folder. Rename `t5_v1_1_xxl-d35f27a3.ckpt` to `model.ckpt` if error raised.
 
-- VAE: [safetensor download link](https://huggingface.co/stabilityai/sd-vae-ft-mse-original/tree/main)
+- VAE:
 
-    Convert to ms checkpoint: `python tools/convert_pt2ms.py --src /path/to/vae-ft-mse-840000-ema-pruned.safetensors --target models/sd-vae-ft-mse.ckpt`
+  **OpenSora v1.2**:
+  Download from [Hugging Face](https://huggingface.co/hpcai-tech/OpenSora-VAE-v1.2) and convert to MS checkpoint:
+  ```shell
+  python tools/convert_vae_3d.py --src path/to/OpenSora-VAE-v1.2/model.safetensors --target models/OpenSora-VAE-v1.2/model.ckpt
+  ```
 
-    For `sd-vae-ft-ema`, run:
-    ```shell
-    python tools/convert_vae.py --src /path/to/sd-vae-ft-ema/diffusion_pytorch_model.safetensors --target models/sd-vae-ft-ema.ckpt
-    ```
+  **OpenSora v1.1 and below**:
+  Download from [Hugging Face](https://huggingface.co/stabilityai/sd-vae-ft-mse-original/tree/main) and convert to MS checkpoint:
+  ```shell
+  python tools/convert_pt2ms.py --src /path/to/vae-ft-mse-840000-ema-pruned.safetensors --target models/sd-vae-ft-mse.ckpt
+  ```
+  For `sd-vae-ft-ema`, run:
+  ```shell
+  python tools/convert_vae.py --src /path/to/sd-vae-ft-ema/diffusion_pytorch_model.safetensors --target models/sd-vae-ft-ema.ckpt
+  ```
 
 - STDiT:
+    - OpenSora v1.2: [download](https://huggingface.co/hpcai-tech/OpenSora-STDiT-v3)
     - OpenSora v1.1: [stage2](https://huggingface.co/hpcai-tech/OpenSora-STDiT-v2-stage2) or [stage3](https://huggingface.co/hpcai-tech/OpenSora-STDiT-v2-stage3)
     - OpenSora v1: [pth download link](https://huggingface.co/hpcai-tech/Open-Sora/tree/main)
 
@@ -61,25 +71,25 @@ Prepare the model checkpoints of T5, VAE, and STDiT and put them under `models/`
     It will be used for better model initialization.
 
 
-### OpenSora v1.2
-
-- 3D VAE:
-    `python tools/convert_vae_3d.py --src path/to/OpenSora-VAE-v1.2/model.safetensors --target models/OpenSora-VAE-v1.2/model.ckpt`
-
 ## Inference
 
 ### Text-to-Video
+Configuration files can be found in the desired OpenSora version folder:
 
-#### OpenSora v1
+**OpenSora v1.2**
 ```shell
-python scripts/inference.py --config configs/opensora/inference/stdit_256x256x16.yaml
+python scripts/inference.py --config configs/opensora-v1-2/inference/sample_t2v.yaml
 ```
-#### OpenSora v1.1
+
+**OpenSora v1.1**
 ```shell
 python scripts/inference.py --config configs/opensora-v1-1/inference/sample_t2v.yaml
 ```
-> By default, FP32 is used to ensure the best precision.
-> Nan values may incur in STDiT forward pass using fp16, resulting in dark videos.
+
+**OpenSora v1**
+```shell
+python scripts/inference.py --config configs/opensora/inference/stdit_256x256x16.yaml
+```
 
 - To run on GPU, append
 `--device_target GPU`
@@ -113,7 +123,7 @@ Here are some generation results in 256x256 resolution.
 (source prompts from [here](https://github.com/hpcaitech/Open-Sora/blob/main/assets/texts/t2v_samples.txt))
 
 
-### Image/Video-to-Video (OpenSora v1.1 only)
+### Image/Video-to-Video (OpenSora v1.1 and above)
 
 Conditioning on images and videos in OpenSora is based on a frame masking strategy.
 Specifically, conditioning frames are unmasked and assigned a timestep of 0,
