@@ -128,19 +128,17 @@ class VideoAutoencoderKL(nn.Cell):
         x = self.rearrange_in(x)
 
         if self.micro_batch_size is None:
-            # x = self.module.encode(x).latent_dist.sample().mul_(0.18215)
             x = self.module.encode(x) * self.scale_factor
         else:
-            # x_splits = self.split(x, self.micro_batch_size, 0)
             # Not sure whether to enter the for loop because of dynamic shape,
             # avoid initialize x_out as an empty list
-            bs = self.micro_batch_size
-            x_out = [self.module.encode(x[:bs]) * self.scale_factor]
-            # FIXME: supported in graph mode? or use split
-            for i in range(bs, x.shape[0], bs):
-                x_bs = x[i : i + bs]
-                x_bs = self.module.encode(x_bs) * self.scale_factor
-                x_out.append(x_bs)
+            x_splits = self.split(x, self.micro_batch_size, 0)
+            x_out = tuple((self.module.encode(x_bs) * self.scale_factor) for x_bs in x_splits)
+
+            # x_out = ops.make_list()
+            # for x_bs in x_splits:
+            #    x_bs = self.module.encode(x_bs) * self.scale_factor
+            #    x_out.append(x_bs)
             x = ops.cat(x_out, axis=0)
 
         # x = rearrange(x, "(B T) C H W -> B C T H W", B=B)
@@ -159,6 +157,9 @@ class VideoAutoencoderKL(nn.Cell):
         if self.micro_batch_size is None:
             x = self.module.decode(x / self.scale_factor)
         else:
+            x_splits = self.split(x, self.micro_batch_size, 0)
+            x_out = tuple(self.module.decode(x_bs / self.scale_factor) for x_bs in x_splits)
+            '''
             bs = self.micro_batch_size
             # TODO: fix for dynamic shape
             x_out = []
@@ -166,6 +167,7 @@ class VideoAutoencoderKL(nn.Cell):
                 x_bs = x[i : i + bs]
                 x_bs = self.module.decode(x_bs / self.scale_factor)
                 x_out.append(x_bs)
+            '''
             x = ops.cat(x_out, axis=0)
 
         # x = rearrange(x, "(B T) Z H W -> B Z T H W", B=B)
