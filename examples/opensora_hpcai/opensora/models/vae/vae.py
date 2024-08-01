@@ -68,6 +68,8 @@ class VideoAutoencoderKL(nn.Cell):
         config=SDXL_CONFIG,
         ckpt_path=None,
         micro_batch_size=None,
+        scale_factor=0.18215,
+        use_recompute=False,
     ):
         super().__init__()
 
@@ -75,6 +77,7 @@ class VideoAutoencoderKL(nn.Cell):
             ddconfig=config,
             embed_dim=config["z_channels"],
             ckpt_path=ckpt_path,
+            use_recompute=use_recompute,
         )
 
         self.out_channels = config["z_channels"]  # self.module.config.latent_channels
@@ -86,6 +89,8 @@ class VideoAutoencoderKL(nn.Cell):
         # This is a mistake made during the training of OpenSora v1.2.
         # To re-use the trained model, we need to keep this mistake.
         # For training, we should refine to 0.13025.
+        self.scale_factor = scale_factor
+        self.split = get_split_op()
         self.scale_factor = 0.18215
 
     @staticmethod
@@ -126,9 +131,10 @@ class VideoAutoencoderKL(nn.Cell):
             # x = self.module.encode(x).latent_dist.sample().mul_(0.18215)
             x = self.module.encode(x) * self.scale_factor
         else:
-            bs = self.micro_batch_size
+            # x_splits = self.split(x, self.micro_batch_size, 0)
             # Not sure whether to enter the for loop because of dynamic shape,
             # avoid initialize x_out as an empty list
+            bs = self.micro_batch_size
             x_out = [self.module.encode(x[:bs]) * self.scale_factor]
             # FIXME: supported in graph mode? or use split
             for i in range(bs, x.shape[0], bs):
@@ -153,8 +159,8 @@ class VideoAutoencoderKL(nn.Cell):
         if self.micro_batch_size is None:
             x = self.module.decode(x / self.scale_factor)
         else:
-            # NOTE: cannot be used for training
             bs = self.micro_batch_size
+            # TODO: fix for dynamic shape
             x_out = []
             for i in range(0, x.shape[0], bs):
                 x_bs = x[i : i + bs]
@@ -188,6 +194,7 @@ class VideoAutoencoderPipelineConfig(PretrainedConfig):
         freeze_vae_2d=False,
         cal_loss=False,
         micro_frame_size=None,
+        concat_posterior=False,
         shift=0.0,
         scale=1.0,
         **kwargs,
@@ -200,6 +207,7 @@ class VideoAutoencoderPipelineConfig(PretrainedConfig):
         self.micro_frame_size = micro_frame_size
         self.shift = shift
         self.scale = scale
+        self.concat_posterior = (concat_posterior,)
         super().__init__(**kwargs)
 
 
@@ -248,26 +256,40 @@ class VideoAutoencoderPipeline(nn.Cell):
             shift = shift[None, :, None, None, None]
         self.scale = ms.Parameter(scale, requires_grad=False)
         self.shift = ms.Parameter(shift, requires_grad=False)
+        self.freeze_vae_2d = config.freeze_vae_2d
+        self.concat_posterior = config.concat_posterior
+
+        self.split = get_split_op()
 
     def encode(self, x):
-        x_z = self.spatial_vae.encode(x)
+        if self.freeze_vae_2d:
+            x_z = ops.stop_gradient(self.spatial_vae.encode(x))
+        else:
+            x_z = self.spatial_vae.encode(x)
 
         if self.micro_frame_size is None:
             posterior_mean, posterior_logvar = self.temporal_vae._encode(x_z)
             z = self.temporal_vae.sample(posterior_mean, posterior_logvar)
         else:
             z_list = []
+            posterior_mean_list = []
+            posterior_logvar_list = []
             # TODO: there is a bug in torch impl. need to concat posterior as well. But ot save memory for concatnated posterior. Let's remain unchange.
+            # TODO: fix for dynamic shape
             for i in range(0, x_z.shape[2], self.micro_frame_size):
                 x_z_bs = x_z[:, :, i : i + self.micro_frame_size]
-                posterior_mean, posterior_logvar = self.temporal_vae._encode(x_z_bs)
-                z_bs = self.temporal_vae.sample(posterior_mean, posterior_logvar)
+                posterior_mean_bs, posterior_logvar_bs = self.temporal_vae._encode(x_z_bs)
+                z_bs = self.temporal_vae.sample(posterior_mean_bs, posterior_logvar_bs)
                 z_list.append(z_bs)
+                posterior_mean_list.append(posterior_mean_bs)
+                posterior_logvar_list.append(posterior_logvar_bs)
             z = ops.cat(z_list, axis=2)
-            if self.cal_loss:
-                raise ValueError(
-                    "Please fix the bug of posterior concatenation for temporal vae training with micro_frame_size"
-                )
+            if self.concat_posterior:
+                posterior_mean = ops.cat(posterior_mean_list, axis=2)
+                posterior_logvar = ops.cat(posterior_logvar_list, axis=2)
+            else:
+                posterior_mean = posterior_mean_list[-1]
+                posterior_logvar = posterior_logvar_list[-1]
 
         if self.cal_loss:
             return z, posterior_mean, posterior_logvar, x_z
@@ -297,6 +319,7 @@ class VideoAutoencoderPipeline(nn.Cell):
             return x
 
     def construct(self, x):
+        # assert self.cal_loss, "This method is only available when cal_loss is True"
         z, posterior_mean, posterior_logvar, x_z = self.encode(x)
         x_rec, x_z_rec = self.decode(z, num_frames=x_z.shape[2])
         return x_rec, x_z_rec, z, posterior_mean, posterior_logvar, x_z
@@ -322,17 +345,25 @@ def OpenSoraVAE_V1_2(
     micro_batch_size=4,
     micro_frame_size=17,
     ckpt_path=None,
+    vae2d_ckpt_path=None,
     freeze_vae_2d=False,
     cal_loss=False,
+    use_recompute=False,
 ):
+    """
+    ckpt_path: path to the checkpoint of the overall model (vae2d + temporal vae)
+    vae_2d_ckpt_path: path to the checkpoint of the vae 2d model. It will only be loaded when `ckpt_path` not provided.
+    """
     vae_2d = dict(
         type="VideoAutoencoderKL",
         config=SDXL_CONFIG,
         micro_batch_size=micro_batch_size,
+        use_recompute=use_recompute,
     )
     vae_temporal = dict(
         type="VAE_Temporal_SD",
         from_pretrained=None,
+        use_recompute=use_recompute,
     )
     shift = (-0.10, 0.34, 0.27, 0.98)
     scale = (3.85, 2.32, 2.33, 3.06)
@@ -349,10 +380,25 @@ def OpenSoraVAE_V1_2(
     config = VideoAutoencoderPipelineConfig(**kwargs)
     model = VideoAutoencoderPipeline(config)
 
+    # load model weights
     if ckpt_path is not None:
         sd = ms.load_checkpoint(ckpt_path)
+
+        # remove the added prefix in the trained checkpoint
+        pnames = list(sd.keys())
+        for pn in pnames:
+            new_pn = pn.replace("autoencoder.", "").replace("_backbone.", "")
+            sd[new_pn] = sd.pop(pn)
+
         pu, cu = ms.load_param_into_net(model, sd, strict_load=False)
         print(f"Net param not loaded : {pu}")
         print(f"Checkpoint param not loaded : {cu}")
+    elif vae2d_ckpt_path is not None:
+        sd = ms.load_checkpoint(vae2d_ckpt_path)
+        # TODO: add spatial_vae prefix to the param name
+        pu, cu = ms.load_param_into_net(model.spatial_vae, sd, strict_load=False)
+
+    if cal_loss and micro_frame_size is not None:
+        print("Posterior concatenation for temporal vae training with micro_frame_size is not supported. Please ")
 
     return model

@@ -342,10 +342,6 @@ class Decoder(nn.Cell):
 
         self.conv_out = self.conv_fn(filters, in_out_channels, 3)
 
-        # recompute
-        # for block in self.res_blocks:
-        #    block.recompute()
-
     @staticmethod
     def rearrange(x, ts, hs=1, ws=1):
         # "B (C ts hs ws) T H W -> B C (T ts) (H hs) (W ws)",
@@ -440,20 +436,15 @@ class VAE_Temporal(nn.Cell):
             num_groups=num_groups,  # for nn.GroupNorm
             activation_fn=activation_fn,
         )
+        self.split = ops.Split(axis=1, output_num=2)
         self.stdnormal = ops.StandardNormal()
-
+        self.split = get_split_op()
+        
         if use_recompute:
-            print("D--: temporal vae recompute")
             self.recompute(self.encoder)
             self.recompute(self.quant_conv)
             self.recompute(self.post_quant_conv)
             self.recompute(self.decoder)
-            # self.encoder.recompute()
-            # self.quant_conv.recompute()
-            # self.post_quant_conv.recompute()
-            # self.decoder.recompute()
-
-        self.split = get_split_op()
 
     def recompute(self, b):
         if not b._has_config_recompute:
