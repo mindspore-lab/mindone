@@ -1,4 +1,4 @@
-from typing import Any, Dict, List, Literal, Optional, Union
+from typing import Any, Dict, List, Literal, Optional, Tuple, Union
 
 import numpy as np
 
@@ -32,7 +32,7 @@ class PixArtBlock(nn.Cell):
         num_heads: int,
         mlp_ratio: float = 4.0,
         drop_path: float = 0.0,
-        sampling: Literal[None, "conv", "ave", "uniform", "uniform_every"] = None,
+        sampling: Literal[None, "conv", "ave", "uniform"] = None,
         sr_ratio: int = 1,
         qk_norm: bool = False,
         **block_kwargs: Any,
@@ -58,13 +58,15 @@ class PixArtBlock(nn.Cell):
         self.drop_path = DropPath(drop_path) if drop_path > 0.0 else nn.Identity()
         self.scale_shift_table = Parameter(ops.randn(6, hidden_size) / hidden_size**0.5)
 
-    def construct(self, x: Tensor, y: Tensor, t: Tensor, mask_y: Tensor) -> Tensor:
+    def construct(
+        self, x: Tensor, y: Tensor, t: Tensor, mask_y: Tensor, HW: Optional[Tuple[int, int]] = None
+    ) -> Tensor:
         B = x.shape[0]
 
         shift_msa, scale_msa, gate_msa, shift_mlp, scale_mlp, gate_mlp = (
             self.scale_shift_table[None] + t.reshape(B, 6, -1)
         ).chunk(6, axis=1)
-        x = x + self.drop_path(gate_msa * self.attn(t2i_modulate(self.norm1(x), shift_msa, scale_msa)))
+        x = x + self.drop_path(gate_msa * self.attn(t2i_modulate(self.norm1(x), shift_msa, scale_msa), HW=HW))
         x = x + self.cross_attn(x, y, mask=mask_y)
         x = x + self.drop_path(gate_mlp * self.mlp(t2i_modulate(self.norm2(x), shift_mlp, scale_mlp)))
         return x
@@ -91,7 +93,7 @@ class PixArt(nn.Cell):
         pe_interpolation: float = 1.0,
         model_max_length: int = 120,
         qk_norm: bool = False,
-        sampling: Literal[None, "conv", "ave", "uniform", "uniform_every"] = None,
+        sampling: Literal[None, "conv", "ave", "uniform"] = None,
         scale_factor: int = 1,
         kv_compress_layer: Optional[List[int]] = None,
         block_kwargs: Optional[Dict[str, Any]] = None,
@@ -247,7 +249,7 @@ class PixArtMS(PixArt):
         model_max_length: int = 120,
         micro_condition: bool = False,
         qk_norm: bool = False,
-        sampling: Literal[None, "conv", "ave", "uniform", "uniform_every"] = None,
+        sampling: Literal[None, "conv", "ave", "uniform"] = None,
         scale_factor: int = 1,
         kv_compress_layer: Optional[List[int]] = None,
         block_kwargs: Optional[Dict[str, Any]] = None,
@@ -376,7 +378,7 @@ class PixArtMS(PixArt):
         y = self.y_embedder(y)  # (N, L, D)
 
         for block in self.blocks:
-            x = block(x, y, t0, mask_y=mask_y)
+            x = block(x, y, t0, mask_y=mask_y, HW=(h // self.patch_size, w // self.patch_size))
         x = self.final_layer(x, t)  # (N, T, patch_size ** 2 * out_channels)
         x = self.unpatchify(x, h, w)  # (N, out_channels, H, W)
         return x

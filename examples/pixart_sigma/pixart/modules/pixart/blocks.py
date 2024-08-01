@@ -83,7 +83,7 @@ class KVCompressSelfAttention(nn.Cell):
         dim: int,
         num_heads: int = 8,
         qkv_bias: bool = True,
-        sampling: Literal[None, "conv", "ave", "uniform", "uniform_every"] = None,
+        sampling: Literal[None, "conv", "ave", "uniform"] = None,
         sr_ratio: int = 1,
         qk_norm: bool = False,
         attn_drop: float = 0.0,
@@ -109,9 +109,16 @@ class KVCompressSelfAttention(nn.Cell):
 
         if sr_ratio > 1 and self.sampling == "conv":
             # Avg Conv Init.
-            self.sr = nn.Conv2d(dim, dim, groups=dim, kernel_size=sr_ratio, stride=sr_ratio, pad_mode="pad")
-            self.sr.weight.data.set_data(1 / sr_ratio**2)
-            self.sr.bias.data.set_data(0)
+            self.sr = nn.Conv2d(
+                dim,
+                dim,
+                sr_ratio,
+                stride=sr_ratio,
+                pad_mode="pad",
+                group=dim,
+                weight_init=1 / sr_ratio**2,
+                bias_init=0,
+            )
             self.norm = LayerNorm(dim)
 
         if qk_norm:
@@ -127,14 +134,11 @@ class KVCompressSelfAttention(nn.Cell):
         H: int,
         W: int,
         scale_factor: int,
-        sampling: Literal[None, "conv", "ave", "uniform", "uniform_every"] = None,
+        sampling: Literal[None, "conv", "ave", "uniform"] = None,
     ) -> Tensor:
-        B, N, C = x.shape
+        B, _, C = x.shape
         if sampling is None or scale_factor == 1:
-            return x, N
-
-        if sampling == "uniform_every":
-            return x[:, ::scale_factor], int(N // scale_factor)
+            return x
 
         x = x.reshape(B, H, W, C)
         x = ops.transpose(x, (0, 3, 1, 2))

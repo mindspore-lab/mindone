@@ -106,7 +106,7 @@ def parse_args():
     parser.add_argument(
         "--kv_compress_sampling",
         default="conv",
-        choices=["conv", "ave", "uniform", "uniform_every"],
+        choices=["conv", "ave", "uniform"],
         help="Sampling method in KV compression.",
     )
     parser.add_argument("--kv_compress_scale_factor", default=1, type=int, help="Scaling value in KV compression.")
@@ -184,7 +184,10 @@ def main(args):
     else:
         model_dtype = ms.float32
 
-    network = load_ckpt_params(network, args.checkpoint)
+    if args.checkpoint:
+        network = load_ckpt_params(network, args.checkpoint)
+    else:
+        raise ValueError("`checkpoint` must be provided to run inference.")
 
     # 2.2 VAE
     logger.info("vae init")
