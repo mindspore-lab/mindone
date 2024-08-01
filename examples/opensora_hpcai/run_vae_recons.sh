@@ -2,7 +2,7 @@ python scripts/inference_vae.py \
     --ckpt_path outputs/vae_1p_stage3_kbk_bf16/ckpt/vae_3d-e400.ckpt \
     --use_temporal_vae=True \
     --image_size 256 \
-    --num_frames 17 \
+    --num_frames 33 \
     --dtype bf16 \
     --video_folder ../videocomposer/datasets/webvid5 \
 

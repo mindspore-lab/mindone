@@ -130,9 +130,10 @@ class VideoAutoencoderKL(nn.Cell):
         if self.micro_batch_size is None:
             x = self.module.encode(x) * self.scale_factor
         else:
-            # Not sure whether to enter the for loop because of dynamic shape,
-            # avoid initialize x_out as an empty list
+            # TODO: check how it works for dynamic shape in graph mode. do we still to init the tuple with one element?
+            # use tuple instead of list to avoid TupleToList issue in backprop
             x_splits = self.split(x, self.micro_batch_size, 0)
+            print(f'D--: num frames*BS {x.shape[0]}, num splits: {len(x_splits)}')
             x_out = tuple((self.module.encode(x_bs) * self.scale_factor) for x_bs in x_splits)
 
             # x_out = ops.make_list()
@@ -159,15 +160,6 @@ class VideoAutoencoderKL(nn.Cell):
         else:
             x_splits = self.split(x, self.micro_batch_size, 0)
             x_out = tuple(self.module.decode(x_bs / self.scale_factor) for x_bs in x_splits)
-            '''
-            bs = self.micro_batch_size
-            # TODO: fix for dynamic shape
-            x_out = []
-            for i in range(0, x.shape[0], bs):
-                x_bs = x[i : i + bs]
-                x_bs = self.module.decode(x_bs / self.scale_factor)
-                x_out.append(x_bs)
-            '''
             x = ops.cat(x_out, axis=0)
 
         # x = rearrange(x, "(B T) Z H W -> B Z T H W", B=B)
@@ -242,12 +234,14 @@ class VideoAutoencoderPipeline(nn.Cell):
         self.cal_loss = config.cal_loss
         self.micro_frame_size = config.micro_frame_size
         self.micro_z_frame_size = self.temporal_vae.get_latent_size([config.micro_frame_size, None, None])[0]
+        print(f"micro_frame_size: {self.micro_frame_size}, micro_z_frame_size: {self.micro_z_frame_size}")
 
         if config.freeze_vae_2d:
             for param in self.spatial_vae.get_parameters():
                 param.requires_grad = False
 
         self.out_channels = self.temporal_vae.out_channels
+        self.split = get_split_op()
 
         # normalization parameters
         scale = ms.Tensor(config.scale)
@@ -261,13 +255,41 @@ class VideoAutoencoderPipeline(nn.Cell):
         self.freeze_vae_2d = config.freeze_vae_2d
         self.concat_posterior = config.concat_posterior
 
-        self.split = get_split_op()
-
     def encode(self, x):
         if self.freeze_vae_2d:
             x_z = ops.stop_gradient(self.spatial_vae.encode(x))
         else:
             x_z = self.spatial_vae.encode(x)
+
+        if self.micro_frame_size is None:
+            posterior_mean, posterior_logvar = self.temporal_vae._encode(x_z)
+            z = self.temporal_vae.sample(posterior_mean, posterior_logvar)
+            if self.cal_loss:
+                return z, posterior_mean, posterior_logvar, x_z
+            else:
+                return (z - self.shift) / self.scale
+        else:
+            # x_z: (b z t h w)
+            x_z_splits  = self.split(x_z, self.micro_frame_size, 2)
+            print("D--: x_z splits: ", len(x_z_splits))
+            if self.cal_loss:
+                z_out = tuple()
+                for x_z_bs in x_z_splits:
+                    posterior_mean, posterior_logvar  = self.temporal_vae._encode(x_z_bs) 
+                    z_bs = self.temporal_vae.sample(posterior_mean, posterior_logvar)
+                    # TODO: tuple add synatax supported in MS graph?
+                    z_out = z_out + (z_bs,)
+                z = ops.cat(z_out, axis=2)
+                # NOTE: torch bug not fixed, to save memory
+                return z, posterior_mean, posterior_logvar, x_z
+            else:
+                # NOTE: no posterior cached to reduce memory in inference
+                z_out = tuple(self.temporal_vae.encode(x_z_bs) for x_z_bs in x_z_splits)
+                z = ops.cat(z_out, axis=2)
+                print('D--: tempral vae encode out z: ', z.shape) 
+                return (z - self.shift) / self.scale
+
+        '''
 
         if self.micro_frame_size is None:
             posterior_mean, posterior_logvar = self.temporal_vae._encode(x_z)
@@ -293,10 +315,12 @@ class VideoAutoencoderPipeline(nn.Cell):
                 posterior_mean = posterior_mean_list[-1]
                 posterior_logvar = posterior_logvar_list[-1]
 
+        print('D--: tempral vae encode out z: ', z.shape) 
         if self.cal_loss:
             return z, posterior_mean, posterior_logvar, x_z
         else:
             return (z - self.shift) / self.scale
+        '''
 
     def decode(self, z, num_frames=None):
         if not self.cal_loss:
@@ -305,7 +329,18 @@ class VideoAutoencoderPipeline(nn.Cell):
         if self.micro_frame_size is None:
             x_z = self.temporal_vae.decode(z, num_frames=num_frames)
             x = self.spatial_vae.decode(x_z)
+            if self.cal_loss:
+                return x, x_z
+            else:
+                return x
         else:
+            # z: (b Z t//4 h w)
+            z_splits = self.split(z, self.micro_z_frame_size, 2)
+            x_z_out = tuple(self.temporal_vae.decode(z_bs, num_frames=min(self.micro_frame_size, num_frames - i*self.micro_frame_size)) for i, z_bs in enumerate(z_splits))
+            x_z = ops.cat(x_z_out, axis=2)
+            x = self.spatial_vae.decode(x_z)
+
+            '''
             x_z_list = []
             for i in range(0, z.shape[2], self.micro_z_frame_size):
                 z_bs = z[:, :, i : i + self.micro_z_frame_size]
@@ -314,11 +349,15 @@ class VideoAutoencoderPipeline(nn.Cell):
                 num_frames -= self.micro_frame_size
             x_z = ops.cat(x_z_list, axis=2)
             x = self.spatial_vae.decode(x_z)
+            '''
 
-        if self.cal_loss:
-            return x, x_z
-        else:
-            return x
+            print('D--: tempral vae decode out x_z: ', x_z.shape) 
+            print('D--: spatial vae decode out x: ', x.shape) 
+            if self.cal_loss:
+                return x, x_z
+            else:
+                return x
+
 
     def construct(self, x):
         # assert self.cal_loss, "This method is only available when cal_loss is True"
