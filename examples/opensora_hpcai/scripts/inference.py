@@ -110,21 +110,23 @@ def init_env(
 
 
 # split captions or t5-embedding according to rank_num and rank_id
-def data_parallel_split(x, device_id, device_num):
-    n = len(x)
-    shard_size = n // device_num
-    if device_id is None:
-        device_id = 0
-    base_data_idx = device_id * shard_size
-
+def data_parallel_split(captions, ref_path, mask_strat, device_id, device_num):
     if device_num in [None, 1]:
-        shard = x
-    if device_id == device_num - 1:
-        shard = x[device_id * shard_size :]
-    else:
-        shard = x[device_id * shard_size : (device_id + 1) * shard_size]
+        return captions, ref_path, mask_strat, 0
 
-    return shard, base_data_idx
+    n = len(captions)
+    shard_size = n // device_num
+    device_id = device_id or 0
+    base_data_idx = device_id * shard_size
+    end_idx = n if device_id == device_num - 1 else (device_id + 1) * shard_size
+
+    captions = captions[base_data_idx:end_idx]
+    if ref_path is not None:
+        ref_path = ref_path[base_data_idx:end_idx]
+    if mask_strat is not None:
+        mask_strat = mask_strat[base_data_idx:end_idx]
+
+    return captions, ref_path, mask_strat, base_data_idx
 
 
 def main(args):
@@ -164,7 +166,10 @@ def main(args):
         logger.warning("OpenSora v1 doesn't support iterative video generation. Setting loop to 1.")
 
     captions = process_prompts(captions, args.loop)  # in v1.1 each loop can have a different caption
-    captions, base_data_idx = data_parallel_split(captions, rank_id, device_num)  # split for data parallel
+    # split for data parallel. FIXME: this won't work for already embedded captions
+    captions, args.reference_path, args.mask_strategy, base_data_idx = data_parallel_split(
+        captions, args.reference_path, args.mask_strategy, rank_id, device_num
+    )
     if args.use_parallel:
         print(f"Num captions for rank {rank_id}: {len(captions)}")
 

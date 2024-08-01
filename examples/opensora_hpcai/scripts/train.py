@@ -537,36 +537,13 @@ def main(args):
         caption = ms.Tensor(shape=[None, 200, 4096], dtype=ms.float32)
         mask = ms.Tensor(shape=[None, 200], dtype=ms.uint8)
         frames_mask = ms.Tensor(shape=[None, None], dtype=ms.bool_)
-        num_frames = ms.Tensor(
-            shape=[
-                None,
-            ],
-            dtype=ms.float32,
-        )
-        height = ms.Tensor(
-            shape=[
-                None,
-            ],
-            dtype=ms.float32,
-        )
-        width = ms.Tensor(
-            shape=[
-                None,
-            ],
-            dtype=ms.float32,
-        )
-        fps = ms.Tensor(
-            shape=[
-                None,
-            ],
-            dtype=ms.float32,
-        )
-        ar = ms.Tensor(
-            shape=[
-                None,
-            ],
-            dtype=ms.float32,
-        )
+        # fmt: off
+        num_frames = ms.Tensor(shape=[None, ], dtype=ms.float32)
+        height = ms.Tensor(shape=[None, ], dtype=ms.float32)
+        width = ms.Tensor(shape=[None, ], dtype=ms.float32)
+        fps = ms.Tensor(shape=[None, ], dtype=ms.float32)
+        ar = ms.Tensor(shape=[None, ], dtype=ms.float32)
+        # fmt: on
         net_with_grads.set_inputs(video, caption, mask, frames_mask, num_frames, height, width, fps, ar)
         logger.info("Dynamic inputs are initialized for bucket config training in Graph mode!")
 
