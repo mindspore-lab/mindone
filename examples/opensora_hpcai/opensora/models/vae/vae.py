@@ -4,7 +4,7 @@ import os
 from transformers import PretrainedConfig
 
 import mindspore as ms
-from mindspore import nn, ops
+from mindspore import nn, ops, mint
 
 from ..layers.operation_selector import get_split_op
 from .autoencoder_kl import AutoencoderKL as AutoencoderKL_SD
@@ -51,7 +51,7 @@ class AutoencoderKL(AutoencoderKL_SD):
         """For latent caching usage"""
         h = self.encoder(x)
         moments = self.quant_conv(h)
-        mean, logvar = self.split(moments, moments.shape[1] // 2, 1)
+        mean, logvar = mint.split(moments, moments.shape[1] // 2, 1)
         logvar = ops.clip_by_value(logvar, -30.0, 20.0)
         std = self.exp(0.5 * logvar)
 
@@ -132,15 +132,30 @@ class VideoAutoencoderKL(nn.Cell):
         else:
             # TODO: check how it works for dynamic shape in graph mode. do we still to init the tuple with one element?
             # use tuple instead of list to avoid TupleToList issue in backprop
-            x_splits = self.split(x, self.micro_batch_size, 0)
-            print(f'D--: num frames*BS {x.shape[0]}, num splits: {len(x_splits)}')
+            '''
+            x_splits = mint.split(x, self.micro_batch_size, 0)
             x_out = tuple((self.module.encode(x_bs) * self.scale_factor) for x_bs in x_splits)
-
-            # x_out = ops.make_list()
-            # for x_bs in x_splits:
-            #    x_bs = self.module.encode(x_bs) * self.scale_factor
-            #    x_out.append(x_bs)
             x = ops.cat(x_out, axis=0)
+            '''
+
+            bs = self.micro_batch_size
+            x_out = ops.make_tuple(self.module.encode(x[:bs]) * self.scale_factor)
+            for i in range(bs, x.shape[0], bs):
+                x_bs = x[i : i + bs]
+                x_bs = self.module.encode(x_bs) * self.scale_factor
+                # x_out.append(x_bs)
+                x_out = x_out + ops.make_tuple(x_bs)
+            x = ops.cat(x_out, axis=0)
+
+            '''
+            bs = self.micro_batch_size
+            x_out = [self.module.encode(x[:bs]) * self.scale_factor]
+            for i in range(bs, x.shape[0], bs):
+                x_bs = x[i : i + bs]
+                x_bs = self.module.encode(x_bs) * self.scale_factor
+                x_out.append(x_bs)
+            x = ops.cat(x_out, axis=0)
+            '''
 
         # x = rearrange(x, "(B T) C H W -> B C T H W", B=B)
         x = self.rearrange_out(x, B=B)
@@ -158,9 +173,32 @@ class VideoAutoencoderKL(nn.Cell):
         if self.micro_batch_size is None:
             x = self.module.decode(x / self.scale_factor)
         else:
-            x_splits = self.split(x, self.micro_batch_size, 0)
+            '''
+            x_splits = mint.split(x, self.micro_batch_size, 0)
             x_out = tuple(self.module.decode(x_bs / self.scale_factor) for x_bs in x_splits)
             x = ops.cat(x_out, axis=0)
+            '''
+
+            bs = self.micro_batch_size 
+            x_bs = x[: bs]
+            x_out = ops.make_tuple(self.module.decode(x_bs / self.scale_factor))
+            for i in range(bs, x.shape[0], bs):
+                x_bs = x[i : i + bs]
+                x_bs = self.module.decode(x_bs / self.scale_factor)
+                x_out = x_out + ops.make_tuple(x_bs)
+            x = ops.cat(x_out, axis=0)
+
+            '''
+            print('D--: x shape ', x.shape)
+            bs = self.micro_batch_size
+            x_out = []
+            for i in range(0, x.shape[0], bs):
+                x_bs = x[i : i + bs]
+                print('D--: x_bs shape', x_bs.shape)
+                x_bs = self.module.decode(x_bs / self.scale_factor)
+                x_out.append(x_bs)
+            x = ops.cat(x_out, axis=0)
+            '''
 
         # x = rearrange(x, "(B T) Z H W -> B Z T H W", B=B)
         x = self.rearrange_out(x, B=B)
@@ -270,7 +308,8 @@ class VideoAutoencoderPipeline(nn.Cell):
                 return (z - self.shift) / self.scale
         else:
             # x_z: (b z t h w)
-            x_z_splits  = self.split(x_z, self.micro_frame_size, 2)
+            '''
+            x_z_splits  = mint.split(x_z, self.micro_frame_size, 2)
             print("D--: x_z splits: ", len(x_z_splits))
             if self.cal_loss:
                 z_out = tuple()
@@ -288,9 +327,36 @@ class VideoAutoencoderPipeline(nn.Cell):
                 z = ops.cat(z_out, axis=2)
                 print('D--: tempral vae encode out z: ', z.shape) 
                 return (z - self.shift) / self.scale
-
+            print("D--: x_z splits: ", len(x_z_splits))
+            '''
+            mfs = self.micro_frame_size
+            if self.cal_loss:
+                x_z_bs = x_z[:, :, : mfs]
+                posterior_mean, posterior_logvar  = self.temporal_vae._encode(x_z_bs) 
+                z_bs = self.temporal_vae.sample(posterior_mean, posterior_logvar)
+                z_out = ops.make_tuple(z_bs)
+                for i in range(mfs, x_z.shape[2], mfs):
+                    x_z_bs = x_z[:, :, i : i + self.micro_frame_size]
+                    posterior_mean, posterior_logvar  = self.temporal_vae._encode(x_z_bs) 
+                    z_bs = self.temporal_vae.sample(posterior_mean, posterior_logvar)
+                    # TODO: tuple add synatax supported in MS graph?
+                    z_out = z_out + ops.make_tuple(z_bs)
+                z = ops.cat(z_out, axis=2)
+                # NOTE: torch bug not fixed, to save memory
+                return z, posterior_mean, posterior_logvar, x_z
+            else:
+                # NOTE: no posterior cached to reduce memory in inference
+                x_z_bs = x_z[:, :, : mfs]
+                z_out = ops.make_tuple(self.temporal_vae.encode(x_z_bs))
+                for i in range(mfs, x_z.shape[2], mfs):
+                    x_z_bs = x_z[:, :, i : i + self.micro_frame_size]
+                    z_bs = self.temporal_vae.encode(x_z_bs)
+                    z_out = z_out + ops.make_tuple(z_bs)
+                z = ops.cat(z_out, axis=2)
+                print('D--: tempral vae encode out z: ', z.shape) 
+                return (z - self.shift) / self.scale
+        
         '''
-
         if self.micro_frame_size is None:
             posterior_mean, posterior_logvar = self.temporal_vae._encode(x_z)
             z = self.temporal_vae.sample(posterior_mean, posterior_logvar)
@@ -335,10 +401,23 @@ class VideoAutoencoderPipeline(nn.Cell):
                 return x
         else:
             # z: (b Z t//4 h w)
-            z_splits = self.split(z, self.micro_z_frame_size, 2)
+            '''
+            z_splits = mint.split(z, self.micro_z_frame_size, 2)
             x_z_out = tuple(self.temporal_vae.decode(z_bs, num_frames=min(self.micro_frame_size, num_frames - i*self.micro_frame_size)) for i, z_bs in enumerate(z_splits))
             x_z = ops.cat(x_z_out, axis=2)
-            x = self.spatial_vae.decode(x_z)
+            '''
+            mz = self.micro_z_frame_size
+            z_bs = z[:, :, : mz]
+            x_z_bs = self.temporal_vae.decode(z_bs, num_frames=min(self.micro_frame_size, num_frames))
+            num_frames -= self.micro_frame_size
+            x_z_out = ops.make_tuple(x_z_bs)
+
+            for i in range(mz, z.shape[2], mz):
+                z_bs = z[:, :, i : i + mz]
+                x_z_bs = self.temporal_vae.decode(z_bs, num_frames=min(self.micro_frame_size, num_frames))
+                x_z_out = x_z_out + ops.make_tuple(x_z_bs)
+                num_frames -= self.micro_frame_size
+            x_z = ops.cat(x_z_out, axis=2)
 
             '''
             x_z_list = []
@@ -348,11 +427,11 @@ class VideoAutoencoderPipeline(nn.Cell):
                 x_z_list.append(x_z_bs)
                 num_frames -= self.micro_frame_size
             x_z = ops.cat(x_z_list, axis=2)
-            x = self.spatial_vae.decode(x_z)
             '''
 
-            print('D--: tempral vae decode out x_z: ', x_z.shape) 
-            print('D--: spatial vae decode out x: ', x.shape) 
+            x = self.spatial_vae.decode(x_z)
+            # print('D--: tempral vae decode out x_z: ', x_z.shape) 
+            # print('D--: spatial vae decode out x: ', x.shape) 
             if self.cal_loss:
                 return x, x_z
             else:
