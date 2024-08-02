@@ -191,6 +191,30 @@ logits = outputs[0]
 encoder_outputs = outputs[1]
 ```
 
+### mT5
+The mT5 model was presented in [mT5: A massively multilingual pre-trained text-to-text transform](https://arxiv.org/pdf/2010.11934) by Linting Xue, Noah Constant, Adam Roberts, Mihir Kale, Rami Al-Rfou, Aditya Siddhant, Aditya Barua, Colin Raffel.
+
+We have tested the following pretrained weights from huggingface hub. Any other pretrained weights of mT5 model probably also works.
+
+#### google/mt5-small
+
+[google/mt5-small](https://huggingface.co/google/mt5-small) is the checkpoint with 300 million parameters.
+It can be used as an encoder-decoder architecture `MT5Model`, or just the encoder part `MT5Model.encoder`.
+
+```python
+from mindspore import Tensor
+from transformers import AutoTokenizer
+from mindone.transformers import MT5EncoderModel
+
+tokenizer = AutoTokenizer.from_pretrained("google/mt5-small", revision="refs/pr/3")
+model = MT5EncoderModel.from_pretrained("google/mt5-small", revision="refs/pr/3")
+input_ids = tokenizer(
+     "Studies have been shown that owning a dog is good for you", return_tensors="np"
+).input_ids  # Batch size 1
+outputs = model(input_ids=Tensor(input_ids))
+last_hidden_states = outputs[0]
+```
+
 ## Numerical Parity
 
 MindSpore 2.2/2.3 @ Ascend **_vs._** Pytorch 2.2 @ CPU(aarch64)
