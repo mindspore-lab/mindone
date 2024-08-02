@@ -17,6 +17,8 @@ msrun --bind_core=True --worker_num=8 --local_worker_num=8 --log_dir=$output_dir
     --video_folder datasets/mixkit-100videos/mixkit \
     --text_embed_folder  datasets/mixkit-100videos/t5_emb_300 \
   --use_parallel True \
+  --vae_micro_batch_size 2 \
+  --max_device_memory 59GB \
   --dataset_sink_mode=False \
   --enable_flash_attention=True \
   --gradient_accumulation_steps=1 \

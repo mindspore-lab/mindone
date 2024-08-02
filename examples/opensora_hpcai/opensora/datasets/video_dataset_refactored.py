@@ -20,7 +20,8 @@ from .transforms import BucketResizeCrop, Resize
 # FIXME: remove in future when mindone is ready for install
 sys.path.append(os.path.join(os.path.dirname(__file__), "../../../.."))
 from mindone.data import BaseDataset
-from mindone.data.video_reader import VideoReader
+# from mindone.data.video_reader import VideoReader
+from decord import VideoReader
 from mindone.models.modules.pos_embed import get_2d_sincos_pos_embed
 
 from ..models.layers.rotary_embedding import precompute_freqs_cis
@@ -202,9 +203,10 @@ class VideoDatasetRefactored(BaseDataset):
             elif "fps" in vae_latent_data:
                 data["fps"] = np.array(vae_latent_data["fps"], dtype=np.float32)
             else:
-                with VideoReader(data["video"]) as reader:
-                    self._data[idx]["fps"] = reader.fps  # cache FPS for further iterations
-                    data["fps"] = np.array(reader.fps, dtype=np.float32)
+                reader = VideoReader(data["video"])
+                # self._data[idx]["fps"] = reader.fps  # cache FPS for further iterations
+                self._data[idx]["fps"] = reader.get_avg_fps()  # cache FPS for further iterations
+                data["fps"] = np.array(reader.get_avg_fps(), dtype=np.float32)
             # data["fps"] /= self._stride  # FIXME: OS v1.1 incorrectly calculates FPS
 
             latent_mean, latent_std = vae_latent_data["latent_mean"], vae_latent_data["latent_std"]
@@ -219,27 +221,32 @@ class VideoDatasetRefactored(BaseDataset):
             data["video"] = (vae_latent * self._vae_scale_factor).astype(np.float32)
 
         else:
-            with VideoReader(data["video"]) as reader:
-                min_length = self._min_length
-                if self._buckets:
-                    data["bucket_id"] = self._buckets.get_bucket_id(
-                        T=len(reader), H=reader.shape[1], W=reader.shape[0], frame_interval=self._stride
+            reader = VideoReader(data["video"])
+            min_length = self._min_length
+            video_length = len(reader)
+            if self._buckets:
+                frame_h, frame_w, _ = reader[0].shape
+                print("D--: frame h w", frame_h, frame_w)
+                data["bucket_id"] = self._buckets.get_bucket_id(
+                    T=video_length, H=frame_h, W=frame_w, frame_interval=self._stride,
+                )
+                if data["bucket_id"] is None:
+                    raise ValueError(
+                        f"Couldn't assign a bucket to {data['video']}"
+                        f" (T={video_length}, H={frame_h}, W={frame_w})."
                     )
-                    if data["bucket_id"] is None:
-                        raise ValueError(
-                            f"Couldn't assign a bucket to {data['video']}"
-                            f" (T={len(reader)}, H={reader.shape[1]}, W={reader.shape[0]})."
-                        )
 
-                    num_frames, *_ = self._buckets.get_thw(data["bucket_id"])
-                    min_length = (num_frames - 1) * self._stride + 1
+                num_frames, *_ = self._buckets.get_thw(data["bucket_id"])
+                min_length = (num_frames - 1) * self._stride + 1
 
-                if len(reader) < min_length:
-                    raise ValueError(f"Video is too short: {data['video']}")
+            if len(reader) < min_length:
+                raise ValueError(f"Video is too short: {data['video']}")
 
-                start_pos = random.randint(0, len(reader) - min_length)
-                data["video"] = reader.fetch_frames(num=num_frames, start_pos=start_pos, step=self._stride)
-                data["fps"] = np.array(reader.fps, dtype=np.float32)  # / self._stride  # FIXME: OS v1.1 incorrect
+            clip_length = min(video_length, min_length)
+            start_pos = random.randint(0, len(reader) - clip_length)
+            batch_index = np.linspace(start_pos, start_pos + clip_length - 1, num_frames, dtype=int)
+            data["video"] = reader.get_batch(batch_index).asnumpy()
+            data["fps"] = np.array(reader.get_avg_fps(), dtype=np.float32)  # / self._stride  # FIXME: OS v1.1 incorrect
 
         data["num_frames"] = np.array(num_frames, dtype=np.float32)
 
