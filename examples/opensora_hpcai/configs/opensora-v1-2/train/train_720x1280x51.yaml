@@ -58,6 +58,7 @@ mask_ratios:
 
 image_size: [ 720, 1280 ]
 num_frames: 51 
+batch_size: 1
 
 # bucket_config:
 #  "720p": { 51: [ 0.03, 1 ] }

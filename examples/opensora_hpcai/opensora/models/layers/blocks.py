@@ -176,7 +176,7 @@ class MultiHeadCrossAttention(nn.Cell):
         # 2+: mask adaptation for multi-head attention
         if mask is not None:
             # flip mask, since ms FA treats 1 as discard, 0 as retain.
-            mask = 1 - mask
+            mask = 1 - mask.to(ms.int32)
 
         # 3. attn compute
         if self.enable_flash_attention:
@@ -184,7 +184,7 @@ class MultiHeadCrossAttention(nn.Cell):
                 # (b n_k) -> (b 1 1 n_k), will be broadcast according to qk sim, e.g. (b num_heads n_q n_k)
                 mask = mask[:, None, None, :]
                 # (b 1 1 n_k) -> (b 1 n_q n_k)
-                mask = self.repeat_interleave(mask.to(ms.int32), int(q.shape[1]), -2)
+                mask = self.repeat_interleave(mask, int(q.shape[1]), -2)
             x = self.flash_attention(q, k, v, mask=mask)
 
             # FA attn_mask def: retention and 1 indicates discard. Input tensor of shape :math:`(B, N1, S1, S2)`, `(B, 1, S1, S2)` `(S1, S2)`
@@ -292,13 +292,13 @@ class SelfAttention(nn.Cell):
 
         # mask process
         if mask is not None:
-            mask = 1 - mask
+            mask = 1 - mask.to(ms.int32)
 
         if self.enable_flash_attention:
             if mask is not None:
                 mask = mask[:, None, None, :]
                 # mask: (b n_k) -> (b 1 n_q n_k)
-                mask = self.repeat_interleave(mask.to(ms.int32), int(q.shape[1]), -2)
+                mask = self.repeat_interleave(mask, int(q.shape[1]), -2)
             out = self.flash_attention(q, k, v, mask=mask)
         else:
             if mask is not None:

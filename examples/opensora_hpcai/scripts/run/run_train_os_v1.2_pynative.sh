@@ -15,7 +15,7 @@ msrun --bind_core=True --worker_num=8 --local_worker_num=8 --log_dir=$output_dir
 	--config configs/opensora-v1-2/train/train_720x1280x51.yaml \
     --csv_path datasets/mixkit-100videos/video_caption_train.csv \
     --video_folder datasets/mixkit-100videos/mixkit \
-    --text_embed_folder  datasets/mixkit-100videos/t5_emb_200 \
+    --text_embed_folder  datasets/mixkit-100videos/t5_emb_300 \
   --use_parallel True \
   --dataset_sink_mode=False \
   --enable_flash_attention=True \
