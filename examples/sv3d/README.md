@@ -35,19 +35,7 @@ More demos can be found here. Input images are from [the Unique 3D repo](https:/
 pip install -r requirements.txt
 ```
 2. Inference is tested on the machine with the following specs using 1x NPU:
-```bash
-lscpu
-```
 ```text
-Architecture:                    aarch64
-CPU op-mode(s):                  64-bit
-Byte Order:                      Little Endian
-CPU(s):                          192
-Thread(s) per core:              1
-Core(s) per socket:              48
-Vendor ID:                       HiSilicon
-Model name:                      Kunpeng-920
-NPU:                             910B1
 Mindspore Version:               2.3.0.B528
 CANN Version:                    7.3
 Ascend Driver:                   23.0.rc3.6

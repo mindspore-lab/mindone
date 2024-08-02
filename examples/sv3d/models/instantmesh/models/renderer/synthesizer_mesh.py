@@ -1,10 +1,3 @@
-# ORIGINAL LICENSE
-# SPDX-FileCopyrightText: Copyright (c) 2021-2022 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
-# SPDX-License-Identifier: LicenseRef-NvidiaProprietary
-#
-# Modified by Jiale Xu
-# The modifications are subject to the same license as the original.
-
 import itertools
 
 import mindspore.nn as nn
