@@ -8,6 +8,7 @@ from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import Any, Callable, List, Optional, Tuple
 
+import cv2
 import numpy as np
 from tqdm import tqdm
 
@@ -225,8 +226,11 @@ class VideoDatasetRefactored(BaseDataset):
             min_length = self._min_length
             video_length = len(reader)
             if self._buckets:
-                frame_h, frame_w, _ = reader[0].shape
-                print("D--: frame h w", frame_h, frame_w)
+                # frame_h, frame_w, _ = reader[0].shape
+                cap = cv2.VideoCapture(data["video"], apiPreference=cv2.CAP_FFMPEG)
+                frame_w = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+                frame_h = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+                # print("D--: frame h w", frame_h, frame_w)
                 data["bucket_id"] = self._buckets.get_bucket_id(
                     T=video_length, H=frame_h, W=frame_w, frame_interval=self._stride,
                 )

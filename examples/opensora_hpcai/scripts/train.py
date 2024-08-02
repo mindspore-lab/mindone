@@ -278,6 +278,7 @@ def initialize_dataset(
                 num_workers=args.num_parallel_workers,
                 drop_remainder=not validation,
                 python_multiprocessing=args.data_multiprocessing,
+                prefetch_size=args.prefetch_size,
                 max_rowsize=args.max_rowsize,
                 debug=args.debug,
                 # Sort output columns to match DiffusionWithLoss input
