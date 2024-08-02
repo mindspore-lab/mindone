@@ -281,9 +281,8 @@ class STDiT3(nn.Cell):
                 param.requires_grad = False
 
         if use_recompute:
-            num_recompute_blocks = num_recompute_blocks or depth
             for blocks in [self.spatial_blocks, self.temporal_blocks]:
-                for block in blocks[:num_recompute_blocks]:
+                for block in blocks:
                     self.recompute(block)
 
     def recompute(self, b):

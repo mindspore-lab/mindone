@@ -9,7 +9,7 @@ except ImportError:
 import numpy as np
 
 import mindspore as ms
-from mindspore import Tensor, nn, ops
+from mindspore import Tensor, _no_grad, jit_class, nn, ops
 
 from ..models.layers.operation_selector import get_split_op
 from ..schedulers.iddpm import SpacedDiffusion
@@ -24,6 +24,25 @@ from ..schedulers.rectified_flow import RFlowScheduler
 __all__ = ["DiffusionWithLoss", "DiffusionWithLossFiTLike", "RFlowDiffusionWithLoss", "RFlowEvalDiffusionWithLoss"]
 
 logger = logging.getLogger(__name__)
+
+
+@jit_class
+class no_grad(_no_grad):
+    """
+    A context manager that suppresses gradient memory allocation in PyNative mode.
+    """
+
+    def __init__(self):
+        super().__init__()
+        self._pynative = ms.get_context("mode") == ms.PYNATIVE_MODE
+
+    def __enter__(self):
+        if self._pynative:
+            super().__enter__()
+
+    def __exit__(self, *args):
+        if self._pynative:
+            super().__exit__(*args)
 
 
 class DiffusionWithLoss(nn.Cell):
@@ -123,18 +142,19 @@ class DiffusionWithLoss(nn.Cell):
             - assume model input/output shape: (b c f h w)
                 unet2d input/output shape: (b c h w)
         """
-        # 1. get image/video latents z using vae
-        # (b f c h w) -> (b c f h w)
-        x = ops.transpose(x, (0, 2, 1, 3, 4))
+        with no_grad():
+            # 1. get image/video latents z using vae
+            # (b f c h w) -> (b c f h w)
+            x = ops.transpose(x, (0, 2, 1, 3, 4))
 
-        if not self.video_emb_cached:
-            x = self.get_latents(x)
+            if not self.video_emb_cached:
+                x = self.get_latents(x)
 
-        # 2. get conditions
-        if not self.text_emb_cached:
-            text_embed = self.get_condition_embeddings(text_tokens)
-        else:
-            text_embed = text_tokens  # dataset retunrs text embeddings instead of text tokens
+            # 2. get conditions
+            if not self.text_emb_cached:
+                text_embed = self.get_condition_embeddings(text_tokens)
+            else:
+                text_embed = text_tokens  # dataset returns text embeddings instead of text tokens
         loss = self.compute_loss(
             x,
             text_embed,
@@ -292,12 +312,12 @@ class DiffusionWithLossFiTLike(DiffusionWithLoss):
             - assume model input/output shape: (b c f h w)
                 unet2d input/output shape: (b c h w)
         """
-
-        # get conditions
-        if not self.text_emb_cached:
-            text_embed = self.get_condition_embeddings(text_tokens)
-        else:
-            text_embed = text_tokens  # dataset retunrs text embeddings instead of text tokens
+        with no_grad():
+            # get conditions
+            if not self.text_emb_cached:
+                text_embed = self.get_condition_embeddings(text_tokens)
+            else:
+                text_embed = text_tokens  # dataset retunrs text embeddings instead of text tokens
         loss = self.compute_loss(
             x,
             text_embed,
