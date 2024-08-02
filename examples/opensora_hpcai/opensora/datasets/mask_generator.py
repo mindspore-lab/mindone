@@ -89,8 +89,8 @@ class MaskGenerator:
         elif mask_name == "random":
             mask_ratio = random.uniform(0.1, 0.9)
             mask = np.random.rand(num_frames) > mask_ratio
-            # if mask is all False, set the last frame to True
-            if not mask.any():
-                mask[-1] = 1
+        # if mask is all False, set the last frame to True
+        if not mask.any():
+            mask[-1] = 1
 
         return mask

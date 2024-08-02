@@ -185,7 +185,12 @@ class VideoDatasetRefactored(BaseDataset):
 
         if self._text_emb_folder:
             with np.load(data["text_emb"]) as td:
-                data.update({"caption": td["text_emb"], "mask": td["mask"]})
+                data.update(
+                    {
+                        "caption": td["text_emb"],
+                        "mask": td["mask"].astype(np.int32),  # FIXME: convert to int32 until PyNative bug is fixed
+                    }
+                )
 
         if self._vae_latent_folder:
             # pick a resolution randomly if there are multi-resolution latents in vae folder
