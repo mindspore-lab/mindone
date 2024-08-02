@@ -172,6 +172,7 @@ class STDiT3(nn.Cell):
         use_recompute=False,
         num_recompute_blocks=None,
         patchify_conv3d_replace=None,
+        manual_pad=False,
     ):
         super().__init__()
         self.pred_sigma = pred_sigma
@@ -262,7 +263,7 @@ class STDiT3(nn.Cell):
 
         # final layer
         self.final_layer = T2IFinalLayer(
-            hidden_size, np.prod(self.patch_size).item(), self.out_channels, enable_frames_mask=True
+            hidden_size, np.prod(self.patch_size).item(), self.out_channels
         )
 
         self.initialize_weights()

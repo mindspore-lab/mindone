@@ -142,6 +142,7 @@ class DiffusionWithLoss(nn.Cell):
             - assume model input/output shape: (b c f h w)
                 unet2d input/output shape: (b c h w)
         """
+        print("D--: x shape", x.shape)
         with no_grad():
             # 1. get image/video latents z using vae
             # (b f c h w) -> (b c f h w)

@@ -7,15 +7,15 @@ export MS_MEMORY_STATISTIC=0
 # log level
 export GLOG_v=2
 
-output_dir=outputs/OSv1.2_pynative/$(date +"%Y.%m.%d-%H.%M.%S")
+output_dir=outputs/OSv1.2_pynative
 
-msrun --bind_core=True --master_port=8200 --worker_num=8 --local_worker_num=8 --log_dir=$output_dir  \
+msrun --bind_core=True --worker_num=8 --local_worker_num=8 --log_dir=$output_dir  \
 	python scripts/train.py \
 	--mode=1 \
-	--config configs/opensora-v1-2/train/train_stage3.yaml \
-	--csv_path YOUR_CSV_PATH \
-	--video_folder YOUR_VIDEO_FOLDER \
-	--text_embed_folder YOUR_TEXT_EMBED_FOLDER \
+	--config configs/opensora-v1-2/train/train_720x1280x51.yaml \
+    --csv_path datasets/mixkit-100videos/video_caption_train.csv \
+    --video_folder datasets/mixkit-100videos/mixkit \
+    --text_embed_folder  datasets/mixkit-100videos/t5_emb_200 \
   --use_parallel True \
   --dataset_sink_mode=False \
   --enable_flash_attention=True \
