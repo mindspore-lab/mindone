@@ -13,9 +13,9 @@ export GLOG_v=2
 
 output_dir=outputs/test_OSv1.2_kbk_dynamic
 
+# --sample_method uniform \
 
 python scripts/train.py \
---sample_method uniform \
 --vae_micro_batch_size=4 \
 --vae_micro_frame_size=17 \
 --pretrained_model_path="" \
