@@ -104,7 +104,7 @@ class GeneratorWithLoss(nn.Cell):
         weights: sample weights
         global_step: global training step
         """
-
+        print("D--: x shape: ", x.shape)
         # 3d vae forward, get posterior (mean, logvar) and recons
         # x -> VAE2d-Enc -> x_z -> TemporalVAE-Enc -> z ~ posterior -> TempVAE-Dec -> x_z_rec -> VAE2d-Dec -> x_rec
         x_rec, x_z_rec, z, posterior_mean, posterior_logvar, x_z = self.autoencoder(x)
