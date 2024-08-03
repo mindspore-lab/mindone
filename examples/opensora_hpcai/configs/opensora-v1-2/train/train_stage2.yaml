@@ -70,6 +70,7 @@ bucket_config:
   "1080p": { 1: [ 0.01, 5 ] }
   "2048": { 1: [ 0.01, 5 ] }
 
+manual_pad: True
 
 # ---------- Validation ----------
 validate: False

@@ -26,9 +26,10 @@ from opensora.models.layers.blocks import (
     t_mask_select,
 )
 from opensora.models.layers.rotary_embedding import RotaryEmbedding
+from opensora.models.layers.operation_selector import check_dynamic_mode, get_chunk_op, get_split_op
 
 import mindspore as ms
-from mindspore import Parameter, Tensor, load_checkpoint, load_param_into_net, nn, ops
+from mindspore import Parameter, Tensor, load_checkpoint, load_param_into_net, nn, ops, mint
 
 from mindone.models.utils import constant_, normal_, xavier_uniform_
 
@@ -88,14 +89,14 @@ class STDiT3Block(nn.Cell):
     ) -> Tensor:
         # prepare modulate parameters
         B, N, C = x.shape
-        shift_msa, scale_msa, gate_msa, shift_mlp, scale_mlp, gate_mlp = (
-            self.scale_shift_table[None] + t.reshape(B, 6, -1)
-        ).chunk(6, axis=1)
+        shift_msa, scale_msa, gate_msa, shift_mlp, scale_mlp, gate_mlp = mint.chunk(
+            self.scale_shift_table[None] + t.reshape(B, 6, -1), 6, 1
+        )
 
         # frames mask branch
-        shift_msa_zero, scale_msa_zero, gate_msa_zero, shift_mlp_zero, scale_mlp_zero, gate_mlp_zero = (
-            self.scale_shift_table[None] + t0.reshape(B, 6, -1)
-        ).chunk(6, axis=1)
+        shift_msa_zero, scale_msa_zero, gate_msa_zero, shift_mlp_zero, scale_mlp_zero, gate_mlp_zero = mint.chunk(
+            self.scale_shift_table[None] + t0.reshape(B, 6, -1), 6, 1
+        )
 
         # modulate (attention)
         x_m = t2i_modulate(self.norm1(x), shift_msa, scale_msa)
@@ -208,7 +209,7 @@ class STDiT3(nn.Cell):
         elif patchify_conv3d_replace == "conv2d":
             assert patch_size[0] == 1 and patch_size[1] == patch_size[2]
             print("Replace conv3d patchify with conv2d layer")
-            self.x_embedder = PatchEmbed(patch_size[1], in_channels, hidden_size, bias=True)
+            self.x_embedder = PatchEmbed(patch_size[1], in_channels, hidden_size, bias=True, manual_pad=manual_pad)
 
         self.t_embedder = TimestepEmbedder(hidden_size)
         self.fps_embedder = SizeEmbedder(self.hidden_size)
@@ -286,6 +287,8 @@ class STDiT3(nn.Cell):
                 for block in blocks:
                     self.recompute(block)
 
+        self.is_dynamic_shape = check_dynamic_mode()
+
     def recompute(self, b):
         if not b._has_config_recompute:
             b.recompute()
@@ -347,7 +350,12 @@ class STDiT3(nn.Cell):
         _, _, Tx, Hx, Wx = x.shape
         T, H, W = self.get_dynamic_size(x)
         S = H * W
-        base_size = round(S**0.5)
+        if self.is_dynamic_shape:
+            # tricky adaptation for dynamic shape in graph mode. Though it also works for static shape, it degrades performance by 50 ms per step.
+            base_size = int(round(S ** Tensor(0.5)))
+        else:
+            base_size = round(S**0.5)
+
         resolution_sq = (height[0] * width[0]) ** 0.5
         scale = resolution_sq / self.input_sq_size
         # Position embedding doesn't need gradient
@@ -408,8 +416,10 @@ class STDiT3(nn.Cell):
                 kwargs["frames_mask"] = ops.cat([kwargs["frames_mask"], kwargs["frames_mask"]], axis=0)
         model_out = self(combined, timestep, y, **kwargs)
         model_out = model_out["x"] if isinstance(model_out, dict) else model_out
-        pred = model_out.chunk(2, axis=1)[0]
-        pred_cond, pred_uncond = pred.chunk(2, axis=0)
+        # pred = model_out.chunk(2, axis=1)[0]
+        pred = mint.chunk(model_out, 2, 1)[0]
+        # pred_cond, pred_uncond = pred.chunk(2, axis=0)
+        pred_cond, pred_uncond = mint.chunk(pred, 2, 0)
         v_pred = pred_uncond + cfg_scale * (pred_cond - pred_uncond)
         return ops.cat([v_pred, v_pred], axis=0)
 
@@ -467,7 +477,8 @@ class STDiT3(nn.Cell):
 
 
 def STDiT3_XL_2(from_pretrained=None, **kwargs):
-    model = STDiT3(depth=28, hidden_size=1152, patch_size=(1, 2, 2), num_heads=16, **kwargs)
+    # FIXME: DEBUG only
+    model = STDiT3(depth=2, hidden_size=1152, patch_size=(1, 2, 2), num_heads=16, **kwargs)
     if from_pretrained is not None:
         load_checkpoint(from_pretrained, model)
     return model

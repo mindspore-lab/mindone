@@ -480,6 +480,7 @@ class RFlowEvalDiffusionWithLoss(DiffusionWithLoss):
     ):
         loss = Tensor(0, dtype=ms.float32)
         for t in self._timesteps:
+            # TODO: need mint repeat for dynamic shape?
             t = t.repeat(x.shape[0])
             loss += self.scheduler.training_losses(
                 self.network,
