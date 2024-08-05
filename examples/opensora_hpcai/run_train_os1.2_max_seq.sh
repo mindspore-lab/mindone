@@ -11,7 +11,7 @@ export MS_DEV_ENABLE_KERNEL_PACKET=on
 # log level
 export GLOG_v=2
 
-output_dir=outputs/OSv1.2_dvm_max_seq_emaTrue_0805
+output_dir=outputs/OSv1.2_dvm_max_seq_emaTrue_0726
 
 msrun --bind_core=True --worker_num=8 --local_worker_num=8 --log_dir=$output_dir  \
 python scripts/train.py \

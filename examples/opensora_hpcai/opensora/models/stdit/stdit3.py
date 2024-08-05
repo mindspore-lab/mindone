@@ -75,6 +75,7 @@ class STDiT3Block(nn.Cell):
         )
         self.drop_path = DropPath(drop_path) if drop_path > 0.0 else nn.Identity()
         self.scale_shift_table = Parameter(np.random.randn(6, hidden_size).astype(np.float32) / hidden_size**0.5)
+        self.chunk = get_chunk_op()
 
     def construct(
         self,
@@ -89,12 +90,12 @@ class STDiT3Block(nn.Cell):
     ) -> Tensor:
         # prepare modulate parameters
         B, N, C = x.shape
-        shift_msa, scale_msa, gate_msa, shift_mlp, scale_mlp, gate_mlp = mint.chunk(
+        shift_msa, scale_msa, gate_msa, shift_mlp, scale_mlp, gate_mlp = self.chunk(
             self.scale_shift_table[None] + t.reshape(B, 6, -1), 6, 1
         )
 
         # frames mask branch
-        shift_msa_zero, scale_msa_zero, gate_msa_zero, shift_mlp_zero, scale_mlp_zero, gate_mlp_zero = mint.chunk(
+        shift_msa_zero, scale_msa_zero, gate_msa_zero, shift_mlp_zero, scale_mlp_zero, gate_mlp_zero = self.chunk(
             self.scale_shift_table[None] + t0.reshape(B, 6, -1), 6, 1
         )
 
@@ -288,6 +289,7 @@ class STDiT3(nn.Cell):
                     self.recompute(block)
 
         self.is_dynamic_shape = check_dynamic_mode()
+        self.chunk = get_chunk_op()
 
     def recompute(self, b):
         if not b._has_config_recompute:
@@ -416,10 +418,8 @@ class STDiT3(nn.Cell):
                 kwargs["frames_mask"] = ops.cat([kwargs["frames_mask"], kwargs["frames_mask"]], axis=0)
         model_out = self(combined, timestep, y, **kwargs)
         model_out = model_out["x"] if isinstance(model_out, dict) else model_out
-        # pred = model_out.chunk(2, axis=1)[0]
-        pred = mint.chunk(model_out, 2, 1)[0]
-        # pred_cond, pred_uncond = pred.chunk(2, axis=0)
-        pred_cond, pred_uncond = mint.chunk(pred, 2, 0)
+        pred = self.chunk(model_out, 2, 1)[0]
+        pred_cond, pred_uncond = self.chunk(pred, 2, 0)
         v_pred = pred_uncond + cfg_scale * (pred_cond - pred_uncond)
         return ops.cat([v_pred, v_pred], axis=0)
 
@@ -478,7 +478,8 @@ class STDiT3(nn.Cell):
 
 def STDiT3_XL_2(from_pretrained=None, **kwargs):
     # FIXME: DEBUG only
-    model = STDiT3(depth=28, hidden_size=1152, patch_size=(1, 2, 2), num_heads=16, **kwargs)
+    model = STDiT3(depth=2, hidden_size=1152, patch_size=(1, 2, 2), num_heads=16, **kwargs)
+    # model = STDiT3(depth=28, hidden_size=1152, patch_size=(1, 2, 2), num_heads=16, **kwargs)
     if from_pretrained is not None:
         load_checkpoint(from_pretrained, model)
     return model

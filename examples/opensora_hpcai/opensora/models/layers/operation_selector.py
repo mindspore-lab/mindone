@@ -1,6 +1,7 @@
 import mindspore as ms
 from mindspore import mint, ops
 from mindspore.ops.function.array_func import repeat_interleave_ext
+from mindspore.ops.function.array_func import chunk_ext
 
 use_dynamic_ops = False
 
@@ -29,7 +30,7 @@ def get_chunk_op():
     if (mode == 0) and (not check_dynamic_mode()):
         return ops.chunk
     else:
-        return mint.chunk
+        return chunk_ext
 
 
 def get_split_op():
