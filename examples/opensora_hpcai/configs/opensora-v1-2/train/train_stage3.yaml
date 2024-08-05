@@ -18,7 +18,9 @@ enable_flash_attention: True
 use_recompute: True
 
 # data
-num_parallel_workers: 8
+num_parallel_workers: 2
+num_workers_dataset: 2
+prefetch_size: 1
 max_rowsize: 256
 
 # precision

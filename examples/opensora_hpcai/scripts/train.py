@@ -276,8 +276,10 @@ def initialize_dataset(
                 device_num=device_num,
                 rank_id=rank_id,
                 num_workers=args.num_parallel_workers,
+                num_workers_dataset=args.num_workers_dataset,
                 drop_remainder=not validation,
                 python_multiprocessing=args.data_multiprocessing,
+                prefetch_size=args.prefetch_size,
                 max_rowsize=args.max_rowsize,
                 debug=args.debug,
                 # Sort output columns to match DiffusionWithLoss input
