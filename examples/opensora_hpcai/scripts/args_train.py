@@ -260,9 +260,21 @@ def parse_train_args(parser):
     parser.add_argument("--frame_stride", default=1, type=int, help="frame sampling stride")
     parser.add_argument("--mask_ratios", type=dict, help="Masking ratios")
     parser.add_argument("--bucket_config", type=dict, help="Multi-resolution bucketing configuration")
-    parser.add_argument("--num_parallel_workers", default=12, type=int, help="The number of workers used for data transformations. Default is 12.")
-    parser.add_argument("--num_workers_dataset", default=4, type=int, help="The number of workers used for reading data from the dataset. Default is 4.")
-    parser.add_argument("--prefetch_size", default=16, type=int, help="The number of samples to prefetch (per device). Default is 16.")
+    parser.add_argument(
+        "--num_parallel_workers",
+        default=12,
+        type=int,
+        help="The number of workers used for data transformations. Default is 12.",
+    )
+    parser.add_argument(
+        "--num_workers_dataset",
+        default=4,
+        type=int,
+        help="The number of workers used for reading data from the dataset. Default is 4.",
+    )
+    parser.add_argument(
+        "--prefetch_size", default=16, type=int, help="The number of samples to prefetch (per device). Default is 16."
+    )
     parser.add_argument(
         "--data_multiprocessing",
         default=False,
