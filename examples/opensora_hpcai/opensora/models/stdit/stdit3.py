@@ -478,7 +478,7 @@ class STDiT3(nn.Cell):
 
 def STDiT3_XL_2(from_pretrained=None, **kwargs):
     # FIXME: DEBUG only
-    model = STDiT3(depth=2, hidden_size=1152, patch_size=(1, 2, 2), num_heads=16, **kwargs)
+    model = STDiT3(depth=28, hidden_size=1152, patch_size=(1, 2, 2), num_heads=16, **kwargs)
     if from_pretrained is not None:
         load_checkpoint(from_pretrained, model)
     return model

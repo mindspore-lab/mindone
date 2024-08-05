@@ -20,7 +20,7 @@ python scripts/train.py \
 --vae_micro_frame_size=17 \
 --pretrained_model_path="" \
 --mode=0 \
---jit_level O0 \
+--jit_level O1 \
 --config configs/opensora-v1-2/train/train_stage1_small.yaml \
 --csv_path datasets/mixkit-100videos/video_caption_train.csv \
 --video_folder datasets/mixkit-100videos/mixkit \
