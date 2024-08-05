@@ -5,12 +5,13 @@ import os
 from typing import Any, Dict, Optional
 
 from opensora.acceleration.parallel_states import get_sequence_parallel_state, hccl_info
-from opensora.models.diffusion.utils.pos_embed import PositionGetter1D, PositionGetter2D, get_1d_sincos_pos_embed
+from opensora.utils.utils import to_2tuple
 
 import mindspore as ms
-from mindspore import nn, ops
+from mindspore import mint, nn, ops
 
 from mindone.diffusers.configuration_utils import ConfigMixin, register_to_config
+from mindone.diffusers.models.embeddings import PixArtAlphaTextProjection
 
 # from mindone.diffusers.utils import USE_PEFT_BACKEND
 from mindone.diffusers.models.modeling_utils import ModelMixin
@@ -18,11 +19,10 @@ from mindone.diffusers.models.modeling_utils import ModelMixin
 from .modules import (
     AdaLayerNormSingle,
     BasicTransformerBlock,
-    BasicTransformerBlock_,
-    CaptionProjection,
-    LatteT2VBlock,
     LayerNorm,
-    PatchEmbed,
+    OverlapPatchEmbed2D,
+    OverlapPatchEmbed3D,
+    PatchEmbed2D,
 )
 
 logger = logging.getLogger(__name__)
@@ -62,7 +62,6 @@ class OpenSoraT2V(ModelMixin, ConfigMixin):
     def __init__(
         self,
         num_attention_heads: int = 16,
-        patch_size_t: int = 1,
         attention_head_dim: int = 88,
         in_channels: Optional[int] = None,
         out_channels: Optional[int] = None,
@@ -85,43 +84,52 @@ class OpenSoraT2V(ModelMixin, ConfigMixin):
         norm_eps: float = 1e-5,
         attention_type: str = "default",
         caption_channels: int = None,
-        video_length: int = 16,
+        interpolation_scale_h: float = None,
+        interpolation_scale_w: float = None,
+        interpolation_scale_t: float = None,
+        use_additional_conditions: Optional[bool] = None,
         enable_flash_attention: bool = False,
+        downsampler: str = None,
         use_recompute=False,
         use_rope: bool = False,
-        model_max_length: int = 300,
-        rope_scaling_type: str = "linear",
-        compress_kv_factor: int = 1,
-        interpolation_scale_1d: float = None,
         FA_dtype=ms.bfloat16,
         num_no_recompute: int = 0,
     ):
         super().__init__()
+
+        # Validate inputs.
+        if patch_size is not None:
+            if norm_type not in ["ada_norm", "ada_norm_zero", "ada_norm_single"]:
+                raise NotImplementedError(
+                    f"Forward pass is not implemented when `patch_size` is not None and `norm_type` is '{norm_type}'."
+                )
+            elif norm_type in ["ada_norm", "ada_norm_zero"] and num_embeds_ada_norm is None:
+                raise ValueError(
+                    f"When using a `patch_size` and this `norm_type` ({norm_type}), `num_embeds_ada_norm` cannot be None."
+                )
+
+        # Set some common variables used across the board.
+        self.use_rope = use_rope
         self.use_linear_projection = use_linear_projection
+        self.interpolation_scale_t = interpolation_scale_t
+        self.interpolation_scale_h = interpolation_scale_h
+        self.interpolation_scale_w = interpolation_scale_w
+        self.downsampler = downsampler
+        self.caption_channels = caption_channels
         self.num_attention_heads = num_attention_heads
         self.attention_head_dim = attention_head_dim
-        inner_dim = num_attention_heads * attention_head_dim
-        self.video_length = video_length
-        self.norm_type = norm_type
-        self.use_recompute = use_recompute
-        self.use_rope = use_rope
-        self.model_max_length = model_max_length
-        self.compress_kv_factor = compress_kv_factor
-        self.num_layers = num_layers
-        self.config.hidden_size = model_max_length
-        self.FA_dtype = FA_dtype
+        self.inner_dim = self.config.num_attention_heads * self.config.attention_head_dim
+        self.in_channels = in_channels
+        self.out_channels = in_channels if out_channels is None else out_channels
+        self.gradient_checkpointing = False
+        self.config.hidden_size = self.inner_dim
+        use_additional_conditions = False
+        self.use_additional_conditions = use_additional_conditions
 
-        assert not (self.compress_kv_factor != 1 and use_rope), "Can not both enable compressing kv and using rope"
-
-        conv_cls = nn.Conv2d  # if USE_PEFT_BACKEND else LoRACompatibleConv
-        linear_cls = nn.Dense  # if USE_PEFT_BACKEND else LoRACompatibleLinear
-
-        # 1. Transformer2DModel can process both standard continuous images of shape
+        # 1. Transformer2DModel can process both standard continuous images of shape\
+        #  `(batch_size, num_channels, width, height)` as well as quantized image embeddings of shape `(batch_size, num_image_vectors)`
         # Define whether input is continuous or discrete depending on configuration
-        self.is_input_continuous = (in_channels is not None) and (patch_size is None)
-        self.is_input_vectorized = num_vector_embeds is not None
-        # self.is_input_patches = in_channels is not None and patch_size is not None
-        self.is_input_patches = True
+        assert in_channels is not None and patch_size is not None
 
         if norm_type == "layer_norm" and num_embeds_ada_norm is not None:
             deprecation_message = (
@@ -133,199 +141,163 @@ class OpenSoraT2V(ModelMixin, ConfigMixin):
             )
             logger.warning("norm_type!=num_embeds_ada_norm", "1.0.0", deprecation_message, standard_warn=False)
             norm_type = "ada_norm"
-
-        # 2. Define input layers
-        assert sample_size is not None, "Transformer2DModel over patched input must provide sample_size"
-
-        self.height = sample_size[0]
-        self.width = sample_size[1]
-
-        self.patch_size = patch_size
-        interpolation_scale_2d = self.config.sample_size[0] // 64  # => 64 (= 512 pixart) has interpolation scale 1
-        interpolation_scale_2d = max(interpolation_scale_2d, 1)
-        self.pos_embed = PatchEmbed(
-            height=sample_size[0],
-            width=sample_size[1],
-            patch_size=patch_size,
-            in_channels=in_channels,
-            embed_dim=inner_dim,
-            interpolation_scale=interpolation_scale_2d,
-        )
-
-        # define temporal positional embedding
-        if interpolation_scale_1d is None:
-            if self.config.video_length % 2 == 1:
-                interpolation_scale_1d = (
-                    self.config.video_length - 1
-                ) // 16  # => 16 (= 16 Latte) has interpolation scale 1
-            else:
-                interpolation_scale_1d = self.config.video_length // 16  # => 16 (= 16 Latte) has interpolation scale 1
-        # interpolation_scale_1d = self.config.video_length // 5  #
-        interpolation_scale_1d = max(interpolation_scale_1d, 1)
-
-        if get_sequence_parallel_state():
-            self.sp_size = hccl_info.world_size
-            rank_offset = hccl_info.rank % hccl_info.world_size
-            video_length = (self.video_length + self.sp_size - 1) // self.sp_size * self.sp_size
-            temp_pos_embed = get_1d_sincos_pos_embed(
-                inner_dim, video_length, interpolation_scale=interpolation_scale_1d
-            )  # 1152 hidden size
-            video_length //= self.sp_size
-            self.temp_pos_st = rank_offset * video_length
-            self.temp_pos_ed = (rank_offset + 1) * video_length
-        else:
-            temp_pos_embed = get_1d_sincos_pos_embed(
-                inner_dim, video_length, interpolation_scale=interpolation_scale_1d
-            )  # 1152 hidden size
-        self.temp_pos_embed = ms.Parameter(ms.Tensor(temp_pos_embed).float(), requires_grad=False)
-
-        rope_scaling = None
-        if self.use_rope:
-            self.position_getter_2d = PositionGetter2D()
-            self.position_getter_1d = PositionGetter1D()
-            rope_scaling = dict(
-                type=rope_scaling_type, factor_2d=interpolation_scale_2d, factor_1d=interpolation_scale_1d
-            )
-
-        # 3. Define transformers blocks, spatial attention
-        self.transformer_blocks = [
-            BasicTransformerBlock(
-                inner_dim,
-                num_attention_heads,
-                attention_head_dim,
-                dropout=dropout,
-                cross_attention_dim=cross_attention_dim,
-                activation_fn=activation_fn,
-                num_embeds_ada_norm=num_embeds_ada_norm,
-                attention_bias=attention_bias,
-                only_cross_attention=only_cross_attention,
-                double_self_attention=double_self_attention,
-                upcast_attention=upcast_attention,
-                norm_type=norm_type,
-                norm_elementwise_affine=norm_elementwise_affine,
-                norm_eps=norm_eps,
-                attention_type=attention_type,
-                enable_flash_attention=enable_flash_attention,
-                use_rope=use_rope,
-                rope_scaling=rope_scaling,
-                FA_dtype=self.FA_dtype,
-                compress_kv_factor=(compress_kv_factor, compress_kv_factor)
-                if d >= num_layers // 2 and compress_kv_factor != 1
-                else None,  # follow pixart-sigma, apply in second-half layers
-            )
-            for d in range(num_layers)
-        ]
-
-        # Define temporal transformers blocks
-        self.temporal_transformer_blocks = [
-            BasicTransformerBlock_(  # one attention
-                inner_dim,
-                num_attention_heads,  # num_attention_heads
-                attention_head_dim,  # attention_head_dim 72
-                dropout=dropout,
-                cross_attention_dim=None,
-                activation_fn=activation_fn,
-                num_embeds_ada_norm=num_embeds_ada_norm,
-                attention_bias=attention_bias,
-                only_cross_attention=only_cross_attention,
-                double_self_attention=False,
-                upcast_attention=upcast_attention,
-                norm_type=norm_type,
-                norm_elementwise_affine=norm_elementwise_affine,
-                norm_eps=norm_eps,
-                attention_type=attention_type,
-                enable_flash_attention=enable_flash_attention,
-                use_rope=use_rope,
-                rope_scaling=rope_scaling,
-                FA_dtype=self.FA_dtype,
-                compress_kv_factor=(compress_kv_factor,)
-                if d >= num_layers // 2 and compress_kv_factor != 1
-                else None,  # follow pixart-sigma, apply in second-half layers
-            )
-            for d in range(num_layers)
-        ]
-
-        # 4. Define output layers
-        self.out_channels = in_channels if out_channels is None else out_channels
-        if self.is_input_continuous:
-            # TODO: should use out_channels for continuous projections
-            if use_linear_projection:
-                self.proj_out = linear_cls(inner_dim, in_channels)
-            else:
-                self.proj_out = conv_cls(inner_dim, in_channels, kernel_size=1, stride=1, padding=0)
-        elif self.is_input_vectorized:
-            self.norm_out = LayerNorm(inner_dim)
-            self.out = nn.Dense(inner_dim, self.num_vector_embeds - 1)
-        elif self.is_input_patches and norm_type != "ada_norm_single":
-            self.norm_out = LayerNorm(inner_dim, elementwise_affine=False, eps=1e-6)
-            self.proj_out_1 = nn.Dense(inner_dim, 2 * inner_dim)
-            self.proj_out_2 = nn.Dense(inner_dim, patch_size * patch_size * self.out_channels)
-        elif self.is_input_patches and norm_type == "ada_norm_single":
-            self.norm_out = LayerNorm(inner_dim, elementwise_affine=False, eps=1e-6)
-            self.scale_shift_table = ms.Parameter(ops.randn(2, inner_dim) / inner_dim**0.5)
-            self.proj_out = nn.Dense(inner_dim, patch_size * patch_size * self.out_channels)
-
-        # 5. PixArt-Alpha blocks.
-        self.adaln_single = None
-        self.use_additional_conditions = False
-        if norm_type == "ada_norm_single":
-            # self.use_additional_conditions = self.config.sample_size[0] == 128  # False, 128 -> 1024
-            # TODO(Sayak, PVP) clean this, for now we use sample size to determine whether to use
-            # additional conditions until we find better name
-            self.adaln_single = AdaLayerNormSingle(inner_dim, use_additional_conditions=self.use_additional_conditions)
-
-        self.caption_projection = None
-        if caption_channels is not None:
-            self.caption_projection = CaptionProjection(in_features=caption_channels, hidden_size=inner_dim)
+        # 2. Initialize the right blocks.
+        # Initialize the output blocks and other projection blocks when necessary.
+        self._init_patched_inputs(norm_type=norm_type)
 
         self.gradient_checkpointing = False
-
-        self.blocks = nn.CellList(
-            [
-                LatteT2VBlock(d, self.transformer_blocks[d], self.temporal_transformer_blocks[d])
-                for d in range(num_layers)
-            ]
-        )
-
         if self.use_recompute:
             num_no_recompute = self.config.num_no_recompute
-            num_blocks = len(self.blocks)
+            num_blocks = len(self.transformer_blocks)
             assert num_no_recompute >= 0, "Expect to have num_no_recompute as a positive integer."
             assert (
                 num_no_recompute <= num_blocks
             ), "Expect to have num_no_recompute as an integer no greater than the number of blocks,"
             f"but got {num_no_recompute} and {num_blocks}."
             logger.info(f"Excluding {num_no_recompute} blocks from the recomputation list.")
-            for bidx, block in enumerate(self.blocks):
+            for bidx, block in enumerate(self.transformer_blocks):
                 if bidx < num_blocks - num_no_recompute:
                     self.recompute(block)
-
+        self.silu = nn.SiLU()
         self.maxpool2d = nn.MaxPool2d(
             kernel_size=(self.patch_size, self.patch_size), stride=(self.patch_size, self.patch_size)
         )
-        self.compress_maxpool2d = nn.MaxPool2d(kernel_size=self.compress_kv_factor, stride=self.compress_kv_factor)
+        self.max_pool3d = nn.MaxPool3d(
+            kernel_size=(self.patch_size_t, self.patch_size, self.patch_size),
+            stride=(self.patch_size_t, self.patch_size, self.patch_size),
+        )
 
-    def make_position(self, b, t, use_image_num, h, w):
-        pos_hw = self.position_getter_2d(b * (t + use_image_num), h, w)  # fake_b = b*(t+use_image_num)
-        pos_t = self.position_getter_1d(b * h * w, t)  # fake_b = b*h*w
-        return pos_hw, pos_t
+    def _set_gradient_checkpointing(self, module, value=False):
+        if hasattr(module, "gradient_checkpointing"):
+            module.gradient_checkpointing = value
 
-    def make_attn_mask(self, attention_mask, frame, dtype):
-        # attention_mask = rearrange(attention_mask, 'b t h w -> (b t) 1 (h w)')
-        b, t, h, w = attention_mask.shape
-        attention_mask = attention_mask.reshape(b * t, h * w).unsqueeze(1)
-        # assume that mask is expressed as:
-        #   (1 = keep,      0 = discard)
-        attention_mask = attention_mask.to(self.dtype)
-        return attention_mask
+    def _init_patched_inputs(self, norm_type):
+        assert self.config.sample_size_t is not None, "OpenSoraT2V over patched input must provide sample_size_t"
+        assert self.config.sample_size is not None, "OpenSoraT2V over patched input must provide sample_size"
+        # assert not (self.config.sample_size_t == 1 and self.config.patch_size_t == 2), "Image do not need patchfy in t-dim"
 
-    def vae_to_diff_mask(self, attention_mask, use_image_num):
-        dtype = attention_mask.dtype
-        # b, t+use_image_num, h, w, assume t as channel
-        # this version do not use 3d patch embedding
-        attention_mask = self.maxpool2d(attention_mask)
-        attention_mask = attention_mask.bool().to(dtype)
-        return attention_mask
+        self.num_frames = self.config.sample_size_t
+        self.config.sample_size = to_2tuple(self.config.sample_size)
+        self.height = self.config.sample_size[0]
+        self.width = self.config.sample_size[1]
+        self.patch_size_t = self.config.patch_size_t
+        self.patch_size = self.config.patch_size
+        interpolation_scale_t = (
+            ((self.config.sample_size_t - 1) // 16 + 1)
+            if self.config.sample_size_t % 2 == 1
+            else self.config.sample_size_t / 16
+        )
+        interpolation_scale_t = (
+            self.config.interpolation_scale_t
+            if self.config.interpolation_scale_t is not None
+            else interpolation_scale_t
+        )
+        interpolation_scale = (
+            self.config.interpolation_scale_h
+            if self.config.interpolation_scale_h is not None
+            else self.config.sample_size[0] / 30,
+            self.config.interpolation_scale_w
+            if self.config.interpolation_scale_w is not None
+            else self.config.sample_size[1] / 40,
+        )
+
+        if self.config.downsampler is not None and len(self.config.downsampler) == 9:
+            self.pos_embed = OverlapPatchEmbed3D(
+                num_frames=self.config.sample_size_t,
+                height=self.config.sample_size[0],
+                width=self.config.sample_size[1],
+                patch_size_t=self.config.patch_size_t,
+                patch_size=self.config.patch_size,
+                in_channels=self.in_channels,
+                embed_dim=self.inner_dim,
+                interpolation_scale=interpolation_scale,
+                interpolation_scale_t=interpolation_scale_t,
+                use_abs_pos=not self.config.use_rope,
+            )
+        elif self.config.downsampler is not None and len(self.config.downsampler) == 7:
+            self.pos_embed = OverlapPatchEmbed2D(
+                num_frames=self.config.sample_size_t,
+                height=self.config.sample_size[0],
+                width=self.config.sample_size[1],
+                patch_size_t=self.config.patch_size_t,
+                patch_size=self.config.patch_size,
+                in_channels=self.in_channels,
+                embed_dim=self.inner_dim,
+                interpolation_scale=interpolation_scale,
+                interpolation_scale_t=interpolation_scale_t,
+                use_abs_pos=not self.config.use_rope,
+            )
+
+        else:
+            self.pos_embed = PatchEmbed2D(
+                num_frames=self.config.sample_size_t,
+                height=self.config.sample_size[0],
+                width=self.config.sample_size[1],
+                patch_size_t=self.config.patch_size_t,
+                patch_size=self.config.patch_size,
+                in_channels=self.in_channels,
+                embed_dim=self.inner_dim,
+                interpolation_scale=interpolation_scale,
+                interpolation_scale_t=interpolation_scale_t,
+                use_abs_pos=not self.config.use_rope,
+            )
+        interpolation_scale_thw = (interpolation_scale_t, *interpolation_scale)
+        self.transformer_blocks = nn.CellList(
+            [
+                BasicTransformerBlock(
+                    self.inner_dim,
+                    self.config.num_attention_heads,
+                    self.config.attention_head_dim,
+                    dropout=self.config.dropout,
+                    cross_attention_dim=self.config.cross_attention_dim,
+                    activation_fn=self.config.activation_fn,
+                    num_embeds_ada_norm=self.config.num_embeds_ada_norm,
+                    attention_bias=self.config.attention_bias,
+                    only_cross_attention=self.config.only_cross_attention,
+                    double_self_attention=self.config.double_self_attention,
+                    upcast_attention=self.config.upcast_attention,
+                    norm_type=norm_type,
+                    norm_elementwise_affine=self.config.norm_elementwise_affine,
+                    norm_eps=self.config.norm_eps,
+                    attention_type=self.config.attention_type,
+                    attention_mode=self.config.attention_mode,
+                    downsampler=self.config.downsampler,
+                    use_rope=self.config.use_rope,
+                    interpolation_scale_thw=interpolation_scale_thw,
+                )
+                for _ in range(self.config.num_layers)
+            ]
+        )
+
+        if self.config.norm_type != "ada_norm_single":
+            self.norm_out = LayerNorm(self.inner_dim, elementwise_affine=False, eps=1e-6)
+            self.proj_out_1 = nn.Dense(self.inner_dim, 2 * self.inner_dim)
+            self.proj_out_2 = nn.Dense(
+                self.inner_dim,
+                self.config.patch_size_t * self.config.patch_size * self.config.patch_size * self.out_channels,
+            )
+        elif self.config.norm_type == "ada_norm_single":
+            self.norm_out = LayerNorm(self.inner_dim, elementwise_affine=False, eps=1e-6)
+            self.scale_shift_table = nn.Parameter(ops.randn(2, self.inner_dim) / self.inner_dim**0.5)
+            self.proj_out = nn.Dense(
+                self.inner_dim,
+                self.config.patch_size_t * self.config.patch_size * self.config.patch_size * self.out_channels,
+            )
+
+        # PixArt-Alpha blocks.
+        self.adaln_single = None
+        if self.config.norm_type == "ada_norm_single":
+            # TODO(Sayak, PVP) clean this, for now we use sample size to determine whether to use
+            # additional conditions until we find better name
+            self.adaln_single = AdaLayerNormSingle(
+                self.inner_dim, use_additional_conditions=self.use_additional_conditions
+            )
+
+        self.caption_projection = None
+        if self.caption_channels is not None:
+            self.caption_projection = PixArtAlphaTextProjection(
+                in_features=self.caption_channels, hidden_size=self.inner_dim
+            )
 
     def construct(
         self,
@@ -339,7 +311,6 @@ class OpenSoraT2V(ModelMixin, ConfigMixin):
         encoder_attention_mask: Optional[ms.Tensor] = None,
         temp_attention_mask: Optional[ms.Tensor] = None,
         use_image_num: int = 0,
-        enable_temporal_attentions: bool = True,
     ):
         """
         The [`Transformer2DModel`] forward method.
@@ -374,12 +345,10 @@ class OpenSoraT2V(ModelMixin, ConfigMixin):
         Returns:
            a `tuple` where the first element is the sample tensor.
         """
-        input_batch_size, c, frame, h, w = hidden_states.shape
+        batch_size, c, frame, h, w = hidden_states.shape
         frame = frame - use_image_num  # 20-4=16
         # b c f h w -> (b f) c h w
-        hidden_states = hidden_states.permute(0, 2, 1, 3, 4).reshape(
-            input_batch_size * (frame + use_image_num), c, h, w
-        )
+        hidden_states = hidden_states.permute(0, 2, 1, 3, 4).reshape(batch_size * (frame + use_image_num), c, h, w)
         # ensure attention_mask is a bias, and give it a singleton query_tokens dimension.
         #   we may have done this conversion already, e.g. if we came here via UNet2DConditionModel#forward.
         #   we can tell by counting dims; if ndim == 2: it's a mask rather than a bias.
@@ -390,154 +359,165 @@ class OpenSoraT2V(ModelMixin, ConfigMixin):
         # this helps to broadcast it as a bias over attention scores, which will be in one of the following shapes:
         #   [batch,  heads, query_tokens, key_tokens] (e.g. torch sdp attn)
         #   [batch * heads, query_tokens, key_tokens] (e.g. xformers or classic attn)
-        if attention_mask is None:
-            attention_mask = ops.ones((input_batch_size, frame + use_image_num, h, w), dtype=hidden_states.dtype)
-        attention_mask = self.vae_to_diff_mask(attention_mask, use_image_num)
-        dtype = attention_mask.dtype
-        attention_mask_compress = (
-            self.compress_maxpool2d(attention_mask).to(dtype) if self.compress_kv_factor != 1 else attention_mask
-        )
+        attention_mask_vid, attention_mask_img = None, None
+        if attention_mask is not None and attention_mask.ndim == 4:
+            # assume that mask is expressed as:
+            #   (1 = keep,      0 = discard)
+            # convert mask into a bias that can be added to attention scores:
+            #   (keep = +0,     discard = -10000.0)
+            # b, frame+use_image_num, h, w -> a video with images
+            # b, 1, h, w -> only images
+            attention_mask = attention_mask.to(self.dtype)
+            if get_sequence_parallel_state():
+                attention_mask_vid = attention_mask[:, : frame * hccl_info.world_size]  # b, frame, h, w
+                attention_mask_img = attention_mask[:, frame * hccl_info.world_size :]  # b, use_image_num, h, w
 
-        attention_mask = self.make_attn_mask(attention_mask, frame, hidden_states.dtype)
-        attention_mask_compress = self.make_attn_mask(attention_mask_compress, frame, hidden_states.dtype)
+            else:
+                attention_mask_vid = attention_mask[:, :frame]  # b, frame, h, w
+                attention_mask_img = attention_mask[:, frame:]  # b, use_image_num, h, w
 
-        # 1 + 4, 1 -> video condition, 4 -> image condition
+            if attention_mask_vid.numel() > 0:
+                attention_mask_vid_first_frame = attention_mask_vid[:, :1].repeat(1, self.patch_size_t - 1, 1, 1)
+                attention_mask_vid = ops.cat([attention_mask_vid_first_frame, attention_mask_vid], axis=1)
+                attention_mask_vid = attention_mask_vid.unsqueeze(1)  # b 1 t h w
+                attention_mask_vid = self.max_pool3d(attention_mask_vid)
+                # b 1 t h w -> (b 1) 1 (t h w)
+                attention_mask_vid = attention_mask_vid.reshape(batch_size, 1, -1)
+            if attention_mask_img.numel() > 0:
+                attention_mask_img = self.maxpool2d(attention_mask_img)
+                # b i h w -> (b i) 1 (h w)
+                attention_mask_img = attention_mask_img.reshape(batch_size * attention_mask_img.shape[1], 1, -1)
+            # do not fill in -10000.0 until MHA
+            # attention_mask_vid = (1 - attention_mask_vid.bool().to(self.dtype)) * -10000.0 if attention_mask_vid.numel() > 0 else None
+            # attention_mask_img = (1 - attention_mask_img.bool().to(self.dtype)) * -10000.0 if attention_mask_img.numel() > 0 else None
+
+            if frame == 1 and use_image_num == 0 and not get_sequence_parallel_state():
+                attention_mask_img = attention_mask_vid
+                attention_mask_vid = None
         # convert encoder_attention_mask to a bias the same way we do for attention_mask
-        if encoder_attention_mask is not None and encoder_attention_mask.ndim == 2:  # ndim == 2 means no image joint
-            encoder_attention_mask = encoder_attention_mask.unsqueeze(1)
-            # b 1 l -> (b f) 1 l
-            encoder_attention_mask = encoder_attention_mask.to(ms.int32).repeat_interleave(frame, dim=0)
-            encoder_attention_mask = encoder_attention_mask.to(self.dtype)
-        elif encoder_attention_mask is not None and encoder_attention_mask.ndim == 3:  # ndim == 3 means image joint
-            encoder_attention_mask_video = encoder_attention_mask[:, :1, ...]
-            encoder_attention_mask_video = encoder_attention_mask_video.to(ms.int32).repeat_interleave(frame, dim=1)
-            encoder_attention_mask_image = encoder_attention_mask[:, 1:, ...].to(ms.int32)
-            encoder_attention_mask = ops.cat([encoder_attention_mask_video, encoder_attention_mask_image], axis=1)
-            # b n l -> (b n) l
-            encoder_attention_mask = encoder_attention_mask.view(-1, encoder_attention_mask.shape[-1]).unsqueeze(1)
-            encoder_attention_mask = encoder_attention_mask.to(self.dtype)
+        if encoder_attention_mask is not None and encoder_attention_mask.ndim == 3:
+            # b, 1+use_image_num, l -> a video with images
+            # b, 1, l -> only images
+            in_t = encoder_attention_mask.shape[1]
+            encoder_attention_mask_vid = encoder_attention_mask[:, : in_t - use_image_num]  # b, 1, l
+            # b 1 l -> (b 1) 1 l
+            encoder_attention_mask_vid = encoder_attention_mask_vid if encoder_attention_mask_vid.numel() > 0 else None
+            encoder_attention_mask_img = encoder_attention_mask[:, in_t - use_image_num :]  # b, use_image_num, l
+            # b i l -> (b i) 1 l
+            encoder_attention_mask_img = (
+                encoder_attention_mask_img.unsqeeze(1) if encoder_attention_mask_img.numel() > 0 else None
+            )
+
+            if frame == 1 and use_image_num == 0 and not get_sequence_parallel_state():
+                encoder_attention_mask_img = encoder_attention_mask_vid
+                encoder_attention_mask_vid = None
+
+        if attention_mask_vid is not None:
+            attention_mask_vid = attention_mask_vid.repeat(1, attention_mask_vid.shape[-1], 1)
+            encoder_attention_mask_vid = encoder_attention_mask_vid.repeat(1, attention_mask_vid.shape[-2], 1)
+        if attention_mask_img is not None:
+            attention_mask_img = attention_mask_img.repeat(1, attention_mask_img.shape[-1], 1)
+            encoder_attention_mask_img = encoder_attention_mask_img.repeat(1, attention_mask_img.shape[-2], 1)
 
         # # Retrieve lora scale.
         # lora_scale = cross_attention_kwargs.get("scale", 1.0) if cross_attention_kwargs is not None else 1.0
 
         # 1. Input
-        assert self.is_input_patches, "Only support input patches now!"
-        # if self.is_input_patches:  # here
+        frame = ((frame - 1) // self.patch_size_t + 1) if frame % 2 == 1 else frame // self.patch_size_t  # patchfy
+        # print('frame', frame)
         height, width = hidden_states.shape[-2] // self.patch_size, hidden_states.shape[-1] // self.patch_size
-        hw = (height, width)
-        num_patches = height * width
 
-        hidden_states = self.pos_embed(hidden_states)  # alrady add positional embeddings
-
-        if self.adaln_single is not None:
-            if self.use_additional_conditions and added_cond_kwargs is None:
-                raise ValueError(
-                    "`added_cond_kwargs` cannot be None when using additional conditions for `adaln_single`."
-                )
-            # batch_size = hidden_states.shape[0]
-            batch_size = input_batch_size
-            timestep, embedded_timestep = self.adaln_single(
-                timestep, added_cond_kwargs, batch_size=batch_size, hidden_dtype=hidden_states.dtype
-            )
-        else:
-            embedded_timestep = None
+        added_cond_kwargs = {"resolution": None, "aspect_ratio": None}
+        (
+            hidden_states_vid,
+            hidden_states_img,
+            encoder_hidden_states_vid,
+            encoder_hidden_states_img,
+            timestep_vid,
+            timestep_img,
+            embedded_timestep_vid,
+            embedded_timestep_img,
+        ) = self._operate_on_patched_inputs(
+            hidden_states, encoder_hidden_states, timestep, added_cond_kwargs, batch_size, frame, use_image_num
+        )
 
         # 2. Blocks
-        if self.caption_projection is not None:
-            batch_size = hidden_states.shape[0]
-            encoder_hidden_states = self.caption_projection(encoder_hidden_states)  # 3 120 1152
-
-            if use_image_num != 0 and self.training:
-                encoder_hidden_states_video = encoder_hidden_states[:, :1, ...]
-                # b 1 t d -> b (1 f) t d
-                encoder_hidden_states_video = encoder_hidden_states_video.repeat_interleave(frame, dim=1)
-                encoder_hidden_states_image = encoder_hidden_states[:, 1:, ...]
-                encoder_hidden_states = ops.cat([encoder_hidden_states_video, encoder_hidden_states_image], axis=1)
-                # b f t d -> (b f) t d
-                encoder_hidden_states_spatial = encoder_hidden_states.view(
-                    -1, encoder_hidden_states.shape[-2], encoder_hidden_states.shape[-1]
-                )
-            else:
-                # b t d -> (b f) t d
-                encoder_hidden_states_spatial = encoder_hidden_states.repeat_interleave(frame, dim=0)
-        else:
-            encoder_hidden_states_spatial = encoder_hidden_states.repeat_interleave(frame, dim=0)  # for graph mode
-
-        # prepare timesteps for spatial and temporal block
-        # b d -> (b f) d
-        timestep_spatial = timestep.repeat_interleave(frame + use_image_num, dim=0)
-        # b d -> (b p) d
-        timestep_temp = timestep.repeat_interleave(num_patches, dim=0)
-
         # BS H -> S B H
         if get_sequence_parallel_state():
-            timestep_temp = timestep_temp.view(input_batch_size * num_patches, 6, -1).swapaxes(0, 1).contiguous()
-            # f, h -> f, 1, h
-            temp_pos_embed = self.temp_pos_embed[self.temp_pos_st : self.temp_pos_ed].unsqueeze(1)
-        else:
-            temp_pos_embed = self.temp_pos_embed[: self.video_length].unsqueeze(0)
-            if temp_pos_embed.shape[1] != frame:
-                temp_pos_embed = ops.pad(
-                    temp_pos_embed, (0, 0, 0, frame - temp_pos_embed.shape[1]), mode="constant", value=0
+            if hidden_states_vid is not None:
+                # b s h -> s b h
+                hidden_states_vid = hidden_states_vid.swapaxes(0, 1).contiguous()
+                # b s h -> s b h
+                encoder_hidden_states_vid = encoder_hidden_states_vid.swapaxes(0, 1).contiguous()
+                timestep_vid = timestep_vid.view(batch_size, 6, -1).swapaxes(0, 1).contiguous()
+                # print('timestep_vid', timestep_vid.shape)
+
+        for block in self.transformer_blocks:
+            if hidden_states_vid is not None:
+                hidden_states_vid = block(
+                    hidden_states_vid,
+                    attention_mask=attention_mask_vid,
+                    encoder_hidden_states=encoder_hidden_states_vid,
+                    encoder_attention_mask=encoder_attention_mask_vid,
+                    timestep=timestep_vid,
+                    cross_attention_kwargs=cross_attention_kwargs,
+                    class_labels=class_labels,
+                    frame=frame,
+                    height=height,
+                    width=width,
+                )
+            if hidden_states_img is not None:
+                hidden_states_img = block(
+                    hidden_states_img,
+                    attention_mask=attention_mask_img,
+                    encoder_hidden_states=encoder_hidden_states_img,
+                    encoder_attention_mask=encoder_attention_mask_img,
+                    timestep=timestep_img,
+                    cross_attention_kwargs=cross_attention_kwargs,
+                    class_labels=class_labels,
+                    frame=1,
+                    height=height,
+                    width=width,
                 )
 
-        pos_hw, pos_t = None, None
-        if self.use_rope:
-            pos_hw, pos_t = self.make_position(input_batch_size, frame, use_image_num, height, width)
+        if get_sequence_parallel_state():
+            if hidden_states_vid is not None:
+                # s b h -> b s h
+                hidden_states_vid = hidden_states_vid.swapaxes(0, 1).contiguous()
 
-        for i, block in enumerate(self.blocks):
-            hidden_states = block(
-                hidden_states,
-                class_labels,
-                cross_attention_kwargs,
-                attention_mask_compress if i >= self.num_layers // 2 else attention_mask,  # (b*t 1 h*w)
-                encoder_hidden_states_spatial,
-                timestep_spatial,
-                timestep_temp,
-                encoder_attention_mask,
-                use_image_num,
-                input_batch_size,
-                frame,
-                enable_temporal_attentions,
-                pos_hw=pos_hw,
-                pos_t=pos_t,
-                hw=hw,
-                num_patches=num_patches,
-                temp_pos_embed=temp_pos_embed,
-                temp_attention_mask=temp_attention_mask,
-            )
+        # 3. Output
+        output_vid, output_img = None, None
+        if hidden_states_vid is not None:
+            output_vid = self._get_output_for_patched_inputs(
+                hidden_states=hidden_states_vid,
+                timestep=timestep_vid,
+                class_labels=class_labels,
+                embedded_timestep=embedded_timestep_vid,
+                num_frames=frame,
+                height=height,
+                width=width,
+            )  # b c t h w
+        if hidden_states_img is not None:
+            output_img = self._get_output_for_patched_inputs(
+                hidden_states=hidden_states_img,
+                timestep=timestep_img,
+                class_labels=class_labels,
+                embedded_timestep=embedded_timestep_img,
+                num_frames=1,
+                height=height,
+                width=width,
+            )  # b c 1 h w
+            if use_image_num != 0:
+                # (b i) c 1 h w -> b c i h w
+                _, c, _, h, w = output_img.shape
+                output_img = output_img.reshape(-1, use_image_num, c, 1, h, w).swapaxes(1, 2).squeeze(3)
 
-        # if self.is_input_patches:
-        if self.norm_type != "ada_norm_single":
-            conditioning = self.transformer_blocks[0].norm1.emb(
-                timestep, class_labels, hidden_dtype=hidden_states.dtype
-            )
-            shift, scale = self.proj_out_1(ops.silu(conditioning)).chunk(2, axis=1)
-            hidden_states = self.norm_out(hidden_states) * (1 + scale[:, None]) + shift[:, None]
-            hidden_states = self.proj_out_2(hidden_states)
-        elif self.norm_type == "ada_norm_single":
-            # b d -> (b f) d
-            assert embedded_timestep is not None, "embedded_timestep is expected to be not None"
-            embedded_timestep = embedded_timestep.repeat_interleave(frame + use_image_num, dim=0)
-            shift, scale = (self.scale_shift_table[None] + embedded_timestep[:, None]).chunk(2, axis=1)
-            hidden_states = self.norm_out(hidden_states)
-            # Modulation
-            hidden_states = hidden_states * (1 + scale) + shift
-            hidden_states = self.proj_out(hidden_states)
-
-        # unpatchify
-        if self.adaln_single is None:
-            height = width = int(hidden_states.shape[1] ** 0.5)
-
-        hidden_states = hidden_states.reshape(-1, height, width, self.patch_size, self.patch_size, self.out_channels)
-        # nhwpqc->nchpwq
-        hidden_states = hidden_states.permute(0, 5, 1, 3, 2, 4)
-        output = hidden_states.reshape(-1, self.out_channels, height * self.patch_size, width * self.patch_size)
-        # (b f) c h w -> b c f h w
-        output = output.view(
-            input_batch_size, frame + use_image_num, output.shape[-3], output.shape[-2], output.shape[-1]
-        )
-        output = output.permute(0, 2, 1, 3, 4)
+        if output_vid is not None and output_img is not None:
+            output = ops.cat([output_vid, output_img], axis=2)
+        elif output_vid is not None:
+            output = output_vid
+        elif output_img is not None:
+            output = output_img
         return output
 
     @classmethod
@@ -625,3 +605,285 @@ class OpenSoraT2V(ModelMixin, ConfigMixin):
             m, u = ms.load_param_into_net(self, sd)
             print("net param not load: ", m, len(m))
             print("ckpt param not load: ", u, len(u))
+
+    def _operate_on_patched_inputs(
+        self, hidden_states, encoder_hidden_states, timestep, added_cond_kwargs, batch_size, frame, use_image_num
+    ):
+        # batch_size = hidden_states.shape[0]
+        hidden_states_vid, hidden_states_img = self.pos_embed(hidden_states.to(self.dtype), frame)
+        timestep_vid, timestep_img = None, None
+        embedded_timestep_vid, embedded_timestep_img = None, None
+        encoder_hidden_states_vid, encoder_hidden_states_img = None, None
+
+        if self.adaln_single is not None:
+            if self.use_additional_conditions and added_cond_kwargs is None:
+                raise ValueError(
+                    "`added_cond_kwargs` cannot be None when using additional conditions for `adaln_single`."
+                )
+            timestep, embedded_timestep = self.adaln_single(
+                timestep, added_cond_kwargs, batch_size=batch_size, hidden_dtype=self.dtype
+            )  # b 6d, b d
+            if hidden_states_vid is None:
+                timestep_img = timestep
+                embedded_timestep_img = embedded_timestep
+            else:
+                timestep_vid = timestep
+                embedded_timestep_vid = embedded_timestep
+                if hidden_states_img is not None:
+                    # b d -> (b i) d
+                    timestep_img = timestep.repeat_interleave(use_image_num, dim=0).contiguous()
+                    # b d -> (b i) d
+                    embedded_timestep_img = embedded_timestep_img.repeat_interleave(use_image_num, dim=0).contiguous()
+        if self.caption_projection is not None:
+            encoder_hidden_states = self.caption_projection(
+                encoder_hidden_states
+            )  # b, 1+use_image_num, l, d or b, 1, l, d
+            if hidden_states_vid is None:
+                # b 1 l d -> (b 1) l d
+                encoder_hidden_states_img = encoder_hidden_states.reshape(
+                    -1, encoder_hidden_states.shape[-2], encoder_hidden_states.shape[-1]
+                )
+            else:
+                # b 1 l d -> (b 1) l d
+                encoder_hidden_states_vid = encoder_hidden_states[:, :1].reshape(
+                    -1, encoder_hidden_states.shape[-2], encoder_hidden_states.shape[-1]
+                )
+                if hidden_states_img is not None:
+                    encoder_hidden_states_img = encoder_hidden_states[:, 1:].reshape(
+                        -1, encoder_hidden_states.shape[-2], encoder_hidden_states.shape[-1]
+                    )
+
+        return (
+            hidden_states_vid,
+            hidden_states_img,
+            encoder_hidden_states_vid,
+            encoder_hidden_states_img,
+            timestep_vid,
+            timestep_img,
+            embedded_timestep_vid,
+            embedded_timestep_img,
+        )
+
+    def _get_output_for_patched_inputs(
+        self, hidden_states, timestep, class_labels, embedded_timestep, num_frames, height=None, width=None
+    ):
+        # import ipdb;ipdb.set_trace()
+        if self.config.norm_type != "ada_norm_single":
+            conditioning = self.transformer_blocks[0].norm1.emb(timestep, class_labels, hidden_dtype=self.dtype)
+            shift, scale = mint.chunk(self.proj_out_1(self.silu(conditioning)), 2, axis=1)
+            hidden_states = self.norm_out(hidden_states) * (1 + scale[:, None]) + shift[:, None]
+            hidden_states = self.proj_out_2(hidden_states)
+        elif self.config.norm_type == "ada_norm_single":
+            shift, scale = mint.chunk(self.scale_shift_table[None] + embedded_timestep[:, None], 2, axis=1)
+            hidden_states = self.norm_out(hidden_states)
+            # Modulation
+            hidden_states = hidden_states * (1 + scale) + shift
+            hidden_states = self.proj_out(hidden_states)
+            hidden_states = hidden_states.squeeze(1)
+
+        # unpatchify
+        if self.adaln_single is None:
+            height = width = int(hidden_states.shape[1] ** 0.5)
+        hidden_states = hidden_states.reshape(
+            shape=(
+                -1,
+                num_frames,
+                height,
+                width,
+                self.patch_size_t,
+                self.patch_size,
+                self.patch_size,
+                self.out_channels,
+            )
+        )
+        # nthwopqc->nctohpwq
+        hidden_states = hidden_states.permute(0, 7, 1, 4, 2, 5, 3, 6)
+        output = hidden_states.reshape(
+            shape=(
+                -1,
+                self.out_channels,
+                num_frames * self.patch_size_t,
+                height * self.patch_size,
+                width * self.patch_size,
+            )
+        )
+
+        return output
+
+
+def OpenSoraT2V_S_122(**kwargs):
+    return OpenSoraT2V(
+        num_layers=28,
+        attention_head_dim=96,
+        num_attention_heads=16,
+        patch_size_t=1,
+        patch_size=2,
+        norm_type="ada_norm_single",
+        caption_channels=4096,
+        cross_attention_dim=1536,
+        **kwargs,
+    )
+
+
+def OpenSoraT2V_B_122(**kwargs):
+    return OpenSoraT2V(
+        num_layers=32,
+        attention_head_dim=96,
+        num_attention_heads=16,
+        patch_size_t=1,
+        patch_size=2,
+        norm_type="ada_norm_single",
+        caption_channels=4096,
+        cross_attention_dim=1920,
+        **kwargs,
+    )
+
+
+def OpenSoraT2V_L_122(**kwargs):
+    return OpenSoraT2V(
+        num_layers=40,
+        attention_head_dim=128,
+        num_attention_heads=16,
+        patch_size_t=1,
+        patch_size=2,
+        norm_type="ada_norm_single",
+        caption_channels=4096,
+        cross_attention_dim=2048,
+        **kwargs,
+    )
+
+
+def OpenSoraT2V_ROPE_L_122(**kwargs):
+    return OpenSoraT2V(
+        num_layers=32,
+        attention_head_dim=96,
+        num_attention_heads=24,
+        patch_size_t=1,
+        patch_size=2,
+        norm_type="ada_norm_single",
+        caption_channels=4096,
+        cross_attention_dim=2304,
+        **kwargs,
+    )
+
+
+OpenSora_models = {
+    "OpenSoraT2V-S/122": OpenSoraT2V_S_122,
+    "OpenSoraT2V-B/122": OpenSoraT2V_B_122,
+    "OpenSoraT2V-L/122": OpenSoraT2V_L_122,
+    "OpenSoraT2V-ROPE-L/122": OpenSoraT2V_ROPE_L_122,
+}
+
+OpenSora_models_class = {
+    "OpenSoraT2V-S/122": OpenSoraT2V,
+    "OpenSoraT2V-B/122": OpenSoraT2V,
+    "OpenSoraT2V-L/122": OpenSoraT2V,
+    "OpenSoraT2V-ROPE-L/122": OpenSoraT2V,
+}
+
+if __name__ == "__main__":
+    from opensora.models.causalvideovae import ae_stride_config
+
+    args = type(
+        "args",
+        (),
+        {
+            "ae": "CausalVAEModel_4x8x8",
+            "attention_mode": "xformers",
+            "use_rope": True,
+            "model_max_length": 300,
+            "max_height": 320,
+            "max_width": 240,
+            "num_frames": 1,
+            "use_image_num": 0,
+            "compress_kv_factor": 1,
+            "interpolation_scale_t": 1,
+            "interpolation_scale_h": 1,
+            "interpolation_scale_w": 1,
+        },
+    )
+    b = 16
+    c = 8
+    cond_c = 4096
+    num_timesteps = 1000
+    ae_stride_t, ae_stride_h, ae_stride_w = ae_stride_config[args.ae]
+    latent_size = (args.max_height // ae_stride_h, args.max_width // ae_stride_w)
+    num_frames = (args.num_frames - 1) // ae_stride_t + 1
+
+    model = OpenSoraT2V_ROPE_L_122(
+        in_channels=c,
+        out_channels=c,
+        sample_size=latent_size,
+        sample_size_t=num_frames,
+        activation_fn="gelu-approximate",
+        attention_bias=True,
+        attention_type="default",
+        double_self_attention=False,
+        norm_elementwise_affine=False,
+        norm_eps=1e-06,
+        norm_num_groups=32,
+        num_vector_embeds=None,
+        only_cross_attention=False,
+        upcast_attention=False,
+        use_linear_projection=False,
+        use_additional_conditions=False,
+        downsampler=None,
+        interpolation_scale_t=args.interpolation_scale_t,
+        interpolation_scale_h=args.interpolation_scale_h,
+        interpolation_scale_w=args.interpolation_scale_w,
+        use_rope=args.use_rope,
+    )
+
+    try:
+        path = "PixArt-Alpha-XL-2-512.safetensors"
+        from safetensors.torch import load_file as safe_load
+
+        ckpt = safe_load(path, device="cpu")
+        # import ipdb;ipdb.set_trace()
+        if (
+            ckpt["pos_embed.proj.weight"].shape != model.pos_embed.proj.weight.shape
+            and ckpt["pos_embed.proj.weight"].ndim == 4
+        ):
+            repeat = model.pos_embed.proj.weight.shape[2]
+            ckpt["pos_embed.proj.weight"] = ckpt["pos_embed.proj.weight"].unsqueeze(2).repeat(
+                1, 1, repeat, 1, 1
+            ) / float(repeat)
+            del ckpt["proj_out.weight"], ckpt["proj_out.bias"]
+        msg = model.load_state_dict(ckpt, strict=False)
+        print(msg)
+    except Exception as e:
+        print(e)
+    print(model)
+    print(f"{sum(p.numel() for p in model.parameters() if p.requires_grad) / 1e9} B")
+    # import sys;sys.exit()
+    x = ops.randn(
+        b,
+        c,
+        1 + (args.num_frames - 1) // ae_stride_t + args.use_image_num,
+        args.max_height // ae_stride_h,
+        args.max_width // ae_stride_w,
+    )
+    cond = ops.randn(b, 1 + args.use_image_num, args.model_max_length, cond_c)
+    attn_mask = ops.randint(
+        0,
+        2,
+        (
+            b,
+            1 + (args.num_frames - 1) // ae_stride_t + args.use_image_num,
+            args.max_height // ae_stride_h,
+            args.max_width // ae_stride_w,
+        ),
+    )  # B L or B 1+num_images L
+    cond_mask = ops.randint(0, 2, (b, 1 + args.use_image_num, args.model_max_length))  # B L or B 1+num_images L
+    timestep = ops.randint(0, 1000, (b,))
+    model_kwargs = dict(
+        hidden_states=x,
+        encoder_hidden_states=cond,
+        attention_mask=attn_mask,
+        encoder_attention_mask=cond_mask,
+        use_image_num=args.use_image_num,
+        timestep=timestep,
+    )
+    model.set_train(False)
+    output = model(**model_kwargs)
+    print(output[0].shape)
