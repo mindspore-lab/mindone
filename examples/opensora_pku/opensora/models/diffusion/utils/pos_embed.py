@@ -1,77 +1,5 @@
-# Copyright (C) 2022-present Naver Corporation. All rights reserved.
-# Licensed under CC BY-NC-SA 4.0 (non-commercial use only).
-
-# croco: https://github.com/naver/croco
-# diffusers: https://github.com/huggingface/diffusers
-# --------------------------------------------------------
-# Position embedding utils
-# --------------------------------------------------------
-
-import numpy as np
-
+import mindspore as ms
 from mindspore import nn, ops
-
-
-def get_2d_sincos_pos_embed(
-    embed_dim, grid_size, cls_token=False, extra_tokens=0, interpolation_scale=1.0, base_size=16
-):
-    """
-    grid_size: int of the grid height and width return: pos_embed: [grid_size*grid_size, embed_dim] or
-    [1+grid_size*grid_size, embed_dim] (w/ or w/o cls_token)
-    """
-    if isinstance(grid_size, int):
-        grid_size = (grid_size, grid_size)
-
-    grid_h = np.arange(grid_size[0], dtype=np.float32) / (grid_size[0] / base_size) / interpolation_scale
-    grid_w = np.arange(grid_size[1], dtype=np.float32) / (grid_size[1] / base_size) / interpolation_scale
-    grid = np.meshgrid(grid_w, grid_h)  # here w goes first
-    grid = np.stack(grid, axis=0)
-
-    grid = grid.reshape([2, 1, grid_size[1], grid_size[0]])
-    pos_embed = get_2d_sincos_pos_embed_from_grid(embed_dim, grid)
-    if cls_token and extra_tokens > 0:
-        pos_embed = np.concatenate([np.zeros([extra_tokens, embed_dim]), pos_embed], axis=0)
-    return pos_embed
-
-
-def get_2d_sincos_pos_embed_from_grid(embed_dim, grid):
-    if embed_dim % 2 != 0:
-        raise ValueError("embed_dim must be divisible by 2")
-
-    # use half of dimensions to encode grid_h
-    emb_h = get_1d_sincos_pos_embed_from_grid(embed_dim // 2, grid[0])  # (H*W, D/2)
-    emb_w = get_1d_sincos_pos_embed_from_grid(embed_dim // 2, grid[1])  # (H*W, D/2)
-
-    emb = np.concatenate([emb_h, emb_w], axis=1)  # (H*W, D)
-    return emb
-
-
-def get_1d_sincos_pos_embed(embed_dim, length, interpolation_scale=1.0, base_size=16):
-    pos = np.arange(0, length)[:, None, ...] / interpolation_scale
-    pos_embed = get_1d_sincos_pos_embed_from_grid(embed_dim, pos)
-    return pos_embed
-
-
-def get_1d_sincos_pos_embed_from_grid(embed_dim, pos):
-    """
-    embed_dim: output dimension for each position pos: a list of positions to be encoded: size (M,) out: (M, D)
-    """
-    if embed_dim % 2 != 0:
-        raise ValueError("embed_dim must be divisible by 2")
-
-    omega = np.arange(embed_dim // 2, dtype=np.float64)
-    omega /= embed_dim / 2.0
-    omega = 1.0 / 10000**omega  # (D/2,)
-
-    pos = pos.reshape(-1)  # (M,)
-    out = np.einsum("m,d->md", pos, omega)  # (M, D/2), outer product
-
-    emb_sin = np.sin(out)  # (M, D/2)
-    emb_cos = np.cos(out)  # (M, D/2)
-
-    emb = np.concatenate([emb_sin, emb_cos], axis=1)  # (M, D)
-    return emb
-
 
 # ----------------------------------------------------------
 # RoPE2D: RoPE implementation in 2D
@@ -229,13 +157,14 @@ class PositionGetter2D(object):
         return pos
 
 
-def ms_cartesian_prod(x, y):
-    n, m = len(x), len(y)
-    out = ops.zeros(n, m, 2)
-    for i, j in zip(range(n), range(m)):
-        out[i, j, 0] = x[i]
-        out[i, j, 1] = y[j]
-    return out
+def ms_cartesian_prod(*tensors):
+    for tensor in tensors:
+        assert len(tensor.shape) == 1, f"Accept 1-dim tensor as input! But got {len(tensor.shape)}-dim input"
+    pools = [tuple(pool) for pool in tensors]
+    result = [[]]
+    for pool in pools:
+        result = [x + [y] for x in result for y in pool]
+    return ms.Tensor(result)
 
 
 class PositionGetter1D(object):

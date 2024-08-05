@@ -2,15 +2,9 @@ import logging
 import numbers
 from typing import Any, Dict, List, Optional, Tuple
 
+import numpy as np
 from opensora.acceleration.communications import AllToAll_SBH
 from opensora.acceleration.parallel_states import get_sequence_parallel_state, hccl_info
-from opensora.models.diffusion.utils.pos_embed import (
-    LinearScalingRoPE1D,
-    LinearScalingRoPE2D,
-    RoPE1D,
-    RoPE2D,
-    get_2d_sincos_pos_embed,
-)
 
 import mindspore as ms
 from mindspore import Parameter, nn, ops
@@ -22,9 +16,131 @@ from mindone.diffusers.models.activations import GEGLU, GELU, ApproximateGELU
 from mindone.diffusers.models.embeddings import LabelEmbedding, TimestepEmbedding, Timesteps
 from mindone.models.modules.flash_attention import FLASH_IS_AVAILABLE, MSFlashAttention
 
-# from mindone.diffusers.models.lora import LoRACompatibleConv, LoRACompatibleLinear
-
 logger = logging.getLogger(__name__)
+
+
+# Positional Embeddings
+def get_3d_sincos_pos_embed(
+    embed_dim,
+    grid_size,
+    cls_token=False,
+    extra_tokens=0,
+    interpolation_scale=1.0,
+    base_size=16,
+):
+    """
+    grid_size: int of the grid height and width return: pos_embed: [grid_size*grid_size, embed_dim] or
+    [1+grid_size*grid_size, embed_dim] (w/ or w/o cls_token)
+    """
+    # if isinstance(grid_size, int):
+    #     grid_size = (grid_size, grid_size)
+    grid_t = np.arange(grid_size[0], dtype=np.float32) / (grid_size[0] / base_size[0]) / interpolation_scale[0]
+    grid_h = np.arange(grid_size[1], dtype=np.float32) / (grid_size[1] / base_size[1]) / interpolation_scale[1]
+    grid_w = np.arange(grid_size[2], dtype=np.float32) / (grid_size[2] / base_size[2]) / interpolation_scale[2]
+    grid = np.meshgrid(grid_w, grid_h, grid_t)  # here w goes first
+    grid = np.stack(grid, axis=0)
+
+    grid = grid.reshape([3, 1, grid_size[2], grid_size[1], grid_size[0]])
+    pos_embed = get_3d_sincos_pos_embed_from_grid(embed_dim, grid)
+
+    if cls_token and extra_tokens > 0:
+        pos_embed = np.concatenate([np.zeros([extra_tokens, embed_dim]), pos_embed], axis=0)
+    return pos_embed
+
+
+def get_3d_sincos_pos_embed_from_grid(embed_dim, grid):
+    if embed_dim % 3 != 0:
+        raise ValueError("embed_dim must be divisible by 3")
+
+    # use 1/3 of dimensions to encode grid_t/h/w
+    emb_t = get_1d_sincos_pos_embed_from_grid(embed_dim // 3, grid[0])  # (T*H*W, D/3)
+    emb_h = get_1d_sincos_pos_embed_from_grid(embed_dim // 3, grid[1])  # (T*H*W, D/3)
+    emb_w = get_1d_sincos_pos_embed_from_grid(embed_dim // 3, grid[2])  # (T*H*W, D/3)
+
+    emb = np.concatenate([emb_t, emb_h, emb_w], axis=1)  # (T*H*W, D)
+    return emb
+
+
+def get_2d_sincos_pos_embed(
+    embed_dim,
+    grid_size,
+    cls_token=False,
+    extra_tokens=0,
+    interpolation_scale=1.0,
+    base_size=16,
+):
+    """
+    grid_size: int of the grid height and width return: pos_embed: [grid_size*grid_size, embed_dim] or
+    [1+grid_size*grid_size, embed_dim] (w/ or w/o cls_token)
+    """
+    # if isinstance(grid_size, int):
+    #     grid_size = (grid_size, grid_size)
+
+    grid_h = np.arange(grid_size[0], dtype=np.float32) / (grid_size[0] / base_size[0]) / interpolation_scale[0]
+    grid_w = np.arange(grid_size[1], dtype=np.float32) / (grid_size[1] / base_size[1]) / interpolation_scale[1]
+    grid = np.meshgrid(grid_w, grid_h)  # here w goes first
+    grid = np.stack(grid, axis=0)
+
+    grid = grid.reshape([2, 1, grid_size[1], grid_size[0]])
+    pos_embed = get_2d_sincos_pos_embed_from_grid(embed_dim, grid)
+    if cls_token and extra_tokens > 0:
+        pos_embed = np.concatenate([np.zeros([extra_tokens, embed_dim]), pos_embed], axis=0)
+    return pos_embed
+
+
+def get_2d_sincos_pos_embed_from_grid(embed_dim, grid):
+    if embed_dim % 2 != 0:
+        raise ValueError("embed_dim must be divisible by 2")
+
+    # use 1/3 of dimensions to encode grid_t/h/w
+    emb_h = get_1d_sincos_pos_embed_from_grid(embed_dim // 2, grid[0])  # (H*W, D/2)
+    emb_w = get_1d_sincos_pos_embed_from_grid(embed_dim // 2, grid[1])  # (H*W, D/2)
+
+    emb = np.concatenate([emb_h, emb_w], axis=1)  # (H*W, D)
+    return emb
+
+
+def get_1d_sincos_pos_embed(
+    embed_dim,
+    grid_size,
+    cls_token=False,
+    extra_tokens=0,
+    interpolation_scale=1.0,
+    base_size=16,
+):
+    """
+    grid_size: int of the grid return: pos_embed: [grid_size, embed_dim] or
+    [1+grid_size, embed_dim] (w/ or w/o cls_token)
+    """
+    # if isinstance(grid_size, int):
+    #     grid_size = (grid_size, grid_size)
+
+    grid = np.arange(grid_size, dtype=np.float32) / (grid_size / base_size) / interpolation_scale
+    pos_embed = get_1d_sincos_pos_embed_from_grid(embed_dim, grid)  # (H*W, D/2)
+    if cls_token and extra_tokens > 0:
+        pos_embed = np.concatenate([np.zeros([extra_tokens, embed_dim]), pos_embed], axis=0)
+    return pos_embed
+
+
+def get_1d_sincos_pos_embed_from_grid(embed_dim, pos):
+    """
+    embed_dim: output dimension for each position pos: a list of positions to be encoded: size (M,) out: (M, D)
+    """
+    if embed_dim % 2 != 0:
+        raise ValueError("embed_dim must be divisible by 2")
+
+    omega = np.arange(embed_dim // 2, dtype=np.float64)
+    omega /= embed_dim / 2.0
+    omega = 1.0 / 10000**omega  # (D/2,)
+
+    pos = pos.reshape(-1)  # (M,)
+    out = np.einsum("m,d->md", pos, omega)  # (M, D/2), outer product
+
+    emb_sin = np.sin(out)  # (M, D/2)
+    emb_cos = np.cos(out)  # (M, D/2)
+
+    emb = np.concatenate([emb_sin, emb_cos], axis=1)  # (M, D)
+    return emb
 
 
 class LayerNorm(nn.Cell):
@@ -166,8 +282,6 @@ class MultiHeadAttention(nn.Cell):
         FA_dtype=ms.bfloat16,
         enable_flash_attention=False,
         use_rope: bool = False,
-        rope_scaling: Optional[Dict] = None,
-        compress_kv_factor: Optional[Tuple] = None,
         layout: Optional[str] = "BSH",
     ):
         super().__init__()
@@ -184,8 +298,6 @@ class MultiHeadAttention(nn.Cell):
         self.dtype = dtype
         self.FA_dtype = FA_dtype
         self.use_rope = use_rope
-        self.rope_scaling = rope_scaling
-        self.compress_kv_factor = compress_kv_factor
         self.only_cross_attention = only_cross_attention
         self._from_deprecated_attn_block = _from_deprecated_attn_block
         self.layout = layout
@@ -253,7 +365,7 @@ class MultiHeadAttention(nn.Cell):
         if self.compress_kv_factor is not None:
             self._init_compress()
         if self.use_rope:
-            self._init_rope()
+            pass
 
         self.to_q = nn.Dense(query_dim, self.inner_dim, has_bias=bias)
 
@@ -324,20 +436,6 @@ class MultiHeadAttention(nn.Cell):
         bias = initializer("zeros", self.sr.bias.shape)
         self.sr.bias.set_data(bias)
         self.norm = LayerNorm(self.inner_dim)
-
-    def _init_rope(self):
-        if self.rope_scaling is None:
-            self.rope2d = RoPE2D()
-            self.rope1d = RoPE1D()
-        else:
-            scaling_type = self.rope_scaling["type"]
-            scaling_factor_2d = self.rope_scaling["factor_2d"]
-            scaling_factor_1d = self.rope_scaling["factor_1d"]
-            if scaling_type == "linear":
-                self.rope2d = LinearScalingRoPE2D(scaling_factor=scaling_factor_2d)
-                self.rope1d = LinearScalingRoPE1D(scaling_factor=scaling_factor_1d)
-            else:
-                raise ValueError(f"Unknown RoPE scaling type {scaling_type}")
 
     def prepare_attention_mask(
         self, attention_mask: ms.Tensor, target_length: int, batch_size: int, out_dim: int = 3, sp_size: int = 1
@@ -1020,46 +1118,77 @@ class PixArtAlphaCombinedTimestepSizeEmbeddings(nn.Cell):
         return conditioning
 
 
-class PatchEmbed(nn.Cell):
-    """2D Image to Patch Embedding"""
+class PatchEmbed2D(nn.Cell):
+    """2D Image to Patch Embedding but with 3D positional embedding"""
 
     def __init__(
         self,
+        num_frames=1,
         height=224,
         width=224,
+        patch_size_t=1,
         patch_size=16,
         in_channels=3,
         embed_dim=768,
         layer_norm=False,
         flatten=True,
         bias=True,
-        interpolation_scale=1,
+        interpolation_scale=(1, 1),
+        interpolation_scale_t=1,
+        use_abs_pos=True,
     ):
         super().__init__()
-
-        num_patches = (height // patch_size) * (width // patch_size)
+        # assert num_frames == 1
+        self.use_abs_pos = use_abs_pos
         self.flatten = flatten
         self.layer_norm = layer_norm
+        self.embed_dim = embed_dim
 
-        self.proj = nn.Conv2d(in_channels, embed_dim, kernel_size=patch_size, stride=patch_size, has_bias=bias)
+        self.proj = nn.Conv2d(
+            in_channels, embed_dim, kernel_size=(patch_size, patch_size), stride=(patch_size, patch_size), has_bias=bias
+        )
         if layer_norm:
             self.norm = LayerNorm(embed_dim, elementwise_affine=False, eps=1e-6)
         else:
             self.norm = None
-
+        self.patch_size_t = patch_size_t
         self.patch_size = patch_size
         # See:
         # https://github.com/PixArt-alpha/PixArt-alpha/blob/0f55e922376d8b797edd44d25d0e7464b260dcab/diffusion/model/nets/PixArtMS.py#L161
         self.height, self.width = height // patch_size, width // patch_size
-        self.base_size = height // patch_size
-        self.interpolation_scale = interpolation_scale
+        self.base_size = (height // patch_size, width // patch_size)
+        self.interpolation_scale = (interpolation_scale[0], interpolation_scale[1])
         pos_embed = get_2d_sincos_pos_embed(
-            embed_dim, int(num_patches**0.5), base_size=self.base_size, interpolation_scale=self.interpolation_scale
+            embed_dim, (self.height, self.width), base_size=self.base_size, interpolation_scale=self.interpolation_scale
         )
         self.pos_embed = ms.Parameter(ms.Tensor(pos_embed).float().unsqueeze(0), requires_grad=False)
+        self.num_frames = (num_frames - 1) // patch_size_t + 1 if num_frames % 2 == 1 else num_frames // patch_size_t
+        self.base_size_t = (num_frames - 1) // patch_size_t + 1 if num_frames % 2 == 1 else num_frames // patch_size_t
+        self.interpolation_scale_t = interpolation_scale_t
 
-    def construct(self, latent):
+        if get_sequence_parallel_state():
+            self.sp_size = hccl_info.world_size
+            rank_offset = hccl_info.rank % hccl_info.world_size
+            num_frames = (self.num_frames + self.sp_size - 1) // self.sp_size * self.sp_size
+            temp_pos_embed = get_1d_sincos_pos_embed(
+                embed_dim, num_frames, base_size=self.base_size_t, interpolation_scale=self.interpolation_scale_t
+            )
+            num_frames //= self.sp_size
+            self.temp_pos_st = rank_offset * num_frames
+            self.temp_pos_ed = (rank_offset + 1) * num_frames
+        else:
+            temp_pos_embed = get_1d_sincos_pos_embed(
+                embed_dim, self.num_frames, base_size=self.base_size_t, interpolation_scale=self.interpolation_scale_t
+            )
+
+        self.temp_pos_embed = ms.Parameter(ms.Tensor(temp_pos_embed).float().unsqueeze(0), requires_grad=False)
+
+    def construct(self, latent, num_frames):
+        b, c, t, h, w = latent.shape
+        video_latent, image_latent = None, None
         height, width = latent.shape[-2] // self.patch_size, latent.shape[-1] // self.patch_size
+        # b c t h w -> (b t) c h w
+        latent = latent.swapaxes(1, 2).reshape(b * t, c, h, w)
 
         latent = self.proj(latent)
         if self.flatten:
@@ -1067,22 +1196,450 @@ class PatchEmbed(nn.Cell):
         if self.layer_norm:
             latent = self.norm(latent)
 
-        # Interpolate positional embeddings if needed.
-        # (For PixArt-Alpha: https://github.com/PixArt-alpha/PixArt-alpha/\
-        # blob/0f55e922376d8b797edd44d25d0e7464b260dcab/diffusion/model/nets/PixArtMS.py#L162C151-L162C160)
-        if self.height != height or self.width != width:
-            pos_embed = get_2d_sincos_pos_embed(
-                embed_dim=self.pos_embed.shape[-1],
-                grid_size=(height, width),
-                base_size=self.base_size,
-                interpolation_scale=self.interpolation_scale,
-            )
-            pos_embed = ms.Tensor(pos_embed)
-            pos_embed = pos_embed.float().unsqueeze(0)
-        else:
-            pos_embed = self.pos_embed
+        if self.use_abs_pos:
+            # Interpolate positional embeddings if needed.
+            # (For PixArt-Alpha: https://github.com/PixArt-alpha/\
+            # PixArt-alpha/blob/0f55e922376d8b797edd44d25d0e7464b260dcab/diffusion/model/nets/PixArtMS.py#L162C151-L162C160)
+            if self.height != height or self.width != width:
+                # raise NotImplementedError
+                pos_embed = get_2d_sincos_pos_embed(
+                    embed_dim=self.pos_embed.shape[-1],
+                    grid_size=(height, width),
+                    base_size=self.base_size,
+                    interpolation_scale=self.interpolation_scale,
+                )
+                pos_embed = ms.Tensor(pos_embed)
+                pos_embed = pos_embed.float().unsqueeze(0)
+            else:
+                pos_embed = self.pos_embed
 
-        return latent + pos_embed
+            if self.num_frames != num_frames:
+                if get_sequence_parallel_state():
+                    # f, h -> f, 1, h
+                    temp_pos_embed = self.temp_pos_embed[self.temp_pos_st : self.temp_pos_ed].unsqueeze(1)
+                else:
+                    temp_pos_embed = get_1d_sincos_pos_embed(
+                        embed_dim=self.temp_pos_embed.shape[-1],
+                        grid_size=num_frames,
+                        base_size=self.base_size_t,
+                        interpolation_scale=self.interpolation_scale_t,
+                    )
+                temp_pos_embed = ms.Tensor(temp_pos_embed)
+                temp_pos_embed = temp_pos_embed.float().unsqueeze(0)
+            else:
+                temp_pos_embed = self.temp_pos_embed
+
+            latent = (latent + pos_embed).to(latent.dtype)
+
+        # (b t) n c -> b t n c
+        latent = latent.reshape(b, t, -1, self.embed_dim)
+        video_latent, image_latent = latent[:, :num_frames], latent[:, num_frames:]
+
+        if self.use_abs_pos:
+            # temp_pos_embed = temp_pos_embed.unsqueeze(2) * self.temp_embed_gate.tanh()
+            temp_pos_embed = temp_pos_embed.unsqueeze(2)
+            video_latent = (
+                (video_latent + temp_pos_embed).to(video_latent.dtype)
+                if video_latent is not None and video_latent.numel() > 0
+                else None
+            )
+            image_latent = (
+                (image_latent + temp_pos_embed[:, :1]).to(image_latent.dtype)
+                if image_latent is not None and image_latent.numel() > 0
+                else None
+            )
+        # 'b t n c -> b (t n) c'
+        video_latent = (
+            video_latent.reshape(b, -1, self.embed_dim)
+            if video_latent is not None and video_latent.numel() > 0
+            else None
+        )
+        # 'b t n c -> (b t) n c'
+        image_latent = (
+            image_latent.reshape(b * t, -1, self.embed_dim)
+            if image_latent is not None and image_latent.numel() > 0
+            else None
+        )
+
+        if num_frames == 1 and image_latent is None and not get_sequence_parallel_state():
+            image_latent = video_latent
+            video_latent = None
+
+        return video_latent, image_latent
+
+
+class OverlapPatchEmbed3D(nn.Cell):
+    """2D Image to Patch Embedding but with 3D positional embedding"""
+
+    def __init__(
+        self,
+        num_frames=1,
+        height=224,
+        width=224,
+        patch_size_t=1,
+        patch_size=16,
+        in_channels=3,
+        embed_dim=768,
+        layer_norm=False,
+        flatten=True,
+        bias=True,
+        interpolation_scale=(1, 1),
+        interpolation_scale_t=1,
+        use_abs_pos=True,
+    ):
+        super().__init__()
+        # assert num_frames == 1
+        self.use_abs_pos = use_abs_pos
+        self.flatten = flatten
+        self.layer_norm = layer_norm
+        self.embed_dim = embed_dim
+
+        self.proj = nn.Conv3d(
+            in_channels,
+            embed_dim,
+            kernel_size=(patch_size_t, patch_size, patch_size),
+            stride=(patch_size_t, patch_size, patch_size),
+            has_bias=bias,
+        )
+        if layer_norm:
+            self.norm = LayerNorm(embed_dim, elementwise_affine=False, eps=1e-6)
+        else:
+            self.norm = None
+        self.patch_size_t = patch_size_t
+        self.patch_size = patch_size
+        # See:
+        # https://github.com/PixArt-alpha/PixArt-alpha/blob/0f55e922376d8b797edd44d25d0e7464b260dcab/diffusion/model/nets/PixArtMS.py#L161
+        self.height, self.width = height // patch_size, width // patch_size
+        self.base_size = (height // patch_size, width // patch_size)
+        self.interpolation_scale = (interpolation_scale[0], interpolation_scale[1])
+        pos_embed = get_2d_sincos_pos_embed(
+            embed_dim, (self.height, self.width), base_size=self.base_size, interpolation_scale=self.interpolation_scale
+        )
+        self.pos_embed = ms.Parameter(ms.Tensor(pos_embed).float().unsqueeze(0), requires_grad=False)
+        self.num_frames = (num_frames - 1) // patch_size_t + 1 if num_frames % 2 == 1 else num_frames // patch_size_t
+        self.base_size_t = (num_frames - 1) // patch_size_t + 1 if num_frames % 2 == 1 else num_frames // patch_size_t
+        self.interpolation_scale_t = interpolation_scale_t
+
+        if get_sequence_parallel_state():
+            self.sp_size = hccl_info.world_size
+            rank_offset = hccl_info.rank % hccl_info.world_size
+            num_frames = (self.num_frames + self.sp_size - 1) // self.sp_size * self.sp_size
+            temp_pos_embed = get_1d_sincos_pos_embed(
+                embed_dim, num_frames, base_size=self.base_size_t, interpolation_scale=self.interpolation_scale_t
+            )
+            num_frames //= self.sp_size
+            self.temp_pos_st = rank_offset * num_frames
+            self.temp_pos_ed = (rank_offset + 1) * num_frames
+        else:
+            temp_pos_embed = get_1d_sincos_pos_embed(
+                embed_dim, self.num_frames, base_size=self.base_size_t, interpolation_scale=self.interpolation_scale_t
+            )
+
+        self.temp_pos_embed = ms.Parameter(ms.Tensor(temp_pos_embed).float().unsqueeze(0), requires_grad=False)
+
+    def construct(self, latent, num_frames):
+        b, c, t, h, w = latent.shape
+        video_latent, image_latent = None, None
+        height, width = latent.shape[-2] // self.patch_size, latent.shape[-1] // self.patch_size
+        latent = self.proj(latent)
+        if self.flatten:
+            # b c t h w -> (b t) (h w) c
+            latent = latent.permute(0, 2, 3, 4, 1).reshape(b * t, h * w, c)
+        if self.layer_norm:
+            latent = self.norm(latent)
+
+        if self.use_abs_pos:
+            # Interpolate positional embeddings if needed.
+            # (For PixArt-Alpha: https://github.com/PixArt-alpha/\
+            # PixArt-alpha/blob/0f55e922376d8b797edd44d25d0e7464b260dcab/diffusion/model/nets/PixArtMS.py#L162C151-L162C160)
+            if self.height != height or self.width != width:
+                # raise NotImplementedError
+                pos_embed = get_2d_sincos_pos_embed(
+                    embed_dim=self.pos_embed.shape[-1],
+                    grid_size=(height, width),
+                    base_size=self.base_size,
+                    interpolation_scale=self.interpolation_scale,
+                )
+                pos_embed = ms.Tensor(pos_embed)
+                pos_embed = pos_embed.float().unsqueeze(0)
+            else:
+                pos_embed = self.pos_embed
+
+            if self.num_frames != num_frames:
+                if get_sequence_parallel_state():
+                    # f, h -> f, 1, h
+                    temp_pos_embed = self.temp_pos_embed[self.temp_pos_st : self.temp_pos_ed].unsqueeze(1)
+                else:
+                    temp_pos_embed = get_1d_sincos_pos_embed(
+                        embed_dim=self.temp_pos_embed.shape[-1],
+                        grid_size=num_frames,
+                        base_size=self.base_size_t,
+                        interpolation_scale=self.interpolation_scale_t,
+                    )
+                temp_pos_embed = ms.Tensor(temp_pos_embed)
+                temp_pos_embed = temp_pos_embed.float().unsqueeze(0)
+            else:
+                temp_pos_embed = self.temp_pos_embed
+
+            latent = (latent + pos_embed).to(latent.dtype)
+
+        # (b t) n c -> b t n c
+        latent = latent.reshape(b, t, -1, self.embed_dim)
+        video_latent, image_latent = latent[:, :num_frames], latent[:, num_frames:]
+
+        if self.use_abs_pos:
+            # temp_pos_embed = temp_pos_embed.unsqueeze(2) * self.temp_embed_gate.tanh()
+            temp_pos_embed = temp_pos_embed.unsqueeze(2)
+            video_latent = (
+                (video_latent + temp_pos_embed).to(video_latent.dtype)
+                if video_latent is not None and video_latent.numel() > 0
+                else None
+            )
+            image_latent = (
+                (image_latent + temp_pos_embed[:, :1]).to(image_latent.dtype)
+                if image_latent is not None and image_latent.numel() > 0
+                else None
+            )
+        # 'b t n c -> b (t n) c'
+        video_latent = (
+            video_latent.reshape(b, -1, self.embed_dim)
+            if video_latent is not None and video_latent.numel() > 0
+            else None
+        )
+        # 'b t n c -> (b t) n c'
+        image_latent = (
+            image_latent.reshape(b * t, -1, self.embed_dim)
+            if image_latent is not None and image_latent.numel() > 0
+            else None
+        )
+
+        if num_frames == 1 and image_latent is None:
+            image_latent = video_latent
+            video_latent = None
+
+        return video_latent, image_latent
+
+
+class OverlapPatchEmbed2D(nn.Cell):
+    """2D Image to Patch Embedding but with 3D positional embedding"""
+
+    def __init__(
+        self,
+        num_frames=1,
+        height=224,
+        width=224,
+        patch_size_t=1,
+        patch_size=16,
+        in_channels=3,
+        embed_dim=768,
+        layer_norm=False,
+        flatten=True,
+        bias=True,
+        interpolation_scale=(1, 1),
+        interpolation_scale_t=1,
+        use_abs_pos=True,
+    ):
+        super().__init__()
+        assert patch_size_t == 1
+        self.use_abs_pos = use_abs_pos
+        self.flatten = flatten
+        self.layer_norm = layer_norm
+        self.embed_dim = embed_dim
+
+        self.proj = nn.Conv2d(
+            in_channels, embed_dim, kernel_size=(patch_size, patch_size), stride=(patch_size, patch_size), has_bias=bias
+        )
+        if layer_norm:
+            self.norm = LayerNorm(embed_dim, elementwise_affine=False, eps=1e-6)
+        else:
+            self.norm = None
+        self.patch_size_t = patch_size_t
+        self.patch_size = patch_size
+        # See:
+        # https://github.com/PixArt-alpha/PixArt-alpha/blob/0f55e922376d8b797edd44d25d0e7464b260dcab/diffusion/model/nets/PixArtMS.py#L161
+        self.height, self.width = height // patch_size, width // patch_size
+        self.base_size = (height // patch_size, width // patch_size)
+        self.interpolation_scale = (interpolation_scale[0], interpolation_scale[1])
+        pos_embed = get_2d_sincos_pos_embed(
+            embed_dim, (self.height, self.width), base_size=self.base_size, interpolation_scale=self.interpolation_scale
+        )
+        self.pos_embed = ms.Parameter(ms.Tensor(pos_embed).float().unsqueeze(0), requires_grad=False)
+        self.num_frames = (num_frames - 1) // patch_size_t + 1 if num_frames % 2 == 1 else num_frames // patch_size_t
+        self.base_size_t = (num_frames - 1) // patch_size_t + 1 if num_frames % 2 == 1 else num_frames // patch_size_t
+        self.interpolation_scale_t = interpolation_scale_t
+
+        if get_sequence_parallel_state():
+            self.sp_size = hccl_info.world_size
+            rank_offset = hccl_info.rank % hccl_info.world_size
+            num_frames = (self.num_frames + self.sp_size - 1) // self.sp_size * self.sp_size
+            temp_pos_embed = get_1d_sincos_pos_embed(
+                embed_dim, num_frames, base_size=self.base_size_t, interpolation_scale=self.interpolation_scale_t
+            )
+            num_frames //= self.sp_size
+            self.temp_pos_st = rank_offset * num_frames
+            self.temp_pos_ed = (rank_offset + 1) * num_frames
+        else:
+            temp_pos_embed = get_1d_sincos_pos_embed(
+                embed_dim, self.num_frames, base_size=self.base_size_t, interpolation_scale=self.interpolation_scale_t
+            )
+
+        self.temp_pos_embed = ms.Parameter(ms.Tensor(temp_pos_embed).float().unsqueeze(0), requires_grad=False)
+
+    def construct(self, latent, num_frames):
+        b, c, t, h, w = latent.shape
+        video_latent, image_latent = None, None
+        height, width = latent.shape[-2] // self.patch_size, latent.shape[-1] // self.patch_size
+        # b c t h w -> (bt) c h w
+        latent = latent.swapaxes(1, 2).reshape(b * t, c, h, w)
+        latent = self.proj(latent)
+        if self.flatten:
+            latent = latent.flatten(start_dim=2).permute(0, 2, 1)  # BT C H W -> BT N C
+        if self.layer_norm:
+            latent = self.norm(latent)
+
+        if self.use_abs_pos:
+            # Interpolate positional embeddings if needed.
+            # (For PixArt-Alpha: https://github.com/PixArt-alpha/\
+            # PixArt-alpha/blob/0f55e922376d8b797edd44d25d0e7464b260dcab/diffusion/model/nets/PixArtMS.py#L162C151-L162C160)
+            if self.height != height or self.width != width:
+                # raise NotImplementedError
+                pos_embed = get_2d_sincos_pos_embed(
+                    embed_dim=self.pos_embed.shape[-1],
+                    grid_size=(height, width),
+                    base_size=self.base_size,
+                    interpolation_scale=self.interpolation_scale,
+                )
+                pos_embed = ms.Tensor(pos_embed)
+                pos_embed = pos_embed.float().unsqueeze(0)
+            else:
+                pos_embed = self.pos_embed
+
+            if self.num_frames != num_frames:
+                if get_sequence_parallel_state():
+                    # f, h -> f, 1, h
+                    temp_pos_embed = self.temp_pos_embed[self.temp_pos_st : self.temp_pos_ed].unsqueeze(1)
+                else:
+                    temp_pos_embed = get_1d_sincos_pos_embed(
+                        embed_dim=self.temp_pos_embed.shape[-1],
+                        grid_size=num_frames,
+                        base_size=self.base_size_t,
+                        interpolation_scale=self.interpolation_scale_t,
+                    )
+                temp_pos_embed = ms.Tensor(temp_pos_embed)
+                temp_pos_embed = temp_pos_embed.float().unsqueeze(0)
+            else:
+                temp_pos_embed = self.temp_pos_embed
+
+            latent = (latent + pos_embed).to(latent.dtype)
+
+        # (b t) n c -> b t n c
+        latent = latent.reshape(b, t, -1, self.embed_dim)
+        video_latent, image_latent = latent[:, :num_frames], latent[:, num_frames:]
+
+        if self.use_abs_pos:
+            # temp_pos_embed = temp_pos_embed.unsqueeze(2) * self.temp_embed_gate.tanh()
+            temp_pos_embed = temp_pos_embed.unsqueeze(2)
+            video_latent = (
+                (video_latent + temp_pos_embed).to(video_latent.dtype)
+                if video_latent is not None and video_latent.numel() > 0
+                else None
+            )
+            image_latent = (
+                (image_latent + temp_pos_embed[:, :1]).to(image_latent.dtype)
+                if image_latent is not None and image_latent.numel() > 0
+                else None
+            )
+        # 'b t n c -> b (t n) c'
+        video_latent = (
+            video_latent.reshape(b, -1, self.embed_dim)
+            if video_latent is not None and video_latent.numel() > 0
+            else None
+        )
+        # 'b t n c -> (b t) n c'
+        image_latent = (
+            image_latent.reshape(b * t, -1, self.embed_dim)
+            if image_latent is not None and image_latent.numel() > 0
+            else None
+        )
+
+        if num_frames == 1 and image_latent is None:
+            image_latent = video_latent
+            video_latent = None
+
+        return video_latent, image_latent
+
+
+class DownSampler3d(nn.Cell):
+    def __init__(self, *args, **kwargs):
+        """Required kwargs: down_factor, downsampler"""
+        super().__init__()
+        self.down_factor = kwargs.pop("down_factor")
+        self.down_shortcut = kwargs.pop("down_shortcut")
+        self.layer = nn.Conv3d(*args, **kwargs)
+
+    def construct(self, x, attention_mask, t, h, w):
+        b = x.shape[0]
+        # b (t h w) d -> b d t h w
+        x = x.reshape(b, t, h, w, -1).permute(0, 4, 1, 2, 3)
+
+        x_dtype = x.dtype
+        x = self.layer(x).to(x_dtype) + (x if self.down_shortcut else 0)
+
+        # b d (t dt) (h dh) (w dw) -> (b dt dh dw) (t h w) d
+        dt, dh, dw = self.down_factor
+        x = x.reshape(b, -1, t // dt, dt, h // dh, dh, w // dw, dw)
+        x = x.permute(0, 3, 5, 7, 2, 4, 6, 1).reshape(b * dt * dw * dh, -1, x.shape[1])
+        # b 1 (t h w) -> b 1 t h w
+        attention_mask = attention_mask.reshape(b, 1, t, h, w)
+        # b 1 (t dt) (h dh) (w dw) -> (b dt dh dw) 1 (t h w)
+        attention_mask = attention_mask.reshape(b, 1, t // dt, dt, h // dh, dh, w // dw, dw)
+        attention_mask = attention_mask.permute(0, 3, 5, 7, 1, 2, 4, 6).reshape(b * dt * dh * dw, 1, -1)
+
+        return x, attention_mask
+
+    def reverse(self, x, t, h, w):
+        d = x.shape[2]
+        dt, dh, dw = self.down_factor
+        # (b dt dh dw) (t h w) d -> b (t dt h dh w dw) d
+        x = x.reshape(-1, dt, dh, dw, t, h, w, d)
+        x = x.permute(0, 4, 1, 5, 2, 6, 3, 7).reshape(-1, t * dt * h * dt * w * dw, d)
+        return x
+
+
+class DownSampler2d(nn.Cell):
+    def __init__(self, *args, **kwargs):
+        """Required kwargs: down_factor, downsampler"""
+        super().__init__()
+        self.down_factor = kwargs.pop("down_factor")
+        self.down_shortcut = kwargs.pop("down_shortcut")
+        self.layer = nn.Conv2d(*args, **kwargs)
+
+    def construct(self, x, attention_mask, t, h, w):
+        b = x.shape[0]
+        d = x.shape[-1]
+        # b (t h w) d -> (b t) d h w
+        x = x.reshape(b, t, h, w, -1).permute(0, 1, 4, 2, 3).reshape(b * t, d, h, w)
+        x = self.layer(x) + (x if self.down_shortcut else 0)
+
+        dh, dw = self.down_factor
+        # b d (h dh) (w dw) -> (b dh dw) (h w) d
+        x = x.reshape(b, d, h // dh, dh, w // dw, dw)
+        x = x.permute(0, 3, 5, 2, 4, 1).reshape(b * dh * dw, -1, d)
+        # b 1 (t h w) -> (b t) 1 h w
+        attention_mask = attention_mask.reshape(b, 1, t, h, w).swapaxes(1, 2).reshape(b * t, 1, h, w)
+        # b 1 (h dh) (w dw) -> (b dh dw) 1 (h w)
+        attention_mask = attention_mask.reshape(b, 1, h // dh, dh, w // dw, dw)
+        attention_mask = attention_mask.permute(0, 3, 5, 1, 2, 4).reshape(b * dh * dw, 1, -1)
+
+        return x, attention_mask
+
+    def reverse(self, x, t, h, w):
+        # (b t dh dw) (h w) d -> b (t h dh w dw) d
+        d = x.shape[-1]
+        dh, dw = self.down_factor
+        x = x.reshape(-1, t, dh, dw, h, w, d)
+        x = x.permute(0, 1, 4, 2, 5, 3, 6).reshape(-1, t * h * dh * w * dw, d)
+        return x
 
 
 class AdaLayerNorm(nn.Cell):
