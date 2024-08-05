@@ -20,9 +20,10 @@ from .transforms import BucketResizeCrop, Resize
 
 # FIXME: remove in future when mindone is ready for install
 sys.path.append(os.path.join(os.path.dirname(__file__), "../../../.."))
-from mindone.data import BaseDataset
 # from mindone.data.video_reader import VideoReader
 from decord import VideoReader
+
+from mindone.data import BaseDataset
 from mindone.models.modules.pos_embed import get_2d_sincos_pos_embed
 
 from ..models.layers.rotary_embedding import precompute_freqs_cis
@@ -232,12 +233,14 @@ class VideoDatasetRefactored(BaseDataset):
                 frame_h = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
                 # print("D--: frame h w", frame_h, frame_w)
                 data["bucket_id"] = self._buckets.get_bucket_id(
-                    T=video_length, H=frame_h, W=frame_w, frame_interval=self._stride,
+                    T=video_length,
+                    H=frame_h,
+                    W=frame_w,
+                    frame_interval=self._stride,
                 )
                 if data["bucket_id"] is None:
                     raise ValueError(
-                        f"Couldn't assign a bucket to {data['video']}"
-                        f" (T={video_length}, H={frame_h}, W={frame_w})."
+                        f"Couldn't assign a bucket to {data['video']}" f" (T={video_length}, H={frame_h}, W={frame_w})."
                     )
 
                 num_frames, *_ = self._buckets.get_thw(data["bucket_id"])

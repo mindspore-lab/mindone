@@ -12,7 +12,7 @@ except ImportError:
 import numpy as np
 
 import mindspore as ms
-from mindspore import Parameter, Tensor, dtype, mint, nn, ops
+from mindspore import Parameter, Tensor, dtype, nn, ops
 from mindspore.ops.function.array_func import chunk_ext as chunk
 
 from .operation_selector import get_repeat_interleave_op

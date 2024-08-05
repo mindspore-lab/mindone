@@ -4,7 +4,7 @@ import os
 from transformers import PretrainedConfig
 
 import mindspore as ms
-from mindspore import nn, ops, mint
+from mindspore import mint, nn, ops
 
 from ..layers.operation_selector import get_split_op
 from .autoencoder_kl import AutoencoderKL as AutoencoderKL_SD
@@ -130,11 +130,11 @@ class VideoAutoencoderKL(nn.Cell):
         if self.micro_batch_size is None:
             x_out = self.module.encode(x) * self.scale_factor
         else:
-            '''
+            """
             x_splits = mint.split(x, self.micro_batch_size, 0)
             x_out = tuple((self.module.encode(x_bs) * self.scale_factor) for x_bs in x_splits)
             x_out = ops.cat(x_out, axis=0)
-            '''
+            """
 
             bs = self.micro_batch_size
             x_out = self.module.encode(x[:bs]) * self.scale_factor
@@ -158,14 +158,14 @@ class VideoAutoencoderKL(nn.Cell):
         if self.micro_batch_size is None:
             x_out = self.module.decode(x / self.scale_factor)
         else:
-            '''
+            """
             # can try after split op bug fixed
             x_splits = mint.split(x, self.micro_batch_size, 0)
             x_out = tuple(self.module.decode(x_bs / self.scale_factor) for x_bs in x_splits)
             x_out = ops.cat(x_out, axis=0)
-            '''
+            """
 
-            mbs = self.micro_batch_size 
+            mbs = self.micro_batch_size
             x_out = self.module.decode(x[:mbs] / self.scale_factor)
             for i in range(mbs, x.shape[0], mbs):
                 x_cur = self.module.decode(x[i : i + mbs] / self.scale_factor)
@@ -282,23 +282,23 @@ class VideoAutoencoderPipeline(nn.Cell):
             mfs = self.micro_frame_size
             if self.cal_loss:
                 # TODO: fix the bug in torch, output concat of the splitted posteriors instead of the last split
-                posterior_mean, posterior_logvar  = self.temporal_vae._encode(x_z[:, :, : mfs]) 
+                posterior_mean, posterior_logvar = self.temporal_vae._encode(x_z[:, :, :mfs])
                 z_out = self.temporal_vae.sample(posterior_mean, posterior_logvar)
                 for i in range(mfs, x_z.shape[2], mfs):
-                    posterior_mean, posterior_logvar  = self.temporal_vae._encode(x_z[:, :, i : i + mfs]) 
+                    posterior_mean, posterior_logvar = self.temporal_vae._encode(x_z[:, :, i : i + mfs])
                     z_cur = self.temporal_vae.sample(posterior_mean, posterior_logvar)
                     z_out = ops.cat((z_out, z_cur), axis=2)
 
                 return z_out, posterior_mean, posterior_logvar, x_z
             else:
                 # no posterior cache to reduce memory in inference
-                z_out = self.temporal_vae.encode(x_z[:, :, : mfs])
+                z_out = self.temporal_vae.encode(x_z[:, :, :mfs])
                 for i in range(mfs, x_z.shape[2], mfs):
                     z_cur = self.temporal_vae.encode(x_z[:, :, i : i + mfs])
                     z_out = ops.cat((z_out, z_cur), axis=2)
-                # print('D--: tempral vae encode out z: ', z.shape) 
+
                 return (z_out - self.shift) / self.scale
-       
+
     def decode(self, z, num_frames=None):
         if not self.cal_loss:
             z = z * self.scale.to(z.dtype) + self.shift.to(z.dtype)
@@ -312,28 +312,23 @@ class VideoAutoencoderPipeline(nn.Cell):
                 return x
         else:
             # z: (b Z t//4 h w)
-            '''
-            z_splits = mint.split(z, self.micro_z_frame_size, 2)
-            x_z_out = tuple(self.temporal_vae.decode(z_bs, num_frames=min(self.micro_frame_size, num_frames - i*self.micro_frame_size)) for i, z_bs in enumerate(z_splits))
-            x_z_out = ops.cat(x_z_out, axis=2)
-            '''
             mz = self.micro_z_frame_size
-            x_z_out = self.temporal_vae.decode(z[:, :, : mz], num_frames=min(self.micro_frame_size, num_frames))
+            x_z_out = self.temporal_vae.decode(z[:, :, :mz], num_frames=min(self.micro_frame_size, num_frames))
             num_frames -= self.micro_frame_size
 
             for i in range(mz, z.shape[2], mz):
-                x_z_cur = self.temporal_vae.decode(z[:, :, i : i + mz], num_frames=min(self.micro_frame_size, num_frames))
+                x_z_cur = self.temporal_vae.decode(
+                    z[:, :, i : i + mz], num_frames=min(self.micro_frame_size, num_frames)
+                )
                 x_z_out = ops.cat((x_z_out, x_z_cur), axis=2)
                 num_frames -= self.micro_frame_size
 
             x = self.spatial_vae.decode(x_z_out)
-            # print('D--: tempral vae decode out x_z: ', x_z.shape) 
-            # print('D--: spatial vae decode out x: ', x.shape) 
+
             if self.cal_loss:
                 return x, x_z_out
             else:
                 return x
-
 
     def construct(self, x):
         # assert self.cal_loss, "This method is only available when cal_loss is True"

@@ -25,11 +25,11 @@ from opensora.models.layers.blocks import (
     t2i_modulate,
     t_mask_select,
 )
+from opensora.models.layers.operation_selector import check_dynamic_mode, get_chunk_op
 from opensora.models.layers.rotary_embedding import RotaryEmbedding
-from opensora.models.layers.operation_selector import check_dynamic_mode, get_chunk_op, get_split_op
 
 import mindspore as ms
-from mindspore import Parameter, Tensor, load_checkpoint, load_param_into_net, nn, ops, mint
+from mindspore import Parameter, Tensor, load_checkpoint, load_param_into_net, nn, ops
 
 from mindone.models.utils import constant_, normal_, xavier_uniform_
 
@@ -264,9 +264,7 @@ class STDiT3(nn.Cell):
         )
 
         # final layer
-        self.final_layer = T2IFinalLayer(
-            hidden_size, np.prod(self.patch_size).item(), self.out_channels
-        )
+        self.final_layer = T2IFinalLayer(hidden_size, np.prod(self.patch_size).item(), self.out_channels)
 
         self.initialize_weights()
         if only_train_temporal:
