@@ -84,10 +84,10 @@ class RoPE3D(nn.Cell):
     def construct(self, tokens, positions):
         """
         input:
-            * tokens: batch_size x nheads x ntokens x dim
+            * tokens: batch_size x ntokens x nheads x  dim
             * positions: batch_size x ntokens x 3 (t, y and x position of each token)
         output:
-            * tokens after appplying RoPE3D (batch_size x nheads x ntokens x x dim)
+            * tokens after appplying RoPE3D (batch_size x ntokens x nheads x dim)
         """
         assert tokens.shape[3] % 3 == 0, "number of dimensions should be a multiple of three"
         D = tokens.shape[3] // 3
@@ -98,7 +98,7 @@ class RoPE3D(nn.Cell):
         cos_x, sin_x = self.get_cos_sin(D, max_poses[2] + 1, tokens.dtype, self.interpolation_scale_w)
         # split features into three along the feature dimension, and apply rope1d on each half
         # t, y, x = tokens.chunk(3, dim=-1)
-        t, y, x = mint.chunk(tokens, axis=-1)
+        t, y, x = mint.chunk(tokens, 3, axis=-1)
         t = self.apply_rope1d(t, poses[0], cos_t, sin_t)
         y = self.apply_rope1d(y, poses[1], cos_y, sin_y)
         x = self.apply_rope1d(x, poses[2], cos_x, sin_x)
