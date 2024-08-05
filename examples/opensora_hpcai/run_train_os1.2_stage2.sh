@@ -11,7 +11,7 @@ export MS_DEV_ENABLE_KERNEL_PACKET=on
 # log level
 export GLOG_v=2
 
-output_dir=outputs/OSv1.2_dvm_stage2
+output_dir=outputs/OSv1.2_dvm_stage2_full
 
 msrun --bind_core=True --worker_num=8 --local_worker_num=8 --log_dir=$output_dir  \
 python scripts/train.py \
@@ -25,10 +25,10 @@ python scripts/train.py \
 --text_embed_folder  datasets/mixkit-100videos/t5_emb_300 \
 --dataset_sink_mode=False \
 --num_parallel_workers=2 \
---prefetch_size=4 \
+--prefetch_size=2 \
 --enable_flash_attention=True \
 --gradient_accumulation_steps=1 \
---use_ema=False \
+--use_ema=True \
 --output_path=$output_dir \
 --use_recompute=True \
 --use_parallel=True \
