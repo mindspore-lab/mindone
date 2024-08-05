@@ -464,12 +464,14 @@ video_embed_folder
 
 ## Training
 
-### Open-Sora 1.1 Training
+### Open-Sora 1.1 and above
 
-Stand-alone training for Stage 1 of OpenSora v1.1:
+Stand-alone training for Stage 1 of OpenSora:
 
 ```shell
-python scripts/train.py --config configs/opensora-v1-1/train/train_stage1.yaml \
+version=v1-2  # or v1-1
+
+python scripts/train.py --config configs/opensora-$version/train/train_stage1.yaml \
     --csv_path /path/to/video_caption.csv \
     --video_folder /path/to/video_folder \
     --text_embed_folder /path/to/text_embed_folder \
@@ -482,8 +484,10 @@ You can find more in [T5 text embeddings](#cache-text-embeddings) and [VAE Video
 For parallel training, use `msrun` and along with `--use_parallel=True`:
 
 ```shell
+version=v1-2  # or v1-1
+
 msrun --master_port=8200 --worker_num=8 --local_worker_num=8 --log_dir=$output_dir  \
-    python scripts/train.py --config configs/opensora-v1-1/train/train_stage1.yaml \
+    python scripts/train.py --config configs/opensora-$version/train/train_stage1.yaml \
     --csv_path /path/to/video_caption.csv \
     --video_folder /path/to/video_folder \
     --text_embed_folder /path/to/text_embed_folder \
@@ -493,17 +497,20 @@ msrun --master_port=8200 --worker_num=8 --local_worker_num=8 --log_dir=$output_d
 
 #### Multi-Resolution Training
 
-OpenSora v1.1 supports training with multiple resolutions, aspect ratios, and a variable number of frames.
+OpenSora v1.1 and above support training with multiple resolutions, aspect ratios, and a variable number of frames.
 This can be enabled in one of two ways:
 
 1. Provide variable sized VAE embeddings with the `--vae_latent_folder` option.
 2. Use `bucket_config` for training with videos in their original format. More on the bucket configuration can be found
-   in [Multi-resolution Training with Buckets](./docs/quick_start.md#4-multi-resolution-training-with-buckets-opensora-v11-only).
+   in [Multi-resolution Training with Buckets](./docs/quick_start.md#4-multi-resolution-training-with-buckets-opensora-v11-and-above).
 
    Detailed running command can be referred in `scripts/run/run_train_os_v1.1_stage2.sh`
 
 
 ### Open-Sora 1.0 Training
+
+<details>
+<summary>Instructions</summary>
 
 Once the training data including the [T5 text embeddings](#cache-text-embeddings) is prepared, you can run the following commands to launch training.
 
@@ -527,6 +534,8 @@ msrun --master_port=8200 --worker_num=8 --local_worker_num=8 --log_dir=$output_d
     --text_embed_folder /path/to/text_embed_folder \
     --use_parallel True \
 ```
+
+</details>
 
 To train in bfloat16 precision, please parse `--global_bf16=True`
 

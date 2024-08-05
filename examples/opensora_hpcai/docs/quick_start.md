@@ -171,7 +171,7 @@ python scripts/inference.py --config configs/opensora-v1-1/inference/sample_iv2v
 
 ## Training
 
-### 1. Generate T5 embeddings
+### 1. Generate T5 embeddings (Required)
 ```shell
 python scripts/infer_t5.py\
     --csv_path ../videocomposer/datasets/webvid5/video_caption.csv \
@@ -179,8 +179,10 @@ python scripts/infer_t5.py\
     --model_max_length 200 # For OpenSora v1.1
 ```
 
-OpenSora v1 uses text embedding sequence length of 120 (by default).
-If you want to generate text embeddings for OpenSora v1.1, please change `model_max_length` to 200.
+> [!WARNING]
+> OpenSora v1 requires text embedding sequence length of 120.  
+> OpenSora v1.1 requires text embedding sequence length of 200.  
+> OpenSora v1.2 requires text embedding sequence length of 300.
 
 After running, the text embeddings saved as npz file for each caption will be in `output_dir`
 
@@ -201,32 +203,28 @@ After running, the vae latents saved as npz file for each video will be in `outp
 For parallel inference, please refer to `scripts/run/run_infer_vae_parallel.sh`
 
 
-### 3. Train STDiT / STDiT2
+### 3. Train STDiT
 
 ```
 python scripts/train.py --config configs/opensora/train/stdit_256x256x16.yaml \
-    --csv_path "../videocomposer/datasets/webvid5/video_caption.csv" \
-    --video_folder "../videocomposer/datasets/webvid5" \
-    --text_embed_folder "../videocomposer/datasets/webvid5" \
+    --csv_path YOUR_CSV_PATH \
+    --video_folder YOUR_VIDEO_FOLDER \
+    --text_embed_folder YOUR_TEXT_EMBED_FOLDER \
 ```
 
-To enable training with the cached vae latents, please append `--vae_latent_folder "../videocomposer/datasets/webvid5_vae_256x256"`.
+To enable training with the cached vae latents, please append `--vae_latent_folder YOUR_VAE_LATENT_FOLDER`.
 
-Please change `csv_path`,`video_folder`, `embed_folder` according to your data location.
+Please change `csv_path`,`video_folder`, `text_embed_folder` according to your data location.
 
 For detailed usage, please check `python scripts/train.py -h`
-
-> [!WARNING]
-> OpenSora v1.1 requires the `MS_ENABLE_ACLNN` and `GRAPH_OP_RUN` environment variables to be set to `1`.  
-> OpenSora v1.1 requires text embedding sequence length of 200.
 
 > [!NOTE]
 > Training precision is under continuous optimization.
 
 
-### 4. Multi-resolution Training with Buckets (OpenSora v1.1 only)
+### 4. Multi-resolution Training with Buckets (OpenSora v1.1 and above)
 
-OpenSora v1.1 supports training with multiple resolutions, aspect ratios, and a variable number of frames.
+OpenSora v1.1 and above support training with multiple resolutions, aspect ratios, and a variable number of frames.
 To enable this feature, add the desired bucket configuration to the `yaml` config file
 (see [train_stage1.yaml](../configs/opensora-v1-1/train/train_stage1.yaml) for an example).
 
