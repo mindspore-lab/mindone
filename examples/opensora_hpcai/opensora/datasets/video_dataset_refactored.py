@@ -235,6 +235,7 @@ class VideoDatasetRefactored(BaseDataset):
                         int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT)),
                         int(cap.get(cv2.CAP_PROP_FRAME_WIDTH)),
                     )
+                    cap.release()
 
                 data["bucket_id"] = self._buckets.get_bucket_id(
                     T=len(reader), H=data["shape"][0], W=data["shape"][1], frame_interval=self._stride
