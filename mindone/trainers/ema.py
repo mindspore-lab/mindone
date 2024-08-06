@@ -68,4 +68,3 @@ class EMA(nn.Cell):
             return True
         success = self.map(self.assign, self.net_weight, self.swap_cache)
         return success
-
