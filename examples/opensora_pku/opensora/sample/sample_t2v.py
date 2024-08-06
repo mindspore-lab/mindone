@@ -8,7 +8,6 @@ import time
 import numpy as np
 import pandas as pd
 import yaml
-from PIL import Image
 from tqdm import tqdm
 
 import mindspore as ms
@@ -29,7 +28,13 @@ from opensora.sample.pipeline_opensora import OpenSoraPipeline
 from opensora.utils.ms_utils import init_env
 from opensora.utils.utils import _check_cfgs_in_parser, get_precision
 
-from mindone.diffusers.schedulers import DDIMScheduler, DDPMScheduler, EulerDiscreteScheduler, PNDMScheduler
+from mindone.diffusers.schedulers import (
+    DDIMScheduler,
+    DDPMScheduler,
+    EulerAncestralDiscreteScheduler,
+    EulerDiscreteScheduler,
+    PNDMScheduler,
+)
 from mindone.utils.amp import auto_mixed_precision
 from mindone.utils.config import str2bool
 from mindone.utils.logger import set_logger
@@ -84,16 +89,8 @@ def parse_args():
         help="A list of text prompts to be generated with. Also allow input a txt file or csv file.",
     )
     parser.add_argument("--tile_overlap_factor", type=float, default=0.25)
-    parser.add_argument(
-        "--force_images", default=False, type=str2bool, help="Whether to generate images given text prompts"
-    )
+
     parser.add_argument("--enable_tiling", action="store_true", help="whether to use vae tiling to save memory")
-    parser.add_argument(
-        "--enable_time_chunk",
-        type=str2bool,
-        default=False,
-        help="Whether to enable vae decoding to process temporal frames as small, overlapped chunks. Defaults to False.",
-    )
     parser.add_argument("--model_3d", action="store_true")
     parser.add_argument("--udit", action="store_true")
     parser.add_argument("--save_memory", action="store_true")
@@ -166,6 +163,8 @@ def parse_args():
         action="store_true",
         help="whether to load the existing latents saved in npy files and run vae decoding",
     )
+    parser.add_argument("--model_type", type=str, default="dit", choices=["dit", "udit", "latte"])
+    parser.add_argument("--cache_dir", type=str, default="./")
     default_args = parser.parse_args()
     abs_path = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), ""))
     if default_args.config:
@@ -201,7 +200,7 @@ if __name__ == "__main__":
 
     # 2. vae model initiate and weight loading
     logger.info("vae init")
-    vae = CausalVAEModelWrapper(args.model_path, subfolder="vae")
+    vae = CausalVAEModelWrapper(args.model_path, subfolder="vae", cache_dir=args.cache_dir)
     if args.enable_tiling:
         vae.vae.enable_tiling()
         vae.vae.tile_overlap_factor = args.tile_overlap_factor
@@ -228,12 +227,9 @@ if __name__ == "__main__":
         param.requires_grad = False
 
     # 3. handle input text prompts
-    if args.force_images:
-        ext = "jpg"
-    else:
-        ext = (
-            "gif" if not (args.save_latents or args.decode_latents) else "npy"
-        )  # save video as gif or save denoised latents as npy files.
+    ext = (
+        "gif" if not (args.save_latents or args.decode_latents) else "npy"
+    )  # save video as gif or save denoised latents as npy files.
 
     if not isinstance(args.text_prompt, list):
         args.text_prompt = [args.text_prompt]
@@ -307,14 +303,16 @@ if __name__ == "__main__":
     # 4. latte model initiate and weight loading
     logger.info(f"Latte-{args.version} init")
     FA_dtype = get_precision(args.precision) if get_precision(args.precision) != ms.float32 else ms.bfloat16
+    assert args.model_type == "dit", "Currently only suppport model_type as 'dit'@"
     transformer_model = OpenSoraT2V.from_pretrained(
         args.model_path,
         subfolder=args.version,
         checkpoint_path=args.pretrained_ckpt,
         enable_flash_attention=args.enable_flash_attention,
         FA_dtype=FA_dtype,
+        cache_dir=args.cache_dir,
     )
-    transformer_model.force_images = args.force_images
+
     # mixed precision
     dtype = get_precision(args.precision)
     if args.precision in ["fp16", "bf16"]:
@@ -345,7 +343,7 @@ if __name__ == "__main__":
     # TODO: replace T5 with mT5
     text_encoder = T5Embedder(
         dir_or_name=args.text_encoder_name,
-        cache_dir="./",
+        cache_dir=args.cache_dir,
     )
     tokenizer = text_encoder.tokenizer
     # mixed precision
@@ -363,6 +361,8 @@ if __name__ == "__main__":
         scheduler = PNDMScheduler()
     elif args.sample_method == "EulerDiscrete":
         scheduler = EulerDiscreteScheduler()
+    elif args.sample_method == "EulerAncestralDiscrete":
+        scheduler = EulerAncestralDiscreteScheduler()
     else:
         raise ValueError(f"Not supported sampling method {args.sample_method}")
 
@@ -373,7 +373,6 @@ if __name__ == "__main__":
         tokenizer=tokenizer,
         scheduler=scheduler,
         transformer=transformer_model,
-        enable_time_chunk=args.enable_time_chunk,
     )
 
     # 4. print key info
@@ -423,7 +422,6 @@ if __name__ == "__main__":
                 width=args.width,
                 num_inference_steps=args.num_sampling_steps,
                 guidance_scale=args.guidance_scale,
-                enable_temporal_attentions=not args.force_images,
                 output_type="latents" if args.save_latents else "pil",
                 max_sequence_length=512,
             )
@@ -441,13 +439,8 @@ if __name__ == "__main__":
                 if args.save_latents:
                     np.save(file_path, videos[i_sample : i_sample + 1])
                 else:
-                    if args.force_images:
-                        image = videos[i_sample, 0]  # (b t h w c)  -> (h, w, c)
-                        image = (image * 255).round().clip(0, 255).astype(np.uint8)
-                        Image.from_numpy(image).save(file_path)
-                    else:
-                        save_video_data = videos[i_sample : i_sample + 1]  # (b t h w c)
-                        save_videos(save_video_data, file_path, loop=0, fps=args.fps)
+                    save_video_data = videos[i_sample : i_sample + 1]  # (b t h w c)
+                    save_videos(save_video_data, file_path, loop=0, fps=args.fps)
 
     end_time = time.time()
     time_cost = end_time - start_time

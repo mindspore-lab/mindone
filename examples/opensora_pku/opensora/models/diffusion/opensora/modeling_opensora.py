@@ -538,7 +538,9 @@ class OpenSoraT2V(ModelMixin, ConfigMixin):
     def from_pretrained(cls, pretrained_model_path, subfolder=None, checkpoint_path=None, **kwargs):
         if subfolder is not None:
             pretrained_model_path = os.path.join(pretrained_model_path, subfolder)
-
+        cache_dir = kwargs.get("cache_dir", None)
+        if cache_dir is not None:
+            pretrained_model_path = os.path.join(cache_dir, pretrained_model_path)
         config_file = os.path.join(pretrained_model_path, "config.json")
         if not os.path.isfile(config_file):
             raise RuntimeError(f"{config_file} does not exist")

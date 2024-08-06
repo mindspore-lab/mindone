@@ -1,16 +1,3 @@
-# All rights reserved.
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
 import html
 import inspect
 import logging
@@ -25,40 +12,16 @@ from opensora.acceleration.parallel_states import get_sequence_parallel_state, h
 import mindspore as ms
 from mindspore import ops
 
-logger = logging.getLogger(__name__)
-
-try:
-    from bs4 import BeautifulSoup
-
-    is_bs4_available = True
-except Exception:
-    is_bs4_available = False
-
-try:
-    import ftfy
-
-    is_ftfy_available = True
-except Exception:
-    is_ftfy_available = False
-
 from mindone.diffusers.pipelines.pipeline_utils import DiffusionPipeline, ImagePipelineOutput
 from mindone.diffusers.utils import BACKENDS_MAPPING, deprecate, is_bs4_available, is_ftfy_available
 
-EXAMPLE_DOC_STRING = """
-    Examples:
-        ```py
-        >>> import torch
-        >>> from diffusers import PixArtAlphaPipeline
+logger = logging.getLogger(__name__)
 
-        >>> # You can replace the checkpoint id with "PixArt-alpha/PixArt-XL-2-512x512" too.
-        >>> pipe = PixArtAlphaPipeline.from_pretrained("PixArt-alpha/PixArt-XL-2-1024-MS", torch_dtype=torch.float16)
-        >>> # Enable memory optimizations.
-        >>> pipe.enable_model_cpu_offload()
+if is_bs4_available():
+    from bs4 import BeautifulSoup
 
-        >>> prompt = "A small cactus with a happy face in the Sahara desert."
-        >>> image = pipe(prompt).images[0]
-        ```
-"""
+if is_ftfy_available():
+    import ftfy
 
 
 # Copied from diffusers.pipelines.stable_diffusion.pipeline_stable_diffusion.retrieve_timesteps
@@ -105,25 +68,7 @@ def retrieve_timesteps(
 
 class OpenSoraPipeline(DiffusionPipeline):
     r"""
-    Pipeline for text-to-image generation using PixArt-Alpha.
-
-    This model inherits from [`DiffusionPipeline`]. Check the superclass documentation for the generic methods the
-    library implements for all the pipelines (such as downloading or saving, etc.)
-
-    Args:
-        vae ([`AutoencoderKL`]):
-            Variational Auto-Encoder (VAE) Model to encode and decode images to and from latent representations.
-        text_encoder ([`T5EncoderModel`]):
-            Frozen text-encoder. PixArt-Alpha uses
-            [T5](https://huggingface.co/docs/transformers/model_doc/t5#transformers.T5EncoderModel), specifically the
-            [t5-v1_1-xxl](https://huggingface.co/PixArt-alpha/PixArt-alpha/tree/main/t5-v1_1-xxl) variant.
-        tokenizer (`T5Tokenizer`):
-            Tokenizer of class
-            [T5Tokenizer](https://huggingface.co/docs/transformers/model_doc/t5#transformers.T5Tokenizer).
-        transformer ([`Transformer2DModel`]):
-            A text conditioned `Transformer2DModel` to denoise the encoded image latents.
-        scheduler ([`SchedulerMixin`]):
-            A scheduler to be used in combination with `transformer` to denoise the encoded image latents.
+    Pipeline for text-to-image generation using PixArt-Sigma.
     """
     bad_punct_regex = re.compile(
         r"["
@@ -151,7 +96,6 @@ class OpenSoraPipeline(DiffusionPipeline):
         text_encoder,
         vae,
         scheduler,
-        enable_time_chunk=False,  # allow to process temporal frames as overlapped chunks
     ):
         super().__init__()
 
@@ -159,7 +103,6 @@ class OpenSoraPipeline(DiffusionPipeline):
             tokenizer=tokenizer, text_encoder=text_encoder, vae=vae, transformer=transformer, scheduler=scheduler
         )
         # self.vae_scale_factor = 2 ** (len(self.vae.config.block_out_channels) - 1)
-        self.enable_time_chunk = enable_time_chunk
 
         self.all_gather = None if not get_sequence_parallel_state() else AllGather()
 
@@ -239,7 +182,6 @@ class OpenSoraPipeline(DiffusionPipeline):
                 padding="max_length",
                 max_length=max_length,
                 truncation=True,
-                return_attention_mask=True,
                 add_special_tokens=True,
                 return_tensors=None,
             )
@@ -247,7 +189,7 @@ class OpenSoraPipeline(DiffusionPipeline):
             untruncated_ids = self.tokenizer(prompt, padding="longest", return_tensors=None).input_ids
             untruncated_ids = ms.Tensor(untruncated_ids)
 
-            if untruncated_ids.shape[-1] >= text_input_ids.shape[-1]:
+            if untruncated_ids.shape[-1] >= text_input_ids.shape[-1] and not ops.equal(text_input_ids, untruncated_ids):
                 removed_text = self.tokenizer.batch_decode(untruncated_ids[:, max_length - 1 : -1])
                 logger.warning(
                     "The following part of your input was truncated because the model can only handle sequences up to"
@@ -272,10 +214,10 @@ class OpenSoraPipeline(DiffusionPipeline):
 
         bs_embed, seq_len, _ = prompt_embeds.shape
         # duplicate text embeddings and attention mask for each generation per prompt, using mps friendly method
-        prompt_embeds = prompt_embeds.repeat_interleave(num_images_per_prompt, 1)
+        prompt_embeds = prompt_embeds.repeat(1, num_images_per_prompt, 1)
         prompt_embeds = prompt_embeds.view(bs_embed * num_images_per_prompt, seq_len, -1)
         prompt_attention_mask = prompt_attention_mask.view(bs_embed, -1)
-        prompt_attention_mask = prompt_attention_mask.repeat_interleave(num_images_per_prompt, 0)
+        prompt_attention_mask = prompt_attention_mask.repeat(num_images_per_prompt, 1)
 
         # get unconditional embeddings for classifier free guidance
         if do_classifier_free_guidance and negative_prompt_embeds is None:
@@ -308,18 +250,15 @@ class OpenSoraPipeline(DiffusionPipeline):
 
             negative_prompt_embeds = negative_prompt_embeds.to(dtype=dtype)
 
-            negative_prompt_embeds = negative_prompt_embeds.repeat_interleave(num_images_per_prompt, 1)
+            negative_prompt_embeds = negative_prompt_embeds.repeat(1, num_images_per_prompt, 1)
             negative_prompt_embeds = negative_prompt_embeds.view(batch_size * num_images_per_prompt, seq_len, -1)
 
-            # For classifier free guidance, we need to do two forward passes.
-            # Here we concatenate the unconditional and text embeddings into a single batch
-            # to avoid doing two forward passes
+            negative_prompt_attention_mask = negative_prompt_attention_mask.view(bs_embed, -1)
+            negative_prompt_attention_mask = negative_prompt_attention_mask.repeat(num_images_per_prompt, 1)
         else:
             negative_prompt_embeds = None
             negative_prompt_attention_mask = None
 
-        # print(prompt_embeds.shape) # 1 120 4096
-        # print(negative_prompt_embeds.shape) # 1 120 4096
         return prompt_embeds, prompt_attention_mask, negative_prompt_embeds, negative_prompt_attention_mask
 
     # Copied from diffusers.pipelines.stable_diffusion.pipeline_stable_diffusion.StableDiffusionPipeline.prepare_extra_step_kwargs
@@ -472,7 +411,7 @@ class OpenSoraPipeline(DiffusionPipeline):
         caption = re.sub(r"[\u3300-\u33ff]+", "", caption)
         caption = re.sub(r"[\u3400-\u4dbf]+", "", caption)
         caption = re.sub(r"[\u4dc0-\u4dff]+", "", caption)
-        caption = re.sub(r"[\u4e00-\u9fff]+", "", caption)
+        # caption = re.sub(r"[\u4e00-\u9fff]+", "", caption)
         #######################################################
 
         # все виды тире / all types of dash --> "-"
@@ -565,7 +504,11 @@ class OpenSoraPipeline(DiffusionPipeline):
             math.ceil(int(height) / self.vae.vae_scale_factor[1]),
             math.ceil(int(width) / self.vae.vae_scale_factor[2]),
         )
-
+        if isinstance(generator, list) and len(generator) != batch_size:
+            raise ValueError(
+                f"You have passed a list of generators of length {len(generator)}, but requested an effective batch"
+                f" size of {batch_size}. Make sure the batch size matches the length of the generators."
+            )
         if latents is None:
             latents = ops.randn(shape, dtype=dtype)
         else:
@@ -616,7 +559,6 @@ class OpenSoraPipeline(DiffusionPipeline):
         callback: Optional[Callable[[int, int, ms.Tensor], None]] = None,
         callback_steps: int = 1,
         clean_caption: bool = True,
-        enable_temporal_attentions: bool = True,
         use_resolution_binning: bool = True,
         max_sequence_length: int = 300,
         **kwargs,
@@ -663,9 +605,12 @@ class OpenSoraPipeline(DiffusionPipeline):
             prompt_embeds (`ms.Tensor`, *optional*):
                 Pre-generated text embeddings. Can be used to easily tweak text inputs, *e.g.* prompt weighting. If not
                 provided, text embeddings will be generated from `prompt` input argument.
+            prompt_attention_mask (`ms.Tensor`, *optional*): Pre-generated attention mask for text embeddings.
             negative_prompt_embeds (`ms.Tensor`, *optional*):
-                Pre-generated negative text embeddings. For PixArt-Alpha this negative prompt should be "". If not
+                Pre-generated negative text embeddings. For PixArt-Sigma this negative prompt should be "". If not
                 provided, negative_prompt_embeds will be generated from `negative_prompt` input argument.
+            negative_prompt_attention_mask (`ms.Tensor`, *optional*):
+                Pre-generated attention mask for negative text embeddings.
             output_type (`str`, *optional*, defaults to `"pil"`):
                 The output format of the generate image. Choose between
                 [PIL](https://pillow.readthedocs.io/en/stable/): `PIL.Image.Image` or `np.array`.
@@ -680,7 +625,11 @@ class OpenSoraPipeline(DiffusionPipeline):
                 Whether or not to clean the caption before creating embeddings. Requires `beautifulsoup4` and `ftfy` to
                 be installed. If the dependencies are not installed, the embeddings will be created from the raw
                 prompt.
-            max_sequence_length (`int`, defaults to 120): Maximum sequence length to use for the prompt.
+            use_resolution_binning (`bool` defaults to `True`):
+                If set to `True`, the requested height and width are first mapped to the closest resolutions using
+                `ASPECT_RATIO_1024_BIN`. After the produced latents are decoded into images, they are resized back to
+                the requested resolution. Useful for generating non-square images.
+            max_sequence_length (`int` defaults to 120): Maximum sequence length to use with the `prompt`.
 
         Examples:
 
@@ -806,7 +755,6 @@ class OpenSoraPipeline(DiffusionPipeline):
                     encoder_attention_mask=prompt_attention_mask,  # (b n)
                     timestep=current_timestep,  # (b)
                     added_cond_kwargs=added_cond_kwargs,
-                    enable_temporal_attentions=enable_temporal_attentions,
                     temp_attention_mask=temp_attention_mask,
                 )
 
@@ -853,57 +801,11 @@ class OpenSoraPipeline(DiffusionPipeline):
         video = ops.clip_by_value((video / 2.0 + 0.5), clip_value_min=0.0, clip_value_max=1.0).permute(0, 1, 3, 4, 2)
         return video  # b t h w c
 
-    def decode_latents_per_sample_in_chunks(self, latents):
-        video = self.process_in_chunks(latents, 7, 2).to(ms.float32)
-        video = ops.clip_by_value((video / 2.0 + 0.5), clip_value_min=0.0, clip_value_max=1.0).permute(
-            0, 2, 3, 4, 1
-        )  # b c t h w -> b t h w c
-        return video  # b t h w c
-
     def decode_latents(self, latents):
-        if not self.enable_time_chunk:
-            per_sample_func = self.decode_latents_per_sample
-        else:
-            per_sample_func = self.decode_latents_per_sample_in_chunks
+        per_sample_func = self.decode_latents_per_sample
         out = []
         bs = latents.shape[0]
         for i in range(bs):
             out.append(per_sample_func(latents[i : i + 1]))
         out = ops.cat(out, axis=0)
         return out  # b t h w c
-
-    def process_in_chunks(
-        self,
-        video_data: ms.Tensor,
-        chunk_size: int,
-        overlap: int,
-    ):
-        assert (chunk_size + overlap - 1) % 4 == 0
-        num_frames = video_data.shape[2]
-        output_chunks = []
-
-        start = 0
-        while start < num_frames:
-            end = min(start + chunk_size, num_frames)
-            if start + chunk_size + overlap < num_frames:
-                end += overlap
-            chunk = video_data[:, :, start:end, :, :]
-
-            latents = chunk  # no need to run vae encoding
-            recon_chunk = self.vae.decode(latents)  # b t c h w
-            recon_chunk = recon_chunk.permute(0, 2, 1, 3, 4)  # b t c h w -> b c t h w
-
-            if output_chunks:
-                overlap_step = min(overlap, recon_chunk.shape[2])
-                overlap_tensor = (
-                    output_chunks[-1][:, :, -overlap_step:] * 1 / 4 + recon_chunk[:, :, :overlap_step] * 3 / 4
-                )
-                output_chunks[-1] = ops.cat((output_chunks[-1][:, :, :-overlap], overlap_tensor), axis=2)
-                if end < num_frames:
-                    output_chunks.append(recon_chunk[:, :, overlap:])
-                else:
-                    output_chunks.append(recon_chunk[:, :, :, :, :])
-            else:
-                output_chunks.append(recon_chunk)
-            start += chunk_size
-        return ops.cat(output_chunks, axis=2)  # b c t h w
