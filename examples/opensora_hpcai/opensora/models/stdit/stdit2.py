@@ -400,9 +400,9 @@ class STDiT2(nn.Cell):
             base_size = int(round(S ** Tensor(0.5)))
         else:
             base_size = round(S**0.5)
-        # BUG MS2.3rc1: ops.meshgrid() bprop is not supported
 
         if spatial_pos is None:
+            # Position embedding doesn't need gradient
             pos_emb = ops.stop_gradient(self.pos_embed(H, W, scale=scale, base_size=base_size))
         else:
             pos_emb = spatial_pos
@@ -580,7 +580,7 @@ class STDiT2(nn.Cell):
                     assert conv3d_weight.shape[-3] == 1
                     sd[key_3d] = Parameter(conv3d_weight.squeeze(axis=-3), name=key_3d)
 
-            # Loading PixArt weights (T5's sequence length is 120 vs. 200 in STDiT2).
+            # Loading PixArt-α weights (T5's sequence length is 120 vs. 200 in STDiT2).
             if self.y_embedder.y_embedding.shape != sd["y_embedder.y_embedding"].shape:
                 print("WARNING: T5's sequence length doesn't match STDiT2. Padding with default values.")
                 param = sd["y_embedder.y_embedding"].value()

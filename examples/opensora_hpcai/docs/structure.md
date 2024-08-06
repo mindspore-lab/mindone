@@ -22,7 +22,8 @@ opensora_cai
 │   │   ├── inference
 │   │   └── train
 │   └── opensora-v1-2
-│   │   └── inference
+│   │   ├── inference
+│   │   └── train
 ├── docs
 │   ├── config.md
 │   ├── quick_start.md

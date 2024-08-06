@@ -8,7 +8,9 @@ from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import Any, Callable, List, Optional, Tuple
 
+import cv2
 import numpy as np
+from decord import VideoReader
 from tqdm import tqdm
 
 from mindspore.dataset.transforms import Compose
@@ -20,7 +22,6 @@ from .transforms import BucketResizeCrop, Resize
 # FIXME: remove in future when mindone is ready for install
 sys.path.append(os.path.join(os.path.dirname(__file__), "../../../.."))
 from mindone.data import BaseDataset
-from mindone.data.video_reader import VideoReader
 from mindone.models.modules.pos_embed import get_2d_sincos_pos_embed
 
 from ..models.layers.rotary_embedding import precompute_freqs_cis
@@ -51,8 +52,9 @@ class VideoDatasetRefactored(BaseDataset):
         vae_downsample_rate: float = 8.0,
         vae_scale_factor: float = 0.18215,
         sample_n_frames: int = 16,
-        sample_stride: int = 4,
+        sample_stride: int = 1,
         frames_mask_generator: Optional[Callable[[int], np.ndarray]] = None,
+        t_compress_func: Optional[Callable[[int], int]] = None,
         pre_patchify: bool = False,
         patch_size: Tuple[int, int, int] = (1, 2, 2),
         embed_dim: int = 1152,
@@ -65,9 +67,12 @@ class VideoDatasetRefactored(BaseDataset):
         *,
         output_columns: List[str],
     ):
-        if pre_patchify:
-            if not vae_latent_folder:
-                raise ValueError("`vae_latent_folder` must be provided when `pre_patchify=True`.")
+        if pre_patchify and vae_latent_folder is None:
+            raise ValueError("`vae_latent_folder` must be provided when `pre_patchify=True`.")
+        if text_emb_folder is None:
+            raise NotImplementedError(
+                "Text embedding during training is not supported, please provide `text_emb_folder`."
+            )
 
         self._data = self._read_data(video_folder, csv_path, text_emb_folder, vae_latent_folder, filter_data)
         self._frames = sample_n_frames
@@ -78,6 +83,7 @@ class VideoDatasetRefactored(BaseDataset):
         self._vae_downsample_rate = vae_downsample_rate
         self._vae_scale_factor = vae_scale_factor
         self._fmask_gen = frames_mask_generator
+        self._t_compress_func = t_compress_func or (lambda x: x)
         self._pre_patchify = pre_patchify
         self._buckets = buckets
 
@@ -147,7 +153,7 @@ class VideoDatasetRefactored(BaseDataset):
                         sample["vae_latent"] = os.path.join(vae_latent_folder, Path(item["video"]).with_suffix(".npz"))
                     data.append(sample)
             except KeyError as e:
-                _logger.error("CSV file requires `video` (file paths) column.")
+                _logger.error(f"CSV file requires `video` (file paths) column, but got {list(item.keys())}")
                 raise e
 
         if filter_data:
@@ -169,9 +175,9 @@ class VideoDatasetRefactored(BaseDataset):
                 return self._get_item(idx)
             except Exception as e:
                 error = e
-                _logger.debug(f"Failed to load a replacement sample: {e}")
+                _logger.debug(f"Failed to load a replacement sample: {repr(e)}")
 
-        raise RuntimeError(f"Fail to load a replacement sample in {attempts} attempts. Error: {error}")
+        raise RuntimeError(f"Fail to load a replacement sample in {attempts} attempts. Error: {repr(error)}")
 
     def _get_item(self, idx: int) -> Tuple[Any, ...]:
         data = self._data[idx].copy()
@@ -179,7 +185,12 @@ class VideoDatasetRefactored(BaseDataset):
 
         if self._text_emb_folder:
             with np.load(data["text_emb"]) as td:
-                data.update({"caption": td["text_emb"], "mask": td["mask"]})
+                data.update(
+                    {
+                        "caption": td["text_emb"],
+                        "mask": td["mask"].astype(np.int32),  # FIXME: convert to int32 until PyNative bug is fixed
+                    }
+                )
 
         if self._vae_latent_folder:
             # pick a resolution randomly if there are multi-resolution latents in vae folder
@@ -187,18 +198,19 @@ class VideoDatasetRefactored(BaseDataset):
             if self.num_latent_resolution > 1:
                 ridx = random.randint(0, self.num_latent_resolution - 1)
                 vae_latent_path = vae_latent_path.replace(self._vae_latent_folder, self.latent_resolution_prefix[ridx])
-            # print("D--: vae latent npz: ", vae_latent_path)
 
             vae_latent_data = np.load(vae_latent_path)
 
             # get fps from csv, or cached latents, or from original video in order
-            if "fps" in data:  # cache FPS for further iterations
+            if "fps" in data:
                 data["fps"] = np.array(data["fps"], dtype=np.float32)
             elif "fps" in vae_latent_data:
                 data["fps"] = np.array(vae_latent_data["fps"], dtype=np.float32)
             else:
-                with VideoReader(data["video"]) as reader:
-                    data["fps"] = self._data[idx]["fps"] = np.array(reader.fps, dtype=np.float32)
+                fps = VideoReader(data["video"]).get_avg_fps()
+                self._data[idx]["fps"] = fps  # cache FPS for further iterations
+                data["fps"] = np.array(fps, dtype=np.float32)
+            # data["fps"] /= self._stride  # FIXME: OS v1.1 incorrectly calculates FPS
 
             latent_mean, latent_std = vae_latent_data["latent_mean"], vae_latent_data["latent_std"]
             if len(latent_mean) < self._min_length:
@@ -212,32 +224,43 @@ class VideoDatasetRefactored(BaseDataset):
             data["video"] = (vae_latent * self._vae_scale_factor).astype(np.float32)
 
         else:
-            with VideoReader(data["video"]) as reader:
-                min_length = self._min_length
-                if self._buckets:
-                    data["bucket_id"] = self._buckets.get_bucket_id(
-                        T=len(reader), H=reader.shape[1], W=reader.shape[0], frame_interval=self._stride
+            reader = VideoReader(data["video"])
+            min_length = self._min_length
+            if self._buckets:
+                if "shape" not in data:
+                    # decord doesn't support reading the video shape until a frame is fetched
+                    # so read the shape with OpenCV and cache it for further iterations
+                    cap = cv2.VideoCapture(data["video"], apiPreference=cv2.CAP_FFMPEG)
+                    self._data[idx]["shape"] = data["shape"] = (
+                        int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT)),
+                        int(cap.get(cv2.CAP_PROP_FRAME_WIDTH)),
                     )
-                    if data["bucket_id"] is None:
-                        raise ValueError(
-                            f"Couldn't assign a bucket to {data['video']}"
-                            f" (T={len(reader)}, H={reader.shape[1]}, W={reader.shape[0]})."
-                        )
+                    cap.release()
 
-                    num_frames, *_ = self._buckets.get_thw(data["bucket_id"])
-                    min_length = (num_frames - 1) * self._stride + 1
+                data["bucket_id"] = self._buckets.get_bucket_id(
+                    T=len(reader), H=data["shape"][0], W=data["shape"][1], frame_interval=self._stride
+                )
+                if data["bucket_id"] is None:
+                    raise ValueError(
+                        f"Couldn't assign a bucket to {data['video']}"
+                        f" (T={len(reader)}, H={data['shape'][0]}, W={data['shape'][1]})."
+                    )
 
-                if len(reader) < min_length:
-                    raise ValueError(f"Video is too short: {data['video']}")
+                num_frames, *_ = self._buckets.get_thw(data["bucket_id"])
+                min_length = (num_frames - 1) * self._stride + 1
 
-                start_pos = random.randint(0, len(reader) - min_length)
-                data["video"] = reader.fetch_frames(num=num_frames, start_pos=start_pos, step=self._stride)
-                data["fps"] = np.array(reader.fps, dtype=np.float32)
+            if len(reader) < min_length:
+                raise ValueError(f"Video is too short: {data['video']}")
+
+            start_pos = random.randint(0, len(reader) - min_length)
+            data["video"] = reader.get_batch(list(range(start_pos, start_pos + min_length, self._stride))).asnumpy()
+            data["fps"] = np.array(reader.get_avg_fps(), dtype=np.float32)  # / self._stride  # FIXME: OS v1.1 incorrect
 
         data["num_frames"] = np.array(num_frames, dtype=np.float32)
 
         if self._fmask_gen is not None:
-            data["frames_mask"] = self._fmask_gen(num_frames)
+            # return frames mask with respect to the VAE's latent temporal compression
+            data["frames_mask"] = self._fmask_gen(self._t_compress_func(num_frames))
 
         return tuple(data[c] for c in self.output_columns)
 
