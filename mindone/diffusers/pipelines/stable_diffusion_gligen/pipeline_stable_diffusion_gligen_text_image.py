@@ -965,7 +965,7 @@ class StableDiffusionGLIGENTextImagePipeline(DiffusionPipeline):
                     latent_model_input,
                     t,
                     encoder_hidden_states=prompt_embeds,
-                    cross_attention_kwargs=cross_attention_kwargs,
+                    cross_attention_kwargs=ms.mutable(cross_attention_kwargs),
                 )[0]
 
                 # predict the noise residual without grounded information
@@ -973,7 +973,7 @@ class StableDiffusionGLIGENTextImagePipeline(DiffusionPipeline):
                     latent_model_input,
                     t,
                     encoder_hidden_states=prompt_embeds,
-                    cross_attention_kwargs=cross_attention_kwargs_without_grounded,
+                    cross_attention_kwargs=ms.mutable(cross_attention_kwargs_without_grounded),
                 )[0]
 
                 # perform guidance

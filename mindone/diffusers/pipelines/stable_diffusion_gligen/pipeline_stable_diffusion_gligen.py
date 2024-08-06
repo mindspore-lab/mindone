@@ -801,7 +801,7 @@ class StableDiffusionGLIGENPipeline(DiffusionPipeline):
                     latent_model_input,
                     t,
                     encoder_hidden_states=prompt_embeds,
-                    cross_attention_kwargs=cross_attention_kwargs,
+                    cross_attention_kwargs=ms.mutable(cross_attention_kwargs),
                 )[0]
 
                 # perform guidance

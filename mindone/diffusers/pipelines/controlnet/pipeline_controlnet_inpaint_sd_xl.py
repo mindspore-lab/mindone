@@ -1622,7 +1622,7 @@ class StableDiffusionXLControlNetInpaintPipeline(
                     controlnet_cond=control_image,
                     conditioning_scale=cond_scale,
                     guess_mode=guess_mode,
-                    added_cond_kwargs=controlnet_added_cond_kwargs,
+                    added_cond_kwargs=ms.mutable(controlnet_added_cond_kwargs),
                     return_dict=False,
                 )
 
@@ -1647,7 +1647,7 @@ class StableDiffusionXLControlNetInpaintPipeline(
                     cross_attention_kwargs=self.cross_attention_kwargs,
                     down_block_additional_residuals=ms.mutable(down_block_res_samples),
                     mid_block_additional_residual=mid_block_res_sample,
-                    added_cond_kwargs=added_cond_kwargs,
+                    added_cond_kwargs=ms.mutable(added_cond_kwargs),
                     return_dict=False,
                 )[0]
 

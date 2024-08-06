@@ -1142,7 +1142,7 @@ class StableDiffusionXLAdapterPipeline(
                     timestep_cond=timestep_cond,
                     cross_attention_kwargs=cross_attention_kwargs,
                     down_intrablock_additional_residuals=ms.mutable(down_intrablock_additional_residuals),
-                    added_cond_kwargs=added_cond_kwargs,
+                    added_cond_kwargs=ms.mutable(added_cond_kwargs),
                     return_dict=False,
                 )[0]
 
