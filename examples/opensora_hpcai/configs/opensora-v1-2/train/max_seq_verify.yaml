@@ -1,6 +1,7 @@
+
 # model
 model_version: v1.2
-pretrained_model_path: models/PixArt-Sigma-XL-2-2K-MS.ckpt
+pretrained_model_path: PATH_TO_YOUR_MODEL
 model_max_length: 300
 freeze_y_embedder: True
 
@@ -18,9 +19,7 @@ enable_flash_attention: True
 use_recompute: True
 
 # data
-num_parallel_workers: 2
-num_workers_dataset: 2
-prefetch_size: 2
+num_parallel_workers: 8
 max_rowsize: 256
 
 # precision
@@ -47,32 +46,43 @@ epochs: 1000
 ckpt_save_interval: &save_interval 100
 
 mask_ratios:
-  random: 0.05
-  interpolate: 0.005
-  quarter_random: 0.005
-  quarter_head: 0.005
-  quarter_tail: 0.005
-  quarter_head_tail: 0.005
-  image_random: 0.025
-  image_head: 0.05
-  image_tail: 0.025
-  image_head_tail: 0.025
+  random: 0.01
+  interpolate: 0.002
+  quarter_random: 0.002
+  quarter_head: 0.002
+  quarter_tail: 0.002
+  quarter_head_tail: 0.002
+  image_random: 0.0
+  image_head: 0.22
+  image_tail: 0.005
+  image_head_tail: 0.005
 
 bucket_config:
   # Structure: "resolution": { num_frames: [ keep_prob, batch_size ] }
   # Setting [ keep_prob, batch_size ] to [ 0.0, 0 ] forces longer videos into smaller resolution buckets
-  "144p": {1: [1.0, 475], 51: [1.0, 51], 102: [[1.0, 0.33], 27], 204: [[1.0, 0.1], 13], 408: [[1.0, 0.1], 6]}
-  "256": {1: [0.4, 297], 51: [0.5, 20], 102: [[0.5, 0.33], 10], 204: [[0.5, 0.1], 5], 408: [[0.5, 0.1], 2]}
-  "240p": {1: [0.3, 297], 51: [0.4, 20], 102: [[0.4, 0.33], 10], 204: [[0.4, 0.1], 5], 408: [[0.4, 0.1], 2]}
-  "360p": {1: [0.2, 141], 51: [0.15, 8], 102: [[0.15, 0.33], 4], 204: [[0.15, 0.1], 2], 408: [[0.15, 0.1], 1]}
-  "512": {1: [0.1, 141]}
-  "480p": {1: [0.1, 89]}
-  "720p": {1: [0.05, 36]}
-  "1024": {1: [0.05, 36]}
-  "1080p": {1: [0.1, 5]}
-  "2048": {1: [0.1, 5]}
+  # "240p": { 408: [ 1.0, 1 ] }
+  # "360p": { 408: [ 0.75, 1 ] }
+  # 408: [ 0.0, 0 ]
+  # 204: [ 0.0, 0 ]
+  "480p": { 204: [ 0.5, 1] }
+  "720p": { 102: [ 0.5, 1] }
 
-manual_pad: True
 
 # ---------- Validation ----------
 validate: False
+val_interval: *save_interval
+num_eval_timesteps: 10
+
+val_csv_path:
+val_video_folder:
+val_text_embed_folder:
+val_vae_latent_folder:
+
+val_bucket_config:
+  "144p": { 51: [ 1.0, 30 ], 102: [ 1.0, 20 ], 204: [ 1.0, 8 ], 408: [ 1.0, 4 ] }
+  "240p": { 51: [ 1.0, 16 ], 102: [ 1.0, 8 ], 204: [ 1.0, 4 ], 408: [ 1.0, 2 ] }
+  "360p": { 51: [ 1.0, 6 ], 102: [ 1.0, 3 ], 204: [ 1.0, 1 ], 340: [ 1.0, 1 ] }
+  "480p": { 51: [ 1.0, 4 ], 102: [ 1.0, 2 ], 204: [ 1.0, 1 ] }
+  "720p": { 51: [ 1.0, 1 ], 85: [ 1.0, 1 ] }
+
+manual_pad: True

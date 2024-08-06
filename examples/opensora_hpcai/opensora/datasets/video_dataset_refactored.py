@@ -21,6 +21,9 @@ from .transforms import BucketResizeCrop, Resize
 
 # FIXME: remove in future when mindone is ready for install
 sys.path.append(os.path.join(os.path.dirname(__file__), "../../../.."))
+# from mindone.data.video_reader import VideoReader
+from decord import VideoReader
+
 from mindone.data import BaseDataset
 from mindone.models.modules.pos_embed import get_2d_sincos_pos_embed
 
@@ -207,9 +210,9 @@ class VideoDatasetRefactored(BaseDataset):
             elif "fps" in vae_latent_data:
                 data["fps"] = np.array(vae_latent_data["fps"], dtype=np.float32)
             else:
-                fps = VideoReader(data["video"]).get_avg_fps()
-                self._data[idx]["fps"] = fps  # cache FPS for further iterations
-                data["fps"] = np.array(fps, dtype=np.float32)
+                reader = VideoReader(data["video"])
+                self._data[idx]["fps"] = reader.get_avg_fps()  # cache FPS for further iterations
+                data["fps"] = np.array(reader.get_avg_fps(), dtype=np.float32)
             # data["fps"] /= self._stride  # FIXME: OS v1.1 incorrectly calculates FPS
 
             latent_mean, latent_std = vae_latent_data["latent_mean"], vae_latent_data["latent_std"]
@@ -226,24 +229,21 @@ class VideoDatasetRefactored(BaseDataset):
         else:
             reader = VideoReader(data["video"])
             min_length = self._min_length
+            video_length = len(reader)
             if self._buckets:
-                if "shape" not in data:
-                    # decord doesn't support reading the video shape until a frame is fetched
-                    # so read the shape with OpenCV and cache it for further iterations
-                    cap = cv2.VideoCapture(data["video"], apiPreference=cv2.CAP_FFMPEG)
-                    self._data[idx]["shape"] = data["shape"] = (
-                        int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT)),
-                        int(cap.get(cv2.CAP_PROP_FRAME_WIDTH)),
-                    )
-                    cap.release()
-
+                # frame_h, frame_w, _ = reader[0].shape
+                cap = cv2.VideoCapture(data["video"], apiPreference=cv2.CAP_FFMPEG)
+                frame_w = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+                frame_h = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
                 data["bucket_id"] = self._buckets.get_bucket_id(
-                    T=len(reader), H=data["shape"][0], W=data["shape"][1], frame_interval=self._stride
+                    T=video_length,
+                    H=frame_h,
+                    W=frame_w,
+                    frame_interval=self._stride,
                 )
                 if data["bucket_id"] is None:
                     raise ValueError(
-                        f"Couldn't assign a bucket to {data['video']}"
-                        f" (T={len(reader)}, H={data['shape'][0]}, W={data['shape'][1]})."
+                        f"Couldn't assign a bucket to {data['video']}" f" (T={video_length}, H={frame_h}, W={frame_w})."
                     )
 
                 num_frames, *_ = self._buckets.get_thw(data["bucket_id"])
@@ -252,8 +252,10 @@ class VideoDatasetRefactored(BaseDataset):
             if len(reader) < min_length:
                 raise ValueError(f"Video is too short: {data['video']}")
 
-            start_pos = random.randint(0, len(reader) - min_length)
-            data["video"] = reader.get_batch(list(range(start_pos, start_pos + min_length, self._stride))).asnumpy()
+            clip_length = min(video_length, min_length)
+            start_pos = random.randint(0, len(reader) - clip_length)
+            batch_index = np.linspace(start_pos, start_pos + clip_length - 1, num_frames, dtype=int)
+            data["video"] = reader.get_batch(batch_index).asnumpy()
             data["fps"] = np.array(reader.get_avg_fps(), dtype=np.float32)  # / self._stride  # FIXME: OS v1.1 incorrect
 
         data["num_frames"] = np.array(num_frames, dtype=np.float32)
