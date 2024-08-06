@@ -1,6 +1,5 @@
 import argparse
 import os
-import re
 
 import torch
 
@@ -38,23 +37,13 @@ def load_torch_ckpt(ckpt_path):
 def convert_pt_name_to_ms(content: str) -> str:
     # embedding table name conversion
     content = content.replace("y_embedder.embedding_table.weight", "y_embedder.embedding_table.embedding_table")
-    # temporal_transformer_blocks.i. -> blocks.i.temp_block.
+    # transformer_blocks.i. -> blocks.i.temp_block.
     # transformer_blocks.i. -> blocks.i.spatial_block.
-    # temporal_transformer_blocks.i.normj -> temporal_transformer_blocks.i.normj_ln
+    # transformer_blocks.i.normj -> transformer_blocks.i.normj_ln
     # transformer_blocks.i.normj -> transformer_blocks.i.normj_ln
     for i in range(28):  # FIXME: a better way to do this?
-        content = content.replace(
-            f"temporal_transformer_blocks.{i}.norm1.", f"temporal_transformer_blocks.{i}.norm1_ln."
-        )
-        content = content.replace(
-            f"temporal_transformer_blocks.{i}.norm2.", f"temporal_transformer_blocks.{i}.norm2_ln."
-        )
         content = content.replace(f"transformer_blocks.{i}.norm1.", f"transformer_blocks.{i}.norm1_ln.")
         content = content.replace(f"transformer_blocks.{i}.norm2.", f"transformer_blocks.{i}.norm2_ln.")
-
-        pattern = rf"\b(?<!temporal_)transformer_blocks\.{i}\.\b"
-        content = re.sub(pattern, f"blocks.{i}.spatial_block.", content)
-        content = content.replace(f"temporal_transformer_blocks.{i}.", f"blocks.{i}.temp_block.")
     return content
 
 

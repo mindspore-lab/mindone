@@ -6,10 +6,10 @@ python tools/model_conversion/convert_vae.py \
   --src LanguageBind/Open-Sora-Plan-v1.2.0/vae/checkpoint.ckpt \
   --target LanguageBind/Open-Sora-Plan-v1.2.0/vae/causalvae_d4_488.ckpt \
 
-# python tools/model_conversion/convert_latte.py \
-#   --src LanguageBind/Open-Sora-Plan-v1.1.0/65x512x512/diffusion_pytorch_model.safetensors \
-#   --target LanguageBind/Open-Sora-Plan-v1.1.0/65x512x512/LatteT2V-65x512x512.ckpt
+python tools/model_conversion/convert_opensorat2v.py \
+  --src LanguageBind/Open-Sora-Plan-v1.2.0/29x720p/diffusion_pytorch_model.safetensors \
+  --target LanguageBind/Open-Sora-Plan-v1.2.0/29x720p/OpenSoraT2V-29x720p.ckpt
 
 # python tools/model_conversion/convert_latte.py \
 #   --src LanguageBind/Open-Sora-Plan-v1.1.0/221x512x512/diffusion_pytorch_model.safetensors \
-#   --target LanguageBind/Open-Sora-Plan-v1.1.0/221x512x512/LatteT2V-221x512x512.ckpt
+#   --target LanguageBind/Open-Sora-Plan-v1.1.0/221x512x512/OpenSoraT2V-221x512x512.ckpt

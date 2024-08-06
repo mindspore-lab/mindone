@@ -8,6 +8,7 @@ import time
 import numpy as np
 import pandas as pd
 import yaml
+from PIL import Image
 from tqdm import tqdm
 
 import mindspore as ms
@@ -61,17 +62,11 @@ def parse_args():
         help="If not provided, will search for ckpt file under `model_path`"
         "If provided, will use this pretrained ckpt path.",
     )
-    parser.add_argument(
-        "--version",
-        type=str,
-        default="65x512x512",
-        help="Model version in ['65x512x512', '221x512x512', '513x512x512'] ",
-    )
     parser.add_argument("--num_frames", type=int, default=1)
     parser.add_argument("--height", type=int, default=512)
     parser.add_argument("--width", type=int, default=512)
     parser.add_argument("--ae", type=str, default="CausalVAEModel_4x8x8")
-
+    parser.add_argument("--ae_path", type=str, default="CausalVAEModel_4x8x8")
     parser.add_argument("--sp_size", type=int, default=1, help="For sequence parallel")
 
     parser.add_argument("--text_encoder_name", type=str, default="DeepFloyd/t5-v1_1-xxl")
@@ -200,7 +195,7 @@ if __name__ == "__main__":
 
     # 2. vae model initiate and weight loading
     logger.info("vae init")
-    vae = CausalVAEModelWrapper(args.model_path, subfolder="vae", cache_dir=args.cache_dir)
+    vae = CausalVAEModelWrapper(args.ae_path, cache_dir=args.cache_dir)
     if args.enable_tiling:
         vae.vae.enable_tiling()
         vae.vae.tile_overlap_factor = args.tile_overlap_factor
@@ -301,12 +296,10 @@ if __name__ == "__main__":
         sys.exit()
 
     # 4. latte model initiate and weight loading
-    logger.info(f"Latte-{args.version} init")
     FA_dtype = get_precision(args.precision) if get_precision(args.precision) != ms.float32 else ms.bfloat16
     assert args.model_type == "dit", "Currently only suppport model_type as 'dit'@"
     transformer_model = OpenSoraT2V.from_pretrained(
         args.model_path,
-        subfolder=args.version,
         checkpoint_path=args.pretrained_ckpt,
         enable_flash_attention=args.enable_flash_attention,
         FA_dtype=FA_dtype,
@@ -439,8 +432,14 @@ if __name__ == "__main__":
                 if args.save_latents:
                     np.save(file_path, videos[i_sample : i_sample + 1])
                 else:
-                    save_video_data = videos[i_sample : i_sample + 1]  # (b t h w c)
-                    save_videos(save_video_data, file_path, loop=0, fps=args.fps)
+                    if args.num_frames == 1:
+                        ext = "jpg"
+                        image = videos[i_sample, 0]  # (b t h w c)  -> (h, w, c)
+                        image = (image * 255).round().clip(0, 255).astype(np.uint8)
+                        Image.from_numpy(image).save(file_path)
+                    else:
+                        save_video_data = videos[i_sample : i_sample + 1]  # (b t h w c)
+                        save_videos(save_video_data, file_path, loop=0, fps=args.fps)
 
     end_time = time.time()
     time_cost = end_time - start_time
