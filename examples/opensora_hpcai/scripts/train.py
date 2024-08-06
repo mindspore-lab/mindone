@@ -358,7 +358,6 @@ def main(args):
                 if args.vae_micro_frame_size <= 0:
                     args.vae_micro_frame_size = None
 
-            print("D--: mfs: ", args.vae_micro_frame_size)
             vae = OpenSoraVAE_V1_2(
                 micro_batch_size=args.vae_micro_batch_size,
                 micro_frame_size=args.vae_micro_frame_size,

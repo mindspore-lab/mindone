@@ -583,6 +583,22 @@ You may also see the example shell scripts in `scripts/run` for quick reference.
 
 ## Evaluation
 
+### Open-Sora 1.2
+#### Training Performance
+
+We evaluated the training performance of Open-Sora v1.2 on a subset of mixkit videos, moast of which are high-resolution videos (1080P resolution, around 12 to 100 seconds). The results are as follows.
+
+| Model       | Context      | jit_level | Precision | BS | NPUs | Resolution(framesxHxW) | Train T. (s/step) |
+|:------------|:-------------|:--------|:---------:|:--:|:----:|:----------------------:|:-----------------:|
+| STDiT3-XL/2 | D910\*-[CANN C18(0705)](https://repo.mindspore.cn/ascend/ascend910/20240705/)-[MS2.3](https://www.mindspore.cn/install) |    O1  |    BF16   |  1 |  8   |       51x720x1280      |        **14.60**       |
+| STDiT3-XL/2 | D910\*-[CANN C18(0705)](https://repo.mindspore.cn/ascend/ascend910/20240705/)-[MS2.3.1(0726)](https://repo.mindspore.cn/mindspore/mindspore/version/202407/20240726/master_20240726220021_4c913fb116c83b9ad28666538483264da8aebe8c_newest/unified/)  |    O1  |    BF16   |  1 |  8   |       Stage 2       |        **34**       |
+> Context: {G:GPU, D:Ascend}{chip type}-{mindspore version}.
+
+Note that the training speed of stage 2 can be influenced by the resolution and duration distribution of the source videos. The training performance is still under optimization.
+
+To reproduce the above performance, you may refer to `scripts/run/run_train_os1.2_720x1280x51.sh` and  `scripts/run/run_train_os1.2_stage2.sh`.
+
+
 ### Open-Sora 1.1
 
 #### Training Performance
