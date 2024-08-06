@@ -498,8 +498,7 @@ This can be enabled in one of two ways:
 2. Use `bucket_config` for training with videos in their original format. More on the bucket configuration can be found
    in [Multi-resolution Training with Buckets](./docs/quick_start.md#4-multi-resolution-training-with-buckets-opensora-v11-and-above).
 
-Detailed running command can be referred in `scripts/run/run_train_os_v1.2_graph.sh` or
-`scripts/run/run_train_os_v1.2_pynative.sh`.
+Detailed running command can be referred in `scripts/run/run_train_os_v1.2_stage2.sh`
 
 
 ### Open-Sora 1.1

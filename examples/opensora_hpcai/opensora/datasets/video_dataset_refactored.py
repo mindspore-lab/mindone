@@ -21,9 +21,6 @@ from .transforms import BucketResizeCrop, Resize
 
 # FIXME: remove in future when mindone is ready for install
 sys.path.append(os.path.join(os.path.dirname(__file__), "../../../.."))
-# from mindone.data.video_reader import VideoReader
-from decord import VideoReader
-
 from mindone.data import BaseDataset
 from mindone.models.modules.pos_embed import get_2d_sincos_pos_embed
 
