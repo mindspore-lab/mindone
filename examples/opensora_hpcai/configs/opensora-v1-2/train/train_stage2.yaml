@@ -41,7 +41,7 @@ optim: "adamw_re"
 optim_eps: 1e-15
 weight_decay: 0.
 
-epochs: 1000
+epochs: 5000
 ckpt_save_interval: &save_interval 100
 
 mask_ratios:

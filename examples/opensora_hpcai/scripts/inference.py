@@ -147,6 +147,7 @@ def main(args):
         args.seed,
         args.use_parallel,
         device_target=args.device_target,
+        max_device_memory=args.max_device_memory,
         jit_level=args.jit_level,
         debug=args.debug,
     )
@@ -607,6 +608,7 @@ def parse_args():
     parser.add_argument("--use_parallel", default=False, type=str2bool, help="use parallel")
     parser.add_argument("--debug", type=str2bool, default=False, help="Execute inference in debug mode.")
     parser.add_argument("--seed", type=int, default=4, help="Inference seed")
+    parser.add_argument("--max_device_memory", type=str, default=None, help="e.g. `30GB` for 910a, `59GB` for 910b")
     parser.add_argument(
         "--patchify",
         type=str,
