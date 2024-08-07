@@ -3,6 +3,7 @@ import os
 from typing import Tuple
 
 from opensora.acceleration.parallel_states import get_sequence_parallel_state
+from opensora.utils.utils import load_torch_state_dict_to_ms_ckpt
 
 import mindspore as ms
 from mindspore import nn, ops
@@ -14,7 +15,7 @@ from mindone.diffusers.utils import SAFETENSORS_WEIGHTS_NAME, WEIGHTS_NAME, _add
 from ..modeling_videobase import VideoBaseAE
 from ..modules.conv import CausalConv3d, Conv2d
 from ..modules.ops import nonlinearity
-from ..utils.model_utils import load_torch_state_dict_to_ms_ckpt, resolve_str_to_obj
+from ..utils.model_utils import resolve_str_to_obj
 
 logger = logging.getLogger(__name__)
 

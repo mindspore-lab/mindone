@@ -56,7 +56,7 @@ def parse_args():
     )
     parser.add_argument("--model_path", type=str, default="LanguageBind/Open-Sora-Plan-v1.2.0")
     parser.add_argument(
-        "--pretrained_ckpt",
+        "--ms_checkpoint",
         type=str,
         default=None,
         help="If not provided, will search for ckpt file under `model_path`"
@@ -305,14 +305,21 @@ if __name__ == "__main__":
     # 4. latte model initiate and weight loading
     FA_dtype = get_precision(args.precision) if get_precision(args.precision) != ms.float32 else ms.bfloat16
     assert args.model_type == "dit", "Currently only suppport model_type as 'dit'@"
+    if args.ms_checkpoint and os.path.exists(args.ms_checkpoint):
+        logger.info(f"Initiate from MindSpore checkpoint file {args.ms_checkpoint}")
+        skip_load_ckpt = True
+    else:
+        skip_load_ckpt = False
+    kwargs = {"enable_flash_attention": args.enable_flash_attention, "FA_dtype": FA_dtype}
     transformer_model = OpenSoraT2V.from_pretrained(
         args.model_path,
-        checkpoint_path=args.pretrained_ckpt,
-        enable_flash_attention=args.enable_flash_attention,
-        FA_dtype=FA_dtype,
+        model_file=args.ms_checkpoint,
         cache_dir=args.cache_dir,
+        additional_config_kwargs=kwargs,
+        skip_load_ckpt=skip_load_ckpt,
     )
-
+    if skip_load_ckpt:
+        transformer_model.load_from_checkpoint(args.ms_checkpoint)
     # mixed precision
     dtype = get_precision(args.precision)
     if args.precision in ["fp16", "bf16"]:
