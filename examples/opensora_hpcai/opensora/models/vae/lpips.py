@@ -38,7 +38,7 @@ class LPIPS(nn.Cell):
         # TODO: just load ms ckpt
         if not os.path.exists(ckpt_path):
             raise ValueError(
-                f"{ckpt_path} not exists. Please download from https://download-mindspore.osinfra.cn/toolkits/mindone/autoencoders/lpips_vgg-426bf45c.ckpt"
+                f"{ckpt_path} not exists. Please download from https://download-mindspore.osinfra.cn/toolkits/mindone/autoencoders/lpips_vgg-426bf45c.ckpt and move it to models/."
             )
 
         state_dict = ms.load_checkpoint(ckpt_path)

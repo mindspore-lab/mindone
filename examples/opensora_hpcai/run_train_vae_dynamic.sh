@@ -15,11 +15,10 @@ frames=33
 mixed_strategy=mixed_video_random
 output_dir=outputs/vae_8p_stage3_ucf101_${mixed_strategy}_f$frames
 
-msrun --worker_num=8 --local_worker_num=8 --log_dir=$output_dir  \
 python scripts/train_vae.py \
     --config configs/vae/train/stage3.yaml \
-    --csv_path "datasets/ucf101_train.csv" \
-    --video_folder datasets/UCF-101  \
+	--csv_path datasets/sora_overfitting_dataset_0410/vcg_200.csv \
+	--video_folder datasets/sora_overfitting_dataset_0410 \
     --dtype bf16 \
     --output_path $output_dir \
     --jit_level O1 \
@@ -30,8 +29,6 @@ python scripts/train_vae.py \
     --optim adamw_re \
     --use_recompute=True \
     --mixed_strategy $mixed_strategy \
-    --use_parallel=True \
     --micro_batch_size 4 \
     --micro_frame_size 17 \
-
-	# --pretrained_model_path="" \
+	--pretrained_model_path="" \

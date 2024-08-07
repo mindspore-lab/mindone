@@ -398,7 +398,7 @@ def OpenSoraVAE_V1_2(
     model = VideoAutoencoderPipeline(config)
 
     # load model weights
-    if os.path.exists(ckpt_path):
+    if ckpt_path is not None and os.path.exists(ckpt_path):
         sd = ms.load_checkpoint(ckpt_path)
 
         # remove the added prefix in the trained checkpoint
@@ -410,7 +410,7 @@ def OpenSoraVAE_V1_2(
         pu, cu = ms.load_param_into_net(model, sd, strict_load=False)
         print(f"Net param not loaded : {pu}")
         print(f"Checkpoint param not loaded : {cu}")
-    elif os.path.exists(vae2d_ckpt_path):
+    elif vae2d_ckpt_path is not None and os.path.exists(vae2d_ckpt_path):
         sd = ms.load_checkpoint(vae2d_ckpt_path)
         # TODO: add spatial_vae prefix to the param name
         pu, cu = ms.load_param_into_net(model.spatial_vae, sd, strict_load=False)
