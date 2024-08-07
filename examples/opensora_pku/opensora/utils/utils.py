@@ -1,4 +1,5 @@
 import argparse
+import collections
 import html
 import re
 import urllib.parse as ul
@@ -14,6 +15,12 @@ try:
     import ftfy
 except ImportError:
     is_ftfy_available = False
+
+
+def to_2tuple(x):
+    if isinstance(x, collections.abc.Iterable):
+        return x
+    return (x, x)
 
 
 def get_experiment_dir(root_dir, args):

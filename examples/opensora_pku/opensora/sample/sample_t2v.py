@@ -67,12 +67,18 @@ def parse_args():
     parser.add_argument("--width", type=int, default=512)
     parser.add_argument("--ae", type=str, default="CausalVAEModel_4x8x8")
     parser.add_argument("--ae_path", type=str, default="CausalVAEModel_4x8x8")
+    parser.add_argument(
+        "--ae_config",
+        default="scripts/causalvae/release.json",
+        help="the default model configuration file for the causalvae.",
+    )
     parser.add_argument("--sp_size", type=int, default=1, help="For sequence parallel")
 
     parser.add_argument("--text_encoder_name", type=str, default="DeepFloyd/t5-v1_1-xxl")
     parser.add_argument("--save_img_path", type=str, default="./sample_videos/t2v")
 
     parser.add_argument("--guidance_scale", type=float, default=7.5, help="the scale for classifier-free guidance")
+    parser.add_argument("--max_sequence_length", type=int, default=300, help="the maximum text tokens length")
 
     parser.add_argument("--sample_method", type=str, default="PNDM")
     parser.add_argument("--num_sampling_steps", type=int, default=50, help="Diffusion Sampling Steps")
@@ -195,7 +201,8 @@ if __name__ == "__main__":
 
     # 2. vae model initiate and weight loading
     logger.info("vae init")
-    vae = CausalVAEModelWrapper(args.ae_path, cache_dir=args.cache_dir)
+    kwarg = {"ae_config": args.ae_config, "cache_dir": args.cache_dir}
+    vae = CausalVAEModelWrapper(args.ae_path, **kwarg)
     if args.enable_tiling:
         vae.vae.enable_tiling()
         vae.vae.tile_overlap_factor = args.tile_overlap_factor
@@ -416,7 +423,7 @@ if __name__ == "__main__":
                 num_inference_steps=args.num_sampling_steps,
                 guidance_scale=args.guidance_scale,
                 output_type="latents" if args.save_latents else "pil",
-                max_sequence_length=512,
+                max_sequence_length=args.max_sequence_length,
             )
             .images.to(ms.float32)
             .asnumpy()

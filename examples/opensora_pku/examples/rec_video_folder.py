@@ -181,7 +181,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--ae_config",
         default="scripts/causalvae/release.json",
-        help="the model configuration file for the causalvae.",
+        help="the default model configuration file for the causalvae.",
     )
     parser.add_argument("--sample_fps", type=int, default=30)
     parser.add_argument("--height", type=int, default=512)

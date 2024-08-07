@@ -250,9 +250,10 @@ class CausalVAEModel(VideoBaseAE):
         if subfolder is not None:
             pretrained_model_path = os.path.join(pretrained_model_path, subfolder)
 
-        config_file = os.path.join(pretrained_model_path, "config.json")
+        config_file = kwargs.get("ae_config", os.path.join(pretrained_model_path, "config.json"))
         if not os.path.isfile(config_file):
             raise RuntimeError(f"{config_file} does not exist")
+
         with open(config_file, "r") as f:
             config = json.load(f)
 

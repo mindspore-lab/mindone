@@ -124,7 +124,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--ae_config",
         default="scripts/causalvae/release.json",
-        help="the model configuration file for the causalvae.",
+        help="the default model configuration file for the causalvae.",
     )
     parser.add_argument("--short_size", type=int, default=336)
     parser.add_argument("--tile_overlap_factor", type=float, default=0.25)

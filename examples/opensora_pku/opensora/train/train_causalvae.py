@@ -549,7 +549,7 @@ def parse_causalvae_train_args(parser):
     parser.add_argument(
         "--model_config",
         default="scripts/causalvae/release.json",
-        help="the model configuration file for the causalvae.",
+        help="the default model configuration file for the causalvae.",
     )
     parser.add_argument(
         "--vae_keep_gn_fp32",
