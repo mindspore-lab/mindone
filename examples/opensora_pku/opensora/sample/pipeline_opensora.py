@@ -117,7 +117,7 @@ class OpenSoraPipeline(DiffusionPipeline):
 
     @ms.jit  # FIXME: on ms2.3, in pynative mode, text encoder's output has nan problem.
     def text_encoding_func(self, input_ids, attention_mask):
-        return self.text_encoder(input_ids, attention_mask=attention_mask)
+        return ops.stop_gradient(self.text_encoder(input_ids, attention_mask=attention_mask))
 
     # Adapted from diffusers.pipelines.deepfloyd_if.pipeline_if.encode_prompt
     def encode_prompt(
@@ -747,15 +747,19 @@ class OpenSoraPipeline(DiffusionPipeline):
                 if prompt_attention_mask.ndim == 2:
                     prompt_attention_mask = prompt_attention_mask.unsqueeze(1)  # b l -> b 1 l
                 attention_mask = ops.ones_like(latent_model_input)[:, 0]
+                if temp_attention_mask is not None:
+                    # TODO: mask temporal padded tokens
+                    temp_attention_mask = temp_attention_mask[:, 0]  # (bs, f), 1 means to keep, and 0 means to discard
                 # predict noise model_output
-                noise_pred = self.transformer(
-                    latent_model_input,  # (b c t h w)
-                    attention_mask=attention_mask,
-                    encoder_hidden_states=prompt_embeds,  # (b n c)
-                    encoder_attention_mask=prompt_attention_mask,  # (b n)
-                    timestep=current_timestep,  # (b)
-                    added_cond_kwargs=added_cond_kwargs,
-                    temp_attention_mask=temp_attention_mask,
+                noise_pred = ops.stop_gradient(
+                    self.transformer(
+                        latent_model_input,  # (b c t h w)
+                        attention_mask=attention_mask,
+                        encoder_hidden_states=prompt_embeds,  # (b n c)
+                        encoder_attention_mask=prompt_attention_mask,  # (b n)
+                        timestep=current_timestep,  # (b)
+                        added_cond_kwargs=added_cond_kwargs,
+                    )
                 )
 
                 # perform guidance

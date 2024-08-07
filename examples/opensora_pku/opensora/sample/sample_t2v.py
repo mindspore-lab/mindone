@@ -24,10 +24,10 @@ from opensora.models.causalvideovae import CausalVAEModelWrapper, ae_stride_conf
 from opensora.models.causalvideovae.model.modules.updownsample import TrilinearInterpolate
 from opensora.models.diffusion.opensora.modeling_opensora import LayerNorm, OpenSoraT2V
 from opensora.models.diffusion.opensora.modules import Attention
-from opensora.models.text_encoder.t5 import T5Embedder
 from opensora.sample.pipeline_opensora import OpenSoraPipeline
 from opensora.utils.ms_utils import init_env
 from opensora.utils.utils import _check_cfgs_in_parser, get_precision
+from transformers import AutoTokenizer
 
 from mindone.diffusers.schedulers import (
     DDIMScheduler,
@@ -36,6 +36,7 @@ from mindone.diffusers.schedulers import (
     EulerDiscreteScheduler,
     PNDMScheduler,
 )
+from mindone.transformers import MT5EncoderModel
 from mindone.utils.amp import auto_mixed_precision
 from mindone.utils.config import str2bool
 from mindone.utils.logger import set_logger
@@ -161,6 +162,7 @@ def parse_args():
     )
     parser.add_argument("--model_type", type=str, default="dit", choices=["dit", "udit", "latte"])
     parser.add_argument("--cache_dir", type=str, default="./")
+    parser.add_argument("--profile", default=False, type=str2bool, help="Profile or not")
     default_args = parser.parse_args()
     abs_path = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), ""))
     if default_args.config:
@@ -305,12 +307,21 @@ if __name__ == "__main__":
     else:
         skip_load_ckpt = False
     kwargs = {"enable_flash_attention": args.enable_flash_attention, "FA_dtype": FA_dtype}
+    model_version = args.model_path.split("/")[-1]
+    if int(model_version.split("x")[0]) != args.num_frames:
+        logger.warning(
+            f"Detect that the loaded model version is {model_version}, but found a mismatched number of frames {model_version.split('x')[0]}"
+        )
+    if int(model_version.split("x")[1][:-1]) != args.height:
+        logger.warning(
+            f"Detect that the loaded model version is {model_version}, but found a mismatched resolution {args.height}x{args.width}"
+        )
     transformer_model = OpenSoraT2V.from_pretrained(
         args.model_path,
         model_file=args.ms_checkpoint,
         cache_dir=args.cache_dir,
-        additional_config_kwargs=kwargs,
         skip_load_ckpt=skip_load_ckpt,
+        **kwargs,
     )
     if skip_load_ckpt:
         transformer_model.load_from_checkpoint(args.ms_checkpoint)
@@ -325,7 +336,7 @@ if __name__ == "__main__":
                 dtype=dtype,
                 custom_fp32_cells=[LayerNorm, Attention, nn.SiLU, nn.GELU]
                 if dtype == ms.float16
-                else [nn.MaxPool2d, LayerNorm, nn.SiLU, nn.GELU],
+                else [nn.MaxPool2d, nn.MaxPool3d, LayerNorm, nn.SiLU, nn.GELU],
             )
             logger.info(f"Set mixed precision to O2 with dtype={args.precision}")
         else:
@@ -341,12 +352,8 @@ if __name__ == "__main__":
         param.requires_grad = False
 
     logger.info("T5 init")
-    # TODO: replace T5 with mT5
-    text_encoder = T5Embedder(
-        dir_or_name=args.text_encoder_name,
-        cache_dir=args.cache_dir,
-    )
-    tokenizer = text_encoder.tokenizer
+    text_encoder = MT5EncoderModel.from_pretrained(args.text_encoder_name, cache_dir=args.cache_dir)
+    tokenizer = AutoTokenizer.from_pretrained(args.text_encoder_name, cache_dir=args.cache_dir)
     # mixed precision
     text_encoder_dtype = get_precision(args.text_encoder_precision)
     text_encoder = auto_mixed_precision(text_encoder, amp_level="O2", dtype=text_encoder_dtype)
@@ -400,7 +407,12 @@ if __name__ == "__main__":
     key_info += "\n" + "=" * 50
     logger.info(key_info)
     start_time = time.time()
-
+    if args.profile:
+        profiler = ms.Profiler(output_path="./mem_info", profile_memory=True)
+        ms.set_context(memory_optimize_level="O0")
+        ms.set_context(pynative_synchronize=True)
+    else:
+        profiler = None
     # infer
     for step, data in tqdm(enumerate(ds_iter), total=dataset_size):
         prompt = [x for x in data["caption"]]
@@ -429,6 +441,8 @@ if __name__ == "__main__":
             .images.to(ms.float32)
             .asnumpy()
         )
+        if step == 0 and profiler is not None:
+            profiler.stop()
 
         if get_sequence_parallel_state() and hccl_info.rank % hccl_info.world_size != 0:
             pass
@@ -444,7 +458,7 @@ if __name__ == "__main__":
                         ext = "jpg"
                         image = videos[i_sample, 0]  # (b t h w c)  -> (h, w, c)
                         image = (image * 255).round().clip(0, 255).astype(np.uint8)
-                        Image.from_numpy(image).save(file_path)
+                        Image.fromarray(image).save(file_path)
                     else:
                         save_video_data = videos[i_sample : i_sample + 1]  # (b t h w c)
                         save_videos(save_video_data, file_path, loop=0, fps=args.fps)

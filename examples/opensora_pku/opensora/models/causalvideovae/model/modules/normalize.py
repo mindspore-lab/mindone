@@ -39,7 +39,7 @@ class ActNorm(nn.Cell):
         self.loc.set_data(-mean)
         self.scale.set_data(1 / (std + 1e-6))
 
-    def forward(self, input, reverse=False):
+    def construct(self, input, reverse=False):
         if reverse:
             return self.reverse(input)
         if len(input.shape) == 2:

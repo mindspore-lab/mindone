@@ -5,7 +5,7 @@ from mindspore import nn, ops
 from .ops import shift_dim
 
 
-class Codebook(nn.Module):
+class Codebook(nn.Cell):
     def __init__(self, n_codes, embedding_dim):
         super().__init__()
         self.register_buffer("embeddings", ops.randn(n_codes, embedding_dim))
@@ -37,7 +37,7 @@ class Codebook(nn.Module):
         self.z_avg.data.copy_(_k_rand)
         self.N.data.copy_(ops.ones(self.n_codes))
 
-    def forward(self, z):
+    def construct(self, z):
         # z: [b, c, t, h, w]
         if self._need_init and self.training:
             self._init_embeddings(z)
