@@ -67,11 +67,6 @@ def parse_args():
     parser.add_argument("--width", type=int, default=512)
     parser.add_argument("--ae", type=str, default="CausalVAEModel_4x8x8")
     parser.add_argument("--ae_path", type=str, default="CausalVAEModel_4x8x8")
-    parser.add_argument(
-        "--ae_config",
-        default="scripts/causalvae/release.json",
-        help="the default model configuration file for the causalvae.",
-    )
     parser.add_argument("--sp_size", type=int, default=1, help="For sequence parallel")
 
     parser.add_argument("--text_encoder_name", type=str, default="DeepFloyd/t5-v1_1-xxl")
@@ -201,8 +196,7 @@ if __name__ == "__main__":
 
     # 2. vae model initiate and weight loading
     logger.info("vae init")
-    kwarg = {"ae_config": args.ae_config, "cache_dir": args.cache_dir}
-    vae = CausalVAEModelWrapper(args.ae_path, **kwarg)
+    vae = CausalVAEModelWrapper(args.ae_path, model_file=os.path.join(args.ae_path, "checkpoint.ckpt"))
     if args.enable_tiling:
         vae.vae.enable_tiling()
         vae.vae.tile_overlap_factor = args.tile_overlap_factor

@@ -15,6 +15,7 @@ from mindone.diffusers.models.activations import GEGLU, GELU, ApproximateGELU
 
 # from mindone.diffusers.utils import USE_PEFT_BACKEND
 from mindone.diffusers.models.embeddings import LabelEmbedding, TimestepEmbedding, Timesteps
+from mindone.diffusers.utils import deprecate
 from mindone.models.modules.flash_attention import FLASH_IS_AVAILABLE, MSFlashAttention
 
 from .rope import PositionGetter3D, RoPE3D
@@ -889,6 +890,8 @@ class FeedForward(nn.Cell):
         dropout (`float`, *optional*, defaults to 0.0): The dropout probability to use.
         activation_fn (`str`, *optional*, defaults to `"geglu"`): Activation function to be used in feed-forward.
         final_dropout (`bool` *optional*, defaults to False): Apply a final dropout.
+        inner_dim (`int`, optional*, defaults to None): using this integer as the hidden dimension. If not provided, will use dim*mult.
+        bias (`bool`, defaults to True): Whether to use a bias in the linear layer.
     """
 
     def __init__(
@@ -899,39 +902,44 @@ class FeedForward(nn.Cell):
         dropout: float = 0.0,
         activation_fn: str = "geglu",
         final_dropout: bool = False,
+        inner_dim=None,
+        bias: bool = True,
     ):
         super().__init__()
-        inner_dim = int(dim * mult)
+        if inner_dim is None:
+            inner_dim = int(dim * mult)
         dim_out = dim_out if dim_out is not None else dim
-        linear_cls = nn.Dense
 
         if activation_fn == "gelu":
-            act_fn = GELU(dim, inner_dim)
+            act_fn = GELU(dim, inner_dim, bias=bias)
         if activation_fn == "gelu-approximate":
-            act_fn = GELU(dim, inner_dim, approximate="tanh")
+            act_fn = GELU(dim, inner_dim, approximate="tanh", bias=bias)
         elif activation_fn == "geglu":
-            act_fn = GEGLU(dim, inner_dim)
+            act_fn = GEGLU(dim, inner_dim, bias=bias)
         elif activation_fn == "geglu-approximate":
-            act_fn = ApproximateGELU(dim, inner_dim)
+            act_fn = ApproximateGELU(dim, inner_dim, bias=bias)
+        elif activation_fn == "swiglu":
+            raise NotImplementedError
 
         self.net = nn.CellList([])
         # project in
         self.net.append(act_fn)
         # project dropout
-        self.net.append(nn.Dropout(p=dropout))
+        self.net.append(nn.Dropout(dropout))
         # project out
-        self.net.append(linear_cls(inner_dim, dim_out))
+        self.net.append(nn.Dense(inner_dim, dim_out, has_bias=bias))
         # FF as used in Vision Transformer, MLP-Mixer, etc. have a final dropout
         if final_dropout:
-            self.net.append(nn.Dropout(p=dropout))
+            self.net.append(nn.Dropout(dropout))
 
-    def construct(self, hidden_states: ms.Tensor, scale: float = 1.0) -> ms.Tensor:
-        compatible_cls = GEGLU
+    def forward(self, hidden_states: ms.Tensor, *args, **kwargs) -> ms.Tensor:
+        if len(args) > 0 or kwargs.get("scale", None) is not None:
+            deprecation_message = "The `scale` argument is deprecated and will be ignored. Please remove it, \
+                as passing it will raise an error in the future. `scale` should directly be passed while \
+                    calling the underlying pipeline component i.e., via `cross_attention_kwargs`."
+            deprecate("scale", "1.0.0", deprecation_message)
         for module in self.net:
-            if isinstance(module, compatible_cls):
-                hidden_states = module(hidden_states, scale)
-            else:
-                hidden_states = module(hidden_states)
+            hidden_states = module(hidden_states)
         return hidden_states
 
 

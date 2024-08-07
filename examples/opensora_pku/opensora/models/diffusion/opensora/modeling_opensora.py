@@ -73,8 +73,10 @@ class OpenSoraT2V(ModelMixin, ConfigMixin):
         cross_attention_dim: Optional[int] = None,
         attention_bias: bool = False,
         sample_size: Optional[int] = None,
+        sample_size_t: Optional[int] = None,
         num_vector_embeds: Optional[int] = None,
         patch_size: Optional[int] = None,
+        patch_size_t: Optional[int] = None,
         activation_fn: str = "geglu",
         num_embeds_ada_norm: Optional[int] = None,
         use_linear_projection: bool = False,
@@ -127,6 +129,9 @@ class OpenSoraT2V(ModelMixin, ConfigMixin):
         self.config.hidden_size = self.inner_dim
         use_additional_conditions = False
         self.use_additional_conditions = use_additional_conditions
+        self.use_recompute = use_recompute
+        self.enable_flash_attention = enable_flash_attention
+        self.FA_dtype = FA_dtype
 
         # 1. Transformer2DModel can process both standard continuous images of shape\
         #  `(batch_size, num_channels, width, height)` as well as quantized image embeddings of shape `(batch_size, num_image_vectors)`
@@ -262,7 +267,8 @@ class OpenSoraT2V(ModelMixin, ConfigMixin):
                     norm_elementwise_affine=self.config.norm_elementwise_affine,
                     norm_eps=self.config.norm_eps,
                     attention_type=self.config.attention_type,
-                    attention_mode=self.config.attention_mode,
+                    enable_flash_attention=self.config.enable_flash_attention,
+                    FA_dtype=self.config.FA_dtype,
                     downsampler=self.config.downsampler,
                     use_rope=self.config.use_rope,
                     interpolation_scale_thw=interpolation_scale_thw,
@@ -898,15 +904,13 @@ if __name__ == "__main__":
         "args",
         (),
         {
-            "ae": "CausalVAEModel_4x8x8",
-            "attention_mode": "xformers",
+            "ae": "CausalVAEModel_D4_4x8x8",
             "use_rope": True,
-            "model_max_length": 300,
+            "model_max_length": 512,
             "max_height": 320,
             "max_width": 240,
             "num_frames": 1,
             "use_image_num": 0,
-            "compress_kv_factor": 1,
             "interpolation_scale_t": 1,
             "interpolation_scale_h": 1,
             "interpolation_scale_w": 1,
