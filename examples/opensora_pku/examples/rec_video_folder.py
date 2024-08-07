@@ -62,9 +62,15 @@ def main(args):
         os.makedirs(args.generated_video_dir, exist_ok=True)
 
     set_logger(name="", output_dir=args.generated_video_dir, rank=0)
-
-    kwarg = {"ae_config": args.ae_config}
+    if args.ms_checkpoint is not None and os.path.exists(args.ms_checkpoint):
+        logger.info(f"Run inference with MindSpore checkpoint {args.ms_checkpoint}")
+        skip_load_ckpt = True
+    else:
+        skip_load_ckpt = False
+    kwarg = {"model_file": os.path.join(args.ae_path, "checkpoint.ckpt"), "skip_load_ckpt": skip_load_ckpt}
     vae = CausalVAEModelWrapper(args.ae_path, **kwarg)
+    if skip_load_ckpt:
+        vae.vae.init_from_ckpt(args.ms_checkpoint)
     if args.enable_tiling:
         vae.vae.enable_tiling()
         vae.vae.tile_overlap_factor = args.tile_overlap_factor
@@ -177,12 +183,8 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--real_video_dir", type=str, default="")
     parser.add_argument("--generated_video_dir", type=str, default="")
-    parser.add_argument("--ckpt", type=str, default="results/pretrained/causal_vae.ckpt")
-    parser.add_argument(
-        "--ae_config",
-        default="scripts/causalvae/release.json",
-        help="the default model configuration file for the causalvae.",
-    )
+    parser.add_argument("--ae_path", type=str, default="results/pretrained")
+    parser.add_argument("--ms_checkpoint", type=str, default=None)
     parser.add_argument("--sample_fps", type=int, default=30)
     parser.add_argument("--height", type=int, default=512)
     parser.add_argument("--width", type=int, default=512)

@@ -2,13 +2,12 @@
 Run causal vae reconstruction on a given image
 Usage example:
 python examples/rec_image.py \
-    --ae_path path/to/vae/ckpt \
-    --image_path test.png \
-    --rec_path rec.png \
-    --sample_rate 1 \
-    --num_frames 65 \
-    --height 512 \
-    --width 512 \
+    --ae_path LanguageBind/Open-Sora-Plan-v1.2.0/vae \
+    --image_path test.jpg \
+    --rec_path rec.jpg \
+    --device Ascend \
+    --short_size 512 \
+    --enable_tiling
 """
 import argparse
 import logging
@@ -74,8 +73,16 @@ def main(args):
 
     set_logger(name="", output_dir=args.output_path, rank=0)
 
-    kwarg = {"ae_config": args.ae_config}
+    if args.ms_checkpoint is not None and os.path.exists(args.ms_checkpoint):
+        logger.info(f"Run inference with MindSpore checkpoint {args.ms_checkpoint}")
+        skip_load_ckpt = True
+    else:
+        skip_load_ckpt = False
+    kwarg = {"model_file": os.path.join(args.ae_path, "checkpoint.ckpt"), "skip_load_ckpt": skip_load_ckpt}
     vae = CausalVAEModelWrapper(args.ae_path, **kwarg)
+    if skip_load_ckpt:
+        vae.vae.init_from_ckpt(args.ms_checkpoint)
+
     if args.enable_tiling:
         vae.vae.enable_tiling()
         vae.vae.tile_overlap_factor = args.tile_overlap_factor
@@ -93,7 +100,8 @@ def main(args):
         amp_level = "O0"
     else:
         raise ValueError(f"Unsupported precision {args.precision}")
-    input_x = np.array(Image.open(image_path))
+    input_x = np.array(Image.open(image_path))  # (h w c)
+    assert input_x.shape[2], f"Expect the input image has three channels, but got shape {input_x.shape}"
     x_vae = preprocess(input_x[None, :], short_size, short_size)  # use image as a single-frame video
     dtype = get_precision(args.precision)
     x_vae = ms.Tensor(x_vae, dtype).unsqueeze(0)  # b c t h w
@@ -109,7 +117,7 @@ def main(args):
     if args.grid:
         x = np.concatenate([input_x, x], axis=1)
     image = Image.fromarray(x)
-    image.save(args.rec_path)
+    image.save(save_fp)
     if args.grid:
         logger.info(f"Save original vs. reconstructed data to {save_fp}")
     else:
@@ -121,11 +129,7 @@ if __name__ == "__main__":
     parser.add_argument("--image_path", type=str, default="")
     parser.add_argument("--rec_path", type=str, default="")
     parser.add_argument("--ae_path", type=str, default="results/pretrained")
-    parser.add_argument(
-        "--ae_config",
-        default="scripts/causalvae/release.json",
-        help="the default model configuration file for the causalvae.",
-    )
+    parser.add_argument("--ms_checkpoint", type=str, default=None)
     parser.add_argument("--short_size", type=int, default=336)
     parser.add_argument("--tile_overlap_factor", type=float, default=0.25)
     parser.add_argument("--tile_sample_min_size", type=int, default=256)

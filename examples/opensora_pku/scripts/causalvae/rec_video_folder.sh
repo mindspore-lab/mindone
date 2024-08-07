@@ -9,7 +9,7 @@ python examples/rec_video_folder.py \
     --height 480 \
     --width 640 \
     --num_workers 8 \
-    --ae_path LanguageBind/Open-Sora-Plan-v1.2.0/vae/causalvae_d4_488.ckpt \
+    --ae_path LanguageBind/Open-Sora-Plan-v1.2.0/vae \
     --enable_tiling \
     --tile_overlap_factor 0.125 \
     --save_memory
