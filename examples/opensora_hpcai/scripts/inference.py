@@ -28,6 +28,7 @@ from opensora.utils.cond_data import get_references, read_captions_from_csv, rea
 from opensora.utils.model_utils import WHITELIST_OPS, _check_cfgs_in_parser, str2bool
 from opensora.utils.util import IMG_FPS, apply_mask_strategy, process_mask_strategies, process_prompts
 
+from mindone.data.data_split import distribute_samples
 from mindone.utils.logger import set_logger
 from mindone.utils.misc import to_abspath
 from mindone.utils.seed import set_random_seed
@@ -110,24 +111,6 @@ def init_env(
     return rank_id, device_num
 
 
-# split captions or t5-embedding according to rank_num and rank_id
-def data_parallel_split(x, device_id, device_num):
-    n = len(x)
-    shard_size = n // device_num
-    if device_id is None:
-        device_id = 0
-    base_data_idx = device_id * shard_size
-
-    if device_num in [None, 1]:
-        shard = x
-    if device_id == device_num - 1:
-        shard = x[device_id * shard_size :]
-    else:
-        shard = x[device_id * shard_size : (device_id + 1) * shard_size]
-
-    return shard, base_data_idx
-
-
 def main(args):
     if args.append_timestr:
         time_str = datetime.datetime.now().strftime("%Y-%m-%dT%H-%M-%S")
@@ -170,7 +153,12 @@ def main(args):
         latent_condition_frame_length = round(latent_condition_frame_length / 17 * 5)
 
     captions = process_prompts(captions, args.loop)  # in v1.1 and above, each loop can have a different caption
-    captions, base_data_idx = data_parallel_split(captions, rank_id, device_num)  # split for data parallel
+
+    # split samples to NPUs as even as possible
+    start_idx, end_idx = distribute_samples(len(captions), rank_id, device_num)
+    captions = captions[start_idx:end_idx]
+    base_data_idx = start_idx
+
     if args.use_parallel:
         print(f"Num captions for rank {rank_id}: {len(captions)}")
 

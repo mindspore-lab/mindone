@@ -232,6 +232,7 @@ class VideoDatasetRefactored(BaseDataset):
                 cap = cv2.VideoCapture(data["video"], apiPreference=cv2.CAP_FFMPEG)
                 frame_w = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
                 frame_h = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+                cap.release()
                 data["bucket_id"] = self._buckets.get_bucket_id(
                     T=video_length,
                     H=frame_h,
