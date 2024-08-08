@@ -12,7 +12,7 @@ export ASCEND_RT_VISIBLE_DEVICES=0,1,2,3,4,5,6,7
 # export MS_DEV_DUMP_BPROP=on
 
 frames=33
-mixed_strategy=mixed_video_random
+mixed_strategy=mixed_video_image
 output_dir=outputs/vae_8p_stage3_ucf101_${mixed_strategy}_f$frames
 
 python scripts/train_vae.py \
@@ -31,4 +31,4 @@ python scripts/train_vae.py \
     --mixed_strategy $mixed_strategy \
     --micro_batch_size 4 \
     --micro_frame_size 17 \
-	--pretrained_model_path="" \
+	--pretrained_model_path="models/OpenSora-VAE-v1.2/model.ckpt" \
