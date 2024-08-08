@@ -654,7 +654,7 @@ def main(args):
         loss_scaler.last_overflow_iter = last_overflow_iter
 
     # trainer (standalone and distributed)
-    ema = EMA(latent_diffusion_with_loss.network, ema_decay=0.9999, offloading=True) if args.use_ema else None
+    ema = EMA(latent_diffusion_with_loss.network, ema_decay=args.ema_decay, offloading=True) if args.use_ema else None
 
     net_with_grads = TrainOneStepWrapper(
         latent_diffusion_with_loss,
