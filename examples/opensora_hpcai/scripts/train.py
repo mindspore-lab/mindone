@@ -220,6 +220,7 @@ def initialize_dataset(
 
         from mindone.data import create_dataloader
 
+        dynamic_shape = bucket_config is not None
         if validation:
             mask_gen = MaskGenerator({"identity": 1.0})
             all_buckets, individual_buckets = None, [None]
@@ -277,7 +278,7 @@ def initialize_dataset(
                 rank_id=rank_id,
                 num_workers=args.num_parallel_workers,
                 num_workers_dataset=args.num_workers_dataset,
-                drop_remainder=not validation,
+                drop_remainder=not (validation or dynamic_shape),
                 python_multiprocessing=args.data_multiprocessing,
                 prefetch_size=args.prefetch_size,
                 max_rowsize=args.max_rowsize,
@@ -296,7 +297,7 @@ def initialize_dataset(
                 bucket_boundaries,
                 bucket_batch_sizes,
                 element_length_function=hash_func,
-                drop_remainder=not validation,
+                drop_remainder=not (validation or dynamic_shape),
             )
     return dataloader
 
