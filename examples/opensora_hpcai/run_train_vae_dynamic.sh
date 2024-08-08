@@ -12,7 +12,7 @@ export ASCEND_RT_VISIBLE_DEVICES=0,1,2,3,4,5,6,7
 # export MS_DEV_DUMP_BPROP=on
 
 frames=33
-mixed_strategy=mixed_video_image
+mixed_strategy=mixed_video_random
 output_dir=outputs/vae_8p_stage3_ucf101_${mixed_strategy}_f$frames
 
 python scripts/train_vae.py \
