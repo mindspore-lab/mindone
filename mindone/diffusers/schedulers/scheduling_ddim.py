@@ -445,7 +445,7 @@ class DDIMScheduler(SchedulerMixin, ConfigMixin):
         # 5. compute variance: "sigma_t(η)" -> see formula (16)
         # σ_t = sqrt((1 − α_t−1)/(1 − α_t)) * sqrt(1 − α_t/α_t−1)
         variance = self._get_variance(timestep, prev_timestep)
-        std_dev_t = (eta * variance ** (0.5)).to(dtype=prev_timestep.dtype)
+        std_dev_t = (eta * variance ** (0.5)).to(dtype)
 
         if use_clipped_model_output:
             # the pred_epsilon is always re-derived from the clipped x_0 in Glide

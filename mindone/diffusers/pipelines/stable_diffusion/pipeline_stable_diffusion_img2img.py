@@ -65,9 +65,11 @@ EXAMPLE_DOC_STRING = """
 """
 
 
-def retrieve_latents(vae, encoder_output: ms.Tensor, sample_mode: str = "sample"):
+def retrieve_latents(
+    vae, encoder_output: ms.Tensor, generator: Optional[np.random.Generator] = None, sample_mode: str = "sample"
+):
     if sample_mode == "sample":
-        return vae.diag_gauss_dist.sample(encoder_output)
+        return vae.diag_gauss_dist.sample(encoder_output, generator=generator)
     elif sample_mode == "argmax":
         return vae.diag_gauss_dist.mode(encoder_output)
     # This branch is not needed because the encoder_output type is ms.Tensor as per AutoencoderKLOutput change
@@ -363,7 +365,8 @@ class StableDiffusionImg2ImgPipeline(
 
         if prompt_embeds is None:
             # textual inversion: process multi-vector tokens if necessary
-            # TODO: support textual inversion
+            if isinstance(self, TextualInversionLoaderMixin):
+                prompt = self.maybe_convert_prompt(prompt, self.tokenizer)
 
             text_inputs = self.tokenizer(
                 prompt,
@@ -440,7 +443,8 @@ class StableDiffusionImg2ImgPipeline(
                 uncond_tokens = negative_prompt
 
             # textual inversion: process multi-vector tokens if necessary
-            # TODO: support textual inversion
+            if isinstance(self, TextualInversionLoaderMixin):
+                uncond_tokens = self.maybe_convert_prompt(uncond_tokens, self.tokenizer)
 
             max_length = prompt_embeds.shape[1]
             uncond_input = self.tokenizer(
@@ -562,6 +566,13 @@ class StableDiffusionImg2ImgPipeline(
             image, has_nsfw_concept = self.safety_checker(
                 images=image, clip_input=ms.Tensor(safety_checker_input.pixel_values).to(dtype)
             )
+
+            # Warning for safety checker operations here as it couldn't been done in construct()
+            if ops.any(has_nsfw_concept):
+                logger.warning(
+                    "Potential NSFW content was detected in one or more images. A black image will be returned instead."
+                    " Try again with a different prompt and/or seed."
+                )
         return image, has_nsfw_concept
 
     def decode_latents(self, latents):
@@ -693,11 +704,12 @@ class StableDiffusionImg2ImgPipeline(
 
             elif isinstance(generator, list):
                 init_latents = [
-                    retrieve_latents(self.vae, self.vae.encode(image[i : i + 1])[0]) for i in range(batch_size)
+                    retrieve_latents(self.vae, self.vae.encode(image[i : i + 1])[0], generator)
+                    for i in range(batch_size)
                 ]
                 init_latents = ops.cat(init_latents, axis=0)
             else:
-                init_latents = retrieve_latents(self.vae, self.vae.encode(image)[0])
+                init_latents = retrieve_latents(self.vae, self.vae.encode(image)[0], generator)
 
             init_latents = self.vae.config.scaling_factor * init_latents
 
