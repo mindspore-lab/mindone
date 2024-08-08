@@ -258,6 +258,15 @@ def main(args):
         rank=0,
         log_level=eval(args.log_level),
     )
+    # init
+    device_id = int(os.getenv("DEVICE_ID", 0))
+    ms.context.set_context(
+        mode=args.ms_mode,
+        # mode=ms.context.GRAPH_MODE,
+        device_target="Ascend",
+        device_id=device_id,
+        max_device_memory="30GB",
+    )
     if args.ms_mode == ms.GRAPH_MODE:
         try:
             if args.jit_level in ["O0", "O1", "O2"]:
@@ -272,15 +281,6 @@ def main(args):
                 "The current jit_level is not suitable because current MindSpore version does not match,"
                 "please ensure the MindSpore version >= ms2.3_0615."
             )
-    # init
-    device_id = int(os.getenv("DEVICE_ID", 0))
-    ms.context.set_context(
-        mode=args.ms_mode,
-        # mode=ms.context.GRAPH_MODE,
-        device_target="Ascend",
-        device_id=device_id,
-        max_device_memory="30GB",
-    )
 
     if args.save_graph:
         save_graphs_path = "graph"
