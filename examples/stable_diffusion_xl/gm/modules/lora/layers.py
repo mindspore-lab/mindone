@@ -4,7 +4,6 @@ import math
 
 from mindspore import Tensor, nn, ops
 from mindspore.common import initializer as init
-from mindspore.nn.layer.basic import check_dense_input_shape
 
 
 class Identity(nn.Cell):
@@ -95,7 +94,6 @@ class Dense(nn.Dense, LoRALayer):
 
     def _linear(self, x):
         x_shape = self.shape_op(x)
-        check_dense_input_shape(x_shape, self.cls_name)
         if len(x_shape) != 2:
             x = self.reshape(x, (-1, x_shape[-1]))
         x = self.matmul(x, self.weight)
