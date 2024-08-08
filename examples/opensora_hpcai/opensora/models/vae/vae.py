@@ -318,11 +318,13 @@ class VideoAutoencoderPipeline(nn.Cell):
             x_z_out = ops.cat(x_z_out, axis=2)
             '''
             mz = self.micro_z_frame_size
-            x_z_out = self.temporal_vae.decode(z[:, :, : mz], num_frames=min(self.micro_frame_size, num_frames))
+            remain_frames =  num_frames if self.micro_frame_size > num_frames else self.micro_frame_size
+            x_z_out = self.temporal_vae.decode(z[:, :, : mz], num_frames=remain_frames)
             num_frames -= self.micro_frame_size
 
             for i in range(mz, z.shape[2], mz):
-                x_z_cur = self.temporal_vae.decode(z[:, :, i : i + mz], num_frames=min(self.micro_frame_size, num_frames))
+                remain_frames =  num_frames if self.micro_frame_size > num_frames else self.micro_frame_size
+                x_z_cur = self.temporal_vae.decode(z[:, :, i : i + mz], num_frames=remain_frames)
                 x_z_out = ops.cat((x_z_out, x_z_cur), axis=2)
                 num_frames -= self.micro_frame_size
 
