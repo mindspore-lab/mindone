@@ -56,8 +56,6 @@ def create_optimizer(
         elif group_strategy.lower() == "norm_and_bias":
             # filter norm and bias
             filter_list = ["gamma", "beta", "bias"]
-        elif group_strategy == "all":
-            filter_list = []
         else:
             raise ValueError(f"Unsupported group_strategy: `{group_strategy}`")
 
