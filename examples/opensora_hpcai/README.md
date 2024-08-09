@@ -611,6 +611,27 @@ Note that the training speed of stage 2 can be influenced by the resolution and 
 
 To reproduce the above performance, you may refer to `scripts/run/run_train_os1.2_720x1280x51.sh` and  `scripts/run/run_train_os1.2_stage2.sh`.
 
+Below are some generation results after fine-tuning STDiT3 with **Stage 2** bucket config on a mixkit subset, which contains 100 text-video pairs The training set contains 80 1080P videos of natural scenes and animals. We show the generation results on the test set.
+
+<table class="center">
+<tr>
+  <td width=50% style="text-align:center;"><b>480x854x204</b></td>
+  <td width=50% style="text-align:center;"><b>480x854x204</b></td>
+  </tr>
+<tr>
+  <td width=50%><video src="https://github.com/user-attachments/assets/e90a82c3-f7d0-43d7-b643-a32de934b9e7" autoplay></td>
+  <td width=50%><video src="https://github.com/user-attachments/assets/bbb520db-1a3a-4503-a072-e57389a50ecc" autoplay></td>
+</tr>
+<tr>
+  <td width=50% style="text-align:center;"><b>480x854x204</b></td>
+  <td width=50% style="text-align:center;"><b>480x854x204</b></td>
+  </tr>
+<tr>
+  <td width=50%><video src="https://github.com/user-attachments/assets/d79d3cf4-f7c7-4825-ba34-57fea6d1164a" autoplay></td>
+  <td width=50%><video src="https://github.com/user-attachments/assets/835604e6-c823-4b59-a214-993cdb873b66" autoplay></td>
+</tr>
+</table>
+
 
 ### Open-Sora 1.1
 
@@ -632,7 +653,7 @@ We evaluated the training performance on MindSpore and Ascend NPUs. The results 
 
 ** Tips ** for performance optimization: to speed up training, you can set `dataset_sink_mode` as True and reduce `num_recompute_blocks` from 28 to a number that doesn't lead to out-of-memory.
 
-Here are some generation results after fine-tuning STDiT2 on small dataset.
+Here are some generation results after fine-tuning STDiT2 on a mixkit subset.
 
 <table class="center">
 <tr>
