@@ -73,6 +73,7 @@ The compatible framework versions that are well-tested are listed as follows.
 | 910      |     2.0         |   6.3 RC1   |  23.0.rc1 | 3.7.16  | master (4c33849)  |
 | 910      |     2.1         |   6.3 RC2   |  23.0.rc2 | 3.9.18  | master (4c33849)  |
 | 910*      |     2.2.1 (20231124)    |   7.1  | 23.0.rc3.6   |  3.7.16  | master (4c33849)  |
+| 910*      |     2.3.0     |   7.3  | 23.0.3   |  3.8.8  | master   |
 
 </div>
 
@@ -281,7 +282,6 @@ To run vanilla fine-tuning, we will use the `train_text_to_image.py` script foll
         --output_path {path to output directory} \
         --pretrained_model_path {path to pretrained checkpoint file}
     ```
-    > Please enable INFNAN mode by `export MS_ASCEND_CHECK_OVERFLOW_MODE="INFNAN_MODE"` for Ascend 910* if overflow found.
 
     Take fine-tuning SD1.5 on the Pokemon dataset as an example:
 
@@ -319,7 +319,6 @@ For parallel training on multiple Ascend NPUs, please refer to the instructions 
     ```shell
     bash scripts/run_train_distributed.sh
     ```
-    > Please enable INFNAN mode by `export MS_ASCEND_CHECK_OVERFLOW_MODE="INFNAN_MODE"` for Ascend 910* if overflow found.
 
     After launched, the training process can be traced by running `tail -f ouputs/train_txt2img/rank_0/train.log`.
 
