@@ -9,7 +9,7 @@ msrun --bind_core=True --master_port=8200 --worker_num=8 --local_worker_num=8 --
 	python train_text_to_image.py \
         --train_config="configs/train/train_config_vanilla_v1.yaml" \
         --data_path=$data_path \
-        --pretrained_model_path="models/sd_v1.5-d0ab7146.ckpt"
+        --pretrained_model_path="models/sd_v1.5-d0ab7146.ckpt" \
         --output_path=$output_path/$task_name \
         --use_parallel=True \
         --dataset_sink_mode=True
