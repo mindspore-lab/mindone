@@ -6,6 +6,7 @@ PixArt-\Sigma is a Diffusion Transformer model~(DiT) capable of directly generat
 
 ## Requirement
 
+- CANN: 8.0
 - Python >= 3.8
 - Mindspore >= 2.3
 
@@ -58,3 +59,22 @@ The following demo image is generated using the default prompt with the command:
 python sample.py -c configs/inference/pixart-sigma-1024-MS.yaml --image_width 1024 --image_height 512 --seed 1024
 ```
 <p align="center"><img width="1024" src="https://github.com/user-attachments/assets/d2a4a391-744e-4ae8-a035-427a26e2c655"/>
+
+
+## Benchmark
+
+### Inference
+
+| Context       | Scheduler | Steps | Resolution | Batch Size | Speed (step/s) |
+|---------------|-----------|-------|------------|------------|----------------|
+| D910*x1-MS2.3 | DDIM      | 50    | 256x256    | 1          | 1.77           |
+| D910*x1-MS2.3 | DDIM      | 50    | 512x512    | 1          | 1.44           |
+| D910*x1-MS2.3 | DDIM      | 50    | 1024x1024  | 1          | 1.38           |
+| D910*x1-MS2.3 | DDIM      | 50    | 2048x2048  | 1          | 0.58           |
+
+> Context: {Ascend chip}-{number of NPUs}-{mindspore version}.
+> Speed (step/s): sampling speed measured in the number of sampling steps per second.
+
+# References
+
+[1] Junsong Chen, Chongjian Ge, Enze Xie, Yue Wu, Lewei Yao, Xiaozhe Ren, Zhongdao Wang, Ping Luo, Huchuan Lu, Zhenguo Li. PixArt-Σ: Weak-to-Strong Training of Diffusion Transformer for 4K Text-to-Image Generation. arXiv:2403.04692, 2024.
