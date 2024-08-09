@@ -187,6 +187,12 @@ def parse_train_args(parser):
     parser.add_argument("--gradient_accumulation_steps", default=1, type=int, help="gradient accumulation steps")
     # parser.add_argument("--cond_stage_trainable", default=False, type=str2bool, help="whether text encoder is trainable")
     parser.add_argument("--use_ema", default=False, type=str2bool, help="whether use EMA")
+    parser.add_argument(
+        "--ema_decay",
+        default=0.9999,
+        type=float,
+        help="EMA decay ratio, smaller value raises more importance to the current model weight.",
+    )
     parser.add_argument("--clip_grad", default=False, type=str2bool, help="whether apply gradient clipping")
     parser.add_argument(
         "--use_recompute",

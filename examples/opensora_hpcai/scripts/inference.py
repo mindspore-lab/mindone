@@ -28,6 +28,7 @@ from opensora.utils.cond_data import get_references, read_captions_from_csv, rea
 from opensora.utils.model_utils import WHITELIST_OPS, _check_cfgs_in_parser, str2bool
 from opensora.utils.util import IMG_FPS, apply_mask_strategy, process_mask_strategies, process_prompts
 
+from mindone.data.data_split import distribute_samples
 from mindone.utils.logger import set_logger
 from mindone.utils.misc import to_abspath
 from mindone.utils.seed import set_random_seed
@@ -110,24 +111,6 @@ def init_env(
     return rank_id, device_num
 
 
-# split captions or t5-embedding according to rank_num and rank_id
-def data_parallel_split(x, device_id, device_num):
-    n = len(x)
-    shard_size = n // device_num
-    if device_id is None:
-        device_id = 0
-    base_data_idx = device_id * shard_size
-
-    if device_num in [None, 1]:
-        shard = x
-    if device_id == device_num - 1:
-        shard = x[device_id * shard_size :]
-    else:
-        shard = x[device_id * shard_size : (device_id + 1) * shard_size]
-
-    return shard, base_data_idx
-
-
 def main(args):
     if args.append_timestr:
         time_str = datetime.datetime.now().strftime("%Y-%m-%dT%H-%M-%S")
@@ -147,6 +130,7 @@ def main(args):
         args.seed,
         args.use_parallel,
         device_target=args.device_target,
+        max_device_memory=args.max_device_memory,
         jit_level=args.jit_level,
         debug=args.debug,
     )
@@ -169,7 +153,12 @@ def main(args):
         latent_condition_frame_length = round(latent_condition_frame_length / 17 * 5)
 
     captions = process_prompts(captions, args.loop)  # in v1.1 and above, each loop can have a different caption
-    captions, base_data_idx = data_parallel_split(captions, rank_id, device_num)  # split for data parallel
+
+    # split samples to NPUs as even as possible
+    start_idx, end_idx = distribute_samples(len(captions), rank_id, device_num)
+    captions = captions[start_idx:end_idx]
+    base_data_idx = start_idx
+
     if args.use_parallel:
         print(f"Num captions for rank {rank_id}: {len(captions)}")
 
@@ -290,6 +279,10 @@ def main(args):
         text_emb = None
         # TODO: use FA in T5
         if args.t5_dtype in ["fp16", "bf16"]:
+            if args.t5_dtype == "fp16":
+                logger.warning(
+                    "T5 dtype is fp16, which may lead to video color vibration. Suggest to use bf16 or fp32."
+                )
             text_encoder = auto_mixed_precision(
                 text_encoder, amp_level="O2", dtype=dtype_map[args.t5_dtype], custom_fp32_cells=WHITELIST_OPS
             )
@@ -607,6 +600,7 @@ def parse_args():
     parser.add_argument("--use_parallel", default=False, type=str2bool, help="use parallel")
     parser.add_argument("--debug", type=str2bool, default=False, help="Execute inference in debug mode.")
     parser.add_argument("--seed", type=int, default=4, help="Inference seed")
+    parser.add_argument("--max_device_memory", type=str, default=None, help="e.g. `30GB` for 910a, `59GB` for 910b")
     parser.add_argument(
         "--patchify",
         type=str,

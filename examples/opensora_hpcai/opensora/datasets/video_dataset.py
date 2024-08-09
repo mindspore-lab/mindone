@@ -203,7 +203,6 @@ class VideoDataset:
         video_reader = VideoReader(video_path)
         video_length = len(video_reader)
         fps = video_reader.get_avg_fps()
-        # print("D--: video_length ", video_length)
 
         bs = micro_batch_size
         for i in range(0, video_length, bs):

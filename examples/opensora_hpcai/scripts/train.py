@@ -350,6 +350,14 @@ def main(args):
         elif args.vae_type == "OpenSoraVAE_V1_2":
             if args.vae_micro_frame_size != 17:
                 logger.warning("vae_micro_frame_size should be 17 to align with the vae pretrain setting.")
+            # FIXME: temp test
+            if isinstance(args.vae_micro_batch_size, int):
+                if args.vae_micro_batch_size <= 0:
+                    args.vae_micro_batch_size = None
+            if isinstance(args.vae_micro_frame_size, int):
+                if args.vae_micro_frame_size <= 0:
+                    args.vae_micro_frame_size = None
+
             vae = OpenSoraVAE_V1_2(
                 micro_batch_size=args.vae_micro_batch_size,
                 micro_frame_size=args.vae_micro_frame_size,
@@ -646,8 +654,7 @@ def main(args):
         loss_scaler.last_overflow_iter = last_overflow_iter
 
     # trainer (standalone and distributed)
-    # BUG: not saving weights properly when offloading is enabled
-    ema = EMA(latent_diffusion_with_loss.network, ema_decay=0.9999, offloading=False) if args.use_ema else None
+    ema = EMA(latent_diffusion_with_loss.network, ema_decay=args.ema_decay, offloading=True) if args.use_ema else None
 
     net_with_grads = TrainOneStepWrapper(
         latent_diffusion_with_loss,
@@ -662,8 +669,8 @@ def main(args):
 
     if (args.mode == 0) and (args.bucket_config is not None):
         video = ms.Tensor(shape=[None, None, 3, None, None], dtype=ms.float32)
-        caption = ms.Tensor(shape=[None, 200, 4096], dtype=ms.float32)
-        mask = ms.Tensor(shape=[None, 200], dtype=ms.uint8)
+        caption = ms.Tensor(shape=[None, args.model_max_length, 4096], dtype=ms.float32)
+        mask = ms.Tensor(shape=[None, args.model_max_length], dtype=ms.int32)
         frames_mask = ms.Tensor(shape=[None, None], dtype=ms.bool_)
         # fmt: off
         num_frames = ms.Tensor(shape=[None, ], dtype=ms.float32)
