@@ -294,6 +294,18 @@ def parse_train_args(parser):
         type=str2bool,
         help="whether to enable flash attention.",
     )
+    parser.add_argument(
+        "--enable_sequence_parallelism",
+        default=False,
+        type=str2bool,
+        help="whether to enable sequence parallelism. Default is False",
+    )
+    parser.add_argument(
+        "--sequence_parallel_shards",
+        default=1,
+        type=int,
+        help="The number of shards in sequence parallel. Default is 1.",
+    )
     parser.add_argument("--drop_overflow_update", default=True, type=str2bool, help="drop overflow update")
     parser.add_argument("--loss_scaler_type", default="dynamic", type=str, help="dynamic or static")
     parser.add_argument(
