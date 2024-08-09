@@ -31,7 +31,7 @@ init_loss_scale: 1
 scheduler: "constant"
 start_learning_rate: 1.e-4
 end_learning_rate: 1.e-4
-warmup_steps: 500
+warmup_steps: 1000
 
 clip_grad: True
 max_grad_norm: 1.0

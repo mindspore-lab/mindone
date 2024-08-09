@@ -37,7 +37,19 @@ def apply_rotary_emb(
 
     t_left, t, t_right = t[..., :start_index], t[..., start_index:end_index], t[..., end_index:]
     t = (t * freqs.cos().astype(t.dtype) * scale) + (rotate_half(t) * freqs.sin().astype(t.dtype) * scale)
+
     return ops.cat((t_left, t, t_right), axis=-1)
+    """
+    if start_index > 0:
+        out = ops.cat((t_left, t), axis=-1)
+    else:
+        out = t
+
+    if end_index < t.shape[-1]:
+        return ops.cat((out, t_right), axis=-1)
+    else:
+        return out
+    """
 
 
 class RotaryEmbedding(nn.Cell):

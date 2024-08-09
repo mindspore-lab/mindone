@@ -279,6 +279,10 @@ def main(args):
         text_emb = None
         # TODO: use FA in T5
         if args.t5_dtype in ["fp16", "bf16"]:
+            if t5_dtype == "fp16":
+                logger.warning(
+                    "T5 dtype is fp16, which may lead to video color vibration. Suggest to use bf16 or fp32."
+                )
             text_encoder = auto_mixed_precision(
                 text_encoder, amp_level="O2", dtype=dtype_map[args.t5_dtype], custom_fp32_cells=WHITELIST_OPS
             )
