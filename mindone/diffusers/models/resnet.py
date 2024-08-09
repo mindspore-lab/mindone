@@ -22,15 +22,7 @@ from .activations import SiLU, get_activation
 from .attention_processor import SpatialNorm
 from .downsampling import Downsample1D, Downsample2D, FirDownsample2D, KDownsample2D, downsample_2d  # noqa
 from .normalization import AdaGroupNorm, GroupNorm
-from .upsampling import (  # noqa
-    FirUpsample2D,
-    KUpsample2D,
-    SdeVpUpsample2D,
-    Upsample1D,
-    Upsample2D,
-    upfirdn2d_native,
-    upsample_2d,
-)
+from .upsampling import FirUpsample2D, KUpsample2D, Upsample1D, Upsample2D, upfirdn2d_native, upsample_2d  # noqa
 
 
 class ResnetBlockCondNorm2D(nn.Cell):
@@ -174,6 +166,24 @@ class ResnetBlockCondNorm2D(nn.Cell):
         output_tensor = (input_tensor + hidden_states) / self.output_scale_factor
 
         return output_tensor
+
+
+class SdeVpUpsample2D(nn.Cell):
+    """
+    Equivalence of partial(F.interpolate, scale_factor=2.0, mode="nearest") used in ResnetBlock2D.__init__()
+    when self.up and kernel == "sde_vp". We wrap ops.interpolate in our implement because the `scale_factor`
+    argument cannot be directly utilized in certain modes and partial is not fully supported in GRAPH MODE.
+    """
+
+    def __init__(self, scale_factor=2.0, mode="nearest"):
+        super().__init__()
+        self.scale_factor = scale_factor
+        self.mode = mode
+
+    def construct(self, x):
+        _, _, h, w = x.shape
+        x = ops.interpolate(x, size=(int(self.scale_factor * h), int(self.scale_factor * w)), mode=self.mode)
+        return x
 
 
 class ResnetBlock2D(nn.Cell):

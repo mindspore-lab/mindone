@@ -16,6 +16,7 @@ from typing import Optional, Tuple
 import mindspore as ms
 from mindspore import nn, ops
 
+from .layers_compat import conv_transpose2d
 from .normalization import LayerNorm, RMSNorm
 
 
@@ -292,7 +293,7 @@ class FirUpsample2D(nn.Cell):
             weight = ops.flip(weight, dims=[3, 4]).permute(0, 2, 1, 3, 4)
             weight = ops.reshape(weight, (num_groups * inC, -1, convH, convW))
 
-            inverse_conv = _conv_transpose2d(
+            inverse_conv = conv_transpose2d(
                 hidden_states,
                 weight,
                 stride=stride,
@@ -353,19 +354,7 @@ class KUpsample2D(nn.Cell):
         indices = ops.arange(inputs.shape[1])
         kernel = self.kernel.to(weight.dtype)[None, :].broadcast_to((inputs.shape[1], -1, -1))
         weight[indices, indices] = kernel
-        return _conv_transpose2d(inputs, weight, stride=2, padding=self.pad * 2 + 1)
-
-
-class SdeVpUpsample2D(nn.Cell):
-    def __init__(self, scale_factor=2.0, mode="nearest"):
-        super().__init__()
-        self.scale_factor = scale_factor
-        self.mode = mode
-
-    def construct(self, x):
-        _, _, h, w = x.shape
-        x = ops.interpolate(x, size=(int(self.scale_factor * h), int(self.scale_factor * w)), mode=self.mode)
-        return x
+        return conv_transpose2d(inputs, weight, stride=2, padding=self.pad * 2 + 1)
 
 
 def upfirdn2d_native(
@@ -462,49 +451,3 @@ def upsample_2d(
         pad=((pad_value + 1) // 2 + factor - 1, pad_value // 2),
     )
     return output
-
-
-def _conv_transpose2d(input, weight, bias=None, stride=1, padding=0, output_padding=0, groups=1, dilation=1):
-    # Equivalence of torch.nn.functional.conv_transpose2d
-    assert output_padding == 0, "Only support output_padding == 0 so far."
-
-    if isinstance(stride, int):
-        stride = (stride, stride)
-    if isinstance(dilation, int):
-        dilation = (dilation, dilation)
-    if isinstance(padding, int):
-        padding = (padding, padding, padding, padding)
-    elif len(padding) == 2:
-        padding = (
-            padding[0],
-            padding[0],
-            padding[1],
-            padding[1],
-        )
-
-    # InferShape manually
-    # Format adapted from https://pytorch.org/docs/stable/generated/torch.nn.ConvTranspose2d.html#torch.nn.ConvTranspose2d
-    batch_size, in_channels, iH, iW = input.shape
-    _, out_channels_divide_groups, kH, kW = weight.shape
-
-    out_channels = out_channels_divide_groups * groups
-    outH = (iH - 1) * stride[0] - (padding[0] + padding[1]) + dilation[0] * (kH - 1) + 1
-    outW = (iW - 1) * stride[1] - (padding[2] + padding[3]) + dilation[1] * (kW - 1) + 1
-
-    op_conv_transpose2d = ops.Conv2DTranspose(
-        out_channel=out_channels,
-        kernel_size=(kH, kW),
-        pad_mode="pad",
-        pad=padding,
-        stride=stride,
-        dilation=dilation,
-        group=groups,
-    )
-    outputs = op_conv_transpose2d(input, weight.to(input.dtype), (batch_size, out_channels, outH, outW))
-
-    if bias is not None:
-        assert isinstance(bias, ms.Tensor) and bias.ndim == 1
-        bias = bias.reshape(1, -1, 1, 1)
-        outputs += bias
-
-    return outputs
