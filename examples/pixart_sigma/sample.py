@@ -52,7 +52,7 @@ def init_env(args) -> None:
 
 def parse_args():
     parser = argparse.ArgumentParser(
-        description="PixArt-Alpha Image generation", formatter_class=argparse.ArgumentDefaultsHelpFormatter
+        description="PixArt-Sigma Image generation", formatter_class=argparse.ArgumentDefaultsHelpFormatter
     )
     parser.add_argument(
         "-c",
