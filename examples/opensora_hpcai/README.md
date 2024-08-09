@@ -302,6 +302,8 @@ In the `sample_iv2v.yaml`, provide such information as `loop`, `condition_frame_
 and `reference_path`.
 See [here](docs/quick_start.md#imagevideo-to-video-opensora-v11-and-above) for more details.
 
+> For inference with sequence parallel (Open-Sora 1.2), please use `msrun`, and append `--use_parallel True` and `--enable_sequence_parallelism True ` to the inference script referring to `scripts/run/run_infer_seqeunce_parallel.sh`.
+
 #### Text-to-Video Generation
 
 To generate a video from text, you can use `sample_t2v.yaml` or set `--reference_path` to an empty string `''`
