@@ -61,14 +61,16 @@ Flash Attention,
 
 ### Inference
 
-| SD Model      |     Context |  Scheduler   | Steps              |  Resolution   |      Batch Size   /  jit_level  |  Speed (step/s)     | FPS (img/s)     |
-|---------------|------------|--------------|:-------------------:|:-------------:|:----------------:|:----------------:|----------:|--------:|
+| SD Model      |     Context |  Scheduler   | Steps              |  Resolution   |      Batch Size   |  jit_level  |  Speed (step/s)     | FPS (img/s)     |
+|---------------|------------|--------------|:-------------------:|:-------------:|:----------------:|:----------------:|----------:|----------|
 | 1.5           |     D910x1-MS2.2.10    |  DDIM       |   30       |    512x512         |       4     | N/A     |    3.58        |       0.44       |
 | 2.0           |     D910x1-MS2.2.10    |  DDIM       |   30       |    512x512         |       4     | N/A      |    4.12       |        0.49       |
 | 2.1-v         |     D910x1-MS2.2.10    |  DDIM       |   30       |    768x768         |       4     | N/A      |     1.14     |         0.14      |
 | 1.5           |     D910*x1-MS2.3.0   |  DDIM       |   30       |    512x512         |       4     | O2      |       6.69     |         0.77      |
 | 2.0           |     D910*x1-MS2.3.0   |  DDIM       |   30       |    512x512         |       4      | O2     |      8.30     |         0.91      |
 | 2.1-v         |     D910*x1-MS2.3.0   |  DDIM       |   30       |    768x768         |       4      | O2     |      2.91     |         0.36      |
+
+
 > Context: {Ascend chip}-{number of NPUs}-{mindspore version}.
 >
 > Speed (step/s): sampling speed measured in the number of sampling steps per second.
