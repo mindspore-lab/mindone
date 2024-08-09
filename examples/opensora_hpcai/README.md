@@ -339,7 +339,7 @@ For more usage on the inference script, please run `python scripts/inference.py 
 
 ## Data Processing
 
-Currently, we didn't implement the complete pipeline for data processing from raw videos to high-quality text-video pairs. We provide the data processing tools as follows.
+Currently, we are developing the complete pipeline for data processing from raw videos to high-quality text-video pairs. We provide the data processing tools as follows.
 
 <details>
 <summary>View more</summary>
@@ -376,7 +376,7 @@ For acceleration, we pre-compute the t5 embedding before training stdit.
 python scripts/infer_t5.py \
     --csv_path /path/to/video_caption.csv \
     --output_path /path/to/text_embed_folder \
-    --model_max_length 200 # For OpenSora v1.1
+    --model_max_length 300     # 300 for OpenSora v1.2, 200 for OpenSora v1.1, 120 for OpenSora 1.0
 ```
 
 OpenSora v1 uses text embedding sequence length of 120 (by default).
@@ -475,8 +475,7 @@ python scripts/train.py --config configs/opensora-v1-2 /train/train_stage1.yaml 
     --text_embed_folder /path/to/text_embed_folder \
 ```
 
-`text_embed_folder` is required and used to speed up the training.
-You can find more in [T5 text embeddings](#cache-text-embeddings).
+`text_embed_folder` is required and used to speed up the training. You can find the instructions on how to generate T5 embeddings [here](#cache-text-embeddings).
 
 For parallel training, use `msrun` and along with `--use_parallel=True`:
 
