@@ -1,0 +1,16 @@
+model_config:
+  encoder_model_name: 'facebook/dino-vitb16'
+  target: models.instantmesh.models.lrm_mesh.InstantMesh
+  params:
+    encoder_model_name: './ckpts'  # coz needs to enforce the is_local flag (with pretrained_model_name_or_path as dir), thus here put in the abs path as a workaround
+    triplane_low_res: 32
+    triplane_high_res: 64
+    triplane_dim: 80
+    rendering_samples_per_ray: 128
+    grid_res: 128
+    grid_scale: 2.1
+
+
+infer_config:
+  texture_resolution: 1024
+  render_resolution: 512

@@ -1,0 +1,5 @@
+pycubes
+trimesh
+imageio
+loguru
+huggingface_hub
