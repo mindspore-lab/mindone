@@ -584,6 +584,19 @@ You may also see the example shell scripts in `scripts/run` for quick reference.
 ## Evaluation
 
 ### Open-Sora 1.2
+
+Open-Sora 1.2 based on MindSpore and Ascend 910* supports 0s\~16s, 144p to 720p, various aspect ratios video generation. The supported configurations are listed below.
+
+|      | image | 2s  | 4s  | 8s  | 16s |
+| ---- | ----- | --- | --- | --- | --- |
+| 240p | ✅     | ✅   | ✅   | ✅   | ✅   |
+| 360p | ✅     | ✅   | ✅   | ✅   | ✅   |
+| 480p | ✅     | ✅   | ✅   | ✅   | 🆗   |
+| 720p | ✅     | ✅   | ✅   | 🆗   | 🆗   |
+
+Here ✅ means that the data is seen during training, and 🆗 means although not trained, the model can inference at that config. Inference for 🆗 requires sequence parallelism.
+
+
 #### Training Performance
 
 We evaluated the training performance of Open-Sora v1.2 on a subset of mixkit videos, moast of which are high-resolution videos (1080P resolution, around 12 to 100 seconds). The results are as follows.
