@@ -243,7 +243,6 @@ class VideoAutoencoderPipeline(nn.Cell):
         self.cal_loss = config.cal_loss
         self.micro_frame_size = config.micro_frame_size
         self.micro_z_frame_size = self.temporal_vae.get_latent_size([config.micro_frame_size, None, None])[0]
-        print(f"micro_frame_size: {self.micro_frame_size}, micro_z_frame_size: {self.micro_z_frame_size}")
 
         if config.freeze_vae_2d:
             for param in self.spatial_vae.get_parameters():

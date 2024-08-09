@@ -25,31 +25,15 @@ def rotate_half(x: Tensor) -> Tensor:
     return x.reshape(x.shape[:-2] + (-1,))  # '... d r -> ... (d r)'
 
 
-def apply_rotary_emb(
-    freqs: Parameter, t: Tensor, start_index: int = 0, scale: float = 1.0, seq_dim: int = -2
-) -> Tensor:
+def apply_rotary_emb(freqs: Parameter, t: Tensor, scale: float = 1.0, seq_dim: int = -2) -> Tensor:
     if t.ndim == 3:
         seq_len = t.shape[seq_dim]
-        freqs = freqs[-seq_len:].dtype(t.dtype)
-
-    rot_dim = freqs.shape[-1]
-    end_index = start_index + rot_dim
-
-    t_left, t, t_right = t[..., :start_index], t[..., start_index:end_index], t[..., end_index:]
+        freqs = freqs[-seq_len:].astype(t.dtype)
+    # FIXME: start_index is always 0 in OS1.2 and ops.concat doesn't support empty elements. OS1.x future versions may need start_index > 0
+    # t, t_right = t[..., start_index:end_index], t[..., end_index:]
     t = (t * freqs.cos().astype(t.dtype) * scale) + (rotate_half(t) * freqs.sin().astype(t.dtype) * scale)
 
-    return ops.cat((t_left, t, t_right), axis=-1)
-    """
-    if start_index > 0:
-        out = ops.cat((t_left, t), axis=-1)
-    else:
-        out = t
-
-    if end_index < t.shape[-1]:
-        return ops.cat((out, t_right), axis=-1)
-    else:
-        return out
-    """
+    return t
 
 
 class RotaryEmbedding(nn.Cell):
