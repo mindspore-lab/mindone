@@ -36,7 +36,7 @@ from opensora.pipelines import (
 from opensora.schedulers.iddpm import create_diffusion
 from opensora.utils.amp import auto_mixed_precision
 from opensora.utils.resume import save_train_net, get_resume_states, resume_train_net, flush_from_cache
-from opensora.utils.callbacks import EMAEvalSwapCallback, PerfRecorder
+from opensora.utils.callbacks import EMAEvalSwapCallback, PerfRecorderCallback
 from opensora.utils.ema import EMA
 from opensora.utils.metrics import BucketLoss
 from opensora.utils.model_utils import WHITELIST_OPS, Model
@@ -542,15 +542,15 @@ def main(args):
     )
     
     # FIXME: get_dataset_size() is extremely slow when used with bucket_batch_by_length
-    if (args.bucket_config is not None) and args.custom_train:
-        # steps per epoch is not constant in bucket config training
-        # A relaxed guess to ensure enough training steps
-        dataset_size = math.ceil(num_src_samples / device_num)
-        logger.info(f"Total number of samples: {num_src_samples}. Steps per epoch <= {dataset_size}")
-    else:
-        if args.bucket_config is not None:
-            logger.warning('get_dataset_size() may run very slowly for bucket config training. You may set args.custom_train True to avoid it.')
+    if args.bucket_config is None:
         dataset_size = dataloader.get_dataset_size()
+    else:
+        # steps per epoch is not constant in bucket config training
+        # FIXME: It is a highly relaxed estimation to ensure enough steps per epoch to sustain training. A more precise estimation or run-time infer is to be implemented.
+        dataset_size = math.ceil(num_src_samples / device_num)
+        dataloader.dataset_size = dataset_size
+        logger.warning(f'Manually set dataset_size to {dataset_size} to skip get_dataset_size() for bucket config training.')
+
 
     val_dataloader = None
     if args.validate:
@@ -583,7 +583,7 @@ def main(args):
     else:
         steps_per_sink = dataset_size
     sink_epochs = math.ceil(total_train_steps / steps_per_sink)
-
+    
     if args.ckpt_save_steps == -1:
         ckpt_save_interval = args.ckpt_save_interval
         step_mode = False
@@ -708,7 +708,7 @@ def main(args):
             model = Model(net_with_grads, eval_network=latent_diffusion_eval, metrics=metrics)
 
         # callbacks
-        callback = [TimeMonitor(args.log_interval), OverflowMonitor(), EMAEvalSwapCallback(ema)]
+        callbacks = [TimeMonitor(args.log_interval), OverflowMonitor(), EMAEvalSwapCallback(ema)]
         if rank_id == 0:
             save_cb = EvalSaveCallback(
                 network=latent_diffusion_with_loss.network,
@@ -724,14 +724,15 @@ def main(args):
                 log_interval=args.log_interval,
                 start_epoch=start_epoch,
                 model_name=model_name,
+                resume_prefix_blacklist=['vae.', 'swap.'],
                 record_lr=False,
             )
-            perf_rec = PerfRecorder(
+            rec_cb = PerfRecorderCallback(
                 save_dir=args.output_path, file_name="result_val.log", metric_names=list(metrics.keys()), resume=args.resume
             )
-            callback.extend([save_cb, perf_rec])
+            callbacks.extend([save_cb, rec_cb])
             if args.profile:
-                callback.append(ProfilerCallbackEpoch(2, 3, "./profile_data"))
+                callbacks.append(ProfilerCallbackEpoch(2, 3, "./profile_data"))
 
     # 5. log and save config
     if rank_id == 0:
@@ -785,7 +786,7 @@ def main(args):
             dataloader,
             valid_dataset=val_dataloader,
             valid_frequency=args.val_interval,
-            callbacks=callback,
+            callbacks=callbacks, 
             dataset_sink_mode=args.dataset_sink_mode,
             valid_dataset_sink_mode=False,  # TODO: add support?
             sink_size=args.sink_size,

@@ -318,9 +318,9 @@ def parse_train_args(parser):
     parser.add_argument("--ckpt_max_keep", default=10, type=int, help="Maximum number of checkpoints to keep")
     parser.add_argument(
         "--step_mode",
-        default=False,
+        default=None,
         type=str2bool,
-        help="whether save ckpt by steps. If False, save ckpt by epochs.",
+        help="whether save ckpt by steps. If False, save ckpt by epochs. If None, will be determined by train_steps and dataset_sink_mode automatically",
     )
     parser.add_argument("--custom_train", default=False, type=str2bool, help="Use custom train process instead of model.train")
     parser.add_argument("--profile", default=False, type=str2bool, help="Profile or not")
