@@ -11,7 +11,7 @@ export MS_DEV_ENABLE_KERNEL_PACKET=on
 # log level
 export GLOG_v=2
 
-output_dir=outputs/OSv1.2_dvm_stage2
+output_dir=outputs/OSv1.2_dvm_stage2_warmup1000_rotaryFixed
 
 msrun --bind_core=True --worker_num=8 --local_worker_num=8 --log_dir=$output_dir  \
 python scripts/train.py \
