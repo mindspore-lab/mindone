@@ -533,6 +533,7 @@ def main(args):
         device_num=device_num,
         rank_id=rank_id,
     )
+
     dataset_size = dataloader.get_dataset_size()
 
     val_dataloader = None
