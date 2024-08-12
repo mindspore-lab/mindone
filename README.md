@@ -41,7 +41,7 @@ ONE is short for "ONE for all"
 | [stable diffusion xl](https://github.com/mindspore-lab/mindone/blob/master/examples/stable_diffusion_xl)  |support sai style(stability AI) vanilla fine tune, lora, dreambooth | 
 | [dit](https://github.com/mindspore-lab/mindone/blob/master/examples/dit)     | support text to image fine tune | 
 | [latte](https://github.com/mindspore-lab/mindone/blob/master/examples/latte)     | support uncondition text to image fine tune |
-| [animate diff](https://github.com/mindspore-lab/mindone/blob/master/examples/oanimatediff) | support motion module and lora training |
+| [animate diff](https://github.com/mindspore-lab/mindone/blob/master/examples/animatediff) | support motion module and lora training |
 | [video composer](https://github.com/mindspore-lab/mindone/tree/master/examples/videocomposer)     | support conditional video generation with motion transfer and etc.|
 | [ip adaptor](https://github.com/mindspore-lab/mindone/blob/master/examples/ip_adapter)     | refactoring  |
 | [t2i-adapter](https://github.com/mindspore-lab/mindone/blob/master/examples/t2i_adapter)     | refactoring |
