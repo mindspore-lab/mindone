@@ -10,7 +10,7 @@ def save_train_net(train_net, ckpt_dir, epoch, global_step):
     ms.save_checkpoint(
         train_net,
         os.path.join(ckpt_dir, "train_resume.ckpt"),
-        choice_func=lambda x: not (x.startswith('vae.' or x.startswith('swap.'))),
+        choice_func=lambda x: not (x.startswith('vae.') or x.startswith('swap.')),
         append_dict={
             "epoch_num": epoch,
             "cur_step": global_step,
