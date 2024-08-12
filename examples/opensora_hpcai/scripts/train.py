@@ -710,7 +710,11 @@ def main(args):
             model = Model(net_with_grads, eval_network=latent_diffusion_eval, metrics=metrics)
 
         # callbacks
-        callbacks = [TimeMonitor(args.log_interval), OverflowMonitor(), EMAEvalSwapCallback(ema)]
+        callbacks = [OverflowMonitor(), EMAEvalSwapCallback(ema)]
+        if args.bucket_config is None:
+            callbacks.append(TimeMonitor(args.log_interval))
+        else:
+            logger.info("As steps per epoch are inaccurate with bucket config, TimeMonitor is disabled. See result.log for the actual step time")
         if rank_id == 0:
             save_cb = EvalSaveCallback(
                 network=latent_diffusion_with_loss.network,
