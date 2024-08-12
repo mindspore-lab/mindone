@@ -30,7 +30,7 @@ ONE is short for "ONE for all"
 | model  |  features  
 | :---   |  :--  |
 | [cambrian](https://github.com/mindspore-lab/mindone/blob/master/examples/cambrain)      | working on it | 
-| [minicpm-v](https://github.com/mindspore-lab/mindone/blob/master/examples/mgm)      | working on v2.6 | 
+| [minicpm-v](https://github.com/mindspore-lab/mindone/blob/master/examples/minicpm_v)      | working on v2.6 | 
 | [internvl](https://github.com/mindspore-lab/mindone/blob/master/examples/internvl)      | working on v1.0 v1.5 v2.0 | 
 | [llava](https://github.com/mindspore-lab/mindone/blob/master/examples/llava)      | working on llava 1.5 & 1.6 | 
 | [vila](https://github.com/mindspore-lab/mindone/blob/master/examples/vila)      | working on it | 
@@ -41,7 +41,7 @@ ONE is short for "ONE for all"
 | [stable diffusion xl](https://github.com/mindspore-lab/mindone/blob/master/examples/stable_diffusion_xl)  |support sai style(stability AI) vanilla fine tune, lora, dreambooth | 
 | [dit](https://github.com/mindspore-lab/mindone/blob/master/examples/dit)     | support text to image fine tune | 
 | [latte](https://github.com/mindspore-lab/mindone/blob/master/examples/latte)     | support uncondition text to image fine tune |
-| [animate diff](https://github.com/mindspore-lab/mindone/blob/master/examples/opensora_pku) | support motion module and lora training |
+| [animate diff](https://github.com/mindspore-lab/mindone/blob/master/examples/oanimatediff) | support motion module and lora training |
 | [video composer](https://github.com/mindspore-lab/mindone/tree/master/examples/videocomposer)     | support conditional video generation with motion transfer and etc.|
 | [ip adaptor](https://github.com/mindspore-lab/mindone/blob/master/examples/ip_adapter)     | refactoring  |
 | [t2i-adapter](https://github.com/mindspore-lab/mindone/blob/master/examples/t2i_adapter)     | refactoring |
