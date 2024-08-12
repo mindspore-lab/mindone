@@ -120,14 +120,16 @@ class EvalSaveCallback(Callback):
         self.use_step_unit = use_step_unit
         self.save_training_resume = save_training_resume
         if resume_prefix_blacklist is not None:
-            def choice_func(x): 
+
+            def choice_func(x):
                 for prefix in resume_prefix_blacklist:
-                    if x.startswith('vae.'):
+                    if x.startswith("vae."):
                         return False
                 return True
-            self.choice_func=choice_func
+
+            self.choice_func = choice_func
         else:
-            self.choice_func=None
+            self.choice_func = None
 
     def on_train_step_end(self, run_context):
         cb_params = run_context.original_args()

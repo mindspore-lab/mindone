@@ -1,16 +1,19 @@
 import logging
 import os
+
 import mindspore as ms
+
 from mindone.utils.params import load_param_into_net_with_filter
 
 _logger = logging.getLogger(__name__)
+
 
 def save_train_net(train_net, ckpt_dir, epoch, global_step):
     # train_net: i.e. net_with_grads, contains optimizer, ema, sense_scale, etc.
     ms.save_checkpoint(
         train_net,
         os.path.join(ckpt_dir, "train_resume.ckpt"),
-        choice_func=lambda x: not (x.startswith('vae.') or x.startswith('swap.')),
+        choice_func=lambda x: not (x.startswith("vae.") or x.startswith("swap.")),
         append_dict={
             "epoch_num": epoch,
             "cur_step": global_step,
@@ -22,7 +25,7 @@ def save_train_net(train_net, ckpt_dir, epoch, global_step):
 def get_resume_states(resume_ckpt):
     state_dict = ms.load_checkpoint(resume_ckpt)
     start_epoch = int(state_dict.get("epoch_num", ms.Tensor(0, ms.int32)).asnumpy().item())
-    
+
     # self-recorded cur_step and internal global_step seem to be same
     global_step = int(state_dict.get("cur_step", ms.Tensor(0, ms.int32)).asnumpy().item())
     # global_step_internal = int(state_dict.get("global_step", ms.Tensor(0, ms.int32)).asnumpy().item())
@@ -43,10 +46,10 @@ def resume_train_net(train_net, resume_ckpt):
     # ms.load_param_into_net(train_net, state_dict)
 
     _logger.info(
-        f"Finish resuming. If no parameter fail-load warning displayed, all checkpoint params have been successfully loaded. \n"
+        "Finish resuming. If no parameter fail-load warning displayed, all checkpoint params have been successfully loaded."
     )
 
-    return global_step 
+    return global_step
 
 
 def flush_from_cache(train_net):

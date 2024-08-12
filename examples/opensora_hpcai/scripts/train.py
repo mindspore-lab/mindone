@@ -1,20 +1,20 @@
 """
 STDiT training script
 """
-import time
 import datetime
 import logging
 import math
 import os
 import sys
+import time
 from typing import Optional, Tuple
 
 import yaml
 
 import mindspore as ms
 from mindspore import nn
-from mindspore.communication.management import get_group_size, get_rank, init
 from mindspore._c_expression import reset_op_id
+from mindspore.communication.management import get_group_size, get_rank, init
 from mindspore.nn.wrap.loss_scale import DynamicLossScaleUpdateCell
 from mindspore.train.callback import TimeMonitor
 
@@ -35,17 +35,17 @@ from opensora.pipelines import (
 )
 from opensora.schedulers.iddpm import create_diffusion
 from opensora.utils.amp import auto_mixed_precision
-from opensora.utils.resume import save_train_net, get_resume_states, resume_train_net, flush_from_cache
 from opensora.utils.callbacks import EMAEvalSwapCallback, PerfRecorderCallback
 from opensora.utils.ema import EMA
 from opensora.utils.metrics import BucketLoss
 from opensora.utils.model_utils import WHITELIST_OPS, Model
+from opensora.utils.resume import flush_from_cache, get_resume_states, resume_train_net, save_train_net
 
 from mindone.trainers.callback import EvalSaveCallback, OverflowMonitor, ProfilerCallbackEpoch
-from mindone.trainers.checkpoint import CheckpointManager 
-from mindone.trainers.recorder import PerfRecorder 
+from mindone.trainers.checkpoint import CheckpointManager
 from mindone.trainers.lr_schedule import create_scheduler
 from mindone.trainers.optim import create_optimizer
+from mindone.trainers.recorder import PerfRecorder
 from mindone.trainers.train_step import TrainOneStepWrapper
 from mindone.utils.logger import set_logger
 from mindone.utils.params import count_params
@@ -540,17 +540,19 @@ def main(args):
         device_num=device_num,
         rank_id=rank_id,
     )
-    
+
     # FIXME: get_dataset_size() is extremely slow when used with bucket_batch_by_length
     if args.bucket_config is None:
         dataset_size = dataloader.get_dataset_size()
     else:
         # steps per epoch is not constant in bucket config training
-        # FIXME: It is a highly relaxed estimation to ensure enough steps per epoch to sustain training. A more precise estimation or run-time infer is to be implemented.
+        # FIXME: It is a highly relaxed estimation to ensure enough steps per epoch to sustain training. \
+        # A more precise estimation or run-time infer is to be implemented.
         dataset_size = math.ceil(num_src_samples / device_num)
         dataloader.dataset_size = dataset_size
-        logger.warning(f'Manually set dataset_size to {dataset_size} to skip get_dataset_size() for bucket config training.')
-
+        logger.warning(
+            f"Manually set dataset_size to {dataset_size} to skip get_dataset_size() for bucket config training."
+        )
 
     val_dataloader = None
     if args.validate:
@@ -583,7 +585,7 @@ def main(args):
     else:
         steps_per_sink = dataset_size
     sink_epochs = math.ceil(total_train_steps / steps_per_sink)
-    
+
     if args.ckpt_save_steps == -1:
         ckpt_save_interval = args.ckpt_save_interval
         step_mode = False
@@ -621,7 +623,7 @@ def main(args):
             args.decay_steps = 1
 
     lr = create_scheduler(
-        steps_per_epoch=dataset_size, # not used
+        steps_per_epoch=dataset_size,  # not used
         name=args.scheduler,
         lr=args.start_learning_rate,
         end_lr=args.end_learning_rate,
@@ -700,7 +702,7 @@ def main(args):
         # fmt: on
         net_with_grads.set_inputs(video, caption, mask, frames_mask, num_frames, height, width, fps, ar)
         logger.info("Dynamic inputs are initialized for bucket config training in Graph mode!")
-    
+
     if not args.custom_train:
         if args.global_bf16:
             model = Model(net_with_grads, eval_network=latent_diffusion_eval, metrics=metrics, amp_level="O0")
@@ -724,11 +726,14 @@ def main(args):
                 log_interval=args.log_interval,
                 start_epoch=start_epoch,
                 model_name=model_name,
-                resume_prefix_blacklist=['vae.', 'swap.'],
+                resume_prefix_blacklist=["vae.", "swap."],
                 record_lr=False,
             )
             rec_cb = PerfRecorderCallback(
-                save_dir=args.output_path, file_name="result_val.log", metric_names=list(metrics.keys()), resume=args.resume
+                save_dir=args.output_path,
+                file_name="result_val.log",
+                metric_names=list(metrics.keys()),
+                resume=args.resume,
             )
             callbacks.extend([save_cb, rec_cb])
             if args.profile:
@@ -778,7 +783,7 @@ def main(args):
 
         with open(os.path.join(args.output_path, "args.yaml"), "w") as f:
             yaml.safe_dump(vars(args), stream=f, default_flow_style=False, sort_keys=False)
-    
+
     # 6. train
     if not args.custom_train:
         model.fit(
@@ -786,7 +791,7 @@ def main(args):
             dataloader,
             valid_dataset=val_dataloader,
             valid_frequency=args.val_interval,
-            callbacks=callbacks, 
+            callbacks=callbacks,
             dataset_sink_mode=args.dataset_sink_mode,
             valid_dataset_sink_mode=False,  # TODO: add support?
             sink_size=args.sink_size,
@@ -794,15 +799,15 @@ def main(args):
         )
 
     else:
-        assert not args.dataset_sink_mode, 'data sink not supported for custom train process currently' 
-       
+        assert not args.dataset_sink_mode, "data sink not supported for custom train process currently"
+
         # re-count training steps and epochs
         if args.train_steps > 0:
             # ensure num_epochs >= train_steps/steps_per_epoch, but steps_per_epoch is uncertain with dynamic BS, the safest bound is to assume it to be 1.
             # Note that it's not the actual data epochs that will be run. Training process will terminate in train_steps
-            num_epochs = args.train_steps    
+            num_epochs = args.train_steps
         else:
-            assert args.epochs > 0, 'args.epochs must be given and > 0 if train_steps is not specified'
+            assert args.epochs > 0, "args.epochs must be given and > 0 if train_steps is not specified"
             # the actual data epochs to be run in this case
             num_epochs = args.epochs
         global_step = cur_iter  # index start from 1 (after first-step network update)
@@ -811,7 +816,7 @@ def main(args):
             save_by_step = True
         else:
             save_by_step = False
-        
+
         if rank_id == 0:
             ckpt_manager = CheckpointManager(ckpt_dir, "latest_k", k=args.ckpt_max_keep)
             if not os.path.exists(ckpt_dir):
@@ -822,29 +827,30 @@ def main(args):
                 record = PerfRecorder(output_dir, metric_names=perf_columns)
             else:
                 record = PerfRecorder(output_dir, resume=True)
- 
+
         ds_iter = dataloader.create_tuple_iterator(num_epochs=num_epochs - start_epoch)
         # ds_iter = dataloader.create_tuple_iterator(num_epochs=-1) # infinite
-        end_train = False 
-        for epoch in range(start_epoch+1, num_epochs+1):
+        end_train = False
+        for epoch in range(start_epoch + 1, num_epochs + 1):
             if (args.train_steps > 0) and (global_step >= args.train_steps):
-                logger.warning('resumed steps >= train_steps, will end training')
+                logger.warning("resumed steps >= train_steps, will end training")
                 break
 
             start_time_s = time.time()
             for step, data in enumerate(ds_iter, 1):
-
                 loss, overflow, scaling_sens = net_with_grads(*data)
                 global_step += 1
                 step_time = time.time() - start_time_s
-                
+
                 # log
                 # print(data[0].shape)
                 loss_val = float(loss.asnumpy())
-                logger.info(f"Epoch {epoch}, Step {step}, loss {loss_val:.5f}, Global step {global_step}, Step time {step_time*1000:.2f}ms")
+                logger.info(
+                    f"Epoch {epoch}, Step {step}, loss {loss_val:.5f}, Global step {global_step}, Step time {step_time*1000:.2f}ms"
+                )
                 if overflow:
-                    logger.warning(f"overflow detected")
-                
+                    logger.warning("overflow detected")
+
                 if rank_id == 0:
                     step_pref_value = [global_step, loss_val, step_time]
                     record.add(*step_pref_value)
@@ -854,13 +860,19 @@ def main(args):
                         ckpt_name = f"{model_name}-s{global_step}.ckpt"
                         if ema is not None:
                             ema.swap_before_eval()
-                        ckpt_manager.save(latent_diffusion_with_loss.network, None, ckpt_name=ckpt_name, append_dict=None)
+                        ckpt_manager.save(
+                            latent_diffusion_with_loss.network, None, ckpt_name=ckpt_name, append_dict=None
+                        )
                         if ema is not None:
                             ema.swap_after_eval()
-                            ckpt_manager.save(latent_diffusion_with_loss.network, None, ckpt_name=ckpt_name.replace(".ckpt", "_nonema.ckpt"), append_dict=None)
-                    
+                            ckpt_manager.save(
+                                latent_diffusion_with_loss.network,
+                                None,
+                                ckpt_name=ckpt_name.replace(".ckpt", "_nonema.ckpt"),
+                                append_dict=None,
+                            )
                         # save train state for resume
-                        save_train_net(net_with_grads, ckpt_dir, epoch-1, global_step)
+                        save_train_net(net_with_grads, ckpt_dir, epoch - 1, global_step)
                 if (args.train_steps > 0) and (global_step >= args.train_steps):
                     end_train = True
                     break
@@ -869,15 +881,19 @@ def main(args):
 
             # save and eval in epoch
             if not save_by_step and rank_id == 0:
-                if (epoch % args.ckpt_save_interval == 0) or (epochs == args.epochs):
+                if (epoch % args.ckpt_save_interval == 0) or (epoch == num_epochs):
                     ckpt_name = f"{model_name}-e{epoch}.ckpt"
                     if ema is not None:
                         ema.swap_before_eval()
                     ckpt_manager.save(latent_diffusion_with_loss.network, None, ckpt_name=ckpt_name, append_dict=None)
                     if ema is not None:
                         ema.swap_after_eval()
-                        ckpt_manager.save(latent_diffusion_with_loss.network, None, ckpt_name=ckpt_name.replace(".ckpt", "_nonema.ckpt"), append_dict=None)
-                
+                        ckpt_manager.save(
+                            latent_diffusion_with_loss.network,
+                            None,
+                            ckpt_name=ckpt_name.replace(".ckpt", "_nonema.ckpt"),
+                            append_dict=None,
+                        )
                     # save train state for resume
                     save_train_net(net_with_grads, ckpt_dir, epoch, global_step)
 
@@ -889,12 +905,12 @@ def main(args):
                 break
 
         # TODO: need to release dataloader or cache? refer to model.train
-        logger.info('Finished training. Ending process...')
+        logger.info("Finished training. Ending process...")
         reset_op_id()
         time.sleep(60)
-        logger.info('End')
+        logger.info("End")
 
-            
+
 if __name__ == "__main__":
     logger.debug("process id:", os.getpid())
     args = parse_args()
