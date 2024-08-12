@@ -47,10 +47,13 @@ ONE is short for "ONE for all"
 | [t2i-adapter](https://github.com/mindspore-lab/mindone/blob/master/examples/t2i_adapter)     | refactoring |
 
 ###  run hf diffusers on mindspore
-mindone diffusers is under active development, most tasks were tested ith mindspore 2.2.10 and ascend 910 hardware. 
+mindone diffusers is under active development, most tasks were tested with mindspore 2.2.10 and ascend 910 hardware. 
 
 | component  |  features  
 | :---   |  :--  
 | [pipeline](https://github.com/mindspore-lab/mindone/tree/master/mindone/diffusers/pipelines) | support text2image,text2video,text2audio tasks 30+
 | [models](https://github.com/mindspore-lab/mindone/tree/master/mindone/diffusers/models) | support audoencoder & transformers base models same as hf diffusers
 | [schedulers](https://github.com/mindspore-lab/mindone/tree/master/mindone/diffusers/schedulers) | support ddpm & dpm solver 10+ schedulers same as hf diffusers
+#### TODO
+* [ ] mindspore 2.3.0 version adaption
+* [ ] hf diffusers 0.30.0 version adaption
