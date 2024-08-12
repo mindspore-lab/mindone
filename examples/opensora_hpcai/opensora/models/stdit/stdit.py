@@ -1,3 +1,7 @@
+"""
+OpenSora v1.0 STDiT architecture
+"""
+
 import os
 import re
 
@@ -186,6 +190,7 @@ class STDiT(nn.Cell):
         use_recompute=False,
         num_recompute_blocks=None,
         patchify_conv3d_replace=None,
+        manual_pad=False,
     ):
         super().__init__()
         self.pred_sigma = pred_sigma
@@ -209,6 +214,7 @@ class STDiT(nn.Cell):
         self.time_scale = time_scale
 
         assert patchify_conv3d_replace in [None, "linear", "conv2d"]
+        assert not manual_pad, "manual_pad not supported for STDiT v1"
 
         pos_embed = self.get_spatial_pos_embed()
         pos_embed_temporal = self.get_temporal_pos_embed()
@@ -324,7 +330,7 @@ class STDiT(nn.Cell):
         # x = rearrange(x, "B T S C -> B (T S) C")
         x = ops.reshape(x, (B, TS, C))
 
-        t = self.t_embedder(timestep, dtype=x.dtype)  # [B, C]
+        t = self.t_embedder(timestep)  # [B, C]
         # why project again on t ?
         t0 = self.t_block(t)  # [B, C]
         y = self.y_embedder(y, self.training)  # [B, 1, N_token, C]

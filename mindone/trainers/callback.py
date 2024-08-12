@@ -34,6 +34,7 @@ class EvalSaveCallback(Callback):
         ckpt_save_dir="./",
         output_dir=None,
         ema=None,
+        save_ema_only=True,
         ckpt_save_policy="lastest_k",
         ckpt_max_keep=10,
         step_mode=False,
@@ -77,6 +78,7 @@ class EvalSaveCallback(Callback):
         self.log_interval = log_interval
         self.start_epoch = start_epoch
         self.record_lr = record_lr
+        self.save_ema_only = save_ema_only
 
         if self.is_main_device:
             self.ckpt_save_policy = ckpt_save_policy
@@ -135,12 +137,20 @@ class EvalSaveCallback(Callback):
                     if self.use_step_unit
                     else f"{self.model_name}-e{cur_epoch}.ckpt"
                 )
+
+                append_dict = {"lora_rank": self.lora_rank} if self.use_lora else None
                 if self.ema is not None:
+                    if not self.save_ema_only:
+                        self.ckpt_manager.save(
+                            self.net_to_save,
+                            None,
+                            ckpt_name=ckpt_name.replace(".ckpt", "_nonema.ckpt"),
+                            append_dict=append_dict,
+                        )
                     # swap ema weight and network weight
                     self.ema.swap_before_eval()
 
                 # save history checkpoints
-                append_dict = {"lora_rank": self.lora_rank} if self.use_lora else None
                 self.ckpt_manager.save(self.net_to_save, None, ckpt_name=ckpt_name, append_dict=append_dict)
 
                 if self.save_training_resume:
@@ -216,12 +226,20 @@ class EvalSaveCallback(Callback):
                     if self.use_step_unit
                     else f"{self.model_name}-e{cur_epoch}.ckpt"
                 )
+
+                append_dict = {"lora_rank": self.lora_rank} if self.use_lora else None
                 if self.ema is not None:
+                    if not self.save_ema_only:
+                        self.ckpt_manager.save(
+                            self.net_to_save,
+                            None,
+                            ckpt_name=ckpt_name.replace(".ckpt", "_nonema.ckpt"),
+                            append_dict=append_dict,
+                        )
                     # swap ema weight and network weight
                     self.ema.swap_before_eval()
 
                 # save history checkpoints
-                append_dict = {"lora_rank": self.lora_rank} if self.use_lora else None
                 self.ckpt_manager.save(self.net_to_save, None, ckpt_name=ckpt_name, append_dict=append_dict)
 
                 if self.save_training_resume:
@@ -246,6 +264,14 @@ class EvalSaveCallback(Callback):
                 log_str = f"Top K checkpoints:\n{self.main_indicator}\tcheckpoint\n"
                 for p, ckpt_name in self.ckpt_manager.get_ckpt_queue():
                     log_str += f"{p:.4f}\t{os.path.join(self.ckpt_save_dir, ckpt_name)}\n"
+
+    def on_eval_end(self, run_context):
+        if self.is_main_device:
+            cb_params = run_context.original_args()
+            metrics = cb_params.get("metrics")
+            if metrics is not None:
+                metrics = {k: f"{v:.4f}" for k, v in metrics.items()}
+                _logger.info(f"Eval result epoch {cb_params.cur_epoch_num}: {metrics}")
 
     def _get_optimizer_from_cbp(self, cb_params):
         if cb_params.optimizer is not None:

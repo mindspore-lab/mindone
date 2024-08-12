@@ -1,4 +1,5 @@
 from .modeling_utils import MSPreTrainedModel
+from .models.bit import BitBackbone
 from .models.blip_2 import (
     Blip2ForConditionalGeneration,
     Blip2Model,
@@ -14,6 +15,14 @@ from .models.clip import (
     CLIPTextModelWithProjection,
     CLIPVisionModel,
     CLIPVisionModelWithProjection,
+)
+from .models.dpt import DPTForDepthEstimation
+from .models.mt5 import (
+    MT5_PRETRAINED_MODEL_ARCHIVE_LIST,
+    MT5EncoderModel,
+    MT5ForConditionalGeneration,
+    MT5Model,
+    MT5PreTrainedModel,
 )
 from .models.t5 import (
     T5_PRETRAINED_MODEL_ARCHIVE_LIST,

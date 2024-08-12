@@ -50,6 +50,9 @@ def create_video_from_numpy_frames(frames: np.ndarray, path: str, fps: Union[int
     """
     if fmt == "gif":
         imageio.mimsave(path, frames, duration=1 / fps, loop=loop)
+    if fmt == "png":
+        for i in range(len(frames)):
+            imageio.imwrite(path.replace(".png", f"-{i:04}.png"), frames[i])
     elif fmt == "mp4":
         create_video_from_rgb_numpy_arrays(frames, path, fps=fps)
 
@@ -65,7 +68,7 @@ def save_videos(frames: np.ndarray, path: str, fps: Union[int, float] = 8, loop=
         loop: number of loops to play. If 0, it will play endlessly.
     """
     fmt = path.split(".")[-1]
-    assert fmt in ["gif", "mp4"]
+    assert fmt in ["gif", "mp4", "png"]
 
     # input frames: (b f H W 3), normalized to [0, 1]
     frames = (frames * 255).round().clip(0, 255).astype(np.uint8)

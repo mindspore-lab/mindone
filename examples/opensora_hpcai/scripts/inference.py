@@ -18,14 +18,15 @@ mindone_lib_path = os.path.abspath(os.path.join(__dir__, "../../../"))
 sys.path.insert(0, mindone_lib_path)
 sys.path.insert(0, os.path.abspath(os.path.join(__dir__, "..")))
 
-from opensora.models.stdit import STDiT2_XL_2, STDiT_XL_2
+from opensora.datasets.aspect import ASPECT_RATIO_MAP, ASPECT_RATIOS, get_image_size, get_num_frames
+from opensora.models.stdit import STDiT2_XL_2, STDiT3_XL_2, STDiT_XL_2
 from opensora.models.text_encoder.t5 import get_text_encoder_and_tokenizer
 from opensora.models.vae.vae import SD_CONFIG, OpenSoraVAE_V1_2, VideoAutoencoderKL
 from opensora.pipelines import InferPipeline, InferPipelineFiTLike
 from opensora.utils.amp import auto_mixed_precision
 from opensora.utils.cond_data import get_references, read_captions_from_csv, read_captions_from_txt
 from opensora.utils.model_utils import WHITELIST_OPS, _check_cfgs_in_parser, str2bool
-from opensora.utils.util import apply_mask_strategy, process_mask_strategies, process_prompts
+from opensora.utils.util import IMG_FPS, apply_mask_strategy, process_mask_strategies, process_prompts
 
 from mindone.utils.logger import set_logger
 from mindone.utils.misc import to_abspath
@@ -136,7 +137,7 @@ def main(args):
     os.makedirs(save_dir, exist_ok=True)
     set_logger(name="", output_dir=save_dir)
 
-    latent_dir = os.path.join(args.output_path, "denoised_latents")
+    latent_dir = os.path.join(save_dir, "denoised_latents")
     if args.save_latent:
         os.makedirs(latent_dir, exist_ok=True)
 
@@ -159,18 +160,22 @@ def main(args):
     else:
         captions = args.captions
 
+    align, latent_condition_frame_length = 0, args.condition_frame_length  # frames alignment for video looping
     if args.model_version == "v1" and args.loop > 1:
         args.loop = 1
         logger.warning("OpenSora v1 doesn't support iterative video generation. Setting loop to 1.")
+    elif args.model_version == "v1.2":
+        align = 5
+        latent_condition_frame_length = round(latent_condition_frame_length / 17 * 5)
 
-    captions = process_prompts(captions, args.loop)  # in v1.1 each loop can have a different caption
+    captions = process_prompts(captions, args.loop)  # in v1.1 and above, each loop can have a different caption
     captions, base_data_idx = data_parallel_split(captions, rank_id, device_num)  # split for data parallel
     if args.use_parallel:
         print(f"Num captions for rank {rank_id}: {len(captions)}")
 
     # 2. model initiate and weight loading
     # 2.1 vae
-    dtype_map = {"fp16": ms.float16, "bf16": ms.bfloat16}
+    dtype_map = {"fp32": ms.float32, "fp16": ms.float16, "bf16": ms.bfloat16}
     # if args.use_vae_decode or args.reference_path is not None:
     # TODO: fix vae get_latent_size for vae cache
     logger.info("vae init")
@@ -186,6 +191,8 @@ def main(args):
             ckpt_path=args.vae_checkpoint,
             freeze_vae_2d=True,
         )
+    else:
+        raise ValueError(f"Unknown VAE type: {args.vae_type}")
 
     vae = vae.set_train(False)
     if args.vae_dtype in ["fp16", "bf16"]:
@@ -194,9 +201,15 @@ def main(args):
         )
 
     VAE_Z_CH = vae.out_channels
-    img_h, img_w = args.image_size if isinstance(args.image_size, list) else (args.image_size, args.image_size)
-    input_size = (args.num_frames, img_h, img_w)
-    latent_size = vae.get_latent_size(input_size)
+    if args.image_size is not None:
+        img_h, img_w = args.image_size if isinstance(args.image_size, list) else (args.image_size, args.image_size)
+    else:
+        if args.resolution is None or args.aspect_ratio is None:
+            raise ValueError("`resolution` and `aspect_ratio` must be provided if `image_size` is not provided")
+        img_h, img_w = get_image_size(args.resolution, args.aspect_ratio)
+
+    num_frames = get_num_frames(args.num_frames)
+    latent_size = vae.get_latent_size((num_frames, img_h, img_w))
 
     # 2.2 latte
     patchify_conv3d_replace = "linear" if args.pre_patchify else args.patchify
@@ -230,9 +243,14 @@ def main(args):
 
     elif args.model_version == "v1.1":
         model_name = "STDiT2"
-        model_extra_args.update({"input_sq_size": 512, "qk_norm": True})
+        model_extra_args["qk_norm"] = True
         logger.info(f"{model_name} init")
         latte_model = STDiT2_XL_2(**model_extra_args)
+    elif args.model_version == "v1.2":
+        model_name = "STDiT3"
+        model_extra_args["qk_norm"] = True
+        logger.info(f"{model_name} init")
+        latte_model = STDiT3_XL_2(**model_extra_args)
     else:
         raise ValueError(f"Unknown model version: {args.model_version}")
 
@@ -270,13 +288,15 @@ def main(args):
         )
         text_tokens, mask = Tensor(text_tokens, dtype=ms.int32), Tensor(mask, dtype=ms.uint8)
         text_emb = None
-        if args.dtype in ["fp16", "bf16"]:
-            text_encoder = auto_mixed_precision(text_encoder, amp_level="O2", dtype=dtype_map[args.dtype])
+        # TODO: use FA in T5
+        if args.t5_dtype in ["fp16", "bf16"]:
+            text_encoder = auto_mixed_precision(
+                text_encoder, amp_level="O2", dtype=dtype_map[args.t5_dtype], custom_fp32_cells=WHITELIST_OPS
+            )
         logger.info(f"Num tokens: {mask.asnumpy().sum(2)}")
-
     else:
         assert not args.use_parallel, "parallel inference is not supported for t5 cached sampling currently."
-        if args.model_version == "v1.1":
+        if args.model_version != "v1":
             logger.warning("For embedded captions, only one prompt per video is supported at this moment.")
 
         embed_paths = sorted(glob.glob(os.path.join(args.text_embed_folder, "*.npz")))
@@ -308,7 +328,7 @@ def main(args):
         num_inference_steps=args.sampling_steps,
         guidance_rescale=args.guidance_scale,
         guidance_channels=args.guidance_channels,
-        ddim_sampling=args.ddim_sampling,
+        sampling=args.sampling,
         micro_batch_size=args.vae_micro_batch_size,
     )
     if args.pre_patchify:
@@ -328,16 +348,17 @@ def main(args):
     pipeline_ = InferPipelineFiTLike if args.pre_patchify else InferPipeline
     pipeline = pipeline_(latte_model, vae, text_encoder=text_encoder, **pipeline_kwargs)
 
-    # 3.1. Support for multi-resolution (OpenSora v1.1 only)
+    # 3.1. Support for multi-resolution (OpenSora v1.1 and above)
     model_args = {}
-    if args.model_version == "v1.1":
-        model_args["height"] = Tensor([img_h] * args.batch_size, dtype=ms.float32)
-        model_args["width"] = Tensor([img_w] * args.batch_size, dtype=ms.float32)
-        model_args["num_frames"] = Tensor([args.num_frames] * args.batch_size, dtype=ms.float32)
-        model_args["ar"] = Tensor([img_h / img_w] * args.batch_size, dtype=ms.float32)
-        model_args["fps"] = Tensor([args.fps] * args.batch_size, dtype=ms.float32)
+    if args.model_version != "v1":
+        model_args["height"] = Tensor([img_h] * args.batch_size, dtype=dtype_map[args.dtype])
+        model_args["width"] = Tensor([img_w] * args.batch_size, dtype=dtype_map[args.dtype])
+        model_args["num_frames"] = Tensor([num_frames] * args.batch_size, dtype=dtype_map[args.dtype])
+        model_args["ar"] = Tensor([img_h / img_w] * args.batch_size, dtype=dtype_map[args.dtype])
+        fps = args.fps if num_frames > 1 else IMG_FPS
+        model_args["fps"] = Tensor([fps] * args.batch_size, dtype=dtype_map[args.dtype])
 
-    # 3.2 Prepare references (OpenSora v1.1 only)
+    # 3.2 Prepare references (OpenSora v1.1 and above)
     if args.reference_path is not None and not (len(args.reference_path) == 1 and args.reference_path[0] == ""):
         if len(args.reference_path) != num_prompts:
             raise ValueError(f"Reference path mismatch: {len(args.reference_path)} != {num_prompts}")
@@ -356,10 +377,10 @@ def main(args):
             f"Num of captions: {num_prompts}",
             f"dtype: {args.dtype}",
             f"amp_level: {args.amp_level}",
-            f"Image size: {args.image_size}",
-            f"Num frames: {args.num_frames}",
+            f"Image size: {(img_h, img_w)}",
+            f"Num frames: {num_frames}",
             f"Sampling steps {args.sampling_steps}",
-            f"DDIM sampling: {args.ddim_sampling}",
+            f"Sampling: {args.sampling}",
             f"CFG guidance scale: {args.guidance_scale}",
         ]
     )
@@ -381,7 +402,7 @@ def main(args):
             if ref is not None:
                 for k in range(len(ref)):
                     try:
-                        ref[k] = pipeline.vae_encode(Tensor(ref[k])).asnumpy().swapaxes(0, 1)
+                        ref[k] = pipeline.vae_encode(Tensor(ref[k])).asnumpy()[0]
                     except RuntimeError as e:
                         logger.error(
                             f"Failed to embed reference video {args.reference_path[i : i + args.batch_size][k]}."
@@ -400,10 +421,10 @@ def main(args):
                     new_strategy = [
                         loop_i,
                         len(references[j]) - 1,
-                        -args.condition_frame_length,
+                        -latent_condition_frame_length,
                         0,
-                        args.condition_frame_length,
-                        0.0,
+                        latent_condition_frame_length,
+                        args.condition_frame_edit,
                     ]
                     if frames_mask_strategy[j] is None:
                         frames_mask_strategy[j] = [new_strategy]
@@ -413,10 +434,10 @@ def main(args):
             # prepare inputs
             inputs = {}
             # b c t h w
-            z = np.random.randn(*([ns, VAE_Z_CH] + list(latent_size))).astype(np.float32)
+            z = np.random.randn(ns, VAE_Z_CH, *latent_size).astype(np.float32)
 
-            if args.model_version == "v1.1":
-                z, frames_mask = apply_mask_strategy(z, references, frames_mask_strategy, loop_i)
+            if args.model_version != "v1":
+                z, frames_mask = apply_mask_strategy(z, references, frames_mask_strategy, loop_i, align)
                 frames_mask = Tensor(frames_mask, dtype=ms.float32)
 
             z = ms.Tensor(z, dtype=ms.float32)
@@ -441,9 +462,10 @@ def main(args):
             # infer
             start_time = time.time()
             samples, latent = pipeline(
-                inputs, frames_mask=frames_mask, num_frames=args.num_frames, additional_kwargs=model_args
+                inputs, frames_mask=frames_mask, num_frames=num_frames, additional_kwargs=model_args
             )
-            latents.append(to_numpy(latent)[:, :, args.condition_frame_length if loop_i > 0 else 0 :])
+            # TODO: adjust to decoder time compression
+            latents.append(to_numpy(latent)[:, :, latent_condition_frame_length if loop_i > 0 else 0 :])
             if samples is not None:
                 videos.append(to_numpy(samples)[:, args.condition_frame_length if loop_i > 0 else 0 :])
             batch_time = time.time() - start_time
@@ -488,10 +510,14 @@ def parse_args():
         help="path to load a config yaml file that describes the setting which will override the default arguments",
     )
     parser.add_argument(
-        "--model_version", default="v1", type=str, choices=["v1", "v1.1"], help="OpenSora model version."
+        "--model_version", default="v1", type=str, choices=["v1", "v1.1", "v1.2"], help="OpenSora model version."
     )
-    parser.add_argument("--image_size", type=int, default=256, nargs="+", help="image size in [256, 512]")
-    parser.add_argument("--num_frames", type=int, default=16, help="number of frames")
+    parser.add_argument("--image_size", type=int, nargs="+", help="image size in [256, 512]")
+    parser.add_argument("--resolution", type=str, help=f"Supported video resolutions: {list(ASPECT_RATIOS.keys())}")
+    parser.add_argument(
+        "--aspect_ratio", type=str, help=f"Supported video aspect ratios: {list(ASPECT_RATIO_MAP.keys())}"
+    )
+    parser.add_argument("--num_frames", type=str, default="16", help="number of frames")
     parser.add_argument(
         "--num_samples",
         type=int,
@@ -518,8 +544,7 @@ def parse_args():
     parser.add_argument(
         "--vae_type",
         type=str,
-        default=None,
-        choices=[None, "OpenSora-VAE-v1.2", "VideoAutoencoderKL"],
+        choices=["OpenSora-VAE-v1.2", "VideoAutoencoderKL"],
         help="If None, use VideoAutoencoderKL, which is a spatial VAE from SD, for opensora v1.0 and v1.1. \
                 If OpenSora-VAE-v1.2, will use 3D VAE (spatial + temporal), typically for opensora v1.2",
     )
@@ -566,6 +591,11 @@ def parse_args():
         help="Number of frames generated in a previous loop to use as a conditioning for the next loop.",
     )
     parser.add_argument(
+        "--condition_frame_edit",
+        type=float,
+        help="The intensity of editing conditioning frames, where 0 means no edit and 1 means a complete edit.",
+    )
+    parser.add_argument(
         "--mask_strategy", type=str, nargs="*", help="Masking strategy for Image/Video-to-Video generation task."
     )
     parser.add_argument(
@@ -595,14 +625,21 @@ def parse_args():
         default="fp32",
         type=str,
         choices=["bf16", "fp16", "fp32"],
-        help="what data type to use for latte. Default is `fp16`, which corresponds to ms.float16",
+        help="what data type to use for latte. Default is `fp32`, which corresponds to ms.float32",
     )
     parser.add_argument(
         "--vae_dtype",
         default="fp32",
         type=str,
         choices=["bf16", "fp16", "fp32"],
-        help="what data type to use for latte. Default is `fp16`, which corresponds to ms.float16",
+        help="what data type to use for VAE. Default is `fp32`, which corresponds to ms.float32",
+    )
+    parser.add_argument(
+        "--t5_dtype",
+        default="fp32",
+        type=str,
+        choices=["bf16", "fp16", "fp32"],
+        help="what data type to use for T5 model. Default is `fp32`, which corresponds to ms.float32",
     )
     parser.add_argument(
         "--amp_level",
@@ -635,9 +672,9 @@ def parse_args():
     parser.add_argument(
         "--save_format",
         default="mp4",
-        choices=["gif", "mp4"],
+        choices=["gif", "mp4", "png"],
         type=str,
-        help="video format for saving the sampling output, gif or mp4",
+        help="video format for saving the sampling output: gif, mp4 or png",
     )
     parser.add_argument("--fps", type=int, default=8, help="FPS in the saved video")
     parser.add_argument("--batch_size", default=4, type=int, help="infer batch size")
@@ -645,7 +682,7 @@ def parse_args():
     parser.add_argument(
         "--save_latent",
         type=str2bool,
-        default=True,
+        default=False,
         help="Save denoised video latent. If True, the denoised latents will be saved in $output_path/denoised_latents",
     )
     parser.add_argument(
@@ -655,7 +692,13 @@ def parse_args():
         help="[For T2V models only] If False, skip vae decode to save memory"
         " (you can use infer_vae_decode.py to decode the saved denoised latent later.",
     )
-    parser.add_argument("--ddim_sampling", type=str2bool, default=True, help="Whether to use DDIM for sampling")
+    parser.add_argument(
+        "--sampling",
+        type=str,
+        default="ddpm",
+        choices=["ddpm", "ddim", "rflow"],
+        help="Which sampling technique to use.",
+    )
     parser.add_argument("--pre_patchify", default=False, type=str2bool, help="Patchify the latent before inference.")
     parser.add_argument("--max_image_size", default=512, type=int, help="Max image size for patchified latent.")
     parser.add_argument("--max_num_frames", default=16, type=int, help="Max number of frames for patchified latent.")

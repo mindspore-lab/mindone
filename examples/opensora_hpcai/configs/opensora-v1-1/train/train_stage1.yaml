@@ -2,11 +2,12 @@
 model_version: v1.1
 pretrained_model_path: "models/PixArt-XL-2-1024-MS.ckpt"
 model_max_length: 200
+manual_pad: True
 
 enable_flash_attention: True
 use_recompute: True
 
-vae_micro_batch_size: 4
+# vae_micro_batch_size: 4
 vae_dtype: bf16
 
 # data
@@ -42,15 +43,15 @@ epochs: 2000
 ckpt_save_interval: 100
 
 mask_ratios:
-  mask_no: 0.75
-  mask_quarter_random: 0.025
-  mask_quarter_head: 0.025
-  mask_quarter_tail: 0.025
-  mask_quarter_head_tail: 0.05
-  mask_image_random: 0.025
-  mask_image_head: 0.025
-  mask_image_tail: 0.025
-  mask_image_head_tail: 0.05
+  identity: 0.75
+  quarter_random: 0.025
+  quarter_head: 0.025
+  quarter_tail: 0.025
+  quarter_head_tail: 0.05
+  image_random: 0.025
+  image_head: 0.025
+  image_tail: 0.025
+  image_head_tail: 0.05
 
 bucket_config:
   # Structure: "resolution": { num_frames: [ keep_prob, batch_size ] }

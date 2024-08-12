@@ -217,9 +217,11 @@ def prepare_mask_and_masked_image(image, mask, height, width, return_image: bool
     return mask, masked_image
 
 
-def retrieve_latents(vae, encoder_output: ms.Tensor, sample_mode: str = "sample"):
+def retrieve_latents(
+    vae, encoder_output: ms.Tensor, generator: Optional[np.random.Generator] = None, sample_mode: str = "sample"
+):
     if sample_mode == "sample":
-        return vae.diag_gauss_dist.sample(encoder_output)
+        return vae.diag_gauss_dist.sample(encoder_output, generator=generator)
     elif sample_mode == "argmax":
         return vae.diag_gauss_dist.mode(encoder_output)
     # This branch is not needed because the encoder_output type is ms.Tensor as per AutoencoderKLOutput change
@@ -384,7 +386,8 @@ class StableDiffusionXLInpaintPipeline(
             vae_scale_factor=self.vae_scale_factor, do_normalize=False, do_binarize=True, do_convert_grayscale=True
         )
 
-        self.watermark = None
+        if add_watermarker:
+            logger.warning("watermarker is not supported!")
 
     # Copied from diffusers.pipelines.stable_diffusion_xl.pipeline_stable_diffusion_xl.StableDiffusionXLPipeline.encode_prompt
     def encode_prompt(
@@ -794,11 +797,12 @@ class StableDiffusionXLInpaintPipeline(
 
         if isinstance(generator, list):
             image_latents = [
-                retrieve_latents(self.vae, self.vae.encode(image[i : i + 1])[0]) for i in range(image.shape[0])
+                retrieve_latents(self.vae, self.vae.encode(image[i : i + 1])[0], generator)
+                for i in range(image.shape[0])
             ]
             image_latents = ops.cat(image_latents, axis=0)
         else:
-            image_latents = retrieve_latents(self.vae, self.vae.encode(image)[0])
+            image_latents = retrieve_latents(self.vae, self.vae.encode(image)[0], generator)
 
         if self.vae.config.force_upcast:
             self.vae.to(dtype)

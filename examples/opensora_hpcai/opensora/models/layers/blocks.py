@@ -11,6 +11,7 @@ from mindspore.common.initializer import initializer
 from mindone.models.modules.flash_attention import FLASH_IS_AVAILABLE, MSFlashAttention
 from mindone.models.modules.pos_embed import _get_1d_sincos_pos_embed_from_grid, _get_2d_sincos_pos_embed_from_grid
 
+from .operation_selector import get_chunk_op, get_repeat_interleave_op, get_split_op
 from .rotary_embedding import rope_1d
 
 
@@ -36,6 +37,9 @@ class Attention(nn.Cell):
         self.scale = dim_head**-0.5
         self.attn_drop = nn.Dropout(p=attn_drop)
         self.attn_dtype = attn_dtype
+
+        # adapt for dynamic shape training in graph mode
+        self.repeat_interleave = get_repeat_interleave_op()
 
     def construct(self, q: Tensor, k: Tensor, v: Tensor, mask: Optional[Tensor] = None) -> Tensor:
         """
@@ -70,7 +74,7 @@ class Attention(nn.Cell):
         if mask is not None:
             # (b 1 n_k) -> (b*h 1 n_k)
             # NOTE: due to uint8 not supported in CANN0630, cast mask to int32
-            mask = ops.repeat_interleave(mask.to(ms.int32), h, axis=0)
+            mask = self.repeat_interleave(mask.to(ms.int32), h, 0)
             mask = mask.to(ms.bool_)
             sim = ops.masked_fill(sim, mask, -ms.numpy.inf)
 
@@ -133,6 +137,11 @@ class MultiHeadCrossAttention(nn.Cell):
         self.proj = nn.Dense(d_model, d_model, has_bias=has_bias).to_float(attn_dtype)
         self.proj_drop = nn.Dropout(p=proj_drop).to_float(attn_dtype)
 
+        # adapt for dynamic shape training in graph mode
+        self.repeat_interleave = get_repeat_interleave_op()
+        self.chunk = get_chunk_op()
+        self.split = get_split_op()
+
     def construct(self, x, cond, mask=None):
         """
         Inputs:
@@ -159,7 +168,7 @@ class MultiHeadCrossAttention(nn.Cell):
 
         # kv: (B N_k C*2) -> (B N_k 2 C) -> (B N_k 2 num_head head_dim).
         kv = ops.reshape(kv, (B, N_k, 2, self.num_heads, self.head_dim))
-        k, v = ops.split(kv, 1, axis=2)
+        k, v = self.split(kv, 1, 2)
         # (b n h d)
         k = ops.squeeze(k, axis=2)
         v = ops.squeeze(v, axis=2)
@@ -175,7 +184,7 @@ class MultiHeadCrossAttention(nn.Cell):
                 # (b n_k) -> (b 1 1 n_k), will be broadcast according to qk sim, e.g. (b num_heads n_q n_k)
                 mask = mask[:, None, None, :]
                 # (b 1 1 n_k) -> (b 1 n_q n_k)
-                mask = ops.repeat_interleave(mask.to(ms.int32), int(q.shape[1]), axis=-2)
+                mask = self.repeat_interleave(mask.to(ms.int32), int(q.shape[1]), -2)
             x = self.flash_attention(q, k, v, mask=mask)
 
             # FA attn_mask def: retention and 1 indicates discard. Input tensor of shape :math:`(B, N1, S1, S2)`, `(B, 1, S1, S2)` `(S1, S2)`
@@ -213,6 +222,7 @@ class SelfAttention(nn.Cell):
         norm_layer: Type[nn.Cell] = LlamaRMSNorm,
         enable_flash_attention=False,
         rope=None,
+        qk_norm_legacy: bool = False,
     ):
         super().__init__()
         assert dim % num_heads == 0, "dim should be divisible by num_heads"
@@ -225,6 +235,7 @@ class SelfAttention(nn.Cell):
         self.qkv = nn.Dense(dim, dim * 3, has_bias=qkv_bias, weight_init="XavierUniform", bias_init="Zero")
         self.q_norm = norm_layer(self.head_dim) if qk_norm else nn.Identity()
         self.k_norm = norm_layer(self.head_dim) if qk_norm else nn.Identity()
+        self._qk_norm_legacy = qk_norm_legacy
 
         self.enable_flash_attention = (
             enable_flash_attention and FLASH_IS_AVAILABLE and (ms.context.get_context("device_target") == "Ascend")
@@ -247,6 +258,11 @@ class SelfAttention(nn.Cell):
         self.proj = nn.Dense(dim, dim, weight_init="XavierUniform", bias_init="Zero").to_float(attn_dtype)
         self.proj_drop = nn.Dropout(p=proj_drop).to_float(attn_dtype)
 
+        # adapt for dynamic shape training in graph mode
+        self.repeat_interleave = get_repeat_interleave_op()
+        self.chunk = get_chunk_op()
+        self.split = get_split_op()
+
     def construct(self, x, mask=None, freqs_cis: Optional[Tensor] = None):
         """
         x: (b n c)
@@ -258,19 +274,21 @@ class SelfAttention(nn.Cell):
         qkv = self.qkv(x)
         # (b, n, 3*h*d) -> (b, n, 3, h, d)
         qkv = ops.reshape(qkv, (B, N, 3, self.num_heads, self.head_dim))
-        q, k, v = ops.split(qkv, 1, axis=2)  # (b n h d)
+        q, k, v = self.split(qkv, 1, 2)  # (b n h d)
         q = ops.squeeze(q, axis=2)
         k = ops.squeeze(k, axis=2)
         v = ops.squeeze(v, axis=2)
 
-        # WARNING: this may be a bug
+        if not self._qk_norm_legacy:  # Normalize q and k before applying Rope
+            q, k = self.q_norm(q), self.k_norm(k)
         if self.rotary_emb is not None and freqs_cis is None:
             q = self.rotary_emb(q)
             k = self.rotary_emb(k)
         elif freqs_cis is not None:
             q = rope_1d(q, freqs_cis)
             k = rope_1d(k, freqs_cis)
-        q, k = self.q_norm(q), self.k_norm(k)
+        if self._qk_norm_legacy:  # Legacy: normalize q and k after applying Rope
+            q, k = self.q_norm(q), self.k_norm(k)
 
         # mask process
         if mask is not None:
@@ -280,7 +298,7 @@ class SelfAttention(nn.Cell):
             if mask is not None:
                 mask = mask[:, None, None, :]
                 # mask: (b n_k) -> (b 1 n_q n_k)
-                mask = ops.repeat_interleave(mask.to(ms.int32), int(q.shape[1]), axis=-2)
+                mask = self.repeat_interleave(mask.to(ms.int32), int(q.shape[1]), -2)
             out = self.flash_attention(q, k, v, mask=mask)
         else:
             if mask is not None:
@@ -399,13 +417,7 @@ class T2IFinalLayer(nn.Cell):
         self.out_channels = out_channels
         self.d_t = d_t
         self.d_s = d_s
-
-    @staticmethod
-    def t_mask_select(x_mask: Tensor, x: Tensor, masked_x: Tensor, T: int, S: int) -> Tensor:
-        x = x.reshape(x.shape[0], T, S, x.shape[-1])  # B (T S) C -> B T S C
-        masked_x = masked_x.reshape(masked_x.shape[0], T, S, masked_x.shape[-1])  # B (T S) C -> B T S C
-        x = ops.where(x_mask[:, :, None, None], x, masked_x)  # x_mask: [B, T]
-        return x.reshape(x.shape[0], T * S, x.shape[-1])  # B T S C -> B (T S) C
+        self.chunk = get_chunk_op()
 
     def construct(
         self,
@@ -416,15 +428,17 @@ class T2IFinalLayer(nn.Cell):
         T: Optional[int] = None,
         S: Optional[int] = None,
     ) -> Tensor:
-        T = T or self.d_t
-        S = S or self.d_s
-        shift, scale = (self.scale_shift_table[None] + t[:, None]).chunk(2, axis=1)
+        if T is None:
+            T = self.d_t
+        if S is None:
+            S = self.d_s
+        shift, scale = self.chunk(self.scale_shift_table[None] + t[:, None], 2, 1)
         x = t2i_modulate(self.norm_final(x), shift, scale)
 
         if frames_mask is not None:
-            shift_zero, scale_zero = (self.scale_shift_table[None] + t0[:, None]).chunk(2, axis=1)
+            shift_zero, scale_zero = self.chunk(self.scale_shift_table[None] + t0[:, None], 2, 1)
             x_zero = t2i_modulate(self.norm_final(x), shift_zero, scale_zero)
-            x = self.t_mask_select(frames_mask, x, x_zero, T, S)
+            x = t_mask_select(frames_mask, x, x_zero, T, S)
 
         x = self.linear(x)
         return x
@@ -466,8 +480,6 @@ class CaptionEmbedder(nn.Cell):
         return caption
 
     def construct(self, caption, train, force_drop_ids=None):
-        if train:
-            assert caption.shape[2:] == self.y_embedding.shape
         use_dropout = self.uncond_prob > 0
         if (train and use_dropout) or (force_drop_ids is not None):
             caption = self.token_drop(caption, force_drop_ids)
@@ -483,18 +495,33 @@ class PatchEmbed(nn.Cell):
         patch_size (int): Patch token size. Default: 4.
         in_chans (int): Number of input image channels. Default: 3.
         embed_dim (int): Number of linear projection output channels. Default: 96.
+        manual_pad (bool): pad independently. If True, pad_mode in conv will be set to "valid" and padding is done before conv. \
+                If False, pad_mode is "same" in conv. Default: False
     """
 
-    def __init__(self, patch_size: int = 2, in_chans: int = 3, embed_dim: int = 96, bias: bool = True):
+    def __init__(
+        self, patch_size: int = 2, in_chans: int = 3, embed_dim: int = 96, bias: bool = True, manual_pad: bool = False
+    ):
         super().__init__()
         self.patch_size: Tuple = (patch_size, patch_size) if isinstance(patch_size, int) else patch_size
         self.embed_dim = embed_dim
+        # FIXME: pad_mode="same" not supported in dynamic shape training in graph mode. This is a fix and may change in future version.
+        pad_mode = "valid" if manual_pad else "same"
         self.proj = nn.Conv2d(
-            in_chans, embed_dim, kernel_size=patch_size, stride=patch_size, pad_mode="same", has_bias=bias
+            in_chans, embed_dim, kernel_size=patch_size, stride=patch_size, pad_mode=pad_mode, has_bias=bias
         )
+        self.manual_pad = manual_pad
 
     def construct(self, x: Tensor) -> Tensor:
         b, c, h, w = x.shape
+        if self.manual_pad:
+            # work with pad_mode = valid
+            if h % self.patch_size[0] != 0:
+                pad_h = ops.zeros((b, c, self.patch_size[0] - h % self.patch_size[0], w), x.dtype)
+                x = ops.cat([x, pad_h], 2)
+            if w % self.patch_size[1] != 0:
+                pad_w = ops.zeros((b, c, x.shape[-2], self.patch_size[1] - w % self.patch_size[1]), x.dtype)
+                x = ops.cat([x, pad_w], 3)
         x = self.proj(x)
         x = ops.reshape(x, (b, self.embed_dim, -1))
         x = ops.transpose(x, (0, 2, 1))  # B Ph*Pw C
@@ -668,14 +695,13 @@ class SizeEmbedder(nn.Cell):
         )
         self.outdim = hidden_size
         self.timestep_embedding = SinusoidalEmbedding(frequency_embedding_size)
+        self.repeat_interleave = get_repeat_interleave_op()
 
     def construct(self, s: Tensor, bs: Tensor) -> Tensor:
         if s.ndim == 1:
             s = s[:, None]
-        assert s.ndim == 2
         if s.shape[0] != bs:
-            s = s.repeat(bs // s.shape[0], axis=0)
-            assert s.shape[0] == bs
+            s = self.repeat_interleave(s, bs // s.shape[0], 0)
         b, dims = s.shape[0], s.shape[1]
         s = s.reshape(b * dims)  # b d -> (b d)
         s_freq = self.timestep_embedding(s)
@@ -690,6 +716,7 @@ class PositionEmbedding2D(nn.Cell):
         assert dim % 4 == 0, "dim must be divisible by 4"
         half_dim = dim // 2
         self.inv_freq = Tensor(1.0 / (10000 ** (np.arange(0, half_dim, 2) / half_dim)), dtype=ms.float32)
+        self.set_grad(False)  # set explicitly for PyNative as ops.meshgrid() doesn't have backprop
 
     def _get_sin_cos_emb(self, t: Tensor) -> Tensor:
         out = t[..., None] * self.inv_freq
@@ -711,12 +738,7 @@ class PositionEmbedding2D(nn.Cell):
             grid_h *= base_size / h
             grid_w *= base_size / w
 
-        orig_dtype = grid_h.dtype
-        if orig_dtype == ms.bfloat16:  # BUG MS2.3rc1: ops.meshgrid() doesn't support bf16
-            grid_h = grid_h.astype(ms.float32)
-            grid_w = grid_w.astype(ms.float32)
         grid_h, grid_w = ops.meshgrid(grid_w, grid_h, indexing="ij")  # here w goes first
-        grid_h, grid_w = grid_h.astype(orig_dtype), grid_w.astype(orig_dtype)
 
         grid_h = grid_h.t().reshape(-1)
         grid_w = grid_w.t().reshape(-1)
@@ -732,3 +754,10 @@ class PositionEmbedding2D(nn.Cell):
         base_size: Optional[int] = None,
     ) -> Tensor:
         return self._get_cached_emb(h, w, scale, base_size)
+
+
+def t_mask_select(x_mask: Tensor, x: Tensor, masked_x: Tensor, T: int, S: int) -> Tensor:
+    x = x.reshape(x.shape[0], T, S, x.shape[-1])  # B (T S) C -> B T S C
+    masked_x = masked_x.reshape(masked_x.shape[0], T, S, masked_x.shape[-1])  # B (T S) C -> B T S C
+    x = ops.where(x_mask[:, :, None, None], x, masked_x)  # x_mask: [B, T]
+    return x.reshape(x.shape[0], T * S, x.shape[-1])  # B T S C -> B (T S) C

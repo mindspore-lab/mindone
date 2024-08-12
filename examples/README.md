@@ -23,6 +23,7 @@ Here we provide various examples for image/video/audio/3D generation models buil
 - [x] [VideoComposer](videocomposer/README.md)
 - [x] [Tune-A-Video](tuneavideo/README.md)
 - [x] [Text2Video Zero](text2video_zero/README.md)
+- [x] [DynamiCrafter](dynamicrafter/README.md)
 
 </details>
 

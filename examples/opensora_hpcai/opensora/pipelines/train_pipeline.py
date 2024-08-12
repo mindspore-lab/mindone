@@ -1,9 +1,17 @@
 import logging
 from typing import Optional, Tuple
 
-import mindspore as ms
-from mindspore import Tensor, nn, ops
+try:
+    from typing import Literal
+except ImportError:
+    from typing_extensions import Literal  # FIXME: python 3.7
 
+import numpy as np
+
+import mindspore as ms
+from mindspore import Tensor, _no_grad, jit_class, nn, ops
+
+from ..models.layers.operation_selector import get_split_op
 from ..schedulers.iddpm import SpacedDiffusion
 from ..schedulers.iddpm.diffusion_utils import (
     _extract_into_tensor,
@@ -11,10 +19,30 @@ from ..schedulers.iddpm.diffusion_utils import (
     mean_flat,
     normal_kl,
 )
+from ..schedulers.rectified_flow import RFlowScheduler
 
-__all__ = ["DiffusionWithLoss"]
+__all__ = ["DiffusionWithLoss", "DiffusionWithLossFiTLike", "RFlowDiffusionWithLoss", "RFlowEvalDiffusionWithLoss"]
 
 logger = logging.getLogger(__name__)
+
+
+@jit_class
+class no_grad(_no_grad):
+    """
+    A context manager that suppresses gradient memory allocation in PyNative mode.
+    """
+
+    def __init__(self):
+        super().__init__()
+        self._pynative = ms.get_context("mode") == ms.PYNATIVE_MODE
+
+    def __enter__(self):
+        if self._pynative:
+            super().__enter__()
+
+    def __exit__(self, *args):
+        if self._pynative:
+            super().__exit__(*args)
 
 
 class DiffusionWithLoss(nn.Cell):
@@ -47,8 +75,7 @@ class DiffusionWithLoss(nn.Cell):
         video_emb_cached: bool = False,
     ):
         super().__init__()
-        # TODO: is set_grad() necessary?
-        self.network = network.set_grad()
+        self.network = network
         self.vae = vae
         self.diffusion = diffusion
         self.text_encoder = text_encoder
@@ -67,7 +94,8 @@ class DiffusionWithLoss(nn.Cell):
 
         if self.cond_stage_trainable and self.text_encoder:
             self.text_encoder.set_train(True)
-            self.text_encoder.set_grad(True)
+
+        self.split = get_split_op()
 
     def get_condition_embeddings(self, text_tokens, **kwargs):
         # text conditions inputs for cross-attention
@@ -114,19 +142,30 @@ class DiffusionWithLoss(nn.Cell):
             - assume model input/output shape: (b c f h w)
                 unet2d input/output shape: (b c h w)
         """
-        # 1. get image/video latents z using vae
-        # (b f c h w) -> (b c f h w)
-        x = ops.transpose(x, (0, 2, 1, 3, 4))
+        with no_grad():
+            # 1. get image/video latents z using vae
+            # (b f c h w) -> (b c f h w)
+            x = ops.transpose(x, (0, 2, 1, 3, 4))
 
-        if not self.video_emb_cached:
-            x = self.get_latents(x)
+            if not self.video_emb_cached:
+                x = self.get_latents(x)
 
-        # 2. get conditions
-        if not self.text_emb_cached:
-            text_embed = self.get_condition_embeddings(text_tokens)
-        else:
-            text_embed = text_tokens  # dataset retunrs text embeddings instead of text tokens
-        loss = self.compute_loss(x, text_embed, mask, frames_mask, num_frames, height, width, fps, ar)
+            # 2. get conditions
+            if not self.text_emb_cached:
+                text_embed = self.get_condition_embeddings(text_tokens)
+            else:
+                text_embed = text_tokens  # dataset returns text embeddings instead of text tokens
+        loss = self.compute_loss(
+            x,
+            text_embed,
+            mask,
+            frames_mask=frames_mask,
+            num_frames=num_frames,
+            height=height,
+            width=width,
+            fps=fps,
+            ar=ar,
+        )
 
         return loss
 
@@ -156,7 +195,6 @@ class DiffusionWithLoss(nn.Cell):
         model_log_variance = frac * max_log + (1 - frac) * min_log
         pred_xstart = self.diffusion.predict_xstart_from_eps(x_t=x_t, t=t, eps=model_output)
         model_mean, _, _ = self.diffusion.q_posterior_mean_variance(x_start=pred_xstart, x_t=x_t, t=t)
-        # assert model_mean.shape == model_log_variance.shape == pred_xstart.shape == x_t.shape
         # p_mean_variance end
         kl = normal_kl(true_mean, true_log_variance_clipped, model_mean, model_log_variance)
         kl = mean_flat(kl, frames_mask=frames_mask, patch_mask=patch_mask) / ms.numpy.log(2.0)  # TODO:
@@ -209,8 +247,7 @@ class DiffusionWithLoss(nn.Cell):
 
         # (b c t h w),
         B, C, F = x_t.shape[:3]
-        assert model_output.shape == (B, C * 2, F) + x_t.shape[3:]
-        model_output, model_var_values = ops.split(model_output, C, axis=1)
+        model_output, model_var_values = self.split(model_output, C, 1)
 
         # Learn the variance using the variational bound, but don't let it affect our mean prediction.
         vb = self._cal_vb(ops.stop_gradient(model_output), model_var_values, x, x_t, t, frames_mask)
@@ -240,6 +277,8 @@ class DiffusionWithLossFiTLike(DiffusionWithLoss):
 
         if not self.video_emb_cached:
             raise ValueError("Video embedding caching must be provided.")
+
+        self.split = get_split_op()
 
     def construct(
         self,
@@ -273,12 +312,12 @@ class DiffusionWithLossFiTLike(DiffusionWithLoss):
             - assume model input/output shape: (b c f h w)
                 unet2d input/output shape: (b c h w)
         """
-
-        # get conditions
-        if not self.text_emb_cached:
-            text_embed = self.get_condition_embeddings(text_tokens)
-        else:
-            text_embed = text_tokens  # dataset retunrs text embeddings instead of text tokens
+        with no_grad():
+            # get conditions
+            if not self.text_emb_cached:
+                text_embed = self.get_condition_embeddings(text_tokens)
+            else:
+                text_embed = text_tokens  # dataset retunrs text embeddings instead of text tokens
         loss = self.compute_loss(
             x,
             text_embed,
@@ -347,8 +386,7 @@ class DiffusionWithLossFiTLike(DiffusionWithLoss):
 
         # (b c t h w),
         B, C, F = x_t.shape[:3]
-        assert model_output.shape == (B, C * 2, F) + x_t.shape[3:]
-        model_output, model_var_values = ops.split(model_output, C, axis=1)
+        model_output, model_var_values = self.split(model_output, C, 1)
 
         # Learn the variance using the variational bound, but don't let it affect our mean prediction.
         patch_mask = temporal_mask[:, :, None, None] * spatial_mask[:, None, :, None]
@@ -374,3 +412,86 @@ class DiffusionWithLossFiTLike(DiffusionWithLoss):
         x = ops.transpose(x, (0, 4, 1, 2, 5, 3, 6))
         x = ops.reshape(x, (n, self.c, f, self.nh * self.p[1], self.nw * self.p[2]))
         return x
+
+
+# TODO: poor design, extract schedulers away from DiffusionWithLoss
+class RFlowDiffusionWithLoss(DiffusionWithLoss):
+    def __init__(
+        self,
+        *args,
+        sample_method: Literal["discrete-uniform", "uniform", "logit-normal"] = "uniform",
+        use_timestep_transform: bool = False,
+        **kwargs,
+    ):
+        super().__init__(*args, **kwargs)
+        self.scheduler = RFlowScheduler(sample_method=sample_method, use_timestep_transform=use_timestep_transform)
+
+    def compute_loss(
+        self,
+        x: Tensor,
+        text_embed: Tensor,
+        mask: Optional[Tensor] = None,
+        frames_mask: Optional[Tensor] = None,
+        num_frames: Optional[Tensor] = None,
+        height: Optional[Tensor] = None,
+        width: Optional[Tensor] = None,
+        fps: Optional[Tensor] = None,
+        **kwargs,
+    ):
+        return self.scheduler.training_losses(
+            self.network,
+            x,
+            text_embed,
+            mask,
+            frames_mask=frames_mask,
+            num_frames=num_frames,
+            height=height,
+            width=width,
+            fps=fps,
+            **kwargs,
+        )
+
+
+class RFlowEvalDiffusionWithLoss(DiffusionWithLoss):
+    def __init__(
+        self,
+        *args,
+        num_eval_timesteps: int = 10,
+        **kwargs,
+    ):
+        super().__init__(*args, **kwargs)
+        self.scheduler = RFlowScheduler(use_timestep_transform=False)
+        self._timesteps = Tensor(
+            np.linspace(0, self.scheduler.num_timesteps, num_eval_timesteps + 2)[1:-1], dtype=ms.float32
+        )
+
+    def compute_loss(
+        self,
+        x: Tensor,
+        text_embed: Tensor,
+        mask: Optional[Tensor] = None,
+        frames_mask: Optional[Tensor] = None,
+        num_frames: Optional[Tensor] = None,
+        height: Optional[Tensor] = None,
+        width: Optional[Tensor] = None,
+        fps: Optional[Tensor] = None,
+        **kwargs,
+    ):
+        loss = Tensor(0, dtype=ms.float32)
+        for t in self._timesteps:
+            t = t.repeat(x.shape[0])
+            loss += self.scheduler.training_losses(
+                self.network,
+                x,
+                text_embed,
+                mask,
+                frames_mask=frames_mask,
+                num_frames=num_frames,
+                height=height,
+                width=width,
+                fps=fps,
+                t=t,
+                **kwargs,
+            )
+
+        return loss / len(self._timesteps), height, width, num_frames
