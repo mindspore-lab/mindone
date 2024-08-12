@@ -21,7 +21,7 @@ import mindspore as ms
 from mindspore import Parameter, Tensor, nn, ops
 from mindspore.common.initializer import initializer
 
-from .activations import SiLU, get_activation
+from .activations import get_activation
 from .embeddings import CombinedTimestepLabelEmbeddings, PixArtAlphaCombinedTimestepSizeEmbeddings
 
 
@@ -37,7 +37,7 @@ class AdaLayerNorm(nn.Cell):
     def __init__(self, embedding_dim: int, num_embeddings: int):
         super().__init__()
         self.emb = nn.Embedding(num_embeddings, embedding_dim)
-        self.silu = SiLU()
+        self.silu = nn.SiLU()
         self.linear = nn.Dense(embedding_dim, embedding_dim * 2)
         self.norm = LayerNorm(embedding_dim, elementwise_affine=False)
 
@@ -66,7 +66,7 @@ class AdaLayerNormZero(nn.Cell):
         else:
             self.emb = None
 
-        self.silu = SiLU()
+        self.silu = nn.SiLU()
         self.linear = nn.Dense(embedding_dim, 6 * embedding_dim, has_bias=True)
         self.norm = LayerNorm(embedding_dim, elementwise_affine=False, eps=1e-6)
 
@@ -104,7 +104,7 @@ class AdaLayerNormSingle(nn.Cell):
             embedding_dim, size_emb_dim=embedding_dim // 3, use_additional_conditions=use_additional_conditions
         )
 
-        self.silu = SiLU()
+        self.silu = nn.SiLU()
         self.linear = nn.Dense(embedding_dim, 6 * embedding_dim, has_bias=True)
 
     def construct(
@@ -173,7 +173,7 @@ class AdaLayerNormContinuous(nn.Cell):
         norm_type="layer_norm",
     ):
         super().__init__()
-        self.silu = SiLU()
+        self.silu = nn.SiLU()
         self.linear = nn.Dense(conditioning_embedding_dim, embedding_dim * 2, has_bias=bias)
         if norm_type == "layer_norm":
             self.norm = LayerNorm(embedding_dim, eps, elementwise_affine, bias=bias)
