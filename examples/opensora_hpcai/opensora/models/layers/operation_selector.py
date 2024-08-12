@@ -17,7 +17,7 @@ def check_dynamic_mode():
 
 
 def repeat_interleave_ext(input, repeats, axis=None):
-    # A more efficient implemention for replacing mint.repeat_interleave_ext.
+    # A more efficient implementation for replacing mint.repeat_interleave_ext
     if isinstance(repeats, ms.Tensor):
         if repeats.ndim > 1:
             raise ValueError(f"repeats must be int, but get Tensor and ndim > 1, repeats.ndim {repeats.ndim}")

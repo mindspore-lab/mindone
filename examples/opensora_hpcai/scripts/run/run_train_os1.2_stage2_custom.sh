@@ -11,7 +11,7 @@ export MS_DEV_ENABLE_KERNEL_PACKET=on
 # log level
 export GLOG_v=2
 
-output_dir=outputs/OSv1.2_dvm_stage2
+output_dir=outputs/OSv1.2_dvm_stage2_custom
 
 msrun --bind_core=True --worker_num=8 --local_worker_num=8 --log_dir=$output_dir  \
 python scripts/train.py \
@@ -32,4 +32,5 @@ python scripts/train.py \
 --output_path=$output_dir \
 --use_recompute=True \
 --use_parallel=True \
+--custom_train=True --train_steps=8000 --ckpt_save_steps=500 \
 --vae_dtype=fp16

@@ -322,6 +322,7 @@ def parse_train_args(parser):
         type=str2bool,
         help="whether save ckpt by steps. If False, save ckpt by epochs.",
     )
+    parser.add_argument("--custom_train", default=False, type=str2bool, help="Use custom train process instead of model.train")
     parser.add_argument("--profile", default=False, type=str2bool, help="Profile or not")
     parser.add_argument(
         "--log_level",
