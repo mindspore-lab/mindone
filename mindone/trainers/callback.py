@@ -133,7 +133,6 @@ class EvalSaveCallback(Callback):
         else:
             self.choice_func = None
 
-
     def on_train_step_end(self, run_context):
         cb_params = run_context.original_args()
         loss = _handle_loss(cb_params.net_outputs)
@@ -208,7 +207,7 @@ class EvalSaveCallback(Callback):
                         loss.asnumpy().item(),
                         self._get_scaling_value_from_cbp(cb_params),
                         cur_step,
-                        (train_time*1000) / self.log_interval,
+                        (train_time * 1000) / self.log_interval,
                     )
                 else:
                     _logger.info(
@@ -218,7 +217,7 @@ class EvalSaveCallback(Callback):
                         loss.asnumpy().item(),
                         self._get_scaling_value_from_cbp(cb_params),
                         cur_step,
-                        (train_time*1000) / self.log_interval,
+                        (train_time * 1000) / self.log_interval,
                     )
 
                 self.step_start_time = time.time()
