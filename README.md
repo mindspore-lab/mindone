@@ -1,6 +1,6 @@
 # MindONE
 
-This repository contains SoTA algorithms, models, and interesting projects in the area of multi modal understanding and content generation
+This repository contains SoTA algorithms, models, and interesting projects in the area of multimodal understanding and content generation
 
 ONE is short for "ONE for all" 
 ## News
@@ -37,13 +37,13 @@ ONE is short for "ONE for all"
 | [pllava](https://github.com/mindspore-lab/mindone/blob/master/examples/pllava)      | working on it | 
 | [hpcai open sora](https://github.com/mindspore-lab/mindone/blob/master/examples/opensora_hpcai)      | support v1.0/1.1/1.2 large scale training with dp/sp/zero | 
 | [open sora plan](https://github.com/mindspore-lab/mindone/blob/master/examples/opensora_pku) | support v1.0/1.1/1.2 large scale training with dp/sp/zero |
-| [stable diffusion](https://github.com/mindspore-lab/mindone/blob/master/examples/stable_diffusion_v2) | support sd 1.5/2.0, vanilla fine tune, lora, dreambooth |
+| [stable diffusion](https://github.com/mindspore-lab/mindone/blob/master/examples/stable_diffusion_v2) | support sd 1.5/2.0/2.1, vanilla fine tune, lora, dreambooth, text inversion|
 | [stable diffusion xl](https://github.com/mindspore-lab/mindone/blob/master/examples/stable_diffusion_xl)  |support sai style(stability AI) vanilla fine tune, lora, dreambooth | 
 | [dit](https://github.com/mindspore-lab/mindone/blob/master/examples/dit)     | support text to image fine tune | 
 | [latte](https://github.com/mindspore-lab/mindone/blob/master/examples/latte)     | support uncondition text to image fine tune |
 | [animate diff](https://github.com/mindspore-lab/mindone/blob/master/examples/animatediff) | support motion module and lora training |
 | [video composer](https://github.com/mindspore-lab/mindone/tree/master/examples/videocomposer)     | support conditional video generation with motion transfer and etc.|
-| [ip adaptor](https://github.com/mindspore-lab/mindone/blob/master/examples/ip_adapter)     | refactoring  |
+| [ip adapter](https://github.com/mindspore-lab/mindone/blob/master/examples/ip_adapter)     | refactoring  |
 | [t2i-adapter](https://github.com/mindspore-lab/mindone/blob/master/examples/t2i_adapter)     | refactoring |
 
 ###  run hf diffusers on mindspore
