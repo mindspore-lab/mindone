@@ -2,62 +2,62 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
     <url>
          <loc>https://mindspore-lab.github.io/mindone/0.2/</loc>
-         <lastmod>2024-08-12</lastmod>
+         <lastmod>2024-08-13</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://mindspore-lab.github.io/mindone/0.2/diffusers/</loc>
-         <lastmod>2024-08-12</lastmod>
+         <lastmod>2024-08-13</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://mindspore-lab.github.io/mindone/0.2/diffusers/installation/</loc>
-         <lastmod>2024-08-12</lastmod>
+         <lastmod>2024-08-13</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://mindspore-lab.github.io/mindone/0.2/diffusers/limitations/</loc>
-         <lastmod>2024-08-12</lastmod>
+         <lastmod>2024-08-13</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://mindspore-lab.github.io/mindone/0.2/diffusers/quicktour/</loc>
-         <lastmod>2024-08-12</lastmod>
+         <lastmod>2024-08-13</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://mindspore-lab.github.io/mindone/0.2/diffusers/stable_diffusion/</loc>
-         <lastmod>2024-08-12</lastmod>
+         <lastmod>2024-08-13</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://mindspore-lab.github.io/mindone/0.2/diffusers/tutorials/basic_training/</loc>
-         <lastmod>2024-08-12</lastmod>
+         <lastmod>2024-08-13</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://mindspore-lab.github.io/mindone/0.2/diffusers/tutorials/tutorial_overview/</loc>
-         <lastmod>2024-08-12</lastmod>
+         <lastmod>2024-08-13</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://mindspore-lab.github.io/mindone/0.2/diffusers/tutorials/using_peft_for_inference/</loc>
-         <lastmod>2024-08-12</lastmod>
+         <lastmod>2024-08-13</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://mindspore-lab.github.io/mindone/0.2/diffusers/using-diffusers/write_own_pipeline/</loc>
-         <lastmod>2024-08-12</lastmod>
+         <lastmod>2024-08-13</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://mindspore-lab.github.io/mindone/0.2/peft/</loc>
-         <lastmod>2024-08-12</lastmod>
+         <lastmod>2024-08-13</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://mindspore-lab.github.io/mindone/0.2/transformers/</loc>
-         <lastmod>2024-08-12</lastmod>
+         <lastmod>2024-08-13</lastmod>
          <changefreq>daily</changefreq>
     </url>
 </urlset>
