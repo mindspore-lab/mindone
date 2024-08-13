@@ -40,7 +40,7 @@ from opensora.utils.callbacks import EMAEvalSwapCallback, PerfRecorderCallback
 from opensora.utils.ema import EMA
 from opensora.utils.metrics import BucketLoss
 from opensora.utils.model_utils import WHITELIST_OPS, Model
-from opensora.utils.resume import flush_from_cache, get_resume_states, resume_train_net, save_train_net
+from opensora.utils.resume import flush_from_cache, get_resume_ckpt, get_resume_states, resume_train_net, save_train_net
 
 from mindone.trainers.callback import EvalSaveCallback, OverflowMonitor, ProfilerCallbackEpoch, StopAtStepCallback
 from mindone.trainers.checkpoint import CheckpointManager
@@ -311,7 +311,6 @@ def initialize_dataset(
 
 
 def main(args):
-    ori_output_path = args.output_path
     if args.add_datetime:
         time_str = datetime.datetime.now().strftime("%Y-%m-%dT%H-%M-%S")
         args.output_path = os.path.join(args.output_path, time_str)
@@ -667,22 +666,7 @@ def main(args):
     start_epoch = 0
     cur_iter = 0
     if args.resume:
-        resume_ckpt = None
-        if isinstance(args.resume, str):
-            if os.path.isfile(resume_ckpt):
-                resume_ckpt = args.resume
-            else:
-                logger.warning(f"{args.resume} does not exist. Train from scratch.")
-                args.resume = False
-        else:
-            tmp_resume_ckpt = os.path.join(ori_output_path, "**/train_resume.ckpt")
-            tmp_resume_ckpt = glob.glob(tmp_resume_ckpt, recursive=True)  # find the latest train_resume.ckpt
-            if tmp_resume_ckpt:
-                resume_ckpt = sorted(tmp_resume_ckpt)[-1]
-            else:
-                logger.warning(f"No train_resume.ckpt found in {ori_output_path}. Train from scratch.")
-                args.resume = False
-
+        resume_ckpt = get_resume_ckpt(args.resume, args.output_path)
         if resume_ckpt is not None:
             start_epoch, cur_iter, loss_scale = get_resume_states(resume_ckpt)
             loss_scaler.loss_scale_value = loss_scale
@@ -703,7 +687,7 @@ def main(args):
     )
 
     # resume train net states
-    if args.resume:
+    if args.resume and resume_ckpt is not None:
         resume_train_net(net_with_grads, resume_ckpt)
 
     if (args.mode == 0) and (args.bucket_config is not None):
@@ -922,14 +906,12 @@ def main(args):
                     # save train state for resume
                     save_train_net(net_with_grads, ckpt_dir, epoch, global_step)
 
-            # TODO: reset and clear referred to model.train
             dataloader.reset()
             flush_from_cache(net_with_grads)
 
             if end_train:
                 break
 
-        # TODO: need to release dataloader or cache? refer to model.train
         logger.info("Finished training. Ending process...")
         reset_op_id()
         time.sleep(60)
