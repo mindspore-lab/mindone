@@ -37,7 +37,7 @@ from opensora.pipelines import (
 from opensora.schedulers.iddpm import create_diffusion
 from opensora.utils.amp import auto_mixed_precision
 from opensora.utils.callbacks import EMAEvalSwapCallback, PerfRecorderCallback
-from opensora.utils.ema import EMA
+from opensora.utils.ema import EMA, save_ema_ckpts 
 from opensora.utils.metrics import BucketLoss
 from opensora.utils.model_utils import WHITELIST_OPS, Model
 from opensora.utils.resume import flush_from_cache, get_resume_ckpt, get_resume_states, resume_train_net, save_train_net
@@ -867,19 +867,8 @@ def main(args):
                 if save_by_step and rank_id == 0:
                     if (global_step % args.ckpt_save_steps == 0) or (global_step == args.train_steps):
                         ckpt_name = f"{model_name}-s{global_step}.ckpt"
-                        if ema is not None:
-                            ema.swap_before_eval()
-                        ckpt_manager.save(
-                            latent_diffusion_with_loss.network, None, ckpt_name=ckpt_name, append_dict=None
-                        )
-                        if ema is not None:
-                            ema.swap_after_eval()
-                            ckpt_manager.save(
-                                latent_diffusion_with_loss.network,
-                                None,
-                                ckpt_name=ckpt_name.replace(".ckpt", "_nonema.ckpt"),
-                                append_dict=None,
-                            )
+                        # save model ckpt and ema ckpt
+                        save_ema_ckpts(latent_diffusion_with_loss.network, ema, ckpt_manager, ckpt_name)
                         # save train state for resume
                         save_train_net(net_with_grads, ckpt_dir, epoch - 1, global_step)
                 if (args.train_steps > 0) and (global_step >= args.train_steps):
@@ -892,17 +881,8 @@ def main(args):
             if not save_by_step and rank_id == 0:
                 if (epoch % args.ckpt_save_interval == 0) or (epoch == num_epochs):
                     ckpt_name = f"{model_name}-e{epoch}.ckpt"
-                    if ema is not None:
-                        ema.swap_before_eval()
-                    ckpt_manager.save(latent_diffusion_with_loss.network, None, ckpt_name=ckpt_name, append_dict=None)
-                    if ema is not None:
-                        ema.swap_after_eval()
-                        ckpt_manager.save(
-                            latent_diffusion_with_loss.network,
-                            None,
-                            ckpt_name=ckpt_name.replace(".ckpt", "_nonema.ckpt"),
-                            append_dict=None,
-                        )
+                    # save model ckpt and ema ckpt
+                    save_ema_ckpts(latent_diffusion_with_loss.network, ema, ckpt_manager, ckpt_name)
                     # save train state for resume
                     save_train_net(net_with_grads, ckpt_dir, epoch, global_step)
 

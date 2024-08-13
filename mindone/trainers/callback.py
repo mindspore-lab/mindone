@@ -134,7 +134,10 @@ class EvalSaveCallback(Callback):
     def on_train_step_end(self, run_context):
         cb_params = run_context.original_args()
         loss = _handle_loss(cb_params.net_outputs)
-        cur_step = cb_params.cur_step_num + self.start_epoch * cb_params.batch_num
+        # cur_step = cb_params.cur_step_num + self.start_epoch * cb_params.batch_num
+        opt = self._get_optimizer_from_cbp(cb_params)
+        cur_step = int(opt.global_step.asnumpy().item())
+
         step_num = cb_params.batch_num * cb_params.epoch_num
 
         if cur_step % cb_params.batch_num == 0:
@@ -232,7 +235,9 @@ class EvalSaveCallback(Callback):
         cur_epoch = cb_params.cur_epoch_num
         epoch_num = cb_params.epoch_num
 
-        cur_step = cur_epoch * cb_params.batch_num
+        # cur_step = cur_epoch * cb_params.batch_num
+        opt = self._get_optimizer_from_cbp(cb_params)
+        cur_step = int(opt.global_step.asnumpy().item())
 
         if self.is_main_device and (not self.step_mode):
             if (cur_epoch % self.ckpt_save_interval == 0) or (cur_epoch == epoch_num):

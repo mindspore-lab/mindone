@@ -18,4 +18,22 @@ class EMA(EMA_):
         # update trainable parameters
         success = self.hyper_map(F.partial(_ema_op, self.ema_decay), self.ema_weight, self.net_weight)
         self.updates = F.depend(self.updates, success)
+
         return self.updates
+
+
+def save_ema_ckpts(net, ema, ckpt_manager, ckpt_name):
+    if ema is not None:
+        ema.swap_before_eval()
+
+    ckpt_manager.save(latent_diffusion_with_loss.network, None, ckpt_name=ckpt_name, append_dict=None)
+
+    if ema is not None:
+        ema.swap_after_eval()
+        ckpt_manager.save(
+            latent_diffusion_with_loss.network,
+            None,
+            ckpt_name=ckpt_name.replace(".ckpt", "_nonema.ckpt"),
+            append_dict=None,
+        )
+
