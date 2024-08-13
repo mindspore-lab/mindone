@@ -2,6 +2,7 @@
 STDiT training script
 """
 import datetime
+import glob
 import logging
 import math
 import os
@@ -284,6 +285,7 @@ def initialize_dataset(
                 rank_id=rank_id,
                 num_workers=args.num_parallel_workers,
                 num_workers_dataset=args.num_workers_dataset,
+                num_workers_batch=args.num_workers_batch,
                 drop_remainder=not validation,
                 python_multiprocessing=args.data_multiprocessing,
                 prefetch_size=args.prefetch_size,
@@ -309,6 +311,7 @@ def initialize_dataset(
 
 
 def main(args):
+    ori_output_path = args.output_path
     if args.add_datetime:
         time_str = datetime.datetime.now().strftime("%Y-%m-%dT%H-%M-%S")
         args.output_path = os.path.join(args.output_path, time_str)
@@ -664,11 +667,26 @@ def main(args):
     start_epoch = 0
     cur_iter = 0
     if args.resume:
-        resume_ckpt = os.path.join(ckpt_dir, "train_resume.ckpt") if isinstance(args.resume, bool) else args.resume
+        resume_ckpt = None
+        if isinstance(args.resume, str):
+            if os.path.isfile(resume_ckpt):
+                resume_ckpt = args.resume
+            else:
+                logger.warning(f"{args.resume} does not exist. Train from scratch.")
+                args.resume = False
+        else:
+            tmp_resume_ckpt = os.path.join(ori_output_path, "**/train_resume.ckpt")
+            tmp_resume_ckpt = glob.glob(tmp_resume_ckpt, recursive=True)  # find the latest train_resume.ckpt
+            if tmp_resume_ckpt:
+                resume_ckpt = sorted(tmp_resume_ckpt)[-1]
+            else:
+                logger.warning(f"No train_resume.ckpt found in {ori_output_path}. Train from scratch.")
+                args.resume = False
 
-        start_epoch, cur_iter, loss_scale = get_resume_states(resume_ckpt)
-        loss_scaler.loss_scale_value = loss_scale
-        logger.info(f"Resumed loss_scaler, prev epoch: {start_epoch}, global step {cur_iter}")
+        if resume_ckpt is not None:
+            start_epoch, cur_iter, loss_scale = get_resume_states(resume_ckpt)
+            loss_scaler.loss_scale_value = loss_scale
+            logger.info(f"Resumed loss_scaler, prev epoch: {start_epoch}, global step {cur_iter}")
 
     # trainer (standalone and distributed)
     ema = EMA(latent_diffusion_with_loss.network, ema_decay=args.ema_decay, offloading=True) if args.use_ema else None
@@ -780,6 +798,7 @@ def main(args):
                 f"Enable flash attention: {args.enable_flash_attention}",
                 f"Use recompute: {args.use_recompute}",
                 f"Dataset sink: {args.dataset_sink_mode}",
+                f"Resume training: {args.resume}",
             ]
         )
         key_info += "\n" + "=" * 50

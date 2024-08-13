@@ -11,6 +11,7 @@ __dir__ = os.path.dirname(os.path.abspath(__file__))
 mindone_lib_path = os.path.abspath(os.path.join(__dir__, "../../../"))
 sys.path.insert(0, mindone_lib_path)
 from mindone.utils.misc import to_abspath
+from mindone.utils.config import parse_bool_str
 
 logger = logging.getLogger()
 
@@ -122,8 +123,10 @@ def parse_train_args(parser):
     parser.add_argument(
         "--resume",
         default=False,
-        type=str,
-        help="It can be a string for path to resume checkpoint, or a bool False for not resuming.(default=False)",
+        type=parse_bool_str,
+        help="string: path to resume checkpoint."
+        "bool False: not resuming.(default=False)."
+        "bool True: ModelArts auto resume training.",
     )
     parser.add_argument("--optim", default="adamw", type=str, help="optimizer")
     parser.add_argument(
@@ -277,6 +280,12 @@ def parse_train_args(parser):
         default=4,
         type=int,
         help="The number of workers used for reading data from the dataset. Default is 4.",
+    )
+    parser.add_argument(
+        "--num_workers_batch",
+        default=2,
+        type=int,
+        help="The number of workers used for batch aggregation. Default is 2.",
     )
     parser.add_argument(
         "--prefetch_size", default=16, type=int, help="The number of samples to prefetch (per device). Default is 16."

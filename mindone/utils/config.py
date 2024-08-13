@@ -12,6 +12,15 @@ def str2bool(b):
     return True
 
 
+def parse_bool_str(b: str):
+    """Allow input args to be either str2bool or str (e.g. a filepath)."""
+    if b.lower() not in ["false", "true"]:
+        return b
+    if b.lower() in ["false"]:
+        return False
+    return True
+
+
 def instantiate_from_config(config: Union[DictConfig, ListConfig, str]) -> object:
     """
     Args:
