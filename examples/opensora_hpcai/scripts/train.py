@@ -2,7 +2,6 @@
 STDiT training script
 """
 import datetime
-import glob
 import logging
 import math
 import os
@@ -37,7 +36,7 @@ from opensora.pipelines import (
 from opensora.schedulers.iddpm import create_diffusion
 from opensora.utils.amp import auto_mixed_precision
 from opensora.utils.callbacks import EMAEvalSwapCallback, PerfRecorderCallback
-from opensora.utils.ema import EMA, save_ema_ckpts 
+from opensora.utils.ema import EMA, save_ema_ckpts
 from opensora.utils.metrics import BucketLoss
 from opensora.utils.model_utils import WHITELIST_OPS, Model
 from opensora.utils.resume import flush_from_cache, get_resume_ckpt, get_resume_states, resume_train_net, save_train_net
@@ -716,7 +715,9 @@ def main(args):
         if args.bucket_config is None:
             callbacks.append(TimeMonitor(args.log_interval))
         else:
-            logger.info("As steps per epoch are inaccurate with bucket config, TimeMonitor is disabled. See result.log for the actual step time")
+            logger.info(
+                "As steps per epoch are inaccurate with bucket config, TimeMonitor is disabled. See result.log for the actual step time"
+            )
         if rank_id == 0:
             save_cb = EvalSaveCallback(
                 network=latent_diffusion_with_loss.network,

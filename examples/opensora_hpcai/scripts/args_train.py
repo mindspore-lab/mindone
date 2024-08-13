@@ -10,8 +10,8 @@ from opensora.utils.model_utils import _check_cfgs_in_parser, str2bool
 __dir__ = os.path.dirname(os.path.abspath(__file__))
 mindone_lib_path = os.path.abspath(os.path.join(__dir__, "../../../"))
 sys.path.insert(0, mindone_lib_path)
-from mindone.utils.misc import to_abspath
 from mindone.utils.config import parse_bool_str
+from mindone.utils.misc import to_abspath
 
 logger = logging.getLogger()
 

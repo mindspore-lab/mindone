@@ -214,7 +214,6 @@ class EvalSaveCallback(Callback):
                         loss.asnumpy().item(),
                         self._get_scaling_value_from_cbp(cb_params),
                     )
-        
 
     def on_train_epoch_begin(self, run_context):
         """
@@ -326,8 +325,8 @@ class StopAtStepCallback(ms.Callback):
     def on_train_step_end(self, run_context):
         self.global_step += 1
         if self.global_step >= self.train_steps:
-            run_context.request_stop() 
-        
+            run_context.request_stop()
+
 
 class ProfilerCallback(ms.Callback):
     def __init__(self, start_step=1, end_step=2, exit_after_analyze=True, out_dir="./profiler_data"):

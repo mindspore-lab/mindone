@@ -26,14 +26,13 @@ def save_ema_ckpts(net, ema, ckpt_manager, ckpt_name):
     if ema is not None:
         ema.swap_before_eval()
 
-    ckpt_manager.save(latent_diffusion_with_loss.network, None, ckpt_name=ckpt_name, append_dict=None)
+    ckpt_manager.save(net, None, ckpt_name=ckpt_name, append_dict=None)
 
     if ema is not None:
         ema.swap_after_eval()
         ckpt_manager.save(
-            latent_diffusion_with_loss.network,
+            net,
             None,
             ckpt_name=ckpt_name.replace(".ckpt", "_nonema.ckpt"),
             append_dict=None,
         )
-
