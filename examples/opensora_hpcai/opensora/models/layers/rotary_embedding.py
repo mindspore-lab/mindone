@@ -26,9 +26,6 @@ def rotate_half(x: Tensor) -> Tensor:
 
 
 def apply_rotary_emb(freqs: Parameter, t: Tensor, scale: float = 1.0, seq_dim: int = -2) -> Tensor:
-    if t.ndim == 3:
-        seq_len = t.shape[seq_dim]
-        freqs = freqs[-seq_len:].astype(t.dtype)
     # FIXME: start_index is always 0 in OS1.2 and ops.concat doesn't support empty elements. OS1.x future versions may need start_index > 0
     # t, t_right = t[..., start_index:end_index], t[..., end_index:]
     t = (t * freqs.cos().astype(t.dtype) * scale) + (rotate_half(t) * freqs.sin().astype(t.dtype) * scale)
