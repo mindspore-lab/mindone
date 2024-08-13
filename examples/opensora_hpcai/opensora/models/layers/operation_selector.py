@@ -1,8 +1,6 @@
 import mindspore as ms
 from mindspore import mint, ops
-from mindspore.ops.function.array_func import chunk_ext
-
-# from mindspore.ops.function.array_func import repeat_interleave_ext
+from mindspore.ops.function.array_func import chunk_ext, repeat_interleave_ext
 
 use_dynamic_ops = False
 
@@ -17,7 +15,7 @@ def check_dynamic_mode():
     return use_dynamic_ops
 
 
-def repeat_interleave_ext(input, repeats, axis=None):
+def repeat_interleave_ext_v2(input, repeats, axis=None):
     # A more efficient implementation for replacing mint.repeat_interleave_ext
     if isinstance(repeats, ms.Tensor):
         if repeats.ndim > 1:
