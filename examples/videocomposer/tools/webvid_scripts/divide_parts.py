@@ -37,32 +37,6 @@ def main():
         partid == expected_parts
     ), f"The metadata file should be split into {expected_parts} parts, but got {partid} parts."
     print(f"Finished! The metadata file is split into {partid} parts, saved in '{output_dir}'.")
-#
-# def main():
-#     args = parse_args()
-#     meta_filename = os.path.basename(args.meta_path)  # Extracts filename from the given path
-#     meta_filepath = os.path.join(args.root_dir, meta_filename)
-#     output_dir = os.path.join(args.output_dir, os.path.splitext(meta_filename)[0])
-#     os.makedirs(output_dir, exist_ok=True)
-#
-#     linenum = int(os.popen(f"wc -l {meta_filepath}").read().split()[0])
-#     stride = args.stride
-#     i = 2
-#     partid = 0
-#
-#     print(f"Spliting the metadata file: {meta_filepath}. Total number of lines: {linenum}")
-#
-#     while i <= linenum:
-#         output_filename = os.path.join(output_dir, f"part{partid}.csv")
-#         os.system(f"head -n 1 {meta_filepath} > {output_filename}")
-#         os.system(f"sed -n '{i}, {i + stride}p' {meta_filepath} >> {output_filename}")
-#         i += stride + 1
-#         partid += 1
-#
-#     assert (
-#             partid == linenum // stride + 1
-#     ), f"The metadata file shoule be splited into {linenum // stride + 1} parts, but got {partid} parts."
-#     print(f"Finished! The metadata file is splited into {partid} parts, saved in '{output_dir}'.")
 
 if __name__ == "__main__":
     main()
