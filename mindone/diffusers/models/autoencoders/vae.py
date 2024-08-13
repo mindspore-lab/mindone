@@ -21,6 +21,7 @@ from mindspore import nn, ops
 from mindspore.common.initializer import Uniform
 
 from ...utils import BaseOutput
+from ...utils.mindspore_utils import randn_tensor
 from ..activations import SiLU, get_activation
 from ..attention_processor import SpatialNorm
 from ..normalization import GroupNorm
@@ -687,11 +688,12 @@ class DiagonalGaussianDistribution(object):
             std = ops.exp(0.5 * logvar)
         return mean, logvar, var, std
 
-    def sample(self, parameters: ms.Tensor) -> ms.Tensor:
+    def sample(self, parameters: ms.Tensor, generator: Optional[np.random.Generator] = None) -> ms.Tensor:
         mean, logvar, var, std = self.init(parameters)
         # make sure sample is on the same device as the parameters and has same dtype
-        sample = ops.randn(
+        sample = randn_tensor(
             mean.shape,
+            generator=generator,
             dtype=parameters.dtype,
         )
         x = mean + std * sample

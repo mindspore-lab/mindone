@@ -21,5 +21,3 @@
 | [llava](https://github.com/mindspore-lab/mindone/blob/master/examples/llava)      | Haotian-Liu official | https://github.com/haotian-liu/LLaVA
 | [vila](https://github.com/mindspore-lab/mindone/blob/master/examples/vila)      | Nvidia Lab official | https://github.com/NVlabs/VILA 
 | [pllava](https://github.com/mindspore-lab/mindone/blob/master/examples/pllava)      | Magic Research official | https://github.com/magic-research/PLLaVA 
-
-

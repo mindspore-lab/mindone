@@ -1098,7 +1098,13 @@ class UNet2DConditionModel(ModelMixin, ConfigMixin, UNet2DConditionLoadersMixin,
             else:
                 sample, res_samples = downsample_block(hidden_states=sample, temb=emb)
                 if is_adapter and len(down_intrablock_additional_residuals) > adapter_index:
+                    # `sample` here is one of element in `res_samples`, in PyTorch they refer to the same object
+                    # which means changes on sample will take effect on the counterpart in res_samples. However it
+                    # doesn't work in MindSpore as they are different objects thus we need change both of them manually.
                     sample += down_intrablock_additional_residuals[adapter_index]
+                    res_samples = list(res_samples)  # convert to list to support item assignment
+                    res_samples[-1] += down_intrablock_additional_residuals[adapter_index]
+                    res_samples = tuple(res_samples)  # convert back to tuple to concat
                     adapter_index += 1
 
             down_block_res_samples += res_samples
@@ -1132,7 +1138,7 @@ class UNet2DConditionModel(ModelMixin, ConfigMixin, UNet2DConditionLoadersMixin,
             if (
                 is_adapter
                 and len(down_intrablock_additional_residuals) > adapter_index
-                and sample.shape == down_intrablock_additional_residuals[0].shape
+                and sample.shape == down_intrablock_additional_residuals[adapter_index].shape
             ):
                 sample += down_intrablock_additional_residuals[adapter_index]
                 adapter_index += 1
