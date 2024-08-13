@@ -11,7 +11,7 @@ from .recorder import PerfRecorder
 
 _logger = logging.getLogger(__name__)
 
-__all__ = ["OverflowMonitor", "EvalSaveCallback", "ProfilerCallback"]
+__all__ = ["OverflowMonitor", "EvalSaveCallback", "ProfilerCallback", "StopAtStepCallback"]
 
 
 class OverflowMonitor(ms.Callback):
@@ -211,6 +211,7 @@ class EvalSaveCallback(Callback):
                         loss.asnumpy().item(),
                         self._get_scaling_value_from_cbp(cb_params),
                     )
+        
 
     def on_train_epoch_begin(self, run_context):
         """
@@ -310,6 +311,18 @@ class EvalSaveCallback(Callback):
             lr = opt.learning_rate(opt.global_step - 1)[0]
         return lr
 
+
+class StopAtStepCallback(ms.Callback):
+    # stop the training process when reach train_steps
+    def __init__(self, train_steps, global_step=0):
+        self.global_step = global_step
+        self.train_steps = train_steps
+
+    def on_train_step_end(self, run_context):
+        self.global_step += 1
+        if self.global_step >= self.train_steps:
+            run_context.request_stop() 
+        
 
 class ProfilerCallback(ms.Callback):
     def __init__(self, start_step=1, end_step=2, exit_after_analyze=True, out_dir="./profiler_data"):

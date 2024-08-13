@@ -41,7 +41,7 @@ from opensora.utils.metrics import BucketLoss
 from opensora.utils.model_utils import WHITELIST_OPS, Model
 from opensora.utils.resume import flush_from_cache, get_resume_states, resume_train_net, save_train_net
 
-from mindone.trainers.callback import EvalSaveCallback, OverflowMonitor, ProfilerCallbackEpoch
+from mindone.trainers.callback import EvalSaveCallback, OverflowMonitor, ProfilerCallbackEpoch, StopAtStepCallback
 from mindone.trainers.checkpoint import CheckpointManager
 from mindone.trainers.lr_schedule import create_scheduler
 from mindone.trainers.optim import create_optimizer
@@ -740,6 +740,8 @@ def main(args):
                 resume=args.resume,
             )
             callbacks.extend([save_cb, rec_cb])
+            if args.train_steps > 0:
+                callbacks.append(StopAtStepCallback(args.train_steps, global_step=cur_iter))
             if args.profile:
                 callbacks.append(ProfilerCallbackEpoch(2, 3, "./profile_data"))
 
