@@ -51,6 +51,7 @@ class EvalSaveCallback(Callback):
         resume_prefix_blacklist: List[str] = None,
         integrated_save=False,
         save_training_resume=True,
+        train_steps=-1,
     ):
         """
         Args:
@@ -118,6 +119,7 @@ class EvalSaveCallback(Callback):
         self.use_lora = use_lora
 
         self.use_step_unit = use_step_unit
+        self.train_steps = train_steps
         self.save_training_resume = save_training_resume
         if resume_prefix_blacklist is not None:
 
@@ -131,6 +133,7 @@ class EvalSaveCallback(Callback):
         else:
             self.choice_func = None
 
+
     def on_train_step_end(self, run_context):
         cb_params = run_context.original_args()
         loss = _handle_loss(cb_params.net_outputs)
@@ -138,7 +141,7 @@ class EvalSaveCallback(Callback):
         opt = self._get_optimizer_from_cbp(cb_params)
         cur_step = int(opt.global_step.asnumpy().item())
 
-        step_num = cb_params.batch_num * cb_params.epoch_num
+        step_num = (cb_params.batch_num * cb_params.epoch_num) if self.train_steps < 0 else self.train_steps
 
         if cur_step % cb_params.batch_num == 0:
             cur_epoch = cb_params.cur_epoch_num
@@ -196,24 +199,29 @@ class EvalSaveCallback(Callback):
                 )
                 self.rec.add(*step_pref_value)
 
-                self.step_start_time = time.time()
                 if self.record_lr:
                     _logger.info(
-                        "epoch: %d step: %d, lr: %.7f, loss: %.6f, loss scale: %d.",
+                        "epoch %d, step %d, lr %.7f, loss %.6f, loss scale %d, global_step %d, step_time(ms) %.1f",
                         cb_params.cur_epoch_num,
                         (cb_params.cur_step_num - 1) % cb_params.batch_num + 1,
                         cur_lr.asnumpy().item(),
                         loss.asnumpy().item(),
                         self._get_scaling_value_from_cbp(cb_params),
+                        cur_step,
+                        (train_time*1000) / self.log_interval,
                     )
                 else:
                     _logger.info(
-                        "epoch: %d step: %d, loss: %.6f, loss scale: %d.",
+                        "epoch %d, step %d, loss %.6f, loss scale %d, global_step %d, step_time(ms) %.1f",
                         cb_params.cur_epoch_num,
                         (cb_params.cur_step_num - 1) % cb_params.batch_num + 1,
                         loss.asnumpy().item(),
                         self._get_scaling_value_from_cbp(cb_params),
+                        cur_step,
+                        (train_time*1000) / self.log_interval,
                     )
+
+                self.step_start_time = time.time()
 
     def on_train_epoch_begin(self, run_context):
         """

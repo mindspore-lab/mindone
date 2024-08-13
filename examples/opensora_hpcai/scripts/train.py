@@ -735,6 +735,7 @@ def main(args):
                 model_name=model_name,
                 resume_prefix_blacklist=["vae.", "swap."],
                 record_lr=False,
+                train_steps=args.train_steps,
             )
             rec_cb = PerfRecorderCallback(
                 save_dir=args.output_path,
