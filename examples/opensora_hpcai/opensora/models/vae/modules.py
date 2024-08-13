@@ -58,7 +58,7 @@ class Downsample(nn.Cell):
 
     def construct(self, x):
         if self.with_conv:
-            x = mint.pad(x, (0, 1, 0, 1))
+            x = mint.nn.functional.pad(x, (0, 1, 0, 1))
             x = self.conv(x)
         else:
             x = ops.AvgPool(kernel_size=2, stride=2)(x)
