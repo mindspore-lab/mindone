@@ -466,13 +466,13 @@ video_embed_folder
 
 ### Open-Sora 1.2
 
-Stand-alone training for Stage 1 of OpenSora v1.2:
+Stand-alone training for Stage 2 of OpenSora v1.2:
 
 ```shell
 # kernel fusion for dynamic training
 export MS_DEV_ENABLE_KERNEL_PACKET=on
 
-python scripts/train.py --config configs/opensora-v1-2 /train/train_stage1.yaml \
+python scripts/train.py --config configs/opensora-v1-2 /train/train_stage2.yaml \
     --csv_path /path/to/video_caption.csv \
     --video_folder /path/to/video_folder \
     --text_embed_folder /path/to/text_embed_folder \
@@ -657,6 +657,9 @@ Below are some generation results after fine-tuning STDiT3 with **Stage 2** buck
 
 ### Open-Sora 1.1
 
+<details>
+<summary>View more</summary>
+
 #### Training Performance
 
 We evaluated the training performance on MindSpore and Ascend NPUs. The results are as follows.
@@ -696,9 +699,11 @@ Here are some generation results after fine-tuning STDiT2 on a mixkit subset.
 </tr>
 </table>
 
+</details>
 
 ### Open-Sora 1.0
-
+<details>
+<summary>View more</summary>
 #### Training Performance
 
 We evaluated the training performance on MindSpore and Ascend NPUs. The results are as follows.
@@ -754,8 +759,12 @@ Here are some generation results after fine-tuning STDiT on a subset of WebVid d
 #### Quality Evaluation
 For quality evaluation, please refer to the original HPC-AI Tech [evaluation doc](https://github.com/hpcaitech/Open-Sora/blob/main/eval/README.md) for video generation quality evaluation.
 
-
+</details>
+    
 ## Training and Inference Using the FiT-Like Pipeline
+
+<details>
+<summary>View more</summary>
 
 We provide support for training Open-Sora 1.1 using the FiT-Like pipeline as an alternative solution for handling multi-resolution videos, in contrast to the bucketing strategy.
 
@@ -824,7 +833,7 @@ Here are some generation results after fine-tuning STDiT on a small dataset:
 </tr>
 </table>
 
-
+</details>
 
 ## Contribution
 
