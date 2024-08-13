@@ -469,6 +469,9 @@ video_embed_folder
 Stand-alone training for Stage 1 of OpenSora v1.2:
 
 ```shell
+# kernel fusion for dynamic training
+export MS_DEV_ENABLE_KERNEL_PACKET=on
+
 python scripts/train.py --config configs/opensora-v1-2 /train/train_stage1.yaml \
     --csv_path /path/to/video_caption.csv \
     --video_folder /path/to/video_folder \
@@ -480,24 +483,43 @@ python scripts/train.py --config configs/opensora-v1-2 /train/train_stage1.yaml 
 For parallel training, use `msrun` and along with `--use_parallel=True`:
 
 ```shell
-msrun --master_port=8200 --worker_num=8 --local_worker_num=8 --log_dir=$output_dir  \
-    python scripts/train.py --config configs/opensora-v1-2/train/train_stage1.yaml \
+# kernel fusion for dynamic training
+export MS_DEV_ENABLE_KERNEL_PACKET=on
+
+msrun --worker_num=8 --local_worker_num=8 --log_dir=$output_dir  \
+    python scripts/train.py --config configs/opensora-v1-2/train/train_stage2.yaml \
     --csv_path /path/to/video_caption.csv \
     --video_folder /path/to/video_folder \
     --text_embed_folder /path/to/text_embed_folder \
     --use_parallel True
 ```
 
+You can modify the training configuration, including hyper-parameters and data settings, in the yaml file specified by the `--config` argument.
+
 #### Multi-Resolution Training
 
-OpenSora v1.2 supports training with multiple resolutions, aspect ratios, and a variable number of frames.
-This can be enabled in one of two ways:
+OpenSora v1.2 supports training with multiple resolutions, aspect ratios, and frames based on the [bucket method](https://github.com/hpcaitech/Open-Sora/blob/main/docs/report_02.md#support-for-multi-timeresolutionaspect-ratiofps-training).
 
-1. Provide variable sized VAE embeddings with the `--vae_latent_folder` option.
-2. Use `bucket_config` for training with videos in their original format. More on the bucket configuration can be found
-   in [Multi-resolution Training with Buckets](./docs/quick_start.md#4-multi-resolution-training-with-buckets-opensora-v11-and-above).
+To enable dynamic training for STDiT3, please set the `bucket_config` to fit your datasets and tasks at first. An example (from `configs/opensora-v1-2/train/train_stage2.yaml`) is
 
-Detailed running command can be referred in `scripts/run/run_train_os_v1.2_stage2.sh`
+```python
+bucket_config:
+  # Structure: "resolution": { num_frames: [ keep_prob, batch_size ] }
+  "144p": { 1: [ 1.0, 475 ], 51: [ 1.0, 51 ], 102: [ [ 1.0, 0.33 ], 27 ], 204: [ [ 1.0, 0.1 ], 13 ], 408: [ [ 1.0, 0.1 ], 6 ] }
+  "256": { 1: [ 0.4, 297 ], 51: [ 0.5, 20 ], 102: [ [ 0.5, 0.33 ], 10 ], 204: [ [ 0.5, 1.0 ], 5 ], 408: [ [ 0.5, 1.0 ], 2 ] }
+  "240p": { 1: [ 0.3, 297 ], 51: [ 0.4, 20 ], 102: [ [ 0.4, 0.33 ], 10 ], 204: [ [ 0.4, 1.0 ], 5 ], 408: [ [ 0.4, 1.0 ], 2 ] }
+  "360p": { 1: [ 0.5, 141 ], 51: [ 0.15, 8 ], 102: [ [ 0.3, 0.5 ], 4 ], 204: [ [ 0.3, 1.0 ], 2 ], 408: [ [ 0.5, 0.5 ], 1 ] }
+  "512": { 1: [ 0.4, 141 ], 51: [ 0.15, 8 ], 102: [ [ 0.2, 0.4 ], 4 ], 204: [ [ 0.2, 1.0 ], 2 ], 408: [ [ 0.4, 0.5 ], 1 ] }
+  "480p": { 1: [ 0.5, 89 ], 51: [ 0.2, 5 ], 102: [ 0.2, 2 ], 204: [ 0.1, 1 ] }
+  "720p": { 1: [ 0.1, 36 ], 51: [ 0.03, 1 ] }
+  "1024": { 1: [ 0.1, 36 ], 51: [ 0.02, 1 ] }
+  "1080p": { 1: [ 0.01, 5 ] }
+  "2048": { 1: [ 0.01, 5 ] }
+```
+
+More details on the bucket configuration can be found in [Multi-resolution Training with Buckets](./docs/quick_start.md#4-multi-resolution-training-with-buckets-opensora-v11-and-above).
+
+Then you can launch the dynamic training task following the previous section. An example running script is `scripts/run/run_train_os1.2_stage2.sh`.
 
 
 ### Open-Sora 1.1

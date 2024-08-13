@@ -1,6 +1,6 @@
 # model
 model_version: v1.2
-pretrained_model_path: PATH_TO_YOUR_MODEL
+pretrained_model_path:  PATH_TO_YOUR_MODEL
 model_max_length: 300
 freeze_y_embedder: True
 
@@ -23,6 +23,11 @@ num_workers_dataset: 2
 prefetch_size: 2
 max_rowsize: 256
 
+# mindspore params, refer to https://www.mindspore.cn/docs/zh-CN/r2.3.1/api_python/mindspore/mindspore.set_context.html
+max_device_memory: "59GB"
+jit_level: "O1"
+manual_pad: True
+
 # precision
 amp_level: "O2"
 dtype: bf16
@@ -33,7 +38,7 @@ init_loss_scale: 1
 scheduler: "constant"
 start_learning_rate: 1.e-4
 end_learning_rate: 1.e-4
-warmup_steps: 1000
+# warmup_steps: 1000
 
 clip_grad: True
 max_grad_norm: 1.0
@@ -44,8 +49,9 @@ optim: "adamw_re"
 optim_eps: 1e-15
 weight_decay: 0.
 
-epochs: 5000
-ckpt_save_interval: &save_interval 100
+# epochs: 2
+train_steps: 23000
+ckpt_save_steps:  500
 
 mask_ratios:
   random: 0.005
@@ -73,7 +79,6 @@ bucket_config:
   "1080p": { 1: [ 0.01, 5 ] }
   "2048": { 1: [ 0.01, 5 ] }
 
-manual_pad: True
 
 # ---------- Validation ----------
 validate: False

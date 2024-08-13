@@ -29,6 +29,11 @@ dtype: bf16
 loss_scaler_type: static
 init_loss_scale: 1
 
+# mindspore params, refer to https://www.mindspore.cn/docs/zh-CN/r2.3.1/api_python/mindspore/mindspore.set_context.html
+max_device_memory: "59GB"
+jit_level: "O1"
+manual_pad: True
+
 # training hyper-params
 scheduler: "constant"
 start_learning_rate: 1.e-4
@@ -44,8 +49,9 @@ optim: "adamw_re"
 optim_eps: 1e-15
 weight_decay: 0.
 
-epochs: 1000
-ckpt_save_interval: &save_interval 100
+# epochs: 2
+train_steps: 30000
+ckpt_save_steps:  500
 
 mask_ratios:
   random: 0.05
@@ -72,8 +78,6 @@ bucket_config:
   "1024": {1: [0.05, 36]}
   "1080p": {1: [0.1, 5]}
   "2048": {1: [0.1, 5]}
-
-manual_pad: True
 
 # ---------- Validation ----------
 validate: False
