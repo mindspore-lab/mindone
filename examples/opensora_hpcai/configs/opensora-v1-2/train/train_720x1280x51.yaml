@@ -21,6 +21,9 @@ use_recompute: True
 num_parallel_workers: 2
 max_rowsize: 256
 
+# mindspore params, refer to https://www.mindspore.cn/docs/zh-CN/r2.3.1/api_python/mindspore/mindspore.set_context.html
+jit_level: "O1"
+
 # precision
 amp_level: "O2"
 dtype: bf16

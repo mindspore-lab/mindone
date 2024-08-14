@@ -30,7 +30,9 @@ def repeat_interleave_ext_v2(input, repeats, axis=None):
     if not isinstance(repeats, int):
         raise ValueError(f"repeats must be int, but get {repeats}")
     if axis is None:
-        return mint.tile(input.reshape(-1), (repeats,))
+        input = input.reshape[-1]
+        axis = 0
+
     if not isinstance(axis, int):
         raise ValueError(f"axis must be int, but get {axis}")
     axis = axis + input.ndim if axis < 0 else axis

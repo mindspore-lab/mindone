@@ -22,6 +22,8 @@ use_recompute: True
 num_parallel_workers: 8
 max_rowsize: 256
 
+jit_level: "O1"
+
 # precision
 amp_level: "O2"
 dtype: bf16

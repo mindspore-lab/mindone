@@ -760,7 +760,7 @@ Here are some generation results after fine-tuning STDiT on a subset of WebVid d
 For quality evaluation, please refer to the original HPC-AI Tech [evaluation doc](https://github.com/hpcaitech/Open-Sora/blob/main/eval/README.md) for video generation quality evaluation.
 
 </details>
-    
+
 ## Training and Inference Using the FiT-Like Pipeline
 
 <details>
