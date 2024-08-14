@@ -4,11 +4,33 @@ from ..utils import _LazyModule
 
 # These modules contain pipelines from multiple libraries/frameworks
 _import_structure = {
+    "animatediff": [
+        "AnimateDiffPipeline",
+        "AnimateDiffVideoToVideoPipeline",
+    ],
     "blip_diffusion": ["BlipDiffusionPipeline"],
     "consistency_models": ["ConsistencyModelPipeline"],
+    "controlnet": [
+        "BlipDiffusionControlNetPipeline",
+        "StableDiffusionControlNetImg2ImgPipeline",
+        "StableDiffusionControlNetInpaintPipeline",
+        "StableDiffusionControlNetPipeline",
+        "StableDiffusionXLControlNetImg2ImgPipeline",
+        "StableDiffusionXLControlNetInpaintPipeline",
+        "StableDiffusionXLControlNetPipeline",
+    ],
     "dance_diffusion": ["DanceDiffusionPipeline"],
     "ddim": ["DDIMPipeline"],
     "ddpm": ["DDPMPipeline"],
+    "deepfloyd_if": [
+        "IFImg2ImgPipeline",
+        "IFImg2ImgSuperResolutionPipeline",
+        "IFInpaintingPipeline",
+        "IFInpaintingSuperResolutionPipeline",
+        "IFPipeline",
+        "IFSuperResolutionPipeline",
+    ],
+    "i2vgen_xl": ["I2VGenXLPipeline"],
     "kandinsky": [
         "KandinskyCombinedPipeline",
         "KandinskyImg2ImgCombinedPipeline",
@@ -38,12 +60,15 @@ _import_structure = {
         "LatentConsistencyModelImg2ImgPipeline",
         "LatentConsistencyModelPipeline",
     ],
+    "pixart_alpha": ["PixArtAlphaPipeline"],
+    "shap_e": ["ShapEImg2ImgPipeline", "ShapEPipeline"],
     "stable_cascade": [
         "StableCascadeCombinedPipeline",
         "StableCascadeDecoderPipeline",
         "StableCascadePriorPipeline",
     ],
     "stable_diffusion": [
+        "CLIPImageProjection",
         "StableDiffusionDepth2ImgPipeline",
         "StableDiffusionImageVariationPipeline",
         "StableDiffusionImg2ImgPipeline",
@@ -56,6 +81,10 @@ _import_structure = {
     "stable_diffusion_3": [
         "StableDiffusion3Pipeline",
     ],
+    "stable_diffusion_gligen": [
+        "StableDiffusionGLIGENPipeline",
+        "StableDiffusionGLIGENTextImagePipeline",
+    ],
     "stable_diffusion_xl": [
         "StableDiffusionXLInpaintPipeline",
         "StableDiffusionXLImg2ImgPipeline",
@@ -63,6 +92,11 @@ _import_structure = {
         "StableDiffusionXLPipeline",
     ],
     "stable_video_diffusion": ["StableVideoDiffusionPipeline"],
+    "t2i_adapter": [
+        "StableDiffusionAdapterPipeline",
+        "StableDiffusionXLAdapterPipeline",
+    ],
+    "unclip": ["UnCLIPImageVariationPipeline", "UnCLIPPipeline"],
     "wuerstchen": [
         "WuerstchenCombinedPipeline",
         "WuerstchenDecoderPipeline",
@@ -75,10 +109,29 @@ _import_structure = {
 }
 
 if TYPE_CHECKING:
+    from .animatediff import AnimateDiffPipeline, AnimateDiffVideoToVideoPipeline
     from .blip_diffusion import BlipDiffusionPipeline
     from .consistency_models import ConsistencyModelPipeline
+    from .controlnet import (
+        BlipDiffusionControlNetPipeline,
+        StableDiffusionControlNetImg2ImgPipeline,
+        StableDiffusionControlNetInpaintPipeline,
+        StableDiffusionControlNetPipeline,
+        StableDiffusionXLControlNetImg2ImgPipeline,
+        StableDiffusionXLControlNetInpaintPipeline,
+        StableDiffusionXLControlNetPipeline,
+    )
     from .ddim import DDIMPipeline
     from .ddpm import DDPMPipeline
+    from .deepfloyd_if import (
+        IFImg2ImgPipeline,
+        IFImg2ImgSuperResolutionPipeline,
+        IFInpaintingPipeline,
+        IFInpaintingSuperResolutionPipeline,
+        IFPipeline,
+        IFSuperResolutionPipeline,
+    )
+    from .i2vgen_xl import I2VGenXLPipeline
     from .kandinsky import (
         KandinskyCombinedPipeline,
         KandinskyImg2ImgCombinedPipeline,
@@ -103,8 +156,11 @@ if TYPE_CHECKING:
     from .kandinsky3 import Kandinsky3Img2ImgPipeline, Kandinsky3Pipeline
     from .latent_consistency_models import LatentConsistencyModelImg2ImgPipeline, LatentConsistencyModelPipeline
     from .pipeline_utils import DiffusionPipeline, ImagePipelineOutput
+    from .pixart_alpha import PixArtAlphaPipeline
+    from .shap_e import ShapEImg2ImgPipeline, ShapEPipeline
     from .stable_cascade import StableCascadeCombinedPipeline, StableCascadeDecoderPipeline, StableCascadePriorPipeline
     from .stable_diffusion import (
+        CLIPImageProjection,
         StableDiffusionDepth2ImgPipeline,
         StableDiffusionImageVariationPipeline,
         StableDiffusionImg2ImgPipeline,
@@ -115,6 +171,7 @@ if TYPE_CHECKING:
         StableDiffusionUpscalePipeline,
     )
     from .stable_diffusion_3 import StableDiffusion3Pipeline
+    from .stable_diffusion_gligen import StableDiffusionGLIGENPipeline, StableDiffusionGLIGENTextImagePipeline
     from .stable_diffusion_xl import (
         StableDiffusionXLImg2ImgPipeline,
         StableDiffusionXLInpaintPipeline,
@@ -122,6 +179,8 @@ if TYPE_CHECKING:
         StableDiffusionXLPipeline,
     )
     from .stable_video_diffusion import StableVideoDiffusionPipeline
+    from .t2i_adapter import StableDiffusionAdapterPipeline, StableDiffusionXLAdapterPipeline
+    from .unclip import UnCLIPImageVariationPipeline, UnCLIPPipeline
     from .wuerstchen import WuerstchenCombinedPipeline, WuerstchenDecoderPipeline, WuerstchenPriorPipeline
 else:
     import sys
