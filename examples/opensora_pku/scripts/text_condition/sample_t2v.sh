@@ -1,4 +1,4 @@
-python opensora/sample/sample_t2v.py \
+python opensora/sample/test_opensora.py \
     --model_path LanguageBind/Open-Sora-Plan-v1.2.0/29x720p \
     --num_frames 29 \
     --height 720 \
