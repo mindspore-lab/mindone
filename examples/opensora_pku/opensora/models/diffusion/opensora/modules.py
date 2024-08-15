@@ -11,11 +11,10 @@ import mindspore as ms
 from mindspore import Parameter, mint, nn, ops
 from mindspore.common.initializer import initializer
 
-from mindone.diffusers.models.activations import GEGLU, GELU, ApproximateGELU
-
-# from mindone.diffusers.utils import USE_PEFT_BACKEND
-from mindone.diffusers.models.embeddings import LabelEmbedding, TimestepEmbedding, Timesteps
-from mindone.diffusers.utils import deprecate
+from mindone.diffusers.models.attention import FeedForward, GatedSelfAttentionDense
+from mindone.diffusers.models.attention_processor import SpatialNorm
+from mindone.diffusers.models.embeddings import SinusoidalPositionalEmbedding
+from mindone.diffusers.models.normalization import AdaLayerNorm, AdaLayerNormContinuous, AdaLayerNormZero
 from mindone.models.modules.flash_attention import FLASH_IS_AVAILABLE, MSFlashAttention
 
 from .rope import PositionGetter3D, RoPE3D
@@ -198,35 +197,6 @@ class Attention(nn.Cell):
         out = ops.matmul(attn, v)
 
         return out
-
-
-class SpatialNorm(nn.Cell):
-    """
-    Spatially conditioned normalization as defined in https://arxiv.org/abs/2209.09002.
-
-    Args:
-        f_channels (`int`):
-            The number of channels for input to group normalization layer, and output of the spatial norm layer.
-        zq_channels (`int`):
-            The number of channels for the quantized vector as described in the paper.
-    """
-
-    def __init__(
-        self,
-        f_channels: int,
-        zq_channels: int,
-    ):
-        super().__init__()
-        self.norm_layer = nn.GroupNorm(num_channels=f_channels, num_groups=32, eps=1e-6, affine=True)
-        self.conv_y = nn.Conv2d(zq_channels, f_channels, kernel_size=1, stride=1, padding=0)
-        self.conv_b = nn.Conv2d(zq_channels, f_channels, kernel_size=1, stride=1, padding=0)
-
-    def construct(self, f: ms.Tensor, zq: ms.Tensor) -> ms.Tensor:
-        f_size = f.shape[-2:]
-        zq = ops.ResizeNearestNeighbor(size=f_size)(zq)
-        norm_f = self.norm_layer(f)
-        new_f = norm_f * self.conv_y(zq) + self.conv_b(zq)
-        return new_f
 
 
 class MultiHeadAttention(nn.Cell):
@@ -722,363 +692,6 @@ class MultiHeadAttention(nn.Cell):
         if self.downsampler is not None:
             hidden_states = self.downsampler.reverse(hidden_states, t=frame, h=height, w=width)
         return hidden_states
-
-
-class CaptionProjection(nn.Cell):
-    """
-    Projects caption embeddings. Also handles dropout for classifier-free guidance.
-
-    Adapted from https://github.com/PixArt-alpha/PixArt-alpha/blob/master/diffusion/model/nets/PixArt_blocks.py
-    """
-
-    def __init__(self, in_features, hidden_size, num_tokens=120):
-        super().__init__()
-        self.linear_1 = nn.Dense(in_features, hidden_size)
-        self.act_1 = nn.GELU(True)
-        self.linear_2 = nn.Dense(hidden_size, hidden_size)
-        self.y_embedding = Parameter(ops.randn(num_tokens, in_features) / in_features**0.5, requires_grad=False)
-
-    def construct(self, caption, force_drop_ids=None):
-        hidden_states = self.linear_1(caption)
-        hidden_states = self.act_1(hidden_states)
-        hidden_states = self.linear_2(hidden_states)
-        return hidden_states
-
-
-class CombinedTimestepSizeEmbeddings(nn.Cell):
-    """
-    For PixArt-Alpha.
-
-    Reference:
-    https://github.com/PixArt-alpha/PixArt-alpha/blob/0f55e922376d8b797edd44d25d0e7464b260dcab/diffusion/model/nets/PixArtMS.py#L164C9-L168C29
-    """
-
-    def __init__(self, embedding_dim, size_emb_dim, use_additional_conditions: bool = False):
-        super().__init__()
-
-        self.outdim = size_emb_dim
-        self.time_proj = Timesteps(num_channels=256, flip_sin_to_cos=True, downscale_freq_shift=0)
-        self.timestep_embedder = TimestepEmbedding(in_channels=256, time_embed_dim=embedding_dim)
-
-        self.use_additional_conditions = use_additional_conditions
-        if use_additional_conditions:
-            self.use_additional_conditions = True
-            self.additional_condition_proj = Timesteps(num_channels=256, flip_sin_to_cos=True, downscale_freq_shift=0)
-            self.resolution_embedder = TimestepEmbedding(in_channels=256, time_embed_dim=size_emb_dim)
-            self.aspect_ratio_embedder = TimestepEmbedding(in_channels=256, time_embed_dim=size_emb_dim)
-
-    def apply_condition(self, size: ms.Tensor, batch_size: int, embedder: nn.Cell):
-        if size.ndim == 1:
-            size = size[:, None]
-
-        if size.shape[0] != batch_size:
-            size = size.repeat_interleave(batch_size // size.shape[0], 1)
-            if size.shape[0] != batch_size:
-                raise ValueError(f"`batch_size` should be {size.shape[0]} but found {batch_size}.")
-
-        current_batch_size, dims = size.shape[0], size.shape[1]
-        size = size.reshape(-1)
-        size_freq = self.additional_condition_proj(size).to(size.dtype)
-
-        size_emb = embedder(size_freq)
-        size_emb = size_emb.reshape(current_batch_size, dims * self.outdim)
-        return size_emb
-
-    def construct(self, timestep, resolution, aspect_ratio, batch_size, hidden_dtype):
-        timesteps_proj = self.time_proj(timestep)
-        timesteps_emb = self.timestep_embedder(timesteps_proj.to(dtype=hidden_dtype))  # (N, D)
-
-        if self.use_additional_conditions:
-            resolution = self.apply_condition(resolution, batch_size=batch_size, embedder=self.resolution_embedder)
-            aspect_ratio = self.apply_condition(
-                aspect_ratio, batch_size=batch_size, embedder=self.aspect_ratio_embedder
-            )
-            conditioning = timesteps_emb + ops.cat([resolution, aspect_ratio], axis=1)
-        else:
-            conditioning = timesteps_emb
-
-        return conditioning
-
-
-class AdaLayerNormSingle(nn.Cell):
-    r"""
-    Norm layer adaptive layer norm single (adaLN-single).
-
-    As proposed in PixArt-Alpha (see: https://arxiv.org/abs/2310.00426; Section 2.3).
-
-    Parameters:
-        embedding_dim (`int`): The size of each embedding vector.
-        use_additional_conditions (`bool`): To use additional conditions for normalization or not.
-    """
-
-    def __init__(self, embedding_dim: int, use_additional_conditions: bool = False):
-        super().__init__()
-
-        self.emb = CombinedTimestepSizeEmbeddings(
-            embedding_dim, size_emb_dim=embedding_dim // 3, use_additional_conditions=use_additional_conditions
-        )
-
-        self.silu = nn.SiLU()
-        self.linear = nn.Dense(embedding_dim, 6 * embedding_dim)
-
-    def construct(
-        self,
-        timestep: ms.Tensor,
-        added_cond_kwargs: Dict[str, ms.Tensor] = None,
-        batch_size: int = None,
-        hidden_dtype=None,
-    ) -> Tuple[ms.Tensor, ms.Tensor, ms.Tensor, ms.Tensor, ms.Tensor]:
-        # No modulation happening here.
-        embedded_timestep = self.emb(
-            timestep, batch_size=batch_size, hidden_dtype=hidden_dtype, resolution=None, aspect_ratio=None
-        )
-        return self.linear(self.silu(embedded_timestep)), embedded_timestep
-
-
-class GatedSelfAttentionDense(nn.Cell):
-    r"""
-    A gated self-attention dense layer that combines visual features and object features.
-
-    Parameters:
-        query_dim (`int`): The number of channels in the query.
-        context_dim (`int`): The number of channels in the context.
-        n_heads (`int`): The number of heads to use for attention.
-        d_head (`int`): The number of channels in each head.
-    """
-
-    def __init__(self, query_dim: int, context_dim: int, n_heads: int, d_head: int):
-        super().__init__()
-
-        # we need a linear projection since we need cat visual feature and obj feature
-        self.linear = nn.Dense(context_dim, query_dim)
-
-        self.attn = MultiHeadAttention(query_dim=query_dim, heads=n_heads, dim_head=d_head)
-        self.ff = FeedForward(query_dim, activation_fn="geglu")
-
-        self.norm1 = LayerNorm(query_dim)
-        self.norm2 = LayerNorm(query_dim)
-
-        self.alpha_attn = ms.Tensor(0.0)
-        self.alpha_dense = ms.Tensor(0.0)
-
-        self.enabled = True
-
-    def construct(self, x: ms.Tensor, objs: ms.Tensor) -> ms.Tensor:
-        if not self.enabled:
-            return x
-
-        n_visual = x.shape[1]
-        objs = self.linear(objs)
-
-        x = x + self.alpha_attn.tanh() * self.attn(self.norm1(ops.cat([x, objs], dim=1)))[:, :n_visual, :]
-        x = x + self.alpha_dense.tanh() * self.ff(self.norm2(x))
-
-        return x
-
-
-class FeedForward(nn.Cell):
-    r"""
-    A feed-forward layer.
-
-    Parameters:
-        dim (`int`): The number of channels in the input.
-        dim_out (`int`, *optional*): The number of channels in the output. If not given, defaults to `dim`.
-        mult (`int`, *optional*, defaults to 4): The multiplier to use for the hidden dimension.
-        dropout (`float`, *optional*, defaults to 0.0): The dropout probability to use.
-        activation_fn (`str`, *optional*, defaults to `"geglu"`): Activation function to be used in feed-forward.
-        final_dropout (`bool` *optional*, defaults to False): Apply a final dropout.
-        inner_dim (`int`, optional*, defaults to None): using this integer as the hidden dimension. If not provided, will use dim*mult.
-        bias (`bool`, defaults to True): Whether to use a bias in the linear layer.
-    """
-
-    def __init__(
-        self,
-        dim: int,
-        dim_out: Optional[int] = None,
-        mult: int = 4,
-        dropout: float = 0.0,
-        activation_fn: str = "geglu",
-        final_dropout: bool = False,
-        inner_dim=None,
-        bias: bool = True,
-    ):
-        super().__init__()
-        if inner_dim is None:
-            inner_dim = int(dim * mult)
-        dim_out = dim_out if dim_out is not None else dim
-
-        if activation_fn == "gelu":
-            act_fn = GELU(dim, inner_dim, bias=bias)
-        if activation_fn == "gelu-approximate":
-            act_fn = GELU(dim, inner_dim, approximate="tanh", bias=bias)
-        elif activation_fn == "geglu":
-            act_fn = GEGLU(dim, inner_dim, bias=bias)
-        elif activation_fn == "geglu-approximate":
-            act_fn = ApproximateGELU(dim, inner_dim, bias=bias)
-        elif activation_fn == "swiglu":
-            raise NotImplementedError
-
-        self.net = nn.CellList([])
-        # project in
-        self.net.append(act_fn)
-        # project dropout
-        self.net.append(nn.Dropout(p=dropout))
-        # project out
-        self.net.append(nn.Dense(inner_dim, dim_out, has_bias=bias))
-        # FF as used in Vision Transformer, MLP-Mixer, etc. have a final dropout
-        if final_dropout:
-            self.net.append(nn.Dropout(p=dropout))
-
-    def construct(self, hidden_states: ms.Tensor, *args, **kwargs) -> ms.Tensor:
-        if len(args) > 0 or kwargs.get("scale", None) is not None:
-            deprecation_message = "The `scale` argument is deprecated and will be ignored. Please remove it, \
-                as passing it will raise an error in the future. `scale` should directly be passed while \
-                    calling the underlying pipeline component i.e., via `cross_attention_kwargs`."
-            deprecate("scale", "1.0.0", deprecation_message)
-        for module in self.net:
-            hidden_states = module(hidden_states)
-        return hidden_states
-
-
-# Temporally add diffusers modules here
-class SinusoidalPositionalEmbedding(nn.Cell):
-    """Apply positional information to a sequence of embeddings.
-    Takes in a sequence of embeddings with shape (batch_size, seq_length, embed_dim) and adds positional embeddings to
-    them
-    Args:
-        embed_dim: (int): Dimension of the positional embedding.
-        max_seq_length: Maximum sequence length to apply positional embeddings
-    """
-
-    def __init__(self, embed_dim: int, max_seq_length: int = 32):
-        super().__init__()
-        position = ops.arange(max_seq_length).unsqueeze(1)
-        div_term = ops.exp(ops.arange(0, embed_dim, 2) * (-ops.log(ms.Tensor(10000.0)) / embed_dim))
-        pe = ops.zeros(1, max_seq_length, embed_dim)
-        pe[0, :, 0::2] = ops.sin(position * div_term)
-        pe[0, :, 1::2] = ops.cos(position * div_term)
-        self.pe = nn.Parameter(ms.Tensor(pe), requires_grad=False)
-
-    def construct(self, x):
-        _, seq_length, _ = x.shape
-        x = x + self.pe[:, :seq_length]
-        return x
-
-
-class ImagePositionalEmbeddings(nn.Cell):
-    """
-    Converts latent image classes into vector embeddings. Sums the vector embeddings with positional embeddings for the
-    height and width of the latent space.
-    For more details, see figure 10 of the dall-e paper: https://arxiv.org/abs/2102.12092
-    For VQ-diffusion:
-    Output vector embeddings are used as input for the transformer.
-    Note that the vector embeddings for the transformer are different than the vector embeddings from the VQVAE.
-    Args:
-        num_embed (`int`):
-            Number of embeddings for the latent pixels embeddings.
-        height (`int`):
-            Height of the latent image i.e. the number of height embeddings.
-        width (`int`):
-            Width of the latent image i.e. the number of width embeddings.
-        embed_dim (`int`):
-            Dimension of the produced vector embeddings. Used for the latent pixel, height, and width embeddings.
-    """
-
-    def __init__(
-        self,
-        num_embed: int,
-        height: int,
-        width: int,
-        embed_dim: int,
-    ):
-        super().__init__()
-
-        self.height = height
-        self.width = width
-        self.num_embed = num_embed
-        self.embed_dim = embed_dim
-
-        self.emb = nn.Embedding(self.num_embed, embed_dim)
-        self.height_emb = nn.Embedding(self.height, embed_dim)
-        self.width_emb = nn.Embedding(self.width, embed_dim)
-
-    def construct(self, index):
-        emb = self.emb(index)
-
-        height_emb = self.height_emb(ops.arange(self.height).view(1, self.height))
-
-        # 1 x H x D -> 1 x H x 1 x D
-        height_emb = height_emb.unsqueeze(2)
-
-        width_emb = self.width_emb(ops.arange(self.width).view(1, self.width))
-
-        # 1 x W x D -> 1 x 1 x W x D
-        width_emb = width_emb.unsqueeze(1)
-
-        pos_emb = height_emb + width_emb
-
-        # 1 x H x W x D -> 1 x L xD
-        pos_emb = pos_emb.view(1, self.height * self.width, -1)
-
-        emb = emb + pos_emb[:, : emb.shape[1], :]
-
-        return emb
-
-
-class CombinedTimestepLabelEmbeddings(nn.Cell):
-    def __init__(self, num_classes, embedding_dim, class_dropout_prob=0.1):
-        super().__init__()
-
-        self.time_proj = Timesteps(num_channels=256, flip_sin_to_cos=True, downscale_freq_shift=1)
-        self.timestep_embedder = TimestepEmbedding(in_channels=256, time_embed_dim=embedding_dim)
-        self.class_embedder = LabelEmbedding(num_classes, embedding_dim, class_dropout_prob)
-
-    def construct(self, timestep, class_labels, hidden_dtype=None):
-        timesteps_proj = self.time_proj(timestep)
-        timesteps_emb = self.timestep_embedder(timesteps_proj.to(dtype=hidden_dtype))  # (N, D)
-
-        class_labels = self.class_embedder(class_labels)  # (N, D)
-
-        conditioning = timesteps_emb + class_labels  # (N, D)
-
-        return conditioning
-
-
-class PixArtAlphaCombinedTimestepSizeEmbeddings(nn.Cell):
-    """
-    For PixArt-Alpha.
-    Reference:
-    https://github.com/PixArt-alpha/PixArt-alpha/blob/0f55e922376d8b797edd44d25d0e7464b260dcab/diffusion\
-        /model/nets/PixArtMS.py#L164C9-L168C29
-    """
-
-    def __init__(self, embedding_dim, size_emb_dim, use_additional_conditions: bool = False):
-        super().__init__()
-
-        self.outdim = size_emb_dim
-        self.time_proj = Timesteps(num_channels=256, flip_sin_to_cos=True, downscale_freq_shift=0)
-        self.timestep_embedder = TimestepEmbedding(in_channels=256, time_embed_dim=embedding_dim)
-
-        self.use_additional_conditions = use_additional_conditions
-        if use_additional_conditions:
-            self.additional_condition_proj = Timesteps(num_channels=256, flip_sin_to_cos=True, downscale_freq_shift=0)
-            self.resolution_embedder = TimestepEmbedding(in_channels=256, time_embed_dim=size_emb_dim)
-            self.aspect_ratio_embedder = TimestepEmbedding(in_channels=256, time_embed_dim=size_emb_dim)
-
-    def construct(self, timestep, resolution, aspect_ratio, batch_size, hidden_dtype):
-        timesteps_proj = self.time_proj(timestep)
-        timesteps_emb = self.timestep_embedder(timesteps_proj.to(dtype=hidden_dtype))  # (N, D)
-
-        if self.use_additional_conditions:
-            resolution_emb = self.additional_condition_proj(resolution.flatten()).to(hidden_dtype)
-            resolution_emb = self.resolution_embedder(resolution_emb).reshape(batch_size, -1)
-            aspect_ratio_emb = self.additional_condition_proj(aspect_ratio.flatten()).to(hidden_dtype)
-            aspect_ratio_emb = self.aspect_ratio_embedder(aspect_ratio_emb).reshape(batch_size, -1)
-            conditioning = timesteps_emb + ops.cat([resolution_emb, aspect_ratio_emb], axis=1)
-        else:
-            conditioning = timesteps_emb
-
-        return conditioning
 
 
 class PatchEmbed2D(nn.Cell):
@@ -1605,60 +1218,6 @@ class DownSampler2d(nn.Cell):
         return x
 
 
-class AdaLayerNorm(nn.Cell):
-    r"""
-    Norm layer modified to incorporate timestep embeddings.
-    Parameters:
-        embedding_dim (`int`): The size of each embedding vector.
-        num_embeddings (`int`): The size of the embeddings dictionary.
-    """
-
-    def __init__(self, embedding_dim: int, num_embeddings: int):
-        super().__init__()
-        self.emb = nn.Embedding(num_embeddings, embedding_dim)
-        self.silu = nn.SiLU()
-        self.linear = nn.Dense(embedding_dim, embedding_dim * 2)
-        self.norm = LayerNorm(embedding_dim, elementwise_affine=False)
-
-    def construct(self, x: ms.Tensor, timestep: ms.Tensor) -> ms.Tensor:
-        emb = self.linear(self.silu(self.emb(timestep)))
-        scale, shift = mint.chunk(emb, 2, dim=0)
-        x = self.norm(x) * (1 + scale) + shift
-        return x
-
-
-class AdaLayerNormZero(nn.Cell):
-    r"""
-    Norm layer adaptive layer norm zero (adaLN-Zero).
-    Parameters:
-        embedding_dim (`int`): The size of each embedding vector.
-        num_embeddings (`int`): The size of the embeddings dictionary.
-    """
-
-    def __init__(self, embedding_dim: int, num_embeddings: int):
-        super().__init__()
-
-        self.emb = CombinedTimestepLabelEmbeddings(num_embeddings, embedding_dim)
-
-        self.silu = nn.SiLU()
-        self.linear = nn.Dense(embedding_dim, 6 * embedding_dim, bias=True)
-        self.norm = LayerNorm(embedding_dim, elementwise_affine=False, eps=1e-6)
-
-    def construct(
-        self,
-        x: ms.Tensor,
-        timestep: ms.Tensor,
-        class_labels: ms.Tensor,
-        hidden_dtype=None,
-    ) -> Tuple[ms.Tensor, ms.Tensor, ms.Tensor, ms.Tensor, ms.Tensor]:
-        emb = self.linear(self.silu(self.emb(timestep, class_labels, hidden_dtype=hidden_dtype)))
-        shift_msa, scale_msa, gate_msa, shift_mlp, scale_mlp, gate_mlp = mint.chunk(
-            emb, 6, dim=1
-        )  # emb.chunk(6, dim=1)
-        x = self.norm(x) * (1 + scale_msa[:, None]) + shift_msa[:, None]
-        return x, gate_msa, shift_mlp, scale_mlp, gate_mlp
-
-
 class FeedForward_Conv2d(nn.Cell):
     def __init__(self, downsampler, dim, hidden_features, bias=True):
         super(FeedForward_Conv2d, self).__init__()
@@ -1828,7 +1387,14 @@ class BasicTransformerBlock(nn.Cell):
             self.norm1_ada_zero = AdaLayerNormZero(dim, num_embeds_ada_norm)
             self.norm1_ada_zero.norm = LayerNorm(dim, elementwise_affine=False)
         elif norm_type == "ada_norm_continuous":
-            raise NotImplementedError
+            self.norm1_ada_con = AdaLayerNormContinuous(
+                dim,
+                ada_norm_continous_conditioning_embedding_dim,
+                norm_elementwise_affine,
+                norm_eps,
+                ada_norm_bias,
+                "rms_norm",
+            )
         else:
             self.norm1_ln = LayerNorm(dim, elementwise_affine=norm_elementwise_affine, eps=norm_eps)
 
@@ -1857,7 +1423,14 @@ class BasicTransformerBlock(nn.Cell):
                 self.norm2_ada = AdaLayerNorm(dim, num_embeds_ada_norm)
                 self.norm2_ada.norm = LayerNorm(dim, elementwise_affine=False)
             elif norm_type == "ada_norm_continuous":
-                raise NotImplementedError
+                self.norm2_ada_con = AdaLayerNormContinuous(
+                    dim,
+                    ada_norm_continous_conditioning_embedding_dim,
+                    norm_elementwise_affine,
+                    norm_eps,
+                    ada_norm_bias,
+                    "rms_norm",
+                )
             else:
                 self.norm2_ln = LayerNorm(dim, elementwise_affine=norm_elementwise_affine, eps=norm_eps)
 
@@ -1881,11 +1454,18 @@ class BasicTransformerBlock(nn.Cell):
 
         # 3. Feed-forward
         if norm_type == "ada_norm_continuous":
-            raise NotImplementedError
+            self.norm3 = AdaLayerNormContinuous(
+                dim,
+                ada_norm_continous_conditioning_embedding_dim,
+                norm_elementwise_affine,
+                norm_eps,
+                ada_norm_bias,
+                "layer_norm",
+            )
+        elif norm_type in ["ada_norm_zero", "ada_norm", "layer_norm", "ada_norm_continuous"]:
+            self.norm3 = LayerNorm(dim, norm_eps, norm_elementwise_affine)
         elif norm_type == "layer_norm_i2vgen":
             self.norm3 = None
-        else:
-            self.norm3 = LayerNorm(dim, elementwise_affine=norm_elementwise_affine, eps=norm_eps)
         if downsampler:
             self.ff = FeedForward_Conv2d(
                 downsampler,
@@ -1948,10 +1528,10 @@ class BasicTransformerBlock(nn.Cell):
             norm_hidden_states, gate_msa, shift_mlp, scale_mlp, gate_mlp = self.norm1_ada_zero(
                 hidden_states, timestep, class_labels, hidden_dtype=hidden_states.dtype
             )
-        elif self.norm_type == "layer_norm":
+        elif self.norm_type in ["layer_norm", "layer_norm_i2vgen"]:
             norm_hidden_states = self.norm1_ln(hidden_states)
-        elif self.norm_type == "ada_norm_continuous" or self.norm_type == "layer_norm_i2vgen":
-            raise NotImplementedError
+        elif self.norm_type == "ada_norm_continuous":
+            norm_hidden_states = self.norm1_ada_con(hidden_states, added_cond_kwargs["pooled_text_emb"])
 
         elif self.norm_type == "ada_norm_single":
             if get_sequence_parallel_state():
@@ -2010,8 +1590,8 @@ class BasicTransformerBlock(nn.Cell):
                 # For PixArt norm2 isn't applied here:
                 # https://github.com/PixArt-alpha/PixArt-alpha/blob/0f55e922376d8b797edd44d25d0e7464b260dcab/diffusion/model/nets/PixArtMS.py#L70C1-L76C103
                 norm_hidden_states = hidden_states
-            elif self.norm_type == "ada_norm_continuous" or self.norm_type == "layer_norm_i2vgen":
-                raise NotImplementedError
+            elif self.norm_type == "ada_norm_continuous":
+                norm_hidden_states = self.norm2_ada_con(hidden_states, added_cond_kwargs["pooled_text_emb"])
             else:
                 raise ValueError("Incorrect norm")
 
@@ -2028,7 +1608,7 @@ class BasicTransformerBlock(nn.Cell):
 
         # 4. Feed-forward
         if self.norm_type == "ada_norm_continuous":
-            raise NotImplementedError
+            norm_hidden_states = self.norm3(hidden_states, added_cond_kwargs["pooled_text_emb"])
         elif not self.norm_type == "ada_norm_single":
             norm_hidden_states = self.norm3(hidden_states)
 
