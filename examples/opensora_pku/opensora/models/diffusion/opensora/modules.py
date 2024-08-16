@@ -149,13 +149,18 @@ def get_1d_sincos_pos_embed_from_grid(embed_dim, pos):
 
 class Attention(Attention_):
     def __init__(self, downsampler, attention_mode, use_rope, interpolation_scale_thw, **kwags):
+        FA_dtype = kwags.pop("FA_dtype", ms.bfloat16)
         processor = AttnProcessor2_0(
             attention_mode=attention_mode,
             use_rope=use_rope,
             interpolation_scale_thw=interpolation_scale_thw,
-            FA_dtype=kwags.get("FA_dtype", ms.bfloat16),
+            FA_dtype=FA_dtype,
         )
-        super().__init__(processor=processor, **kwags)
+        super().__init__(**kwags)
+        attention_mode = kwags.get("attention_mode", "math")
+        if attention_mode == "xformers":
+            self.set_use_memory_efficient_attention_xformers(True)
+        self.processor = processor
         self.downsampler = None
         if downsampler:  # downsampler  k155_s122
             downsampler_ker_size = list(re.search(r"k(\d{2,3})", downsampler).group(1))  # 122
@@ -241,10 +246,10 @@ class AttnProcessor2_0:
         self.attention_mode = attention_mode
         # Currently we only support setting attention_mode to `flash` or `math`
         assert self.attention_mode in [
-            "flash",
+            "xformers",
             "math",
-        ], f"Unsupported attention mode {self.attention_mode}. Currently we only support ['flash', 'math']!"
-        self.enable_FA = attention_mode == "flash"
+        ], f"Unsupported attention mode {self.attention_mode}. Currently we only support ['xformers', 'math']!"
+        self.enable_FA = attention_mode == "xformers"
         self.FA_dtype = FA_dtype
         assert self.FA_dtype in [ms.float16, ms.bfloat16], f"Unsupported flash-attention dtype: {self.FA_dtype}"
         if self.enable_FA:
@@ -269,7 +274,16 @@ class AttnProcessor2_0:
         self.rope = RoPE3D(interpolation_scale_thw=interpolation_scale_thw)
         self.position_getter = PositionGetter3D()
 
-    def run_ms_flash_attention(self, attn, query, key, value, attention_mask):
+    def run_ms_flash_attention(
+        self,
+        attn,
+        query,
+        key,
+        value,
+        attention_mask,
+        input_layout="BSH",
+        attention_dropout: float = 0.0,
+    ):
         # Memory efficient attention on mindspore uses flash attention under the hoods.
         # Flash attention implementation is called `FlashAttentionScore`
         # which is an experimental api with the following limitations:
@@ -277,8 +291,14 @@ class AttnProcessor2_0:
         # 2. Head dimensions must be one of [64, 80, 96, 120, 128, 256].
         # 3. The input dtype must be float16 or bfloat16.
         # Sequence length of query must be checked in runtime.
-        _, query_tokens, _ = query.shape
+        if input_layout not in ["BSH", "BNSD"]:
+            raise ValueError(f"input_layout must be in ['BSH', 'BNSD'], but get {input_layout}.")
+        Bs, query_tokens, _ = query.shape
         assert query_tokens % 16 == 0, f"Sequence length of query must be divisible by 16, but got {query_tokens=}."
+        key_tokens = key.shape[1]
+        query = query.view(Bs, query_tokens, attn.heads, -1)
+        key = key.view(Bs, key_tokens, attn.heads, -1)
+        value = value.view(Bs, key_tokens, attn.heads, -1)
         # Head dimension is checked in Attention.set_use_memory_efficient_attention_xformers. We maybe pad on head_dim.
         if attn.head_dim_padding > 0:
             query_padded = ops.pad(query, (0, attn.head_dim_padding), mode="constant", value=0.0)
@@ -286,9 +306,22 @@ class AttnProcessor2_0:
             value_padded = ops.pad(value, (0, attn.head_dim_padding), mode="constant", value=0.0)
         else:
             query_padded, key_padded, value_padded = query, key, value
-        flash_attn = ops.operations.nn_ops.FlashAttentionScore(1, scale_value=attn.scale)
+        flash_attn = ops.operations.nn_ops.FlashAttentionScore(
+            scale_value=attn.scale, head_num=attn.heads, input_layout=input_layout, keep_prob=1 - attention_dropout
+        )
         if attention_mask is not None:
+            # flip mask, since ms FA treats 1 as discard, 0 as retain.
+            attention_mask = ~attention_mask if attention_mask.dtype == ms.bool_ else 1 - attention_mask
+            # (b, 1, 1, k_n) - > (b, 1, q_n, k_n), manual broadcast
+            if attention_mask.shape[-2] == 1:
+                attention_mask = mint.tile(attention_mask.bool(), (1, 1, query.shape[-2], 1))
             attention_mask = attention_mask.to(self.fa_mask_dtype)
+
+        if input_layout == "BNSD":
+            # (b s n d) -> (b n s d)
+            query_padded = query_padded.swapaxes(1, 2)
+            key_padded = key_padded.swapaxes(1, 2)
+            value_padded = value_padded.swapaxes(1, 2)
         hidden_states_padded = flash_attn(
             query_padded.to(self.FA_dtype),
             key_padded.to(self.FA_dtype),
@@ -303,7 +336,9 @@ class AttnProcessor2_0:
             hidden_states = hidden_states_padded[..., : attn.head_dim]
         else:
             hidden_states = hidden_states_padded
-
+        if input_layout == "BNSD":
+            hidden_states = hidden_states.swapaxes(1, 2)
+        hidden_states = hidden_states.reshape(Bs, query_tokens, -1)
         hidden_states = hidden_states.to(query.dtype)
         return hidden_states
 
@@ -311,6 +346,14 @@ class AttnProcessor2_0:
         query = attn.head_to_batch_dim(query)
         key = attn.head_to_batch_dim(key)
         value = attn.head_to_batch_dim(value)
+        if attention_mask is not None:
+            if attention_mask.ndim == 3:
+                attention_mask = attention_mask.unsqeeuze(1)
+            head_size = self.heads
+            assert attention_mask.shape[1] == 1
+            attention_mask = attention_mask.repeat_interleave(head_size, 1)
+            attention_mask = attention_mask.reshape(-1, attention_mask.shape[-2], attention_mask.shape[-1])
+            attention_mask = ops.zeros(attention_mask.shape).masked_fill(attention_mask.to(ms.bool_), -10000.0)
 
         attention_probs = attn.get_attention_scores(query, key, attention_mask)
         hidden_states = ops.bmm(attention_probs, value)
@@ -404,7 +447,7 @@ class AttnProcessor2_0:
             if self.attention_mode == "math":
                 # FIXME: shape error
                 hidden_states = self.run_math_attention(attn, query, key, value, attention_mask)
-            elif self.attention_mode == "flash":
+            elif self.attention_mode == "xformers":
                 hidden_states = self.run_ms_flash_attention(attn, query, key, value, attention_mask)
             hidden_states = hidden_states.swapaxes(0, 1)  # BSH to SBH
             # [s * b, h // sp, d] -> [s // sp * b, h, d] -> [s // sp, b, h * d]
@@ -425,7 +468,7 @@ class AttnProcessor2_0:
 
             if self.attention_mode == "math":
                 hidden_states = self.run_math_attention(attn, query, key, value, attention_mask)
-            elif self.attention_mode == "flash":
+            elif self.attention_mode == "xformers":
                 hidden_states = self.run_ms_flash_attention(attn, query, key, value, attention_mask)
         hidden_states = hidden_states.to(query.dtype)
 
@@ -1119,7 +1162,7 @@ class BasicTransformerBlock(nn.Cell):
         attention_out_bias: bool = True,
         downsampler: str = None,
         interpolation_scale_thw: Tuple[int] = (1, 1, 1),
-        enable_flash_attention: bool = False,
+        attention_mode: str = "xformers",
         use_rope: bool = False,
         FA_dtype=ms.bfloat16,
     ):
@@ -1180,7 +1223,7 @@ class BasicTransformerBlock(nn.Cell):
             bias=attention_bias,
             cross_attention_dim=cross_attention_dim if only_cross_attention else None,
             upcast_attention=upcast_attention,
-            enable_flash_attention=enable_flash_attention,
+            attention_mode=attention_mode,
             out_bias=attention_out_bias,
             downsampler=downsampler,
             use_rope=use_rope,
@@ -1218,9 +1261,10 @@ class BasicTransformerBlock(nn.Cell):
                 upcast_attention=upcast_attention,
                 out_bias=attention_out_bias,
                 downsampler=False,
-                enable_flash_attention=enable_flash_attention,
                 use_rope=False,  # do not position in cross attention
+                attention_mode=attention_mode,
                 FA_dtype=self.FA_dtype,
+                interpolation_scale_thw=interpolation_scale_thw,
             )  # is self-attn if encoder_hidden_states is none
         else:
             self.norm2 = None

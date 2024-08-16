@@ -86,7 +86,7 @@ class OpenSoraT2V(ModelMixin, ConfigMixin):
         interpolation_scale_w: float = None,
         interpolation_scale_t: float = None,
         use_additional_conditions: Optional[bool] = None,
-        enable_flash_attention: bool = False,
+        attention_mode: str = "xformers",
         downsampler: str = None,
         use_recompute=False,
         use_rope: bool = False,
@@ -124,7 +124,6 @@ class OpenSoraT2V(ModelMixin, ConfigMixin):
         use_additional_conditions = False
         self.use_additional_conditions = use_additional_conditions
         self.use_recompute = use_recompute
-        self.enable_flash_attention = enable_flash_attention
         self.FA_dtype = FA_dtype
 
         # 1. Transformer2DModel can process both standard continuous images of shape\
@@ -174,7 +173,7 @@ class OpenSoraT2V(ModelMixin, ConfigMixin):
 
     def get_attention_mask(self, attention_mask):
         if attention_mask is not None:
-            if self.config.enable_flash_attention:
+            if self.config.attention_mode != "math":
                 attention_mask = attention_mask.to(ms.bool_)
         return attention_mask
 
@@ -267,7 +266,7 @@ class OpenSoraT2V(ModelMixin, ConfigMixin):
                     norm_elementwise_affine=self.config.norm_elementwise_affine,
                     norm_eps=self.config.norm_eps,
                     attention_type=self.config.attention_type,
-                    enable_flash_attention=self.config.enable_flash_attention,
+                    attention_mode=self.config.attention_mode,
                     FA_dtype=self.config.FA_dtype,
                     downsampler=self.config.downsampler,
                     use_rope=self.config.use_rope,

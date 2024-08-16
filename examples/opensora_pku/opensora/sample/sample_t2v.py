@@ -103,12 +103,7 @@ def parse_args():
     )
     parser.add_argument("--jit_level", default="O0", help="Set jit level: # O0: KBK, O1:DVM, O2: GE")
     parser.add_argument("--seed", type=int, default=4, help="Inference seed")
-    parser.add_argument(
-        "--enable_flash_attention",
-        default=False,
-        type=str2bool,
-        help="whether to enable flash attention. Default is False",
-    )
+
     parser.add_argument(
         "--precision",
         default="bf16",
@@ -307,7 +302,7 @@ if __name__ == "__main__":
         skip_load_ckpt = True
     else:
         skip_load_ckpt = False
-    kwargs = {"enable_flash_attention": args.enable_flash_attention, "FA_dtype": FA_dtype}
+    kwargs = {"FA_dtype": FA_dtype}
     model_version = args.model_path.split("/")[-1]
     if int(model_version.split("x")[0]) != args.num_frames:
         logger.warning(
