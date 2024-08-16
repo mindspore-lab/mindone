@@ -104,7 +104,7 @@ class SD3Transformer2DModel(ModelMixin, ConfigMixin, PeftAdapterMixin):
         self.norm_out = AdaLayerNormContinuous(self.inner_dim, self.inner_dim, elementwise_affine=False, eps=1e-6)
         self.proj_out = nn.Dense(self.inner_dim, patch_size * patch_size * self.out_channels, has_bias=True)
 
-        self.gradient_checkpointing = False
+        self._gradient_checkpointing = False
 
     @property
     # Copied from diffusers.models.unets.unet_2d_condition.UNet2DConditionModel.attn_processors
@@ -169,6 +169,16 @@ class SD3Transformer2DModel(ModelMixin, ConfigMixin, PeftAdapterMixin):
     def _set_gradient_checkpointing(self, module, value=False):
         if hasattr(module, "gradient_checkpointing"):
             module.gradient_checkpointing = value
+
+    @property
+    def gradient_checkpointing(self):
+        return self._gradient_checkpointing
+
+    @gradient_checkpointing.setter
+    def gradient_checkpointing(self, value):
+        self._gradient_checkpointing = value
+        for block in self.transformer_blocks:
+            block._recompute(value)
 
     def construct(
         self,

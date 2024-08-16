@@ -19,7 +19,7 @@ import mindspore as ms
 from mindspore import nn, ops
 
 from ...utils import logging
-from ..activations import SiLU, get_activation
+from ..activations import get_activation
 from ..attention_processor import Attention, AttnAddedKVProcessor
 from ..normalization import AdaGroupNorm, GroupNorm
 from ..resnet import (
@@ -2733,7 +2733,7 @@ class AttnSkipUpBlock2D(nn.Cell):
             self.skip_norm = GroupNorm(
                 num_groups=min(out_channels // 4, 32), num_channels=out_channels, eps=resnet_eps, affine=True
             )
-            self.act = SiLU()
+            self.act = nn.SiLU()
         else:
             self.resnet_up = None
             self.skip_conv = None
@@ -2845,7 +2845,7 @@ class SkipUpBlock2D(nn.Cell):
             self.skip_norm = GroupNorm(
                 num_groups=min(out_channels // 4, 32), num_channels=out_channels, eps=resnet_eps, affine=True
             )
-            self.act = SiLU()
+            self.act = nn.SiLU()
         else:
             self.resnet_up = None
             self.skip_conv = None
