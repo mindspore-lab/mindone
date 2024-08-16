@@ -12,10 +12,11 @@ from mindspore import Parameter, mint, nn, ops
 from mindspore.common.initializer import initializer
 
 from mindone.diffusers.models.attention import FeedForward, GatedSelfAttentionDense
-from mindone.diffusers.models.attention_processor import SpatialNorm
+from mindone.diffusers.models.attention_processor import Attention as Attention_
 from mindone.diffusers.models.embeddings import SinusoidalPositionalEmbedding
 from mindone.diffusers.models.normalization import AdaLayerNorm, AdaLayerNormContinuous, AdaLayerNormZero
-from mindone.models.modules.flash_attention import FLASH_IS_AVAILABLE, MSFlashAttention
+from mindone.diffusers.utils import deprecate
+from mindone.utils.version_control import check_valid_flash_attention, choose_flash_attention_dtype
 
 from .rope import PositionGetter3D, RoPE3D
 
@@ -146,6 +147,306 @@ def get_1d_sincos_pos_embed_from_grid(embed_dim, pos):
     return emb
 
 
+class Attention(Attention_):
+    def __init__(self, downsampler, attention_mode, use_rope, interpolation_scale_thw, **kwags):
+        processor = AttnProcessor2_0(
+            attention_mode=attention_mode,
+            use_rope=use_rope,
+            interpolation_scale_thw=interpolation_scale_thw,
+            FA_dtype=kwags.get("FA_dtype", ms.bfloat16),
+        )
+        super().__init__(processor=processor, **kwags)
+        self.downsampler = None
+        if downsampler:  # downsampler  k155_s122
+            downsampler_ker_size = list(re.search(r"k(\d{2,3})", downsampler).group(1))  # 122
+            down_factor = list(re.search(r"s(\d{2,3})", downsampler).group(1))
+            downsampler_ker_size = [int(i) for i in downsampler_ker_size]
+            downsampler_padding = [(i - 1) // 2 for i in downsampler_ker_size]
+            down_factor = [int(i) for i in down_factor]
+
+            if len(downsampler_ker_size) == 2:
+                self.downsampler = DownSampler2d(
+                    kwags["query_dim"],
+                    kwags["query_dim"],
+                    kernel_size=downsampler_ker_size,
+                    stride=1,
+                    padding=downsampler_padding,
+                    groups=kwags["query_dim"],
+                    down_factor=down_factor,
+                    down_shortcut=True,
+                )
+            elif len(downsampler_ker_size) == 3:
+                self.downsampler = DownSampler3d(
+                    kwags["query_dim"],
+                    kwags["query_dim"],
+                    kernel_size=downsampler_ker_size,
+                    stride=1,
+                    padding=downsampler_padding,
+                    groups=kwags["query_dim"],
+                    down_factor=down_factor,
+                    down_shortcut=True,
+                )
+
+    def prepare_attention_mask(
+        self, attention_mask: ms.Tensor, target_length: int, batch_size: int, out_dim: int = 3
+    ) -> ms.Tensor:
+        r"""
+        Prepare the attention mask for the attention computation.
+
+        Args:
+            attention_mask (`ms.Tensor`):
+                The attention mask to prepare.
+            target_length (`int`):
+                The target length of the attention mask. This is the length of the attention mask after padding.
+            batch_size (`int`):
+                The batch size, which is used to repeat the attention mask.
+            out_dim (`int`, *optional*, defaults to `3`):
+                The output dimension of the attention mask. Can be either `3` or `4`.
+
+        Returns:
+            `ms.Tensor`: The prepared attention mask.
+        """
+        head_size = self.heads
+        if get_sequence_parallel_state():
+            head_size = head_size // hccl_info.world_size
+        if attention_mask is None:
+            return attention_mask
+
+        current_length: int = attention_mask.shape[-1]
+        if current_length != target_length:
+            attention_mask = ops.pad(attention_mask, (0, target_length), mode="constant", value=0.0)
+
+        if out_dim == 3:
+            if attention_mask.shape[0] < batch_size * head_size:
+                attention_mask = attention_mask.repeat_interleave(head_size, 0)
+        elif out_dim == 4:
+            attention_mask = attention_mask.unsqueeze(1)
+            attention_mask = attention_mask.repeat_interleave(head_size, 1)
+
+        return attention_mask
+
+
+class AttnProcessor2_0:
+    r"""
+    Processor for implementing scaled dot-product attention or xFormers-like memory efficient attention.
+    """
+
+    def __init__(
+        self, attention_mode="xformers", use_rope=False, interpolation_scale_thw=(1, 1, 1), FA_dtype=ms.bfloat16
+    ):
+        self.use_rope = use_rope
+        self.interpolation_scale_thw = interpolation_scale_thw
+        if self.use_rope:
+            self._init_rope(interpolation_scale_thw)
+        self.attention_mode = attention_mode
+        # Currently we only support setting attention_mode to `flash` or `math`
+        assert self.attention_mode in [
+            "flash",
+            "math",
+        ], f"Unsupported attention mode {self.attention_mode}. Currently we only support ['flash', 'math']!"
+        self.enable_FA = attention_mode == "flash"
+        self.FA_dtype = FA_dtype
+        assert self.FA_dtype in [ms.float16, ms.bfloat16], f"Unsupported flash-attention dtype: {self.FA_dtype}"
+        if self.enable_FA:
+            FLASH_IS_AVAILABLE = check_valid_flash_attention()
+            self.enable_FA = FLASH_IS_AVAILABLE and self.enable_FA
+
+        self.fa_mask_dtype = choose_flash_attention_dtype()
+        if get_sequence_parallel_state():
+            self.sp_size = hccl_info.world_size
+            self.alltoall_sbh_q = AllToAll_SBH(scatter_dim=1, gather_dim=0)
+            self.alltoall_sbh_k = AllToAll_SBH(scatter_dim=1, gather_dim=0)
+            self.alltoall_sbh_v = AllToAll_SBH(scatter_dim=1, gather_dim=0)
+            self.alltoall_sbh_out = AllToAll_SBH(scatter_dim=1, gather_dim=0)
+        else:
+            self.sp_size = 1
+            self.alltoall_sbh_q = None
+            self.alltoall_sbh_k = None
+            self.alltoall_sbh_v = None
+            self.alltoall_sbh_out = None
+
+    def _init_rope(self, interpolation_scale_thw):
+        self.rope = RoPE3D(interpolation_scale_thw=interpolation_scale_thw)
+        self.position_getter = PositionGetter3D()
+
+    def run_ms_flash_attention(self, attn, query, key, value, attention_mask):
+        # Memory efficient attention on mindspore uses flash attention under the hoods.
+        # Flash attention implementation is called `FlashAttentionScore`
+        # which is an experimental api with the following limitations:
+        # 1. Sequence length of query must be divisible by 16 and in range of [1, 32768].
+        # 2. Head dimensions must be one of [64, 80, 96, 120, 128, 256].
+        # 3. The input dtype must be float16 or bfloat16.
+        # Sequence length of query must be checked in runtime.
+        _, query_tokens, _ = query.shape
+        assert query_tokens % 16 == 0, f"Sequence length of query must be divisible by 16, but got {query_tokens=}."
+        # Head dimension is checked in Attention.set_use_memory_efficient_attention_xformers. We maybe pad on head_dim.
+        if attn.head_dim_padding > 0:
+            query_padded = ops.pad(query, (0, attn.head_dim_padding), mode="constant", value=0.0)
+            key_padded = ops.pad(key, (0, attn.head_dim_padding), mode="constant", value=0.0)
+            value_padded = ops.pad(value, (0, attn.head_dim_padding), mode="constant", value=0.0)
+        else:
+            query_padded, key_padded, value_padded = query, key, value
+        flash_attn = ops.operations.nn_ops.FlashAttentionScore(1, scale_value=attn.scale)
+        if attention_mask is not None:
+            attention_mask = attention_mask.to(self.fa_mask_dtype)
+        hidden_states_padded = flash_attn(
+            query_padded.to(self.FA_dtype),
+            key_padded.to(self.FA_dtype),
+            value_padded.to(self.FA_dtype),
+            None,
+            None,
+            None,
+            attention_mask,
+        )[3]
+        # If we did padding before calculate attention, undo it!
+        if attn.head_dim_padding > 0:
+            hidden_states = hidden_states_padded[..., : attn.head_dim]
+        else:
+            hidden_states = hidden_states_padded
+
+        hidden_states = hidden_states.to(query.dtype)
+        return hidden_states
+
+    def run_math_attention(self, attn, query, key, value, attention_mask):
+        query = attn.head_to_batch_dim(query)
+        key = attn.head_to_batch_dim(key)
+        value = attn.head_to_batch_dim(value)
+
+        attention_probs = attn.get_attention_scores(query, key, attention_mask)
+        hidden_states = ops.bmm(attention_probs, value)
+        hidden_states = attn.batch_to_head_dim(hidden_states)
+        return hidden_states
+
+    def __call__(
+        self,
+        attn: Attention,
+        hidden_states: ms.Tensor,
+        encoder_hidden_states: Optional[ms.Tensor] = None,
+        attention_mask: Optional[ms.Tensor] = None,
+        temb: Optional[ms.Tensor] = None,
+        frame: int = 8,
+        height: int = 16,
+        width: int = 16,
+        *args,
+        **kwargs,
+    ) -> ms.Tensor:
+        if len(args) > 0 or kwargs.get("scale", None) is not None:
+            deprecation_message = "The `scale` argument is deprecated and will be ignored. Please remove it, as passing it will raise \
+                an error in the future. `scale` should directly be passed while calling the underlying pipeline component i.e., via `cross_attention_kwargs`."
+            deprecate("scale", "1.0.0", deprecation_message)
+
+        if attn.downsampler is not None:
+            hidden_states, attention_mask = attn.downsampler(hidden_states, attention_mask, t=frame, h=height, w=width)
+            frame, height, width = attn.downsampler.t, attn.downsampler.h, attn.downsampler.w
+
+        residual = hidden_states
+
+        if attn.spatial_norm is not None:
+            hidden_states = attn.spatial_norm(hidden_states, temb)
+
+        input_ndim = hidden_states.ndim
+
+        if input_ndim == 4:
+            batch_size, channel, height, width = hidden_states.shape
+            hidden_states = hidden_states.view(batch_size, channel, height * width).swapaxes(1, 2)
+
+        if get_sequence_parallel_state():
+            sequence_length, batch_size, _ = (
+                hidden_states.shape if encoder_hidden_states is None else encoder_hidden_states.shape
+            )
+
+        else:
+            batch_size, sequence_length, _ = (
+                hidden_states.shape if encoder_hidden_states is None else encoder_hidden_states.shape
+            )
+
+        if attention_mask is not None:
+            attention_mask = attention_mask.view(batch_size, 1, -1, attention_mask.shape[-1])
+
+        if attn.group_norm is not None:
+            hidden_states = attn.group_norm(hidden_states.swapaxes(1, 2)).swapaxes(1, 2)
+
+        query = attn.to_q(hidden_states)
+
+        if encoder_hidden_states is None:
+            encoder_hidden_states = hidden_states
+        elif attn.norm_cross:
+            encoder_hidden_states = attn.norm_encoder_hidden_states(encoder_hidden_states)
+        key = attn.to_k(encoder_hidden_states)
+        value = attn.to_v(encoder_hidden_states)
+
+        inner_dim = key.shape[-1]
+        head_dim = inner_dim // attn.heads
+        if get_sequence_parallel_state():
+            query = query.view(-1, attn.heads, head_dim)  # [s // sp, b, h * d] -> [s // sp * b, h, d]
+            key = key.view(-1, attn.heads, head_dim)
+            value = value.view(-1, attn.heads, head_dim)
+            # query = attn.q_norm(query)
+            # key = attn.k_norm(key)
+            h_size = attn.heads * head_dim
+            sp_size = hccl_info.world_size
+            h_size_sp = h_size // sp_size
+            # apply all_to_all to gather sequence and split attention heads [s // sp * b, h, d] -> [s * b, h // sp, d]
+            query = self.alltoall_sbh_q(query).view(-1, batch_size, h_size_sp)
+            key = self.alltoall_sbh_k(key).view(-1, batch_size, h_size_sp)
+            value = self.alltoall_sbh_v(value).view(-1, batch_size, h_size_sp)
+
+            if self.use_rope:
+                query = query.view(-1, batch_size, attn.heads // sp_size, head_dim)
+                key = key.view(-1, batch_size, attn.heads // sp_size, head_dim)
+                # require the shape of (batch_size x nheads x ntokens x dim)
+                pos_thw = self.position_getter(batch_size, t=frame * sp_size, h=height, w=width, device=query.device)
+                query = self.rope(query, pos_thw)
+                key = self.rope(key, pos_thw)
+            query = query.view(-1, batch_size, h_size_sp).swapaxes(0, 1)  # SBH to BSH
+            key = key.view(-1, batch_size, h_size_sp).swapaxes(0, 1)
+            value = value.view(-1, batch_size, h_size_sp).swapaxes(0, 1)
+            if self.attention_mode == "math":
+                # FIXME: shape error
+                hidden_states = self.run_math_attention(attn, query, key, value, attention_mask)
+            elif self.attention_mode == "flash":
+                hidden_states = self.run_ms_flash_attention(attn, query, key, value, attention_mask)
+            hidden_states = hidden_states.swapaxes(0, 1)  # BSH to SBH
+            # [s * b, h // sp, d] -> [s // sp * b, h, d] -> [s // sp, b, h * d]
+            hidden_states = hidden_states.view(-1, attn.heads // sp_size, head_dim)
+            hidden_states = self.alltoall_sbh_out(hidden_states).view(-1, batch_size, h_size)
+        else:
+            query = query.view(batch_size, -1, attn.heads, head_dim)
+            key = key.view(batch_size, -1, attn.heads, head_dim)
+            # query = attn.q_norm(query)
+            # key = attn.k_norm(key)
+            if self.use_rope:
+                # require the shape of (batch_size x nheads x ntokens x dim)
+                pos_thw = self.position_getter(batch_size, t=frame, h=height, w=width)
+                query = self.rope(query, pos_thw)
+                key = self.rope(key, pos_thw)
+            query = query.view(batch_size, -1, attn.heads * head_dim)
+            key = key.view(batch_size, -1, attn.heads * head_dim)
+
+            if self.attention_mode == "math":
+                hidden_states = self.run_math_attention(attn, query, key, value, attention_mask)
+            elif self.attention_mode == "flash":
+                hidden_states = self.run_ms_flash_attention(attn, query, key, value, attention_mask)
+        hidden_states = hidden_states.to(query.dtype)
+
+        # linear proj
+        hidden_states = attn.to_out[0](hidden_states)
+        # dropout
+        hidden_states = attn.to_out[1](hidden_states)
+
+        if input_ndim == 4:
+            hidden_states = hidden_states.swapaxes(-1, -2).reshape(batch_size, channel, height, width)
+
+        if attn.residual_connection:
+            hidden_states = hidden_states + residual
+
+        hidden_states = hidden_states / attn.rescale_output_factor
+
+        if attn.downsampler is not None:
+            hidden_states = attn.downsampler.reverse(hidden_states, t=frame, h=height, w=width)
+        return hidden_states
+
+
 class LayerNorm(nn.Cell):
     def __init__(self, normalized_shape, eps=1e-5, elementwise_affine: bool = True, dtype=ms.float32):
         super().__init__()
@@ -165,533 +466,6 @@ class LayerNorm(nn.Cell):
     def construct(self, x: ms.Tensor):
         x, _, _ = self.layer_norm(x, self.gamma, self.beta)
         return x
-
-
-class Attention(nn.Cell):
-    def __init__(self, dim_head, attn_drop=0.0, upcast_attention=False, upcast_softmax=True):
-        super().__init__()
-        self.softmax = ops.Softmax(axis=-1)
-        self.transpose = ops.Transpose()
-        self.scale = dim_head**-0.5
-        self.attn_drop = nn.Dropout(p=attn_drop)
-        self.upcast_attention = upcast_attention
-        self.upcast_softmax = upcast_softmax
-
-    def construct(self, q, k, v, mask=None):
-        if self.upcast_attention:
-            q, k, v = [x.astype(ms.float32) for x in (q, k, v)]
-        sim = ops.matmul(q, self.transpose(k, (0, 2, 1))) * self.scale
-        if self.upcast_softmax:
-            sim = sim.astype(ms.float32)
-        if mask is not None:
-            # (b*h 1 n_k)
-            # convert mask into a bias that can be added to attention scores:
-            #       (keep = +0,     discard = -10000.0)
-            mask = ops.zeros(mask.shape).masked_fill(mask.to(ms.bool_), -10000.0)
-            sim += mask
-
-        # use fp32 for exponential inside
-        attn = self.softmax(sim).astype(v.dtype)
-        attn = self.attn_drop(attn)
-
-        out = ops.matmul(attn, v)
-
-        return out
-
-
-class MultiHeadAttention(nn.Cell):
-    r"""
-    A cross attention layer.
-
-    Parameters:
-        query_dim (`int`):
-            The number of channels in the query.
-        cross_attention_dim (`int`, *optional*):
-            The number of channels in the encoder_hidden_states. If not given, defaults to `query_dim`.
-        heads (`int`,  *optional*, defaults to 8):
-            The number of heads to use for multi-head attention.
-        dim_head (`int`,  *optional*, defaults to 64):
-            The number of channels in each head.
-        dropout (`float`, *optional*, defaults to 0.0):
-            The dropout probability to use.
-        bias (`bool`, *optional*, defaults to False):
-            Set to `True` for the query, key, and value linear layers to contain a bias parameter.
-        upcast_attention (`bool`, *optional*, defaults to False):
-            Set to `True` to upcast the attention computation to `float32`.
-        upcast_softmax (`bool`, *optional*, defaults to True):
-            Set to `True` to upcast the softmax computation to `float32`.
-        out_bias (`bool`, *optional*, defaults to `True`):
-            Set to `True` to use a bias in the output linear layer.
-        scale_qk (`bool`, *optional*, defaults to `True`):
-            Set to `True` to scale the query and key by `1 / sqrt(dim_head)`.
-        only_cross_attention (`bool`, *optional*, defaults to `False`):
-            Set to `True` to only use cross attention and not added_kv_proj_dim. Can only be set to `True` if
-            `added_kv_proj_dim` is not `None`.
-    """
-
-    def __init__(
-        self,
-        query_dim: int,
-        cross_attention_dim: Optional[int] = None,
-        heads: int = 8,
-        dim_head: int = 64,
-        dropout: float = 0.0,
-        attn_drop: float = 0.0,
-        bias: bool = False,
-        out_bias: bool = True,
-        upcast_attention: bool = False,
-        upcast_softmax: bool = False,
-        cross_attention_norm: Optional[str] = None,
-        cross_attention_norm_num_groups: int = 32,
-        added_kv_proj_dim: Optional[int] = None,
-        norm_num_groups: Optional[int] = None,
-        spatial_norm_dim: Optional[int] = None,
-        scale_qk: bool = True,
-        only_cross_attention: bool = False,
-        eps: float = 1e-5,
-        rescale_output_factor: float = 1.0,
-        residual_connection: bool = False,
-        _from_deprecated_attn_block: bool = False,
-        dtype=ms.float32,
-        FA_dtype=ms.bfloat16,
-        enable_flash_attention=False,
-        use_rope: bool = False,
-        interpolation_scale_thw=None,
-        layout: Optional[str] = "BSH",
-        downsampler=None,
-    ):
-        super().__init__()
-        self.inner_dim = dim_head * heads
-        self.cross_attention_dim = cross_attention_dim if cross_attention_dim is not None else query_dim
-        self.dropout = dropout
-        self.heads = heads
-        self.rescale_output_factor = rescale_output_factor
-        self.residual_connection = residual_connection
-        # for slice_size > 0 the attention score computation
-        # is split across the batch axis to save memory
-        # You can set slice_size with `set_attention_slice`
-        self.sliceable_head_dim = heads
-        self.dtype = dtype
-        self.FA_dtype = FA_dtype
-        self.use_rope = use_rope
-        self.interpolation_scale_thw = interpolation_scale_thw
-        self.only_cross_attention = only_cross_attention
-        self._from_deprecated_attn_block = _from_deprecated_attn_block
-        self.layout = layout
-
-        self.scale_qk = scale_qk
-        self.scale = dim_head**-0.5 if self.scale_qk else 1.0
-        self.added_kv_proj_dim = added_kv_proj_dim
-
-        if self.added_kv_proj_dim is None and self.only_cross_attention:
-            raise ValueError(
-                "`only_cross_attention` can only be set to True if `added_kv_proj_dim` is not None."
-                " Make sure to set either `only_cross_attention=False` or define `added_kv_proj_dim`."
-            )
-
-        if self.layout == "SBH":
-            assert get_sequence_parallel_state()
-            self.sp_size = hccl_info.world_size
-            self.alltoall_sbh_q = AllToAll_SBH(scatter_dim=1, gather_dim=0)
-            self.alltoall_sbh_k = AllToAll_SBH(scatter_dim=1, gather_dim=0)
-            self.alltoall_sbh_v = AllToAll_SBH(scatter_dim=1, gather_dim=0)
-            self.alltoall_sbh_out = AllToAll_SBH(scatter_dim=1, gather_dim=0)
-        else:
-            self.sp_size = 1
-            self.alltoall_sbh_q = None
-            self.alltoall_sbh_k = None
-            self.alltoall_sbh_v = None
-            self.alltoall_sbh_out = None
-
-        if norm_num_groups is not None:
-            self.group_norm = nn.GroupNorm(num_channels=query_dim, num_groups=norm_num_groups, eps=eps, affine=True)
-        else:
-            self.group_norm = None
-
-        if spatial_norm_dim is not None:
-            self.spatial_norm = SpatialNorm(f_channels=query_dim, zq_channels=spatial_norm_dim)
-        else:
-            self.spatial_norm = None
-
-        if cross_attention_norm is None:
-            self.norm_cross = None
-        elif cross_attention_norm == "layer_norm":
-            self.norm_cross = LayerNorm(self.cross_attention_dim)
-        elif cross_attention_norm == "group_norm":
-            if self.added_kv_proj_dim is not None:
-                # The given `encoder_hidden_states` are initially of shape
-                # (batch_size, seq_len, added_kv_proj_dim) before being projected
-                # to (batch_size, seq_len, cross_attention_dim). The norm is applied
-                # before the projection, so we need to use `added_kv_proj_dim` as
-                # the number of channels for the group norm.
-                norm_cross_num_channels = added_kv_proj_dim
-            else:
-                norm_cross_num_channels = self.cross_attention_dim
-
-            self.norm_cross = nn.GroupNorm(
-                num_channels=norm_cross_num_channels, num_groups=cross_attention_norm_num_groups, eps=1e-5, affine=True
-            )
-        else:
-            raise ValueError(
-                f"unknown cross_attention_norm: {cross_attention_norm}. Should be None, 'layer_norm' or 'group_norm'"
-            )
-
-        self.to_q = nn.Dense(query_dim, self.inner_dim, has_bias=bias)
-
-        if not self.only_cross_attention:
-            # only relevant for the `AddedKVProcessor` classes
-            self.to_k = nn.Dense(self.cross_attention_dim, self.inner_dim, has_bias=bias)
-            self.to_v = nn.Dense(self.cross_attention_dim, self.inner_dim, has_bias=bias)
-        else:
-            self.to_k = None
-            self.to_v = None
-
-        if self.added_kv_proj_dim is not None:
-            self.add_k_proj = nn.Dense(added_kv_proj_dim, self.inner_dim, has_bias=bias)
-            self.add_v_proj = nn.Dense(added_kv_proj_dim, self.inner_dim, has_bias=bias)
-
-        self.to_out = nn.SequentialCell(nn.Dense(self.inner_dim, query_dim, has_bias=out_bias), nn.Dropout(p=dropout))
-
-        self.enable_flash_attention = (
-            enable_flash_attention and FLASH_IS_AVAILABLE and (ms.context.get_context("device_target") == "Ascend")
-        )
-
-        if self.enable_flash_attention:
-            if self.layout == "SBH":
-                assert heads % hccl_info.world_size == 0
-                self.flash_attention = MSFlashAttention(
-                    head_dim=dim_head,
-                    head_num=heads // hccl_info.world_size,
-                    fix_head_dims=[72],
-                    attention_dropout=attn_drop,
-                    dtype=self.FA_dtype,
-                )
-            else:
-                self.flash_attention = MSFlashAttention(
-                    head_dim=dim_head,
-                    head_num=heads,
-                    fix_head_dims=[72],
-                    attention_dropout=attn_drop,
-                    dtype=self.FA_dtype,
-                    input_layout=self.layout,
-                )
-        else:
-            self.attention = Attention(
-                dim_head=dim_head, attn_drop=attn_drop, upcast_attention=upcast_attention, upcast_softmax=upcast_softmax
-            )
-
-        if downsampler:  # downsampler  k155_s122
-            downsampler_ker_size = list(re.search(r"k(\d{2,3})", downsampler).group(1))  # 122
-            down_factor = list(re.search(r"s(\d{2,3})", downsampler).group(1))
-            downsampler_ker_size = [int(i) for i in downsampler_ker_size]
-            downsampler_padding = [(i - 1) // 2 for i in downsampler_ker_size]
-            down_factor = [int(i) for i in down_factor]
-
-            if len(downsampler_ker_size) == 2:
-                self.downsampler = DownSampler2d(
-                    query_dim,
-                    query_dim,
-                    kernel_size=downsampler_ker_size,
-                    stride=1,
-                    padding=downsampler_padding,
-                    groups=query_dim,
-                    down_factor=down_factor,
-                    down_shortcut=True,
-                )
-            elif len(downsampler_ker_size) == 3:
-                self.downsampler = DownSampler3d(
-                    query_dim,
-                    query_dim,
-                    kernel_size=downsampler_ker_size,
-                    stride=1,
-                    padding=downsampler_padding,
-                    groups=query_dim,
-                    down_factor=down_factor,
-                    down_shortcut=True,
-                )
-        else:
-            self.downsampler = None
-        if self.use_rope:
-            self._init_rope(interpolation_scale_thw)
-
-    def prepare_attention_mask(
-        self, attention_mask: ms.Tensor, target_length: int, batch_size: int, out_dim: int = 3, sp_size: int = 1
-    ) -> ms.Tensor:
-        r"""
-        Prepare the attention mask for the attention computation.
-
-        Args:
-            attention_mask (`ms.Tensor`):
-                The attention mask to prepare.
-            target_length (`int`):
-                The target length of the attention mask. This is the length of the attention mask after padding.
-            batch_size (`int`):
-                The batch size, which is used to repeat the attention mask.
-            out_dim (`int`, *optional*, defaults to `3`):
-                The output dimension of the attention mask. Can be either `3` or `4`.
-
-        Returns:
-            `ms.Tensor`: The prepared attention mask.
-        """
-        head_size = self.heads
-        if sp_size > 1:
-            head_size = head_size // sp_size
-
-        if attention_mask is None:
-            return attention_mask
-
-        dtype = attention_mask.dtype
-        current_length: int = attention_mask.shape[-1]
-        assert (
-            current_length == target_length
-        ), "The attention mask length should be identical to encoder hidden states length"
-        f", but got {current_length} and {current_length}"
-
-        if out_dim == 3:
-            if attention_mask.shape[0] < batch_size * head_size:
-                attention_mask = attention_mask.to(ms.float16).repeat_interleave(head_size, 0)
-        elif out_dim == 4:
-            attention_mask = attention_mask.unsqueeze(1)
-            attention_mask = attention_mask.to(ms.float16).repeat_interleave(head_size, 1)
-
-        return attention_mask.to(dtype)
-
-    def _init_rope(self, interpolation_scale_thw):
-        self.rope = RoPE3D(interpolation_scale_thw=interpolation_scale_thw)
-        self.position_getter = PositionGetter3D()
-
-    def norm_encoder_hidden_states(self, encoder_hidden_states: ms.Tensor) -> ms.Tensor:
-        r"""
-        Normalize the encoder hidden states. Requires `self.norm_cross` to be specified when constructing the
-        `Attention` class.
-
-        Args:
-            encoder_hidden_states (`ms.Tensor`): Hidden states of the encoder.
-
-        Returns:
-            `ms.Tensor`: The normalized encoder hidden states.
-        """
-        assert self.norm_cross is not None, "self.norm_cross must be defined to call self.norm_encoder_hidden_states"
-
-        if isinstance(self.norm_cross, LayerNorm):
-            encoder_hidden_states = self.norm_cross(encoder_hidden_states)
-        elif isinstance(self.norm_cross, nn.GroupNorm):
-            # Group norm norms along the channels dimension and expects
-            # input to be in the shape of (N, C, *). In this case, we want
-            # to norm along the hidden dimension, so we need to move
-            # (batch_size, sequence_length, hidden_size) ->
-            # (batch_size, hidden_size, sequence_length)
-            encoder_hidden_states = encoder_hidden_states.transpose(1, 2)
-            encoder_hidden_states = self.norm_cross(encoder_hidden_states)
-            encoder_hidden_states = encoder_hidden_states.transpose(1, 2)
-        else:
-            assert False
-
-        return encoder_hidden_states
-
-    def construct(
-        self,
-        hidden_states,
-        encoder_hidden_states: Optional[ms.Tensor] = None,
-        attention_mask: Optional[ms.Tensor] = None,
-        temb: Optional[ms.Tensor] = None,
-        scale: float = 1.0,
-        frame: int = 8,
-        height: int = 16,
-        width: int = 16,
-    ):
-        if self.downsampler is not None:
-            hidden_states, attention_mask = self.downsampler(hidden_states, attention_mask, t=frame, h=height, w=width)
-            frame, height, width = self.downsampler.t, self.downsampler.h, self.downsampler.w
-
-        residual = hidden_states
-        if self.spatial_norm is not None:
-            hidden_states = self.spatial_norm(hidden_states, temb)
-
-        input_ndim = hidden_states.ndim
-        batch_size = hidden_states.shape[0]
-
-        if input_ndim == 4:
-            batch_size, channel, height, width = hidden_states.shape
-            hidden_states = hidden_states.view(batch_size, channel, height * width).swapaxes(1, 2)
-        else:
-            channel = None
-
-        if self.layout == "SBH":
-            sequence_length, batch_size, _ = (
-                hidden_states.shape if encoder_hidden_states is None else encoder_hidden_states.shape
-            )
-            sequence_length *= self.sp_size
-        else:
-            batch_size, sequence_length, _ = (
-                hidden_states.shape if encoder_hidden_states is None else encoder_hidden_states.shape
-            )
-
-        if attention_mask is not None:
-            if not self.enable_flash_attention:
-                attention_mask = self.prepare_attention_mask(
-                    attention_mask, sequence_length, batch_size, out_dim=3, sp_size=self.sp_size
-                )  # make attention mask a correct shape
-            else:
-                attention_mask = attention_mask.view(batch_size, 1, -1, attention_mask.shape[-1])  # (B, 1, S1, S2)
-
-        if self.group_norm is not None:
-            hidden_states = self.group_norm(hidden_states.swapaxes(1, 2)).swapaxes(1, 2)
-
-        h = self.heads
-        head_dim = self.inner_dim // self.heads
-        mask = attention_mask
-
-        q = self.to_q(hidden_states)
-        if encoder_hidden_states is None:
-            encoder_hidden_states = hidden_states
-        elif self.norm_cross:
-            encoder_hidden_states = self.norm_encoder_hidden_states(encoder_hidden_states)
-
-        k = self.to_k(encoder_hidden_states)
-        v = self.to_v(encoder_hidden_states)
-
-        if self.layout == "SBH":
-            q_f, q_b, _ = q.shape
-            k_f, k_b, _ = k.shape
-            v_f, v_b, _ = v.shape
-
-            q = q.view(-1, h, head_dim)  # [s // sp, b, h * d] -> [s // sp * b, h, d]
-            k = k.view(-1, h, head_dim)
-            v = v.view(-1, h, head_dim)
-            h_size = h * head_dim
-            h_size_sp = h_size // self.sp_size
-
-            # apply all_to_all to gather sequence and split attention heads [s // sp * b, h, d] -> [s * b, h // sp, d]
-            q = self.alltoall_sbh_q(q).view(-1, batch_size, h_size_sp)
-            k = self.alltoall_sbh_k(k).view(-1, batch_size, h_size_sp)
-            v = self.alltoall_sbh_v(v).view(-1, batch_size, h_size_sp)
-
-            # 2+: mask adaptation for multi-head attention
-            if mask is not None:
-                # flip mask, since ms FA treats 1 as discard, 0 as retain.
-                mask = ~mask if mask.dtype == ms.bool_ else 1 - mask
-            # reshape qkv shape ((s b h*d) -> (s, b, h d))
-            q = q.view(-1, q_b, h // self.sp_size, head_dim)
-            k = k.view(-1, k_b, h // self.sp_size, head_dim)
-            v = v.view(-1, v_b, h // self.sp_size, head_dim)
-            if self.use_rope:
-                pos_thw = self.position_getter(batch_size, t=frame * self.sp_size, h=height, w=width)
-                q = self.rope(q, pos_thw)
-                k = self.rope(k, pos_thw)
-            if self.enable_flash_attention:
-                if self.layout == "BNSD":
-                    # (s, b, h, d) -> (b, h, s, d)
-                    q = q.transpose(1, 2, 0, 3).contiguous()
-                    k = k.transpose(1, 2, 0, 3).contiguous()
-                    v = v.transpose(1, 2, 0, 3).contiguous()
-                else:
-                    # layout == BSH
-                    # (s, b, h, d) -> (b, s, h, d)
-                    q = q.swapaxes(0, 1).contiguous()
-                    k = k.swapaxes(0, 1).contiguous()
-                    v = v.swapaxes(0, 1).contiguous()
-
-                # (batch_size, hn, N, hd)
-                if mask is not None:
-                    assert mask.dim() == 4, f"Expect to have 4-dim mask for FA, but got mask shape {mask.shape}"
-                    # (b, 1, 1, k_n) - > (b, 1, q_n, k_n), manual broadcast
-                    if mask.shape[-2] == 1:
-                        mask = mint.tile(mask.bool(), (1, 1, q.shape[-2], 1))
-
-                out = self.flash_attention(q, k, v, mask)
-                if self.layout == "BNSD":
-                    # reshape FA output to original attn input format, (b h n d) -> (b n h d)
-                    b, h_, n, d = out.shape
-                    out = out.swapaxes(1, 2)
-                else:
-                    b, n, h_, d = out.shape
-                out = self.alltoall_sbh_out(out).transpose(1, 2, 0, 3).view(-1, b, h_size)
-            else:
-                q = q.transpose(1, 2, 0, 3).view(q_b * h // self.sp_size, -1, head_dim).contiguous()
-                k = k.transpose(1, 2, 0, 3).view(k_b * h // self.sp_size, -1, head_dim).contiguous()
-                v = v.transpose(1, 2, 0, 3).view(v_b * h // self.sp_size, -1, head_dim).contiguous()
-
-                # (batch_size, -1, attention_mask.shape[-1])
-                if mask is not None:
-                    assert (
-                        mask.dim() == 3
-                    ), f"Expect to have 3-dim mask for vanilla Attention, but got mask shape {mask.shape}"
-                    assert (
-                        mask.shape[0] == q.shape[0]
-                    ), f"Expect to have the first dim (bs * num_heads) = {q.shape[0]},  but got {mask.shape[0]}"
-
-                out = self.attention(q, k, v, mask)
-                _, n, d = out.shape
-                out = out.view(-1, h // self.sp_size, n, d).transpose(0, 2, 1, 3).view(-1, h // self.sp_size, d)
-                out = self.alltoall_sbh_out(out).view(-1, batch_size, h_size)
-        else:
-            q_b, q_n, _ = q.shape  # (b n h*d)
-            k_b, k_n, _ = k.shape
-            v_b, v_n, _ = v.shape
-            # (b n h*d) -> (b n h d)
-            q = q.view(q_b, q_n, h, -1)
-            k = k.view(k_b, k_n, h, -1)
-            v = v.view(v_b, v_n, h, -1)
-            if self.use_rope:
-                # require the shape of (batch_size x ntokens x nheads x dim)
-                pos_thw = self.position_getter(batch_size, t=frame, h=height, w=width)
-                q = self.rope(q, pos_thw)  #
-                k = self.rope(k, pos_thw)
-            # 2+: mask adaptation for multi-head attention
-            if mask is not None:
-                # flip mask, since ms FA treats 1 as discard, 0 as retain.
-                mask = ~mask if mask.dtype == ms.bool_ else 1 - mask
-
-            if self.enable_flash_attention:
-                if self.layout == "BNSD":
-                    # reshape qkv shape ((b n h d) -> (b h n d))
-                    q = q.transpose(0, 2, 1, 3)
-                    k = k.transpose(0, 2, 1, 3)
-                    v = v.transpose(0, 2, 1, 3)
-
-                if mask is not None:
-                    assert mask.dim() == 4, f"Expect to have 4-dim mask for FA, but got mask shape {mask.shape}"
-                    # (b, 1, 1, k_n) - > (b, 1, q_n, k_n), manual broadcast
-                    if mask.shape[-2] == 1:
-                        mask = mint.tile(mask.bool(), (1, 1, q_n, 1))
-
-                out = self.flash_attention(q, k, v, mask)
-                if self.layout == "BNSD":
-                    # reshape FA output to original attn input format, (b h n d) -> (b n h d)
-                    out = out.transpose(0, 2, 1, 3)
-                b, n, h, d = out.shape
-                # (b n h d)->(b n h*d)
-                out = out.view(b, n, -1)
-            else:
-                # (b n h d) -> (b*h, n, d)
-                q = q.permute(0, 2, 1, 3).reshape(q_b * h, q_n, -1)
-                k = k.permute(0, 2, 1, 3).reshape(k_b * h, k_n, -1)
-                v = v.permute(0, 2, 1, 3).reshape(v_b * h, v_n, -1)
-                if mask is not None:
-                    assert (
-                        mask.dim() == 3
-                    ), f"Expect to have 3-dim mask for vanilla Attention, but got mask shape {mask.shape}"
-                    assert (
-                        mask.shape[0] == q.shape[0]
-                    ), f"Expect to have the first dim (bs * num_heads) = {q.shape[0]},  but got {mask.shape[0]}"
-
-                out = self.attention(q, k, v, mask)
-                # (b*h, n, d) -> (b, n, h*d)
-                out = out.view(q_b, h, q_n, -1).permute(0, 2, 1, 3).reshape(q_b, q_n, -1)
-
-        hidden_states = self.to_out(out)
-
-        if input_ndim == 4:
-            hidden_states = hidden_states.swapaxes(-1, -2).reshape(batch_size, channel, height, width)
-
-        if self.residual_connection:
-            hidden_states = hidden_states + residual
-
-        hidden_states = hidden_states / self.rescale_output_factor
-        if self.downsampler is not None:
-            hidden_states = self.downsampler.reverse(hidden_states, t=frame, h=height, w=width)
-        return hidden_states
 
 
 class PatchEmbed2D(nn.Cell):
@@ -1398,7 +1172,7 @@ class BasicTransformerBlock(nn.Cell):
         else:
             self.norm1_ln = LayerNorm(dim, elementwise_affine=norm_elementwise_affine, eps=norm_eps)
 
-        self.attn1 = MultiHeadAttention(
+        self.attn1 = Attention(
             query_dim=dim,
             heads=num_attention_heads,
             dim_head=attention_head_dim,
@@ -1434,7 +1208,7 @@ class BasicTransformerBlock(nn.Cell):
             else:
                 self.norm2_ln = LayerNorm(dim, elementwise_affine=norm_elementwise_affine, eps=norm_eps)
 
-            self.attn2 = MultiHeadAttention(
+            self.attn2 = Attention(
                 query_dim=dim,
                 cross_attention_dim=cross_attention_dim if not double_self_attention else None,
                 heads=num_attention_heads,
