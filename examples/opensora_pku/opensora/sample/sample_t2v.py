@@ -29,6 +29,7 @@ from opensora.utils.ms_utils import init_env
 from opensora.utils.utils import _check_cfgs_in_parser, get_precision
 from transformers import AutoTokenizer
 
+from mindone.diffusers.models.embeddings import PixArtAlphaCombinedTimestepSizeEmbeddings
 from mindone.diffusers.schedulers import (
     DDIMScheduler,
     DDPMScheduler,
@@ -334,9 +335,16 @@ if __name__ == "__main__":
                 transformer_model,
                 amp_level=args.amp_level,
                 dtype=dtype,
-                custom_fp32_cells=[LayerNorm, Attention, nn.SiLU, nn.GELU]
+                custom_fp32_cells=[LayerNorm, Attention, nn.SiLU, nn.GELU, PixArtAlphaCombinedTimestepSizeEmbeddings]
                 if dtype == ms.float16
-                else [nn.MaxPool2d, nn.MaxPool3d, LayerNorm, nn.SiLU, nn.GELU],
+                else [
+                    nn.MaxPool2d,
+                    nn.MaxPool3d,
+                    LayerNorm,
+                    nn.SiLU,
+                    nn.GELU,
+                    PixArtAlphaCombinedTimestepSizeEmbeddings,
+                ],
             )
             logger.info(f"Set mixed precision to O2 with dtype={args.precision}")
         else:

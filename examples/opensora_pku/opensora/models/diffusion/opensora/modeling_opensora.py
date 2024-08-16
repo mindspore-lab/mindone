@@ -16,16 +16,10 @@ from mindone.diffusers.models.embeddings import PixArtAlphaTextProjection
 # from mindone.diffusers.utils import USE_PEFT_BACKEND
 from mindone.diffusers.models.modeling_utils import ModelMixin
 from mindone.diffusers.models.modeling_utils import load_state_dict as load_state_dict_diffuser
+from mindone.diffusers.models.normalization import AdaLayerNormSingle
 from mindone.diffusers.utils import SAFETENSORS_WEIGHTS_NAME, WEIGHTS_NAME, _add_variant, _get_model_file, deprecate
 
-from .modules import (
-    AdaLayerNormSingle,
-    BasicTransformerBlock,
-    LayerNorm,
-    OverlapPatchEmbed2D,
-    OverlapPatchEmbed3D,
-    PatchEmbed2D,
-)
+from .modules import BasicTransformerBlock, LayerNorm, OverlapPatchEmbed2D, OverlapPatchEmbed3D, PatchEmbed2D
 
 logger = logging.getLogger(__name__)
 
