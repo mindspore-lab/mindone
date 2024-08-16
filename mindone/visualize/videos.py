@@ -20,23 +20,10 @@ def create_video_from_rgb_numpy_arrays(image_arrays, output_file, fps: Union[int
     # Get the dimensions of the first image
     height, width, _ = image_arrays[0].shape
 
-    command = [
-        "ffmpeg",
-        "-y",  # whether overwrite
-        "-f rawvideo",
-        "-vcodec rawvideo",
-        f"-s {width}:{height}",
-        "-pix_fmt rgb24",
-        f"-r {fps}",
-        "-i -",
-        "-an",  # no audio
-        "-vcodec libx264",  # try 'mpeg4' if error
-        "-pix_fmt yuv420p",
-        "-b:v 1024k",  # bitrate
-        # "-crf 23",  # constant rate factor for bitrate, [0, 51], low value high quality
-        "-loglevel quiet",
-        f"{output_file}",
-    ]
+    command = f"ffmpeg -y -f rawvideo -vcodec rawvideo \
+                -s {width}:{height} -pix_fmt rgb24 -r {fps} \
+                -i - -an -vcodec libx264 -pix_fmt yuv420p \
+                -b:v 1024k -loglevel quiet {output_file}"
 
     pipe = sp.Popen(command, stdin=sp.PIPE)
     for frame in image_arrays:
