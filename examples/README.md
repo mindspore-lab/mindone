@@ -16,8 +16,8 @@
 | [hpcai open sora](https://github.com/mindspore-lab/mindone/blob/master/examples/opensora_hpcai)      | HPC-AI Tech official | https://github.com/hpcaitech/Open-Sora
 | [open sora plan](https://github.com/mindspore-lab/mindone/blob/master/examples/opensora_pku)      | PKU-YuanGroup official | https://github.com/PKU-YuanGroup/Open-Sora-Plan
 | [cambrian](https://github.com/mindspore-lab/mindone/blob/master/examples/cambrain)      | offical github  | https://github.com/cambrian-mllm/cambrian
-| [minicpm-v](https://github.com/mindspore-lab/mindone/blob/master/examples/minicpm_v)      | OpenBMB official | https://github.com/OpenBMB/MiniCPM-V 
+| [minicpm-v](https://github.com/mindspore-lab/mindone/blob/master/examples/minicpm_v)      | OpenBMB official | https://github.com/OpenBMB/MiniCPM-V
 | [internvl](https://github.com/mindspore-lab/mindone/blob/master/examples/internvl)      | Shanghai AI Lab official | https://github.com/OpenGVLab/InternVL
 | [llava](https://github.com/mindspore-lab/mindone/blob/master/examples/llava)      | Haotian-Liu official | https://github.com/haotian-liu/LLaVA
-| [vila](https://github.com/mindspore-lab/mindone/blob/master/examples/vila)      | Nvidia Lab official | https://github.com/NVlabs/VILA 
-| [pllava](https://github.com/mindspore-lab/mindone/blob/master/examples/pllava)      | Magic Research official | https://github.com/magic-research/PLLaVA 
+| [vila](https://github.com/mindspore-lab/mindone/blob/master/examples/vila)      | Nvidia Lab official | https://github.com/NVlabs/VILA
+| [pllava](https://github.com/mindspore-lab/mindone/blob/master/examples/pllava)      | Magic Research official | https://github.com/magic-research/PLLaVA
