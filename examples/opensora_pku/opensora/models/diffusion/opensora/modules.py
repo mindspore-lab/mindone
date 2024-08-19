@@ -157,7 +157,6 @@ class Attention(Attention_):
             FA_dtype=FA_dtype,
         )
         super().__init__(**kwags)
-        attention_mode = kwags.get("attention_mode", "math")
         if attention_mode == "xformers":
             self.set_use_memory_efficient_attention_xformers(True)
         self.processor = processor
@@ -314,7 +313,7 @@ class AttnProcessor2_0:
             attention_mask = ~attention_mask if attention_mask.dtype == ms.bool_ else 1 - attention_mask
             # (b, 1, 1, k_n) - > (b, 1, q_n, k_n), manual broadcast
             if attention_mask.shape[-2] == 1:
-                attention_mask = mint.tile(attention_mask.bool(), (1, 1, query.shape[-2], 1))
+                attention_mask = mint.tile(attention_mask.bool(), (1, 1, query_tokens, 1))
             attention_mask = attention_mask.to(self.fa_mask_dtype)
 
         if input_layout == "BNSD":
@@ -322,6 +321,10 @@ class AttnProcessor2_0:
             query_padded = query_padded.swapaxes(1, 2)
             key_padded = key_padded.swapaxes(1, 2)
             value_padded = value_padded.swapaxes(1, 2)
+        elif input_layout == "BSH":
+            query_padded = query_padded.view(Bs, query_tokens, -1)
+            key_padded = key_padded.view(Bs, key_tokens, -1)
+            value_padded = value_padded.view(Bs, key_tokens, -1)
         hidden_states_padded = flash_attn(
             query_padded.to(self.FA_dtype),
             key_padded.to(self.FA_dtype),
@@ -333,10 +336,15 @@ class AttnProcessor2_0:
         )[3]
         # If we did padding before calculate attention, undo it!
         if attn.head_dim_padding > 0:
-            hidden_states = hidden_states_padded[..., : attn.head_dim]
+            if input_layout == "BNSD":
+                hidden_states = hidden_states_padded[..., : attn.head_dim]
+            elif input_layout == "BSH":
+                hidden_states = hidden_states_padded.view(Bs, query_tokens, attn.heads, -1)[..., : attn.head_dim]
+                hidden_states = hidden_states.view(Bs, query_tokens, -1)
         else:
             hidden_states = hidden_states_padded
         if input_layout == "BNSD":
+            # b n s d -> b s n d
             hidden_states = hidden_states.swapaxes(1, 2)
         hidden_states = hidden_states.reshape(Bs, query_tokens, -1)
         hidden_states = hidden_states.to(query.dtype)
@@ -438,7 +446,7 @@ class AttnProcessor2_0:
                 query = query.view(-1, batch_size, attn.heads // sp_size, head_dim)
                 key = key.view(-1, batch_size, attn.heads // sp_size, head_dim)
                 # require the shape of (batch_size x nheads x ntokens x dim)
-                pos_thw = self.position_getter(batch_size, t=frame * sp_size, h=height, w=width, device=query.device)
+                pos_thw = self.position_getter(batch_size, t=frame * sp_size, h=height, w=width)
                 query = self.rope(query, pos_thw)
                 key = self.rope(key, pos_thw)
             query = query.view(-1, batch_size, h_size_sp).swapaxes(0, 1)  # SBH to BSH
@@ -459,7 +467,7 @@ class AttnProcessor2_0:
             # query = attn.q_norm(query)
             # key = attn.k_norm(key)
             if self.use_rope:
-                # require the shape of (batch_size x nheads x ntokens x dim)
+                # require the shape of (batch_size x ntokens x nheads x dim)
                 pos_thw = self.position_getter(batch_size, t=frame, h=height, w=width)
                 query = self.rope(query, pos_thw)
                 key = self.rope(key, pos_thw)
