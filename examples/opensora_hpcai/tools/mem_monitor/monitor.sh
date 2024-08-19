@@ -7,8 +7,8 @@ LOG_FILE="memory_usage.log"
 echo "Timestamp,Memory_Usage(%)" > $LOG_FILE
 
 # Monitor memory usage every second for a specified duration
-DURATION=60  # Total duration in seconds
-INTERVAL=1   # Interval in seconds
+DURATION=6000000000  # Total duration in seconds
+INTERVAL=10   # Interval in seconds
 
 for ((i=0; i<DURATION; i+=INTERVAL)); do
     # Get memory usage percentage

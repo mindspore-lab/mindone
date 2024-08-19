@@ -6,7 +6,7 @@ data = pd.read_csv('memory_usage.log', parse_dates=['Timestamp'])
 
 # Plotting
 plt.figure(figsize=(10, 5))
-plt.plot(data['Timestamp'], data['Memory_Usage(%)'], marker='o')
+plt.plot(data['Timestamp'], data['Memory_Usage(%)'])
 plt.title('Memory Usage Over Time')
 plt.xlabel('Timestamp')
 plt.ylabel('Memory Usage (%)')
