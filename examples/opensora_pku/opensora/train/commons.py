@@ -167,12 +167,7 @@ def parse_train_args(parser):
         type=str2bool,
         help="whether use recompute.",
     )
-    parser.add_argument(
-        "--enable_flash_attention",
-        default=None,
-        type=str2bool,
-        help="whether to enable flash attention.",
-    )
+
     #################################################################################
     #                                Training Callbacks                            #
     #################################################################################

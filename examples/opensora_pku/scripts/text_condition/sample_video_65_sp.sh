@@ -15,7 +15,6 @@ msrun --bind_core=True --worker_num=2 --local_worker_num=2 --master_port=9001 --
     --fps 24 \
     --guidance_scale 7.5 \
     --num_sampling_steps 150 \
-    --enable_flash_attention "True" \
     --enable_tiling \
     --use_parallel True \
     --sp_size 2

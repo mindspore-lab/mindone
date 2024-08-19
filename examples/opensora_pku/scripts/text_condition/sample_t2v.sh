@@ -16,4 +16,3 @@ python opensora/sample/test_opensora.py \
     --max_sequence_length 512 \
     --sample_method EulerAncestralDiscrete \
     --model_type "dit" \
-    --enable_flash_attention True \

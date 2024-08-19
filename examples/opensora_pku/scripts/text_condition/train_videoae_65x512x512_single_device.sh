@@ -9,7 +9,6 @@ use_image_num=4  # to include n number of images in an input sample
 num_frames=65  # to sample m frames from a single video. The total number of images： num_frames + use_image_num
 model_dtype="bf16" # the data type used for mixed precision of the diffusion transformer model (LatteT2V).
 amp_level="O2" # the default auto mixed precision level for LatteT2V.
-enable_flash_attention="True" # whether to use MindSpore Flash Attention
 batch_size=2 # training batch size
 lr="2e-05" # learning rate. Default learning schedule is constant
 output_dir=t2v-f$num_frames-$image_size-img$use_image_num-videovae488-$model_dtype-FA$enable_flash_attention-bs$batch_size-t5
@@ -25,7 +24,6 @@ python opensora/train/train_t2v.py \
     --image_data "scripts/train_data/image_data.txt" \
     --num_frames $num_frames \
     --max_image_size $image_size \
-    --enable_flash_attention $enable_flash_attention \
     --batch_size=$batch_size \
     --dataloader_num_workers 10 \
     --gradient_accumulation_steps=1 \
