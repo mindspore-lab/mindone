@@ -2,7 +2,7 @@
 
 This repository contains SoTA algorithms, models, and interesting projects in the area of multimodal understanding and content generation
 
-ONE is short for "ONE for all" 
+ONE is short for "ONE for all"
 ## News
 
 **Hello MindSpore** from **Stable Diffusion 3**!
@@ -29,17 +29,17 @@ ONE is short for "ONE for all"
 ### supported models under mindone/examples
 | model  |  features  
 | :---   |  :--  |
-| [cambrian](https://github.com/mindspore-lab/mindone/blob/master/examples/cambrain)      | working on it | 
-| [minicpm-v](https://github.com/mindspore-lab/mindone/blob/master/examples/minicpm_v)      | working on v2.6 | 
-| [internvl](https://github.com/mindspore-lab/mindone/blob/master/examples/internvl)      | working on v1.0 v1.5 v2.0 | 
-| [llava](https://github.com/mindspore-lab/mindone/blob/master/examples/llava)      | working on llava 1.5 & 1.6 | 
-| [vila](https://github.com/mindspore-lab/mindone/blob/master/examples/vila)      | working on it | 
-| [pllava](https://github.com/mindspore-lab/mindone/blob/master/examples/pllava)      | working on it | 
-| [hpcai open sora](https://github.com/mindspore-lab/mindone/blob/master/examples/opensora_hpcai)      | support v1.0/1.1/1.2 large scale training with dp/sp/zero | 
+| [cambrian](https://github.com/mindspore-lab/mindone/blob/master/examples/cambrain)      | working on it |
+| [minicpm-v](https://github.com/mindspore-lab/mindone/blob/master/examples/minicpm_v)      | working on v2.6 |
+| [internvl](https://github.com/mindspore-lab/mindone/blob/master/examples/internvl)      | working on v1.0 v1.5 v2.0 |
+| [llava](https://github.com/mindspore-lab/mindone/blob/master/examples/llava)      | working on llava 1.5 & 1.6 |
+| [vila](https://github.com/mindspore-lab/mindone/blob/master/examples/vila)      | working on it |
+| [pllava](https://github.com/mindspore-lab/mindone/blob/master/examples/pllava)      | working on it |
+| [hpcai open sora](https://github.com/mindspore-lab/mindone/blob/master/examples/opensora_hpcai)      | support v1.0/1.1/1.2 large scale training with dp/sp/zero |
 | [open sora plan](https://github.com/mindspore-lab/mindone/blob/master/examples/opensora_pku) | support v1.0/1.1/1.2 large scale training with dp/sp/zero |
 | [stable diffusion](https://github.com/mindspore-lab/mindone/blob/master/examples/stable_diffusion_v2) | support sd 1.5/2.0/2.1, vanilla fine tune, lora, dreambooth, text inversion|
-| [stable diffusion xl](https://github.com/mindspore-lab/mindone/blob/master/examples/stable_diffusion_xl)  |support sai style(stability AI) vanilla fine tune, lora, dreambooth | 
-| [dit](https://github.com/mindspore-lab/mindone/blob/master/examples/dit)     | support text to image fine tune | 
+| [stable diffusion xl](https://github.com/mindspore-lab/mindone/blob/master/examples/stable_diffusion_xl)  |support sai style(stability AI) vanilla fine tune, lora, dreambooth |
+| [dit](https://github.com/mindspore-lab/mindone/blob/master/examples/dit)     | support text to image fine tune |
 | [latte](https://github.com/mindspore-lab/mindone/blob/master/examples/latte)     | support uncondition text to image fine tune |
 | [animate diff](https://github.com/mindspore-lab/mindone/blob/master/examples/animatediff) | support motion module and lora training |
 | [video composer](https://github.com/mindspore-lab/mindone/tree/master/examples/videocomposer)     | support conditional video generation with motion transfer and etc.|
@@ -47,7 +47,7 @@ ONE is short for "ONE for all"
 | [t2i-adapter](https://github.com/mindspore-lab/mindone/blob/master/examples/t2i_adapter)     | refactoring |
 
 ###  run hf diffusers on mindspore
-mindone diffusers is under active development, most tasks were tested with mindspore 2.2.10 and ascend 910 hardware. 
+mindone diffusers is under active development, most tasks were tested with mindspore 2.2.10 and ascend 910 hardware.
 
 | component  |  features  
 | :---   |  :--  

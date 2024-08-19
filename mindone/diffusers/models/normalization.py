@@ -23,6 +23,7 @@ from mindspore.common.initializer import initializer
 
 from .activations import get_activation
 from .embeddings import CombinedTimestepLabelEmbeddings, PixArtAlphaCombinedTimestepSizeEmbeddings
+from .layers_compat import group_norm
 
 
 class AdaLayerNorm(nn.Cell):
@@ -152,7 +153,7 @@ class AdaGroupNorm(nn.Cell):
         emb = emb[:, :, None, None]
         scale, shift = emb.chunk(2, axis=1)
 
-        x = _group_norm(x, self.num_groups, None, None, self.eps)
+        x = group_norm(x, self.num_groups, None, None, self.eps)
         x = x * (1 + scale) + shift
         return x
 
@@ -362,7 +363,7 @@ class GroupNorm(nn.Cell):
             self.bias = None
 
     def construct(self, x: Tensor):
-        x = _group_norm(x, self.num_groups, self.weight, self.bias, self.eps)
+        x = group_norm(x, self.num_groups, self.weight, self.bias, self.eps)
         return x
 
 
@@ -410,17 +411,3 @@ class GlobalResponseNorm(nn.Cell):
         nx = gx / (gx.mean(axis=-1, keep_dims=True) + 1e-6)
         out = (self.gamma * (x * nx) + self.beta + x).to(x.dtype)
         return out
-
-
-def _group_norm(x, num_groups, weight, bias, eps):
-    x_shape = x.shape
-    x = x.reshape(x_shape[0], num_groups, -1)
-    var, mean = ops.var_mean(x, axis=-1, keepdims=True)
-    x = (x - mean) / ops.sqrt(var + eps)
-    x = x.reshape(x_shape)
-
-    if weight is not None and bias is not None:
-        expanded_shape = (1, -1) + (1,) * len(x_shape[2:])
-        x = x * weight.reshape(expanded_shape) + bias.reshape(expanded_shape)
-
-    return x

@@ -32,7 +32,6 @@ official supported mindone.diffusers examples(follow hf diffusers):
 
  - [**Unconditional Image Generation**](./unconditional_image_generation)
  - [**Text-to-Image fine-tuning**](./text_to_image)
- - [**Textual Inversion**](./textual_inversion) 
- - [**Dreambooth**](./dreambooth) 
+ - [**Textual Inversion**](./textual_inversion)
+ - [**Dreambooth**](./dreambooth)
  - [**ControlNet**](./controlnet)
-
