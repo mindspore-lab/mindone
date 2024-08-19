@@ -4,13 +4,22 @@
 
 MindSpore >= 2.3 supports using [`msrun`](https://www.mindspore.cn/tutorials/experts/zh-CN/master/parallel/msrun_launcher.html) to launch distributed training on ModelArts.
 
-Usage example:
+Usage:
 ```shell
 # $MA_JOB_DIR is the working dir of your training job on modelarts.
-python $MA_JOB_DIR/mindone/tools/modelarts/msrun/msrun.py [WORK_DIR] [SCRIPT_NAME]
+export output_path=[YOUR_OUTPUT_PATH]  # should be an ABSOLUTE path
+python $MA_JOB_DIR/mindone/tools/modelarts/msrun/msrun.py [YOUR_WORK_DIR] [YOUR_SCRIPT_NAME]
+```
+
+Example:
+```shell
+export output_path=$MA_JOB_DIR/mindone/examples/opensora_hpcai/output
 python $MA_JOB_DIR/mindone/tools/modelarts/msrun/msrun.py mindone/examples/opensora_hpcai/scripts train.py
 ```
 
+⚠️ Note: 
+- `$output_path` should be an **ABSOLUTE** path.
+- if no `$output_path`, the msrun logs will be saved at the ModelArts default output directory: `/home/ma-user/modelarts/outputs/output_path_0/`.
 
 ## Launch with rank table
 Refer to [here](https://support.huaweicloud.com/bestpractice-modelarts/develop-modelarts-0120.html).
