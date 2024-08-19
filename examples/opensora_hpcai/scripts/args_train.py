@@ -157,6 +157,7 @@ def parse_train_args(parser):
     # dataloader params
     parser.add_argument("--dataset_sink_mode", default=False, type=str2bool, help="sink mode")
     parser.add_argument("--sink_size", default=-1, type=int, help="dataset sink size. If -1, sink size = dataset size.")
+    parser.add_argument("--dataset_take_count", default=0, type=int, help="If > 0, take the previous n batches of the dataset.")
     parser.add_argument(
         "--epochs",
         default=10,

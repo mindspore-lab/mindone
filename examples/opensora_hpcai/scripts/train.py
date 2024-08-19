@@ -415,6 +415,8 @@ def main(args):
             dataloader = dataloader.bucket_batch_by_length(
                 ["video"], bucket_boundaries, bucket_batch_sizes, element_length_function=hash_func, drop_remainder=True
             )
+        if args.dataset_take_count > 0:
+            dataloader = dataloader.take(args.dataset_take_count)
 
     dataset_size = dataloader.get_dataset_size()
 
