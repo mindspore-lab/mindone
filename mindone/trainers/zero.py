@@ -1,14 +1,14 @@
 import logging
-
+from typing import List, Optional
 import mindspore as ms
 from mindspore import nn, ops
 from mindspore.communication import get_group_size, get_rank
 from mindspore.communication.management import GlobalComm
 from mindspore.context import ParallelMode
 from mindspore.parallel._utils import _get_parallel_mode
-from mindspore.rewrite import NodeType, SymbolTree
 
 from .train_step import TrainOneStepWrapper
+from mindone.models.modules.parallel import PARALLEL_MODULE
 
 _logger = logging.getLogger(__name__)
 
@@ -39,18 +39,21 @@ def _run_dp_allreduce(dp_allreduce, dp_group_size, gradient):
 _stage2_reduce_scatter = ops.MultitypeFuncGraph("stage2_reduce_scatter")
 
 
-@_stage2_reduce_scatter.register("Function", "Tensor", "Tensor", "Bool")
-def _run_stage2_reduce_scatter(reduce_scatter, op_group_size, gradient, need_reduce_scatter):
+@_stage2_reduce_scatter.register("Function", "Function", "Tensor", "Tensor", "Bool")
+def _run_stage2_reduce_scatter(reduce_scatter, allreduce, op_group_size, gradient, need_reduce_scatter):
     if need_reduce_scatter:
         gradient = reduce_scatter(gradient) / op_group_size
+    else:
+        gradient = allreduce(gradient) / op_group_size
     return gradient
 
 
 _stage1_split_grad = ops.MultitypeFuncGraph("stage1_split_grad")
 
 
-@_stage1_split_grad.register("Function", "Int", "Tensor", "Bool")
-def _run_stage1_split_grad(split, op_rank_id, gradient, need_split):
+@_stage1_split_grad.register("Function", "Function", "Int", "Int", "Tensor", "Bool")
+def _run_stage1_split_grad(allreduce, split, op_group_size, op_rank_id, gradient, need_split):
+    gradient = allreduce(gradient) / op_group_size
     if need_split:
         gradient = split(gradient)[op_rank_id]
     return gradient
@@ -73,6 +76,14 @@ class ZeroHelper:
         op_group (`str`, *optional*): The name of the optimizer parallel communication group, default is None.
         dp_group (`str`, *optional*): The name of the data parallel communication group, default is None.
         optimizer_offload (`bool`, *optional*): Only take effect when optimizer is AdamWeightDecay, default is False.
+        comm_fusion (`dict`, *optional*): A dict contains the types and configurations
+            for setting the communication fusion, default is None, turn off the communication fusion. If set a dict,
+            turn on the communication fusion.
+            Examples: {"allreduce": {"openstate": True, "bucket_size": 5e8},
+                       "reduce_scatter": {"openstate": True, "bucket_size": 5e8},
+                       "allgather": {"openstate": False, "bucket_size": 5e8},}
+        params_list (`List[str]`, *optional*), List of params used for communication in the network,
+            default is None, get the params_list use `network.trainable_params()`.
     """
 
     def __init__(
@@ -82,6 +93,8 @@ class ZeroHelper:
         op_group: str = None,
         dp_group: str = None,
         optimizer_offload: bool = False,
+        comm_fusion: dict = None,
+        params_list: Optional[List[str]] = None,
     ):
         self.optimizer = optimizer
         self.zero_stage = zero_stage
@@ -95,25 +108,19 @@ class ZeroHelper:
         self.split_op = ops.Identity()
         self.op_allgather = ops.Identity()
         self.op_reduce_scatter = ops.Identity()
+        self.op_allreduce = ops.Identity()
         self.dp_allreduce = ops.Identity()
         self.op_group_size = get_group_size(self.op_group) if self.is_parallel else 1
         self.op_rank_id = get_rank(self.op_group) if self.is_parallel else 0
         self.need_dp = False
+        self.dp_group = dp_group
         self.last_assign = False
         self.dp_group_size = 1
         self.need_allgather = tuple([False] * len(self.optimizer._parameters))
 
         if self.zero_stage in [1, 2, 3] and self.is_parallel:
-            if self.zero_stage == 2:
-                self.op_reduce_scatter = ops.ReduceScatter(op=ops.ReduceOp.SUM, group=self.op_group)
-            if self.zero_stage in [1, 2]:
-                # AllGather the parameters after optimizer calculate to update the parameters in train network.
-                self.op_allgather = ops.AllGather(group=self.op_group)
-            self.need_dp = dp_group is not None
-            if self.need_dp:
-                # Set it when op_group is not the WORLD_COMM_GROUP.
-                self.dp_allreduce = ops.AllReduce(op=ops.ReduceOp.SUM, group=dp_group)
-                self.dp_group_size = ms.Tensor(get_group_size(group=dp_group), ms.float32)
+            if comm_fusion is None:
+                self.set_comm_ops()
             self.split_op = ops.Split(0, self.op_group_size)  # optimizer parallel split
 
         self.hyper_map = ops.HyperMap()
@@ -131,6 +138,22 @@ class ZeroHelper:
             f"op_rank_id: {self.op_rank_id}, "
             f"dp_group_size: {self.dp_group_size}."
         )
+
+    def set_comm_ops(self,):
+        self.op_allreduce = ops.AllReduce(op=ops.ReduceOp.SUM, group=self.op_group)
+        if self.zero_stage == 2:
+            self.op_reduce_scatter = ops.ReduceScatter(op=ops.ReduceOp.SUM, group=self.op_group)
+        if self.zero_stage in [1, 2]:
+            # AllGather the parameters after optimizer calculate to update the parameters in train network.
+            self.op_allgather = ops.AllGather(group=self.op_group)
+        self.need_dp = self.dp_group is not None
+        if self.need_dp:
+            # Set it when op_group is not the WORLD_COMM_GROUP.
+            self.dp_allreduce = ops.AllReduce(op=ops.ReduceOp.SUM, group=self.dp_group)
+            self.dp_group_size = ms.Tensor(get_group_size(group=self.dp_group), ms.float32)
+
+    def set_fusion_comm_ops(self, params_list):
+
 
     def split_param(self, param):
         return self.split_op(param)[self.op_rank_id]
@@ -194,6 +217,7 @@ class ZeroHelper:
             ops.partial(
                 _stage2_reduce_scatter,
                 self.op_reduce_scatter,
+                self.op_allreduce,
                 ms.Tensor(self.op_group_size, dtype),
             ),
             gradients,
@@ -217,7 +241,9 @@ class ZeroHelper:
         gradients = self.hyper_map(
             ops.partial(
                 _stage1_split_grad,
+                self.op_allreduce,
                 self.split_op,
+                self.op_group_size,
                 self.op_rank_id,
             ),
             gradients,
@@ -249,54 +275,6 @@ class ZeroHelper:
         return optim_result
 
 
-class ZeroParamWrapper(nn.Cell):
-    """
-    a cell to Insert communication operators before and after parameters when `zero_stage == 3`.
-    """
-
-    def __init__(
-        self, param: ms.Parameter, zero_stage: int = 0, op_group: str = GlobalComm.WORLD_COMM_GROUP, cell_type=None
-    ):
-        super().__init__(auto_prefix=False)
-        self.op_group = op_group
-        self.zero_stage = zero_stage
-        self.cell_type = cell_type
-        if zero_stage != 3:
-            raise ValueError(f"ZeroParamWrapper not support zero_stage {zero_stage}.")
-
-        # Init parallel settings
-        self.is_parallel = _get_parallel_mode() == ParallelMode.DATA_PARALLEL
-        self.op_group_size = get_group_size(self.op_group) if self.is_parallel else 1
-        self.allgather = ops.Identity()
-        self.reduce_scatter = None
-
-        self.need_rewrite = self.check_rewrite(param)
-        if self.need_rewrite:
-            self.op_allgather = ops.AllGather(group=self.op_group)
-            self.op_reduce_scatter = ops.ReduceScatter(group=self.op_group, op=ops.ReduceOp.SUM)
-
-    def check_rewrite(self, param):
-        """Check the parameter need to split or not."""
-        need_rewrite = self.is_parallel
-        B = param.shape[0]
-        if not param.parallel_optimizer or B < self.op_group_size or B % self.op_group_size != 0:
-            need_rewrite = False
-        return need_rewrite
-
-    def construct(self, param):
-        if self.need_rewrite:
-            if self.cell_type is not None:
-                param = param.to(self.cell_type)
-            return self.op_allgather(param)
-        return param
-
-    def bprop(self, param, out, dout):
-        if self.need_rewrite:
-            r = self.op_reduce_scatter(dout.to(param.dtype)) / self.op_group_size
-            return (r,)
-        return (dout,)
-
-
 def get_cell_dtype(cell):
     if getattr(cell, "fp16", False):
         return ms.float16
@@ -307,81 +285,43 @@ def get_cell_dtype(cell):
     return None
 
 
-def rewrite_node(node, cell):
-    rewrite_params = []
-    for i, arg in enumerate(node.get_args()):
-        if arg.scope == "self" and isinstance(getattr(cell, arg.value), ms.Parameter):
-            node.set_arg(i, f"self.param_w_{arg.value}(self.{arg.value})")
-            _logger.debug(f"Rewrite {arg.value} with ZeroParamWrapper.")
-            rewrite_params.append(arg.value)
-    return rewrite_params
-
-
-def rewrite_cell(cell: nn.Cell):
-    """
-    Rewrite the cell. Add ZeroParamWrapper to all parameters.
-    """
-    stree = SymbolTree.create(cell)
-    rewrite_params = []
-    for node in stree.nodes():
-        rewrite_params = rewrite_params + rewrite_node(node, cell)
-        if node.get_node_type() == NodeType.ControlFlow:
-            all_nodes = [ms.rewrite.Node(n) for n in node.get_handler().nodes()]
-            for sub_node in all_nodes:
-                rewrite_params = rewrite_params + rewrite_node(sub_node, cell)
-    if rewrite_params:
-        return rewrite_params, stree.get_network()
+def _init_parallel_settings(net, op_group):
+    for module, parallel_module in PARALLEL_MODULE.items():
+        if isinstance(net, module):
+            cell_type = get_cell_dtype(net)
+            new_net = parallel_module(net, 3, op_group)
+            if cell_type is not None:
+                new_net.to_float(cell_type)
+            return new_net
     return None
 
 
-def get_cell_params_fullname_dict(cell: nn.Cell):
-    fullname_dict = {}
-    for param_name in cell._params:
-        fullname_dict[param_name] = getattr(cell, param_name).name
-    return fullname_dict
-
-
-def _prepare_network(network: nn.Cell, op_group: str, op_group_size: int = 1, op_rank_id: int = 0):
+def _prepare_network(network: nn.Cell, op_group: str):
+    new_net = _init_parallel_settings(network, op_group)
+    if new_net is not None:
+        return new_net
     for name, sub_net in network._cells.items():
         if not sub_net:
             continue
+        new_sub_net = _init_parallel_settings(sub_net, op_group)
+        if new_sub_net is not None:
+            network.__setattr__(name, new_sub_net)
+            continue
         if sub_net._params:
-            params_fullname_dict = get_cell_params_fullname_dict(sub_net)
-            rewrite_res = rewrite_cell(sub_net)
-            if rewrite_res is not None:
-                rewrite_params, new_cell = rewrite_res
-                _logger.debug(f"Rewrite cell {name} with params {rewrite_params}")
-                network.__setattr__(name, new_cell)
-                cell_type = get_cell_dtype(sub_net)
-
-                # parameter name will update after __setattr__, reset to ori parameter name.
-                for param_name in rewrite_params:
-                    getattr(new_cell, param_name).name = params_fullname_dict[param_name]
-
-                for param_name in rewrite_params:
-                    param = getattr(sub_net, param_name)
-                    # Set zero_param_wrapper same type with sub_net
-                    zero_param_wrapper = ZeroParamWrapper(param, zero_stage=3, op_group=op_group, cell_type=cell_type)
-                    new_cell.__setattr__(f"param_w_{param_name}", zero_param_wrapper)
-                    if zero_param_wrapper.need_rewrite:
-                        split_op = ops.Split(0, op_group_size)
-                        ori_shape = param.shape
-                        new_cell.__getattr__(param_name).assign_value(split_op(param)[op_rank_id])
-                        _logger.debug(f"Cell {name} split {param_name} from {ori_shape} to {param.shape}")
-                if cell_type and ms.get_context("mode") == ms.PYNATIVE_MODE:
-                    new_cell.to_float(cell_type)
-
-        _prepare_network(sub_net, op_group, op_group_size, op_rank_id)
+            for param_name in sub_net._params:
+                param = getattr(sub_net, param_name)
+                _logger.warning(f"Set param {param.name} parallel_optimizer False, param shape {param.shape}")
+                param.parallel_optimizer = False
+        _prepare_network(sub_net, op_group)
+    return network
 
 
 def prepare_network(network: nn.Cell, zero_stage: int = 0, op_group: str = None):
     if zero_stage != 3 or _get_parallel_mode() != ParallelMode.DATA_PARALLEL:
         _logger.info("No need rewrite network and return original network.")
         return network
-    op_rank_id = get_rank(op_group)
-    op_group_size = get_group_size(op_group)
     _logger.info("Rewrite the network, please wait...")
-    _prepare_network(network, op_group, op_group_size, op_rank_id)
+    network = _prepare_network(network, op_group)
     return network
 
 
@@ -400,6 +340,8 @@ def prepare_train_network(
     optimizer_offload: bool = False,
     op_group: str = None,
     dp_group: str = None,
+    comm_fusion: dict = None,
+    params_list: Optional[List[str]] = None,
 ):
     """
     Prepare network and optimizer for distributed training.
@@ -415,6 +357,14 @@ def prepare_train_network(
         optimizer_offload (`bool`, *optional*): Only take effect when optimizer is AdamWeightDecay, default is False.
         op_group (`str`, *optional*): The name of the optimizer parallel communication group, default is None.
         dp_group (`str`, *optional*): The name of the data parallel communication group, default is None.
+        comm_fusion (`dict`, *optional*): A dict contains the types and configurations
+            for setting the communication fusion, default is None, turn off the communication fusion. If set a dict,
+            turn on the communication fusion.
+            Examples: {"allreduce": {"openstate": True, "bucket_size": 5e8},
+                       "reduce_scatter": {"openstate": True, "bucket_size": 5e8},
+                       "allgather": {"openstate": False, "bucket_size": 5e8},}
+        params_list (`List[str]`, *optional*), List of params used for communication in the network,
+            default is None, get the params_list use `network.trainable_params()`.
     """
     is_parallel = _get_parallel_mode() == ParallelMode.DATA_PARALLEL
     if not is_parallel and zero_stage == 0:
@@ -430,7 +380,7 @@ def prepare_train_network(
         raise ValueError("op_group {op_group} and dp_group {dp_group} not full network hccl group coverage")
 
     new_network = prepare_network(network, zero_stage, op_group)
-    zero_helper = ZeroHelper(optimizer, zero_stage, op_group, dp_group, optimizer_offload)
+    zero_helper = ZeroHelper(optimizer, zero_stage, op_group, dp_group, optimizer_offload, comm_fusion, params_list)
     if isinstance(scale_sense, float):
         scale_sense = ms.Tensor(scale_sense, ms.float32)
     train_network = TrainOneStepWrapper(
