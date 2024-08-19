@@ -466,7 +466,6 @@ use_image_num=4  # to include n number of images in an input sample
 num_frames=65  # to sample m frames from a single video. The total number of images： num_frames + use_image_num
 model_dtype="bf16" # the data type used for mixed precision of the diffusion transformer model (LatteT2V).
 amp_level="O2" # the default auto mixed precision level for LatteT2V.
-enable_flash_attention="True" # whether to use MindSpore Flash Attention
 batch_size=2 # training batch size
 lr="2e-05" # learning rate. Default learning schedule is constant
 ```

@@ -404,7 +404,7 @@ if __name__ == "__main__":
             f"Sampling steps {args.num_sampling_steps}",
             f"Sampling method: {args.sample_method}",
             f"CFG guidance scale: {args.guidance_scale}",
-            f"Enable flash attention: {args.enable_flash_attention} ({FA_dtype})",
+            f"FA dtype: {FA_dtype}",
         ]
     )
     key_info += "\n" + "=" * 50

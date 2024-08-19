@@ -11,7 +11,7 @@ model_dtype="bf16" # the data type used for mixed precision of the diffusion tra
 amp_level="O2" # the default auto mixed precision level for LatteT2V.
 batch_size=2 # training batch size
 lr="2e-05" # learning rate. Default learning schedule is constant
-output_dir=t2v-f$num_frames-$image_size-img$use_image_num-videovae488-$model_dtype-FA$enable_flash_attention-bs$batch_size-t5_sp
+output_dir=t2v-f$num_frames-$image_size-img$use_image_num-videovae488-$model_dtype-bs$batch_size-t5_sp
 
 msrun --bind_core=True --worker_num=8 --local_worker_num=8 --master_port=9000 --log_dir=$output_dir/parallel_logs opensora/train/train_t2v.py \
     --pretrained LanguageBind/Open-Sora-Plan-v1.1.0/t2v.ckpt \

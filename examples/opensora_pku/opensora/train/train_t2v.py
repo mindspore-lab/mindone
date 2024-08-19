@@ -154,7 +154,6 @@ def main(args):
         norm_eps=1e-6,
         attention_type="default",
         video_length=video_length,
-        enable_flash_attention=args.enable_flash_attention,
         use_recompute=args.use_recompute,
         compress_kv_factor=args.compress_kv_factor,
         use_rope=args.use_rope,
@@ -506,7 +505,7 @@ def main(args):
                 f"Max grad norm: {args.max_grad_norm}",
                 f"EMA: {args.use_ema}",
                 f"EMA decay: {args.ema_decay}",
-                f"Enable flash attention: {args.enable_flash_attention} ({FA_dtype})",
+                f"FA dtype: {FA_dtype}",
                 f"Use recompute: {args.use_recompute}",
                 f"Dataset sink: {args.dataset_sink_mode}",
             ]
