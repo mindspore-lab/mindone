@@ -1,3 +1,5 @@
+import itertools
+
 from opensora.acceleration.parallel_states import get_sequence_parallel_state
 
 import mindspore as ms
@@ -13,11 +15,11 @@ class PositionGetter3D(object):
         pass
 
     def __call__(self, b, t, h, w):
-        x = ops.arange(w)
-        y = ops.arange(h)
-        z = ops.arange(t)
-        pos = ms.numpy.meshgrid(z, y, x)
-        pos = ops.stack(pos, axis=-1)
+        x = list(range(w))
+        y = list(range(h))
+        z = list(range(t))
+        pos = list(itertools.product(z, y, x))
+        pos = ms.Tensor(pos)
         if get_sequence_parallel_state():
             # print('PositionGetter3D', PositionGetter3D)
             pos = pos.reshape(t * h * w, 3).swapaxes(0, 1).reshape(3, -1, 1).broadcast_to((3, -1, b))
