@@ -156,10 +156,10 @@ class Attention(Attention_):
             interpolation_scale_thw=interpolation_scale_thw,
             FA_dtype=FA_dtype,
         )
+        kwags["processor"] = processor
         super().__init__(**kwags)
         if attention_mode == "xformers":
             self.set_use_memory_efficient_attention_xformers(True)
-        self.processor = processor
         self.downsampler = None
         if downsampler:  # downsampler  k155_s122
             downsampler_ker_size = list(re.search(r"k(\d{2,3})", downsampler).group(1))  # 122
@@ -230,6 +230,7 @@ class Attention(Attention_):
         return attention_mask
 
 
+@ms.jit_class
 class AttnProcessor2_0:
     r"""
     Processor for implementing scaled dot-product attention or xFormers-like memory efficient attention.
@@ -400,6 +401,8 @@ class AttnProcessor2_0:
         if input_ndim == 4:
             batch_size, channel, height, width = hidden_states.shape
             hidden_states = hidden_states.view(batch_size, channel, height * width).swapaxes(1, 2)
+        else:
+            channel = None
 
         if get_sequence_parallel_state():
             sequence_length, batch_size, _ = (
