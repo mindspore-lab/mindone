@@ -112,11 +112,11 @@ def parse_train_args(parser):
     #################################################################################
     #                           Dataset and DataLoader                              #
     #################################################################################
-    parser.add_argument("--batch_size", default=10, type=int, help="batch size")
+    parser.add_argument("--train_batch_size", default=10, type=int, help="batch size")
     parser.add_argument("--dataset_sink_mode", default=False, type=str2bool, help="sink mode")
     parser.add_argument("--sink_size", default=-1, type=int, help="dataset sink size. If -1, sink size = dataset size.")
     parser.add_argument(
-        "--epochs",
+        "--num_train_epochs",
         default=10,
         type=int,
         help="epochs. When epochs is specified, the total number of training steps = epochs x num_batches",

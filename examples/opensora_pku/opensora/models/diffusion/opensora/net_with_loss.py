@@ -1,17 +1,12 @@
 import logging
 
 from opensora.acceleration.communications import prepare_parallel_data
-from opensora.acceleration.parallel_states import get_sequence_parallel_state, hccl_info
-from opensora.models.diffusion.diffusion import SpacedDiffusion_T as SpacedDiffusion
-from opensora.models.diffusion.diffusion.diffusion_utils import (
-    _extract_into_tensor,
-    discretized_gaussian_log_likelihood,
-    mean_flat,
-    normal_kl,
-)
+from opensora.acceleration.parallel_states import get_sequence_parallel_state, hccl_info, set_sequence_parallel_state
 
 import mindspore as ms
 from mindspore import nn, ops
+
+from mindone.diffusers.training_utils import compute_snr
 
 __all__ = ["DiffusionWithLoss"]
 
@@ -24,7 +19,7 @@ class DiffusionWithLoss(nn.Cell):
     Args:
         model (nn.Cell): A noise prediction model to denoise the encoded image latents.
         vae (nn.Cell): Variational Auto-Encoder (VAE) Model to encode and decode images to and from latent representations.
-        diffusion: (object): A class for Gaussian Diffusion.
+        noise_scheduler: (object): A class for noise scheduler, such as DDPM scheduler
         text_encoder (nn.Cell): A text encoding model which accepts token ids and returns text embeddings in shape (T, D).
             T is the number of tokens, and D is the embedding dimension.
         train_with_embed (bool): whether to train with embeddings (no need vae and text encoder to extract latent features and text embeddings)
@@ -33,19 +28,23 @@ class DiffusionWithLoss(nn.Cell):
     def __init__(
         self,
         network: nn.Cell,
-        diffusion: SpacedDiffusion,
+        noise_scheduler,
         vae: nn.Cell = None,
         text_encoder: nn.Cell = None,
         text_emb_cached: bool = True,
         video_emb_cached: bool = False,
         use_image_num: int = 0,
         dtype=ms.float32,
+        noise_offset: float = 0.0,
+        snr_gamma=None,
     ):
         super().__init__()
         # TODO: is set_grad() necessary?
         self.network = network.set_grad()
         self.vae = vae
-        self.diffusion = diffusion
+        self.noise_scheduler = noise_scheduler
+        self.noise_offset = noise_offset
+        self.snr_gamma = snr_gamma
 
         self.text_encoder = text_encoder
         self.dtype = dtype
@@ -150,7 +149,13 @@ class DiffusionWithLoss(nn.Cell):
             text_embed = ops.stop_gradient(self.get_condition_embeddings(text_tokens, encoder_attention_mask))
         else:
             text_embed = text_tokens
-
+        current_step_frame = x.shape[2]
+        current_step_sp_state = get_sequence_parallel_state()
+        if current_step_sp_state:  # enable sp
+            if current_step_frame == 1:  # but image do not need sp
+                set_sequence_parallel_state(False)
+            else:
+                set_sequence_parallel_state(True)
         loss = self.compute_loss(x, text_embed, encoder_attention_mask, attention_mask)
 
         return loss
@@ -158,42 +163,13 @@ class DiffusionWithLoss(nn.Cell):
     def apply_model(self, *args, **kwargs):
         return self.network(*args, **kwargs)
 
-    def _cal_vb(self, model_output, model_var_values, x, x_t, t):
-        # make sure all inputs are fp32 for accuracy
-        model_output = model_output.to(ms.float32)
-        model_var_values = model_var_values.to(ms.float32)
-        x = x.to(ms.float32)
-        x_t = x_t.to(ms.float32)
-
-        true_mean, _, true_log_variance_clipped = self.diffusion.q_posterior_mean_variance(x_start=x, x_t=x_t, t=t)
-        # p_mean_variance(model=lambda *_: frozen_out, x_t, t, clip_denoised=False) begin
-        min_log = _extract_into_tensor(self.diffusion.posterior_log_variance_clipped, t, x_t.shape)
-        max_log = _extract_into_tensor(self.diffusion.log_betas, t, x_t.shape)
-        # The model_var_values is [-1, 1] for [min_var, max_var].
-        frac = (model_var_values + 1) / 2
-        model_log_variance = frac * max_log + (1 - frac) * min_log
-        pred_xstart = self.diffusion.predict_xstart_from_eps(x_t=x_t, t=t, eps=model_output)
-        model_mean, _, _ = self.diffusion.q_posterior_mean_variance(x_start=pred_xstart, x_t=x_t, t=t)
-        # assert model_mean.shape == model_log_variance.shape == pred_xstart.shape == x_t.shape
-        # p_mean_variance end
-        kl = normal_kl(true_mean, true_log_variance_clipped, model_mean, model_log_variance)
-        kl = mean_flat(kl) / ms.numpy.log(2.0)  # TODO:
-
-        # print('D--: kl input type ', t.dtype, x.dtype,  model_mean.dtype, kl.dtype)
-
-        # NOTE: make sure it's computed in fp32 since this func contains many exp.
-        decoder_nll = -discretized_gaussian_log_likelihood(x, means=model_mean, log_scales=0.5 * model_log_variance)
-        decoder_nll = mean_flat(decoder_nll) / ms.numpy.log(2.0)
-
-        # At the first timestep return the decoder NLL, otherwise return KL(q(x_{t-1}|x_t,x_0) || p(x_{t-1}|x_t))
-        flag = (t == 0).astype(kl.dtype)
-        vb = flag * decoder_nll + (1.0 - flag) * kl
-
-        return vb
-
     def compute_loss(self, x, text_embed, encoder_attention_mask, attention_mask=None):
         use_image_num = self.use_image_num
         noise = ops.randn_like(x)
+        bsz = x.shape[0]
+        if self.noise_offset:
+            # https://www.crosslabs.org//blog/diffusion-with-offset-noise
+            noise += self.noise_offset * ops.randn((bsz, x.shape[1], 1, 1, 1), dtype=x.dtype)
 
         if get_sequence_parallel_state():
             x = self.all_gather(x[None])[0]
@@ -204,11 +180,10 @@ class DiffusionWithLoss(nn.Cell):
                 attention_mask,
                 encoder_attention_mask,
                 use_image_num,
-                temp_attention_mask,
                 loss_mask,
             ) = prepare_parallel_data(x, noise, text_embed, attention_mask, encoder_attention_mask, use_image_num)
         else:
-            temp_attention_mask, loss_mask = None, None
+            loss_mask = None
 
         t = ops.randint(0, self.diffusion.num_timesteps, (x.shape[0],), dtype=ms.int32)
         if get_sequence_parallel_state():
@@ -218,29 +193,69 @@ class DiffusionWithLoss(nn.Cell):
         # latte forward input match
         # text embed: (b n_tokens  d) -> (b  1 n_tokens d)
         # text_embed = ops.expand_dims(text_embed, axis=1)
-        model_output = self.apply_model(
+        model_pred = self.apply_model(
             x_t,
             t,
             encoder_hidden_states=text_embed,
             attention_mask=attention_mask,
             encoder_attention_mask=encoder_attention_mask,
-            temp_attention_mask=temp_attention_mask,
             use_image_num=use_image_num,
         )
 
         if loss_mask is not None:
-            model_output *= loss_mask
+            model_pred *= loss_mask
 
+        if self.noise_scheduler.config.prediction_type == "epsilon":
+            target = noise
+        elif self.noise_scheduler.config.prediction_type == "v_prediction":
+            target = self.noise_scheduler.get_velocity(x, noise, t)
+        elif self.noise_scheduler.config.prediction_type == "sample":
+            # We set the target to latents here, but the model_pred will return the noise sample prediction.
+            target = x
+            # We will have to subtract the noise residual from the prediction to get the target sample.
+            model_pred = model_pred - noise
+        else:
+            raise ValueError(f"Unknown prediction type {self.noise_scheduler.config.prediction_type}")
+
+        if (attention_mask.bool()).all():
+            attention_mask = None
+        if get_sequence_parallel_state():
+            # TODO: sequence parallel does not need attention_mask?
+            assert attention_mask is None
         # (b c t h w),
         B, C, F = x_t.shape[:3]
         assert (
-            model_output.shape == (B, C * 2, F) + x_t.shape[3:]
-        ), f"model_output shape {model_output.shape} and x_t shape {x_t.shape} mismatch!"
-        model_output, model_var_values = ops.split(model_output, C, axis=1)
+            model_pred.shape == (B, C * 2, F) + x_t.shape[3:]
+        ), f"model_pred shape {model_pred.shape} and x_t shape {x_t.shape} mismatch!"
+        if attention_mask is not None:
+            attention_mask = attention_mask.unsqueeze(1).float().repeat(C * 2, axis=1)  # b t h w -> b c t h w
+            attention_mask = attention_mask.reshape(bsz, -1)
 
-        # Learn the variance using the variational bound, but don't let it affect our mean prediction.
-        vb = self._cal_vb(ops.stop_gradient(model_output), model_var_values, x, x_t, t)
-
-        loss = mean_flat((noise - model_output) ** 2) + vb
-        loss = loss.mean()
+        if self.snr_gamma is None:
+            # model_pred: b c t h w, attention_mask: b t h w
+            loss = ops.mse_loss(model_pred.float(), target.float(), reduction="none")
+            loss = loss.reshape(bsz, -1)
+            if attention_mask is not None:
+                loss = (loss * attention_mask).sum() / attention_mask.sum()  # mean loss on unpad patches
+            else:
+                loss = loss.mean()
+        else:
+            # Compute loss-weights as per Section 3.4 of https://arxiv.org/abs/2303.09556.
+            # Since we predict the noise instead of x_0, the original formulation is slightly changed.
+            # This is discussed in Section 4.2 of the same paper.
+            snr = compute_snr(self.noise_scheduler, t)
+            mse_loss_weights = ops.stack([snr, self.snr_gamma * ops.ones_like(t)], axis=1).min(axis=1)[0]
+            if self.noise_scheduler.config.prediction_type == "epsilon":
+                mse_loss_weights = mse_loss_weights / snr
+            elif self.noise_scheduler.config.prediction_type == "v_prediction":
+                mse_loss_weights = mse_loss_weights / (snr + 1)
+            loss = ops.mse_loss(model_pred.float(), target.float(), reduction="none")
+            loss = loss.reshape(bsz, -1)
+            mse_loss_weights = mse_loss_weights.reshape(bsz, 1)
+            if attention_mask is not None:
+                loss = (
+                    loss * attention_mask * mse_loss_weights
+                ).sum() / attention_mask.sum()  # mean loss on unpad patches
+            else:
+                loss = (loss * mse_loss_weights).mean()
         return loss

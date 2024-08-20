@@ -207,3 +207,43 @@ def prepare_parallel_data(
         temp_attention_mask,
         loss_mask,
     )
+
+
+def _single_all_to_all(
+    input_: ms.Tensor,
+    scatter_dim: int,
+    gather_dim: int,
+    enable_HCCL=True,
+):
+    assert enable_HCCL
+    all_to_all_ops = _SingleAll2ALL(scatter_dim=scatter_dim, gather_dim=gather_dim)
+    return all_to_all_ops(input_)
+
+
+def prepare_parallel_data_new(
+    hidden_states, encoder_hidden_states, attention_mask, encoder_attention_mask, use_image_num
+):
+    def all_to_all(hidden_states, encoder_hidden_states, attention_mask, encoder_attention_mask):
+        hidden_states = _single_all_to_all(hidden_states, scatter_dim=2, gather_dim=0, enable_HCCL=True)
+        encoder_hidden_states = _single_all_to_all(encoder_hidden_states, scatter_dim=1, gather_dim=0, enable_HCCL=True)
+        attention_mask = _single_all_to_all(attention_mask, scatter_dim=1, gather_dim=0, enable_HCCL=True)
+        encoder_attention_mask = _single_all_to_all(
+            encoder_attention_mask, scatter_dim=1, gather_dim=0, enable_HCCL=True
+        )
+        return hidden_states, encoder_hidden_states, attention_mask, encoder_attention_mask
+
+    sp_size = hccl_info.world_size
+    frame = hidden_states.shape[2]
+    assert frame % sp_size == 0, "frame should be a multiple of sp_size"
+    # b 1 (n x) h -> b n x h
+    bsz = encoder_hidden_states.shape[0]
+    length = encoder_hidden_states.shape[2]
+    encoder_hidden_states = encoder_hidden_states.squeeze(1).reshape(bsz, sp_size, length // sp_size, -1).contiguous()
+    hidden_states, encoder_hidden_states, attention_mask, encoder_attention_mask = all_to_all(
+        hidden_states,
+        encoder_hidden_states,
+        attention_mask.repeat(sp_size, axis=1),
+        encoder_attention_mask.repeat(sp_size, axis=1),
+    )
+
+    return hidden_states, encoder_hidden_states, attention_mask, encoder_attention_mask, use_image_num

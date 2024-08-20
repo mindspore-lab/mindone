@@ -24,11 +24,12 @@ def create_video_transforms(h, w, num_frames, interpolation="bicubic", backend="
 
         targets = {"image{}".format(i): "image" for i in range(num_frames)}
         mapping = {"bilinear": cv2.INTER_LINEAR, "bicubic": cv2.INTER_CUBIC}
+        max_size = max(h, w)
         if disable_flip:
             # flip is not proper for horizontal motion learning
             pixel_transforms = albumentations.Compose(
                 [
-                    SmallestMaxSize(max_size=h, interpolation=mapping[interpolation]),
+                    SmallestMaxSize(max_size=max_size, interpolation=mapping[interpolation]),
                     CenterCrop(h, w),
                 ],
                 additional_targets=targets,
@@ -39,7 +40,7 @@ def create_video_transforms(h, w, num_frames, interpolation="bicubic", backend="
             pixel_transforms = albumentations.Compose(
                 [
                     HorizontalFlip(p=0.5),
-                    SmallestMaxSize(max_size=h, interpolation=mapping[interpolation]),
+                    SmallestMaxSize(max_size=max_size, interpolation=mapping[interpolation]),
                     CenterCrop(h, w),
                 ],
                 additional_targets=targets,
