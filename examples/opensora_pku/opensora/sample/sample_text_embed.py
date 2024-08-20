@@ -85,7 +85,7 @@ def main(args):
     # mixed precision
     text_encoder_dtype = get_precision(args.precision)
     text_encoder = auto_mixed_precision(text_encoder, amp_level="O2", dtype=text_encoder_dtype)
-    logger.info(f"Use amp level O2 for text encoder T5 with dtype={text_encoder_dtype}")
+    logger.info(f"Use amp level O2 for text encoder {args.text_encoder_name} with dtype={text_encoder_dtype}")
 
     # infer
     if args.data_file_path is not None:
@@ -145,7 +145,7 @@ def main(args):
 
     else:
         if args.output_path is None:
-            output_dir = "samples/t5_embed"
+            output_dir = f"samples/{args.text_encoder_name}_embed"
         else:
             output_dir = args.output_path
         os.makedirs(output_dir, exist_ok=True)
@@ -225,7 +225,13 @@ def parse_args():
         default=None,
         help="output dir to save the embeddings, if None, will treat the parent dir of data_file_path as output dir.",
     )
-    parser.add_argument("--text_encoder_name", type=str, default="DeepFloyd/t5-v1_1-xxl")
+    parser.add_argument("--text_encoder_name", type=str, default="google/mt5-xxl")
+    parser.add_argument(
+        "--cache_dir",
+        default="./",
+        type=str,
+        help="The cache directory to the text encoder and tokenizer",
+    )
     # MS new args
     parser.add_argument("--device_target", type=str, default="Ascend", help="Ascend or GPU")
     parser.add_argument("--mode", type=int, default=0, help="Running in GRAPH_MODE(0) or PYNATIVE_MODE(1) (default=0)")

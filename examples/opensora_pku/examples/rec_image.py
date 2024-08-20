@@ -78,7 +78,7 @@ def main(args):
         skip_load_ckpt = True
     else:
         skip_load_ckpt = False
-    kwarg = {"model_file": os.path.join(args.ae_path, "checkpoint.ckpt"), "skip_load_ckpt": skip_load_ckpt}
+    kwarg = {"skip_load_ckpt": skip_load_ckpt}
     vae = CausalVAEModelWrapper(args.ae_path, **kwarg)
     if skip_load_ckpt:
         vae.vae.init_from_ckpt(args.ms_checkpoint)

@@ -204,7 +204,7 @@ def main(args):
         text_encoder_dtype = get_precision(args.text_encoder_precision)  # using bf16 for text encoder and vae
         text_encoder = auto_mixed_precision(text_encoder, amp_level="O2", dtype=text_encoder_dtype)
         text_encoder.dtype = text_encoder_dtype
-        logger.info(f"Use amp level O2 for text encoder T5 with dtype={text_encoder_dtype}")
+        logger.info(f"Use amp level O2 for text encoder {args.text_encoder_name} with dtype={text_encoder_dtype}")
 
         tokenizer = text_encoder.tokenizer
     else:

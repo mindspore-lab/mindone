@@ -4,8 +4,6 @@ import html
 import re
 import urllib.parse as ul
 
-import numpy as np
-
 import mindspore as ms
 
 try:
@@ -50,23 +48,6 @@ def get_precision(mixed_precision):
     else:
         dtype = ms.float32
     return dtype
-
-
-def load_torch_state_dict_to_ms_ckpt(ckpt_file):
-    import torch
-
-    source_data = torch.load(ckpt_file, map_location="cpu", weights_only=True)
-    if "state_dict" in source_data:
-        source_data = source_data["state_dict"]
-    if "ema" in source_data:
-        source_data = source_data["ema"]
-
-    target_data = {}
-    for k in source_data:
-        val = source_data[k].detach().numpy().astype(np.float32)
-        # print(type(val), val.dtype, val.shape)
-        target_data.update({k: ms.Parameter(ms.Tensor(val, dtype=ms.float32))})
-    return target_data
 
 
 #################################################################################

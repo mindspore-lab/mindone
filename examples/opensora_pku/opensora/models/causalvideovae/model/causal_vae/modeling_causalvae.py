@@ -3,7 +3,6 @@ import os
 from typing import Tuple
 
 from opensora.acceleration.parallel_states import get_sequence_parallel_state
-from opensora.utils.utils import load_torch_state_dict_to_ms_ckpt
 
 import mindspore as ms
 from mindspore import nn, ops
@@ -342,7 +341,7 @@ class CausalVAEModel(VideoBaseAE):
                 try:
                     state_dict = load_state_dict_diffuser(model_file, variant=variant)
                 except Exception:
-                    state_dict = load_torch_state_dict_to_ms_ckpt(model_file)
+                    raise ValueError(f"Incorrect model_file {model_file}")
                 model._convert_deprecated_attention_blocks(state_dict)
 
                 model, missing_keys, unexpected_keys, mismatched_keys, error_msgs = cls._load_pretrained_model(

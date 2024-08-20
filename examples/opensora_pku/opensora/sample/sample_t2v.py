@@ -194,7 +194,7 @@ if __name__ == "__main__":
 
     # 2. vae model initiate and weight loading
     logger.info("vae init")
-    vae = CausalVAEModelWrapper(args.ae_path, model_file=os.path.join(args.ae_path, "checkpoint.ckpt"))
+    vae = CausalVAEModelWrapper(args.ae_path)
     if args.enable_tiling:
         vae.vae.enable_tiling()
         vae.vae.tile_overlap_factor = args.tile_overlap_factor
@@ -224,7 +224,7 @@ if __name__ == "__main__":
     ext = (
         "gif" if not (args.save_latents or args.decode_latents) else "npy"
     )  # save video as gif or save denoised latents as npy files.
-
+    ext = "jpg" if args.num_frames == 1 else ext
     if not isinstance(args.text_prompt, list):
         args.text_prompt = [args.text_prompt]
     # if input is a text file, where each line is a caption, load it into a list
@@ -361,7 +361,7 @@ if __name__ == "__main__":
     text_encoder_dtype = get_precision(args.text_encoder_precision)
     text_encoder = auto_mixed_precision(text_encoder, amp_level="O2", dtype=text_encoder_dtype)
 
-    logger.info(f"Use amp level O2 for text encoder T5 with dtype={text_encoder_dtype}")
+    logger.info(f"Use amp level O2 for text encoder {args.text_encoder_name} with dtype={text_encoder_dtype}")
 
     # 3. build inference pipeline
     if args.sample_method == "DDIM":
@@ -404,6 +404,7 @@ if __name__ == "__main__":
             f"Sampling method: {args.sample_method}",
             f"CFG guidance scale: {args.guidance_scale}",
             f"FA dtype: {FA_dtype}",
+            f"Inference shape (num_frames x height x width): {args.num_frames}x{args.height}x{args.width}",
         ]
     )
     key_info += "\n" + "=" * 50
