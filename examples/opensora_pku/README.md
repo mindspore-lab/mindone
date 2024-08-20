@@ -428,24 +428,11 @@ python opensora/sample/sample_text_embed.py \
 ```
 To extract text embeddings for all annotation json files using a single card, you can refer to `scripts/embedding_cache/extract_all.sh`. If you want to try extracting embedding cache using multiple cards in a single node, please refer to `scripts/embedding_cache/extract_multi.sh`.
 
-The text embeddings are extracted and saved under the specified `output_path`. The `output_path` folder structure is similar to, e.g.,:
-```bash
-datasets/
-├───mixkit-t5-emb-len=300_65f/
-│   ├───Airplane/
-│   │       ├───[video-file-name]-frame_idx-0:65.npz
-│   │       ├───[video-file-name]-frame_idx-65:130.npz
-│   │       └───...
-│   └───...
-└───mixkit-t5-emb-len=300_513f/
-    ├───Airplane/
-    │       ├───[video-file-name]-frame_idx-0:513.npz
-    │       ├───[video-file-name]-frame_idx-513:1026.npz
-    │       └───...
-    └───...
-```
+The text embeddings are extracted and saved under the specified `output_path`.
+
 **Step 3: Revising the Paths**:
 
+**Revise it to v1.2.0 data format**
 After extracting the embedding cache, you will have the following three paths ready:
 ```text
 images/videos path: e.g., datasets/images/
@@ -454,16 +441,6 @@ annotation json path: e.g., anno_jsons/human_images162094.json
 ```
 In the dataset file, for example, `scripts/train_data/image_data.txt`, each line represents one dataset. Each line includes three paths: the images/videos folder, the t5 embedding cache folder, and the path to the annotation json file. Please revise them accordingly to the paths on your disk.
 
-**Step 4: Converting Pretrained Weights**:
-
-The first-stage training depends on the `t2v.pt` from [Vchitect/Latte](https://huggingface.co/maxin-cn/Latte/tree/main). Please download `t2v.pt` and place it under `LanguageBind/Open-Sora-Plan-v1.1.0/t2v.pt`. Then run model conversion with:
-```bash
-python tools/model_conversion/convert_latte.py \
-  --src LanguageBind/Open-Sora-Plan-v1.1.0/t2v.pt \
-  --target LanguageBind/Open-Sora-Plan-v1.1.0/t2v.ckpt
-```
-
-> **Since [Vchitect/Latte](https://huggingface.co/maxin-cn/Latte/tree/main) has deleted `t2v.pt` from their HF repo, please download `t2v.ckpt` from this [URL](https://download-mindspore.osinfra.cn/toolkits/mindone/opensora-pku/t2v.ckpt). There is no need to convert it.**
 
 #### Example of Training Scripts
 Here we choose an example of training scripts (`train_videoae_65x512x512.sh`) and explain the meanings of some experimental arguments. This is an example of parallel training script which uses data parallelism. If you want to try single-device training, please refer to `train_videoae_65x512x512_single_device.sh`.
