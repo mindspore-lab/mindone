@@ -75,13 +75,22 @@ def main(args):
 
     if args.ms_checkpoint is not None and os.path.exists(args.ms_checkpoint):
         logger.info(f"Run inference with MindSpore checkpoint {args.ms_checkpoint}")
-        skip_load_ckpt = True
+        state_dict = ms.load_checkpoint(args.ms_checkpoint)
     else:
-        skip_load_ckpt = False
-    kwarg = {"skip_load_ckpt": skip_load_ckpt}
+        # need torch installation to load from pt checkpoint!
+        try:
+            from opensora.utils.utils import load_torch_state_dict_to_ms_ckpt
+        except Exception:
+            logger.info(
+                "Torch is not installed. Cannot load from torch checkpoint. Will search for safetensors under the given directory."
+            )
+            state_dict = None
+            load_torch_state_dict_to_ms_ckpt = None
+
+    if load_torch_state_dict_to_ms_ckpt:
+        state_dict = load_torch_state_dict_to_ms_ckpt(os.path.join(args.ae_path, "checkpoint.ckpt"))
+    kwarg = {"state_dict": state_dict}
     vae = CausalVAEModelWrapper(args.ae_path, **kwarg)
-    if skip_load_ckpt:
-        vae.vae.init_from_ckpt(args.ms_checkpoint)
 
     if args.enable_tiling:
         vae.vae.enable_tiling()

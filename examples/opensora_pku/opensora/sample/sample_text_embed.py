@@ -17,11 +17,11 @@ sys.path.insert(0, mindone_lib_path)
 sys.path.append(os.path.abspath("./"))
 from opensora.dataset.text_dataset import create_dataloader
 from opensora.dataset.transform import t5_text_preprocessing as text_preprocessing
+from opensora.models.text_encoder.mt5 import MT5EncoderModel
 from opensora.utils.ms_utils import init_env
 from opensora.utils.utils import get_precision
 from transformers import AutoTokenizer
 
-from mindone.transformers import MT5EncoderModel
 from mindone.utils.amp import auto_mixed_precision
 from mindone.utils.config import str2bool
 from mindone.utils.logger import set_logger
@@ -80,7 +80,8 @@ def main(args):
         logger.info(f"Num batches: {dataset_size}")
 
     logger.info("mT5-xxl init")
-    text_encoder = MT5EncoderModel.from_pretrained(args.text_encoder_name, cache_dir=args.cache_dir)
+    kwargs = {"model_file": os.path.join(args.cache_dir, args.text_encoder_name, "pytorch_model.bin")}
+    text_encoder = MT5EncoderModel.from_pretrained(args.text_encoder_name, cache_dir=args.cache_dir, **kwargs)
     tokenizer = AutoTokenizer.from_pretrained(args.text_encoder_name, cache_dir=args.cache_dir)
     # mixed precision
     text_encoder_dtype = get_precision(args.precision)

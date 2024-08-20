@@ -25,6 +25,7 @@ from opensora.models.causalvideovae.model.modules.updownsample import TrilinearI
 from opensora.models.diffusion.opensora.modeling_opensora import LayerNorm, OpenSoraT2V
 from opensora.models.diffusion.opensora.modules import Attention
 from opensora.sample.pipeline_opensora import OpenSoraPipeline
+from opensora.utils.message_utils import print_banner
 from opensora.utils.ms_utils import init_env
 from opensora.utils.utils import _check_cfgs_in_parser, get_precision
 from transformers import AutoTokenizer
@@ -193,8 +194,20 @@ if __name__ == "__main__":
     )
 
     # 2. vae model initiate and weight loading
-    logger.info("vae init")
-    vae = CausalVAEModelWrapper(args.ae_path)
+    print_banner("vae init")
+    # need torch installation to load from pt checkpoint!
+    try:
+        from opensora.utils.utils import load_torch_state_dict_to_ms_ckpt
+    except Exception:
+        logger.info(
+            "Torch is not installed. Cannot load from torch checkpoint. Will search for safetensors under the given directory."
+        )
+        state_dict = None
+        load_torch_state_dict_to_ms_ckpt = None
+    if load_torch_state_dict_to_ms_ckpt:
+        state_dict = load_torch_state_dict_to_ms_ckpt(os.path.join(args.cache_dir, args.ae_path, "checkpoint.ckpt"))
+
+    vae = CausalVAEModelWrapper(args.ae_path, cache_dir=args.cache_dir, state_dict=state_dict)
     if args.enable_tiling:
         vae.vae.enable_tiling()
         vae.vae.tile_overlap_factor = args.tile_overlap_factor
@@ -221,6 +234,7 @@ if __name__ == "__main__":
         param.requires_grad = False
 
     # 3. handle input text prompts
+    print_banner("text prompts loading")
     ext = (
         "gif" if not (args.save_latents or args.decode_latents) else "npy"
     )  # save video as gif or save denoised latents as npy files.
@@ -295,6 +309,7 @@ if __name__ == "__main__":
         sys.exit()
 
     # 4. latte model initiate and weight loading
+    print_banner("transformer model init")
     FA_dtype = get_precision(args.precision) if get_precision(args.precision) != ms.float32 else ms.bfloat16
     assert args.model_type == "dit", "Currently only suppport model_type as 'dit'@"
     if args.ms_checkpoint and os.path.exists(args.ms_checkpoint):
@@ -302,7 +317,7 @@ if __name__ == "__main__":
         skip_load_ckpt = True
     else:
         skip_load_ckpt = False
-    kwargs = {"FA_dtype": FA_dtype}
+
     model_version = args.model_path.split("/")[-1]
     if int(model_version.split("x")[0]) != args.num_frames:
         logger.warning(
@@ -317,7 +332,7 @@ if __name__ == "__main__":
         model_file=args.ms_checkpoint,
         cache_dir=args.cache_dir,
         skip_load_ckpt=skip_load_ckpt,
-        **kwargs,
+        FA_dtype=FA_dtype,
     )
     if skip_load_ckpt:
         transformer_model.load_from_checkpoint(args.ms_checkpoint)
@@ -343,7 +358,7 @@ if __name__ == "__main__":
             )
             logger.info(f"Set mixed precision to O2 with dtype={args.precision}")
         else:
-            logger.info(f"Using global bf16 for latte t2v model. Force model dtype from {dtype} to ms.bfloat16")
+            logger.info(f"Using global bf16. Force model dtype from {dtype} to ms.bfloat16")
             dtype = ms.bfloat16
     elif args.precision == "fp32":
         amp_level = "O0"
@@ -354,14 +369,31 @@ if __name__ == "__main__":
     for param in transformer_model.get_parameters():  # freeze transformer_model
         param.requires_grad = False
 
-    logger.info("mT5-xxl init")
-    text_encoder = MT5EncoderModel.from_pretrained(args.text_encoder_name, cache_dir=args.cache_dir)
+    print_banner("text encoder init")
+    # need torch installation to load from pt checkpoint!
+    try:
+        from opensora.utils.utils import load_torch_state_dict_to_ms_ckpt
+    except Exception:
+        logger.info(
+            "Torch is not installed. Cannot load from torch checkpoint. Will search for safetensors under the given directory."
+        )
+        state_dict = None
+        load_torch_state_dict_to_ms_ckpt = None
+    if load_torch_state_dict_to_ms_ckpt:
+        state_dict = load_torch_state_dict_to_ms_ckpt(
+            os.path.join(args.cache_dir, args.text_encoder_name, "pytorch_model.bin"),
+            filter_prefix=["decoder."],  # only load and convert mT5 encoder model weights
+        )
+    text_encoder, loading_info = MT5EncoderModel.from_pretrained(
+        args.text_encoder_name, cache_dir=args.cache_dir, state_dict=state_dict, output_loading_info=True
+    )
+    logger.info(loading_info)
     tokenizer = AutoTokenizer.from_pretrained(args.text_encoder_name, cache_dir=args.cache_dir)
     # mixed precision
     text_encoder_dtype = get_precision(args.text_encoder_precision)
     text_encoder = auto_mixed_precision(text_encoder, amp_level="O2", dtype=text_encoder_dtype)
 
-    logger.info(f"Use amp level O2 for text encoder {args.text_encoder_name} with dtype={text_encoder_dtype}")
+    logger.info(f"Use amp level O2 for {args.text_encoder_name} with dtype={text_encoder_dtype}")
 
     # 3. build inference pipeline
     if args.sample_method == "DDIM":

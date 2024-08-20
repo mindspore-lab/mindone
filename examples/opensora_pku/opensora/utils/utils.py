@@ -1,8 +1,13 @@
 import argparse
 import collections
 import html
+import logging
 import re
 import urllib.parse as ul
+from multiprocessing import Pool
+
+import numpy as np
+from tqdm import tqdm
 
 import mindspore as ms
 
@@ -15,6 +20,8 @@ try:
     import ftfy
 except ImportError:
     is_ftfy_available = False
+
+logger = logging.getLogger(__name__)
 
 
 def to_2tuple(x):
@@ -48,6 +55,44 @@ def get_precision(mixed_precision):
     else:
         dtype = ms.float32
     return dtype
+
+
+def process_key(key_val):
+    """Processes a single key-value pair from the source data."""
+    k, val = key_val
+    val = val.detach().numpy().astype(np.float32)
+    return k, ms.Parameter(ms.Tensor(val, dtype=ms.float32))
+
+
+def load_torch_state_dict_to_ms_ckpt(ckpt_file, num_workers=8, filter_prefix=None):
+    import torch
+
+    source_data = torch.load(ckpt_file, map_location="cpu", weights_only=True)
+    if "state_dict" in source_data:
+        source_data = source_data["state_dict"]
+    if "ema" in source_data:
+        source_data = source_data["ema"]
+    if filter_prefix is not None:
+        if isinstance(filter_prefix, str):
+            filter_prefix = [filter_prefix]
+        assert (
+            isinstance(filter_prefix, list)
+            and len(filter_prefix) > 0
+            and isinstance(filter_prefix[0], str)
+            and len(filter_prefix[0]) > 0
+        )
+    if filter_prefix is not None and len(filter_prefix) > 0:
+        keys_to_remove = [key for key in source_data if any(key.startswith(prefix) for prefix in filter_prefix)]
+        for key in keys_to_remove:
+            del source_data[key]
+
+    # Use multiprocessing to process keys in parallel
+    with Pool(processes=num_workers) as pool:
+        target_data = dict(
+            tqdm(pool.imap(process_key, source_data.items()), total=len(source_data), desc="Checkpoint Conversion")
+        )
+
+    return target_data
 
 
 #################################################################################

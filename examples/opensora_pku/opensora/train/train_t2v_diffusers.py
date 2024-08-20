@@ -21,6 +21,7 @@ from opensora.models.diffusion import Diffusion_models
 from opensora.models.diffusion.opensora.modules import Attention, LayerNorm
 from opensora.models.diffusion.opensora.net_with_loss import DiffusionWithLoss
 from opensora.train.commons import create_loss_scaler, parse_args
+from opensora.utils.message_utils import print_banner
 from opensora.utils.ms_utils import init_env
 from opensora.utils.utils import get_precision
 from transformers import AutoTokenizer
@@ -88,10 +89,19 @@ def main(args):
         logger.info("Train with vae latent cache.")
         vae = None
     else:
-        logger.info("vae init")
-        # Create model:
-        kwargs = {}
-        vae = CausalVAEModelWrapper(args.ae_path, cache_dir=args.cache_dir, **kwargs)
+        print_banner("vae init")
+        # need torch installation to load from pt checkpoint!
+        try:
+            from opensora.utils.utils import load_torch_state_dict_to_ms_ckpt
+        except Exception:
+            logger.info(
+                "Torch is not installed. Cannot load from torch checkpoint. Will search for safetensors under the given directory."
+            )
+            state_dict = None
+            load_torch_state_dict_to_ms_ckpt = None
+        if load_torch_state_dict_to_ms_ckpt:
+            state_dict = load_torch_state_dict_to_ms_ckpt(os.path.join(args.cache_dir, args.ae_path, "checkpoint.ckpt"))
+        vae = CausalVAEModelWrapper(args.ae_path, cache_dir=args.cache_dir, state_dict=state_dict)
         # TODO: Put VAE is in float32 to avoid NaN losses?
         vae_dtype = get_precision(args.vae_precision)
         if vae_dtype == ms.float16:
@@ -140,6 +150,7 @@ def main(args):
     else:
         latent_size_t = args.num_frames // ae_stride_t
     FA_dtype = get_precision(args.precision) if get_precision(args.precision) != ms.float32 else ms.bfloat16
+    print_banner("Transformer model init")
     model = Diffusion_models[args.model](
         in_channels=ae_channel_config[args.ae],
         out_channels=ae_channel_config[args.ae],
@@ -211,7 +222,20 @@ def main(args):
     model.set_train(True)
 
     if not args.text_embed_cache:
-        logger.info("mT5-xxl init")
+        print_banner("text encoder init")
+        # need torch installation to load from pt checkpoint!
+        try:
+            from opensora.utils.utils import load_torch_state_dict_to_ms_ckpt
+        except Exception:
+            logger.info(
+                "Torch is not installed. Cannot load from torch checkpoint. Will search for safetensors under the given directory."
+            )
+            state_dict = None
+            load_torch_state_dict_to_ms_ckpt = None
+        if load_torch_state_dict_to_ms_ckpt:
+            state_dict = load_torch_state_dict_to_ms_ckpt(
+                os.path.join(args.cache_dir, args.text_encoder_name, "pytorch_model.bin")
+            )
         text_encoder = MT5EncoderModel.from_pretrained(args.text_encoder_name, cache_dir=args.cache_dir)
         tokenizer = AutoTokenizer.from_pretrained(args.text_encoder_name, cache_dir=args.cache_dir)
         # mixed precision
@@ -254,6 +278,7 @@ def main(args):
     # 3. create dataset
     # TODO: replace it with new dataset
     assert args.dataset == "t2v", "Support t2v dataset only."
+    print_banner("Dataset Loading")
     ds_config = dict(
         image_data=args.image_data,
         video_data=args.video_data,

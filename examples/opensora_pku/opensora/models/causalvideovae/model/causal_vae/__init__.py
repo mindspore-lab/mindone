@@ -12,7 +12,10 @@ class CausalVAEModelWrapper(nn.Cell):
         super(CausalVAEModelWrapper, self).__init__()
         # if os.path.exists(ckpt):
         # self.vae = CausalVAEModel.load_from_checkpoint(ckpt)
-        self.vae = CausalVAEModel.from_pretrained(model_path, subfolder=subfolder, cache_dir=cache_dir, **kwargs)
+        self.vae, loading_info = CausalVAEModel.from_pretrained(
+            model_path, subfolder=subfolder, cache_dir=cache_dir, output_loading_info=True, **kwargs
+        )
+        logger.info(loading_info)
         if use_ema:
             self.vae.init_from_ema(model_path)
             self.vae = self.vae.ema
