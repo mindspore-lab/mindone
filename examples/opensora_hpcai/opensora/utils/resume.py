@@ -23,7 +23,7 @@ def get_resume_ckpt(resume: Union[bool, str], work_dir_with_date: str = None):
     resume_ckpt = None
     ori_output_path = str(Path(work_dir_with_date).parents[0])
     if isinstance(resume, str):
-        if os.path.isfile(resume_ckpt):
+        if os.path.isfile(resume):
             resume_ckpt = resume
         else:
             _logger.warning(f"{resume} does not exist. Skip loading previous training states.")
