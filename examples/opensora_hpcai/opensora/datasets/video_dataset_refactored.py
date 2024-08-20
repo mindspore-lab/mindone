@@ -11,6 +11,7 @@ from typing import Any, Callable, List, Optional, Tuple
 import cv2
 import numpy as np
 from decord import VideoReader
+from mindone.data.video_reader import VideoReader as VideoReader_CV2
 from tqdm import tqdm
 
 from mindspore.dataset.transforms import Compose
@@ -64,6 +65,7 @@ class VideoDatasetRefactored(BaseDataset):
         in_channels: int = 4,
         buckets: Optional[Bucket] = None,
         filter_data: bool = False,
+        use_decord: bool = False,
         *,
         output_columns: List[str],
     ):
@@ -117,6 +119,9 @@ class VideoDatasetRefactored(BaseDataset):
                 self.num_latent_resolution = len(resolution_indicators)
                 self.latent_resolution_prefix = resolution_indicators
                 _logger.info("Multi-resolution latents detected: {}".format(self.num_latent_resolution))
+        
+        # decord has better performance and may incur memory leak for high-resolution videos
+        self.use_decord = use_decord
 
         # prepare replacement data in case the loading of a sample fails
         self._prev_ok_sample = self._get_replacement()
@@ -180,37 +185,33 @@ class VideoDatasetRefactored(BaseDataset):
         raise RuntimeError(f"Fail to load a replacement sample in {attempts} attempts. Error: {repr(error)}")
 
     def _get_item(self, idx: int) -> Tuple[Any, ...]:
-        data = self._data[idx].copy()
+        data = {}
+        video_path = self._data[idx]["video"]
+        text_emb_path = self._data[idx]["text_emb"]
+
         num_frames = self._frames
 
         if self._text_emb_folder:
-            with np.load(data["text_emb"]) as td:
-                data.update(
-                    {
-                        "caption": td["text_emb"],
-                        "mask": td["mask"].astype(np.int32),  # FIXME: convert to int32 until PyNative bug is fixed
-                    }
-                )
+            with np.load(text_emb_path) as td:
+                data['caption'] = td["text_emb"]
+                data['mask'] = td["mask"].astype(np.uint8)
 
         if self._vae_latent_folder:
             # pick a resolution randomly if there are multi-resolution latents in vae folder
-            vae_latent_path = data["vae_latent"]
+            vae_latent_path = self._data[idx]["vae_latent"]
             if self.num_latent_resolution > 1:
                 ridx = random.randint(0, self.num_latent_resolution - 1)
                 vae_latent_path = vae_latent_path.replace(self._vae_latent_folder, self.latent_resolution_prefix[ridx])
 
             vae_latent_data = np.load(vae_latent_path)
-
-            # get fps from csv, or cached latents, or from original video in order
-            if "fps" in data:
-                data["fps"] = np.array(data["fps"], dtype=np.float32)
+            if "fps" in self._data[idx]:
+                data["fps"] = np.array(self._data[idx]["fps"], dtype=np.float32)
             elif "fps" in vae_latent_data:
                 data["fps"] = np.array(vae_latent_data["fps"], dtype=np.float32)
             else:
-                reader = VideoReader(data["video"])
-                self._data[idx]["fps"] = reader.get_avg_fps()  # cache FPS for further iterations
-                data["fps"] = np.array(reader.get_avg_fps(), dtype=np.float32)
-            # data["fps"] /= self._stride  # FIXME: OS v1.1 incorrectly calculates FPS
+                cap = cv2.VideoCapture(video_path, apiPreference=cv2.CAP_FFMPEG)
+                data["fps"] = cap.fps
+                cap.release()
 
             latent_mean, latent_std = vae_latent_data["latent_mean"], vae_latent_data["latent_std"]
             if len(latent_mean) < self._min_length:
@@ -224,37 +225,58 @@ class VideoDatasetRefactored(BaseDataset):
             data["video"] = (vae_latent * self._vae_scale_factor).astype(np.float32)
 
         else:
-            reader = VideoReader(data["video"])
-            min_length = self._min_length
-            video_length = len(reader)
-            if self._buckets:
-                # frame_h, frame_w, _ = reader[0].shape
-                cap = cv2.VideoCapture(data["video"], apiPreference=cv2.CAP_FFMPEG)
-                frame_w = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
-                frame_h = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-                cap.release()
-                data["bucket_id"] = self._buckets.get_bucket_id(
-                    T=video_length,
-                    H=frame_h,
-                    W=frame_w,
-                    frame_interval=self._stride,
-                )
-                if data["bucket_id"] is None:
-                    raise ValueError(
-                        f"Couldn't assign a bucket to {data['video']}" f" (T={video_length}, H={frame_h}, W={frame_w})."
+            if self.use_decord:
+                reader = VideoReader(video_path)
+                min_length = self._min_length
+                video_length = len(reader)
+                if self._buckets:
+                    cap = cv2.VideoCapture(video_path, apiPreference=cv2.CAP_FFMPEG)
+                    frame_w = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+                    frame_h = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+                    cap.release()
+                    data["bucket_id"] = self._buckets.get_bucket_id(
+                        T=video_length,
+                        H=frame_h,
+                        W=frame_w,
+                        frame_interval=self._stride,
                     )
+                    if data["bucket_id"] is None:
+                        raise ValueError(
+                            f"Couldn't assign a bucket to {data['video']}" f" (T={video_length}, H={frame_h}, W={frame_w})."
+                        )
+                    num_frames, *_ = self._buckets.get_thw(data["bucket_id"])
+                    min_length = (num_frames - 1) * self._stride + 1
 
-                num_frames, *_ = self._buckets.get_thw(data["bucket_id"])
-                min_length = (num_frames - 1) * self._stride + 1
+                if len(reader) < min_length:
+                    raise ValueError(f"Video is too short: {data['video']}")
 
-            if len(reader) < min_length:
-                raise ValueError(f"Video is too short: {data['video']}")
+                clip_length = min(video_length, min_length)
+                start_pos = random.randint(0, len(reader) - clip_length)
 
-            clip_length = min(video_length, min_length)
-            start_pos = random.randint(0, len(reader) - clip_length)
-            batch_index = np.linspace(start_pos, start_pos + clip_length - 1, num_frames, dtype=int)
-            data["video"] = reader.get_batch(batch_index).asnumpy()
-            data["fps"] = np.array(reader.get_avg_fps(), dtype=np.float32)  # / self._stride  # FIXME: OS v1.1 incorrect
+                batch_index = np.linspace(start_pos, start_pos + clip_length - 1, num_frames, dtype=int)
+                data["video"] = reader.get_batch(batch_index).asnumpy()
+                data["fps"] = np.array(reader.get_avg_fps(), dtype=np.float32)  # / self._stride  # FIXME: OS v1.1 incorrect
+                del reader
+            else:
+                with VideoReader_CV2(video_path) as reader:
+                    min_length = self._min_length
+                    if self._buckets:
+                        data["bucket_id"] = self._buckets.get_bucket_id(
+                            T=len(reader),
+                            H=reader.shape[1],
+                            W=reader.shape[0],
+                            frame_interval=self._stride,
+                        )
+                        if data["bucket_id"] is None:
+                            raise ValueError(f"Couldn't assign a bucket to {data['video']}" f" (T={len(reader)}, H={reader.shape[1]}, W={reader.shape[0]}).")
+                        num_frames, *_ = self._buckets.get_thw(data["bucket_id"])
+                        min_length = (num_frames - 1) * self._stride + 1
+
+                    if len(reader) < min_length:
+                        raise ValueError(f"Video is too short: {video_path}")
+                    start_pos = random.randint(0, len(reader) - min_length)
+                    data["video"] = reader.fetch_frames(num=num_frames, start_pos=start_pos, step=self._stride)
+                    data["fps"] = np.array(reader.fps, dtype=np.float32)
 
         data["num_frames"] = np.array(num_frames, dtype=np.float32)
 
@@ -262,7 +284,7 @@ class VideoDatasetRefactored(BaseDataset):
             # return frames mask with respect to the VAE's latent temporal compression
             data["frames_mask"] = self._fmask_gen(self._t_compress_func(num_frames))
 
-        return tuple(data[c] for c in self.output_columns)
+        return tuple(data.pop(c) for c in self.output_columns)
 
     def __getitem__(self, idx: int) -> Tuple[Any, ...]:
         try:

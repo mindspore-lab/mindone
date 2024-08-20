@@ -174,6 +174,7 @@ def parse_train_args(parser):
 
     # dataloader params
     parser.add_argument("--dataset_sink_mode", default=False, type=str2bool, help="sink mode")
+    parser.add_argument("--use_decord", default=False, type=str2bool, help="if True, use decord to read video frames, which may lead to memory leak for high-resolution videos. if False, use cv2 video capture. only valid for opensora v1.2. Default: False")
     parser.add_argument("--sink_size", default=-1, type=int, help="dataset sink size. If -1, sink size = dataset size.")
     parser.add_argument(
         "--epochs",
