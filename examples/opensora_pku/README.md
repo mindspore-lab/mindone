@@ -2,12 +2,13 @@
 
 Here we provide an efficient MindSpore version of [Open-Sora-Plan](https://github.com/PKU-YuanGroup/Open-Sora-Plan/tree/main) from Peking University. We would like to express our gratitude to their contributions! :+1:
 
-**OpenSora-PKU is still under active development.** Currently, we are in line with **Open-Sora-Plan v1.1.0**.
+**OpenSora-PKU is still under active development.** Currently, we are in line with **Open-Sora-Plan v1.2.0**.
 
 ## 📰 News & States
 
 |        Official News from OpenSora-PKU  | MindSpore Support     |
 | ------------------ | ---------- |
+| **[2024.07.24]** 🔥🔥🔥 PKU launched Open-Sora Plan v1.2.0, utilizing a 3D full attention architecture instead of 2+1D. See their latest [report](https://github.com/PKU-YuanGroup/Open-Sora-Plan/blob/main/docs/Report-v1.2.0.md). | ✅ V.1.2.0 CausalVAE inference & OpenSoraT2V multi-stage training|
 | **[2024.05.27]** 🚀🚀🚀 PKU launched Open-Sora Plan v1.1.0, which significantly improves video quality and length, and is fully open source! Please check out their latest [report](https://github.com/PKU-YuanGroup/Open-Sora-Plan/blob/main/docs/Report-v1.1.0.md). | ✅ V.1.1.0 CausalVAE inference and LatteT2V infernece & three-stage training (`65x512x512`, `221x512x512`, `513x512x512`) |
 | **[2024.04.09]** 🚀 PKU shared the latest exploration on metamorphic time-lapse video generation: [MagicTime](https://github.com/PKU-YuanGroup/MagicTime), and the dataset for train (updating): [Open-Sora-Dataset](https://github.com/PKU-YuanGroup/Open-Sora-Dataset).| N.A.  |
 | **[2024.04.07]** 🔥🔥🔥 PKU released Open-Sora-Plan v1.0.0. See their [report](https://github.com/PKU-YuanGroup/Open-Sora-Plan/blob/main/docs/Report-v1.0.0.md). | ✅ CausalVAE+LatteT2V+T5 inference and three-stage training (`17×256×256`, `65×256×256`, `65x512x512`)  |
@@ -22,36 +23,22 @@ Here we provide an efficient MindSpore version of [Open-Sora-Plan](https://githu
 
 The following videos are generated based on MindSpore and Ascend 910*.
 
-<summary>Open-Sora-Plan v1.1.0 Demo</summary>
+<summary>Open-Sora-Plan v1.2.0 Demo</summary>
 
+93×1280×720 Text-to-Video Generation.
 
-| 221×512×512 (9.2s) | 221×512×512 (9.2s) | 221×512×512 (9.2s) |
-| --- | --- | --- |
-| <img src="https://github.com/wtomin/mindone-assets/blob/main/opensora_pku/v1.1/t2v/f221/An%20aerial%20shot%20of%20a%20lighthouse%20standing%20tall%20on%20a%20rocky%20cliff,%20its%20beacon%20cutting%20through%20the%20early%20.gif?raw=true" width=224> | <img src="https://github.com/wtomin/mindone-assets/blob/main/opensora_pku/v1.1/t2v/f221/The%20camera%20rotates%20around%20a%20large%20stack%20of%20vintage%20televisions%20all%20showing%20different%20programs-1950s.gif?raw=true" width=224>  | <img src="https://github.com/wtomin/mindone-assets/blob/main/opensora_pku/v1.1/t2v/f221/The%20video%20captures%20the%20spectacle%20of%20a%20continuous%20fireworks%20show%20against%20the%20backdrop%20of%20a%20starry%20nig.gif?raw=true" width=224> |
-| An aerial shot of a lighthouse standing tall on a rocky cliff... | The camera rotates around a large stack of vintage televisions...  | The video captures the spectacle of a continuous fireworks...  |
-| <img src="https://github.com/wtomin/mindone-assets/blob/main/opensora_pku/v1.1/t2v/f221/Aerial%20view%20of%20Santorini%20during%20the%20blue%20hour%2C%20showcasing%20the%20stunning%20architecture%20of%20white%20Cycladi.gif?raw=true" width=224> |<img src="https://github.com/wtomin/mindone-assets/blob/main/opensora_pku/v1.1/t2v/f221/Drone%20shot%20along%20the%20Hawaii%20jungle%20coastline%2C%20sunny%20day.%20Kayaks%20in%20the%20water.gif?raw=true" width=224> | <img src="https://github.com/wtomin/mindone-assets/blob/main/opensora_pku/v1.1/t2v/f221/The%20video%20presents%20an%20abstract%20composition%20centered%20around%20a%20hexagonal%20shape%20adorned%20with%20a%20starburs.gif?raw=true" width=224>  |
-| Aerial view of Santorini during the blue hour... | Drone shot along the Hawaii jungle coastline...  | The video presents an abstract composition centered around a hexagonal shape...  |
+**PUt demo here**
 
-
-| 65×512×512 (2.7s) | 65×512×512 (2.7s) | 65×512×512 (2.7s) |
-| --- | --- | --- |
-| <img src="https://github.com/wtomin/mindone-assets/blob/main/opensora_pku/v1.1/t2v/f65/0-3D%20animation%20of%20a%20small,%20round,%20fluffy%20creature%20with%20big,%20expressive%20eyes%20explores%20a%20vibrant,%20enchan.gif?raw=true" width=224> | <img src="https://github.com/wtomin/mindone-assets/blob/main/opensora_pku/v1.1/t2v/f65/0-A%20corgi%20vlogging%20itself%20in%20tropical%20Maui..gif?raw=true" width=224>  | <img src="https://github.com/wtomin/mindone-assets/blob/main/opensora_pku/v1.1/t2v/f65/0-A%20painting%20of%20a%20boat%20on%20water%20comes%20to%20life,%20with%20waves%20crashing%20and%20the%20boat%20becoming%20submerged..gif?raw=true" width=224> |
-| 3D animation of a small, round, fluffy creature with... | A corgi vlogging itself in tropical Maui.  | A painting of a boat on water comes to life...  |
-| <img src="https://github.com/wtomin/mindone-assets/blob/main/opensora_pku/v1.1/t2v/f65/0-A%20solitary%20astronaut%20plants%20a%20flag%20on%20an%20alien%20planet%20covered%20in%20crystal%20formations.%20The%20shot%20tracks.gif?raw=true" width=224> |<img src="https://github.com/wtomin/mindone-assets/blob/main/opensora_pku/v1.1/t2v/f65/0-Extreme%20close-up%20of%20chicken%20and%20green%20pepper%20kebabs%20grilling%20on%20a%20barbeque%20with%20flames.%20Shallow%20focu.gif?raw=true" width=224> | <img src="https://github.com/wtomin/mindone-assets/blob/main/opensora_pku/v1.1/t2v/f65/0-In%20an%20ornate,%20historical%20hall,%20a%20massive%20tidal%20wave%20peaks%20and%20begins%20to%20crash.%20Two%20surfers,%20surfing..gif?raw=true" width=224>  |
-| A solitary astronaut plants a flag on an alien planet... | Extreme close-up of chicken and green pepper kebabs...  | In an ornate, historical hall, a massive tidal wave...  |
-
-
-
-Videos are saved to `.gif` for display. See the text prompts in `examples/prompt_list_65.txt` and `examples/prompt_list_221.txt`.
+Videos are saved to `.gif` for display.
 
 ## 🔆 Features
 
-- 📍 **Open-Sora-Plan v1.1.0** with the following features
+- 📍 **Open-Sora-Plan v1.2.0** with the following features
     - ✅ Sequence parallelism
-    - ✅ CausalVAE-4x8x8 training and inference. Supports video reconstruction.
-    - ✅ T5 TextEncoder model inference.
-    - ✅ Text-to-video generation in 512x512 resolution and up to 513 frames.
-    - ✅ Three-stage training: i) 65x512x512 pretraining; ii) 221x512x512 finetuning; iii) 513x512x512 finetuning.
+    - ✅ CausalVAEModel_D4_4x8x8 inference. Supports video reconstruction.
+    - ✅ mT5-xxl TextEncoder model inference.
+    - ✅ Text-to-video generation up to 93 frames and 720x1280 resolution.
+    - ✅ Multi-stage training.
     - ✅ Acceleration methods: flash attention, recompute (graident checkpointing), mixed precision, data parallelism, optimizer-parallel, etc..
     - ✅ Evaluation metrics : PSNR and SSIM.
 
@@ -79,13 +66,10 @@ You contributions are welcome.
 
 Other useful documents and links are listed below.
 
-* Repo structure: [structure.md](docs/structure.md)
-
-
 ## Installation
 1. Use python>=3.8 [[install]](https://www.python.org/downloads/)
 
-2. Install MindSpore 2.3 master (0705daily) according to the [website](https://repo.mindspore.cn/mindspore/mindspore/version/202407/20240705/master_20240705220018_51f414917fd9a312dd43ea62eea61cf37c3dfbd6_newest/unified/). Select the corresponding wheel file based your computer's OS and the python verison. Please use C18 CANN (0705) which can be downloaded from [here](https://repo.mindspore.cn/ascend/ascend910/20240705/).
+2. Install MindSpore 2.3.1 according to the [MindSpore official website](https://www.mindspore.cn/install/). Please use C18 CANN  which can be downloaded from [here].
 
 
 3. Install requirements
@@ -122,84 +106,90 @@ For EulerOS, instructions on ffmpeg and decord installation are as follows.
 
 ## Model Weights
 
-### Open-Sora-Plan v1.1.0 Model Weights
+### Open-Sora-Plan v1.2.0 Model Weights
 
-Please download the torch checkpoint of T5 from [DeepFloyd/t5-v1_1-xxl](https://huggingface.co/DeepFloyd/t5-v1_1-xxl), and download the opensora v1.1.0 models' weights from [LanguageBind/Open-Sora-Plan-v1.1.0](https://huggingface.co/LanguageBind/Open-Sora-Plan-v1.1.0/tree/main). Place them under `examples/opensora_pku` as shown below:
+Please download the torch checkpoint of mT5-xxl from [google/mt5-xxl](https://huggingface.co/google/mt5-xxl/tree/main), and download the opensora v1.2.0 models' weights from [LanguageBind/Open-Sora-Plan-v1.2.0](https://huggingface.co/LanguageBind/Open-Sora-Plan-v1.2.0/tree/main). Place them under `examples/opensora_pku` as shown below:
 ```bash
 opensora_pku
 ├───LanguageBind
-│   └───Open-Sora-Plan-v1.1.0
-│       ├───221x512x512
-│       │   ├───config.json
-│       │   └───diffusion_pytorch_model.safetensors
-│       ├───65x512x512
-│       │   ├───config.json
-│       │   └───diffusion_pytorch_model.safetensors
-│       └───vae
-│          ├───config.json
-│          └───diffusion_pytorch_model.safetensors
-└───DeepFloyd/
-    └───t5-v1_1-xxl
+│   └───Open-Sora-Plan-v1.2.0
+│       ├───1x480p/
+│       ├───29x480p/
+│       ├───29x720p/
+│       ├───93x480p/
+│       ├───93x480p_i2v/
+│       ├───93x720p/
+│       └───vae/
+└───google/
+    └───mt5-xxl/
         ├───config.json
-        ├───pytorch_model-00001-of-00002.bin
-        ├───pytorch_model-00002-of-00002.bin
-        ├───pytorch_model.bin.index.json
+        ├───generation_config.json
+        ├───pytorch_model.bin
         ├───special_tokens_map.json
         ├───spiece.model
         └───tokenizer_config.json
 ```
 
-After all weights being downloaded, please run the following script to run model conversion.
+Currently, we can load `.safetensors` files directly in MindSpore, but not `.bin` or `.ckpt` files. Please manually convert the mt5-xxl checkpoint by running:
 ```bash
-bash scripts/model_conversion/convert_all.sh
+python tools/model_conversion/convert_pytorch_ckpt_to_safetensors.py --src google/mt5-xxl/pytorch_model.bin --target google/mt5-xxl/model.safetensors
+```
+Besides, please manually convert the vae checkpoint by running:
+
+```bash
+python tools/model_conversion/convert_pytorch_ckpt_to_safetensors.py --src LanguageBind/Open-Sora-Plan-v1.2.0/vae/checkpoint.ckpt --target LanguageBind/Open-Sora-Plan-v1.2.0/vae/diffusion_pytorch_model.safetensors
 ```
 
+Now the checkpoint files have all been prepared.
 
 ## Inference
 
 ### CausalVAE Command Line Inference
 
-You can run video-to-video reconstruction task using `scripts/causalvae/reconstruction.sh`:
+You can run video-to-video reconstruction task using `scripts/causalvae/rec_video.sh`:
 ```bash
-python examples/rec_imvi_vae.py \
-    --model_path LanguageBind/Open-Sora-Plan-v1.1.0/vae \
+python examples/rec_video.py \
+    --ae_path LanguageBind/Open-Sora-Plan-v1.2.0/vae \
     --video_path test.mp4 \
     --rec_path rec.mp4 \
     --device Ascend \
     --sample_rate 1 \
-    --num_frames 513 \
-    --resolution 256 \
-    --crop_size 256 \
-    --ae CausalVAEModel_4x8x8
+    --num_frames 65 \
+    --height 480 \
+    --width 640 \
+    --enable_tiling \
+    --tile_overlap_factor 0.125 \
+    --save_memory
 ```
 Please change the `--video_path` to the existing video file path and `--rec_path` to the reconstructed video file path. You can set `--grid` to save the original video and the reconstructed video in the same output file.
 
-You can also run video reconstruction given an input video folder. See `scripts/causalvae/gen_video.sh`.
+You can also run video reconstruction given an input video folder. See `scripts/causalvae/rec_video_folder.sh`.
 
-### Open-Sora-Plan v1.1.0 Command Line Inference
+### Open-Sora-Plan v1.2.0 Command Line Inference
 
-You can run text-to-video inference on a single Ascend device using the script `scripts/text_condition/sample_video_65.sh` or `scripts/text_condition/sample_video_221.sh`.
+You can run text-to-video inference on a single Ascend device using the script `scripts/text_condition/sample_t2v.sh`.
 ```bash
 python opensora/sample/sample_t2v.py \
-    --model_path LanguageBind/Open-Sora-Plan-v1.1.0 \
-    --text_encoder_name DeepFloyd/t5-v1_1-xxl \
-    --text_prompt examples/prompt_list_65.txt \
-    --ae CausalVAEModel_4x8x8 \
-    --version 65x512x512 \
-    --num_frames 65 \
-    --height 512 \
-    --width 512 \
-    --save_img_path "./sample_videos/prompt_list_65" \
+    --model_path LanguageBind/Open-Sora-Plan-v1.2.0/29x720p \
+    --num_frames 29 \
+    --height 720 \
+    --width 1280 \
+    --cache_dir "./" \
+    --text_encoder_name google/mt5-xxl \
+    --text_prompt examples/prompt_list_0.txt \
+    --ae CausalVAEModel_D4_4x8x8  \
+    --ae_path LanguageBind/Open-Sora-Plan-v1.2.0/vae\
+    --save_img_path "./sample_videos/prompt_list_0_29x720p" \
     --fps 24 \
     --guidance_scale 7.5 \
-    --num_sampling_steps 150 \
-    --enable_tiling
+    --num_sampling_steps 100 \
+    --enable_tiling \
+    --max_sequence_length 512 \
+    --sample_method EulerAncestralDiscrete \
+    --model_type "dit" \
 ```
-You can change the `version` to `221x512x512` to change the number of frames and resolutions.
+You can change the `num_frames`, `height` and `width` to match with the training shape of different checkpoints, e.g., `93x720p` requires `num_frames=93`, `height=720` and `width=1280`.
 
-> In case of OOM error, there are two options:
-> 1. Pass `--enable_time_chunk True` to allow vae decoding temporal frames as small, overlapped chunks. This can reduce the memory usage, which sacrificies a bit of temporal consistency.
-> 2. Seperate the inference into two stages. In stage 1, please run inference with `--save_latents`. This will save some `.npy` files in the output directory. Then in stage 2, please run the same inference script with `--decode_latents`. The generated videos will be saved in the output directory.
 
 If you want to run a multi-device inference, e.g., 8 cards, please use `msrun` and pass `--use_parallel=True` as the example below:
 
@@ -229,7 +219,7 @@ Please edit the `master_port` to a different port number in the range 1024 to 65
 
 **Step 1: Downloading Datasets**:
 
-To train the causal vae model, you need to prepare a video dataset. You can download this video dataset from [Open-Sora-Dataset-v1.1.0](https://huggingface.co/datasets/LanguageBind/Open-Sora-Plan-v1.1.0/tree/main). We give a tutorial on how to download these datasets. See [downloading tutorial](./tools/download/README.md).
+To train the causal vae model, you need to prepare a video dataset. Open-Sora-Plan-v1.2.0 trains vae in two stages. In the first, the authors trained vae on the Kinetic400 video dataset. Please download K400 dataset from [this repository](https://github.com/cvdfoundation/kinetics-dataset). In the second stage, they trained vae on Open-Sora-Dataset-v1.1.0. We give a tutorial on how to download these datasets. See [downloading tutorial](./tools/download/README.md).
 
 **Step 2: Converting Pretrained Weights**:
 
@@ -350,6 +340,23 @@ Here are the evaluation metrics of the checkpoint file trained for 135k steps:
 
 **Step 1: Downloading Datasets**:
 
+
+The [Open-Sora-Dataset-v1.2.0](https://huggingface.co/datasets/LanguageBind/Open-Sora-Plan-v1.2.0) contains annotation json files, which are listed below:
+
+```text
+Panda70M_HQ1M.json
+Panda70M_HQ6M.json
+sam_image_11185255_resolution.json
+v1.1.0_HQ_part1.json
+v1.1.0_HQ_part2.json
+v1.1.0_HQ_part3.json
+```
+
+Please check the [readme doc](https://huggingface.co/datasets/LanguageBind/Open-Sora-Plan-v1.2.0) for details of these annotation files. [Open-Sora-Dataset-v1.2.0](https://huggingface.co/datasets/LanguageBind/Open-Sora-Plan-v1.2.0) also utilizes the data from [Open-Sora-Dataset-v1.1.0](https://huggingface.co/datasets/LanguageBind/Open-Sora-Plan-v1.1.0/tree/main). You can take the following instructions only how to download [Open-Sora-Dataset-v1.1.0](https://huggingface.co/datasets/LanguageBind/Open-Sora-Plan-v1.1.0/tree/main).
+
+
+<details>
+<summary> How to download Open-Sora-Dataset-v1.1.0? </summary>
 The [Open-Sora-Dataset-v1.1.0](https://huggingface.co/datasets/LanguageBind/Open-Sora-Plan-v1.1.0/tree/main) includes three image-text datasets and three video-text datasets. As reported in [Report v1.1.0](https://github.com/PKU-YuanGroup/Open-Sora-Plan/blob/main/docs/Report-v1.1.0.md), the three image-text datasets are:
 | Name | Image Source | Text Captioner | Num pair |
 |---|---|---|---|
@@ -407,6 +414,8 @@ anno_jsons/
 ├───anytext_en_1886137.json
 └───sam_image_11185255.json
 ```
+</details>
+
 
 **Step 2: Extracting Embedding Cache**:
 

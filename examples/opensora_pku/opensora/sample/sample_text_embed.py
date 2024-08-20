@@ -10,14 +10,18 @@ import pandas as pd
 import yaml
 from tqdm import tqdm
 
+import mindspore as ms
+
 mindone_lib_path = os.path.abspath("../../")
 sys.path.insert(0, mindone_lib_path)
 sys.path.append(os.path.abspath("./"))
 from opensora.dataset.text_dataset import create_dataloader
-from opensora.models.text_encoder.t5 import T5Embedder
+from opensora.dataset.transform import t5_text_preprocessing as text_preprocessing
 from opensora.utils.ms_utils import init_env
 from opensora.utils.utils import get_precision
+from transformers import AutoTokenizer
 
+from mindone.transformers import MT5EncoderModel
 from mindone.utils.amp import auto_mixed_precision
 from mindone.utils.config import str2bool
 from mindone.utils.logger import set_logger
@@ -75,18 +79,14 @@ def main(args):
         dataset_size = dataset.get_dataset_size()
         logger.info(f"Num batches: {dataset_size}")
 
-    logger.info("T5 init")
-    text_encoder = T5Embedder(
-        dir_or_name=args.text_encoder_name,
-        model_max_length=args.model_max_length,
-        cache_dir="./",
-    )
-
+    logger.info("mT5-xxl init")
+    text_encoder = MT5EncoderModel.from_pretrained(args.text_encoder_name, cache_dir=args.cache_dir)
+    tokenizer = AutoTokenizer.from_pretrained(args.text_encoder_name, cache_dir=args.cache_dir)
     # mixed precision
     text_encoder_dtype = get_precision(args.precision)
     text_encoder = auto_mixed_precision(text_encoder, amp_level="O2", dtype=text_encoder_dtype)
-    text_encoder.dtype = text_encoder_dtype
     logger.info(f"Use amp level O2 for text encoder T5 with dtype={text_encoder_dtype}")
+
     # infer
     if args.data_file_path is not None:
         if args.output_path is None:
@@ -104,9 +104,25 @@ def main(args):
             captions = data["caption"]
             captions = [str(captions[i]) for i in range(len(captions))]
             # print(captions)
+            captions = [
+                text_preprocessing(
+                    prompt,
+                )
+                for prompt in captions
+            ]
+            text_inputs = tokenizer(
+                captions,
+                padding="max_length",
+                max_length=args.model_max_length,
+                truncation=True,
+                add_special_tokens=True,
+                return_tensors=None,
+            )
+            text_tokens = ms.Tensor(text_inputs.input_ids)
+            mask = ms.Tensor(text_inputs.attention_mask)
 
-            text_tokens, mask = text_encoder.get_text_tokens_and_mask(captions, return_tensor=True)
-            text_emb = text_encoder(text_tokens, mask)
+            text_emb = text_encoder(text_tokens, attention_mask=mask)
+            text_emb = text_emb[0] if isinstance(text_emb, (list, tuple)) else text_emb
 
             end_time = time.time()
             time_cost = end_time - start_time
@@ -148,10 +164,25 @@ def main(args):
         for i in tqdm(range(0, len(captions), args.batch_size)):
             batch_prompts = captions[i : i + args.batch_size]
             ns = len(batch_prompts)
+            batch_prompts = [
+                text_preprocessing(
+                    prompt,
+                )
+                for prompt in batch_prompts
+            ]
+            text_inputs = tokenizer(
+                batch_prompts,
+                padding="max_length",
+                max_length=args.model_max_length,
+                truncation=True,
+                add_special_tokens=True,
+                return_tensors=None,
+            )
+            batch_text_tokens = ms.Tensor(text_inputs.input_ids)
+            batch_mask = ms.Tensor(text_inputs.attention_mask)
 
-            batch_text_tokens, batch_mask = text_encoder.get_text_tokens_and_mask(batch_prompts, return_tensor=True)
-            batch_text_emb = text_encoder(batch_text_tokens, batch_mask)
-
+            batch_text_emb = text_encoder(batch_text_tokens, attention_mask=batch_mask)
+            batch_text_emb = batch_text_emb[0] if isinstance(batch_text_emb, (list, tuple)) else batch_text_emb
             # save result
             batch_mask = batch_mask.asnumpy().astype(np.uint8)
             batch_text_emb = batch_text_emb.asnumpy().astype(np.float32)
@@ -244,7 +275,7 @@ def parse_args():
     )
 
     parser.add_argument("--batch_size", default=8, type=int, help="batch size")
-    parser.add_argument("--model_max_length", type=int, default=300)
+    parser.add_argument("--model_max_length", type=int, default=512)
     parser.add_argument("--jit_level", default="O0", help="Set jit level: # O0: KBK, O1:DVM, O2: GE")
     default_args = parser.parse_args()
     __dir__ = os.path.dirname(os.path.abspath(__file__))

@@ -360,7 +360,7 @@ if __name__ == "__main__":
     # mixed precision
     text_encoder_dtype = get_precision(args.text_encoder_precision)
     text_encoder = auto_mixed_precision(text_encoder, amp_level="O2", dtype=text_encoder_dtype)
-    text_encoder.dtype = text_encoder_dtype
+
     logger.info(f"Use amp level O2 for text encoder T5 with dtype={text_encoder_dtype}")
 
     # 3. build inference pipeline
@@ -377,7 +377,6 @@ if __name__ == "__main__":
     else:
         raise ValueError(f"Not supported sampling method {args.sample_method}")
 
-    text_encoder = text_encoder.model
     pipeline = OpenSoraPipeline(
         vae=vae,
         text_encoder=text_encoder,
