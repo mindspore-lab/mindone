@@ -119,7 +119,7 @@ class OpenSoraT2V(ModelMixin, ConfigMixin):
         self.inner_dim = self.config.num_attention_heads * self.config.attention_head_dim
         self.in_channels = in_channels
         self.out_channels = in_channels if out_channels is None else out_channels
-        self.gradient_checkpointing = False
+        self.gradient_checkpointing = use_recompute
         self.config.hidden_size = self.inner_dim
         use_additional_conditions = False
         self.use_additional_conditions = use_additional_conditions
@@ -145,7 +145,6 @@ class OpenSoraT2V(ModelMixin, ConfigMixin):
         # Initialize the output blocks and other projection blocks when necessary.
         self._init_patched_inputs(norm_type=norm_type)
 
-        self.gradient_checkpointing = False
         if self.use_recompute:
             num_no_recompute = self.config.num_no_recompute
             num_blocks = len(self.transformer_blocks)

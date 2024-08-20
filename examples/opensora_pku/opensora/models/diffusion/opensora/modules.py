@@ -15,7 +15,6 @@ from mindone.diffusers.models.attention import FeedForward, GatedSelfAttentionDe
 from mindone.diffusers.models.attention_processor import Attention as Attention_
 from mindone.diffusers.models.embeddings import SinusoidalPositionalEmbedding
 from mindone.diffusers.models.normalization import AdaLayerNorm, AdaLayerNormContinuous, AdaLayerNormZero
-from mindone.diffusers.utils import deprecate
 from mindone.utils.version_control import check_valid_flash_attention, choose_flash_attention_dtype
 
 from .rope import PositionGetter3D, RoPE3D
@@ -160,6 +159,7 @@ class Attention(Attention_):
         super().__init__(**kwags)
         if attention_mode == "xformers":
             self.set_use_memory_efficient_attention_xformers(True)
+        self.processor = processor
         self.downsampler = None
         if downsampler:  # downsampler  k155_s122
             downsampler_ker_size = list(re.search(r"k(\d{2,3})", downsampler).group(1))  # 122
@@ -339,7 +339,7 @@ class AttnProcessor2_0:
         if attn.head_dim_padding > 0:
             if input_layout == "BNSD":
                 hidden_states = hidden_states_padded[..., : attn.head_dim]
-            elif input_layout == "BSH":
+            else:
                 hidden_states = hidden_states_padded.view(Bs, query_tokens, attn.heads, -1)[..., : attn.head_dim]
                 hidden_states = hidden_states.view(Bs, query_tokens, -1)
         else:
@@ -379,14 +379,7 @@ class AttnProcessor2_0:
         frame: int = 8,
         height: int = 16,
         width: int = 16,
-        *args,
-        **kwargs,
     ) -> ms.Tensor:
-        if len(args) > 0 or kwargs.get("scale", None) is not None:
-            deprecation_message = "The `scale` argument is deprecated and will be ignored. Please remove it, as passing it will raise \
-                an error in the future. `scale` should directly be passed while calling the underlying pipeline component i.e., via `cross_attention_kwargs`."
-            deprecate("scale", "1.0.0", deprecation_message)
-
         if attn.downsampler is not None:
             hidden_states, attention_mask = attn.downsampler(hidden_states, attention_mask, t=frame, h=height, w=width)
             frame, height, width = attn.downsampler.t, attn.downsampler.h, attn.downsampler.w

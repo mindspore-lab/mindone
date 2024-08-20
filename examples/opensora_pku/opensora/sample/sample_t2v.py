@@ -354,7 +354,7 @@ if __name__ == "__main__":
     for param in transformer_model.get_parameters():  # freeze transformer_model
         param.requires_grad = False
 
-    logger.info("T5 init")
+    logger.info("mT5-xxl init")
     text_encoder = MT5EncoderModel.from_pretrained(args.text_encoder_name, cache_dir=args.cache_dir)
     tokenizer = AutoTokenizer.from_pretrained(args.text_encoder_name, cache_dir=args.cache_dir)
     # mixed precision
