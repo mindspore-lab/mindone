@@ -70,7 +70,7 @@ def parse_args():
         help="If set to `True`, the requested height and width are first mapped to the closest resolutions of the bins",
     )
     parser.add_argument(
-        "--checkpoint", default="models/PixArt-XL-2-512x512.ckpt", help="Path to the PixArt checkpoint."
+        "--checkpoint", default="models/PixArt-Sigma-XL-2-512-MS.ckpt", help="Path to the PixArt checkpoint."
     )
     parser.add_argument("--vae_root", default="models/vae", help="Path storing the VAE checkpoint and configure file.")
     parser.add_argument(

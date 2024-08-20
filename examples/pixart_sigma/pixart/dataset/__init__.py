@@ -1,3 +1,3 @@
 from .constant import *
-from .dataset import LatentDataset
+from .dataset import ImageDataset
 from .utils import *

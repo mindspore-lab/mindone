@@ -1,5 +1,3 @@
-from typing import Optional
-
 from pixart.diffusion import SpacedDiffusion
 from pixart.diffusion.diffusion_utils import (
     _extract_into_tensor,
@@ -21,9 +19,9 @@ class NetworkWithLoss(nn.Cell):
         self,
         network: PixArt,
         diffusion: SpacedDiffusion,
-        vae: Optional[AutoencoderKL] = None,
-        text_encoder: Optional[T5EncoderModel] = None,
-        scale_factor: float = 0.18215,
+        vae: AutoencoderKL,
+        text_encoder: T5EncoderModel,
+        scale_factor: float = 0.13025,
     ) -> None:
         super().__init__(auto_prefix=False)
         self.network = network
@@ -32,18 +30,22 @@ class NetworkWithLoss(nn.Cell):
         self.diffusion = diffusion
         self.scale_factor = scale_factor
 
+        # freeze vae and text encoder
+        self.vae.set_train(False)
+        for param in self.vae.trainable_params():
+            param.requires_grad = False
+
+        self.text_encoder.set_train(False)
+        for param in self.text_encoder.trainable_params():
+            param.requires_grad = False
+
     def get_latents(self, x: Tensor) -> Tensor:
-        if self.vae is None:
-            image_latents = x
-        else:
-            image_latents = ops.stop_gradient(self.vae.encode(x))
+        image_latents = ops.stop_gradient(self.vae.encode(x)[0])
         image_latents = image_latents * self.scale_factor
         return image_latents
 
-    def get_text_emb(self, x: Tensor, mask: Optional[Tensor] = None) -> Tensor:
-        if self.text_encoder is None:
-            return x
-        text_emb = ops.stop_gradient(self.text_encoder(x, mask))
+    def get_text_emb(self, x: Tensor) -> Tensor:
+        text_emb = ops.stop_gradient(self.text_encoder(input_ids=x)[0])
         return text_emb
 
     def _cal_vb(self, model_output, model_var_values, x, x_t, t):
@@ -72,7 +74,7 @@ class NetworkWithLoss(nn.Cell):
             text_mask: Text Mask
         """
         x = self.get_latents(x)
-        text_emb = self.get_text_emb(text, text_mask)
+        text_emb = self.get_text_emb(text)
         loss = self.compute_loss(x, text_emb, text_mask)
         return loss
 
