@@ -221,10 +221,9 @@ def initialize_dataset(
     else:
         from opensora.datasets.bucket import Bucket, bucket_split_function
         from opensora.datasets.mask_generator import MaskGenerator
-        from opensora.datasets.video_dataset_refactored import VideoDatasetRefactored
+        from opensora.datasets.video_dataset_refactored import VideoDatasetRefactored, create_dataloader
 
-        from mindone.data import create_dataloader
-
+        # from mindone.data import create_dataloader
         if validation:
             mask_gen = MaskGenerator({"identity": 1.0})
             all_buckets, individual_buckets = None, [None]
@@ -241,6 +240,11 @@ def initialize_dataset(
             all_buckets = Bucket(bucket_config) if bucket_config is not None else None
             individual_buckets = [all_buckets]
 
+        # output_columns=["video", "caption", "mask", "fps", "num_frames", "frames_mask"],
+        output_columns = ["video", "caption", "mask", "frames_mask", "num_frames", "height", "width", "fps", "ar"]
+        if args.pre_patchify:
+            output_columns.extend(["spatial_pos", "spatial_mask", "temporal_pos", "temporal_mask"])
+
         datasets = [
             VideoDatasetRefactored(
                 csv_path=csv_path,
@@ -254,7 +258,6 @@ def initialize_dataset(
                 t_compress_func=lambda x: vae.get_latent_size((x, None, None))[0],
                 buckets=buckets,
                 filter_data=args.filter_data,
-                output_columns=["video", "caption", "mask", "fps", "num_frames", "frames_mask"],
                 pre_patchify=args.pre_patchify,
                 patch_size=latte_model.patch_size,
                 embed_dim=latte_model.hidden_size,
@@ -262,37 +265,28 @@ def initialize_dataset(
                 max_target_size=args.max_image_size,
                 input_sq_size=latte_model.input_sq_size,
                 in_channels=latte_model.in_channels,
-                use_decord=args.use_decord,
+                apply_train_transforms=True,
+                target_size=(img_h, img_w),
+                video_backend=args.video_backend,
+                output_columns=output_columns,
             )
             for buckets in individual_buckets
         ]
 
         num_src_samples = sum([len(ds) for ds in datasets])
 
-        project_columns = ["video", "caption", "mask", "frames_mask", "num_frames", "height", "width", "fps", "ar"]
-        if args.pre_patchify:
-            project_columns.extend(["spatial_pos", "spatial_mask", "temporal_pos", "temporal_mask"])
-
         dataloaders = [
             create_dataloader(
                 dataset,
                 batch_size=batch_size if all_buckets is None else 0,  # Turn off batching if using buckets
-                transforms=dataset.train_transforms(
-                    target_size=(img_h, img_w), tokenizer=None  # Tokenizer isn't supported yet
-                ),
                 shuffle=not validation,
                 device_num=device_num,
                 rank_id=rank_id,
-                num_workers=args.num_parallel_workers,
-                num_workers_dataset=args.num_workers_dataset,
-                num_workers_batch=args.num_workers_batch,
+                num_parallel_workers=args.num_parallel_workers,
                 drop_remainder=not validation,
-                python_multiprocessing=args.data_multiprocessing,
                 prefetch_size=args.prefetch_size,
                 max_rowsize=args.max_rowsize,
                 debug=args.debug,
-                # Sort output columns to match DiffusionWithLoss input
-                project_columns=project_columns,
             )
             for dataset in datasets
         ]

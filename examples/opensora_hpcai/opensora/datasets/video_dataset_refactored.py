@@ -14,11 +14,13 @@ from decord import VideoReader
 from mindone.data.video_reader import VideoReader as VideoReader_CV2
 from tqdm import tqdm
 
+import mindspore as ms
 from mindspore.dataset.transforms import Compose
 from mindspore.dataset.vision import CenterCrop, Inter, Normalize
 
 from .bucket import Bucket
 from .transforms import BucketResizeCrop, Resize
+from .transforms import ResizeAndCrop, BucketResizeAndCrop
 
 # FIXME: remove in future when mindone is ready for install
 sys.path.append(os.path.join(os.path.dirname(__file__), "../../../.."))
@@ -43,6 +45,19 @@ def create_infer_transforms(target_size: Tuple[int, int], interpolation=Inter.BI
     )
 
 
+def create_train_transforms(target_size, buckets=None):
+    """
+    expect rgb image in range 0-255, shape (h w c)
+    """
+
+    if buckets is None:
+        transforms = ResizeAndCrop(target_size[0], target_size[1])
+    else:
+        transforms = BucketResizeAndCrop(buckets)
+
+    return transforms
+
+
 class VideoDatasetRefactored(BaseDataset):
     def __init__(
         self,
@@ -65,10 +80,14 @@ class VideoDatasetRefactored(BaseDataset):
         in_channels: int = 4,
         buckets: Optional[Bucket] = None,
         filter_data: bool = False,
-        use_decord: bool = False,
+        apply_train_transforms: bool = False,
+        target_size: Optional[Tuple[int]] = None,
+        tokenizer=None,
+        video_backend: str = 'cv2',
         *,
         output_columns: List[str],
     ):
+        assert tokenizer is None, 'tokenizer is not supported'
         if pre_patchify and vae_latent_folder is None:
             raise ValueError("`vae_latent_folder` must be provided when `pre_patchify=True`.")
         if text_emb_folder is None:
@@ -121,7 +140,13 @@ class VideoDatasetRefactored(BaseDataset):
                 _logger.info("Multi-resolution latents detected: {}".format(self.num_latent_resolution))
         
         # decord has better performance and may incur memory leak for high-resolution videos
-        self.use_decord = use_decord
+        self.video_backend = video_backend 
+
+        self.apply_train_transforms = apply_train_transforms 
+        if self.apply_train_transforms:
+            self.pixel_transforms = create_train_transforms(target_size, buckets=buckets)
+            self.output_columns.remove("bucket_id")
+            assert pre_patchify==False, 'transforms for prepatchify not implemented yet' 
 
         # prepare replacement data in case the loading of a sample fails
         self._prev_ok_sample = self._get_replacement()
@@ -222,10 +247,10 @@ class VideoDatasetRefactored(BaseDataset):
 
             latent_mean, latent_std = latent_mean[batch_index], latent_std[batch_index]
             vae_latent = latent_mean + latent_std * np.random.standard_normal(latent_mean.shape)
-            data["video"] = (vae_latent * self._vae_scale_factor).astype(np.float32)
+            video = (vae_latent * self._vae_scale_factor).astype(np.float32)
 
         else:
-            if self.use_decord:
+            if self.video_backend == 'decord':
                 reader = VideoReader(video_path)
                 min_length = self._min_length
                 video_length = len(reader)
@@ -254,10 +279,10 @@ class VideoDatasetRefactored(BaseDataset):
                 start_pos = random.randint(0, len(reader) - clip_length)
 
                 batch_index = np.linspace(start_pos, start_pos + clip_length - 1, num_frames, dtype=int)
-                data["video"] = reader.get_batch(batch_index).asnumpy()
+                video = reader.get_batch(batch_index).asnumpy()
                 data["fps"] = np.array(reader.get_avg_fps(), dtype=np.float32)  # / self._stride  # FIXME: OS v1.1 incorrect
                 del reader
-            else:
+            elif self.video_backend == 'cv2':
                 with VideoReader_CV2(video_path) as reader:
                     min_length = self._min_length
                     if self._buckets:
@@ -275,16 +300,48 @@ class VideoDatasetRefactored(BaseDataset):
                     if len(reader) < min_length:
                         raise ValueError(f"Video is too short: {video_path}")
                     start_pos = random.randint(0, len(reader) - min_length)
-                    data["video"] = reader.fetch_frames(num=num_frames, start_pos=start_pos, step=self._stride)
+                    video = reader.fetch_frames(num=num_frames, start_pos=start_pos, step=self._stride)
                     data["fps"] = np.array(reader.fps, dtype=np.float32)
+            else:
+                # TODO: add pyav backend and test
+                raise NotImplementedError
 
         data["num_frames"] = np.array(num_frames, dtype=np.float32)
 
         if self._fmask_gen is not None:
             # return frames mask with respect to the VAE's latent temporal compression
             data["frames_mask"] = self._fmask_gen(self._t_compress_func(num_frames))
+        
+        data["video"] = video
 
-        return tuple(data.pop(c) for c in self.output_columns)
+        # apply transforms on video frames here
+        if self.apply_train_transforms:
+            # variable resize and crop, frame-wise
+            clip = []
+            for i in range(num_frames):
+                if self._buckets:
+                    resized_img = self.pixel_transforms(video[i], bucket_id=data["bucket_id"])
+                else:
+                    resized_img = self.pixel_transforms(video[i])
+                clip.append(resized_img)
+            clip = np.stack(clip, axis=0)
+
+            # transpose and norm, clip-wise 
+            clip = np.transpose(clip, (0, 3, 1, 2))
+            clip = np.divide(clip, 127.5, dtype=np.float32)  # faster
+            clip = np.subtract(clip, 1.0, dtype=np.float32)
+
+            # additional conditions for model
+            data["height"] = np.array(clip.shape[-2], dtype=np.float32)
+            data["width"] = np.array(clip.shape[-1], dtype=np.float32)
+            # NOTE: here ar = h / w, aligned to torch, while the common practice is w / h
+            data["ar"] = np.array(clip.shape[-2] / clip.shape[-1], dtype=np.float32)
+            data["video"] = clip
+        
+        final_outputs = tuple(data.pop(c) for c in self.output_columns)
+        del data
+
+        return final_outputs
 
     def __getitem__(self, idx: int) -> Tuple[Any, ...]:
         try:
@@ -336,6 +393,7 @@ class VideoDatasetRefactored(BaseDataset):
     def __len__(self):
         return len(self._data)
 
+   
     def train_transforms(
         self, target_size: Tuple[int, int], tokenizer: Optional[Callable[[str], np.ndarray]] = None
     ) -> List[dict]:
@@ -353,8 +411,8 @@ class VideoDatasetRefactored(BaseDataset):
                     },
                     {
                         "operations": [
-                            lambda x: (x / 255.0).astype(np.float32),  # ms.ToTensor() doesn't support 4D data
-                            Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5]),
+                            lambda x: np.divide(x, 127.5, dtype=np.float32),
+                            lambda x: np.subtract(x, 1.0, dtype=np.float32),
                             lambda x: np.transpose(x, (0, 3, 1, 2)),  # ms.HWC2CHW() doesn't support 4D data
                         ],
                         "input_columns": ["video"],
@@ -369,14 +427,14 @@ class VideoDatasetRefactored(BaseDataset):
                     "operations": [
                         Resize(target_size, interpolation=Inter.BILINEAR),
                         CenterCrop(target_size),
-                        lambda x: (x / 255.0).astype(np.float32),  # ms.ToTensor() doesn't support 4D data
-                        Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5]),
-                        lambda x: np.transpose(x, (0, 3, 1, 2)),  # ms.HWC2CHW() doesn't support 4D data
+                        lambda x: np.divide(x, 127.5, dtype=np.float32),
+                        lambda x: np.subtract(x, 1.0, dtype=np.float32),
+                        lambda x: np.transpose(x, (0, 3, 1, 2)),
                     ],
                     "input_columns": ["video"],
                 }
             )
-
+        # the followings are not transformation for video frames, can be excluded
         transforms.append(
             {
                 "operations": [
@@ -407,3 +465,80 @@ class VideoDatasetRefactored(BaseDataset):
             transforms.append({"operations": [tokenizer], "input_columns": ["caption"]})
 
         return transforms
+
+
+def create_dataloader(
+    dataset,
+    batch_size: int = 1,
+    shuffle: bool = False,
+    num_parallel_workers: int = 8,
+    drop_remainder: bool = True,
+    prefetch_size: int = 16,
+    max_rowsize: int = 64,
+    device_num: int = 1,
+    rank_id: int = 0,
+    debug: bool = False,
+    enable_modelarts: bool = False,
+):
+    """
+    Builds and returns a DataLoader for the given dataset.
+
+    Args:
+        dataset: A dataset instance, must have `output_columns` member.
+        batch_size: Number of samples per batch. Set to 0 to disable batching. Default is 1.
+        transforms: Optional transformations to apply to the dataset. It can be a list of transform dictionaries or
+                    a single transform dictionary. The dictionary must have the following structure:
+                    {
+                        "operations": [List of transform operations],               # Required
+                        "input_columns": [List of columns to apply transforms to],  # Optional
+                        "output_columns": [List of output columns]                  # Optional, only used if different from the `input columns`
+                    }
+        project_columns: Optional list of output columns names from transformations.
+                         These names can be used for column selection or sorting in a specific order.
+        shuffle: Whether to randomly sample data. Default is False.
+        num_workers_dataset: The number of workers used for reading data from the dataset. Default is 4.
+        num_workers_batch: The number of workers used for batch aggregation. Default is 2.
+        drop_remainder: Whether to drop the remainder of the dataset if it doesn't divide evenly by `batch_size`.
+                        Default is True.
+        prefetch_size: The number of samples to prefetch (per device). Default is 16.
+        max_rowsize: Maximum size of row in MB that is used for shared memory allocation to copy data between processes.
+                     This is only used if `python_multiprocessing` is set to `True`. Default is 64.
+        device_num: The number of devices to distribute the dataset across. Default is 1.
+        rank_id: The rank ID of the current device. Default is 0.
+        debug: Whether to enable debug mode. Default is False.
+
+    Returns:
+        ms.dataset.BatchDataset: The DataLoader for the given dataset.
+    """
+    if not hasattr(dataset, "output_columns"):
+        raise AttributeError(f"{type(dataset).__name__} must have `output_columns` attribute.")
+
+    ms.dataset.config.set_prefetch_size(prefetch_size)
+    # ms.dataset.config.set_enable_shared_mem(True)   # shared memory is ON by default
+    ms.dataset.config.set_debug_mode(debug)
+
+    dataloader = ms.dataset.GeneratorDataset(
+        dataset,
+        column_names=dataset.output_columns,
+        num_parallel_workers=num_parallel_workers,
+        num_shards=device_num,
+        shard_id=rank_id,
+        python_multiprocessing=True,
+        shuffle=shuffle,
+    )
+
+    if getattr(dataset, "pad_info", None):
+        if batch_size > 0:
+            dataloader = dataloader.padded_batch(
+                batch_size,
+                drop_remainder=drop_remainder,
+                pad_info=dataset.pad_info,
+            )
+    else:
+        if batch_size > 0:
+            dataloader = dataloader.batch(
+                batch_size,
+                drop_remainder=drop_remainder,
+            )
+
+    return dataloader
