@@ -757,5 +757,8 @@ class PositionEmbedding2D(nn.Cell):
 def t_mask_select(x_mask: Tensor, x: Tensor, masked_x: Tensor, T: int, S: int) -> Tensor:
     x = x.reshape(x.shape[0], T, S, x.shape[-1])  # B (T S) C -> B T S C
     masked_x = masked_x.reshape(masked_x.shape[0], T, S, masked_x.shape[-1])  # B (T S) C -> B T S C
-    x = ops.where(x_mask[:, :, None, None], x, masked_x)  # x_mask: [B, T]
+    # x = ops.where(x_mask[:, :, None, None], x, masked_x)  # x_mask: [B, T]
+    # FIXME: after optimizing the performance of the where operator, change it back to where
+    x_mask = x_mask[:, :, None, None].to(x.dtype)
+    x = x_mask * x + (1 - x_mask) * masked_x
     return x.reshape(x.shape[0], T * S, x.shape[-1])  # B T S C -> B (T S) C
