@@ -39,6 +39,8 @@ from mindone.diffusers.schedulers import (
     PNDMScheduler,
 )
 from mindone.transformers import MT5EncoderModel
+from mindone.transformers.activations import NewGELUActivation
+from mindone.transformers.models.mt5.modeling_mt5 import MT5LayerNorm
 from mindone.utils.amp import auto_mixed_precision
 from mindone.utils.config import str2bool
 from mindone.utils.logger import set_logger
@@ -391,7 +393,10 @@ if __name__ == "__main__":
     tokenizer = AutoTokenizer.from_pretrained(args.text_encoder_name, cache_dir=args.cache_dir)
     # mixed precision
     text_encoder_dtype = get_precision(args.text_encoder_precision)
-    text_encoder = auto_mixed_precision(text_encoder, amp_level="O2", dtype=text_encoder_dtype)
+    custom_fp32_cells = [NewGELUActivation, MT5LayerNorm]
+    text_encoder = auto_mixed_precision(
+        text_encoder, amp_level="O2", dtype=text_encoder_dtype, custom_fp32_cells=custom_fp32_cells
+    )
 
     logger.info(f"Use amp level O2 for {args.text_encoder_name} with dtype={text_encoder_dtype}")
 
