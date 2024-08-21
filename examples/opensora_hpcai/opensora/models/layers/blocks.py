@@ -26,9 +26,7 @@ class LlamaRMSNorm(nn.Cell):
         self.variance_epsilon = eps
 
     def construct(self, hidden_states: Tensor):
-        variance = hidden_states.pow(2).mean(-1, keep_dims=True)
-        hidden_states = hidden_states * ops.rsqrt(variance + self.variance_epsilon)
-        return self.gamma * hidden_states
+        return ops.rms_norm(hidden_states, self.gamma, self.variance_epsilon)[0]
 
 
 class Attention(nn.Cell):
