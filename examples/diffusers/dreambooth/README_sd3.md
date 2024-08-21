@@ -11,7 +11,7 @@ The `train_dreambooth_sd3.py` script shows how to implement the training procedu
 huggingface-cli login
 ```
 
-## Running locally with PyTorch
+## Running locally with MindSpore
 
 ### Installing the dependencies
 
