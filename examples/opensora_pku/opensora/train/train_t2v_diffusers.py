@@ -27,7 +27,7 @@ from opensora.utils.utils import get_precision
 from transformers import AutoTokenizer
 
 from mindone.diffusers.models.embeddings import PixArtAlphaCombinedTimestepSizeEmbeddings
-from mindone.diffusers.schedulers import DDPMScheduler
+from mindone.diffusers.schedulers import DDPMScheduler as DDPMScheduler_diffusers
 from mindone.trainers.callback import EvalSaveCallback, OverflowMonitor, ProfilerCallbackEpoch
 from mindone.trainers.checkpoint import resume_train_network
 from mindone.trainers.ema import EMA
@@ -43,6 +43,11 @@ from mindone.utils.params import count_params
 os.environ["HCCL_CONNECT_TIMEOUT"] = "6000"
 os.environ["MS_ASCEND_CHECK_OVERFLOW_MODE"] = "INFNAN_MODE"
 logger = logging.getLogger(__name__)
+
+
+@ms.jit_class
+class DDPMScheduler(DDPMScheduler_diffusers):
+    pass
 
 
 def set_all_reduce_fusion(
@@ -339,8 +344,8 @@ def main(args):
 
     if steps_per_sink == dataset_size:
         logger.info(
-            f"Number of training steps: {total_train_steps}; Number of epochs: {args.num_train_epochs}; \
-                Number of batches in a epoch (dataset_size): {dataset_size}"
+            f"Number of training steps: {total_train_steps}; Number of epochs: {args.num_train_epochs}; "
+            f"Number of batches in a epoch (dataset_size): {dataset_size}"
         )
     else:
         logger.info(
@@ -537,7 +542,7 @@ def main(args):
                 ),
                 f"Learning rate: {learning_rate}",
                 f"Instantaneous batch size per device: {args.train_batch_size}",
-                f"Total train batch size (w. parallel, distributed & accumulation): {total_batch_size}"
+                f"Total train batch size (w. parallel, distributed & accumulation): {total_batch_size}",
                 f"Image height: {args.max_height}",
                 f"Image width: {args.max_width}",
                 f"Number of frames: {args.num_frames}",

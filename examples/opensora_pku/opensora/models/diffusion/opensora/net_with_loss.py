@@ -43,6 +43,8 @@ class DiffusionWithLoss(nn.Cell):
         self.network = network.set_grad()
         self.vae = vae
         self.noise_scheduler = noise_scheduler
+        self.prediction_type = self.noise_scheduler.config.prediction_type
+        self.num_train_timesteps = self.noise_scheduler.config.num_train_timesteps
         self.noise_offset = noise_offset
         self.snr_gamma = snr_gamma
 
@@ -185,9 +187,9 @@ class DiffusionWithLoss(nn.Cell):
         else:
             loss_mask = None
 
-        t = ops.randint(0, self.noise_scheduler.config.num_train_timesteps, (x.shape[0],), dtype=ms.int32)
+        t = ops.randint(0, self.num_train_timesteps, (x.shape[0],), dtype=ms.int32)
         if get_sequence_parallel_state():
-            t = self.reduce_t(t) % self.noise_scheduler.config.num_train_timesteps
+            t = self.reduce_t(t) % self.num_train_timesteps
         x_t = self.noise_scheduler.add_noise(x, noise, t)
 
         # latte forward input match
@@ -205,17 +207,17 @@ class DiffusionWithLoss(nn.Cell):
         if loss_mask is not None:
             model_pred *= loss_mask
 
-        if self.noise_scheduler.config.prediction_type == "epsilon":
+        if self.prediction_type == "epsilon":
             target = noise
-        elif self.noise_scheduler.config.prediction_type == "v_prediction":
+        elif self.prediction_type == "v_prediction":
             target = self.noise_scheduler.get_velocity(x, noise, t)
-        elif self.noise_scheduler.config.prediction_type == "sample":
+        elif self.prediction_type == "sample":
             # We set the target to latents here, but the model_pred will return the noise sample prediction.
             target = x
             # We will have to subtract the noise residual from the prediction to get the target sample.
             model_pred = model_pred - noise
         else:
-            raise ValueError(f"Unknown prediction type {self.noise_scheduler.config.prediction_type}")
+            raise ValueError(f"Unknown prediction type {self.prediction_type}")
 
         if attention_mask is not None and (attention_mask.bool()).all():
             attention_mask = None
@@ -242,9 +244,9 @@ class DiffusionWithLoss(nn.Cell):
             # This is discussed in Section 4.2 of the same paper.
             snr = compute_snr(self.noise_scheduler, t)
             mse_loss_weights = ops.stack([snr, self.snr_gamma * ops.ones_like(t)], axis=1).min(axis=1)[0]
-            if self.noise_scheduler.config.prediction_type == "epsilon":
+            if self.prediction_type == "epsilon":
                 mse_loss_weights = mse_loss_weights / snr
-            elif self.noise_scheduler.config.prediction_type == "v_prediction":
+            elif self.prediction_type == "v_prediction":
                 mse_loss_weights = mse_loss_weights / (snr + 1)
             loss = ops.mse_loss(model_pred.float(), target.float(), reduction="none")
             loss = loss.reshape(bsz, -1)
