@@ -281,7 +281,6 @@ def main(args):
         lr=lr,
         weight_decay=args.weight_decay,
         eps=args.optim_eps,
-        group_strategy="all",
     )
 
     if args.loss_scaler_type == "dynamic":
