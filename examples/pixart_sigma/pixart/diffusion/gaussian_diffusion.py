@@ -11,14 +11,14 @@ import numpy as np
 import mindspore as ms
 from mindspore import Tensor
 from mindspore import dtype as mstype
-from mindspore import ops
+from mindspore import mint, ops
 
 from .diffusion_utils import (
     LossType,
     ModelMeanType,
     ModelVarType,
-    _extract_into_tensor,
     discretized_gaussian_log_likelihood,
+    extract_into_tensor,
     mean_flat,
     normal_kl,
 )
@@ -90,9 +90,9 @@ class GaussianDiffusion:
         :param t: the number of diffusion steps (minus 1). Here, 0 means one step.
         :return: A tuple (mean, variance, log_variance), all of x_start's shape.
         """
-        mean = _extract_into_tensor(self.sqrt_alphas_cumprod, t, x_start.shape) * x_start
-        variance = _extract_into_tensor(1.0 - self.alphas_cumprod, t, x_start.shape)
-        log_variance = _extract_into_tensor(self.log_one_minus_alphas_cumprod, t, x_start.shape)
+        mean = extract_into_tensor(self.sqrt_alphas_cumprod, t) * x_start
+        variance = extract_into_tensor(1.0 - self.alphas_cumprod, t)
+        log_variance = extract_into_tensor(self.log_one_minus_alphas_cumprod, t)
         return mean, variance, log_variance
 
     def q_sample(self, x_start, t, noise=None):
@@ -108,8 +108,8 @@ class GaussianDiffusion:
             noise = ops.randn_like(x_start)
         assert noise.shape == x_start.shape
         return (
-            _extract_into_tensor(self.sqrt_alphas_cumprod, t, x_start.shape) * x_start
-            + _extract_into_tensor(self.sqrt_one_minus_alphas_cumprod, t, x_start.shape) * noise
+            extract_into_tensor(self.sqrt_alphas_cumprod, t) * x_start
+            + extract_into_tensor(self.sqrt_one_minus_alphas_cumprod, t) * noise
         )
 
     def q_posterior_mean_variance(self, x_start, x_t, t):
@@ -119,11 +119,11 @@ class GaussianDiffusion:
         """
         assert x_start.shape == x_t.shape
         posterior_mean = (
-            _extract_into_tensor(self.posterior_mean_coef1, t, x_t.shape) * x_start
-            + _extract_into_tensor(self.posterior_mean_coef2, t, x_t.shape) * x_t
+            extract_into_tensor(self.posterior_mean_coef1, t) * x_start
+            + extract_into_tensor(self.posterior_mean_coef2, t) * x_t
         )
-        posterior_variance = _extract_into_tensor(self.posterior_variance, t, x_t.shape)
-        posterior_log_variance_clipped = _extract_into_tensor(self.posterior_log_variance_clipped, t, x_t.shape)
+        posterior_variance = extract_into_tensor(self.posterior_variance, t)
+        posterior_log_variance_clipped = extract_into_tensor(self.posterior_log_variance_clipped, t)
         return posterior_mean, posterior_variance, posterior_log_variance_clipped
 
     def p_mean_variance(self, model, x, t, clip_denoised=True, denoised_fn=None, model_kwargs=None):
@@ -159,9 +159,9 @@ class GaussianDiffusion:
             extra = None
         if self.model_var_type in [ModelVarType.LEARNED, ModelVarType.LEARNED_RANGE]:
             assert model_output.shape == (B, C * 2, *x.shape[2:])
-            model_output, model_var_values = ops.split(model_output, C, axis=1)
-            min_log = _extract_into_tensor(self.posterior_log_variance_clipped, t, x.shape)
-            max_log = _extract_into_tensor(ops.log(self.betas), t, x.shape)
+            model_output, model_var_values = mint.split(model_output, C, dim=1)
+            min_log = extract_into_tensor(self.posterior_log_variance_clipped, t)
+            max_log = extract_into_tensor(ops.log(self.betas), t)
             # The model_var_values is [-1, 1] for [min_var, max_var].
             frac = (model_var_values + 1) / 2
             model_log_variance = frac * max_log + (1 - frac) * min_log
@@ -179,8 +179,8 @@ class GaussianDiffusion:
                     self.posterior_log_variance_clipped,
                 ),
             }[self.model_var_type]
-            model_variance = _extract_into_tensor(model_variance, t, x.shape)
-            model_log_variance = _extract_into_tensor(model_log_variance, t, x.shape)
+            model_variance = extract_into_tensor(model_variance, t)
+            model_log_variance = extract_into_tensor(model_log_variance, t)
 
         def process_xstart(x):
             if denoised_fn is not None:
@@ -207,17 +207,17 @@ class GaussianDiffusion:
     def _predict_xstart_from_eps(self, x_t, t, eps):
         assert x_t.shape == eps.shape
         return (
-            _extract_into_tensor(self.sqrt_recip_alphas_cumprod, t, x_t.shape) * x_t
-            - _extract_into_tensor(self.sqrt_recipm1_alphas_cumprod, t, x_t.shape) * eps
+            extract_into_tensor(self.sqrt_recip_alphas_cumprod, t) * x_t
+            - extract_into_tensor(self.sqrt_recipm1_alphas_cumprod, t) * eps
         )
 
     def predict_xstart_from_eps(self, x_t, t, eps):
         return self._predict_xstart_from_eps(x_t, t, eps)
 
     def _predict_eps_from_xstart(self, x_t, t, pred_xstart):
-        return (
-            _extract_into_tensor(self.sqrt_recip_alphas_cumprod, t, x_t.shape) * x_t - pred_xstart
-        ) / _extract_into_tensor(self.sqrt_recipm1_alphas_cumprod, t, x_t.shape)
+        return (extract_into_tensor(self.sqrt_recip_alphas_cumprod, t) * x_t - pred_xstart) / extract_into_tensor(
+            self.sqrt_recipm1_alphas_cumprod, t
+        )
 
     def condition_mean(self, cond_fn, p_mean_var, x, t, model_kwargs=None):
         """
@@ -239,7 +239,7 @@ class GaussianDiffusion:
         Unlike condition_mean(), this instead uses the conditioning strategy
         from Song et al (2020).
         """
-        alpha_bar = _extract_into_tensor(self.alphas_cumprod, t, x.shape)
+        alpha_bar = extract_into_tensor(self.alphas_cumprod, t)
 
         eps = self._predict_eps_from_xstart(x, t, p_mean_var["pred_xstart"])
         eps = eps - (1 - alpha_bar).sqrt() * cond_fn(x, t, **model_kwargs)
@@ -407,8 +407,8 @@ class GaussianDiffusion:
         # in case we used x_start or x_prev prediction.
         eps = self._predict_eps_from_xstart(x, t, out["pred_xstart"])
 
-        alpha_bar = _extract_into_tensor(self.alphas_cumprod, t, x.shape)
-        alpha_bar_prev = _extract_into_tensor(self.alphas_cumprod_prev, t, x.shape)
+        alpha_bar = extract_into_tensor(self.alphas_cumprod, t)
+        alpha_bar_prev = extract_into_tensor(self.alphas_cumprod_prev, t)
         sigma = eta * ops.sqrt((1 - alpha_bar_prev) / (1 - alpha_bar)) * ops.sqrt(1 - alpha_bar / alpha_bar_prev)
         # Equation 12.
         noise = ops.randn_like(x)
@@ -444,10 +444,10 @@ class GaussianDiffusion:
             out = self.condition_score(cond_fn, out, x, t, model_kwargs=model_kwargs)
         # Usually our model outputs epsilon, but we re-derive it
         # in case we used x_start or x_prev prediction.
-        eps = (
-            _extract_into_tensor(self.sqrt_recip_alphas_cumprod, t, x.shape) * x - out["pred_xstart"]
-        ) / _extract_into_tensor(self.sqrt_recipm1_alphas_cumprod, t, x.shape)
-        alpha_bar_next = _extract_into_tensor(self.alphas_cumprod_next, t, x.shape)
+        eps = (extract_into_tensor(self.sqrt_recip_alphas_cumprod, t) * x - out["pred_xstart"]) / extract_into_tensor(
+            self.sqrt_recipm1_alphas_cumprod, t
+        )
+        alpha_bar_next = extract_into_tensor(self.alphas_cumprod_next, t)
 
         # Equation 12. reversed
         mean_pred = out["pred_xstart"] * ops.sqrt(alpha_bar_next) + ops.sqrt(1 - alpha_bar_next) * eps
@@ -604,11 +604,11 @@ class GaussianDiffusion:
             ]:
                 if x_t.dim() == 4:
                     assert model_output.shape == (B, C * 2, *x_t.shape[2:])
-                    model_output, model_var_values = ops.split(model_output, C, axis=1)
+                    model_output, model_var_values = mint.split(model_output, C, dim=1)
                     frozen_out = ops.cat([model_output.copy(), model_var_values], axis=1)
                 else:
                     assert model_output.shape == (B, F, C * 2, *x_t.shape[3:])
-                    model_output, model_var_values = ops.split(model_output, C, axis=2)
+                    model_output, model_var_values = mint.split(model_output, C, dim=2)
                     frozen_out = ops.cat([model_output.copy(), model_var_values], axis=2)
                 # Learn the variance using the variational bound, but don't let
                 # it affect our mean prediction.

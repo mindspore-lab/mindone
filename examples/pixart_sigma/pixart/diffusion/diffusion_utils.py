@@ -11,18 +11,16 @@ import mindspore as ms
 from mindspore import Tensor, ops
 
 
-def _extract_into_tensor(a, t, x_shape):
+def extract_into_tensor(a, t):
     """
     Extract values from a 1-D numpy array for a batch of indices.
     :param a: the 1-D numpy array.
     :param t: a tensor of indices into the array to extract.
-    :param x_shape: a larger shape of K dimensions with the batch
-                            dimension equal to the length of timesteps.
-    :return: a tensor of shape [batch_size, 1, ...] where the shape has K dims.
+    :return: a tensor of shape [batch_size, 1, 1, 1] where the shape has K dims.
     """
     b = t.shape[0]
-    out = ops.GatherD()(a, -1, t)
-    return out.reshape(b, *((1,) * (len(x_shape) - 1)))
+    out = ops.gather_d(a, -1, t)
+    return out.reshape(b, 1, 1, 1)
 
 
 def _warmup_beta(beta_start, beta_end, num_diffusion_timesteps, warmup_frac):

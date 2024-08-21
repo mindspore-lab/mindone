@@ -1,0 +1,31 @@
+# model
+sample_size: 256
+batch_size: 4
+checkpoint: "models/PixArt-Sigma-XL-2-2K-MS.ckpt"
+vae_root: "models/vae"
+text_encoder_root: "models/text_encoder"
+tokenizer_root: "models/tokenizer"
+sd_scale_factor: 0.13025
+enable_flash_attention: True
+dtype: "fp16"
+
+# training hyper-parameters
+epochs: 10
+scheduler: "constant"
+start_learning_rate: 2.0e-5
+optim: "adamw"
+weight_decay: 0.0
+optim_eps: 1.0e-10
+loss_scaler_type: "dynamic"
+init_loss_scale: 65536.0
+gradient_accumulation_steps: 1
+clip_grad: True
+max_grad_norm: 0.01
+ckpt_save_interval: 1
+log_loss_interval: 1
+recompute: True
+multi_scale: True
+visualize: True
+class_dropout_prob: 0.1
+real_prompt_ratio: 0.5
+warmup_steps: 1000

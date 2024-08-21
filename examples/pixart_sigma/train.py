@@ -9,7 +9,7 @@ import yaml
 
 import mindspore as ms
 import mindspore.nn as nn
-from mindspore import Model
+from mindspore import Model, Tensor
 from mindspore.communication import get_group_size, get_rank, init
 from mindspore.dataset import GeneratorDataset
 
@@ -18,7 +18,7 @@ __dir__ = os.path.dirname(os.path.abspath(__file__))
 mindone_lib_path = os.path.abspath(os.path.join(__dir__, "../../"))
 sys.path.insert(0, mindone_lib_path)
 
-from pixart.dataset import ImageDataset
+from pixart.dataset import ImageDataset, bucket_split_function
 from pixart.diffusion import create_diffusion
 from pixart.modules.pixart import PixArt_XL_2, PixArtMS_XL_2
 from pixart.pipelines import NetworkWithLoss
@@ -74,7 +74,6 @@ def parse_args():
     )
     parser.add_argument("--json_path", required=True, help="path to json annotation file.")
     parser.add_argument("--image_dir", required=True, help="directory storing the image directory.")
-    parser.add_argument("--text_emb_dir", required=True, help="directory storing the text embedding")
     parser.add_argument("--path_column", default="dir", help="column name of image path in csv file.")
     parser.add_argument("--output_path", default="./output", help="output directory to save the training result.")
 
@@ -103,6 +102,7 @@ def parse_args():
     )
     parser.add_argument("--class_dropout_prob", default=0.1, type=float, help="The probility of drop the text label.")
     parser.add_argument("--multi_scale", default=False, type=str2bool, help="Perform multi-scale training.")
+    parser.add_argument("--visualize", default=False, type=str2bool, help="Perform visualization during training.")
 
     parser.add_argument("--device_target", default="Ascend", choices=["CPU", "GPU", "Ascend"], help="Device target")
     parser.add_argument("--mode", default=0, type=int, help="Running in GRAPH_MODE(0) or PYNATIVE_MODE(1)")
@@ -181,16 +181,9 @@ def main(args):
     image_size = args.sample_size * 8
     logger.info(f"{image_size}x{image_size} init")
 
-    pe_interpolation = args.sample_size / 64
-
     network_fn = PixArt_XL_2 if args.sample_size == 32 else PixArtMS_XL_2
+    pe_interpolation = args.sample_size / 64
     sampling = args.kv_compress_sampling if args.kv_compress else None
-    if args.sample_size > 32:
-        network = PixArtMS_XL_2(block_kwargs={"enable_flash_attention": args.enable_flash_attention})
-    else:
-        network = PixArt_XL_2(
-            input_size=args.sample_size, block_kwargs={"enable_flash_attention": args.enable_flash_attention}
-        )
     network = network_fn(
         input_size=args.sample_size,
         pe_interpolation=pe_interpolation,
@@ -219,14 +212,14 @@ def main(args):
 
     # 2.2 VAE
     logger.info("vae init")
-    vae = AutoencoderKL.from_pretrained(args.vae_root, mindspore_type=model_dtype)
+    vae = AutoencoderKL.from_pretrained(args.vae_root, mindspore_dtype=model_dtype)
 
     # 2.3 T5
     logger.info("text encoder init")
     text_tokenizer = AutoTokenizer.from_pretrained(args.tokenizer_root, model_max_length=args.t5_max_length)
-    text_encoder = T5EncoderModel.from_pretrained(args.text_encoder_root, mindspore_type=model_dtype)
+    text_encoder = T5EncoderModel.from_pretrained(args.text_encoder_root, mindspore_dtype=model_dtype)
 
-    # 2.2 Sampling
+    # 2.4 Sampling
     diffusion = create_diffusion(timestep_respacing="")
 
     # 3. build training network
@@ -236,18 +229,33 @@ def main(args):
 
     # 4. build dataset
     dataset = ImageDataset(
-        args.json_path, args.image_dir, image_size, text_tokenizer, real_prompt_ratio=args.real_prompt_ratio
+        args.json_path,
+        args.image_dir,
+        image_size,
+        text_tokenizer,
+        real_prompt_ratio=args.real_prompt_ratio,
+        multi_scale=args.multi_scale,
     )
-    dataset = GeneratorDataset(
+    data_generator = GeneratorDataset(
         dataset,
-        column_names=["x", "text_emb", "text_mask"],
+        column_names=["image", "text_emb", "text_mask"],
+        column_types=[ms.float32, ms.int64, ms.bool_],
         shuffle=True,
         num_parallel_workers=args.num_parallel_workers,
         num_shards=device_num,
         shard_id=rank_id,
     )
-    dataset = dataset.batch(args.batch_size, drop_remainder=True)
-    dataset_size = dataset.get_dataset_size()
+    if args.multi_scale:
+        element_length_func, bucket_boundaries, bucket_batch_size = bucket_split_function(
+            dataset.ratio,
+            args.batch_size,
+        )
+        data_generator = data_generator.bucket_batch_by_length(
+            ["image"], bucket_boundaries, bucket_batch_size, element_length_func, drop_remainder=True
+        )
+    else:
+        data_generator = data_generator.batch(args.batch_size, drop_remainder=True)
+    dataset_size = data_generator.get_dataset_size()
 
     # 5. build training utils: lr, optim, callbacks, trainer
     # 5.1 learning rate
@@ -301,6 +309,14 @@ def main(args):
         ema=ema,
     )
 
+    if args.multi_scale:
+        net_with_grads.set_inputs(
+            # TODO: obviously batch size is static, but MS not supported
+            Tensor(dtype=ms.float32, shape=(None, 3, None, None)),
+            Tensor(dtype=ms.int64, shape=(None, args.t5_max_length)),
+            Tensor(dtype=ms.bool_, shape=(None, args.t5_max_length)),
+        )
+
     model = Model(net_with_grads)
 
     # 5.4 callbacks
@@ -318,14 +334,20 @@ def main(args):
     ]
 
     if rank_id == 0:
-        num_params, num_params_trainable = count_params(latent_diffusion_with_loss)
+        num_params_vae, num_params_trainable_vae = count_params(vae)
+        num_params_network, num_params_trainable_network = count_params(network)
+        num_params_text_encoder, num_params_trainable_text_encoder = count_params(text_encoder)
+        num_params = num_params_vae + num_params_network + num_params_text_encoder
+        num_params_trainable = (
+            num_params_trainable_vae + num_params_trainable_network + num_params_trainable_text_encoder
+        )
         key_info = "Key Settings:\n" + "=" * 50 + "\n"
         key_info += "\n".join(
             [
                 f"MindSpore mode[GRAPH(0)/PYNATIVE(1)]: {args.mode}",
                 f"Distributed mode: {args.use_parallel}",
-                f"Data path: {args.csv_path}",
-                f"Num params: {num_params:,} (PixArt: {num_params:,})",
+                f"Data path: {args.json_path}",
+                f"Num params: {num_params:,} (network: {num_params_network:,}, vae: {num_params_vae:,}, text_encoder: {num_params_text_encoder:,})",
                 f"Num trainable params: {num_params_trainable:,}",
                 f"Model type: {args.dtype}",
                 f"Learning rate: {start_learning_rate}",
@@ -351,7 +373,7 @@ def main(args):
 
     # 6. train
     logger.info("Start training...")
-    model.train(args.epochs, dataset, callbacks=callbacks)
+    model.train(args.epochs, data_generator, callbacks=callbacks)
 
 
 if __name__ == "__main__":

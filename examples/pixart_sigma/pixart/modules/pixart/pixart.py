@@ -2,6 +2,7 @@ from typing import Any, Dict, List, Literal, Optional, Tuple, Union
 
 import numpy as np
 
+import mindspore.mint as mint
 import mindspore.nn as nn
 import mindspore.ops as ops
 from mindspore import Parameter, Tensor
@@ -63,9 +64,9 @@ class PixArtBlock(nn.Cell):
     ) -> Tensor:
         B = x.shape[0]
 
-        shift_msa, scale_msa, gate_msa, shift_mlp, scale_mlp, gate_mlp = (
-            self.scale_shift_table[None] + t.reshape(B, 6, -1)
-        ).chunk(6, axis=1)
+        shift_msa, scale_msa, gate_msa, shift_mlp, scale_mlp, gate_mlp = mint.chunk(
+            self.scale_shift_table[None] + t.reshape(B, 6, -1), 6, dim=1
+        )
         x = x + self.drop_path(gate_msa * self.attn(t2i_modulate(self.norm1(x), shift_msa, scale_msa), HW=HW))
         x = x + self.cross_attn(x, y, mask=mask_y)
         x = x + self.drop_path(gate_mlp * self.mlp(t2i_modulate(self.norm2(x), shift_mlp, scale_mlp)))
@@ -96,6 +97,7 @@ class PixArt(nn.Cell):
         sampling: Literal[None, "conv", "ave", "uniform"] = None,
         scale_factor: int = 1,
         kv_compress_layer: Optional[List[int]] = None,
+        recompute: bool = False,
         block_kwargs: Optional[Dict[str, Any]] = None,
     ):
         super().__init__()
@@ -144,9 +146,15 @@ class PixArt(nn.Cell):
                 for i in range(depth)
             ]
         )
+
         self.final_layer = T2IFinalLayer(hidden_size, patch_size, self.out_channels)
 
         self.initialize_weights()
+
+        # TODO: somehow self.blocks.recompute() doesn't work
+        if recompute:
+            for blk in self.blocks:
+                blk.recompute()
 
     def initialize_weights(self):
         # Initialize transformer layers:
@@ -221,7 +229,7 @@ class PixArt(nn.Cell):
         combined = ops.cat([half, half], axis=0)
         model_out = self(combined, t, y, mask_y=mask_y)
         eps, rest = model_out[:, : self.in_channels], model_out[:, self.in_channels :]
-        cond_eps, uncond_eps = ops.split(eps, len(eps) // 2, axis=0)
+        cond_eps, uncond_eps = mint.split(eps, len(eps) // 2, dim=0)
         half_eps = uncond_eps + cfg_scale * (cond_eps - uncond_eps)
         eps = ops.cat([half_eps, half_eps], axis=0).to(rest.dtype)
         return ops.cat([eps, rest], axis=1)
@@ -303,11 +311,12 @@ class PixArtMS(PixArt):
         )
         self.final_layer = T2IFinalLayer(hidden_size, patch_size, self.out_channels)
 
-        if recompute:
-            for block in self.blocks:
-                block.recompute()
-
         self.initialize_weights()
+
+        # TODO: somehow self.blocks.recompute() doesn't work
+        if recompute:
+            for blk in self.blocks:
+                blk.recompute()
 
     def initialize_weights(self):
         # Initialize transformer layers:
@@ -356,7 +365,7 @@ class PixArtMS(PixArt):
         pos_emb = cal_2d_sincos_pos_embed(
             self.hidden_size, nh, nw=nw, scale=self.pe_interpolation, base_size=self.base_size
         )
-        return pos_emb
+        return ops.stop_gradient(pos_emb)
 
     def construct(self, x: Tensor, t: Tensor, y: Tensor, mask_y: Optional[Tensor] = None) -> Tensor:
         """
@@ -400,7 +409,7 @@ class PixArtMS(PixArt):
         combined = ops.cat([half, half], axis=0)
         model_out = self(combined, t, y, mask_y=mask_y)
         eps, rest = model_out[:, : self.in_channels], model_out[:, self.in_channels :]
-        cond_eps, uncond_eps = ops.split(eps, len(eps) // 2, axis=0)
+        cond_eps, uncond_eps = mint.split(eps, len(eps) // 2, dim=0)
         half_eps = uncond_eps + cfg_scale * (cond_eps - uncond_eps)
         eps = ops.cat([half_eps, half_eps], axis=0).to(rest.dtype)
         return ops.cat([eps, rest], axis=1)

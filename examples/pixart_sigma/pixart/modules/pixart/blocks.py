@@ -1,6 +1,7 @@
 from typing import Literal, Optional, Tuple, Type, Union
 
 import mindspore as ms
+import mindspore.mint as mint
 import mindspore.nn as nn
 import mindspore.ops as ops
 from mindspore import Parameter, Tensor
@@ -238,7 +239,7 @@ class T2IFinalLayer(nn.Cell):
         self.out_channels = out_channels
 
     def construct(self, x: Tensor, t: Tensor) -> Tensor:
-        shift, scale = (self.scale_shift_table[None] + t[:, None]).chunk(2, axis=1)
+        shift, scale = mint.chunk(self.scale_shift_table[None] + t[:, None], 2, dim=1)
         x = t2i_modulate(self.norm_final(x), shift, scale)
         x = self.linear(x)
         return x

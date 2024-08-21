@@ -73,7 +73,7 @@ class ImageDataset:
 
         # process text
         encoding = self.tokenizer(text, padding="max_length", truncation=True, return_tensors="np")
-        text_ids, text_mask = encoding.input_ids, encoding.attention_mask.astype(np.bool_)
+        text_ids, text_mask = encoding.input_ids[0], encoding.attention_mask[0].astype(np.bool_)
 
         # process image
         image = Image.open(image_path).convert("RGB")

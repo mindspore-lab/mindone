@@ -5,7 +5,7 @@ from pixart.modules.pixart import PixArt
 from transformers import AutoTokenizer
 
 import mindspore as ms
-from mindspore import Tensor, ops
+from mindspore import Tensor, mint, ops
 
 from mindone.diffusers import AutoencoderKL
 from mindone.transformers import T5EncoderModel
@@ -110,7 +110,7 @@ class PixArtInferPipeline:
         latents = self.sampling_func(
             self.network.construct_with_cfg, z.shape, z, clip_denoised=False, model_kwargs=model_kwargs, progress=True
         )
-        latents, _ = latents.chunk(2, axis=0)
+        latents, _ = mint.chunk(latents, 2, dim=0)
         assert latents.dim() == 4, f"Expect to have 4-dim latents, but got {latents.shape}"
 
         images = self.vae_decode(latents.to(self.vae.dtype))

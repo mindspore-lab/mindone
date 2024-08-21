@@ -1,14 +1,14 @@
 from pixart.diffusion import SpacedDiffusion
 from pixart.diffusion.diffusion_utils import (
-    _extract_into_tensor,
     discretized_gaussian_log_likelihood,
+    extract_into_tensor,
     mean_flat,
     normal_kl,
 )
 from pixart.modules.pixart import PixArt
 
 import mindspore as ms
-from mindspore import Tensor, nn, ops
+from mindspore import Tensor, mint, nn, ops
 
 from mindone.diffusers import AutoencoderKL
 from mindone.transformers import T5EncoderModel
@@ -40,8 +40,9 @@ class NetworkWithLoss(nn.Cell):
             param.requires_grad = False
 
     def get_latents(self, x: Tensor) -> Tensor:
-        image_latents = ops.stop_gradient(self.vae.encode(x)[0])
-        image_latents = image_latents * self.scale_factor
+        image_moments = self.vae.encode(x.to(self.vae.dtype))[0]
+        image_latents = self.vae.diag_gauss_dist.sample(image_moments)
+        image_latents = ops.stop_gradient(image_latents * self.scale_factor)
         return image_latents
 
     def get_text_emb(self, x: Tensor) -> Tensor:
@@ -51,8 +52,8 @@ class NetworkWithLoss(nn.Cell):
     def _cal_vb(self, model_output, model_var_values, x, x_t, t):
         true_mean, _, true_log_variance_clipped = self.diffusion.q_posterior_mean_variance(x_start=x, x_t=x_t, t=t)
 
-        min_log = _extract_into_tensor(self.diffusion.posterior_log_variance_clipped, t, x_t.shape)
-        max_log = _extract_into_tensor(ops.log(self.diffusion.betas), t, x_t.shape)
+        min_log = extract_into_tensor(self.diffusion.posterior_log_variance_clipped, t)
+        max_log = extract_into_tensor(ops.log(self.diffusion.betas), t)
         # The model_var_values is [-1, 1] for [min_var, max_var].
         frac = (model_var_values + 1) / 2
         model_log_variance = frac * max_log + (1 - frac) * min_log
@@ -90,7 +91,7 @@ class NetworkWithLoss(nn.Cell):
 
         B, C = x_t.shape[:2]
         assert model_output.shape == (B, C * 2) + x_t.shape[2:]
-        model_output, model_var_values = ops.split(model_output, C, axis=1)
+        model_output, model_var_values = mint.split(model_output, C, dim=1)
 
         # Learn the variance using the variational bound, but don't let it affect our mean prediction.
         vb = self._cal_vb(ops.stop_gradient(model_output), model_var_values, x, x_t, t)
