@@ -23,7 +23,6 @@ from pixart.diffusion import create_diffusion
 from pixart.modules.pixart import PixArt_XL_2, PixArtMS_XL_2
 from pixart.pipelines import NetworkWithLoss
 from pixart.utils import (
-    EMA,
     LossMonitor,
     SaveCkptCallback,
     TimeMonitor,
@@ -286,7 +285,8 @@ def main(args):
 
     # 5.3 trainer (standalone and distributed)
     if args.use_ema:
-        ema = EMA(latent_diffusion_with_loss.network, ema_decay=args.ema_rate)
+        raise NotImplementedError("`EMA` does not support yet.")
+        # ema = EMA(latent_diffusion_with_loss.network, ema_decay=args.ema_rate)
     else:
         ema = None
 
