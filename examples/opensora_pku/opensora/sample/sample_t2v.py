@@ -384,7 +384,7 @@ if __name__ == "__main__":
     if load_torch_state_dict_to_ms_ckpt is not None:
         state_dict = load_torch_state_dict_to_ms_ckpt(
             os.path.join(args.cache_dir, args.text_encoder_name, "pytorch_model.bin"),
-            filter_prefix=["decoder."],  # only load and convert mT5 encoder model weights
+            exclude_prefix=["decoder."],  # only load and convert mT5 encoder model weights
         )
     text_encoder, loading_info = MT5EncoderModel.from_pretrained(
         args.text_encoder_name, cache_dir=args.cache_dir, state_dict=state_dict, output_loading_info=True

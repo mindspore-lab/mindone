@@ -64,7 +64,7 @@ def process_key(key_val):
     return k, ms.Parameter(ms.Tensor(val, dtype=ms.float32))
 
 
-def load_torch_state_dict_to_ms_ckpt(ckpt_file, num_workers=8, filter_prefix=None):
+def load_torch_state_dict_to_ms_ckpt(ckpt_file, num_workers=8, exclude_prefix=None, include_prefix=None):
     import torch
 
     source_data = torch.load(ckpt_file, map_location="cpu", weights_only=True)
@@ -72,20 +72,36 @@ def load_torch_state_dict_to_ms_ckpt(ckpt_file, num_workers=8, filter_prefix=Non
         source_data = source_data["state_dict"]
     if "ema" in source_data:
         source_data = source_data["ema"]
-    if filter_prefix is not None:
-        if isinstance(filter_prefix, str):
-            filter_prefix = [filter_prefix]
+
+    if exclude_prefix is not None:
+        if isinstance(exclude_prefix, str):
+            exclude_prefix = [exclude_prefix]
         assert (
-            isinstance(filter_prefix, list)
-            and len(filter_prefix) > 0
-            and isinstance(filter_prefix[0], str)
-            and len(filter_prefix[0]) > 0
+            isinstance(exclude_prefix, list)
+            and len(exclude_prefix) > 0
+            and isinstance(exclude_prefix[0], str)
+            and len(exclude_prefix[0]) > 0
         )
-    if filter_prefix is not None and len(filter_prefix) > 0:
-        keys_to_remove = [key for key in source_data if any(key.startswith(prefix) for prefix in filter_prefix)]
+    if exclude_prefix is not None and len(exclude_prefix) > 0:
+        keys_to_remove = [key for key in source_data if any(key.startswith(prefix) for prefix in exclude_prefix)]
         for key in keys_to_remove:
             del source_data[key]
 
+    if include_prefix is not None:
+        if isinstance(include_prefix, str):
+            include_prefix = [include_prefix]
+        assert (
+            isinstance(include_prefix, list)
+            and len(include_prefix) > 0
+            and isinstance(include_prefix[0], str)
+            and len(include_prefix[0]) > 0
+        )
+    if include_prefix is not None and len(include_prefix) > 0:
+        keys_to_retain = [key for key in source_data if any(key.startswith(prefix) for prefix in include_prefix)]
+        for key in source_data.keys():
+            if key not in keys_to_retain:
+                del source_data[key]
+    assert len(source_data.keys()), "state dict is empty!"
     # Use multiprocessing to process keys in parallel
     with Pool(processes=num_workers) as pool:
         target_data = dict(
