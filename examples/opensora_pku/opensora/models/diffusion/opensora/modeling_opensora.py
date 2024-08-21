@@ -89,6 +89,7 @@ class OpenSoraT2V(ModelMixin, ConfigMixin):
         use_rope: bool = False,
         FA_dtype=ms.bfloat16,
         num_no_recompute: int = 0,
+        use_stable_fp32: bool = False,
     ):
         super().__init__()
 

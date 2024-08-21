@@ -185,10 +185,10 @@ class DiffusionWithLoss(nn.Cell):
         else:
             loss_mask = None
 
-        t = ops.randint(0, self.diffusion.num_timesteps, (x.shape[0],), dtype=ms.int32)
+        t = ops.randint(0, self.noise_scheduler.config.num_train_timesteps, (x.shape[0],), dtype=ms.int32)
         if get_sequence_parallel_state():
-            t = self.reduce_t(t) % self.diffusion.num_timesteps
-        x_t = self.diffusion.q_sample(x, t, noise=noise)
+            t = self.reduce_t(t) % self.noise_scheduler.config.num_train_timesteps
+        x_t = self.noise_scheduler.add_noise(x, noise, t)
 
         # latte forward input match
         # text embed: (b n_tokens  d) -> (b  1 n_tokens d)
@@ -217,7 +217,7 @@ class DiffusionWithLoss(nn.Cell):
         else:
             raise ValueError(f"Unknown prediction type {self.noise_scheduler.config.prediction_type}")
 
-        if (attention_mask.bool()).all():
+        if attention_mask is not None and (attention_mask.bool()).all():
             attention_mask = None
         if get_sequence_parallel_state():
             # TODO: sequence parallel does not need attention_mask?

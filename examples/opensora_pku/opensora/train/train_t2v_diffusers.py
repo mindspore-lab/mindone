@@ -209,7 +209,7 @@ def main(args):
             )
             logger.info(f"Set mixed precision to O2 with dtype={args.precision}")
         else:
-            logger.info(f"Using global bf16 for latte t2v model. Force model dtype from {model_dtype} to ms.bfloat16")
+            logger.info(f"Using global bf16 for transformer model. Force model dtype from {model_dtype} to ms.bfloat16")
             model_dtype = ms.bfloat16
 
     # load checkpoint
@@ -218,7 +218,7 @@ def main(args):
         logger.info(f"Loading ckpt {args.pretrained}...")
         model.load_from_checkpoint(args.pretrained)
     else:
-        logger.info("Use random initialization for Latte")
+        logger.info("Use random initialization for transformer")
     model.set_train(True)
 
     if not args.text_embed_cache:
@@ -260,8 +260,10 @@ def main(args):
         if args.use_img_from_vid:
             args.image_data = ""
     else:
-        logger.info("Training on video datasets only.")
-        args.image_data = ""
+        if args.num_frames == 1:
+            logger.info("Training on image datasets only.")
+        else:
+            logger.info("Training on video datasets only.")
     latent_diffusion_with_loss = DiffusionWithLoss(
         model,
         noise_scheduler,
@@ -513,9 +515,9 @@ def main(args):
             num_params_vae, num_params_vae_trainable = count_params(vae)
         else:
             num_params_vae, num_params_vae_trainable = 0, 0
-        num_params_latte, num_params_latte_trainable = count_params(model)
-        num_params = num_params_vae + num_params_latte
-        num_params_trainable = num_params_vae_trainable + num_params_latte_trainable
+        num_params_transformer, num_params_transformer_trainable = count_params(latent_diffusion_with_loss.network)
+        num_params = num_params_vae + num_params_transformer
+        num_params_trainable = num_params_vae_trainable + num_params_transformer_trainable
         key_info = "Key Settings:\n" + "=" * 50 + "\n"
         key_info += "\n".join(
             [
@@ -523,7 +525,7 @@ def main(args):
                 f"Jit level: {args.jit_level}",
                 f"Distributed mode: {args.use_parallel}"
                 + (f"\nParallel mode: {args.parallel_mode}" if args.use_parallel else ""),
-                f"Num params: {num_params:,} (latte: {num_params_latte:,}, vae: {num_params_vae:,})",
+                f"Num params: {num_params:,} (transformer: {num_params_transformer:,}, vae: {num_params_vae:,})",
                 f"Num trainable params: {num_params_trainable:,}",
                 f"Transformer model dtype: {model_dtype}",
                 f"Transformer AMP level: {args.amp_level}" if not args.global_bf16 else "Global BF16: True",
@@ -594,7 +596,7 @@ def parse_t2v_train_args(parser):
         help="Whether to use T5 embedding cache. Must be provided in image/video_data.",
     )
     parser.add_argument("--vae_latent_folder", default=None, type=str, help="root dir for the vae latent data")
-    parser.add_argument("--model", type=str, choices=list(Diffusion_models.keys()), default="Latte-XL/122")
+    parser.add_argument("--model", type=str, choices=list(Diffusion_models.keys()), default="OpenSoraT2V-ROPE-L/122")
     parser.add_argument("--interpolation_scale_h", type=float, default=1.0)
     parser.add_argument("--interpolation_scale_w", type=float, default=1.0)
     parser.add_argument("--interpolation_scale_t", type=float, default=1.0)
@@ -701,7 +703,6 @@ def parse_t2v_train_args(parser):
         help="The prediction_type that shall be used for training. Choose between 'epsilon' or 'v_prediction' or leave `None`. \
             If left to `None` the default prediction type of the scheduler: `noise_scheduler.config.prediciton_type` is chosen.",
     )
-    parser.add_argument("--ema_decay", type=float, default=0.999)
     parser.add_argument("--ema_start_step", type=int, default=0)
     parser.add_argument(
         "--gradient_checkpointing",

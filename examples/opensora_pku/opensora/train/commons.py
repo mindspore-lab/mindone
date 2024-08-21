@@ -86,7 +86,7 @@ def parse_train_args(parser):
         help="max gradient norm for clipping, effective when `clip_grad` enabled.",
     )
     parser.add_argument("--use_ema", default=False, type=str2bool, help="whether use EMA")
-    parser.add_argument("--ema_decay", default=0.9999, type=float, help="EMA decay")
+    parser.add_argument("--ema_decay", default=0.999, type=float, help="EMA decay")
 
     #################################################################################
     #                                Learning Rate                                  #
@@ -139,7 +139,7 @@ def parse_train_args(parser):
     )
     parser.add_argument(
         "--amp_level",
-        default="O1",
+        default="O2",
         type=str,
         help="mindspore amp level, O1: most fp32, only layers in whitelist compute in fp16 (dense, conv, etc); \
             O2: most fp16, only layers in blacklist compute in fp32 (batch norm etc)",
