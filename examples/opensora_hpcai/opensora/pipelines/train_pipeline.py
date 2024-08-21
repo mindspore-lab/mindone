@@ -97,6 +97,8 @@ class DiffusionWithLoss(nn.Cell):
 
         self.split = get_split_op()
 
+        self.mode = ms.get_context("mode")
+
     def get_condition_embeddings(self, text_tokens, **kwargs):
         # text conditions inputs for cross-attention
         # optional: for some conditions, concat to latents, or add to time embedding
@@ -220,8 +222,12 @@ class DiffusionWithLoss(nn.Cell):
         fps: Optional[Tensor] = None,
         ar: Optional[Tensor] = None,
     ):
-        t = ops.randint(0, self.diffusion.num_timesteps, (x.shape[0],))
-        noise = ops.randn_like(x)
+        if self.mode == ms.PYNATIVE_MODE:
+            t = ms.Tensor(np.random.randint(0, self.diffusion.num_timesteps, size=(x.shape[0],)), ms.int32)
+            noise = ms.Tensor(np.random.randn(*x.shape), ms.float32)
+        else:
+            t = ops.randint(0, self.diffusion.num_timesteps, (x.shape[0],))
+            noise = ops.randn_like(x)
         x_t = self.diffusion.q_sample(x.to(ms.float32), t, noise=noise)
 
         if frames_mask is not None:

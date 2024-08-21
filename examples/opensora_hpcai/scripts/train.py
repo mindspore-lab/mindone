@@ -11,8 +11,8 @@ from typing import Optional, Tuple
 import yaml
 
 import mindspore as ms
-from mindspore import nn
-from mindspore.communication.management import get_group_size, get_rank, init
+from mindspore import Model, nn
+from mindspore.communication.management import get_group_size, get_rank, init, GlobalComm
 from mindspore.nn.wrap.loss_scale import DynamicLossScaleUpdateCell
 from mindspore.train.callback import TimeMonitor
 
@@ -46,6 +46,7 @@ from mindone.trainers.train_step import TrainOneStepWrapper
 from mindone.utils.logger import set_logger
 from mindone.utils.params import count_params
 from mindone.utils.seed import set_random_seed
+from mindone.trainers.adaw_zero23 import AdamW
 
 os.environ["HCCL_CONNECT_TIMEOUT"] = "6000"
 os.environ["MS_ASCEND_CHECK_OVERFLOW_MODE"] = "INFNAN_MODE"
@@ -320,6 +321,11 @@ def main(args):
         debug=args.debug,
     )
     set_logger(name="", output_dir=args.output_path, rank=rank_id, log_level=eval(args.log_level))
+
+    Use_Zero23 = False
+    if Use_Zero23:
+        from mindone.trainers.create_comm import initialize_model_parallel
+        initialize_model_parallel(tensor_model_parallel_size=1)
 
     # 2. model initiate and weight loading
     dtype_map = {"fp16": ms.float16, "bf16": ms.bfloat16}
@@ -612,16 +618,44 @@ def main(args):
         parallel_mode=args.parallel_mode,
     )
 
+    def decay_filter(param):
+        # filter norm and bias
+        filter_list = ["gamma", "beta", "bias"]
+
+        return all([x not in param.name.lower() for x in filter_list])
+
     # build optimizer
-    optimizer = create_optimizer(
-        latent_diffusion_with_loss.trainable_params(),
-        name=args.optim,
-        betas=args.betas,
-        eps=args.optim_eps,
-        group_strategy=args.group_strategy,
-        weight_decay=args.weight_decay,
-        lr=lr,
-    )
+    if Use_Zero23:
+        param_optimizer = latent_diffusion_with_loss.trainable_params()
+
+        decay_params = list(filter(decay_filter, param_optimizer))
+        other_params = list(filter(lambda  x: not decay_filter(x), param_optimizer))
+        group_params = []
+        if len(decay_params) > 0:
+            group_params.append({"params": decay_params, "weight_decay": args.weight_decay})  # 1e-6})
+        if len(other_params) > 0:
+            group_params.append({"params": other_params, "weight_decay": 0.0})
+        group_params.append({"order_params": param_optimizer})
+        optimizer = AdamW(latent_diffusion_with_loss,
+                          group_params,
+                          learning_rate=lr,
+                          beta1=args.betas[0],
+                          beta2=args.betas[1],
+                          eps=args.optim_eps,
+                          zero_level='z2',
+                          opt_parallel_group=GlobalComm.WORLD_COMM_GROUP,
+                          cpu_offload=False)
+        logger.info('use Zero23')
+    else:
+        optimizer = create_optimizer(
+            latent_diffusion_with_loss.trainable_params(),
+            name=args.optim,
+            betas=args.betas,
+            eps=args.optim_eps,
+            group_strategy=args.group_strategy,
+            weight_decay=args.weight_decay,
+            lr=lr,
+        )
 
     if args.loss_scaler_type == "dynamic":
         loss_scaler = DynamicLossScaleUpdateCell(

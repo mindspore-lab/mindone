@@ -11,7 +11,7 @@ import numpy as np
 from opensora.models.layers.operation_selector import get_split_op
 
 import mindspore as ms
-from mindspore import Tensor, ops
+from mindspore import Tensor, mint, ops
 
 from .diffusion_utils import (
     ModelMeanType,
