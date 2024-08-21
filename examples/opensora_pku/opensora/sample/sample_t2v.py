@@ -206,7 +206,7 @@ if __name__ == "__main__":
         )
         state_dict = None
         load_torch_state_dict_to_ms_ckpt = None
-    if load_torch_state_dict_to_ms_ckpt:
+    if load_torch_state_dict_to_ms_ckpt is not None:
         state_dict = load_torch_state_dict_to_ms_ckpt(os.path.join(args.cache_dir, args.ae_path, "checkpoint.ckpt"))
 
     vae = CausalVAEModelWrapper(args.ae_path, cache_dir=args.cache_dir, state_dict=state_dict)
@@ -381,7 +381,7 @@ if __name__ == "__main__":
         )
         state_dict = None
         load_torch_state_dict_to_ms_ckpt = None
-    if load_torch_state_dict_to_ms_ckpt:
+    if load_torch_state_dict_to_ms_ckpt is not None:
         state_dict = load_torch_state_dict_to_ms_ckpt(
             os.path.join(args.cache_dir, args.text_encoder_name, "pytorch_model.bin"),
             filter_prefix=["decoder."],  # only load and convert mT5 encoder model weights

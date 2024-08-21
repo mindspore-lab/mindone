@@ -87,7 +87,7 @@ def main(args):
             state_dict = None
             load_torch_state_dict_to_ms_ckpt = None
 
-    if load_torch_state_dict_to_ms_ckpt:
+    if load_torch_state_dict_to_ms_ckpt is not None:
         state_dict = load_torch_state_dict_to_ms_ckpt(os.path.join(args.ae_path, "checkpoint.ckpt"))
     kwarg = {"state_dict": state_dict}
     vae = CausalVAEModelWrapper(args.ae_path, **kwarg)
