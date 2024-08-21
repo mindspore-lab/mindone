@@ -67,10 +67,10 @@ python sample.py -c configs/inference/pixart-sigma-1024-MS.yaml --image_width 10
 
 | Context       | Scheduler | Steps | Resolution | Batch Size | Speed (step/s) |
 |---------------|-----------|-------|------------|------------|----------------|
-| D910*x1-MS2.3 | DDIM      | 50    | 256x256    | 1          | 1.77           |
-| D910*x1-MS2.3 | DDIM      | 50    | 512x512    | 1          | 1.44           |
-| D910*x1-MS2.3 | DDIM      | 50    | 1024x1024  | 1          | 1.38           |
-| D910*x1-MS2.3 | DDIM      | 50    | 2048x2048  | 1          | 0.58           |
+| D910*x1-MS2.3 | DDIM      | 50    | 256x256    | 1          | 3.10           |
+| D910*x1-MS2.3 | DDIM      | 50    | 512x512    | 1          | 2.11           |
+| D910*x1-MS2.3 | DDIM      | 50    | 1024x1024  | 1          | 1.99           |
+| D910*x1-MS2.3 | DDIM      | 50    | 2048x2048  | 1          | 0.45           |
 
 > Context: {Ascend chip}-{number of NPUs}-{mindspore version}.
 > Speed (step/s): sampling speed measured in the number of sampling steps per second.
