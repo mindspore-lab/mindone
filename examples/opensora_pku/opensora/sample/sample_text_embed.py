@@ -17,11 +17,14 @@ sys.path.insert(0, mindone_lib_path)
 sys.path.append(os.path.abspath("./"))
 from opensora.dataset.text_dataset import create_dataloader
 from opensora.dataset.transform import t5_text_preprocessing as text_preprocessing
-from opensora.models.text_encoder.mt5 import MT5EncoderModel
+from opensora.utils.message_utils import print_banner
 from opensora.utils.ms_utils import init_env
 from opensora.utils.utils import get_precision
 from transformers import AutoTokenizer
 
+from mindone.transformers import MT5EncoderModel
+from mindone.transformers.activations import NewGELUActivation
+from mindone.transformers.models.mt5.modeling_mt5 import MT5LayerNorm
 from mindone.utils.amp import auto_mixed_precision
 from mindone.utils.config import str2bool
 from mindone.utils.logger import set_logger
@@ -46,7 +49,7 @@ def read_captions_from_txt(path):
 
 
 def main(args):
-    set_logger(name="", output_dir="logs/infer_t5")
+    set_logger(name="", output_dir="logs/infer_mt5")
 
     rank_id, device_num = init_env(
         mode=args.mode,
@@ -79,16 +82,35 @@ def main(args):
         dataset_size = dataset.get_dataset_size()
         logger.info(f"Num batches: {dataset_size}")
 
-    logger.info("mT5-xxl init")
-    kwargs = {"model_file": os.path.join(args.cache_dir, args.text_encoder_name, "pytorch_model.bin")}
-    text_encoder = MT5EncoderModel.from_pretrained(args.text_encoder_name, cache_dir=args.cache_dir, **kwargs)
+    print_banner("text encoder init")
+    # need torch installation to load from pt checkpoint!
+    try:
+        from opensora.utils.utils import load_torch_state_dict_to_ms_ckpt
+    except Exception:
+        logger.info(
+            "Torch is not installed. Cannot load from torch checkpoint. Will search for safetensors under the given directory."
+        )
+        state_dict = None
+        load_torch_state_dict_to_ms_ckpt = None
+    if load_torch_state_dict_to_ms_ckpt is not None:
+        state_dict = load_torch_state_dict_to_ms_ckpt(
+            os.path.join(args.cache_dir, args.text_encoder_name, "pytorch_model.bin"),
+            filter_prefix=["decoder."],  # only load and convert mT5 encoder model weights
+        )
+    text_encoder, loading_info = MT5EncoderModel.from_pretrained(
+        args.text_encoder_name, cache_dir=args.cache_dir, state_dict=state_dict, output_loading_info=True
+    )
+    logger.info(loading_info)
     tokenizer = AutoTokenizer.from_pretrained(args.text_encoder_name, cache_dir=args.cache_dir)
     # mixed precision
-    text_encoder_dtype = get_precision(args.precision)
-    text_encoder = auto_mixed_precision(text_encoder, amp_level="O2", dtype=text_encoder_dtype)
-    logger.info(f"Use amp level O2 for text encoder {args.text_encoder_name} with dtype={text_encoder_dtype}")
+    text_encoder_dtype = get_precision(args.text_encoder_precision)
+    custom_fp32_cells = [NewGELUActivation, MT5LayerNorm]
+    text_encoder = auto_mixed_precision(
+        text_encoder, amp_level="O2", dtype=text_encoder_dtype, custom_fp32_cells=custom_fp32_cells
+    )
 
     # infer
+    print_banner("Text prompts loading")
     if args.data_file_path is not None:
         if args.output_path is None:
             output_dir = os.path.dirname(args.data_file_path)
@@ -245,11 +267,11 @@ def parse_args():
         help="whether to enable flash attention. Default is False",
     )
     parser.add_argument(
-        "--precision",
+        "--text_encoder_precision",
         default="bf16",
         type=str,
         choices=["bf16", "fp16", "fp32"],
-        help="what data type to use for latte. Default is `fp32`, which corresponds to ms.float16",
+        help="what data type to use for text encoder. Default is `bf16`, which corresponds to ms.bfloat16",
     )
     parser.add_argument(
         "--amp_level",
