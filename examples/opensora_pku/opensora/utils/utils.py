@@ -60,7 +60,7 @@ def get_precision(mixed_precision):
 def process_key(key_val):
     """Processes a single key-value pair from the source data."""
     k, val = key_val
-    val = val.detach().numpy().astype(np.float32)
+    val = val.detach().float().numpy().astype(np.float32)
     return k, ms.Parameter(ms.Tensor(val, dtype=ms.float32))
 
 
