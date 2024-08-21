@@ -154,7 +154,7 @@ def parse_args():
     parser.add_argument("--ckpt_max_keep", default=5, type=int, help="Maximum number of checkpoints to keep")
     parser.add_argument("--ckpt_save_interval", default=1, type=int, help="save checkpoint every this epochs or steps")
     parser.add_argument("--log_loss_interval", default=1, type=int, help="log interval of loss value")
-
+    parser.add_argument("--recompute", default=False, type=str2bool, help="Use recompute during training")
     parser.add_argument("--use_parallel", default=False, type=str2bool, help="use parallel")
     default_args = parser.parse_args()
     abs_path = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), ""))
@@ -200,6 +200,7 @@ def main(args):
         scale_factor=args.kv_compress_scale_factor,
         kv_compress_layer=args.kv_compress_layer,
         class_dropout_prob=args.class_dropout_prob,
+        recompute=args.recompute,
         block_kwargs={"enable_flash_attention": args.enable_flash_attention},
     )
 
@@ -219,12 +220,12 @@ def main(args):
 
     # 2.2 VAE
     logger.info("vae init")
-    vae = AutoencoderKL.from_pretrained(args.vae_root)  # keep in fp32
+    vae = AutoencoderKL.from_pretrained(args.vae_root, mindspore_type=model_dtype)
 
     # 2.3 T5
     logger.info("text encoder init")
     text_tokenizer = AutoTokenizer.from_pretrained(args.tokenizer_root, model_max_length=args.t5_max_length)
-    text_encoder = T5EncoderModel.from_pretrained(args.text_encoder_root)
+    text_encoder = T5EncoderModel.from_pretrained(args.text_encoder_root, mindspore_type=model_dtype)
 
     # 2.2 Sampling
     diffusion = create_diffusion(timestep_respacing="")

@@ -252,6 +252,7 @@ class PixArtMS(PixArt):
         sampling: Literal[None, "conv", "ave", "uniform"] = None,
         scale_factor: int = 1,
         kv_compress_layer: Optional[List[int]] = None,
+        recompute: bool = False,
         block_kwargs: Optional[Dict[str, Any]] = None,
     ):
         super(PixArt, self).__init__()
@@ -301,6 +302,10 @@ class PixArtMS(PixArt):
             ]
         )
         self.final_layer = T2IFinalLayer(hidden_size, patch_size, self.out_channels)
+
+        if recompute:
+            for block in self.blocks:
+                block.recompute()
 
         self.initialize_weights()
 
