@@ -52,7 +52,7 @@ def init_env(args) -> None:
 
 def parse_args():
     parser = argparse.ArgumentParser(
-        description="PixArt-Alpha Image generation", formatter_class=argparse.ArgumentDefaultsHelpFormatter
+        description="PixArt-Sigma Image generation", formatter_class=argparse.ArgumentDefaultsHelpFormatter
     )
     parser.add_argument(
         "-c",
@@ -93,7 +93,7 @@ def parse_args():
 
     parser.add_argument("--device_target", default="Ascend", choices=["CPU", "GPU", "Ascend"], help="Device target")
     parser.add_argument(
-        "--mode", default=1, choices=[0, 1], type=int, help="Running in GRAPH_MODE(0) or PYNATIVE_MODE(1)"
+        "--mode", default=0, choices=[0, 1], type=int, help="Running in GRAPH_MODE(0) or PYNATIVE_MODE(1)"
     )
     parser.add_argument("--jit_level", default="O0", choices=["O0", "O1"], help="Jit Level")
     parser.add_argument("--seed", default=42, type=int, help="Inference seed")
@@ -191,7 +191,7 @@ def main(args):
 
     # 2.2 VAE
     logger.info("vae init")
-    vae = AutoencoderKL.from_pretrained(args.vae_root)  # keep in fp32
+    vae = AutoencoderKL.from_pretrained(args.vae_root, mindspore_dtype=model_dtype)
 
     # 2.3 T5
     logger.info("text encoder init")
