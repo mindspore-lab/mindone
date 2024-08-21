@@ -223,12 +223,9 @@ class DiffusionWithLoss(nn.Cell):
             # TODO: sequence parallel does not need attention_mask?
             assert attention_mask is None
         # (b c t h w),
-        B, C, F = x_t.shape[:3]
-        assert (
-            model_pred.shape == (B, C * 2, F) + x_t.shape[3:]
-        ), f"model_pred shape {model_pred.shape} and x_t shape {x_t.shape} mismatch!"
+        bsz, c, _, _, _ = model_pred.shape
         if attention_mask is not None:
-            attention_mask = attention_mask.unsqueeze(1).float().repeat(C * 2, axis=1)  # b t h w -> b c t h w
+            attention_mask = attention_mask.unsqueeze(1).float().repeat(c, axis=1)  # b t h w -> b c t h w
             attention_mask = attention_mask.reshape(bsz, -1)
 
         if self.snr_gamma is None:
