@@ -4,10 +4,12 @@ import logging
 import os
 import random
 import sys
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import Any, Callable, List, Optional, Tuple
 
 import numpy as np
+from tqdm import tqdm
 
 from mindspore.dataset.transforms import Compose
 from mindspore.dataset.vision import CenterCrop, Inter, Normalize
@@ -59,6 +61,7 @@ class VideoDatasetRefactored(BaseDataset):
         input_sq_size: int = 512,
         in_channels: int = 4,
         buckets: Optional[Bucket] = None,
+        filter_data: bool = False,
         *,
         output_columns: List[str],
     ):
@@ -66,7 +69,7 @@ class VideoDatasetRefactored(BaseDataset):
             if not vae_latent_folder:
                 raise ValueError("`vae_latent_folder` must be provided when `pre_patchify=True`.")
 
-        self._data = self._read_data(video_folder, csv_path, text_emb_folder, vae_latent_folder)
+        self._data = self._read_data(video_folder, csv_path, text_emb_folder, vae_latent_folder, filter_data)
         self._frames = sample_n_frames
         self._stride = sample_stride
         self._min_length = (self._frames - 1) * self._stride + 1
@@ -115,8 +118,24 @@ class VideoDatasetRefactored(BaseDataset):
 
     @staticmethod
     def _read_data(
-        data_dir: str, csv_path: str, text_emb_folder: Optional[str] = None, vae_latent_folder: Optional[str] = None
+        data_dir: str,
+        csv_path: str,
+        text_emb_folder: Optional[str] = None,
+        vae_latent_folder: Optional[str] = None,
+        filter_data: bool = False,
     ) -> List[dict]:
+        def _filter_data(sample_):
+            if not os.path.isfile(sample_["video"]):
+                _logger.warning(f"Video not found: {sample_['video']}")
+                return None
+            elif "text_emb" in sample_ and not os.path.isfile(sample_["text_emb"]):
+                _logger.warning(f"Text embedding not found: {sample_['text_emb']}")
+                return None
+            elif "vae_latent" in sample_ and not os.path.isfile(sample_["vae_latent"]):
+                _logger.warning(f"Text embedding not found: {sample_['vae_latent']}")
+                return None
+            return sample_
+
         with open(csv_path, "r") as csv_file:
             try:
                 data = []
@@ -131,6 +150,15 @@ class VideoDatasetRefactored(BaseDataset):
                 _logger.error("CSV file requires `video` (file paths) column.")
                 raise e
 
+        if filter_data:
+            with ThreadPoolExecutor(max_workers=10) as executor:
+                data = [
+                    item
+                    for item in tqdm(executor.map(_filter_data, data), total=len(data), desc="Filtering data")
+                    if item is not None
+                ]
+
+        _logger.info(f"Number of data samples: {len(data)}")
         return data
 
     def _get_replacement(self, max_attempts: int = 100) -> Tuple[Any, ...]:
@@ -182,6 +210,7 @@ class VideoDatasetRefactored(BaseDataset):
             latent_mean, latent_std = latent_mean[batch_index], latent_std[batch_index]
             vae_latent = latent_mean + latent_std * np.random.standard_normal(latent_mean.shape)
             data["video"] = (vae_latent * self._vae_scale_factor).astype(np.float32)
+
         else:
             with VideoReader(data["video"]) as reader:
                 min_length = self._min_length
@@ -234,7 +263,7 @@ class VideoDatasetRefactored(BaseDataset):
         w = w // self._patch_size[2]
         return h, w
 
-    def _patchify(self, latent: np.ndarray) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+    def _patchify(self, latent: np.ndarray) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
         f, c, h, w = latent.shape
 
         rs = (h * w * self._vae_downsample_rate**2) ** 0.5
@@ -256,6 +285,7 @@ class VideoDatasetRefactored(BaseDataset):
 
         spatial_mask = np.ones(spatial_pos.shape[0], dtype=np.uint8)
         temporal_mask = np.ones(temporal_pos.shape[0], dtype=np.uint8)
+
         return latent, spatial_pos, spatial_mask, temporal_pos, temporal_mask
 
     def __len__(self):

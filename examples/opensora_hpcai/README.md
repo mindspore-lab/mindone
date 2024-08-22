@@ -144,7 +144,7 @@ Other useful documents and links are listed below.
 ## Installation
 
 1. Install MindSpore according to the [official instructions](https://www.mindspore.cn/install).
-    For Ascend devices, please install **CANN driver C18 (0517)** from [here](https://repo.mindspore.cn/ascend/ascend910/20240517/) and install **MindSpore 2.3-master (0615)** from [here](https://repo.mindspore.cn/mindspore/mindspore/version/202406/20240615/master_20240615020018_43ccb91e45899b64fe31d304497ab17e3ada3cea_newest/unified/).
+    For Ascend devices, please install **CANN driver C18 (0705)** from [here](https://repo.mindspore.cn/ascend/ascend910/20240705/) and install **MindSpore 2.3** from [here](https://www.mindspore.cn/install).
 
 2. Install requirements
 ```bash
@@ -447,6 +447,8 @@ This can be enabled in one of two ways:
 2. Use `bucket_config` for training with videos in their original format. More on the bucket configuration can be found
    in [Multi-resolution Training with Buckets](./docs/quick_start.md#4-multi-resolution-training-with-buckets-opensora-v11-only).
 
+   Detailed running command can be referred in `scripts/run/run_train_os_v1.1_stage2.sh`
+
 
 ### Open-Sora 1.0 Training
 
@@ -489,11 +491,12 @@ We evaluated the training performance on MindSpore and Ascend NPUs. The results 
 
 | Model       | Context      | jit_level | Precision | BS | NPUs | Resolution(framesxHxW) | Train T. (s/step) |
 |:------------|:-------------|:--------|:---------:|:--:|:----:|:----------------------:|:-----------------:|
-| STDiT2-XL/2 | D910\*-MS2.3 |    O1  |    BF16   |  1 |  8   |       16x512x512       |        2.00       |
-| STDiT2-XL/2 | D910\*-MS2.3 |    O1  |    BF16   |  1 |  8   |       64x512x512       |        8.30       |
-| STDiT2-XL/2 | D910\*-MS2.3 |    O1  |    BF16   |  1 |  8   |       24x576x1024      |        8.22       |
-| STDiT2-XL/2 | D910\*-MS2.3 |    O1  |    BF16   |  1 |  8   |       64x576x1024      |        21.15      |
-| STDiT2-XL/2 | D910\*-MS2.3 |    O1  |    BF16   |  1 |  8   |       24x1024x1024     |        16.98      |
+| STDiT2-XL/2 | D910\*-[CANN C18(0517)](https://repo.mindspore.cn/ascend/ascend910/20240517/)-[MS2.3_master(0615)](https://repo.mindspore.cn/mindspore/mindspore/version/202406/20240615/master_20240615020018_43ccb91e45899b64fe31d304497ab17e3ada3cea_newest/unified/)  |    O1  |    BF16   |  1 |  8   |       16x512x512       |        2.00       |
+| STDiT2-XL/2 | D910\*-[CANN C18(0517)](https://repo.mindspore.cn/ascend/ascend910/20240517/)-[MS2.3_master(0615)](https://repo.mindspore.cn/mindspore/mindspore/version/202406/20240615/master_20240615020018_43ccb91e45899b64fe31d304497ab17e3ada3cea_newest/unified/)  |    O1  |    BF16   |  1 |  8   |       64x512x512       |        8.30       |
+| STDiT2-XL/2 | D910\*-[CANN C18(0517)](https://repo.mindspore.cn/ascend/ascend910/20240517/)-[MS2.3_master(0615)](https://repo.mindspore.cn/mindspore/mindspore/version/202406/20240615/master_20240615020018_43ccb91e45899b64fe31d304497ab17e3ada3cea_newest/unified/) |    O1  |    BF16   |  1 |  8   |       24x576x1024      |        8.22       |
+| STDiT2-XL/2 | D910\*-[CANN C18(0705)](https://repo.mindspore.cn/ascend/ascend910/20240705/)-[MS2.3](https://www.mindspore.cn/install) |    O1  |    BF16   |  1 |  8   |       24x576x1024      |        **7.82**       |
+| STDiT2-XL/2 | D910\*-[CANN C18(0517)](https://repo.mindspore.cn/ascend/ascend910/20240517/)-[MS2.3_master(0615)](https://repo.mindspore.cn/mindspore/mindspore/version/202406/20240615/master_20240615020018_43ccb91e45899b64fe31d304497ab17e3ada3cea_newest/unified/) |    O1  |    BF16   |  1 |  8   |       64x576x1024      |        21.15      |
+| STDiT2-XL/2 | D910\*-[CANN C18(0517)](https://repo.mindspore.cn/ascend/ascend910/20240517/)-[MS2.3_master(0615)](https://repo.mindspore.cn/mindspore/mindspore/version/202406/20240615/master_20240615020018_43ccb91e45899b64fe31d304497ab17e3ada3cea_newest/unified/) |    O1  |    BF16   |  1 |  8   |       24x1024x1024     |        16.98      |
 > Context: {G:GPU, D:Ascend}{chip type}-{mindspore version}.
 
 >Note that the above performance uses both t5 cached embedding data and vae cached latent data.

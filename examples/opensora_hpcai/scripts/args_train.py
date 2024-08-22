@@ -42,6 +42,7 @@ def parse_train_args(parser):
     parser.add_argument("--video_folder", default="", type=str, help="root dir for the video data")
     parser.add_argument("--text_embed_folder", type=str, help="root dir for the text embeding data")
     parser.add_argument("--vae_latent_folder", type=str, help="root dir for the vae latent data")
+    parser.add_argument("--filter_data", default=False, type=str2bool, help="Filter non-existing videos.")
     parser.add_argument("--output_path", default="output/", type=str, help="output directory to save training results")
     parser.add_argument(
         "--add_datetime", default=True, type=str, help="If True, add datetime subfolder under output_path"
@@ -65,6 +66,22 @@ def parse_train_args(parser):
         default="conv2d",
         choices=["conv3d", "conv2d", "linear"],
         help="patchify_conv3d_replace, conv2d - equivalent conv2d to replace conv3d patchify, linear - equivalent linear layer to replace conv3d patchify  ",
+    )
+    parser.add_argument(
+        "--manual_pad",
+        type=str2bool,
+        default=False,
+        help="whether pad independently for conv2d patchify. \
+            If True, pad_mode in conv will be set to 'valid' and padding is done before conv. If False, pad_mode is 'same' in conv. \
+            Set True for bucket config training in graph mode. Default: False",
+    )
+    parser.add_argument(
+        "--vae_type",
+        type=str,
+        default=None,
+        choices=[None, "OpenSora-VAE-v1.2", "VideoAutoencoderKL"],
+        help="If None, use VideoAutoencoderKL, which is a spatial VAE from SD, for opensora v1.0 and v1.1. \
+                If OpenSora-VAE-v1.2, will use 3D VAE (spatial + temporal), typically for opensora v1.2",
     )
     # ms
     parser.add_argument("--debug", type=str2bool, default=False, help="Execute inference in debug mode.")
@@ -102,7 +119,7 @@ def parse_train_args(parser):
         help="Specify the [beta1, beta2] parameter for the AdamW optimizer.",
     )
     parser.add_argument(
-        "--optim_eps", type=float, default=1e-6, help="Specify the eps parameter for the AdamW optimizer."
+        "--optim_eps", type=float, default=1e-8, help="Specify the eps parameter for the AdamW optimizer."
     )
     parser.add_argument(
         "--group_strategy",
@@ -122,6 +139,12 @@ def parse_train_args(parser):
         default=None,
         help="If not None, split batch_size*num_frames into smaller ones for VAE encoding to reduce memory limitation",
     )
+    parser.add_argument(
+        "--vae_micro_frame_size",
+        type=int,
+        default=17,
+        help="If not None, split batch_size*num_frames into smaller ones for VAE encoding to reduce memory limitation. Used by temporal vae",
+    )
     parser.add_argument("--start_learning_rate", default=1e-5, type=float, help="The initial learning rate for Adam.")
     parser.add_argument("--end_learning_rate", default=1e-7, type=float, help="The end learning rate for Adam.")
     parser.add_argument("--decay_steps", default=0, type=int, help="lr decay steps.")
@@ -134,6 +157,7 @@ def parse_train_args(parser):
     # dataloader params
     parser.add_argument("--dataset_sink_mode", default=False, type=str2bool, help="sink mode")
     parser.add_argument("--sink_size", default=-1, type=int, help="dataset sink size. If -1, sink size = dataset size.")
+    parser.add_argument("--dataset_take_count", default=0, type=int, help="If > 0, take the previous n batches of the dataset.")
     parser.add_argument(
         "--epochs",
         default=10,

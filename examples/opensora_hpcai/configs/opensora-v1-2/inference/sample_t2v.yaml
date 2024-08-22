@@ -1,17 +1,19 @@
-model_version: v1.1
-ckpt_path: "models/opensora_v1.1_stage3.ckpt"
+model_version: v1.2
+ckpt_path: "models/opensora_v1.2_stage3.ckpt"
 t5_model_dir: "models/t5-v1_1-xxl/"
 
-vae_checkpoint: "models/sd-vae-ft-ema.ckpt"
-vae_dtype: bf16
+vae_type: "OpenSoraVAE_V1_2"
+vae_checkpoint: "models/OpenSora-VAE-v1.2/model.ckpt"
+vae_micro_batch_size: 4
+vae_micro_frame_size: 17
 
-image_size: [ 640, 360 ]
-num_frames: 16
+image_size: [ 240, 320 ]
+num_frames: 24
 frame_interval: 3
 fps: 24
 enable_flash_attention: True
 model_max_length: 200
-dtype: bf16
+dtype: "fp16"
 batch_size: 1
 
 # sampling

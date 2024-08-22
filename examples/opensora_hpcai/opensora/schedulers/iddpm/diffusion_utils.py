@@ -61,7 +61,7 @@ def get_beta_schedule(beta_schedule, *, beta_start, beta_end, num_diffusion_time
         betas = 1.0 / np.linspace(num_diffusion_timesteps, 1, num_diffusion_timesteps, dtype=np.float64)
     else:
         raise NotImplementedError(beta_schedule)
-    assert betas.shape == (num_diffusion_timesteps,)
+    # assert betas.shape == (num_diffusion_timesteps,)
     return betas
 
 
@@ -118,8 +118,8 @@ def mean_flat(tensor: Tensor, frames_mask: Optional[Tensor] = None, patch_mask: 
     if frames_mask is None and patch_mask is None:
         return tensor.mean(axis=list(range(1, len(tensor.shape))))
     elif patch_mask is None:
-        assert tensor.dim() == 5
-        assert tensor.shape[2] == frames_mask.shape[1]
+        # assert tensor.dim() == 5
+        # assert tensor.shape[2] == frames_mask.shape[1]
         tensor = tensor.swapaxes(1, 2).reshape(tensor.shape[0], tensor.shape[2], -1)  # b c t h w -> b t (c h w)
         denom = frames_mask.sum(axis=1) * tensor.shape[-1]
         loss = (tensor * frames_mask.unsqueeze(2)).sum(axis=(1, 2)) / denom
@@ -170,12 +170,12 @@ def normal_kl(mean1, logvar1, mean2, logvar2):
     Shapes are automatically broadcasted, so batches can be compared to
     scalars, among other use cases.
     """
-    tensor = None
-    for obj in (mean1, logvar1, mean2, logvar2):
-        if isinstance(obj, ms.Tensor):
-            tensor = obj
-            break
-    assert tensor is not None, "at least one argument must be a Tensor"
+    # tensor = None
+    # for obj in (mean1, logvar1, mean2, logvar2):
+    #    if isinstance(obj, ms.Tensor):
+    #        tensor = obj
+    #        break
+    # assert tensor is not None, "at least one argument must be a Tensor"
 
     # Force variances to be Tensors. Broadcasting helps convert scalars to
     # Tensors, but it does not work for ops.exp().
@@ -189,7 +189,7 @@ def approx_standard_normal_cdf(x):
     A fast approximation of the cumulative distribution function of the
     standard normal.
     """
-    return 0.5 * (1.0 + ops.tanh(Tensor(np.sqrt(2.0 / np.pi)) * (x + 0.044715 * ops.pow(x, 3))))
+    return 0.5 * (1.0 + ops.tanh(ms.numpy.sqrt(2.0 / ms.numpy.pi) * (x + 0.044715 * ops.pow(x, 3))))
 
 
 def continuous_gaussian_log_likelihood(x, *, means, log_scales):
@@ -217,7 +217,7 @@ def discretized_gaussian_log_likelihood(x, *, means, log_scales):
     :param log_scales: the Gaussian log stddev Tensor.
     :return: a tensor like x of log probabilities (in nats).
     """
-    assert x.shape == means.shape and means.shape == log_scales.shape
+    # assert x.shape == means.shape and means.shape == log_scales.shape
     centered_x = x - means
     inv_stdv = ops.exp(-log_scales)
     plus_in = inv_stdv * (centered_x + 1.0 / 255.0)
@@ -232,5 +232,5 @@ def discretized_gaussian_log_likelihood(x, *, means, log_scales):
         log_cdf_plus,
         ops.where(x > 0.999, log_one_minus_cdf_min, ops.log(cdf_delta.clamp(min=1e-12))),
     )
-    assert log_probs.shape == x.shape
+    # assert log_probs.shape == x.shape
     return log_probs

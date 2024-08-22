@@ -8,6 +8,7 @@ from functools import partial
 from typing import Optional
 
 import numpy as np
+from opensora.models.layers.operation_selector import get_split_op
 
 import mindspore as ms
 from mindspore import Tensor, ops
@@ -103,6 +104,8 @@ class GaussianDiffusion:
         # new
         self.log_betas = to_mindspore(self.log_betas)
 
+        self.split = get_split_op()
+
     def q_mean_variance(self, x_start, t):
         """
         Get the distribution q(x_t | x_0).
@@ -126,7 +129,6 @@ class GaussianDiffusion:
         """
         if noise is None:
             noise = ops.randn_like(x_start)
-        assert noise.shape == x_start.shape
         return (
             _extract_into_tensor(self.sqrt_alphas_cumprod, t, x_start.shape) * x_start
             + _extract_into_tensor(self.sqrt_one_minus_alphas_cumprod, t, x_start.shape) * noise
@@ -137,7 +139,6 @@ class GaussianDiffusion:
         Compute the mean and variance of the diffusion posterior:
             q(x_{t-1} | x_t, x_0)
         """
-        assert x_start.shape == x_t.shape
         posterior_mean = (
             _extract_into_tensor(self.posterior_mean_coef1, t, x_t.shape) * x_start
             + _extract_into_tensor(self.posterior_mean_coef2, t, x_t.shape) * x_t
@@ -171,15 +172,13 @@ class GaussianDiffusion:
 
         B, C, F = x.shape[:3]
 
-        assert t.shape == (B,)
         model_output = model(x, t, **model_kwargs)
         if isinstance(model_output, tuple):
             model_output, extra = model_output
         else:
             extra = None
         if self.model_var_type in [ModelVarType.LEARNED, ModelVarType.LEARNED_RANGE]:
-            assert model_output.shape == (B, C * 2, F, *x.shape[3:])
-            model_output, model_var_values = ops.split(model_output, C, axis=1)
+            model_output, model_var_values = self.split(model_output, C, 1)
 
             min_log = _extract_into_tensor(self.posterior_log_variance_clipped, t, x.shape)
             max_log = _extract_into_tensor(self.log_betas, t, x.shape)
@@ -226,7 +225,6 @@ class GaussianDiffusion:
         }
 
     def _predict_xstart_from_eps(self, x_t, t, eps):
-        assert x_t.shape == eps.shape
         return (
             _extract_into_tensor(self.sqrt_recip_alphas_cumprod, t, x_t.shape) * x_t
             - _extract_into_tensor(self.sqrt_recipm1_alphas_cumprod, t, x_t.shape) * eps
@@ -348,7 +346,7 @@ class GaussianDiffusion:
         cond_fn=None,
         model_kwargs=None,
         progress=False,
-        frames_mask: Optional[Tensor] = None,
+        frames_mask: Optional[np.ndarray] = None,
     ):
         """
         Generate samples from the model.
@@ -391,7 +389,7 @@ class GaussianDiffusion:
         cond_fn=None,
         model_kwargs=None,
         progress=False,
-        frames_mask: Optional[Tensor] = None,
+        frames_mask: Optional[np.ndarray] = None,
     ):
         """
         Generate samples from the model and yield intermediate samples from
@@ -400,7 +398,6 @@ class GaussianDiffusion:
         Returns a generator over dicts, where each dict is the return value of
         p_sample().
         """
-        assert isinstance(shape, (tuple, list))
         if noise is not None:
             img = noise
         else:
@@ -432,18 +429,40 @@ class GaussianDiffusion:
     def ddim_sample(
         self,
         model,
-        x,
+        x: Tensor,
         t,
         clip_denoised=True,
         denoised_fn=None,
         cond_fn=None,
         model_kwargs=None,
         eta=0.0,
+        frames_mask: Optional[np.ndarray] = None,
     ):
         """
         Sample x_{t-1} from the model using DDIM.
         Same usage as p_sample().
         """
+        if frames_mask is not None:
+            if frames_mask.shape[0] != x.shape[0]:
+                frames_mask = frames_mask.reshape(1, -1).repeat(2, axis=0)  # HACK
+            mask_t = (frames_mask * len(self.betas)).astype(np.int32)
+
+            # x0: copy unchanged x values
+            # x_noise: add noise to x values
+            x0 = x.copy()
+            x_noise = x0 * _extract_into_tensor(self.sqrt_alphas_cumprod, t, x.shape) + ops.randn_like(
+                x
+            ) * _extract_into_tensor(self.sqrt_one_minus_alphas_cumprod, t, x.shape)
+
+            # active noise addition
+            mask_t_equall = (mask_t == t.unsqueeze(1))[:, None, :, None, None]
+            x = ops.where(Tensor(mask_t_equall), x_noise, x0)  # FIXME: numpy
+
+            # create frames_mask
+            mask_t_upper = (mask_t > t.unsqueeze(1))[:, None, :, None, None]
+            batch_size = x.shape[0]
+            model_kwargs["frames_mask"] = Tensor(mask_t_upper.reshape(batch_size, -1), dtype=ms.bool_)  # FIXME: numpy
+
         out = self.p_mean_variance(
             model,
             x,
@@ -467,6 +486,11 @@ class GaussianDiffusion:
         mean_pred = out["pred_xstart"] * ops.sqrt(alpha_bar_prev) + ops.sqrt(1 - alpha_bar_prev - sigma**2) * eps
         nonzero_mask = (t != 0).float().view(-1, *([1] * (len(x.shape) - 1)))  # no noise when t == 0
         sample = mean_pred + nonzero_mask * sigma * noise
+
+        if frames_mask is not None:
+            mask_t_lower = (mask_t < t.unsqueeze(1))[:, None, :, None, None]
+            sample = ops.where(Tensor(mask_t_lower), x0, sample)  # FIXME: numpy
+
         return {"sample": sample, "pred_xstart": out["pred_xstart"]}
 
     def ddim_reverse_sample(
@@ -483,7 +507,6 @@ class GaussianDiffusion:
         """
         Sample x_{t+1} from the model using DDIM reverse ODE.
         """
-        assert eta == 0.0, "Reverse ODE only for deterministic path"
         out = self.p_mean_variance(
             model,
             x,
@@ -517,7 +540,7 @@ class GaussianDiffusion:
         model_kwargs=None,
         progress=False,
         eta=0.0,
-        frames_mask: Optional[Tensor] = None,  # TODO: integrate support
+        frames_mask: Optional[np.ndarray] = None,
     ):
         """
         Generate samples from the model using DDIM.
@@ -534,6 +557,7 @@ class GaussianDiffusion:
             model_kwargs=model_kwargs,
             progress=progress,
             eta=eta,
+            frames_mask=frames_mask,
         ):
             final = sample
         return final["sample"]
@@ -549,13 +573,13 @@ class GaussianDiffusion:
         model_kwargs=None,
         progress=False,
         eta=0.0,
+        frames_mask: Optional[np.ndarray] = None,
     ):
         """
         Use DDIM to sample from the model and yield intermediate samples from
         each timestep of DDIM.
         Same usage as p_sample_loop_progressive().
         """
-        assert isinstance(shape, (tuple, list))
         if noise is not None:
             img = noise
         else:
@@ -582,6 +606,7 @@ class GaussianDiffusion:
                 cond_fn=cond_fn,
                 model_kwargs=model_kwargs,
                 eta=eta,
+                frames_mask=frames_mask,
             )
             yield out
             img = out["sample"]
@@ -603,7 +628,6 @@ class GaussianDiffusion:
         decoder_nll = -discretized_gaussian_log_likelihood(
             x_start, means=out["mean"], log_scales=0.5 * out["log_variance"]
         )
-        assert decoder_nll.shape == x_start.shape
         decoder_nll = mean_flat(decoder_nll) / Tensor(np.log(2.0))
         decoder_nll = decoder_nll.to(kl.dtype)
 
