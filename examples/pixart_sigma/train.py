@@ -361,6 +361,7 @@ def main(args):
                 f"Grad clipping: {args.clip_grad}",
                 f"Max grad norm: {args.max_grad_norm}",
                 f"EMA: {args.use_ema}",
+                f"Multi-Scale Training: {args.multi_scale}",
                 f"Enable flash attention: {args.enable_flash_attention}",
             ]
         )
