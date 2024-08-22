@@ -195,7 +195,7 @@ def main(args):
         except Exception:
             logger.warning(
                 "The current jit_level is not suitable because current MindSpore version does not match,"
-                "please ensure the MindSpore version >= ms2.3_0615."
+                "please ensure the MindSpore version >= ms2.3.0."
             )
     set_random_seed(args.seed)
 
@@ -338,7 +338,7 @@ if __name__ == "__main__":
         default="O2",
         type=str,
         choices=["O0", "O1", "O2"],
-        help="Used to control the compilation optimization level. Supports [“O0”, “O1”, “O2”]."
+        help="Used to control the compilation optimization level. Supports ['O0', 'O1', 'O2']."
         "O0: Except for optimizations that may affect functionality, all other optimizations are turned off, adopt KernelByKernel execution mode."
         "O1: Using commonly used optimizations and automatic operator fusion optimizations, adopt KernelByKernel execution mode."
         "O2: Ultimate performance optimization, adopt Sink execution mode.",

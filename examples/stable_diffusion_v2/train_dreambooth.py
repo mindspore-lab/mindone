@@ -34,6 +34,7 @@ logger = logging.getLogger(__name__)
 def init_env(args):
     set_random_seed(args.seed)
     ms.set_context(max_device_memory=args.max_device_memory)  # TODO: why limit?
+    ms.set_context()  # needed for MS2.0
     if args.mode == ms.GRAPH_MODE:
         try:
             if args.jit_level in ["O0", "O1", "O2"]:
@@ -46,9 +47,8 @@ def init_env(args):
         except Exception:
             logger.warning(
                 "The current jit_level is not suitable because current MindSpore version does not match,"
-                "please ensure the MindSpore version >= ms2.3_0615."
+                "please ensure the MindSpore version >= ms2.3.0."
             )
-    ms.set_context(mode=args.mode)  # needed for MS2.0
     if args.use_parallel:
         init()
         device_id = int(os.getenv("DEVICE_ID"))
@@ -105,7 +105,7 @@ def parse_args():
         default="O2",
         type=str,
         choices=["O0", "O1", "O2"],
-        help="Used to control the compilation optimization level. Supports [“O0”, “O1”, “O2”]."
+        help="Used to control the compilation optimization level. Supports ['O0', 'O1', 'O2']."
         "O0: Except for optimizations that may affect functionality, all other optimizations are turned off, adopt KernelByKernel execution mode."
         "O1: Using commonly used optimizations and automatic operator fusion optimizations, adopt KernelByKernel execution mode."
         "O2: Ultimate performance optimization, adopt Sink execution mode.",

@@ -53,7 +53,7 @@ def init_env(
         except Exception:
             _logger.warning(
                 "The current jit_level is not suitable because current MindSpore version does not match,"
-                "please ensure the MindSpore version >= ms2.3_0615."
+                "please ensure the MindSpore version >= ms2.3.0."
             )
 
     if debug and mode == ms.GRAPH_MODE:  # force PyNative mode when debugging
