@@ -13,7 +13,8 @@ mindone_lib_path = os.path.abspath("../../")
 sys.path.insert(0, mindone_lib_path)
 sys.path.append("./")
 from opensora.acceleration.parallel_states import get_sequence_parallel_state, hccl_info
-from opensora.dataset.t2v_dataset import create_dataloader
+from opensora.dataset import getdataset
+from opensora.dataset.loader import create_dataloader
 from opensora.models import CausalVAEModelWrapper
 from opensora.models.causalvideovae import ae_channel_config, ae_stride_config
 from opensora.models.causalvideovae.model.modules.updownsample import TrilinearInterpolate
@@ -21,10 +22,10 @@ from opensora.models.diffusion import Diffusion_models
 from opensora.models.diffusion.opensora.modules import Attention, LayerNorm
 from opensora.models.diffusion.opensora.net_with_loss import DiffusionWithLoss
 from opensora.train.commons import create_loss_scaler, parse_args
+from opensora.utils.dataset_utils import Collate, LengthGroupedSampler
 from opensora.utils.message_utils import print_banner
 from opensora.utils.ms_utils import init_env
 from opensora.utils.utils import get_precision
-from transformers import AutoTokenizer
 
 from mindone.diffusers.models.embeddings import PixArtAlphaCombinedTimestepSizeEmbeddings
 from mindone.diffusers.schedulers import DDPMScheduler as DDPMScheduler_diffusers
@@ -242,7 +243,6 @@ def main(args):
                 os.path.join(args.cache_dir, args.text_encoder_name, "pytorch_model.bin")
             )
         text_encoder = MT5EncoderModel.from_pretrained(args.text_encoder_name, cache_dir=args.cache_dir)
-        tokenizer = AutoTokenizer.from_pretrained(args.text_encoder_name, cache_dir=args.cache_dir)
         # mixed precision
         text_encoder_dtype = get_precision(args.text_encoder_precision)
         text_encoder = auto_mixed_precision(text_encoder, amp_level="O2", dtype=text_encoder_dtype)
@@ -250,7 +250,6 @@ def main(args):
         logger.info(f"Use amp level O2 for text encoder {args.text_encoder_name} with dtype={text_encoder_dtype}")
     else:
         text_encoder = None
-        tokenizer = None
         text_encoder_dtype = None
 
     noise_scheduler = DDPMScheduler()
@@ -262,8 +261,6 @@ def main(args):
     assert args.use_image_num >= 0, f"Expect to have use_image_num>=0, but got {args.use_image_num}"
     if args.use_image_num > 0:
         logger.info("Enable video-image-joint training")
-        if args.use_img_from_vid:
-            args.image_data = ""
     else:
         if args.num_frames == 1:
             logger.info("Training on image datasets only.")
@@ -286,21 +283,25 @@ def main(args):
     # TODO: replace it with new dataset
     assert args.dataset == "t2v", "Support t2v dataset only."
     print_banner("Dataset Loading")
-    ds_config = dict(
-        image_data=args.image_data,
-        video_data=args.video_data,
-        sample_size=(args.max_height, args.max_width),
-        num_frames=args.num_frames,
-        tokenizer=tokenizer,
-        return_text_emb=args.text_embed_cache,
-        disable_flip=not args.enable_flip,
-        use_image_num=args.use_image_num,
-        use_img_from_vid=args.use_img_from_vid,
-        model_max_length=args.model_max_length,
-        filter_nonexistent=args.filter_nonexistent,
+    # Setup data:
+    train_dataset = getdataset(args)
+    sampler = (
+        LengthGroupedSampler(
+            args.train_batch_size,
+            world_size=device_num if not get_sequence_parallel_state() else (device_num // hccl_info.world_size),
+            lengths=len(train_dataset),
+            group_frame=args.group_frame,
+            group_resolution=args.group_resolution,
+        )
+        if (args.group_frame or args.group_resolution)
+        else None
     )
+    # ds_config = dict(
+    #     return_text_emb=args.text_embed_cache,
+    #     filter_nonexistent=args.filter_nonexistent,
+    # )
     dataset = create_dataloader(
-        ds_config,
+        train_dataset,
         batch_size=args.train_batch_size,
         shuffle=True,
         device_num=device_num if not get_sequence_parallel_state() else (device_num // hccl_info.world_size),
@@ -308,6 +309,8 @@ def main(args):
         num_parallel_workers=args.dataloader_num_workers,
         max_rowsize=args.max_rowsize,
         prefetch_size=args.dataloader_prefetch_size,
+        collate_fn=Collate,
+        sampler=sampler,
     )
     dataset_size = dataset.get_dataset_size()
     assert dataset_size > 0, "Incorrect dataset size. Please check your dataset size and your global batch size"
@@ -585,8 +588,7 @@ def main(args):
 def parse_t2v_train_args(parser):
     parser.add_argument("--output_dir", default="outputs/", help="The directory where training results are saved.")
     parser.add_argument("--dataset", type=str, default="t2v")
-    parser.add_argument("--image_data", type=str, required=True)
-    parser.add_argument("--video_data", type=str, required=True)
+    parser.add_argument("--data", type=str, required=True)
     parser.add_argument("--cache_dir", type=str, default="./cache_dir")
     parser.add_argument(
         "--filter_nonexistent",
@@ -654,11 +656,6 @@ def parse_t2v_train_args(parser):
         ),
     )
 
-    parser.add_argument(
-        "--enable_flip",
-        action="store_true",
-        help="enable random flip video (disable it to avoid motion direction and text mismatch)",
-    )
     parser.add_argument(
         "--num_no_recompute",
         type=int,

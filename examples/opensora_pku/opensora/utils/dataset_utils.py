@@ -341,47 +341,29 @@ def get_length_grouped_indices(
     # We need to use numpy for the random part as a distributed sampler will set the random seed
     if generator is None:
         generator = np.random.default_rng(seed)  # every rank will generate a fixed order but random index
-    # print('lengths', lengths)
-    indices = generator.permutation(len(lengths)).tolist()
-    # print('indices', len(indices))
 
+    indices = generator.permutation(len(lengths)).tolist()
     if group_frame and not group_resolution:
         indices = group_frame_fun(indices, lengths)
     elif not group_frame and group_resolution:
         indices = group_resolution_fun(indices)
     elif group_frame and group_resolution:
         indices = group_frame_and_resolution_fun(indices)
-    # print('sort indices', len(indices))
-    # print('sort indices', indices)
-    # print('sort lengths', [lengths[i] for i in indices])
-
     megabatch_size = world_size * batch_size
     megabatches = [indices[i : i + megabatch_size] for i in range(0, len(lengths), megabatch_size)]
-    # print('megabatches', len(megabatches))
-    # print('\nmegabatches', megabatches)
+
     megabatches = [sorted(megabatch, key=lambda i: lengths[i], reverse=True) for megabatch in megabatches]
-    # print('sort megabatches', len(megabatches))
-    # megabatches_len = [[lengths[i] for i in megabatch] for megabatch in megabatches]
-    # print('\nsorted megabatches', megabatches)
-    # print('\nsorted megabatches_len', megabatches_len)
+
     megabatches = [split_to_even_chunks(megabatch, lengths, world_size, batch_size) for megabatch in megabatches]
-    # print('nsplit_to_even_chunks megabatches', len(megabatches))
-    # print('\nsplit_to_even_chunks megabatches', megabatches)
-    # print('\nsplit_to_even_chunks len', [lengths[i] for megabatch in megabatches for batch in megabatch for i in batch])
-    # return [i for megabatch in megabatches for batch in megabatch for i in batch]
 
     indices = generator.permutation(len(megabatches)).tolist()
     shuffled_megabatches = [megabatches[i] for i in indices]
-    # print('shuffled_megabatches', len(shuffled_megabatches))
     if group_frame and not group_resolution:
         shuffled_megabatches = last_group_frame_fun(shuffled_megabatches, lengths)
     elif not group_frame and group_resolution:
         shuffled_megabatches = last_group_resolution_fun(shuffled_megabatches, indices)
     elif group_frame and group_resolution:
         shuffled_megabatches = last_group_frame_and_resolution_fun(shuffled_megabatches, indices)
-    # print('\nshuffled_megabatches', shuffled_megabatches)
-    # import ipdb;ipdb.set_trace()
-    # print('\nshuffled_megabatches len', [lengths[i] for megabatch in shuffled_megabatches for batch in megabatch for i in batch])
 
     return [i for megabatch in shuffled_megabatches for batch in megabatch for i in batch]
 

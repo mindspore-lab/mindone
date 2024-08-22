@@ -25,15 +25,12 @@ import mindspore as ms
 from mindspore.communication.management import get_local_rank, get_local_rank_size
 from mindspore.dataset import GeneratorDataset
 
-from .t2v_dataset import TextVideoDataset
-
 _logger = logging.getLogger(__name__)
 
 
 def create_dataloader(
-    ds_config,
+    dataset,
     batch_size,
-    ds_name="text_video",
     column_names=["video"],
     num_parallel_workers=12,
     max_rowsize=64,
@@ -41,16 +38,11 @@ def create_dataloader(
     device_num=1,
     rank_id=0,
     drop_last=True,
-    return_dataset=False,
     prefetch_size=None,
     enable_modelarts=False,
     collate_fn=None,
+    sampler=None,
 ):
-    if ds_name == "text_video":
-        dataset = TextVideoDataset(**ds_config)
-        column_names = ["video", "text", "mask"]
-    else:
-        raise NotImplementedError
     datalen = dataset.__len__
 
     if prefetch_size is not None:
@@ -71,8 +63,9 @@ def create_dataloader(
         rank_id=rank_id,
         shuffle=shuffle,
         drop_last=drop_last,
+        sampler=sampler,
     )
-    dataloaders[ds_name] = loader
+    dataloaders["data"] = loader
 
     metaloader = MetaLoader(dataloaders, datalen=batch_size, task_num=len(dataloaders.keys()))
 
@@ -86,13 +79,14 @@ def create_dataloader(
 
     _logger.info("dataset size per shard: {}".format(dl.get_dataset_size()))
 
-    if return_dataset:
-        return dl, dataset
     return dl
 
 
-def build_dataloader(dataset, datalens, collate_fn, batch_size, device_num, rank_id=0, shuffle=True, drop_last=True):
-    sampler = BatchSampler(datalens, batch_size=batch_size, device_num=device_num, shuffle=shuffle)
+def build_dataloader(
+    dataset, datalens, collate_fn, batch_size, device_num, rank_id=0, sampler=None, shuffle=True, drop_last=True
+):
+    if sampler is None:
+        sampler = BatchSampler(datalens, batch_size=batch_size, device_num=device_num, shuffle=shuffle)
     loader = DataLoader(
         dataset,
         batch_sampler=sampler,
