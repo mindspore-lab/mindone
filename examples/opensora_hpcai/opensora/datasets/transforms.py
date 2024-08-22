@@ -1,6 +1,6 @@
 from typing import Tuple
-import cv2
 
+import cv2
 import numpy as np
 
 from mindspore.dataset.transforms import Compose
@@ -39,7 +39,7 @@ class BucketResizeCrop:
         return self._transforms[bucket_id[0]][bucket_id[1]][bucket_id[2]](x)
 
 
-class ResizeAndCrop():
+class ResizeAndCrop:
     """Resize an RGB image to a target size while preserving the aspect ratio and cropping it.
     Align to resize_crop_to_fill in torch. Ensure no black surrounding produced.
     """
@@ -56,7 +56,7 @@ class ResizeAndCrop():
 
         h, w = img.shape[:2]
         th, tw = self.tar_h, self.tar_w  # target
-        rh, rw = th / h, tw / w     # ratio
+        rh, rw = th / h, tw / w  # ratio
 
         if rh > rw:
             # target image is thinner than the original image
@@ -75,11 +75,11 @@ class ResizeAndCrop():
             start_x = int(round(new_w - tw))
 
         # Resize the image
-        # NOTE: since in opensora v1.2, original videos are mainly downsampled to the resolution of a bucket. The best choice for image downsample is INTER_AREA interpolation. 
+        # NOTE: for opensora v1.2, HD videos are mainly downsampled according to buckets. The best choice for down-sample interpolation is INTER_AREA.
         resized_img = cv2.resize(img, (new_w, new_h), interpolation=cv2.INTER_AREA)
 
         # Crop the image to the target size
-        cropped_img = resized_img[start_y:start_y + self.tar_h, start_x:start_x + self.tar_w]
+        cropped_img = resized_img[start_y : start_y + self.tar_h, start_x : start_x + self.tar_w]
 
         return cropped_img
 
@@ -98,8 +98,5 @@ class BucketResizeAndCrop(object):
                     self._transforms[name][str(length)][ar] = ResizeAndCrop(hw[0], hw[1])
 
     def __call__(self, image, bucket_id=None):
-
         resized_img = self._transforms[bucket_id[0]][str(bucket_id[1])][bucket_id[2]](image)
         return resized_img
-
-

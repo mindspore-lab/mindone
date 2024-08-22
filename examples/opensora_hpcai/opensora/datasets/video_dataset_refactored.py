@@ -11,16 +11,16 @@ from typing import Any, Callable, List, Optional, Tuple
 import cv2
 import numpy as np
 from decord import VideoReader
-from mindone.data.video_reader import VideoReader as VideoReader_CV2
 from tqdm import tqdm
 
 import mindspore as ms
 from mindspore.dataset.transforms import Compose
 from mindspore.dataset.vision import CenterCrop, Inter, Normalize
 
+from mindone.data.video_reader import VideoReader as VideoReader_CV2
+
 from .bucket import Bucket
-from .transforms import BucketResizeCrop, Resize
-from .transforms import ResizeAndCrop, BucketResizeAndCrop
+from .transforms import BucketResizeAndCrop, BucketResizeCrop, Resize, ResizeAndCrop
 
 # FIXME: remove in future when mindone is ready for install
 sys.path.append(os.path.join(os.path.dirname(__file__), "../../../.."))
@@ -83,11 +83,11 @@ class VideoDatasetRefactored(BaseDataset):
         apply_train_transforms: bool = False,
         target_size: Optional[Tuple[int]] = None,
         tokenizer=None,
-        video_backend: str = 'cv2',
+        video_backend: str = "cv2",
         *,
         output_columns: List[str],
     ):
-        assert tokenizer is None, 'tokenizer is not supported'
+        assert tokenizer is None, "tokenizer is not supported"
         if pre_patchify and vae_latent_folder is None:
             raise ValueError("`vae_latent_folder` must be provided when `pre_patchify=True`.")
         if text_emb_folder is None:
@@ -138,15 +138,15 @@ class VideoDatasetRefactored(BaseDataset):
                 self.num_latent_resolution = len(resolution_indicators)
                 self.latent_resolution_prefix = resolution_indicators
                 _logger.info("Multi-resolution latents detected: {}".format(self.num_latent_resolution))
-        
-        # decord has better performance and may incur memory leak for high-resolution videos
-        self.video_backend = video_backend 
 
-        self.apply_train_transforms = apply_train_transforms 
+        # decord has better performance and may incur memory leak for high-resolution videos
+        self.video_backend = video_backend
+
+        self.apply_train_transforms = apply_train_transforms
         if self.apply_train_transforms:
             self.pixel_transforms = create_train_transforms(target_size, buckets=buckets)
             self.output_columns.remove("bucket_id")
-            assert pre_patchify==False, 'transforms for prepatchify not implemented yet' 
+            assert not pre_patchify, "transforms for prepatchify not implemented yet"
 
         # prepare replacement data in case the loading of a sample fails
         self._prev_ok_sample = self._get_replacement()
@@ -218,8 +218,8 @@ class VideoDatasetRefactored(BaseDataset):
 
         if self._text_emb_folder:
             with np.load(text_emb_path) as td:
-                data['caption'] = td["text_emb"]
-                data['mask'] = td["mask"].astype(np.uint8)
+                data["caption"] = td["text_emb"]
+                data["mask"] = td["mask"].astype(np.uint8)
 
         if self._vae_latent_folder:
             # pick a resolution randomly if there are multi-resolution latents in vae folder
@@ -250,7 +250,7 @@ class VideoDatasetRefactored(BaseDataset):
             video = (vae_latent * self._vae_scale_factor).astype(np.float32)
 
         else:
-            if self.video_backend == 'decord':
+            if self.video_backend == "decord":
                 reader = VideoReader(video_path)
                 min_length = self._min_length
                 video_length = len(reader)
@@ -267,7 +267,8 @@ class VideoDatasetRefactored(BaseDataset):
                     )
                     if data["bucket_id"] is None:
                         raise ValueError(
-                            f"Couldn't assign a bucket to {data['video']}" f" (T={video_length}, H={frame_h}, W={frame_w})."
+                            f"Couldn't assign a bucket to {data['video']}"
+                            f" (T={video_length}, H={frame_h}, W={frame_w})."
                         )
                     num_frames, *_ = self._buckets.get_thw(data["bucket_id"])
                     min_length = (num_frames - 1) * self._stride + 1
@@ -280,9 +281,11 @@ class VideoDatasetRefactored(BaseDataset):
 
                 batch_index = np.linspace(start_pos, start_pos + clip_length - 1, num_frames, dtype=int)
                 video = reader.get_batch(batch_index).asnumpy()
-                data["fps"] = np.array(reader.get_avg_fps(), dtype=np.float32)  # / self._stride  # FIXME: OS v1.1 incorrect
+                data["fps"] = np.array(
+                    reader.get_avg_fps(), dtype=np.float32
+                )  # / self._stride  # FIXME: OS v1.1 incorrect
                 del reader
-            elif self.video_backend == 'cv2':
+            elif self.video_backend == "cv2":
                 with VideoReader_CV2(video_path) as reader:
                     min_length = self._min_length
                     if self._buckets:
@@ -293,7 +296,10 @@ class VideoDatasetRefactored(BaseDataset):
                             frame_interval=self._stride,
                         )
                         if data["bucket_id"] is None:
-                            raise ValueError(f"Couldn't assign a bucket to {data['video']}" f" (T={len(reader)}, H={reader.shape[1]}, W={reader.shape[0]}).")
+                            raise ValueError(
+                                f"Couldn't assign a bucket to {data['video']}"
+                                f" (T={len(reader)}, H={reader.shape[1]}, W={reader.shape[0]})."
+                            )
                         num_frames, *_ = self._buckets.get_thw(data["bucket_id"])
                         min_length = (num_frames - 1) * self._stride + 1
 
@@ -311,7 +317,7 @@ class VideoDatasetRefactored(BaseDataset):
         if self._fmask_gen is not None:
             # return frames mask with respect to the VAE's latent temporal compression
             data["frames_mask"] = self._fmask_gen(self._t_compress_func(num_frames))
-        
+
         data["video"] = video
 
         # apply transforms on video frames here
@@ -326,7 +332,7 @@ class VideoDatasetRefactored(BaseDataset):
                 clip.append(resized_img)
             clip = np.stack(clip, axis=0)
 
-            # transpose and norm, clip-wise 
+            # transpose and norm, clip-wise
             clip = np.transpose(clip, (0, 3, 1, 2))
             clip = np.divide(clip, 127.5, dtype=np.float32)  # faster
             clip = np.subtract(clip, 1.0, dtype=np.float32)
@@ -337,7 +343,7 @@ class VideoDatasetRefactored(BaseDataset):
             # NOTE: here ar = h / w, aligned to torch, while the common practice is w / h
             data["ar"] = np.array(clip.shape[-2] / clip.shape[-1], dtype=np.float32)
             data["video"] = clip
-        
+
         final_outputs = tuple(data.pop(c) for c in self.output_columns)
         del data
 
@@ -393,7 +399,6 @@ class VideoDatasetRefactored(BaseDataset):
     def __len__(self):
         return len(self._data)
 
-   
     def train_transforms(
         self, target_size: Tuple[int, int], tokenizer: Optional[Callable[[str], np.ndarray]] = None
     ) -> List[dict]:
