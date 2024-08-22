@@ -17,7 +17,7 @@ export output_path=$MA_JOB_DIR/mindone/examples/opensora_hpcai/output
 python $MA_JOB_DIR/mindone/tools/modelarts/msrun/msrun.py mindone/examples/opensora_hpcai/scripts train.py
 ```
 
-⚠️ Note: 
+⚠️ Note:
 - `$output_path` should be an **ABSOLUTE** path.
 - if no `$output_path`, the msrun logs will be saved at the ModelArts default output directory: `/home/ma-user/modelarts/outputs/output_path_0/`.
 

@@ -353,14 +353,6 @@ def main(args):
         elif args.vae_type == "OpenSoraVAE_V1_2":
             if args.vae_micro_frame_size != 17:
                 logger.warning("vae_micro_frame_size should be 17 to align with the vae pretrain setting.")
-            # FIXME: temp test
-            if isinstance(args.vae_micro_batch_size, int):
-                if args.vae_micro_batch_size <= 0:
-                    args.vae_micro_batch_size = None
-            if isinstance(args.vae_micro_frame_size, int):
-                if args.vae_micro_frame_size <= 0:
-                    args.vae_micro_frame_size = None
-
             vae = OpenSoraVAE_V1_2(
                 micro_batch_size=args.vae_micro_batch_size,
                 micro_frame_size=args.vae_micro_frame_size,

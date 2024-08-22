@@ -174,7 +174,14 @@ def parse_train_args(parser):
 
     # dataloader params
     parser.add_argument("--dataset_sink_mode", default=False, type=str2bool, help="sink mode")
-    parser.add_argument("--video_backend", default='cv2', type=str, choices=['cv2', 'decord'], help="select video reading backend. if decord, use decord to read video frames, which may lead to memory leak for high-resolution videos. if cv2, use cv2 video capture. only valid for opensora v1.2. Default: cv2")
+    parser.add_argument(
+        "--video_backend",
+        default="cv2",
+        type=str,
+        choices=["cv2", "decord"],
+        help="select video reading backend. if decord, use decord to read video frames, which may lead to memory leak for high-resolution videos. \
+                if cv2, use cv2 video capture. only valid for opensora v1.2. Default: cv2",
+    )
     parser.add_argument("--sink_size", default=-1, type=int, help="dataset sink size. If -1, sink size = dataset size.")
     parser.add_argument(
         "--epochs",
