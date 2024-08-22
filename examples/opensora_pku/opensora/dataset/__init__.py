@@ -3,9 +3,9 @@ from functools import partial
 import cv2
 from albumentations import Compose, Lambda, Resize, ToFloat
 from opensora.models.causalvideovae import ae_norm
-from t2v_datasets import T2V_dataset
 from transformers import AutoTokenizer
 
+from .t2v_datasets import T2V_dataset
 from .transform import TemporalRandomCrop, center_crop_th_tw
 
 
@@ -19,7 +19,7 @@ def getdataset(args):
             image=partial(center_crop_th_tw, th=args.max_height, tw=args.max_width, top_crop=True),
             p=1.0,
         ),
-        Resize(args.max_height, args.max_width, interploation=mapping["bilinear"]),
+        Resize(args.max_height, args.max_width, interpolation=mapping["bilinear"]),
     ]
     resize = [
         Lambda(
@@ -27,7 +27,7 @@ def getdataset(args):
             image=partial(center_crop_th_tw, th=args.max_height, tw=args.max_width, top_crop=False),
             p=1.0,
         ),
-        Resize(args.max_height, args.max_width, interploation=mapping["bilinear"]),
+        Resize(args.max_height, args.max_width, interpolation=mapping["bilinear"]),
     ]
 
     transform = Compose([*resize, ToFloat(255.0), Lambda(name="ae_norm", image=norm_fun, p=1.0)])

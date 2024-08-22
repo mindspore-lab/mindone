@@ -209,6 +209,7 @@ def parse_t2v_train_args(parser):
         action="store_true",
         help="Whether or not to use gradient checkpointing to save memory at the expense of slower backward pass.",
     )
+    parser.add_argument("--cfg", type=float, default=0.1)
 
     return parser
 

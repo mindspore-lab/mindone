@@ -655,7 +655,7 @@ def parse_t2v_train_args(parser):
             " training using `--resume_from_checkpoint`."
         ),
     )
-
+    parser.add_argument("--cfg", type=float, default=0.1)
     parser.add_argument(
         "--num_no_recompute",
         type=int,

@@ -4,8 +4,7 @@ python  opensora/train/train_t2v_diffusers.py \
     --text_encoder_name google/mt5-xxl \
     --cache_dir "./" \
     --dataset t2v \
-    --image_data "scripts/train_data/single_image_data.txt" \
-    --video_data "scripts/train_data/single_video_data.txt" \
+    --data "scripts/train_data/merge_data.txt" \
     --ae CausalVAEModel_D4_4x8x8 \
     --ae_path "LanguageBind/Open-Sora-Plan-v1.2.0/vae" \
     --sample_rate 1 \
@@ -32,6 +31,7 @@ python  opensora/train/train_t2v_diffusers.py \
     --allow_tf32 \
     --model_max_length 512 \
     --use_image_num 0 \
+    --cfg 0.1 \
     --snr_gamma 5.0 \
     --use_ema True\
     --ema_start_step 0 \
@@ -44,4 +44,3 @@ python  opensora/train/train_t2v_diffusers.py \
     --ema_decay 0.999 \
     --speed_factor 1.0 \
     --drop_short_ratio 1.0 \
-    #  --cfg 0.1 \  # for valiation

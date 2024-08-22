@@ -118,6 +118,8 @@ class T2V_dataset:
         temporal_sample=None,
         tokenizer=None,
         transform_topcrop=None,
+        filter_nonexistent=True,
+        return_text_emb=False,
     ):
         self.data = data
         self.num_frames = num_frames
@@ -136,12 +138,16 @@ class T2V_dataset:
         self.drop_short_ratio = drop_short_ratio
         assert self.speed_factor >= 1
         self.v_decoder = DecordInit()
+        self.filter_nonexistent = filter_nonexistent
+        self.return_text_emb = return_text_emb
 
         self.support_Chinese = True
         if not ("mt5" in text_encoder_name):
             self.support_Chinese = False
 
         cap_list = self.get_cap_list()
+        if self.filter_nonexistent:
+            cap_list = self.filter_nonexistent_files(cap_list)
 
         assert len(cap_list) > 0
         cap_list, self.sample_num_frames = self.define_frame_index(cap_list)
@@ -151,6 +157,16 @@ class T2V_dataset:
         dataset_prog.set_cap_list(dataloader_num_workers, cap_list, n_elements)
 
         print(f"video length: {len(dataset_prog.cap_list)}", flush=True)
+
+    def filter_nonexistent_files(self, cap_list):
+        indexes_to_remove = []
+        for i, item in enumerate(cap_list):
+            path = item["path"]
+            if not os.path.exists(path):
+                indexes_to_remove.append(i)
+        cap_list = [item for i, item in enumerate(cap_list) if i not in indexes_to_remove]
+        logger.info(f"Nonexistent files: {len(indexes_to_remove)}")
+        return cap_list
 
     def set_checkpoint(self, n_used_elements):
         for i in range(len(dataset_prog.n_used_elements)):
@@ -395,7 +411,17 @@ class T2V_dataset:
         cap_lists = []
         with open(data, "r") as f:
             folder_anno = [i.strip().split(",") for i in f.readlines() if len(i.strip()) > 0]
-        for folder, anno in folder_anno:
+        for item in folder_anno:
+            if len(item) == 2:
+                folder, anno = item
+            elif len(item) == 3:
+                folder, _, anno = item
+            else:
+                raise ValueError(f"Expect to have two or three paths, but got {len(item)} input paths")
+            if self.return_text_emb:
+                assert (
+                    len(item) == 3
+                ), "When returning text embeddings, please give three paths: video folder, text_embed folder, annotation file"
             with open(anno, "r") as f:
                 sub_list = json.load(f)
             logger.info(f"Building {anno}...")
