@@ -121,6 +121,7 @@ class EvalSaveCallback(Callback):
     def on_train_step_end(self, run_context):
         cb_params = run_context.original_args()
         loss = _handle_loss(cb_params.net_outputs)
+        video_shape = cb_params.net_outputs[-1]
         cur_step = cb_params.cur_step_num + self.start_epoch * cb_params.batch_num
         step_num = cb_params.batch_num * cb_params.epoch_num
 
@@ -182,20 +183,24 @@ class EvalSaveCallback(Callback):
                 self.step_start_time = time.time()
                 if self.record_lr:
                     _logger.info(
-                        "epoch: %d step: %d, lr: %.7f, loss: %.6f, loss scale: %d.",
+                        "epoch: %d step: %d, lr: %.7f, loss: %.6f, loss scale: %d, video shape: %s, cost: %.3f s. ",
                         cb_params.cur_epoch_num,
                         (cb_params.cur_step_num - 1) % cb_params.batch_num + 1,
                         cur_lr.asnumpy().item(),
                         loss.asnumpy().item(),
                         self._get_scaling_value_from_cbp(cb_params),
+                        video_shape,
+                        train_time,
                     )
                 else:
                     _logger.info(
-                        "epoch: %d step: %d, loss: %.6f, loss scale: %d.",
+                        "epoch: %d step: %d, loss: %.6f, loss scale: %d, video shape: %s, cost: %.3f s. ",
                         cb_params.cur_epoch_num,
                         (cb_params.cur_step_num - 1) % cb_params.batch_num + 1,
                         loss.asnumpy().item(),
                         self._get_scaling_value_from_cbp(cb_params),
+                        video_shape,
+                        train_time,
                     )
 
     def on_train_epoch_begin(self, run_context):

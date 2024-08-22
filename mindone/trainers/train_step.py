@@ -165,4 +165,4 @@ class TrainOneStepWrapper(nn.TrainOneStepWithLossScaleCell):
         # else:
         #    print("WARNING: Gradient overflow! update skipped.") # TODO: recover it after 910B in-graph print issue fixed
 
-        return loss, cond, scaling_sens
+        return loss, cond, scaling_sens, inputs[0].shape
