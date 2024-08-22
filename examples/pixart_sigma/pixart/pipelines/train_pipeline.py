@@ -90,7 +90,8 @@ class NetworkWithLoss(nn.Cell):
         model_output = self.apply_model(x_t, t, text_emb, text_mask)
 
         B, C = x_t.shape[:2]
-        assert model_output.shape == (B, C * 2) + x_t.shape[2:]
+        # TODO: dynamic shape unsupport tuple equal
+        # assert model_output.shape == (B, C * 2) + x_t.shape[2:]
         model_output, model_var_values = mint.split(model_output, C, dim=1)
 
         # Learn the variance using the variational bound, but don't let it affect our mean prediction.

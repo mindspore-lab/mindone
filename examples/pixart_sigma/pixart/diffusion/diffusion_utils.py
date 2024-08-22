@@ -200,7 +200,8 @@ def discretized_gaussian_log_likelihood(x, *, means, log_scales):
     :param log_scales: the Gaussian log stddev Tensor.
     :return: a tensor like x of log probabilities (in nats).
     """
-    assert x.shape == means.shape and means.shape == log_scales.shape
+    # TODO: dynamic shape unsupport tuple equal
+    # assert x.shape == means.shape and means.shape == log_scales.shape
     centered_x = x - means
     inv_stdv = ops.exp(-log_scales)
     plus_in = inv_stdv * (centered_x + 1.0 / 255.0)
@@ -215,5 +216,6 @@ def discretized_gaussian_log_likelihood(x, *, means, log_scales):
         log_cdf_plus,
         ops.where(x > 0.999, log_one_minus_cdf_min, ops.log(cdf_delta.clamp(min=1e-12))),
     )
-    assert log_probs.shape == x.shape
+    # TODO: dynamic shape unsupport tuple equal
+    # assert log_probs.shape == x.shape
     return log_probs

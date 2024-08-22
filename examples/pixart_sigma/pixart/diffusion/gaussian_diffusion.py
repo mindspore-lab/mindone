@@ -106,7 +106,8 @@ class GaussianDiffusion:
         """
         if noise is None:
             noise = ops.randn_like(x_start)
-        assert noise.shape == x_start.shape
+        # TODO: dynamic shape unsupport tuple equal
+        # assert noise.shape == x_start.shape
         return (
             extract_into_tensor(self.sqrt_alphas_cumprod, t) * x_start
             + extract_into_tensor(self.sqrt_one_minus_alphas_cumprod, t) * noise
@@ -117,7 +118,8 @@ class GaussianDiffusion:
         Compute the mean and variance of the diffusion posterior:
             q(x_{t-1} | x_t, x_0)
         """
-        assert x_start.shape == x_t.shape
+        # TODO: dynamic shape unsupport tuple equal
+        # assert x_start.shape == x_t.shape
         posterior_mean = (
             extract_into_tensor(self.posterior_mean_coef1, t) * x_start
             + extract_into_tensor(self.posterior_mean_coef2, t) * x_t
@@ -205,7 +207,8 @@ class GaussianDiffusion:
         }
 
     def _predict_xstart_from_eps(self, x_t, t, eps):
-        assert x_t.shape == eps.shape
+        # TODO: dynamic shape unsupport tuple equal
+        # assert x_t.shape == eps.shape
         return (
             extract_into_tensor(self.sqrt_recip_alphas_cumprod, t) * x_t
             - extract_into_tensor(self.sqrt_recipm1_alphas_cumprod, t) * eps
