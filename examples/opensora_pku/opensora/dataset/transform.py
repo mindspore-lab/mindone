@@ -1,4 +1,5 @@
 import html
+import random
 import re
 import urllib.parse as ul
 
@@ -64,6 +65,29 @@ def create_video_transforms(h, w, num_frames, interpolation="bicubic", backend="
         raise NotImplementedError
 
     return pixel_transforms
+
+
+def crop(clip, i, j, h, w):
+    if len(clip.shape) != 4:
+        raise ValueError("clip should be a 4D tensor")
+    return clip[..., i : i + h, j : j + w]
+
+
+def center_crop_th_tw(clip, th, tw, top_crop):
+    # input is a 4-d arrary (T, C, H, W)
+
+    h, w = clip.shape[-2], clip.shape[-1]
+    tr = th / tw
+    if h / w > tr:
+        new_h = int(w * tr)
+        new_w = w
+    else:
+        new_h = h
+        new_w = int(h / tr)
+
+    i = 0 if top_crop else int(round((h - new_h) / 2.0))
+    j = int(round((w - new_w) / 2.0))
+    return crop(clip, i, j, new_h, new_w)
 
 
 # create text transform(preprocess)
@@ -197,3 +221,44 @@ def clean_caption(caption):
     caption = re.sub(r"^\.\S+$", "", caption)
 
     return caption.strip()
+
+
+#  ------------------------------------------------------------
+#  ---------------------  Sampling  ---------------------------
+#  ------------------------------------------------------------
+class TemporalRandomCrop(object):
+    """Temporally crop the given frame indices at a random location.
+
+    Args:
+        size (int): Desired length of frames will be seen in the model.
+    """
+
+    def __init__(self, size):
+        self.size = size
+
+    def __call__(self, total_frames):
+        rand_end = max(0, total_frames - self.size - 1)
+        begin_index = random.randint(0, rand_end)
+        end_index = min(begin_index + self.size, total_frames)
+        return begin_index, end_index
+
+
+class DynamicSampleDuration(object):
+    """Temporally crop the given frame indices at a random location.
+
+    Args:
+        size (int): Desired length of frames will be seen in the model.
+    """
+
+    def __init__(self, t_stride, extra_1):
+        self.t_stride = t_stride
+        self.extra_1 = extra_1
+
+    def __call__(self, t, h, w):
+        if self.extra_1:
+            t = t - 1
+        truncate_t_list = list(range(t + 1))[t // 2 :][:: self.t_stride]  # need half at least
+        truncate_t = random.choice(truncate_t_list)
+        if self.extra_1:
+            truncate_t = truncate_t + 1
+        return 0, truncate_t
