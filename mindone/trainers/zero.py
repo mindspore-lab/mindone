@@ -18,9 +18,9 @@ hyper_map = ops.HyperMap()
 _optim_allgather = ops.MultitypeFuncGraph("optim_allgather")
 
 
-@_optim_allgather.register("Function", "Bool", "Tensor", "Tensor", "Bool")
-def _run_optim_allgather(allgather, last_assign, variable, value, need_allgather):
-    if need_allgather:
+@_optim_allgather.register("Bool", "Function", "Tensor", "Tensor", "Bool")
+def _run_optim_allgather(last_assign, allgather, variable, value, need_parameter_split):
+    if need_parameter_split:
         value = allgather(value)
     if last_assign:
         ops.assign(variable, value)
@@ -30,8 +30,8 @@ def _run_optim_allgather(allgather, last_assign, variable, value, need_allgather
 _dp_allreduce = ops.MultitypeFuncGraph("dp_allreduce")
 
 
-@_dp_allreduce.register("Function", "Tensor", "Tensor")
-def _run_dp_allreduce(dp_allreduce, dp_group_size, gradient):
+@_dp_allreduce.register("Tensor", "Function", "Tensor")
+def _run_dp_allreduce(dp_group_size, dp_allreduce, gradient):
     gradient = dp_allreduce(gradient) / dp_group_size
     return gradient
 
@@ -39,8 +39,8 @@ def _run_dp_allreduce(dp_allreduce, dp_group_size, gradient):
 _stage2_reduce_scatter = ops.MultitypeFuncGraph("stage2_reduce_scatter")
 
 
-@_stage2_reduce_scatter.register("Function", "Function", "Tensor", "Tensor", "Bool")
-def _run_stage2_reduce_scatter(reduce_scatter, allreduce, op_group_size, gradient, need_reduce_scatter):
+@_stage2_reduce_scatter.register("Tensor", "Function", "Function", "Tensor", "Bool")
+def _run_stage2_reduce_scatter(op_group_size, reduce_scatter, allreduce, gradient, need_reduce_scatter):
     if need_reduce_scatter:
         gradient = reduce_scatter(gradient) / op_group_size
     else:
@@ -51,8 +51,8 @@ def _run_stage2_reduce_scatter(reduce_scatter, allreduce, op_group_size, gradien
 _stage1_split_grad = ops.MultitypeFuncGraph("stage1_split_grad")
 
 
-@_stage1_split_grad.register("Function", "Function", "Int", "Int", "Tensor", "Bool")
-def _run_stage1_split_grad(allreduce, split, op_group_size, op_rank_id, gradient, need_split):
+@_stage1_split_grad.register("Function", "Int", "Int", "Function", "Tensor", "Bool")
+def _run_stage1_split_grad(split, op_group_size, op_rank_id, allreduce, gradient, need_split):
     gradient = allreduce(gradient) / op_group_size
     if need_split:
         gradient = split(gradient)[op_rank_id]
@@ -79,11 +79,9 @@ class ZeroHelper:
         comm_fusion (`dict`, *optional*): A dict contains the types and configurations
             for setting the communication fusion, default is None, turn off the communication fusion. If set a dict,
             turn on the communication fusion.
-            Examples: {"allreduce": {"openstate": True, "bucket_size": 5e8},
-                       "reduce_scatter": {"openstate": True, "bucket_size": 5e8},
-                       "allgather": {"openstate": False, "bucket_size": 5e8},}
-        params_list (`List[str]`, *optional*), List of params used for communication in the network,
-            default is None, get the params_list use `network.trainable_params()`.
+            Examples: {"allreduce": {"bucket_size": 5e8},
+                       "reduce_scatter": {"bucket_size": 5e8},
+                       "allgather": {"bucket_size": 5e8},}
     """
 
     def __init__(
@@ -94,7 +92,6 @@ class ZeroHelper:
         dp_group: str = None,
         optimizer_offload: bool = False,
         comm_fusion: dict = None,
-        params_list: Optional[List[str]] = None,
     ):
         self.optimizer = optimizer
         self.zero_stage = zero_stage
@@ -116,12 +113,24 @@ class ZeroHelper:
         self.dp_group = dp_group
         self.last_assign = False
         self.dp_group_size = 1
-        self.need_allgather = tuple([False] * len(self.optimizer._parameters))
-
+        self.need_parameter_split = tuple([False] * len(self.optimizer._parameters))
+        self.use_comm_fusion = False
         if self.zero_stage in [1, 2, 3] and self.is_parallel:
+            self.split_op = ops.Split(0, self.op_group_size)  # optimizer parallel split
+            self.get_need_parameter_split()
             if comm_fusion is None:
                 self.set_comm_ops()
-            self.split_op = ops.Split(0, self.op_group_size)  # optimizer parallel split
+            else:
+                self.use_comm_fusion = True
+                self.max_fusion_id = 0
+                if self.zero_stage == 1:
+                    self.set_zero1_allreduce_fusion_comm_list(comm_fusion)
+                    self.set_optimizer_allgather_fusion_comm_list(comm_fusion)
+                if self.zero_stage == 2:
+                    self.set_zero2_reduce_scatter_fusion_comm_list(comm_fusion)
+                    self.set_optimizer_allgather_fusion_comm_list(comm_fusion)
+                if self.need_dp:
+                    self.set_dp_allreduce_comm_list(comm_fusion)
 
         self.hyper_map = ops.HyperMap()
         if optimizer_offload:
@@ -141,19 +150,99 @@ class ZeroHelper:
 
     def set_comm_ops(self,):
         self.op_allreduce = ops.AllReduce(op=ops.ReduceOp.SUM, group=self.op_group)
-        if self.zero_stage == 2:
-            self.op_reduce_scatter = ops.ReduceScatter(op=ops.ReduceOp.SUM, group=self.op_group)
-        if self.zero_stage in [1, 2]:
-            # AllGather the parameters after optimizer calculate to update the parameters in train network.
-            self.op_allgather = ops.AllGather(group=self.op_group)
+        self.op_reduce_scatter = ops.ReduceScatter(op=ops.ReduceOp.SUM, group=self.op_group)
+        # AllGather the parameters after optimizer calculate to update the parameters in train network.
+        self.op_allgather = ops.AllGather(group=self.op_group)
+
         self.need_dp = self.dp_group is not None
         if self.need_dp:
             # Set it when op_group is not the WORLD_COMM_GROUP.
             self.dp_allreduce = ops.AllReduce(op=ops.ReduceOp.SUM, group=self.dp_group)
             self.dp_group_size = ms.Tensor(get_group_size(group=self.dp_group), ms.float32)
 
-    def set_fusion_comm_ops(self, params_list):
+    def update_comm_op_info(self, comm_op_info, bucket_size, param_size, param_name):
+        if comm_op_info[-1]["size"] + param_size <= bucket_size or len(comm_op_info) == 1:
+            comm_op_info[-1]["size"] += param_size
+            comm_op_info[-1]["params"].append(param_name)
+        else:
+            fusion_id = self.max_fusion_id + 1
+            self.max_fusion_id += 1
+            comm_op_info.append({"size": param_size, "fusion_id": fusion_id, "params": [param_name]})
 
+    def set_zero1_allreduce_fusion_comm_list(self, comm_fusion):
+        allreduce_info = [{"size": 0, "fusion_id": self.max_fusion_id + 1, "params": []}]
+        self.max_fusion_id += 1
+        self.zero1_allreduce_list = []
+        for i, param in enumerate(self.ori_parameters):
+            param_size = param.itemsize
+            param_name = param.name
+            self.update_comm_op_info(allreduce_info,
+                                     comm_fusion["allreduce"]["bucket_size"],
+                                     param_size,
+                                     param_name)
+            comm_op = ops.AllReduce(op=ops.ReduceOp.SUM, group=self.op_group)
+            comm_op.add_prim_attr("fusion", allreduce_info[-1]["fusion_id"])
+            self.zero1_allreduce_list.append(comm_op)
+
+    def set_zero2_reduce_scatter_fusion_comm_list(self, comm_fusion):
+        reduce_scatter_info = [{"size": 0, "fusion_id": self.max_fusion_id + 1, "params": []}]
+        self.max_fusion_id += 1
+        allreduce_info = [{"size": 0, "fusion_id": self.max_fusion_id + 1, "params": []}]
+        self.max_fusion_id += 1
+        self.zero2_reduce_scatter_list = []
+        self.zero2_allreduce_list = []
+        for i, param in enumerate(self.ori_parameters):
+            param_size = param.itemsize
+            param_name = param.name
+            if self.need_parameter_split[i]:
+                self.update_comm_op_info(reduce_scatter_info,
+                                         comm_fusion["reduce_scatter"]["bucket_size"],
+                                         param_size,
+                                         param_name)
+            else:
+                self.update_comm_op_info(allreduce_info,
+                                         comm_fusion["allreduce"]["bucket_size"],
+                                         param_size,
+                                         param_name)
+            comm_op = ops.ReduceScatter(op=ops.ReduceOp.SUM, group=self.op_group)
+            comm_op.add_prim_attr("fusion", reduce_scatter_info[-1]["fusion_id"])
+            self.zero2_reduce_scatter_list.append(comm_op)
+
+            comm_op = ops.AllReduce(op=ops.ReduceOp.SUM, group=self.op_group)
+            comm_op.add_prim_attr("fusion", allreduce_info[-1]["fusion_id"])
+            self.zero2_allreduce_list.append(comm_op)
+    
+    def set_optimizer_allgather_fusion_comm_list(self, comm_fusion):
+        allgather_info = [{"size": 0, "fusion_id": self.max_fusion_id + 1, "params": []}]
+        self.max_fusion_id += 1
+        self.optimizer_allgather_list = []
+        for i, param in enumerate(self.ori_parameters):
+            param_size = param.itemsize
+            param_name = param.name
+            if self.need_parameter_split[i]:
+                self.update_comm_op_info(allgather_info,
+                                         comm_fusion["allgather"]["bucket_size"],
+                                         param_size,
+                                         param_name)
+            comm_op = ops.AllGather(group=self.op_group)
+            comm_op.add_prim_attr("fusion", allgather_info[-1]["fusion_id"])
+            self.optimizer_allgather_list.append(comm_op)
+
+    def set_dp_allreduce_comm_list(self, comm_fusion):
+        dp_allreduce_info = [{"size": 0, "fusion_id": self.max_fusion_id + 1, "params": []}]
+        self.max_fusion_id += 1
+        self.dp_allreduce_list = []
+        for i, param in enumerate(self.ori_parameters):
+            param_size = param.itemsize
+            param_name = param.name
+            if self.need_parameter_split[i]:
+                self.update_comm_op_info(dp_allreduce_info,
+                                         comm_fusion["allreduce"]["bucket_size"],
+                                         param_size,
+                                         param_name)
+            comm_op = ops.AllGather(group=self.op_group)
+            comm_op.add_prim_attr("fusion", dp_allreduce_info[-1]["fusion_id"])
+            self.dp_allreduce_list.append(comm_op)
 
     def split_param(self, param):
         return self.split_op(param)[self.op_rank_id]
@@ -175,6 +264,22 @@ class ZeroHelper:
                     param_tuples.append(getattr(self.optimizer, attr))
         return param_tuples
 
+    def get_need_parameter_split(self):
+        self.need_parameter_split = [False] * len(self.optimizer._parameters)
+        param_tuples = self.get_optimizer_param_tuples()
+        for i, param in enumerate(self.optimizer._parameters):
+            if self.zero_stage == 3:
+                if param_tuples:
+                    B = param_tuples[0][i].shape[0]
+                else:
+                    continue
+            else:
+                B = param.shape[0]
+            if param.parallel_optimizer and B >= self.op_group_size and B % self.op_group_size == 0:
+                if self.zero_stage in [1, 2]:
+                    self.need_parameter_split[i] = True
+        self.need_parameter_split = tuple(self.need_parameter_split)
+
     def split_params(self):
         if self.zero_stage in [1, 2] and self.is_parallel:
             _logger.info("Clone optimizer.parameters, will increase memory.")
@@ -185,7 +290,6 @@ class ZeroHelper:
             self.optimizer._parameters = self.optimizer.parameters
             self.last_assign = True
 
-        self.need_allgather = [False] * len(self.optimizer._parameters)
         param_tuples = self.get_optimizer_param_tuples()
         for i, param in enumerate(self.optimizer._parameters):
             _logger.debug(f"Split optimizer param {param.name} {param.shape}")
@@ -201,7 +305,6 @@ class ZeroHelper:
             _logger.debug(f"Do split with zero_stage {self.zero_stage}")
             if param.parallel_optimizer and B >= self.op_group_size and B % self.op_group_size == 0:
                 if self.zero_stage in [1, 2]:
-                    self.need_allgather[i] = True
                     ori_shape = param.shape
                     param.assign_value(self.split_param(param))
                     _logger.debug(f"Optimizer {param.name} from {ori_shape} to {param.shape}")
@@ -209,46 +312,80 @@ class ZeroHelper:
                     ori_shape = param_tuple[i].shape
                     param_tuple[i].assign_value(self.split_param(param_tuple[i]))
                     _logger.debug(f"Optimizer {param_tuple[i].name} " f"from {ori_shape} to {param_tuple[i].shape}")
-        self.need_allgather = tuple(self.need_allgather)
 
     def reduce_scatter_gradients(self, gradients):
         dtype = gradients[0].dtype
-        gradients = self.hyper_map(
-            ops.partial(
-                _stage2_reduce_scatter,
-                self.op_reduce_scatter,
-                self.op_allreduce,
-                ms.Tensor(self.op_group_size, dtype),
-            ),
-            gradients,
-            self.need_allgather,
-        )
+        if self.use_comm_fusion:
+            gradients = self.hyper_map(
+                ops.partial(
+                    _stage2_reduce_scatter,
+                    ms.Tensor(self.op_group_size, dtype),
+                ),
+                self.zero2_reduce_scatter_list,
+                self.zero2_allreduce_list,
+                gradients,
+                self.need_parameter_split,
+            )
+        else:
+            gradients = self.hyper_map(
+                ops.partial(
+                    _stage2_reduce_scatter,
+                    ms.Tensor(self.op_group_size, dtype),
+                    self.op_reduce_scatter,
+                    self.op_allreduce,
+                ),
+                gradients,
+                self.need_parameter_split,
+            )
         return gradients
 
     def dp_allreduce_gradients(self, gradients):
         dtype = gradients[0].dtype
-        gradients = self.hyper_map(
-            ops.partial(
-                _dp_allreduce,
-                self.dp_allreduce,
-                ms.Tensor(self.dp_group_size, dtype),
-            ),
-            gradients,
-        )
+        if self.use_comm_fusion:
+            gradients = self.hyper_map(
+                ops.partial(
+                    _dp_allreduce,
+                    ms.Tensor(self.dp_group_size, dtype),
+                ),
+                self.dp_allreduce_list,
+                gradients,
+            )
+        else:
+            gradients = self.hyper_map(
+                ops.partial(
+                    _dp_allreduce,
+                    ms.Tensor(self.dp_group_size, dtype),
+                    self.dp_allreduce,
+                ),
+                gradients,
+            )
         return gradients
 
     def split_gradients(self, gradients):
-        gradients = self.hyper_map(
-            ops.partial(
-                _stage1_split_grad,
-                self.op_allreduce,
-                self.split_op,
-                self.op_group_size,
-                self.op_rank_id,
-            ),
-            gradients,
-            self.need_allgather,
-        )
+        if self.use_comm_fusion:
+            gradients = self.hyper_map(
+                ops.partial(
+                    _stage1_split_grad,
+                    self.split_op,
+                    self.op_group_size,
+                    self.op_rank_id,
+                ),
+                self.zero1_allreduce_list,
+                gradients,
+                self.need_parameter_split,
+            )
+        else:
+            gradients = self.hyper_map(
+                ops.partial(
+                    _stage1_split_grad,
+                    self.split_op,
+                    self.op_group_size,
+                    self.op_rank_id,
+                    self.op_allreduce,
+                ),
+                gradients,
+                self.need_parameter_split,
+            )
         return gradients
 
     def cal_gradients(self, gradients):
@@ -263,15 +400,27 @@ class ZeroHelper:
     def run_optimizer(self, grads):
         optim_result = self.optimizer(grads)
         if self.zero_stage == 1 or self.zero_stage == 2:
-            optim_result = ops.depend(
-                self.hyper_map(
-                    ops.partial(_optim_allgather, self.op_allgather, self.last_assign),
-                    self.ori_parameters,
-                    self.optimizer._parameters,
-                    self.need_allgather,
-                ),
-                optim_result,
-            )
+            if self.use_comm_fusion:
+                optim_result = ops.depend(
+                    self.hyper_map(
+                        ops.partial(_optim_allgather, self.last_assign),
+                        self.optimizer_allgather_list,
+                        self.ori_parameters,
+                        self.optimizer._parameters,
+                        self.need_parameter_split,
+                    ),
+                    optim_result,
+                )
+            else:
+                optim_result = ops.depend(
+                    self.hyper_map(
+                        ops.partial(_optim_allgather, self.last_assign, self.op_allgather),
+                        self.ori_parameters,
+                        self.optimizer._parameters,
+                        self.need_parameter_split,
+                    ),
+                    optim_result,
+                )
         return optim_result
 
 
@@ -341,7 +490,6 @@ def prepare_train_network(
     op_group: str = None,
     dp_group: str = None,
     comm_fusion: dict = None,
-    params_list: Optional[List[str]] = None,
 ):
     """
     Prepare network and optimizer for distributed training.
@@ -363,8 +511,6 @@ def prepare_train_network(
             Examples: {"allreduce": {"openstate": True, "bucket_size": 5e8},
                        "reduce_scatter": {"openstate": True, "bucket_size": 5e8},
                        "allgather": {"openstate": False, "bucket_size": 5e8},}
-        params_list (`List[str]`, *optional*), List of params used for communication in the network,
-            default is None, get the params_list use `network.trainable_params()`.
     """
     is_parallel = _get_parallel_mode() == ParallelMode.DATA_PARALLEL
     if not is_parallel and zero_stage == 0:
@@ -380,7 +526,7 @@ def prepare_train_network(
         raise ValueError("op_group {op_group} and dp_group {dp_group} not full network hccl group coverage")
 
     new_network = prepare_network(network, zero_stage, op_group)
-    zero_helper = ZeroHelper(optimizer, zero_stage, op_group, dp_group, optimizer_offload, comm_fusion, params_list)
+    zero_helper = ZeroHelper(optimizer, zero_stage, op_group, dp_group, optimizer_offload, comm_fusion)
     if isinstance(scale_sense, float):
         scale_sense = ms.Tensor(scale_sense, ms.float32)
     train_network = TrainOneStepWrapper(

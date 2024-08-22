@@ -13,7 +13,7 @@ from mindone.utils.logger import set_logger
 _logger = logging.getLogger(__name__)
 
 
-def init_env(mode, distribute, save_graph=True):
+def init_env(mode, distribute, save_graph=True, comm_fusio=False):
     ms.set_seed(1)
     ms.set_context(mode=mode)
     if save_graph:
@@ -28,6 +28,11 @@ def init_env(mode, distribute, save_graph=True):
             parallel_mode=ms.ParallelMode.DATA_PARALLEL,
             gradients_mean=True,
         )
+        if comm_fusio:
+            comm_fusion_dict = {"allreduce": {"mode": "auto", "config": None},
+                                "reducescatter": {"mode": "auto", "config": None},
+                                "allgather": {"mode": "auto", "config": None},}
+            ms.set_auto_parallel_context(comm_fusion=comm_fusion_dict)
         return group_size, rank_id
     return 1, 0
 
@@ -54,13 +59,20 @@ class TestNet(nn.Cell):
         return y
 
 
-def test_zero(x, y, zero_stage=0):
+def test_zero(x, y, zero_stage=0, comm_fusion=False):
     print("-" * 30)
     print("-" * 6, f"zero_stage={zero_stage}", "-" * 6)
     print("-" * 30)
+    ms.set_seed(1)
     net = nn.WithLossCell(TestNet(), nn.MSELoss())
     opt = nn.AdamWeightDecay(net.trainable_params(), learning_rate=1e-3)
-    train_net = prepare_train_network(net, opt, zero_stage=zero_stage, op_group=GlobalComm.WORLD_COMM_GROUP)
+    comm_fusion_dict = None
+    if comm_fusion:
+        comm_fusion_dict = {"allreduce": {"openstate": True, "bucket_size": 5e8},
+                            "reduce_scatter": {"openstate": True, "bucket_size": 5e8},
+                            "allgather": {"openstate": False, "bucket_size": 5e8},}
+    train_net = prepare_train_network(net, opt, zero_stage=zero_stage, op_group=GlobalComm.WORLD_COMM_GROUP,
+                                      comm_fusion=comm_fusion_dict)
 
     for i in range(10):
         loss = train_net(x, y)
@@ -72,7 +84,7 @@ if __name__ == "__main__":
     set_logger(name="", output_dir="logs", rank=rank_id, log_level="DEBUG")
     x = ms.Tensor(np.random.uniform(-1, 1, (1, 2, 5, 5)).astype(np.float32) * (get_rank() + 1))
     y = ms.Tensor(np.random.uniform(-1, 1, (1, 2, 5, 5)).astype(np.float32) * (get_rank() + 1))
-    # test_zero(x, y, zero_stage=0)
-    # test_zero(x, y, zero_stage=1)
-    # test_zero(x, y, zero_stage=2)
+    test_zero(x, y, zero_stage=0)
+    test_zero(x, y, zero_stage=1)
+    test_zero(x, y, zero_stage=2)
     test_zero(x, y, zero_stage=3)
