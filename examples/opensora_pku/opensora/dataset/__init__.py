@@ -23,7 +23,7 @@ def getdataset(args):
     ]
     resize = [
         Lambda(
-            name="crop_topcrop",
+            name="crop_centercrop",
             image=partial(center_crop_th_tw, th=args.max_height, tw=args.max_width, top_crop=False),
             p=1.0,
         ),

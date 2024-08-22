@@ -49,8 +49,6 @@ def create_dataloader(
         assert isinstance(prefetch_size, int)
         ms.dataset.config.set_prefetch_size(prefetch_size)
 
-    dataloaders = {}
-
     if enable_modelarts:
         device_num = get_local_rank_size()
         rank_id = get_local_rank() % 8
@@ -65,12 +63,8 @@ def create_dataloader(
         drop_last=drop_last,
         sampler=sampler,
     )
-    dataloaders["data"] = loader
-
-    metaloader = MetaLoader(dataloaders, datalen=batch_size, task_num=len(dataloaders.keys()))
-
     dl = GeneratorDataset(
-        metaloader,
+        loader,
         column_names=column_names,
         shuffle=shuffle,
         num_parallel_workers=num_parallel_workers,

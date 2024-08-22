@@ -365,10 +365,11 @@ def get_length_grouped_indices(
     elif group_frame and group_resolution:
         shuffled_megabatches = last_group_frame_and_resolution_fun(shuffled_megabatches, indices)
 
-    return [i for megabatch in shuffled_megabatches for batch in megabatch for i in batch]
+    # return [i for megabatch in shuffled_megabatches for batch in megabatch for i in batch]
+    return [batch for megabatch in shuffled_megabatches for batch in megabatch]  # return batch indices
 
 
-class LengthGroupedSampler:
+class LengthGroupedBatchSampler:
     r"""
     Sampler that samples indices in a way that groups together features of the dataset of roughly the same length while
     keeping a bit of randomness.
