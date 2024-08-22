@@ -1,10 +1,10 @@
 NUM_FRAME=29
-python  opensora/train/train_t2v_diffusers.py \
+python  opensora/train/test_dataset.py \
     --model OpenSoraT2V-ROPE-L/122 \
     --text_encoder_name google/mt5-xxl \
     --cache_dir "./" \
     --dataset t2v \
-    --data "scripts/train_data/merge_data.txt" \
+    --data "scripts/train_data/merge_data_mixkit.txt" \
     --ae CausalVAEModel_D4_4x8x8 \
     --ae_path "LanguageBind/Open-Sora-Plan-v1.2.0/vae" \
     --sample_rate 1 \
@@ -16,7 +16,7 @@ python  opensora/train/train_t2v_diffusers.py \
     --interpolation_scale_w 1.0 \
     --attention_mode xformers \
     --gradient_checkpointing \
-    --train_batch_size=1 \
+    --train_batch_size=2 \
     --dataloader_num_workers 8 \
     --gradient_accumulation_steps=1 \
     --max_train_steps=1000000 \

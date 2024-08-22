@@ -12,7 +12,12 @@ from .transform import TemporalRandomCrop, center_crop_th_tw
 def getdataset(args):
     temporal_sample = TemporalRandomCrop(args.num_frames)  # 16 x
     norm_fun = ae_norm[args.ae]
+
+    def norm_func_albumentation(image, **kwargs):
+        return norm_fun(image)
+
     mapping = {"bilinear": cv2.INTER_LINEAR, "bicubic": cv2.INTER_CUBIC}
+    targets = {"image{}".format(i): "image" for i in range(args.num_frames)}
     resize_topcrop = [
         Lambda(
             name="crop_topcrop",
@@ -30,8 +35,14 @@ def getdataset(args):
         Resize(args.max_height, args.max_width, interpolation=mapping["bilinear"]),
     ]
 
-    transform = Compose([*resize, ToFloat(255.0), Lambda(name="ae_norm", image=norm_fun, p=1.0)])
-    transform_topcrop = Compose([*resize_topcrop, ToFloat(255.0), Lambda(name="ae_norm", image=norm_fun, p=1.0)])
+    transform = Compose(
+        [*resize, ToFloat(255.0), Lambda(name="ae_norm", image=norm_func_albumentation, p=1.0)],
+        additional_targets=targets,
+    )
+    transform_topcrop = Compose(
+        [*resize_topcrop, ToFloat(255.0), Lambda(name="ae_norm", image=norm_func_albumentation, p=1.0)],
+        additional_targets=targets,
+    )
 
     tokenizer = AutoTokenizer.from_pretrained(args.text_encoder_name, cache_dir=args.cache_dir)
     if args.dataset == "t2v":

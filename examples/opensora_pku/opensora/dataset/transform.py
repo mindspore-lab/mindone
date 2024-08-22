@@ -67,16 +67,16 @@ def create_video_transforms(h, w, num_frames, interpolation="bicubic", backend="
     return pixel_transforms
 
 
-def crop(clip, i, j, h, w):
-    if len(clip.shape) != 4:
-        raise ValueError("clip should be a 4D tensor")
-    return clip[..., i : i + h, j : j + w]
+def crop(image, i, j, h, w):
+    if len(image.shape) != 3:
+        raise ValueError("image should be a 3D tensor")
+    return image[i : i + h, j : j + w, ...]
 
 
-def center_crop_th_tw(clip, th, tw, top_crop):
-    # input is a 4-d arrary (T, C, H, W)
+def center_crop_th_tw(image, th, tw, top_crop, **kwargs):
+    # input is a 3-d arrary (H, W, C)
 
-    h, w = clip.shape[-2], clip.shape[-1]
+    h, w = image.shape[0], image.shape[1]
     tr = th / tw
     if h / w > tr:
         new_h = int(w * tr)
@@ -87,7 +87,8 @@ def center_crop_th_tw(clip, th, tw, top_crop):
 
     i = 0 if top_crop else int(round((h - new_h) / 2.0))
     j = int(round((w - new_w) / 2.0))
-    return crop(clip, i, j, new_h, new_w)
+    cropped_image = crop(image, i, j, new_h, new_w)
+    return cropped_image
 
 
 # create text transform(preprocess)

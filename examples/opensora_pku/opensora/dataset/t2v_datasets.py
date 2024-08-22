@@ -204,15 +204,17 @@ class T2V_dataset:
         video_path = dataset_prog.cap_list[idx]["path"]
         assert os.path.exists(video_path), f"file {video_path} do not exist!"
         frame_indice = dataset_prog.cap_list[idx]["sample_frame_index"]
-        video = self.decord_read(video_path, predefine_num_frames=len(frame_indice))
+        video = self.decord_read(video_path, predefine_num_frames=len(frame_indice))  # (T H W C)
 
-        h, w = video.shape[-2:]
+        h, w = video.shape[1:3]
         assert h / w <= 17 / 16 and h / w >= 8 / 16, (
             f"Only videos with a ratio (h/w) less than 17/16 and more than 8/16 are supported. But video ({video_path}) "
             + f"found ratio is {round(h / w, 2)} with the shape of {video.shape}"
         )
-        video = self.transform(image=video)["image"]  # T C H W -> T C H W
-        video = video.transpose(1, 0, 2, 3)  # T C H W -> C T H W
+        input_videos = {"image": video[0]}
+        input_videos.update(dict([(f"image{i}", video[i + 1]) for i in range(len(video) - 1)]))
+        output_videos = self.transform(**input_videos)
+        video = np.stack([v for _, v in output_videos.items()], axis=0).transpose(3, 0, 1, 2)  # T H W C -> C T H W
         text = dataset_prog.cap_list[idx]["cap"]
         if not isinstance(text, list):
             text = [text]
@@ -238,16 +240,14 @@ class T2V_dataset:
         # import ipdb;ipdb.set_trace()
         image = Image.open(image_data["path"]).convert("RGB")  # [h, w, c]
         image = np.array(image)  # [h, w, c]
-        # h w c -> c h w
-        image = image.transpose(2, 0, 1)[None, :, :, :]  # [1 c h w]
 
         image = (
             self.transform_topcrop(image=image)["image"]
             if "human_images" in image_data["path"]
             else self.transform(image=image)["image"]
-        )  # [1 C H W] -> num_img [1 C H W]
-
-        image = image.transpose(1, 0, 2, 3)  # [1 C H W] -> [C 1 H W]
+        )
+        #  [h, w, c] -> [c h w] -> [C 1 H W]
+        image = image.transpose(2, 0, 1)[:, None, ...]
 
         caps = image_data["cap"] if isinstance(image_data["cap"], list) else [image_data["cap"]]
         caps = [random.choice(caps)]
@@ -408,8 +408,7 @@ class T2V_dataset:
             raise IndexError(
                 f"video ({path}) has {total_frames} frames, but need to sample {len(frame_indices)} frames ({frame_indices})"
             )
-        video_data = decord_vr.get_batch(frame_indices).asnumpy()
-        video_data = video_data.transpose(0, 3, 1, 2)  # (T, H, W, C) -> (T C H W)
+        video_data = decord_vr.get_batch(frame_indices).asnumpy()  # (T, H, W, C)
         return video_data
 
     def read_jsons(self, data):
