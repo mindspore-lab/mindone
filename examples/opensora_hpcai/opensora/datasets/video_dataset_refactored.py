@@ -145,7 +145,8 @@ class VideoDatasetRefactored(BaseDataset):
         self.apply_train_transforms = apply_train_transforms 
         if self.apply_train_transforms:
             self.pixel_transforms = create_train_transforms(target_size, buckets=buckets)
-            self.output_columns.remove("bucket_id")
+            if "bucket_id" in self.output_columns:
+                self.output_columns.remove("bucket_id")
             assert pre_patchify==False, 'transforms for prepatchify not implemented yet' 
 
         # prepare replacement data in case the loading of a sample fails
