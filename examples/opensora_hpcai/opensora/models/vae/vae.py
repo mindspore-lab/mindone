@@ -365,6 +365,13 @@ def OpenSoraVAE_V1_2(
     ckpt_path: path to the checkpoint of the overall model (vae2d + temporal vae)
     vae_2d_ckpt_path: path to the checkpoint of the vae 2d model. It will only be loaded when `ckpt_path` not provided.
     """
+    if isinstance(micro_batch_size, int):
+        if micro_batch_size <= 0:
+            micro_batch_size = None
+    if isinstance(micro_frame_size, int):
+        if micro_frame_size <= 0:
+            micro_frame_size = None
+
     vae_2d = dict(
         type="VideoAutoencoderKL",
         config=SDXL_CONFIG,
