@@ -625,7 +625,7 @@ We evaluate the training performance of Open-Sora v1.2 on the MixKit dataset wit
 | Model       | Context      | jit_level | Precision | BS | NPUs | Size (TxHxW) | Train T. (s/step) |
 |:------------|:-------------|:--------|:---------:|:--:|:----:|:----------------------:|:-----------------:|
 | STDiT3-XL/2 | D910\*-[C18](https://repo.mindspore.cn/ascend/ascend910/20240705/)-[MS2.3](https://www.mindspore.cn/install) |    O1  |    BF16   |  1 |  8   |       51x720x1280      |        **14.60**       |
-| STDiT3-XL/2 | D910\*-[C18](https://repo.mindspore.cn/ascend/ascend910/20240705/)-[MS2.3.1(0726)](https://repo.mindspore.cn/mindspore/mindspore/version/202407/20240726/master_20240726220021_4c913fb116c83b9ad28666538483264da8aebe8c_newest/unified/)  |    O1  |    BF16   |  1 |  8   |       Stage 2 Dyn.     |        **34**       |
+| STDiT3-XL/2 | D910\*-[C18](https://repo.mindspore.cn/ascend/ascend910/20240705/)-[MS2.3.1(0726)](https://repo.mindspore.cn/mindspore/mindspore/version/202407/20240726/master_20240726220021_4c913fb116c83b9ad28666538483264da8aebe8c_newest/unified/)  |    O1  |    BF16   |  1 |  8   |       Stage 2 Dyn.     |        **33.10**       |
 | STDiT3-XL/2 | D910\*-[C18](https://repo.mindspore.cn/ascend/ascend910/20240705/)-[MS2.3.1(0726)](https://repo.mindspore.cn/mindspore/mindspore/version/202407/20240726/master_20240726220021_4c913fb116c83b9ad28666538483264da8aebe8c_newest/unified/)  |    O1  |    BF16   |  1 |  8   |       Stage 3 Dyn.     |        **37.7**       |
 > Context: {G:GPU, D:Ascend}{chip type}-{CANN version}-{mindspore version}; "Dyn." is short for dynamic shape.
 
