@@ -65,7 +65,7 @@ def init_env(args) -> Tuple[int, int]:
 
 def parse_args():
     parser = argparse.ArgumentParser(
-        description="PixArt-Alpha Training script", formatter_class=argparse.ArgumentDefaultsHelpFormatter
+        description="PixArt-Sigma Training script", formatter_class=argparse.ArgumentDefaultsHelpFormatter
     )
     parser.add_argument(
         "-c",
