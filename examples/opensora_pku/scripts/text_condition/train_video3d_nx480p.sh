@@ -24,11 +24,9 @@ python  opensora/train/train_t2v_diffusers.py \
     --lr_scheduler="constant" \
     --seed=10 \
     --lr_warmup_steps=500 \
-    --mixed_precision="bf16" \
-    --report_to="wandb" \
+    --precision="bf16" \
     --checkpointing_steps=1000 \
     --output_dir="t2v-video3d-${NUM_FRAME}x480p/" \
-    --allow_tf32 \
     --model_max_length 512 \
     --use_image_num 0 \
     --cfg 0.1 \
@@ -40,7 +38,10 @@ python  opensora/train/train_t2v_diffusers.py \
     --use_rope \
     --noise_offset 0.02 \
     --resume_from_checkpoint="latest" \
-    --enable_stable_fp32 \
+    --enable_stable_fp32 True\
     --ema_decay 0.999 \
     --speed_factor 1.0 \
     --drop_short_ratio 1.0 \
+    --group_frame \
+    # --sp_size 8 \
+    # --train_sp_batch_size 2 \

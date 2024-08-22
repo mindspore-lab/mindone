@@ -37,7 +37,7 @@ def getdataset(args):
     if args.dataset == "t2v":
         return T2V_dataset(
             args.data,
-            num_frame=args.num_frames,
+            num_frames=args.num_frames,
             train_fps=args.train_fps,
             use_image_num=args.use_image_num,
             use_img_from_vid=args.use_img_from_vid,

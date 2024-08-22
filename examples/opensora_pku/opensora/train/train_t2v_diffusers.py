@@ -289,7 +289,7 @@ def main(args):
         LengthGroupedSampler(
             args.train_batch_size,
             world_size=device_num if not get_sequence_parallel_state() else (device_num // hccl_info.world_size),
-            lengths=len(train_dataset),
+            lengths=train_dataset.lengths,
             group_frame=args.group_frame,
             group_resolution=args.group_resolution,
         )

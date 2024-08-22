@@ -140,6 +140,7 @@ class T2V_dataset:
         self.v_decoder = DecordInit()
         self.filter_nonexistent = filter_nonexistent
         self.return_text_emb = return_text_emb
+        self.duration_threshold = 100.0
 
         self.support_Chinese = True
         if not ("mt5" in text_encoder_name):
@@ -163,7 +164,11 @@ class T2V_dataset:
         for i, item in enumerate(cap_list):
             path = item["path"]
             if not os.path.exists(path):
-                indexes_to_remove.append(i)
+                second_path = path.replace("_resize1080p", "")
+                if os.path.exists(second_path):
+                    cap_list[i]["path"] = second_path
+                else:
+                    indexes_to_remove.append(i)
         cap_list = [item for i, item in enumerate(cap_list) if i not in indexes_to_remove]
         logger.info(f"Nonexistent files: {len(indexes_to_remove)}")
         return cap_list
@@ -311,7 +316,7 @@ class T2V_dataset:
                 # import ipdb;ipdb.set_trace()
                 i["num_frames"] = int(fps * duration)
                 # max 5.0 and min 1.0 are just thresholds to filter some videos which have suitable duration.
-                if i["num_frames"] > 2.0 * (
+                if i["num_frames"] > self.duration_threshold * (
                     self.num_frames * fps / self.train_fps * self.speed_factor
                 ):  # too long video is not suitable for this training stage (self.num_frames)
                     cnt_too_long += 1

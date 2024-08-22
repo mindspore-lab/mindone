@@ -43,7 +43,7 @@ def create_dataloader(
     collate_fn=None,
     sampler=None,
 ):
-    datalen = dataset.__len__
+    datalen = len(dataset)
 
     if prefetch_size is not None:
         assert isinstance(prefetch_size, int)
