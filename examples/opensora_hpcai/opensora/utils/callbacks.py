@@ -11,7 +11,7 @@ from mindspore.train import Callback, RunContext
 _logger = logging.getLogger(__name__)
 
 
-class PerfRecorder(Callback):
+class PerfRecorderCallback(Callback):
     """
     Improved version of `mindone.trainers.recorder.PerfRecorder` that tracks validation metrics as well.
     Used here first for testing.

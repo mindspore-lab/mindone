@@ -38,8 +38,16 @@ unset RANK_ID
 # fi
 
 
-log_dir=/home/ma-user/modelarts/outputs/output_path_0/log
+if [ -z "${output_path}" ]; then
+    log_root_dir="/home/ma-user/modelarts/outputs/output_path_0"  # no $output_path , set to ModelArts default output directory
+else
+    log_root_dir="${output_path}"
+fi
+
+current=`date "+%Y-%m-%dT%H-%M-%S"`
+log_dir=${log_root_dir}/${current}_msrun_log
 mkdir -p $log_dir
+echo "msrun logs will be saved at: ${log_dir}"
 
 msrun --bind_core=True --worker_num=$(($VC_WORKER_NUM*8)) --local_worker_num=8  --master_addr=$master_addr --node_rank=$node_rank --log_dir=$log_dir --join=False /home/ma-user/modelarts/user-job-dir/${work_dir}/${script_name} $@
 
