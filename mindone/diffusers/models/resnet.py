@@ -322,6 +322,7 @@ class ResnetBlock2D(nn.Cell):
                 stride=1,
                 padding=0,
                 has_bias=conv_shortcut_bias,
+                pad_mode="pad",
             )
 
     def construct(self, input_tensor: ms.Tensor, temb: ms.Tensor) -> ms.Tensor:

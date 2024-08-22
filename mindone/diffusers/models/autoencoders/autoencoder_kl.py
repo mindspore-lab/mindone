@@ -105,10 +105,14 @@ class AutoencoderKL(ModelMixin, ConfigMixin, FromOriginalVAEMixin):
         )
 
         self.quant_conv = (
-            nn.Conv2d(2 * latent_channels, 2 * latent_channels, 1, has_bias=True) if use_quant_conv else None
+            nn.Conv2d(2 * latent_channels, 2 * latent_channels, 1, pad_mode="pad", has_bias=True)
+            if use_quant_conv
+            else None
         )
         self.post_quant_conv = (
-            nn.Conv2d(latent_channels, latent_channels, 1, has_bias=True) if use_post_quant_conv else None
+            nn.Conv2d(latent_channels, latent_channels, 1, pad_mode="pad", has_bias=True)
+            if use_post_quant_conv
+            else None
         )
         self.diag_gauss_dist = DiagonalGaussianDistribution()
 
