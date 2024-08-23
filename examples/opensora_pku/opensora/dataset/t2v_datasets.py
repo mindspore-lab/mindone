@@ -228,7 +228,7 @@ class T2V_dataset:
             truncation=True,
             return_attention_mask=True,
             add_special_tokens=True,
-            return_tensors="pt",
+            return_tensors="np",
         )
         input_ids = text_tokens_and_mask["input_ids"]
         cond_mask = text_tokens_and_mask["attention_mask"]
@@ -261,7 +261,7 @@ class T2V_dataset:
             truncation=True,
             return_attention_mask=True,
             add_special_tokens=True,
-            return_tensors="pt",
+            return_tensors="np",
         )
         input_ids = text_tokens_and_mask["input_ids"]  # 1, l
         cond_mask = text_tokens_and_mask["attention_mask"]  # 1, l

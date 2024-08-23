@@ -165,7 +165,7 @@ class DiffusionWithLoss(nn.Cell):
     def apply_model(self, *args, **kwargs):
         return self.network(*args, **kwargs)
 
-    def compute_loss(self, x, text_embed, encoder_attention_mask, attention_mask=None):
+    def compute_loss(self, x, attention_mask, text_embed, encoder_attention_mask):
         use_image_num = self.use_image_num
         noise = ops.randn_like(x)
         bsz = x.shape[0]

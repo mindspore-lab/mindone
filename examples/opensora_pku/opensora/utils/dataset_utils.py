@@ -128,23 +128,36 @@ def pad_to_multiple(number, ds_stride):
 
 
 class Collate:
-    def __init__(self, args):
-        self.batch_size = args.train_batch_size
-        self.group_frame = args.group_frame
-        self.group_resolution = args.group_resolution
+    def __init__(
+        self,
+        batch_size,
+        group_frame,
+        group_resolution,
+        max_height,
+        max_width,
+        ae_stride,
+        ae_stride_t,
+        patch_size,
+        patch_size_t,
+        num_frames,
+        use_image_num,
+    ):
+        self.batch_size = batch_size
+        self.group_frame = group_frame
+        self.group_resolution = group_resolution
 
-        self.max_height = args.max_height
-        self.max_width = args.max_width
-        self.ae_stride = args.ae_stride
+        self.max_height = max_height
+        self.max_width = max_width
+        self.ae_stride = ae_stride
 
-        self.ae_stride_t = args.ae_stride_t
+        self.ae_stride_t = ae_stride_t
         self.ae_stride_thw = (self.ae_stride_t, self.ae_stride, self.ae_stride)
 
-        self.patch_size = args.patch_size
-        self.patch_size_t = args.patch_size_t
+        self.patch_size = patch_size
+        self.patch_size_t = patch_size_t
 
-        self.num_frames = args.num_frames
-        self.use_image_num = args.use_image_num
+        self.num_frames = num_frames
+        self.use_image_num = use_image_num
         self.max_thw = (self.num_frames, self.max_height, self.max_width)
 
     def package(self, batch):
@@ -206,7 +219,7 @@ class Collate:
         each_pad_t_h_w = [[pad_max_t - i.shape[1], pad_max_h - i.shape[2], pad_max_w - i.shape[3]] for i in batch_tubes]
 
         pad_batch_tubes = [
-            np.pad(im, [0, 0] * (len(im.shape()) - 3) + [0, pad_t, 0, pad_h, 0, pad_w], constant_values=0)
+            np.pad(im, [[0, 0]] * (len(im.shape) - 3) + [[0, pad_t], [0, pad_h], [0, pad_w]], constant_values=0)
             for (pad_t, pad_h, pad_w), im in zip(each_pad_t_h_w, batch_tubes)
         ]
         pad_batch_tubes = np.stack(pad_batch_tubes, axis=0)
@@ -228,8 +241,8 @@ class Collate:
         attention_mask = [
             np.pad(
                 np.ones(i, dtype=pad_batch_tubes.dtype),
-                [0, 0] * (len(i.shape()) - 3)
-                + [0, max_latent_size[0] - i[0], 0, max_latent_size[1] - i[1], 0, max_latent_size[2] - i[2]],
+                [[0, 0]] * (len(i) - 3)
+                + [[0, max_latent_size[0] - i[0]], [0, max_latent_size[1] - i[1]], [0, max_latent_size[2] - i[2]]],
                 constant_values=0,
             )
             for i in valid_latent_size

@@ -8,6 +8,7 @@ sys.path.append("./")
 from opensora.acceleration.parallel_states import get_sequence_parallel_state, hccl_info
 from opensora.dataset import getdataset
 from opensora.dataset.loader import create_dataloader
+from opensora.models.causalvideovae import ae_stride_config
 from opensora.models.diffusion import Diffusion_models
 from opensora.train.commons import parse_args
 from opensora.utils.dataset_utils import Collate, LengthGroupedBatchSampler
@@ -41,7 +42,42 @@ def main(args):
         enable_parallel_fusion=args.enable_parallel_fusion,
     )
     set_logger(name="", output_dir=args.output_dir, rank=rank_id, log_level=eval(args.log_level))
+    ae_stride_t, ae_stride_h, ae_stride_w = ae_stride_config[args.ae]
 
+    assert (
+        ae_stride_h == ae_stride_w
+    ), f"Support only ae_stride_h == ae_stride_w now, but found ae_stride_h ({ae_stride_h}), ae_stride_w ({ae_stride_w})"
+    args.ae_stride_t, args.ae_stride_h, args.ae_stride_w = ae_stride_t, ae_stride_h, ae_stride_w
+    args.ae_stride = args.ae_stride_h
+    patch_size = args.model[-3:]
+    patch_size_t, patch_size_h, patch_size_w = int(patch_size[0]), int(patch_size[1]), int(patch_size[2])
+    args.patch_size = patch_size_h
+    args.patch_size_t, args.patch_size_h, args.patch_size_w = patch_size_t, patch_size_h, patch_size_w
+    assert (
+        patch_size_h == patch_size_w
+    ), f"Support only patch_size_h == patch_size_w now, but found patch_size_h ({patch_size_h}), patch_size_w ({patch_size_w})"
+    assert (
+        args.max_height % ae_stride_h == 0
+    ), f"Height must be divisible by ae_stride_h, but found Height ({args.max_height}), ae_stride_h ({ae_stride_h})."
+    assert (
+        args.max_width % ae_stride_h == 0
+    ), f"Width size must be divisible by ae_stride_h, but found Width ({args.max_width}), ae_stride_h ({ae_stride_h})."
+
+    args.stride_t = ae_stride_t * patch_size_t
+    args.stride = ae_stride_h * patch_size_h
+    collate_fn = Collate(
+        args.train_batch_size,
+        args.group_frame,
+        args.group_resolution,
+        args.max_height,
+        args.max_width,
+        args.ae_stride,
+        args.ae_stride_t,
+        args.patch_size,
+        args.patch_size_t,
+        args.num_frames,
+        args.use_image_num,
+    )
     # 3. create dataset
     # TODO: replace it with new dataset
     assert args.dataset == "t2v", "Support t2v dataset only."
@@ -72,8 +108,9 @@ def main(args):
         num_parallel_workers=args.dataloader_num_workers,
         max_rowsize=args.max_rowsize,
         prefetch_size=args.dataloader_prefetch_size,
-        collate_fn=Collate,
+        collate_fn=collate_fn,
         sampler=sampler,
+        column_names=["pixel_values", "attention_mask", "text_embed", "encoder_attention_mask"],
     )
     dataset_size = dataset.get_dataset_size()
     assert dataset_size > 0, "Incorrect dataset size. Please check your dataset size and your global batch size"

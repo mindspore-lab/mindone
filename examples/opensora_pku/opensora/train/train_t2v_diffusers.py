@@ -296,10 +296,19 @@ def main(args):
         if (args.group_frame or args.group_resolution)
         else None
     )
-    # ds_config = dict(
-    #     return_text_emb=args.text_embed_cache,
-    #     filter_nonexistent=args.filter_nonexistent,
-    # )
+    collate_fn = Collate(
+        args.train_batch_size,
+        args.group_frame,
+        args.group_resolution,
+        args.max_height,
+        args.max_width,
+        args.ae_stride,
+        args.ae_stride_t,
+        args.patch_size,
+        args.patch_size_t,
+        args.num_frames,
+        args.use_image_num,
+    )
     dataset = create_dataloader(
         train_dataset,
         batch_size=args.train_batch_size,
@@ -309,8 +318,9 @@ def main(args):
         num_parallel_workers=args.dataloader_num_workers,
         max_rowsize=args.max_rowsize,
         prefetch_size=args.dataloader_prefetch_size,
-        collate_fn=Collate,
+        collate_fn=collate_fn,
         sampler=sampler,
+        column_names=["pixel_values", "attention_mask", "text_embed", "encoder_attention_mask"],
     )
     dataset_size = dataset.get_dataset_size()
     assert dataset_size > 0, "Incorrect dataset size. Please check your dataset size and your global batch size"
