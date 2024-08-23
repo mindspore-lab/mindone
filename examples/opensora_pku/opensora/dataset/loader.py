@@ -68,8 +68,7 @@ def create_dataloader(
         num_parallel_workers=num_parallel_workers,
         max_rowsize=max_rowsize,
     )
-    if sampler is not None:
-        dl.dataset_size = len(sampler)
+    dl.dataset_size = len(loader)
 
     _logger.info("dataset size per shard: {}".format(dl.get_dataset_size()))
 
@@ -101,6 +100,7 @@ class BatchSampler:
         self._lens = lens
         self._batch_size = batch_size * device_num
         self.shuffle = shuffle
+        self.remainder = len(self) * self._batch_size != self._lens
 
     def _create_ids(self):
         return list(range(self._lens))
@@ -114,7 +114,8 @@ class BatchSampler:
         return iter(batches)
 
     def __len__(self):
-        raise ValueError("NOT supported. " "This has some randomness across epochs")
+        ids = list(range(0, self._lens, self._batch_size))
+        return len(ids)
 
 
 class DataLoader:
@@ -151,6 +152,14 @@ class DataLoader:
         if self.collat_fn is not None:
             data = self.collat_fn(data)
         return data
+
+    def __len__(self):
+        batch_sampler_len = len(self.batch_sampler)
+        remainder = self.batch_sampler.remainder
+        if remainder and self.drop_last:
+            return batch_sampler_len - 1
+        else:
+            return batch_sampler_len
 
 
 class MetaLoader:

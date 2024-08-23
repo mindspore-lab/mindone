@@ -253,6 +253,10 @@ class Collate:
 
         input_ids = np.stack(input_ids, axis=0)  # b 1 l
         cond_mask = np.stack(cond_mask, axis=0)  # b 1 l
+        if input_ids.dtype == np.int64:
+            input_ids = input_ids.astype(np.int32)
+        if attention_mask.dtype == np.int64:
+            attention_mask = attention_mask.astype(np.int32)
 
         return pad_batch_tubes, attention_mask, input_ids, cond_mask
 
@@ -402,13 +406,15 @@ class LengthGroupedBatchSampler:
 
         self.batch_size = batch_size
         self.world_size = world_size
+        self.megabatch_size = self.world_size * self.batch_size
         self.lengths = lengths
         self.group_frame = group_frame
         self.group_resolution = group_resolution
         self.generator = generator
+        self.remainder = len(self) * self.megabatch_size != len(self.lengths)
 
     def __len__(self):
-        return len(self.lengths)
+        return len(list(range(0, len(self.lengths), self.megabatch_size)))
 
     def __iter__(self):
         indices = get_length_grouped_indices(
