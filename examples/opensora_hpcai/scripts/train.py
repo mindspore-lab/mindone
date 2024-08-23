@@ -420,7 +420,7 @@ def main(args):
         latte_model = STDiT_XL_2(**model_extra_args)
     elif args.model_version == "v1.1":
         model_name = "STDiT2"
-        model_extra_args["qk_norm"] = True
+        model_extra_args.update({"input_sq_size": 512, "qk_norm": True})
         latte_model = STDiT2_XL_2(**model_extra_args)
     elif args.model_version == "v1.2":
         model_name = "STDiT3"
