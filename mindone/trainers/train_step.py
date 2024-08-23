@@ -3,7 +3,7 @@ from packaging import version
 
 import mindspore as ms
 import mindspore.context as context
-from mindspore import Tensor, nn, ops
+from mindspore import Tensor, nn, ops, jit
 from mindspore.boost.grad_accumulation import gradient_accumulation_op as _grad_accum_op
 from mindspore.boost.grad_accumulation import gradient_clear_op as _grad_clear_op
 from mindspore.common import RowTensor
@@ -29,6 +29,14 @@ def tensor_grad_scale_row_tensor(scale, grad):
         grad.values * F.cast(reciprocal(scale), F.dtype(grad.values)),
         grad.dense_shape,
     )
+
+class ClipByGlobalNorm(nn.Cell):
+    def __init__(self):
+        super(ClipByGlobalNorm, self).__init__()
+
+    @jit
+    def construct(self, x, clip_norm):
+        return ops.clip_by_global_norm(x, clip_norm)
 
 
 class TrainOneStepWrapper(nn.TrainOneStepWithLossScaleCell):
@@ -84,6 +92,21 @@ class TrainOneStepWrapper(nn.TrainOneStepWithLossScaleCell):
 
         self.map = ops.Map()
         self.partial = ops.Partial()
+        self.clip_by_global_norm = ClipByGlobalNorm()
+        self.is_cpu_device = False
+        self.enable_tuple_broaden = True
+
+    @jit
+    def grad_post_process(self, grads, scaling_sens, status):
+        grads = self.hyper_map(F.partial(_grad_scale, scaling_sens), grads)
+
+        if not self.is_cpu_device:
+            cond = self.get_overflow_status(status, grads)
+            overflow = self.process_loss_scale(cond)
+        else:
+            overflow = Tensor(False)
+            cond = Tensor(False)
+        return overflow, cond, grads
 
     def construct(self, *inputs):
         # compute loss
@@ -108,17 +131,7 @@ class TrainOneStepWrapper(nn.TrainOneStepWithLossScaleCell):
             grads = self.grad_reducer(grads)
             scaling_sens = ops.depend(scaling_sens, grads)
 
-        # 2. down-scale gradients by loss_scale. grads = grads / scaling_sense  / grad_accum_steps
-        # also divide gradients by accumulation steps to avoid taking mean of  the accumulated gradients later
-        grads = self.hyper_map(F.partial(_grad_scale, scaling_sens), grads)  # accum_steps division is done later
-
-        # 3. check gradient overflow
-        if not self.is_cpu_device:
-            cond = self.get_overflow_status(status, grads)
-            overflow = self.process_loss_scale(cond)
-        else:
-            overflow = ms.Tensor(False)
-            cond = ms.Tensor(False)
+        overflow, cond, grads = self.grad_post_process(grads, scaling_sens, status)
 
         # accumulate gradients and update model weights if no overflow or allow to update even when overflow
         if (not self.drop_overflow_update) or (not overflow):
@@ -138,7 +151,7 @@ class TrainOneStepWrapper(nn.TrainOneStepWithLossScaleCell):
 
                     # 6. clip grad
                     if self.clip_grad:
-                        grads = ops.clip_by_global_norm(grads, self.clip_norm)
+                        grads = self.clip_by_global_norm(grads, self.clip_norm)
                     # 7. optimize
                     loss = F.depend(loss, self.optimizer(grads))
 

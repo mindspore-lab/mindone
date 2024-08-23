@@ -278,6 +278,7 @@ def initialize_dataset(
                 rank_id=rank_id,
                 num_workers=args.num_parallel_workers,
                 num_workers_dataset=args.num_workers_dataset,
+                num_workers_batch=args.num_worker_batch,
                 drop_remainder=not validation,
                 python_multiprocessing=args.data_multiprocessing,
                 prefetch_size=args.prefetch_size,
@@ -299,6 +300,8 @@ def initialize_dataset(
                 element_length_function=hash_func,
                 drop_remainder=not validation,
             )
+        if args.dataset_take_count > 0:
+            dataloader = dataloader.take(args.dataset_take_count)
     return dataloader
 
 
@@ -322,8 +325,7 @@ def main(args):
     )
     set_logger(name="", output_dir=args.output_path, rank=rank_id, log_level=eval(args.log_level))
 
-    Use_Zero23 = False
-    if Use_Zero23:
+    if args.zero_level != 'no':
         from mindone.trainers.create_comm import initialize_model_parallel
         initialize_model_parallel(tensor_model_parallel_size=1)
 
@@ -625,7 +627,7 @@ def main(args):
         return all([x not in param.name.lower() for x in filter_list])
 
     # build optimizer
-    if Use_Zero23:
+    if args.zero_level != 'no':
         param_optimizer = latent_diffusion_with_loss.trainable_params()
 
         decay_params = list(filter(decay_filter, param_optimizer))
@@ -642,10 +644,10 @@ def main(args):
                           beta1=args.betas[0],
                           beta2=args.betas[1],
                           eps=args.optim_eps,
-                          zero_level='z2',
+                          zero_level=args.zero_level,
                           opt_parallel_group=GlobalComm.WORLD_COMM_GROUP,
                           cpu_offload=False)
-        logger.info('use Zero23')
+        logger.info(f'use Zero, zero_level: {args.zero_level}')
     else:
         optimizer = create_optimizer(
             latent_diffusion_with_loss.trainable_params(),

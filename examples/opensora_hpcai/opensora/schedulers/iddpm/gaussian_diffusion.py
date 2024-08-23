@@ -303,9 +303,7 @@ class GaussianDiffusion:
             # x0: copy unchanged x values
             # x_noise: add noise to x values
             x0 = x.copy()
-            x_noise = x0 * _extract_into_tensor(self.sqrt_alphas_cumprod, t, x.shape) + ops.randn_like(
-                x
-            ) * _extract_into_tensor(self.sqrt_one_minus_alphas_cumprod, t, x.shape)
+            x_noise = x0 * _extract_into_tensor(self.sqrt_alphas_cumprod, t, x.shape) + Tensor(np.random.randn(*x.shape), dtype=x.dtype) * _extract_into_tensor(self.sqrt_one_minus_alphas_cumprod, t, x.shape)
 
             # active noise addition
             mask_t_equall = (mask_t == t.unsqueeze(1))[:, None, :, None, None]
@@ -324,7 +322,7 @@ class GaussianDiffusion:
             denoised_fn=denoised_fn,
             model_kwargs=model_kwargs,
         )
-        noise = ops.randn_like(x)
+        noise = Tensor(np.random.randn(*x.shape), dtype=x.dtype)
         nonzero_mask = (t != 0).float().view(-1, *([1] * (len(x.shape) - 1)))  # no noise when t == 0
         if cond_fn is not None:
             out["mean"] = self.condition_mean(cond_fn, out, x, t, model_kwargs=model_kwargs)

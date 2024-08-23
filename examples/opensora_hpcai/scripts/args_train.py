@@ -108,6 +108,9 @@ def parse_train_args(parser):
         "--parallel_mode", default="data", type=str, choices=["data", "optim"], help="parallel mode: data, optim"
     )
     parser.add_argument(
+        "--zero_level", default="no", type=str, choices=["no", "z1", "z2", "z3"], help="zero level for adamw"
+    )
+    parser.add_argument(
         "--jit_level",
         default="O0",
         type=str,
@@ -172,6 +175,7 @@ def parse_train_args(parser):
     # dataloader params
     parser.add_argument("--dataset_sink_mode", default=False, type=str2bool, help="sink mode")
     parser.add_argument("--sink_size", default=-1, type=int, help="dataset sink size. If -1, sink size = dataset size.")
+    parser.add_argument("--dataset_take_count", default=0, type=int, help="If > 0, take the previous n batches of the dataset")
     parser.add_argument(
         "--epochs",
         default=10,
@@ -271,6 +275,12 @@ def parse_train_args(parser):
         default=4,
         type=int,
         help="The number of workers used for reading data from the dataset. Default is 4.",
+    )
+    parser.add_argument(
+        "--num_workers_batch",
+        default=4,
+        type=int,
+        help="The number of workers used for dataset.batch. Default is 4.",
     )
     parser.add_argument(
         "--prefetch_size", default=16, type=int, help="The number of samples to prefetch (per device). Default is 16."
