@@ -367,7 +367,6 @@ class GaussianDiffusion:
 
         for i in indices:
             t = ms.Tensor([i] * shape[0])
-            # no_grad
             out = self.p_sample(
                 model,
                 img,
@@ -522,7 +521,6 @@ class GaussianDiffusion:
 
         for i in indices:
             t = ms.Tensor([i] * shape[0])
-            # with th.no_grad():
             out = self.ddim_sample(
                 model,
                 img,

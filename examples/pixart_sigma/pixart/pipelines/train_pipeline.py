@@ -30,12 +30,9 @@ class NetworkWithLoss(nn.Cell):
         self.diffusion = diffusion
         self.scale_factor = scale_factor
 
-        # freeze vae and text encoder
-        self.vae.set_train(False)
         for param in self.vae.trainable_params():
             param.requires_grad = False
 
-        self.text_encoder.set_train(False)
         for param in self.text_encoder.trainable_params():
             param.requires_grad = False
 

@@ -1,17 +1,22 @@
+import json
 import logging
 import os
 import time
-from typing import List, Optional
+from typing import Dict, List, Optional
 
 import numpy as np
+import tqdm
+from PIL import Image
+from pixart.pipelines import PixArtInferPipeline
 
+import mindspore as ms
 import mindspore.ops as ops
 from mindspore import Parameter, ParameterTuple, RunContext, Tensor
 from mindspore.train import Callback
 
 from mindone.trainers.checkpoint import CheckpointManager
 
-__all__ = ["LossMonitor", "SaveCkptCallback", "TimeMonitor"]
+__all__ = ["LossMonitor", "SaveCkptCallback", "TimeMonitor", "Visualizer", "TurnOffVAET5Train"]
 
 logger = logging.getLogger(__name__)
 
@@ -98,14 +103,16 @@ class SaveCkptCallback(Callback):
         cur_epoch = cb_params.cur_epoch_num
         epoch_num = cb_params.epoch_num
 
-        if (cur_epoch % self.ckpt_save_interval == 0) or (cur_epoch == epoch_num):
-            ckpt_name = f"epoch_{cur_epoch}.ckpt"
-            network_weight = cb_params.train_network.network
-            self.ckpt_manager.save(network=network_weight, ckpt_name=ckpt_name)
-            if self.save_ema:
-                ckpt_name = f"epoch_{cur_epoch}_ema.ckpt"
-                ema_weight = self._drop_ema_prefix(cb_params.train_network.ema.ema_weight)
-                self.ema_ckpt_manager.save(network=ema_weight, ckpt_name=ckpt_name)
+        if cur_epoch % self.ckpt_save_interval != 0 and cur_epoch != epoch_num:
+            return
+
+        ckpt_name = f"epoch_{cur_epoch}.ckpt"
+        network = cb_params.train_network.network
+        self.ckpt_manager.save(network=network, ckpt_name=ckpt_name)
+        if self.save_ema:
+            ckpt_name = f"epoch_{cur_epoch}_ema.ckpt"
+            ema_weight = self._drop_ema_prefix(cb_params.train_network.ema.ema_weight)
+            self.ema_ckpt_manager.save(network=ema_weight, ckpt_name=ckpt_name)
 
     def _drop_ema_prefix(self, weight: ParameterTuple) -> List[Parameter]:
         new_weight = list()
@@ -116,7 +123,7 @@ class SaveCkptCallback(Callback):
 
 
 class TimeMonitor(Callback):
-    def __init__(self):
+    def __init__(self) -> None:
         self.epoch_start_time = 0
         self.step_start_time = 0
         self.durations: List[int] = list()
@@ -137,3 +144,82 @@ class TimeMonitor(Callback):
         self.durations = list()
         logger.info(f"Total training time for single epoch: {epoch_duration:.3f} seconds")
         logger.info(f"Average step time: {avg_time:.3f} seconds")
+
+
+class Visualizer(Callback):
+    def __init__(
+        self,
+        infer_pipeline: PixArtInferPipeline,
+        sample_size: int,
+        validation_prompts: List[str],
+        validation_negative_prompts: Optional[List[str]] = None,
+        visualize_dir: str = "./output",
+        visualize_interval: int = 1,
+    ) -> None:
+        self.infer_pipeline = infer_pipeline
+        self.visualize_dir = visualize_dir
+        self.visualize_interval = visualize_interval
+        if not os.path.isdir(self.visualize_dir):
+            os.makedirs(self.visualize_dir)
+
+        # prepare the noise, keep it is same during whole training.
+        # To save memory, inference one image at each time.
+        self.noise = ops.randn((1, 4, sample_size, sample_size), dtype=ms.float32)
+
+        self.prompts = self._organize_prompts(validation_prompts, validation_negative_prompts, save_json=True)
+
+    def _organize_prompts(
+        self, prompts: List[str], negative_prompts: Optional[List[str]] = None, save_json: bool = True
+    ) -> List[Dict[str, Optional[str]]]:
+        if isinstance(negative_prompts, list):
+            if len(prompts) != len(negative_prompts):
+                raise ValueError(
+                    "prompt's size must be equal to the negative prompt's size, "
+                    f"but get `{len(prompts)}` and `{len(negative_prompts)}` respectively."
+                )
+
+        contents = list()
+        for i, prompt in enumerate(prompts):
+            negative_prompt = negative_prompts[i] if negative_prompts else None
+            contents.append(dict(prompt=prompt, negative_prompt=negative_prompt))
+
+        if save_json:
+            with open(os.path.join(self.visualize_dir, "prompts.json"), "w") as f:
+                json.dump(contents, f, indent=4)
+        return contents
+
+    def on_train_epoch_end(self, run_context: RunContext) -> None:
+        cb_params = run_context.original_args()
+        cur_epoch = cb_params.cur_epoch_num
+        epoch_num = cb_params.epoch_num
+
+        if cur_epoch % self.visualize_interval != 0 and cur_epoch != epoch_num:
+            return
+
+        assert not self.infer_pipeline.vae.training
+        assert not self.infer_pipeline.text_encoder.training
+        self.infer_pipeline.network.set_train(False)
+
+        outputs = list()
+        for record in tqdm.tqdm(self.prompts):
+            output = self.infer_pipeline(self.noise, record["prompt"], record["negative_prompt"]).asnumpy()
+            outputs.append(output)
+        outputs = np.concatenate(outputs, axis=0)
+
+        visualize_epoch_dir = os.path.join(self.visualize_dir, f"epoch_{cur_epoch}")
+        if not os.path.isdir(visualize_epoch_dir):
+            os.makedirs(visualize_epoch_dir)
+        for i, sample in enumerate(outputs):
+            save_path = os.path.join(visualize_epoch_dir, f"{i}.png")
+            img = Image.fromarray((sample * 255).astype(np.uint8))
+            img.save(save_path)
+
+        self.infer_pipeline.network.set_train(True)
+
+
+class TurnOffVAET5Train(Callback):
+    def on_train_begin(self, run_context: RunContext) -> None:
+        cb_params = run_context.original_args()
+        assert cb_params.train_network.network.network.training
+        cb_params.train_network.network.vae.set_train(False)
+        cb_params.train_network.network.text_encoder.set_train(False)

@@ -30,6 +30,7 @@ from pixart.utils import (
     check_cfgs_in_parser,
     count_params,
     image_grid,
+    init_env,
     load_ckpt_params,
     resize_and_crop_tensor,
     str2bool,
@@ -40,14 +41,8 @@ from mindone.diffusers import AutoencoderKL
 from mindone.transformers import T5EncoderModel
 from mindone.utils.amp import auto_mixed_precision
 from mindone.utils.logger import set_logger
-from mindone.utils.seed import set_random_seed
 
 logger = logging.getLogger(__name__)
-
-
-def init_env(args) -> None:
-    set_random_seed(args.seed)
-    ms.set_context(mode=args.mode, device_target=args.device_target, jit_config=dict(jit_level=args.jit_level))
 
 
 def parse_args():
@@ -84,7 +79,7 @@ def parse_args():
     parser.add_argument(
         "--prompt", default="A small cactus with a happy face in the Sahara desert.", help="Prompt for sampling."
     )
-    parser.add_argument("--negative_prompt", default="", help="Negative prompt for sampling.")
+    parser.add_argument("--negative_prompt", help="Negative prompt for sampling.")
     parser.add_argument(
         "--sd_scale_factor", default=0.13025, type=float, help="VAE scale factor of Stable Diffusion network."
     )
@@ -120,6 +115,7 @@ def parse_args():
     parser.add_argument("--imagegrid", default=False, type=str2bool, help="Save the image in image-grids format.")
     parser.add_argument("--nrows", default=1, type=int, help="Number of rows in sampling (number of trials)")
     parser.add_argument("--ncols", default=1, type=int, help="Number of cols in sampling (batch size)")
+    parser.add_argument("--use_parallel", default=False, type=str2bool, help="use parallel training.")
     default_args = parser.parse_args()
     abs_path = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), ""))
     if default_args.config:
@@ -134,10 +130,12 @@ def parse_args():
 
 
 def main(args):
-    set_logger(output_dir="logs/sample")
-
     # 1. init env
-    init_env(args)
+    _, rank_id = init_env(args)
+    set_logger(output_dir=os.path.join(args.output_path, "logs", f"rank_{rank_id}"))
+
+    if args.use_parallel:
+        raise NotImplementedError("Unsupportetd parallel inference yet.")
 
     # 1.1. bin the size if need
     if args.use_resolution_binning:
@@ -206,8 +204,9 @@ def main(args):
         text_tokenizer,
         scale_factor=args.sd_scale_factor,
         num_inference_steps=args.sampling_steps,
-        guidance_rescale=args.guidance_scale,
+        guidance_scale=args.guidance_scale,
         ddim_sampling=args.ddim_sampling,
+        force_freeze=True,
     )
 
     # 4. print key info
@@ -234,13 +233,7 @@ def main(args):
     for _ in tqdm.trange(args.nrows):
         # Create sampling noise
         z = ops.randn((args.ncols, 4, latent_height, latent_width), dtype=ms.float32)
-        y = args.prompt
-        y_null = args.negative_prompt
-
-        # init inputs
-        inputs = dict(noise=z, y=y, y_null=y_null, scale=args.guidance_scale)
-
-        output = pipeline(inputs).asnumpy()
+        output = pipeline(z, args.prompt, args.negative_prompt).asnumpy()
         x_samples.append(output)
 
     x_samples = np.concatenate(x_samples, axis=0)
