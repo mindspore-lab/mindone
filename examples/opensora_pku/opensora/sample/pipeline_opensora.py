@@ -529,8 +529,8 @@ class OpenSoraPipeline(DiffusionPipeline):
             video_states = ops.pad(video_states, (0, 0, 0, 0, 0, padding_needed), mode="constant", value=0)
 
             b, _, f, h, w = video_states.shape
-            temp_attention_mask = ops.ones((b * h * w // 4, 1, f), ms.int32)
-            temp_attention_mask[:, :, -padding_needed:] = 0
+            temp_attention_mask = ops.ones((b, f), ms.int32)
+            temp_attention_mask[:, -padding_needed:] = 0
 
         assert video_states.shape[2] % sp_size == 0
         video_states = ops.chunk(video_states, sp_size, 2)[index]
@@ -715,7 +715,7 @@ class OpenSoraPipeline(DiffusionPipeline):
 
         # 7. Denoising loop
         num_warmup_steps = max(len(timesteps) - num_inference_steps * self.scheduler.order, 0)
-
+        world_size = hccl_info.world_size
         if get_sequence_parallel_state():
             latents, temp_attention_mask = self.prepare_parallel_latent(latents)
             temp_attention_mask = (
@@ -723,6 +723,12 @@ class OpenSoraPipeline(DiffusionPipeline):
                 if (do_classifier_free_guidance and temp_attention_mask is not None)
                 else temp_attention_mask
             )
+            # b (n x) h -> b n x h
+            prompt_embeds = prompt_embeds.reshape(
+                prompt_embeds.shape[0], world_size, prompt_embeds.shape[1] // world_size, -1
+            ).contiguous()
+            index = hccl_info.rank % world_size
+            prompt_embeds = prompt_embeds[:, index, :, :]
         else:
             temp_attention_mask = None
 
@@ -746,10 +752,15 @@ class OpenSoraPipeline(DiffusionPipeline):
                     prompt_embeds = prompt_embeds.unsqueeze(1)  # b l d -> b 1 l d
                 if prompt_attention_mask.ndim == 2:
                     prompt_attention_mask = prompt_attention_mask.unsqueeze(1)  # b l -> b 1 l
-                attention_mask = ops.ones_like(latent_model_input)[:, 0]
+                # b c t h w -> b t h w
+                attention_mask = ops.ones_like(latent_model_input)[:, 0]  # b t h w
                 if temp_attention_mask is not None:
+                    # temp_attention_mask shape (bs, t), 1 means to keep, 0 means to discard
                     # TODO: mask temporal padded tokens
-                    temp_attention_mask = temp_attention_mask[:, 0]  # (bs, f), 1 means to keep, and 0 means to discard
+                    temp_attention_mask = ops.broadcast(temp_attention_mask, attention_mask.shape).bool()
+                    attention_mask[~temp_attention_mask] = 0
+                if get_sequence_parallel_state():
+                    attention_mask = attention_mask.repeat(world_size, axis=1)  # b t*sp_size h w
                 # predict noise model_output
                 noise_pred = ops.stop_gradient(
                     self.transformer(
