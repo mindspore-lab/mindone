@@ -18,7 +18,7 @@ python scripts/train.py \
 --pretrained_model_path="models/OpenSora-STDiT-v3/opensora_stdit_v3.ckpt" \
 --mode=0 \
 --jit_level O1 \
---max_device_memory 59GB \
+--max_device_memory 55GB \
 --config configs/opensora-v1-2/train/train_stage2.yaml \
 --csv_path datasets/mixkit-100videos/video_caption_train.csv \
 --video_folder datasets/mixkit-100videos/mixkit \
