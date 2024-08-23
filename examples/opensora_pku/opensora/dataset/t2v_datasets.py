@@ -6,6 +6,7 @@ import os
 import random
 from collections import Counter
 from os.path import join as opj
+from pathlib import Path
 
 import numpy as np
 from opensora.utils.dataset_utils import DecordInit
@@ -215,24 +216,31 @@ class T2V_dataset:
         input_videos.update(dict([(f"image{i}", video[i + 1]) for i in range(len(video) - 1)]))
         output_videos = self.transform(**input_videos)
         video = np.stack([v for _, v in output_videos.items()], axis=0).transpose(3, 0, 1, 2)  # T H W C -> C T H W
-        text = dataset_prog.cap_list[idx]["cap"]
-        if not isinstance(text, list):
-            text = [text]
-        text = [random.choice(text)]
 
-        text = text_preprocessing(text, support_Chinese=self.support_Chinese) if random.random() > self.cfg else ""
-        text_tokens_and_mask = self.tokenizer(
-            text,
-            max_length=self.model_max_length,
-            padding="max_length",
-            truncation=True,
-            return_attention_mask=True,
-            add_special_tokens=True,
-            return_tensors="np",
-        )
-        input_ids = text_tokens_and_mask["input_ids"]
-        cond_mask = text_tokens_and_mask["attention_mask"]
-        return dict(pixel_values=video, input_ids=input_ids, cond_mask=cond_mask)
+        # get token ids and attention mask if not self.return_text_emb
+        if not self.return_text_emb:
+            text = dataset_prog.cap_list[idx]["cap"]
+            if not isinstance(text, list):
+                text = [text]
+            text = [random.choice(text)]
+
+            text = text_preprocessing(text, support_Chinese=self.support_Chinese) if random.random() > self.cfg else ""
+            text_tokens_and_mask = self.tokenizer(
+                text,
+                max_length=self.model_max_length,
+                padding="max_length",
+                truncation=True,
+                return_attention_mask=True,
+                add_special_tokens=True,
+                return_tensors="np",
+            )
+            input_ids = text_tokens_and_mask["input_ids"]
+            cond_mask = text_tokens_and_mask["attention_mask"]
+            return dict(pixel_values=video, input_ids=input_ids, cond_mask=cond_mask)
+        else:
+            text_embed_path = dataset_prog.cap_list[idx]["text_embed_path"]
+            text_emb, cond_mask = self.parse_text_emb(text_embed_path)
+            return dict(pixel_values=video, input_ids=text_emb, cond_mask=cond_mask)
 
     def get_image(self, idx):
         image_data = dataset_prog.cap_list[idx]  # [{'path': path, 'cap': cap}, ...]
@@ -248,24 +256,29 @@ class T2V_dataset:
         )
         #  [h, w, c] -> [c h w] -> [C 1 H W]
         image = image.transpose(2, 0, 1)[:, None, ...]
-
-        caps = image_data["cap"] if isinstance(image_data["cap"], list) else [image_data["cap"]]
-        caps = [random.choice(caps)]
-        text = text_preprocessing(caps, support_Chinese=self.support_Chinese)
-        input_ids, cond_mask = [], []
-        text = text if random.random() > self.cfg else ""
-        text_tokens_and_mask = self.tokenizer(
-            text,
-            max_length=self.model_max_length,
-            padding="max_length",
-            truncation=True,
-            return_attention_mask=True,
-            add_special_tokens=True,
-            return_tensors="np",
-        )
-        input_ids = text_tokens_and_mask["input_ids"]  # 1, l
-        cond_mask = text_tokens_and_mask["attention_mask"]  # 1, l
-        return dict(pixel_values=image, input_ids=input_ids, cond_mask=cond_mask)
+        # get token ids and attention mask if not self.return_text_emb
+        if not self.return_text_emb:
+            caps = image_data["cap"] if isinstance(image_data["cap"], list) else [image_data["cap"]]
+            caps = [random.choice(caps)]
+            text = text_preprocessing(caps, support_Chinese=self.support_Chinese)
+            input_ids, cond_mask = [], []
+            text = text if random.random() > self.cfg else ""
+            text_tokens_and_mask = self.tokenizer(
+                text,
+                max_length=self.model_max_length,
+                padding="max_length",
+                truncation=True,
+                return_attention_mask=True,
+                add_special_tokens=True,
+                return_tensors="np",
+            )
+            input_ids = text_tokens_and_mask["input_ids"]  # 1, l
+            cond_mask = text_tokens_and_mask["attention_mask"]  # 1, l
+            return dict(pixel_values=image, input_ids=input_ids, cond_mask=cond_mask)
+        else:
+            text_embed_path = dataset_prog.cap_list[idx]["text_embed_path"]
+            text_emb, cond_mask = self.parse_text_emb(text_embed_path)
+            return dict(pixel_values=image, input_ids=text_emb, cond_mask=cond_mask)
 
     def define_frame_index(self, cap_list):
         new_cap_list = []
@@ -411,6 +424,35 @@ class T2V_dataset:
         video_data = decord_vr.get_batch(frame_indices).asnumpy()  # (T, H, W, C)
         return video_data
 
+    # FIXME: maybe not applicable for v1.2.0
+    def get_text_embed_file_path(self, item):
+        file_path = item["path"]
+        # extra keys are identifiers added to the original file path
+        for key in item.keys():
+            if key not in ["cap", "path"]:
+                identifer = f"-{key}-{item[key]}"
+                file_path = Path(str(file_path))
+                extension = file_path.suffix
+                file_path = str(file_path.with_suffix("")) + identifer
+                file_path = file_path + extension
+        return Path(str(file_path)).with_suffix(".npz")
+
+    # FIXME: maybe not applicable for v1.2.0
+    def parse_text_emb(self, npz):
+        if not os.path.exists(npz):
+            raise ValueError(
+                f"text embedding file {npz} not found. Please check the text_emb_folder and make sure the text embeddings are already generated"
+            )
+        td = np.load(npz)
+        text_emb = td["text_emb"]
+        mask = td["mask"]
+        if len(text_emb.shape) == 2:
+            text_emb = text_emb[None, ...]
+        if len(mask.shape) == 1:
+            mask = mask[None, ...]
+
+        return text_emb, mask  # (1, L, D), (1, L)
+
     def read_jsons(self, data):
         cap_lists = []
         with open(data, "r") as f:
@@ -419,7 +461,7 @@ class T2V_dataset:
             if len(item) == 2:
                 folder, anno = item
             elif len(item) == 3:
-                folder, _, anno = item
+                folder, text_emb_folder, anno = item
             else:
                 raise ValueError(f"Expect to have two or three paths, but got {len(item)} input paths")
             if self.return_text_emb:
@@ -431,6 +473,8 @@ class T2V_dataset:
             logger.info(f"Building {anno}...")
             for i in range(len(sub_list)):
                 sub_list[i]["path"] = opj(folder, sub_list[i]["path"])
+                if self.return_text_emb:
+                    sub_list[i]["text_embed_path"] = opj(text_emb_folder, self.get_text_embed_file_path(sub_list[i]))
             cap_lists += sub_list
         return cap_lists
 

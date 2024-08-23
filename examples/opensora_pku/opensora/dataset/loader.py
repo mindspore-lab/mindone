@@ -14,12 +14,10 @@
 # ============================================================================
 import gc
 import logging
-import os
 import random
 from collections import defaultdict
 
 import numpy as np
-import pandas as pd
 
 import mindspore as ms
 from mindspore.communication.management import get_local_rank, get_local_rank_size
@@ -70,6 +68,8 @@ def create_dataloader(
         num_parallel_workers=num_parallel_workers,
         max_rowsize=max_rowsize,
     )
+    if sampler is not None:
+        dl.dataset_size = len(sampler)
 
     _logger.info("dataset size per shard: {}".format(dl.get_dataset_size()))
 
@@ -90,26 +90,6 @@ def build_dataloader(
         rank_id=rank_id,
     )
     return loader
-
-
-def list_image_files_captions_recursively(data_path, enable_modelarts=False):
-    anno_dir = data_path
-    if enable_modelarts:
-        anno_list = [os.path.join(data_path, "merged_imgp_text.csv")]
-    else:
-        anno_list = sorted(
-            [os.path.join(anno_dir, f) for f in list(filter(lambda x: x.endswith(".csv"), os.listdir(anno_dir)))]
-        )
-    db_list = [pd.read_csv(f) for f in anno_list]
-    all_images = []
-    all_captions = []
-    for db in db_list:
-        all_images.extend(list(db["dir"]))
-        all_captions.extend(list(db["text"]))
-    assert len(all_images) == len(all_captions)
-    all_images = [os.path.join(data_path, f) for f in all_images]
-    _logger.info(f"Before filter, Total number of training samples: {len(all_images)}")
-    return all_images, all_captions
 
 
 class BatchSampler:
