@@ -121,10 +121,10 @@ bad_punct_regex = re.compile(
 )  # noqa
 
 
-def text_preprocessing(text):
+def text_preprocessing(text, support_Chinese=True):
     # The exact text cleaning as was in the training stage:
-    text = clean_caption(text)
-    text = clean_caption(text)
+    text = clean_caption(text, support_Chinese=support_Chinese)
+    text = clean_caption(text, support_Chinese=support_Chinese)
     return text
 
 
@@ -134,7 +134,7 @@ def basic_clean(text):
     return text.strip()
 
 
-def clean_caption(caption):
+def clean_caption(caption, support_Chinese=True):
     caption = str(caption)
     caption = ul.unquote_plus(caption)
     caption = caption.strip().lower()
@@ -169,7 +169,8 @@ def clean_caption(caption):
     caption = re.sub(r"[\u3300-\u33ff]+", "", caption)
     caption = re.sub(r"[\u3400-\u4dbf]+", "", caption)
     caption = re.sub(r"[\u4dc0-\u4dff]+", "", caption)
-    caption = re.sub(r"[\u4e00-\u9fff]+", "", caption)
+    if not support_Chinese:
+        caption = re.sub(r"[\u4e00-\u9fff]+", "", caption)  # Chinese
     #######################################################
 
     # все виды тире / all types of dash --> "-"
