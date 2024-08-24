@@ -130,7 +130,6 @@ class VideoAutoencoderKL(nn.Cell):
         if self.micro_batch_size is None:
             x_out = self.module.encode(x) * self.scale_factor
         else:
-
             bs = self.micro_batch_size
             x_out = self.module.encode(x[:bs]) * self.scale_factor
             for i in range(bs, x.shape[0], bs):
@@ -153,7 +152,7 @@ class VideoAutoencoderKL(nn.Cell):
         if self.micro_batch_size is None:
             x_out = self.module.decode(x / self.scale_factor)
         else:
-            mbs = self.micro_batch_size 
+            mbs = self.micro_batch_size
 
             x_out = self.module.decode(x[:mbs] / self.scale_factor)
             for i in range(mbs, x.shape[0], mbs):
@@ -288,7 +287,6 @@ class VideoAutoencoderPipeline(nn.Cell):
 
                 return (z_out - self.shift) / self.scale
 
-
     def decode(self, z, num_frames=None):
         if not self.cal_loss:
             z = z * self.scale.to(z.dtype) + self.shift.to(z.dtype)
@@ -302,18 +300,18 @@ class VideoAutoencoderPipeline(nn.Cell):
                 return x
         else:
             # z: (b Z t//4 h w)
-            '''
+            """
             z_splits = mint.split(z, self.micro_z_frame_size, 2)
             x_z_out = tuple(self.temporal_vae.decode(z_bs, num_frames=min(self.micro_frame_size, num_frames - i*self.micro_frame_size)) for i, z_bs in enumerate(z_splits))
             x_z_out = ops.cat(x_z_out, axis=2)
-            '''
+            """
             mz = self.micro_z_frame_size
-            remain_frames =  num_frames if self.micro_frame_size > num_frames else self.micro_frame_size
-            x_z_out = self.temporal_vae.decode(z[:, :, : mz], num_frames=remain_frames)
+            remain_frames = num_frames if self.micro_frame_size > num_frames else self.micro_frame_size
+            x_z_out = self.temporal_vae.decode(z[:, :, :mz], num_frames=remain_frames)
             num_frames -= self.micro_frame_size
 
             for i in range(mz, z.shape[2], mz):
-                remain_frames =  num_frames if self.micro_frame_size > num_frames else self.micro_frame_size
+                remain_frames = num_frames if self.micro_frame_size > num_frames else self.micro_frame_size
                 x_z_cur = self.temporal_vae.decode(z[:, :, i : i + mz], num_frames=remain_frames)
                 x_z_out = ops.cat((x_z_out, x_z_cur), axis=2)
                 num_frames -= self.micro_frame_size
@@ -324,7 +322,6 @@ class VideoAutoencoderPipeline(nn.Cell):
                 return x, x_z_out
             else:
                 return x
-
 
     def construct(self, x):
         # assert self.cal_loss, "This method is only available when cal_loss is True"

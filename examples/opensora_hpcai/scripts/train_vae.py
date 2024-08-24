@@ -20,9 +20,9 @@ sys.path.insert(0, os.path.abspath(os.path.join(__dir__, "..")))
 
 from args_train_vae import parse_args
 from opensora.datasets.vae_dataset import create_dataloader
+from opensora.models.layers.operation_selector import set_dynamic_mode
 from opensora.models.vae.losses import GeneratorWithLoss
 from opensora.models.vae.vae import OpenSoraVAE_V1_2
-from opensora.models.layers.operation_selector import set_dynamic_mode
 
 from mindone.trainers.callback import EvalSaveCallback, OverflowMonitor, ProfilerCallback
 from mindone.trainers.checkpoint import CheckpointManager, resume_train_network
@@ -134,7 +134,6 @@ def init_env(
         # only effective in GE mode, i.e. jit_level: O2
         ms.set_context(ascend_config={"precision_mode": "allow_mix_precision_bf16"})
 
-
     if dynamic_shape:
         print("Dynamic shape mode enabled, repeat_interleave/split/chunk will be called from mint module")
         set_dynamic_mode(True)
@@ -158,7 +157,7 @@ def main(args):
         parallel_mode=args.parallel_mode,
         jit_level=args.jit_level,
         global_bf16=args.global_bf16,
-        dynamic_shape=(args.mixed_strategy=='mixed_video_random'),
+        dynamic_shape=(args.mixed_strategy == "mixed_video_random"),
         debug=args.debug,
     )
     set_logger(name="", output_dir=args.output_path, rank=rank_id, log_level=eval(args.log_level))
@@ -326,14 +325,13 @@ def main(args):
         ema=ema,
     )
 
-    # support dynamic shape in graph mode 
-    if args.mode == 0 and args.mixed_strategy == 'mixed_video_random':
+    # support dynamic shape in graph mode
+    if args.mode == 0 and args.mixed_strategy == "mixed_video_random":
         # (b c t h w), drop_remainder so bs fixed
         # videos = ms.Tensor(shape=[args.batch_size, 3, None, image_size, image_size], dtype=ms.float32)
         videos = ms.Tensor(shape=[None, 3, None, image_size, image_size], dtype=ms.float32)
         training_step_ae.set_inputs(videos)
         logger.info("Dynamic inputs are initialized for mixed_video_random training in Graph mode!")
-
 
     if rank_id == 0:
         key_info = "Key Settings:\n" + "=" * 50 + "\n"

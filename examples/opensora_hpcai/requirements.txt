@@ -18,3 +18,4 @@ tokenizers
 sentencepiece
 transformers
 pyav
+mindcv

@@ -6,9 +6,10 @@ import mindcv
 import mindspore as ms
 import mindspore.nn as nn
 import mindspore.ops as ops
+from mindone.utils.params import load_from_pretrained
+
 
 _logger = logging.getLogger(__name__)
-
 
 class LPIPS(nn.Cell):
     # Learned perceptual metric
@@ -22,7 +23,7 @@ class LPIPS(nn.Cell):
         self.lin3 = NetLinLayer(self.chns[3], use_dropout=use_dropout)
         self.lin4 = NetLinLayer(self.chns[4], use_dropout=use_dropout)
         # load NetLin metric layers
-        self.load_from_pretrained()
+        self.load_lpips()
 
         self.lins = [self.lin0, self.lin1, self.lin2, self.lin3, self.lin4]
         self.lins = nn.CellList(self.lins)
@@ -34,21 +35,10 @@ class LPIPS(nn.Cell):
         for param in self.trainable_params():
             param.requires_grad = False
 
-    def load_from_pretrained(self, ckpt_path="models/lpips_vgg-426bf45c.ckpt"):
-        # TODO: just load ms ckpt
+    def load_lpips(self, ckpt_path="models/lpips_vgg-426bf45c.ckpt"):
         if not os.path.exists(ckpt_path):
-            raise ValueError(
-                f"{ckpt_path} not exists. Please download from https://download-mindspore.osinfra.cn/toolkits/mindone/autoencoders/lpips_vgg-426bf45c.ckpt and move it to models/."
-            )
-
-        state_dict = ms.load_checkpoint(ckpt_path)
-        m, u = ms.load_param_into_net(self, state_dict)
-        if len(m) > 0:
-            print("missing keys:")
-            print(m)
-        if len(u) > 0:
-            print("unexpected keys:")
-            print(u)
+            ckpt_path = "https://download-mindspore.osinfra.cn/toolkits/mindone/autoencoders/lpips_vgg-426bf45c.ckpt"
+            load_from_pretrained(self, ckpt_path)
 
         _logger.info("loaded pretrained LPIPS loss from {}".format(ckpt_path))
 
