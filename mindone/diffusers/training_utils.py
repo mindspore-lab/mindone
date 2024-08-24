@@ -13,7 +13,6 @@ from tqdm.auto import tqdm
 import mindspore as ms
 from mindspore import context, nn, ops
 from mindspore.amp import DynamicLossScaler, StaticLossScaler, all_finite
-from mindspore.common.api import _function_forbid_reuse
 from mindspore.communication import get_group_size, get_local_rank, get_rank, init
 
 from mindone.diffusers._peft import set_peft_model_state_dict
@@ -265,45 +264,6 @@ class EMAModel:
                 raise ValueError("shadow_params must be a list")
             if not all(isinstance(p, ms.Tensor) for p in self.shadow_params):
                 raise ValueError("shadow_params must all be Tensors")
-
-
-@_function_forbid_reuse
-def multinomial(input, num_samples, replacement=True, **kwargs):
-    assert isinstance(input, ms.Tensor) and input.ndim in (
-        1,
-        2,
-    ), "argument input should be a MindSpore Tensor with 1 or 2 dim."
-    assert (
-        replacement or num_samples <= input.shape[-1]
-    ), "cannot sample n_sample > prob_dist.size(-1) samples without replacement."
-
-    input = input.float()
-    input /= input.sum(-1, keepdims=True)
-
-    if num_samples == 1 or not replacement:
-        # The algorithm is from gumbel softmax.
-        # s = argmax( logp - log(-log(eps)) ) where eps ~ U(0, 1)
-        # Here we can apply exp to the formula which will not affect result of
-        # argmax or topk. Then we have
-        # s = argmax( p / (-log(eps)) ) where eps ~ U(0, 1).
-        # We can also simplify the formula above by
-        # s = argmax( p / q ) where q ~ Exp(1)
-        # No proper Exp generator op in MindSpore,
-        # so we still generate it by -log(eps)
-        q = -ops.log(ops.rand_like(input))
-        if num_samples == 1:
-            result = (input / q).argmax(-1, keepdim=True)
-        else:
-            _, result = ops.topk(input / q, k=num_samples, dim=-1)
-    else:
-        # To generate scalar random variable X with cumulative distribution F(x)
-        # just let X = F^(-1)(U) where U ~ U(0, 1)
-        input = input.cumsum(-1).expand_dims(-1)
-        rshape = (1, num_samples) if input.ndim == 2 else (input.shape[0], 1, num_samples)
-        rand = ops.rand(*rshape, dtype=input.dtype)
-        result = ops.ge(rand, input).long().sum(-2)
-
-    return result.long()
 
 
 def is_master(args):

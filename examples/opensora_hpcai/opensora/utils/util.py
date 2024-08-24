@@ -1,44 +1,8 @@
-import os
 from typing import List, Tuple, Union
 
-import imageio
 import numpy as np
 
-
-def save_videos(videos: np.ndarray, path: str, fps=8, concat=False):
-    # videos: (b f H W 3), normalized to [0, 1]
-    videos = (videos * 255).round().clip(0, 255).astype(np.uint8)
-    os.makedirs(os.path.dirname(path), exist_ok=True)
-
-    if len(videos.shape) == 4:
-        imageio.mimsave(path, videos, fps=fps)
-    else:
-        b, f, h, w, _ = videos.shape
-        if b > 1:
-            if concat:
-                canvas = np.array((f, h, w * b, 3), dtype=np.uint8)
-                for idx in range(b):
-                    canvas[:, :, (w * idx) : (w * (idx + 1)), :] = videos[idx]
-                imageio.mimsave(path, canvas, fps=fps)
-            else:
-                for idx in range(b):
-                    # concat in Width
-                    imageio.mimsave(path.replace(".gif", f"-{idx}.gif"), videos[idx], fps=fps)
-        else:
-            imageio.mimsave(path, videos[0], fps=fps)
-
-
-def video_tensor_to_gif(images: np.ndarray, path: str, duration: int = 120, save_frames: bool = False) -> None:
-    """images: f x h x w x c"""
-    images = (images * 255).round().clip(0, 255).astype(np.uint8)
-    images = [x for x in images]
-    imageio.mimwrite(path, images, duration=duration)
-    if save_frames:
-        root = os.path.join(os.path.splitext(path)[0], "frames")
-        if not os.path.isdir(root):
-            os.makedirs(root)
-        for i, x in enumerate(images):
-            imageio.imwrite(os.path.join(root, f"{i:04d}.jpg"), x)
+IMG_FPS = 120  # an FPS placeholder for images
 
 
 def process_mask_strategies(
@@ -61,11 +25,19 @@ def process_mask_strategies(
     return processed
 
 
+def find_nearest_point(start_pos, align_pos, max_value):
+    t = start_pos // align_pos
+    if start_pos % align_pos > align_pos / 2 and t < max_value // align_pos - 1:
+        t += 1
+    return t * align_pos
+
+
 def apply_mask_strategy(
     z: np.ndarray,
     references: List[List[np.ndarray]],
     mask_strategies: List[Union[List[Union[int, float]], None]],
     loop_i: int,
+    align: int = 0,
 ) -> Tuple[np.ndarray, np.ndarray]:
     masks = np.ones((z.shape[0], z.shape[2]), dtype=np.float32)
     for batch_id, mask_strategy in enumerate(mask_strategies):
@@ -78,6 +50,10 @@ def apply_mask_strategy(
                         ref_start = ref.shape[1] + ref_start  # ref: [C, T, H, W]
                     if target_start < 0:
                         target_start = z.shape[2] + target_start  # z: [B, C, T, H, W]
+                    if align:
+                        ref_start = find_nearest_point(ref_start, align, ref.shape[1])
+                        target_start = find_nearest_point(target_start, align, z.shape[2])
+                    length = min(length, z.shape[2] - target_start, ref.shape[1] - ref_start)
                     z[batch_id, :, target_start : target_start + length] = ref[:, ref_start : ref_start + length]
                     masks[batch_id, target_start : target_start + length] = edit_ratio
     return z, masks

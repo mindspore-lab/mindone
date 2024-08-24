@@ -436,6 +436,7 @@ class VAE_Temporal(nn.Cell):
             num_groups=num_groups,  # for nn.GroupNorm
             activation_fn=activation_fn,
         )
+        self.split = ops.Split(axis=1, output_num=2)
         self.stdnormal = ops.StandardNormal()
         self.split = get_split_op()
 

@@ -3,6 +3,7 @@ from typing import TYPE_CHECKING
 from ...utils import _LazyModule
 
 _import_structure = {
+    "clip_image_project_model": ["CLIPImageProjection"],
     "pipeline_output": ["StableDiffusionPipelineOutput"],
     "pipeline_stable_diffusion": ["StableDiffusionPipeline"],
     "pipeline_stable_diffusion_depth2img": ["StableDiffusionDepth2ImgPipeline"],
@@ -16,6 +17,7 @@ _import_structure = {
 }
 
 if TYPE_CHECKING:
+    from .clip_image_project_model import CLIPImageProjection
     from .pipeline_stable_diffusion import (
         StableDiffusionPipeline,
         StableDiffusionPipelineOutput,

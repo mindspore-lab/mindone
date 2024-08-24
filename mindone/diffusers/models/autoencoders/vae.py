@@ -21,7 +21,8 @@ from mindspore import nn, ops
 from mindspore.common.initializer import Uniform
 
 from ...utils import BaseOutput
-from ..activations import SiLU, get_activation
+from ...utils.mindspore_utils import randn_tensor
+from ..activations import get_activation
 from ..attention_processor import SpatialNorm
 from ..normalization import GroupNorm
 from ..unets.unet_2d_blocks import AutoencoderTinyBlock, UNetMidBlock2D, get_down_block, get_up_block
@@ -128,7 +129,7 @@ class Encoder(nn.Cell):
 
         # out
         self.conv_norm_out = GroupNorm(num_channels=block_out_channels[-1], num_groups=norm_num_groups, eps=1e-6)
-        self.conv_act = SiLU()
+        self.conv_act = nn.SiLU()
 
         conv_out_channels = 2 * out_channels if double_z else out_channels
         self.conv_out = nn.Conv2d(
@@ -264,7 +265,7 @@ class Decoder(nn.Cell):
             self.conv_norm_out = SpatialNorm(block_out_channels[0], temb_channels)
         else:
             self.conv_norm_out = GroupNorm(num_channels=block_out_channels[0], num_groups=norm_num_groups, eps=1e-6)
-        self.conv_act = SiLU()
+        self.conv_act = nn.SiLU()
         self.conv_out = nn.Conv2d(block_out_channels[0], out_channels, 3, pad_mode="pad", padding=1, has_bias=True)
 
         self._gradient_checkpointing = False
@@ -499,7 +500,7 @@ class MaskConditionDecoder(nn.Cell):
             self.conv_norm_out = SpatialNorm(block_out_channels[0], temb_channels)
         else:
             self.conv_norm_out = GroupNorm(num_channels=block_out_channels[0], num_groups=norm_num_groups, eps=1e-6)
-        self.conv_act = SiLU()
+        self.conv_act = nn.SiLU()
         self.conv_out = nn.Conv2d(block_out_channels[0], out_channels, 3, pad_mode="pad", padding=1, has_bias=True)
 
         self.gradient_checkpointing = False
@@ -687,11 +688,12 @@ class DiagonalGaussianDistribution(object):
             std = ops.exp(0.5 * logvar)
         return mean, logvar, var, std
 
-    def sample(self, parameters: ms.Tensor) -> ms.Tensor:
+    def sample(self, parameters: ms.Tensor, generator: Optional[np.random.Generator] = None) -> ms.Tensor:
         mean, logvar, var, std = self.init(parameters)
         # make sure sample is on the same device as the parameters and has same dtype
-        sample = ops.randn(
+        sample = randn_tensor(
             mean.shape,
+            generator=generator,
             dtype=parameters.dtype,
         )
         x = mean + std * sample

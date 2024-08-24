@@ -16,7 +16,7 @@ batch_size: 1
 sampling_steps: 100
 guidance_scale: 7.0
 seed: 42
-ddim_sampling: False
+sampling: ddpm
 
 captions:
 - "A snowy forest landscape with a dirt road running through it. The road is flanked by trees covered in snow, and the ground is also covered in snow. The sun is shining, creating a bright and serene atmosphere. The road appears to be empty, and there are no people or animals visible in the video. The style of the video is a natural landscape shot, with a focus on the beauty of the snowy forest and the peacefulness of the road."

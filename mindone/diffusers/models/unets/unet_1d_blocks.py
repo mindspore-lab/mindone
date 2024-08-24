@@ -17,6 +17,7 @@ import mindspore as ms
 from mindspore import nn, ops
 
 from ..activations import get_activation
+from ..layers_compat import conv_transpose1d, pad
 from ..normalization import GroupNorm
 from ..resnet import Downsample1D, ResidualTemporalBlock1D, Upsample1D, rearrange_dims
 
@@ -283,7 +284,7 @@ class Downsample1d(nn.Cell):
 
     def construct(self, hidden_states: ms.Tensor) -> ms.Tensor:
         dtype = hidden_states.dtype
-        hidden_states = _pad(hidden_states, (self.pad,) * 2, self.pad_mode)
+        hidden_states = pad(hidden_states, (self.pad,) * 2, self.pad_mode)
         weight = hidden_states.new_zeros([hidden_states.shape[1], hidden_states.shape[1], self.kernel.shape[0]])
         indices = ops.arange(hidden_states.shape[1])
         kernel = self.kernel.to(weight.dtype)[None, :].broadcast_to((hidden_states.shape[1], -1))
@@ -300,12 +301,12 @@ class Upsample1d(nn.Cell):
         self.kernel = ms.Parameter(kernel_1d, name="kernel")
 
     def construct(self, hidden_states: ms.Tensor, temb: Optional[ms.Tensor] = None) -> ms.Tensor:
-        hidden_states = _pad(hidden_states, ((self.pad + 1) // 2,) * 2, self.pad_mode)
+        hidden_states = pad(hidden_states, ((self.pad + 1) // 2,) * 2, self.pad_mode)
         weight = hidden_states.new_zeros([hidden_states.shape[1], hidden_states.shape[1], self.kernel.shape[0]])
         indices = ops.arange(hidden_states.shape[1])
         kernel = self.kernel.to(weight.dtype)[None, :].broadcast_to((hidden_states.shape[1], -1))
         weight[indices, indices] = kernel
-        return _conv_transpose1d(hidden_states, weight, stride=2, padding=self.pad * 2 + 1)
+        return conv_transpose1d(hidden_states, weight, stride=2, padding=self.pad * 2 + 1)
 
 
 class SelfAttention1d(nn.Cell):
@@ -694,101 +695,3 @@ def get_out_block(
     elif out_block_type == "ValueFunction":
         return OutValueFunctionBlock(fc_dim, embed_dim, act_fn)
     return None
-
-
-def _conv_transpose1d(input, weight, bias=None, stride=1, padding=0, output_padding=0, groups=1, dilation=1):
-    # Equivalence of torch.nn.functional.conv_transpose1d
-    assert output_padding == 0, "Only support output_padding == 0 so far."
-
-    if isinstance(stride, int):
-        stride = (1, stride)
-    elif isinstance(stride, tuple):
-        stride = (1, stride[0])
-
-    if isinstance(dilation, int):
-        dilation = (dilation, dilation)
-    elif isinstance(dilation, tuple):
-        dilation = (dilation[0], dilation[0])
-
-    if isinstance(padding, int):
-        padding = (0, 0, padding, padding)
-    elif isinstance(padding, tuple):
-        padding = (0, 0, padding[0], padding[0])
-
-    # InferShape manually
-    # Format adapted from https://pytorch.org/docs/stable/generated/torch.nn.functional.conv_transpose1d.html
-    input = input.unsqueeze(2)
-    weight = weight.unsqueeze(2)
-    batch_size, in_channels, iH, iW = input.shape
-    _, out_channels_divide_groups, kH, kW = weight.shape
-
-    out_channels = out_channels_divide_groups * groups
-    outH = (iH - 1) * stride[0] - (padding[0] + padding[1]) + dilation[0] * (kH - 1) + 1
-    outW = (iW - 1) * stride[1] - (padding[2] + padding[3]) + dilation[1] * (kW - 1) + 1
-
-    op_conv_transpose2d = ops.Conv2DTranspose(
-        out_channel=out_channels,
-        kernel_size=(kH, kW),
-        pad_mode="pad",
-        pad=padding,
-        stride=stride,
-        dilation=dilation,
-        group=groups,
-    )
-    outputs = op_conv_transpose2d(input, weight.to(input.dtype), (batch_size, out_channels, outH, outW)).squeeze(2)
-
-    if bias is not None:
-        assert isinstance(bias, ms.Tensor) and bias.ndim == 1
-        bias = bias.reshape(1, -1, 1)
-        outputs += bias
-
-    return outputs
-
-
-def _pad(input, pad, mode="constant", value=0):
-    assert mode in ["constant", "replicate", "reflect"], "Unsupported padding mode"
-
-    padding = [0, 0, 0, 0]
-    if isinstance(pad, tuple):
-        pad = list(pad)
-    padding[: len(pad)] = pad
-
-    left, right, top, bottom = padding
-    batch_size, height, width = input.shape
-
-    padded_height = height + top + bottom
-    padded_width = width + left + right
-
-    output = ops.full((batch_size, padded_height, padded_width), value, dtype=input.dtype)
-    output[:, top : top + height, left : left + width] = input
-
-    if mode == "replicate":
-        if top > 0:
-            output[:, :top, left : left + width] = input[:, 0:1, :].broadcast_to((batch_size, top, width))
-        if bottom > 0:
-            output[:, top + height :, left : left + width] = input[:, -1:, :].broadcast_to((batch_size, bottom, width))
-        if left > 0:
-            output[:, :, :left] = output[:, :, left : left + 1].broadcast_to((batch_size, padded_height, left))
-        if right > 0:
-            output[:, :, left + width :] = output[:, :, left + width - 1 : left + width].broadcast_to(
-                (batch_size, padded_height, right)
-            )
-    elif mode == "reflect":
-        if top > 0:
-            output[:, :top, left : left + width] = (
-                input[:, 1 : top + 1, :].flip(dims=[1]).broadcast_to((batch_size, top, width))
-            )
-        if bottom > 0:
-            output[:, top + height :, left : left + width] = (
-                input[:, -bottom - 1 : -1, :].flip(dims=[1]).broadcast_to((batch_size, bottom, width))
-            )
-        if left > 0:
-            output[:, :, :left] = (
-                output[:, :, left + 1 : 2 * left + 1].flip(dims=[2]).broadcast_to((batch_size, padded_height, left))
-            )
-        if right > 0:
-            right_edge = max(0, left + width - right - 2)
-            output[:, :, left + width :] = output[:, :, left + width - 2 : right_edge : -1].broadcast_to(
-                (batch_size, padded_height, right)
-            )
-    return output

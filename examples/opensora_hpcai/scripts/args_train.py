@@ -4,13 +4,13 @@ import os
 import sys
 
 import yaml
+from opensora.datasets.aspect import ASPECT_RATIO_MAP, ASPECT_RATIOS
+from opensora.utils.model_utils import _check_cfgs_in_parser, str2bool
 
 __dir__ = os.path.dirname(os.path.abspath(__file__))
 mindone_lib_path = os.path.abspath(os.path.join(__dir__, "../../../"))
 sys.path.insert(0, mindone_lib_path)
-
-from opensora.utils.model_utils import _check_cfgs_in_parser, str2bool
-
+from mindone.utils.config import parse_bool_str
 from mindone.utils.misc import to_abspath
 
 logger = logging.getLogger()
@@ -30,7 +30,7 @@ def parse_train_args(parser):
     parser.add_argument("--dataset_name", default="", type=str, help="dataset name")
     parser.add_argument(
         "--csv_path",
-        default="",
+        required=True,
         type=str,
         help="path to csv annotation file. columns: video, caption. \
         video indicates the relative path of video file in video_folder. caption - the text caption for video",
@@ -39,13 +39,13 @@ def parse_train_args(parser):
     parser.add_argument(
         "--caption_column", default="caption", type=str, help="name of column for captions saved in csv file"
     )
-    parser.add_argument("--video_folder", default="", type=str, help="root dir for the video data")
+    parser.add_argument("--video_folder", required=True, type=str, help="root dir for the video data")
     parser.add_argument("--text_embed_folder", type=str, help="root dir for the text embeding data")
     parser.add_argument("--vae_latent_folder", type=str, help="root dir for the vae latent data")
     parser.add_argument("--filter_data", default=False, type=str2bool, help="Filter non-existing videos.")
     parser.add_argument("--output_path", default="output/", type=str, help="output directory to save training results")
     parser.add_argument(
-        "--add_datetime", default=True, type=str, help="If True, add datetime subfolder under output_path"
+        "--add_datetime", default=True, type=str2bool, help="If True, add datetime subfolder under output_path"
     )
     # model
     parser.add_argument(
@@ -60,6 +60,7 @@ def parse_train_args(parser):
     parser.add_argument("--space_scale", default=0.5, type=float, help="stdit model space scalec")
     parser.add_argument("--time_scale", default=1.0, type=float, help="stdit model time scalec")
     parser.add_argument("--model_max_length", type=int, default=120, help="T5's embedded sequence length.")
+    parser.add_argument("--freeze_y_embedder", type=str2bool, default=False, help="Do not train Caption Embedder.")
     parser.add_argument(
         "--patchify",
         type=str,
@@ -78,10 +79,25 @@ def parse_train_args(parser):
     parser.add_argument(
         "--vae_type",
         type=str,
-        default=None,
-        choices=[None, "OpenSora-VAE-v1.2", "VideoAutoencoderKL"],
+        choices=["OpenSora-VAE-v1.2", "VideoAutoencoderKL"],
         help="If None, use VideoAutoencoderKL, which is a spatial VAE from SD, for opensora v1.0 and v1.1. \
                 If OpenSora-VAE-v1.2, will use 3D VAE (spatial + temporal), typically for opensora v1.2",
+    )
+    parser.add_argument(
+        "--noise_scheduler", type=str, default="ddpm", choices=["ddpm", "rflow"], help="Diffusion noise scheduler."
+    )
+    parser.add_argument(
+        "--sample_method",
+        type=str,
+        default="uniform",
+        choices=["discrete-uniform", "uniform", "logit-normal"],
+        help="[RFlow only] Noise sampling method.",
+    )
+    parser.add_argument(
+        "--use_timestep_transform",
+        type=str2bool,
+        default=True,
+        help="[RFlow only] Apply resolution and video length aware timestep sampling.",
     )
     # ms
     parser.add_argument("--debug", type=str2bool, default=False, help="Execute inference in debug mode.")
@@ -107,8 +123,10 @@ def parse_train_args(parser):
     parser.add_argument(
         "--resume",
         default=False,
-        type=str,
-        help="It can be a string for path to resume checkpoint, or a bool False for not resuming.(default=False)",
+        type=parse_bool_str,
+        help="string: path to resume checkpoint."
+        "bool False: not resuming.(default=False)."
+        "bool True: ModelArts auto resume training.",
     )
     parser.add_argument("--optim", default="adamw", type=str, help="optimizer")
     parser.add_argument(
@@ -156,6 +174,14 @@ def parse_train_args(parser):
 
     # dataloader params
     parser.add_argument("--dataset_sink_mode", default=False, type=str2bool, help="sink mode")
+    parser.add_argument(
+        "--video_backend",
+        default="cv2",
+        type=str,
+        choices=["cv2", "decord"],
+        help="select video reading backend. if decord, use decord to read video frames, which may lead to memory leak for high-resolution videos. \
+                if cv2, use cv2 video capture. only valid for opensora v1.2. Default: cv2",
+    )
     parser.add_argument("--sink_size", default=-1, type=int, help="dataset sink size. If -1, sink size = dataset size.")
     parser.add_argument(
         "--epochs",
@@ -172,6 +198,12 @@ def parse_train_args(parser):
     parser.add_argument("--gradient_accumulation_steps", default=1, type=int, help="gradient accumulation steps")
     # parser.add_argument("--cond_stage_trainable", default=False, type=str2bool, help="whether text encoder is trainable")
     parser.add_argument("--use_ema", default=False, type=str2bool, help="whether use EMA")
+    parser.add_argument(
+        "--ema_decay",
+        default=0.9999,
+        type=float,
+        help="EMA decay ratio, smaller value raises more importance to the current model weight.",
+    )
     parser.add_argument("--clip_grad", default=False, type=str2bool, help="whether apply gradient clipping")
     parser.add_argument(
         "--use_recompute",
@@ -236,12 +268,36 @@ def parse_train_args(parser):
     parser.add_argument(
         "--sd_scale_factor", type=float, default=0.18215, help="VAE scale factor of Stable Diffusion model."
     )
-    parser.add_argument("--image_size", default=256, type=int, nargs="+", help="the image size used to initiate model")
+    parser.add_argument("--image_size", type=int, nargs="+", help="the image size used to initiate model")
+    parser.add_argument("--resolution", type=str, help=f"Supported video resolutions: {list(ASPECT_RATIOS.keys())}")
+    parser.add_argument(
+        "--aspect_ratio", type=str, help=f"Supported video aspect ratios: {list(ASPECT_RATIO_MAP.keys())}"
+    )
     parser.add_argument("--num_frames", default=16, type=int, help="the num of frames used to initiate model")
-    parser.add_argument("--frame_stride", default=3, type=int, help="frame sampling stride")
+    parser.add_argument("--frame_stride", default=1, type=int, help="frame sampling stride")
     parser.add_argument("--mask_ratios", type=dict, help="Masking ratios")
     parser.add_argument("--bucket_config", type=dict, help="Multi-resolution bucketing configuration")
-    parser.add_argument("--num_parallel_workers", default=12, type=int, help="num workers for data loading")
+    parser.add_argument(
+        "--num_parallel_workers",
+        default=12,
+        type=int,
+        help="The number of workers used for data transformations. Default is 12.",
+    )
+    parser.add_argument(
+        "--num_workers_dataset",
+        default=4,
+        type=int,
+        help="The number of workers used for reading data from the dataset. Default is 4.",
+    )
+    parser.add_argument(
+        "--num_workers_batch",
+        default=2,
+        type=int,
+        help="The number of workers used for batch aggregation. Default is 2.",
+    )
+    parser.add_argument(
+        "--prefetch_size", default=16, type=int, help="The number of samples to prefetch (per device). Default is 16."
+    )
     parser.add_argument(
         "--data_multiprocessing",
         default=False,
@@ -279,9 +335,12 @@ def parse_train_args(parser):
     parser.add_argument("--ckpt_max_keep", default=10, type=int, help="Maximum number of checkpoints to keep")
     parser.add_argument(
         "--step_mode",
-        default=False,
+        default=None,
         type=str2bool,
-        help="whether save ckpt by steps. If False, save ckpt by epochs.",
+        help="whether save ckpt by steps. If False, save ckpt by epochs. If None, will be determined by train_steps and dataset_sink_mode automatically",
+    )
+    parser.add_argument(
+        "--custom_train", default=False, type=str2bool, help="Use custom train process instead of model.train"
     )
     parser.add_argument("--profile", default=False, type=str2bool, help="Profile or not")
     parser.add_argument(
@@ -294,8 +353,26 @@ def parse_train_args(parser):
         "--log_interval",
         default=1,
         type=int,
-        help="log interval in the unit of data sink size.. E.g. if data sink size = 10, log_inteval=2, log every 20 steps",
+        help="log interval in the unit of data sink size. E.g. if data sink size = 10, log_interval=2, log every 20 steps",
     )
+
+    # ---------- Validation ----------
+    parser.add_argument(
+        "--validate", type=str2bool, default=False, help="Whether to perform validation during training."
+    )
+    parser.add_argument("--val_interval", default=1, type=int, help="Validation frequency in epochs")
+    parser.add_argument(
+        "--num_eval_timesteps",
+        type=int,
+        default=10,
+        help="The number of timesteps to evaluate on (sampled equidistantly).",
+    )
+    parser.add_argument("--val_csv_path", type=str, help="the validation csv path")
+    parser.add_argument("--val_video_folder", type=str, help="the validation video folder path")
+    parser.add_argument("--val_text_embed_folder", type=str, help="the validation text embedding folder path")
+    parser.add_argument("--val_vae_latent_folder", type=str, help="the validation vae latent folder path")
+    parser.add_argument("--val_batch_size", default=1, type=int, help="the validation vae latent folder path")
+    parser.add_argument("--val_bucket_config", type=dict, help="Multi-resolution bucketing configuration.")
     return parser
 
 

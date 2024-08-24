@@ -37,7 +37,6 @@ class AutoencoderKL(nn.Cell):
         self.split = get_split_op()
 
         if use_recompute:
-            print("D--: spatial vae recompute")
             self.recompute(self.encoder)
             self.recompute(self.quant_conv)
             self.recompute(self.post_quant_conv)

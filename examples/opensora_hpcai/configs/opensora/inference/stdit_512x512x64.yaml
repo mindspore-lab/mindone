@@ -19,7 +19,7 @@ vae_micro_batch_size: 16
 sampling_steps: 100
 guidance_scale: 7.0
 seed: 42
-ddim_sampling: False
+sampling: ddpm
 
 captions:
 - "a young girl standing in a field of flowers"

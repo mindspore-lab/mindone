@@ -18,7 +18,12 @@ opensora_cai
 │   │       ├── stdit_512x512x16.yaml
 │   │       ├── stdit_512x512x64.yaml
 │   │       └── stdit_512x512x64_ms.yaml    -> training receipe optimized for MindSpore:
-│   └── opensora-v1-1
+│   ├── opensora-v1-1
+│   │   ├── inference
+│   │   └── train
+│   └── opensora-v1-2
+│   │   ├── inference
+│   │   └── train
 ├── docs
 │   ├── config.md
 │   ├── quick_start.md

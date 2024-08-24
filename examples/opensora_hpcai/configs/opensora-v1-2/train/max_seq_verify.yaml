@@ -1,0 +1,90 @@
+
+# model
+model_version: v1.2
+pretrained_model_path: PATH_TO_YOUR_MODEL
+model_max_length: 300
+freeze_y_embedder: True
+
+noise_scheduler: rflow
+sample_method: logit-normal
+use_timestep_transform: True
+
+vae_type: OpenSoraVAE_V1_2
+vae_checkpoint: models/OpenSora-VAE-v1.2/model.ckpt
+vae_dtype: bf16
+vae_micro_batch_size: 4
+vae_micro_frame_size: 17  # keep it unchanged for the best results
+
+enable_flash_attention: True
+use_recompute: True
+
+# data
+num_parallel_workers: 8
+max_rowsize: 256
+
+jit_level: "O1"
+
+# precision
+amp_level: "O2"
+dtype: bf16
+loss_scaler_type: static
+init_loss_scale: 1
+
+# training hyper-params
+scheduler: "constant"
+start_learning_rate: 1.e-4
+end_learning_rate: 1.e-4
+warmup_steps: 500
+
+clip_grad: True
+max_grad_norm: 1.0
+use_ema: True
+ema_decay: 0.99
+
+optim: "adamw_re"
+optim_eps: 1e-15
+weight_decay: 0.
+
+epochs: 1000
+ckpt_save_interval: &save_interval 100
+
+mask_ratios:
+  random: 0.01
+  interpolate: 0.002
+  quarter_random: 0.002
+  quarter_head: 0.002
+  quarter_tail: 0.002
+  quarter_head_tail: 0.002
+  image_random: 0.0
+  image_head: 0.22
+  image_tail: 0.005
+  image_head_tail: 0.005
+
+bucket_config:
+  # Structure: "resolution": { num_frames: [ keep_prob, batch_size ] }
+  # Setting [ keep_prob, batch_size ] to [ 0.0, 0 ] forces longer videos into smaller resolution buckets
+  "240p": { 408: [ 0.5, 1 ] }
+  "360p": { 408: [ 0.5, 1 ] }
+  "480p": { 204: [ 0.5, 1] }
+  "720p": { 102: [ 0.5, 1] }
+  "1024": {102: [0.1, 1], 204: [0.0, 0]}
+
+
+# ---------- Validation ----------
+validate: False
+val_interval: *save_interval
+num_eval_timesteps: 10
+
+val_csv_path:
+val_video_folder:
+val_text_embed_folder:
+val_vae_latent_folder:
+
+val_bucket_config:
+  "144p": { 51: [ 1.0, 30 ], 102: [ 1.0, 20 ], 204: [ 1.0, 8 ], 408: [ 1.0, 4 ] }
+  "240p": { 51: [ 1.0, 16 ], 102: [ 1.0, 8 ], 204: [ 1.0, 4 ], 408: [ 1.0, 2 ] }
+  "360p": { 51: [ 1.0, 6 ], 102: [ 1.0, 3 ], 204: [ 1.0, 1 ], 340: [ 1.0, 1 ] }
+  "480p": { 51: [ 1.0, 4 ], 102: [ 1.0, 2 ], 204: [ 1.0, 1 ] }
+  "720p": { 51: [ 1.0, 1 ], 85: [ 1.0, 1 ] }
+
+manual_pad: True
