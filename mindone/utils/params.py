@@ -1,9 +1,6 @@
 import copy
 import os
-import re
 from typing import List, Optional, Union
-
-from mindcv.utils.download import DownLoad
 
 import mindspore as ms
 import mindspore.nn as nn
@@ -12,12 +9,6 @@ from mindspore import log as logger
 
 # from mindspore._checkparam import Validator
 from mindspore.train.serialization import _load_dismatch_prefix_params, _update_param
-
-
-def is_url(string):
-    # Regex to check for URL patterns
-    url_pattern = re.compile(r"^(http|https|ftp)://")
-    return bool(url_pattern.match(string))
 
 
 def load_param_into_net_with_filter(
@@ -107,29 +98,17 @@ def load_param_into_net_with_filter(
     return param_not_load, ckpt_not_load
 
 
-def load_from_pretrained(
+def load_checkpoint_to_net(
     net: nn.Cell,
     checkpoint: Union[str, dict],
     ignore_net_params_not_loaded=False,
     ensure_all_ckpt_params_loaded=False,
-    cache_dir: str = None,
 ):
-    """load checkpoint into network.
-
-    Args:
-        net: network
-        checkpoint: local file path to checkpoint, or url to download checkpoint, or a dict for network parameters
-        ignore_net_params_not_loaded: set True for inference if only a part of network needs to be loaded, the flushing net-not-loaded warnings will disappear.
-        ensure_all_ckpt_params_loaded : set True for inference if you want to ensure no checkpoint param is missed in loading
-        cache_dir: directory to cache the downloaded checkpoint, only effective when `checkpoint` is a url.
+    """
+    ignore_net_params_not_loaded: set True for inference if only a part of network needs to be loaded, the flushing net-not-loaded warnings will disappear.
+    ensure_all_ckpt_params_loaded : set True for inference if you want to ensure no checkpoint param is missed in loading
     """
     if isinstance(checkpoint, str):
-        if is_url(checkpoint):
-            url = checkpoint
-            cache_dir = os.path.join(os.path.expanduser("~"), ".mindspore/models") if cache_dir is None else cache_dir
-            os.makedirs(cache_dir, exist_ok=True)
-            DownLoad().download_url(url, path=cache_dir)
-            checkpoint = os.path.join(cache_dir, os.path.basename(url))
         if os.path.exists(checkpoint):
             param_dict = ms.load_checkpoint(checkpoint)
         else:
