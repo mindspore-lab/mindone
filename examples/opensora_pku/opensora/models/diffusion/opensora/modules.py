@@ -558,7 +558,7 @@ class PatchEmbed2D(nn.Cell):
         pos_embed = get_2d_sincos_pos_embed(
             embed_dim, (self.height, self.width), base_size=self.base_size, interpolation_scale=self.interpolation_scale
         )
-        self.pos_embed = ms.Parameter(ms.Tensor(pos_embed).float().unsqueeze(0), requires_grad=False)
+        self.pos_embed = ms.Tensor(pos_embed).float().unsqueeze(0)
         self.num_frames = (num_frames - 1) // patch_size_t + 1 if num_frames % 2 == 1 else num_frames // patch_size_t
         self.base_size_t = (num_frames - 1) // patch_size_t + 1 if num_frames % 2 == 1 else num_frames // patch_size_t
         self.interpolation_scale_t = interpolation_scale_t
@@ -578,7 +578,7 @@ class PatchEmbed2D(nn.Cell):
                 embed_dim, self.num_frames, base_size=self.base_size_t, interpolation_scale=self.interpolation_scale_t
             )
 
-        self.temp_pos_embed = ms.Parameter(ms.Tensor(temp_pos_embed).float().unsqueeze(0), requires_grad=False)
+        self.temp_pos_embed = ms.Tensor(temp_pos_embed).float().unsqueeze(0)
 
     def construct(self, latent, num_frames):
         b, c, t, h, w = latent.shape
@@ -712,7 +712,7 @@ class OverlapPatchEmbed3D(nn.Cell):
         pos_embed = get_2d_sincos_pos_embed(
             embed_dim, (self.height, self.width), base_size=self.base_size, interpolation_scale=self.interpolation_scale
         )
-        self.pos_embed = ms.Parameter(ms.Tensor(pos_embed).float().unsqueeze(0), requires_grad=False)
+        self.pos_embed = ms.Tensor(pos_embed).float().unsqueeze(0)
         self.num_frames = (num_frames - 1) // patch_size_t + 1 if num_frames % 2 == 1 else num_frames // patch_size_t
         self.base_size_t = (num_frames - 1) // patch_size_t + 1 if num_frames % 2 == 1 else num_frames // patch_size_t
         self.interpolation_scale_t = interpolation_scale_t
@@ -732,7 +732,7 @@ class OverlapPatchEmbed3D(nn.Cell):
                 embed_dim, self.num_frames, base_size=self.base_size_t, interpolation_scale=self.interpolation_scale_t
             )
 
-        self.temp_pos_embed = ms.Parameter(ms.Tensor(temp_pos_embed).float().unsqueeze(0), requires_grad=False)
+        self.temp_pos_embed = ms.Tensor(temp_pos_embed).float().unsqueeze(0)
 
     def construct(self, latent, num_frames):
         b, c, t, h, w = latent.shape
@@ -860,7 +860,7 @@ class OverlapPatchEmbed2D(nn.Cell):
         pos_embed = get_2d_sincos_pos_embed(
             embed_dim, (self.height, self.width), base_size=self.base_size, interpolation_scale=self.interpolation_scale
         )
-        self.pos_embed = ms.Parameter(ms.Tensor(pos_embed).float().unsqueeze(0), requires_grad=False)
+        self.pos_embed = ms.Tensor(pos_embed).float().unsqueeze(0)
         self.num_frames = (num_frames - 1) // patch_size_t + 1 if num_frames % 2 == 1 else num_frames // patch_size_t
         self.base_size_t = (num_frames - 1) // patch_size_t + 1 if num_frames % 2 == 1 else num_frames // patch_size_t
         self.interpolation_scale_t = interpolation_scale_t
@@ -880,7 +880,7 @@ class OverlapPatchEmbed2D(nn.Cell):
                 embed_dim, self.num_frames, base_size=self.base_size_t, interpolation_scale=self.interpolation_scale_t
             )
 
-        self.temp_pos_embed = ms.Parameter(ms.Tensor(temp_pos_embed).float().unsqueeze(0), requires_grad=False)
+        self.temp_pos_embed = ms.Tensor(temp_pos_embed).float().unsqueeze(0)
 
     def construct(self, latent, num_frames):
         b, c, t, h, w = latent.shape
