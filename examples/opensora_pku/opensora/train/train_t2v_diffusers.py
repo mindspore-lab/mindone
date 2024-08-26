@@ -242,12 +242,15 @@ def main(args):
             state_dict = load_torch_state_dict_to_ms_ckpt(
                 os.path.join(args.cache_dir, args.text_encoder_name, "pytorch_model.bin")
             )
-        text_encoder = MT5EncoderModel.from_pretrained(args.text_encoder_name, cache_dir=args.cache_dir)
-        # mixed precision
         text_encoder_dtype = get_precision(args.text_encoder_precision)
-        text_encoder = auto_mixed_precision(text_encoder, amp_level="O2", dtype=text_encoder_dtype)
-        text_encoder.dtype = text_encoder_dtype
-        logger.info(f"Use amp level O2 for text encoder {args.text_encoder_name} with dtype={text_encoder_dtype}")
+        text_encoder, loading_info = MT5EncoderModel.from_pretrained(
+            args.text_encoder_name,
+            cache_dir=args.cache_dir,
+            state_dict=state_dict,
+            output_loading_info=True,
+            mindspore_dtype=text_encoder_dtype,
+        )
+        logger.info(loading_info)
     else:
         text_encoder = None
         text_encoder_dtype = None

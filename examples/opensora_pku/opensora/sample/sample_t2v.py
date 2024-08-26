@@ -120,7 +120,7 @@ def parse_args():
     )
     parser.add_argument(
         "--vae_precision",
-        default="bf16",
+        default="fp16",
         type=str,
         choices=["bf16", "fp16"],
         help="what data type to use for vae. Default is `bf16`, which corresponds to ms.bfloat16",
