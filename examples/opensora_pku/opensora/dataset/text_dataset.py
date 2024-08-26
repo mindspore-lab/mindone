@@ -32,7 +32,6 @@ class TextDataset:
         self.output_columns = output_columns
         if "caption" not in output_columns:
             raise ValueError("caption column is not in output_colum")
-        self.num_samples = len(self.dataset)
         self.read_captions(self.dataset)
         logger.info(f"Number of text prompts: {self.num_captions}")
 
@@ -47,7 +46,7 @@ class TextDataset:
             raise ValueError("Only support json and csv file now!")
 
     def __len__(self):
-        return self.length
+        return self.num_captions
 
     def read_captions(self, dataset):
         num_captions = 0
@@ -69,7 +68,7 @@ class TextDataset:
             captions = [captions]
         file_path = row[self.file_column]
         # get the caption id
-        first_text_index = self.caption_sample_indices.find(idx)
+        first_text_index = self.caption_sample_indices.index(idx)
         index = idx_text - first_text_index
         caption = captions[index]
         # use index as an extra identifier
