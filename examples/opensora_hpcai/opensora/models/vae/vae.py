@@ -299,12 +299,6 @@ class VideoAutoencoderPipeline(nn.Cell):
             else:
                 return x
         else:
-            # z: (b Z t//4 h w)
-            """
-            z_splits = mint.split(z, self.micro_z_frame_size, 2)
-            x_z_out = tuple(self.temporal_vae.decode(z_bs, num_frames=min(self.micro_frame_size, num_frames - i*self.micro_frame_size)) for i, z_bs in enumerate(z_splits))
-            x_z_out = ops.cat(x_z_out, axis=2)
-            """
             mz = self.micro_z_frame_size
             remain_frames = num_frames if self.micro_frame_size > num_frames else self.micro_frame_size
             x_z_out = self.temporal_vae.decode(z[:, :, :mz], num_frames=remain_frames)

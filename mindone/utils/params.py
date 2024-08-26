@@ -3,6 +3,8 @@ import os
 import re
 from typing import List, Optional, Union
 
+from mindcv.utils.download import DownLoad
+
 import mindspore as ms
 import mindspore.nn as nn
 from mindspore import Parameter
@@ -10,12 +12,11 @@ from mindspore import log as logger
 
 # from mindspore._checkparam import Validator
 from mindspore.train.serialization import _load_dismatch_prefix_params, _update_param
-from mindcv.utils.download import Download
 
 
 def is_url(string):
     # Regex to check for URL patterns
-    url_pattern = re.compile(r'^(http|https|ftp)://')
+    url_pattern = re.compile(r"^(http|https|ftp)://")
     return bool(url_pattern.match(string))
 
 
@@ -111,9 +112,9 @@ def load_from_pretrained(
     checkpoint: Union[str, dict],
     ignore_net_params_not_loaded=False,
     ensure_all_ckpt_params_loaded=False,
-    cache_dir: str=None,
+    cache_dir: str = None,
 ):
-    """ load checkpoint into network.
+    """load checkpoint into network.
 
     Args:
         net: network
@@ -127,8 +128,8 @@ def load_from_pretrained(
             url = checkpoint
             cache_dir = os.path.join(os.path.expanduser("~"), ".mindspore/models") if cache_dir is None else cache_dir
             os.makedirs(cache_dir, exist_ok=True)
-            Download().download_url(url, path=cache_dir)
-            checkpoint = os.path.join(download_path, os.path.basename(url))
+            DownLoad().download_url(url, path=cache_dir)
+            checkpoint = os.path.join(cache_dir, os.path.basename(url))
         if os.path.exists(checkpoint):
             param_dict = ms.load_checkpoint(checkpoint)
         else:

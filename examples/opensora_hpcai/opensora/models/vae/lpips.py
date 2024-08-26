@@ -6,10 +6,11 @@ import mindcv
 import mindspore as ms
 import mindspore.nn as nn
 import mindspore.ops as ops
+
 from mindone.utils.params import load_from_pretrained
 
-
 _logger = logging.getLogger(__name__)
+
 
 class LPIPS(nn.Cell):
     # Learned perceptual metric
