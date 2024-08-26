@@ -165,7 +165,7 @@ class T2V_dataset:
         for i, item in enumerate(cap_list):
             path = item["path"]
             if not os.path.exists(path):
-                second_path = path.replace("_resize1080p", "")
+                second_path = path.replace("_resize1080p.mp4", ".mp4")
                 if os.path.exists(second_path):
                     cap_list[i]["path"] = second_path
                 else:

@@ -39,8 +39,9 @@ from mindone.diffusers.schedulers import (
     PNDMScheduler,
 )
 from mindone.transformers import MT5EncoderModel
-from mindone.transformers.activations import NewGELUActivation
-from mindone.transformers.models.mt5.modeling_mt5 import MT5LayerNorm
+
+# from mindone.transformers.activations import NewGELUActivation
+# from mindone.transformers.models.mt5.modeling_mt5 import MT5LayerNorm
 from mindone.utils.amp import auto_mixed_precision
 from mindone.utils.config import str2bool
 from mindone.utils.logger import set_logger
@@ -132,7 +133,7 @@ def parse_args():
     )
     parser.add_argument(
         "--text_encoder_precision",
-        default="bf16",
+        default="fp16",
         type=str,
         choices=["bf16", "fp16"],
         help="what data type to use for T5 text encoder. Default is `bf16`, which corresponds to ms.bfloat16",
@@ -386,19 +387,16 @@ if __name__ == "__main__":
             os.path.join(args.cache_dir, args.text_encoder_name, "pytorch_model.bin"),
             exclude_prefix=["decoder."],  # only load and convert mT5 encoder model weights
         )
+    text_encoder_dtype = get_precision(args.text_encoder_precision)
     text_encoder, loading_info = MT5EncoderModel.from_pretrained(
-        args.text_encoder_name, cache_dir=args.cache_dir, state_dict=state_dict, output_loading_info=True
+        args.text_encoder_name,
+        cache_dir=args.cache_dir,
+        state_dict=state_dict,
+        output_loading_info=True,
+        mindspore_dtype=text_encoder_dtype,
     )
     logger.info(loading_info)
     tokenizer = AutoTokenizer.from_pretrained(args.text_encoder_name, cache_dir=args.cache_dir)
-    # mixed precision
-    text_encoder_dtype = get_precision(args.text_encoder_precision)
-    custom_fp32_cells = [NewGELUActivation, MT5LayerNorm]
-    text_encoder = auto_mixed_precision(
-        text_encoder, amp_level="O2", dtype=text_encoder_dtype, custom_fp32_cells=custom_fp32_cells
-    )
-
-    logger.info(f"Use amp level O2 for {args.text_encoder_name} with dtype={text_encoder_dtype}")
 
     # 3. build inference pipeline
     if args.sample_method == "DDIM":
