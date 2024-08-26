@@ -10,7 +10,7 @@ python opensora/sample/sample_t2v.py \
     --ae_path LanguageBind/Open-Sora-Plan-v1.2.0/vae\
     --save_img_path "./sample_videos/prompt_list_0_1x480p" \
     --fps 24 \
-    --guidance_scale 7.5 \
+    --guidance_scale 4.5 \
     --num_sampling_steps 100 \
     --enable_tiling \
     --max_sequence_length 512 \
