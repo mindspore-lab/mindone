@@ -26,31 +26,41 @@ from mindone.utils.amp import auto_mixed_precision
 from mindone.utils.logger import set_logger
 
 sys.path.append(".")
+
+import cv2
+from albumentations import Compose, Lambda, Resize, ToFloat
 from opensora.models import CausalVAEModelWrapper
 from opensora.models.causalvideovae.model.modules.updownsample import TrilinearInterpolate
-from opensora.utils.dataset_utils import create_video_transforms
 from opensora.utils.ms_utils import init_env
 from opensora.utils.utils import get_precision
 
 logger = logging.getLogger(__name__)
 
 
-def preprocess(video_data, height: int = 128, width: int = 128):
-    num_frames = video_data.shape[0]
-    video_transform = create_video_transforms(
-        (height, width), (height, width), num_frames=num_frames, backend="al", disable_flip=True
+def create_transform(max_height, max_width):
+    norm_fun = lambda x: 2.0 * x - 1.0
+
+    def norm_func_albumentation(image, **kwargs):
+        return norm_fun(image)
+
+    mapping = {"bilinear": cv2.INTER_LINEAR, "bicubic": cv2.INTER_CUBIC}
+    resize = [
+        Resize(max_height, max_width, interpolation=mapping["bilinear"]),
+    ]
+
+    transform = Compose(
+        [*resize, ToFloat(255.0), Lambda(name="ae_norm", image=norm_func_albumentation, p=1.0)],
     )
+    return transform
 
-    inputs = {"image": video_data[0]}
-    for i in range(num_frames - 1):
-        inputs[f"image{i}"] = video_data[i + 1]
 
-    video_outputs = video_transform(**inputs)
-    video_outputs = np.stack(list(video_outputs.values()), axis=0)  # (t h w c)
-    video_outputs = (video_outputs / 255.0) * 2 - 1.0
-    # (t h w c) -> (c t h w)
-    video_outputs = np.transpose(video_outputs, (3, 0, 1, 2))
-    return video_outputs
+def preprocess(image, height: int = 128, width: int = 128):
+    video_transform = create_transform(height, width)
+
+    image = video_transform(image=image)["image"]  # (h w c)
+    # (h w c) -> (c h w) -> (c t h w)
+    image = np.transpose(image, (2, 1, 0))[:, None, :, :]
+    return image
 
 
 def transform_to_rgb(x, rescale_to_uint8=True):
@@ -112,7 +122,7 @@ def main(args):
         raise ValueError(f"Unsupported precision {args.precision}")
     input_x = np.array(Image.open(image_path))  # (h w c)
     assert input_x.shape[2], f"Expect the input image has three channels, but got shape {input_x.shape}"
-    x_vae = preprocess(input_x[None, :], short_size, short_size)  # use image as a single-frame video
+    x_vae = preprocess(input_x, short_size, short_size)  # use image as a single-frame video
     dtype = get_precision(args.precision)
     x_vae = ms.Tensor(x_vae, dtype).unsqueeze(0)  # b c t h w
     latents = vae.encode(x_vae)

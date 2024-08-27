@@ -37,35 +37,10 @@ from albumentations import Compose, Lambda, Resize, ToFloat
 from opensora.dataset.transform import center_crop_th_tw
 from opensora.models import CausalVAEModelWrapper
 from opensora.models.causalvideovae.model.modules.updownsample import TrilinearInterpolate
-from opensora.utils.dataset_utils import create_video_transforms
 from opensora.utils.ms_utils import init_env
 from opensora.utils.utils import get_precision
 
 logger = logging.getLogger(__name__)
-
-
-def create_transform(max_height, max_width, num_frames):
-    norm_fun = lambda x: 2.0 * x - 1.0
-
-    def norm_func_albumentation(image, **kwargs):
-        return norm_fun(image)
-
-    mapping = {"bilinear": cv2.INTER_LINEAR, "bicubic": cv2.INTER_CUBIC}
-    targets = {"image{}".format(i): "image" for i in range(num_frames)}
-    resize = [
-        Lambda(
-            name="crop_centercrop",
-            image=partial(center_crop_th_tw, th=max_height, tw=max_width, top_crop=False),
-            p=1.0,
-        ),
-        Resize(max_height, max_width, interpolation=mapping["bilinear"]),
-    ]
-
-    transform = Compose(
-        [*resize, ToFloat(255.0), Lambda(name="ae_norm", image=norm_func_albumentation, p=1.0)],
-        additional_targets=targets,
-    )
-    return transform
 
 
 def read_video(video_path: str, num_frames: int, sample_rate: int) -> ms.Tensor:
@@ -93,25 +68,31 @@ def read_video(video_path: str, num_frames: int, sample_rate: int) -> ms.Tensor:
     return video_data
 
 
-def preprocess(video_data, height: int = 128, width: int = 128):
-    num_frames = video_data.shape[0]
-    video_transform = create_video_transforms(
-        (height, width), (height, width), num_frames=num_frames, backend="al", disable_flip=True
+def create_transform(max_height, max_width, num_frames):
+    norm_fun = lambda x: 2.0 * x - 1.0
+
+    def norm_func_albumentation(image, **kwargs):
+        return norm_fun(image)
+
+    mapping = {"bilinear": cv2.INTER_LINEAR, "bicubic": cv2.INTER_CUBIC}
+    targets = {"image{}".format(i): "image" for i in range(num_frames)}
+    resize = [
+        Lambda(
+            name="crop_centercrop",
+            image=partial(center_crop_th_tw, th=max_height, tw=max_width, top_crop=False),
+            p=1.0,
+        ),
+        Resize(max_height, max_width, interpolation=mapping["bilinear"]),
+    ]
+
+    transform = Compose(
+        [*resize, ToFloat(255.0), Lambda(name="ae_norm", image=norm_func_albumentation, p=1.0)],
+        additional_targets=targets,
     )
-
-    inputs = {"image": video_data[0]}
-    for i in range(num_frames - 1):
-        inputs[f"image{i}"] = video_data[i + 1]
-
-    video_outputs = video_transform(**inputs)
-    video_outputs = np.stack(list(video_outputs.values()), axis=0)  # (t h w c)
-    video_outputs = (video_outputs / 255.0) * 2 - 1.0
-    # (t h w c) -> (c t h w)
-    video_outputs = np.transpose(video_outputs, (3, 0, 1, 2))
-    return video_outputs
+    return transform
 
 
-def preprocess_al(video_data, height: int = 128, width: int = 128):
+def preprocess(video_data, height: int = 128, width: int = 128):
     num_frames = video_data.shape[0]
     video_transform = create_transform(height, width, num_frames=num_frames)
 
