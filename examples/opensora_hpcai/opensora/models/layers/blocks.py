@@ -5,7 +5,7 @@ from typing import Optional, Tuple, Type, Union
 import numpy as np
 
 import mindspore as ms
-from mindspore import Parameter, Tensor, nn, ops
+from mindspore import Parameter, Tensor, nn, ops, mint
 from mindspore.common.initializer import initializer
 
 from mindone.models.modules.flash_attention import FLASH_IS_AVAILABLE, MSFlashAttention
@@ -323,10 +323,12 @@ class LayerNorm(nn.Cell):
         else:
             self.gamma = ops.ones(normalized_shape, dtype=dtype)
             self.beta = ops.zeros(normalized_shape, dtype=dtype)
-        self.layer_norm = ops.LayerNorm(-1, -1, epsilon=eps)
+        # self.layer_norm = ops.LayerNorm(-1, -1, epsilon=eps)
 
     def construct(self, x: Tensor):
-        x, _, _ = self.layer_norm(x, self.gamma, self.beta)
+        # x, _, _ = self.layer_norm(x, self.gamma, self.beta)
+        normalized_shape = x.shape[-1:]
+        x = mint.nn.functional.layer_norm(input, normalized_shape, self.gamma, self.beta, self.eps)
         return x
 
 

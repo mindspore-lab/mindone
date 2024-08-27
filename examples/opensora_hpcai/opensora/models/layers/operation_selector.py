@@ -1,7 +1,6 @@
 import mindspore as ms
 from mindspore import mint, ops
 from mindspore.ops.function.array_func import chunk_ext, repeat_interleave_ext
-
 use_dynamic_ops = False
 
 
@@ -56,7 +55,7 @@ def get_repeat_interleave_op():
         # provide better performance for static shape in graph mode
         return ops.repeat_interleave
     else:
-        return repeat_interleave_ext
+        return repeat_interleave_ext_v2
 
 
 def get_chunk_op():
