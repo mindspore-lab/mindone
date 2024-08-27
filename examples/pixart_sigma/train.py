@@ -115,9 +115,23 @@ def parse_args():
     parser.add_argument("--start_learning_rate", default=2e-5, type=float, help="The learning rate.")
     parser.add_argument("--warmup_steps", default=1000, type=int, help="Warmup steps.")
     parser.add_argument("--epochs", default=200, type=int, help="Number of total training epochs.")
-    parser.add_argument("--optim", default="adamw", type=str, help="Optimizer name.")
+    parser.add_argument("--optim", default="adamw", type=str, choices=["adamw", "came"], help="Optimizer name.")
     parser.add_argument(
-        "--optim_eps", default=1.0e-10, type=float, help="Specify the eps parameter for the AdamW optimizer."
+        "--adamw_eps", default=1.0e-10, type=float, help="Specify the eps parameter for the AdamW optimizer."
+    )
+    parser.add_argument(
+        "--came_betas",
+        default=[0.9, 0.999, 0.9999],
+        type=float,
+        nargs="*",
+        help="Specify the beta parameter for the CAME optimizer.",
+    )
+    parser.add_argument(
+        "--came_eps",
+        default=[1e-30, 1e-16],
+        type=float,
+        nargs="*",
+        help="Specify the eps parameter for the CAME optimizer.",
     )
     parser.add_argument("--weight_decay", default=0.0, type=float, help="Weight decay.")
     parser.add_argument("--auto_lr", default="", choices=["", "sqrt", "linear"], help="Use auto-scaled learning rate")
@@ -141,7 +155,7 @@ def parse_args():
         type=float,
         help="Max gradient norm for clipping, effective when `clip_grad` enabled.",
     )
-    parser.add_argument("--ckpt_max_keep", default=5, type=int, help="Maximum number of checkpoints to keep")
+    parser.add_argument("--ckpt_max_keep", default=3, type=int, help="Maximum number of checkpoints to keep")
     parser.add_argument("--ckpt_save_interval", default=1, type=int, help="Save checkpoint every this epochs or steps.")
     parser.add_argument("--log_loss_interval", default=1, type=int, help="Log interval of loss value.")
     parser.add_argument("--recompute", default=False, type=str2bool, help="Use recompute during training.")
@@ -269,12 +283,15 @@ def main(args):
     )
 
     # 5.2 optimizer
+    eps = args.adamw_eps if args.optim == "adamw" else args.came_eps
+    betas = None if args.optim == "adamw" else args.came_betas
     optimizer = create_optimizer(
         latent_diffusion_with_loss.trainable_params(),
         name=args.optim,
         lr=lr,
         weight_decay=args.weight_decay,
-        eps=args.optim_eps,
+        betas=betas,
+        eps=eps,
     )
 
     if args.loss_scaler_type == "dynamic":
@@ -361,6 +378,7 @@ def main(args):
                 f"MindSpore mode[GRAPH(0)/PYNATIVE(1)]: {args.mode}",
                 f"Distributed mode: {args.use_parallel}",
                 f"Data path: {args.json_path}",
+                f"Number of samples: {len(dataset)}",
                 f"Num params: {num_params:,} (network: {num_params_network:,}, vae: {num_params_vae:,}, text_encoder: {num_params_text_encoder:,})",
                 f"Num trainable params: {num_params_trainable:,}",
                 f"Model type: {args.dtype}",
@@ -370,7 +388,6 @@ def main(args):
                 f"Weight decay: {args.weight_decay}",
                 f"Grad accumulation steps: {args.gradient_accumulation_steps}",
                 f"Num epochs: {args.epochs}",
-                f"Total training steps: {dataset_size * args.epochs:,}",
                 f"Loss scaler: {args.loss_scaler_type}",
                 f"Init loss scale: {args.init_loss_scale}",
                 f"Grad clipping: {args.clip_grad}",

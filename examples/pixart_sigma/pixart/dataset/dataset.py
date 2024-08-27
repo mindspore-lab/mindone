@@ -35,7 +35,6 @@ class ImageDataset:
             self.dataset = json.load(f)
 
         self.length = len(self.dataset)
-        logger.info(f"Num data samples: {self.length}")
 
         self.image_dir = image_dir
         self.tokenizer = tokenizer

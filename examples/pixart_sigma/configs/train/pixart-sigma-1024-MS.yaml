@@ -1,6 +1,6 @@
 # model
 sample_size: 128
-batch_size: 2
+batch_size: 12
 checkpoint: "models/PixArt-Sigma-XL-2-1024-MS.ckpt"
 vae_root: "models/vae"
 text_encoder_root: "models/text_encoder"
@@ -10,18 +10,19 @@ enable_flash_attention: True
 dtype: "fp16"
 
 # training hyper-parameters
-epochs: 2
+epochs: 100
 scheduler: "constant"
 start_learning_rate: 2.0e-5
-optim: "adamw"
+optim: "came"
+came_betas: [0.9, 0.999, 0.9999]
+came_eps: [1.0e-30, 1.0e-16]
 weight_decay: 0.0
-optim_eps: 1.0e-10
 loss_scaler_type: "dynamic"
 init_loss_scale: 65536.0
 gradient_accumulation_steps: 1
 clip_grad: True
 max_grad_norm: 0.01
-ckpt_save_interval: 1
+ckpt_save_interval: 5
 log_loss_interval: 1
 recompute: True
 multi_scale: True
@@ -31,12 +32,11 @@ warmup_steps: 1000
 
 # visualization
 visualize: True
-visualize_interval: 1
+visualize_interval: 5
 sampling_steps: 50
 guidance_scale: 4.5
 ddim_sampling: True
 validation_prompts:
-  - "dog"
   - "portrait photo of a girl, photograph, highly detailed face, depth of field"
   - "Self-portrait oil painting, a beautiful cyborg with golden hair, 8k"
   - "Astronaut in a jungle, cold color palette, muted colors, detailed, 8k"
