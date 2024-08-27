@@ -187,6 +187,7 @@ python opensora/sample/sample_t2v.py \
     --max_sequence_length 512 \
     --sample_method EulerAncestralDiscrete \
     --model_type "dit" \
+    --save_memory \
 ```
 You can change the `num_frames`, `height` and `width` to match with the training shape of different checkpoints, e.g., `93x720p` requires `num_frames=93`, `height=720` and `width=1280`.
 
@@ -219,20 +220,27 @@ Please edit the `master_port` to a different port number in the range 1024 to 65
 
 **Step 1: Downloading Datasets**:
 
-To train the causal vae model, you need to prepare a video dataset. Open-Sora-Plan-v1.2.0 trains vae in two stages. In the first, the authors trained vae on the Kinetic400 video dataset. Please download K400 dataset from [this repository](https://github.com/cvdfoundation/kinetics-dataset). In the second stage, they trained vae on Open-Sora-Dataset-v1.1.0. We give a tutorial on how to download these datasets. See [downloading tutorial](./tools/download/README.md).
+To train the causal vae model, you need to prepare a video dataset. Open-Sora-Plan-v1.2.0 trains vae in two stages. In the first stage, the authors trained vae on the Kinetic400 video dataset. Please download K400 dataset from [this repository](https://github.com/cvdfoundation/kinetics-dataset). In the second stage, they trained vae on Open-Sora-Dataset-v1.1.0. We give a tutorial on how to download the v1.1.0 datasets. See [downloading tutorial](./tools/download/README.md).
 
 **Step 2: Converting Pretrained Weights**:
 
-Causal video vae can be initialized from vae 2d for better convergence. This can be done by inflating the 2d vae model checkpoint as follows:
+As with v1.1.0, they initialized from the [SD2.1 VAE](https://huggingface.co/stabilityai/sd-vae-ft-mse) using tail initialization for better convergence. Please download the torch weight file from the given [URL](https://huggingface.co/stabilityai/sd-vae-ft-mse/tree/main).
 
+After downloading the [sd-vae-ft-mse](https://huggingface.co/stabilityai/sd-vae-ft-mse/tree/main) weights, you can run:
+```bash
+python tools/model_conversion/convert_vae_2d.py --src path/to/diffusion.safetensor --target /path/to/sd-vae-ft-mse.ckpt`.
 ```
+This can convert the torch weight file into mindspore weight file.
+
+They you can inflate the 2d vae model checkpoint into a 3d causal vae initial weight file as follows:
+
+```bash
 python tools/model_conversion/inflate_vae2d_to_vae3d.py \
     --src /path/to/sd-vae-ft-mse.ckpt  \
     --target pretrained/causal_vae_488_init.ckpt
 ```
-> In case you lack vae 2d checkpoint in mindspore format, please use `tools/model_conversion/convert_vae_2d.py` for model conversion. After downloading the [sd-vae-ft-mse](https://huggingface.co/stabilityai/sd-vae-ft-mse/tree/main) weights, you can run `python tools/model_conversion/convert_vae_2d.py --src path/to/diffusion.safetensor --target /path/to/sd-vae-ft-mse.ckpt`.
 
-Please also download [lpips_vgg-426bf45c.ckpt](https://download-mindspore.osinfra.cn/toolkits/mindone/autoencoders/lpips_vgg-426bf45c.ckpt) and put it under `pretrained/` for training with lpips loss.
+In order to train vae with lpips loss, please also download [lpips_vgg-426bf45c.ckpt](https://download-mindspore.osinfra.cn/toolkits/mindone/autoencoders/lpips_vgg-426bf45c.ckpt) and put it under `pretrained/`.
 
 #### Standalone Training
 
@@ -293,21 +301,25 @@ You can revise `--video_num_frames` and `--resolution` in the training scripts u
 
 #### Inference After Training
 
-After training, you will find the checkpoint files under the `ckpt/` folder of the output directory. To evaluate the reconstruction of the checkpoint file, you can take `scripts/causalvae/gen_video.sh` and revise it like:
+After training, you will find the checkpoint files under the `ckpt/` folder of the output directory. To evaluate the reconstruction of the checkpoint file, you can take `scripts/causalvae/rec_video_folder.sh` and revise it like:
 
 ```bash
-python examples/rec_video_vae.py \
+python examples/rec_video_folder.py \
     --batch_size 1 \
     --real_video_dir input_real_video_dir \
     --generated_video_dir output_generated_video_dir \
     --device Ascend \
     --sample_fps 10 \
     --sample_rate 1 \
-    --num_frames 9 \  # revise according to your training stage
-    --resolution 256 \ # revise according to your training stage
-    --crop_size 256 \ # revise according to your training stage
+    --num_frames 65 \
+    --height 480 \
+    --width 640 \
     --num_workers 8 \
-    --ckpt /path/to/your/.ckpt/file
+    --ae_path LanguageBind/Open-Sora-Plan-v1.2.0/vae \
+    --enable_tiling \
+    --tile_overlap_factor 0.125 \
+    --save_memory \
+    --ms_checkpoint /path/to/ms/checkpoint \
 ```
 
 Runing this command will generate reconstructed videos under the given `output_generated_video_dir`. You can then evalute some common metrics (e.g., ssim, psnr) using the script under `opensora/eval/script`.
@@ -318,8 +330,8 @@ Taking the stage-1 training as an example, we record the training speed as follo
 
 | Model           | Context        | Precision | BS  | NPUs | num_frames | Resolution  | With GAN loss  | Train T. (s/step) |
 |:----------------|:---------------|:----------|:---:|:----:|:-----------------------:|:-----------:|:-----------:|:-----------------:|
-| CausalVAE_4x8x8  | D910\*-[CANN C18(0705)](https://repo.mindspore.cn/ascend/ascend910/20240705/)-[MS2.3_master(0705)](https://repo.mindspore.cn/mindspore/mindspore/version/202407/20240705/master_20240705220018_51f414917fd9a312dd43ea62eea61cf37c3dfbd6_newest/unified/) | BF16      |  1  |  8   |         9         | 256x256     |  False |     0.97      |
-| CausalVAE_4x8x8  | D910\*-[CANN C18(0705)](https://repo.mindspore.cn/ascend/ascend910/20240705/)-[MS2.3_master(0705)](https://repo.mindspore.cn/mindspore/mindspore/version/202407/20240705/master_20240705220018_51f414917fd9a312dd43ea62eea61cf37c3dfbd6_newest/unified/) | FP32      |  1  |  8   |         9         | 256x256     |  True |     1.63        |
+| CausalVAE_4x8x8  | D910\*-[CANN C18(0705)](https://repo.mindspore.cn/ascend/ascend910/20240705/)-[MS2.3.1] | BF16      |  1  |  8   |         9         | 256x256     |  False |     0.97      |
+| CausalVAE_4x8x8  | D910\*-[CANN C18(0705)](https://repo.mindspore.cn/ascend/ascend910/20240705/)-[MS2.3.1] | FP32      |  1  |  8   |         9         | 256x256     |  True |     1.63        |
 
 #### Example of Training Experiment
 
@@ -426,23 +438,24 @@ python opensora/sample/sample_text_embed.py \
     --data_file_path /path/to/caption.json \
     --output_path /path/to/text_embed_folder \
 ```
-To extract text embeddings for all annotation json files using a single card, you can refer to `scripts/embedding_cache/extract_all.sh`. If you want to try extracting embedding cache using multiple cards in a single node, please refer to `scripts/embedding_cache/extract_multi.sh`.
 
 The text embeddings are extracted and saved under the specified `output_path`.
 
 **Step 3: Revising the Paths**:
 
-**Revise it to v1.2.0 data format**
 After extracting the embedding cache, you will have the following three paths ready:
 ```text
-images/videos path: e.g., datasets/images/
-t5 embedding path: e.g., datasets/images-t5-emb-len=300/
-annotation json path: e.g., anno_jsons/human_images162094.json
+images/videos path: e.g., datasets/panda70m/
+text embedding path: e.g., datasets/panda70m_emb-len=512/
+annotation json path: e.g., datasets/anno_jsons/Panda70M_HQ1M.json
 ```
-In the dataset file, for example, `scripts/train_data/image_data.txt`, each line represents one dataset. Each line includes three paths: the images/videos folder, the t5 embedding cache folder, and the path to the annotation json file. Please revise them accordingly to the paths on your disk.
+In the dataset file, for example, `scripts/train_data/merge_data.txt`, each line represents one dataset. Each line includes three paths: the images/videos folder, the text embedding cache folder, and the path to the annotation json file. Please revise them accordingly to the paths on your disk.
 
 
 #### Example of Training Scripts
+
+The training scripts are stored under `scripts/text_condition`. The single-device training scripts are under the `single-device` folder for demonstration. We recommend to use the parallel-training scripts under the `multi-devices` folder.
+
 Here we choose an example of training scripts (`train_videoae_65x512x512.sh`) and explain the meanings of some experimental arguments. This is an example of parallel training script which uses data parallelism. If you want to try single-device training, please refer to `train_videoae_65x512x512_single_device.sh`.
 
 There some hyper-parameters that may vary between different experiments:
@@ -539,11 +552,11 @@ We evaluated the training performance on MindSpore and Ascend NPUs. The results 
 
 | Model           | Context        | Precision | BS  | NPUs | num_frames + num_images | Resolution  | Train T. (s/step) |
 |:----------------|:---------------|:----------|:---:|:----:|:-----------------------:|:-----------:|:-----------------:|
-| LatteT2V-XL/122 | D910\*-[CANN C18(0705)](https://repo.mindspore.cn/ascend/ascend910/20240705/)-[MS2.3_master(0705)](https://repo.mindspore.cn/mindspore/mindspore/version/202407/20240705/master_20240705220018_51f414917fd9a312dd43ea62eea61cf37c3dfbd6_newest/unified/) | BF16      |  2  |  8   |         17 + 4          | 512x512     |       2.45        |
-| LatteT2V-XL/122 | D910\*-[CANN C18(0705)](https://repo.mindspore.cn/ascend/ascend910/20240705/)-[MS2.3_master(0705)](https://repo.mindspore.cn/mindspore/mindspore/version/202407/20240705/master_20240705220018_51f414917fd9a312dd43ea62eea61cf37c3dfbd6_newest/unified/) | BF16      |  2  |  8   |         65 + 16         | 512x512     |       9.36       |
-| LatteT2V-XL/122 | D910\*-[CANN C18(0705)](https://repo.mindspore.cn/ascend/ascend910/20240705/)-[MS2.3_master(0705)](https://repo.mindspore.cn/mindspore/mindspore/version/202407/20240705/master_20240705220018_51f414917fd9a312dd43ea62eea61cf37c3dfbd6_newest/unified/) | BF16      |  2  |  8   |         65 + 4          | 512x512     |       7.02        |
-| LatteT2V-XL/122 | D910\*-[CANN C18(0705)](https://repo.mindspore.cn/ascend/ascend910/20240705/)-[MS2.3_master(0705)](https://repo.mindspore.cn/mindspore/mindspore/version/202407/20240705/master_20240705220018_51f414917fd9a312dd43ea62eea61cf37c3dfbd6_newest/unified/) | BF16      |  1  |  8   |         221 + 4         | 512x512     |       7.18        |
-| LatteT2V-XL/122 | D910\*-[CANN C18(0705)](https://repo.mindspore.cn/ascend/ascend910/20240705/)-[MS2.3_master(0705)](https://repo.mindspore.cn/mindspore/mindspore/version/202407/20240705/master_20240705220018_51f414917fd9a312dd43ea62eea61cf37c3dfbd6_newest/unified/) | BF16      |  1  |  8   |         513 + 8         | 512x512     |        12.3       |
+| LatteT2V-XL/122 | D910\*-[CANN C18(0705)](https://repo.mindspore.cn/ascend/ascend910/20240705/)-[MS2.3.1] | BF16      |  2  |  8   |         17 + 4          | 512x512     |       2.45        |
+| LatteT2V-XL/122 | D910\*-[CANN C18(0705)](https://repo.mindspore.cn/ascend/ascend910/20240705/)-[MS2.3.1] | BF16      |  2  |  8   |         65 + 16         | 512x512     |       9.36       |
+| LatteT2V-XL/122 | D910\*-[CANN C18(0705)](https://repo.mindspore.cn/ascend/ascend910/20240705/)-[MS2.3.1] | BF16      |  2  |  8   |         65 + 4          | 512x512     |       7.02        |
+| LatteT2V-XL/122 | D910\*-[CANN C18(0705)](https://repo.mindspore.cn/ascend/ascend910/20240705/)-[MS2.3.1] | BF16      |  1  |  8   |         221 + 4         | 512x512     |       7.18        |
+| LatteT2V-XL/122 | D910\*-[CANN C18(0705)](https://repo.mindspore.cn/ascend/ascend910/20240705/)-[MS2.3.1] | BF16      |  1  |  8   |         513 + 8         | 512x512     |        12.3       |
 
 > Context: {NPU type}-{CANN version}-{MindSpore version}
 
