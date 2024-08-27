@@ -1091,10 +1091,6 @@ class StableDiffusionXLPipeline(
             image = latents
 
         if not output_type == "latent":
-            # apply watermark if available
-            if self.watermark is not None:
-                image = self.watermark.apply_watermark(image)
-
             image = self.image_processor.postprocess(image, output_type=output_type)
 
         if not return_dict:
