@@ -28,6 +28,7 @@ def init_env(
     jit_level: str = None,
     enable_parallel_fusion: bool = False,
     precision_mode: str = None,
+    jit_syntax_level: str = "strict",
 ) -> Tuple[int, int, int]:
     """
     Initialize MindSpore environment.
@@ -135,6 +136,11 @@ def init_env(
                     "please upgrade the MindSpore version."
                 )
                 raise Exception
+
+    if mode == 0:
+        # graph mode apply jit_syntax_level
+        jit_syntax_level = ms.STRICT if jit_syntax_level == "strict" else ms.LAX
+        ms.set_context(jit_syntax_level=jit_syntax_level)
     if precision_mode is not None and len(precision_mode) > 0:
         ms.set_context(ascend_config={"precision_mode": precision_mode})
     if global_bf16:

@@ -194,6 +194,7 @@ if __name__ == "__main__":
         global_bf16=args.global_bf16,
         sp_size=args.sp_size,
         jit_level=args.jit_level,
+        jit_syntax_level=args.jit_syntax_level,
     )
 
     # 2. vae model initiate and weight loading

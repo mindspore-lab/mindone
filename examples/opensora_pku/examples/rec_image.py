@@ -69,6 +69,7 @@ def main(args):
         device_target=args.device,
         precision_mode=args.precision_mode,
         jit_level=args.jit_level,
+        jit_syntax_level=args.jit_syntax_level,
     )
 
     set_logger(name="", output_dir=args.output_path, rank=0)
@@ -169,5 +170,8 @@ if __name__ == "__main__":
         help="whether to use grid to show original and reconstructed data",
     )
     parser.add_argument("--jit_level", default="O0", help="Set jit level: # O0: KBK, O1:DVM, O2: GE")
+    parser.add_argument(
+        "--jit_syntax_level", default="strict", choices=["strict", "lax"], help="Set jit syntax level: strict or lax"
+    )
     args = parser.parse_args()
     main(args)

@@ -51,6 +51,7 @@ def main(args):
         max_device_memory=args.max_device_memory,
         parallel_mode=args.parallel_mode,
         jit_level=args.jit_level,
+        jit_syntax_level=args.jit_syntax_level,
     )
     if args.exp_name is not None and len(args.exp_name) > 0:
         args.output_dir = os.path.join(args.output_dir, args.exp_name)
@@ -86,7 +87,7 @@ def main(args):
         amp_level = args.amp_level
         dtype = get_precision(args.precision)
         if dtype == ms.float16:
-            custom_fp32_cells = [nn.GroupNorm, nn.Softmax, nn.SiLU] if args.vae_keep_gn_fp32 else []
+            custom_fp32_cells = [nn.GroupNorm, nn.Softmax, nn.SiLU] if args.vae_keep_gn_fp32 else [nn.Softmax, nn.SiLU]
         else:
             custom_fp32_cells = [nn.AvgPool2d, TrilinearInterpolate, nn.Softmax, nn.SiLU]
         ae = auto_mixed_precision(ae, amp_level=amp_level, dtype=dtype, custom_fp32_cells=custom_fp32_cells)

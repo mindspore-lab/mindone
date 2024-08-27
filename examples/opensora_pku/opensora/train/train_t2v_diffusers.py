@@ -85,6 +85,7 @@ def main(args):
         sp_size=args.sp_size if args.num_frames != 1 and args.use_image_num == 0 else 1,
         jit_level=args.jit_level,
         enable_parallel_fusion=args.enable_parallel_fusion,
+        jit_syntax_level=args.jit_syntax_level,
     )
     set_logger(name="", output_dir=args.output_dir, rank=rank_id, log_level=eval(args.log_level))
     train_with_vae_latent = args.vae_latent_folder is not None and len(args.vae_latent_folder) > 0
@@ -108,12 +109,12 @@ def main(args):
         if load_torch_state_dict_to_ms_ckpt is not None:
             state_dict = load_torch_state_dict_to_ms_ckpt(os.path.join(args.cache_dir, args.ae_path, "checkpoint.ckpt"))
         vae = CausalVAEModelWrapper(args.ae_path, cache_dir=args.cache_dir, state_dict=state_dict)
-        # TODO: Put VAE is in float32 to avoid NaN losses?
+
         vae_dtype = get_precision(args.vae_precision)
         if vae_dtype == ms.float16:
-            custom_fp32_cells = [nn.GroupNorm] if args.vae_keep_gn_fp32 else []
+            custom_fp32_cells = [nn.GroupNorm, nn.Softmax, nn.SiLU] if args.vae_keep_gn_fp32 else [nn.Softmax, nn.SiLU]
         else:
-            custom_fp32_cells = [nn.AvgPool2d, TrilinearInterpolate]
+            custom_fp32_cells = [nn.AvgPool2d, TrilinearInterpolate, nn.Softmax, nn.SiLU]
         vae = auto_mixed_precision(vae, amp_level="O2", dtype=vae_dtype, custom_fp32_cells=custom_fp32_cells)
         logger.info(f"Use amp level O2 for causal 3D VAE with dtype={vae_dtype}, custom_fp32_cells {custom_fp32_cells}")
 
@@ -575,7 +576,7 @@ def main(args):
                 f"EMA: {args.use_ema}",
                 f"EMA decay: {args.ema_decay}",
                 f"FA dtype: {FA_dtype}",
-                f"Use recompute: {args.use_recompute}",
+                f"Use recompute(gradient checkpoint): {args.gradient_checkpointing}",
                 f"Dataset sink: {args.dataset_sink_mode}",
             ]
         )
@@ -681,9 +682,9 @@ def parse_t2v_train_args(parser):
     parser.add_argument("--train_sp_batch_size", type=int, default=1, help="Batch size for sequence parallel training")
     parser.add_argument(
         "--vae_keep_gn_fp32",
-        default=False,
+        default=True,
         type=str2bool,
-        help="whether keep GroupNorm in fp32. Defaults to False in inference mode. If training vae, better set it to True",
+        help="whether keep GroupNorm in fp32. Defaults to True",
     )
     parser.add_argument(
         "--vae_precision",

@@ -58,6 +58,7 @@ def main(args):
         distributed=args.use_parallel,
         device_target=args.device_target,
         jit_level=args.jit_level,
+        jit_syntax_level=args.jit_syntax_level,
     )
     print(f"rank_id {rank_id}, device_num {device_num}")
 

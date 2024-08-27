@@ -56,6 +56,7 @@ def main(args):
         precision_mode=args.precision_mode,
         sp_size=args.sp_size,
         jit_level=args.jit_level,
+        jit_syntax_level=args.jit_syntax_level,
     )
 
     if not os.path.exists(args.generated_video_dir):
@@ -229,6 +230,9 @@ if __name__ == "__main__":
         "--parallel_mode", default="data", type=str, choices=["data", "optim"], help="parallel mode: data, optim"
     )
     parser.add_argument("--jit_level", default="O0", help="Set jit level: # O0: KBK, O1:DVM, O2: GE")
+    parser.add_argument(
+        "--jit_syntax_level", default="strict", choices=["strict", "lax"], help="Set jit syntax level: strict or lax"
+    )
     parser.add_argument("--seed", type=int, default=4, help="Inference seed")
     parser.add_argument(
         "--precision_mode",

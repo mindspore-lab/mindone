@@ -219,9 +219,9 @@ class DiffusionWithLoss(nn.Cell):
             model_pred = model_pred - noise
         else:
             raise ValueError(f"Unknown prediction type {self.prediction_type}")
-
-        if attention_mask is not None and (attention_mask.bool()).all():
-            attention_mask = None
+        # comment it to avoid graph syntax error
+        # if attention_mask is not None and (attention_mask.bool()).all():
+        #     attention_mask = None
         if get_sequence_parallel_state():
             # TODO: sequence parallel does not need attention_mask?
             assert attention_mask is None
