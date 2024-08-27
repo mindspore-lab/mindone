@@ -238,7 +238,8 @@ class T2V_dataset:
             cond_mask = text_tokens_and_mask["attention_mask"]
             return dict(pixel_values=video, input_ids=input_ids, cond_mask=cond_mask)
         else:
-            text_embed_path = dataset_prog.cap_list[idx]["text_embed_path"]
+            text_embed_paths = dataset_prog.cap_list[idx]["text_embed_path"]
+            text_embed_path = random.choice(text_embed_paths)
             text_emb, cond_mask = self.parse_text_emb(text_embed_path)
             return dict(pixel_values=video, input_ids=text_emb, cond_mask=cond_mask)
 
@@ -276,7 +277,8 @@ class T2V_dataset:
             cond_mask = text_tokens_and_mask["attention_mask"]  # 1, l
             return dict(pixel_values=image, input_ids=input_ids, cond_mask=cond_mask)
         else:
-            text_embed_path = dataset_prog.cap_list[idx]["text_embed_path"]
+            text_embed_paths = dataset_prog.cap_list[idx]["text_embed_path"]
+            text_embed_path = random.choice(text_embed_paths)
             text_emb, cond_mask = self.parse_text_emb(text_embed_path)
             return dict(pixel_values=image, input_ids=text_emb, cond_mask=cond_mask)
 
@@ -428,20 +430,21 @@ class T2V_dataset:
         video_data = decord_vr.get_batch(frame_indices).asnumpy()  # (T, H, W, C)
         return video_data
 
-    # FIXME: maybe not applicable for v1.2.0
     def get_text_embed_file_path(self, item):
         file_path = item["path"]
-        # extra keys are identifiers added to the original file path
-        for key in item.keys():
-            if key not in ["cap", "path"]:
-                identifer = f"-{key}-{item[key]}"
-                file_path = Path(str(file_path))
-                extension = file_path.suffix
-                file_path = str(file_path.with_suffix("")) + identifer
-                file_path = file_path + extension
-        return Path(str(file_path)).with_suffix(".npz")
+        captions = item["cap"]
+        if isinstance(captions, str):
+            captions = [captions]
+        text_embed_paths = []
+        for index in range(len(captions)):
+            # use index as an extra identifier
+            identifer = f"-{index}"
+            file_path = Path(str(file_path))
+            file_path = str(file_path.with_suffix("")) + identifer
+            file_path = Path(str(file_path)).with_suffix(".npz")
+            text_embed_paths.append(file_path)
+        return text_embed_paths
 
-    # FIXME: maybe not applicable for v1.2.0
     def parse_text_emb(self, npz):
         if not os.path.exists(npz):
             raise ValueError(
@@ -476,9 +479,10 @@ class T2V_dataset:
                 sub_list = json.load(f)
             logger.info(f"Building {anno}...")
             for i in range(len(sub_list)):
-                sub_list[i]["path"] = opj(folder, sub_list[i]["path"])
                 if self.return_text_emb:
-                    sub_list[i]["text_embed_path"] = opj(text_emb_folder, self.get_text_embed_file_path(sub_list[i]))
+                    text_embeds_paths = self.get_text_embed_file_path(sub_list[i])
+                    sub_list[i]["text_embed_path"] = [opj(text_emb_folder, tp) for tp in text_embeds_paths]
+                sub_list[i]["path"] = opj(folder, sub_list[i]["path"])
             cap_lists += sub_list
         return cap_lists
 

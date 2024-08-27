@@ -4,7 +4,7 @@ python  opensora/train/train_t2v_diffusers.py \
     --text_encoder_name google/mt5-xxl \
     --cache_dir "./" \
     --dataset t2v \
-    --data "scripts/train_data/merge_data_mixkit.txt" \
+    --data "scripts/train_data/merge_data_panda70m.txt" \
     --ae CausalVAEModel_D4_4x8x8 \
     --ae_path "LanguageBind/Open-Sora-Plan-v1.2.0/vae" \
     --sample_rate 1 \

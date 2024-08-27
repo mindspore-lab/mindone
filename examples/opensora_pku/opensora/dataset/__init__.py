@@ -60,6 +60,7 @@ def getdataset(args):
             drop_short_ratio=args.drop_short_ratio,
             dataloader_num_workers=args.dataloader_num_workers,
             text_encoder_name=args.text_encoder_name,
+            return_text_emb=args.text_embed_cache,
             transform=transform,
             temporal_sample=temporal_sample,
             tokenizer=tokenizer,
