@@ -36,7 +36,6 @@ from pixart.utils import (
 from transformers import AutoTokenizer
 
 from mindone.diffusers import AutoencoderKL
-from mindone.trainers.callback import OverflowMonitor
 from mindone.trainers.lr_schedule import create_scheduler
 from mindone.trainers.optim import create_optimizer
 from mindone.trainers.train_step import TrainOneStepWrapper
@@ -316,7 +315,6 @@ def main(args):
     callbacks = [
         TurnOffVAET5Train(),
         TimeMonitor(),
-        OverflowMonitor(),
         LossMonitor(log_interval=args.log_loss_interval),
         SaveCkptCallback(
             rank_id=rank_id,

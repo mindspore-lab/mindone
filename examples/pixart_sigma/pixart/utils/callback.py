@@ -22,15 +22,22 @@ logger = logging.getLogger(__name__)
 
 
 class LossMonitor(Callback):
-    def __init__(self, log_interval: int = 1) -> None:
+    def __init__(self, log_interval: int = 1, log_overflow: bool = True) -> None:
         self.log_interval = log_interval
+        self.log_overflow = log_overflow
+        self.step_num = 0
+
+    def on_train_step_begin(self, run_context: RunContext) -> None:
+        self.step_num += 1
+
+    def on_train_epoch_end(self, run_context: RunContext) -> None:
+        self.step_num = 0
 
     def on_train_step_end(self, run_context: RunContext) -> None:
         cb_params = run_context.original_args()
         cur_step = cb_params.cur_step_num
-        step_num = cb_params.batch_num * cb_params.epoch_num
 
-        if (cur_step % self.log_interval == 0) or (cur_step == step_num):
+        if cur_step % self.log_interval == 0:
             cur_lr = self._fetch_optimizer_lr(cb_params)
             cur_loss = self._fetch_loss(cb_params)
             cur_loss_scale = self._fetch_loss_scale(cb_params)
@@ -38,11 +45,16 @@ class LossMonitor(Callback):
             logger.info(
                 "epoch: %d step: %d, lr: %.7f, loss: %.6f, loss scale: %d.",
                 cb_params.cur_epoch_num,
-                (cb_params.cur_step_num - 1) % cb_params.batch_num + 1,
+                self.step_num,
                 cur_lr.item(),
                 cur_loss.item(),
                 cur_loss_scale.item(),
             )
+
+            if self.log_overflow:
+                overflow = cb_params.net_outputs[1]
+                if overflow:
+                    logger.warning(f"overflow detected in epoch {cb_params.cur_epoch_num} step {self.step_num}.")
 
     def _get_optimizer_from_cbp(self, cb_params):
         if cb_params.optimizer is not None:
