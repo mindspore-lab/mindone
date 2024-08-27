@@ -1,5 +1,5 @@
 NUM_FRAME=29
-python  opensora/train/test_dataset.py \
+python  opensora/train/train_t2v_diffusers.py \
     --model OpenSoraT2V-ROPE-L/122 \
     --text_encoder_name google/mt5-xxl \
     --cache_dir "./" \
@@ -37,7 +37,6 @@ python  opensora/train/test_dataset.py \
     --tile_overlap_factor 0.125 \
     --use_rope \
     --noise_offset 0.02 \
-    --resume_from_checkpoint="latest" \
     --enable_stable_fp32 True\
     --ema_decay 0.999 \
     --speed_factor 1.0 \

@@ -122,17 +122,18 @@ class DiffusionWithLoss(nn.Cell):
     def construct(
         self,
         x: ms.Tensor,
+        attention_mask: ms.Tensor,
         text_tokens: ms.Tensor,
         encoder_attention_mask: ms.Tensor = None,
-        attention_mask: ms.Tensor = None,
     ):
         """
         Video diffusion model forward and loss computation for training
 
         Args:
             x: pixel values of video frames, resized and normalized to shape (b c f+num_img h w)
-            text_tokens: text tokens padded to fixed shape [bs, L]
-            labels: the class labels
+            attention_mask: the mask for latent features of shape (b t' h' w'), where t' h' w' are the shape of latent features after vae's encoding.
+            text_tokens: text tokens padded to fixed shape (B F L) or text embedding of shape (B F L D) if using text embedding cache
+            encoder_attention_mask: the mask for text tokens/embeddings of a fixed shape (B F L)
 
         Returns:
             loss
@@ -158,7 +159,7 @@ class DiffusionWithLoss(nn.Cell):
                 set_sequence_parallel_state(False)
             else:
                 set_sequence_parallel_state(True)
-        loss = self.compute_loss(x, text_embed, encoder_attention_mask, attention_mask)
+        loss = self.compute_loss(x, attention_mask, text_embed, encoder_attention_mask)
 
         return loss
 

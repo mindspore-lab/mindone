@@ -257,7 +257,8 @@ class Collate:
             input_ids = input_ids.astype(np.int32)
         if attention_mask.dtype == np.int64:
             attention_mask = attention_mask.astype(np.int32)
-
+        if cond_mask.dtype == np.int64:
+            cond_mask = cond_mask.astype(np.int32)
         return pad_batch_tubes, attention_mask, input_ids, cond_mask
 
 

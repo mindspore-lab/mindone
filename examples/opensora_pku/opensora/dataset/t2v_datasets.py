@@ -354,6 +354,10 @@ class T2V_dataset:
                 # to find a suitable end_frame_idx, to ensure we do not need pad video
                 end_frame_idx = find_closest_y(len(frame_indices), vae_stride_t=4, model_ds_t=4)
                 if end_frame_idx == -1:  # too short that can not be encoded exactly by videovae
+                    if self.num_frames < 29:
+                        logger.warning(
+                            "The numbder of frames is less than 29, which is too short to be encoded by causal vae."
+                        )
                     cnt_too_short += 1
                     continue
                 frame_indices = frame_indices[:end_frame_idx]
