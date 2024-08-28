@@ -43,10 +43,10 @@ class PixArtInferPipeline:
 
         if sampling_method == "iddpm":
             self.diffusion = create_diffusion(str(num_inference_steps))
-            self.sampling_func = self.diffusion.ddim_sample_loop
+            self.sampling_func = self.diffusion.p_sample_loop
         elif sampling_method == "ddim":
             self.diffusion = create_diffusion(str(num_inference_steps))
-            self.sampling_func = self.diffusion.p_sample_loop
+            self.sampling_func = self.diffusion.ddim_sample_loop
         else:
             self.diffusion = create_diffusion()
             self.sampling_func = None
