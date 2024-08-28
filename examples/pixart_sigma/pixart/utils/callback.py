@@ -86,11 +86,11 @@ class LossMonitor(Callback):
 class SaveCkptCallback(Callback):
     def __init__(
         self,
-        rank_id: Optional[int] = None,
         output_dir: str = "./output",
         ckpt_max_keep: int = 5,
         ckpt_save_interval: int = 1,
         save_ema: bool = False,
+        rank_id: Optional[int] = None,
     ) -> None:
         self.rank_id = 0 if rank_id is None else rank_id
         if self.rank_id != 0:
@@ -167,16 +167,18 @@ class Visualizer(Callback):
         validation_negative_prompts: Optional[List[str]] = None,
         visualize_dir: str = "./output",
         visualize_interval: int = 1,
+        rank_id: Optional[int] = None,
     ) -> None:
         self.infer_pipeline = infer_pipeline
-        self.visualize_dir = visualize_dir
         self.visualize_interval = visualize_interval
-        if not os.path.isdir(self.visualize_dir):
-            os.makedirs(self.visualize_dir)
 
         # prepare the noise, keep it is same during whole training.
         # To save memory, inference one image at each time.
-        self.noise = ops.randn((1, 4, sample_size, sample_size), dtype=ms.float32)
+        self.visualize_dir = os.path.join(visualize_dir, f"rank_{rank_id}")
+        self.noise = Tensor(np.random.default_rng(rank_id).normal((1, 4, sample_size, sample_size)), dtype=ms.float32)
+
+        if not os.path.isdir(self.visualize_dir):
+            os.makedirs(self.visualize_dir)
 
         self.prompts = self._organize_prompts(validation_prompts, validation_negative_prompts, save_json=True)
 

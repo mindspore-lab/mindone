@@ -132,7 +132,7 @@ def parse_args():
 def main(args):
     # 1. init env
     _, rank_id = init_env(args)
-    set_logger(output_dir=os.path.join(args.output_path, "logs", f"rank_{rank_id}"))
+    set_logger(output_dir=os.path.join(args.output_path, "logs"), rank=rank_id)
 
     if args.use_parallel:
         raise NotImplementedError("Unsupportetd parallel inference yet.")

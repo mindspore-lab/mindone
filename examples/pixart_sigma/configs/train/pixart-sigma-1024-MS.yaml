@@ -20,7 +20,7 @@ weight_decay: 0.0
 loss_scaler_type: "dynamic"
 init_loss_scale: 65536.0
 gradient_accumulation_steps: 1
-clip_grad: True
+clip_grad: False
 max_grad_norm: 0.01
 ckpt_save_interval: 5
 log_loss_interval: 1

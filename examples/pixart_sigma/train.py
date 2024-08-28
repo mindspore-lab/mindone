@@ -182,7 +182,7 @@ def main(args):
 
     # 1. init env
     device_num, rank_id = init_env(args)
-    set_logger(output_dir=os.path.join(args.output_path, "logs", f"rank_{rank_id}"))
+    set_logger(output_dir=os.path.join(args.output_path, "logs"), rank=rank_id)
 
     # 2. model initialize and weight loading
     # 2.1 PixArt
@@ -334,11 +334,11 @@ def main(args):
         TimeMonitor(),
         LossMonitor(log_interval=args.log_loss_interval),
         SaveCkptCallback(
-            rank_id=rank_id,
             output_dir=os.path.join(args.output_path, "ckpt"),
             ckpt_max_keep=args.ckpt_max_keep,
             ckpt_save_interval=args.ckpt_save_interval,
             save_ema=args.use_ema,
+            rank_id=rank_id,
         ),
     ]
 
@@ -361,6 +361,7 @@ def main(args):
             validation_negative_prompts=args.validation_negative_prompts,
             visualize_dir=os.path.join(args.output_path, "samples"),
             visualize_interval=args.visualize_interval,
+            rank_id=rank_id,
         )
         callbacks.append(visualizer)
 
