@@ -1,5 +1,5 @@
-from pixart.diffusion import SpacedDiffusion
-from pixart.diffusion.diffusion_utils import (
+from pixart.diffusion.iddpm import SpacedDiffusion
+from pixart.diffusion.iddpm.diffusion_utils import (
     discretized_gaussian_log_likelihood,
     extract_into_tensor,
     mean_flat,
@@ -38,13 +38,20 @@ class NetworkWithLoss(nn.Cell):
 
     def get_latents(self, x: Tensor) -> Tensor:
         image_moments = self.vae.encode(x.to(self.vae.dtype))[0]
-        image_latents = self.vae.diag_gauss_dist.sample(image_moments)
+        image_latents = self._vae_sample(image_moments)
         image_latents = ops.stop_gradient(image_latents * self.scale_factor)
         return image_latents
 
     def get_text_emb(self, x: Tensor) -> Tensor:
         text_emb = ops.stop_gradient(self.text_encoder(input_ids=x)[0])
         return text_emb
+
+    def _vae_sample(self, x: Tensor) -> Tensor:
+        mean, logvar = mint.chunk(x, 2, dim=1)
+        logvar = ops.clamp(logvar, -30.0, 20.0)
+        std = ops.exp(0.5 * logvar)
+        sample = mint.normal(size=x.shape).to(x.dtype)
+        x = mean + std * sample
 
     def _cal_vb(self, model_output, model_var_values, x, x_t, t):
         true_mean, _, true_log_variance_clipped = self.diffusion.q_posterior_mean_variance(x_start=x, x_t=x_t, t=t)
@@ -82,7 +89,8 @@ class NetworkWithLoss(nn.Cell):
     def compute_loss(self, x: Tensor, text_emb: Tensor, text_mask: Tensor) -> Tensor:
         t = ops.randint(0, self.diffusion.num_timesteps, (x.shape[0],))
 
-        noise = ops.randn_like(x)
+        # FIXME: randn_like
+        noise = mint.normal(size=x.shape).to(x.dtype)
         x_t = self.diffusion.q_sample(x, t, noise=noise)
         model_output = self.apply_model(x_t, t, text_emb, text_mask)
 

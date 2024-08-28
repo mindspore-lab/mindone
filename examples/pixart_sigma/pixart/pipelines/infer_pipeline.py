@@ -1,6 +1,6 @@
-from typing import List, Optional, Tuple, Union
+from typing import List, Literal, Optional, Tuple, Union
 
-from pixart.diffusion import create_diffusion
+from pixart.diffusion.iddpm import create_diffusion
 from pixart.modules.pixart import PixArt
 from transformers import AutoTokenizer
 
@@ -29,8 +29,8 @@ class PixArtInferPipeline:
         text_tokenizer: AutoTokenizer,
         scale_factor: float = 1.0,
         guidance_scale: float = 0.0,
-        num_inference_steps: int = 50,
-        ddim_sampling: bool = True,
+        num_inference_steps: int = 100,
+        sampling_method: Literal["iddpm", "ddim", "dpm"] = "iddpm",
         force_freeze: bool = False,
     ):
         super().__init__()
@@ -40,11 +40,16 @@ class PixArtInferPipeline:
         self.text_tokenizer = text_tokenizer
         self.scale_factor = scale_factor
         self.guidance_scale = guidance_scale
-        self.diffusion = create_diffusion(str(num_inference_steps))
-        if ddim_sampling:
+
+        if sampling_method == "iddpm":
+            self.diffusion = create_diffusion(str(num_inference_steps))
             self.sampling_func = self.diffusion.ddim_sample_loop
-        else:
+        elif sampling_method == "ddim":
+            self.diffusion = create_diffusion(str(num_inference_steps))
             self.sampling_func = self.diffusion.p_sample_loop
+        else:
+            self.diffusion = create_diffusion()
+            self.sampling_func = None
 
         if force_freeze:
             # freeze all components

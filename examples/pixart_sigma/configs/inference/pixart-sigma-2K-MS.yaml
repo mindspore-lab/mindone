@@ -11,7 +11,7 @@ enable_flash_attention: True
 dtype: "fp16"
 
 # sampling
+sampling_method: "ddim"
 sampling_steps: 50
 guidance_scale: 4.5
 seed: 42
-ddim_sampling: True

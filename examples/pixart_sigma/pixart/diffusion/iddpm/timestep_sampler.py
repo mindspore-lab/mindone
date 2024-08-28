@@ -9,8 +9,6 @@ import numpy as np
 
 import mindspore as ms
 
-# from mindspore import ops
-
 
 def create_named_schedule_sampler(name, diffusion):
     """

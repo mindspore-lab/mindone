@@ -160,9 +160,9 @@ def parse_args():
     parser.add_argument("--log_loss_interval", default=1, type=int, help="Log interval of loss value.")
     parser.add_argument("--recompute", default=False, type=str2bool, help="Use recompute during training.")
     parser.add_argument("--use_parallel", default=False, type=str2bool, help="use parallel training.")
-    parser.add_argument("--sampling_steps", default=50, type=int, help="Diffusion Sampling Steps")
+    parser.add_argument("--sampling_method", default="iddpm", choices=["iddpm", "ddim", "dpm"], help="Sampling method.")
+    parser.add_argument("--sampling_steps", default=100, type=int, help="Diffusion Sampling Steps")
     parser.add_argument("--guidance_scale", default=4.5, type=float, help="Scale value for classifier-free guidance")
-    parser.add_argument("--ddim_sampling", default=True, type=str2bool, help="Whether to use DDIM for sampling")
     default_args = parser.parse_args()
     abs_path = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), ""))
     if default_args.config:
@@ -353,7 +353,7 @@ def main(args):
             scale_factor=args.sd_scale_factor,
             guidance_scale=args.guidance_scale,
             num_inference_steps=args.sampling_steps,
-            ddim_sampling=args.ddim_sampling,
+            sampling_method=args.sampling_method,
         )
         visualizer = Visualizer(
             infer_pipeline,

@@ -33,9 +33,9 @@ warmup_steps: 1000
 # visualization
 visualize: True
 visualize_interval: 5
+sampling_method: "ddim"
 sampling_steps: 50
 guidance_scale: 4.5
-ddim_sampling: True
 validation_prompts:
   - "portrait photo of a girl, photograph, highly detailed face, depth of field"
   - "Self-portrait oil painting, a beautiful cyborg with golden hair, 8k"

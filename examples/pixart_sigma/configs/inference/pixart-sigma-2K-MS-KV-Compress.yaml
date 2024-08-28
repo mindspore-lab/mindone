@@ -16,7 +16,7 @@ kv_compress_scale_factor: 2
 kv_compress_layer: [14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27]
 
 # sampling
+sampling_method: "ddim"
 sampling_steps: 50
 guidance_scale: 4.5
 seed: 42
-ddim_sampling: True

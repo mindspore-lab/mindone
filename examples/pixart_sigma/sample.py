@@ -83,7 +83,8 @@ def parse_args():
     parser.add_argument(
         "--sd_scale_factor", default=0.13025, type=float, help="VAE scale factor of Stable Diffusion network."
     )
-    parser.add_argument("--sampling_steps", default=50, type=int, help="Diffusion Sampling Steps")
+    parser.add_argument("--sampling_method", default="iddpm", choices=["iddpm", "ddim", "dpm"], help="Sampling method.")
+    parser.add_argument("--sampling_steps", default=100, type=int, help="Diffusion Sampling Steps")
     parser.add_argument("--guidance_scale", default=4.5, type=float, help="Scale value for classifier-free guidance")
 
     parser.add_argument("--device_target", default="Ascend", choices=["CPU", "GPU", "Ascend"], help="Device target")
@@ -111,7 +112,6 @@ def parse_args():
         "--dtype", default="fp16", choices=["bf16", "fp16", "fp32"], help="what data type to use for PixArt."
     )
 
-    parser.add_argument("--ddim_sampling", default=True, type=str2bool, help="Whether to use DDIM for sampling")
     parser.add_argument("--imagegrid", default=False, type=str2bool, help="Save the image in image-grids format.")
     parser.add_argument("--nrows", default=1, type=int, help="Number of rows in sampling (number of trials)")
     parser.add_argument("--ncols", default=1, type=int, help="Number of cols in sampling (batch size)")
@@ -205,7 +205,7 @@ def main(args):
         scale_factor=args.sd_scale_factor,
         num_inference_steps=args.sampling_steps,
         guidance_scale=args.guidance_scale,
-        ddim_sampling=args.ddim_sampling,
+        sampling_method=args.sampling_method,
         force_freeze=True,
     )
 
@@ -220,8 +220,8 @@ def main(args):
             f"MindSpore mode[GRAPH(0)/PYNATIVE(1)]: {args.mode}",
             f"Num params: {num_params:,} (network: {num_params_network:,}, vae: {num_params_vae:,}, text_encoder: {num_params_text_encoder:,})",
             f"Use network dtype: {model_dtype}",
+            f"Sampling method: {args.sampling_method}",
             f"Sampling steps {args.sampling_steps}",
-            f"DDIM sampling: {args.ddim_sampling}",
             f"CFG guidance scale: {args.guidance_scale}",
         ]
     )
