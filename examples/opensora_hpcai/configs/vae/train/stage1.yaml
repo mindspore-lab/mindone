@@ -44,4 +44,4 @@ use_ema: False
 output_path: "outputs/causal_vae"
 
 # ms settting
-jit_level: O1
+jit_level: O0
