@@ -1,3 +1,4 @@
+export DEVICE_ID=0
 python opensora/train/train_t2v_diffusers.py \
     --model OpenSoraT2V-ROPE-L/122 \
     --text_encoder_name google/mt5-xxl \

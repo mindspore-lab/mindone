@@ -1,3 +1,4 @@
+export DEVICE_ID=0
 NUM_FRAME=29
 python  opensora/train/train_t2v_diffusers.py \
     --model OpenSoraT2V-ROPE-L/122 \
@@ -16,7 +17,7 @@ python  opensora/train/train_t2v_diffusers.py \
     --interpolation_scale_w 1.0 \
     --attention_mode xformers \
     --gradient_checkpointing \
-    --train_batch_size=2 \
+    --train_batch_size=1 \
     --dataloader_num_workers 8 \
     --gradient_accumulation_steps=1 \
     --max_train_steps=1000000 \
@@ -41,6 +42,4 @@ python  opensora/train/train_t2v_diffusers.py \
     --ema_decay 0.999 \
     --speed_factor 1.0 \
     --drop_short_ratio 1.0 \
-    --group_frame \
-    # --sp_size 8 \
-    # --train_sp_batch_size 2 \
+    # --group_frame \

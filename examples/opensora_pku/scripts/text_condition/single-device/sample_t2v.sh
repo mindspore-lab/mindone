@@ -1,3 +1,4 @@
+export DEVICE_ID=0
 python opensora/sample/sample_t2v.py \
     --model_path LanguageBind/Open-Sora-Plan-v1.2.0/29x720p \
     --num_frames 29 \
