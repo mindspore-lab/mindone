@@ -37,7 +37,7 @@ from mindone.models.utils import constant_, normal_, xavier_uniform_
 class STDiT3Block(nn.Cell):
 
     # to reduce compilation time
-    @lazy_inline(policy="front")
+    @ms.lazy_inline(policy="front")
     def __init__(
         self,
         hidden_size,

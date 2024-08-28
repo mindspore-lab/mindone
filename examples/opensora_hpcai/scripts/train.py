@@ -562,17 +562,19 @@ def main(args):
         )
 
     # compute total steps and data epochs (in unit of data sink size)
-    if args.train_steps == -1:
-        assert args.epochs != -1
-        total_train_steps = args.epochs * dataset_size
-    else:
-        total_train_steps = args.train_steps
-
     if args.dataset_sink_mode and args.sink_size != -1:
         steps_per_sink = args.sink_size
     else:
         steps_per_sink = dataset_size
-    sink_epochs = math.ceil(total_train_steps / steps_per_sink)
+
+    if args.train_steps == -1:
+        assert args.epochs != -1
+        total_train_steps = args.epochs * dataset_size
+        sink_epochs = math.ceil(total_train_steps / steps_per_sink)
+    else:
+        total_train_steps = args.train_steps
+        # asume one step need one whole epoch data to ensure enough batch loading for training
+        sink_epochs = total_train_steps
 
     if args.ckpt_save_steps == -1:
         ckpt_save_interval = args.ckpt_save_interval
