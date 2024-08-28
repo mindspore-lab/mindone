@@ -112,9 +112,9 @@ def main(args):
 
         vae_dtype = get_precision(args.vae_precision)
         if vae_dtype == ms.float16:
-            custom_fp32_cells = [nn.GroupNorm, nn.Softmax, nn.SiLU] if args.vae_keep_gn_fp32 else [nn.Softmax, nn.SiLU]
+            custom_fp32_cells = [nn.GroupNorm] if args.vae_keep_gn_fp32 else []
         else:
-            custom_fp32_cells = [nn.AvgPool2d, TrilinearInterpolate, nn.Softmax, nn.SiLU]
+            custom_fp32_cells = [nn.AvgPool2d, TrilinearInterpolate]
         vae = auto_mixed_precision(vae, amp_level="O2", dtype=vae_dtype, custom_fp32_cells=custom_fp32_cells)
         logger.info(f"Use amp level O2 for causal 3D VAE with dtype={vae_dtype}, custom_fp32_cells {custom_fp32_cells}")
 
@@ -684,9 +684,9 @@ def parse_t2v_train_args(parser):
     parser.add_argument("--train_sp_batch_size", type=int, default=1, help="Batch size for sequence parallel training")
     parser.add_argument(
         "--vae_keep_gn_fp32",
-        default=True,
+        default=False,
         type=str2bool,
-        help="whether keep GroupNorm in fp32. Defaults to True",
+        help="whether keep GroupNorm in fp32. Defaults to False in inference, better to set to True when training vae",
     )
     parser.add_argument(
         "--vae_precision",
