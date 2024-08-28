@@ -42,8 +42,10 @@ class RoPE3D(nn.Cell):
         self.interpolation_scale_h = interpolation_scale_thw[1]
         self.interpolation_scale_w = interpolation_scale_thw[2]
         self.dim_head = dim_head
-        assert self.dim_head % 3, "number of head dimensions should be a multiple of three"
-        D = self.dim_head.shape[3] // 3
+        assert (
+            self.dim_head % 3 == 0
+        ), f"number of head dimensions should be a multiple of three, but got {self.dim_head}"
+        D = self.dim_head // 3
         self.inv_freq = 1.0 / (self.base ** (ops.arange(0, D, 2).float() / D))
         # self.cache = {}
 
