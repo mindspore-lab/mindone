@@ -188,9 +188,9 @@ def model_wrapper(
         model_kwargs: A `dict`. A dict for the other inputs of the model function.
         guidance_type: A `str`. The type of the guidance for sampling.
                     "uncond" or "classifier" or "classifier-free".
-        condition: A pytorch tensor. The condition for the guided sampling.
+        condition: A mindspore tensor. The condition for the guided sampling.
                     Only used for "classifier" or "classifier-free" guidance type.
-        unconditional_condition: A pytorch tensor. The condition for the unconditional sampling.
+        unconditional_condition: A mindspore tensor. The condition for the unconditional sampling.
                     Only used for "classifier-free" guidance type.
         guidance_scale: A `float`. The scale for the guided sampling.
         classifier_fn: A classifier function. Only used for the classifier guidance.
@@ -392,7 +392,7 @@ class DPM_Solver:
             t_0: A `float`. The ending time of the sampling (default is epsilon).
             N: A `int`. The total number of the spacing of the time steps.
         Returns:
-            A pytorch tensor of the time steps, with the shape (N + 1,).
+            A mindspore tensor of the time steps, with the shape (N + 1,).
         """
         if skip_type == "logSNR":
             lambda_T = self.noise_schedule.marginal_lambda(Tensor(t_T))
@@ -541,17 +541,17 @@ class DPM_Solver:
         Singlestep solver DPM-Solver-2 from time `s` to time `t`.
 
         Args:
-            x: A pytorch tensor. The initial value at time `s`.
-            s: A pytorch tensor. The starting time, with the shape (1,).
-            t: A pytorch tensor. The ending time, with the shape (1,).
+            x: A mindspore tensor. The initial value at time `s`.
+            s: A mindspore tensor. The starting time, with the shape (1,).
+            t: A mindspore tensor. The ending time, with the shape (1,).
             r1: A `float`. The hyperparameter of the second-order solver.
-            model_s: A pytorch tensor. The model function evaluated at time `s`.
+            model_s: A mindspore tensor. The model function evaluated at time `s`.
                 If `model_s` is None, we evaluate the model by `x` and `s`; otherwise we directly use it.
             return_intermediate: A `bool`. If true, also return the model value at time `s` and `s1` (the intermediate time).
             solver_type: either 'dpmsolver' or 'taylor'. The type for the high-order solvers.
                 The type slightly impacts the performance. We recommend to use 'dpmsolver' type.
         Returns:
-            x_t: A pytorch tensor. The approximated solution at time `t`.
+            x_t: A mindspore tensor. The approximated solution at time `t`.
         """
         if solver_type not in ["dpmsolver", "taylor"]:
             raise ValueError("'solver_type' must be either 'dpmsolver' or 'taylor', got {}".format(solver_type))
@@ -631,20 +631,20 @@ class DPM_Solver:
         Singlestep solver DPM-Solver-3 from time `s` to time `t`.
 
         Args:
-            x: A pytorch tensor. The initial value at time `s`.
-            s: A pytorch tensor. The starting time, with the shape (1,).
-            t: A pytorch tensor. The ending time, with the shape (1,).
+            x: A mindspore tensor. The initial value at time `s`.
+            s: A mindspore tensor. The starting time, with the shape (1,).
+            t: A mindspore tensor. The ending time, with the shape (1,).
             r1: A `float`. The hyperparameter of the third-order solver.
             r2: A `float`. The hyperparameter of the third-order solver.
-            model_s: A pytorch tensor. The model function evaluated at time `s`.
+            model_s: A mindspore tensor. The model function evaluated at time `s`.
                 If `model_s` is None, we evaluate the model by `x` and `s`; otherwise we directly use it.
-            model_s1: A pytorch tensor. The model function evaluated at time `s1` (the intermediate time given by `r1`).
+            model_s1: A mindspore tensor. The model function evaluated at time `s1` (the intermediate time given by `r1`).
                 If `model_s1` is None, we evaluate the model at `s1`; otherwise we directly use it.
             return_intermediate: A `bool`. If true, also return the model value at time `s`, `s1` and `s2` (the intermediate times).
             solver_type: either 'dpmsolver' or 'taylor'. The type for the high-order solvers.
                 The type slightly impacts the performance. We recommend to use 'dpmsolver' type.
         Returns:
-            x_t: A pytorch tensor. The approximated solution at time `t`.
+            x_t: A mindspore tensor. The approximated solution at time `t`.
         """
         if solver_type not in ["dpmsolver", "taylor"]:
             raise ValueError("'solver_type' must be either 'dpmsolver' or 'taylor', got {}".format(solver_type))
@@ -763,14 +763,14 @@ class DPM_Solver:
         Multistep solver DPM-Solver-2 from time `t_prev_list[-1]` to time `t`.
 
         Args:
-            x: A pytorch tensor. The initial value at time `s`.
-            model_prev_list: A list of pytorch tensor. The previous computed model values.
-            t_prev_list: A list of pytorch tensor. The previous times, each time has the shape (1,)
-            t: A pytorch tensor. The ending time, with the shape (1,).
+            x: A mindspore tensor. The initial value at time `s`.
+            model_prev_list: A list of mindspore tensor. The previous computed model values.
+            t_prev_list: A list of mindspore tensor. The previous times, each time has the shape (1,)
+            t: A mindspore tensor. The ending time, with the shape (1,).
             solver_type: either 'dpmsolver' or 'taylor'. The type for the high-order solvers.
                 The type slightly impacts the performance. We recommend to use 'dpmsolver' type.
         Returns:
-            x_t: A pytorch tensor. The approximated solution at time `t`.
+            x_t: A mindspore tensor. The approximated solution at time `t`.
         """
         if solver_type not in ["dpmsolver", "taylor"]:
             raise ValueError("'solver_type' must be either 'dpmsolver' or 'taylor', got {}".format(solver_type))
@@ -827,14 +827,14 @@ class DPM_Solver:
         Multistep solver DPM-Solver-3 from time `t_prev_list[-1]` to time `t`.
 
         Args:
-            x: A pytorch tensor. The initial value at time `s`.
-            model_prev_list: A list of pytorch tensor. The previous computed model values.
-            t_prev_list: A list of pytorch tensor. The previous times, each time has the shape (1,)
-            t: A pytorch tensor. The ending time, with the shape (1,).
+            x: A mindspore tensor. The initial value at time `s`.
+            model_prev_list: A list of mindspore tensor. The previous computed model values.
+            t_prev_list: A list of mindspore tensor. The previous times, each time has the shape (1,)
+            t: A mindspore tensor. The ending time, with the shape (1,).
             solver_type: either 'dpmsolver' or 'taylor'. The type for the high-order solvers.
                 The type slightly impacts the performance. We recommend to use 'dpmsolver' type.
         Returns:
-            x_t: A pytorch tensor. The approximated solution at time `t`.
+            x_t: A mindspore tensor. The approximated solution at time `t`.
         """
         ns = self.noise_schedule
         model_prev_2, model_prev_1, model_prev_0 = model_prev_list
@@ -886,9 +886,9 @@ class DPM_Solver:
         Singlestep DPM-Solver with the order `order` from time `s` to time `t`.
 
         Args:
-            x: A pytorch tensor. The initial value at time `s`.
-            s: A pytorch tensor. The starting time, with the shape (1,).
-            t: A pytorch tensor. The ending time, with the shape (1,).
+            x: A mindspore tensor. The initial value at time `s`.
+            s: A mindspore tensor. The starting time, with the shape (1,).
+            t: A mindspore tensor. The ending time, with the shape (1,).
             order: A `int`. The order of DPM-Solver. We only support order == 1 or 2 or 3.
             return_intermediate: A `bool`. If true, also return the model value at time `s`, `s1` and `s2` (the intermediate times).
             solver_type: either 'dpmsolver' or 'taylor'. The type for the high-order solvers.
@@ -896,7 +896,7 @@ class DPM_Solver:
             r1: A `float`. The hyperparameter of the second-order or third-order solver.
             r2: A `float`. The hyperparameter of the third-order solver.
         Returns:
-            x_t: A pytorch tensor. The approximated solution at time `t`.
+            x_t: A mindspore tensor. The approximated solution at time `t`.
         """
         if order == 1:
             return self.dpm_solver_first_update(x, s, t, return_intermediate=return_intermediate)
@@ -916,15 +916,15 @@ class DPM_Solver:
         Multistep DPM-Solver with the order `order` from time `t_prev_list[-1]` to time `t`.
 
         Args:
-            x: A pytorch tensor. The initial value at time `s`.
-            model_prev_list: A list of pytorch tensor. The previous computed model values.
-            t_prev_list: A list of pytorch tensor. The previous times, each time has the shape (1,)
-            t: A pytorch tensor. The ending time, with the shape (1,).
+            x: A mindspore tensor. The initial value at time `s`.
+            model_prev_list: A list of mindspore tensor. The previous computed model values.
+            t_prev_list: A list of mindspore tensor. The previous times, each time has the shape (1,)
+            t: A mindspore tensor. The ending time, with the shape (1,).
             order: A `int`. The order of DPM-Solver. We only support order == 1 or 2 or 3.
             solver_type: either 'dpmsolver' or 'taylor'. The type for the high-order solvers.
                 The type slightly impacts the performance. We recommend to use 'dpmsolver' type.
         Returns:
-            x_t: A pytorch tensor. The approximated solution at time `t`.
+            x_t: A mindspore tensor. The approximated solution at time `t`.
         """
         if order == 1:
             return self.dpm_solver_first_update(x, t_prev_list[-1], t, model_s=model_prev_list[-1])
@@ -942,7 +942,7 @@ class DPM_Solver:
         The adaptive step size solver based on singlestep DPM-Solver.
 
         Args:
-            x: A pytorch tensor. The initial value at time `t_T`.
+            x: A mindspore tensor. The initial value at time `t_T`.
             order: A `int`. The (higher) order of the solver. We only support order == 2 or 3.
             t_T: A `float`. The starting time of the sampling (default is T).
             t_0: A `float`. The ending time of the sampling (default is epsilon).
@@ -955,7 +955,7 @@ class DPM_Solver:
             solver_type: either 'dpmsolver' or 'taylor'. The type for the high-order solvers.
                 The type slightly impacts the performance. We recommend to use 'dpmsolver' type.
         Returns:
-            x_0: A pytorch tensor. The approximated solution at time `t_0`.
+            x_0: A mindspore tensor. The approximated solution at time `t_0`.
 
         [1] A. Jolicoeur-Martineau, K. Li, R. Piché-Taillefer, T. Kachman, and I. Mitliagkas,
             "Gotta go fast when generating data with score-based models," arXiv preprint arXiv:2105.14080, 2021.
@@ -1148,7 +1148,7 @@ class DPM_Solver:
 
         =====================================================
         Args:
-            x: A pytorch tensor. The initial value at time `t_start`
+            x: A mindspore tensor. The initial value at time `t_start`
                 e.g. if `t_start` == T, then `x` is a sample from the standard normal distribution.
             steps: A `int`. The total number of function evaluations (NFE).
             t_start: A `float`. The starting time of the sampling.
@@ -1182,7 +1182,7 @@ class DPM_Solver:
             return_intermediate: A `bool`. Whether to save the xt at each step.
                 When set to `True`, method returns a tuple (x0, intermediates); when set to False, method returns only x0.
         Returns:
-            x_end: A pytorch tensor. The approximated solution at time `t_end`.
+            x_end: A mindspore tensor. The approximated solution at time `t_end`.
 
         """
         t_0 = 1.0 / self.noise_schedule.total_N if t_end is None else t_end
@@ -1221,6 +1221,7 @@ class DPM_Solver:
             if return_intermediate:
                 intermediates.append(x)
             # Init the first `order` values by lower order multistep DPM-Solver.
+            pbar = tqdm(total=steps, leave=False)
             for step in range(1, order):
                 t = timesteps[step]
                 x = self.multistep_dpm_solver_update(x, model_prev_list, t_prev_list, t, step, solver_type=solver_type)
@@ -1230,8 +1231,9 @@ class DPM_Solver:
                     intermediates.append(x)
                 t_prev_list.append(t)
                 model_prev_list.append(self.model_fn(x, t))
+                pbar.update(1)
             # Compute the remaining values by `order`-th order multistep DPM-Solver.
-            for step in tqdm(range(order, steps + 1), leave=False):
+            for step in range(order, steps + 1):
                 t = timesteps[step]
                 # We only use lower order for steps < 10
                 # if lower_order_final and steps < 10:
@@ -1253,6 +1255,8 @@ class DPM_Solver:
                 # We do not need to evaluate the final model value.
                 if step < steps:
                     model_prev_list[-1] = self.model_fn(x, t)
+                pbar.update(1)
+            pbar.close()
         elif method in ["singlestep", "singlestep_fixed"]:
             if method == "singlestep":
                 timesteps_outer, orders = self.get_orders_and_timesteps_for_singlestep_solver(
@@ -1327,9 +1331,9 @@ def expand_dims(v, dims):
     Expand the tensor `v` to the dim `dims`.
 
     Args:
-        `v`: a PyTorch tensor with shape [N].
+        `v`: a mindspore tensor with shape [N].
         `dim`: a `int`.
     Returns:
-        a PyTorch tensor with shape [N, 1, 1, ..., 1] and the total dimension is `dims`.
+        a mindspore tensor with shape [N, 1, 1, ..., 1] and the total dimension is `dims`.
     """
     return v[(...,) + (None,) * (dims - 1)]
