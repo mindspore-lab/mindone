@@ -50,6 +50,7 @@ class NetworkWithLoss(nn.Cell):
         mean, logvar = mint.chunk(x, 2, dim=1)
         logvar = ops.clamp(logvar, -30.0, 20.0)
         std = ops.exp(0.5 * logvar)
+        # FIXME: randn_like
         sample = mint.normal(size=x.shape).to(x.dtype)
         x = mean + std * sample
 
