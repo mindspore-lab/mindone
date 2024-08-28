@@ -283,11 +283,12 @@ def main(args):
     )
 
     # 5.2 optimizer
+    optim = "adamw_re" if args.optim == "adamw" else args.optim
     eps = args.adamw_eps if args.optim == "adamw" else args.came_eps
     betas = None if args.optim == "adamw" else args.came_betas
     optimizer = create_optimizer(
         latent_diffusion_with_loss.trainable_params(),
-        name=args.optim,
+        name=optim,
         lr=lr,
         weight_decay=args.weight_decay,
         betas=betas,
