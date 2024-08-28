@@ -214,7 +214,9 @@ def main(args):
                 dtype=model_dtype,
                 custom_fp32_cells=custom_fp32_cells,
             )
-            logger.info(f"Set mixed precision to O2 with dtype={args.precision}")
+            logger.info(
+                f"Set mixed precision to {args.amp_level} with dtype={args.precision}, custom fp32_cells {custom_fp32_cells}"
+            )
         else:
             logger.info(f"Using global bf16 for transformer model. Force model dtype from {model_dtype} to ms.bfloat16")
             model_dtype = ms.bfloat16

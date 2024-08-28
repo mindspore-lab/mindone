@@ -99,7 +99,9 @@ def main(args):
         dtype = get_precision(args.precision)
         custom_fp32_cells = [nn.GroupNorm] if dtype == ms.float16 else [nn.AvgPool2d, TrilinearInterpolate]
         vae = auto_mixed_precision(vae, amp_level, dtype, custom_fp32_cells=custom_fp32_cells)
-        logger.info(f"Set mixed precision to O2 with dtype={args.precision}")
+        logger.info(
+            f"Set mixed precision to {amp_level} with dtype={args.precision}, custom fp32_cells {custom_fp32_cells}"
+        )
     elif args.precision == "fp32":
         amp_level = "O0"
     else:
