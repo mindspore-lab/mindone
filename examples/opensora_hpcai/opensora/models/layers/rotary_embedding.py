@@ -14,12 +14,14 @@ import numpy as np
 import mindspore as ms
 from mindspore import Parameter, Tensor, dtype, mint, nn, ops
 
+from mindspore.ops.function.array_func import chunk_ext as chunk
+
 from .operation_selector import get_repeat_interleave_op
 
 
 def rotate_half(x: Tensor) -> Tensor:
     x = x.reshape(x.shape[:-1] + (-1, 2))  # ... (d r) -> ... d r, r = 2
-    x1, x2 = mint.chunk(x, 2, -1)
+    x1, x2 = chunk(x, 2, -1)
     x = ops.concat((-x2, x1), axis=-1)
     return x.reshape(x.shape[:-2] + (-1,))  # '... d r -> ... (d r)'
 
