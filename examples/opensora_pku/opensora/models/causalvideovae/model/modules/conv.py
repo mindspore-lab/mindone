@@ -4,7 +4,7 @@ from typing import Tuple, Union
 import numpy as np
 
 import mindspore as ms
-from mindspore import nn, ops
+from mindspore import mint, nn, ops
 
 _logger = logging.getLogger(__name__)
 
@@ -147,7 +147,8 @@ class CausalConv3d(nn.Cell):
         # first_frame_pad = ops.repeat_interleave(first_frame, (self.time_kernel_size - 1), axis=2)
         if self.time_kernel_size - 1 > 0:
             first_frame = x[:, :, :1, :, :]
-            first_frame_pad = ops.cat([first_frame] * (self.time_kernel_size - 1), axis=2)
+            # first_frame_pad = ops.cat([first_frame] * (self.time_kernel_size - 1), axis=2)
+            first_frame_pad = mint.repeat_interleave([first_frame], self.time_kernel_size - 1, 2)
             x = ops.concat((first_frame_pad, x), axis=2)
 
         return self.conv(x)

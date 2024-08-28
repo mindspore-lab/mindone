@@ -141,6 +141,8 @@ class T2V_dataset:
         self.v_decoder = DecordInit()
         self.filter_nonexistent = filter_nonexistent
         self.return_text_emb = return_text_emb
+        if self.return_text_emb and self.cfg > 0:
+            logger.warning(f"random text drop ratio {self.cfg} will be ignored when text embeddings are cached.")
         self.duration_threshold = 100.0
 
         self.support_Chinese = True

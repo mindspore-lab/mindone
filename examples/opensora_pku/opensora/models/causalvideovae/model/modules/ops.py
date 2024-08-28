@@ -4,12 +4,12 @@ from mindspore import nn
 
 def nonlinearity(x, upcast=False):
     # swish
-    # ori_dtype = x.dtype
+    ori_dtype = x.dtype
     # if upcast:
     #     return x * (ops.sigmoid(x.astype(ms.float32))).astype(ori_dtype)
     # else:
     #     return x * (ops.sigmoid(x))
-    return nn.SiLU()(x.astype(ms.float32) if upcast else x)
+    return nn.SiLU()(x.astype(ms.float32) if upcast else x).to(ori_dtype)
 
 
 def divisible_by(num, den):
