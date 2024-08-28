@@ -1,5 +1,7 @@
+from functools import partial
 from typing import List, Literal, Optional, Tuple, Union
 
+from pixart.diffusion.dpm import DPMS
 from pixart.diffusion.iddpm import create_diffusion
 from pixart.modules.pixart import PixArt
 from transformers import AutoTokenizer
@@ -39,7 +41,9 @@ class PixArtInferPipeline:
         self.text_encoder = text_encoder
         self.text_tokenizer = text_tokenizer
         self.scale_factor = scale_factor
-        self.guidance_scale = guidance_scale
+        self.guidance_scale = Tensor(guidance_scale, dtype=ms.float32)
+        self.sampling_method = sampling_method
+        self.num_inference_steps = num_inference_steps
 
         if sampling_method == "iddpm":
             self.diffusion = create_diffusion(str(num_inference_steps))
@@ -48,7 +52,7 @@ class PixArtInferPipeline:
             self.diffusion = create_diffusion(str(num_inference_steps))
             self.sampling_func = self.diffusion.ddim_sample_loop
         else:
-            self.diffusion = create_diffusion()
+            self.diffusion = partial(DPMS, model=self.network.construct_with_dpmsolver)
             self.sampling_func = None
 
         if force_freeze:
@@ -90,33 +94,62 @@ class PixArtInferPipeline:
         self, noise: Tensor, y: Union[str, List[str]], y_null: Optional[Union[str, List[str]]] = None
     ) -> Tuple[Tensor, Tensor, Tensor]:
         x = noise
-        y_null = "" if isinstance(y, str) else [""] * len(y)
+        if y_null is None:
+            y_null = "" if isinstance(y, str) else [""] * len(y)
 
         y, mask_y = self.get_condition_embeddings(y)
-        y_null, mask_y_null = self.get_condition_embeddings(y_null)
+        y_null, _ = self.get_condition_embeddings(y_null)
 
-        if y.shape[0] == 1 and y_null.shape[0] == 1:
+        # handle the case of str y
+        if y.shape[0] == 1 and y_null.shape[0] == 1 and noise.shape[0] != 1:
             N = x.shape[0]
             y = ops.tile(y, (N, 1, 1))
-            mask_y = ops.tile(mask_y, (N, 1))
+            mask_y = ops.tile(mask_y, (2 * N, 1))
             y_null = ops.tile(y_null, (N, 1, 1))
-            mask_y_null = ops.tile(mask_y_null, (N, 1))
 
         y = ops.concat([y, y_null], axis=0)
-        mask_y = ops.concat([mask_y, mask_y_null], axis=0)
+        mask_y = ops.tile(mask_y, (2, 1))
         x_in = ops.tile(x, (2, 1, 1, 1))
         assert y.shape[0] == x_in.shape[0], "shape mismatch!"
         return x_in, y, mask_y
 
+    def data_prepare_dpm(
+        self, noise: Tensor, y: Union[str, List[str]], y_null: Optional[Union[str, List[str]]] = None
+    ) -> Tuple[Tensor, Tensor, Tensor, Tensor]:
+        x = noise
+        if y_null is None:
+            y_null = "" if isinstance(y, str) else [""] * len(y)
+
+        y, mask_y = self.get_condition_embeddings(y)
+        y_null, _ = self.get_condition_embeddings(y_null)
+        mask_y = ops.tile(mask_y, (2, 1))
+
+        return x, y, y_null, mask_y
+
     def __call__(
         self, noise: Tensor, y: Union[str, List[str]], y_null: Optional[Union[str, List[str]]] = None
     ) -> Tensor:
-        z, y, mask_y = self.data_prepare(noise, y, y_null)
-        model_kwargs = dict(y=y, mask_y=mask_y, cfg_scale=Tensor(self.guidance_scale, dtype=ms.float32))
-        latents = self.sampling_func(
-            self.network.construct_with_cfg, z.shape, z, clip_denoised=False, model_kwargs=model_kwargs, progress=True
-        )
-        latents, _ = mint.chunk(latents, 2, dim=0)
+        if self.sampling_method in ["iddpm", "ddim"]:
+            z, y, mask_y = self.data_prepare(noise, y, y_null)
+            model_kwargs = dict(y=y, mask_y=mask_y, cfg_scale=self.guidance_scale)
+
+            latents = self.sampling_func(
+                self.network.construct_with_cfg,
+                z.shape,
+                z,
+                clip_denoised=False,
+                model_kwargs=model_kwargs,
+                progress=True,
+            )
+            latents, _ = mint.chunk(latents, 2, dim=0)
+        else:
+            z, y, y_null, mask_y = self.data_prepare_dpm(noise, y, y_null)
+            dpm_solver = self.diffusion(
+                condition=y, uncondition=y_null, cfg_scale=self.guidance_scale, model_kwargs=dict(mask_y=mask_y)
+            )
+            latents = dpm_solver.sample(
+                z, steps=self.num_inference_steps, order=2, skip_type="time_uniform", method="multistep"
+            )
         assert latents.dim() == 4, f"Expect to have 4-dim latents, but got {latents.shape}"
 
         images = self.vae_decode(latents.to(self.vae.dtype))

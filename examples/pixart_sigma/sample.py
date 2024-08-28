@@ -194,7 +194,7 @@ def main(args):
     # 2.3 T5
     logger.info("text encoder init")
     text_tokenizer = AutoTokenizer.from_pretrained(args.tokenizer_root, model_max_length=args.t5_max_length)
-    text_encoder = T5EncoderModel.from_pretrained(args.text_encoder_root)
+    text_encoder = T5EncoderModel.from_pretrained(args.text_encoder_root, mindspore_dtype=model_dtype)
 
     # 3. build inference pipeline
     pipeline = PixArtInferPipeline(
@@ -221,7 +221,7 @@ def main(args):
             f"Num params: {num_params:,} (network: {num_params_network:,}, vae: {num_params_vae:,}, text_encoder: {num_params_text_encoder:,})",
             f"Use network dtype: {model_dtype}",
             f"Sampling method: {args.sampling_method}",
-            f"Sampling steps {args.sampling_steps}",
+            f"Sampling steps: {args.sampling_steps}",
             f"CFG guidance scale: {args.guidance_scale}",
         ]
     )

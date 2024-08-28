@@ -33,7 +33,7 @@ warmup_steps: 1000
 # visualization
 visualize: True
 visualize_interval: 5
-sampling_method: "ddim"
+sampling_method: "dpm"
 sampling_steps: 50
 guidance_scale: 4.5
 validation_prompts:

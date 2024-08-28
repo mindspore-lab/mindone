@@ -16,7 +16,7 @@ def DPMS(
     model_kwargs={},
     diffusion_steps=1000,
 ):
-    betas = Tensor(get_named_beta_schedule(noise_schedule, diffusion_steps), dtype=ms.float32)
+    betas = get_named_beta_schedule(noise_schedule, diffusion_steps)
 
     # 1. Define the noise schedule.
     noise_schedule = NoiseScheduleVP(schedule="discrete", betas=betas)

@@ -9,7 +9,6 @@ import tqdm
 from PIL import Image
 from pixart.pipelines import PixArtInferPipeline
 
-import mindspore as ms
 import mindspore.ops as ops
 from mindspore import Parameter, ParameterTuple, RunContext, Tensor
 from mindspore.train import Callback
@@ -175,7 +174,9 @@ class Visualizer(Callback):
         # prepare the noise, keep it is same during whole training.
         # To save memory, inference one image at each time.
         self.visualize_dir = os.path.join(visualize_dir, f"rank_{rank_id}")
-        self.noise = Tensor(np.random.default_rng(rank_id).normal((1, 4, sample_size, sample_size)), dtype=ms.float32)
+        self.noise = Tensor(
+            np.random.default_rng(rank_id).standard_normal((1, 4, sample_size, sample_size), dtype=np.float32)
+        )
 
         if not os.path.isdir(self.visualize_dir):
             os.makedirs(self.visualize_dir)

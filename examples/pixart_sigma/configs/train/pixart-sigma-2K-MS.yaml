@@ -33,8 +33,8 @@ warmup_steps: 1000
 # visualization
 visualize: True
 visualize_interval: 5
-sampling_method: "ddim"
-sampling_steps: 50
+sampling_method: "dpm"
+sampling_steps: 20
 guidance_scale: 4.5
 validation_prompts:
   - "portrait photo of a girl, photograph, highly detailed face, depth of field"

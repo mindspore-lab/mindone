@@ -1,3 +1,6 @@
+from typing import List, Optional
+
+import numpy as np
 from tqdm import tqdm
 
 import mindspore as ms
@@ -9,11 +12,11 @@ from mindspore import Tensor
 class NoiseScheduleVP:
     def __init__(
         self,
-        schedule="discrete",
-        betas=None,
-        alphas_cumprod=None,
-        continuous_beta_0=0.1,
-        continuous_beta_1=20.0,
+        schedule: str = "discrete",
+        betas: Optional[np.ndarray] = None,
+        alphas_cumprod: Optional[np.ndarray] = None,
+        continuous_beta_0: float = 0.1,
+        continuous_beta_1: float = 20.0,
     ):
         if schedule not in ["discrete", "linear"]:
             raise ValueError(
@@ -23,39 +26,34 @@ class NoiseScheduleVP:
         self.schedule = schedule
         if schedule == "discrete":
             if betas is not None:
-                log_alphas = 0.5 * ops.log(1 - betas).cumsum(axis=0)
+                log_alphas = 0.5 * np.log(1 - betas).cumsum(axis=0)
             else:
                 assert alphas_cumprod is not None
-                log_alphas = 0.5 * ops.log(alphas_cumprod)
+                log_alphas = 0.5 * np.log(alphas_cumprod)
             self.T = 1.0
-            self.log_alpha_array = self.numerical_clip_alpha(log_alphas).reshape(
-                (
-                    1,
-                    -1,
-                )
-            )
+            self.log_alpha_array = self.numerical_clip_alpha(log_alphas).reshape((1, -1))
             self.total_N = self.log_alpha_array.shape[1]
-            self.t_array = ops.linspace(0.0, 1.0, self.total_N + 1)[1:].reshape((1, -1))
+            self.t_array = np.linspace(0.0, 1.0, self.total_N + 1)[1:].reshape((1, -1))
         else:
             self.T = 1.0
             self.total_N = 1000
             self.beta_0 = continuous_beta_0
             self.beta_1 = continuous_beta_1
 
-    def numerical_clip_alpha(self, log_alphas, clipped_lambda=-5.1):
+    def numerical_clip_alpha(self, log_alphas: np.ndarray, clipped_lambda: float = -5.1) -> np.ndarray:
         """
         For some beta schedules such as cosine schedule, the log-SNR has numerical isssues.
         We clip the log-SNR near t=T within -5.1 to ensure the stability.
         Such a trick is very useful for diffusion models with the cosine schedule, such as i-DDPM, guided-diffusion and GLIDE.
         """
-        log_sigmas = 0.5 * ops.log(1.0 - ops.exp(2.0 * log_alphas))
+        log_sigmas = 0.5 * np.log(1.0 - np.exp(2.0 * log_alphas))
         lambs = log_alphas - log_sigmas
-        idx = ops.searchsorted(ops.flip(lambs, [0]), clipped_lambda)
+        idx = np.searchsorted(np.flip(lambs, [0]), clipped_lambda)
         if idx > 0:
             log_alphas = log_alphas[:-idx]
         return log_alphas
 
-    def marginal_log_mean_coeff(self, t):
+    def marginal_log_mean_coeff(self, t: np.ndarray) -> np.ndarray:
         """
         Compute log(alpha_t) of a given continuous-time label t in [0, T].
         """
@@ -64,38 +62,38 @@ class NoiseScheduleVP:
         elif self.schedule == "linear":
             return -0.25 * t**2 * (self.beta_1 - self.beta_0) - 0.5 * t * self.beta_0
 
-    def marginal_alpha(self, t):
+    def marginal_alpha(self, t: np.ndarray) -> np.ndarray:
         """
         Compute alpha_t of a given continuous-time label t in [0, T].
         """
-        return ops.exp(self.marginal_log_mean_coeff(t))
+        return np.exp(self.marginal_log_mean_coeff(t))
 
-    def marginal_std(self, t):
+    def marginal_std(self, t: np.ndarray) -> np.ndarray:
         """
         Compute sigma_t of a given continuous-time label t in [0, T].
         """
-        return ops.sqrt(1.0 - ops.exp(2.0 * self.marginal_log_mean_coeff(t)))
+        return np.sqrt(1.0 - np.exp(2.0 * self.marginal_log_mean_coeff(t)))
 
-    def marginal_lambda(self, t):
+    def marginal_lambda(self, t: np.ndarray) -> np.ndarray:
         """
         Compute lambda_t = log(alpha_t) - log(sigma_t) of a given continuous-time label t in [0, T].
         """
         log_mean_coeff = self.marginal_log_mean_coeff(t)
-        log_std = 0.5 * ops.log(1.0 - ops.exp(2.0 * log_mean_coeff))
+        log_std = 0.5 * np.log(1.0 - np.exp(2.0 * log_mean_coeff))
         return log_mean_coeff - log_std
 
-    def inverse_lambda(self, lamb):
+    def inverse_lambda(self, lamb: np.ndarray) -> np.ndarray:
         """
         Compute the continuous-time label t in [0, T] of a given half-logSNR lambda_t.
         """
         if self.schedule == "linear":
-            tmp = 2.0 * (self.beta_1 - self.beta_0) * ops.logaddexp(-2.0 * lamb, ops.zeros((1,)))
+            tmp = 2.0 * (self.beta_1 - self.beta_0) * np.logaddexp(-2.0 * lamb, np.zeros((1,)))
             Delta = self.beta_0**2 + tmp
-            return tmp / (ops.sqrt(Delta) + self.beta_0) / (self.beta_1 - self.beta_0)
+            return tmp / (np.sqrt(Delta) + self.beta_0) / (self.beta_1 - self.beta_0)
         elif self.schedule == "discrete":
-            log_alpha = -0.5 * ops.logaddexp(ops.zeros((1,)), -2.0 * lamb)
+            log_alpha = -0.5 * np.logaddexp(np.zeros((1,)), -2.0 * lamb)
             t = interpolate_fn(
-                log_alpha.reshape((-1, 1)), ops.flip(self.log_alpha_array, [1]), ops.flip(self.t_array, [1])
+                log_alpha.reshape((-1, 1)), np.flip(self.log_alpha_array, [1]), np.flip(self.t_array, [1])
             )
             return t.reshape((-1,))
 
@@ -331,7 +329,7 @@ class DPM_Solver:
             Burcu Karagol Ayan, S Sara Mahdavi, Rapha Gontijo Lopes, et al. Photorealistic text-to-image diffusion models
             with deep language understanding. arXiv preprint arXiv:2205.11487, 2022b.
         """
-        self.model = lambda x, t: model_fn(x, t.expand((x.shape[0])))
+        self.model = lambda x, t: model_fn(x, t.expand((x.shape[0],)))
         self.noise_schedule = noise_schedule
         assert algorithm_type in ["dpmsolver", "dpmsolver++"]
         self.algorithm_type = algorithm_type
@@ -354,24 +352,26 @@ class DPM_Solver:
         x0 = ops.clamp(x0, -s, s) / s
         return x0
 
-    def noise_prediction_fn(self, x, t):
+    def noise_prediction_fn(self, x: Tensor, t: Tensor) -> Tensor:
         """
         Return the noise prediction model.
         """
         return self.model(x, t)
 
-    def data_prediction_fn(self, x, t):
+    def data_prediction_fn(self, x: Tensor, t: Tensor) -> Tensor:
         """
         Return the data prediction model (with corrector).
         """
+        t_np = t.asnumpy()
         noise = self.noise_prediction_fn(x, t)
-        alpha_t, sigma_t = self.noise_schedule.marginal_alpha(t), self.noise_schedule.marginal_std(t)
+        alpha_t, sigma_t = self.noise_schedule.marginal_alpha(t_np), self.noise_schedule.marginal_std(t_np)
+        alpha_t, sigma_t = Tensor(alpha_t), Tensor(sigma_t)
         x0 = (x - sigma_t * noise) / alpha_t
         if self.correcting_x0_fn is not None:
             x0 = self.correcting_x0_fn(x0, t)
         return x0
 
-    def model_fn(self, x, t):
+    def model_fn(self, x: Tensor, t: Tensor) -> Tensor:
         """
         Convert the model to the noise prediction model or the data prediction model.
         """
@@ -504,41 +504,31 @@ class DPM_Solver:
         """
         return self.data_prediction_fn(x, s)
 
-    def dpm_solver_first_update(self, x, s, t, model_s=None, return_intermediate=False):
-        """
-        DPM-Solver-1 (equivalent to DDIM) from time `s` to time `t`.
-
-        Args:
-            x: A pytorch tensor. The initial value at time `s`.
-            s: A pytorch tensor. The starting time, with the shape (1,).
-            t: A pytorch tensor. The ending time, with the shape (1,).
-            model_s: A pytorch tensor. The model function evaluated at time `s`.
-                If `model_s` is None, we evaluate the model by `x` and `s`; otherwise we directly use it.
-            return_intermediate: A `bool`. If true, also return the model value at time `s`.
-        Returns:
-            x_t: A pytorch tensor. The approximated solution at time `t`.
-        """
+    def dpm_solver_first_update(
+        self, x: Tensor, s: Tensor, t: Tensor, model_s: Optional[Tensor] = None, return_intermediate: bool = False
+    ):
+        s_np, t_np = s.asnumpy(), t.asnumpy()
         ns = self.noise_schedule
-        lambda_s, lambda_t = ns.marginal_lambda(s), ns.marginal_lambda(t)
+        lambda_s, lambda_t = ns.marginal_lambda(s_np), ns.marginal_lambda(t_np)
         h = lambda_t - lambda_s
-        log_alpha_s, log_alpha_t = ns.marginal_log_mean_coeff(s), ns.marginal_log_mean_coeff(t)
-        sigma_s, sigma_t = ns.marginal_std(s), ns.marginal_std(t)
-        alpha_t = ops.exp(log_alpha_t)
+        log_alpha_s, log_alpha_t = ns.marginal_log_mean_coeff(s_np), ns.marginal_log_mean_coeff(t_np)
+        sigma_s, sigma_t = ns.marginal_std(s_np), ns.marginal_std(t_np)
+        alpha_t = np.exp(log_alpha_t)
 
         if self.algorithm_type == "dpmsolver++":
-            phi_1 = ops.expm1(-h)
+            phi_1 = np.expm1(-h)
             if model_s is None:
                 model_s = self.model_fn(x, s)
-            x_t = sigma_t / sigma_s * x - alpha_t * phi_1 * model_s
+            x_t = Tensor(sigma_t / sigma_s) * x - Tensor(alpha_t * phi_1) * model_s
             if return_intermediate:
                 return x_t, {"model_s": model_s}
             else:
                 return x_t
         else:
-            phi_1 = ops.expm1(h)
+            phi_1 = np.expm1(h)
             if model_s is None:
                 model_s = self.model_fn(x, s)
-            x_t = ops.exp(log_alpha_t - log_alpha_s) * x - (sigma_t * phi_1) * model_s
+            x_t = Tensor(np.exp(log_alpha_t - log_alpha_s)) * x - Tensor(sigma_t * phi_1) * model_s
             if return_intermediate:
                 return x_t, {"model_s": model_s}
             else:
@@ -761,7 +751,14 @@ class DPM_Solver:
         else:
             return x_t
 
-    def multistep_dpm_solver_second_update(self, x, model_prev_list, t_prev_list, t, solver_type="dpmsolver"):
+    def multistep_dpm_solver_second_update(
+        self,
+        x: Tensor,
+        model_prev_list: List[Tensor],
+        t_prev_list: List[Tensor],
+        t: Tensor,
+        solver_type: str = "dpmsolver",
+    ):
         """
         Multistep solver DPM-Solver-2 from time `t_prev_list[-1]` to time `t`.
 
@@ -780,42 +777,48 @@ class DPM_Solver:
         ns = self.noise_schedule
         model_prev_1, model_prev_0 = model_prev_list[-2], model_prev_list[-1]
         t_prev_1, t_prev_0 = t_prev_list[-2], t_prev_list[-1]
+        t_prev_1_np, t_prev_0_np, t_np = t_prev_1.asnumpy(), t_prev_0.asnumpy(), t.asnumpy()
+
         lambda_prev_1, lambda_prev_0, lambda_t = (
-            ns.marginal_lambda(t_prev_1),
-            ns.marginal_lambda(t_prev_0),
-            ns.marginal_lambda(t),
+            ns.marginal_lambda(t_prev_1_np),
+            ns.marginal_lambda(t_prev_0_np),
+            ns.marginal_lambda(t_np),
         )
-        log_alpha_prev_0, log_alpha_t = ns.marginal_log_mean_coeff(t_prev_0), ns.marginal_log_mean_coeff(t)
-        sigma_prev_0, sigma_t = ns.marginal_std(t_prev_0), ns.marginal_std(t)
-        alpha_t = ops.exp(log_alpha_t)
+        log_alpha_prev_0, log_alpha_t = ns.marginal_log_mean_coeff(t_prev_0_np), ns.marginal_log_mean_coeff(t_np)
+        sigma_prev_0, sigma_t = ns.marginal_std(t_prev_0_np), ns.marginal_std(t_np)
+        alpha_t = np.exp(log_alpha_t)
 
         h_0 = lambda_prev_0 - lambda_prev_1
         h = lambda_t - lambda_prev_0
         r0 = h_0 / h
-        D1_0 = (1.0 / r0) * (model_prev_0 - model_prev_1)
+        D1_0 = Tensor(1.0 / r0) * (model_prev_0 - model_prev_1)
         if self.algorithm_type == "dpmsolver++":
-            phi_1 = ops.expm1(-h)
+            phi_1 = np.expm1(-h)
             if solver_type == "dpmsolver":
-                x_t = (sigma_t / sigma_prev_0) * x - (alpha_t * phi_1) * model_prev_0 - 0.5 * (alpha_t * phi_1) * D1_0
+                x_t = (
+                    Tensor(sigma_t / sigma_prev_0) * x
+                    - Tensor(alpha_t * phi_1) * model_prev_0
+                    - Tensor(0.5 * (alpha_t * phi_1)) * D1_0
+                )
             elif solver_type == "taylor":
                 x_t = (
-                    (sigma_t / sigma_prev_0) * x
-                    - (alpha_t * phi_1) * model_prev_0
-                    + (alpha_t * (phi_1 / h + 1.0)) * D1_0
+                    Tensor(sigma_t / sigma_prev_0) * x
+                    - Tensor(alpha_t * phi_1) * model_prev_0
+                    + Tensor((alpha_t * (phi_1 / h + 1.0))) * D1_0
                 )
         else:
-            phi_1 = ops.expm1(h)
+            phi_1 = np.expm1(h)
             if solver_type == "dpmsolver":
                 x_t = (
-                    (ops.exp(log_alpha_t - log_alpha_prev_0)) * x
-                    - (sigma_t * phi_1) * model_prev_0
-                    - 0.5 * (sigma_t * phi_1) * D1_0
+                    Tensor(np.exp(log_alpha_t - log_alpha_prev_0)) * x
+                    - Tensor(sigma_t * phi_1) * model_prev_0
+                    - Tensor(0.5 * (sigma_t * phi_1)) * D1_0
                 )
             elif solver_type == "taylor":
                 x_t = (
-                    (ops.exp(log_alpha_t - log_alpha_prev_0)) * x
-                    - (sigma_t * phi_1) * model_prev_0
-                    - (sigma_t * (phi_1 / h - 1.0)) * D1_0
+                    Tensor(np.exp(log_alpha_t - log_alpha_prev_0)) * x
+                    - Tensor(sigma_t * phi_1) * model_prev_0
+                    - Tensor((sigma_t * (phi_1 / h - 1.0))) * D1_0
                 )
         return x_t
 
@@ -1228,7 +1231,7 @@ class DPM_Solver:
                 t_prev_list.append(t)
                 model_prev_list.append(self.model_fn(x, t))
             # Compute the remaining values by `order`-th order multistep DPM-Solver.
-            for step in tqdm(range(order, steps + 1)):
+            for step in tqdm(range(order, steps + 1), leave=False):
                 t = timesteps[step]
                 # We only use lower order for steps < 10
                 # if lower_order_final and steps < 10:
@@ -1297,48 +1300,24 @@ class DPM_Solver:
 #############################################################
 
 
-def interpolate_fn(x, xp, yp):
-    """
-    A piecewise linear function y = f(x), using xp and yp as keypoints.
-    We implement f(x) in a differentiable way (i.e. applicable for autograd).
-    The function f(x) is well-defined for all x-axis. (For x beyond the bounds of xp, we use the outmost points of xp to define the linear function.)
-
-    Args:
-        x: PyTorch tensor with shape [N, C], where N is the batch size, C is the number of channels (we use C = 1 for DPM-Solver).
-        xp: PyTorch tensor with shape [C, K], where K is the number of keypoints.
-        yp: PyTorch tensor with shape [C, K].
-    Returns:
-        The function values f(x), with shape [N, C].
-    """
+def interpolate_fn(x: np.ndarray, xp: np.ndarray, yp: np.ndarray) -> np.ndarray:
+    assert isinstance(x, np.ndarray)
+    assert isinstance(xp, np.ndarray)
+    assert isinstance(yp, np.ndarray)
     N, K = x.shape[0], xp.shape[1]
-    all_x = ops.cat([x.unsqueeze(2), xp.unsqueeze(0).repeat((N, 1, 1))], dim=2)
-    sorted_all_x, x_indices = ops.sort(all_x, dim=2)
-    x_idx = ops.argmin(x_indices, dim=2)
+    all_x = np.concatenate([np.expand_dims(x, 2), np.tile(np.expand_dims(xp, 0), (N, 1, 1))], axis=2)
+    x_indices = np.argsort(all_x, axis=2)
+    sorted_all_x = np.sort(all_x, axis=2)
+    x_idx = np.argmin(x_indices, axis=2)
     cand_start_idx = x_idx - 1
-    start_idx = ops.where(
-        ops.eq(x_idx, 0),
-        Tensor(1),
-        ops.where(
-            ops.eq(x_idx, K),
-            Tensor(K - 2),
-            cand_start_idx,
-        ),
-    )
-    end_idx = ops.where(ops.eq(start_idx, cand_start_idx), start_idx + 2, start_idx + 1)
-    start_x = ops.gather(sorted_all_x, dim=2, index=start_idx.unsqueeze(2)).squeeze(2)
-    end_x = ops.gather(sorted_all_x, dim=2, index=end_idx.unsqueeze(2)).squeeze(2)
-    start_idx2 = ops.where(
-        ops.eq(x_idx, 0),
-        Tensor(0),
-        ops.where(
-            ops.eq(x_idx, K),
-            Tensor(K - 2),
-            cand_start_idx,
-        ),
-    )
-    y_positions_expanded = yp.unsqueeze(0).expand(N, -1, -1)
-    start_y = ops.gather(y_positions_expanded, dim=2, index=start_idx2.unsqueeze(2)).squeeze(2)
-    end_y = ops.gather(y_positions_expanded, dim=2, index=(start_idx2 + 1).unsqueeze(2)).squeeze(2)
+    start_idx = np.where(np.equal(x_idx, 0), 1, np.where(np.equal(x_idx, K), K - 2, cand_start_idx))
+    end_idx = np.where(np.equal(start_idx, cand_start_idx), start_idx + 2, start_idx + 1)
+    start_x = np.take_along_axis(sorted_all_x, axis=2, indices=np.expand_dims(start_idx, 2)).squeeze(2)
+    end_x = np.take_along_axis(sorted_all_x, axis=2, indices=np.expand_dims(end_idx, 2)).squeeze(2)
+    start_idx2 = np.where(np.equal(x_idx, 0), 0, np.where(np.equal(x_idx, K), K - 2, cand_start_idx))
+    y_positions_expanded = np.tile(np.expand_dims(yp, 0), (N, 1, 1))
+    start_y = np.take_along_axis(y_positions_expanded, axis=2, indices=np.expand_dims(start_idx2, 2)).squeeze(2)
+    end_y = np.take_along_axis(y_positions_expanded, axis=2, indices=np.expand_dims(start_idx2 + 1, 2)).squeeze(2)
     cand = start_y + (x - start_x) * (end_y - start_y) / (end_x - start_x)
     return cand
 
