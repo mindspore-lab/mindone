@@ -34,20 +34,22 @@ class PositionGetter3D(object):
 
 
 class RoPE3D(nn.Cell):
-    def __init__(self, freq=10000.0, F0=1.0, interpolation_scale_thw=(1, 1, 1)):
+    def __init__(self, freq=10000.0, F0=1.0, interpolation_scale_thw=(1, 1, 1), dim_head=64):
         super().__init__()
         self.base = freq
         self.F0 = F0
         self.interpolation_scale_t = interpolation_scale_thw[0]
         self.interpolation_scale_h = interpolation_scale_thw[1]
         self.interpolation_scale_w = interpolation_scale_thw[2]
+        self.dim_head = dim_head
+        assert self.dim_head % 3, "number of head dimensions should be a multiple of three"
+        D = self.dim_head.shape[3] // 3
+        self.inv_freq = 1.0 / (self.base ** (ops.arange(0, D, 2).float() / D))
         # self.cache = {}
 
-    def get_cos_sin(self, D, seq_len, dtype, interpolation_scale=1):
-        # if (D, seq_len, dtype) not in self.cache:
-        inv_freq = 1.0 / (self.base ** (ops.arange(0, D, 2).float() / D))
-        t = ops.arange(seq_len, dtype=inv_freq.dtype) / interpolation_scale
-        freqs = ms.numpy.outer(t, inv_freq).to(dtype)
+    def get_cos_sin(self, seq_len, interpolation_scale=1):
+        t = ops.arange(seq_len, dtype=self.inv_freq.dtype) / interpolation_scale
+        freqs = ops.outer(t, self.inv_freq).to(self.inv_freq.dtype)
         freqs = ops.cat((freqs, freqs), axis=-1)
         cos = freqs.cos()  # (Seq, Dim)
         sin = freqs.sin()
@@ -80,17 +82,17 @@ class RoPE3D(nn.Cell):
             * tokens after appplying RoPE3D (batch_size x ntokens x nheads x dim)
         """
         assert tokens.shape[3] % 3 == 0, "number of dimensions should be a multiple of three"
-        D = tokens.shape[3] // 3
+
         poses, max_poses = positions
         assert len(poses) == 3 and poses[0].ndim == 2  # Batch, Seq, 3
-        cos_t, sin_t = self.get_cos_sin(D, max_poses[0] + 1, tokens.dtype, self.interpolation_scale_t)
-        cos_y, sin_y = self.get_cos_sin(D, max_poses[1] + 1, tokens.dtype, self.interpolation_scale_h)
-        cos_x, sin_x = self.get_cos_sin(D, max_poses[2] + 1, tokens.dtype, self.interpolation_scale_w)
+        cos_t, sin_t = self.get_cos_sin(max_poses[0] + 1, self.interpolation_scale_t)
+        cos_y, sin_y = self.get_cos_sin(max_poses[1] + 1, self.interpolation_scale_h)
+        cos_x, sin_x = self.get_cos_sin(max_poses[2] + 1, self.interpolation_scale_w)
         # split features into three along the feature dimension, and apply rope1d on each half
         # t, y, x = tokens.chunk(3, dim=-1)
         t, y, x = mint.chunk(tokens, 3, dim=-1)
-        t = self.apply_rope1d(t, poses[0], cos_t, sin_t)
-        y = self.apply_rope1d(y, poses[1], cos_y, sin_y)
-        x = self.apply_rope1d(x, poses[2], cos_x, sin_x)
+        t = self.apply_rope1d(t, poses[0], cos_t.to(tokens.dtype), sin_t.to(tokens.dtype))
+        y = self.apply_rope1d(y, poses[1], cos_y.to(tokens.dtype), sin_y.to(tokens.dtype))
+        x = self.apply_rope1d(x, poses[2], cos_x.to(tokens.dtype), sin_x.to(tokens.dtype))
         tokens = ops.cat((t, y, x), axis=-1)
         return tokens

@@ -154,6 +154,7 @@ class Attention(Attention_):
             use_rope=use_rope,
             interpolation_scale_thw=interpolation_scale_thw,
             FA_dtype=FA_dtype,
+            dim_head=kwags["dim_head"],
         )
         kwags["processor"] = processor
         super().__init__(**kwags)
@@ -237,12 +238,17 @@ class AttnProcessor2_0:
     """
 
     def __init__(
-        self, attention_mode="xformers", use_rope=False, interpolation_scale_thw=(1, 1, 1), FA_dtype=ms.bfloat16
+        self,
+        attention_mode="xformers",
+        use_rope=False,
+        interpolation_scale_thw=(1, 1, 1),
+        FA_dtype=ms.bfloat16,
+        dim_head=64,
     ):
         self.use_rope = use_rope
         self.interpolation_scale_thw = interpolation_scale_thw
         if self.use_rope:
-            self._init_rope(interpolation_scale_thw)
+            self._init_rope(interpolation_scale_thw, dim_head=dim_head)
         self.attention_mode = attention_mode
         # Currently we only support setting attention_mode to `flash` or `math`
         assert self.attention_mode in [
@@ -270,8 +276,8 @@ class AttnProcessor2_0:
             self.alltoall_sbh_v = None
             self.alltoall_sbh_out = None
 
-    def _init_rope(self, interpolation_scale_thw):
-        self.rope = RoPE3D(interpolation_scale_thw=interpolation_scale_thw)
+    def _init_rope(self, interpolation_scale_thw, dim_head):
+        self.rope = RoPE3D(interpolation_scale_thw=interpolation_scale_thw, dim_head=dim_head)
         self.position_getter = PositionGetter3D()
 
     def run_ms_flash_attention(
