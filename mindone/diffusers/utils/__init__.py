@@ -21,20 +21,33 @@ from .constants import (
     HUGGINGFACE_CO_RESOLVE_ENDPOINT,
     ONNX_EXTERNAL_WEIGHTS_NAME,
     ONNX_WEIGHTS_NAME,
+    SAFE_WEIGHTS_INDEX_NAME,
     SAFETENSORS_FILE_EXTENSION,
     SAFETENSORS_WEIGHTS_NAME,
+    WEIGHTS_INDEX_NAME,
     WEIGHTS_NAME,
 )
 from .deprecation_utils import deprecate
 from .dynamic_modules_utils import get_class_from_dynamic_module
 from .export_utils import export_to_gif, export_to_obj, export_to_ply, export_to_video
-from .hub_utils import PushToHubMixin, _add_variant, _get_model_file, extract_commit_hash, http_user_agent
+from .hub_utils import (
+    PushToHubMixin,
+    _add_variant,
+    _get_checkpoint_shard_files,
+    _get_model_file,
+    extract_commit_hash,
+    http_user_agent,
+)
 from .import_utils import (
     BACKENDS_MAPPING,
     _LazyModule,
     is_bs4_available,
     is_ftfy_available,
+    is_matplotlib_available,
     is_opencv_available,
+    is_peft_version,
+    is_scipy_available,
+    is_transformers_available,
     maybe_import_module_in_mindone,
 )
 from .loading_utils import load_image
