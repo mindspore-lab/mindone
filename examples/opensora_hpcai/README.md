@@ -786,12 +786,16 @@ A 3D-VAE pipeline consisting of a spatial VAE followed by a temporal VAE is trai
 
 
 ### Data Preprocess
-If you want to train your own VAE, we need to prepare data in the csv following the [data processing](#data-processing) pipeline, then run the following commands.
-Note that you need to adjust the number of trained epochs (`epochs`) in the config file accordingly with respect to your own csv data size.
+Before VAE-3D training, we need to prepare a csv annotation file for the training videos. The csv file list the path to each video related to the root `video_folder`. An example is
+```
+video
+dance/vid001.mp4
+dance/vid002.mp4
+...
+```
 
-Task UCF-101 for example. After downloading the [UCF-101](https://www.crcv.ucf.edu/data/UCF101.php) dataset and extract it to `datasets/UCF-101` folder, we can get the csv annotation by running  `python tools/annotate_vae_ucf101.py`.
+Taking UCF-101 for example, please download the [UCF-101](https://www.crcv.ucf.edu/data/UCF101.php) dataset and extract it to `datasets/UCF-101` folder. You can generate the csv annotation by running  `python tools/annotate_vae_ucf101.py`. It will result in two csv files, `datasets/ucf101_train.csv` and `datasets/ucf101_test.csv`, for training and  testing respectively.
 
-The resulting train/test annotation csv files, which constain the relative video paths for train/test, will be saved as `datasets/ucf101_train.csv` and `datasets/ucf101_test.csv`.
 
 ### Training
 ```bash

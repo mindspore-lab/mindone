@@ -43,7 +43,7 @@ init_loss_scale: 1.
 scheduler: "constant"
 use_ema: False
 
-output_path: "outputs/vae_stage2"
+output_path: "outputs/vae_stage3"
 
 # ms settting
 jit_level: O0
