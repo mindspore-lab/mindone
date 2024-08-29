@@ -12,6 +12,6 @@ dtype: "fp16"
 
 # sampling
 sampling_method: "dpm"
-sampling_steps: 50
+sampling_steps: 20
 guidance_scale: 4.5
 seed: 42

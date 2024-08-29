@@ -8,7 +8,7 @@ PixArt-\Sigma is a Diffusion Transformer model~(DiT) capable of directly generat
 
 - CANN: 8.0
 - Python >= 3.8
-- Mindspore >= 2.3
+- Mindspore >= 2.3.1
 
 ## Getting Start
 
@@ -67,10 +67,10 @@ python sample.py -c configs/inference/pixart-sigma-1024-MS.yaml --image_width 10
 
 | Context       | Scheduler | Steps | Resolution | Batch Size | Speed (step/s) | Config                                                                  |
 |---------------|-----------|-------|------------|------------|----------------|-------------------------------------------------------------------------|
-| D910*x1-MS2.3 | DDIM      | 50    | 256x256    | 1          | 3.10           | [pixart-sigma-256x256.yaml](configs/inference/pixart-sigma-256x256.yaml)    |
-| D910*x1-MS2.3 | DDIM      | 50    | 512x512    | 1          | 2.11           | [pixart-sigma-512-MS.yaml](configs/inference/pixart-sigma-512-MS.yaml)  |
-| D910*x1-MS2.3 | DDIM      | 50    | 1024x1024  | 1          | 1.99           | [pixart-sigma-1024-MS.yaml](configs/inference/pixart-sigma-1024-MS.yaml)|
-| D910*x1-MS2.3 | DDIM      | 50    | 2048x2048  | 1          | 0.45           | [pixart-sigma-2K-MS.yaml](configs/inference/pixart-sigma-2K-MS.yaml)    |
+| D910*x1-MS2.3 | DPM++     | 20    | 256x256    | 1          | 11.4           | [pixart-sigma-256x256.yaml](configs/inference/pixart-sigma-256x256.yaml)    |
+| D910*x1-MS2.3 | DPM++     | 20    | 512x512    | 1          | 10.49          | [pixart-sigma-512-MS.yaml](configs/inference/pixart-sigma-512-MS.yaml)  |
+| D910*x1-MS2.3 | DPM++     | 20    | 1024x1024  | 1          | 4.55           | [pixart-sigma-1024-MS.yaml](configs/inference/pixart-sigma-1024-MS.yaml)|
+| D910*x1-MS2.3 | DPM++     | 20    | 2048x2048  | 1          | 0.55           | [pixart-sigma-2K-MS.yaml](configs/inference/pixart-sigma-2K-MS.yaml)    |
 
 > Context: {Ascend chip}-{number of NPUs}-{mindspore version}.
 > Speed (step/s): sampling speed measured in the number of sampling steps per second.

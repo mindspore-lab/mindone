@@ -20,7 +20,7 @@ weight_decay: 0.0
 loss_scaler_type: "dynamic"
 init_loss_scale: 65536.0
 gradient_accumulation_steps: 1
-clip_grad: False
+clip_grad: True
 max_grad_norm: 0.01
 ckpt_save_interval: 5
 log_loss_interval: 1
@@ -32,7 +32,7 @@ warmup_steps: 1000
 
 # visualization
 visualize: True
-visualize_interval: 5
+visualize_interval: 1
 sampling_method: "dpm"
 sampling_steps: 20
 guidance_scale: 4.5
