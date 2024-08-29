@@ -1,5 +1,6 @@
 import itertools
 
+import numpy as np
 from opensora.acceleration.parallel_states import get_sequence_parallel_state
 
 import mindspore as ms
@@ -46,7 +47,7 @@ class RoPE3D(nn.Cell):
             self.dim_head % 3 == 0
         ), f"number of head dimensions should be a multiple of three, but got {self.dim_head}"
         D = self.dim_head // 3
-        self.inv_freq = 1.0 / (self.base ** (ops.arange(0, D, 2).float() / D))
+        self.inv_freq = ms.Tensor(1.0 / (self.base ** (np.arange(0, D, 2, dtype=np.float64) / D)), dtype=ms.float32)
         # self.cache = {}
 
     def get_cos_sin(self, seq_len, interpolation_scale=1):
