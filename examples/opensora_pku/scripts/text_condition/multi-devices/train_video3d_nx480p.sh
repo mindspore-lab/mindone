@@ -1,6 +1,6 @@
 export DEVICE_ID=0
 NUM_FRAME=29
-python  opensora/train/train_t2v_diffusers.py \
+msrun --bind_core=True --worker_num=8 --local_worker_num=8 --master_port=9000 --log_dir=parallel_logs  opensora/train/train_t2v_diffusers.py \
     --model OpenSoraT2V-ROPE-L/122 \
     --text_encoder_name google/mt5-xxl \
     --cache_dir "./" \
@@ -42,5 +42,6 @@ python  opensora/train/train_t2v_diffusers.py \
     --ema_decay 0.999 \
     --speed_factor 1.0 \
     --drop_short_ratio 1.0 \
-    --pretrained "path/to/ckpt/from/last/stage"
+    --pretrained "path/to/ckpt/from/last/stage" \
+    --use_parallel True \
     # --group_frame \

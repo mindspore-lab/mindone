@@ -25,7 +25,7 @@ The following videos are generated based on MindSpore and Ascend 910*.
 
 <summary>Open-Sora-Plan v1.2.0 Demo</summary>
 
-93×1280×720 Text-to-Video Generation.
+29×1280×720 Text-to-Video Generation.
 
 **PUt demo here**
 
@@ -34,7 +34,6 @@ Videos are saved to `.gif` for display.
 ## 🔆 Features
 
 - 📍 **Open-Sora-Plan v1.2.0** with the following features
-    - ✅ Sequence parallelism
     - ✅ CausalVAEModel_D4_4x8x8 inference. Supports video reconstruction.
     - ✅ mT5-xxl TextEncoder model inference.
     - ✅ Text-to-video generation up to 93 frames and 720x1280 resolution.
@@ -44,6 +43,7 @@ Videos are saved to `.gif` for display.
 
 
 ### TODO
+* [ ] Sequence parallelism
 * [ ] Scaling model parameters and dataset size **[WIP]**.
 * [ ] Evaluation of various metrics **[WIP]**.
 
@@ -69,7 +69,7 @@ Other useful documents and links are listed below.
 ## Installation
 1. Use python>=3.8 [[install]](https://www.python.org/downloads/)
 
-2. Install MindSpore 2.3.1 according to the [MindSpore official website](https://www.mindspore.cn/install/). Please use C18 CANN  which can be downloaded from [here].
+2. Install MindSpore 2.3.1 according to the [MindSpore official website](https://www.mindspore.cn/install/). Please use C18 CANN (0705) which can be downloaded from [here](https://repo.mindspore.cn/ascend/ascend910/20240705/).
 
 
 3. Install requirements
@@ -130,17 +130,9 @@ opensora_pku
         └───tokenizer_config.json
 ```
 
-Currently, we can load `.safetensors` files directly in MindSpore, but not `.bin` or `.ckpt` files. Please manually convert the mt5-xxl checkpoint by running:
-```bash
-python tools/model_conversion/convert_pytorch_ckpt_to_safetensors.py --src google/mt5-xxl/pytorch_model.bin --target google/mt5-xxl/model.safetensors
-```
-Besides, please manually convert the vae checkpoint by running:
+Currently, we can load `.safetensors` files directly in MindSpore, but not `.bin` or `.ckpt` files. If you have `torch` installed, you don't need to manaully convert these weights. If you don't have `torch` installed, we recommend you to manually convert `google/mt5-xxl/pytorch_model.bin` and `vae/checkpoint` using the huggingface [convert](https://huggingface.co/spaces/safetensors/convert) website. You should convert them into `model.safetensors` and place them into corresponding folder.
 
-```bash
-python tools/model_conversion/convert_pytorch_ckpt_to_safetensors.py --src LanguageBind/Open-Sora-Plan-v1.2.0/vae/checkpoint.ckpt --target LanguageBind/Open-Sora-Plan-v1.2.0/vae/diffusion_pytorch_model.safetensors
-```
-
-Now the checkpoint files have all been prepared.
+Once the checkpoint files have all been prepared, you can refer to the inference guidance below.
 
 ## Inference
 
@@ -167,7 +159,7 @@ You can also run video reconstruction given an input video folder. See `scripts/
 
 ### Open-Sora-Plan v1.2.0 Command Line Inference
 
-You can run text-to-video inference on a single Ascend device using the script `scripts/text_condition/sample_t2v.sh`.
+You can run text-to-video inference on a single Ascend device using the script `scripts/text_condition/single-device/sample_t2v.sh`.
 ```bash
 python opensora/sample/sample_t2v.py \
     --model_path LanguageBind/Open-Sora-Plan-v1.2.0/29x720p \
@@ -291,13 +283,6 @@ msrun --master_port=8200 --worker_num=8 --local_worker_num=8 --log_dir="output_l
 ```
 For more details, please take `scripts/causalvae/train_with_gan_loss_multi_device.sh` as an example.
 
-#### Multi-Stage Training
-
-As stated in [Training Details](https://github.com/PKU-YuanGroup/Open-Sora-Plan/blob/main/docs/Report-v1.1.0.md#training-details), the authors trained for 100k steps in the first stage with a video shape of 9×256×256. Then they increased the frame count from 9 to 25 and found that this significantly improved the model's performance. In the first two stages, they enabled the learnable mixed factor in `TimeUpsampleRes2x` and `TimeDownsampleRes2x`. In the third stage, they reinitialized the mixed factor to 0.5 (sigmoid(0.5) = 0.6225) to further enhance the model's capabilities.
-
-You can revise `--video_num_frames` and `--resolution` in the training scripts under `scripts/causalvae/` for each stage accordingly.
-
-
 
 #### Inference After Training
 
@@ -324,26 +309,6 @@ python examples/rec_video_folder.py \
 
 Runing this command will generate reconstructed videos under the given `output_generated_video_dir`. You can then evalute some common metrics (e.g., ssim, psnr) using the script under `opensora/eval/script`.
 
-#### Performance
-
-Taking the stage-1 training as an example, we record the training speed as follows:
-
-| Model           | Context        | Precision | BS  | NPUs | num_frames | Resolution  | With GAN loss  | Train T. (s/step) |
-|:----------------|:---------------|:----------|:---:|:----:|:-----------------------:|:-----------:|:-----------:|:-----------------:|
-| CausalVAE_4x8x8  | D910\*-[CANN C18(0705)](https://repo.mindspore.cn/ascend/ascend910/20240705/)-[MS2.3.1] | BF16      |  1  |  8   |         9         | 256x256     |  False |     0.97      |
-| CausalVAE_4x8x8  | D910\*-[CANN C18(0705)](https://repo.mindspore.cn/ascend/ascend910/20240705/)-[MS2.3.1] | FP32      |  1  |  8   |         9         | 256x256     |  True |     1.63        |
-
-#### Example of Training Experiment
-
-To validate the training script, we run 8-card parallel training of CausalVAE_4x8x8 with GAN loss using the [UCF-101 dataset](https://www.crcv.ucf.edu/research/data-sets/ucf101/). The training set consists of 10656 videos and the test set consists of 2664 videos.
-
-We revise the `video_path` of `scripts/causalvae/train_with_gan_loss_multi_device.sh` to the UCF-101 training set, and then start training. After training, we run inference with the checkpoint using `scripts/causalvae/gen_video.sh` to save the generated videos. Then we revise the `real_video_dir` and `generated_video_dir` in `opensora/eval/scripts/cal_ssim.sh` to the video folder of the test set and the video folder of the generated videos to evaluate SSIM scores. The similar process is needed to evaluate PSNR scores using `opensora/eval/scripts/cal_psnr.sh`
-
-Here are the evaluation metrics of the checkpoint file trained for 135k steps:
-
-| Train Steps | With GAN loss | PSNR | SSIM |
-| --- | ---| ---|---|
-|135000 | True|29.8343 | 0.8893|
 
 
 ### Training Diffusion Model
@@ -456,111 +421,25 @@ In the dataset file, for example, `scripts/train_data/merge_data.txt`, each line
 
 The training scripts are stored under `scripts/text_condition`. The single-device training scripts are under the `single-device` folder for demonstration. We recommend to use the parallel-training scripts under the `multi-devices` folder.
 
-Here we choose an example of training scripts (`train_videoae_65x512x512.sh`) and explain the meanings of some experimental arguments. This is an example of parallel training script which uses data parallelism. If you want to try single-device training, please refer to `train_videoae_65x512x512_single_device.sh`.
+Here we choose an example of training scripts (`train_video3d_nx480p.sh`) and explain the meanings of some experimental arguments.
 
-There some hyper-parameters that may vary between different experiments:
+Here is the major command of the training script:
 ```shell
-image_size=512  # the image size of frames, same to image height and image width
-use_image_num=4  # to include n number of images in an input sample
-num_frames=65  # to sample m frames from a single video. The total number of images： num_frames + use_image_num
-model_dtype="bf16" # the data type used for mixed precision of the diffusion transformer model (LatteT2V).
-amp_level="O2" # the default auto mixed precision level for LatteT2V.
-batch_size=2 # training batch size
-lr="2e-05" # learning rate. Default learning schedule is constant
+export DEVICE_ID=0
+NUM_FRAME=29
+python  opensora/train/train_t2v_diffusers.py \
+    --data "scripts/train_data/merge_data_panda70m.txt" \
+    --num_frames ${NUM_FRAME} \
+    --max_height 480 \
+    --max_width 640 \
+    --pretrained "path/to/ckpt/from/last/stage" \
+    # pass other arguments
 ```
-
-Here is the major command of the parallel-training script:
-```shell
-msrun --bind_core=True --worker_num=8 --local_worker_num=8 --master_port=9000 --log_dir=$output_dir/parallel_logs opensora/train/train_t2v.py \
-      --video_data "scripts/train_data/video_data.txt" \
-      --image_data "scripts/train_data/image_data.txt" \
-      --pretrained LanguageBind/Open-Sora-Plan-v1.1.0/t2v.ckpt \
-    ... # pass other arguments
-```
-We use `msrun` to launch the parallel training tasks. For single-node multi-device training, `worker_num` and `local_worker_num` should be the same to the number of training devices.  `master_port` specifies the scheduler binding port number.
-
 There are some arguments related to the training dataset path:
-- `video_data` or `image_data`: the text file to the video/image dataset. The text file should contain N lines corresponding to N datasets. Each line should have two or three items. If two items are available, they correspond to the video folder and the annotation json file. If three items are available, they correspond to the video folder, the text embedding cache folder, and the annotation json file.
-- `pretrained`: the pretrained checkpoint to be loaded as initial weights before training. If not provided, the LatteT2V will use random initialization.
-
-For the detailed explanations for other arguments, please refer to the document for [training arguments](docs/training_args.md).
-
-> Note:
-> - In Graph mode (default), MindSpore takes about 10~20 mins for graph compilation.
-> - For acceleration, we set the `dataset_sink_mode` to True by default. For more information about data sink mode, see [MindSpore doc for data sink](https://www.mindspore.cn/docs/en/master/api_python/mindspore/mindspore.data_sink.html).
-> - Supports resume training by setting `--resume_training_checkpoint True`.
-
-#### Parallel Training
-
-Before launching the first-stage training, please make sure you set the three paths correctly in `image_data.txt` and `video_data.txt`.
-
-```bash
-# start 65x512x512 pretraining, 8 NPUs
-bash scripts/text_condition/train_videoae_65x512x512.sh
-```
-During training, the training logs will be saved under `parallel_logs/` folder of the specified output directory, e.g., `parallel_logs/worker_0.log`. The loss values and average per step time will saved in `result.log` in the output directory.
-
-After the first-stage training, if data parallelism (the default parallel mode) is applied, the checkpoint files will be saved under `ckpt/` folder. If optimizer parallelism is applied (setting `--parallel_mode` to "optim"), there will be multiple checkpoint shards saved in the `ckpt/`. See the following method on how to merge multiple checkpoint shards into a full checkpoint file.
-<details>
-<summary>How to merge multiple checkpoint shards</summary>
-
-Please run the following command to combine the multiple checkpoint shards into a full one:
-```
-python tools/ckpt/combine_ckpt.py --src output_dir/ckpt --dest output_dir/ckpt --strategy_ckpt output_dir/src_strategy.ckpt
-```
-Afterwards, you will obtain a full checkpoint file under `output_dir/ckpt/rank_0/full_0.ckpt`.
-
-</details>
-
-> Note:
-> - If you want to run inference with a checkpoint file, please revise the script `scripts/text_condition/sample_video.sh` and append `--pretrained_ckpt path/to/your.ckpt` to the end of the inference command.
-
-Then please revise `scripts/text_condition/train_videoae_221x512x512.sh`, and change `--pretrained` to the full checkpoint path from the `65x512x512` stage. Then run:
-
-```bash
-# start 221x512x512 finetuning, 8 NPUs
-bash scripts/text_condition/train_videoae_221x512x512_sp.sh
-```
-> Note:
-> - You can try modifying `--dataloader_num_workers` and `--dataloader_prefetch_size` on `train_videoae_221x512x512_sp.sh` to speed up when you have enough cpu memory.
-
-Simiarly, please revise the `--pretrained` to the checkpoint path from the `221x512x512` stage, and then start the third-stage training:
-
-```bash
-# start 513x512x512 finetuning, 8 NPUs
-bash scripts/text_condition/train_videoae_513x512x512_sp.sh
-```
-> Note:
-> - You can try modifying `--dataloader_num_workers` and `--dataloader_prefetch_size` on `train_videoae_513x512x512_sp.sh` to speed up when you have enough cpu memory.
-
-
-#### Overfitting Experiment
-
-To verify the training script and convergence speed, we performed an overfitting experiment: training the stage 1 model $(65+4)\times512\times512$ on 64 videos selected from the mixkit dataset. The stage 1 model was intialized with `t2v.ckpt`, and we trained it with the hyper-parameters listed in `scripts/text_condition/train_videoae_65x512x512.sh`, except that we only trained it on 64 videos for 3000 steps.
-
-The checkpoint after 3000 steps generated videos similar to the original videos, which means the convergence of the overfitting experiment was as good as we expected. Some generated videos are shown below:
-
-| 65×512×512 (2.7s) | 65×512×512 (2.7s) | 65×512×512 (2.7s) |
-| --- | --- | --- |
-| <img src="https://github.com/wtomin/mindone-assets/blob/main/opensora_pku/v1.1/t2v/overfit-fp65/0-a%20lively%20scene%20at%20a%20ski%20resort%20nestled%20in%20the%20heart%20of%20a%20snowy%20mountain%20range.%20From%20a%20high%20vantage%20p.gif?raw=true" width=224> | <img src="https://github.com/wtomin/mindone-assets/blob/main/opensora_pku/v1.1/t2v/overfit-fp65/0-a%20serene%20scene%20of%20a%20clear%20blue%20sky.%20Dominating%20the%20top%20right%20corner%20of%20the%20frame%20is%20a%20single,%20fluffy.gif?raw=true" width=224>  | <img src="https://github.com/wtomin/mindone-assets/blob/main/opensora_pku/v1.1/t2v/overfit-fp65/0-an%20aerial%20view%20of%20a%20rugged%20landscape.%20Dominating%20the%20scene%20are%20large,%20jagged%20rocks%20that%20cut%20across%20e.gif?raw=true" width=224> |
-| a lively scene at a ski resort... | a serene scene of a clear blue sky...  | an aerial view of a rugged landscape...  |
-
-
-#### Performance
-
-We evaluated the training performance on MindSpore and Ascend NPUs. The results are as follows.
-
-| Model           | Context        | Precision | BS  | NPUs | num_frames + num_images | Resolution  | Train T. (s/step) |
-|:----------------|:---------------|:----------|:---:|:----:|:-----------------------:|:-----------:|:-----------------:|
-| LatteT2V-XL/122 | D910\*-[CANN C18(0705)](https://repo.mindspore.cn/ascend/ascend910/20240705/)-[MS2.3.1] | BF16      |  2  |  8   |         17 + 4          | 512x512     |       2.45        |
-| LatteT2V-XL/122 | D910\*-[CANN C18(0705)](https://repo.mindspore.cn/ascend/ascend910/20240705/)-[MS2.3.1] | BF16      |  2  |  8   |         65 + 16         | 512x512     |       9.36       |
-| LatteT2V-XL/122 | D910\*-[CANN C18(0705)](https://repo.mindspore.cn/ascend/ascend910/20240705/)-[MS2.3.1] | BF16      |  2  |  8   |         65 + 4          | 512x512     |       7.02        |
-| LatteT2V-XL/122 | D910\*-[CANN C18(0705)](https://repo.mindspore.cn/ascend/ascend910/20240705/)-[MS2.3.1] | BF16      |  1  |  8   |         221 + 4         | 512x512     |       7.18        |
-| LatteT2V-XL/122 | D910\*-[CANN C18(0705)](https://repo.mindspore.cn/ascend/ascend910/20240705/)-[MS2.3.1] | BF16      |  1  |  8   |         513 + 8         | 512x512     |        12.3       |
-
-> Context: {NPU type}-{CANN version}-{MindSpore version}
-
-See [Performance Boosting History](docs/performance_boosting_history.md) 🚀🚀🚀 on how we achieve the state of the art performance.
+- `data`: the text file to the video/image dataset. The text file should contain N lines corresponding to N datasets. Each line should have two or three items. If two items are available, they correspond to the video folder and the annotation json file. If three items are available, they correspond to the video folder, the text embedding cache folder, and the annotation json file.
+- `num_frames`: the number of frames of each video sample.
+- `max_height` and `max_width`: the frame maximum height and width.
+- `pretrained`: the pretrained checkpoint to be loaded as initial weights before training. If not provided, the OpenSoraT2V will use random initialization.
 
 ## 👍 Acknowledgement
 * [Latte](https://github.com/Vchitect/Latte): The **main codebase** we built upon and it is an wonderful video generated model.
