@@ -27,7 +27,20 @@ The following videos are generated based on MindSpore and Ascend 910*.
 
 29×1280×720 Text-to-Video Generation.
 
-**PUt demo here**
+| 29x720x1280 (1.2s) |
+| --- |
+| <img src="https://github.com/wtomin/mindone-assets/blob/main/opensora_pku/v1.2/29x720p/0-A%20close-up%20of%20a%20woman%E2%80%99s%20face%2C%20illuminated%20by%20the%20soft%20light%20of%20dawn%2C%20her%20expression%20serene%20and%20conte.gif?raw=true" width=720> |
+| A close-up of a woman’s face, illuminated by the soft light of dawn... |
+
+| 29x720x1280 (1.2s) |
+| --- |
+| <img src="https://github.com/wtomin/mindone-assets/blob/main/opensora_pku/v1.2/29x720p/0-A%20young%20man%20at%20his%2020s%20is%20sitting%20on%20a%20piece%20of%20cloud%20in%20the%20sky%2C%20reading%20a%20book..gif?raw=true" width=720>  |
+| 0-A young man at his 20s is sitting on a piece of cloud in the sky, reading a book...  |
+
+| 29x720x1280 (1.2s) |
+| --- |
+| <img src="https://github.com/wtomin/mindone-assets/blob/main/opensora_pku/v1.2/29x720p/0-A%20close-up%20of%20a%20woman%20with%20a%20vintage%20hairstyle%20and%20bright%20red%20lipstick%2C%20gazing%20seductively%20into%20the%20.gif?raw=true" width=720> |
+| 0-A close-up of a woman with a vintage hairstyle and bright red lipstick...  |
 
 Videos are saved to `.gif` for display.
 
@@ -43,7 +56,7 @@ Videos are saved to `.gif` for display.
 
 
 ### TODO
-* [ ] Sequence parallelism
+* [ ] Sequence parallelism **[WIP]**.
 * [ ] Scaling model parameters and dataset size **[WIP]**.
 * [ ] Evaluation of various metrics **[WIP]**.
 
@@ -81,7 +94,7 @@ In case `decord` package is not available, try `pip install eva-decord`.
 For EulerOS, instructions on ffmpeg and decord installation are as follows.
 
 <details onclose>
-
+<summary>How to install ffmpeg and decord</summary>
 ```
 1. install ffmpeg 4, referring to https://ffmpeg.org/releases
     wget https://ffmpeg.org/releases/ffmpeg-4.0.1.tar.bz2 --no-check-certificate
@@ -130,7 +143,9 @@ opensora_pku
         └───tokenizer_config.json
 ```
 
-Currently, we can load `.safetensors` files directly in MindSpore, but not `.bin` or `.ckpt` files. If you have `torch` installed, you don't need to manaully convert these weights. If you don't have `torch` installed, we recommend you to manually convert `google/mt5-xxl/pytorch_model.bin` and `vae/checkpoint` using the huggingface [convert](https://huggingface.co/spaces/safetensors/convert) website. You should convert them into `model.safetensors` and place them into corresponding folder.
+Currently, we can load `.safetensors` files directly in MindSpore, but not `.bin` or `.ckpt` files. If you have `torch` installed, you can skip the inference section.
+
+If you don't have `torch` installed, we recommend you to manually convert `google/mt5-xxl/pytorch_model.bin` and `vae/checkpoint` using the huggingface [convert](https://huggingface.co/spaces/safetensors/convert) website. You should convert them into `model.safetensors` and place them into corresponding folder.
 
 Once the checkpoint files have all been prepared, you can refer to the inference guidance below.
 
@@ -181,7 +196,7 @@ python opensora/sample/sample_t2v.py \
     --model_type "dit" \
     --save_memory \
 ```
-You can change the `num_frames`, `height` and `width` to match with the training shape of different checkpoints, e.g., `93x720p` requires `num_frames=93`, `height=720` and `width=1280`.
+You can change the `num_frames`, `height` and `width` to match with the training shape of different checkpoints, e.g., `29x480p` requires `num_frames=29`, `height=480` and `width=640`.
 
 
 If you want to run a multi-device inference, e.g., 8 cards, please use `msrun` and pass `--use_parallel=True` as the example below:
