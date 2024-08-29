@@ -51,8 +51,9 @@ class NetworkWithLoss(nn.Cell):
         logvar = ops.clamp(logvar, -30.0, 20.0)
         std = ops.exp(0.5 * logvar)
         # FIXME: randn_like
-        sample = mint.normal(size=x.shape).to(x.dtype)
+        sample = mint.normal(size=mean.shape).to(x.dtype)
         x = mean + std * sample
+        return x
 
     def _cal_vb(self, model_output, model_var_values, x, x_t, t):
         true_mean, _, true_log_variance_clipped = self.diffusion.q_posterior_mean_variance(x_start=x, x_t=x_t, t=t)

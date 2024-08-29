@@ -251,10 +251,10 @@ def model_wrapper(
             if guidance_scale == 1.0 or unconditional_condition is None:
                 return noise_pred_fn(x, t_continuous, cond=condition)
             else:
-                x_in = ops.cat([x] * 2)
-                t_in = ops.cat([t_continuous] * 2)
+                x_in = ops.tile(x, (2, 1, 1, 1))
+                t_in = ops.tile(t_continuous, (2,))
                 c_in = ops.cat([unconditional_condition, condition])
-                noise_uncond, noise = noise_pred_fn(x_in, t_in, cond=c_in).chunk(2)
+                noise_uncond, noise = mint.chunk(noise_pred_fn(x_in, t_in, cond=c_in), 2)
                 return noise_uncond + guidance_scale * (noise - noise_uncond)
 
     assert model_type in ["noise", "x_start", "v", "score"]
