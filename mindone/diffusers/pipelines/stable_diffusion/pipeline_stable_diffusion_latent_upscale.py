@@ -142,7 +142,7 @@ class StableDiffusionLatentUpscalePipeline(DiffusionPipeline, FromSingleFileMixi
             )
 
         text_encoder_out = self.text_encoder(ms.Tensor(text_input_ids), output_hidden_states=True)
-        text_embeddings = text_encoder_out[0][-1]
+        text_embeddings = text_encoder_out[0]
         text_pooler_out = text_encoder_out[1]
 
         # get unconditional embeddings for classifier free guidance
