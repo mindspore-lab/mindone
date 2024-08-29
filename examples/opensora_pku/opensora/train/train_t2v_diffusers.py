@@ -705,7 +705,7 @@ def parse_t2v_train_args(parser):
     parser.add_argument(
         "--enable_parallel_fusion", default=True, type=str2bool, help="Whether to parallel fusion for AdamW"
     )
-    parser.add_argument("--jit_level", default="O1", help="Set jit level: # O0: KBK, O1:DVM, O2: GE")
+    parser.add_argument("--jit_level", default="O0", help="Set jit level: # O0: KBK, O1:DVM, O2: GE")
     parser.add_argument("--noise_offset", type=float, default=0.02, help="The scale of noise offset.")
     parser.add_argument(
         "--snr_gamma",
