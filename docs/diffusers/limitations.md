@@ -58,7 +58,6 @@ The table below represents the current support in mindone/diffusers for each of 
 The table below represents the current support in mindone/diffusers for each of those pipelines in **MindSpore 2.3.0**,
 whether they have support in Pynative fp16 mode, Graph fp16 mode, Pynative fp32 mode or Graph fp32 mode.
 
-> Hint: Due to the precision issue with GroupNorm affecting almost all pipelines under FP16, leading to inference
 > precision issues of pipelines, the experiments in the table below default to upcasting GroupNorm to FP32 to avoid
 > this issue.
 
