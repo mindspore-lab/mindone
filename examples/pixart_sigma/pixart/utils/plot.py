@@ -1,13 +1,17 @@
+import logging
+import os
 from typing import List, Union
 
 import cv2
 import numpy as np
 from PIL import Image
 
-all = ["image_grid", "resize_and_crop_tensor"]
+all = ["image_grid", "resize_and_crop_tensor", "save_outputs"]
+
+logger = logging.getLogger(__name__)
 
 
-def image_grid(imgs: List[Union[Image.Image, np.ndarray]], ncols: int = 4) -> Image.Image:
+def image_grid(imgs: List[Union[Image.Image, np.ndarray]], ncols: int = 1) -> Image.Image:
     imgs = [Image.fromarray((x * 255).astype(np.uint8)) if isinstance(x, np.ndarray) else x for x in imgs]
 
     nrows = len(imgs) // ncols
@@ -39,3 +43,28 @@ def resize_and_crop_tensor(samples: np.ndarray, new_width: int, new_height: int)
         samples = samples[:, start_y:end_y, start_x:end_x, :]
 
     return samples
+
+
+def save_outputs(
+    samples: np.ndarray,
+    filename: str = "sample.png",
+    output_dir: str = "./output",
+    imagegrid: bool = False,
+    grid_cols: int = 1,
+) -> None:
+    if not os.path.isdir(output_dir):
+        os.makedirs(output_dir)
+
+    if not imagegrid and samples.shape[0] != 1:
+        # batch visualization
+        name, ext = os.path.splitext(filename)
+        for i in range(samples.shape[0]):
+            filepath = os.path.join(output_dir, f"{name}_{i}{ext}")
+            img = Image.fromarray((samples[i] * 255).astype(np.uint8))
+            img.save(filepath)
+            logger.info(f"save to {filepath}.")
+    else:
+        img = image_grid(samples, ncols=grid_cols)
+        filepath = os.path.join(output_dir, filename)
+        img.save(filepath)
+        logger.info(f"save to {filepath}.")

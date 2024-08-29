@@ -1,12 +1,18 @@
 import argparse
-from typing import Tuple
+import json
+import logging
+import os
+from typing import Dict, List, Optional, Tuple
 
 import mindspore as ms
 from mindspore.communication import get_group_size, get_rank, init
 
 from mindone.utils.seed import set_random_seed
 
-__all__ = ["str2bool", "check_cfgs_in_parser", "init_env"]
+__all__ = ["str2bool", "check_cfgs_in_parser", "init_env", "organize_prompts"]
+
+
+logger = logging.getLogger(__name__)
 
 
 def str2bool(b: str) -> bool:
@@ -39,3 +45,37 @@ def init_env(args) -> Tuple[int, int]:
         device_num, rank_id = 1, 0
 
     return device_num, rank_id
+
+
+def organize_prompts(
+    prompts: Optional[List[str]] = None,
+    negative_prompts: Optional[List[str]] = None,
+    prompt_path: Optional[str] = None,
+    save_json: bool = True,
+    output_dir: str = "./output",
+) -> List[Dict[str, Optional[str]]]:
+    if prompt_path is not None:
+        if prompts is not None:
+            logger.warning("`prompt_path` is given, read prompts from `prompt_path` instead.")
+
+        prompts = list()
+        with open(prompt_path, "r") as f:
+            for line in f:
+                prompts.append(line.strip())
+
+    if isinstance(negative_prompts, list):
+        if len(prompts) != len(negative_prompts):
+            raise ValueError(
+                "prompt's size must be equal to the negative prompt's size, "
+                f"but get `{len(prompts)}` and `{len(negative_prompts)}` respectively."
+            )
+
+    contents = list()
+    for i, prompt in enumerate(prompts):
+        negative_prompt = negative_prompts[i] if negative_prompts else None
+        contents.append(dict(prompt=prompt, negative_prompt=negative_prompt))
+
+    if save_json:
+        with open(os.path.join(output_dir, "prompts.json"), "w") as f:
+            json.dump(contents, f, indent=4)
+    return contents

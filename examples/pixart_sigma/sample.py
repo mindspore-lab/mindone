@@ -7,7 +7,6 @@ import sys
 import numpy as np
 import tqdm
 import yaml
-from PIL import Image
 
 import mindspore as ms
 import mindspore.ops as ops
@@ -29,10 +28,11 @@ from pixart.pipelines.infer_pipeline import PixArtInferPipeline
 from pixart.utils import (
     check_cfgs_in_parser,
     count_params,
-    image_grid,
     init_env,
     load_ckpt_params,
+    organize_prompts,
     resize_and_crop_tensor,
+    save_outputs,
     str2bool,
 )
 from transformers import AutoTokenizer
@@ -76,10 +76,9 @@ def parse_args():
     )
 
     parser.add_argument("--t5_max_length", default=300, type=int, help="T5's embedded sequence length.")
-    parser.add_argument(
-        "--prompt", default="A small cactus with a happy face in the Sahara desert.", help="Prompt for sampling."
-    )
-    parser.add_argument("--negative_prompt", help="Negative prompt for sampling.")
+    parser.add_argument("--prompt", nargs="*", help="Prompt(s) for sampling.")
+    parser.add_argument("--prompt_path", help="Path to the text (.txt) file to read prompts.")
+    parser.add_argument("--negative_prompt", nargs="*", help="Negative prompt(s) for sampling.")
     parser.add_argument(
         "--sd_scale_factor", default=0.13025, type=float, help="VAE scale factor of Stable Diffusion network."
     )
@@ -113,8 +112,10 @@ def parse_args():
     )
 
     parser.add_argument("--imagegrid", default=False, type=str2bool, help="Save the image in image-grids format.")
-    parser.add_argument("--nrows", default=1, type=int, help="Number of rows in sampling (number of trials)")
-    parser.add_argument("--ncols", default=1, type=int, help="Number of cols in sampling (batch size)")
+    parser.add_argument(
+        "--nrows", default=1, type=int, help="Number of rows in sampling (number of trials) for each prompt."
+    )
+    parser.add_argument("--ncols", default=1, type=int, help="Number of cols in sampling (batch size) for each prompt.")
     parser.add_argument("--use_parallel", default=False, type=str2bool, help="use parallel training.")
     default_args = parser.parse_args()
     abs_path = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), ""))
@@ -153,6 +154,17 @@ def main(args):
         height, width = classify_height_width_bin(orig_height, orig_width, ratios=aspect_ratio_bin)
     else:
         height, width = args.image_height, args.image_width
+
+    # 1.2 organize prompts
+    if (not args.prompt) and (not args.prompt_path):
+        raise ValueError("`args.prompt` or `args.prompt_path` must to be provided to run sampling.")
+    prompts = organize_prompts(
+        prompts=args.prompt,
+        negative_prompts=args.negative_prompt,
+        prompt_path=args.prompt_path,
+        save_json=True,
+        output_dir=args.output_path,
+    )
 
     # 2. network initiate and weight loading
     # 2.1 PixArt
@@ -220,7 +232,7 @@ def main(args):
             f"MindSpore mode[GRAPH(0)/PYNATIVE(1)]: {args.mode}",
             f"Num params: {num_params:,} (network: {num_params_network:,}, vae: {num_params_vae:,}, text_encoder: {num_params_text_encoder:,})",
             f"Use network dtype: {model_dtype}",
-            f"Sampling method: {args.sampling_method}",
+            f"Sampling method: {args.sampling_method.upper()}",
             f"Sampling steps: {args.sampling_steps}",
             f"CFG guidance scale: {args.guidance_scale}",
         ]
@@ -229,33 +241,23 @@ def main(args):
     logger.info(key_info)
 
     # infer
-    x_samples = list()
-    for _ in tqdm.trange(args.nrows):
-        # Create sampling noise
-        z = ops.randn((args.ncols, 4, latent_height, latent_width), dtype=ms.float32)
-        output = pipeline(z, args.prompt, args.negative_prompt).asnumpy()
-        x_samples.append(output)
+    for i, prompt in enumerate(prompts):
+        x_samples = list()
+        for _ in tqdm.trange(args.nrows):
+            # Create sampling noise
+            z = ops.randn((args.ncols, 4, latent_height, latent_width), dtype=ms.float32)
+            output = pipeline(z, prompt["prompt"], prompt["negative_prompt"]).asnumpy()
+            x_samples.append(output)
 
-    x_samples = np.concatenate(x_samples, axis=0)
+        x_samples = np.concatenate(x_samples, axis=0)
 
-    if args.use_resolution_binning:
-        x_samples = resize_and_crop_tensor(x_samples, orig_width, orig_height)
+        if args.use_resolution_binning:
+            x_samples = resize_and_crop_tensor(x_samples, orig_width, orig_height)
 
-    # save result
-    if not os.path.isdir(args.output_path):
-        os.makedirs(args.output_path)
-
-    if not args.imagegrid:
-        for i in range(x_samples.shape[0]):
-            save_fp = os.path.join(args.output_path, f"{i}.png")
-            img = Image.fromarray((x_samples[i] * 255).astype(np.uint8))
-            img.save(save_fp)
-            logger.info(f"save to {save_fp}")
-    else:
-        save_fp = os.path.join(args.output_path, "sample.png")
-        img = image_grid(x_samples, ncols=args.ncols)
-        img.save(save_fp)
-        logger.info(f"save to {save_fp}")
+        # save result
+        save_outputs(
+            x_samples, filename=f"{i}.png", output_dir=args.output_path, imagegrid=args.imagegrid, grid_cols=args.ncols
+        )
 
 
 if __name__ == "__main__":

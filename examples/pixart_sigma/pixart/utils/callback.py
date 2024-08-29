@@ -1,12 +1,10 @@
-import json
 import logging
 import os
 import time
-from typing import Dict, List, Optional
+from typing import List, Optional
 
 import numpy as np
 import tqdm
-from PIL import Image
 from pixart.pipelines import PixArtInferPipeline
 
 import mindspore.ops as ops
@@ -14,6 +12,9 @@ from mindspore import Parameter, ParameterTuple, RunContext, Tensor
 from mindspore.train import Callback
 
 from mindone.trainers.checkpoint import CheckpointManager
+
+from .misc import organize_prompts
+from .plot import save_outputs
 
 __all__ = ["LossMonitor", "SaveCkptCallback", "TimeMonitor", "Visualizer", "TurnOffVAET5Train"]
 
@@ -181,27 +182,12 @@ class Visualizer(Callback):
         if not os.path.isdir(self.visualize_dir):
             os.makedirs(self.visualize_dir)
 
-        self.prompts = self._organize_prompts(validation_prompts, validation_negative_prompts, save_json=True)
-
-    def _organize_prompts(
-        self, prompts: List[str], negative_prompts: Optional[List[str]] = None, save_json: bool = True
-    ) -> List[Dict[str, Optional[str]]]:
-        if isinstance(negative_prompts, list):
-            if len(prompts) != len(negative_prompts):
-                raise ValueError(
-                    "prompt's size must be equal to the negative prompt's size, "
-                    f"but get `{len(prompts)}` and `{len(negative_prompts)}` respectively."
-                )
-
-        contents = list()
-        for i, prompt in enumerate(prompts):
-            negative_prompt = negative_prompts[i] if negative_prompts else None
-            contents.append(dict(prompt=prompt, negative_prompt=negative_prompt))
-
-        if save_json:
-            with open(os.path.join(self.visualize_dir, "prompts.json"), "w") as f:
-                json.dump(contents, f, indent=4)
-        return contents
+        self.prompts = organize_prompts(
+            prompts=validation_prompts,
+            negative_prompts=validation_negative_prompts,
+            save_json=True,
+            output_dir=self.visualize_dir,
+        )
 
     def on_train_epoch_end(self, run_context: RunContext) -> None:
         cb_params = run_context.original_args()
@@ -222,12 +208,8 @@ class Visualizer(Callback):
         outputs = np.concatenate(outputs, axis=0)
 
         visualize_epoch_dir = os.path.join(self.visualize_dir, f"epoch_{cur_epoch}")
-        if not os.path.isdir(visualize_epoch_dir):
-            os.makedirs(visualize_epoch_dir)
         for i, sample in enumerate(outputs):
-            save_path = os.path.join(visualize_epoch_dir, f"{i}.png")
-            img = Image.fromarray((sample * 255).astype(np.uint8))
-            img.save(save_path)
+            save_outputs(sample, filename=f"{i}.png", output_dir=visualize_epoch_dir, imagegrid=False)
 
         self.infer_pipeline.network.set_train(True)
 

@@ -20,3 +20,6 @@ sampling_method: "dpm"
 sampling_steps: 20
 guidance_scale: 4.5
 seed: 42
+
+prompt:
+  - "A small cactus with a happy face in the Sahara desert."

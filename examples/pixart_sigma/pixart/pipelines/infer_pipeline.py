@@ -104,7 +104,7 @@ class PixArtInferPipeline:
         if y.shape[0] == 1 and y_null.shape[0] == 1 and noise.shape[0] != 1:
             N = x.shape[0]
             y = ops.tile(y, (N, 1, 1))
-            mask_y = ops.tile(mask_y, (2 * N, 1))
+            mask_y = ops.tile(mask_y, (N, 1))
             y_null = ops.tile(y_null, (N, 1, 1))
 
         y = ops.concat([y, y_null], axis=0)
@@ -122,6 +122,14 @@ class PixArtInferPipeline:
 
         y, mask_y = self.get_condition_embeddings(y)
         y_null, _ = self.get_condition_embeddings(y_null)
+
+        # handle the case of str y
+        if y.shape[0] == 1 and y_null.shape[0] == 1 and noise.shape[0] != 1:
+            N = x.shape[0]
+            y = ops.tile(y, (N, 1, 1))
+            mask_y = ops.tile(mask_y, (N, 1))
+            y_null = ops.tile(y_null, (N, 1, 1))
+
         mask_y = ops.tile(mask_y, (2, 1))
 
         return x, y, y_null, mask_y

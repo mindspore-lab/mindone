@@ -60,6 +60,57 @@ python sample.py -c configs/inference/pixart-sigma-1024-MS.yaml --image_width 10
 ```
 <p align="center"><img width="1024" src="https://github.com/user-attachments/assets/d2a4a391-744e-4ae8-a035-427a26e2c655"/>
 
+### Vanilla Finetune
+
+We support finetune PixArt-\Sigma model on 910* Ascend device.
+
+#### Prepare the Dataset
+
+- As an example, please download the `diffusiondb-pixelart` dataset from [this link](https://huggingface.co/datasets/jainr3/diffusiondb-pixelart). The dataset is a subset of the larger DiffusionDB 2M dataset, which has been transformed into pixel-style art.
+
+- Once you have the dataset, create a label JSON file in the following format:
+```json
+[
+    {
+        "path": "file1.png",
+        "prompt": "a beautiful photorealistic painting of cemetery urbex unfinished building building industrial architecture...",
+        "sharegpt4v": "*caption from ShareGPT4V*"
+    },
+]
+```
+- Remember to
+    - Replace `file1.png` with the actual image file path.
+    - The `prompt` field contains a description of the image.
+    - If you have captions generated from ShareGPT4V, add them to the `sharegpt4v` field. Otherwise, copy the label from the `prompt` line.
+
+#### Finetune the Model:
+
+Use the following command to start the finetuning process:
+
+```bash
+python train.py \
+    -c configs/train/pixart-sigma-512-MS.yaml \
+    --json_path path_to_your_label_file \
+    --image_dir path_to_your_image_directory
+```
+- Remember to
+    - Replace `path_to_your_label_file` with the actual path to your label JSON file.
+    - Replace `path_to_your_image_directory` with the directory containing your images.
+
+#### Distributed Training (Optional):
+
+You can launch distributed training using multiple Ascend 910* Devices:
+
+```bash
+msrun --worker_num=8 --local_worker_num=8 --log_dir="log" train.py
+    -c configs/train/pixart-sigma-512-MS.yaml \
+    --json_path path_to_your_label_file \
+    --image_dir path_to_your_image_directory \
+    --use_parallel True
+```
+- Remember to
+    - Replace `path_to_your_label_file` with the actual path to your label JSON file.
+    - Replace `path_to_your_image_directory` with the directory containing your images.
 
 ## Benchmark
 
@@ -67,8 +118,8 @@ python sample.py -c configs/inference/pixart-sigma-1024-MS.yaml --image_width 10
 
 | Context       | Scheduler | Steps | Resolution | Batch Size | Speed (step/s) | Config                                                                  |
 |---------------|-----------|-------|------------|------------|----------------|-------------------------------------------------------------------------|
-| D910*x1-MS2.3 | DPM++     | 20    | 256x256    | 1          | 11.4           | [pixart-sigma-256x256.yaml](configs/inference/pixart-sigma-256x256.yaml)    |
-| D910*x1-MS2.3 | DPM++     | 20    | 512x512    | 1          | 10.49          | [pixart-sigma-512-MS.yaml](configs/inference/pixart-sigma-512-MS.yaml)  |
+| D910*x1-MS2.3 | DPM++     | 20    | 256x256    | 1          | 11.4           | [pixart-sigma-256x256.yaml](configs/inference/pixart-sigma-256x256.yaml)|
+| D910*x1-MS2.3 | DPM++     | 20    | 512x512    | 1          | 10.5           | [pixart-sigma-512-MS.yaml](configs/inference/pixart-sigma-512-MS.yaml)  |
 | D910*x1-MS2.3 | DPM++     | 20    | 1024x1024  | 1          | 4.55           | [pixart-sigma-1024-MS.yaml](configs/inference/pixart-sigma-1024-MS.yaml)|
 | D910*x1-MS2.3 | DPM++     | 20    | 2048x2048  | 1          | 0.55           | [pixart-sigma-2K-MS.yaml](configs/inference/pixart-sigma-2K-MS.yaml)    |
 
