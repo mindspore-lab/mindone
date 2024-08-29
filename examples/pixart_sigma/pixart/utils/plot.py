@@ -11,7 +11,13 @@ all = ["image_grid", "resize_and_crop_tensor", "save_outputs"]
 logger = logging.getLogger(__name__)
 
 
-def image_grid(imgs: List[Union[Image.Image, np.ndarray]], ncols: int = 1) -> Image.Image:
+def image_grid(imgs: Union[List[Union[Image.Image, np.ndarray]], np.ndarray], ncols: int = 1) -> Image.Image:
+    if (isinstance(imgs, list) and len(imgs) == 1) or (isinstance(imgs, np.ndarray) and imgs.shape[0] == 1):
+        img = imgs[0]
+        if isinstance(img, np.ndarray):
+            img = Image.fromarray((img * 255).astype(np.uint8))
+        return img
+
     imgs = [Image.fromarray((x * 255).astype(np.uint8)) if isinstance(x, np.ndarray) else x for x in imgs]
 
     nrows = len(imgs) // ncols
