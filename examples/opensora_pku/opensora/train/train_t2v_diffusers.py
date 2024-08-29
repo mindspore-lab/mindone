@@ -27,7 +27,7 @@ from opensora.utils.message_utils import print_banner
 from opensora.utils.ms_utils import init_env
 from opensora.utils.utils import get_precision
 
-from mindone.diffusers.models.embeddings import PixArtAlphaCombinedTimestepSizeEmbeddings
+from mindone.diffusers.models.activations import SiLU
 from mindone.diffusers.schedulers import DDPMScheduler as DDPMScheduler_diffusers
 from mindone.trainers.callback import EvalSaveCallback, OverflowMonitor, ProfilerCallbackEpoch
 from mindone.trainers.checkpoint import resume_train_network
@@ -196,7 +196,7 @@ def main(args):
         model_dtype = get_precision(args.precision)
         if not args.global_bf16:
             if model_dtype == ms.float16:
-                custom_fp32_cells = [LayerNorm, nn.SiLU, nn.GELU, PixArtAlphaCombinedTimestepSizeEmbeddings]
+                custom_fp32_cells = [LayerNorm, nn.SiLU, SiLU, nn.GELU]
                 if args.attention_mode == "math":
                     custom_fp32_cells += [Attention]
             else:
@@ -205,8 +205,8 @@ def main(args):
                     nn.MaxPool3d,
                     LayerNorm,
                     nn.SiLU,
+                    SiLU,
                     nn.GELU,
-                    PixArtAlphaCombinedTimestepSizeEmbeddings,
                 ]
             model = auto_mixed_precision(
                 model,
