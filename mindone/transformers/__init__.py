@@ -1,4 +1,17 @@
 from .modeling_utils import MSPreTrainedModel
+from .models.bert import (
+    BertForMaskedLM,
+    BertForMultipleChoice,
+    BertForNextSentencePrediction,
+    BertForPreTraining,
+    BertForQuestionAnswering,
+    BertForSequenceClassification,
+    BertForTokenClassification,
+    BertLayer,
+    BertLMHeadModel,
+    BertModel,
+    BertPreTrainedModel,
+)
 from .models.bit import BitBackbone
 from .models.blip_2 import (
     Blip2ForConditionalGeneration,
