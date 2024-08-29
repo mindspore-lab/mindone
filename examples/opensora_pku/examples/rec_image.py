@@ -23,6 +23,7 @@ from mindspore import nn
 mindone_lib_path = os.path.abspath("../../")
 sys.path.insert(0, mindone_lib_path)
 from mindone.utils.amp import auto_mixed_precision
+from mindone.utils.config import str2bool
 from mindone.utils.logger import set_logger
 
 sys.path.append(".")
@@ -113,7 +114,11 @@ def main(args):
     if args.precision in ["fp16", "bf16"]:
         amp_level = "O2"
         dtype = get_precision(args.precision)
-        custom_fp32_cells = [nn.GroupNorm] if dtype == ms.float16 else [nn.AvgPool2d, TrilinearInterpolate]
+        if dtype == ms.float16:
+            custom_fp32_cells = [nn.GroupNorm] if args.vae_keep_gn_fp32 else []
+        else:
+            custom_fp32_cells = [nn.AvgPool2d, TrilinearInterpolate]
+
         vae = auto_mixed_precision(vae, amp_level, dtype, custom_fp32_cells=custom_fp32_cells)
         logger.info(
             f"Set mixed precision to {amp_level} with dtype={args.precision}, custom fp32_cells {custom_fp32_cells}"
@@ -172,6 +177,12 @@ if __name__ == "__main__":
         default=None,
         type=str,
         help="If specified, set the precision mode for Ascend configurations.",
+    )
+    parser.add_argument(
+        "--vae_keep_gn_fp32",
+        default=False,
+        type=str2bool,
+        help="whether keep GroupNorm in fp32. Defaults to False in inference, better to set to True when training vae",
     )
     parser.add_argument(
         "--output_path", default="samples/vae_recons", type=str, help="output directory to save inference results"
