@@ -106,6 +106,9 @@ def parse_args():
         "--parallel_mode", default="data", type=str, choices=["data", "optim"], help="parallel mode: data, optim"
     )
     parser.add_argument("--jit_level", default="O0", help="Set jit level: # O0: KBK, O1:DVM, O2: GE")
+    parser.add_argument(
+        "--jit_syntax_level", default="strict", choices=["strict", "lax"], help="Set jit syntax level: strict or lax"
+    )
     parser.add_argument("--seed", type=int, default=4, help="Inference seed")
 
     parser.add_argument(

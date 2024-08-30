@@ -307,6 +307,9 @@ def parse_args():
     parser.add_argument("--batch_size", default=8, type=int, help="batch size")
     parser.add_argument("--model_max_length", type=int, default=512)
     parser.add_argument("--jit_level", default="O0", help="Set jit level: # O0: KBK, O1:DVM, O2: GE")
+    parser.add_argument(
+        "--jit_syntax_level", default="strict", choices=["strict", "lax"], help="Set jit syntax level: strict or lax"
+    )
     default_args = parser.parse_args()
     __dir__ = os.path.dirname(os.path.abspath(__file__))
     abs_path = os.path.abspath(os.path.join(__dir__, ".."))
