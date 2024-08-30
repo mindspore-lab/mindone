@@ -42,8 +42,6 @@ from mindone.utils.config import str2bool
 from mindone.utils.logger import set_logger
 from mindone.utils.params import count_params
 
-os.environ["HCCL_CONNECT_TIMEOUT"] = "6000"
-os.environ["MS_ASCEND_CHECK_OVERFLOW_MODE"] = "INFNAN_MODE"
 logger = logging.getLogger(__name__)
 
 
@@ -461,7 +459,11 @@ def main(args):
 
     # trainer (standalone and distributed)
     assert args.ema_start_step == 0, "Now only support to update EMA from the first step"
-    ema = EMA(latent_diffusion_with_loss.network, ema_decay=args.ema_decay, offloading=True) if args.use_ema else None
+    ema = (
+        EMA(latent_diffusion_with_loss.network, ema_decay=args.ema_decay, offloading=args.ema_offload)
+        if args.use_ema
+        else None
+    )
     assert (
         args.gradient_accumulation_steps > 0
     ), f"Expect gradient_accumulation_steps is a positive integer, but got {args.gradient_accumulation_steps}"
@@ -571,6 +573,7 @@ def main(args):
                 f"Max grad norm: {args.max_grad_norm}",
                 f"EMA: {args.use_ema}",
                 f"EMA decay: {args.ema_decay}",
+                f"EMA cpu offload: {args.ema_offload}",
                 f"FA dtype: {FA_dtype}",
                 f"Use recompute(gradient checkpoint): {args.gradient_checkpointing}",
                 f"Dataset sink: {args.dataset_sink_mode}",

@@ -89,6 +89,7 @@ def parse_train_args(parser):
         help="max gradient norm for clipping, effective when `clip_grad` enabled.",
     )
     parser.add_argument("--use_ema", default=False, type=str2bool, help="whether use EMA")
+    parser.add_argument("--ema_offload", default=True, type=str2bool, help="whether use EMA CPU offload")
     parser.add_argument("--ema_decay", default=0.999, type=float, help="EMA decay")
 
     #################################################################################
