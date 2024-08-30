@@ -17,4 +17,3 @@ python opensora/sample/sample_t2v.py \
     --max_sequence_length 512 \
     --sample_method EulerAncestralDiscrete \
     --model_type "dit" \
-    --save_memory \
