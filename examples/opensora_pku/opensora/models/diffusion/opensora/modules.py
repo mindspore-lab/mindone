@@ -459,10 +459,9 @@ class AttnProcessor2_0:
                 hidden_states = self.run_math_attention(attn, query, key, value, attention_mask)
             elif self.attention_mode == "xformers":
                 hidden_states = self.run_ms_flash_attention(attn, query, key, value, attention_mask)
-            hidden_states = hidden_states.swapaxes(0, 1)  # BSH to SBH
             # [s * b, h // sp, d] -> [s // sp * b, h, d] -> [s // sp, b, h * d]
-            hidden_states = hidden_states.view(-1, attn.heads // sp_size, head_dim)
-            hidden_states = self.alltoall_sbh_out(hidden_states).view(-1, batch_size, h_size)
+            hidden_states = hidden_states.view(batch_size, -1, attn.heads // sp_size, head_dim).transpose(2, 1, 0, 3)
+            hidden_states = self.alltoall_sbh_out(hidden_states).transpose(1, 2, 0, 3).view(-1, batch_size, h_size)
         else:
             query = query.view(batch_size, -1, attn.heads, head_dim)
             key = key.view(batch_size, -1, attn.heads, head_dim)

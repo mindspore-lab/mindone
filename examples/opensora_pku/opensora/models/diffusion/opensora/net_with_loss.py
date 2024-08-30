@@ -1,7 +1,7 @@
 import logging
 
 from opensora.acceleration.communications import prepare_parallel_data
-from opensora.acceleration.parallel_states import get_sequence_parallel_state, hccl_info, set_sequence_parallel_state
+from opensora.acceleration.parallel_states import get_sequence_parallel_state, hccl_info
 
 import mindspore as ms
 from mindspore import nn, ops
@@ -152,13 +152,6 @@ class DiffusionWithLoss(nn.Cell):
             text_embed = ops.stop_gradient(self.get_condition_embeddings(text_tokens, encoder_attention_mask))
         else:
             text_embed = text_tokens
-        current_step_frame = x.shape[2]
-        current_step_sp_state = get_sequence_parallel_state()
-        if current_step_sp_state:  # enable sp
-            if current_step_frame == 1:  # but image do not need sp
-                set_sequence_parallel_state(False)
-            else:
-                set_sequence_parallel_state(True)
         loss = self.compute_loss(x, attention_mask, text_embed, encoder_attention_mask)
 
         return loss
@@ -173,8 +166,8 @@ class DiffusionWithLoss(nn.Cell):
         if self.noise_offset:
             # https://www.crosslabs.org//blog/diffusion-with-offset-noise
             noise += self.noise_offset * ops.randn((bsz, x.shape[1], 1, 1, 1), dtype=x.dtype)
-
-        if get_sequence_parallel_state():
+        current_step_frame = x.shape[2]
+        if get_sequence_parallel_state() and current_step_frame > 1:
             x = self.all_gather(x[None])[0]
             (
                 x,
@@ -183,10 +176,7 @@ class DiffusionWithLoss(nn.Cell):
                 attention_mask,
                 encoder_attention_mask,
                 use_image_num,
-                loss_mask,
             ) = prepare_parallel_data(x, noise, text_embed, attention_mask, encoder_attention_mask, use_image_num)
-        else:
-            loss_mask = None
 
         t = ops.randint(0, self.num_train_timesteps, (x.shape[0],), dtype=ms.int32)
         if get_sequence_parallel_state():
@@ -205,9 +195,6 @@ class DiffusionWithLoss(nn.Cell):
             use_image_num=use_image_num,
         )
 
-        if loss_mask is not None:
-            model_pred *= loss_mask
-
         if self.prediction_type == "epsilon":
             target = noise
         elif self.prediction_type == "v_prediction":
@@ -223,8 +210,8 @@ class DiffusionWithLoss(nn.Cell):
         # if attention_mask is not None and (attention_mask.bool()).all():
         #     attention_mask = None
         if get_sequence_parallel_state():
-            # TODO: sequence parallel does not need attention_mask?
-            assert attention_mask is None
+            assert (attention_mask.bool()).all()
+            # assert attention_mask is None
         # (b c t h w),
         bsz, c, _, _, _ = model_pred.shape
         if attention_mask is not None:
