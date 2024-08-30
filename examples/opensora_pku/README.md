@@ -82,7 +82,7 @@ Other useful documents and links are listed below.
 ## Installation
 1. Use python>=3.8 [[install]](https://www.python.org/downloads/)
 
-2. Install MindSpore 2.3.1 according to the [MindSpore official website](https://www.mindspore.cn/install/). Please use C18 CANN (0705) which can be downloaded from [here](https://repo.mindspore.cn/ascend/ascend910/20240705/).
+2. Please install MindSpore 2.3.1 according to the [MindSpore official website](https://www.mindspore.cn/install/) and install CANN 8.0.RC2.beta1 as recommended by the official installation website.
 
 
 3. Install requirements
