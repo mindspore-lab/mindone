@@ -18,5 +18,4 @@ msrun --bind_core=True --worker_num=8 --local_worker_num=8 --master_port=9000 --
     --max_sequence_length 512 \
     --sample_method EulerAncestralDiscrete \
     --model_type "dit" \
-    --save_memory \
     --use_parallel True \

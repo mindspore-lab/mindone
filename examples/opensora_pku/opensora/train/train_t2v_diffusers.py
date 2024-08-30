@@ -24,6 +24,7 @@ from opensora.models.diffusion.opensora.modules import Attention, LayerNorm
 from opensora.models.diffusion.opensora.net_with_loss import DiffusionWithLoss
 from opensora.train.commons import create_loss_scaler, parse_args
 from opensora.utils.dataset_utils import Collate, LengthGroupedBatchSampler
+from opensora.utils.ema import EMA
 from opensora.utils.message_utils import print_banner
 from opensora.utils.ms_utils import init_env
 from opensora.utils.utils import get_precision
@@ -32,7 +33,6 @@ from mindone.diffusers.models.activations import SiLU
 from mindone.diffusers.schedulers import DDPMScheduler as DDPMScheduler_diffusers
 from mindone.trainers.callback import EvalSaveCallback, OverflowMonitor, ProfilerCallbackEpoch
 from mindone.trainers.checkpoint import resume_train_network
-from mindone.trainers.ema import EMA
 from mindone.trainers.lr_schedule import create_scheduler
 from mindone.trainers.optim import create_optimizer
 from mindone.trainers.train_step import TrainOneStepWrapper
@@ -461,14 +461,7 @@ def main(args):
 
     # trainer (standalone and distributed)
     assert args.ema_start_step == 0, "Now only support to update EMA from the first step"
-    ema = (
-        EMA(
-            latent_diffusion_with_loss.network,
-            ema_decay=args.ema_decay,
-        )
-        if args.use_ema
-        else None
-    )
+    ema = EMA(latent_diffusion_with_loss.network, ema_decay=args.ema_decay, offloading=True) if args.use_ema else None
     assert (
         args.gradient_accumulation_steps > 0
     ), f"Expect gradient_accumulation_steps is a positive integer, but got {args.gradient_accumulation_steps}"
