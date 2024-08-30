@@ -364,7 +364,7 @@ class GaussianDiffusion:
             # Lazy import so that we don't depend on tqdm.
             from tqdm.auto import tqdm
 
-            indices = tqdm(indices, leave=False)
+            indices = tqdm(indices)
 
         for i in indices:
             t = ms.Tensor([i] * shape[0])
@@ -519,7 +519,7 @@ class GaussianDiffusion:
             # Lazy import so that we don't depend on tqdm.
             from tqdm.auto import tqdm
 
-            indices = tqdm(indices, leave=False)
+            indices = tqdm(indices)
 
         for i in indices:
             t = ms.Tensor([i] * shape[0])

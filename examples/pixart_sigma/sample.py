@@ -90,7 +90,7 @@ def parse_args():
     parser.add_argument(
         "--mode", default=0, choices=[0, 1], type=int, help="Running in GRAPH_MODE(0) or PYNATIVE_MODE(1)"
     )
-    parser.add_argument("--jit_level", default="O0", choices=["O0", "O1"], help="Jit Level")
+    parser.add_argument("--jit_level", default="O1", choices=["O0", "O1"], help="Jit Level")
     parser.add_argument("--seed", default=42, type=int, help="Inference seed")
 
     parser.add_argument(

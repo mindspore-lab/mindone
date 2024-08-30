@@ -118,10 +118,10 @@ msrun --worker_num=8 --local_worker_num=8 --log_dir="log" train.py
 
 | Context       | Scheduler | Steps | Resolution | Batch Size | Speed (step/s) | Config                                                                  |
 |---------------|-----------|-------|------------|------------|----------------|-------------------------------------------------------------------------|
-| D910*x1-MS2.3 | DPM++     | 20    | 256x256    | 1          | 11.4           | [pixart-sigma-256x256.yaml](configs/inference/pixart-sigma-256x256.yaml)|
-| D910*x1-MS2.3 | DPM++     | 20    | 512x512    | 1          | 10.5           | [pixart-sigma-512-MS.yaml](configs/inference/pixart-sigma-512-MS.yaml)  |
-| D910*x1-MS2.3 | DPM++     | 20    | 1024x1024  | 1          | 4.55           | [pixart-sigma-1024-MS.yaml](configs/inference/pixart-sigma-1024-MS.yaml)|
-| D910*x1-MS2.3 | DPM++     | 20    | 2048x2048  | 1          | 0.55           | [pixart-sigma-2K-MS.yaml](configs/inference/pixart-sigma-2K-MS.yaml)    |
+| D910*x1-MS2.3 | DPM++     | 20    | 256x256    | 1          | 18.04          | [pixart-sigma-256x256.yaml](configs/inference/pixart-sigma-256x256.yaml)|
+| D910*x1-MS2.3 | DPM++     | 20    | 512x512    | 1          | 15.95          | [pixart-sigma-512-MS.yaml](configs/inference/pixart-sigma-512-MS.yaml)  |
+| D910*x1-MS2.3 | DPM++     | 20    | 1024x1024  | 1          | 4.96           | [pixart-sigma-1024-MS.yaml](configs/inference/pixart-sigma-1024-MS.yaml)|
+| D910*x1-MS2.3 | DPM++     | 20    | 2048x2048  | 1          | 0.57           | [pixart-sigma-2K-MS.yaml](configs/inference/pixart-sigma-2K-MS.yaml)    |
 
 > Context: {Ascend chip}-{number of NPUs}-{mindspore version}.
 > Speed (step/s): sampling speed measured in the number of sampling steps per second.

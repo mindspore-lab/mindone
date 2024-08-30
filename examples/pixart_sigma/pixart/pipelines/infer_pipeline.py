@@ -1,7 +1,7 @@
 from functools import partial
 from typing import List, Literal, Optional, Tuple, Union
 
-from pixart.diffusion.dpm import DPMS
+from pixart.diffusion.dpm import DPMS, create_noise_schedule_dpms
 from pixart.diffusion.iddpm import create_diffusion
 from pixart.modules.pixart import PixArt
 from transformers import AutoTokenizer
@@ -52,7 +52,10 @@ class PixArtInferPipeline:
             self.diffusion = create_diffusion(str(num_inference_steps))
             self.sampling_func = self.diffusion.ddim_sample_loop
         else:
-            self.diffusion = partial(DPMS, model=self.network.construct_with_dpmsolver)
+            self.noise_schedule = create_noise_schedule_dpms()
+            self.diffusion = partial(
+                DPMS, model=self.network.construct_with_dpmsolver, noise_schedule=self.noise_schedule
+            )
             self.sampling_func = None
 
         if force_freeze:
@@ -69,6 +72,7 @@ class PixArtInferPipeline:
             for param in self.text_encoder.trainable_params():
                 param.requires_grad = False
 
+    @ms.jit
     def vae_decode(self, x):
         """
         Args:
@@ -84,10 +88,14 @@ class PixArtInferPipeline:
 
         return y
 
+    @ms.jit
+    def _text_encoding(self, x: Tensor, mask: Tensor) -> Tensor:
+        return self.text_encoder(input_ids=x, attention_mask=mask)[0]
+
     def get_condition_embeddings(self, text: Union[str, List[str]]) -> Tuple[Tensor, Tensor]:
         encoding = self.text_tokenizer(text, padding="max_length", truncation=True, return_tensors="np")
         input_ids, text_mask = encoding.input_ids, encoding.attention_mask
-        text_emb = self.text_encoder(input_ids=Tensor(input_ids))[0]
+        text_emb = self._text_encoding(Tensor(input_ids), Tensor(text_mask))
         return text_emb, Tensor(text_mask).to(ms.bool_)
 
     def data_prepare(

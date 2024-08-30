@@ -1,5 +1,10 @@
-from typing import Any, Callable, Dict, List, Optional, Tuple, Union
+"""A numpy version implementatation
+"""
+# FIXME, drop this module once pynative is fast enough.
 
+from typing import List, Optional
+
+import numpy as np
 from tqdm import tqdm
 
 import mindspore as ms
@@ -12,90 +17,12 @@ class NoiseScheduleVP:
     def __init__(
         self,
         schedule: str = "discrete",
-        betas: Optional[Tensor] = None,
-        alphas_cumprod: Optional[Tensor] = None,
+        betas: Optional[np.ndarray] = None,
+        alphas_cumprod: Optional[np.ndarray] = None,
         continuous_beta_0: float = 0.1,
         continuous_beta_1: float = 20.0,
-        dtype: ms.Type = ms.float32,
-    ) -> None:
-        """Create a wrapper class for the forward SDE (VP type).
-
-        ***
-        Update: We support discrete-time diffusion models by implementing a picewise linear interpolation for log_alpha_t.
-                We recommend to use schedule='discrete' for the discrete-time diffusion models, especially for high-resolution images.
-        ***
-
-        The forward SDE ensures that the condition distribution q_{t|0}(x_t | x_0) = N ( alpha_t * x_0, sigma_t^2 * I ).
-        We further define lambda_t = log(alpha_t) - log(sigma_t), which is the half-logSNR (described in the DPM-Solver paper).
-        Therefore, we implement the functions for computing alpha_t, sigma_t and lambda_t. For t in [0, T], we have:
-
-            log_alpha_t = self.marginal_log_mean_coeff(t)
-            sigma_t = self.marginal_std(t)
-            lambda_t = self.marginal_lambda(t)
-
-        Moreover, as lambda(t) is an invertible function, we also support its inverse function:
-
-            t = self.inverse_lambda(lambda_t)
-
-        ===============================================================
-
-        We support both discrete-time DPMs (trained on n = 0, 1, ..., N-1) and continuous-time DPMs (trained on t in [t_0, T]).
-
-        1. For discrete-time DPMs:
-
-            For discrete-time DPMs trained on n = 0, 1, ..., N-1, we convert the discrete steps to continuous time steps by:
-                t_i = (i + 1) / N
-            e.g. for N = 1000, we have t_0 = 1e-3 and T = t_{N-1} = 1.
-            We solve the corresponding diffusion ODE from time T = 1 to time t_0 = 1e-3.
-
-            Args:
-                betas: A `torch.Tensor`. The beta array for the discrete-time DPM. (See the original DDPM paper for details)
-                alphas_cumprod: A `torch.Tensor`. The cumprod alphas for the discrete-time DPM. (See the original DDPM paper for details)
-
-            Note that we always have alphas_cumprod = cumprod(1 - betas). Therefore, we only need to set one of `betas` and `alphas_cumprod`.
-
-            **Important**:  Please pay special attention for the args for `alphas_cumprod`:
-                The `alphas_cumprod` is the \\hat{alpha_n} arrays in the notations of DDPM. Specifically, DDPMs assume that
-                    q_{t_n | 0}(x_{t_n} | x_0) = N ( \\sqrt{\\hat{alpha_n}} * x_0, (1 - \\hat{alpha_n}) * I ).
-                Therefore, the notation \\hat{alpha_n} is different from the notation alpha_t in DPM-Solver. In fact, we have
-                    alpha_{t_n} = \\sqrt{\\hat{alpha_n}},
-                and
-                    log(alpha_{t_n}) = 0.5 * log(\\hat{alpha_n}).
-
-
-        2. For continuous-time DPMs:
-
-            We support the linear VPSDE for the continuous time setting. The hyperparameters for the noise
-            schedule are the default settings in Yang Song's ScoreSDE:
-
-            Args:
-                beta_min: A `float` number. The smallest beta for the linear schedule.
-                beta_max: A `float` number. The largest beta for the linear schedule.
-                T: A `float` number. The ending time of the forward process.
-
-        ===============================================================
-
-        Args:
-            schedule: A `str`. The noise schedule of the forward SDE. 'discrete' for discrete-time DPMs,
-                    'linear' for continuous-time DPMs.
-        Returns:
-            A wrapper object of the forward SDE (VP type).
-
-        ===============================================================
-
-        Example:
-
-        # For discrete-time DPMs, given betas (the beta array for n = 0, 1, ..., N - 1):
-        >>> ns = NoiseScheduleVP('discrete', betas=betas)
-
-        # For discrete-time DPMs, given alphas_cumprod (the \\hat{alpha_n} array for n = 0, 1, ..., N - 1):
-        >>> ns = NoiseScheduleVP('discrete', alphas_cumprod=alphas_cumprod)
-
-        # For continuous-time DPMs (VPSDE), linear schedule:
-        >>> ns = NoiseScheduleVP('linear', continuous_beta_0=0.1, continuous_beta_1=20.)
-
-        """
-
+        dtype: np.dtype = np.float32,
+    ):
         if schedule not in ["discrete", "linear"]:
             raise ValueError(
                 "Unsupported noise schedule {}. The schedule needs to be 'discrete' or 'linear'".format(schedule)
@@ -104,92 +31,90 @@ class NoiseScheduleVP:
         self.schedule = schedule
         if schedule == "discrete":
             if betas is not None:
-                log_alphas = 0.5 * ops.log(1 - betas).cumsum(axis=0)
+                log_alphas = 0.5 * np.log(1 - betas).cumsum(axis=0)
             else:
                 assert alphas_cumprod is not None
-                log_alphas = 0.5 * ops.log(alphas_cumprod)
+                log_alphas = 0.5 * np.log(alphas_cumprod)
             self.T = 1.0
-            self.log_alpha_array = self.numerical_clip_alpha(log_alphas).reshape((1, -1)).to(dtype=dtype)
+            self.log_alpha_array = self.numerical_clip_alpha(log_alphas).reshape((1, -1)).astype(dtype)
             self.total_N = self.log_alpha_array.shape[1]
-            self.t_array = ops.linspace(0.0, 1.0, self.total_N + 1)[1:].reshape((1, -1)).to(dtype=dtype)
+            self.t_array = np.linspace(0.0, 1.0, self.total_N + 1)[1:].reshape((1, -1)).astype(dtype)
         else:
             self.T = 1.0
             self.total_N = 1000
             self.beta_0 = continuous_beta_0
             self.beta_1 = continuous_beta_1
 
-    def numerical_clip_alpha(self, log_alphas: Tensor, clipped_lambda: float = -5.1) -> Tensor:
+    def numerical_clip_alpha(self, log_alphas: np.ndarray, clipped_lambda: float = -5.1) -> np.ndarray:
         """
         For some beta schedules such as cosine schedule, the log-SNR has numerical isssues.
         We clip the log-SNR near t=T within -5.1 to ensure the stability.
         Such a trick is very useful for diffusion models with the cosine schedule, such as i-DDPM, guided-diffusion and GLIDE.
         """
-        log_sigmas = 0.5 * ops.log(1.0 - ops.exp(2.0 * log_alphas))
+        log_sigmas = 0.5 * np.log(1.0 - np.exp(2.0 * log_alphas))
         lambs = log_alphas - log_sigmas
-        idx = ops.searchsorted(ops.flip(lambs, [0]), Tensor(clipped_lambda))
+        idx = np.searchsorted(np.flip(lambs, [0]), clipped_lambda)
         if idx > 0:
             log_alphas = log_alphas[:-idx]
         return log_alphas
 
-    def marginal_log_mean_coeff(self, t: Tensor) -> Tensor:
+    def marginal_log_mean_coeff(self, t: np.ndarray) -> np.ndarray:
         """
         Compute log(alpha_t) of a given continuous-time label t in [0, T].
         """
         if self.schedule == "discrete":
-            return interpolate_fn(t.reshape((-1, 1)), self.t_array, self.log_alpha_array).reshape((-1,))
+            return interpolate_fn(t.reshape((-1, 1)), self.t_array, self.log_alpha_array).reshape((-1))
         elif self.schedule == "linear":
             return -0.25 * t**2 * (self.beta_1 - self.beta_0) - 0.5 * t * self.beta_0
 
-    def marginal_alpha(self, t: Tensor) -> Tensor:
+    def marginal_alpha(self, t: np.ndarray) -> np.ndarray:
         """
         Compute alpha_t of a given continuous-time label t in [0, T].
         """
-        return ops.exp(self.marginal_log_mean_coeff(t))
+        return np.exp(self.marginal_log_mean_coeff(t))
 
-    def marginal_std(self, t: Tensor) -> Tensor:
+    def marginal_std(self, t: np.ndarray) -> np.ndarray:
         """
         Compute sigma_t of a given continuous-time label t in [0, T].
         """
-        return ops.sqrt(1.0 - ops.exp(2.0 * self.marginal_log_mean_coeff(t)))
+        return np.sqrt(1.0 - np.exp(2.0 * self.marginal_log_mean_coeff(t)))
 
-    def marginal_lambda(self, t: Tensor) -> Tensor:
+    def marginal_lambda(self, t: np.ndarray) -> np.ndarray:
         """
         Compute lambda_t = log(alpha_t) - log(sigma_t) of a given continuous-time label t in [0, T].
         """
         log_mean_coeff = self.marginal_log_mean_coeff(t)
-        log_std = 0.5 * ops.log(1.0 - ops.exp(2.0 * log_mean_coeff))
+        log_std = 0.5 * np.log(1.0 - np.exp(2.0 * log_mean_coeff))
         return log_mean_coeff - log_std
 
-    def inverse_lambda(self, lamb: Tensor) -> Tensor:
+    def inverse_lambda(self, lamb: np.ndarray) -> np.ndarray:
         """
         Compute the continuous-time label t in [0, T] of a given half-logSNR lambda_t.
         """
         if self.schedule == "linear":
-            tmp = 2.0 * (self.beta_1 - self.beta_0) * ops.logaddexp(-2.0 * lamb, ops.zeros((1,)).to(lamb.dtype))
+            tmp = 2.0 * (self.beta_1 - self.beta_0) * np.logaddexp(-2.0 * lamb, np.zeros((1,)))
             Delta = self.beta_0**2 + tmp
-            return tmp / (ops.sqrt(Delta) + self.beta_0) / (self.beta_1 - self.beta_0)
+            return tmp / (np.sqrt(Delta) + self.beta_0) / (self.beta_1 - self.beta_0)
         elif self.schedule == "discrete":
-            log_alpha = -0.5 * ops.logaddexp(ops.zeros((1,)), -2.0 * lamb)
+            log_alpha = -0.5 * np.logaddexp(np.zeros((1,)), -2.0 * lamb)
             t = interpolate_fn(
-                log_alpha.reshape((-1, 1)),
-                ops.flip(self.log_alpha_array, [1]),
-                ops.flip(self.t_array, [1]),
+                log_alpha.reshape((-1, 1)), np.flip(self.log_alpha_array, [1]), np.flip(self.t_array, [1])
             )
             return t.reshape((-1,))
 
 
 def model_wrapper(
-    model: Callable[..., Tensor],
-    noise_schedule: NoiseScheduleVP,
-    model_type: str = "noise",
-    model_kwargs: Dict[str, Any] = {},
-    guidance_type: str = "uncond",
-    condition: Optional[Tensor] = None,
-    unconditional_condition: Optional[Tensor] = None,
-    guidance_scale: float = 1.0,
-    classifier_fn: Optional[Callable[..., Tensor]] = None,
-    classifier_kwargs: Dict[str, Any] = {},
-) -> Callable[..., Tensor]:
+    model,
+    noise_schedule,
+    model_type="noise",
+    model_kwargs={},
+    guidance_type="uncond",
+    condition=None,
+    unconditional_condition=None,
+    guidance_scale=1.0,
+    classifier_fn=None,
+    classifier_kwargs={},
+):
     """Create a wrapper function for the noise prediction model.
 
     DPM-Solver needs to solve the continuous-time diffusion ODEs. For DPMs trained on discrete-time labels, we need to
@@ -279,7 +204,7 @@ def model_wrapper(
         A noise prediction model that accepts the noised data and the continuous time as the inputs.
     """
 
-    def get_model_input_time(t_continuous: Tensor) -> Tensor:
+    def get_model_input_time(t_continuous):
         """
         Convert the continuous-time `t_continuous` (in [epsilon, T]) to the model input time.
         For discrete-time DPMs, we convert `t_continuous` in [1 / N, 1] to `t_input` in [0, 1000 * (N - 1) / N].
@@ -290,7 +215,7 @@ def model_wrapper(
         else:
             return t_continuous
 
-    def noise_pred_fn(x: Tensor, t_continuous: Tensor, cond: Optional[Tensor] = None) -> Tensor:
+    def noise_pred_fn(x, t_continuous, cond=None):
         t_input = get_model_input_time(t_continuous)
         if cond is None:
             output = model(x, t_input, **model_kwargs)
@@ -308,13 +233,13 @@ def model_wrapper(
             sigma_t = noise_schedule.marginal_std(t_continuous)
             return -expand_dims(sigma_t, x.shape) * output
 
-    def cond_grad_fn(x: Tensor, t_input: Tensor) -> Tensor:
+    def cond_grad_fn(x, t_input):
         """
         Compute the gradient of the classifier, i.e. nabla_{x} log p_t(cond | x_t).
         """
         raise NotImplementedError
 
-    def model_fn(x: Tensor, t_continuous: Tensor) -> Tensor:
+    def model_fn(x, t_continuous):
         """
         The noise predicition model function that is used for DPM-Solver.
         """
@@ -345,14 +270,14 @@ def model_wrapper(
 class DPM_Solver:
     def __init__(
         self,
-        model_fn: Callable[..., Tensor],
-        noise_schedule: NoiseScheduleVP,
-        algorithm_type: str = "dpmsolver++",
-        correcting_x0_fn: Optional[Callable[..., Tensor]] = None,
-        correcting_xt_fn: Optional[Callable[..., Tensor]] = None,
-        thresholding_max_val: float = 1.0,
-        dynamic_thresholding_ratio: float = 0.995,
-    ) -> None:
+        model_fn,
+        noise_schedule,
+        algorithm_type="dpmsolver++",
+        correcting_x0_fn=None,
+        correcting_xt_fn=None,
+        thresholding_max_val=1.0,
+        dynamic_thresholding_ratio=0.995,
+    ):
         """Construct a DPM-Solver.
 
         We support both DPM-Solver (`algorithm_type="dpmsolver"`) and DPM-Solver++ (`algorithm_type="dpmsolver++"`).
@@ -409,7 +334,7 @@ class DPM_Solver:
             Burcu Karagol Ayan, S Sara Mahdavi, Rapha Gontijo Lopes, et al. Photorealistic text-to-image diffusion models
             with deep language understanding. arXiv preprint arXiv:2205.11487, 2022b.
         """
-        self.model: Callable[[Tensor, Tensor], Tensor] = lambda x, t: model_fn(x, t.expand((x.shape[0],)))
+        self.model = lambda x, t: model_fn(x, t.expand((x.shape[0],)))
         self.noise_schedule = noise_schedule
         assert algorithm_type in ["dpmsolver", "dpmsolver++"]
         self.algorithm_type = algorithm_type
@@ -421,13 +346,13 @@ class DPM_Solver:
         self.dynamic_thresholding_ratio = dynamic_thresholding_ratio
         self.thresholding_max_val = thresholding_max_val
 
-    def dynamic_thresholding_fn(self, x0: Tensor, t: Tensor) -> Tensor:
+    def dynamic_thresholding_fn(self, x0, t):
         """
         The dynamic thresholding method.
         """
         dims = x0.shape
         p = self.dynamic_thresholding_ratio
-        s = ops.quantile(ops.abs(x0).reshape((x0.shape[0], -1)), p, axis=1)
+        s = ops.quantile(ops.abs(x0).reshape((x0.shape[0], -1)), p, dim=1)
         s = expand_dims(ops.maximum(s, self.thresholding_max_val * ops.ones_like(s)), dims)
         x0 = ops.clamp(x0, -s, s) / s
         return x0
@@ -442,8 +367,10 @@ class DPM_Solver:
         """
         Return the data prediction model (with corrector).
         """
+        t_np = t.asnumpy()
         noise = self.noise_prediction_fn(x, t)
-        alpha_t, sigma_t = self.noise_schedule.marginal_alpha(t), self.noise_schedule.marginal_std(t)
+        alpha_t, sigma_t = self.noise_schedule.marginal_alpha(t_np), self.noise_schedule.marginal_std(t_np)
+        alpha_t, sigma_t = Tensor(alpha_t), Tensor(sigma_t)
         x0 = (x - sigma_t * noise) / alpha_t
         if self.correcting_x0_fn is not None:
             x0 = self.correcting_x0_fn(x0, t)
@@ -458,7 +385,7 @@ class DPM_Solver:
         else:
             return self.noise_prediction_fn(x, t)
 
-    def get_time_steps(self, skip_type: str, t_T: float, t_0: float, N: int) -> Tensor:
+    def get_time_steps(self, skip_type, t_T, t_0, N):
         """Compute the intermediate time steps for sampling.
 
         Args:
@@ -475,7 +402,7 @@ class DPM_Solver:
         if skip_type == "logSNR":
             lambda_T = self.noise_schedule.marginal_lambda(Tensor(t_T))
             lambda_0 = self.noise_schedule.marginal_lambda(Tensor(t_0))
-            logSNR_steps = ops.linspace(lambda_T.item(), lambda_0.item(), N + 1)
+            logSNR_steps = ops.linspace(lambda_T.cpu().item(), lambda_0.cpu().item(), N + 1)
             return self.noise_schedule.inverse_lambda(logSNR_steps)
         elif skip_type == "time_uniform":
             return ops.linspace(t_T, t_0, N + 1)
@@ -488,9 +415,7 @@ class DPM_Solver:
                 "Unsupported skip_type {}, need to be 'logSNR' or 'time_uniform' or 'time_quadratic'".format(skip_type)
             )
 
-    def get_orders_and_timesteps_for_singlestep_solver(
-        self, steps: int, order: int, skip_type: str, t_T: float, t_0: float
-    ) -> Tuple[Tensor, List[int]]:
+    def get_orders_and_timesteps_for_singlestep_solver(self, steps, order, skip_type, t_T, t_0):
         """
         Get the order of each step for sampling by the singlestep DPM-Solver.
 
@@ -524,31 +449,61 @@ class DPM_Solver:
         if order == 3:
             K = steps // 3 + 1
             if steps % 3 == 0:
-                orders = [3] * (K - 2) + [2, 1]
+                orders = [
+                    3,
+                ] * (
+                    K - 2
+                ) + [2, 1]
             elif steps % 3 == 1:
-                orders = [3] * (K - 1) + [1]
+                orders = [
+                    3,
+                ] * (
+                    K - 1
+                ) + [1]
             else:
-                orders = [3] * (K - 1) + [2]
+                orders = [
+                    3,
+                ] * (
+                    K - 1
+                ) + [2]
         elif order == 2:
             if steps % 2 == 0:
                 K = steps // 2
-                orders = [2] * K
+                orders = [
+                    2,
+                ] * K
             else:
                 K = steps // 2 + 1
-                orders = [2] * (K - 1) + [1]
+                orders = [
+                    2,
+                ] * (
+                    K - 1
+                ) + [1]
         elif order == 1:
             K = 1
-            orders = [1] * steps
+            orders = [
+                1,
+            ] * steps
         else:
             raise ValueError("'order' must be '1' or '2' or '3'.")
         if skip_type == "logSNR":
             # To reproduce the results in DPM-Solver paper
             timesteps_outer = self.get_time_steps(skip_type, t_T, t_0, K)
         else:
-            timesteps_outer = self.get_time_steps(skip_type, t_T, t_0, steps)[ops.cumsum(Tensor([0] + orders), 0)]
+            timesteps_outer = self.get_time_steps(skip_type, t_T, t_0, steps)[
+                ops.cumsum(
+                    Tensor(
+                        [
+                            0,
+                        ]
+                        + orders
+                    ),
+                    0,
+                )
+            ]
         return timesteps_outer, orders
 
-    def denoise_to_zero_fn(self, x: Tensor, s: Tensor) -> Tensor:
+    def denoise_to_zero_fn(self, x, s):
         """
         Denoise at the final step, which is equivalent to solve the ODE from lambda_s to infty by first-order discretization.
         """
@@ -556,56 +511,37 @@ class DPM_Solver:
 
     def dpm_solver_first_update(
         self, x: Tensor, s: Tensor, t: Tensor, model_s: Optional[Tensor] = None, return_intermediate: bool = False
-    ) -> Union[Tensor, Tuple[Tensor, Dict[str, Tensor]]]:
-        """
-        DPM-Solver-1 (equivalent to DDIM) from time `s` to time `t`.
-
-        Args:
-            x: A mindspore tensor. The initial value at time `s`.
-            s: A mindspore tensor. The starting time, with the shape (1,).
-            t: A mindspore tensor. The ending time, with the shape (1,).
-            model_s: A mindspore tensor. The model function evaluated at time `s`.
-                If `model_s` is None, we evaluate the model by `x` and `s`; otherwise we directly use it.
-            return_intermediate: A `bool`. If true, also return the model value at time `s`.
-        Returns:
-            x_t: A mindspore tensor. The approximated solution at time `t`.
-        """
+    ):
+        s_np, t_np = s.asnumpy(), t.asnumpy()
         ns = self.noise_schedule
-        lambda_s, lambda_t = ns.marginal_lambda(s), ns.marginal_lambda(t)
+        lambda_s, lambda_t = ns.marginal_lambda(s_np), ns.marginal_lambda(t_np)
         h = lambda_t - lambda_s
-        log_alpha_s, log_alpha_t = ns.marginal_log_mean_coeff(s), ns.marginal_log_mean_coeff(t)
-        sigma_s, sigma_t = ns.marginal_std(s), ns.marginal_std(t)
-        alpha_t = ops.exp(log_alpha_t)
+        log_alpha_s, log_alpha_t = ns.marginal_log_mean_coeff(s_np), ns.marginal_log_mean_coeff(t_np)
+        sigma_s, sigma_t = ns.marginal_std(s_np), ns.marginal_std(t_np)
+        alpha_t = np.exp(log_alpha_t)
 
         if self.algorithm_type == "dpmsolver++":
-            phi_1 = ops.expm1(-h)
+            phi_1 = np.expm1(-h)
             if model_s is None:
                 model_s = self.model_fn(x, s)
-            x_t = sigma_t / sigma_s * x - alpha_t * phi_1 * model_s
+            x_t = Tensor(sigma_t / sigma_s) * x - Tensor(alpha_t * phi_1) * model_s
             if return_intermediate:
                 return x_t, {"model_s": model_s}
             else:
                 return x_t
         else:
-            phi_1 = ops.expm1(h)
+            phi_1 = np.expm1(h)
             if model_s is None:
                 model_s = self.model_fn(x, s)
-            x_t = ops.exp(log_alpha_t - log_alpha_s) * x - (sigma_t * phi_1) * model_s
+            x_t = Tensor(np.exp(log_alpha_t - log_alpha_s)) * x - Tensor(sigma_t * phi_1) * model_s
             if return_intermediate:
                 return x_t, {"model_s": model_s}
             else:
                 return x_t
 
     def singlestep_dpm_solver_second_update(
-        self,
-        x: Tensor,
-        s: Tensor,
-        t: Tensor,
-        r1: Optional[float] = 0.5,
-        model_s: Optional[Tensor] = None,
-        return_intermediate: bool = False,
-        solver_type: str = "dpmsolver",
-    ) -> Union[Tensor, Tuple[Tensor, Dict[str, Tensor]]]:
+        self, x, s, t, r1=0.5, model_s=None, return_intermediate=False, solver_type="dpmsolver"
+    ):
         """
         Singlestep solver DPM-Solver-2 from time `s` to time `t`.
 
@@ -686,16 +622,16 @@ class DPM_Solver:
 
     def singlestep_dpm_solver_third_update(
         self,
-        x: Tensor,
-        s: Tensor,
-        t: Tensor,
-        r1: Optional[float] = 1.0 / 3.0,
-        r2: Optional[float] = 2.0 / 3.0,
-        model_s: Optional[Tensor] = None,
-        model_s1: Optional[Tensor] = None,
-        return_intermediate: bool = False,
-        solver_type: str = "dpmsolver",
-    ) -> Union[Tensor, Tuple[Tensor, Dict[str, Tensor]]]:
+        x,
+        s,
+        t,
+        r1=1.0 / 3.0,
+        r2=2.0 / 3.0,
+        model_s=None,
+        model_s1=None,
+        return_intermediate=False,
+        solver_type="dpmsolver",
+    ):
         """
         Singlestep solver DPM-Solver-3 from time `s` to time `t`.
 
@@ -827,7 +763,7 @@ class DPM_Solver:
         t_prev_list: List[Tensor],
         t: Tensor,
         solver_type: str = "dpmsolver",
-    ) -> Tensor:
+    ):
         """
         Multistep solver DPM-Solver-2 from time `t_prev_list[-1]` to time `t`.
 
@@ -846,53 +782,52 @@ class DPM_Solver:
         ns = self.noise_schedule
         model_prev_1, model_prev_0 = model_prev_list[-2], model_prev_list[-1]
         t_prev_1, t_prev_0 = t_prev_list[-2], t_prev_list[-1]
+        t_prev_1_np, t_prev_0_np, t_np = t_prev_1.asnumpy(), t_prev_0.asnumpy(), t.asnumpy()
+
         lambda_prev_1, lambda_prev_0, lambda_t = (
-            ns.marginal_lambda(t_prev_1),
-            ns.marginal_lambda(t_prev_0),
-            ns.marginal_lambda(t),
+            ns.marginal_lambda(t_prev_1_np),
+            ns.marginal_lambda(t_prev_0_np),
+            ns.marginal_lambda(t_np),
         )
-        log_alpha_prev_0, log_alpha_t = ns.marginal_log_mean_coeff(t_prev_0), ns.marginal_log_mean_coeff(t)
-        sigma_prev_0, sigma_t = ns.marginal_std(t_prev_0), ns.marginal_std(t)
-        alpha_t = ops.exp(log_alpha_t)
+        log_alpha_prev_0, log_alpha_t = ns.marginal_log_mean_coeff(t_prev_0_np), ns.marginal_log_mean_coeff(t_np)
+        sigma_prev_0, sigma_t = ns.marginal_std(t_prev_0_np), ns.marginal_std(t_np)
+        alpha_t = np.exp(log_alpha_t)
 
         h_0 = lambda_prev_0 - lambda_prev_1
         h = lambda_t - lambda_prev_0
         r0 = h_0 / h
-        D1_0 = (1.0 / r0) * (model_prev_0 - model_prev_1)
+        D1_0 = Tensor(1.0 / r0) * (model_prev_0 - model_prev_1)
         if self.algorithm_type == "dpmsolver++":
-            phi_1 = ops.expm1(-h)
+            phi_1 = np.expm1(-h)
             if solver_type == "dpmsolver":
-                x_t = (sigma_t / sigma_prev_0) * x - (alpha_t * phi_1) * model_prev_0 - 0.5 * (alpha_t * phi_1) * D1_0
+                x_t = (
+                    Tensor(sigma_t / sigma_prev_0) * x
+                    - Tensor(alpha_t * phi_1) * model_prev_0
+                    - Tensor(0.5 * (alpha_t * phi_1)) * D1_0
+                )
             elif solver_type == "taylor":
                 x_t = (
-                    (sigma_t / sigma_prev_0) * x
-                    - (alpha_t * phi_1) * model_prev_0
-                    + (alpha_t * (phi_1 / h + 1.0)) * D1_0
+                    Tensor(sigma_t / sigma_prev_0) * x
+                    - Tensor(alpha_t * phi_1) * model_prev_0
+                    + Tensor((alpha_t * (phi_1 / h + 1.0))) * D1_0
                 )
         else:
-            phi_1 = ops.expm1(h)
+            phi_1 = np.expm1(h)
             if solver_type == "dpmsolver":
                 x_t = (
-                    (ops.exp(log_alpha_t - log_alpha_prev_0)) * x
-                    - (sigma_t * phi_1) * model_prev_0
-                    - 0.5 * (sigma_t * phi_1) * D1_0
+                    Tensor(np.exp(log_alpha_t - log_alpha_prev_0)) * x
+                    - Tensor(sigma_t * phi_1) * model_prev_0
+                    - Tensor(0.5 * (sigma_t * phi_1)) * D1_0
                 )
             elif solver_type == "taylor":
                 x_t = (
-                    (ops.exp(log_alpha_t - log_alpha_prev_0)) * x
-                    - (sigma_t * phi_1) * model_prev_0
-                    - (sigma_t * (phi_1 / h - 1.0)) * D1_0
+                    Tensor(np.exp(log_alpha_t - log_alpha_prev_0)) * x
+                    - Tensor(sigma_t * phi_1) * model_prev_0
+                    - Tensor((sigma_t * (phi_1 / h - 1.0))) * D1_0
                 )
         return x_t
 
-    def multistep_dpm_solver_third_update(
-        self,
-        x: Tensor,
-        model_prev_list: List[Tensor],
-        t_prev_list: List[Tensor],
-        t: Tensor,
-        solver_type: str = "dpmsolver",
-    ) -> Tensor:
+    def multistep_dpm_solver_third_update(self, x, model_prev_list, t_prev_list, t, solver_type="dpmsolver"):
         """
         Multistep solver DPM-Solver-3 from time `t_prev_list[-1]` to time `t`.
 
@@ -950,16 +885,8 @@ class DPM_Solver:
         return x_t
 
     def singlestep_dpm_solver_update(
-        self,
-        x: Tensor,
-        s: Tensor,
-        t: Tensor,
-        order: int,
-        return_intermediate: bool = False,
-        solver_type: str = "dpmsolver",
-        r1: Optional[float] = None,
-        r2: Optional[float] = None,
-    ) -> Union[Tensor, Tuple[Tensor, Dict[str, Tensor]]]:
+        self, x, s, t, order, return_intermediate=False, solver_type="dpmsolver", r1=None, r2=None
+    ):
         """
         Singlestep DPM-Solver with the order `order` from time `s` to time `t`.
 
@@ -989,15 +916,7 @@ class DPM_Solver:
         else:
             raise ValueError("Solver order must be 1 or 2 or 3, got {}".format(order))
 
-    def multistep_dpm_solver_update(
-        self,
-        x: Tensor,
-        model_prev_list: List[Tensor],
-        t_prev_list: List[Tensor],
-        t: Tensor,
-        order: int,
-        solver_type: str = "dpmsolver",
-    ) -> Union[Tensor, Tuple[Tensor, Dict[str, Tensor]]]:
+    def multistep_dpm_solver_update(self, x, model_prev_list, t_prev_list, t, order, solver_type="dpmsolver"):
         """
         Multistep DPM-Solver with the order `order` from time `t_prev_list[-1]` to time `t`.
 
@@ -1022,18 +941,8 @@ class DPM_Solver:
             raise ValueError("Solver order must be 1 or 2 or 3, got {}".format(order))
 
     def dpm_solver_adaptive(
-        self,
-        x: Tensor,
-        order: int,
-        t_T: float,
-        t_0: float,
-        h_init: float = 0.05,
-        atol: float = 0.0078,
-        rtol: float = 0.05,
-        theta: float = 0.9,
-        t_err: float = 1e-5,
-        solver_type: str = "dpmsolver",
-    ) -> Tensor:
+        self, x, order, t_T, t_0, h_init=0.05, atol=0.0078, rtol=0.05, theta=0.9, t_err=1e-5, solver_type="dpmsolver"
+    ):
         """
         The adaptive step size solver based on singlestep DPM-Solver.
 
@@ -1057,32 +966,24 @@ class DPM_Solver:
             "Gotta go fast when generating data with score-based models," arXiv preprint arXiv:2105.14080, 2021.
         """
         ns = self.noise_schedule
-        s = t_T * ops.ones((1,)).to(x.dtype)
+        s = t_T * ops.ones((1,))
         lambda_s = ns.marginal_lambda(s)
-        lambda_0 = ns.marginal_lambda(t_0 * ops.ones_like(s).to(x.dtype))
-        h = h_init * ops.ones_like(s).to(x.dtype)
+        lambda_0 = ns.marginal_lambda(t_0 * ops.ones_like(s))
+        h = h_init * ops.ones_like(s)
         x_prev = x
         nfe = 0
         if order == 2:
             r1 = 0.5
-            lower_update: Callable[
-                [Tensor, Tensor, Tensor], Tuple[Tensor, Dict[str, Tensor]]
-            ] = lambda x, s, t: self.dpm_solver_first_update(x, s, t, return_intermediate=True)
-            higher_update: Callable[
-                [Tensor, Tensor, Tensor, Any], Tensor
-            ] = lambda x, s, t, **kwargs: self.singlestep_dpm_solver_second_update(
+            lower_update = lambda x, s, t: self.dpm_solver_first_update(x, s, t, return_intermediate=True)
+            higher_update = lambda x, s, t, **kwargs: self.singlestep_dpm_solver_second_update(
                 x, s, t, r1=r1, solver_type=solver_type, **kwargs
             )
         elif order == 3:
             r1, r2 = 1.0 / 3.0, 2.0 / 3.0
-            lower_update: Callable[
-                [Tensor, Tensor, Tensor], Tuple[Tensor, Dict[str, Tensor]]
-            ] = lambda x, s, t: self.singlestep_dpm_solver_second_update(
+            lower_update = lambda x, s, t: self.singlestep_dpm_solver_second_update(
                 x, s, t, r1=r1, return_intermediate=True, solver_type=solver_type
             )
-            higher_update: Callable[
-                [Tensor, Tensor, Tensor, Any], Tensor
-            ] = lambda x, s, t, **kwargs: self.singlestep_dpm_solver_third_update(
+            higher_update = lambda x, s, t, **kwargs: self.singlestep_dpm_solver_third_update(
                 x, s, t, r1=r1, r2=r2, solver_type=solver_type, **kwargs
             )
         else:
@@ -1091,10 +992,8 @@ class DPM_Solver:
             t = ns.inverse_lambda(lambda_s + h)
             x_lower, lower_noise_kwargs = lower_update(x, s, t)
             x_higher = higher_update(x, s, t, **lower_noise_kwargs)
-            delta = ops.max(ops.ones_like(x).to(x.dtype) * atol, rtol * ops.max(ops.abs(x_lower), ops.abs(x_prev)))
-            norm_fn: Callable[[Tensor], Tensor] = lambda v: ops.sqrt(
-                ops.square(v.reshape((v.shape[0], -1))).mean(axis=-1, keepdim=True)
-            )
+            delta = ops.max(ops.ones_like(x) * atol, rtol * ops.max(ops.abs(x_lower), ops.abs(x_prev)))
+            norm_fn = lambda v: ops.sqrt(ops.square(v.reshape((v.shape[0], -1))).mean(dim=-1, keepdim=True))
             E = norm_fn((x_higher - x_lower) / delta).max()
             if ops.all(E <= 1.0):
                 x = x_higher
@@ -1106,19 +1005,19 @@ class DPM_Solver:
         print("adaptive solver nfe", nfe)
         return x
 
-    def add_noise(self, x: Tensor, t: Tensor, noise: Optional[Tensor] = None) -> Tensor:
+    def add_noise(self, x, t, noise=None):
         """
         Compute the noised input xt = alpha_t * x + sigma_t * noise.
 
         Args:
-            x: A `torch.Tensor` with shape `(batch_size, *shape)`.
-            t: A `torch.Tensor` with shape `(t_size,)`.
+            x: A `Tensor` with shape `(batch_size, *shape)`.
+            t: A `Tensor` with shape `(t_size,)`.
         Returns:
             xt with shape `(t_size, batch_size, *shape)`.
         """
         alpha_t, sigma_t = self.noise_schedule.marginal_alpha(t), self.noise_schedule.marginal_std(t)
         if noise is None:
-            noise = ops.randn((t.shape[0], *x.shape))
+            noise = mint.normal(size=(t.shape[0], *x.shape))
         x = x.reshape((-1, *x.shape))
         xt = expand_dims(alpha_t, x.shape) * x + expand_dims(sigma_t, x.shape) * noise
         if t.shape[0] == 1:
@@ -1128,20 +1027,20 @@ class DPM_Solver:
 
     def inverse(
         self,
-        x: Tensor,
-        steps: int = 20,
-        t_start: Optional[float] = None,
-        t_end: Optional[float] = None,
-        order: int = 2,
-        skip_type: str = "time_uniform",
-        method: str = "multistep",
-        lower_order_final: bool = True,
-        denoise_to_zero: bool = False,
-        solver_type: str = "dpmsolver",
-        atol: float = 0.0078,
-        rtol: float = 0.05,
-        return_intermediate: bool = False,
-    ) -> Union[Tensor, Tuple[Tensor, List[Tensor]]]:
+        x,
+        steps=20,
+        t_start=None,
+        t_end=None,
+        order=2,
+        skip_type="time_uniform",
+        method="multistep",
+        lower_order_final=True,
+        denoise_to_zero=False,
+        solver_type="dpmsolver",
+        atol=0.0078,
+        rtol=0.05,
+        return_intermediate=False,
+    ):
         """
         Inverse the sample `x` from time `t_start` to `t_end` by DPM-Solver.
         For discrete-time DPMs, we use `t_start=1/N`, where `N` is the total time steps during training.
@@ -1169,20 +1068,20 @@ class DPM_Solver:
 
     def sample(
         self,
-        x: Tensor,
-        steps: int = 20,
-        t_start: Optional[float] = None,
-        t_end: Optional[float] = None,
-        order: int = 2,
-        skip_type: str = "time_uniform",
-        method: str = "multistep",
-        lower_order_final: bool = True,
-        denoise_to_zero: bool = False,
-        solver_type: str = "dpmsolver",
-        atol: float = 0.0078,
-        rtol: float = 0.05,
-        return_intermediate: bool = False,
-    ) -> Union[Tensor, Tuple[Tensor, List[Tensor]]]:
+        x,
+        steps=20,
+        t_start=None,
+        t_end=None,
+        order=2,
+        skip_type="time_uniform",
+        method="multistep",
+        lower_order_final=True,
+        denoise_to_zero=False,
+        solver_type="dpmsolver",
+        atol=0.0078,
+        rtol=0.05,
+        return_intermediate=False,
+    ):
         """
         Compute the sample at time `t_end` by DPM-Solver, given the initial `x` at time `t_start`.
 
@@ -1366,11 +1265,17 @@ class DPM_Solver:
         elif method in ["singlestep", "singlestep_fixed"]:
             if method == "singlestep":
                 timesteps_outer, orders = self.get_orders_and_timesteps_for_singlestep_solver(
-                    steps=steps, order=order, skip_type=skip_type, t_T=t_T, t_0=t_0
+                    steps=steps,
+                    order=order,
+                    skip_type=skip_type,
+                    t_T=t_T,
+                    t_0=t_0,
                 )
             elif method == "singlestep_fixed":
                 K = steps // order
-                orders = [order] * K
+                orders = [
+                    order,
+                ] * K
                 timesteps_outer = self.get_time_steps(skip_type=skip_type, t_T=t_T, t_0=t_0, N=K)
             for step, order in enumerate(orders):
                 s, t = timesteps_outer[step], timesteps_outer[step + 1]
@@ -1387,7 +1292,7 @@ class DPM_Solver:
         else:
             raise ValueError("Got wrong method {}".format(method))
         if denoise_to_zero:
-            t = ops.ones((1,)) * t_0
+            t = ops.ones((1,), dtype=ms.float32) * t_0
             x = self.denoise_to_zero_fn(x, t)
             if self.correcting_xt_fn is not None:
                 x = self.correcting_xt_fn(x, t, step + 1)
@@ -1404,37 +1309,29 @@ class DPM_Solver:
 #############################################################
 
 
-def interpolate_fn(x: Tensor, xp: Tensor, yp: Tensor) -> Tensor:
-    """
-    A piecewise linear function y = f(x), using xp and yp as keypoints.
-    We implement f(x) in a differentiable way (i.e. applicable for autograd).
-    The function f(x) is well-defined for all x-axis. (For x beyond the bounds of xp, we use the outmost points of xp to define the linear function.)
-
-    Args:
-        x: mindspore tensor with shape [N, C], where N is the batch size, C is the number of channels (we use C = 1 for DPM-Solver).
-        xp: mindspore tensor with shape [C, K], where K is the number of keypoints.
-        yp: mindspore tensor with shape [C, K].
-    Returns:
-        The function values f(x), with shape [N, C].
-    """
+def interpolate_fn(x: np.ndarray, xp: np.ndarray, yp: np.ndarray) -> np.ndarray:
+    assert isinstance(x, np.ndarray)
+    assert isinstance(xp, np.ndarray)
+    assert isinstance(yp, np.ndarray)
     N, K = x.shape[0], xp.shape[1]
-    all_x = ops.cat([x.unsqueeze(2), xp.unsqueeze(0).tile((N, 1, 1))], axis=2)
-    sorted_all_x, x_indices = ops.sort(all_x, axis=2)
-    x_idx = ops.argmin(x_indices, axis=2)
+    all_x = np.concatenate([np.expand_dims(x, 2), np.tile(np.expand_dims(xp, 0), (N, 1, 1))], axis=2)
+    x_indices = np.argsort(all_x, axis=2)
+    sorted_all_x = np.sort(all_x, axis=2)
+    x_idx = np.argmin(x_indices, axis=2)
     cand_start_idx = x_idx - 1
-    start_idx = ops.where(ops.eq(x_idx, 0), Tensor(1), ops.where(ops.eq(x_idx, K), Tensor(K - 2), cand_start_idx))
-    end_idx = ops.where(ops.eq(start_idx, cand_start_idx), start_idx + 2, start_idx + 1)
-    start_x = ops.gather(sorted_all_x, axis=2, input_indices=start_idx.unsqueeze(2)).squeeze(2)
-    end_x = ops.gather(sorted_all_x, axis=2, input_indices=end_idx.unsqueeze(2)).squeeze(2)
-    start_idx2 = ops.where(ops.eq(x_idx, 0), Tensor(0), ops.where(ops.eq(x_idx, K), Tensor(K - 2), cand_start_idx))
-    y_positions_expanded = yp.unsqueeze(0).expand((N, -1, -1))
-    start_y = ops.gather(y_positions_expanded, axis=2, input_indices=start_idx2.unsqueeze(2)).squeeze(2)
-    end_y = ops.gather(y_positions_expanded, axis=2, input_indices=(start_idx2 + 1).unsqueeze(2)).squeeze(2)
+    start_idx = np.where(np.equal(x_idx, 0), 1, np.where(np.equal(x_idx, K), K - 2, cand_start_idx))
+    end_idx = np.where(np.equal(start_idx, cand_start_idx), start_idx + 2, start_idx + 1)
+    start_x = np.take_along_axis(sorted_all_x, axis=2, indices=np.expand_dims(start_idx, 2)).squeeze(2)
+    end_x = np.take_along_axis(sorted_all_x, axis=2, indices=np.expand_dims(end_idx, 2)).squeeze(2)
+    start_idx2 = np.where(np.equal(x_idx, 0), 0, np.where(np.equal(x_idx, K), K - 2, cand_start_idx))
+    y_positions_expanded = np.tile(np.expand_dims(yp, 0), (N, 1, 1))
+    start_y = np.take_along_axis(y_positions_expanded, axis=2, indices=np.expand_dims(start_idx2, 2)).squeeze(2)
+    end_y = np.take_along_axis(y_positions_expanded, axis=2, indices=np.expand_dims(start_idx2 + 1, 2)).squeeze(2)
     cand = start_y + (x - start_x) * (end_y - start_y) / (end_x - start_x)
     return cand
 
 
-def expand_dims(v: Tensor, dims: int) -> Tensor:
+def expand_dims(v, dims):
     """
     Expand the tensor `v` to the dim `dims`.
 

@@ -42,8 +42,8 @@ class NetworkWithLoss(nn.Cell):
         image_latents = ops.stop_gradient(image_latents * self.scale_factor)
         return image_latents
 
-    def get_text_emb(self, x: Tensor) -> Tensor:
-        text_emb = ops.stop_gradient(self.text_encoder(input_ids=x)[0])
+    def get_text_emb(self, x: Tensor, mask: Tensor) -> Tensor:
+        text_emb = ops.stop_gradient(self.text_encoder(input_ids=x, attention_mask=mask)[0])
         return text_emb
 
     def _vae_sample(self, x: Tensor) -> Tensor:
@@ -81,7 +81,7 @@ class NetworkWithLoss(nn.Cell):
             text_mask: Text Mask
         """
         x = self.get_latents(x)
-        text_emb = self.get_text_emb(text)
+        text_emb = self.get_text_emb(text, text_mask)
         loss = self.compute_loss(x, text_emb, text_mask)
         return loss
 

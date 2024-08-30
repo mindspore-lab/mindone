@@ -2,6 +2,7 @@ from typing import Any, Dict, List, Literal, Optional, Tuple, Union
 
 import numpy as np
 
+import mindspore as ms
 import mindspore.mint as mint
 import mindspore.nn as nn
 import mindspore.ops as ops
@@ -23,7 +24,7 @@ from .blocks import (
     TimestepEmbedder,
     t2i_modulate,
 )
-from .pos import cal_2d_sincos_pos_embed
+from .pos import cal_2d_sincos_pos_embed, cal_omega
 
 
 class PixArtBlock(nn.Cell):
@@ -222,18 +223,20 @@ class PixArt(nn.Cell):
         x = self.unpatchify(x, h, w)  # (N, out_channels, H, W)
         return x
 
+    @ms.jit
     def construct_with_cfg(
         self, x: Tensor, t: Tensor, y: Tensor, cfg_scale: Union[Tensor, float], mask_y: Optional[Tensor] = None
     ) -> Tensor:
         half = x[: len(x) // 2]
         combined = ops.cat([half, half], axis=0)
-        model_out = self(combined, t, y, mask_y=mask_y)
+        model_out = self.construct(combined, t, y, mask_y=mask_y)
         eps, rest = model_out[:, : self.in_channels], model_out[:, self.in_channels :]
         cond_eps, uncond_eps = mint.split(eps, len(eps) // 2, dim=0)
         half_eps = uncond_eps + cfg_scale * (cond_eps - uncond_eps)
         eps = ops.cat([half_eps, half_eps], axis=0).to(rest.dtype)
         return ops.cat([eps, rest], axis=1)
 
+    @ms.jit
     def construct_with_dpmsolver(
         self,
         x: Tensor,
@@ -241,7 +244,7 @@ class PixArt(nn.Cell):
         y: Tensor,
         mask_y: Optional[Tensor] = None,
     ) -> Tensor:
-        model_out = self(x, t, y, mask_y=mask_y)
+        model_out = self.construct(x, t, y, mask_y=mask_y)
         return mint.chunk(model_out, 2, dim=1)[0]
 
 
@@ -320,6 +323,7 @@ class PixArtMS(PixArt):
             ]
         )
         self.final_layer = T2IFinalLayer(hidden_size, patch_size, self.out_channels)
+        self.omega = cal_omega(hidden_size // 2)
 
         self.initialize_weights()
 
@@ -373,7 +377,7 @@ class PixArtMS(PixArt):
         nh = h // self.patch_size
         nw = w // self.patch_size
         pos_emb = cal_2d_sincos_pos_embed(
-            self.hidden_size, nh, nw=nw, scale=self.pe_interpolation, base_size=self.base_size
+            self.hidden_size, nh, nw=nw, scale=self.pe_interpolation, base_size=self.base_size, omega=self.omega
         )
         return ops.stop_gradient(pos_emb)
 

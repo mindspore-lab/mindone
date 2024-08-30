@@ -33,7 +33,7 @@ def check_cfgs_in_parser(cfgs: dict, parser: argparse.ArgumentParser) -> None:
 
 def init_env(args) -> Tuple[int, int]:
     set_random_seed(args.seed)
-    ms.set_context(mode=args.mode, device_target=args.device_target, jit_config=dict(jit_level="O0"))
+    ms.set_context(mode=args.mode, device_target=args.device_target, jit_config=dict(jit_level=args.jit_level))
     if args.use_parallel:
         init()
         device_num = get_group_size()
