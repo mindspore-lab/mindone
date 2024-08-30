@@ -1,5 +1,5 @@
 NUM_FRAME=29
-msrun --bind_core=True --worker_num=8 --local_worker_num=8 --master_port=9000 --log_dir="t2v-video3d-${NUM_FRAME}x480p/parallel_logs" \
+msrun --bind_core=True --worker_num=8 --local_worker_num=8 --master_port=9000 --log_dir="t2v-video3d-${NUM_FRAME}x480p_ddp/parallel_logs" \
   opensora/train/train_t2v_diffusers.py \
     --model OpenSoraT2V-ROPE-L/122 \
     --text_encoder_name google/mt5-xxl \
@@ -27,7 +27,7 @@ msrun --bind_core=True --worker_num=8 --local_worker_num=8 --master_port=9000 --
     --lr_warmup_steps=500 \
     --precision="bf16" \
     --checkpointing_steps=1000 \
-    --output_dir="t2v-video3d-${NUM_FRAME}x480p/" \
+    --output_dir="t2v-video3d-${NUM_FRAME}x480p_ddp/" \
     --model_max_length 512 \
     --use_image_num 0 \
     --cfg 0.1 \
@@ -42,6 +42,6 @@ msrun --bind_core=True --worker_num=8 --local_worker_num=8 --master_port=9000 --
     --ema_decay 0.999 \
     --speed_factor 1.0 \
     --drop_short_ratio 1.0 \
-    --pretrained "path/to/ms-or-safetensors-ckpt/from/last/stage" \
+    --pretrained "LanguageBind/Open-Sora-Plan-v1.2.0/1x480p" \
     --use_parallel True \
     # --group_frame \

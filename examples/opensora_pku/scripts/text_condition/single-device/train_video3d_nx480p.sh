@@ -42,5 +42,5 @@ python  opensora/train/train_t2v_diffusers.py \
     --ema_decay 0.999 \
     --speed_factor 1.0 \
     --drop_short_ratio 1.0 \
-    --pretrained "path/to/ms-or-safetensors-ckpt/from/last/stage" \
+    --pretrained "LanguageBind/Open-Sora-Plan-v1.2.0/1x480p" \
     # --group_frame \
