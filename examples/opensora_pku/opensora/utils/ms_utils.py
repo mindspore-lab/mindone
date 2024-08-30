@@ -107,11 +107,13 @@ def init_env(
 
     else:
         device_num = 1
-        rank_id = device_id if device_id is not None else int(os.getenv("DEVICE_ID", 0))
+        device_id = device_id if device_id is not None else int(os.getenv("DEVICE_ID", 0))
+        rank_id = 0
         ms.set_context(
             mode=mode,
             device_target=device_target,
             ascend_config={"precision_mode": "allow_fp32_to_fp16"},
+            device_id=device_id,
         )
 
     if jit_level is not None:
