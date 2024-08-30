@@ -1,6 +1,6 @@
-export DEVICE_ID=0
 NUM_FRAME=29
-msrun --bind_core=True --worker_num=8 --local_worker_num=8 --master_port=9000 --log_dir=parallel_logs  opensora/train/train_t2v_diffusers.py \
+msrun --bind_core=True --worker_num=8 --local_worker_num=8 --master_port=9000 --log_dir="t2v-video3d-${NUM_FRAME}x480p/parallel_logs" \
+  opensora/train/train_t2v_diffusers.py \
     --model OpenSoraT2V-ROPE-L/122 \
     --text_encoder_name google/mt5-xxl \
     --cache_dir "./" \

@@ -115,7 +115,6 @@ def init_env(
             device_target=device_target,
             device_id=device_id,
             ascend_config={"precision_mode": "allow_fp32_to_fp16"},
-            device_id=device_id,
         )
 
     if jit_level is not None:
