@@ -447,14 +447,14 @@ python  opensora/train/train_t2v_diffusers.py \
     --num_frames ${NUM_FRAME} \
     --max_height 480 \
     --max_width 640 \
-    --pretrained "path/to/ckpt/from/last/stage" \
+    --pretrained "path/to/ms-or-safetensors-ckpt/from/last/stage" \
     # pass other arguments
 ```
 There are some arguments related to the training dataset path:
 - `data`: the text file to the video/image dataset. The text file should contain N lines corresponding to N datasets. Each line should have two or three items. If two items are available, they correspond to the video folder and the annotation json file. If three items are available, they correspond to the video folder, the text embedding cache folder, and the annotation json file.
 - `num_frames`: the number of frames of each video sample.
 - `max_height` and `max_width`: the frame maximum height and width.
-- `pretrained`: the pretrained checkpoint to be loaded as initial weights before training. If not provided, the OpenSoraT2V will use random initialization.
+- `pretrained`: the pretrained checkpoint to be loaded as initial weights before training. If not provided, the OpenSoraT2V will use random initialization. If provided, the path should be either the safetensors checkpoint directiory or path, e.g., "LanguageBind/Open-Sora-Plan-v1.2.0/1x480p" or "LanguageBind/Open-Sora-Plan-v1.2.0/1x480p/diffusion_pytorch_model.safetensors", or MindSpore checkpoint path, e.g., "t2i-image3d-1x480p/ckpt/OpenSoraT2V-ROPE-L-122.ckpt".
 
 ## 👍 Acknowledgement
 * [Latte](https://github.com/Vchitect/Latte): The **main codebase** we built upon and it is an wonderful video generated model.

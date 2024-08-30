@@ -1,3 +1,4 @@
+import glob
 import json
 import logging
 import os
@@ -698,26 +699,63 @@ class OpenSoraT2V(ModelMixin, ConfigMixin):
         else:
             b.add_flags(output_no_recompute=True)
 
-    def load_from_checkpoint(self, ckpt_path):
-        if not os.path.exists(ckpt_path):
-            print(f"WARNING: {ckpt_path} not found. No checkpoint loaded!!")
+    @classmethod
+    def load_from_checkpoint(cls, model, ckpt_path):
+        if os.path.isdir(ckpt_path) or ckpt_path.endswith(".safetensors"):
+            return cls.load_from_safetensors(model, ckpt_path)
+        elif ckpt_path.endswith(".ckpt"):
+            return cls.load_from_ms_checkpoint(ckpt_path)
         else:
-            sd = ms.load_checkpoint(ckpt_path)
-            # filter 'network.' prefix and ignore 'temp_pos_embed'
-            rm_prefix = ["network."]
-            all_pnames = list(sd.keys())
-            for pname in all_pnames:
-                if "temp_pos_embed" in pname:
-                    sd.pop(pname)
-                    continue
-                for pre in rm_prefix:
-                    if pname.startswith(pre):
-                        new_pname = pname.replace(pre, "")
-                        sd[new_pname] = sd.pop(pname)
+            raise ValueError("Only support safetensors pretrained ckpt or MindSpore pretrained ckpt!")
 
-            m, u = ms.load_param_into_net(self, sd)
-            print("net param not load: ", m, len(m))
-            print("ckpt param not load: ", u, len(u))
+    @classmethod
+    def load_from_safetensors(cls, model, ckpt_path):
+        if os.path.isdir(ckpt_path):
+            ckpts = glob.glob(os.path.join(ckpt_path, "*.safetensors"))
+            n_ckpt = len(ckpts)
+            assert (
+                n_ckpt == 1
+            ), f"Expect to find only one safetenesors file under {ckpt_path}, but found {n_ckpt} .safetensors files."
+            model_file = ckpts[0]
+            pretrained_model_name_or_path = ckpt_path
+        elif ckpt_path.endswith(".safetensors"):
+            model_file = ckpt_path
+            pretrained_model_name_or_path = os.path.dirname(ckpt_path)
+        state_dict = load_state_dict(model_file, variant=None)
+        model._convert_deprecated_attention_blocks(state_dict)
+
+        model, missing_keys, unexpected_keys, mismatched_keys, error_msgs = cls._load_pretrained_model(
+            model,
+            state_dict,
+            model_file,
+            pretrained_model_name_or_path,
+            ignore_mismatched_sizes=False,
+        )
+        loading_info = {
+            "missing_keys": missing_keys,
+            "unexpected_keys": unexpected_keys,
+            "mismatched_keys": mismatched_keys,
+            "error_msgs": error_msgs,
+        }
+        logger.info(loading_info)
+        return model
+
+    @classmethod
+    def load_from_ms_checkpoint(self, model, ckpt_path):
+        sd = ms.load_checkpoint(ckpt_path)
+        # filter 'network.' prefix
+        rm_prefix = ["network."]
+        all_pnames = list(sd.keys())
+        for pname in all_pnames:
+            for pre in rm_prefix:
+                if pname.startswith(pre):
+                    new_pname = pname.replace(pre, "")
+                    sd[new_pname] = sd.pop(pname)
+
+        m, u = ms.load_param_into_net(model, sd)
+        print("net param not load: ", m, len(m))
+        print("ckpt param not load: ", u, len(u))
+        return model
 
     def _operate_on_patched_inputs(
         self, hidden_states, encoder_hidden_states, timestep, added_cond_kwargs, batch_size, frame, use_image_num

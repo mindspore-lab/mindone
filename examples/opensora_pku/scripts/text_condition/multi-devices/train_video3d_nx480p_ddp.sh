@@ -42,6 +42,6 @@ msrun --bind_core=True --worker_num=8 --local_worker_num=8 --master_port=9000 --
     --ema_decay 0.999 \
     --speed_factor 1.0 \
     --drop_short_ratio 1.0 \
-    --pretrained "path/to/ckpt/from/last/stage" \
+    --pretrained "path/to/ms-or-safetensors-ckpt/from/last/stage" \
     --use_parallel True \
     # --group_frame \

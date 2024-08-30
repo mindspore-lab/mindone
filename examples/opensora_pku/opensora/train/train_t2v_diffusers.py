@@ -224,7 +224,7 @@ def main(args):
     if args.pretrained is not None and len(args.pretrained) > 0:
         assert os.path.exists(args.pretrained), f"Provided checkpoint file {args.pretrained} does not exist!"
         logger.info(f"Loading ckpt {args.pretrained}...")
-        model.load_from_checkpoint(args.pretrained)
+        model = model.load_from_checkpoint(model, args.pretrained)
     else:
         logger.info("Use random initialization for transformer")
     model.set_train(True)
