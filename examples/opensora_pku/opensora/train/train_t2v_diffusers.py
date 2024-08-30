@@ -1,3 +1,4 @@
+import importlib
 import logging
 import math
 import os
@@ -98,15 +99,15 @@ def main(args):
     else:
         print_banner("vae init")
         # need torch installation to load from pt checkpoint!
-        try:
-            from opensora.utils.utils import load_torch_state_dict_to_ms_ckpt
-        except Exception:
+        _torch_available = importlib.util.find_spec("torch") is not None
+        if not _torch_available:
             logger.info(
                 "Torch is not installed. Cannot load from torch checkpoint. Will search for safetensors under the given directory."
             )
             state_dict = None
-            load_torch_state_dict_to_ms_ckpt = None
-        if load_torch_state_dict_to_ms_ckpt is not None:
+        else:
+            from opensora.utils.utils import load_torch_state_dict_to_ms_ckpt
+
             state_dict = load_torch_state_dict_to_ms_ckpt(os.path.join(args.cache_dir, args.ae_path, "checkpoint.ckpt"))
         vae = CausalVAEModelWrapper(args.ae_path, cache_dir=args.cache_dir, state_dict=state_dict)
 
@@ -233,15 +234,15 @@ def main(args):
     if not args.text_embed_cache:
         print_banner("text encoder init")
         # need torch installation to load from pt checkpoint!
-        try:
-            from opensora.utils.utils import load_torch_state_dict_to_ms_ckpt
-        except Exception:
+        _torch_available = importlib.util.find_spec("torch") is not None
+        if not _torch_available:
             logger.info(
                 "Torch is not installed. Cannot load from torch checkpoint. Will search for safetensors under the given directory."
             )
             state_dict = None
-            load_torch_state_dict_to_ms_ckpt = None
-        if load_torch_state_dict_to_ms_ckpt is not None:
+        else:
+            from opensora.utils.utils import load_torch_state_dict_to_ms_ckpt
+
             state_dict = load_torch_state_dict_to_ms_ckpt(
                 os.path.join(args.cache_dir, args.text_encoder_name, "pytorch_model.bin")
             )

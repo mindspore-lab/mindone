@@ -10,6 +10,7 @@ python examples/rec_image.py \
     --enable_tiling
 """
 import argparse
+import importlib
 import logging
 import os
 import sys
@@ -90,17 +91,16 @@ def main(args):
         state_dict = ms.load_checkpoint(args.ms_checkpoint)
     else:
         # need torch installation to load from pt checkpoint!
-        try:
-            from opensora.utils.utils import load_torch_state_dict_to_ms_ckpt
-        except Exception:
+        _torch_available = importlib.util.find_spec("torch") is not None
+        if not _torch_available:
             logger.info(
                 "Torch is not installed. Cannot load from torch checkpoint. Will search for safetensors under the given directory."
             )
             state_dict = None
-            load_torch_state_dict_to_ms_ckpt = None
+        else:
+            from opensora.utils.utils import load_torch_state_dict_to_ms_ckpt
 
-    if load_torch_state_dict_to_ms_ckpt is not None:
-        state_dict = load_torch_state_dict_to_ms_ckpt(os.path.join(args.ae_path, "checkpoint.ckpt"))
+            state_dict = load_torch_state_dict_to_ms_ckpt(os.path.join(args.ae_path, "checkpoint.ckpt"))
     kwarg = {"state_dict": state_dict}
     vae = CausalVAEModelWrapper(args.ae_path, **kwarg)
 
