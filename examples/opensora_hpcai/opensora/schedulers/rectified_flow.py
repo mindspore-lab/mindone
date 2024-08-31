@@ -6,7 +6,9 @@ except ImportError:
     from typing_extensions import Literal  # FIXME: python 3.7
 
 from tqdm import tqdm
+import numpy as np
 
+import mindspore as ms
 from mindspore import Tensor, dtype, ops
 
 from ..utils.distributions import LogisticNormal
@@ -72,6 +74,7 @@ class RFLOW:
                 mask_t = frames_mask * self.num_timesteps
                 x0 = z.copy()
                 x_noise = self.scheduler.add_noise(x0, ops.randn_like(x0), t)
+                # x_noise = self.scheduler.add_noise(x0, ms.Tensor(np.random.randn(*x0.shape), dtype=ms.float32), t)
 
                 model_kwargs["frames_mask"] = mask_t_upper = mask_t >= t.unsqueeze(1)
                 mask_add_noise = (mask_t_upper * (1 - noise_added)).astype(dtype.bool_)
