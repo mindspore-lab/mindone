@@ -132,7 +132,7 @@ class BlockWithMasking(nn.Cell):
     ):
         super().__init__()
 
-        self.attn = attn_target()
+        self.attn = attn_target
 
         if drop_path > 0.0:
             self.drop_path = DropPath(drop_path)

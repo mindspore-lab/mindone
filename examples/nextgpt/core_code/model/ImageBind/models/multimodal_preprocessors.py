@@ -135,7 +135,7 @@ class PatchEmbedGeneric(nn.Cell):
         dummy_out = Parameter(self.proj(ops.zeros([1,]+ img_size)), requires_grad=False)
         embed_dim = dummy_out.shape[1]
         patches_layout = tuple(dummy_out.shape[2:])
-        num_patches = np.prod(patches_layout)
+        num_patches = int(np.prod(patches_layout))
         return patches_layout, num_patches, embed_dim
 
     def construct(self, x):
@@ -325,7 +325,7 @@ class TextPreprocessor(VerboseNNModule):
         self.vocab_size = vocab_size
         self.context_length = context_length
         self.token_embedding = nn.Embedding(vocab_size, embed_dim)
-        self.pos_embed = nn.Parameter(
+        self.pos_embed = Parameter(
             ops.zeros(size=(1, self.context_length + num_cls_tokens, embed_dim))
         )
         self.causal_masking = causal_masking
@@ -606,12 +606,12 @@ class IMUPreprocessor(VerboseNNModule):
         self.use_pos_embed = pos_embed_fn is not None
         self.num_cls_tokens = num_cls_tokens
         self.kernel_size = kernel_size
-        self.pos_embed = nn.Parameter(
+        self.pos_embed = Parameter(
             ops.zeros(size=(1, (img_size[1] // kernel_size) + num_cls_tokens, embed_dim))
         )
 
         if self.num_cls_tokens > 0:
-            self.cls_token = nn.Parameter(
+            self.cls_token = Parameter(
                 ops.zeros(size=(1, self.num_cls_tokens, self.embed_dim))
             )
 

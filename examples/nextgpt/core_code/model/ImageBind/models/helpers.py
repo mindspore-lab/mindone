@@ -60,7 +60,8 @@ class LearnableLogitScaling(nn.Cell):
         self.max_logit_scale = max_logit_scale
         self.logit_scale_init = logit_scale_init
         self.learnable = learnable
-        log_logit_scale = ops.ones([]) * np.log(self.logit_scale_init)
+        logit_scale_init = ops.cast(np.log(self.logit_scale_init,dtype=ms.float32))
+        log_logit_scale = logit_scale_init
         if learnable:
             self.log_logit_scale = Parameter(log_logit_scale)
         else:
@@ -82,7 +83,7 @@ class EinOpsRearrange(nn.Cell):
 
     def construct(self, x):
         assert isinstance(x, ms.Tensor)
-        return einops.rearrange(x, self.rearrange_expr, **self.kwargs)
+        return ops.swapaxes(x, 0, 1)
 
 
 class VerboseNNModule(nn.Cell):
@@ -194,7 +195,7 @@ class DropPath(nn.Cell):
         if self.keep_prob == 1.0 or not self.training:
             return x
         shape = (x.shape[0],) + (1,) * (x.ndim - 1)
-        random_tensor = self.dropout(ones(shape))
+        random_tensor = self.dropout(ops.ones(shape))
         if not self.scale_by_keep:
             random_tensor = ops.mul(random_tensor, self.keep_prob)
         return x * random_tensor

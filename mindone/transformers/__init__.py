@@ -1,4 +1,4 @@
-from .modeling_utils import MSPreTrainedModel
+from .modeling_utils import MSPreTrainedModel, PretrainedModel
 from .models.bit import BitBackbone
 from .models.blip_2 import (
     Blip2ForConditionalGeneration,

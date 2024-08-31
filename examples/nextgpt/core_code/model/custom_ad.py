@@ -192,8 +192,8 @@ class AudioLDMPipeline(DiffusionPipeline):
                 return_tensors="np",
             )
 
-            uncond_input_ids = uncond_input.input_ids
-            attention_mask = uncond_input.attention_mask
+            uncond_input_ids = ms.Tensor(uncond_input.input_ids)
+            attention_mask = ms.Tensor(uncond_input.attention_mask)
 
             negative_prompt_embeds = self.text_encoder(
                 uncond_input_ids,
