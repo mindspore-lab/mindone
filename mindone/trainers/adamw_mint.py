@@ -1,39 +1,107 @@
 from __future__ import absolute_import
 
 import mindspore as ms
-from mindspore import ops
-from mindspore.ops import auto_generate as gen
-from mindspore.nn import Optimizer
 from mindspore import _checkparam as validator
+from mindspore import ops
+from mindspore.nn import Optimizer
+from mindspore.ops import auto_generate as gen
 
 _optim_adamw_opt = ops.MultitypeFuncGraph("optim_adamw_opt")
 hyper_map = ops.HyperMap()
 
 
-@_optim_adamw_opt.register("Function", "Float", "Float", "Float", "Tensor", "Bool", "Bool", "Tensor", "Tensor",
-                           "Tensor", "Tensor", "Tensor", "Tensor")
-def _run_optim_adamw_opt(opt, beta1, beta2, eps, step, amsgrad, maximize, learning_rate, weight_decay,
-                         parameters, grads, exp_avg, exp_avg_sq):
+@_optim_adamw_opt.register(
+    "Function",
+    "Float",
+    "Float",
+    "Float",
+    "Tensor",
+    "Bool",
+    "Bool",
+    "Tensor",
+    "Tensor",
+    "Tensor",
+    "Tensor",
+    "Tensor",
+    "Tensor",
+)
+def _run_optim_adamw_opt(
+    opt, beta1, beta2, eps, step, amsgrad, maximize, learning_rate, weight_decay, parameters, grads, exp_avg, exp_avg_sq
+):
     """Apply adamw optimizer to the weight parameter."""
     success = True
     max_exp_avg_sq = ops.zeros_like(exp_avg)
     learning_rate = float(learning_rate)
     weight_decay = float(weight_decay)
-    opt(parameters, exp_avg, exp_avg_sq, max_exp_avg_sq, grads.astype(parameters.dtype), step, learning_rate,
-        beta1, beta2, weight_decay, eps, amsgrad, maximize)
+    opt(
+        parameters,
+        exp_avg,
+        exp_avg_sq,
+        max_exp_avg_sq,
+        grads.astype(parameters.dtype),
+        step,
+        learning_rate,
+        beta1,
+        beta2,
+        weight_decay,
+        eps,
+        amsgrad,
+        maximize,
+    )
     return success
 
 
-@_optim_adamw_opt.register("Function", "Float", "Float", "Float", "Tensor", "Bool", "Bool", "Tensor", "Tensor",
-                           "Tensor", "Tensor", "Tensor", "Tensor", "Tensor")
-def _run_optim_adamw_amsgrad_opt(opt, beta1, beta2, eps, step, amsgrad, maximize, learning_rate, weight_decay,
-                         parameters, grads, exp_avg, exp_avg_sq, max_exp_avg_sq):
+@_optim_adamw_opt.register(
+    "Function",
+    "Float",
+    "Float",
+    "Float",
+    "Tensor",
+    "Bool",
+    "Bool",
+    "Tensor",
+    "Tensor",
+    "Tensor",
+    "Tensor",
+    "Tensor",
+    "Tensor",
+    "Tensor",
+)
+def _run_optim_adamw_amsgrad_opt(
+    opt,
+    beta1,
+    beta2,
+    eps,
+    step,
+    amsgrad,
+    maximize,
+    learning_rate,
+    weight_decay,
+    parameters,
+    grads,
+    exp_avg,
+    exp_avg_sq,
+    max_exp_avg_sq,
+):
     """Apply adamw optimizer to the weight parameter."""
     success = True
     learning_rate = float(learning_rate)
     weight_decay = float(weight_decay)
-    opt(parameters, exp_avg, exp_avg_sq, max_exp_avg_sq, grads.astype(parameters.dtype), step, learning_rate,
-        beta1, beta2, weight_decay, eps, amsgrad, maximize)
+    opt(
+        parameters,
+        exp_avg,
+        exp_avg_sq,
+        max_exp_avg_sq,
+        grads.astype(parameters.dtype),
+        step,
+        learning_rate,
+        beta1,
+        beta2,
+        weight_decay,
+        eps,
+        amsgrad,
+        maximize,
+    )
     return success
 
 
@@ -107,17 +175,27 @@ class AdamW(Optimizer):
         ``Ascend``
     """
 
-    def __init__(self, params, learning_rate=1e-3, beta1=0.9, beta2=0.999, eps=1e-6, weight_decay=0.0,
-                 amsgrad=False, *, maximize=False):
+    def __init__(
+        self,
+        params,
+        learning_rate=1e-3,
+        beta1=0.9,
+        beta2=0.999,
+        eps=1e-6,
+        weight_decay=0.0,
+        amsgrad=False,
+        *,
+        maximize=False,
+    ):
         super().__init__(learning_rate, params, weight_decay)
         self._check_param_value(beta1, beta2, eps, self.cls_name)
         self.beta1 = beta1
         self.beta2 = beta2
         self.eps = eps
-        self.exp_avg = self.parameters.clone(prefix="exp_avg", init='zeros')
-        self.exp_avg_sq = self.parameters.clone(prefix="exp_avg_sq", init='zeros')
+        self.exp_avg = self.parameters.clone(prefix="exp_avg", init="zeros")
+        self.exp_avg_sq = self.parameters.clone(prefix="exp_avg_sq", init="zeros")
         if amsgrad:
-            self.max_exp_avg_sq = self.parameters.clone(prefix="max_exp_avg_sq", init='zeros')
+            self.max_exp_avg_sq = self.parameters.clone(prefix="max_exp_avg_sq", init="zeros")
         self.adamw_opt = gen.AdamW()
         self.amsgrad = amsgrad
         self.maximize = maximize
@@ -141,40 +219,121 @@ class AdamW(Optimizer):
             if self.is_group:
                 if self.is_group_lr:
                     optim_result = self.hyper_map(
-                        ops.partial(_optim_adamw_opt, self.adamw_opt, self.beta1, self.beta2, self.eps, state_step,
-                        self.amsgrad, self.maximize), lr, weight_decay,
-                        self._parameters, gradients, self.exp_avg, self.exp_avg_sq, self.max_exp_avg_sq
+                        ops.partial(
+                            _optim_adamw_opt,
+                            self.adamw_opt,
+                            self.beta1,
+                            self.beta2,
+                            self.eps,
+                            state_step,
+                            self.amsgrad,
+                            self.maximize,
+                        ),
+                        lr,
+                        weight_decay,
+                        self._parameters,
+                        gradients,
+                        self.exp_avg,
+                        self.exp_avg_sq,
+                        self.max_exp_avg_sq,
                     )
                 else:
                     optim_result = self.hyper_map(
-                        ops.partial(_optim_adamw_opt, self.adamw_opt, self.beta1, self.beta2, self.eps, state_step,
-                                    self.amsgrad, self.maximize, lr), weight_decay,
-                        self._parameters, gradients, self.exp_avg, self.exp_avg_sq, self.max_exp_avg_sq
+                        ops.partial(
+                            _optim_adamw_opt,
+                            self.adamw_opt,
+                            self.beta1,
+                            self.beta2,
+                            self.eps,
+                            state_step,
+                            self.amsgrad,
+                            self.maximize,
+                            lr,
+                        ),
+                        weight_decay,
+                        self._parameters,
+                        gradients,
+                        self.exp_avg,
+                        self.exp_avg_sq,
+                        self.max_exp_avg_sq,
                     )
             else:
                 optim_result = self.hyper_map(
-                    ops.partial(_optim_adamw_opt, self.adamw_opt, self.beta1, self.beta2, self.eps, state_step,
-                                self.amsgrad, self.maximize, lr, weight_decay),
-                    self._parameters, gradients, self.exp_avg, self.exp_avg_sq, self.max_exp_avg_sq
+                    ops.partial(
+                        _optim_adamw_opt,
+                        self.adamw_opt,
+                        self.beta1,
+                        self.beta2,
+                        self.eps,
+                        state_step,
+                        self.amsgrad,
+                        self.maximize,
+                        lr,
+                        weight_decay,
+                    ),
+                    self._parameters,
+                    gradients,
+                    self.exp_avg,
+                    self.exp_avg_sq,
+                    self.max_exp_avg_sq,
                 )
         else:
             if self.is_group:
                 if self.is_group_lr:
                     optim_result = self.hyper_map(
-                        ops.partial(_optim_adamw_opt, self.adamw_opt, self.beta1, self.beta2, self.eps, state_step,
-                        self.amsgrad, self.maximize), lr, weight_decay,
-                        self._parameters, gradients, self.exp_avg, self.exp_avg_sq
+                        ops.partial(
+                            _optim_adamw_opt,
+                            self.adamw_opt,
+                            self.beta1,
+                            self.beta2,
+                            self.eps,
+                            state_step,
+                            self.amsgrad,
+                            self.maximize,
+                        ),
+                        lr,
+                        weight_decay,
+                        self._parameters,
+                        gradients,
+                        self.exp_avg,
+                        self.exp_avg_sq,
                     )
                 else:
                     optim_result = self.hyper_map(
-                        ops.partial(_optim_adamw_opt, self.adamw_opt, self.beta1, self.beta2, self.eps, state_step,
-                                    self.amsgrad, self.maximize, lr), weight_decay,
-                        self._parameters, gradients, self.exp_avg, self.exp_avg_sq
+                        ops.partial(
+                            _optim_adamw_opt,
+                            self.adamw_opt,
+                            self.beta1,
+                            self.beta2,
+                            self.eps,
+                            state_step,
+                            self.amsgrad,
+                            self.maximize,
+                            lr,
+                        ),
+                        weight_decay,
+                        self._parameters,
+                        gradients,
+                        self.exp_avg,
+                        self.exp_avg_sq,
                     )
             else:
                 optim_result = self.hyper_map(
-                    ops.partial(_optim_adamw_opt, self.adamw_opt, self.beta1, self.beta2, self.eps, state_step,
-                                self.amsgrad, self.maximize, lr, weight_decay),
-                    self._parameters, gradients, self.exp_avg, self.exp_avg_sq
+                    ops.partial(
+                        _optim_adamw_opt,
+                        self.adamw_opt,
+                        self.beta1,
+                        self.beta2,
+                        self.eps,
+                        state_step,
+                        self.amsgrad,
+                        self.maximize,
+                        lr,
+                        weight_decay,
+                    ),
+                    self._parameters,
+                    gradients,
+                    self.exp_avg,
+                    self.exp_avg_sq,
                 )
         return optim_result

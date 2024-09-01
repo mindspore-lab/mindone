@@ -1,6 +1,7 @@
 """
 Source: https://github.com/lucidrains/rotary-embedding-torch/
 """
+
 from math import pi
 from typing import Optional
 
