@@ -91,18 +91,19 @@ class STDiT3Block(nn.Cell):
         # prepare modulate parameters
         B, N, C = x.shape
         shift_msa, scale_msa, gate_msa, shift_mlp, scale_mlp, gate_mlp = self.chunk(
-            self.scale_shift_table[None] + t.reshape(B, 6, -1), 6, 1
+            (self.scale_shift_table[None] + t.reshape(B, 6, -1)).to(x.dtype), 6, 1
         )
 
         # frames mask branch
         shift_msa_zero, scale_msa_zero, gate_msa_zero, shift_mlp_zero, scale_mlp_zero, gate_mlp_zero = self.chunk(
-            self.scale_shift_table[None] + t0.reshape(B, 6, -1), 6, 1
+            (self.scale_shift_table[None] + t0.reshape(B, 6, -1)).to(x.dtype), 6, 1
         )
 
         # modulate (attention)
-        x_m = t2i_modulate(self.norm1(x), shift_msa, scale_msa)
+        norm1 = self.norm1(x)
+        x_m = t2i_modulate(norm1, shift_msa, scale_msa)
         # frames mask branch
-        x_m_zero = t2i_modulate(self.norm1(x), shift_msa_zero, scale_msa_zero)
+        x_m_zero = t2i_modulate(norm1, shift_msa_zero, scale_msa_zero)
         x_m = t_mask_select(frames_mask, x_m, x_m_zero, T, S)
 
         # attention
@@ -128,9 +129,10 @@ class STDiT3Block(nn.Cell):
         x = x + self.cross_attn(x, y, mask)
 
         # modulate (MLP)
-        x_m = t2i_modulate(self.norm2(x), shift_mlp, scale_mlp)
+        norm2 = self.norm2(x)
+        x_m = t2i_modulate(norm2, shift_mlp, scale_mlp)
         # frames mask branch
-        x_m_zero = t2i_modulate(self.norm2(x), shift_mlp_zero, scale_mlp_zero)
+        x_m_zero = t2i_modulate(norm2, shift_mlp_zero, scale_mlp_zero)
         x_m = t_mask_select(frames_mask, x_m, x_m_zero, T, S)
 
         # MLP

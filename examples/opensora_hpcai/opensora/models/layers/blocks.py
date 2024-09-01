@@ -5,7 +5,7 @@ from typing import Optional, Tuple, Type, Union
 import numpy as np
 
 import mindspore as ms
-from mindspore import Parameter, Tensor, nn, ops, mint
+from mindspore import Parameter, Tensor, mint, nn, ops
 from mindspore.common.initializer import initializer
 
 from mindone.models.modules.flash_attention import FLASH_IS_AVAILABLE, MSFlashAttention

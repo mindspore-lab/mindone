@@ -118,26 +118,27 @@ class STDiT2Block(nn.Cell):
         B, N, C = x.shape
 
         shift_msa, scale_msa, gate_msa, shift_mlp, scale_mlp, gate_mlp = self.chunk(
-            self.scale_shift_table[None] + t.reshape(B, 6, -1), 6, 1
+            (self.scale_shift_table[None] + t.reshape(B, 6, -1)).to(x.dtype), 6, 1
         )
         shift_tmp, scale_tmp, gate_tmp = self.chunk(
-            self.scale_shift_table_temporal[None] + t_tmp.reshape(B, 3, -1), 3, 1
+            (self.scale_shift_table_temporal[None] + t_tmp.reshape(B, 3, -1)).to(x.dtype), 3, 1
         )
 
         shift_msa_zero, scale_msa_zero, gate_msa_zero, shift_mlp_zero, scale_mlp_zero, gate_mlp_zero = (None,) * 6
         shift_tmp_zero, scale_tmp_zero, gate_tmp_zero = (None,) * 3
         if frames_mask is not None:
             shift_msa_zero, scale_msa_zero, gate_msa_zero, shift_mlp_zero, scale_mlp_zero, gate_mlp_zero = self.chunk(
-                self.scale_shift_table[None] + t0.reshape(B, 6, -1), 6, 1
+                (self.scale_shift_table[None] + t0.reshape(B, 6, -1)).to(x.dtype), 6, 1
             )
             shift_tmp_zero, scale_tmp_zero, gate_tmp_zero = self.chunk(
-                self.scale_shift_table_temporal[None] + t0_tmp.reshape(B, 3, -1), 3, 1
+                (self.scale_shift_table_temporal[None] + t0_tmp.reshape(B, 3, -1)).to(x.dtype), 3, 1
             )
 
         # modulate
-        x_m = t2i_modulate(self.norm1(x), shift_msa, scale_msa)
+        norm1 = self.norm1(x)
+        x_m = t2i_modulate(norm1, shift_msa, scale_msa)
         if frames_mask is not None:
-            x_m_zero = t2i_modulate(self.norm1(x), shift_msa_zero, scale_msa_zero)
+            x_m_zero = t2i_modulate(norm1, shift_msa_zero, scale_msa_zero)
             x_m = t_mask_select(frames_mask, x_m, x_m_zero, T, S)
 
         # spatial branch
@@ -156,9 +157,10 @@ class STDiT2Block(nn.Cell):
         x = x + self.drop_path(x_s)
 
         # modulate
-        x_m = t2i_modulate(self.norm_temp(x), shift_tmp, scale_tmp)
+        norm_temp = self.norm_temp(x)
+        x_m = t2i_modulate(norm_temp, shift_tmp, scale_tmp)
         if frames_mask is not None:
-            x_m_zero = t2i_modulate(self.norm_temp(x), shift_tmp_zero, scale_tmp_zero)
+            x_m_zero = t2i_modulate(norm_temp, shift_tmp_zero, scale_tmp_zero)
             x_m = t_mask_select(frames_mask, x_m, x_m_zero, T, S)
 
         # temporal branch
@@ -180,9 +182,10 @@ class STDiT2Block(nn.Cell):
         x = x + self.cross_attn(x, y, mask)
 
         # modulate
-        x_m = t2i_modulate(self.norm2(x), shift_mlp, scale_mlp)
+        norm2 = self.norm2(x)
+        x_m = t2i_modulate(norm2, shift_mlp, scale_mlp)
         if frames_mask is not None:
-            x_m_zero = t2i_modulate(self.norm2(x), shift_mlp_zero, scale_mlp_zero)
+            x_m_zero = t2i_modulate(norm2, shift_mlp_zero, scale_mlp_zero)
             x_m = t_mask_select(frames_mask, x_m, x_m_zero, T, S)
 
         # mlp
