@@ -442,23 +442,6 @@ def main(args):
         eps=args.optim_eps,
         weight_decay=args.weight_decay,
     )
-    if args.parallel_mode == "zero":
-        assert args.zero_stage in [0, 1, 2, 3], f"Unsupported zero stage {args.zero_stage}"
-        logger.info(f"Training with zero{args.zero_stage} parallelism")
-        comm_fusion_dict = None
-        if args.comm_fusion:
-            comm_fusion_dict = {
-                "allreduce": {"openstate": True, "bucket_size": 5e8},
-                "reduce_scatter": {"openstate": True, "bucket_size": 5e8},
-                "allgather": {"openstate": False, "bucket_size": 5e8},
-            }
-        latent_diffusion_with_loss = prepare_train_network(
-            latent_diffusion_with_loss,
-            optimizer,
-            zero_stage=args.zero_stage,
-            op_group=GlobalComm.WORLD_COMM_GROUP,
-            comm_fusion=comm_fusion_dict,
-        )
 
     loss_scaler = create_loss_scaler(args)
     # resume ckpt
@@ -486,16 +469,40 @@ def main(args):
     assert (
         args.gradient_accumulation_steps > 0
     ), f"Expect gradient_accumulation_steps is a positive integer, but got {args.gradient_accumulation_steps}"
-    net_with_grads = TrainOneStepWrapper(
-        latent_diffusion_with_loss,
-        optimizer=optimizer,
-        scale_sense=loss_scaler,
-        drop_overflow_update=args.drop_overflow_update,
-        gradient_accumulation_steps=args.gradient_accumulation_steps,
-        clip_grad=args.clip_grad,
-        clip_norm=args.max_grad_norm,
-        ema=ema,
-    )
+    if args.parallel_mode == "zero":
+        assert args.zero_stage in [0, 1, 2, 3], f"Unsupported zero stage {args.zero_stage}"
+        logger.info(f"Training with zero{args.zero_stage} parallelism")
+        comm_fusion_dict = None
+        if args.comm_fusion:
+            comm_fusion_dict = {
+                "allreduce": {"openstate": True, "bucket_size": 5e8},
+                "reduce_scatter": {"openstate": True, "bucket_size": 5e8},
+                "allgather": {"openstate": False, "bucket_size": 5e8},
+            }
+        net_with_grads = prepare_train_network(
+            latent_diffusion_with_loss,
+            optimizer,
+            zero_stage=args.zero_stage,
+            op_group=GlobalComm.WORLD_COMM_GROUP,
+            comm_fusion=comm_fusion_dict,
+            scale_sense=loss_scaler,
+            drop_overflow_update=args.drop_overflow_update,
+            gradient_accumulation_steps=args.gradient_accumulation_steps,
+            clip_grad=args.clip_grad,
+            clip_norm=args.max_grad_norm,
+            ema=ema,
+        )
+    else:
+        net_with_grads = TrainOneStepWrapper(
+            latent_diffusion_with_loss,
+            optimizer=optimizer,
+            scale_sense=loss_scaler,
+            drop_overflow_update=args.drop_overflow_update,
+            gradient_accumulation_steps=args.gradient_accumulation_steps,
+            clip_grad=args.clip_grad,
+            clip_norm=args.max_grad_norm,
+            ema=ema,
+        )
 
     if not args.global_bf16:
         model = Model(net_with_grads)
