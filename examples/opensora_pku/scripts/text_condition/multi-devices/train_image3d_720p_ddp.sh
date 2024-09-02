@@ -34,6 +34,8 @@ msrun --bind_core=True --worker_num=8 --local_worker_num=8 --master_port=9000 --
     --ema_start_step 0 \
     --enable_tiling \
     --tile_overlap_factor 0.0 \
+    --clip_grad True \
+    --max_grad_norm 1.0 \
     --use_rope \
     --noise_offset 0.02 \
     --pretrained "LanguageBind/Open-Sora-Plan-v1.2.0/1x480p" \

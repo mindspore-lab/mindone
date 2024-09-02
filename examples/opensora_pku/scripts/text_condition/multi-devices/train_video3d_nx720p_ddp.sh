@@ -35,6 +35,8 @@ msrun --bind_core=True --worker_num=8 --local_worker_num=8 --master_port=9000 --
     --snr_gamma 5.0 \
     --use_ema True\
     --ema_start_step 0 \
+    --clip_grad True \
+    --max_grad_norm 1.0 \
     --enable_tiling \
     --tile_overlap_factor 0.125 \
     --use_rope \
