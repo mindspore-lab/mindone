@@ -5,7 +5,6 @@ import os
 import sys
 
 import yaml
-from mindcv.optim.adamw import AdamW
 
 import mindspore as ms
 from mindspore import Model, nn
@@ -36,6 +35,7 @@ from mindone.diffusers.schedulers import DDPMScheduler as DDPMScheduler_diffuser
 from mindone.trainers.callback import EvalSaveCallback, OverflowMonitor, ProfilerCallbackEpoch
 from mindone.trainers.checkpoint import resume_train_network
 from mindone.trainers.lr_schedule import create_scheduler
+from mindone.trainers.optim import create_optimizer
 from mindone.trainers.train_step import TrainOneStepWrapper
 from mindone.trainers.zero import prepare_train_network
 from mindone.transformers import MT5EncoderModel
@@ -434,14 +434,27 @@ def main(args):
 
     # build optimizer
     assert args.optim.lower() == "adamw", f"Not support optimizer {args.optim}!"
-    optimizer = AdamW(
-        latent_diffusion_with_loss.trainable_params(),
-        learning_rate=lr,
-        beta1=args.betas[0],
-        beta2=args.betas[1],
-        eps=args.optim_eps,
-        weight_decay=args.weight_decay,
-    )
+    if args.ms_optimizer:
+        optimizer = create_optimizer(
+            latent_diffusion_with_loss.trainable_params(),
+            name=args.optim,
+            betas=args.betas,
+            eps=args.optim_eps,
+            group_strategy=args.group_strategy,
+            weight_decay=args.weight_decay,
+            lr=lr,
+        )
+    else:
+        from mindcv.optim.adamw import AdamW
+
+        optimizer = AdamW(
+            latent_diffusion_with_loss.trainable_params(),
+            learning_rate=lr,
+            beta1=args.betas[0],
+            beta2=args.betas[1],
+            eps=args.optim_eps,
+            weight_decay=args.weight_decay,
+        )
 
     loss_scaler = create_loss_scaler(args)
     # resume ckpt
@@ -749,6 +762,12 @@ def parse_t2v_train_args(parser):
         "--gradient_checkpointing",
         action="store_true",
         help="Whether or not to use gradient checkpointing to save memory at the expense of slower backward pass.",
+    )
+    parser.add_argument(
+        "--ms_optimizer",
+        type=str2bool,
+        default=True,
+        help="Whether to use the optimizer class from mindspore or other libraries, such as mindcv",
     )
 
     return parser
