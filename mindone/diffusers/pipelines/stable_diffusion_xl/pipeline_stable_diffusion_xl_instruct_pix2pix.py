@@ -147,6 +147,8 @@ class StableDiffusionXLInstructPix2PixPipeline(
             Whether to use the [invisible_watermark library](https://github.com/ShieldMnt/invisible-watermark/) to
             watermark output images. If not defined, it will default to True if the package is installed, otherwise no
             watermarker will be used.
+        is_cosxl_edit (`bool`, *optional*):
+            When set the image latents are scaled.
     """
 
     model_cpu_offload_seq = "text_encoder->text_encoder_2->unet->vae"
@@ -163,6 +165,7 @@ class StableDiffusionXLInstructPix2PixPipeline(
         scheduler: KarrasDiffusionSchedulers,
         force_zeros_for_empty_prompt: bool = True,
         add_watermarker: Optional[bool] = None,
+        is_cosxl_edit: Optional[bool] = False,
     ):
         super().__init__()
 
@@ -179,6 +182,7 @@ class StableDiffusionXLInstructPix2PixPipeline(
         self.vae_scale_factor = 2 ** (len(self.vae.config.block_out_channels) - 1)
         self.image_processor = VaeImageProcessor(vae_scale_factor=self.vae_scale_factor)
         self.default_sample_size = self.unet.config.sample_size
+        self.is_cosxl_edit = is_cosxl_edit
 
         if add_watermarker:
             logger.warning("watermarker is not supported!")
@@ -445,7 +449,12 @@ class StableDiffusionXLInstructPix2PixPipeline(
 
     # Copied from diffusers.pipelines.stable_diffusion.pipeline_stable_diffusion.StableDiffusionPipeline.prepare_latents
     def prepare_latents(self, batch_size, num_channels_latents, height, width, dtype, generator, latents=None):
-        shape = (batch_size, num_channels_latents, height // self.vae_scale_factor, width // self.vae_scale_factor)
+        shape = (
+            batch_size,
+            num_channels_latents,
+            int(height) // self.vae_scale_factor,
+            int(width) // self.vae_scale_factor,
+        )
         if isinstance(generator, list) and len(generator) != batch_size:
             raise ValueError(
                 f"You have passed a list of generators of length {len(generator)}, but requested an effective batch"
@@ -477,8 +486,8 @@ class StableDiffusionXLInstructPix2PixPipeline(
             # make sure the VAE is in float32 mode, as it overflows in float16
             needs_upcasting = self.vae.dtype == ms.float16 and self.vae.config.force_upcast
             if needs_upcasting:
+                image = image.float()
                 self.upcast_vae()
-                image = image.to(next(iter(self.vae.post_quant_conv.get_parameters())).dtype)
 
             image_latents = retrieve_latents(self.vae, self.vae.encode(image)[0], sample_mode="argmax")
 
@@ -510,6 +519,9 @@ class StableDiffusionXLInstructPix2PixPipeline(
 
         if image_latents.dtype != self.vae.dtype:
             image_latents = image_latents.to(dtype=self.vae.dtype)
+
+        if self.is_cosxl_edit:
+            image_latents = image_latents * self.vae.config.scaling_factor
 
         return image_latents
 
