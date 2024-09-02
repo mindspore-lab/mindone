@@ -43,9 +43,16 @@ def parse_train_args(parser):
         "--parallel_mode",
         default="data",
         type=str,
-        choices=["data", "optim", "semi"],
-        help="parallel mode: data, optim",
+        choices=["data", "optim", "semi", "zero"],
+        help="parallel mode: data, optim, zero",
     )
+    parser.add_argument(
+        "--zero_stage",
+        default=2,
+        type=int,
+        help="run parallelism like deepspeed, supporting zero0, zero1, zero2, and zero3, if parallel_mode==zero",
+    )
+    parser.add_argument("--comm_fusion", default=True, type=str2bool)
     parser.add_argument("--seed", default=3407, type=int, help="data path")
     parser.add_argument(
         "--mempool_block_size",

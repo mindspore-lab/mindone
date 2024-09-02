@@ -5,9 +5,11 @@ import os
 import sys
 
 import yaml
+from mindcv.optim.adamw import AdamW
 
 import mindspore as ms
 from mindspore import Model, nn
+from mindspore.communication.management import GlobalComm
 from mindspore.train.callback import TimeMonitor
 
 mindone_lib_path = os.path.abspath("../../")
@@ -34,8 +36,8 @@ from mindone.diffusers.schedulers import DDPMScheduler as DDPMScheduler_diffuser
 from mindone.trainers.callback import EvalSaveCallback, OverflowMonitor, ProfilerCallbackEpoch
 from mindone.trainers.checkpoint import resume_train_network
 from mindone.trainers.lr_schedule import create_scheduler
-from mindone.trainers.optim import create_optimizer
 from mindone.trainers.train_step import TrainOneStepWrapper
+from mindone.trainers.zero import prepare_train_network
 from mindone.transformers import MT5EncoderModel
 from mindone.utils.amp import auto_mixed_precision
 from mindone.utils.config import str2bool
@@ -85,6 +87,7 @@ def main(args):
         jit_level=args.jit_level,
         enable_parallel_fusion=args.enable_parallel_fusion,
         jit_syntax_level=args.jit_syntax_level,
+        comm_fusion=args.comm_fusion,
     )
     set_logger(name="", output_dir=args.output_dir, rank=rank_id, log_level=eval(args.log_level))
     train_with_vae_latent = args.vae_latent_folder is not None and len(args.vae_latent_folder) > 0
@@ -431,15 +434,31 @@ def main(args):
 
     # build optimizer
     assert args.optim.lower() == "adamw", f"Not support optimizer {args.optim}!"
-    optimizer = create_optimizer(
+    optimizer = AdamW(
         latent_diffusion_with_loss.trainable_params(),
-        name=args.optim,
-        betas=args.betas,
+        learning_rate=lr,
+        beta1=args.betas[0],
+        beta2=args.betas[1],
         eps=args.optim_eps,
-        group_strategy=args.group_strategy,
         weight_decay=args.weight_decay,
-        lr=lr,
     )
+    if args.parallel_mode == "zero":
+        assert args.zero_stage in [0, 1, 2, 3], f"Unsupported zero stage {args.zero_stage}"
+        logger.info(f"Training with zero{args.zero_stage} parallelism")
+        comm_fusion_dict = None
+        if args.comm_fusion:
+            comm_fusion_dict = {
+                "allreduce": {"openstate": True, "bucket_size": 5e8},
+                "reduce_scatter": {"openstate": True, "bucket_size": 5e8},
+                "allgather": {"openstate": False, "bucket_size": 5e8},
+            }
+        latent_diffusion_with_loss = prepare_train_network(
+            latent_diffusion_with_loss,
+            optimizer,
+            zero_stage=args.zero_stage,
+            op_group=GlobalComm.WORLD_COMM_GROUP,
+            comm_fusion=comm_fusion_dict,
+        )
 
     loss_scaler = create_loss_scaler(args)
     # resume ckpt

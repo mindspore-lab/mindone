@@ -29,6 +29,7 @@ def init_env(
     enable_parallel_fusion: bool = False,
     precision_mode: str = None,
     jit_syntax_level: str = "strict",
+    comm_fusion=False,
 ) -> Tuple[int, int, int]:
     """
     Initialize MindSpore environment.
@@ -99,6 +100,25 @@ def init_env(
                 gradients_mean=True,
                 device_num=device_num,
             )
+        elif parallel_mode == "zero":
+            init()
+            logger.info("use parallelism like deepspeed")
+            device_num = get_group_size()
+            rank_id = get_rank()
+            logger.debug(f"rank_id: {rank_id}, device_num: {device_num}")
+            ms.reset_auto_parallel_context()
+            ms.set_auto_parallel_context(
+                parallel_mode=ms.ParallelMode.DATA_PARALLEL,
+                gradients_mean=True,
+            )
+            if comm_fusion:
+                comm_fusion_dict = {
+                    "allreduce": {"mode": "auto", "config": None},
+                    "reducescatter": {"mode": "auto", "config": None},
+                    "allgather": {"mode": "auto", "config": None},
+                }
+                ms.set_auto_parallel_context(comm_fusion=comm_fusion_dict)
+
         else:
             raise ValueError(f"{parallel_mode} not supported!")
 
