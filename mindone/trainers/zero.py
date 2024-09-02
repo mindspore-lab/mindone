@@ -1,5 +1,5 @@
 import logging
-from typing import List, Optional
+
 import mindspore as ms
 from mindspore import nn, ops
 from mindspore.communication import get_group_size, get_rank
@@ -7,8 +7,9 @@ from mindspore.communication.management import GlobalComm
 from mindspore.context import ParallelMode
 from mindspore.parallel._utils import _get_parallel_mode
 
-from .train_step import TrainOneStepWrapper
 from mindone.models.modules.parallel import PARALLEL_MODULE
+
+from .train_step import TrainOneStepWrapper
 
 _logger = logging.getLogger(__name__)
 
@@ -161,7 +162,7 @@ class ZeroHelper:
             self.dp_group_size = ms.Tensor(get_group_size(group=self.dp_group), ms.float32)
 
     def update_comm_op_info(self, comm_op_info, bucket_size, param_size, param_name):
-        if comm_op_info[-1]["size"] + param_size <= bucket_size or len(comm_op_info) == 1:
+        if comm_op_info[-1]["size"] + param_size <= bucket_size or len(comm_op_info[-1]["params"]) == 0:
             comm_op_info[-1]["size"] += param_size
             comm_op_info[-1]["params"].append(param_name)
         else:
@@ -174,15 +175,13 @@ class ZeroHelper:
         self.max_fusion_id += 1
         self.zero1_allreduce_list = []
         for i, param in enumerate(self.ori_parameters):
-            param_size = param.itemsize
+            param_size = param.itemsize * param.size
             param_name = param.name
-            self.update_comm_op_info(allreduce_info,
-                                     comm_fusion["allreduce"]["bucket_size"],
-                                     param_size,
-                                     param_name)
+            self.update_comm_op_info(allreduce_info, comm_fusion["allreduce"]["bucket_size"], param_size, param_name)
             comm_op = ops.AllReduce(op=ops.ReduceOp.SUM, group=self.op_group)
             comm_op.add_prim_attr("fusion", allreduce_info[-1]["fusion_id"])
             self.zero1_allreduce_list.append(comm_op)
+        _logger.info(f"zero1_allreduce_fusion: {allreduce_info}")
 
     def set_zero2_reduce_scatter_fusion_comm_list(self, comm_fusion):
         reduce_scatter_info = [{"size": 0, "fusion_id": self.max_fusion_id + 1, "params": []}]
@@ -192,18 +191,16 @@ class ZeroHelper:
         self.zero2_reduce_scatter_list = []
         self.zero2_allreduce_list = []
         for i, param in enumerate(self.ori_parameters):
-            param_size = param.itemsize
+            param_size = param.itemsize * param.size
             param_name = param.name
             if self.need_parameter_split[i]:
-                self.update_comm_op_info(reduce_scatter_info,
-                                         comm_fusion["reduce_scatter"]["bucket_size"],
-                                         param_size,
-                                         param_name)
+                self.update_comm_op_info(
+                    reduce_scatter_info, comm_fusion["reduce_scatter"]["bucket_size"], param_size, param_name
+                )
             else:
-                self.update_comm_op_info(allreduce_info,
-                                         comm_fusion["allreduce"]["bucket_size"],
-                                         param_size,
-                                         param_name)
+                self.update_comm_op_info(
+                    allreduce_info, comm_fusion["allreduce"]["bucket_size"], param_size, param_name
+                )
             comm_op = ops.ReduceScatter(op=ops.ReduceOp.SUM, group=self.op_group)
             comm_op.add_prim_attr("fusion", reduce_scatter_info[-1]["fusion_id"])
             self.zero2_reduce_scatter_list.append(comm_op)
@@ -211,38 +208,40 @@ class ZeroHelper:
             comm_op = ops.AllReduce(op=ops.ReduceOp.SUM, group=self.op_group)
             comm_op.add_prim_attr("fusion", allreduce_info[-1]["fusion_id"])
             self.zero2_allreduce_list.append(comm_op)
-    
+        _logger.info(f"zero2_reduce_scatter_fusion: {reduce_scatter_info}")
+        _logger.info(f"zero2_reduce_scatter_fusion: {allreduce_info}")
+
     def set_optimizer_allgather_fusion_comm_list(self, comm_fusion):
         allgather_info = [{"size": 0, "fusion_id": self.max_fusion_id + 1, "params": []}]
         self.max_fusion_id += 1
         self.optimizer_allgather_list = []
         for i, param in enumerate(self.ori_parameters):
-            param_size = param.itemsize
+            param_size = param.itemsize * param.size
             param_name = param.name
             if self.need_parameter_split[i]:
-                self.update_comm_op_info(allgather_info,
-                                         comm_fusion["allgather"]["bucket_size"],
-                                         param_size,
-                                         param_name)
+                self.update_comm_op_info(
+                    allgather_info, comm_fusion["allgather"]["bucket_size"], param_size, param_name
+                )
             comm_op = ops.AllGather(group=self.op_group)
             comm_op.add_prim_attr("fusion", allgather_info[-1]["fusion_id"])
             self.optimizer_allgather_list.append(comm_op)
+        _logger.info(f"optimizer_allgather_fusion: {allgather_info}")
 
     def set_dp_allreduce_comm_list(self, comm_fusion):
         dp_allreduce_info = [{"size": 0, "fusion_id": self.max_fusion_id + 1, "params": []}]
         self.max_fusion_id += 1
         self.dp_allreduce_list = []
         for i, param in enumerate(self.ori_parameters):
-            param_size = param.itemsize
+            param_size = param.itemsize * param.size
             param_name = param.name
             if self.need_parameter_split[i]:
-                self.update_comm_op_info(dp_allreduce_info,
-                                         comm_fusion["allreduce"]["bucket_size"],
-                                         param_size,
-                                         param_name)
+                self.update_comm_op_info(
+                    dp_allreduce_info, comm_fusion["allreduce"]["bucket_size"], param_size, param_name
+                )
             comm_op = ops.AllGather(group=self.op_group)
             comm_op.add_prim_attr("fusion", dp_allreduce_info[-1]["fusion_id"])
             self.dp_allreduce_list.append(comm_op)
+        _logger.info(f"dp_allreduce_fusion: {dp_allreduce_info}")
 
     def split_param(self, param):
         return self.split_op(param)[self.op_rank_id]
@@ -474,6 +473,22 @@ def prepare_network(network: nn.Cell, zero_stage: int = 0, op_group: str = None)
     return network
 
 
+def prepare_ema(ema, zero_stage: int = 0, op_group: str = None):
+    is_parallel = _get_parallel_mode() == ParallelMode.DATA_PARALLEL
+    if not is_parallel or zero_stage != 3:
+        return ema
+    op_group_size = get_group_size(op_group)
+    op_rank_id = get_rank(op_group)
+    split_op = ops.Split(0, op_group_size)
+    _logger.info(f"Split EMA params: rank_id {op_rank_id}, rank_size {op_group_size}.")
+    for net_weight, ema_weight, swap_cache in zip(ema.net_weight, ema.ema_weight, ema.swap_cache):
+        if net_weight.shape == ema_weight.shape:
+            continue
+        ema_weight.set_data(split_op(ema_weight)[op_rank_id], slice_shape=True)
+        swap_cache.set_data(split_op(swap_cache)[op_rank_id], slice_shape=True)
+    return ema
+
+
 def prepare_train_network(
     network: nn.Cell,
     optimizer: nn.Optimizer,
@@ -527,6 +542,8 @@ def prepare_train_network(
 
     new_network = prepare_network(network, zero_stage, op_group)
     zero_helper = ZeroHelper(optimizer, zero_stage, op_group, dp_group, optimizer_offload, comm_fusion)
+    if ema is not None:
+        ema = prepare_ema(ema, zero_stage, op_group)
     if isinstance(scale_sense, float):
         scale_sense = ms.Tensor(scale_sense, ms.float32)
     train_network = TrainOneStepWrapper(

@@ -1,5 +1,5 @@
 import mindspore as ms
-from mindspore import ops, nn
+from mindspore import nn, ops
 from mindspore.communication import get_group_size
 from mindspore.communication.management import GlobalComm
 from mindspore.context import ParallelMode

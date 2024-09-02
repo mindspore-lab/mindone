@@ -7,13 +7,14 @@ from mindspore import nn
 from mindspore.communication import get_group_size, get_rank, init
 from mindspore.communication.management import GlobalComm
 
+from mindone.trainers.ema import EMA
 from mindone.trainers.zero import prepare_train_network
 from mindone.utils.logger import set_logger
 
 _logger = logging.getLogger(__name__)
 
 
-def init_env(mode, distribute, save_graph=True, comm_fusio=False):
+def init_env(mode, distribute, save_graph=True, comm_fusion=False):
     ms.set_seed(1)
     ms.set_context(mode=mode)
     if save_graph:
@@ -28,10 +29,12 @@ def init_env(mode, distribute, save_graph=True, comm_fusio=False):
             parallel_mode=ms.ParallelMode.DATA_PARALLEL,
             gradients_mean=True,
         )
-        if comm_fusio:
-            comm_fusion_dict = {"allreduce": {"mode": "auto", "config": None},
-                                "reducescatter": {"mode": "auto", "config": None},
-                                "allgather": {"mode": "auto", "config": None},}
+        if comm_fusion:
+            comm_fusion_dict = {
+                "allreduce": {"mode": "auto", "config": None},
+                "reducescatter": {"mode": "auto", "config": None},
+                "allgather": {"mode": "auto", "config": None},
+            }
             ms.set_auto_parallel_context(comm_fusion=comm_fusion_dict)
         return group_size, rank_id
     return 1, 0
@@ -66,13 +69,17 @@ def test_zero(x, y, zero_stage=0, comm_fusion=False):
     ms.set_seed(1)
     net = nn.WithLossCell(TestNet(), nn.MSELoss())
     opt = nn.AdamWeightDecay(net.trainable_params(), learning_rate=1e-3)
+    ema = EMA(net)
     comm_fusion_dict = None
     if comm_fusion:
-        comm_fusion_dict = {"allreduce": {"openstate": True, "bucket_size": 5e8},
-                            "reduce_scatter": {"openstate": True, "bucket_size": 5e8},
-                            "allgather": {"openstate": False, "bucket_size": 5e8},}
-    train_net = prepare_train_network(net, opt, zero_stage=zero_stage, op_group=GlobalComm.WORLD_COMM_GROUP,
-                                      comm_fusion=comm_fusion_dict)
+        comm_fusion_dict = {
+            "allreduce": {"bucket_size": 64},
+            "reduce_scatter": {"bucket_size": 64},
+            "allgather": {"bucket_size": 64},
+        }
+    train_net = prepare_train_network(
+        net, opt, ema=ema, zero_stage=zero_stage, op_group=GlobalComm.WORLD_COMM_GROUP, comm_fusion=comm_fusion_dict
+    )
 
     for i in range(10):
         loss = train_net(x, y)
@@ -80,11 +87,12 @@ def test_zero(x, y, zero_stage=0, comm_fusion=False):
 
 
 if __name__ == "__main__":
-    group_size, rank_id = init_env(mode=0, distribute=True, save_graph=True)
+    comm_fusion = False
+    group_size, rank_id = init_env(mode=0, distribute=True, save_graph=False, comm_fusion=comm_fusion)
     set_logger(name="", output_dir="logs", rank=rank_id, log_level="DEBUG")
     x = ms.Tensor(np.random.uniform(-1, 1, (1, 2, 5, 5)).astype(np.float32) * (get_rank() + 1))
     y = ms.Tensor(np.random.uniform(-1, 1, (1, 2, 5, 5)).astype(np.float32) * (get_rank() + 1))
-    test_zero(x, y, zero_stage=0)
-    test_zero(x, y, zero_stage=1)
-    test_zero(x, y, zero_stage=2)
-    test_zero(x, y, zero_stage=3)
+    test_zero(x, y, zero_stage=0, comm_fusion=comm_fusion)
+    test_zero(x, y, zero_stage=1, comm_fusion=comm_fusion)
+    test_zero(x, y, zero_stage=2, comm_fusion=comm_fusion)
+    test_zero(x, y, zero_stage=3, comm_fusion=comm_fusion)
