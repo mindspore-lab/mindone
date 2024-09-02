@@ -117,8 +117,7 @@ class TrainOneStepWrapper(nn.TrainOneStepWithLossScaleCell):
         grads = self.grad(self.network, weights)(*inputs, scaling_sens_filled)
 
         # Gradient communication
-        if self.zero_helper is not None:
-            grads = self.zero_helper.cal_gradients(grads)
+        grads = self.zero_helper.cal_gradients(grads)
 
         if self.accum_steps == 1:
             grads = self.grad_reducer(grads)
