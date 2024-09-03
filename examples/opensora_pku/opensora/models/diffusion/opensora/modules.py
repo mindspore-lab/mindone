@@ -302,9 +302,10 @@ class AttnProcessor2_0:
         Bs, query_tokens, _ = query.shape
         assert query_tokens % 16 == 0, f"Sequence length of query must be divisible by 16, but got {query_tokens=}."
         key_tokens = key.shape[1]
-        query = query.view(Bs, query_tokens, attn.heads, -1)
-        key = key.view(Bs, key_tokens, attn.heads, -1)
-        value = value.view(Bs, key_tokens, attn.heads, -1)
+        heads = attn.heads if not get_sequence_parallel_state() else attn.heads // hccl_info.world_size
+        query = query.view(Bs, query_tokens, heads, -1)
+        key = key.view(Bs, key_tokens, heads, -1)
+        value = value.view(Bs, key_tokens, heads, -1)
         # Head dimension is checked in Attention.set_use_memory_efficient_attention_xformers. We maybe pad on head_dim.
         if attn.head_dim_padding > 0:
             query_padded = ops.pad(query, (0, attn.head_dim_padding), mode="constant", value=0.0)
@@ -313,7 +314,7 @@ class AttnProcessor2_0:
         else:
             query_padded, key_padded, value_padded = query, key, value
         flash_attn = ops.operations.nn_ops.FlashAttentionScore(
-            scale_value=attn.scale, head_num=attn.heads, input_layout=input_layout, keep_prob=1 - attention_dropout
+            scale_value=attn.scale, head_num=heads, input_layout=input_layout, keep_prob=1 - attention_dropout
         )
         if attention_mask is not None:
             # flip mask, since ms FA treats 1 as discard, 0 as retain.
@@ -346,7 +347,7 @@ class AttnProcessor2_0:
             if input_layout == "BNSD":
                 hidden_states = hidden_states_padded[..., : attn.head_dim]
             else:
-                hidden_states = hidden_states_padded.view(Bs, query_tokens, attn.heads, -1)[..., : attn.head_dim]
+                hidden_states = hidden_states_padded.view(Bs, query_tokens, heads, -1)[..., : attn.head_dim]
                 hidden_states = hidden_states.view(Bs, query_tokens, -1)
         else:
             hidden_states = hidden_states_padded
@@ -358,22 +359,43 @@ class AttnProcessor2_0:
         return hidden_states
 
     def run_math_attention(self, attn, query, key, value, attention_mask):
-        query = attn.head_to_batch_dim(query)
-        key = attn.head_to_batch_dim(key)
-        value = attn.head_to_batch_dim(value)
+        _head_size = attn.heads if not get_sequence_parallel_state() else attn.heads // hccl_info.world_size
+        query = self._head_to_batch_dim(_head_size, query)
+        key = self._head_to_batch_dim(_head_size, key)
+        value = self._head_to_batch_dim(_head_size, value)
+
         if attention_mask is not None:
             if attention_mask.ndim == 3:
                 attention_mask = attention_mask.unsqeeuze(1)
-            head_size = self.heads
             assert attention_mask.shape[1] == 1
-            attention_mask = attention_mask.repeat_interleave(head_size, 1)
+            attention_mask = attention_mask.repeat_interleave(_head_size, 1)
             attention_mask = attention_mask.reshape(-1, attention_mask.shape[-2], attention_mask.shape[-1])
             attention_mask = ops.zeros(attention_mask.shape).masked_fill(attention_mask.to(ms.bool_), -10000.0)
 
         attention_probs = attn.get_attention_scores(query, key, attention_mask)
         hidden_states = ops.bmm(attention_probs, value)
-        hidden_states = attn.batch_to_head_dim(hidden_states)
+        hidden_states = self._batch_to_head_dim(_head_size, hidden_states)
         return hidden_states
+
+    def _batch_to_head_dim(self, head_size, tensor: ms.Tensor) -> ms.Tensor:
+        batch_size, seq_len, dim = tensor.shape
+        tensor = tensor.reshape(batch_size // head_size, head_size, seq_len, dim)
+        tensor = tensor.permute(0, 2, 1, 3).reshape(batch_size // head_size, seq_len, dim * head_size)
+        return tensor
+
+    def _head_to_batch_dim(self, head_size, tensor: ms.Tensor, out_dim: int = 3) -> ms.Tensor:
+        if tensor.ndim == 3:
+            batch_size, seq_len, dim = tensor.shape
+            extra_dim = 1
+        else:
+            batch_size, extra_dim, seq_len, dim = tensor.shape
+        tensor = tensor.reshape(batch_size, seq_len * extra_dim, head_size, dim // head_size)
+        tensor = tensor.permute(0, 2, 1, 3)
+
+        if out_dim == 3:
+            tensor = tensor.reshape(batch_size * head_size, seq_len * extra_dim, dim // head_size)
+
+        return tensor
 
     def __call__(
         self,

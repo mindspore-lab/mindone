@@ -758,8 +758,9 @@ class OpenSoraPipeline(DiffusionPipeline):
                 if temp_attention_mask is not None:
                     # temp_attention_mask shape (bs, t), 1 means to keep, 0 means to discard
                     # TODO: mask temporal padded tokens
-                    temp_attention_mask = ops.broadcast(temp_attention_mask, attention_mask.shape).bool()
-                    attention_mask[~temp_attention_mask] = 0
+                    attention_mask = (
+                        attention_mask.to(ms.int32) * temp_attention_mask[:, :, None, None].to(ms.int32)
+                    ).to(ms.bool_)
                 if get_sequence_parallel_state():
                     attention_mask = attention_mask.tile((1, world_size, 1, 1))  # b t*sp_size h w
                 # predict noise model_output
