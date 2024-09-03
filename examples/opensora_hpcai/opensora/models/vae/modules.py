@@ -2,7 +2,7 @@ import logging
 
 import numpy as np
 
-import mindspore as ms
+# import mindspore as ms
 from mindspore import nn, ops
 
 _logger = logging.getLogger(__name__)

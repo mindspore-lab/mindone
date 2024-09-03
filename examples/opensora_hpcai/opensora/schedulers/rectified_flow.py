@@ -5,10 +5,10 @@ try:
 except ImportError:
     from typing_extensions import Literal  # FIXME: python 3.7
 
+# import numpy as np
+# import mindspore as ms
 from tqdm import tqdm
-import numpy as np
 
-import mindspore as ms
 from mindspore import Tensor, dtype, ops
 
 from ..utils.distributions import LogisticNormal
