@@ -276,6 +276,7 @@ class Encoder(nn.Cell):
         temb = None
 
         # downsampling
+        '''
         hs = [self.conv_in(x)]
         for i_level in range(self.num_resolutions):
             for i_block in range(self.num_res_blocks):
@@ -288,6 +289,19 @@ class Encoder(nn.Cell):
 
         # middle
         h = hs[-1]
+        '''
+        hs = self.conv_in(x)
+        for i_level in range(self.num_resolutions):
+            for i_block in range(self.num_res_blocks):
+                h = self.down[i_level].block[i_block](hs, temb)
+                if len(self.down[i_level].attn) > 0:
+                    h = self.down[i_level].attn[i_block](h)
+                hs = h
+            if i_level != self.num_resolutions - 1:
+                hs = self.down[i_level].downsample(hs)
+
+        # middle
+        h = hs
         h = self.mid.block_1(h, temb)
         h = self.mid.attn_1(h)
         h = self.mid.block_2(h, temb)
