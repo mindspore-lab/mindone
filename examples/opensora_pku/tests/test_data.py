@@ -84,7 +84,7 @@ def load_dataset_and_dataloader(args, device_num=1, rank_id=0):
         collate_fn=collate_fn,
         sampler=sampler,
         column_names=["pixel_values", "attention_mask", "text_embed", "encoder_attention_mask"],
-        drop_last=args.drop_last,
+        drop_last=True,
     )
     dataset_size = dataloader.get_dataset_size()
     assert dataset_size > 0, "Incorrect dataset size. Please check your dataset size and your global batch size"
@@ -136,7 +136,6 @@ def parse_t2v_train_args(parser):
     parser.add_argument("--text_encoder_name", type=str, default="DeepFloyd/t5-v1_1-xxl")
     parser.add_argument("--model_max_length", type=int, default=300)
     parser.add_argument("--multi_scale", action="store_true")
-    parser.add_argument("--drop_last", action="store_true")
 
     # parser.add_argument("--enable_tracker", action="store_true")
     parser.add_argument("--use_image_num", type=int, default=0)
