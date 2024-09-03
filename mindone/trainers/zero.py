@@ -1,4 +1,6 @@
+import json
 import logging
+import os
 
 import mindspore as ms
 from mindspore import nn, ops
@@ -83,6 +85,8 @@ class ZeroHelper:
             Examples: {"allreduce": {"bucket_size": 5e8},
                        "reduce_scatter": {"bucket_size": 5e8},
                        "allgather": {"bucket_size": 5e8},}
+        params_split_info (`str`, *optional*): A json path of the optimizer parallel communication group,
+            default is `params_info`.
     """
 
     def __init__(
@@ -93,6 +97,7 @@ class ZeroHelper:
         dp_group: str = None,
         optimizer_offload: bool = False,
         comm_fusion: dict = None,
+        params_split_info: str = "params_info",
     ):
         self.optimizer = optimizer
         self.zero_stage = zero_stage
@@ -132,6 +137,11 @@ class ZeroHelper:
                     self.set_optimizer_allgather_fusion_comm_list(comm_fusion)
                 if self.need_dp:
                     self.set_dp_allreduce_comm_list(comm_fusion)
+            if not os.path.exists(params_split_info):
+                os.makedirs(params_split_info, exist_ok=True)
+            if not os.path.isdir(params_split_info):
+                ValueError(f"params_split_info must be a folder, params_split_info: {params_split_info}")
+            self.dump_params_split_info(params_split_info)
 
         self.hyper_map = ops.HyperMap()
         if optimizer_offload:
@@ -264,6 +274,20 @@ class ZeroHelper:
                     _logger.debug(f"Add optimizer param_tuples {attr}")
                     param_tuples.append(getattr(self.optimizer, attr))
         return param_tuples
+
+    def dump_params_split_info(self, params_split_info):
+        params_split_info_path = os.path.join(params_split_info, f"params_split_info_{self.op_rank_id}.json")
+        params_split_info_dict = {}
+        for i, param in enumerate(self.optimizer._parameters):
+            param_split_info = {
+                "split": self.need_parameter_split[i],
+                "group_size": self.op_group_size,
+                "rank_id": self.op_rank_id,
+            }
+            params_split_info_dict[param.name] = param_split_info
+        params_split_info_json = json.dumps(params_split_info_dict, indent=2)
+        with open(params_split_info_path, "w") as f:
+            f.write(params_split_info_json)
 
     def get_need_parameter_split(self):
         self.need_parameter_split = [False] * len(self.optimizer._parameters)
@@ -567,3 +591,51 @@ def prepare_train_network(
         zero_helper=zero_helper,
     )
     return train_network
+
+
+def transform_checkpoints(src_checkpoint: str, src_param_split_info_json: str, group_size: int):
+    """
+    src_checkpoint (`str`): The path of checkpoints need to merge parameters. eg. "save_checkpoint_dir/ckpt_{}.ckpt",
+        {} is placeholder of rank_id.
+    src_param_split_info_json (`str`): The path of param_split_info_jsons. eg. "params_info/params_split_info_{}.json",
+        {} is placeholder of rank_id.
+    group_size (`int`): The rank size of the communication group.
+    """
+
+    def read_json(json_file):
+        s = ""
+        with open(json_file, "r") as f:
+            for line in f.readlines():
+                s += line
+        return json.loads(s)
+
+    new_params_list = []
+    ckpts = []
+    jsons = []
+    for i in range(group_size):
+        ckpts.append(ms.load_checkpoint(src_checkpoint.format(i)))
+        jsons.append(read_json(src_param_split_info_json.format(i)))
+    for param_name in ckpts[0].keys():
+        param_value = None
+        param_list = []
+        for i in range(group_size):
+            if param_name not in jsons[i]:
+                _logger.warning(f"param {param_name} not in param_split_info_json, keep ori data.")
+                if i:
+                    raise ValueError("please check jsons, param name not same!")
+                param_value = ckpts[0][param_name]
+                break
+            elif not jsons[i][param_name]["split"]:
+                if i:
+                    raise ValueError("please check jsons, param info not same!")
+                param_value = ckpts[0][param_name]
+                break
+            else:
+                param_list.append(ckpts[i][param_name])
+        if param_value is None:
+            param_value = ops.cat(param_list)
+            _logger.debug("Merge {param_name} to {param_value.shape}")
+
+        new_params_list.append({"name": param_name, "data": param_value})
+
+    ms.save_checkpoint(new_params_list, src_checkpoint.format(f"all_{group_size}"))
