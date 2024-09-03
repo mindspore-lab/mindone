@@ -7,7 +7,7 @@ from mindspore.communication.management import GlobalComm
 from mindspore.context import ParallelMode
 from mindspore.parallel._utils import _get_parallel_mode
 
-from mindone.models.modules.parallel import PARALLEL_MODULE
+from mindone.models.modules.parallel import PARALLEL_MODULES
 
 from .train_step import TrainOneStepWrapper
 
@@ -435,8 +435,8 @@ def get_cell_dtype(cell):
     return None
 
 
-def _init_parallel_settings(net, op_group):
-    for module, parallel_module in PARALLEL_MODULE.items():
+def _init_parallel_settings(net, op_group, parallel_modules=None):
+    for module, parallel_module in parallel_modules.items():
         if isinstance(net, module):
             cell_type = get_cell_dtype(net)
             new_net = parallel_module(net, 3, op_group)
@@ -446,8 +446,8 @@ def _init_parallel_settings(net, op_group):
     return None
 
 
-def _prepare_network(network: nn.Cell, op_group: str):
-    new_net = _init_parallel_settings(network, op_group)
+def _prepare_network(network: nn.Cell, op_group: str, parallel_modules=None):
+    new_net = _init_parallel_settings(network, op_group, parallel_modules)
     if new_net is not None:
         return new_net
     for name, sub_net in network._cells.items():
@@ -466,12 +466,14 @@ def _prepare_network(network: nn.Cell, op_group: str):
     return network
 
 
-def prepare_network(network: nn.Cell, zero_stage: int = 0, op_group: str = None):
+def prepare_network(network: nn.Cell, zero_stage: int = 0, op_group: str = None, parallel_modules=None):
     if zero_stage != 3 or _get_parallel_mode() != ParallelMode.DATA_PARALLEL:
         _logger.info("No need rewrite network and return original network.")
         return network
     _logger.info("Rewrite the network, please wait...")
-    network = _prepare_network(network, op_group)
+    if parallel_modules is None:
+        parallel_modules = PARALLEL_MODULES
+    network = _prepare_network(network, op_group, parallel_modules)
     return network
 
 
@@ -507,6 +509,7 @@ def prepare_train_network(
     op_group: str = None,
     dp_group: str = None,
     comm_fusion: dict = None,
+    parallel_modules=None,
 ):
     """
     Prepare network and optimizer for distributed training.
@@ -528,6 +531,8 @@ def prepare_train_network(
             Examples: {"allreduce": {"openstate": True, "bucket_size": 5e8},
                        "reduce_scatter": {"openstate": True, "bucket_size": 5e8},
                        "allgather": {"openstate": False, "bucket_size": 5e8},}
+        parallel_modules (`dict`, *optional*): A dict of Cells could split parameters in zero3, default is None.
+            If None, use `PARALLEL_MODULES` from `mindone.models.modules.parallel`.
     """
     is_parallel = _get_parallel_mode() == ParallelMode.DATA_PARALLEL
     if not is_parallel and zero_stage == 0:
@@ -542,7 +547,7 @@ def prepare_train_network(
     if op_group != GlobalComm.WORLD_COMM_GROUP and dp_group is None:
         raise ValueError("op_group {op_group} and dp_group {dp_group} not full network hccl group coverage")
 
-    new_network = prepare_network(network, zero_stage, op_group)
+    new_network = prepare_network(network, zero_stage, op_group, parallel_modules=parallel_modules)
     zero_helper = ZeroHelper(optimizer, zero_stage, op_group, dp_group, optimizer_offload, comm_fusion)
     if ema is not None:
         ema = prepare_ema(ema, zero_stage, op_group)
