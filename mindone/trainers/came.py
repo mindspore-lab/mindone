@@ -1,5 +1,3 @@
-"""Modified from https://github.com/zhtmike/mindspore-optimizer/blob/master/optim/came.py
-"""
 from typing import List, Tuple
 
 import mindspore as ms

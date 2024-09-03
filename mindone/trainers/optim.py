@@ -11,7 +11,7 @@ from mindspore.nn.optim import Adam, AdamWeightDecay, Momentum, Optimizer
 
 from .adamw_mf import AdamW as AdamW_MF
 from .adamw_zero1 import AdamWeightDecayZeRO1
-from .optimizers import CAME
+from .came import CAME
 
 _logger = logging.getLogger(__name__)
 

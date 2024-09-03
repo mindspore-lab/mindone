@@ -5,25 +5,27 @@ This repo contains Mindspore model definitions, pre-trained weights and inferenc
 ## Contents
 
 - Main
-    * [Training](#vanilla-finetune)
-    * [Inference](#getting-start)
-    * [Use diffusers: coming soon]
-    * [Launch Demo: coming soon]
-
+    - [Training](#vanilla-finetune)
+    - [Inference](#getting-start)
+    - [Use diffusers: coming soon]
+    - [Launch Demo: coming soon]
 - Guidance
-    * [Feature extraction: coming soon]
-    * [One step Generation (DMD): coming soon]
-    * [LoRA & DoRA: coming soon]
-
+    - [Feature extraction: coming soon]
+    - [One step Generation (DMD): coming soon]
+    - [LoRA & DoRA: coming soon]
 - Benchmark
-    * [Training](#training)
-    * [Inference](#inference)
+    - [Training](#training)
+    - [Inference](#inference)
+
+## What's New
+- 2024-09-05
+    - Support fine-tuning and inference for Pixart-Sigma models.
 
 ## Dependencies and Installation
 
-- CANN: 8.0
-- Python >= 3.9
-- Mindspore >= 2.3.1
+- CANN: 8.0.RC2 or later
+- Python: 3.9 or later
+- Mindspore: 2.3.1
 
 Then, run `pip install -r requirements.txt` to install the necessary packages.
 
@@ -82,7 +84,7 @@ python sample.py -c configs/inference/pixart-sigma-1024-MS.yaml --image_width 10
 You can also generate images using a text file, where the file stores prompts separated by `\n`. Use the following command to generate images:
 
 ```bash
-python sample.py -c configss/inference/pixart-sigma-1024-MS.yaml --prompt_path path_to_yout_text_file
+python sample.py -c configs/inference/pixart-sigma-1024-MS.yaml --prompt_path path_to_yout_text_file
 ```
 
 For more detailed usage of the inference script, please run `python sample.py -h`.
@@ -135,7 +137,7 @@ For more detailed usage of the training script, please run `python train.py -h`.
 You can launch distributed training using multiple Ascend 910* Devices:
 
 ```bash
-msrun --worker_num=8 --local_worker_num=8 --log_dir="log" train.py
+msrun --worker_num=8 --local_worker_num=8 --log_dir="log" train.py \
     -c configs/train/pixart-sigma-512-MS.yaml \
     --json_path path_to_your_label_file \
     --image_dir path_to_your_image_directory \
@@ -149,28 +151,29 @@ msrun --worker_num=8 --local_worker_num=8 --log_dir="log" train.py
 
 ### Training
 
-| Context       | Optimizer | Batch Size | Resolution | Bucket Training | Speed (step/s) | Config                                                                  |
-|---------------|-----------|------------|------------|-----------------|----------------|-------------------------------------------------------------------------|
-| D910*x4-MS2.3 | CAME      | 64         | 256x256    | No              |                | [pixart-sigma-256x256.yaml](configs/train/pixart-sigma-256x256.yaml)|
-| D910*x4-MS2.3 | CAME      | 32         | 512        | Yes             |                | [pixart-sigma-512-MS.yaml](configs/train/pixart-sigma-512-MS.yaml)  |
-| D910*x4-MS2.3 | CAME      | 12         | 1024       | Yes             |                | [pixart-sigma-1024-MS.yaml](configs/train/pixart-sigma-1024-MS.yaml)|
-| D910*x4-MS2.3 | CAME      | 4          | 2048       | Yes             |                | [pixart-sigma-2K-MS.yaml](configs/train/pixart-sigma-2K-MS.yaml)    |
+| Context       | Optimizer | Global Batch Size | Resolution | Bucket Training | VAE/T5 Cache | Speed (step/s) | FPS (img/s) |  Config                                                             |
+|---------------|-----------|-------------------|------------|-----------------|--------------|----------------|-------------|---------------------------------------------------------------------|
+| D910*x4-MS2.3 | CAME      | 4 x 64            | 256x256    | No              | No           | 0.344          | 88.1        | [pixart-sigma-256x256.yaml](configs/train/pixart-sigma-256x256.yaml)|
+| D910*x4-MS2.3 | CAME      | 4 x 32            | 512        | Yes             | No           | 0.262          | 33.5        | [pixart-sigma-512-MS.yaml](configs/train/pixart-sigma-512-MS.yaml)  |
+| D910*x4-MS2.3 | CAME      | 4 x 12            | 1024       | Yes             | No           | 0.142          | 6.8         | [pixart-sigma-1024-MS.yaml](configs/train/pixart-sigma-1024-MS.yaml)|
+| D910*x4-MS2.3 | CAME      | 4 x 1             | 2048       | Yes             | No           | 0.114          | 0.5         | [pixart-sigma-2K-MS.yaml](configs/train/pixart-sigma-2K-MS.yaml)    |
 
-> Context: {Ascend chip}-{number of NPUs}-{mindspore version}
-
-> Bucket Training: Training images with different aspect ratios based on bucketing.
+> Context: {Ascend chip}-{number of NPUs}-{mindspore version}\
+> Bucket Training: Training images with different aspect ratios based on bucketing.\
+> VAE/T5 Cache: Use the pre-generated T5 Embedding and VAE Cache for training.\
+> Speed (step/s): sampling speed measured in the number of training steps per second.\
+> FPS (img/s): images per second during training. average training time (s/step) = global batch_size / FPS
 
 ### Inference
 
-| Context       | Scheduler | Steps | Resolution | Batch Size | Speed (step/s) | Config                                                                  |
-|---------------|-----------|-------|------------|------------|----------------|-------------------------------------------------------------------------|
-| D910*x1-MS2.3 | DPM++     | 20    | 256x256    | 1          | 18.04          | [pixart-sigma-256x256.yaml](configs/inference/pixart-sigma-256x256.yaml)|
-| D910*x1-MS2.3 | DPM++     | 20    | 512x512    | 1          | 15.95          | [pixart-sigma-512-MS.yaml](configs/inference/pixart-sigma-512-MS.yaml)  |
-| D910*x1-MS2.3 | DPM++     | 20    | 1024x1024  | 1          | 4.96           | [pixart-sigma-1024-MS.yaml](configs/inference/pixart-sigma-1024-MS.yaml)|
-| D910*x1-MS2.3 | DPM++     | 20    | 2048x2048  | 1          | 0.57           | [pixart-sigma-2K-MS.yaml](configs/inference/pixart-sigma-2K-MS.yaml)    |
+| Context       | Scheduler | Steps | Resolution   | Batch Size | Speed (step/s) | Config                                                                  |
+|---------------|-----------|-------|--------------|------------|----------------|-------------------------------------------------------------------------|
+| D910*x1-MS2.3 | DPM++     | 20    | 256 x 256    | 1          | 18.04          | [pixart-sigma-256x256.yaml](configs/inference/pixart-sigma-256x256.yaml)|
+| D910*x1-MS2.3 | DPM++     | 20    | 512 x 512    | 1          | 15.95          | [pixart-sigma-512-MS.yaml](configs/inference/pixart-sigma-512-MS.yaml)  |
+| D910*x1-MS2.3 | DPM++     | 20    | 1024 x 1024  | 1          | 4.96           | [pixart-sigma-1024-MS.yaml](configs/inference/pixart-sigma-1024-MS.yaml)|
+| D910*x1-MS2.3 | DPM++     | 20    | 2048 x 2048  | 1          | 0.57           | [pixart-sigma-2K-MS.yaml](configs/inference/pixart-sigma-2K-MS.yaml)    |
 
-> Context: {Ascend chip}-{number of NPUs}-{mindspore version}.
-
+> Context: {Ascend chip}-{number of NPUs}-{mindspore version}.\
 > Speed (step/s): sampling speed measured in the number of sampling steps per second.
 
 # References

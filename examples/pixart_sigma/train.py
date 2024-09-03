@@ -252,11 +252,11 @@ def main(args):
         num_parallel_workers=args.num_parallel_workers,
         num_shards=device_num,
         shard_id=rank_id,
+        max_rowsize=-1,
     )
     if args.multi_scale:
         element_length_func, bucket_boundaries, bucket_batch_size = bucket_split_function(
-            dataset.ratio,
-            args.batch_size,
+            dataset.ratio, args.batch_size
         )
         data_generator = data_generator.bucket_batch_by_length(
             ["image"], bucket_boundaries, bucket_batch_size, element_length_func, drop_remainder=True
