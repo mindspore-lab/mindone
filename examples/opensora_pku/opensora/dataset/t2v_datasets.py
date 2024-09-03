@@ -441,10 +441,10 @@ class T2V_dataset:
         for index in range(len(captions)):
             # use index as an extra identifier
             identifer = f"-{index}"
-            file_path = Path(str(file_path))
-            file_path = str(file_path.with_suffix("")) + identifer
-            file_path = Path(str(file_path)).with_suffix(".npz")
-            text_embed_paths.append(file_path)
+            text_embed_file_path = Path(str(file_path))
+            text_embed_file_path = str(text_embed_file_path.with_suffix("")) + identifer
+            text_embed_file_path = Path(str(text_embed_file_path)).with_suffix(".npz")
+            text_embed_paths.append(text_embed_file_path)
         return text_embed_paths
 
     def parse_text_emb(self, npz):
