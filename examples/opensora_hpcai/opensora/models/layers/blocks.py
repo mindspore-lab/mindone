@@ -329,7 +329,7 @@ class LayerNorm(nn.Cell):
         # self.layer_norm = ops.LayerNorm(-1, -1, epsilon=eps)
 
     def construct(self, x: Tensor):
-        x, _, _ = self.layer_norm(x, self.gamma, self.beta)
+        # x, _, _ = self.layer_norm(x, self.gamma, self.beta)
 
         normalized_shape = x.shape[-1:]
         x = mint.nn.functional.layer_norm(x, normalized_shape, self.gamma, self.beta, self.eps)
