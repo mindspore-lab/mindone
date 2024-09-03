@@ -442,7 +442,7 @@ Here is the major command of the training script:
 export DEVICE_ID=0
 NUM_FRAME=29
 python  opensora/train/train_t2v_diffusers.py \
-    --data "scripts/train_data/merge_data_panda70m.txt" \
+    --data "scripts/train_data/merge_data_mixkit.txt" \
     --num_frames ${NUM_FRAME} \
     --max_height 480 \
     --max_width 640 \
