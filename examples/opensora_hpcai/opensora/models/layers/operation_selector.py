@@ -56,7 +56,8 @@ def get_repeat_interleave_op():
         # provide better performance for static shape in graph mode
         return ops.repeat_interleave
     else:
-        return repeat_interleave_ext
+        # FIXME: check overflow
+        return repeat_interleave_ext_v2
 
 
 def get_chunk_op():
