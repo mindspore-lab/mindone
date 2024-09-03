@@ -2,7 +2,6 @@ from mindspore import nn, ops
 from mindspore.communication import get_group_size, get_rank
 from mindspore.communication.management import GlobalComm
 from mindspore.context import ParallelMode
-
 from mindspore.parallel._utils import _get_parallel_mode
 
 from .param_wrapper import ZeroParamWrapper
