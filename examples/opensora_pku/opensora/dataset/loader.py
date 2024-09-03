@@ -137,13 +137,10 @@ class DataLoader:
         return self
 
     def __next__(self):
-        try:
-            indices = next(self.batch_indices)
-            if len(indices) != self.batch_size and self.drop_last:
-                return self.__next__()
-        except StopIteration:
-            self.batch_indices = iter(self.batch_sampler)
-            indices = next(self.batch_indices)
+        indices = next(self.batch_indices)
+        if len(indices) != self.batch_size and self.drop_last:
+            raise StopIteration()
+
         data = []
         per_batch = len(indices) // self.device_num
         index = indices[self.rank_id * per_batch : (self.rank_id + 1) * per_batch]
