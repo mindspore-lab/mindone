@@ -1,14 +1,31 @@
-# PixArt-Σ: Weak-to-Strong Training of Diffusion Transformer for 4K Text-to-Image Generation
+# PixArt-Σ: Weak-to-Strong Training of Diffusion Transformer for 4K Text-to-Image Generation (Mindspore)
 
-## Introduction
+This repo contains Mindspore model definitions, pre-trained weights and inference/sampling code for the [paper](https://arxiv.org/abs/2403.04692) exploring Weak-to-Strong Training of Diffusion Transformer for 4K Text-to-Image Generation. You can find more visualizations on the [official project page](https://pixart-alpha.github.io/PixArt-sigma-project/).
 
-PixArt-\Sigma is a Diffusion Transformer model~(DiT) capable of directly generating images at 4K resolution. PixArt-\Sigma represents a significant advancement over its predecessor, PixArt-\alpha, offering images of markedly higher fidelity and improved alignment with text prompts. A key feature of PixArt-\Sigma is its training efficiency. Leveraging the foundational pre-training of PixArt-\alpha, it evolves from the 'weaker' baseline to a 'stronger' model via incorporating higher quality data, a process called "weak-to-strong training". The advancements in PixArt-\Sigma are twofold: (1) High-Quality Training Data: PixArt-\Sigma incorporates superior-quality image data, paired with more precise and detailed image captions. (2) Efficient Token Compression: a novel attention module within the DiT framework is proposed that compresses both keys and values, significantly improving efficiency and facilitating ultra-high-resolution image generation. Thanks to these improvements, PixArt-\Sigma achieves superior image quality and user prompt adherence capabilities with significantly smaller model size (0.6B parameters) than existing text-to-image diffusion models, such as SDXL (2.6B parameters) and SD Cascade (5.1B parameters). Moreover, PixArt-\Sigma's capability to generate 4K images supports the creation of high-resolution posters and wallpapers, efficiently bolstering the production of high-quality visual content in industries such as film and gaming.
+## Contents
 
-## Requirement
+- Main
+    * [Training](#vanilla-finetune)
+    * [Inference](#getting-start)
+    * [Use diffusers: coming soon]
+    * [Launch Demo: coming soon]
+
+- Guidance
+    * [Feature extraction: coming soon]
+    * [One step Generation (DMD): coming soon]
+    * [LoRA & DoRA: coming soon]
+
+- Benchmark
+    * [Training](#training)
+    * [Inference](#inference)
+
+## Dependencies and Installation
 
 - CANN: 8.0
-- Python >= 3.8
+- Python >= 3.9
 - Mindspore >= 2.3.1
+
+Then, run `pip install -r requirements.txt` to install the necessary packages.
 
 ## Getting Start
 
@@ -21,6 +38,8 @@ After downloading the `PixArt-Sigma-XL-2-256x256.pth` and `PixArt-Sigma-XL-2-{}-
 ```bash
 python tools/convert.py --source models/PixArt-Sigma-XL-2-1024-MS.pth --target models/PixArt-Sigma-XL-2-1024-MS.ckpt
 ```
+
+> Note: You must have an environment with `PyTorch` installed to run the conversion script.
 
 In addition, please download the [VAE checkpoint](https://huggingface.co/PixArt-alpha/pixart_sigma_sdxlvae_T5_diffusers/tree/main/vae), [T5 checkpoint](https://huggingface.co/PixArt-alpha/pixart_sigma_sdxlvae_T5_diffusers/tree/main/text_encoder), [T5 Tokenizer](https://huggingface.co/PixArt-alpha/pixart_sigma_sdxlvae_T5_diffusers/tree/main/tokenizer) and put them under `models` directory.
 
@@ -53,16 +72,24 @@ And to sample an image with a varying aspect ratio, you need to use the flag `--
 python sample.py -c configs/inference/pixart-sigma-1024-MS.yaml --prompt "your magic prompt" --image_width 1024 --image_height 512
 ```
 
-The following demo image is generated using the default prompt with the command:
+The following demo image is generated using the following command:
 
 ```bash
-python sample.py -c configs/inference/pixart-sigma-1024-MS.yaml --image_width 1024 --image_height 512 --seed 1024
+python sample.py -c configs/inference/pixart-sigma-1024-MS.yaml --image_width 1024 --image_height 512 --seed 1024 --prompt "Astronaut in a jungle, cold color palette, muted colors, detailed, 8k"
 ```
-<p align="center"><img width="1024" src="https://github.com/user-attachments/assets/d2a4a391-744e-4ae8-a035-427a26e2c655"/>
+<p align="center"><img width="1024" src="https://github.com/user-attachments/assets/bcf12b8d-1077-451b-a6ae-51bbf3c8de7a"/>
+
+You can also generate images using a text file, where the file stores prompts separated by `\n`. Use the following command to generate images:
+
+```bash
+python sample.py -c configss/inference/pixart-sigma-1024-MS.yaml --prompt_path path_to_yout_text_file
+```
+
+For more detailed usage of the inference script, please run `python sample.py -h`.
 
 ### Vanilla Finetune
 
-We support finetune PixArt-\Sigma model on 910* Ascend device.
+We support finetune PixArt-Σ model on 910* Ascend device.
 
 #### Prepare the Dataset
 
@@ -101,6 +128,8 @@ python train.py \
     - Replace `path_to_your_label_file` with the actual path to your label JSON file.
     - Replace `path_to_your_image_directory` with the directory containing your images.
 
+For more detailed usage of the training script, please run `python train.py -h`.
+
 #### Distributed Training (Optional):
 
 You can launch distributed training using multiple Ascend 910* Devices:
@@ -118,6 +147,19 @@ msrun --worker_num=8 --local_worker_num=8 --log_dir="log" train.py
 
 ## Benchmark
 
+### Training
+
+| Context       | Optimizer | Batch Size | Resolution | Bucket Training | Speed (step/s) | Config                                                                  |
+|---------------|-----------|------------|------------|-----------------|----------------|-------------------------------------------------------------------------|
+| D910*x4-MS2.3 | CAME      | 64         | 256x256    | No              |                | [pixart-sigma-256x256.yaml](configs/train/pixart-sigma-256x256.yaml)|
+| D910*x4-MS2.3 | CAME      | 32         | 512        | Yes             |                | [pixart-sigma-512-MS.yaml](configs/train/pixart-sigma-512-MS.yaml)  |
+| D910*x4-MS2.3 | CAME      | 12         | 1024       | Yes             |                | [pixart-sigma-1024-MS.yaml](configs/train/pixart-sigma-1024-MS.yaml)|
+| D910*x4-MS2.3 | CAME      | 4          | 2048       | Yes             |                | [pixart-sigma-2K-MS.yaml](configs/train/pixart-sigma-2K-MS.yaml)    |
+
+> Context: {Ascend chip}-{number of NPUs}-{mindspore version}
+
+> Bucket Training: Training images with different aspect ratios based on bucketing.
+
 ### Inference
 
 | Context       | Scheduler | Steps | Resolution | Batch Size | Speed (step/s) | Config                                                                  |
@@ -128,6 +170,7 @@ msrun --worker_num=8 --local_worker_num=8 --log_dir="log" train.py
 | D910*x1-MS2.3 | DPM++     | 20    | 2048x2048  | 1          | 0.57           | [pixart-sigma-2K-MS.yaml](configs/inference/pixart-sigma-2K-MS.yaml)    |
 
 > Context: {Ascend chip}-{number of NPUs}-{mindspore version}.
+
 > Speed (step/s): sampling speed measured in the number of sampling steps per second.
 
 # References

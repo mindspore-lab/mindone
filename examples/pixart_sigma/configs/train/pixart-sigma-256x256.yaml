@@ -22,7 +22,7 @@ init_loss_scale: 65536.0
 gradient_accumulation_steps: 1
 clip_grad: True
 max_grad_norm: 0.01
-ckpt_save_interval: 5
+ckpt_save_interval: 1
 log_loss_interval: 1
 recompute: True
 multi_scale: False

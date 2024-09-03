@@ -40,7 +40,7 @@ def resize_and_crop_tensor(samples: np.ndarray, new_width: int, new_height: int)
         resized_height = int(orig_height * ratio)
 
         # Resize
-        samples = np.stack([cv2.resize(x, (resized_width, resized_height)) for x in samples], axis=0)
+        samples = np.stack([cv2.resize(x, (resized_width, resized_height)) for x in samples.astype(np.float32)], axis=0)
 
         # Center Crop
         start_x = (resized_width - new_width) // 2

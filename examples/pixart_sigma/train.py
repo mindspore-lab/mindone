@@ -93,7 +93,7 @@ def parse_args():
 
     parser.add_argument("--device_target", default="Ascend", choices=["CPU", "GPU", "Ascend"], help="Device target.")
     parser.add_argument("--mode", default=0, type=int, help="Running in GRAPH_MODE(0) or PYNATIVE_MODE(1).")
-    parser.add_argument("--jit_level", default="O0", choices=["O0", "O1"], help="Jit Level")
+    parser.add_argument("--jit_level", default="O1", choices=["O0", "O1"], help="Jit Level")
     parser.add_argument("--seed", default=42, type=int, help="Training seed.")
 
     parser.add_argument(
@@ -141,7 +141,7 @@ def parse_args():
         choices=["static", "dynamic"],
         help="Use dynamic or static loss scaler.",
     )
-    parser.add_argument("--init_loss_scale", default=1024.0, type=float, help="Loss scale.")
+    parser.add_argument("--init_loss_scale", default=65536.0, type=float, help="Loss scale.")
     parser.add_argument("--scale_window", default=1000, type=int, help="Loss scale window.")
     parser.add_argument("--loss_scale_factor", default=2.0, type=float, help="Loss scale factor.")
     parser.add_argument("--use_ema", default=False, type=str2bool, help="Whether to use EMA")
