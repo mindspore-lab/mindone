@@ -320,11 +320,15 @@ if __name__ == "__main__":
     print_banner("transformer model init")
     FA_dtype = get_precision(args.precision) if get_precision(args.precision) != ms.float32 else ms.bfloat16
     assert args.model_type == "dit", "Currently only suppport model_type as 'dit'@"
-    if args.ms_checkpoint and os.path.exists(args.ms_checkpoint):
+    if args.ms_checkpoint is not None and os.path.exists(args.ms_checkpoint):
         logger.info(f"Initiate from MindSpore checkpoint file {args.ms_checkpoint}")
-        skip_load_ckpt = True
+        state_dict = ms.load_checkpoint(args.ms_checkpoint)
+        # rm 'network.' prefix
+        state_dict = dict(
+            [k.replace("network.", "") if k.startswith("network.") else k, v] for k, v in state_dict.items()
+        )
     else:
-        skip_load_ckpt = False
+        state_dict = None
 
     model_version = args.model_path.split("/")[-1]
     if int(model_version.split("x")[0]) != args.num_frames:
@@ -335,15 +339,10 @@ if __name__ == "__main__":
         logger.warning(
             f"Detect that the loaded model version is {model_version}, but found a mismatched resolution {args.height}x{args.width}"
         )
-    transformer_model = OpenSoraT2V.from_pretrained(
-        args.model_path,
-        model_file=args.ms_checkpoint,
-        cache_dir=args.cache_dir,
-        skip_load_ckpt=skip_load_ckpt,
-        FA_dtype=FA_dtype,
+    transformer_model, logging_info = OpenSoraT2V.from_pretrained(
+        args.model_path, state_dict=state_dict, cache_dir=args.cache_dir, FA_dtype=FA_dtype, output_loading_info=True
     )
-    if skip_load_ckpt:
-        transformer_model.load_from_checkpoint(args.ms_checkpoint)
+    logger.info(logging_info)
     # mixed precision
     dtype = get_precision(args.precision)
     if args.precision in ["fp16", "bf16"]:
