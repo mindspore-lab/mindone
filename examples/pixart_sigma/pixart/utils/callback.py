@@ -205,7 +205,6 @@ class Visualizer(Callback):
         for record in tqdm.tqdm(self.prompts):
             output = self.infer_pipeline(self.noise, record["prompt"], record["negative_prompt"]).asnumpy()
             outputs.append(output)
-        outputs = np.concatenate(outputs, axis=0)
 
         visualize_epoch_dir = os.path.join(self.visualize_dir, f"epoch_{cur_epoch}")
         for i, sample in enumerate(outputs):

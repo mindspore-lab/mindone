@@ -15,6 +15,7 @@ def image_grid(imgs: Union[List[Union[Image.Image, np.ndarray]], np.ndarray], nc
     if (isinstance(imgs, list) and len(imgs) == 1) or (isinstance(imgs, np.ndarray) and imgs.shape[0] == 1):
         img = imgs[0]
         if isinstance(img, np.ndarray):
+            assert len(img.shape) == 3
             img = Image.fromarray((img * 255).astype(np.uint8))
         return img
 
@@ -61,7 +62,7 @@ def save_outputs(
     if not os.path.isdir(output_dir):
         os.makedirs(output_dir)
 
-    if not imagegrid and samples.shape[0] != 1:
+    if not imagegrid and samples.shape[0] != 1 and len(samples.shape) == 4:
         # batch visualization
         name, ext = os.path.splitext(filename)
         for i in range(samples.shape[0]):

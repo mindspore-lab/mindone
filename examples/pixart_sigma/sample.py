@@ -230,6 +230,7 @@ def main(args):
     key_info += "\n".join(
         [
             f"MindSpore mode[GRAPH(0)/PYNATIVE(1)]: {args.mode}",
+            f"JIT level: {args.jit_level}",
             f"Num params: {num_params:,} (network: {num_params_network:,}, vae: {num_params_vae:,}, text_encoder: {num_params_text_encoder:,})",
             f"Use network dtype: {model_dtype}",
             f"Sampling method: {args.sampling_method.upper()}",

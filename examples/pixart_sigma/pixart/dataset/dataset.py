@@ -2,7 +2,7 @@ import json
 import logging
 import os
 import random
-from typing import Tuple
+from typing import Any, Dict, List, Tuple
 
 import numpy as np
 from PIL import Image
@@ -29,17 +29,21 @@ class ImageDataset:
         tokenizer: AutoTokenizer,
         real_prompt_ratio: float = 0.5,
         multi_scale: bool = False,
+        filter_extreme_ratio: bool = True,
     ) -> None:
         logger.info(f"loading annotations from `{json_path}`.")
         with open(json_path, "r") as f:
             self.dataset = json.load(f)
+
+        if filter_extreme_ratio:
+            self.dataset = _filter_extreme_ratio(self.dataset)
 
         self.length = len(self.dataset)
 
         self.image_dir = image_dir
         self.tokenizer = tokenizer
         self.real_prompt_ratio = real_prompt_ratio
-        self.interpolation_mode = vision.Inter.BICUBIC  # TODO: support lanczos
+        self.interpolation_mode = vision.Inter.BICUBIC if multi_scale else vision.Inter.BILINEAR
         self.multi_scale = multi_scale
 
         if not self.multi_scale:
@@ -116,3 +120,19 @@ class ImageDataset:
                 vision.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5], is_hwc=False),
             ]
         )
+
+
+def _filter_extreme_ratio(dataset: List[Dict[str, Any]], ratio: float = 4.5) -> List[Dict[str, Any]]:
+    new_dataset = []
+    for record in dataset:
+        record_ratio = record.get("ratio", None)
+        if record_ratio is None:
+            raise ValueError("`ratio` must be provided in dataset column to enable filtering.")
+        if abs(record_ratio) > ratio:
+            path = record["path"]
+            logger.warning(
+                f"Skip image `{path}` since the abs. ratio ({record_ratio}) is larger than the threshold ({ratio})."
+            )
+            continue
+        new_dataset.append(record)
+    return new_dataset

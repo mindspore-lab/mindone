@@ -216,8 +216,8 @@ class CAME(nn.Optimizer):
 
         self.v_row = ParameterTuple(v_row)
         self.v_col = ParameterTuple(v_col)
-        self.v_res_row = ParameterTuple(v_row)
-        self.v_res_col = ParameterTuple(v_col)
+        self.v_res_row = ParameterTuple(v_res_row)
+        self.v_res_col = ParameterTuple(v_res_col)
         self.v = ParameterTuple(v)
 
         self.m = ParameterTuple(

@@ -57,7 +57,6 @@ def parse_args():
     )
     parser.add_argument("--json_path", required=True, help="path to json annotation file.")
     parser.add_argument("--image_dir", required=True, help="Directory storing the image directory.")
-    parser.add_argument("--path_column", default="dir", help="Column name of image path in csv file.")
     parser.add_argument("--output_path", default="./output", help="Output directory to save the training result.")
 
     parser.add_argument("--sample_size", default=64, type=int, choices=[256, 128, 64, 32], help="Network sample size,")
@@ -142,7 +141,7 @@ def parse_args():
         choices=["static", "dynamic"],
         help="Use dynamic or static loss scaler.",
     )
-    parser.add_argument("--init_loss_scale", default=65536.0, type=float, help="Loss scale.")
+    parser.add_argument("--init_loss_scale", default=1024.0, type=float, help="Loss scale.")
     parser.add_argument("--scale_window", default=1000, type=int, help="Loss scale window.")
     parser.add_argument("--loss_scale_factor", default=2.0, type=float, help="Loss scale factor.")
     parser.add_argument("--use_ema", default=False, type=str2bool, help="Whether to use EMA")
@@ -379,13 +378,14 @@ def main(args):
         key_info += "\n".join(
             [
                 f"MindSpore mode[GRAPH(0)/PYNATIVE(1)]: {args.mode}",
+                f"JIT level: {args.jit_level}",
                 f"Distributed mode: {args.use_parallel}",
                 f"Data path: {args.json_path}",
                 f"Number of samples: {len(dataset)}",
                 f"Num params: {num_params:,} (network: {num_params_network:,}, vae: {num_params_vae:,}, text_encoder: {num_params_text_encoder:,})",
                 f"Num trainable params: {num_params_trainable:,}",
                 f"Model type: {args.dtype}",
-                f"Learning rate: {start_learning_rate}",
+                f"Learning rate: {start_learning_rate:.7f}",
                 f"Batch size: {args.batch_size}",
                 f"Image size: {image_size}",
                 f"Weight decay: {args.weight_decay}",

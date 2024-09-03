@@ -74,7 +74,10 @@ We support finetune PixArt-\Sigma model on 910* Ascend device.
     {
         "path": "file1.png",
         "prompt": "a beautiful photorealistic painting of cemetery urbex unfinished building building industrial architecture...",
-        "sharegpt4v": "*caption from ShareGPT4V*"
+        "sharegpt4v": "*caption from ShareGPT4V*",
+        "height": 512,
+        "width": 512,
+        "ratio": 1.0,
     },
 ]
 ```
@@ -82,6 +85,7 @@ We support finetune PixArt-\Sigma model on 910* Ascend device.
     - Replace `file1.png` with the actual image file path.
     - The `prompt` field contains a description of the image.
     - If you have captions generated from ShareGPT4V, add them to the `sharegpt4v` field. Otherwise, copy the label from the `prompt` line.
+    - `height` and `width` field corresponds to the image height and width, and `ratio` corresponds to the value of `height` / `width`.
 
 #### Finetune the Model:
 
