@@ -2,9 +2,7 @@ from mindspore import nn, ops
 from mindspore.communication import get_group_size, get_rank
 from mindspore.communication.management import GlobalComm
 from mindspore.context import ParallelMode
-from mindspore.nn import Conv1d as MSConv1d
-from mindspore.nn import Conv2d as MSConv2d
-from mindspore.nn import Conv3d as MSConv3d
+
 from mindspore.parallel._utils import _get_parallel_mode
 
 from .param_wrapper import ZeroParamWrapper

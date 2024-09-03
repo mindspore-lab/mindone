@@ -149,7 +149,9 @@ class ZeroHelper:
             f"dp_group_size: {self.dp_group_size}."
         )
 
-    def set_comm_ops(self,):
+    def set_comm_ops(
+        self,
+    ):
         self.op_allreduce = ops.AllReduce(op=ops.ReduceOp.SUM, group=self.op_group)
         self.op_reduce_scatter = ops.ReduceScatter(op=ops.ReduceOp.SUM, group=self.op_group)
         # AllGather the parameters after optimizer calculate to update the parameters in train network.

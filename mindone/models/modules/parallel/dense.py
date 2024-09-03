@@ -1,4 +1,3 @@
-import mindspore as ms
 from mindspore import nn, ops
 from mindspore.communication import get_group_size, get_rank
 from mindspore.communication.management import GlobalComm
