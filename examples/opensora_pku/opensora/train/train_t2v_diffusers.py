@@ -32,7 +32,7 @@ from opensora.utils.utils import get_precision
 
 from mindone.diffusers.models.activations import SiLU
 from mindone.diffusers.schedulers import DDPMScheduler as DDPMScheduler_diffusers
-from mindone.trainers.callback import EvalSaveCallback, OverflowMonitor, ProfilerCallbackEpoch
+from mindone.trainers.callback import EvalSaveCallback, OverflowMonitor, ProfilerCallbackEpoch, StopAtStepCallback
 from mindone.trainers.checkpoint import resume_train_network
 from mindone.trainers.lr_schedule import create_scheduler
 from mindone.trainers.optim import create_optimizer
@@ -460,6 +460,7 @@ def main(args):
     # resume ckpt
     ckpt_dir = os.path.join(args.output_dir, "ckpt")
     start_epoch = 0
+    cur_iter = 0
     if args.resume_from_checkpoint:
         resume_ckpt = (
             os.path.join(ckpt_dir, "train_resume.ckpt")
@@ -525,6 +526,8 @@ def main(args):
     callback = [TimeMonitor(args.log_interval)]
     ofm_cb = OverflowMonitor()
     callback.append(ofm_cb)
+    if args.max_train_steps is not None and args.max_train_steps > 0:
+        callback.append(StopAtStepCallback(args.max_train_steps, global_step=cur_iter))
 
     if args.parallel_mode == "optim":
         cb_rank_id = None
