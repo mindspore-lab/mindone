@@ -44,8 +44,8 @@ class SpatialAttnProcessor2_0:
         self.id_bank = {}
         self.attention_masks = attention_masks
         assert len(self.attention_masks) > 0, "attention_masks must not be empty"
-        self.write = write
-        self.cur_step = cur_step
+        self.write = write  # if true, will save hidden states to id_bank; otherwise, use the concatenated id_bank and hidden_states as key and query
+        self.cur_step = cur_step  # the counter the number of inference steps
 
     def scaled_dot_product_attention(
         self, query, key, value, attn_mask=None, dropout_p=0.0, is_causal=False, scale=None, training=False
@@ -104,8 +104,6 @@ class SpatialAttnProcessor2_0:
                 hidden_states = self.__call1__(attn, hidden_states, encoder_hidden_states, attention_mask, temb)
             else:
                 hidden_states = self.__call2__(attn, hidden_states, None, attention_mask, temb)
-
-        self.cur_step += 1
 
         return hidden_states
 
@@ -290,11 +288,13 @@ def cal_attn_mask_xl(total_length, id_length, sa32, sa64, height, width, dtype=m
 def calculate_attention_mask(total_length, id_length, down_scale, height, width, threshold=0.5, dtype=ms.float16):
     nums = (height // down_scale) * (width // down_scale)
     bool_matrix = ops.rand((1, total_length * nums), dtype=dtype) < threshold
-    bool_matrix = ops.cat([bool_matrix] * total_length, axis=0)
-    for i in range(total_length):
+    bool_matrix = ops.cat([bool_matrix] * total_length, axis=0)  # (N, N*num_image_tokens)
+    for i in range(total_length):  # create a blockwise attention mask
         bool_matrix[i : i + 1, id_length * nums :] = False
         bool_matrix[i : i + 1, i * nums : (i + 1) * nums] = True
-    mask = ops.cat([bool_matrix.unsqueeze(1)] * nums, axis=1).reshape(-1, total_length * nums)
+    mask = ops.cat([bool_matrix.unsqueeze(1)] * nums, axis=1).reshape(
+        -1, total_length * nums
+    )  # (N*num_image_tokens, N*num_image_tokens)
     return mask
 
 
