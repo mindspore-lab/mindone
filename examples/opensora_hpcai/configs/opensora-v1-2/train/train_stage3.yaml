@@ -20,7 +20,7 @@ use_recompute: True
 # data
 num_parallel_workers: 2
 num_workers_dataset: 2
-prefetch_size: 1
+prefetch_size: 2
 max_rowsize: 256
 
 # precision
@@ -29,22 +29,29 @@ dtype: bf16
 loss_scaler_type: static
 init_loss_scale: 1
 
+# mindspore params, refer to https://www.mindspore.cn/docs/zh-CN/r2.3.1/api_python/mindspore/mindspore.set_context.html
+max_device_memory: "59GB"
+jit_level: "O1"
+manual_pad: True
+
 # training hyper-params
 scheduler: "constant"
 start_learning_rate: 1.e-4
 end_learning_rate: 1.e-4
-warmup_steps: 500
+warmup_steps: 1000
 
 clip_grad: True
 max_grad_norm: 1.0
 use_ema: True
+# ema_decay: 0.99
 
 optim: "adamw_re"
 optim_eps: 1e-15
 weight_decay: 0.
 
-epochs: 1000
-ckpt_save_interval: &save_interval 100
+# epochs: 15
+train_steps: 15000
+ckpt_save_steps:  500
 
 mask_ratios:
   random: 0.01
@@ -61,31 +68,16 @@ mask_ratios:
 bucket_config:
   # Structure: "resolution": { num_frames: [ keep_prob, batch_size ] }
   # Setting [ keep_prob, batch_size ] to [ 0.0, 0 ] forces longer videos into smaller resolution buckets
-  "144p": { 1: [ 1.0, 475 ], 51: [ 1.0, 45 ], 102: [ 1.0, 22 ], 204: [ 1.0, 11 ], 408: [ 1.0, 5 ] }
-  "256": { 1: [ 1.0, 297 ], 51: [ 0.5, 20 ], 102: [ 0.5, 10 ], 204: [ 0.5, 5 ], 408: [ [ 0.5, 0.5 ], 2 ] }
-  "240p": { 1: [ 1.0, 297 ], 51: [ 0.5, 15 ], 102: [ 0.5, 7 ], 204: [ 0.5, 3 ], 408: [ [ 0.5, 0.4 ], 1 ] }
-  "360p": { 1: [ 1.0, 141 ], 51: [ 0.5, 6 ], 102: [ 0.5, 3 ], 204: [ 0.5, 1 ], 323: [ [ 0.5, 0.3 ], 1 ], 408: [ 0.0, 0 ] }
-  "512": { 1: [ 1.0, 141 ], 51: [ 0.5, 6 ], 102: [ 0.5, 3 ], 204: [ 0.5, 1 ], 289: [ [ 0.5, 0.2 ], 1 ], 408: [ 0.0, 0 ] }
-  "480p": { 1: [ 1.0, 89 ], 51: [ 0.5, 3 ], 85: [ 0.5, 2 ], 170: [ [ 0.5, 0.5 ], 1 ], 408: [ 0.0, 0 ] }
-  "720p": { 1: [ 0.3, 36 ], 51: [ 0.2, 1 ], 85: [ 0.1, 1 ], 204: [ 0.0, 0 ] }
-  "1024": { 1: [ 0.3, 36 ], 51: [ 0.1, 1 ], 68: [ 0.1, 1 ], 204: [ 0.0, 0 ] }
-  "1080p": { 1: [ 0.1, 5 ] }
-  "2048": { 1: [ 0.05, 5 ] }
-
+  "144p": {1: [1.0, 475], 51: [1.0, 51], 102: [1.0, 27], 204: [1.0, 13], 408: [1.0, 6]}
+  "256": {1: [1.0, 297], 51: [0.5, 20], 102: [0.5, 10], 204: [0.5, 5], 408: [[0.5, 0.5], 2]}
+  "240p": {1: [1.0, 297], 51: [0.5, 20], 102: [0.5, 10], 204: [0.5, 5], 408: [[0.5, 0.4], 2]}
+  "360p": {1: [1.0, 141], 51: [0.5, 8], 102: [0.5, 4], 204: [0.5, 2], 408: [[0.5, 0.3], 1]}
+  "512": {1: [1.0, 141], 51: [0.5, 8], 102: [0.5, 4], 204: [0.5, 2], 408: [[0.5, 0.2], 1]}
+  "480p": {1: [1.0, 89], 51: [0.5, 5], 102: [0.5, 3], 204: [[0.5, 0.5], 1], 408: [0.0, 0]}
+  "720p": {1: [0.3, 36], 51: [0.2, 2], 102: [0.1, 1], 204: [0.0, 0]}
+  "1024": {1: [0.3, 36], 51: [0.1, 2], 102: [0.1, 1], 204: [0.0, 0]}
+  "1080p": {1: [0.1, 5]}
+  "2048": {1: [0.05, 5]}
 
 # ---------- Validation ----------
-validate: True
-val_interval: *save_interval
-num_eval_timesteps: 10
-
-val_csv_path:
-val_video_folder:
-val_text_embed_folder:
-val_vae_latent_folder:
-
-val_bucket_config:
-  "144p": { 51: [ 1.0, 30 ], 102: [ 1.0, 20 ], 204: [ 1.0, 8 ], 408: [ 1.0, 4 ] }
-  "240p": { 51: [ 1.0, 16 ], 102: [ 1.0, 8 ], 204: [ 1.0, 4 ], 408: [ 1.0, 2 ] }
-  "360p": { 51: [ 1.0, 6 ], 102: [ 1.0, 3 ], 204: [ 1.0, 1 ], 340: [ 1.0, 1 ] }
-  "480p": { 51: [ 1.0, 4 ], 102: [ 1.0, 2 ], 204: [ 1.0, 1 ] }
-  "720p": { 51: [ 1.0, 1 ], 85: [ 1.0, 1 ] }
+validate: False
