@@ -36,7 +36,6 @@ from pixart.utils import (
 from transformers import AutoTokenizer
 
 from mindone.diffusers import AutoencoderKL
-from mindone.trainers.lr_schedule import create_scheduler
 from mindone.trainers.optim import create_optimizer
 from mindone.trainers.train_step import TrainOneStepWrapper
 from mindone.transformers import T5EncoderModel
@@ -111,7 +110,7 @@ def parse_args():
     parser.add_argument(
         "--dtype", default="fp16", choices=["bf16", "fp16", "fp32"], help="what data type to use for PixArt."
     )
-    parser.add_argument("--scheduler", default="constant", type=str, help="LR scheduler.")
+    parser.add_argument("--scheduler", default="constant", choices=["constant"], help="LR scheduler.")
     parser.add_argument("--start_learning_rate", default=2e-5, type=float, help="The learning rate.")
     parser.add_argument("--warmup_steps", default=1000, type=int, help="Warmup steps.")
     parser.add_argument("--epochs", default=200, type=int, help="Number of total training epochs.")
@@ -263,7 +262,6 @@ def main(args):
         )
     else:
         data_generator = data_generator.batch(args.batch_size, drop_remainder=True)
-    dataset_size = data_generator.get_dataset_size()
 
     # 5. build training utils: lr, optim, callbacks, trainer
     # 5.1 learning rate
@@ -274,13 +272,9 @@ def main(args):
     else:
         start_learning_rate = args.start_learning_rate
 
-    lr = create_scheduler(
-        steps_per_epoch=dataset_size,
-        name=args.scheduler,
-        lr=start_learning_rate,
-        warmup_steps=args.warmup_steps,
-        num_epochs=args.epochs,
-    )
+    assert args.scheduler == "constant"
+    # for bucket training, the total steps is unknown until it is real finished.
+    lr = nn.WarmUpLR(learning_rate=start_learning_rate, warmup_steps=args.warmup_steps)
 
     # 5.2 optimizer
     optim = "adamw_re" if args.optim == "adamw" else args.optim
