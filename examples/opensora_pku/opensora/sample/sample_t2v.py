@@ -164,6 +164,9 @@ def parse_args():
         action="store_true",
         help="whether to load the existing latents saved in npy files and run vae decoding",
     )
+    parser.add_argument(
+        "--video_extension", default="mp4", choices=["gif", "mp4"], help="The file extension to save videos"
+    )
     parser.add_argument("--model_type", type=str, default="dit", choices=["dit", "udit", "latte"])
     parser.add_argument("--cache_dir", type=str, default="./")
     parser.add_argument("--profile", default=False, type=str2bool, help="Profile or not")
@@ -244,7 +247,7 @@ if __name__ == "__main__":
     # 3. handle input text prompts
     print_banner("text prompts loading")
     ext = (
-        "gif" if not (args.save_latents or args.decode_latents) else "npy"
+        f"{args.video_extension}" if not (args.save_latents or args.decode_latents) else "npy"
     )  # save video as gif or save denoised latents as npy files.
     ext = "jpg" if args.num_frames == 1 else ext
     if not isinstance(args.text_prompt, list):
@@ -311,7 +314,7 @@ if __name__ == "__main__":
                 (decode_data + 1.0) / 2.0, clip_value_min=0.0, clip_value_max=1.0
             ).asnumpy()
             for i_sample in range(args.batch_size):
-                save_fp = os.path.join(save_dir, file_paths[i_sample]).replace(".npy", ".gif")
+                save_fp = os.path.join(save_dir, file_paths[i_sample]).replace(".npy", f".{args.video_extension}")
                 save_video_data = decode_data[i_sample : i_sample + 1]
                 save_videos(save_video_data, save_fp, loop=0, fps=args.fps)  # (b t h w c)
         sys.exit()
