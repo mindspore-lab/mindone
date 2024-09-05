@@ -50,13 +50,12 @@ Videos are saved to `.gif` for display.
     - ✅ CausalVAEModel_D4_4x8x8 inference. Supports video reconstruction.
     - ✅ mT5-xxl TextEncoder model inference.
     - ✅ Text-to-video generation up to 93 frames and 720x1280 resolution.
-    - ✅ Multi-stage training.
+    - ✅ Multi-stage training using Zero2 and Sequence parallelism.
     - ✅ Acceleration methods: flash attention, recompute (graident checkpointing), mixed precision, data parallelism, optimizer-parallel, etc..
     - ✅ Evaluation metrics : PSNR and SSIM.
 
 
 ### TODO
-* [ ] Sequence parallelism **[WIP]**.
 * [ ] Scaling model parameters and dataset size **[WIP]**.
 * [ ] Evaluation of various metrics **[WIP]**.
 
@@ -223,6 +222,15 @@ Please edit the `master_port` to a different port number in the range 1024 to 65
 
 See more examples of multi-device inference scripts under `scripts/text_condifion/multi-devices`.
 
+
+### Sequence Parallelism
+
+We support running inference with sequence parallelism. Please see the `sample_t2v_29x480p_sp.sh` and `sample_t2v_29x720p_sp.sh` under `scripts/text_condition/multi-devices/`.
+
+If you set `--sp_size 8` to run sequence parallelism on 8 NPUs, you should also edit as follows:
+```shell
+export ASCEND_RT_VISIBLE_DEVICES=0,1,2,3,4,5,6,7
+```
 ## Training
 
 ### Causal Video VAE
@@ -440,7 +448,7 @@ In the dataset file, for example, `scripts/train_data/merge_data.txt`, each line
 
 The training scripts are stored under `scripts/text_condition`. The single-device training scripts are under the `single-device` folder for demonstration. We recommend to use the parallel-training scripts under the `multi-devices` folder.
 
-Here we choose an example of training scripts (`train_video3d_nx480p.sh`) and explain the meanings of some experimental arguments.
+Here we choose an example of training scripts (`train_video3d_nx480p_zero2.sh`) and explain the meanings of some experimental arguments.
 
 Here is the major command of the training script:
 ```shell
@@ -454,6 +462,8 @@ python  opensora/train/train_t2v_diffusers.py \
     --attention_mode xformers \
     --gradient_checkpointing \
     --pretrained "path/to/ms-or-safetensors-ckpt/from/last/stage" \
+    --parallel_mode "zero" \
+    --zero_stage 2 \
     # pass other arguments
 ```
 There are some arguments related to the training dataset path:
@@ -463,6 +473,18 @@ There are some arguments related to the training dataset path:
 - `attention_mode`: the attention mode, choosing from `math` or `xformers`. Note that we are not using the actual [xformers](https://link.zhihu.com/?target=https%3A//github.com/facebookresearch/xformers) library to accelerate training, but using MindSpore-native `FlashAttentionScore`. The `xformers` is kept for compatibility and maybe discarded in the future.
 - `gradient_checkpointing`: it is referred to MindSpore [recomputation](https://www.mindspore.cn/docs/en/r2.3.1/api_python/mindspore/mindspore.recompute.html) feature, which can save memory by recomputing the intermediate activations in the backward pass.
 - `pretrained`: the pretrained checkpoint to be loaded as initial weights before training. If not provided, the OpenSoraT2V will use random initialization. If provided, the path should be either the safetensors checkpoint directiory or path, e.g., "LanguageBind/Open-Sora-Plan-v1.2.0/1x480p" or "LanguageBind/Open-Sora-Plan-v1.2.0/1x480p/diffusion_pytorch_model.safetensors", or MindSpore checkpoint path, e.g., "t2i-image3d-1x480p/ckpt/OpenSoraT2V-ROPE-L-122.ckpt".
+- `parallel_mode`: the parallelism mode chosen from ["data", "optim", "zero"], which denotes the data parallelism, the optimizer parallelism and the deepspeed zero_x parallelism.
+- `zero_stage`: runs parallelism like deepspeed, supporting zero0, zero1, zero2, and zero3, if parallel_mode is "zero".
+
+
+#### Sequence Parallelism
+
+We also support training with sequence parallelism and zero2 parallelism together. This is enabled by setting `--sp_size` and `--train_sp_batch_size`.  For example, with `sp_size=8` and `train_sp_batch_size=4`, 2 NPUs are used for a single video sample.
+
+See the `train_video3d_nx480p_sp.sh` and `train_video3d_nx720p_sp.sh` under `scripts/text_condition/mult-devices/` for usage.
+
+
+
 
 ## 👍 Acknowledgement
 * [Latte](https://github.com/Vchitect/Latte): The **main codebase** we built upon and it is an wonderful video generated model.
