@@ -147,6 +147,16 @@ msrun --worker_num=8 --local_worker_num=8 --log_dir="log" train.py \
     - Replace `path_to_your_label_file` with the actual path to your label JSON file.
     - Replace `path_to_your_image_directory` with the directory containing your images.
 
+#### Finetune Result
+
+We use the first 1,600 images as the training set and the remaining 400 images as the testing set, and conduct the experiment on 2 910* NPUs based on the [config](configs/inference/pixart-sigma-512-MS.yaml). And evaluate the model performance using the [FID score](https://github.com/mindspore-lab/mindone/tree/master/examples/stable_diffusion_v2/tools/eval).
+
+Here is the FID score curve:
+
+
+
+
+
 ## Benchmark
 
 ### Training
