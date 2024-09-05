@@ -821,7 +821,7 @@ def main(args):
             ckpt_manager = CheckpointManager(ckpt_dir, "latest_k", k=args.ckpt_max_keep)
             if not os.path.exists(ckpt_dir):
                 os.makedirs(ckpt_dir)
-            perf_columns = ["step", "loss", "train_time(s)"]
+            perf_columns = ["step", "loss", "train_time(s)", "shape"]
             output_dir = ckpt_dir.replace("/ckpt", "")
             if start_epoch == 0:
                 record = PerfRecorder(output_dir, metric_names=perf_columns)
@@ -846,13 +846,13 @@ def main(args):
                 # print(data[0].shape)
                 loss_val = float(loss.asnumpy())
                 logger.info(
-                    f"Epoch {epoch}, Step {step}, loss {loss_val:.5f}, Global step {global_step}, Step time {step_time*1000:.2f}ms"
+                    f"Epoch {epoch}, Step {step}, loss {loss_val:.5f}, Global step {global_step}, Shape: {tuple(data[0].shape)}, Step time {step_time*1000:.2f}ms"
                 )
                 if overflow:
                     logger.warning("overflow detected")
 
                 if rank_id == 0:
-                    step_pref_value = [global_step, loss_val, step_time]
+                    step_pref_value = [global_step, loss_val, step_time, tuple(data[0].shape)]
                     record.add(*step_pref_value)
                 # save and eval in step
                 if save_by_step and rank_id == 0:
