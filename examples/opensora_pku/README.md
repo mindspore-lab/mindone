@@ -143,9 +143,13 @@ opensora_pku
         └───tokenizer_config.json
 ```
 
-Currently, we can load `.safetensors` files directly in MindSpore, but not `.bin` or `.ckpt` files. If you have `torch` installed, you can skip the inference section.
+Currently, we can load `.safetensors` files directly in MindSpore, but not `.bin` or `.ckpt` files. We recommend you to convert the
+`vae/checkpoint.ckpt` and `mt5-xxl/pytorch_model.bin` files to `.safetensor` files manually by running the following command:
+```shell
+python tools/model_conversion/convert_pytorch_ckpt_to_safetesors.py --src LanguageBind/Open-Sora-Plan-v1.2.0/vae/checkpoint.ckpt --target LanguageBind/Open-Sora-Plan-v1.2.0/vae/diffusion_pytorch_model.safetensors  --config LanguageBind/Open-Sora-Plan-v1.2.0/vae/config.json
 
-If you don't have `torch` installed, we recommend you to manually convert `google/mt5-xxl/pytorch_model.bin` and `vae/checkpoint` using the huggingface [convert](https://huggingface.co/spaces/safetensors/convert) website. You should convert them into `model.safetensors` and place them into corresponding folder.
+python tools/model_conversion/convert_pytorch_ckpt_to_safetesors.py --src google/mt5-xxl/pytorch_model.bin --target google/mt5-xxl/model.safetensors  --config google/mt5-xxl/config.json
+```
 
 Once the checkpoint files have all been prepared, you can refer to the inference guidance below.
 
@@ -174,7 +178,7 @@ You can also run video reconstruction given an input video folder. See `scripts/
 
 ### Open-Sora-Plan v1.2.0 Command Line Inference
 
-You can run text-to-video inference on a single Ascend device using the script `scripts/text_condition/single-device/sample_t2v.sh`.
+You can run text-to-video inference on a single Ascend device using the script `scripts/text_condition/single-device/sample_t2v_29x720p.sh`.
 ```bash
 python opensora/sample/sample_t2v.py \
     --model_path LanguageBind/Open-Sora-Plan-v1.2.0/29x720p \
@@ -217,6 +221,7 @@ RuntimtError: Failed to register the compute graph node: 0. Reason: Repeated reg
 
 Please edit the `master_port` to a different port number in the range 1024 to 65535, and run the script again.
 
+See more examples of multi-device inference scripts under `scripts/text_condifion/multi-devices`.
 
 ## Training
 
@@ -343,7 +348,7 @@ v1.1.0_HQ_part2.json
 v1.1.0_HQ_part3.json
 ```
 
-Please check the [readme doc](https://huggingface.co/datasets/LanguageBind/Open-Sora-Plan-v1.2.0) for details of these annotation files. [Open-Sora-Dataset-v1.2.0](https://huggingface.co/datasets/LanguageBind/Open-Sora-Plan-v1.2.0) also utilizes the data from [Open-Sora-Dataset-v1.1.0](https://huggingface.co/datasets/LanguageBind/Open-Sora-Plan-v1.1.0/tree/main). You can take the following instructions only how to download [Open-Sora-Dataset-v1.1.0](https://huggingface.co/datasets/LanguageBind/Open-Sora-Plan-v1.1.0/tree/main).
+Please check the [readme doc](https://huggingface.co/datasets/LanguageBind/Open-Sora-Plan-v1.2.0) for details of these annotation files. [Open-Sora-Dataset-v1.2.0](https://huggingface.co/datasets/LanguageBind/Open-Sora-Plan-v1.2.0) contains the [Panda70M (training full)](https://drive.google.com/file/d/1DeODUcdJCEfnTjJywM-ObmrlVg-wsvwz/view?usp=sharing), [SAM](https://ai.meta.com/datasets/segment-anything/), and the data from [Open-Sora-Dataset-v1.1.0](https://huggingface.co/datasets/LanguageBind/Open-Sora-Plan-v1.1.0/tree/main). You can take the following instructions only how to download [Open-Sora-Dataset-v1.1.0](https://huggingface.co/datasets/LanguageBind/Open-Sora-Plan-v1.1.0/tree/main).
 
 
 <details>

@@ -1,6 +1,5 @@
 import argparse
 import glob
-import importlib
 import logging
 import os
 import sys
@@ -206,19 +205,7 @@ if __name__ == "__main__":
 
     # 2. vae model initiate and weight loading
     print_banner("vae init")
-    # need torch installation to load from pt checkpoint!
-    _torch_available = importlib.util.find_spec("torch") is not None
-    if not _torch_available:
-        logger.info(
-            "Torch is not installed. Cannot load from torch checkpoint. Will search for safetensors under the given directory."
-        )
-        state_dict = None
-    else:
-        from opensora.utils.utils import load_torch_state_dict_to_ms_ckpt
-
-        state_dict = load_torch_state_dict_to_ms_ckpt(os.path.join(args.cache_dir, args.ae_path, "checkpoint.ckpt"))
-
-    vae = CausalVAEModelWrapper(args.ae_path, cache_dir=args.cache_dir, state_dict=state_dict)
+    vae = CausalVAEModelWrapper(args.ae_path, cache_dir=args.cache_dir, use_safetensors=True)
     if args.enable_tiling:
         vae.vae.enable_tiling()
         vae.vae.tile_overlap_factor = args.tile_overlap_factor
@@ -382,28 +369,15 @@ if __name__ == "__main__":
         param.requires_grad = False
 
     print_banner("text encoder init")
-    # need torch installation to load from pt checkpoint!
-    _torch_available = importlib.util.find_spec("torch") is not None
-    if not _torch_available:
-        logger.info(
-            "Torch is not installed. Cannot load from torch checkpoint. Will search for safetensors under the given directory."
-        )
-        state_dict = None
-    else:
-        from opensora.utils.utils import load_torch_state_dict_to_ms_ckpt
-
-        state_dict = load_torch_state_dict_to_ms_ckpt(
-            os.path.join(args.cache_dir, args.text_encoder_name, "pytorch_model.bin"),
-            exclude_prefix=["decoder."],  # only load and convert mT5 encoder model weights
-        )
     text_encoder_dtype = get_precision(args.text_encoder_precision)
     text_encoder, loading_info = MT5EncoderModel.from_pretrained(
         args.text_encoder_name,
         cache_dir=args.cache_dir,
-        state_dict=state_dict,
         output_loading_info=True,
         mindspore_dtype=text_encoder_dtype,
+        use_safetensors=True,
     )
+    loading_info.pop("unexpected_keys")  # decoder weights are ignored
     logger.info(loading_info)
     tokenizer = AutoTokenizer.from_pretrained(args.text_encoder_name, cache_dir=args.cache_dir)
 

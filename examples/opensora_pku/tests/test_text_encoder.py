@@ -23,8 +23,10 @@ def load_text_encoder(
         cache_dir=cache_dir,
         output_loading_info=True,
         mindspore_dtype=text_encoder_dtype if not use_amp else ms.float32,
+        use_safetensors=True,
     )
-    print("missing keys", loading_info["missing_keys"])
+    loading_info.pop("unexpected_keys")  # decoder weights are ignored
+    print(loading_info)
     tokenizer = AutoTokenizer.from_pretrained(text_encoder_name, cache_dir=cache_dir)
     if use_amp:
         text_encoder = auto_mixed_precision(

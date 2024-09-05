@@ -1,4 +1,3 @@
-import importlib
 import logging
 import math
 import os
@@ -99,18 +98,7 @@ def main(args):
         vae = None
     else:
         print_banner("vae init")
-        # need torch installation to load from pt checkpoint!
-        _torch_available = importlib.util.find_spec("torch") is not None
-        if not _torch_available:
-            logger.info(
-                "Torch is not installed. Cannot load from torch checkpoint. Will search for safetensors under the given directory."
-            )
-            state_dict = None
-        else:
-            from opensora.utils.utils import load_torch_state_dict_to_ms_ckpt
-
-            state_dict = load_torch_state_dict_to_ms_ckpt(os.path.join(args.cache_dir, args.ae_path, "checkpoint.ckpt"))
-        vae = CausalVAEModelWrapper(args.ae_path, cache_dir=args.cache_dir, state_dict=state_dict)
+        vae = CausalVAEModelWrapper(args.ae_path, cache_dir=args.cache_dir, use_safetensors=True)
 
         vae_dtype = get_precision(args.vae_precision)
         if vae_dtype == ms.float16:
@@ -234,26 +222,13 @@ def main(args):
 
     if not args.text_embed_cache:
         print_banner("text encoder init")
-        # need torch installation to load from pt checkpoint!
-        _torch_available = importlib.util.find_spec("torch") is not None
-        if not _torch_available:
-            logger.info(
-                "Torch is not installed. Cannot load from torch checkpoint. Will search for safetensors under the given directory."
-            )
-            state_dict = None
-        else:
-            from opensora.utils.utils import load_torch_state_dict_to_ms_ckpt
-
-            state_dict = load_torch_state_dict_to_ms_ckpt(
-                os.path.join(args.cache_dir, args.text_encoder_name, "pytorch_model.bin")
-            )
         text_encoder_dtype = get_precision(args.text_encoder_precision)
         text_encoder, loading_info = MT5EncoderModel.from_pretrained(
             args.text_encoder_name,
             cache_dir=args.cache_dir,
-            state_dict=state_dict,
             output_loading_info=True,
             mindspore_dtype=text_encoder_dtype,
+            use_safetensors=True,
         )
         logger.info(loading_info)
     else:

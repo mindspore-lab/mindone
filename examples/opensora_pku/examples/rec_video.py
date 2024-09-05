@@ -11,7 +11,6 @@ python examples/rec_video.py \
     --width 640 \
 """
 import argparse
-import importlib
 import logging
 import os
 import random
@@ -130,19 +129,13 @@ def main(args):
     if args.ms_checkpoint is not None and os.path.exists(args.ms_checkpoint):
         logger.info(f"Run inference with MindSpore checkpoint {args.ms_checkpoint}")
         state_dict = ms.load_checkpoint(args.ms_checkpoint)
+        # rm 'network.' prefix
+        state_dict = dict(
+            [k.replace("network.", "") if k.startswith("network.") else k, v] for k, v in state_dict.items()
+        )
     else:
-        # need torch installation to load from pt checkpoint!
-        _torch_available = importlib.util.find_spec("torch") is not None
-        if not _torch_available:
-            logger.info(
-                "Torch is not installed. Cannot load from torch checkpoint. Will search for safetensors under the given directory."
-            )
-            state_dict = None
-        else:
-            from opensora.utils.utils import load_torch_state_dict_to_ms_ckpt
-
-            state_dict = load_torch_state_dict_to_ms_ckpt(os.path.join(args.ae_path, "checkpoint.ckpt"))
-    kwarg = {"state_dict": state_dict}
+        None
+    kwarg = {"state_dict": state_dict, "use_safetensors": True}
     vae = CausalVAEModelWrapper(args.ae_path, **kwarg)
 
     if args.enable_tiling:

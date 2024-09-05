@@ -1,4 +1,3 @@
-import argparse
 import os
 from collections import defaultdict
 from typing import Dict, List
@@ -32,15 +31,14 @@ def _remove_duplicate_names(
                 complete_names = {name}
             else:
                 raise RuntimeError(
-                    f"Error while trying to find names to remove to save state dict, but found no suitable name\
-                    to keep for saving amongst: {shared}. None is covering the entire storage.Refusing to save/load \
-                    the model since you could be storing much more memory than needed. \
-                    Please refer to https://huggingface.co/docs/safetensors/torch_shared_tensors for more information. Or open an issue."
+                    f"Error while trying to find names to remove to save state dict, but found no suitable name to keep for saving amongst: {shared}.\
+                      None is covering the entire storage.Refusing to save/load the model since you could be storing much more memory than needed. \
+                      Please refer to https://huggingface.co/docs/safetensors/torch_shared_tensors for more information. Or open an issue."
                 )
 
         keep_name = sorted(list(complete_names))[0]
 
-        # Mecanism to preferentially select keys to keep
+        # Mechanism to preferentially select keys to keep
         # coming from the on-disk file to allow
         # loading models saved with a different choice
         # of keep_name
@@ -69,6 +67,26 @@ def check_file_size(sf_filename: str, pt_filename: str):
          - {pt_filename}: {pt_size}
          """
         )
+
+
+def get_discard_names(config_path: str) -> List[str]:
+    try:
+        import json
+
+        import transformers
+
+        with open(config_path, "r") as f:
+            config = json.load(f)
+        architecture = config["architectures"][0]
+
+        class_ = getattr(transformers, architecture)
+
+        # Name for this varible depends on transformers version.
+        discard_names = getattr(class_, "_tied_weights_keys", [])
+
+    except Exception:
+        discard_names = []
+    return discard_names
 
 
 def convert_file(
@@ -102,45 +120,37 @@ def convert_file(
             raise RuntimeError(f"The output tensors do not match for key {k}")
 
 
-def create_diff(pt_infos: Dict[str, List[str]], sf_infos: Dict[str, List[str]]) -> str:
-    errors = []
-    for key in ["missing_keys", "mismatched_keys", "unexpected_keys"]:
-        pt_set = set(pt_infos[key])
-        sf_set = set(sf_infos[key])
-
-        pt_only = pt_set - sf_set
-        sf_only = sf_set - pt_set
-
-        if pt_only:
-            errors.append(f"{key} : PT warnings contain {pt_only} which are not present in SF warnings")
-        if sf_only:
-            errors.append(f"{key} : SF warnings contain {sf_only} which are not present in PT warnings")
-    return "\n".join(errors)
-
-
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
+    import argparse
 
+    DESCRIPTION = """
+    Utility tool to convert a local PyTorch model file (.bin) to `safetensors` format.
+    """
+    parser = argparse.ArgumentParser(description=DESCRIPTION)
     parser.add_argument(
         "--src",
-        "-s",
         type=str,
-        help="path to source torch checkpoint, which ends with .pt",
+        help="The path to the local PyTorch model file (e.g., pytorch_model.bin).",
     )
     parser.add_argument(
         "--target",
-        "-t",
         type=str,
-        help="Filename to save. Specify folder, e.g., ./models, or file path which ends with .ckpt, e.g., ./models/dit.ckpt",
+        help="The path to save the converted `safetensors` file (e.g., model.safetensors).",
+    )
+    parser.add_argument(
+        "--config",
+        type=str,
+        default="",
+        help="The path to the config.json file (e.g., config.json).",
     )
 
     args = parser.parse_args()
+    pt_filename = args.src
+    sf_filename = args.target
+    config_path = args.config
 
-    if not os.path.exists(args.src):
-        raise ValueError(f"The provided source file {args.src} does not exist!")
+    # You might want to modify this list of discard names based on your model
+    discard_names = get_discard_names(config_path) if config_path else []
 
-    assert args.target.endswith(".safetensors"), "Must convert to .safetensors file"
-
-    pt_path = args.src
-    sf_path = args.target
-    convert_file(pt_path, sf_path, discard_names=[])
+    convert_file(pt_filename, sf_filename, discard_names)
+    print(f"Conversion successful! `safetensors` file saved at: {sf_filename}")
