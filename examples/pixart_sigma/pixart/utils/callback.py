@@ -120,7 +120,7 @@ class SaveCkptCallback(Callback):
 
         ckpt_name = f"epoch_{cur_epoch}.ckpt"
         network = cb_params.train_network.network
-        self.ckpt_manager.save(network=network, ckpt_name=ckpt_name)
+        self.ckpt_manager.save(network=network.trainable_params(), ckpt_name=ckpt_name)
         if self.save_ema:
             ckpt_name = f"epoch_{cur_epoch}_ema.ckpt"
             ema_weight = self._drop_ema_prefix(cb_params.train_network.ema.ema_weight)
