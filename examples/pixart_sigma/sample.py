@@ -28,11 +28,11 @@ from pixart.pipelines.infer_pipeline import PixArtInferPipeline
 from pixart.utils import (
     check_cfgs_in_parser,
     count_params,
+    create_save_func,
     init_env,
     load_ckpt_params,
     organize_prompts,
     resize_and_crop_tensor,
-    save_outputs,
     str2bool,
 )
 from transformers import AutoTokenizer
@@ -164,6 +164,7 @@ def main(args):
         prompt_path=args.prompt_path,
         save_json=True,
         output_dir=args.output_path,
+        batch_size=args.ncols,
     )
 
     # 2. network initiate and weight loading
@@ -242,7 +243,8 @@ def main(args):
     logger.info(key_info)
 
     # infer
-    for i, prompt in enumerate(prompts):
+    save = create_save_func(output_dir=args.output_path, imagegrid=args.imagegrid, grid_cols=args.ncols)
+    for prompt in prompts:
         x_samples = list()
         for _ in tqdm.trange(args.nrows):
             # Create sampling noise
@@ -256,9 +258,7 @@ def main(args):
             x_samples = resize_and_crop_tensor(x_samples, orig_width, orig_height)
 
         # save result
-        save_outputs(
-            x_samples, filename=f"{i}.png", output_dir=args.output_path, imagegrid=args.imagegrid, grid_cols=args.ncols
-        )
+        save(x_samples)
 
 
 if __name__ == "__main__":

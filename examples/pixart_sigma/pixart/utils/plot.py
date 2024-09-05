@@ -1,17 +1,23 @@
 import logging
 import os
-from typing import List, Union
+from typing import Callable, List, Optional, Union
 
 import cv2
 import numpy as np
 from PIL import Image
 
-all = ["image_grid", "resize_and_crop_tensor", "save_outputs"]
+all = ["image_grid", "resize_and_crop_tensor", "create_save_func"]
 
 logger = logging.getLogger(__name__)
 
 
 def image_grid(imgs: Union[List[Union[Image.Image, np.ndarray]], np.ndarray], ncols: int = 1) -> Image.Image:
+    """
+    Inputs: List[NDArray[H, W, C]], NDArray[B, H, W, C]
+    """
+    if isinstance(imgs, np.ndarray) and len(imgs.shape) == 3:
+        raise ValueError("`img` must be a 4-Dims array")
+
     if (isinstance(imgs, list) and len(imgs) == 1) or (isinstance(imgs, np.ndarray) and imgs.shape[0] == 1):
         img = imgs[0]
         if isinstance(img, np.ndarray):
@@ -52,26 +58,35 @@ def resize_and_crop_tensor(samples: np.ndarray, new_width: int, new_height: int)
     return samples
 
 
-def save_outputs(
-    samples: np.ndarray,
-    filename: str = "sample.png",
+def create_save_func(
+    filename: Optional[str] = None,
     output_dir: str = "./output",
     imagegrid: bool = False,
     grid_cols: int = 1,
-) -> None:
+) -> Callable[[np.ndarray], None]:
     if not os.path.isdir(output_dir):
         os.makedirs(output_dir)
 
-    if not imagegrid and samples.shape[0] != 1 and len(samples.shape) == 4:
-        # batch visualization
-        name, ext = os.path.splitext(filename)
-        for i in range(samples.shape[0]):
-            filepath = os.path.join(output_dir, f"{name}_{i}{ext}")
-            img = Image.fromarray((samples[i] * 255).astype(np.uint8))
+    cnt = 0
+
+    def save(samples: np.ndarray) -> None:
+        nonlocal cnt
+
+        if not imagegrid and samples.shape[0] != 1 and len(samples.shape) == 4:
+            # batch visualization
+            for i in range(samples.shape[0]):
+                _filename = f"{cnt}.png" if filename is None else filename
+                img = image_grid(samples[i : i + 1], ncols=1)
+                filepath = os.path.join(output_dir, _filename)
+                img.save(filepath)
+                logger.info(f"save to {filepath}.")
+                cnt += 1
+        else:
+            _filename = f"{cnt}.png" if filename is None else filename
+            img = image_grid(samples, ncols=grid_cols)
+            filepath = os.path.join(output_dir, _filename)
             img.save(filepath)
             logger.info(f"save to {filepath}.")
-    else:
-        img = image_grid(samples, ncols=grid_cols)
-        filepath = os.path.join(output_dir, filename)
-        img.save(filepath)
-        logger.info(f"save to {filepath}.")
+            cnt += 1
+
+    return save

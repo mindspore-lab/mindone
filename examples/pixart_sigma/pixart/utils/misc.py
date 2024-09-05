@@ -2,7 +2,7 @@ import argparse
 import json
 import logging
 import os
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple, Union
 
 import mindspore as ms
 from mindspore.communication import get_group_size, get_rank, init
@@ -53,7 +53,8 @@ def organize_prompts(
     prompt_path: Optional[str] = None,
     save_json: bool = True,
     output_dir: str = "./output",
-) -> List[Dict[str, Optional[str]]]:
+    batch_size: int = 1,
+) -> List[Dict[str, Union[str, List[str]]]]:
     if prompt_path is not None:
         if prompts is not None:
             logger.warning("`prompt_path` is given, read prompts from `prompt_path` instead.")
@@ -72,10 +73,22 @@ def organize_prompts(
 
     contents = list()
     for i, prompt in enumerate(prompts):
-        negative_prompt = negative_prompts[i] if negative_prompts else None
-        contents.append(dict(prompt=prompt, negative_prompt=negative_prompt))
+        negative_prompt = negative_prompts[i] if negative_prompts else ""
+        contents.append(dict(id=i, prompt=prompt, negative_prompt=negative_prompt))
+
+    if batch_size > 1:
+        group_contents = list()
+        group_prompts, group_nagative_prompts = list(), list()
+        for i, record in enumerate(contents, start=1):
+            group_prompts.append(record["prompt"])
+            group_nagative_prompts.append(record["negative_prompt"])
+            if i % batch_size == 0 or i == len(contents) - 1:
+                group_contents.append(dict(prompt=group_prompts, negative_prompt=group_nagative_prompts))
+                group_prompts, group_nagative_prompts = list(), list()
+    else:
+        group_contents = contents
 
     if save_json:
         with open(os.path.join(output_dir, "prompts.json"), "w") as f:
             json.dump(contents, f, indent=4)
-    return contents
+    return group_contents

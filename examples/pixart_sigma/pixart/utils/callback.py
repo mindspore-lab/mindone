@@ -14,7 +14,7 @@ from mindspore.train import Callback
 from mindone.trainers.checkpoint import CheckpointManager
 
 from .misc import organize_prompts
-from .plot import save_outputs
+from .plot import create_save_func
 
 __all__ = ["LossMonitor", "SaveCkptCallback", "TimeMonitor", "Visualizer", "TurnOffVAET5Train"]
 
@@ -207,8 +207,9 @@ class Visualizer(Callback):
             outputs.append(output)
 
         visualize_epoch_dir = os.path.join(self.visualize_dir, f"epoch_{cur_epoch}")
-        for i, sample in enumerate(outputs):
-            save_outputs(sample, filename=f"{i}.png", output_dir=visualize_epoch_dir, imagegrid=False)
+        save = create_save_func(output_dir=visualize_epoch_dir, imagegrid=False)
+        for sample in outputs:
+            save(sample)
 
         self.infer_pipeline.network.set_train(True)
 
