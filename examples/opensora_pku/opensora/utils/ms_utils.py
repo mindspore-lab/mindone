@@ -2,7 +2,7 @@ import logging
 import os
 from typing import Tuple
 
-from opensora.acceleration.parallel_states import get_sequence_parallel_state, initialize_sequence_parallel_state
+from opensora.acceleration.parallel_states import initialize_sequence_parallel_state
 
 import mindspore as ms
 from mindspore.communication.management import get_group_size, get_rank, init
@@ -171,9 +171,4 @@ def init_env(
         f"unable to use sequence parallelism, " f"device num: {device_num}, sp size: {sp_size}"
     )
     initialize_sequence_parallel_state(sp_size)
-    if get_sequence_parallel_state():
-        assert (
-            parallel_mode == "data"
-        ), f"only support seq parallelism with parallel mode `data`, but got `{parallel_mode}`"
-
     return rank_id, device_num

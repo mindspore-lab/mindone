@@ -212,6 +212,7 @@ class DiffusionWithLoss(nn.Cell):
         if get_sequence_parallel_state():
             assert (attention_mask.bool()).all()
             # assert attention_mask is None
+            attention_mask = None
         # (b c t h w),
         bsz, c, _, _, _ = model_pred.shape
         if attention_mask is not None:
