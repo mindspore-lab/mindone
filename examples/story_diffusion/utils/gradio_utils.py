@@ -170,12 +170,6 @@ class SpatialAttnProcessor2_0:
         # dropout
         hidden_states = attn.to_out[1](hidden_states)
 
-        # if input_ndim == 4:
-        #     tile_hidden_states = tile_hidden_states.transpose(-1, -2).reshape(batch_size, channel, height, width)
-
-        # if attn.residual_connection:
-        #     tile_hidden_states = tile_hidden_states + residual
-
         if input_ndim == 4:
             hidden_states = hidden_states.swapaxes(-1, -2).reshape(total_batch_size, channel, height, width)
         if attn.residual_connection:
@@ -192,7 +186,6 @@ class SpatialAttnProcessor2_0:
         attention_mask: Optional[ms.Tensor] = None,
         temb: Optional[ms.Tensor] = None,
     ) -> ms.Tensor:
-        # original AttnProcessor
         residual = hidden_states
 
         if attn.spatial_norm is not None:
@@ -203,11 +196,14 @@ class SpatialAttnProcessor2_0:
         if input_ndim == 4:
             batch_size, channel, height, width = hidden_states.shape
             hidden_states = hidden_states.view(batch_size, channel, height * width).swapaxes(1, 2)
-        else:
-            batch_size, channel, height, width = None, None, None, None
 
         batch_size, sequence_length, channel = hidden_states.shape
-        attention_mask = attn.prepare_attention_mask(attention_mask, sequence_length, batch_size)
+        # print(hidden_states.shape)
+        if attention_mask is not None:
+            attention_mask = attn.prepare_attention_mask(attention_mask, sequence_length, batch_size)
+            # scaled_dot_product_attention expects attention_mask shape to be
+            # (batch, heads, source_length, target_length)
+            attention_mask = attention_mask.view(batch_size, attn.heads, -1, attention_mask.shape[-1])
 
         if attn.group_norm is not None:
             hidden_states = attn.group_norm(hidden_states.swapaxes(1, 2)).swapaxes(1, 2)
@@ -215,7 +211,7 @@ class SpatialAttnProcessor2_0:
         query = attn.to_q(hidden_states)
 
         if encoder_hidden_states is None:
-            encoder_hidden_states = hidden_states
+            encoder_hidden_states = hidden_states  # B, N, C
         else:
             encoder_hidden_states = encoder_hidden_states.view(
                 -1, self.id_length + 1, sequence_length, channel
@@ -223,15 +219,20 @@ class SpatialAttnProcessor2_0:
 
         key = attn.to_k(encoder_hidden_states)
         value = attn.to_v(encoder_hidden_states)
+        inner_dim = key.shape[-1]
+        head_dim = inner_dim // attn.heads
 
-        query = attn.head_to_batch_dim(query)
-        key = attn.head_to_batch_dim(key)
-        value = attn.head_to_batch_dim(value)
+        query = query.view(batch_size, -1, attn.heads, head_dim).swapaxes(1, 2)
 
-        attention_probs = attn.get_attention_scores(query, key, attention_mask)
-        hidden_states = ops.bmm(attention_probs, value)
-        hidden_states = attn.batch_to_head_dim(hidden_states)
+        key = key.view(batch_size, -1, attn.heads, head_dim).swapaxes(1, 2)
+        value = value.view(batch_size, -1, attn.heads, head_dim).swapaxes(1, 2)
 
+        hidden_states = self.scaled_dot_product_attention(
+            query, key, value, attn_mask=attention_mask, dropout_p=0.0, is_causal=False
+        )
+
+        hidden_states = hidden_states.swapaxes(1, 2).reshape(batch_size, -1, attn.heads * head_dim)
+        hidden_states = hidden_states.to(query.dtype)
         # linear proj
         hidden_states = attn.to_out[0](hidden_states)
         # dropout
