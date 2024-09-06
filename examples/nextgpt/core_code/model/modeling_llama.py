@@ -8,7 +8,6 @@ import mindspore as ms
 from mindspore import nn, ops, Parameter, Tensor
 from mindspore.common.initializer import initializer, Normal
 import numpy as np
-from mindspore.nn import Dense # 规避nlp.inject
 from mindnlp.transformers.activations import ACT2FN
 from mindnlp.transformers.modeling_outputs import BaseModelOutputWithPast, CausalLMOutputWithPast
 from mindnlp.transformers.modeling_utils import PreTrainedModel

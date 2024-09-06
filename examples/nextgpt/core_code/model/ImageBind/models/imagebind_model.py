@@ -511,6 +511,6 @@ def imagebind_huge(pretrained=False, store_path=r'.checkpoints'):
     )
 
     if pretrained:
-        model.load_state_dict(ms.load_checkpoint("{}/imagebind_huge.ckpt".format(store_path)))
+        model.load_parameter_into_net("{}/imagebind_huge.ckpt".format(store_path)))
 
     return model, 1024

@@ -70,7 +70,7 @@ def tensor2vid(video: ms.Tensor, mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5]) -> L
         f, h, i * w, c
     )  # 1st (frames, h, batch_size, w, c) 2nd (frames, h, batch_size * w, c)
     images = images.unbind(dim=0)  # prepare a list of indvidual (consecutive frames)
-    images = [(image.cpu().numpy() * 255).astype("uint8") for image in images]  # f h w c
+    images = [(image.numpy() * 255).astype("uint8") for image in images]  # f h w c
     return images
 
 

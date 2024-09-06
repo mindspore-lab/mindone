@@ -9,7 +9,7 @@ import mindspore.ops as ops
 from examples.nextgpt.core_code.model.ImageBind.models import imagebind_model
 #from ...core_code.model.ImageBind import data
 from examples.nextgpt.core_code.model import modeling_llama
-from mindnlp.transformers import StoppingCriteria, StoppingCriteriaList
+from mindnlp.transformers import StoppingCriteria, StoppingCriteriaList,LlamaTokenizer,LlamaForCausalLM
 from mindone.diffusers import StableDiffusionPipeline
 from examples.nextgpt.core_code.model.custom_vd import TextToVideoSDPipeline
 from .custom_ad import AudioLDMPipeline
