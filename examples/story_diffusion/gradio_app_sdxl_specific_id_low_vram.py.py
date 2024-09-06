@@ -182,7 +182,7 @@ def load_single_character_weights(unet, filepath):
             attn_processor.id_bank[character] = {}
             for step_key in weights_to_load[attn_name].keys():
                 attn_processor.id_bank[character][step_key] = [
-                    tensor.to(unet.device) for tensor in weights_to_load[attn_name][step_key]
+                    tensor for tensor in weights_to_load[attn_name][step_key]
                 ]
 
 
@@ -286,13 +286,13 @@ if single_files:
     pipe = StableDiffusionXLPipeline.from_single_file(sd_model_path, mindspore_dtype=ms.float16)
 else:
     pipe = StableDiffusionXLPipeline.from_pretrained(sd_model_path, mindspore_dtype=ms.float16, use_safetensors=False)
-pipe = pipe.to(device)
+
 # pipe.enable_freeu(s1=0.6, s2=0.4, b1=1.1, b2=1.2)
 # pipe.scheduler = DDIMScheduler.from_config(pipe.scheduler.config)
 pipe.scheduler.set_timesteps(50)
 pipe.enable_vae_slicing()
-if device != "mps":
-    pipe.enable_model_cpu_offload()
+# if device != "mps":
+#     pipe.enable_model_cpu_offload()
 unet = pipe.unet
 cur_model_type = "Unstable" + "-" + "original"
 # Insert PairedAttention
@@ -322,7 +322,6 @@ mask1024, mask4096 = cal_attn_mask_xl(
     sa64,
     height,
     width,
-    device=device,
     dtype=ms.float16,
 )
 
@@ -459,15 +458,15 @@ def process_generation(
         gc.collect()
         model_info = models_dict[_sd_type]
         model_info["model_type"] = _model_type
-        pipe = load_models(model_info, device=device, photomaker_path=photomaker_path)
+        pipe = load_models(model_info, photomaker_path=photomaker_path)
         set_attention_processor(pipe.unet, id_length_, is_ipadapter=False)
         #
         pipe.scheduler = DDIMScheduler.from_config(pipe.scheduler.config)
         # pipe.enable_freeu(s1=0.6, s2=0.4, b1=1.1, b2=1.2)
         cur_model_type = _sd_type + "-" + _model_type
         pipe.enable_vae_slicing()
-        if device != "mps":
-            pipe.enable_model_cpu_offload()
+        # if device != "mps":
+        #     pipe.enable_model_cpu_offload()
     else:
         unet = pipe.unet
         # unet.set_attn_processor(copy.deepcopy(attn_procs))
@@ -546,7 +545,7 @@ def process_generation(
                     width=width,
                     negative_prompt=negative_prompt,
                     generator=generator,
-                ).images
+                )[0]
             elif _model_type == "Photomaker":
                 id_images = pipe(
                     cur_positive_prompts,
@@ -558,7 +557,7 @@ def process_generation(
                     width=width,
                     negative_prompt=negative_prompt,
                     generator=generator,
-                ).images
+                )[0]
             else:
                 raise NotImplementedError(
                     "You should choice between original and Photomaker!",
@@ -599,7 +598,7 @@ def process_generation(
                 width=width,
                 negative_prompt=negative_prompt,
                 generator=generator,
-            ).images[0]
+            )[0][0]
         elif _model_type == "Photomaker":
             results_dict[real_prompts_ind] = pipe(
                 real_prompt,
@@ -616,7 +615,7 @@ def process_generation(
                 negative_prompt=negative_prompt,
                 generator=generator,
                 nc_flag=True if real_prompts_ind in nc_indexs else False,
-            ).images[0]
+            )[0][0]
         else:
             raise NotImplementedError(
                 "You should choice between original and Photomaker!",
