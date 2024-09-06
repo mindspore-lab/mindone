@@ -21,7 +21,6 @@ import re
 import warnings
 from contextlib import contextmanager, nullcontext
 from typing import Callable, Dict, Optional, Tuple, Union, List
-import collections
 
 from transformers.configuration_utils import PretrainedConfig
 from transformers.dynamic_module_utils import custom_object_save
@@ -61,14 +60,14 @@ from mindnlp.transformers.generation import GenerationMixin
 from mindnlp.configs import PT_WEIGHTS_NAME, WEIGHTS_NAME, WEIGHTS_INDEX_NAME, PT_WEIGHTS_INDEX_NAME, \
     SAFE_WEIGHTS_NAME, SAFE_WEIGHTS_INDEX_NAME
 from mindnlp.utils.download import is_remote_url, download_url, cached_file, get_checkpoint_shard_files
-from mindnlp.utils import convert_file_size_to_int, logging, ModelOutput, is_safetensors_available
+from mindnlp.utils import convert_file_size_to_int, logging, is_safetensors_available
 from mindnlp._legacy.functional import arange
-from mindnlp.utils.serialization import load, safe_save_file
+from mindnlp.utils.serialization import load
 from mindnlp.injection import set_global_fp16
-from mindspore._c_expression import Tensor as Tensor_ # pylint: disable=no-name-in-module
 from mindnlp.transformers.generation.configuration_utils import GenerationConfig
+from mindspore._c_expression import Tensor as Tensor_ # pylint: disable=no-name-in-module
+import collections
 from contextlib import contextmanager
-from mindspore import load_checkpoint, save_checkpoint
 from tqdm.autonotebook import tqdm
 if is_safetensors_available():
     from safetensors import safe_open

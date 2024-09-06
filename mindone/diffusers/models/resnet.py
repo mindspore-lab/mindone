@@ -15,7 +15,6 @@
 
 from typing import Optional, Tuple, Union
 
-import mindspore
 import mindspore as ms
 from mindspore import nn, ops
 
@@ -537,12 +536,12 @@ class TemporalConvLayer(nn.Cell):
 
         identity = hidden_states
         ##### 适配
-        hidden_states = ops.cast(hidden_states,mindspore.bfloat16)
+        hidden_states = ops.cast(hidden_states,ms.bfloat16)
         hidden_states = self.conv1(hidden_states)
         hidden_states = self.conv2(hidden_states)
         hidden_states = self.conv3(hidden_states)
         hidden_states = self.conv4(hidden_states)
-        hidden_states = ops.cast(hidden_states,mindspore.float32)
+        hidden_states = ops.cast(hidden_states,ms.float32)
 
         hidden_states = identity + hidden_states
 
