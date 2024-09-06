@@ -99,7 +99,7 @@ class PixArtInferPipeline:
         return text_emb, Tensor(text_mask).to(ms.bool_)
 
     def data_prepare(
-        self, noise: Tensor, y: Union[str, List[str]], y_null: Optional[Union[str, List[str]]] = None
+        self, noise: Tensor, y: List[str], y_null: Optional[List[str]] = None
     ) -> Tuple[Tensor, Tensor, Tensor]:
         x = noise
         if y_null is None:
@@ -108,13 +108,6 @@ class PixArtInferPipeline:
         y, mask_y = self.get_condition_embeddings(y)
         y_null, _ = self.get_condition_embeddings(y_null)
 
-        # handle the case of str y
-        if y.shape[0] == 1 and y_null.shape[0] == 1 and noise.shape[0] != 1:
-            N = x.shape[0]
-            y = ops.tile(y, (N, 1, 1))
-            mask_y = ops.tile(mask_y, (N, 1))
-            y_null = ops.tile(y_null, (N, 1, 1))
-
         y = ops.concat([y, y_null], axis=0)
         mask_y = ops.tile(mask_y, (2, 1))
         x_in = ops.tile(x, (2, 1, 1, 1))
@@ -122,7 +115,7 @@ class PixArtInferPipeline:
         return x_in, y, mask_y
 
     def data_prepare_dpm(
-        self, noise: Tensor, y: Union[str, List[str]], y_null: Optional[Union[str, List[str]]] = None
+        self, noise: Tensor, y: List[str], y_null: Optional[List[str]] = None
     ) -> Tuple[Tensor, Tensor, Tensor, Tensor]:
         x = noise
         if y_null is None:
@@ -130,13 +123,6 @@ class PixArtInferPipeline:
 
         y, mask_y = self.get_condition_embeddings(y)
         y_null, _ = self.get_condition_embeddings(y_null)
-
-        # handle the case of str y
-        if y.shape[0] == 1 and y_null.shape[0] == 1 and noise.shape[0] != 1:
-            N = x.shape[0]
-            y = ops.tile(y, (N, 1, 1))
-            mask_y = ops.tile(mask_y, (N, 1))
-            y_null = ops.tile(y_null, (N, 1, 1))
 
         mask_y = ops.tile(mask_y, (2, 1))
 

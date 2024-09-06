@@ -27,6 +27,7 @@ def image_grid(imgs: Union[List[Union[Image.Image, np.ndarray]], np.ndarray], nc
 
     imgs = [Image.fromarray((x * 255).astype(np.uint8)) if isinstance(x, np.ndarray) else x for x in imgs]
 
+    ncols = min(ncols, len(imgs))
     nrows = len(imgs) // ncols
     w, h = imgs[0].size
     grid = Image.new("RGB", size=(ncols * w, nrows * h))

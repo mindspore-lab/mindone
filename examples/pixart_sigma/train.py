@@ -17,6 +17,7 @@ mindone_lib_path = os.path.abspath(os.path.join(__dir__, "../../"))
 sys.path.insert(0, mindone_lib_path)
 
 from pixart.dataset import ImageDataset, bucket_split_function
+from pixart.diffusers import AutoencoderKL
 from pixart.diffusion.iddpm import create_diffusion
 from pixart.modules.pixart import PixArt_XL_2, PixArtMS_XL_2
 from pixart.pipelines import NetworkWithLoss, PixArtInferPipeline
@@ -35,7 +36,6 @@ from pixart.utils import (
 )
 from transformers import AutoTokenizer
 
-from mindone.diffusers import AutoencoderKL
 from mindone.trainers.optim import create_optimizer
 from mindone.trainers.train_step import TrainOneStepWrapper
 from mindone.transformers import T5EncoderModel

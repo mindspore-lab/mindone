@@ -23,6 +23,7 @@ from pixart.dataset import (
     ASPECT_RATIO_2048_BIN,
     classify_height_width_bin,
 )
+from pixart.diffusers import AutoencoderKL
 from pixart.modules.pixart import PixArt_XL_2, PixArtMS_XL_2
 from pixart.pipelines.infer_pipeline import PixArtInferPipeline
 from pixart.utils import (
@@ -37,7 +38,6 @@ from pixart.utils import (
 )
 from transformers import AutoTokenizer
 
-from mindone.diffusers import AutoencoderKL
 from mindone.transformers import T5EncoderModel
 from mindone.utils.amp import auto_mixed_precision
 from mindone.utils.logger import set_logger
@@ -126,9 +126,7 @@ def parse_args():
         "--batch_size",
         default=1,
         type=int,
-        help="Batch size for sampling. If multiple prompts are provided through `--prompt_path` or `--prompt`, "
-        "different prompts will be sampled in each batch. "
-        "Otherwise, the single prompt will be sampled `batch_size` times.",
+        help="Batch size for sampling.",
     )
     parser.add_argument("--use_parallel", default=False, type=str2bool, help="Parallel inference.")
     default_args = parser.parse_args()
@@ -261,8 +259,10 @@ def main(args):
     for prompt in prompts:
         x_samples = list()
         for _ in tqdm.trange(args.num_trials, desc="trials", disable=args.num_trials == 1):
+            logger.info(f"Prompt(s): {prompt['prompt']}")
+            num = len(prompt["prompt"])
             # Create sampling noise
-            z = ops.randn((args.batch_size, 4, latent_height, latent_width), dtype=ms.float32)
+            z = ops.randn((num, 4, latent_height, latent_width), dtype=ms.float32)
             output = pipeline(z, prompt["prompt"], prompt["negative_prompt"]).asnumpy()
             x_samples.append(output)
 

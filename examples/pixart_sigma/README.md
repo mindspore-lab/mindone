@@ -132,6 +132,12 @@ python train.py \
 
 For more detailed usage of the training script, please run `python train.py -h`.
 
+Once you have finishsed your training, you can run sampling with your own checkpoint file with the following command
+
+```bash
+python sample.py -c configs/inference/pixart-sigma-512-MS.yaml --prompt "your magic prompt" --checkpoint path_to_your_checkpoint_file
+```
+
 #### Distributed Training (Optional):
 
 You can launch distributed training using multiple Ascend 910* Devices:
