@@ -15,7 +15,7 @@ def image_grid(imgs: Union[List[Union[Image.Image, np.ndarray]], np.ndarray], nc
     """
     Inputs: List[NDArray[H, W, C]], NDArray[B, H, W, C]
     """
-    if isinstance(imgs, np.ndarray) and len(imgs.shape) == 3:
+    if isinstance(imgs, np.ndarray) and len(imgs.shape) != 4:
         raise ValueError("`img` must be a 4-Dims array")
 
     if (isinstance(imgs, list) and len(imgs) == 1) or (isinstance(imgs, np.ndarray) and imgs.shape[0] == 1):

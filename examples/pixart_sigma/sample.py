@@ -79,19 +79,21 @@ def parse_args():
     parser.add_argument("--prompt", nargs="*", help="Prompt(s) for sampling.")
     parser.add_argument("--prompt_path", help="Path to the text (.txt) file to read prompts.")
     parser.add_argument("--negative_prompt", nargs="*", help="Negative prompt(s) for sampling.")
-    parser.add_argument(
-        "--sd_scale_factor", default=0.13025, type=float, help="VAE scale factor of Stable Diffusion network."
-    )
-    parser.add_argument("--sampling_method", default="iddpm", choices=["iddpm", "ddim", "dpm"], help="Sampling method.")
-    parser.add_argument("--sampling_steps", default=100, type=int, help="Diffusion Sampling Steps")
+    parser.add_argument("--sd_scale_factor", default=0.13025, type=float, help="VAE scale factor value.")
+    parser.add_argument("--sampling_method", default="dpm", choices=["iddpm", "ddim", "dpm"], help="Sampling method.")
+    parser.add_argument("--sampling_steps", default=30, type=int, help="Diffusion Sampling Steps")
     parser.add_argument("--guidance_scale", default=4.5, type=float, help="Scale value for classifier-free guidance")
 
-    parser.add_argument("--device_target", default="Ascend", choices=["CPU", "GPU", "Ascend"], help="Device target")
+    parser.add_argument("--device_target", default="Ascend", choices=["Ascend"], help="Running device.")
     parser.add_argument(
-        "--mode", default=0, choices=[0, 1], type=int, help="Running in GRAPH_MODE(0) or PYNATIVE_MODE(1)"
+        "--mode",
+        default=0,
+        choices=[0, 1],
+        type=int,
+        help="Running in GRAPH_MODE(0) or PYNATIVE_MODE(1) for Mindspore.",
     )
-    parser.add_argument("--jit_level", default="O1", choices=["O0", "O1"], help="Jit Level")
-    parser.add_argument("--seed", default=42, type=int, help="Inference seed")
+    parser.add_argument("--jit_level", default="O1", choices=["O0", "O1"], help="Jit Level for Mindspore.")
+    parser.add_argument("--seed", default=42, type=int, help="Inference seed for random number generation.")
 
     parser.add_argument(
         "--enable_flash_attention", default=True, type=str2bool, help="Whether to enable flash attention."
@@ -108,15 +110,27 @@ def parse_args():
     parser.add_argument("--kv_compress_layer", nargs="*", type=int, help="Network layers performing KV compression.")
 
     parser.add_argument(
-        "--dtype", default="fp16", choices=["bf16", "fp16", "fp32"], help="what data type to use for PixArt."
+        "--dtype",
+        default="fp16",
+        choices=["bf16", "fp16", "fp32"],
+        help="What data type to use for PixArt/T5/VAE model .",
     )
 
-    parser.add_argument("--imagegrid", default=False, type=str2bool, help="Save the image in image-grids format.")
     parser.add_argument(
-        "--nrows", default=1, type=int, help="Number of rows in sampling (number of trials) for each prompt."
+        "--imagegrid", default=False, type=str2bool, help="Concat the images and save it in image-grid format."
     )
-    parser.add_argument("--ncols", default=1, type=int, help="Number of cols in sampling (batch size) for each prompt.")
-    parser.add_argument("--use_parallel", default=False, type=str2bool, help="use parallel training.")
+    parser.add_argument(
+        "--num_trials", default=1, type=int, help="Number of trials (with different initial noise) for each prompt."
+    )
+    parser.add_argument(
+        "--batch_size",
+        default=1,
+        type=int,
+        help="Batch size for sampling. If multiple prompts are provided through `--prompt_path` or `--prompt`, "
+        "different prompts will be sampled in each batch. "
+        "Otherwise, the single prompt will be sampled `batch_size` times.",
+    )
+    parser.add_argument("--use_parallel", default=False, type=str2bool, help="Parallel inference.")
     default_args = parser.parse_args()
     abs_path = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), ""))
     if default_args.config:
@@ -164,7 +178,7 @@ def main(args):
         prompt_path=args.prompt_path,
         save_json=True,
         output_dir=args.output_path,
-        batch_size=args.ncols,
+        batch_size=args.batch_size,
     )
 
     # 2. network initiate and weight loading
@@ -243,12 +257,12 @@ def main(args):
     logger.info(key_info)
 
     # infer
-    save = create_save_func(output_dir=args.output_path, imagegrid=args.imagegrid, grid_cols=args.ncols)
+    save = create_save_func(output_dir=args.output_path, imagegrid=args.imagegrid, grid_cols=args.batch_size)
     for prompt in prompts:
         x_samples = list()
-        for _ in tqdm.trange(args.nrows):
+        for _ in tqdm.trange(args.num_trials, desc="trials", disable=args.num_trials == 1):
             # Create sampling noise
-            z = ops.randn((args.ncols, 4, latent_height, latent_width), dtype=ms.float32)
+            z = ops.randn((args.batch_size, 4, latent_height, latent_width), dtype=ms.float32)
             output = pipeline(z, prompt["prompt"], prompt["negative_prompt"]).asnumpy()
             x_samples.append(output)
 
@@ -257,7 +271,6 @@ def main(args):
         if args.use_resolution_binning:
             x_samples = resize_and_crop_tensor(x_samples, orig_width, orig_height)
 
-        # save result
         save(x_samples)
 
 
