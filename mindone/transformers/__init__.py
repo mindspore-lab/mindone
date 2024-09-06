@@ -1,4 +1,4 @@
-from .modeling_utils import MSPreTrainedModel, PretrainedModel
+from .modeling_utils import MSPreTrainedModel, PreTrainedModel
 from .models.bit import BitBackbone
 from .models.blip_2 import (
     Blip2ForConditionalGeneration,
@@ -6,6 +6,15 @@ from .models.blip_2 import (
     Blip2PreTrainedModel,
     Blip2QFormerModel,
     Blip2VisionModel,
+)
+from .models.clap import (
+    CLAP_PRETRAINED_MODEL_ARCHIVE_LIST,
+    ClapModel,
+    ClapPreTrainedModel,
+    ClapTextModel,
+    ClapTextModelWithProjection,
+    ClapAudioModel,
+    ClapAudioModelWithProjection
 )
 from .models.clip import (
     CLIP_PRETRAINED_MODEL_ARCHIVE_LIST,

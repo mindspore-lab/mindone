@@ -8,7 +8,7 @@ import mindspore as ms
 from mindspore import nn, ops, Parameter, Tensor
 from mindspore.common.initializer import initializer, Normal
 import numpy as np
-
+from mindspore.nn import Dense # 规避nlp.inject
 from mindnlp.transformers.activations import ACT2FN
 from mindnlp.transformers.modeling_outputs import BaseModelOutputWithPast, CausalLMOutputWithPast
 from mindnlp.transformers.modeling_utils import PreTrainedModel
@@ -844,7 +844,7 @@ class LlamaModel(LlamaPreTrainedModel):
 
         if inputs_embeds is None:
             inputs_embeds = self.embed_tokens(input_ids)
-
+        inputs_embeds = ops.cast(inputs_embeds,dtype=ms.float16)
         # 4d mask is passed through the layers
         attention_mask = _prepare_4d_causal_attention_mask(
             attention_mask, (batch_size, seq_length), inputs_embeds, past_key_values_length
@@ -989,7 +989,7 @@ class LlamaForCausalLM(LlamaPreTrainedModel):
         )
 
         hidden_states = outputs[0]
-
+        hidden_states = ops.cast(hidden_states,dtype=ms.float32)
         if self.config.pretraining_tp > 1:
             lm_head_slices = self.lm_head.weight.split(self.vocab_size // self.config.pretraining_tp, dim=0)
             logits = [ops.dense(hidden_states, lm_head_slices[i]) for i in range(self.config.pretraining_tp)]

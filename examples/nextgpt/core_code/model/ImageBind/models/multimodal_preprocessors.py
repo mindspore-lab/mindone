@@ -18,7 +18,7 @@ from mindspore import nn, ops, Tensor, Parameter
 
 from iopath.common.file_io import g_pathmgr
 from .helpers import cast_if_src_dtype, VerboseNNModule, trunc_normal_, normal_, zeros_
-
+from mindspore.nn import Embedding
 
 def get_sinusoid_encoding_table(n_position, d_hid):
 
@@ -132,10 +132,11 @@ class PatchEmbedGeneric(nn.Cell):
 
     def get_patch_layout(self, img_size):
 
-        dummy_out = Parameter(self.proj(ops.zeros([1,]+ img_size)), requires_grad=False)
+        dummy_out = Parameter(self.proj(ops.zeros([1,]+ img_size,dtype=ms.bfloat16)), requires_grad=False)
+        dummy_out = ops.cast(dummy_out,dtype=ms.float32)
         embed_dim = dummy_out.shape[1]
         patches_layout = tuple(dummy_out.shape[2:])
-        num_patches = int(np.prod(patches_layout))
+        num_patches = np.prod(patches_layout)
         return patches_layout, num_patches, embed_dim
 
     def construct(self, x):
@@ -163,15 +164,15 @@ class SpatioTemporalPosEmbeddingHelper(VerboseNNModule):
         self.num_tokens = num_cls_tokens + num_patches
         self.learnable = learnable
         if self.learnable:
-            self.pos_embed = Parameter(ops.zeros(size=(1, self.num_tokens, embed_dim)))
+            self.pos_embed = Parameter(ops.zeros((1, self.num_tokens, embed_dim)))
             trunc_normal_(self.pos_embed, std=0.02)
         else:
-            pos_embed = Parameter(get_sinusoid_encoding_table(self.num_tokens, embed_dim), requires_grad=False)
+            pos_embed = Parameter(get_sinusoid_encoding_table(self.num_tokens, embed_dim))
 
     def get_pos_embedding(self, vision_input, all_vision_tokens):
         input_shape = vision_input.shape
         pos_embed = _get_pos_embedding(
-            all_vision_tokens.shpae[1] - self.num_cls_tokens,
+            all_vision_tokens.shape[1] - self.num_cls_tokens,
             pos_embed=self.pos_embed,
             patches_layout=self.patches_layout,
             input_shape=input_shape,
@@ -213,17 +214,17 @@ class RGBDTPreprocessor(VerboseNNModule):
             )
         if self.num_cls_tokens > 0:
             self.cls_token = Parameter(
-                ops.zeros(size=(1, self.num_cls_tokens, self.embed_dim))
+                ops.zeros((1, self.num_cls_tokens, self.embed_dim))
             )
         if self.use_type_embed:
-            self.type_embed = Parameter(ops.zeros(size=(1, 1, self.embed_dim)))
+            self.type_embed = Parameter(ops.zeros((1, 1, self.embed_dim)))
 
         self.init_parameters(init_param_style)
 
     def init_parameters(self, init_param_style):
         if init_param_style == "openclip":
             # OpenCLIP style initialization
-            scale = self.embed_dim**-0.5
+            scale = self.embed_dim ** -0.5
             if self.use_pos_embed:
                 normal_(self.pos_embedding_helper.pos_embed)
                 self.pos_embedding_helper.pos_embed *= scale
@@ -324,9 +325,9 @@ class TextPreprocessor(VerboseNNModule):
         super().__init__()
         self.vocab_size = vocab_size
         self.context_length = context_length
-        self.token_embedding = nn.Embedding(vocab_size, embed_dim)
+        self.token_embedding = Embedding(vocab_size, embed_dim)
         self.pos_embed = Parameter(
-            ops.zeros(size=(1, self.context_length + num_cls_tokens, embed_dim))
+            ops.zeros((1, self.context_length + num_cls_tokens, embed_dim))
         )
         self.causal_masking = causal_masking
         if self.causal_masking:
@@ -337,7 +338,7 @@ class TextPreprocessor(VerboseNNModule):
         self.embed_dim = embed_dim
         if num_cls_tokens > 0:
             assert self.causal_masking is False, "Masking + CLS token isn't implemented"
-            self.cls_token = nn.Parameter(
+            self.cls_token = Parameter(
                 ops.zeros(size=(1, self.num_cls_tokens, embed_dim))
             )
 
@@ -350,7 +351,7 @@ class TextPreprocessor(VerboseNNModule):
 
         if init_param_style == "openclip":
             # OpenCLIP style initialization
-            scale = self.embed_dim**-0.5
+            scale = self.embed_dim ** -0.5
             if self.num_cls_tokens > 0:
                 normal_(self.cls_token)
                 self.cls_token *= scale
@@ -607,12 +608,12 @@ class IMUPreprocessor(VerboseNNModule):
         self.num_cls_tokens = num_cls_tokens
         self.kernel_size = kernel_size
         self.pos_embed = Parameter(
-            ops.zeros(size=(1, (img_size[1] // kernel_size) + num_cls_tokens, embed_dim))
+            ops.zeros((1, (img_size[1] // kernel_size) + num_cls_tokens, embed_dim))
         )
 
         if self.num_cls_tokens > 0:
             self.cls_token = Parameter(
-                ops.zeros(size=(1, self.num_cls_tokens, self.embed_dim))
+                ops.zeros((1, self.num_cls_tokens, self.embed_dim))
             )
 
         self.init_parameters(init_param_style)

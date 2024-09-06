@@ -37,8 +37,8 @@ from mindone.transformers.modeling_outputs import (
 )
 from mindone.transformers.modeling_utils import MSPreTrainedModel
 # from ...mindspore_utils import apply_chunking_to_forward, find_pruneable_heads_and_indices, meshgrid, prune_linear_layer
-from transformers.utils import logging, ModelOutput
-
+from mindnlp.utils import logging, ModelOutput
+from ...modeling_utils import PreTrainedModel
 from transformers.models.clap import ClapAudioConfig, ClapConfig, ClapTextConfig
 
 __all__ = [
@@ -1671,7 +1671,7 @@ class ClapTextPooler(nn.Cell):
         return pooled_output
 
 
-class ClapPreTrainedModel(MSPreTrainedModel):
+class ClapPreTrainedModel(PreTrainedModel):
     """
     An abstract class to handle weights initialization and a simple interface for downloading and loading pretrained
     models.
@@ -1867,7 +1867,7 @@ class ClapTextModel(ClapPreTrainedModel):
         if input_ids is not None and inputs_embeds is not None:
             raise ValueError("You cannot specify both input_ids and inputs_embeds at the same time")
         elif input_ids is not None:
-            self.warn_if_padding_and_no_attention_mask(input_ids, attention_mask)
+            # self.warn_if_padding_and_no_attention_mask(input_ids, attention_mask)
             input_shape = input_ids.shape
         elif inputs_embeds is not None:
             input_shape = inputs_embeds.shape[:-1]

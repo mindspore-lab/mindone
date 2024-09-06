@@ -15,6 +15,7 @@
 
 from typing import Optional, Tuple, Union
 
+import mindspore
 import mindspore as ms
 from mindspore import nn, ops
 
@@ -496,24 +497,24 @@ class TemporalConvLayer(nn.Cell):
 
         # conv layers
         self.conv1 = nn.SequentialCell(
-            GroupNorm(norm_num_groups, in_dim),
+            GroupNorm(norm_num_groups, in_dim, dtype=ms.bfloat16),
             nn.SiLU(),
-            nn.Conv3d(in_dim, out_dim, (3, 1, 1), padding=(1, 1, 0, 0, 0, 0), pad_mode="pad", has_bias=True),
+            nn.Conv3d(in_dim, out_dim, (3, 1, 1), padding=(1, 1, 0, 0, 0, 0), pad_mode="pad", has_bias=True, dtype=ms.bfloat16),
         )
         self.conv2 = nn.SequentialCell(
-            GroupNorm(norm_num_groups, out_dim),
+            GroupNorm(norm_num_groups, out_dim, dtype=ms.bfloat16),
             nn.SiLU(),
             nn.Dropout(p=dropout),
-            nn.Conv3d(out_dim, in_dim, (3, 1, 1), padding=(1, 1, 0, 0, 0, 0), pad_mode="pad", has_bias=True),
+            nn.Conv3d(out_dim, in_dim, (3, 1, 1), padding=(1, 1, 0, 0, 0, 0), pad_mode="pad", has_bias=True, dtype=ms.bfloat16),
         )
         self.conv3 = nn.SequentialCell(
-            GroupNorm(norm_num_groups, out_dim),
+            GroupNorm(norm_num_groups, out_dim, dtype=ms.bfloat16),
             nn.SiLU(),
             nn.Dropout(p=dropout),
-            nn.Conv3d(out_dim, in_dim, (3, 1, 1), padding=(1, 1, 0, 0, 0, 0), pad_mode="pad", has_bias=True),
+            nn.Conv3d(out_dim, in_dim, (3, 1, 1), padding=(1, 1, 0, 0, 0, 0), pad_mode="pad", has_bias=True, dtype=ms.bfloat16),
         )
         self.conv4 = nn.SequentialCell(
-            GroupNorm(norm_num_groups, out_dim),
+            GroupNorm(norm_num_groups, out_dim, dtype=ms.bfloat16),
             nn.SiLU(),
             nn.Dropout(p=dropout),
             nn.Conv3d(
@@ -525,6 +526,7 @@ class TemporalConvLayer(nn.Cell):
                 has_bias=True,
                 weight_init="zeros",
                 bias_init="zeros",
+                dtype=ms.bfloat16
             ),  # zero out the last layer params,so the conv block is identity
         )
 
@@ -534,10 +536,13 @@ class TemporalConvLayer(nn.Cell):
         )
 
         identity = hidden_states
+        ##### 适配
+        hidden_states = ops.cast(hidden_states,mindspore.bfloat16)
         hidden_states = self.conv1(hidden_states)
         hidden_states = self.conv2(hidden_states)
         hidden_states = self.conv3(hidden_states)
         hidden_states = self.conv4(hidden_states)
+        hidden_states = ops.cast(hidden_states,mindspore.float32)
 
         hidden_states = identity + hidden_states
 

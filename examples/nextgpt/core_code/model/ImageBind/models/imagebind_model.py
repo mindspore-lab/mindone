@@ -159,7 +159,8 @@ class ImageBindModel(nn.Cell):
                     stride=kernel_size,
                     has_bias=False,
                     pad_mode='valid',
-                    padding=0
+                    padding=0,
+                    dtype=ms.bfloat16
                 ),
             ]
         )
@@ -186,7 +187,8 @@ class ImageBindModel(nn.Cell):
                     stride=audio_stride,
                     out_channels=audio_embed_dim,
                     has_bias=False,
-                    pad_mode="valid"
+                    pad_mode="valid",
+                    dtype=ms.bfloat16
                 ),
             ],
             norm_layer=nn.LayerNorm(normalized_shape=(audio_embed_dim,)),
@@ -206,7 +208,8 @@ class ImageBindModel(nn.Cell):
                     out_channels=depth_embed_dim,
                     stride=depth_kernel_size,
                     has_bias=False,
-                    pad_mode="valid"
+                    pad_mode="valid",
+                    dtype=ms.bfloat16
                 ),
             ],
             norm_layer=nn.LayerNorm(normalized_shape=(depth_embed_dim,)),
@@ -228,7 +231,8 @@ class ImageBindModel(nn.Cell):
                     out_channels=thermal_embed_dim,
                     stride=thermal_kernel_size,
                     has_bias=False,
-                    pad_mode="valid"
+                    pad_mode="valid",
+                    dtype=ms.bfloat16
                 ),
             ],
             norm_layer=nn.LayerNorm(normalized_shape=(thermal_embed_dim,)),
@@ -308,7 +312,7 @@ class ImageBindModel(nn.Cell):
                     embed_dim=embed_dim,
                     num_heads=num_heads,
                     has_bias=True,
-                    add_bias_kv=add_bias_kv,
+                    add_bias_kv=False,
                 ),
                 pre_transformer_layer=nn.SequentialCell(
                     nn.LayerNorm((embed_dim,), epsilon=1e-6)
@@ -471,6 +475,10 @@ class ImageBindModel(nn.Cell):
                 modality_value = self.modality_heads[modality_key](
                     modality_value, **head_inputs
                 )
+                if modality_key=="ModalityType.VISION":
+                    modality_value = self.modality_head_vision(
+                        modality_value, **head_inputs
+                    )
                 if modality_key in [ModalityType.AUDIO]:
                     modality_value = self.modality_postprocessors[modality_key][0](
                         modality_value
@@ -503,6 +511,6 @@ def imagebind_huge(pretrained=False, store_path=r'.checkpoints'):
     )
 
     if pretrained:
-        model.load_state_dict(ms.load_checkpoint("{}/imagebind_huge.pth".format(store_path)))
+        model.load_state_dict(ms.load_checkpoint("{}/imagebind_huge.ckpt".format(store_path)))
 
     return model, 1024

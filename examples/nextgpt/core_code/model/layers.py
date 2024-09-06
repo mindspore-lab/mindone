@@ -92,7 +92,7 @@ class TextFcLayer(nn.Cell):
             # print('layer x: ', x)
             x = self.fc(x)
             # print('layer fc x: ', x)
-            x = self.tfm(x, self.query_embs.repeat(x.shape[0], 1, 1))
+            x = self.tfm(x, self.query_embs.tile((x.shape[0], 1, 1)))
             # print('layer tfm x: ', x)
             outputs = self.model(x)
             # print('layer tfm model: ', x)

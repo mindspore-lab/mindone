@@ -60,7 +60,7 @@ class LearnableLogitScaling(nn.Cell):
         self.max_logit_scale = max_logit_scale
         self.logit_scale_init = logit_scale_init
         self.learnable = learnable
-        logit_scale_init = ops.cast(np.log(self.logit_scale_init,dtype=ms.float32))
+        logit_scale_init = ops.cast(np.log(self.logit_scale_init),dtype=ms.float32)
         log_logit_scale = logit_scale_init
         if learnable:
             self.log_logit_scale = Parameter(log_logit_scale)

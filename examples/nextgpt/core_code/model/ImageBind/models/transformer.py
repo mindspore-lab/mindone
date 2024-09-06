@@ -6,7 +6,7 @@ from functools import partial
 from typing import Callable, List
 
 import numpy as np
-
+from mindspore.nn import LayerNorm
 import mindspore as ms
 from mindspore import nn, ops, Parameter, Tensor
 from mindspore.common.initializer import (
@@ -241,7 +241,7 @@ class SimpleTransformer(nn.Cell):
             trunc_normal_(m.weight, std=0.02)
             if m.bias is not None:
                 constant_(m.bias, 0)
-        elif isinstance(m, (nn.LayerNorm)):
+        elif isinstance(m, (LayerNorm)):
             constant_(m.beta, 0)
             constant_(m.gamma, 1.0)
 

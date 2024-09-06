@@ -35,25 +35,43 @@ logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
 
 
 
-def tensor2vid(video: ms.Tensor, processor: VaeImageProcessor, output_type: str = "np"):
-    batch_size, channels, num_frames, height, width = video.shape
-    outputs = []
-    for batch_idx in range(batch_size):
-        batch_vid = video[batch_idx].permute((1, 0, 2, 3))
-        batch_output = processor.postprocess(batch_vid, output_type)
-
-        outputs.append(batch_output)
-
-    if output_type == "np":
-        outputs = np.stack(outputs)
-
-    elif output_type == "ms":
-        outputs = ops.stack(outputs)
-
-    elif not output_type == "pil":
-        raise ValueError(f"{output_type} does not exist. Please choose one of ['np', 'ms', 'pil']")
-
-    return outputs
+# def tensor2vid(video: ms.Tensor, processor: VaeImageProcessor, output_type: str = "np"):
+#     batch_size, channels, num_frames, height, width = video.shape
+#     outputs = []
+#     for batch_idx in range(batch_size):
+#         batch_vid = video[batch_idx].permute((1, 0, 2, 3))
+#         batch_output = processor.postprocess(batch_vid, output_type)
+#
+#         outputs.append(batch_output)
+#
+#     if output_type == "np":
+#         outputs = np.stack(outputs)
+#
+#     elif output_type == "ms":
+#         outputs = ops.stack(outputs)
+#
+#     elif not output_type == "pil":
+#         raise ValueError(f"{output_type} does not exist. Please choose one of ['np', 'ms', 'pil']")
+#
+#     return outputs
+def tensor2vid(video: ms.Tensor, mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5]) -> List[np.ndarray]:
+    # This code_ is copied from https://github.com/modelscope/modelscope/blob/1509fdb973e5871f37148a4b5e5964cafd43e64d/modelscope/pipelines/multi_modal/text_to_video_synthesis_pipeline.py#L78
+    # reshape to ncfhw
+    mean = ms.tensor(mean).reshape(1, -1, 1, 1, 1)
+    std = ms.tensor(std).reshape(1, -1, 1, 1, 1)
+    # unnormalize back to [0,1]
+    # video = video.mul_(std).add_(mean)
+    video = ops.add(ops.mul(video,std),mean)
+    video = ops.clamp(video,0,1)
+    # video.clamp_(0, 1)
+    # prepare the final outputs
+    i, c, f, h, w = video.shape
+    images = video.permute(2, 3, 0, 4, 1).reshape(
+        f, h, i * w, c
+    )  # 1st (frames, h, batch_size, w, c) 2nd (frames, h, batch_size * w, c)
+    images = images.unbind(dim=0)  # prepare a list of indvidual (consecutive frames)
+    images = [(image.cpu().numpy() * 255).astype("uint8") for image in images]  # f h w c
+    return images
 
 
 @dataclass
@@ -271,7 +289,7 @@ class TextToVideoSDPipeline(DiffusionPipeline, TextualInversionLoaderMixin, Lora
         batch_size, channels, num_frames, height, width = latents.shape
         latents = latents.permute(0, 2, 1, 3, 4).reshape(batch_size * num_frames, channels, height, width)
 
-        image = self.vae.decode(latents).sample
+        image = self.vae.decode(latents,return_dict=True).sample
         video = (
             image[None, :]
             .reshape(

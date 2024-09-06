@@ -62,6 +62,7 @@ LOADABLE_CLASSES = {
         "PreTrainedTokenizerFast": ["save_pretrained", "from_pretrained"],
         "ProcessorMixin": ["save_pretrained", "from_pretrained"],
         "ImageProcessingMixin": ["save_pretrained", "from_pretrained"],
+        "PreTrainedModel":["save_pretrained", "from_pretrained"]
     },
 }
 

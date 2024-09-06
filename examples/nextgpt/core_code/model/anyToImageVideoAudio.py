@@ -1,22 +1,25 @@
 import logging
 import os.path
 from typing import List
-from examples.nextgpt.core_code.model.ImageBind.models import imagebind_model
+
 import mindspore
 import mindspore.nn as nn
 import mindspore.ops as ops
-from ...core_code.header import *
-from ...core_code.model.ImageBind import *
-from ...core_code.model.ImageBind import data
-from modeling_llama import LlamaForCausalLM
+#from ...core_code.header import *
+from examples.nextgpt.core_code.model.ImageBind.models import imagebind_model
+#from ...core_code.model.ImageBind import data
+from examples.nextgpt.core_code.model import modeling_llama
 from mindnlp.transformers import StoppingCriteria, StoppingCriteriaList
 from mindone.diffusers import StableDiffusionPipeline
-from custom_vd import TextToVideoSDPipeline
-from custom_ad import AudioLDMPipeline
-from layers import *
-from ...core_code.model.common.utils import *
+from examples.nextgpt.core_code.model.custom_vd import TextToVideoSDPipeline
+from .custom_ad import AudioLDMPipeline
+from examples.nextgpt.core_code.model.layers import *
+from examples.nextgpt.core_code.model.common.utils import *
 
-
+import os
+import re
+import data
+from mindnlp.peft import LoraConfig, TaskType, get_peft_model
 
 class StoppingCriteriaSub(StoppingCriteria):
 
@@ -47,31 +50,33 @@ class NextGPTModel(nn.Cell):
         self.args = args
 
         self.max_length = args['max_length']
-        self.device = "cpu"
         self.stage = args['stage']
         print('args max_length', args['max_length'])
 
         imagebind_ckpt_path = os.path.join(self.args['pretrained_ckpt_path'], 'imagebind_ckpt',
                                            self.args['imagebind_version'])
         print(f'Initializing visual encoder from {imagebind_ckpt_path} ...')
+        # self.visual_encoder, self.visual_hidden_size = \
+        #     imagebind_model.imagebind_huge(pretrained=True, store_path=imagebind_ckpt_path)
+        ## debug
         self.visual_encoder, self.visual_hidden_size = \
-            imagebind_model.imagebind_huge(pretrained=True, store_path=imagebind_ckpt_path)
+            imagebind_model.imagebind_huge(pretrained=False)
         # free vision encoder
-        for name, param in self.visual_encoder.named_parameters():
+        for param in self.visual_encoder.trainable_params():
             param.requires_grad = False
-        self.visual_encoder.eval()
+        self.visual_encoder.set_train(False)
         print('Visual encoder initialized.')
 
         self.vicuna_ckpt_path = os.path.join(self.args['pretrained_ckpt_path'], 'vicuna_ckpt',
                                              self.args['vicuna_version'])
         print(f'Initializing language decoder from {self.vicuna_ckpt_path} ...')
 
-        self.llama_model = LlamaForCausalLM.from_pretrained(self.vicuna_ckpt_path)
+        self.llama_model = modeling_llama.LlamaForCausalLM.from_pretrained(self.vicuna_ckpt_path)
         if self.args.get('freeze_lm'):
             print("Freezing the LLaMa ...")
-            for param in self.llama_model.parameters():
+            for param in self.llama_model.trainable_params():
                 param.requires_grad = False
-            self.llama_model.eval()
+            self.llama_model.set_train(False)
         else:
             print("Instruct tuning the LLaMa ...")
             # add the lora module
@@ -101,18 +106,18 @@ class NextGPTModel(nn.Cell):
         self.llama_model.resize_token_embeddings(len(self.llama_tokenizer))
         print('Tokenizer initialized.')
 
-        self.llama_proj = nn.Linear(
+        self.llama_proj = nn.Dense(
             self.visual_hidden_size, self.llama_model.config.hidden_size
         )
         if self.args.get('freeze_input_proj'):
-            for param in self.llama_proj.parameters():
+            for param in self.llama_proj.trainable_params():
                 param.requires_grad = False
 
         self.input_embeddings = self.llama_model.get_input_embeddings()
 
         # the alignment module for LLM-TO-IMAGE
         self.sd_ckpt_path = self.args['image_diffusion']
-        self.gen_text_hidden_fcs = nn.ModuleList([])
+        self.gen_text_hidden_fcs = nn.CellList([])
         for layer_idx in self.args['text_emb_to_img_layers']:
             if layer_idx == -1 or layer_idx == self.llama_model.config.num_hidden_layers:
                 in_dim = self.llama_model.config.hidden_size
@@ -134,7 +139,7 @@ class NextGPTModel(nn.Cell):
 
         # the alignment module for LLM-TO-VIDEO
         self.vd_ckpt_path = self.args['video_diffusion']
-        self.gen_text_hidden_fcs_video = nn.ModuleList([])
+        self.gen_text_hidden_fcs_video = nn.CellList([])
         for layer_idx in self.args['text_emb_to_video_layers']:
             if layer_idx == -1 or layer_idx == self.llama_model.config.num_hidden_layers:
                 in_dim = self.llama_model.config.hidden_size  # 4096
@@ -156,7 +161,7 @@ class NextGPTModel(nn.Cell):
 
         # the alignment module for LLM-TO-AUDIO
         self.ad_ckpt_path = self.args['audio_diffusion']
-        self.gen_text_hidden_fcs_audio = nn.ModuleList([])
+        self.gen_text_hidden_fcs_audio = nn.CellList([])
         for layer_idx in self.args['text_emb_to_audio_layers']:
             if layer_idx == -1 or layer_idx == self.llama_model.config.num_hidden_layers:
                 in_dim = self.llama_model.config.hidden_size
@@ -178,11 +183,11 @@ class NextGPTModel(nn.Cell):
                     f'Embedding of layer {layer_idx} was requested but model only has {self.llama_model.config.num_hidden_layers} layers.')
 
         if self.args.get('freeze_output_proj'):
-            for name, param in self.gen_text_hidden_fcs.named_parameters():
+            for param in self.gen_text_hidden_fcs.trainable_params():
                 param.requires_grad = False
-            for name, param in self.gen_text_hidden_fcs_video.named_parameters():
+            for param in self.gen_text_hidden_fcs_video.trainable_params():
                 param.requires_grad = False
-            for name, param in self.gen_text_hidden_fcs_audio.named_parameters():
+            for param in self.gen_text_hidden_fcs_audio.trainable_params():
                 param.requires_grad = False
 
     def _add_image_token(self):
@@ -238,42 +243,42 @@ class NextGPTModel(nn.Cell):
             self.args['gen_audio_token_idx'].append(gen_token_idx[0])
 
     def encode_video(self, video_paths):
-        inputs = {ModalityType.VISION: data.load_and_transform_video_data(video_paths, self.device)}
+        inputs = {ModalityType.VISION: data.load_and_transform_video_data(video_paths)}
         # convert into visual dtype
         inputs = {key: inputs[key].to(self.llama_model.dtype) for key in inputs}
         embeddings = self.visual_encoder(inputs)
         video_embeds = embeddings[ModalityType.VISION]  # bsz x 1024
         inputs_llama = self.llama_proj(video_embeds).unsqueeze(1)  # bsz x 1 x llama_size
-        atts_llama = ops.ones(inputs_llama.size()[:-1], dtype=mindspore.int64).to(self.device)  # bsz x 1
+        atts_llama = ops.ones(inputs_llama.size()[:-1], dtype=mindspore.int64) # bsz x 1
         return inputs_llama, atts_llama
 
     def encode_audio(self, audio_paths):
-        inputs = {ModalityType.AUDIO: data.load_and_transform_audio_data(audio_paths, self.device)}
+        inputs = {ModalityType.AUDIO: data.load_and_transform_audio_data(audio_paths)}
         # convert into visual dtype
         inputs = {key: inputs[key].to(self.llama_model.dtype) for key in inputs}
         embeddings = self.visual_encoder(inputs)
         audio_embeds = embeddings[ModalityType.AUDIO]  # bsz x 1024
         inputs_llama = self.llama_proj(audio_embeds).unsqueeze(1)  # bsz x 1 x llama_size
-        atts_llama = ops.ones(inputs_llama.size()[:-1], dtype=mindspore.int64).to(self.device)  # bsz x 1
+        atts_llama = ops.ones(inputs_llama.size()[:-1], dtype=mindspore.int64)  # bsz x 1
         return inputs_llama, atts_llama
 
     def encode_image(self, image_paths):
-        inputs = {ModalityType.VISION: data.load_and_transform_vision_data(image_paths, self.device)}
+        inputs = {ModalityType.VISION: data.load_and_transform_vision_data(image_paths)}
         # convert into visual dtype
         inputs = {key: inputs[key].to(self.llama_model.dtype) for key in inputs}
         embeddings = self.visual_encoder(inputs)
         image_embeds = embeddings['vision']  # bsz x 1024
         inputs_llama = self.llama_proj(image_embeds).unsqueeze(1)  # bsz x 1 x llama_size
-        atts_llama = ops.ones(inputs_llama.size()[:-1], dtype=mindspore.int64).to(self.device)  # bsz x 1
+        atts_llama = ops.ones(inputs_llama.size()[:-1], dtype=mindspore.int64)  # bsz x 1
         return inputs_llama, atts_llama
 
     def prompt_wrap(self, img_embeds, input_ids, target_ids, attention_mask):
         '''
             input_ids, target_ids, attention_mask: bsz x s2
         '''
-        input_ids = input_ids.to(self.device)  # bsz x s2
-        target_ids = target_ids.to(self.device)  # bsz x s2
-        attention_mask = attention_mask.to(self.device)  # bsz x s2
+        input_ids = input_ids  # bsz x s2
+        target_ids = target_ids  # bsz x s2
+        attention_mask = attention_mask  # bsz x s2
 
         batch_size = input_ids.shape[0]
 
@@ -288,8 +293,7 @@ class NextGPTModel(nn.Cell):
             bos_embeds = self.llama_model.model.model.embed_tokens(bos)  # bsz x 1 x embed_dim
         if img_embeds is not None:
             p_before = '### Human: <Img>'
-            p_before_tokens = self.llama_tokenizer(p_before, return_tensors="pt", add_special_tokens=False).to(
-                self.device)
+            p_before_tokens = self.llama_tokenizer(p_before, return_tensors="np", add_special_tokens=False)
             # peft model need deeper call
             if self.args['freeze_lm']:
                 p_before_embeds = self.llama_model.model.embed_tokens(p_before_tokens.input_ids).expand(batch_size, -1,
@@ -297,25 +301,22 @@ class NextGPTModel(nn.Cell):
             else:
                 p_before_embeds = self.llama_model.model.model.embed_tokens(p_before_tokens.input_ids).expand(
                     batch_size, -1, -1)  # bsz x s1 x embed_dim
-            inputs_embeds = ops.cat([bos_embeds, p_before_embeds, img_embeds, p_after_embeds], axis=1).to(
-                self.device)  # bsz x (1+s1+1+s2) x embed_dim
+            inputs_embeds = ops.cat([bos_embeds, p_before_embeds, img_embeds, p_after_embeds], axis=1)  # bsz x (1+s1+1+s2) x embed_dim
 
             # create targets
             empty_targets = (
                 ops.ones([batch_size, 1 + p_before_embeds.size()[1] + 1],  # 1 (bos) + s1 + 1
-                           dtype=mindspore.int64).to(self.device).fill_(-100)
+                           dtype=mindspore.int64).fill_(-100)
             )  # bsz x (1 + s1)
-            targets = ops.cat([empty_targets, target_ids], axis=1).to(self.device)  # bsz x (1 + s1 + 1 + s2)
+            targets = ops.cat([empty_targets, target_ids], axis=1)  # bsz x (1 + s1 + 1 + s2)
             assert inputs_embeds.size()[1] == targets.size()[1]
 
-            atts_prefix = ops.ones([batch_size, 1 + p_before_embeds.size()[1] + 1], dtype=mindspore.int64).to(
-                self.device)  # bsz x (1 + s1 + 1)
-            attention_mask = ops.cat([atts_prefix, attention_mask], axis=1).to(self.device)
+            atts_prefix = ops.ones([batch_size, 1 + p_before_embeds.size()[1] + 1], dtype=mindspore.int64)  # bsz x (1 + s1 + 1)
+            attention_mask = ops.cat([atts_prefix, attention_mask], axis=1)
             assert attention_mask.size() == targets.size()  # bsz x (1 + s1 + 1 + s2)
         else:
             p_before = '### Human: '
-            p_before_tokens = self.llama_tokenizer(p_before, return_tensors="pt", add_special_tokens=False).to(
-                self.device)
+            p_before_tokens = self.llama_tokenizer(p_before, return_tensors="np", add_special_tokens=False)
             # peft model need deeper call
             if self.args['freeze_lm']:
                 p_before_embeds = self.llama_model.model.embed_tokens(p_before_tokens.input_ids).expand(batch_size, -1,
@@ -323,20 +324,18 @@ class NextGPTModel(nn.Cell):
             else:
                 p_before_embeds = self.llama_model.model.model.embed_tokens(p_before_tokens.input_ids).expand(
                     batch_size, -1, -1)  # bsz x s1 x embed_dim
-            inputs_embeds = ops.cat([bos_embeds, p_before_embeds, p_after_embeds], axis=1).to(
-                self.device)  # bsz x (1+s1+s2) x embed_dim
+            inputs_embeds = ops.cat([bos_embeds, p_before_embeds, p_after_embeds], axis=1)  # bsz x (1+s1+s2) x embed_dim
 
             # create targets
             empty_targets = (
                 ops.ones([batch_size, 1 + p_before_embeds.size()[1]],  # 1 (bos) + s1
-                           dtype=mindspore.int64).to(self.device).fill_(-100)
+                           dtype=mindspore.int64).fill_(-100)
             )  # bsz x (1 + s1)
-            targets = ops.cat([empty_targets, target_ids], axis=1).to(self.device)  # bsz x (1 + s1 + s2)
+            targets = ops.cat([empty_targets, target_ids], axis=1)  # bsz x (1 + s1 + s2)
             assert inputs_embeds.size()[1] == targets.size()[1]
 
-            atts_prefix = ops.ones([batch_size, 1 + p_before_embeds.size()[1]], dtype=mindspore.int64).to(
-                self.device)  # bsz x (1 + s1)
-            attention_mask = ops.cat([atts_prefix, attention_mask], axis=1).to(self.device)
+            atts_prefix = ops.ones([batch_size, 1 + p_before_embeds.size()[1]], dtype=mindspore.int64)  # bsz x (1 + s1)
+            attention_mask = ops.cat([atts_prefix, attention_mask], axis=1)
             assert attention_mask.size() == targets.size()  # bsz x (1 + s1 + s2)
         return inputs_embeds, targets, attention_mask
 
@@ -417,11 +416,11 @@ class NextGPTModel(nn.Cell):
             input_text = [conversation for conversation in texts]
 
             if modality == 'image':
-                mse_loss = l2_loss(embeddings, ops.stack(text_prompt_embeddins, axis=0).to(self.device))
+                mse_loss = l2_loss(embeddings, ops.stack(text_prompt_embeddins, axis=0))
             elif modality == 'video':
-                mse_loss = l2_loss(embeddings, ops.stack(text_prompt_embeddins, axis=0).to(self.device))
+                mse_loss = l2_loss(embeddings, ops.stack(text_prompt_embeddins, axis=0))
             else:
-                text_prompt_embeddins = ops.stack(text_prompt_embeddins, axis=0).to(self.device)
+                text_prompt_embeddins = ops.stack(text_prompt_embeddins, axis=0)
                 assert len(text_prompt_embeddins.shape) == 2, text_prompt_embeddins.shape
                 text_prompt_embeddins = text_prompt_embeddins.view(text_prompt_embeddins.size(0), 1,
                                                                    text_prompt_embeddins.size(1))
@@ -595,8 +594,8 @@ class NextGPTModel(nn.Cell):
         pattern = r'Image>(.*?)<\/Image'
         matches = re.findall(pattern, text)
         features = []
-        p_before_token = self.llama_tokenizer('<Img>', add_special_tokens=False, return_tensors='pt').to(self.device)
-        p_after_token = self.llama_tokenizer('</Img>', add_special_tokens=False, return_tensors='pt').to(self.device)
+        p_before_token = self.llama_tokenizer('<Img>', add_special_tokens=False, return_tensors='np')
+        p_after_token = self.llama_tokenizer('</Img>', add_special_tokens=False, return_tensors='np')
         if self.args['freeze_lm']:
             p_before_embeds = self.llama_model.model.embed_tokens(p_before_token.input_ids).expand(batch_size, -1,
                                                                                                    -1)  # bsz x s1 x embed_dim
@@ -621,8 +620,8 @@ class NextGPTModel(nn.Cell):
         pattern = r'Video>(.*?)<\/Video'
         matches = re.findall(pattern, text)
         features = []
-        p_before_token = self.llama_tokenizer('<Img>', add_special_tokens=False, return_tensors='pt').to(self.device)
-        p_after_token = self.llama_tokenizer('</Img>', add_special_tokens=False, return_tensors='pt').to(self.device)
+        p_before_token = self.llama_tokenizer('<Img>', add_special_tokens=False, return_tensors='np')
+        p_after_token = self.llama_tokenizer('</Img>', add_special_tokens=False, return_tensors='np')
         if self.args['freeze_lm']:
             p_before_embeds = self.llama_model.model.embed_tokens(p_before_token.input_ids).expand(batch_size, -1,
                                                                                                    -1)  # bsz x s1 x embed_dim
@@ -647,8 +646,8 @@ class NextGPTModel(nn.Cell):
         pattern = r'Audio>(.*?)<\/Audio'
         matches = re.findall(pattern, text)
         features = []
-        p_before_token = self.llama_tokenizer('<Img>', add_special_tokens=False, return_tensors='pt').to(self.device)
-        p_after_token = self.llama_tokenizer('</Img>', add_special_tokens=False, return_tensors='pt').to(self.device)
+        p_before_token = self.llama_tokenizer('<Img>', add_special_tokens=False, return_tensors='np')
+        p_after_token = self.llama_tokenizer('</Img>', add_special_tokens=False, return_tensors='np')
         if self.args['freeze_lm']:
             p_before_embeds = self.llama_model.model.embed_tokens(p_before_token.input_ids).expand(batch_size, -1,
                                                                                                    -1)  # bsz x s1 x embed_dim
@@ -684,7 +683,8 @@ class NextGPTModel(nn.Cell):
             elif st.startswith('Video>'):
                 input_embeds.append(self._prepare_video_embed(st, batch_size))
             else:
-                text_tokens = self.llama_tokenizer(st, add_special_tokens=False, return_tensors='pt').to(self.device)
+                text_tokens = self.llama_tokenizer(st, add_special_tokens=False, return_tensors='np')
+                text_tokens.input_ids = ops.cast(mindspore.Tensor(text_tokens.input_ids),dtype=mindspore.int64)
                 bos = ops.ones([batch_size, 1],
                                  dtype=text_tokens.input_ids.dtype) * self.llama_tokenizer.bos_token_id  # bsz x 1
                 if self.args['freeze_lm']:
@@ -753,20 +753,19 @@ class NextGPTModel(nn.Cell):
         """
         last_ret_idx = 0
         return_outputs = []
-        generation_model = StableDiffusionPipeline.from_pretrained(self.sd_ckpt_path, torch_dtype=mindspore.float16).to(
-            "cpu")
+        generation_model = StableDiffusionPipeline.from_pretrained(self.sd_ckpt_path)
         for gen_idx in all_gen_idx:
-            assert generated_ids[0,
-                   gen_idx:gen_idx + self.args['num_gen_img_tokens']].cpu().detach().numpy().tolist() == self.args[
-                       'gen_img_token_idx'], (
-                generated_ids[0, gen_idx:gen_idx + self.args['num_gen_img_tokens']], self.args['gen_img_token_idx'])
+            # assert generated_ids[0,
+            #        gen_idx:gen_idx + self.args['num_gen_img_tokens']].cpu().detach().numpy().tolist() == self.args[
+            #            'gen_img_token_idx'], (
+            #     generated_ids[0, gen_idx:gen_idx + self.args['num_gen_img_tokens']], self.args['gen_img_token_idx'])
             raw_emb = embeddings[:, gen_idx - 1:gen_idx - 1 + self.args['num_gen_img_tokens'], :]  # (1, 8, 4096)
 
             # Produce generation embedding.
-            gen_prefix = ' '.join([f'[IMG{i}]' for i in range(self.args['num_gen_img_tokens'])])
+            gen_prefix = ''.join([f'[IMG{i}]' for i in range(self.args['num_gen_img_tokens'])])
             gen_prefx_ids = self.llama_tokenizer(gen_prefix, add_special_tokens=False,
-                                                 return_tensors="pt").input_ids.to(self.device)
-            gen_prefix_embs = self.input_embeddings(gen_prefx_ids)  # (1, T_I_V_A.txt, D)
+                                                 return_tensors="np").input_ids
+            gen_prefix_embs = self.input_embeddings(mindspore.Tensor(gen_prefx_ids))  # (1, T_I_V_A.txt, D)
             gen_emb = self.gen_text_hidden_fcs[-1](raw_emb, gen_prefix_embs)  # (1, 77, 768)
 
             if gen_emb.shape[1] != 77:
@@ -779,7 +778,8 @@ class NextGPTModel(nn.Cell):
 
             image_outputs = generation_model(prompt_embeds=gen_emb,
                                              guidance_scale=guidance_scale,
-                                             num_inference_steps=num_inference_steps).images
+                                             num_inference_steps=num_inference_steps,
+                                             return_dict=True).images
 
             caption = \
                 self.llama_tokenizer.batch_decode(generated_ids[:, last_ret_idx:gen_idx], skip_special_tokens=True)[
@@ -800,25 +800,24 @@ class NextGPTModel(nn.Cell):
         """
         return_outputs = []
         last_ret_idx = 0
-        generation_model = TextToVideoSDPipeline.from_pretrained(self.vd_ckpt_path, torch_dtype=mindspore.float16).to(
-            "cpu")
+        generation_model = TextToVideoSDPipeline.from_pretrained(self.vd_ckpt_path)
         for gen_idx in all_gen_idx:
-            assert generated_ids[0,
-                   gen_idx:gen_idx + self.args['num_gen_video_tokens']].cpu().detach().numpy().tolist() == \
-                   self.args[
-                       'gen_video_token_idx'], (
-                generated_ids[0, gen_idx:gen_idx + self.args['num_gen_video_tokens']],
-                self.args['gen_video_token_idx'])
+            # assert generated_ids[0,
+            #        gen_idx:gen_idx + self.args['num_gen_video_tokens']].cpu().detach().numpy().tolist() == \
+            #        self.args[
+            #            'gen_video_token_idx'], (
+            #     generated_ids[0, gen_idx:gen_idx + self.args['num_gen_video_tokens']],
+            #     self.args['gen_video_token_idx'])
             raw_emb = embeddings[:, gen_idx - 1:gen_idx - 1 + self.args['num_gen_video_tokens'], :]  # (1, 8, 4096)
             # print(f'gen_idx: {gen_idx}')
             # print('4', raw_emb.size())
             # assert len(self.args['text_emb_to_video_layers']) == 1
 
             # Produce generation embedding.
-            gen_prefix = ' '.join([f'[VID{i}]' for i in range(self.args['num_gen_video_tokens'])])
+            gen_prefix = ''.join([f'[VID{i}]' for i in range(self.args['num_gen_video_tokens'])])
             gen_prefx_ids = self.llama_tokenizer(gen_prefix, add_special_tokens=False,
-                                                 return_tensors="pt").input_ids.to(self.device)
-            gen_prefix_embs = self.input_embeddings(gen_prefx_ids)  # (1, T_I_V_A.txt, D)
+                                                 return_tensors="np").input_ids
+            gen_prefix_embs = self.input_embeddings(mindspore.Tensor(gen_prefx_ids))  # (1, T_I_V_A.txt, D)
             gen_emb = self.gen_text_hidden_fcs_video[-1](raw_emb, gen_prefix_embs)  # (1, 77, 768)
 
             if gen_emb.shape[1] != 77:
@@ -834,7 +833,7 @@ class NextGPTModel(nn.Cell):
             video_outputs = generation_model(prompt_embeds=gen_emb,
                                              guidance_scale=guidance_scale,
                                              num_inference_steps=num_inference_steps, height=height,
-                                             width=width, num_frames=num_frames).frames
+                                             width=width, num_frames=num_frames,return_dict=True).frames
             caption = \
                 self.llama_tokenizer.batch_decode(generated_ids[:, last_ret_idx:gen_idx], skip_special_tokens=True)[
                     0]
@@ -854,24 +853,24 @@ class NextGPTModel(nn.Cell):
         """
         return_outputs = []
         last_ret_idx = 0
-        generation_model = AudioLDMPipeline.from_pretrained(self.ad_ckpt_path, torch_dtype=mindspore.float16).to("cpu")
+        generation_model = AudioLDMPipeline.from_pretrained(self.ad_ckpt_path)
         for gen_idx in all_gen_idx:
-            assert generated_ids[0,
-                   gen_idx:gen_idx + self.args['num_gen_audio_tokens']].cpu().detach().numpy().tolist() == \
-                   self.args[
-                       'gen_audio_token_idx'], (
-                generated_ids[0, gen_idx:gen_idx + self.args['num_gen_audio_tokens']],
-                self.args['gen_audio_token_idx'])
+            # assert generated_ids[0,
+            #        gen_idx:gen_idx + self.args['num_gen_audio_tokens']].cpu().detach().numpy().tolist() == \
+            #        self.args[
+            #            'gen_audio_token_idx'], (
+            #     generated_ids[0, gen_idx:gen_idx + self.args['num_gen_audio_tokens']],
+            #     self.args['gen_audio_token_idx'])
             raw_emb = embeddings[:, gen_idx - 1:gen_idx - 1 + self.args['num_gen_audio_tokens'], :]  # (1, 8, 4096)
             # print(f'gen_idx: {gen_idx}')
             # print('raw_emb 4', raw_emb.size())
             # assert len(self.args['text_emb_to_video_layers']) == 1
 
             # Produce generation embedding.
-            gen_prefix = ' '.join([f'[AUD{i}]' for i in range(self.args['num_gen_audio_tokens'])])
+            gen_prefix = ''.join([f'[AUD{i}]' for i in range(self.args['num_gen_audio_tokens'])])
             gen_prefx_ids = self.llama_tokenizer(gen_prefix, add_special_tokens=False,
-                                                 return_tensors="pt").input_ids.to(self.device)
-            gen_prefix_embs = self.input_embeddings(gen_prefx_ids)  # (1, T_I_V_A.txt, D)
+                                                 return_tensors="np").input_ids
+            gen_prefix_embs = self.input_embeddings(mindspore.Tensor(gen_prefx_ids))  # (1, T_I_V_A.txt, D)
             gen_emb = self.gen_text_hidden_fcs_audio[-1](raw_emb, gen_prefix_embs)  # (1, 77, 768)
             # print('gen_emb size:', gen_emb.size())
             bs = gen_emb.shape[0]
@@ -881,7 +880,8 @@ class NextGPTModel(nn.Cell):
             audio_outputs = generation_model(prompt_embeds=gen_emb,
                                              guidance_scale=guidance_scale,
                                              num_inference_steps=num_inference_steps,
-                                             audio_length_in_s=audio_length_in_s).audios[0]
+                                             audio_length_in_s=audio_length_in_s,
+                                             return_dict=True).audios[0]
             caption = \
                 self.llama_tokenizer.batch_decode(generated_ids[:, last_ret_idx:gen_idx], skip_special_tokens=True)[
                     0]

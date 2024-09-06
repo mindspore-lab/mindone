@@ -3,9 +3,8 @@ from model.anyToImageVideoAudio import NextGPTModel
 import mindspore
 import json
 from config import *
-import matplotlib.pyplot as plt
 import scipy
-from mindone.utils.export_utils import export_to_video
+from mindone.diffusers.utils.export_utils import export_to_video
 def predict(
         input,
         image_path=None,
@@ -108,7 +107,7 @@ if __name__ == '__main__':
     delta_ckpt = mindspore.load(os.path.join(args['nextgpt_ckpt_path'], 'pytorch_model.pt'))
     # print(delta_ckpt)
     model.load_state_dict(delta_ckpt, strict=False)
-    model = model.eval()
+    model = model.set_train(False)
     # model = model.eval().cuda()
     print(f'[!] init the 7b model over ...')
 
