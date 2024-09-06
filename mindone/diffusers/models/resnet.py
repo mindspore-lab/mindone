@@ -321,6 +321,7 @@ class ResnetBlock2D(nn.Cell):
                 kernel_size=1,
                 stride=1,
                 padding=0,
+                pad_mode="pad",
                 has_bias=conv_shortcut_bias,
             )
 
