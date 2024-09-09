@@ -18,10 +18,10 @@ sys.path.insert(0, mindone_lib_path)
 
 import argparse
 
+from utils.gradio_utils import AttnProcessor2_0 as AttnProcessor
 from utils.gradio_utils import cal_attn_mask_xl
 
 from mindone.diffusers import StableDiffusionXLPipeline
-from mindone.diffusers.models.attention_processor import Attention, AttnProcessor
 from mindone.diffusers.schedulers import DDIMScheduler
 from mindone.utils.seed import set_random_seed
 
@@ -143,7 +143,7 @@ class SpatialAttnProcessor2_0:
 
     def __call1__(
         self,
-        attn: Attention,
+        attn,
         hidden_states: ms.Tensor,
         encoder_hidden_states: Optional[ms.Tensor] = None,
         attention_mask: Optional[ms.Tensor] = None,
@@ -214,7 +214,7 @@ class SpatialAttnProcessor2_0:
 
     def __call2__(
         self,
-        attn: Attention,
+        attn,
         hidden_states: ms.Tensor,
         encoder_hidden_states: Optional[ms.Tensor] = None,
         attention_mask: Optional[ms.Tensor] = None,
@@ -350,33 +350,6 @@ def parse_args():
     return args
 
 
-def insert_paired_attention(unet, id_length):
-    # Insert PairedAttention
-    global total_count
-    attn_procs = {}
-    for name in unet.attn_processors.keys():
-        cross_attention_dim = None if name.endswith("attn1.processor") else unet.config.cross_attention_dim
-        # if name.startswith("mid_block"):
-        #     hidden_size = unet.config.block_out_channels[-1]
-        # elif name.startswith("up_blocks"):
-        #     block_id = int(name[len("up_blocks.")])
-        #     hidden_size = list(reversed(unet.config.block_out_channels))[block_id]
-        # elif name.startswith("down_blocks"):
-        #     block_id = int(name[len("down_blocks.")])
-        #     hidden_size = unet.config.block_out_channels[block_id]
-        if cross_attention_dim is None and (name.startswith("up_blocks")):
-            attn_procs[name] = SpatialAttnProcessor2_0(
-                id_length=id_length,
-            )
-            total_count += 1
-        else:
-            attn_procs[name] = AttnProcessor()
-    print("successsfully load consistent self-attention")
-    print(f"number of replaced processors: {total_count}")
-    unet.set_attn_processor(copy.deepcopy(attn_procs))
-    return unet
-
-
 def load_sdxl_pipeline(args):
     sd_model_path = models_dict[args.sd_model_name]  # "SG161222/RealVisXL_V4.0"
     # LOAD Stable Diffusion Pipeline
@@ -431,6 +404,8 @@ if __name__ == "__main__":
     id_length = 4
     total_length = id_length + 1
 
+    global attn_procs, unet
+    attn_procs = {}
     pipe = load_sdxl_pipeline(args)
     unet = pipe.unet
     # test pipeline if needed
@@ -441,14 +416,33 @@ if __name__ == "__main__":
     # strength of consistent self-attention: the larger, the stronger
     sa32 = 0.5
     sa64 = 0.5
+    # Insert PairedAttention
+    for name in unet.attn_processors.keys():
+        cross_attention_dim = None if name.endswith("attn1.processor") else unet.config.cross_attention_dim
+        if name.startswith("mid_block"):
+            hidden_size = unet.config.block_out_channels[-1]
+        elif name.startswith("up_blocks"):
+            block_id = int(name[len("up_blocks.")])
+            hidden_size = list(reversed(unet.config.block_out_channels))[block_id]
+        elif name.startswith("down_blocks"):
+            block_id = int(name[len("down_blocks.")])
+            hidden_size = unet.config.block_out_channels[block_id]
+        if cross_attention_dim is None and (name.startswith("up_blocks")):
+            attn_procs[name] = SpatialAttnProcessor2_0(id_length=id_length)
+            total_count += 1
+        else:
+            attn_procs[name] = AttnProcessor()
+    print("successsfully load consistent self-attention")
+    print(f"number of the processor : {total_count}")
+    unet.set_attn_processor(copy.deepcopy(attn_procs))
 
-    unet = insert_paired_attention(unet, id_length)
     global mask1024, mask4096
     mask1024, mask4096 = cal_attn_mask_xl(total_length, id_length, sa32, sa64, height, width, dtype=ms.float16)
     id_prompts, real_prompts, negative_prompt = parse_prompts(args)
     # write = True, memorizing
     write = True
     cur_step = 0
+    attn_count = 0
     generator = np.random.Generator(np.random.PCG64(args.seed))
     id_images = pipe(
         id_prompts,
@@ -504,7 +498,7 @@ if __name__ == "__main__":
                 generator=generator,
             )[0]
         )
-        for i, real_image in enumerate(new_images):
-            # display(real_image)
-            save_fp = os.path.join(args.output_dir, f"new_{i}-{new_prompts[i][:100]}.png")
-            id_image.save(save_fp)
+    for i, real_image in enumerate(new_images):
+        # display(real_image)
+        save_fp = os.path.join(args.output_dir, f"new_{i}-{new_prompts[i][:100]}.png")
+        id_image.save(save_fp)
