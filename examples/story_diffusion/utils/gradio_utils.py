@@ -9,7 +9,6 @@ from mindspore import ops
 from mindone.diffusers.models.attention_processor import Attention
 
 
-@ms.jit_class
 class SpatialAttnProcessor2_0:
     r"""
     Attention processor for IP-Adapater.
@@ -31,8 +30,6 @@ class SpatialAttnProcessor2_0:
         id_length=4,
         dtype=ms.float16,
         attention_masks={},
-        write=False,
-        cur_step=0,
     ):
         super().__init__()
 
@@ -44,8 +41,6 @@ class SpatialAttnProcessor2_0:
         self.id_bank = {}
         self.attention_masks = attention_masks
         assert len(self.attention_masks) > 0, "attention_masks must not be empty"
-        self.write = write  # if true, will save hidden states to id_bank; otherwise, use the concatenated id_bank and hidden_states as key and query
-        self.cur_step = cur_step  # the counter the number of inference steps
 
     def scaled_dot_product_attention(
         self, query, key, value, attn_mask=None, dropout_p=0.0, is_causal=False, scale=None, training=False
@@ -75,18 +70,19 @@ class SpatialAttnProcessor2_0:
         return out
 
     def __call__(self, attn, hidden_states, encoder_hidden_states=None, attention_mask=None, temb=None):
-        if self.write:
-            self.id_bank[self.cur_step] = [hidden_states[: self.id_length], hidden_states[self.id_length :]]
+        global write, cur_step, total_count, attn_count
+        if write:
+            self.id_bank[cur_step] = [hidden_states[: self.id_length], hidden_states[self.id_length :]]
         else:
             encoder_hidden_states = ops.cat(
-                [self.id_bank[self.cur_step][0], hidden_states[:1], self.id_bank[self.cur_step][1], hidden_states[1:]]
+                [self.id_bank[cur_step][0], hidden_states[:1], self.id_bank[cur_step][1], hidden_states[1:]]
             )
         # skip in early step
-        if self.cur_step < 5:
+        if cur_step < 5:
             hidden_states = self.__call2__(attn, hidden_states, encoder_hidden_states, attention_mask, temb)
         else:  # 256 1024 4096
             random_number = random.random()
-            if self.cur_step < 20:
+            if cur_step < 20:
                 rand_num = 0.3
             else:
                 rand_num = 0.1
@@ -97,14 +93,17 @@ class SpatialAttnProcessor2_0:
                 ), f"The input num_tokens is not supported. Supported num_tokens: { self.attention_masks.keys()}"
                 attention_mask = self.attention_masks[nums_tokens]
                 target_len = attention_mask.shape[0] // self.total_length * self.id_length
-                if not self.write:
+                if not write:
                     attention_mask = attention_mask[target_len:]
                 else:
                     attention_mask = attention_mask[:target_len, :target_len]
                 hidden_states = self.__call1__(attn, hidden_states, encoder_hidden_states, attention_mask, temb)
             else:
                 hidden_states = self.__call2__(attn, hidden_states, None, attention_mask, temb)
-
+        attn_count += 1
+        if attn_count == total_count:
+            attn_count = 0
+            cur_step += 1
         return hidden_states
 
     def __call1__(
