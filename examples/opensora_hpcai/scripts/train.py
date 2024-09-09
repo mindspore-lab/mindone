@@ -733,10 +733,11 @@ def main(args):
                 resume=args.resume,
             )
             callbacks.extend([save_cb, rec_cb])
-            if args.train_steps > 0:
-                callbacks.append(StopAtStepCallback(args.train_steps, global_step=cur_iter))
             if args.profile:
                 callbacks.append(ProfilerCallbackEpoch(2, 3, "./profile_data"))
+
+        if args.train_steps > 0:
+            callbacks.append(StopAtStepCallback(args.train_steps, global_step=cur_iter))
 
     # 5. log and save config
     if rank_id == 0:
