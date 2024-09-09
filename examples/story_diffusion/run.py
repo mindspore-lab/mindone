@@ -479,7 +479,7 @@ if __name__ == "__main__":
     for i, real_image in enumerate(real_images):
         # display(real_image)
         save_fp = os.path.join(args.output_dir, f"real_{i}-{real_prompts[i][:100]}.png")
-        id_image.save(save_fp)
+        real_image.save(save_fp)
 
     new_prompt_array = ["siting on the sofa", "on the bed, at night "]
     new_prompts = [args.general_prompt + "," + prompt for prompt in new_prompt_array]
@@ -498,7 +498,7 @@ if __name__ == "__main__":
                 generator=generator,
             )[0]
         )
-    for i, real_image in enumerate(new_images):
+    for i, new_image in enumerate(new_images):
         # display(real_image)
         save_fp = os.path.join(args.output_dir, f"new_{i}-{new_prompts[i][:100]}.png")
-        id_image.save(save_fp)
+        new_image.save(save_fp)
