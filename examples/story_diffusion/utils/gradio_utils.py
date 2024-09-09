@@ -6,8 +6,6 @@ import gradio as gr
 import mindspore as ms
 from mindspore import ops
 
-from mindone.diffusers.models.attention_processor import Attention
-
 
 class SpatialAttnProcessor2_0:
     r"""
@@ -108,7 +106,7 @@ class SpatialAttnProcessor2_0:
 
     def __call1__(
         self,
-        attn: Attention,
+        attn,
         hidden_states: ms.Tensor,
         encoder_hidden_states: Optional[ms.Tensor] = None,
         attention_mask: Optional[ms.Tensor] = None,
@@ -179,7 +177,7 @@ class SpatialAttnProcessor2_0:
 
     def __call2__(
         self,
-        attn: Attention,
+        attn,
         hidden_states: ms.Tensor,
         encoder_hidden_states: Optional[ms.Tensor] = None,
         attention_mask: Optional[ms.Tensor] = None,
@@ -295,6 +293,120 @@ def cal_attn_indice_xl_effcient_memory(total_length, id_length, sa32, sa64, heig
     indices4096 = [ops.nonzero(bool_matrix4096[i])[0] for i in range(total_length)]
 
     return indices1024, indices4096
+
+
+class AttnProcessor2_0:
+    r"""
+    Processor for implementing scaled dot-product attention (enabled by default if you're using PyTorch 2.0).
+    """
+
+    def __init__(
+        self,
+        hidden_size=None,
+        cross_attention_dim=None,
+    ):
+        super().__init__()
+
+    def scaled_dot_product_attention(
+        self, query, key, value, attn_mask=None, dropout_p=0.0, is_causal=False, scale=None, training=False
+    ) -> ms.Tensor:
+        L, S = query.shape[-2], key.shape[-2]
+        scale_factor = 1 / (query.shape[-1] ** 0.5) if scale is None else scale
+        _dtype = query.dtype
+        attn_bias = ops.zeros((L, S), dtype=ms.float32)
+        if is_causal:
+            assert attn_mask is None
+            temp_mask = ops.ones((L, S), dtype=ms.bool_).tril(diagonal=0)
+            attn_bias = attn_bias.masked_fill(~temp_mask, -1e5)
+            attn_bias.to(query.dtype)
+
+        if attn_mask is not None:
+            if attn_mask.dtype == ms.bool_:
+                attn_bias = attn_bias.masked_fill(~attn_mask, -1e5)
+            else:
+                attn_bias += attn_mask
+        attn_weight = ops.matmul(query, key.swapaxes(-2, -1)) * scale_factor
+        attn_weight = attn_weight.to(ms.float32)
+        attn_weight += attn_bias
+        attn_weight = ops.softmax(attn_weight, axis=-1)
+        attn_weight = ops.dropout(attn_weight, p=dropout_p, training=training)
+        out = ops.matmul(attn_weight.to(_dtype), value)
+        out = out.astype(_dtype)
+        return out
+
+    def __call__(
+        self,
+        attn,
+        hidden_states,
+        encoder_hidden_states=None,
+        attention_mask=None,
+        temb=None,
+    ):
+        residual = hidden_states
+
+        if attn.spatial_norm is not None:
+            hidden_states = attn.spatial_norm(hidden_states, temb)
+
+        input_ndim = hidden_states.ndim
+
+        if input_ndim == 4:
+            batch_size, channel, height, width = hidden_states.shape
+            hidden_states = hidden_states.view(batch_size, channel, height * width).swapaxes(1, 2)
+
+        batch_size, sequence_length, _ = (
+            hidden_states.shape if encoder_hidden_states is None else encoder_hidden_states.shape
+        )
+
+        if attention_mask is not None:
+            attention_mask = attn.prepare_attention_mask(attention_mask, sequence_length, batch_size)
+            # scaled_dot_product_attention expects attention_mask shape to be
+            # (batch, heads, source_length, target_length)
+            attention_mask = attention_mask.view(batch_size, attn.heads, -1, attention_mask.shape[-1])
+
+        if attn.group_norm is not None:
+            hidden_states = attn.group_norm(hidden_states.swapaxes(1, 2)).swapaxes(1, 2)
+
+        query = attn.to_q(hidden_states)
+
+        if encoder_hidden_states is None:
+            encoder_hidden_states = hidden_states
+        elif attn.norm_cross:
+            encoder_hidden_states = attn.norm_encoder_hidden_states(encoder_hidden_states)
+
+        key = attn.to_k(encoder_hidden_states)
+        value = attn.to_v(encoder_hidden_states)
+
+        inner_dim = key.shape[-1]
+        head_dim = inner_dim // attn.heads
+
+        query = query.view(batch_size, -1, attn.heads, head_dim).swapaxes(1, 2)
+
+        key = key.view(batch_size, -1, attn.heads, head_dim).swapaxes(1, 2)
+        value = value.view(batch_size, -1, attn.heads, head_dim).swapaxes(1, 2)
+
+        # the output of sdp = (batch, num_heads, seq_len, head_dim)
+        # TODO: add support for attn.scale when we move to Torch 2.1
+        hidden_states = self.scaled_dot_product_attention(
+            query, key, value, attn_mask=attention_mask, dropout_p=0.0, is_causal=False
+        )
+
+        hidden_states = hidden_states.swapaxes(1, 2).reshape(batch_size, -1, attn.heads * head_dim)
+        hidden_states = hidden_states.to(query.dtype)
+
+        # linear proj
+        hidden_states = attn.to_out[0](hidden_states)
+        # dropout
+        hidden_states = attn.to_out[1](hidden_states)
+
+        if input_ndim == 4:
+            hidden_states = hidden_states.swapaxes(-1, -2).reshape(batch_size, channel, height, width)
+
+        if attn.residual_connection:
+            hidden_states = hidden_states + residual
+
+        hidden_states = hidden_states / attn.rescale_output_factor
+
+        return hidden_states
 
 
 # 将列表转换为字典的函数
