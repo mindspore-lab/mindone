@@ -148,7 +148,7 @@ def get_comic_classical(images, captions=None, font=None, pad_image=None):
 
 def get_comic_4panel(images, captions=[], font=None, pad_image=None):
     if pad_image is None:
-        raise ValueError("pad_image is None")
+        pad_image = Image.fromarray(np.ones_like(images[0]) * 255)
     pad_image = pad_image.resize(images[0].size, Image.LANCZOS)
     images = [add_white_border(image) for image in images]
     assert len(captions) == len(images)
