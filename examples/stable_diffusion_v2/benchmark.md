@@ -30,10 +30,10 @@
 | 2.0           |    D910*x1-MS2.3.0       |    LoRA      |      4x1             |     512x512         | Graph, DS, FP16,  |      O2 |     16.53     |
 | 2.0           |    D910*x8-MS2.3.0       |    LoRA      |      32x1             |     512x512         | Graph, DS, FP16,  |     O2 |      129.70     |
 | 2.0           |    D910*x1-MS2.3.0       |    Dreambooth      |      1x1             |     512x512         | Graph, DS, FP16,  |  O2 |   3.76         |
-| 2.1-v           |    D910*x1-MS2.2.10       |    Vanilla      |      3x1             |     768x768         | Graph, DS, FP16,  |   N/A |   5.80        |
-| 2.1-v           |    D910*x1-MS2.2.10       |    Vanilla      |      24x1             |     768x768         | Graph, DS, FP16,  |   N/A |    46.02        |
-| 2.1-v           |    D910*x1-MS2.2.10       |    LoRA      |      4x1                 |     768x768         | Graph, DS, FP16,  |   N/A |   6.65        |
-| 2.1-v           |    D910*x8-MS2.2.10       |    LoRA      |      32x1                 |     768x768         | Graph, DS, FP16,  |   N/A |    52.57        |
+| 2.1-v           |    D910*x1-MS2.3.0       |    Vanilla      |      3x1             |     768x768         | Graph, DS, FP16, FA  |   02 |   7.16        |
+| 2.1-v           |    D910*x8-MS2.3.0       |    Vanilla      |      24x1             |     768x768         | Graph, DS, FP16, FA  |   02 |    49.27        |
+| 2.1-v           |    D910*x1-MS2.3.0       |    LoRA      |      4x1                 |     768x768         | Graph, DS, FP16, FA |   02 |   9.51        |
+| 2.1-v           |    D910*x8-MS2.3.0       |    LoRA      |      32x1                 |     768x768         | Graph, DS, FP16, FA  |   02 |    71.51        |
 > Context: {Ascend chip}-{number of NPUs}-{mindspore version}.
 >
 > Acceleration: DS: data sink mode, FP16: float16 computation. FA: flash attention.
