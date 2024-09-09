@@ -18,8 +18,10 @@ sys.path.insert(0, mindone_lib_path)
 
 import argparse
 
+from PIL import ImageFont
 from utils.gradio_utils import AttnProcessor2_0 as AttnProcessor
 from utils.gradio_utils import cal_attn_mask_xl
+from utils.utils import get_comic_4panel
 
 from mindone.diffusers import StableDiffusionXLPipeline
 from mindone.diffusers.schedulers import DDIMScheduler
@@ -346,6 +348,7 @@ def parse_args():
     parser.add_argument("--sampling_steps", type=int, default=50, help="Diffusion Sampling Steps")
     parser.add_argument("--guidance_scale", type=float, default=5.0, help="the scale for classifier-free guidance")
     parser.add_argument("--seed", default=3407, type=int, help="random seed")
+    parser.add_argument("--local_files_only", action="store_true", help="load from local Huggingface files.")
     args = parser.parse_args()
     return args
 
@@ -358,34 +361,12 @@ def load_sdxl_pipeline(args):
         cache_dir=args.cache_dir,
         mindspore_dtype=ms.float16,
         use_safetensors=False,
-        local_files_only=True,
+        local_files_only=args.local_files_only,
     )
     # pipe.enable_freeu(s1=0.6, s2=0.4, b1=1.1, b2=1.2)
     pipe.scheduler = DDIMScheduler.from_config(pipe.scheduler.config)
     pipe.scheduler.set_timesteps(args.sampling_steps)
     return pipe
-
-
-def parse_prompts(args):
-    # parse prompts
-    negative_prompt = (
-        "naked, deformed, bad anatomy, disfigured, poorly drawn face, mutation, extra limb, ugly, disgusting, poorly drawn hands, missing limb,"
-        + " floating limbs, disconnected limbs, blurry, watermarks, oversaturated, distorted hands, amputation"
-    )
-    prompt_array = [
-        "wake up in the bed",
-        "have breakfast",
-        "is on the road, go to the company",
-        "work in the company",
-        "running in the playground",
-        "reading book in the home",
-    ]
-
-    prompts = [args.general_prompt + "," + prompt for prompt in prompt_array]
-    id_prompts = prompts[:id_length]
-    real_prompts = prompts[id_length:]
-    id_prompts, negative_prompt = apply_style(args.style_name, id_prompts, negative_prompt)
-    return id_prompts, real_prompts, negative_prompt
 
 
 if __name__ == "__main__":
@@ -438,7 +419,23 @@ if __name__ == "__main__":
 
     global mask1024, mask4096
     mask1024, mask4096 = cal_attn_mask_xl(total_length, id_length, sa32, sa64, height, width, dtype=ms.float16)
-    id_prompts, real_prompts, negative_prompt = parse_prompts(args)
+    negative_prompt = (
+        "naked, deformed, bad anatomy, disfigured, poorly drawn face, mutation, extra limb, ugly, disgusting, poorly drawn hands, missing limb,"
+        + " floating limbs, disconnected limbs, blurry, watermarks, oversaturated, distorted hands, amputation"
+    )
+    prompt_array = [
+        "wake up in the bed",
+        "have breakfast",
+        "is on the road, go to the company",
+        "work in the company",
+        "running in the playground",
+        "reading book in the home",
+    ]
+
+    prompts = [args.general_prompt + "," + prompt for prompt in prompt_array]
+    id_prompts = prompts[:id_length]
+    real_prompts = prompts[id_length:]
+    id_prompts, negative_prompt = apply_style(args.style_name, id_prompts, negative_prompt)
     # write = True, memorizing
     write = True
     cur_step = 0
@@ -502,3 +499,11 @@ if __name__ == "__main__":
         # display(real_image)
         save_fp = os.path.join(args.output_dir, f"new_{i}-{new_prompts[i][:100]}.png")
         new_image.save(save_fp)
+
+    total_images = id_images + real_images + new_images
+    # LOAD Fonts, can also replace with any Fonts you have!
+    font = ImageFont.truetype("./fonts/Inkfree.ttf", 30)
+    comics = get_comic_4panel(total_images, captions=prompt_array + new_prompts, font=font)
+
+    for i, comic in enumerate(comics):
+        comic.save(os.path.join(args.output_dir, f"{i}-{args.style_name}-{args.sd_model_name}.png"))
