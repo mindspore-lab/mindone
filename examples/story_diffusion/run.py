@@ -503,7 +503,7 @@ if __name__ == "__main__":
     total_images = id_images + real_images + new_images
     # LOAD Fonts, can also replace with any Fonts you have!
     font = ImageFont.truetype("./fonts/Inkfree.ttf", 30)
-    comics = get_comic_4panel(total_images, captions=prompt_array + new_prompts, font=font)
+    comics = get_comic_4panel(total_images, captions=prompts + new_prompts, font=font)
 
     for i, comic in enumerate(comics):
         comic.save(os.path.join(args.output_dir, f"{i}-{args.style_name}-{args.sd_model_name}.png"))
