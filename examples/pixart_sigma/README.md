@@ -79,12 +79,12 @@ The following demo image is generated using the following command:
 ```bash
 python sample.py -c configs/inference/pixart-sigma-1024-MS.yaml --image_width 1024 --image_height 512 --seed 1024 --prompt "Astronaut in a jungle, cold color palette, muted colors, detailed, 8k"
 ```
-<p align="center"><img width="1024" src="https://github.com/user-attachments/assets/bcf12b8d-1077-451b-a6ae-51bbf3c8de7a"/>
+<p align="center"><img width="1024" src="https://github.com/user-attachments/assets/bcf12b8d-1077-451b-a6ae-51bbf3c8de7a"/></p>
 
-You can also generate images using a text file, where the file stores prompts separated by `\n`. Use the following command to generate images:
+You can also generate batch images using a text file with, where the file stores prompts separated by `\n`. Use the following command to generate images:
 
 ```bash
-python sample.py -c configs/inference/pixart-sigma-1024-MS.yaml --prompt_path path_to_yout_text_file
+python sample.py -c configs/inference/pixart-sigma-1024-MS.yaml --prompt_path path_to_yout_text_file --batch_size 4
 ```
 
 For more detailed usage of the inference script, please run `python sample.py -h`.
@@ -155,13 +155,13 @@ msrun --worker_num=8 --local_worker_num=8 --log_dir="log" train.py \
 
 #### Finetune Result
 
-We use the first 1,600 images as the training set and the remaining 400 images as the testing set, and conduct the experiment on 2 910* NPUs based on the [config](configs/inference/pixart-sigma-512-MS.yaml). And evaluate the model performance using the [FID score](https://github.com/mindspore-lab/mindone/tree/master/examples/stable_diffusion_v2/tools/eval).
+We use the first 1,600 images for training and the remaining 400 images for testing. The experiment is conducted on two 910* NPUs based on the [configuration](configs/inference/pixart-sigma-512-MS.yaml). We evaluate the model’s performance using the [FID score](https://github.com/mindspore-lab/mindone/tree/master/examples/stable_diffusion_v2/tools/eval).
 
-Here is the FID score curve:
+Below is the FID score curve
+<p align="center"><img width="512" src="https://github.com/user-attachments/assets/b3d74961-15f7-4836-9b26-db3b470c3565"/></p>
 
-
-
-
+Followed by some generated images using the testing prompts.
+<p align="center"><img width="1024" src="https://github.com/user-attachments/assets/b9ba152d-bbf0-46c2-af10-ba8066b92486"/></p>
 
 ## Benchmark
 

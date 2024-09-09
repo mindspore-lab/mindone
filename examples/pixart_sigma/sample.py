@@ -122,12 +122,7 @@ def parse_args():
     parser.add_argument(
         "--num_trials", default=1, type=int, help="Number of trials (with different initial noise) for each prompt."
     )
-    parser.add_argument(
-        "--batch_size",
-        default=1,
-        type=int,
-        help="Batch size for sampling.",
-    )
+    parser.add_argument("--batch_size", default=1, type=int, help="Batch size for sampling.")
     parser.add_argument("--use_parallel", default=False, type=str2bool, help="Parallel inference.")
     default_args = parser.parse_args()
     abs_path = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), ""))
