@@ -249,12 +249,12 @@ class SpatialAttnProcessor2_0:
 
 
 def cal_attn_mask(total_length, id_length, sa16, sa32, sa64, dtype=ms.float16):
-    bool_matrix256 = ops.rand((1, total_length * 256), dtype=dtype) < sa16
-    bool_matrix1024 = ops.rand((1, total_length * 1024), dtype=dtype) < sa32
-    bool_matrix4096 = ops.rand((1, total_length * 4096), dtype=dtype) < sa64
-    bool_matrix256 = ops.cat([bool_matrix256] * total_length, axis=0)
-    bool_matrix1024 = ops.cat([bool_matrix1024] * total_length, axis=0)
-    bool_matrix4096 = ops.cat([bool_matrix4096] * total_length, axis=0)
+    bool_matrix256 = ops.randn((1, total_length * 256), dtype=dtype) < sa16
+    bool_matrix1024 = ops.randn((1, total_length * 1024), dtype=dtype) < sa32
+    bool_matrix4096 = ops.randn((1, total_length * 4096), dtype=dtype) < sa64
+    bool_matrix256 = bool_matrix256.tile((total_length, 1))
+    bool_matrix1024 = bool_matrix1024.tile((total_length, 1))
+    bool_matrix4096 = bool_matrix4096.tile((total_length, 1))
     for i in range(total_length):
         bool_matrix256[i : i + 1, id_length * 256 :] = False
         bool_matrix1024[i : i + 1, id_length * 1024 :] = False
@@ -262,9 +262,9 @@ def cal_attn_mask(total_length, id_length, sa16, sa32, sa64, dtype=ms.float16):
         bool_matrix256[i : i + 1, i * 256 : (i + 1) * 256] = True
         bool_matrix1024[i : i + 1, i * 1024 : (i + 1) * 1024] = True
         bool_matrix4096[i : i + 1, i * 4096 : (i + 1) * 4096] = True
-    mask256 = ops.cat([bool_matrix256.unsqueeze(1)] * 256, axis=1).reshape(-1, total_length * 256)
-    mask1024 = ops.cat([bool_matrix1024.unsqueeze(1)] * 1024, axis=1).reshape(-1, total_length * 1024)
-    mask4096 = ops.cat([bool_matrix4096.unsqueeze(1)] * 4096, axis=1).reshape(-1, total_length * 4096)
+    mask256 = bool_matrix256.unsqueeze(1).tile((1, 256, 1)).reshape(-1, total_length * 256)
+    mask1024 = bool_matrix1024.unsqueeze(1).tile((1, 1024, 1)).reshape(-1, total_length * 1024)
+    mask4096 = bool_matrix4096.unsqueeze(1).tile((1, 4096, 1)).reshape(-1, total_length * 4096)
     return mask256, mask1024, mask4096
 
 
@@ -273,43 +273,16 @@ def cal_attn_mask_xl(total_length, id_length, sa32, sa64, height, width, dtype=m
     nums_4096 = (height // 16) * (width // 16)
     bool_matrix1024 = ops.rand((1, total_length * nums_1024), dtype=dtype) < sa32
     bool_matrix4096 = ops.rand((1, total_length * nums_4096), dtype=dtype) < sa64
-    bool_matrix1024 = ops.cat([bool_matrix1024] * total_length, axis=0)
-    bool_matrix4096 = ops.cat([bool_matrix4096] * total_length, axis=0)
+    bool_matrix1024 = bool_matrix1024.tile((total_length, 1))
+    bool_matrix4096 = bool_matrix4096.tile((total_length, 1))
     for i in range(total_length):
         bool_matrix1024[i : i + 1, id_length * nums_1024 :] = False
         bool_matrix4096[i : i + 1, id_length * nums_4096 :] = False
         bool_matrix1024[i : i + 1, i * nums_1024 : (i + 1) * nums_1024] = True
         bool_matrix4096[i : i + 1, i * nums_4096 : (i + 1) * nums_4096] = True
-    mask1024 = ops.cat([bool_matrix1024.unsqueeze(1)] * nums_1024, axis=1).reshape(-1, total_length * nums_1024)
-    mask4096 = ops.cat([bool_matrix4096.unsqueeze(1)] * nums_4096, axis=1).reshape(-1, total_length * nums_4096)
+    mask1024 = bool_matrix1024.unsqueeze(1).tile((1, nums_1024, 1)).reshape(-1, total_length * nums_1024)
+    mask4096 = bool_matrix4096.unsqueeze(1).tile((1, nums_4096, 1)).reshape(-1, total_length * nums_4096)
     return mask1024, mask4096
-
-
-def calculate_attention_mask(total_length, id_length, down_scale, height, width, threshold=0.5, dtype=ms.float16):
-    nums = (height // down_scale) * (width // down_scale)
-    bool_matrix = ops.rand((1, total_length * nums), dtype=dtype) < threshold
-    bool_matrix = ops.cat([bool_matrix] * total_length, axis=0)  # (N, N*num_image_tokens)
-    for i in range(total_length):  # create a blockwise attention mask
-        bool_matrix[i : i + 1, id_length * nums :] = False
-        bool_matrix[i : i + 1, i * nums : (i + 1) * nums] = True
-    mask = ops.cat([bool_matrix.unsqueeze(1)] * nums, axis=1).reshape(
-        -1, total_length * nums
-    )  # (N*num_image_tokens, N*num_image_tokens)
-    return mask
-
-
-def get_attention_mask_dict(
-    down_scales_list, thresholds_list, total_length, id_length, height, width, dtype=ms.float16
-):
-    atten_masks = {}
-    down_scales_list = set(down_scales_list)
-    assert len(down_scales_list) == len(thresholds_list)
-    for down_scale, threshold in zip(down_scales_list, thresholds_list):
-        nums_tokens = (height // down_scale) * (width // down_scale)
-        atten_masks[nums_tokens] = calculate_attention_mask(
-            total_length, id_length, down_scale, height, width, threshold, dtype
-        )
-    return atten_masks
 
 
 def cal_attn_indice_xl_effcient_memory(total_length, id_length, sa32, sa64, height, width, dtype=ms.float16):

@@ -18,7 +18,7 @@ sys.path.insert(0, mindone_lib_path)
 
 import argparse
 
-from utils.gradio_utils import get_attention_mask_dict
+from utils.gradio_utils import cal_attn_mask_xl
 
 from mindone.diffusers import StableDiffusionXLPipeline
 from mindone.diffusers.models.attention_processor import Attention, AttnProcessor
@@ -56,7 +56,6 @@ class SpatialAttnProcessor2_0:
         cross_attention_dim=None,
         id_length=4,
         dtype=ms.float16,
-        attention_masks={},
     ):
         super().__init__()
 
@@ -66,8 +65,6 @@ class SpatialAttnProcessor2_0:
         self.total_length = id_length + 1
         self.id_length = id_length
         self.id_bank = {}
-        self.attention_masks = attention_masks
-        assert len(self.attention_masks) > 0, "attention_masks must not be empty"
 
     def scaled_dot_product_attention(
         self, query, key, value, attn_mask=None, dropout_p=0.0, is_causal=False, scale=None, training=False
@@ -97,7 +94,9 @@ class SpatialAttnProcessor2_0:
         return out
 
     def __call__(self, attn, hidden_states, encoder_hidden_states=None, attention_mask=None, temb=None):
-        global write, cur_step, total_count, attn_count
+        global write, cur_step, total_count, attn_count, mask1024, mask4096
+        global sa32, sa64
+        global height, width
         if write:
             self.id_bank[cur_step] = [hidden_states[: self.id_length], hidden_states[self.id_length :]]
         else:
@@ -114,16 +113,22 @@ class SpatialAttnProcessor2_0:
             else:
                 rand_num = 0.1
             if random_number > rand_num:
-                nums_tokens = hidden_states.shape[1]
-                assert (
-                    nums_tokens in self.attention_masks
-                ), f"The input num_tokens is not supported. Supported num_tokens: { self.attention_masks.keys()}"
-                attention_mask = self.attention_masks[nums_tokens]
-                target_len = attention_mask.shape[0] // self.total_length * self.id_length
                 if not write:
-                    attention_mask = attention_mask[target_len:]
+                    if hidden_states.shape[1] == (height // 32) * (width // 32):
+                        attention_mask = mask1024[mask1024.shape[0] // self.total_length * self.id_length :]
+                    else:
+                        attention_mask = mask4096[mask4096.shape[0] // self.total_length * self.id_length :]
                 else:
-                    attention_mask = attention_mask[:target_len, :target_len]
+                    if hidden_states.shape[1] == (height // 32) * (width // 32):
+                        attention_mask = mask1024[
+                            : mask1024.shape[0] // self.total_length * self.id_length,
+                            : mask1024.shape[0] // self.total_length * self.id_length,
+                        ]
+                    else:
+                        attention_mask = mask4096[
+                            : mask4096.shape[0] // self.total_length * self.id_length,
+                            : mask4096.shape[0] // self.total_length * self.id_length,
+                        ]
                 hidden_states = self.__call1__(attn, hidden_states, encoder_hidden_states, attention_mask, temb)
             else:
                 hidden_states = self.__call2__(attn, hidden_states, None, attention_mask, temb)
@@ -131,6 +136,9 @@ class SpatialAttnProcessor2_0:
         if attn_count == total_count:
             attn_count = 0
             cur_step += 1
+            mask1024, mask4096 = cal_attn_mask_xl(
+                self.total_length, self.id_length, sa32, sa64, height, width, dtype=self.dtype
+            )
         return hidden_states
 
     def __call1__(
@@ -342,7 +350,7 @@ def parse_args():
     return args
 
 
-def insert_paired_attention(unet, id_length, atten_mask_dict):
+def insert_paired_attention(unet, id_length):
     # Insert PairedAttention
     global total_count
     attn_procs = {}
@@ -359,7 +367,6 @@ def insert_paired_attention(unet, id_length, atten_mask_dict):
         if cross_attention_dim is None and (name.startswith("up_blocks")):
             attn_procs[name] = SpatialAttnProcessor2_0(
                 id_length=id_length,
-                attention_masks=atten_mask_dict,
             )
             total_count += 1
         else:
@@ -414,6 +421,9 @@ if __name__ == "__main__":
     os.makedirs(args.output_dir, exist_ok=True)
     global attn_count, total_count, cur_step
     global write
+    global height, width
+    height = args.height
+    width = args.width
     write = False
     total_count = 0
     attn_count = 0
@@ -429,19 +439,12 @@ if __name__ == "__main__":
     # images[0].save("image.png")
 
     # strength of consistent self-attention: the larger, the stronger
-    threshold_32 = 0.5
-    threshold_64 = 0.5
-    atten_mask_dict = get_attention_mask_dict(
-        down_scales_list=[32, 16],
-        thresholds_list=[threshold_32, threshold_64],
-        total_length=total_length,
-        id_length=id_length,
-        height=args.height,
-        width=args.width,
-        dtype=ms.float16,
-    )
-    unet = insert_paired_attention(unet, id_length, atten_mask_dict)
+    sa32 = 0.5
+    sa64 = 0.5
 
+    unet = insert_paired_attention(unet, id_length)
+    global mask1024, mask4096
+    mask1024, mask4096 = cal_attn_mask_xl(total_length, id_length, sa32, sa64, height, width, dtype=ms.float16)
     id_prompts, real_prompts, negative_prompt = parse_prompts(args)
     # write = True, memorizing
     write = True
@@ -451,8 +454,8 @@ if __name__ == "__main__":
         id_prompts,
         num_inference_steps=args.sampling_steps,
         guidance_scale=args.guidance_scale,
-        height=args.height,
-        width=args.width,
+        height=height,
+        width=width,
         negative_prompt=negative_prompt,
         generator=generator,
     )[0]
@@ -472,8 +475,8 @@ if __name__ == "__main__":
                 real_prompt,
                 num_inference_steps=args.sampling_steps,
                 guidance_scale=args.guidance_scale,
-                height=args.height,
-                width=args.width,
+                height=height,
+                width=width,
                 negative_prompt=negative_prompt,
                 generator=generator,
             )[0]
@@ -495,8 +498,8 @@ if __name__ == "__main__":
                 new_prompt,
                 num_inference_steps=args.sampling_steps,
                 guidance_scale=args.guidance_scale,
-                height=args.height,
-                width=args.width,
+                height=height,
+                width=width,
                 negative_prompt=negative_prompt,
                 generator=generator,
             )[0]
