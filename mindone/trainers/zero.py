@@ -62,6 +62,14 @@ def _run_stage1_split_grad(split, op_group_size, op_rank_id, allreduce, gradient
     return gradient
 
 
+def split_np(x, num, idx):
+    b = x.shape[0]
+    sp_len = b // num
+    start = sp_len * idx
+    end = sp_len * (idx + 1)
+    return ms.Tensor(x.asnumpy()[start:end])
+
+
 @ms.ms_class
 class ZeroHelper:
     """
@@ -102,6 +110,8 @@ class ZeroHelper:
         self.optimizer = optimizer
         self.zero_stage = zero_stage
         self.op_group = op_group
+        if isinstance(optimizer, ms.experimental.optim.optimizer.Optimizer):
+            self.optimizer._parameters = self.optimizer.parameters
         self.ori_parameters = self.optimizer._parameters
         # Init parallel settings
         self.is_parallel = _get_parallel_mode() == ParallelMode.DATA_PARALLEL
@@ -256,7 +266,7 @@ class ZeroHelper:
         _logger.info(f"dp_allreduce_fusion: {dp_allreduce_info}")
 
     def split_param(self, param):
-        return self.split_op(param)[self.op_rank_id]
+        return split_np(param, self.op_group_size, self.op_rank_id)
 
     def get_optimizer_param_tuples(self):
         param_tuples = []
@@ -470,6 +480,13 @@ def _init_parallel_settings(net, op_group, parallel_modules=None):
     return None
 
 
+def get_cell_params_fullname_dict(cell: nn.Cell):
+    fullname_dict = {}
+    for param_name in cell._params:
+        fullname_dict[param_name] = getattr(cell, param_name).name
+    return fullname_dict
+
+
 def _prepare_network(network: nn.Cell, op_group: str, parallel_modules=None):
     new_net = _init_parallel_settings(network, op_group, parallel_modules)
     if new_net is not None:
@@ -479,7 +496,17 @@ def _prepare_network(network: nn.Cell, op_group: str, parallel_modules=None):
             continue
         new_sub_net = _init_parallel_settings(sub_net, op_group, parallel_modules)
         if new_sub_net is not None:
-            network.__setattr__(name, new_sub_net)
+            params_fullname_dict = get_cell_params_fullname_dict(sub_net)
+            if isinstance(network, (nn.CellList, nn.SequentialCell)):
+                network._cells[name] = new_sub_net
+                if isinstance(network, nn.SequentialCell):
+                    network.cell_list = list(network._cells.values())
+            else:
+                network.__setattr__(name, new_sub_net)
+
+            # parameter name will update after __setattr__, reset to ori parameter name.
+            for param_name in new_sub_net.net._params:
+                getattr(new_sub_net.net, param_name).name = params_fullname_dict[param_name]
             continue
         if sub_net._params:
             for param_name in sub_net._params:
@@ -507,13 +534,12 @@ def prepare_ema(ema, zero_stage: int = 0, op_group: str = None):
         return ema
     op_group_size = get_group_size(op_group)
     op_rank_id = get_rank(op_group)
-    split_op = ops.Split(0, op_group_size)
     _logger.info(f"Split EMA params: rank_id {op_rank_id}, rank_size {op_group_size}.")
     for net_weight, ema_weight, swap_cache in zip(ema.net_weight, ema.ema_weight, ema.swap_cache):
         if net_weight.shape == ema_weight.shape:
             continue
-        ema_weight.set_data(split_op(ema_weight)[op_rank_id], slice_shape=True)
-        swap_cache.set_data(split_op(swap_cache)[op_rank_id], slice_shape=True)
+        ema_weight.set_data(split_np(ema_weight, op_group_size, op_rank_id), slice_shape=True)
+        swap_cache.set_data(split_np(swap_cache, op_group_size, op_rank_id), slice_shape=True)
     return ema
 
 

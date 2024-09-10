@@ -22,20 +22,21 @@ class _Conv(nn.Cell):
             op_group_size = get_group_size(op_group) if is_parallel else 1
             op_rank_id = get_rank(op_group) if is_parallel else 0
             self.param_wrapper_w = ZeroParamWrapper(self.net.weight, zero_stage, op_group, cell_type)
-            self.param_wrapper_b = ZeroParamWrapper(self.net.bias, zero_stage, op_group, cell_type)
             split_op = ops.Split(0, op_group_size)
             if self.param_wrapper_w.need_rewrite:
                 self.net.weight.assign_value(split_op(self.net.weight)[op_rank_id])
-            if self.param_wrapper_b.need_rewrite:
-                self.net.bias.assign_value(split_op(self.net.bias)[op_rank_id])
+            if self.net.has_bias:
+                self.param_wrapper_b = ZeroParamWrapper(self.net.bias, zero_stage, op_group, cell_type)
+                if self.param_wrapper_b.need_rewrite:
+                    self.net.bias.assign_value(split_op(self.net.bias)[op_rank_id])
 
 
 class Conv1d(_Conv):
     def construct(self, x):
         x = self.net.expand_dims(x, 2)
-        output = self.net.conv2d(x, self.param_wrapper_w(self.weight))
+        output = self.net.conv2d(x, self.param_wrapper_w(self.net.weight))
         if self.net.has_bias:
-            output = self.net.bias_add(output, self.param_wrapper_b(self.bias))
+            output = self.net.bias_add(output, self.param_wrapper_b(self.net.bias))
 
         output = self.net.squeeze(output)
         return output

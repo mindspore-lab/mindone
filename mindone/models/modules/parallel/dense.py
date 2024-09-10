@@ -22,12 +22,13 @@ class Dense(nn.Cell):
             op_group_size = get_group_size(op_group) if is_parallel else 1
             op_rank_id = get_rank(op_group) if is_parallel else 0
             self.param_wrapper_w = ZeroParamWrapper(self.net.weight, zero_stage, op_group, cell_type)
-            self.param_wrapper_b = ZeroParamWrapper(self.net.bias, zero_stage, op_group, cell_type)
             split_op = ops.Split(0, op_group_size)
             if self.param_wrapper_w.need_rewrite:
                 self.net.weight.assign_value(split_op(self.net.weight)[op_rank_id])
-            if self.param_wrapper_b.need_rewrite:
-                self.net.bias.assign_value(split_op(self.net.bias)[op_rank_id])
+            if self.net.has_bias:
+                self.param_wrapper_b = ZeroParamWrapper(self.net.bias, zero_stage, op_group, cell_type)
+                if self.param_wrapper_b.need_rewrite:
+                    self.net.bias.assign_value(split_op(self.net.bias)[op_rank_id])
 
     def construct(self, x):
         x_shape = x.shape
