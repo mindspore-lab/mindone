@@ -2,8 +2,6 @@
 Credit: OpenSora HPC-AI Tech
 https://github.com/hpcaitech/Open-Sora/blob/ea41df3d6cc5f389b6824572854d97fa9f7779c3/opensora/datasets/bucket.py
 """
-from random import random
-
 import numpy as np
 
 from .aspect import ASPECT_RATIOS, get_closest_ratio
@@ -49,7 +47,16 @@ class Bucket:
         self.ar_criteria = ar_criteria
         self.num_bucket = num_bucket
 
-    def get_bucket_id(self, T, H, W, frame_interval=1):
+        i = 0
+        self.convert_dict = {}
+        for res, data in self.ar_criteria.items():
+            for t, ars in data.items():
+                for ar, res_tuple in ars.items():
+                    i += 1
+                    self.convert_dict[i] = (res, t, ar)
+                    self.convert_dict[res, t, ar] = i
+
+    def get_bucket_id(self, T, H, W, frame_interval=1, seed=None):
         resolution = H * W
         approx = 0.8
 
@@ -61,7 +68,8 @@ class Bucket:
             # if sample is an image
             if T == 1:
                 if 1 in t_criteria:
-                    if random() < t_criteria[1]:
+                    rng = np.random.default_rng(seed + self.bucket_id[hw_id][1] if seed is not None else None)
+                    if rng.random() < t_criteria[1]:
                         fail = False
                         t_id = 1
                         break
@@ -71,9 +79,10 @@ class Bucket:
             # otherwise, find suitable t_id for video
             t_fail = True
             for t_id, prob in t_criteria.items():
+                rng = np.random.default_rng(seed + self.bucket_id[hw_id][t_id] if seed is not None else None)
                 if isinstance(prob, list):
                     prob_t = prob[1]
-                    if random() > prob_t:
+                    if rng.random() > prob_t:
                         continue
                 if T > t_id * frame_interval and t_id != 1:
                     t_fail = False
@@ -84,7 +93,7 @@ class Bucket:
             # leave the loop if prob is high enough
             if isinstance(prob, list):
                 prob = prob[0]
-            if prob >= 1 or random() < prob:
+            if prob >= 1 or rng.random() < prob:
                 fail = False
                 break
         if fail:
@@ -93,19 +102,17 @@ class Bucket:
         # get aspect ratio id
         ar_criteria = self.ar_criteria[hw_id][t_id]
         ar_id = get_closest_ratio(H, W, ar_criteria)
-        return hw_id, t_id, ar_id
+        return self.convert_dict[hw_id, t_id, ar_id]
 
     def get_thw(self, bucket_id):
-        assert len(bucket_id) == 3
-        T = self.t_criteria[bucket_id[0]][bucket_id[1]]
-        H, W = self.ar_criteria[bucket_id[0]][bucket_id[1]][bucket_id[2]]
-        return T, H, W
+        return self.convert_dict[bucket_id][1:]
 
     def get_prob(self, bucket_id):
         return self.bucket_probs[bucket_id[0]][bucket_id[1]]
 
     def get_batch_size(self, bucket_id):
-        return self.bucket_bs[bucket_id[0]][bucket_id[1]]
+        bucket_id = self.convert_dict[bucket_id]
+        return self.bucket_bs[bucket_id[0]][int(bucket_id[1])]
 
     def __len__(self):
         return self.num_bucket

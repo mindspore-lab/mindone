@@ -150,8 +150,8 @@ class VideoDatasetRefactored(BaseDataset):
             assert not pre_patchify, "transforms for prepatchify not implemented yet"
 
         # prepare replacement data in case the loading of a sample fails
-        self._prev_ok_sample = self._get_replacement()
-        self._require_update_prev = False
+        self._prev_ok_sample = None  # FIXME
+        self._require_update_prev = True
 
     @staticmethod
     def _read_data(
@@ -211,6 +211,9 @@ class VideoDatasetRefactored(BaseDataset):
         raise RuntimeError(f"Fail to load a replacement sample in {attempts} attempts. Error: {repr(error)}")
 
     def _get_item(self, idx: int) -> Tuple[Any, ...]:
+        bucket_id = None
+        if isinstance(idx, np.ndarray):
+            idx, bucket_id = idx.tolist()
         data = {}
         video_path = self._data[idx]["video"]
         text_emb_path = self._data[idx]["text_emb"]
@@ -255,22 +258,8 @@ class VideoDatasetRefactored(BaseDataset):
                 reader = VideoReader(video_path)
                 min_length = self._min_length
                 video_length = len(reader)
-                if self._buckets:
-                    cap = cv2.VideoCapture(video_path, apiPreference=cv2.CAP_FFMPEG)
-                    frame_w = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
-                    frame_h = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-                    cap.release()
-                    data["bucket_id"] = self._buckets.get_bucket_id(
-                        T=video_length,
-                        H=frame_h,
-                        W=frame_w,
-                        frame_interval=self._stride,
-                    )
-                    if data["bucket_id"] is None:
-                        raise ValueError(
-                            f"Couldn't assign a bucket to {data['video']}"
-                            f" (T={video_length}, H={frame_h}, W={frame_w})."
-                        )
+                if bucket_id is not None:
+                    data["bucket_id"] = bucket_id
                     num_frames, *_ = self._buckets.get_thw(data["bucket_id"])
                     min_length = (num_frames - 1) * self._stride + 1
 
@@ -289,18 +278,8 @@ class VideoDatasetRefactored(BaseDataset):
             elif self.video_backend == "cv2":
                 with VideoReader_CV2(video_path) as reader:
                     min_length = self._min_length
-                    if self._buckets:
-                        data["bucket_id"] = self._buckets.get_bucket_id(
-                            T=len(reader),
-                            H=reader.shape[1],
-                            W=reader.shape[0],
-                            frame_interval=self._stride,
-                        )
-                        if data["bucket_id"] is None:
-                            raise ValueError(
-                                f"Couldn't assign a bucket to {data['video']}"
-                                f" (T={len(reader)}, H={reader.shape[1]}, W={reader.shape[0]})."
-                            )
+                    if bucket_id is not None:
+                        data["bucket_id"] = bucket_id
                         num_frames, *_ = self._buckets.get_thw(data["bucket_id"])
                         min_length = (num_frames - 1) * self._stride + 1
 
@@ -326,8 +305,8 @@ class VideoDatasetRefactored(BaseDataset):
             # variable resize and crop, frame-wise
             clip = []
             for i in range(num_frames):
-                if self._buckets:
-                    resized_img = self.pixel_transforms(video[i], bucket_id=data["bucket_id"])
+                if bucket_id is not None:
+                    resized_img = self.pixel_transforms(video[i], bucket_id=self._buckets.convert_dict[bucket_id])
                 else:
                     resized_img = self.pixel_transforms(video[i])
                 clip.append(resized_img)
@@ -484,6 +463,7 @@ def create_dataloader(
     device_num: int = 1,
     rank_id: int = 0,
     debug: bool = False,
+    sampler: Optional = None,
     enable_modelarts: bool = False,
 ):
     """
@@ -531,6 +511,7 @@ def create_dataloader(
         shard_id=rank_id,
         python_multiprocessing=True,
         shuffle=shuffle,
+        sampler=sampler,
     )
 
     if getattr(dataset, "pad_info", None):

@@ -221,6 +221,7 @@ def initialize_dataset(
     else:
         from opensora.datasets.bucket import Bucket, bucket_split_function
         from opensora.datasets.mask_generator import MaskGenerator
+        from opensora.datasets.sampler import BucketDistributedSampler
         from opensora.datasets.video_dataset_refactored import VideoDatasetRefactored, create_dataloader
 
         # from mindone.data import create_dataloader
@@ -287,8 +288,19 @@ def initialize_dataset(
                 prefetch_size=args.prefetch_size,
                 max_rowsize=args.max_rowsize,
                 debug=args.debug,
+                sampler=BucketDistributedSampler(
+                    dataset,
+                    buckets,
+                    num_shards=device_num,
+                    shard_id=rank_id,
+                    shuffle=not validation,
+                    seed=args.seed,
+                    drop_remainder=not validation,
+                )
+                if buckets is not None
+                else None,
             )
-            for dataset in datasets
+            for dataset, buckets in zip(datasets, individual_buckets)
         ]
         dataloader = ms.dataset.ConcatDataset(dataloaders) if len(dataloaders) > 1 else dataloaders[0]
 
