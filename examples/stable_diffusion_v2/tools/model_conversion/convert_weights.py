@@ -52,7 +52,7 @@ args = parser.parse_args()
 
 def _load_torch_ckpt(ckpt_file):
     source_data = torch.load(ckpt_file, map_location="cpu")
-    if ["state_dict"] in source_data:
+    if "state_dict" in source_data:
         source_data = source_data["state_dict"]
     return source_data
 

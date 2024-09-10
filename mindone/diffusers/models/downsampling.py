@@ -292,7 +292,8 @@ class KDownsample2D(nn.Cell):
                 inputs.shape[1],
                 self.kernel.shape[0],
                 self.kernel.shape[1],
-            ]
+            ],
+            dtype=inputs.dtype,
         )
         indices = ops.arange(inputs.shape[1])
         kernel = self.kernel.to(weight.dtype)[None, :].broadcast_to((inputs.shape[1], -1, -1))
