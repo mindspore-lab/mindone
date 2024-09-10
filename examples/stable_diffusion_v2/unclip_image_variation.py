@@ -17,11 +17,11 @@ import mindspore.ops as ops
 
 workspace = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(workspace)
+from common import init_env
 from ldm.models.diffusion.ddim import DDIMSampler
 from ldm.models.diffusion.dpm_solver import DPMSolverSampler
 from ldm.modules.logger import set_logger
 from ldm.modules.lora import inject_trainable_lora
-from ldm.modules.train.tools import set_random_seed
 from ldm.util import instantiate_from_config, str2bool
 from utils import model_utils
 from utils.download import download_checkpoint
@@ -130,6 +130,14 @@ def load_image(image: Union[str, Image.Image]) -> ms.Tensor:
 
 
 def main(args):
+    # init
+    device_id, _, _ = init_env(
+        args.ms_mode,
+        seed=args.seed,
+        jit_level=args.jit_level,
+        max_device_memory="30GB",
+    )
+
     # set logger
     set_logger(
         name="",
@@ -179,25 +187,6 @@ def main(args):
     sample_path = os.path.join(outpath, "samples")
     os.makedirs(sample_path, exist_ok=True)
     base_count = len(os.listdir(sample_path))
-
-    # set ms context
-    device_id = int(os.getenv("DEVICE_ID", 0))
-    ms.context.set_context(mode=args.ms_mode, device_target="Ascend", device_id=device_id, max_device_memory="30GB")
-    if args.ms_mode == ms.GRAPH_MODE:
-        try:
-            if args.jit_level in ["O0", "O1", "O2"]:
-                ms.set_context(jit_config={"jit_level": args.jit_level})
-                logger.info(f"set jit_level: {args.jit_level}.")
-            else:
-                logger.warning(
-                    f"Unsupport jit_level: {args.jit_level}. The framework automatically selects the execution method"
-                )
-        except Exception:
-            logger.warning(
-                "The current jit_level is not suitable because current MindSpore version does not match,"
-                "please ensure the MindSpore version >= ms2.3.0."
-            )
-    set_random_seed(args.seed)
 
     # create model
     if not os.path.isabs(args.config):

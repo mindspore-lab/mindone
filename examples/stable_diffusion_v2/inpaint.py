@@ -18,13 +18,13 @@ from mindspore import ops
 workspace = os.path.dirname(os.path.abspath(__file__))
 print("workspace:", workspace, flush=True)
 sys.path.append(workspace)
+from common import init_env
 from ldm.models.diffusion.plms import PLMSSampler
 
 # from ldm.models.diffusion.ddim import DDIMSampler
 # from ldm.models.diffusion.dpm_solver import DPMSolverSampler
 # from ldm.models.diffusion.uni_pc import UniPCSampler
 from ldm.modules.logger import set_logger
-from ldm.modules.train.tools import set_random_seed
 from ldm.util import instantiate_from_config
 
 logger = logging.getLogger("inpaint")
@@ -125,6 +125,14 @@ def image_grid(imgs, rows, cols):
 
 
 def main(args):
+    # init
+    device_id, _, _ = init_env(
+        args.ms_mode,
+        seed=args.seed,
+        jit_level=args.jit_level,
+        max_device_memory="30GB",
+    )
+
     # set logger
     set_logger(
         name="",
@@ -133,35 +141,10 @@ def main(args):
         log_level=eval(args.log_level),
     )
 
-    # init
-    device_id = int(os.getenv("DEVICE_ID", 0))
-    ms.context.set_context(
-        mode=args.ms_mode,
-        device_target="Ascend",
-        device_id=device_id,
-        max_device_memory="30GB",
-    )
-    if args.ms_mode == ms.GRAPH_MODE:
-        try:
-            if args.jit_level in ["O0", "O1", "O2"]:
-                ms.set_context(jit_config={"jit_level": args.jit_level})
-                logger.info(f"set jit_level: {args.jit_level}.")
-            else:
-                logger.warning(
-                    f"Unsupport jit_level: {args.jit_level}. The framework automatically selects the execution method"
-                )
-        except Exception:
-            logger.warning(
-                "The current jit_level is not suitable because current MindSpore version does not match,"
-                "please ensure the MindSpore version >= ms2.3.0."
-            )
-
     if args.save_graph:
         save_graphs_path = "graph"
         shutil.rmtree(save_graphs_path)
         ms.context.set_context(save_graphs=True, save_graphs_path=save_graphs_path)
-
-    set_random_seed(args.seed)
 
     if not os.path.isabs(args.config):
         args.config = os.path.join(workspace, args.config)

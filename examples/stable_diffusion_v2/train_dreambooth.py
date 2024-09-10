@@ -34,7 +34,7 @@ logger = logging.getLogger(__name__)
 def init_env(args):
     set_random_seed(args.seed)
     ms.set_context(max_device_memory=args.max_device_memory)  # TODO: why limit?
-    ms.set_context()  # needed for MS2.0
+    ms.set_context(mode=args.mode)  # needed for MS2.0
     if args.mode == ms.GRAPH_MODE:
         try:
             if args.jit_level in ["O0", "O1", "O2"]:
