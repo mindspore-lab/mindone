@@ -486,7 +486,7 @@ def _prepare_network(network: nn.Cell, op_group: str, parallel_modules=None):
                 param = getattr(sub_net, param_name)
                 _logger.warning(f"Set param {param.name} parallel_optimizer False, param shape {param.shape}")
                 param.parallel_optimizer = False
-        _prepare_network(sub_net, op_group)
+        _prepare_network(sub_net, op_group, parallel_modules)
     return network
 
 
