@@ -477,7 +477,7 @@ def _prepare_network(network: nn.Cell, op_group: str, parallel_modules=None):
     for name, sub_net in network._cells.items():
         if not sub_net:
             continue
-        new_sub_net = _init_parallel_settings(sub_net, op_group)
+        new_sub_net = _init_parallel_settings(sub_net, op_group, parallel_modules)
         if new_sub_net is not None:
             network.__setattr__(name, new_sub_net)
             continue
