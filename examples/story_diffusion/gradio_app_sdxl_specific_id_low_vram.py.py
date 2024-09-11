@@ -9,7 +9,8 @@ import sys
 import gradio as gr
 import numpy as np
 from PIL import ImageFont
-from utils.gradio_utils import (  # cal_attn_indice_xl_effcient_memory,
+from utils.gradio_utils import (
+    cal_attn_indice_xl_effcient_memory,
     cal_attn_mask_xl,
     character_to_dict,
     get_ref_character,
@@ -17,6 +18,7 @@ from utils.gradio_utils import (  # cal_attn_indice_xl_effcient_memory,
 )
 
 import mindspore as ms
+from mindspore import nn, ops
 
 style_list = json.load(open("utils/style_template.json", "r"))
 styles = {k["name"]: (k["prompt"], k["negative_prompt"]) for k in style_list}
@@ -24,11 +26,10 @@ styles = {k["name"]: (k["prompt"], k["negative_prompt"]) for k in style_list}
 mindone_lib_path = os.path.abspath("../..")
 sys.path.insert(0, mindone_lib_path)
 
-from utils.gradio_utils import SpatialAttnProcessor2_0  # , get_attention_mask_dict
+from utils.gradio_utils import AttnProcessor2_0 as AttnProcessor
 from utils.load_model_utils import get_models_dict, load_models
 
 from mindone.diffusers import StableDiffusionXLPipeline
-from mindone.diffusers.models.attention_processor import AttnProcessor
 from mindone.diffusers.schedulers import DDIMScheduler
 from mindone.diffusers.utils.loading_utils import load_image
 from mindone.utils.seed import set_random_seed
@@ -52,19 +53,38 @@ device = "Ascend"
 # if the file doesn't exist, it uses `hf_hub_download` to download the file
 # and optionally move it to a specific directory. If the file already
 # exists, it simply uses the local path.
-local_dir = "data/"
-photomaker_local_path = f"{local_dir}photomaker-v1.bin"
+local_dir = "./cache_dir"
+photomaker_local_path = f"{local_dir}/photomaker-v1.bin"
 if not os.path.exists(photomaker_local_path):
-    photomaker_path = hf_hub_download(
-        repo_id="TencentARC/PhotoMaker",
-        filename="photomaker-v1.bin",
-        repo_type="model",
-        local_dir=local_dir,
-    )
+    try:
+        photomaker_path = hf_hub_download(
+            repo_id="TencentARC/PhotoMaker",
+            filename="photomaker-v1.bin",
+            repo_type="model",
+            local_dir=local_dir,
+        )
+    except Exception:
+        raise ValueError("Downloading from HF has failed. Please manually download it and place it under data/")
 else:
     photomaker_path = photomaker_local_path
 
 MAX_SEED = np.iinfo(np.int32).max
+
+
+def init_env(mode, device_target):
+    # no parallel mode currently
+    ms.set_context(mode=mode)  # needed for MS2.0
+    device_id = int(os.getenv("DEVICE_ID", 0))
+    ms.set_context(
+        mode=mode,
+        device_target=device_target,
+        device_id=device_id,
+    )
+
+    return device_id
+
+
+init_env(mode=1, device_target="Ascend")
 
 
 def set_text_unfinished():
@@ -85,30 +105,289 @@ def get_image_path_list(folder_name):
     return image_path_list
 
 
+class SpatialAttnProcessor2_0(nn.Cell):
+    r"""
+    Attention processor for IP-Adapater for PyTorch 2.0.
+    Args:
+        hidden_size (`int`):
+            The hidden size of the attention layer.
+        cross_attention_dim (`int`):
+            The number of channels in the `encoder_hidden_states`.
+        text_context_len (`int`, defaults to 77):
+            The context length of the text features.
+        scale (`float`, defaults to 1.0):
+            the weight scale of image prompt.
+    """
+
+    def __init__(
+        self,
+        hidden_size=None,
+        cross_attention_dim=None,
+        id_length=4,
+        dtype=ms.float16,
+    ):
+        super().__init__()
+        self.dtype = dtype
+        self.hidden_size = hidden_size
+        self.cross_attention_dim = cross_attention_dim
+        self.total_length = id_length + 1
+        self.id_length = id_length
+        self.id_bank = {}
+
+    def scaled_dot_product_attention(
+        self, query, key, value, attn_mask=None, dropout_p=0.0, is_causal=False, scale=None, training=False
+    ) -> ms.Tensor:
+        L, S = query.shape[-2], key.shape[-2]
+        scale_factor = 1 / (query.shape[-1] ** 0.5) if scale is None else scale
+        _dtype = query.dtype
+        attn_bias = ops.zeros((L, S), dtype=ms.float32)
+        if is_causal:
+            assert attn_mask is None
+            temp_mask = ops.ones((L, S), dtype=ms.bool_).tril(diagonal=0)
+            attn_bias = attn_bias.masked_fill(~temp_mask, -1e5)
+            attn_bias.to(query.dtype)
+
+        if attn_mask is not None:
+            if attn_mask.dtype == ms.bool_:
+                attn_bias = attn_bias.masked_fill(~attn_mask, -1e5)
+            else:
+                attn_bias += attn_mask
+        attn_weight = ops.matmul(query, key.swapaxes(-2, -1)) * scale_factor
+        attn_weight = attn_weight.to(ms.float32)
+        attn_weight += attn_bias
+        attn_weight = ops.softmax(attn_weight, axis=-1)
+        attn_weight = ops.dropout(attn_weight, p=dropout_p, training=training)
+        out = ops.matmul(attn_weight.to(_dtype), value)
+        out = out.astype(_dtype)
+        return out
+
+    def __call__(
+        self,
+        attn,
+        hidden_states,
+        encoder_hidden_states=None,
+        attention_mask=None,
+        temb=None,
+    ):
+        # un_cond_hidden_states, cond_hidden_states = hidden_states.chunk(2)
+        # un_cond_hidden_states = self.__call2__(attn, un_cond_hidden_states,encoder_hidden_states,attention_mask,temb)
+        # 生成一个0到1之间的随机数
+        global total_count, attn_count, cur_step, indices1024, indices4096
+        global sa32, sa64
+        global write
+        global height, width
+        global character_dict, character_index_dict, invert_character_index_dict, cur_character, ref_indexs_dict, ref_totals, cur_character
+        if attn_count == 0 and cur_step == 0:
+            indices1024, indices4096 = cal_attn_indice_xl_effcient_memory(
+                self.total_length,
+                self.id_length,
+                sa32,
+                sa64,
+                height,
+                width,
+                dtype=self.dtype,
+            )
+        if write:
+            assert len(cur_character) == 1
+            if hidden_states.shape[1] == (height // 32) * (width // 32):
+                indices = indices1024
+            else:
+                indices = indices4096
+            # print(f"white:{cur_step}")
+            total_batch_size, nums_token, channel = hidden_states.shape
+            img_nums = total_batch_size // 2
+            hidden_states = hidden_states.reshape(-1, img_nums, nums_token, channel)
+            # print(img_nums,len(indices),hidden_states.shape,self.total_length)
+            if cur_character[0] not in self.id_bank:
+                self.id_bank[cur_character[0]] = {}
+            self.id_bank[cur_character[0]][cur_step] = [
+                hidden_states[:, img_ind, indices[img_ind], :].reshape(2, -1, channel).clone()
+                for img_ind in range(img_nums)
+            ]
+            hidden_states = hidden_states.reshape(-1, nums_token, channel)
+            # self.id_bank[cur_step] = [hidden_states[:self.id_length].clone(), hidden_states[self.id_length:].clone()]
+        else:
+            # TODO: ADD Multipersion Control
+            encoder_arr = []
+            for character in cur_character:
+                encoder_arr = encoder_arr + [tensor for tensor in self.id_bank[character][cur_step]]
+        # 判断随机数是否大于0.5
+        if cur_step < 1:
+            hidden_states = self.__call2__(attn, hidden_states, None, attention_mask, temb)
+        else:  # 256 1024 4096
+            random_number = random.random()
+            if cur_step < 20:
+                rand_num = 0.3
+            else:
+                rand_num = 0.1
+            # print(f"hidden state shape {hidden_states.shape[1]}")
+            if random_number > rand_num:
+                if hidden_states.shape[1] == (height // 32) * (width // 32):
+                    indices = indices1024
+                else:
+                    indices = indices4096
+
+                if write:
+                    total_batch_size, nums_token, channel = hidden_states.shape
+                    img_nums = total_batch_size // 2
+                    hidden_states = hidden_states.reshape(-1, img_nums, nums_token, channel)
+                    encoder_arr = [
+                        hidden_states[:, img_ind, indices[img_ind], :].reshape(2, -1, channel)
+                        for img_ind in range(img_nums)
+                    ]
+                    for img_ind in range(img_nums):
+                        # print(img_nums)
+                        # assert img_nums != 1
+                        img_ind_list = [i for i in range(img_nums)]
+                        # print(img_ind_list,img_ind)
+                        img_ind_list.remove(img_ind)
+                        # print(img_ind,invert_character_index_dict[img_ind])
+                        # print(character_index_dict[invert_character_index_dict[img_ind]])
+                        # print(img_ind_list)
+                        # print(img_ind,img_ind_list)
+                        encoder_hidden_states_tmp = ops.cat(
+                            [encoder_arr[img_ind] for img_ind in img_ind_list] + [hidden_states[:, img_ind, :, :]],
+                            axis=1,
+                        )
+
+                        hidden_states[:, img_ind, :, :] = self.__call2__(
+                            attn,
+                            hidden_states[:, img_ind, :, :],
+                            encoder_hidden_states_tmp,
+                            None,
+                            temb,
+                        )
+                else:
+                    _, nums_token, channel = hidden_states.shape
+                    # img_nums = total_batch_size // 2
+                    # encoder_hidden_states = encoder_hidden_states.reshape(-1,img_nums,nums_token,channel)
+                    hidden_states = hidden_states.reshape(2, -1, nums_token, channel)
+                    # print(len(indices))
+                    # encoder_arr = [encoder_hidden_states[:,img_ind,indices[img_ind],:].reshape(2,-1,channel) for img_ind in range(img_nums)]
+                    encoder_hidden_states_tmp = ops.cat(encoder_arr + [hidden_states[:, 0, :, :]], axis=1)
+                    # print(len(encoder_arr),encoder_hidden_states_tmp.shape)
+                    hidden_states[:, 0, :, :] = self.__call2__(
+                        attn,
+                        hidden_states[:, 0, :, :],
+                        encoder_hidden_states_tmp,
+                        None,
+                        temb,
+                    )
+                hidden_states = hidden_states.reshape(-1, nums_token, channel)
+            else:
+                hidden_states = self.__call2__(attn, hidden_states, None, attention_mask, temb)
+        attn_count += 1
+        if attn_count == total_count:
+            attn_count = 0
+            cur_step += 1
+            indices1024, indices4096 = cal_attn_indice_xl_effcient_memory(
+                self.total_length,
+                self.id_length,
+                sa32,
+                sa64,
+                height,
+                width,
+                dtype=self.dtype,
+            )
+
+        return hidden_states
+
+    def __call2__(
+        self,
+        attn,
+        hidden_states,
+        encoder_hidden_states=None,
+        attention_mask=None,
+        temb=None,
+    ):
+        residual = hidden_states
+
+        if attn.spatial_norm is not None:
+            hidden_states = attn.spatial_norm(hidden_states, temb)
+
+        input_ndim = hidden_states.ndim
+
+        if input_ndim == 4:
+            batch_size, channel, height, width = hidden_states.shape
+            hidden_states = hidden_states.view(batch_size, channel, height * width).swapaxes(1, 2)
+
+        batch_size, sequence_length, channel = hidden_states.shape
+        # print(hidden_states.shape)
+        if attention_mask is not None:
+            attention_mask = attn.prepare_attention_mask(attention_mask, sequence_length, batch_size)
+            # scaled_dot_product_attention expects attention_mask shape to be
+            # (batch, heads, source_length, target_length)
+            attention_mask = attention_mask.view(batch_size, attn.heads, -1, attention_mask.shape[-1])
+
+        if attn.group_norm is not None:
+            hidden_states = attn.group_norm(hidden_states.swapaxes(1, 2)).swapaxes(1, 2)
+
+        query = attn.to_q(hidden_states)
+
+        if encoder_hidden_states is None:
+            encoder_hidden_states = hidden_states  # B, N, C
+
+        key = attn.to_k(encoder_hidden_states)
+        value = attn.to_v(encoder_hidden_states)
+
+        inner_dim = key.shape[-1]
+        head_dim = inner_dim // attn.heads
+
+        query = query.view(batch_size, -1, attn.heads, head_dim).swapaxes(1, 2)
+
+        key = key.view(batch_size, -1, attn.heads, head_dim).swapaxes(1, 2)
+        value = value.view(batch_size, -1, attn.heads, head_dim).swapaxes(1, 2)
+
+        # the output of sdp = (batch, num_heads, seq_len, head_dim)
+        # TODO: add support for attn.scale when we move to Torch 2.1
+        hidden_states = self.scaled_dot_product_attention(
+            query, key, value, attn_mask=attention_mask, dropout_p=0.0, is_causal=False
+        )
+
+        hidden_states = hidden_states.swapaxes(1, 2).reshape(batch_size, -1, attn.heads * head_dim)
+        hidden_states = hidden_states.to(query.dtype)
+
+        # linear proj
+        hidden_states = attn.to_out[0](hidden_states)
+        # dropout
+        hidden_states = attn.to_out[1](hidden_states)
+
+        if input_ndim == 4:
+            hidden_states = hidden_states.swapaxes(-1, -2).reshape(batch_size, channel, height, width)
+
+        if attn.residual_connection:
+            hidden_states = hidden_states + residual
+
+        hidden_states = hidden_states / attn.rescale_output_factor
+
+        return hidden_states
+
+
 def set_attention_processor(unet, id_length, is_ipadapter=False):
     global attn_procs
     attn_procs = {}
     for name in unet.attn_processors.keys():
         cross_attention_dim = None if name.endswith("attn1.processor") else unet.config.cross_attention_dim
-        if name.startswith("mid_block"):
-            hidden_size = unet.config.block_out_channels[-1]
-            pass
-        elif name.startswith("up_blocks"):
-            block_id = int(name[len("up_blocks.")])
-            hidden_size = list(reversed(unet.config.block_out_channels))[block_id]
-        elif name.startswith("down_blocks"):
-            block_id = int(name[len("down_blocks.")])
-            hidden_size = unet.config.block_out_channels[block_id]
+        # if name.startswith("mid_block"):
+        #     hidden_size = unet.config.block_out_channels[-1]
+        # elif name.startswith("up_blocks"):
+        #     block_id = int(name[len("up_blocks.")])
+        #     hidden_size = list(reversed(unet.config.block_out_channels))[block_id]
+        # elif name.startswith("down_blocks"):
+        #     block_id = int(name[len("down_blocks.")])
+        #     hidden_size = unet.config.block_out_channels[block_id]
         if cross_attention_dim is None:
             if name.startswith("up_blocks"):
                 attn_procs[name] = SpatialAttnProcessor2_0(id_length=id_length)
             else:
                 attn_procs[name] = AttnProcessor()
         else:
-            attn_procs[name] = AttnProcessor()
+            if is_ipadapter:
+                raise ValueError("Not implemented yet!")
+            else:
+                attn_procs[name] = AttnProcessor()
 
     unet.set_attn_processor(copy.deepcopy(attn_procs))
-    print(hidden_size)
 
 
 #
@@ -159,7 +438,7 @@ def save_single_character_weights(unet, character, description, filepath):
             weights_to_save[attn_name] = {}
             for step_key in attn_processor.id_bank[character].keys():
                 weights_to_save[attn_name][step_key] = [
-                    tensor.cpu() for tensor in attn_processor.id_bank[character][step_key]
+                    tensor for tensor in attn_processor.id_bank[character][step_key]
                 ]
 
     ms.save_checkpoint(weights_to_save, filepath)
@@ -256,6 +535,7 @@ version = r"""
 <h5 align="center">Tips: </h4>
 """
 #
+
 global attn_count, total_count, id_length, total_length, cur_step, cur_model_type
 global write
 global sa32, sa64
@@ -279,22 +559,25 @@ width = 768
 global pipe
 global sd_model_path
 pipe = None
-sd_model_path = models_dict["Unstable"]["path"]  # "SG161222/RealVisXL_V4.0"
-single_files = models_dict["Unstable"]["single_files"]
+sd_model_path = models_dict["RealVision"]["path"]  # "SG161222/RealVisXL_V4.0"
+single_files = models_dict["RealVision"]["single_files"]
+cache_dir = "./cache_dir"
 # LOAD Stable Diffusion Pipeline
 if single_files:
-    pipe = StableDiffusionXLPipeline.from_single_file(sd_model_path, mindspore_dtype=ms.float16)
+    pipe = StableDiffusionXLPipeline.from_single_file(sd_model_path, mindspore_dtype=ms.float16, cache_dir=cache_dir)
 else:
-    pipe = StableDiffusionXLPipeline.from_pretrained(sd_model_path, mindspore_dtype=ms.float16, use_safetensors=False)
+    pipe = StableDiffusionXLPipeline.from_pretrained(
+        sd_model_path, mindspore_dtype=ms.float16, use_safetensors=False, cache_dir=cache_dir, local_files_only=True
+    )
 
 # pipe.enable_freeu(s1=0.6, s2=0.4, b1=1.1, b2=1.2)
 # pipe.scheduler = DDIMScheduler.from_config(pipe.scheduler.config)
 pipe.scheduler.set_timesteps(50)
-pipe.enable_vae_slicing()
+# pipe.enable_vae_slicing()
 # if device != "mps":
 #     pipe.enable_model_cpu_offload()
 unet = pipe.unet
-cur_model_type = "Unstable" + "-" + "original"
+cur_model_type = "RealVision" + "-" + "original"
 # Insert PairedAttention
 for name in unet.attn_processors.keys():
     cross_attention_dim = None if name.endswith("attn1.processor") else unet.config.cross_attention_dim
@@ -666,7 +949,7 @@ with gr.Blocks(css=css) as demo:
             with gr.Column(visible=True) as gen_prompt_vis:
                 sd_type = gr.Dropdown(
                     choices=list(models_dict.keys()),
-                    value="Unstable",
+                    value="RealVision",
                     label="sd_type",
                     info="Select pretrained model",
                 )

@@ -44,11 +44,11 @@ a man with a black suit have breakfast,
 Example images are shown below:
 
 <p align="center">
-  <img src="https://github.com/wtomin/mindone-assets/blob/main/story_diffusion/0-Comic%20book-RealVision.png?raw=true" width=550 />
+  <img src="https://github.com/wtomin/mindone-assets/blob/main/story_diffusion/0-Comic%20book-RealVision_update.png?raw=true" width=550 />
 </p>
 
 <p align="center">
-  <img src="https://github.com/wtomin/mindone-assets/blob/main/story_diffusion/1-Comic%20book-RealVision.png?raw=true" width=550 />
+  <img src="https://github.com/wtomin/mindone-assets/blob/main/story_diffusion/1-Comic%20book-RealVision_update.png?raw=true" width=550 />
 </p>
 
 Now this inference script support the following SD-XL models:
