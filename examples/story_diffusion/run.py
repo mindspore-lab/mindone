@@ -371,6 +371,7 @@ def load_sdxl_pipeline(args):
 
 if __name__ == "__main__":
     args = parse_args()
+    init_env(args.mode, device_target="Ascend")
     set_random_seed(args.seed)
     os.makedirs(args.output_dir, exist_ok=True)
     global attn_count, total_count, cur_step
