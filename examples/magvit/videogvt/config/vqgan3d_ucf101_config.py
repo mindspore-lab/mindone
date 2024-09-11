@@ -11,6 +11,7 @@ def get_config():
     config = ml_collections.ConfigDict()
 
     # Model: vqvae
+    config.vqvae = ml_collections.ConfigDict()
     config.vqvae.channels = 3
     config.vqvae.embedding_dim = 18
     config.vqvae.codebook_size = 262144 # 2^18
@@ -29,6 +30,7 @@ def get_config():
     config.discriminator.channel_multipliers = (2, 4, 4, 4, 4)
 
     # Loss
+    config.lr_configs = ml_collections.ConfigDict()
     config.lr_configs.perceptual_weight = 0.1
     config.lr_configs.entropy_weight = 0.1
     config.lr_configs.commit_weight = 0.25
