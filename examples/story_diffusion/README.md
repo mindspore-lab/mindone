@@ -8,7 +8,7 @@ StoryDiffusion can generate consistent images and videos given a set of text pro
 1. Consistent self-attention, a training-free and pluggable module with all SD1.5 and SDXL-based image diffusion models. Given at least 3 text prompts, it can generate images with consistent subjects and good text-vision alignment.
 2. Motion predictor for long-range video generation, which can predict motion between condition images.
 
-The current implementation supports text-to-video generation with consistent self-attention.
+The current implementation only supports text-to-image generation with consistent self-attention.
 
 ## TODOs
 - [x] Comic Generation Inference script

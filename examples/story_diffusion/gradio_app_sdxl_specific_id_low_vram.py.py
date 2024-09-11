@@ -747,7 +747,7 @@ def process_generation(
         pipe.scheduler = DDIMScheduler.from_config(pipe.scheduler.config)
         # pipe.enable_freeu(s1=0.6, s2=0.4, b1=1.1, b2=1.2)
         cur_model_type = _sd_type + "-" + _model_type
-        pipe.enable_vae_slicing()
+        # pipe.enable_vae_slicing()
         # if device != "mps":
         #     pipe.enable_model_cpu_offload()
     else:
