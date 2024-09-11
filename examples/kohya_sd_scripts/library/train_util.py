@@ -2535,10 +2535,8 @@ def get_git_revision_hash() -> str:
 
 
 #     diffusers.models.attention.CrossAttention.forward = forward_xformers
-def replace_unet_modules(unet: UNet2DConditionModel, mem_eff_attn, xformers, sdpa):
-    if mem_eff_attn or xformers or sdpa:
-        logger.warning("Not support torch mem_eff_attn/xformers/sdpa for U-Net")
-
+def replace_unet_modules(unet: UNet2DConditionModel, flash_attn):
+    if flash_attn:
         logger.info("Enable mindspore flash attention for U-Net")
         unet.set_use_memory_efficient_attention(True, False)
 
@@ -2662,8 +2660,8 @@ def add_optimizer_arguments(parser: argparse.ArgumentParser):
     parser.add_argument(
         "--optimizer_type",
         type=str,
-        default="",
-        help="Optimizer to use / オプティマイザの種類: AdamW (default), AdamW8bit, PagedAdamW, PagedAdamW8bit, PagedAdamW32bit, Lion8bit, PagedLion8bit, Lion, SGDNesterov, SGDNesterov8bit, DAdaptation(DAdaptAdamPreprint), DAdaptAdaGrad, DAdaptAdam, DAdaptAdan, DAdaptAdanIP, DAdaptLion, DAdaptSGD, AdaFactor",
+        default="AdamW",
+        help="Optimizer to use / オプティマイザの種類: support AdamW (default) only",
     )
 
     # backward compatibility
@@ -2844,11 +2842,6 @@ def add_training_arguments(parser: argparse.ArgumentParser, support_dreambooth: 
         help="max token length of text encoder (default for 75, 150 or 225) / text encoderのトークンの最大長（未指定で75、150または225が指定可）",
     )
     parser.add_argument(
-        "--mem_eff_attn",
-        action="store_true",
-        help="use memory efficient attention for CrossAttention / CrossAttentionに省メモリ版attentionを使う",
-    )
-    parser.add_argument(
         "--torch_compile", action="store_true", help="use torch.compile (requires PyTorch 2.0) / torch.compile を使う"
     )
     parser.add_argument(
@@ -2872,12 +2865,7 @@ def add_training_arguments(parser: argparse.ArgumentParser, support_dreambooth: 
         help="dynamo backend type (default is inductor) / dynamoのbackendの種類（デフォルトは inductor）",
     )
     parser.add_argument(
-        "--xformers", action="store_true", help="use xformers for CrossAttention / CrossAttentionにxformersを使う"
-    )
-    parser.add_argument(
-        "--sdpa",
-        action="store_true",
-        help="use sdpa for CrossAttention (requires PyTorch 2.0) / CrossAttentionにsdpaを使う（PyTorch 2.0が必要）",
+        "--flash_attn", action="store_true", help="use flash_attn for CrossAttention / CrossAttentionにflash_attnを使う"
     )
     parser.add_argument(
         "--vae",

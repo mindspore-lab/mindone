@@ -206,7 +206,7 @@ class NetworkTrainer:
                 text_encoders[idx] = unwrap_model(text_encoder, prefix)
 
         # モデルに xformers とか memory efficient attention を組み込む
-        train_util.replace_unet_modules(unet, args.mem_eff_attn, args.xformers, args.sdpa)
+        train_util.replace_unet_modules(unet, args.flash_attn)
         # if torch.__version__ >= "2.0.0":  # PyTorch 2.0.0 以上対応のxformersなら以下が使える
         #     vae.set_use_memory_efficient_attention_xformers(args.xformers)
 
@@ -1112,7 +1112,7 @@ def setup_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--amp_level",
         type=str,
-        default=None,
+        default="O2",
         help="amp level of the trainning nets",
     )
     return parser
