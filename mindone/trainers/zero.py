@@ -1,4 +1,6 @@
+import json
 import logging
+import os
 
 import mindspore as ms
 from mindspore import nn, ops
@@ -7,7 +9,7 @@ from mindspore.communication.management import GlobalComm
 from mindspore.context import ParallelMode
 from mindspore.parallel._utils import _get_parallel_mode
 
-from mindone.models.modules.parallel import PARALLEL_MODULE
+from mindone.models.modules.parallel import PARALLEL_MODULES
 
 from .train_step import TrainOneStepWrapper
 
@@ -60,15 +62,25 @@ def _run_stage1_split_grad(split, op_group_size, op_rank_id, allreduce, gradient
     return gradient
 
 
+def split_np(x, num, idx):
+    b = x.shape[0]
+    sp_len = b // num
+    start = sp_len * idx
+    end = sp_len * (idx + 1)
+    return ms.Tensor(x.asnumpy()[start:end])
+
+
 @ms.ms_class
 class ZeroHelper:
     """
     Zero redundancy optimizer(ZeRO) build helper.
+
     - zero_stage is 0: Normal optimizer update.
     - zero_stage is 1: Split optimizer parameters and gradients, manually updating optimizer parameters.
     - zero_stage is 2: Split optimizer parameters, replace gradients allreduce with reducescatter,
         manually updating optimizer parameters.
     - zero_stage is 3: Split optimizer parameters, normal optimizer update.
+
     Args:
         optimizer (`nn.Optimizer`): Must be the subclass of MindSpore Optimizer.
         zero_stage (`int`, *optional*): Stage setting of ZeRO, default is 0.
@@ -81,6 +93,8 @@ class ZeroHelper:
             Examples: {"allreduce": {"bucket_size": 5e8},
                        "reduce_scatter": {"bucket_size": 5e8},
                        "allgather": {"bucket_size": 5e8},}
+        params_split_info (`str`, *optional*): A json path of the optimizer parallel communication group,
+            default is `params_info`.
     """
 
     def __init__(
@@ -91,10 +105,13 @@ class ZeroHelper:
         dp_group: str = None,
         optimizer_offload: bool = False,
         comm_fusion: dict = None,
+        params_split_info: str = "params_info",
     ):
         self.optimizer = optimizer
         self.zero_stage = zero_stage
         self.op_group = op_group
+        if isinstance(optimizer, ms.experimental.optim.optimizer.Optimizer):
+            self.optimizer._parameters = self.optimizer.parameters
         self.ori_parameters = self.optimizer._parameters
         # Init parallel settings
         self.is_parallel = _get_parallel_mode() == ParallelMode.DATA_PARALLEL
@@ -130,6 +147,11 @@ class ZeroHelper:
                     self.set_optimizer_allgather_fusion_comm_list(comm_fusion)
                 if self.need_dp:
                     self.set_dp_allreduce_comm_list(comm_fusion)
+            if not os.path.exists(params_split_info):
+                os.makedirs(params_split_info, exist_ok=True)
+            if not os.path.isdir(params_split_info):
+                ValueError(f"params_split_info must be a folder, params_split_info: {params_split_info}")
+            self.dump_params_split_info(params_split_info)
 
         self.hyper_map = ops.HyperMap()
         if optimizer_offload:
@@ -162,7 +184,7 @@ class ZeroHelper:
             self.dp_group_size = ms.Tensor(get_group_size(group=self.dp_group), ms.float32)
 
     def update_comm_op_info(self, comm_op_info, bucket_size, param_size, param_name):
-        if comm_op_info[-1]["size"] + param_size <= bucket_size or len(comm_op_info) == 1:
+        if comm_op_info[-1]["size"] + param_size <= bucket_size or len(comm_op_info[-1]["params"]) == 0:
             comm_op_info[-1]["size"] += param_size
             comm_op_info[-1]["params"].append(param_name)
         else:
@@ -175,12 +197,13 @@ class ZeroHelper:
         self.max_fusion_id += 1
         self.zero1_allreduce_list = []
         for i, param in enumerate(self.ori_parameters):
-            param_size = param.itemsize
+            param_size = param.itemsize * param.size
             param_name = param.name
             self.update_comm_op_info(allreduce_info, comm_fusion["allreduce"]["bucket_size"], param_size, param_name)
             comm_op = ops.AllReduce(op=ops.ReduceOp.SUM, group=self.op_group)
             comm_op.add_prim_attr("fusion", allreduce_info[-1]["fusion_id"])
             self.zero1_allreduce_list.append(comm_op)
+        _logger.info(f"zero1_allreduce_fusion: {allreduce_info}")
 
     def set_zero2_reduce_scatter_fusion_comm_list(self, comm_fusion):
         reduce_scatter_info = [{"size": 0, "fusion_id": self.max_fusion_id + 1, "params": []}]
@@ -190,7 +213,7 @@ class ZeroHelper:
         self.zero2_reduce_scatter_list = []
         self.zero2_allreduce_list = []
         for i, param in enumerate(self.ori_parameters):
-            param_size = param.itemsize
+            param_size = param.itemsize * param.size
             param_name = param.name
             if self.need_parameter_split[i]:
                 self.update_comm_op_info(
@@ -207,13 +230,15 @@ class ZeroHelper:
             comm_op = ops.AllReduce(op=ops.ReduceOp.SUM, group=self.op_group)
             comm_op.add_prim_attr("fusion", allreduce_info[-1]["fusion_id"])
             self.zero2_allreduce_list.append(comm_op)
+        _logger.info(f"zero2_reduce_scatter_fusion: {reduce_scatter_info}")
+        _logger.info(f"zero2_reduce_scatter_fusion: {allreduce_info}")
 
     def set_optimizer_allgather_fusion_comm_list(self, comm_fusion):
         allgather_info = [{"size": 0, "fusion_id": self.max_fusion_id + 1, "params": []}]
         self.max_fusion_id += 1
         self.optimizer_allgather_list = []
         for i, param in enumerate(self.ori_parameters):
-            param_size = param.itemsize
+            param_size = param.itemsize * param.size
             param_name = param.name
             if self.need_parameter_split[i]:
                 self.update_comm_op_info(
@@ -222,13 +247,14 @@ class ZeroHelper:
             comm_op = ops.AllGather(group=self.op_group)
             comm_op.add_prim_attr("fusion", allgather_info[-1]["fusion_id"])
             self.optimizer_allgather_list.append(comm_op)
+        _logger.info(f"optimizer_allgather_fusion: {allgather_info}")
 
     def set_dp_allreduce_comm_list(self, comm_fusion):
         dp_allreduce_info = [{"size": 0, "fusion_id": self.max_fusion_id + 1, "params": []}]
         self.max_fusion_id += 1
         self.dp_allreduce_list = []
         for i, param in enumerate(self.ori_parameters):
-            param_size = param.itemsize
+            param_size = param.itemsize * param.size
             param_name = param.name
             if self.need_parameter_split[i]:
                 self.update_comm_op_info(
@@ -237,9 +263,10 @@ class ZeroHelper:
             comm_op = ops.AllGather(group=self.op_group)
             comm_op.add_prim_attr("fusion", dp_allreduce_info[-1]["fusion_id"])
             self.dp_allreduce_list.append(comm_op)
+        _logger.info(f"dp_allreduce_fusion: {dp_allreduce_info}")
 
     def split_param(self, param):
-        return self.split_op(param)[self.op_rank_id]
+        return split_np(param, self.op_group_size, self.op_rank_id)
 
     def get_optimizer_param_tuples(self):
         param_tuples = []
@@ -257,6 +284,20 @@ class ZeroHelper:
                     _logger.debug(f"Add optimizer param_tuples {attr}")
                     param_tuples.append(getattr(self.optimizer, attr))
         return param_tuples
+
+    def dump_params_split_info(self, params_split_info):
+        params_split_info_path = os.path.join(params_split_info, f"params_split_info_{self.op_rank_id}.json")
+        params_split_info_dict = {}
+        for i, param in enumerate(self.optimizer._parameters):
+            param_split_info = {
+                "split": self.need_parameter_split[i],
+                "group_size": self.op_group_size,
+                "rank_id": self.op_rank_id,
+            }
+            params_split_info_dict[param.name] = param_split_info
+        params_split_info_json = json.dumps(params_split_info_dict, indent=2)
+        with open(params_split_info_path, "w") as f:
+            f.write(params_split_info_json)
 
     def get_need_parameter_split(self):
         self.need_parameter_split = [False] * len(self.optimizer._parameters)
@@ -428,8 +469,8 @@ def get_cell_dtype(cell):
     return None
 
 
-def _init_parallel_settings(net, op_group):
-    for module, parallel_module in PARALLEL_MODULE.items():
+def _init_parallel_settings(net, op_group, parallel_modules=None):
+    for module, parallel_module in parallel_modules.items():
         if isinstance(net, module):
             cell_type = get_cell_dtype(net)
             new_net = parallel_module(net, 3, op_group)
@@ -439,33 +480,67 @@ def _init_parallel_settings(net, op_group):
     return None
 
 
-def _prepare_network(network: nn.Cell, op_group: str):
-    new_net = _init_parallel_settings(network, op_group)
+def get_cell_params_fullname_dict(cell: nn.Cell):
+    fullname_dict = {}
+    for param_name in cell._params:
+        fullname_dict[param_name] = getattr(cell, param_name).name
+    return fullname_dict
+
+
+def _prepare_network(network: nn.Cell, op_group: str, parallel_modules=None):
+    new_net = _init_parallel_settings(network, op_group, parallel_modules)
     if new_net is not None:
         return new_net
     for name, sub_net in network._cells.items():
         if not sub_net:
             continue
-        new_sub_net = _init_parallel_settings(sub_net, op_group)
+        new_sub_net = _init_parallel_settings(sub_net, op_group, parallel_modules)
         if new_sub_net is not None:
-            network.__setattr__(name, new_sub_net)
+            params_fullname_dict = get_cell_params_fullname_dict(sub_net)
+            if isinstance(network, (nn.CellList, nn.SequentialCell)):
+                network._cells[name] = new_sub_net
+                if isinstance(network, nn.SequentialCell):
+                    network.cell_list = list(network._cells.values())
+            else:
+                network.__setattr__(name, new_sub_net)
+
+            # parameter name will update after __setattr__, reset to ori parameter name.
+            for param_name in new_sub_net.net._params:
+                getattr(new_sub_net.net, param_name).name = params_fullname_dict[param_name]
             continue
         if sub_net._params:
             for param_name in sub_net._params:
                 param = getattr(sub_net, param_name)
                 _logger.warning(f"Set param {param.name} parallel_optimizer False, param shape {param.shape}")
                 param.parallel_optimizer = False
-        _prepare_network(sub_net, op_group)
+        _prepare_network(sub_net, op_group, parallel_modules)
     return network
 
 
-def prepare_network(network: nn.Cell, zero_stage: int = 0, op_group: str = None):
+def prepare_network(network: nn.Cell, zero_stage: int = 0, op_group: str = None, parallel_modules=None):
     if zero_stage != 3 or _get_parallel_mode() != ParallelMode.DATA_PARALLEL:
         _logger.info("No need rewrite network and return original network.")
         return network
     _logger.info("Rewrite the network, please wait...")
-    network = _prepare_network(network, op_group)
+    if parallel_modules is None:
+        parallel_modules = PARALLEL_MODULES
+    network = _prepare_network(network, op_group, parallel_modules)
     return network
+
+
+def prepare_ema(ema, zero_stage: int = 0, op_group: str = None):
+    is_parallel = _get_parallel_mode() == ParallelMode.DATA_PARALLEL
+    if not is_parallel or zero_stage != 3:
+        return ema
+    op_group_size = get_group_size(op_group)
+    op_rank_id = get_rank(op_group)
+    _logger.info(f"Split EMA params: rank_id {op_rank_id}, rank_size {op_group_size}.")
+    for net_weight, ema_weight, swap_cache in zip(ema.net_weight, ema.ema_weight, ema.swap_cache):
+        if net_weight.shape == ema_weight.shape:
+            continue
+        ema_weight.set_data(split_np(ema_weight, op_group_size, op_rank_id), slice_shape=True)
+        swap_cache.set_data(split_np(swap_cache, op_group_size, op_rank_id), slice_shape=True)
+    return ema
 
 
 def prepare_train_network(
@@ -484,9 +559,11 @@ def prepare_train_network(
     op_group: str = None,
     dp_group: str = None,
     comm_fusion: dict = None,
+    parallel_modules=None,
 ):
     """
     Prepare network and optimizer for distributed training.
+
     Args:
         network (`nn.Cell`): train network, not include grad function,
             grad function must be built after rewrite train network.
@@ -504,6 +581,8 @@ def prepare_train_network(
             Examples: {"allreduce": {"openstate": True, "bucket_size": 5e8},
                        "reduce_scatter": {"openstate": True, "bucket_size": 5e8},
                        "allgather": {"openstate": False, "bucket_size": 5e8},}
+        parallel_modules (`dict`, *optional*): A dict of Cells could split parameters in zero3, default is None.
+            If None, use `PARALLEL_MODULES` from `mindone.models.modules.parallel`.
     """
     is_parallel = _get_parallel_mode() == ParallelMode.DATA_PARALLEL
     if not is_parallel and zero_stage == 0:
@@ -518,8 +597,10 @@ def prepare_train_network(
     if op_group != GlobalComm.WORLD_COMM_GROUP and dp_group is None:
         raise ValueError("op_group {op_group} and dp_group {dp_group} not full network hccl group coverage")
 
-    new_network = prepare_network(network, zero_stage, op_group)
+    new_network = prepare_network(network, zero_stage, op_group, parallel_modules=parallel_modules)
     zero_helper = ZeroHelper(optimizer, zero_stage, op_group, dp_group, optimizer_offload, comm_fusion)
+    if ema is not None:
+        ema = prepare_ema(ema, zero_stage, op_group)
     if isinstance(scale_sense, float):
         scale_sense = ms.Tensor(scale_sense, ms.float32)
     train_network = TrainOneStepWrapper(
@@ -536,3 +617,51 @@ def prepare_train_network(
         zero_helper=zero_helper,
     )
     return train_network
+
+
+def transform_checkpoints(src_checkpoint: str, src_param_split_info_json: str, group_size: int):
+    """
+    src_checkpoint (`str`): The path of checkpoints need to merge parameters. eg. "save_checkpoint_dir/ckpt_{}.ckpt",
+        {} is placeholder of rank_id.
+    src_param_split_info_json (`str`): The path of param_split_info_jsons. eg. "params_info/params_split_info_{}.json",
+        {} is placeholder of rank_id.
+    group_size (`int`): The rank size of the communication group.
+    """
+
+    def read_json(json_file):
+        s = ""
+        with open(json_file, "r") as f:
+            for line in f.readlines():
+                s += line
+        return json.loads(s)
+
+    new_params_list = []
+    ckpts = []
+    jsons = []
+    for i in range(group_size):
+        ckpts.append(ms.load_checkpoint(src_checkpoint.format(i)))
+        jsons.append(read_json(src_param_split_info_json.format(i)))
+    for param_name in ckpts[0].keys():
+        param_value = None
+        param_list = []
+        for i in range(group_size):
+            if param_name not in jsons[i]:
+                _logger.warning(f"param {param_name} not in param_split_info_json, keep ori data.")
+                if i:
+                    raise ValueError("please check jsons, param name not same!")
+                param_value = ckpts[0][param_name]
+                break
+            elif not jsons[i][param_name]["split"]:
+                if i:
+                    raise ValueError("please check jsons, param info not same!")
+                param_value = ckpts[0][param_name]
+                break
+            else:
+                param_list.append(ckpts[i][param_name])
+        if param_value is None:
+            param_value = ops.cat(param_list)
+            _logger.debug("Merge {param_name} to {param_value.shape}")
+
+        new_params_list.append({"name": param_name, "data": param_value})
+
+    ms.save_checkpoint(new_params_list, src_checkpoint.format(f"all_{group_size}"))

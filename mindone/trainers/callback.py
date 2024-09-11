@@ -9,7 +9,7 @@ from mindspore.train.callback._callback import Callback, _handle_loss
 from .checkpoint import CheckpointManager
 from .recorder import PerfRecorder
 
-_logger = logging.getLogger("")
+_logger = logging.getLogger(__name__)
 
 __all__ = ["OverflowMonitor", "EvalSaveCallback", "ProfilerCallback", "StopAtStepCallback"]
 
