@@ -4,17 +4,12 @@ Infer and evaluate VQVAE
 
 import logging
 import os
-import shutil
 import sys
 import time
 import argparse
 import numpy as np
-import yaml
-from omegaconf import OmegaConf
 
 from PIL import Image
-from skimage.metrics import peak_signal_noise_ratio as calc_psnr
-from skimage.metrics import structural_similarity as calc_ssim
 from tqdm import tqdm
 
 import mindspore as ms

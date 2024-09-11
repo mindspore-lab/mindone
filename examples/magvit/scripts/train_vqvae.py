@@ -5,7 +5,6 @@ import os
 import shutil
 import sys
 import time
-import math
 import yaml
 
 import mindspore as ms
@@ -87,7 +86,7 @@ def main(args):
 
     # 2. build models
     #  vqvae (G)
-    model_config = get_config("B")
+    model_config = get_config()
     dtype = {"fp32": ms.float32, "fp16": ms.float16, "bf16": ms.bfloat16}[args.dtype]
     vqvae = build_model(args.model_class, model_config, is_training=True, pretrained=args.pretrained, dtype=dtype)
 

@@ -4,26 +4,13 @@ r"""Configs for the VQGAN-3D on the UCF101.
 
 import ml_collections
 
-from videogvt.config import vqgan2d_ucf101_config
 
-
-def get_config(config_str="MAGVIT-V2"):
+def get_config():
     """Returns the base experiment configuration."""
-    version, *options = config_str.split("-")
 
-    config = vqgan2d_ucf101_config.get_config(config_str)
-
-    # Overall
-    config.batch_size = 1
-    config.eval_batch_size = 32
-    config.num_training_epochs = 500
-
-    # Dataset.
-    del config.num_train_sampled_frames
+    config = ml_collections.ConfigDict()
 
     # Model: vqvae
-    config.model_name = "vqvae-3d"
-
     config.vqvae.channels = 3
     config.vqvae.embedding_dim = 18
     config.vqvae.codebook_size = 262144 # 2^18

@@ -23,12 +23,6 @@ def _check_cfgs_in_parser(cfgs: dict, parser: argparse.ArgumentParser):
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "--config",
-        default="",
-        type=str,
-        help="path to load a config yaml file that describes the training recipes which will override the default arguments",
-    )
-    parser.add_argument(
         "--model_class",
         default="vqvae-3d",
         type=str,
