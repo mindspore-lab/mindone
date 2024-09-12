@@ -62,12 +62,7 @@ class VideoDatasetRefactored(BaseDataset):
         max_target_size: int = 512,
         input_sq_size: int = 512,
         in_channels: int = 4,
-        buckets: Optional[Bucket] = None,
-        seed: Optional[int] = None,
-        shuffle: bool = True,
-        drop_remainder: bool = True,
-        device_num: int = 1,
-        rank_id: int = 0,
+        bucketing: bool = False,
         filter_data: bool = False,
         apply_train_transforms: bool = False,
         target_size: Optional[Tuple[int, int]] = None,
@@ -95,10 +90,10 @@ class VideoDatasetRefactored(BaseDataset):
         self._fmask_gen = frames_mask_generator
         self._t_compress_func = t_compress_func or (lambda x: x)
         self._pre_patchify = pre_patchify
-        self._buckets = buckets
+        self._bucketing = bucketing
 
         self.output_columns = output_columns
-        if self._buckets is not None:
+        if self._bucketing is not None:
             assert vae_latent_folder is None, "`vae_latent_folder` is not supported with bucketing"
             self.output_columns += ["size"]  # pass bucket id information to transformations
 
@@ -139,17 +134,8 @@ class VideoDatasetRefactored(BaseDataset):
             assert not pre_patchify, "transforms for prepatchify not implemented yet"
 
         # prepare replacement data in case the loading of a sample fails
-        self._prev_ok_sample = self._get_replacement() if self._buckets is None else None
+        self._prev_ok_sample = self._get_replacement() if self._bucketing is None else None
         self._require_update_prev = False
-
-        if self._buckets is not None:
-            self._seed = seed
-            self._shuffle = shuffle
-            self._drop_remainder = drop_remainder
-            self._device_num = device_num
-            self._rank = rank_id
-            self._bucket_samples = []
-            self.group_by_bucket()
 
     @staticmethod
     def _read_data(
@@ -195,57 +181,6 @@ class VideoDatasetRefactored(BaseDataset):
 
         _logger.info(f"Number of data samples: {len(data)}")
         return data
-
-    def group_by_bucket(self, epoch: int = 0):
-        rng = np.random.default_rng(self._seed + epoch)
-
-        _logger.debug("Building buckets...")
-        if self._shuffle:
-            indexes = rng.permutation(len(self._data)).tolist()
-        else:
-            indexes = list(range(len(self._data)))
-
-        bucket_sample_dict = defaultdict(list)
-        for i in indexes:
-            bucket_id = self._buckets.get_bucket_id(
-                int(self._data[i]["length"]),
-                int(self._data[i]["height"]),
-                int(self._data[i]["width"]),
-                frame_interval=self._stride,
-                seed=self._seed + epoch + i * self._buckets.num_bucket,  # Following the original implementation
-            )
-            # group by bucket
-            # each data sample is put into a bucket with a similar image/video size
-            if bucket_id is not None:
-                bucket_sample_dict[bucket_id].append(i)
-
-        # process the samples
-        for bucket_id, data_list in bucket_sample_dict.items():
-            bs_per_npu = self._buckets.get_batch_size(bucket_id)
-            if remainder := len(data_list) % bs_per_npu:
-                if not self._drop_remainder:  # when keeping a remainder, pad to make the batch divisible
-                    data_list += data_list[: bs_per_npu - remainder]
-                else:  # otherwise, drop the remainder
-                    data_list = data_list[:-remainder]
-
-            self._bucket_samples.extend(
-                [
-                    (self._buckets.get_thw(bucket_id), data_list[i : i + bs_per_npu])
-                    for i in range(0, len(data_list), bs_per_npu)
-                ]
-            )
-
-        # make the number of bucket accesses divisible by dp size
-        if remainder := len(self._bucket_samples) % self._device_num:
-            if self._drop_remainder:
-                self._bucket_samples = self._bucket_samples[:-remainder]
-            else:
-                self._bucket_samples += self._bucket_samples[: self._device_num - remainder]
-
-        # keep only the samples for the current rank
-        self._bucket_samples = self._bucket_samples[self._rank :: self._device_num]
-        _logger.debug(f"Number of batches per rank: {len(self._bucket_samples)}")
-        _logger.debug(f"Rank {self._rank} samples: {self._bucket_samples}")
 
     def _get_replacement(self, max_attempts: int = 100) -> Tuple[Any, ...]:
         attempts = min(max_attempts, len(self))
@@ -365,15 +300,13 @@ class VideoDatasetRefactored(BaseDataset):
 
         return final_outputs
 
-    def _get_bucket(self, idx: int) -> Tuple[Any, ...]:
-        thw, sample_ids = self._bucket_samples[idx]
-        _logger.debug(f"Rank {self._rank}: bucket {thw} | samples {sample_ids} ")
+    def get_bucket(self, thw: Tuple[int, int, int], sample_ids: List[int]) -> Tuple[Any, ...]:
         batch = [self._get_item(sample_id, thw) for sample_id in sample_ids]
         return tuple(np.stack(item) for item in map(list, zip(*batch)))
 
     def __getitem__(self, idx: int) -> Tuple[Any, ...]:
         try:
-            sample = self._get_item(idx) if self._buckets is None else self._get_bucket(idx)
+            sample = self._get_item(idx)
             if self._require_update_prev:
                 self._prev_ok_sample = sample
                 self._require_update_prev = False
@@ -419,7 +352,7 @@ class VideoDatasetRefactored(BaseDataset):
         return latent, spatial_pos, spatial_mask, temporal_pos, temporal_mask
 
     def __len__(self):
-        return len(self._data) if self._buckets is None else len(self._bucket_samples) * self._device_num
+        return len(self._data)
 
     def train_transforms(
         self, target_size: Tuple[int, int], tokenizer: Optional[Callable[[str], np.ndarray]] = None
@@ -427,7 +360,7 @@ class VideoDatasetRefactored(BaseDataset):
         transforms = []
         vae_downsample_rate = self._vae_downsample_rate
 
-        if self._buckets is not None:
+        if self._bucketing is not None:
             vae_downsample_rate = 1
             transforms.extend(
                 [
@@ -489,3 +422,102 @@ class VideoDatasetRefactored(BaseDataset):
             transforms.append({"operations": [tokenizer], "input_columns": ["caption"]})
 
         return transforms
+
+
+class BucketGroupLoader:
+    def __init__(
+        self,
+        dataset: VideoDatasetRefactored,
+        buckets: Bucket,
+        device_num: int = 1,
+        rank_id: int = 0,
+        shuffle: bool = False,
+        seed: int = 42,
+        drop_remainder: bool = True,
+        *,
+        output_columns: List[str],
+    ):
+        self._dataset = dataset
+        self._buckets = buckets
+        self._device_num = device_num
+        self._rank = rank_id
+        self._shuffle = shuffle
+        self._seed = seed
+        self._drop_remainder = drop_remainder
+        self._epoch = 0
+        self._bucket_samples = []
+        self.output_columns = output_columns
+
+    def __iter__(self):
+        self._i = 0
+        self._epoch += 1
+        self._bucket_samples = []
+        rng = np.random.default_rng(self._seed + self._epoch)
+
+        _logger.debug("Building buckets...")
+        if self._shuffle:
+            indexes = rng.permutation(len(self._dataset._data)).tolist()
+        else:
+            indexes = list(range(len(self._dataset._data)))
+
+        bucket_sample_dict = defaultdict(list)
+        for i in indexes:
+            bucket_id = self._buckets.get_bucket_id(
+                int(self._dataset._data[i]["length"]),
+                int(self._dataset._data[i]["height"]),
+                int(self._dataset._data[i]["width"]),
+                frame_interval=self._dataset._stride,
+                seed=self._seed + self._epoch + i * self._buckets.num_bucket,  # Following the original implementation
+            )
+            # group by bucket
+            # each data sample is put into a bucket with a similar image/video size
+            if bucket_id is not None:
+                bucket_sample_dict[bucket_id].append(i)
+
+        # process the samples
+        for bucket_id, data_list in bucket_sample_dict.items():
+            bs_per_npu = self._buckets.get_batch_size(bucket_id)
+            if remainder := len(data_list) % bs_per_npu:
+                if not self._drop_remainder:  # when keeping a remainder, pad to make the batch divisible
+                    data_list += data_list[: bs_per_npu - remainder]
+                else:  # otherwise, drop the remainder
+                    data_list = data_list[:-remainder]
+
+            self._bucket_samples.extend(
+                [
+                    (self._buckets.get_thw(bucket_id), data_list[i : i + bs_per_npu])
+                    for i in range(0, len(data_list), bs_per_npu)
+                ]
+            )
+
+        # randomize the access order
+        if self._shuffle:  # double shuffle following the original implementation
+            bucket_indexes = rng.permutation(len(self._bucket_samples)).tolist()
+            self._bucket_samples = [self._bucket_samples[i] for i in bucket_indexes]
+
+        # make the number of bucket accesses divisible by dp size
+        if remainder := len(self._bucket_samples) % self._device_num:
+            if self._drop_remainder:
+                self._bucket_samples = self._bucket_samples[:-remainder]
+            else:
+                self._bucket_samples += self._bucket_samples[: self._device_num - remainder]
+
+        # keep only the samples for the current rank
+        self._bucket_samples = self._bucket_samples[self._rank :: self._device_num]
+        _logger.debug(f"Number of batches per rank: {len(self._bucket_samples)}")
+        _logger.debug(f"Rank {self._rank} samples: {self._bucket_samples}")
+
+        return self
+
+    def __next__(self):
+        if self._i >= len(self._bucket_samples):
+            raise StopIteration
+
+        thw, sample_ids = self._bucket_samples[self._i]
+        self._i += 1
+
+        _logger.debug(f"Rank {self._rank}: bucket {thw} | samples {sample_ids} ")
+        return self._dataset.get_bucket(thw, sample_ids)
+
+    def __len__(self):
+        return len(self._bucket_samples) * self._device_num

@@ -35,7 +35,7 @@ from opensora.pipelines import (
 )
 from opensora.schedulers.iddpm import create_diffusion
 from opensora.utils.amp import auto_mixed_precision
-from opensora.utils.callbacks import BucketRegroupCallback, EMAEvalSwapCallback, PerfRecorderCallback
+from opensora.utils.callbacks import EMAEvalSwapCallback, PerfRecorderCallback
 from opensora.utils.ema import EMA, save_ema_ckpts
 from opensora.utils.metrics import BucketLoss
 from opensora.utils.model_utils import WHITELIST_OPS, Model
@@ -220,71 +220,76 @@ def initialize_dataset(
     else:
         from opensora.datasets.bucket import Bucket  # , bucket_split_function
         from opensora.datasets.mask_generator import MaskGenerator
-        from opensora.datasets.video_dataset_refactored import VideoDatasetRefactored
+        from opensora.datasets.video_dataset_refactored import BucketGroupLoader, VideoDatasetRefactored
 
         from mindone.data import create_dataloader
 
         if validation:
             mask_gen = MaskGenerator({"identity": 1.0})
-            all_buckets, individual_buckets = None, [None]
+            buckets = []
             if bucket_config is not None:
-                all_buckets = Bucket(bucket_config)
                 # Build a new bucket for each resolution and number of frames for the validation stage
-                individual_buckets = [
+                buckets = [
                     Bucket({res: {num_frames: [1.0, bucket_config[res][num_frames][1]]}})
                     for res in bucket_config.keys()
                     for num_frames in bucket_config[res].keys()
                 ]
         else:
             mask_gen = MaskGenerator(args.mask_ratios)
-            all_buckets = Bucket(bucket_config) if bucket_config is not None else None
-            individual_buckets = [all_buckets]
+            buckets = [Bucket(bucket_config)] if bucket_config is not None else []
 
         # output_columns=["video", "caption", "mask", "fps", "num_frames", "frames_mask"],
         output_columns = ["video", "caption", "mask", "frames_mask", "num_frames", "height", "width", "fps", "ar"]
         if args.pre_patchify:
             output_columns.extend(["spatial_pos", "spatial_mask", "temporal_pos", "temporal_mask"])
 
-        datasets = [
-            VideoDatasetRefactored(
-                csv_path=csv_path,
-                video_folder=video_folder,
-                text_emb_folder=text_embed_folder,
-                vae_latent_folder=vae_latent_folder,
-                vae_scale_factor=args.sd_scale_factor,
-                sample_n_frames=args.num_frames,
-                sample_stride=args.frame_stride,
-                frames_mask_generator=mask_gen,
-                t_compress_func=lambda x: vae.get_latent_size((x, None, None))[0],
-                buckets=buckets,
-                seed=args.seed,
-                shuffle=not validation,
-                drop_remainder=not validation,
-                device_num=device_num,
-                rank_id=rank_id,
-                filter_data=args.filter_data,
-                pre_patchify=args.pre_patchify,
-                patch_size=latte_model.patch_size,
-                embed_dim=latte_model.hidden_size,
-                num_heads=latte_model.num_heads,
-                max_target_size=args.max_image_size,
-                input_sq_size=latte_model.input_sq_size,
-                in_channels=latte_model.in_channels,
-                apply_train_transforms=True,
-                target_size=(img_h, img_w),
-                video_backend=args.video_backend,
-                output_columns=output_columns,
-            )
-            for buckets in individual_buckets
-        ]
+        datasets = VideoDatasetRefactored(
+            csv_path=csv_path,
+            video_folder=video_folder,
+            text_emb_folder=text_embed_folder,
+            vae_latent_folder=vae_latent_folder,
+            vae_scale_factor=args.sd_scale_factor,
+            sample_n_frames=args.num_frames,
+            sample_stride=args.frame_stride,
+            frames_mask_generator=mask_gen,
+            t_compress_func=lambda x: vae.get_latent_size((x, None, None))[0],
+            bucketing=bool(buckets),
+            filter_data=args.filter_data,
+            pre_patchify=args.pre_patchify,
+            patch_size=latte_model.patch_size,
+            embed_dim=latte_model.hidden_size,
+            num_heads=latte_model.num_heads,
+            max_target_size=args.max_image_size,
+            input_sq_size=latte_model.input_sq_size,
+            in_channels=latte_model.in_channels,
+            apply_train_transforms=True,
+            target_size=(img_h, img_w),
+            video_backend=args.video_backend,
+            output_columns=output_columns,
+        )
+
+        if buckets:
+            datasets = [
+                BucketGroupLoader(
+                    datasets,
+                    buckets,
+                    device_num=device_num,
+                    rank_id=rank_id,
+                    shuffle=not validation,
+                    seed=args.seed,
+                    drop_remainder=not validation,
+                    output_columns=output_columns,
+                )
+                for buckets in buckets
+            ]
 
         dataloaders = [
             create_dataloader(
                 dataset,
-                batch_size=batch_size if all_buckets is None else 0,  # Turn off batching if using buckets
+                batch_size=0 if buckets else batch_size,  # Turn off batching if using buckets
                 shuffle=not validation,
-                device_num=device_num,
-                rank_id=rank_id,
+                device_num=None if buckets else device_num,  # Sharding is not supported with an iterator dataloader
+                rank_id=None if buckets else rank_id,
                 num_workers_dataset=args.num_parallel_workers,
                 drop_remainder=not validation,
                 prefetch_size=args.prefetch_size,
@@ -693,7 +698,6 @@ def main(args):
         if args.bucket_config is None:
             callbacks.append(TimeMonitor(args.log_interval))
         else:
-            callbacks.append(BucketRegroupCallback())
             logger.info(
                 "As steps per epoch are inaccurate with bucket config, TimeMonitor is disabled."
                 "See result.log for the actual step time"
