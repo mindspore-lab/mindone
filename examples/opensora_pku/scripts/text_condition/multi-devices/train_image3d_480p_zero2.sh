@@ -1,5 +1,5 @@
 # Stage 2: 1x480p
-msrun --bind_core=True --worker_num=8 --local_worker_num=8 --master_port=9000 --log_dir="t2i-image3d-1x480p_ddp/parallel_logs" \
+msrun --bind_core=True --worker_num=8 --local_worker_num=8 --master_port=9000 --log_dir="t2i-image3d-1x480p_zero2/parallel_logs" \
  opensora/train/train_t2v_diffusers.py \
     --model OpenSoraT2V-ROPE-L/122 \
     --text_encoder_name google/mt5-xxl \
@@ -27,7 +27,7 @@ msrun --bind_core=True --worker_num=8 --local_worker_num=8 --master_port=9000 --
     --lr_warmup_steps=500 \
     --precision="bf16" \
     --checkpointing_steps=2000 \
-    --output_dir="t2i-image3d-1x480p_ddp/" \
+    --output_dir="t2i-image3d-1x480p_zero2/" \
     --model_max_length 512 \
     --use_image_num 0 \
     --snr_gamma 5.0 \
@@ -41,3 +41,6 @@ msrun --bind_core=True --worker_num=8 --local_worker_num=8 --master_port=9000 --
     --use_rope \
     --noise_offset 0.02 \
     --use_parallel True \
+    --parallel_mode "zero" \
+    --zero_stage 2 \
+    --max_device_memory "59GB" \

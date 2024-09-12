@@ -52,5 +52,4 @@ msrun --bind_core=True --worker_num=8 --local_worker_num=8 --master_port=9000 --
     --sp_size 8 \
     --train_sp_batch_size 1 \
     --max_device_memory "59GB" \
-    --jit_syntax_level "lax" \
     # --group_frame \

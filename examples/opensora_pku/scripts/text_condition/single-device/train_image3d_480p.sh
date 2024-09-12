@@ -1,4 +1,4 @@
-# Stage 2: 1x480p
+# Stage 2: 1x480p, maybe oom on 910*
 export DEVICE_ID=0
 python opensora/train/train_t2v_diffusers.py \
     --model OpenSoraT2V-ROPE-L/122 \
