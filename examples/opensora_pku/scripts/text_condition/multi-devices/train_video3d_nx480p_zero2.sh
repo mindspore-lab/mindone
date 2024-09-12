@@ -1,3 +1,4 @@
+# Stage 3: 29x480p
 NUM_FRAME=29
 msrun --bind_core=True --worker_num=8 --local_worker_num=8 --master_port=9000 --log_dir="t2v-video3d-${NUM_FRAME}x480p_zero2/parallel_logs" \
   opensora/train/train_t2v_diffusers.py \

@@ -1,3 +1,4 @@
+# Stage 2: 1x480p
 export DEVICE_ID=0
 python opensora/train/train_t2v_diffusers.py \
     --model OpenSoraT2V-ROPE-L/122 \
@@ -34,6 +35,7 @@ python opensora/train/train_t2v_diffusers.py \
     --ema_start_step 0 \
     --enable_tiling \
     --tile_overlap_factor 0.0 \
+    --pretrained "path/to/pretrained/1x240p/ckpt" \
     --clip_grad True \
     --max_grad_norm 1.0 \
     --use_rope \

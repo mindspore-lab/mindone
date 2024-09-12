@@ -1,4 +1,4 @@
-
+# Stage 2: 1x480p
 msrun --bind_core=True --worker_num=8 --local_worker_num=8 --master_port=9000 --log_dir="t2i-image3d-1x480p_ddp/parallel_logs" \
  opensora/train/train_t2v_diffusers.py \
     --model OpenSoraT2V-ROPE-L/122 \
@@ -35,6 +35,7 @@ msrun --bind_core=True --worker_num=8 --local_worker_num=8 --master_port=9000 --
     --ema_start_step 0 \
     --enable_tiling \
     --tile_overlap_factor 0.0 \
+    --pretrained "path/to/pretrained/1x240p/ckpt" \
     --clip_grad True \
     --max_grad_norm 1.0 \
     --use_rope \

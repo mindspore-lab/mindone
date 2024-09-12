@@ -1,3 +1,4 @@
+# Stage 3: 29x480p, maybe oom on 910*
 export DEVICE_ID=0
 NUM_FRAME=29
 python  opensora/train/train_t2v_diffusers.py \
