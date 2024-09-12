@@ -27,10 +27,11 @@ cd mindone
 pip install .
 ```
 
-Enter in the example folder `examples/kohya_sd_scripts`.
+Enter in the example folder `examples/kohya_sd_scripts` and install the requirements.
 
 ```bash
 cd examples/kohya_sd_scripts
+pip install -r requirements.txt
 ```
 
 
@@ -47,7 +48,7 @@ You can specify the learning data in several ways, depending on the number of le
 | ------------------------- | ----------------------- | --------------------- | ------------ | ----------- |
 | LoRA                      | `sdxl_train_network.py` | o                     | o            | o           |
 
-Here we take the [Pokemon_blip dataset]() as an example to explain the three learning data patterns.  Please refer to [Config Readme](https://github.com/kohya-ss/sd-scripts/blob/main/docs/config_README-en.md) and  [Common Learning Guide](https://github.com/kohya-ss/sd-scripts/blob/main/docs/train_README-zh.md) from kohya's official repo for more details.
+Here we take the [Pokemon_blip dataset]() as an example to explain the three learning data patterns.  Please refer to [Config Readme](https://github.com/kohya-ss/sd-scripts/blob/main/docs/config_README-en.md) and  [Common Learning Guide](https://github.com/kohya-ss/sd-scripts/blob/main/docs/train_README-zh.md) from kohya's official repo for details.
 
 #### 1. DreamBooth, class+identifier method (regularization images can be used)
 
@@ -121,7 +122,7 @@ a colorful butterfly is shown on a white background
 a green butterfly with red and black wings  
 ```
 
-Create a text file, set the extension to `.toml` and write as follows.
+Create a text file, set the extension to `.toml,` and write as follows.
 
 ```toml
 [general]
@@ -199,11 +200,22 @@ batch_size = 1                                      # Batch size
 
 
 
+We provide a script `tools/convert_hf_dataset.py` that converts the hugging face dataset to a raw format with all captions in a metadata file. Please modify the dataset column name in the script if needed. An example usage of [YaYaB/onepiece-blip-captions](https://huggingface.co/datasets/YaYaB/onepiece-blip-captions) dataset is,
+
+```shell
+python tools/convert_hf_dataset.py \
+  --dataset_name='YaYaB/onepiece-blip-captions' \
+  --cache_dir="path_to_cache_hf_dataset" \
+  --save_folder"path_to/onepiece_raw_data
+```
+
+
+
 > Notes:
 >
 > 1. If `enable_bucket`, data preprocessing is generally unnecessary but MindSpore will recompile for each bucket size in graph mode.
-> 2. If `enable_bucket` is set to `false` as in the example above, please enable `random_crop` for each `datasets.subsets`. The scripts will crop or resize the images to the target `resolution`. Otherwise you need to preprocess your datasets with the same sizes in advance.
-> 3. Again, please refer to kohya's [Config Readme](https://github.com/kohya-ss/sd-scripts/blob/main/docs/config_README-en.md) and  [Common Learning Guide](https://github.com/kohya-ss/sd-scripts/blob/main/docs/train_README-zh.md)  for detailed configuration settings and explanations.
+> 2. If `enable_bucket` is set to `false` as in the example above, please enable `random_crop` for each `datasets.subsets`. The scripts will crop or resize the images to the target `resolution`. Otherwise, you need to preprocess your datasets with the same sizes in advance.
+> 3. Again, please refer to Kohya's [Config Readme](https://github.com/kohya-ss/sd-scripts/blob/main/docs/config_README-en.md) and  [Common Learning Guide](https://github.com/kohya-ss/sd-scripts/blob/main/docs/train_README-zh.md) for detailed configuration settings and explanations.
 
 
 
@@ -211,7 +223,7 @@ batch_size = 1                                      # Batch size
 
 Choose a dataset config pattern and prepare the toml file as [prepare learning data](#prepare-learning-data). Here we use the fine-tuning method pattern as above and save the config as `dataset_config_finetune.toml`.
 
-The environment variable `pretrainedModel` could be model name of sdxl from the hugging face, such as [stabilityai/stable-diffusion-xl-base-1.0](https://huggingface.co/stabilityai/stable-diffusion-xl-base-1.0/tree/main), or a local checkpoint path in `.safetensor` format.
+The environment variable `pretrainedModel` could be the model name of sdxl from the hugging face, such as [stabilityai/stable-diffusion-xl-base-1.0](https://huggingface.co/stabilityai/stable-diffusion-xl-base-1.0/tree/main), or a local checkpoint path in `.safetensor` format.
 
 ```bash
 $pretrainedModel = "path_to/sd_xl_base_1.0.safetensors"
@@ -249,8 +261,8 @@ python sdxl_train_network.py \
 
 > Notes:
 >
-> 1. The lora checkpoint will save as `pokemon_stepxxx.ckpt` descided by `save_every_n_steps`, and `pokemon.ckpt` at final step at `outputDir`.
-> 2. Sampling during training is not supported yet.
+> 1. The lora checkpoint will save as `pokemon_stepxxx.ckpt` decided by `save_every_n_steps`, and `pokemon.ckpt` at the final step at `outputDir`.
+> 2. Sampling during training have not supported yet.
 > 3. Enable the text encoders training by not passing `network_train_text_encoder_only`, but it's not recommended for sdxl training.
 
 
@@ -270,15 +282,16 @@ python sdxl_minimal_inference.py \
 
 ### Performance
 
-The speeds of the training example (train unet only) are as follows. `mixed_precision=None` uses `fp32` precision without auto mixed precision. `mixed_precision=fp16` uses default `amp_level="O2"` for unet.
+The speeds of the training example (train unet only) are as follows. `mixed_precision=None` uses `fp32` precision without auto-mixed precision. `mixed_precision=fp16` uses default `amp_level="O2"` for unet.
 
 | NPUs | Global Batch size | Resolution | Mixed Precision | Graph Compile | Speed (s/step) |
 | ---- | ----------------- | ---------- | --------------- | ------------- | -------------- |
 | 1    | 1*1               | 1024x1024  | None     | 24mins | 1.66s-1.8s     |
 | 1    | 1*1               | 1024x1024  | fp16            | 33mins | 1.66s-1.8s     |
 
-> Note: `mixed_precision=None`  means training with fp32 precision and do not use auto mix precison. `mixed_precision=fp16`
+Here are some generation results of the training example after training 15k steps.
 
-Here are some generation results of the training example after training 9k steps.
 
-(Results to be added).
+|            a drawing of a blue and white pokemon             |               a pokemon ball with a bird on it               |          a drawing of a cute blue and white pokemon          |         a very cute looking purple pokemon character         |
+| :----------------------------------------------------------: | :----------------------------------------------------------: | :----------------------------------------------------------: | :----------------------------------------------------------: |
+| <img src="https://github.com/user-attachments/assets/71757509-50fc-465a-85cc-761261b1b4ef" width=224> | <img src="https://github.com/user-attachments/assets/dcda39e2-35d1-4b10-9e10-2914b1170090" width=224> | <img src="https://github.com/user-attachments/assets/27fcf53b-7434-4a63-9803-fef660112066" width=224> | <img src="https://github.com/user-attachments/assets/986f7d45-915e-4dbe-bd07-909030c07fba" width=224> |
