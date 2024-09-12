@@ -35,7 +35,7 @@ from opensora.pipelines import (
 )
 from opensora.schedulers.iddpm import create_diffusion
 from opensora.utils.amp import auto_mixed_precision
-from opensora.utils.callbacks import EMAEvalSwapCallback, PerfRecorderCallback
+from opensora.utils.callbacks import BucketRegroupCallback, EMAEvalSwapCallback, PerfRecorderCallback
 from opensora.utils.ema import EMA, save_ema_ckpts
 from opensora.utils.metrics import BucketLoss
 from opensora.utils.model_utils import WHITELIST_OPS, Model
@@ -217,13 +217,13 @@ def initialize_dataset(
             num_parallel_workers=args.num_parallel_workers,
             max_rowsize=args.max_rowsize,
         )
-        num_src_samples = batch_size * dataloader.get_dataset_size() * (device_num if device_num is not None else 1)
     else:
-        from opensora.datasets.bucket import Bucket, bucket_split_function
+        from opensora.datasets.bucket import Bucket  # , bucket_split_function
         from opensora.datasets.mask_generator import MaskGenerator
-        from opensora.datasets.video_dataset_refactored import VideoDatasetRefactored, create_dataloader
+        from opensora.datasets.video_dataset_refactored import VideoDatasetRefactored
 
-        # from mindone.data import create_dataloader
+        from mindone.data import create_dataloader
+
         if validation:
             mask_gen = MaskGenerator({"identity": 1.0})
             all_buckets, individual_buckets = None, [None]
@@ -257,6 +257,11 @@ def initialize_dataset(
                 frames_mask_generator=mask_gen,
                 t_compress_func=lambda x: vae.get_latent_size((x, None, None))[0],
                 buckets=buckets,
+                seed=args.seed,
+                shuffle=not validation,
+                drop_remainder=not validation,
+                device_num=device_num,
+                rank_id=rank_id,
                 filter_data=args.filter_data,
                 pre_patchify=args.pre_patchify,
                 patch_size=latte_model.patch_size,
@@ -273,8 +278,6 @@ def initialize_dataset(
             for buckets in individual_buckets
         ]
 
-        num_src_samples = sum([len(ds) for ds in datasets])
-
         dataloaders = [
             create_dataloader(
                 dataset,
@@ -282,7 +285,7 @@ def initialize_dataset(
                 shuffle=not validation,
                 device_num=device_num,
                 rank_id=rank_id,
-                num_parallel_workers=args.num_parallel_workers,
+                num_workers_dataset=args.num_parallel_workers,
                 drop_remainder=not validation,
                 prefetch_size=args.prefetch_size,
                 max_rowsize=args.max_rowsize,
@@ -292,16 +295,16 @@ def initialize_dataset(
         ]
         dataloader = ms.dataset.ConcatDataset(dataloaders) if len(dataloaders) > 1 else dataloaders[0]
 
-        if all_buckets is not None:
-            hash_func, bucket_boundaries, bucket_batch_sizes = bucket_split_function(all_buckets)
-            dataloader = dataloader.bucket_batch_by_length(
-                ["video"],
-                bucket_boundaries,
-                bucket_batch_sizes,
-                element_length_function=hash_func,
-                drop_remainder=not validation,
-            )
-    return dataloader, num_src_samples
+        # if all_buckets is not None:
+        #     hash_func, bucket_boundaries, bucket_batch_sizes = bucket_split_function(all_buckets)
+        #     dataloader = dataloader.bucket_batch_by_length(
+        #         ["video"],
+        #         bucket_boundaries,
+        #         bucket_batch_sizes,
+        #         element_length_function=hash_func,
+        #         drop_remainder=not validation,
+        #     )
+    return dataloader
 
 
 def main(args):
@@ -513,7 +516,7 @@ def main(args):
     latent_diffusion_with_loss = pipeline_(latte_model, diffusion, vae=vae, text_encoder=None, **pipeline_kwargs)
 
     # 3. create dataset
-    dataloader, num_src_samples = initialize_dataset(
+    dataloader = initialize_dataset(
         args,
         args.csv_path,
         args.video_folder,
@@ -528,19 +531,7 @@ def main(args):
         device_num=device_num,
         rank_id=rank_id,
     )
-
-    # FIXME: get_dataset_size() is extremely slow when used with bucket_batch_by_length
-    if args.bucket_config is None:
-        dataset_size = dataloader.get_dataset_size()
-    else:
-        # steps per epoch is not constant in bucket config training
-        # FIXME: It is a highly relaxed estimation to ensure enough steps per epoch to sustain training. \
-        # A more precise estimation or run-time infer is to be implemented.
-        dataset_size = math.ceil(num_src_samples / device_num)
-        dataloader.dataset_size = dataset_size
-        logger.warning(
-            f"Manually set dataset_size to {dataset_size} to skip get_dataset_size() for bucket config training."
-        )
+    dataset_size = dataloader.get_dataset_size()
 
     val_dataloader = None
     if args.validate:
@@ -702,8 +693,10 @@ def main(args):
         if args.bucket_config is None:
             callbacks.append(TimeMonitor(args.log_interval))
         else:
+            callbacks.append(BucketRegroupCallback())
             logger.info(
-                "As steps per epoch are inaccurate with bucket config, TimeMonitor is disabled. See result.log for the actual step time"
+                "As steps per epoch are inaccurate with bucket config, TimeMonitor is disabled."
+                "See result.log for the actual step time"
             )
         if rank_id == 0:
             save_cb = EvalSaveCallback(

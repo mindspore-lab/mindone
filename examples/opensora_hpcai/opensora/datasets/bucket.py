@@ -2,8 +2,6 @@
 Credit: OpenSora HPC-AI Tech
 https://github.com/hpcaitech/Open-Sora/blob/ea41df3d6cc5f389b6824572854d97fa9f7779c3/opensora/datasets/bucket.py
 """
-from random import random
-
 import numpy as np
 
 from .aspect import ASPECT_RATIOS, get_closest_ratio
@@ -49,7 +47,7 @@ class Bucket:
         self.ar_criteria = ar_criteria
         self.num_bucket = num_bucket
 
-    def get_bucket_id(self, T, H, W, frame_interval=1):
+    def get_bucket_id(self, T, H, W, frame_interval=1, seed=None):
         resolution = H * W
         approx = 0.8
 
@@ -61,7 +59,8 @@ class Bucket:
             # if sample is an image
             if T == 1:
                 if 1 in t_criteria:
-                    if random() < t_criteria[1]:
+                    rng = np.random.default_rng(seed + self.bucket_id[hw_id][1] if seed is not None else None)
+                    if rng.random() < t_criteria[1]:
                         fail = False
                         t_id = 1
                         break
@@ -71,9 +70,10 @@ class Bucket:
             # otherwise, find suitable t_id for video
             t_fail = True
             for t_id, prob in t_criteria.items():
+                rng = np.random.default_rng(seed + self.bucket_id[hw_id][t_id] if seed is not None else None)
                 if isinstance(prob, list):
                     prob_t = prob[1]
-                    if random() > prob_t:
+                    if rng.random() > prob_t:
                         continue
                 if T > t_id * frame_interval and t_id != 1:
                     t_fail = False
@@ -84,7 +84,7 @@ class Bucket:
             # leave the loop if prob is high enough
             if isinstance(prob, list):
                 prob = prob[0]
-            if prob >= 1 or random() < prob:
+            if prob >= 1 or rng.random() < prob:
                 fail = False
                 break
         if fail:

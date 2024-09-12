@@ -82,3 +82,15 @@ class EMAEvalSwapCallback(Callback):
     def on_eval_end(self, run_context: RunContext):
         if self._ema is not None:
             self._ema.swap_after_eval()
+
+
+class BucketRegroupCallback(Callback):
+    """
+    Callback that regroups buckets at the beginning of each epoch.
+    """
+
+    def on_train_epoch_begin(self, run_context: RunContext):
+        cb_params = run_context.original_args()
+        epoch = cb_params.cur_epoch_num
+        if epoch != 0:  # buckets already grouped in the first epoch
+            cb_params.train_dataset.children[0].source.group_by_bucket(epoch)
