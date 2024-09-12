@@ -481,10 +481,22 @@ There are some arguments related to the training dataset path:
 
 We also support training with sequence parallelism and zero2 parallelism together. This is enabled by setting `--sp_size` and `--train_sp_batch_size`.  For example, with `sp_size=8` and `train_sp_batch_size=4`, 2 NPUs are used for a single video sample.
 
-See the `train_video3d_nx480p_sp.sh` and `train_video3d_nx720p_sp.sh` under `scripts/text_condition/mult-devices/` for usage.
+See `train_video3d_nx720p_sp.sh` under `scripts/text_condition/mult-devices/` for detailed usage.
+
+#### Performance
+
+We evaluated the training performance on MindSpore and Ascend NPUs. The results are as follows.
+
+| Model           | Context        |  Stage     |Precision | BS    | NPUs |video size  | Paramllelism | Train T. (s/step) |
+|:----------------|:---------------|:----------|:---------:|:----:|:-----:|:----------:|:----------:|-------------------:|
+| OpenSoraT2V-ROPE-L-122 | D910\*-[CANN C18(8.0.RC2.beta1)](https://www.hiascend.com/developer/download/community/result?module=cann)-[MS2.3.1](https://www.mindspore.cn/install/) | 2 | BF16     |  1  |  8   |         1x640x480     |          DP                        |               |
+| OpenSoraT2V-ROPE-L-122 | D910\*-[CANN C18(8.0.RC2.beta1)](https://www.hiascend.com/developer/download/community/result?module=cann)-[MS2.3.1](https://www.mindspore.cn/install/) | 3 |  BF16    |  1  |  8   |         29x640x480    |         zero2                      |      3.85     |
+| OpenSoraT2V-ROPE-L-122 | D910\*-[CANN C18(8.0.RC2.beta1)](https://www.hiascend.com/developer/download/community/result?module=cann)-[MS2.3.1](https://www.mindspore.cn/install/) | 4 | BF16     |  1  |  8   |         29x1280x720   |         zero2 + SP(sp_size=8)      |      5.30     |
+| OpenSoraT2V-ROPE-L-122 | D910\*-[CANN C18(8.0.RC2.beta1)](https://www.hiascend.com/developer/download/community/result?module=cann)-[MS2.3.1](https://www.mindspore.cn/install/) | 5 | BF16     |  1  |  8   |         93x1280x720   |         zero3 + SP(sp_size=8)      |               |
 
 
-
+> Context: {NPU type}-{CANN version}-{MindSpore version}
+> DP: data parallelism; SP: sequence parallelism.
 
 ## 👍 Acknowledgement
 * [Latte](https://github.com/Vchitect/Latte): The **main codebase** we built upon and it is an wonderful video generated model.
