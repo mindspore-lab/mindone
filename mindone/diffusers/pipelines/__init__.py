@@ -30,7 +30,9 @@ _import_structure = {
         "IFPipeline",
         "IFSuperResolutionPipeline",
     ],
+    "dit": ["DiTPipeline"],
     "i2vgen_xl": ["I2VGenXLPipeline"],
+    "latent_diffusion": ["LDMSuperResolutionPipeline", "LDMTextToImagePipeline"],
     "kandinsky": [
         "KandinskyCombinedPipeline",
         "KandinskyImg2ImgCombinedPipeline",
@@ -91,6 +93,7 @@ _import_structure = {
         "StableDiffusionXLInstructPix2PixPipeline",
         "StableDiffusionXLPipeline",
     ],
+    "stable_diffusion_diffedit": ["StableDiffusionDiffEditPipeline"],
     "stable_video_diffusion": ["StableVideoDiffusionPipeline"],
     "t2i_adapter": [
         "StableDiffusionAdapterPipeline",
@@ -131,6 +134,7 @@ if TYPE_CHECKING:
         IFPipeline,
         IFSuperResolutionPipeline,
     )
+    from .dit import DiTPipeline
     from .i2vgen_xl import I2VGenXLPipeline
     from .kandinsky import (
         KandinskyCombinedPipeline,
@@ -155,6 +159,7 @@ if TYPE_CHECKING:
     )
     from .kandinsky3 import Kandinsky3Img2ImgPipeline, Kandinsky3Pipeline
     from .latent_consistency_models import LatentConsistencyModelImg2ImgPipeline, LatentConsistencyModelPipeline
+    from .latent_diffusion import LDMSuperResolutionPipeline, LDMTextToImagePipeline
     from .pipeline_utils import DiffusionPipeline, ImagePipelineOutput
     from .pixart_alpha import PixArtAlphaPipeline
     from .shap_e import ShapEImg2ImgPipeline, ShapEPipeline
@@ -171,6 +176,7 @@ if TYPE_CHECKING:
         StableDiffusionUpscalePipeline,
     )
     from .stable_diffusion_3 import StableDiffusion3Pipeline
+    from .stable_diffusion_diffedit import StableDiffusionDiffEditPipeline
     from .stable_diffusion_gligen import StableDiffusionGLIGENPipeline, StableDiffusionGLIGENTextImagePipeline
     from .stable_diffusion_xl import (
         StableDiffusionXLImg2ImgPipeline,

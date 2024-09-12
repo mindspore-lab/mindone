@@ -1,51 +1,24 @@
-Here we provide various examples for image/video/audio/3D generation models built on MindSpore.
+=======
+### multi modal understanding and generation model examples supported by mindone
+| project  |  introduction | original repo
+| :---   |  :--  | :-
+| [mindone.diffusers](https://github.com/mindspore-lab/mindone/blob/master/examples/diffusers) | run hf diffusers on mindspore | https://github.com/huggingface/diffusers |
 
-<details open markdown>
-<summary> Image Generation </summary>
-
-- [x] [Stable Diffusion](stable_diffusion_v2/README.md) #rich pipelines
-- [x] [SDXL](stable_diffusion_xl/README.md)  🔥
-- [x] [Diffsuion Transformer (DiT)](dit/README.md)
-- [x] [Flexible Diffusion Transformer (FiT)](fit/README.md)
-- [x] [t2i-adapter](t2i_adapter/README.md) #Controllable
-- [x] [ip-adapter](ip_adapter/README.md) #Controllable
-- [x] [Pangu Draw v3](pangu_draw_v3/README.md) #Chinese
-
-</details>
-
-
-<details open markdown>
-<summary> Video Generation </summary>
-
-- [x] [AnimateDiff](animatediff/README.md)
-- [x] [Stable Video Diffusion](svd/README.md)
-- [x] [Video Diffusion Transformer (Latte)](latte/README.md) 🔥
-- [x] [VideoComposer](videocomposer/README.md)
-- [x] [Tune-A-Video](tuneavideo/README.md)
-- [x] [Text2Video Zero](text2video_zero/README.md)
-- [x] [DynamiCrafter](dynamicrafter/README.md)
-
-</details>
-
-
-<details open markdown>
-<summary> Audio Generation </summary>
-
-- [x] [Tango](tango/README.md)
-
-</details>
-
-
-<details open markdown>
-<summary> Sora-like Projects</summary>
-
-- [x] [PKU Open-Sora-Plan](opensora_pku/README.md)
-- [x] [hpcaitech Open-Sora](opensora_hpcai/README.md)
-
-</details>
-
-<details open markdown>
-<summary> 3D Generation </summary>
-
-- [x] [Stable Video 3D (SV3D)](sv3d/README.md)
-</details>
+| model   |  codebase style | original repo
+| :---   |  :--  | :-
+| [stable diffusion](https://github.com/mindspore-lab/mindone/blob/master/examples/stable_diffusion_v2) | Stability AI official | https://github.com/Stability-AI/stablediffusion
+| [stable diffusion xl](https://github.com/mindspore-lab/mindone/blob/master/examples/stable_diffusion_xl)  | Stability AI official| https://github.com/Stability-AI/generative-models |
+| [ip adaptor](https://github.com/vigo999/mindone/tree/master/examples/ip_adapter)     | Tencent-ailab official | https://github.com/tencent-ailab/IP-Adapter
+| [t2i-adapter](https://github.com/vigo999/mindone/tree/master/examples/t2i_adapter)     | ARC Lab, Tencent PCG official | https://github.com/TencentARC/T2I-Adapter
+| [dit](https://github.com/mindspore-lab/mindone/blob/master/examples/dit)     | Facebook Research official | https://github.com/facebookresearch/DiT
+| [latte](https://github.com/mindspore-lab/mindone/blob/master/examples/latte)     | Vchitect Shanghai AI Laboratory official | https://github.com/Vchitect/Latte |
+| [video composer](https://github.com/mindspore-lab/mindone/tree/master/examples/videocomposer)      | ali vilab official | https://github.com/ali-vilab/videocomposer
+| [animatediff](https://github.com/mindspore-lab/mindone/tree/master/examples/animatediff) | Yuwei Guo official | https://github.com/guoyww/animatediff/
+| [hpcai open sora](https://github.com/mindspore-lab/mindone/blob/master/examples/opensora_hpcai)      | HPC-AI Tech official | https://github.com/hpcaitech/Open-Sora
+| [open sora plan](https://github.com/mindspore-lab/mindone/blob/master/examples/opensora_pku)      | PKU-YuanGroup official | https://github.com/PKU-YuanGroup/Open-Sora-Plan
+| [cambrian](https://github.com/mindspore-lab/mindone/blob/master/examples/cambrain)      | offical github  | https://github.com/cambrian-mllm/cambrian
+| [minicpm-v](https://github.com/mindspore-lab/mindone/blob/master/examples/minicpm_v)      | OpenBMB official | https://github.com/OpenBMB/MiniCPM-V
+| [internvl](https://github.com/mindspore-lab/mindone/blob/master/examples/internvl)      | Shanghai AI Lab official | https://github.com/OpenGVLab/InternVL
+| [llava](https://github.com/mindspore-lab/mindone/blob/master/examples/llava)      | Haotian-Liu official | https://github.com/haotian-liu/LLaVA
+| [vila](https://github.com/mindspore-lab/mindone/blob/master/examples/vila)      | Nvidia Lab official | https://github.com/NVlabs/VILA
+| [pllava](https://github.com/mindspore-lab/mindone/blob/master/examples/pllava)      | Magic Research official | https://github.com/magic-research/PLLaVA

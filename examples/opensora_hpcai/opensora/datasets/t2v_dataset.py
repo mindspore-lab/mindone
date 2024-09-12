@@ -264,7 +264,6 @@ class TextVideoDataset:
                 pixel_values = video_reader[batch_index]  # shape: (f, h, w, c)
             else:
                 pixel_values = video_reader.get_batch(batch_index).asnumpy()  # shape: (f, h, w, c)
-            # print("D--: video clip shape ", pixel_values.shape, pixel_values.dtype)
             # pixel_values = pixel_values / 255. # let's keep uint8 for fast compute
             del video_reader
 

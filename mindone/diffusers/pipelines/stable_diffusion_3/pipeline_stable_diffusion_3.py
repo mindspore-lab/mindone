@@ -23,12 +23,11 @@ from mindspore import ops
 
 from ....transformers import CLIPTextModelWithProjection, T5EncoderModel
 from ...image_processor import VaeImageProcessor
-
-# from ...loaders import SD3LoraLoaderMixin
+from ...loaders import SD3LoraLoaderMixin
 from ...models.autoencoders import AutoencoderKL
 from ...models.transformers import SD3Transformer2DModel
 from ...schedulers import FlowMatchEulerDiscreteScheduler
-from ...utils import logging
+from ...utils import logging, scale_lora_layers, unscale_lora_layers
 from ...utils.mindspore_utils import randn_tensor
 from ..pipeline_utils import DiffusionPipeline
 from .pipeline_output import StableDiffusion3PipelineOutput
@@ -94,7 +93,7 @@ def retrieve_timesteps(
     return timesteps, num_inference_steps
 
 
-class StableDiffusion3Pipeline(DiffusionPipeline):
+class StableDiffusion3Pipeline(DiffusionPipeline, SD3LoraLoaderMixin):
     r"""
     Args:
         transformer ([`SD3Transformer2DModel`]):
@@ -174,6 +173,7 @@ class StableDiffusion3Pipeline(DiffusionPipeline):
         self,
         prompt: Union[str, List[str]] = None,
         num_images_per_prompt: int = 1,
+        max_sequence_length: int = 256,
         dtype=None,
     ):
         dtype = dtype or self.text_encoder.dtype
@@ -183,14 +183,18 @@ class StableDiffusion3Pipeline(DiffusionPipeline):
 
         if self.text_encoder_3 is None:
             return ops.zeros(
-                (batch_size, self.tokenizer_max_length, self.transformer.config.joint_attention_dim),
+                (
+                    batch_size * num_images_per_prompt,
+                    self.tokenizer_max_length,
+                    self.transformer.config.joint_attention_dim,
+                ),
                 dtype=dtype,
             )
 
         text_inputs = self.tokenizer_3(
             prompt,
             padding="max_length",
-            max_length=self.tokenizer_max_length,
+            max_length=max_sequence_length,
             truncation=True,
             add_special_tokens=True,
             return_tensors="np",
@@ -203,8 +207,8 @@ class StableDiffusion3Pipeline(DiffusionPipeline):
         if untruncated_ids.shape[-1] >= text_input_ids.shape[-1] and not ops.equal(text_input_ids, untruncated_ids):
             removed_text = self.tokenizer_3.batch_decode(untruncated_ids[:, self.tokenizer_max_length - 1 : -1])
             logger.warning(
-                "The following part of your input was truncated because CLIP can only handle sequences up to"
-                f" {self.tokenizer_max_length} tokens: {removed_text}"
+                "The following part of your input was truncated because `max_sequence_length` is set to "
+                f" {max_sequence_length} tokens: {removed_text}"
             )
 
         prompt_embeds = self.text_encoder_3(text_input_ids)[0]
@@ -287,6 +291,7 @@ class StableDiffusion3Pipeline(DiffusionPipeline):
         pooled_prompt_embeds: Optional[ms.Tensor] = None,
         negative_pooled_prompt_embeds: Optional[ms.Tensor] = None,
         clip_skip: Optional[int] = None,
+        max_sequence_length: int = 256,
     ):
         r"""
 
@@ -363,6 +368,7 @@ class StableDiffusion3Pipeline(DiffusionPipeline):
             t5_prompt_embed = self._get_t5_prompt_embeds(
                 prompt=prompt_3,
                 num_images_per_prompt=num_images_per_prompt,
+                max_sequence_length=max_sequence_length,
             )
 
             clip_prompt_embeds = ops.pad(
@@ -415,6 +421,7 @@ class StableDiffusion3Pipeline(DiffusionPipeline):
             t5_negative_prompt_embed = self._get_t5_prompt_embeds(
                 prompt=negative_prompt_3,
                 num_images_per_prompt=num_images_per_prompt,
+                max_sequence_length=max_sequence_length,
             )
 
             negative_clip_prompt_embeds = ops.pad(
@@ -444,6 +451,7 @@ class StableDiffusion3Pipeline(DiffusionPipeline):
         pooled_prompt_embeds=None,
         negative_pooled_prompt_embeds=None,
         callback_on_step_end_tensor_inputs=None,
+        max_sequence_length=None,
     ):
         if height % 8 != 0 or width % 8 != 0:
             raise ValueError(f"`height` and `width` have to be divisible by 8 but are {height} and {width}.")
@@ -514,6 +522,9 @@ class StableDiffusion3Pipeline(DiffusionPipeline):
             raise ValueError(
                 "If `negative_prompt_embeds` are provided, `negative_pooled_prompt_embeds` also have to be passed. Make sure to generate `negative_pooled_prompt_embeds` from the same text encoder that was used to generate `negative_prompt_embeds`."  # noqa: E501
             )
+
+        if max_sequence_length is not None and max_sequence_length > 512:
+            raise ValueError(f"`max_sequence_length` cannot be greater than 512 but is {max_sequence_length}")
 
     def prepare_latents(
         self,
@@ -598,6 +609,7 @@ class StableDiffusion3Pipeline(DiffusionPipeline):
         clip_skip: Optional[int] = None,
         callback_on_step_end: Optional[Callable[[int, int, Dict], None]] = None,
         callback_on_step_end_tensor_inputs: List[str] = ["latents"],
+        max_sequence_length: int = 256,
     ):
         r"""
         Function invoked when calling the pipeline for generation.
@@ -681,6 +693,7 @@ class StableDiffusion3Pipeline(DiffusionPipeline):
                 The list of tensor inputs for the `callback_on_step_end` function. The tensors specified in the list
                 will be passed as `callback_kwargs` argument. You will only be able to include variables listed in the
                 `._callback_tensor_inputs` attribute of your pipeline class.
+            max_sequence_length (`int` defaults to 256): Maximum sequence length to use with the `prompt`.
 
         Examples:
 
@@ -708,6 +721,7 @@ class StableDiffusion3Pipeline(DiffusionPipeline):
             pooled_prompt_embeds=pooled_prompt_embeds,
             negative_pooled_prompt_embeds=negative_pooled_prompt_embeds,
             callback_on_step_end_tensor_inputs=callback_on_step_end_tensor_inputs,
+            max_sequence_length=max_sequence_length,
         )
 
         self._guidance_scale = guidance_scale
@@ -742,6 +756,7 @@ class StableDiffusion3Pipeline(DiffusionPipeline):
             negative_pooled_prompt_embeds=negative_pooled_prompt_embeds,
             clip_skip=self.clip_skip,
             num_images_per_prompt=num_images_per_prompt,
+            max_sequence_length=max_sequence_length,
         )
 
         if self.do_classifier_free_guidance:
@@ -764,6 +779,13 @@ class StableDiffusion3Pipeline(DiffusionPipeline):
             generator,
             latents,
         )
+
+        # we're popping the `scale` instead of getting it because otherwise `scale` will be propagated
+        # to the transformer and will raise RuntimeError.
+        lora_scale = self.joint_attention_kwargs.pop("scale", None) if self.joint_attention_kwargs is not None else None
+        if lora_scale is not None:
+            # weight the lora layers by setting `lora_scale` for each PEFT layer
+            scale_lora_layers(self.transformer, lora_scale)
 
         # 6. Denoising loop
         with self.progress_bar(total=num_inference_steps) as progress_bar:
@@ -814,11 +836,18 @@ class StableDiffusion3Pipeline(DiffusionPipeline):
                 if i == len(timesteps) - 1 or ((i + 1) > num_warmup_steps and (i + 1) % self.scheduler.order == 0):
                     progress_bar.update()
 
+        if lora_scale is not None:
+            # remove `lora_scale` from each PEFT layer
+            unscale_lora_layers(self.transformer, lora_scale)
+
         if output_type == "latent":
             image = latents
 
         else:
             latents = (latents / self.vae.config.scaling_factor) + self.vae.config.shift_factor
+            latents = latents.to(
+                self.vae.dtype
+            )  # for validation in training where vae and transformer might have different dtype
 
             image = self.vae.decode(latents, return_dict=False)[0]
             image = self.image_processor.postprocess(image, output_type=output_type)

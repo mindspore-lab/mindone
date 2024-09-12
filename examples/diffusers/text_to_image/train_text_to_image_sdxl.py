@@ -38,6 +38,7 @@ from mindspore.amp import StaticLossScaler
 from mindspore.dataset import GeneratorDataset, transforms, vision
 
 from mindone.diffusers import AutoencoderKL, DDPMScheduler, StableDiffusionXLPipeline, UNet2DConditionModel
+from mindone.diffusers.models.layers_compat import multinomial
 from mindone.diffusers.optimization import get_scheduler
 from mindone.diffusers.training_utils import (
     AttrJitWrapper,
@@ -46,7 +47,6 @@ from mindone.diffusers.training_utils import (
     init_distributed_device,
     is_master,
     maybe_compile,
-    multinomial,
     set_seed,
 )
 

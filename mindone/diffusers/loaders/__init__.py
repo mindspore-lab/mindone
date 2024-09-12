@@ -52,7 +52,7 @@ _import_structure = {
     "autoencoder": ["FromOriginalVAEMixin"],
     "controlnet": ["FromOriginalControlNetMixin"],
     "ip_adapter": ["IPAdapterMixin"],
-    "lora": ["LoraLoaderMixin", "StableDiffusionXLLoraLoaderMixin"],
+    "lora": ["LoraLoaderMixin", "SD3LoraLoaderMixin", "StableDiffusionXLLoraLoaderMixin"],
     "peft": ["PeftAdapterMixin"],
     "single_file": ["FromSingleFileMixin"],
     "textual_inversion": ["TextualInversionLoaderMixin"],
@@ -64,7 +64,7 @@ if TYPE_CHECKING:
     from .autoencoder import FromOriginalVAEMixin
     from .controlnet import FromOriginalControlNetMixin
     from .ip_adapter import IPAdapterMixin
-    from .lora import LoraLoaderMixin, StableDiffusionXLLoraLoaderMixin
+    from .lora import LoraLoaderMixin, SD3LoraLoaderMixin, StableDiffusionXLLoraLoaderMixin
     from .peft import PeftAdapterMixin
     from .single_file import FromSingleFileMixin
     from .textual_inversion import TextualInversionLoaderMixin
