@@ -1,11 +1,8 @@
-# # common functions for training
+# common functions for training
 
 import argparse
 import ast
-import asyncio
 import bisect
-
-# from accelerate import Accelerator, InitProcessGroupKwargs, DistributedDataParallelKwargs, PartialState
 import glob
 import hashlib
 import importlib
@@ -61,7 +58,6 @@ from mindone.diffusers.optimization import TYPE_TO_SCHEDULER_FUNCTION, Scheduler
 from mindone.transformers import CLIPTextModel, CLIPTextModelWithProjection
 
 setup_logging()
-import logging
 
 logger = logging.getLogger(__name__)
 
@@ -128,18 +124,18 @@ STEP_DIFFUSERS_DIR_NAME = "{}-step{:08d}"
 IMAGE_EXTENSIONS = [".png", ".jpg", ".jpeg", ".webp", ".bmp", ".PNG", ".JPG", ".JPEG", ".WEBP", ".BMP"]
 
 try:
-    import pillow_avif
+    import pillow_avif  # noqa: F401
 
     IMAGE_EXTENSIONS.extend([".avif", ".AVIF"])
-except:
+except:  # noqa: E722
     pass
 
 # JPEG-XL on Linux
 try:
-    from jxlpy import JXLImagePlugin
+    from jxlpy import JXLImagePlugin  # noqa: F401
 
     IMAGE_EXTENSIONS.extend([".jxl", ".JXL"])
-except:
+except:  # noqa: E722
     pass
 
 # JPEG-XL on Windows
@@ -353,13 +349,6 @@ class AugHelper:
         pass
 
     def color_aug(self, image: np.ndarray):
-        # self.color_aug_method = albu.OneOf(
-        #     [
-        #         albu.HueSaturationValue(8, 0, 0, p=0.5),
-        #         albu.RandomGamma((95, 105), p=0.5),
-        #     ],
-        #     p=0.33,
-        # )
         hue_shift_limit = 8
 
         # remove dependency to albumentations
@@ -794,7 +783,7 @@ class BaseDataset:
                 def dropout_tags(tokens):
                     if subset.caption_tag_dropout_rate <= 0:
                         return tokens
-                    l = []
+                    l = []  # noqa: E741
                     for token in tokens:
                         if random.random() >= subset.caption_tag_dropout_rate:
                             l.append(token)
@@ -909,7 +898,9 @@ class BaseDataset:
                     self.bucket_manager.make_buckets()
                 else:
                     logger.warning(
-                        "min_bucket_reso and max_bucket_reso are ignored if bucket_no_upscale is set, because bucket reso is defined by image size automatically / bucket_no_upscaleが指定された場合は、bucketの解像度は画像サイズから自動計算されるため、min_bucket_resoとmax_bucket_resoは無視されます"
+                        "min_bucket_reso and max_bucket_reso are ignored if bucket_no_upscale is set, \
+                            because bucket reso is defined by image size automatically / \
+                            bucket_no_upscaleが指定された場合は、bucketの解像度は画像サイズから自動計算されるため、min_bucket_resoとmax_bucket_resoは無視されます"
                     )
 
             img_ar_errors = []
@@ -957,22 +948,6 @@ class BaseDataset:
             batch_count = int(math.ceil(len(bucket) / self.batch_size))
             for batch_index in range(batch_count):
                 self.buckets_indices.append(BucketBatchIndex(bucket_index, self.batch_size, batch_index))
-
-            # ↓以下はbucketごとのbatch件数があまりにも増えて混乱を招くので元に戻す
-            # 　学習時はステップ数がランダムなので、同一画像が同一batch内にあってもそれほど悪影響はないであろう、と考えられる
-            #
-            # # bucketが細分化されることにより、ひとつのbucketに一種類の画像のみというケースが増え、つまりそれは
-            # # ひとつのbatchが同じ画像で占められることになるので、さすがに良くないであろう
-            # # そのためバッチサイズを画像種類までに制限する
-            # # ただそれでも同一画像が同一バッチに含まれる可能性はあるので、繰り返し回数が少ないほうがshuffleの品質は良くなることは間違いない？
-            # # TO DO 正則化画像をepochまたがりで利用する仕組み
-            # num_of_image_types = len(set(bucket))
-            # bucket_batch_size = min(self.batch_size, num_of_image_types)
-            # batch_count = int(math.ceil(len(bucket) / bucket_batch_size))
-            # # logger.info(bucket_index, num_of_image_types, bucket_batch_size, batch_count)
-            # for batch_index in range(batch_count):
-            #   self.buckets_indices.append(BucketBatchIndex(bucket_index, bucket_batch_size, batch_index))
-            # ↑ここまで
 
         self.shuffle_buckets()
         self._length = len(self.buckets_indices)
@@ -1148,7 +1123,8 @@ class BaseDataset:
                     elif im_h > self.height or im_w > self.width:
                         assert (
                             subset.random_crop
-                        ), f"image too large, but cropping and bucketing are disabled / 画像サイズが大きいのでface_crop_aug_rangeかrandom_crop、またはbucketを有効にしてください: {image_info.absolute_path}"
+                        ), f"image too large, but cropping and bucketing are disabled / \
+                            画像サイズが大きいのでface_crop_aug_rangeかrandom_crop、またはbucketを有効にしてください: {image_info.absolute_path}"
                         if im_h > self.height:
                             p = random.randint(0, im_h - self.height)
                             img = img[p : p + self.height]
@@ -1377,7 +1353,7 @@ class DreamBoothDataset(BaseDataset):
     ) -> None:
         super().__init__(tokenizer, max_token_length, resolution, network_multiplier, debug_dataset)
 
-        assert resolution is not None, f"resolution is required / resolution（解像度）指定は必須です"
+        assert resolution is not None, "resolution is required / resolution（解像度）指定は必須です"
 
         self.batch_size = batch_size
         self.size = min(self.width, self.height)  # 短いほう
@@ -1388,10 +1364,12 @@ class DreamBoothDataset(BaseDataset):
         if self.enable_bucket:
             assert (
                 min(resolution) >= min_bucket_reso
-            ), f"min_bucket_reso must be equal or less than resolution / min_bucket_resoは最小解像度より大きくできません。解像度を大きくするかmin_bucket_resoを小さくしてください"
+            ), "min_bucket_reso must be equal or less than resolution / min_bucket_resoは最小解像度より大きくできません。\
+                解像度を大きくするかmin_bucket_resoを小さくしてください"
             assert (
                 max(resolution) <= max_bucket_reso
-            ), f"max_bucket_reso must be equal or greater than resolution / max_bucket_resoは最大解像度より小さくできません。解像度を小さくするかmin_bucket_resoを大きくしてください"
+            ), "max_bucket_reso must be equal or greater than resolution / max_bucket_resoは最大解像度より小さくできません。\
+                解像度を小さくするかmin_bucket_resoを大きくしてください"
             self.min_bucket_reso = min_bucket_reso
             self.max_bucket_reso = max_bucket_reso
             self.bucket_reso_steps = bucket_reso_steps
@@ -1439,7 +1417,7 @@ class DreamBoothDataset(BaseDataset):
                 logger.info(f"using cached image info for this subset / このサブセットで、キャッシュされた画像情報を使います: {info_cache_file}")
                 if not os.path.isfile(info_cache_file):
                     logger.warning(
-                        f"image info file not found. You can ignore this warning if this is the first time to use this subset"
+                        "image info file not found. You can ignore this warning if this is the first time to use this subset"
                         + " / キャッシュファイルが見つかりませんでした。初回実行時はこの警告を無視してください: {metadata_file}"
                     )
                     use_cached_info_for_subset = False
@@ -1471,7 +1449,8 @@ class DreamBoothDataset(BaseDataset):
                     cap_for_img = read_caption(img_path, subset.caption_extension, subset.enable_wildcard)
                     if cap_for_img is None and subset.class_tokens is None:
                         logger.warning(
-                            f"neither caption file nor class tokens are found. use empty caption for {img_path} / キャプションファイルもclass tokenも見つかりませんでした。空のキャプションを使用します: {img_path}"
+                            f"neither caption file nor class tokens are found. use empty caption for {img_path} / \
+                                キャプションファイルもclass tokenも見つかりませんでした。空のキャプションを使用します: {img_path}"
                         )
                         captions.append("")
                         missing_captions.append(img_path)
@@ -1490,7 +1469,10 @@ class DreamBoothDataset(BaseDataset):
                 remaining_missing_captions = number_of_missing_captions - number_of_missing_captions_to_show
 
                 logger.warning(
-                    f"No caption file found for {number_of_missing_captions} images. Training will continue without captions for these images. If class token exists, it will be used. / {number_of_missing_captions}枚の画像にキャプションファイルが見つかりませんでした。これらの画像についてはキャプションなしで学習を続行します。class tokenが存在する場合はそれを使います。"
+                    f"No caption file found for {number_of_missing_captions} images. Training will continue without captions for these images. \
+                        If class token exists, it will be used. /"
+                    + f"{number_of_missing_captions}枚の画像にキャプションファイルが見つかりませんでした。これらの画像についてはキャプションなしで学習を続行します。\
+                        class tokenが存在する場合はそれを使います。"
                 )
                 for i, missing_caption in enumerate(missing_captions):
                     if i >= number_of_missing_captions_to_show:
@@ -1606,13 +1588,15 @@ class FineTuningDataset(BaseDataset):
         for subset in subsets:
             if subset.num_repeats < 1:
                 logger.warning(
-                    f"ignore subset with metadata_file='{subset.metadata_file}': num_repeats is less than 1 / num_repeatsが1を下回っているためサブセットを無視します: {subset.num_repeats}"
+                    f"ignore subset with metadata_file='{subset.metadata_file}': num_repeats is less than 1 / \
+                        num_repeatsが1を下回っているためサブセットを無視します: {subset.num_repeats}"
                 )
                 continue
 
             if subset in self.subsets:
                 logger.warning(
-                    f"ignore duplicated subset with metadata_file='{subset.metadata_file}': use the first one / 既にサブセットが登録されているため、重複した後発のサブセットを無視します"
+                    f"ignore duplicated subset with metadata_file='{subset.metadata_file}': use the first one / \
+                        既にサブセットが登録されているため、重複した後発のサブセットを無視します"
                 )
                 continue
 
@@ -1727,12 +1711,10 @@ class FineTuningDataset(BaseDataset):
 
             if not npz_any:
                 use_npz_latents = False
-                logger.warning(f"npz file does not exist. ignore npz files / npzファイルが見つからないためnpzファイルを無視します")
+                logger.warning("npz file does not exist. ignore npz files / npzファイルが見つからないためnpzファイルを無視します")
             elif not npz_all:
                 use_npz_latents = False
-                logger.warning(
-                    f"some of npz file does not exist. ignore npz files / いくつかのnpzファイルが見つからないためnpzファイルを無視します"
-                )
+                logger.warning("some of npz file does not exist. ignore npz files / いくつかのnpzファイルが見つからないためnpzファイルを無視します")
                 if flip_aug_in_subset:
                     logger.warning("maybe no flipped files / 反転されたnpzファイルがないのかもしれません")
         # else:
@@ -1753,7 +1735,7 @@ class FineTuningDataset(BaseDataset):
             if use_npz_latents:
                 use_npz_latents = False
                 logger.warning(
-                    f"npz files exist, but no bucket info in metadata. ignore npz files / メタデータにbucket情報がないためnpzファイルを無視します"
+                    "npz files exist, but no bucket info in metadata. ignore npz files / メタデータにbucket情報がないためnpzファイルを無視します"
                 )
 
             assert (
@@ -1774,7 +1756,8 @@ class FineTuningDataset(BaseDataset):
 
             assert (
                 not bucket_no_upscale
-            ), "if metadata has bucket info, bucket reso is precalculated, so bucket_no_upscale cannot be used / メタデータ内にbucket情報がある場合はbucketの解像度は計算済みのため、bucket_no_upscaleは使えません"
+            ), "if metadata has bucket info, bucket reso is precalculated, so bucket_no_upscale cannot be used /\
+                  メタデータ内にbucket情報がある場合はbucketの解像度は計算済みのため、bucket_no_upscaleは使えません"
 
             # bucket情報を初期化しておく、make_bucketsで再作成しない
             self.bucket_manager = BucketManager(False, None, None, None, None)
@@ -1956,7 +1939,7 @@ class ControlNetDataset(BaseDataset):
 
             target_size_hw = example["target_sizes_hw"][i]
             original_size_hw = example["original_sizes_hw"][i]
-            crop_top_left = example["crop_top_lefts"][i]
+            crop_top_left = example["crop_top_lefts"][i]  # noqa: F841
             flipped = example["flippeds"][i]
             cond_img = load_image(image_info.cond_img_path)
 
@@ -2019,7 +2002,7 @@ class DatasetGroup:
     def cumsum(sequence):
         r, s = [], 0
         for e in sequence:
-            l = len(e)
+            l = len(e)  # noqa: E741
             r.append(l + s)
             s += l
         return r
@@ -2145,7 +2128,6 @@ def debug_dataset(train_dataset, show_input_ids=False):
 
     epoch = 1
     while True:
-        logger.info(f"")
         logger.info(f"epoch: {epoch}")
 
         steps = (epoch - 1) * len(train_dataset) + 1
@@ -2174,7 +2156,8 @@ def debug_dataset(train_dataset, show_input_ids=False):
                 )
             ):
                 logger.info(
-                    f'{ik}, size: {train_dataset.image_data[ik].image_size}, loss weight: {lw}, caption: "{cap}", original size: {orgsz}, crop top left: {crptl}, target size: {trgsz}, flipped: {flpdz}'
+                    f'{ik}, size: {train_dataset.image_data[ik].image_size}, loss weight: {lw}, caption: "{cap}", \
+                        original size: {orgsz}, crop top left: {crptl}, target size: {trgsz}, flipped: {flpdz}'
                 )
                 if "network_multipliers" in example:
                     print(f"network multiplier: {example['network_multipliers'][j]}")
@@ -2361,100 +2344,6 @@ def trim_and_resize_if_required(
     return image, original_size, crop_ltrb
 
 
-# TODO - cache latent
-# def cache_batch_latents(
-#     vae: AutoencoderKL, cache_to_disk: bool, image_infos: List[ImageInfo], flip_aug: bool, random_crop: bool
-# ) -> None:
-#     r"""
-#     requires image_infos to have: absolute_path, bucket_reso, resized_size, latents_npz
-#     optionally requires image_infos to have: image
-#     if cache_to_disk is True, set info.latents_npz
-#         flipped latents is also saved if flip_aug is True
-#     if cache_to_disk is False, set info.latents
-#         latents_flipped is also set if flip_aug is True
-#     latents_original_size and latents_crop_ltrb are also set
-#     """
-#     images = []
-#     for info in image_infos:
-#         image = load_image(info.absolute_path) if info.image is None else np.array(info.image, np.uint8)
-#         # TODO 画像のメタデータが壊れていて、メタデータから割り当てたbucketと実際の画像サイズが一致しない場合があるのでチェック追加要
-#         image, original_size, crop_ltrb = trim_and_resize_if_required(random_crop, image, info.bucket_reso, info.resized_size)
-#         image = IMAGE_TRANSFORMS(image)
-#         images.append(image)
-
-#         info.latents_original_size = original_size
-#         info.latents_crop_ltrb = crop_ltrb
-
-#     img_tensors = torch.stack(images, dim=0)
-#     img_tensors = img_tensors.to(device=vae.device, dtype=vae.dtype)
-
-#     with torch.no_grad():
-#         latents = vae.encode(img_tensors).latent_dist.sample().to("cpu")
-
-#     if flip_aug:
-#         img_tensors = torch.flip(img_tensors, dims=[3])
-#         with torch.no_grad():
-#             flipped_latents = vae.encode(img_tensors).latent_dist.sample().to("cpu")
-#     else:
-#         flipped_latents = [None] * len(latents)
-
-#     for info, latent, flipped_latent in zip(image_infos, latents, flipped_latents):
-#         # check NaN
-#         if torch.isnan(latents).any() or (flipped_latent is not None and torch.isnan(flipped_latent).any()):
-#             raise RuntimeError(f"NaN detected in latents: {info.absolute_path}")
-
-#         if cache_to_disk:
-#             save_latents_to_disk(info.latents_npz, latent, info.latents_original_size, info.latents_crop_ltrb, flipped_latent)
-#         else:
-#             info.latents = latent
-#             if flip_aug:
-#                 info.latents_flipped = flipped_latent
-
-# if not HIGH_VRAM:
-#     clean_memory_on_device(vae.device)
-
-
-# def cache_batch_text_encoder_outputs(
-#     image_infos, tokenizers, text_encoders, max_token_length, cache_to_disk, input_ids1, input_ids2, dtype
-# ):
-#     input_ids1 = input_ids1.to(text_encoders[0].device)
-#     input_ids2 = input_ids2.to(text_encoders[1].device)
-
-#     with torch.no_grad():
-#         b_hidden_state1, b_hidden_state2, b_pool2 = get_hidden_states_sdxl(
-#             max_token_length,
-#             input_ids1,
-#             input_ids2,
-#             tokenizers[0],
-#             tokenizers[1],
-#             text_encoders[0],
-#             text_encoders[1],
-#             dtype,
-#         )
-
-#         # ここでcpuに移動しておかないと、上書きされてしまう
-#         b_hidden_state1 = b_hidden_state1.detach().to("cpu")  # b,n*75+2,768
-#         b_hidden_state2 = b_hidden_state2.detach().to("cpu")  # b,n*75+2,1280
-#         b_pool2 = b_pool2.detach().to("cpu")  # b,1280
-
-#     for info, hidden_state1, hidden_state2, pool2 in zip(image_infos, b_hidden_state1, b_hidden_state2, b_pool2):
-#         if cache_to_disk:
-#             save_text_encoder_outputs_to_disk(info.text_encoder_outputs_npz, hidden_state1, hidden_state2, pool2)
-#         else:
-#             info.text_encoder_outputs1 = hidden_state1
-#             info.text_encoder_outputs2 = hidden_state2
-#             info.text_encoder_pool2 = pool2
-
-
-# def save_text_encoder_outputs_to_disk(npz_path, hidden_state1, hidden_state2, pool2):
-#     np.savez(
-#         npz_path,
-#         hidden_state1=hidden_state1.cpu().float().numpy(),
-#         hidden_state2=hidden_state2.cpu().float().numpy(),
-#         pool2=pool2.cpu().float().numpy(),
-#     )
-
-
 def load_text_encoder_outputs_from_disk(npz_path):
     with np.load(npz_path) as f:
         hidden_state1 = ms.Tensor.from_numpy(f["hidden_state1"])
@@ -2530,11 +2419,10 @@ def get_git_revision_hash() -> str:
         return (
             subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=os.path.dirname(__file__)).decode("ascii").strip()
         )
-    except:
+    except BaseException:
         return "(unknown)"
 
 
-#     diffusers.models.attention.CrossAttention.forward = forward_xformers
 def replace_unet_modules(unet: UNet2DConditionModel, flash_attn):
     if flash_attn:
         logger.info("Enable mindspore flash attention for U-Net")
@@ -2705,7 +2593,8 @@ def add_optimizer_arguments(parser: argparse.ArgumentParser):
         "--lr_scheduler",
         type=str,
         default="constant",
-        help="scheduler to use for learning rate / 学習率のスケジューラ: linear, cosine, cosine_with_restarts, polynomial, constant (default), constant_with_warmup, adafactor",
+        help="scheduler to use for learning rate / \
+            学習率のスケジューラ: linear, cosine, cosine_with_restarts, polynomial, constant (default), constant_with_warmup, adafactor",
     )
     parser.add_argument(
         "--lr_warmup_steps",
@@ -2757,7 +2646,8 @@ def add_training_arguments(parser: argparse.ArgumentParser, support_dreambooth: 
         "--huggingface_repo_visibility",
         type=str,
         default=None,
-        help="huggingface repository visibility ('public' for public, 'private' or None for private) / huggingfaceにアップロードするリポジトリの公開設定（'public'で公開、'private'またはNoneで非公開）",
+        help="huggingface repository visibility ('public' for public, 'private' or None for private) / \
+            huggingfaceにアップロードするリポジトリの公開設定（'public'で公開、'private'またはNoneで非公開）",
     )
     parser.add_argument(
         "--save_state_to_huggingface", action="store_true", help="save state to huggingface / huggingfaceにstateを保存する"
@@ -2765,7 +2655,8 @@ def add_training_arguments(parser: argparse.ArgumentParser, support_dreambooth: 
     parser.add_argument(
         "--resume_from_huggingface",
         action="store_true",
-        help="resume from huggingface (ex: --resume {repo_id}/{path_in_repo}:{revision}:{repo_type}) / huggingfaceから学習を再開する(例: --resume {repo_id}/{path_in_repo}:{revision}:{repo_type})",
+        help="resume from huggingface (ex: --resume {repo_id}/{path_in_repo}:{revision}:{repo_type}) / huggingfaceから学習を再開する\
+            (例: --resume {repo_id}/{path_in_repo}:{revision}:{repo_type})",
     )
     parser.add_argument(
         "--async_upload",
@@ -2819,12 +2710,14 @@ def add_training_arguments(parser: argparse.ArgumentParser, support_dreambooth: 
         "--save_last_n_steps_state",
         type=int,
         default=None,
-        help="save states until N steps elapsed (remove older states if N steps elapsed, overrides --save_last_n_steps) / 指定ステップごとにstateを保存するとき、このステップ数経過するまで保存する（このステップ数経過したら削除する。--save_last_n_stepsを上書きする）",
+        help="save states until N steps elapsed (remove older states if N steps elapsed, overrides --save_last_n_steps) / \
+            指定ステップごとにstateを保存するとき、このステップ数経過するまで保存する（このステップ数経過したら削除する。--save_last_n_stepsを上書きする）",
     )
     parser.add_argument(
         "--save_state",
         action="store_true",
-        help="save training state additionally (including optimizer states etc.) when saving model / optimizerなど学習状態も含めたstateをモデル保存時に追加で保存する",
+        help="save training state additionally (including optimizer states etc.) when saving model /\
+              optimizerなど学習状態も含めたstateをモデル保存時に追加で保存する",
     )
     parser.add_argument(
         "--save_state_on_train_end",
@@ -2885,12 +2778,14 @@ def add_training_arguments(parser: argparse.ArgumentParser, support_dreambooth: 
         "--max_data_loader_n_workers",
         type=int,
         default=8,
-        help="max num workers for DataLoader (lower is less main RAM usage, faster epoch start and slower data loading) / DataLoaderの最大プロセス数（小さい値ではメインメモリの使用量が減りエポック間の待ち時間が減りますが、データ読み込みは遅くなります）",
+        help="max num workers for DataLoader (lower is less main RAM usage, faster epoch start and slower data loading) / \
+            DataLoaderの最大プロセス数（小さい値ではメインメモリの使用量が減りエポック間の待ち時間が減りますが、データ読み込みは遅くなります）",
     )
     parser.add_argument(
         "--persistent_data_loader_workers",
         action="store_true",
-        help="persistent DataLoader workers (useful for reduce time gap between epoch, but may use more memory) / DataLoader のワーカーを持続させる (エポック間の時間差を少なくするのに有効だが、より多くのメモリを消費する可能性がある)",
+        help="persistent DataLoader workers (useful for reduce time gap between epoch, but may use more memory) / \
+            DataLoader のワーカーを持続させる (エポック間の時間差を少なくするのに有効だが、より多くのメモリを消費する可能性がある)",
     )
     parser.add_argument("--seed", type=int, default=None, help="random seed for training / 学習時の乱数のseed")
     parser.add_argument(
@@ -2995,7 +2890,8 @@ def add_training_arguments(parser: argparse.ArgumentParser, support_dreambooth: 
         "--multires_noise_iterations",
         type=int,
         default=None,
-        help="enable multires noise with this number of iterations (if enabled, around 6-10 is recommended) / Multires noiseを有効にしてこのイテレーション数を設定する（有効にする場合は6-10程度を推奨）",
+        help="enable multires noise with this number of iterations (if enabled, around 6-10 is recommended) / \
+            Multires noiseを有効にしてこのイテレーション数を設定する（有効にする場合は6-10程度を推奨）",
     )
     parser.add_argument(
         "--ip_noise_gamma",
@@ -3020,13 +2916,15 @@ def add_training_arguments(parser: argparse.ArgumentParser, support_dreambooth: 
         "--multires_noise_discount",
         type=float,
         default=0.3,
-        help="set discount value for multires noise (has no effect without --multires_noise_iterations) / Multires noiseのdiscount値を設定する（--multires_noise_iterations指定時のみ有効）",
+        help="set discount value for multires noise (has no effect without --multires_noise_iterations) / \
+            Multires noiseのdiscount値を設定する（--multires_noise_iterations指定時のみ有効）",
     )
     parser.add_argument(
         "--adaptive_noise_scale",
         type=float,
         default=None,
-        help="add `latent mean absolute value * this value` to noise_offset (disabled if None, default) / latentの平均値の絶対値 * この値をnoise_offsetに加算する（Noneの場合は無効、デフォルト）",
+        help="add `latent mean absolute value * this value` to noise_offset (disabled if None, default) / \
+            latentの平均値の絶対値 * この値をnoise_offsetに加算する（Noneの場合は無効、デフォルト）",
     )
     parser.add_argument(
         "--zero_terminal_snr",
@@ -3064,13 +2962,15 @@ def add_training_arguments(parser: argparse.ArgumentParser, support_dreambooth: 
         "--huber_c",
         type=float,
         default=0.1,
-        help="The huber loss parameter. Only used if one of the huber loss modes (huber or smooth l1) is selected with loss_type. default is 0.1 / Huber損失のパラメータ。loss_typeがhuberまたはsmooth l1の場合に有効。デフォルトは0.1",
+        help="The huber loss parameter. Only used if one of the huber loss modes (huber or smooth l1) is selected with loss_type. \
+            default is 0.1 / Huber損失のパラメータ。loss_typeがhuberまたはsmooth l1の場合に有効。デフォルトは0.1",
     )
 
     parser.add_argument(
         "--lowram",
         action="store_true",
-        help="enable low RAM optimization. e.g. load models to VRAM instead of RAM (for machines which have bigger VRAM than RAM such as Colab and Kaggle) / メインメモリが少ない環境向け最適化を有効にする。たとえばVRAMにモデルを読み込む等（ColabやKaggleなどRAMに比べてVRAMが多い環境向け）",
+        help="enable low RAM optimization. e.g. load models to VRAM instead of RAM (for machines which have bigger VRAM than RAM such as Colab and Kaggle) / \
+            メインメモリが少ない環境向け最適化を有効にする。たとえばVRAMにモデルを読み込む等（ColabやKaggleなどRAMに比べてVRAMが多い環境向け）",
     )
     parser.add_argument(
         "--highvram",
@@ -3122,7 +3022,7 @@ def add_training_arguments(parser: argparse.ArgumentParser, support_dreambooth: 
             "k_dpm_2",
             "k_dpm_2_a",
         ],
-        help=f"sampler (scheduler) type for sample images / サンプル出力時のサンプラー（スケジューラ）の種類",
+        help="sampler (scheduler) type for sample images / サンプル出力時のサンプラー（スケジューラ）の種類",
     )
 
     parser.add_argument(
@@ -3216,29 +3116,37 @@ def verify_command_line_training_args(args: argparse.Namespace):
     for arg in sensitive_args:
         if getattr(args, arg, None) is not None:
             logger.warning(
-                f"wandb is enabled, but option `{arg}` is included in the command line. Because the command line is exposed to the public, it is recommended to move it to the `.toml` file."
-                + f" / wandbが有効で、かつオプション `{arg}` がコマンドラインに含まれています。コマンドラインは公開されるため、`.toml`ファイルに移動することをお勧めします。"
+                f"wandb is enabled, but option `{arg}` is included in the command line. \
+                    Because the command line is exposed to the public, it is recommended to move it to the `.toml` file."
+                + f" / wandbが有効で、かつオプション `{arg}` がコマンドラインに含まれています。\
+                    コマンドラインは公開されるため、`.toml`ファイルに移動することをお勧めします。"
             )
 
     # if path is absolute, it may include sensitive information
     for arg in sensitive_path_args:
         if getattr(args, arg, None) is not None and os.path.isabs(getattr(args, arg)):
             logger.info(
-                f"wandb is enabled, but option `{arg}` is included in the command line and it is an absolute path. Because the command line is exposed to the public, it is recommended to move it to the `.toml` file or use relative path."
-                + f" / wandbが有効で、かつオプション `{arg}` がコマンドラインに含まれており、絶対パスです。コマンドラインは公開されるため、`.toml`ファイルに移動するか、相対パスを使用することをお勧めします。"
+                f"wandb is enabled, but option `{arg}` is included in the command line and it is an absolute path. \
+                    Because the command line is exposed to the public, it is recommended to move it to the `.toml` file or use relative path."
+                + f" / wandbが有効で、かつオプション `{arg}` がコマンドラインに含まれており、絶対パスです。\
+                    コマンドラインは公開されるため、`.toml`ファイルに移動するか、相対パスを使用することをお勧めします。"
             )
 
     if getattr(args, "config_file", None) is not None:
         logger.info(
-            f"wandb is enabled, but option `config_file` is included in the command line. Because the command line is exposed to the public, please be careful about the information included in the path."
-            + f" / wandbが有効で、かつオプション `config_file` がコマンドラインに含まれています。コマンドラインは公開されるため、パスに含まれる情報にご注意ください。"
+            "wandb is enabled, but option `config_file` is included in the command line. \
+                Because the command line is exposed to the public, please be careful about the information included in the path."
+            + " / wandbが有効で、かつオプション `config_file` がコマンドラインに含まれています。\
+                コマンドラインは公開されるため、パスに含まれる情報にご注意ください。"
         )
 
     # other sensitive options
     if args.huggingface_repo_id is not None and args.huggingface_repo_visibility != "public":
         logger.info(
-            f"wandb is enabled, but option huggingface_repo_id is included in the command line and huggingface_repo_visibility is not 'public'. Because the command line is exposed to the public, it is recommended to move it to the `.toml` file."
-            + f" / wandbが有効で、かつオプション huggingface_repo_id がコマンドラインに含まれており、huggingface_repo_visibility が 'public' ではありません。コマンドラインは公開されるため、`.toml`ファイルに移動することをお勧めします。"
+            "wandb is enabled, but option huggingface_repo_id is included in the command line and huggingface_repo_visibility is not 'public'. \
+                Because the command line is exposed to the public, it is recommended to move it to the `.toml` file."
+            + " / wandbが有効で、かつオプション huggingface_repo_id がコマンドラインに含まれており、huggingface_repo_visibility が 'public' ではありません。\
+                コマンドラインは公開されるため、`.toml`ファイルに移動することをお勧めします。"
         )
 
 
@@ -3265,25 +3173,13 @@ def verify_training_args(args: argparse.Namespace):
             "cache_latents_to_disk is enabled, so cache_latents is also enabled / cache_latents_to_diskが有効なため、cache_latentsを有効にします"
         )
 
-    # noise_offset, perlin_noise, multires_noise_iterations cannot be enabled at the same time
-    # # Listを使って数えてもいいけど並べてしまえ
-    # if args.noise_offset is not None and args.multires_noise_iterations is not None:
-    #     raise ValueError(
-    #         "noise_offset and multires_noise_iterations cannot be enabled at the same time / noise_offsetとmultires_noise_iterationsを同時に有効にできません"
-    #     )
-    # if args.noise_offset is not None and args.perlin_noise is not None:
-    #     raise ValueError("noise_offset and perlin_noise cannot be enabled at the same time / noise_offsetとperlin_noiseは同時に有効にできません")
-    # if args.perlin_noise is not None and args.multires_noise_iterations is not None:
-    #     raise ValueError(
-    #         "perlin_noise and multires_noise_iterations cannot be enabled at the same time / perlin_noiseとmultires_noise_iterationsを同時に有効にできません"
-    #     )
-
     if args.adaptive_noise_scale is not None and args.noise_offset is None:
         raise ValueError("adaptive_noise_scale requires noise_offset / adaptive_noise_scaleを使用するにはnoise_offsetが必要です")
 
     if args.scale_v_pred_loss_like_noise_pred and not args.v_parameterization:
         raise ValueError(
-            "scale_v_pred_loss_like_noise_pred can be enabled only with v_parameterization / scale_v_pred_loss_like_noise_predはv_parameterizationが有効なときのみ有効にできます"
+            "scale_v_pred_loss_like_noise_pred can be enabled only with v_parameterization / \
+                scale_v_pred_loss_like_noise_predはv_parameterizationが有効なときのみ有効にできます"
         )
 
     if args.v_pred_like_loss and args.v_parameterization:
@@ -3293,7 +3189,7 @@ def verify_training_args(args: argparse.Namespace):
 
     if args.zero_terminal_snr and not args.v_parameterization:
         logger.warning(
-            f"zero_terminal_snr is enabled, but v_parameterization is not enabled. training will be unexpected"
+            "zero_terminal_snr is enabled, but v_parameterization is not enabled. training will be unexpected"
             + " / zero_terminal_snrが有効ですが、v_parameterizationが有効ではありません。学習結果は想定外になる可能性があります"
         )
 
@@ -3338,14 +3234,17 @@ def add_dataset_arguments(
         "--keep_tokens",
         type=int,
         default=0,
-        help="keep heading N tokens when shuffling caption tokens (token means comma separated strings) / captionのシャッフル時に、先頭からこの個数のトークンをシャッフルしないで残す（トークンはカンマ区切りの各部分を意味する）",
+        help="keep heading N tokens when shuffling caption tokens (token means comma separated strings) / \
+            captionのシャッフル時に、先頭からこの個数のトークンをシャッフルしないで残す（トークンはカンマ区切りの各部分を意味する）",
     )
     parser.add_argument(
         "--keep_tokens_separator",
         type=str,
         default="",
-        help="A custom separator to divide the caption into fixed and flexible parts. Tokens before this separator will not be shuffled. If not specified, '--keep_tokens' will be used to determine the fixed number of tokens."
-        + " / captionを固定部分と可変部分に分けるためのカスタム区切り文字。この区切り文字より前のトークンはシャッフルされない。指定しない場合、'--keep_tokens'が固定部分のトークン数として使用される。",
+        help="A custom separator to divide the caption into fixed and flexible parts. Tokens before this separator will not be shuffled. \
+            If not specified, '--keep_tokens' will be used to determine the fixed number of tokens."
+        + " / captionを固定部分と可変部分に分けるためのカスタム区切り文字。この区切り文字より前のトークンはシャッフルされない。指定しない場合、\
+            '--keep_tokens'が固定部分のトークン数として使用される。",
     )
     parser.add_argument(
         "--secondary_separator",
@@ -3584,64 +3483,7 @@ def read_config_from_file(args: argparse.Namespace, parser: argparse.ArgumentPar
 # # region utils
 
 
-def resume_from_local_or_hf_if_specified(accelerator, args):
-    if not args.resume:
-        return
-
-    if not args.resume_from_huggingface:
-        logger.info(f"resume training from local state: {args.resume}")
-        accelerator.load_state(args.resume)
-        return
-
-    logger.info(f"resume training from huggingface state: {args.resume}")
-    repo_id = args.resume.split("/")[0] + "/" + args.resume.split("/")[1]
-    path_in_repo = "/".join(args.resume.split("/")[2:])
-    revision = None
-    repo_type = None
-    if ":" in path_in_repo:
-        divided = path_in_repo.split(":")
-        if len(divided) == 2:
-            path_in_repo, revision = divided
-            repo_type = "model"
-        else:
-            path_in_repo, revision, repo_type = divided
-    logger.info(f"Downloading state from huggingface: {repo_id}/{path_in_repo}@{revision}")
-
-    list_files = huggingface_util.list_dir(
-        repo_id=repo_id,
-        subfolder=path_in_repo,
-        revision=revision,
-        token=args.huggingface_token,
-        repo_type=repo_type,
-    )
-
-    async def download(filename) -> str:
-        def task():
-            return hf_hub_download(
-                repo_id=repo_id,
-                filename=filename,
-                revision=revision,
-                repo_type=repo_type,
-                token=args.huggingface_token,
-            )
-
-        return await asyncio.get_event_loop().run_in_executor(None, task)
-
-    loop = asyncio.get_event_loop()
-    results = loop.run_until_complete(
-        asyncio.gather(*[download(filename=filename.rfilename) for filename in list_files])
-    )
-    if len(results) == 0:
-        raise ValueError(
-            "No files found in the specified repo id/path/revision / 指定されたリポジトリID/パス/リビジョンにファイルが見つかりませんでした"
-        )
-    dirname = os.path.dirname(results[0])
-    accelerator.load_state(dirname)
-
-
 def get_optimizer(args, learning_rate, trainable_params):
-    # "Optimizer to use: AdamW, AdamW8bit, Lion, SGDNesterov, SGDNesterov8bit, PagedAdamW, PagedAdamW8bit, PagedAdamW32bit, Lion8bit, PagedLion8bit, DAdaptation(DAdaptAdamPreprint), DAdaptAdaGrad, DAdaptAdam, DAdaptAdan, DAdaptAdanIP, DAdaptLion, DAdaptSGD, Adafactor"
-
     optimizer_type = args.optimizer_type
     if args.use_8bit_adam:
         assert (
@@ -3793,7 +3635,8 @@ def prepare_dataset_args(args: argparse.Namespace, support_metadata: bool):
     if support_metadata:
         if args.in_json is not None and (args.color_aug or args.random_crop):
             logger.warning(
-                f"latents in npz is ignored when color_aug or random_crop is True / color_augまたはrandom_cropを有効にした場合、npzファイルのlatentsは無視されます"
+                "latents in npz is ignored when color_aug or random_crop is True \
+                    / color_augまたはrandom_cropを有効にした場合、npzファイルのlatentsは無視されます"
             )
 
 
@@ -3813,15 +3656,6 @@ def prepare_dtype(args: argparse.Namespace):
         save_dtype = ms.float32
 
     return weight_dtype, save_dtype
-
-
-# def patch_accelerator_for_fp16_training(accelerator):
-#     org_unscale_grads = accelerator.scaler._unscale_grads_
-
-#     def _unscale_grads_replacer(optimizer, inv_scale, found_inf, allow_fp16):
-#         return org_unscale_grads(optimizer, inv_scale, found_inf, True)
-
-#     accelerator.scaler._unscale_grads_ = _unscale_grads_replacer
 
 
 def pool_workaround(
@@ -3845,10 +3679,6 @@ def pool_workaround(
 
     # input_ids: b*n,77
     # find index for EOS token
-
-    # Following code is not working if one of the input_ids has multiple EOS tokens (very odd case)
-    # eos_token_index = torch.where(input_ids == eos_token_id)[1]
-    # eos_token_index = eos_token_index.to(device=last_hidden_state.device)
 
     # Create a mask where the EOS tokens are
     eos_token_mask = (input_ids == eos_token_id).int()
@@ -4122,29 +3952,6 @@ def conditional_loss(
     else:
         raise NotImplementedError(f"Unsupported Loss Type {loss_type}")
     return loss
-
-
-# def append_lr_to_logs(logs, lr_scheduler, optimizer_type, including_unet=True):
-#     names = []
-#     if including_unet:
-#         names.append("unet")
-#     names.append("text_encoder1")
-#     names.append("text_encoder2")
-
-#     append_lr_to_logs_with_names(logs, lr_scheduler, optimizer_type, names)
-
-
-# def append_lr_to_logs_with_names(logs, lr_scheduler, optimizer_type, names):
-#     lrs = lr_scheduler.get_last_lr()
-
-#     for lr_index in range(len(lrs)):
-#         name = names[lr_index]
-#         logs["lr/" + name] = float(lrs[lr_index])
-
-#         if optimizer_type.lower().startswith("DAdapt".lower()) or optimizer_type.lower() == "Prodigy".lower():
-#             logs["lr/d*lr/" + name] = (
-#                 lr_scheduler.optimizers[-1].param_groups[lr_index]["d"] * lr_scheduler.optimizers[-1].param_groups[lr_index]["lr"]
-#             )
 
 
 # scheduler:

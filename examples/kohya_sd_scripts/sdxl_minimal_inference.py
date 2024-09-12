@@ -8,16 +8,12 @@ import random
 
 import networks.lora as lora
 import numpy as np
-from einops import repeat
 from library import sdxl_model_util
 from library.utils import setup_logging
 from PIL import Image
 from tqdm import tqdm
 from transformers import CLIPTokenizer
 
-# import torch
-# from library.device_utils import init_ipex, get_preferred_device
-# init_ipex()
 import mindspore as ms
 from mindspore import ops
 
@@ -216,10 +212,8 @@ if __name__ == "__main__":
 
             enc_out = text_model1(ms.Tensor(tokens), output_hidden_states=True, return_dict=False)
             text_embedding1 = enc_out[-1][-2]
-            # text_embedding = pipe.text_encoder.text_model.final_layer_norm(text_embedding)    # layer normは通さないらしい
 
             # text encoder 2
-            # tokens = tokenizer2(text2).to(DEVICE)
             tokens = tokenizer2(
                 text,
                 truncation=True,
@@ -232,7 +226,6 @@ if __name__ == "__main__":
 
             enc_out = text_model2(ms.Tensor(tokens), output_hidden_states=True, return_dict=False)
             text_embedding2_penu = enc_out[-1][-2]
-            # logger.info("hidden_states2", text_embedding2_penu.shape)
             text_embedding2_pool = enc_out[0]  # do not support Textual Inversion
 
             # 連結して終了 concat and finish
@@ -241,7 +234,6 @@ if __name__ == "__main__":
 
         # cond
         c_ctx, c_ctx_pool = call_text_encoder(prompt, prompt2)
-        # logger.info(c_ctx.shape, c_ctx_p.shape, c_vector.shape)
         c_vector = ops.cat([c_ctx_pool, c_vector], axis=1)
 
         # uncond
@@ -289,20 +281,16 @@ if __name__ == "__main__":
             noise_pred = noise_pred_uncond + guidance_scale * (noise_pred_text - noise_pred_uncond)
 
             # compute the previous noisy sample x_t -> x_t-1
-            # latents = scheduler.step(noise_pred, t, latents, **extra_step_kwargs).prev_sample
             latents = scheduler.step(noise_pred, t, latents, return_dict=False)[0]
 
-        # latents = 1 / 0.18215 * latents
         latents = 1 / sdxl_model_util.VAE_SCALE_FACTOR * latents
         latents = latents.to(vae_dtype)
-        # image = vae.decode(latents).sample
         image = vae.decode(latents, return_dict=False)[0]
         image = (image / 2 + 0.5).clamp(0, 1)
 
         # we always cast to float32 as this does not cause significant overhead and is compatible with bfloa16
         image = image.permute(0, 2, 3, 1).float().asnumpy()
 
-        # image = self.numpy_to_pil(image)
         image = (image * 255).round().astype("uint8")
         image = [Image.fromarray(im) for im in image]
 

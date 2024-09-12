@@ -8,7 +8,6 @@ import os
 import re
 from typing import Dict, List, Optional, Tuple, Type, Union
 
-import numpy as np
 from library.utils import setup_logging
 
 import mindspore as ms
@@ -530,7 +529,6 @@ class LoRAModule(nn.Cell):
             stride = org_module.stride
             padding = org_module.padding
             self.lora_down = nn.Conv2d(in_dim, self.lora_dim, kernel_size, stride, padding=padding, has_bias=False)
-            # FIXME fzl: check kernel_size and stride
             self.lora_up = nn.Conv2d(self.lora_dim, out_dim, (1, 1), (1, 1), has_bias=False)
         elif isinstance(org_module, nn.Dense):
             self.lora_down = nn.Dense(in_dim, self.lora_dim, has_bias=False)
@@ -670,9 +668,9 @@ class LoRANetwork(nn.Cell):
         self.module_dropout = module_dropout
 
         if modules_dim is not None:
-            logger.info(f"create LoRA network from weights")
+            logger.info("create LoRA network from weights")
         elif block_dims is not None:
-            logger.info(f"create LoRA network from block_dims")
+            logger.info("create LoRA network from block_dims")
             logger.info(
                 f"neuron dropout: p={self.dropout}, rank dropout: p={self.rank_dropout}, module dropout: p={self.module_dropout}"
             )
@@ -698,7 +696,6 @@ class LoRANetwork(nn.Cell):
             for child_name, child_module in module.name_cells().items():
                 is_linear = child_module.__class__.__name__ == "Dense"
                 is_conv2d = child_module.__class__.__name__ == "Conv2d"
-                # FIXME fzl: check kernel_size and stride
                 is_conv2d_1x1 = is_conv2d and child_module.kernel_size == 1
 
                 lora_name = lora_name + "." + child_name
@@ -762,7 +759,10 @@ class LoRANetwork(nn.Cell):
 
             return replaced, skipped
 
-        def replace_modules_fixed(
+        # notes: org repo create loras from target modules,
+        # here we create the loras and directly replace the layers.
+        # modified from `create_modules` method
+        def replace_modules(
             is_unet: bool,
             text_encoder_idx: Optional[int],  # None, 1, 2
             root_module: nn.Cell,
@@ -798,97 +798,6 @@ class LoRANetwork(nn.Cell):
 
             return replaced, skipped
 
-        # notes: org repo create loras from target modules,
-        # here we create the loras and directly replace the layers.
-        # modified from `create_modules` method
-
-        # create module instances
-        def replaced_modules_org_repo(
-            is_unet: bool,
-            text_encoder_idx: Optional[int],  # None, 1, 2
-            root_module: nn.Cell,
-            target_replace_modules: List[nn.Cell],
-        ) -> List[LoRAModule]:
-            prefix = (
-                self.LORA_PREFIX_UNET
-                if is_unet
-                else (
-                    self.LORA_PREFIX_TEXT_ENCODER
-                    if text_encoder_idx is None
-                    else (self.LORA_PREFIX_TEXT_ENCODER1 if text_encoder_idx == 1 else self.LORA_PREFIX_TEXT_ENCODER2)
-                )
-            )
-            replaced = []
-            skipped = []
-            for name, module in root_module.cells_and_names():
-                if module.__class__.__name__ in target_replace_modules:
-                    child_name_list = [n for n, _ in module.cells_and_names()]
-                    for child_name in child_name_list:
-                        child_module = module._cells[child_name]
-                        is_linear = child_module.__class__.__name__ == "Dense"
-                        is_conv2d = child_module.__class__.__name__ == "Conv2d"
-                        is_conv2d_1x1 = is_conv2d and child_module.kernel_size == 1
-
-                        if is_linear or is_conv2d:
-                            lora_name = prefix + "." + name + "." + child_name
-                            lora_name = lora_name.replace(".", "_")
-
-                            dim = None
-                            alpha = None
-
-                            if modules_dim is not None:
-                                # モジュール指定あり
-                                if lora_name in modules_dim:
-                                    dim = modules_dim[lora_name]
-                                    alpha = modules_alpha[lora_name]
-                            elif is_unet and block_dims is not None:
-                                # U-Netでblock_dims指定あり
-                                block_idx = get_block_index(lora_name)
-                                if is_linear or is_conv2d_1x1:
-                                    dim = block_dims[block_idx]
-                                    alpha = block_alphas[block_idx]
-                                elif conv_block_dims is not None:
-                                    dim = conv_block_dims[block_idx]
-                                    alpha = conv_block_alphas[block_idx]
-                            else:
-                                # 通常、すべて対象とする
-                                if is_linear or is_conv2d_1x1:
-                                    dim = self.lora_dim
-                                    alpha = self.alpha
-                                elif self.conv_lora_dim is not None:
-                                    dim = self.conv_lora_dim
-                                    alpha = self.conv_alpha
-
-                            if dim is None or dim == 0:
-                                # skipした情報を出力
-                                if (
-                                    is_linear
-                                    or is_conv2d_1x1
-                                    or (self.conv_lora_dim is not None or conv_block_dims is not None)
-                                ):
-                                    skipped.append(lora_name)
-                                continue
-
-                            lora = module_class(
-                                lora_name,
-                                child_module,
-                                self.multiplier,
-                                dim,
-                                alpha,
-                                dropout=dropout,
-                                rank_dropout=rank_dropout,
-                                module_dropout=module_dropout,
-                                org_dtype=original_dtype,
-                            )
-                            replaced.append(lora_name)
-                            module._cells[child_name] = lora
-            return replaced, skipped
-
-        # notes: `replaced_modules_org_repo` might have bugs
-        # when using UNET_TARGET_REPLACE_MODULE_CONV2D_3X3,
-        # so we use the fixed version `replace_modueld_fixed` here
-        replace_modules = replace_modules_fixed
-
         # create LoRA for text encoder
         # 毎回すべてのモジュールを作るのは無駄なので要検討
         replaced_te, skipped_te = [], []
@@ -900,7 +809,7 @@ class LoRANetwork(nn.Cell):
                     logger.info(f"create LoRA for Text Encoder {index}:")
                 else:
                     index = None
-                    logger.info(f"create LoRA for Text Encoder:")
+                    logger.info("create LoRA for Text Encoder:")
 
                 text_encoder_loras, skipped = replace_modules(
                     False, index, text_encoder, LoRANetwork.TEXT_ENCODER_TARGET_REPLACE_MODULE
@@ -918,13 +827,14 @@ class LoRANetwork(nn.Cell):
         logger.info(f"create LoRA for U-Net: {len(replaced_un)} modules.")
 
         self.set_required_grad()
-        logger.info(f"set lora params trainable and freezes other (required grads false)")
+        logger.info("set lora params trainable and freezes other (required grads false)")
 
         # 3. verbose
         skipped = skipped_te + skipped_un
         if varbose and len(skipped) > 0:
             logger.warning(
-                f"because block_lr_weight is 0 or dim (rank) is 0, {len(skipped)} LoRA modules are skipped / block_lr_weightまたはdim (rank)が0の為、次の{len(skipped)}個のLoRAモジュールはスキップされます:"
+                f"because block_lr_weight is 0 or dim (rank) is 0, {len(skipped)} LoRA modules are skipped \
+                    / block_lr_weightまたはdim (rank)が0の為、次の{len(skipped)}個のLoRAモジュールはスキップされます:"
             )
             for name in skipped:
                 logger.info(f"\t{name}")
@@ -947,11 +857,11 @@ class LoRANetwork(nn.Cell):
                 p.requires_grad = False
 
     def set_multiplier(self, multiplier):
-        # FIXME, set multiplier to Parameters
+        # TODO, set multiplier to Parameters
         pass
 
     def load_weights(self, file):
-        # FIXME load in train scripts, not support yet
+        # TODO, load in train scripts, not support yet
         weights_sd = ms.load_checkpoint(file)
         param_not_load, _ = ms.load_param_into_net(self, weights_sd)
         return param_not_load

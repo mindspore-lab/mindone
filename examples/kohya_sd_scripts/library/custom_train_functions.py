@@ -115,7 +115,8 @@ def add_custom_train_arguments(parser: argparse.ArgumentParser, support_weighted
         "--min_snr_gamma",
         type=float,
         default=None,
-        help="gamma for reducing the weight of high loss timesteps. Lower numbers have stronger effect. 5 is recommended by paper. / 低いタイムステップでの高いlossに対して重みを減らすためのgamma値、低いほど効果が強く、論文では5が推奨",
+        help="gamma for reducing the weight of high loss timesteps. Lower numbers have stronger effect. 5 is recommended by paper. \
+            / 低いタイムステップでの高いlossに対して重みを減らすためのgamma値、低いほど効果が強く、論文では5が推奨",
     )
     parser.add_argument(
         "--scale_v_pred_loss_like_noise_pred",
@@ -138,7 +139,8 @@ def add_custom_train_arguments(parser: argparse.ArgumentParser, support_weighted
             "--weighted_captions",
             action="store_true",
             default=False,
-            help="Enable weighted captions in the standard style (token:1.3). No commas inside parens, or shuffle/dropout may break the decoder. / 「[token]」、「(token)」「(token:1.3)」のような重み付きキャプションを有効にする。カンマを括弧内に入れるとシャッフルやdropoutで重みづけがおかしくなるので注意",
+            help="Enable weighted captions in the standard style (token:1.3). No commas inside parens, or shuffle/dropout may break the decoder. \
+                / 「[token]」、「(token)」「(token:1.3)」のような重み付きキャプションを有効にする。カンマを括弧内に入れるとシャッフルやdropoutで重みづけがおかしくなるので注意",
         )
 
 

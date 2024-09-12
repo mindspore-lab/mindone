@@ -5,8 +5,6 @@ import random
 from dataclasses import asdict, dataclass
 from pathlib import Path
 from textwrap import dedent, indent
-
-# from toolz import curry
 from typing import List, Optional, Sequence, Tuple, Union
 
 import toml
@@ -308,7 +306,8 @@ class ConfigSanitizer:
                     return Schema(self.db_dataset_schema)(dataset_config)
                 else:
                     raise voluptuous.Invalid(
-                        "DreamBooth subset and fine tuning subset cannot be mixed in the same dataset. Please split them into separate datasets. / DreamBoothのサブセットとfine tuninのサブセットを同一のデータセットに混在させることはできません。別々のデータセットに分割してください。"
+                        "DreamBooth subset and fine tuning subset cannot be mixed in the same dataset. Please split them into separate datasets. \
+                        / DreamBoothのサブセットとfine tuninのサブセットを同一のデータセットに混在させることはできません。別々のデータセットに分割してください。"
                     )
 
             self.dataset_schema = validate_flex_dataset

@@ -175,7 +175,8 @@ class NetworkTrainer:
             return
         if len(train_dataset_group) == 0:
             logger.error(
-                "No data found. Please verify arguments (train_data_dir must be the parent of folders with images) / 画像がありません。引数指定を確認してください（train_data_dirには画像があるフォルダではなく、画像があるフォルダの親フォルダを指定する必要があります）"
+                "No data found. Please verify arguments (train_data_dir must be the parent of folders with images) \
+                    / 画像がありません。引数指定を確認してください（train_data_dirには画像があるフォルダではなく、画像があるフォルダの親フォルダを指定する必要があります）"
             )
             return
 
@@ -390,13 +391,6 @@ class NetworkTrainer:
 
         # 後方互換性を確保するよ
         # TODO - suppuort params grouping
-        # try:
-        #     trainable_params = network.prepare_optimizer_params(args.text_encoder_lr, args.unet_lr, args.learning_rate)
-        # except TypeError:
-        #     logger.info(
-        #         "Deprecated: use prepare_optimizer_params(text_encoder_lr, unet_lr, learning_rate) instead of prepare_optimizer_params(text_encoder_lr, unet_lr)"
-        #     )
-        #     trainable_params = network.prepare_optimizer_params(args.text_encoder_lr, args.unet_lr)
 
         # notes: temporary solution
         if args.unet_lr:
@@ -592,7 +586,8 @@ class NetworkTrainer:
             # conserving backward compatibility when using train_dataset_dir and reg_dataset_dir
             assert (
                 len(train_dataset_group.datasets) == 1
-            ), f"There should be a single dataset but {len(train_dataset_group.datasets)} found. This seems to be a bug./ データセットは1個だけ存在するはずですが、実際には{len(train_dataset_group.datasets)}個でした。プログラムのバグかもしれません。"
+            ), f"There should be a single dataset but {len(train_dataset_group.datasets)} found. This seems to be a bug.\
+                / データセットは1個だけ存在するはずですが、実際には{len(train_dataset_group.datasets)}個でした。プログラムのバグかもしれません。"
 
             dataset = train_dataset_group.datasets[0]
 
@@ -680,12 +675,6 @@ class NetworkTrainer:
 
         loss_recorder = train_util.LossRecorder()
         del train_dataset_group
-
-        # callback for step start
-        if hasattr(network, "on_step_start"):
-            on_step_start = network.on_step_start
-        else:
-            on_step_start = lambda *args, **kwargs: None
 
         # function for saving/removing
         def save_model(ckpt_name, network, steps, epoch_no, force_sync_upload=False):
@@ -1050,13 +1039,15 @@ def setup_parser() -> argparse.ArgumentParser:
         "--network_alpha",
         type=float,
         default=1,
-        help="alpha for LoRA weight scaling, default 1 (same as network_dim for same behavior as old version) / LoRaの重み調整のalpha値、デフォルト1（旧バージョンと同じ動作をするにはnetwork_dimと同じ値を指定）",
+        help="alpha for LoRA weight scaling, default 1 (same as network_dim for same behavior as old version) \
+            / LoRaの重み調整のalpha値、デフォルト1（旧バージョンと同じ動作をするにはnetwork_dimと同じ値を指定）",
     )
     parser.add_argument(
         "--network_dropout",
         type=float,
         default=None,
-        help="Drops neurons out of training every step (0 or None is default behavior (no dropout), 1 would drop all neurons) / 訓練時に毎ステップでニューロンをdropする（0またはNoneはdropoutなし、1は全ニューロンをdropout）",
+        help="Drops neurons out of training every step (0 or None is default behavior (no dropout), 1 would drop all neurons) \
+            / 訓練時に毎ステップでニューロンをdropする（0またはNoneはdropoutなし、1は全ニューロンをdropout）",
     )
     parser.add_argument(
         "--network_args",
@@ -1088,7 +1079,8 @@ def setup_parser() -> argparse.ArgumentParser:
         "--scale_weight_norms",
         type=float,
         default=None,
-        help="Scale the weight of each key pair to help prevent overtraing via exploding gradients. (1 is a good starting point) / 重みの値をスケーリングして勾配爆発を防ぐ（1が初期値としては適当）",
+        help="Scale the weight of each key pair to help prevent overtraing via exploding gradients. (1 is a good starting point) \
+            / 重みの値をスケーリングして勾配爆発を防ぐ（1が初期値としては適当）",
     )
     parser.add_argument(
         "--base_weights",

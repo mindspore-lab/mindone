@@ -23,7 +23,8 @@ metadata = {
     "modelspec.title": "Example Model Version 1.0", # Clean, human-readable title. May use your own phrasing/language/etc
     # === Should ===
     "modelspec.author": "Example Corp", # Your name or company name
-    "modelspec.description": "This is my example model to show you how to do it!", # Describe the model in your own words/language/etc. Focus on what users need to know
+    "modelspec.description": "This is my example model to show you how to do it!",
+    # Describe the model in your own words/language/etc. Focus on what users need to know
     "modelspec.date": "2023-07-20", # ISO-8601 compliant date of when the model was created
     # === Can ===
     "modelspec.license": "ExampleLicense-1.0", # eg CreativeML Open RAIL, etc.

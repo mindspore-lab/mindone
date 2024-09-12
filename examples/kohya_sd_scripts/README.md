@@ -41,17 +41,19 @@ cd examples/kohya_sd_scripts
 
 Prepare image files for learning data in any folder (multiple folders are also acceptable). Supported formats are `.png`, `.jpg`, `.jpeg`, `.webp`, and `.bmp`.  
 
-You can specify the learning data in several ways, depending on the number of learning data, learning target, whether captions (image descriptions) can be prepared, etc. Kohya LoRA script supports three methods as follows. Choose a method and configure the datasets in a `.toml` file, which can be passed with the `--dataset_config` option to the training script.
+You can specify the learning data in several ways, depending on the number of learning data, learning target, whether captions (image descriptions) can be prepared, etc. Kohya LoRA script supports three methods as follows. Choose a method and configure the datasets in a `.toml` file. It can be passed with the `--dataset_config` option to the training script.
 
 | Learning target or method | Script                  | DB / class+identifier | DB / Caption | fine-tuning |
 | ------------------------- | ----------------------- | --------------------- | ------------ | ----------- |
 | LoRA                      | `sdxl_train_network.py` | o                     | o            | o           |
 
-Here we take the Pokemon dataset as an example to explain the three learning data patterns.  Please refer to [Config Readme](https://github.com/kohya-ss/sd-scripts/blob/main/docs/config_README-en.md) and  [Common Learning Guide](https://github.com/kohya-ss/sd-scripts/blob/main/docs/train_README-zh.md) from kohya's official repo for more details.
+Here we take the [Pokemon_blip dataset]() as an example to explain the three learning data patterns.  Please refer to [Config Readme](https://github.com/kohya-ss/sd-scripts/blob/main/docs/config_README-en.md) and  [Common Learning Guide](https://github.com/kohya-ss/sd-scripts/blob/main/docs/train_README-zh.md) from kohya's official repo for more details.
 
 #### 1. DreamBooth, class+identifier method (regularization images can be used)
 
-Learn by associating the learning target with a specific word (identifier). There is no need to prepare captions, each image is learned as if it was learned with the caption `class identifier`.  For example, img711 to img715 in the Pokemon training set are butterflies, we can have the images in `data_path/butterfly` folder and train with the class identifier `Pokemon butterfly`. If using regulation images please prepare them in the same way.
+Learn by associating the learning target with a specific word (identifier). There is no need to prepare captions, each image is learned as if it was learned with the caption `class identifier`.
+
+For example, img711 to img715 in the Pokemon training set are butterflies, we can have the images in `data_path/butterfly` folder and train with the class identifier `Pokemon butterfly`. If using regulation images, please prepare them in the same way.
 
 ```
 data_path/butterfly
@@ -62,7 +64,7 @@ data_path/butterfly
 └── img715.png
 ```
 
-Create a text file and set the extension to `.toml` and write as follow.
+Create a text file, set the extension to `.toml` and write as follows.
 
 ```toml
 [general]
@@ -91,9 +93,9 @@ batch_size = 1                               # Batch size
 
 #### 2. DreamBooth, caption method (regularization images can be used)
 
-Prepare a text file with captions recorded for each image and learn. For example, when learning a specific character, by describing the details of the image in the caption, the character and other elements are separated, and the model can be expected to learn the character more precisely.
+Prepare a text file with captions recorded for each image and learn. When learning a specific character, by describing the details of the image in the caption, the character and other elements are separated, and the model can be expected to learn the character more precisely.
 
-We still have the butterfly images as examples. Each image pairs with the caption file in the same name,  with `.txt` or `.caption` extension
+We still have the butterfly images as examples. Each image pairs with the caption file in the same name, with `.txt` or `.caption` extension
 
 ```
 data_path/butterfly
@@ -109,7 +111,7 @@ data_path/butterfly
 └── img715.txt
 ```
 
-, where the `.txt` files describe details more than just `butterfly`.
+, where the caption files (here we use `.txt`) describe details more than just `butterfly`.
 
 ```
 a picture of a butterfly made out of paper
@@ -119,7 +121,7 @@ a colorful butterfly is shown on a white background
 a green butterfly with red and black wings  
 ```
 
-Create a text file and set the extension to `.toml` and write as follows.
+Create a text file, set the extension to `.toml` and write as follows.
 
 ```toml
 [general]
@@ -148,7 +150,7 @@ batch_size = 1                               # Batch size
 
 #### 3. Fine-tuning method (regularization images cannot be used)
 
-The captions are collected in a metadata file in advance. It supports functions such as managing tags and captions separately. (Although it is called the fine-tuning method, it can also be used for non-fine-tuning.)
+The captions are collected in a metadata file in advance. It supports functions such as managing tags and captions separately.
 
 We have the training images in the `data_path/pokemon_blip/train` as
 
@@ -179,7 +181,7 @@ Prepare a metadata file with captions and tags in JSON format with the extension
 }
 ```
 
-Create a text file and set the extension to `.toml` and write as follow.
+Create a text file, set the extension to `.toml` and write as follows.
 
 ```toml
 [general]
@@ -199,17 +201,17 @@ batch_size = 1                                      # Batch size
 
 > Notes:
 >
-> If `enable_bucket`, data preprocessing is generally unnecessary but MindSpore will recompile for each bucket size in graph mode.
->
-> When `enable_bucket ` is set to `false` as in the examples below,  please enable `random_crop` for each `datasets.subsets`. The scripts will crop or resize the images to the target resolution `resolution`.
->
-> Again, refer to kohya's [Config Readme](https://github.com/kohya-ss/sd-scripts/blob/main/docs/config_README-en.md) and  [Common Learning Guide](https://github.com/kohya-ss/sd-scripts/blob/main/docs/train_README-zh.md)  for detailed configuration settings.
+> 1. If `enable_bucket`, data preprocessing is generally unnecessary but MindSpore will recompile for each bucket size in graph mode.
+> 2. If `enable_bucket` is set to `false` as in the example above, please enable `random_crop` for each `datasets.subsets`. The scripts will crop or resize the images to the target `resolution`. Otherwise you need to preprocess your datasets with the same sizes in advance.
+> 3. Again, please refer to kohya's [Config Readme](https://github.com/kohya-ss/sd-scripts/blob/main/docs/config_README-en.md) and  [Common Learning Guide](https://github.com/kohya-ss/sd-scripts/blob/main/docs/train_README-zh.md)  for detailed configuration settings and explanations.
 
 
 
 ### Training
 
-Choose a dataset config pattern and prepare the toml file as [prepare learning data](#Prepare learning data). The environment variable `pretrainedModel` could be sdxl model name from the hugging face hub or a local checkpoint path with `.safetensor`. Here we use the fine-tuning method pattern as below, save the config as `dataset_config_finetune.toml`, and use weights from [stabilityai/stable-diffusion-xl-base-1.0](https://huggingface.co/stabilityai/stable-diffusion-xl-base-1.0/tree/main).
+Choose a dataset config pattern and prepare the toml file as [prepare learning data](#prepare-learning-data). Here we use the fine-tuning method pattern as above and save the config as `dataset_config_finetune.toml`.
+
+The environment variable `pretrainedModel` could be model name of sdxl from the hugging face, such as [stabilityai/stable-diffusion-xl-base-1.0](https://huggingface.co/stabilityai/stable-diffusion-xl-base-1.0/tree/main), or a local checkpoint path in `.safetensor` format.
 
 ```bash
 $pretrainedModel = "path_to/sd_xl_base_1.0.safetensors"
@@ -247,15 +249,15 @@ python sdxl_train_network.py \
 
 > Notes:
 >
-> 1. The lora checkpoint will save as `pokemon_step_xxx.ckpt` and  `pokemon.ckpt` at final step at `outputDir`.
-> 2. Sampling during training is not support yet.
+> 1. The lora checkpoint will save as `pokemon_stepxxx.ckpt` descided by `save_every_n_steps`, and `pokemon.ckpt` at final step at `outputDir`.
+> 2. Sampling during training is not supported yet.
 > 3. Enable the text encoders training by not passing `network_train_text_encoder_only`, but it's not recommended for sdxl training.
 
 
 
 ### Inference
 
-Once you have trained a model using the above command, use the `sdxl_minimal_inference.py` for image generation. The scripts merge the lora weights to the pre-trained model and do inference. The script is just an example, following Kohya's minimal_inference scripts. It uses EulerDiscreteScheduler and a 50-step inference.  Modify a custom one if needed.
+Once you have trained a model using the above command, use the `sdxl_minimal_inference.py` for image generation. The scripts merge the lora weights to the pre-trained model and do inference. The script is just an example, following Kohya's minimal_inference scripts. It uses EulerDiscreteScheduler and a 50-step inference. Please modify a custom one if needed.
 
 ```bash
 python sdxl_minimal_inference.py \
@@ -268,13 +270,15 @@ python sdxl_minimal_inference.py \
 
 ### Performance
 
-The speeds of training example above are as follows.
+The speeds of the training example (train unet only) are as follows. `mixed_precision=None` uses `fp32` precision without auto mixed precision. `mixed_precision=fp16` uses default `amp_level="O2"` for unet.
 
 | NPUs | Global Batch size | Resolution | Mixed Precision | Graph Compile | Speed (s/step) |
 | ---- | ----------------- | ---------- | --------------- | ------------- | -------------- |
-| 1    | 1*1               | 1024x1024  | None (fp32)     | 25mins~35mins | 1.66s-1.8s     |
-| 1    | 1*1               | 1024x1024  | fp16            | 25mins~35mins | 1.66s-1.8s     |
+| 1    | 1*1               | 1024x1024  | None     | 24mins | 1.66s-1.8s     |
+| 1    | 1*1               | 1024x1024  | fp16            | 33mins | 1.66s-1.8s     |
 
-Here are some generation results of the training example.
+> Note: `mixed_precision=None`  means training with fp32 precision and do not use auto mix precison. `mixed_precision=fp16`
+
+Here are some generation results of the training example after training 9k steps.
 
 (Results to be added).

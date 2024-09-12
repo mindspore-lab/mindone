@@ -3,7 +3,7 @@ import math
 import os
 from typing import Optional
 
-from library import sdxl_model_util, sdxl_original_unet, train_util
+from library import sdxl_model_util, sdxl_original_unet
 from transformers import CLIPTokenizer
 
 import mindspore as ms
@@ -77,7 +77,9 @@ def _load_target_model(name_or_path: str, vae_path: Optional[str], model_version
                     raise ex
         except EnvironmentError as ex:
             logger.error(
-                f"model is not found as a file or in Hugging Face, perhaps file name is wrong? / 指定したモデル名のファイル、またはHugging Faceのモデルが見つかりません。ファイル名が誤っているかもしれません: {name_or_path}"
+                f"model is not found as a file or in Hugging Face, perhaps file name is wrong?\
+                    / 指定したモデル名のファイル、またはHugging Faceのモデルが見つかりません。\
+                    ファイル名が誤っているかもしれません: {name_or_path}"
             )
             raise ex
 
