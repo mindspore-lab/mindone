@@ -14,7 +14,7 @@
 from typing import Callable, Optional, Union
 
 import mindspore as ms
-from mindspore import nn, ops
+from mindspore import mint, nn, ops
 
 from ..image_processor import IPAdapterMaskProcessor
 from ..utils import logging
@@ -544,6 +544,17 @@ class Attention(nn.Cell):
                 concatenated_bias = ops.cat([self.to_k.bias, self.to_v.bias])
                 self.to_kv.bias.set_data(concatenated_bias)
 
+        # handle added projections for SD3 and others.
+        if hasattr(self, "add_q_proj") and hasattr(self, "add_k_proj") and hasattr(self, "add_v_proj"):
+            concatenated_weights = ops.cat([self.add_q_proj.weight, self.add_k_proj.weight, self.add_v_proj.weight])
+            in_features = concatenated_weights.shape[1]
+            out_features = concatenated_weights.shape[0]
+
+            self.to_added_qkv = nn.Dense(in_features, out_features, has_bias=True, dtype=dtype)
+            self.to_added_qkv.weight.set_data(concatenated_weights)
+            concatenated_bias = ops.cat([self.add_q_proj.bias, self.add_k_proj.bias, self.add_v_proj.bias])
+            self.to_added_qkv.bias.set_data(concatenated_bias)
+
         self.fused_projections = fuse
 
 
@@ -882,7 +893,7 @@ class FusedJointAttnProcessor:
         # `sample` projections.
         qkv = attn.to_qkv(hidden_states)
         split_size = qkv.shape[-1] // 3
-        query, key, value = ops.split(qkv, split_size, axis=-1)
+        query, key, value = mint.split(qkv, split_size, dim=-1)
 
         # `context` projections.
         encoder_qkv = attn.to_added_qkv(encoder_hidden_states)
@@ -891,7 +902,7 @@ class FusedJointAttnProcessor:
             encoder_hidden_states_query_proj,
             encoder_hidden_states_key_proj,
             encoder_hidden_states_value_proj,
-        ) = ops.split(encoder_qkv, split_size, axis=-1)
+        ) = mint.split(encoder_qkv, split_size, dim=-1)
 
         # attention
         query = ops.cat([query, encoder_hidden_states_query_proj], axis=1)
@@ -902,8 +913,9 @@ class FusedJointAttnProcessor:
         key = attn.head_to_batch_dim(key)
         value = attn.head_to_batch_dim(value)
 
-        attention_probs = attn.get_attention_scores(query, key, attention_mask)
-        hidden_states = ops.bmm(attention_probs, value)
+        hidden_states = ops.operations.nn_ops.FlashAttentionScore(1, scale_value=attn.scale)(
+            query.to(ms.float16), key.to(ms.float16), value.to(ms.float16), None, None, None, attention_mask
+        )[3].to(query.dtype)
         hidden_states = attn.batch_to_head_dim(hidden_states)
         hidden_states = hidden_states.to(query.dtype)
 
