@@ -33,6 +33,7 @@ class GeneratorWithLoss(nn.Cell):
         discriminator=None,
         dtype=ms.float32,
         lpips_ckpt_path=None,
+        loss_type: str = "l1",
     ):
         super().__init__()
 
@@ -44,7 +45,9 @@ class GeneratorWithLoss(nn.Cell):
         perceptual_loss.load_from_pretrained(lpips_ckpt_path)
         self.perceptual_loss = perceptual_loss
 
-        self.l1 = nn.L1Loss(reduction="none")
+        l1 = nn.L1Loss(reduction="none")
+        l2 = nn.L2Loss(reduction="none")
+        self.loss_func = l1 if loss_type == "l1" else l2
         # TODO: is self.logvar trainable?
         self.logvar = ms.Parameter(ms.Tensor([logvar_init], dtype=dtype))
 
@@ -80,7 +83,7 @@ class GeneratorWithLoss(nn.Cell):
         recons = _rearrange_in(recons)
 
         # 2.1 reconstruction loss in pixels
-        rec_loss = self.l1(x, recons)
+        rec_loss = self.loss_func(x, recons)
 
         # 2.2 perceptual loss
         if self.perceptual_weight > 0:

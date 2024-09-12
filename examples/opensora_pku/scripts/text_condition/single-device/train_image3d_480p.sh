@@ -33,6 +33,7 @@ python opensora/train/train_t2v_diffusers.py \
     --snr_gamma 5.0 \
     --use_ema True\
     --ema_start_step 0 \
+    --ema_decay 0.999 \
     --enable_tiling \
     --tile_overlap_factor 0.0 \
     --pretrained "path/to/pretrained/1x240p/ckpt" \

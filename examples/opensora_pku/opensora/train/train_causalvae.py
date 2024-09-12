@@ -24,12 +24,12 @@ from opensora.models.causalvideovae.model.losses.net_with_loss import Discrimina
 from opensora.models.causalvideovae.model.modules.updownsample import TrilinearInterpolate
 from opensora.models.causalvideovae.model.utils.model_utils import resolve_str_to_obj
 from opensora.train.commons import create_loss_scaler, parse_args
+from opensora.utils.ema import EMA
 from opensora.utils.ms_utils import init_env
 from opensora.utils.utils import get_precision
 
 from mindone.trainers.callback import EvalSaveCallback, OverflowMonitor, ProfilerCallback
 from mindone.trainers.checkpoint import CheckpointManager, resume_train_network
-from mindone.trainers.ema import EMA
 from mindone.trainers.lr_schedule import create_scheduler
 from mindone.trainers.optim import create_optimizer
 from mindone.trainers.train_step import TrainOneStepWrapper
@@ -64,13 +64,13 @@ def main(args):
     if args.load_from_checkpoint is not None:
         ae.init_from_ckpt(args.load_from_checkpoint)
     # discriminator (D)
-    use_discriminator = args.use_discriminator and (model_config["loss_params"]["disc_weight"] > 0.0)
+    use_discriminator = args.use_discriminator and (args.disc_weight > 0.0)
 
-    if args.use_discriminator and (model_config["loss_params"]["disc_weight"] <= 0.0):
+    if args.use_discriminator and (args.disc_weight <= 0.0):
         logging.warning("use_discriminator is True but disc_weight is 0.")
 
     if use_discriminator:
-        disc_type = model_config["loss_type"]
+        disc_type = args.disc_cls
         if "LPIPSWithDiscriminator3D" in disc_type:
             disc_type = "opensora.models.causalvideovae.model.losses.discriminator.NLayerDiscriminator3D"
             use_3d_disc = True
@@ -109,9 +109,14 @@ def main(args):
         ae,
         discriminator=disc,
         lpips_ckpt_path=os.path.join("pretrained", "lpips_vgg-426bf45c.ckpt"),
-        **model_config["loss_params"],
+        disc_start=args.disc_start,
+        disc_weight=args.disc_weight,
+        kl_weight=args.kl_weight,
+        logvar_init=args.logvar_init,
+        perceptual_weight=args.perceptual_weight,
+        loss_type=args.loss_type,
     )
-    disc_start = model_config["loss_params"]["disc_start"]
+    disc_start = args.disc_start
 
     # D with loss
     if use_discriminator:
@@ -273,15 +278,8 @@ def main(args):
         )
         loss_scaler_disc = create_loss_scaler(args)
 
-    ema = (
-        EMA(
-            ae_with_loss.autoencoder,
-            ema_decay=args.ema_decay,
-        )
-        if args.use_ema
-        else None
-    )
-
+    assert args.ema_start_step == 0, "Now only support to update EMA from the first step"
+    ema = EMA(ae_with_loss.autoencoder, ema_decay=args.ema_decay, offloading=args.ema_offload) if args.use_ema else None
     # resume training states
     # TODO: resume Discriminator if used
     ckpt_dir = os.path.join(args.output_dir, "ckpt")
@@ -598,6 +596,20 @@ def parse_causalvae_train_args(parser):
     parser.add_argument(
         "--save_training_resume", type=str2bool, default=True, help="Whether to save the training resume checkpoint."
     )
+    parser.add_argument("--ema_start_step", type=int, default=0)
+
+    parser.add_argument(
+        "--disc_cls",
+        type=str,
+        default="causalvideovae.model.losses.LPIPSWithDiscriminator3D",
+        help="",
+    )
+    parser.add_argument("--disc_start", type=int, default=5, help="")
+    parser.add_argument("--disc_weight", type=float, default=0.5, help="")
+    parser.add_argument("--kl_weight", type=float, default=1e-06, help="")
+    parser.add_argument("--perceptual_weight", type=float, default=1.0, help="")
+    parser.add_argument("--loss_type", type=str, default="l1", help="")
+    parser.add_argument("--logvar_init", type=float, default=0.0, help="")
     return parser
 
 

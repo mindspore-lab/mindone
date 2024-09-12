@@ -6,7 +6,7 @@ python opensora/train/train_causalvae.py \
     --save_steps 2000 \
     --output_dir results/causalvae \
     --video_path /remote-home1/dataset/data_split_tt \
-    --video_num_frames 9 \
+    --video_num_frames 25 \
     --resolution 256 \
     --sample_rate 1 \
     --dataloader_num_workers 8 \
@@ -21,3 +21,10 @@ python opensora/train/train_causalvae.py \
     --init_loss_scale 1 \
     --jit_level "O0" \
     --use_discriminator True \
+    --use_ema True\
+    --ema_start_step 0 \
+    --ema_decay 0.999 \
+    --perceptual_weight 1.0 \
+    --loss_type l1 \
+    --disc_cls causalvideovae.model.losses.LPIPSWithDiscriminator3D \
+    --disc_start 2000 \

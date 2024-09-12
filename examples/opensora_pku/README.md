@@ -56,6 +56,7 @@ Videos are saved to `.gif` for display.
 
 
 ### TODO
+* [ ] Image-to-Video model **[WIP]**.
 * [ ] Scaling model parameters and dataset size **[WIP]**.
 * [ ] Evaluation of various metrics **[WIP]**.
 
@@ -122,7 +123,7 @@ For EulerOS, instructions on ffmpeg and decord installation are as follows.
 
 Please download the torch checkpoint of mT5-xxl from [google/mt5-xxl](https://huggingface.co/google/mt5-xxl/tree/main), and download the opensora v1.2.0 models' weights from [LanguageBind/Open-Sora-Plan-v1.2.0](https://huggingface.co/LanguageBind/Open-Sora-Plan-v1.2.0/tree/main). Place them under `examples/opensora_pku` as shown below:
 ```bash
-opensora_pku
+mindone/examples/opensora_pku
 ├───LanguageBind
 │   └───Open-Sora-Plan-v1.2.0
 │       ├───1x480p/
@@ -143,7 +144,7 @@ opensora_pku
 ```
 
 Currently, we can load `.safetensors` files directly in MindSpore, but not `.bin` or `.ckpt` files. We recommend you to convert the
-`vae/checkpoint.ckpt` and `mt5-xxl/pytorch_model.bin` files to `.safetensor` files manually by running the following command:
+`vae/checkpoint.ckpt` and `mt5-xxl/pytorch_model.bin` files to `.safetensor` files manually by running the following commands:
 ```shell
 python tools/model_conversion/convert_pytorch_ckpt_to_safetesors.py --src LanguageBind/Open-Sora-Plan-v1.2.0/vae/checkpoint.ckpt --target LanguageBind/Open-Sora-Plan-v1.2.0/vae/diffusion_pytorch_model.safetensors  --config LanguageBind/Open-Sora-Plan-v1.2.0/vae/config.json
 
@@ -239,7 +240,7 @@ export ASCEND_RT_VISIBLE_DEVICES=0,1,2,3,4,5,6,7
 
 **Step 1: Downloading Datasets**:
 
-To train the causal vae model, you need to prepare a video dataset. Open-Sora-Plan-v1.2.0 trains vae in two stages. In the first stage, the authors trained vae on the Kinetic400 video dataset. Please download K400 dataset from [this repository](https://github.com/cvdfoundation/kinetics-dataset). In the second stage, they trained vae on Open-Sora-Dataset-v1.1.0. We give a tutorial on how to download the v1.1.0 datasets. See [downloading tutorial](./tools/download/README.md).
+To train the causal vae model, you need to prepare a video dataset. Open-Sora-Plan-v1.2.0 trains vae in two stages. In the first stage, the authors trained vae on the Kinetic400 video dataset. Please download K400 dataset from [this repository](https://github.com/cvdfoundation/kinetics-dataset). In the second stage, they trained vae on Open-Sora-Dataset-v1.1.0 dataset. We give a tutorial on how to download the v1.1.0 datasets. See [downloading tutorial](./tools/download/README.md).
 
 **Step 2: Converting Pretrained Weights**:
 
@@ -263,7 +264,7 @@ In order to train vae with lpips loss, please also download [lpips_vgg-426bf45c.
 
 #### Standalone Training
 
-After downloading the datasets and preparing the pretrained weight, you can revise the `--video_path` in the training script to the video folder path of your downloaded dataset. This will allow the training script to load all video files under `video_path` in a **recursive manner**, and use them as the training data. Make sure the `--load_from_checkpoint` is set to the pretrained weight, e.g., `pretrained/causal_vae_488_init.ckpt`.
+The first-stage training is conducted on 25-frame 256×256 videos of the [K400](https://github.com/cvdfoundation/kinetics-dataset) dataset. you can revise the `--video_path` in the training script to the video folder path of your downloaded dataset. This will allow the training script to load all video files under `video_path` in a **recursive manner**, and use them as the training data. Make sure the `--load_from_checkpoint` is set to the pretrained weight, e.g., `pretrained/causal_vae_488_init.ckpt`.
 
 
 <details>
@@ -288,12 +289,10 @@ python opensora/train/train_causalvae.py \
 Similarly, you can create a csv file to include the test set videos, and pass the csv file to `--data_file_path` in `examples/rec_video_vae.py`.
 </details>
 
-To launch a single-card training using perceputal loss, you can refer to `scripts/causalvae/train_without_gan_loss.sh` and run:
+To launch a single-card training, please run:
 ```bash
-bash scripts/causalvae/train_without_gan_loss.sh
+bash scripts/causalvae/train_with_gan_loss.sh
 ```
-
-If you want to train causalvae with perceputal loss and GAN loss, you can refer to `scripts/causalvae/train_with_gan_loss.sh`.
 
 > Note:
 > - Supports resume training by setting `--resume_training_checkpoint True`. It is the same for the multi-device training script.
@@ -455,7 +454,7 @@ Here is the major command of the training script:
 export DEVICE_ID=0
 NUM_FRAME=29
 python  opensora/train/train_t2v_diffusers.py \
-    --data "scripts/train_data/merge_data_mixkit.txt" \
+    --data "scripts/train_data/merge_data.txt" \
     --num_frames ${NUM_FRAME} \
     --max_height 480 \
     --max_width 640 \
@@ -476,7 +475,7 @@ There are some arguments related to the training dataset path:
 - `parallel_mode`: the parallelism mode chosen from ["data", "optim", "zero"], which denotes the data parallelism, the optimizer parallelism and the deepspeed zero_x parallelism.
 - `zero_stage`: runs parallelism like deepspeed, supporting zero0, zero1, zero2, and zero3, if parallel_mode is "zero".
 
-
+For the stage 4 (`29x720p`) and stage 5 (`93x720p`) training script, please refer to `train_video3d_nx720p_zero2_sp.sh`
 #### Sequence Parallelism
 
 We also support training with sequence parallelism and zero2 parallelism together. This is enabled by setting `--sp_size` and `--train_sp_batch_size`.  For example, with `sp_size=8` and `train_sp_batch_size=4`, 2 NPUs are used for a single video sample.
@@ -492,7 +491,7 @@ We evaluated the training performance on MindSpore and Ascend NPUs. The results 
 | OpenSoraT2V-ROPE-L-122 | D910\*-[CANN C18(8.0.RC2.beta1)](https://www.hiascend.com/developer/download/community/result?module=cann)-[MS2.3.1](https://www.mindspore.cn/install/) | 2 | BF16     |  1  |  8   |         1x640x480     |         zero2                      |      2.35     |
 | OpenSoraT2V-ROPE-L-122 | D910\*-[CANN C18(8.0.RC2.beta1)](https://www.hiascend.com/developer/download/community/result?module=cann)-[MS2.3.1](https://www.mindspore.cn/install/) | 3 |  BF16    |  1  |  8   |         29x640x480    |         zero2                      |      3.85     |
 | OpenSoraT2V-ROPE-L-122 | D910\*-[CANN C18(8.0.RC2.beta1)](https://www.hiascend.com/developer/download/community/result?module=cann)-[MS2.3.1](https://www.mindspore.cn/install/) | 4 | BF16     |  1  |  8   |         29x1280x720   |         zero2 + SP(sp_size=8)      |      5.30     |
-| OpenSoraT2V-ROPE-L-122 | D910\*-[CANN C18(8.0.RC2.beta1)](https://www.hiascend.com/developer/download/community/result?module=cann)-[MS2.3.1](https://www.mindspore.cn/install/) | 5 | BF16     |  1  |  8   |         93x1280x720   |         zero3 + SP(sp_size=8)      |               |
+| OpenSoraT2V-ROPE-L-122 | D910\*-[CANN C18(8.0.RC2.beta1)](https://www.hiascend.com/developer/download/community/result?module=cann)-[MS2.3.1](https://www.mindspore.cn/install/) | 5 | BF16     |  1  |  8   |         93x1280x720   |         zero2 + SP(sp_size=8)      |      25.6     |
 
 
 > Context: {NPU type}-{CANN version}-{MindSpore version}

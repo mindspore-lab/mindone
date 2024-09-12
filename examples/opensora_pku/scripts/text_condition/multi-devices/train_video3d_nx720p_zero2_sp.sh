@@ -1,4 +1,5 @@
-# Stage 4: 29x720p
+# Stage 4: 29x720p & Stage 5: 93x720p
+# change the pretrained ckpt path to different stage
 NUM_FRAME=29
 msrun --bind_core=True --worker_num=8 --local_worker_num=8 --master_port=9000 --log_dir="t2v-video3d-${NUM_FRAME}x720p_zero2_sp/parallel_logs" \
   opensora/train/train_t2v_diffusers.py \
