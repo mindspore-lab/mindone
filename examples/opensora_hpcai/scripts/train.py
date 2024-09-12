@@ -147,10 +147,10 @@ def init_env(
     if dynamic_shape:
         logger.info("Dynamic shape mode enabled, repeat_interleave/split/chunk will be called from mint module")
         set_dynamic_mode(True)
-        if mode == 0:
+        # if mode == 0:
             # FIXME: this is a temp fix for dynamic shape training in graph mode. may remove in future version.
             # can append adamw fusion flag if use nn.AdamW optimzation for acceleration
-            ms.set_context(graph_kernel_flags="--disable_packet_ops=Reshape")
+            # ms.set_context(graph_kernel_flags="--disable_packet_ops=Reshape")
 
     return rank_id, device_num
 
@@ -679,16 +679,17 @@ def main(args):
         resume_train_net(net_with_grads, resume_ckpt)
 
     if (args.mode == 0) and (args.bucket_config is not None):
-        video = ms.Tensor(shape=[None, None, 3, None, None], dtype=ms.float32)
-        caption = ms.Tensor(shape=[None, args.model_max_length, 4096], dtype=ms.float32)
-        mask = ms.Tensor(shape=[None, args.model_max_length], dtype=ms.uint8)
-        frames_mask = ms.Tensor(shape=[None, None], dtype=ms.bool_)
+        _bs = ms.Symbol(unique=True)
+        video = ms.Tensor(shape=[_bs, None, 3, None, None], dtype=ms.float32)
+        caption = ms.Tensor(shape=[_bs, args.model_max_length, 4096], dtype=ms.float32)
+        mask = ms.Tensor(shape=[_bs, args.model_max_length], dtype=ms.uint8)
+        frames_mask = ms.Tensor(shape=[_bs, None], dtype=ms.bool_)
         # fmt: off
-        num_frames = ms.Tensor(shape=[None, ], dtype=ms.float32)
-        height = ms.Tensor(shape=[None, ], dtype=ms.float32)
-        width = ms.Tensor(shape=[None, ], dtype=ms.float32)
-        fps = ms.Tensor(shape=[None, ], dtype=ms.float32)
-        ar = ms.Tensor(shape=[None, ], dtype=ms.float32)
+        num_frames = ms.Tensor(shape=[_bs, ], dtype=ms.float32)
+        height = ms.Tensor(shape=[_bs, ], dtype=ms.float32)
+        width = ms.Tensor(shape=[_bs, ], dtype=ms.float32)
+        fps = ms.Tensor(shape=[_bs, ], dtype=ms.float32)
+        ar = ms.Tensor(shape=[_bs, ], dtype=ms.float32)
         # fmt: on
         net_with_grads.set_inputs(video, caption, mask, frames_mask, num_frames, height, width, fps, ar)
         logger.info("Dynamic inputs are initialized for bucket config training in Graph mode!")
