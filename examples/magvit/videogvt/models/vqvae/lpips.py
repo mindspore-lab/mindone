@@ -85,9 +85,7 @@ class NetLinLayer(nn.Cell):
             else []
         )
         layers += [
-            nn.Conv2d(chn_in, chn_out, 1, stride=1, padding=0, has_bias=False).to_float(
-                dtype
-            ),
+            nn.Conv2d(chn_in, chn_out, 1, stride=1, padding=0, has_bias=False).to_float(dtype),
         ]
         self.model = nn.SequentialCell(layers)
 

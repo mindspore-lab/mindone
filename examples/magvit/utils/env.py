@@ -113,4 +113,3 @@ def set_all_reduce_fusion(
         split_list.append(all_params_num - 1)
         logger.info(f"Distribute config set: dall_params_num: {all_params_num}, set all_reduce_fusion: {split_list}")
         ms.set_auto_parallel_context(all_reduce_fusion_config=split_list)
-

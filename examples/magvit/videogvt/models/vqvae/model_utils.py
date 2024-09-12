@@ -1,6 +1,7 @@
+from typing import Tuple, Union
+
 import mindspore as ms
 from mindspore import nn, ops
-from typing import Tuple, Union
 
 
 def cast_tuple(t, length=1):
@@ -125,9 +126,7 @@ class TimeDownsample2x(nn.Cell):
     ):
         super().__init__()
         self.time_causal_padding = (kernel_size - 1, 0)
-        self.conv = nn.Conv1d(
-            dim, dim_out, kernel_size, stride=stride, pad_mode="valid", dtype=dtype
-        ).to_float(dtype)
+        self.conv = nn.Conv1d(dim, dim_out, kernel_size, stride=stride, pad_mode="valid", dtype=dtype).to_float(dtype)
 
     def construct(self, x):
         b, c, t, h, w = x.shape
@@ -194,13 +193,10 @@ class TimeUpsample2x(nn.Cell):
     ):
         super().__init__()
 
-        self.conv = nn.Conv1d(dim, dim_out * 2, kernel_size, dtype=dtype).to_float(
-            dtype
-        )
+        self.conv = nn.Conv1d(dim, dim_out * 2, kernel_size, dtype=dtype).to_float(dtype)
         self.activate = nn.SiLU()
 
     def construct(self, x):
-
         b, c, t, h, w = x.shape
         x = x.permute(0, 3, 4, 1, 2)
         x = x.reshape(-1, c, t)

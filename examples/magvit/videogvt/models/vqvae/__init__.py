@@ -1,8 +1,9 @@
-import mindspore as ms
 import logging
-from .vqvae import VQVAE_2D, VQVAE_3D
-from .discriminator import StyleGANDiscriminator
 
+import mindspore as ms
+
+from .discriminator import StyleGANDiscriminator
+from .vqvae import VQVAE_2D, VQVAE_3D
 
 logger = logging.getLogger(__name__)
 

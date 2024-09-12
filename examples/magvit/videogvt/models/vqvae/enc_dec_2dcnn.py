@@ -23,13 +23,9 @@ class ResBlock(nn.Cell):
 
         # SCH: MAGVIT uses GroupNorm by default
         self.norm1 = GroupNormExtend(num_groups, in_channels, dtype=dtype)
-        self.conv1 = conv_fn(
-            in_channels, self.filters, kernel_size=(3, 3), has_bias=False, dtype=dtype
-        )
+        self.conv1 = conv_fn(in_channels, self.filters, kernel_size=(3, 3), has_bias=False, dtype=dtype)
         self.norm2 = GroupNormExtend(num_groups, self.filters, dtype=dtype)
-        self.conv2 = conv_fn(
-            self.filters, self.filters, kernel_size=(3, 3), has_bias=False, dtype=dtype
-        )
+        self.conv2 = conv_fn(self.filters, self.filters, kernel_size=(3, 3), has_bias=False, dtype=dtype)
         if in_channels != filters:
             if self.use_conv_shortcut:
                 self.conv3 = conv_fn(
@@ -198,9 +194,7 @@ class Decoder(nn.Cell):
         prev_filters = filters
 
         # last conv
-        self.conv1 = self.conv_fn(
-            self.embedding_dim, filters, kernel_size=(3, 3), has_bias=True, dtype=dtype
-        )
+        self.conv1 = self.conv_fn(self.embedding_dim, filters, kernel_size=(3, 3), has_bias=True, dtype=dtype)
 
         # last layer res block
         self.res_blocks = nn.CellList([])

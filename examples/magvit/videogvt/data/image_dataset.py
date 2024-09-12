@@ -40,22 +40,12 @@ def create_image_transforms(
         )
     else:
         # expect rgb image in range 0-255, shape (h w c)
-        from albumentations import (
-            CenterCrop,
-            HorizontalFlip,
-            RandomCrop,
-            SmallestMaxSize,
-            Normalize,
-        )
+        from albumentations import CenterCrop, HorizontalFlip, Normalize, RandomCrop, SmallestMaxSize
 
         mapping = {"bilinear": cv2.INTER_LINEAR, "bicubic": cv2.INTER_CUBIC}
         transforms = [
             SmallestMaxSize(max_size=size, interpolation=mapping[interpolation]),
-            (
-                CenterCrop(crop_size, crop_size)
-                if not random_crop
-                else RandomCrop(crop_size, crop_size)
-            ),
+            (CenterCrop(crop_size, crop_size) if not random_crop else RandomCrop(crop_size, crop_size)),
             Normalize(mean=(0.5, 0.5, 0.5), std=(0.5, 0.5, 0.5)),
         ]
         if flip:
@@ -130,9 +120,7 @@ class ImageDataset:
             except Exception as e:
                 print("\tError msg: {}".format(e), flush=True)
 
-        assert (
-            replace_data is not None
-        ), f"Fail to preload sample in {attempts} attempts."
+        assert replace_data is not None, f"Fail to preload sample in {attempts} attempts."
 
         return replace_data
 

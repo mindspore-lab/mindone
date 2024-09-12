@@ -83,9 +83,7 @@ if __name__ == "__main__":
 
             if epoch * num_batches + i < 2:
                 for k in batch:
-                    print(
-                        k, batch[k].shape, batch[k].dtype
-                    )  # , batch[k].min(), batch[k].max())
+                    print(k, batch[k].shape, batch[k].dtype)  # , batch[k].min(), batch[k].max())
                 print(f"time cost: {dur * 1000} ms")
 
             progress_bar.update(1)

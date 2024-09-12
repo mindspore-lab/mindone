@@ -1,11 +1,11 @@
 import numpy as np
-from tqdm import tqdm
-import math
 from skimage.metrics import peak_signal_noise_ratio as cal_psnr
+from tqdm import tqdm
 
 
 def trans(x):
     return x
+
 
 def calculate_psnr(videos1, videos2):
     print("calculate_psnr...")
@@ -39,13 +39,13 @@ def calculate_psnr(videos1, videos2):
 
         psnr_results.append(psnr_results_of_a_video)
 
-    psnr_results = np.array(psnr_results) # [batch_size, num_frames]
+    psnr_results = np.array(psnr_results)  # [batch_size, num_frames]
     psnr = {}
     psnr_std = {}
 
     for clip_timestamp in range(len(video1)):
-        psnr[clip_timestamp] = np.mean(psnr_results[:,clip_timestamp])
-        psnr_std[clip_timestamp] = np.std(psnr_results[:,clip_timestamp])
+        psnr[clip_timestamp] = np.mean(psnr_results[:, clip_timestamp])
+        psnr_std[clip_timestamp] = np.std(psnr_results[:, clip_timestamp])
 
     result = {
         "value": psnr,
@@ -56,7 +56,9 @@ def calculate_psnr(videos1, videos2):
 
     return result
 
+
 # test code / using example
+
 
 def main():
     from mindspore import ops
@@ -69,8 +71,10 @@ def main():
     videos2 = ops.zeros(NUMBER_OF_VIDEOS, VIDEO_LENGTH, CHANNEL, SIZE, SIZE, requires_grad=False)
 
     import json
+
     result = calculate_psnr(videos1, videos2)
     print(json.dumps(result, indent=4))
+
 
 if __name__ == "__main__":
     main()

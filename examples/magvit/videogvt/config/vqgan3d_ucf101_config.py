@@ -14,7 +14,7 @@ def get_config():
     config.vqvae = ml_collections.ConfigDict()
     config.vqvae.channels = 3
     config.vqvae.embedding_dim = 18
-    config.vqvae.codebook_size = 262144 # 2^18
+    config.vqvae.codebook_size = 262144  # 2^18
     config.vqvae.filters = 128
     config.vqvae.activation_fn = "swish"
     config.vqvae.num_enc_res_blocks = 4
@@ -49,7 +49,9 @@ def get_config():
     config.lfq.num_codebooks = 1
     config.lfq.keep_num_codebooks_dim = None
     config.lfq.codebook_scale = 1.0  # for residual LFQ, codebook scaled down by 2x at each layer
-    config.lfq.frac_per_sample_entropy = 1.0  # make less than 1. to only use a random fraction of the probs for per sample entropy
+    config.lfq.frac_per_sample_entropy = (
+        1.0  # make less than 1. to only use a random fraction of the probs for per sample entropy
+    )
     config.lfq.inv_temperature = 100.0
     config.lfq.soft_clamp_input_value = None
     config.lfq.cosine_sim_project_in = False

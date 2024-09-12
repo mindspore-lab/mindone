@@ -1,11 +1,9 @@
-import numpy as np
-from abc import ABC, abstractmethod
+from videogvt.models.quantization import LFQ, LFQ2d
+from videogvt.models.vqvae import enc_dec_2dcnn, enc_dec_3dcnn
 
 import mindspore as ms
 from mindspore import nn
 
-from videogvt.models.quantization import LFQ, LFQ2d
-from videogvt.models.vqvae import enc_dec_3dcnn, enc_dec_2dcnn
 from .model_utils import CausalConv3d, pad_at_dim
 
 
@@ -22,15 +20,9 @@ class VQVAE_3D(nn.Cell):
         self.dtype = dtype
         self.encoder = enc_dec_3dcnn.Encoder(config=self.config, dtype=self.dtype)
         self.decoder = enc_dec_3dcnn.Decoder(config=self.config, dtype=self.dtype)
-        self.quant_conv = CausalConv3d(
-            self.config.embedding_dim, self.config.embedding_dim, 1, dtype=dtype
-        )
-        self.post_quant_conv = CausalConv3d(
-            self.config.embedding_dim, self.config.embedding_dim, 1, dtype=dtype
-        )
-        self.quantizer = LFQ(
-            config=config.lfq, is_training=is_training, dtype=self.dtype
-        )
+        self.quant_conv = CausalConv3d(self.config.embedding_dim, self.config.embedding_dim, 1, dtype=dtype)
+        self.post_quant_conv = CausalConv3d(self.config.embedding_dim, self.config.embedding_dim, 1, dtype=dtype)
+        self.quantizer = LFQ(config=config.lfq, is_training=is_training, dtype=self.dtype)
 
         self.time_downsample_factor = 2 ** sum(self.config.temporal_downsample)
         self.patch_size = (self.time_downsample_factor, 1, 1)
@@ -54,8 +46,7 @@ class VQVAE_3D(nn.Cell):
         time_padding = (
             0
             if (self.num_frames % self.time_downsample_factor == 0)
-            else self.time_downsample_factor
-            - self.num_frames % self.time_downsample_factor
+            else self.time_downsample_factor - self.num_frames % self.time_downsample_factor
         )
         z = self.post_quant_conv(z)
         x = self.decoder(z)
@@ -110,12 +101,8 @@ class VQVAE_2D(nn.Cell):
         # NOTE: following MAGVIT, conv in bias=False in encoder first conv
         self.encoder = enc_dec_2dcnn.Encoder(self.config, dtype=dtype)
         self.decoder = enc_dec_2dcnn.Decoder(self.config, dtype=dtype)
-        self.quant_conv = nn.Conv2d(
-            self.config.embedding_dim, self.config.embedding_dim, 1, dtype=dtype
-        )
-        self.post_quant_conv = nn.Conv2d(
-            self.config.embedding_dim, self.config.embedding_dim, 1, dtype=dtype
-        )
+        self.quant_conv = nn.Conv2d(self.config.embedding_dim, self.config.embedding_dim, 1, dtype=dtype)
+        self.post_quant_conv = nn.Conv2d(self.config.embedding_dim, self.config.embedding_dim, 1, dtype=dtype)
 
         self.quantizer = LFQ2d(
             config=config.lfq,

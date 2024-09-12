@@ -5,6 +5,7 @@ import os
 import shutil
 import sys
 import time
+
 import yaml
 
 import mindspore as ms
@@ -17,18 +18,15 @@ mindone_lib_path = os.path.abspath(os.path.join(__dir__, "../../../"))
 sys.path.insert(0, mindone_lib_path)
 sys.path.insert(0, os.path.abspath(os.path.join(__dir__, "..")))
 
+from mindcv.optim import create_optimizer
 from utils.env import init_env, set_all_reduce_fusion
 from videogvt.config.vqgan3d_ucf101_config import get_config
 from videogvt.config.vqvae_train_args import parse_args
 from videogvt.data.loader import create_dataloader
-from videogvt.models.vqvae import build_model, StyleGANDiscriminator
+from videogvt.models.vqvae import StyleGANDiscriminator, build_model
 from videogvt.models.vqvae.net_with_loss import DiscriminatorWithLoss, GeneratorWithLoss
 
-from mindone.trainers.callback import (
-    EvalSaveCallback,
-    OverflowMonitor,
-    ProfilerCallback,
-)
+from mindone.trainers.callback import EvalSaveCallback, OverflowMonitor, ProfilerCallback
 from mindone.trainers.checkpoint import CheckpointManager, resume_train_network
 from mindone.trainers.ema import EMA
 from mindone.trainers.lr_schedule import create_scheduler
@@ -38,7 +36,6 @@ from mindone.trainers.train_step import TrainOneStepWrapper
 from mindone.utils.amp import auto_mixed_precision
 from mindone.utils.logger import set_logger
 from mindone.utils.params import count_params
-from mindcv.optim import create_optimizer
 
 os.environ["HCCL_CONNECT_TIMEOUT"] = "6000"
 os.environ["MS_ASCEND_CHECK_OVERFLOW_MODE"] = "INFNAN_MODE"
@@ -46,9 +43,7 @@ os.environ["MS_ASCEND_CHECK_OVERFLOW_MODE"] = "INFNAN_MODE"
 logger = logging.getLogger(__name__)
 
 
-def create_loss_scaler(
-    loss_scaler_type, init_loss_scale, loss_scale_factor=2, scale_window=1000
-):
+def create_loss_scaler(loss_scaler_type, init_loss_scale, loss_scale_factor=2, scale_window=1000):
     if args.loss_scaler_type == "dynamic":
         loss_scaler = DynamicLossScaleUpdateCell(
             loss_scale_value=init_loss_scale,
@@ -91,9 +86,7 @@ def main(args):
     vqvae = build_model(args.model_class, model_config, is_training=True, pretrained=args.pretrained, dtype=dtype)
 
     # discriminator (D)
-    use_discriminator = args.use_discriminator and (
-        model_config.lr_configs.disc_weight > 0.0
-    )
+    use_discriminator = args.use_discriminator and (model_config.lr_configs.disc_weight > 0.0)
 
     if args.use_discriminator and (model_config.lr_configs.disc_weight <= 0.0):
         logging.warning("use_discriminator is True but disc_weight is 0.")
@@ -101,9 +94,7 @@ def main(args):
     if use_discriminator:
         crop_size = int(args.crop_size)
         frame_size = int(args.num_frames)
-        disc = StyleGANDiscriminator(
-            model_config.discriminator, crop_size, crop_size, frame_size, dtype=dtype
-        )
+        disc = StyleGANDiscriminator(model_config.discriminator, crop_size, crop_size, frame_size, dtype=dtype)
     else:
         disc = None
 
@@ -114,12 +105,12 @@ def main(args):
         if not args.global_bf16:
             vqvae = auto_mixed_precision(
                 vqvae,
-                amp_level = auto_mixed_precision(
+                amp_level=auto_mixed_precision(
                     vqvae,
                     amp_level=amp_level,
                     dtype=dtype,
                     custom_fp32_cells=[nn.GroupNorm] if args.vae_keep_gn_fp32 else [],
-                )
+                ),
             )
     else:
         amp_level = "O0"
@@ -140,9 +131,7 @@ def main(args):
         disc_with_loss = DiscriminatorWithLoss(vqvae, disc, disc_start)
 
     tot_params, trainable_params = count_params(vqvae_with_loss)
-    logger.info(
-        "Total params {:,}; Trainable params {:,}".format(tot_params, trainable_params)
-    )
+    logger.info("Total params {:,}; Trainable params {:,}".format(tot_params, trainable_params))
 
     # 4. build dataset
     ds_config = dict(
@@ -182,12 +171,7 @@ def main(args):
     # 5. build training utils
     # torch scale lr by: model.learning_rate = accumulate_grad_batches * ngpu * bs * base_lr
     if args.scale_lr:
-        learning_rate = (
-            args.base_learning_rate
-            * args.batch_size
-            * args.gradient_accumulation_steps
-            * device_num
-        )
+        learning_rate = args.base_learning_rate * args.batch_size * args.gradient_accumulation_steps * device_num
     else:
         learning_rate = args.base_learning_rate
 
@@ -274,11 +258,7 @@ def main(args):
     os.makedirs(ckpt_dir, exist_ok=True)
     start_epoch = 0
     if args.resume:
-        resume_ckpt = (
-            os.path.join(ckpt_dir, "train_resume.ckpt")
-            if isinstance(args.resume, bool)
-            else args.resume
-        )
+        resume_ckpt = os.path.join(ckpt_dir, "train_resume.ckpt") if isinstance(args.resume, bool) else args.resume
 
         start_epoch, loss_scale, cur_iter, last_overflow_iter = resume_train_network(
             vqvae_with_loss, optim_vqvae, resume_ckpt
@@ -350,7 +330,7 @@ def main(args):
             model = Model(training_step_vqvae, amp_level="O0")
         else:
             model = Model(training_step_vqvae)
-        
+
         # callbacks
         callback = [TimeMonitor(args.log_interval)]
         ofm_cb = OverflowMonitor()
@@ -407,18 +387,19 @@ def main(args):
 
                 # NOTE: inputs must match the order in GeneratorWithLoss.construct
                 loss_vqvae_t, overflow, scaling_sens = training_step_vqvae(x)
+                loss_disc_t, overflow_d, scaling_sens_d = training_step_disc(x)
 
                 if overflow:
                     logger.warning(f"Overflow occurs in step {cur_global_step}")
 
                 # loss
-                loss_vqvae = float(loss_vqvae_t.asnumpy())
-                avg_loss += loss_vqvae
-                epoch_loss += loss_vqvae
+                loss = float(loss_vqvae_t.asnumpy()) + float(loss_disc_t.asnumpy())
+                avg_loss += loss
+                epoch_loss += loss
 
                 # log
                 step_time = time.time() - start_time_s
-                if (step+1) % args.log_interval == 0:
+                if (step + 1) % args.log_interval == 0:
                     avg_loss /= float(args.log_interval)
                     logger.info(
                         f"E: {epoch+1}, S: {step+1}, Loss vqvae avg: {avg_loss:.4f}, Step time: {step_time*1000:.2f}ms"
@@ -429,9 +410,7 @@ def main(args):
                 if rank_id == 0 and args.step_mode:
                     cur_epoch = epoch + 1
                     if (cur_global_step % args.ckpt_save_interval == 0) or (cur_global_step == total_train_steps):
-                        ckpt_name = (
-                            f"vae_3d-s{cur_global_step}.ckpt"
-                        )
+                        ckpt_name = f"vae_3d-s{cur_global_step}.ckpt"
                         if ema is not None:
                             ema.swap_before_eval()
                         vqvae_with_loss.set_train(False)

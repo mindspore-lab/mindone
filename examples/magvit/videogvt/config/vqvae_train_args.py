@@ -32,7 +32,10 @@ def parse_args():
         "--model_class",
         default="vqvae-3d",
         type=str,
-        choices=["vqvae-2d", "vqvae-3d",],
+        choices=[
+            "vqvae-2d",
+            "vqvae-3d",
+        ],
         help="model arch type",
     )
     parser.add_argument(
@@ -41,10 +44,10 @@ def parse_args():
         type=str,
         help="path to pretrained autoencoder checkpoint",
     )
+    parser.add_argument("--use_parallel", default=False, type=str2bool, help="use parallel")
     parser.add_argument(
-        "--use_parallel", default=False, type=str2bool, help="use parallel"
+        "--parallel_mode", default="data", type=str, choices=["data", "optim"], help="parallel mode: data/optim"
     )
-    parser.add_argument("--parallel_mode", default="data", type=str, choices=["data", "optim"], help="parallel mode: data/optim")
     parser.add_argument("--debug", default=False, type=str2bool, help="debug mode")
     parser.add_argument(
         "--output_path",
@@ -66,13 +69,9 @@ def parse_args():
         type=int,
         help="Specify the mode: 0 for graph mode, 1 for pynative mode",
     )
-    parser.add_argument(
-        "--device_target", type=str, default="Ascend", help="Ascend or GPU"
-    )
+    parser.add_argument("--device_target", type=str, default="Ascend", help="Ascend or GPU")
     parser.add_argument("--max_device_memory", type=str, default=None, help="e.g. `30GB` for 910a, `59GB` for 910b")
-    parser.add_argument(
-        "--profile", default=False, type=str2bool, help="Profile or not"
-    )
+    parser.add_argument("--profile", default=False, type=str2bool, help="Profile or not")
     parser.add_argument(
         "--jit_level",
         default="O0",
@@ -104,12 +103,8 @@ def parse_args():
         help="dataset name, image or video",
     )
     parser.add_argument("--data_path", default="dataset", type=str, help="data path")
-    parser.add_argument(
-        "--csv_path", default=None, type=str, help="path to csv annotation file"
-    )
-    parser.add_argument(
-        "--dataset_sink_mode", default=False, type=str2bool, help="sink mode"
-    )
+    parser.add_argument("--csv_path", default=None, type=str, help="path to csv annotation file")
+    parser.add_argument("--dataset_sink_mode", default=False, type=str2bool, help="sink mode")
     parser.add_argument("--shuffle", default=True, type=str2bool, help="data shuffle")
     parser.add_argument(
         "--num_parallel_workers",
@@ -138,9 +133,7 @@ def parse_args():
         help="expand temporal axis for image data, used for vae 3d training with image data",
     )
     parser.add_argument("--num_frames", default=17, type=int, help="num frames")
-    parser.add_argument(
-        "--frame_stride", default=1, type=int, help="frame sampling stride"
-    )
+    parser.add_argument("--frame_stride", default=1, type=int, help="frame sampling stride")
 
     # optim
     parser.add_argument(
@@ -202,15 +195,9 @@ def parse_args():
         help="scheduler. option: constant, cosine_decay, ",
     )
     parser.add_argument("--epochs", default=10, type=int, help="epochs")
-    parser.add_argument(
-        "--loss_scaler_type", default="static", type=str, help="dynamic or static"
-    )
-    parser.add_argument(
-        "--init_loss_scale", default=1024, type=float, help="loss scale"
-    )
-    parser.add_argument(
-        "--loss_scale_factor", default=2, type=float, help="loss scale factor"
-    )
+    parser.add_argument("--loss_scaler_type", default="static", type=str, help="dynamic or static")
+    parser.add_argument("--init_loss_scale", default=1024, type=float, help="loss scale")
+    parser.add_argument("--loss_scale_factor", default=2, type=float, help="loss scale factor")
     parser.add_argument("--scale_window", default=1000, type=float, help="scale window")
     parser.add_argument(
         "--gradient_accumulation_steps",
@@ -218,9 +205,7 @@ def parse_args():
         type=int,
         help="gradient accumulation steps",
     )
-    parser.add_argument(
-        "--use_ema", default=False, type=str2bool, help="whether use EMA"
-    )
+    parser.add_argument("--use_ema", default=False, type=str2bool, help="whether use EMA")
     parser.add_argument("--ema_decay", default=0.9999, type=float, help="EMA decay")
     parser.add_argument(
         "--clip_grad",
@@ -265,9 +250,7 @@ def parse_args():
         help="log level, options: logging.DEBUG, logging.INFO, logging.WARNING, logging.ERROR",
     )
 
-    abs_path = os.path.abspath(
-        os.path.join(os.path.dirname(os.path.abspath(__file__)), "")
-    )
+    abs_path = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), ""))
     default_args = parser.parse_args()
     if default_args.config:
         default_args.config = os.path.join(abs_path, "../../", default_args.config)

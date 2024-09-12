@@ -17,9 +17,7 @@ logger = logging.getLogger()
 
 def read_gif(gif_path, mode="RGB"):
     with Image.open(gif_path) as fp:
-        frames = np.array(
-            [np.array(frame.convert(mode)) for frame in ImageSequence.Iterator(fp)]
-        )
+        frames = np.array([np.array(frame.convert(mode)) for frame in ImageSequence.Iterator(fp)])
     return frames
 
 
@@ -34,12 +32,7 @@ def create_video_transforms(
 ):
     if backend == "al":
         # expect rgb image in range 0-255, shape (h w c)
-        from albumentations import (
-            CenterCrop,
-            HorizontalFlip,
-            RandomCrop,
-            SmallestMaxSize,
-        )
+        from albumentations import CenterCrop, HorizontalFlip, RandomCrop, SmallestMaxSize
 
         # NOTE: to ensure augment all frames in a video in the same way.
         assert num_frames is not None, "num_frames must be parsed"
@@ -47,11 +40,7 @@ def create_video_transforms(
         mapping = {"bilinear": cv2.INTER_LINEAR, "bicubic": cv2.INTER_CUBIC}
         transforms = [
             SmallestMaxSize(max_size=size, interpolation=mapping[interpolation]),
-            (
-                CenterCrop(crop_size, crop_size)
-                if not random_crop
-                else RandomCrop(crop_size, crop_size)
-            ),
+            (CenterCrop(crop_size, crop_size) if not random_crop else RandomCrop(crop_size, crop_size)),
         ]
         if flip:
             transforms += [HorizontalFlip(p=0.5)]
@@ -136,9 +125,7 @@ class VideoDataset:
             except Exception as e:
                 print("\tError msg: {}".format(e))
 
-        assert (
-            replace_data is not None
-        ), f"Fail to preload sample in {attempts} attempts."
+        assert replace_data is not None, f"Fail to preload sample in {attempts} attempts."
 
         return replace_data
 
@@ -159,22 +146,16 @@ class VideoDataset:
         video_length = len(video_reader)
 
         if not self.return_image:
-            clip_length = min(
-                video_length, (self.sample_n_frames - 1) * self.sample_stride + 1
-            )
+            clip_length = min(video_length, (self.sample_n_frames - 1) * self.sample_stride + 1)
             start_idx = random.randint(0, video_length - clip_length)
-            batch_index = np.linspace(
-                start_idx, start_idx + clip_length - 1, self.sample_n_frames, dtype=int
-            )
+            batch_index = np.linspace(start_idx, start_idx + clip_length - 1, self.sample_n_frames, dtype=int)
         else:
             batch_index = [random.randint(0, video_length - 1)]
 
         if video_path.endswith(".gif"):
             pixel_values = video_reader[batch_index]  # shape: (f, h, w, c)
         else:
-            pixel_values = video_reader.get_batch(
-                batch_index
-            ).asnumpy()  # shape: (f, h, w, c)
+            pixel_values = video_reader.get_batch(batch_index).asnumpy()  # shape: (f, h, w, c)
 
         del video_reader
 
@@ -194,14 +175,10 @@ class VideoDataset:
                 self.prev_ok_sample = copy.deepcopy(pixel_values)
                 self.require_update_prev = False
         except Exception as e:
-            logger.warning(
-                f"Fail to get sample of idx {idx}. The corrupted video will be replaced."
-            )
+            logger.warning(f"Fail to get sample of idx {idx}. The corrupted video will be replaced.")
             print("\tError msg: {}".format(e), flush=True)
             assert self.prev_ok_sample is not None
-            pixel_values = (
-                self.prev_ok_sample
-            )  # unless the first sample is already not ok
+            pixel_values = self.prev_ok_sample  # unless the first sample is already not ok
             self.require_update_prev = True
 
             if idx >= self.length:

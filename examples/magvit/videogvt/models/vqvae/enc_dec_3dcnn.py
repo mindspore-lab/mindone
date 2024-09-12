@@ -1,7 +1,7 @@
 import mindspore as ms
 from mindspore import nn
 
-from .model_utils import GroupNormExtend, CausalConv3d, get_activation_fn
+from .model_utils import CausalConv3d, GroupNormExtend, get_activation_fn
 
 
 class ResBlock(nn.Cell):

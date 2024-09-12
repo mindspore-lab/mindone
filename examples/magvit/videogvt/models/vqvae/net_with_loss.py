@@ -1,7 +1,6 @@
 import mindspore as ms
 from mindspore import nn, ops
 
-
 from .lpips import LPIPS
 
 
@@ -187,9 +186,7 @@ class DiscriminatorWithLoss(nn.Cell):
         return d_loss
 
     def vanilla_d_loss(self, logits_real, logits_fake):
-        d_loss = 0.5 * (
-            ops.mean(self.softplus(-logits_real)) + ops.mean(self.softplus(logits_fake))
-        )
+        d_loss = 0.5 * (ops.mean(self.softplus(-logits_real)) + ops.mean(self.softplus(logits_fake)))
         return d_loss
 
     def construct(self, x: ms.Tensor):

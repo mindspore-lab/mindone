@@ -49,4 +49,3 @@ You can download the dataset and *The Train/Test Splits for Action Recognition* 
 
 ### Preprocessing
 After downloading, please split the dataset into train and test according to the Splits text file. We also provide a script for the seperation, you can refer to [ucf101.py](./ucf101.py)
-

@@ -2,13 +2,13 @@
 Infer and evaluate VQVAE
 """
 
+import argparse
 import logging
 import os
 import sys
 import time
-import argparse
-import numpy as np
 
+import numpy as np
 from PIL import Image
 from tqdm import tqdm
 
@@ -22,10 +22,10 @@ sys.path.insert(0, os.path.abspath(os.path.join(__dir__, "..")))
 from videogvt.config.vqgan3d_ucf101_config import get_config
 from videogvt.data.loader import create_dataloader
 from videogvt.eval import calculate_psnr, calculate_ssim
-from videogvt.models.vqvae.lpips import LPIPS
 from videogvt.models.vqvae import build_model
+from videogvt.models.vqvae.lpips import LPIPS
 
-from mindone.utils.config import instantiate_from_config, str2bool
+from mindone.utils.config import str2bool
 from mindone.utils.logger import set_logger
 
 logger = logging.getLogger(__name__)
@@ -103,7 +103,6 @@ def main(args):
     mean_ssim = 0
     mean_lpips = 0
     mean_recon = 0
-    num_samples = 0
 
     psnr_list = []
     ssim_list = []
@@ -120,21 +119,15 @@ def main(args):
         generated_videos = postprocess(recons.float().asnumpy())
         real_videos = postprocess(x.float().asnumpy())
 
-        psnr_scores = list(
-            calculate_psnr(real_videos, generated_videos)["value"].values()
-        )
+        psnr_scores = list(calculate_psnr(real_videos, generated_videos)["value"].values())
         psnr_list += psnr_scores
 
-        ssim_scores = list(
-            calculate_ssim(real_videos, generated_videos)["value"].values()
-        )
+        ssim_scores = list(calculate_ssim(real_videos, generated_videos)["value"].values())
         ssim_list += ssim_scores
 
         if args.eval_loss:
             recon_loss = np.abs((real_videos - generated_videos))
-            lpips_loss = lpips_loss_fn(
-                _rearrange_in(x), _rearrange_in(recons)
-            ).asnumpy()
+            lpips_loss = lpips_loss_fn(_rearrange_in(x), _rearrange_in(recons)).asnumpy()
             mean_recon += recon_loss.mean()
             mean_lpips += lpips_loss.mean()
 
@@ -167,7 +160,10 @@ def parse_args():
         "--model_class",
         default="vqvae-3d",
         type=str,
-        choices=["vqvae-2d", "vqvae-3d",],
+        choices=[
+            "vqvae-2d",
+            "vqvae-3d",
+        ],
         help="model arch type",
     )
     parser.add_argument(
@@ -186,9 +182,7 @@ def parse_args():
     parser.add_argument("--size", default=384, type=int, help="image rescale size")
     parser.add_argument("--crop_size", default=256, type=int, help="image crop size")
     parser.add_argument("--num_frames", default=16, type=int, help="num frames")
-    parser.add_argument(
-        "--frame_stride", default=1, type=int, help="frame sampling stride"
-    )
+    parser.add_argument("--frame_stride", default=1, type=int, help="frame sampling stride")
 
     parser.add_argument(
         "--mode",
@@ -204,9 +198,7 @@ def parse_args():
         help="mixed precision type, if fp32, all layer precision is float32 (amp_level=O0), \
                 if bf16 or fp16, amp_level==O2, part of layers will compute in bf16 or fp16 such as matmul, dense, conv.",
     )
-    parser.add_argument(
-        "--device_target", type=str, default="Ascend", help="Ascend or GPU"
-    )
+    parser.add_argument("--device_target", type=str, default="Ascend", help="Ascend or GPU")
     parser.add_argument("--batch_size", default=4, type=int, help="batch size")
     parser.add_argument(
         "--num_parallel_workers",

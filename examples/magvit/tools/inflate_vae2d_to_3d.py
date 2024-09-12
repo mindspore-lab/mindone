@@ -1,14 +1,14 @@
-import os, sys
 import argparse
+import os
+import sys
+
 import mindspore as ms
-import numpy as np
 from mindspore import context
 
 __dir__ = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.abspath(os.path.join(__dir__, "..")))
 
 from videogvt.models.vqvae import VQVAE_3D
-
 
 context.set_context(
     mode=1,
@@ -28,7 +28,7 @@ def inflate(vae2d_ckpt, save_fp):
         channel_multipliers=(1, 2, 2, 4),
         temporal_downsample=(True, True, True),
         spatial_downsample=(True, True, True),
-        dtype=ms.float32
+        dtype=ms.float32,
     )
     vae2d = ms.load_checkpoint(vae2d_ckpt)
 

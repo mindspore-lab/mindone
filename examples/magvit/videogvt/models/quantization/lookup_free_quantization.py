@@ -22,8 +22,7 @@ In the simplest setup, each dimension is quantized into {-1, 1}.
 An entropy penalty is used to encourage utilization.
 """
 
-from math import log2, ceil
-from collections import namedtuple
+from math import ceil, log2
 
 import mindspore as ms
 from mindspore import nn, ops
@@ -87,11 +86,12 @@ class LFQ(nn.Cell):
         entropy_loss_weight = config.entropy_loss_weight
         commitment_loss_weight = config.commitment_loss_weight
         diversity_gamma = config.diversity_gamma
-        straight_through_activation = config.straight_through_activation
         num_codebooks = config.num_codebooks
         keep_num_codebooks_dim = config.keep_num_codebooks_dim
-        codebook_scale = config.codebook_scale # for residual LFQ, codebook scaled down by 2x at each layer
-        frac_per_sample_entropy = config.frac_per_sample_entropy  # make less than 1. to only use a random fraction of the probs for per sample entropy
+        codebook_scale = config.codebook_scale  # for residual LFQ, codebook scaled down by 2x at each layer
+        frac_per_sample_entropy = (
+            config.frac_per_sample_entropy
+        )  # make less than 1. to only use a random fraction of the probs for per sample entropy
         inv_temperature = config.inv_temperature
         soft_clamp_input_value = config.soft_clamp_input_value
         cosine_sim_project_in = config.cosine_sim_project_in
@@ -99,9 +99,7 @@ class LFQ(nn.Cell):
 
         # some assert validations
 
-        assert exists(dim) or exists(
-            codebook_size
-        ), "either dim or codebook_size must be specified for LFQ"
+        assert exists(dim) or exists(codebook_size), "either dim or codebook_size must be specified for LFQ"
         assert (
             not exists(codebook_size) or log2(codebook_size).is_integer()
         ), f"your codebook size must be a power of 2 for lookup free quantization (suggested {2 ** ceil(log2(codebook_size))})"
@@ -113,22 +111,14 @@ class LFQ(nn.Cell):
         dim = default(dim, codebook_dims)
 
         if cosine_sim_project_in:
-            cosine_sim_project_in_scale = default(
-                cosine_sim_project_in_scale, codebook_scale
-            )
-            project_in_klass = CosineSimLinear(
-                dim, codebook_dims, scale=cosine_sim_project_in_scale
-            )
+            cosine_sim_project_in_scale = default(cosine_sim_project_in_scale, codebook_scale)
+            project_in_klass = CosineSimLinear(dim, codebook_dims, scale=cosine_sim_project_in_scale)
         else:
             project_in_klass = nn.Dense(dim, codebook_dims, dtype=dtype)
 
         has_projections = dim != codebook_dims
         self.project_in = project_in_klass if has_projections else nn.Identity()
-        self.project_out = (
-            nn.Dense(codebook_dims, dim, dtype=dtype)
-            if has_projections
-            else nn.Identity()
-        )
+        self.project_out = nn.Dense(codebook_dims, dim, dtype=dtype) if has_projections else nn.Identity()
         self.has_projections = has_projections
 
         self.dim = dim
@@ -163,10 +153,7 @@ class LFQ(nn.Cell):
         # whether to soft clamp the input value from -value to value
 
         self.soft_clamp_input_value = soft_clamp_input_value
-        assert (
-            not exists(soft_clamp_input_value)
-            or soft_clamp_input_value >= codebook_scale
-        )
+        assert not exists(soft_clamp_input_value) or soft_clamp_input_value >= codebook_scale
 
         # for no auxiliary loss, during inference
 
@@ -225,9 +212,7 @@ class LFQ(nn.Cell):
         d = x.shape[-1]
         x = x.reshape(b, -1, d)
 
-        assert (
-            x.shape[-1] == self.dim
-        ), f"expected dimension of {self.dim} but received {x.shape[-1]}"
+        assert x.shape[-1] == self.dim, f"expected dimension of {self.dim} but received {x.shape[-1]}"
 
         x = self.project_in(x)
 
@@ -295,9 +280,7 @@ class LFQ(nn.Cell):
             # 1. entropy will be nudged to be low for each code, to encourage the network to output confident predictions
             # 2. codebook entropy will be nudged to be high, to encourage all codes to be uniformly used within the batch
 
-            entropy_aux_loss = (
-                per_sample_entropy - self.diversity_gamma * codebook_entropy
-            )
+            entropy_aux_loss = per_sample_entropy - self.diversity_gamma * codebook_entropy
         else:
             entropy_aux_loss = ms.Tensor(0.0)
             per_sample_entropy = ms.Tensor(0.0)
@@ -306,19 +289,14 @@ class LFQ(nn.Cell):
         # commit loss
 
         if self.is_training:
-            commit_loss = ops.mse_loss(
-                original_input, ops.stop_gradient(quantized), reduction="mean"
-            )
+            commit_loss = ops.mse_loss(original_input, ops.stop_gradient(quantized), reduction="mean")
             commit_loss = commit_loss.mean()
         else:
             commit_loss = ms.Tensor(0.0)
 
         # complete aux loss
 
-        aux_loss = (
-            entropy_aux_loss * self.entropy_loss_weight
-            + commit_loss * self.commitment_loss_weight
-        )
+        aux_loss = entropy_aux_loss * self.entropy_loss_weight + commit_loss * self.commitment_loss_weight
 
         # merge back codebook dim
 

@@ -14,10 +14,11 @@
 
 """3D StyleGAN discriminator."""
 
-from typing import Any
 import math
+
 import ml_collections
 import numpy as np
+
 import mindspore as ms
 from mindspore import nn, ops
 
@@ -83,9 +84,7 @@ class BlurPool3d(nn.Cell):
             a = np.array([1.0, 6.0, 15.0, 20.0, 15.0, 6.0, 1.0])
 
         filt = ms.Tensor(
-            np.repeat(
-                np.expand_dims(a[:, None] * a[None, :], 0), self.filt_size, axis=0
-            ),
+            np.repeat(np.expand_dims(a[:, None] * a[None, :], 0), self.filt_size, axis=0),
             self.dtype,
         )
         filt = filt / ops.sum(filt)
@@ -103,9 +102,7 @@ class BlurPool3d(nn.Cell):
             if self.pad_off == 0:
                 return inp[:, :, :: self.stride, :: self.stride, :: self.stride]
             else:
-                return self.pad(inp)[
-                    :, :, :: self.stride, :: self.stride, :: self.stride
-                ]
+                return self.pad(inp)[:, :, :: self.stride, :: self.stride, :: self.stride]
         else:
             return ops.conv3d(self.pad(inp), self.filt, stride=self.stride, groups=1)
 
@@ -124,9 +121,7 @@ class ResBlockDown(nn.Cell):
         self.in_channels = in_channels
         self.out_channels = in_channels if out_channels is None else out_channels
 
-        self.conv1 = nn.Conv3d(self.in_channels, self.out_channels, (3, 3, 3)).to_float(
-            dtype
-        )
+        self.conv1 = nn.Conv3d(self.in_channels, self.out_channels, (3, 3, 3)).to_float(dtype)
         self.norm1 = GroupNormExtend(
             num_groups=32,
             num_channels=self.out_channels,
@@ -135,9 +130,7 @@ class ResBlockDown(nn.Cell):
             dtype=dtype,
         )
         self.activation1 = nn.LeakyReLU()
-        self.conv2 = nn.Conv3d(
-            self.out_channels, self.out_channels, (3, 3, 3)
-        ).to_float(dtype)
+        self.conv2 = nn.Conv3d(self.out_channels, self.out_channels, (3, 3, 3)).to_float(dtype)
         self.norm2 = GroupNormExtend(
             num_groups=32,
             num_channels=self.out_channels,
@@ -148,9 +141,7 @@ class ResBlockDown(nn.Cell):
         self.activation2 = nn.LeakyReLU()
         # self.dropout = nn.Dropout(p=dropout)
 
-        self.conv_shortcut = nn.Conv3d(
-            self.in_channels, self.out_channels, (1, 1, 1), has_bias=False
-        ).to_float(dtype)
+        self.conv_shortcut = nn.Conv3d(self.in_channels, self.out_channels, (1, 1, 1), has_bias=False).to_float(dtype)
 
         self.blurpool1 = BlurPool3d(self.out_channels)
         self.blurpool2 = BlurPool3d(self.in_channels)
@@ -195,9 +186,7 @@ class StyleGANDiscriminator(nn.Cell):
         self.filters = self.config.discriminator.filters
         self.channel_multipliers = self.config.discriminator.channel_multipliers
 
-        self.conv_in = nn.Conv3d(
-            self.in_channles, self.filters, kernel_size=(3, 3, 3)
-        ).to_float(dtype)
+        self.conv_in = nn.Conv3d(self.in_channles, self.filters, kernel_size=(3, 3, 3)).to_float(dtype)
         # self.activation1 = nn.LeakyReLU()
         self.resnet_stack = nn.SequentialCell()
 
@@ -214,17 +203,12 @@ class StyleGANDiscriminator(nn.Cell):
             self.resnet_stack.append(ResBlockDown(dim_in, filters, dtype=dtype))
 
         dim_out = self.filters * self.channel_multipliers[-1]
-        self.norm2 = GroupNormExtend(
-            num_groups=32, num_channels=dim_out, eps=1e-5, affine=True, dtype=dtype
-        )
+        self.norm2 = GroupNormExtend(num_groups=32, num_channels=dim_out, eps=1e-5, affine=True, dtype=dtype)
         self.conv_out = nn.Conv3d(dim_out, dim_out, (3, 3, 3)).to_float(dtype)
         # self.activation2 = nn.LeakyReLU()
 
         dim_dense = int(
-            dim_out
-            * max(1, height // sampling_rate)
-            * max(1, width // sampling_rate)
-            * max(1, depth // sampling_rate)
+            dim_out * max(1, height // sampling_rate) * max(1, width // sampling_rate) * max(1, depth // sampling_rate)
         )
 
         self.linear1 = nn.Dense(dim_dense, 512, dtype=dtype)
