@@ -565,12 +565,21 @@ def main(args):
     else:
         total_train_steps = args.train_steps
 
-    if args.dataset_sink_mode and args.sink_size != -1:
-        steps_per_sink = args.sink_size
+    steps_per_sink = 0
+    if args.dataset_sink_mode:
+        if args.sink_size != -1:
+            steps_per_sink = args.sink_size
+        else:
+            assert args.bucket_config is None, "Please specify `--sink_size` when using `--bucket_config`."
+            steps_per_sink = dataloader.get_dataset_size()
+        sink_epochs = math.ceil(total_train_steps / steps_per_sink)
     else:
-        assert args.bucket_config is None, "Please specify `--sink_size` when using `--bucket_config`."
-        steps_per_sink = dataloader.get_dataset_size()
-    sink_epochs = math.ceil(total_train_steps / steps_per_sink)
+        # For bucketing, it doesn't matter how many epochs to train,
+        # as `StopAtStepCallback()` will stop training at the desired step
+        if args.bucket_config is not None:
+            sink_epochs = total_train_steps
+        else:
+            sink_epochs = math.ceil(total_train_steps / dataloader.get_dataset_size())
 
     if args.ckpt_save_steps == -1:
         ckpt_save_interval = args.ckpt_save_interval
@@ -580,7 +589,7 @@ def main(args):
         if not args.dataset_sink_mode:
             ckpt_save_interval = args.ckpt_save_steps
         else:
-            # still need to count interval in sink epochs
+            # still need to count an interval in sink epochs
             ckpt_save_interval = max(1, args.ckpt_save_steps // steps_per_sink)
             if args.ckpt_save_steps % steps_per_sink != 0:
                 logger.warning(
@@ -589,12 +598,14 @@ def main(args):
                 )
     step_mode = step_mode if args.step_mode is None else args.step_mode
 
-    logger.info(f"train_steps: {total_train_steps}, train_epochs: {args.epochs}, sink_size: {args.sink_size}")
-    logger.info(f"total train steps: {total_train_steps}, sink epochs: {sink_epochs}")
     logger.info(
-        "ckpt_save_interval: {} {}".format(
-            ckpt_save_interval, "steps" if (not args.dataset_sink_mode and step_mode) else "sink epochs"
-        )
+        f"train_steps: {total_train_steps}, train_epochs: {args.epochs}{f', sink_size: {args.sink_size}' if args.dataset_sink_mode else ''}"
+    )
+    logger.info(
+        f"total train steps: {total_train_steps}{f', sink epochs: {sink_epochs}' if args.dataset_sink_mode else ''}"
+    )
+    logger.info(
+        f"ckpt_save_interval: {ckpt_save_interval} {'steps' if (not args.dataset_sink_mode and step_mode) else 'sink epochs'}"
     )
 
     # 4. build training utils: lr, optim, callbacks, trainer
