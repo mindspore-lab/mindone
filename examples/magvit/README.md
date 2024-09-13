@@ -26,7 +26,7 @@ Here we present an overview of the datasets we used in training. For data downlo
 
 ### Image Dataset for pretraining
 
-Following the original paper, we use [ImageNet-1K](https://huggingface.co/datasets/ILSVRC/imagenet-1k) to pretrain VQVAE-2D as the initialiation.
+Following the original paper, we use [ImageNet-1K](https://huggingface.co/datasets/ILSVRC/imagenet-1k) to pretrain VQVAE-2d as the initialiation.
 
 | Dataset | Train | Val |
 | --- | --- | --- |
@@ -52,17 +52,18 @@ The training of VQVAE can be divided into two stages: VQVAE-2d and VQVAE-3d, whe
 
 #### 1.1 VQVAE-2d
 
-For the pretraining of VQVAE-2d, we provide a pretrained model weights as follow:
+We pretrained a VQVAE-2d model using [ImageNet-1K](https://huggingface.co/datasets/ILSVRC/imagenet-1k), and the accuracy is as follows:
 
-| Model | Dataset | Image Size | Weights | PSNR | SSIM |
-|-------| ------- | -----------| ------- | ------- | -------|
-| VQVAE-2d | ImageNet | 128x128 | | 20.013 | 0.5734 |
+| Model | Dataset | Image Size | PSNR | SSIM |
+|-------| ------- | -----------| ------- | -------|
+| VQVAE-2d | ImageNet | 128x128 | 20.013 | 0.5734 |
 
-If you would like you pretrain your weights, you can:
+You can pretrain your model by following these steps:
 
 1) Prepare datasets
 
- We take ImageNet as an example
+We take ImageNet as an example. You can refer to [datasets-ImageNet](./tools/datasets.md#image-dataset-for-pretraining) to download and process the data.
+
 
 2) Run the training script as below:
 
@@ -74,6 +75,7 @@ If you would like you pretrain your weights, you can:
  bash scripts/run_train_vqvae_2d_parallel.sh
  ```
 
+
 3) Inflate 2d to 3d
 
  We provide a script for inflation, you can run the command:
@@ -84,7 +86,7 @@ If you would like you pretrain your weights, you can:
 
 #### 1.2 VQVAE-3d
 
-Modify the path of pretrained VQVAE-2d model in [run_train_vqvae.sh](./scripts/run_train_vqvae.sh) / [run_train_vqvae_parallel.sh](./scripts/run_train_vqvae_parallel.sh)
+Modify the path of `--pretrained` VQVAE-2d model in [run_train_vqvae.sh](./scripts/run_train_vqvae.sh) / [run_train_vqvae_parallel.sh](./scripts/run_train_vqvae_parallel.sh)
 
 Run the training script as below:
 
@@ -93,14 +95,14 @@ Run the training script as below:
  bash scripts/run_train_vqvae.sh
 
  # parallel training
-  bash scripts/run_train_vqvae_parallel.sh
+ bash scripts/run_train_vqvae_parallel.sh
  ```
 
- The VQVAE-3d model we trained is listed below:
+ The VQVAE-3d model we trained is as follows:
 
- | Model | Dataset | Image Size | Weights | PSNR | SSIM |
- |-------| ------- | -----------| ------- | ------- | -------|
- | VQVAE-3d | UCF-101 | 128x128 |  | 21.6529 | 0.7415 |
+ | Model | Dataset | Image Size | PSNR | SSIM |
+ |-------| ------- | -----------| ------- | -------|
+ | VQVAE-3d | UCF-101 | 128x128 | 21.6529 | 0.7415 |
 
 
 ### 2. MAGVIT-v2
