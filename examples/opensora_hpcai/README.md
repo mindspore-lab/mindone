@@ -368,13 +368,12 @@ video_folder/part01/vid001.mp4,a cartoon character is walking through
 video_folder/part01/vid002.mp4,a red and white ball with an angry look on its face
 ```
 
-> [!IMPORTANT]
-> OpenSora v1.1 and above also requires the `length` (representing the number of frames), `width`, and `height` fields
-> in the CSV file (i.e. `video, length, width, height, caption`).
-> Use `tools/convert_ds.py` to convert the CSV file to the new format:
-> ```shell
-> python tools/convert_ds.py --csv_path video_caption.csv --dataset_path video_folder --out_path video_caption_new.csv
-> ```
+⚠️ OpenSora v1.1 and above also requires the `length` (representing the number of frames), `width`, and `height` fields
+in the CSV file (i.e. `video, length, width, height, caption`).
+Use `tools/convert_ds.py` to convert the CSV file to the new format:
+```shell
+python tools/convert_ds.py --csv_path video_caption.csv --dataset_path video_folder --out_path video_caption_new.csv
+```
 
 
 ### Cache Text Embeddings
