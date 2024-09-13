@@ -536,7 +536,6 @@ def main(args):
         device_num=device_num,
         rank_id=rank_id,
     )
-    dataset_size = dataloader.get_dataset_size()
 
     val_dataloader = None
     if args.validate:
@@ -559,15 +558,18 @@ def main(args):
 
     # compute total steps and data epochs (in unit of data sink size)
     if args.train_steps == -1:
-        assert args.epochs != -1
-        total_train_steps = args.epochs * dataset_size
+        assert args.epochs != -1, "`--epochs` must be specified if `--train_steps` is not specified."
+        if args.bucket_config is not None:
+            raise ValueError("`--epochs` is not supported with `--bucket_config`. Please use `--train_steps` instead.")
+        total_train_steps = args.epochs * dataloader.get_dataset_size()
     else:
         total_train_steps = args.train_steps
 
     if args.dataset_sink_mode and args.sink_size != -1:
         steps_per_sink = args.sink_size
     else:
-        steps_per_sink = dataset_size
+        assert args.bucket_config is None, "Please specify `--sink_size` when using `--bucket_config`."
+        steps_per_sink = dataloader.get_dataset_size()
     sink_epochs = math.ceil(total_train_steps / steps_per_sink)
 
     if args.ckpt_save_steps == -1:
@@ -607,7 +609,7 @@ def main(args):
             args.decay_steps = 1
 
     lr = create_scheduler(
-        steps_per_epoch=dataset_size,  # not used
+        steps_per_epoch=0,  # not used as `total_steps` is specified
         name=args.scheduler,
         lr=args.start_learning_rate,
         end_lr=args.end_learning_rate,

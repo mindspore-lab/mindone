@@ -518,6 +518,3 @@ class BucketGroupLoader:
 
         _logger.debug(f"Rank {self._rank}: bucket {thw} | samples {sample_ids} ")
         return self._dataset.get_bucket(thw, sample_ids)
-
-    def __len__(self):
-        return len(self._bucket_samples) * self._device_num
