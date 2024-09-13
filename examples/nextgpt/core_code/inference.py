@@ -5,6 +5,7 @@ import json
 from config import *
 import scipy
 from mindone.diffusers.utils.export_utils import export_to_video
+from mindone.utils.params import load_checkpoint_to_net
 def predict(
         input,
         image_path=None,
@@ -104,9 +105,13 @@ if __name__ == '__main__':
     args.update(load_config(args))
 
     model = NextGPTModel(**args)
-    delta_ckpt = mindspore.load(os.path.join(args['nextgpt_ckpt_path'], 'pytorch_model.pt'))
+    model.to_float(mindspore.float16)
+    delta_ckpt = mindspore.load_checkpoint(os.path.join(args['nextgpt_ckpt_path'], 'nextgpt.txt'))
     # print(delta_ckpt)
-    model.load_state_dict(delta_ckpt, strict=False)
+    for _,param in model.parameters_and_names():
+        param.name = _
+    # model.load_state_dict(delta_ckpt, strict=False)
+    param_not_load,ckpt_not_load = mindspore.load_param_into_net(model,delta_ckpt)
     model = model.set_train(False)
     # model = model.eval().cuda()
     print(f'[!] init the 7b model over ...')

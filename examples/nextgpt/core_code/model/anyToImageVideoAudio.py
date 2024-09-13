@@ -12,15 +12,15 @@ from examples.nextgpt.core_code.model import modeling_llama
 from mindnlp.transformers import StoppingCriteria, StoppingCriteriaList,LlamaTokenizer,LlamaForCausalLM
 from mindone.diffusers import StableDiffusionPipeline
 from examples.nextgpt.core_code.model.custom_vd import TextToVideoSDPipeline
-from .custom_ad import AudioLDMPipeline
+from examples.nextgpt.core_code.model.custom_ad import AudioLDMPipeline
 from examples.nextgpt.core_code.model.layers import *
 from examples.nextgpt.core_code.model.common.utils import *
 
 import os
 import re
 import data
-from mindnlp.peft import LoraConfig, TaskType, get_peft_model
-
+from mindnlp.peft import TaskType
+from mindone.diffusers._peft import LoraConfig, get_peft_model
 class StoppingCriteriaSub(StoppingCriteria):
 
     def __init__(self, stops: List = None, encounters: int = 1):

@@ -20,7 +20,7 @@ from dataclasses import dataclass
 from typing import Any, List, Optional, Tuple, Union
 
 import mindspore
-from mindspore import nn, ops
+from mindspore import nn, ops, Parameter
 # import mindspore.ops.functional as F
 from mindspore.common.initializer import initializer, Normal
 
@@ -1169,8 +1169,8 @@ class ClapTextEmbeddings(nn.Cell):
         self.dropout = nn.Dropout(p=config.hidden_dropout_prob)
         # position_ids (1, len position emb) is contiguous in memory and exported when serialized
         self.position_embedding_type = getattr(config, "position_embedding_type", "absolute")
-        self.position_ids = ops.arange(config.max_position_embeddings).expand((1, -1))
-        self.token_type_ids = ops.zeros(self.position_ids.shape, dtype=mindspore.int64)
+        self.position_ids = Parameter(ops.arange(config.max_position_embeddings).expand((1, -1)),requires_grad=False)
+        self.token_type_ids = Parameter(ops.zeros(self.position_ids.shape, dtype=mindspore.int64),requires_grad=False)
 
         # End copy
         self.padding_idx = config.pad_token_id

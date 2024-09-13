@@ -293,7 +293,21 @@ class PeftModel(PushToHubMixin, nn.Cell):
         raise NotImplementedError
 
     def _prepare_model_for_gradient_checkpointing(self, model):
-        raise NotImplementedError
+
+        if not(
+            getattr(model, "is_loaded_in_8bit", False)
+            or getattr(model, "is_loaded_in_4bit", False)
+            or getattr(model, "is_quantized", False)
+        ):
+            if hasattr(model,"enable_input_require_grads"):
+                model.enable_input_require_grads()
+            elif hasattr(model, "get_input_embeddings"):
+
+                def make_inputs_require_grad(module,input,output):
+                    output.requires_grad_(True)
+
+                model.get_input_embeddings().register_forward_hook(make_inputs_require_grad)
+        return model
 
     def get_prompt_embedding_to_save(self, adapter_name: str) -> ms.Tensor:
         raise NotImplementedError

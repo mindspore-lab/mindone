@@ -85,7 +85,7 @@ class LlamaRotaryEmbedding(nn.Cell):
         self.max_position_embeddings = max_position_embeddings
         self.base = base
         inv_freq = 1.0 / (self.base ** (ops.arange(0, self.dim, 2).float() / self.dim))
-        self.inv_freq = inv_freq
+        self.inv_freq = Parameter(inv_freq,requires_grad=False)
 
         self._set_cos_sin_cache(
             seq_len=max_position_embeddings, dtype=ms.float32
