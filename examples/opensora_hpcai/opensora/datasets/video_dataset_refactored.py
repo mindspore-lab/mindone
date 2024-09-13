@@ -300,8 +300,9 @@ class VideoDatasetRefactored(BaseDataset):
 
         return final_outputs
 
-    def get_bucket(self, thw: Tuple[int, int, int], sample_ids: List[int]) -> Tuple[Any, ...]:
-        batch = [self._get_item(sample_id, thw) for sample_id in sample_ids]
+    def get_bucket(self, thw: Tuple[int, int, int], sample_ids: List[int], num_workers: int = 10) -> Tuple[Any, ...]:
+        with ThreadPoolExecutor(max_workers=num_workers) as executor:
+            batch = list(executor.map(lambda x: self._get_item(x[0], x[1]), zip(sample_ids, [thw] * len(sample_ids))))
         return tuple(np.stack(item) for item in map(list, zip(*batch)))
 
     def __getitem__(self, idx: int) -> Tuple[Any, ...]:
@@ -434,6 +435,7 @@ class BucketGroupLoader:
         shuffle: bool = False,
         seed: int = 42,
         drop_remainder: bool = True,
+        num_group_workers: int = 10,
         *,
         output_columns: List[str],
     ):
@@ -446,6 +448,7 @@ class BucketGroupLoader:
         self._drop_remainder = drop_remainder
         self._epoch = 0
         self._bucket_samples = []
+        self._num_workers = num_group_workers
         self.output_columns = output_columns
 
     def __iter__(self):
@@ -517,4 +520,4 @@ class BucketGroupLoader:
         self._i += 1
 
         _logger.debug(f"Rank {self._rank}: bucket {thw} | samples {sample_ids} ")
-        return self._dataset.get_bucket(thw, sample_ids)
+        return self._dataset.get_bucket(thw, sample_ids, self._num_workers)
