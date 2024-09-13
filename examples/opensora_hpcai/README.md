@@ -517,9 +517,11 @@ bucket_config:
   "2048": { 1: [ 0.01, 5 ] }
 ```
 
+Knowing that the optimal bucket config can varies from device to device, we have tuned and provided bucket config that are more balanced on Ascend + MindSpore in `configs/opensora-v1-2/train/{stage}_ms.yaml`. You may use them for better training performance.
+
 More details on the bucket configuration can be found in [Multi-resolution Training with Buckets](./docs/quick_start.md#4-multi-resolution-training-with-buckets-opensora-v11-and-above).
 
-Then you can launch the dynamic training task following the previous section. An example running script is `scripts/run/run_train_os1.2_stage2.sh`.
+The instruction for launching the dynamic training task is smilar to the previous section. An example running script is `scripts/run/run_train_os1.2_stage2.sh`.
 
 
 ### Open-Sora 1.1
