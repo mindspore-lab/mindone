@@ -133,7 +133,7 @@ def parse_train_args(parser):
         help="epochs. When epochs is specified, the total number of training steps = epochs x num_batches",
     )
     parser.add_argument("--dataloader_num_workers", default=12, type=int, help="num workers for dataloder")
-    parser.add_argument("--max_rowsize", default=64, type=int, help="max rowsize for data loading")
+    parser.add_argument("--max_rowsize", default=32, type=int, help="max rowsize for data loading")
 
     #################################################################################
     #                         Mixed Precision: Loss scaler etc.                     #
