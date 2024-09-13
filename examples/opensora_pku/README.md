@@ -451,7 +451,6 @@ Here we choose an example of training scripts (`train_video3d_nx480p_zero2.sh`) 
 
 Here is the major command of the training script:
 ```shell
-export DEVICE_ID=0
 NUM_FRAME=29
 python  opensora/train/train_t2v_diffusers.py \
     --data "scripts/train_data/merge_data.txt" \
