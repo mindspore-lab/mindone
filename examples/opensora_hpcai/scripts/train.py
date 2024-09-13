@@ -148,9 +148,9 @@ def init_env(
         logger.info("Dynamic shape mode enabled, repeat_interleave/split/chunk will be called from mint module")
         set_dynamic_mode(True)
         # if mode == 0:
-            # FIXME: this is a temp fix for dynamic shape training in graph mode. may remove in future version.
-            # can append adamw fusion flag if use nn.AdamW optimzation for acceleration
-            # ms.set_context(graph_kernel_flags="--disable_packet_ops=Reshape")
+        # FIXME: this is a temp fix for dynamic shape training in graph mode. may remove in future version.
+        # can append adamw fusion flag if use nn.AdamW optimzation for acceleration
+        # ms.set_context(graph_kernel_flags="--disable_packet_ops=Reshape")
 
     return rank_id, device_num
 
@@ -848,7 +848,8 @@ def main(args):
                 # print(data[0].shape)
                 loss_val = float(loss.asnumpy())
                 logger.info(
-                    f"Epoch {epoch}, Step {step}, loss {loss_val:.5f}, Global step {global_step}, Shape: {tuple(data[0].shape)}, Step time {step_time*1000:.2f}ms"
+                    f"Epoch {epoch}, Step {step}, loss {loss_val:.5f}, Global step {global_step},"
+                    + " Shape: {tuple(data[0].shape)}, Step time {step_time*1000:.2f}ms"
                 )
                 if overflow:
                     logger.warning("overflow detected")

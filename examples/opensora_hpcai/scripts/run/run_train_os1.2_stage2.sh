@@ -19,7 +19,7 @@ python scripts/train.py \
 --mode=0 \
 --jit_level O1 \
 --max_device_memory 55GB \
---config configs/opensora-v1-2/train/train_stage2.yaml \
+--config configs/opensora-v1-2/train/train_stage2_ms.yaml \
 --csv_path datasets/mixkit-100videos/video_caption_train.csv \
 --video_folder datasets/mixkit-100videos/mixkit \
 --text_embed_folder  datasets/mixkit-100videos/t5_emb_300 \
