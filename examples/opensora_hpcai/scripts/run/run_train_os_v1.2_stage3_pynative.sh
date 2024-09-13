@@ -7,11 +7,12 @@ export MS_MEMORY_STATISTIC=0
 # log level
 export GLOG_v=2
 
-output_dir=outputs/OSv1.2_pynative/$(date +"%Y.%m.%d-%H.%M.%S")
+output_dir=outputs/OSv1.2_pynative_stage3/$(date +"%Y.%m.%d-%H.%M.%S")
 
-msrun --bind_core=True --master_port=8200 --worker_num=8 --local_worker_num=8 --log_dir=$output_dir  \
+msrun --bind_core=True --worker_num=8 --local_worker_num=8 --log_dir=$output_dir  \
 	python scripts/train.py \
 	--mode=1 \
+	--max_device_memory 59GB \
 	--config configs/opensora-v1-2/train/train_stage3.yaml \
 	--csv_path YOUR_CSV_PATH \
 	--video_folder YOUR_VIDEO_FOLDER \
@@ -22,4 +23,4 @@ msrun --bind_core=True --master_port=8200 --worker_num=8 --local_worker_num=8 --
   --gradient_accumulation_steps=1 \
   --use_ema=True \
   --output_path=$output_dir \
-  --vae_dtype=fp16  # FIXME: switch to bf16 when AMP issue is fixed
+  --vae_dtype=fp16
