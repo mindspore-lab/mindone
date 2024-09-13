@@ -23,4 +23,5 @@ msrun --bind_core=True --worker_num=8 --local_worker_num=8 --log_dir=$output_dir
   --gradient_accumulation_steps=1 \
   --use_ema=True \
   --output_path=$output_dir \
+  --add_datetime=False \
   --vae_dtype=fp16
