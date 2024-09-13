@@ -71,7 +71,6 @@ def init_env(
         ms.set_context(
             mode=mode,
             device_target=device_target,
-            ascend_config={"precision_mode": "allow_fp32_to_fp16"},
         )
         if parallel_mode == "optim":
             logger.info("use optim parallel")
@@ -134,7 +133,6 @@ def init_env(
             mode=mode,
             device_target=device_target,
             device_id=device_id,
-            ascend_config={"precision_mode": "allow_fp32_to_fp16"},
         )
 
     if jit_level is not None:
