@@ -8,7 +8,7 @@ import numpy as np
 
 import mindspore as ms
 
-logger = logging.getLogger()
+logger = logging.getLogger(__name__)
 
 
 class TextDataset:

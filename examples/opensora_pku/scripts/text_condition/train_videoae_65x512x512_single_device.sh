@@ -1,4 +1,4 @@
-export ASCEND_RT_VISIBLE_DEVICES=0,1,2,3,4,5,6,7
+export DEVICE_ID=0  # an integer within [0, 7], change it to set the device ID
 export MS_ENABLE_NUMA=0
 export MS_MEMORY_STATISTIC=1
 export GLOG_v=2
@@ -14,7 +14,7 @@ batch_size=2 # training batch size
 lr="2e-05" # learning rate. Default learning schedule is constant
 output_dir=t2v-f$num_frames-$image_size-img$use_image_num-videovae488-$model_dtype-FA$enable_flash_attention-bs$batch_size-t5
 
-msrun --bind_core=True --worker_num=8 --local_worker_num=8 --master_port=9000 --log_dir=$output_dir/parallel_logs opensora/train/train_t2v.py \
+python opensora/train/train_t2v.py \
     --pretrained LanguageBind/Open-Sora-Plan-v1.1.0/t2v.ckpt \
     --model LatteT2V-XL/122 \
     --text_encoder_name DeepFloyd/t5-v1_1-xxl \
@@ -43,7 +43,5 @@ msrun --bind_core=True --worker_num=8 --local_worker_num=8 --master_port=9000 --
     --enable_tiling \
       --use_recompute True \
       --dataset_sink_mode True \
-      --use_parallel True \
-      --parallel_mode "data" \
       --num_no_recompute 6 \
       --sink_size -1 \
