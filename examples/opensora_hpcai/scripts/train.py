@@ -537,6 +537,13 @@ def main(args):
         rank_id=rank_id,
     )
 
+    if args.bucket_config is None:
+        dataset_size = dataloader.get_dataset_size()
+    else:
+        # Prevent `GeneratorDataset()` from iterating over the whole dataset.
+        dataset_size = 1  # doesn't affect anything when bucketing is enabled
+        dataloader.dataset_size = dataset_size
+
     val_dataloader = None
     if args.validate:
         val_dataloader = initialize_dataset(
@@ -561,25 +568,19 @@ def main(args):
         assert args.epochs != -1, "`--epochs` must be specified if `--train_steps` is not specified."
         if args.bucket_config is not None:
             raise ValueError("`--epochs` is not supported with `--bucket_config`. Please use `--train_steps` instead.")
-        total_train_steps = args.epochs * dataloader.get_dataset_size()
+        total_train_steps = args.epochs * dataset_size
     else:
         total_train_steps = args.train_steps
 
-    steps_per_sink = 0
+    steps_per_sink = dataset_size
     if args.dataset_sink_mode:
         if args.sink_size != -1:
             steps_per_sink = args.sink_size
         else:
             assert args.bucket_config is None, "Please specify `--sink_size` when using `--bucket_config`."
-            steps_per_sink = dataloader.get_dataset_size()
-        sink_epochs = math.ceil(total_train_steps / steps_per_sink)
-    else:
-        # For bucketing, it doesn't matter how many epochs to train,
-        # as `StopAtStepCallback()` will stop training at the desired step
-        if args.bucket_config is not None:
-            sink_epochs = total_train_steps
-        else:
-            sink_epochs = math.ceil(total_train_steps / dataloader.get_dataset_size())
+    # For bucketing, it doesn't matter how many epochs to train,
+    # as `StopAtStepCallback()` will stop training at the desired step
+    sink_epochs = math.ceil(total_train_steps / steps_per_sink)
 
     if args.ckpt_save_steps == -1:
         ckpt_save_interval = args.ckpt_save_interval
@@ -620,7 +621,7 @@ def main(args):
             args.decay_steps = 1
 
     lr = create_scheduler(
-        steps_per_epoch=0,  # not used as `total_steps` is specified
+        steps_per_epoch=dataset_size,  # not used as `total_steps` is specified
         name=args.scheduler,
         lr=args.start_learning_rate,
         end_lr=args.end_learning_rate,
