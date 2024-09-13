@@ -276,7 +276,7 @@ class Encoder(nn.Cell):
         temb = None
 
         # downsampling
-        '''
+        """
         hs = [self.conv_in(x)]
         for i_level in range(self.num_resolutions):
             for i_block in range(self.num_res_blocks):
@@ -289,7 +289,7 @@ class Encoder(nn.Cell):
 
         # middle
         h = hs[-1]
-        '''
+        """
         hs = self.conv_in(x)
         for i_level in range(self.num_resolutions):
             for i_block in range(self.num_res_blocks):

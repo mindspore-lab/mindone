@@ -299,7 +299,7 @@ def initialize_dataset(
                 bucket_boundaries,
                 bucket_batch_sizes,
                 element_length_function=hash_func,
-                drop_remainder=not validation,
+                drop_remainder=False,
             )
     return dataloader, num_src_samples
 
