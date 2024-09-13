@@ -408,8 +408,8 @@ def main(args):
     )
 
     # build optimizer
-    assert args.optim.lower() == "adamw", f"Not support optimizer {args.optim}!"
-    if args.ms_optimizer:
+    assert args.optim.lower() == "adamw" or args.optim.lower() == "adamw_re", f"Not support optimizer {args.optim}!"
+    if args.optim.lower() == "adamw":
         optimizer = create_optimizer(
             latent_diffusion_with_loss.trainable_params(),
             name=args.optim,
@@ -740,12 +740,6 @@ def parse_t2v_train_args(parser):
         "--gradient_checkpointing",
         action="store_true",
         help="Whether or not to use gradient checkpointing to save memory at the expense of slower backward pass.",
-    )
-    parser.add_argument(
-        "--ms_optimizer",
-        type=str2bool,
-        default=True,
-        help="Whether to use the optimizer class from mindspore or other libraries, such as mindcv",
     )
 
     return parser
