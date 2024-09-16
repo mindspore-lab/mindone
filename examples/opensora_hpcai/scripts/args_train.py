@@ -150,7 +150,7 @@ def parse_train_args(parser):
     parser.add_argument("--weight_decay", default=1e-6, type=float, help="Weight decay.")
     parser.add_argument("--seed", default=3407, type=int, help="data path")
     parser.add_argument("--warmup_steps", default=1000, type=int, help="warmup steps")
-    parser.add_argument("--batch_size", default=10, type=int, help="batch size")
+    parser.add_argument("--batch_size", default=1, type=int, help="batch size")
     parser.add_argument(
         "--vae_micro_batch_size",
         type=int,
