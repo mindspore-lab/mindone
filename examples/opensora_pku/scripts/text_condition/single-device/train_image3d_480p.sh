@@ -21,7 +21,7 @@ python opensora/train/train_t2v_diffusers.py \
     --dataloader_num_workers 20 \
     --gradient_accumulation_steps=1 \
     --max_train_steps=1000000 \
-    --start_learning_rate=1e-5 \
+    --start_learning_rate=5e-5 \
     --lr_scheduler="constant" \
     --seed=10 \
     --lr_warmup_steps=500 \
