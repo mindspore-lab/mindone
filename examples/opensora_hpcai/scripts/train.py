@@ -328,6 +328,25 @@ def main(args):
         time_str = datetime.datetime.now().strftime("%Y-%m-%dT%H-%M-%S")
         args.output_path = os.path.join(args.output_path, time_str)
 
+    if (args.image_size or (args.resolution and args.aspect_ratio)) and args.bucket_config:
+        logger.info("Image size is provided, bucket configuration will be ignored.")
+        args.bucket_config = None
+
+    img_h, img_w = None, None
+    if args.pre_patchify:
+        img_h, img_w = args.max_image_size, args.max_image_size
+    elif args.image_size:
+        img_h, img_w = args.image_size if isinstance(args.image_size, list) else (args.image_size, args.image_size)
+    elif args.bucket_config is None:
+        if args.resolution is None or args.aspect_ratio is None:
+            raise ValueError(
+                "`resolution` and `aspect_ratio` must be provided if `image_size` or `bucket_config` are not provided"
+            )
+        img_h, img_w = get_image_size(args.resolution, args.aspect_ratio)
+
+    if args.model_version == "v1":
+        assert img_h == img_w, "OpenSora v1 support square images only."
+
     # 1. init
     rank_id, device_num = init_env(
         args.mode,
@@ -347,21 +366,6 @@ def main(args):
 
     # 2. model initiate and weight loading
     dtype_map = {"fp16": ms.float16, "bf16": ms.bfloat16}
-
-    img_h, img_w = None, None
-    if args.pre_patchify:
-        img_h, img_w = args.max_image_size, args.max_image_size
-    elif args.image_size is not None:
-        img_h, img_w = args.image_size if isinstance(args.image_size, list) else (args.image_size, args.image_size)
-    elif args.bucket_config is None:
-        if args.resolution is None or args.aspect_ratio is None:
-            raise ValueError(
-                "`resolution` and `aspect_ratio` must be provided if `image_size` or `bucket_config` are not provided"
-            )
-        img_h, img_w = get_image_size(args.resolution, args.aspect_ratio)
-
-    if args.model_version == "v1":
-        assert img_h == img_w, "OpenSora v1 support square images only."
 
     # 2.1 vae
     logger.info("vae init")
