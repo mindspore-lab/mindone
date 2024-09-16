@@ -1,5 +1,4 @@
-# Stage 4: 29x720p & Stage 5: 93x720p
-# change the pretrained ckpt path to different stage
+# Stage 4: 29x720p
 NUM_FRAME=29
 msrun --bind_core=True --worker_num=8 --local_worker_num=8 --master_port=9000 --log_dir="t2v-video3d-${NUM_FRAME}x720p_zero2_sp/parallel_logs" \
   opensora/train/train_t2v_diffusers.py \
@@ -18,7 +17,6 @@ msrun --bind_core=True --worker_num=8 --local_worker_num=8 --master_port=9000 --
     --interpolation_scale_h 1.5 \
     --interpolation_scale_w 2.0 \
     --attention_mode xformers \
-    --gradient_checkpointing \
     --train_batch_size=1 \
     --dataloader_num_workers 8 \
     --gradient_accumulation_steps=1 \
@@ -54,4 +52,6 @@ msrun --bind_core=True --worker_num=8 --local_worker_num=8 --master_port=9000 --
     --train_sp_batch_size 1 \
     --max_device_memory "59GB" \
     --jit_syntax_level "lax" \
+    --dataset_sink_mode True \
+    # --gradient_checkpointing \
     # --group_frame \
