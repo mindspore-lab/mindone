@@ -449,9 +449,13 @@ def main(args):
         loss_scaler.last_overflow_iter = last_overflow_iter
 
     # trainer (standalone and distributed)
-    assert args.ema_start_step == 0, "Now only support to update EMA from the first step"
     ema = (
-        EMA(latent_diffusion_with_loss.network, ema_decay=args.ema_decay, offloading=args.ema_offload)
+        EMA(
+            latent_diffusion_with_loss.network,
+            ema_decay=args.ema_decay,
+            offloading=args.ema_offload,
+            update_after_step=args.ema_start_step,
+        )
         if args.use_ema
         else None
     )
@@ -561,7 +565,8 @@ def main(args):
                 f"MindSpore mode[GRAPH(0)/PYNATIVE(1)]: {args.mode}",
                 f"Jit level: {args.jit_level}",
                 f"Distributed mode: {args.use_parallel}"
-                + (f"\nParallel mode: {args.parallel_mode}" if args.use_parallel else ""),
+                + (f"\nParallel mode: {args.parallel_mode}" if args.use_parallel else "")
+                + (f"\n sp_size {args.sp_size}" if args.sp_size != 1 else ""),
                 f"Num params: {num_params:,} (transformer: {num_params_transformer:,}, vae: {num_params_vae:,})",
                 f"Num trainable params: {num_params_trainable:,}",
                 f"Transformer model dtype: {model_dtype}",

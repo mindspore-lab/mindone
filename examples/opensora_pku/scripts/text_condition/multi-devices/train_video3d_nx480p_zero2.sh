@@ -51,4 +51,6 @@ msrun --bind_core=True --worker_num=8 --local_worker_num=8 --master_port=9000 --
     --zero_stage 2 \
     --max_device_memory "59GB" \
     --jit_syntax_level "lax" \
+    --dataset_sink_mode True \
+    --num_no_recompute 18 \
     # --group_frame \

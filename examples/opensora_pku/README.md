@@ -488,7 +488,7 @@ We evaluated the training performance on MindSpore and Ascend NPUs. The results 
 | Model           | Context        |  Stage     |Precision | BS    | NPUs |video size  | Paramllelism | Train T. (s/step) |
 |:----------------|:---------------|:----------|:---------:|:----:|:-----:|:----------:|:----------:|-------------------:|
 | OpenSoraT2V-ROPE-L-122 | D910\*-[CANN C18(8.0.RC2.beta1)](https://www.hiascend.com/developer/download/community/result?module=cann)-[MS2.3.1](https://www.mindspore.cn/install/) | 2 | BF16     |  1  |  8   |         1x640x480     |         zero2                      |      2.35     |
-| OpenSoraT2V-ROPE-L-122 | D910\*-[CANN C18(8.0.RC2.beta1)](https://www.hiascend.com/developer/download/community/result?module=cann)-[MS2.3.1](https://www.mindspore.cn/install/) | 3 |  BF16    |  1  |  8   |         29x640x480    |         zero2                      |      3.85     |
+| OpenSoraT2V-ROPE-L-122 | D910\*-[CANN C18(8.0.RC2.beta1)](https://www.hiascend.com/developer/download/community/result?module=cann)-[MS2.3.1](https://www.mindspore.cn/install/) | 3 |  BF16    |  1  |  8   |         29x640x480    |         zero2                      |      3.68     |
 | OpenSoraT2V-ROPE-L-122 | D910\*-[CANN C18(8.0.RC2.beta1)](https://www.hiascend.com/developer/download/community/result?module=cann)-[MS2.3.1](https://www.mindspore.cn/install/) | 4 | BF16     |  1  |  8   |         29x1280x720   |         zero2 + SP(sp_size=8)      |      5.30     |
 | OpenSoraT2V-ROPE-L-122 | D910\*-[CANN C18(8.0.RC2.beta1)](https://www.hiascend.com/developer/download/community/result?module=cann)-[MS2.3.1](https://www.mindspore.cn/install/) | 5 | BF16     |  1  |  8   |         93x1280x720   |         zero2 + SP(sp_size=8)      |      25.6     |
 
