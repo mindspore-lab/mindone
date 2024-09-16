@@ -146,9 +146,9 @@ mindone/examples/opensora_pku
 Currently, we can load `.safetensors` files directly in MindSpore, but not `.bin` or `.ckpt` files. We recommend you to convert the
 `vae/checkpoint.ckpt` and `mt5-xxl/pytorch_model.bin` files to `.safetensor` files manually by running the following commands:
 ```shell
-python tools/model_conversion/convert_pytorch_ckpt_to_safetesors.py --src LanguageBind/Open-Sora-Plan-v1.2.0/vae/checkpoint.ckpt --target LanguageBind/Open-Sora-Plan-v1.2.0/vae/diffusion_pytorch_model.safetensors  --config LanguageBind/Open-Sora-Plan-v1.2.0/vae/config.json
+python tools/model_conversion/convert_pytorch_ckpt_to_safetensors.py --src LanguageBind/Open-Sora-Plan-v1.2.0/vae/checkpoint.ckpt --target LanguageBind/Open-Sora-Plan-v1.2.0/vae/diffusion_pytorch_model.safetensors  --config LanguageBind/Open-Sora-Plan-v1.2.0/vae/config.json
 
-python tools/model_conversion/convert_pytorch_ckpt_to_safetesors.py --src google/mt5-xxl/pytorch_model.bin --target google/mt5-xxl/model.safetensors  --config google/mt5-xxl/config.json
+python tools/model_conversion/convert_pytorch_ckpt_to_safetensors.py --src google/mt5-xxl/pytorch_model.bin --target google/mt5-xxl/model.safetensors  --config google/mt5-xxl/config.json
 ```
 
 Once the checkpoint files have all been prepared, you can refer to the inference guidance below.
