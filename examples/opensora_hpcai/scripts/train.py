@@ -320,7 +320,7 @@ def main(args):
         args.output_path = os.path.join(args.output_path, time_str)
 
     if (args.image_size or (args.resolution and args.aspect_ratio)) and args.bucket_config:
-        logger.info("Image size is provided, bucket configuration will be ignored.")
+        print("Image size is provided, bucket configuration will be ignored.")  # logger isn't set up yet
         args.bucket_config = None
 
     img_h, img_w = None, None
