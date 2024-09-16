@@ -282,6 +282,8 @@ def initialize_dataset(
                 )
                 for buckets in buckets
             ]
+        else:
+            datasets = [datasets]
 
         dataloaders = [
             create_dataloader(
@@ -290,7 +292,7 @@ def initialize_dataset(
                 shuffle=not validation,
                 device_num=None if buckets else device_num,  # Sharding is not supported with an iterator dataloader
                 rank_id=None if buckets else rank_id,
-                num_workers_dataset=args.num_parallel_workers,
+                num_workers_dataset=args.num_workers_dataset,
                 drop_remainder=not validation,
                 prefetch_size=args.prefetch_size,
                 max_rowsize=args.max_rowsize,

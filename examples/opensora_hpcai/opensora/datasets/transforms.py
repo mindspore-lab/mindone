@@ -14,6 +14,7 @@ class ResizeCrop:
         th, tw = size or self._size
         scale = max(th / h, tw / w)
         if scale != 1:
+            # FIXME: support images resizing
             x = np.array([cv2.resize(i, None, fx=scale, fy=scale, interpolation=self._inter) for i in x])
             i, j = round((x.shape[-3] - th) / 2.0), round((x.shape[-2] - tw) / 2.0)
             x = x[..., i : i + th, j : j + tw, :]

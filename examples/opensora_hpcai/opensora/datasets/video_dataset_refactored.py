@@ -241,6 +241,7 @@ class VideoDatasetRefactored(BaseDataset):
                 video_length = len(reader)
                 if thw is not None:
                     num_frames = thw[0]
+                    data["size"] = thw[1:]
                     min_length = (num_frames - 1) * self._stride + 1
 
                 if len(reader) < min_length:
@@ -260,6 +261,7 @@ class VideoDatasetRefactored(BaseDataset):
                     min_length = self._min_length
                     if thw is not None:
                         num_frames = thw[0]
+                        data["size"] = thw[1:]
                         min_length = (num_frames - 1) * self._stride + 1
 
                     if len(reader) < min_length:
@@ -282,7 +284,7 @@ class VideoDatasetRefactored(BaseDataset):
         # apply transforms on video frames here
         if self.apply_train_transforms:
             # variable resize and crop, frame-wise
-            clip = self.pixel_transforms(video, thw[1:] if thw is not None else None)
+            clip = self.pixel_transforms(video, data.get("size", None))
 
             # transpose and norm, clip-wise
             clip = np.transpose(clip, (0, 3, 1, 2))
@@ -302,7 +304,7 @@ class VideoDatasetRefactored(BaseDataset):
 
     def get_bucket(self, thw: Tuple[int, int, int], sample_ids: List[int], num_workers: int = 10) -> Tuple[Any, ...]:
         with ThreadPoolExecutor(max_workers=num_workers) as executor:
-            batch = list(executor.map(lambda x: self._get_item(x[0], x[1]), zip(sample_ids, [thw] * len(sample_ids))))
+            batch = list(executor.map(self._get_item, sample_ids, [thw] * len(sample_ids)))
         return tuple(np.stack(item) for item in map(list, zip(*batch)))
 
     def __getitem__(self, idx: int) -> Tuple[Any, ...]:
@@ -447,14 +449,21 @@ class BucketGroupLoader:
         self._seed = seed
         self._drop_remainder = drop_remainder
         self._epoch = 0
-        self._bucket_samples = []
+        self._bucket_samples = None
         self._num_workers = num_group_workers
         self.output_columns = output_columns
 
+    def _get_bucket_id(self, i: int) -> int:
+        return self._buckets.get_bucket_id(
+            int(self._dataset._data[i]["length"]),
+            int(self._dataset._data[i]["height"]),
+            int(self._dataset._data[i]["width"]),
+            frame_interval=self._dataset._stride,
+            seed=self._seed + self._epoch + i * self._buckets.num_bucket,  # Following the original implementation
+        )
+
     def __iter__(self):
-        self._i = 0
         self._epoch += 1
-        self._bucket_samples = []
         rng = np.random.default_rng(self._seed + self._epoch)
 
         _logger.debug("Building buckets...")
@@ -463,20 +472,16 @@ class BucketGroupLoader:
         else:
             indexes = list(range(len(self._dataset._data)))
 
+        # use multithreading for fast data loading for large datasets
+        with ThreadPoolExecutor(max_workers=self._num_workers) as executor:
+            bucket_ids = list(executor.map(self._get_bucket_id, indexes))
+
         bucket_sample_dict = defaultdict(list)
-        for i in indexes:
-            bucket_id = self._buckets.get_bucket_id(
-                int(self._dataset._data[i]["length"]),
-                int(self._dataset._data[i]["height"]),
-                int(self._dataset._data[i]["width"]),
-                frame_interval=self._dataset._stride,
-                seed=self._seed + self._epoch + i * self._buckets.num_bucket,  # Following the original implementation
-            )
-            # group by bucket
-            # each data sample is put into a bucket with a similar image/video size
+        for i, bucket_id in zip(indexes, bucket_ids):
             if bucket_id is not None:
                 bucket_sample_dict[bucket_id].append(i)
 
+        bucket_samples = []
         # process the samples
         for bucket_id, data_list in bucket_sample_dict.items():
             bs_per_npu = self._buckets.get_batch_size(bucket_id)
@@ -486,7 +491,7 @@ class BucketGroupLoader:
                 else:  # otherwise, drop the remainder
                     data_list = data_list[:-remainder]
 
-            self._bucket_samples.extend(
+            bucket_samples.extend(
                 [
                     (self._buckets.get_thw(bucket_id), data_list[i : i + bs_per_npu])
                     for i in range(0, len(data_list), bs_per_npu)
@@ -495,29 +500,25 @@ class BucketGroupLoader:
 
         # randomize the access order
         if self._shuffle:  # double shuffle following the original implementation
-            bucket_indexes = rng.permutation(len(self._bucket_samples)).tolist()
-            self._bucket_samples = [self._bucket_samples[i] for i in bucket_indexes]
+            bucket_indexes = rng.permutation(len(bucket_samples)).tolist()
+            bucket_samples = [bucket_samples[i] for i in bucket_indexes]
 
         # make the number of bucket accesses divisible by dp size
-        if remainder := len(self._bucket_samples) % self._device_num:
+        if remainder := len(bucket_samples) % self._device_num:
             if self._drop_remainder:
-                self._bucket_samples = self._bucket_samples[:-remainder]
+                bucket_samples = bucket_samples[:-remainder]
             else:
-                self._bucket_samples += self._bucket_samples[: self._device_num - remainder]
+                bucket_samples += bucket_samples[: self._device_num - remainder]
 
         # keep only the samples for the current rank
-        self._bucket_samples = self._bucket_samples[self._rank :: self._device_num]
-        _logger.debug(f"Number of batches per rank: {len(self._bucket_samples)}")
-        _logger.debug(f"Rank {self._rank} samples: {self._bucket_samples}")
+        bucket_samples = bucket_samples[self._rank :: self._device_num]
+        _logger.debug(f"Number of batches per rank: {len(bucket_samples)}")
+        _logger.debug(f"Rank {self._rank} samples: {bucket_samples}")
+        self._bucket_samples = iter(bucket_samples)
 
         return self
 
     def __next__(self):
-        if self._i >= len(self._bucket_samples):
-            raise StopIteration
-
-        thw, sample_ids = self._bucket_samples[self._i]
-        self._i += 1
-
+        thw, sample_ids = next(self._bucket_samples)
         _logger.debug(f"Rank {self._rank}: bucket {thw} | samples {sample_ids} ")
         return self._dataset.get_bucket(thw, sample_ids, self._num_workers)
