@@ -1,4 +1,3 @@
-=======
 ### multi modal understanding and generation model examples supported by mindone
 | project  |  introduction | original repo
 | :---   |  :--  | :-
