@@ -554,7 +554,7 @@ def main(args):
                 f"Jit level: {args.jit_level}",
                 f"Distributed mode: {args.use_parallel}"
                 + (f"\nParallel mode: {args.parallel_mode}" if args.use_parallel else "")
-                + (f"\nsp_size {args.sp_size}" if args.sp_size != 1 else ""),
+                + (f"\nsp_size: {args.sp_size}" if args.sp_size != 1 else ""),
                 f"Num params: {num_params:,} (transformer: {num_params_transformer:,}, vae: {num_params_vae:,})",
                 f"Num trainable params: {num_params_trainable:,}",
                 f"Transformer model dtype: {model_dtype}",
