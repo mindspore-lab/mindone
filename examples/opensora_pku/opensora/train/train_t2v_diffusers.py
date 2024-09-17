@@ -409,27 +409,15 @@ def main(args):
 
     # build optimizer
     assert args.optim.lower() == "adamw" or args.optim.lower() == "adamw_re", f"Not support optimizer {args.optim}!"
-    if args.optim.lower() == "adamw":
-        optimizer = create_optimizer(
-            latent_diffusion_with_loss.trainable_params(),
-            name=args.optim,
-            betas=args.betas,
-            eps=args.optim_eps,
-            group_strategy=args.group_strategy,
-            weight_decay=args.weight_decay,
-            lr=lr,
-        )
-    else:
-        from mindcv.optim.adamw import AdamW
-
-        optimizer = AdamW(
-            latent_diffusion_with_loss.trainable_params(),
-            learning_rate=lr,
-            beta1=args.betas[0],
-            beta2=args.betas[1],
-            eps=args.optim_eps,
-            weight_decay=args.weight_decay,
-        )
+    optimizer = create_optimizer(
+        latent_diffusion_with_loss.trainable_params(),
+        name=args.optim,
+        betas=args.betas,
+        eps=args.optim_eps,
+        group_strategy=args.group_strategy,
+        weight_decay=args.weight_decay,
+        lr=lr,
+    )
 
     loss_scaler = create_loss_scaler(args)
     # resume ckpt

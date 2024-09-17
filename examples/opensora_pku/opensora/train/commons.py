@@ -70,7 +70,7 @@ def parse_train_args(parser):
     #################################################################################
     #                                   Optimizers                                  #
     #################################################################################
-    parser.add_argument("--optim", default="adamw", type=str, help="optimizer")
+    parser.add_argument("--optim", default="adamw_re", type=str, help="optimizer, use adamw from mindcv by default")
     parser.add_argument(
         "--betas",
         type=float,
