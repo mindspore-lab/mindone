@@ -442,7 +442,7 @@ def main(args):
             latent_diffusion_with_loss.network,
             ema_decay=args.ema_decay,
             offloading=args.ema_offload,
-            # update_after_step=args.ema_start_step,
+            update_after_step=args.ema_start_step,
         )
         if args.use_ema
         else None
