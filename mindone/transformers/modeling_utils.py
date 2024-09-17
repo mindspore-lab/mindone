@@ -69,8 +69,10 @@ _init_weights = True
 def _get_pt2ms_mappings(m):
     mappings = {}  # pt_param_name: (ms_param_name, pt_param_to_ms_param_func)
     for name, cell in m.cells_and_names():
-        if isinstance(cell, nn.Conv1d):
-            mappings[f"{name}.weight"] = f"{name}.weight", lambda x: ops.expand_dims(x, axis=-2)
+        if isinstance(cell, (nn.Conv1d, nn.Conv1dTranspose)):
+            mappings[f"{name}.weight"] = f"{name}.weight", lambda x: ms.Parameter(
+                ops.expand_dims(x, axis=-2), name=x.name
+            )
         elif isinstance(cell, nn.Embedding):
             mappings[f"{name}.weight"] = f"{name}.embedding_table", lambda x: x
         elif isinstance(cell, (nn.BatchNorm2d, nn.LayerNorm, nn.GroupNorm)):
@@ -83,15 +85,27 @@ def _get_pt2ms_mappings(m):
     return mappings
 
 
-def _convert_state_dict(m, state_dict_pt):
+def _get_pt2ms_mapped_kv(mappings, key_pt, value_pt=None, prefix=""):
+    if key_pt.startswith(prefix):
+        key_ms, value_mapping = mappings.get(key_pt[len(prefix) :], (key_pt[len(prefix) :], lambda x: x))
+        key_ms = prefix + key_ms
+    else:
+        key_ms, value_mapping = mappings.get(key_pt, (key_pt, lambda x: x))
+
+    if value_pt is None:
+        return key_ms, None
+    else:
+        return key_ms, value_mapping(value_pt)
+
+
+def _convert_state_dict(m, state_dict_pt, prefix=""):
     if not state_dict_pt:
         return state_dict_pt
     pt2ms_mappings = _get_pt2ms_mappings(m)
     state_dict_ms = {}
     while state_dict_pt:
         name_pt, data_pt = state_dict_pt.popitem()
-        name_ms, data_mapping = pt2ms_mappings.get(name_pt, (name_pt, lambda x: x))
-        data_ms = data_mapping(data_pt)
+        name_ms, data_ms = _get_pt2ms_mapped_kv(pt2ms_mappings, name_pt, data_pt, prefix)
         if name_ms is not None:
             state_dict_ms[name_ms] = data_ms
     return state_dict_ms
@@ -276,7 +290,7 @@ def _load_state_dict_into_model(model_to_load, state_dict, start_prefix, is_shar
     # TODO: We should support loading float16 state_dict into float32 model, like PyTorch's behavior.
     error_msgs = []
     # TODO: State dict loading in mindspore does not cast dtype correctly. We do it manually. It's might unsafe.
-    local_state = {k: v for k, v in model_to_load.parameters_and_names()}
+    local_state = {start_prefix + k: v for k, v in model_to_load.parameters_and_names()}
     for k, v in state_dict.items():
         if k in local_state:
             v.set_dtype(local_state[k].dtype)
@@ -1756,7 +1770,11 @@ class MSPreTrainedModel(nn.Cell, ModuleUtilsMixin, PushToHubMixin, PeftAdapterMi
         dtype=None,
         keep_in_fp32_modules=None,
     ):
-        loaded_keys = [_get_pt2ms_mappings(model).get(k, (k, None))[0] for k in loaded_keys]
+        # Mapping loaded_keys from pt to ms
+        pt2ms_mappings = _get_pt2ms_mappings(model)
+        loaded_keys = [
+            _get_pt2ms_mapped_kv(pt2ms_mappings, s, None, f"{model.base_model_prefix}.")[0] for s in loaded_keys
+        ]
         # Retrieve missing & unexpected_keys
         model_state_dict = {k: v for k, v in model.parameters_and_names()}
         expected_keys = list(model_state_dict.keys())
@@ -1857,7 +1875,7 @@ class MSPreTrainedModel(nn.Cell, ModuleUtilsMixin, PushToHubMixin, PeftAdapterMi
 
         if state_dict is not None:
             # Whole checkpoint
-            state_dict = _convert_state_dict(model, state_dict)
+            state_dict = _convert_state_dict(model, state_dict, start_prefix)
             mismatched_keys = _find_mismatched_keys(
                 state_dict,
                 model_state_dict,
@@ -1881,7 +1899,7 @@ class MSPreTrainedModel(nn.Cell, ModuleUtilsMixin, PushToHubMixin, PeftAdapterMi
                 resolved_archive_file = logging.tqdm(resolved_archive_file, desc="Loading checkpoint shards")
             for shard_file in resolved_archive_file:
                 state_dict = load_state_dict(shard_file)
-                state_dict = _convert_state_dict(model, state_dict)
+                state_dict = _convert_state_dict(model, state_dict, start_prefix)
 
                 # Mismatched keys contains tuples key/shape1/shape2 of weights in the checkpoint that have a shape not
                 # matching the weights in the model.
