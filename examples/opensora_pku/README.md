@@ -474,12 +474,13 @@ There are some arguments related to the training dataset path:
 - `parallel_mode`: the parallelism mode chosen from ["data", "optim", "zero"], which denotes the data parallelism, the optimizer parallelism and the deepspeed zero_x parallelism.
 - `zero_stage`: runs parallelism like deepspeed, supporting zero0, zero1, zero2, and zero3, if parallel_mode is "zero".
 
-For the stage 4 (`29x720p`) and stage 5 (`93x720p`) training script, please refer to `train_video3d_nx720p_zero2_sp.sh`
+For the stage 4 (`29x720p`) and stage 5 (`93x720p`) training script, please refer to `train_video3d_29x720p_zero2_sp.sh` and `train_video3d_93x720p_zero2_sp.sh`.
+
 #### Sequence Parallelism
 
 We also support training with sequence parallelism and zero2 parallelism together. This is enabled by setting `--sp_size` and `--train_sp_batch_size`.  For example, with `sp_size=8` and `train_sp_batch_size=4`, 2 NPUs are used for a single video sample.
 
-See `train_video3d_nx720p_sp.sh` under `scripts/text_condition/mult-devices/` for detailed usage.
+See `train_video3d_29x720p_zero2_sp.sh` under `scripts/text_condition/mult-devices/` for detailed usage.
 
 #### Performance
 
@@ -487,10 +488,10 @@ We evaluated the training performance on MindSpore and Ascend NPUs. The results 
 
 | Model           | Context        |  Stage     |Precision | BS    | NPUs |video size  | Paramllelism | Train T. (s/step) |
 |:----------------|:---------------|:----------|:---------:|:----:|:-----:|:----------:|:----------:|-------------------:|
-| OpenSoraT2V-ROPE-L-122 | D910\*-[CANN C18(8.0.RC2.beta1)](https://www.hiascend.com/developer/download/community/result?module=cann)-[MS2.3.1](https://www.mindspore.cn/install/) | 2 | BF16     |  1  |  8   |         1x640x480     |         zero2                      |      2.35     |
+| OpenSoraT2V-ROPE-L-122 | D910\*-[CANN C18(8.0.RC2.beta1)](https://www.hiascend.com/developer/download/community/result?module=cann)-[MS2.3.1](https://www.mindspore.cn/install/) | 2 | BF16     |  8  |  64   |         1x640x480     |         zero2                     |     2.35      |
 | OpenSoraT2V-ROPE-L-122 | D910\*-[CANN C18(8.0.RC2.beta1)](https://www.hiascend.com/developer/download/community/result?module=cann)-[MS2.3.1](https://www.mindspore.cn/install/) | 3 |  BF16    |  1  |  8   |         29x640x480    |         zero2                      |      3.68     |
 | OpenSoraT2V-ROPE-L-122 | D910\*-[CANN C18(8.0.RC2.beta1)](https://www.hiascend.com/developer/download/community/result?module=cann)-[MS2.3.1](https://www.mindspore.cn/install/) | 4 | BF16     |  1  |  8   |         29x1280x720   |         zero2 + SP(sp_size=8)      |      4.32     |
-| OpenSoraT2V-ROPE-L-122 | D910\*-[CANN C18(8.0.RC2.beta1)](https://www.hiascend.com/developer/download/community/result?module=cann)-[MS2.3.1](https://www.mindspore.cn/install/) | 5 | BF16     |  1  |  8   |         93x1280x720   |         zero2 + SP(sp_size=8)      |      25.6     |
+| OpenSoraT2V-ROPE-L-122 | D910\*-[CANN C18(8.0.RC2.beta1)](https://www.hiascend.com/developer/download/community/result?module=cann)-[MS2.3.1](https://www.mindspore.cn/install/) | 5 | BF16     |  1  |  8   |         93x1280x720   |         zero2 + SP(sp_size=8)      |      24.4     |
 
 
 > Context: {NPU type}-{CANN version}-{MindSpore version}
