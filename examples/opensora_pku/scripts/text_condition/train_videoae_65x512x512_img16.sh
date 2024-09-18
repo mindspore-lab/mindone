@@ -1,8 +1,11 @@
+
 export ASCEND_RT_VISIBLE_DEVICES=0,1,2,3,4,5,6,7
 export MS_ENABLE_NUMA=0
 export MS_MEMORY_STATISTIC=1
 export GLOG_v=2
 
+# export HCCL_BUFFSIZE=1 # reduce memory consumption when dataset_sink_mode=True, may degrade speed
+export MS_DATASET_SINK_QUEUE=2 # reduce memory consumption when dataset_sink_mode=True, may degrade speed
 # hyper-parameters
 image_size=512  # the image size of frames, same to image height and image width
 use_image_num=16  # to include n number of images in an input sample
@@ -40,7 +43,11 @@ msrun --bind_core=True --worker_num=8 --local_worker_num=8 --master_port=9000 --
     --model_max_length 300 \
     --clip_grad True \
     --use_image_num $use_image_num \
+    --enable_tiling \
       --use_recompute True \
-      --dataset_sink_mode False \
+      --dataset_sink_mode True \
       --use_parallel True \
       --parallel_mode "data" \
+      --max_device_memory "59GB" \
+      --num_no_recompute 4 \
+      --sink_size -1 \
