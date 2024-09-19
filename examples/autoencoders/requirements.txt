@@ -1,0 +1,14 @@
+opencv-python
+scikit-image
+omegaconf
+einops
+ftfy
+regex
+albumentations
+pandas
+imagesize
+toolz
+pillow==9.1.1
+tqdm
+mindcv
+jsonargparse[signatures,omegaconf,urls]>=4.25.0

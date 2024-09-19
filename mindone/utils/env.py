@@ -18,14 +18,13 @@ def init_train_env(
     device_target: Literal["Ascend", "GPU"] = "Ascend",
     debug: bool = False,
     seed: int = 42,
+    jit_level: str = "O2",
     cache_graph: bool = False,
     cache_path: str = "./cache",
     distributed: bool = False,
     ascend_config: Optional[dict] = None,
     enable_modelarts: bool = False,
     max_device_memory: str = None,
-    num_workers: int = 1,
-    json_data_path: Optional[str] = None,
 ) -> Tuple[int, int, int]:
     """
     Initialize MindSpore training environment.
@@ -43,15 +42,26 @@ def init_train_env(
         ascend_config: Parameters specific to the Ascend hardware platform.
         enable_modelarts: Whether to enable modelarts (OpenI) support. Default is False.
         max_device_memory (str, default: None): The maximum amount of memory that can be allocated on the Ascend device.
-        num_workers: The number of modelarts workers. Used only when `enable_modelarts` is True. Default is 1.
-        json_data_path: The path of num_samples.json containing a dictionary with 64 parts. Each part is a large
-                        dictionary containing counts of samples of 533 tar packages.
-                        Used only when `enable_modelarts` is True.
 
     Returns:
         A tuple containing the device ID, rank ID and number of devices.
     """
     ms.set_seed(seed)
+
+    if mode == ms.GRAPH_MODE:
+        try:
+            if jit_level in ["O0", "O1", "O2"]:
+                ms.set_context(jit_config={"jit_level": jit_level})
+                _logger.info(f"set jit_level: {jit_level}.")
+            else:
+                _logger.warning(
+                    f"Unsupport jit_level: {jit_level}. The framework automatically selects the execution method"
+                )
+        except Exception:
+            _logger.warning(
+                "The current jit_level is not suitable because current MindSpore version does not match,"
+                "please ensure the MindSpore version >= ms2.3.0."
+            )
 
     if debug and mode == ms.GRAPH_MODE:  # force PyNative mode when debugging
         _logger.warning("Debug mode is on, switching execution mode to PyNative.")
@@ -76,7 +86,6 @@ def init_train_env(
         _logger.info(dict(zip(var_info, var_value)))
 
         if enable_modelarts:
-            # split_and_sync_data(json_data_path, num_workers, device_num, rank_id)
             raise NotImplementedError("ModelArts is not supported yet.")
     else:
         device_num = 1
