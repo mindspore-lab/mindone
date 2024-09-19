@@ -1645,6 +1645,8 @@ class MSPreTrainedModel(nn.Cell, ModuleUtilsMixin, PushToHubMixin, PeftAdapterMi
 
             if metadata.get("format") == "pt":
                 pass
+            elif metadata.get("format") == "np":
+                pass
             elif metadata.get("format") == "tf":
                 from_tf = True
                 logger.info("A TensorFlow safetensors file is being loaded in a PyTorch model.")
