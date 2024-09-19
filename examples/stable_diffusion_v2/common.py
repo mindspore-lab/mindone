@@ -62,11 +62,9 @@ def init_env(
         mode = ms.PYNATIVE_MODE
 
     if distributed:
-        device_id = int(os.getenv("DEVICE_ID"))
         ms.set_context(
             mode=mode,
             device_target=device_target,
-            device_id=device_id,
             ascend_config={"precision_mode": "allow_fp32_to_fp16"},  # Only effective on Ascend 910*
             max_device_memory=max_device_memory,
         )
@@ -74,7 +72,7 @@ def init_env(
         device_num = get_group_size()
         ParallelConfig.dp = device_num
         rank_id = get_rank()
-        _logger.debug(f"Device_id: {device_id}, rank_id: {rank_id}, device_num: {device_num}")
+        _logger.debug(f"rank_id: {rank_id}, device_num: {device_num}")
         ms.reset_auto_parallel_context()
         ms.set_auto_parallel_context(
             parallel_mode=ms.ParallelMode.DATA_PARALLEL,
@@ -100,4 +98,4 @@ def init_env(
             max_device_memory=max_device_memory,
         )
 
-    return device_id, rank_id, device_num
+    return rank_id, device_num
