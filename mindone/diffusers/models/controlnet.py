@@ -806,7 +806,10 @@ class ControlNetModel(ModelMixin, ConfigMixin, FromOriginalModelMixin):
         if guess_mode and not self.config["global_pool_conditions"]:
             scales = ops.logspace(-1.0, 0.0, len(down_block_res_samples) + 1)  # 0.1 to 1.0
             scales = scales * conditioning_scale
-            down_block_res_samples = [sample * scale for sample, scale in zip(down_block_res_samples, scales)]
+            # Cast scale to sample.dtype manually as torch do the same automatically for scaler tensors
+            down_block_res_samples = [
+                sample * scale.to(sample.dtype) for sample, scale in zip(down_block_res_samples, scales)
+            ]
             mid_block_res_sample = mid_block_res_sample * scales[-1]  # last one
         else:
             down_block_res_samples = [sample * conditioning_scale for sample in down_block_res_samples]
