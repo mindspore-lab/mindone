@@ -39,4 +39,5 @@ msrun --bind_core=True --worker_num=4 --local_worker_num=4 --log_dir=$output_dir
     --sequence_parallel_shards 4 \
     --vae_micro_batch_size 1 \
     --dsp True \
-    --batch_size 1
+    --batch_size 1 \
+    --zero_stage 2
