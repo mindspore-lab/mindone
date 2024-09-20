@@ -569,12 +569,13 @@ class MarigoldNormalsPipeline(DiffusionPipeline):
         batch_size: int,
     ) -> Tuple[ms.Tensor, ms.Tensor]:
         def retrieve_latents(encoder_output):
-            if ops.is_tensor(encoder_output):
+            assert ops.is_tensor(
+                encoder_output
+            ), "Could not access latents of provided encoder_output which is not a tensor"
+            if hasattr(self.vae, "diag_gauss_dist"):
                 return self.vae.diag_gauss_dist.mode(encoder_output)
-            elif hasattr(encoder_output, "latents"):
-                return encoder_output.latents
             else:
-                raise AttributeError("Could not access latents of provided encoder_output")
+                return encoder_output
 
         image_latent = ops.cat(
             [

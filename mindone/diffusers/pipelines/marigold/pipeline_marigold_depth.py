@@ -596,12 +596,13 @@ class MarigoldDepthPipeline(DiffusionPipeline):
         batch_size: int,
     ) -> Tuple[ms.Tensor, ms.Tensor]:
         def retrieve_latents(encoder_output):
-            if ops.is_tensor(encoder_output):
+            assert ops.is_tensor(
+                encoder_output
+            ), "Could not access latents of provided encoder_output which is not a tensor"
+            if hasattr(self.vae, "diag_gauss_dist"):
                 return self.vae.diag_gauss_dist.mode(encoder_output)
-            elif hasattr(encoder_output, "latents"):
-                return encoder_output.latents
             else:
-                raise AttributeError("Could not access latents of provided encoder_output")
+                return encoder_output
 
         image_latent = ops.cat(
             [
@@ -728,9 +729,12 @@ class MarigoldDepthPipeline(DiffusionPipeline):
                 if return_uncertainty:
                     uncertainty = ops.std(depth_aligned, axis=0, keepdims=True)
             elif reduction == "median":
-                prediction = ops.median(depth_aligned, axis=0, keepdims=True)
+                # ops.median has two return values and does not supported some data-type
+                prediction = ops.median(depth_aligned.float(), axis=0, keepdims=True)[0]
+                prediction = prediction.to(depth_aligned.dtype)
                 if return_uncertainty:
-                    uncertainty = ops.median(ops.abs(depth_aligned - prediction), axis=0, keepdims=True)
+                    uncertainty = ops.median(ops.abs(depth_aligned - prediction).float(), axis=0, keepdims=True)[0]
+                    uncertainty = uncertainty.to(depth_aligned.dtype)
             else:
                 raise ValueError(f"Unrecognized reduction method: {reduction}.")
             return prediction, uncertainty
@@ -739,7 +743,7 @@ class MarigoldDepthPipeline(DiffusionPipeline):
             cost = 0.0
             depth_aligned = align(depth, param)
 
-            for i, j in ops.combinations(ops.arange(ensemble_size).float()):
+            for i, j in ops.combinations(ops.arange(ensemble_size)):
                 diff = depth_aligned[i] - depth_aligned[j]
                 cost += (diff**2).mean().sqrt().item()
 
