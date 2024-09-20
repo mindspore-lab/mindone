@@ -414,7 +414,28 @@ def create_network_from_weights(
 ):
     if weights_sd is None:
         if os.path.splitext(file)[1] == ".safetensors":
-            NotImplementedError
+            from safetensors.torch import load_file
+
+            weights_sd_safetensors = load_file(file)
+            weights_sd = {}
+            # turn the torch key : lora_unet_xxx_xx_x_weight
+            # to ms key : lora_unet.xxx.xx.x.weight
+            for key, value in weights_sd_safetensors.items():
+                if key.startswith("lora_unet_"):
+                    key.replace("lora_unet_", "lora_unet.")
+                elif key.startswith("lora_te1_"):
+                    key.replace("lora_te1_", "lora_te1.")
+                elif key.startswith("lora_te2_"):
+                    key.replace("lora_te2_", "lora_te2.")
+                elif key.startswith("lora_te_"):
+                    key.replace("lora_te_", "lora_te.")
+                else:
+                    continue
+                tmp_l = key.split(".")
+                tmp_l[1] = tmp_l.replace("_", ".")
+                key = ".".join(tmp_l)
+                weights_sd[key] = ms.Tensor(value.numpy())
+            del weights_sd_safetensors
 
         elif os.path.splitext(file)[1] == ".ckpt":
             weights_sd = ms.load_checkpoint(file)
@@ -846,7 +867,7 @@ class LoRANetwork(nn.Cell):
 
     def to(self, dtype: Optional[ms.Type] = None):
         for p in self.get_parameters():
-            p.set_dtype(dtype=dtype)
+            p.set_dtype(dtype)
         return self
 
     def set_required_grad(self):

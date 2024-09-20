@@ -20,9 +20,6 @@ from typing import Dict, List, NamedTuple, Optional, Sequence, Tuple, Union
 
 import cv2
 import imagesize
-
-# import safetensors.torch
-# from library.lpw_stable_diffusion import StableDiffusionLongPromptWeightingPipeline
 import library.model_util as model_util
 import library.sai_model_spec as sai_model_spec
 import numpy as np
@@ -1131,10 +1128,14 @@ class BaseDataset:
                         if im_w > self.width:
                             p = random.randint(0, im_w - self.width)
                             img = img[:, p : p + self.width]
-                    else:
                         # note: we add the resize operation for small image here
                         # instead of directly raise "image size is small" error as kohya org repo does.
+                    elif im_h == self.height and im_w != self.width:
                         img = cv2.resize(img, (self.height, self.width))
+                        logger.info(
+                            f"image size is small / 画像サイズが小さいようです: {image_info.absolute_path}, \
+                                    {(im_h, im_w)} resized to {(self.height, self.width)}"
+                        )
 
                     # notes: we find the org repo have bugs in getting the `original_size` but we just follow it.
                     im_h, im_w = img.shape[0:2]

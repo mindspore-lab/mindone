@@ -263,9 +263,6 @@ class NetworkTrainer:
         # if a new network is added in future, add if ~ then blocks for each network (;'∀')
         if args.dim_from_weights:
             NotImplementedError
-            # network, _ = network_module.create_network_from_weights(
-            #     1, args.network_weights, vae, text_encoder, unet, **net_kwargs
-            # )
         else:
             if "dropout" not in net_kwargs:
                 # workaround for LyCORIS (;^ω^)

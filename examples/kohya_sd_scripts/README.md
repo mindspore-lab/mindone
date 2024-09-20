@@ -4,8 +4,13 @@ Here we provide a MindSpore implementation of  [Kohya's Stable Diffusion trainer
 
 Currently, we support
 
-* SDXL LoRA  training
-* SDXL Inference
+- [x] SDXL LoRA training
+- [x] SDXL LoRA (Dreambooth) training
+- [x] SDXL Inference
+
+>  Notes: Basically, we've tried to provide a consistent implementation with the torch Kohya SD trainer, but we have limitations due to differences in the framework. Refer to the main difference between the two codebases listed [here](./Limitations.md) if needed.
+
+
 
 ## Installing the dependencies
 
@@ -204,12 +209,10 @@ We provide a script `tools/convert_hf_dataset.py` that converts the hugging face
 
 ```shell
 python tools/convert_hf_dataset.py \
-  --dataset_name='YaYaB/onepiece-blip-captions' \
+  --dataset_name="YaYaB/onepiece-blip-captions" \
   --cache_dir="path_to_cache_hf_dataset" \
-  --save_folder"path_to/onepiece_raw_data
+  --save_folder="path_to/onepiece_raw_data"
 ```
-
-
 
 > Notes:
 >
@@ -278,20 +281,40 @@ python sdxl_minimal_inference.py \
   --lora_weights "path_to/pokemon.ckpt"
 ```
 
-> Notes: inference with safetensor weights from torch kohya needs conversion.
+>  Notes:
+>
+> 1.  `sdxl_minimal_inference.py` supports inference with `.safetensors` lora weights trained by torch Kohya. The weights are directly converted when loading.
+>
+> 2. Inference in torch with weights trained by mindspore Kohya needs extra conversion. The script is provided in  `tools/convert_weights.py`.
+
+
 
 ### Performance
 
-The speeds of the training example (train unet only) are as follows. `mixed_precision=None` uses `fp32` precision without auto-mixed precision. `mixed_precision=fp16` uses default `amp_level="O2"` for unet.
+The speeds of the training example (train unet only) are as follows.
 
 | NPUs | Global Batch size | Resolution | Mixed Precision | Graph Compile | Speed (s/step) |
 | ---- | ----------------- | ---------- | --------------- | ------------- | -------------- |
 | 1    | 1*1               | 1024x1024  | None     | 24mins | 1.66s-1.8s     |
 | 1    | 1*1               | 1024x1024  | fp16            | 33mins | 1.66s-1.8s     |
+| 1 | 1*1 | 1024x1024 | bf16 | 28mins | 1.85s-1.95s |
+| 1 | 1*1 | 1024x1024 | fp16 (full_fp16) | 30mins        | 1.71s-1.85s    |
+| 1 | 1*1 | 1024x1024 | bf16 (full_bf16) | 31mins | 1.67s-1.82s |
 
-Here are some generation results of the training example after training 15k steps.
+> Notes:
+>
+> 1.  `mixed_precision=None` uses `fp32` precision for both parameters and computations.
+>
+> 2. `mixed_precision=fp16` or `mixed_precision=bf16`uses default `amp_level="O2"` for unet, but the training parameters (lora layers) remain `fp32`.
+>
+> 3. `mixed_precision`  with `full_` set all parameters to `fp16` or `bf16`, including lora layers, and use auto mixed precision when computing unet. Pass `--full_fp16` or `--full_bf16` to the command line to enable the options.
+> 4. Mixed Precision `fp16` or `bf16` does not speed up the training, because amp and cast opereations for lora layers costs extra time.
 
 
-|            a drawing of a blue and white pokemon             |               a pokemon ball with a bird on it               |          a drawing of a cute blue and white pokemon          |         a very cute looking purple pokemon character         |
+
+Here are some generation results of the fp32 training example after training 15k steps.
+
+
+|            a drawing of a blue and white pokemon             |            a pokemon ball with a bird on it                  |            a drawing of a cute blue and white pokemon        |         a very cute looking purple pokemon character         |
 | :----------------------------------------------------------: | :----------------------------------------------------------: | :----------------------------------------------------------: | :----------------------------------------------------------: |
 | <img src="https://github.com/user-attachments/assets/71757509-50fc-465a-85cc-761261b1b4ef" width=224> | <img src="https://github.com/user-attachments/assets/dcda39e2-35d1-4b10-9e10-2914b1170090" width=224> | <img src="https://github.com/user-attachments/assets/27fcf53b-7434-4a63-9803-fef660112066" width=224> | <img src="https://github.com/user-attachments/assets/986f7d45-915e-4dbe-bd07-909030c07fba" width=224> |
