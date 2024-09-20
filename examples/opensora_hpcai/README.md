@@ -166,7 +166,7 @@ Other useful documents and links are listed below.
 
     ```bash
     cat /usr/local/Ascend/ascend-toolkit/latest/version.cfg  
-    
+
     python -c "import mindspore;mindspore.set_context(device_target='Ascend');mindspore.run_check()"
     ```
 
