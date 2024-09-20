@@ -22,14 +22,15 @@
         legacy: False
 """
 
+import logging
 import math
 from types import SimpleNamespace
-from typing import Any, Optional
+from typing import Optional
+
 import mindspore as ms
-from mindspore import nn, ops, Tensor
-from einops import rearrange
+from mindspore import Tensor, nn, ops
+
 from mindone.models.modules.flash_attention import MSFlashAttention
-import logging
 
 logger = logging.getLogger(__name__)
 
@@ -59,166 +60,6 @@ def exists(val):
 
 def default(val, d):
     return val if exists(val) else d
-
-
-# flash attention forwards and backwards
-
-# https://arxiv.org/abs/2205.14135
-
-
-# class FlashAttentionFunction(torch.autograd.Function):
-#     @staticmethod
-#     @torch.no_grad()
-#     def construct(ctx, q, k, v, mask, causal, q_bucket_size, k_bucket_size):
-#         """Algorithm 2 in the paper"""
-
-#         device = q.device
-#         dtype = q.dtype
-#         max_neg_value = -torch.finfo(q.dtype).max
-#         qk_len_diff = max(k.shape[-2] - q.shape[-2], 0)
-
-#         o = torch.zeros_like(q)
-#         all_row_sums = torch.zeros((*q.shape[:-1], 1), dtype=dtype, device=device)
-#         all_row_maxes = torch.full((*q.shape[:-1], 1), max_neg_value, dtype=dtype, device=device)
-
-#         scale = q.shape[-1] ** -0.5
-
-#         if not exists(mask):
-#             mask = (None,) * math.ceil(q.shape[-2] / q_bucket_size)
-#         else:
-#             mask = rearrange(mask, "b n -> b 1 1 n")
-#             mask = mask.split(q_bucket_size, dim=-1)
-
-#         row_splits = zip(
-#             q.split(q_bucket_size, dim=-2),
-#             o.split(q_bucket_size, dim=-2),
-#             mask,
-#             all_row_sums.split(q_bucket_size, dim=-2),
-#             all_row_maxes.split(q_bucket_size, dim=-2),
-#         )
-
-#         for ind, (qc, oc, row_mask, row_sums, row_maxes) in enumerate(row_splits):
-#             q_start_index = ind * q_bucket_size - qk_len_diff
-
-#             col_splits = zip(
-#                 k.split(k_bucket_size, dim=-2),
-#                 v.split(k_bucket_size, dim=-2),
-#             )
-
-#             for k_ind, (kc, vc) in enumerate(col_splits):
-#                 k_start_index = k_ind * k_bucket_size
-
-#                 attn_weights = torch.einsum("... i d, ... j d -> ... i j", qc, kc) * scale
-
-#                 if exists(row_mask):
-#                     attn_weights.masked_fill_(~row_mask, max_neg_value)
-
-#                 if causal and q_start_index < (k_start_index + k_bucket_size - 1):
-#                     causal_mask = torch.ones((qc.shape[-2], kc.shape[-2]), dtype=torch.bool, device=device).triu(
-#                         q_start_index - k_start_index + 1
-#                     )
-#                     attn_weights.masked_fill_(causal_mask, max_neg_value)
-
-#                 block_row_maxes = attn_weights.amax(dim=-1, keepdims=True)
-#                 attn_weights -= block_row_maxes
-#                 exp_weights = torch.exp(attn_weights)
-
-#                 if exists(row_mask):
-#                     exp_weights.masked_fill_(~row_mask, 0.0)
-
-#                 block_row_sums = exp_weights.sum(dim=-1, keepdims=True).clamp(min=EPSILON)
-
-#                 new_row_maxes = torch.maximum(block_row_maxes, row_maxes)
-
-#                 exp_values = torch.einsum("... i j, ... j d -> ... i d", exp_weights, vc)
-
-#                 exp_row_max_diff = torch.exp(row_maxes - new_row_maxes)
-#                 exp_block_row_max_diff = torch.exp(block_row_maxes - new_row_maxes)
-
-#                 new_row_sums = exp_row_max_diff * row_sums + exp_block_row_max_diff * block_row_sums
-
-#                 oc.mul_((row_sums / new_row_sums) * exp_row_max_diff).add_((exp_block_row_max_diff / new_row_sums) * exp_values)
-
-#                 row_maxes.copy_(new_row_maxes)
-#                 row_sums.copy_(new_row_sums)
-
-#         ctx.args = (causal, scale, mask, q_bucket_size, k_bucket_size)
-#         ctx.save_for_backward(q, k, v, o, all_row_sums, all_row_maxes)
-
-#         return o
-
-#     @staticmethod
-#     @torch.no_grad()
-#     def backward(ctx, do):
-#         """Algorithm 4 in the paper"""
-
-#         causal, scale, mask, q_bucket_size, k_bucket_size = ctx.args
-#         q, k, v, o, l, m = ctx.saved_tensors
-
-#         device = q.device
-
-#         max_neg_value = -torch.finfo(q.dtype).max
-#         qk_len_diff = max(k.shape[-2] - q.shape[-2], 0)
-
-#         dq = torch.zeros_like(q)
-#         dk = torch.zeros_like(k)
-#         dv = torch.zeros_like(v)
-
-#         row_splits = zip(
-#             q.split(q_bucket_size, dim=-2),
-#             o.split(q_bucket_size, dim=-2),
-#             do.split(q_bucket_size, dim=-2),
-#             mask,
-#             l.split(q_bucket_size, dim=-2),
-#             m.split(q_bucket_size, dim=-2),
-#             dq.split(q_bucket_size, dim=-2),
-#         )
-
-#         for ind, (qc, oc, doc, row_mask, lc, mc, dqc) in enumerate(row_splits):
-#             q_start_index = ind * q_bucket_size - qk_len_diff
-
-#             col_splits = zip(
-#                 k.split(k_bucket_size, dim=-2),
-#                 v.split(k_bucket_size, dim=-2),
-#                 dk.split(k_bucket_size, dim=-2),
-#                 dv.split(k_bucket_size, dim=-2),
-#             )
-
-#             for k_ind, (kc, vc, dkc, dvc) in enumerate(col_splits):
-#                 k_start_index = k_ind * k_bucket_size
-
-#                 attn_weights = torch.einsum("... i d, ... j d -> ... i j", qc, kc) * scale
-
-#                 if causal and q_start_index < (k_start_index + k_bucket_size - 1):
-#                     causal_mask = torch.ones((qc.shape[-2], kc.shape[-2]), dtype=torch.bool, device=device).triu(
-#                         q_start_index - k_start_index + 1
-#                     )
-#                     attn_weights.masked_fill_(causal_mask, max_neg_value)
-
-#                 exp_attn_weights = torch.exp(attn_weights - mc)
-
-#                 if exists(row_mask):
-#                     exp_attn_weights.masked_fill_(~row_mask, 0.0)
-
-#                 p = exp_attn_weights / lc
-
-#                 dv_chunk = torch.einsum("... i j, ... i d -> ... j d", p, doc)
-#                 dp = torch.einsum("... i d, ... j d -> ... i j", doc, vc)
-
-#                 D = (doc * oc).sum(dim=-1, keepdims=True)
-#                 ds = p * scale * (dp - D)
-
-#                 dq_chunk = torch.einsum("... i j, ... j d -> ... i d", ds, kc)
-#                 dk_chunk = torch.einsum("... i j, ... i d -> ... j d", ds, qc)
-
-#                 dqc.add_(dq_chunk)
-#                 dkc.add_(dk_chunk)
-#                 dvc.add_(dv_chunk)
-
-#         return dq, dk, dv, None, None, None, None
-
-
-# # endregion
 
 
 def get_parameter_dtype(parameter: nn.Cell):
@@ -311,12 +152,14 @@ class ResnetBlock2D(nn.Cell):
         )
 
         if in_channels != out_channels:
-            self.skip_connection = nn.Conv2d(in_channels, out_channels, kernel_size=1, stride=1, padding=0, pad_mode="pad", has_bias=True)
+            self.skip_connection = nn.Conv2d(
+                in_channels, out_channels, kernel_size=1, stride=1, padding=0, pad_mode="pad", has_bias=True
+            )
         else:
             self.skip_connection = nn.Identity()
 
         self._gradient_checkpointing = False
-    
+
     @property
     def gradient_checkpointing(self):
         return self._gradient_checkpointing
@@ -345,7 +188,7 @@ class Downsample2D(nn.Cell):
         self.op = nn.Conv2d(self.channels, self.out_channels, 3, stride=2, padding=1, pad_mode="pad", has_bias=True)
 
         self._gradient_checkpointing = False
-    
+
     @property
     def gradient_checkpointing(self):
         return self._gradient_checkpointing
@@ -582,7 +425,12 @@ class FeedForward(nn.Cell):
 
 class BasicTransformerBlock(nn.Cell):
     def __init__(
-        self, dim: int, num_attention_heads: int, attention_head_dim: int, cross_attention_dim: int, upcast_attention: bool = False
+        self,
+        dim: int,
+        num_attention_heads: int,
+        attention_head_dim: int,
+        cross_attention_dim: int,
+        upcast_attention: bool = False,
     ):
         super().__init__()
 
@@ -607,11 +455,11 @@ class BasicTransformerBlock(nn.Cell):
             upcast_attention=upcast_attention,
         )
 
-        self.norm1 = nn.LayerNorm((dim, ))
-        self.norm2 = nn.LayerNorm((dim, ))
+        self.norm1 = nn.LayerNorm((dim,))
+        self.norm2 = nn.LayerNorm((dim,))
 
         # 3. Feed-forward
-        self.norm3 = nn.LayerNorm((dim, ))
+        self.norm3 = nn.LayerNorm((dim,))
 
     def set_use_memory_efficient_attention(self, xformers: bool, mem_eff: bool):
         self.attn1.set_use_memory_efficient_attention(xformers, mem_eff)
@@ -619,8 +467,8 @@ class BasicTransformerBlock(nn.Cell):
 
     def set_use_sdpa(self, sdpa: bool):
         self.attn1.set_use_sdpa(sdpa)
-        self.attn2.set_use_sdpa(sdpa)    
-    
+        self.attn2.set_use_sdpa(sdpa)
+
     @property
     def gradient_checkpointing(self):
         return self._gradient_checkpointing
@@ -628,10 +476,10 @@ class BasicTransformerBlock(nn.Cell):
     @gradient_checkpointing.setter
     def gradient_checkpointing(self, value):
         self._gradient_checkpointing = value
-        self.recompute( )
+        self.recompute()
 
     def construct(self, hidden_states, context=None, timestep=None):
-         # 1. Self-Attention
+        # 1. Self-Attention
         norm_hidden_states = self.norm1(hidden_states)
 
         hidden_states = self.attn1(norm_hidden_states) + hidden_states
@@ -670,7 +518,9 @@ class Transformer2DModel(nn.Cell):
         if use_linear_projection:
             self.proj_in = nn.Dense(in_channels, inner_dim)
         else:
-            self.proj_in = nn.Conv2d(in_channels, inner_dim, kernel_size=1, stride=1, padding=0, pad_mode="pad", has_bias=True)
+            self.proj_in = nn.Conv2d(
+                in_channels, inner_dim, kernel_size=1, stride=1, padding=0, pad_mode="pad", has_bias=True
+            )
 
         blocks = []
         for _ in range(num_transformer_layers):
@@ -689,7 +539,9 @@ class Transformer2DModel(nn.Cell):
         if use_linear_projection:
             self.proj_out = nn.Dense(in_channels, inner_dim)
         else:
-            self.proj_out = nn.Conv2d(inner_dim, in_channels, kernel_size=1, stride=1, padding=0, pad_mode="pad", has_bias=True)
+            self.proj_out = nn.Conv2d(
+                inner_dim, in_channels, kernel_size=1, stride=1, padding=0, pad_mode="pad", has_bias=True
+            )
 
         self.gradient_checkpointing = False
 
@@ -741,7 +593,7 @@ class Upsample2D(nn.Cell):
         self.conv = nn.Conv2d(self.channels, self.out_channels, 3, padding=1, pad_mode="pad", has_bias=True)
 
         self._gradient_checkpointing = False
-        
+
     @property
     def gradient_checkpointing(self):
         return self._gradient_checkpointing
@@ -767,7 +619,9 @@ class Upsample2D(nn.Cell):
 
         # if `output_size` is passed we force the interpolation output size and do not make use of `scale_factor=2`
         if output_size is None:
-            hidden_states = ops.interpolate(hidden_states, scale_factor=2.0, mode="nearest", recompute_scale_factor=True)
+            hidden_states = ops.interpolate(
+                hidden_states, scale_factor=2.0, mode="nearest", recompute_scale_factor=True
+            )
         else:
             hidden_states = ops.interpolate(hidden_states, size=output_size, mode="nearest")
 
@@ -816,10 +670,12 @@ class SdxlUNet2DConditionModel(nn.Cell):
 
         # input
         input_blocks = [
-                nn.SequentialCell(
-                    nn.Conv2d(self.in_channels, self.model_channels, kernel_size=3, padding=1, pad_mode="pad", has_bias=True),
-                )
-            ]
+            nn.SequentialCell(
+                nn.Conv2d(
+                    self.in_channels, self.model_channels, kernel_size=3, padding=1, pad_mode="pad", has_bias=True
+                ),
+            )
+        ]
 
         # level 0
         for i in range(2):
@@ -977,7 +833,11 @@ class SdxlUNet2DConditionModel(nn.Cell):
 
         # output
         self.out = nn.CellList(
-            [GroupNorm32(32, self.model_channels), nn.SiLU(), nn.Conv2d(self.model_channels, self.out_channels, 3, padding=1, pad_mode="pad", has_bias=True)]
+            [
+                GroupNorm32(32, self.model_channels),
+                nn.SiLU(),
+                nn.Conv2d(self.model_channels, self.out_channels, 3, padding=1, pad_mode="pad", has_bias=True),
+            ]
         )
 
     # region diffusers compatibility
@@ -997,7 +857,7 @@ class SdxlUNet2DConditionModel(nn.Cell):
 
     def enable_gradient_checkpointing(self):
         self.gradient_checkpointing = True
-        #self.set_gradient_checkpointing(value=True)
+        # self.set_gradient_checkpointing(value=True)
 
     def disable_gradient_checkpointing(self):
         self.gradient_checkpointing = False
@@ -1029,7 +889,7 @@ class SdxlUNet2DConditionModel(nn.Cell):
                     module.set_use_sdpa(sdpa)
 
     def set_gradient_checkpointing(self, value=False):
-        blocks = self.input_blocks + [self.middle_block] + self.output_blocks
+        # blocks = self.input_blocks + [self.middle_block] + self.output_blocks
         for block in self.input_blocks:
             for module in block.cells():
                 if hasattr(module, "gradient_checkpointing"):
@@ -1056,7 +916,7 @@ class SdxlUNet2DConditionModel(nn.Cell):
     def construct(self, x, timesteps=None, context=None, y=None, **kwargs):
         # broadcast timesteps to batch dimension
         if len(timesteps.shape) == 0 or timesteps.shape[0] != x.shape[0]:
-            timesteps = timesteps.tile((x.shape[0], ))
+            timesteps = timesteps.tile((x.shape[0],))
 
         hs = []
         t_emb = get_timestep_embedding(timesteps, self.model_channels, downscale_freq_shift=0)  # , repeat_only=False)
@@ -1187,7 +1047,9 @@ class InferSdxlUNet2DConditionModel:
                     org_dtype = h.dtype
                     if org_dtype == ms.bfloat16:
                         h = h.to(ms.float32)
-                    h = ops.interpolate(h, scale_factor=self.ds_ratio, mode="bicubic", align_corners=False).to(org_dtype)
+                    h = ops.interpolate(h, scale_factor=self.ds_ratio, mode="bicubic", align_corners=False).to(
+                        org_dtype
+                    )
 
             h = call_module(module, h, emb, context)
             hs.append(h)
@@ -1216,7 +1078,6 @@ class InferSdxlUNet2DConditionModel:
 
 
 if __name__ == "__main__":
-    import time
     ms.set_context(mode=ms.GRAPH_MODE, jit_syntax_level=ms.STRICT)
     logger.info("create unet")
     unet = SdxlUNet2DConditionModel()
@@ -1225,50 +1086,3 @@ if __name__ == "__main__":
     text_embedding = ops.randn(1, 77, 2048).to(ms.float32)
     vector_embedding = ops.randn(1, 2816).to(ms.float32)
     unet_results = unet(noisy_latents, timesteps, text_embedding, vector_embedding)
-#     unet.to("cuda")
-#     unet.set_use_memory_efficient_attention(True, False)
-#     unet.set_gradient_checkpointing(True)
-#     unet.train()
-
-#     # 使用メモリ量確認用の疑似学習ループ
-#     logger.info("preparing optimizer")
-
-#     # optimizer = torch.optim.SGD(unet.parameters(), lr=1e-3, nesterov=True, momentum=0.9) # not working
-
-#     # import bitsandbytes
-#     # optimizer = bitsandbytes.adam.Adam8bit(unet.parameters(), lr=1e-3)        # not working
-#     # optimizer = bitsandbytes.optim.RMSprop8bit(unet.parameters(), lr=1e-3)  # working at 23.5 GB with torch2
-#     # optimizer=bitsandbytes.optim.Adagrad8bit(unet.parameters(), lr=1e-3)  # working at 23.5 GB with torch2
-
-#     import transformers
-
-#     optimizer = transformers.optimization.Adafactor(unet.parameters(), relative_step=True)  # working at 22.2GB with torch2
-
-#     scaler = torch.cuda.amp.GradScaler(enabled=True)
-
-#     logger.info("start training")
-#     steps = 10
-#     batch_size = 1
-
-#     for step in range(steps):
-#         logger.info(f"step {step}")
-#         if step == 1:
-#             time_start = time.perf_counter()
-
-#         x = torch.randn(batch_size, 4, 128, 128).cuda()  # 1024x1024
-#         t = torch.randint(low=0, high=10, size=(batch_size,))
-#         ctx = torch.randn(batch_size, 77, 2048).cuda()
-#         y = torch.randn(batch_size, ADM_IN_CHANNELS).cuda()
-
-#         with torch.cuda.amp.autocast(enabled=True):
-#             output = unet(x, t, ctx, y)
-#             target = torch.randn_like(output)
-#             loss = torch.nn.functional.mse_loss(output, target)
-
-#         scaler.scale(loss).backward()
-#         scaler.step(optimizer)
-#         scaler.update()
-#         optimizer.zero_grad(set_to_none=True)
-
-#     time_end = time.perf_counter()
-#     logger.info(f"elapsed time: {time_end - time_start} [sec] for last {steps - 1} steps")

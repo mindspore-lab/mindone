@@ -1,17 +1,18 @@
-import os
-import mindspore as ms
-from mindspore import ops, Parameter, nn
-
-from typing import Optional, Dict, Union, List
-import numpy as np
-from safetensors import numpy
-from tranformers import CLIPTextConfig, CLIPTokenizer
-from mindone.transformers import CLIPTextModel, CLIPTextModelWithProjection, 
-from mindone.diffusers import AutoencoderKL
-from library import model_util
-from library import sdxl_original_unet
-
 import logging
+import os
+from typing import Dict, List, Union
+
+import numpy as np
+from library import model_util, sdxl_original_unet
+from safetensors import numpy
+from transformers import CLIPTextConfig
+
+import mindspore as ms
+from mindspore import Parameter, nn, ops
+
+from mindone.diffusers import AutoencoderKL
+from mindone.transformers import CLIPTextModel, CLIPTextModelWithProjection
+
 logger = logging.getLogger(__name__)
 
 VAE_SCALE_FACTOR = 0.13025
@@ -19,6 +20,7 @@ MODEL_VERSION_SDXL_BASE_V1_0 = "sdxl_base_v1-0"
 
 # # Diffusersの設定を読み込むための参照モデル
 # DIFFUSERS_REF_MODEL_ID_SDXL = "stabilityai/stable-diffusion-xl-base-1.0"
+
 
 def load_file(filename: Union[str, os.PathLike]) -> Dict[str, ms.Tensor]:
     """
@@ -118,7 +120,9 @@ def convert_sdxl_text_encoder_2_checkpoint(checkpoint, max_length):
 
     # temporary workaround for text_projection.weight.weight for Playground-v2
     if "text_projection.weight.weight" in new_sd:
-        logger.info("convert_sdxl_text_encoder_2_checkpoint: convert text_projection.weight.weight to text_projection.weight")
+        logger.info(
+            "convert_sdxl_text_encoder_2_checkpoint: convert text_projection.weight.weight to text_projection.weight"
+        )
         new_sd["text_projection.weight"] = new_sd["text_projection.weight.weight"]
         del new_sd["text_projection.weight.weight"]
 
@@ -133,28 +137,34 @@ def _load_state_dict_on_device(model, state_dict, dtype=None):
 
     # similar to model.load_state_dict()
     if not missing_keys and not unexpected_keys:
-        for k in list(state_dict.keys()):
-            set_module_tensor_to_device(model, k, value=state_dict.pop(k), dtype=dtype)
+        # for k in list(state_dict.keys()):
+        #     set_module_tensor_to_device(model, k, value=state_dict.pop(k), dtype=dtype)
         return "<All keys matched successfully>"
 
     # error_msgs
     error_msgs: List[str] = []
     if missing_keys:
-        error_msgs.insert(0, "Missing key(s) in state_dict: {}. ".format(", ".join('"{}"'.format(k) for k in missing_keys)))
+        error_msgs.insert(
+            0, "Missing key(s) in state_dict: {}. ".format(", ".join('"{}"'.format(k) for k in missing_keys))
+        )
     if unexpected_keys:
-        error_msgs.insert(0, "Unexpected key(s) in state_dict: {}. ".format(", ".join('"{}"'.format(k) for k in unexpected_keys)))
+        error_msgs.insert(
+            0, "Unexpected key(s) in state_dict: {}. ".format(", ".join('"{}"'.format(k) for k in unexpected_keys))
+        )
 
-    raise RuntimeError("Error(s) in loading state_dict for {}:\n\t{}".format(model.__class__.__name__, "\n\t".join(error_msgs)))
+    raise RuntimeError(
+        "Error(s) in loading state_dict for {}:\n\t{}".format(model.__class__.__name__, "\n\t".join(error_msgs))
+    )
 
 
-def load_models_from_sdxl_checkpoint(model_version, ckpt_path, map_location, dtype=None):
+def load_models_from_sdxl_checkpoint(ckpt_path, dtype=None):
     # model_version is reserved for future use
     # dtype is used for full_fp16/bf16 integration. Text Encoder will remain fp32, because it runs on CPU when caching
 
     # Load the state dict
-    try:
+    if ckpt_path.endswith(".ckpt"):
         state_dict = ms.load_checkpoint(ckpt_path)
-    except:
+    else:
         state_dict = load_file(ckpt_path)  # prevent device invalid Error
         logger.info("load from safetensor")
 
@@ -172,7 +182,7 @@ def load_models_from_sdxl_checkpoint(model_version, ckpt_path, map_location, dty
             unet_sd[k.replace("model.diffusion_model.", "")] = state_dict.pop(k)
     if "safetensors" in ckpt_path:
         unet_sd = _convert_state_dict(unet, unet_sd)
-    local_states = {k: v for k, v in unet.prameters_and_names()}
+    local_states = {k: v for k, v in unet.parameters_and_names()}
     for k, v in unet_sd.items():
         for k in local_states:
             v.set_dtype(local_states[k].dtype)
@@ -247,7 +257,7 @@ def load_models_from_sdxl_checkpoint(model_version, ckpt_path, map_location, dty
         te1_sd.pop("text_model.embeddings.position_ids")
     if "safetensors" in ckpt_path:
         tel_sd = _convert_state_dict(text_model1, te1_sd)
-    local_states = {k: v for k, v in text_model1.prameters_and_names()}
+    local_states = {k: v for k, v in text_model1.parameters_and_names()}
     for k, v in tel_sd.items():
         for k in local_states:
             v.set_dtype(local_states[k].dtype)

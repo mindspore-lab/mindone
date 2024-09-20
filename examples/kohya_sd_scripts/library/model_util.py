@@ -2,6 +2,8 @@
 # v2: support safetensors
 
 import math
+import os
+
 from mindspore import Parameter
 
 # DiffUsers版StableDiffusionのモデルパラメータ
@@ -145,7 +147,7 @@ def assign_to_checkpoint(
 
         # proj_attn.weight has to be converted from conv 1D to linear
         reshaping = False
-        
+
         if ".attentions." in new_path and ".0.to_" in new_path and old_checkpoint[path["old"]].ndim > 2:
             reshaping = True
 
@@ -194,7 +196,6 @@ def convert_ldm_vae_checkpoint(checkpoint, config):
     new_checkpoint["encoder.conv_in.bias"] = vae_state_dict["encoder.conv_in.bias"]
     new_checkpoint["encoder.conv_out.weight"] = vae_state_dict["encoder.conv_out.weight"]
     new_checkpoint["encoder.conv_out.bias"] = vae_state_dict["encoder.conv_out.bias"]
-    
 
     new_checkpoint["decoder.conv_in.weight"] = vae_state_dict["decoder.conv_in.weight"]
     new_checkpoint["decoder.conv_in.bias"] = vae_state_dict["decoder.conv_in.bias"]
@@ -219,11 +220,15 @@ def convert_ldm_vae_checkpoint(checkpoint, config):
 
     # Retrieves the keys for the encoder down blocks only
     num_down_blocks = len({".".join(layer.split(".")[:3]) for layer in vae_state_dict if "encoder.down" in layer})
-    down_blocks = {layer_id: [key for key in vae_state_dict if f"down.{layer_id}" in key] for layer_id in range(num_down_blocks)}
+    down_blocks = {
+        layer_id: [key for key in vae_state_dict if f"down.{layer_id}" in key] for layer_id in range(num_down_blocks)
+    }
 
     # Retrieves the keys for the decoder up blocks only
     num_up_blocks = len({".".join(layer.split(".")[:3]) for layer in vae_state_dict if "decoder.up" in layer})
-    up_blocks = {layer_id: [key for key in vae_state_dict if f"up.{layer_id}" in key] for layer_id in range(num_up_blocks)}
+    up_blocks = {
+        layer_id: [key for key in vae_state_dict if f"up.{layer_id}" in key] for layer_id in range(num_up_blocks)
+    }
 
     for i in range(num_down_blocks):
         resnets = [key for key in down_blocks[i] if f"down.{i}" in key and f"down.{i}.downsample" not in key]
@@ -257,7 +262,9 @@ def convert_ldm_vae_checkpoint(checkpoint, config):
 
     for i in range(num_up_blocks):
         block_id = num_up_blocks - 1 - i
-        resnets = [key for key in up_blocks[block_id] if f"up.{block_id}" in key and f"up.{block_id}.upsample" not in key]
+        resnets = [
+            key for key in up_blocks[block_id] if f"up.{block_id}" in key and f"up.{block_id}.upsample" not in key
+        ]
 
         if f"decoder.up.{block_id}.upsample.conv.weight" in vae_state_dict:
             new_checkpoint[f"decoder.up_blocks.{i}.upsamplers.0.conv.weight"] = vae_state_dict[
@@ -369,17 +376,3 @@ def make_bucket_resolutions(max_reso, min_size=256, max_size=1024, divisible=64)
     resos = list(resos)
     resos.sort()
     return resos
-
-
-if __name__ == "__main__":
-    resos = make_bucket_resolutions((512, 768))
-    logger.info(f"{len(resos)}")
-    logger.info(f"{resos}")
-    aspect_ratios = [w / h for w, h in resos]
-    logger.info(f"{aspect_ratios}")
-
-    ars = set()
-    for ar in aspect_ratios:
-        if ar in ars:
-            logger.error(f"error! duplicate ar: {ar}")
-        ars.add(ar)
