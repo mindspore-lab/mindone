@@ -27,7 +27,7 @@ class MLP(nn.Cell):
         self.use_residual = use_residual
         self.act_fn = nn.GELU()
 
-    def forward(self, x):
+    def construct(self, x):
         residual = x
         x = self.layernorm(x)
         x = self.fc1(x)
@@ -52,7 +52,7 @@ class FuseModule(nn.Cell):
         stacked_id_embeds = self.layer_norm(stacked_id_embeds)
         return stacked_id_embeds
 
-    def forward(
+    def construct(
         self,
         prompt_embeds,
         id_embeds,
@@ -90,7 +90,7 @@ class PhotoMakerIDEncoder(CLIPVisionModelWithProjection):
         self.visual_projection_2 = nn.Dense(1024, 1280, has_bias=False)
         self.fuse_module = FuseModule(2048)
 
-    def forward(self, id_pixel_values, prompt_embeds, class_tokens_mask):
+    def construct(self, id_pixel_values, prompt_embeds, class_tokens_mask):
         b, num_inputs, c, h, w = id_pixel_values.shape
         id_pixel_values = id_pixel_values.view(b * num_inputs, c, h, w)
 

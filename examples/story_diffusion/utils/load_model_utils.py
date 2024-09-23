@@ -16,18 +16,14 @@ from mindone.diffusers import StableDiffusionXLPipeline
 
 
 def get_models_dict():
-    # 打开并读取YAML文件
     with open("config/models.yaml", "r") as stream:
         try:
-            # 解析YAML文件内容
             data = yaml.safe_load(stream)
 
-            # 此时 'data' 是一个Python字典，里面包含了YAML文件的所有数据
             print(data)
             return data
 
         except yaml.YAMLError as exc:
-            # 如果在解析过程中发生了错误，打印异常信息
             print(exc)
 
 
