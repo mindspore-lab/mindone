@@ -207,6 +207,14 @@ def _convert_non_diffusers_lora_to_diffusers(state_dict, unet_name="unet", text_
         # Store alpha if present.
         if lora_name_alpha in state_dict:
             alpha = state_dict.pop(lora_name_alpha).item()
+            # When alpha comes from a Tensor with dtype bfloat16, the `item()` returns an instance
+            # of ml_dtypes.bfloat16 which couldn't be computed with float, int or tensors directly.
+            # Therefore we cast it to float to enable binary operation with others.
+
+            # TODO: mindspore_bf16_tensor.item() should return to a python built-in float natively,
+            # push mindspore to do it.
+            if not isinstance(alpha, (int, float)):
+                alpha = float(alpha)
             network_alphas.update(_get_alpha_name(lora_name_alpha, diffusers_name, alpha))
 
     # Check if any keys remain.
