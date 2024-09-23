@@ -24,8 +24,7 @@ def add_white_border(input_image, border_width=10):
     :param border_width: 边框宽度（单位：像素）
     :return: 带有白色边框的PIL图像对象
     """
-    border_color = "white"  # 白色边框
-    # 添加边框
+    border_color = "white"
     img_with_border = ImageOps.expand(input_image, border=border_width, fill=border_color)
     return img_with_border
 
@@ -225,26 +224,20 @@ def get_row_image2(images, captions=None, font=None):
 
 
 def concat_images_vertically_and_scale(images, scale_factor=2):
-    # 加载所有图像
-    # 确保所有图像的宽度一致
     widths = [img.width for img in images]
     if not all(width == widths[0] for width in widths):
         raise ValueError("All images must have the same width.")
 
-    # 计算总高度
     total_height = sum(img.height for img in images)
 
-    # 创建新的图像，宽度与原图相同，高度为所有图像高度之和
     max_width = max(widths)
     concatenated_image = Image.new("RGB", (max_width, total_height))
 
-    # 竖直拼接图像
     current_height = 0
     for img in images:
         concatenated_image.paste(img, (0, current_height))
         current_height += img.height
 
-    # 缩放图像为1/n高度
     new_height = concatenated_image.height // scale_factor
     new_width = concatenated_image.width // scale_factor
     resized_image = concatenated_image.resize((new_width, new_height), Image.LANCZOS)
@@ -253,19 +246,13 @@ def concat_images_vertically_and_scale(images, scale_factor=2):
 
 
 def combine_images_horizontally(images):
-    # 读取所有图片并存入列表
-
-    # 获取每幅图像的宽度和高度
     widths, heights = zip(*(i.size for i in images))
 
-    # 计算总宽度和最大高度
     total_width = sum(widths)
     max_height = max(heights)
 
-    # 创建新的空白图片，用于拼接
     new_im = Image.new("RGB", (total_width, max_height))
 
-    # 将图片横向拼接
     x_offset = 0
     for im in images:
         new_im.paste(im, (x_offset, 0))
@@ -275,28 +262,20 @@ def combine_images_horizontally(images):
 
 
 def combine_images_vertically_with_resize(images):
-    # 获取所有图片的宽度和高度
     widths, heights = zip(*(i.size for i in images))
 
-    # 确定新图片的宽度，即所有图片中最小的宽度
     min_width = min(widths)
 
-    # 调整图片尺寸以保持宽度一致，长宽比不变
     resized_images = []
     for img in images:
-        # 计算新高度保持图片长宽比
         new_height = int(min_width * img.height / img.width)
-        # 调整图片大小
         resized_img = img.resize((min_width, new_height), Image.LANCZOS)
         resized_images.append(resized_img)
 
-    # 计算所有调整尺寸后图片的总高度
     total_height = sum(img.height for img in resized_images)
 
-    # 创建一个足够宽和高的新图片对象
     new_im = Image.new("RGB", (min_width, total_height))
 
-    # 竖直拼接图片
     y_offset = 0
     for im in resized_images:
         new_im.paste(im, (0, y_offset))
@@ -336,10 +315,7 @@ def distribute_images(images, group_sizes=(4, 3, 2)):
     remaining = len(images)
 
     while remaining > 0:
-        # 优先分配最大组（4张图片），再考虑3张，最后处理2张
         for size in sorted(group_sizes, reverse=True):
-            # 如果剩下的图片数量大于等于当前组大小，或者为图片总数时（也就是第一次迭代）
-            # 开始创建新组
             if remaining >= size or remaining == len(images):
                 if remaining > size:
                     new_group = images[-remaining : -remaining + size]
@@ -348,7 +324,6 @@ def distribute_images(images, group_sizes=(4, 3, 2)):
                 groups.append(new_group)
                 remaining -= size
                 break
-            # 如果剩下的图片少于最小的组大小（2张）并且已经有组了，就把剩下的图片加到最后一个组
             elif remaining < min(group_sizes) and groups:
                 groups[-1].extend(images[-remaining:])
                 remaining = 0

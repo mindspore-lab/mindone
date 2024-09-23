@@ -288,7 +288,7 @@ def cal_attn_indice_xl_effcient_memory(total_length, id_length, sa32, sa64, heig
     nums_4096 = (height // 16) * (width // 16)
     bool_matrix1024 = ops.rand((total_length, nums_1024), dtype=dtype) < sa32
     bool_matrix4096 = ops.rand((total_length, nums_4096), dtype=dtype) < sa64
-    # 用nonzero()函数获取所有为True的值的索引
+
     indices1024 = [ops.nonzero(bool_matrix1024[i])[0] for i in range(total_length)]
     indices4096 = [ops.nonzero(bool_matrix4096[i])[0] for i in range(total_length)]
 
@@ -409,13 +409,11 @@ class AttnProcessor2_0:
         return hidden_states
 
 
-# 将列表转换为字典的函数
 def character_to_dict(general_prompt):
     character_dict = {}
     generate_prompt_arr = general_prompt.splitlines()
     character_list = []
     for ind, string in enumerate(generate_prompt_arr):
-        # 分割字符串寻找key和value
         start = string.find("[")
         end = string.find("]")
         if start != -1 and end != -1:
