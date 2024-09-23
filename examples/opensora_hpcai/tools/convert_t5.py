@@ -137,6 +137,6 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--model_dir", type=str, required=True, help="Path to a folder containing the model.")
     args = parser.parse_args()
-    filename = os.path.join(args.model_path, "pytorch_model.bin.index.json")
+    filename = os.path.join(args.model_dir, "pytorch_model.bin.index.json")
 
     convert_multi(filename, folder=args.model_dir)
