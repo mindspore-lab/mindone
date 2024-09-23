@@ -135,10 +135,10 @@ class SD3ControlNetModel(ModelMixin, ConfigMixin, PeftAdapterMixin):
             if hasattr(module, "set_chunk_feed_forward"):
                 module.set_chunk_feed_forward(chunk_size=chunk_size, dim=dim)
 
-            for child in module.name_cells().items():
+            for child in module.name_cells().values():
                 fn_recursive_feed_forward(child, chunk_size, dim)
 
-        for module in self.name_cells().items():
+        for module in self.name_cells().values():
             fn_recursive_feed_forward(module, chunk_size, dim)
 
     @property

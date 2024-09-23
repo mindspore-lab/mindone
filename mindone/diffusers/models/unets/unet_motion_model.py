@@ -701,10 +701,10 @@ class UNetMotionModel(ModelMixin, ConfigMixin, UNet2DConditionLoadersMixin):
             if hasattr(module, "set_chunk_feed_forward"):
                 module.set_chunk_feed_forward(chunk_size=chunk_size, dim=dim)
 
-            for child in module.name_cells().items():
+            for child in module.name_cells().values():
                 fn_recursive_feed_forward(child, chunk_size, dim)
 
-        for module in self.name_cells().items():
+        for module in self.name_cells().values():
             fn_recursive_feed_forward(module, chunk_size, dim)
 
     # Copied from diffusers.models.unets.unet_3d_condition.UNet3DConditionModel.disable_forward_chunking
@@ -713,10 +713,10 @@ class UNetMotionModel(ModelMixin, ConfigMixin, UNet2DConditionLoadersMixin):
             if hasattr(module, "set_chunk_feed_forward"):
                 module.set_chunk_feed_forward(chunk_size=chunk_size, dim=dim)
 
-            for child in module.name_cells().items():
+            for child in module.name_cells().values():
                 fn_recursive_feed_forward(child, chunk_size, dim)
 
-        for module in self.name_cells().items():
+        for module in self.name_cells().values():
             fn_recursive_feed_forward(module, None, 0)
 
     # Copied from diffusers.models.unets.unet_2d_condition.UNet2DConditionModel.set_default_attn_processor
