@@ -248,10 +248,9 @@ Please prepare the model checkpoints of T5, VAE, and STDiT and put them under `m
 
 - T5: Download the [DeepFloyd/t5-v1_1-xxl](https://huggingface.co/DeepFloyd/t5-v1_1-xxl/tree/main) folder and put it under `models/`
 
-    Convert to ms checkpoint:
-    ```
-    python tools/convert_t5.py --src models/t5-v1_1-xxl/pytorch_model-00001-of-00002.bin  models/t5-v1_1-xxl/pytorch_model-00002-of-00002.bin --target models/t5-v1_1-xxl/model.ckpt
-
+    Convert to `safetensors` checkpoint (required by `mindone.transformers`):
+    ```shell
+    python tools/convert_t5.py --model_dir ./models/t5-v1_1-xxl/
     ```
 
 - VAE: Download the safetensor checkpoint from [here]((https://huggingface.co/stabilityai/sd-vae-ft-ema/tree/main))
