@@ -501,10 +501,10 @@ def conv_attn_to_linear(checkpoint):
     for key in keys:
         if ".".join(key.split(".")[-2:]) in attn_keys:
             if checkpoint[key].ndim > 2:
-                checkpoint[key] = checkpoint[key][:, :, 0, 0]
+                checkpoint[key] = Parameter(checkpoint[key][:, :, 0, 0], name=key)
         elif "proj_attn.weight" in key:
             if checkpoint[key].ndim > 2:
-                checkpoint[key] = checkpoint[key][:, :, 0]
+                checkpoint[key] = Parameter(checkpoint[key][:, :, 0], name=key)
 
 
 def create_unet_diffusers_config_from_ldm(
@@ -1308,17 +1308,28 @@ def convert_open_clip_checkpoint(
         if key.endswith(".in_proj_weight"):
             weight_value = checkpoint.get(key)
 
-            text_model_dict[diffusers_key + ".q_proj.weight"] = weight_value[:text_proj_dim, :].copy()
-            text_model_dict[diffusers_key + ".k_proj.weight"] = weight_value[
-                text_proj_dim : text_proj_dim * 2, :
-            ].copy()
-            text_model_dict[diffusers_key + ".v_proj.weight"] = weight_value[text_proj_dim * 2 :, :].copy()
+            text_model_dict[diffusers_key + ".q_proj.weight"] = Parameter(
+                weight_value[:text_proj_dim, :].copy(), name=diffusers_key + ".q_proj.weight"
+            )
+            text_model_dict[diffusers_key + ".k_proj.weight"] = Parameter(
+                weight_value[text_proj_dim : text_proj_dim * 2, :].copy(),
+                name=diffusers_key + ".k_proj.weight",
+            )
+            text_model_dict[diffusers_key + ".v_proj.weight"] = Parameter(
+                weight_value[text_proj_dim * 2 :, :].copy(), name=diffusers_key + ".v_proj.weight"
+            )
 
         elif key.endswith(".in_proj_bias"):
             weight_value = checkpoint.get(key)
-            text_model_dict[diffusers_key + ".q_proj.bias"] = weight_value[:text_proj_dim].copy()
-            text_model_dict[diffusers_key + ".k_proj.bias"] = weight_value[text_proj_dim : text_proj_dim * 2].copy()
-            text_model_dict[diffusers_key + ".v_proj.bias"] = weight_value[text_proj_dim * 2 :].copy()
+            text_model_dict[diffusers_key + ".q_proj.bias"] = Parameter(
+                weight_value[:text_proj_dim].copy(), name=diffusers_key + ".q_proj.bias"
+            )
+            text_model_dict[diffusers_key + ".k_proj.bias"] = Parameter(
+                weight_value[text_proj_dim : text_proj_dim * 2].copy(), name=diffusers_key + ".k_proj.bias"
+            )
+            text_model_dict[diffusers_key + ".v_proj.bias"] = Parameter(
+                weight_value[text_proj_dim * 2 :].copy(), name=diffusers_key + ".v_proj.bias"
+            )
         else:
             text_model_dict[diffusers_key] = checkpoint.get(key)
 
