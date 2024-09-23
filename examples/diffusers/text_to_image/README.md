@@ -15,9 +15,6 @@ Before running the scripts, make sure to install the library's training dependen
 
 **Important**
 
-The training script is compute-intensive and only runs on an Ascend 910*. Please run the scripts with CANN version ([CANN 8.0.RC2.beta1](https://www.hiascend.com/developer/download/community/result?module=cann&cann=8.0.RC2.beta1)) and MindSpore version ([MS 2.3.0](https://www.mindspore.cn/versions#2.3.0)). You can use
-`cat /usr/local/Ascend/ascend-toolkit/latest/version.cfg` check the CANN version and you can see the specific version number [7.3.0.1.231:8.0.RC2]. If you have a custom installation path for CANN, find the `version.cfg` in your own CANN installation path to verify the version.
-
 To make sure you can successfully run the latest versions of the example scripts, we highly recommend **installing from source** and keeping the install up to date as we update the example scripts frequently and install some example-specific requirements. To do this, execute the following steps in a new virtual environment:
 ```bash
 git clone https://github.com/mindspore-lab/mindone
@@ -29,6 +26,8 @@ Then cd in the example folder `examples/diffusers/text_to_image` and run
 ```bash
 pip install -r requirements.txt
 ```
+
+The training script is compute-intensive and only runs on an Ascend 910*. Please run the scripts with MindSpore version(MS2.3.0).
 
 ### OnePiece example
 
@@ -43,6 +42,8 @@ huggingface-cli login
 ```
 
 If you have already cloned the repo, then you won't need to go through these steps.
+
+<br>
 
 #### Hardware
 
@@ -108,15 +109,6 @@ msrun --worker_num=8 --local_worker_num=8 --log_dir=$output_dir  \
   --output_dir="sd-your-dataset-model-$(date +%Y%m%d%H%M%S)"
 ```
 
-### Performance
-
-For the training example above, we trained on the OnePiece dataset and recorded the training speed as follows.
-
-| Method  | NPUs | Global <br/>Batch size | Resolution   | Precision | Graph Compile | Speed <br/>(ms/step) | FPS <br/>(img/s) |
-|---------|------|------------------------|--------------|-----------|---------------|----------------------|------------------|
-| vanilla | 1    | 1*1                    | 512x512      | FP16      | 1~5 mins      | 260                  | 3.85             |
-| vanilla | 8    | 1*8                    | 512x512      | FP16      | 1~5 mins      | 404                  | 19.8             |
-
 Once the training is finished the model will be saved in the `output_dir` specified in the command. In this example it's `sd-onepiece-model`. To load the fine-tuned model for inference just pass that path to `StableDiffusionPipeline`
 
 ```python
@@ -126,8 +118,8 @@ from mindone.diffusers import StableDiffusionPipeline
 model_path = "sd-onepiece-model"
 pipe = StableDiffusionPipeline.from_pretrained(model_path, mindspore_dtype=ms.float16)
 
-image = pipe(prompt="a man with a beard and a shirt")[0][0]
-image.save("onepiece.png")
+image = pipe(prompt="a man in a straw hat")[0][0]
+image.save("a-man-in-a-straw-hat.png")
 ```
 
 Checkpoints only save the unet, so to run inference from a checkpoint, just load the unet
@@ -141,20 +133,9 @@ unet = UNet2DConditionModel.from_pretrained(model_path + "/checkpoint-<N>/unet",
 
 pipe = StableDiffusionPipeline.from_pretrained("<initial model>", unet=unet, mindspore_dtype=ms.float16)
 
-image = pipe(prompt="a man with a beard and a shirt")[0][0]
-image.save("onepiece.png")
+image = pipe(prompt="a man in a straw hat")[0][0]
+image.save("a-man-in-a-straw-hat.png")
 ```
-
-We trained 6k steps based on the OnePiece dataset. Here are some of the results of the fine-tuning.
-
-|                                                                      a girl with a mask on her face                                                                      |                                                                 a man holding a book                                                                  |                                                                 a man holding a sword                                                                  |                                                                 a man sitting on top of a flower                                                                  |
-|:------------------------------------------------------------------------------------------------------------------------------------------------------------------------:|:-----------------------------------------------------------------------------------------------------------------------------------------------------:|:------------------------------------------------------------------------------------------------------------------------------------------------------:|:-----------------------------------------------------------------------------------------------------------------------------------------------------------------:|
-| <img src="https://github.com/liuchuting/mindone/blob/image/examples/diffusers/text_to_image/images/sd_base_infer/a_girl_with_a_mask_on_her_face.png?raw=true" width=224> | <img src="https://github.com/liuchuting/mindone/blob/image/examples/diffusers/text_to_image/images/sd_base_infer/a_man_holding_a_book.png" width=224> | <img src="https://github.com/liuchuting/mindone/blob/image/examples/diffusers/text_to_image/images/sd_base_infer/a_man_holding_a_sword.png" width=224> | <img src="https://github.com/liuchuting/mindone/blob/image/examples/diffusers/text_to_image/images/sd_base_infer/a_man_sitting_on_top_of_a_flower.png" width=224> |
-
-|                                                                 a man with a beard and a shirt                                                                  |                                                                 a man with a knife in his hand                                                                  |                                                                 a smiling woman in a helmet                                                                  |                                                                 a woman in a white dress                                                                  |
-|:---------------------------------------------------------------------------------------------------------------------------------------------------------------:|:---------------------------------------------------------------------------------------------------------------------------------------------------------------:|:------------------------------------------------------------------------------------------------------------------------------------------------------------:|:---------------------------------------------------------------------------------------------------------------------------------------------------------:|
-| <img src="https://github.com/liuchuting/mindone/blob/image/examples/diffusers/text_to_image/images/sd_base_infer/a_man_with_a_beard_and_a_shirt.png" width=224> | <img src="https://github.com/liuchuting/mindone/blob/image/examples/diffusers/text_to_image/images/sd_base_infer/a_man_with_a_knife_in_his_hand.png" width=224> | <img src="https://github.com/liuchuting/mindone/blob/image/examples/diffusers/text_to_image/images/sd_base_infer/a_smiling_woman_in_a_helmet.png" width=224> | <img src="https://github.com/liuchuting/mindone/blob/image/examples/diffusers/text_to_image/images/sd_base_infer/a_woman_in_a_white_dress.png" width=224> |
-
 
 #### Training with Min-SNR weighting
 
@@ -238,15 +219,6 @@ The final LoRA embedding weights have been uploaded to [sayakpaul/sd-model-finet
 
 You can check some inference samples that were logged during the course of the fine-tuning process [here](https://wandb.ai/sayakpaul/text2image-fine-tune/runs/q4lc0xsw).
 
-### Performance
-
-For the training example above, we trained on the OnePiece dataset and recorded the training speed as follows.
-
-| Method | NPUs | Global <br/>Batch size | Resolution   | Precision | Graph Compile | Speed <br/>(ms/step) | FPS <br/>(img/s) |
-|--------|------|------------------------|--------------|-----------|---------------|----------------------|------------------|
-| lora   | 1    | 1*1                    | 512x512      | FP16      | 1~5 mins      | 200                  | 5.00             |
-| lora   | 8    | 1*8                    | 512x512      | FP16      | 1~5 mins      | 231                  | 34.63            |
-
 ### Inference
 
 If the LoRA weights you want to use is from huggingface, you can replace the following model_path like `model_path = "sayakpaul/sd-model-finetuned-lora-t4"`. Once you have trained a model using above command, the inference can be done simply using the `StableDiffusionPipeline` after loading the trained LoRA weights. You
@@ -260,16 +232,10 @@ model_path = "sd-onepiece-model-lora"
 pipe = StableDiffusionPipeline.from_pretrained("CompVis/stable-diffusion-v1-4", mindspore_dtype=ms.float16)
 pipe.load_lora_weights(model_path)
 
-prompt = "a man in a hat and jacket"
+prompt = "a man in a straw hat"
 image = pipe(prompt, num_inference_steps=30, guidance_scale=7.5)[0][0]
-image.save(f"onepiece.png")
+image.save(f"a-man-in-a-straw-hat.png")
 ```
-
-We trained 15k steps based on the OnePiece dataset. Here are some of the results of the lora fine-tuning.
-
-|                                                                      a man in a hat and jacket                                                                      |                                                                 a man in a yellow coat                                                                  |                                                                 a man with a big smile on his face                                                                  |                                                                 a man with a hat and mustache                                                                  |
-|:-------------------------------------------------------------------------------------------------------------------------------------------------------------------:|:-------------------------------------------------------------------------------------------------------------------------------------------------------:|:-------------------------------------------------------------------------------------------------------------------------------------------------------------------:|:--------------------------------------------------------------------------------------------------------------------------------------------------------------:|
-| <img src="https://github.com/liuchuting/mindone/blob/image/examples/diffusers/text_to_image/images/sd_lora_infer/a_man_in_a_hat_and_jacket.png?raw=true" width=224> | <img src="https://github.com/liuchuting/mindone/blob/image/examples/diffusers/text_to_image/images/sd_lora_infer/a_man_in_a_yellow_coat.png" width=224> | <img src="https://github.com/liuchuting/mindone/blob/image/examples/diffusers/text_to_image/images/sd_lora_infer/a_man_with_a_big_smile_on_his_face.png" width=224> | <img src="https://github.com/liuchuting/mindone/blob/image/examples/diffusers/text_to_image/images/sd_lora_infer/a_man_with_a_hat_and_mustache.png" width=224> |
 
 If you are loading the LoRA parameters from the Hub and if the Hub repository has
 a `base_model` tag (such as [this](https://huggingface.co/sayakpaul/sd-model-finetuned-lora-t4/blob/main/README.md?code=true#L4)), then
@@ -289,3 +255,7 @@ pipe = StableDiffusionPipeline.from_pretrained(base_model_id, mindspore_dtype=ms
 ## Stable Diffusion XL
 
 * We support fine-tuning the UNet shipped in [Stable Diffusion XL](https://huggingface.co/papers/2307.01952) via the `train_text_to_image_sdxl.py` script. Please refer to the docs [here](./README_sdxl.md).
+
+## Tutorials
+
+The above training performance and inference results are recorded [here](https://github.com/liuchuting/tutorials/blob/sd_doc/aigc/diffusers/text_to_image/sd_performance_and_inference_results.md).

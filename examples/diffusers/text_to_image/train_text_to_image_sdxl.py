@@ -851,7 +851,7 @@ def main():
 
     # Prepare everything with our `accelerator`.
     # todo: auto mixed precision here
-    unet.to_float(weight_dtype)  # maybe using `to(weight_dtype)` gives faster performance?
+    unet.to(weight_dtype)  # maybe using `to(weight_dtype)` gives faster performance?
 
     # We need to recalculate our total training steps as the size of the training dataloader may have changed.
     num_update_steps_per_epoch = math.ceil(len(train_dataloader) / args.gradient_accumulation_steps)
