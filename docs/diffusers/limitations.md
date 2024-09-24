@@ -18,6 +18,15 @@ Due to differences in framework, some APIs & models will not be identical to [hu
 Unlike the output `posterior = DiagonalGaussianDistribution(latent)`, which can do sampling by `posterior.sample()`.
 We can only output the `latent` and then do sampling through `AutoencoderKL.diag_gauss_dist.sample(latent)`.
 
+### `self.config` in `construct()`
+
+For many models, parameters used in initialization will be registered in `self.config`. They are often accessed during the `construct` like using `if self.config.xxx == xxx` to determine execution paths in origin 🤗diffusers. However getting attributes like this is not supported by static graph syntax of MindSpore. Two feasible replacement options are
+
+- set new attributes in initialization for `self` like `self.xxx = self.config.xxx`, then use `self.xxx` in `construct` instead.
+- use `self.config["xxx"]` as `self.config` is an `OrderedDict` and getting items like this is supported in static graph mode.
+
+When `self.config.xxx` changed, we change `self.xxx` and `self.config["xxx"]` both.
+
 ## Models
 
 The table below represents the current support in mindone/diffusers for each of those modules, whether they have support in Pynative fp16 mode, Graph fp16 mode, Pynative fp32 mode or Graph fp32 mode.

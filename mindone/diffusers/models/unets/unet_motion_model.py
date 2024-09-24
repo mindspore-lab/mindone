@@ -332,9 +332,11 @@ class UNetMotionModel(ModelMixin, ConfigMixin, UNet2DConditionLoadersMixin):
             down_blocks.append(down_block)
         self.down_blocks = nn.CellList(down_blocks)
 
-        # mid
+        # mid: only definition, binding attribute to UNetMotionModel later to maintain the order of sub-modules within
+        # UNetMotionModel as self.down_blocks -> self.up_blocks -> self.mid_block, ensuring the correct sequence of
+        # sub-modules is loaded when the ip-adpater is loaded.
         if use_motion_mid_block:
-            self.mid_block = UNetMidBlockCrossAttnMotion(
+            mid_block = UNetMidBlockCrossAttnMotion(
                 in_channels=block_out_channels[-1],
                 temb_channels=time_embed_dim,
                 resnet_eps=norm_eps,
@@ -351,7 +353,7 @@ class UNetMotionModel(ModelMixin, ConfigMixin, UNet2DConditionLoadersMixin):
             )
 
         else:
-            self.mid_block = UNetMidBlock2DCrossAttn(
+            mid_block = UNetMidBlock2DCrossAttn(
                 in_channels=block_out_channels[-1],
                 temb_channels=time_embed_dim,
                 resnet_eps=norm_eps,
@@ -416,6 +418,9 @@ class UNetMotionModel(ModelMixin, ConfigMixin, UNet2DConditionLoadersMixin):
             layers_per_resnet_in_up_blocks.append(len(up_block.resnets))
         self.up_blocks = nn.CellList(up_blocks)
         self.layers_per_resnet_in_up_blocks = layers_per_resnet_in_up_blocks
+
+        # bind mid_block to self here
+        self.mid_block = mid_block
 
         # out
         if norm_num_groups is not None:

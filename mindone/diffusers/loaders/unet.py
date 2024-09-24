@@ -813,7 +813,8 @@ class UNet2DConditionLoadersMixin:
 
         self.encoder_hid_proj = MultiIPAdapterImageProjection(image_projection_layers)
         self.config.encoder_hid_dim_type = "ip_image_proj"
-        self.encoder_hid_dim_type = "ip_image_proj"
+        self.config["encoder_hid_dim_type"] = "ip_image_proj"  # not same with `self.config.encoder_hid_dim_type`
+        self.encoder_hid_dim_type = "ip_image_proj"  # used in UNet2DConditionModel.construct()
         self.to(dtype=self.dtype)
 
     def _load_ip_adapter_loras(self, state_dicts):
