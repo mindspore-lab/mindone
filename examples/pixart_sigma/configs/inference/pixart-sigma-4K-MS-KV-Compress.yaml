@@ -1,0 +1,25 @@
+# model
+image_height: 4096
+image_width: 4096
+sample_size: 512
+checkpoint: ""
+vae_root: "models/vae"
+text_encoder_root: "models/text_encoder"
+tokenizer_root: "models/tokenizer"
+sd_scale_factor: 0.13025
+enable_flash_attention: True
+dtype: "fp16"
+
+kv_compress: True
+kv_compress_sampling: "conv"
+kv_compress_scale_factor: 2
+kv_compress_layer: [14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27]
+
+# sampling
+sampling_method: "dpm"
+sampling_steps: 20
+guidance_scale: 4.5
+seed: 42
+
+prompt:
+  - "A small cactus with a happy face in the Sahara desert."
