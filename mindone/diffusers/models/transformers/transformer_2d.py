@@ -169,7 +169,7 @@ class Transformer2DModel(LegacyModelMixin, LegacyConfigMixin):
             self._init_patched_inputs(norm_type=norm_type)
 
         # Move here to call `gradient_checkpointing.setter` after self.transformer_blocks initiated
-        self.gradient_checkpointing = False
+        self._gradient_checkpointing = False
 
     def _init_continuous_input(self, norm_type):
         self.norm = GroupNorm(
