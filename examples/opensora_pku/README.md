@@ -82,7 +82,7 @@ Other useful documents and links are listed below.
 ## Installation
 1. Use python>=3.8 [[install]](https://www.python.org/downloads/)
 
-2. Please install MindSpore 2.3.1 according to the [MindSpore official website](https://www.mindspore.cn/install/) and install CANN 8.0.RC2.beta1 as recommended by the official installation website.
+2. Please install MindSpore 2.3.1 according to the [MindSpore official website](https://www.mindspore.cn/install/) and install [CANN 8.0.RC2.beta1]((https://www.hiascend.com/developer/download/community/result?module=cann&cann=8.0.RC2.2.beta1)) as recommended by the official installation website.
 
 
 3. Install requirements
@@ -488,10 +488,10 @@ We evaluated the training performance on MindSpore and Ascend NPUs. The results 
 
 | Model           | Context        |  Stage     |Precision | BS    | NPUs |video size  | Paramllelism | Train T. (s/step) |
 |:----------------|:---------------|:----------|:---------:|:----:|:-----:|:----------:|:----------:|-------------------:|
-| OpenSoraT2V-ROPE-L-122 | D910\*-[CANN C18(8.0.RC2.beta1)](https://www.hiascend.com/developer/download/community/result?module=cann)-[MS2.3.1](https://www.mindspore.cn/install/) | 2 | BF16     |  8  |  64   |         1x640x480     |         zero2                     |     2.35      |
-| OpenSoraT2V-ROPE-L-122 | D910\*-[CANN C18(8.0.RC2.beta1)](https://www.hiascend.com/developer/download/community/result?module=cann)-[MS2.3.1](https://www.mindspore.cn/install/) | 3 |  BF16    |  1  |  8   |         29x640x480    |         zero2                      |      3.68     |
-| OpenSoraT2V-ROPE-L-122 | D910\*-[CANN C18(8.0.RC2.beta1)](https://www.hiascend.com/developer/download/community/result?module=cann)-[MS2.3.1](https://www.mindspore.cn/install/) | 4 | BF16     |  1  |  8   |         29x1280x720   |         zero2 + SP(sp_size=8)      |      4.32     |
-| OpenSoraT2V-ROPE-L-122 | D910\*-[CANN C18(8.0.RC2.beta1)](https://www.hiascend.com/developer/download/community/result?module=cann)-[MS2.3.1](https://www.mindspore.cn/install/) | 5 | BF16     |  1  |  8   |         93x1280x720   |         zero2 + SP(sp_size=8)      |      24.4     |
+| OpenSoraT2V-ROPE-L-122 | D910\*-[CANN C18(8.0.RC2.beta1)]((https://www.hiascend.com/developer/download/community/result?module=cann&cann=8.0.RC2.2.beta1))-[MS2.3.1](https://www.mindspore.cn/install/) | 2 | BF16     |  8  |  64   |         1x640x480     |         zero2                     |     2.35      |
+| OpenSoraT2V-ROPE-L-122 | D910\*-[CANN C18(8.0.RC2.beta1)]((https://www.hiascend.com/developer/download/community/result?module=cann&cann=8.0.RC2.2.beta1))-[MS2.3.1](https://www.mindspore.cn/install/) | 3 |  BF16    |  1  |  8   |         29x640x480    |         zero2                      |      3.68     |
+| OpenSoraT2V-ROPE-L-122 | D910\*-[CANN C18(8.0.RC2.beta1)]((https://www.hiascend.com/developer/download/community/result?module=cann&cann=8.0.RC2.2.beta1))-[MS2.3.1](https://www.mindspore.cn/install/) | 4 | BF16     |  1  |  8   |         29x1280x720   |         zero2 + SP(sp_size=8)      |      4.32     |
+| OpenSoraT2V-ROPE-L-122 | D910\*-[CANN C18(8.0.RC2.beta1)]((https://www.hiascend.com/developer/download/community/result?module=cann&cann=8.0.RC2.2.beta1))-[MS2.3.1](https://www.mindspore.cn/install/) | 5 | BF16     |  1  |  8   |         93x1280x720   |         zero2 + SP(sp_size=8)      |      24.4     |
 
 
 > Context: {NPU type}-{CANN version}-{MindSpore version}
