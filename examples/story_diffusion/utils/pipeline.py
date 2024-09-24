@@ -311,7 +311,6 @@ class PhotoMakerStableDiffusionXLPipeline(StableDiffusionXLPipeline):
 
         self._interrupt = False
 
-        #
         if prompt_embeds is not None and class_tokens_mask is None:
             raise ValueError(
                 "If `prompt_embeds` are provided, `class_tokens_mask` also have to be passed. Make sure \
