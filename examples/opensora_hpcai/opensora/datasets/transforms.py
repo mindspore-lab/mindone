@@ -13,9 +13,10 @@ class ResizeCrop:
         h, w = x.shape[-3:-1]  # support images and videos
         th, tw = size or self._size
         scale = max(th / h, tw / w)
-        if scale != 1:
+        if scale != 1:  # resize
             # FIXME: support images resizing
             x = np.array([cv2.resize(i, None, fx=scale, fy=scale, interpolation=self._inter) for i in x])
+        if x.shape[-3:-1] != (th, tw):  # crop
             i, j = round((x.shape[-3] - th) / 2.0), round((x.shape[-2] - tw) / 2.0)
             x = x[..., i : i + th, j : j + tw, :]
         return x
