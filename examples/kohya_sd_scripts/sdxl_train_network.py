@@ -149,7 +149,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
     train_util.verify_command_line_training_args(args)
     args = train_util.read_config_from_file(args, parser)
-    ms.set_context(mode=ms.GRAPH_MODE, jit_syntax_level=ms.STRICT, jit_config={"jit_level": "O2"})
+    ms.set_context(mode=ms.GRAPH_MODE, jit_syntax_level=ms.STRICT, jit_config={"jit_level": "O1"})
     train_util.init_distributed_device(args)
     trainer = SdxlNetworkTrainer()
     trainer.train(args)
