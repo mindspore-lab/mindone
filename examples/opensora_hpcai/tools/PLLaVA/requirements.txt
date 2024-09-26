@@ -1,0 +1,2 @@
+mindspore==2.3.*
+mindnlp
