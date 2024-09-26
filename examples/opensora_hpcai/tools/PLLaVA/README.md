@@ -46,7 +46,17 @@
 
 
 
+## Run instruction
+To run the script, set `--pretrained_model_name_or_path`
+in the `pllavarun.py` to the directory of the model
+here: https://huggingface.co/ermu2001/pllava-7b.
 
+Modify the path to the video using `--video`
+
+Sample command:
+```bash
+python pllavarun.py --pretrained_model_name_or_path pllava-7b --video test.mp4
+```
 
 ## Overview
 
