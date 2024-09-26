@@ -106,8 +106,8 @@ class DDPM(nn.Cell):
         self.logvar = Tensor(np.full(shape=(self.num_timesteps,), fill_value=logvar_init).astype(np.float32))
         if self.learn_logvar:
             self.logvar = Parameter(self.logvar, requires_grad=True)
-        self.mse_mean = nn.MSELoss(reduction="mean")
-        self.mse_none = nn.MSELoss(reduction="none")
+        # self.mse_mean = nn.MSELoss(reduction="mean")
+        # self.mse_none = nn.MSELoss(reduction="none")
 
     def register_schedule(
         self,
@@ -180,6 +180,27 @@ class DDPM(nn.Cell):
             extract_into_tensor(self.sqrt_alphas_cumprod, t, x_t.shape) * v
             + extract_into_tensor(self.sqrt_one_minus_alphas_cumprod, t, x_t.shape) * x_t
         )
+
+    def get_v(self, x, noise, t):
+        return (
+                extract_into_tensor(self.sqrt_alphas_cumprod, t, x.shape) * noise -
+                extract_into_tensor(self.sqrt_one_minus_alphas_cumprod, t, x.shape) * x
+        )
+
+    def get_loss(self, pred, target, mean=True):
+        if self.loss_type == 'l1':
+            loss = (target - pred).abs()
+            if mean:
+                loss = loss.mean()
+        elif self.loss_type == 'l2':
+            if mean:
+                loss = ops.mse_loss(target, pred)
+            else:
+                loss = ops.mse_loss(target, pred, reduction='none')
+        else:
+            raise NotImplementedError("unknown loss type '{loss_type}'")
+
+        return loss
 
 
 class LatentDiffusion(DDPM):
@@ -388,7 +409,11 @@ class LatentDiffusion(DDPM):
 
         prev_sample = self.model(x_noisy, t, **cond, **kwargs)
 
-        return prev_sample
+        if isinstance(prev_sample, tuple):
+            return prev_sample[0]
+        else:
+            return prev_sample
+        # return prev_sample
 
     def get_latent_z(self, videos):
         b, c, t, h, w = videos.shape
@@ -444,8 +469,58 @@ class LatentDiffusion(DDPM):
 
         return cond
 
+    def construct(self, x, c, **kwargs):
+        t = ops.randint(0, self.num_timesteps, (x.shape[0],)).long()
+        if self.use_dynamic_rescale:
+            x = x * extract_into_tensor(self.scale_arr, t, x.shape)
+        return self.p_losses(x, c, t, **kwargs)
+
+    def p_losses(self, x_start, cond, t, noise=None, **kwargs):
+        if self.noise_strength > 0:
+            b, c, f, _, _ = x_start.shape
+            offset_noise = ops.randn(b, c, f, 1, 1)
+            noise = default(noise, lambda: ops.randn_like(x_start) + self.noise_strength * offset_noise)
+        else:
+            noise = default(noise, lambda: ops.randn_like(x_start))
+        x_noisy = self.q_sample(x_start=x_start, t=t, noise=noise)
+
+        model_output = self.apply_model(x_noisy, t, cond, **kwargs)
+
+        loss_dict = {}
+        prefix = 'train' if self.training else 'val'
+
+        if self.parameterization == "x0":
+            target = x_start
+        elif self.parameterization == "eps":
+            target = noise
+        elif self.parameterization == "v":
+            target = self.get_v(x_start, noise, t)
+        else:
+            raise NotImplementedError()
+        
+        loss_simple = self.get_loss(model_output, target, mean=False).mean([1, 2, 3, 4])
+        loss_dict.update({f'{prefix}/loss_simple': loss_simple.mean()})
+
+        logvar_t = self.logvar[t]
+        # logvar_t = self.logvar[t.item()].to(self.device) # device conflict when ddp shared
+        loss = loss_simple / ops.exp(logvar_t) + logvar_t
+        if self.learn_logvar:
+            loss_dict.update({f'{prefix}/loss_gamma': loss.mean()})
+            loss_dict.update({'logvar': self.logvar.data.mean()})
+
+        loss = self.l_simple_weight * loss.mean()
+
+        loss_vlb = self.get_loss(model_output, target, mean=False).mean(axis=(1, 2, 3, 4))
+        loss_vlb = (self.lvlb_weights[t] * loss_vlb).mean()
+        loss_dict.update({f'{prefix}/loss_vlb': loss_vlb})
+        loss += (self.original_elbo_weight * loss_vlb)
+        loss_dict.update({f'{prefix}/loss': loss})
+
+        return loss, loss_dict  
+
+    """
     def construct(self, x: ms.Tensor, text_tokens: ms.Tensor, control=None, **kwargs):
-        """
+        '''
         Video diffusion model forward and loss computation for training
 
         Args:
@@ -460,7 +535,7 @@ class LatentDiffusion(DDPM):
             - inputs should matches dataloder output order
             - assume unet3d input/output shape: (b c f h w)
                 unet2d input/output shape: (b c h w)
-        """
+        '''
 
         # 1. get image/video latents z using vae
         z = self.get_latents(x)
@@ -503,12 +578,12 @@ class LatentDiffusion(DDPM):
             loss = loss_sample.mean()
             # loss = self.mse_mean(target, model_output)
 
-        """
+        '''
         # can be used to place more weights to high-score samples
         logvar_t = self.logvar[t]
         loss = loss_simple / ops.exp(logvar_t) + logvar_t
         loss = self.l_simple_weight * loss.mean()
-        """
+        '''
 
         return loss
 
@@ -529,7 +604,7 @@ class LatentDiffusion(DDPM):
     def reduce_loss(self, loss):
         # model output/loss shape: (b c f h w)
         return loss.mean([1, 2, 3, 4])
-
+    """
 
 class LatentDiffusionWithEmbedding(LatentDiffusion):
     def __init__(self, *args, **kwargs):
