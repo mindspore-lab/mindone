@@ -6,6 +6,7 @@ from transformers import PretrainedConfig
 import mindspore as ms
 from mindspore import nn, ops
 
+from ...utils.model_utils import load_state_dict
 from ..layers.operation_selector import get_split_op
 from .autoencoder_kl import AutoencoderKL as AutoencoderKL_SD
 from .vae_temporal import VAE_Temporal_SD  # noqa: F401
@@ -40,8 +41,15 @@ class AutoencoderKL(AutoencoderKL_SD):
             raise ValueError(
                 "Maybe download failed. Please download the VAE encoder from https://huggingface.co/stabilityai/sd-vae-ft-ema"
             )
-        param_dict = ms.load_checkpoint(path)
-        param_not_load, ckpt_not_load = ms.load_param_into_net(self, param_dict, strict_load=True)
+        name_map = None
+        if os.path.splitext(path)[-1] == ".safetensors" or not os.path.exists(path):  # HuggingFace hub
+            with open("tools/pt_pnames_vae.txt") as file_pt:
+                lines_pt = [line.strip().split("#")[0] for line in file_pt.readlines()]
+            with open("tools/ms_pnames_vae.txt") as file_ms:
+                lines_ms = [line.strip().split("#")[0] for line in file_ms.readlines()]
+            name_map = dict(zip(lines_pt, lines_ms))
+        sd, _ = load_state_dict(path, name_map, param_shapes={k: v.shape for k, v in self.parameters_dict().items()})
+        param_not_load, ckpt_not_load = ms.load_param_into_net(self, sd, strict_load=True)
         if param_not_load or ckpt_not_load:
             _logger.warning(
                 f"{param_not_load} in network is not loaded or {ckpt_not_load} in checkpoint is not loaded!"
@@ -388,21 +396,36 @@ def OpenSoraVAE_V1_2(
     model = VideoAutoencoderPipeline(config)
 
     # load model weights
-    if (ckpt_path is not None) and (os.path.exists(ckpt_path)):
-        sd = ms.load_checkpoint(ckpt_path)
+    if ckpt_path:
+        name_map = None
+        if os.path.splitext(ckpt_path)[-1] == ".safetensors" or not os.path.exists(ckpt_path):  # HuggingFace hub
+            with open("tools/pt_pnames_vae1.2.txt") as file_pt:
+                lines_pt = [line.strip().split("#")[0] for line in file_pt.readlines()]
+            with open("tools/ms_pnames_vae1.2.txt") as file_ms:
+                lines_ms = [line.strip().split("#")[0] for line in file_ms.readlines()]
+            name_map = dict(zip(lines_pt, lines_ms))
+        sd, _ = load_state_dict(ckpt_path, name_map, param_shapes={k: v.shape for k, v in model.parameters_dict().items()})
 
         # remove the added prefix in the trained checkpoint
-        pnames = list(sd.keys())
-        for pn in pnames:
-            new_pn = pn.replace("autoencoder.", "").replace("_backbone.", "")
-            sd[new_pn] = sd.pop(pn)
+        sd = {k.replace("autoencoder.", "").replace("_backbone.", ""): v for k, v in sd.items()}
 
         pu, cu = ms.load_param_into_net(model, sd, strict_load=False)
         print(f"Net param not loaded : {pu}")
         print(f"Checkpoint param not loaded : {cu}")
-    elif (vae2d_ckpt_path is not None) and (os.path.exists(vae2d_ckpt_path)):
-        sd = ms.load_checkpoint(vae2d_ckpt_path)
-        # TODO: add spatial_vae prefix to the param name
+    elif vae2d_ckpt_path:
+        print("Loading VAE 2D model weights only.")
+        name_map = None
+        if os.path.splitext(ckpt_path)[-1] == ".safetensors" or not os.path.exists(ckpt_path):  # HuggingFace hub
+            with open("tools/pt_pnames_vae.txt") as file_pt:
+                lines_pt = [line.strip().split("#")[0] for line in file_pt.readlines()]
+            with open("tools/ms_pnames_vae.txt") as file_ms:
+                lines_ms = ["spatial_vae.module." + line.strip().split("#")[0] for line in file_ms.readlines()]
+            name_map = dict(zip(lines_pt, lines_ms))
+        sd, _ = load_state_dict(
+            vae2d_ckpt_path, name_map, param_shapes={k: v.shape for k, v in model.spatial_vae.parameters_dict().items()}
+        )
         pu, cu = ms.load_param_into_net(model.spatial_vae, sd, strict_load=False)
+        print(f"Net param not loaded : {pu}")
+        print(f"Checkpoint param not loaded : {cu}")
 
     return model

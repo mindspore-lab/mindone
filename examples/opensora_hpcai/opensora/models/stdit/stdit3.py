@@ -27,9 +27,10 @@ from opensora.models.layers.blocks import (
 )
 from opensora.models.layers.operation_selector import check_dynamic_mode, get_chunk_op
 from opensora.models.layers.rotary_embedding import RotaryEmbedding
+from opensora.utils.model_utils import load_state_dict
 
 import mindspore as ms
-from mindspore import Parameter, Tensor, load_checkpoint, load_param_into_net, nn, ops
+from mindspore import Parameter, Tensor, load_param_into_net, nn, ops
 
 from mindone.models.utils import constant_, normal_, xavier_uniform_
 
@@ -448,34 +449,37 @@ class STDiT3(nn.Cell):
         return x
 
     def load_from_checkpoint(self, ckpt_path):
-        if not os.path.exists(ckpt_path):
-            print(f"WARNING: {ckpt_path} not found. No checkpoint loaded!!")
-        else:
-            sd = load_checkpoint(ckpt_path)
+        name_map = None
+        if os.path.splitext(ckpt_path)[-1] == ".safetensors" or not os.path.exists(ckpt_path):  # HuggingFace hub
+            name_map = {
+                k.replace(".gamma", ".weight").replace(".beta", ".bias"): k for k in self.parameters_dict().keys()
+            }
+        sd, ckpt_path = load_state_dict(ckpt_path, name_map=name_map)
 
-            regex = re.compile(r"^network\.|\._backbone")
-            sd = {regex.sub("", k): v for k, v in sd.items()}
+        regex = re.compile(r"^network\.|\._backbone")
+        sd = {regex.sub("", k): v for k, v in sd.items()}
 
-            # PixArt-Σ: rename 'blocks' to 'spatial_blocks'
-            regex = re.compile(r"^blocks")
-            sd = {regex.sub("spatial_blocks", k): v for k, v in sd.items()}
+        # PixArt-Σ: rename 'blocks' to 'spatial_blocks'
+        regex = re.compile(r"^blocks")
+        sd = {regex.sub("spatial_blocks", k): v for k, v in sd.items()}
 
-            # load conv3d weight from pretrained conv2d or dense layer
-            key_3d = "x_embedder.proj.weight"
-            if self.patchify_conv3d_replace == "linear":
-                if len(sd[key_3d].shape) == 5:
-                    conv3d_weight = sd.pop(key_3d)  # c_out, c_in, 1, 2, 2
-                    assert conv3d_weight.shape[-3] == 1
-                    sd[key_3d] = Parameter(conv3d_weight.reshape(conv3d_weight.shape[0], -1), name=key_3d)
-            elif self.patchify_conv3d_replace == "conv2d":
-                if len(sd[key_3d].shape) == 5:
-                    conv3d_weight = sd.pop(key_3d)  # c_out, c_in, 1, 2, 2
-                    assert conv3d_weight.shape[-3] == 1
-                    sd[key_3d] = Parameter(conv3d_weight.squeeze(axis=-3), name=key_3d)
+        # load conv3d weight from pretrained conv2d or dense layer
+        key_3d = "x_embedder.proj.weight"
+        if self.patchify_conv3d_replace == "linear":
+            if len(sd[key_3d].shape) == 5:
+                conv3d_weight = sd.pop(key_3d)  # c_out, c_in, 1, 2, 2
+                assert conv3d_weight.shape[-3] == 1
+                sd[key_3d] = Parameter(conv3d_weight.reshape(conv3d_weight.shape[0], -1), name=key_3d)
+        elif self.patchify_conv3d_replace == "conv2d":
+            if len(sd[key_3d].shape) == 5:
+                conv3d_weight = sd.pop(key_3d)  # c_out, c_in, 1, 2, 2
+                assert conv3d_weight.shape[-3] == 1
+                sd[key_3d] = Parameter(conv3d_weight.squeeze(axis=-3), name=key_3d)
 
-            m, u = load_param_into_net(self, sd)
-            print("net param not load: ", m, len(m))
-            print("ckpt param not load: ", u, len(u))
+        m, u = load_param_into_net(self, sd)
+        print("net param not load: ", m, len(m))
+        print("ckpt param not load: ", u, len(u))
+        print(f"Loaded ckpt {ckpt_path} into STDiT3.")
 
 
 def STDiT3_XL_2(from_pretrained=None, **kwargs):
@@ -483,12 +487,12 @@ def STDiT3_XL_2(from_pretrained=None, **kwargs):
     # model = STDiT3(depth=1, hidden_size=1152, patch_size=(1, 2, 2), num_heads=16, **kwargs)
     model = STDiT3(depth=28, hidden_size=1152, patch_size=(1, 2, 2), num_heads=16, **kwargs)
     if from_pretrained is not None:
-        load_checkpoint(from_pretrained, model)
+        model.load_from_checkpoint(from_pretrained)
     return model
 
 
 def STDiT3_3B_2(from_pretrained=None, **kwargs):
     model = STDiT3(depth=28, hidden_size=1872, patch_size=(1, 2, 2), num_heads=26, **kwargs)
     if from_pretrained is not None:
-        load_checkpoint(from_pretrained, model)
+        model.load_from_checkpoint(from_pretrained)
     return model

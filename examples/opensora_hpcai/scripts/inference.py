@@ -260,8 +260,6 @@ def main(args):
         )
 
     if args.ckpt_path:
-        logger.info(f"Loading ckpt {args.ckpt_path} into {model_name}")
-        assert os.path.exists(args.ckpt_path), f"{args.ckpt_path} not found."
         latte_model.load_from_checkpoint(args.ckpt_path)
     else:
         logger.warning(f"{model_name} uses random initialization!")
@@ -521,14 +519,13 @@ def parse_args():
     parser.add_argument(
         "--ckpt_path",
         type=str,
-        default="",
         help="latte checkpoint path. If specified, will load from it, otherwise, will use random initialization",
     )
     parser.add_argument("--t5_model_dir", default=None, type=str, help="the T5 cache folder path")
     parser.add_argument(
         "--vae_checkpoint",
         type=str,
-        default="models/sd-vae-ft-ema.ckpt",
+        default="stabilityai/sd-vae-ft-ema",
         help="VAE checkpoint file path which is used to load vae weight.",
     )
     parser.add_argument(

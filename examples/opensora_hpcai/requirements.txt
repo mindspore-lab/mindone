@@ -12,6 +12,7 @@ tqdm
 mindcv
 decord
 safetensors
+huggingface_hub
 omegaconf
 pyyaml
 tokenizers

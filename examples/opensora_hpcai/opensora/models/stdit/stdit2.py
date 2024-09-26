@@ -27,9 +27,10 @@ from opensora.models.layers.blocks import (
 )
 from opensora.models.layers.operation_selector import check_dynamic_mode, get_chunk_op, get_split_op
 from opensora.models.layers.rotary_embedding import RotaryEmbedding
+from opensora.utils.model_utils import load_state_dict
 
 import mindspore as ms
-from mindspore import Parameter, Tensor, dtype, load_checkpoint, load_param_into_net, nn, ops
+from mindspore import Parameter, Tensor, dtype, load_param_into_net, nn, ops
 from mindspore.common.initializer import XavierUniform, initializer
 
 from mindone.models.utils import constant_, normal_, xavier_uniform_
@@ -559,44 +560,47 @@ class STDiT2(nn.Cell):
         constant_(self.final_layer.linear.bias, 0)
 
     def load_from_checkpoint(self, ckpt_path):
-        if not os.path.exists(ckpt_path):
-            print(f"WARNING: {ckpt_path} not found. No checkpoint loaded!!")
-        else:
-            sd = load_checkpoint(ckpt_path)
+        name_map = None
+        if os.path.splitext(ckpt_path)[-1] == ".safetensors" or not os.path.exists(ckpt_path):  # HuggingFace hub
+            name_map = {
+                k.replace(".gamma", ".weight").replace(".beta", ".bias"): k for k in self.parameters_dict().keys()
+            }
+        sd, ckpt_path = load_state_dict(ckpt_path, name_map=name_map)
 
-            regex = re.compile(r"^network\.|\._backbone")
-            sd = {regex.sub("", k): v for k, v in sd.items()}
+        regex = re.compile(r"^network\.|\._backbone")
+        sd = {regex.sub("", k): v for k, v in sd.items()}
 
-            key_3d = "x_embedder.proj.weight"
-            # load conv3d weight from pretrained conv2d or dense layer
-            if self.patchify_conv3d_replace == "linear":
-                if len(sd[key_3d].shape) == 5:
-                    conv3d_weight = sd.pop(key_3d)  # c_out, c_in, 1, 2, 2
-                    assert conv3d_weight.shape[-3] == 1
-                    sd[key_3d] = Parameter(conv3d_weight.reshape(conv3d_weight.shape[0], -1), name=key_3d)
-            elif self.patchify_conv3d_replace == "conv2d":
-                if len(sd[key_3d].shape) == 5:
-                    conv3d_weight = sd.pop(key_3d)  # c_out, c_in, 1, 2, 2
-                    assert conv3d_weight.shape[-3] == 1
-                    sd[key_3d] = Parameter(conv3d_weight.squeeze(axis=-3), name=key_3d)
+        key_3d = "x_embedder.proj.weight"
+        # load conv3d weight from pretrained conv2d or dense layer
+        if self.patchify_conv3d_replace == "linear":
+            if len(sd[key_3d].shape) == 5:
+                conv3d_weight = sd.pop(key_3d)  # c_out, c_in, 1, 2, 2
+                assert conv3d_weight.shape[-3] == 1
+                sd[key_3d] = Parameter(conv3d_weight.reshape(conv3d_weight.shape[0], -1), name=key_3d)
+        elif self.patchify_conv3d_replace == "conv2d":
+            if len(sd[key_3d].shape) == 5:
+                conv3d_weight = sd.pop(key_3d)  # c_out, c_in, 1, 2, 2
+                assert conv3d_weight.shape[-3] == 1
+                sd[key_3d] = Parameter(conv3d_weight.squeeze(axis=-3), name=key_3d)
 
-            # Loading PixArt-α weights (T5's sequence length is 120 vs. 200 in STDiT2).
-            if self.y_embedder.y_embedding.shape != sd["y_embedder.y_embedding"].shape:
-                print("WARNING: T5's sequence length doesn't match STDiT2. Padding with default values.")
-                param = sd["y_embedder.y_embedding"].value()
-                sd["y_embedder.y_embedding"] = Parameter(
-                    ops.concat((param, self.y_embedder.y_embedding.value()[param.shape[0] :]), axis=0),
-                    name=self.y_embedder.y_embedding.name,
-                    requires_grad=self.y_embedder.y_embedding.requires_grad,
-                )
+        # Loading PixArt-α weights (T5's sequence length is 120 vs. 200 in STDiT2).
+        if self.y_embedder.y_embedding.shape != sd["y_embedder.y_embedding"].shape:
+            print("WARNING: T5's sequence length doesn't match STDiT2. Padding with default values.")
+            param = sd["y_embedder.y_embedding"].value()
+            sd["y_embedder.y_embedding"] = Parameter(
+                ops.concat((param, self.y_embedder.y_embedding.value()[param.shape[0] :]), axis=0),
+                name=self.y_embedder.y_embedding.name,
+                requires_grad=self.y_embedder.y_embedding.requires_grad,
+            )
 
-            m, u = load_param_into_net(self, sd)
-            print("net param not load: ", m, len(m))
-            print("ckpt param not load: ", u, len(u))
+        m, u = load_param_into_net(self, sd)
+        print("net param not load: ", m, len(m))
+        print("ckpt param not load: ", u, len(u))
+        print(f"Loaded ckpt {ckpt_path} into STDiT2.")
 
 
 def STDiT2_XL_2(from_pretrained=None, **kwargs):
     model = STDiT2(depth=28, hidden_size=1152, patch_size=(1, 2, 2), num_heads=16, **kwargs)
     if from_pretrained is not None:
-        load_checkpoint(from_pretrained, model)
+        model.load_from_checkpoint(from_pretrained)
     return model
