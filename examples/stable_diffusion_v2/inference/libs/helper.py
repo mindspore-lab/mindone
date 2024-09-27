@@ -91,6 +91,20 @@ def set_env(args):
     # set ms context
     device_id = int(os.getenv("DEVICE_ID", 0))
     ms.context.set_context(mode=args.ms_mode, device_id=device_id)
+    if args.ms_mode == ms.GRAPH_MODE:
+        try:
+            if args.jit_level in ["O0", "O1", "O2"]:
+                ms.set_context(jit_config={"jit_level": args.jit_level})
+                logger.info(f"set jit_level: {args.jit_level}.")
+            else:
+                logger.warning(
+                    f"Unsupport jit_level: {args.jit_level}. The framework automatically selects the execution method"
+                )
+        except Exception:
+            logger.warning(
+                "The current jit_level is not suitable because current MindSpore version does not match,"
+                "please ensure the MindSpore version >= ms2.3.0."
+            )
 
     set_random_seed(args.seed)
 

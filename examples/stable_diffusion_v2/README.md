@@ -73,6 +73,7 @@ The compatible framework versions that are well-tested are listed as follows.
 | 910      |     2.0         |   6.3 RC1   |  23.0.rc1 | 3.7.16  | master (4c33849)  |
 | 910      |     2.1         |   6.3 RC2   |  23.0.rc2 | 3.9.18  | master (4c33849)  |
 | 910*      |     2.2.1 (20231124)    |   7.1  | 23.0.rc3.6   |  3.7.16  | master (4c33849)  |
+| 910*      |     2.3.0     |   7.3  | 23.0.3   |  3.8.8  | master   |
 
 </div>
 
@@ -195,12 +196,7 @@ By default, the inference use dpm++ 2M samplers. You can use others if needed. T
   For parallel inference, take SD1.5 on the Chinese art dataset as an example:
 
    ```shell
-   mpirun --allow-run-as-root -n 2 python text_to_image.py \
-        --config "configs/v1-inference.yaml" \
-        --data_path "datasets/chinese_art_blip/test/prompts.txt" \
-        --output_path "output/chinese_art_inference/txt2img" \
-        --ckpt_path "models/sd_v1.5-d0ab7146.ckpt" \
-        --use_parallel True
+   bash scripts/run_infer_distributed.sh  
    ```
    > Note: Parallel inference only can be used for mutilple-prompt.
 
@@ -281,7 +277,6 @@ To run vanilla fine-tuning, we will use the `train_text_to_image.py` script foll
         --output_path {path to output directory} \
         --pretrained_model_path {path to pretrained checkpoint file}
     ```
-    > Please enable INFNAN mode by `export MS_ASCEND_CHECK_OVERFLOW_MODE="INFNAN_MODE"` for Ascend 910* if overflow found.
 
     Take fine-tuning SD1.5 on the Pokemon dataset as an example:
 
@@ -301,29 +296,13 @@ For more argument illustration, please run `python train_text_to_image.py -h`.
 
 For parallel training on multiple Ascend NPUs, please refer to the instructions below.
 
-1. Generate the rank table file for the target Ascend server.
-
-    ```shell
-    python tools/hccl_tools/hccl_tools.py --device_num="[0,8)"
-    ```
-    > `--device_num` specifies which cards to train on, e.g. "[4,8)"
-
-    A json file e.g. `hccl_8p_10234567_127.0.0.1.json` will be generated in the current directory after running.
-
-2. Edit the distributed training script `scripts/run_train_distributed.sh` to specify
-    1. `rank_table_file` with the path to the rank table file generated in step 1,
-    2. `data_path`, `pretrained_model_path`, and `train_config` according to your task.
-
-3. Launch the distributed training script by
-
     ```shell
     bash scripts/run_train_distributed.sh
     ```
-    > Please enable INFNAN mode by `export MS_ASCEND_CHECK_OVERFLOW_MODE="INFNAN_MODE"` for Ascend 910* if overflow found.
 
-    After launched, the training process can be traced by running `tail -f ouputs/train_txt2img/rank_0/train.log`.
+   After launched, the training process can be traced by running `tail -f ouputs/train_txt2img/worker_0.log`.
 
-    The trained checkpoints will be saved in `ouputs/train_txt2img`.
+   The trained checkpoints will be saved in `ouputs/train_txt2img`.
 
 **Note:** For distributed training on large-scale datasets such as LAION, please refer to [LAION Dataset Preparation](tools/data_utils/README.md).
 

@@ -15,7 +15,8 @@ from typing import Optional
 
 from mindspore import nn
 
-from .transformer_2d import Transformer2DModel, Transformer2DModelOutput
+from ..modeling_outputs import Transformer2DModelOutput
+from .transformer_2d import Transformer2DModel
 
 
 class DualTransformer2DModel(nn.Cell):
@@ -119,13 +120,14 @@ class DualTransformer2DModel(nn.Cell):
                 A kwargs dictionary that if specified is passed along to the `AttentionProcessor` as defined under
                 `self.processor` in
                 [diffusers.models.attention_processor](https://github.com/huggingface/diffusers/blob/main/src/diffusers/models/attention_processor.py).
-            return_dict (`bool`, *optional*, defaults to `True`):
-                Whether or not to return a [`models.unets.unet_2d_condition.UNet2DConditionOutput`] instead of a plain tuple.
+            return_dict (`bool`, *optional*, defaults to `False`):
+                Whether or not to return a [`models.unets.unet_2d_condition.UNet2DConditionOutput`] instead of a plain
+                tuple.
 
         Returns:
-            [`~models.transformer_2d.Transformer2DModelOutput`] or `tuple`:
-            [`~models.transformer_2d.Transformer2DModelOutput`] if `return_dict` is True, otherwise a `tuple`. When
-            returning a tuple, the first element is the sample tensor.
+            [`~models.transformers.transformer_2d.Transformer2DModelOutput`] or `tuple`:
+            [`~models.transformers.transformer_2d.Transformer2DModelOutput`] if `return_dict` is True, otherwise a
+            `tuple`. When returning a tuple, the first element is the sample tensor.
         """
         input_states = hidden_states
 

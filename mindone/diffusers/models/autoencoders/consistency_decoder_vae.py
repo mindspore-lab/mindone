@@ -57,7 +57,8 @@ class ConsistencyDecoderVAE(ModelMixin, ConfigMixin):
         ...     "runwayml/stable-diffusion-v1-5", vae=vae, mindspore_dtype=mindspore.float16
         ... )
 
-        >>> pipe("horse").images
+        >>> image = pipe("horse")[0][0]
+        >>> image
         ```
     """
 
@@ -66,6 +67,7 @@ class ConsistencyDecoderVAE(ModelMixin, ConfigMixin):
         self,
         scaling_factor: float = 0.18215,
         latent_channels: int = 4,
+        sample_size: int = 32,
         encoder_act_fn: str = "silu",
         encoder_block_out_channels: Tuple[int, ...] = (128, 256, 512, 512),
         encoder_double_z: bool = True,
@@ -141,6 +143,16 @@ class ConsistencyDecoderVAE(ModelMixin, ConfigMixin):
 
         self.use_slicing = False
         self.use_tiling = False
+
+        # only relevant if vae tiling is enabled
+        self.tile_sample_min_size = self.config.sample_size
+        sample_size = (
+            self.config.sample_size[0]
+            if isinstance(self.config.sample_size, (list, tuple))
+            else self.config.sample_size
+        )
+        self.tile_latent_min_size = int(sample_size / (2 ** (len(self.config.block_out_channels) - 1)))
+        self.tile_overlap_factor = 0.25
 
     @property
     # Copied from diffusers.models.unets.unet_2d_condition.UNet2DConditionModel.attn_processors
@@ -222,13 +234,13 @@ class ConsistencyDecoderVAE(ModelMixin, ConfigMixin):
         Args:
             x (`ms.Tensor`): Input batch of images.
             return_dict (`bool`, *optional*, defaults to `True`):
-                Whether to return a [`~models.consistecy_decoder_vae.ConsistencyDecoderOoutput`] instead of a plain
-                tuple.
+                Whether to return a [`~models.autoencoders.consistency_decoder_vae.ConsistencyDecoderVAEOutput`]
+                instead of a plain tuple.
 
         Returns:
                 The latent representations of the encoded images. If `return_dict` is True, a
-                [`~models.consistency_decoder_vae.ConsistencyDecoderVAEOutput`] is returned, otherwise a plain `tuple`
-                is returned.
+                [`~models.autoencoders.consistency_decoder_vae.ConsistencyDecoderVAEOutput`] is returned, otherwise a
+                plain `tuple` is returned.
         """
         h = self.encoder(x)
 
@@ -246,6 +258,19 @@ class ConsistencyDecoderVAE(ModelMixin, ConfigMixin):
         return_dict: bool = False,
         num_inference_steps: int = 2,
     ) -> Union[DecoderOutput, Tuple[ms.Tensor]]:
+        """
+        Decodes the input latent vector `z` using the consistency decoder VAE model.
+
+        Args:
+            z (ms.Tensor): The input latent vector.
+            generator (Optional[np.random.Generator]): The random number generator. Default is None.
+            return_dict (bool): Whether to return the output as a dictionary. Default is True.
+            num_inference_steps (int): The number of inference steps. Default is 2.
+
+        Returns:
+            Union[DecoderOutput, Tuple[ms.Tensor]]: The decoded output.
+
+        """
         z = ((z * self.config["scaling_factor"] - self.means) / self.stds).to(z.dtype)
 
         scale_factor = 2 ** (len(self.config["block_out_channels"]) - 1)

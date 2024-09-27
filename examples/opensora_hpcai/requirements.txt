@@ -18,3 +18,4 @@ tokenizers
 sentencepiece
 transformers
 pyav
+mindcv=0.3.0

@@ -15,14 +15,16 @@
 Import utilities: Utilities related to imports and our lazy inits.
 """
 import importlib.util
+import operator as op
 import os
 import sys
 from collections import OrderedDict
 from itertools import chain
 from types import ModuleType
-from typing import Any
+from typing import Any, Union
 
 from huggingface_hub.utils import is_jinja_available  # noqa: F401
+from packaging.version import Version, parse
 
 from . import logging
 
@@ -34,6 +36,15 @@ else:
 
 
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
+
+STR_OPERATION_TO_FUNC = {">": op.gt, ">=": op.ge, "==": op.eq, "!=": op.ne, "<=": op.le, "<": op.lt}
+
+_transformers_available = importlib.util.find_spec("transformers") is not None
+try:
+    _transformers_version = importlib_metadata.version("transformers")
+    logger.debug(f"Successfully imported transformers version {_transformers_version}")
+except importlib_metadata.PackageNotFoundError:
+    _transformers_available = False
 
 # (sayakpaul): importlib.util.find_spec("opencv-python") returns None even when it's installed.
 # _opencv_available = importlib.util.find_spec("opencv-python") is not None
@@ -58,6 +69,14 @@ except importlib_metadata.PackageNotFoundError:
     _opencv_available = False
 
 
+_scipy_available = importlib.util.find_spec("scipy") is not None
+try:
+    _scipy_version = importlib_metadata.version("scipy")
+    logger.debug(f"Successfully imported scipy version {_scipy_version}")
+except importlib_metadata.PackageNotFoundError:
+    _scipy_available = False
+
+
 _ftfy_available = importlib.util.find_spec("ftfy") is not None
 try:
     _ftfy_version = importlib_metadata.version("ftfy")
@@ -75,8 +94,24 @@ except importlib_metadata.PackageNotFoundError:
     _bs4_available = False
 
 
+_matplotlib_available = importlib.util.find_spec("matplotlib") is not None
+try:
+    _matplotlib_version = importlib_metadata.version("matplotlib")
+    logger.debug(f"Successfully imported matplotlib version {_matplotlib_version}")
+except importlib_metadata.PackageNotFoundError:
+    _matplotlib_available = False
+
+
+def is_transformers_available():
+    return _transformers_available
+
+
 def is_opencv_available():
     return _opencv_available
+
+
+def is_scipy_available():
+    return _scipy_available
 
 
 def is_ftfy_available():
@@ -87,11 +122,30 @@ def is_bs4_available():
     return _bs4_available
 
 
+def is_matplotlib_available():
+    return _matplotlib_available
+
+
 # docstyle-ignore
 OPENCV_IMPORT_ERROR = """
 {0} requires the OpenCV library but it was not found in your environment. You can install it with pip: `pip
 install opencv-python`
 """
+
+
+# docstyle-ignore
+SCIPY_IMPORT_ERROR = """
+{0} requires the scipy library but it was not found in your environment. You can install it with pip: `pip install
+scipy`
+"""
+
+
+# docstyle-ignore
+TRANSFORMERS_IMPORT_ERROR = """
+{0} requires the transformers library but it was not found in your environment. You can install it with pip: `pip
+install transformers`
+"""
+
 
 # docstyle-ignore
 BS4_IMPORT_ERROR = """
@@ -111,9 +165,47 @@ BACKENDS_MAPPING = OrderedDict(
     [
         ("bs4", (is_bs4_available, BS4_IMPORT_ERROR)),
         ("opencv", (is_opencv_available, OPENCV_IMPORT_ERROR)),
+        ("scipy", (is_scipy_available, SCIPY_IMPORT_ERROR)),
+        ("transformers", (is_transformers_available, TRANSFORMERS_IMPORT_ERROR)),
         ("ftfy", (is_ftfy_available, FTFY_IMPORT_ERROR)),
     ]
 )
+
+
+# This function was copied from: https://github.com/huggingface/accelerate/blob/874c4967d94badd24f893064cc3bef45f57cadf7/src/accelerate/utils/versions.py#L319
+def compare_versions(library_or_version: Union[str, Version], operation: str, requirement_version: str):
+    """
+    Args:
+    Compares a library version to some requirement using a given operation.
+        library_or_version (`str` or `packaging.version.Version`):
+            A library name or a version to check.
+        operation (`str`):
+            A string representation of an operator, such as `">"` or `"<="`.
+        requirement_version (`str`):
+            The version to compare the library version against
+    """
+    if operation not in STR_OPERATION_TO_FUNC.keys():
+        raise ValueError(f"`operation` must be one of {list(STR_OPERATION_TO_FUNC.keys())}, received {operation}")
+    operation = STR_OPERATION_TO_FUNC[operation]
+    if isinstance(library_or_version, str):
+        library_or_version = parse(importlib_metadata.version(library_or_version))
+    return operation(library_or_version, parse(requirement_version))
+
+
+def is_peft_version(operation: str, version: str):
+    """
+    Args:
+    Compares the current PEFT version to a given reference with an operation.
+        operation (`str`):
+            A string representation of an operator, such as `">"` or `"<="`
+        version (`str`):
+            A version string
+    """
+    from mindone.diffusers._peft import __version__ as _peft_version
+
+    if not _peft_version:
+        return False
+    return compare_versions(parse(_peft_version), operation, version)
 
 
 def maybe_import_module_in_mindone(module_name: str, force_original: bool = False):

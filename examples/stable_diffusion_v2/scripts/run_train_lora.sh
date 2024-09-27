@@ -1,9 +1,5 @@
 export DEVICE_ID=$1
 
-# for non-INFNAN, keep drop overflow update False
-# export MS_ASCEND_CHECK_OVERFLOW_MODE=1
-export MS_ASCEND_CHECK_OVERFLOW_MODE="INFNAN_MODE" # debuggin
-
 
 task_name=train_lora_sdv1 #rewrite
 output_path=outputs

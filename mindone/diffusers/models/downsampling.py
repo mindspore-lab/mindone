@@ -107,7 +107,6 @@ class Downsample2D(nn.Cell):
         self.padding = padding
         stride = 2
         self.name = name
-        conv_cls = nn.Conv2d
 
         if norm_type == "ln_norm":
             self.norm = LayerNorm(channels, eps, elementwise_affine)
@@ -119,7 +118,7 @@ class Downsample2D(nn.Cell):
             raise ValueError(f"unknown norm_type: {norm_type}")
 
         if use_conv:
-            conv = conv_cls(
+            conv = nn.Conv2d(
                 self.channels,
                 self.out_channels,
                 kernel_size=kernel_size,

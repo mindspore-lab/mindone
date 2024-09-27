@@ -18,7 +18,7 @@ import mindspore as ms
 from mindspore import nn, ops
 
 from ..configuration_utils import ConfigMixin, register_to_config
-from ..loaders import FromOriginalControlNetMixin
+from ..loaders import FromOriginalModelMixin
 from ..utils import BaseOutput, logging
 from .attention_processor import CROSS_ATTENTION_PROCESSORS, AttentionProcessor, AttnProcessor
 from .embeddings import TextImageProjection, TextImageTimeEmbedding, TextTimeEmbedding, TimestepEmbedding, Timesteps
@@ -113,7 +113,7 @@ class ControlNetConditioningEmbedding(nn.Cell):
         return embedding
 
 
-class ControlNetModel(ModelMixin, ConfigMixin, FromOriginalControlNetMixin):
+class ControlNetModel(ModelMixin, ConfigMixin, FromOriginalModelMixin):
     """
     A ControlNet model.
 
@@ -532,6 +532,9 @@ class ControlNetModel(ModelMixin, ConfigMixin, FromOriginalControlNetMixin):
                     controlnet.class_embedding, unet.class_embedding.parameters_dict(), strict_load=True
                 )
 
+            if hasattr(controlnet, "add_embedding"):
+                ms.load_param_into_net(controlnet.add_embedding, unet.add_embedding.parameters_dict())
+
             ms.load_param_into_net(controlnet.down_blocks, unet.down_blocks.parameters_dict(), strict_load=True)
             ms.load_param_into_net(controlnet.mid_block, unet.mid_block.parameters_dict(), strict_load=True)
 
@@ -803,7 +806,10 @@ class ControlNetModel(ModelMixin, ConfigMixin, FromOriginalControlNetMixin):
         if guess_mode and not self.config["global_pool_conditions"]:
             scales = ops.logspace(-1.0, 0.0, len(down_block_res_samples) + 1)  # 0.1 to 1.0
             scales = scales * conditioning_scale
-            down_block_res_samples = [sample * scale for sample, scale in zip(down_block_res_samples, scales)]
+            # Cast scale to sample.dtype manually as torch do the same automatically for scaler tensors
+            down_block_res_samples = [
+                sample * scale.to(sample.dtype) for sample, scale in zip(down_block_res_samples, scales)
+            ]
             mid_block_res_sample = mid_block_res_sample * scales[-1]  # last one
         else:
             down_block_res_samples = [sample * conditioning_scale for sample in down_block_res_samples]
@@ -824,7 +830,8 @@ class ControlNetModel(ModelMixin, ConfigMixin, FromOriginalControlNetMixin):
 
 
 def zero_module(module: nn.Cell):
-    raise RuntimeWarning(
-        "Method 'zero_module' does nothing because changing parameter data after initiating will "
-        "make parameter.set_dtype() invalid. Use arguments like 'weight_init' in instantiation instead"
+    logger.warning(
+        "Method 'zero_module' does nothing because changing parameter data after initiating will make "
+        "parameter.set_dtype() invalid sometimes. Use arguments like 'weight_init' in instantiation instead"
     )
+    return module
