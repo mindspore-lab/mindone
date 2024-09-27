@@ -1,24 +1,34 @@
 # MAGVIT-v2: Language Model Beats Diffusion -- Tokenizer is Key to Visual Generation
 
-This folder contains the Mindspore implementation of [MAGVIT-v2](https://arxiv.org/pdf/2310.05737).
+This folder contains the Mindspore implementation of [MAGVIT-v2](https://arxiv.org/pdf/2310.05737). Since the official implementation is **NOT open-sourced**, we refer to the following repository implementations:
+- [MAGVIT-v1](https://github.com/google-research/magvit)
+- [magvit2-pytorch](https://github.com/lucidrains/magvit2-pytorch)
+- [vector-quantize-pytorch](https://github.com/lucidrains/vector-quantize-pytorch)
+
+Thanks for their great work.
 
 ## Features
 
 - [x] Lookup-Free-Quantization (LFQ)
 - [x] VQVAE-2d Training
 - [x] VQVAE-3d Training
-- [ ] VQGAN Training
+- [x] VQGAN Training
 - [ ] MAGVIT-v2 Transformers
 - [ ] MAGVIT-v2 Training
 
 ## Requirements
 
-1. Install Mindspore >=2.3 according to the [official tutorials](https://www.mindspore.cn/install)
-2. For Ascend users, please install the corresponding CANN version as stated in the official document. [CANN](https://www.mindspore.cn/install#%E5%AE%89%E8%A3%85%E6%98%87%E8%85%BEai%E5%A4%84%E7%90%86%E5%99%A8%E9%85%8D%E5%A5%97%E8%BD%AF%E4%BB%B6%E5%8C%85)
+### Mindspore + Ascend
+- **Env**: `Python 3.8.18` and [`CANN 8.0.RC2.beta1`](https://www.hiascend.com/software/cann)
+- **Main Dependencies**: [`Mindspore>=2.3`](https://www.mindspore.cn/)
+- **Other Dependencies**: see in `requirements.txt`
 
-```
-pip install -r requirements.txt
-```
+#### Installation Tutorials:
+
+1. Install Mindspore >=2.3 according to the [official tutorials](https://www.mindspore.cn/install)
+2. Ascend users please install the corresponding *CANN 8.0.RC2.beta1* in [community edition](https://www.hiascend.com/developer/download/community/result?module=cann&cann=8.0.RC2.beta1) as well as the relevant driver and firmware packages in [firmware and driver](https://www.hiascend.com/hardware/firmware-drivers/community), as stated in the [official document](https://www.mindspore.cn/install/#%E5%AE%89%E8%A3%85%E6%98%87%E8%85%BEai%E5%A4%84%E7%90%86%E5%99%A8%E9%85%8D%E5%A5%97%E8%BD%AF%E4%BB%B6%E5%8C%85).
+3. Install the pacakges listed in requirements.txt with `pip install -r requirements.txt`
+
 
 ## Datasets
 
@@ -46,7 +56,7 @@ We use the Train/Test Splits for *Action Recognition*, the statistics are:
 
 ## Training
 
-### 1. VQVAE
+### 1. Visual Tokenizer: VQVAE
 
 The training of VQVAE can be divided into two stages: VQVAE-2d and VQVAE-3d, where VQVAE-2d is the initialization of VQVAE-3d.
 
@@ -54,9 +64,9 @@ The training of VQVAE can be divided into two stages: VQVAE-2d and VQVAE-3d, whe
 
 We pretrained a VQVAE-2d model using [ImageNet-1K](https://huggingface.co/datasets/ILSVRC/imagenet-1k), and the accuracy is as follows:
 
-| Model | Dataset | Image Size | PSNR | SSIM |
-|-------| ------- | -----------| ------- | -------|
-| VQVAE-2d | ImageNet | 128x128 | 20.013 | 0.5734 |
+| Model | Token Type | #Tokens | Dataset | Image Size | Codebook Size | PSNR | SSIM |
+|-------| -----------| --------| ------- | -----------| --------------| -----| -----|
+| MAGVIT-v2 | 2D | 16x16 |ImageNet | 128x128 | 262144 | 20.013 | 0.5734 |
 
 You can pretrain your model by following these steps:
 
@@ -100,9 +110,9 @@ Run the training script as below:
 
  The VQVAE-3d model we trained is as follows:
 
- | Model | Dataset | Image Size | PSNR | SSIM |
- |-------| ------- | -----------| ------- | -------|
- | VQVAE-3d | UCF-101 | 128x128 | 21.6529 | 0.7415 |
+| Model | Token Type | #Tokens | Dataset | Video Size | Codebook Size | PSNR | SSIM |
+|-------| -----------| ------- | ------- | -----------| --------------| -----| -----|
+| MAGVIT-v2 | 3D | 5x16x16 | UCF-101 | 17x128x128 | 262144 | 21.6529 | 0.7415 |
 
 
 ### 2. MAGVIT-v2

@@ -60,7 +60,7 @@ def main(args):
     ms.set_context(mode=args.mode, ascend_config={"precision_mode": "allow_mix_precision_bf16"})
     set_logger(name="", output_dir=args.output_path, rank=0)
 
-    config = get_config("B")
+    config = get_config()
     dtype = {"fp32": ms.float32, "fp16": ms.float16, "bf16": ms.bfloat16}[args.dtype]
 
     model = build_model(args.model_class, config, is_training=False, dtype=dtype)
