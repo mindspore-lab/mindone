@@ -60,7 +60,7 @@ We use the Train/Test Splits for *Action Recognition*, the statistics are:
 
 The training of VQVAE can be divided into two stages: VQVAE-2d and VQVAE-3d, where VQVAE-2d is the initialization of VQVAE-3d.
 
-#### 1.1 VQVAE-2d
+#### 1.1 2D Tokenizer
 
 We pretrained a VQVAE-2d model using [ImageNet-1K](https://huggingface.co/datasets/ILSVRC/imagenet-1k), and the accuracy is as follows:
 
@@ -94,7 +94,7 @@ We take ImageNet as an example. You can refer to [datasets-ImageNet](./tools/dat
  python tools/inflate_vae2d_to_3d.py --src VQVAE_2D_MODEL_PATH --target INFALTED_MODEL_PATH
  ```
 
-#### 1.2 VQVAE-3d
+#### 1.2 3D Tokenizer
 
 Modify the path of `--pretrained` VQVAE-2d model in [run_train_vqvae.sh](./scripts/run_train_vqvae.sh) / [run_train_vqvae_parallel.sh](./scripts/run_train_vqvae_parallel.sh)
 
@@ -115,15 +115,25 @@ Run the training script as below:
 | MAGVIT-v2 | 3D | 5x16x16 | UCF-101 | 17x128x128 | 262144 | 21.6529 | 0.7415 |
 
 
-### 2. MAGVIT-v2
+### 2. MAGVIT-v2 generation model
 
-The training script of MAGVIT-v2 is still under development, so stay tuned!
+The training script of MAGVIT-v2 generation model is still under development, so stay tuned!
 
 
 ## Evaluation
 We provide two common evaluation metrics in our implementations: PSNR and SSIM.
-To run the evaluations, you can use the following command:
+To run the evaluations, you can use the command: `bash scripts/run_eval_vqvae.sh`.
+
+Please modify the `scripts/run_eval_vqvae.sh` accordingly as shown below:
 
 ```
-bash scripts/run_eval_vqvae.sh
+# To evaluate 2D Tokenizer
+--model_class vqvae-2d \
+--data_path IMAGE_DATA_FOLDER \
+--ckpt_path MODEL_PATH
+
+# To evaluate 3D Tokenizer
+--model_class vqvae-3d \
+--data_path VIDEO_DATA_FOLDER \
+--ckpt_path MODEL_PATH
 ```
