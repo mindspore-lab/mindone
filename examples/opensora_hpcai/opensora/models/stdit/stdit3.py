@@ -2,12 +2,15 @@
 OpenSora v1.2 STDiT architecture
 """
 
+import logging
 import os
 import re
 from typing import Optional, Tuple
 
 import numpy as np
 from mindcv.models.layers import DropPath
+from opensora.acceleration.communications import GatherFowardSplitBackward, SplitFowardGatherBackward
+from opensora.acceleration.parallel_states import get_sequence_parallel_group
 from opensora.models.layers.blocks import (
     CaptionEmbedder,
     LayerNorm,
@@ -18,6 +21,8 @@ from opensora.models.layers.blocks import (
     PatchEmbed3D,
     PositionEmbedding2D,
     SelfAttention,
+    SeqParallelMultiHeadCrossAttention,
+    SeqParallelSelfAttention,
     SizeEmbedder,
     T2IFinalLayer,
     TimestepEmbedder,
@@ -29,9 +34,12 @@ from opensora.models.layers.operation_selector import check_dynamic_mode, get_ch
 from opensora.models.layers.rotary_embedding import RotaryEmbedding
 
 import mindspore as ms
-from mindspore import Parameter, Tensor, load_checkpoint, load_param_into_net, nn, ops
+from mindspore import Parameter, Tensor, load_checkpoint, load_param_into_net, mint, nn, ops
+from mindspore.communication import get_group_size
 
 from mindone.models.utils import constant_, normal_, xavier_uniform_
+
+logger = logging.getLogger(__name__)
 
 
 class STDiT3Block(nn.Cell):
@@ -56,7 +64,8 @@ class STDiT3Block(nn.Cell):
 
         assert not enable_layernorm_kernel, "Not implemented"
         if enable_sequence_parallelism and not temporal:
-            raise NotImplementedError("Sequence parallelism is not supported yet.")
+            attn_cls = SeqParallelSelfAttention
+            mha_cls = SeqParallelMultiHeadCrossAttention
         else:
             attn_cls = SelfAttention
             mha_cls = MultiHeadCrossAttention
@@ -290,6 +299,13 @@ class STDiT3(nn.Cell):
                 for block in blocks:
                     self.recompute(block)
 
+        if self.enable_sequence_parallelism:
+            sp_group = get_sequence_parallel_group()
+            logger.info(f"Initialize STDIT-v3 model with sequence parallel group `{sp_group}`.")
+            self.sp_size = get_group_size(sp_group)
+            self.split_forward_gather_backward = SplitFowardGatherBackward(dim=2, grad_scale="down", group=sp_group)
+            self.gather_forward_split_backward = GatherFowardSplitBackward(dim=2, grad_scale="up", group=sp_group)
+
         self.is_dynamic_shape = check_dynamic_mode()
         self.chunk = get_chunk_op()
 
@@ -353,6 +369,23 @@ class STDiT3(nn.Cell):
         # === get pos embed ===
         _, _, Tx, Hx, Wx = x.shape
         T, H, W = self.get_dynamic_size(x)
+
+        # adjust for sequence parallelism
+        # we need to ensure H * W is divisible by sequence parallel size
+        # for simplicity, we can adjust the height to make it divisible
+        if self.enable_sequence_parallelism:
+            if H % self.sp_size != 0:
+                h_pad_size = self.sp_size - H % self.sp_size
+            else:
+                h_pad_size = 0
+
+            if h_pad_size > 0:
+                hx_pad_size = h_pad_size * self.patch_size[1]
+
+                # pad x along the H dimension
+                H += h_pad_size
+                x = mint.nn.functional.pad(x, (0, 0, 0, hx_pad_size))
+
         S = H * W
         if self.is_dynamic_shape:
             # tricky adaptation for dynamic shape in graph mode. Though it also works for static shape, it degrades performance by 50 ms per step.
@@ -397,12 +430,23 @@ class STDiT3(nn.Cell):
 
         x = x.reshape(B, T, S, x.shape[-1])  # B (T S) C -> B T S C
         x = x + pos_emb.to(x.dtype)
+
+        if self.enable_sequence_parallelism:
+            x = self.split_forward_gather_backward(x)
+            S = S // self.sp_size
+
         x = x.reshape(B, T * S, x.shape[-1])  # B T S C -> B (T S) C
 
         # === blocks ===
         for spatial_block, temporal_block in zip(self.spatial_blocks, self.temporal_blocks):
             x = spatial_block(x, y, t_mlp, mask, frames_mask, t0_mlp, T, S)
             x = temporal_block(x, y, t_mlp, mask, frames_mask, t0_mlp, T, S)
+
+        if self.enable_sequence_parallelism:
+            x = x.reshape(B, T, S, -1)
+            x = self.gather_forward_split_backward(x)
+            S = S * self.sp_size
+            x = x.reshape(B, (T * S), -1)
 
         # === final layer ===
         x = self.final_layer(x, t, frames_mask, t0, T, S)
