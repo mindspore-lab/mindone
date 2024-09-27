@@ -159,9 +159,18 @@ Other useful documents and links are listed below.
 ## Installation
 
 1. Install MindSpore according to the [official instructions](https://www.mindspore.cn/install).
-    For Ascend devices, please install **CANN driver C18 (0705)** from [here](https://repo.mindspore.cn/ascend/ascend910/20240705/) and install **MindSpore 2.3** from [here](https://www.mindspore.cn/install).
+    For Ascend devices, please install [CANN8.0.RC2.beta1](https://www.hiascend.com/developer/download/community/result?module=cann&cann=8.0.RC2.beta1) and install [MindSpore 2.3.1](https://www.mindspore.cn/install).
+    > To reduce compilation time and training time, you may install MindSpore2.4-20240904 from [here](https://repo.mindspore.cn/mindspore/mindspore/version/202409/20240904/master_20240904010023_67b5df247045f509c4ca2169bac6a551291a3111_newest/unified/aarch64/)
 
-2. Install requirements
+    You may check your versions by running the following commands. The default installation path of CANN is usually  `/usr/local/Ascend/ascend-toolkit` unless you specify a custom one.
+
+    ```bash
+    cat /usr/local/Ascend/ascend-toolkit/latest/version.cfg  
+
+    python -c "import mindspore;mindspore.set_context(device_target='Ascend');mindspore.run_check()"
+    ```
+
+3. Install requirements
 ```bash
 pip install -r requirements.txt
 ```
@@ -517,9 +526,11 @@ bucket_config:
   "2048": { 1: [ 0.01, 5 ] }
 ```
 
+Knowing that the optimal bucket config can varies from device to device, we have tuned and provided bucket config that are more balanced on Ascend + MindSpore in `configs/opensora-v1-2/train/{stage}_ms.yaml`. You may use them for better training performance.
+
 More details on the bucket configuration can be found in [Multi-resolution Training with Buckets](./docs/quick_start.md#4-multi-resolution-training-with-buckets-opensora-v11-and-above).
 
-Then you can launch the dynamic training task following the previous section. An example running script is `scripts/run/run_train_os1.2_stage2.sh`.
+The instruction for launching the dynamic training task is smilar to the previous section. An example running script is `scripts/run/run_train_os1.2_stage2.sh`.
 
 
 ### Open-Sora 1.1
@@ -622,11 +633,13 @@ Here ✅ means that the data is seen during training, and 🆗 means although no
 
 We evaluate the training performance of Open-Sora v1.2 on the MixKit dataset with high-resolution videos (1080P, duration 12s to 100s). The results are as follows.
 
-| Model       | Context      | jit_level | Precision | BS | NPUs | Size (TxHxW) | Train T. (s/step) |
-|:------------|:-------------|:--------|:---------:|:--:|:----:|:----------------------:|:-----------------:|
-| STDiT3-XL/2 | D910\*-[C18](https://repo.mindspore.cn/ascend/ascend910/20240705/)-[MS2.3](https://www.mindspore.cn/install) |    O1  |    BF16   |  1 |  8   |       51x720x1280      |        **14.60**       |
-| STDiT3-XL/2 | D910\*-[C18](https://repo.mindspore.cn/ascend/ascend910/20240705/)-[MS2.3.1(0726)](https://repo.mindspore.cn/mindspore/mindspore/version/202407/20240726/master_20240726220021_4c913fb116c83b9ad28666538483264da8aebe8c_newest/unified/)  |    O1  |    BF16   |  1 |  8   |       Stage 2 Dyn.     |        **33.10**       |
-| STDiT3-XL/2 | D910\*-[C18](https://repo.mindspore.cn/ascend/ascend910/20240705/)-[MS2.3.1(0726)](https://repo.mindspore.cn/mindspore/mindspore/version/202407/20240726/master_20240726220021_4c913fb116c83b9ad28666538483264da8aebe8c_newest/unified/)  |    O1  |    BF16   |  1 |  8   |       Stage 3 Dyn.     |        **37.7**       |
+| Model       | Context      | jit_level | Precision | BS | NPUs | Size (TxHxW) | Train T. (s/step) |  config |
+|:------------|:-------------|:--------|:---------:|:--:|:----:|:----------------------:|:-----------------:|:-----------------:|
+| STDiT3-XL/2 | D910\*-[C18](https://repo.mindspore.cn/ascend/ascend910/20240705/)-[MS2.3](https://www.mindspore.cn/install) |    O1  |    BF16   |  1 |  8   |       51x720x1280      |        **14.60**       | [yaml](configs/opensora-v1-2/train/train_720x1280x51.yaml)   |
+| STDiT3-XL/2 | D910\*-[C18](https://repo.mindspore.cn/ascend/ascend910/20240705/)-[MS2.3.1(0726)](https://repo.mindspore.cn/mindspore/mindspore/version/202407/20240726/master_20240726220021_4c913fb116c83b9ad28666538483264da8aebe8c_newest/unified/)  |    O1  |    BF16   |  1 |  8   |       Stage 2 Dyn.     |        **33.10**       | [yaml](configs/opensora-v1-2/train/train_stage2.yaml)   |
+| STDiT3-XL/2 | D910\*-[C18](https://repo.mindspore.cn/ascend/ascend910/20240705/)-[MS2.3.1(0726)](https://repo.mindspore.cn/mindspore/mindspore/version/202407/20240726/master_20240726220021_4c913fb116c83b9ad28666538483264da8aebe8c_newest/unified/)  |    O1  |    BF16   |  1 |  8   |       Stage 3 Dyn.     |        **34**       | [yaml](configs/opensora-v1-2/train/train_stage3.yaml)   |
+
+
 > Context: {G:GPU, D:Ascend}{chip type}-{CANN version}-{mindspore version}; "Dyn." is short for dynamic shape.
 
 Note that the step time of dynamic training can be influenced by the resolution and duration distribution of the source videos. Training performance is under optimization.
