@@ -655,6 +655,15 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#selfconfig-in-construct" class="md-nav__link">
+    <span class="md-ellipsis">
+      self.config in construct()
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -1132,6 +1141,15 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#selfconfig-in-construct" class="md-nav__link">
+    <span class="md-ellipsis">
+      self.config in construct()
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -1201,6 +1219,13 @@
 <h3 id="output-of-autoencoderklencode">Output of <code>AutoencoderKL.encode</code><a class="headerlink" href="#output-of-autoencoderklencode" title="Permanent link">&para;</a></h3>
 <p>Unlike the output <code>posterior = DiagonalGaussianDistribution(latent)</code>, which can do sampling by <code>posterior.sample()</code>.
 We can only output the <code>latent</code> and then do sampling through <code>AutoencoderKL.diag_gauss_dist.sample(latent)</code>.</p>
+<h3 id="selfconfig-in-construct"><code>self.config</code> in <code>construct()</code><a class="headerlink" href="#selfconfig-in-construct" title="Permanent link">&para;</a></h3>
+<p>For many models, parameters used in initialization will be registered in <code>self.config</code>. They are often accessed during the <code>construct</code> like using <code>if self.config.xxx == xxx</code> to determine execution paths in origin 🤗diffusers. However getting attributes like this is not supported by static graph syntax of MindSpore. Two feasible replacement options are</p>
+<ul>
+<li>set new attributes in initialization for <code>self</code> like <code>self.xxx = self.config.xxx</code>, then use <code>self.xxx</code> in <code>construct</code> instead.</li>
+<li>use <code>self.config["xxx"]</code> as <code>self.config</code> is an <code>OrderedDict</code> and getting items like this is supported in static graph mode.</li>
+</ul>
+<p>When <code>self.config.xxx</code> changed, we change <code>self.xxx</code> and <code>self.config["xxx"]</code> both.</p>
 <h2 id="models">Models<a class="headerlink" href="#models" title="Permanent link">&para;</a></h2>
 <p>The table below represents the current support in mindone/diffusers for each of those modules, whether they have support in Pynative fp16 mode, Graph fp16 mode, Pynative fp32 mode or Graph fp32 mode.</p>
 <table>
@@ -1453,8 +1478,7 @@ We can only output the <code>latent</code> and then do sampling through <code>Au
 <p>The table below represents the current support in mindone/diffusers for each of those pipelines in <strong>MindSpore 2.3.0</strong>,
 whether they have support in Pynative fp16 mode, Graph fp16 mode, Pynative fp32 mode or Graph fp32 mode.</p>
 <blockquote>
-<p>Hint: Due to the precision issue with GroupNorm affecting almost all pipelines under FP16, leading to inference
-precision issues of pipelines, the experiments in the table below default to upcasting GroupNorm to FP32 to avoid
+<p>precision issues of pipelines, the experiments in the table below default to upcasting GroupNorm to FP32 to avoid
 this issue.</p>
 </blockquote>
 <table>
@@ -1973,7 +1997,7 @@ this issue.</p>
     <span class="md-icon" title="Last update">
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M21 13.1c-.1 0-.3.1-.4.2l-1 1 2.1 2.1 1-1c.2-.2.2-.6 0-.8l-1.3-1.3c-.1-.1-.2-.2-.4-.2m-1.9 1.8-6.1 6V23h2.1l6.1-6.1zM12.5 7v5.2l4 2.4-1 1L11 13V7zM11 21.9c-5.1-.5-9-4.8-9-9.9C2 6.5 6.5 2 12 2c5.3 0 9.6 4.1 10 9.3-.3-.1-.6-.2-1-.2s-.7.1-1 .2C19.6 7.2 16.2 4 12 4c-4.4 0-8 3.6-8 8 0 4.1 3.1 7.5 7.1 7.9l-.1.2z"/></svg>
     </span>
-    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-date">August 27, 2024</span>
+    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-date">September 27, 2024</span>
   </span>
 
     
@@ -1999,7 +2023,8 @@ this issue.</p>
     <nav>
       
         <a href="mailto:74176172+geniuspatrick@users.noreply.github.com">Genius Patrick</a>, 
-        <a href="mailto:53842165+the-truthh@users.noreply.github.com">The-truthh</a>
+        <a href="mailto:53842165+the-truthh@users.noreply.github.com">The-truthh</a>, 
+        <a href="mailto:townwish2023@outlook.com">townwish4git</a>
     </nav>
   </span>
 
