@@ -404,7 +404,9 @@ def OpenSoraVAE_V1_2(
             with open("tools/ms_pnames_vae1.2.txt") as file_ms:
                 lines_ms = [line.strip().split("#")[0] for line in file_ms.readlines()]
             name_map = dict(zip(lines_pt, lines_ms))
-        sd, _ = load_state_dict(ckpt_path, name_map, param_shapes={k: v.shape for k, v in model.parameters_dict().items()})
+        sd, _ = load_state_dict(
+            ckpt_path, name_map, param_shapes={k: v.shape for k, v in model.parameters_dict().items()}
+        )
 
         # remove the added prefix in the trained checkpoint
         sd = {k.replace("autoencoder.", "").replace("_backbone.", ""): v for k, v in sd.items()}
