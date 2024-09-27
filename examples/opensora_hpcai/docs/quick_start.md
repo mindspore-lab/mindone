@@ -70,7 +70,10 @@ Alternatively, you can use the following command to convert the model weights to
     OpenSora v1.1 and above support automatic weights download from Hugging Face during execution.
     Local `.safetensors` weights can also be used.  
     OpenSora v1 requires a manual conversion.  
-    Alternatively, you can use the following command to convert the model weights to the MindSpore format.
+    You can use the following command to convert the model weights to the MindSpore format.
+    <details>
+    <summary>Convert to the MindSpore format</summary>
+  
     First, download a desired OpenSora model: 
     - OpenSora v1.2: [download](https://huggingface.co/hpcai-tech/OpenSora-STDiT-v3)
     - OpenSora v1.1: [stage2](https://huggingface.co/hpcai-tech/OpenSora-STDiT-v2-stage2) or [stage3](https://huggingface.co/hpcai-tech/OpenSora-STDiT-v2-stage3)
@@ -78,6 +81,8 @@ Alternatively, you can use the following command to convert the model weights to
 
     Then, convert to MS checkpoint:
     `python tools/convert_pt2ms.py --src /path/to/checkpoint --target models/checkpoint_name.ckpt`
+
+    </details>
 
 - **PixArt-α**: [pth download link](https://download.openxlab.org.cn/models/PixArt-alpha/PixArt-alpha/weight/PixArt-XL-2-512x512.pth) (for training only)
 
