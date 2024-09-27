@@ -62,8 +62,9 @@ def get_response(chat, chat_state, img_list, question, num_beams, temperature):
 
 def parse_args():
     parser = ArgumentParser()
-    parser.add_argument("--pretrained_model_name_or_path", type=str, required=True)
+    parser.add_argument("--pretrained_model_name_or_path", type=str, required=False, default='./models/pllava-7b')
     parser.add_argument("--num_frames", type=int, required=False, default=8)
+    parser.add_argument("--use_lora", action='store_true')
     parser.add_argument("--use_lora", action='store_true')
     parser.add_argument("--weight_dir", type=str, required=False, default=None)
     parser.add_argument("--conv_mode", type=str, required=False, default="plain")
@@ -71,7 +72,6 @@ def parse_args():
     parser.add_argument("--video", type=str, help="Path to the video file", default="video.mp4")
     parser.add_argument("--question", type=str, help="Question to ask the model", required=False,
                         default="What is shown in this video?")
-    parser.add_argument("--num_segments", type=int, default=8, help="Number of video segments")
     parser.add_argument("--num_beams", type=int, default=1, help="Beam search numbers")
     parser.add_argument("--temperature", type=float, default=1.0, help="Temperature for sampling")
 
@@ -86,12 +86,12 @@ if __name__ == "__main__":
     INIT_CONVERSATION = conv_templates[args.conv_mode]
 
     llm_message, chat_state, img_list = process_input(args, chat)
-    # run 1
-    _, _, _ = get_response(chat, chat_state, img_list, args.question, args.num_beams, args.temperature)
-    # run 2
     response, tokens, time_elapsed = get_response(chat, chat_state, img_list, args.question, args.num_beams, args.temperature)
-
+    if args.benchmark:
+        # run again, use the result from second round
+        response, tokens, time_elapsed = get_response(chat, chat_state, img_list, args.question, args.num_beams,
+                                                      args.temperature)
+        print(f"Tokens length: {tokens.shape[1]}")
+        print(f"Time elapsed: {time_elapsed:.4f}")
+        print(f'tokens per second: {(tokens.shape[1] / time_elapsed):.4f}')
     print(f"Response: {response}")
-    print(f"Tokens length: {tokens.shape[1]}")
-    print(f"Time elapsed: {time_elapsed:.4f}")
-    print(f'tokens per second: {(tokens.shape[1] / time_elapsed):.4f}')
