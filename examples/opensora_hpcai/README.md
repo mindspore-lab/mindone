@@ -212,6 +212,13 @@ For EulerOS, instructions on ffmpeg and decord installation are as follows.
 | STDiT3 (Diffusion) | 1.1B       | 30M  | [Download](https://huggingface.co/hpcai-tech/OpenSora-STDiT-v3) |
 | VAE                | 384M       | 3M   | [Download](https://huggingface.co/hpcai-tech/OpenSora-VAE-v1.2) |
 
+The weights above are automatically downloaded from Hugging Face during execution.
+Local `.safetensors` weights can also be used.
+Alternatively, you can use the following commands to convert the model weights to the MindSpore format.
+
+<details>
+<summary>Convert to the MindSpore format</summary>
+
 - Convert STDiT3 to MS checkpoint:
 
 ```shell
@@ -224,7 +231,9 @@ python tools/convert_pt2ms.py --src /path/to/OpenSora-STDiT-v3/model.safetensors
 python convert_vae_3d.py --src /path/to/OpenSora-VAE-v1.2/model.safetensors --target models/OpenSora-VAE-v1.2/model.ckpt
 ```
 
-- The T5 model is identical to OpenSora 1.0 and can be downloaded from the links below.
+</details>
+
+The T5 model is identical to OpenSora 1.0 and can be downloaded and converted using the links below.
 
 
 ### Open-Sora 1.1 Model Weights
@@ -239,13 +248,23 @@ python convert_vae_3d.py --src /path/to/OpenSora-VAE-v1.2/model.safetensors --ta
 | 2     | mainly 144p & 240p | 700M       | 10M videos + 2M images     | 100k        | [Download](https://huggingface.co/hpcai-tech/OpenSora-STDiT-v2-stage2) |
 | 3     | 144p to 720p       | 700M       | 500K HQ videos + 1M images | 4k          | [Download](https://huggingface.co/hpcai-tech/OpenSora-STDiT-v2-stage3) |
 
+
+The weights above are automatically downloaded from Hugging Face during execution.
+Local `.safetensors` weights can also be used.
+Alternatively, you can use the following commands to convert the model weights to the MindSpore format.
+
+<details>
+<summary>Convert to the MindSpore format</summary>
+
 Convert to MS checkpoint:
 
-```
+```shell
 python tools/convert_pt2ms.py --src /path/to/OpenSora-STDiT-v2-stage3/model.safetensors --target models/opensora_v1.1_stage3.ckpt
 ```
 
-- T5 and VAE models are identical to OpenSora 1.0 and can be downloaded from the links below.
+</details>
+
+T5 and VAE models are identical to OpenSora 1.0 and can be downloaded and converted using the links below.
 
 </details>
 
@@ -264,10 +283,14 @@ Please prepare the model checkpoints of T5, VAE, and STDiT and put them under `m
 
     ```
 
-- VAE: Download the safetensor checkpoint from [here]((https://huggingface.co/stabilityai/sd-vae-ft-ema/tree/main))
+- VAE: The weights above are automatically downloaded from Hugging Face during execution.
+Local `.safetensors` weights can also be used.
+Alternatively, you can use the following command to convert the model weights to the MindSpore format.
+First, download the `.safetensor` checkpoint from [here]((https://huggingface.co/stabilityai/sd-vae-ft-ema/tree/main)).
+Then:
 
     Convert to ms checkpoint:
-    ```
+    ```shell
     python tools/convert_vae.py --src /path/to/sd-vae-ft-ema/diffusion_pytorch_model.safetensors --target models/sd-vae-ft-ema.ckpt
     ```
 
