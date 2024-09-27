@@ -256,8 +256,6 @@ Alternatively, you can use the following commands to convert the model weights t
 <details>
 <summary>Convert to the MindSpore format</summary>
 
-Convert to MS checkpoint:
-
 ```shell
 python tools/convert_pt2ms.py --src /path/to/OpenSora-STDiT-v2-stage3/model.safetensors --target models/opensora_v1.1_stage3.ckpt
 ```

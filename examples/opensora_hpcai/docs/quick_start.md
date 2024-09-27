@@ -45,26 +45,26 @@ The model weights are automatically downloaded from Hugging Face during executio
 Local `.safetensors` weights can also be used.  
 Alternatively, you can use the following command to convert the model weights to the MindSpore format.
 
-<details>
-<summary>Convert to the MindSpore format</summary>
-
-**OpenSora v1.2**:
-Download from [Hugging Face](https://huggingface.co/hpcai-tech/OpenSora-VAE-v1.2) and convert to MS checkpoint:
-```shell
-python tools/convert_vae_3d.py --src path/to/OpenSora-VAE-v1.2/model.safetensors --target models/OpenSora-VAE-v1.2/model.ckpt
-```
-
-**OpenSora v1.1 and below**:
-Download from [Hugging Face](https://huggingface.co/stabilityai/sd-vae-ft-mse-original/tree/main) and convert to MS checkpoint:
-```shell
-python tools/convert_pt2ms.py --src /path/to/vae-ft-mse-840000-ema-pruned.safetensors --target models/sd-vae-ft-mse.ckpt
-```
-For `sd-vae-ft-ema`, run:
-```shell
-python tools/convert_vae.py --src /path/to/sd-vae-ft-ema/diffusion_pytorch_model.safetensors --target models/sd-vae-ft-ema.ckpt
-```
-
-</details>
+    <details>
+    <summary>Convert to the MindSpore format</summary>
+    
+    **OpenSora v1.2**:
+    Download from [Hugging Face](https://huggingface.co/hpcai-tech/OpenSora-VAE-v1.2) and convert to MS checkpoint:
+    ```shell
+    python tools/convert_vae_3d.py --src path/to/OpenSora-VAE-v1.2/model.safetensors --target models/OpenSora-VAE-v1.2/model.ckpt
+    ```
+    
+    **OpenSora v1.1 and below**:
+    Download from [Hugging Face](https://huggingface.co/stabilityai/sd-vae-ft-mse-original/tree/main) and convert to MS checkpoint:
+    ```shell
+    python tools/convert_pt2ms.py --src /path/to/vae-ft-mse-840000-ema-pruned.safetensors --target models/sd-vae-ft-mse.ckpt
+    ```
+    For `sd-vae-ft-ema`, run:
+    ```shell
+    python tools/convert_vae.py --src /path/to/sd-vae-ft-ema/diffusion_pytorch_model.safetensors --target models/sd-vae-ft-ema.ckpt
+    ```
+    
+    </details>
 
 - **STDiT**:
     OpenSora v1.1 and above support automatic weights download from Hugging Face during execution.
