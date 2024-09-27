@@ -79,6 +79,7 @@ class ImageDataset:
         flip=False,
         image_column="file_name",
         expand_dim_t=False,
+        **kwargs,
     ):
         if csv_path is not None:
             with open(csv_path, "r") as csvfile:

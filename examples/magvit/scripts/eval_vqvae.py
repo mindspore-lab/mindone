@@ -32,18 +32,21 @@ logger = logging.getLogger(__name__)
 
 
 def _rearrange_in(x):
-    b, c, t, h, w = x.shape
-    x = x.permute(0, 2, 1, 3, 4)
-    x = ms.ops.reshape(x, (b * t, c, h, w))
-
+    if x.ndim == 5:
+        b, c, t, h, w = x.shape
+        x = x.permute(0, 2, 1, 3, 4)
+        x = ms.ops.reshape(x, (b * t, c, h, w))
     return x
 
 
 def postprocess(x, trim=True):
     pixels = (x + 1) * 127.5
     pixels = np.clip(pixels, 0, 255).astype(np.uint8)
-    # b, c, t, h, w -> b t c h w
-    return np.transpose(pixels, (0, 2, 1, 3, 4))
+    if pixels.ndim == 5:
+        # b, c, t, h, w -> b t c h w
+        return np.transpose(pixels, (0, 2, 1, 3, 4))
+    else:
+        return pixels
 
 
 def visualize(recons, x=None, save_fn="tmp_vae_recons"):
@@ -107,7 +110,7 @@ def main(args):
     psnr_list = []
     ssim_list = []
     for step, data in tqdm(enumerate(ds_iter)):
-        x = data["video"].to(dtype)
+        x = data[ds_name].to(dtype)
         start_time = time.time()
 
         recons = model._forward(x)

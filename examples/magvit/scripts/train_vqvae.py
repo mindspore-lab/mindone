@@ -235,7 +235,7 @@ def main(args):
             beta1=0.9,
             beta2=0.999,
             weight_decay_filter="norm_and_bias",
-            )
+        )
 
         loss_scaler_disc = create_loss_scaler(
             args.loss_scaler_type,
@@ -412,7 +412,7 @@ def main(args):
                 if rank_id == 0 and args.step_mode:
                     cur_epoch = epoch + 1
                     if (cur_global_step % args.ckpt_save_interval == 0) or (cur_global_step == total_train_steps):
-                        ckpt_name = f"vae_3d-s{cur_global_step}.ckpt"
+                        ckpt_name = f"vqvae-s{cur_global_step}.ckpt"
                         if ema is not None:
                             ema.swap_before_eval()
                         vqvae_with_loss.set_train(False)
@@ -439,9 +439,7 @@ def main(args):
             if rank_id == 0 and args.step_mode:
                 cur_epoch = epoch + 1
                 if (cur_global_step % args.ckpt_save_interval == 0) or (cur_global_step == total_train_steps):
-                    ckpt_name = (
-                        f"vae_3d-e{cur_epoch}.ckpt"
-                    )
+                    ckpt_name = f"vqvae-e{cur_epoch}.ckpt"
                     if ema is not None:
                         ema.swap_before_eval()
                     vqvae_with_loss.set_train(False)

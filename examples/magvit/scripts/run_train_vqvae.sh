@@ -7,7 +7,7 @@ export DEVICE_ID=7
 python scripts/train_vqvae.py \
   --model_class vqvae-3d \
   --pretrained ./model_weights/vqvae2d-lfq-128-init.ckpt \
-  --use_discriminator False \
+  --use_discriminator True \
   --use_ema True \
   --dataset_name video \
   --data_path ./datasets/ucf101/train/ \
