@@ -25,11 +25,12 @@ from mindspore import ops
 
 from mindone.transformers import CLIPVisionModelWithProjection
 
-from ...image_processor import PipelineImageInput, VaeImageProcessor
+from ...image_processor import PipelineImageInput
 from ...models import AutoencoderKLTemporalDecoder, UNetSpatioTemporalConditionModel
 from ...schedulers import EulerDiscreteScheduler
 from ...utils import BaseOutput, logging
 from ...utils.mindspore_utils import randn_tensor
+from ...video_processor import VideoProcessor
 from ..pipeline_utils import DiffusionPipeline
 
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
@@ -60,26 +61,61 @@ def _append_dims(x, target_dims):
     return x[(...,) + (None,) * dims_to_append]
 
 
-# Copied from diffusers.pipelines.animatediff.pipeline_animatediff.tensor2vid
-def tensor2vid(video: ms.Tensor, processor: VaeImageProcessor, output_type: str = "np"):
-    batch_size, channels, num_frames, height, width = video.shape
-    outputs = []
-    for batch_idx in range(batch_size):
-        batch_vid = video[batch_idx].permute((1, 0, 2, 3))
-        batch_output = processor.postprocess(batch_vid, output_type)
+# Copied from diffusers.pipelines.stable_diffusion.pipeline_stable_diffusion.retrieve_timesteps
+def retrieve_timesteps(
+    scheduler,
+    num_inference_steps: Optional[int] = None,
+    timesteps: Optional[List[int]] = None,
+    sigmas: Optional[List[float]] = None,
+    **kwargs,
+):
+    """
+    Calls the scheduler's `set_timesteps` method and retrieves timesteps from the scheduler after the call. Handles
+    custom timesteps. Any kwargs will be supplied to `scheduler.set_timesteps`.
 
-        outputs.append(batch_output)
+    Args:
+        scheduler (`SchedulerMixin`):
+            The scheduler to get timesteps from.
+        num_inference_steps (`int`):
+            The number of diffusion steps used when generating samples with a pre-trained model. If used, `timesteps`
+            must be `None`.
+        timesteps (`List[int]`, *optional*):
+            Custom timesteps used to override the timestep spacing strategy of the scheduler. If `timesteps` is passed,
+            `num_inference_steps` and `sigmas` must be `None`.
+        sigmas (`List[float]`, *optional*):
+            Custom sigmas used to override the timestep spacing strategy of the scheduler. If `sigmas` is passed,
+            `num_inference_steps` and `timesteps` must be `None`.
 
-    if output_type == "np":
-        outputs = np.stack(outputs)
-
-    elif output_type == "ms":
-        outputs = ops.stack(outputs)
-
-    elif not output_type == "pil":
-        raise ValueError(f"{output_type} does not exist. Please choose one of ['np', 'ms', 'pil']")
-
-    return outputs
+    Returns:
+        `Tuple[ms.Tensor, int]`: A tuple where the first element is the timestep schedule from the scheduler and
+        the second element is the number of inference steps.
+    """
+    if timesteps is not None and sigmas is not None:
+        raise ValueError("Only one of `timesteps` or `sigmas` can be passed. Please choose one to set custom values")
+    if timesteps is not None:
+        accepts_timesteps = "timesteps" in set(inspect.signature(scheduler.set_timesteps).parameters.keys())
+        if not accepts_timesteps:
+            raise ValueError(
+                f"The current scheduler class {scheduler.__class__}'s `set_timesteps` does not support custom"
+                f" timestep schedules. Please check whether you are using the correct scheduler."
+            )
+        scheduler.set_timesteps(timesteps=timesteps, **kwargs)
+        timesteps = scheduler.timesteps
+        num_inference_steps = len(timesteps)
+    elif sigmas is not None:
+        accept_sigmas = "sigmas" in set(inspect.signature(scheduler.set_timesteps).parameters.keys())
+        if not accept_sigmas:
+            raise ValueError(
+                f"The current scheduler class {scheduler.__class__}'s `set_timesteps` does not support custom"
+                f" sigmas schedules. Please check whether you are using the correct scheduler."
+            )
+        scheduler.set_timesteps(sigmas=sigmas, **kwargs)
+        timesteps = scheduler.timesteps
+        num_inference_steps = len(timesteps)
+    else:
+        scheduler.set_timesteps(num_inference_steps, **kwargs)
+        timesteps = scheduler.timesteps
+    return timesteps, num_inference_steps
 
 
 @dataclass
@@ -89,8 +125,8 @@ class StableVideoDiffusionPipelineOutput(BaseOutput):
 
     Args:
         frames (`[List[List[PIL.Image.Image]]`, `np.ndarray`, `ms.Tensor`]):
-            List of denoised PIL images of length `batch_size` or numpy array or torch tensor
-            of shape `(batch_size, num_frames, height, width, num_channels)`.
+            List of denoised PIL images of length `batch_size` or numpy array or ms tensor of shape `(batch_size,
+            num_frames, height, width, num_channels)`.
     """
 
     frames: Union[List[List[PIL.Image.Image]], np.ndarray, ms.Tensor]
@@ -107,7 +143,8 @@ class StableVideoDiffusionPipeline(DiffusionPipeline):
         vae ([`AutoencoderKLTemporalDecoder`]):
             Variational Auto-Encoder (VAE) model to encode and decode images to and from latent representations.
         image_encoder ([`~transformers.CLIPVisionModelWithProjection`]):
-            Frozen CLIP image-encoder ([laion/CLIP-ViT-H-14-laion2B-s32B-b79K](https://huggingface.co/laion/CLIP-ViT-H-14-laion2B-s32B-b79K)).
+            Frozen CLIP image-encoder
+            ([laion/CLIP-ViT-H-14-laion2B-s32B-b79K](https://huggingface.co/laion/CLIP-ViT-H-14-laion2B-s32B-b79K)).
         unet ([`UNetSpatioTemporalConditionModel`]):
             A `UNetSpatioTemporalConditionModel` to denoise the encoded image latents.
         scheduler ([`EulerDiscreteScheduler`]):
@@ -137,7 +174,7 @@ class StableVideoDiffusionPipeline(DiffusionPipeline):
             feature_extractor=feature_extractor,
         )
         self.vae_scale_factor = 2 ** (len(self.vae.config.block_out_channels) - 1)
-        self.image_processor = VaeImageProcessor(vae_scale_factor=self.vae_scale_factor)
+        self.video_processor = VideoProcessor(do_resize=True, vae_scale_factor=self.vae_scale_factor)
 
     def _encode_image(
         self,
@@ -148,8 +185,8 @@ class StableVideoDiffusionPipeline(DiffusionPipeline):
         dtype = next(self.image_encoder.get_parameters()).dtype
 
         if not isinstance(image, ms.Tensor):
-            image = self.image_processor.pil_to_numpy(image)
-            image = self.image_processor.numpy_to_pt(image)
+            image = self.video_processor.pil_to_numpy(image)
+            image = self.video_processor.numpy_to_pt(image)
 
             # We normalize the image before resizing to match with the original implementation.
             # Then we unnormalize it after resizing.
@@ -194,6 +231,9 @@ class StableVideoDiffusionPipeline(DiffusionPipeline):
     ):
         image_latents = self.vae.diag_gauss_dist.mode(self.vae.encode(image)[0])
 
+        # duplicate image_latents for each generation per prompt, using mps friendly method
+        image_latents = image_latents.tile((num_videos_per_prompt, 1, 1, 1))
+
         if do_classifier_free_guidance:
             negative_image_latents = ops.zeros_like(image_latents)
 
@@ -201,9 +241,6 @@ class StableVideoDiffusionPipeline(DiffusionPipeline):
             # Here we concatenate the unconditional and text embeddings into a single batch
             # to avoid doing two forward passes
             image_latents = ops.cat([negative_image_latents, image_latents])
-
-        # duplicate image_latents for each generation per prompt, using mps friendly method
-        image_latents = image_latents.tile((num_videos_per_prompt, 1, 1, 1))
 
         return image_latents
 
@@ -331,6 +368,7 @@ class StableVideoDiffusionPipeline(DiffusionPipeline):
         width: int = 1024,
         num_frames: Optional[int] = None,
         num_inference_steps: int = 25,
+        sigmas: Optional[List[float]] = None,
         min_guidance_scale: float = 1.0,
         max_guidance_scale: float = 3.0,
         fps: int = 7,
@@ -361,6 +399,10 @@ class StableVideoDiffusionPipeline(DiffusionPipeline):
             num_inference_steps (`int`, *optional*, defaults to 25):
                 The number of denoising steps. More denoising steps usually lead to a higher quality video at the
                 expense of slower inference. This parameter is modulated by `strength`.
+            sigmas (`List[float]`, *optional*):
+                Custom sigmas to use for the denoising process with schedulers which support a `sigmas` argument in
+                their `set_timesteps` method. If not defined, the default behavior when `num_inference_steps` is passed
+                will be used.
             min_guidance_scale (`float`, *optional*, defaults to 1.0):
                 The minimum guidance scale. Used for the classifier free guidance with first frame.
             max_guidance_scale (`float`, *optional*, defaults to 3.0):
@@ -437,7 +479,7 @@ class StableVideoDiffusionPipeline(DiffusionPipeline):
         fps = fps - 1
 
         # 4. Encode input image using VAE
-        image = self.image_processor.preprocess(image, height=height, width=width)
+        image = self.video_processor.preprocess(image, height=height, width=width)
         noise = randn_tensor(image.shape, generator=generator, dtype=image.dtype)
         image = image + noise_aug_strength * noise
 
@@ -472,8 +514,7 @@ class StableVideoDiffusionPipeline(DiffusionPipeline):
         )
 
         # 6. Prepare timesteps
-        self.scheduler.set_timesteps(num_inference_steps)
-        timesteps = self.scheduler.timesteps
+        timesteps, num_inference_steps = retrieve_timesteps(self.scheduler, num_inference_steps, None, sigmas)
 
         # 7. Prepare latent variables
         num_channels_latents = self.unet.config.in_channels
@@ -543,7 +584,7 @@ class StableVideoDiffusionPipeline(DiffusionPipeline):
             if needs_upcasting:
                 self.vae.to(dtype=ms.float16)
             frames = self.decode_latents(latents, num_frames, decode_chunk_size)
-            frames = tensor2vid(frames, self.image_processor, output_type=output_type)
+            frames = self.video_processor.postprocess_video(video=frames, output_type=output_type)
         else:
             frames = latents
 
@@ -616,7 +657,7 @@ def _filter2d(input, kernel):
 
     height, width = tmp_kernel.shape[-2:]
 
-    padding_shape: list[int] = _compute_padding([height, width])
+    padding_shape: List[int] = _compute_padding([height, width])
     input = ops.pad(input, padding_shape, mode="reflect")
 
     # kernel and input tensor reshape to align element-wise or batch-wise params

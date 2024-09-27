@@ -23,15 +23,22 @@ _import_structure = {
     "autoencoders.autoencoder_kl_temporal_decoder": ["AutoencoderKLTemporalDecoder"],
     "autoencoders.autoencoder_tiny": ["AutoencoderTiny"],
     "autoencoders.consistency_decoder_vae": ["ConsistencyDecoderVAE"],
+    "autoencoders.vq_model": ["VQModel"],
     "controlnet": ["ControlNetModel"],
+    "controlnet_sd3": ["SD3ControlNetModel", "SD3MultiControlNetModel"],
+    "controlnet_xs": ["ControlNetXSAdapter", "UNetControlNetXSModel"],
     "dual_transformer_2d": ["DualTransformer2DModel"],
     "embeddings": ["ImageProjection"],
     "modeling_utils": ["ModelMixin"],
+    "transformers.dit_transformer_2d": ["DiTTransformer2DModel"],
+    "transformers.dual_transformer_2d": ["DualTransformer2DModel"],
+    "transformers.hunyuan_transformer_2d": ["HunyuanDiT2DModel"],
+    "transformers.pixart_transformer_2d": ["PixArtTransformer2DModel"],
     "transformers.prior_transformer": ["PriorTransformer"],
     "transformers.t5_film_transformer": ["T5FilmDecoder"],
     "transformers.transformer_2d": ["Transformer2DModel"],
-    "transformers.transformer_temporal": ["TransformerTemporalModel"],
     "transformers.transformer_sd3": ["SD3Transformer2DModel"],
+    "transformers.transformer_temporal": ["TransformerTemporalModel"],
     "unets.unet_1d": ["UNet1DModel"],
     "unets.unet_2d": ["UNet2DModel"],
     "unets.unet_2d_condition": ["UNet2DConditionModel"],
@@ -42,7 +49,6 @@ _import_structure = {
     "unets.unet_stable_cascade": ["StableCascadeUNet"],
     "unets.unet_spatio_temporal_condition": ["UNetSpatioTemporalConditionModel"],
     "unets.uvit_2d": ["UVit2DModel"],
-    "vq_model": ["VQModel"],
 }
 
 if TYPE_CHECKING:
@@ -53,12 +59,18 @@ if TYPE_CHECKING:
         AutoencoderKLTemporalDecoder,
         AutoencoderTiny,
         ConsistencyDecoderVAE,
+        VQModel,
     )
     from .controlnet import ControlNetModel
+    from .controlnet_sd3 import SD3ControlNetModel, SD3MultiControlNetModel
+    from .controlnet_xs import ControlNetXSAdapter, UNetControlNetXSModel
     from .embeddings import ImageProjection
     from .modeling_utils import ModelMixin
     from .transformers import (
+        DiTTransformer2DModel,
         DualTransformer2DModel,
+        HunyuanDiT2DModel,
+        PixArtTransformer2DModel,
         PriorTransformer,
         SD3Transformer2DModel,
         T5FilmDecoder,
@@ -78,7 +90,6 @@ if TYPE_CHECKING:
         UNetSpatioTemporalConditionModel,
         UVit2DModel,
     )
-    from .vq_model import VQModel
 
 else:
     import sys

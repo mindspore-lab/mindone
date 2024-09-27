@@ -14,6 +14,7 @@
 """
 State dict utilities: utility methods for converting state dicts easily
 """
+
 import enum
 
 from .logging import get_logger
@@ -45,6 +46,7 @@ UNET_TO_DIFFUSERS = {
     ".to_v_lora.up": ".to_v.lora_B",
     ".lora.up": ".lora_B",
     ".lora.down": ".lora_A",
+    ".to_out.lora_magnitude_vector": ".to_out.0.lora_magnitude_vector",
 }
 
 
@@ -59,6 +61,8 @@ DIFFUSERS_TO_PEFT = {
     ".out_proj.lora_linear_layer.down": ".out_proj.lora_A",
     ".lora_linear_layer.up": ".lora_B",
     ".lora_linear_layer.down": ".lora_A",
+    "text_projection.lora.down.weight": "text_projection.lora_A.weight",
+    "text_projection.lora.up.weight": "text_projection.lora_B.weight",
 }
 
 DIFFUSERS_OLD_TO_PEFT = {
@@ -102,6 +106,10 @@ DIFFUSERS_OLD_TO_DIFFUSERS = {
     ".to_v_lora.down": ".v_proj.lora_linear_layer.down",
     ".to_out_lora.up": ".out_proj.lora_linear_layer.up",
     ".to_out_lora.down": ".out_proj.lora_linear_layer.down",
+    ".to_k.lora_magnitude_vector": ".k_proj.lora_magnitude_vector",
+    ".to_v.lora_magnitude_vector": ".v_proj.lora_magnitude_vector",
+    ".to_q.lora_magnitude_vector": ".q_proj.lora_magnitude_vector",
+    ".to_out.lora_magnitude_vector": ".out_proj.lora_magnitude_vector",
 }
 
 PEFT_TO_KOHYA_SS = {
@@ -246,8 +254,8 @@ def convert_unet_state_dict_to_peft(state_dict):
 
 def convert_all_state_dict_to_peft(state_dict):
     r"""
-    Attempts to first `convert_state_dict_to_peft`, and if it doesn't detect `lora_linear_layer`
-    for a valid `DIFFUSERS` LoRA for example, attempts to exclusively convert the Unet `convert_unet_state_dict_to_peft`
+    Attempts to first `convert_state_dict_to_peft`, and if it doesn't detect `lora_linear_layer` for a valid
+    `DIFFUSERS` LoRA for example, attempts to exclusively convert the Unet `convert_unet_state_dict_to_peft`
     """
     try:
         peft_dict = convert_state_dict_to_peft(state_dict)

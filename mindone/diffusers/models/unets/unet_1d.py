@@ -207,11 +207,11 @@ class UNet1DModel(ModelMixin, ConfigMixin):
                 The noisy input tensor with the following shape `(batch_size, num_channels, sample_size)`.
             timestep (`ms.Tensor` or `float` or `int`): The number of timesteps to denoise an input.
             return_dict (`bool`, *optional*, defaults to `False`):
-                Whether or not to return a [`~models.unet_1d.UNet1DOutput`] instead of a plain tuple.
+                Whether or not to return a [`~models.unets.unet_1d.UNet1DOutput`] instead of a plain tuple.
 
         Returns:
-            [`~models.unet_1d.UNet1DOutput`] or `tuple`:
-                If `return_dict` is True, an [`~models.unet_1d.UNet1DOutput`] is returned, otherwise a `tuple` is
+            [`~models.unets.unet_1d.UNet1DOutput`] or `tuple`:
+                If `return_dict` is True, an [`~models.unets.unet_1d.UNet1DOutput`] is returned, otherwise a `tuple` is
                 returned where the first element is the sample tensor.
         """
 

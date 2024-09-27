@@ -24,6 +24,7 @@ from mindspore import ops
 
 from mindone.transformers import CLIPTextModel, CLIPTextModelWithProjection, CLIPVisionModelWithProjection
 
+from ...callbacks import MultiPipelineCallbacks, PipelineCallback
 from ...image_processor import PipelineImageInput, VaeImageProcessor
 from ...loaders import (
     FromSingleFileMixin,
@@ -66,8 +67,8 @@ def rescale_noise_cfg(noise_cfg, noise_pred_text, guidance_rescale=0.0):
     Rescale `noise_cfg` according to `guidance_rescale`. Based on findings of [Common Diffusion Noise Schedules and
     Sample Steps are Flawed](https://arxiv.org/pdf/2305.08891.pdf). See Section 3.4
     """
-    std_text = noise_pred_text.std(axis=list(range(1, noise_pred_text.ndim)), keepdims=True)
-    std_cfg = noise_cfg.std(axis=list(range(1, noise_cfg.ndim)), keepdims=True)
+    std_text = noise_pred_text.std(axis=tuple(range(1, noise_pred_text.ndim)), keepdims=True)
+    std_cfg = noise_cfg.std(axis=tuple(range(1, noise_cfg.ndim)), keepdims=True)
     # rescale the results from guidance (fixes overexposure)
     noise_pred_rescaled = noise_cfg * (std_text / std_cfg)
     # mix with the original results from guidance by factor guidance_rescale to avoid "plain looking" images
@@ -94,6 +95,7 @@ def retrieve_timesteps(
     scheduler,
     num_inference_steps: Optional[int] = None,
     timesteps: Optional[List[int]] = None,
+    sigmas: Optional[List[float]] = None,
     **kwargs,
 ):
     """
@@ -104,17 +106,21 @@ def retrieve_timesteps(
         scheduler (`SchedulerMixin`):
             The scheduler to get timesteps from.
         num_inference_steps (`int`):
-            The number of diffusion steps used when generating samples with a pre-trained model. If used,
-            `timesteps` must be `None`.
+            The number of diffusion steps used when generating samples with a pre-trained model. If used, `timesteps`
+            must be `None`.
         timesteps (`List[int]`, *optional*):
-                Custom timesteps used to support arbitrary spacing between timesteps. If `None`, then the default
-                timestep spacing strategy of the scheduler is used. If `timesteps` is passed, `num_inference_steps`
-                must be `None`.
+            Custom timesteps used to override the timestep spacing strategy of the scheduler. If `timesteps` is passed,
+            `num_inference_steps` and `sigmas` must be `None`.
+        sigmas (`List[float]`, *optional*):
+            Custom sigmas used to override the timestep spacing strategy of the scheduler. If `sigmas` is passed,
+            `num_inference_steps` and `timesteps` must be `None`.
 
     Returns:
-        `Tuple[ms.Tensor, int]`: A tuple where the first element is the timestep schedule from the scheduler and the
-        second element is the number of inference steps.
+        `Tuple[ms.Tensor, int]`: A tuple where the first element is the timestep schedule from the scheduler and
+        the second element is the number of inference steps.
     """
+    if timesteps is not None and sigmas is not None:
+        raise ValueError("Only one of `timesteps` or `sigmas` can be passed. Please choose one to set custom values")
     if timesteps is not None:
         accepts_timesteps = "timesteps" in set(inspect.signature(scheduler.set_timesteps).parameters.keys())
         if not accepts_timesteps:
@@ -123,6 +129,16 @@ def retrieve_timesteps(
                 f" timestep schedules. Please check whether you are using the correct scheduler."
             )
         scheduler.set_timesteps(timesteps=timesteps, **kwargs)
+        timesteps = scheduler.timesteps
+        num_inference_steps = len(timesteps)
+    elif sigmas is not None:
+        accept_sigmas = "sigmas" in set(inspect.signature(scheduler.set_timesteps).parameters.keys())
+        if not accept_sigmas:
+            raise ValueError(
+                f"The current scheduler class {scheduler.__class__}'s `set_timesteps` does not support custom"
+                f" sigmas schedules. Please check whether you are using the correct scheduler."
+            )
+        scheduler.set_timesteps(sigmas=sigmas, **kwargs)
         timesteps = scheduler.timesteps
         num_inference_steps = len(timesteps)
     else:
@@ -610,6 +626,12 @@ class StableDiffusionXLImg2ImgPipeline(
                 f"`image` has to be of type `mindspore.Tensor`, `PIL.Image.Image` or list but is {type(image)}"
             )
 
+        latents_mean = latents_std = None
+        if hasattr(self.vae.config, "latents_mean") and self.vae.config.latents_mean is not None:
+            latents_mean = ms.tensor(self.vae.config.latents_mean).view(1, 4, 1, 1)
+        if hasattr(self.vae.config, "latents_std") and self.vae.config.latents_std is not None:
+            latents_std = ms.tensor(self.vae.config.latents_std).view(1, 4, 1, 1)
+
         image = image.to(dtype=dtype)
 
         batch_size = batch_size * num_images_per_prompt
@@ -642,7 +664,12 @@ class StableDiffusionXLImg2ImgPipeline(
                 self.vae.to(dtype)
 
             init_latents = init_latents.to(dtype)
-            init_latents = self.vae.config.scaling_factor * init_latents
+            if latents_mean is not None and latents_std is not None:
+                latents_mean = latents_mean.to(dtype=dtype)
+                latents_std = latents_std.to(dtype=dtype)
+                init_latents = (init_latents - latents_mean) * self.vae.config.scaling_factor / latents_std
+            else:
+                init_latents = self.vae.config.scaling_factor * init_latents
 
         if batch_size > init_latents.shape[0] and batch_size % init_latents.shape[0] == 0:
             # expand init_latents for batch_size
@@ -728,7 +755,9 @@ class StableDiffusionXLImg2ImgPipeline(
         self.vae.to(dtype=ms.float32)
 
     # Copied from diffusers.pipelines.latent_consistency_models.pipeline_latent_consistency_text2img.LatentConsistencyModelPipeline.get_guidance_scale_embedding
-    def get_guidance_scale_embedding(self, w, embedding_dim=512, dtype=ms.float32):
+    def get_guidance_scale_embedding(
+        self, w: ms.Tensor, embedding_dim: int = 512, dtype: ms.Type = ms.float32
+    ) -> ms.Tensor:
         """
         See https://github.com/google-research/vdm/blob/dc27b98a554f65cdc654b800da5aa1846545d41b/model_vdm.py#L298
 
@@ -737,7 +766,7 @@ class StableDiffusionXLImg2ImgPipeline(
                 Generate embedding vectors with a specified guidance scale to subsequently enrich timestep embeddings.
             embedding_dim (`int`, *optional*, defaults to 512):
                 Dimension of the embeddings to generate.
-            dtype:
+            dtype (`ms.dtype`, *optional*, defaults to `ms.float32`):
                 Data type of the generated embeddings.
 
         Returns:
@@ -803,6 +832,7 @@ class StableDiffusionXLImg2ImgPipeline(
         strength: float = 0.3,
         num_inference_steps: int = 50,
         timesteps: List[int] = None,
+        sigmas: List[float] = None,
         denoising_start: Optional[float] = None,
         denoising_end: Optional[float] = None,
         guidance_scale: float = 5.0,
@@ -831,7 +861,9 @@ class StableDiffusionXLImg2ImgPipeline(
         aesthetic_score: float = 6.0,
         negative_aesthetic_score: float = 2.5,
         clip_skip: Optional[int] = None,
-        callback_on_step_end: Optional[Callable[[int, int, Dict], None]] = None,
+        callback_on_step_end: Optional[
+            Union[Callable[[int, int, Dict], None], PipelineCallback, MultiPipelineCallbacks]
+        ] = None,
         callback_on_step_end_tensor_inputs: List[str] = ["latents"],
         **kwargs,
     ):
@@ -861,6 +893,10 @@ class StableDiffusionXLImg2ImgPipeline(
                 Custom timesteps to use for the denoising process with schedulers which support a `timesteps` argument
                 in their `set_timesteps` method. If not defined, the default behavior when `num_inference_steps` is
                 passed will be used. Must be in descending order.
+            sigmas (`List[float]`, *optional*):
+                Custom sigmas to use for the denoising process with schedulers which support a `sigmas` argument in
+                their `set_timesteps` method. If not defined, the default behavior when `num_inference_steps` is passed
+                will be used.
             denoising_start (`float`, *optional*):
                 When specified, indicates the fraction (between 0.0 and 1.0) of the total denoising process to be
                 bypassed before it is initiated. Consequently, the initial part of the denoising process is skipped and
@@ -976,11 +1012,11 @@ class StableDiffusionXLImg2ImgPipeline(
             clip_skip (`int`, *optional*):
                 Number of layers to be skipped from CLIP while computing the prompt embeddings. A value of 1 means that
                 the output of the pre-final layer will be used for computing the prompt embeddings.
-            callback_on_step_end (`Callable`, *optional*):
-                A function that calls at the end of each denoising steps during the inference. The function is called
-                with the following arguments: `callback_on_step_end(self: DiffusionPipeline, step: int, timestep: int,
-                callback_kwargs: Dict)`. `callback_kwargs` will include a list of all tensors as specified by
-                `callback_on_step_end_tensor_inputs`.
+            callback_on_step_end (`Callable`, `PipelineCallback`, `MultiPipelineCallbacks`, *optional*):
+                A function or a subclass of `PipelineCallback` or `MultiPipelineCallbacks` that is called at the end of
+                each denoising step during the inference. with the following arguments: `callback_on_step_end(self:
+                DiffusionPipeline, step: int, timestep: int, callback_kwargs: Dict)`. `callback_kwargs` will include a
+                list of all tensors as specified by `callback_on_step_end_tensor_inputs`.
             callback_on_step_end_tensor_inputs (`List`, *optional*):
                 The list of tensor inputs for the `callback_on_step_end` function. The tensors specified in the list
                 will be passed as `callback_kwargs` argument. You will only be able to include variables listed in the
@@ -1009,6 +1045,9 @@ class StableDiffusionXLImg2ImgPipeline(
                 "1.0.0",
                 "Passing `callback_steps` as an input argument to `__call__` is deprecated, consider use `callback_on_step_end`",
             )
+
+        if isinstance(callback_on_step_end, (PipelineCallback, MultiPipelineCallbacks)):
+            callback_on_step_end_tensor_inputs = callback_on_step_end.tensor_inputs
 
         # 1. Check inputs. Raise error if not correct
         self.check_inputs(
@@ -1073,7 +1112,7 @@ class StableDiffusionXLImg2ImgPipeline(
         def denoising_value_valid(dnv):
             return isinstance(dnv, float) and 0 < dnv < 1
 
-        timesteps, num_inference_steps = retrieve_timesteps(self.scheduler, num_inference_steps, timesteps)
+        timesteps, num_inference_steps = retrieve_timesteps(self.scheduler, num_inference_steps, timesteps, sigmas)
         timesteps, num_inference_steps = self.get_timesteps(
             num_inference_steps,
             strength,
@@ -1082,16 +1121,18 @@ class StableDiffusionXLImg2ImgPipeline(
         latent_timestep = timesteps[:1].repeat(batch_size * num_images_per_prompt)
 
         add_noise = True if self.denoising_start is None else False
+
         # 6. Prepare latent variables
-        latents = self.prepare_latents(
-            image,
-            latent_timestep,
-            batch_size,
-            num_images_per_prompt,
-            prompt_embeds.dtype,
-            generator,
-            add_noise,
-        )
+        if latents is None:
+            latents = self.prepare_latents(
+                image,
+                latent_timestep,
+                batch_size,
+                num_images_per_prompt,
+                prompt_embeds.dtype,
+                generator,
+                add_noise,
+            )
         # 7. Prepare extra step kwargs.
         extra_step_kwargs = self.prepare_extra_step_kwargs(generator, eta)
 

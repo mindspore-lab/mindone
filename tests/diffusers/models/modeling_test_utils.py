@@ -30,7 +30,7 @@ def get_pt2ms_mappings(m):
     for name, cell in m.cells_and_names():
         if isinstance(cell, (nn.Conv1d, nn.Conv1dTranspose)):
             mappings[f"{name}.weight"] = f"{name}.weight", lambda x: ms.Parameter(
-                ops.expand_dims(x, axis=-2), name=x.name
+                ops.expand_dims(x, axis=-2), name=f"{name}.weight"
             )
         elif isinstance(cell, nn.Embedding):
             mappings[f"{name}.weight"] = f"{name}.embedding_table", lambda x: x

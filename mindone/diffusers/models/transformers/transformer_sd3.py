@@ -1,4 +1,4 @@
-# Copyright 2024 Stability AI and The HuggingFace Team. All rights reserved.
+# Copyright 2024 Stability AI, The HuggingFace Team and The InstantX Team. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,13 +13,13 @@
 # limitations under the License.
 
 
-from typing import Any, Dict, Optional, Union
+from typing import Any, Dict, List, Optional, Union
 
 import mindspore as ms
 from mindspore import nn
 
 from ...configuration_utils import ConfigMixin, register_to_config
-from ...loaders import PeftAdapterMixin
+from ...loaders import FromOriginalModelMixin, PeftAdapterMixin
 from ...models.attention import JointTransformerBlock
 from ...models.attention_processor import Attention, AttentionProcessor, FusedJointAttnProcessor
 from ...models.modeling_utils import ModelMixin
@@ -31,7 +31,7 @@ from .transformer_2d import Transformer2DModelOutput
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
 
 
-class SD3Transformer2DModel(ModelMixin, ConfigMixin, PeftAdapterMixin):
+class SD3Transformer2DModel(ModelMixin, ConfigMixin, PeftAdapterMixin, FromOriginalModelMixin):
     """
     The Transformer model introduced in Stable Diffusion 3.
 
@@ -226,6 +226,7 @@ class SD3Transformer2DModel(ModelMixin, ConfigMixin, PeftAdapterMixin):
         encoder_hidden_states: ms.Tensor = None,
         pooled_projections: ms.Tensor = None,
         timestep: ms.Tensor = None,
+        block_controlnet_hidden_states: List = None,
         joint_attention_kwargs: Optional[Dict[str, Any]] = None,
         return_dict: bool = False,
     ) -> Union[ms.Tensor, Transformer2DModelOutput]:
@@ -241,6 +242,8 @@ class SD3Transformer2DModel(ModelMixin, ConfigMixin, PeftAdapterMixin):
                 from the embeddings of input conditions.
             timestep ( `ms.Tensor`):
                 Used to indicate denoising step.
+            block_controlnet_hidden_states: (`list` of `torch.Tensor`):
+                A list of tensors that if specified are added to the residuals of transformer blocks.
             joint_attention_kwargs (`dict`, *optional*):
                 A kwargs dictionary that if specified is passed along to the `AttentionProcessor` as defined under
                 `self.processor` in
@@ -253,12 +256,12 @@ class SD3Transformer2DModel(ModelMixin, ConfigMixin, PeftAdapterMixin):
             If `return_dict` is True, an [`~models.transformer_2d.Transformer2DModelOutput`] is returned, otherwise a
             `tuple` where the first element is the sample tensor.
         """
-        if joint_attention_kwargs is not None and "lora_scale" in joint_attention_kwargs:
+        if joint_attention_kwargs is not None and "scale" in joint_attention_kwargs:
             # weight the lora layers by setting `lora_scale` for each PEFT layer here
             # and remove `lora_scale` from each PEFT layer at the end.
             # scale_lora_layers & unscale_lora_layers maybe contains some operation forbidden in graph mode
             raise RuntimeError(
-                f"You are trying to set scaling of lora layer by passing {joint_attention_kwargs['lora_scale']=}. "
+                f"You are trying to set scaling of lora layer by passing {joint_attention_kwargs['scale']=}. "
                 f"However it's not allowed in on-the-fly model forwarding. "
                 f"Please manually call `scale_lora_layers(model, lora_scale)` before model forwarding and "
                 f"`unscale_lora_layers(model, lora_scale)` after model forwarding. "
@@ -271,10 +274,15 @@ class SD3Transformer2DModel(ModelMixin, ConfigMixin, PeftAdapterMixin):
         temb = self.time_text_embed(timestep, pooled_projections)
         encoder_hidden_states = self.context_embedder(encoder_hidden_states)
 
-        for block in self.transformer_blocks:
+        for index_block, block in enumerate(self.transformer_blocks):
             encoder_hidden_states, hidden_states = block(
                 hidden_states=hidden_states, encoder_hidden_states=encoder_hidden_states, temb=temb
             )
+
+            # controlnet residual
+            if block_controlnet_hidden_states is not None and block.context_pre_only is False:
+                interval_control = len(self.transformer_blocks) // len(block_controlnet_hidden_states)
+                hidden_states = hidden_states + block_controlnet_hidden_states[index_block // interval_control]
 
         hidden_states = self.norm_out(hidden_states, temb)
         hidden_states = self.proj_out(hidden_states)

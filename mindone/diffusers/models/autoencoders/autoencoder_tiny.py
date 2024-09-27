@@ -14,7 +14,9 @@
 
 
 from dataclasses import dataclass
-from typing import Tuple, Union
+from typing import Optional, Tuple, Union
+
+import numpy as np
 
 import mindspore as ms
 from mindspore import ops
@@ -102,6 +104,7 @@ class AutoencoderTiny(ModelMixin, ConfigMixin):
         encoder_block_out_channels: Tuple[int, ...] = (64, 64, 64, 64),
         decoder_block_out_channels: Tuple[int, ...] = (64, 64, 64, 64),
         act_fn: str = "relu",
+        upsample_fn: str = "nearest",
         latent_channels: int = 4,
         upsampling_scaling_factor: int = 2,
         num_encoder_blocks: Tuple[int, ...] = (1, 3, 3, 3),
@@ -133,6 +136,7 @@ class AutoencoderTiny(ModelMixin, ConfigMixin):
             block_out_channels=decoder_block_out_channels,
             upsampling_scaling_factor=upsampling_scaling_factor,
             act_fn=act_fn,
+            upsample_fn=upsample_fn,
         )
 
         self.latent_magnitude = latent_magnitude
@@ -171,7 +175,9 @@ class AutoencoderTiny(ModelMixin, ConfigMixin):
 
         return AutoencoderTinyOutput(latents=output)
 
-    def decode(self, x: ms.Tensor, return_dict: bool = False) -> Union[DecoderOutput, Tuple[ms.Tensor]]:
+    def decode(
+        self, x: ms.Tensor, generator: Optional[np.random.Generator] = None, return_dict: bool = False
+    ) -> Union[DecoderOutput, Tuple[ms.Tensor]]:
         output = self.decoder(x)
 
         if not return_dict:

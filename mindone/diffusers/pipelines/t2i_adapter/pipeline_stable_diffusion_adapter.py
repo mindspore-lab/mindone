@@ -114,6 +114,7 @@ def retrieve_timesteps(
     scheduler,
     num_inference_steps: Optional[int] = None,
     timesteps: Optional[List[int]] = None,
+    sigmas: Optional[List[float]] = None,
     **kwargs,
 ):
     """
@@ -124,17 +125,21 @@ def retrieve_timesteps(
         scheduler (`SchedulerMixin`):
             The scheduler to get timesteps from.
         num_inference_steps (`int`):
-            The number of diffusion steps used when generating samples with a pre-trained model. If used,
-            `timesteps` must be `None`.
+            The number of diffusion steps used when generating samples with a pre-trained model. If used, `timesteps`
+            must be `None`.
         timesteps (`List[int]`, *optional*):
-                Custom timesteps used to support arbitrary spacing between timesteps. If `None`, then the default
-                timestep spacing strategy of the scheduler is used. If `timesteps` is passed, `num_inference_steps`
-                must be `None`.
+            Custom timesteps used to override the timestep spacing strategy of the scheduler. If `timesteps` is passed,
+            `num_inference_steps` and `sigmas` must be `None`.
+        sigmas (`List[float]`, *optional*):
+            Custom sigmas used to override the timestep spacing strategy of the scheduler. If `sigmas` is passed,
+            `num_inference_steps` and `timesteps` must be `None`.
 
     Returns:
         `Tuple[ms.Tensor, int]`: A tuple where the first element is the timestep schedule from the scheduler and
         the second element is the number of inference steps.
     """
+    if timesteps is not None and sigmas is not None:
+        raise ValueError("Only one of `timesteps` or `sigmas` can be passed. Please choose one to set custom values")
     if timesteps is not None:
         accepts_timesteps = "timesteps" in set(inspect.signature(scheduler.set_timesteps).parameters.keys())
         if not accepts_timesteps:
@@ -143,6 +148,16 @@ def retrieve_timesteps(
                 f" timestep schedules. Please check whether you are using the correct scheduler."
             )
         scheduler.set_timesteps(timesteps=timesteps, **kwargs)
+        timesteps = scheduler.timesteps
+        num_inference_steps = len(timesteps)
+    elif sigmas is not None:
+        accept_sigmas = "sigmas" in set(inspect.signature(scheduler.set_timesteps).parameters.keys())
+        if not accept_sigmas:
+            raise ValueError(
+                f"The current scheduler class {scheduler.__class__}'s `set_timesteps` does not support custom"
+                f" sigmas schedules. Please check whether you are using the correct scheduler."
+            )
+        scheduler.set_timesteps(sigmas=sigmas, **kwargs)
         timesteps = scheduler.timesteps
         num_inference_steps = len(timesteps)
     else:
@@ -433,9 +448,10 @@ class StableDiffusionAdapterPipeline(DiffusionPipeline):
             negative_prompt_embeds = negative_prompt_embeds.tile((1, num_images_per_prompt, 1))
             negative_prompt_embeds = negative_prompt_embeds.view(batch_size * num_images_per_prompt, seq_len, -1)
 
-        if isinstance(self, LoraLoaderMixin):
-            # Retrieve the original scale by scaling back the LoRA layers
-            unscale_lora_layers(self.text_encoder, lora_scale)
+        if self.text_encoder is not None:
+            if isinstance(self, LoraLoaderMixin):
+                # Retrieve the original scale by scaling back the LoRA layers
+                unscale_lora_layers(self.text_encoder, lora_scale)
 
         return prompt_embeds, negative_prompt_embeds
 
@@ -553,7 +569,12 @@ class StableDiffusionAdapterPipeline(DiffusionPipeline):
 
     # Copied from mindone.diffusers.pipelines.stable_diffusion.pipeline_stable_diffusion.StableDiffusionPipeline.prepare_latents
     def prepare_latents(self, batch_size, num_channels_latents, height, width, dtype, generator, latents=None):
-        shape = (batch_size, num_channels_latents, height // self.vae_scale_factor, width // self.vae_scale_factor)
+        shape = (
+            batch_size,
+            num_channels_latents,
+            int(height) // self.vae_scale_factor,
+            int(width) // self.vae_scale_factor,
+        )
         if isinstance(generator, list) and len(generator) != batch_size:
             raise ValueError(
                 f"You have passed a list of generators of length {len(generator)}, but requested an effective batch"
@@ -599,20 +620,22 @@ class StableDiffusionAdapterPipeline(DiffusionPipeline):
         return height, width
 
     # Copied from diffusers.pipelines.latent_consistency_models.pipeline_latent_consistency_text2img.LatentConsistencyModelPipeline.get_guidance_scale_embedding
-    def get_guidance_scale_embedding(self, w, embedding_dim=512, dtype=ms.float32):
+    def get_guidance_scale_embedding(
+        self, w: ms.Tensor, embedding_dim: int = 512, dtype: ms.Type = ms.float32
+    ) -> ms.Tensor:
         """
         See https://github.com/google-research/vdm/blob/dc27b98a554f65cdc654b800da5aa1846545d41b/model_vdm.py#L298
 
         Args:
-            timesteps (`ms.Tensor`):
-                generate embedding vectors at these timesteps
+            w (`ms.Tensor`):
+                Generate embedding vectors with a specified guidance scale to subsequently enrich timestep embeddings.
             embedding_dim (`int`, *optional*, defaults to 512):
-                dimension of the embeddings to generate
-            dtype:
-                data type of the generated embeddings
+                Dimension of the embeddings to generate.
+            dtype (`ms.dtype`, *optional*, defaults to `ms.float32`):
+                Data type of the generated embeddings.
 
         Returns:
-            `ms.Tensor`: Embedding vectors with shape `(len(timesteps), embedding_dim)`
+            `ms.Tensor`: Embedding vectors with shape `(len(w), embedding_dim)`.
         """
         assert len(w.shape) == 1
         w = w * 1000.0
@@ -646,6 +669,7 @@ class StableDiffusionAdapterPipeline(DiffusionPipeline):
         width: Optional[int] = None,
         num_inference_steps: int = 50,
         timesteps: List[int] = None,
+        sigmas: List[float] = None,
         guidance_scale: float = 7.5,
         negative_prompt: Optional[Union[str, List[str]]] = None,
         num_images_per_prompt: Optional[int] = 1,
@@ -671,7 +695,7 @@ class StableDiffusionAdapterPipeline(DiffusionPipeline):
                 instead.
             image (`ms.Tensor`, `PIL.Image.Image`, `List[ms.Tensor]` or `List[PIL.Image.Image]` or `List[List[PIL.Image.Image]]`):
                 The Adapter input condition. Adapter uses this input condition to generate guidance to Unet. If the
-                type is specified as `Torch.FloatTensor`, it is passed to Adapter as is. PIL.Image.Image` can also be
+                type is specified as `ms.FloatTensor`, it is passed to Adapter as is. PIL.Image.Image` can also be
                 accepted as an image. The control image is automatically resized to fit the output image.
             height (`int`, *optional*, defaults to self.unet.config.sample_size * self.vae_scale_factor):
                 The height in pixels of the generated image.
@@ -684,6 +708,10 @@ class StableDiffusionAdapterPipeline(DiffusionPipeline):
                 Custom timesteps to use for the denoising process with schedulers which support a `timesteps` argument
                 in their `set_timesteps` method. If not defined, the default behavior when `num_inference_steps` is
                 passed will be used. Must be in descending order.
+            sigmas (`List[float]`, *optional*):
+                Custom sigmas to use for the denoising process with schedulers which support a `sigmas` argument in
+                their `set_timesteps` method. If not defined, the default behavior when `num_inference_steps` is passed
+                will be used.
             guidance_scale (`float`, *optional*, defaults to 7.5):
                 Guidance scale as defined in [Classifier-Free Diffusion Guidance](https://arxiv.org/abs/2207.12598).
                 `guidance_scale` is defined as `w` of equation 2. of [Imagen
@@ -790,7 +818,7 @@ class StableDiffusionAdapterPipeline(DiffusionPipeline):
             prompt_embeds = ops.cat([negative_prompt_embeds, prompt_embeds])
 
         # 4. Prepare timesteps
-        timesteps, num_inference_steps = retrieve_timesteps(self.scheduler, num_inference_steps, timesteps)
+        timesteps, num_inference_steps = retrieve_timesteps(self.scheduler, num_inference_steps, timesteps, sigmas)
 
         # 5. Prepare latent variables
         num_channels_latents = self.unet.config.in_channels

@@ -49,8 +49,7 @@ def text_encoder_attn_modules(text_encoder):
 
 
 _import_structure = {
-    "autoencoder": ["FromOriginalVAEMixin"],
-    "controlnet": ["FromOriginalControlNetMixin"],
+    "single_file_model": ["FromOriginalModelMixin"],
     "ip_adapter": ["IPAdapterMixin"],
     "lora": ["LoraLoaderMixin", "SD3LoraLoaderMixin", "StableDiffusionXLLoraLoaderMixin"],
     "peft": ["PeftAdapterMixin"],
@@ -61,12 +60,11 @@ _import_structure = {
 
 
 if TYPE_CHECKING:
-    from .autoencoder import FromOriginalVAEMixin
-    from .controlnet import FromOriginalControlNetMixin
     from .ip_adapter import IPAdapterMixin
     from .lora import LoraLoaderMixin, SD3LoraLoaderMixin, StableDiffusionXLLoraLoaderMixin
     from .peft import PeftAdapterMixin
     from .single_file import FromSingleFileMixin
+    from .single_file_model import FromOriginalModelMixin
     from .textual_inversion import TextualInversionLoaderMixin
     from .unet import UNet2DConditionLoadersMixin
 else:
