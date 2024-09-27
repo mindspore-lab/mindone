@@ -24,7 +24,8 @@ msrun --bind_core=True --master_port=8090 --worker_num=8 --local_worker_num=8 --
     python scripts/train_vqvae.py \
     --model_class vqvae-3d \
     --pretrained ./model_weights/vqvae2d-lfq-128-init.ckpt \
-    --use_discriminator False \
+    --use_discriminator True \
+    --use_parallel True \
     --use_ema True \
     --dataset_name video \
     --data_path ./datasets/ucf101/train/ \

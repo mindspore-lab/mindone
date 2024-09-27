@@ -129,8 +129,8 @@ class ResBlockDown(nn.Cell):
 
         self.conv_shortcut = nn.Conv3d(self.in_channels, self.out_channels, (1, 1, 1), has_bias=False).to_float(dtype)
 
-        self.blurpool1 = BlurPool3d(self.out_channels)
-        self.blurpool2 = BlurPool3d(self.in_channels)
+        self.blurpool1 = BlurPool3d(self.out_channels, pad_type="zero")
+        self.blurpool2 = BlurPool3d(self.in_channels, pad_type="zero")
 
     def construct(self, x):
         h = x
@@ -168,9 +168,8 @@ class StyleGANDiscriminator(nn.Cell):
         super().__init__()
         self.config = config
         self.in_channles = 3
-        self.input_size = self.config.image_size
-        self.filters = self.config.discriminator.filters
-        self.channel_multipliers = self.config.discriminator.channel_multipliers
+        self.filters = self.config.filters
+        self.channel_multipliers = self.config.channel_multipliers
 
         self.conv_in = nn.Conv3d(self.in_channles, self.filters, kernel_size=(3, 3, 3)).to_float(dtype)
         # self.activation1 = nn.LeakyReLU()

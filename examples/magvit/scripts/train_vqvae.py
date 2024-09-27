@@ -228,12 +228,14 @@ def main(args):
     if use_discriminator:
         optim_disc = create_optimizer(
             disc_with_loss.discriminator.trainable_params(),
-            betas=args.betas,
-            name=args.optim,
-            lr=lr,
-            group_strategy=args.group_strategy,
+            opt=args.optim,
             weight_decay=args.weight_decay,
-        )
+            lr=lr,
+            eps=1e-08,
+            beta1=0.9,
+            beta2=0.999,
+            weight_decay_filter="norm_and_bias",
+            )
 
         loss_scaler_disc = create_loss_scaler(
             args.loss_scaler_type,
@@ -434,7 +436,25 @@ def main(args):
                 f"epoch time:{epoch_cost:.2f}s, per step time:{per_step_time*1000:.2f}ms, "
             )
 
-            # TODO: eval while training
+            if rank_id == 0 and args.step_mode:
+                cur_epoch = epoch + 1
+                if (cur_global_step % args.ckpt_save_interval == 0) or (cur_global_step == total_train_steps):
+                    ckpt_name = (
+                        f"vae_3d-e{cur_epoch}.ckpt"
+                    )
+                    if ema is not None:
+                        ema.swap_before_eval()
+                    vqvae_with_loss.set_train(False)
+                    disc_with_loss.set_train(False)
+                    ckpt_manager.save(vqvae_with_loss.vqvae, None, ckpt_name=ckpt_name, append_dict=None)
+
+                    if ema is not None:
+                        ema.swap_after_eval()
+                    vqvae_with_loss.set_train(True)
+                    disc_with_loss.set_train(True)
+
+            if cur_global_step == total_train_steps:
+                break
 
 
 if __name__ == "__main__":
