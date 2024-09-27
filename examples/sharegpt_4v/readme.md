@@ -43,7 +43,7 @@
 
     -  edit the addresses in `run.sh` file: `/path/to/model/folder` and `/path/to/image/file`
     -  run the script file
-      
+
       ```
       bash run.sh
       ```

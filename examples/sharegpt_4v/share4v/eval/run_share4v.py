@@ -1,10 +1,6 @@
 import argparse
-import os
-
-# if the project path is not in the system path, add it manually
-# os.sys.path.append(os.getcwd())
-
 import json
+import os
 
 import numpy as np
 from PIL import Image
@@ -17,6 +13,9 @@ from share4v.pipeline import TextGenerator
 from transformers import AutoTokenizer
 
 import mindspore as ms
+
+# if the project path is not in the system path, add it manually
+# os.sys.path.append(os.getcwd())
 
 
 def load_image(image_file):
