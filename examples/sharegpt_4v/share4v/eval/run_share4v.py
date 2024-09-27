@@ -1,14 +1,14 @@
 import argparse
 import json
 import os
+from io import BytesIO
 
-import numpy as np
+import requests
 from PIL import Image
 from share4v.constants import DEFAULT_IM_END_TOKEN, DEFAULT_IM_START_TOKEN, DEFAULT_IMAGE_TOKEN, IMAGE_TOKEN_INDEX
-from share4v.conversation import SeparatorStyle, conv_templates
-from share4v.mm_utils import KeywordsStoppingCriteria, get_model_name_from_path, tokenizer_image_token
+from share4v.conversation import conv_templates
+from share4v.mm_utils import tokenizer_image_token
 from share4v.model import Share4VLlamaForCausalLM
-from share4v.model.builder import load_pretrained_model
 from share4v.pipeline import TextGenerator
 from transformers import AutoTokenizer
 
@@ -33,6 +33,7 @@ def eval_model(args):
     with open(os.path.join(config_path, "config.json"), "r") as f:
         config = json.load(f)
     dtype = ms.float16 if config.get("dtype") == "float16" else ms.float32
+    image_file = args.image_file
 
     msmodel = Share4VLlamaForCausalLM(config)
     msmodel.set_train(False)
@@ -41,7 +42,7 @@ def eval_model(args):
     msmodel.load_model(os.path.join(model_path, "mindspore_llama_model.ckpt"))
 
     # load llama
-    llamamodel = msmodel.get_model()
+    msmodel.get_model()
 
     # load vision_tower
     vision_tower = msmodel.get_vision_tower()

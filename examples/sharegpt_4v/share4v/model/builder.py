@@ -1,15 +1,8 @@
-import os
-import warnings
-
 from share4v.constants import DEFAULT_IM_END_TOKEN, DEFAULT_IM_START_TOKEN, DEFAULT_IMAGE_PATCH_TOKEN
 from share4v.model import Share4VLlamaForCausalLM
-
-# cong TODO: double check this import
 from transformers import AutoTokenizer, BitsAndBytesConfig
 
 import mindspore as ms
-
-# from transformers import AutoTokenizer, BitsAndBytesConfig
 
 
 def load_pretrained_model(model_path, model_base, model_name, load_8bit=False, load_4bit=False, device="Ascend"):
@@ -50,11 +43,8 @@ def load_pretrained_model(model_path, model_base, model_name, load_8bit=False, l
 
         vision_tower = model.get_vision_tower()
         if not vision_tower.is_loaded:
-            # CLIPVisionTower.load_model()
             print("trying load vision tower")
             vision_tower.load_model()
-        # cong TODO: check if this setting is successful
-        # vision_tower = vision_tower.to(ms.float16)
         image_processor = vision_tower.image_processor
 
     if hasattr(model.config, "max_sequence_length"):

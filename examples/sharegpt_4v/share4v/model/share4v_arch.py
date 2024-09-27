@@ -18,25 +18,11 @@ from .multimodal_projector.builder import build_vision_projector
 
 class Share4VMetaModel:
     def __init__(self, config):
-        # hidden_size = config.hidden_size if hasattr(config, 'hidden_size') else 4096
-        # intermediate_size = config.intermediate_size if hasattr(config, 'intermediate_size') else 14336
-        # max_position_embeddings = config.max_position_embeddings if hasattr(config, 'max_position_embeddings') else 32768
-        # num_attention_heads = config.num_attention_heads if hasattr(config, 'num_attention_heads') else 32
-        # num_hidden_layers = config.num_hidden_layers if hasattr(config, 'num_hidden_layers') else 32
-        # num_key_value_heads = config.num_key_value_heads if hasattr(config, 'num_key_value_heads') else 8
-        # rms_norm_eps = config.rms_norm_eps if hasattr(config, 'rms_norm_eps') else 1e-5
-        # rope_theta = config.rope_scaling if hasattr(config, 'rope_theta') else 1000000.0
-        # vocab_size = config.vocab_size if hasattr(config, 'vocab_size') else 32064
-        # attention_dropout = config.attention_dropout if hasattr(config, 'attention_dropout') else 0.0
-        # hidden_act = config.hidden_act if hasattr(config, 'hidden_act') else "silu"
-        # pad_token_id = config.pad_token_id if hasattr(config, 'pad_token_id') else None
 
         rope_theta = config["rope_scaling"] if config.get("rope_scaling") else 1000000.0
         attention_dropout = config["attention_dropout"] if config.get("attention_dropout") else 0.0
         dtype = ms.float16 if config.get("dtype") == "float16" else ms.float32
-        # this part is used for self-defined LlamaModel
-        # and all config related codes are ajusted to fit self-defined LlamaModel
-        # for now, config file don't have attention_dropout
+
         super(Share4VMetaModel, self).__init__(
             hidden_size=config["hidden_size"],
             intermediate_size=config["intermediate_size"],
@@ -53,11 +39,8 @@ class Share4VMetaModel:
             dtype=dtype,
         )
 
-        # this part is used for mindformers.LlamaModel
-        # super(Share4VMetaModel, self).__init__(config)
 
         if config.get("mm_vision_tower"):
-            # if hasattr(config, "mm_vision_tower"):
             self.vision_tower = build_vision_tower(config, delay_load=True)
             self.mm_projector = build_vision_projector(config)
         self.config = config
@@ -110,12 +93,6 @@ class Share4VMetaModel:
                 vision_tower = self.vision_tower
                 vision_tower.load_model()
 
-        # self.config.use_mm_proj = True
-        # self.config.mm_projector_type = getattr(
-        #     model_args, 'mm_projector_type', 'linear')
-        # self.config.mm_hidden_size = vision_tower.hidden_size
-        # self.config.mm_vision_select_layer = mm_vision_select_layer
-        # self.config.mm_vision_select_feature = mm_vision_select_feature
         self.config["use_mm_proj"] = True
         self.config["mm_projector_type"] = getattr(model_args, "mm_projector_type", "linear")
         self.config["mm_hidden_size"] = vision_tower.hidden_size
@@ -159,7 +136,6 @@ class Share4VMetaForCausalLM(ABC):
         self, input_ids, attention_mask, past_key_cache_list, past_value_cache_list, labels, images
     ):
         vision_tower = self.get_vision_tower()
-        # print(input_ids.shape)
         if vision_tower is None or images is None or input_ids.shape[1] == 1:
             if (
                 past_key_cache_list is not None
@@ -168,15 +144,11 @@ class Share4VMetaForCausalLM(ABC):
                 and input_ids.shape[1] == 1
             ):
                 attention_mask = ops.ones(
-                    # cong TODO: check the shape
                     (attention_mask.shape[0], past_value_cache_list[-1].shape[-2] + 1),
                     dtype=attention_mask.dtype,
                 )
-                # (attention_mask.shape[0], past_key_values[-1][-1].shape[-2] + 1), dtype=attention_mask.dtype)
-            # print('-------------------------prepare_inputs_labels_for_multimodal return inputs_embeds None----------')
             return input_ids, attention_mask, past_key_cache_list, past_value_cache_list, None, labels
 
-        # cong TODO: check the usage images.ndim
         if type(images) is list or images.ndim == 5:
             concat_images = ops.cat([image for image in images], axis=0)
             image_features = self.encode_images(concat_images)
@@ -210,11 +182,9 @@ class Share4VMetaForCausalLM(ABC):
                 cur_new_labels = []
                 assert cur_labels.shape == cur_input_ids.shape
             while image_token_indices.numel() > 0:
-                # print(3)
                 cur_image_features = image_features[cur_image_idx]
                 image_token_start = image_token_indices[0]
                 if self.config.get("tune_mm_mlp_adapter", False) and self.config.get("mm_use_im_start_end", False):
-                    # if getattr(self.config, 'tune_mm_mlp_adapter', False) and getattr(self.config, 'mm_use_im_start_end', False):
                     cur_new_input_embeds.append(
                         self.get_model().embed_tokens(cur_input_ids[: image_token_start - 1]).detach()
                     )
@@ -243,14 +213,12 @@ class Share4VMetaForCausalLM(ABC):
                         cur_labels = cur_labels[image_token_start + 1 :]
                 cur_image_idx += 1
                 if self.config.get("tune_mm_mlp_adapter", False) and self.config.get("mm_use_im_start_end", False):
-                    # if getattr(self.config, 'tune_mm_mlp_adapter', False) and getattr(self.config, 'mm_use_im_start_end', False):
                     cur_input_ids = cur_input_ids[image_token_start + 2 :]
                 else:
                     cur_input_ids = cur_input_ids[image_token_start + 1 :]
                 image_token_indices = ops.nonzero(ops.where(cur_input_ids == IMAGE_TOKEN_INDEX, 1, 0)).squeeze(1)
             if cur_input_ids.numel() > 0:
                 if self.config.get("tune_mm_mlp_adapter", False) and self.config.get("mm_use_im_start_end", False):
-                    # if getattr(self.config, 'tune_mm_mlp_adapter', False) and getattr(self.config, 'mm_use_im_start_end', False):
                     cur_new_input_embeds.append(self.get_model().embed_tokens(cur_input_ids).detach())
                 else:
                     cur_new_input_embeds.append(self.get_model().embed_tokens(cur_input_ids))
@@ -361,7 +329,8 @@ class Share4VMetaForCausalLM(ABC):
                     input_embeddings[-num_new_tokens:] = embed_tokens_weight
                 else:
                     raise ValueError(
-                        f"Unexpected embed_tokens_weight shape. Pretrained: {embed_tokens_weight.shape}. Current: {input_embeddings.shape}. Numer of new tokens: {num_new_tokens}."
+                        f"Unexpected embed_tokens_weight shape. Pretrained: {embed_tokens_weight.shape}.
+                        Current: {input_embeddings.shape}. Numer of new tokens: {num_new_tokens}."
                     )
         elif model_args.mm_use_im_patch_token:
             if model_args.tune_mm_mlp_adapter:

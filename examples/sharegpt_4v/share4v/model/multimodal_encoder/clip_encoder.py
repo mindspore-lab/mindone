@@ -1,10 +1,4 @@
-# from transformers import CLIPImageProcessor, CLIPVisionConfig, CLIPVisionModel
-import sys
-
 from share4v.transformers.models.clip import CLIPVisionModel
-
-# from examples.stable_diffusion_v2.tools._common.clip.clip_config import CLIPVisionConfig
-# from transformers import CLIPImageProcessor, CLIPVisionConfig
 from transformers import CLIPImageProcessor, CLIPVisionConfig
 
 import mindspore as ms
@@ -62,7 +56,6 @@ class CLIPVisionTower(nn.Cell):
             param.set_dtype(dtype)
 
     def feature_select(self, image_forward_outs):
-        # image_features = image_forward_outs['hidden_states'][self.select_layer]
         image_features = image_forward_outs[2][self.select_layer]
         if self.select_feature == "patch":
             image_features = image_features[:, 1:]
@@ -72,13 +65,11 @@ class CLIPVisionTower(nn.Cell):
             raise ValueError(f"Unexpected select feature: {self.select_feature}")
         return image_features
 
-    # @model.set_train(False) comment to enable fine-tune vit
     def construct(self, images):
         if type(images) is list:
             image_features = []
             for image in images:
                 image_forward_out = self.vision_tower(image.to(self.dtype).unsqueeze(0), output_hidden_states=True)
-                # image_forward_out: last_hidden_state, pooled_output, hidden_states, attentions
                 image_feature = self.feature_select(image_forward_out).to(image.dtype)
                 image_features.append(image_feature)
         else:
