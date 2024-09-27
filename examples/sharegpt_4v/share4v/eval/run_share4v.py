@@ -2,7 +2,7 @@ import argparse
 import os
 
 # if the project path is not in the system path, add it manually
-os.sys.path.append(os.getcwd())
+# os.sys.path.append(os.getcwd())
 
 import json
 
@@ -93,7 +93,6 @@ def eval_model(args):
 
     inputs["input_ids"] = ids
     inputs["images"] = image_tensor
-    # cong TODO
     # actually this won't affect, the value would re-assigned in text_generation.line258
     inputs["return_key_value_cache"] = False
     output_ids = pipeline.generate(**inputs)
