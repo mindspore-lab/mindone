@@ -246,12 +246,12 @@ python tools/convert_pt2ms.py --src /path/to/OpenSora-STDiT-v2-stage3/model.safe
 
 Please prepare the model checkpoints of T5, VAE, and STDiT and put them under `models/` folder as follows.
 
-- T5: Download the [DeepFloyd/t5-v1_1-xxl](https://huggingface.co/DeepFloyd/t5-v1_1-xxl/tree/main) folder and put it under `models/`
-
-    Convert to `safetensors` checkpoint (required by `mindone.transformers`):
-    ```shell
-    python tools/convert_t5.py --model_dir ./models/t5-v1_1-xxl/
-    ```
+- T5:
+  Download the [DeepFloyd/t5-v1_1-xxl](https://huggingface.co/DeepFloyd/t5-v1_1-xxl/tree/main) model and put it under `models/`.
+  Then, convert to `safetensors` checkpoint as required by `mindone.transformers`:
+  ```shell
+  python tools/convert_t5.py --model_dir ./models/t5-v1_1-xxl/
+  ```
 
 - VAE: Download the safetensor checkpoint from [here]((https://huggingface.co/stabilityai/sd-vae-ft-ema/tree/main))
 
