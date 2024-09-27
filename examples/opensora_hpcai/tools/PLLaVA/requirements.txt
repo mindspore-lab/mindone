@@ -1,2 +1,9 @@
 mindspore==2.3.*
 mindnlp
+numpy
+imageio
+opencv-python
+decord
+moviepy
+peft
+safetensors
