@@ -45,4 +45,4 @@ use_ema: False
 output_path: "outputs/vae_stage2"
 
 # ms settting
-jit_level: O0
+jit_level: O1

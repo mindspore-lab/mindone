@@ -26,7 +26,7 @@ micro_batch_size: null
 # training recipe
 seed: 42
 use_discriminator: False
-dtype: "fp16"
+dtype: "bf16"
 batch_size: 1
 clip_grad: True
 max_grad_norm: 1.0
@@ -44,4 +44,4 @@ use_ema: False
 output_path: "outputs/causal_vae"
 
 # ms settting
-jit_level: O0
+jit_level: O1
