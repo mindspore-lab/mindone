@@ -57,8 +57,8 @@ class Share4VLlamaForCausalLM(LlamaForCausalLM, Share4VMetaForCausalLM):
         ms_source_data = ms.load_checkpoint(model_path)
         # due to version update reason, need to align the key name with latest version
         if "model.embed_tokens.embedding_table" in ms_source_data.keys():
-            ms_source_data["model.embed_tokens.weight"] =
-            ms_source_data["model.embed_tokens.embedding_table"]
+            ms_source_data["model.embed_tokens.weight"] = \
+                ms_source_data["model.embed_tokens.embedding_table"]
         params_not_load = ms.load_param_into_net(self, ms_source_data, strict_load=False)
         print(f"Params not loaded: {params_not_load}")
 
