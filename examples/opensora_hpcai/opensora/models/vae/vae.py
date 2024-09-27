@@ -4,7 +4,7 @@ import os
 from transformers import PretrainedConfig
 
 import mindspore as ms
-from mindspore import nn, ops
+from mindspore import mint, nn, ops
 from mindspore.communication import get_group_size
 
 from ...acceleration.communications import GatherFowardSplitBackward, SplitFowardGatherBackward
