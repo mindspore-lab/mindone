@@ -1,4 +1,3 @@
-import os
 from typing import Tuple
 
 from share4v.transformers.models.llama import LlamaForCausalLM, LlamaModel
