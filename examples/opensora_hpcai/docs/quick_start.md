@@ -36,13 +36,13 @@ To enable flash attention, please use mindspore>=2.3-20240422.
 
 Prepare the model checkpoints of T5, VAE, and STDiT and put them under `models/` folder as follows
 
-- T5: [ms checkpoints download link](https://download-mindspore.osinfra.cn/toolkits/mindone/text_encoders/deepfloyd_t5_v1_1_xxl/)
+- **T5**: [ms checkpoints download link](https://download-mindspore.osinfra.cn/toolkits/mindone/text_encoders/deepfloyd_t5_v1_1_xxl/)
 
     Put them under `models/t5-v1_1-xxl` folder. Rename `t5_v1_1_xxl-d35f27a3.ckpt` to `model.ckpt` if error raised.
 
-- VAE:
-The model weights are automatically downloaded from Hugging Face during execution.
-Local `.safetensors` weights can also be used.
+- **VAE**:
+The model weights are automatically downloaded from Hugging Face during execution.  
+Local `.safetensors` weights can also be used.  
 Alternatively, you can use the following command to convert the model weights to the MindSpore format.
 
 <details>
@@ -66,7 +66,7 @@ python tools/convert_vae.py --src /path/to/sd-vae-ft-ema/diffusion_pytorch_model
 
 </details>
 
-- STDiT:
+- **STDiT**:
     OpenSora v1.1 and above support automatic weights download from Hugging Face during execution.
     Local `.safetensors` weights can also be used.  
     OpenSora v1 requires a manual conversion.  
@@ -79,7 +79,7 @@ python tools/convert_vae.py --src /path/to/sd-vae-ft-ema/diffusion_pytorch_model
     Then, convert to MS checkpoint:
     `python tools/convert_pt2ms.py --src /path/to/checkpoint --target models/checkpoint_name.ckpt`
 
-- PixArt-α: [pth download link](https://download.openxlab.org.cn/models/PixArt-alpha/PixArt-alpha/weight/PixArt-XL-2-512x512.pth) (for training only)
+- **PixArt-α**: [pth download link](https://download.openxlab.org.cn/models/PixArt-alpha/PixArt-alpha/weight/PixArt-XL-2-512x512.pth) (for training only)
 
     Convert to ms checkpoint: `python tools/convert_pt2ms.py --src /path/to/PixArt-XL-2-512x512.pth --target models/PixArt-XL-2-512x512.ckpt`
     It will be used for better model initialization.
