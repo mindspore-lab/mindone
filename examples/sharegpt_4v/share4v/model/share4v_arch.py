@@ -18,7 +18,6 @@ from .multimodal_projector.builder import build_vision_projector
 
 class Share4VMetaModel:
     def __init__(self, config):
-
         rope_theta = config["rope_scaling"] if config.get("rope_scaling") else 1000000.0
         attention_dropout = config["attention_dropout"] if config.get("attention_dropout") else 0.0
         dtype = ms.float16 if config.get("dtype") == "float16" else ms.float32
@@ -38,7 +37,6 @@ class Share4VMetaModel:
             pad_token_id=config["pad_token_id"],
             dtype=dtype,
         )
-
 
         if config.get("mm_vision_tower"):
             self.vision_tower = build_vision_tower(config, delay_load=True)

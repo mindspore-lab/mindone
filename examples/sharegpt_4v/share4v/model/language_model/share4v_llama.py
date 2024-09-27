@@ -11,7 +11,6 @@ from ..share4v_arch import Share4VMetaForCausalLM, Share4VMetaModel
 
 
 class Share4VLlamaModel(Share4VMetaModel, LlamaModel):
-
     def __init__(self, config):
         super(Share4VLlamaModel, self).__init__(config)
         self.dtype = config.get("dtype")
@@ -36,7 +35,6 @@ class Share4VLlamaModel(Share4VMetaModel, LlamaModel):
 
 
 class Share4VLlamaForCausalLM(LlamaForCausalLM, Share4VMetaForCausalLM):
-
     def __init__(self, config):
         self.vocab_size = int(config.get("vocab_size")) if config.get("vocab_size") else 32000
         config["vocab_size"] = self.vocab_size
@@ -47,18 +45,15 @@ class Share4VLlamaForCausalLM(LlamaForCausalLM, Share4VMetaForCausalLM):
         self.model = Share4VLlamaModel(config)
         self.lm_head = nn.Dense(config["hidden_size"], config["vocab_size"], has_bias=False)
 
-
     def get_model(self):
         return self.model
 
     # this func is used for self-defined LlamaModel
     def load_model(self, model_path, **kwargs):
-
         ms_source_data = ms.load_checkpoint(model_path)
         # due to version update reason, need to align the key name with latest version
         if "model.embed_tokens.embedding_table" in ms_source_data.keys():
-            ms_source_data["model.embed_tokens.weight"] = \
-                ms_source_data["model.embed_tokens.embedding_table"]
+            ms_source_data["model.embed_tokens.weight"] = ms_source_data["model.embed_tokens.embedding_table"]
         params_not_load = ms.load_param_into_net(self, ms_source_data, strict_load=False)
         print(f"Params not loaded: {params_not_load}")
 
@@ -66,7 +61,6 @@ class Share4VLlamaForCausalLM(LlamaForCausalLM, Share4VMetaForCausalLM):
         self.get_model().set_train(mode)
 
         return self
-
 
     def set_dtype(self, dtype):
         self.dtype = dtype
@@ -84,7 +78,6 @@ class Share4VLlamaForCausalLM(LlamaForCausalLM, Share4VMetaForCausalLM):
         images=None,
         return_key_value_cache: bool = False,
     ) -> Tuple:
-
         (
             input_ids,
             attention_mask,
@@ -123,18 +116,15 @@ class Share4VLlamaForCausalLM(LlamaForCausalLM, Share4VMetaForCausalLM):
             # Enable model/pipeline parallelism
             loss = loss_fct(shift_logits, shift_labels)
 
-
         # results: loss, logits, key_cache_list, value_cache_list
         results = (loss, logits, outputs[1], outputs[2])
         return results
-
 
     def prepare_inputs_for_generation(
         self,
         input_ids,
         **kwargs,
     ):
-
         if kwargs.get("return_key_value_cache"):
             input_ids = input_ids[:, -1:]
 
