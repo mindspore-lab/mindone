@@ -1,26 +1,76 @@
 # ShareGPT4V: Improving Large Multi-modal Models with Better Captions
 
+![Image](https://raw.githubusercontent.com/ShareGPT4V/ShareGPT4V-Resources/master/images/teaser.png)
+
 [Paper](https://arxiv.org/pdf/2311.12793.pdf)
 
 [Official Repo](https://github.com/ShareGPT4Omni/ShareGPT4V)
 
-![Image](https://raw.githubusercontent.com/ShareGPT4V/ShareGPT4V-Resources/master/images/teaser.png)
 
+Here we privde a MindSpore version of ShareGPT4V.
+
+Currently, we support
+
+- [x] ShareGPT4V Inference
+
+## Environment
+
+The script work on Ascend 910* with CANN 7.3.0 and [MindSpore 2.3.1](https://www.mindspore.cn/versions). 
+
+Check your versions by running the following commands. The default installation path of CANN is usually  `/usr/local/Ascend/ascend-toolkit` unless you specify a custom one.
+
+```bash
+cat /usr/local/Ascend/ascend-toolkit/latest/version.cfg  
+# see a version number as [7.3.0.1.231:8.0.RC2]
+
+python -c "import mindspore;mindspore.set_context(device_target='Ascend');mindspore.run_check()"
+# MindSpore version: 2.3.1
+```
+
+To ensure you can successfully run the latest versions of the example scripts, we highly recommend **installing from source** and keeping the installation up to date as we update the example scripts frequently and install some example-specific requirements. To do this, execute the following steps in a new virtual environment:
+
+```bash
+git clone https://github.com/mindspore-lab/mindone
+cd mindone
+pip install .
+```
 
 ## Inference
 
 
 1. Prepare weight files:
 
-   According to the paper, there are three components of ShareGPT4V:
 
-   a. language model - llama
+   According to the paper, there are three model components of ShareGPT4V:
 
-   b. vision transformer - vit
+   - language model - llama
 
-   c. mlp that concats multi modal features - share4v model
+   - mlp that concats multi modal features - share4v model
 
-   You can download the weight files through this [link](https://download-mindspore.osinfra.cn/toolkits/mindone/sharegpt_4v)
+   - vision transformer - vit
+
+   Besides that we also need a tokenizer model.
+
+   There are two ways to prepare the files, 
+    
+    a. download the MindSpore version weights through this [link](https://download-mindspore.osinfra.cn/toolkits/mindone/sharegpt_4v) 
+    
+    b. download the torch weights through this [link](https://huggingface.co/Lin-Chen/ShareGPT4V-7B) and use the convert script under `share4v/tools/` folder.
+
+    run following command to convert share4v model weight (including language model and share4v model)
+
+    ```
+    python convert_weights.py --source /path/to/pt_share4v_model_folder --target /path/to/ms_share4v_model_folder
+    ```
+
+    run following command to convert vit weight (including language model and share4v model)
+
+    ```
+    python convert_weights.py --source /path/to/pt_vit_folder/ --target /path/to/ms_share4v_model_folder/vit-large336-l12.ckpt
+    ```
+    
+    `/path/to/pt_vit_folder/vit-large336-l12.bin` should be `../.cache/huggingface/hub/models--Lin-Chen--ShareGPT4V-7B_Pretrained_vit-large336-l12/blobs`.
+   
 
 2. Edit the path:
 
@@ -41,7 +91,7 @@
       cd ../examples/opensora_pku/scripts/sharegpt_4v
       ```
 
-    -  edit the addresses in `run.sh` file: `/path/to/model/folder` and `/path/to/image/file`
+    -  edit the addresses in `run.sh` file: `/path/to/model/folder` and `/path/to/image/file` (you can save the test image in the ##Experiment Results)
     -  run the script file
 
       ```
@@ -58,12 +108,9 @@
    - optional: add the project into system path if needed
 
 
-  # Experiment
-  ## Environment
+  ## Experiment
 
-  Ascend 910B, CANN 7.3, MindSpore 2.3.1 official release
-
-  ## Experiment Setting
+  ### Experiment Setting
 
 
   Graph/Dynamic mode: Dynamic
@@ -75,7 +122,7 @@
   query string: Describe this image
 
 
-  ## Quantative Results
+  ### Quantative Results
 
   |  |MindSpore|PyTorch|
   |--|--|--|
@@ -83,7 +130,7 @@
 
   Bleu score: 0.17
 
-  ## Experiment Results
+  ### Experiment Results
 
 <img src="https://github.com/user-attachments/assets/43071bfd-8dad-40ba-876d-729632bc58c9" alt="Sample Image" width="900" height="600">
 
