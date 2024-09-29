@@ -63,12 +63,12 @@ pip install .
     python convert_weights.py --source /path/to/pt_share4v_model_folder --target /path/to/ms_share4v_model_folder
     ```
 
-    run following command to convert vit weight (including language model and share4v model)
+    run following command to convert vit weight
 
     ```
     python convert_weights.py --source /path/to/pt_vit_folder/ --target /path/to/ms_share4v_model_folder/vit-large336-l12.ckpt
     ```
-    
+
     `/path/to/pt_vit_folder/vit-large336-l12.bin` should be `../.cache/huggingface/hub/models--Lin-Chen--ShareGPT4V-7B_Pretrained_vit-large336-l12/blobs`.
    
 
@@ -91,7 +91,7 @@ pip install .
       cd ../examples/opensora_pku/scripts/sharegpt_4v
       ```
 
-    -  edit the addresses in `run.sh` file: `/path/to/model/folder` and `/path/to/image/file` (you can save the test image in the ##Experiment Results)
+    -  edit the addresses in `run.sh` file: `/path/to/model/folder` and `/path/to/image/file` (you can save the test image in the Experiment Results part)
     -  run the script file
 
       ```
