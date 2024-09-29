@@ -6,6 +6,7 @@ import torch
 import mindspore as ms
 import mindspore.ops as ops
 
+
 def load_torch_ckpt(ckpt_file):
     source_data = torch.load(ckpt_file, map_location="cpu")
     if "state_dict" in source_data:
@@ -14,7 +15,7 @@ def load_torch_ckpt(ckpt_file):
 
 
 def convert_pt_name_to_ms(content: str) -> str:
-    # ShareGPT4V 
+    # ShareGPT4V
     if content.startswith("model.layers"):
         content = content.replace("self_attn.q_proj", "attention.wq")
         content = content.replace("self_attn.k_proj", "attention.wk")
@@ -25,10 +26,10 @@ def convert_pt_name_to_ms(content: str) -> str:
         content = content.replace("mlp.down_proj", "feed_forward.w2")
         content = content.replace("input_layernorm", "attention_norm")
         content = content.replace("post_attention_layernorm", "ffn_norm")
-        #self_attn.rotary_emb.inv_freq doesn't exist in mindspore
-    
+        # self_attn.rotary_emb.inv_freq doesn't exist in mindspore
+
     elif content.startswith("vision_model"):
-        content = content.replace('vision_model','vision_tower.vision_model')
+        content = content.replace("vision_model", "vision_tower.vision_model")
         content = content.replace("position_embedding.weight", "position_embedding.embedding_table")
         if "norm" in content:
             # layer_norm
@@ -37,16 +38,15 @@ def convert_pt_name_to_ms(content: str) -> str:
     else:
         content = content.replace("model.norm", "model.norm_out")
 
-
     # this part used for self-defined llama
     content = content.replace("embed_tokens.weight", "embed_tokens.embedding_table")
 
-
-
     return content
+
 
 def permute(w):
     return ops.transpose(w.reshape(n_heads, dim // n_heads // 2, 2, dim), (0, 2, 1, 3)).reshape(dim, dim)
+
 
 def torch_to_ms_weight(source_fp_ls, target_fp):
     target_data = []
@@ -63,8 +63,10 @@ def torch_to_ms_weight(source_fp_ls, target_fp):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
+
     def list_of_address(x):
         return x.split(",")
+
     parser.add_argument("--source", type=list_of_address, help="path to source torch checkpoint")
     parser.add_argument(
         "--target",

@@ -15,7 +15,7 @@ Currently, we support
 
 ## Environment
 
-The script work on Ascend 910* with CANN 7.3.0 and [MindSpore 2.3.1](https://www.mindspore.cn/versions). 
+The script work on Ascend 910* with CANN 7.3.0 and [MindSpore 2.3.1](https://www.mindspore.cn/versions).
 
 Check your versions by running the following commands. The default installation path of CANN is usually  `/usr/local/Ascend/ascend-toolkit` unless you specify a custom one.
 
@@ -51,10 +51,10 @@ pip install .
 
    Besides that we also need a tokenizer model.
 
-   There are two ways to prepare the files, 
-    
-    a. download the MindSpore version weights through this [link](https://download-mindspore.osinfra.cn/toolkits/mindone/sharegpt_4v) 
-    
+   There are two ways to prepare the files,
+
+    a. download the MindSpore version weights through this [link](https://download-mindspore.osinfra.cn/toolkits/mindone/sharegpt_4v)
+
     b. download the torch weights through this [link](https://huggingface.co/Lin-Chen/ShareGPT4V-7B) and use the convert script under `share4v/tools/` folder.
 
     run following command to convert share4v model weight (including language model and share4v model)
@@ -70,7 +70,7 @@ pip install .
     ```
 
     `/path/to/pt_vit_folder/vit-large336-l12.bin` should be `../.cache/huggingface/hub/models--Lin-Chen--ShareGPT4V-7B_Pretrained_vit-large336-l12/blobs`.
-   
+
 
 2. Edit the path:
 
