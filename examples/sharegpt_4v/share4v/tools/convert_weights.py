@@ -44,10 +44,6 @@ def convert_pt_name_to_ms(content: str) -> str:
     return content
 
 
-def permute(w):
-    return ops.transpose(w.reshape(n_heads, dim // n_heads // 2, 2, dim), (0, 2, 1, 3)).reshape(dim, dim)
-
-
 def torch_to_ms_weight(source_fp_ls, target_fp):
     target_data = []
     for source_fp in source_fp_ls:
