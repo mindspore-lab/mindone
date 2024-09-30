@@ -158,6 +158,7 @@ class AsymmetricAutoencoderKL(ModelMixin, ConfigMixin):
         mask: Optional[ms.Tensor] = None,
         sample_posterior: bool = False,
         return_dict: bool = False,
+        generator: Optional[np.random.Generator] = None,
     ) -> Union[DecoderOutput, Tuple[ms.Tensor]]:
         r"""
         Args:
@@ -175,7 +176,7 @@ class AsymmetricAutoencoderKL(ModelMixin, ConfigMixin):
         else:
             z = self.diag_gauss_dist.mode(latent)
 
-        dec = self.decode(z, sample, mask)[0]
+        dec = self.decode(z, generator, sample, mask)[0]
 
         if not return_dict:
             return (dec,)

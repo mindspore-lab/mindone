@@ -36,10 +36,10 @@ MS_DTYPE_MAPPING = {
 
 
 @pytest.mark.parametrize(
-    "name,pt_module,ms_module,init_args,init_kwargs,inputs_args,inputs_kwargs",
-    ALL_CASES,
+    "name,pt_module,ms_module,init_args,init_kwargs,inputs_args,inputs_kwargs,dtype,mode",
+    [case + context for case in ALL_CASES for context in [["fp16", 0], ["fp16", 1], ["fp32", 0], ["fp32", 1]]],
 )
-def test_named_modules_with_graph_fp32(
+def test_named_modules(
     name,
     pt_module,
     ms_module,
@@ -47,9 +47,10 @@ def test_named_modules_with_graph_fp32(
     init_kwargs,
     inputs_args,
     inputs_kwargs,
+    dtype,
+    mode,
 ):
-    dtype = "fp32"
-    ms.set_context(mode=ms.GRAPH_MODE, jit_syntax_level=ms.STRICT)
+    ms.set_context(mode=mode, jit_syntax_level=ms.STRICT)
 
     (
         pt_model,
@@ -61,43 +62,8 @@ def test_named_modules_with_graph_fp32(
         pt_dtype, ms_dtype, *inputs_args, **inputs_kwargs
     )
 
-    with torch.no_grad():
-        pt_outputs = pt_model(*pt_inputs_args, **pt_inputs_kwargs)
-    ms_outputs = ms_model(*ms_inputs_args, **ms_inputs_kwargs)
-
-    diffs = compute_diffs(pt_outputs, ms_outputs)
-
-    assert (
-        np.array(diffs) < THRESHOLD_FP32
-    ).all(), f"Outputs({np.array(diffs).tolist()}) has diff bigger than {THRESHOLD_FP32}"
-
-
-@pytest.mark.parametrize(
-    "name,pt_module,ms_module,init_args,init_kwargs,inputs_args,inputs_kwargs",
-    ALL_CASES,
-)
-def test_named_modules_with_graph_fp16(
-    name,
-    pt_module,
-    ms_module,
-    init_args,
-    init_kwargs,
-    inputs_args,
-    inputs_kwargs,
-):
-    dtype = "fp16"
-    ms.set_context(mode=ms.GRAPH_MODE, jit_syntax_level=ms.STRICT)
-
-    (
-        pt_model,
-        ms_model,
-        pt_dtype,
-        ms_dtype,
-    ) = get_modules(pt_module, ms_module, dtype, *init_args, **init_kwargs)
-    pt_inputs_args, pt_inputs_kwargs, ms_inputs_args, ms_inputs_kwargs = generalized_parse_args(
-        pt_dtype, ms_dtype, *inputs_args, **inputs_kwargs
-    )
-
+    # set `hidden_dtype` if requiring, for some modules always compute in float
+    # precision and require specific `hidden_dtype` to cast before return
     if "hidden_dtype" in inspect.signature(pt_model.forward).parameters:
         pt_inputs_kwargs.update({"hidden_dtype": PT_DTYPE_MAPPING[pt_dtype]})
         ms_inputs_kwargs.update({"hidden_dtype": MS_DTYPE_MAPPING[ms_dtype]})
@@ -108,84 +74,5 @@ def test_named_modules_with_graph_fp16(
 
     diffs = compute_diffs(pt_outputs, ms_outputs)
 
-    assert (
-        np.array(diffs) < THRESHOLD_FP16
-    ).all(), f"Outputs({np.array(diffs).tolist()}) has diff bigger than {THRESHOLD_FP16}"
-
-
-@pytest.mark.parametrize(
-    "name,pt_module,ms_module,init_args,init_kwargs,inputs_args,inputs_kwargs",
-    ALL_CASES,
-)
-def test_named_modules_with_pynative_fp32(
-    name,
-    pt_module,
-    ms_module,
-    init_args,
-    init_kwargs,
-    inputs_args,
-    inputs_kwargs,
-):
-    dtype = "fp32"
-    ms.set_context(mode=ms.PYNATIVE_MODE, jit_syntax_level=ms.STRICT)
-
-    (
-        pt_model,
-        ms_model,
-        pt_dtype,
-        ms_dtype,
-    ) = get_modules(pt_module, ms_module, dtype, *init_args, **init_kwargs)
-    pt_inputs_args, pt_inputs_kwargs, ms_inputs_args, ms_inputs_kwargs = generalized_parse_args(
-        pt_dtype, ms_dtype, *inputs_args, **inputs_kwargs
-    )
-
-    with torch.no_grad():
-        pt_outputs = pt_model(*pt_inputs_args, **pt_inputs_kwargs)
-    ms_outputs = ms_model(*ms_inputs_args, **ms_inputs_kwargs)
-
-    diffs = compute_diffs(pt_outputs, ms_outputs)
-
-    assert (
-        np.array(diffs) < THRESHOLD_FP32
-    ).all(), f"Outputs({np.array(diffs).tolist()}) has diff bigger than {THRESHOLD_FP32}"
-
-
-@pytest.mark.parametrize(
-    "name,pt_module,ms_module,init_args,init_kwargs,inputs_args,inputs_kwargs",
-    ALL_CASES,
-)
-def test_named_modules_with_pynative_fp16(
-    name,
-    pt_module,
-    ms_module,
-    init_args,
-    init_kwargs,
-    inputs_args,
-    inputs_kwargs,
-):
-    dtype = "fp16"
-    ms.set_context(mode=ms.PYNATIVE_MODE, jit_syntax_level=ms.STRICT)
-
-    (
-        pt_model,
-        ms_model,
-        pt_dtype,
-        ms_dtype,
-    ) = get_modules(pt_module, ms_module, dtype, *init_args, **init_kwargs)
-    pt_inputs_args, pt_inputs_kwargs, ms_inputs_args, ms_inputs_kwargs = generalized_parse_args(
-        pt_dtype, ms_dtype, *inputs_args, **inputs_kwargs
-    )
-
-    if "hidden_dtype" in inspect.signature(pt_model.forward).parameters:
-        pt_inputs_kwargs.update({"hidden_dtype": PT_DTYPE_MAPPING[pt_dtype]})
-        ms_inputs_kwargs.update({"hidden_dtype": MS_DTYPE_MAPPING[ms_dtype]})
-
-    with torch.no_grad():
-        pt_outputs = pt_model(*pt_inputs_args, **pt_inputs_kwargs)
-    ms_outputs = ms_model(*ms_inputs_args, **ms_inputs_kwargs)
-
-    diffs = compute_diffs(pt_outputs, ms_outputs)
-
-    assert (
-        np.array(diffs) < THRESHOLD_FP16
-    ).all(), f"Outputs({np.array(diffs).tolist()}) has diff bigger than {THRESHOLD_FP16}"
+    THRESHOLD = THRESHOLD_FP32 if dtype == "fp32" else THRESHOLD_FP16
+    assert (np.array(diffs) < THRESHOLD).all(), f"Outputs({np.array(diffs).tolist()}) has diff bigger than {THRESHOLD}"

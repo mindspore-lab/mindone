@@ -11,7 +11,6 @@ from typing import Any, Callable, List, Optional, Tuple
 
 import cv2
 import numpy as np
-from decord import VideoReader
 from tqdm import tqdm
 
 from mindspore.dataset.transforms import Compose
@@ -236,6 +235,8 @@ class VideoDatasetRefactored(BaseDataset):
 
         else:
             if self.video_backend == "decord":
+                from decord import VideoReader
+
                 reader = VideoReader(video_path)
                 min_length = self._min_length
                 video_length = len(reader)

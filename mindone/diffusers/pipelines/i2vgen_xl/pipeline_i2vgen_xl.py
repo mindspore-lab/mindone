@@ -30,6 +30,7 @@ from ...models.unets.unet_i2vgen_xl import I2VGenXLUNet
 from ...schedulers import DDIMScheduler
 from ...utils import BaseOutput, logging
 from ...utils.mindspore_utils import randn_tensor
+from ...video_processor import VideoProcessor
 from ..pipeline_utils import DiffusionPipeline
 
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
@@ -41,9 +42,13 @@ EXAMPLE_DOC_STRING = """
         >>> from mindone.diffusers import I2VGenXLPipeline
         >>> from mindone.diffusers.utils import export_to_gif, load_image
 
-        >>> pipeline = I2VGenXLPipeline.from_pretrained("ali-vilab/i2vgen-xl", mindspore_dtype=mindspore.float16, use_safetensors=True)
+        >>> pipeline = I2VGenXLPipeline.from_pretrained(
+        ...     "ali-vilab/i2vgen-xl", mindspore_dtype=mindspore.float16, variant="fp16"
+        ... )
 
-        >>> image_url = "https://huggingface.co/datasets/diffusers/docs-images/resolve/main/i2vgen_xl_images/img_0009.png"
+        >>> image_url = (
+        ...     "https://huggingface.co/datasets/diffusers/docs-images/resolve/main/i2vgen_xl_images/img_0009.png"
+        ... )
         >>> image = load_image(image_url).convert("RGB")
         >>> image = image.resize((image.width // 2, image.height // 2))
 
@@ -64,36 +69,15 @@ EXAMPLE_DOC_STRING = """
 """
 
 
-# Copied from diffusers.pipelines.animatediff.pipeline_animatediff.tensor2vid
-def tensor2vid(video: ms.Tensor, processor: "VaeImageProcessor", output_type: str = "np"):
-    batch_size, channels, num_frames, height, width = video.shape
-    outputs = []
-    for batch_idx in range(batch_size):
-        batch_vid = video[batch_idx].permute(1, 0, 2, 3)
-        batch_output = processor.postprocess(batch_vid, output_type)
-
-        outputs.append(batch_output)
-
-    if output_type == "np":
-        outputs = np.stack(outputs)
-
-    elif output_type == "pt":
-        outputs = ops.stack(outputs)
-
-    elif not output_type == "pil":
-        raise ValueError(f"{output_type} does not exist. Please choose one of ['np', 'pt', 'pil']")
-
-    return outputs
-
-
 @dataclass
 class I2VGenXLPipelineOutput(BaseOutput):
     r"""
      Output class for image-to-video pipeline.
 
      Args:
-         frames (`ms.Tensor`, `np.ndarray`, or List[List[PIL.Image.Image]]):
-             List of video outputs - It can be a nested list of length `batch_size,` with each sub-list containing denoised
+        frames (`torch.Tensor`, `np.ndarray`, or List[List[PIL.Image.Image]]):
+            List of video outputs - It can be a nested list of length `batch_size,` with each sub-list containing
+            denoised
      PIL image sequences of length `num_frames.` It can also be a NumPy array or Torch tensor of shape
     `(batch_size, num_frames, channels, height, width)`
     """
@@ -146,7 +130,7 @@ class I2VGenXLPipeline(DiffusionPipeline):
         )
         self.vae_scale_factor = 2 ** (len(self.vae.config.block_out_channels) - 1)
         # `do_resize=False` as we do custom resizing.
-        self.image_processor = VaeImageProcessor(vae_scale_factor=self.vae_scale_factor, do_resize=False)
+        self.video_processor = VideoProcessor(vae_scale_factor=self.vae_scale_factor, do_resize=False)
 
     @property
     def guidance_scale(self):
@@ -329,7 +313,7 @@ class I2VGenXLPipeline(DiffusionPipeline):
         dtype = next(self.image_encoder.get_parameters()).dtype
 
         if not isinstance(image, ms.Tensor):
-            image = self.image_processor.pil_to_numpy(image)
+            image = self.video_processor.pil_to_numpy(image)
 
             # Normalize the image with CLIP training stats.
             image = self.feature_extractor(
@@ -534,7 +518,8 @@ class I2VGenXLPipeline(DiffusionPipeline):
             width (`int`, *optional*, defaults to `self.unet.config.sample_size * self.vae_scale_factor`):
                 The width in pixels of the generated image.
             target_fps (`int`, *optional*):
-                Frames per second. The rate at which the generated images shall be exported to a video after generation. This is also used as a "micro-condition" while generation.  # noqa: E501
+                Frames per second. The rate at which the generated images shall be exported to a video after
+                generation. This is also used as a "micro-condition" while generation.
             num_frames (`int`, *optional*):
                 The number of video frames to generate.
             num_inference_steps (`int`, *optional*):
@@ -551,9 +536,9 @@ class I2VGenXLPipeline(DiffusionPipeline):
             num_videos_per_prompt (`int`, *optional*):
                 The number of images to generate per prompt.
             decode_chunk_size (`int`, *optional*):
-                The number of frames to decode at a time. The higher the chunk size, the higher the temporal consistency
-                between frames, but also the higher the memory consumption. By default, the decoder will decode all frames at once
-                for maximal quality. Reduce `decode_chunk_size` to reduce memory usage.
+                The number of frames to decode at a time. The higher the chunk size, the higher the temporal
+                consistency between frames, but also the higher the memory consumption. By default, the decoder will
+                decode all frames at once for maximal quality. Reduce `decode_chunk_size` to reduce memory usage.
             generator (`np.random.Generator` or `List[np.random.Generator]`, *optional*):
                 A [`np.random.Generator`](https://pytorch.org/docs/stable/generated/torch.Generator.html) to make
                 generation deterministic.
@@ -640,7 +625,7 @@ class I2VGenXLPipeline(DiffusionPipeline):
 
         # 3.2.2 Image latents.
         resized_image = _center_crop_wide(image, (width, height))
-        image = self.image_processor.preprocess(resized_image).to(dtype=image_embeddings.dtype)
+        image = self.video_processor.preprocess(resized_image).to(dtype=image_embeddings.dtype)
         image_latents = self.prepare_image_latents(
             image,
             num_frames=num_frames,
@@ -726,7 +711,7 @@ class I2VGenXLPipeline(DiffusionPipeline):
             video = latents
         else:
             video_tensor = self.decode_latents(latents, decode_chunk_size=decode_chunk_size)
-            video = tensor2vid(video_tensor, self.image_processor, output_type=output_type)
+            video = self.video_processor.postprocess_video(video=video_tensor, output_type=output_type)
 
         if not return_dict:
             return (video,)

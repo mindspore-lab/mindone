@@ -18,13 +18,13 @@ from mindspore import ops
 workspace = os.path.dirname(os.path.abspath(__file__))
 print("workspace:", workspace, flush=True)
 sys.path.append(workspace)
+from common import init_env
 from ldm.models.diffusion.plms import PLMSSampler
 
 # from ldm.models.diffusion.ddim import DDIMSampler
 # from ldm.models.diffusion.dpm_solver import DPMSolverSampler
 # from ldm.models.diffusion.uni_pc import UniPCSampler
 from ldm.modules.logger import set_logger
-from ldm.modules.train.tools import set_random_seed
 from ldm.util import instantiate_from_config
 
 logger = logging.getLogger("inpaint")
@@ -125,30 +125,26 @@ def image_grid(imgs, rows, cols):
 
 
 def main(args):
+    # init
+    rank_id, device_num = init_env(
+        args.ms_mode,
+        seed=args.seed,
+        jit_level=args.jit_level,
+        max_device_memory="30GB",
+    )
+
     # set logger
     set_logger(
         name="",
         output_dir=args.save_path,
-        rank=0,
+        rank=rank_id,
         log_level=eval(args.log_level),
-    )
-
-    # init
-    device_id = int(os.getenv("DEVICE_ID", 0))
-    ms.context.set_context(
-        mode=args.ms_mode,
-        # mode=ms.context.GRAPH_MODE,
-        device_target="Ascend",
-        device_id=device_id,
-        max_device_memory="30GB",
     )
 
     if args.save_graph:
         save_graphs_path = "graph"
         shutil.rmtree(save_graphs_path)
         ms.context.set_context(save_graphs=True, save_graphs_path=save_graphs_path)
-
-    set_random_seed(args.seed)
 
     if not os.path.isabs(args.config):
         args.config = os.path.join(workspace, args.config)
@@ -281,6 +277,16 @@ if __name__ == "__main__":
     parser.add_argument("--mask_ratio", type=float, default=0.75, help="")
     parser.add_argument(
         "--ms_mode", type=int, default=0, help="Running in GRAPH_MODE(0) or PYNATIVE_MODE(1) (default=0)"
+    )
+    parser.add_argument(
+        "--jit_level",
+        default="O2",
+        type=str,
+        choices=["O0", "O1", "O2"],
+        help="Used to control the compilation optimization level. Supports ['O0', 'O1', 'O2']."
+        "O0: Except for optimizations that may affect functionality, all other optimizations are turned off, adopt KernelByKernel execution mode."
+        "O1: Using commonly used optimizations and automatic operator fusion optimizations, adopt KernelByKernel execution mode."
+        "O2: Ultimate performance optimization, adopt Sink execution mode.",
     )
     parser.add_argument("--num_samples", type=int, default=4, help="num of total samples")
     parser.add_argument("--img_size", type=int, default=512, help="")

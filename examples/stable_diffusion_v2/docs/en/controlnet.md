@@ -184,7 +184,7 @@ Try to customize your own ControlNet? Downloading the SD base weight, preparing 
 
 Now only support training based on SD1.5.ControlNet
 
-All codes have been tested on Ascend 910* with MindSpore 2.2 20231124 version.
+All codes have been tested on Ascend 910* with MindSpore 2.3.0 release.
 
 ### Train a ControlNet from SD1.5
 
@@ -297,17 +297,25 @@ Final, execute the script to launch finetuning
 ```
 sh scripts/run_train_cldm.sh $CARD_ID
 ```
-> Please enable INFNAN mode by `export MS_ASCEND_CHECK_OVERFLOW_MODE="INFNAN_MODE"` for Ascend 910* if overflow found.
 
 The resulting log will be saved in $output_dir as defined in the script, and the saved checkpoint will be saved in $output_path as defined in  `train_config` file.
 
 Here are the training performances:
 
-| Platform | Dataset | Task | Batch Size | Training Performance |
-| -------- | ------- | ---- |  --------- |  ------------------- |
-| 910A | Fill50k | Canny2Image | 4 | 620 ms/step|
-| 910* | Fill50k | Canny2Image | 4 | 552 ms/step|
-| 910A | MPII1K | Pose2Image | 2 | 490 ms/step|
+| Context | Dataset | Task | Batch Size |  jit_level| Acceleration |Training Performance |
+| -------- | ------- | ---- |  --------- |-----------|---------- | ---|
+| D910x1-MS2.0.0 | Fill50k | Canny2Image | 4 | N.A|  Graph,FP16 | 620 ms/step|
+| D910x1-MS2.0.0 | MPII1K | Pose2Image | 2 | N.A| Graph,FP16 | 490 ms/step|
+| D910*x1-MS2.3.0 | Fill50k | Canny2Image | 4 | O2| Graph,FP16 |377 ms/step|
+| D910*x1-MS2.3.0 | MPII1K | Canny2Image | 2 | O2| Graph,FP16 |253 ms/step|
+
+> Context: {Ascend chip}-{number of NPUs}-{mindspore version}.
+>
+> Acceleration: Graph: Graph Mode. FP16: float16 computation.
+>
+>jie_level: Used to control the compilation optimization level. N/A means that the current MindSpore version does not support setting jit_level.
+
+Note that the jit_level only can be used for MindSpore 2.3.
 
 
 #### 4. Evaluation
