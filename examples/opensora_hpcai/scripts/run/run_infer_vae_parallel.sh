@@ -6,7 +6,7 @@ python scripts/infer_vae.py \
     --csv_path datasets/sora_overfitting_dataset_0410/vcg_200.csv \
     --video_folder datasets/sora_overfitting_dataset_0410 \
     --output_path datasets/sora_overfitting_dataset_0410_vae_512x512 \
-    --vae_checkpoint models/sd-vae-ft-ema.ckpt \
+    --vae_checkpoint stabilityai/sd-vae-ft-ema \
     --image_size 576 1024 \
     --transform_name crop_resize \
     --vae_micro_batch_size 64 \

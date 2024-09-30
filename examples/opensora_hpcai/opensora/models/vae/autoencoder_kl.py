@@ -1,6 +1,9 @@
+import os
+
 import mindspore as ms
 from mindspore import nn, ops
 
+from ...utils.model_utils import load_state_dict
 from ..layers.operation_selector import get_split_op
 from .modules import Decoder, Encoder
 
@@ -53,8 +56,14 @@ class AutoencoderKL(nn.Cell):
     def init_from_ckpt(
         self, path, ignore_keys=list(), remove_prefix=["first_stage_model.", "autoencoder.", "spatial_vae.module."]
     ):
-        # TODO: support auto download pretrained checkpoints
-        sd = ms.load_checkpoint(path)
+        name_map = None
+        if os.path.splitext(path)[-1] == ".safetensors" or not os.path.exists(path):  # HuggingFace hub
+            with open("tools/pt_pnames_vae.txt") as file_pt:
+                lines_pt = [line.strip().split("#")[0] for line in file_pt.readlines()]
+            with open("tools/ms_pnames_vae.txt") as file_ms:
+                lines_ms = [line.strip().split("#")[0] for line in file_ms.readlines()]
+            name_map = dict(zip(lines_pt, lines_ms))
+        sd, path = load_state_dict(path, name_map, param_shapes={k: v.shape for k, v in self.parameters_dict().items()})
         keys = list(sd.keys())
         for k in keys:
             for ik in ignore_keys:
@@ -76,7 +85,7 @@ class AutoencoderKL(nn.Cell):
         pu, cu = ms.load_param_into_net(self, sd, strict_load=False)
         print(f"Net param not loaded : {pu}")
         print(f"Checkpoint param not loaded : {cu}")
-        print(f"Restored from {path}")
+        print(f"Loaded from {path}")
 
     def _encode(self, x):
         # return latent distribution, N(mean, logvar)

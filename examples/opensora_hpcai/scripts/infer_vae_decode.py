@@ -145,7 +145,7 @@ def parse_args():
     parser.add_argument(
         "--vae_checkpoint",
         type=str,
-        default="models/sd-vae-ft-ema.ckpt",
+        default="stabilityai/sd-vae-ft-ema",
         help="VAE checkpoint file path which is used to load vae weight.",
     )
     parser.add_argument(

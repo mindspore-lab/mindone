@@ -1,9 +1,15 @@
 import argparse
+import glob
 import logging
+import os
+from typing import Dict, Optional, Tuple
+
+from huggingface_hub import snapshot_download
+from safetensors import safe_open
 
 from mindspore import Model as MSModel
-from mindspore import context, nn
-from mindspore.nn import GELU, GroupNorm, SiLU
+from mindspore import Parameter, context, load_checkpoint
+from mindspore.nn import GELU, GraphCell, GroupNorm, SiLU
 from mindspore.train.callback import _CallbackManager
 
 from ..models.layers.blocks import Attention, LayerNorm, LlamaRMSNorm, PositionEmbedding2D, SinusoidalEmbedding
@@ -62,11 +68,46 @@ def _check_cfgs_in_parser(cfgs: dict, parser: argparse.ArgumentParser):
             raise KeyError(f"{k} does not exist in ArgumentParser!")
 
 
+def _load_hf_state_dict(
+    ckpt_path: str, name_map: Optional[Dict[str, str]] = None, param_shapes: Optional[Dict[str, Tuple[int, ...]]] = None
+) -> Dict[str, Parameter]:
+    state_dict = {}
+    name_map = name_map or {}
+    param_shapes = param_shapes or {}
+    with safe_open(ckpt_path, framework="numpy") as f:
+        for k in f.keys():
+            name = name_map.get(k, k)
+            tensor = f.get_tensor(k)
+            if param_shapes:
+                tensor = tensor.reshape(param_shapes[name])
+            state_dict[name] = Parameter(tensor, name=name)
+    return state_dict
+
+
+def load_state_dict(
+    ckpt_path: str, name_map: Optional[Dict[str, str]] = None, param_shapes: Optional[Dict[str, Tuple[int, ...]]] = None
+) -> Tuple[Dict[str, Parameter], str]:
+    ext = os.path.splitext(ckpt_path)[-1]
+    if ext == ".ckpt":  # MindSpore
+        sd = load_checkpoint(ckpt_path)
+    elif ext == ".safetensors":  # safetensors
+        sd = _load_hf_state_dict(ckpt_path, name_map, param_shapes)
+    elif not os.path.exists(ckpt_path):  # HuggingFace hub
+        # FIXME: scripts convert all paths to absolute paths for modelarts. Extract the original repo_id:
+        ckpt_path = "/".join(ckpt_path.split(os.sep)[-2:])
+        ckpt_path = snapshot_download(ckpt_path, allow_patterns=["*.safetensors"], endpoint="https://hf-mirror.com")
+        ckpt_path = glob.glob(ckpt_path + "/*.safetensors")[0]
+        sd = _load_hf_state_dict(ckpt_path, name_map, param_shapes)
+    else:
+        raise ValueError(f"Invalid checkpoint format: {ext}. Please convert to `.ckpt` or `.safetensors` first.")
+    return sd, ckpt_path
+
+
 class Model(MSModel):
     def _eval_in_fit(self, valid_dataset, callbacks=None, dataset_sink_mode=True, cb_params=None):
         # BUG: `_eval_process` has a bug that results in accessing `eval_indexes` even when it is None.
         # This method fixes it by setting `add_eval_loss` to `False`.
-        if isinstance(self._eval_network, nn.GraphCell) and dataset_sink_mode:
+        if isinstance(self._eval_network, GraphCell) and dataset_sink_mode:
             raise ValueError("Sink mode is currently not supported when evaluating with a GraphCell.")
 
         cb_params.eval_network = self._eval_network

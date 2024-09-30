@@ -53,7 +53,6 @@ def parse_train_args(parser):
     )
     parser.add_argument(
         "--pretrained_model_path",
-        default="",
         type=str,
         help="Specify the pretrained model path, either a pretrained " "DiT model or a pretrained Latte model.",
     )
@@ -262,7 +261,7 @@ def parse_train_args(parser):
     parser.add_argument(
         "--vae_checkpoint",
         type=str,
-        default="models/sd-vae-ft-ema.ckpt",
+        default="stabilityai/sd-vae-ft-ema",
         help="VAE checkpoint file path which is used to load vae weight.",
     )
     parser.add_argument(

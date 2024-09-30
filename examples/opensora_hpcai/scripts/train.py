@@ -437,11 +437,10 @@ def main(args):
                 custom_fp32_cells=WHITELIST_OPS,
             )
     # load checkpoint
-    if len(args.pretrained_model_path) > 0:
-        logger.info(f"Loading ckpt {args.pretrained_model_path}...")
+    if args.pretrained_model_path:
         latte_model.load_from_checkpoint(args.pretrained_model_path)
     else:
-        logger.info("Use random initialization for Latte")
+        logger.info(f"Using random initialization for {model_name}.")
     latte_model.set_train(True)
 
     if (latent_size[1] and latent_size[1] % latte_model.patch_size[1]) or (

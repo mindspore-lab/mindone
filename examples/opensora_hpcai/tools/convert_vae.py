@@ -35,13 +35,9 @@ def load_torch_ckpt(ckpt_path):
     return torch_params
 
 
-abs_path = os.path.abspath(os.path.dirname(os.path.abspath(__file__)))
-sdv2_dir = os.path.join(abs_path, "../../stable_diffusion_v2/")
-
-with open(os.path.join(sdv2_dir, "tools/model_conversion/ms_names_v2.txt")) as file_ms:
+with open(os.path.join(os.path.dirname(__file__), "ms_pnames_vae.txt")) as file_ms:
     lines_ms = list(file_ms.readlines())
-    lines_ms = [line for line in lines_ms if line.startswith("first_stage_model")]
-with open(os.path.join(sdv2_dir, "tools/model_conversion/diffusers_vae_v2.txt")) as file_pt:
+with open(os.path.join(os.path.dirname(__file__), "pt_pnames_vae.txt")) as file_pt:
     lines_pt_vae = list(file_pt.readlines())
 assert len(lines_ms) == len(lines_pt_vae)
 
