@@ -14,6 +14,7 @@ def init_env(
     seed: int = 42,
     distributed: bool = False,
     max_device_memory: str = None,
+    mempool_block_size: str = "9GB",
     device_target: str = "Ascend",
     jit_level: str = "O0",
     global_bf16: bool = False,
@@ -31,6 +32,8 @@ def init_env(
         A tuple containing the device ID, rank ID and number of devices.
     """
     set_random_seed(seed)
+    ms.set_context(mempool_block_size=mempool_block_size)
+
     if max_device_memory is not None:
         ms.set_context(max_device_memory=max_device_memory)
 
@@ -65,7 +68,7 @@ def init_env(
 
     try:
         if jit_level in ["O0", "O1", "O2"]:
-            ms.set_context(jit_config={"jit_level": jit_level})
+            ms.set_context(jit_config={"jit_level": jit_level}, jit_syntax_level=ms.LAX)
         else:
             logger.warning(
                 f"Unsupport jit_level: {jit_level}. The framework automatically selects the execution method"

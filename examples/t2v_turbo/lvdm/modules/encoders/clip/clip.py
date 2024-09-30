@@ -16,6 +16,7 @@ from mindspore.train.serialization import load_checkpoint, load_param_into_net
 
 from .clip_config import CLIPConfig
 from .clip_modules import LayerNorm, Transformer, VisionTransformer
+from .utils import normalize as normalize_func
 
 
 class CLIPModel(nn.Cell):
@@ -193,6 +194,30 @@ class CLIPModel(nn.Cell):
 
         text_ = mint.matmul(text_[ms.numpy.arange(text_.shape[0]), text.argmax(-1)], self.text_projection)
         return text_
+    
+    def encode_image(self, image, normalize: bool=False, use_recompute: bool=False):
+        if use_recompute:
+            features = ms.recompute(self.visual, image)
+        else:
+            features = self.visual(image)
+        if normalize:
+            features = normalize_func(features, dim=-1)
+        return features
+    
+    def encode_text(self, text, normalize: bool=False):
+        x = self.token_embedding(text).astype(self.dtype) # [batch_size, n_ctx, d_model]
+        x = x + self.positional_embedding.astype(self.dtype)
+        x = x.transpose(1, 0, 2) # NLD -> LND
+        x = self.transformer(x)
+        x = x.transpose(1, 0, 2) # LND -> NLD
+        x = self.ln_final(x) # [batch_size, n_ctx, tranformer.width]
+        x = x[ops.arange(x.shape[0]), text.argmax(-1)]
+        x = mint.matmul(x, self.text_projection)
+
+        if normalize:
+            x = normalize_func(x, dim=-1)
+
+        return x
 
     def load_checkpoint(self, config):
         """

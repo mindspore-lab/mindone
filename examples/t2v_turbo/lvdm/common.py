@@ -15,6 +15,15 @@ class GroupNormExtend(nn.GroupNorm):
         return y.view(x_shape)
 
 
+class LayerNorm(nn.LayerNorm):
+    """Subclass torch's LayerNorm to handle fp16."""
+
+    def construct(self, x: ms.Tensor):
+        orig_type = x.dtype
+        ret = super().construct(ops.cast(x, ms.float32))
+        return ops.cast(ret, orig_type)
+
+
 def gather_data(data, return_np=True):
     """gather data from multiple processes to one list"""
     data_list = [mint.zeros_like(data) for _ in range(dist.get_world_size())]
@@ -42,12 +51,11 @@ def extract_into_tensor(a, t, x_shape):
     return out.reshape(b, *((1,) * (len(x_shape) - 1)))
 
 
-def noise_like(shape, device, repeat=False):
-    repeat_noise = lambda: ops.randn((1, *shape[1:])).repeat(
-        shape[0], *((1,) * (len(shape) - 1))
-    )
-    noise = lambda: ops.randn(shape)
-    return repeat_noise() if repeat else noise()
+def noise_like(shape, repeat=False):
+    if not repeat:
+        return ms.ops.StandardNormal()(shape)
+    else:
+        raise ValueError("The repeat method os nor supported.")
 
 
 def default(val, d):

@@ -8,19 +8,20 @@ from functools import partial
 
 from .pos_embed import get_3d_sincos_pos_embed, interpolate_pos_embed_internvideo2
 from .helpers import to_2tuple
-from .flash_attention_class import FlashAttention
+# from .flash_attention_class import FlashAttention
+from mindone.models.modules.flash_attention import MSFlashAttention as FlashAttention
 
 logger = logging.getLogger(__name__)
 
-try:
-    from flash_attn.modules.mlp import FusedMLP
-except:
-    logger.warn(f'FusedMLP of flash_attn is not installed!!!')
+# try:
+#     from flash_attn.modules.mlp import FusedMLP
+# except:
+#     logger.warn(f'FusedMLP of flash_attn is not installed!!!')
 
-try:
-    from flash_attn.ops.rms_norm import DropoutAddRMSNorm
-except:
-    logger.warn(f'DropoutAddRMSNorm of flash_attn is not installed!!!')
+# try:
+#     from flash_attn.ops.rms_norm import DropoutAddRMSNorm
+# except:
+#     logger.warn(f'DropoutAddRMSNorm of flash_attn is not installed!!!')
 
 
 class DropPath(nn.Cell):
@@ -59,9 +60,9 @@ class CrossAttention(nn.Cell):
         self.scale = qk_scale or head_dim ** -0.5
         assert all_head_dim == dim
         
-        self.q = nn.Dense(dim, all_head_dim, bias=False)
-        self.k = nn.Dense(dim, all_head_dim, bias=False)
-        self.v = nn.Dense(dim, all_head_dim, bias=False)
+        self.q = nn.Dense(dim, all_head_dim, has_bias=False)
+        self.k = nn.Dense(dim, all_head_dim, has_bias=False)
+        self.v = nn.Dense(dim, all_head_dim, has_bias=False)
         
         if qkv_bias:
             self.q_bias = ms.Parameter(ops.zeros(all_head_dim))
@@ -97,12 +98,12 @@ class CrossAttention(nn.Cell):
         v = v.reshape(B, N_v, 1, self.num_heads, -1).permute(2, 0, 3, 1, 4).squeeze(0)
         
         q = q * self.scale
-        attn = (q @ k.transpose(-2, -1))  # (B, N_head, N_q, N_k)
+        attn = (q @ k.swapaxes(-2, -1))  # (B, N_head, N_q, N_k)
         
-        attn = attn.softmax(dim=-1)
+        attn = attn.softmax(axis=-1)
         attn = self.attn_drop(attn)
         
-        x = (attn @ v).transpose(1, 2).reshape(B, N, -1)
+        x = (attn @ v).swapaxes(1, 2).reshape(B, N, -1)
         x = self.proj(x)
         x = self.proj_drop(x)
         
@@ -136,7 +137,7 @@ class AttentiveBlock(nn.Cell):
 class AttentionPoolingBlock(AttentiveBlock):
     
     def construct(self, x):
-        x_q = x.mean(1, keepdim=True)
+        x_q = x.mean(1, keep_dims=True)
         x_kv, pos_q, pos_k = x, 0, 0
         x = super().construct(x_q, x_kv, pos_q, pos_k, bool_masked_pos=None, rel_pos_bias=None)
         x = x.squeeze(1)
@@ -152,7 +153,7 @@ class RMSNorm(nn.Cell):
     def construct(self, hidden_states):
         input_dtype = hidden_states.dtype
         hidden_states = hidden_states.to(ms.float32)
-        variance = hidden_states.pow(2).mean(-1, keepdim=True)
+        variance = hidden_states.pow(2).mean(-1, keep_dims=True)
         hidden_states = hidden_states * ops.rsqrt(variance + self.variance_epsilon)
         return self.weight * hidden_states.to(input_dtype)
 
@@ -183,7 +184,7 @@ class Attention(nn.Cell):
         head_dim = dim // num_heads
         self.scale = head_dim ** -0.5
         
-        self.qkv = nn.Dense(dim, dim * 3, bias=qkv_bias)
+        self.qkv = nn.Dense(dim, dim * 3, has_bias=qkv_bias)
         self.attn_drop = nn.Dropout(attn_drop)
         self.proj = nn.Dense(dim, dim)
         self.proj_drop = nn.Dropout(proj_drop)
@@ -206,15 +207,15 @@ class Attention(nn.Cell):
         
         if self.qk_normalization:
             B_, H_, N_, D_ = q.shape
-            q = self.q_norm(q.transpose(1, 2).flatten(-2, -1)).view(B_, N_, H_, D_).transpose(1, 2)
-            k = self.k_norm(k.transpose(1, 2).flatten(-2, -1)).view(B_, N_, H_, D_).transpose(1, 2)
+            q = self.q_norm(q.swapaxes(1, 2).flatten(start_dim=-2, end_dim=-1)).view(B_, N_, H_, D_).swapaxes(1, 2)
+            k = self.k_norm(k.swapaxes(1, 2).flatten(start_dim=-2, end_dim=-1)).view(B_, N_, H_, D_).swapaxes(1, 2)
         
-        attn = ((q * self.scale) @ k.transpose(-2, -1))
+        attn = ((q * self.scale) @ k.swapaxes(-2, -1))
         # attn = attn - attn.max(-1)[0].unsqueeze(-1)  # in case of overflow for fp16
-        attn = attn.softmax(dim=-1)
+        attn = attn.softmax(axis=-1)
         attn = self.attn_drop(attn)
         # print(torch.cuda.memory_allocated(), torch.cuda.memory_allocated())
-        x = (attn @ v).transpose(1, 2).reshape(B, N, C)
+        x = (attn @ v).swapaxes(1, 2).reshape(B, N, C)
         x = self.proj(x)
         x = self.proj_drop(x)
         return x
@@ -229,11 +230,11 @@ class Attention(nn.Cell):
         if self.qk_normalization:
             q, k, v = qkv.unbind(2)
             if self.use_fused_rmsnorm:
-                q = self.q_norm(q.flatten(-2, -1))[0].view(q.shape)
-                k = self.k_norm(k.flatten(-2, -1))[0].view(k.shape)
+                q = self.q_norm(q.flatten(start_dim=-2, end_dim=-1))[0].view(q.shape)
+                k = self.k_norm(k.flatten(start_dim=-2, end_dim=-1))[0].view(k.shape)
             else:
-                q = self.q_norm(q.flatten(-2, -1)).view(q.shape)
-                k = self.k_norm(k.flatten(-2, -1)).view(k.shape)
+                q = self.q_norm(q.flatten(start_dim=-2, end_dim=-1)).view(q.shape)
+                k = self.k_norm(k.flatten(start_dim=-2, end_dim=-1)).view(k.shape)
             qkv = ops.stack([q, k, v], dim=2)
         
         context, _ = self.inner_attn(
@@ -357,7 +358,7 @@ class PatchEmbed(nn.Cell):
     
     def construct(self, x):
         x = self.proj(x)
-        x = x.flatten(3).permute(0, 2, 3, 1)  # B x C x T x HW => B x T x HW x C
+        x = x.flatten(start_dim=3).permute(0, 2, 3, 1)  # B x C x T x HW => B x T x HW x C
         x = self.norm(x)
         return x
 
@@ -584,11 +585,11 @@ class PretrainInternVideo2(nn.Cell):
         x = self.patch_embed(x.type(self.dtype))
         # print(f"x.shape: {x.shape} x.dtype: {x.dtype}, model.dtype: {self.dtype}")
         B, T, L, C = x.shape  # T: temporal; L: spatial
-        x = x.view([B, T * L, C])
+        x = x.reshape([B, T * L, C])
 
         # append cls token
         cls_tokens = self.cls_token.expand(B, -1, -1)
-        x = ops.cat((cls_tokens, x), dim=1)
+        x = mint.cat((cls_tokens, x), dim=1)
 
         # add pos_embed
         if self.sep_pos_embed:
@@ -606,7 +607,7 @@ class PretrainInternVideo2(nn.Cell):
                     img_pos_embed = self.pos_embed[:, 1:, :].view(1, self.num_frames, self.patch_embed.num_patches // self.num_frames, self.embed_dim).mean(dim=1)
                     # print('img_pos_embed.shape:', img_pos_embed.shape)
 
-                    pos_embed = ops.cat([cls_pos_embed, img_pos_embed], dim=1)
+                    pos_embed = mint.cat([cls_pos_embed, img_pos_embed], dim=1)
                     # print('final img_pos_embed.shape:', pos_embed.shape)
             else:
                 pos_embed = self.pos_embed
@@ -668,17 +669,17 @@ class PretrainInternVideo2(nn.Cell):
                     clip_img_pos_embed = self.clip_pos_embed[:, 1:, :].view(1, self.num_frames, self.patch_embed.num_patches // self.num_frames, self.embed_dim).mean(dim=1)
                     # print('img_pos_embed.shape:', img_pos_embed.shape)
 
-                    clip_pos_embed = ops.cat([clip_cls_pos_embed, clip_img_pos_embed], dim=1)
+                    clip_pos_embed = mint.cat([clip_cls_pos_embed, clip_img_pos_embed], dim=1)
                     # print('final img_pos_embed.shape:', pos_embed.shape)
 
             else:
                 clip_pos_embed = self.clip_pos_embed
         
-        clip_pos_embed = clip_pos_embed.repeat(B, 1, 1)
+        clip_pos_embed = clip_pos_embed.repeat_interleave(B, 0)
         if mask is not None:
-            x_clip = x_clip + clip_pos_embed[~mask].view(B, -1, C_CLIP).unsqueeze(0).repeat(K, 1, 1, 1)
+            x_clip = x_clip + clip_pos_embed[~mask].view(B, -1, C_CLIP).unsqueeze(0).repeat_interleave(K, 0)
         else:
-            x_clip = x_clip + clip_pos_embed.view(B, -1, C_CLIP).unsqueeze(0).repeat(K, 1, 1, 1)
+            x_clip = x_clip + clip_pos_embed.view(B, -1, C_CLIP).unsqueeze(0).repeat_interleave(K,0)
         
         # CLIP decoder
         x_clip_align = []
@@ -699,9 +700,9 @@ def pretrain_internvideo2_1b_patch14_224(config):
         drop_path_rate=0.25,
         init_values=0.00001,
         qk_normalization=True,
-        use_flash_attn=config.vision_encoder.get('use_flash_attn', True),
-        use_fused_rmsnorm=config.vision_encoder.get('use_fused_rmsnorm', True),
-        use_fused_mlp=config.vision_encoder.get('use_fused_mlp', True),
+        use_flash_attn=False, # config.vision_encoder.get('use_flash_attn', True), FIXME
+        use_fused_rmsnorm=False, # config.vision_encoder.get('use_fused_rmsnorm', True), FIXME
+        use_fused_mlp=False, # config.vision_encoder.get('use_fused_mlp', True), FIXME
         fused_mlp_heuristic=1,
         layerscale_no_force_fp32=False,
         num_frames=config.vision_encoder.num_frames,
@@ -719,7 +720,7 @@ def pretrain_internvideo2_1b_patch14_224(config):
 
     if config.vision_encoder.pretrained is not None:
         logger.info(f"Loading pretrained weights from {config.vision_encoder.pretrained}")
-        state_dict = ms.load_checkpoint(config.vision_encoder.pretrained)["module"]
+        state_dict = ms.load_checkpoint(config.vision_encoder.pretrained)
 
         state_dict_new = {}
         for k, v in state_dict.items():
@@ -728,8 +729,7 @@ def pretrain_internvideo2_1b_patch14_224(config):
         state_dict = state_dict_new
 
         interpolate_pos_embed_internvideo2(state_dict, model, orig_t_size=4)
-        message = model.load_state_dict(state_dict, strict=False)
-        logger.info(message)
+        ms.load_param_into_net(model, state_dict, strict_load=False)
     else:
         logger.info("No pretrained weights!!!")
     return model

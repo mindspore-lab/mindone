@@ -5,7 +5,7 @@ import io
 import gc
 
 import mindspore as ms
-from mindspore import nn, ops
+from mindspore import nn, mint
 
 from intern_vid2.models.backbones.internvideo2 import (
     pretrain_internvideo2_1b_patch14_224,
@@ -15,7 +15,8 @@ from intern_vid2.models.criterions import get_sim
 from intern_vid2.models.backbones.internvideo2.pos_embed import (
     interpolate_pos_embed_internvideo2_new,
 )
-from intern_vid2.models.backbones.bert.tokenization_bert import BertTokenizer
+from mindnlp.transformers import BertTokenizer
+# from intern_vid2.models.backbones.bert.tokenization_bert import BertTokenizer
 
 
 def _frame_from_video(video):
@@ -61,23 +62,22 @@ def get_vid_feat(frames, vlm):
 
 
 def retrieve_text(
-    frames, texts, model, topk: int = 5, config: dict = {}, device=torch.device("cuda")
+    frames, texts, model, topk: int = 5, config: dict = {}
 ):
 
     vlm = model
-    vlm = vlm.to(device)
 
     fn = config.get("num_frames", 8)
     size_t = config.get("size_t", 224)
     frames_tensor = frames2tensor(
-        frames, fnum=fn, target_size=(size_t, size_t), device=device
+        frames, fnum=fn, target_size=(size_t, size_t)
     )
     vid_feat = vlm.get_vid_feat(frames_tensor)
 
     text_feat_d = {}
     text_feat_d = get_text_feat_dict(texts, vlm, text_feat_d)
     text_feats = [text_feat_d[t] for t in texts]
-    text_feats_tensor = torch.cat(text_feats, 0)
+    text_feats_tensor = mint.cat(text_feats, 0)
 
     probs, idxs = vlm.predict_label(vid_feat, text_feats_tensor, top=topk)
 
@@ -85,19 +85,19 @@ def retrieve_text(
     return ret_texts, probs.float().numpy()[0]
 
 
-def setup_internvideo2(config: dict):
+def setup_internvideo2(config: dict, dtype=ms.float32):
     if "bert" in config.model.text_encoder.name:
         tokenizer = BertTokenizer.from_pretrained(config.model.text_encoder.pretrained)
         model = InternVideo2_Stage2(
-            config=config, tokenizer=tokenizer, is_pretrain=False
+            config=config, tokenizer=tokenizer, is_pretrain=False, dtype=dtype,
         )
     else:
-        model = InternVideo2_Stage2(config=config, is_pretrain=False)
+        model = InternVideo2_Stage2(config=config, is_pretrain=False, dtype=dtype)
         tokenizer = model.tokenizer
 
-    if config.get("compile_model", False):
-        ms.set_float32_matmul_precision("high")
-        model = ms.compile(model)
+    # if config.get("compile_model", False):
+    #     ms.set_float32_matmul_precision("high")
+    #     model = ms.compile(model)
 
     model_without_ddp = model
 
@@ -106,19 +106,18 @@ def setup_internvideo2(config: dict):
         and (os.path.isfile(config.pretrained_path))
         or "s3://" in config.pretrained_path
     ):
-        checkpoint = ms.load_checkpoint(config.pretrained_path)
-        state_dict = checkpoint["module"]
+        state_dict = ms.load_checkpoint(config.pretrained_path)
 
         text_encoder_state_dict = {}
         vision_proj_state_dict = {}
         text_proj_state_dict = {}
         for k, v in state_dict.items():
             if k.startswith("text_encoder.bert."):
-                text_encoder_state_dict[k[len("text_encoder.bert.") :]] = v
+                text_encoder_state_dict["text_encoder." + k[len("text_encoder.bert."):]] = v
             elif k.startswith("vision_proj."):
-                vision_proj_state_dict[k[len("vision_proj.") :]] = v
+                vision_proj_state_dict[k] = v
             elif k.startswith("text_proj."):
-                text_proj_state_dict[k[len("text_proj.") :]] = v
+                text_proj_state_dict[k] = v
 
         ms.load_param_into_net(model_without_ddp.text_encoder, text_encoder_state_dict)
         ms.load_param_into_net(model_without_ddp.vision_proj, vision_proj_state_dict)
@@ -133,7 +132,6 @@ def setup_internvideo2(config: dict):
             )
             assert a == len(state_dict), state_dict.keys()
 
-        del checkpoint
         del state_dict
         gc.collect()
 
@@ -153,7 +151,7 @@ def setup_internvideo2(config: dict):
 class InternVideo2_Stage2(nn.Cell):
     """docstring for InternVideo2_Stage2"""
 
-    def __init__(self, config, tokenizer, is_pretrain: bool = True):
+    def __init__(self, config, tokenizer, is_pretrain: bool = True, dtype=ms.float32):
         super(InternVideo2_Stage2, self).__init__()
 
         self.config = config
@@ -165,10 +163,10 @@ class InternVideo2_Stage2(nn.Cell):
         self.embed_dim = config.model.embed_dim
 
         # create modules.
-        self.vision_encoder = self.build_vision_encoder()
+        self.vision_encoder = self.build_vision_encoder(dtype=dtype)
         self.freeze_vision()
 
-        self.text_encoder = self.build_text_encoder()
+        self.text_encoder = self.build_text_encoder(dtype=dtype)
         self.freeze_text()
 
         self.vision_proj = nn.Dense(self.vision_width, self.embed_dim)
@@ -188,18 +186,18 @@ class InternVideo2_Stage2(nn.Cell):
     def dtype(self):
         return self.vision_encoder.patch_embed.proj.weight.dtype
 
-    def encode_vision(self, image: ms.Tensor, test: bool = False):
+    def encode_vision(self, image: ms.Tensor, test: bool = False, use_recompute: bool=False):
         """encode image / videos as features.
 
         Args:
-            image (torch.Tensor): The input images.
+            image (ms.Tensor): The input images.
             test (bool): Whether testing.
 
         Returns: tuple.
-            - vision_embeds (torch.Tensor): The output features. Shape: [B,N,C].
-            - pooled_vision_embeds (torch.Tensor): The pooled output features. Shape: [B,1,C].
-            - student_output (torch.Tensor): The features of alignment. Shape: [K,B,N,C].
-            - clip_output (torch.Tensor): The features of clip. Shape: [K,B,N,C].
+            - vision_embeds (ms.Tensor): The output features. Shape: [B,N,C].
+            - pooled_vision_embeds (ms.Tensor): The pooled output features. Shape: [B,1,C].
+            - student_output (ms.Tensor): The features of alignment. Shape: [K,B,N,C].
+            - clip_output (ms.Tensor): The features of clip. Shape: [K,B,N,C].
 
         """
 
@@ -211,9 +209,13 @@ class InternVideo2_Stage2(nn.Cell):
         # whether save temporal dimension
         # keep_temporal=self.config.model.vision_encoder.keep_temporal
         if test:
-            vision_embeds, pooled_vision_embeds, _, _ = self.vision_encoder(
-                image, None, use_image
+            if use_recompute:
+                vision_embeds, pooled_vision_embeds, _, _ = ms.recompute(self.vision_encoder, image, None, use_image
             )
+            else:
+                vision_embeds, pooled_vision_embeds, _, _ = self.vision_encoder(
+                    image, None, use_image
+                )
             return vision_embeds, pooled_vision_embeds
         else:
             mask, targets_clip_middle_vis, targets_clip_final_vis = self.encode_teacher(
@@ -241,25 +243,25 @@ class InternVideo2_Stage2(nn.Cell):
         """encode text.
         Args:
             text (dict): The output of huggingface's `PreTrainedTokenizer`. contains keys:
-                - input_ids (torch.Tensor): Token ids to be fed to a model. Shape: [B,L].
-                - attention_mask (torch.Tensor): The mask indicate padded tokens. Shape: [B,L]. 0 is padded token.
+                - input_ids (ms.Tensor): Token ids to be fed to a model. Shape: [B,L].
+                - attention_mask (ms.Tensor): The mask indicate padded tokens. Shape: [B,L]. 0 is padded token.
                 - other keys refer to "https://huggingface.co/docs/transformers/v4.21.2/en/main_classes/tokenizer#transformers.PreTrainedTokenizer.__call__".
         Returns: tuple.
-            - text_embeds (torch.Tensor): The features of all tokens. Shape: [B,L,C].
-            - pooled_text_embeds (torch.Tensor): The pooled features. Shape: [B,C].
+            - text_embeds (ms.Tensor): The features of all tokens. Shape: [B,L,C].
+            - pooled_text_embeds (ms.Tensor): The pooled features. Shape: [B,C].
 
         """
-        text_output = self.get_text_encoder()(
+        encoder = self.get_text_encoder()
+        text_output = encoder(
             text.input_ids,
             attention_mask=text.attention_mask,
             return_dict=True,
-            mode="text",
         )
         text_embeds = text_output.last_hidden_state
         pooled_text_embeds = text_embeds[:, 0]
         return text_embeds, pooled_text_embeds
 
-    def build_vision_encoder(self):
+    def build_vision_encoder(self, dtype):
         """build vision encoder
         Returns: (vision_encoder, clip_teacher). Each is a `nn.Module`.
 
@@ -290,7 +292,7 @@ class InternVideo2_Stage2(nn.Cell):
 
         return vision_encoder
 
-    def build_text_encoder(self):
+    def build_text_encoder(self, dtype):
         """build text_encoder and possiblly video-to-text multimodal fusion encoder.
         Returns: nn.Module. The text encoder
 
@@ -302,6 +304,7 @@ class InternVideo2_Stage2(nn.Cell):
                 self.config.model,
                 self.is_pretrain,
                 self.config.gradient_checkpointing,
+                dtype=dtype,
             )
         else:
             raise ValueError(f"Not implemented: {encoder_name}")
@@ -317,11 +320,11 @@ class InternVideo2_Stage2(nn.Cell):
         """get the video features for the given frames.
 
         Args:
-            frames (torch.Tensor): The input frames. Shape: [B,T,C,H,W].
+            frames (ms.Tensor): The input frames. Shape: [B,T,C,H,W].
 
         Returns: tuple.
-            - vision_embeds (torch.Tensor): The output features. Shape: [B,N,C].
-            - pooled_vision_embeds (torch.Tensor): The pooled output features. Shape: [B,1,C].
+            - vision_embeds (ms.Tensor): The output features. Shape: [B,N,C].
+            - pooled_vision_embeds (ms.Tensor): The pooled output features. Shape: [B,1,C].
 
         """
         with ms._no_grad():
@@ -334,14 +337,14 @@ class InternVideo2_Stage2(nn.Cell):
         """get the video features for the given frames with grad.
 
         Args:
-            frames (torch.Tensor): The input frames. Shape: [B,T,C,H,W].
+            frames (ms.Tensor): The input frames. Shape: [B,T,C,H,W].
 
         Returns: tuple.
-            - vision_embeds (torch.Tensor): The output features. Shape: [B,N,C].
-            - pooled_vision_embeds (torch.Tensor): The pooled output features. Shape: [B,1,C].
+            - vision_embeds (ms.Tensor): The output features. Shape: [B,N,C].
+            - pooled_vision_embeds (ms.Tensor): The pooled output features. Shape: [B,1,C].
 
         """
-        _, vfeat = self.encode_vision(frames, test=True)
+        _, vfeat = self.encode_vision(frames, test=True, use_recompute=True)
         vfeat = self.vision_proj(vfeat)
         vfeat = vfeat / vfeat.norm(dim=-1, keepdim=True)
         return vfeat

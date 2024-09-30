@@ -51,10 +51,10 @@ class LoraInjectedLinear(nn.Cell):
             r = min(in_features, out_features)
 
         self.r = r
-        self.linear = nn.Dense(in_features, out_features, has_bias=has_bias)
-        self.lora_down = nn.Dense(in_features, r, has_bias=False)
+        self.linear = nn.Dense(in_features, out_features, has_bias=has_bias).to_float(ms.float16)
+        self.lora_down = nn.Dense(in_features, r, has_bias=False).to_float(ms.float16)
         self.dropout = nn.Dropout(p=dropout_p)
-        self.lora_up = nn.Dense(r, out_features, has_bias=False)
+        self.lora_up = nn.Dense(r, out_features, has_bias=False).to_float(ms.float16)
         self.scale = scale
         self.selector = nn.Identity()
 
@@ -448,8 +448,11 @@ def inject_trainable_lora_extended(
                 r=r,
             )
             _tmp.linear.weight.set_data(weight.astype(_tmp.linear.weight.dtype))
+            _tmp.linear.weight.requires_grad = weight.requires_grad
+
             if bias is not None:
                 _tmp.linear.bias.set_data(bias.astype(_tmp.linear.bias.dtype))
+                _tmp.linear.bias.requires_grad = bias.requires_grad
         elif _child_module.__class__ == nn.Conv2d:
             weight = _child_module.weight
             bias = _child_module.bias
@@ -466,8 +469,11 @@ def inject_trainable_lora_extended(
             )
 
             _tmp.conv.weight.set_data(weight.astype(_tmp.conv.weight.dtype))
+            _tmp.conv.weight.requires_grad = weight.requires_grad
+
             if bias is not None:
                 _tmp.conv.bias.set_data(bias.astype(_tmp.conv.bias.dtype))
+                _tmp.conv.bias.requires_grad = bias.requires_grad
 
         elif _child_module.__class__ == nn.Conv3d:
             weight = _child_module.weight
@@ -482,8 +488,11 @@ def inject_trainable_lora_extended(
             )
 
             _tmp.conv.weight.set_data(weight.astype(_tmp.conv.weight.dtype))
+            _tmp.conv.weight.requires_grad = weight.requires_grad
+
             if bias is not None:
                 _tmp.conv.bias.set_data(bias.astype(_tmp.conv.bias.dtype))
+                _tmp.conv.bias.requires_grad = bias.requires_grad
         else:
             # ignore module which are not included in search_class
             # For example:

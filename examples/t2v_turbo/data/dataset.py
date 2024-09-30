@@ -107,10 +107,15 @@ class TextVideoDataset:
         random_drop_text=True,
         random_drop_text_ratio=0.1,
         disable_flip=True,
+        n_samples=None,
     ):
         logger.info(f"loading annotations from {csv_path} ...")
         with open(csv_path, "r") as csvfile:
             self.dataset = list(csv.DictReader(csvfile))
+
+        if n_samples:
+            self.dataset = np.random.choice(self.dataset, n_samples, replace=False)
+        
         self.length = len(self.dataset)
         logger.info(f"Num data samples: {self.length}")
 
@@ -149,6 +154,15 @@ class TextVideoDataset:
         for idx in range(attempts):
             try:
                 pixel_values, caption = self.get_batch(idx)
+                inputs = {"image": pixel_values[0]}
+                num_frames = len(pixel_values)
+                for i in range(num_frames - 1):
+                    input[f"image{i}"] = pixel_values[i + 1]
+
+                output = self.pixel_transforms(**inputs)
+                pixel_values = np.stack(list(output.values()), axis=0)
+                # (f, h, w, c) -> (f, c, h, w)
+                pixel_values = np.transpose(pixel_values, (0, 3, 1, 2))
                 replace_data = copy.deepcopy((pixel_values, caption))
                 break
             except Exception as e:
@@ -205,11 +219,33 @@ class TextVideoDataset:
                 - video: preprocessed video frames in shape (f, c, h, w)
                 - text_data: if tokenizer provided, tokens shape (context_max_len,), otherwise text string
         """
+        pixel_values, caption = self.get_batch(idx)
+
         try:
-            pixel_values, caption = self.get_batch(idx)
-            if (self.prev_ok_sample is None) or (self.require_update_prev):
-                self.prev_ok_sample = copy.deepcopy((pixel_values, caption))
-                self.require_update_prev = False
+            # pixel value: (f, h, w, 3) -> transforms -> (f 3 h' w')
+            if self.transform_backend == "pt":
+                import torch
+
+                pixel_values = torch.from_numpy(pixel_values).permute(0, 3, 1, 2).contiguous()
+                pixel_values = self.pixel_transforms(pixel_values)
+                pixel_values = pixel_values.numpy()
+            elif self.transform_backend == "al":
+                # NOTE:it's to ensure augment all frames in a video in the same way.
+                # ref: https://albumentations.ai/docs/examples/example_multi_target/
+
+                inputs = {"image": pixel_values[0]}
+                num_frames = len(pixel_values)
+                for i in range(num_frames - 1):
+                    inputs[f"image{i}"] = pixel_values[i + 1]
+
+                output = self.pixel_transforms(**inputs)
+
+                pixel_values = np.stack(list(output.values()), axis=0)
+                # (f h w c) -> (f c h w)
+                pixel_values = np.transpose(pixel_values, (0, 3, 1, 2))
+            else:
+                raise NotImplementedError
+
         except Exception as e:
             logger.warning(f"Fail to get sample of idx {idx}. The corrupted video will be replaced.")
             print("\tError msg: {}".format(e), flush=True)
@@ -219,30 +255,6 @@ class TextVideoDataset:
 
             if idx >= self.length:
                 raise IndexError  # needed for checking the end of dataset iteration
-
-        # pixel value: (f, h, w, 3) -> transforms -> (f 3 h' w')
-        if self.transform_backend == "pt":
-            import torch
-
-            pixel_values = torch.from_numpy(pixel_values).permute(0, 3, 1, 2).contiguous()
-            pixel_values = self.pixel_transforms(pixel_values)
-            pixel_values = pixel_values.numpy()
-        elif self.transform_backend == "al":
-            # NOTE:it's to ensure augment all frames in a video in the same way.
-            # ref: https://albumentations.ai/docs/examples/example_multi_target/
-
-            inputs = {"image": pixel_values[0]}
-            num_frames = len(pixel_values)
-            for i in range(num_frames - 1):
-                inputs[f"image{i}"] = pixel_values[i + 1]
-
-            output = self.pixel_transforms(**inputs)
-
-            pixel_values = np.stack(list(output.values()), axis=0)
-            # (f h w c) -> (f c h w)
-            pixel_values = np.transpose(pixel_values, (0, 3, 1, 2))
-        else:
-            raise NotImplementedError
 
         if self.is_image:
             pixel_values = pixel_values[0]
@@ -265,11 +277,11 @@ class TextVideoDataset:
         else:
             text_data = caption
 
-        return pixel_values, text_data
+        return pixel_values, caption, text_data
 
 
 # TODO: parse in config dict
-def create_dataloader(config, tokenizer=None, is_image=False, device_num=1, rank_id=0):
+def create_dataloader(config, tokenizer=None, is_image=False, device_num=1, rank_id=0, n_samples=None):
     dataset = TextVideoDataset(
         config["csv_path"],
         config["video_folder"],
@@ -278,6 +290,7 @@ def create_dataloader(config, tokenizer=None, is_image=False, device_num=1, rank
         sample_n_frames=config["sample_n_frames"],
         is_image=is_image,
         tokenizer=tokenizer,
+        # n_samples=n_samples,
         # disable_flip=config["disable_flip"],
         # video_column=config["video_column"],
         # caption_column=config["caption_column"],
@@ -295,6 +308,7 @@ def create_dataloader(config, tokenizer=None, is_image=False, device_num=1, rank
         column_names=[
             "video",
             "caption",
+            "tokens",
         ],
         num_shards=device_num,
         shard_id=rank_id,

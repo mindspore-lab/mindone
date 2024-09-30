@@ -49,6 +49,7 @@ from mindone.diffusers._peft.tuners.tuners_utils import BaseTunerLayer
 from mindone.utils.logger import set_logger
 from mindone.utils.config import str2bool
 
+from train_args import parse_args
 from data.dataset import create_dataloader
 from utils.env import init_env
 from utils.lora import save_lora_weight
@@ -56,7 +57,7 @@ from utils.lora_handler import LoraHandler
 from ode_solver import DDIMSolver
 from reward_fn import get_reward_fn
 from scheduler.t2v_turbo_scheduler import T2VTurboScheduler
-from pipeline.t2v_turbo_vc2_pipeline import T2VTurboVC2Pipeline
+from pipeline.lcd_with_loss import LCDWithLoss
 from utils.common_utils import (
     append_dims,
     create_optimizer_params,
@@ -479,7 +480,7 @@ def main(args):
     if isinstance(uncond_prompt_embeds, DiagonalGaussianDistribution):
         uncond_prompt_embeds = uncond_prompt_embeds.mode()
 
-    train_step = TrainStepForTurbo(
+    lcd_with_loss = LCDWithLoss(
         vae=vae,
         text_encoder=text_encoder,
         teacher_unet=teacher_unet,
@@ -498,6 +499,7 @@ def main(args):
         uncond_prompt_embeds=uncond_prompt_embeds,
         reward_fn=reward_fn,
         video_rm_fn=video_rm_fn,
+        use_recompute=True,
     ).set_train()
 
     # 16. Train!
@@ -535,388 +537,11 @@ def main(args):
 
             loss, distill_loss, reward_loss, video_rm_loss = train_step(*batch)
 
-        # 11. Backpropagate on the online student model (`unet`)
-        # if accelerator.sync_gradients: # TODO!!!
-        #     accelerator.clip_grad_norm_(unet.parameters(), args.max_grad_norm)
-
-        # Checks if the accelerator has performed an optimization step behind the scenes
-        if train_step.sync_gradients:
-            progress_bar.update(1)
-            global_step += 1
-
-            if rank_id == 0:
-                if global_step % args.checkpointing_steps == 0:
-                    # _before_ saving state, check if this save would set us over the `checkpoints_total_limit`
-                    if args.checkpoints_total_limit is not None:
-                        checkpoints = os.listdir(args.output_dir)
-                        checkpoints = [
-                            d
-                            for d in checkpoints
-                            if d.startswith("checkpoint") and not "rm" in d
-                        ]
-                        checkpoints = sorted(
-                            checkpoints, key=lambda x: int(x.split("-")[1])
-                        )
-
-                        # before we save the new checkpoint, we need to have at _most_ `checkpoints_total_limit - 1` checkpoints
-                        if len(checkpoints) >= args.checkpoints_total_limit:
-                            num_to_remove = (
-                                len(checkpoints) - args.checkpoints_total_limit + 1
-                            )
-                            removing_checkpoints = checkpoints[0:num_to_remove]
-
-                            logger.info(
-                                f"{len(checkpoints)} checkpoints already exist, removing {len(removing_checkpoints)} checkpoints"
-                            )
-                            logger.info(
-                                f"removing checkpoints: {', '.join(removing_checkpoints)}"
-                            )
-
-                            for removing_checkpoint in removing_checkpoints:
-                                removing_checkpoint = os.path.join(
-                                    args.output_dir, removing_checkpoint
-                                )
-                                shutil.rmtree(removing_checkpoint)
-
-                    save_path = os.path.join(
-                        args.output_dir, f"checkpoint-{global_step}"
-                    )
-                    os.makedirs(save_path, exist_ok=True)
-                    save_model_hook(models, save_path)
-                    output_model_file = os.path.join(save_path, "model.ckpt")
-                    ms.save_checkpoint(unet, output_model_file)
-                    logger.info(f"Saved state to {save_path}")
-                    logger.info(f"Saved state to {save_path}")
-
-                if (
-                    global_step % args.validation_steps == 0
-                    and args.report_to == "wandb"
-                ):
-                    log_validation(
-                        pretrained_t2v,
-                        unet,
-                        noise_scheduler,
-                        model_config,
-                        args,
-                        trackers,
-                    )
-
-            # Gather losses from all processes
-            # distill_loss_list = accelerator.gather(distill_loss.detach())
-            # reward_loss_list = accelerator.gather(reward_loss.detach().float())
-            # video_rm_loss_list = accelerator.gather(
-            #     video_rm_loss.detach().float()
-            # )
-
-            if rank_id == 0:
-                logs = {
-                    "distillation loss": distill_loss,
-                    "image reward loss": reward_loss,
-                    "video reward loss": video_rm_loss,
-                    "lr": lr_scheduler.get_last_lr()[0],
-                }
-                progress_bar.set_postfix(**logs)
-                logger.info(logs, step=global_step)
-                del distill_loss, reward_loss, video_rm_loss
-                gc.collect()
-
-        if global_step >= args.max_train_steps:
-            break
 
     # End of training
     for tracker_name, tracker in trackers.items():
         if tracker_name == "tensorboard":
             tracker.close()
-
-
-class TrainStepForTurbo(TrainStep):
-    def __init__(
-        self,
-        vae: nn.Cell,
-        text_encoder: nn.Cell,
-        teacher_unet: nn.Cell,
-        unet: nn.Cell,
-        optimizer: nn.Optimizer,
-        tokenizer,
-        noise_scheduler,
-        alpha_schedule,
-        sigma_schedule,
-        weight_dtype,
-        length_of_dataloader,
-        vae_scale_factor,
-        time_cond_proj_dim,
-        args,
-        solver,
-        uncond_prompt_embeds,
-        reward_fn,
-        video_rm_fn,
-    ):
-        super().__init__(
-            unet,
-            optimizer,
-            StaticLossScaler(65536),
-            args.max_grad_norm,
-            args.gradient_accumulation_steps,
-            gradient_accumulation_kwargs=dict(
-                length_of_dataloader=length_of_dataloader
-            ),
-        )
-        self.unet = unet
-        self.vae = vae
-        self.text_encoder = text_encoder
-        self.teacher_unet = teacher_unet
-        self.noise_scheduler = noise_scheduler
-        self.alpha_schedule = alpha_schedule
-        self.sigma_schedule = sigma_schedule
-        self.weight_dtype = weight_dtype
-        self.vae_scale_factor = vae_scale_factor
-        self.time_cond_proj_dim = time_cond_proj_dim
-        self.args = args
-        self.solver = solver
-        self.uncond_prompt_embeds = uncond_prompt_embeds
-
-        self.compute_embeddings_fn = functools.partial(
-            compute_embeddings,
-            text_encoder=text_encoder,
-            tokenizer=tokenizer,
-        )
-        self.reward_fn = reward_fn
-        self.video_rm_fn = video_rm_fn
-
-    def forward(self, pixel_values, text):
-
-        text = text.numpy().astype(str)
-
-        # 1. Load and process the image and text conditioning
-        # video = ((video / 255.0).clamp(0.0, 1.0) - 0.5) / 0.5
-
-        # Convert video from (b, t, h, w, c) to (b, t, c, h, w)
-        # video = video.permute(0, 1, 4, 2, 3) # FIXME!!!
-        # pixel_values = video.to(dtype=self.weight_dtype)
-        pixel_values = pixel_values.to(dtype=self.weight_dtype)
-        b, t = pixel_values.shape[:2]
-        pixel_values_flatten = pixel_values.view(b * t, *pixel_values.shape[2:])
-        # encode pixel values with batch size of at most args.vae_encode_batch_size
-        latents = []
-        for i in range(
-            0, pixel_values_flatten.shape[0], self.args.vae_encode_batch_size
-        ):
-            latents.append(
-                self.vae.encode(
-                    pixel_values_flatten[i : i + self.args.vae_encode_batch_size]
-                ).sample()
-            )
-        latents = mint.cat(latents, dim=0)
-        latents = latents.view(b, t, *latents.shape[1:])
-        # Convert latents from (b, t, c, h, w) to (b, c, t, h, w)
-        latents = latents.permute(0, 2, 1, 3, 4)
-        latents = latents * self.vae_scale_factor
-
-        # assert not pretrained_t2v.scale_by_std
-        latents = latents.to(self.weight_dtype)
-        encoded_text = self.compute_embeddings_fn(text)
-        bsz = latents.shape[0]
-
-        # 2. Sample a random timestep for each image t_n from the ODE solver timesteps without bias.
-        # For the DDIM solver, the timestep schedule is [T - 1, T - k - 1, T - 2 * k - 1, ...]
-        index = ops.randint(0, args.num_ddim_timesteps, (bsz,))
-        start_timesteps = self.solver.ddim_timesteps[index]
-        timesteps = start_timesteps - args.topk
-        timesteps = mint.where(timesteps < 0, mint.zeros_like(timesteps), timesteps)
-
-        # 3. Get boundary scalings for start_timesteps and (end) timesteps.
-        c_skip_start, c_out_start = scalings_for_boundary_conditions(
-            start_timesteps, timestep_scaling=args.timestep_scaling_factor
-        )
-        c_skip_start, c_out_start = [
-            append_dims(x, latents.ndim) for x in [c_skip_start, c_out_start]
-        ]
-        c_skip, c_out = scalings_for_boundary_conditions(
-            timesteps, timestep_scaling=args.timestep_scaling_factor
-        )
-        c_skip, c_out = [append_dims(x, latents.ndim) for x in [c_skip, c_out]]
-
-        # 4. Sample noise from the prior and add it to the latents according to the noise magnitude at each
-        # timestep (this is the forward diffusion process) [z_{t_{n + k}} in Algorithm 1]
-        noise = ops.randn_like(latents)
-        noisy_model_input = self.noise_scheduler.add_noise(
-            latents, noise, start_timesteps
-        )
-
-        # 5. Sample a random guidance scale w from U[w_min, w_max] and embed it
-        w = (args.w_max - args.w_min) * ops.rand((bsz,)) + args.w_min
-        w_embedding = guidance_scale_embedding(w, embedding_dim=self.time_cond_proj_dim)
-        w = w.reshape(bsz, 1, 1, 1, 1)
-        # Move to U-Net device and dtype
-        w = w.to(dtype=latents.dtype)
-        w_embedding = w_embedding.to(dtype=latents.dtype)
-
-        # 6. Prepare prompt embeds and unet_added_conditions
-        prompt_embeds = encoded_text.pop("prompt_embeds")
-
-        # 7. Get online LCM prediction on z_{t_{n + k}} (noisy_model_input), w, c, t_{n + k} (start_timesteps)
-        context = {"context": mint.cat([prompt_embeds.float()], 1), "fps": 16}
-        noise_pred = self.unet(
-            noisy_model_input,
-            start_timesteps,
-            **context,
-            timestep_cond=w_embedding,
-        )
-        pred_x_0 = get_predicted_original_sample(
-            noise_pred,
-            start_timesteps,
-            noisy_model_input,
-            "epsilon",
-            self.alpha_schedule,
-            self.sigma_schedule,
-        )
-
-        model_pred = c_skip_start * noisy_model_input + c_out_start * pred_x_0
-
-        distill_loss = mint.zeros_like(model_pred).mean()
-        reward_loss = mint.zeros_like(model_pred).mean()
-        video_rm_loss = mint.zeros_like(model_pred).mean()
-        # if (
-        #     accelerator.process_index in args.reward_train_processes
-        #     and args.reward_scale > 0
-        # ):
-        if args.reward_scale > 0:
-            # sample args.reward_batch_size frames
-            assert args.train_batch_size == 1
-            idx = ops.randint(0, t, (args.reward_batch_size,))
-
-            selected_latents = (
-                model_pred[:, :, idx].to(self.vae.dtype) / self.vae_scale_factor
-            )
-            num_images = args.train_batch_size * args.reward_batch_size
-            selected_latents = selected_latents.permute(0, 2, 1, 3, 4)
-            selected_latents = selected_latents.reshape(
-                num_images, *selected_latents.shape[2:]
-            )
-            decoded_imgs = self.vae.decode(selected_latents)
-            decoded_imgs = (decoded_imgs / 2 + 0.5).clamp(0, 1)
-            expert_rewards = self.reward_fn(decoded_imgs, text)
-            reward_loss = -expert_rewards.mean() * args.reward_scale
-        # if (
-        #     accelerator.process_index in args.video_rm_train_processes
-        #     and args.video_reward_scale > 0
-        # ):
-        if args.video_reward_scale > 0:
-            assert args.train_batch_size == 1
-            assert t > args.video_rm_batch_size
-
-            skip_frames = t // args.video_rm_batch_size
-            start_id = ops.randint(0, skip_frames, (1,))[0].item()
-            idx = mint.arange(start_id, t, skip_frames)[: args.video_rm_batch_size]
-            assert len(idx) == args.video_rm_batch_size
-
-            selected_latents = (
-                model_pred[:, :, idx].to(self.vae.dtype) / self.vae_scale_factor
-            )
-            num_images = args.train_batch_size * args.video_rm_batch_size
-            selected_latents = selected_latents.permute(0, 2, 1, 3, 4)
-            selected_latents = selected_latents.reshape(
-                num_images, *selected_latents.shape[2:]
-            )
-            decoded_imgs = self.vae.decode(selected_latents)
-            decoded_imgs = (decoded_imgs / 2 + 0.5).clamp(0, 1)
-            decoded_imgs = decoded_imgs.reshape(
-                args.train_batch_size,
-                args.video_rm_batch_size,
-                *decoded_imgs.shape[1:],
-            )
-            video_rewards = self.video_rm_fn(decoded_imgs, text)
-            video_rm_loss = -video_rewards.mean() * args.video_reward_scale
-        # if accelerator.process_index in args.vlcd_processes:
-        # 8. Compute the conditional and unconditional teacher model predictions to get CFG estimates of the
-        # predicted noise eps_0 and predicted original sample x_0, then run the ODE solver using these
-        # estimates to predict the data point in the augmented PF-ODE trajectory corresponding to the next ODE
-        # solver timestep.
-        with ms._no_grad():
-            # 8.1. Get teacher model prediction on noisy_model_input z_{t_{n + k}} and conditional embedding c
-            cond_teacher_output = self.teacher_unet(
-                noisy_model_input.to(self.weight_dtype),
-                start_timesteps,
-                **context,
-            )
-            cond_pred_x0 = get_predicted_original_sample(
-                cond_teacher_output,
-                start_timesteps,
-                noisy_model_input,
-                "epsilon",
-                self.alpha_schedule,
-                self.sigma_schedule,
-            )
-            cond_pred_noise = get_predicted_noise(
-                cond_teacher_output,
-                start_timesteps,
-                noisy_model_input,
-                "epsilon",
-                self.alpha_schedule,
-                self.sigma_schedule,
-            )
-
-            # 8.2. Get teacher model prediction on noisy_model_input z_{t_{n + k}} and unconditional embedding 0
-            uncond_teacher_output = self.teacher_unet(
-                noisy_model_input.to(self.weight_dtype),
-                start_timesteps,
-                context=self.uncond_prompt_embeds.to(self.weight_dtype),
-            )
-            uncond_pred_x0 = get_predicted_original_sample(
-                uncond_teacher_output,
-                start_timesteps,
-                noisy_model_input,
-                "epsilon",
-                self.alpha_schedule,
-                self.sigma_schedule,
-            )
-            uncond_pred_noise = get_predicted_noise(
-                uncond_teacher_output,
-                start_timesteps,
-                noisy_model_input,
-                "epsilon",
-                self.alpha_schedule,
-                self.sigma_schedule,
-            )
-
-            # 8.3. Calculate the CFG estimate of x_0 (pred_x0) and eps_0 (pred_noise)
-            # Note that this uses the LCM paper's CFG formulation rather than the Imagen CFG formulation
-            pred_x0 = cond_pred_x0 + w * (cond_pred_x0 - uncond_pred_x0)
-            pred_noise = cond_pred_noise + w * (cond_pred_noise - uncond_pred_noise)
-            # 8.4. Run one step of the ODE solver to estimate the next point x_prev on the
-            # augmented PF-ODE trajectory (solving backward in time)
-            # Note that the DDIM step depends on both the predicted x_0 and source noise eps_0.
-            x_prev = self.solver.ddim_step(pred_x0, pred_noise, index)
-
-            # 9. Get target LCM prediction on x_prev, w, c, t_n (timesteps)
-            with ms._no_grad():
-                target_noise_pred = self.unet(
-                    x_prev.float(),
-                    timesteps,
-                    **context,
-                    timestep_cond=w_embedding,
-                )
-                pred_x_0 = get_predicted_original_sample(
-                    target_noise_pred,
-                    timesteps,
-                    x_prev,
-                    "epsilon",  
-                    self.alpha_schedule,
-                    self.sigma_schedule,
-                ) 
-                target = c_skip * x_prev + c_out * pred_x_0
-
-            # 10. Calculate loss
-            if args.loss_type == "l2":
-                distill_loss = ops.mse_loss(
-                    model_pred.float(), target.float(), reduction="mean"
-                )
-            elif args.loss_type == "huber":
-                distill_loss = huber_loss(model_pred, target, args.huber_c)
-
-        # accelerator.backward(distill_loss + reward_loss + video_rm_loss)
-        loss = distill_loss + reward_loss + video_rm_loss
-        return loss, distill_loss, reward_loss, video_rm_loss
 
 
 if __name__ == "__main__":

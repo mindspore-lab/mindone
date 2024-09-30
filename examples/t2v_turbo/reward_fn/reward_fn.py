@@ -1,31 +1,40 @@
-import os
+import os, sys
 import warnings
 from typing import Any, Dict, Optional, Sequence, Tuple, Union, List
 from dataclasses import dataclass, asdict
+from random import randrange
 
+import numpy as np
 import mindspore as ms
 from mindspore import ops, nn
 from mindspore.dataset import transforms, vision
 
-from lvdm.modules.encoders.clip import CLIPModel, CLIPTokenizer, parse, support_list
+from lvdm.modules.encoders.clip import CLIPModel, parse, support_list
+from utils.utils import freeze_params
 
+sys.path.append("./mindone/examples/stable_diffusion_xl")
+from gm.modules.embedders.open_clip.tokenizer import tokenize
 
 # Image processing
 CLIP_RESIZE = vision.Resize((224, 224), interpolation=vision.Inter.BICUBIC)
-CLIP_NORMALIZE = vision.Normalize(
-    mean=[0.48145466, 0.4578275, 0.40821073],
-    std=[0.26862954, 0.26130258, 0.27577711],
-)
 CENTER_CROP = vision.CenterCrop(224)
 
-ViCLIP_NORMALIZE = vision.Normalize(
-    mean=[0.485, 0.456, 0.406],
-    std=[0.229, 0.224, 0.225],
-)
-
 # Constants
+CLIP_MEAN = (0.48145466, 0.4578275, 0.40821073)
+CLIP_STD = (0.26862954, 0.26130258, 0.27577711)
+
 OPENAI_DATASET_MEAN = (0.48145466, 0.4578275, 0.40821073)
 OPENAI_DATASET_STD = (0.26862954, 0.26130258, 0.27577711)
+
+CLIP_NORMALIZE = vision.Normalize(
+    mean=CLIP_MEAN, std=CLIP_STD
+)
+
+ViCLIP_MEAN = [0.485, 0.456, 0.406]
+ViCLIP_STD = [0.229, 0.224, 0.225]
+ViCLIP_NORMALIZE = vision.Normalize(
+    mean=ViCLIP_MEAN, std=ViCLIP_STD
+)
 
 
 def load_clip_model(arch, pretrained_ckpt_path, dtype):
@@ -46,6 +55,11 @@ def load_clip_model(arch, pretrained_ckpt_path, dtype):
     return model
 
 
+def normalize(tensor, mean, std):
+    tensor = ((tensor.T - mean) / std).T
+    return tensor
+
+
 def get_pick_score_fn(precision="fp32"):
     """
     Loss function for PICK SCORE
@@ -54,7 +68,7 @@ def get_pick_score_fn(precision="fp32"):
 
     model = AutoModel.from_pretrained("yuvalkirstain/PickScore_v1").eval()
     processor = AutoProcessor.from_pretrained("laion/CLIP-ViT-H-14-laion2B-s32B-b79K")
-    model.requires_grad_(False)
+    freeze_params(model)
     if precision == "fp16":
         model.to_float(ms.float16)
 
@@ -92,9 +106,15 @@ def get_pick_score_fn(precision="fp32"):
     return score_fn
 
 
-def get_hpsv2_fn(precision="amp"):
-    precision = "amp" if precision == "no" else precision
-    assert precision in ["bf16", "fp16", "amp", "fp32"]
+def get_hpsv2_fn(precision="no"):
+    precision = "fp32" if precision == "no" else precision
+    assert precision in ["bf16", "fp16", "fp32"]
+
+    model = load_clip_model(
+        "open_clip_vit_h_14",
+        "./checkpoints/HPS_v2_compressed.ckpt", # HPS_v2.1_compressed.pt FIXME!!!
+        "float16"
+    )
 
     # model, _, preprocess_val = create_model_and_transforms(
     #     "ViT-H-14",
@@ -115,7 +135,7 @@ def get_hpsv2_fn(precision="amp"):
     #     with_score_predictor=False,
     #     with_region_predictor=False,
     # )
-    model = load_clip_model("ViT-H-14", "checkpoints/HPS_v2.1_compressed.pt")
+
     preprocess_val = image_transform(
         model.visual.image_size,
         is_train=False,
@@ -123,28 +143,29 @@ def get_hpsv2_fn(precision="amp"):
         std=None,
         resize_longest_max=True,
     )
-    tokenizer = CLIPTokenizer("ViT-H-14", pad_token="!")
 
     model.set_train(False)
-    model.requires_grad_(False) # TODO!!!
+    freeze_params(model)
 
     # gets vae decode as input
     def score_fn(
-        image_inputs: ms.Tensor, text_inputs: List[str], return_logits=False
+        image_inputs: ms.Tensor, text_inputs: ms.Tensor, return_logits=False
     ):
         # Process pixels and multicrop
         for t in preprocess_val.transforms[2:]:
             image_inputs = ops.stack([t(img) for img in image_inputs])
 
         if isinstance(text_inputs[0], str):
-            text_inputs = tokenizer(text_inputs)
+            text_inputs = ms.Tensor(tokenize(text_inputs)[0], ms.int32)
 
         # embed
-        image_features = model.encode_image(image_inputs, normalize=True)
+        image_features = model.encode_image(image_inputs, normalize=True, use_recompute=False)
 
         with ms._no_grad():
             text_features = model.encode_text(text_inputs, normalize=True)
 
+        image_features = image_features.astype(ms.float32)
+        text_features = text_features.astype(ms.float32)
         hps_score = (image_features * text_features).sum(-1)
         if return_logits:
             hps_score = hps_score * model.logit_scale.exp()
@@ -158,8 +179,8 @@ def get_img_reward_fn(precision="fp32"):
     import ImageReward as RM
 
     model = RM.load("ImageReward-v1.0")
-    model.eval()
-    model.requires_grad_(False)
+    model.set_train(False)
+    freeze_params(model)
 
     rm_preprocess = transforms.Compose(
         [
@@ -202,7 +223,20 @@ class ResizeCropMinSize(nn.Cell):
         self.min_size = min_size
         self.interpolation = interpolation
         self.fill = fill 
-        self.random_crop = vision.RandomCrop((min_size, min_size))
+        # self.random_crop = vision.RandomCrop((min_size, min_size))
+    
+    def random_crop(self, img: ms.Tensor, crop_size):
+        height, width = img.shape[-2:]
+
+        h_max = height - crop_size[0]
+        w_max = width - crop_size[1]
+
+        random_h = randrange(0, h_max // 2 + 1) * 2
+        random_w = randrange(0, w_max // 2 + 1) * 2
+
+        new_img = img[:, :, random_h:random_h + crop_size[0], random_w:random_w + crop_size[1]]
+
+        return new_img
 
     def construct(self, img):
         if isinstance(img, ms.Tensor):
@@ -212,8 +246,8 @@ class ResizeCropMinSize(nn.Cell):
         scale = self.min_size / float(min(height, width))
         if scale != 1.0:
             new_size = tuple(round(dim * scale) for dim in (height, width))
-            img = vision.Resize(new_size, self.interpolation)(img)
-            img = self.random_crop(img)
+            img = ops.ResizeBicubic()(img, new_size)
+            img = self.random_crop(img, (self.min_size, self.min_size))
         return img
 
 
@@ -247,17 +281,23 @@ class ResizeMaxSize(nn.Cell):
         scale = self.max_size / float(max(height, width))
         if scale != 1.0:
             new_size = tuple(round(dim * scale) for dim in (height, width))
-            img = vision.Resize(new_size, self.interpolation)(img)
+            img = ops.ResizeBicubic()(img.unsqueeze(0), new_size).squeeze(0)
             pad_h = self.max_size - new_size[0]
             pad_w = self.max_size - new_size[1]
-            img = ops.pad(img, padding=[pad_w//2, pad_h//2, pad_w - pad_w//2, pad_h - pad_h//2], fill=self.fill)
+            img = ops.pad(img, padding=[pad_w//2, pad_w-pad_w//2, pad_h//2, pad_h - pad_h//2], value=self.fill)
         return img
 
 
 class MaskAwareNormalize(nn.Cell):
     def __init__(self, mean, std):
         super().__init__()
-        self.normalize = vision.Normalize(mean=mean, std=std)
+        # self.normalize = vision.Normalize(mean=mean, std=std)
+        self.mean = mean
+        self.std = std
+
+    def normalize(self, tensor):
+        tensor = ((tensor.T - self.mean) / self.std).T
+        return tensor
 
     def construct(self, tensor):
         if tensor.shape[0] == 4:
@@ -323,7 +363,7 @@ def image_transform(
                 **aug_cfg_dict,
             )
         else:
-            train_transform = vision.Compose([
+            train_transform = transforms.Compose([
                 _convert_to_rgb_or_rgba,
                 vision.ToTensor(),
                 vision.RandomResizedCrop(
@@ -337,24 +377,23 @@ def image_transform(
                 warnings.warn(f'Unused augmentation cfg items, specify `use_timm` to use ({list(aug_cfg_dict.keys())}).')
         return train_transform
     else:
-        transforms = [
+        transformations = [
             _convert_to_rgb_or_rgba,
             vision.ToTensor(),
         ]
         if resize_longest_max:
-            transforms.extend([
+            transformations.extend([
                 ResizeMaxSize(image_size, fill=fill_color)
             ])
         else:
-            transforms.extend([
+            transformations.extend([
                 vision.Resize(image_size, interpolation=vision.Inter.BICUBIC),
                 vision.CenterCrop(image_size),
             ])
-        transforms.extend([
+        transformations.extend([
             normalize,
         ])
-        return vision.Compose(transforms)
-
+        return transforms.Compose(transformations)
 
 
 def get_vi_clip_score_fn(rm_ckpt_dir: str, precision="amp", n_frames=8):
@@ -363,8 +402,8 @@ def get_vi_clip_score_fn(rm_ckpt_dir: str, precision="amp", n_frames=8):
 
     model_dict = get_viclip("l", rm_ckpt_dir)
     vi_clip = model_dict["viclip"]
-    vi_clip.eval()
-    vi_clip.requires_grad_(False)
+    vi_clip.set_train(False)
+    freeze_params(vi_clip)
     if precision == "fp16":
         vi_clip.to(ms.float16)
 
@@ -374,7 +413,7 @@ def get_vi_clip_score_fn(rm_ckpt_dir: str, precision="amp", n_frames=8):
         # Process pixels and multicrop
         b, t = image_inputs.shape[:2]
         image_inputs = image_inputs.view(b * t, *image_inputs.shape[2:])
-        pixel_values = ViCLIP_NORMALIZE(viclip_resize(image_inputs))
+        pixel_values = normalize(viclip_resize(image_inputs), mean=ViCLIP_MEAN, std=ViCLIP_STD)
         pixel_values = pixel_values.view(b, t, *pixel_values.shape[1:])
         video_features = vi_clip.get_vid_feat_with_grad(pixel_values)
 
@@ -401,35 +440,44 @@ def get_intern_vid2_score_fn(rm_ckpt_dir: str, precision="amp", n_frames=8):
     config["model"]["vision_encoder"]["pretrained"] = rm_ckpt_dir
     config["pretrained_path"] = rm_ckpt_dir
 
+    dtype = {"fp16": ms.float16, "fp32": ms.float32, "bf16": ms.bfloat16}[precision]
     vi_clip, tokenizer = setup_internvideo2(config)
     vi_clip.set_train(False)
-    vi_clip.requires_grad_(False)
+    freeze_params(vi_clip)
     if precision == "fp16":
-        vi_clip.to(ms.float16)
+        vi_clip = vi_clip.to_float(ms.float16)
 
     viclip_resize = ResizeCropMinSize(224)
+
+    def tokenize_fn(text_inputs: str):
+        tokens = tokenizer(
+            text_inputs,
+            padding="max_length",
+            truncation=True,
+            max_length=40,
+            return_tensors="ms",
+        )
+        return tokens
 
     def score_fn(image_inputs: ms.Tensor, text_inputs: str):
         # Process pixels and multicrop
         b, t = image_inputs.shape[:2]
         image_inputs = image_inputs.view(b * t, *image_inputs.shape[2:])
-        pixel_values = ViCLIP_NORMALIZE(viclip_resize(image_inputs))
+
+        pixel_values = viclip_resize(image_inputs).transpose(0, 2, 3, 1)
+        pixel_values = ((pixel_values - ViCLIP_MEAN) / ViCLIP_STD).transpose(0, 3, 1, 2)
 
         pixel_values = pixel_values.view(b, t, *pixel_values.shape[1:])
         video_features = vi_clip.get_vid_feat_with_grad(pixel_values)
 
         with ms._no_grad():
-            text = tokenizer(
-                text_inputs,
-                padding="max_length",
-                truncation=True,
-                max_length=40,
-                return_tensors="pt",
-            )
-            _, text_features = vi_clip.encode_text(text)
+            text_inputs = tokenize_fn(text_inputs)
+            _, text_features = vi_clip.encode_text(text_inputs)
             text_features = vi_clip.text_proj(text_features)
             text_features /= text_features.norm(dim=-1, keepdim=True)
 
+        video_features = video_features.astype(ms.float32)
+        text_features = text_features.astype(ms.float32)
         score = (video_features * text_features).sum(-1)
         return score
 

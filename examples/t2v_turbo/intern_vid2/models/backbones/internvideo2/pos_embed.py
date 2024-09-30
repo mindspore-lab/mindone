@@ -1,4 +1,5 @@
 import numpy as np
+import mindspore as ms
 from mindspore import ops, mint
 import logging
 
@@ -157,7 +158,7 @@ def interpolate_pos_embed(checkpoint_model, model, orig_t_size=4, pos_name='visi
             # B, L, C -> B， T, HW, C -> BHW, C, T  (B = 1)
             pos_tokens = pos_tokens.view(1, orig_t_size, -1, embedding_size)
             pos_tokens = pos_tokens.permute(0, 2, 3, 1).reshape(-1, embedding_size, orig_t_size)
-            pos_tokens = ops.interpolate(pos_tokens, size=new_t_size, mode='linear')
+            pos_tokens = ops.interpolate(pos_tokens, size=(new_t_size,), mode='linear')
             pos_tokens = pos_tokens.view(1, -1, embedding_size, new_t_size)
             pos_tokens = pos_tokens.permute(0, 3, 1, 2).reshape(1, -1, embedding_size)
             new_pos_embed = mint.cat((extra_tokens, pos_tokens), dim=1)
@@ -187,6 +188,10 @@ def interpolate_pos_embed_internvideo2(checkpoint_model, model, orig_t_size = 8)
     for pos_name in ['pos_embed', 'clip_pos_embed']:
         if pos_name in checkpoint_model:
             pos_embed_checkpoint = checkpoint_model[pos_name]
+
+            ori_dtype = pos_embed_checkpoint.dtype
+            pos_embed_checkpoint = pos_embed_checkpoint.to(ms.float16)
+
             embedding_size = pos_embed_checkpoint.shape[-1] # channel dim
             num_patches = model.patch_embed.num_patches # 
             num_extra_tokens = model.pos_embed.shape[-2] - num_patches # 0/1
@@ -208,11 +213,13 @@ def interpolate_pos_embed_internvideo2(checkpoint_model, model, orig_t_size = 8)
                 # B, L, C -> B， T, HW, C -> BHW, C, T  (B = 1)
                 pos_tokens = pos_tokens.view(1, orig_t_size, -1, embedding_size)
                 pos_tokens = pos_tokens.permute(0, 2, 3, 1).reshape(-1, embedding_size, orig_t_size)
-                pos_tokens = ops.interpolate(pos_tokens, size=new_t_size, mode='linear')
+                pos_tokens = ops.interpolate(pos_tokens, size=(new_t_size,), mode='linear')
                 pos_tokens = pos_tokens.view(1, -1, embedding_size, new_t_size)
                 pos_tokens = pos_tokens.permute(0, 3, 1, 2).reshape(1, -1, embedding_size)
                 new_pos_embed = mint.cat((extra_tokens, pos_tokens), dim=1)
-                checkpoint_model[pos_name] = new_pos_embed
+
+                new_pos_embed = new_pos_embed.to(ori_dtype)
+                checkpoint_model[pos_name] = ms.Parameter(new_pos_embed, name=checkpoint_model[pos_name].name)
                 pos_embed_checkpoint = new_pos_embed
 
             # class_token and dist_token are kept unchanged
@@ -230,7 +237,8 @@ def interpolate_pos_embed_internvideo2(checkpoint_model, model, orig_t_size = 8)
                 pos_tokens = pos_tokens.permute(0, 2, 3, 1).reshape(-1, new_t_size, new_size, new_size, embedding_size) 
                 pos_tokens = pos_tokens.flatten(1, 3) # B, L, C
                 new_pos_embed = mint.cat((extra_tokens, pos_tokens), dim=1)
-                checkpoint_model[pos_name] = new_pos_embed
+                new_pos_embed = new_pos_embed.to(ori_dtype)
+                checkpoint_model[pos_name] = ms.Parameter(new_pos_embed, name=checkpoint_model[pos_name].name)
     
     if 'pos_embed_spatial' in checkpoint_model or 'pos_embed_temporal' in checkpoint_model:
         raise NotImplementedError
@@ -253,6 +261,10 @@ def interpolate_pos_embed_internvideo2_new(checkpoint_model, model, orig_t_size 
     for pos_name in pos_names:
 
         pos_embed_checkpoint = checkpoint_model[pos_name]
+
+        ori_dtype = pos_embed_checkpoint.dtype
+        pos_embed_checkpoint = pos_embed_checkpoint.to(ms.float16)        
+
         embedding_size = pos_embed_checkpoint.shape[-1] # channel dim
         num_patches = model.patch_embed.num_patches # 
         num_extra_tokens = model.pos_embed.shape[-2] - num_patches # 0/1
@@ -274,11 +286,12 @@ def interpolate_pos_embed_internvideo2_new(checkpoint_model, model, orig_t_size 
             # B, L, C -> B， T, HW, C -> BHW, C, T  (B = 1)
             pos_tokens = pos_tokens.view(1, orig_t_size, -1, embedding_size)
             pos_tokens = pos_tokens.permute(0, 2, 3, 1).reshape(-1, embedding_size, orig_t_size)
-            pos_tokens = ops.interpolate(pos_tokens, size=new_t_size, mode='linear')
+            pos_tokens = ops.interpolate(pos_tokens, size=(new_t_size,), mode='linear')
             pos_tokens = pos_tokens.view(1, -1, embedding_size, new_t_size)
             pos_tokens = pos_tokens.permute(0, 3, 1, 2).reshape(1, -1, embedding_size)
             new_pos_embed = mint.cat((extra_tokens, pos_tokens), dim=1)
-            checkpoint_model[pos_name] = new_pos_embed
+            new_pos_embed = new_pos_embed.to(ori_dtype)
+            checkpoint_model[pos_name] = ms.Parameter(new_pos_embed, name=checkpoint_model[pos_name].name)
             pos_embed_checkpoint = new_pos_embed
 
         # class_token and dist_token are kept unchanged
@@ -296,4 +309,5 @@ def interpolate_pos_embed_internvideo2_new(checkpoint_model, model, orig_t_size 
             pos_tokens = pos_tokens.permute(0, 2, 3, 1).reshape(-1, new_t_size, new_size, new_size, embedding_size) 
             pos_tokens = pos_tokens.flatten(1, 3) # B, L, C
             new_pos_embed = mint.cat((extra_tokens, pos_tokens), dim=1)
-            checkpoint_model[pos_name] = new_pos_embed
+            new_pos_embed = new_pos_embed.to(ori_dtype)
+            checkpoint_model[pos_name] = ms.Parameter(new_pos_embed, name=checkpoint_model[pos_name].name)

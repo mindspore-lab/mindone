@@ -2,7 +2,7 @@ from functools import partial
 from abc import abstractmethod
 
 import mindspore as ms
-from mindspore import nn, ops, mint
+from mindspore import nn, ops, mint, recompute
 from mindspore.common.initializer import (
     Zero,
     initializer,
@@ -48,6 +48,29 @@ class TimestepEmbedSequential(nn.SequentialCell, TimestepBlock):
                 x = layer(
                     x,
                 )
+        return x
+
+
+class TimestepEmbedSequentialRecompute(nn.SequentialCell, TimestepBlock):
+    """
+    A sequential module that passes timestep embeddings to the children that
+    support it as an extra input.
+    """
+
+    def construct(self, x, emb, context=None, batch_size=None):
+        for layer in self:
+            if isinstance(layer, TimestepBlock):
+                x = recompute(layer, x, emb, batch_size)
+            elif isinstance(layer, SpatialTransformer):
+                x = recompute(layer, x, context)
+            elif isinstance(layer, TemporalTransformer):
+                # x = rearrange(x, "(b f) c h w -> b c f h w", b=batch_size)
+                x = rearrange_in_gn5d_bs(x, batch_size)
+                x = recompute(layer, x, context)
+                # x = rearrange(x, "b c f h w -> (b f) c h w")
+                x = rearrange_out_gn5d(x)
+            else:
+                x = recompute(layer, x)
         return x
 
 
@@ -112,13 +135,13 @@ class Upsample(nn.Cell):
     def construct(self, x):
         assert x.shape[1] == self.channels
         if self.dims == 3:
-            x = ops.interpolate(
-                x, (x.shape[2], x.shape[3] * 2, x.shape[4] * 2), mode="nearest"
-            )
+            x = ops.ResizeNearestNeighbor(
+                (x.shape[2], x.shape[3] * 2, x.shape[4] * 2)
+            )(x)
         elif self.dims == 2:
-            x = ops.interpolate(
-                x, (x.shape[2] * 2, x.shape[3] * 2), mode="nearest"
-            )
+            x = ops.ResizeNearestNeighbor(
+                (x.shape[2] * 2, x.shape[3] * 2)
+            )(x)
         else:
             x = ops.interpolate(x, scale_factor=2.0, mode="nearest")
         if self.use_conv:
@@ -171,7 +194,7 @@ class ResBlock(TimestepBlock):
             normalization(channels),
             nn.SiLU(),
             conv_nd(dims, channels, self.out_channels, 3, padding=1, pad_mode="pad", has_bias=True, dtype=dtype),
-        )
+        ).to_float(dtype)
 
         self.updown = up or down
 
@@ -182,7 +205,8 @@ class ResBlock(TimestepBlock):
             self.h_upd = Downsample(channels, False, dims, dtype=dtype)
             self.x_upd = Downsample(channels, False, dims, dtype=dtype)
         else:
-            self.h_upd = self.x_upd = nn.Identity()
+            self.h_upd = nn.Identity()
+            self.x_upd = nn.Identity()
 
         self.emb_layers = nn.SequentialCell(
             nn.SiLU(),
@@ -190,13 +214,13 @@ class ResBlock(TimestepBlock):
                 emb_channels,
                 2 * self.out_channels if use_scale_shift_norm else self.out_channels,
             ),
-        )
+        ).to_float(dtype)
         self.out_layers = nn.SequentialCell(
             normalization(self.out_channels),
             nn.SiLU(),
             nn.Dropout(p=dropout),
             zero_module(nn.Conv2d(self.out_channels, self.out_channels, 3, padding=1, pad_mode="pad", has_bias=True)),
-        )
+        ).to_float(dtype)
 
         if self.out_channels == channels:
             self.skip_connection = nn.Identity()
@@ -233,7 +257,8 @@ class ResBlock(TimestepBlock):
             h = self.in_layers(x)
         emb_out = self.emb_layers(emb).astype(h.dtype)
         while len(emb_out.shape) < len(h.shape):
-            emb_out = emb_out[..., None]
+            emb_out = ops.expand_dims(emb_out, -1) # FIXME
+            # emb_out = emb_out[..., None]
         if self.use_scale_shift_norm:
             out_norm, out_rest = self.out_layers[0], self.out_layers[1:]
             scale, shift = ops.chunk(emb_out, 2, dim=1)
@@ -399,33 +424,38 @@ class UNetModel(nn.Cell):
         self.time_cond_proj_dim = time_cond_proj_dim
         self.dtype = {"fp32": ms.float32, "fp16": ms.float16, "bf16": ms.bfloat16}[dtype]
 
+        if use_checkpoint:
+            tseq_class = TimestepEmbedSequentialRecompute
+        else:
+            tseq_class = TimestepEmbedSequential
+
         self.time_embed = nn.SequentialCell(
             linear(model_channels, time_embed_dim),
             nn.SiLU(),
             linear(time_embed_dim, time_embed_dim),
-        )
+        ).to_float(self.dtype)
         if self.fps_cond:
             self.fps_embedding = nn.SequentialCell(
                 linear(model_channels, time_embed_dim),
                 nn.SiLU(),
                 linear(time_embed_dim, time_embed_dim),
-            )
+            ).to_float(self.dtype)
         if time_cond_proj_dim is not None:
             self.time_cond_proj = nn.Dense(
                 time_cond_proj_dim, model_channels, has_bias=False
-            )
+            ).to_float(self.dtype)
         else:
             self.time_cond_proj = None
 
         input_blocks = nn.CellList(
             [
-                TimestepEmbedSequential(
+                tseq_class(
                     conv_nd(dims, in_channels, model_channels, 3, padding=1, pad_mode="pad", has_bias=True, dtype=self.dtype)
-                )
+                ).to_float(self.dtype)
             ]
         )
         if self.addition_attention:
-            init_attn = TimestepEmbedSequential(
+            init_attn = tseq_class(
                 TemporalTransformer(
                     model_channels,
                     n_heads=8,
@@ -438,7 +468,7 @@ class UNetModel(nn.Cell):
                     relative_position=use_relative_position,
                     temporal_length=temporal_length,
                 )
-            )
+            ).to_float(self.dtype)
 
         input_block_chans = [model_channels]
         ch = model_channels
@@ -477,7 +507,7 @@ class UNetModel(nn.Cell):
                             use_checkpoint=use_checkpoint,
                             disable_self_attn=False,
                             img_cross_attention=self.use_image_attention,
-                        )
+                        ).to_float(self.dtype)
                     )
                     if self.temporal_attention:
                         layers.append(
@@ -493,14 +523,14 @@ class UNetModel(nn.Cell):
                                 causal_attention=use_causal_attention,
                                 relative_position=use_relative_position,
                                 temporal_length=temporal_length,
-                            )
+                            ).to_float(self.dtype)
                         )
-                input_blocks.append(TimestepEmbedSequential(*layers))
+                input_blocks.append(tseq_class(*layers))
                 input_block_chans.append(ch)
             if level != len(channel_mult) - 1:
                 out_ch = ch
                 input_blocks.append(
-                    TimestepEmbedSequential(
+                    tseq_class(
                         ResBlock(
                             ch,
                             time_embed_dim,
@@ -549,7 +579,7 @@ class UNetModel(nn.Cell):
                 use_checkpoint=use_checkpoint,
                 disable_self_attn=False,
                 img_cross_attention=self.use_image_attention,
-            ),
+            ).to_float(self.dtype),
         ]
         if self.temporal_attention:
             layers.append(
@@ -565,7 +595,7 @@ class UNetModel(nn.Cell):
                     causal_attention=use_causal_attention,
                     relative_position=use_relative_position,
                     temporal_length=temporal_length,
-                )
+                ).to_float(self.dtype)
             )
         layers.append(
             ResBlock(
@@ -580,7 +610,7 @@ class UNetModel(nn.Cell):
                 dtype=self.dtype,
             )
         )
-        middle_block = TimestepEmbedSequential(*layers)
+        middle_block = tseq_class(*layers).to_float(self.dtype)
 
         output_blocks = nn.CellList([])
         for level, mult in list(enumerate(channel_mult))[::-1]:
@@ -618,7 +648,7 @@ class UNetModel(nn.Cell):
                             use_checkpoint=use_checkpoint,
                             disable_self_attn=False,
                             img_cross_attention=self.use_image_attention,
-                        )
+                        ).to_float(self.dtype)
                     )
                     if self.temporal_attention:
                         layers.append(
@@ -634,7 +664,7 @@ class UNetModel(nn.Cell):
                                 causal_attention=use_causal_attention,
                                 relative_position=use_relative_position,
                                 temporal_length=temporal_length,
-                            )
+                            ).to_float(self.dtype)
                         )
                 if level and i == num_res_blocks:
                     out_ch = ch
@@ -654,7 +684,7 @@ class UNetModel(nn.Cell):
                         else Upsample(ch, conv_resample, dims=dims, out_channels=out_ch, dtype=self.dtype)
                     )
                     ds //= 2
-                output_blocks.append(TimestepEmbedSequential(*layers))
+                output_blocks.append(tseq_class(*layers))
 
         self.input_blocks = input_blocks
         self.init_attn = init_attn
@@ -665,19 +695,19 @@ class UNetModel(nn.Cell):
             normalization(ch),
             nn.SiLU(),
             zero_module(conv_nd(dims, model_channels, out_channels, 3, padding=1, pad_mode="pad", has_bias=True, dtype=self.dtype)),
-        )
+        ).to_float(self.dtype)
 
     def construct(
         self,
         x,
         timesteps,
-        context=None,
+        context,
         features_adapter=None,
         fps=16,
         timestep_cond=None,
         **kwargs
     ):
-        t_emb = timestep_embedding(timesteps, self.model_channels, repeat_only=False)
+        t_emb = timestep_embedding(timesteps, self.model_channels, repeat_only=False, dtype=self.dtype)
         if timestep_cond is not None:
             t_emb = t_emb + self.time_cond_proj(timestep_cond)
         emb = self.time_embed(t_emb)
@@ -685,7 +715,7 @@ class UNetModel(nn.Cell):
         if self.fps_cond:
             if type(fps) == int:
                 fps = ops.full_like(timesteps, fps)
-            fps_emb = timestep_embedding(fps, self.model_channels, repeat_only=False)
+            fps_emb = timestep_embedding(fps, self.model_channels, repeat_only=False, dtype=self.dtype)
             emb += self.fps_embedding(fps_emb)
 
         b, _, t, _, _ = x.shape
@@ -701,9 +731,9 @@ class UNetModel(nn.Cell):
         adapter_idx = 0
         hs = []
         for id, module in enumerate(self.input_blocks):
-            h = module(h, emb, context=context, batch_size=b)
+            h = module(h, emb=emb, context=context, batch_size=b)
             if id == 0 and self.addition_attention:
-                h = self.init_attn(h, emb, context=context, batch_size=b)
+                h = self.init_attn(h, emb=emb, context=context, batch_size=b)
             ## plug-in adapter features
             if ((id + 1) % 3 == 0) and features_adapter is not None:
                 h = h + features_adapter[adapter_idx]
@@ -712,12 +742,12 @@ class UNetModel(nn.Cell):
         if features_adapter is not None:
             assert len(features_adapter) == adapter_idx, "Wrong features_adapter"
 
-        h = self.middle_block(h, emb, context=context, batch_size=b)
+        h = self.middle_block(h, emb=emb, context=context, batch_size=b)
 
         for i, module in enumerate(self.output_blocks):
             hs_pop = hs[-(i + 1)]
             h = mint.cat([h, hs_pop], dim=1)
-            h = module(h, emb, context=context, batch_size=b)
+            h = module(h, emb=emb, context=context, batch_size=b)
 
         h = h.astype(x.dtype)
         y = self.out(h)

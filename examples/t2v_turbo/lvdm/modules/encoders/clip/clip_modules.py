@@ -28,8 +28,9 @@ class LayerNorm(nn.LayerNorm):
 
     def construct(self, x: ms.Tensor):
         """construct"""
-        y = super().construct(P.Cast()(x, ms.float32))
-        y = P.Cast()(y, x.dtype)
+        orig_type = x.dtype
+        y = super().construct(ops.cast(x, ms.float32))
+        y = ops.cast(y, orig_type)
         return y
 
 

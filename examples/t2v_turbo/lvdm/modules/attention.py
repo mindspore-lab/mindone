@@ -15,7 +15,8 @@ from lvdm.common import (
     checkpoint,
     exists,
     default,
-    GroupNormExtend
+    GroupNormExtend,
+    LayerNorm,
 )
 from lvdm.basics import (
     zero_module,
@@ -82,6 +83,9 @@ class CrossAttention(nn.Cell):
         if self.img_cross_attention:
             self.to_k_ip = nn.Dense(context_dim, inner_dim, has_bias=False).to_float(dtype)
             self.to_v_ip = nn.Dense(context_dim, inner_dim, has_bias=False).to_float(dtype)
+        else:
+            self.to_k_ip = nn.Identity()
+            self.to_v_ip = nn.Identity()
 
         self.relative_position = relative_position
         if self.relative_position:
@@ -161,11 +165,11 @@ class CrossAttention(nn.Cell):
             ## feasible for causal attention mask only
             max_neg_value = -np.finfo(sim.dtype).max
             # mask = repeat(mask, "b i j -> (b h) i j", h=h)
-            mask = mask.repeat(h, 0)
+            mask = mask.repeat_interleave(h, 0)
             sim = sim.masked_fill(~(mask > 0.5), max_neg_value)
 
         # attention, what we cannot get enough of
-        sim = mint.nn.functional.softmax(sim, dim=-1)
+        sim = ops.softmax(sim, axis=-1)
         # out = einsum("b i j, b j d -> b i d", sim, v)
         out = mint.matmul(sim, v)
 
@@ -293,9 +297,9 @@ class BasicTransformerBlock(nn.Cell):
             dropout=dropout,
             img_cross_attention=img_cross_attention,
         )
-        self.norm1 = nn.LayerNorm((dim,))
-        self.norm2 = nn.LayerNorm((dim,))
-        self.norm3 = nn.LayerNorm((dim,))
+        self.norm1 = LayerNorm((dim,))
+        self.norm2 = LayerNorm((dim,))
+        self.norm3 = LayerNorm((dim,))
         self.checkpoint = checkpoint
 
     def construct(self, x, context=None, mask=None):
@@ -493,12 +497,11 @@ class TemporalTransformer(nn.Cell):
         if self.use_linear:
             x = self.proj_in(x)
 
+        mask = None
         if self.causal_attention:
             mask = self.mask
             # mask = repeat(mask, "l i j -> (l bhw) i j", bhw=b * h * w)
-            mask = mask.repeat(b*h*w, 0)
-        else:
-            mask = None
+            mask = mask.repeat_interleave(b*h*w, 0)
 
         if self.only_self_att:
             ## note: if no context is given, cross-attention defaults to self-attention
@@ -519,7 +522,7 @@ class TemporalTransformer(nn.Cell):
                 # calculate each batch one by one (since number in shape could not greater then 65,535 for some package)
                 for j in range(b):
                     rep = (h * w) // context_j.shape[0]
-                    context_j = context_j.repeat(rep, 0)
+                    context_j = context_j.repeat_interleave(rep, 0)
                     # context_j = repeat(
                     #     context[j], "t l con -> (t r) l con", r=(h * w) // t, t=t
                     # ).contiguous()
@@ -550,7 +553,7 @@ class GEGLU(nn.Cell):
 
     def construct(self, x):
         x, gate = self.proj(x).chunk(2, axis=-1)
-        return x * mint.nn.functional.gelu(gate)
+        return x * ops.gelu(gate)
 
 
 class FeedForward(nn.Cell):

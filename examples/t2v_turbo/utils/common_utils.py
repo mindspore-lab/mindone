@@ -3,7 +3,7 @@ import gc
 
 import numpy as np
 import mindspore as ms
-from mindspore import nn, mint
+from mindspore import nn, mint, ops
 
 
 from collections import OrderedDict
@@ -15,8 +15,9 @@ from lvdm.modules.attention import BasicTransformerBlock
 
 def extract_into_tensor(a, t, x_shape):
     b, *_ = t.shape
-    out = a.gather(-1, t)
-    return out.reshape(b, *((1,) * (len(x_shape) - 1)))
+    out = a.gather(t, -1)
+    new_shape = (b,) + ((1,) * (len(x_shape) - 1))
+    return out.reshape(new_shape)
 
 
 def is_attn(name):
@@ -79,6 +80,9 @@ def append_dims(x, target_dims):
         raise ValueError(
             f"input has {x.ndim} dims but target_dims is {target_dims}, which is less"
         )
+    # for i in range(dims_to_append):
+    #     x = ops.expand_dims(x, -1)
+    # return x
     return x[(...,) + (None,) * dims_to_append]
 
 
@@ -162,66 +166,6 @@ def guidance_scale_embedding(w, embedding_dim=512, dtype=ms.float32):
     return emb
 
 
-def append_dims(x, target_dims):
-    """Appends dimensions to the end of a tensor until it has target_dims dimensions."""
-    dims_to_append = target_dims - x.ndim
-    if dims_to_append < 0:
-        raise ValueError(
-            f"input has {x.ndim} dims but target_dims is {target_dims}, which is less"
-        )
-    return x[(...,) + (None,) * dims_to_append]
-
-
-# From LCMScheduler.get_scalings_for_boundary_condition_discrete
-def scalings_for_boundary_conditions(timestep, sigma_data=0.5, timestep_scaling=10.0):
-    scaled_timestep = timestep_scaling * timestep
-    c_skip = sigma_data**2 / (scaled_timestep**2 + sigma_data**2)
-    c_out = scaled_timestep / (scaled_timestep**2 + sigma_data**2) ** 0.5
-    return c_skip, c_out
-
-
-# Compare LCMScheduler.step, Step 4
-def get_predicted_original_sample(
-    model_output, timesteps, sample, prediction_type, alphas, sigmas
-):
-    alphas = extract_into_tensor(alphas, timesteps, sample.shape)
-    sigmas = extract_into_tensor(sigmas, timesteps, sample.shape)
-    if prediction_type == "epsilon":
-        pred_x_0 = (sample - sigmas * model_output) / alphas
-    elif prediction_type == "sample":
-        pred_x_0 = model_output
-    elif prediction_type == "v_prediction":
-        pred_x_0 = alphas * sample - sigmas * model_output
-    else:
-        raise ValueError(
-            f"Prediction type {prediction_type} is not supported; currently, `epsilon`, `sample`, and `v_prediction`"
-            f" are supported."
-        )
-
-    return pred_x_0
-
-
-# Based on step 4 in DDIMScheduler.step
-def get_predicted_noise(
-    model_output, timesteps, sample, prediction_type, alphas, sigmas
-):
-    alphas = extract_into_tensor(alphas, timesteps, sample.shape)
-    sigmas = extract_into_tensor(sigmas, timesteps, sample.shape)
-    if prediction_type == "epsilon":
-        pred_epsilon = model_output
-    elif prediction_type == "sample":
-        pred_epsilon = (sample - alphas * model_output) / sigmas
-    elif prediction_type == "v_prediction":
-        pred_epsilon = alphas * model_output + sigmas * sample
-    else:
-        raise ValueError(
-            f"Prediction type {prediction_type} is not supported; currently, `epsilon`, `sample`, and `v_prediction`"
-            f" are supported."
-        )
-
-    return pred_epsilon
-
-
 def param_optim(model, condition, extra_params=None, is_lora=False, negation=None):
     extra_params = extra_params if len(extra_params.keys()) > 0 else None
     return {
@@ -234,7 +178,7 @@ def param_optim(model, condition, extra_params=None, is_lora=False, negation=Non
 
 
 def create_optim_params(name="param", params=None, lr=5e-6, extra_params=None):
-    params = {"name": name, "params": params, "lr": lr}
+    params = {"params": params, "lr": lr}
     if extra_params is not None:
         for k, v in extra_params.items():
             params[k] = v
@@ -252,13 +196,13 @@ def create_optimizer_params(model_list, lr):
         # Check if we are doing LoRA training.
         if is_lora and condition and isinstance(model, list):
             params = create_optim_params(
-                params=itertools.chain(*model), extra_params=extra_params
+                params=model, extra_params=extra_params
             )
             optimizer_params.append(params)
             continue
 
         if is_lora and condition and not isinstance(model, list):
-            for n, p in model.named_parameters():
+            for n, p in model.parameters_and_names():
                 if "lora" in n:
                     params = create_optim_params(n, p, lr, extra_params)
                     optimizer_params.append(params)
@@ -266,7 +210,7 @@ def create_optimizer_params(model_list, lr):
 
         # If this is true, we can train it.
         if condition:
-            for n, p in model.named_parameters():
+            for n, p in model.parameters_and_names():
                 should_negate = "lora" in n and not is_lora
                 if should_negate:
                     continue
@@ -299,7 +243,7 @@ def handle_trainable_modules(
 
 
 def huber_loss(pred, target, huber_c=0.001):
-    loss = mint.sqrt((pred.float() - target.float()) ** 2 + huber_c**2) - huber_c
+    loss = ops.sqrt((pred.float() - target.float()) ** 2 + huber_c**2) - huber_c
     return loss.mean()
 
 

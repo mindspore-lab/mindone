@@ -37,7 +37,7 @@ class DiagonalGaussianDistribution(object):
         if noise is None:
             noise = ops.randn(self.mean.shape)
 
-        x = self.mean + self.std * noise.to(device=self.parameters.device)
+        x = self.mean + self.std * noise
         return x
 
     def kl(self, other=None):
