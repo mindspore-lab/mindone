@@ -4,7 +4,6 @@ import os
 import torch
 
 import mindspore as ms
-import mindspore.ops as ops
 
 
 def load_torch_ckpt(ckpt_file):
