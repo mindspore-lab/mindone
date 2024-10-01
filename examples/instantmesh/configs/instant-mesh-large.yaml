@@ -1,0 +1,17 @@
+model:
+  encoder_model_name: 'facebook/dino-vitb16'
+  target: models.instantmesh.models3d.lrm_mesh.InstantMesh
+  params:
+    encoder_model_name: 'YOUR_PATH_HF/models--facebook--dino-vitb16/snapshots/f205d5d8e640a89a2b8ef0369670dfc37cc07fc2'  # coz needs to enforce the is_local flag (with pretrained_model_name_or_path as dir), thus here put in the abs path as a workaround
+    triplane_low_res: 32
+    triplane_high_res: 64
+    triplane_dim: 80
+    rendering_samples_per_ray: 128
+    grid_res: 128
+    grid_scale: 2.1
+
+
+infer:
+  # model_path: ckpts/instant_mesh_large.ckpt  # by default as in torch, the model loaded from hf, let's do conversion insitu
+  texture_resolution: 1024
+  render_resolution: 512
