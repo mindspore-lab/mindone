@@ -358,9 +358,10 @@ class StableDiffusionUpscalePipeline(
             negative_prompt_embeds = negative_prompt_embeds.tile((1, num_images_per_prompt, 1))
             negative_prompt_embeds = negative_prompt_embeds.view(batch_size * num_images_per_prompt, seq_len, -1)
 
-        if isinstance(self, LoraLoaderMixin):
-            # Retrieve the original scale by scaling back the LoRA layers
-            unscale_lora_layers(self.text_encoder, lora_scale)
+        if self.text_encoder is not None:
+            if isinstance(self, LoraLoaderMixin):
+                # Retrieve the original scale by scaling back the LoRA layers
+                unscale_lora_layers(self.text_encoder, lora_scale)
 
         return prompt_embeds, negative_prompt_embeds
 
@@ -449,7 +450,7 @@ class StableDiffusionUpscalePipeline(
             )
 
         # verify batch size of prompt and image are same if image is a list or tensor or numpy array
-        if isinstance(image, list) or isinstance(image, ms.Tensor) or isinstance(image, np.ndarray):
+        if isinstance(image, (list, np.ndarray, ms.Tensor)):
             if prompt is not None and isinstance(prompt, str):
                 batch_size = 1
             elif prompt is not None and isinstance(prompt, list):

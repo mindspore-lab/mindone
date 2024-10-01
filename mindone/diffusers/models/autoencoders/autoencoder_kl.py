@@ -13,18 +13,20 @@
 # limitations under the License.
 from typing import Dict, Optional, Tuple, Union
 
+import numpy as np
+
 import mindspore as ms
 from mindspore import nn
 
 from ...configuration_utils import ConfigMixin, register_to_config
-from ...loaders import FromOriginalVAEMixin
+from ...loaders import FromOriginalModelMixin
 from ..attention_processor import CROSS_ATTENTION_PROCESSORS, AttentionProcessor, AttnProcessor
 from ..modeling_outputs import AutoencoderKLOutput
 from ..modeling_utils import ModelMixin
 from .vae import Decoder, DecoderOutput, DiagonalGaussianDistribution, Encoder
 
 
-class AutoencoderKL(ModelMixin, ConfigMixin, FromOriginalVAEMixin):
+class AutoencoderKL(ModelMixin, ConfigMixin, FromOriginalModelMixin):
     r"""
     A VAE model with KL loss for encoding images into latents and decoding latent representations into images.
 
@@ -57,6 +59,7 @@ class AutoencoderKL(ModelMixin, ConfigMixin, FromOriginalVAEMixin):
     """
 
     _supports_gradient_checkpointing = True
+    _no_split_modules = ["BasicTransformerBlock", "ResnetBlock2D"]
 
     @register_to_config
     def __init__(
@@ -240,7 +243,7 @@ class AutoencoderKL(ModelMixin, ConfigMixin, FromOriginalVAEMixin):
 
         return DecoderOutput(sample=dec)
 
-    def decode(self, z: ms.Tensor, return_dict: bool = False) -> Union[DecoderOutput, Tuple[ms.Tensor]]:
+    def decode(self, z: ms.Tensor, return_dict: bool = False, generator=None) -> Union[DecoderOutput, Tuple[ms.Tensor]]:
         """
         Decode a batch of images.
 
@@ -267,6 +270,7 @@ class AutoencoderKL(ModelMixin, ConfigMixin, FromOriginalVAEMixin):
         sample: ms.Tensor,
         sample_posterior: bool = False,
         return_dict: bool = False,
+        generator: Optional[np.random.Generator] = None,
     ) -> Union[DecoderOutput, Tuple[ms.Tensor]]:
         r"""
         Args:
@@ -279,7 +283,7 @@ class AutoencoderKL(ModelMixin, ConfigMixin, FromOriginalVAEMixin):
         x = sample
         latent = self.encode(x)[0]
         if sample_posterior:
-            z = self.diag_gauss_dist.sample(latent)
+            z = self.diag_gauss_dist.sample(latent, generator=generator)
         else:
             z = self.diag_gauss_dist.mode(latent)
         dec = self.decode(z)[0]

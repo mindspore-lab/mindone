@@ -14,7 +14,17 @@ This repository is the MindSpore implementation of [AnimateDiff](https://arxiv.o
 
 ## Requirements
 
+
+The scripts work on Acend 910* with [CANN 7.0.0.beta1](https://www.hiascend.com/developer/download/community/result?module=cann&cann=7.0.0.beta1) and [MindSpore 2.2.10 ](https://www.mindspore.cn/versions#2.2.10). Check your versions by running the following commands. The default installation path of CANN is usually  `/usr/local/Ascend/ascend-toolkit` unless you specify a custom one.
+
+```bash
+cat /usr/local/Ascend/ascend-toolkit/latest/version.cfg  
+
+python -c "import mindspore;mindspore.set_context(device_target='Ascend');mindspore.run_check()"
 ```
+
+To install other dependent packages:
+```bash
 pip install -r requirements.txt
 ```
 

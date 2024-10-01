@@ -5,7 +5,7 @@ from typing import Optional, Tuple, Type, Union
 import numpy as np
 
 import mindspore as ms
-from mindspore import Parameter, Tensor, nn, ops
+from mindspore import Parameter, Tensor, mint, nn, ops
 from mindspore.common.initializer import initializer
 
 from mindone.models.modules.flash_attention import FLASH_IS_AVAILABLE, MSFlashAttention
@@ -26,9 +26,7 @@ class LlamaRMSNorm(nn.Cell):
         self.variance_epsilon = eps
 
     def construct(self, hidden_states: Tensor):
-        variance = hidden_states.pow(2).mean(-1, keep_dims=True)
-        hidden_states = hidden_states * ops.rsqrt(variance + self.variance_epsilon)
-        return self.gamma * hidden_states
+        return ops.rms_norm(hidden_states, self.gamma, self.variance_epsilon)[0]
 
 
 class Attention(nn.Cell):
@@ -325,10 +323,12 @@ class LayerNorm(nn.Cell):
         else:
             self.gamma = ops.ones(normalized_shape, dtype=dtype)
             self.beta = ops.zeros(normalized_shape, dtype=dtype)
-        self.layer_norm = ops.LayerNorm(-1, -1, epsilon=eps)
 
     def construct(self, x: Tensor):
-        x, _, _ = self.layer_norm(x, self.gamma, self.beta)
+        normalized_shape = x.shape[-1:]
+        # mint layer_norm fuses the operations in layer normorlization and it's faster than ops.LayerNorm
+        x = mint.nn.functional.layer_norm(x, normalized_shape, self.gamma, self.beta, self.eps)
+
         return x
 
 

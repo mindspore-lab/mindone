@@ -19,6 +19,7 @@ from mindspore import nn, ops
 
 from ...configuration_utils import ConfigMixin, register_to_config
 from ...loaders import PeftAdapterMixin, UNet2DConditionLoadersMixin
+from ...loaders.single_file_model import FromOriginalModelMixin
 from ...utils import BaseOutput, logging
 from ..activations import get_activation
 from ..attention_processor import CROSS_ATTENTION_PROCESSORS, AttentionProcessor, AttnProcessor
@@ -54,7 +55,9 @@ class UNet2DConditionOutput(BaseOutput):
     sample: ms.Tensor = None
 
 
-class UNet2DConditionModel(ModelMixin, ConfigMixin, UNet2DConditionLoadersMixin, PeftAdapterMixin):
+class UNet2DConditionModel(
+    ModelMixin, ConfigMixin, FromOriginalModelMixin, UNet2DConditionLoadersMixin, PeftAdapterMixin
+):
     r"""
     A conditional 2D UNet model that takes a noisy sample, conditional state, and a timestep and returns a sample
     shaped output.
@@ -95,13 +98,13 @@ class UNet2DConditionModel(ModelMixin, ConfigMixin, UNet2DConditionLoadersMixin,
             The dimension of the cross attention features.
         transformer_layers_per_block (`int`, `Tuple[int]`, or `Tuple[Tuple]` , *optional*, defaults to 1):
             The number of transformer blocks of type [`~models.attention.BasicTransformerBlock`]. Only relevant for
-            [`~models.unet_2d_blocks.CrossAttnDownBlock2D`], [`~models.unet_2d_blocks.CrossAttnUpBlock2D`],
-            [`~models.unet_2d_blocks.UNetMidBlock2DCrossAttn`].
-       reverse_transformer_layers_per_block : (`Tuple[Tuple]`, *optional*, defaults to None):
+            [`~models.unets.unet_2d_blocks.CrossAttnDownBlock2D`], [`~models.unets.unet_2d_blocks.CrossAttnUpBlock2D`],
+            [`~models.unets.unet_2d_blocks.UNetMidBlock2DCrossAttn`].
+        reverse_transformer_layers_per_block : (`Tuple[Tuple]`, *optional*, defaults to None):
             The number of transformer blocks of type [`~models.attention.BasicTransformerBlock`], in the upsampling
             blocks of the U-Net. Only relevant if `transformer_layers_per_block` is of type `Tuple[Tuple]` and for
-            [`~models.unet_2d_blocks.CrossAttnDownBlock2D`], [`~models.unet_2d_blocks.CrossAttnUpBlock2D`],
-            [`~models.unet_2d_blocks.UNetMidBlock2DCrossAttn`].
+            [`~models.unets.unet_2d_blocks.CrossAttnDownBlock2D`], [`~models.unets.unet_2d_blocks.CrossAttnUpBlock2D`],
+            [`~models.unets.unet_2d_blocks.UNetMidBlock2DCrossAttn`].
         encoder_hid_dim (`int`, *optional*, defaults to None):
             If `encoder_hid_dim_type` is defined, `encoder_hidden_states` will be projected from `encoder_hid_dim`
             dimension to `cross_attention_dim`.
@@ -149,6 +152,7 @@ class UNet2DConditionModel(ModelMixin, ConfigMixin, UNet2DConditionLoadersMixin,
     """
 
     _supports_gradient_checkpointing = True
+    _no_split_modules = ["BasicTransformerBlock", "ResnetBlock2D", "CrossAttnUpBlock2D"]
 
     @register_to_config
     def __init__(
@@ -587,7 +591,7 @@ class UNet2DConditionModel(ModelMixin, ConfigMixin, UNet2DConditionLoadersMixin,
         elif encoder_hid_dim_type == "text_image_proj":
             # image_embed_dim DOESN'T have to be `cross_attention_dim`. To not clutter the __init__ too much
             # they are set to `cross_attention_dim` here as this is exactly the required dimension for the currently only use
-            # case when `addition_embed_type == "text_image_proj"` (Kadinsky 2.1)`
+            # case when `addition_embed_type == "text_image_proj"` (Kandinsky 2.1)`
             self.encoder_hid_proj = TextImageProjection(
                 text_embed_dim=encoder_hid_dim,
                 image_embed_dim=cross_attention_dim,
@@ -667,7 +671,7 @@ class UNet2DConditionModel(ModelMixin, ConfigMixin, UNet2DConditionLoadersMixin,
         elif addition_embed_type == "text_image":
             # text_embed_dim and image_embed_dim DON'T have to be `cross_attention_dim`. To not clutter the __init__ too much
             # they are set to `cross_attention_dim` here as this is exactly the required dimension for the currently only use
-            # case when `addition_embed_type == "text_image"` (Kadinsky 2.1)`
+            # case when `addition_embed_type == "text_image"` (Kandinsky 2.1)`
             self.add_embedding = TextImageTimeEmbedding(
                 text_embed_dim=cross_attention_dim, image_embed_dim=cross_attention_dim, time_embed_dim=time_embed_dim
             )
@@ -688,7 +692,7 @@ class UNet2DConditionModel(ModelMixin, ConfigMixin, UNet2DConditionLoadersMixin,
             positive_len = 768
             if isinstance(cross_attention_dim, int):
                 positive_len = cross_attention_dim
-            elif isinstance(cross_attention_dim, tuple) or isinstance(cross_attention_dim, list):
+            elif isinstance(cross_attention_dim, (list, tuple)):
                 positive_len = cross_attention_dim[0]
 
             feature_type = "text-only" if attention_type == "gated" else "text-image"
@@ -872,7 +876,7 @@ class UNet2DConditionModel(ModelMixin, ConfigMixin, UNet2DConditionLoadersMixin,
         if self.encoder_hid_proj is not None and self.encoder_hid_dim_type == "text_proj":
             encoder_hidden_states = self.encoder_hid_proj(encoder_hidden_states)
         elif self.encoder_hid_proj is not None and self.encoder_hid_dim_type == "text_image_proj":
-            # Kadinsky 2.1 - style
+            # Kandinsky 2.1 - style
             if "image_embeds" not in added_cond_kwargs:
                 raise ValueError(
                     f"{self.__class__} has the config param `encoder_hid_dim_type` set to 'text_image_proj' which requires the keyword argument `image_embeds` to be passed in  `added_conditions`"  # noqa: E501
@@ -955,8 +959,8 @@ class UNet2DConditionModel(ModelMixin, ConfigMixin, UNet2DConditionLoadersMixin,
 
         Returns:
             [`~models.unets.unet_2d_condition.UNet2DConditionOutput`] or `tuple`:
-                If `return_dict` is True, an [`~models.unets.unet_2d_condition.UNet2DConditionOutput`] is returned, otherwise
-                a `tuple` is returned where the first element is the sample tensor.
+                If `return_dict` is True, an [`~models.unets.unet_2d_condition.UNet2DConditionOutput`] is returned,
+                otherwise a `tuple` is returned where the first element is the sample tensor.
         """
         # By default samples have to be AT least a multiple of the overall upsampling factor.
         # The overall upsampling factor is equal to 2 ** (# num of upsampling layers).

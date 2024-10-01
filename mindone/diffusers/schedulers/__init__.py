@@ -47,7 +47,7 @@ _import_structure = {
     "scheduling_unclip": ["UnCLIPScheduler"],
     "scheduling_unipc_multistep": ["UniPCMultistepScheduler"],
     "scheduling_vq_diffusion": ["VQDiffusionScheduler"],
-    "scheduling_utils": ["KarrasDiffusionSchedulers", "SchedulerMixin"],
+    "scheduling_utils": ["AysSchedules", "KarrasDiffusionSchedulers", "SchedulerMixin"],
 }
 
 if TYPE_CHECKING:
@@ -81,7 +81,7 @@ if TYPE_CHECKING:
     from .scheduling_tcd import TCDScheduler
     from .scheduling_unclip import UnCLIPScheduler
     from .scheduling_unipc_multistep import UniPCMultistepScheduler
-    from .scheduling_utils import KarrasDiffusionSchedulers, SchedulerMixin
+    from .scheduling_utils import AysSchedules, KarrasDiffusionSchedulers, SchedulerMixin
     from .scheduling_vq_diffusion import VQDiffusionScheduler
 
 else:

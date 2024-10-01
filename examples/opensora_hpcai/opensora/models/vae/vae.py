@@ -4,7 +4,7 @@ import os
 from transformers import PretrainedConfig
 
 import mindspore as ms
-from mindspore import mint, nn, ops
+from mindspore import nn, ops
 
 from ..layers.operation_selector import get_split_op
 from .autoencoder_kl import AutoencoderKL as AutoencoderKL_SD
@@ -51,7 +51,7 @@ class AutoencoderKL(AutoencoderKL_SD):
         """For latent caching usage"""
         h = self.encoder(x)
         moments = self.quant_conv(h)
-        mean, logvar = mint.split(moments, moments.shape[1] // 2, 1)
+        mean, logvar = self.split(moments, moments.shape[1] // 2, 1)
         logvar = ops.clip_by_value(logvar, -30.0, 20.0)
         std = self.exp(0.5 * logvar)
 
@@ -130,12 +130,6 @@ class VideoAutoencoderKL(nn.Cell):
         if self.micro_batch_size is None:
             x_out = self.module.encode(x) * self.scale_factor
         else:
-            """
-            x_splits = mint.split(x, self.micro_batch_size, 0)
-            x_out = tuple((self.module.encode(x_bs) * self.scale_factor) for x_bs in x_splits)
-            x_out = ops.cat(x_out, axis=0)
-            """
-
             bs = self.micro_batch_size
             x_out = self.module.encode(x[:bs]) * self.scale_factor
             for i in range(bs, x.shape[0], bs):
@@ -158,14 +152,8 @@ class VideoAutoencoderKL(nn.Cell):
         if self.micro_batch_size is None:
             x_out = self.module.decode(x / self.scale_factor)
         else:
-            """
-            # can try after split op bug fixed
-            x_splits = mint.split(x, self.micro_batch_size, 0)
-            x_out = tuple(self.module.decode(x_bs / self.scale_factor) for x_bs in x_splits)
-            x_out = ops.cat(x_out, axis=0)
-            """
-
             mbs = self.micro_batch_size
+
             x_out = self.module.decode(x[:mbs] / self.scale_factor)
             for i in range(mbs, x.shape[0], mbs):
                 x_cur = self.module.decode(x[i : i + mbs] / self.scale_factor)
@@ -243,6 +231,7 @@ class VideoAutoencoderPipeline(nn.Cell):
         self.cal_loss = config.cal_loss
         self.micro_frame_size = config.micro_frame_size
         self.micro_z_frame_size = self.temporal_vae.get_latent_size([config.micro_frame_size, None, None])[0]
+        print(f"micro_frame_size: {self.micro_frame_size}, micro_z_frame_size: {self.micro_z_frame_size}")
 
         if config.freeze_vae_2d:
             for param in self.spatial_vae.get_parameters():
@@ -310,15 +299,14 @@ class VideoAutoencoderPipeline(nn.Cell):
             else:
                 return x
         else:
-            # z: (b Z t//4 h w)
             mz = self.micro_z_frame_size
-            x_z_out = self.temporal_vae.decode(z[:, :, :mz], num_frames=min(self.micro_frame_size, num_frames))
+            remain_frames = num_frames if self.micro_frame_size > num_frames else self.micro_frame_size
+            x_z_out = self.temporal_vae.decode(z[:, :, :mz], num_frames=remain_frames)
             num_frames -= self.micro_frame_size
 
             for i in range(mz, z.shape[2], mz):
-                x_z_cur = self.temporal_vae.decode(
-                    z[:, :, i : i + mz], num_frames=min(self.micro_frame_size, num_frames)
-                )
+                remain_frames = num_frames if self.micro_frame_size > num_frames else self.micro_frame_size
+                x_z_cur = self.temporal_vae.decode(z[:, :, i : i + mz], num_frames=remain_frames)
                 x_z_out = ops.cat((x_z_out, x_z_cur), axis=2)
                 num_frames -= self.micro_frame_size
 
@@ -365,6 +353,7 @@ def OpenSoraVAE_V1_2(
     ckpt_path: path to the checkpoint of the overall model (vae2d + temporal vae)
     vae_2d_ckpt_path: path to the checkpoint of the vae 2d model. It will only be loaded when `ckpt_path` not provided.
     """
+
     if isinstance(micro_batch_size, int):
         if micro_batch_size <= 0:
             micro_batch_size = None

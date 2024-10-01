@@ -109,11 +109,11 @@ class DPMSolverSinglestepScheduler(SchedulerMixin, ConfigMixin):
             The threshold value for dynamic thresholding. Valid only when `thresholding=True` and
             `algorithm_type="dpmsolver++"`.
         algorithm_type (`str`, defaults to `dpmsolver++`):
-            Algorithm type for the solver; can be `dpmsolver` or `dpmsolver++`. The
-            `dpmsolver` type implements the algorithms in the [DPMSolver](https://huggingface.co/papers/2206.00927)
-            paper, and the `dpmsolver++` type implements the algorithms in the
-            [DPMSolver++](https://huggingface.co/papers/2211.01095) paper. It is recommended to use `dpmsolver++` or
-            `sde-dpmsolver++` with `solver_order=2` for guided sampling like in Stable Diffusion.
+            Algorithm type for the solver; can be `dpmsolver` or `dpmsolver++`. The `dpmsolver` type implements the
+            algorithms in the [DPMSolver](https://huggingface.co/papers/2206.00927) paper, and the `dpmsolver++` type
+            implements the algorithms in the [DPMSolver++](https://huggingface.co/papers/2211.01095) paper. It is
+            recommended to use `dpmsolver++` or `sde-dpmsolver++` with `solver_order=2` for guided sampling like in
+            Stable Diffusion.
         solver_type (`str`, defaults to `midpoint`):
             Solver type for the second-order solver; can be `midpoint` or `heun`. The solver type slightly affects the
             sample quality, especially for a small number of steps. It is recommended to use `midpoint` solvers.
@@ -124,8 +124,8 @@ class DPMSolverSinglestepScheduler(SchedulerMixin, ConfigMixin):
             Whether to use Karras sigmas for step sizes in the noise schedule during the sampling process. If `True`,
             the sigmas are determined according to a sequence of noise levels {σi}.
         final_sigmas_type (`str`, *optional*, defaults to `"zero"`):
-            The final `sigma` value for the noise schedule during the sampling process. If `"sigma_min"`, the final sigma
-            is the same as the last sigma in the training schedule. If `zero`, the final sigma is set to 0.
+            The final `sigma` value for the noise schedule during the sampling process. If `"sigma_min"`, the final
+            sigma is the same as the last sigma in the training schedule. If `zero`, the final sigma is set to 0.
         lambda_min_clipped (`float`, defaults to `-inf`):
             Clipping threshold for the minimum value of `lambda(t)` for numerical stability. This is critical for the
             cosine (`squaredcos_cap_v2`) noise schedule.
@@ -178,7 +178,7 @@ class DPMSolverSinglestepScheduler(SchedulerMixin, ConfigMixin):
             # Glide cosine schedule
             self.betas = betas_for_alpha_bar(num_train_timesteps)
         else:
-            raise NotImplementedError(f"{beta_schedule} does is not implemented for {self.__class__}")
+            raise NotImplementedError(f"{beta_schedule} is not implemented for {self.__class__}")
 
         self.alphas = 1.0 - self.betas
         self.alphas_cumprod = ops.cumprod(self.alphas, dim=0)
@@ -196,12 +196,12 @@ class DPMSolverSinglestepScheduler(SchedulerMixin, ConfigMixin):
             if algorithm_type == "deis":
                 self.register_to_config(algorithm_type="dpmsolver++")
             else:
-                raise NotImplementedError(f"{algorithm_type} does is not implemented for {self.__class__}")
+                raise NotImplementedError(f"{algorithm_type} is not implemented for {self.__class__}")
         if solver_type not in ["midpoint", "heun"]:
             if solver_type in ["logrho", "bh1", "bh2"]:
                 self.register_to_config(solver_type="midpoint")
             else:
-                raise NotImplementedError(f"{solver_type} does is not implemented for {self.__class__}")
+                raise NotImplementedError(f"{solver_type} is not implemented for {self.__class__}")
 
         if algorithm_type != "dpmsolver++" and final_sigmas_type == "zero":
             raise ValueError(
@@ -279,24 +279,40 @@ class DPMSolverSinglestepScheduler(SchedulerMixin, ConfigMixin):
         """
         self._begin_index = begin_index
 
-    def set_timesteps(self, num_inference_steps: int):
+    def set_timesteps(self, num_inference_steps: int = None, timesteps: Optional[List[int]] = None):
         """
         Sets the discrete timesteps used for the diffusion chain (to be run before inference).
 
         Args:
             num_inference_steps (`int`):
                 The number of diffusion steps used when generating samples with a pre-trained model.
+            timesteps (`List[int]`, *optional*):
+                Custom timesteps used to support arbitrary spacing between timesteps. If `None`, then the default
+                timestep spacing strategy of equal spacing between timesteps schedule is used. If `timesteps` is
+                passed, `num_inference_steps` must be `None`.
         """
+        if num_inference_steps is None and timesteps is None:
+            raise ValueError("Must pass exactly one of  `num_inference_steps` or `timesteps`.")
+        if num_inference_steps is not None and timesteps is not None:
+            raise ValueError("Must pass exactly one of  `num_inference_steps` or `timesteps`.")
+        if timesteps is not None and self.config.use_karras_sigmas:
+            raise ValueError("Cannot use `timesteps` when `config.use_karras_sigmas=True`.")
+
+        num_inference_steps = num_inference_steps or len(timesteps)
         self.num_inference_steps = num_inference_steps
-        # Clipping the minimum of all lambda(t) for numerical stability.
-        # This is critical for cosine (squaredcos_cap_v2) noise schedule.
-        clipped_idx = np.searchsorted(ops.flip(self.lambda_t, [0]).asnumpy(), self.config.lambda_min_clipped)
-        timesteps = (
-            np.linspace(0, self.config.num_train_timesteps - 1 - clipped_idx, num_inference_steps + 1)
-            .round()[::-1][:-1]
-            .copy()
-            .astype(np.int64)
-        )
+
+        if timesteps is not None:
+            timesteps = np.array(timesteps).astype(np.int64)
+        else:
+            # Clipping the minimum of all lambda(t) for numerical stability.
+            # This is critical for cosine (squaredcos_cap_v2) noise schedule.
+            clipped_idx = np.searchsorted(ops.flip(self.lambda_t, [0]).asnumpy(), self.config.lambda_min_clipped)
+            timesteps = (
+                np.linspace(0, self.config.num_train_timesteps - 1 - clipped_idx, num_inference_steps + 1)
+                .round()[::-1][:-1]
+                .copy()
+                .astype(np.int64)
+            )
 
         sigmas = (((1 - self.alphas_cumprod) / self.alphas_cumprod) ** 0.5).asnumpy()
         if self.config.use_karras_sigmas:

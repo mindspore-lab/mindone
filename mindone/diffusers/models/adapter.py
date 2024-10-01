@@ -90,6 +90,7 @@ class MultiAdapter(ModelMixin):
         accume_state = None
         for x, w, adapter in zip(xs, adapter_weights, self.adapters):
             features = adapter(x)
+            w = w.to(x.dtype)  # cast manually as torch do the same automatically for scaler tensors
             if accume_state is None:
                 accume_state = features
                 for i in range(len(accume_state)):

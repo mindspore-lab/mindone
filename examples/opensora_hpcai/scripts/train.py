@@ -147,10 +147,6 @@ def init_env(
     if dynamic_shape:
         logger.info("Dynamic shape mode enabled, repeat_interleave/split/chunk will be called from mint module")
         set_dynamic_mode(True)
-        if mode == 0:
-            # FIXME: this is a temp fix for dynamic shape training in graph mode. may remove in future version.
-            # can append adamw fusion flag if use nn.AdamW optimzation for acceleration
-            ms.set_context(graph_kernel_flags="--disable_packet_ops=Reshape")
 
     return rank_id, device_num
 
@@ -299,7 +295,7 @@ def initialize_dataset(
                 bucket_boundaries,
                 bucket_batch_sizes,
                 element_length_function=hash_func,
-                drop_remainder=not validation,
+                drop_remainder=False,
             )
     return dataloader, num_src_samples
 
@@ -562,17 +558,21 @@ def main(args):
         )
 
     # compute total steps and data epochs (in unit of data sink size)
+    if args.dataset_sink_mode and args.sink_size != -1:
+        # in data sink mode, data sink size determines the number of training steps per epoch.
+        steps_per_epoch = args.sink_size
+    else:
+        # without data sink, number of training steps is determined by number of data batches of the whole training set.
+        steps_per_epoch = dataset_size
+
     if args.train_steps == -1:
         assert args.epochs != -1
         total_train_steps = args.epochs * dataset_size
+        sink_epochs = math.ceil(total_train_steps / steps_per_epoch)
     else:
         total_train_steps = args.train_steps
-
-    if args.dataset_sink_mode and args.sink_size != -1:
-        steps_per_sink = args.sink_size
-    else:
-        steps_per_sink = dataset_size
-    sink_epochs = math.ceil(total_train_steps / steps_per_sink)
+        # asume one step need one whole epoch data to ensure enough batch loading for training
+        sink_epochs = total_train_steps
 
     if args.ckpt_save_steps == -1:
         ckpt_save_interval = args.ckpt_save_interval
@@ -583,11 +583,11 @@ def main(args):
             ckpt_save_interval = args.ckpt_save_steps
         else:
             # still need to count interval in sink epochs
-            ckpt_save_interval = max(1, args.ckpt_save_steps // steps_per_sink)
-            if args.ckpt_save_steps % steps_per_sink != 0:
+            ckpt_save_interval = max(1, args.ckpt_save_steps // steps_per_epoch)
+            if args.ckpt_save_steps % steps_per_epoch != 0:
                 logger.warning(
                     f"`ckpt_save_steps` must be times of sink size or dataset_size under dataset sink mode."
-                    f"Checkpoint will be saved every {ckpt_save_interval * steps_per_sink} steps."
+                    f"Checkpoint will be saved every {ckpt_save_interval * steps_per_epoch} steps."
                 )
     step_mode = step_mode if args.step_mode is None else args.step_mode
 
@@ -677,16 +677,17 @@ def main(args):
         resume_train_net(net_with_grads, resume_ckpt)
 
     if (args.mode == 0) and (args.bucket_config is not None):
-        video = ms.Tensor(shape=[None, None, 3, None, None], dtype=ms.float32)
-        caption = ms.Tensor(shape=[None, args.model_max_length, 4096], dtype=ms.float32)
-        mask = ms.Tensor(shape=[None, args.model_max_length], dtype=ms.uint8)
-        frames_mask = ms.Tensor(shape=[None, None], dtype=ms.bool_)
+        _bs = ms.Symbol(unique=True)
+        video = ms.Tensor(shape=[_bs, None, 3, None, None], dtype=ms.float32)
+        caption = ms.Tensor(shape=[_bs, args.model_max_length, 4096], dtype=ms.float32)
+        mask = ms.Tensor(shape=[_bs, args.model_max_length], dtype=ms.uint8)
+        frames_mask = ms.Tensor(shape=[_bs, None], dtype=ms.bool_)
         # fmt: off
-        num_frames = ms.Tensor(shape=[None, ], dtype=ms.float32)
-        height = ms.Tensor(shape=[None, ], dtype=ms.float32)
-        width = ms.Tensor(shape=[None, ], dtype=ms.float32)
-        fps = ms.Tensor(shape=[None, ], dtype=ms.float32)
-        ar = ms.Tensor(shape=[None, ], dtype=ms.float32)
+        num_frames = ms.Tensor(shape=[_bs, ], dtype=ms.float32)
+        height = ms.Tensor(shape=[_bs, ], dtype=ms.float32)
+        width = ms.Tensor(shape=[_bs, ], dtype=ms.float32)
+        fps = ms.Tensor(shape=[_bs, ], dtype=ms.float32)
+        ar = ms.Tensor(shape=[_bs, ], dtype=ms.float32)
         # fmt: on
         net_with_grads.set_inputs(video, caption, mask, frames_mask, num_frames, height, width, fps, ar)
         logger.info("Dynamic inputs are initialized for bucket config training in Graph mode!")
@@ -731,10 +732,11 @@ def main(args):
                 resume=args.resume,
             )
             callbacks.extend([save_cb, rec_cb])
-            if args.train_steps > 0:
-                callbacks.append(StopAtStepCallback(args.train_steps, global_step=cur_iter))
             if args.profile:
                 callbacks.append(ProfilerCallbackEpoch(2, 3, "./profile_data"))
+
+        if args.train_steps > 0:
+            callbacks.append(StopAtStepCallback(args.train_steps, global_step=cur_iter))
 
     # 5. log and save config
     if rank_id == 0:
@@ -819,7 +821,7 @@ def main(args):
             ckpt_manager = CheckpointManager(ckpt_dir, "latest_k", k=args.ckpt_max_keep)
             if not os.path.exists(ckpt_dir):
                 os.makedirs(ckpt_dir)
-            perf_columns = ["step", "loss", "train_time(s)"]
+            perf_columns = ["step", "loss", "train_time(s)", "shape"]
             output_dir = ckpt_dir.replace("/ckpt", "")
             if start_epoch == 0:
                 record = PerfRecorder(output_dir, metric_names=perf_columns)
@@ -844,13 +846,14 @@ def main(args):
                 # print(data[0].shape)
                 loss_val = float(loss.asnumpy())
                 logger.info(
-                    f"Epoch {epoch}, Step {step}, loss {loss_val:.5f}, Global step {global_step}, Step time {step_time*1000:.2f}ms"
+                    f"Epoch {epoch}, Step {step}, loss {loss_val:.5f}, Global step {global_step},"
+                    + f" Shape: {tuple(data[0].shape)}, Step time {step_time*1000:.2f}ms"
                 )
                 if overflow:
                     logger.warning("overflow detected")
 
                 if rank_id == 0:
-                    step_pref_value = [global_step, loss_val, step_time]
+                    step_pref_value = [global_step, loss_val, step_time, tuple(data[0].shape)]
                     record.add(*step_pref_value)
                 # save and eval in step
                 if save_by_step and rank_id == 0:
