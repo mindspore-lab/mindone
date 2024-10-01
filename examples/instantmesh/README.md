@@ -12,7 +12,7 @@ A walk-through of the file structure is provided here as below.
 </summary>
 
 ```bash
-├── instantmesh
+├── models
 │   ├── decoder                 # triplane feature transformer decoder
 │   │   └── transformer.py
 │   ├── encoder                 # dino vit decoder to extract img feat
@@ -21,9 +21,8 @@ A walk-through of the file structure is provided here as below.
 │   ├── renderer                # a wrapper that synthesizes sdf/texture from triplane feat
 │   │   ├── synthesizer_mesh.py # triplane synthesizer, the triplane feat is decoded thru nerf to predict texture rgb & 3D sdf
 │   │   ├── synthesizer.py      # triplane synthesizer, the triplane feat is decoded thru nerf to predict novel view rgba
-│   │   ├── utils
-│   │   │   └── renderer.py
-│   │   └── synthesizer.py
+│   │   └── utils
+│   │       └── renderer.py
 │   ├── geometry                # use Flexicubes to extract isosurface
 │   │   ├── rep_3d
 │   │   │   ├── flexicubes_geometry.py
@@ -75,7 +74,7 @@ pip install -r requirements.txt
 2. Inference is tested on the machine with the following specs using 1x NPU:
 
 ```text
-Mindspore Version:               2.3.0.B528
+Mindspore Version:               2.3.1 release
 CANN Version:                    7.3
 Ascend Driver:                   23.0.rc3.6
 ```
