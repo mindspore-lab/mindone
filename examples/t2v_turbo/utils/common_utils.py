@@ -80,10 +80,9 @@ def append_dims(x, target_dims):
         raise ValueError(
             f"input has {x.ndim} dims but target_dims is {target_dims}, which is less"
         )
-    # for i in range(dims_to_append):
-    #     x = ops.expand_dims(x, -1)
-    # return x
-    return x[(...,) + (None,) * dims_to_append]
+    for i in range(dims_to_append):
+        x = ops.expand_dims(x, -1)
+    return x
 
 
 # From LCMScheduler.get_scalings_for_boundary_condition_discrete
@@ -134,36 +133,6 @@ def get_predicted_noise(
         )
 
     return pred_epsilon
-
-
-# From LatentConsistencyModel.get_guidance_scale_embedding
-def guidance_scale_embedding(w, embedding_dim=512, dtype=ms.float32):
-    """
-    See https://github.com/google-research/vdm/blob/dc27b98a554f65cdc654b800da5aa1846545d41b/model_vdm.py#L298
-
-    Args:
-        timesteps (`ms.Tensor`):
-            generate embedding vectors at these timesteps
-        embedding_dim (`int`, *optional*, defaults to 512):
-            dimension of the embeddings to generate
-        dtype:
-            data type of the generated embeddings
-
-    Returns:
-        `ms.FloatTensor`: Embedding vectors with shape `(len(timesteps), embedding_dim)`
-    """
-    assert len(w.shape) == 1
-    w = w * 1000.0
-
-    half_dim = embedding_dim // 2
-    emb = mint.log(ms.Tensor(10000.0)) / (half_dim - 1)
-    emb = mint.exp(mint.arange(half_dim, dtype=dtype) * -emb)
-    emb = w.to(dtype)[:, None] * emb[None, :]
-    emb = mint.cat([mint.sin(emb), mint.cos(emb)], dim=1)
-    if embedding_dim % 2 == 1:  # zero pad
-        emb = nn.functional.pad(emb, (0, 1))
-    assert emb.shape == (w.shape[0], embedding_dim)
-    return emb
 
 
 def param_optim(model, condition, extra_params=None, is_lora=False, negation=None):

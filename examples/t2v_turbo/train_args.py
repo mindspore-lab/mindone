@@ -45,6 +45,7 @@ def parse_args():
         "O1: Using commonly used optimizations and automatic operator fusion optimizations, adopt KernelByKernel execution mode."
         "O2: Ultimate performance optimization, adopt Sink execution mode.",
     )
+    parser.add_argument("--max_device_memory", type=str, default=None, help="e.g. `30GB` for 910a, `59GB` for 910b")
     # ----------Training Arguments----------
     # ----General Training Arguments----
     parser.add_argument(
@@ -72,6 +73,7 @@ def parse_args():
             " *output_dir/runs/**CURRENT_DATETIME_HOSTNAME***."
         ),
     )
+    parser.add_argument("--log_interval", type=int, default=1, help="log interval")
     parser.add_argument(
         "--report_to",
         type=str,
@@ -153,24 +155,6 @@ def parse_args():
         help="Num frames for inputing to the text-video RM.",
     )
     parser.add_argument(
-        "--vlcd_processes",
-        type=tuple_type,
-        default=(0, 1, 2, 3, 4, 5),
-        help="Process idx that are used to perform consistency distillation.",
-    )
-    parser.add_argument(
-        "--reward_train_processes",
-        type=tuple_type,
-        default=(0, 1, 2, 3, 4, 5),
-        help="Process idx that are used to maximize text-img reward fn.",
-    )
-    parser.add_argument(
-        "--video_rm_train_processes",
-        type=tuple_type,
-        default=(6, 7),
-        help="Process idx that are used to maximize text-video reward fn.",
-    )
-    parser.add_argument(
         "--n_frames",
         type=int,
         default=16,
@@ -201,20 +185,16 @@ def parse_args():
         help="Initial learning rate (after the potential warmup period) to use.",
     )
     parser.add_argument(
+        "--end_learning_rate", default=1e-7, type=float, help="The end learning rate for the optimizer."
+    )
+    parser.add_argument("--decay_steps", default=0, type=int, help="lr decay steps.")
+    parser.add_argument(
         "--scale_lr",
         action="store_true",
         default=False,
         help="Scale the learning rate by the number of GPUs, gradient accumulation steps, and batch size.",
     )
-    parser.add_argument(
-        "--lr_scheduler",
-        type=str,
-        default="constant",
-        help=(
-            'The scheduler type to use. Choose between ["linear", "cosine", "cosine_with_restarts", "polynomial",'
-            ' "constant", "constant_with_warmup"]'
-        ),
-    )
+    parser.add_argument("--scheduler", default="cosine_decay", type=str, help="scheduler.")
     parser.add_argument(
         "--lr_warmup_steps",
         type=int,
@@ -227,6 +207,11 @@ def parse_args():
         default=1,
         help="Number of updates steps to accumulate before performing a backward/update pass.",
     )
+    parser.add_argument("--drop_overflow_update", default=True, type=str2bool, help="drop overflow update")
+    parser.add_argument("--loss_scaler_type", default="dynamic", type=str, help="dynamic or static")
+    parser.add_argument("--init_loss_scale", default=65536, type=float, help="loss scale")
+    parser.add_argument("--loss_scale_factor", default=2, type=float, help="loss scale factor")
+    parser.add_argument("--scale_window", default=2000, type=float, help="scale window")
     # ----Optimizer (Adam)----
     parser.add_argument(
         "--use_8bit_adam",
@@ -257,6 +242,7 @@ def parse_args():
     parser.add_argument(
         "--max_grad_norm", default=1.0, type=float, help="Max gradient norm."
     )
+    parser.add_argument("--clip_grad", default=False, type=str2bool, help="whether apply gradient clipping")
     # ----Diffusion Training Arguments----
     parser.add_argument(
         "--proportion_empty_prompts",
@@ -377,6 +363,7 @@ def parse_args():
         ),
     )
     # ----Exponential Moving Average (EMA)----
+    parser.add_argument("--use_ema", default=False, type=str2bool, help="whether use EMA")
     parser.add_argument(
         "--ema_decay",
         type=float,

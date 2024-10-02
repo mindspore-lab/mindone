@@ -441,7 +441,7 @@ def get_intern_vid2_score_fn(rm_ckpt_dir: str, precision="amp", n_frames=8):
     config["pretrained_path"] = rm_ckpt_dir
 
     dtype = {"fp16": ms.float16, "fp32": ms.float32, "bf16": ms.bfloat16}[precision]
-    vi_clip, tokenizer = setup_internvideo2(config)
+    vi_clip, tokenizer = setup_internvideo2(config, dtype)
     vi_clip.set_train(False)
     freeze_params(vi_clip)
     if precision == "fp16":

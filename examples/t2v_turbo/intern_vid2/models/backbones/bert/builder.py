@@ -39,9 +39,9 @@ class BertModelWrapper(BertModel):
 
         # We can provide a self-attention mask of dimensions [batch_size, from_seq_length, to_seq_length]
         # ourselves in which case we just need to make it broadcastable to all heads.
-        if attention_mask.dim() == 3:
+        if attention_mask.ndim == 3:
             extended_attention_mask = attention_mask[:, None, :, :]
-        elif attention_mask.dim() == 2:
+        elif attention_mask.ndim == 2:
             # Provided a padding mask of dimensions [batch_size, seq_length]
             # - if the model is a decoder, apply a causal mask in addition to the padding mask
             # - if the model is an encoder, make the mask broadcastable to [batch_size, num_heads, seq_length, seq_length]

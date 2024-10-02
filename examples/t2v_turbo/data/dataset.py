@@ -115,7 +115,7 @@ class TextVideoDataset:
 
         if n_samples:
             self.dataset = np.random.choice(self.dataset, n_samples, replace=False)
-        
+
         self.length = len(self.dataset)
         logger.info(f"Num data samples: {self.length}")
 

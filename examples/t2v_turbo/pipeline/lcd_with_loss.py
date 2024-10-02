@@ -44,13 +44,10 @@ class LCDWithLoss(nn.Cell):
         text_encoder: nn.Cell,
         teacher_unet: nn.Cell,
         unet: nn.Cell,
-        optimizer: nn.Optimizer,
-        tokenizer,
         noise_scheduler,
         alpha_schedule,
         sigma_schedule,
         weight_dtype,
-        length_of_dataloader,
         vae_scale_factor,
         time_cond_proj_dim,
         args,
@@ -58,7 +55,7 @@ class LCDWithLoss(nn.Cell):
         uncond_prompt_embeds,
         reward_fn,
         video_rm_fn,
-        use_recompute=False
+        use_recompute=False,
     ):
         super().__init__()
 
@@ -68,10 +65,10 @@ class LCDWithLoss(nn.Cell):
         self.vae = vae
         self.text_encoder = text_encoder
         self.teacher_unet = teacher_unet
+
         self.noise_scheduler = noise_scheduler
         self.alpha_schedule = alpha_schedule
         self.sigma_schedule = sigma_schedule
-        self.weight_dtype = weight_dtype
         self.vae_scale_factor = vae_scale_factor
         self.time_cond_proj_dim = time_cond_proj_dim
         self.args = args
@@ -96,7 +93,7 @@ class LCDWithLoss(nn.Cell):
         # encode pixel values with batch size of at most args.vae_encode_batch_size
         latents = []
         for i in range(
-            0, pixel_values_flatten.shape[0], self.args.vae_encode_batch_size
+            0, self.args.n_frames, self.args.vae_encode_batch_size
         ):
             latents.append(
                 self.vae.encode(
@@ -104,7 +101,7 @@ class LCDWithLoss(nn.Cell):
                 ).sample()
             )
         latents = mint.cat(latents, dim=0)
-        latents = latents.view(b, t, *latents.shape[1:])
+        latents = latents.reshape(b, t, latents.shape[-3], latents.shape[-2], latents.shape[-1])
         # Convert latents from (b, t, c, h, w) to (b, c, t, h, w)
         latents = latents.permute(0, 2, 1, 3, 4)
         latents = latents * self.vae_scale_factor
@@ -120,14 +117,14 @@ class LCDWithLoss(nn.Cell):
         idx = ops.randint(0, t, (self.args.reward_batch_size,))
 
         selected_latents = (
-            model_pred[:, :, idx].to(self.vae.dtype) / self.vae_scale_factor
+            model_pred[:, :, idx].to(self.weight_dtype) / self.vae_scale_factor
         )
         num_images = self.args.train_batch_size * self.args.reward_batch_size
         selected_latents = selected_latents.permute(0, 2, 1, 3, 4)
         selected_latents = selected_latents.reshape(
             num_images, *selected_latents.shape[2:]
         )
-        decoded_imgs = self.vae.decode(selected_latents)
+        decoded_imgs = self.vae.decode(selected_latents, use_recompute=self.use_recompute)
         decoded_imgs = (decoded_imgs / 2 + 0.5).clamp(0, 1)
         expert_rewards = self.reward_fn(decoded_imgs, text)
         reward_loss = -expert_rewards.mean() * self.args.reward_scale
@@ -144,14 +141,14 @@ class LCDWithLoss(nn.Cell):
         assert len(idx) == self.args.video_rm_batch_size
 
         selected_latents = (
-            model_pred[:, :, idx].to(self.vae.dtype) / self.vae_scale_factor
+            model_pred[:, :, idx].to(self.weight_dtype) / self.vae_scale_factor
         )
         num_images = self.args.train_batch_size * self.args.video_rm_batch_size
         selected_latents = selected_latents.permute(0, 2, 1, 3, 4)
         selected_latents = selected_latents.reshape(
             num_images, *selected_latents.shape[2:]
         )
-        decoded_imgs = self.vae.decode(selected_latents)
+        decoded_imgs = self.vae.decode(selected_latents, use_recompute=self.use_recompute)
         decoded_imgs = (decoded_imgs / 2 + 0.5).clamp(0, 1)
         decoded_imgs = decoded_imgs.reshape(
             self.args.train_batch_size,
@@ -242,12 +239,14 @@ class LCDWithLoss(nn.Cell):
             reward_loss = self._compute_image_text_rewards(
                 model_pred, text, t
             )
+            logger.info(f"image reward score: {reward_loss.numpy():.4f}")
 
         if self.args.video_reward_scale > 0:
             text = captions.numpy().astype(str)
             video_rm_loss = self._compute_video_text_rewards(
                 model_pred, text, t
             )
+            logger.info(f"video reward score: {video_rm_loss.numpy():.4f}")
             
         # if accelerator.process_index in args.vlcd_processes:
         # 8. Compute the conditional and unconditional teacher model predictions to get CFG estimates of the
@@ -257,7 +256,7 @@ class LCDWithLoss(nn.Cell):
         with no_grad():
             # 8.1. Get teacher model prediction on noisy_model_input z_{t_{n + k}} and conditional embedding c
             cond_teacher_output = self.teacher_unet(
-                noisy_model_input.to(self.weight_dtype),
+                noisy_model_input,
                 start_timesteps,
                 context=context,
                 fps=fps,
@@ -281,9 +280,9 @@ class LCDWithLoss(nn.Cell):
 
             # 8.2. Get teacher model prediction on noisy_model_input z_{t_{n + k}} and unconditional embedding 0
             uncond_teacher_output = self.teacher_unet(
-                noisy_model_input.to(self.weight_dtype),
+                noisy_model_input,
                 start_timesteps,
-                context=self.uncond_prompt_embeds.to(self.weight_dtype),
+                context=self.uncond_prompt_embeds,
             )
             uncond_pred_x0 = get_predicted_original_sample(
                 uncond_teacher_output,
@@ -336,7 +335,9 @@ class LCDWithLoss(nn.Cell):
                     model_pred.float(), target.float(), reduction="mean"
                 )
             elif self.args.loss_type == "huber":
-                distill_loss = huber_loss(model_pred, target, self.args.huber_c)
+                distill_loss = huber_loss(model_pred.float(), target.float(), self.args.huber_c)
+
+            logger.info(f"distill_loss: {distill_loss.numpy():.4f}")
 
         # accelerator.backward(distill_loss + reward_loss + video_rm_loss)
         loss = distill_loss + reward_loss + video_rm_loss
