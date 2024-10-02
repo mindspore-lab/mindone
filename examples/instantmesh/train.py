@@ -1,4 +1,7 @@
 """ InstantMesh Stage-1 Training Script """
+
+# TODO training: oct 2: 1. turn off ema; 2. align cosdecay wrestart
+
 import argparse
 import datetime
 
@@ -30,7 +33,6 @@ from omegaconf import OmegaConf
 from utils.ms_callback_util import SaveCkptCallback
 
 from mindone.data import create_dataloader
-from mindone.env import init_train_env
 from mindone.trainers.callback import EvalSaveCallback, OverflowMonitor, ProfilerCallbackEpoch
 from mindone.trainers.checkpoint import resume_train_network
 from mindone.trainers.ema import EMA
@@ -39,6 +41,7 @@ from mindone.trainers.optim import create_optimizer
 from mindone.trainers.train_step import TrainOneStepWrapper
 from mindone.utils.amp import auto_mixed_precision
 from mindone.utils.config import instantiate_from_config
+from mindone.utils.env import init_train_env
 from mindone.utils.logger import set_logger
 from mindone.utils.params import count_params
 from mindone.utils.seed import set_random_seed
