@@ -377,8 +377,8 @@ def main(args):
             vae = OpenSoraVAE_V1_2(
                 micro_batch_size=args.vae_micro_batch_size,
                 micro_frame_size=args.vae_micro_frame_size,
-                micro_batch_parallel=False,
-                micro_frame_parallel=False,
+                micro_batch_parallel=args.enable_sequence_parallelism,
+                micro_frame_parallel=args.enable_sequence_parallelism,
                 ckpt_path=args.vae_checkpoint,
                 freeze_vae_2d=True,
             )
