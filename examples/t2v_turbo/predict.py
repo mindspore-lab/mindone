@@ -14,6 +14,11 @@ from omegaconf import OmegaConf
 import mindspore as ms
 from mindspore import nn, mint
 
+__dir__ = os.path.dirname(os.path.abspath(__file__))
+mindone_lib_path = os.path.abspath(os.path.join(__dir__, "../../"))
+sys.path.insert(0, mindone_lib_path)
+sys.path.insert(0, os.path.abspath(os.path.join(__dir__, "..")))
+
 from mindone.utils.logger import set_logger
 from mindone.visualize.videos import save_videos
 from mindone.utils.config import str2bool

@@ -1,0 +1,4 @@
+mindcv
+opencv-python
+albumentations
+decord
