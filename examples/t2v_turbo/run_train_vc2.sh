@@ -1,9 +1,9 @@
 # FPS: 16; 512x320
 
 export DEVICE_ID=6
-CSV_PATH = YOUR-CSV-PATH
-DATA_PATH = YOUR-DATA-DIR
-OUTPUT_DIR = OUTPUT-DIR
+CSV_PATH = "csv-path.csv"
+DATA_PATH = "data-dir/"
+OUTPUT_DIR = "output-dir/"
 
 python train.py \
   --pretrained_model_path checkpoints/t2v-vc2/t2v_VC2.ckpt \

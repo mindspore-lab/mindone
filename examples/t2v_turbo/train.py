@@ -32,6 +32,11 @@ from mindspore.amp import StaticLossScaler
 from mindspore.nn.wrap.loss_scale import DynamicLossScaleUpdateCell
 from mindspore.train.callback import TimeMonitor
 
+__dir__ = os.path.dirname(os.path.abspath(__file__))
+mindone_lib_path = os.path.abspath(os.path.join(__dir__, "../../../"))
+sys.path.insert(0, mindone_lib_path)
+sys.path.insert(0, os.path.abspath(os.path.join(__dir__, "..")))
+
 from mindone.diffusers.models.autoencoders.vae import DiagonalGaussianDistribution
 from mindone.diffusers.training_utils import set_seed
 from mindone.diffusers.utils import convert_unet_state_dict_to_peft
