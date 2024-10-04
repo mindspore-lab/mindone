@@ -5,7 +5,7 @@ CSV_PATH="csv-path.csv"
 DATA_PATH="data-dir/"
 OUTPUT_DIR="output-dir/"
 
-python train.py \
+python train_t2v_turbo_vc2.py \
   --pretrained_model_path checkpoints/t2v-vc2/t2v_VC2.ckpt \
   --video_rm_ckpt_dir checkpoints/InternVideo2-stage2_1b-224p-f4.ckpt \
   --train_batch_size 1 \

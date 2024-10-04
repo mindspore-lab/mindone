@@ -12,7 +12,7 @@ from mindspore.dataset import transforms, vision
 from lvdm.modules.encoders.clip import CLIPModel, parse, support_list
 from utils.utils import freeze_params
 
-sys.path.append("./mindone/examples/stable_diffusion_xl")
+sys.path.append("../stable_diffusion_xl")
 from gm.modules.embedders.open_clip.tokenizer import tokenize
 
 # Image processing
