@@ -271,10 +271,6 @@ def main(args):
             logger.warning(msg)
 
     if args.dtype in ["fp16", "bf16"]:
-        # FIXME: drop All2all Layer when it supports bf16 in pynative mode
-        if args.mode == 1:
-            WHITELIST_OPS.append(AlltoAll)
-
         latte_model = auto_mixed_precision(
             latte_model, amp_level=args.amp_level, dtype=dtype_map[args.dtype], custom_fp32_cells=WHITELIST_OPS
         )
