@@ -23,14 +23,10 @@ from mindspore.train.callback import TimeMonitor
 __dir__ = os.path.dirname(os.path.abspath(__file__))
 mindone_lib_path = os.path.abspath(os.path.join(__dir__, "../../"))
 sys.path.insert(0, mindone_lib_path)
-
+sys.path.insert(0, os.path.abspath(os.path.join(__dir__, "..")))
 from lvdm.data.dataset import create_dataloader
-
-# from ad.data.dataset import check_sanity
-# from ad.utils.load_models import load_motion_modules, update_unet2d_params_for_unet3d
 from args_train import parse_args
 
-from mindone.models.lora import inject_trainable_lora, make_only_lora_params_trainable
 from mindone.trainers.callback import EvalSaveCallback, OverflowMonitor, ProfilerCallback
 from mindone.trainers.checkpoint import resume_train_network
 from mindone.trainers.ema import EMA
@@ -45,14 +41,7 @@ from mindone.utils.params import count_params, load_param_into_net_with_filter
 from mindone.utils.seed import set_random_seed
 from mindone.utils.version_control import is_old_ms_version
 
-os.environ["HCCL_CONNECT_TIMEOUT"] = "6000"
-os.environ["MS_ASCEND_CHECK_OVERFLOW_MODE"] = "INFNAN_MODE"
-
 logger = logging.getLogger(__name__)
-
-
-def _to_abspath(rp):
-    return os.path.join(__dir__, rp)
 
 
 def build_model_from_config(config, unet_config_update=None, vae_use_fp16=None, snr_gamma=None):
@@ -212,14 +201,14 @@ def main(args):
         recompute_strategy=args.recompute_strategy,
     )
     latent_diffusion_with_loss = build_model_from_config(
-        _to_abspath(args.model_config),
+        args.model_config,
         unet_config_update,
         vae_use_fp16=args.vae_fp16,
         snr_gamma=args.snr_gamma,
     )
 
     # 1) load sd pretrained weight
-    load_pretrained_model(_to_abspath(args.pretrained_model_path), latent_diffusion_with_loss)
+    load_pretrained_model(args.pretrained_model_path, latent_diffusion_with_loss)
     """
     load_pretrained_model(
         _to_abspath(args.pretrained_model_path),
@@ -278,7 +267,7 @@ def main(args):
     assert trainable_params > 0, "No trainable parameters. Please check model config."
 
     # 3. build dataset
-    csv_path = args.csv_path if args.csv_path is not None else os.path.join(args.data_path, "video_caption.csv")
+    csv_path = args.csv_path if args.csv_path is not None else os.path.join(args.data_dir, "video_caption.csv")
     """
     if args.image_finetune:
         logger.info("Task is image finetune, num_frames and frame_stride is forced to 1")
@@ -302,20 +291,25 @@ def main(args):
     else:
     """
     data_config = dict(
-        meta_path=_to_abspath(args.meta_path),
-        data_dir=_to_abspath(args.data_dir),
-        # subsample=None,
-        video_length=16,
-        resolution=[576, 1024],
-        frame_stride=6,
-        # frame_stride_min=1,
-        spatial_transform="resize_center_crop",
-        # crop_resolution=None,
-        # fps_max=None,
-        load_raw_resolution=True,
-        # fixed_fps=None,
-        random_fs=True,
-    )
+            csv_path=csv_path,
+            data_dir=args.data_dir,
+            column_names=["video", "caption", "path", "fps", "frame_stride"],
+            # subsample=None,
+            batch_size=1,
+            video_length=16,
+            resolution=[576, 1024],
+            frame_stride=6,
+            # frame_stride_min=1,
+            spatial_transform="resize_center_crop",
+            # crop_resolution=None,
+            # fps_max=None,
+            load_raw_resolution=True,
+            # fixed_fps=None,
+            random_fs=True,
+            shuffle=True,
+            num_parallel_workers=10,
+            max_rowsize=64,
+        )
 
     # tokenizer = latent_diffusion_with_loss.cond_stage_model.tokenize
     dataset = create_dataloader(data_config, device_num=device_num, rank_id=rank_id)
@@ -485,7 +479,7 @@ def main(args):
             [
                 f"MindSpore mode[GRAPH(0)/PYNATIVE(1)]: {args.mode}",
                 f"Distributed mode: {args.use_parallel}",
-                f"Data path: {args.data_path}",
+                f"Data dir: {args.data_dir}",
                 f"Num params: {num_params:,} (unet: {num_params_unet:,}, text encoder: {num_params_text_encoder:,}, vae: {num_params_vae:,})",
                 f"Num trainable params: {num_trainable_params:,}",
                 f"Precision: {latent_diffusion_with_loss.model.diffusion_model.dtype}",

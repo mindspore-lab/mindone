@@ -119,7 +119,7 @@ data:
       target: lvdm.data.webvid.WebVid
       params:
         data_dir: <WebVid10M DATA>
-        meta_path: <.csv FILE>
+        csv_path: <.csv FILE>
         video_length: 16
         frame_stride: 6
         load_raw_resolution: true

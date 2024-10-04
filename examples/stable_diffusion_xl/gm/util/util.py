@@ -9,7 +9,8 @@ import mindspore as ms
 from mindspore import Tensor, nn, ops
 from mindspore.ops import composite as C
 from mindspore.ops import functional as F
-from mindspore.train.amp import AMP_BLACK_LIST, AMP_WHITE_LIST, _auto_black_list, _auto_white_list
+# from mindspore.train.amp import AMP_BLACK_LIST, AMP_WHITE_LIST, _auto_black_list, _auto_white_list
+from mindone.utils.amp import auto_mixed_precision
 
 
 def exists(x):
@@ -175,53 +176,53 @@ def clip_grad_global_(x, clip_norm=1.0):
     return clip_value
 
 
-def auto_mixed_precision(network, amp_level="O0"):
-    """
-    auto mixed precision function.
+# def auto_mixed_precision(network, amp_level="O0"):
+#     """
+#     auto mixed precision function.
 
-    Args:
-        network (Cell): Definition of the network.
-        amp_level (str): Supports ["O0", "O1", "O2", "O3"]. Default: "O0".
+#     Args:
+#         network (Cell): Definition of the network.
+#         amp_level (str): Supports ["O0", "O1", "O2", "O3"]. Default: "O0".
 
-            - "O0": Do not change.
-            - "O1": Cast the operators in white_list to float16, the remaining operators are kept in float32.
-            - "O2": Cast network to float16, keep operators in black_list run in float32,
-            - "O3": Cast network to float16.
+#             - "O0": Do not change.
+#             - "O1": Cast the operators in white_list to float16, the remaining operators are kept in float32.
+#             - "O2": Cast network to float16, keep operators in black_list run in float32,
+#             - "O3": Cast network to float16.
 
-    Raises:
-        ValueError: If amp level is not supported.
+#     Raises:
+#         ValueError: If amp level is not supported.
 
-    Examples:
-        >>> from mindspore import amp, nn
-        >>> network = LeNet5()
-        >>> amp_level = "O1"
-        >>> net = amp.auto_mixed_precision(network, amp_level)
-    """
+#     Examples:
+#         >>> from mindspore import amp, nn
+#         >>> network = LeNet5()
+#         >>> amp_level = "O1"
+#         >>> net = amp.auto_mixed_precision(network, amp_level)
+#     """
 
-    if not isinstance(network, nn.Cell):
-        raise TypeError("The network type should be Cell.")
+#     if not isinstance(network, nn.Cell):
+#         raise TypeError("The network type should be Cell.")
 
-    if amp_level == "O0":
-        pass
-    elif amp_level == "O1":
-        return _auto_white_list(network, AMP_WHITE_LIST)
-    elif amp_level == "O2":
-        try:
-            _auto_black_list(
-                network,
-                AMP_BLACK_LIST + [nn.GroupNorm, nn.SiLU],
-                ms.float16,
-            )
-        except Exception:
-            _auto_black_list(
-                network,
-                AMP_BLACK_LIST + [nn.GroupNorm, nn.SiLU],
-            )
-    elif amp_level == "O3":
-        network.to_float(ms.float16)
-    else:
-        raise ValueError("The amp level {} is not supported".format(amp_level))
-    return network
+#     if amp_level == "O0":
+#         pass
+#     elif amp_level == "O1":
+#         return _auto_white_list(network, AMP_WHITE_LIST)
+#     elif amp_level == "O2":
+#         try:
+#             _auto_black_list(
+#                 network,
+#                 AMP_BLACK_LIST + [nn.GroupNorm, nn.SiLU],
+#                 ms.float16,
+#             )
+#         except Exception:
+#             _auto_black_list(
+#                 network,
+#                 AMP_BLACK_LIST + [nn.GroupNorm, nn.SiLU],
+#             )
+#     elif amp_level == "O3":
+#         network.to_float(ms.float16)
+#     else:
+#         raise ValueError("The amp level {} is not supported".format(amp_level))
+#     return network
 
 
 def pad_tokens(tokens, max_length, bos, eos, pad, no_boseos_middle=True, chunk_length=77):

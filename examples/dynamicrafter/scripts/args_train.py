@@ -1,10 +1,16 @@
 import argparse
 import logging
 import os
+import sys
 
 import yaml
 
+__dir__ = os.path.dirname(os.path.abspath(__file__))
+mindone_lib_path = os.path.abspath(os.path.join(__dir__, "../../../"))
+sys.path.insert(0, mindone_lib_path)
+
 from mindone.utils.config import str2bool
+from mindone.utils.misc import to_abspath
 
 logger = logging.getLogger()
 
@@ -26,9 +32,8 @@ def parse_args():
         help="path to load a config yaml file that describes the training recipes which will override the default arguments",
     )
     # the following args's defualt value will be overrided if specified in config yaml
-    parser.add_argument("--model_config", default="configs/v1-train-chinese.yaml", type=str, help="model config path")
+    parser.add_argument("--model_config", default="configs/training_1024_v1.0.yaml", type=str, help="model config path")
     parser.add_argument("--data_dir", default="dataset", type=str, help="path to video root folder")
-    parser.add_argument("--meta_path", type=str, help="path to label csv file")
     
     parser.add_argument(
         "--csv_path",
@@ -54,13 +59,6 @@ def parse_args():
     # modelarts
     parser.add_argument("--enable_modelarts", default=False, type=str2bool, help="run codes in ModelArts platform")
     parser.add_argument("--num_workers", default=1, type=int, help="the number of modelarts workers")
-    parser.add_argument(
-        "--json_data_path",
-        default="mindone/examples/stable_diffusion_v2/ldm/data/num_samples_64_part.json",
-        type=str,
-        help="the path of num_samples.json containing a dictionary with 64 parts. "
-        "Each part is a large dictionary containing counts of samples of 533 tar packages.",
-    )
     parser.add_argument(
         "--resume",
         default=False,
@@ -210,9 +208,6 @@ def parse_args():
     )
     parser.add_argument("--num_parallel_workers", default=12, type=int, help="num workers for data loading")
     parser.add_argument(
-        "--motion_module_path", default="", type=str, help="path to pretrained motion mdule. Load it if not empty"
-    )
-    parser.add_argument(
         "--train_data_type",
         default="video_file",
         type=str,
@@ -238,23 +233,24 @@ def parse_args():
         help="data type when saving embedding cache",
     )
 
-    parser.add_argument("--cache_folder", default="", type=str, help="directory to save embedding cache")
-
     # dataset
     parser.add_argument("--cache_folder", default="", type=str, help="directory to save embedding cache")
 
-
-    abs_path = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), ""))
+    abs_path = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
     default_args = parser.parse_args()
     if default_args.config:
-        default_args.config = os.path.join(abs_path, default_args.config)
+        default_args.config = to_abspath(abs_path, default_args.config)
         with open(default_args.config, "r") as f:
             cfg = yaml.safe_load(f)
             _check_cfgs_in_parser(cfg, parser)
             parser.set_defaults(**cfg)
     args = parser.parse_args()
-    args.model_config = os.path.join(abs_path, args.model_config)
-
+    args.model_config = to_abspath(abs_path, args.model_config)
+    args.data_dir = to_abspath(abs_path, args.data_dir)
+    args.csv_path = to_abspath(abs_path, args.csv_path)
+    args.output_path = to_abspath(abs_path, args.output_path)
+    args.pretrained_model_path = to_abspath(abs_path, args.pretrained_model_path)
+    args.cache_folder = to_abspath(abs_path, args.cache_folder)
     print(args)
 
     return args

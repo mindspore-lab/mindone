@@ -1,32 +1,19 @@
 import os
 import random
-from tqdm import tqdm
-import pandas as pd
-from decord import VideoReader, cpu
+import logging
+import csv
 
-# import torch
-# from torch.utils.data import Dataset
-# from torch.utils.data import DataLoader
-# from torchvision import transforms
+import numpy as np
+from decord import VideoReader
 import mindspore as ms
-from mindspore.dataset import transforms
+from mindspore.dataset import transforms, vision
 from mindspore import Tensor
 
+_logger = logging.getLogger(__name__)
 
 class WebVid:
-    """
-    WebVid Dataset.
-    Assumes webvid data is structured as follows.
-    Webvid/
-        videos/
-            000001_000050/      ($page_dir)
-                1.mp4           (videoid.mp4)
-                ...
-                5000.mp4
-            ...
-    """
     def __init__(self,
-                 meta_path,
+                 csv_path,
                  data_dir,
                  subsample=None,
                  video_length=16,
@@ -41,7 +28,7 @@ class WebVid:
                  random_fs=False,
                  **kwargs,
                  ):
-        self.meta_path = meta_path
+        self.csv_path = csv_path
         self.data_dir = data_dir
         self.subsample = subsample
         self.video_length = video_length
@@ -52,63 +39,45 @@ class WebVid:
         self.fixed_fps = fixed_fps
         self.load_raw_resolution = load_raw_resolution
         self.random_fs = random_fs
-        self._load_metadata()
+        with open(self.csv_path, "r") as csv_file:
+            self.metadata = list(csv.DictReader(csv_file))
         if spatial_transform is not None:
             if spatial_transform == "random_crop":
                 self.spatial_transform = transforms.RandomCrop(crop_resolution)
             elif spatial_transform == "center_crop":
                 self.spatial_transform = transforms.Compose([
-                    transforms.CenterCrop(resolution),
+                    vision.CenterCrop(resolution),
                     ])            
             elif spatial_transform == "resize_center_crop":
                 # assert(self.resolution[0] == self.resolution[1])
                 self.spatial_transform = transforms.Compose([
-                    transforms.Resize(min(self.resolution)),
-                    transforms.CenterCrop(self.resolution),
+                    vision.Resize(min(self.resolution)),
+                    vision.CenterCrop(self.resolution),
                     ])
             elif spatial_transform == "resize":
-                self.spatial_transform = transforms.Resize(self.resolution)
+                self.spatial_transform = vision.Resize(self.resolution)
             else:
                 raise NotImplementedError
         else:
             self.spatial_transform = None
-                
-    def _load_metadata(self):
-        metadata = pd.read_csv(self.meta_path)
-        print(f'>>> {len(metadata)} data samples loaded.')
-        if self.subsample is not None:
-            metadata = metadata.sample(self.subsample, random_state=0)
-   
-        metadata['caption'] = metadata['name']
-        del metadata['name']
-        self.metadata = metadata
-        self.metadata.dropna(inplace=True)
 
-    def _get_video_path(self, sample):
-        rel_video_fp = os.path.join(sample['page_dir'], str(sample['videoid']) + '.mp4')
-        full_video_fp = os.path.join(self.data_dir, 'videos', rel_video_fp)
-        return full_video_fp
-    
     def __getitem__(self, index):
         if self.random_fs:
             frame_stride = random.randint(self.frame_stride_min, self.frame_stride)
         else:
             frame_stride = self.frame_stride
 
-        ## get frames until success
-        while True:
+        max_attempt = 100  # TODO: can be optimized
+        for _ in range(max_attempt):
             index = index % len(self.metadata)
-            sample = self.metadata.iloc[index]
-            video_path = self._get_video_path(sample)
-            ## video_path should be in the format of "....../WebVid/videos/$page_dir/$videoid.mp4"
+            sample = self.metadata[index]
+            video_path = os.path.join(self.data_dir, sample["video"])
             caption = sample['caption']
 
             try:
                 if self.load_raw_resolution:
-                    # video_reader = VideoReader(video_path, ctx=cpu(0))
                     video_reader = VideoReader(video_path)
                 else:
-                    # video_reader = VideoReader(video_path, ctx=cpu(0), width=530, height=300)
                     video_reader = VideoReader(video_path, width=530, height=300)
                 if len(video_reader) < self.video_length:
                     print(f"video length ({len(video_reader)}) is smaller than target length({self.video_length})")
@@ -147,7 +116,7 @@ class WebVid:
             ## calculate frame indices
             frame_indices = [start_idx + frame_stride*i for i in range(self.video_length)]
             try:
-                frames = video_reader.get_batch(frame_indices)
+                frames = video_reader.get_batch(frame_indices).asnumpy()
                 break
             except:
                 print(f"Get frames failed! path = {video_path}; [max_ind vs frame_total:{max(frame_indices)} / {frame_num}]")
@@ -156,12 +125,10 @@ class WebVid:
         
         ## process data
         assert(frames.shape[0] == self.video_length),f'{len(frames)}, self.video_length={self.video_length}'
-        # frames = torch.tensor(frames.asnumpy()).permute(3, 0, 1, 2).float() # [t,h,w,c] -> [c,t,h,w]
-        frames = Tensor(frames.asnumpy()).permute(3, 0, 1, 2).to(ms.float32) # [t,h,w,c] -> [c,t,h,w]
-
         if self.spatial_transform is not None:
             frames = self.spatial_transform(frames)
-        
+        frames = np.transpose(frames, (3, 0, 1, 2)).astype(np.float32)  # [t,h,w,c] -> [c,t,h,w]
+
         if self.resolution is not None:
             assert (frames.shape[2], frames.shape[3]) == (self.resolution[0], self.resolution[1]), f'frames={frames.shape}, self.resolution={self.resolution}'
         
@@ -171,8 +138,7 @@ class WebVid:
         if self.fps_max is not None and fps_clip > self.fps_max:
             fps_clip = self.fps_max
 
-        data = {'video': frames, 'caption': caption, 'path': video_path, 'fps': fps_clip, 'frame_stride': frame_stride}
-        return data
+        return frames, caption, video_path, fps_clip, frame_stride
     
     def __len__(self):
         return len(self.metadata)
@@ -180,21 +146,7 @@ class WebVid:
 
 def create_dataloader(config, device_num=1, rank_id=0):
     dataset = WebVid(**config)
-            # (meta_path,
-            # data_dir,
-            # subsample=config["subsample"],
-            # video_length=config["video_length"], # 16
-            # resolution=config["resolution"], #[256, 512],
-            # frame_stride=config["frame_stride"], #1,
-            # frame_stride_min=config["frame_stride_min"], #1,
-            # spatial_transform=config["spatial_transform"], #None,
-            # crop_resolution=config["crop_resolution"], #None,
-            # fps_max=config["fps_max"], #None,
-            # load_raw_resolution=config["load_raw_resolution"], # False,
-            # fixed_fps=config["fixed_fps"], #None,
-            # random_fs=config["random_fs"], #False,
-            # )
-    print("Total number of samples: ", len(dataset))
+    _logger.info(f"Total number of samples: {len(dataset)}")
 
     # Larger value leads to more memory consumption. Default: 16
     # prefetch_size = config.get("prefetch_size", 16)
@@ -202,10 +154,7 @@ def create_dataloader(config, device_num=1, rank_id=0):
 
     dataloader = ms.dataset.GeneratorDataset(
         source=dataset,
-        column_names=[
-            "video",
-            "caption",
-        ],
+        column_names=config["column_names"],
         num_shards=device_num,
         shard_id=rank_id,
         python_multiprocessing=True,
@@ -220,34 +169,3 @@ def create_dataloader(config, device_num=1, rank_id=0):
     )
 
     return dl
-
-
-if __name__== "__main__":
-    meta_path = "" ## path to the meta file
-    data_dir = "" ## path to the data directory
-    save_dir = "" ## path to the save directory
-    dataset = WebVid(meta_path,
-                 data_dir,
-                 subsample=None,
-                 video_length=16,
-                 resolution=[256,448],
-                 frame_stride=4,
-                 spatial_transform="resize_center_crop",
-                 crop_resolution=None,
-                 fps_max=None,
-                 load_raw_resolution=True
-                 )
-    dataloader = DataLoader(dataset,
-                    batch_size=1,
-                    num_workers=0,
-                    shuffle=False)
-
-    
-    import sys
-    sys.path.insert(1, os.path.join(sys.path[0], '..', '..'))
-    from utils.save_video import tensor_to_mp4
-    for i, batch in tqdm(enumerate(dataloader), desc="Data Batch"):
-        video = batch['video']
-        name = batch['path'][0].split('videos/')[-1].replace('/','_')
-        tensor_to_mp4(video, save_dir+'/'+name, fps=8)
-
