@@ -122,6 +122,7 @@ def main(args):
     # 5. Load teacher Model
     config = OmegaConf.load(args.pretrained_model_cfg)
     model_config = config.pop("model", OmegaConf.create())
+    model_config["params"]["cond_stage_config"]["params"]["pretrained_ckpt_path"] = args.pretrained_enc_path
     pretrained_t2v = instantiate_from_config(model_config)
     pretrained_t2v = pretrained_t2v.to_float(dtype)
     pretrained_t2v = load_model_checkpoint(
@@ -142,9 +143,7 @@ def main(args):
     # 7. Create online student U-Net. This will be updated by the optimizer (e.g. via backpropagation.)
     # Add `time_cond_proj_dim` to the student U-Net if `teacher_unet.config.time_cond_proj_dim` is None
     time_cond_proj_dim = (
-        teacher_unet.time_cond_proj_dim
-        if teacher_unet.time_cond_proj_dim is not None
-        else args.unet_time_cond_proj_dim
+        teacher_unet.time_cond_proj_dim if teacher_unet.time_cond_proj_dim is not None else args.unet_time_cond_proj_dim
     )
     unet_config = model_config["params"]["unet_config"]
     unet_config["params"]["time_cond_proj_dim"] = time_cond_proj_dim
@@ -171,7 +170,11 @@ def main(args):
     )
 
     if args.reward_scale > 0:
-        reward_fn = get_reward_fn(args.reward_fn_name, precision=args.mixed_precision)
+        reward_fn = get_reward_fn(
+            args.reward_fn_name,
+            precision=args.mixed_precision,
+            rm_ckpt_dir=args.image_rm_ckpt_dir,
+        )
     else:
         reward_fn = None
 
@@ -218,9 +221,7 @@ def main(args):
     )
 
     if unet.dtype != ms.float32:
-        raise ValueError(
-            f"Controlnet loaded as datatype {unet.dtype}. {low_precision_error_string}"
-        )
+        raise ValueError(f"Controlnet loaded as datatype {unet.dtype}. {low_precision_error_string}")
 
     # 9. Handle mixed precision and device placement
     # For mixed precision training we cast all non-trainable weigths to half-precision
@@ -263,7 +264,7 @@ def main(args):
         video_folder=_to_abspath(args.data_path),
         csv_path=_to_abspath(csv_path),
         sample_size=resolution,
-        sample_stride=1, # args.frame_stride,
+        sample_stride=1,  # args.frame_stride,
         sample_n_frames=args.n_frames,
         batch_size=args.train_batch_size,
         shuffle=True,
@@ -283,9 +284,7 @@ def main(args):
 
     num_train_examples = args.max_train_samples
     global_batch_size = args.train_batch_size * device_num
-    num_worker_batches = math.ceil(
-        num_train_examples / (global_batch_size * num_workers)
-    )
+    num_worker_batches = math.ceil(num_train_examples / (global_batch_size * num_workers))
 
     train_dataloader.num_batches = num_worker_batches * args.dataloader_num_workers
     train_dataloader.num_samples = train_dataloader.num_batches * global_batch_size
@@ -293,9 +292,7 @@ def main(args):
     # 14. LR Scheduler creation
     # Scheduler and math around the number of training steps.
     overrode_max_train_steps = False
-    num_update_steps_per_epoch = math.ceil(
-        train_dataloader.num_batches / args.gradient_accumulation_steps
-    )
+    num_update_steps_per_epoch = math.ceil(train_dataloader.num_batches / args.gradient_accumulation_steps)
     if args.max_train_steps is None:
         args.max_train_steps = args.num_train_epochs * num_update_steps_per_epoch
         overrode_max_train_steps = True
@@ -312,9 +309,7 @@ def main(args):
 
     # 15. Prepare for training
     # We need to recalculate our total training steps as the size of the training dataloader may have changed.
-    num_update_steps_per_epoch = math.ceil(
-        train_dataloader.num_batches / args.gradient_accumulation_steps
-    )
+    num_update_steps_per_epoch = math.ceil(train_dataloader.num_batches / args.gradient_accumulation_steps)
     if overrode_max_train_steps:
         args.max_train_steps = args.num_train_epochs * num_update_steps_per_epoch
     # Afterwards we recalculate our number of training epochs
@@ -366,7 +361,7 @@ def main(args):
         loss_scaler = nn.FixedLossScaleUpdateCell(args.init_loss_scale)
     else:
         raise ValueError
-    
+
     # Trainer
     ema = EMA(lcd_with_loss.unet, ema_decay=args.ema_decay, offloading=True) if args.use_ema else None
 
@@ -381,21 +376,17 @@ def main(args):
         ema=ema,
     )
 
-    args.num_train_epochs = 20 # FIXME!
+    args.num_train_epochs = 20  # FIXME!
     start_epoch = 0
 
     # 16. Train!
-    total_batch_size = (
-        args.train_batch_size * device_num * args.gradient_accumulation_steps
-    )
+    total_batch_size = args.train_batch_size * device_num * args.gradient_accumulation_steps
 
     logger.info("***** Running training *****")
     logger.info(f"  Num batches each epoch = {train_dataloader.num_batches}")
     logger.info(f"  Num Epochs = {args.num_train_epochs}")
     logger.info(f"  Instantaneous batch size per device = {args.train_batch_size}")
-    logger.info(
-        f"  Total train batch size (w. parallel, distributed & accumulation) = {total_batch_size}"
-    )
+    logger.info(f"  Total train batch size (w. parallel, distributed & accumulation) = {total_batch_size}")
     logger.info(f"  Gradient Accumulation steps = {args.gradient_accumulation_steps}")
     logger.info(f"  Total optimization steps = {args.max_train_steps}")
 
@@ -409,7 +400,7 @@ def main(args):
             record = PerfRecorder(args.output_dir, metric_names=perf_columns)
         else:
             record = PerfRecorder(args.output_dir, resume=True)
-        
+
     global_step = 0
     ds_iter = train_dataloader.create_tuple_iterator(num_epochs=args.num_train_epochs - start_epoch)
 
@@ -424,7 +415,9 @@ def main(args):
 
             if step % args.log_interval == 0:
                 loss = float(loss.asnumpy())
-                logger.info(f"Epoch: {epoch}, Step: {step}, Global step {global_step}, Loss: {loss:.5f}, Step time: {step_time*1000:.2f}ms")
+                logger.info(
+                    f"Epoch: {epoch}, Step: {step}, Global step {global_step}, Loss: {loss:.5f}, Step time: {step_time*1000:.2f}ms"
+                )
 
             if overflow:
                 logger.warning("overflow detected")
@@ -443,7 +436,7 @@ def main(args):
             ckpt_manager.save(lcd_with_loss.unet, None, ckpt_name=ckpt_name, append_dict=None)
             if ema is not None:
                 ema.swap_after_eval()
-        
+
         train_dataloader.reset()
 
 

@@ -106,14 +106,14 @@ def get_pick_score_fn(precision="fp32"):
     return score_fn
 
 
-def get_hpsv2_fn(precision="no"):
+def get_hpsv2_fn(precision="no", rm_ckpt_dir="HPS_v2_compressed.ckpt"):
     precision = "fp32" if precision == "no" else precision
     assert precision in ["bf16", "fp16", "fp32"]
 
     model = load_clip_model(
         "open_clip_vit_h_14",
-        "./checkpoints/HPS_v2_compressed.ckpt", # HPS_v2.1_compressed.pt FIXME!!!
-        "float16"
+        pretrained_ckpt_path=rm_ckpt_dir,
+        dtype="float16",
     )
 
     # model, _, preprocess_val = create_model_and_transforms(

@@ -19,6 +19,12 @@ def parse_args():
         default="PATH_TO_VC2_model.pt",
         help="Path to the pretrained model.",
     )
+    parser.add_argument(
+        "--pretrained_enc_path",
+        type=str,
+        default="PATH_TO_encoder_model.pt",
+        help="Path to the pretrained t2v encoder model.",
+    )
     # ----------MS environment args----------
     parser.add_argument(
         "--device_target", type=str, default="Ascend", help="Ascend or GPU"
@@ -431,7 +437,7 @@ def parse_args():
         "--reward_fn_name",
         type=str,
         default="hpsv2",
-        help="Reward function name",
+        help="Image Reward function name",
     )
     parser.add_argument(
         "--reward_scale",
@@ -440,17 +446,23 @@ def parse_args():
         help="The scale of the reward loss",
     )
     parser.add_argument(
+        "--image_rm_ckpt_dir",
+        type=str,
+        default="PATH/TO/HPS_v2_compressed.ckpt",
+        help="Image-Text reward model path",
+    )
+    parser.add_argument(
         "--video_rm_name",
         type=str,
         default="vi_clip2",
-        help="Reward function name",
+        help="Video Reward function name",
     )
     parser.add_argument(
         "--video_rm_ckpt_dir",
         type=str,
         # default="PATH/TO/ViClip-InternVid-10M-FLT.pth",
         default="PATH/TO/InternVideo2-stage2_1b-224p-f4.pt",
-        help="Reward function name",
+        help="Video-Text reward model path",
     )
     parser.add_argument(
         "--video_reward_scale",

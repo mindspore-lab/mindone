@@ -157,7 +157,7 @@ class TextVideoDataset:
                 inputs = {"image": pixel_values[0]}
                 num_frames = len(pixel_values)
                 for i in range(num_frames - 1):
-                    input[f"image{i}"] = pixel_values[i + 1]
+                    inputs[f"image{i}"] = pixel_values[i + 1]
 
                 output = self.pixel_transforms(**inputs)
                 pixel_values = np.stack(list(output.values()), axis=0)
