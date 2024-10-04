@@ -14,6 +14,7 @@ from mindone.transformers import T5EncoderModel, CLIPTextModel
 from lvdm.common import autocast
 from lvdm.modules.encoders.clip import CLIPImageProcessor, CLIPModel, CLIPTokenizer, parse, support_list
 from utils.utils import count_params
+from utils.download import download_checkpoint
 
 
 _CKPT_URL = {
