@@ -9,14 +9,6 @@ import shutil
 
 import yaml
 from common import init_env
-from omegaconf import OmegaConf
-
-from mindspore import Model, Profiler, load_checkpoint, load_param_into_net, nn, ops
-from mindspore.nn.wrap.loss_scale import DynamicLossScaleUpdateCell
-from mindspore.train.callback import TimeMonitor
-import mindspore.dataset as ds
-import mindspore
-
 from ldm.modules.logger import set_logger
 from ldm.modules.train.callback import EvalSaveCallback, OverflowMonitor
 from ldm.modules.train.checkpoint import resume_train_network
@@ -24,19 +16,18 @@ from ldm.modules.train.ema import EMA
 from ldm.modules.train.lr_schedule import create_scheduler
 from ldm.modules.train.optim import build_optimizer
 from ldm.modules.train.trainer import TrainOneStepWrapper
-from ldm.util import count_params, is_old_ms_version, str2bool 
-
+from ldm.util import count_params, is_old_ms_version
+from omegaconf import OmegaConf
 from src.dataset import DatasetMode, get_dataset
-from src.util.msckpt_utils import (
-    replace_unet_conv_in,
-)
-from src.util.depth_transform import (
-    get_depth_normalizer,
-)
-from src.util.config_util import (
-    find_value_in_omegaconf,
-    recursive_load_config,
-)
+from src.util.config_util import recursive_load_config
+from src.util.depth_transform import get_depth_normalizer
+from src.util.msckpt_utils import replace_unet_conv_in
+
+import mindspore
+import mindspore.dataset as ds
+from mindspore import Model, Profiler, load_checkpoint, load_param_into_net, nn
+from mindspore.nn.wrap.loss_scale import DynamicLossScaleUpdateCell
+from mindspore.train.callback import TimeMonitor
 
 os.environ["HCCL_CONNECT_TIMEOUT"] = "6000"
 
@@ -109,15 +100,13 @@ def main(args):
     load_pretrained_model(
         args.pretrained_model_path, latent_diffusion_with_loss, unet_initialize_random=cfg.unet_initialize_random
     )
-    
+
     # change input channel of UNet from 4 to 8
     replace_unet_conv_in(latent_diffusion_with_loss, cfg.use_fp16)
 
     # build dataset
     tokenizer = latent_diffusion_with_loss.cond_stage_model.tokenizer
-    depth_transform = get_depth_normalizer(
-        cfg_normalizer=cfg.depth_normalization
-    )
+    depth_transform = get_depth_normalizer(cfg_normalizer=cfg.depth_normalization)
     train_dataset = get_dataset(
         cfg.dataset.train,
         base_data_dir="marigold-data",
@@ -125,17 +114,26 @@ def main(args):
         augmentation_args=cfg.augmentation,
         depth_transform=depth_transform,
         tokenizer=tokenizer,
-        dtype=mindspore.float16 if cfg.use_fp16 else mindspore.float32
+        dtype=mindspore.float16 if cfg.use_fp16 else mindspore.float32,
     )
     dataset = ds.GeneratorDataset(
         source=train_dataset,
-        column_names=['rgb_int', 'rgb_norm', 'depth_raw_linear', 'depth_filled_linear',
-                      'valid_mask_raw', 'valid_mask_filled', 'depth_raw_norm', 'depth_filled_norm', 'c'],
-        shuffle=False
+        column_names=[
+            "rgb_int",
+            "rgb_norm",
+            "depth_raw_linear",
+            "depth_filled_linear",
+            "valid_mask_raw",
+            "valid_mask_filled",
+            "depth_raw_norm",
+            "depth_filled_norm",
+            "c",
+        ],
+        shuffle=False,
     ).batch(
         batch_size=cfg.dataloader.max_train_batch_size,
         drop_remainder=True,
-        num_parallel_workers=cfg.dataloader.num_workers
+        num_parallel_workers=cfg.dataloader.num_workers,
     )
 
     # change total_iter to epochs
@@ -274,9 +272,7 @@ def main(args):
         with open(os.path.join(args.output_path, "args.yaml"), "w") as f:
             yaml.safe_dump(vars(args), stream=f, default_flow_style=False, sort_keys=False)
     # train
-    model.train(
-        epochs, dataset, callbacks=callback, dataset_sink_mode=cfg.dataset_sink_mode, initial_epoch=start_epoch
-    )
+    model.train(epochs, dataset, callbacks=callback, dataset_sink_mode=cfg.dataset_sink_mode, initial_epoch=start_epoch)
 
     if cfg.profile:
         profiler.analyse()
@@ -305,6 +301,6 @@ if __name__ == "__main__":
     )
 
     args = parser.parse_args()
-   
+
     logger.info(args)
     main(args)

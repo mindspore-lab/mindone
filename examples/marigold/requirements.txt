@@ -2,6 +2,7 @@ tabulate
 h5py
 tensorboard
 wandb
+torch
 opencv-python
 omegaconf
 einops

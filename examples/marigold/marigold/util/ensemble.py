@@ -1,9 +1,11 @@
 from functools import partial
 from typing import Optional, Tuple
+
 import numpy as np
 import scipy
 
 from .image_util import get_tv_resample_method, resize_max_res
+
 
 def inter_distances(tensors: np.ndarray):
     """
@@ -18,6 +20,7 @@ def inter_distances(tensors: np.ndarray):
     dist = np.concatenate(distances, axis=0)
     return dist
 
+
 def ensemble_depth(
     depth: np.ndarray,
     scale_invariant: bool = True,
@@ -29,7 +32,6 @@ def ensemble_depth(
     tol: float = 1e-3,
     max_res: int = 1024,
 ) -> Tuple[np.ndarray, Optional[np.ndarray]]:
-
     if depth.ndim != 4 or depth.shape[1] != 1:
         raise ValueError(f"Expecting 4D array of shape [B,1,H,W]; got {depth.shape}.")
     if reduction not in ("mean", "median"):
@@ -54,7 +56,9 @@ def ensemble_depth(
 
         return param
 
-    def align(depth: np.ndarray, param: np.ndarray, scale_invariant: bool, shift_invariant: bool, ensemble_size: int) -> np.ndarray:
+    def align(
+        depth: np.ndarray, param: np.ndarray, scale_invariant: bool, shift_invariant: bool, ensemble_size: int
+    ) -> np.ndarray:
         if scale_invariant and shift_invariant:
             s, t = np.split(param, 2)
             s = s.reshape(ensemble_size, 1, 1, 1)
@@ -79,15 +83,21 @@ def ensemble_depth(
         elif reduction == "median":
             prediction = np.median(depth_aligned, axis=0, keepdims=True)
             if return_uncertainty:
-                uncertainty = np.median(
-                    np.abs(depth_aligned - prediction), axis=0, keepdims=True
-                )
+                uncertainty = np.median(np.abs(depth_aligned - prediction), axis=0, keepdims=True)
         else:
             raise ValueError(f"Unrecognized reduction method: {reduction}.")
 
         return prediction, uncertainty
 
-    def cost_fn(param: np.ndarray, depth: np.ndarray, scale_invariant: bool, shift_invariant: bool, ensemble_size: int, regularizer_strength: float, reduction: str) -> float:
+    def cost_fn(
+        param: np.ndarray,
+        depth: np.ndarray,
+        scale_invariant: bool,
+        shift_invariant: bool,
+        ensemble_size: int,
+        regularizer_strength: float,
+        reduction: str,
+    ) -> float:
         cost = 0.0
         depth_aligned = align(depth, param, scale_invariant, shift_invariant, ensemble_size)
 
@@ -104,7 +114,17 @@ def ensemble_depth(
 
         return cost
 
-    def compute_param(depth: np.ndarray, scale_invariant: bool, shift_invariant: bool, ensemble_size: int, regularizer_strength: float, reduction: str, max_res: int, tol: float, max_iter: int) -> np.ndarray:
+    def compute_param(
+        depth: np.ndarray,
+        scale_invariant: bool,
+        shift_invariant: bool,
+        ensemble_size: int,
+        regularizer_strength: float,
+        reduction: str,
+        max_res: int,
+        tol: float,
+        max_iter: int,
+    ) -> np.ndarray:
         depth_to_align = depth.astype(np.float32)
         if max_res is not None and max(depth_to_align.shape[2:]) > max_res:
             depth_to_align = resize_max_res(
@@ -115,7 +135,15 @@ def ensemble_depth(
         param = init_param(depth_to_align)
 
         res = scipy.optimize.minimize(
-            partial(cost_fn, depth=depth_to_align, scale_invariant=scale_invariant, shift_invariant=shift_invariant, ensemble_size=ensemble_size, regularizer_strength=regularizer_strength, reduction=reduction),
+            partial(
+                cost_fn,
+                depth=depth_to_align,
+                scale_invariant=scale_invariant,
+                shift_invariant=shift_invariant,
+                ensemble_size=ensemble_size,
+                regularizer_strength=regularizer_strength,
+                reduction=reduction,
+            ),
             param,
             method="BFGS",
             tol=tol,
@@ -128,7 +156,17 @@ def ensemble_depth(
     ensemble_size = depth.shape[0]
 
     if requires_aligning:
-        param = compute_param(depth, scale_invariant, shift_invariant, ensemble_size, regularizer_strength, reduction, max_res, tol, max_iter)
+        param = compute_param(
+            depth,
+            scale_invariant,
+            shift_invariant,
+            ensemble_size,
+            regularizer_strength,
+            reduction,
+            max_res,
+            tol,
+            max_iter,
+        )
         depth = align(depth, param, scale_invariant, shift_invariant, ensemble_size)
 
     depth, uncertainty = ensemble(depth, reduction, return_uncertainty=output_uncertainty)

@@ -1,5 +1,6 @@
-import pandas as pd
 import numpy as np
+import pandas as pd
+
 
 # A class to track all metrics
 class MetricTracker:
@@ -72,7 +73,7 @@ def rmse_linear(output, target, valid_mask=None):
         n = np.sum(valid_mask, axis=(-1, -2))
     else:
         n = output.shape[-1] * output.shape[-2]
-    diff2 = diff ** 2
+    diff2 = diff**2
     mse = np.sum(diff2, axis=(-1, -2)) / n
     rmse = np.sqrt(mse)
     return np.mean(rmse)
@@ -87,7 +88,7 @@ def rmse_log(output, target, valid_mask=None):
         n = np.sum(valid_mask, axis=(-1, -2))
     else:
         n = output.shape[-1] * output.shape[-2]
-    diff2 = diff ** 2
+    diff2 = diff**2
     mse = np.sum(diff2, axis=(-1, -2)) / n
     rmse = np.sqrt(mse)
     return np.mean(rmse)
@@ -129,7 +130,7 @@ def i_rmse(output, target, valid_mask=None):
         n = np.sum(valid_mask, axis=(-1, -2))
     else:
         n = output.shape[-1] * output.shape[-2]
-    diff2 = diff ** 2
+    diff2 = diff**2
     mse = np.sum(diff2, axis=(-1, -2)) / n
     rmse = np.sqrt(mse)
     return np.mean(rmse)
@@ -145,9 +146,9 @@ def silog_rmse(depth_pred, depth_gt, valid_mask=None):
     else:
         n = depth_gt.shape[-2] * depth_gt.shape[-1]
 
-    diff2 = diff ** 2
+    diff2 = diff**2
 
     first_term = np.sum(diff2, axis=(-1, -2)) / n
-    second_term = (np.sum(diff, axis=(-1, -2)) ** 2) / (n ** 2)
+    second_term = (np.sum(diff, axis=(-1, -2)) ** 2) / (n**2)
     loss = np.sqrt(np.mean(first_term - second_term)) * 100
     return loss

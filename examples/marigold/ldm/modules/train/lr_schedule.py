@@ -15,7 +15,13 @@
 """Learning Rate Scheduler Factory"""
 import logging
 
-from .dynamic_lr import cosine_decay_refined_lr, linear_refined_lr, multi_step_lr, polynomial_refined_lr, iter_exponential_lr
+from .dynamic_lr import (
+    cosine_decay_refined_lr,
+    iter_exponential_lr,
+    linear_refined_lr,
+    multi_step_lr,
+    polynomial_refined_lr,
+)
 
 _logger = logging.getLogger(__name__)
 
@@ -78,7 +84,9 @@ def create_scheduler(
     else:
         num_steps = num_epochs * steps_per_epoch
         if warmup_steps + decay_steps > num_steps:
-            _logger.warning("warmup_steps + decay_steps > num_steps. Please check and reduce warmup_steps or decay_steps!")
+            _logger.warning(
+                "warmup_steps + decay_steps > num_steps. Please check and reduce warmup_steps or decay_steps!"
+            )
 
     # lr decay phase
     main_steps = num_steps - warmup_steps
@@ -100,7 +108,9 @@ def create_scheduler(
     elif scheduler == "constant":
         main_lr_scheduler = [lr for _ in range(main_steps)]
     elif scheduler == "iter_exponential":
-        main_lr_scheduler = iter_exponential_lr(total_steps=main_steps, max_iters=max_iters, lr=lr, decay_rate=decay_rate)
+        main_lr_scheduler = iter_exponential_lr(
+            total_steps=main_steps, max_iters=max_iters, lr=lr, decay_rate=decay_rate
+        )
     else:
         raise ValueError(f"Invalid scheduler: {scheduler}")
 

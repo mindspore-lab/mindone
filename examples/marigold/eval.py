@@ -19,26 +19,16 @@ import os
 
 import numpy as np
 from omegaconf import OmegaConf
+from src.dataset import BaseDepthDataset, DatasetMode, get_dataset, get_pred_name
+from src.util import metric
+from src.util.alignment import align_depth_least_square, depth2disparity, disparity2depth
+from src.util.metric import MetricTracker
 from tabulate import tabulate
 from tqdm.auto import tqdm
 
+import mindspore.dataset as ds
 from mindspore import context
 from mindspore import dtype as mstype
-import mindspore.dataset as ds
-
-from src.dataset import (
-    BaseDepthDataset,
-    DatasetMode,
-    get_dataset,
-    get_pred_name,
-)
-from src.util import metric
-from src.util.alignment import (
-    align_depth_least_square,
-    depth2disparity,
-    disparity2depth,
-)
-from src.util.metric import MetricTracker
 
 eval_metrics = [
     "abs_relative_difference",
@@ -69,12 +59,7 @@ if __name__ == "__main__":
         required=True,
         help="Directory of depth predictions",
     )
-    parser.add_argument(
-        "--output_dir", 
-        type=str, 
-        required=True, 
-        help="Output directory."
-    )
+    parser.add_argument("--output_dir", type=str, required=True, help="Output directory.")
 
     # dataset setting
     parser.add_argument(
@@ -163,9 +148,7 @@ if __name__ == "__main__":
 
         # Load predictions
         rgb_basename = os.path.basename(rgb_name)
-        pred_basename = get_pred_name(
-            rgb_basename, dataset.name_mode, suffix=pred_suffix
-        )
+        pred_basename = get_pred_name(rgb_basename, dataset.name_mode, suffix=pred_suffix)
         pred_name = os.path.join(os.path.dirname(rgb_name), pred_basename)
         pred_path = os.path.join(prediction_dir, pred_name)
         depth_pred = np.load(pred_path)
@@ -185,9 +168,7 @@ if __name__ == "__main__":
             )
         elif "least_square_disparity" == alignment:
             # convert GT depth -> GT disparity
-            gt_disparity, gt_non_neg_mask = depth2disparity(
-                depth=depth_raw, return_mask=True
-            )
+            gt_disparity, gt_non_neg_mask = depth2disparity(depth=depth_raw, return_mask=True)
             # LS alignment in disparity space
             pred_non_neg_mask = depth_pred > 0
             valid_nonnegative_mask = valid_mask & gt_non_neg_mask & pred_non_neg_mask
@@ -200,15 +181,11 @@ if __name__ == "__main__":
                 max_resolution=alignment_max_res,
             )
             # convert to depth
-            disparity_pred = np.clip(
-                disparity_pred, a_min=1e-3, a_max=None
-            )  # avoid 0 disparity
+            disparity_pred = np.clip(disparity_pred, a_min=1e-3, a_max=None)  # avoid 0 disparity
             depth_pred = disparity2depth(disparity_pred)
 
         # Clip to dataset min max
-        depth_pred = np.clip(
-            depth_pred, a_min=dataset.min_depth, a_max=dataset.max_depth
-        )
+        depth_pred = np.clip(depth_pred, a_min=dataset.min_depth, a_max=dataset.max_depth)
 
         # clip to d > 0 for evaluation
         depth_pred = np.clip(depth_pred, a_min=1e-6, a_max=None)
@@ -237,9 +214,7 @@ if __name__ == "__main__":
     eval_text += f"min_depth = {dataset.min_depth}\n"
     eval_text += f"max_depth = {dataset.max_depth}\n"
 
-    eval_text += tabulate(
-        [metric_tracker.result().keys(), metric_tracker.result().values()]
-    )
+    eval_text += tabulate([metric_tracker.result().keys(), metric_tracker.result().values()])
 
     metrics_filename = "eval_metrics"
     if alignment:

@@ -1,11 +1,16 @@
+import math
+
 import mindspore.nn as nn
 import mindspore.ops as ops
 from mindspore import Tensor
-import math
 
 
 def multi_res_noise_like(
-    x, dtype, strength=0.9, downscale_strategy="original", generator=None, 
+    x,
+    dtype,
+    strength=0.9,
+    downscale_strategy="original",
+    generator=None,
 ):
     if isinstance(strength, Tensor):
         strength = ops.reshape(strength, (-1, 1, 1, 1))
@@ -16,8 +21,12 @@ def multi_res_noise_like(
 
     if "original" == downscale_strategy:
         for i in range(10):
-            r = ops.uniform((1,), minval=Tensor(2.0, dtype), maxval=Tensor(4.0, dtype), seed=generator) if generator else ops.uniform((1,), minval=Tensor(2.0, dtype), maxval=Tensor(4.0, dtype))  # Random scaling factor
-            w, h = max(1, int(w / (r.item()**i))), max(1, int(h / (r.item()**i)))
+            r = (
+                ops.uniform((1,), minval=Tensor(2.0, dtype), maxval=Tensor(4.0, dtype), seed=generator)
+                if generator
+                else ops.uniform((1,), minval=Tensor(2.0, dtype), maxval=Tensor(4.0, dtype))
+            )  # Random scaling factor
+            w, h = max(1, int(w / (r.item() ** i))), max(1, int(h / (r.item() ** i)))
             new_noise = ops.standard_normal((b, c, w, h), seed=generator)
             noise += up_sampler(new_noise) * (strength**i)
             if w == 1 or h == 1:
@@ -37,7 +46,11 @@ def multi_res_noise_like(
                 break  # Lowest resolution is 1x1
     elif "random_step" == downscale_strategy:
         for i in range(10):
-            r = (ops.uniform((1,), minval=Tensor(2.0, dtype), maxval=Tensor(4.0, dtype), seed=generator) if generator else ops.uniform((1,), minval=Tensor(2.0, dtype), maxval=Tensor(4.0, dtype)))  # Random scaling factor
+            r = (
+                ops.uniform((1,), minval=Tensor(2.0, dtype), maxval=Tensor(4.0, dtype), seed=generator)
+                if generator
+                else ops.uniform((1,), minval=Tensor(2.0, dtype), maxval=Tensor(4.0, dtype))
+            )  # Random scaling factor
             w, h = max(1, int(w / r.item())), max(1, int(h / r.item()))
             new_noise = ops.standard_normal((b, c, w, h), seed=generator)
             noise += up_sampler(new_noise) * (strength**i)

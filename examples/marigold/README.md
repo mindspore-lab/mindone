@@ -11,7 +11,7 @@ The train and inference code was tested on:
 - **1*ascend-snt9b|ARM: 24核 192GB**
 - **python3.9, mindspore-2.2.14, cann7.0.0.beta1**
 
-The other dependent libraries has been recorded in **requirements.txt**, please first install above package and then use command below to install the environment.
+The other dependent libraries has been recorded in **requirements.txt**, please first install above package and `mindone`, then use command below to install the environment.
 
 ```bash
 pip install -r requirements.txt
@@ -60,7 +60,7 @@ We recommend to run inference with this checkpoint.
     bash script/download_sample_data_mindspore.sh
     ```
 
-2. Or place your images in the directory, for example, under `input/in-the-wild_example`, and run the following inference command.
+2. Or place your images in the directory `input/in-the-wild_example`, and run the following inference command.
 
     ```bash
     python run.py --fp16
@@ -89,7 +89,7 @@ The default settings are optimized for the best result. However, the behavior of
   - `--denoise_steps`: Number of denoising steps of each inference pass. For the original (DDIM) version, it's recommended to use 10-50 steps. When unassigned (`None`), will read default setting from config. Default: 50 (for run.py and infer.py).
 
 - By default, the inference script resizes input images to the *processing resolution*, and then resizes the prediction back to the original resolution. This gives the best quality, as Stable Diffusion, from which Marigold is derived, performs best at 768x768 resolution.  
-  
+
   - `--processing_res`: the processing resolution; set as 0 to process the input resolution directly. When unassigned (`None`), will read default setting from model config. Default: 768.
   - `--output_processing_res`: produce output at the processing resolution instead of upsampling it to the input resolution. Default: False.
   - `--resample_method`: the resampling method used to resize images and depth predictions. This can be one of `bilinear`, `bicubic`, or `nearest`. Default: `bilinear`.
@@ -119,7 +119,7 @@ marigold
 |   |——nyuv2
 |   |   ㇗nyu_labeled_extracted.tar
 |   |——kitti
-|   |   ㇗kitti_sampled_val_800.tar
+|   |   ㇗kitti_eigen_split_test.tar
 ...
 ```
 
@@ -142,13 +142,13 @@ As for official training dataset Hypersim is too big, the code is only verified 
 You can download offical rgb and depth zip of Virtual KITTI, and run scripts as follow to get needed form for train.
 
 ```bash
-bash scripts/download_vkitti.sh
+bash script/download_vkitti.sh
 ```
 
 If you can't access the official VKITTI, you can use following script to download the dataset I have upload to [mindspore platform](https://xihe.mindspore.cn/models/Braval/Marigold-Model).
 
 ```bash
-bash scripts/download_vkitti_mindspore.sh
+bash script/download_vkitti_mindspore.sh
 ```
 
 After download, the train datasets path should be like this:
@@ -190,13 +190,13 @@ marigold
 ...
 ```
 
-And then you could orgnized your data as [infer](#infer) and [evaluation](#evaluation) has introduced. And run
+And then you could orgnized your data as [infer](#infer) and [evaluation](#evaluation) has introduced. And run below command to infer on your own ckpt:
 
 ```bash
 python run.py --fp16 --checkpoint marigold-checkpoint/marigold-vkitti.ckpt --ms_ckpt
 ```
 
-to infer on your own data, or run
+Or run following command to eval on datasets.
 
 ```bash
 # Run inference
@@ -205,8 +205,6 @@ bash script/eval/11_infer_nyu_mindspore.sh --fp16
 # Evaluate predictions
 bash script/eval/12_eval_nyu.sh
 ```
-
-to eval on datasets.
 
 **Note**: The training code is still being updated to ensure the training result which not performs good now.
 

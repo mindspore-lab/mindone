@@ -46,7 +46,7 @@ depth_normalization:
 
 augmentation:
   lr_flip_p: 0.5
-  
+
 dataloader:
   num_workers: 2
   effective_batch_size: 32

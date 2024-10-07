@@ -1,7 +1,8 @@
-import mindspore
 import numpy as np
 
-from .base_depth_dataset import BaseDepthDataset, DepthFileNameMode, DatasetMode
+import mindspore
+
+from .base_depth_dataset import BaseDepthDataset, DatasetMode, DepthFileNameMode
 
 
 class NYUDataset(BaseDepthDataset):
@@ -20,7 +21,7 @@ class NYUDataset(BaseDepthDataset):
         )
 
         self.eigen_valid_mask = eigen_valid_mask
-        
+
     def __getitem__(self, index):
         outputs = super().__getitem__(index)
         if DatasetMode.RGB_ONLY == self.mode:
@@ -55,4 +56,3 @@ class NYUDataset(BaseDepthDataset):
             valid_mask = np.logical_and(valid_mask, eval_mask)
 
         return valid_mask
-

@@ -18,39 +18,25 @@ import logging
 import os
 
 import numpy as np
+from marigold import MarigoldPipeline
 from omegaconf import OmegaConf
 from PIL import Image
+from src.dataset import BaseDepthDataset, DatasetMode, get_dataset, get_pred_name
+from src.util.msckpt_utils import build_model_from_config, load_pretrained_model, replace_unet_conv_in
+from src.util.seeding import seed_all
 from tqdm.auto import tqdm
-import importlib
 
+import mindspore.dataset as ds
 from mindspore import context
 from mindspore import dtype as mstype
-from mindspore import nn, load_checkpoint, load_param_into_net, ops
-import mindspore.dataset as ds
 
 from mindone.diffusers import DDIMScheduler
-from marigold import MarigoldPipeline
-from src.dataset import (
-    BaseDepthDataset,
-    DatasetMode,
-    get_dataset,
-    get_pred_name,
-)
-from src.util.msckpt_utils import (
-    build_model_from_config, 
-    load_pretrained_model,
-    replace_unet_conv_in,
-)
-from src.util.seeding import seed_all
-
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
 
     # -------------------- Arguments --------------------
-    parser = argparse.ArgumentParser(
-        description="Run single-image depth estimation using Marigold."
-    )
+    parser = argparse.ArgumentParser(description="Run single-image depth estimation using Marigold.")
     parser.add_argument(
         "--checkpoint",
         type=str,
@@ -85,12 +71,7 @@ if __name__ == "__main__":
         help="Path to base data directory.",
     )
 
-    parser.add_argument(
-        "--output_dir", 
-        type=str, 
-        required=True, 
-        help="Output directory."
-    )
+    parser.add_argument("--output_dir", type=str, required=True, help="Output directory.")
 
     # inference setting
     parser.add_argument(
@@ -151,15 +132,14 @@ if __name__ == "__main__":
     match_input_res = not args.output_processing_res
     if 0 == processing_res and match_input_res is False:
         logging.warning(
-            "Processing at native resolution without resizing output might NOT lead to exactly the same resolution, due to the padding and pooling properties of conv layers."
+            "Processing at native resolution without resizing output might NOT lead to exactly the same resolution, \
+            due to the padding and pooling properties of conv layers."
         )
     resample_method = args.resample_method
 
     if args.half_precision:
         dtype = mstype.float16
-        logging.warning(
-            f"Running with half precision ({dtype}), might lead to suboptimal result."
-        )
+        logging.warning(f"Running with half precision ({dtype}), might lead to suboptimal result.")
     else:
         dtype = mstype.float32
 
@@ -179,17 +159,14 @@ if __name__ == "__main__":
     # Random seed
     if seed is None:
         import time
+
         seed = int(time.time())
     seed_all(seed)
 
     def check_directory(directory):
         if os.path.exists(directory):
             response = (
-                input(
-                    f"The directory '{directory}' already exists. Are you sure to continue? (y/n): "
-                )
-                .strip()
-                .lower()
+                input(f"The directory '{directory}' already exists. Are you sure to continue? (y/n): ").strip().lower()
             )
             if "y" == response:
                 pass
@@ -225,36 +202,28 @@ if __name__ == "__main__":
 
     # -------------------- Model --------------------
     if not args.ms_ckpt:
-        pipe: MarigoldPipeline = MarigoldPipeline.from_pretrained(
-            checkpoint_path, mindspore_dtype=dtype
-        )
+        pipe: MarigoldPipeline = MarigoldPipeline.from_pretrained(checkpoint_path, mindspore_dtype=dtype)
     else:
         latent_diffusion_with_loss = build_model_from_config("./config/v2-vpred-train.yaml", False)
-        load_pretrained_model(
-            checkpoint_path, latent_diffusion_with_loss, unet_initialize_random=False
-        )
+        load_pretrained_model(checkpoint_path, latent_diffusion_with_loss, unet_initialize_random=False)
         replace_unet_conv_in(latent_diffusion_with_loss, args.half_precision)
         pipe = MarigoldPipeline(
-            unet = latent_diffusion_with_loss.model.diffusion_model,
-            vae = latent_diffusion_with_loss.first_stage_model,
-            scheduler = DDIMScheduler.from_config("./config/scheduler_config.json"),
-            text_encoder = latent_diffusion_with_loss.cond_stage_model,
-            tokenizer = latent_diffusion_with_loss.cond_stage_model,
-            scale_invariant = True,
-            shift_invariant = True,
-            default_denoising_steps = 10,
-            default_processing_resolution = 768,
-            is_ms_ckpt = True,
+            unet=latent_diffusion_with_loss.model.diffusion_model,
+            vae=latent_diffusion_with_loss.first_stage_model,
+            scheduler=DDIMScheduler.from_config("./config/scheduler_config.json"),
+            text_encoder=latent_diffusion_with_loss.cond_stage_model,
+            tokenizer=latent_diffusion_with_loss.cond_stage_model,
+            scale_invariant=True,
+            shift_invariant=True,
+            default_denoising_steps=10,
+            default_processing_resolution=768,
+            is_ms_ckpt=True,
         )
 
-    logging.info(
-        f"scale_invariant: {pipe.scale_invariant}, shift_invariant: {pipe.shift_invariant}"
-    )
+    logging.info(f"scale_invariant: {pipe.scale_invariant}, shift_invariant: {pipe.shift_invariant}")
 
     # -------------------- Inference and saving --------------------
-    for batch in tqdm(
-        dataloader, desc=f"Inferencing on {dataset.disp_name}", leave=True
-    ):
+    for batch in tqdm(dataloader, desc=f"Inferencing on {dataset.disp_name}", leave=True):
         batch = batch[0]
         # Read input image
         rgb_int = batch["rgb_int"].squeeze().asnumpy().astype(np.uint8)  # [3, H, W]
@@ -282,12 +251,9 @@ if __name__ == "__main__":
         scene_dir = os.path.join(output_dir, os.path.dirname(rgb_filename))
         if not os.path.exists(scene_dir):
             os.makedirs(scene_dir)
-        pred_basename = get_pred_name(
-            rgb_basename, dataset.name_mode, suffix=".npy"
-        )
+        pred_basename = get_pred_name(rgb_basename, dataset.name_mode, suffix=".npy")
         save_to = os.path.join(scene_dir, pred_basename)
         if os.path.exists(save_to):
             logging.warning(f"Existing file: '{save_to}' will be overwritten")
 
         np.save(save_to, depth_pred)
-

@@ -1,15 +1,14 @@
 import matplotlib
 import numpy as np
-from mindspore import Tensor
-import mindspore.ops as ops
+
 import mindspore.dataset.vision as vision
+import mindspore.ops as ops
+from mindspore import Tensor
 from mindspore.common import dtype as mstype
 from mindspore.dataset.vision import Inter
 
 
-def colorize_depth_maps(
-    depth_map, min_depth, max_depth, cmap="Spectral", valid_mask=None
-):
+def colorize_depth_maps(depth_map, min_depth, max_depth, cmap="Spectral", valid_mask=None):
     """
     Colorize depth maps.
     """
@@ -57,7 +56,7 @@ def chw2hwc(chw):
     """
     assert 3 == len(chw.shape)
     if isinstance(chw, Tensor):
-        hwc = P.Transpose()(chw, (1, 2, 0))
+        hwc = ops.Transpose()(chw, (1, 2, 0))
     elif isinstance(chw, np.ndarray):
         hwc = np.moveaxis(chw, 0, -1)
     return hwc
@@ -76,16 +75,14 @@ def resize_max_res(
 
     original_height, original_width = img.shape[1], img.shape[2]
 
-    downscale_factor = min(
-        max_edge_resolution / original_width, max_edge_resolution / original_height
-    )
+    downscale_factor = min(max_edge_resolution / original_width, max_edge_resolution / original_height)
 
     new_width = int(original_width * downscale_factor)
     new_height = int(original_height * downscale_factor)
 
     if stick_size64:
-        new_width = int(round(new_width/64, 0)) * 64
-        new_height = int(round(new_height/64, 0)) * 64
+        new_width = int(round(new_width / 64, 0)) * 64
+        new_height = int(round(new_height / 64, 0)) * 64
 
     resample_method_dict = {
         "bilinear": Inter.BILINEAR,
@@ -94,7 +91,7 @@ def resize_max_res(
         "nearest-exact": Inter.NEAREST,
     }
     resample_method = resample_method_dict.get(resample_method, None)
-    
+
     resized = []
     for i in range(img.shape[0]):
         resized.append(vision.Resize((new_height, new_width), resample_method)(img[i]))

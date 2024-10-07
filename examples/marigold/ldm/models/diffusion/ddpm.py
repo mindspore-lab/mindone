@@ -347,66 +347,6 @@ class MarigoldLatentDiffusion(DDPM):
         tokenized_res = self.cond_stage_model.tokenize(c)
         return tokenized_res
 
-    # def multiscale_noise(self, x, dtype, strength=0.9, downscale_strategy="original", generator=None):
-    #     if isinstance(strength, Tensor):
-    #         strength = ops.reshape(strength, (-1, 1, 1, 1))
-    #     b, c, w, h = x.shape
-
-    #     up_sampler = ops.ResizeBilinear((w, h))
-    #     noise = ops.standard_normal(x.shape, seed=generator)
-
-    #     if "original" == downscale_strategy:
-    #         for i in range(10):
-    #             r = ops.uniform((1,), minval=Tensor(2.0, mstype.float32), maxval=Tensor(4.0, mstype.float32), seed=generator) if generator else ops.uniform((1,), minval=Tensor(2.0, mstype.float32), maxval=Tensor(4.0, mstype.float32))  # Random scaling factor
-    #             w, h = np.max([1, int(w / (r.item()**i))]), np.max([1, int(h / (r.item()**i))])
-    #             new_noise = ops.standard_normal((b, c, w, h), seed=generator)
-    #             noise += up_sampler(new_noise) * (strength**i)
-    #             if w == 1 or h == 1:
-    #                 break  # Lowest resolution is 1x1
-    #     elif "every_layer" == downscale_strategy:
-    #         for i in range(int(np.log2(np.min([w, h])))):
-    #             w, h = np.max([1, int(w / 2)]), np.max([1, int(h / 2)])
-    #             new_noise = ops.standard_normal((b, c, w, h), seed=generator)
-    #             noise += up_sampler(new_noise) * (strength**i)
-    #     elif "power_of_two" == downscale_strategy:
-    #         for i in range(10):
-    #             r = 2
-    #             w, h = np.max([1, int(w / (r**i))]), np.max([1, int(h / (r**i))])
-    #             new_noise = ops.standard_normal((b, c, w, h), seed=generator)
-    #             noise += up_sampler(new_noise) * (strength**i)
-    #             if w == 1 or h == 1:
-    #                 break  # Lowest resolution is 1x1
-    #     elif "random_step" == downscale_strategy:
-    #         for i in range(10):
-    #             r = (ops.uniform((1,), minval=Tensor(2.0, mstype.float32), maxval=Tensor(4.0, mstype.float32), seed=generator) if generator else ops.uniform((1,), minval=Tensor(2.0, mstype.float32), maxval=Tensor(4.0, mstype.float32)))  # Random scaling factor
-    #             w, h = np.max([1, int(w / r.item())]), np.max([1, int(h / r.item())])
-    #             new_noise = ops.standard_normal((b, c, w, h), seed=generator)
-    #             noise += up_sampler(new_noise) * (strength**i)
-    #             if w == 1 or h == 1:
-    #                 break  # Lowest resolution is 1x1
-    #     else:
-    #         raise ValueError(f"unknown downscale strategy: {downscale_strategy}")
-
-    #     noise = noise / noise.std()  # Scaled back to roughly unit variance
-    #     noise = noise.to(dtype)
-    #     return noise
-
-    # def get_multiscale_noise(self, x_start, timesteps):
-    #     if self.apply_multi_res_noise:
-    #         strength = self.mr_noise_strength
-    #         if self.annealed_mr_noise:
-    #             # calculate the annealed strength
-    #             strength = strength * (timesteps / self.num_timesteps)
-    #         noise = self.multiscale_noise(
-    #             x_start,
-    #             dtype=self.dtype,
-    #             strength=strength,
-    #             downscale_strategy=self.mr_noise_downscale_strategy,
-    #         )
-    #     else:
-    #         noise = msnp.randn(x_start.shape)  # [B, 4, h, w]
-    #     return noise
-
     def get_learned_conditioning(self, c):
         if self.cond_stage_forward is None:
             c = self.cond_stage_model.encode(c)
@@ -458,7 +398,18 @@ class MarigoldLatentDiffusion(DDPM):
         z = ops.stop_gradient(self.get_first_stage_encoding(self.encode_first_stage(x)))
         return z, c
 
-    def construct(self, rgb_int, rgb_norm, depth_raw_linear, depth_filled_linear, valid_mask_raw, valid_mask_filled, depth_raw_norm, depth_filled_norm, c):
+    def construct(
+        self,
+        rgb_int,
+        rgb_norm,
+        depth_raw_linear,
+        depth_filled_linear,
+        valid_mask_raw,
+        valid_mask_filled,
+        depth_raw_norm,
+        depth_filled_norm,
+        c,
+    ):
         t = self.uniform_int(
             (rgb_norm.shape[0],), Tensor(0, dtype=mstype.int32), Tensor(self.num_timesteps, dtype=mstype.int32)
         )
@@ -501,7 +452,9 @@ class MarigoldLatentDiffusion(DDPM):
         else:
             raise NotImplementedError()
 
-        loss_simple = ops.sum(self.get_loss(model_output*valid_mask, target*valid_mask, mean=False)) / ops.sum(valid_mask)
+        loss_simple = ops.sum(self.get_loss(model_output * valid_mask, target * valid_mask, mean=False)) / ops.sum(
+            valid_mask
+        )
 
         logvar_t = self.logvar[t]
         loss = loss_simple / ops.exp(logvar_t) + logvar_t

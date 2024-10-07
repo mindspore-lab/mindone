@@ -1,10 +1,11 @@
-import os
-from omegaconf import OmegaConf
 import importlib
 import logging
+import os
+
+from omegaconf import OmegaConf
 
 from mindspore import dtype as mstype
-from mindspore import nn, load_checkpoint, load_param_into_net, ops
+from mindspore import load_checkpoint, load_param_into_net, nn, ops
 
 
 def build_model_from_config(config, enable_flash_attention=None, args=None):
@@ -63,13 +64,13 @@ def replace_unet_conv_in(latent_diffusion_with_loss, use_fp16):
     # create new conv_in layer
     _n_convin_out_channel = latent_diffusion_with_loss.model.diffusion_model.input_blocks[0][0].conv.out_channels
     if use_fp16:
-        _new_conv_in = nn.Conv2d(
-            8, _n_convin_out_channel, 3, pad_mode='pad', padding=1, has_bias=True
-        ).to_float(mstype.float16)
+        _new_conv_in = nn.Conv2d(8, _n_convin_out_channel, 3, pad_mode="pad", padding=1, has_bias=True).to_float(
+            mstype.float16
+        )
     else:
-        _new_conv_in = nn.Conv2d(
-            8, _n_convin_out_channel, 3, pad_mode='pad', padding=1, has_bias=True
-        ).to_float(mstype.float32)
+        _new_conv_in = nn.Conv2d(8, _n_convin_out_channel, 3, pad_mode="pad", padding=1, has_bias=True).to_float(
+            mstype.float32
+        )
     _new_conv_in.weight.set_data(_weight)
     _new_conv_in.bias.set_data(_bias)
     latent_diffusion_with_loss.model.diffusion_model.input_blocks[0][0].conv = _new_conv_in

@@ -7,14 +7,10 @@ from typing import Union
 
 import numpy as np
 from PIL import Image
-import mindspore
-from mindspore import Tensor
-import mindspore.dataset as ds
-from mindspore import ops
-from mindspore.dataset.transforms import c_transforms as C
-from mindspore.dataset.vision import c_transforms as CV
-
 from src.util.depth_transform import DepthNormalizerBase
+
+from mindspore import Tensor
+from mindspore.dataset.vision import Inter, Resize
 
 
 class DatasetMode(Enum):
@@ -49,21 +45,19 @@ class BaseDepthDataset:
         max_depth: float,
         has_filled_depth: bool,
         name_mode: DepthFileNameMode,
-        tokenizer = None,
+        tokenizer=None,
         depth_transform: Union[DepthNormalizerBase, None] = None,
         augmentation_args: dict = None,
         resize_to_hw=None,
         move_invalid_to_far_plane: bool = True,
-        rgb_transform=lambda x: x / 255.0 * 2 - 1,  #  [0, 255] -> [-1, 1],
+        rgb_transform=lambda x: x / 255.0 * 2 - 1,  # [0, 255] -> [-1, 1],
         **kwargs,
     ) -> None:
         self.mode = mode
         # dataset info
         self.filename_ls_path = filename_ls_path
         self.dataset_dir = dataset_dir
-        assert os.path.exists(
-            self.dataset_dir
-        ), f"Dataset does not exist at: {self.dataset_dir}"
+        assert os.path.exists(self.dataset_dir), f"Dataset does not exist at: {self.dataset_dir}"
         self.disp_name = disp_name
         self.has_filled_depth = has_filled_depth
         self.name_mode: DepthFileNameMode = name_mode
@@ -80,18 +74,12 @@ class BaseDepthDataset:
 
         # Load filenames
         with open(self.filename_ls_path, "r") as f:
-            self.filenames = [
-                s.split() for s in f.readlines()
-            ]  # [['rgb.png', 'depth.tif'], [], ...]
+            self.filenames = [s.split() for s in f.readlines()]  # [['rgb.png', 'depth.tif'], [], ...]
 
         # Tar dataset
         self.tar_obj = None
-        self.is_tar = (
-            True
-            if os.path.isfile(dataset_dir) and tarfile.is_tarfile(dataset_dir)
-            else False
-        )
-        
+        self.is_tar = True if os.path.isfile(dataset_dir) and tarfile.is_tarfile(dataset_dir) else False
+
     def tokenize(self, text):
         # a hack to determine if use transformers.CLIPTokenizer
         # should handle it better
@@ -136,10 +124,20 @@ class BaseDepthDataset:
         outputs.update(other)
         if DatasetMode.TRAIN == self.mode:
             caption_input = self.tokenize("")
-            return outputs["rgb_int"], outputs["rgb_norm"], outputs["depth_raw_linear"], outputs["depth_filled_linear"], outputs["valid_mask_raw"], outputs["valid_mask_filled"], outputs["depth_raw_norm"], outputs["depth_filled_norm"], np.array(caption_input, dtype=np.int64)
+            return (
+                outputs["rgb_int"],
+                outputs["rgb_norm"],
+                outputs["depth_raw_linear"],
+                outputs["depth_filled_linear"],
+                outputs["valid_mask_raw"],
+                outputs["valid_mask_filled"],
+                outputs["depth_raw_norm"],
+                outputs["depth_filled_norm"],
+                np.array(caption_input, dtype=np.int64),
+            )
         else:
             return outputs
-    
+
     def _get_data_item(self, index):
         rgb_rel_path, depth_rel_path, filled_rel_path = self._get_data_path(index=index)
 
@@ -151,17 +149,11 @@ class BaseDepthDataset:
         # Depth data
         if DatasetMode.RGB_ONLY != self.mode:
             # load data
-            depth_data = self._load_depth_data(
-                depth_rel_path=depth_rel_path, filled_rel_path=filled_rel_path
-            )
+            depth_data = self._load_depth_data(depth_rel_path=depth_rel_path, filled_rel_path=filled_rel_path)
             rasters.update(depth_data)
             # valid mask
-            rasters["valid_mask_raw"] = self._get_valid_mask(
-                rasters["depth_raw_linear"]
-            ).copy()
-            rasters["valid_mask_filled"] = self._get_valid_mask(
-                rasters["depth_filled_linear"]
-            ).copy()
+            rasters["valid_mask_raw"] = self._get_valid_mask(rasters["depth_raw_linear"]).copy()
+            rasters["valid_mask_filled"] = self._get_valid_mask(rasters["depth_filled_linear"]).copy()
 
         other = {"index": index, "rgb_relative_path": rgb_rel_path}
 
@@ -170,7 +162,7 @@ class BaseDepthDataset:
     def _load_rgb_data(self, rgb_rel_path):
         # Read RGB data
         rgb = self._read_rgb_file(rgb_rel_path)
-        rgb_norm = rgb / 255.0 * 2.0 - 1.0  #  [0, 255] -> [-1, 1]
+        rgb_norm = rgb / 255.0 * 2.0 - 1.0  # [0, 255] -> [-1, 1]
 
         outputs = {
             "rgb_int": np.array(rgb, dtype=np.int32),
@@ -211,7 +203,7 @@ class BaseDepthDataset:
         if self.is_tar:
             if self.tar_obj is None:
                 self.tar_obj = tarfile.open(self.dataset_dir)
-            image_to_read = self.tar_obj.extractfile('./'+img_rel_path)
+            image_to_read = self.tar_obj.extractfile("./" + img_rel_path)
             image_to_read = image_to_read.read()
             image_to_read = io.BytesIO(image_to_read)
         else:
@@ -233,9 +225,7 @@ class BaseDepthDataset:
         return depth_decoded
 
     def _get_valid_mask(self, depth: Tensor):
-        valid_mask = np.logical_and(
-            (depth > self.min_depth), (depth < self.max_depth)
-        )
+        valid_mask = np.logical_and((depth > self.min_depth), (depth < self.max_depth))
         return valid_mask
 
     def _training_preprocess(self, rasters):
@@ -244,9 +234,7 @@ class BaseDepthDataset:
             rasters = self._augment_data(rasters)
 
         # Normalization
-        rasters["depth_raw_norm"] = self.depth_transform(
-            rasters["depth_raw_linear"], rasters["valid_mask_raw"]
-        ).copy()
+        rasters["depth_raw_norm"] = self.depth_transform(rasters["depth_raw_linear"], rasters["valid_mask_raw"]).copy()
         rasters["depth_filled_norm"] = self.depth_transform(
             rasters["depth_filled_linear"], rasters["valid_mask_filled"]
         ).copy()
@@ -254,19 +242,13 @@ class BaseDepthDataset:
         # Set invalid pixel to far plane
         if self.move_invalid_to_far_plane:
             if self.depth_transform.far_plane_at_max:
-                rasters["depth_filled_norm"][~rasters["valid_mask_filled"]] = (
-                    self.depth_transform.norm_max
-                )
+                rasters["depth_filled_norm"][~rasters["valid_mask_filled"]] = self.depth_transform.norm_max
             else:
-                rasters["depth_filled_norm"][~rasters["valid_mask_filled"]] = (
-                    self.depth_transform.norm_min
-                )
+                rasters["depth_filled_norm"][~rasters["valid_mask_filled"]] = self.depth_transform.norm_min
 
         # Resize
         if self.resize_to_hw is not None:
-            resize_transform = Resize(
-                size=self.resize_to_hw, interpolation=InterpolationMode.NEAREST_EXACT
-            )
+            resize_transform = Resize(size=self.resize_to_hw, interpolation=Inter.NEAREST)
             rasters = {k: resize_transform(v) for k, v in rasters.items()}
 
         return rasters
@@ -283,6 +265,7 @@ class BaseDepthDataset:
         if hasattr(self, "tar_obj") and self.tar_obj is not None:
             self.tar_obj.close()
             self.tar_obj = None
+
 
 def get_pred_name(rgb_basename, name_mode, suffix=".png"):
     if DepthFileNameMode.rgb_id == name_mode:

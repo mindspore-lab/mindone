@@ -1,10 +1,9 @@
 import os
 
-from .base_depth_dataset import BaseDepthDataset, get_pred_name, DatasetMode
+from .base_depth_dataset import BaseDepthDataset, DatasetMode, get_pred_name
 from .kitti_dataset import KITTIDataset
 from .nyu_dataset import NYUDataset
 from .vkitti_dataset import VirtualKITTIDataset
-
 
 dataset_name_class_dict = {
     "vkitti": VirtualKITTIDataset,
@@ -13,9 +12,7 @@ dataset_name_class_dict = {
 }
 
 
-def get_dataset(
-    cfg_data_split, base_data_dir: str, mode: DatasetMode, dtype, **kwargs
-) -> BaseDepthDataset:
+def get_dataset(cfg_data_split, base_data_dir: str, mode: DatasetMode, dtype, **kwargs) -> BaseDepthDataset:
     if cfg_data_split.name in dataset_name_class_dict.keys():
         dataset_class = dataset_name_class_dict[cfg_data_split.name]
         dataset = dataset_class(

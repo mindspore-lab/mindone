@@ -1,5 +1,6 @@
-import mindspore
 import numpy as np
+
+import mindspore
 
 from .base_depth_dataset import BaseDepthDataset, DepthFileNameMode
 
@@ -45,9 +46,7 @@ class KITTIDataset(BaseDepthDataset):
     def _load_depth_data(self, depth_rel_path, filled_rel_path):
         depth_data = super()._load_depth_data(depth_rel_path, filled_rel_path)
         if self.kitti_bm_crop:
-            depth_data = {
-                k: self.kitti_benchmark_crop(v) for k, v in depth_data.items()
-            }
+            depth_data = {k: self.kitti_benchmark_crop(v) for k, v in depth_data.items()}
         return depth_data
 
     @staticmethod

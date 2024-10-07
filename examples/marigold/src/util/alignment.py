@@ -1,6 +1,7 @@
 import numpy as np
 from PIL import Image
 
+
 def align_depth_least_square(
     gt_arr: np.ndarray,
     pred_arr: np.ndarray,
@@ -18,13 +19,23 @@ def align_depth_least_square(
     if max_resolution is not None:
         scale_factor = np.min(max_resolution / np.array(ori_shape[-2:]))
         if scale_factor < 1:
-            gt = np.array(Image.fromarray(gt).resize((int(gt.shape[1] * scale_factor), int(gt.shape[0] * scale_factor)), Image.NEAREST))
-            pred = np.array(Image.fromarray(pred).resize((int(pred.shape[1] * scale_factor), int(pred.shape[0] * scale_factor)), Image.NEAREST))
-            valid_mask = np.array(Image.fromarray(valid_mask.astype(np.uint8)).resize((int(valid_mask.shape[1] * scale_factor), int(valid_mask.shape[0] * scale_factor)), Image.NEAREST)).astype(bool)
+            gt = np.array(
+                Image.fromarray(gt).resize(
+                    (int(gt.shape[1] * scale_factor), int(gt.shape[0] * scale_factor)), Image.NEAREST
+                )
+            )
+            pred = np.array(
+                Image.fromarray(pred).resize(
+                    (int(pred.shape[1] * scale_factor), int(pred.shape[0] * scale_factor)), Image.NEAREST
+                )
+            )
+            valid_mask = np.array(
+                Image.fromarray(valid_mask.astype(np.uint8)).resize(
+                    (int(valid_mask.shape[1] * scale_factor), int(valid_mask.shape[0] * scale_factor)), Image.NEAREST
+                )
+            ).astype(bool)
 
-    assert (
-        gt.shape == pred.shape == valid_mask.shape
-    ), f"{gt.shape}, {pred.shape}, {valid_mask.shape}"
+    assert gt.shape == pred.shape == valid_mask.shape, f"{gt.shape}, {pred.shape}, {valid_mask.shape}"
 
     gt_masked = gt[valid_mask].reshape((-1, 1))
     pred_masked = pred[valid_mask].reshape((-1, 1))

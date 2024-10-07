@@ -1,5 +1,6 @@
 import numpy as np
 
+
 def get_depth_normalizer(cfg_normalizer):
     if cfg_normalizer is None:
 
@@ -53,9 +54,7 @@ class ScaleShiftDepthNormalizer(DepthNormalizerBase):
     is_absolute = False
     far_plane_at_max = True
 
-    def __init__(
-        self, norm_min=-1.0, norm_max=1.0, min_max_quantile=0.02, clip=True
-    ) -> None:
+    def __init__(self, norm_min=-1.0, norm_max=1.0, min_max_quantile=0.02, clip=True) -> None:
         self.norm_min = norm_min
         self.norm_max = norm_max
         self.norm_range = self.norm_max - self.norm_min
@@ -72,15 +71,10 @@ class ScaleShiftDepthNormalizer(DepthNormalizerBase):
         valid_mask = np.logical_and(valid_mask, (depth_linear > 0))
 
         # Take quantiles as min and max
-        _min, _max = np.quantile(
-            depth_linear[valid_mask],
-            [self.min_quantile, self.max_quantile]
-        ).astype(np.float32)
+        _min, _max = np.quantile(depth_linear[valid_mask], [self.min_quantile, self.max_quantile]).astype(np.float32)
 
         # scale and shift
-        depth_norm_linear = (depth_linear - _min) / (
-            _max - _min
-        ) * self.norm_range + self.norm_min
+        depth_norm_linear = (depth_linear - _min) / (_max - _min) * self.norm_range + self.norm_min
 
         if clip:
             np.clip(depth_norm_linear, self.norm_min, self.norm_max, out=depth_norm_linear)

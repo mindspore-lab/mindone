@@ -1,8 +1,8 @@
-import mindspore
 import numpy as np
 
+import mindspore
+
 from .base_depth_dataset import BaseDepthDataset, DepthFileNameMode
-from .kitti_dataset import KITTIDataset
 
 
 class VirtualKITTIDataset(BaseDepthDataset):
@@ -36,7 +36,7 @@ class VirtualKITTIDataset(BaseDepthDataset):
         # Decode vKITTI depth
         depth_decoded = depth_in / 100.0
         return depth_decoded
-    
+
     @staticmethod
     def vkitti_benchmark_crop(input_img):
         """
@@ -69,17 +69,13 @@ class VirtualKITTIDataset(BaseDepthDataset):
     def _load_rgb_data(self, rgb_rel_path):
         rgb_data = super()._load_rgb_data(rgb_rel_path)
         if self.kitti_bm_crop:
-            rgb_data = {
-                k: self.vkitti_benchmark_crop(v) for k, v in rgb_data.items()
-            }
+            rgb_data = {k: self.vkitti_benchmark_crop(v) for k, v in rgb_data.items()}
         return rgb_data
 
     def _load_depth_data(self, depth_rel_path, filled_rel_path):
         depth_data = super()._load_depth_data(depth_rel_path, filled_rel_path)
         if self.kitti_bm_crop:
-            depth_data = {
-                k: self.vkitti_benchmark_crop(v) for k, v in depth_data.items()
-            }
+            depth_data = {k: self.vkitti_benchmark_crop(v) for k, v in depth_data.items()}
         return depth_data
 
     def _get_valid_mask(self, depth: mindspore.Tensor):
@@ -104,4 +100,3 @@ class VirtualKITTIDataset(BaseDepthDataset):
             eval_mask.reshape(valid_mask.shape)
             valid_mask = np.logical_and(valid_mask, eval_mask)
         return valid_mask
-

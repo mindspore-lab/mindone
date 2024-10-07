@@ -19,20 +19,15 @@ import os
 from glob import glob
 
 import numpy as np
+from marigold import MarigoldPipeline
 from PIL import Image
+from src.util.msckpt_utils import build_model_from_config, load_pretrained_model, replace_unet_conv_in
 from tqdm.auto import tqdm
 
 import mindspore as ms
 from mindspore import context
 
 from mindone.diffusers import DDIMScheduler
-
-from marigold import MarigoldPipeline
-from src.util.msckpt_utils import (
-    build_model_from_config, 
-    load_pretrained_model,
-    replace_unet_conv_in,
-)
 
 EXTENSION_LIST = [".jpg", ".jpeg", ".png"]
 
@@ -41,9 +36,7 @@ if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
 
     # -------------------- Arguments --------------------
-    parser = argparse.ArgumentParser(
-        description="Run single-image depth estimation using Marigold."
-    )
+    parser = argparse.ArgumentParser(description="Run single-image depth estimation using Marigold.")
 
     # basic settings
     parser.add_argument(
@@ -66,19 +59,10 @@ if __name__ == "__main__":
         help="Path to the input image folder.",
     )
 
-    parser.add_argument(
-        "--output_dir", 
-        type=str, 
-        default="output/in-the-wild_example", 
-        help="Output directory."
-    )
+    parser.add_argument("--output_dir", type=str, default="output/in-the-wild_example", help="Output directory.")
 
     parser.add_argument(
-        "--device", 
-        type=str, 
-        default="Ascend",
-        choices=["Ascend", "CPU"], 
-        help="Device to run the inference."
+        "--device", type=str, default="Ascend", choices=["Ascend", "CPU"], help="Device to run the inference."
     )
 
     # inference settings
@@ -86,7 +70,7 @@ if __name__ == "__main__":
         "--denoise_steps",
         type=int,
         default=50,
-        help="Diffusion denoising steps, more steps results in higher accuracy but slower inference speed. For the original (DDIM) version, it's recommended to use 10-50 steps, while for LCM 1-4 steps.",
+        help="Diffusion denoising steps, more steps results in higher accuracy but slower inference speed.",
     )
     parser.add_argument(
         "--ensemble_size",
@@ -163,15 +147,14 @@ if __name__ == "__main__":
     match_input_res = not args.output_processing_res
     if 0 == processing_res and match_input_res is False:
         logging.warning(
-            "Processing at native resolution without resizing output might NOT lead to exactly the same resolution, due to the padding and pooling properties of conv layers."
+            "Processing at native resolution without resizing output might NOT lead to exactly the same resolution, \
+            due to the padding and pooling properties of conv layers."
         )
     resample_method = args.resample_method
 
     if args.half_precision:
         dtype = ms.float16
-        logging.info(
-            f"Running with half precision ({dtype}), might lead to suboptimal result."
-        )
+        logging.info(f"Running with half precision ({dtype}), might lead to suboptimal result.")
     else:
         dtype = ms.float32
 
@@ -198,9 +181,7 @@ if __name__ == "__main__":
 
     # -------------------- Data --------------------
     rgb_filename_list = glob(os.path.join(input_rgb_dir, "*"))
-    rgb_filename_list = [
-        f for f in rgb_filename_list if os.path.splitext(f)[1].lower() in EXTENSION_LIST
-    ]
+    rgb_filename_list = [f for f in rgb_filename_list if os.path.splitext(f)[1].lower() in EXTENSION_LIST]
     rgb_filename_list = sorted(rgb_filename_list)
     n_images = len(rgb_filename_list)
     if n_images > 0:
@@ -211,31 +192,25 @@ if __name__ == "__main__":
 
     # -------------------- Model --------------------
     if not args.ms_ckpt:
-        pipe: MarigoldPipeline = MarigoldPipeline.from_pretrained(
-            checkpoint_path, mindspore_dtype=dtype
-        )
+        pipe: MarigoldPipeline = MarigoldPipeline.from_pretrained(checkpoint_path, mindspore_dtype=dtype)
     else:
         latent_diffusion_with_loss = build_model_from_config("./config/v2-vpred-train.yaml", False)
-        load_pretrained_model(
-            checkpoint_path, latent_diffusion_with_loss, unet_initialize_random=False
-        )
+        load_pretrained_model(checkpoint_path, latent_diffusion_with_loss, unet_initialize_random=False)
         replace_unet_conv_in(latent_diffusion_with_loss, args.half_precision)
         pipe = MarigoldPipeline(
-            unet = latent_diffusion_with_loss.model.diffusion_model,
-            vae = latent_diffusion_with_loss.first_stage_model,
-            scheduler = DDIMScheduler.from_config("./config/scheduler_config.json"),
-            text_encoder = latent_diffusion_with_loss.cond_stage_model,
-            tokenizer = latent_diffusion_with_loss.cond_stage_model,
-            scale_invariant = True,
-            shift_invariant = True,
-            default_denoising_steps = 10,
-            default_processing_resolution = 768,
-            is_ms_ckpt = True,
+            unet=latent_diffusion_with_loss.model.diffusion_model,
+            vae=latent_diffusion_with_loss.first_stage_model,
+            scheduler=DDIMScheduler.from_config("./config/scheduler_config.json"),
+            text_encoder=latent_diffusion_with_loss.cond_stage_model,
+            tokenizer=latent_diffusion_with_loss.cond_stage_model,
+            scale_invariant=True,
+            shift_invariant=True,
+            default_denoising_steps=10,
+            default_processing_resolution=768,
+            is_ms_ckpt=True,
         )
 
-    logging.info(
-        f"scale_invariant: {pipe.scale_invariant}, shift_invariant: {pipe.shift_invariant}"
-    )
+    logging.info(f"scale_invariant: {pipe.scale_invariant}, shift_invariant: {pipe.shift_invariant}")
 
     # Print out config
     logging.info(
@@ -249,7 +224,7 @@ if __name__ == "__main__":
 
     # -------------------- Inference and saving --------------------
     os.makedirs(output_dir, exist_ok=True)
-    
+
     for rgb_path in tqdm(rgb_filename_list, desc="Estimating depth", leave=True):
         # Read input image
         input_image = Image.open(rgb_path)
@@ -293,11 +268,7 @@ if __name__ == "__main__":
         Image.fromarray(depth_to_save).save(png_save_path, mode="I;16")
 
         # Colorize
-        colored_save_path = os.path.join(
-            output_dir_color, f"{pred_name_base}_colored.png"
-        )
+        colored_save_path = os.path.join(output_dir_color, f"{pred_name_base}_colored.png")
         if os.path.exists(colored_save_path):
-            logging.warning(
-                f"Existing file: '{colored_save_path}' will be overwritten"
-            )
+            logging.warning(f"Existing file: '{colored_save_path}' will be overwritten")
         depth_colored.save(colored_save_path)

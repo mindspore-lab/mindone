@@ -88,15 +88,11 @@ if "__main__" == __name__:
             rgb_int = (rgb_color_tm * 255).astype(np.uint8)  # [H, W, RGB]
 
             # Distance -> depth
-            plane_depth = dist_2_depth(
-                IMG_WIDTH, IMG_HEIGHT, FOCAL_LENGTH, dist_from_center
-            )
+            plane_depth = dist_2_depth(IMG_WIDTH, IMG_HEIGHT, FOCAL_LENGTH, dist_from_center)
             valid_mask = render_entity_id != -1
 
             # Record invalid ratio
-            invalid_ratio = (np.prod(valid_mask.shape) - valid_mask.sum()) / np.prod(
-                valid_mask.shape
-            )
+            invalid_ratio = (np.prod(valid_mask.shape) - valid_mask.sum()) / np.prod(valid_mask.shape)
             plane_depth[~valid_mask] = 0
 
             # Save as png
@@ -133,17 +129,11 @@ if "__main__" == __name__:
 
             split_meta_df.at[i, "invalid_ratio"] = invalid_ratio
 
-        with open(
-            os.path.join(split_output_dir, f"filename_list_{split}.txt"), "w+"
-        ) as f:
-            lines = split_meta_df.apply(
-                lambda r: f"{r['rgb_path']} {r['depth_path']}", axis=1
-            ).tolist()
+        with open(os.path.join(split_output_dir, f"filename_list_{split}.txt"), "w+") as f:
+            lines = split_meta_df.apply(lambda r: f"{r['rgb_path']} {r['depth_path']}", axis=1).tolist()
             f.writelines("\n".join(lines))
 
-        with open(
-            os.path.join(split_output_dir, f"filename_meta_{split}.csv"), "w+"
-        ) as f:
+        with open(os.path.join(split_output_dir, f"filename_meta_{split}.csv"), "w+") as f:
             split_meta_df.to_csv(f, header=True)
 
     print("Preprocess finished")

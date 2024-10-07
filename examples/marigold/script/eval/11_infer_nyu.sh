@@ -17,4 +17,4 @@ python infer.py \
     --ensemble_size 5 \
     --processing_res 0 \
     --dataset_config config/dataset/data_nyu_test.yaml \
-    --output_dir output/${subfolder}/nyu_test/prediction 
+    --output_dir output/${subfolder}/nyu_test/prediction

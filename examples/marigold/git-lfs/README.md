@@ -10,3 +10,5 @@ export PREFIX=YOUR_PATH_TO_INSTALL
 ./install.sh
 export PATH=$PATH:YOUR_PATH_TO_INSTALL/bin
 ```
+
+Please notice that `PATH` should add **/bin** after your install path.

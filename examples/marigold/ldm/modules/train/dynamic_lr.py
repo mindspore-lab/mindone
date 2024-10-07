@@ -63,11 +63,9 @@ def iter_exponential_lr(total_steps, max_iters, lr, decay_rate):
         if n_iter >= max_iters:
             lr_cur = decay_rate * lr
         else:
-            lr_cur = math.exp(
-                n_iter / max_iters * math.log(decay_rate)
-            ) * lr
+            lr_cur = math.exp(n_iter / max_iters * math.log(decay_rate)) * lr
         lrs.append(lr_cur)
-    
+
     return lrs
 
 

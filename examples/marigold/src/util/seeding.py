@@ -1,7 +1,10 @@
-import numpy as np
-import random
-from mindspore import set_seed
 import logging
+import random
+
+import numpy as np
+
+from mindspore import set_seed
+
 
 def seed_all(seed: int = 0):
     """
@@ -10,6 +13,7 @@ def seed_all(seed: int = 0):
     random.seed(seed)
     np.random.seed(seed)
     set_seed(seed)
+
 
 def generate_seed_sequence(
     initial_seed: int,

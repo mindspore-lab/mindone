@@ -19,34 +19,25 @@ from typing import Dict, Optional, Union
 import numpy as np
 from PIL import Image
 from tqdm.auto import tqdm
-
-import mindspore as ms
-from mindspore import ops, Tensor
-from mindspore.dataset.vision import Inter
-import mindspore.dataset.vision as vision
-
-from mindone.diffusers import (
-    AutoencoderKL,
-    DDIMScheduler,
-    DiffusionPipeline,
-    LCMScheduler,
-    UNet2DConditionModel,
-)
-from mindone.diffusers.utils import BaseOutput
 from transformers import CLIPTextModel, CLIPTokenizer
 
+import mindspore as ms
+import mindspore.dataset.vision as vision
+from mindspore import Tensor, ops
+from mindspore.dataset.vision import Inter
+
+from mindone.diffusers import AutoencoderKL, DDIMScheduler, DiffusionPipeline, LCMScheduler, UNet2DConditionModel
+from mindone.diffusers.utils import BaseOutput
+
 from .util.ensemble import ensemble_depth
-from .util.image_util import (
-    chw2hwc,
-    colorize_depth_maps,
-    get_tv_resample_method,
-    resize_max_res,
-)
+from .util.image_util import chw2hwc, colorize_depth_maps, get_tv_resample_method, resize_max_res
+
 
 class MarigoldDepthOutput(BaseOutput):
     """
     Output class for marigold depth estimation pipeline.
     """
+
     depth_np: np.ndarray
     depth_colored: Union[Image.Image, None]
     uncertainty: Union[np.ndarray, None]
@@ -56,6 +47,7 @@ class MarigoldPipeline(DiffusionPipeline):
     """
     Marigold depth estimation pipeline.
     """
+
     rgb_latent_scale_factor = 0.18215
     depth_latent_scale_factor = 0.18215
 
@@ -109,7 +101,6 @@ class MarigoldPipeline(DiffusionPipeline):
         show_progress_bar: bool = True,
         ensemble_kwargs: Dict = None,
     ) -> MarigoldDepthOutput:
-
         # use default setting if not provided
         if denoising_steps is None:
             denoising_steps = self.default_denoising_steps
@@ -146,9 +137,7 @@ class MarigoldPipeline(DiffusionPipeline):
         else:
             raise TypeError(f"Unknown input type: {type(input_image)}")
         input_size = rgb.shape
-        assert (
-            len(rgb.shape) == 4 and rgb.shape[1] == 3
-        ), f"Wrong input shape {input_size}, expected [1, rgb, H, W]"
+        assert len(rgb.shape) == 4 and rgb.shape[1] == 3, f"Wrong input shape {input_size}, expected [1, rgb, H, W]"
 
         # normalize to [-1, 1]
         rgb_norm = (rgb / 255.0 * 2.0 - 1.0).astype(self.dtype)  # [0, 255] -> [-1, 1]
@@ -161,9 +150,7 @@ class MarigoldPipeline(DiffusionPipeline):
         # predict depth for each ensemble image
         depth_pred_ls = []
         if show_progress_bar:
-            iterable = tqdm(
-                duplicated_rgb, desc=" " * 2 + "Inference batches", leave=False
-            )
+            iterable = tqdm(duplicated_rgb, desc=" " * 2 + "Inference batches", leave=False)
         else:
             iterable = duplicated_rgb
         for rgb_tensor in iterable:
@@ -190,7 +177,7 @@ class MarigoldPipeline(DiffusionPipeline):
         else:
             depth_pred = depth_preds
             pred_uncert = None
-        
+
         # convert to numpy to process and save
         depth_pred = depth_pred.squeeze()
         if pred_uncert is not None:
@@ -241,9 +228,7 @@ class MarigoldPipeline(DiffusionPipeline):
                 )
         elif isinstance(self.scheduler, LCMScheduler):
             if not 1 <= n_step <= 4:
-                logging.warning(
-                    f"Non-optimal setting of denoising steps: {n_step}. Recommended setting is 1-4 steps."
-                )
+                logging.warning(f"Non-optimal setting of denoising steps: {n_step}. Recommended setting is 1-4 steps.")
         else:
             raise RuntimeError(f"Unsupported scheduler type: {type(self.scheduler)}")
 
@@ -308,7 +293,7 @@ class MarigoldPipeline(DiffusionPipeline):
 
         for i, t in iterable:
             unet_input = ops.Concat(1)([rgb_latent, depth_latent])  # first RGB then depth
-            
+
             t = ops.Tile()(t, (rgb_latent.shape[0],))
 
             # predict noise
@@ -328,7 +313,7 @@ class MarigoldPipeline(DiffusionPipeline):
         depth = (depth + 1.0) / 2.0
 
         return depth
-    
+
     def encode_rgb(self, rgb_in: Tensor) -> Tensor:
         """
         Encode RGB image to latent representation.
