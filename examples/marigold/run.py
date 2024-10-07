@@ -37,7 +37,7 @@ from src.util.msckpt_utils import (
 EXTENSION_LIST = [".jpg", ".jpeg", ".png"]
 
 
-if "__main__" == __name__:
+if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
 
     # -------------------- Arguments --------------------

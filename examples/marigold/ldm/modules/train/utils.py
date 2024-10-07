@@ -17,7 +17,6 @@ Utils function for the parallel training.
 This is an experimental interface that is subject to change and/or deletion.
 """
 
-
 import numpy as np
 
 import mindspore.common.dtype as mstype

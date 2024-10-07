@@ -44,7 +44,7 @@ from src.util.msckpt_utils import (
 from src.util.seeding import seed_all
 
 
-if "__main__" == __name__:
+if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
 
     # -------------------- Arguments --------------------

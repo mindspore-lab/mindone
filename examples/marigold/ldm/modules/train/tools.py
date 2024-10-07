@@ -1,6 +1,5 @@
 import logging
 import random
-
 import numpy as np
 
 import mindspore as ms

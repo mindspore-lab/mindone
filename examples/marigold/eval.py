@@ -53,7 +53,7 @@ eval_metrics = [
     "silog_rmse",
 ]
 
-if "__main__" == __name__:
+if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     # input
     parser.add_argument(

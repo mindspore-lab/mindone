@@ -172,7 +172,7 @@ Then please run the command below to train your own depth estimation diffusion m
 
 ```bash
 python train_graph.py \
-    --train_config "config/train_marigold_mindspore.yaml" \
+    --train_config "config/train_marigold.yaml" \
     --output_path "output/graph-train" \
     --pretrained_model_path "marigold-checkpoint/sd_v2_768_v-e12e3a9b.ckpt"
 ```
