@@ -32,7 +32,7 @@ from utils.lora_handler import LoraHandler
 from scheduler.t2v_turbo_scheduler import T2VTurboScheduler
 from pipeline.t2v_turbo_vc2_pipeline import T2VTurboVC2Pipeline
 
-sys.path.append("./mindone/examples/stable_diffusion_xl")
+sys.path.append("../stable_diffusion_xl")
 from gm.modules.embedders.open_clip.tokenizer import tokenize
 
 logger = logging.getLogger(__name__)

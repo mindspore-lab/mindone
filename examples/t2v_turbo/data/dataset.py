@@ -290,7 +290,7 @@ def create_dataloader(config, tokenizer=None, is_image=False, device_num=1, rank
         sample_n_frames=config["sample_n_frames"],
         is_image=is_image,
         tokenizer=tokenizer,
-        # n_samples=n_samples,
+        n_samples=n_samples,
         # disable_flip=config["disable_flip"],
         # video_column=config["video_column"],
         # caption_column=config["caption_column"],

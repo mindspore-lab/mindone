@@ -621,17 +621,20 @@ def extract_lora_as_tensor(
 
 def save_lora_weight(
     model,
-    path="./lora.pt",
+    path="./lora.ckpt",
     target_replace_module=DEFAULT_TARGET_REPLACE,
 ):
     weights = []
     for _up, _down in extract_lora_ups_down(
         model, target_replace_module=target_replace_module
     ):
-        weights.append(_up.weight.cpu().to(ms.float32))
-        weights.append(_down.weight.cpu().to(ms.float32))
+        weights.append(_up.weight.value().to(ms.float32))
+        weights.append(_down.weight.value().to(ms.float32))
 
-    ms.save_checkpoint(weights, path)
+    import pickle
+
+    with open(path, "wb") as f:
+        pickle.dump(weights, f)
 
 
 def save_lora_as_json(model, path="./lora.json"):

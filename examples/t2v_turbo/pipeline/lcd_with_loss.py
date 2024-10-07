@@ -133,7 +133,7 @@ class LCDWithLoss(nn.Cell):
     
     def _compute_video_text_rewards(self, model_pred, text, t):
         assert self.args.train_batch_size == 1
-        assert t > self.args.video_rm_batch_size
+        assert t >= self.args.video_rm_batch_size
 
         skip_frames = t // self.args.video_rm_batch_size
         start_id = ops.randint(0, skip_frames, (1,))[0].item()

@@ -114,6 +114,7 @@ def parse_args():
             ' `--checkpointing_steps`, or `"latest"` to automatically select the last available checkpoint.'
         ),
     )
+    parser.add_argument("--ckpt_save_interval", default=1, type=int, help="save checkpoint every this epochs or steps")
     # ----Image Processing----
     parser.add_argument(
         "--train_shards_path_or_url",
@@ -200,7 +201,7 @@ def parse_args():
         default=False,
         help="Scale the learning rate by the number of GPUs, gradient accumulation steps, and batch size.",
     )
-    parser.add_argument("--scheduler", default="cosine_decay", type=str, help="scheduler.")
+    parser.add_argument("--scheduler", default="constant", type=str, help="scheduler.")
     parser.add_argument(
         "--lr_warmup_steps",
         type=int,

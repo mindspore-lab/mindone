@@ -345,9 +345,9 @@ def main(args):
         lcd_with_loss.unet.trainable_params(),
         name="adamw",
         betas=(args.adam_beta1, args.adam_beta2),
-        eps=1e-8,
+        eps=args.adam_epsilon,
         group_strategy="norm_and_bias",
-        weight_decay=1e-6,
+        weight_decay=args.adam_weight_decay,
         lr=lr_scheduler,
     )
 
@@ -391,9 +391,14 @@ def main(args):
     logger.info(f"  Total optimization steps = {args.max_train_steps}")
 
     if rank_id == 0:
-        ckpt_manager = CheckpointManager(args.output_dir + "/ckpt", "latest_k", k=5)
+        ckpt_folder = args.output_dir + "/ckpt"
+        ckpt_manager = CheckpointManager(ckpt_folder, "latest_k", k=5)
         if not os.path.exists(args.output_dir):
             os.makedirs(args.output_dir)
+            os.makedirs(ckpt_folder)
+
+        if not os.path.exists(ckpt_folder):
+            os.makedirs(ckpt_folder)
 
         perf_columns = ["step", "loss", "train_time(s)", "shape"]
         if start_epoch == 0:
@@ -433,7 +438,12 @@ def main(args):
             if ema is not None:
                 ema.swap_before_eval()
 
-            ckpt_manager.save(lcd_with_loss.unet, None, ckpt_name=ckpt_name, append_dict=None)
+            save_lora_weight(
+                lcd_with_loss.unet,
+                ckpt_folder + "/" + ckpt_name,
+                lora_manager.unet_replace_modules
+            )
+            # ckpt_manager.save(lcd_with_loss.unet, None, ckpt_name=ckpt_name, append_dict=None)
             if ema is not None:
                 ema.swap_after_eval()
 

@@ -137,7 +137,7 @@ def get_hpsv2_fn(precision="no", rm_ckpt_dir="HPS_v2_compressed.ckpt"):
     # )
 
     preprocess_val = image_transform(
-        model.visual.image_size,
+        model.config.vision_config.image_size,
         is_train=False,
         mean=None,
         std=None,
