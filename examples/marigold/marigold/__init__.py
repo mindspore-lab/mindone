@@ -1,5 +1,3 @@
-# Copyright 2023 Bingxin Ke, ETH Zurich. All rights reserved.
-#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -12,10 +10,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # --------------------------------------------------------------------------
-# If you find this code useful, we kindly ask you to cite our paper in your work.
-# Please find bibtex at: https://github.com/prs-eth/Marigold#-citation
-# More information about the method can be found at https://marigoldmonodepth.github.io
-# --------------------------------------------------------------------------
 
 
-from .marigold_pipeline import MarigoldDepthOutput, MarigoldPipeline  # noqa: F401
+from .marigold_pipeline import MarigoldDepthOutput, MarigoldPipeline
