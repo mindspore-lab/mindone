@@ -25,6 +25,8 @@ Then cd in the `examples/diffusers/text_to_image` folder and run
 pip install -r requirements_sdxl.txt
 ```
 
+The training script is compute-intensive and only runs on an Ascend 910*. Please run the scripts with MindSpore version(MS2.3.0).
+
 ### Training
 
 ```bash
@@ -36,6 +38,7 @@ python train_text_to_image_sdxl.py \
   --pretrained_model_name_or_path=$MODEL_NAME \
   --pretrained_vae_model_name_or_path=$VAE_NAME \
   --dataset_name=$DATASET_NAME \
+  --enable_xformers_memory_efficient_attention \
   --resolution=512 --center_crop --random_flip \
   --proportion_empty_prompts=0.2 \
   --train_batch_size=1 \
@@ -47,10 +50,34 @@ python train_text_to_image_sdxl.py \
   --output_dir="sdxl-onepiece-model-$(date +%Y%m%d%H%M%S)"
 ```
 
+For parallel training, use `msrun` and along with `--distributed`:
+
+```shell
+export MODEL_NAME="stabilityai/stable-diffusion-xl-base-1.0"
+export VAE_NAME="madebyollin/sdxl-vae-fp16-fix"
+export DATASET_NAME="YaYaB/onepiece-blip-captions"
+
+msrun --worker_num=8 --local_worker_num=8 --log_dir=$output_dir  \
+    train_text_to_image_sdxl.py \
+    --pretrained_model_name_or_path=$MODEL_NAME \
+    --pretrained_vae_model_name_or_path=$VAE_NAME \
+    --dataset_name=$DATASET_NAME \
+    --enable_xformers_memory_efficient_attention \
+    --resolution=512 --center_crop --random_flip \
+    --proportion_empty_prompts=0.2 \
+    --train_batch_size=1 \
+    --max_train_steps=10000 \
+    --learning_rate=1e-06 --lr_scheduler="constant" --lr_warmup_steps=0 \
+    --mixed_precision="fp16" \
+    --validation_prompt="a man in a green coat holding two swords" --validation_epochs 5 \
+    --checkpointing_steps=5000 \
+    --distributed \
+    --output_dir="sdxl-onepiece-model-$(date +%Y%m%d%H%M%S)"
+```
+
 **Notes**:
 
 *  The `train_text_to_image_sdxl.py` script pre-computes text embeddings and the VAE encodings and keeps them in memory. While for smaller datasets like [`lambdalabs/pokemon-blip-captions`](https://hf.co/datasets/lambdalabs/pokemon-blip-captions), it might not be a problem, it can definitely lead to memory problems when the script is used on a larger dataset. For those purposes, you would want to serialize these pre-computed representations to disk separately and load them during the fine-tuning process. Refer to [this PR](https://github.com/huggingface/diffusers/pull/4505) for a more in-depth discussion.
-* The training script is compute-intensive and only runs on an Ascend 910*.
 * The training command shown above performs intermediate quality validation in between the training epochs. `--report_to`, `--validation_prompt`, and `--validation_epochs` are the relevant CLI arguments here.
 * SDXL's VAE is known to suffer from numerical instability issues. This is why we also expose a CLI argument namely `--pretrained_vae_model_name_or_path` that lets you specify the location of a better VAE (such as [this one](https://huggingface.co/madebyollin/sdxl-vae-fp16-fix)).
 
@@ -60,11 +87,26 @@ python train_text_to_image_sdxl.py \
 from mindone.diffusers import DiffusionPipeline
 import mindspore
 
-model_path = "you-model-id-goes-here" # <-- change this
+model_path = "sdxl-onepiece-model" # <-- change this
 pipe = DiffusionPipeline.from_pretrained(model_path, mindspore_dtype=mindspore.float16)
 
-prompt = "a man in a green coat holding two swords"
+prompt = "a man with a beard and a shirt"
 image = pipe(prompt, num_inference_steps=30, guidance_scale=7.5)[0][0]
+image.save("onepiece.png")
+```
+
+Checkpoints only save the unet, so to run inference from a checkpoint, just load the unet.
+
+```python
+import mindspore as ms
+from mindone.diffusers import StableDiffusionXLPipeline, UNet2DConditionModel
+
+model_path = "sdxl-onepiece-model"
+unet = UNet2DConditionModel.from_pretrained(model_path + "/checkpoint-<N>/unet", mindspore_dtype=ms.float16)
+
+pipe = StableDiffusionXLPipeline.from_pretrained("<initial model>", unet=unet, mindspore_dtype=ms.float16)
+
+image = pipe(prompt="a man with a beard and a shirt")[0][0]
 image.save("onepiece.png")
 ```
 
@@ -79,16 +121,6 @@ In a nutshell, LoRA allows adapting pretrained models by adding pairs of rank-de
 - LoRA attention layers allow to control to which extent the model is adapted toward new training images via a `scale` parameter.
 
 [cloneofsimo](https://github.com/cloneofsimo) was the first to try out LoRA training for Stable Diffusion in the popular [lora](https://github.com/cloneofsimo/lora) GitHub repository.
-
-With LoRA, it's possible to fine-tune Stable Diffusion on a custom image-caption pair dataset
-on consumer GPUs like Tesla T4, Tesla V100.
-
-> [!WARNING]
-> If you're using mindspore 2.2.x, you have to set the `MS_DEV_TRAVERSE_SUBSTITUTIONS_MODE` environment variables to `1` before running the training commands,
-> otherwise you'll get a segmentation fault (core dumped).
-> ```bash
-> export MS_DEV_TRAVERSE_SUBSTITUTIONS_MODE=1
-> ```
 
 ### Training
 
@@ -113,6 +145,29 @@ python train_text_to_image_lora_sdxl.py \
   --seed=42 \
   --validation_prompt="a man in a green coat holding two swords" \
   --output_dir="sdxl-onepiece-model-lora-$(date +%Y%m%d%H%M%S)"
+```
+
+For parallel training, use `msrun` and along with `--distributed`:
+
+```shell
+export MODEL_NAME="stabilityai/stable-diffusion-xl-base-1.0"
+export VAE_NAME="madebyollin/sdxl-vae-fp16-fix"
+export DATASET_NAME="YaYaB/onepiece-blip-captions"
+
+msrun --worker_num=8 --local_worker_num=8 --log_dir=$output_dir  \
+    train_text_to_image_lora_sdxl.py \
+    --pretrained_model_name_or_path=$MODEL_NAME \
+    --pretrained_vae_model_name_or_path=$VAE_NAME \
+    --dataset_name=$DATASET_NAME \
+    --resolution=1024 --center_crop --random_flip \
+    --train_batch_size=1 \
+    --num_train_epochs=2 --checkpointing_steps=500 \
+    --learning_rate=1e-04 --lr_scheduler="constant" --lr_warmup_steps=0 \
+    --mixed_precision="fp16" \
+    --seed=42 \
+    --validation_prompt="a man in a green coat holding two swords" \
+    --distributed \
+    --output_dir="sdxl-onepiece-model-lora-$(date +%Y%m%d%H%M%S)"
 ```
 
 The above command will also run inference as fine-tuning progresses and log the results to local files.
@@ -140,23 +195,45 @@ python train_text_to_image_lora_sdxl.py \
   --seed=42 \
   --validation_prompt="a man in a green coat holding two swords" \
   --train_text_encoder \
-  --output_dir="sdxl-onepiece-model-lora-txt-$(date +%Y%m%d%H%M%S)"
+  --output_dir="sdxl-onepiece-model-lora-$(date +%Y%m%d%H%M%S)"
+```
+
+For parallel training, use `msrun` and along with `--distributed`:
+
+```shell
+msrun --worker_num=8 --local_worker_num=8 --log_dir=$output_dir  \
+    train_text_to_image_lora_sdxl.py \
+  --pretrained_model_name_or_path=$MODEL_NAME \
+  --dataset_name=$DATASET_NAME \
+  --resolution=1024 --center_crop --random_flip \
+  --train_batch_size=1 \
+  --num_train_epochs=2 --checkpointing_steps=500 \
+  --learning_rate=1e-04 --lr_scheduler="constant" --lr_warmup_steps=0 \
+  --seed=42 \
+  --validation_prompt="a man in a green coat holding two swords" \
+  --train_text_encoder \
+  --distributed \
+  --output_dir="sdxl-onepiece-model-lora-$(date +%Y%m%d%H%M%S)"
 ```
 
 ### Inference
 
-Once you have trained a model using above command, the inference can be done simply using the `DiffusionPipeline` after loading the trained LoRA weights.  You
+If the LoRA weights you want to use is from huggingface, you can replace the following model_path like `model_path = "takuoko/sd-pokemon-model-lora-sdxl"`. Once you have trained a model using above command, the inference can be done simply using the `DiffusionPipeline` after loading the trained LoRA weights. You
 need to pass the `output_dir` for loading the LoRA weights which, in this case, is `sdxl-onepiece-model-lora`.
 
 ```python
 import mindspore as ms
 from mindone.diffusers import DiffusionPipeline
 
-model_path = "takuoko/sd-pokemon-model-lora-sdxl"
+model_path = "sdxl-onepiece-model-lora"
 pipe = DiffusionPipeline.from_pretrained("stabilityai/stable-diffusion-xl-base-1.0", mindspore_dtype=ms.float16)
 pipe.load_lora_weights(model_path)
 
-prompt = "A pokemon with green eyes and red legs."
+prompt = "a guy with green hair"
 image = pipe(prompt, num_inference_steps=30, guidance_scale=7.5)[0][0]
-image.save("pokemon.png")
+image.save("onepiece.png")
 ```
+
+## Tutorials
+
+The above training performance and inference results are recorded [here](https://github.com/liuchuting/tutorials/blob/sd_doc/aigc/diffusers/text_to_image/sdxl_performance_and_inference_results.md).
