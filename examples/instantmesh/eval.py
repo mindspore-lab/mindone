@@ -19,7 +19,7 @@ import mindspore as ms
 from mindspore import mint
 
 __dir__ = os.path.dirname(os.path.abspath(__file__))
-sys.path.insert(0, os.path.abspath(os.path.join(__dir__, "../../../../")))  # for loading mindone
+sys.path.insert(0, os.path.abspath(os.path.join(__dir__, "../..")))  # for loading mindone
 # from loguru import logger
 import logging
 
@@ -77,7 +77,7 @@ def evaluate(args, epoch_num: Optional[str]):
             epoch_num = ms.load_checkpoint(args.itmh_ckpt).get(
                 "epoch_num", 0
             )  # 0 means that there is no this key in the resume ckpt file
-            image_path = os.path.join(image_path, f"val_e{epoch_num}.png")
+        image_path = os.path.join(image_path, f"val_e{epoch_num}.png")
 
     validation_step_outputs = []
     batches_time = []
@@ -117,14 +117,14 @@ def evaluate(args, epoch_num: Optional[str]):
 
         batch_time = time.time() - start_time
         batches_time.append(batch_time)
-        logger.info(f"Batch time cost: {batch_time: .3f}s.")
+        logger.info("Batch time cost: %.3fs.", batch_time)
         # save result both img and alpha, in validation_step()
         # render_images = rearrange(render_images, 'b n c h w -> b c h (n w)')
         render_images = mint.permute(render_images, dims=(0, 2, 3, 1, 4)).flatten(start_dim=-2)
         validation_step_outputs.append(render_images)
 
     mean_time = sum(batches_time) / len(batches_time)
-    logger.info(f"Mean Batch time: {mean_time: .3f}s.")
+    logger.info("Mean Batch time: %.3fs.", mean_time)
     # save mviews outputs
     images = mint.cat(validation_step_outputs, dim=0)  # enable for multiple batches
 
