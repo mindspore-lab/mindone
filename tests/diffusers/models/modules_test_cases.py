@@ -552,6 +552,38 @@ VAE_CASES = [
         (),
         {"sample": np.random.randn(4, 3, 32, 32).astype(np.float32), "return_dict": False},
     ],
+    [
+        "AutoencoderKLCogVideoX",
+        "diffusers.models.AutoencoderKLCogVideoX",
+        "mindone.diffusers.models.AutoencoderKLCogVideoX",
+        (),
+        {
+            "in_channels": 3,
+            "out_channels": 3,
+            "down_block_types": (
+                "CogVideoXDownBlock3D",
+                "CogVideoXDownBlock3D",
+                "CogVideoXDownBlock3D",
+                "CogVideoXDownBlock3D",
+            ),
+            "up_block_types": (
+                "CogVideoXUpBlock3D",
+                "CogVideoXUpBlock3D",
+                "CogVideoXUpBlock3D",
+                "CogVideoXUpBlock3D",
+            ),
+            "block_out_channels": (8, 8, 8, 8),
+            "latent_channels": 4,
+            "layers_per_block": 1,
+            "norm_num_groups": 2,
+            "temporal_compression_ratio": 4,
+        },
+        (),
+        {
+            "sample": np.random.randn(2, 3, 9, 16, 16),
+            "return_dict": False,
+        },
+    ],  # this case cannot pass Graph Mode test because AutoencoderKLCogVideoX doesn't support
 ]
 
 
@@ -740,8 +772,42 @@ SD3_TRANSFORMER2D_CASES = [
 ]
 
 
+COG_VIDEO_X_TRANSFORMER_CASES = [
+    [
+        "CogVideoXTransformer3DModel",
+        "diffusers.models.CogVideoXTransformer3DModel",
+        "mindone.diffusers.models.CogVideoXTransformer3DModel",
+        (),
+        {
+            # Product of num_attention_heads * attention_head_dim must be divisible by 16 for 3D positional embeddings.
+            "num_attention_heads": 2,
+            "attention_head_dim": 8,
+            "in_channels": 4,
+            "out_channels": 4,
+            "time_embed_dim": 2,
+            "text_embed_dim": 8,
+            "num_layers": 1,
+            "sample_width": 8,
+            "sample_height": 8,
+            "sample_frames": 8,
+            "patch_size": 2,
+            "temporal_compression_ratio": 4,
+            "max_text_seq_length": 8,
+        },
+        (),
+        {
+            "hidden_states": np.random.randn(2, 1, 4, 8, 8),
+            "encoder_hidden_states": np.random.randn(2, 8, 8),
+            "timestep": np.random.randint(0, 1000, size=(2,)),
+            "return_dict": False,
+        },
+    ],
+]
+
+
 TRANSFORMERS_CASES = (
-    DIT_TRANSFORMER2D_CASES
+    COG_VIDEO_X_TRANSFORMER_CASES
+    + DIT_TRANSFORMER2D_CASES
     + PIXART_TRANSFORMER2D_CASES
     + PRIOR_TRANSFORMER_CASES
     + SD3_TRANSFORMER2D_CASES

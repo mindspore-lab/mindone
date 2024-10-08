@@ -17,7 +17,7 @@ import mindspore as ms
 from mindspore import nn, ops
 
 from ..utils import logging
-from .activations import GEGLU, GELU, ApproximateGELU
+from .activations import GEGLU, GELU, ApproximateGELU, SwiGLU
 from .attention_processor import Attention, JointAttnProcessor
 from .embeddings import SinusoidalPositionalEmbedding
 from .normalization import AdaLayerNorm, AdaLayerNormContinuous, AdaLayerNormZero, LayerNorm, RMSNorm
@@ -774,6 +774,8 @@ class FeedForward(nn.Cell):
             act_fn = GEGLU(dim, inner_dim, bias=bias)
         elif activation_fn == "geglu-approximate":
             act_fn = ApproximateGELU(dim, inner_dim, bias=bias)
+        elif activation_fn == "swiglu":
+            act_fn = SwiGLU(dim, inner_dim, bias=bias)
 
         net = []
         # project in

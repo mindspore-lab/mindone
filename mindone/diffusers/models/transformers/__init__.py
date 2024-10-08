@@ -1,3 +1,4 @@
+from .cogvideox_transformer_3d import CogVideoXTransformer3DModel
 from .dit_transformer_2d import DiTTransformer2DModel
 from .dual_transformer_2d import DualTransformer2DModel
 from .hunyuan_transformer_2d import HunyuanDiT2DModel

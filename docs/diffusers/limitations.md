@@ -62,9 +62,13 @@ The table below represents the current support in mindone/diffusers for each of 
 |       AttnSkipDownBlock2D        |       ❌       |       ✅       |     ✅      |     ✅      |                contains FirDownsample2D                 |
 |         SkipDownBlock2D          |       ❌       |       ✅       |     ✅      |     ✅      |                contains FirDownsample2D                 |
 |   ResnetBlock2D (kernel='fir')   |       ❌       |       ✅       |     ✅      |     ✅      | ops.Conv2D has poor precision in fp16 and PyNative mode |
+|    CogVideoXTransformer3DModel   |       ✅       |       ❌       |     ✅      |     ❌      | Using FlashAttention which only supports FP16/BF16 |
+|      AutoencoderKLCogVideoX      |       ✅       |       ❌       |     ❌      |     ❌      | Only FP16/BF16: contains nn.Conv3d as sub cells & Only PyNative: Static Graph Syntax doesn't support cache operations inside |
+|        CogVideoXEncoder3D        |       ✅       |       ❌       |     ❌      |     ❌      | Only FP16/BF16: contains nn.Conv3d as sub cells & Only PyNative: Static Graph Syntax doesn't support cache operations inside |
+|        CogVideoXDecoder3D        |       ✅       |       ❌       |     ❌      |     ❌      | Only FP16/BF16: contains nn.Conv3d as sub cells & Only PyNative: Static Graph Syntax doesn't support cache operations inside |
 
 ## Pipelines
-The table below represents the current support in mindone/diffusers for each of those pipelines in **MindSpore 2.3.0**,
+The table below represents the current support in mindone/diffusers for each of those pipelines in **MindSpore 2.3.1**,
 whether they have support in Pynative fp16 mode, Graph fp16 mode, Pynative fp32 mode or Graph fp32 mode.
 
 > precision issues of pipelines, the experiments in the table below default to upcasting GroupNorm to FP32 to avoid
@@ -75,6 +79,7 @@ whether they have support in Pynative fp16 mode, Graph fp16 mode, Pynative fp32 
 |            AnimateDiffPipeline             | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: |                                                                                                                                                                               |
 |      AnimateDiffVideoToVideoPipeline       | :white_check_mark: |        :x:         | :white_check_mark: | :white_check_mark: |                                                        In FP32 and Pynative mode, this pipeline will run out of memory                                                        |
 |           BlipDiffusionPipeline            | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: |                                                                                                                                                                               |
+|             CogVideoXPipeline             | :white_check_mark: | :x: | :x: | :x: | Flash Attention used in transformer and `nn.Conv3d` used in VAE only support FP16/BF16; Cache opeartions in VAE is not supported by MindSpore Graph Mode |
 |          ConsistencyModelPipeline          | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: |                                                                                                                                                                               |
 |                DDIMPipeline                | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: |                                                                                                                                                                               |
 |                DDPMPipeline                | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: |                                                                                                                                                                               |

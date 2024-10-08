@@ -10,6 +10,7 @@ _import_structure = {
         "AnimateDiffVideoToVideoPipeline",
     ],
     "blip_diffusion": ["BlipDiffusionPipeline"],
+    "cogvideo": ["CogVideoXPipeline"],
     "consistency_models": ["ConsistencyModelPipeline"],
     "controlnet": [
         "BlipDiffusionControlNetPipeline",
@@ -131,6 +132,7 @@ _import_structure = {
 if TYPE_CHECKING:
     from .animatediff import AnimateDiffPipeline, AnimateDiffSDXLPipeline, AnimateDiffVideoToVideoPipeline
     from .blip_diffusion import BlipDiffusionPipeline
+    from .cogvideo import CogVideoXPipeline
     from .consistency_models import ConsistencyModelPipeline
     from .controlnet import (
         BlipDiffusionControlNetPipeline,
