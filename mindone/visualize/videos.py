@@ -1,7 +1,7 @@
 import os
+import subprocess as sp
 from typing import Union
 
-import av
 import imageio
 import numpy as np
 
@@ -15,32 +15,21 @@ def create_video_from_rgb_numpy_arrays(image_arrays, output_file, fps: Union[int
     Parameters:
     image_arrays (list): A list of RGB NumPy array images.
     output_file (str): The path and filename of the output MP4 video file.
-    fps (int): The desired frames per second for the output video. Default is 30.
-
-    Credit to Perlexity
+    fps (int, float): The desired frames per second for the output video. Default is 30.
     """
     # Get the dimensions of the first image
     height, width, _ = image_arrays[0].shape
 
-    # Create the output container and video stream
-    container = av.open(output_file, mode="w")
-    stream = container.add_stream("libx264", rate=f"{fps:.4f}")  # BUG: OverflowError: value too large to convert to int
-    stream.width = width
-    stream.height = height
-    stream.pix_fmt = "yuv420p"
+    command = f"ffmpeg -y -f rawvideo -vcodec rawvideo \
+                -s {width}:{height} -pix_fmt rgb24 -r {fps} \
+                -i - -an -vcodec libx264 -pix_fmt yuv420p \
+                -b:v 1024k -loglevel quiet {output_file}"
 
-    # Write the frames to the video stream
-    for image in image_arrays:
-        frame = av.VideoFrame.from_ndarray(image, format="rgb24")
-        for packet in stream.encode(frame):
-            container.mux(packet)
-
-    # Flush any remaining frames
-    for packet in stream.encode(None):
-        container.mux(packet)
-
-    # Close the container
-    container.close()
+    pipe = sp.Popen(command, stdin=sp.PIPE)
+    for frame in image_arrays:
+        pipe.stdin.write(frame.astype(np.uint8).tobytes())
+    pipe.stdin.close()
+    pipe.wait()
 
 
 def create_video_from_numpy_frames(frames: np.ndarray, path: str, fps: Union[int, float] = 8, fmt="gif", loop=0):
