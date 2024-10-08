@@ -12,7 +12,7 @@ from transformers import AutoTokenizer
 import mindspore as ms
 from mindspore import Tensor, nn
 
-from .flan_t5_large.t5 import get_t5_encoder
+from mindone.transformers import T5EncoderModel
 
 logger = logging.getLogger(__name__)
 
@@ -47,19 +47,11 @@ class T5Embedder(nn.Cell):
         self.cache_dir = cache_dir
         self.pretrained_ckpt = pretrained_ckpt
 
-        self.tokenizer = AutoTokenizer.from_pretrained(cache_dir)
-        model = get_t5_encoder(cache_dir)
-        if self.pretrained_ckpt:
-            # load t5 ckpt into self.model
-            logger.info("Loading t5 checkpoint from {}".format(self.pretrained_ckpt))
-            param_dict = ms.load_checkpoint(self.pretrained_ckpt)
-            param_not_load, ckpt_not_load = ms.load_param_into_net(model, param_dict)
-            # assert len(param_not_load) == 0 and len(ckpt_not_load) == 1  # shared.embedding_table
-            print("T5 param not load: ", param_not_load)
-            print("T5 ckpt not load: ", ckpt_not_load)
+        self.tokenizer = AutoTokenizer.from_pretrained(cache_dir, local_files_only=True)
+        self.model = T5EncoderModel.from_pretrained(cache_dir, local_files_only=True)
+
         self.model_max_length = model_max_length
         self.tokenizer.context_length = model_max_length
-        self.model = model
 
     def construct(self, text_tokens: Tensor, mask: Tensor = None):
         text_encoder_embs = self.model(
