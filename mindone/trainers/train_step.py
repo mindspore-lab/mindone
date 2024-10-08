@@ -99,6 +99,10 @@ class TrainOneStepWrapper(nn.TrainOneStepWithLossScaleCell):
     def construct(self, *inputs):
         # compute loss
         weights = self.weights
+
+        # for solving grad err PyNative mode in ms2.4.0: RuntimeErr: value is not supported, valBaseRef
+        self.network.set_inputs(*inputs)
+
         loss = self.network(*inputs)  # mini-batch loss
         scaling_sens = self.scale_sense
 

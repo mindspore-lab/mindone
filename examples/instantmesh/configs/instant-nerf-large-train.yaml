@@ -1,5 +1,8 @@
 model:
   base_learning_rate: 4.0e-04
+  scheduler: cosine_annealing_warm_restarts_lr
+  optimizer: adamw
+  weight_decay: 0.01
   target: model_stage1.InstantMeshStage1WithLoss
   params:
     input_size: 320
@@ -7,7 +10,7 @@ model:
     # render_size: 96
     lrm_generator_config:
       openlrm_ckpt: 'YOUR_PATH/openlrm.ckpt'
-      target: models3d.lrm.InstantNeRF
+      target: models.lrm.InstantNeRF
       params:
         encoder_feat_dim: 768
         encoder_freeze: false

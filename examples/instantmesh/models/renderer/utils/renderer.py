@@ -4,8 +4,6 @@ ray, and computes pixel colors using the volume rendering equation.
 import itertools
 from typing import Dict
 
-from sgm.util import Inverse
-
 import mindspore as ms
 import mindspore.nn as nn
 from mindspore import _no_grad, mint, ops
@@ -75,8 +73,6 @@ class ImportanceRenderer(nn.Cell):
         self.plane_axes = generate_planes().astype(dtype)
         self.max_pool1d_layer = nn.MaxPool1d(2, 1, pad_mode="pad", padding=1)
         self.avg_pool1d_layer = nn.AvgPool1d(2, 1)
-
-        self.inverse_operator = Inverse()  # workaournd for the case that current amp not working on mint/ops.inverse
         self.decoder = OSGDecoder(n_features=80)  # triplane_dim
         self.debug_logging = debug
 
@@ -100,12 +96,7 @@ class ImportanceRenderer(nn.Cell):
         coordinates = coordinates.unsqueeze(1)
         coordinates = coordinates.broadcast_to((-1, n_planes, -1, -1)).reshape(N * n_planes, M, 3)
 
-        # cast to fp32 as the inverse operator requests, ops.inverse does not support amp
-        # May report an issue to the ms/mindone about the amp blacklist:
-        # TypeError: For primitive[MatrixInverse], the input argument[x] must be a type of {Tensor[Complex128],
-        # Tensor[Complex64], Tensor[Float32], Tensor[Float64]}, but got Tensor[Float16].
-        # inv_planes = ops.inverse(planes.to(ms.float32)).unsqueeze(0)
-        inv_planes = self.inverse_operator(planes.to(ms.float32)).unsqueeze(0)
+        inv_planes = mint.inverse(planes.to(ms.float32)).unsqueeze(0)
         inv_planes = inv_planes.broadcast_to((N, -1, -1, -1)).reshape(N * n_planes, 3, 3)
 
         projections = mint.bmm(coordinates, inv_planes.to(planes.dtype))

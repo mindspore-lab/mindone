@@ -111,11 +111,7 @@ class vgg16(nn.Cell):
     def __init__(self, requires_grad=False, pretrained=True):
         super(vgg16, self).__init__()
         # TODO: add bias in vgg. use the same model weights in PT.
-        model = mindcv.create_model(
-            "vgg16",
-            pretrained=pretrained  # FIXME the mindcv api here seems to be not working, workaround as below
-            # checkpoint_path='YOUR_PATH/vgg16-95697531.ckpt'  # 1GB ckpt
-        )
+        model = mindcv.create_model("vgg16", pretrained=pretrained)
         model.set_train(False)
         vgg_pretrained_features = model.features
         self.slice1 = nn.SequentialCell()
