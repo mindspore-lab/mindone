@@ -73,59 +73,41 @@ seed: 42
 ddim_sampling: True
 ```
 
+The inference speed of the experiments with `256x256` image size is summarized in the following table:
+
+| model name |   context    | cards | image size | method | steps | ckpt loading time | graph compile | sample time |
+| :--------: | :----------: | :---: | :--------: | :----: | :---: | :---------------: | :-----------: | :---------: |
+|    dit     | 910*-MS2.3.1 |   1   |  256x256   |  ddpm  |  250  |      16.41s       |    82.83s     |   58.45s    |
+
 Some generated example images are shown below:
 <p float="center">
-<img src="https://raw.githubusercontent.com/wtomin/mindone-assets/main/dit/512x512/class-207.png" width="25%" /><img src="https://raw.githubusercontent.com/wtomin/mindone-assets/main/dit/512x512/class-360.png" width="25%" /><img src="https://raw.githubusercontent.com/wtomin/mindone-assets/main/dit/512x512/class-417.png" width="25%" /><img src="https://raw.githubusercontent.com/wtomin/mindone-assets/main/dit/512x512/class-979.png" width="25%" />
+<img src="https://raw.githubusercontent.com/jianyunchao/mindone-assets/v0.2.0/dit/512x512/class-207.png" width="25%" /><img src="https://raw.githubusercontent.com/jianyunchao/mindone-assets/v0.2.0/dit/512x512/class-360.png" width="25%" /><img src="https://raw.githubusercontent.com/jianyunchao/mindone-assets/v0.2.0/dit/512x512/class-417.png" width="25%" /><img src="https://raw.githubusercontent.com/jianyunchao/mindone-assets/v0.2.0/dit/512x512/class-979.png" width="25%" />
 </p>
 <p float="center">
-<img src="https://raw.githubusercontent.com/wtomin/mindone-assets/main/dit/256x256/class-207.png" width="12.5%" /><img src="https://raw.githubusercontent.com/wtomin/mindone-assets/main/dit/256x256/class-279.png" width="12.5%" /><img src="https://raw.githubusercontent.com/wtomin/mindone-assets/main/dit/256x256/class-360.png" width="12.5%" /><img src="https://raw.githubusercontent.com/wtomin/mindone-assets/main/dit/256x256/class-387.png" width="12.5%" /><img src="https://raw.githubusercontent.com/wtomin/mindone-assets/main/dit/256x256/class-417.png" width="12.5%" /><img src="https://raw.githubusercontent.com/wtomin/mindone-assets/main/dit/256x256/class-88.png" width="12.5%" /><img src="https://raw.githubusercontent.com/wtomin/mindone-assets/main/dit/256x256/class-974.png" width="12.5%" /><img src="https://raw.githubusercontent.com/wtomin/mindone-assets/main/dit/256x256/class-979.png" width="12.5%" />
+<img src="https://raw.githubusercontent.com/jianyunchao/mindone-assets/v0.2.0/dit/256x256/class-207.png" width="12.5%" /><img src="https://raw.githubusercontent.com/jianyunchao/mindone-assets/v0.2.0/dit/256x256/class-279.png" width="12.5%" /><img src="https://raw.githubusercontent.com/jianyunchao/mindone-assets/v0.2.0/dit/256x256/class-360.png" width="12.5%" /><img src="https://raw.githubusercontent.com/jianyunchao/mindone-assets/v0.2.0/dit/256x256/class-387.png" width="12.5%" /><img src="https://raw.githubusercontent.com/jianyunchao/mindone-assets/v0.2.0/dit/256x256/class-417.png" width="12.5%" /><img src="https://raw.githubusercontent.com/jianyunchao/mindone-assets/v0.2.0/dit/256x256/class-88.png" width="12.5%" /><img src="https://raw.githubusercontent.com/jianyunchao/mindone-assets/v0.2.0/dit/256x256/class-974.png" width="12.5%" /><img src="https://raw.githubusercontent.com/jianyunchao/mindone-assets/v0.2.0/dit/256x256/class-979.png" width="12.5%" />
 </p>
 
-## Model Finetuning
-
-Now, we support finetuning DiT model on a toy dataset `imagenet_samples/images/`. It consists of three sample images randomly selected from ImageNet dataset and their corresponding class labels. This toy dataset is stored at this [website](https://github.com/wtomin/mindone-assets/tree/main/dit/imagenet_samples). You can also download this toy dataset using:
-
-```bash
-bash scripts/download_toy_dataset.sh
-```
-Afterwards, the toy dataset is saved in `imagenet_samples/` folder.
-
-To finetune DiT model conditioned on class labels on Ascend devices, use:
-```bash
-python train.py --config configs/training/class_cond_finetune.yaml
-```
-
-You can adjust the hyper-parameters in the yaml file:
-```yaml
-# training hyper-params
-start_learning_rate: 5e-5  # small lr for finetuning exps. Change it to 1e-4 for regular training tasks.
-scheduler: "constant"
-warmup_steps: 10
-train_batch_size: 2
-gradient_accumulation_steps: 1
-weight_decay: 0.01
-epochs: 3000
-```
-
-After training, the checkpoints will be saved under `output_folder/ckpt/`.
-
-To run inference with a certain checkpoint file, please first revise `dit_checkpoint` path in the yaml files under `configs/inference/`, for example,
-```
-# dit-xl-2-256x256.yaml
-dit_checkpoint: "outputs/ckpt/DiT-3000.ckpt"
-```
-
-Then run `python sample.py -c config-file-path`.
-
 ## Model Training with ImageNet dataset
+
+For `mindspore>=2.3.0`, it is recommended to use msrun to launch the 4-card distributed training with ImageNet dataset format using the following command:
+
+```bash
+msrun --worker_num=4 \
+    --local_worker_num=4 \
+    --bind_core=True \
+    --log_dir=msrun_log \
+    python train.py \
+    -c configs/training/class_cond_train.yaml \
+    --data_path PATH_TO_YOUR_DATASET \
+    --use_parallel True
+```
 
 You can start the distributed training with ImageNet dataset format using the following command
 
 ```bash
-export MS_ASCEND_CHECK_OVERFLOW_MODE="INFNAN_MODE"
 mpirun -n 4 python train.py \
     -c configs/training/class_cond_train.yaml \
-    --dataset_path PATH_TO_YOUR_DATASET \
+    --data_path PATH_TO_YOUR_DATASET \
     --use_parallel True
 ```
 
@@ -143,6 +125,18 @@ to launch a 4P training. For detail usage of the training script, please run
 ```bash
 bash scripts/run_distributed.sh -h
 ```
+
+## Evaluation
+
+The training speed of the experiments with `256x256` image size is summarized in the following table:
+
+| model name |   context    | cards | image size | graph compile | batch size | Recompute | dataset sink mode | step time | train. imgs/s |
+| :--------: | :----------: | :---: | :--------: | :-----------: | :--------: | :-------: | :---------------: | :-------: | :-----------: |
+|    dit     | 910*-MS2.3.1 |  1p   |  256x256   |   3~5 mins    |     64     |    OFF    |        ON         |   0.89s   |     71.91     |
+|    dit     | 910*-MS2.3.1 |  1p   |  256x256   |   3~5 mins    |     64     |    ON     |        ON         |   0.95s   |     67.37     |
+|    dit     | 910*-MS2.3.1 |  4p   |  256x256   |   3~5 mins    |     64     |    ON     |        ON         |   1.03s   |    248.52     |
+|    dit     | 910*-MS2.3.1 |  8p   |  256x256   |   3~5 mins    |     64     |    ON     |        ON         |   0.93s   |    515.61     |
+
 
 # References
 
