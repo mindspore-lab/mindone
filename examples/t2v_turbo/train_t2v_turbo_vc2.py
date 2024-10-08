@@ -94,6 +94,7 @@ def main(args):
         args.mode,
         args.seed,
         args.use_parallel,
+        parallel_mode=args.parallel_mode,
         device_target=args.device_target,
         jit_level=args.jit_level,
         global_bf16=args.global_bf16,
@@ -413,7 +414,8 @@ def main(args):
         start_time_e = time.time()
         for step, data in enumerate(ds_iter, 1):
             start_time_s = time.time()
-            loss, overflow, scaling_sens = net_with_grads(*data, rank_id=rank_id)
+            data = data + [rank_id,]
+            loss, overflow, scaling_sens = net_with_grads(*data)
             step_time = time.time() - start_time_s
 
             global_step += 1

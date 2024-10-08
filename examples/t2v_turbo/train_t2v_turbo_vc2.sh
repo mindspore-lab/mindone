@@ -18,6 +18,9 @@ python train_t2v_turbo_vc2.py \
   --pretrained_enc_path $t2v_encoder_path \
   --train_batch_size 1 \
   --gradient_accumulation_steps 8 \
+  --vlcd_processes 0, \
+  --reward_train_processes 0, \
+  --video_rm_train_processes 0, \
   --reward_fn_name hpsv2 \
   --reward_scale 1.0 \
   --image_rm_ckpt_dir $image_rm_path \
@@ -33,7 +36,7 @@ python train_t2v_turbo_vc2.py \
   --lora_rank 64 \
   --jit_level O0 \
   --mixed_precision fp16 \
-  --n_frames 8 \
+  --n_frames 16 \
   --debug True \
   --reward_batch_size 5 \
   --video_rm_batch_size 8 \

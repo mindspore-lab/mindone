@@ -39,6 +39,19 @@ def parse_args():
         "--use_parallel", default=False, type=str2bool, help="use parallel"
     )
     parser.add_argument(
+        "--parallel_mode",
+        default="data",
+        type=str,
+        choices=["data", "optim", "pipeline"],
+        help="parallel mode: data, optim",
+    )
+    parser.add_argument(
+        "--optimizer_weight_shard_size",
+        type=int,
+        default=8,
+        help="Set the size of the communication domain split by the optimizer weight. ",
+    )
+    parser.add_argument(
         "--debug", type=str2bool, default=False, help="Execute inference in debug mode."
     )
     parser.add_argument(

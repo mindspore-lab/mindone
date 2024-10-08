@@ -16,8 +16,11 @@ def init_env(
     max_device_memory: str = None,
     mempool_block_size: str = "9GB",
     device_target: str = "Ascend",
+    parallel_mode: str = "data",
     jit_level: str = "O0",
     global_bf16: bool = False,
+    strategy_ckpt_save_file: str = "",
+    optimizer_weight_shard_size: int = 8,
     debug: bool = False,
     dtype: ms.dtype = ms.float32,
 ):
@@ -45,18 +48,37 @@ def init_env(
         ms.set_context(
             mode=mode,
             device_target=device_target,
+            ascend_config={"precision_mode": "allow_fp32_to_fp16"},
         )
-        init()
-        device_num = get_group_size()
-        rank_id = get_rank()
-        logger.debug(f"rank_id: {rank_id}, device_num: {device_num}")
-        ms.reset_auto_parallel_context()
 
-        ms.set_auto_parallel_context(
-            parallel_mode=ms.ParallelMode.DATA_PARALLEL,
-            gradients_mean=True,
-            device_num=device_num,
-        )
+        if parallel_mode == "optim":
+            logger.info("use optim parallel")
+            ms.set_auto_parallel_context(
+                parallel_mode=ms.ParallelMode.SEMI_AUTO_PARALLEL,
+                parallel_optimizer_config={"optimizer_weight_shard_size": optimizer_weight_shard_size},
+                enable_parallel_optimizer=True,
+                strategy_ckpt_config={
+                    "save_file": strategy_ckpt_save_file,
+                    "only_trainable_params": False,
+                },
+            )
+            init()
+            device_num = get_group_size()
+            rank_id = get_rank()
+
+        elif parallel_mode == "data":
+            init()
+            device_num = get_group_size()
+            rank_id = get_rank()
+            logger.debug(f"rank_id: {rank_id}, device_num: {device_num}")
+            ms.reset_auto_parallel_context()
+
+            ms.set_auto_parallel_context(
+                parallel_mode=ms.ParallelMode.DATA_PARALLEL,
+                gradients_mean=True,
+                device_num=device_num,
+            )
+
     else:
         device_num = 1
         rank_id = 0
