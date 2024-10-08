@@ -413,7 +413,7 @@ def main(args):
         start_time_e = time.time()
         for step, data in enumerate(ds_iter, 1):
             start_time_s = time.time()
-            loss, overflow, scaling_sens = net_with_grads(*data)
+            loss, overflow, scaling_sens = net_with_grads(*data, rank_id=rank_id)
             step_time = time.time() - start_time_s
 
             global_step += 1

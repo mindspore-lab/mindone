@@ -162,6 +162,24 @@ def parse_args():
         help="Num frames for inputing to the text-video RM.",
     )
     parser.add_argument(
+        "--vlcd_processes",
+        type=tuple_type,
+        default=(0, 1, 2, 3, 4, 5),
+        help="Process idx that are used to perform consistency distillation.",
+    )
+    parser.add_argument(
+        "--reward_train_processes",
+        type=tuple_type,
+        default=(0, 1, 2, 3, 4, 5),
+        help="Process idx that are used to maximize text-img reward fn.",
+    )
+    parser.add_argument(
+        "--video_rm_train_processes",
+        type=tuple_type,
+        default=(6, 7),
+        help="Process idx that are used to maximize text-video reward fn.",
+    )
+    parser.add_argument(
         "--n_frames",
         type=int,
         default=16,
