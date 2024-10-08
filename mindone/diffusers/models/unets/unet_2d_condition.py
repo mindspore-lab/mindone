@@ -276,6 +276,10 @@ class UNet2DConditionModel(
             encoder_hid_dim=encoder_hid_dim,
         )
 
+        self.has_text_encoder_hid_proj = (
+            False  # Used in `process_encoder_hidden_states`, Kolors Unet already has a `encoder_hid_proj`
+        )
+
         # class embedding
         self._set_class_embedding(
             class_embed_type,
@@ -897,6 +901,12 @@ class UNet2DConditionModel(
                 raise ValueError(
                     f"{self.__class__} has the config param `encoder_hid_dim_type` set to 'ip_image_proj' which requires the keyword argument `image_embeds` to be passed in  `added_conditions`"  # noqa: E501
                 )
+
+            if (
+                self.has_text_encoder_hid_proj
+            ):  # abandon `hasattr` as it is not supported by static graph before MindSpore 2.3
+                encoder_hidden_states = self.text_encoder_hid_proj(encoder_hidden_states)
+
             image_embeds = added_cond_kwargs.get("image_embeds")
             image_embeds = self.encoder_hid_proj(image_embeds)
             encoder_hidden_states = (encoder_hidden_states, image_embeds)

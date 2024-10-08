@@ -10,13 +10,16 @@ Key Features:
     - **Conditional Implementations**:
         Detects MindSpore's version at runtime to switch between native functions and custom equivalents.
     - **Operator Coverage**:
+        [2024/09/04]
+        - **view_as_complex**: Always custom due to framework limitations.
         [2024/09/02]
-        - **conv_transpose1d**: Always custom due to framework limitations.
-        - **conv_transpose2d**: Native post 2.3.0; custom for earlier versions.
-        - **group_norm**: Native post 2.3.0; custom for earlier versions.
         - **interpolate**: mint interface post 2.3.0; ops.interpolate for earlier versions.
         - **fp32_interpolate**: Always custom (upcast to fp32 during computation and cast back after)
                                 due to origin interface doesn't supported bfloat16 data type.
+        [2024/07/26]
+        - **conv_transpose1d**: Always custom due to framework limitations.
+        - **conv_transpose2d**: Native post 2.3.0; custom for earlier versions.
+        - **group_norm**: Native post 2.3.0; custom for earlier versions.
         - **multinomial**: Native post 2.3.0; custom for earlier versions.
         - **pad**: Native post 2.3.0; custom for earlier versions.
 
@@ -41,8 +44,11 @@ __all__ = [
     "conv_transpose1d",
     "conv_transpose2d",
     "group_norm",
+    "interpolate",
+    "fp32_interpolate",
     "multinomial",
     "pad",
+    "view_as_complex",
 ]
 
 MINDSPORE_VERSION = parse(ms.__version__)
@@ -403,3 +409,47 @@ if MINDSPORE_VERSION >= parse("2.3.0"):
     pad = ms.mint.nn.functional.pad
 else:
     pad = _pad
+
+
+# ================================================================================
+# view_as_complex
+# ================================================================================
+def _view_as_complex(input: ms.Tensor) -> ms.Tensor:
+    r"""
+    view_as_complex(input) -> Tensor
+
+    Equivalence of `torch.view_as_complex`. Returns a view of :attr:`input` as a
+    complex tensor. For an input complex tensor of :attr:`size` :math:`m1, m2, \dots,
+    mi, 2`, this function returns a new complex tensor of :attr:`size` :math:`m1, m2,
+    \dots, mi` where the last dimension of the input tensor is expected to represent
+    the real and imaginary components of complex numbers.
+
+    .. warning::
+        :func:`view_as_complex` is only supported for tensors with
+        :class:`ms.dtype` ``ms.float64`` and ``ms.float32``.  The input is
+        expected to have the last dimension of :attr:`size` 2. In addition, the
+        tensor must have a `stride` of 1 for its last dimension. The strides of all
+        other dimensions must be even numbers.
+
+    Args:
+        input (ms.Tensor): the input tensor.
+
+    Example::
+
+        >>> import mindspore as ms
+        >>> x = ms.ops.randn(4, 2)
+        >>> x
+        [[ 1.6116, -0.5772]
+         [-1.4606, -0.9120]
+         [ 0.0786, -1.7497]
+         [-0.6561, -1.6623]]
+        >>> view_as_complex(x)
+        [1.6116-0.5772j   -1.4606-0.9120j   0.0786-1.7497j   -0.6561-1.6623j]
+    """
+    assert input.shape[-1] == 2, "Tensor must have a last dimension of size 2"
+    real_part, imag_part = input.chunk(2, axis=-1)
+    output = ops.Complex()(real_part, imag_part).squeeze(axis=-1)
+    return output
+
+
+view_as_complex = _view_as_complex

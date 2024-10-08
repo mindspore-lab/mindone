@@ -46,7 +46,7 @@ class ControlNetOutput(BaseOutput):
             be of shape `(batch_size, channel * resolution, height //resolution, width // resolution)`. Output can be
             used to condition the original UNet's downsampling activations.
         mid_down_block_re_sample (`ms.Tensor`):
-            The activation of the midde block (the lowest sample resolution). Each tensor should be of shape
+            The activation of the middle block (the lowest sample resolution). Each tensor should be of shape
             `(batch_size, channel * lowest_resolution, height // lowest_resolution, width // lowest_resolution)`.
             Output can be used to condition the original UNet's middle block activation.
     """
@@ -791,7 +791,6 @@ class ControlNetModel(ModelMixin, ConfigMixin, FromOriginalModelMixin):
                 sample = self.mid_block(sample, emb)
 
         # 5. Control net blocks
-
         controlnet_down_block_res_samples = ()
 
         for down_block_res_sample, controlnet_block in zip(down_block_res_samples, self.controlnet_down_blocks):

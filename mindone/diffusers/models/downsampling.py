@@ -16,7 +16,7 @@ from typing import Optional, Tuple
 import mindspore as ms
 from mindspore import nn, ops
 
-from .layers_compat import pad as pad_operation
+from .layers_compat import pad
 from .normalization import LayerNorm, RMSNorm
 from .upsampling import upfirdn2d_native
 
@@ -366,8 +366,8 @@ class CogVideoXDownsample3D(nn.Cell):
                 x = x.reshape(batch_size, height, width, channels, x.shape[-1]).permute(0, 3, 4, 1, 2)
 
         # Pad the tensor
-        pad = (0, 1, 0, 1)
-        x = pad_operation(x, pad, mode="constant", value=0)
+        paddings = (0, 1, 0, 1)  # `pad` -> `paddings` as pad is used for op
+        x = pad(x, paddings, mode="constant", value=0)
         batch_size, channels, frames, height, width = x.shape
         # (batch_size, channels, frames, height, width) -> (batch_size, frames, channels, height, width) -> (batch_size * frames, channels, height, width)
         x = x.permute(0, 2, 1, 3, 4).reshape(batch_size * frames, channels, height, width)

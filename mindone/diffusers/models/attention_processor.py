@@ -34,6 +34,10 @@ class Attention(nn.Cell):
             The number of channels in the encoder_hidden_states. If not given, defaults to `query_dim`.
         heads (`int`,  *optional*, defaults to 8):
             The number of heads to use for multi-head attention.
+        kv_heads (`int`,  *optional*, defaults to `None`):
+            The number of key and value heads to use for multi-head attention. Defaults to `heads`. If
+            `kv_heads=heads`, the model will use Multi Head Attention (MHA), if `kv_heads=1` the model will use Multi
+            Query Attention (MQA) otherwise GQA is used.
         dim_head (`int`,  *optional*, defaults to 64):
             The number of channels in each head.
         dropout (`float`, *optional*, defaults to 0.0):

@@ -21,6 +21,7 @@ from mindspore import nn, ops
 
 from .activations import FP32SiLU, get_activation
 from .attention_processor import Attention
+from .layers_compat import view_as_complex
 
 
 def get_timestep_embedding(
@@ -454,19 +455,31 @@ def get_2d_rotary_pos_embed_from_grid(embed_dim, grid, use_real=False):
     assert embed_dim % 4 == 0
 
     # use half of dimensions to encode grid_h
-    emb_h = get_1d_rotary_pos_embed(embed_dim // 2, grid[0].reshape(-1), use_real=use_real)  # (H*W, D/4)
-    emb_w = get_1d_rotary_pos_embed(embed_dim // 2, grid[1].reshape(-1), use_real=use_real)  # (H*W, D/4)
+    emb_h = get_1d_rotary_pos_embed(
+        embed_dim // 2, grid[0].reshape(-1), use_real=use_real
+    )  # (H*W, D/2) if use_real else (H*W, D/4)
+    emb_w = get_1d_rotary_pos_embed(
+        embed_dim // 2, grid[1].reshape(-1), use_real=use_real
+    )  # (H*W, D/2) if use_real else (H*W, D/4)
 
     if use_real:
-        cos = ops.cat([emb_h[0], emb_w[0]], axis=1)  # (H*W, D/2)
-        sin = ops.cat([emb_h[1], emb_w[1]], axis=1)  # (H*W, D/2)
+        cos = ops.cat([emb_h[0], emb_w[0]], axis=1)  # (H*W, D)
+        sin = ops.cat([emb_h[1], emb_w[1]], axis=1)  # (H*W, D)
         return cos, sin
     else:
         emb = ops.cat([emb_h, emb_w], axis=1)  # (H*W, D/2)
         return emb
 
 
-def get_1d_rotary_pos_embed(dim: int, pos: Union[np.ndarray, int], theta: float = 10000.0, use_real=False):
+def get_1d_rotary_pos_embed(
+    dim: int,
+    pos: Union[np.ndarray, int],
+    theta: float = 10000.0,
+    use_real=False,
+    linear_factor=1.0,
+    ntk_factor=1.0,
+    repeat_interleave_real=True,
+):
     """
     Precompute the frequency tensor for complex exponentials (cis) with given dimensions.
 
@@ -481,16 +494,25 @@ def get_1d_rotary_pos_embed(dim: int, pos: Union[np.ndarray, int], theta: float 
             Scaling factor for frequency computation. Defaults to 10000.0.
         use_real (`bool`, *optional*):
             If True, return real part and imaginary part separately. Otherwise, return complex numbers.
-
+        linear_factor (`float`, *optional*, defaults to 1.0):
+            Scaling factor for the context extrapolation. Defaults to 1.0.
+        ntk_factor (`float`, *optional*, defaults to 1.0):
+            Scaling factor for the NTK-Aware RoPE. Defaults to 1.0.
+        repeat_interleave_real (`bool`, *optional*, defaults to `True`):
+            If `True` and `use_real`, real part and imaginary part are each interleaved with themselves to reach `dim`.
+            Otherwise, they are concateanted with themselves.
     Returns:
         `ms.Tensor`: Precomputed frequency tensor with complex exponentials. [S, D/2]
     """
+    assert dim % 2 == 0
+
     if isinstance(pos, int):
         pos = np.arange(pos)
-    freqs = 1.0 / (theta ** (ops.arange(0, dim, 2)[: (dim // 2)].float() / dim))  # [D/2]
+    theta = theta * ntk_factor
+    freqs = 1.0 / (theta ** (ops.arange(0, dim, 2)[: (dim // 2)].float() / dim)) / linear_factor  # [D/2]
     t = ms.Tensor.from_numpy(pos)  # type: ignore  # [S]
     freqs = ops.outer(t, freqs).float()  # type: ignore   # [S, D/2]
-    if use_real:
+    if use_real and repeat_interleave_real:
         freqs_cos = freqs.cos().repeat_interleave(2, dim=1)  # [S, D]
         freqs_sin = freqs.sin().repeat_interleave(2, dim=1)  # [S, D]
         return freqs_cos, freqs_sin
@@ -539,9 +561,11 @@ def apply_rotary_emb(
 
         return out
     else:
-        raise NotImplementedError(
-            "Complex tensors are not supported for `apply_rotary_emb`, concat @townwish4git for it if neccessary."
-        )
+        x_rotated = view_as_complex(x.float().reshape(*x.shape[:-1], -1, 2))
+        freqs_cis = freqs_cis.unsqueeze(2)
+        x_out = ops.view_as_real(x_rotated * freqs_cis).flatten(start_dim=3)
+
+        return x_out.type_as(x)
 
 
 class TimestepEmbedding(nn.Cell):
@@ -624,9 +648,11 @@ class GaussianFourierProjection(nn.Cell):
 
         if set_W_to_weight:
             # to delete later
-            self.W = ms.Parameter(ops.randn(embedding_size) * scale, requires_grad=False, name="W")
-
+            # FIXME: what is the logic here ???
+            del self.weight
+            self.W = ms.Parameter(ops.randn(embedding_size) * scale, requires_grad=False, name="weight")
             self.weight = self.W
+            del self.W
 
     def construct(self, x):
         if self.log:
@@ -932,18 +958,33 @@ class HunyuanDiTAttentionPool(nn.Cell):
 
 
 class HunyuanCombinedTimestepTextSizeStyleEmbedding(nn.Cell):
-    def __init__(self, embedding_dim, pooled_projection_dim=1024, seq_len=256, cross_attention_dim=2048):
+    def __init__(
+        self,
+        embedding_dim,
+        pooled_projection_dim=1024,
+        seq_len=256,
+        cross_attention_dim=2048,
+        use_style_cond_and_image_meta_size=True,
+    ):
         super().__init__()
 
         self.time_proj = Timesteps(num_channels=256, flip_sin_to_cos=True, downscale_freq_shift=0)
         self.timestep_embedder = TimestepEmbedding(in_channels=256, time_embed_dim=embedding_dim)
 
+        self.size_proj = Timesteps(num_channels=256, flip_sin_to_cos=True, downscale_freq_shift=0)
+
         self.pooler = HunyuanDiTAttentionPool(
             seq_len, cross_attention_dim, num_heads=8, output_dim=pooled_projection_dim
         )
+
         # Here we use a default learned embedder layer for future extension.
-        self.style_embedder = nn.Embedding(1, embedding_dim)
-        extra_in_dim = 256 * 6 + embedding_dim + pooled_projection_dim
+        self.use_style_cond_and_image_meta_size = use_style_cond_and_image_meta_size
+        if use_style_cond_and_image_meta_size:
+            self.style_embedder = nn.Embedding(1, embedding_dim)
+            extra_in_dim = 256 * 6 + embedding_dim + pooled_projection_dim
+        else:
+            extra_in_dim = pooled_projection_dim
+
         self.extra_embedder = PixArtAlphaTextProjection(
             in_features=extra_in_dim,
             hidden_size=embedding_dim * 4,
@@ -959,16 +1000,20 @@ class HunyuanCombinedTimestepTextSizeStyleEmbedding(nn.Cell):
         # extra condition1: text
         pooled_projections = self.pooler(encoder_hidden_states)  # (N, 1024)
 
-        # extra condition2: image meta size embdding
-        image_meta_size = get_timestep_embedding(image_meta_size.view(-1), 256, True, 0)
-        image_meta_size = image_meta_size.to(dtype=hidden_dtype)
-        image_meta_size = image_meta_size.view(-1, 6 * 256)  # (N, 1536)
+        if self.use_style_cond_and_image_meta_size:
+            # extra condition2: image meta size embdding
+            image_meta_size = self.size_proj(image_meta_size.view(-1))
+            image_meta_size = image_meta_size.to(dtype=hidden_dtype)
+            image_meta_size = image_meta_size.view(-1, 6 * 256)  # (N, 1536)
 
-        # extra condition3: style embedding
-        style_embedding = self.style_embedder(style)  # (N, embedding_dim)
+            # extra condition3: style embedding
+            style_embedding = self.style_embedder(style)  # (N, embedding_dim)
 
-        # Concatenate all extra vectors
-        extra_cond = ops.cat([pooled_projections, image_meta_size, style_embedding], axis=1)
+            # Concatenate all extra vectors
+            extra_cond = ops.cat([pooled_projections, image_meta_size, style_embedding], axis=1)
+        else:
+            extra_cond = ops.cat([pooled_projections], axis=1)
+
         conditioning = timesteps_emb + self.extra_embedder(extra_cond)  # [B, D]
 
         return conditioning
@@ -1207,7 +1252,7 @@ class GLIGENTextBoundingboxProjection(nn.Cell):
 
             objs = self.linears(ops.cat([positive_embeddings, xyxy_embedding], axis=-1))
 
-        # positionet with text and image infomation
+        # positionet with text and image information
         else:
             phrases_masks = phrases_masks.unsqueeze(-1)
             image_masks = image_masks.unsqueeze(-1)
