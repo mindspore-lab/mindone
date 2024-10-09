@@ -322,6 +322,10 @@ class STDiT3_DSP(nn.Cell):
                 param.requires_grad = False
 
         if use_recompute:
+            self.recompute(self.t_embedder)
+            self.recompute(self.fps_embedder)
+            self.recompute(self.t_block)
+            self.recompute(self.final_layer)
             for blocks in [self.spatial_blocks, self.temporal_blocks]:
                 for block in blocks:
                     self.recompute(block)
@@ -447,7 +451,6 @@ class STDiT3_DSP(nn.Cell):
 
         # shard over the sequence dim if sp is enabled
         temporal_pad, spatial_pad = None, None
-        frames_mask_ori = frames_mask
         if self.enable_sequence_parallelism:
             temporal_pad = self.get_pad_num(T)
             spatial_pad = self.get_pad_num(S)
@@ -467,6 +470,9 @@ class STDiT3_DSP(nn.Cell):
             x = spatial_block(x, y, t_mlp, mask, frames_mask, t0_mlp, T, S, spatial_pad, temporal_pad)
             x = temporal_block(x, y, t_mlp, mask, frames_mask, t0_mlp, T, S, spatial_pad, temporal_pad)
 
+        # === final layer ===
+        x = self.final_layer(x, t, frames_mask, t0, T, S)
+
         if self.enable_sequence_parallelism:
             x = x.reshape(B, T, S, -1)
             x = self.gather_forward_split_backward(x)
@@ -475,10 +481,7 @@ class STDiT3_DSP(nn.Cell):
                 x = x.narrow(1, 0, x.shape[1] - temporal_pad)
 
             T, S = x.shape[1], x.shape[2]
-            x = x.reshape(B, (T * S), -1)
 
-        # === final layer ===
-        x = self.final_layer(x, t, ops.stop_gradient(frames_mask_ori), t0, T, S)
         x = self.unpatchify(x, T, H, W, Tx, Hx, Wx)
 
         # cast to float32 for better accuracy

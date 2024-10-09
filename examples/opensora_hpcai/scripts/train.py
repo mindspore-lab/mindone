@@ -671,6 +671,8 @@ def main(args):
     )
 
     # build optimizer
+    if not isinstance(args.optim_eps, float) and len(args.optim_eps) == 1:
+        args.optim_eps = args.optim_eps[0]
     optimizer = create_optimizer(
         latent_diffusion_with_loss.trainable_params(),
         name=args.optim,

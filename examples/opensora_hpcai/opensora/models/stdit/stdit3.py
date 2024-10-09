@@ -295,6 +295,10 @@ class STDiT3(nn.Cell):
                 param.requires_grad = False
 
         if use_recompute:
+            self.recompute(self.t_embedder)
+            self.recompute(self.fps_embedder)
+            self.recompute(self.t_block)
+            self.recompute(self.final_layer)
             for blocks in [self.spatial_blocks, self.temporal_blocks]:
                 for block in blocks:
                     self.recompute(block)
