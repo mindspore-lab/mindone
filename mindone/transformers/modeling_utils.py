@@ -1643,7 +1643,7 @@ class MSPreTrainedModel(nn.Cell, ModuleUtilsMixin, PushToHubMixin, PeftAdapterMi
             with safe_open(resolved_archive_file, framework="np") as f:
                 metadata = f.metadata()
 
-            if metadata.get("format") == "pt":
+            if metadata.get("format") == "pt" or metadata.get("format") == "np":
                 pass
             elif metadata.get("format") == "tf":
                 from_tf = True
