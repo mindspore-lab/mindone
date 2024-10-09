@@ -1,5 +1,5 @@
 # This file defined a list containing all generalized test cases. Each test case is represented as a list or tuple following the structure:
-#    [name, pt_module, ms_module, init_args, init_kwargs, inputs_args, inputs_kwargs].
+#    [name, pt_module, ms_module, init_args, init_kwargs, inputs_args, inputs_kwargs, dtype, mode].
 #
 # Parameters:
 #     name:
@@ -8,12 +8,21 @@
 #         The module from 'mindone.diffusers' under test, e.g., 'mindone.diffusers.models.model0'.
 #     pt_module:
 #         The counterpart module from the original 'diffusers' library for accuracy benchmarking, matching ms_module in functionality.
-#     init_args, init_kwargs:
-#         Arguments for initializing the modules, positional and keyword respectively.
-#     inputs_args, inputs_kwargs:
-#         Arguments for model inputs, positional and keyword respectively. These are initially defined with numpy for compatibility and are converted
+#     init_args:
+#         Positional arguments for initializing the modules.
+#     init_kwargs:
+#         Keyword arguments for initializing the modules.
+#     inputs_args:
+#         Positional arguments for model inputs. These are initially defined with numpy for compatibility and are converted
 #         to PyTorch or MindSpore formats via the `.modeling_test_utils.generalized_parse_args` utility. If this utility's conversions do not suffice,
 #         a specific unit test should be developed rather than relying on generic test cases.
+#     inputs_kwargs:
+#         Keyword arguments for model inputs. Same as inputs_args.
+#     dtype[Optional]:
+#         Model data-type to be tested, default: ("fp16", "fp32"), choice: ("fp16", "fp32", "bf16"). If set mannually, `mode` should be set together.
+#     mode[Optional]:
+#         MindSpore Mode to be tested, default: (0, 1), stands for GRAPH and PyNative. If set mannually, `dtype` should be set together.
+
 
 import numpy as np
 
@@ -740,12 +749,46 @@ SD3_TRANSFORMER2D_CASES = [
 ]
 
 
+FLUX_TRANSFORMER2D_CASES = [
+    [
+        "FluxTransformer2DModel",
+        "diffusers.FluxTransformer2DModel",
+        "mindone.diffusers.FluxTransformer2DModel",
+        (),
+        {
+            "patch_size": 1,
+            "in_channels": 4,
+            "num_layers": 1,
+            "num_single_layers": 1,
+            "attention_head_dim": 16,
+            "num_attention_heads": 2,
+            "joint_attention_dim": 32,
+            "pooled_projection_dim": 32,
+            "axes_dims_rope": [4, 4, 8],
+        },
+        (),
+        {
+            "hidden_states": np.random.randn(2, 16, 4),
+            "encoder_hidden_states": np.random.randn(2, 48, 32),
+            "img_ids": np.random.randn(2, 16, 3),
+            "txt_ids": np.random.randn(2, 48, 3),
+            "pooled_projections": np.random.randn(2, 32),
+            "timestep": np.array([1, 1]),
+            "return_dict": False,
+        },
+        ("bf16"),  # only bf16 supported
+        (0, 1),
+    ],
+]
+
+
 TRANSFORMERS_CASES = (
     DIT_TRANSFORMER2D_CASES
     + PIXART_TRANSFORMER2D_CASES
     + PRIOR_TRANSFORMER_CASES
     + SD3_TRANSFORMER2D_CASES
     + TRANSFORMER2D_CASES
+    + FLUX_TRANSFORMER2D_CASES
 )
 
 

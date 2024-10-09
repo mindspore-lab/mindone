@@ -1,9 +1,11 @@
 import importlib
+import itertools
 import logging
 
 import numpy as np
 import torch
 from diffusers.utils import BaseOutput
+from ml_dtypes import bfloat16
 
 import mindspore as ms
 from mindspore import nn, ops
@@ -11,6 +13,8 @@ from mindspore import nn, ops
 logger = logging.getLogger("ModelingsUnitTest")
 
 
+FULLY_CASES_ARGS = "name,pt_module,ms_module,init_args,init_kwargs,inputs_args,inputs_kwargs,dtype,mode"
+FULLY_CASES_LENGTH = 9
 TORCH_FP16_BLACKLIST = (
     "LayerNorm",
     "Timesteps",
@@ -22,6 +26,32 @@ TORCH_FP16_BLACKLIST = (
     "KDownsample2D",
     "AutoencoderTiny",
 )
+
+
+def set_default_dtype_mode_for_single_case(case):
+    assert len(case) in (
+        FULLY_CASES_LENGTH,
+        FULLY_CASES_LENGTH - 2,
+    ), (
+        f"Case should contain all arguments({FULLY_CASES_ARGS}), or all arguments except for the last two(dtype and mode). "
+        f"In the latter situation, dtype will be set to `(fp16, fp32)` by default, and mode will be set to `(0, 1)` by default."
+    )
+
+    if len(case) == FULLY_CASES_LENGTH - 2:
+        case += [("fp16", "fp32"), (0, 1)]
+
+    return case
+
+
+def expand_dtype_mode_for_all_case(all_cases):
+    all_cases = map(set_default_dtype_mode_for_single_case, all_cases)
+    expanded_cases = []
+
+    for case in all_cases:
+        case_wo_dtype_mode, dtype, mode = case[:-2], case[-2], case[-1]
+        expanded_cases.extend([case_wo_dtype_mode + list(context) for context in itertools.product(dtype, mode)])
+
+    return expanded_cases
 
 
 # copied from mindone.diffusers.models.modeling_utils
@@ -46,11 +76,19 @@ def get_pt2ms_mappings(m):
 
 # adapted from mindone.diffusers.models.modeling_utils
 def convert_state_dict(m, state_dict_pt):
+    dtype_mappings = {
+        torch.float16: ms.float16,
+        torch.float32: ms.float32,
+        torch.bfloat16: ms.bfloat16,
+    }
+
     mappings = get_pt2ms_mappings(m)
     state_dict_ms = {}
     for name_pt, data_pt in state_dict_pt.items():
         name_ms, data_mapping = mappings.get(name_pt, (name_pt, lambda x: x))
-        data_ms = ms.Parameter(data_mapping(ms.Tensor.from_numpy(data_pt.numpy())))
+        data_ms = ms.Parameter(
+            data_mapping(ms.Tensor.from_numpy(data_pt.float().numpy()).to(dtype_mappings[data_pt.dtype]))
+        )
         if name_ms is not None:
             state_dict_ms[name_ms] = data_ms
     return state_dict_ms
@@ -70,6 +108,9 @@ def get_modules(pt_module, ms_module, dtype, *args, **kwargs):
     if dtype == "fp16":
         pt_modules_instance = pt_modules_instance.to(torch.float16)
         ms_modules_instance = set_dtype(ms_modules_instance, ms.float16)
+    elif dtype == "bf16":
+        pt_modules_instance = pt_modules_instance.to(torch.bfloat16)
+        ms_modules_instance = set_dtype(ms_modules_instance, ms.bfloat16)
     elif dtype == "fp32":
         pt_modules_instance = pt_modules_instance.to(torch.float32)
         ms_modules_instance = set_dtype(ms_modules_instance, ms.float32)
@@ -115,6 +156,7 @@ def generalized_parse_args(pt_dtype, ms_dtype, *args, **kwargs):
     dtype_mappings = {
         "fp32": np.float32,
         "fp16": np.float16,
+        "bf16": bfloat16,
     }
 
     # parse args
@@ -122,7 +164,7 @@ def generalized_parse_args(pt_dtype, ms_dtype, *args, **kwargs):
     ms_inputs_args = tuple()
     for x in args:
         if isinstance(x, np.ndarray):
-            if x.dtype in (np.float16, np.float32, np.float64):
+            if x.dtype in (np.float16, np.float32, np.float64, bfloat16):
                 px = x.astype(dtype_mappings[pt_dtype])
                 mx = x.astype(dtype_mappings[ms_dtype])
             else:
@@ -139,7 +181,7 @@ def generalized_parse_args(pt_dtype, ms_dtype, *args, **kwargs):
     ms_inputs_kwargs = dict()
     for k, v in kwargs.items():
         if isinstance(v, np.ndarray):
-            if v.dtype in (np.float16, np.float32, np.float64):
+            if v.dtype in (np.float16, np.float32, np.float64, bfloat16):
                 px = v.astype(dtype_mappings[pt_dtype])
                 mx = v.astype(dtype_mappings[ms_dtype])
             else:
