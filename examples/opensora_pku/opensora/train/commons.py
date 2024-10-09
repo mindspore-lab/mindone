@@ -123,7 +123,8 @@ def parse_train_args(parser):
     #################################################################################
     #                           Dataset and DataLoader                              #
     #################################################################################
-    parser.add_argument("--train_batch_size", default=10, type=int, help="batch size")
+    parser.add_argument("--train_batch_size", default=10, type=int, help="train batch size")
+    parser.add_argument("--val_batch_size", default=1, type=int, help="validation batch size")
     parser.add_argument("--dataset_sink_mode", default=False, type=str2bool, help="sink mode")
     parser.add_argument("--sink_size", default=-1, type=int, help="dataset sink size. If -1, sink size = dataset size.")
     parser.add_argument(
@@ -196,6 +197,13 @@ def parse_train_args(parser):
         type=str2bool,
         help="whether save ckpt by steps. If False, save ckpt by epochs.",
     )
+    parser.add_argument(
+        "--validate",
+        default=False,
+        type=str2bool,
+        help="whether to compute the validation set loss during training",
+    )
+    parser.add_argument("--val_interval", default=1, type=int, help="Validation frequency in epochs")
     parser.add_argument("--profile", default=False, type=str2bool, help="Profile or not")
     parser.add_argument(
         "--log_level",

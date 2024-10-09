@@ -23,6 +23,7 @@ from opensora.models.diffusion import Diffusion_models
 from opensora.models.diffusion.opensora.modules import Attention, LayerNorm
 from opensora.models.diffusion.opensora.net_with_loss import DiffusionWithLoss
 from opensora.train.commons import create_loss_scaler, parse_args
+from opensora.utils.callbacks import EMAEvalSwapCallback, PerfRecorderCallback
 from opensora.utils.dataset_utils import Collate, LengthGroupedBatchSampler
 from opensora.utils.ema import EMA
 from opensora.utils.message_utils import print_banner
@@ -261,13 +262,13 @@ def main(args):
         noise_offset=args.noise_offset,
         snr_gamma=args.snr_gamma,
     )
-
+    latent_diffusion_eval, metrics = None, {}
     # 3. create dataset
     # TODO: replace it with new dataset
     assert args.dataset == "t2v", "Support t2v dataset only."
-    print_banner("Dataset Loading")
+    print_banner("Training dataset Loading...")
     # Setup data:
-    train_dataset = getdataset(args)
+    train_dataset = getdataset(args, dataset_file=args.data)
     sampler = (
         LengthGroupedBatchSampler(
             args.train_batch_size,
@@ -292,7 +293,7 @@ def main(args):
         args.num_frames,
         args.use_image_num,
     )
-    dataset = create_dataloader(
+    dataloader = create_dataloader(
         train_dataset,
         batch_size=args.train_batch_size,
         shuffle=sampler is None,
@@ -305,9 +306,72 @@ def main(args):
         sampler=sampler,
         column_names=["pixel_values", "attention_mask", "text_embed", "encoder_attention_mask"],
     )
-    dataset_size = dataset.get_dataset_size()
-    assert dataset_size > 0, "Incorrect dataset size. Please check your dataset size and your global batch size"
+    dataloader_size = dataloader.get_dataset_size()
+    assert (
+        dataloader_size > 0
+    ), "Incorrect training dataset size. Please check your dataset size and your global batch size"
 
+    val_dataloader = None
+    if args.validate:
+        assert args.val_data is not None and os.path.exists(args.val_data), "validation dataset must be specified!"
+        print_banner("Validation dataset Loading...")
+        val_dataset = getdataset(args, dataset_file=args.val_data)
+        sampler = (
+            LengthGroupedBatchSampler(
+                args.val_batch_size,
+                world_size=device_num if not get_sequence_parallel_state() else (device_num // hccl_info.world_size),
+                lengths=val_dataset.lengths,
+                group_frame=args.group_frame,
+                group_resolution=args.group_resolution,
+            )
+            if (args.group_frame or args.group_resolution)
+            else None
+        )
+        collate_fn = Collate(
+            args.val_batch_size,
+            args.group_frame,
+            args.group_resolution,
+            args.max_height,
+            args.max_width,
+            args.ae_stride,
+            args.ae_stride_t,
+            args.patch_size,
+            args.patch_size_t,
+            args.num_frames,
+            args.use_image_num,
+        )
+        val_dataloader = create_dataloader(
+            val_dataset,
+            batch_size=args.val_batch_size,
+            shuffle=sampler is None,
+            device_num=device_num if not get_sequence_parallel_state() else (device_num // hccl_info.world_size),
+            rank_id=rank_id if not get_sequence_parallel_state() else hccl_info.group_id,
+            num_parallel_workers=args.dataloader_num_workers,
+            max_rowsize=args.max_rowsize,
+            prefetch_size=args.dataloader_prefetch_size,
+            collate_fn=collate_fn,
+            sampler=sampler,
+            column_names=["pixel_values", "attention_mask", "text_embed", "encoder_attention_mask"],
+        )
+        val_dataloader_size = val_dataloader.get_dataset_size()
+        assert (
+            val_dataloader_size > 0
+        ), "Incorrect validation dataset size. Please check your dataset size and your global batch size"
+
+        # create eval network
+        latent_diffusion_eval = DiffusionWithLoss(
+            model,
+            noise_scheduler,
+            vae=vae,
+            text_encoder=text_encoder,
+            text_emb_cached=args.text_embed_cache,
+            video_emb_cached=False,
+            use_image_num=args.use_image_num,
+            dtype=model_dtype,
+            noise_offset=args.noise_offset,
+            snr_gamma=args.snr_gamma,
+        )
+        metrics = {"Validation loss": lambda x: x}
     # 4. build training utils: lr, optim, callbacks, trainer
     if args.scale_lr:
         learning_rate = args.start_learning_rate * args.train_batch_size * args.gradient_accumulation_steps * device_num
@@ -322,26 +386,26 @@ def main(args):
         assert args.sink_size > 0, f"Expect that sink size is a positive integer, but got {args.sink_size}"
         steps_per_sink = args.sink_size
     else:
-        steps_per_sink = dataset_size
+        steps_per_sink = dataloader_size
 
     if args.max_train_steps is not None:
         assert args.max_train_steps > 0, f"max_train_steps should a positive integer, but got {args.max_train_steps}"
         total_train_steps = args.max_train_steps
-        args.num_train_epochs = math.ceil(total_train_steps / dataset_size)
+        args.num_train_epochs = math.ceil(total_train_steps / dataloader_size)
     else:
         # use args.num_train_epochs
         assert (
             args.num_train_epochs is not None and args.num_train_epochs > 0
         ), f"When args.max_train_steps is not provided, args.num_train_epochs must be a positive integer! but got {args.num_train_epochs}"
-        total_train_steps = args.num_train_epochs * dataset_size
+        total_train_steps = args.num_train_epochs * dataloader_size
 
     sink_epochs = math.ceil(total_train_steps / steps_per_sink)
     total_train_steps = sink_epochs * steps_per_sink
 
-    if steps_per_sink == dataset_size:
+    if steps_per_sink == dataloader_size:
         logger.info(
             f"Number of training steps: {total_train_steps}; Number of epochs: {args.num_train_epochs}; "
-            f"Number of batches in a epoch (dataset_size): {dataset_size}"
+            f"Number of batches in a epoch (dataloader size): {dataloader_size}"
         )
     else:
         logger.info(
@@ -375,7 +439,7 @@ def main(args):
             ckpt_save_interval,
             "steps"
             if (not args.dataset_sink_mode and step_mode)
-            else ("epochs" if steps_per_sink == dataset_size else "sink epochs"),
+            else ("epochs" if steps_per_sink == dataloader_size else "sink epochs"),
         )
     )
     # build learning rate scheduler
@@ -383,7 +447,7 @@ def main(args):
         args.lr_decay_steps = total_train_steps - args.lr_warmup_steps  # fix lr scheduling
         if args.lr_decay_steps <= 0:
             logger.warning(
-                f"decay_steps is {args.lr_decay_steps}, please check epochs, dataset_size and warmup_steps. "
+                f"decay_steps is {args.lr_decay_steps}, please check epochs, dataloader_size and warmup_steps. "
                 f"Will force decay_steps to be set to 1."
             )
             args.lr_decay_steps = 1
@@ -392,7 +456,7 @@ def main(args):
     ), f"Expect args.lr_warmup_steps to be no less than zero,  but got {args.lr_warmup_steps}"
 
     lr = create_scheduler(
-        steps_per_epoch=dataset_size,
+        steps_per_epoch=dataloader_size,
         name=args.lr_scheduler,
         lr=learning_rate,
         end_lr=end_learning_rate,
@@ -486,11 +550,15 @@ def main(args):
         )
 
     if not args.global_bf16:
-        model = Model(net_with_grads)
+        model = Model(
+            net_with_grads,
+            eval_network=latent_diffusion_eval,
+            metrics=metrics,
+        )
     else:
-        model = Model(net_with_grads, amp_level="O0")
+        model = Model(net_with_grads, eval_network=latent_diffusion_eval, metrics=metrics, amp_level="O0")
     # callbacks
-    callback = [TimeMonitor(args.log_interval)]
+    callback = [TimeMonitor(args.log_interval), EMAEvalSwapCallback(ema)]
     ofm_cb = OverflowMonitor()
     callback.append(ofm_cb)
     if args.max_train_steps is not None and args.max_train_steps > 0:
@@ -520,6 +588,7 @@ def main(args):
             ckpt_save_dir=ckpt_save_dir,
             output_dir=output_dir,
             ema=ema,
+            save_ema_only=False,
             ckpt_save_policy="latest_k",
             ckpt_max_keep=ckpt_max_keep,
             step_mode=step_mode,
@@ -532,7 +601,13 @@ def main(args):
             integrated_save=integrated_save,
             save_training_resume=save_training_resume,
         )
-        callback.append(save_cb)
+        rec_cb = PerfRecorderCallback(
+            save_dir=args.output_dir,
+            file_name="result_val.log",
+            metric_names=list(metrics.keys()),
+            resume=args.resume_from_checkpoint,
+        )
+        callback.extend([save_cb, rec_cb])
         if args.profile:
             callback.append(ProfilerCallbackEpoch(2, 2, "./profile_data"))
     # Train!
@@ -598,11 +673,14 @@ def main(args):
             yaml.safe_dump(vars(args), stream=f, default_flow_style=False, sort_keys=False)
 
     # 6. train
-    model.train(
+    model.fit(
         sink_epochs,
-        dataset,
+        dataloader,
+        valid_dataset=val_dataloader,
+        valid_frequency=args.val_interval,
         callbacks=callback,
         dataset_sink_mode=args.dataset_sink_mode,
+        valid_dataset_sink_mode=False,  # TODO: add support?
         sink_size=args.sink_size,
         initial_epoch=start_epoch,
     )
@@ -611,7 +689,18 @@ def main(args):
 def parse_t2v_train_args(parser):
     parser.add_argument("--output_dir", default="outputs/", help="The directory where training results are saved.")
     parser.add_argument("--dataset", type=str, default="t2v")
-    parser.add_argument("--data", type=str, required=True)
+    parser.add_argument(
+        "--data",
+        type=str,
+        required=True,
+        help="The training dataset text file specifying the path of video folder, text embedding cache folder, and the annotation json file",
+    )
+    parser.add_argument(
+        "--val_data",
+        type=str,
+        default=None,
+        help="The validation dataset text file, same format as the training dataset text file.",
+    )
     parser.add_argument("--cache_dir", type=str, default="./cache_dir")
     parser.add_argument(
         "--filter_nonexistent",

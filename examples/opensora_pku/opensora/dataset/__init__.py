@@ -9,7 +9,7 @@ from .t2v_datasets import T2V_dataset
 from .transform import TemporalRandomCrop, center_crop_th_tw
 
 
-def getdataset(args):
+def getdataset(args, dataset_file):
     temporal_sample = TemporalRandomCrop(args.num_frames)  # 16 x
     norm_fun = ae_norm[args.ae]
 
@@ -47,7 +47,7 @@ def getdataset(args):
     tokenizer = AutoTokenizer.from_pretrained(args.text_encoder_name, cache_dir=args.cache_dir)
     if args.dataset == "t2v":
         return T2V_dataset(
-            args.data,
+            dataset_file,
             num_frames=args.num_frames,
             train_fps=args.train_fps,
             use_image_num=args.use_image_num,
