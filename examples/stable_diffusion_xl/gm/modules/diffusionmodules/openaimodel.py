@@ -70,14 +70,10 @@ class Upsample(nn.Cell):
             t_factor = 1 if not self.third_up else 2
 
             # x = ops.interpolate(x, size=(t_factor * x.shape[2], x.shape[3] * 2, x.shape[4] * 2), mode="nearest",)
-            x = ops.ResizeNearestNeighbor(
-                size=(t_factor * x.shape[2], x.shape[3] * 2, x.shape[4] * 2),
-            )(x)
+            x = ops.ResizeNearestNeighborV2()(x, (t_factor * x.shape[2], x.shape[3] * 2, x.shape[4] * 2))
         else:
             # x = ops.interpolate(x, size=(x.shape[-2] * 2, x.shape[-1] * 2), mode="nearest")  # scale_factor=2., (not support with ms2.1)
-            x = ops.ResizeNearestNeighbor(
-                size=(x.shape[-2] * 2, x.shape[-1] * 2),
-            )(x)
+            x = ops.ResizeNearestNeighborV2()(x, (x.shape[-2] * 2, x.shape[-1] * 2))
         if self.use_conv:
             x = self.conv(x)
         return x
