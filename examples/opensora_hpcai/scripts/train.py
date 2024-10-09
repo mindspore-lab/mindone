@@ -39,7 +39,7 @@ from opensora.utils.amp import auto_mixed_precision
 from opensora.utils.callbacks import EMAEvalSwapCallback, PerfRecorderCallback
 from opensora.utils.ema import EMA, save_ema_ckpts
 from opensora.utils.metrics import BucketLoss
-from opensora.utils.model_utils import WHITELIST_OPS, Model
+from opensora.utils.model_utils import BLACKLIST_OPS, Model
 from opensora.utils.resume import flush_from_cache, get_resume_ckpt, get_resume_states, resume_train_net, save_train_net
 
 from mindone.trainers.callback import EvalSaveCallback, OverflowMonitor, ProfilerCallbackEpoch, StopAtStepCallback
@@ -466,7 +466,7 @@ def main(args):
                 latte_model,
                 amp_level=args.amp_level,
                 dtype=dtype_map[args.dtype],
-                custom_fp32_cells=WHITELIST_OPS,
+                custom_fp32_cells=BLACKLIST_OPS,
             )
     # load checkpoint
     if len(args.pretrained_model_path) > 0:

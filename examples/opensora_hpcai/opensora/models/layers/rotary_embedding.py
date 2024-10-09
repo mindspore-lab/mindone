@@ -28,7 +28,7 @@ def rotate_half(x: Tensor) -> Tensor:
 def apply_rotary_emb(freqs: Parameter, t: Tensor, scale: float = 1.0, seq_dim: int = -2) -> Tensor:
     # FIXME: start_index is always 0 in OS1.2 and ops.concat doesn't support empty elements. OS1.x future versions may need start_index > 0
     # t, t_right = t[..., start_index:end_index], t[..., end_index:]
-    t = (t * freqs.cos().astype(t.dtype) * scale) + (rotate_half(t) * freqs.sin().astype(t.dtype) * scale)
+    t = (t * freqs.cos() * scale) + (rotate_half(t) * freqs.sin() * scale)
 
     return t
 
@@ -139,7 +139,7 @@ class RotaryEmbedding(nn.Cell):
         raise NotImplementedError
 
     def construct(self, t: Tensor, seq_len=None, offset=0) -> Tensor:
-        freqs = t.astype(self.freqs.dtype)[..., None] * self.freqs
+        freqs = t[..., None] * self.freqs.to(t.dtype)
         return self.repeat_interleave(freqs, 2, -1)  # ... n -> ... (n r), r = 2
 
 

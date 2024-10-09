@@ -26,7 +26,7 @@ from opensora.models.vae.vae import SD_CONFIG, OpenSoraVAE_V1_2, VideoAutoencode
 from opensora.pipelines import InferPipeline, InferPipelineFiTLike
 from opensora.utils.amp import auto_mixed_precision
 from opensora.utils.cond_data import get_references, read_captions_from_csv, read_captions_from_txt
-from opensora.utils.model_utils import WHITELIST_OPS, _check_cfgs_in_parser, str2bool
+from opensora.utils.model_utils import BLACKLIST_OPS, _check_cfgs_in_parser, str2bool
 from opensora.utils.util import IMG_FPS, apply_mask_strategy, process_mask_strategies, process_prompts
 
 from mindone.data.data_split import distribute_samples
@@ -269,7 +269,7 @@ def main(args):
 
     if args.dtype in ["fp16", "bf16"]:
         latte_model = auto_mixed_precision(
-            latte_model, amp_level=args.amp_level, dtype=dtype_map[args.dtype], custom_fp32_cells=WHITELIST_OPS
+            latte_model, amp_level=args.amp_level, dtype=dtype_map[args.dtype], custom_fp32_cells=BLACKLIST_OPS
         )
 
     if args.ckpt_path:
@@ -297,7 +297,7 @@ def main(args):
                     "T5 dtype is fp16, which may lead to video color vibration. Suggest to use bf16 or fp32."
                 )
             text_encoder = auto_mixed_precision(
-                text_encoder, amp_level="O2", dtype=dtype_map[args.t5_dtype], custom_fp32_cells=WHITELIST_OPS
+                text_encoder, amp_level="O2", dtype=dtype_map[args.t5_dtype], custom_fp32_cells=BLACKLIST_OPS
             )
         logger.info(f"Num tokens: {mask.asnumpy().sum(2)}")
     else:
