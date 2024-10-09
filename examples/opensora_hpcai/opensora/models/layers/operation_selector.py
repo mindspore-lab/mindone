@@ -1,6 +1,6 @@
 import mindspore as ms
 from mindspore import mint, ops
-from mindspore.ops.function.array_func import chunk_ext, repeat_interleave_ext
+from mindspore.ops.function.array_func import chunk_ext
 
 use_dynamic_ops = False
 
