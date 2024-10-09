@@ -170,7 +170,7 @@ class CAME(nn.Optimizer):
                 )
                 v.append(
                     Parameter(
-                        ops.zeros((1,), dtype=ms.float32),
+                        ops.zeros((1,), dtype=ms.uint8),
                         name=x.name + "_v",
                         requires_grad=False,
                     )
@@ -178,28 +178,28 @@ class CAME(nn.Optimizer):
             else:
                 v_row.append(
                     Parameter(
-                        ops.zeros((1,), dtype=ms.float32),
+                        ops.zeros((1,), dtype=ms.uint8),
                         name=x.name + "_v_row",
                         requires_grad=False,
                     )
                 )
                 v_col.append(
                     Parameter(
-                        ops.zeros((1,), dtype=ms.float32),
+                        ops.zeros((1,), dtype=ms.uint8),
                         name=x.name + "_v_col",
                         requires_grad=False,
                     )
                 )
                 v_res_row.append(
                     Parameter(
-                        ops.zeros((1,), dtype=ms.float32),
+                        ops.zeros((1,), dtype=ms.uint8),
                         name=x.name + "_v_res_row",
                         requires_grad=False,
                     )
                 )
                 v_res_col.append(
                     Parameter(
-                        ops.zeros((1,), dtype=ms.float32),
+                        ops.zeros((1,), dtype=ms.uint8),
                         name=x.name + "_v_res_col",
                         requires_grad=False,
                     )
