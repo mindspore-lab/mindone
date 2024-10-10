@@ -23,6 +23,7 @@ mindone_lib_path = os.path.abspath(os.path.join(__dir__, "../../../"))
 sys.path.insert(0, mindone_lib_path)
 sys.path.insert(0, os.path.abspath(os.path.join(__dir__, "..")))
 from args_train import parse_args
+from opensora.acceleration.parallel_states import create_parallel_group
 from opensora.datasets.aspect import ASPECT_RATIOS, get_image_size
 from opensora.models.layers.operation_selector import set_dynamic_mode
 from opensora.models.stdit import STDiT2_XL_2, STDiT3_XL_2, STDiT_XL_2
@@ -46,7 +47,7 @@ from mindone.trainers.checkpoint import CheckpointManager
 from mindone.trainers.lr_schedule import create_scheduler
 from mindone.trainers.optim import create_optimizer
 from mindone.trainers.recorder import PerfRecorder
-from mindone.trainers.train_step import TrainOneStepWrapper
+from mindone.trainers.zero import prepare_train_network
 from mindone.utils.logger import set_logger
 from mindone.utils.params import count_params
 from mindone.utils.seed import set_random_seed
@@ -67,6 +68,8 @@ def init_env(
     jit_level: str = "O0",
     global_bf16: bool = False,
     dynamic_shape: bool = False,
+    enable_sequence_parallelism: bool = False,
+    sequence_parallel_shards: int = 1,
     debug: bool = False,
 ) -> Tuple[int, int]:
     """
@@ -80,6 +83,13 @@ def init_env(
         A tuple containing the device ID, rank ID and number of devices.
     """
     set_random_seed(seed)
+
+    if enable_sequence_parallelism:
+        if parallel_mode != "data" or not distributed:
+            raise ValueError(
+                "sequence parallel can only be used in data parallel mode, "
+                f"but get parallel_mode=`{parallel_mode}` with distributed=`{distributed}`."
+            )
 
     if debug and mode == ms.GRAPH_MODE:  # force PyNative mode when debugging
         logger.warning("Debug mode is on, switching execution mode to PyNative.")
@@ -114,6 +124,10 @@ def init_env(
                 gradients_mean=True,
                 device_num=device_num,
             )
+
+            if enable_sequence_parallelism:
+                create_parallel_group(sequence_parallel_shards)
+                ms.set_auto_parallel_context(enable_alltoall=True)
 
         var_info = ["device_num", "rank_id", "device_num / 8", "rank_id / 8"]
         var_value = [device_num, rank_id, int(device_num / 8), int(rank_id / 8)]
@@ -284,6 +298,15 @@ def initialize_dataset(
                 for dataset, buckets in zip(datasets, individual_buckets)
             ]
 
+        if args.enable_sequence_parallelism:
+            if args.num_workers_dataset != 1:
+                pass
+                # FIXME: 0904 master fixed the seed issue for multiple workers. May remove the commented sentence later.
+                # logger.warning(
+                #     "To make sure the data is consistent across ranks for sequence parallel, the `num_workers_dataset` is set to be `1`."
+                # )
+                # args.num_workers_dataset = 1
+
         dataloaders = [
             create_dataloader(
                 dataset,
@@ -320,7 +343,7 @@ def main(args):
         args.output_path = os.path.join(args.output_path, time_str)
 
     if (args.image_size or (args.resolution and args.aspect_ratio)) and args.bucket_config:
-        print("Image size is provided, bucket configuration will be ignored.")  # logger isn't set up yet
+        logger.info("Image size is provided, bucket configuration will be ignored.")
         args.bucket_config = None
 
     img_h, img_w = None, None
@@ -349,6 +372,8 @@ def main(args):
         jit_level=args.jit_level,
         global_bf16=args.global_bf16,
         dynamic_shape=(args.bucket_config is not None),
+        enable_sequence_parallelism=args.enable_sequence_parallelism,
+        sequence_parallel_shards=args.sequence_parallel_shards,
         debug=args.debug,
     )
     set_logger(name="", output_dir=args.output_path, rank=rank_id, log_level=eval(args.log_level))
@@ -370,6 +395,8 @@ def main(args):
             vae = OpenSoraVAE_V1_2(
                 micro_batch_size=args.vae_micro_batch_size,
                 micro_frame_size=args.vae_micro_frame_size,
+                micro_batch_parallel=args.enable_sequence_parallelism,
+                micro_frame_parallel=args.enable_sequence_parallelism,
                 ckpt_path=args.vae_checkpoint,
                 freeze_vae_2d=True,
             )
@@ -416,6 +443,7 @@ def main(args):
         patchify_conv3d_replace=patchify_conv3d_replace,  # for Ascend
         manual_pad=args.manual_pad,
         enable_flashattn=args.enable_flash_attention,
+        enable_sequence_parallelism=args.enable_sequence_parallelism,
         use_recompute=args.use_recompute,
         num_recompute_blocks=args.num_recompute_blocks,
     )
@@ -527,6 +555,14 @@ def main(args):
     latent_diffusion_with_loss = pipeline_(latte_model, diffusion, vae=vae, text_encoder=None, **pipeline_kwargs)
 
     # 3. create dataset
+    if args.enable_sequence_parallelism:
+        data_device_num = device_num // args.sequence_parallel_shards
+        data_rank_id = rank_id // args.sequence_parallel_shards
+        logger.info(f"Creating dataloader: ID={rank_id}, group={data_rank_id}, num_groups={data_device_num}")
+    else:
+        data_device_num = device_num
+        data_rank_id = rank_id
+
     dataloader = initialize_dataset(
         args,
         args.csv_path,
@@ -539,8 +575,8 @@ def main(args):
         latte_model,
         vae,
         bucket_config=args.bucket_config,
-        device_num=device_num,
-        rank_id=rank_id,
+        device_num=data_device_num,
+        rank_id=data_rank_id,
     )
 
     if args.bucket_config is None:
@@ -565,8 +601,8 @@ def main(args):
             vae,
             bucket_config=args.val_bucket_config,
             validation=True,
-            device_num=device_num,
-            rank_id=rank_id,
+            device_num=data_device_num,
+            rank_id=data_rank_id,
         )
 
     # compute total steps and data epochs (in unit of data sink size)
@@ -679,7 +715,7 @@ def main(args):
     # trainer (standalone and distributed)
     ema = EMA(latent_diffusion_with_loss.network, ema_decay=args.ema_decay, offloading=True) if args.use_ema else None
 
-    net_with_grads = TrainOneStepWrapper(
+    net_with_grads = prepare_train_network(
         latent_diffusion_with_loss,
         optimizer=optimizer,
         scale_sense=loss_scaler,
@@ -688,6 +724,7 @@ def main(args):
         clip_grad=args.clip_grad,
         clip_norm=args.max_grad_norm,
         ema=ema,
+        zero_stage=args.zero_stage,
     )
 
     # resume train net states
