@@ -2,22 +2,48 @@ import argparse
 
 import numpy as np
 import torch
-from safetensors import safe_open
 
 import mindspore as ms
 
 
+def _load_torch_ckpt(ckpt_file):
+    source_data = torch.load(ckpt_file, map_location="cpu")
+    if "state_dict" in source_data:
+        source_data = source_data["state_dict"]
+    return source_data
+
+
+def _load_huggingface_safetensor(ckpt_file):
+    from safetensors import safe_open
+
+    db_state_dict = {}
+    with safe_open(ckpt_file, framework="pt", device="cpu") as f:
+        for key in f.keys():
+            db_state_dict[key] = f.get_tensor(key)
+    return db_state_dict
+
+
+LOAD_PYTORCH_FUNCS = {"others": _load_torch_ckpt, "safetensors": _load_huggingface_safetensor}
+
+
+def load_torch_ckpt(ckpt_path):
+    extension = ckpt_path.split(".")[-1]
+    if extension not in LOAD_PYTORCH_FUNCS.keys():
+        extension = "others"
+    torch_params = LOAD_PYTORCH_FUNCS[extension](ckpt_path)
+    return torch_params
+
+
 def convert(pt_ckpt, target_fp):
-    if pt_ckpt.endswith(".pth"):
-        # state_dict = torch.load(pt_ckpt, map_location="CPU")['model_state_dict']
-        state_dict = torch.load(pt_ckpt)["model_state_dict"]
-    else:
-        state_dict = {}
-        with safe_open(pt_ckpt, framework="pt", device="cpu") as f:
-            for key in f.keys():
-                state_dict[key] = f.get_tensor(key)
+    source_data = load_torch_ckpt(pt_ckpt)
+    if "ema" in source_data:
+        source_data = source_data["ema"]
+    if "state_dict" in source_data:
+        source_data = source_data["state_dict"]
+    if "model" in source_data:
+        source_data = source_data["model"]
     target_data = []
-    for k in state_dict:
+    for k in source_data:
         print(k)
         if "." not in k:
             # only for GroupNorm
@@ -29,7 +55,7 @@ def convert(pt_ckpt, target_fp):
                 ms_name = k
         # import pdb
         # pdb.set_trace()
-        val = state_dict[k].detach().numpy().astype(np.float32)
+        val = source_data[k].detach().numpy().astype(np.float32)
         # print(type(val), val.dtype, val.shape)
         target_data.append({"name": ms_name, "data": ms.Tensor(val, dtype=ms.float32)})
 

@@ -13,7 +13,7 @@ msrun --bind_core=True --worker_num=8 --local_worker_num=8 --master_port=9000 --
     --save_steps 2000 \
     --output_dir $output_dir \
     --video_path /remote-home1/dataset/data_split_tt \
-    --video_num_frames 9 \
+    --video_num_frames 25 \
     --resolution 256 \
     --sample_rate 1 \
     --dataloader_num_workers 8 \
@@ -29,3 +29,10 @@ msrun --bind_core=True --worker_num=8 --local_worker_num=8 --master_port=9000 --
     --jit_level "O0" \
     --use_discriminator True \
     --use_parallel True \
+    --use_ema True\
+    --ema_start_step 0 \
+    --ema_decay 0.999 \
+    --perceptual_weight 1.0 \
+    --loss_type l1 \
+    --disc_cls causalvideovae.model.losses.LPIPSWithDiscriminator3D \
+    --disc_start 2000 \

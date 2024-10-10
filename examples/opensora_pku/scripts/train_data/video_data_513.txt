@@ -1,3 +1,0 @@
-datasets/pixabay_v2,datasets/pixabay_v2-t5-emb-len=300_513f,anno_jsons/video_pixabay_513f_51483.json
-datasets/mixkit,datasets/mixkit-t5-emb-len=300_513f,anno_jsons/video_mixkit_513f_1997.json
-datasets/pexels,datasets/pexels-t5-emb-len=300_513f,anno_jsons/video_pexel_513f_271782.json

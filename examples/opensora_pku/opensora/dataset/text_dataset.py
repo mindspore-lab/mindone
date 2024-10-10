@@ -32,8 +32,8 @@ class TextDataset:
         self.output_columns = output_columns
         if "caption" not in output_columns:
             raise ValueError("caption column is not in output_colum")
-        self.length = len(self.dataset)
-        logger.info(f"Num data samples: {self.length}")
+        self.read_captions(self.dataset)
+        logger.info(f"Number of text prompts: {self.num_captions}")
 
     def parse_data_file(self, data_file_path):
         if data_file_path.endswith(".csv"):
@@ -46,20 +46,37 @@ class TextDataset:
             raise ValueError("Only support json and csv file now!")
 
     def __len__(self):
-        return self.length
+        return self.num_captions
 
-    def __getitem__(self, idx):
+    def read_captions(self, dataset):
+        num_captions = 0
+        caption_sample_indices = []
+        for i, item in enumerate(dataset):
+            captions = item[self.caption_column]
+            if isinstance(captions, str):
+                captions = [captions]
+            num_captions += len(captions)
+            caption_sample_indices.extend([i] * len(captions))
+        self.num_captions = num_captions
+        self.caption_sample_indices = caption_sample_indices
+
+    def __getitem__(self, idx_text):
+        idx = self.caption_sample_indices[idx_text]
         row = self.dataset[idx]
-        caption = row[self.caption_column]
+        captions = row[self.caption_column]
+        if isinstance(captions, str):
+            captions = [captions]
         file_path = row[self.file_column]
-        # extra keys are identifiers added to the original file path
-        for key in row.keys():
-            if key not in [self.caption_column, self.file_column]:
-                identifer = f"-{key}-{row[key]}"
-                file_path = Path(str(file_path))
-                extension = file_path.suffix
-                file_path = str(file_path.with_suffix("")) + identifer
-                file_path = file_path + extension
+        # get the caption id
+        first_text_index = self.caption_sample_indices.index(idx)
+        index = idx_text - first_text_index
+        caption = captions[index]
+        # use index as an extra identifier
+        identifer = f"-{index}"
+        file_path = Path(str(file_path))
+        extension = file_path.suffix
+        file_path = str(file_path.with_suffix("")) + identifer
+        file_path = file_path + extension
 
         if self.random_drop_text:
             if random.random() <= self.random_drop_text_ratio:

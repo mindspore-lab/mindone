@@ -1,0 +1,20 @@
+python tests/test_data.py \
+    --model OpenSoraT2V-ROPE-L/122 \
+    --text_encoder_name google/mt5-xxl \
+    --dataset t2v \
+    --num_frames 29 \
+    --data "scripts/train_data/merge_data_mixkit.txt" \
+    --cache_dir "./" \
+    --ae CausalVAEModel_D4_4x8x8 \
+    --ae_path "LanguageBind/Open-Sora-Plan-v1.2.0/vae" \
+    --sample_rate 1 \
+    --max_height 480 \
+    --max_width 640 \
+    --interpolation_scale_t 1.0 \
+    --interpolation_scale_h 1.0 \
+    --interpolation_scale_w 1.0 \
+    --attention_mode xformers \
+    --train_batch_size=8 \
+    --dataloader_num_workers 20 \
+    --output_dir="t2i-image3d-1x480p/" \
+    --model_max_length 512 \
