@@ -7,7 +7,7 @@ import sys
 from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
-from typing import Any, Callable, List, Optional, Tuple
+from typing import Any, Callable, List, Optional, Tuple, Union
 
 import cv2
 import numpy as np
@@ -61,7 +61,7 @@ class VideoDatasetRefactored(BaseDataset):
         max_target_size: int = 512,
         input_sq_size: int = 512,
         in_channels: int = 4,
-        bucketing: bool = False,
+        buckets: Union[Bucket, bool] = False,
         filter_data: bool = False,
         apply_train_transforms: bool = False,
         target_size: Optional[Tuple[int, int]] = None,
@@ -89,10 +89,10 @@ class VideoDatasetRefactored(BaseDataset):
         self._fmask_gen = frames_mask_generator
         self._t_compress_func = t_compress_func or (lambda x: x)
         self._pre_patchify = pre_patchify
-        self._bucketing = bucketing
+        self._buckets = buckets
 
         self.output_columns = output_columns
-        if self._bucketing is not None:
+        if self._buckets:
             assert vae_latent_folder is None, "`vae_latent_folder` is not supported with bucketing"
             self.output_columns += ["size"]  # pass bucket id information to transformations
 
@@ -133,7 +133,9 @@ class VideoDatasetRefactored(BaseDataset):
             assert not pre_patchify, "transforms for prepatchify not implemented yet"
 
         # prepare replacement data in case the loading of a sample fails
-        self._prev_ok_sample = self._get_replacement() if self._bucketing is None else None
+        self._prev_ok_sample = (
+            self._get_replacement() if not self._buckets or isinstance(self._buckets, Bucket) else None
+        )
         self._require_update_prev = False
 
     @staticmethod
@@ -241,8 +243,23 @@ class VideoDatasetRefactored(BaseDataset):
                 min_length = self._min_length
                 video_length = len(reader)
                 if thw is not None:
-                    num_frames = thw[0]
-                    data["size"] = thw[1:]
+                    num_frames, *data["size"] = thw
+                    min_length = (num_frames - 1) * self._stride + 1
+                elif self._buckets:
+                    cap = cv2.VideoCapture(video_path, apiPreference=cv2.CAP_FFMPEG)
+                    frame_w = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+                    frame_h = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+                    cap.release()
+
+                    bucket_id = self._buckets.get_bucket_id(
+                        T=video_length, H=frame_h, W=frame_w, frame_interval=self._stride
+                    )
+                    if bucket_id is None:
+                        raise ValueError(
+                            f"Couldn't assign a bucket to {data['video']}"
+                            f" (T={video_length}, H={frame_h}, W={frame_w})."
+                        )
+                    num_frames, *data["size"] = self._buckets.get_thw(bucket_id)
                     min_length = (num_frames - 1) * self._stride + 1
 
                 if len(reader) < min_length:
@@ -261,8 +278,18 @@ class VideoDatasetRefactored(BaseDataset):
                 with VideoReader_CV2(video_path) as reader:
                     min_length = self._min_length
                     if thw is not None:
-                        num_frames = thw[0]
-                        data["size"] = thw[1:]
+                        num_frames, *data["size"] = thw
+                        min_length = (num_frames - 1) * self._stride + 1
+                    elif self._buckets:
+                        bucket_id = self._buckets.get_bucket_id(
+                            T=len(reader), H=reader.shape[1], W=reader.shape[0], frame_interval=self._stride
+                        )
+                        if bucket_id is None:
+                            raise ValueError(
+                                f"Couldn't assign a bucket to {data['video']}"
+                                f" (T={len(reader)}, H={reader.shape[1]}, W={reader.shape[0]})."
+                            )
+                        num_frames, *data["size"] = self._buckets.get_thw(bucket_id)
                         min_length = (num_frames - 1) * self._stride + 1
 
                     if len(reader) < min_length:
@@ -363,35 +390,17 @@ class VideoDatasetRefactored(BaseDataset):
         transforms = []
         vae_downsample_rate = self._vae_downsample_rate
 
-        if self._bucketing is not None:
-            vae_downsample_rate = 1
-            transforms.extend(
-                [
-                    {
-                        "operations": ResizeCrop(interpolation=cv2.INTER_AREA),
-                        "input_columns": ["video", "size"],
-                        "output_columns": ["video"],  # drop `size` column
-                    },
-                    {
-                        "operations": [
-                            lambda x: x.astype(np.float32) / 127.5 - 1,
-                            lambda x: np.transpose(x, (0, 3, 1, 2)),  # ms.HWC2CHW() doesn't support 4D data
-                        ],
-                        "input_columns": ["video"],
-                    },
-                ]
-            )
-
-        elif not self._vae_latent_folder:
+        if not self._vae_latent_folder:
             vae_downsample_rate = 1
             transforms.append(
                 {
                     "operations": [
-                        ResizeCrop(target_size, interpolation=cv2.INTER_LINEAR),
+                        ResizeCrop(target_size, interpolation=cv2.INTER_AREA if self._buckets else cv2.INTER_LINEAR),
                         lambda x: x.astype(np.float32) / 127.5 - 1,
-                        lambda x: np.transpose(x, (0, 3, 1, 2)),
+                        lambda x: np.transpose(x, (0, 3, 1, 2)),  # ms.HWC2CHW() doesn't support 4D data
                     ],
-                    "input_columns": ["video"],
+                    "input_columns": ["video", "size"] if self._buckets else ["video"],
+                    "output_columns": ["video"],  # drop `size` column
                 }
             )
         # the followings are not transformation for video frames, can be excluded

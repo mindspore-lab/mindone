@@ -379,7 +379,8 @@ video_folder/part01/vid001.mp4,a cartoon character is walking through
 video_folder/part01/vid002.mp4,a red and white ball with an angry look on its face
 ```
 
-⚠️ OpenSora v1.1 and above also requires the `length` (representing the number of frames), `width`, and `height` fields
+⚠️ If you would like to use a CPU memory-optimized data pipeline (for OpenSora v1.1 and above),
+you are required to add the `length` (representing the number of frames), `width`, and `height` fields
 in the CSV file (i.e. `video, length, width, height, caption`).
 Use `tools/convert_ds.py` to convert the CSV file to the new format:
 ```shell

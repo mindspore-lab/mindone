@@ -214,7 +214,7 @@ def initialize_dataset(
             max_rowsize=args.max_rowsize,
         )
     else:
-        from opensora.datasets.bucket import Bucket  # , bucket_split_function
+        from opensora.datasets.bucket import Bucket, bucket_split_function
         from opensora.datasets.mask_generator import MaskGenerator
         from opensora.datasets.video_dataset_refactored import BucketGroupLoader, VideoDatasetRefactored
 
@@ -222,52 +222,57 @@ def initialize_dataset(
 
         if validation:
             mask_gen = MaskGenerator({"identity": 1.0})
-            buckets = []
+            all_buckets, individual_buckets = False, [False]
             if bucket_config is not None:
+                all_buckets = Bucket(bucket_config)
                 # Build a new bucket for each resolution and number of frames for the validation stage
-                buckets = [
+                individual_buckets = [
                     Bucket({res: {num_frames: [1.0, bucket_config[res][num_frames][1]]}})
                     for res in bucket_config.keys()
                     for num_frames in bucket_config[res].keys()
                 ]
         else:
             mask_gen = MaskGenerator(args.mask_ratios)
-            buckets = [Bucket(bucket_config)] if bucket_config is not None else []
+            all_buckets = Bucket(bucket_config) if bucket_config else False
+            individual_buckets = [all_buckets]
 
         # output_columns=["video", "caption", "mask", "fps", "num_frames", "frames_mask"],
         output_columns = ["video", "caption", "mask", "frames_mask", "num_frames", "height", "width", "fps", "ar"]
         if args.pre_patchify:
             output_columns.extend(["spatial_pos", "spatial_mask", "temporal_pos", "temporal_mask"])
 
-        datasets = VideoDatasetRefactored(
-            csv_path=csv_path,
-            video_folder=video_folder,
-            text_emb_folder=text_embed_folder,
-            vae_latent_folder=vae_latent_folder,
-            vae_scale_factor=args.sd_scale_factor,
-            sample_n_frames=args.num_frames,
-            sample_stride=args.frame_stride,
-            frames_mask_generator=mask_gen,
-            t_compress_func=lambda x: vae.get_latent_size((x, None, None))[0],
-            bucketing=bool(buckets),
-            filter_data=args.filter_data,
-            pre_patchify=args.pre_patchify,
-            patch_size=latte_model.patch_size,
-            embed_dim=latte_model.hidden_size,
-            num_heads=latte_model.num_heads,
-            max_target_size=args.max_image_size,
-            input_sq_size=latte_model.input_sq_size,
-            in_channels=latte_model.in_channels,
-            apply_train_transforms=True,
-            target_size=(img_h, img_w),
-            video_backend=args.video_backend,
-            output_columns=output_columns,
-        )
+        datasets = [
+            VideoDatasetRefactored(
+                csv_path=csv_path,
+                video_folder=video_folder,
+                text_emb_folder=text_embed_folder,
+                vae_latent_folder=vae_latent_folder,
+                vae_scale_factor=args.sd_scale_factor,
+                sample_n_frames=args.num_frames,
+                sample_stride=args.frame_stride,
+                frames_mask_generator=mask_gen,
+                t_compress_func=lambda x: vae.get_latent_size((x, None, None))[0],
+                buckets=bool(buckets) if args.mem_optim_pipeline else buckets,
+                filter_data=args.filter_data,
+                pre_patchify=args.pre_patchify,
+                patch_size=latte_model.patch_size,
+                embed_dim=latte_model.hidden_size,
+                num_heads=latte_model.num_heads,
+                max_target_size=args.max_image_size,
+                input_sq_size=latte_model.input_sq_size,
+                in_channels=latte_model.in_channels,
+                apply_train_transforms=True,
+                target_size=(img_h, img_w),
+                video_backend=args.video_backend,
+                output_columns=output_columns,
+            )
+            for buckets in individual_buckets
+        ]
 
-        if buckets:
+        if all_buckets and args.mem_optim_pipeline:
             datasets = [
                 BucketGroupLoader(
-                    datasets,
+                    dataset,
                     buckets,
                     device_num=device_num,
                     rank_id=rank_id,
@@ -276,18 +281,17 @@ def initialize_dataset(
                     drop_remainder=not validation,
                     output_columns=output_columns,
                 )
-                for buckets in buckets
+                for dataset, buckets in zip(datasets, individual_buckets)
             ]
-        else:
-            datasets = [datasets]
 
         dataloaders = [
             create_dataloader(
                 dataset,
-                batch_size=0 if buckets else batch_size,  # Turn off batching if using buckets
+                batch_size=0 if all_buckets else batch_size,  # Turn off batching if using buckets
                 shuffle=not validation,
-                device_num=None if buckets else device_num,  # Sharding is not supported with an iterator dataloader
-                rank_id=None if buckets else rank_id,
+                # Sharding is not supported with an iterator dataloader
+                device_num=None if all_buckets and args.mem_optim_pipeline else device_num,
+                rank_id=None if all_buckets and args.mem_optim_pipeline else rank_id,
                 num_workers_dataset=args.num_workers_dataset,
                 drop_remainder=not validation,
                 prefetch_size=args.prefetch_size,
@@ -298,15 +302,15 @@ def initialize_dataset(
         ]
         dataloader = ms.dataset.ConcatDataset(dataloaders) if len(dataloaders) > 1 else dataloaders[0]
 
-        # if all_buckets is not None:
-        #     hash_func, bucket_boundaries, bucket_batch_sizes = bucket_split_function(all_buckets)
-        #     dataloader = dataloader.bucket_batch_by_length(
-        #         ["video"],
-        #         bucket_boundaries,
-        #         bucket_batch_sizes,
-        #         element_length_function=hash_func,
-        #         drop_remainder=not validation,
-        #     )
+        if all_buckets and not args.mem_optim_pipeline:
+            hash_func, bucket_boundaries, bucket_batch_sizes = bucket_split_function(all_buckets)
+            dataloader = dataloader.bucket_batch_by_length(
+                ["video"],
+                bucket_boundaries,
+                bucket_batch_sizes,
+                element_length_function=hash_func,
+                drop_remainder=not validation,
+            )
     return dataloader
 
 
