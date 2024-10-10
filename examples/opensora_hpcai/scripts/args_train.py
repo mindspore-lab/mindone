@@ -44,10 +44,12 @@ def parse_train_args(parser):
     parser.add_argument("--vae_latent_folder", type=str, help="root dir for the vae latent data")
     parser.add_argument("--filter_data", default=False, type=str2bool, help="Filter non-existing videos.")
     parser.add_argument(
-        "--mem_optim_pipeline",
-        default=False,
-        type=str2bool,
-        help="Use a CPU memory-optimized data pipeline (for bucket sampling only). Default: False.",
+        "--bucket_strategy",
+        default="v1",
+        type=str,
+        choices=["v1", "v2"],
+        help="v1: Split dataset across multiple devices first, then sample buckets on each device independently. "
+        "v2: Sample buckets globally first, then distribute them across multiple devices.",
     )
     parser.add_argument("--output_path", default="output/", type=str, help="output directory to save training results")
     parser.add_argument(

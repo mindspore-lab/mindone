@@ -252,7 +252,7 @@ def initialize_dataset(
                 sample_stride=args.frame_stride,
                 frames_mask_generator=mask_gen,
                 t_compress_func=lambda x: vae.get_latent_size((x, None, None))[0],
-                buckets=bool(buckets) if args.mem_optim_pipeline else buckets,
+                buckets=bool(buckets) if args.bucket_strategy == "v2" else buckets,
                 filter_data=args.filter_data,
                 pre_patchify=args.pre_patchify,
                 patch_size=latte_model.patch_size,
@@ -269,7 +269,7 @@ def initialize_dataset(
             for buckets in individual_buckets
         ]
 
-        if all_buckets and args.mem_optim_pipeline:
+        if all_buckets and args.bucket_strategy == "v2":
             datasets = [
                 BucketGroupLoader(
                     dataset,
@@ -290,8 +290,8 @@ def initialize_dataset(
                 batch_size=0 if all_buckets else batch_size,  # Turn off batching if using buckets
                 shuffle=not validation,
                 # Sharding is not supported with an iterator dataloader
-                device_num=None if all_buckets and args.mem_optim_pipeline else device_num,
-                rank_id=None if all_buckets and args.mem_optim_pipeline else rank_id,
+                device_num=None if all_buckets and args.bucket_strategy == "v2" else device_num,
+                rank_id=None if all_buckets and args.bucket_strategy == "v2" else rank_id,
                 num_workers_dataset=args.num_workers_dataset,
                 drop_remainder=not validation,
                 prefetch_size=args.prefetch_size,
@@ -302,7 +302,7 @@ def initialize_dataset(
         ]
         dataloader = ms.dataset.ConcatDataset(dataloaders) if len(dataloaders) > 1 else dataloaders[0]
 
-        if all_buckets and not args.mem_optim_pipeline:
+        if all_buckets and args.bucket_strategy == "v1":
             hash_func, bucket_boundaries, bucket_batch_sizes = bucket_split_function(all_buckets)
             dataloader = dataloader.bucket_batch_by_length(
                 ["video"],
