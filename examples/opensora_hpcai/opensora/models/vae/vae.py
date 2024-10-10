@@ -110,7 +110,7 @@ class VideoAutoencoderKL(nn.Cell):
 
     @staticmethod
     def rearrange_in(x, transpose: bool = True):
-        if transpose:   # (b c t h w) -> (b t c h w)
+        if transpose:  # (b c t h w) -> (b t c h w)
             x = ops.transpose(x, (0, 2, 1, 3, 4))
         B, T, C, H, W = x.shape
         x = ops.reshape(x, (B * T, C, H, W))
