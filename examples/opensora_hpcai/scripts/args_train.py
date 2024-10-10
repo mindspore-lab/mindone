@@ -43,6 +43,14 @@ def parse_train_args(parser):
     parser.add_argument("--text_embed_folder", type=str, help="root dir for the text embeding data")
     parser.add_argument("--vae_latent_folder", type=str, help="root dir for the vae latent data")
     parser.add_argument("--filter_data", default=False, type=str2bool, help="Filter non-existing videos.")
+    parser.add_argument(
+        "--bucket_strategy",
+        default="v1",
+        type=str,
+        choices=["v1", "v2"],
+        help="v1: Split dataset across multiple devices first, then sample buckets on each device independently. "
+        "v2: Sample buckets globally first, then distribute them across multiple devices.",
+    )
     parser.add_argument("--output_path", default="output/", type=str, help="output directory to save training results")
     parser.add_argument(
         "--add_datetime", default=True, type=str2bool, help="If True, add datetime subfolder under output_path"
@@ -149,9 +157,9 @@ def parse_train_args(parser):
     )
 
     parser.add_argument("--weight_decay", default=1e-6, type=float, help="Weight decay.")
-    parser.add_argument("--seed", default=3407, type=int, help="data path")
+    parser.add_argument("--seed", default=3407, type=int, help="Random seed.")
     parser.add_argument("--warmup_steps", default=1000, type=int, help="warmup steps")
-    parser.add_argument("--batch_size", default=10, type=int, help="batch size")
+    parser.add_argument("--batch_size", default=1, type=int, help="batch size")
     parser.add_argument(
         "--vae_micro_batch_size",
         type=int,

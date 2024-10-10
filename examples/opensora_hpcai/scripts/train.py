@@ -227,16 +227,16 @@ def initialize_dataset(
             num_parallel_workers=args.num_parallel_workers,
             max_rowsize=args.max_rowsize,
         )
-        num_src_samples = batch_size * dataloader.get_dataset_size() * (device_num if device_num is not None else 1)
     else:
         from opensora.datasets.bucket import Bucket, bucket_split_function
         from opensora.datasets.mask_generator import MaskGenerator
-        from opensora.datasets.video_dataset_refactored import VideoDatasetRefactored, create_dataloader
+        from opensora.datasets.video_dataset_refactored import BucketGroupLoader, VideoDatasetRefactored
 
-        # from mindone.data import create_dataloader
+        from mindone.data import create_dataloader
+
         if validation:
             mask_gen = MaskGenerator({"identity": 1.0})
-            all_buckets, individual_buckets = None, [None]
+            all_buckets, individual_buckets = False, [False]
             if bucket_config is not None:
                 all_buckets = Bucket(bucket_config)
                 # Build a new bucket for each resolution and number of frames for the validation stage
@@ -247,7 +247,7 @@ def initialize_dataset(
                 ]
         else:
             mask_gen = MaskGenerator(args.mask_ratios)
-            all_buckets = Bucket(bucket_config) if bucket_config is not None else None
+            all_buckets = Bucket(bucket_config) if bucket_config else False
             individual_buckets = [all_buckets]
 
         # output_columns=["video", "caption", "mask", "fps", "num_frames", "frames_mask"],
@@ -266,7 +266,7 @@ def initialize_dataset(
                 sample_stride=args.frame_stride,
                 frames_mask_generator=mask_gen,
                 t_compress_func=lambda x: vae.get_latent_size((x, None, None))[0],
-                buckets=buckets,
+                buckets=bool(buckets) if args.bucket_strategy == "v2" else buckets,
                 filter_data=args.filter_data,
                 pre_patchify=args.pre_patchify,
                 patch_size=latte_model.patch_size,
@@ -283,7 +283,20 @@ def initialize_dataset(
             for buckets in individual_buckets
         ]
 
-        num_src_samples = sum([len(ds) for ds in datasets])
+        if all_buckets and args.bucket_strategy == "v2":
+            datasets = [
+                BucketGroupLoader(
+                    dataset,
+                    buckets,
+                    device_num=device_num,
+                    rank_id=rank_id,
+                    shuffle=not validation,
+                    seed=args.seed,
+                    drop_remainder=not validation,
+                    output_columns=output_columns,
+                )
+                for dataset, buckets in zip(datasets, individual_buckets)
+            ]
 
         if args.enable_sequence_parallelism:
             if args.num_workers_dataset != 1:
@@ -297,11 +310,12 @@ def initialize_dataset(
         dataloaders = [
             create_dataloader(
                 dataset,
-                batch_size=batch_size if all_buckets is None else 0,  # Turn off batching if using buckets
+                batch_size=0 if all_buckets else batch_size,  # Turn off batching if using buckets
                 shuffle=not validation,
-                device_num=device_num,
-                rank_id=rank_id,
-                num_parallel_workers=args.num_parallel_workers,
+                # Sharding is not supported with an iterator dataloader
+                device_num=None if all_buckets and args.bucket_strategy == "v2" else device_num,
+                rank_id=None if all_buckets and args.bucket_strategy == "v2" else rank_id,
+                num_workers_dataset=args.num_workers_dataset,
                 drop_remainder=not validation,
                 prefetch_size=args.prefetch_size,
                 max_rowsize=args.max_rowsize,
@@ -311,16 +325,16 @@ def initialize_dataset(
         ]
         dataloader = ms.dataset.ConcatDataset(dataloaders) if len(dataloaders) > 1 else dataloaders[0]
 
-        if all_buckets is not None:
+        if all_buckets and args.bucket_strategy == "v1":
             hash_func, bucket_boundaries, bucket_batch_sizes = bucket_split_function(all_buckets)
             dataloader = dataloader.bucket_batch_by_length(
                 ["video"],
                 bucket_boundaries,
                 bucket_batch_sizes,
                 element_length_function=hash_func,
-                drop_remainder=False,
+                drop_remainder=not validation,
             )
-    return dataloader, num_src_samples
+    return dataloader
 
 
 def main(args):
@@ -549,7 +563,7 @@ def main(args):
         data_device_num = device_num
         data_rank_id = rank_id
 
-    dataloader, num_src_samples = initialize_dataset(
+    dataloader = initialize_dataset(
         args,
         args.csv_path,
         args.video_folder,
@@ -565,18 +579,12 @@ def main(args):
         rank_id=data_rank_id,
     )
 
-    # FIXME: get_dataset_size() is extremely slow when used with bucket_batch_by_length
     if args.bucket_config is None:
         dataset_size = dataloader.get_dataset_size()
     else:
-        # steps per epoch is not constant in bucket config training
-        # FIXME: It is a highly relaxed estimation to ensure enough steps per epoch to sustain training. \
-        # A more precise estimation or run-time infer is to be implemented.
-        dataset_size = math.ceil(num_src_samples / device_num)
+        # Prevent `GeneratorDataset()` from iterating over the whole dataset.
+        dataset_size = 1  # doesn't affect anything when bucketing is enabled
         dataloader.dataset_size = dataset_size
-        logger.warning(
-            f"Manually set dataset_size to {dataset_size} to skip get_dataset_size() for bucket config training."
-        )
 
     val_dataloader = None
     if args.validate:
@@ -598,20 +606,24 @@ def main(args):
         )
 
     # compute total steps and data epochs (in unit of data sink size)
-    if args.dataset_sink_mode and args.sink_size != -1:
-        # in data sink mode, data sink size determines the number of training steps per epoch.
-        steps_per_epoch = args.sink_size
-    else:
-        # without data sink, number of training steps is determined by number of data batches of the whole training set.
-        steps_per_epoch = dataset_size
+    # without data sink, the number of training steps is determined by the number of batches in the whole training set.
+    steps_per_epoch = dataset_size
+    if args.dataset_sink_mode:
+        if args.sink_size != -1:
+            # in data sink mode, data sink size determines the number of training steps per epoch.
+            steps_per_epoch = args.sink_size
+        else:
+            assert args.bucket_config is None, "Please specify `--sink_size` when using `--bucket_config`."
 
     if args.train_steps == -1:
-        assert args.epochs != -1
+        assert args.epochs != -1, "`--epochs` must be specified if `--train_steps` is not specified."
+        if args.bucket_config is not None:
+            raise ValueError("`--epochs` is not supported with `--bucket_config`. Please use `--train_steps` instead.")
         total_train_steps = args.epochs * dataset_size
         sink_epochs = math.ceil(total_train_steps / steps_per_epoch)
     else:
         total_train_steps = args.train_steps
-        # asume one step need one whole epoch data to ensure enough batch loading for training
+        # assume one step need one whole epoch data to ensure enough batch loading for training
         sink_epochs = total_train_steps
 
     if args.ckpt_save_steps == -1:
@@ -622,7 +634,7 @@ def main(args):
         if not args.dataset_sink_mode:
             ckpt_save_interval = args.ckpt_save_steps
         else:
-            # still need to count interval in sink epochs
+            # still need to count an interval in sink epochs
             ckpt_save_interval = max(1, args.ckpt_save_steps // steps_per_epoch)
             if args.ckpt_save_steps % steps_per_epoch != 0:
                 logger.warning(
@@ -631,12 +643,14 @@ def main(args):
                 )
     step_mode = step_mode if args.step_mode is None else args.step_mode
 
-    logger.info(f"train_steps: {total_train_steps}, train_epochs: {args.epochs}, sink_size: {args.sink_size}")
-    logger.info(f"total train steps: {total_train_steps}, sink epochs: {sink_epochs}")
     logger.info(
-        "ckpt_save_interval: {} {}".format(
-            ckpt_save_interval, "steps" if (not args.dataset_sink_mode and step_mode) else "sink epochs"
-        )
+        f"train_steps: {total_train_steps}, train_epochs: {args.epochs}{f', sink_size: {args.sink_size}' if args.dataset_sink_mode else ''}"
+    )
+    logger.info(
+        f"total train steps: {total_train_steps}{f', sink epochs: {sink_epochs}' if args.dataset_sink_mode else ''}"
+    )
+    logger.info(
+        f"ckpt_save_interval: {ckpt_save_interval} {'steps' if (not args.dataset_sink_mode and step_mode) else 'sink epochs'}"
     )
 
     # 4. build training utils: lr, optim, callbacks, trainer
@@ -651,7 +665,7 @@ def main(args):
             args.decay_steps = 1
 
     lr = create_scheduler(
-        steps_per_epoch=dataset_size,  # not used
+        steps_per_epoch=dataset_size,  # not used as `total_steps` is specified
         name=args.scheduler,
         lr=args.start_learning_rate,
         end_lr=args.end_learning_rate,
@@ -745,7 +759,8 @@ def main(args):
             callbacks.append(TimeMonitor(args.log_interval))
         else:
             logger.info(
-                "As steps per epoch are inaccurate with bucket config, TimeMonitor is disabled. See result.log for the actual step time"
+                "As steps per epoch are inaccurate with bucket config, TimeMonitor is disabled."
+                "See result.log for the actual step time"
             )
         if rank_id == 0:
             save_cb = EvalSaveCallback(
