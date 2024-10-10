@@ -247,3 +247,131 @@ class DiffusionWithLoss(nn.Cell):
             else:
                 loss = (loss * mse_loss_weights).mean()
         return loss
+
+
+class DiffusionWithLossEval(DiffusionWithLoss):
+    def construct(
+        self,
+        x: ms.Tensor,
+        attention_mask: ms.Tensor,
+        text_tokens: ms.Tensor,
+        encoder_attention_mask: ms.Tensor = None,
+    ):
+        """
+        Video diffusion model forward and loss computation for training
+
+        Args:
+            x: pixel values of video frames, resized and normalized to shape (b c f+num_img h w)
+            attention_mask: the mask for latent features of shape (b t' h' w'), where t' h' w' are the shape of latent features after vae's encoding.
+            text_tokens: text tokens padded to fixed shape (B F L) or text embedding of shape (B F L D) if using text embedding cache
+            encoder_attention_mask: the mask for text tokens/embeddings of a fixed shape (B F L)
+
+        Returns:
+            loss
+
+        Notes:
+            - inputs should matches dataloder output order
+            - assume model input/output shape: (b c f+num_img h w)
+        """
+        # 1. get image/video latents z using vae
+        x = x.to(self.dtype)
+        if not self.video_emb_cached:
+            x = ops.stop_gradient(self.get_latents(x))
+
+        # 2. get conditions
+        if not self.text_emb_cached:
+            text_embed = ops.stop_gradient(self.get_condition_embeddings(text_tokens, encoder_attention_mask))
+        else:
+            text_embed = text_tokens
+        loss, model_pred, target = self.compute_loss(x, attention_mask, text_embed, encoder_attention_mask)
+
+        return loss, model_pred, target
+
+    def compute_loss(self, x, attention_mask, text_embed, encoder_attention_mask):
+        use_image_num = self.use_image_num
+        noise = ops.randn_like(x)
+        bsz = x.shape[0]
+        if self.noise_offset:
+            # https://www.crosslabs.org//blog/diffusion-with-offset-noise
+            noise += self.noise_offset * ops.randn((bsz, x.shape[1], 1, 1, 1), dtype=x.dtype)
+        current_step_frame = x.shape[2]
+        if get_sequence_parallel_state() and current_step_frame > 1:
+            x = self.all_gather(x[None])[0]
+            (
+                x,
+                noise,
+                text_embed,
+                attention_mask,
+                encoder_attention_mask,
+                use_image_num,
+            ) = prepare_parallel_data(x, noise, text_embed, attention_mask, encoder_attention_mask, use_image_num)
+
+        t = ops.randint(0, self.num_train_timesteps, (x.shape[0],), dtype=ms.int32)
+        if get_sequence_parallel_state():
+            t = self.reduce_t(t) % self.num_train_timesteps
+        x_t = self.noise_scheduler.add_noise(x, noise, t)
+
+        # latte forward input match
+        # text embed: (b n_tokens  d) -> (b  1 n_tokens d)
+        # text_embed = ops.expand_dims(text_embed, axis=1)
+        model_pred = self.apply_model(
+            x_t,
+            t,
+            encoder_hidden_states=text_embed,
+            attention_mask=attention_mask,
+            encoder_attention_mask=encoder_attention_mask,
+            use_image_num=use_image_num,
+        )
+
+        if self.prediction_type == "epsilon":
+            target = noise
+        elif self.prediction_type == "v_prediction":
+            target = self.noise_scheduler.get_velocity(x, noise, t)
+        elif self.prediction_type == "sample":
+            # We set the target to latents here, but the model_pred will return the noise sample prediction.
+            target = x
+            # We will have to subtract the noise residual from the prediction to get the target sample.
+            model_pred = model_pred - noise
+        else:
+            raise ValueError(f"Unknown prediction type {self.prediction_type}")
+        # comment it to avoid graph syntax error
+        # if attention_mask is not None and (attention_mask.bool()).all():
+        #     attention_mask = None
+        if get_sequence_parallel_state():
+            assert (attention_mask.bool()).all()
+            # assert attention_mask is None
+            attention_mask = None
+        # (b c t h w),
+        bsz, c, _, _, _ = model_pred.shape
+        if attention_mask is not None:
+            attention_mask = attention_mask.unsqueeze(1).float().repeat(c, axis=1)  # b t h w -> b c t h w
+            attention_mask = attention_mask.reshape(bsz, -1)
+
+        if self.snr_gamma is None:
+            # model_pred: b c t h w, attention_mask: b t h w
+            loss = ops.mse_loss(model_pred.float(), target.float(), reduction="none")
+            loss = loss.reshape(bsz, -1)
+            if attention_mask is not None:
+                loss = (loss * attention_mask).sum() / attention_mask.sum()  # mean loss on unpad patches
+            else:
+                loss = loss.mean()
+        else:
+            # Compute loss-weights as per Section 3.4 of https://arxiv.org/abs/2303.09556.
+            # Since we predict the noise instead of x_0, the original formulation is slightly changed.
+            # This is discussed in Section 4.2 of the same paper.
+            snr = compute_snr(self.noise_scheduler, t)
+            mse_loss_weights = ops.stack([snr, self.snr_gamma * ops.ones_like(t)], axis=1).min(axis=1)[0]
+            if self.prediction_type == "epsilon":
+                mse_loss_weights = mse_loss_weights / snr
+            elif self.prediction_type == "v_prediction":
+                mse_loss_weights = mse_loss_weights / (snr + 1)
+            loss = ops.mse_loss(model_pred.float(), target.float(), reduction="none")
+            loss = loss.reshape(bsz, -1)
+            mse_loss_weights = mse_loss_weights.reshape(bsz, 1)
+            if attention_mask is not None:
+                loss = (
+                    loss * attention_mask * mse_loss_weights
+                ).sum() / attention_mask.sum()  # mean loss on unpad patches
+            else:
+                loss = (loss * mse_loss_weights).mean()
+        return loss, model_pred, target

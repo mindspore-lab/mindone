@@ -8,6 +8,7 @@ import yaml
 import mindspore as ms
 from mindspore import Model, nn
 from mindspore.communication.management import GlobalComm
+from mindspore.train import get_metric_fn
 from mindspore.train.callback import TimeMonitor
 
 mindone_lib_path = os.path.abspath("../../")
@@ -21,7 +22,7 @@ from opensora.models.causalvideovae import ae_channel_config, ae_stride_config
 from opensora.models.causalvideovae.model.modules.updownsample import TrilinearInterpolate
 from opensora.models.diffusion import Diffusion_models
 from opensora.models.diffusion.opensora.modules import Attention, LayerNorm
-from opensora.models.diffusion.opensora.net_with_loss import DiffusionWithLoss
+from opensora.models.diffusion.opensora.net_with_loss import DiffusionWithLoss, DiffusionWithLossEval
 from opensora.train.commons import create_loss_scaler, parse_args
 from opensora.utils.callbacks import EMAEvalSwapCallback, PerfRecorderCallback
 from opensora.utils.dataset_utils import Collate, LengthGroupedBatchSampler
@@ -262,7 +263,7 @@ def main(args):
         noise_offset=args.noise_offset,
         snr_gamma=args.snr_gamma,
     )
-    latent_diffusion_eval, metrics = None, {}
+    latent_diffusion_eval, metrics = None, None
     # 3. create dataset
     # TODO: replace it with new dataset
     assert args.dataset == "t2v", "Support t2v dataset only."
@@ -359,7 +360,7 @@ def main(args):
         ), "Incorrect validation dataset size. Please check your dataset size and your global batch size"
 
         # create eval network
-        latent_diffusion_eval = DiffusionWithLoss(
+        latent_diffusion_eval = DiffusionWithLossEval(
             model,
             noise_scheduler,
             vae=vae,
@@ -371,7 +372,7 @@ def main(args):
             noise_offset=args.noise_offset,
             snr_gamma=args.snr_gamma,
         )
-        metrics = {"Validation loss": lambda x: x}
+        metrics = {"val loss": get_metric_fn("loss")}
     # 4. build training utils: lr, optim, callbacks, trainer
     if args.scale_lr:
         learning_rate = args.start_learning_rate * args.train_batch_size * args.gradient_accumulation_steps * device_num
@@ -554,9 +555,12 @@ def main(args):
             net_with_grads,
             eval_network=latent_diffusion_eval,
             metrics=metrics,
+            eval_indexes=[0, 1, 2],
         )
     else:
-        model = Model(net_with_grads, eval_network=latent_diffusion_eval, metrics=metrics, amp_level="O0")
+        model = Model(
+            net_with_grads, eval_network=latent_diffusion_eval, metrics=metrics, eval_indexes=[0, 1, 2], amp_level="O0"
+        )
     # callbacks
     callback = [TimeMonitor(args.log_interval), EMAEvalSwapCallback(ema)]
     ofm_cb = OverflowMonitor()
@@ -604,8 +608,8 @@ def main(args):
         rec_cb = PerfRecorderCallback(
             save_dir=args.output_dir,
             file_name="result_val.log",
-            metric_names=list(metrics.keys()),
             resume=args.resume_from_checkpoint,
+            metric_names=list(metrics.keys()),
         )
         callback.extend([save_cb, rec_cb])
         if args.profile:
