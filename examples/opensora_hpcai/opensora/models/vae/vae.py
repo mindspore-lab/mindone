@@ -109,7 +109,9 @@ class VideoAutoencoderKL(nn.Cell):
         self.scale_factor = 0.18215
 
     @staticmethod
-    def rearrange_in(x):
+    def rearrange_in(x, transpose: bool = True):
+        if transpose:   # (b c t h w) -> (b t c h w)
+            x = ops.transpose(x, (0, 2, 1, 3, 4))
         B, T, C, H, W = x.shape
         x = ops.reshape(x, (B * T, C, H, W))
         return x
@@ -136,8 +138,8 @@ class VideoAutoencoderKL(nn.Cell):
         # is_video = (x.ndim == 5)
 
         B = x.shape[0]
-        # B C T H W -> (B T) C H W
-        x = self.rearrange_in(x)
+        # B T C H W -> (B T) C H W
+        x = self.rearrange_in(x, transpose=False)
 
         pad_num = None
         if self.micro_batch_parallel:
