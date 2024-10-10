@@ -12,9 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import math
 from dataclasses import dataclass
-from typing import List, Optional, Tuple, Union
+from typing import Optional, Tuple, Union
 
 import numpy as np
 
@@ -23,13 +22,14 @@ from mindspore import ops
 
 from ..configuration_utils import ConfigMixin, register_to_config
 from ..utils import BaseOutput, logging
+from ..utils.mindspore_utils import randn_tensor
 from .scheduling_utils import SchedulerMixin
 
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
 
 
 @dataclass
-class FlowMatchEulerDiscreteSchedulerOutput(BaseOutput):
+class FlowMatchHeunDiscreteSchedulerOutput(BaseOutput):
     """
     Output class for the scheduler's `step` function output.
 
@@ -37,17 +37,14 @@ class FlowMatchEulerDiscreteSchedulerOutput(BaseOutput):
         prev_sample (`ms.Tensor` of shape `(batch_size, num_channels, height, width)` for images):
             Computed sample `(x_{t-1})` of previous timestep. `prev_sample` should be used as next model input in the
             denoising loop.
-        pred_original_sample (`ms.Tensor` of shape `(batch_size, num_channels, height, width)` for images):
-            The predicted denoised sample `(x_{0})` based on the model output from the current timestep.
-            `pred_original_sample` can be used to preview progress or for guidance.
     """
 
     prev_sample: ms.Tensor
 
 
-class FlowMatchEulerDiscreteScheduler(SchedulerMixin, ConfigMixin):
+class FlowMatchHeunDiscreteScheduler(SchedulerMixin, ConfigMixin):
     """
-    Euler scheduler.
+    Heun scheduler.
 
     This model inherits from [`SchedulerMixin`] and [`ConfigMixin`]. Check the superclass documentation for the generic
     methods the library implements for all schedulers such as loading and saving.
@@ -63,33 +60,26 @@ class FlowMatchEulerDiscreteScheduler(SchedulerMixin, ConfigMixin):
     """
 
     _compatibles = []
-    order = 1
+    order = 2
 
     @register_to_config
     def __init__(
         self,
         num_train_timesteps: int = 1000,
         shift: float = 1.0,
-        use_dynamic_shifting=False,
-        base_shift: Optional[float] = 0.5,
-        max_shift: Optional[float] = 1.15,
-        base_image_seq_len: Optional[int] = 256,
-        max_image_seq_len: Optional[int] = 4096,
     ):
         timesteps = np.linspace(1, num_train_timesteps, num_train_timesteps, dtype=np.float32)[::-1].copy()
         timesteps = ms.Tensor.from_numpy(timesteps).to(dtype=ms.float32)
 
         sigmas = timesteps / num_train_timesteps
-        if not use_dynamic_shifting:
-            # when use_dynamic_shifting is True, we apply the timestep shifting on the fly based on the image resolution
-            sigmas = shift * sigmas / (1 + (shift - 1) * sigmas)
+        sigmas = shift * sigmas / (1 + (shift - 1) * sigmas)
 
         self.timesteps = sigmas * num_train_timesteps
 
         self._step_index = None
         self._begin_index = None
 
-        self.sigmas = sigmas
+        self.sigmas = sigmas.to("cpu")  # to avoid too much CPU/GPU communication
         self.sigma_min = self.sigmas[-1].item()
         self.sigma_max = self.sigmas[0].item()
 
@@ -137,24 +127,10 @@ class FlowMatchEulerDiscreteScheduler(SchedulerMixin, ConfigMixin):
             `ms.Tensor`:
                 A scaled input sample.
         """
-        # Make sure sigmas and timesteps have the same dtype as original_samples
-        sigmas = self.sigmas.to(dtype=sample.dtype)
-        schedule_timesteps = self.timesteps
+        if self.step_index is None:
+            self._init_step_index(timestep)
 
-        # self.begin_index is None when scheduler is used for training, or pipeline does not implement set_begin_index
-        if self.begin_index is None:
-            step_indices = [self.index_for_timestep(t, schedule_timesteps) for t in timestep]
-        elif self.step_index is not None:
-            # add_noise is called after first denoising step (for inpainting)
-            step_indices = [self.step_index] * timestep.shape[0]
-        else:
-            # add noise is called before first denoising step to create initial latent(img2img)
-            step_indices = [self.begin_index] * timestep.shape[0]
-
-        sigma = sigmas[step_indices].flatten()
-        while len(sigma.shape) < len(sample.shape):
-            sigma = sigma.unsqueeze(-1)
-
+        sigma = self.sigmas[self.step_index]
         sample = sigma * noise + (1.0 - sigma) * sample
 
         return sample
@@ -162,46 +138,32 @@ class FlowMatchEulerDiscreteScheduler(SchedulerMixin, ConfigMixin):
     def _sigma_to_t(self, sigma):
         return sigma * self.config.num_train_timesteps
 
-    def time_shift(self, mu: float, sigma: float, t: ms.Tensor):
-        return float(math.exp(mu)) / (float(math.exp(mu)) + (1 / t - 1) ** sigma)  # use float to guide type infer
-
-    def set_timesteps(
-        self,
-        num_inference_steps: int = None,
-        sigmas: Optional[List[float]] = None,
-        mu: Optional[float] = None,
-    ):
+    def set_timesteps(self, num_inference_steps: int):
         """
         Sets the discrete timesteps used for the diffusion chain (to be run before inference).
 
         Args:
             num_inference_steps (`int`):
                 The number of diffusion steps used when generating samples with a pre-trained model.
-            device (`str` or `torch.device`, *optional*):
-                The device to which the timesteps should be moved to. If `None`, the timesteps are not moved.
         """
+        self.num_inference_steps = num_inference_steps
 
-        if self.config.use_dynamic_shifting and mu is None:
-            raise ValueError(" you have a pass a value for `mu` when `use_dynamic_shifting` is set to be `True`")
+        timesteps = np.linspace(self._sigma_to_t(self.sigma_max), self._sigma_to_t(self.sigma_min), num_inference_steps)
 
-        if sigmas is None:
-            self.num_inference_steps = num_inference_steps
-            timesteps = np.linspace(
-                self._sigma_to_t(self.sigma_max), self._sigma_to_t(self.sigma_min), num_inference_steps
-            )
-
-            sigmas = timesteps / self.config.num_train_timesteps
-
-        if self.config.use_dynamic_shifting:
-            sigmas = self.time_shift(mu, 1.0, sigmas)
-        else:
-            sigmas = self.config.shift * sigmas / (1 + (self.config.shift - 1) * sigmas)
-
+        sigmas = timesteps / self.config.num_train_timesteps
+        sigmas = self.config.shift * sigmas / (1 + (self.config.shift - 1) * sigmas)
         sigmas = ms.Tensor.from_numpy(sigmas).to(dtype=ms.float32)
-        timesteps = sigmas * self.config.num_train_timesteps
 
+        timesteps = sigmas * self.config.num_train_timesteps
+        timesteps = ops.cat([timesteps[:1], timesteps[1:].repeat_interleave(2)])
         self.timesteps = timesteps
-        self.sigmas = ops.cat([sigmas, ops.zeros((1,))])
+
+        sigmas = ops.cat([sigmas, ops.zeros(1)])
+        self.sigmas = ops.cat([sigmas[:1], sigmas[1:-1].repeat_interleave(2), sigmas[-1:]])
+
+        # empty dt and derivative
+        self.prev_derivative = None
+        self.dt = None
 
         self._step_index = None
         self._begin_index = None
@@ -226,6 +188,10 @@ class FlowMatchEulerDiscreteScheduler(SchedulerMixin, ConfigMixin):
         else:
             self._step_index = self._begin_index
 
+    @property
+    def state_in_first_order(self):
+        return self.dt is None
+
     def step(
         self,
         model_output: ms.Tensor,
@@ -237,7 +203,7 @@ class FlowMatchEulerDiscreteScheduler(SchedulerMixin, ConfigMixin):
         s_noise: float = 1.0,
         generator: Optional[np.random.Generator] = None,
         return_dict: bool = False,
-    ) -> Union[FlowMatchEulerDiscreteSchedulerOutput, Tuple]:
+    ) -> Union[FlowMatchHeunDiscreteSchedulerOutput, Tuple]:
         """
         Predict the sample from the previous timestep by reversing the SDE. This function propagates the diffusion
         process from the learned model outputs (most often the predicted noise).
@@ -254,25 +220,25 @@ class FlowMatchEulerDiscreteScheduler(SchedulerMixin, ConfigMixin):
             s_tmax  (`float`):
             s_noise (`float`, defaults to 1.0):
                 Scaling factor for noise added to the sample.
-            generator (`np.random.Generator`, *optional*):
+            generator (`torch.Generator`, *optional*):
                 A random number generator.
             return_dict (`bool`):
-                Whether or not to return a [`~schedulers.scheduling_euler_discrete.EulerDiscreteSchedulerOutput`] or
+                Whether or not to return a [`~schedulers.scheduling_Heun_discrete.HeunDiscreteSchedulerOutput`] or
                 tuple.
 
         Returns:
-            [`~schedulers.scheduling_euler_discrete.EulerDiscreteSchedulerOutput`] or `tuple`:
-                If return_dict is `True`, [`~schedulers.scheduling_euler_discrete.EulerDiscreteSchedulerOutput`] is
+            [`~schedulers.scheduling_Heun_discrete.HeunDiscreteSchedulerOutput`] or `tuple`:
+                If return_dict is `True`, [`~schedulers.scheduling_Heun_discrete.HeunDiscreteSchedulerOutput`] is
                 returned, otherwise a tuple is returned where the first element is the sample tensor.
         """
 
         if isinstance(timestep, int) or (
-            isinstance(timestep, ms.Tensor) and timestep.dtype in (ms.int16, ms.int32, ms.int64)
+            isinstance(timestep, ms.Tensor) and isinstance(timestep.dtype, (ms.int32, ms.int64))
         ):
             raise ValueError(
                 (
                     "Passing integer indices (e.g. from `enumerate(timesteps)`) as timesteps to"
-                    " `EulerDiscreteScheduler.step()` is not supported. Make sure to pass"
+                    " `HeunDiscreteScheduler.step()` is not supported. Make sure to pass"
                     " one of the `scheduler.timesteps` as a timestep."
                 ),
             )
@@ -283,11 +249,54 @@ class FlowMatchEulerDiscreteScheduler(SchedulerMixin, ConfigMixin):
         # Upcast to avoid precision issues when computing prev_sample
         sample = sample.to(ms.float32)
 
-        sigma = self.sigmas[self.step_index]
-        sigma_next = self.sigmas[self.step_index + 1]
+        if self.state_in_first_order:
+            sigma = self.sigmas[self.step_index]
+            sigma_next = self.sigmas[self.step_index + 1]
+        else:
+            # 2nd order / Heun's method
+            sigma = self.sigmas[self.step_index - 1]
+            sigma_next = self.sigmas[self.step_index]
 
-        prev_sample = sample + (sigma_next - sigma) * model_output
+        gamma = min(s_churn / (len(self.sigmas) - 1), 2**0.5 - 1) if s_tmin <= sigma <= s_tmax else 0.0
 
+        noise = randn_tensor(model_output.shape, dtype=model_output.dtype, generator=generator)
+
+        eps = noise * s_noise
+        sigma_hat = sigma * (gamma + 1)
+
+        if gamma > 0:
+            sample = sample + eps * (sigma_hat**2 - sigma**2) ** 0.5
+
+        if self.state_in_first_order:
+            # 1. compute predicted original sample (x_0) from sigma-scaled predicted noise
+            denoised = sample - model_output * sigma
+            # 2. convert to an ODE derivative for 1st order
+            derivative = (sample - denoised) / sigma_hat
+            # 3. Delta timestep
+            dt = sigma_next - sigma_hat
+
+            # store for 2nd order step
+            self.prev_derivative = derivative
+            self.dt = dt
+            self.sample = sample
+        else:
+            # 1. compute predicted original sample (x_0) from sigma-scaled predicted noise
+            denoised = sample - model_output * sigma_next
+            # 2. 2nd order / Heun's method
+            derivative = (sample - denoised) / sigma_next
+            derivative = 0.5 * (self.prev_derivative + derivative)
+
+            # 3. take prev timestep & sample
+            dt = self.dt
+            sample = self.sample
+
+            # free dt and derivative
+            # Note, this puts the scheduler in "first order mode"
+            self.prev_derivative = None
+            self.dt = None
+            self.sample = None
+
+        prev_sample = sample + derivative * dt
         # Cast sample back to model compatible dtype
         prev_sample = prev_sample.to(model_output.dtype)
 
@@ -297,7 +306,7 @@ class FlowMatchEulerDiscreteScheduler(SchedulerMixin, ConfigMixin):
         if not return_dict:
             return (prev_sample,)
 
-        return FlowMatchEulerDiscreteSchedulerOutput(prev_sample=prev_sample)
+        return FlowMatchHeunDiscreteSchedulerOutput(prev_sample=prev_sample)
 
     def __len__(self):
         return self.config.num_train_timesteps

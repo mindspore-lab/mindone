@@ -102,6 +102,16 @@ except importlib_metadata.PackageNotFoundError:
     _matplotlib_available = False
 
 
+_imageio_available = importlib.util.find_spec("imageio") is not None
+if _imageio_available:
+    try:
+        _imageio_version = importlib_metadata.version("imageio")
+        logger.debug(f"Successfully imported imageio version {_imageio_version}")
+
+    except importlib_metadata.PackageNotFoundError:
+        _imageio_available = False
+
+
 def is_transformers_available():
     return _transformers_available
 
@@ -124,6 +134,10 @@ def is_bs4_available():
 
 def is_matplotlib_available():
     return _matplotlib_available
+
+
+def is_imageio_available():
+    return _imageio_available
 
 
 # docstyle-ignore
@@ -161,6 +175,12 @@ that match your environment. Please note that you may need to restart your runti
 """
 
 
+# docstyle-ignore
+IMAGEIO_IMPORT_ERROR = """
+{0} requires the imageio library and ffmpeg but it was not found in your environment. You can install it with pip: `pip install imageio imageio-ffmpeg`
+"""
+
+
 BACKENDS_MAPPING = OrderedDict(
     [
         ("bs4", (is_bs4_available, BS4_IMPORT_ERROR)),
@@ -168,6 +188,7 @@ BACKENDS_MAPPING = OrderedDict(
         ("scipy", (is_scipy_available, SCIPY_IMPORT_ERROR)),
         ("transformers", (is_transformers_available, TRANSFORMERS_IMPORT_ERROR)),
         ("ftfy", (is_ftfy_available, FTFY_IMPORT_ERROR)),
+        ("imageio", (is_imageio_available, IMAGEIO_IMPORT_ERROR)),
     ]
 )
 

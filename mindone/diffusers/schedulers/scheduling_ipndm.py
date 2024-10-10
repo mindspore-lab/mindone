@@ -137,7 +137,7 @@ class IPNDMScheduler(SchedulerMixin, ConfigMixin):
     def step(
         self,
         model_output: ms.Tensor,
-        timestep: int,
+        timestep: Union[int, ms.Tensor],
         sample: ms.Tensor,
         return_dict: bool = False,
     ) -> Union[SchedulerOutput, Tuple]:

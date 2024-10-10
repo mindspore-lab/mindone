@@ -34,6 +34,10 @@ class Attention(nn.Cell):
             The number of channels in the encoder_hidden_states. If not given, defaults to `query_dim`.
         heads (`int`,  *optional*, defaults to 8):
             The number of heads to use for multi-head attention.
+        kv_heads (`int`,  *optional*, defaults to `None`):
+            The number of key and value heads to use for multi-head attention. Defaults to `heads`. If
+            `kv_heads=heads`, the model will use Multi Head Attention (MHA), if `kv_heads=1` the model will use Multi
+            Query Attention (MQA) otherwise GQA is used.
         dim_head (`int`,  *optional*, defaults to 64):
             The number of channels in each head.
         dropout (`float`, *optional*, defaults to 0.0):
@@ -79,6 +83,7 @@ class Attention(nn.Cell):
         query_dim: int,
         cross_attention_dim: Optional[int] = None,
         heads: int = 8,
+        kv_heads: Optional[int] = None,
         dim_head: int = 64,
         dropout: float = 0.0,
         bias: bool = False,
@@ -88,6 +93,7 @@ class Attention(nn.Cell):
         cross_attention_norm_num_groups: int = 32,
         qk_norm: Optional[str] = None,
         added_kv_proj_dim: Optional[int] = None,
+        added_proj_bias: Optional[bool] = True,
         norm_num_groups: Optional[int] = None,
         spatial_norm_dim: Optional[int] = None,
         out_bias: bool = True,
@@ -100,11 +106,15 @@ class Attention(nn.Cell):
         processor: Optional["AttnProcessor"] = None,
         out_dim: int = None,
         context_pre_only=None,
+        pre_only=False,
     ):
-        from .normalization import GroupNorm, LayerNorm
-
         super().__init__()
+
+        # To prevent circular import.
+        from .normalization import FP32LayerNorm, GroupNorm, LayerNorm, RMSNorm
+
         self.inner_dim = out_dim if out_dim is not None else dim_head * heads
+        self.inner_kv_dim = self.inner_dim if kv_heads is None else dim_head * kv_heads
         self.query_dim = query_dim
         self.use_bias = bias
         self.is_cross_attention = cross_attention_dim is not None
@@ -117,6 +127,7 @@ class Attention(nn.Cell):
         self.fused_projections = False
         self.out_dim = out_dim if out_dim is not None else query_dim
         self.context_pre_only = context_pre_only
+        self.pre_only = pre_only
 
         # we make use of this private variable to know whether this class is loaded
         # with an deprecated state dict so that we can convert it on the fly
@@ -157,6 +168,16 @@ class Attention(nn.Cell):
         elif qk_norm == "layer_norm":
             self.norm_q = LayerNorm(dim_head, eps=eps)
             self.norm_k = LayerNorm(dim_head, eps=eps)
+        elif qk_norm == "fp32_layer_norm":
+            self.norm_q = FP32LayerNorm(dim_head, elementwise_affine=False, bias=False, eps=eps)
+            self.norm_k = FP32LayerNorm(dim_head, elementwise_affine=False, bias=False, eps=eps)
+        elif qk_norm == "layer_norm_across_heads":
+            # Lumina applys qk norm across all heads
+            self.norm_q = LayerNorm(dim_head * heads, eps=eps)
+            self.norm_k = LayerNorm(dim_head * kv_heads, eps=eps)
+        elif qk_norm == "rms_norm":
+            self.norm_q = RMSNorm(dim_head, eps=eps)
+            self.norm_k = RMSNorm(dim_head, eps=eps)
         else:
             raise ValueError(f"unknown qk_norm: {qk_norm}. Should be None or 'layer_norm'")
 
@@ -188,22 +209,37 @@ class Attention(nn.Cell):
 
         if not self.only_cross_attention:
             # only relevant for the `AddedKVProcessor` classes
-            self.to_k = nn.Dense(self.cross_attention_dim, self.inner_dim, has_bias=bias)
-            self.to_v = nn.Dense(self.cross_attention_dim, self.inner_dim, has_bias=bias)
+            self.to_k = nn.Dense(self.cross_attention_dim, self.inner_kv_dim, has_bias=bias)
+            self.to_v = nn.Dense(self.cross_attention_dim, self.inner_kv_dim, has_bias=bias)
         else:
             self.to_k = None
             self.to_v = None
 
+        self.added_proj_bias = added_proj_bias
         if self.added_kv_proj_dim is not None:
-            self.add_k_proj = nn.Dense(added_kv_proj_dim, self.inner_dim)
-            self.add_v_proj = nn.Dense(added_kv_proj_dim, self.inner_dim)
+            self.add_k_proj = nn.Dense(added_kv_proj_dim, self.inner_kv_dim, has_bias=added_proj_bias)
+            self.add_v_proj = nn.Dense(added_kv_proj_dim, self.inner_kv_dim, has_bias=added_proj_bias)
             if self.context_pre_only is not None:
-                self.add_q_proj = nn.Dense(added_kv_proj_dim, self.inner_dim)
+                self.add_q_proj = nn.Dense(added_kv_proj_dim, self.inner_dim, has_bias=added_proj_bias)
 
-        self.to_out = nn.CellList([nn.Dense(self.inner_dim, self.out_dim, has_bias=out_bias), nn.Dropout(p=dropout)])
+        if not self.pre_only:
+            self.to_out = nn.CellList(
+                [nn.Dense(self.inner_dim, self.out_dim, has_bias=out_bias), nn.Dropout(p=dropout)]
+            )
 
         if self.context_pre_only is not None and not self.context_pre_only:
             self.to_add_out = nn.Dense(self.inner_dim, self.out_dim, has_bias=out_bias)
+
+        if qk_norm is not None and added_kv_proj_dim is not None:
+            if qk_norm == "fp32_layer_norm":
+                self.norm_added_q = FP32LayerNorm(dim_head, elementwise_affine=False, bias=False, eps=eps)
+                self.norm_added_k = FP32LayerNorm(dim_head, elementwise_affine=False, bias=False, eps=eps)
+            elif qk_norm == "rms_norm":
+                self.norm_added_q = RMSNorm(dim_head, eps=eps)
+                self.norm_added_k = RMSNorm(dim_head, eps=eps)
+        else:
+            self.norm_added_q = None
+            self.norm_added_k = None
 
         # set attention processor
         # We use the AttnProcessor2_0 by default when torch 2.x is used which uses
@@ -416,7 +452,9 @@ class Attention(nn.Cell):
 
         return tensor
 
-    def get_attention_scores(self, query: ms.Tensor, key: ms.Tensor, attention_mask: ms.Tensor = None) -> ms.Tensor:
+    def get_attention_scores(
+        self, query: ms.Tensor, key: ms.Tensor, attention_mask: Optional[ms.Tensor] = None
+    ) -> ms.Tensor:
         r"""
         Compute the attention scores.
 
@@ -560,10 +598,11 @@ class Attention(nn.Cell):
             in_features = concatenated_weights.shape[1]
             out_features = concatenated_weights.shape[0]
 
-            self.to_added_qkv = nn.Dense(in_features, out_features, has_bias=True, dtype=dtype)
+            self.to_added_qkv = nn.Dense(in_features, out_features, has_bias=self.added_proj_bias, dtype=dtype)
             self.to_added_qkv.weight.set_data(concatenated_weights)
-            concatenated_bias = ops.cat([self.add_q_proj.bias, self.add_k_proj.bias, self.add_v_proj.bias])
-            self.to_added_qkv.bias.set_data(concatenated_bias)
+            if self.added_proj_bias:
+                concatenated_bias = ops.cat([self.add_q_proj.bias, self.add_k_proj.bias, self.add_v_proj.bias])
+                self.to_added_qkv.bias.set_data(concatenated_bias)
 
         self.fused_projections = fuse
 
@@ -947,6 +986,156 @@ class FusedJointAttnProcessor:
         if context_input_ndim == 4:
             encoder_hidden_states = encoder_hidden_states.swapaxes(-1, -2).reshape(batch_size, channel, height, width)
 
+        return hidden_states, encoder_hidden_states
+
+
+@ms.jit_class
+class CogVideoXAttnProcessor2_0:
+    r"""
+    Processor for implementing scaled dot-product attention for the CogVideoX model. It applies a rotary embedding on
+    query and key vectors, but does not include spatial normalization.
+    """
+
+    def __init__(self):
+        # move importing from __call__ to __init__ as it is not supported in construct()
+        from .embeddings import apply_rotary_emb
+
+        self.apply_rotary_emb = apply_rotary_emb
+
+        # if not hasattr(F, "scaled_dot_product_attention"):
+        #     raise ImportError("CogVideoXAttnProcessor requires PyTorch 2.0, to use it, please upgrade PyTorch to 2.0.")
+
+    def __call__(
+        self,
+        attn: Attention,
+        hidden_states: ms.Tensor,
+        encoder_hidden_states: ms.Tensor,
+        attention_mask: Optional[ms.Tensor] = None,
+        image_rotary_emb: Optional[ms.Tensor] = None,
+    ) -> ms.Tensor:
+        text_seq_length = encoder_hidden_states.shape[1]
+
+        hidden_states = ops.cat([encoder_hidden_states, hidden_states], axis=1)
+
+        batch_size, sequence_length, _ = (
+            hidden_states.shape if encoder_hidden_states is None else encoder_hidden_states.shape
+        )
+
+        if attention_mask is not None:
+            attention_mask = attn.prepare_attention_mask(attention_mask, sequence_length, batch_size)
+            attention_mask = attention_mask.view(batch_size, attn.heads, -1, attention_mask.shape[-1])
+
+        query = attn.to_q(hidden_states)
+        key = attn.to_k(hidden_states)
+        value = attn.to_v(hidden_states)
+
+        inner_dim = key.shape[-1]
+        head_dim = inner_dim // attn.heads
+
+        query = query.view(batch_size, -1, attn.heads, head_dim).swapaxes(1, 2)
+        key = key.view(batch_size, -1, attn.heads, head_dim).swapaxes(1, 2)
+        value = value.view(batch_size, -1, attn.heads, head_dim).swapaxes(1, 2)
+
+        if attn.norm_q is not None:
+            query = attn.norm_q(query)
+        if attn.norm_k is not None:
+            key = attn.norm_k(key)
+
+        # Apply RoPE if needed
+        if image_rotary_emb is not None:
+            query[:, :, text_seq_length:] = self.apply_rotary_emb(query[:, :, text_seq_length:], image_rotary_emb)
+            if not attn.is_cross_attention:
+                key[:, :, text_seq_length:] = self.apply_rotary_emb(key[:, :, text_seq_length:], image_rotary_emb)
+
+        hidden_states = ops.operations.nn_ops.FlashAttentionScore(
+            attn.heads, scale_value=attn.scale, input_layout="BNSD"
+        )(query, key, value, None, None, None, attention_mask)[3]
+
+        hidden_states = hidden_states.swapaxes(1, 2).reshape(batch_size, -1, attn.heads * head_dim)
+
+        # linear proj
+        hidden_states = attn.to_out[0](hidden_states)
+        # dropout
+        hidden_states = attn.to_out[1](hidden_states)
+
+        encoder_hidden_states, hidden_states = hidden_states.split(
+            [text_seq_length, hidden_states.shape[1] - text_seq_length], axis=1
+        )
+        return hidden_states, encoder_hidden_states
+
+
+@ms.jit_class
+class FusedCogVideoXAttnProcessor2_0:
+    r"""
+    Processor for implementing scaled dot-product attention for the CogVideoX model. It applies a rotary embedding on
+    query and key vectors, but does not include spatial normalization.
+    """
+
+    def __init__(self):
+        # move importing from __call__ to __init__ as it is not supported in construct()
+        from .embeddings import apply_rotary_emb
+
+        self.apply_rotary_emb = apply_rotary_emb
+
+        # if not hasattr(F, "scaled_dot_product_attention"):
+        #     raise ImportError("CogVideoXAttnProcessor requires PyTorch 2.0, to use it, please upgrade PyTorch to 2.0.")
+
+    def __call__(
+        self,
+        attn: Attention,
+        hidden_states: ms.Tensor,
+        encoder_hidden_states: ms.Tensor,
+        attention_mask: Optional[ms.Tensor] = None,
+        image_rotary_emb: Optional[ms.Tensor] = None,
+    ) -> ms.Tensor:
+        text_seq_length = encoder_hidden_states.shape[1]
+
+        hidden_states = ops.cat([encoder_hidden_states, hidden_states], axis=1)
+
+        batch_size, sequence_length, _ = (
+            hidden_states.shape if encoder_hidden_states is None else encoder_hidden_states.shape
+        )
+
+        if attention_mask is not None:
+            attention_mask = attn.prepare_attention_mask(attention_mask, sequence_length, batch_size)
+            attention_mask = attention_mask.view(batch_size, attn.heads, -1, attention_mask.shape[-1])
+
+        qkv = attn.to_qkv(hidden_states)
+        split_size = qkv.shape[-1] // 3
+        query, key, value = ops.split(qkv, split_size, axis=-1)
+
+        inner_dim = key.shape[-1]
+        head_dim = inner_dim // attn.heads
+
+        query = query.view(batch_size, -1, attn.heads, head_dim).swapaxes(1, 2)
+        key = key.view(batch_size, -1, attn.heads, head_dim).swapaxes(1, 2)
+        value = value.view(batch_size, -1, attn.heads, head_dim).swapaxes(1, 2)
+
+        if attn.norm_q is not None:
+            query = attn.norm_q(query)
+        if attn.norm_k is not None:
+            key = attn.norm_k(key)
+
+        # Apply RoPE if needed
+        if image_rotary_emb is not None:
+            query[:, :, text_seq_length:] = self.apply_rotary_emb(query[:, :, text_seq_length:], image_rotary_emb)
+            if not attn.is_cross_attention:
+                key[:, :, text_seq_length:] = self.apply_rotary_emb(key[:, :, text_seq_length:], image_rotary_emb)
+
+        hidden_states = ops.operations.nn_ops.FlashAttentionScore(
+            attn.heads, scale_value=attn.scale, input_layout="BNSD"
+        )(query, key, value, None, None, None, attention_mask)[3]
+
+        hidden_states = hidden_states.swapaxes(1, 2).reshape(batch_size, -1, attn.heads * head_dim)
+
+        # linear proj
+        hidden_states = attn.to_out[0](hidden_states)
+        # dropout
+        hidden_states = attn.to_out[1](hidden_states)
+
+        encoder_hidden_states, hidden_states = hidden_states.split(
+            [text_seq_length, hidden_states.shape[1] - text_seq_length], axis=1
+        )
         return hidden_states, encoder_hidden_states
 
 
