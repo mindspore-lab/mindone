@@ -231,20 +231,6 @@ class RMSNorm(nn.Cell):
         return hidden_states
 
 
-class GlobalResponseNorm(nn.Cell):
-    # Taken from https://github.com/facebookresearch/ConvNeXt-V2/blob/3608f67cc1dae164790c5d0aead7bf2d73d9719b/models/utils.py#L105
-    def __init__(self, dim):
-        super().__init__()
-        self.gamma = ms.Parameter(ops.zeros(size=(1, 1, 1, dim)), name="gamma")
-        self.beta = ms.Parameter(ops.zeros(size=(1, 1, 1, dim)), name="beta")
-
-    def construct(self, x):
-        gx = ops.norm(x, ord="fro", dim=(1, 2), keepdim=True)
-        nx = gx / (gx.mean(axis=-1, keep_dims=True) + 1e-6)
-        out = (self.gamma * (x * nx) + self.beta + x).to(x.dtype)
-        return out
-
-
 def _group_norm(x, num_groups, weight, bias, eps):
     x_shape = x.shape
     x = x.reshape(x_shape[0], num_groups, -1)

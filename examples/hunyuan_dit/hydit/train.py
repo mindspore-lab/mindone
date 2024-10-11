@@ -15,7 +15,9 @@ from hydit.data_loader.arrow_load_stream import TextImageArrowStream
 from hydit.diffusion import create_diffusion
 from hydit.ds_config import deepspeed_config_from_args
 from hydit.lr_scheduler import WarmupLR
-from hydit.modules.ema import EMA
+
+# from hydit.modules.ema import EMA
+from hydit.modules.fp16_layers import Float16Module
 from hydit.modules.models import HUNYUAN_DIT_MODELS
 from hydit.modules.posemb_layers import init_image_posemb
 from hydit.modules.text_encoder import MT5Embedder
@@ -27,7 +29,7 @@ from transformers import logging as tf_logging
 
 import mindspore as ms
 from mindspore import nn, ops
-from mindspore.amp import DynamicLossScaler, auto_mixed_precision
+from mindspore.amp import DynamicLossScaler
 from mindspore.communication import get_group_size, get_rank, init
 from mindspore.dataset import GeneratorDataset
 
@@ -67,10 +69,7 @@ def save_checkpoint(args, rank, logger, model, ema, epoch, train_steps, checkpoi
     def save_lora_weight(checkpoint_dir, client_state, tag=f"{train_steps:07d}.ckpt"):
         cur_ckpt_save_dir = f"{checkpoint_dir}/{tag}"
         if rank == 0:
-            if args.use_fp16:
-                model.module.module.save_pretrained(cur_ckpt_save_dir)
-            else:
-                model.module.save_pretrained(cur_ckpt_save_dir)
+            model.module.save_pretrained(cur_ckpt_save_dir)
 
     def save_model_weight(client_state, tag):
         checkpoint_path = f"{checkpoint_dir}/{tag}"
@@ -79,7 +78,6 @@ def save_checkpoint(args, rank, logger, model, ema, epoch, train_steps, checkpoi
                 save_lora_weight(checkpoint_dir, client_state, tag=tag)
             else:
                 ms.save_checkpoint(model, checkpoint_path)
-                # model.save_checkpoint(checkpoint_dir, client_state=client_state, tag=tag)
             logger.info(f"Saved checkpoint to {checkpoint_path}")
         except Exception as e:
             logger.error(f"Saved failed to {checkpoint_path}. {type(e)}: {e}")
@@ -87,8 +85,8 @@ def save_checkpoint(args, rank, logger, model, ema, epoch, train_steps, checkpoi
         return True, checkpoint_path
 
     client_state = {"steps": train_steps, "epoch": epoch, "args": args}
-    if ema is not None:
-        client_state["ema"] = ema.state_dict()
+    # if ema is not None:
+    #     client_state["ema"] = ema.state_dict()
 
     # Save model weights by epoch or step
     dst_paths = []
@@ -276,8 +274,8 @@ def main(args):
 
     # Create EMA model and convert to fp16 if needed.
     ema = None
-    if args.use_ema:
-        ema = EMA(args, model, logger)
+    # if args.use_ema:
+    #     ema = EMA(args, model, logger)
 
     # Setup gradient checkpointing
     if args.gradient_checkpointing:
@@ -285,7 +283,7 @@ def main(args):
 
     # Setup FP16 main model:
     if args.use_fp16:
-        model = auto_mixed_precision(model, "O3", dtype=ms.float16)
+        model = Float16Module(model, args)
 
     logger.info(f"    Using main model with data type {'fp16' if args.use_fp16 else 'fp32'}")
 
@@ -371,6 +369,7 @@ def main(args):
         num_shards=world_size,
         shard_id=rank,
         num_parallel_workers=args.num_workers,
+        max_rowsize=-1,
     ).batch(batch_size=batch_size, drop_remainder=True, num_parallel_workers=args.num_workers)
 
     logger.info(f"    Dataset contains {len(dataset):,} images.")
@@ -396,6 +395,7 @@ def main(args):
 
     if args.training_parts == "lora":
         loraconfig = LoraConfig(r=args.rank, lora_alpha=args.rank, target_modules=args.target_modules)
+        model.is_gradient_checkpointing = False
         if args.use_fp16:
             model.module = get_peft_model(model.module, loraconfig)
         else:
@@ -451,9 +451,9 @@ def main(args):
 
     logger.info("    ------------------------------------------------------------------------------")
     logger.info(f"      Using EMA model:           {args.use_ema} ({args.ema_dtype})")
-    if args.use_ema:
-        logger.info(f"      Using EMA decay:           {ema.max_value if args.use_ema else None}")
-        logger.info(f"      Using EMA warmup power:    {ema.power if args.use_ema else None}")
+    # if args.use_ema:
+    #     logger.info(f"      Using EMA decay:           {ema.max_value if args.use_ema else None}")
+    #     logger.info(f"      Using EMA warmup power:    {ema.power if args.use_ema else None}")
     logger.info(f"      Using main model fp16:     {args.use_fp16}")
     logger.info(f"      Using extra modules fp16:  {args.extra_fp16}")
     logger.info("    ------------------------------------------------------------------------------")
@@ -483,7 +483,7 @@ def main(args):
         dataset.shuffle(seed=shuffle_seed, fast=True)
         logger.info("    End of random shuffle")
 
-        # Move sampler to start_index
+        # # Move sampler to start_index
         if not args.multireso:
             start_index = start_epoch_step * world_size * batch_size
             if start_index != sampler.start_index:
@@ -498,11 +498,11 @@ def main(args):
 
             loss, _ = train_step_for_hunyuan(latents, ms.mutable(model_kwargs))
 
-            if args.use_ema:
-                if args.use_fp16:
-                    ema.update(model.cell.cell, step=train_steps)
-                else:
-                    ema.update(model.cell, step=train_steps)
+            # if args.use_ema:
+            #     if args.use_fp16:
+            #         ema.update(model.cell.cell, step=train_steps)
+            #     else:
+            #         ema.update(model.cell, step=train_steps)
 
             # ===========================================================================
             # Log loss values:
@@ -529,6 +529,10 @@ def main(args):
                 running_loss = 0
                 log_steps = 0
                 start_time = time.time()
+
+            # collect gc:
+            if args.gc_interval > 0 and (train_steps % args.gc_interval == 0):
+                gc.collect()
 
             if (train_steps % args.ckpt_every == 0 or train_steps % args.ckpt_latest_every == 0) and train_steps > 0:
                 save_checkpoint(args, rank, logger, model, ema, epoch, train_steps, checkpoint_dir, by="step")

@@ -1,4 +1,3 @@
-import enum
 import math
 
 import numpy as np
@@ -48,11 +47,11 @@ class ModelVarType:
     LEARNED_RANGE = 4
 
 
-class LossType(enum.Enum):
-    MSE = enum.auto()  # use raw MSE loss (and KL when learning variances)
-    RESCALED_MSE = enum.auto()  # use raw MSE loss (with RESCALED_KL when learning variances)
-    KL = enum.auto()  # use the variational lower-bound
-    RESCALED_KL = enum.auto()  # like KL, but rescale to estimate the full VLB
+class LossType:
+    MSE = 1  # use raw MSE loss (and KL when learning variances)
+    RESCALED_MSE = 2  # use raw MSE loss (with RESCALED_KL when learning variances)
+    KL = 3  # use the variational lower-bound
+    RESCALED_KL = 4  # like KL, but rescale to estimate the full VLB
 
     def is_vb(self):
         return self == LossType.KL or self == LossType.RESCALED_KL

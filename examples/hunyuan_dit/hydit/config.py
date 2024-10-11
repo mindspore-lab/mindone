@@ -263,6 +263,8 @@ def get_args(default_args=None):
 
     # EMA Model
     parser.add_argument("--use-ema", action="store_true", help="Use EMA model")
+    # EMA is currently not supported
+    parser.set_defaults(use_ema=False)
     parser.add_argument(
         "--ema-dtype",
         type=str,

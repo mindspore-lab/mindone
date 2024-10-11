@@ -100,7 +100,7 @@ Currently, MindONE/Hunyuan-DiT only supports loading checkpoints through `safete
   ```shell
   # Inference
     #   You should replace the 'log_EXP/xxx/checkpoints/final.pt' with your actual path.
-  python sample_t2i.py --infer-mode fa --prompt "青花瓷风格，一只可爱的哈士奇" --no-enhance --dit-weight log_EXP/xxx/checkpoints/final.ckpt --load-key module
+  python sample_t2i.py --infer-mode fa --prompt "青花瓷风格，一只可爱的哈士奇" --no-enhance --dit-weight log_EXP/xxx/checkpoints/final.ckpt --load-key module --use-fp16
   ```
 
 ## Inference
