@@ -34,7 +34,7 @@ from ...models import AutoencoderKL, UNet2DConditionModel
 from ...schedulers import KarrasDiffusionSchedulers
 from ...utils import deprecate, logging, scale_lora_layers, unscale_lora_layers
 from ...utils.mindspore_utils import randn_tensor
-from ..pipeline_utils import DiffusionPipeline
+from ..pipeline_utils import DiffusionPipeline, StableDiffusionMixin
 from .pipeline_output import StableDiffusionXLPipelineOutput
 
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
@@ -129,6 +129,7 @@ def retrieve_timesteps(
 
 class StableDiffusionXLPipeline(
     DiffusionPipeline,
+    StableDiffusionMixin,
     FromSingleFileMixin,
     IPAdapterMixin,
     StableDiffusionXLLoraLoaderMixin,

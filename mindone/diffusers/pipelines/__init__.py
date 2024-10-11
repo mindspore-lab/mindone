@@ -125,6 +125,7 @@ _import_structure = {
     "pipeline_utils": [
         "DiffusionPipeline",
         "ImagePipelineOutput",
+        "StableDiffusionMixin",
     ],
 }
 
@@ -181,7 +182,7 @@ if TYPE_CHECKING:
     from .latent_consistency_models import LatentConsistencyModelImg2ImgPipeline, LatentConsistencyModelPipeline
     from .latent_diffusion import LDMSuperResolutionPipeline, LDMTextToImagePipeline
     from .marigold import MarigoldDepthPipeline, MarigoldNormalsPipeline
-    from .pipeline_utils import DiffusionPipeline, ImagePipelineOutput
+    from .pipeline_utils import DiffusionPipeline, ImagePipelineOutput, StableDiffusionMixin
     from .pixart_alpha import PixArtAlphaPipeline, PixArtSigmaPipeline
     from .shap_e import ShapEImg2ImgPipeline, ShapEPipeline
     from .stable_cascade import StableCascadeCombinedPipeline, StableCascadeDecoderPipeline, StableCascadePriorPipeline

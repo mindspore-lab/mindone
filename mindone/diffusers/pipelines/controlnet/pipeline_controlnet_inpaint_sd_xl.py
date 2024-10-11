@@ -35,7 +35,7 @@ from ...models import AutoencoderKL, ControlNetModel, ImageProjection, UNet2DCon
 from ...schedulers import KarrasDiffusionSchedulers
 from ...utils import deprecate, logging, scale_lora_layers, unscale_lora_layers
 from ...utils.mindspore_utils import randn_tensor
-from ..pipeline_utils import DiffusionPipeline
+from ..pipeline_utils import DiffusionPipeline, StableDiffusionMixin
 from ..stable_diffusion_xl.pipeline_output import StableDiffusionXLPipelineOutput
 from .multicontrolnet import MultiControlNetModel
 
@@ -129,6 +129,7 @@ def rescale_noise_cfg(noise_cfg, noise_pred_text, guidance_rescale=0.0):
 
 class StableDiffusionXLControlNetInpaintPipeline(
     DiffusionPipeline,
+    StableDiffusionMixin,
     StableDiffusionXLLoraLoaderMixin,
     FromSingleFileMixin,
     IPAdapterMixin,

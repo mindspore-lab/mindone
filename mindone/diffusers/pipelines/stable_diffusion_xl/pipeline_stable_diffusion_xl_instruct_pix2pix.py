@@ -30,7 +30,7 @@ from ...models import AutoencoderKL, UNet2DConditionModel
 from ...schedulers import KarrasDiffusionSchedulers
 from ...utils import deprecate, logging, scale_lora_layers
 from ...utils.mindspore_utils import randn_tensor
-from ..pipeline_utils import DiffusionPipeline
+from ..pipeline_utils import DiffusionPipeline, StableDiffusionMixin
 from .pipeline_output import StableDiffusionXLPipelineOutput
 
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
@@ -98,6 +98,7 @@ def rescale_noise_cfg(noise_cfg, noise_pred_text, guidance_rescale=0.0):
 
 class StableDiffusionXLInstructPix2PixPipeline(
     DiffusionPipeline,
+    StableDiffusionMixin,
     TextualInversionLoaderMixin,
     FromSingleFileMixin,
     StableDiffusionXLLoraLoaderMixin,
