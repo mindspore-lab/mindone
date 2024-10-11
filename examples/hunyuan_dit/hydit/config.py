@@ -19,7 +19,7 @@ def get_args(default_args=None):
     parser.add_argument("--task-flag", type=str)
 
     # General Setting
-    parser.add_argument("--batch-size", type=int, default=1, help="Per-GPU batch size")
+    parser.add_argument("--batch-size", type=int, default=1, help="Per-NPU batch size")
     parser.add_argument("--seed", type=int, default=42, help="A seed for all the prompts.")
     parser.add_argument("--use-fp16", action="store_true", help="Use FP16 precision.")
     parser.add_argument("--no-fp16", dest="use_fp16", action="store_false")
@@ -173,7 +173,6 @@ def get_args(default_args=None):
     parser.add_argument("--enhance", action="store_true", help="Enhance prompt with mllm.")
     parser.add_argument("--no-enhance", dest="enhance", action="store_false")
     parser.add_argument("--load-4bit", help="load DialogGen model with 4bit quantization.", action="store_true")
-    parser.set_defaults(enhance=True)
 
     # App
     parser.add_argument("--lang", type=str, default="zh", choices=["zh", "en"], help="Language")
@@ -263,6 +262,8 @@ def get_args(default_args=None):
 
     # EMA Model
     parser.add_argument("--use-ema", action="store_true", help="Use EMA model")
+    # EMA is currently not supported
+    parser.set_defaults(use_ema=False)
     parser.add_argument(
         "--ema-dtype",
         type=str,
@@ -296,25 +297,12 @@ def get_args(default_args=None):
         action="store_false",
         help="During training, flash attention is not used to accelerate training.",
     )
-    parser.add_argument("--use-zero-stage", type=int, default=1, help="Use AngelPTM zero stage. Support 2 and 3")
     parser.add_argument("--grad-accu-steps", type=int, default=1, help="Gradient accumulation steps.")
     parser.add_argument("--gradient-checkpointing", action="store_true", help="Use gradient checkpointing.")
-    parser.add_argument(
-        "--cpu-offloading", action="store_true", help="Use cpu offloading for parameters and optimizer states."
-    )
-    parser.add_argument("--save-optimizer-state", action="store_true", help="Save optimizer state in the checkpoint.")
-
     # ========================================================================================================
     # Deepspeed config
     # ========================================================================================================
     parser.add_argument("--distributed", default=False, action="store_true", help="Enable distributed training.")
-    # parser = deepspeed.add_config_arguments(parser)
-    # parser.add_argument('--local_rank', type=int, default=None,
-    #                     help='local rank passed from distributed launcher.')
-    # parser.add_argument('--deepspeed-optimizer', action='store_true',
-    #                     help='Switching to the optimizers in DeepSpeed')
-    # parser.add_argument('--zero-stage', type=int, default=1)
-
     args = parser.parse_args(default_args)
 
     return args

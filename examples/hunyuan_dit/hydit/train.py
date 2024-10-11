@@ -1,12 +1,9 @@
 import gc
 import importlib
 import json
-import os
 import random
 import sys
 import time
-from functools import partial
-from glob import glob
 
 import numpy as np
 from hydit.config import get_args
@@ -14,8 +11,7 @@ from hydit.constants import T5_ENCODER, TEXT_ENCODER, TOKENIZER, VAE_EMA_PATH
 from hydit.data_loader.arrow_load_stream import TextImageArrowStream
 from hydit.diffusion import create_diffusion
 from hydit.ds_config import deepspeed_config_from_args
-from hydit.lr_scheduler import WarmupLR
-from hydit.modules.ema import EMA
+from hydit.modules.fp16_layers import Float16Module
 from hydit.modules.models import HUNYUAN_DIT_MODELS
 from hydit.modules.posemb_layers import init_image_posemb
 from hydit.modules.text_encoder import MT5Embedder
@@ -27,7 +23,7 @@ from transformers import logging as tf_logging
 
 import mindspore as ms
 from mindspore import nn, ops
-from mindspore.amp import DynamicLossScaler, auto_mixed_precision
+from mindspore.amp import DynamicLossScaler
 from mindspore.communication import get_group_size, get_rank, init
 from mindspore.dataset import GeneratorDataset
 
@@ -41,9 +37,6 @@ def initialize(args, logger, model, opt, deepspeed_config):
     logger.info("Initialize deepspeed...")
     logger.info("    Using deepspeed optimizer")
 
-    def get_learning_rate_scheduler(warmup_min_lr, lr, warmup_num_steps, opt):
-        return WarmupLR(opt, warmup_min_lr, lr, warmup_num_steps)
-
     logger.info(
         f"    Building scheduler with warmup_min_lr={args.warmup_min_lr}, warmup_num_steps={args.warmup_num_steps}"
     )
@@ -52,25 +45,16 @@ def initialize(args, logger, model, opt, deepspeed_config):
     model_parameters = model.trainable_params()
     opt_type = deepspeed_config["optimizer"]["type"]
     opt_params = deepspeed_config["optimizer"]["params"]
-    opt = getattr(importlib.import_module("hydit.modules.adamw_mint"), opt_type)(model_parameters, **opt_params)
+    opt = getattr(importlib.import_module("mindone.trainers.adamw_mint"), opt_type)(model_parameters, **opt_params)
 
-    if args.warmup_num_steps > 0:
-        scheduler_fn = partial(get_learning_rate_scheduler, args.warmup_min_lr, args.lr, args.warmup_num_steps)
-        scheduler = scheduler_fn(opt)
-    else:
-        scheduler = None
-
-    return model, opt, scheduler
+    return model, opt
 
 
 def save_checkpoint(args, rank, logger, model, ema, epoch, train_steps, checkpoint_dir, by="step"):
     def save_lora_weight(checkpoint_dir, client_state, tag=f"{train_steps:07d}.ckpt"):
         cur_ckpt_save_dir = f"{checkpoint_dir}/{tag}"
         if rank == 0:
-            if args.use_fp16:
-                model.module.module.save_pretrained(cur_ckpt_save_dir)
-            else:
-                model.module.save_pretrained(cur_ckpt_save_dir)
+            model.module.save_pretrained(cur_ckpt_save_dir)
 
     def save_model_weight(client_state, tag):
         checkpoint_path = f"{checkpoint_dir}/{tag}"
@@ -79,7 +63,6 @@ def save_checkpoint(args, rank, logger, model, ema, epoch, train_steps, checkpoi
                 save_lora_weight(checkpoint_dir, client_state, tag=tag)
             else:
                 ms.save_checkpoint(model, checkpoint_path)
-                # model.save_checkpoint(checkpoint_dir, client_state=client_state, tag=tag)
             logger.info(f"Saved checkpoint to {checkpoint_path}")
         except Exception as e:
             logger.error(f"Saved failed to {checkpoint_path}. {type(e)}: {e}")
@@ -87,8 +70,8 @@ def save_checkpoint(args, rank, logger, model, ema, epoch, train_steps, checkpoi
         return True, checkpoint_path
 
     client_state = {"steps": train_steps, "epoch": epoch, "args": args}
-    if ema is not None:
-        client_state["ema"] = ema.state_dict()
+    # if ema is not None:
+    #     client_state["ema"] = ema.state_dict()
 
     # Save model weights by epoch or step
     dst_paths = []
@@ -111,14 +94,6 @@ def save_checkpoint(args, rank, logger, model, ema, epoch, train_steps, checkpoi
     saved = any([state for state, _ in dst_paths])
     if not saved:
         return False
-
-    # Maybe clear optimizer states
-    if not args.save_optimizer_state:
-        if rank == 0 and len(dst_paths) > 0:
-            # Delete optimizer states to avoid occupying too much disk space.
-            for dst_path in dst_paths:
-                for opt_state_path in glob(f"{dst_path}/zero_*_optim_states.ckpt"):
-                    os.remove(opt_state_path)
 
     return True
 
@@ -194,24 +169,30 @@ def main(args):
         device_target="Ascend",
         pynative_synchronize=True,
         jit_syntax_level=ms.STRICT,
+        jit_config={"jit_level": "O1"},
     )
 
     if args.distributed:
         init()
         world_size = get_group_size()
         rank = get_rank()
+        comm_fusion_dict = {"allreduce": {"mode": "auto", "config": None}}
         ms.context.set_auto_parallel_context(
             device_num=world_size,
             global_rank=rank,
             parallel_mode="data_parallel",
             gradients_mean=True,
+            comm_fusion=comm_fusion_dict,
         )
 
     seed = args.global_seed * world_size + rank
+    ms.set_seed(seed)
     random.seed(seed)
     np.random.seed(seed)
     print(f"Starting rank={rank}, seed={seed}, world_size={world_size}.")
     deepspeed_config = deepspeed_config_from_args(args, global_batch_size)
+    loss_scaler_params = deepspeed_config["loss_scaler"]
+    gradient_clipping = deepspeed_config["gradient_clipping"]
 
     # Setup an experiment folder
     experiment_dir, checkpoint_dir, logger = create_exp_folder(args, rank)
@@ -277,7 +258,7 @@ def main(args):
     # Create EMA model and convert to fp16 if needed.
     ema = None
     if args.use_ema:
-        ema = EMA(args, model, logger)
+        raise NotImplementedError("EMA feature is not supported.")
 
     # Setup gradient checkpointing
     if args.gradient_checkpointing:
@@ -285,7 +266,7 @@ def main(args):
 
     # Setup FP16 main model:
     if args.use_fp16:
-        model = auto_mixed_precision(model, "O3", dtype=ms.float16)
+        model = Float16Module(model, args)
 
     logger.info(f"    Using main model with data type {'fp16' if args.use_fp16 else 'fp32'}")
 
@@ -367,10 +348,9 @@ def main(args):
             "text_embedding_mask_t5",
             "kwargs",
         ],
-        shuffle=False,
-        num_shards=world_size,
-        shard_id=rank,
+        sampler=sampler,
         num_parallel_workers=args.num_workers,
+        max_rowsize=-1,
     ).batch(batch_size=batch_size, drop_remainder=True, num_parallel_workers=args.num_workers)
 
     logger.info(f"    Dataset contains {len(dataset):,} images.")
@@ -396,6 +376,7 @@ def main(args):
 
     if args.training_parts == "lora":
         loraconfig = LoraConfig(r=args.rank, lora_alpha=args.rank, target_modules=args.target_modules)
+        model.is_gradient_checkpointing = False
         if args.use_fp16:
             model.module = get_peft_model(model.module, loraconfig)
         else:
@@ -403,7 +384,7 @@ def main(args):
 
     logger.info(f"    Training parts: {args.training_parts}")
 
-    model, opt, scheduler = initialize(args, logger, model, opt, deepspeed_config)
+    model, opt = initialize(args, logger, model, opt, deepspeed_config)
 
     diffusion = create_diffusion(
         model=model,
@@ -452,8 +433,7 @@ def main(args):
     logger.info("    ------------------------------------------------------------------------------")
     logger.info(f"      Using EMA model:           {args.use_ema} ({args.ema_dtype})")
     if args.use_ema:
-        logger.info(f"      Using EMA decay:           {ema.max_value if args.use_ema else None}")
-        logger.info(f"      Using EMA warmup power:    {ema.power if args.use_ema else None}")
+        raise NotImplementedError("EMA feature is not supported.")
     logger.info(f"      Using main model fp16:     {args.use_fp16}")
     logger.info(f"      Using extra modules fp16:  {args.extra_fp16}")
     logger.info("    ------------------------------------------------------------------------------")
@@ -470,7 +450,7 @@ def main(args):
     start_time = time.time()
 
     train_step_for_hunyuan = TrainStepForHunYuan(
-        model, opt, diffusion, args.grad_accu_steps, iters_per_epoch
+        model, opt, diffusion, args.grad_accu_steps, loss_scaler_params, gradient_clipping, iters_per_epoch
     ).set_train(True)
 
     # Training loop
@@ -483,7 +463,7 @@ def main(args):
         dataset.shuffle(seed=shuffle_seed, fast=True)
         logger.info("    End of random shuffle")
 
-        # Move sampler to start_index
+        # # Move sampler to start_index
         if not args.multireso:
             start_index = start_epoch_step * world_size * batch_size
             if start_index != sampler.start_index:
@@ -499,10 +479,7 @@ def main(args):
             loss, _ = train_step_for_hunyuan(latents, ms.mutable(model_kwargs))
 
             if args.use_ema:
-                if args.use_fp16:
-                    ema.update(model.cell.cell, step=train_steps)
-                else:
-                    ema.update(model.cell, step=train_steps)
+                raise NotImplementedError("EMA feature is not supported.")
 
             # ===========================================================================
             # Log loss values:
@@ -529,6 +506,10 @@ def main(args):
                 running_loss = 0
                 log_steps = 0
                 start_time = time.time()
+
+            # collect gc:
+            if args.gc_interval > 0 and (train_steps % args.gc_interval == 0):
+                gc.collect()
 
             if (train_steps % args.ckpt_every == 0 or train_steps % args.ckpt_latest_every == 0) and train_steps > 0:
                 save_checkpoint(args, rank, logger, model, ema, epoch, train_steps, checkpoint_dir, by="step")
@@ -557,13 +538,15 @@ class TrainStepForHunYuan(TrainStep):
         optimizer: nn.Optimizer,
         diffusion,
         gradient_accumulation_steps,
+        loss_scaler_params,
+        gradient_clipping,
         length_of_dataloader,
     ):
         super().__init__(
             model,
             optimizer,
-            DynamicLossScaler(scale_value=2**15, scale_factor=2, scale_window=500),
-            1.0,
+            DynamicLossScaler(**loss_scaler_params),
+            gradient_clipping,
             gradient_accumulation_steps,
             gradient_accumulation_kwargs=dict(length_of_dataloader=length_of_dataloader),
         )

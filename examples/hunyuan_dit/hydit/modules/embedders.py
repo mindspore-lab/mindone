@@ -3,6 +3,8 @@ import math
 import mindspore as ms
 from mindspore import nn, ops
 
+MAX_PERIOD = -float(math.log(10000))
+
 
 class PatchEmbed(nn.Cell):
     """2D Image to Patch Embedding
@@ -59,7 +61,7 @@ class PatchEmbed(nn.Cell):
         return x
 
 
-def timestep_embedding(t, dim, max_period=10000, repeat_only=False):
+def timestep_embedding(t, dim, max_period=MAX_PERIOD, repeat_only=False):
     """
     Create sinusoidal timestep embeddings.
     :param t: a 1-D Tensor of N indices, one per batch element.

@@ -35,7 +35,7 @@ T5_ENCODER = {
     "attention_mask": True,
     "layer_index": -1,
     "attention_pool": True,
-    "mindspore_dtype": ms.float32,
+    "mindspore_dtype": ms.float16,
     "learnable_replace": True,
 }
 

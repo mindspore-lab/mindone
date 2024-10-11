@@ -30,7 +30,10 @@ class AttentionPool(nn.Cell):
             k_proj_weight=self.k_proj.weight,
             v_proj_weight=self.v_proj.weight,
             in_proj_weight=None,
-            in_proj_bias=ops.cat([self.q_proj.bias, self.k_proj.bias, self.v_proj.bias]),
+            # TODO: this is for lora, maybe there is a better method
+            in_proj_bias=ops.cat([self.q_proj.base_layer.bias, self.k_proj.bias, self.v_proj.bias])
+            if hasattr(self.q_proj, "base_layer")
+            else ops.cat([self.q_proj.bias, self.k_proj.bias, self.v_proj.bias]),
             bias_k=None,
             bias_v=None,
             add_zero_attn=False,

@@ -23,8 +23,6 @@ from mindone.diffusers.configuration_utils import FrozenDict
 from mindone.diffusers.image_processor import VaeImageProcessor
 from mindone.diffusers.loaders import FromSingleFileMixin, LoraLoaderMixin, TextualInversionLoaderMixin
 from mindone.diffusers.models import AutoencoderKL, UNet2DConditionModel
-
-# from mindone.diffusers.models.lora import adjust_lora_scale_text_encoder
 from mindone.diffusers.pipelines.pipeline_utils import DiffusionPipeline
 from mindone.diffusers.pipelines.stable_diffusion import StableDiffusionPipelineOutput
 from mindone.diffusers.pipelines.stable_diffusion.safety_checker import StableDiffusionSafetyChecker
@@ -116,7 +114,7 @@ class StableDiffusionControlNetPipeline(
         requires_safety_checker: bool = True,
         progress_bar_config: Dict[str, Any] = None,
         embedder_t5=None,
-        infer_mode="ms",
+        infer_mode="mindspore",
         controlnet=None,
     ):
         super().__init__()
@@ -189,35 +187,6 @@ class StableDiffusionControlNetPipeline(
         self.vae_scale_factor = 2 ** (len(self.vae.config.block_out_channels) - 1)
         self.image_processor = VaeImageProcessor(vae_scale_factor=self.vae_scale_factor)
         self.register_to_config(requires_safety_checker=requires_safety_checker)
-
-    # def enable_vae_slicing(self):
-    #     r"""
-    #     Enable sliced VAE decoding. When this option is enabled, the VAE will split the input tensor in slices to
-    #     compute decoding in several steps. This is useful to save some memory and allow larger batch sizes.
-    #     """
-    #     self.vae.enable_slicing()
-
-    # def disable_vae_slicing(self):
-    #     r"""
-    #     Disable sliced VAE decoding. If `enable_vae_slicing` was previously enabled, this method will go back to
-    #     computing decoding in one step.
-    #     """
-    #     self.vae.disable_slicing()
-
-    # def enable_vae_tiling(self):
-    #     r"""
-    #     Enable tiled VAE decoding. When this option is enabled, the VAE will split the input tensor into tiles to
-    #     compute decoding and encoding in several steps. This is useful for saving a large amount of memory and to allow
-    #     processing larger images.
-    #     """
-    #     self.vae.enable_tiling()
-
-    # def disable_vae_tiling(self):
-    #     r"""
-    #     Disable tiled VAE decoding. If `enable_vae_tiling` was previously enabled, this method will go back to
-    #     computing decoding in one step.
-    #     """
-    #     self.vae.disable_tiling()
 
     def _encode_prompt(
         self,
@@ -295,14 +264,6 @@ class StableDiffusionControlNetPipeline(
             text_encoder = embedder.model
             tokenizer = embedder.tokenizer
             max_length = embedder.max_length
-
-        # set lora scale so that monkey patched LoRA
-        # function of text encoder can correctly access it
-        # if lora_scale is not None and isinstance(self, LoraLoaderMixin):
-        #     self._lora_scale = lora_scale
-
-        #     # dynamically adjust the LoRA scale
-        #     adjust_lora_scale_text_encoder(self.text_encoder, lora_scale)
 
         if prompt is not None and isinstance(prompt, str):
             batch_size = 1
@@ -719,8 +680,7 @@ class StableDiffusionControlNetPipeline(
                     ims = image_meta_size if image_meta_size is not None else None
 
                 # predict the noise residual
-                # if self.infer_mode in ["fa", "torch"]:
-                if self.infer_mode in ["fa", "ms"]:
+                if self.infer_mode in ["fa", "mindspore"]:
                     controls = self.controlnet(
                         latent_model_input,
                         t_expand,
@@ -754,19 +714,6 @@ class StableDiffusionControlNetPipeline(
                         return_dict=False,
                         controls=controls,
                     )[0]
-                # elif self.infer_mode == "trt":
-                #     noise_pred = self.unet(
-                #         x=latent_model_input.contiguous(),
-                #         t_emb=t_expand.contiguous(),
-                #         context=prompt_embeds.contiguous(),
-                #         image_meta_size=ims.contiguous(),
-                #         style=style.contiguous(),
-                #         freqs_cis_img0=freqs_cis_img[0].to(device).contiguous(),
-                #         freqs_cis_img1=freqs_cis_img[1].to(device).contiguous(),
-                #         text_embedding_mask=attention_mask.contiguous(),
-                #         encoder_hidden_states_t5=prompt_embeds_t5.contiguous(),
-                #         text_embedding_mask_t5=attention_mask_t5.contiguous(),
-                #     )
                 else:
                     raise ValueError("Unknown infer_mode: {self.infer_mode}")
                 if learn_sigma:

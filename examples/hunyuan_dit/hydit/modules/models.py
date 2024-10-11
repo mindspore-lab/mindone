@@ -1,11 +1,15 @@
 from typing import Any
 
+from tqdm import tqdm
+
 import mindspore as ms
 from mindspore import mint, nn, ops
 from mindspore.common.initializer import Constant, Normal, XavierUniform, initializer
 
+from mindone.diffusers._peft.utils import ModulesToSaveWrapper, _get_submodules
 from mindone.diffusers.configuration_utils import ConfigMixin, register_to_config
 from mindone.diffusers.models import ModelMixin
+from mindone.transformers.integrations import PeftAdapterMixin
 
 from .attn_layers import Attention, CrossAttention, FlashCrossMHAModified, FlashSelfMHAModified
 from .embedders import PatchEmbed, TimestepEmbedder, timestep_embedding
@@ -148,7 +152,7 @@ class FinalLayer(nn.Cell):
         return x
 
 
-class HunYuanDiT(ModelMixin, ConfigMixin):
+class HunYuanDiT(ModelMixin, ConfigMixin, PeftAdapterMixin):
     """
     HunYuanDiT: Diffusion model with a Transformer backbone.
 
@@ -527,49 +531,51 @@ class HunYuanDiT(ModelMixin, ConfigMixin):
             else:
                 new_module.state = child.state
 
-    # def merge_and_unload(self,
-    #                      merge=True,
-    #                     progressbar: bool = False,
-    #                     safe_merge: bool = False,
-    #                     adapter_names = None,):
-    #     if merge:
-    #         if getattr(self, "quantization_method", None) == "gptq":
-    #             raise ValueError("Cannot merge layers when the model is gptq quantized")
+    def merge_and_unload(
+        self,
+        merge=True,
+        progressbar: bool = False,
+        safe_merge: bool = False,
+        adapter_names=None,
+    ):
+        if merge:
+            if getattr(self, "quantization_method", None) == "gptq":
+                raise ValueError("Cannot merge layers when the model is gptq quantized")
 
-    #     def merge_recursively(module):
-    #         # helper function to recursively merge the base_layer of the target
-    #         path = []
-    #         layer = module
-    #         while hasattr(layer, "base_layer"):
-    #             path.append(layer)
-    #             layer = layer.base_layer
-    #         for layer_before, layer_after in zip(path[:-1], path[1:]):
-    #             layer_after.merge(safe_merge=safe_merge, adapter_names=adapter_names)
-    #             layer_before.base_layer = layer_after.base_layer
-    #         module.merge(safe_merge=safe_merge, adapter_names=adapter_names)
+        def merge_recursively(module):
+            # helper function to recursively merge the base_layer of the target
+            path = []
+            layer = module
+            while hasattr(layer, "base_layer"):
+                path.append(layer)
+                layer = layer.base_layer
+            for layer_before, layer_after in zip(path[:-1], path[1:]):
+                layer_after.merge(safe_merge=safe_merge, adapter_names=adapter_names)
+                layer_before.base_layer = layer_after.base_layer
+            module.merge(safe_merge=safe_merge, adapter_names=adapter_names)
 
-    #     key_list = [key for key, _ in self.named_modules()]
-    #     desc = "Unloading " + ("and merging " if merge else "") + "model"
+        key_list = [key for key, _ in self.cells_and_names()]
+        desc = "Unloading " + ("and merging " if merge else "") + "model"
 
-    #     for key in tqdm(key_list, disable=not progressbar, desc=desc):
-    #         try:
-    #             parent, target, target_name = _get_submodules(self, key)
-    #         except AttributeError:
-    #             continue
+        for key in tqdm(key_list, disable=not progressbar, desc=desc):
+            try:
+                parent, target, target_name = _get_submodules(self, key)
+            except AttributeError:
+                continue
 
-    #         if hasattr(target, "base_layer"):
-    #             if merge:
-    #                 merge_recursively(target)
-    #             self._replace_module(parent, target_name, target.get_base_layer(), target)
-    #         elif isinstance(target, ModulesToSaveWrapper):
-    #             # save any additional trainable modules part of `modules_to_save`
-    #             new_module = target.modules_to_save[target.active_adapter]
-    #             if hasattr(new_module, "base_layer"):
-    #                 # check if the module is itself a tuner layer
-    #                 if merge:
-    #                     new_module.merge(safe_merge=safe_merge, adapter_names=adapter_names)
-    #                 new_module = new_module.get_base_layer()
-    #             setattr(parent, target_name, new_module)
+            if hasattr(target, "base_layer"):
+                if merge:
+                    merge_recursively(target)
+                self._replace_module(parent, target_name, target.get_base_layer(), target)
+            elif isinstance(target, ModulesToSaveWrapper):
+                # save any additional trainable modules part of `modules_to_save`
+                new_module = target.modules_to_save[target.active_adapter]
+                if hasattr(new_module, "base_layer"):
+                    # check if the module is itself a tuner layer
+                    if merge:
+                        new_module.merge(safe_merge=safe_merge, adapter_names=adapter_names)
+                    new_module = new_module.get_base_layer()
+                setattr(parent, target_name, new_module)
 
 
 #################################################################################

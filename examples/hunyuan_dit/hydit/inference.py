@@ -1,6 +1,7 @@
 import glob
 import os
 import random
+import re
 import time
 from pathlib import Path
 
@@ -21,8 +22,6 @@ from .modules.models import HUNYUAN_DIT_CONFIG, HunYuanDiT
 from .modules.posemb_layers import get_2d_rotary_pos_embed, get_fill_resize_and_crop
 from .modules.text_encoder import MT5Embedder
 from .utils.tools import convert_state_dict, load_state_dict, set_seeds
-
-# from peft import LoraConfig
 
 
 class Resolution:
@@ -160,8 +159,6 @@ class End2End(object):
         self.root = t2i_root_path
         logger.info(f"Got text-to-image model root path: {t2i_root_path}")
 
-        # # Set device and disable gradient
-        # torch.set_grad_enabled(False)
         # Disable BertModel logging checkpoint info
         tf_logger.setLevel("ERROR")
 
@@ -269,7 +266,10 @@ class End2End(object):
             state_dict = convert_state_dict(self.model, state_dict)
         elif model_path.endswith(".ckpt"):
             state_dict = ms.load_checkpoint(model_path)
-            state_dict = {".".join(k.split(".")[1:]): v for k, v in state_dict.items()}
+            if self.args.use_fp16:
+                state_dict = {re.sub("optimizer.module.", "", k): v for k, v in state_dict.items()}
+            else:
+                state_dict = {re.sub("optimizer.", "", k): v for k, v in state_dict.items()}
 
         local_state = {k: v for k, v in self.model.parameters_and_names()}
         for k, v in state_dict.items():

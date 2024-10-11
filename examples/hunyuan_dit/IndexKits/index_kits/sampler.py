@@ -1,24 +1,17 @@
 import math
 
 from mindspore.communication import get_group_size, get_rank
-
-# import torch.distributed as dist
-# from torch.utils.data.distributed import DistributedSampler
-from mindspore.dataset import DistributedSampler
+from mindspore.dataset import Sampler
 
 
-class BlockDistributedSampler(DistributedSampler):
+class BlockDistributedSampler(Sampler):
     def __init__(
         self, dataset, num_replicas=None, rank=None, shuffle=True, seed=0, drop_last=False, batch_size=-1, start_index=0
     ):
-        super().__init__(num_replicas, rank, shuffle)
+        super().__init__()
         if num_replicas is None:
-            # if not dist.is_available():
-            #     raise RuntimeError("Requires distributed package to be available")
             num_replicas = get_group_size()
         if rank is None:
-            # if not dist.is_available():
-            #     raise RuntimeError("Requires distributed package to be available")
             rank = get_rank()
         if rank >= num_replicas or rank < 0:
             raise ValueError(
@@ -73,17 +66,13 @@ class BlockDistributedSampler(DistributedSampler):
         return iter(indices)
 
 
-class DistributedSamplerWithStartIndex(DistributedSampler):
+class DistributedSamplerWithStartIndex(Sampler):
     def __init__(self, dataset, num_replicas=None, rank=None, shuffle=True, seed=0, drop_last=False, start_index=0):
-        super().__init__(num_replicas, rank, shuffle)
+        super().__init__()
         if num_replicas is None:
-            # if not dist.is_available():
-            #     raise RuntimeError("Requires distributed package to be available")
             num_replicas = get_group_size()
-            # if rank is None:
-            #     if not dist.is_available():
-            #         raise RuntimeError("Requires distributed package to be available")
-            rank = get_rank()
+            if rank is None:
+                rank = get_rank()
         if rank >= num_replicas or rank < 0:
             raise ValueError(
                 "Invalid rank {}, rank should be in the interval" " [0, {}]".format(rank, num_replicas - 1)

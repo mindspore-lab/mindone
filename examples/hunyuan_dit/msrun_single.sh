@@ -1,3 +1,16 @@
+#!/bin/bash
+
+echo "=========================================="
+echo "Please run the script as: "
+echo "bash msrun_1.sh"
+echo "==========================================="
+
+export PYTHONPATH=./:$PYTHONPATH
+
+rm -rf msrun_log
+mkdir msrun_log
+echo "start training"
+
 task_flag="dit_g2_full_1024p"                                           # the task flag is used to identify folders.
 resume_module_root=./ckpts/t2i/model/pytorch_model_distill.safetensors  # checkpoint root for model resume
 resume_ema_root=./ckpts/t2i/model/pytorch_model_ema.safetensors         # checkpoint root for ema resume
@@ -12,9 +25,10 @@ ckpt_every=9999999                                                      # create
 ckpt_latest_every=9999999                                               # create a ckpt named `latest.pt` every a few steps.
 ckpt_every_n_epoch=2                                                    # create a ckpt every a few epochs.
 epochs=8                                                                # total training epochs
+model='DiT-g/2'
 
-
-sh $(dirname "$0")/run_g.sh \
+msrun --worker_num=8 --local_worker_num=8 --master_port=8118 --log_dir=msrun_log --join=True --cluster_time_out=300 --bind_core=True \
+    hydit/train.py \
     --task-flag ${task_flag} \
     --noise-schedule scaled_linear --beta-start 0.00085 --beta-end 0.018 \
     --predict-type v_prediction \
@@ -41,4 +55,8 @@ sh $(dirname "$0")/run_g.sh \
     --ckpt-every-n-epoch ${ckpt_every_n_epoch} \
     --log-every 10 \
     --gradient-checkpointing \
-    "$@"
+    --qk-norm \
+    --model ${model} \
+    --rope-img base512 \
+    --rope-real \
+    --distributed

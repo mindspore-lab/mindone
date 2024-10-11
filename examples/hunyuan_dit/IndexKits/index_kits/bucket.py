@@ -240,16 +240,16 @@ class Bucket(ArrowIndexV2):
 
 class MultiIndexV2(object):
     """
-    Multi-bucket index. Support multi-GPU (either single node or multi-node distributed) training.
+    Multi-bucket index. Support multi-NPU (either single node or multi-node distributed) training.
 
     Parameters
     ----------
     index_files: list
         The index files.
     batch_size: int
-        The batch size of each GPU. Required when using MultiResolutionBucketIndexV2 as base index class.
+        The batch size of each NPU. Required when using MultiResolutionBucketIndexV2 as base index class.
     world_size: int
-        The number of GPUs. Required when using MultiResolutionBucketIndexV2 as base index class.
+        The number of NPUs. Required when using MultiResolutionBucketIndexV2 as base index class.
     sample_strategy: str
         The sample strategy. Can be 'uniform' or 'probability'. Default to 'uniform'.
         If set to probability, a list of probability must be provided. The length of the list must be the same
@@ -522,16 +522,16 @@ class MultiIndexV2(object):
 
 class MultiResolutionBucketIndexV2(MultiIndexV2):
     """
-    Multi-resolution bucket index. Support multi-GPU (either single node or multi-node distributed) training.
+    Multi-resolution bucket index. Support multi-NPU (either single node or multi-node distributed) training.
 
     Parameters
     ----------
     index_file: str
         The index file of the bucket index.
     batch_size: int
-        The batch size of each GPU.
+        The batch size of each NPU.
     world_size: int
-        The number of GPUs.
+        The number of NPUs.
     shadow_file_fn: callable or dict
         A callable function to map shadow file path to a new path. If None, the shadow file path will not be
         changed. If a dict is provided, the keys are the shadow names to call the function, and the values are the

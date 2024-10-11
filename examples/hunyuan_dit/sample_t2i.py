@@ -15,7 +15,10 @@ def inferencer():
     gen = End2End(args, models_root_path)
 
     # Try to enhance prompt
-    enhancer = None
+    if args.enhance:
+        raise NotImplementedError("Enhance feature is not supported.")
+    else:
+        enhancer = None
 
     return args, gen, enhancer
 

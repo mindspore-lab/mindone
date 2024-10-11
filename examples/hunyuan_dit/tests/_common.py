@@ -15,6 +15,7 @@ inputs = [
     ).astype(np.float16),
 ]
 
+random_angles = np.random.uniform(0, 2 * np.pi, (4096, 88))
 kwargs = {
     "encoder_hidden_states": np.random.randn(2, 77, 1024).astype(np.float16),
     "text_embedding_mask": np.random.randint(0, 1, size=(2, 77)),
@@ -22,6 +23,6 @@ kwargs = {
     "text_embedding_mask_t5": np.random.randint(0, 1, size=(2, 256)),
     "image_meta_size": None,
     "style": None,
-    "cos_cis_img": np.random.randn(4096, 88).astype(np.float32),
-    "sin_cis_img": np.random.randn(4096, 88).astype(np.float32),
+    "cos_cis_img": np.cos(random_angles).astype(np.float32),
+    "sin_cis_img": np.sin(random_angles).astype(np.float32),
 }

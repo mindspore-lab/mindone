@@ -5,6 +5,25 @@
 > Hunyuan-DiT : A Powerful Multi-Resolution Diffusion Transformer with Fine-Grained Chinese Understanding.
 > We've tried to provide a completely consistent interface and usage with the [Tencent/HunyuanDiT](https://github.com/Tencent/HunyuanDiT).
 
+## Requirements
+
+| mindspore | ascend driver | firmware | cann tookit/kernel |
+| :---:       |   :---:        | :---:      | :---:      |
+| 2.3.1     |  24.1RC2      |7.3.0.1.231|   8.0.RC2.beta1   |
+
+## Features
+
+- HunyuanDiT with the following features
+  - ✔ mT5 TextEncoder model inference.
+  - ✔ Acceleration methods: flash attention, mixed precision, etc..
+  - ✔ Hunyuan-DiT-v1.0, Hunyuan-DiT-v1.1, and Hunyuan-DiT-v1.2 inference.
+  - ✔ Hunyuan-DiT-v1.2 training.
+  - ✔ ControlNet inference.
+
+### TODO
+* [ ] EMA
+* [ ] ControlNet training
+* [ ] Enhance prompt
 
 ## Dependencies and Installation
 
@@ -99,8 +118,8 @@ Currently, MindONE/Hunyuan-DiT only supports loading checkpoints through `safete
   After checkpoints are saved, you can use the following command to evaluate the model.
   ```shell
   # Inference
-    #   You should replace the 'log_EXP/xxx/checkpoints/final.pt' with your actual path.
-  python sample_t2i.py --infer-mode fa --prompt "青花瓷风格，一只可爱的哈士奇" --no-enhance --dit-weight log_EXP/xxx/checkpoints/final.ckpt --load-key module
+  # You should replace the 'log_EXP/xxx/checkpoints/final.ckpt' with your actual path.
+  python sample_t2i.py --infer-mode fa --prompt "青花瓷风格，一只可爱的哈士奇" --no-enhance --dit-weight log_EXP/xxx/checkpoints/final.ckpt --load-key module --use-fp16
   ```
 
 ## Inference
@@ -116,7 +135,7 @@ python sample_t2i.py --infer-mode fa --prompt "渔舟唱晚" --no-enhance --use-
 # Generate an image with other image sizes.
 python sample_t2i.py --infer-mode fa --prompt "渔舟唱晚" --image-size 1280 768 --use-fp16
 ```
-
+<details onclose>
 More example prompts can be found in [example_prompts.txt](example_prompts.txt)
 
 ### Using Previous versions
@@ -136,6 +155,8 @@ huggingface-cli download Tencent-Hunyuan/HunyuanDiT --local-dir ./HunyuanDiT-v1.
 # Inference with the model
 python sample_t2i.py --infer-mode fa --prompt "渔舟唱晚" --model-root ./HunyuanDiT-v1.0 --use-style-cond --size-cond 1024 1024 --beta-end 0.03 --use-fp16
 ```
+</details>
+
 ### ControlNet
 
 ```shell
@@ -147,3 +168,24 @@ huggingface-cli download Tencent-Hunyuan/Distillation-v1.2 ./pytorch_model_disti
 # 3. Quick start
 python sample_controlnet.py --infer-mode fa --no-enhance --load-key distill --infer-steps 50 --control-type canny --prompt "在夜晚的酒店门前，一座古老的中国风格的狮子雕像矗立着，它的眼睛闪烁着光芒，仿佛在守护着这座建筑。背景是夜晚的酒店前，构图方式是特写，平视，居中构图。这张照片呈现了真实摄影风格，蕴含了中国雕塑文化，同时展现了神秘氛围" --condition-image-path controlnet/asset/input/canny.jpg --control-weight 1.0 --use-fp16
 ```
+
+
+## Benchmark
+
+### Performance
+
+Experiments are tested on ascend 910* with mindspore 2.3.1 graph mode.
+
+### Training
+| model name   |jit level| precision|batch size |cards | image size  | speed (step/s) |
+|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
+|HunyuanDiT-v1.2|O1|fp16|1|1|1024x1024|0.62|
+|HunyuanDiT-v1.2|O1|fp32|1|1|1024x1024|0.45|
+
+### Inference
+
+| model name| scheduler | steps | resolution   | batch Size | speed (step/s) |  
+|:---------------:|:-----------:|:-------:|:--------------:|:------------:|:----------------:|
+|HunyuanDiT-v1.0|ddpm|20|1024x1024|1|2.90|
+|HunyuanDiT-v1.1|ddpm|20|1024x1024|1|2.91|
+|HunyuanDiT-v1.2|ddpm|20|1024x1024|1|2.89|

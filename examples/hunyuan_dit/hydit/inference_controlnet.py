@@ -286,11 +286,6 @@ class End2End(object):
             raise ValueError(f"controlnet_path not exists: {controlnet_path}")
 
         logger.info(f"Loading mindspore model {model_path}...")
-        # if model_path.suffix == '.safetensors':
-        #     raise NotImplementedError(f"Loading safetensors is not supported yet.")
-        # else:
-        #     # Assume it's a single weight file in the *.pt format.
-        #     state_dict = torch.load(model_path, map_location=lambda storage, loc: storage)
         state_dict = load_state_dict(model_path)
         state_dict = convert_state_dict(self.model, state_dict)
         local_state = {k: v for k, v in self.model.parameters_and_names()}
@@ -302,13 +297,6 @@ class End2End(object):
         ms.load_param_into_net(self.model, state_dict, strict_load=True)
 
         logger.info(f"Loading controlnet model {controlnet_path}...")
-        # if controlnet_path.suffix == '.safetensors':
-        #     raise NotImplementedError(f"Loading safetensors is not supported yet.")
-        # else:
-        #     # Assume it's a single weight file in the *.pt format.
-        #     controlnet_state_dict = torch.load(controlnet_path, map_location=lambda storage, loc: storage)
-        #     if 'module' in controlnet_state_dict:
-        #         controlnet_state_dict = controlnet_state_dict['module']
         controlnet_state_dict = load_state_dict(controlnet_path)
         if "module" in controlnet_state_dict:
             controlnet_state_dict = controlnet_state_dict["module"]

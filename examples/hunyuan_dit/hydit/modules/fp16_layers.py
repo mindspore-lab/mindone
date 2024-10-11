@@ -6,12 +6,8 @@ class Float16Module(nn.Cell):
     def __init__(self, module, args):
         super(Float16Module, self).__init__()
 
-        self.insert_child_to_cell("module", module.half())
-
-        def float16_convertor(val):
-            return val.half()
-
-        self.float16_convertor = float16_convertor
+        self.module = module
+        self.module.to_float(ms.float16)
 
         self.config = self.module.config
         self.dtype = ms.float16
@@ -42,12 +38,3 @@ class Float16Module(nn.Cell):
             sin_cis_img=sin_cis_img,
         )[0].float()
         return (outputs,)
-
-    def state_dict(self, destination=None, prefix="", keep_vars=False):
-        return self.module.state_dict(destination, prefix, keep_vars)
-
-    def state_dict_for_save_checkpoint(self, destination=None, prefix="", keep_vars=False):
-        return self.module.state_dict_for_save_checkpoint(destination, prefix, keep_vars)
-
-    def load_state_dict(self, state_dict, strict=True):
-        self.module.load_state_dict(state_dict, strict=strict)

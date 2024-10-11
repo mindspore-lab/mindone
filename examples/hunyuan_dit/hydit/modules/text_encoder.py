@@ -79,7 +79,6 @@ class MT5Embedder(nn.Cell):
         return z
 
     def general(self, text: str):
-        # input_ids = input_ids = torch.tensor([list(text.encode("utf-8"))]) + num_special_tokens
         input_ids = ms.tensor(self.tokenizer(text, max_length=128, return_tensors="np").input_ids)
         print(input_ids)
         outputs = self.generation_model(input_ids)

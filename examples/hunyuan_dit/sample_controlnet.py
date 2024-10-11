@@ -3,7 +3,6 @@ from pathlib import Path
 from hydit.config import get_args
 from hydit.inference_controlnet import End2End
 from loguru import logger
-from mllm.dialoggen_demo import DialogGen
 
 import mindspore as ms
 import mindspore.dataset.vision as vision
@@ -25,9 +24,7 @@ def inferencer():
 
     # Try to enhance prompt
     if args.enhance:
-        logger.info("Loading DialogGen model (for prompt enhancement)...")
-        enhancer = DialogGen(str(models_root_path / "dialoggen"), args.load_4bit)
-        logger.info("DialogGen model loaded.")
+        raise NotImplementedError("Enhance feature is not supported.")
     else:
         enhancer = None
 

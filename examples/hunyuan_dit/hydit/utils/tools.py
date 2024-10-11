@@ -1,6 +1,7 @@
 import logging
 import os
 import random
+import re
 from pathlib import Path
 from typing import Union
 
@@ -9,7 +10,6 @@ from transformers.utils import is_safetensors_available
 
 import mindspore as ms
 from mindspore import nn, ops
-from mindspore.communication import get_rank
 
 if is_safetensors_available():
     from safetensors import safe_open
@@ -64,11 +64,11 @@ def assert_shape(*args):
     assert cond, fail_str
 
 
-def create_logger(args, logging_dir=None, logging_file=None, ddp=True):
+def create_logger(rank, logging_dir=None, logging_file=None, ddp=True):
     """
     Create a logger that writes to a log file and stdout.
     """
-    if not ddp or (args.distributed and ddp and get_rank() == 0):  # real logger
+    if not ddp or (ddp and rank == 0):  # real logger
         if logging_file is not None:
             file_handler = [logging.FileHandler(logging_file)]
         elif logging_dir is not None:
@@ -91,7 +91,7 @@ def create_logger(args, logging_dir=None, logging_file=None, ddp=True):
 def create_exp_folder(args, rank):
     if rank == 0:
         os.makedirs(args.results_dir, exist_ok=True)
-    existed_experiments = list(Path(args.results_dir).glob("*dit*"))
+    existed_experiments = list(Path(args.results_dir).glob("*"))
     if len(existed_experiments) == 0:
         experiment_index = 1
     else:
@@ -103,10 +103,10 @@ def create_exp_folder(args, rank):
     checkpoint_dir = f"{experiment_dir}/checkpoints"  # Stores saved model checkpoints
     if rank == 0:
         os.makedirs(checkpoint_dir, exist_ok=True)
-        logger = create_logger(args, experiment_dir)
+        logger = create_logger(rank, experiment_dir)
         logger.info(f"Experiment directory created at {experiment_dir}")
     else:
-        logger = create_logger(args)
+        logger = create_logger(rank)
         experiment_dir = ""
 
     return experiment_dir, checkpoint_dir, logger
@@ -198,41 +198,24 @@ def model_resume(args, model, ema, logger, len_loader):
         if not Path(resume_path).exists():
             raise FileNotFoundError(f"    Cannot find model checkpoint from {resume_path}")
         logger.info(f"    Resume from checkpoint {resume_path}")
-        resume_ckpt = load_state_dict(resume_path)
-        resume_ckpt = convert_state_dict(model, resume_ckpt)
-        local_state = {k: v for k, v in model.parameters_and_names()}
-        for k, v in resume_ckpt.items():
-            if k in local_state:
-                v.set_dtype(local_state[k].dtype)
-            else:
-                pass  # unexpect key keeps origin dtype
+        if resume_path.endswith(".safetensors"):
+            resume_ckpt = load_state_dict(resume_path)
+            resume_ckpt = convert_state_dict(model, resume_ckpt)
+            if args.use_fp16:
+                resume_ckpt = {"module." + k: v for k, v in resume_ckpt.items()}
+            local_state = {re.sub("_backbone.", "", k): v for k, v in model.parameters_and_names()}
+            for k, v in resume_ckpt.items():
+                if k in local_state:
+                    v.set_dtype(local_state[k].dtype)
+                else:
+                    pass  # unexpect key keeps origin dtype
+        elif resume_path.endswith(".ckpt"):
+            resume_ckpt = ms.load_checkpoint(resume_path)
+        ms.load_param_into_net(model, resume_ckpt, strict_load=True)
 
-        if "module" in resume_ckpt.keys():
-            ms.load_param_into_net(model, resume_ckpt["module"], strict_load=True)
-        else:
-            ms.load_param_into_net(model, resume_ckpt, strict_load=True)
-
-    # Resume EMA model
+    # # Resume EMA model
     if args.use_ema:
-        resume_ema_path = args.resume_ema_root
-        if not Path(resume_ema_path).exists():
-            raise FileNotFoundError(f"    Cannot find ema checkpoint from {resume_ema_path}")
-        logger.info(f"    Resume from ema checkpoint {resume_path}")
-        resume_ema_ckpt = load_state_dict(resume_ema_path)
-        resume_ema_ckpt = convert_state_dict(ema, resume_ema_ckpt)
-        local_ema_state = {k: v for k, v in ema.parameters_and_names()}
-        for k, v in resume_ema_ckpt.items():
-            if k in local_ema_state:
-                v.set_dtype(local_ema_state[k].dtype)
-            else:
-                pass  # unexpect key keeps origin dtype
-
-        if "ema" in resume_ema_ckpt.keys():
-            ms.load_param_into_net(ema, resume_ema_ckpt["ema"], strict_load=True)
-        elif "module" in resume_ema_ckpt.keys():
-            ms.load_param_into_net(ema, resume_ema_ckpt["module"], strict_load=True)
-        else:
-            ms.load_param_into_net(ema, resume_ema_ckpt, strict_load=True)
+        raise NotImplementedError("EMA feature is not supported.")
 
     if not args.reset_loader:
         start_epoch, start_epoch_step, train_steps = get_start_epoch(args.resume, resume_ckpt, len_loader)
