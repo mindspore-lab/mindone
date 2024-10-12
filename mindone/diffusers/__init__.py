@@ -177,6 +177,7 @@ _import_structure = {
         "SchedulerMixin",
     ],
     "utils": [
+        "is_invisible_watermark_available",
         "logging",
     ],
 }
