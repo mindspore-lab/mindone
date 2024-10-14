@@ -178,7 +178,7 @@ def make_attn(in_channels, attn_type="vanilla"):
 
 # used in vae
 class Encoder(nn.Cell):
-    # @ms.lazy_inline()
+    @ms.lazy_inline()
     def __init__(
         self,
         *,
@@ -300,7 +300,7 @@ class Encoder(nn.Cell):
 
 
 class Decoder(nn.Cell):
-    # @ms.lazy_inline()
+    @ms.lazy_inline()
     def __init__(
         self,
         *,
