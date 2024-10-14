@@ -20,10 +20,34 @@ def create_video_from_rgb_numpy_arrays(image_arrays, output_file, fps: Union[int
     # Get the dimensions of the first image
     height, width, _ = image_arrays[0].shape
 
-    command = f"ffmpeg -y -f rawvideo -vcodec rawvideo \
-                -s {width}:{height} -pix_fmt rgb24 -r {fps} \
-                -i - -an -vcodec libx264 -pix_fmt yuv420p \
-                -b:v 1024k -loglevel quiet {output_file}"
+    command = [
+        "ffmpeg",
+        "-y",  # whether overwrite
+        "-f",
+        "rawvideo",
+        "-vcodec",
+        "rawvideo",
+        "-s",
+        f"{width}:{height}",
+        "-pix_fmt",
+        "rgb24",
+        "-r",
+        f"{fps}",
+        "-i",
+        "-",
+        "-an",  # no audio
+        "-vcodec",
+        "libx264",  # try 'mpeg4' if error
+        "-pix_fmt",
+        "yuv420p",
+        "-b:v",
+        "1024k",  # bitrate
+        # "-crf",  # constant rate factor for bitrate, [0, 51], low value high quality
+        # "23",
+        "-loglevel",
+        "quiet",
+        f"{output_file}",
+    ]
 
     pipe = sp.Popen(command, stdin=sp.PIPE)
     for frame in image_arrays:
@@ -39,7 +63,7 @@ def create_video_from_numpy_frames(frames: np.ndarray, path: str, fps: Union[int
     """
     if fmt == "gif":
         imageio.mimsave(path, frames, duration=1 / fps, loop=loop)
-    if fmt == "png":
+    elif fmt == "png":
         for i in range(len(frames)):
             imageio.imwrite(path.replace(".png", f"-{i:04}.png"), frames[i])
     elif fmt == "mp4":
