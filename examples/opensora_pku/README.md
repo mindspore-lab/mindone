@@ -476,6 +476,20 @@ There are some arguments related to the training dataset path:
 
 For the stage 4 (`29x720p`) and stage 5 (`93x720p`) training script, please refer to `train_video3d_29x720p_zero2_sp.sh` and `train_video3d_93x720p_zero2_sp.sh`.
 
+#### Validation During Training
+
+We also support to run validation during training. This is supported by editing the training script like this:
+```diff
+- --data "scripts/train_data/merge_data.txt" \
++ --data "scripts/train_data/merge_data_train.txt" \
++ --val_data "scripts/train_data/merge_data_val.txt" \
++ --validate True \
++ --val_batch_size 1 \
++ --val_interval 1 \
+```
+The edits allow to compute the loss on the validation set specified by `merge_data_val.txt` for every 1 epoch (defined by `val_interval`). The validation loss will be recorded in the `result_val.log` under the output directory. For example training script, please refer to `train_video3d_29x720p_zero2_sp_val.sh` under `scripts/text_conditions/multi-devices/`.
+
+
 #### Sequence Parallelism
 
 We also support training with sequence parallelism and zero2 parallelism together. This is enabled by setting `--sp_size` and `--train_sp_batch_size`.  For example, with `sp_size=8` and `train_sp_batch_size=4`, 2 NPUs are used for a single video sample.

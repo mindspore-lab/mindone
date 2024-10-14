@@ -263,7 +263,7 @@ def main(args):
         noise_offset=args.noise_offset,
         snr_gamma=args.snr_gamma,
     )
-    latent_diffusion_eval, metrics = None, None
+    latent_diffusion_eval, metrics, eval_indexes = None, None, None
     # 3. create dataset
     # TODO: replace it with new dataset
     assert args.dataset == "t2v", "Support t2v dataset only."
@@ -373,6 +373,7 @@ def main(args):
             snr_gamma=args.snr_gamma,
         )
         metrics = {"val loss": get_metric_fn("loss")}
+        eval_indexes = [0, 1, 2]  # the indexes of the output of eval network: loss. pred and label
     # 4. build training utils: lr, optim, callbacks, trainer
     if args.scale_lr:
         learning_rate = args.start_learning_rate * args.train_batch_size * args.gradient_accumulation_steps * device_num
@@ -555,11 +556,15 @@ def main(args):
             net_with_grads,
             eval_network=latent_diffusion_eval,
             metrics=metrics,
-            eval_indexes=[0, 1, 2],
+            eval_indexes=eval_indexes,
         )
     else:
         model = Model(
-            net_with_grads, eval_network=latent_diffusion_eval, metrics=metrics, eval_indexes=[0, 1, 2], amp_level="O0"
+            net_with_grads,
+            eval_network=latent_diffusion_eval,
+            metrics=metrics,
+            eval_indexes=eval_indexes,
+            amp_level="O0",
         )
     # callbacks
     callback = [TimeMonitor(args.log_interval), EMAEvalSwapCallback(ema)]
