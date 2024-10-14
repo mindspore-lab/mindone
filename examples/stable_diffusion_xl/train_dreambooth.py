@@ -215,6 +215,8 @@ def generate_class_images(args):
 def train(args):
     # 1. Init Env
     args = set_default(args)
+    if args.jit_level == "O0":
+        ms.set_context(exec_order="gpto")
 
     # 2. Create LDM Engine
     config = OmegaConf.load(args.config)
