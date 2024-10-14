@@ -15,7 +15,7 @@ WHITELIST_OPS = [
     Attention,
     LlamaRMSNorm,
     SiLU,
-    GELU,
+    # GELU,
     GroupNorm,
     PositionEmbedding2D,
     SinusoidalEmbedding,
