@@ -50,7 +50,7 @@ def create_video_from_numpy_frames(frames: np.ndarray, path: str, fps: Union[int
     """
     if fmt == "gif":
         imageio.mimsave(path, frames, duration=1 / fps, loop=loop)
-    if fmt == "png":
+    elif fmt == "png":
         for i in range(len(frames)):
             imageio.imwrite(path.replace(".png", f"-{i:04}.png"), frames[i])
     elif fmt == "mp4":

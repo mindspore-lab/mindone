@@ -11,13 +11,14 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from typing import Dict, Tuple, Union
+from typing import Dict, Optional, Tuple, Union
+
+import numpy as np
 
 import mindspore as ms
 from mindspore import nn, ops
 
 from ...configuration_utils import ConfigMixin, register_to_config
-from ..activations import SiLU
 from ..attention_processor import CROSS_ATTENTION_PROCESSORS, AttentionProcessor, AttnProcessor
 from ..modeling_outputs import AutoencoderKLOutput
 from ..modeling_utils import ModelMixin
@@ -68,7 +69,7 @@ class TemporalDecoder(nn.Cell):
 
         self.conv_norm_out = GroupNorm(num_channels=block_out_channels[0], num_groups=32, eps=1e-6)
 
-        self.conv_act = SiLU()
+        self.conv_act = nn.SiLU()
         self.conv_out = nn.Conv2d(
             in_channels=block_out_channels[0],
             out_channels=out_channels,
@@ -283,11 +284,13 @@ class AutoencoderKLTemporalDecoder(ModelMixin, ConfigMixin):
         Args:
             x (`ms.Tensor`): Input batch of images.
             return_dict (`bool`, *optional*, defaults to `True`):
-                Whether to return a [`~models.autoencoder_kl.AutoencoderKLOutput`] instead of a plain tuple.
+                Whether to return a [`~models.autoencoders.autoencoder_kl.AutoencoderKLOutput`] instead of a plain
+                tuple.
 
         Returns:
                 The latent representations of the encoded images. If `return_dict` is True, a
-                [`~models.autoencoder_kl.AutoencoderKLOutput`] is returned, otherwise a plain `tuple` is returned.
+                [`~models.autoencoders.autoencoder_kl.AutoencoderKLOutput`] is returned, otherwise a plain `tuple` is
+                returned.
         """
         h = self.encoder(x)
         moments = self.quant_conv(h)
@@ -331,6 +334,7 @@ class AutoencoderKLTemporalDecoder(ModelMixin, ConfigMixin):
         sample: ms.Tensor,
         sample_posterior: bool = False,
         return_dict: bool = False,
+        generator: Optional[np.random.Generator] = None,
         num_frames: int = 1,
     ) -> Union[DecoderOutput, ms.Tensor]:
         r"""
@@ -344,7 +348,7 @@ class AutoencoderKLTemporalDecoder(ModelMixin, ConfigMixin):
         x = sample
         latent = self.encode(x)[0]
         if sample_posterior:
-            z = self.diag_gauss_dist.sample(latent)
+            z = self.diag_gauss_dist.sample(latent, generator=generator)
         else:
             z = self.diag_gauss_dist.mode(latent)
 

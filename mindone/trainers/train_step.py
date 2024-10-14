@@ -1,4 +1,5 @@
 """Train step wrapper supporting setting drop overflow update, ema etc"""
+
 from packaging import version
 
 import mindspore as ms
@@ -39,6 +40,7 @@ class TrainOneStepWrapper(nn.TrainOneStepWithLossScaleCell):
         scale_sense (Union[Tensor, Cell]): If this value is a Cell, it will be called
             to update loss scale. If this value is a Tensor, the loss scale can be modified by `set_sense_scale`,
             the shape should be :math:`()` or :math:`(1,)`.
+        zero_helper (class): Zero redundancy optimizer(ZeRO) build helper, default is None.
 
     Returns:
         Tuple of 3 Tensor, the loss, overflow flag and current loss scale value.
@@ -60,6 +62,7 @@ class TrainOneStepWrapper(nn.TrainOneStepWithLossScaleCell):
         clip_grad=False,
         clip_norm=1.0,
         verbose=False,
+        zero_helper=None,
     ):
         super().__init__(network, optimizer, scale_sense)
         self.ema = ema
@@ -85,6 +88,14 @@ class TrainOneStepWrapper(nn.TrainOneStepWithLossScaleCell):
         self.map = ops.Map()
         self.partial = ops.Partial()
 
+        # zero init
+        self.zero_helper = zero_helper
+        self.zero_stage = zero_helper.zero_stage if zero_helper is not None else 0
+        self.run_optimizer = zero_helper.run_optimizer if zero_helper is not None else self.optimizer
+        self.grad_reducer = self.grad_reducer if self.zero_stage == 0 else nn.Identity()
+        if self.zero_stage != 0:
+            self.zero_helper.split_params()
+
     def construct(self, *inputs):
         # compute loss
         weights = self.weights
@@ -104,6 +115,11 @@ class TrainOneStepWrapper(nn.TrainOneStepWithLossScaleCell):
 
         # 1. compute gradients (of the up-scaled loss w.r.t. the model weights)
         grads = self.grad(self.network, weights)(*inputs, scaling_sens_filled)
+
+        # Gradient communication
+        if self.zero_helper is not None:
+            grads = self.zero_helper.cal_gradients(grads)
+
         if self.accum_steps == 1:
             grads = self.grad_reducer(grads)
             scaling_sens = ops.depend(scaling_sens, grads)
@@ -140,7 +156,7 @@ class TrainOneStepWrapper(nn.TrainOneStepWithLossScaleCell):
                     if self.clip_grad:
                         grads = ops.clip_by_global_norm(grads, self.clip_norm)
                     # 7. optimize
-                    loss = F.depend(loss, self.optimizer(grads))
+                    loss = F.depend(loss, self.run_optimizer(grads))
 
                     # clear gradient accumulation states
                     loss = F.depend(loss, self.hyper_map(F.partial(_grad_clear_op), self.accumulated_grads))
@@ -157,7 +173,7 @@ class TrainOneStepWrapper(nn.TrainOneStepWithLossScaleCell):
                 if self.clip_grad:
                     grads = ops.clip_by_global_norm(grads, self.clip_norm)
                 # 7. optimize
-                loss = F.depend(loss, self.optimizer(grads))
+                loss = F.depend(loss, self.run_optimizer(grads))
 
             # 8.ema
             if self.ema is not None:

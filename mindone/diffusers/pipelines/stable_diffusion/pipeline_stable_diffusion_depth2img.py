@@ -38,9 +38,11 @@ logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
 
 
 # Copied from diffusers.pipelines.stable_diffusion.pipeline_stable_diffusion_img2img.retrieve_latents
-def retrieve_latents(vae, encoder_output: ms.Tensor, sample_mode: str = "sample"):
+def retrieve_latents(
+    vae, encoder_output: ms.Tensor, generator: Optional[np.random.Generator] = None, sample_mode: str = "sample"
+):
     if sample_mode == "sample":
-        return vae.diag_gauss_dist.sample(encoder_output)
+        return vae.diag_gauss_dist.sample(encoder_output, generator=generator)
     elif sample_mode == "argmax":
         return vae.diag_gauss_dist.mode(encoder_output)
     # This branch is not needed because the encoder_output type is ms.Tensor as per AutoencoderKLOutput change
@@ -345,9 +347,10 @@ class StableDiffusionDepth2ImgPipeline(DiffusionPipeline, TextualInversionLoader
             negative_prompt_embeds = negative_prompt_embeds.tile((1, num_images_per_prompt, 1))
             negative_prompt_embeds = negative_prompt_embeds.view(batch_size * num_images_per_prompt, seq_len, -1)
 
-        if isinstance(self, LoraLoaderMixin):
-            # Retrieve the original scale by scaling back the LoRA layers
-            unscale_lora_layers(self.text_encoder, lora_scale)
+        if self.text_encoder is not None:
+            if isinstance(self, LoraLoaderMixin):
+                # Retrieve the original scale by scaling back the LoRA layers
+                unscale_lora_layers(self.text_encoder, lora_scale)
 
         return prompt_embeds, negative_prompt_embeds
 
@@ -483,11 +486,12 @@ class StableDiffusionDepth2ImgPipeline(DiffusionPipeline, TextualInversionLoader
 
             elif isinstance(generator, list):
                 init_latents = [
-                    retrieve_latents(self.vae, self.vae.encode(image[i : i + 1])[0]) for i in range(batch_size)
+                    retrieve_latents(self.vae, self.vae.encode(image[i : i + 1])[0], generator)
+                    for i in range(batch_size)
                 ]
                 init_latents = ops.cat(init_latents, axis=0)
             else:
-                init_latents = retrieve_latents(self.vae, self.vae.encode(image)[0])
+                init_latents = retrieve_latents(self.vae, self.vae.encode(image)[0], generator)
 
             init_latents = self.vae.config.scaling_factor * init_latents
 

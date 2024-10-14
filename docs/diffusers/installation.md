@@ -12,7 +12,7 @@ specific language governing permissions and limitations under the License.
 
 # Installation
 
-🤗 Diffusers is tested on Python 3.8+, MindSpore 2.2.10+. Follow the installation instructions below for the deep learning library you are using:
+🤗 Diffusers is tested on Python 3.8+, MindSpore 2.3+. Follow the installation instructions below for the deep learning library you are using:
 
 - [MindSpore](https://www.mindspore.cn/install) installation instructions
 

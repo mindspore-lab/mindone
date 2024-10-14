@@ -765,7 +765,6 @@ class FeedForward(nn.Cell):
         if inner_dim is None:
             inner_dim = int(dim * mult)
         dim_out = dim_out if dim_out is not None else dim
-        linear_cls = nn.Dense
 
         if activation_fn == "gelu":
             act_fn = GELU(dim, inner_dim, bias=bias)
@@ -782,7 +781,7 @@ class FeedForward(nn.Cell):
         # project dropout
         net.append(nn.Dropout(p=dropout))
         # project out
-        net.append(linear_cls(inner_dim, dim_out, has_bias=bias))
+        net.append(nn.Dense(inner_dim, dim_out, has_bias=bias))
         # FF as used in Vision Transformer, MLP-Mixer, etc. have a final dropout
         if final_dropout:
             net.append(nn.Dropout(p=dropout))

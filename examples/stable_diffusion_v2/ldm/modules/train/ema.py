@@ -33,9 +33,8 @@ class EMA(nn.Cell):
 
         self.hyper_map = C.HyperMap()
         self.map = ops.HyperMap()
-        if offloading:
-            self.assign = ops.Assign().add_prim_attr("primitive_target", "CPU")
-        else:
+        self.offloading = offloading
+        if not offloading:
             self.assign = ops.Assign()
 
     def ema_update(self):
@@ -47,8 +46,16 @@ class EMA(nn.Cell):
         self.updates = F.depend(self.updates, success)
         return self.updates
 
+    def swap_data(self, ori_datas, tgt_datas):
+        for ori_data, tgt_data in zip(ori_datas, tgt_datas):
+            tgt_data.set_data(ori_data)
+
     # @ms_function
     def swap_before_eval(self):
+        if self.offloading:
+            self.swap_data(self.net_weight, self.swap_cache)
+            self.swap_data(self.ema_weight, self.net_weight)
+            return True
         # net -> swap
         success = self.map(self.assign, self.swap_cache, self.net_weight)
         # ema -> net
@@ -57,6 +64,9 @@ class EMA(nn.Cell):
 
     # @ms_function
     def swap_after_eval(self):
+        if self.offloading:
+            self.swap_data(self.swap_cache, self.net_weight)
+            return True
         # swap -> net
         success = self.map(self.assign, self.net_weight, self.swap_cache)
         return success

@@ -62,9 +62,11 @@ def preprocess(image):
 
 
 # Copied from diffusers.pipelines.stable_diffusion.pipeline_stable_diffusion_img2img.retrieve_latents
-def retrieve_latents(vae, encoder_output: ms.Tensor, sample_mode: str = "sample"):
+def retrieve_latents(
+    vae, encoder_output: ms.Tensor, generator: Optional[np.random.Generator] = None, sample_mode: str = "sample"
+):
     if sample_mode == "sample":
-        return vae.diag_gauss_dist.sample(encoder_output)
+        return vae.diag_gauss_dist.sample(encoder_output, generator=generator)
     elif sample_mode == "argmax":
         return vae.diag_gauss_dist.mode(encoder_output)
     # This branch is not needed because the encoder_output type is ms.Tensor as per AutoencoderKLOutput change
@@ -604,11 +606,9 @@ class StableDiffusionInstructPix2PixPipeline(
 
         image = image.to(dtype=dtype)
         if output_hidden_states:
-            image_enc_hidden_states = self.image_encoder(image, output_hidden_states=True)[-1][-2]
+            image_enc_hidden_states = self.image_encoder(image, output_hidden_states=True)[2][-2]
             image_enc_hidden_states = image_enc_hidden_states.repeat_interleave(num_images_per_prompt, dim=0)
-            uncond_image_enc_hidden_states = self.image_encoder(ops.zeros_like(image), output_hidden_states=True)[-1][
-                -2
-            ]
+            uncond_image_enc_hidden_states = self.image_encoder(ops.zeros_like(image), output_hidden_states=True)[2][-2]
             uncond_image_enc_hidden_states = uncond_image_enc_hidden_states.repeat_interleave(
                 num_images_per_prompt, dim=0
             )

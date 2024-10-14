@@ -10,6 +10,7 @@ from opensora.utils.model_utils import _check_cfgs_in_parser, str2bool
 __dir__ = os.path.dirname(os.path.abspath(__file__))
 mindone_lib_path = os.path.abspath(os.path.join(__dir__, "../../../"))
 sys.path.insert(0, mindone_lib_path)
+from mindone.utils.config import parse_bool_str
 from mindone.utils.misc import to_abspath
 
 logger = logging.getLogger()
@@ -122,10 +123,13 @@ def parse_train_args(parser):
     parser.add_argument(
         "--resume",
         default=False,
-        type=str,
-        help="It can be a string for path to resume checkpoint, or a bool False for not resuming.(default=False)",
+        type=parse_bool_str,
+        help="string: path to resume checkpoint."
+        "bool False: not resuming.(default=False)."
+        "bool True: ModelArts auto resume training.",
     )
     parser.add_argument("--optim", default="adamw", type=str, help="optimizer")
+    parser.add_argument("--zero_stage", default=0, type=int, help="ZeRO stage")
     parser.add_argument(
         "--betas",
         type=float,
@@ -139,9 +143,9 @@ def parse_train_args(parser):
     parser.add_argument(
         "--group_strategy",
         type=str,
-        default="norm_and_bias",
+        default=None,
         help="Grouping strategy for weight decay. If `norm_and_bias`, weight decay filter list is [beta, gamma, bias]. \
-                If None, filter list is [layernorm, bias]. Default: norm_and_bias",
+                If None, filter list is [layernorm, bias]. Default: None",
     )
 
     parser.add_argument("--weight_decay", default=1e-6, type=float, help="Weight decay.")
@@ -171,6 +175,14 @@ def parse_train_args(parser):
 
     # dataloader params
     parser.add_argument("--dataset_sink_mode", default=False, type=str2bool, help="sink mode")
+    parser.add_argument(
+        "--video_backend",
+        default="cv2",
+        type=str,
+        choices=["cv2", "decord"],
+        help="select video reading backend. if decord, use decord to read video frames, which may lead to memory leak for high-resolution videos. \
+                if cv2, use cv2 video capture. only valid for opensora v1.2. Default: cv2",
+    )
     parser.add_argument("--sink_size", default=-1, type=int, help="dataset sink size. If -1, sink size = dataset size.")
     parser.add_argument(
         "--epochs",
@@ -187,6 +199,12 @@ def parse_train_args(parser):
     parser.add_argument("--gradient_accumulation_steps", default=1, type=int, help="gradient accumulation steps")
     # parser.add_argument("--cond_stage_trainable", default=False, type=str2bool, help="whether text encoder is trainable")
     parser.add_argument("--use_ema", default=False, type=str2bool, help="whether use EMA")
+    parser.add_argument(
+        "--ema_decay",
+        default=0.9999,
+        type=float,
+        help="EMA decay ratio, smaller value raises more importance to the current model weight.",
+    )
     parser.add_argument("--clip_grad", default=False, type=str2bool, help="whether apply gradient clipping")
     parser.add_argument(
         "--use_recompute",
@@ -273,6 +291,12 @@ def parse_train_args(parser):
         help="The number of workers used for reading data from the dataset. Default is 4.",
     )
     parser.add_argument(
+        "--num_workers_batch",
+        default=2,
+        type=int,
+        help="The number of workers used for batch aggregation. Default is 2.",
+    )
+    parser.add_argument(
         "--prefetch_size", default=16, type=int, help="The number of samples to prefetch (per device). Default is 16."
     )
     parser.add_argument(
@@ -294,6 +318,18 @@ def parse_train_args(parser):
         type=str2bool,
         help="whether to enable flash attention.",
     )
+    parser.add_argument(
+        "--enable_sequence_parallelism",
+        default=False,
+        type=str2bool,
+        help="whether to enable sequence parallelism. Default is False",
+    )
+    parser.add_argument(
+        "--sequence_parallel_shards",
+        default=1,
+        type=int,
+        help="The number of shards in sequence parallel. Default is 1.",
+    )
     parser.add_argument("--drop_overflow_update", default=True, type=str2bool, help="drop overflow update")
     parser.add_argument("--loss_scaler_type", default="dynamic", type=str, help="dynamic or static")
     parser.add_argument(
@@ -312,9 +348,12 @@ def parse_train_args(parser):
     parser.add_argument("--ckpt_max_keep", default=10, type=int, help="Maximum number of checkpoints to keep")
     parser.add_argument(
         "--step_mode",
-        default=False,
+        default=None,
         type=str2bool,
-        help="whether save ckpt by steps. If False, save ckpt by epochs.",
+        help="whether save ckpt by steps. If False, save ckpt by epochs. If None, will be determined by train_steps and dataset_sink_mode automatically",
+    )
+    parser.add_argument(
+        "--custom_train", default=False, type=str2bool, help="Use custom train process instead of model.train"
     )
     parser.add_argument("--profile", default=False, type=str2bool, help="Profile or not")
     parser.add_argument(
