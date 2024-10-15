@@ -263,7 +263,7 @@ class LlamaModel(nn.Cell):
         initializer_range: float = 0.02,
         patch_size: Tuple[int, int, int] = (1, 2, 2),
         max_length: Tuple[int, int, int] = (128, 64, 64),
-        caption_channels: int = 4096,
+        caption_channels: int = 6144,
         attn_implementation: Literal["eager", "flash_attention"] = "eager",
         gradient_checkpointing: bool = False,
         use_linear_patch_embedder: bool = True,
