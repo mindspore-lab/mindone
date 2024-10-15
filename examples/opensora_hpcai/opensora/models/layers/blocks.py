@@ -653,7 +653,9 @@ class CaptionEmbedder(nn.Cell):
 
         # manually expand dims to avoid infer-shape bug in ms2.3 daily
         caption = ops.where(
-            drop_ids[:, None, None, None], self.y_embedding[None, None, :, :].to(caption.dtype), caption,
+            drop_ids[:, None, None, None],
+            self.y_embedding[None, None, :, :].to(caption.dtype),
+            caption,
         )
 
         return caption

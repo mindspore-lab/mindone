@@ -75,8 +75,7 @@ htmlcov/
 .tox/
 .nox/
 .coverage
-.coverage.*
-.cache
+.coverage.* .cache
 nosetests.xml
 coverage.xml
 *.cover
@@ -205,6 +204,9 @@ poetry.toml
 
 # LSP config files
 pyrightconfig.json
+
+# vim cache
+*.swp
 
 ### Custmization ###
 # MindSpore
