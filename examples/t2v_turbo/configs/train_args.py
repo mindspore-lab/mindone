@@ -39,6 +39,19 @@ def parse_args():
         "--use_parallel", default=False, type=str2bool, help="use parallel"
     )
     parser.add_argument(
+        "--parallel_mode",
+        default="data",
+        type=str,
+        choices=["data", "optim", "pipeline"],
+        help="parallel mode: data, optim",
+    )
+    parser.add_argument(
+        "--optimizer_weight_shard_size",
+        type=int,
+        default=8,
+        help="Set the size of the communication domain split by the optimizer weight. ",
+    )
+    parser.add_argument(
         "--debug", type=str2bool, default=False, help="Execute inference in debug mode."
     )
     parser.add_argument(
@@ -160,6 +173,24 @@ def parse_args():
         type=int,
         default=8,
         help="Num frames for inputing to the text-video RM.",
+    )
+    parser.add_argument(
+        "--vlcd_processes",
+        type=tuple_type,
+        default=(0, 1, 2, 3, 4, 5),
+        help="Process idx that are used to perform consistency distillation.",
+    )
+    parser.add_argument(
+        "--reward_train_processes",
+        type=tuple_type,
+        default=(0, 1, 2, 3, 4, 5),
+        help="Process idx that are used to maximize text-img reward fn.",
+    )
+    parser.add_argument(
+        "--video_rm_train_processes",
+        type=tuple_type,
+        default=(6, 7),
+        help="Process idx that are used to maximize text-video reward fn.",
     )
     parser.add_argument(
         "--n_frames",
