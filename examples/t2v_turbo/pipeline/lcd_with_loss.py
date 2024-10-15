@@ -160,7 +160,7 @@ class LCDWithLoss(nn.Cell):
 
         return video_rm_loss
 
-    def construct(self, pixel_values: Tensor, captions: Tensor, text_tokens: Tensor, rank_id: int):
+    def construct(self, pixel_values: Tensor, captions: Tensor, text_tokens: Tensor):
 
         b, t = pixel_values.shape[:2]
 
@@ -234,81 +234,80 @@ class LCDWithLoss(nn.Cell):
         reward_loss = mint.zeros_like(model_pred).mean()
         video_rm_loss = mint.zeros_like(model_pred).mean()
 
-        if rank_id in self.args.reward_train_processes and self.args.reward_scale > 0:
+        if self.args.reward_scale > 0:
             text = captions.numpy().astype(str)
             reward_loss = self._compute_image_text_rewards(
                 model_pred, text, t
             )
             logger.info(f"image reward score: {reward_loss.numpy():.4f}")
 
-        if rank_id in self.args.video_rm_train_processes and self.args.video_reward_scale > 0:
+        if self.args.video_reward_scale > 0:
             text = captions.numpy().astype(str)
             video_rm_loss = self._compute_video_text_rewards(
                 model_pred, text, t
             )
             logger.info(f"video reward score: {video_rm_loss.numpy():.4f}")
             
-        if rank_id in self.args.vlcd_processes:
-            # 8. Compute the conditional and unconditional teacher model predictions to get CFG estimates of the
-            # predicted noise eps_0 and predicted original sample x_0, then run the ODE solver using these
-            # estimates to predict the data point in the augmented PF-ODE trajectory corresponding to the next ODE
-            # solver timestep.
-            with no_grad():
-                # 8.1. Get teacher model prediction on noisy_model_input z_{t_{n + k}} and conditional embedding c
-                cond_teacher_output = self.teacher_unet(
-                    noisy_model_input,
-                    start_timesteps,
-                    context=context,
-                    fps=fps,
-                )
-                cond_pred_x0 = get_predicted_original_sample(
-                    cond_teacher_output,
-                    start_timesteps,
-                    noisy_model_input,
-                    "epsilon",
-                    self.alpha_schedule,
-                    self.sigma_schedule,
-                )
-                cond_pred_noise = get_predicted_noise(
-                    cond_teacher_output,
-                    start_timesteps,
-                    noisy_model_input,
-                    "epsilon",
-                    self.alpha_schedule,
-                    self.sigma_schedule,
-                )
+        # 8. Compute the conditional and unconditional teacher model predictions to get CFG estimates of the
+        # predicted noise eps_0 and predicted original sample x_0, then run the ODE solver using these
+        # estimates to predict the data point in the augmented PF-ODE trajectory corresponding to the next ODE
+        # solver timestep.
+        with no_grad():
+            # 8.1. Get teacher model prediction on noisy_model_input z_{t_{n + k}} and conditional embedding c
+            cond_teacher_output = self.teacher_unet(
+                noisy_model_input,
+                start_timesteps,
+                context=context,
+                fps=fps,
+            )
+            cond_pred_x0 = get_predicted_original_sample(
+                cond_teacher_output,
+                start_timesteps,
+                noisy_model_input,
+                "epsilon",
+                self.alpha_schedule,
+                self.sigma_schedule,
+            )
+            cond_pred_noise = get_predicted_noise(
+                cond_teacher_output,
+                start_timesteps,
+                noisy_model_input,
+                "epsilon",
+                self.alpha_schedule,
+                self.sigma_schedule,
+            )
 
-                # 8.2. Get teacher model prediction on noisy_model_input z_{t_{n + k}} and unconditional embedding 0
-                uncond_teacher_output = self.teacher_unet(
-                    noisy_model_input,
-                    start_timesteps,
-                    context=self.uncond_prompt_embeds,
-                )
-                uncond_pred_x0 = get_predicted_original_sample(
-                    uncond_teacher_output,
-                    start_timesteps,
-                    noisy_model_input,
-                    "epsilon",
-                    self.alpha_schedule,
-                    self.sigma_schedule,
-                )
-                uncond_pred_noise = get_predicted_noise(
-                    uncond_teacher_output,
-                    start_timesteps,
-                    noisy_model_input,
-                    "epsilon",
-                    self.alpha_schedule,
-                    self.sigma_schedule,
-                )
+            # 8.2. Get teacher model prediction on noisy_model_input z_{t_{n + k}} and unconditional embedding 0
+            uncond_teacher_output = self.teacher_unet(
+                noisy_model_input,
+                start_timesteps,
+                context=self.uncond_prompt_embeds,
+            )
+            uncond_pred_x0 = get_predicted_original_sample(
+                uncond_teacher_output,
+                start_timesteps,
+                noisy_model_input,
+                "epsilon",
+                self.alpha_schedule,
+                self.sigma_schedule,
+            )
+            uncond_pred_noise = get_predicted_noise(
+                uncond_teacher_output,
+                start_timesteps,
+                noisy_model_input,
+                "epsilon",
+                self.alpha_schedule,
+                self.sigma_schedule,
+            )
 
-                # 8.3. Calculate the CFG estimate of x_0 (pred_x0) and eps_0 (pred_noise)
-                # Note that this uses the LCM paper's CFG formulation rather than the Imagen CFG formulation
-                pred_x0 = cond_pred_x0 + w * (cond_pred_x0 - uncond_pred_x0)
-                pred_noise = cond_pred_noise + w * (cond_pred_noise - uncond_pred_noise)
-                # 8.4. Run one step of the ODE solver to estimate the next point x_prev on the
-                # augmented PF-ODE trajectory (solving backward in time)
-                # Note that the DDIM step depends on both the predicted x_0 and source noise eps_0.
-                x_prev = self.solver.ddim_step(pred_x0, pred_noise, index)
+            # 8.3. Calculate the CFG estimate of x_0 (pred_x0) and eps_0 (pred_noise)
+            # Note that this uses the LCM paper's CFG formulation rather than the Imagen CFG formulation
+            pred_x0 = cond_pred_x0 + w * (cond_pred_x0 - uncond_pred_x0)
+            pred_noise = cond_pred_noise + w * (cond_pred_noise - uncond_pred_noise)
+            # 8.4. Run one step of the ODE solver to estimate the next point x_prev on the
+            # augmented PF-ODE trajectory (solving backward in time)
+            # Note that the DDIM step depends on both the predicted x_0 and source noise eps_0.
+            x_prev = self.solver.ddim_step(pred_x0, pred_noise, index)
 
         # 9. Get target LCM prediction on x_prev, w, c, t_n (timesteps)
         with no_grad():
@@ -329,15 +328,15 @@ class LCDWithLoss(nn.Cell):
             ) 
             target = c_skip * x_prev + c_out * pred_x_0
 
-            # 10. Calculate loss
-            if self.args.loss_type == "l2":
-                distill_loss = ops.mse_loss(
-                    model_pred.float(), target.float(), reduction="mean"
-                )
-            elif self.args.loss_type == "huber":
-                distill_loss = huber_loss(model_pred.float(), target.float(), self.args.huber_c)
+        # 10. Calculate loss
+        if self.args.loss_type == "l2":
+            distill_loss = ops.mse_loss(
+                model_pred.float(), target.float(), reduction="mean"
+            )
+        elif self.args.loss_type == "huber":
+            distill_loss = huber_loss(model_pred.float(), target.float(), self.args.huber_c)
 
-            logger.info(f"distill_loss: {distill_loss.numpy():.4f}")
+        logger.info(f"distill_loss: {distill_loss.numpy():.4f}")
 
         # accelerator.backward(distill_loss + reward_loss + video_rm_loss)
         loss = distill_loss + reward_loss + video_rm_loss
