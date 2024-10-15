@@ -291,16 +291,16 @@ class EvalSaveCallback(Callback):
     def on_train_end(self, run_context):
         if self.is_main_device:
             if self.ckpt_save_policy == "top_k":
-                log_str = "Top K checkpoints:\n %s\tcheckpoint\n" % self.main_indicator
+                log_str = f"Top K checkpoints: \n{self.main_indicator}\tcheckpoint\n"
                 for p, ckpt_name in self.ckpt_manager.get_ckpt_queue():
-                    log_str += "%.4f\t\n%s" % p, {os.path.join(self.ckpt_save_dir, ckpt_name)}
+                    log_str += f"{p: .4f}\t{os.path.join(self.ckpt_save_dir, ckpt_name)}\n"
 
     def on_eval_end(self, run_context):
         if self.is_main_device:
             cb_params = run_context.original_args()
             metrics = cb_params.get("metrics")
             if metrics is not None:
-                metrics = {k: "%.4f" % v for k, v in metrics.items()}
+                metrics = {k: f"{v: .4f}" for k, v in metrics.items()}
                 _logger.info(f"Eval result epoch {cb_params.cur_epoch_num}: {metrics}")
 
     def _get_optimizer_from_cbp(self, cb_params):
