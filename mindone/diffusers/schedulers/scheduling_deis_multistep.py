@@ -679,7 +679,7 @@ class DEISMultistepScheduler(SchedulerMixin, ConfigMixin):
     def step(
         self,
         model_output: ms.Tensor,
-        timestep: int,
+        timestep: Union[int, ms.Tensor],
         sample: ms.Tensor,
         return_dict: bool = False,
     ) -> Union[SchedulerOutput, Tuple]:
@@ -690,7 +690,7 @@ class DEISMultistepScheduler(SchedulerMixin, ConfigMixin):
         Args:
             model_output (`ms.Tensor`):
                 The direct output from learned diffusion model.
-            timestep (`float`):
+            timestep (`int`):
                 The current discrete timestep in the diffusion chain.
             sample (`ms.Tensor`):
                 A current instance of a sample created by the diffusion process.

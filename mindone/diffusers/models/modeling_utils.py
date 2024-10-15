@@ -381,9 +381,6 @@ class ModelMixin(nn.Cell, PushToHubMixin):
             force_download (`bool`, *optional*, defaults to `False`):
                 Whether or not to force the (re-)download of the model weights and configuration files, overriding the
                 cached versions if they exist.
-            resume_download:
-                Deprecated and ignored. All downloads are now resumed by default when possible. Will be removed in v1
-                of Diffusers.
             proxies (`Dict[str, str]`, *optional*):
                 A dictionary of proxy servers to use by protocol or endpoint, for example, `{'http': 'foo.bar:3128',
                 'http://hostname': 'foo.bar:4012'}`. The proxies are used on each request.
@@ -444,7 +441,6 @@ class ModelMixin(nn.Cell, PushToHubMixin):
         ignore_mismatched_sizes = kwargs.pop("ignore_mismatched_sizes", False)
         force_download = kwargs.pop("force_download", False)
         from_flax = kwargs.pop("from_flax", False)
-        resume_download = kwargs.pop("resume_download", None)
         proxies = kwargs.pop("proxies", None)
         output_loading_info = kwargs.pop("output_loading_info", False)
         local_files_only = kwargs.pop("local_files_only", None)
@@ -476,7 +472,6 @@ class ModelMixin(nn.Cell, PushToHubMixin):
             return_unused_kwargs=True,
             return_commit_hash=True,
             force_download=force_download,
-            resume_download=resume_download,
             proxies=proxies,
             local_files_only=local_files_only,
             token=token,
@@ -498,7 +493,6 @@ class ModelMixin(nn.Cell, PushToHubMixin):
             cache_dir=cache_dir,
             variant=variant,
             force_download=force_download,
-            resume_download=resume_download,
             proxies=proxies,
             local_files_only=local_files_only,
             token=token,
@@ -520,7 +514,6 @@ class ModelMixin(nn.Cell, PushToHubMixin):
                     index_file,
                     cache_dir=cache_dir,
                     proxies=proxies,
-                    resume_download=resume_download,
                     local_files_only=local_files_only,
                     token=token,
                     user_agent=user_agent,
@@ -535,7 +528,6 @@ class ModelMixin(nn.Cell, PushToHubMixin):
                         weights_name=_add_variant(SAFETENSORS_WEIGHTS_NAME, variant),
                         cache_dir=cache_dir,
                         force_download=force_download,
-                        resume_download=resume_download,
                         proxies=proxies,
                         local_files_only=local_files_only,
                         token=token,
@@ -558,7 +550,6 @@ class ModelMixin(nn.Cell, PushToHubMixin):
                     weights_name=_add_variant(WEIGHTS_NAME, variant),
                     cache_dir=cache_dir,
                     force_download=force_download,
-                    resume_download=resume_download,
                     proxies=proxies,
                     local_files_only=local_files_only,
                     token=token,
@@ -573,7 +564,7 @@ class ModelMixin(nn.Cell, PushToHubMixin):
             if is_sharded:
                 load_checkpoint_and_dispatch(
                     model,
-                    sharded_ckpt_cached_folder,
+                    index_file,  # TODO: check accelerate
                     dtype=mindspore_dtype,
                     strict=True,
                 )
@@ -840,7 +831,7 @@ class LegacyModelMixin(ModelMixin):
     @classmethod
     @validate_hf_hub_args
     def from_pretrained(cls, pretrained_model_name_or_path: Optional[Union[str, os.PathLike]], **kwargs):
-        # To prevent depedency import problem.
+        # To prevent dependency import problem.
         from .model_loading_utils import _fetch_remapped_cls_from_config
 
         # Create a copy of the kwargs so that we don't mess with the keyword arguments in the downstream calls.
@@ -848,7 +839,6 @@ class LegacyModelMixin(ModelMixin):
 
         cache_dir = kwargs.pop("cache_dir", None)
         force_download = kwargs.pop("force_download", False)
-        resume_download = kwargs.pop("resume_download", None)
         proxies = kwargs.pop("proxies", None)
         local_files_only = kwargs.pop("local_files_only", None)
         token = kwargs.pop("token", None)
@@ -871,7 +861,6 @@ class LegacyModelMixin(ModelMixin):
             return_unused_kwargs=True,
             return_commit_hash=True,
             force_download=force_download,
-            resume_download=resume_download,
             proxies=proxies,
             local_files_only=local_files_only,
             token=token,

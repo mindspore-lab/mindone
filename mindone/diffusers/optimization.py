@@ -85,7 +85,7 @@ def get_piecewise_constant_schedule(lr: float, step_rules: str, num_training_ste
             The optimizer for which to schedule the learning rate.
         step_rules (`string`):
             The rules for the learning rate. ex: rule_steps="1:10,0.1:20,0.01:30,0.005" it means that the learning rate
-            if multiple 1 for the first 10 steps, mutiple 0.1 for the next 20 steps, multiple 0.01 for the next 30
+            if multiple 1 for the first 10 steps, multiple 0.1 for the next 20 steps, multiple 0.01 for the next 30
             steps and multiple 0.005 for the other steps.
         num_training_steps (`int`):
             The total number of training steps.

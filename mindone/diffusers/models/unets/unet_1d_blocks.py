@@ -195,7 +195,7 @@ class MidResTemporalBlock1D(nn.Cell):
             self.nonlinearity = get_activation(non_linearity)()
 
         if self.add_upsample:
-            self.upsample = Downsample1D(out_channels, use_conv=True)
+            self.upsample = Upsample1D(out_channels, use_conv=True)
 
         if self.add_downsample:
             self.downsample = Downsample1D(out_channels, use_conv=True)
