@@ -27,8 +27,6 @@ sys.path.insert(0, os.path.abspath(os.path.join(__dir__, "../../../..")))  # for
 sys.path.insert(0, os.path.abspath(os.path.join(__dir__, "../..")))  # for sgm
 
 from model_stage1 import InstantMeshStage1WithLoss
-
-# from eval import ValidationCallback, LossMonitor
 from omegaconf import OmegaConf
 from utils.ms_callback_util import SaveCkptCallback
 
@@ -381,7 +379,6 @@ def main(args):
     callback = [
         TimeMonitor(),
         OverflowMonitor(),
-        # LossMonitor(log_interval=args.log_interval),
         SaveCkptCallback(
             rank_id=rank_id,
             output_dir=os.path.join(args.output_path, "ckpt"),
@@ -390,7 +387,6 @@ def main(args):
             save_ema=args.use_ema,
             ckpt_save_policy="top_k",
         ),
-        # ValidationCallback(output_dir=args.output_path)
     ]
 
     if rank_id == 0:

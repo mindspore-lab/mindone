@@ -85,7 +85,10 @@ def evaluate(args, epoch_num: Optional[str]):
         val_batch_np = data.__getitem__(index)
 
         # [torch] prepare_validation_batch_data():
-        # prepare for validation batch/mv2mesh inference(): see raw repo TODO del this comment once this script finishes
+        # prepare for validation batch/mv2mesh inference()
+        # TODO mov this to data
+        # although in torch this method is under model.py, but for torch lightning,
+        # it's actually implemented as a part of dataset
         val_input = model.prepare_validation_batch_data(
             val_batch_np,
             render_size=config.eval_render_size,
