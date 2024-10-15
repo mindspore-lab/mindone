@@ -1,1 +1,1 @@
-from .network import LlamaModel
+from .network import LlamaModel, llama3_8B

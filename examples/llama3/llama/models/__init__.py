@@ -1,1 +1,1 @@
-from .llama import LlamaModel
+from .llama import LlamaModel, llama3_8B
