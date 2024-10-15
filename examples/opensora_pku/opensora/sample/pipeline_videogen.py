@@ -20,6 +20,9 @@ import urllib.parse as ul
 from dataclasses import dataclass
 from typing import Callable, List, Optional, Tuple, Union
 
+from opensora.acceleration.communications import AllGather
+from opensora.acceleration.parallel_states import get_sequence_parallel_state, hccl_info
+
 import mindspore as ms
 from mindspore import ops
 
@@ -121,6 +124,8 @@ class VideoGenPipeline(DiffusionPipeline):
         )
         # self.vae_scale_factor = 2 ** (len(self.vae.config.block_out_channels) - 1)
         self.enable_time_chunk = enable_time_chunk
+
+        self.all_gather = None if not get_sequence_parallel_state() else AllGather()
 
     # Adapted from https://github.com/PixArt-alpha/PixArt-alpha/blob/master/diffusion/model/utils.py
     def mask_text_embeddings(self, emb, mask):
@@ -530,6 +535,24 @@ class VideoGenPipeline(DiffusionPipeline):
         latents = latents * self.scheduler.init_noise_sigma
         return latents
 
+    def prepare_parallel_latent(self, video_states):
+        sp_size = hccl_info.world_size
+        index = hccl_info.rank % sp_size
+        padding_needed = (sp_size - video_states.shape[2] % sp_size) % sp_size
+        temp_attention_mask = None
+        if padding_needed > 0:
+            logger.debug("Doing video padding")
+            # B, C, T, H, W -> B, C, T', H, W
+            video_states = ops.pad(video_states, (0, 0, 0, 0, 0, padding_needed), mode="constant", value=0)
+
+            b, _, f, h, w = video_states.shape
+            temp_attention_mask = ops.ones((b * h * w // 4, 1, f), ms.int32)
+            temp_attention_mask[:, :, -padding_needed:] = 0
+
+        assert video_states.shape[2] % sp_size == 0
+        video_states = ops.chunk(video_states, sp_size, 2)[index]
+        return video_states, temp_attention_mask
+
     def __call__(
         self,
         prompt: Union[str, List[str]] = None,
@@ -686,6 +709,16 @@ class VideoGenPipeline(DiffusionPipeline):
         # 7. Denoising loop
         num_warmup_steps = max(len(timesteps) - num_inference_steps * self.scheduler.order, 0)
 
+        if get_sequence_parallel_state():
+            latents, temp_attention_mask = self.prepare_parallel_latent(latents)
+            temp_attention_mask = (
+                ops.cat([temp_attention_mask] * 2)
+                if (do_classifier_free_guidance and temp_attention_mask is not None)
+                else temp_attention_mask
+            )
+        else:
+            temp_attention_mask = None
+
         with self.progress_bar(total=num_inference_steps) as progress_bar:
             for i, t in enumerate(timesteps):
                 latent_model_input = ops.cat([latents] * 2) if do_classifier_free_guidance else latents
@@ -712,6 +745,7 @@ class VideoGenPipeline(DiffusionPipeline):
                     added_cond_kwargs=added_cond_kwargs,
                     enable_temporal_attentions=enable_temporal_attentions,
                     encoder_attention_mask=prompt_embeds_mask,  # (b n)
+                    temp_attention_mask=temp_attention_mask,
                 )
 
                 # perform guidance
@@ -734,6 +768,12 @@ class VideoGenPipeline(DiffusionPipeline):
                     if callback is not None and i % callback_steps == 0:
                         step_idx = i // getattr(self.scheduler, "order", 1)
                         callback(step_idx, t, latents)
+
+        if get_sequence_parallel_state():
+            sp_size = hccl_info.world_size
+            latents = self.all_gather(latents)
+            latents_list = ops.chunk(latents, sp_size, 0)
+            latents = ops.concat(latents_list, axis=2)[:, :, :num_frames]
 
         if not output_type == "latents":
             video = self.decode_latents(latents)

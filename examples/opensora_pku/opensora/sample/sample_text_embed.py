@@ -10,20 +10,17 @@ import pandas as pd
 import yaml
 from tqdm import tqdm
 
-import mindspore as ms
-from mindspore.communication.management import get_group_size, get_rank, init
-
 mindone_lib_path = os.path.abspath("../../")
 sys.path.insert(0, mindone_lib_path)
 sys.path.append(os.path.abspath("./"))
 from opensora.dataset.text_dataset import create_dataloader
 from opensora.models.text_encoder.t5 import T5Embedder
+from opensora.utils.ms_utils import init_env
 from opensora.utils.utils import get_precision
 
 from mindone.utils.amp import auto_mixed_precision
 from mindone.utils.config import str2bool
 from mindone.utils.logger import set_logger
-from mindone.utils.seed import set_random_seed
 
 logger = logging.getLogger(__name__)
 
@@ -44,68 +41,16 @@ def read_captions_from_txt(path):
     return captions
 
 
-def init_env(
-    mode: int = ms.GRAPH_MODE,
-    seed: int = 42,
-    distributed: bool = False,
-    max_device_memory: str = None,
-    device_target: str = "Ascend",
-    enable_dvm: bool = False,
-):
-    """
-    Initialize MindSpore environment.
-
-    Args:
-        mode: MindSpore execution mode. Default is 0 (ms.GRAPH_MODE).
-        seed: The seed value for reproducibility. Default is 42.
-        distributed: Whether to enable distributed training. Default is False.
-    Returns:
-        A tuple containing the device ID, rank ID and number of devices.
-    """
-    set_random_seed(seed)
-
-    if max_device_memory is not None:
-        ms.set_context(max_device_memory=max_device_memory)
-
-    if distributed:
-        ms.set_context(
-            mode=mode,
-            device_target=device_target,
-        )
-        init()
-        device_num = get_group_size()
-        rank_id = get_rank()
-        logger.debug(f"rank_id: {rank_id}, device_num: {device_num}")
-        ms.reset_auto_parallel_context()
-
-        ms.set_auto_parallel_context(
-            parallel_mode=ms.ParallelMode.DATA_PARALLEL,
-            gradients_mean=True,
-            device_num=device_num,
-        )
-
-        var_info = ["device_num", "rank_id", "device_num / 8", "rank_id / 8"]
-        var_value = [device_num, rank_id, int(device_num / 8), int(rank_id / 8)]
-        logger.info(dict(zip(var_info, var_value)))
-
-    else:
-        device_num = 1
-        rank_id = 0
-        ms.set_context(
-            mode=mode,
-            device_target=device_target,
-        )
-
-    if enable_dvm:
-        ms.set_context(enable_graph_kernel=True)
-
-    return rank_id, device_num
-
-
 def main(args):
     set_logger(name="", output_dir="logs/infer_t5")
 
-    rank_id, device_num = init_env(args.mode, args.seed, args.use_parallel, device_target=args.device_target)
+    rank_id, device_num = init_env(
+        mode=args.mode,
+        seed=args.seed,
+        distributed=args.use_parallel,
+        device_target=args.device_target,
+        jit_level=args.jit_level,
+    )
     print(f"rank_id {rank_id}, device_num {device_num}")
 
     # build dataloader for large amount of captions
@@ -300,7 +245,7 @@ def parse_args():
 
     parser.add_argument("--batch_size", default=8, type=int, help="batch size")
     parser.add_argument("--model_max_length", type=int, default=300)
-
+    parser.add_argument("--jit_level", default="O0", help="Set jit level: # O0: KBK, O1:DVM, O2: GE")
     default_args = parser.parse_args()
     __dir__ = os.path.dirname(os.path.abspath(__file__))
     abs_path = os.path.abspath(os.path.join(__dir__, ".."))

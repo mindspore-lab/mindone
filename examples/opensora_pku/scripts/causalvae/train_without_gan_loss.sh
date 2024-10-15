@@ -1,4 +1,3 @@
-
 python opensora/train/train_causalvae.py \
     --exp_name "9x256x256" \
     --batch_size 1 \
