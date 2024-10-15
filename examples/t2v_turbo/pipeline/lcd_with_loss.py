@@ -310,34 +310,34 @@ class LCDWithLoss(nn.Cell):
             # Note that the DDIM step depends on both the predicted x_0 and source noise eps_0.
             x_prev = self.solver.ddim_step(pred_x0, pred_noise, index)
 
-            # 9. Get target LCM prediction on x_prev, w, c, t_n (timesteps)
-            with no_grad():
-                target_noise_pred = self.unet(
-                    x_prev.float(),
-                    timesteps,
-                    context=context,
-                    fps=fps,
-                    timestep_cond=w_embedding,
-                )
-                pred_x_0 = get_predicted_original_sample(
-                    target_noise_pred,
-                    timesteps,
-                    x_prev,
-                    "epsilon",  
-                    self.alpha_schedule,
-                    self.sigma_schedule,
-                ) 
-                target = c_skip * x_prev + c_out * pred_x_0
+        # 9. Get target LCM prediction on x_prev, w, c, t_n (timesteps)
+        with no_grad():
+            target_noise_pred = self.unet(
+                x_prev.float(),
+                timesteps,
+                context=context,
+                fps=fps,
+                timestep_cond=w_embedding,
+            )
+            pred_x_0 = get_predicted_original_sample(
+                target_noise_pred,
+                timesteps,
+                x_prev,
+                "epsilon",  
+                self.alpha_schedule,
+                self.sigma_schedule,
+            ) 
+            target = c_skip * x_prev + c_out * pred_x_0
 
-            # 10. Calculate loss
-            if self.args.loss_type == "l2":
-                distill_loss = ops.mse_loss(
-                    model_pred.float(), target.float(), reduction="mean"
-                )
-            elif self.args.loss_type == "huber":
-                distill_loss = huber_loss(model_pred.float(), target.float(), self.args.huber_c)
+        # 10. Calculate loss
+        if self.args.loss_type == "l2":
+            distill_loss = ops.mse_loss(
+                model_pred.float(), target.float(), reduction="mean"
+            )
+        elif self.args.loss_type == "huber":
+            distill_loss = huber_loss(model_pred.float(), target.float(), self.args.huber_c)
 
-            logger.info(f"distill_loss: {distill_loss.numpy():.4f}")
+        logger.info(f"distill_loss: {distill_loss.numpy():.4f}")
 
         # accelerator.backward(distill_loss + reward_loss + video_rm_loss)
         loss = distill_loss + reward_loss + video_rm_loss
