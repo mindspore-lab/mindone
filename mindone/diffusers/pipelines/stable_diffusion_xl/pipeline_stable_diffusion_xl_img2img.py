@@ -34,10 +34,14 @@ from ...loaders import (
 )
 from ...models import AutoencoderKL, UNet2DConditionModel
 from ...schedulers import KarrasDiffusionSchedulers
-from ...utils import deprecate, logging, scale_lora_layers, unscale_lora_layers
+from ...utils import deprecate, is_invisible_watermark_available, logging, scale_lora_layers, unscale_lora_layers
 from ...utils.mindspore_utils import randn_tensor
-from ..pipeline_utils import DiffusionPipeline
+from ..pipeline_utils import DiffusionPipeline, StableDiffusionMixin
 from .pipeline_output import StableDiffusionXLPipelineOutput
+
+if is_invisible_watermark_available():
+    from .watermark import StableDiffusionXLWatermarker
+
 
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
 
@@ -149,6 +153,7 @@ def retrieve_timesteps(
 
 class StableDiffusionXLImg2ImgPipeline(
     DiffusionPipeline,
+    StableDiffusionMixin,
     FromSingleFileMixin,
     IPAdapterMixin,
     StableDiffusionXLLoraLoaderMixin,
@@ -254,8 +259,12 @@ class StableDiffusionXLImg2ImgPipeline(
         self.vae_scale_factor = 2 ** (len(self.vae.config.block_out_channels) - 1)
         self.image_processor = VaeImageProcessor(vae_scale_factor=self.vae_scale_factor)
 
+        add_watermarker = add_watermarker if add_watermarker is not None else is_invisible_watermark_available()
+
         if add_watermarker:
-            logger.warning("watermarker is not supported!")
+            self.watermark = StableDiffusionXLWatermarker()
+        else:
+            self.watermark = None
 
     def encode_prompt(
         self,
@@ -1303,6 +1312,10 @@ class StableDiffusionXLImg2ImgPipeline(
                 self.vae.to(dtype=ms.float16)
         else:
             image = latents
+
+        # apply watermark if available
+        if self.watermark is not None:
+            image = self.watermark.apply_watermark(image)
 
         image = self.image_processor.postprocess(image, output_type=output_type)
 

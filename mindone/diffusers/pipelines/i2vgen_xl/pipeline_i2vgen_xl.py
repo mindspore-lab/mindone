@@ -31,7 +31,7 @@ from ...schedulers import DDIMScheduler
 from ...utils import BaseOutput, logging
 from ...utils.mindspore_utils import randn_tensor
 from ...video_processor import VideoProcessor
-from ..pipeline_utils import DiffusionPipeline
+from ..pipeline_utils import DiffusionPipeline, StableDiffusionMixin
 
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
 
@@ -85,7 +85,7 @@ class I2VGenXLPipelineOutput(BaseOutput):
     frames: Union[ms.Tensor, np.ndarray, List[List[PIL.Image.Image]]]
 
 
-class I2VGenXLPipeline(DiffusionPipeline):
+class I2VGenXLPipeline(DiffusionPipeline, StableDiffusionMixin):
     r"""
     Pipeline for image-to-video generation as proposed in [I2VGenXL](https://i2vgen-xl.github.io/).
 
