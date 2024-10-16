@@ -12,7 +12,7 @@ from mindone.diffusers.models.modeling_utils import load_state_dict
 from mindone.diffusers.utils import SAFETENSORS_WEIGHTS_NAME, WEIGHTS_NAME, _add_variant, _get_model_file
 
 from ..modeling_videobase import VideoBaseAE
-from ..modules.conv import CausalConv3d, Conv2d
+from ..modules.conv import CausalConv3d
 from ..modules.ops import nonlinearity
 from ..utils.model_utils import resolve_str_to_obj
 
@@ -642,8 +642,9 @@ class Encoder(nn.Cell):
         self.upcast_sigmoid = (upcast_sigmoid,)
 
         # 1. Input conv
+        self.conv_in_name = conv_in
         if conv_in == "Conv2d":
-            self.conv_in = Conv2d(3, hidden_size, kernel_size=3, stride=1, pad_mode="pad", padding=1, has_bias=True)
+            self.conv_in = nn.Conv2d(3, hidden_size, kernel_size=3, stride=1, pad_mode="pad", padding=1, has_bias=True)
         elif conv_in == "CausalConv3d":
             self.conv_in = CausalConv3d(
                 3,
@@ -738,9 +739,36 @@ class Encoder(nn.Cell):
             padding=1,
         )
 
+    # copied from models.causalvideovae.model.modules.conv
+    def rearrange_in(self, x):
+        # b c f h w -> b f c h w
+        B, C, F, H, W = x.shape
+        x = ops.transpose(x, (0, 2, 1, 3, 4))
+        # -> (b*f c h w)
+        x = ops.reshape(x, (-1, C, H, W))
+
+        return x
+
+    # copied from models.causalvideovae.model.modules.conv
+    def rearrange_out(self, x, F):
+        BF, D, H_, W_ = x.shape
+        # (b*f D h w) -> (b f D h w)
+        x = ops.reshape(x, (BF // F, F, D, H_, W_))
+        # -> (b D f h w)
+        x = ops.transpose(x, (0, 2, 1, 3, 4))
+
+        return x
+
     def construct(self, x):
         # downsampling
-        hs = self.conv_in(x)
+        if self.conv_in_name != "Conv2d":
+            hs = self.conv_in(x)
+        else:
+            F = x.shape[-3]
+            x = self.rearrange_in(x)
+            x = self.conv_in(x)
+            hs = self.rearrange_out(x, F)
+
         h = hs
         for i_level in range(self.num_resolutions):
             for i_block in range(self.num_res_blocks):

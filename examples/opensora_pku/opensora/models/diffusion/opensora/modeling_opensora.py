@@ -696,7 +696,7 @@ class OpenSoraT2V(ModelMixin, ConfigMixin):
             b.recompute(parallel_optimizer_comm_recompute=True)
         if isinstance(b, nn.CellList):
             self.recompute(b[-1])
-        else:
+        elif ms.get_context("mode") == ms.GRAPH_MODE:
             b.add_flags(output_no_recompute=True)
 
     @classmethod
