@@ -247,3 +247,21 @@ class TimestepEmbedder(nn.Cell):
         t_freq = self.timestep_embedding(t, self.frequency_embedding_size)
         t_emb = self.mlp(t_freq.to(self.dtype))
         return t_emb
+
+
+class CaptionEmbedder(nn.Cell):
+    def __init__(
+        self,
+        in_channels: int,
+        hidden_size: int,
+        dtype: ms.Type = ms.float32,
+    ) -> None:
+        super().__init__()
+        self.proj = nn.SequentialCell(
+            nn.Dense(in_channels, hidden_size, has_bias=False, dtype=dtype),
+            nn.LayerNorm((hidden_size,), dtype=dtype),
+        )
+
+    def construct(self, caption: Tensor) -> Tensor:
+        caption_emb = self.proj(caption)
+        return caption_emb

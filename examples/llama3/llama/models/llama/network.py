@@ -8,7 +8,15 @@ from mindspore import Parameter, Tensor, load_checkpoint
 from mindone.models.utils import normal_, zeros_
 
 from ..activation import ACT2FN
-from .layer import LlamaAttention, LlamaFlashAttention, LlamaMLP, LlamaRMSNorm, PatchEmbed3D, TimestepEmbedder
+from .layer import (
+    CaptionEmbedder,
+    LlamaAttention,
+    LlamaFlashAttention,
+    LlamaMLP,
+    LlamaRMSNorm,
+    PatchEmbed3D,
+    TimestepEmbedder,
+)
 
 __all__ = ["LlamaModel", "llama3_1B", "llama3_5B", "llama3_30B"]
 
@@ -146,6 +154,7 @@ class LlamaModel(nn.Cell):
         initializer_range: float = 0.02,
         patch_size: Tuple[int, int, int] = (1, 2, 2),
         max_length: Tuple[int, int, int] = (16, 24, 44),
+        caption_channels: int = 4096,
         attn_implementation: Literal["eager", "flash_attention"] = "eager",
         gradient_checkpointing: bool = False,
         dtype: ms.Type = ms.float32,
@@ -190,6 +199,7 @@ class LlamaModel(nn.Cell):
         self.adaLN_modulation = nn.SequentialCell(
             ACT2FN[hidden_act], nn.Dense(hidden_size, 6 * hidden_size, has_bias=False, dtype=dtype)
         )
+        self.caption_embedder = CaptionEmbedder(caption_channels, hidden_size, dtype=dtype)
 
         # post-init
         self.initializer_range = initializer_range
@@ -281,6 +291,9 @@ class LlamaModel(nn.Cell):
         # 6.1.2 shared timestep embedding & modulation. It does not mention the detail structure, we follow PixArt-Alpha here
         timestep_embedding = self.timestep_embedder(timestep)
         modulation_parameters = self.adaLN_modulation(timestep_embedding)
+
+        # 3.1.4 text embedding
+        text_embedding = self.caption_embedder(text_embedding)
 
         # main block
         hidden_states = latent_embedding

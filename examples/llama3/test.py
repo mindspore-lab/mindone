@@ -19,7 +19,7 @@ def main():
 
     latent_embedding = ms.Tensor(np.ones((1, 16, 8, 24, 44)), dtype=ms.bfloat16)
     timestep = ms.Tensor([35], dtype=ms.int64)
-    text_embedding = ms.Tensor(np.ones((1, 64, network.hidden_size)), dtype=ms.bfloat16)
+    text_embedding = ms.Tensor(np.ones((1, 64, 4096)), dtype=ms.bfloat16)
     outputs = network(latent_embedding, timestep, text_embedding)
 
     print(outputs.shape)
