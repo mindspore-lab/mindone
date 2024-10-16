@@ -27,6 +27,16 @@ class LlamaRMSNorm(nn.Cell):
         return self.weight * hidden_states.to(input_dtype)
 
 
+class LlamaLayerNorm(nn.LayerNorm):
+    def construct(self, hidden_states: Tensor) -> Tensor:
+        input_dtype = hidden_states.dtype
+        hidden_states = hidden_states.to(ms.float32)
+        hidden_states, _, _ = self.layer_norm(
+            hidden_states, self.gamma.to(hidden_states.dtype), self.beta.to(hidden_states.dtype)
+        )
+        return hidden_states.to(input_dtype)
+
+
 class LlamaMLP(nn.Cell):
     def __init__(
         self,
@@ -259,7 +269,7 @@ class CaptionEmbedder(nn.Cell):
         super().__init__()
         self.proj = nn.SequentialCell(
             nn.Dense(in_channels, hidden_size, has_bias=False, dtype=dtype),
-            nn.LayerNorm((hidden_size,), dtype=dtype),
+            LlamaLayerNorm((hidden_size,), dtype=dtype),
         )
 
     def construct(self, caption: Tensor) -> Tensor:
