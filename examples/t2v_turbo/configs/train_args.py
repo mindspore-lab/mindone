@@ -175,24 +175,6 @@ def parse_args():
         help="Num frames for inputing to the text-video RM.",
     )
     parser.add_argument(
-        "--vlcd_processes",
-        type=tuple_type,
-        default=(0, 1, 2, 3, 4, 5),
-        help="Process idx that are used to perform consistency distillation.",
-    )
-    parser.add_argument(
-        "--reward_train_processes",
-        type=tuple_type,
-        default=(0, 1, 2, 3, 4, 5),
-        help="Process idx that are used to maximize text-img reward fn.",
-    )
-    parser.add_argument(
-        "--video_rm_train_processes",
-        type=tuple_type,
-        default=(6, 7),
-        help="Process idx that are used to maximize text-video reward fn.",
-    )
-    parser.add_argument(
         "--n_frames",
         type=int,
         default=16,
@@ -250,6 +232,7 @@ def parse_args():
     parser.add_argument("--init_loss_scale", default=65536, type=float, help="loss scale")
     parser.add_argument("--loss_scale_factor", default=2, type=float, help="loss scale factor")
     parser.add_argument("--scale_window", default=2000, type=float, help="scale window")
+    parser.add_argument("--use_recompute", default=False, type=str2bool, help="if use recompute")
     # ----Optimizer (Adam)----
     parser.add_argument(
         "--use_8bit_adam",

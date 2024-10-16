@@ -25,18 +25,22 @@ class DiracDistribution(AbstractDistribution):
 class DiagonalGaussianDistribution(object):
     def __init__(self, parameters, deterministic=False):
         self.parameters = parameters
-        self.mean, self.logvar = ops.chunk(parameters, 2, axis=1)
-        self.logvar = mint.clamp(self.logvar, -30.0, 20.0)
+        mean, logvar = ops.chunk(parameters, 2, axis=1)
+        self.mean = mean
+        self.logvar = mint.clamp(logvar, -30.0, 20.0)
         self.deterministic = deterministic
         self.std = mint.exp(0.5 * self.logvar)
         self.var = mint.exp(self.logvar)
         if self.deterministic:
             self.var = self.std = mint.zeros_like(self.mean)
+        self.noise_shape = self.mean.shape
 
-    def sample(self, noise=None):
-        if noise is None:
-            noise = ops.randn(self.mean.shape)
-
+    def sample(self):
+        noise = ops.randn(self.noise_shape)
+        x = self.mean + self.std * noise
+        return x
+    
+    def sample_with_noise(self, noise):
         x = self.mean + self.std * noise
         return x
 

@@ -1,26 +1,24 @@
 # FPS: 16; 512x320
 
-export DEVICE_ID=6
+export DEVICE_ID=7
 
 # data paths
-DATA_PATH=datasets/webvid/2M_train/part5/00000/
-CSV_PATH=datasets/webvid/2M_train/part5/00000/video_caption.csv
+DATA_PATH=/mnt/disk3/datasets/webvid/2M_train/part5/00000/
+CSV_PATH=/mnt/disk3/datasets/webvid/2M_train/part5/00000/video_caption.csv
 OUTPUT_DIR=outputs/t2v-train/
 
 # model weights
-t2v_model_path=checkpoints/t2v-vc2/t2v_VC2.ckpt
-t2v_encoder_path=checkpoints/t2v-vc2/open_clip_vit_h_14-9bb07a10.ckpt
-video_rm_path=checkpoints/InternVideo2-stage2_1b-224p-f4.ckpt
-image_rm_path=checkpoints/HPS_v2_compressed.ckpt
+t2v_model_path=/home/kate/t2v-turbo/checkpoints/t2v-vc2/t2v_VC2.ckpt
+t2v_encoder_path=/home/kate/t2v-turbo/checkpoints/t2v-vc2/open_clip_vit_h_14-9bb07a10.ckpt
+video_rm_path=/home/kate/t2v-turbo/checkpoints/InternVideo2-stage2_1b-224p-f4.ckpt
+image_rm_path=/home/kate/t2v-turbo/checkpoints/HPS_v2_compressed.ckpt
 
 python train_t2v_turbo_vc2.py \
   --pretrained_model_path $t2v_model_path \
   --pretrained_enc_path $t2v_encoder_path \
   --train_batch_size 1 \
   --gradient_accumulation_steps 8 \
-  --vlcd_processes 0, \
-  --reward_train_processes 0, \
-  --video_rm_train_processes 0, \
+  --use_recompute False \
   --reward_fn_name hpsv2 \
   --reward_scale 1.0 \
   --image_rm_ckpt_dir $image_rm_path \

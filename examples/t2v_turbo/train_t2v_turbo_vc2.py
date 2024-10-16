@@ -148,6 +148,7 @@ def main(args):
     )
     unet_config = model_config["params"]["unet_config"]
     unet_config["params"]["time_cond_proj_dim"] = time_cond_proj_dim
+    unet_config["params"]["use_checkpoint"] = args.use_recompute
     unet = instantiate_from_config(unet_config)
     # load teacher_unet weights into unet
     ms.load_param_into_net(unet, teacher_unet.parameters_dict(), strict_load=False)
@@ -338,7 +339,7 @@ def main(args):
         uncond_prompt_embeds=uncond_prompt_embeds,
         reward_fn=reward_fn,
         video_rm_fn=video_rm_fn,
-        use_recompute=True,
+        use_recompute=args.use_recompute,
     ).set_train()
 
     # Optimizer creation
