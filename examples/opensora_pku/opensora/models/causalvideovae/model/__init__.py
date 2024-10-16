@@ -11,6 +11,7 @@
 # )
 from .causal_vae import CausalVAEModelWrapper
 from .causal_vae.modeling_causalvae import CausalVAEModel
+from .ema_model import EMA
 
 videobase_ae_stride = {
     "CausalVAEModel_4x8x8": [4, 8, 8],

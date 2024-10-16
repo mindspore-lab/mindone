@@ -18,13 +18,12 @@ from mindspore.train.callback import TimeMonitor
 sys.path.append(".")
 mindone_lib_path = os.path.abspath("../../")
 sys.path.insert(0, mindone_lib_path)
-from opensora.models.causalvideovae.model import CausalVAEModel
+from opensora.models.causalvideovae.model import EMA, CausalVAEModel
 from opensora.models.causalvideovae.model.dataset_videobase import VideoDataset, create_dataloader
 from opensora.models.causalvideovae.model.losses.net_with_loss import DiscriminatorWithLoss, GeneratorWithLoss
 from opensora.models.causalvideovae.model.modules.updownsample import TrilinearInterpolate
 from opensora.models.causalvideovae.model.utils.model_utils import resolve_str_to_obj
 from opensora.train.commons import create_loss_scaler, parse_args
-from opensora.utils.ema import EMA
 from opensora.utils.ms_utils import init_env
 from opensora.utils.utils import get_precision
 
@@ -153,7 +152,7 @@ def main(args):
         dataset,
         shuffle=True,
         num_parallel_workers=args.dataloader_num_workers,
-        batch_size=args.batch_size,
+        batch_size=args.train_batch_size,
         drop_remainder=True,
         device_num=device_num,
         rank_id=rank_id,
@@ -164,8 +163,10 @@ def main(args):
     # 5. build training utils
     # torch scale lr by: model.learning_rate = accumulate_grad_batches * ngpu * bs * base_lr
     if args.scale_lr:
-        learning_rate = args.start_learning_rate * args.batch_size * args.gradient_accumulation_steps * device_num
-        end_learning_rate = args.end_learning_rate * args.batch_size * args.gradient_accumulation_steps * device_num
+        learning_rate = args.start_learning_rate * args.train_batch_size * args.gradient_accumulation_steps * device_num
+        end_learning_rate = (
+            args.end_learning_rate * args.train_batch_size * args.gradient_accumulation_steps * device_num
+        )
     else:
         learning_rate = args.start_learning_rate
         end_learning_rate = args.end_learning_rate
@@ -348,7 +349,7 @@ def main(args):
                 f"dtype: {args.precision}",
                 f"Use discriminator: {args.use_discriminator}",
                 f"Learning rate: {learning_rate}",
-                f"Batch size: {args.batch_size}",
+                f"Batch size: {args.train_batch_size}",
                 f"Rescale size: {args.resolution}",
                 f"Crop size: {args.resolution}",
                 f"Number of frames: {args.video_num_frames}",
@@ -448,10 +449,13 @@ def main(args):
                 step_time = time.time() - start_time_s
                 if step % args.log_interval == 0:
                     loss_ae = float(loss_ae_t.asnumpy())
-                    logger.info(f"E: {epoch+1}, S: {step+1}, Loss ae: {loss_ae:.4f}, Step time: {step_time*1000:.2f}ms")
+                    logger.info(
+                        f"E: {epoch+1}, S: {step+1}, Loss ae: {loss_ae:.4f}, ae loss scaler {loss_scaler_ae.loss_scale_value},"
+                        + f" Step time: {step_time*1000:.2f}ms"
+                    )
                     if global_step >= disc_start:
                         loss_disc = float(loss_disc_t.asnumpy())
-                        logger.info(f"Loss disc: {loss_disc:.4f}")
+                        logger.info(f"Loss disc: {loss_disc:.4f}, disc loss scaler {loss_scaler_disc.loss_scale_value}")
                         loss_log_file.write(f"{cur_global_step}\t{loss_ae:.7f}\t{loss_disc:.7f}\t{step_time:.2f}\n")
                     else:
                         loss_log_file.write(f"{cur_global_step}\t{loss_ae:.7f}\t{0.0}\t{step_time:.2f}\n")
@@ -545,6 +549,7 @@ def parse_causalvae_train_args(parser):
         help="Whether to use the discriminator in the training process. "
         "Phase 1 training does not use discriminator, set False to reduce memory cost in graph mode.",
     )
+
     parser.add_argument(
         "--model_config",
         default="scripts/causalvae/release.json",

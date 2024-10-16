@@ -46,7 +46,8 @@ class GeneratorWithLoss(nn.Cell):
         self.perceptual_loss = perceptual_loss
 
         l1 = nn.L1Loss(reduction="none")
-        l2 = nn.L2Loss(reduction="none")
+        # l2 = nn.L2Loss(reduction="none")
+        l2 = ops.L2Loss()
         self.loss_func = l1 if loss_type == "l1" else l2
         # TODO: is self.logvar trainable?
         self.logvar = ms.Parameter(ms.Tensor([logvar_init], dtype=dtype))
