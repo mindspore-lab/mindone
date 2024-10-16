@@ -22,7 +22,7 @@ msrun --bind_core=True --worker_num=8 --local_worker_num=8 --master_port=9000 --
     --dataloader_num_workers 8 \
     --gradient_accumulation_steps=1 \
     --max_train_steps=1000000 \
-    --start_learning_rate=5e-5 \
+    --start_learning_rate=1e-4 \
     --lr_scheduler="constant" \
     --seed=10 \
     --lr_warmup_steps=500 \

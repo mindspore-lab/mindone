@@ -496,6 +496,19 @@ We also support training with sequence parallelism and zero2 parallelism togethe
 
 See `train_video3d_29x720p_zero2_sp.sh` under `scripts/text_condition/mult-devices/` for detailed usage.
 
+#### Tips on Finetuning
+
+To align with the torch hyper-parameters, we use the same learning rate (LR) $1e^{-4}$ as [Open-Sora-Plan v1.2.0](https://github.com/PKU-YuanGroup/Open-Sora-Plan/tree/v1.2.0). However, our experience indicates that $1e^{-4}$ might be too large for finetuning the model on a small training set. If you want to finetune Open-Sora-Plan on your custom data with a small size, and notice that the large LR leads to unstable training, we have a few tips for you:
+
+1. You can lower your LR or increase the effective batch size, for example, by increasing `gradient_accumulation_steps` or running multi-machine training.
+2. You can try a different LR scheduler, for example, you can change the current constant LR scheduler to `polynomial decay` by:
+```diff
+-  --lr_scheduler="constant" \
++  --lr_scheduler="polynomial_decay" \
++  --lr_decay_steps=1000000 \
+```
+The edits will set the polynomial_decay LR scheduler, and decay the start LR to the end LR in 1000000 steps. You can adjust `lr_decay_steps` based on your `max_train_steps`. See other options of LR scheduler in `mindone/trainers/lr_schedule.py`.
+
 #### Performance
 
 We evaluated the training performance on MindSpore and Ascend NPUs. The results are as follows.
