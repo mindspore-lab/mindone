@@ -195,7 +195,13 @@ class PatchEmbed3D(nn.Cell):
         super().__init__()
         self.patch_size = patch_size
         self.proj = nn.Conv3d(
-            in_channels, hidden_size, kernel_size=patch_size, stride=self.patch_size, pad_mode="pad", dtype=dtype
+            in_channels,
+            hidden_size,
+            kernel_size=self.patch_size,
+            stride=self.patch_size,
+            pad_mode="pad",
+            has_bias=False,
+            dtype=dtype,
         )
 
     def construct(self, x: Tensor) -> Tensor:
@@ -208,3 +214,36 @@ class PatchEmbed3D(nn.Cell):
         x = self.proj(x)  # (B C T H W)
         x = x.flatten(start_dim=2).swapaxes(1, 2)
         return x
+
+
+class TimestepEmbedder(nn.Cell):
+    def __init__(
+        self,
+        hidden_size: int,
+        frequency_embedding_size: int = 256,
+        hidden_act: str = "silu",
+        dtype: ms.Type = ms.float32,
+    ) -> None:
+        super().__init__()
+        self.mlp = nn.SequentialCell(
+            nn.Dense(frequency_embedding_size, hidden_size, has_bias=False, dtype=dtype),
+            ACT2FN[hidden_act],
+            nn.Dense(hidden_size, hidden_size, has_bias=False, dtype=dtype),
+        )
+        self.frequency_embedding_size = frequency_embedding_size
+        self.dtype = dtype
+
+    @staticmethod
+    def timestep_embedding(t: Tensor, dim: int, max_period: int = 10000) -> Tensor:
+        half = dim // 2
+        freqs = ops.exp(-ms.numpy.log(max_period) * ops.arange(start=0, end=half, dtype=ms.float32) / half)
+        args = t[:, None].to(ms.float32) * freqs[None]
+        embedding = ops.concat([ops.cos(args), ops.sin(args)], axis=-1)
+        if dim % 2:
+            embedding = ops.concat([embedding, ops.zeros_like(embedding[:, :1])], axis=-1)
+        return embedding
+
+    def construct(self, t: Tensor) -> Tensor:
+        t_freq = self.timestep_embedding(t, self.frequency_embedding_size)
+        t_emb = self.mlp(t_freq.to(self.dtype))
+        return t_emb
