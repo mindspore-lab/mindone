@@ -256,6 +256,7 @@ class InternVideo2_Stage2(nn.Cell):
             text.input_ids,
             attention_mask=text.attention_mask,
             return_dict=True,
+            mode="text",
         )
         text_embeds = text_output.last_hidden_state
         pooled_text_embeds = text_embeds[:, 0]

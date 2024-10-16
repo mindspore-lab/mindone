@@ -1,72 +1,12 @@
-# from .xbert import BertConfig, BertForMaskedLM, BertLMHeadModel, BertModel
+from .xbert import BertConfig, BertForMaskedLM, BertLMHeadModel, BertModel
 import mindspore as ms
 import numpy as np
-from mindnlp.transformers import BertConfig, BertForMaskedLM, BertLMHeadModel, BertModel
-from mindnlp.transformers.modeling_utils import CellUtilMixin
+# from mindnlp.transformers import BertConfig, BertForMaskedLM, BertLMHeadModel, BertModel
 from typing import Tuple
 
 import logging
 logger = logging.getLogger(__name__)
 
-
-class BertModelWrapper(BertModel):
-    def __init__(self, config, add_pooling_layer=True, dtype=ms.float32):
-        super().__init__(config, add_pooling_layer)
-        self._dtype = dtype
-    
-    @property
-    def dtype(self):
-        return self._dtype
-    
-    def get_extended_attention_mask(
-        self, attention_mask: ms.Tensor, input_shape: Tuple[int], dtype = None
-    ) -> ms.Tensor:
-        """
-        Makes broadcastable attention and causal masks so that future and masked tokens are ignored.
-
-        Arguments:
-            attention_mask (:obj:`ms.Tensor`):
-                Mask with ones indicating tokens to attend to, zeros for tokens to ignore.
-            input_shape (:obj:`Tuple[int]`):
-                The shape of the input to the model.
-
-        Returns:
-            :obj:`ms.Tensor` The extended attention mask, with a the same dtype as :obj:`attention_mask.dtype`.
-        """
-
-        if dtype is None:
-            dtype = self.dtype
-
-        # We can provide a self-attention mask of dimensions [batch_size, from_seq_length, to_seq_length]
-        # ourselves in which case we just need to make it broadcastable to all heads.
-        if attention_mask.ndim == 3:
-            extended_attention_mask = attention_mask[:, None, :, :]
-        elif attention_mask.ndim == 2:
-            # Provided a padding mask of dimensions [batch_size, seq_length]
-            # - if the model is a decoder, apply a causal mask in addition to the padding mask
-            # - if the model is an encoder, make the mask broadcastable to [batch_size, num_heads, seq_length, seq_length]
-            if self.config.is_decoder:
-                extended_attention_mask = CellUtilMixin.create_extended_attention_mask_for_decoder(
-                    input_shape, attention_mask
-                )
-            else:
-                extended_attention_mask = attention_mask[:, None, None, :]
-        else:
-            raise ValueError(
-                "Wrong shape for input_ids (shape {}) or attention_mask (shape {})".format(
-                    input_shape, attention_mask.shape
-                )
-            )
-
-        # Since attention_mask is 1.0 for positions we want to attend and 0.0 for
-        # masked positions, this operation will create a tensor which is 0.0 for
-        # positions we want to attend and -10000.0 for masked positions.
-        # Since we are adding it to the raw scores before the softmax, this is
-        # effectively the same as removing these entirely.
-        extended_attention_mask = extended_attention_mask.astype(dtype=dtype)  # fp16 compatibility
-        extended_attention_mask = (1.0 - extended_attention_mask) \
-            * ms.Tensor(np.finfo(ms.dtype_to_nptype(dtype)).min)
-        return extended_attention_mask
 
 def build_bert(model_config, pretrain, checkpoint, encoder_width=None, dtype=ms.float32):
     """build text encoder.
@@ -108,22 +48,20 @@ def build_bert(model_config, pretrain, checkpoint, encoder_width=None, dtype=ms.
             )
     else:
         try:
-            text_encoder, loading_info = BertModelWrapper.from_pretrained(
+            text_encoder, loading_info = BertModel.from_pretrained(
                 model_config.text_encoder.pretrained,
                 config=bert_config,
                 add_pooling_layer=False,
                 output_loading_info=True,
                 local_files_only=True,
-                dtype=dtype,
             )
         except:
-            text_encoder, loading_info = BertModelWrapper.from_pretrained(
+            text_encoder, loading_info = BertModel.from_pretrained(
                 model_config.text_encoder.pretrained,
                 config=bert_config,
                 add_pooling_layer=False,
                 output_loading_info=True,
                 local_files_only=False,
-                dtype=dtype,
             )
 
     return text_encoder

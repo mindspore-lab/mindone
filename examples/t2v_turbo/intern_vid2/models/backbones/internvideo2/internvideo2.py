@@ -352,7 +352,8 @@ class PatchEmbed(nn.Cell):
         self.proj = nn.Conv3d(
             in_channels=in_chans, out_channels=embed_dim, 
             kernel_size=(tubelet_size, patch_size[0], patch_size[1]), 
-            stride=(tubelet_size, patch_size[0], patch_size[1])
+            stride=(tubelet_size, patch_size[0], patch_size[1]),
+            has_bias=True,
         )
         self.norm = norm_layer(embed_dim) if norm_layer else nn.Identity()
     
