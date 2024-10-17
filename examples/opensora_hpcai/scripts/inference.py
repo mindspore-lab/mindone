@@ -186,6 +186,7 @@ def main(args):
             config=SD_CONFIG, ckpt_path=args.vae_checkpoint, micro_batch_size=args.vae_micro_batch_size
         )
     elif args.vae_type == "OpenSoraVAE_V1_2":
+        assert os.path.exists(args.vae_checkpoint), f"vae checkopint {args.vae_checkpoint} NOT found"
         vae = OpenSoraVAE_V1_2(
             micro_batch_size=args.vae_micro_batch_size,
             micro_frame_size=args.vae_micro_frame_size,
