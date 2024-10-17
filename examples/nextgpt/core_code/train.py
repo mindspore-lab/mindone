@@ -1,8 +1,11 @@
+import time
+
 from header import *
 from dataset import load_dataset
 from model import *
 from config import *
-
+import mindspore.nn as nn
+import mindspore
 def parser_args():
     parser = argparse.ArgumentParser(description='train parameters')
     parser.add_argument('--model', type=str, default='nextgpt')
@@ -41,8 +44,19 @@ def main(**args):
         )
     train_data = load_dataset(args, args['dataset_name_list'])
 
-    agent = load_model(args)
+    model = load_model(args)
 
+    optim = nn.optim.Adam(params=model.trainable_params(),learning_rate=0.0004,weight_decay=0.001)
+    grad_fn = mindspore.value_and_grad(model, grad_position=None, weights=optim.parameters, has_aux=True)
+
+    for k in range(20):
+        t = time.time()
+        for data_list in train_data:
+            for data in data_list:
+                (loss, acc, mse_loss), gradient = grad_fn(data)
+                optim(gradient)
+                t = time.time() - t
+                print(f"loss of the {k} steps: {loss},acc: {acc} step time: {t:.2f}s")
 
 if __name__ == "__main__":
     args = parser_args()

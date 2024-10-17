@@ -242,8 +242,8 @@ class SimpleTransformer(nn.Cell):
             if m.bias is not None:
                 constant_(m.bias, 0)
         elif isinstance(m, (LayerNorm)):
-            constant_(m.beta, 0)
-            constant_(m.gamma, 1.0)
+            constant_(m.bias, 0)
+            constant_(m.weight, 1.0)
 
     def construct(
         self,

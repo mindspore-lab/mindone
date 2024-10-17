@@ -9,14 +9,14 @@ import logging
 
 from .models.multimodal_preprocessors import SimpleTokenizer
 from PIL import Image
-from pytorchvideo import transforms as pv_transforms
+# from pytorchvideo import transforms as pv_transforms
 from pytorchvideo.data.clip_sampling import ConstantClipsPerVideoSampler
-from pytorchvideo.data.encoded_video import EncodedVideo
+# from pytorchvideo.data.encoded_video import EncodedVideo
 
 import mindspore.dataset.vision as vision
 import mindspore.dataset.transforms as transforms
 
-from torchvision.transforms._transforms_video import NormalizeVideo
+# from torchvision.transforms._transforms_video import NormalizeVideo
 
 DEFAULT_AUDIO_FRAME_SHIFT_MS = 10  # in milliseconds
 
@@ -78,7 +78,7 @@ def load_and_transform_vision_data(image_paths):
         return None
 
     image_ouputs = []
-    for image_path in image_paths:
+    for image_path in [image_paths]:
         data_transform = transforms.Compose(
             [
                 vision.Resize(
@@ -101,7 +101,7 @@ def load_and_transform_vision_data(image_paths):
 
         image = data_transform(image)
         image_ouputs.append(Tensor(image))
-    return ops.unsqueeze(image_ouputs[0], 0)
+    return image_ouputs[0]
 
 
 def load_and_transform_thermal_data(thermal_paths, device):

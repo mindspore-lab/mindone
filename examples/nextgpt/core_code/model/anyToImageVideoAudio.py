@@ -15,10 +15,12 @@ from examples.nextgpt.core_code.model.custom_vd import TextToVideoSDPipeline
 from examples.nextgpt.core_code.model.custom_ad import AudioLDMPipeline
 from examples.nextgpt.core_code.model.layers import *
 from examples.nextgpt.core_code.model.common.utils import *
+from examples.nextgpt.core_code.model.ImageBind.models.imagebind_model import *
+from examples.nextgpt.core_code.model.ImageBind import data
 
 import os
 import re
-import data
+
 from mindnlp.peft import TaskType
 from mindone.diffusers._peft import LoraConfig, get_peft_model
 class StoppingCriteriaSub(StoppingCriteria):
@@ -269,7 +271,7 @@ class NextGPTModel(nn.Cell):
         embeddings = self.visual_encoder(inputs)
         image_embeds = embeddings['vision']  # bsz x 1024
         inputs_llama = self.llama_proj(image_embeds).unsqueeze(1)  # bsz x 1 x llama_size
-        atts_llama = ops.ones(inputs_llama.size()[:-1], dtype=mindspore.int64)  # bsz x 1
+        atts_llama = ops.ones(inputs_llama.shape[:-1], dtype=mindspore.int64)  # bsz x 1
         return inputs_llama, atts_llama
 
     def prompt_wrap(self, img_embeds, input_ids, target_ids, attention_mask):
@@ -296,7 +298,7 @@ class NextGPTModel(nn.Cell):
             p_before_tokens = self.llama_tokenizer(p_before, return_tensors="np", add_special_tokens=False)
             # peft model need deeper call
             if self.args['freeze_lm']:
-                p_before_embeds = self.llama_model.model.embed_tokens(p_before_tokens.input_ids).expand(batch_size, -1,
+                p_before_embeds = self.llama_model.model.embed_tokens(mindspore.Tensor(p_before_tokens.input_ids)).expand(batch_size, -1,
                                                                                                         -1)  # bsz x s1 x embed_dim
             else:
                 p_before_embeds = self.llama_model.model.model.embed_tokens(p_before_tokens.input_ids).expand(
@@ -304,16 +306,17 @@ class NextGPTModel(nn.Cell):
             inputs_embeds = ops.cat([bos_embeds, p_before_embeds, img_embeds, p_after_embeds], axis=1)  # bsz x (1+s1+1+s2) x embed_dim
 
             # create targets
-            empty_targets = (
-                ops.ones([batch_size, 1 + p_before_embeds.size()[1] + 1],  # 1 (bos) + s1 + 1
-                           dtype=mindspore.int64).fill_(-100)
-            )  # bsz x (1 + s1)
+            # empty_targets = (
+            #     ops.ones([batch_size, 1 + p_before_embeds.size()[1] + 1],  # 1 (bos) + s1 + 1
+            #                dtype=mindspore.int64).fill_(-100)
+            # )  # bsz x (1 + s1)
+            empty_targets = ops.fill(shape=(batch_size, 1 + p_before_embeds.shape[1]), type=mindspore.int64, value=-100)
             targets = ops.cat([empty_targets, target_ids], axis=1)  # bsz x (1 + s1 + 1 + s2)
-            assert inputs_embeds.size()[1] == targets.size()[1]
+            assert inputs_embeds.shape[1] == targets.shape[1]
 
-            atts_prefix = ops.ones([batch_size, 1 + p_before_embeds.size()[1] + 1], dtype=mindspore.int64)  # bsz x (1 + s1 + 1)
+            atts_prefix = ops.ones([batch_size, 1 + p_before_embeds.shape[1] + 1], dtype=mindspore.int64)  # bsz x (1 + s1 + 1)
             attention_mask = ops.cat([atts_prefix, attention_mask], axis=1)
-            assert attention_mask.size() == targets.size()  # bsz x (1 + s1 + 1 + s2)
+            assert attention_mask.shape == targets.shape  # bsz x (1 + s1 + 1 + s2)
         else:
             p_before = '### Human: '
             p_before_tokens = self.llama_tokenizer(p_before, return_tensors="np", add_special_tokens=False)
@@ -435,7 +438,7 @@ class NextGPTModel(nn.Cell):
         In the stage 1: training the encoding-side alignment via image/video/audio caption tasks
         modality: the input modality for each caption task, it could be 'image', 'video' or 'audio'.
         """
-        dataset_type = inputs['dataset_types'][0]
+        dataset_type = inputs['dataset_types']
         if dataset_type == 'ImageToText':
             image_paths = inputs['mm_paths']
             mm_embeds, _ = self.encode_image(image_paths)

@@ -7,5 +7,5 @@ def load_model(args):
     model_name = args['models'][args['model']]['model_name']
     model = globals()[model_name](**args)
 
-    agent = globals()[agent_name](model, args)
-    return agent
+    # agent = globals()[agent_name](model, args)
+    return model

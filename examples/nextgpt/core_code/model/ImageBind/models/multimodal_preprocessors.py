@@ -140,7 +140,9 @@ class PatchEmbedGeneric(nn.Cell):
         return patches_layout, num_patches, embed_dim
 
     def construct(self, x):
+        x = ops.cast(x, dtype=ms.bfloat16)
         x = self.proj(x)
+        x = ops.cast(x, dtype=ms.float32)
         # B C L H W -> B LHW C
         x = ops.swapaxes(x.flatten(start_dim=2), 1, 2)
         if self.norm_layer is not None:

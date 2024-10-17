@@ -3,17 +3,9 @@ import random
 import mindspore as ms
 #from torch.nn.utils import rnn
 from mindspore import ops
-import io
-import json
-import logging
+
 import os
-import pickle
-import re
-import shutil
-import urllib
-import urllib.error
-import urllib.request
-from typing import Optional
+
 from urllib.parse import urlparse
 #from keras.preprocessing.sequence import pad_sequences
 
@@ -159,7 +151,13 @@ def build_one_instance_for_webvid(tokenizer, conversation, num_video_tokens=8):
     assert len(input_ids) == len(target_ids)
 
     return text_list, input_ids, target_ids
-
+import torch
+from torch.nn.utils.rnn import pad_sequence
+import mindspore
+def pad_seqences(input,padding_value):
+    input = padding_value(input,batch_first=True,padding_value=padding_value)
+    input_mind = mindspore.Tensor(input.numpy())
+    return input_mind
 
 def process_batch_instance(tokenizer, batch_of_conversations, max_tgt_len, dataset='cc3m',
                            num_img_tokens=8, num_video_tokens=8):
@@ -173,16 +171,16 @@ def process_batch_instance(tokenizer, batch_of_conversations, max_tgt_len, datas
             _, one_input_ids, one_target_ids = build_one_instance_for_webvid(tokenizer, conversation, num_video_tokens)
         else:
             raise Exception("not support dataset name, it should be pgpt4 or cc3m")
-        batch_input_ids.append(ms.Tensor(one_input_ids))
-        batch_target_ids.append(ms.Tensor(one_target_ids))
+        batch_input_ids.append(torch.Tensor(one_input_ids))
+        batch_target_ids.append(torch.Tensor(one_target_ids))
 
-    input_ids = pad_sequences(batch_input_ids, value=tokenizer.pad_token_id)
-    target_ids = pad_sequences(batch_target_ids, value=-100)
-    assert input_ids.size() == target_ids.size()
+    input_ids = pad_sequence(batch_input_ids, padding_value=tokenizer.pad_token_id)
+    target_ids = pad_sequence(batch_target_ids, padding_value=-100)
+    assert input_ids.size == target_ids.size
     input_ids = input_ids[:, :max_tgt_len]
     target_ids = target_ids[:, :max_tgt_len]
     attention_mask = input_ids.ne(tokenizer.pad_token_id)
-    assert attention_mask.size() == input_ids.size()
+    assert attention_mask.size == input_ids.size
     return input_ids, target_ids, attention_mask.long()
 
 
@@ -218,15 +216,15 @@ def process_batch_stage_1(tokenizer, batch_of_captions, max_tgt_len, prompt=''):
     batch_input_ids, batch_target_ids = [], []
     for caption in batch_of_captions:
         one_input_ids, one_target_ids = build_one_instance_stage_1(tokenizer, caption, prompt)
-        batch_input_ids.append(ms.Tensor(one_input_ids))
-        batch_target_ids.append(ms.Tensor(one_target_ids))
-    input_ids = pad_sequences(batch_input_ids, value=tokenizer.pad_token_id)
-    target_ids = pad_sequences(batch_target_ids, value=-100)
-    assert input_ids.size() == target_ids.size()
+        batch_input_ids.append(torch.Tensor(one_input_ids))
+        batch_target_ids.append(torch.Tensor(one_target_ids))
+    input_ids = pad_sequence(batch_input_ids, padding_value=tokenizer.pad_token_id)
+    target_ids = pad_sequence(batch_target_ids, padding_value=-100)
+    assert input_ids.size == target_ids.size
     input_ids = input_ids[:, :max_tgt_len]
     target_ids = target_ids[:, :max_tgt_len]
     attention_mask = input_ids.ne(tokenizer.pad_token_id)
-    assert attention_mask.size() == input_ids.size()
+    assert attention_mask.size == input_ids.size
     return input_ids, target_ids, attention_mask.long()
 
 
@@ -264,16 +262,16 @@ def process_batch_stage_2(tokenizer, batch_of_captions, max_tgt_len, num_signal_
         one_input_ids, one_target_ids = build_one_instance_stage_2(tokenizer, captions,
                                                                    num_signal_tokens=num_signal_tokens,
                                                                    MODALITY=MODALITY)
-        batch_input_ids.append(ms.Tensor(one_input_ids))
-        batch_target_ids.append(ms.Tensor(one_target_ids))
+        batch_input_ids.append(torch.Tensor(one_input_ids))
+        batch_target_ids.append(torch.Tensor(one_target_ids))
         # batch_caption_lists.append(caption)
-    input_ids = pad_sequences(batch_input_ids, value=tokenizer.pad_token_id)
-    target_ids = pad_sequences(batch_target_ids, value=-100)
-    assert input_ids.size() == target_ids.size()
+    input_ids = pad_sequence(batch_input_ids, padding_value=tokenizer.pad_token_id)
+    target_ids = pad_sequence(batch_target_ids, padding_value=-100)
+    assert input_ids.size == target_ids.size
     input_ids = input_ids[:, :max_tgt_len]
     target_ids = target_ids[:, :max_tgt_len]
     attention_mask = input_ids.ne(tokenizer.pad_token_id)
-    assert attention_mask.size() == input_ids.size()
+    assert attention_mask.size == input_ids.size
     return input_ids, target_ids, attention_mask.long()
 
 
@@ -335,18 +333,18 @@ def process_batch_stage_3(tokenizer, batch_of_conversations, max_tgt_len, img_to
                                                                                img_tokens=img_tokens,
                                                                                vid_tokens=vid_tokens,
                                                                                aud_tokens=aud_tokens)
-        batch_input_ids.append(ms.Tensor(one_input_ids))
-        batch_target_ids.append(ms.Tensor(one_target_ids))
+        batch_input_ids.append(torch.Tensor(one_input_ids))
+        batch_target_ids.append(torch.Tensor(one_target_ids))
         # batch_caption_lists.append(caption)
-    input_ids = pad_sequences(batch_input_ids, value=tokenizer.pad_token_id)
-    target_ids = pad_sequences(batch_target_ids, value=-100)
-    assert input_ids.size() == target_ids.size()
+    input_ids = pad_sequence(batch_input_ids, padding_value=tokenizer.pad_token_id)
+    target_ids = pad_sequence(batch_target_ids, padding_value=-100)
+    assert input_ids.size == target_ids.size
     input_ids = input_ids[:, :max_tgt_len]
     # if is_mask_token:
     #     input_ids = mask_token(input_ids, tokenizer, 0.5)
     target_ids = target_ids[:, :max_tgt_len]
     attention_mask = input_ids.ne(tokenizer.pad_token_id)
-    assert attention_mask.size() == input_ids.size()
+    assert attention_mask.size == input_ids.size
     return input_ids, target_ids, attention_mask.long()
 
 
