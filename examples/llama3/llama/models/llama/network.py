@@ -153,7 +153,7 @@ class LlamaModel(nn.Cell):
         hidden_act: str = "silu",
         initializer_range: float = 0.02,
         patch_size: Tuple[int, int, int] = (1, 2, 2),
-        max_length: Tuple[int, int, int] = (16, 24, 44),
+        max_length: Tuple[int, int, int] = (32, 16, 16),
         caption_channels: int = 4096,
         attn_implementation: Literal["eager", "flash_attention"] = "eager",
         gradient_checkpointing: bool = False,
@@ -192,9 +192,9 @@ class LlamaModel(nn.Cell):
             dtype=dtype,
         )
 
-        self.pos_embedding_table_h = nn.Embedding(max_length[0], self.hidden_size, dtype=dtype)
-        self.pos_embedding_table_w = nn.Embedding(max_length[1], self.hidden_size, dtype=dtype)
-        self.pos_embedding_table_t = nn.Embedding(max_length[2], self.hidden_size, dtype=dtype)
+        self.pos_embedding_table_t = nn.Embedding(max_length[0], self.hidden_size, dtype=dtype)
+        self.pos_embedding_table_h = nn.Embedding(max_length[1], self.hidden_size, dtype=dtype)
+        self.pos_embedding_table_w = nn.Embedding(max_length[2], self.hidden_size, dtype=dtype)
 
         self.latent_embedder = PatchEmbed3D(self.patch_size, self.in_channels, self.hidden_size, dtype=dtype)
         self.timestep_embedder = TimestepEmbedder(self.hidden_size, dtype=dtype)
@@ -250,11 +250,11 @@ class LlamaModel(nn.Cell):
         position_ids = ops.stack(position_ids, axis=-1)
         position_ids = ops.reshape(position_ids, (-1, 3))
 
-        h_inds, w_inds, t_inds = ops.unbind(position_ids, dim=-1)
+        t_inds, h_inds, w_inds = ops.unbind(position_ids, dim=-1)
+        pos_embed_t = self.pos_embedding_table_t(t_inds)
         pos_embed_h = self.pos_embedding_table_h(h_inds)
         pos_embed_w = self.pos_embedding_table_w(w_inds)
-        pos_embed_t = self.pos_embedding_table_t(t_inds)
-        return pos_embed_h + pos_embed_w + pos_embed_t
+        return pos_embed_t + pos_embed_h + pos_embed_w
 
     def unpatchify(self, hidden_states: Tensor, t: int, h: int, w: int) -> Tensor:
         """

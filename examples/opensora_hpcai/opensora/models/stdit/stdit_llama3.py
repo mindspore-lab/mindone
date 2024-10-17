@@ -3,6 +3,7 @@ from typing import Literal, Optional
 from llama3.llama import llama3_1B, llama3_5B, llama3_30B
 
 import mindspore.nn as nn
+import mindspore.ops as ops
 from mindspore import Tensor
 
 
@@ -16,7 +17,7 @@ class STDiTLlama3Wrapper(nn.Cell):
         model_kwargs = dict(
             in_channels=4,
             out_channels=8,
-            attn_implementatio=attn_implementation,
+            attn_implementation=attn_implementation,
             gradient_checkpointing=gradient_checkpointing,
         )
 
@@ -44,7 +45,11 @@ class STDiTLlama3Wrapper(nn.Cell):
         height: Optional[Tensor] = None,
         width: Optional[Tensor] = None,
         **kwargs,
-    ):
+    ) -> Tensor:
+        x = ops.transpose(x, (0, 2, 1, 3, 4))
+        y = ops.squeeze(y, axis=1)
         latent_embedding = x
         text_embedding = y
-        return self.llama(latent_embedding, timestep, text_embedding)
+        output = self.llama(latent_embedding, timestep, text_embedding)
+        output = ops.transpose(output, (0, 2, 1, 3, 4))
+        return output

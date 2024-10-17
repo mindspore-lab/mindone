@@ -20,7 +20,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(__dir__, "..")))
 
 from opensora.acceleration.parallel_states import set_sequence_parallel_group
 from opensora.datasets.aspect import ASPECT_RATIO_MAP, ASPECT_RATIOS, get_image_size, get_num_frames
-from opensora.models.stdit import STDiT2_XL_2, STDiT3_XL_2, STDiT_XL_2
+from opensora.models.stdit import STDiT2_XL_2, STDiT3_XL_2, STDiT_XL_2, STDiTLlama3Wrapper
 from opensora.models.text_encoder.t5 import get_text_encoder_and_tokenizer
 from opensora.models.vae.vae import SD_CONFIG, OpenSoraVAE_V1_2, VideoAutoencoderKL
 from opensora.pipelines import InferPipeline, InferPipelineFiTLike
@@ -253,6 +253,9 @@ def main(args):
         model_extra_args["qk_norm"] = True
         logger.info(f"{model_name} init")
         latte_model = STDiT3_XL_2(**model_extra_args)
+    elif args.model_version == "llama3_1b":
+        model_name = "Llama3-1B"
+        latte_model = STDiTLlama3Wrapper(model_size="1B", **model_extra_args)
     else:
         raise ValueError(f"Unknown model version: {args.model_version}")
 

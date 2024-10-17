@@ -457,7 +457,7 @@ def main(args):
         latte_model = STDiT3_XL_2(**model_extra_args)
     elif args.model_version == "llama3_1b":
         model_name = "Llama3-1B"
-        latte_model = STDiTLlama3Wrapper(model_size="1B")
+        latte_model = STDiTLlama3Wrapper(model_size="1B", **model_extra_args)
     else:
         raise ValueError(f"Unknown model version: {args.model_version}")
     logger.info(f"{model_name} input size: {latent_size if args.bucket_config is None else 'Variable'}")
