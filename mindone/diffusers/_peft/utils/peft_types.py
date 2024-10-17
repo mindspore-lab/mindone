@@ -15,7 +15,7 @@
 import enum
 
 
-class PeftType(str, enum.Enum):
+class PeftType(str):
     """
     Enum class for the different types of adapters in PEFT.
 
