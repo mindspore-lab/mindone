@@ -4,6 +4,7 @@ from typing import Union
 import av
 import imageio
 import numpy as np
+from fractions import Fraction
 
 __all__ = ["save_videos", "create_video_from_numpy_frames"]
 
@@ -22,12 +23,16 @@ def create_video_from_rgb_numpy_arrays(image_arrays, output_file, fps: Union[int
     # Get the dimensions of the first image
     height, width, _ = image_arrays[0].shape
 
+
+
     # Create the output container and video stream
     container = av.open(output_file, mode="w")
-    stream = container.add_stream("libx264", rate=f"{fps:.4f}")  # BUG: OverflowError: value too large to convert to int
+    stream = container.add_stream("libx264", rate=Fraction(f"{fps:.4f}"))  # BUG: OverflowError: value too large to convert to int
     stream.width = width
     stream.height = height
     stream.pix_fmt = "yuv420p"
+
+    # stream.time_base = av.Rational(1, fps) 
 
     # Write the frames to the video stream
     for image in image_arrays:
@@ -90,3 +95,10 @@ def save_videos(frames: np.ndarray, path: str, fps: Union[int, float] = 8, loop=
                     create_video_from_numpy_frames(frames[idx], cur_path, fps, fmt, loop)
         else:
             create_video_from_numpy_frames(frames[0], path, fps, fmt, loop)
+
+
+if __name__ == '__main__':
+    import numpy as np
+    
+    img_arr = np.zeros([64, 256, 256, 3]).astype(np.uint8)
+    create_video_from_rgb_numpy_arrays(img_arr, 'tmp.mp4', fps=24)
