@@ -28,7 +28,7 @@ As shown above, the textual inversion method consists of the following steps:
 
 Make sure the following frameworks are installed.
 
-- mindspore 2.1.0 (Ascend 910) / mindspore 2.2.1 (Ascend 910*)
+- mindspore 2.1.0 (Ascend 910) / mindspore 2.2.10~2.2.12 (Ascend 910*)
 - openmpi 4.0.3 (for distributed mode)
 
 Enter the `example/stable_diffusion_xl` folder and run
@@ -39,7 +39,7 @@ pip install -r requirement.txt
 
 #### Pretrained models
 
-Download the official pre-train weights from huggingface, convert the weights from `.safetensors` format to Mindspore `.ckpt` format, and put them to `./checkpoints/` folder. Please refer to SDXL [GETTING_STARTED.md](https://github.com/mindspore-lab/mindone/blob/master/examples/stable_diffusion_xl/GETTING_STARTED.md#convert-pretrained-checkpoint) for detailed steps.
+Download the official pre-train weights from huggingface, convert the weights from `.safetensors` format to Mindspore `.ckpt` format, and put them to `./checkpoints/` folder. Please refer to SDXL [weight_convertion.md](./weight_convertion.md) for detailed steps.
 
 
 #### Finetuning Dataset Preparation
@@ -95,6 +95,7 @@ The standalone training command for finetuning on the cat-toy dataset:
 
 ```bash
 python train_textual_inversion.py \
+    --weight checkpoints/sd_xl_base_1.0_ms.ckpt \
     --data_path datasets/cat_toy \
     --save_path runs/cat_toy  \
     --infer_during_train True \
@@ -112,6 +113,7 @@ The standalone training command for finetuning on the chinese-art dataset:
 
 ```bash
 python train_textual_inversion.py \
+    --weight checkpoints/sd_xl_base_1.0_ms.ckpt \
     --data_path datasets/chinese_art \
     --save_path runs/chinese_art  \
     --infer_during_train True \
@@ -181,7 +183,7 @@ Then specify the prompt as "a dog in \<chinese-art\> style" in `__main__` of `de
 
 ### Object Inference Results
 
-The generated images using the prompt "a \<cat-toy\> backpack" are show below:
+The generated images using the prompt "a \<cat-toy\> backpack" are shown below:
 
 <p align="center">
   <img src="https://raw.githubusercontent.com/wtomin/mindone-assets/main/textual_inversion/sd-xl-a-cat-toy-backpack.png" width=850 />

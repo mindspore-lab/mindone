@@ -102,9 +102,9 @@ python train.py \
 ```
 
 
-### 5. Support List
+### 5. Benchmark
 
-[MindSpore 2.2.11](https://www.mindspore.cn/versions#2.2.11)
+The following results were tested on [MindSpore 2.2.11](https://www.mindspore.cn/versions#2.2.11) on 910*, but 2.2.10~2.2.12 should work.
 
 <div align="center">
 

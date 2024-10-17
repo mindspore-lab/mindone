@@ -6,7 +6,7 @@ Latent Consistency Models (LCM) enable quality image generation in typically 2-4
 
 ## Dependency
 
-- mindspore 2.2
+- mindspore 2.2.10~2.2.12
 - openmpi 4.0.3 (for distributed mode)
 
 To install the dependency, please run

@@ -8,7 +8,7 @@
 
 ### 1. Install MindSpore
 
-Please install MindSpore 2.1 refer to [MindSpore Install](https://www.mindspore.cn/install)
+Please install MindSpore 2.1.0 or 2.2.10 refer to [MindSpore Install](https://www.mindspore.cn/install) and the benchmark below.
 
 ### 2. Install MindSpore Lite
 
@@ -124,11 +124,11 @@ You can get images at "output/samples".
 
 ## BenchMark (Offline Infer)
 
-| Model Name     | Device      | MindSpore | MindSpore Lite | CANN | Task     | ImageSize | PerBatchSize | Sample Step | Time Per Image |
-|----------------|-------------|-----------|----------------|------|----------|-----------|--------------|-------------|----------------|
-| sd_xl_base_1.0 | Ascend 910* | 2.2.10    | 2.2.10         | C15  | text2img | 1024*1024 | 1            | 40          | 6.172 s        |
-| sd_xl_base_1.0 | Ascend 910  | 2.1.0     | 2.1.0          | C15  | text2img | 1024*1024 | 1            | 40          | 17.20 s        |
-| sd_xl_base_1.0 | Ascend 310P | 2.1.0     | 2.1.0          | C15  | text2img | 1024*1024 | 1            | 40          | 118 s          |
+| Model Name     | Device      | MindSpore | MindSpore Lite | Task     | ImageSize | PerBatchSize | Sample Step | Time Per Image |
+|----------------|-------------|-----------|----------------|----------|-----------|--------------|-------------|----------------|
+| sd_xl_base_1.0 | Ascend 910* | 2.2.10    | 2.2.10         | text2img | 1024*1024 | 1            | 40          | 6.172 s        |
+| sd_xl_base_1.0 | Ascend 910  | 2.1.0     | 2.1.0          | text2img | 1024*1024 | 1            | 40          | 17.20 s        |
+| sd_xl_base_1.0 | Ascend 310P | 2.1.0     | 2.1.0          | text2img | 1024*1024 | 1            | 40          | 118 s          |
 
 The sampler schedule is euler_edm.
 

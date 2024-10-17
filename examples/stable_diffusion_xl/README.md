@@ -2,6 +2,8 @@
 
 This folder contains [Stable Diffusion XL (SDXL)](https://arxiv.org/abs/2307.01952) models implemented with [MindSpore](https://www.mindspore.cn/), reference to [Official Implementation](https://github.com/Stability-AI/generative-models) by Stability-AI.
 
+> Notes: All the features should work on MindSpore 2.2.1x on Ascend 910*. The finetune methods (vallina/lora/dreambooth) are adapted to MindSpore 2.3.0/2.3.1 on the [branch v0.2.0](https://github.com/mindspore-lab/mindone/tree/v0.2.0) and will be merged into the master branch later. We do not plan on maintaining all the features in the future MindSpore version. Instead, [`mindone.diffusers`](https://github.com/mindspore-lab/mindone/tree/master/mindone/diffusers) and [example/diffusers](https://github.com/mindspore-lab/mindone/tree/master/examples/diffusers) are recommended for SDXL training and inference.
+
 ## Features
 
 - [x] Infer: Text-to-image generation with SDXL-1.0-Base/SDXL-1.0-PipeLine.
@@ -28,7 +30,7 @@ This folder contains [Stable Diffusion XL (SDXL)](https://arxiv.org/abs/2307.019
    - [FAQ](./docs/faq_cn.md)
 2. Inference
     - [Online Infer](./docs/inference.md)
-    - [Offline Infer](./docs/offline_inference/README.md)
+    - [Offline Infer](./offline_inference/README.md)
     - [LCM Infer](./docs/inference_lcm.md)
     - [ControlNet](./docs/controlnet.md)
 3. Finetune
@@ -40,9 +42,11 @@ This folder contains [Stable Diffusion XL (SDXL)](https://arxiv.org/abs/2307.019
 ## What is New
 
 **Jan 30, 2024**
+
 1. Add [ControlNet](./docs/controlnet.md) inference support for SDXL
 
 **Jan 18, 2024**
+
 1. Support latent/text-embedding cache.
 2. Support vanilla fine-tune with PerBatchSize of 6 on 910*.
 

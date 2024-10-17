@@ -16,7 +16,7 @@ The `train_dreambooth.py` script implements DreamBooth finetune for SDXL based o
 
 Make sure the following frameworks are installed.
 
-- mindspore 2.1.0 (Ascend 910) / mindspore 2.2.1 (Ascend 910*)
+- mindspore 2.1.0 (Ascend 910) / mindspore 2.2.10~2.2.12 (Ascend 910*)
 - openmpi 4.0.3 (for distributed mode)
 
 Enter the `example/stable_diffusion_xl` folder and run

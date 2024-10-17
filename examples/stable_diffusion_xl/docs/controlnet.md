@@ -14,7 +14,7 @@ ControlNet controls pretrained large diffusion models to support additional inpu
 
 ## Dependency
 
-- AI framework: MindSpore >= 2.2
+- AI framework: MindSpore 2.2.10~2.2.12
 - Hardware: Ascend 910*
 
 ```shell
@@ -22,7 +22,7 @@ cd examples/stable_diffusion_xl
 pip install -r requirement.txt
 ```
 
-## Inferece
+## Inference
 
 ### Prepare model weight
 

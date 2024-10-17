@@ -38,12 +38,12 @@ python demo/sampling_without_streamlit.py \
 
 #### Training
 
-| Model Name      |   Context      |  Method      | Global Batch Size x Grad. Accu. |   Resolution       |   Acceleration   |   Time(ms/step)  |   FPS (img/s)|
+The results below were tested on Mindspore 2.2.10 on 910* with a single card, but Mindspore 2.2.10~2.2.12 should work.
+
+| Model Name      |  Method      | Global Batch Size x Grad. Accu. |   Resolution       |   Acceleration   |   Time(ms/step)  |   FPS (img/s)|
 |---------------|---------------|--------------|:-------------------:|:------------------:|:----------------:|:----------------:|:----------------:|
-| SDXL-Base     |    D910*x1-MS2.2.10     |    lora   |      1x1             |     1024x1024         | Graph,DS   |       539.77         |    1.85       |
-| SDXL-Base     |    D910*x1-MS2.2.10     |    lora   |      1x1             |     1024x1024         | Graph,FA, DS  |       524.38          |    1.91   |
-> Context: {Ascend chip}-{number of NPUs}-{mindspore version}.
->
+| SDXL-Base     |    lora   |      1x1             |     1024x1024         | Graph,DS   |       539.77         |    1.85       |
+| SDXL-Base     |    lora   |      1x1             |     1024x1024         | Graph,FA, DS  |       524.38          |    1.91   |
 > Acceleration: DS: data sink mode. FA: flash attention.
 >
 >FPS: images per second during training. average training time (s/step) = batch_size / FPS

@@ -17,7 +17,7 @@ After obtaining the weights, place them into `checkpoints/`. Next, start the dem
 
 ### Dependency
 
-- mindspore 2.2.10
+- mindspore 2.2.10~2.2.12
 
 To install the dependency, please run
 
@@ -130,18 +130,18 @@ The `denoiser_config` of the model in yaml config file together with the args of
     --rho 7.0
   ```
 
-### 6. Support List
+### 6. Benchmark
+
+The results below were tested on 910 and 910*, with MindSpore 2.2.12.
 
 <div align="center">
 
-| Model Name    | Device      | MindSpore        | CANN | ImageSize | Compile Cost |Flash Attention| Sampler  | Sample Step | Sample Time |
-|---------------|-------------|------------------|------|-----------|--------------|---------------|----------|-------------|-------------|
-| SDXL-Base     | Ascend 910* | mindspore 2.2.12 | 7.0.0 beta1  | 1024x1024 | 182s         | ON            | EulerEDM | 40          | 6.66s       |
-| SDXL-Base     | Ascend 910* | mindspore 2.2.12 | 7.0.0 beta1  | 1024x1024 | 182s         | ON            | DPM++2M Karras | 20    | 4.3s        |
-| SDXL-Refiner  | Ascend 910* | mindspore 2.2.12 | 7.0.0 beta1  | 1024x1024 | Testing      | ON            | EulerEDM | 40          | Testing     |
-| SDXL-PipeLine | Ascend 910* | mindspore 2.2.12 | 7.0.0 beta1  | 1024x1024 | Testing      | ON            | EulerEDM | 35/5        | Testing     |
-| SDXL-Base     | Ascend 910  | mindspore 2.2.12 | 7.0.0 beta1  | 1024x1024 | 295s         | OFF           | DPM++2M Karras | 20    | 17s         |
-| SDXL-Base     | Ascend 910  | mindspore 2.2.12 | 7.0.0 beta1  | 1024x1024 | 280s         | ON            | DPM++2M Karras | 20    | 14.5s       |
+| Model Name    | Device      | ImageSize | Compile Cost |Flash Attention| Sampler  | Sample Step | Sample Time |
+|---------------|-------------|-----------|--------------|---------------|----------|-------------|-------------|
+| SDXL-Base     | Ascend 910* | 1024x1024 | 182s         | ON            | EulerEDM | 40          | 6.66s       |
+| SDXL-Base     | Ascend 910* | 1024x1024 | 182s         | ON            | DPM++2M Karras | 20    | 4.3s        |
+| SDXL-Base     | Ascend 910  | 1024x1024 | 295s         | OFF           | DPM++2M Karras | 20    | 17s         |
+| SDXL-Base     | Ascend 910  | 1024x1024 | 280s         | ON            | DPM++2M Karras | 20    | 14.5s       |
 </div>
 <br>
 
@@ -150,9 +150,9 @@ Note: Please refer to [FAQ](./faq_cn.md) Question 6 if using Flash Attention on 
 
 ## Offline Inference
 
-See [offline_inference](./offline_inference/README.md).
+See [offline_inference](../offline_inference/README.md).
 
 
 ## Invisible Watermark Detection
 
-To be supplemented
+To be supplemented.
