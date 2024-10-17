@@ -95,6 +95,8 @@ class TrainOneStepWrapper(nn.TrainOneStepWithLossScaleCell):
         self.grad_reducer = self.grad_reducer if self.zero_stage == 0 else nn.Identity()
         if self.zero_stage != 0:
             self.zero_helper.split_params()
+            if gradient_accumulation_steps > 1:
+                self.accumulated_grads = optimizer.parameters.clone(prefix="grad_accumulated_", init="zeros")
 
     def construct(self, *inputs):
         # compute loss

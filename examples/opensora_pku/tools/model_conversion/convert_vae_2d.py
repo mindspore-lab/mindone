@@ -35,7 +35,7 @@ def load_torch_ckpt(ckpt_path):
 
 
 abs_path = os.path.abspath(os.path.dirname(os.path.abspath(__file__)))
-sdv2_dir = os.path.join(abs_path, "../../stable_diffusion_v2/")
+sdv2_dir = os.path.join(abs_path, "../../../stable_diffusion_v2/")
 
 with open(os.path.join(sdv2_dir, "tools/model_conversion/ms_names_v2.txt")) as file_ms:
     lines_ms = list(file_ms.readlines())
