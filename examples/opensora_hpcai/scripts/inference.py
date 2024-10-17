@@ -523,7 +523,11 @@ def parse_args():
         help="path to load a config yaml file that describes the setting which will override the default arguments",
     )
     parser.add_argument(
-        "--model_version", default="v1", type=str, choices=["v1", "v1.1", "v1.2"], help="OpenSora model version."
+        "--model_version",
+        default="v1",
+        type=str,
+        choices=["v1", "v1.1", "v1.2", "llama3_1b"],
+        help="OpenSora model version.",
     )
     parser.add_argument("--image_size", type=int, nargs="+", help="image size in [256, 512]")
     parser.add_argument("--resolution", type=str, help=f"Supported video resolutions: {list(ASPECT_RATIOS.keys())}")

@@ -1,10 +1,11 @@
+import os
 from typing import Literal, Optional
 
 from llama3.llama import llama3_1B, llama3_5B, llama3_30B
 
 import mindspore.nn as nn
 import mindspore.ops as ops
-from mindspore import Tensor
+from mindspore import Tensor, load_checkpoint, load_param_into_net
 
 
 class STDiTLlama3Wrapper(nn.Cell):
@@ -53,3 +54,14 @@ class STDiTLlama3Wrapper(nn.Cell):
         output = self.llama(latent_embedding, timestep, text_embedding)
         output = ops.transpose(output, (0, 2, 1, 3, 4))
         return output
+
+    def load_from_checkpoint(self, ckpt_path):
+        if not os.path.exists(ckpt_path):
+            print(f"WARNING: {ckpt_path} not found. No checkpoint loaded!!")
+        else:
+            sd = load_checkpoint(ckpt_path)
+            sd = {k.replace("network.llama.", "").replace("_backbone.", ""): v for k, v in sd.items()}
+
+            m, u = load_param_into_net(self, sd, strict_load=True)
+            print("net param not load: ", m, len(m))
+            print("ckpt param not load: ", u, len(u))
