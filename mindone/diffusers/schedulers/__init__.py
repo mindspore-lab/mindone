@@ -21,10 +21,12 @@ _import_structure = {
     "scheduling_ddim_inverse": ["DDIMInverseScheduler"],
     "scheduling_ddim_parallel": ["DDIMParallelScheduler"],
     "scheduling_ddim": ["DDIMScheduler"],
+    "scheduling_ddim_cogvideox": ["CogVideoXDDIMScheduler"],
     "scheduling_ddpm_parallel": ["DDPMParallelScheduler"],
     "scheduling_ddpm": ["DDPMScheduler"],
     "scheduling_ddpm_wuerstchen": ["DDPMWuerstchenScheduler"],
     "scheduling_deis_multistep": ["DEISMultistepScheduler"],
+    "scheduling_dpm_cogvideox": ["CogVideoXDPMScheduler"],
     "scheduling_dpmsolver_multistep": ["DPMSolverMultistepScheduler"],
     "scheduling_dpmsolver_multistep_inverse": ["DPMSolverMultistepInverseScheduler"],
     "scheduling_dpmsolver_singlestep": ["DPMSolverSinglestepScheduler"],
@@ -54,12 +56,14 @@ if TYPE_CHECKING:
     from .scheduling_consistency_decoder import ConsistencyDecoderScheduler
     from .scheduling_consistency_models import CMStochasticIterativeScheduler
     from .scheduling_ddim import DDIMScheduler
+    from .scheduling_ddim_cogvideox import CogVideoXDDIMScheduler
     from .scheduling_ddim_inverse import DDIMInverseScheduler
     from .scheduling_ddim_parallel import DDIMParallelScheduler
     from .scheduling_ddpm import DDPMScheduler
     from .scheduling_ddpm_parallel import DDPMParallelScheduler
     from .scheduling_ddpm_wuerstchen import DDPMWuerstchenScheduler
     from .scheduling_deis_multistep import DEISMultistepScheduler
+    from .scheduling_dpm_cogvideox import CogVideoXDPMScheduler
     from .scheduling_dpmsolver_multistep import DPMSolverMultistepScheduler
     from .scheduling_dpmsolver_multistep_inverse import DPMSolverMultistepInverseScheduler
     from .scheduling_dpmsolver_singlestep import DPMSolverSinglestepScheduler
