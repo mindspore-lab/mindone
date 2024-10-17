@@ -49,7 +49,11 @@ def parse_train_args(parser):
     )
     # model
     parser.add_argument(
-        "--model_version", default="v1", type=str, choices=["v1", "v1.1"], help="OpenSora model version."
+        "--model_version",
+        default="v1",
+        type=str,
+        choices=["v1", "v1.1", "v1.2", "llama3_1b"],
+        help="OpenSora model version.",
     )
     parser.add_argument(
         "--pretrained_model_path",

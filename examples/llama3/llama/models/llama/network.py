@@ -1,4 +1,4 @@
-from typing import Literal, Tuple
+from typing import Literal, Optional, Tuple
 
 import mindspore as ms
 import mindspore.nn as nn
@@ -45,7 +45,6 @@ class LlamaDecoderLayer(nn.Cell):
         dtype: ms.Type = ms.float32,
     ) -> None:
         super().__init__()
-        self.hidden_size = hidden_size
 
         self.self_attn = Llama_ATTENTION_CLASSES[attn_implementation](
             hidden_size=hidden_size,
@@ -142,6 +141,7 @@ class LlamaModel(nn.Cell):
     def __init__(
         self,
         in_channels: int = 8,
+        out_channels: Optional[int] = None,
         hidden_size: int = 4096,
         intermediate_size: int = 14336,
         num_attention_heads: int = 32,
@@ -162,16 +162,18 @@ class LlamaModel(nn.Cell):
         super().__init__()
         self.patch_size = patch_size
         self.in_channels = in_channels
-        self.out_channels = in_channels
+        self.out_channels = in_channels if out_channels is None else out_channels
         self.hidden_size = hidden_size
+        self.num_attention_heads = num_attention_heads
+        self.num_key_value_heads = num_key_value_heads
 
         self.layers = nn.CellList(
             [
                 LlamaDecoderLayer(
                     hidden_size=self.hidden_size,
                     intermediate_size=intermediate_size,
-                    num_attention_heads=num_attention_heads,
-                    num_key_value_heads=num_key_value_heads,
+                    num_attention_heads=self.num_attention_heads,
+                    num_key_value_heads=self.num_key_value_heads,
                     rms_norm_eps=rms_norm_eps,
                     attention_dropout=attention_dropout,
                     attention_bias=attention_bias,
@@ -184,7 +186,7 @@ class LlamaModel(nn.Cell):
         )
         self.final_layer = LlamaFinalLayer(
             hidden_size=self.hidden_size,
-            patch_size=patch_size,
+            patch_size=self.patch_size,
             out_channels=self.out_channels,
             rms_norm_eps=rms_norm_eps,
             dtype=dtype,
@@ -194,12 +196,12 @@ class LlamaModel(nn.Cell):
         self.pos_embedding_table_w = nn.Embedding(max_length[1], self.hidden_size, dtype=dtype)
         self.pos_embedding_table_t = nn.Embedding(max_length[2], self.hidden_size, dtype=dtype)
 
-        self.latent_embedder = PatchEmbed3D(patch_size, self.in_channels, self.hidden_size, dtype=dtype)
+        self.latent_embedder = PatchEmbed3D(self.patch_size, self.in_channels, self.hidden_size, dtype=dtype)
         self.timestep_embedder = TimestepEmbedder(self.hidden_size, dtype=dtype)
         self.adaLN_modulation = nn.SequentialCell(
-            ACT2FN[hidden_act], nn.Dense(hidden_size, 6 * hidden_size, has_bias=False, dtype=dtype)
+            ACT2FN[hidden_act], nn.Dense(self.hidden_size, 6 * self.hidden_size, has_bias=False, dtype=dtype)
         )
-        self.caption_embedder = CaptionEmbedder(caption_channels, hidden_size, dtype=dtype)
+        self.caption_embedder = CaptionEmbedder(caption_channels, self.hidden_size, dtype=dtype)
 
         # post-init
         self.initializer_range = initializer_range

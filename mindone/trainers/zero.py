@@ -587,7 +587,19 @@ def prepare_train_network(
     is_parallel = _get_parallel_mode() == ParallelMode.DATA_PARALLEL
     if not is_parallel and zero_stage == 0:
         _logger.info("No need prepare train_network with zero.")
-        return network, optimizer
+        train_network = TrainOneStepWrapper(
+            network,
+            optimizer,
+            scale_sense=scale_sense,
+            ema=ema,
+            updates=updates,
+            drop_overflow_update=drop_overflow_update,
+            gradient_accumulation_steps=gradient_accumulation_steps,
+            clip_grad=clip_grad,
+            clip_norm=clip_norm,
+            verbose=verbose,
+        )
+        return train_network
 
     if zero_stage not in [0, 1, 2, 3]:
         raise ValueError("Not support zero_stage {zero_stage}")

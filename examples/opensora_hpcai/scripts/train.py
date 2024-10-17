@@ -26,7 +26,7 @@ from args_train import parse_args
 from opensora.acceleration.parallel_states import create_parallel_group
 from opensora.datasets.aspect import ASPECT_RATIOS, get_image_size
 from opensora.models.layers.operation_selector import set_dynamic_mode
-from opensora.models.stdit import STDiT2_XL_2, STDiT3_XL_2, STDiT_XL_2
+from opensora.models.stdit import STDiT2_XL_2, STDiT3_XL_2, STDiT_XL_2, STDiTLlama3Wrapper
 from opensora.models.vae.vae import SD_CONFIG, OpenSoraVAE_V1_2, VideoAutoencoderKL
 from opensora.pipelines import (
     DiffusionWithLoss,
@@ -455,6 +455,9 @@ def main(args):
         model_extra_args["qk_norm"] = True
         model_extra_args["freeze_y_embedder"] = args.freeze_y_embedder
         latte_model = STDiT3_XL_2(**model_extra_args)
+    elif args.model_version == "llama3_1b":
+        model_name = "Llama3-1B"
+        latte_model = STDiTLlama3Wrapper(model_size="1B")
     else:
         raise ValueError(f"Unknown model version: {args.model_version}")
     logger.info(f"{model_name} input size: {latent_size if args.bucket_config is None else 'Variable'}")
