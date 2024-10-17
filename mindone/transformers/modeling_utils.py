@@ -85,10 +85,18 @@ def _get_pt2ms_mappings(m):
     return mappings
 
 
-def _get_pt2ms_mapped_kv(mappings, key_pt, value_pt=None, prefix=""):
-    if key_pt.startswith(prefix):
-        key_ms, value_mapping = mappings.get(key_pt[len(prefix) :], (key_pt[len(prefix) :], lambda x: x))
-        key_ms = prefix + key_ms
+def _get_pt2ms_mapped_kv(
+    mappings, key_pt, value_pt=None, prefix="", remove_prefix_from_model=False, add_prefix_to_model=False
+):
+    if remove_prefix_from_model:
+        key_ms, value_mapping = mappings.get(prefix + key_pt, (prefix + key_pt, lambda x: x))
+        key_ms = key_ms[len(prefix) :]
+    elif add_prefix_to_model:
+        if key_pt.startswith(prefix):
+            key_ms, value_mapping = mappings.get(key_pt[len(prefix) :], (key_pt[len(prefix) :], lambda x: x))
+            key_ms = prefix + key_ms
+        else:
+            key_ms, value_mapping = mappings.get(key_pt, (key_pt, lambda x: x))
     else:
         key_ms, value_mapping = mappings.get(key_pt, (key_pt, lambda x: x))
 
@@ -98,14 +106,16 @@ def _get_pt2ms_mapped_kv(mappings, key_pt, value_pt=None, prefix=""):
         return key_ms, value_mapping(value_pt)
 
 
-def _convert_state_dict(m, state_dict_pt, prefix=""):
+def _convert_state_dict(m, state_dict_pt, prefix="", remove_prefix_from_model=False, add_prefix_to_model=False):
     if not state_dict_pt:
         return state_dict_pt
     pt2ms_mappings = _get_pt2ms_mappings(m)
     state_dict_ms = {}
     while state_dict_pt:
         name_pt, data_pt = state_dict_pt.popitem()
-        name_ms, data_ms = _get_pt2ms_mapped_kv(pt2ms_mappings, name_pt, data_pt, prefix)
+        name_ms, data_ms = _get_pt2ms_mapped_kv(
+            pt2ms_mappings, name_pt, data_pt, prefix, remove_prefix_from_model, add_prefix_to_model
+        )
         if name_ms is not None:
             state_dict_ms[name_ms] = data_ms
     return state_dict_ms
@@ -1770,11 +1780,6 @@ class MSPreTrainedModel(nn.Cell, ModuleUtilsMixin, PushToHubMixin, PeftAdapterMi
         dtype=None,
         keep_in_fp32_modules=None,
     ):
-        # Mapping loaded_keys from pt to ms
-        pt2ms_mappings = _get_pt2ms_mappings(model)
-        loaded_keys = [
-            _get_pt2ms_mapped_kv(pt2ms_mappings, s, None, f"{model.base_model_prefix}.")[0] for s in loaded_keys
-        ]
         # Retrieve missing & unexpected_keys
         model_state_dict = {k: v for k, v in model.parameters_and_names()}
         expected_keys = list(model_state_dict.keys())
@@ -1799,6 +1804,16 @@ class MSPreTrainedModel(nn.Cell, ModuleUtilsMixin, PushToHubMixin, PeftAdapterMi
             expected_keys = [s[len(_prefix) :] if s.startswith(_prefix) else s for s in expected_keys]
         elif add_prefix_to_model:
             expected_keys = [".".join([prefix, s]) for s in expected_keys]
+
+        # Mapping loaded_keys from pt to ms
+        pt2ms_mappings = _get_pt2ms_mappings(model)
+        loaded_keys = [
+            _get_pt2ms_mapped_kv(pt2ms_mappings, s, None, f"{prefix}.", remove_prefix_from_model, add_prefix_to_model)[
+                0
+            ]
+            for s in loaded_keys
+        ]
+        # TODO: Do we need to move 'original_loaded_keys = loaded_keys' here?
 
         missing_keys = sorted(set(expected_keys) - set(loaded_keys))
         unexpected_keys = set(loaded_keys) - set(expected_keys)
