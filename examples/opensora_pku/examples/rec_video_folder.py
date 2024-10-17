@@ -71,7 +71,7 @@ def main(args):
             [k.replace("network.", "") if k.startswith("network.") else k, v] for k, v in state_dict.items()
         )
     else:
-        None
+        state_dict = None
     kwarg = {"state_dict": state_dict, "use_safetensors": True}
     vae = CausalVAEModelWrapper(args.ae_path, **kwarg)
 

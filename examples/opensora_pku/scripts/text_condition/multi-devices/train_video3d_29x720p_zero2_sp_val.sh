@@ -57,8 +57,5 @@ msrun --bind_core=True --worker_num=8 --local_worker_num=8 --master_port=9000 --
     --max_device_memory "59GB" \
     --jit_syntax_level "lax" \
     --dataset_sink_mode True \
-    --validate True \
-    --val_data "scripts/train_data/merge_data_mixkit_val.txt" \
-    --val_batch_size=1 \
     # --gradient_checkpointing \
     # --group_frame \
