@@ -329,7 +329,7 @@ def parse_args():
         help="The mindspore mode: 1 means pynative and 0 means graph mode. Defaults to pynative mode.",
     )
     parser.add_argument("--sd_model_name", type=str, default="RealVision", choices=list(models_dict.keys()))
-    parser.add_argument("--style_name", type=str, default="Comic book", choices=list(models_dict.keys()))
+    parser.add_argument("--style_name", type=str, default="Comic book", choices=STYLE_NAMES)
     parser.add_argument(
         "--cache_dir",
         type=str,

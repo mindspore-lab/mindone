@@ -12,7 +12,7 @@ The current implementation only supports text-to-image generation with consisten
 
 ## TODOs
 - [x] Comic Generation Inference script
-- [ ] Gradio demo of comic generation
+- [x] Gradio demo of comic generation
 - [ ] Motion predictor with condition images
 
 ## Installation
@@ -61,3 +61,10 @@ models_dict = {
 }
 ```
 The default cache directory is `./cache_dir`. If you have the model files downloaded and stored under `./cache_dir`, you can run the inference script appened with `--local_files_only` to skip the downloading process.
+
+### Local Gradio Demo
+
+You can also start a local gradio demo by running:
+```bash
+python gradio_app_sdxl_specific_id_low_vram.py
+```
