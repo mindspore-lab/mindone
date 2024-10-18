@@ -592,7 +592,8 @@ class T2IFinalLayer(nn.Cell):
         self.norm_final = LayerNorm(hidden_size, elementwise_affine=False, eps=1e-6)
         # (1152, 4*8)
         self.linear = nn.Dense(hidden_size, num_patch * out_channels, has_bias=True)
-        self.scale_shift_table = Parameter((ops.randn(2, hidden_size, dtype=ms.float32) / hidden_size**0.5).astype(ms.float32))
+        # self.scale_shift_table = Parameter((ops.randn(2, hidden_size, dtype=ms.float32) / hidden_size**0.5).astype(ms.float32))
+        self.scale_shift_table = Parameter(ms.Tensor((np.random.randn(2, hidden_size) / hidden_size**0.5), dtype=ms.float32))
         self.out_channels = out_channels
         self.d_t = d_t
         self.d_s = d_s
