@@ -1,5 +1,7 @@
 from typing import Literal, Optional, Tuple
 
+import numpy as np
+
 import mindspore as ms
 import mindspore.mint as mint
 import mindspore.nn as nn
@@ -70,7 +72,7 @@ class LlamaDecoderLayer(nn.Cell):
             intermediate_size=intermediate_size, hidden_size=hidden_size, hidden_act=hidden_act, dtype=dtype
         )
 
-        self.scale_shift_table = Parameter(mint.normal(size=(6, hidden_size)).to(dtype) / hidden_size**0.5)
+        self.scale_shift_table = Parameter(Tensor(np.random.randn(6, hidden_size), dtype=dtype) / hidden_size**0.5)
 
         self.input_layernorm = LlamaRMSNorm(hidden_size, eps=rms_norm_eps, dtype=dtype)
         self.post_attention_layernorm = LlamaRMSNorm(hidden_size, eps=rms_norm_eps, dtype=dtype)
@@ -130,7 +132,7 @@ class LlamaFinalLayer(nn.Cell):
         self.proj = nn.Dense(
             hidden_size, patch_size[0] * patch_size[1] * patch_size[2] * out_channels, has_bias=False, dtype=dtype
         )
-        self.scale_shift_table = Parameter(mint.normal(size=(2, hidden_size)).to(dtype) / hidden_size**0.5)
+        self.scale_shift_table = Parameter(Tensor(np.random.randn(2, hidden_size), dtype=dtype) / hidden_size**0.5)
 
     def construct(self, hidden_states: Tensor, timestep_embedding: Tensor):
         shift, scale = mint.chunk(self.scale_shift_table[None] + timestep_embedding[:, None], 2, dim=1)

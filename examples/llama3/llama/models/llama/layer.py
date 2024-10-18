@@ -291,7 +291,7 @@ class CaptionEmbedder(nn.Cell):
         super().__init__()
         self.proj = nn.SequentialCell(
             mint.nn.Linear(in_channels, hidden_size, bias=False, dtype=dtype),
-            LlamaRMSNorm((hidden_size,), epsilon=eps, dtype=dtype),
+            LlamaRMSNorm((hidden_size,), eps=eps, dtype=dtype),
         )
 
     def construct(self, caption: Tensor) -> Tensor:
