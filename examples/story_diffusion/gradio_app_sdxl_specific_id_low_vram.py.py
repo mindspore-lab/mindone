@@ -64,7 +64,10 @@ if not os.path.exists(photomaker_local_path):
             local_dir=local_dir,
         )
     except Exception:
-        raise ValueError("Downloading from HF has failed. Please manually download it and place it under data/")
+        raise ValueError(
+            "Downloading from HF has failed. Please manually download photomaker-v1.bin from"
+            + " https://huggingface.co/TencentARC/PhotoMaker/tree/main and place it under ./cache_dir/"
+        )
 else:
     photomaker_path = photomaker_local_path
 
@@ -489,7 +492,7 @@ title = r"""
 """
 
 description = r"""
-<b>Official 🤗 Gradio demo</b> for <a href='https://github.com/HVision-NKU/StoryDiffusion'\
+<b>Official 🤗 Gradio demo</b> for <a href='https://github.com/mindspore-lab/mindone'\
     target='_blank'><b>StoryDiffusion: Consistent Self-Attention for Long-Range Image and Video Generation</b></a>.<br>
 ❗️❗️❗️[<b>Important</b>] Personalization steps:<br>
 1️⃣ Enter a Textual Description for Character, if you add the Ref-Image, making sure to <b>follow the class word</b> \
@@ -501,27 +504,9 @@ description = r"""
 
 article = r"""
 
-If StoryDiffusion is helpful, please help to ⭐ the <a href='https://github.com/HVision-NKU/StoryDiffusion' target='_blank'>Github Repo</a>. Thanks!
-[![GitHub Stars](https://img.shields.io/github/stars/HVision-NKU/StoryDiffusion?style=social)](https://github.com/HVision-NKU/StoryDiffusion)
----
-📝 **Citation**
-<br>
-If our work is useful for your research, please consider citing:
-
-```bibtex
-@article{Zhou2024storydiffusion,
-  title={StoryDiffusion: Consistent Self-Attention for Long-Range Image and Video Generation},
-  author={Zhou, Yupeng and Zhou, Daquan and Cheng, Ming-Ming and Feng, Jiashi and Hou, Qibin},
-  year={2024}
-}
-```
-📋 **License**
-<br>
-Apache-2.0 LICENSE.
-
 📧 **Contact**
 <br>
-If you have any questions, please feel free to reach me out at <b>ypzhousdu@gmail.com</b>.
+If you have any questions, please feel free to raise an issue in https://github.com/mindspore-lab/mindone.
 """
 version = r"""
 <h3 align="center">StoryDiffusion Version 0.02 (test version)</h3>
@@ -763,7 +748,7 @@ def process_generation(
     start_merge_step = int(float(_style_strength_ratio) / 100 * _num_steps)
     if start_merge_step > 30:
         start_merge_step = 30
-    print(f"start_merge_step:{start_merge_step}")
+    print(f"start_merge_step: {start_merge_step}")
     generator = np.random.Generator(np.random.PCG64(seed=seed))
     sa32, sa64 = sa32_, sa64_
     id_length = id_length_
