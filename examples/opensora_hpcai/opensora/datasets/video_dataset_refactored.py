@@ -4,22 +4,21 @@ import logging
 import os
 import random
 import sys
+from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
-from typing import Any, Callable, List, Optional, Tuple
+from typing import Any, Callable, List, Optional, Tuple, Union
 
 import cv2
 import numpy as np
 from tqdm import tqdm
 
-import mindspore as ms
 from mindspore.dataset.transforms import Compose
-from mindspore.dataset.vision import CenterCrop, Inter, Normalize
 
 from mindone.data.video_reader import VideoReader as VideoReader_CV2
 
 from .bucket import Bucket
-from .transforms import BucketResizeAndCrop, BucketResizeCrop, Resize, ResizeAndCrop
+from .transforms import ResizeCrop
 
 # FIXME: remove in future when mindone is ready for install
 sys.path.append(os.path.join(os.path.dirname(__file__), "../../../.."))
@@ -31,30 +30,15 @@ from ..models.layers.rotary_embedding import precompute_freqs_cis
 _logger = logging.getLogger(__name__)
 
 
-def create_infer_transforms(target_size: Tuple[int, int], interpolation=Inter.BILINEAR):
+def create_infer_transforms(target_size: Tuple[int, int], interpolation=cv2.INTER_LINEAR):
     return Compose(
         [
-            Resize(target_size, interpolation=interpolation),
-            CenterCrop(target_size),
-            lambda x: (x / 255.0).astype(np.float32),  # ms.ToTensor() doesn't support 4D data
-            Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5]),
+            ResizeCrop(target_size, interpolation=interpolation),
+            lambda x: x.astype(np.float32) / 127.5 - 1,
             lambda x: x[None, ...] if x.ndim == 3 else x,  # if image
             lambda x: np.transpose(x, (0, 3, 1, 2)),  # ms.HWC2CHW() doesn't support 4D data
         ]
     )
-
-
-def create_train_transforms(target_size, buckets=None):
-    """
-    expect rgb image in range 0-255, shape (h w c)
-    """
-
-    if buckets is None:
-        transforms = ResizeAndCrop(target_size[0], target_size[1])
-    else:
-        transforms = BucketResizeAndCrop(buckets)
-
-    return transforms
 
 
 class VideoDatasetRefactored(BaseDataset):
@@ -77,10 +61,10 @@ class VideoDatasetRefactored(BaseDataset):
         max_target_size: int = 512,
         input_sq_size: int = 512,
         in_channels: int = 4,
-        buckets: Optional[Bucket] = None,
+        buckets: Union[Bucket, bool] = False,
         filter_data: bool = False,
         apply_train_transforms: bool = False,
-        target_size: Optional[Tuple[int]] = None,
+        target_size: Optional[Tuple[int, int]] = None,
         tokenizer=None,
         video_backend: str = "cv2",
         *,
@@ -108,9 +92,9 @@ class VideoDatasetRefactored(BaseDataset):
         self._buckets = buckets
 
         self.output_columns = output_columns
-        if self._buckets is not None:
+        if self._buckets:
             assert vae_latent_folder is None, "`vae_latent_folder` is not supported with bucketing"
-            self.output_columns += ["bucket_id"]  # pass bucket id information to transformations
+            self.output_columns += ["size"]  # pass bucket id information to transformations
 
         if self._pre_patchify:
             self._patch_size = patch_size
@@ -143,13 +127,15 @@ class VideoDatasetRefactored(BaseDataset):
 
         self.apply_train_transforms = apply_train_transforms
         if self.apply_train_transforms:
-            self.pixel_transforms = create_train_transforms(target_size, buckets=buckets)
-            if "bucket_id" in self.output_columns:
-                self.output_columns.remove("bucket_id")
+            self.pixel_transforms = ResizeCrop(target_size, interpolation=cv2.INTER_AREA)
+            if "size" in self.output_columns:
+                self.output_columns.remove("size")
             assert not pre_patchify, "transforms for prepatchify not implemented yet"
 
         # prepare replacement data in case the loading of a sample fails
-        self._prev_ok_sample = self._get_replacement()
+        self._prev_ok_sample = (
+            self._get_replacement() if not self._buckets or isinstance(self._buckets, Bucket) else None
+        )
         self._require_update_prev = False
 
     @staticmethod
@@ -209,7 +195,7 @@ class VideoDatasetRefactored(BaseDataset):
 
         raise RuntimeError(f"Fail to load a replacement sample in {attempts} attempts. Error: {repr(error)}")
 
-    def _get_item(self, idx: int) -> Tuple[Any, ...]:
+    def _get_item(self, idx: int, thw: Optional[Tuple[int, int, int]] = None) -> Tuple[Any, ...]:
         data = {}
         video_path = self._data[idx]["video"]
         text_emb_path = self._data[idx]["text_emb"]
@@ -256,23 +242,24 @@ class VideoDatasetRefactored(BaseDataset):
                 reader = VideoReader(video_path)
                 min_length = self._min_length
                 video_length = len(reader)
-                if self._buckets:
+                if thw is not None:
+                    num_frames, *data["size"] = thw
+                    min_length = (num_frames - 1) * self._stride + 1
+                elif self._buckets:
                     cap = cv2.VideoCapture(video_path, apiPreference=cv2.CAP_FFMPEG)
                     frame_w = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
                     frame_h = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
                     cap.release()
-                    data["bucket_id"] = self._buckets.get_bucket_id(
-                        T=video_length,
-                        H=frame_h,
-                        W=frame_w,
-                        frame_interval=self._stride,
+
+                    bucket_id = self._buckets.get_bucket_id(
+                        T=video_length, H=frame_h, W=frame_w, frame_interval=self._stride
                     )
-                    if data["bucket_id"] is None:
+                    if bucket_id is None:
                         raise ValueError(
                             f"Couldn't assign a bucket to {data['video']}"
                             f" (T={video_length}, H={frame_h}, W={frame_w})."
                         )
-                    num_frames, *_ = self._buckets.get_thw(data["bucket_id"])
+                    num_frames, *data["size"] = self._buckets.get_thw(bucket_id)
                     min_length = (num_frames - 1) * self._stride + 1
 
                 if len(reader) < min_length:
@@ -290,19 +277,19 @@ class VideoDatasetRefactored(BaseDataset):
             elif self.video_backend == "cv2":
                 with VideoReader_CV2(video_path) as reader:
                     min_length = self._min_length
-                    if self._buckets:
-                        data["bucket_id"] = self._buckets.get_bucket_id(
-                            T=len(reader),
-                            H=reader.shape[1],
-                            W=reader.shape[0],
-                            frame_interval=self._stride,
+                    if thw is not None:
+                        num_frames, *data["size"] = thw
+                        min_length = (num_frames - 1) * self._stride + 1
+                    elif self._buckets:
+                        bucket_id = self._buckets.get_bucket_id(
+                            T=len(reader), H=reader.shape[1], W=reader.shape[0], frame_interval=self._stride
                         )
-                        if data["bucket_id"] is None:
+                        if bucket_id is None:
                             raise ValueError(
                                 f"Couldn't assign a bucket to {data['video']}"
                                 f" (T={len(reader)}, H={reader.shape[1]}, W={reader.shape[0]})."
                             )
-                        num_frames, *_ = self._buckets.get_thw(data["bucket_id"])
+                        num_frames, *data["size"] = self._buckets.get_thw(bucket_id)
                         min_length = (num_frames - 1) * self._stride + 1
 
                     if len(reader) < min_length:
@@ -325,19 +312,11 @@ class VideoDatasetRefactored(BaseDataset):
         # apply transforms on video frames here
         if self.apply_train_transforms:
             # variable resize and crop, frame-wise
-            clip = []
-            for i in range(num_frames):
-                if self._buckets:
-                    resized_img = self.pixel_transforms(video[i], bucket_id=data["bucket_id"])
-                else:
-                    resized_img = self.pixel_transforms(video[i])
-                clip.append(resized_img)
-            clip = np.stack(clip, axis=0)
+            clip = self.pixel_transforms(video, data.get("size", None))
 
             # transpose and norm, clip-wise
             clip = np.transpose(clip, (0, 3, 1, 2))
-            clip = np.divide(clip, 127.5, dtype=np.float32)  # faster
-            clip = np.subtract(clip, 1.0, dtype=np.float32)
+            clip = clip.astype(np.float32) / 127.5 - 1
 
             # additional conditions for model
             data["height"] = np.array(clip.shape[-2], dtype=np.float32)
@@ -350,6 +329,10 @@ class VideoDatasetRefactored(BaseDataset):
         del data
 
         return final_outputs
+
+    def get_bucket(self, thw: Tuple[int, int, int], sample_ids: List[int]) -> Tuple[Any, ...]:
+        batch = [self._get_item(sample_id, thw) for sample_id in sample_ids]
+        return tuple(np.stack(item) for item in map(list, zip(*batch)))
 
     def __getitem__(self, idx: int) -> Tuple[Any, ...]:
         try:
@@ -407,38 +390,17 @@ class VideoDatasetRefactored(BaseDataset):
         transforms = []
         vae_downsample_rate = self._vae_downsample_rate
 
-        if self._buckets is not None:
-            vae_downsample_rate = 1
-            transforms.extend(
-                [
-                    {
-                        "operations": BucketResizeCrop(self._buckets),
-                        "input_columns": ["video", "bucket_id"],
-                        "output_columns": ["video"],  # drop `bucket_id` column
-                    },
-                    {
-                        "operations": [
-                            lambda x: np.divide(x, 127.5, dtype=np.float32),
-                            lambda x: np.subtract(x, 1.0, dtype=np.float32),
-                            lambda x: np.transpose(x, (0, 3, 1, 2)),  # ms.HWC2CHW() doesn't support 4D data
-                        ],
-                        "input_columns": ["video"],
-                    },
-                ]
-            )
-
-        elif not self._vae_latent_folder:
+        if not self._vae_latent_folder:
             vae_downsample_rate = 1
             transforms.append(
                 {
                     "operations": [
-                        Resize(target_size, interpolation=Inter.BILINEAR),
-                        CenterCrop(target_size),
-                        lambda x: np.divide(x, 127.5, dtype=np.float32),
-                        lambda x: np.subtract(x, 1.0, dtype=np.float32),
-                        lambda x: np.transpose(x, (0, 3, 1, 2)),
+                        ResizeCrop(target_size, interpolation=cv2.INTER_AREA if self._buckets else cv2.INTER_LINEAR),
+                        lambda x: x.astype(np.float32) / 127.5 - 1,
+                        lambda x: np.transpose(x, (0, 3, 1, 2)),  # ms.HWC2CHW() doesn't support 4D data
                     ],
-                    "input_columns": ["video"],
+                    "input_columns": ["video", "size"] if self._buckets else ["video"],
+                    "output_columns": ["video"],  # drop `size` column
                 }
             )
         # the followings are not transformation for video frames, can be excluded
@@ -474,78 +436,98 @@ class VideoDatasetRefactored(BaseDataset):
         return transforms
 
 
-def create_dataloader(
-    dataset,
-    batch_size: int = 1,
-    shuffle: bool = False,
-    num_parallel_workers: int = 8,
-    drop_remainder: bool = True,
-    prefetch_size: int = 16,
-    max_rowsize: int = 64,
-    device_num: int = 1,
-    rank_id: int = 0,
-    debug: bool = False,
-    enable_modelarts: bool = False,
-):
-    """
-    Builds and returns a DataLoader for the given dataset.
+class BucketGroupLoader:
+    def __init__(
+        self,
+        dataset: VideoDatasetRefactored,
+        buckets: Bucket,
+        device_num: int = 1,
+        rank_id: int = 0,
+        shuffle: bool = False,
+        seed: int = 42,
+        drop_remainder: bool = True,
+        num_group_workers: int = 10,
+        *,
+        output_columns: List[str],
+    ):
+        self._dataset = dataset
+        self._buckets = buckets
+        self._device_num = device_num
+        self._rank = rank_id
+        self._shuffle = shuffle
+        self._seed = seed
+        self._drop_remainder = drop_remainder
+        self._epoch = 0
+        self._bucket_samples = None
+        self._num_workers = num_group_workers
+        self.output_columns = output_columns
 
-    Args:
-        dataset: A dataset instance, must have `output_columns` member.
-        batch_size: Number of samples per batch. Set to 0 to disable batching. Default is 1.
-        transforms: Optional transformations to apply to the dataset. It can be a list of transform dictionaries or
-                    a single transform dictionary. The dictionary must have the following structure:
-                    {
-                        "operations": [List of transform operations],               # Required
-                        "input_columns": [List of columns to apply transforms to],  # Optional
-                        "output_columns": [List of output columns]                  # Optional, only used if different from the `input columns`
-                    }
-        project_columns: Optional list of output columns names from transformations.
-                         These names can be used for column selection or sorting in a specific order.
-        shuffle: Whether to randomly sample data. Default is False.
-        num_workers_dataset: The number of workers used for reading data from the dataset. Default is 4.
-        num_workers_batch: The number of workers used for batch aggregation. Default is 2.
-        drop_remainder: Whether to drop the remainder of the dataset if it doesn't divide evenly by `batch_size`.
-                        Default is True.
-        prefetch_size: The number of samples to prefetch (per device). Default is 16.
-        max_rowsize: Maximum size of row in MB that is used for shared memory allocation to copy data between processes.
-                     This is only used if `python_multiprocessing` is set to `True`. Default is 64.
-        device_num: The number of devices to distribute the dataset across. Default is 1.
-        rank_id: The rank ID of the current device. Default is 0.
-        debug: Whether to enable debug mode. Default is False.
+    def _get_bucket_id(self, i: int) -> int:
+        return self._buckets.get_bucket_id(
+            int(self._dataset._data[i]["length"]),
+            int(self._dataset._data[i]["height"]),
+            int(self._dataset._data[i]["width"]),
+            frame_interval=self._dataset._stride,
+            seed=self._seed + self._epoch + i * self._buckets.num_bucket,  # Following the original implementation
+        )
 
-    Returns:
-        ms.dataset.BatchDataset: The DataLoader for the given dataset.
-    """
-    if not hasattr(dataset, "output_columns"):
-        raise AttributeError(f"{type(dataset).__name__} must have `output_columns` attribute.")
+    def __iter__(self):
+        self._epoch += 1
+        rng = np.random.default_rng(self._seed + self._epoch)
 
-    ms.dataset.config.set_prefetch_size(prefetch_size)
-    # ms.dataset.config.set_enable_shared_mem(True)   # shared memory is ON by default
-    ms.dataset.config.set_debug_mode(debug)
+        _logger.debug("Building buckets...")
+        if self._shuffle:
+            indexes = rng.permutation(len(self._dataset._data)).tolist()
+        else:
+            indexes = list(range(len(self._dataset._data)))
 
-    dataloader = ms.dataset.GeneratorDataset(
-        dataset,
-        column_names=dataset.output_columns,
-        num_parallel_workers=num_parallel_workers,
-        num_shards=device_num,
-        shard_id=rank_id,
-        python_multiprocessing=True,
-        shuffle=shuffle,
-    )
+        # use multithreading for fast data loading for large datasets
+        with ThreadPoolExecutor(max_workers=self._num_workers) as executor:
+            bucket_ids = list(executor.map(self._get_bucket_id, indexes))
 
-    if getattr(dataset, "pad_info", None):
-        if batch_size > 0:
-            dataloader = dataloader.padded_batch(
-                batch_size,
-                drop_remainder=drop_remainder,
-                pad_info=dataset.pad_info,
-            )
-    else:
-        if batch_size > 0:
-            dataloader = dataloader.batch(
-                batch_size,
-                drop_remainder=drop_remainder,
+        bucket_sample_dict = defaultdict(list)
+        for i, bucket_id in zip(indexes, bucket_ids):
+            if bucket_id is not None:
+                bucket_sample_dict[bucket_id].append(i)
+
+        bucket_samples = []
+        # process the samples
+        for bucket_id, data_list in bucket_sample_dict.items():
+            bs_per_npu = self._buckets.get_batch_size(bucket_id)
+            if remainder := len(data_list) % bs_per_npu:
+                if not self._drop_remainder:  # when keeping a remainder, pad to make the batch divisible
+                    data_list += data_list[: bs_per_npu - remainder]
+                else:  # otherwise, drop the remainder
+                    data_list = data_list[:-remainder]
+
+            bucket_samples.extend(
+                [
+                    (self._buckets.get_thw(bucket_id), data_list[i : i + bs_per_npu])
+                    for i in range(0, len(data_list), bs_per_npu)
+                ]
             )
 
-    return dataloader
+        # randomize the access order
+        if self._shuffle:  # double shuffle following the original implementation
+            bucket_indexes = rng.permutation(len(bucket_samples)).tolist()
+            bucket_samples = [bucket_samples[i] for i in bucket_indexes]
+
+        # make the number of bucket accesses divisible by dp size
+        if remainder := len(bucket_samples) % self._device_num:
+            if self._drop_remainder:
+                bucket_samples = bucket_samples[:-remainder]
+            else:
+                bucket_samples += bucket_samples[: self._device_num - remainder]
+
+        # keep only the samples for the current rank
+        bucket_samples = bucket_samples[self._rank :: self._device_num]
+        _logger.debug(f"Number of batches per rank: {len(bucket_samples)}")
+        _logger.debug(f"Rank {self._rank} samples: {bucket_samples}")
+        self._bucket_samples = iter(bucket_samples)
+
+        return self
+
+    def __next__(self):
+        thw, sample_ids = next(self._bucket_samples)
+        _logger.debug(f"Rank {self._rank}: bucket {thw} | samples {sample_ids} ")
+        return self._dataset.get_bucket(thw, sample_ids)
