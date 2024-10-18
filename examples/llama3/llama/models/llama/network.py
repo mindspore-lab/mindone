@@ -1,6 +1,7 @@
 from typing import Literal, Optional, Tuple
 
 import mindspore as ms
+import mindspore.mint as mint
 import mindspore.nn as nn
 import mindspore.ops as ops
 from mindspore import Parameter, Tensor, load_checkpoint
@@ -68,7 +69,7 @@ class LlamaDecoderLayer(nn.Cell):
             intermediate_size=intermediate_size, hidden_size=hidden_size, hidden_act=hidden_act, dtype=dtype
         )
 
-        self.scale_shift_table = Parameter(ops.randn(6, hidden_size, dtype=dtype) / hidden_size**0.5)
+        self.scale_shift_table = Parameter(mint.normal(size=(6, hidden_size)).to(dtype) / hidden_size**0.5)
 
         self.input_layernorm = LlamaRMSNorm(hidden_size, eps=rms_norm_eps, dtype=dtype)
         self.post_attention_layernorm = LlamaRMSNorm(hidden_size, eps=rms_norm_eps, dtype=dtype)
@@ -86,8 +87,8 @@ class LlamaDecoderLayer(nn.Cell):
         hidden_states = hidden_states + position_embedding.to(hidden_states.dtype)
 
         # 3.1.3 Adaptive Layer Norm
-        shift_msa, scale_msa, gate_msa, shift_mlp, scale_mlp, gate_mlp = ops.chunk(
-            self.scale_shift_table[None] + modulation_parameters.reshape(B, 6, -1), 6, axis=1
+        shift_msa, scale_msa, gate_msa, shift_mlp, scale_mlp, gate_mlp = mint.chunk(
+            self.scale_shift_table[None] + modulation_parameters.reshape(B, 6, -1), 6, dim=1
         )
 
         # Self Attention (Bi-Directional Attention)
@@ -128,10 +129,10 @@ class LlamaFinalLayer(nn.Cell):
         self.proj = nn.Dense(
             hidden_size, patch_size[0] * patch_size[1] * patch_size[2] * out_channels, has_bias=False, dtype=dtype
         )
-        self.scale_shift_table = Parameter(ops.randn(2, hidden_size, dtype=dtype) / hidden_size**0.5)
+        self.scale_shift_table = Parameter(mint.normal(size=(2, hidden_size)).to(dtype) / hidden_size**0.5)
 
     def construct(self, hidden_states: Tensor, timestep_embedding: Tensor):
-        shift, scale = ops.chunk(self.scale_shift_table[None] + timestep_embedding[:, None], 2, axis=1)
+        shift, scale = mint.chunk(self.scale_shift_table[None] + timestep_embedding[:, None], 2, dim=1)
         hidden_states = t2i_modulate(self.input_layernorm(hidden_states), shift, scale)
         hidden_states = self.proj(hidden_states)
         return hidden_states
@@ -199,7 +200,7 @@ class LlamaModel(nn.Cell):
         self.latent_embedder = PatchEmbed3D(self.patch_size, self.in_channels, self.hidden_size, dtype=dtype)
         self.timestep_embedder = TimestepEmbedder(self.hidden_size, dtype=dtype)
         self.adaLN_modulation = nn.SequentialCell(
-            ACT2FN[hidden_act], nn.Dense(self.hidden_size, 6 * self.hidden_size, has_bias=False, dtype=dtype)
+            ACT2FN[hidden_act], mint.nn.Linear(self.hidden_size, 6 * self.hidden_size, bias=False, dtype=dtype)
         )
         self.caption_embedder = CaptionEmbedder(caption_channels, self.hidden_size, dtype=dtype)
 
@@ -215,7 +216,7 @@ class LlamaModel(nn.Cell):
         std = self.initializer_range
 
         def _init_weights(module):
-            if isinstance(module, nn.Dense):
+            if isinstance(module, mint.nn.Linear):
                 normal_(module.weight, mean=0.0, std=std)
                 if module.bias is not None:
                     zeros_(module.weight)
@@ -242,12 +243,12 @@ class LlamaModel(nn.Cell):
     def learnable_position_embedding(self, latent_embedding: Tensor) -> Tensor:
         # 3.1.3
         _, t, _, h, w = latent_embedding.shape
-        t_inds = ops.arange(t // self.patch_size[0], dtype=ms.int64)
-        h_inds = ops.arange(h // self.patch_size[1], dtype=ms.int64)
-        w_inds = ops.arange(w // self.patch_size[2], dtype=ms.int64)
+        t_inds = mint.arange(t // self.patch_size[0], dtype=ms.int64)
+        h_inds = mint.arange(h // self.patch_size[1], dtype=ms.int64)
+        w_inds = mint.arange(w // self.patch_size[2], dtype=ms.int64)
 
         position_ids = ops.meshgrid(t_inds, h_inds, w_inds, indexing="ij")
-        position_ids = ops.stack(position_ids, axis=-1)
+        position_ids = mint.stack(position_ids, dim=-1)
         position_ids = ops.reshape(position_ids, (-1, 3))
 
         t_inds, h_inds, w_inds = ops.unbind(position_ids, dim=-1)
@@ -267,7 +268,7 @@ class LlamaModel(nn.Cell):
 
         hidden_states = ops.reshape(hidden_states, (bs, nt, nh, nw, p0, p1, p2, c))
         # bs, nt, p0, c, nh, p1, nw, p2, c
-        hidden_states = ops.transpose(hidden_states, (0, 1, 4, 7, 2, 5, 3, 6))
+        hidden_states = mint.permute(hidden_states, (0, 1, 4, 7, 2, 5, 3, 6))
         output = ops.reshape(hidden_states, (bs, nt * p0, c, nh * p1, nw * p2))
         return output
 

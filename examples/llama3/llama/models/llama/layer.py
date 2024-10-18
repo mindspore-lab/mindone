@@ -2,6 +2,7 @@ import logging
 from typing import Optional, Tuple
 
 import mindspore as ms
+import mindspore.mint as mint
 import mindspore.nn as nn
 import mindspore.ops as ops
 from mindspore import Parameter, Tensor
@@ -15,15 +16,15 @@ logger = logging.getLogger(__name__)
 class LlamaRMSNorm(nn.Cell):
     def __init__(self, hidden_size: int, eps: float = 1e-6, dtype: ms.Type = ms.float32) -> None:
         super().__init__()
-        self.weight = Parameter(ops.ones(hidden_size, dtype=dtype))
+        self.weight = Parameter(mint.ones(hidden_size, dtype=dtype))
         self.variance_epsilon = eps
 
     def construct(self, hidden_states: Tensor) -> Tensor:
         input_dtype = hidden_states.dtype
         hidden_states = hidden_states.to(ms.float32)
-        variance = ops.pow(hidden_states, 2)
-        variance = ops.mean(variance, axis=-1, keep_dims=True)
-        hidden_states = hidden_states * ops.rsqrt(variance + self.variance_epsilon)
+        variance = mint.pow(hidden_states, 2)
+        variance = mint.mean(variance, dim=-1, keepdim=True)
+        hidden_states = hidden_states * mint.rsqrt(variance + self.variance_epsilon)
         return self.weight * hidden_states.to(input_dtype)
 
 
@@ -31,8 +32,12 @@ class LlamaLayerNorm(nn.LayerNorm):
     def construct(self, hidden_states: Tensor) -> Tensor:
         input_dtype = hidden_states.dtype
         hidden_states = hidden_states.to(ms.float32)
-        hidden_states, _, _ = self.layer_norm(
-            hidden_states, self.gamma.to(hidden_states.dtype), self.beta.to(hidden_states.dtype)
+        hidden_states = mint.layer_norm(
+            hidden_states,
+            self.normalized_shape,
+            self.gamma.to(hidden_states.dtype),
+            self.beta.to(hidden_states.dtype),
+            eps=self.epsilon,
         )
         return hidden_states.to(input_dtype)
 
@@ -48,9 +53,9 @@ class LlamaMLP(nn.Cell):
         super().__init__()
         self.hidden_size = hidden_size
         self.intermediate_size = intermediate_size
-        self.gate_proj = nn.Dense(self.hidden_size, self.intermediate_size, has_bias=False, dtype=dtype)
-        self.up_proj = nn.Dense(self.hidden_size, self.intermediate_size, has_bias=False, dtype=dtype)
-        self.down_proj = nn.Dense(self.intermediate_size, self.hidden_size, has_bias=False, dtype=dtype)
+        self.gate_proj = mint.nn.Linear(self.hidden_size, self.intermediate_size, bias=False, dtype=dtype)
+        self.up_proj = mint.nn.Linear(self.hidden_size, self.intermediate_size, bias=False, dtype=dtype)
+        self.down_proj = mint.nn.Linear(self.intermediate_size, self.hidden_size, bias=False, dtype=dtype)
         self.act_fn = ACT2FN[hidden_act]
 
     def construct(self, hidden_state: Tensor) -> Tensor:
@@ -62,7 +67,7 @@ def repeat_kv(hidden_states: Tensor, n_rep: int) -> Tensor:
         return hidden_states
     batch, num_key_value_heads, slen, head_dim = hidden_states.shape
     hidden_states = hidden_states[:, :, None, :, :]
-    hidden_states = ops.broadcast_to(hidden_states, (batch, num_key_value_heads, n_rep, slen, head_dim))
+    hidden_states = mint.broadcast_to(hidden_states, (batch, num_key_value_heads, n_rep, slen, head_dim))
     hidden_states = ops.reshape(hidden_states, (batch, num_key_value_heads * n_rep, slen, head_dim))
     return hidden_states
 
@@ -91,14 +96,14 @@ class LlamaAttention(nn.Cell):
                 f"hidden_size must be divisible by num_heads (got `hidden_size`: {self.hidden_size}"
                 f" and `num_heads`: {self.num_heads})."
             )
-        self.q_proj = nn.Dense(self.hidden_size, self.num_heads * self.head_dim, has_bias=attention_bias, dtype=dtype)
-        self.k_proj = nn.Dense(
-            self.hidden_size, self.num_key_value_heads * self.head_dim, has_bias=attention_bias, dtype=dtype
+        self.q_proj = mint.nn.Linear(self.hidden_size, self.num_heads * self.head_dim, bias=attention_bias, dtype=dtype)
+        self.k_proj = mint.nn.Linear(
+            self.hidden_size, self.num_key_value_heads * self.head_dim, bias=attention_bias, dtype=dtype
         )
-        self.v_proj = nn.Dense(
-            self.hidden_size, self.num_key_value_heads * self.head_dim, has_bias=attention_bias, dtype=dtype
+        self.v_proj = mint.nn.Linear(
+            self.hidden_size, self.num_key_value_heads * self.head_dim, bias=attention_bias, dtype=dtype
         )
-        self.o_proj = nn.Dense(self.num_heads * self.head_dim, self.hidden_size, has_bias=attention_bias, dtype=dtype)
+        self.o_proj = mint.nn.Linear(self.num_heads * self.head_dim, self.hidden_size, bias=attention_bias, dtype=dtype)
 
     def construct(self, hidden_states: Tensor, encoder_hidden_states: Optional[Tensor] = None) -> Tensor:
         bsz, q_len, _ = hidden_states.shape
@@ -111,27 +116,27 @@ class LlamaAttention(nn.Cell):
         value_states = self.v_proj(kv_hidden_states)
 
         query_states = ops.reshape(query_states, (bsz, q_len, self.num_heads, self.head_dim))
-        query_states = ops.transpose(query_states, (0, 2, 1, 3))
+        query_states = mint.permute(query_states, (0, 2, 1, 3))
 
         key_states = ops.reshape(key_states, (bsz, kv_len, self.num_key_value_heads, self.head_dim))
-        key_states = ops.transpose(key_states, (0, 2, 1, 3))
+        key_states = mint.permute(key_states, (0, 2, 1, 3))
 
         value_states = ops.reshape(value_states, (bsz, kv_len, self.num_key_value_heads, self.head_dim))
-        value_states = ops.transpose(value_states, (0, 2, 1, 3))
+        value_states = mint.permute(value_states, (0, 2, 1, 3))
 
         key_states = repeat_kv(key_states, self.num_key_value_groups)
         value_states = repeat_kv(value_states, self.num_key_value_groups)
 
-        key_states = ops.transpose(key_states, (0, 1, 3, 2))
-        attn_weights = ops.matmul(query_states, key_states) / ms.numpy.sqrt(self.head_dim)
+        key_states = mint.permute(key_states, (0, 1, 3, 2))
+        attn_weights = mint.matmul(query_states, key_states) / mint.sqrt(Tensor(self.head_dim))
 
         # upcast attention to fp32
         attn_weights = attn_weights.to(ms.float32)
-        attn_weights = ops.softmax(attn_weights, axis=-1).to(query_states.dtype)
-        attn_weights = ops.dropout(attn_weights, p=self.attention_dropout, training=self.training)
-        attn_output = ops.matmul(attn_weights, value_states)
+        attn_weights = mint.softmax(attn_weights, dim=-1).to(query_states.dtype)
+        attn_weights = mint.dropout(attn_weights, p=self.attention_dropout, training=self.training)
+        attn_output = mint.matmul(attn_weights, value_states)
 
-        attn_output = ops.transpose(attn_output, (0, 2, 1, 3))
+        attn_output = mint.permute(attn_output, (0, 2, 1, 3))
         attn_output = ops.reshape(attn_output, (bsz, q_len, -1))
         attn_output = self.o_proj(attn_output)
 
@@ -171,21 +176,21 @@ class LlamaFlashAttention(LlamaAttention):
         value_states = self.v_proj(kv_hidden_states)
 
         query_states = ops.reshape(query_states, (bsz, q_len, self.num_heads, self.head_dim))
-        query_states = ops.transpose(query_states, (0, 2, 1, 3))
+        query_states = mint.permute(query_states, (0, 2, 1, 3))
 
         key_states = ops.reshape(key_states, (bsz, kv_len, self.num_key_value_heads, self.head_dim))
-        key_states = ops.transpose(key_states, (0, 2, 1, 3))
+        key_states = mint.permute(key_states, (0, 2, 1, 3))
 
         value_states = ops.reshape(value_states, (bsz, kv_len, self.num_key_value_heads, self.head_dim))
-        value_states = ops.transpose(value_states, (0, 2, 1, 3))
+        value_states = mint.permute(value_states, (0, 2, 1, 3))
 
         key_states = repeat_kv(key_states, self.num_key_value_groups)
         value_states = repeat_kv(value_states, self.num_key_value_groups)
 
         # Reshape to the expected shape and dtype for Flash Attention
-        query_states = ops.transpose(query_states, (0, 2, 1, 3))
-        key_states = ops.transpose(key_states, (0, 2, 1, 3))
-        value_states = ops.transpose(value_states, (0, 2, 1, 3))
+        query_states = mint.permute(query_states, (0, 2, 1, 3))
+        key_states = mint.permute(key_states, (0, 2, 1, 3))
+        value_states = mint.permute(value_states, (0, 2, 1, 3))
 
         _, _, _, attn_output = self.flash_attention(query_states, key_states, value_states, None, None, None, None)
         attn_output = ops.reshape(attn_output, (bsz, q_len, -1))
@@ -220,9 +225,10 @@ class PatchEmbed3D(nn.Cell):
         assert h % self.patch_size[1] == 0
         assert w % self.patch_size[2] == 0
 
-        x = ops.transpose(x, (0, 2, 1, 3, 4))
+        x = mint.permute(x, (0, 2, 1, 3, 4))
         x = self.proj(x)  # (B C T H W)
-        x = x.flatten(start_dim=2).swapaxes(1, 2)
+        x = mint.flatten(x, start_dim=2)
+        x = mint.permute(x, (0, 2, 1))
         return x
 
 
@@ -236,9 +242,9 @@ class TimestepEmbedder(nn.Cell):
     ) -> None:
         super().__init__()
         self.mlp = nn.SequentialCell(
-            nn.Dense(frequency_embedding_size, hidden_size, has_bias=False, dtype=dtype),
+            mint.nn.Linear(frequency_embedding_size, hidden_size, bias=False, dtype=dtype),
             ACT2FN[hidden_act],
-            nn.Dense(hidden_size, hidden_size, has_bias=False, dtype=dtype),
+            mint.nn.Linear(hidden_size, hidden_size, bias=False, dtype=dtype),
         )
         self.frequency_embedding_size = frequency_embedding_size
         self.dtype = dtype
@@ -246,11 +252,11 @@ class TimestepEmbedder(nn.Cell):
     @staticmethod
     def timestep_embedding(t: Tensor, dim: int, max_period: int = 10000) -> Tensor:
         half = dim // 2
-        freqs = ops.exp(-ms.numpy.log(max_period) * ops.arange(start=0, end=half, dtype=ms.float32) / half)
-        args = t[:, None].to(ms.float32) * freqs[None]
-        embedding = ops.concat([ops.cos(args), ops.sin(args)], axis=-1)
+        freqs = mint.exp(-mint.log(Tensor(max_period)) * mint.arange(start=0, end=half, dtype=ms.float32) / half)
+        args = ops.unsqueeze(t, 1).to(ms.float32) * ops.unsqueeze(freqs, 0)
+        embedding = mint.cat([mint.cos(args), mint.sin(args)], dim=-1)
         if dim % 2:
-            embedding = ops.concat([embedding, ops.zeros_like(embedding[:, :1])], axis=-1)
+            embedding = mint.cat([embedding, mint.zeros_like(embedding[:, :1])], dim=-1)
         return embedding
 
     def construct(self, t: Tensor) -> Tensor:
@@ -268,7 +274,7 @@ class CaptionEmbedder(nn.Cell):
     ) -> None:
         super().__init__()
         self.proj = nn.SequentialCell(
-            nn.Dense(in_channels, hidden_size, has_bias=False, dtype=dtype),
+            mint.nn.Linear(in_channels, hidden_size, bias=False, dtype=dtype),
             LlamaLayerNorm((hidden_size,), dtype=dtype),
         )
 
