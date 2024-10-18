@@ -333,8 +333,9 @@ class StableDiffusionXLPipeline(
                 text_input_ids = text_inputs.input_ids
                 untruncated_ids = tokenizer(prompt, padding="longest", return_tensors="np").input_ids
 
-                if untruncated_ids.shape[-1] >= text_input_ids.shape[-1] and not ops.equal(
-                    text_input_ids, untruncated_ids
+                if (
+                    untruncated_ids.shape[-1] >= text_input_ids.shape[-1]
+                    and not np.equal(text_input_ids, untruncated_ids[:, : text_input_ids.shape[-1]]).all()
                 ):
                     removed_text = tokenizer.batch_decode(untruncated_ids[:, tokenizer.model_max_length - 1 : -1])
                     logger.warning(
