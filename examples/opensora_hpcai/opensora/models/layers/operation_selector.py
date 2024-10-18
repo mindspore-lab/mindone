@@ -66,7 +66,8 @@ def get_chunk_op():
     if (mode == 0) and (not check_dynamic_mode()):
         return ops.chunk
     else:
-        return chunk_ext
+        # return chunk_ext
+        return ops.chunk
 
 
 def get_split_op():
