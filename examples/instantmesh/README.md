@@ -1,9 +1,14 @@
 # InstantMesh: 3D Mesh Generation from Multiview Images
 
-- [ ] Elaborate on the design methdology in the intro on Oct 2
-- [ ] Training part
+- [x] Elaborate on the design methodology in the intro on Oct 2
+- [x] Training part
 
-This `instantmesh` module under `.../sv3d/models` is implemented for the 3D mesh generation using the multiview images extracted from [the sv3d pipeline](https://github.com/mindspore-lab/mindone/pull/574).
+We support [instantmesh](https://github.com/TencentARC/InstantMesh) for the 3D mesh generation using the multiview images extracted from [the sv3d pipeline](https://github.com/mindspore-lab/mindone/pull/574).
+<p align="center" width="100%">
+  <img width="746" alt="Capture" src="https://github.com/user-attachments/assets/be5cf033-8f89-4cad-97dc-2bf76c1b7a4d">
+</p>
+
+The model consists of a Dino-ViT feature extractor, a triplane feature extraction transformer, and a triplane-to-NeRF synthesizer which also conducts rendering.
 
 A walk-through of the file structure is provided here as below.
 
@@ -93,7 +98,12 @@ python inference.py --ckpt PATH_TO_CKPT \
 ```
 
 ## Training
+```shell
+python train.py --base configs/YOUR_CFG
+```
+
 ### Data Curation
+We used Blender to render multiview frames for a 3D object in `.obj` for training.
 
 ## Acknowledgements
 
