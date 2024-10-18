@@ -28,20 +28,6 @@ class LlamaRMSNorm(nn.Cell):
         return self.weight * hidden_states.to(input_dtype)
 
 
-class LlamaLayerNorm(nn.LayerNorm):
-    def construct(self, hidden_states: Tensor) -> Tensor:
-        input_dtype = hidden_states.dtype
-        hidden_states = hidden_states.to(ms.float32)
-        hidden_states = mint.layer_norm(
-            hidden_states,
-            self.normalized_shape,
-            self.gamma.to(hidden_states.dtype),
-            self.beta.to(hidden_states.dtype),
-            eps=self.epsilon,
-        )
-        return hidden_states.to(input_dtype)
-
-
 class LlamaMLP(nn.Cell):
     def __init__(
         self,
@@ -232,6 +218,35 @@ class PatchEmbed3D(nn.Cell):
         return x
 
 
+class LinearPatchEmbed3D(nn.Cell):
+    def __init__(
+        self,
+        patch_size: Tuple[int, int, int] = (1, 2, 2),
+        in_channels: int = 8,
+        hidden_size: int = 4096,
+        dtype: ms.Type = ms.float32,
+    ) -> None:
+        super().__init__()
+        self.patch_size = patch_size
+        self.proj = mint.nn.Linear(
+            patch_size[0] * patch_size[1] * patch_size[2] * in_channels, hidden_size, bias=False, dtype=dtype
+        )
+
+    def construct(self, x: Tensor) -> Tensor:
+        b, t, c, h, w = x.shape
+        assert t % self.patch_size[0] == 0
+        assert h % self.patch_size[1] == 0
+        assert w % self.patch_size[2] == 0
+
+        p0, p1, p2 = self.patch_size[0], self.patch_size[1], self.patch_size[2]
+        nt, nh, nw = t // p0, h // p1, w // p2
+        x = ops.reshape(x, (b, nt, p0, c, nh, p1, nw, p2))
+        x = mint.permute(x, (0, 1, 4, 6, 3, 2, 5, 7))  # (B, nt, nh, nw, c, p0, p1, p2)
+        x = ops.reshape(x, (b, nt * nh * nw, -1))
+        x = self.proj(x)
+        return x
+
+
 class TimestepEmbedder(nn.Cell):
     def __init__(
         self,
@@ -270,12 +285,13 @@ class CaptionEmbedder(nn.Cell):
         self,
         in_channels: int,
         hidden_size: int,
+        eps: float = 1e-6,
         dtype: ms.Type = ms.float32,
     ) -> None:
         super().__init__()
         self.proj = nn.SequentialCell(
             mint.nn.Linear(in_channels, hidden_size, bias=False, dtype=dtype),
-            LlamaLayerNorm((hidden_size,), dtype=dtype),
+            LlamaRMSNorm((hidden_size,), epsilon=eps, dtype=dtype),
         )
 
     def construct(self, caption: Tensor) -> Tensor:
