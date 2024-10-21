@@ -6,9 +6,12 @@
 
 | platform | mindspore      | ascend driver | firmware    | cann toolkit/kernel |
 | -------- | -------------- | ------------- | ----------- | ------------------- |
-| 910*     | 2.2.10～2.2.12 | 23.0.3        | 7.1.0.5.220 | 7.0.0 beta1         |
+| 910*     | 2.2.10～2.2.12 | 23.0.3        | 7.1.0.5.220 | 7.0.0.beta1         |
+| 910*     | 2.3.0/2.3.1    | 24.1.RC2      | 7.3.0.1.231 | 8.0.R2.beta1        |
 
 > Notes: All the features should work on MindSpore 2.2.10～2.2.12 on Ascend 910*. The finetune methods (vallina/lora/dreambooth) are adapted to MindSpore 2.3.0/2.3.1 on the [branch v0.2.0](https://github.com/mindspore-lab/mindone/tree/v0.2.0) and will be merged into the master branch later. In the future MindSpore version, `mindone.diffusers` are recommended for SDXL training and inference.
+>
+> Please refer to [feature-supporting maps](../README.md#Features) for MindSpore version selection.
 
 - openmpi 4.0.3 (for distributed mode)
 

@@ -4,14 +4,7 @@ This document provides a brief introduction to the usage of built-in command-lin
 
 ## Dependency
 
-- mindspore 2.2
-- openmpi 4.0.3 (for distributed mode)
-
-To install the dependency, please run
-
-```shell
-pip install -r requirements.txt
-```
+See [installation](./installation.md) and [feature-supporting maps](../README.md#Features).
 
 ## Preparation
 
@@ -90,9 +83,10 @@ To use them, please download `pokemon_blip.zip` or `chinese_art_blip.zip` from t
 
 </details>
 
-
 #### Training with Webdataset
 
+>  ⚠️ Only maintained on mindspore 2.2.1x.
+>
 > Please run `tools/data_check/get_wds_num_samples.py` on the new dataset to get the sample size of new dataset.
 
 <details onclose>
@@ -195,17 +189,17 @@ We provide a demo for text-to-image sampling in `demo/sampling_without_streamlit
 
 After obtaining the weights, place them into checkpoints/. Next, start the demo using
 
-1. (Recommend) Run with interactive visualization:
+1. Run with interactive visualization: (⚠️ Only maintained on mindspore 2.2.1x)
 
 ```shell
-# (recommend) run with streamlit
+# run with streamlit
 export PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION=python
 streamlit run demo/sampling.py --server.port <your_port>
 ```
 
-> If you have network issues on downloading clip tokenizer, please manually download `openai/clip-vit-large-patch14` from huggingface and change `version: openai/clip-vit-large-patch14` in `configs/inference/sd_xl_base.yaml` to `version: your_path/to/clip-vit-large-patch14`
+> If you have network issues on downloading clip tokenizer, please manually download `openai/clip-vit-large-patch14` from huggingface and change `version: openai/clip-vit-large-patch14` in `configs/inference/sd_xl_base.yaml` to `version: your_path/to/clip-vit-large-patch14`.
 
-2. Run with other methods:
+2. Run with `sampling_without_streamlit.py` script:
 
 <details close>
 
@@ -360,6 +354,8 @@ For details, please refer to [textual_inversion_finetune.md](./textual_inversion
 
 #### 5. Long prompts support, example as:
 
+> Note: ⚠️ Only maintained on mindspore 2.2.1x.
+
 <details close>
 
 By default, SDXL only supports the token sequence no longer than 77. For those sequences longer than 77, they will be truncated to 77, which can cause information loss.
@@ -374,6 +370,8 @@ python train.py \
 </details>
 
 #### 6. EDM training
+
+> Note: ⚠️ Only maintained on mindspore 2.2.1x.
 
 <details close>
 

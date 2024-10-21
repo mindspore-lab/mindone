@@ -1,10 +1,24 @@
 # Stable Diffusion XL
 
-This folder contains [Stable Diffusion XL (SDXL)](https://arxiv.org/abs/2307.01952) models implemented with [MindSpore](https://www.mindspore.cn/), reference to [Official Implementation](https://github.com/Stability-AI/generative-models) by Stability-AI.
+This folder contains [Stable Diffusion XL (SDXL)](https://arxiv.org/abs/2307.01952) models implemented with [MindSpore](https://www.mindspore.cn/), with a reference to the [Official Implementation](https://github.com/Stability-AI/generative-models) by Stability-AI.
 
-> Notes: All the features should work on MindSpore 2.2.1x on Ascend 910*. The finetune methods (vallina/lora/dreambooth) are adapted to MindSpore 2.3.0/2.3.1 on the [branch v0.2.0](https://github.com/mindspore-lab/mindone/tree/v0.2.0) and will be merged into the master branch later. We do not plan on maintaining all the features in the future MindSpore version. Instead, [`mindone.diffusers`](https://github.com/mindspore-lab/mindone/tree/master/mindone/diffusers) and [example/diffusers](https://github.com/mindspore-lab/mindone/tree/master/examples/diffusers) are recommended for SDXL training and inference.
+> [!IMPORTANT]
+>
+> All the features should work on MindSpore 2.2.1x on Ascend 910*. The finetune methods (vallina/lora/dreambooth) are adapted to MindSpore 2.3.0/2.3.1 on the [branch v0.2.0](https://github.com/mindspore-lab/mindone/tree/v0.2.0) and will be merged into the master branch later. We plan on maintaining only some of the features in the future MindSpore version. Instead, [`mindone.diffusers`](https://github.com/mindspore-lab/mindone/tree/master/mindone/diffusers) and [example/diffusers](https://github.com/mindspore-lab/mindone/tree/master/examples/diffusers) are recommended for SDXL training and inference.
 
 ## Features
+
+**Features adapted to 2.3.0 / 2.3.1:**
+
+- [x] Infer: Text-to-image generation with SDXL-1.0-Base/SDXL-1.0-PipeLine
+- [x] Infer: Image-to-image generation with SDXL-1.0-Refiner
+- [x] Infer: euler edm sampler (maintain the default sampler)
+- [x] Finetune: Vanilla Finetune with SDXL-1.0-Base (maintain basic functions only)
+- [x] Finetune: DreamBooth lora fine-tune with SDXL-1.0-Base  (maintain basic functions only)
+- [x] Finetune: Lora fine-tune with SDXL-1.0-Base (maintain basic functions only)
+- [x] CSV format datasets for training
+
+**Features supported on mindspore 2.2.10-2.2.12:**
 
 - [x] Infer: Text-to-image generation with SDXL-1.0-Base/SDXL-1.0-PipeLine.
 - [x] Infer: Image-to-image generation with SDXL-1.0-Refiner.
@@ -19,6 +33,32 @@ This folder contains [Stable Diffusion XL (SDXL)](https://arxiv.org/abs/2307.019
 - [x] LoRA model conversion for Torch inference, refer to [tutorial](tools/lora_conversion/README_CN.md)
 - [x] Memory Efficient Sampling and Tuning: [Flash-Attention](https://arxiv.org/abs/2205.14135), Auto-Mix-Precision, Recompute, etc. (under continuous update)
 - [x] Dataset supports csv/[webdataset](https://github.com/webdataset/webdataset/)/[wids](https://github.com/webdataset/webdataset?tab=readme-ov-file#the-wids-library-for-indexed-webdatasets) format.
+
+**Supporting maps:**
+
+* Online Inference
+
+| Device      | Mindspore     | [Model] SDXL-Base | [Model] SDXL-Pipeline | [Model] SDXL-Refiner | [Func] Samplers | [Func] Flash Attn |
+| ----------- | ------------- | ----------------- | --------------------- | -------------------- | --------------- | ----------------- |
+| Ascend 910* | 2.3.0/2.3.1   | ✅                 | ✅                     | ✅                    | Euler EDM       | ✅                 |
+| Ascend 910* | 2.2.10~2.2.12 | ✅                 | ✅                     | ✅                    | 7 samplers      | ✅                 |
+| Ascend 910  | 2.2.10~2.2.12 | ✅                 | ❌                     | ❌                    | Euler EDM       | ✅                 |
+
+* Offline Inference
+
+| Device      | Mindspore   | MindSpore Lite | [Model] SDXL-Base | [Func] Samplers |
+| ----------- | ----------- | -------------- | ----------------- | --------------- |
+| Ascend 910* | 2.3.0/2.3.1 | 2.3.0/2.3.1    | ❌                 | ❌               |
+| Ascend 910* | 2.2.10      | 2.2.10         | ✅                 | Euler EDM       |
+| Ascend 910  | 2.1.0       | 2.1.0          | ✅                 | Euler EDM       |
+| Ascend 310p | 2.1.0       | 2.1.0          | ✅                 | Euler EDM       |
+
+* Finetune with SDXL-1.0-Base
+
+| Device      | Mindspore     | Vallina | Dreambooth | LoRA | Textual Inversion | ControlNet |
+| ----------- | ------------- | ------- | ---------- | ---- | ----------------- | ---------- |
+| Ascend 910* | 2.3.0/2.3.1   | ✅       | ✅          | ✅    | ❌                 | ❌          |
+| Ascend 910* | 2.2.10~2.2.12 | ✅       | ✅          | ✅    | ✅                 | ✅          |
 
 ## Documentation
 

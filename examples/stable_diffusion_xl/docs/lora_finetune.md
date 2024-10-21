@@ -33,17 +33,16 @@ python demo/sampling_without_streamlit.py \
   --device_target Ascend
 ```
 
-
 ### Benchmark
 
-#### Training
+The LoRA training benchmark below was tested on MindSpore 2.2.10 or 2.3.1 with graph mode on Ascend 910*,
 
-The results below were tested on Mindspore 2.2.10 on 910* with a single card, but Mindspore 2.2.10~2.2.12 should work.
-
-| Model Name      |  Method      | Global Batch Size x Grad. Accu. |   Resolution       |   Acceleration   |   Time(ms/step)  |   FPS (img/s)|
-|---------------|---------------|--------------|:-------------------:|:------------------:|:----------------:|:----------------:|:----------------:|
-| SDXL-Base     |    lora   |      1x1             |     1024x1024         | Graph,DS   |       539.77         |    1.85       |
-| SDXL-Base     |    lora   |      1x1             |     1024x1024         | Graph,FA, DS  |       524.38          |    1.91   |
+| Model Name      | Device | Card | MindSpore | bs * grad accu. |   Resolution       |   acceleration   |   Time(ms/step)  |   FPS (img/s)|
+|---------------|--------------|:-------------------:|:------------------:|:----------------:|:----------------:|:----------------:|------------------|:----------------:|
+| SDXL-Base     |      910*      |      1            |      2.2.10      |      1x1             |     1024x1024         | DS           |       539.77         |    1.85       |
+| SDXL-Base     |      910*         |      1            |      2.2.10       |      1x1             |     1024x1024         | FA, DS |       524.38          |    1.91   |
+| SDXL-Base | 910* | 1 | 2.3.1 | 1x1 | 1024x1024 | DS           | 553.47 | 1.80 |
+| SDXL-Base | 910* | 1 | 2.3.1 | 1x1 | 1024x1024 | FA, DS       | 446.74 | 2.24 |
 > Acceleration: DS: data sink mode. FA: flash attention.
 >
 >FPS: images per second during training. average training time (s/step) = batch_size / FPS

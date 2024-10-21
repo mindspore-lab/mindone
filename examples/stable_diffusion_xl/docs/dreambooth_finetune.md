@@ -16,7 +16,7 @@ The `train_dreambooth.py` script implements DreamBooth finetune for SDXL based o
 
 Make sure the following frameworks are installed.
 
-- mindspore 2.1.0 (Ascend 910) / mindspore 2.2.10~2.2.12 (Ascend 910*)
+- mindspore 2.2.10~2.2.12 or mindspore 2.3.0/2.3.1 on Ascend 910*
 - openmpi 4.0.3 (for distributed mode)
 
 Enter the `example/stable_diffusion_xl` folder and run
@@ -111,12 +111,12 @@ Alongside the Unet, **training with the two text encoders in SDXL is also suppor
 
 Notice that the training command above gets finetuned lora weights in the specified `save_path`. Now we could use the inference command to generate images on a given prompt. Assume that the pretrained ckpt path is `checkpoints/sd_xl_base_1.0_ms.ckpt` and the trained lora ckpt path is `runs/SDXL_base_1.0_1000_lora.ckpt`, examples of inference command are as below.
 
-* (Recommend) Run with interactive visualization.
+* Run with interactive visualization.
 
   Replace the path of weights and yaml file at the constant `VERSION2SPECS`  in `demo/sampling.py`  , specify the prompt in `__main__` and run:
 
   ```shell
-  # (recommend) run with streamlit
+  # run with streamlit
   export PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION=python
   streamlit run demo/sampling.py --server.port <your_port>
   ```
@@ -159,3 +159,13 @@ The [dog6](https://github.com/google/dreambooth/tree/main/dataset/dog6) example 
 
 <p align="center">
   <img src="https://github.com/mindspore-lab/mindone/assets/33061146/6b2a6656-10a0-4d9d-8542-a9fa0527bc8a" width=700 />
+
+
+## Benchmark
+
+The training results below use the Dreambooth method with LoRA and enable UNet training only.
+
+| Model Name      | Device | Card | MindSpore | bs * grad accu. |   Resolution       |   Time(ms/step)  |
+|---------------|:-------------------:|:------------------:|:----------------:|:----------------:|------------------|:----------------:|
+| SDXL-Base     |      910*      |      1            |      2.2.12      |      1x1             |     1024x1024         |       1280       |
+| SDXL-Base     |      910*         |      1            |      2.3.1      |      1x1             |     1024x1024         |       1100       |

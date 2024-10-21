@@ -8,7 +8,7 @@
 
 ### 1. Install MindSpore
 
-Please install MindSpore 2.1.0 or 2.2.10 refer to [MindSpore Install](https://www.mindspore.cn/install) and the benchmark below.
+Please install MindSpore 2.1.0 or 2.2.10 refer to [MindSpore Install](https://www.mindspore.cn/install) and the [benchmark](#BenchMark) below.
 
 ### 2. Install MindSpore Lite
 
@@ -122,7 +122,7 @@ You can get images at "output/samples".
 </details>
 
 
-## BenchMark (Offline Infer)
+## BenchMark
 
 | Model Name     | Device      | MindSpore | MindSpore Lite | Task     | ImageSize | PerBatchSize | Sample Step | Time Per Image |
 |----------------|-------------|-----------|----------------|----------|-----------|--------------|-------------|----------------|
@@ -131,14 +131,3 @@ You can get images at "output/samples".
 | sd_xl_base_1.0 | Ascend 310P | 2.1.0     | 2.1.0          | text2img | 1024*1024 | 1            | 40          | 118 s          |
 
 The sampler schedule is euler_edm.
-
-
-## Support
-
-### Device Inference Mode Support
-
-| Device      | Online Inference (MindSpore) | Offline Inference (Lite)  |
-|-------------|------------------------------|---------------------------|
-| Ascend 910* | ✅                            | ✅                         |
-| Ascend 910  | ✅                            | ✅                         |
-| Ascend 310P | -                            | ✅                         |

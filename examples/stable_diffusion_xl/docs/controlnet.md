@@ -115,7 +115,7 @@ You can check all arguments description by running `python demo/sampling_without
 ## Training
 
 ### Prepare init model weight
-**Step1**: Convert SDXL-base-1.0 model weight from Diffusers to MindONE, refer to [here](../../GETTING_STARTED.md#convert-pretrained-checkpoint). Get `sd_xl_base_1.0_ms.ckpt`.
+**Step1**: Convert SDXL-base-1.0 model weight from Diffusers to MindONE, refer to [here](GETTING_STARTED.md#convert-pretrained-checkpoint). Get `sd_xl_base_1.0_ms.ckpt`.
 
 **Step2**:
 

@@ -31,15 +31,15 @@ Download the official pre-train weights from huggingface, convert the weights fr
 
 ### 1. Inference with SDXL-Base
 
-- (Recommend) Run with interactive visualization:
+- Run with interactive visualization (⚠️ only maintained on mindspore 2.2.1x):
 
 ```shell
-# (recommend) run with streamlit
+# run with streamlit
 export PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION=python
 streamlit run demo/sampling.py --server.port <your_port>
 ```
 
-- Run with other methods:
+- Run with `sampling_without_streamlit.py` script:
 
 ```shell
 # run sdxl-base txt2img without streamlit on Ascend
@@ -73,14 +73,18 @@ python demo/sampling_without_streamlit.py \
 
 ### 3. Inference with T2i-Adapter
 
-[T2I-Adapter](../t2i_adapter/README.md) is a simple and lightweight network that provides extra visual guidance for
+> Note: ⚠️ Only maintained on mindspore 2.1.
+
+[T2I-Adapter](../../t2i_adapter/README.md) is a simple and lightweight network that provides extra visual guidance for
 Stable Diffusion models without re-training them. The adapter act as plug-ins to SDXL models, making it easy to
 integrate and use.
 
 For more information on inference and training with T2I-Adapters, please refer
-to [T2I-Adapter](../t2i_adapter/README.md) page.
+to [T2I-Adapter](../../t2i_adapter/README.md) page.
 
 ### 4. Inference with ControlNet
+
+> Note: ⚠️ Only maintained on mindspore 2.2.1x.
 
 [ControlNet](https://arxiv.org/abs/2302.05543) controls pretrained large diffusion models to support additional input conditions. The ControlNet learns task-specific conditions in an end-to-end way, and the learning is robust even when the training dataset is small. Large diffusion models like Stable Diffusion can be augmented with ControlNets to enable conditional inputs like canny edge maps, segmentation maps, keypoints, etc.
 
@@ -132,20 +136,19 @@ The `denoiser_config` of the model in yaml config file together with the args of
 
 ### 6. Benchmark
 
-The results below were tested on 910 and 910*, with MindSpore 2.2.12.
 
-<div align="center">
+| Model Name    | Device      | MindSpore | ImageSize | Compile Cost |Flash Attention| Sampler  | Sample Step | Sample Time |
+|---------------|-------------|-----------|--------------|---------------|----------|-------------|-------------|-------------|
+| SDXL-Base     | Ascend 910* | 2.2.12 | 1024x1024 | 182s         | ON            | EulerEDM | 40          | 6.66s       |
+| SDXL-Base     | Ascend 910* | 2.2.12 | 1024x1024 | 182s         | ON            | DPM++2M Karras | 20    | 4.3s        |
+| SDXL-Base     | Ascend 910  | 2.2.12 | 1024x1024 | 295s         | OFF           | DPM++2M Karras | 20    | 17s         |
+| SDXL-Base     | Ascend 910  | 2.2.12 | 1024x1024 | 280s         | ON            | DPM++2M Karras | 20    | 14.5s       |
+| SDXL-Base     | Ascend 910* | 2.3.1 | 1024x1024 | 533.59s   | ON            | EulerEDM | 40          | 6.78s     |
+| SDXL-Base     | Ascend 910* | 2.3.1 | 1024x1024 | 631.39s   | ON            | DPM++2M Karras | 20    | 3.62s  |
+| SDXL-Refiner | Ascend 910* | 2.3.1 | 1024x1024 | 395.14s        | ON            | EulerEDM | 40          | 10.18s  |
+| SDXL-Pipeline | Ascend 910* | 2.3.1 | 1024x1024 | 324.83s/236.9s | ON            | EulerEDM | 20    | 5.78s/2.15s |
 
-| Model Name    | Device      | ImageSize | Compile Cost |Flash Attention| Sampler  | Sample Step | Sample Time |
-|---------------|-------------|-----------|--------------|---------------|----------|-------------|-------------|
-| SDXL-Base     | Ascend 910* | 1024x1024 | 182s         | ON            | EulerEDM | 40          | 6.66s       |
-| SDXL-Base     | Ascend 910* | 1024x1024 | 182s         | ON            | DPM++2M Karras | 20    | 4.3s        |
-| SDXL-Base     | Ascend 910  | 1024x1024 | 295s         | OFF           | DPM++2M Karras | 20    | 17s         |
-| SDXL-Base     | Ascend 910  | 1024x1024 | 280s         | ON            | DPM++2M Karras | 20    | 14.5s       |
-</div>
-<br>
-
-Note: Please refer to [FAQ](./faq_cn.md) Question 6 if using Flash Attention on Ascend 910.
+> Note: Please refer to [FAQ](./faq_cn.md) Question 6 if using Flash Attention on Ascend 910.
 
 
 ## Offline Inference
