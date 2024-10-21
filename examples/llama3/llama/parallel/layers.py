@@ -100,7 +100,7 @@ class ColumnParallelLinear(nn.Cell):
         self.out_features_per_partition = out_features // self.group_size
         self.gather_output = gather_output
 
-        self.copy_to_model_parallel_region = _CopyToModelParallelRegion(group)
+        self.copy_to_tensor_parallel_region = _CopyToModelParallelRegion(group)
         self.linear = mint.nn.Linear(
             in_features,
             self.out_features_per_partition,
@@ -110,13 +110,13 @@ class ColumnParallelLinear(nn.Cell):
             dtype=dtype,
         )
         if self.gather_output:
-            self.gather_from_model_parallel_region = _GatherFromModelParallelRegion(group)
+            self.gather_from_tensor_parallel_region = _GatherFromModelParallelRegion(group)
 
     def construct(self, x: Tensor) -> Tensor:
-        x = self.copy_to_model_parallel_region(x)
+        x = self.copy_to_tensor_parallel_region(x)
         x = self.linear(x)
         if self.gather_output:
-            x = self.gather_from_model_parallel_region(x)
+            x = self.gather_from_tensor_parallel_region(x)
         return x
 
 
@@ -141,7 +141,7 @@ class RowParallelLinear(nn.Cell):
         self.in_features_per_partition = in_features // self.group_size
         self.input_is_parallel = input_is_parallel
 
-        self.reduce_from_model_parallel_region = _ReduceFromModelParallelRegion(group)
+        self.reduce_from_tensor_parallel_region = _ReduceFromModelParallelRegion(group)
         self.linear = mint.nn.Linear(
             self.in_features_per_partition,
             out_features,
@@ -151,11 +151,11 @@ class RowParallelLinear(nn.Cell):
             dtype=dtype,
         )
         if not self.input_is_parallel:
-            self.scatter_to_model_parallel_region = _ScatterToModelParallelRegion(group)
+            self.scatter_to_tensor_parallel_region = _ScatterToModelParallelRegion(group)
 
     def construct(self, x: Tensor) -> Tensor:
         if not self.input_is_parallel:
-            x = self.scatter_to_model_parallel_region(x)
+            x = self.scatter_to_tensor_parallel_region(x)
         x = self.linear(x)
-        x = self.reduce_from_model_parallel_region(x)
+        x = self.reduce_from_tensor_parallel_region(x)
         return x

@@ -3,7 +3,7 @@ from typing import Literal
 
 import numpy as np
 from llama.parallel import ColumnParallelLinear, RowParallelLinear
-from llama.parallel.parallel_states import create_parallel_group, get_model_parallel_group
+from llama.parallel.parallel_states import create_parallel_group, get_tensor_parallel_group
 
 import mindspore as ms
 import mindspore.mint as mint
@@ -59,7 +59,7 @@ def run_parallel_linear(data: Tensor, type: Literal["column_parallel", "row_para
 
     # parallel layer
     create_parallel_group(get_group_size())
-    group = get_model_parallel_group()
+    group = get_tensor_parallel_group()
     set_random_seed(1024)
     parallel_layer_cfg = get_layer_config()
     if type == "column_parallel":
@@ -67,15 +67,15 @@ def run_parallel_linear(data: Tensor, type: Literal["column_parallel", "row_para
     else:
         parallel_layer = RowParallelLinear(**parallel_layer_cfg, input_is_parallel=False, group=group, dtype=dtype)
 
-    mp_size = get_group_size(group)
-    mp_rank = get_rank(group)
+    tp_size = get_group_size(group)
+    tp_rank = get_rank(group)
     for (_, w0), (_, w1) in zip(non_parallel_layer.parameters_and_names(), parallel_layer.parameters_and_names()):
         if type == "column_parallel":
-            w0_col = ops.chunk(w0, mp_size, axis=0)[mp_rank]
+            w0_col = ops.chunk(w0, tp_size, axis=0)[tp_rank]
             w1.set_data(w0_col)
         else:
             if len(w0.shape) > 1:
-                w0_row = ops.chunk(w0, mp_size, axis=1)[mp_rank]  # weight
+                w0_row = ops.chunk(w0, tp_size, axis=1)[tp_rank]  # weight
             else:
                 w0_row = w0  # bias no need to be chunked
             w1.set_data(w0_row)
