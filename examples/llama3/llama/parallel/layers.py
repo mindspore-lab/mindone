@@ -9,7 +9,7 @@ from mindspore import Tensor
 from mindspore.common.initializer import Initializer
 from mindspore.communication import GlobalComm, get_group_size, get_rank
 
-__all__ = ["ColumnParallelLinear"]
+__all__ = ["ColumnParallelLinear", "RowParallelLinear"]
 
 
 def _communicate_along_dim(x: Tensor, dim: int, func: Callable[[Tensor], Tensor]) -> Tensor:
@@ -36,6 +36,33 @@ class _CopyToModelParallelRegion(nn.Cell):
 
     def bprop(self, x: Tensor, out: Tensor, dout: Tensor) -> Tuple[Tensor]:
         dout = self.reduce(dout)
+        return (dout,)
+
+
+class _ReduceFromModelParallelRegion(nn.Cell):
+    def __init__(self, group: str = GlobalComm.WORLD_COMM_GROUP) -> None:
+        super().__init__(auto_prefix=False)
+        self.reduce = ops.AllReduce(op=ops.ReduceOp.SUM, group=group)
+
+    def construct(self, x: Tensor) -> Tensor:
+        return self.reduce(x)
+
+    def bprop(self, x: Tensor, out: Tensor, dout: Tensor) -> Tuple[Tensor]:
+        return (dout,)
+
+
+class _ScatterToModelParallelRegion(nn.Cell):
+    def __init__(self, group: str = GlobalComm.WORLD_COMM_GROUP) -> None:
+        super().__init__(auto_prefix=False)
+        self.gather = ops.AllGather(group=group)
+        self.rank = get_rank(group)
+        self.world_size = get_group_size(group)
+
+    def construct(self, x: Tensor) -> Tensor:
+        return _split(x, -1, self.rank, self.world_size)
+
+    def bprop(self, x: Tensor, out: Tensor, dout: Tensor) -> Tuple[Tensor]:
+        dout = _communicate_along_dim(dout, -1, self.gather)
         return (dout,)
 
 
@@ -90,4 +117,45 @@ class ColumnParallelLinear(nn.Cell):
         x = self.linear(x)
         if self.gather_output:
             x = self.gather_from_model_parallel_region(x)
+        return x
+
+
+class RowParallelLinear(nn.Cell):
+    def __init__(
+        self,
+        in_features: int,
+        out_features: int,
+        bias: bool = False,
+        weight_init: Union[None, Tensor, str, Initializer, numbers.Number] = None,
+        bias_init: Union[None, Tensor, str, Initializer, numbers.Number] = None,
+        input_is_parallel: bool = False,
+        group: str = GlobalComm.WORLD_COMM_GROUP,
+        dtype: Optional[ms.Type] = None,
+    ):
+        # FIXME: add bias support
+        assert bias is False, "Not Implemented."
+        super().__init__(auto_prefix=False)
+
+        self.group_size = get_group_size(group)
+        assert in_features % self.group_size == 0
+        self.in_features_per_partition = in_features // self.group_size
+        self.input_is_parallel = input_is_parallel
+
+        self.reduce_from_model_parallel_region = _ReduceFromModelParallelRegion(group)
+        self.linear = mint.nn.Linear(
+            self.in_features_per_partition,
+            out_features,
+            bias=bias,
+            weight_init=weight_init,
+            bias_init=bias_init,
+            dtype=dtype,
+        )
+        if not self.input_is_parallel:
+            self.scatter_to_model_parallel_region = _ScatterToModelParallelRegion(group)
+
+    def construct(self, x: Tensor) -> Tensor:
+        if not self.input_is_parallel:
+            x = self.scatter_to_model_parallel_region(x)
+        x = self.linear(x)
+        x = self.reduce_from_model_parallel_region(x)
         return x

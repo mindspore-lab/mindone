@@ -1,13 +1,15 @@
 import argparse
+from typing import Literal
 
 import numpy as np
-from llama.parallel import ColumnParallelLinear
+from llama.parallel import ColumnParallelLinear, RowParallelLinear
 from llama.parallel.parallel_states import create_parallel_group, get_model_parallel_group
 
 import mindspore as ms
 import mindspore.mint as mint
 import mindspore.nn as nn
 import mindspore.ops as ops
+from mindspore import Tensor
 from mindspore.communication import get_group_size, get_rank, init
 
 from mindone.utils.seed import set_random_seed
@@ -23,13 +25,14 @@ class MeanNet(nn.Cell):
         return output.mean()
 
 
-def get_sample_data():
+def get_sample_data() -> Tensor:
     x = ops.rand([4, 64, 256], dtype=ms.float32)  # (N, T, H)
     return x
 
 
 def get_layer_config():
-    config = dict(in_features=256, out_features=32, bias=True)
+    # TODO: add bias when row parallel layer supports
+    config = dict(in_features=256, out_features=32, bias=False)
     return config
 
 
@@ -42,6 +45,13 @@ def run_layer(mode: int = 0, dtype: ms.Type = ms.float32):
     set_random_seed(1024)
     data = get_sample_data()
 
+    print("Column Parallel Linear:")
+    run_parallel_linear(data, type="column_parallel", dtype=dtype)
+    print("Row Parallel Linear:")
+    run_parallel_linear(data, type="row_parallel", dtype=dtype)
+
+
+def run_parallel_linear(data: Tensor, type: Literal["column_parallel", "row_parallel"], dtype: ms.Type = ms.float32):
     # non parallel layer
     set_random_seed(1024)
     non_parallel_layer_cfg = get_layer_config()
@@ -52,13 +62,23 @@ def run_layer(mode: int = 0, dtype: ms.Type = ms.float32):
     group = get_model_parallel_group()
     set_random_seed(1024)
     parallel_layer_cfg = get_layer_config()
-    parallel_layer = ColumnParallelLinear(**parallel_layer_cfg, gather_output=True, group=group, dtype=dtype)
+    if type == "column_parallel":
+        parallel_layer = ColumnParallelLinear(**parallel_layer_cfg, gather_output=True, group=group, dtype=dtype)
+    else:
+        parallel_layer = RowParallelLinear(**parallel_layer_cfg, input_is_parallel=False, group=group, dtype=dtype)
 
     mp_size = get_group_size(group)
     mp_rank = get_rank(group)
     for (_, w0), (_, w1) in zip(non_parallel_layer.parameters_and_names(), parallel_layer.parameters_and_names()):
-        w0_p = ops.chunk(w0, mp_size, axis=0)[mp_rank]
-        w1.set_data(w0_p)
+        if type == "column_parallel":
+            w0_col = ops.chunk(w0, mp_size, axis=0)[mp_rank]
+            w1.set_data(w0_col)
+        else:
+            if len(w0.shape) > 1:
+                w0_row = ops.chunk(w0, mp_size, axis=1)[mp_rank]  # weight
+            else:
+                w0_row = w0  # bias no need to be chunked
+            w1.set_data(w0_row)
 
     # test forward
     non_parallel_out = non_parallel_layer(data)
@@ -82,7 +102,10 @@ def run_layer(mode: int = 0, dtype: ms.Type = ms.float32):
     allgather = ops.AllGather(group=group)
     syn_parallel_grads = list()
     for x in parallel_grads:
-        syn_parallel_grads.append(allgather(x))
+        if type == "column_parallel":
+            syn_parallel_grads.append(allgather(x))
+        else:
+            syn_parallel_grads.append(allgather(x.swapaxes(0, 1)).swapaxes(0, 1))
 
     for grad_0, grad_1 in zip(non_parallel_grads, syn_parallel_grads):
         np.testing.assert_allclose(grad_0.asnumpy(), grad_1.asnumpy(), atol=1e-5)
