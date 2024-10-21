@@ -52,7 +52,7 @@ def parse_train_args(parser):
         "--model_version",
         default="v1",
         type=str,
-        choices=["v1", "v1.1", "v1.2", "llama3_1b"],
+        choices=["v1", "v1.1", "v1.2", "llama3_1b", "llama3_5b"],
         help="OpenSora model version.",
     )
     parser.add_argument(

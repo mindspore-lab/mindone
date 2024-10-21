@@ -256,6 +256,9 @@ def main(args):
     elif args.model_version == "llama3_1b":
         model_name = "Llama3-1B"
         latte_model = STDiTLlama3Wrapper(model_size="1B", **model_extra_args)
+    elif args.model_version == "llama3_5b":
+        model_name = "Llama3-5B"
+        latte_model = STDiTLlama3Wrapper(model_size="5B", **model_extra_args)
     else:
         raise ValueError(f"Unknown model version: {args.model_version}")
 
@@ -526,7 +529,7 @@ def parse_args():
         "--model_version",
         default="v1",
         type=str,
-        choices=["v1", "v1.1", "v1.2", "llama3_1b"],
+        choices=["v1", "v1.1", "v1.2", "llama3_1b", "llama3_5b"],
         help="OpenSora model version.",
     )
     parser.add_argument("--image_size", type=int, nargs="+", help="image size in [256, 512]")
