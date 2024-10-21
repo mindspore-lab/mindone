@@ -2,11 +2,12 @@
 
 This folder contains [Stable Diffusion XL (SDXL)](https://arxiv.org/abs/2307.01952) models implemented with [MindSpore](https://www.mindspore.cn/), with a reference to the [Official Implementation](https://github.com/Stability-AI/generative-models) by Stability-AI.
 
+## Features
+
 > [!IMPORTANT]
 >
 > All the features should work on MindSpore 2.2.1x on Ascend 910*. The finetune methods (vallina/lora/dreambooth) are adapted to MindSpore 2.3.0/2.3.1 on the [branch v0.2.0](https://github.com/mindspore-lab/mindone/tree/v0.2.0) and will be merged into the master branch later. We plan on maintaining only some of the features in the future MindSpore version. Instead, [`mindone.diffusers`](https://github.com/mindspore-lab/mindone/tree/master/mindone/diffusers) and [example/diffusers](https://github.com/mindspore-lab/mindone/tree/master/examples/diffusers) are recommended for SDXL training and inference.
 
-## Features
 
 **Features adapted to 2.3.0 / 2.3.1:**
 

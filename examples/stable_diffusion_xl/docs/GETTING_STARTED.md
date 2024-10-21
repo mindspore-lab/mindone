@@ -189,7 +189,7 @@ We provide a demo for text-to-image sampling in `demo/sampling_without_streamlit
 
 After obtaining the weights, place them into checkpoints/. Next, start the demo using
 
-1. Run with interactive visualization: (⚠️ Only maintained on mindspore 2.2.1x)
+1. Run with interactive visualization (⚠️ only maintained on mindspore 2.2.1x):
 
 ```shell
 # run with streamlit
@@ -266,16 +266,16 @@ When running inference with `demo/sampling.py`, you can simply input your long p
 
 ### Offline Infer
 
-See [offline_inference](./offline_inference/README.md).
+See [offline_inference](../offline_inference/README.md).
 
 ### Inference with T2i-Adapter
 
-[T2I-Adapter](../t2i_adapter/README.md) is a simple and lightweight network that provides extra visual guidance for
+[T2I-Adapter](../../t2i_adapter/README.md) is a simple and lightweight network that provides extra visual guidance for
 Stable Diffusion models without re-training them. The adapter act as plug-ins to SDXL models, making it easy to
 integrate and use.
 
 For more information on inference and training with T2I-Adapters, please refer
-to [T2I-Adapter](../t2i_adapter/README.md) page.
+to [T2I-Adapter](../../t2i_adapter/README.md) page.
 
 ### Inference with ControlNet
 
@@ -354,8 +354,6 @@ For details, please refer to [textual_inversion_finetune.md](./textual_inversion
 
 #### 5. Long prompts support, example as:
 
-> Note: ⚠️ Only maintained on mindspore 2.2.1x.
-
 <details close>
 
 By default, SDXL only supports the token sequence no longer than 77. For those sequences longer than 77, they will be truncated to 77, which can cause information loss.
@@ -370,8 +368,6 @@ python train.py \
 </details>
 
 #### 6. EDM training
-
-> Note: ⚠️ Only maintained on mindspore 2.2.1x.
 
 <details close>
 

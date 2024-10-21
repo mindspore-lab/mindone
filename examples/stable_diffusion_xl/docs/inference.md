@@ -17,7 +17,7 @@ After obtaining the weights, place them into `checkpoints/`. Next, start the dem
 
 ### Dependency
 
-- mindspore 2.2.10~2.2.12
+- mindspore 2.2.10~2.2.12 or mindspore 2.3.0/2.3.1 on Ascend 910*
 
 To install the dependency, please run
 
