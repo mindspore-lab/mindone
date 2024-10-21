@@ -176,11 +176,11 @@ def process_batch_instance(tokenizer, batch_of_conversations, max_tgt_len, datas
 
     input_ids = pad_sequence(batch_input_ids, padding_value=tokenizer.pad_token_id)
     target_ids = pad_sequence(batch_target_ids, padding_value=-100)
-    assert input_ids.size == target_ids.size
+    assert input_ids.shape == target_ids.shape
     input_ids = input_ids[:, :max_tgt_len]
     target_ids = target_ids[:, :max_tgt_len]
     attention_mask = input_ids.ne(tokenizer.pad_token_id)
-    assert attention_mask.size == input_ids.size
+    assert attention_mask.shape == input_ids.shape
     return input_ids, target_ids, attention_mask.long()
 
 
@@ -220,11 +220,11 @@ def process_batch_stage_1(tokenizer, batch_of_captions, max_tgt_len, prompt=''):
         batch_target_ids.append(torch.Tensor(one_target_ids))
     input_ids = pad_sequence(batch_input_ids, padding_value=tokenizer.pad_token_id)
     target_ids = pad_sequence(batch_target_ids, padding_value=-100)
-    assert input_ids.size == target_ids.size
+    assert input_ids.shape == target_ids.shape
     input_ids = input_ids[:, :max_tgt_len]
     target_ids = target_ids[:, :max_tgt_len]
     attention_mask = input_ids.ne(tokenizer.pad_token_id)
-    assert attention_mask.size == input_ids.size
+    assert attention_mask.shape == input_ids.shape
     return input_ids, target_ids, attention_mask.long()
 
 
@@ -267,11 +267,11 @@ def process_batch_stage_2(tokenizer, batch_of_captions, max_tgt_len, num_signal_
         # batch_caption_lists.append(caption)
     input_ids = pad_sequence(batch_input_ids, padding_value=tokenizer.pad_token_id)
     target_ids = pad_sequence(batch_target_ids, padding_value=-100)
-    assert input_ids.size == target_ids.size
+    assert input_ids.shape == target_ids.shape
     input_ids = input_ids[:, :max_tgt_len]
     target_ids = target_ids[:, :max_tgt_len]
     attention_mask = input_ids.ne(tokenizer.pad_token_id)
-    assert attention_mask.size == input_ids.size
+    assert attention_mask.shape == input_ids.shape
     return input_ids, target_ids, attention_mask.long()
 
 
@@ -338,13 +338,13 @@ def process_batch_stage_3(tokenizer, batch_of_conversations, max_tgt_len, img_to
         # batch_caption_lists.append(caption)
     input_ids = pad_sequence(batch_input_ids, padding_value=tokenizer.pad_token_id)
     target_ids = pad_sequence(batch_target_ids, padding_value=-100)
-    assert input_ids.size == target_ids.size
+    assert input_ids.shape == target_ids.shape
     input_ids = input_ids[:, :max_tgt_len]
     # if is_mask_token:
     #     input_ids = mask_token(input_ids, tokenizer, 0.5)
     target_ids = target_ids[:, :max_tgt_len]
     attention_mask = input_ids.ne(tokenizer.pad_token_id)
-    assert attention_mask.size == input_ids.size
+    assert attention_mask.shape == input_ids.shape
     return input_ids, target_ids, attention_mask.long()
 
 

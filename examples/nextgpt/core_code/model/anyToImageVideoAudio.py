@@ -251,7 +251,7 @@ class NextGPTModel(nn.Cell):
         embeddings = self.visual_encoder(inputs)
         video_embeds = embeddings[ModalityType.VISION]  # bsz x 1024
         inputs_llama = self.llama_proj(video_embeds).unsqueeze(1)  # bsz x 1 x llama_size
-        atts_llama = ops.ones(inputs_llama.size()[:-1], dtype=mindspore.int64) # bsz x 1
+        atts_llama = ops.ones(inputs_llama.shape[:-1], dtype=mindspore.int64) # bsz x 1
         return inputs_llama, atts_llama
 
     def encode_audio(self, audio_paths):
@@ -261,7 +261,7 @@ class NextGPTModel(nn.Cell):
         embeddings = self.visual_encoder(inputs)
         audio_embeds = embeddings[ModalityType.AUDIO]  # bsz x 1024
         inputs_llama = self.llama_proj(audio_embeds).unsqueeze(1)  # bsz x 1 x llama_size
-        atts_llama = ops.ones(inputs_llama.size()[:-1], dtype=mindspore.int64)  # bsz x 1
+        atts_llama = ops.ones(inputs_llama.shape[:-1], dtype=mindspore.int64)  # bsz x 1
         return inputs_llama, atts_llama
 
     def encode_image(self, image_paths):
@@ -322,24 +322,25 @@ class NextGPTModel(nn.Cell):
             p_before_tokens = self.llama_tokenizer(p_before, return_tensors="np", add_special_tokens=False)
             # peft model need deeper call
             if self.args['freeze_lm']:
-                p_before_embeds = self.llama_model.model.embed_tokens(p_before_tokens.input_ids).expand(batch_size, -1,
+                p_before_embeds = self.llama_model.model.embed_tokens(mindspore.Tensor(p_before_tokens.input_ids)).expand(batch_size, -1,
                                                                                                         -1)  # bsz x s1 x embed_dim
             else:
-                p_before_embeds = self.llama_model.model.model.embed_tokens(p_before_tokens.input_ids).expand(
+                p_before_embeds = self.llama_model.model.model.embed_tokens(mindspore.Tensor(p_before_tokens.input_ids)).expand(
                     batch_size, -1, -1)  # bsz x s1 x embed_dim
             inputs_embeds = ops.cat([bos_embeds, p_before_embeds, p_after_embeds], axis=1)  # bsz x (1+s1+s2) x embed_dim
 
             # create targets
-            empty_targets = (
-                ops.ones([batch_size, 1 + p_before_embeds.size()[1]],  # 1 (bos) + s1
-                           dtype=mindspore.int64).fill_(-100)
-            )  # bsz x (1 + s1)
+            # empty_targets = (
+            #     ops.ones([batch_size, 1 + p_before_embeds.size()[1]],  # 1 (bos) + s1
+            #                dtype=mindspore.int64).fill_(-100)
+            # )  # bsz x (1 + s1)
+            empty_targets = ops.fill(shape=(batch_size, 1+p_before_embeds.shape[1]),type=mindspore.int64, value=-100)
             targets = ops.cat([empty_targets, target_ids], axis=1)  # bsz x (1 + s1 + s2)
-            assert inputs_embeds.size()[1] == targets.size()[1]
+            assert inputs_embeds.shape[1] == targets.shape[1]
 
-            atts_prefix = ops.ones([batch_size, 1 + p_before_embeds.size()[1]], dtype=mindspore.int64)  # bsz x (1 + s1)
+            atts_prefix = ops.ones([batch_size, 1 + p_before_embeds.shape[1]], dtype=mindspore.int64)  # bsz x (1 + s1)
             attention_mask = ops.cat([atts_prefix, attention_mask], axis=1)
-            assert attention_mask.size() == targets.size()  # bsz x (1 + s1 + s2)
+            assert attention_mask.shape == targets.shape  # bsz x (1 + s1 + s2)
         return inputs_embeds, targets, attention_mask
 
     def _train_with_mode(self, texts, img_embeds=None, modality='text', num_gen_tokens='8',
@@ -401,7 +402,7 @@ class NextGPTModel(nn.Cell):
             # logging.info(f'targets : {targets}')
             # logging.info(f'start_pos : {start_pos}')
             # logging.info(f'end_pos : {end_pos}')
-            assert 0 < len(start_pos) == len(end_pos) == input_ids.size(0) and len(end_pos) > 0, (start_pos, end_pos)
+            assert 0 < len(start_pos) == len(end_pos) == input_ids.shape[0] and len(end_pos) > 0, (start_pos, end_pos)
             for idx, fc_layer in zip(text_emb_layers, text_hidden_fcs):
                 hidden_embedding = []
                 input_embedding = []
