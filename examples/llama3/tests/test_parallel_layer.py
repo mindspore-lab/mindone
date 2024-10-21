@@ -38,12 +38,14 @@ def get_layer_config():
 
 def run_layer(mode: int = 0, dtype: ms.Type = ms.float32):
     ms.set_context(mode=mode)
-    ms.set_auto_parallel_context(enable_alltoall=True)
     init()
 
     # prepare data
     set_random_seed(1024)
     data = get_sample_data()
+
+    # prepare group
+    create_parallel_group(get_group_size())
 
     print("Column Parallel Linear:")
     run_parallel_linear(data, type="column_parallel", dtype=dtype)
@@ -58,7 +60,6 @@ def run_parallel_linear(data: Tensor, type: Literal["column_parallel", "row_para
     non_parallel_layer = mint.nn.Linear(**non_parallel_layer_cfg, dtype=dtype)
 
     # parallel layer
-    create_parallel_group(get_group_size())
     group = get_tensor_parallel_group()
     set_random_seed(1024)
     parallel_layer_cfg = get_layer_config()

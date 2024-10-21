@@ -11,7 +11,7 @@ from mindspore import Parameter, Tensor, load_checkpoint
 from mindone.models.utils import normal_, zeros_
 
 from ..activation import ACT2FN
-from .layer import (
+from .block import (
     CaptionEmbedder,
     LinearPatchEmbed3D,
     LlamaAttention,
@@ -241,12 +241,12 @@ class LlamaModel(nn.Cell):
         if self.latent_embedder.proj.bias is not None:
             zeros_(self.latent_embedder.proj.bias)
 
-        # Zero-out adaLN modulation layer:
+        # Zero-out adaLN modulation block:
         zeros_(self.adaLN_modulation[-1].weight)
         if self.adaLN_modulation[-1].bias is not None:
             zeros_(self.adaLN_modulation[-1].bias)
 
-        # Zero-out final layer as DiT does
+        # Zero-out final block as DiT does
         zeros_(self.final_layer.proj.weight)
         if self.final_layer.proj.bias is not None:
             zeros_(self.final_layer.proj.bias)
@@ -316,12 +316,12 @@ class LlamaModel(nn.Cell):
         # 3.1.4 text embedding
         text_embedding = self.caption_embedder(text_embedding)
 
-        # main block
+        # main blocks
         hidden_states = latent_embedding
         for decoder_layer in self.layers:
             hidden_states = decoder_layer(hidden_states, text_embedding, modulation_parameters, position_embedding)
 
-        # final layer
+        # final block
         hidden_states = self.final_layer(hidden_states, timestep_embedding)
 
         # unpatchify

@@ -8,6 +8,8 @@ import mindspore.ops as ops
 from mindspore import Parameter, Tensor
 from mindspore.ops.operations.nn_ops import FlashAttentionScore
 
+from ...parallel import ColumnParallelLinear, RowParallelLinear
+from ...parallel.parallel_states import get_tensor_parallel_group
 from ..activation import ACT2FN
 
 logger = logging.getLogger(__name__)
@@ -31,8 +33,8 @@ class LlamaRMSNorm(nn.Cell):
 class LlamaMLP(nn.Cell):
     def __init__(
         self,
-        intermediate_size: int = 14336,
-        hidden_size: int = 4096,
+        intermediate_size: int = 8192,
+        hidden_size: int = 3072,
         hidden_act: str = "silu",
         dtype: ms.Type = ms.float32,
     ) -> None:
@@ -42,6 +44,33 @@ class LlamaMLP(nn.Cell):
         self.gate_proj = mint.nn.Linear(self.hidden_size, self.intermediate_size, bias=False, dtype=dtype)
         self.up_proj = mint.nn.Linear(self.hidden_size, self.intermediate_size, bias=False, dtype=dtype)
         self.down_proj = mint.nn.Linear(self.intermediate_size, self.hidden_size, bias=False, dtype=dtype)
+        self.act_fn = ACT2FN[hidden_act]
+
+    def construct(self, hidden_state: Tensor) -> Tensor:
+        return self.down_proj(self.act_fn(self.gate_proj(hidden_state)) * self.up_proj(hidden_state))
+
+
+class TensorParallelLlamaMLP(nn.Cell):
+    def __init__(
+        self,
+        intermediate_size: int = 8192,
+        hidden_size: int = 3072,
+        hidden_act: str = "silu",
+        dtype: ms.Type = ms.float32,
+    ) -> None:
+        super().__init__()
+        self.hidden_size = hidden_size
+        self.intermediate_size = intermediate_size
+        group = get_tensor_parallel_group()
+        self.gate_proj = ColumnParallelLinear(
+            self.hidden_size, self.intermediate_size, bias=False, gather_output=False, group=group, dtype=dtype
+        )
+        self.up_proj = ColumnParallelLinear(
+            self.hidden_size, self.intermediate_size, bias=False, gather_output=False, group=group, dtype=dtype
+        )
+        self.down_proj = RowParallelLinear(
+            self.intermediate_size, self.hidden_size, bias=False, input_is_parallel=True, group=group, dtype=dtype
+        )
         self.act_fn = ACT2FN[hidden_act]
 
     def construct(self, hidden_state: Tensor) -> Tensor:
