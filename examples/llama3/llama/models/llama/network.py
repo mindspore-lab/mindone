@@ -90,8 +90,8 @@ class LlamaDecoderLayer(nn.Cell):
         hidden_states = hidden_states + position_embedding.to(hidden_states.dtype)
 
         # 3.1.3 Adaptive Layer Norm
-        shift_msa, scale_msa, gate_msa, shift_mlp, scale_mlp, gate_mlp = mint.chunk(
-            self.scale_shift_table[None] + modulation_parameters.reshape(B, 6, -1), 6, dim=1
+        shift_msa, scale_msa, gate_msa, shift_mlp, scale_mlp, gate_mlp = ops.chunk(
+            ops.unsqueeze(self.scale_shift_table, 0) + modulation_parameters.reshape(B, 6, -1), 6, axis=1
         )
 
         # Self Attention (Bi-Directional Attention)
@@ -135,7 +135,9 @@ class LlamaFinalLayer(nn.Cell):
         self.scale_shift_table = Parameter(Tensor(np.random.randn(2, hidden_size), dtype=dtype) / hidden_size**0.5)
 
     def construct(self, hidden_states: Tensor, timestep_embedding: Tensor):
-        shift, scale = mint.chunk(self.scale_shift_table[None] + timestep_embedding[:, None], 2, dim=1)
+        shift, scale = ops.chunk(
+            ops.unsqueeze(self.scale_shift_table, 0) + ops.unsqueeze(timestep_embedding, 1), 2, axis=1
+        )
         hidden_states = t2i_modulate(self.input_layernorm(hidden_states), shift, scale)
         hidden_states = self.proj(hidden_states)
         return hidden_states
@@ -157,7 +159,7 @@ class LlamaModel(nn.Cell):
         hidden_act: str = "silu",
         initializer_range: float = 0.02,
         patch_size: Tuple[int, int, int] = (1, 2, 2),
-        max_length: Tuple[int, int, int] = (32, 16, 16),
+        max_length: Tuple[int, int, int] = (128, 64, 64),
         caption_channels: int = 4096,
         attn_implementation: Literal["eager", "flash_attention"] = "eager",
         gradient_checkpointing: bool = False,
@@ -171,6 +173,7 @@ class LlamaModel(nn.Cell):
         self.hidden_size = hidden_size
         self.num_attention_heads = num_attention_heads
         self.num_key_value_heads = num_key_value_heads
+        self.max_length = max_length
 
         self.layers = nn.CellList(
             [
@@ -251,12 +254,19 @@ class LlamaModel(nn.Cell):
     def learnable_position_embedding(self, latent_embedding: Tensor) -> Tensor:
         # 3.1.3
         _, t, _, h, w = latent_embedding.shape
-        t_inds = mint.arange(t // self.patch_size[0], dtype=ms.int64)
-        h_inds = mint.arange(h // self.patch_size[1], dtype=ms.int64)
-        w_inds = mint.arange(w // self.patch_size[2], dtype=ms.int64)
+        p0, p1, p2 = self.patch_size[0], self.patch_size[1], self.patch_size[2]
+        nt, nh, nw = t // p0, h // p1, w // p2
+
+        assert nt < self.max_length[0]
+        assert nh < self.max_length[1]
+        assert nw < self.max_length[2]
+
+        t_inds = mint.arange(nt, dtype=ms.int64)
+        h_inds = mint.arange(nh, dtype=ms.int64)
+        w_inds = mint.arange(nw, dtype=ms.int64)
 
         position_ids = ops.meshgrid(t_inds, h_inds, w_inds, indexing="ij")
-        position_ids = mint.stack(position_ids, dim=-1)
+        position_ids = ops.stack(position_ids, axis=-1)
         position_ids = ops.reshape(position_ids, (-1, 3))
 
         t_inds, h_inds, w_inds = ops.unbind(position_ids, dim=-1)
