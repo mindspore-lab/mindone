@@ -2,6 +2,7 @@ import os
 from typing import Literal, Optional
 
 from llama3.llama import llama3_1B, llama3_5B, llama3_30B
+from llama3.llama.models.llama.block import LlamaRMSNorm
 from moviegen.moviegen.text_encoders.text_projector import TextProjector
 
 import mindspore.nn as nn
@@ -32,7 +33,7 @@ class STDiTLlama3Wrapper(nn.Cell):
         else:
             self.llama = llama3_30B(**model_kwargs)
 
-        self.text_projector = TextProjector()
+        self.text_projector = TextProjector(out_features=self.llama.hidden_size, layer_norm=LlamaRMSNorm)
 
         self.patch_size = self.llama.patch_size
         self.hidden_size = self.llama.hidden_size
