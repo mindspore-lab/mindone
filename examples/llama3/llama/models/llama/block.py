@@ -6,10 +6,10 @@ import mindspore.mint as mint
 import mindspore.nn as nn
 import mindspore.ops as ops
 from mindspore import Parameter, Tensor
+from mindspore.communication import GlobalComm
 from mindspore.ops.operations.nn_ops import FlashAttentionScore
 
 from ...parallel import ColumnParallelLinear, RowParallelLinear
-from ...parallel.parallel_states import get_model_parallel_group
 from ..activation import ACT2FN
 
 logger = logging.getLogger(__name__)
@@ -56,12 +56,12 @@ class TensorParallelLlamaMLP(nn.Cell):
         intermediate_size: int = 8192,
         hidden_size: int = 3072,
         hidden_act: str = "silu",
+        group: str = GlobalComm.WORLD_COMM_GROUP,
         dtype: ms.Type = ms.float32,
     ) -> None:
         super().__init__()
         self.hidden_size = hidden_size
         self.intermediate_size = intermediate_size
-        group = get_model_parallel_group()
         self.gate_proj = ColumnParallelLinear(
             self.hidden_size, self.intermediate_size, bias=False, gather_output=False, group=group, dtype=dtype
         )

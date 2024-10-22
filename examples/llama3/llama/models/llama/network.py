@@ -7,9 +7,12 @@ import mindspore.mint as mint
 import mindspore.nn as nn
 import mindspore.ops as ops
 from mindspore import Parameter, Tensor, load_checkpoint
+from mindspore.communication import GlobalComm, get_group_size
 
 from mindone.models.utils import normal_, zeros_
 
+from ...parallel import GatherForwardSplitBackward, SplitForwardGatherBackward
+from ...parallel.parallel_states import get_model_parallel_group
 from ..activation import ACT2FN
 from .block import (
     CaptionEmbedder,
@@ -47,7 +50,6 @@ class LlamaDecoderLayer(nn.Cell):
         attention_bias: bool = False,
         hidden_act: str = "silu",
         attn_implementation: Literal["eager", "flash_attention"] = "eager",
-        model_parallelism: bool = False,
         dtype: ms.Type = ms.float32,
     ) -> None:
         super().__init__()
@@ -70,17 +72,11 @@ class LlamaDecoderLayer(nn.Cell):
             dtype=dtype,
         )
 
-        if model_parallelism:
-            self.mlp = TensorParallelLlamaMLP(
-                intermediate_size=intermediate_size, hidden_size=hidden_size, hidden_act=hidden_act, dtype=dtype
-            )
-        else:
-            self.mlp = LlamaMLP(
-                intermediate_size=intermediate_size, hidden_size=hidden_size, hidden_act=hidden_act, dtype=dtype
-            )
+        self.mlp = LlamaMLP(
+            intermediate_size=intermediate_size, hidden_size=hidden_size, hidden_act=hidden_act, dtype=dtype
+        )
 
         self.scale_shift_table = Parameter(Tensor(np.random.randn(6, hidden_size), dtype=dtype) / hidden_size**0.5)
-
         self.input_layernorm = LlamaRMSNorm(hidden_size, eps=rms_norm_eps, dtype=dtype)
         self.post_attention_layernorm = LlamaRMSNorm(hidden_size, eps=rms_norm_eps, dtype=dtype)
 
@@ -119,6 +115,106 @@ class LlamaDecoderLayer(nn.Cell):
         hidden_states = self.post_attention_layernorm(hidden_states)
         hidden_states = t2i_modulate(hidden_states, shift_mlp, scale_mlp)
         hidden_states = self.mlp(hidden_states)
+        hidden_states = gate_mlp * hidden_states
+        hidden_states = residual + hidden_states
+
+        return hidden_states
+
+
+class ModelParallelLlamaDecoderLayer(nn.Cell):
+    def __init__(
+        self,
+        hidden_size: int = 4096,
+        intermediate_size: int = 14336,
+        num_attention_heads: int = 32,
+        num_key_value_heads: int = 8,
+        rms_norm_eps: float = 1e-5,
+        attention_dropout: float = 0.0,
+        attention_bias: bool = False,
+        hidden_act: str = "silu",
+        attn_implementation: Literal["eager", "flash_attention"] = "eager",
+        group: str = GlobalComm.WORLD_COMM_GROUP,
+        dtype: ms.Type = ms.float32,
+    ) -> None:
+        super().__init__()
+
+        self.self_attn = Llama_ATTENTION_CLASSES[attn_implementation](
+            hidden_size=hidden_size,
+            num_attention_heads=num_attention_heads,
+            num_key_value_heads=num_key_value_heads,
+            attention_dropout=attention_dropout,
+            attention_bias=attention_bias,
+            dtype=dtype,
+        )
+
+        self.cross_attn = Llama_ATTENTION_CLASSES[attn_implementation](
+            hidden_size=hidden_size,
+            num_attention_heads=num_attention_heads,
+            num_key_value_heads=num_key_value_heads,
+            attention_dropout=attention_dropout,
+            attention_bias=attention_bias,
+            dtype=dtype,
+        )
+
+        # 3.1.6 Tensor Parallelism
+        self.mlp = TensorParallelLlamaMLP(
+            intermediate_size=intermediate_size,
+            hidden_size=hidden_size,
+            hidden_act=hidden_act,
+            group=group,
+            dtype=dtype,
+        )
+
+        self.scale_shift_table = Parameter(Tensor(np.random.randn(6, hidden_size), dtype=dtype) / hidden_size**0.5)
+        self.input_layernorm = LlamaRMSNorm(hidden_size, eps=rms_norm_eps, dtype=dtype)
+        self.post_attention_layernorm = LlamaRMSNorm(hidden_size, eps=rms_norm_eps, dtype=dtype)
+
+        self.split_forward_gather_backward = SplitForwardGatherBackward(dim=1, grad_scale="down", group=group)
+        self.gather_forward_split_backward = GatherForwardSplitBackward(dim=1, grad_scale="up", group=group)
+
+    def construct(
+        self,
+        hidden_states: Tensor,
+        encoder_hidden_states: Tensor,
+        modulation_parameters: Tensor,
+        position_embedding: Tensor,
+    ) -> Tensor:
+        B = hidden_states.shape[0]
+
+        # 3.1.3 Positional Embedding
+        hidden_states = hidden_states + position_embedding.to(hidden_states.dtype)
+
+        # 3.1.3 Adaptive Layer Norm
+        shift_msa, scale_msa, gate_msa, shift_mlp, scale_mlp, gate_mlp = ops.chunk(
+            ops.unsqueeze(self.scale_shift_table, 0) + modulation_parameters.reshape(B, 6, -1), 6, axis=1
+        )
+
+        # Self Attention (Bi-Directional Attention)
+        residual = hidden_states
+        hidden_states = self.input_layernorm(hidden_states)
+        hidden_states = t2i_modulate(hidden_states, shift_msa, scale_msa)
+        # TODO: drop this when finish with context parallism
+        hidden_states = self.gather_forward_split_backward(hidden_states)
+        hidden_states = self.self_attn(hidden_states)
+        # TODO: drop this when finish with context parallism
+        hidden_states = self.split_forward_gather_backward(hidden_states)
+        hidden_states = gate_msa * hidden_states
+        hidden_states = residual + hidden_states
+
+        # 3.1.3 Cross Attention
+        residual = hidden_states
+        hidden_states = self.gather_forward_split_backward(hidden_states)
+        hidden_states = self.cross_attn(hidden_states, encoder_hidden_states=encoder_hidden_states)
+        hidden_states = self.split_forward_gather_backward(hidden_states)
+        hidden_states = residual + hidden_states
+
+        # Fully Connected
+        residual = hidden_states
+        hidden_states = self.post_attention_layernorm(hidden_states)
+        hidden_states = t2i_modulate(hidden_states, shift_mlp, scale_mlp)
+        hidden_states = self.gather_forward_split_backward(hidden_states)
+        hidden_states = self.mlp(hidden_states)
+        hidden_states = self.split_forward_gather_backward(hidden_states)
         hidden_states = gate_mlp * hidden_states
         hidden_states = residual + hidden_states
 
@@ -182,10 +278,12 @@ class LlamaModel(nn.Cell):
         self.num_attention_heads = num_attention_heads
         self.num_key_value_heads = num_key_value_heads
         self.max_length = max_length
+        self.model_parallelism = model_parallelism
 
+        layer = ModelParallelLlamaDecoderLayer if self.model_parallelism else LlamaDecoderLayer
         self.layers = nn.CellList(
             [
-                LlamaDecoderLayer(
+                layer(
                     hidden_size=self.hidden_size,
                     intermediate_size=intermediate_size,
                     num_attention_heads=self.num_attention_heads,
@@ -195,7 +293,6 @@ class LlamaModel(nn.Cell):
                     attention_bias=attention_bias,
                     hidden_act=hidden_act,
                     attn_implementation=attn_implementation,
-                    model_parallelism=model_parallelism,
                     dtype=dtype,
                 )
                 for _ in range(num_hidden_layers)
@@ -223,6 +320,12 @@ class LlamaModel(nn.Cell):
             ACT2FN[hidden_act], mint.nn.Linear(self.hidden_size, 6 * self.hidden_size, bias=False, dtype=dtype)
         )
         self.caption_embedder = CaptionEmbedder(caption_channels, self.hidden_size, eps=rms_norm_eps, dtype=dtype)
+
+        if self.model_parallelism:
+            mp_group = get_model_parallel_group()
+            self.group_size = get_group_size(mp_group)
+            self.split_forward_gather_backward = SplitForwardGatherBackward(dim=1, grad_scale="down", group=mp_group)
+            self.gather_forward_split_backward = GatherForwardSplitBackward(dim=1, grad_scale="up", group=mp_group)
 
         # post-init
         self.initializer_range = initializer_range
@@ -282,7 +385,9 @@ class LlamaModel(nn.Cell):
         pos_embed_t = self.pos_embedding_table_t(t_inds)
         pos_embed_h = self.pos_embedding_table_h(h_inds)
         pos_embed_w = self.pos_embedding_table_w(w_inds)
-        return pos_embed_t + pos_embed_h + pos_embed_w
+        pos_embed = pos_embed_t + pos_embed_h + pos_embed_w
+        pos_embed = ops.unsqueeze(pos_embed, 0)
+        return pos_embed
 
     def unpatchify(self, hidden_states: Tensor, t: int, h: int, w: int) -> Tensor:
         """
@@ -327,8 +432,19 @@ class LlamaModel(nn.Cell):
 
         # main blocks
         hidden_states = latent_embedding
+
+        # 3.1.6 Sequence Parallelism Start
+        if self.model_parallelism:
+            assert hidden_states.shape[1] % self.group_size == 0
+            hidden_states = self.split_forward_gather_backward(hidden_states)
+            position_embedding = self.split_forward_gather_backward(position_embedding)
+
         for decoder_layer in self.layers:
             hidden_states = decoder_layer(hidden_states, text_embedding, modulation_parameters, position_embedding)
+
+        # 3.1.6 Sequence Parallelism End
+        if self.model_parallelism:
+            hidden_states = self.gather_forward_split_backward(hidden_states)
 
         # final block
         hidden_states = self.final_layer(hidden_states, timestep_embedding)

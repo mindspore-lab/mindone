@@ -1,5 +1,5 @@
 import numbers
-from typing import Callable, Optional, Tuple, Union
+from typing import Callable, Literal, Optional, Tuple, Union
 
 import mindspore as ms
 import mindspore.mint as mint
@@ -9,7 +9,7 @@ from mindspore import Tensor
 from mindspore.common.initializer import Initializer
 from mindspore.communication import GlobalComm, get_group_size, get_rank
 
-__all__ = ["ColumnParallelLinear", "RowParallelLinear"]
+__all__ = ["SplitForwardGatherBackward", "GatherForwardSplitBackward", "ColumnParallelLinear", "RowParallelLinear"]
 
 
 def _communicate_along_dim(x: Tensor, dim: int, func: Callable[[Tensor], Tensor]) -> Tensor:
@@ -78,6 +78,55 @@ class _GatherFromModelParallelRegion(nn.Cell):
 
     def bprop(self, x: Tensor, out: Tensor, dout: Tensor) -> Tuple[Tensor]:
         dout = _split(dout, -1, self.rank, self.world_size)
+        return (dout,)
+
+
+class SplitForwardGatherBackward(nn.Cell):
+    def __init__(
+        self, dim: int = 0, grad_scale: Literal["up", "down"] = "down", group: str = GlobalComm.WORLD_COMM_GROUP
+    ) -> None:
+        super().__init__()
+        self.dim = dim
+        self.rank = get_rank(group)
+        self.world_size = get_group_size(group)
+        self.gather = ops.AllGather(group=group)
+
+        if grad_scale == "up":
+            self.scale = self.world_size
+        else:
+            self.scale = 1 / self.world_size
+
+    def construct(self, x: Tensor) -> Tensor:
+        return _split(x, self.dim, self.rank, self.world_size)
+
+    def bprop(self, x: Tensor, out: Tensor, dout: Tensor) -> Tuple[Tensor]:
+        dout = dout * self.scale
+        dout = _communicate_along_dim(dout, self.dim, self.gather)
+        return (dout,)
+
+
+class GatherForwardSplitBackward(nn.Cell):
+    def __init__(
+        self, dim: int = 0, grad_scale: Literal["up", "down"] = "up", group: str = GlobalComm.WORLD_COMM_GROUP
+    ) -> None:
+        super().__init__()
+        self.dim = dim
+        self.rank = get_rank(group)
+        self.world_size = get_group_size(group)
+        self.gather = ops.AllGather(group=group)
+
+        if grad_scale == "up":
+            self.scale = self.world_size
+        else:
+            self.scale = 1 / self.world_size
+
+    def construct(self, x: Tensor) -> Tensor:
+        x = _communicate_along_dim(x, self.dim, self.gather)
+        return x
+
+    def bprop(self, x: Tensor, out: Tensor, dout: Tensor) -> Tuple[Tensor]:
+        dout = dout * self.scale
+        dout = _split(dout, self.dim, self.rank, self.world_size)
         return (dout,)
 
 
