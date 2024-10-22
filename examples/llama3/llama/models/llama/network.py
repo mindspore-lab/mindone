@@ -16,6 +16,8 @@ from ...parallel.parallel_states import get_model_parallel_group
 from ..activation import ACT2FN
 from .block import (
     CaptionEmbedder,
+    ContextParallelLlamaAttention,
+    ContextParallelLlamaFlashAttention,
     LinearPatchEmbed3D,
     LlamaAttention,
     LlamaFlashAttention,
@@ -31,6 +33,11 @@ __all__ = ["LlamaModel", "llama3_1B", "llama3_5B", "llama3_30B"]
 Llama_ATTENTION_CLASSES = {
     "eager": LlamaAttention,
     "flash_attention": LlamaFlashAttention,
+}
+
+CONTEXT_PARALLEL_Llama_ATTENTION_CLASSES = {
+    "eager": ContextParallelLlamaAttention,
+    "flash_attention": ContextParallelLlamaFlashAttention,
 }
 
 
@@ -137,7 +144,8 @@ class ModelParallelLlamaDecoderLayer(nn.Cell):
     ) -> None:
         super().__init__()
 
-        self.self_attn = Llama_ATTENTION_CLASSES[attn_implementation](
+        # 3.1.6 Context Parallelism
+        self.self_attn = CONTEXT_PARALLEL_Llama_ATTENTION_CLASSES[attn_implementation](
             hidden_size=hidden_size,
             num_attention_heads=num_attention_heads,
             num_key_value_heads=num_key_value_heads,
@@ -191,19 +199,13 @@ class ModelParallelLlamaDecoderLayer(nn.Cell):
         residual = hidden_states
         hidden_states = self.input_layernorm(hidden_states)
         hidden_states = t2i_modulate(hidden_states, shift_msa, scale_msa)
-        # TODO: drop this when finish with context parallism
-        hidden_states = self.gather_forward_split_backward(hidden_states)
         hidden_states = self.self_attn(hidden_states)
-        # TODO: drop this when finish with context parallism
-        hidden_states = self.split_forward_gather_backward(hidden_states)
         hidden_states = gate_msa * hidden_states
         hidden_states = residual + hidden_states
 
         # 3.1.3 Cross Attention
         residual = hidden_states
-        hidden_states = self.gather_forward_split_backward(hidden_states)
         hidden_states = self.cross_attn(hidden_states, encoder_hidden_states=encoder_hidden_states)
-        hidden_states = self.split_forward_gather_backward(hidden_states)
         hidden_states = residual + hidden_states
 
         # Fully Connected
