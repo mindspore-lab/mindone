@@ -76,7 +76,7 @@ class LlamaDecoderLayer(nn.Cell):
             intermediate_size=intermediate_size, hidden_size=hidden_size, hidden_act=hidden_act, dtype=dtype
         )
 
-        self.scale_shift_table = Parameter(Tensor(np.random.randn(6, hidden_size), dtype=dtype) / hidden_size**0.5)
+        self.scale_shift_table = Parameter(Tensor(np.random.randn(1, 6, hidden_size), dtype=dtype) / hidden_size**0.5)
         self.input_layernorm = LlamaRMSNorm(hidden_size, eps=rms_norm_eps, dtype=dtype)
         self.post_attention_layernorm = LlamaRMSNorm(hidden_size, eps=rms_norm_eps, dtype=dtype)
 
@@ -90,12 +90,11 @@ class LlamaDecoderLayer(nn.Cell):
         B = hidden_states.shape[0]
 
         # 3.1.3 Positional Embedding
-        hidden_states = hidden_states + position_embedding.to(hidden_states.dtype)
+        hidden_states = hidden_states + position_embedding
 
         # 3.1.3 Adaptive Layer Norm
-        shift_msa, scale_msa, gate_msa, shift_mlp, scale_mlp, gate_mlp = ops.chunk(
-            ops.unsqueeze(self.scale_shift_table, 0) + modulation_parameters.reshape(B, 6, -1), 6, axis=1
-        )
+        modulation_parameters = self.scale_shift_table.to(hidden_states.dtype) + modulation_parameters.reshape(B, 6, -1)
+        shift_msa, scale_msa, gate_msa, shift_mlp, scale_mlp, gate_mlp = ops.chunk(modulation_parameters, 6, axis=1)
 
         # Self Attention (Bi-Directional Attention)
         residual = hidden_states
@@ -165,7 +164,7 @@ class ModelParallelLlamaDecoderLayer(nn.Cell):
             dtype=dtype,
         )
 
-        self.scale_shift_table = Parameter(Tensor(np.random.randn(6, hidden_size), dtype=dtype) / hidden_size**0.5)
+        self.scale_shift_table = Parameter(Tensor(np.random.randn(1, 6, hidden_size), dtype=dtype) / hidden_size**0.5)
         self.input_layernorm = LlamaRMSNorm(hidden_size, eps=rms_norm_eps, dtype=dtype)
         self.post_attention_layernorm = LlamaRMSNorm(hidden_size, eps=rms_norm_eps, dtype=dtype)
 
@@ -182,12 +181,11 @@ class ModelParallelLlamaDecoderLayer(nn.Cell):
         B = hidden_states.shape[0]
 
         # 3.1.3 Positional Embedding
-        hidden_states = hidden_states + position_embedding.to(hidden_states.dtype)
+        hidden_states = hidden_states + position_embedding
 
         # 3.1.3 Adaptive Layer Norm
-        shift_msa, scale_msa, gate_msa, shift_mlp, scale_mlp, gate_mlp = ops.chunk(
-            ops.unsqueeze(self.scale_shift_table, 0) + modulation_parameters.reshape(B, 6, -1), 6, axis=1
-        )
+        modulation_parameters = self.scale_shift_table.to(hidden_states.dtype) + modulation_parameters.reshape(B, 6, -1)
+        shift_msa, scale_msa, gate_msa, shift_mlp, scale_mlp, gate_mlp = ops.chunk(modulation_parameters, 6, axis=1)
 
         # Self Attention (Bi-Directional Attention)
         residual = hidden_states
@@ -419,6 +417,7 @@ class LlamaModel(nn.Cell):
 
         # create position embedding to be shared across the decoder layers
         position_embedding = self.learnable_position_embedding(latent_embedding)
+        position_embedding = position_embedding.to(latent_embedding.dtype)
 
         # patchify and embed latent in transformer hidden dim.
         latent_embedding = self.latent_embedder(latent_embedding)
