@@ -2,12 +2,13 @@
 
 Here we provide an efficient MindSpore version of [Open-Sora-Plan](https://github.com/PKU-YuanGroup/Open-Sora-Plan/tree/main) from Peking University. We would like to express our gratitude to their contributions! :+1:
 
-**OpenSora-PKU is still under active development.** Currently, we are in line with **Open-Sora-Plan v1.2.0**.
+**OpenSora-PKU is still under active development.** Currently, we are in line with **Open-Sora-Plan v1.2.0** ([commit id](https://github.com/PKU-YuanGroup/Open-Sora-Plan/commit/294993ca78bf65dec1c3b6fb25541432c545eda9)).
 
 ## 📰 News & States
 
 |        Official News from OpenSora-PKU  | MindSpore Support     |
 | ------------------ | ---------- |
+| **[2024.10.16]** 🎉 PKU released version 1.3.0, featuring: **WFVAE**, **pompt refiner**, **data filtering strategy**, **sparse attention**, and **bucket training strategy**. They also support 93x480p within **24G VRAM**. More details can be found at their latest [report](https://github.com/PKU-YuanGroup/Open-Sora-Plan/blob/main/docs/Report-v1.3.0.md). | 📝 Working in Progress |
 | **[2024.07.24]** 🔥🔥🔥 PKU launched Open-Sora Plan v1.2.0, utilizing a 3D full attention architecture instead of 2+1D. See their latest [report](https://github.com/PKU-YuanGroup/Open-Sora-Plan/blob/main/docs/Report-v1.2.0.md). | ✅ V.1.2.0 CausalVAE inference & OpenSoraT2V multi-stage training|
 | **[2024.05.27]** 🚀🚀🚀 PKU launched Open-Sora Plan v1.1.0, which significantly improves video quality and length, and is fully open source! Please check out their latest [report](https://github.com/PKU-YuanGroup/Open-Sora-Plan/blob/main/docs/Report-v1.1.0.md). | ✅ V.1.1.0 CausalVAE inference and LatteT2V infernece & three-stage training (`65x512x512`, `221x512x512`, `513x512x512`) |
 | **[2024.04.09]** 🚀 PKU shared the latest exploration on metamorphic time-lapse video generation: [MagicTime](https://github.com/PKU-YuanGroup/MagicTime), and the dataset for train (updating): [Open-Sora-Dataset](https://github.com/PKU-YuanGroup/Open-Sora-Dataset).| N.A.  |
@@ -17,7 +18,12 @@ Here we provide an efficient MindSpore version of [Open-Sora-Plan](https://githu
 | **[2024.03.08]** PKU support the training code of text condition with 16 frames of 512x512. |   ✅ CausalVAE+LatteT2V+T5 training (`16x512x512`)|
 | **[2024.03.07]** PKU support training with 128 frames (when sample rate = 3, which is about 13 seconds) of 256x256, or 64 frames (which is about 6 seconds) of 512x512. | class-conditioned training is under-development.|
 
-[PKU Open-Sora-Plan](https://github.com/PKU-YuanGroup/Open-Sora-Plan) is under rapid development, and currently we have aligned our implementation with its code version on [20240611](https://github.com/PKU-YuanGroup/Open-Sora-Plan/commit/b08681f697658c81361e1ec6c07fba55c79bb4bd).  
+
+## Requirements
+
+| mindspore | ascend driver | firmware | cann tookit/kernel |
+| ---       |   ---         | ---      | ---                |
+| 2.3.1     |  24.1RC2      |7.3.0.1.231|   8.0.RC2.beta1   |
 
 ## 🎥 Demo
 
@@ -62,13 +68,6 @@ Videos are saved to `.gif` for display.
 
 You contributions are welcome.
 
-<details>
-<summary>View more</summary>
-
-* [ ] Super-resolution model
-* [ ] frame-interpolation model
-</details>
-
 ## Contents
 
 * [Installation](#installation)
@@ -82,12 +81,7 @@ Other useful documents and links are listed below.
 ## Installation
 1. Use python>=3.8 [[install]](https://www.python.org/downloads/)
 
-2. Please install MindSpore 2.3.1 according to the [MindSpore official website](https://www.mindspore.cn/install/) and install [CANN 8.0.RC2.beta1]((https://www.hiascend.com/developer/download/community/result?module=cann&cann=8.0.RC2.2.beta1)) as recommended by the official installation website.
-
-Some other requirements are listed in the table below:
-| mindspore | ascend driver | firmware | cann tookit/kernel |
-| ---       |   ---         | ---      | ---                |
-| 2.3.1     |  24.1RC2      |7.3.0.1.231|   8.0.RC2.beta1   |
+2. Please install MindSpore 2.3.1 according to the [MindSpore official website](https://www.mindspore.cn/install/) and install [CANN 8.0.RC2.beta1](https://www.hiascend.com/developer/download/community/result?module=cann&cann=8.0.RC2.2.beta1) as recommended by the official installation website.
 
 
 3. Install requirements
@@ -253,7 +247,7 @@ As with v1.1.0, they initialized from the [SD2.1 VAE](https://huggingface.co/sta
 
 After downloading the [sd-vae-ft-mse](https://huggingface.co/stabilityai/sd-vae-ft-mse/tree/main) weights, you can run:
 ```bash
-python tools/model_conversion/convert_vae_2d.py --src path/to/diffusion.safetensor --target /path/to/sd-vae-ft-mse.ckpt`.
+python tools/model_conversion/convert_vae_2d.py --src path/to/diffusion.safetensor --target /path/to/sd-vae-ft-mse.ckpt.
 ```
 This can convert the torch weight file into mindspore weight file.
 
@@ -365,6 +359,7 @@ Please check the [readme doc](https://huggingface.co/datasets/LanguageBind/Open-
 
 <details>
 <summary> How to download Open-Sora-Dataset-v1.1.0? </summary>
+
 The [Open-Sora-Dataset-v1.1.0](https://huggingface.co/datasets/LanguageBind/Open-Sora-Plan-v1.1.0/tree/main) includes three image-text datasets and three video-text datasets. As reported in [Report v1.1.0](https://github.com/PKU-YuanGroup/Open-Sora-Plan/blob/main/docs/Report-v1.1.0.md), the three image-text datasets are:
 | Name | Image Source | Text Captioner | Num pair |
 |---|---|---|---|
@@ -492,7 +487,7 @@ We also support to run validation during training. This is supported by editing 
 + --val_batch_size 1 \
 + --val_interval 1 \
 ```
-The edits allow to compute the loss on the validation set specified by `merge_data_val.txt` for every 1 epoch (defined by `val_interval`). The validation loss will be recorded in the `result_val.log` under the output directory. For example training script, please refer to `train_video3d_29x720p_zero2_sp_val.sh` under `scripts/text_conditions/multi-devices/`.
+The edits allow to compute the loss on the validation set specified by `merge_data_val.txt` for every 1 epoch (defined by `val_interval`). `merge_data_val.txt` has the same format as `merge_data_train.txt`, but specifies a different subset from the train set. The validation loss will be recorded in the `result_val.log` under the output directory. For example training script, please refer to `train_video3d_29x720p_zero2_sp_val.sh` under `scripts/text_conditions/multi-devices/`.
 
 
 #### Sequence Parallelism
@@ -503,7 +498,7 @@ See `train_video3d_29x720p_zero2_sp.sh` under `scripts/text_condition/mult-devic
 
 #### Tips on Finetuning
 
-To align with the torch hyper-parameters, we use the same learning rate (LR) $1e^{-4}$ as [Open-Sora-Plan v1.2.0](https://github.com/PKU-YuanGroup/Open-Sora-Plan/tree/v1.2.0). However, our experience indicates that $1e^{-4}$ might be too large for finetuning the model on a small training set. If you want to finetune Open-Sora-Plan on your custom data with a small size, and notice that the large LR leads to unstable training, we have a few tips for you:
+To align with the hyper-parameters, we use the same learning rate (LR) $1e^{-4}$ as [Open-Sora-Plan v1.2.0](https://github.com/PKU-YuanGroup/Open-Sora-Plan/tree/v1.2.0). However, our experience indicates that $1e^{-4}$ might be too large for finetuning the model on a small training set. If you want to finetune Open-Sora-Plan on your custom data with a small size, and notice that the large LR leads to unstable training, we have a few tips for you:
 
 1. You can lower your LR or increase the effective batch size, for example, by increasing `gradient_accumulation_steps` or running multi-machine training.
 2. You can try a different LR scheduler, for example, you can change the current constant LR scheduler to `polynomial decay` by:
@@ -516,9 +511,9 @@ The edits will set the polynomial_decay LR scheduler, and decay the start LR to 
 
 #### Performance
 
-We evaluated the training performance on MindSpore and Ascend NPUs. The results are as follows.
+We evaluated the training performance on Ascend NPUs. The results are as follows.
 
-| model name      | cards       |  stage     |graph compilation | BS (local)   | video size  | Paramllelism |recompute |data sink | jit level| step time | train imgs/s |
+| model name      | cards       |  stage     |graph compile | batch size (local)   | video size  | Paramllelism |recompute |data sink | jit level| step time | train imgs/s |
 |:----------------|:----------- |:----------|:---------:|:-----:|:----------:|:----------:|:----------:|:----------:|:----------:|-------------------:|:----------:|
 | OpenSoraT2V-ROPE-L-122 |  8   | 2 | 3mins     |  8  |           1x640x480     |         zero2                     | TRUE | TRUE | O0 |    2.35      |  27.3 |
 | OpenSoraT2V-ROPE-L-122 |  8   | 3 |  6mins    |  1  |           29x640x480    |         zero2                      |  TRUE | TRUE | O0 |     3.68     | 63.0 |
