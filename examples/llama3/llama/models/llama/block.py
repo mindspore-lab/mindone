@@ -9,7 +9,7 @@ from mindspore import Parameter, Tensor
 from mindspore.ops.operations.nn_ops import FlashAttentionScore
 
 from ...parallel import ColumnParallelLinear, RowParallelLinear
-from ...parallel.parallel_states import get_tensor_parallel_group
+from ...parallel.parallel_states import get_model_parallel_group
 from ..activation import ACT2FN
 
 logger = logging.getLogger(__name__)
@@ -61,7 +61,7 @@ class TensorParallelLlamaMLP(nn.Cell):
         super().__init__()
         self.hidden_size = hidden_size
         self.intermediate_size = intermediate_size
-        group = get_tensor_parallel_group()
+        group = get_model_parallel_group()
         self.gate_proj = ColumnParallelLinear(
             self.hidden_size, self.intermediate_size, bias=False, gather_output=False, group=group, dtype=dtype
         )

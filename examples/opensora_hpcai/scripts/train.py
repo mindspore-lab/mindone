@@ -69,7 +69,9 @@ def init_env(
     global_bf16: bool = False,
     dynamic_shape: bool = False,
     enable_sequence_parallelism: bool = False,
+    enable_model_parallelism: bool = False,
     sequence_parallel_shards: int = 1,
+    model_parallel_shards: int = 1,
     debug: bool = False,
 ) -> Tuple[int, int]:
     """
@@ -84,12 +86,16 @@ def init_env(
     """
     set_random_seed(seed)
 
-    if enable_sequence_parallelism:
+    if enable_sequence_parallelism or enable_model_parallelism:
         if parallel_mode != "data" or not distributed:
             raise ValueError(
-                "sequence parallel can only be used in data parallel mode, "
+                "sequence parallel / tensor parallel can only be used in data parallel mode, "
                 f"but get parallel_mode=`{parallel_mode}` with distributed=`{distributed}`."
             )
+    if enable_sequence_parallelism and enable_model_parallelism:
+        raise ValueError(
+            "Cannot turn on sequence parallel (Non-Llama structure) / model paralell (Llama structure) in the same time."
+        )
 
     if debug and mode == ms.GRAPH_MODE:  # force PyNative mode when debugging
         logger.warning("Debug mode is on, switching execution mode to PyNative.")
@@ -126,8 +132,11 @@ def init_env(
             )
 
             if enable_sequence_parallelism:
-                create_parallel_group(sequence_parallel_shards)
+                create_parallel_group(sequence_parallel_shards=sequence_parallel_shards)
                 ms.set_auto_parallel_context(enable_alltoall=True)
+
+            if enable_model_parallelism:
+                create_parallel_group(model_parallel_shards=model_parallel_shards)
 
         var_info = ["device_num", "rank_id", "device_num / 8", "rank_id / 8"]
         var_value = [device_num, rank_id, int(device_num / 8), int(rank_id / 8)]
@@ -359,7 +368,9 @@ def main(args):
         global_bf16=args.global_bf16,
         dynamic_shape=(args.bucket_config is not None),
         enable_sequence_parallelism=args.enable_sequence_parallelism,
+        enable_model_parallelism=args.enable_model_parallelism,
         sequence_parallel_shards=args.sequence_parallel_shards,
+        model_parallel_shards=args.model_parallel_shards,
         debug=args.debug,
     )
     set_logger(name="", output_dir=args.output_path, rank=rank_id, log_level=eval(args.log_level))
@@ -430,6 +441,7 @@ def main(args):
         manual_pad=args.manual_pad,
         enable_flashattn=args.enable_flash_attention,
         enable_sequence_parallelism=args.enable_sequence_parallelism,
+        enable_model_parallelism=args.enable_model_parallelism,
         use_recompute=args.use_recompute,
         num_recompute_blocks=args.num_recompute_blocks,
     )
@@ -550,6 +562,10 @@ def main(args):
     if args.enable_sequence_parallelism:
         data_device_num = device_num // args.sequence_parallel_shards
         data_rank_id = rank_id // args.sequence_parallel_shards
+        logger.info(f"Creating dataloader: ID={rank_id}, group={data_rank_id}, num_groups={data_device_num}")
+    elif args.enable_model_parallelism:
+        data_device_num = device_num // args.model_parallel_shards
+        data_rank_id = rank_id // args.model_parallel_shards
         logger.info(f"Creating dataloader: ID={rank_id}, group={data_rank_id}, num_groups={data_device_num}")
     else:
         data_device_num = device_num

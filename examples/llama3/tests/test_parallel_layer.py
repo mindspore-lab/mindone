@@ -3,7 +3,7 @@ from typing import Literal
 
 import numpy as np
 from llama.parallel import ColumnParallelLinear, RowParallelLinear
-from llama.parallel.parallel_states import create_parallel_group, get_tensor_parallel_group
+from llama.parallel.parallel_states import create_parallel_group, get_model_parallel_group
 
 import mindspore as ms
 import mindspore.mint as mint
@@ -45,7 +45,7 @@ def run_layer(mode: int = 0, dtype: ms.Type = ms.float32):
     data = get_sample_data()
 
     # prepare group
-    create_parallel_group(get_group_size())
+    create_parallel_group(model_parallel_shards=get_group_size())
 
     print("Column Parallel Linear:")
     run_parallel_linear(data, type="column_parallel", dtype=dtype)
@@ -60,7 +60,7 @@ def run_parallel_linear(data: Tensor, type: Literal["column_parallel", "row_para
     non_parallel_layer = mint.nn.Linear(**non_parallel_layer_cfg, dtype=dtype)
 
     # parallel layer
-    group = get_tensor_parallel_group()
+    group = get_model_parallel_group()
     set_random_seed(1024)
     parallel_layer_cfg = get_layer_config()
     if type == "column_parallel":

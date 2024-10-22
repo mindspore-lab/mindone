@@ -334,6 +334,18 @@ def parse_train_args(parser):
         type=int,
         help="The number of shards in sequence parallel. Default is 1.",
     )
+    parser.add_argument(
+        "--enable_model_parallelism",
+        default=False,
+        type=str2bool,
+        help="whether to enable model parallelism. Default is False. Only for LLama3 strcture,",
+    )
+    parser.add_argument(
+        "--model_parallel_shards",
+        default=1,
+        type=int,
+        help="The number of shards in model parallel. Default is 1.",
+    )
     parser.add_argument("--drop_overflow_update", default=True, type=str2bool, help="drop overflow update")
     parser.add_argument("--loss_scaler_type", default="dynamic", type=str, help="dynamic or static")
     parser.add_argument(

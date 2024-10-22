@@ -14,12 +14,14 @@ class STDiTLlama3Wrapper(nn.Cell):
 
         attn_implementation = "flash_attention" if kwargs.get("enable_flashattn", False) else "eager"
         gradient_checkpointing = kwargs.get("use_recompute", False)
+        model_parallelism = kwargs.get("enable_model_parallelism", False)
 
         model_kwargs = dict(
             in_channels=4,
             out_channels=8,
             attn_implementation=attn_implementation,
             gradient_checkpointing=gradient_checkpointing,
+            model_parallelism=model_parallelism,
         )
 
         if model_size == "1B":

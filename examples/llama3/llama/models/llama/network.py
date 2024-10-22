@@ -19,6 +19,7 @@ from .block import (
     LlamaMLP,
     LlamaRMSNorm,
     PatchEmbed3D,
+    TensorParallelLlamaMLP,
     TimestepEmbedder,
 )
 
@@ -46,6 +47,7 @@ class LlamaDecoderLayer(nn.Cell):
         attention_bias: bool = False,
         hidden_act: str = "silu",
         attn_implementation: Literal["eager", "flash_attention"] = "eager",
+        model_parallelism: bool = False,
         dtype: ms.Type = ms.float32,
     ) -> None:
         super().__init__()
@@ -68,9 +70,14 @@ class LlamaDecoderLayer(nn.Cell):
             dtype=dtype,
         )
 
-        self.mlp = LlamaMLP(
-            intermediate_size=intermediate_size, hidden_size=hidden_size, hidden_act=hidden_act, dtype=dtype
-        )
+        if model_parallelism:
+            self.mlp = TensorParallelLlamaMLP(
+                intermediate_size=intermediate_size, hidden_size=hidden_size, hidden_act=hidden_act, dtype=dtype
+            )
+        else:
+            self.mlp = LlamaMLP(
+                intermediate_size=intermediate_size, hidden_size=hidden_size, hidden_act=hidden_act, dtype=dtype
+            )
 
         self.scale_shift_table = Parameter(Tensor(np.random.randn(6, hidden_size), dtype=dtype) / hidden_size**0.5)
 
@@ -164,6 +171,7 @@ class LlamaModel(nn.Cell):
         attn_implementation: Literal["eager", "flash_attention"] = "eager",
         gradient_checkpointing: bool = False,
         use_linear_patch_embedder: bool = True,
+        model_parallelism: bool = False,
         dtype: ms.Type = ms.float32,
     ) -> None:
         super().__init__()
@@ -187,6 +195,7 @@ class LlamaModel(nn.Cell):
                     attention_bias=attention_bias,
                     hidden_act=hidden_act,
                     attn_implementation=attn_implementation,
+                    model_parallelism=model_parallelism,
                     dtype=dtype,
                 )
                 for _ in range(num_hidden_layers)
