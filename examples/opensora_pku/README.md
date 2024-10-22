@@ -84,6 +84,11 @@ Other useful documents and links are listed below.
 
 2. Please install MindSpore 2.3.1 according to the [MindSpore official website](https://www.mindspore.cn/install/) and install [CANN 8.0.RC2.beta1]((https://www.hiascend.com/developer/download/community/result?module=cann&cann=8.0.RC2.2.beta1)) as recommended by the official installation website.
 
+Some other requirements are listed in the table below:
+| mindspore | ascend driver | firmware | cann tookit/kernel |
+| ---       |   ---         | ---      | ---                |
+| 2.3.1     |  24.1RC2      |7.3.0.1.231|   8.0.RC2.beta1   |
+
 
 3. Install requirements
 ```bash
@@ -513,15 +518,14 @@ The edits will set the polynomial_decay LR scheduler, and decay the start LR to 
 
 We evaluated the training performance on MindSpore and Ascend NPUs. The results are as follows.
 
-| Model           | Context        |  Stage     |Precision | BS (local)   | NPUs |video size  | Paramllelism | Train T. (s/step) |
-|:----------------|:---------------|:----------|:---------:|:----:|:-----:|:----------:|:----------:|-------------------:|
-| OpenSoraT2V-ROPE-L-122 | D910\*-[CANN C18(8.0.RC2.beta1)]((https://www.hiascend.com/developer/download/community/result?module=cann&cann=8.0.RC2.2.beta1))-[MS2.3.1](https://www.mindspore.cn/install/) | 2 | BF16     |  8  |  8   |         1x640x480     |         zero2                     |     2.35      |
-| OpenSoraT2V-ROPE-L-122 | D910\*-[CANN C18(8.0.RC2.beta1)]((https://www.hiascend.com/developer/download/community/result?module=cann&cann=8.0.RC2.2.beta1))-[MS2.3.1](https://www.mindspore.cn/install/) | 3 |  BF16    |  1  |  8   |         29x640x480    |         zero2                      |      3.68     |
-| OpenSoraT2V-ROPE-L-122 | D910\*-[CANN C18(8.0.RC2.beta1)]((https://www.hiascend.com/developer/download/community/result?module=cann&cann=8.0.RC2.2.beta1))-[MS2.3.1](https://www.mindspore.cn/install/) | 4 | BF16     |  1  |  8   |         29x1280x720   |         zero2 + SP(sp_size=8)      |      4.32     |
-| OpenSoraT2V-ROPE-L-122 | D910\*-[CANN C18(8.0.RC2.beta1)]((https://www.hiascend.com/developer/download/community/result?module=cann&cann=8.0.RC2.2.beta1))-[MS2.3.1](https://www.mindspore.cn/install/) | 5 | BF16     |  1  |  8   |         93x1280x720   |         zero2 + SP(sp_size=8)      |      24.4     |
+| model name      | cards       |  stage     |graph compilation | BS (local)   | video size  | Paramllelism |recompute |data sink | jit level| step time | train imgs/s |
+|:----------------|:----------- |:----------|:---------:|:-----:|:----------:|:----------:|:----------:|:----------:|:----------:|-------------------:|:----------:|
+| OpenSoraT2V-ROPE-L-122 |  8   | 2 | 3mins     |  8  |           1x640x480     |         zero2                     | TRUE | TRUE | O0 |    2.35      |  27.3 |
+| OpenSoraT2V-ROPE-L-122 |  8   | 3 |  6mins    |  1  |           29x640x480    |         zero2                      |  TRUE | TRUE | O0 |     3.68     | 63.0 |
+| OpenSoraT2V-ROPE-L-122 |  8   | 4 | 10mins    |  1  |           29x1280x720   |         zero2 + SP(sp_size=8)      |  FALSE | TRUE | O0 |    4.32     | 6.71 |
+| OpenSoraT2V-ROPE-L-122 |  8   | 5 | 15mins    |  1  |           93x1280x720   |         zero2 + SP(sp_size=8)      |  TRUE | TRUE | O0 |    24.4     | 3.81  |
 
 
-> Context: {NPU type}-{CANN version}-{MindSpore version}
 > SP: sequence parallelism.
 
 ## 👍 Acknowledgement
