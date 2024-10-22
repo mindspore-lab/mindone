@@ -2,6 +2,8 @@ import os
 from typing import Literal, Optional
 
 from llama3.llama import llama3_1B, llama3_5B, llama3_30B
+from llama3.llama.models.llama.block import LlamaRMSNorm
+from moviegen.moviegen.text_encoders.text_projector import TextProjector
 
 import mindspore.nn as nn
 import mindspore.ops as ops
@@ -31,6 +33,8 @@ class STDiTLlama3Wrapper(nn.Cell):
         else:
             self.llama = llama3_30B(**model_kwargs)
 
+        self.text_projector = TextProjector(out_features=self.llama.hidden_size, layer_norm=LlamaRMSNorm)
+
         self.patch_size = self.llama.patch_size
         self.hidden_size = self.llama.hidden_size
         self.num_heads = self.llama.num_attention_heads
@@ -47,12 +51,21 @@ class STDiTLlama3Wrapper(nn.Cell):
         fps: Optional[Tensor] = None,
         height: Optional[Tensor] = None,
         width: Optional[Tensor] = None,
+        extra_text_embed1: Optional[Tensor] = None,
+        extra_mask1: Optional[Tensor] = None,
         **kwargs,
     ) -> Tensor:
         x = ops.transpose(x, (0, 2, 1, 3, 4))
-        y = ops.squeeze(y, axis=1)
+
+        if extra_text_embed1 is not None:
+            y = ops.squeeze(y, axis=1)
+            # FIXME: placeholder for MetaCLIP
+            metaclip_text_embed = ops.ones((extra_text_embed1.shape[0], 100, 1280), dtype=extra_text_embed1.dtype)
+            text_embedding = self.text_projector(y, metaclip_text_embed, extra_text_embed1)
+        else:
+            text_embedding = ops.squeeze(y, axis=1)
+
         latent_embedding = x
-        text_embedding = y
         output = self.llama(latent_embedding, timestep, text_embedding)
         output = ops.transpose(output, (0, 2, 1, 3, 4))
         return output

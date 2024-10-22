@@ -40,7 +40,9 @@ def parse_train_args(parser):
         "--caption_column", default="caption", type=str, help="name of column for captions saved in csv file"
     )
     parser.add_argument("--video_folder", required=True, type=str, help="root dir for the video data")
-    parser.add_argument("--text_embed_folder", type=str, help="root dir for the text embeding data")
+    parser.add_argument("--text_embed_folder", type=str, help="root dir for the text embedding data")
+    parser.add_argument("--ul2_text_embed_folder", type=str, help="root dir for the text embedding data")
+    parser.add_argument("--byt5_text_embed_folder", type=str, help="root dir for the text embedding data")
     parser.add_argument("--vae_latent_folder", type=str, help="root dir for the vae latent data")
     parser.add_argument("--filter_data", default=False, type=str2bool, help="Filter non-existing videos.")
     parser.add_argument("--output_path", default="output/", type=str, help="output directory to save training results")

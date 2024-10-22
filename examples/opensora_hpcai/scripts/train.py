@@ -195,7 +195,6 @@ def initialize_dataset(
     args,
     csv_path,
     video_folder,
-    text_embed_folder,
     vae_latent_folder,
     batch_size,
     img_h,
@@ -213,7 +212,7 @@ def initialize_dataset(
         ds_config = dict(
             csv_path=csv_path,
             video_folder=video_folder,
-            text_emb_folder=text_embed_folder,
+            text_emb_folder=args.text_embed_folder,
             return_text_emb=True,
             vae_latent_folder=vae_latent_folder,
             return_vae_latent=args.train_with_vae_latent,
@@ -263,6 +262,24 @@ def initialize_dataset(
         output_columns = ["video", "caption", "mask", "frames_mask", "num_frames", "height", "width", "fps", "ar"]
         if args.pre_patchify:
             output_columns.extend(["spatial_pos", "spatial_mask", "temporal_pos", "temporal_mask"])
+
+        text_embed_folder = {}
+        if args.text_embed_folder:
+            text_embed_folder["t5"] = args.text_embed_folder
+        if args.ul2_text_embed_folder:
+            text_embed_folder["ul2"] = args.ul2_text_embed_folder
+        if args.byt5_text_embed_folder:
+            text_embed_folder["byt5"] = args.byt5_text_embed_folder
+
+        if not len(text_embed_folder):
+            text_embed_folder = None
+        elif len(text_embed_folder) == 1:
+            text_embed_folder = list(text_embed_folder.values())[0]
+        else:
+            # FIXME: hardcoding
+            output_columns[1] = "ul2_caption"
+            output_columns[2] = "ul2_mask"
+            output_columns.extend(["byt5_caption", "byt5_mask"])
 
         datasets = [
             VideoDatasetRefactored(
@@ -575,7 +592,6 @@ def main(args):
         args,
         args.csv_path,
         args.video_folder,
-        args.text_embed_folder,
         args.vae_latent_folder,
         args.batch_size,
         img_h,

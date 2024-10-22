@@ -6,7 +6,7 @@ import random
 import sys
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
-from typing import Any, Callable, List, Optional, Tuple
+from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 import cv2
 import numpy as np
@@ -62,7 +62,7 @@ class VideoDatasetRefactored(BaseDataset):
         self,
         csv_path: str,
         video_folder: str,
-        text_emb_folder: Optional[str] = None,
+        text_emb_folder: Optional[Union[str, Dict[str, str]]] = None,
         vae_latent_folder: Optional[str] = None,
         vae_downsample_rate: float = 8.0,
         vae_scale_factor: float = 0.18215,
@@ -156,7 +156,7 @@ class VideoDatasetRefactored(BaseDataset):
     def _read_data(
         data_dir: str,
         csv_path: str,
-        text_emb_folder: Optional[str] = None,
+        text_emb_folder: Optional[Union[str, Dict[str, str]]] = None,
         vae_latent_folder: Optional[str] = None,
         filter_data: bool = False,
     ) -> List[dict]:
@@ -178,7 +178,13 @@ class VideoDatasetRefactored(BaseDataset):
                 for item in csv.DictReader(csv_file):
                     sample = {**item, "video": os.path.join(data_dir, item["video"])}
                     if text_emb_folder:
-                        sample["text_emb"] = os.path.join(text_emb_folder, Path(item["video"]).with_suffix(".npz"))
+                        if isinstance(text_emb_folder, str):
+                            sample["text_emb"] = os.path.join(text_emb_folder, Path(item["video"]).with_suffix(".npz"))
+                        else:
+                            sample["text_emb"] = {
+                                name: os.path.join(path, Path(item["video"]).with_suffix(".npz"))
+                                for name, path in text_emb_folder.items()
+                            }
                     if vae_latent_folder:
                         sample["vae_latent"] = os.path.join(vae_latent_folder, Path(item["video"]).with_suffix(".npz"))
                     data.append(sample)
@@ -217,9 +223,15 @@ class VideoDatasetRefactored(BaseDataset):
         num_frames = self._frames
 
         if self._text_emb_folder:
-            with np.load(text_emb_path) as td:
-                data["caption"] = td["text_emb"]
-                data["mask"] = td["mask"].astype(np.uint8)
+            if isinstance(self._text_emb_folder, str):
+                with np.load(text_emb_path) as td:
+                    data["caption"] = td["text_emb"]
+                    data["mask"] = td["mask"].astype(np.uint8)
+            else:
+                for enc_name, path in text_emb_path.items():
+                    with np.load(path) as td:
+                        data[enc_name + "_caption"] = td["text_emb"]
+                        data[enc_name + "_mask"] = td["mask"].astype(np.uint8)
 
         if self._vae_latent_folder:
             # pick a resolution randomly if there are multi-resolution latents in vae folder

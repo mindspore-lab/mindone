@@ -15,7 +15,6 @@ from ...parallel import GatherForwardSplitBackward, SplitForwardGatherBackward
 from ...parallel.parallel_states import get_model_parallel_group
 from ..activation import ACT2FN
 from .block import (
-    CaptionEmbedder,
     ContextParallelLlamaAttention,
     ContextParallelLlamaFlashAttention,
     LinearPatchEmbed3D,
@@ -263,7 +262,7 @@ class LlamaModel(nn.Cell):
         initializer_range: float = 0.02,
         patch_size: Tuple[int, int, int] = (1, 2, 2),
         max_length: Tuple[int, int, int] = (128, 64, 64),
-        caption_channels: int = 4096,
+        caption_channels: int = 6144,
         attn_implementation: Literal["eager", "flash_attention"] = "eager",
         gradient_checkpointing: bool = False,
         use_linear_patch_embedder: bool = True,
@@ -319,7 +318,6 @@ class LlamaModel(nn.Cell):
         self.adaLN_modulation = nn.SequentialCell(
             ACT2FN[hidden_act], mint.nn.Linear(self.hidden_size, 6 * self.hidden_size, bias=False, dtype=dtype)
         )
-        self.caption_embedder = CaptionEmbedder(caption_channels, self.hidden_size, eps=rms_norm_eps, dtype=dtype)
 
         if self.model_parallelism:
             mp_group = get_model_parallel_group()
@@ -427,9 +425,6 @@ class LlamaModel(nn.Cell):
         # 6.1.2 shared timestep embedding & modulation. It does not mention the detail structure, we follow PixArt-Alpha here
         timestep_embedding = self.timestep_embedder(timestep)
         modulation_parameters = self.adaLN_modulation(timestep_embedding)
-
-        # 3.1.4 text embedding
-        text_embedding = self.caption_embedder(text_embedding)
 
         # main blocks
         hidden_states = latent_embedding

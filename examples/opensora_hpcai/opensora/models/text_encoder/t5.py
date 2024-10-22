@@ -3,6 +3,7 @@ import html
 import logging
 import os
 import re
+import sys
 import urllib.parse as ul
 
 import ftfy
@@ -13,6 +14,10 @@ import mindspore as ms
 from mindspore import Tensor, nn
 
 from .flan_t5_large.t5 import get_t5_encoder
+
+# FIXME: remove in future when mindone is ready for install
+sys.path.append(os.path.join(os.path.dirname(__file__), "../../.."))
+from mindone.transformers import T5EncoderModel
 
 logger = logging.getLogger(__name__)
 
@@ -228,7 +233,15 @@ def get_text_encoder_and_tokenizer(name, ckpt_path, **kwargs):
         logger.info("T5 init")
         text_encoder = T5Embedder(cache_dir=ckpt_path, pretrained_ckpt=os.path.join(ckpt_path, "model.ckpt"), **kwargs)
         tokenizer = text_encoder.tokenizer
+    elif name.lower() == "ul2":
+        logger.info("UL2 init")
+        tokenizer = AutoTokenizer.from_pretrained("google/ul2", local_files_only=True, cache_dir=ckpt_path)
+        text_encoder = T5EncoderModel.from_pretrained("google/ul2", local_files_only=True, cache_dir=ckpt_path)
+    elif name.lower() == "byt5":
+        logger.info("ByT5 init")
+        tokenizer = AutoTokenizer.from_pretrained("google/byt5-small", local_files_only=True, cache_dir=ckpt_path)
+        text_encoder = T5EncoderModel.from_pretrained("google/byt5-small", local_files_only=True, cache_dir=ckpt_path)
     else:
-        raise NotImplementedError
+        raise NotImplementedError(f"Unknown text encoder: {name}")
 
     return text_encoder, tokenizer

@@ -22,6 +22,7 @@ from opensora.models.text_encoder.t5 import get_text_encoder_and_tokenizer
 from opensora.utils.cond_data import read_captions_from_csv, read_captions_from_txt
 from opensora.utils.model_utils import str2bool  # _check_cfgs_in_parser
 
+from mindone.transformers.models.t5.modeling_t5 import T5LayerNorm
 from mindone.utils.amp import auto_mixed_precision
 from mindone.utils.logger import set_logger
 from mindone.utils.misc import to_abspath
@@ -127,15 +128,19 @@ def main(args):
         logger.info(f"Num batches: {dataset_size}")
 
     # model initiate and weight loading
-    ckpt_path = args.t5_model_dir
-    text_encoder, tokenizer = get_text_encoder_and_tokenizer("t5", ckpt_path, model_max_length=args.model_max_length)
+    ckpt_path = args.model_dir
+    text_encoder, tokenizer = get_text_encoder_and_tokenizer(
+        args.model, ckpt_path, model_max_length=args.model_max_length
+    )
     text_encoder.set_train(False)
     for param in text_encoder.get_parameters():  # freeze latte_model
         param.requires_grad = False
 
     dtype_map = {"fp16": ms.float16, "bf16": ms.bfloat16}
     if args.dtype in ["fp16", "bf16"]:
-        text_encoder = auto_mixed_precision(text_encoder, amp_level=args.amp_level, dtype=dtype_map[args.dtype])
+        text_encoder = auto_mixed_precision(
+            text_encoder, amp_level=args.amp_level, custom_fp32_cells=[T5LayerNorm], dtype=dtype_map[args.dtype]
+        )
 
     # infer
     if args.csv_path is not None:
@@ -155,8 +160,22 @@ def main(args):
             captions = [str(captions[i]) for i in range(len(captions))]
             # print(captions)
 
-            text_tokens, mask = text_encoder.get_text_tokens_and_mask(captions, return_tensor=True)
-            text_emb = text_encoder(text_tokens, mask)
+            if args.model.lower() == "t5":
+                text_tokens, mask = text_encoder.get_text_tokens_and_mask(captions, return_tensor=True)
+                text_emb = text_encoder(text_tokens, mask)
+            else:
+                text_tokens_and_mask = tokenizer(
+                    captions,
+                    max_length=args.model_max_length,
+                    padding="max_length",
+                    truncation=True,
+                    return_attention_mask=True,
+                    add_special_tokens=True,
+                    return_tensors="np",
+                )
+                text_tokens = ms.Tensor(text_tokens_and_mask["input_ids"], dtype=ms.int32)
+                mask = ms.Tensor(text_tokens_and_mask["attention_mask"], dtype=ms.float32)
+                text_emb = text_encoder(input_ids=text_tokens, attention_mask=mask)[0]
 
             end_time = time.time()
             time_cost = end_time - start_time
@@ -199,8 +218,22 @@ def main(args):
             batch_prompts = captions[i : i + args.batch_size]
             ns = len(batch_prompts)
 
-            batch_text_tokens, batch_mask = text_encoder.get_text_tokens_and_mask(batch_prompts, return_tensor=True)
-            batch_text_emb = text_encoder(batch_text_tokens, batch_mask)
+            if args.model.lower() == "t5":
+                batch_text_tokens, batch_mask = text_encoder.get_text_tokens_and_mask(batch_prompts, return_tensor=True)
+                batch_text_emb = text_encoder(batch_text_tokens, batch_mask)
+            else:
+                text_tokens_and_mask = tokenizer(
+                    batch_prompts,
+                    max_length=args.model_max_length,
+                    padding="max_length",
+                    truncation=True,
+                    return_attention_mask=True,
+                    add_special_tokens=True,
+                    return_tensors="np",
+                )
+                batch_text_tokens = ms.Tensor(text_tokens_and_mask["input_ids"], dtype=ms.int32)
+                batch_mask = ms.Tensor(text_tokens_and_mask["attention_mask"], dtype=ms.float32)
+                batch_text_emb = text_encoder(input_ids=batch_text_tokens, attention_mask=batch_mask)[0]
 
             # save result
             batch_mask = batch_mask.asnumpy().astype(np.uint8)
@@ -245,8 +278,9 @@ def parse_args():
         help="output dir to save the embeddings, if None, will treat the parent dir of csv_path as output dir.",
     )
     parser.add_argument("--caption_column", type=str, default="caption", help="caption column num in csv")
-    parser.add_argument("--t5_model_dir", default="models/t5-v1_1-xxl", type=str, help="the T5 cache folder path")
-    parser.add_argument("--model_max_length", type=int, default=120, help="T5's embedded sequence length.")
+    parser.add_argument("--model", default="t5", type=str, choices=["t5", "ul2", "byt5"], help="Name of the model.")
+    parser.add_argument("--model_dir", type=str, help="the T5 cache folder path")
+    parser.add_argument("--model_max_length", type=int, default=120, help="Model's embedded sequence length.")
     # MS new args
     parser.add_argument("--device_target", type=str, default="Ascend", help="Ascend or GPU")
     parser.add_argument("--mode", type=int, default=0, help="Running in GRAPH_MODE(0) or PYNATIVE_MODE(1) (default=0)")
@@ -304,7 +338,7 @@ def parse_args():
             parser.set_defaults(
                 **dict(
                     captions=cfg["captions"],
-                    t5_model_dir=cfg["t5_model_dir"],
+                    model_dir=cfg["model_dir"],
                 )
             )
     args = parser.parse_args()
@@ -312,7 +346,7 @@ def parse_args():
     args.csv_path = to_abspath(abs_path, args.csv_path)
     args.prompt_path = to_abspath(abs_path, args.prompt_path)
     args.output_path = to_abspath(abs_path, args.output_path)
-    args.t5_model_dir = to_abspath(abs_path, args.t5_model_dir)
+    args.model_dir = to_abspath(abs_path, args.model_dir)
     return args
 
 

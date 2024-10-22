@@ -125,6 +125,8 @@ class DiffusionWithLoss(nn.Cell):
         width: Optional[Tensor] = None,
         fps: Optional[Tensor] = None,
         ar: Optional[Tensor] = None,
+        extra_text_tokens1: Optional[Tensor] = None,
+        extra_mask1: Optional[Tensor] = None,
     ):
         """
         Video diffusion model forward and loss computation for training
@@ -166,6 +168,8 @@ class DiffusionWithLoss(nn.Cell):
             width=width,
             fps=fps,
             ar=ar,
+            extra_text_embed1=extra_text_tokens1,
+            extra_mask1=extra_mask1,
         )
 
         return loss
