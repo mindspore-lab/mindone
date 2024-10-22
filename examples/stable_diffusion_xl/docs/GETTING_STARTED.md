@@ -1,8 +1,8 @@
 # Getting Started with SDXL
 
-This document provides a brief introduction to the usage of built-in command-line tools in SDXL.
+This document briefly introduces the usage of built-in command-line tools in SDXL.
 
-## Dependency
+## Requirements
 
 See [installation](./installation.md) and [feature-supporting maps](../README.md#Features).
 

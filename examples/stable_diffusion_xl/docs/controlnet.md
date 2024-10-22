@@ -11,11 +11,11 @@ ControlNet controls pretrained large diffusion models to support additional inpu
   <em> Fig 1. Illustration of a ControlNet [<a href="#reference">1</a>] </em>
 </p>
 
+## Requirements
 
-## Dependency
-
-- AI framework: MindSpore 2.2.10~2.2.12
-- Hardware: Ascend 910*
+| hardware      | mindspore      | ascend driver | firmware    | cann toolkit/kernel |
+| --------------| -------------- | ------------- | ----------- | ------------------- |
+| Ascend 910*   | 2.2.10～2.2.12 | 23.0.3        | 7.1.0.5.220 | 7.0.0.beta1         |
 
 ```shell
 cd examples/stable_diffusion_xl

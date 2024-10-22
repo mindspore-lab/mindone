@@ -24,12 +24,13 @@ As shown above, the textual inversion method consists of the following steps:
 
 ## Preparation
 
-#### Dependency
+#### Requirements
 
-Make sure the following frameworks are installed.
+| hardware       | mindspore      | ascend driver | firmware    | cann toolkit/kernel |
+| -------------- | -------------- | ------------- | ----------- | ------------------- |
+| Ascend 910*  | 2.2.10～2.2.12 | 23.0.3        | 7.1.0.5.220 | 7.0.0.beta1         |
 
-- mindspore 2.1.0 (Ascend 910) / mindspore 2.2.10~2.2.12 (Ascend 910*)
-- openmpi 4.0.3 (for distributed mode)
+Please install openmpi 4.0.3 for distributed mode.
 
 Enter the `example/stable_diffusion_xl` folder and run
 

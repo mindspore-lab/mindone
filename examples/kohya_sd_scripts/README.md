@@ -12,9 +12,15 @@ Currently, we support
 
 
 
-## Installing the dependencies
+## Requirements
 
-The scripts work on Acend 910* with [CANN 8.0.RC2.beta1](https://www.hiascend.com/developer/download/community/result?module=cann&cann=8.0.RC2.beta1) and [MindSpore 2.3.0 ](https://www.mindspore.cn/versions#2.3.0). Check your versions by running the following commands. The default installation path of CANN is usually  `/usr/local/Ascend/ascend-toolkit` unless you specify a custom one.
+The scripts work on Ascend 910* with [CANN 8.0.RC2.beta1](https://www.hiascend.com/developer/download/community/result?module=cann&cann=8.0.RC2.beta1) and [MindSpore 2.3.0 ](https://www.mindspore.cn/versions#2.3.0).
+
+| mindspore | ascend driver | firmware    | cann toolkit/kernel |
+| --------- | ------------- | ----------- | ------------------- |
+| 2.3.0     | 24.1.RC2      | 7.3.0.1.231 | 8.0.RC2.beta1       |
+
+Check your versions by running the following commands. The default installation path of CANN is usually  `/usr/local/Ascend/ascend-toolkit` unless you specify a custom one.
 
 ```bash
 cat /usr/local/Ascend/ascend-toolkit/latest/version.cfg  
@@ -291,15 +297,15 @@ python sdxl_minimal_inference.py \
 
 ### Performance
 
-The speeds of the training example (train unet only) are as follows.
+Experiments are tested on ascend 910* with mindspore 2.3.0 graph mode, enabling unet training only.
 
-| NPUs | Global Batch size | Resolution | Mixed Precision | Graph Compile | Speed (s/step) |
-| ---- | ----------------- | ---------- | --------------- | ------------- | -------------- |
-| 1    | 1*1               | 1024x1024  | None     | 24mins | 1.66s-1.8s     |
-| 1    | 1*1               | 1024x1024  | fp16            | 33mins | 1.66s-1.8s     |
-| 1 | 1*1 | 1024x1024 | bf16 | 28mins | 1.85s-1.95s |
-| 1 | 1*1 | 1024x1024 | fp16 (full_fp16) | 30mins        | 1.71s-1.85s    |
-| 1 | 1*1 | 1024x1024 | bf16 (full_bf16) | 31mins | 1.67s-1.82s |
+| NPUs | Global Batch size | Resolution | Mixed Precision | Graph Compile | Jit level | Speed (s/step) |
+| ---- | ----------------- | ---------- | --------------- | ------------- | -------------- | -------------- |
+| 1    | 1*1               | 1024x1024  | None     | 24mins | O1 | 1.66s-1.8s     |
+| 1    | 1*1               | 1024x1024  | fp16            | 33mins | O1   | 1.66s-1.8s     |
+| 1 | 1*1 | 1024x1024 | bf16 | 28mins | O1 | 1.85s-1.95s |
+| 1 | 1*1 | 1024x1024 | fp16 (full_fp16) | 30mins        | O1  | 1.71s-1.85s    |
+| 1 | 1*1 | 1024x1024 | bf16 (full_bf16) | 31mins | O1 | 1.67s-1.82s |
 
 > Notes:
 >

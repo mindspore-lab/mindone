@@ -12,12 +12,14 @@ The `train_dreambooth.py` script implements DreamBooth finetune for SDXL based o
 
 ## Preparation
 
-#### Dependency
+#### Requirements
 
-Make sure the following frameworks are installed.
+| mindspore      | ascend driver | firmware    | cann toolkit/kernel |
+| -------------- | ------------- | ----------- | ------------------- |
+| 2.2.10～2.2.12 | 23.0.3        | 7.1.0.5.220 | 7.0.0.beta1         |
+| 2.3.0/2.3.1    | 24.1.RC2      | 7.3.0.1.231 | 8.0.R2.beta1        |
 
-- mindspore 2.2.10~2.2.12 or mindspore 2.3.0/2.3.1 on Ascend 910*
-- openmpi 4.0.3 (for distributed mode)
+Please install openmpi 4.0.3 for distributed mode.
 
 Enter the `example/stable_diffusion_xl` folder and run
 
@@ -161,9 +163,9 @@ The [dog6](https://github.com/google/dreambooth/tree/main/dataset/dog6) example 
   <img src="https://github.com/mindspore-lab/mindone/assets/33061146/6b2a6656-10a0-4d9d-8542-a9fa0527bc8a" width=700 />
 
 
-## Benchmark
+## Performance
 
-The training results below use the Dreambooth method with LoRA and enable UNet training only.
+Experiments are tested on ascend 910* with mindspore 2.2.12/2.3.1 graph mode. For tests on MindSpore 2.3.1, the scripts use jit level O2. Experiments use the Dreambooth method with LoRA and enable UNet training only.
 
 | Model Name      | Device | Card | MindSpore | bs * grad accu. |   Resolution       |   Time(ms/step)  |
 |---------------|:-------------------:|:------------------:|:----------------:|:----------------:|------------------|:----------------:|

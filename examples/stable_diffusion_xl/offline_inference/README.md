@@ -122,7 +122,7 @@ You can get images at "output/samples".
 </details>
 
 
-## BenchMark
+## Performance
 
 | Model Name     | Device      | MindSpore | MindSpore Lite | Task     | ImageSize | PerBatchSize | Sample Step | Time Per Image |
 |----------------|-------------|-----------|----------------|----------|-----------|--------------|-------------|----------------|

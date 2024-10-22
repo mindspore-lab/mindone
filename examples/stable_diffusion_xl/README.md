@@ -31,7 +31,7 @@ This folder contains [Stable Diffusion XL (SDXL)](https://arxiv.org/abs/2307.019
 - [x] (⚠️experimental) Finetune: [LoRA](https://arxiv.org/abs/2106.09685) fine-tune with SDXL-1.0-Base.
 - [x] (⚠️experimental) Finetune: [DreamBooth](https://arxiv.org/abs/2208.12242) lora fine-tune with SDXL-1.0-Base.
 - [x] (⚠️experimental) Finetune: [Textual Inversion](https://arxiv.org/abs/2208.01618) fine-tune with SDXL-1.0-Base.
-- [x] LoRA model conversion for Torch inference, refer to [tutorial](tools/lora_conversion/README_CN.md)
+- [x] LoRA model conversion for Torch inference, refer to the [tutorial](tools/lora_conversion/README_CN.md)
 - [x] Memory Efficient Sampling and Tuning: [Flash-Attention](https://arxiv.org/abs/2205.14135), Auto-Mix-Precision, Recompute, etc. (under continuous update)
 - [x] Dataset supports csv/[webdataset](https://github.com/webdataset/webdataset/)/[wids](https://github.com/webdataset/webdataset?tab=readme-ov-file#the-wids-library-for-indexed-webdatasets) format.
 
@@ -39,7 +39,7 @@ This folder contains [Stable Diffusion XL (SDXL)](https://arxiv.org/abs/2307.019
 
 * Online Inference
 
-| Device      | Mindspore     | [Model] SDXL-Base | [Model] SDXL-Pipeline | [Model] SDXL-Refiner | [Func] Samplers | [Func] Flash Attn |
+| Hardware      | Mindspore     | [Model] SDXL-Base | [Model] SDXL-Pipeline | [Model] SDXL-Refiner | [Func] Samplers | [Func] Flash Attn |
 | ----------- | ------------- | ----------------- | --------------------- | -------------------- | --------------- | ----------------- |
 | Ascend 910* | 2.3.0/2.3.1   | ✅                 | ✅                     | ✅                    | Euler EDM       | ✅                 |
 | Ascend 910* | 2.2.10~2.2.12 | ✅                 | ✅                     | ✅                    | 7 samplers      | ✅                 |
@@ -47,7 +47,7 @@ This folder contains [Stable Diffusion XL (SDXL)](https://arxiv.org/abs/2307.019
 
 * Offline Inference
 
-| Device      | Mindspore   | MindSpore Lite | [Model] SDXL-Base | [Func] Samplers |
+| Hardware      | Mindspore   | MindSpore Lite | [Model] SDXL-Base | [Func] Samplers |
 | ----------- | ----------- | -------------- | ----------------- | --------------- |
 | Ascend 910* | 2.3.0/2.3.1 | 2.3.0/2.3.1    | ❌                 | ❌               |
 | Ascend 910* | 2.2.10      | 2.2.10         | ✅                 | Euler EDM       |
@@ -56,7 +56,7 @@ This folder contains [Stable Diffusion XL (SDXL)](https://arxiv.org/abs/2307.019
 
 * Finetune with SDXL-1.0-Base
 
-| Device      | Mindspore     | Vallina | Dreambooth | LoRA | Textual Inversion | ControlNet |
+| Hardware      | Mindspore     | Vallina | Dreambooth | LoRA | Textual Inversion | ControlNet |
 | ----------- | ------------- | ------- | ---------- | ---- | ----------------- | ---------- |
 | Ascend 910* | 2.3.0/2.3.1   | ✅       | ✅          | ✅    | ❌                 | ❌          |
 | Ascend 910* | 2.2.10~2.2.12 | ✅       | ✅          | ✅    | ✅                 | ✅          |

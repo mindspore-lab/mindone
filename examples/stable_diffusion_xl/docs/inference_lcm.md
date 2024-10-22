@@ -4,10 +4,13 @@
 
 Latent Consistency Models (LCM) enable quality image generation in typically 2-4 steps making it possible to use diffusion models in almost real-time settings.
 
-## Dependency
+## Requirements
 
-- mindspore 2.2.10~2.2.12
-- openmpi 4.0.3 (for distributed mode)
+| mindspore      | ascend driver | firmware    | cann toolkit/kernel |
+| -------------- | ------------- | ----------- | ------------------- |
+| 2.2.10～2.2.12 | 23.0.3        | 7.1.0.5.220 | 7.0.0.beta1         |
+
+Install openmpi 4.0.3 for distributed mode.
 
 To install the dependency, please run
 
