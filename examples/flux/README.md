@@ -10,6 +10,9 @@ This example contains minimal inference code to run text-to-image and image-to-i
 
 ## Local installation
 
+> [!NOTE]
+> Our development and verification are based on the **MindSpore 2.3.1** version and the **CANN 7.3.0.1.231** version.
+
 Install MindONE and dependencies for Flux.
 
 ```bash
