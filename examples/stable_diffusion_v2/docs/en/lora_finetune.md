@@ -54,7 +54,6 @@ python train_text_to_image.py \
     --output_path {path to output directory} \
     --pretrained_model_path {path to pretrained checkpoint file}
 ```
-> Please enable INFNAN mode by `export MS_ASCEND_CHECK_OVERFLOW_MODE="INFNAN_MODE"` for Ascend 910* if overflow found.
 
 The training configurations are specified via the `train_config` argument, including model architecture and the training hyper-parameters such as `lora_rank`.
 
@@ -81,7 +80,6 @@ python train_text_to_image.py \
     --output_path output/lora_pokemon \
     --pretrained_model_path models/sd_v1.5-d0ab7146.ckpt
 ```
-> Please enable INFNAN mode by `export MS_ASCEND_CHECK_OVERFLOW_MODE="INFNAN_MODE"` for Ascend 910* if overflow found.
 
 The trained LoRA checkpoints will be saved in `output/lora_pokemon/ckpt`.
 
@@ -98,7 +96,6 @@ python train_text_to_image.py \
     --output_path output/lora_chinese_art \
     --pretrained_model_path models/sd_v2-1_base-7c8d09ce.ckpt
 ```
-> Please enable INFNAN mode by `export MS_ASCEND_CHECK_OVERFLOW_MODE="INFNAN_MODE"` for Ascend 910* if overflow found.
 
 The trained LoRA checkpoints will be saved in `output/lora_chinese_art/ckpt`.
 
@@ -115,7 +112,6 @@ python text_to_image.py \
         --use_lora True \
         --lora_ckpt_path {path/to/lora_checkpoint_after_finetune}
 ```
-> Please enable INFNAN mode by `export MS_ASCEND_CHECK_OVERFLOW_MODE="INFNAN_MODE"` for Ascend 910* if overflow found.
 
 Please update `lora_ckpt_path` according to your fine-tuning settings.
 

@@ -23,6 +23,7 @@ mindone_lib_path = os.path.abspath(os.path.join(__dir__, "../../../"))
 sys.path.insert(0, mindone_lib_path)
 sys.path.insert(0, os.path.abspath(os.path.join(__dir__, "..")))
 from args_train import parse_args
+from opensora.acceleration.parallel_states import create_parallel_group
 from opensora.datasets.aspect import ASPECT_RATIOS, get_image_size
 from opensora.models.layers.operation_selector import set_dynamic_mode
 from opensora.models.stdit import STDiT2_XL_2, STDiT3_XL_2, STDiT_XL_2
@@ -46,7 +47,7 @@ from mindone.trainers.checkpoint import CheckpointManager
 from mindone.trainers.lr_schedule import create_scheduler
 from mindone.trainers.optim import create_optimizer
 from mindone.trainers.recorder import PerfRecorder
-from mindone.trainers.train_step import TrainOneStepWrapper
+from mindone.trainers.zero import prepare_train_network
 from mindone.utils.logger import set_logger
 from mindone.utils.params import count_params
 from mindone.utils.seed import set_random_seed
@@ -67,6 +68,8 @@ def init_env(
     jit_level: str = "O0",
     global_bf16: bool = False,
     dynamic_shape: bool = False,
+    enable_sequence_parallelism: bool = False,
+    sequence_parallel_shards: int = 1,
     debug: bool = False,
 ) -> Tuple[int, int]:
     """
@@ -80,6 +83,13 @@ def init_env(
         A tuple containing the device ID, rank ID and number of devices.
     """
     set_random_seed(seed)
+
+    if enable_sequence_parallelism:
+        if parallel_mode != "data" or not distributed:
+            raise ValueError(
+                "sequence parallel can only be used in data parallel mode, "
+                f"but get parallel_mode=`{parallel_mode}` with distributed=`{distributed}`."
+            )
 
     if debug and mode == ms.GRAPH_MODE:  # force PyNative mode when debugging
         logger.warning("Debug mode is on, switching execution mode to PyNative.")
@@ -115,6 +125,10 @@ def init_env(
                 device_num=device_num,
             )
 
+            if enable_sequence_parallelism:
+                create_parallel_group(sequence_parallel_shards)
+                ms.set_auto_parallel_context(enable_alltoall=True)
+
         var_info = ["device_num", "rank_id", "device_num / 8", "rank_id / 8"]
         var_value = [device_num, rank_id, int(device_num / 8), int(rank_id / 8)]
         logger.info(dict(zip(var_info, var_value)))
@@ -147,10 +161,6 @@ def init_env(
     if dynamic_shape:
         logger.info("Dynamic shape mode enabled, repeat_interleave/split/chunk will be called from mint module")
         set_dynamic_mode(True)
-        if mode == 0:
-            # FIXME: this is a temp fix for dynamic shape training in graph mode. may remove in future version.
-            # can append adamw fusion flag if use nn.AdamW optimzation for acceleration
-            ms.set_context(graph_kernel_flags="--disable_packet_ops=Reshape")
 
     return rank_id, device_num
 
@@ -275,6 +285,15 @@ def initialize_dataset(
 
         num_src_samples = sum([len(ds) for ds in datasets])
 
+        if args.enable_sequence_parallelism:
+            if args.num_workers_dataset != 1:
+                pass
+                # FIXME: 0904 master fixed the seed issue for multiple workers. May remove the commented sentence later.
+                # logger.warning(
+                #     "To make sure the data is consistent across ranks for sequence parallel, the `num_workers_dataset` is set to be `1`."
+                # )
+                # args.num_workers_dataset = 1
+
         dataloaders = [
             create_dataloader(
                 dataset,
@@ -299,7 +318,7 @@ def initialize_dataset(
                 bucket_boundaries,
                 bucket_batch_sizes,
                 element_length_function=hash_func,
-                drop_remainder=not validation,
+                drop_remainder=False,
             )
     return dataloader, num_src_samples
 
@@ -308,6 +327,25 @@ def main(args):
     if args.add_datetime:
         time_str = datetime.datetime.now().strftime("%Y-%m-%dT%H-%M-%S")
         args.output_path = os.path.join(args.output_path, time_str)
+
+    if (args.image_size or (args.resolution and args.aspect_ratio)) and args.bucket_config:
+        logger.info("Image size is provided, bucket configuration will be ignored.")
+        args.bucket_config = None
+
+    img_h, img_w = None, None
+    if args.pre_patchify:
+        img_h, img_w = args.max_image_size, args.max_image_size
+    elif args.image_size:
+        img_h, img_w = args.image_size if isinstance(args.image_size, list) else (args.image_size, args.image_size)
+    elif args.bucket_config is None:
+        if args.resolution is None or args.aspect_ratio is None:
+            raise ValueError(
+                "`resolution` and `aspect_ratio` must be provided if `image_size` or `bucket_config` are not provided"
+            )
+        img_h, img_w = get_image_size(args.resolution, args.aspect_ratio)
+
+    if args.model_version == "v1":
+        assert img_h == img_w, "OpenSora v1 support square images only."
 
     # 1. init
     rank_id, device_num = init_env(
@@ -320,27 +358,14 @@ def main(args):
         jit_level=args.jit_level,
         global_bf16=args.global_bf16,
         dynamic_shape=(args.bucket_config is not None),
+        enable_sequence_parallelism=args.enable_sequence_parallelism,
+        sequence_parallel_shards=args.sequence_parallel_shards,
         debug=args.debug,
     )
     set_logger(name="", output_dir=args.output_path, rank=rank_id, log_level=eval(args.log_level))
 
     # 2. model initiate and weight loading
     dtype_map = {"fp16": ms.float16, "bf16": ms.bfloat16}
-
-    img_h, img_w = None, None
-    if args.pre_patchify:
-        img_h, img_w = args.max_image_size, args.max_image_size
-    elif args.image_size is not None:
-        img_h, img_w = args.image_size if isinstance(args.image_size, list) else (args.image_size, args.image_size)
-    elif args.bucket_config is None:
-        if args.resolution is None or args.aspect_ratio is None:
-            raise ValueError(
-                "`resolution` and `aspect_ratio` must be provided if `image_size` or `bucket_config` are not provided"
-            )
-        img_h, img_w = get_image_size(args.resolution, args.aspect_ratio)
-
-    if args.model_version == "v1":
-        assert img_h == img_w, "OpenSora v1 support square images only."
 
     # 2.1 vae
     logger.info("vae init")
@@ -356,6 +381,8 @@ def main(args):
             vae = OpenSoraVAE_V1_2(
                 micro_batch_size=args.vae_micro_batch_size,
                 micro_frame_size=args.vae_micro_frame_size,
+                micro_batch_parallel=args.enable_sequence_parallelism,
+                micro_frame_parallel=args.enable_sequence_parallelism,
                 ckpt_path=args.vae_checkpoint,
                 freeze_vae_2d=True,
             )
@@ -402,6 +429,7 @@ def main(args):
         patchify_conv3d_replace=patchify_conv3d_replace,  # for Ascend
         manual_pad=args.manual_pad,
         enable_flashattn=args.enable_flash_attention,
+        enable_sequence_parallelism=args.enable_sequence_parallelism,
         use_recompute=args.use_recompute,
         num_recompute_blocks=args.num_recompute_blocks,
     )
@@ -513,6 +541,14 @@ def main(args):
     latent_diffusion_with_loss = pipeline_(latte_model, diffusion, vae=vae, text_encoder=None, **pipeline_kwargs)
 
     # 3. create dataset
+    if args.enable_sequence_parallelism:
+        data_device_num = device_num // args.sequence_parallel_shards
+        data_rank_id = rank_id // args.sequence_parallel_shards
+        logger.info(f"Creating dataloader: ID={rank_id}, group={data_rank_id}, num_groups={data_device_num}")
+    else:
+        data_device_num = device_num
+        data_rank_id = rank_id
+
     dataloader, num_src_samples = initialize_dataset(
         args,
         args.csv_path,
@@ -525,8 +561,8 @@ def main(args):
         latte_model,
         vae,
         bucket_config=args.bucket_config,
-        device_num=device_num,
-        rank_id=rank_id,
+        device_num=data_device_num,
+        rank_id=data_rank_id,
     )
 
     # FIXME: get_dataset_size() is extremely slow when used with bucket_batch_by_length
@@ -557,22 +593,26 @@ def main(args):
             vae,
             bucket_config=args.val_bucket_config,
             validation=True,
-            device_num=device_num,
-            rank_id=rank_id,
+            device_num=data_device_num,
+            rank_id=data_rank_id,
         )
 
     # compute total steps and data epochs (in unit of data sink size)
+    if args.dataset_sink_mode and args.sink_size != -1:
+        # in data sink mode, data sink size determines the number of training steps per epoch.
+        steps_per_epoch = args.sink_size
+    else:
+        # without data sink, number of training steps is determined by number of data batches of the whole training set.
+        steps_per_epoch = dataset_size
+
     if args.train_steps == -1:
         assert args.epochs != -1
         total_train_steps = args.epochs * dataset_size
+        sink_epochs = math.ceil(total_train_steps / steps_per_epoch)
     else:
         total_train_steps = args.train_steps
-
-    if args.dataset_sink_mode and args.sink_size != -1:
-        steps_per_sink = args.sink_size
-    else:
-        steps_per_sink = dataset_size
-    sink_epochs = math.ceil(total_train_steps / steps_per_sink)
+        # asume one step need one whole epoch data to ensure enough batch loading for training
+        sink_epochs = total_train_steps
 
     if args.ckpt_save_steps == -1:
         ckpt_save_interval = args.ckpt_save_interval
@@ -583,11 +623,11 @@ def main(args):
             ckpt_save_interval = args.ckpt_save_steps
         else:
             # still need to count interval in sink epochs
-            ckpt_save_interval = max(1, args.ckpt_save_steps // steps_per_sink)
-            if args.ckpt_save_steps % steps_per_sink != 0:
+            ckpt_save_interval = max(1, args.ckpt_save_steps // steps_per_epoch)
+            if args.ckpt_save_steps % steps_per_epoch != 0:
                 logger.warning(
                     f"`ckpt_save_steps` must be times of sink size or dataset_size under dataset sink mode."
-                    f"Checkpoint will be saved every {ckpt_save_interval * steps_per_sink} steps."
+                    f"Checkpoint will be saved every {ckpt_save_interval * steps_per_epoch} steps."
                 )
     step_mode = step_mode if args.step_mode is None else args.step_mode
 
@@ -661,7 +701,7 @@ def main(args):
     # trainer (standalone and distributed)
     ema = EMA(latent_diffusion_with_loss.network, ema_decay=args.ema_decay, offloading=True) if args.use_ema else None
 
-    net_with_grads = TrainOneStepWrapper(
+    net_with_grads = prepare_train_network(
         latent_diffusion_with_loss,
         optimizer=optimizer,
         scale_sense=loss_scaler,
@@ -670,6 +710,7 @@ def main(args):
         clip_grad=args.clip_grad,
         clip_norm=args.max_grad_norm,
         ema=ema,
+        zero_stage=args.zero_stage,
     )
 
     # resume train net states
@@ -677,16 +718,17 @@ def main(args):
         resume_train_net(net_with_grads, resume_ckpt)
 
     if (args.mode == 0) and (args.bucket_config is not None):
-        video = ms.Tensor(shape=[None, None, 3, None, None], dtype=ms.float32)
-        caption = ms.Tensor(shape=[None, args.model_max_length, 4096], dtype=ms.float32)
-        mask = ms.Tensor(shape=[None, args.model_max_length], dtype=ms.uint8)
-        frames_mask = ms.Tensor(shape=[None, None], dtype=ms.bool_)
+        _bs = ms.Symbol(unique=True)
+        video = ms.Tensor(shape=[_bs, None, 3, None, None], dtype=ms.float32)
+        caption = ms.Tensor(shape=[_bs, args.model_max_length, 4096], dtype=ms.float32)
+        mask = ms.Tensor(shape=[_bs, args.model_max_length], dtype=ms.uint8)
+        frames_mask = ms.Tensor(shape=[_bs, None], dtype=ms.bool_)
         # fmt: off
-        num_frames = ms.Tensor(shape=[None, ], dtype=ms.float32)
-        height = ms.Tensor(shape=[None, ], dtype=ms.float32)
-        width = ms.Tensor(shape=[None, ], dtype=ms.float32)
-        fps = ms.Tensor(shape=[None, ], dtype=ms.float32)
-        ar = ms.Tensor(shape=[None, ], dtype=ms.float32)
+        num_frames = ms.Tensor(shape=[_bs, ], dtype=ms.float32)
+        height = ms.Tensor(shape=[_bs, ], dtype=ms.float32)
+        width = ms.Tensor(shape=[_bs, ], dtype=ms.float32)
+        fps = ms.Tensor(shape=[_bs, ], dtype=ms.float32)
+        ar = ms.Tensor(shape=[_bs, ], dtype=ms.float32)
         # fmt: on
         net_with_grads.set_inputs(video, caption, mask, frames_mask, num_frames, height, width, fps, ar)
         logger.info("Dynamic inputs are initialized for bucket config training in Graph mode!")
@@ -731,10 +773,11 @@ def main(args):
                 resume=args.resume,
             )
             callbacks.extend([save_cb, rec_cb])
-            if args.train_steps > 0:
-                callbacks.append(StopAtStepCallback(args.train_steps, global_step=cur_iter))
             if args.profile:
                 callbacks.append(ProfilerCallbackEpoch(2, 3, "./profile_data"))
+
+        if args.train_steps > 0:
+            callbacks.append(StopAtStepCallback(args.train_steps, global_step=cur_iter))
 
     # 5. log and save config
     if rank_id == 0:
@@ -819,7 +862,7 @@ def main(args):
             ckpt_manager = CheckpointManager(ckpt_dir, "latest_k", k=args.ckpt_max_keep)
             if not os.path.exists(ckpt_dir):
                 os.makedirs(ckpt_dir)
-            perf_columns = ["step", "loss", "train_time(s)"]
+            perf_columns = ["step", "loss", "train_time(s)", "shape"]
             output_dir = ckpt_dir.replace("/ckpt", "")
             if start_epoch == 0:
                 record = PerfRecorder(output_dir, metric_names=perf_columns)
@@ -844,13 +887,14 @@ def main(args):
                 # print(data[0].shape)
                 loss_val = float(loss.asnumpy())
                 logger.info(
-                    f"Epoch {epoch}, Step {step}, loss {loss_val:.5f}, Global step {global_step}, Step time {step_time*1000:.2f}ms"
+                    f"Epoch {epoch}, Step {step}, loss {loss_val:.5f}, Global step {global_step},"
+                    + f" Shape: {tuple(data[0].shape)}, Step time {step_time*1000:.2f}ms"
                 )
                 if overflow:
                     logger.warning("overflow detected")
 
                 if rank_id == 0:
-                    step_pref_value = [global_step, loss_val, step_time]
+                    step_pref_value = [global_step, loss_val, step_time, tuple(data[0].shape)]
                     record.add(*step_pref_value)
                 # save and eval in step
                 if save_by_step and rank_id == 0:

@@ -135,6 +135,7 @@ class PatchEmbed(nn.Cell):
         interpolation_scale=1,
         pos_embed_type="sincos",
         pos_embed_max_size=None,  # For SD3 cropping
+        zero_module=False,  # For SD3 ControlNet
     ):
         super().__init__()
         from .normalization import LayerNorm
@@ -144,6 +145,7 @@ class PatchEmbed(nn.Cell):
         self.layer_norm = layer_norm
         self.pos_embed_max_size = pos_embed_max_size
 
+        weight_init_kwargs = {"weight_init": "zeros", "bias_init": "zeros"} if zero_module else {}
         self.proj = nn.Conv2d(
             in_channels,
             embed_dim,
@@ -151,6 +153,7 @@ class PatchEmbed(nn.Cell):
             stride=patch_size,
             pad_mode="pad",
             has_bias=bias,
+            **weight_init_kwargs,
         )
         if layer_norm:
             self.norm = LayerNorm(embed_dim, elementwise_affine=False, eps=1e-6)
@@ -232,6 +235,112 @@ class PatchEmbed(nn.Cell):
         return (latent + pos_embed).to(latent.dtype)
 
 
+def get_2d_rotary_pos_embed(embed_dim, crops_coords, grid_size, use_real=True):
+    """
+    RoPE for image tokens with 2d structure.
+
+    Args:
+    embed_dim: (`int`):
+        The embedding dimension size
+    crops_coords (`Tuple[int]`)
+        The top-left and bottom-right coordinates of the crop.
+    grid_size (`Tuple[int]`):
+        The grid size of the positional embedding.
+    use_real (`bool`):
+        If True, return real part and imaginary part separately. Otherwise, return complex numbers.
+
+    Returns:
+        `ms.Tensor`: positional embdding with shape `( grid_size * grid_size, embed_dim/2)`.
+    """
+    start, stop = crops_coords
+    grid_h = np.linspace(start[0], stop[0], grid_size[0], endpoint=False, dtype=np.float32)
+    grid_w = np.linspace(start[1], stop[1], grid_size[1], endpoint=False, dtype=np.float32)
+    grid = np.meshgrid(grid_w, grid_h)  # here w goes first
+    grid = np.stack(grid, axis=0)  # [2, W, H]
+
+    grid = grid.reshape([2, 1, *grid.shape[1:]])
+    pos_embed = get_2d_rotary_pos_embed_from_grid(embed_dim, grid, use_real=use_real)
+    return pos_embed
+
+
+def get_2d_rotary_pos_embed_from_grid(embed_dim, grid, use_real=False):
+    assert embed_dim % 4 == 0
+
+    # use half of dimensions to encode grid_h
+    emb_h = get_1d_rotary_pos_embed(embed_dim // 2, grid[0].reshape(-1), use_real=use_real)  # (H*W, D/4)
+    emb_w = get_1d_rotary_pos_embed(embed_dim // 2, grid[1].reshape(-1), use_real=use_real)  # (H*W, D/4)
+
+    if use_real:
+        cos = ops.cat([emb_h[0], emb_w[0]], axis=1)  # (H*W, D/2)
+        sin = ops.cat([emb_h[1], emb_w[1]], axis=1)  # (H*W, D/2)
+        return cos, sin
+    else:
+        emb = ops.cat([emb_h, emb_w], axis=1)  # (H*W, D/2)
+        return emb
+
+
+def get_1d_rotary_pos_embed(dim: int, pos: Union[np.ndarray, int], theta: float = 10000.0, use_real=False):
+    """
+    Precompute the frequency tensor for complex exponentials (cis) with given dimensions.
+
+    This function calculates a frequency tensor with complex exponentials using the given dimension 'dim' and the end
+    index 'end'. The 'theta' parameter scales the frequencies. The returned tensor contains complex values in complex64
+    data type.
+
+    Args:
+        dim (`int`): Dimension of the frequency tensor.
+        pos (`np.ndarray` or `int`): Position indices for the frequency tensor. [S] or scalar
+        theta (`float`, *optional*, defaults to 10000.0):
+            Scaling factor for frequency computation. Defaults to 10000.0.
+        use_real (`bool`, *optional*):
+            If True, return real part and imaginary part separately. Otherwise, return complex numbers.
+
+    Returns:
+        `ms.Tensor`: Precomputed frequency tensor with complex exponentials. [S, D/2]
+    """
+    if isinstance(pos, int):
+        pos = np.arange(pos)
+    freqs = 1.0 / (theta ** (ops.arange(0, dim, 2)[: (dim // 2)].float() / dim))  # [D/2]
+    t = ms.Tensor.from_numpy(pos)  # type: ignore  # [S]
+    freqs = ops.outer(t, freqs).float()  # type: ignore   # [S, D/2]
+    if use_real:
+        freqs_cos = freqs.cos().repeat_interleave(2, dim=1)  # [S, D]
+        freqs_sin = freqs.sin().repeat_interleave(2, dim=1)  # [S, D]
+        return freqs_cos, freqs_sin
+    else:
+        freqs_cis = ops.polar(ops.ones_like(freqs), freqs)  # complex64     # [S, D/2]
+        return freqs_cis
+
+
+def apply_rotary_emb(
+    x: ms.Tensor,
+    freqs_cis: Union[ms.Tensor, Tuple[ms.Tensor]],
+) -> Tuple[ms.Tensor, ms.Tensor]:
+    """
+    Apply rotary embeddings to input tensors using the given frequency tensor. This function applies rotary embeddings
+    to the given query or key 'x' tensors using the provided frequency tensor 'freqs_cis'. The input tensors are
+    reshaped as complex numbers, and the frequency tensor is reshaped for broadcasting compatibility. The resulting
+    tensors contain rotary embeddings and are returned as real tensors.
+
+    Args:
+        x (`ms.Tensor`):
+            Query or key tensor to apply rotary embeddings. [B, H, S, D] xk (ms.Tensor): Key tensor to apply
+        freqs_cis (`Tuple[ms.Tensor]`): Precomputed frequency tensor for complex exponentials. ([S, D], [S, D],)
+
+    Returns:
+        Tuple[ms.Tensor, ms.Tensor]: Tuple of modified query tensor and key tensor with rotary embeddings.
+    """
+    cos, sin = freqs_cis  # [S, D]
+    cos = cos[None, None]
+    sin = sin[None, None]
+
+    x_real, x_imag = x.reshape(*x.shape[:-1], -1, 2).unbind(-1)  # [B, S, H, D//2]
+    x_rotated = ops.stack([-x_imag, x_real], axis=-1).flatten(start_dim=3)
+    out = (x.float() * cos + x_rotated.float() * sin).to(x.dtype)
+
+    return out
+
+
 class TimestepEmbedding(nn.Cell):
     def __init__(
         self,
@@ -244,9 +353,8 @@ class TimestepEmbedding(nn.Cell):
         sample_proj_bias=True,
     ):
         super().__init__()
-        linear_cls = nn.Dense
 
-        self.linear_1 = linear_cls(in_channels, time_embed_dim, has_bias=sample_proj_bias)
+        self.linear_1 = nn.Dense(in_channels, time_embed_dim, has_bias=sample_proj_bias)
 
         if cond_proj_dim is not None:
             self.cond_proj = nn.Dense(cond_proj_dim, in_channels, has_bias=False)
@@ -259,7 +367,7 @@ class TimestepEmbedding(nn.Cell):
             time_embed_dim_out = out_dim
         else:
             time_embed_dim_out = time_embed_dim
-        self.linear_2 = linear_cls(time_embed_dim, time_embed_dim_out, has_bias=sample_proj_bias)
+        self.linear_2 = nn.Dense(time_embed_dim, time_embed_dim_out, has_bias=sample_proj_bias)
 
         if post_act_fn is None:
             self.post_act = None
@@ -520,6 +628,23 @@ class IPAdapterFullImageProjection(nn.Cell):
         return self.norm(self.ff(image_embeds))
 
 
+class IPAdapterFaceIDImageProjection(nn.Cell):
+    def __init__(self, image_embed_dim=1024, cross_attention_dim=1024, mult=1, num_tokens=1):
+        super().__init__()
+        from .attention import FeedForward
+        from .normalization import LayerNorm
+
+        self.num_tokens = num_tokens
+        self.cross_attention_dim = cross_attention_dim
+        self.ff = FeedForward(image_embed_dim, cross_attention_dim * num_tokens, mult=mult, activation_fn="gelu")
+        self.norm = LayerNorm(cross_attention_dim)
+
+    def construct(self, image_embeds: ms.Tensor):
+        x = self.ff(image_embeds)
+        x = x.reshape(-1, self.num_tokens, self.cross_attention_dim)
+        return self.norm(x)
+
+
 class CombinedTimestepLabelEmbeddings(nn.Cell):
     def __init__(self, num_classes, embedding_dim, class_dropout_prob=0.1):
         super().__init__()
@@ -555,6 +680,91 @@ class CombinedTimestepTextProjEmbeddings(nn.Cell):
         pooled_projections = self.text_embedder(pooled_projection)
 
         conditioning = timesteps_emb + pooled_projections
+
+        return conditioning
+
+
+class HunyuanDiTAttentionPool(nn.Cell):
+    # Copied from https://github.com/Tencent/HunyuanDiT/blob/cb709308d92e6c7e8d59d0dff41b74d35088db6a/hydit/modules/poolers.py#L6
+
+    def __init__(self, spacial_dim: int, embed_dim: int, num_heads: int, output_dim: int = None):
+        super().__init__()
+        self.positional_embedding = ms.Parameter(
+            ops.randn(spacial_dim + 1, embed_dim) / embed_dim**0.5, name="positional_embedding"
+        )
+        self.k_proj = nn.Dense(embed_dim, embed_dim)
+        self.q_proj = nn.Dense(embed_dim, embed_dim)
+        self.v_proj = nn.Dense(embed_dim, embed_dim)
+        self.c_proj = nn.Dense(embed_dim, output_dim or embed_dim)
+        self.num_heads = num_heads
+
+    def construct(self, x: ms.Tensor):
+        x = x.permute(1, 0, 2)  # NLC -> LNC
+        x = ops.cat([x.mean(axis=0, keep_dims=True), x], axis=0)  # (L+1)NC
+        x = x + self.positional_embedding[:, None, :].to(x.dtype)  # (L+1)NC
+        x, _ = ops.function.nn_func.multi_head_attention_forward(
+            query=x[:1],
+            key=x,
+            value=x,
+            embed_dim_to_check=x.shape[-1],
+            num_heads=self.num_heads,
+            q_proj_weight=self.q_proj.weight,
+            k_proj_weight=self.k_proj.weight,
+            v_proj_weight=self.v_proj.weight,
+            in_proj_weight=None,
+            in_proj_bias=ops.cat([self.q_proj.bias, self.k_proj.bias, self.v_proj.bias]),
+            bias_k=None,
+            bias_v=None,
+            add_zero_attn=False,
+            dropout_p=0.0,
+            out_proj_weight=self.c_proj.weight,
+            out_proj_bias=self.c_proj.bias,
+            use_separate_proj_weight=True,
+            training=self.training,
+            dtype=x.dtype,  # mindspore must specify argument dtype, otherwise fp32 will be used
+        )
+        return x.squeeze(0)
+
+
+class HunyuanCombinedTimestepTextSizeStyleEmbedding(nn.Cell):
+    def __init__(self, embedding_dim, pooled_projection_dim=1024, seq_len=256, cross_attention_dim=2048):
+        super().__init__()
+
+        self.time_proj = Timesteps(num_channels=256, flip_sin_to_cos=True, downscale_freq_shift=0)
+        self.timestep_embedder = TimestepEmbedding(in_channels=256, time_embed_dim=embedding_dim)
+
+        self.pooler = HunyuanDiTAttentionPool(
+            seq_len, cross_attention_dim, num_heads=8, output_dim=pooled_projection_dim
+        )
+        # Here we use a default learned embedder layer for future extension.
+        self.style_embedder = nn.Embedding(1, embedding_dim)
+        extra_in_dim = 256 * 6 + embedding_dim + pooled_projection_dim
+        self.extra_embedder = PixArtAlphaTextProjection(
+            in_features=extra_in_dim,
+            hidden_size=embedding_dim * 4,
+            out_features=embedding_dim,
+            act_fn="silu_fp32",
+        )
+
+    def construct(self, timestep, encoder_hidden_states, image_meta_size, style, hidden_dtype=None):
+        hidden_dtype = hidden_dtype or encoder_hidden_states.dtype  # tensor.to(None) is invalid
+        timesteps_proj = self.time_proj(timestep)
+        timesteps_emb = self.timestep_embedder(timesteps_proj.to(dtype=hidden_dtype))  # (N, 256)
+
+        # extra condition1: text
+        pooled_projections = self.pooler(encoder_hidden_states)  # (N, 1024)
+
+        # extra condition2: image meta size embdding
+        image_meta_size = get_timestep_embedding(image_meta_size.view(-1), 256, True, 0)
+        image_meta_size = image_meta_size.to(dtype=hidden_dtype)
+        image_meta_size = image_meta_size.view(-1, 6 * 256)  # (N, 1536)
+
+        # extra condition3: style embedding
+        style_embedding = self.style_embedder(style)  # (N, embedding_dim)
+
+        # Concatenate all extra vectors
+        extra_cond = ops.cat([pooled_projections, image_meta_size, style_embedding], axis=1)
+        conditioning = timesteps_emb + self.extra_embedder(extra_cond)  # [B, D]
 
         return conditioning
 
@@ -868,7 +1078,7 @@ class PixArtAlphaTextProjection(nn.Cell):
             self.act_1 = FP32SiLU()
         else:
             raise ValueError(f"Unknown activation function: {act_fn}")
-        self.linear_2 = nn.Dense(in_channels=hidden_size, out_channels=hidden_size, has_bias=True)
+        self.linear_2 = nn.Dense(in_channels=hidden_size, out_channels=out_features, has_bias=True)
 
     def construct(self, caption):
         hidden_states = self.linear_1(caption)
@@ -877,21 +1087,53 @@ class PixArtAlphaTextProjection(nn.Cell):
         return hidden_states
 
 
+class IPAdapterPlusImageProjectionBlock(nn.Cell):
+    def __init__(
+        self,
+        embed_dims: int = 768,
+        dim_head: int = 64,
+        heads: int = 16,
+        ffn_ratio: float = 4,
+    ) -> None:
+        super().__init__()
+        from .attention import FeedForward
+        from .normalization import LayerNorm
+
+        self.ln0 = LayerNorm(embed_dims)
+        self.ln1 = LayerNorm(embed_dims)
+        self.attn = Attention(
+            query_dim=embed_dims,
+            dim_head=dim_head,
+            heads=heads,
+            out_bias=False,
+        )
+        self.ff = nn.SequentialCell(
+            LayerNorm(embed_dims),
+            FeedForward(embed_dims, embed_dims, activation_fn="gelu", mult=ffn_ratio, bias=False),
+        )
+
+    def construct(self, x, latents, residual):
+        encoder_hidden_states = self.ln0(x)
+        latents = self.ln1(latents)
+        encoder_hidden_states = ops.cat([encoder_hidden_states, latents], axis=-2)
+        latents = self.attn(latents, encoder_hidden_states) + residual
+        latents = self.ff(latents) + latents
+        return latents
+
+
 class IPAdapterPlusImageProjection(nn.Cell):
     """Resampler of IP-Adapter Plus.
 
     Args:
-    ----
-        embed_dims (int): The feature dimension. Defaults to 768.
-        output_dims (int): The number of output channels, that is the same
-            number of the channels in the
-            `unet.config.cross_attention_dim`. Defaults to 1024.
-        hidden_dims (int): The number of hidden channels. Defaults to 1280.
-        depth (int): The number of blocks. Defaults to 8.
-        dim_head (int): The number of head channels. Defaults to 64.
-        heads (int): Parallel attention heads. Defaults to 16.
-        num_queries (int): The number of queries. Defaults to 8.
-        ffn_ratio (float): The expansion ratio of feedforward network hidden
+        embed_dims (int): The feature dimension. Defaults to 768. output_dims (int): The number of output channels,
+        that is the same
+            number of the channels in the `unet.config.cross_attention_dim`. Defaults to 1024.
+        hidden_dims (int):
+            The number of hidden channels. Defaults to 1280. depth (int): The number of blocks. Defaults
+        to 8. dim_head (int): The number of head channels. Defaults to 64. heads (int): Parallel attention heads.
+        Defaults to 16. num_queries (int):
+            The number of queries. Defaults to 8. ffn_ratio (float): The expansion ratio
+        of feedforward network hidden
             layer channels. Defaults to 4.
     """
 
@@ -907,8 +1149,7 @@ class IPAdapterPlusImageProjection(nn.Cell):
         ffn_ratio: float = 4,
     ) -> None:
         super().__init__()
-        from .attention import FeedForward
-        from .normalization import LayerNorm  # Lazy import to avoid circular import
+        from .normalization import LayerNorm
 
         self.latents = ms.Parameter(ops.randn(1, num_queries, hidden_dims) / hidden_dims**0.5, name="latents")
 
@@ -917,54 +1158,109 @@ class IPAdapterPlusImageProjection(nn.Cell):
         self.proj_out = nn.Dense(hidden_dims, output_dims)
         self.norm_out = LayerNorm(output_dims)
 
-        layers = []
-        for _ in range(depth):
-            layers.append(
-                nn.CellList(
-                    [
-                        LayerNorm(hidden_dims),
-                        LayerNorm(hidden_dims),
-                        Attention(
-                            query_dim=hidden_dims,
-                            dim_head=dim_head,
-                            heads=heads,
-                            out_bias=False,
-                        ),
-                        nn.SequentialCell(
-                            LayerNorm(hidden_dims),
-                            FeedForward(hidden_dims, hidden_dims, activation_fn="gelu", mult=ffn_ratio, bias=False),
-                        ),
-                    ]
-                )
-            )
-        self.layers = nn.CellList(layers)
+        self.layers = nn.CellList(
+            [IPAdapterPlusImageProjectionBlock(hidden_dims, dim_head, heads, ffn_ratio) for _ in range(depth)]
+        )
 
     def construct(self, x: ms.Tensor) -> ms.Tensor:
         """Forward pass.
 
         Args:
-        ----
             x (ms.Tensor): Input Tensor.
-
         Returns:
-        -------
             ms.Tensor: Output Tensor.
         """
-        latents = self.latents.tile((x.size(0), 1, 1))
+        latents = self.latents.tile((x.shape[0], 1, 1))
 
         x = self.proj_in(x)
 
-        for ln0, ln1, attn, ff in self.layers:
+        for block in self.layers:
             residual = latents
-
-            encoder_hidden_states = ln0(x)
-            latents = ln1(latents)
-            encoder_hidden_states = ops.cat([encoder_hidden_states, latents], axis=-2)
-            latents = attn(latents, encoder_hidden_states) + residual
-            latents = ff(latents) + latents
+            latents = block(x, latents, residual)
 
         latents = self.proj_out(latents)
         return self.norm_out(latents)
+
+
+class IPAdapterFaceIDPlusImageProjection(nn.Cell):
+    """FacePerceiverResampler of IP-Adapter Plus.
+
+    Args:
+        embed_dims (int): The feature dimension. Defaults to 768. output_dims (int): The number of output channels,
+        that is the same
+            number of the channels in the `unet.config.cross_attention_dim`. Defaults to 1024.
+        hidden_dims (int):
+            The number of hidden channels. Defaults to 1280. depth (int): The number of blocks. Defaults
+        to 8. dim_head (int): The number of head channels. Defaults to 64. heads (int): Parallel attention heads.
+        Defaults to 16. num_tokens (int): Number of tokens num_queries (int): The number of queries. Defaults to 8.
+        ffn_ratio (float): The expansion ratio of feedforward network hidden
+            layer channels. Defaults to 4.
+        ffproj_ratio (float): The expansion ratio of feedforward network hidden
+            layer channels (for ID embeddings). Defaults to 4.
+    """
+
+    def __init__(
+        self,
+        embed_dims: int = 768,
+        output_dims: int = 768,
+        hidden_dims: int = 1280,
+        id_embeddings_dim: int = 512,
+        depth: int = 4,
+        dim_head: int = 64,
+        heads: int = 16,
+        num_tokens: int = 4,
+        num_queries: int = 8,
+        ffn_ratio: float = 4,
+        ffproj_ratio: int = 2,
+    ) -> None:
+        super().__init__()
+        from .attention import FeedForward
+        from .normalization import LayerNorm
+
+        self.num_tokens = num_tokens
+        self.embed_dim = embed_dims
+        self.clip_embeds = None
+        self.shortcut = False
+        self.shortcut_scale = 1.0
+
+        self.proj = FeedForward(id_embeddings_dim, embed_dims * num_tokens, activation_fn="gelu", mult=ffproj_ratio)
+        self.norm = LayerNorm(embed_dims)
+
+        self.proj_in = nn.Dense(hidden_dims, embed_dims)
+
+        self.proj_out = nn.Dense(embed_dims, output_dims)
+        self.norm_out = LayerNorm(output_dims)
+
+        self.layers = nn.CellList(
+            [IPAdapterPlusImageProjectionBlock(embed_dims, dim_head, heads, ffn_ratio) for _ in range(depth)]
+        )
+
+    def construct(self, id_embeds: ms.Tensor) -> ms.Tensor:
+        """Forward pass.
+
+        Args:
+            id_embeds (ms.Tensor): Input Tensor (ID embeds).
+        Returns:
+            ms.Tensor: Output Tensor.
+        """
+        id_embeds = id_embeds.to(self.clip_embeds.dtype)
+        id_embeds = self.proj(id_embeds)
+        id_embeds = id_embeds.reshape(-1, self.num_tokens, self.embed_dim)
+        id_embeds = self.norm(id_embeds)
+        latents = id_embeds
+
+        clip_embeds = self.proj_in(self.clip_embeds)
+        x = clip_embeds.reshape(-1, clip_embeds.shape[2], clip_embeds.shape[3])
+
+        for block in self.layers:
+            residual = latents
+            latents = block(x, latents, residual)
+
+        latents = self.proj_out(latents)
+        out = self.norm_out(latents)
+        if self.shortcut:
+            out = id_embeds + self.shortcut_scale * out
+        return out
 
 
 class MultiIPAdapterImageProjection(nn.Cell):

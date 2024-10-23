@@ -35,14 +35,27 @@ def init_env(args):
     set_random_seed(args.seed)
     ms.set_context(max_device_memory=args.max_device_memory)  # TODO: why limit?
     ms.set_context(mode=args.mode)  # needed for MS2.0
+    if args.mode == ms.GRAPH_MODE:
+        try:
+            if args.jit_level in ["O0", "O1", "O2"]:
+                ms.set_context(jit_config={"jit_level": args.jit_level})
+                logger.info(f"set jit_level: {args.jit_level}.")
+            else:
+                logger.warning(
+                    f"Unsupport jit_level: {args.jit_level}. The framework automatically selects the execution method"
+                )
+        except Exception:
+            logger.warning(
+                "The current jit_level is not suitable because current MindSpore version does not match,"
+                "please ensure the MindSpore version >= ms2.3.0."
+            )
     if args.use_parallel:
         init()
-        device_id = int(os.getenv("DEVICE_ID"))
         device_num = get_group_size()
         ParallelConfig.dp = device_num
         rank_id = get_rank()
         args.rank = rank_id
-        logger.debug("Device_id: {}, rank_id: {}, device_num: {}".format(device_id, rank_id, device_num))
+        logger.debug("rank_id: {}, device_num: {}".format(rank_id, device_num))
         context.reset_auto_parallel_context()
         context.set_auto_parallel_context(
             parallel_mode=context.ParallelMode.DATA_PARALLEL,
@@ -52,18 +65,16 @@ def init_env(args):
         )
     else:
         device_num = 1
-        device_id = int(os.getenv("DEVICE_ID", 0))
         rank_id = 0
         args.rank = rank_id
 
     context.set_context(
         mode=args.mode,
         device_target="Ascend",
-        device_id=device_id,
         pynative_synchronize=False,  # for debug in pynative mode
     )
 
-    return rank_id, device_id, device_num
+    return rank_id, device_num
 
 
 def _check_cfgs_in_parser(cfgs: dict, parser: argparse.ArgumentParser):
@@ -86,6 +97,16 @@ def parse_args():
     parser.add_argument("--unet_initialize_random", default=False, type=str2bool, help="initialize unet randomly")
     parser.add_argument("--dataset_sink_mode", default=False, type=str2bool, help="sink mode")
     parser.add_argument("--mode", default=0, type=int, help="Specify the mode: 0 for graph mode, 1 for pynative mode")
+    parser.add_argument(
+        "--jit_level",
+        default="O2",
+        type=str,
+        choices=["O0", "O1", "O2"],
+        help="Used to control the compilation optimization level. Supports ['O0', 'O1', 'O2']."
+        "O0: Except for optimizations that may affect functionality, all other optimizations are turned off, adopt KernelByKernel execution mode."
+        "O1: Using commonly used optimizations and automatic operator fusion optimizations, adopt KernelByKernel execution mode."
+        "O2: Ultimate performance optimization, adopt Sink execution mode.",
+    )
     parser.add_argument("--use_parallel", default=False, type=str2bool, help="Enable parallel processing")
     parser.add_argument("--max_device_memory", type=str, default="30GB", help="e.g. `30GB` for 910a, `59GB` for 910b")
     parser.add_argument("--use_lora", default=False, type=str2bool, help="Enable LoRA finetuning")
@@ -347,7 +368,7 @@ def generate_class_images(args):
 
 def main(args):
     # init
-    rank_id, device_id, device_num = init_env(args)
+    rank_id, device_num = init_env(args)
     set_logger(name="", output_dir=args.output_path, rank=rank_id, log_level=eval(args.log_level))
     # Generate class images if prior preservation is enabled.
     if args.with_prior_preservation:
