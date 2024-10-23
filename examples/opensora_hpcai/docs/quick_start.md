@@ -36,9 +36,12 @@ To enable flash attention, please use mindspore>=2.3-20240422.
 
 Prepare the model checkpoints of T5, VAE, and STDiT and put them under `models/` folder as follows
 
-- T5: [ms checkpoints download link](https://download-mindspore.osinfra.cn/toolkits/mindone/text_encoders/deepfloyd_t5_v1_1_xxl/)
-
-    Put them under `models/t5-v1_1-xxl` folder. Rename `t5_v1_1_xxl-d35f27a3.ckpt` to `model.ckpt` if error raised.
+- **T5**:
+  Download the [DeepFloyd/t5-v1_1-xxl](https://huggingface.co/DeepFloyd/t5-v1_1-xxl/tree/main) model and put it under `models/`.
+  Then, convert to `safetensors` checkpoint as required by `mindone.transformers`:
+  ```shell
+  python tools/convert_t5.py --model_dir ./models/t5-v1_1-xxl/
+  ```
 
 - VAE:
 
