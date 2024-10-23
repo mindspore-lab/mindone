@@ -313,7 +313,7 @@ In the `sample_iv2v.yaml`, provide such information as `loop`, `condition_frame_
 and `reference_path`.
 See [here](docs/quick_start.md#imagevideo-to-video-opensora-v11-and-above) for more details.
 
-> For inference with sequence parallelism using multiple NPUs in Open-Sora 1.2, please use `msrun` and append `--use_parallel True` and `--enable_sequence_parallelism True` to the inference script, referring to `scripts/run/run_infer_sequence_parallel.sh`.
+> For inference with sequence parallelism using multiple NPUs in Open-Sora 1.2, please use `msrun` and append `--use_parallel True` and `--enable_sequence_parallelism True` to the inference script, referring to `scripts/run/run_infer_sequence_parallel.sh`. To further accelerate the inference speed, you can use [DSP](https://arxiv.org/abs/2403.10266) by appending `--dsp True`, referring to `scripts/run/run_infer_sequence_parallel_dsp.sh`.
 
 #### Text-to-Video Generation
 
@@ -674,19 +674,21 @@ Below are some generation results after fine-tuning STDiT3 with **Stage 2** buck
 
 #### Training & Inference Performance (Sequence Parallel)
 
-We support training with the OpenSora v1.2 model using SP (Sequence Parallel), handling up to 408 frames (~16 seconds) on 4 NPU* cards. Additionally, we have optimized the training speed by implementing micro-batch parallelism in the VAE’s spatial and temporal domains, achieving approximately a 20% speed boost. We evaluate the training performance using the MixKit dataset, which includes high-resolution videos (1080P, duration 12s to 100s). The training performance results are reported below.
+We support training with the OpenSora v1.2 model using SP (Sequence Parallel) and DSP (Dynamic Sequence Parallel) methods, handling up to 408 frames (~16 seconds) on 4 NPU* cards. Additionally, we have optimized the training speed by implementing micro-batch parallelism in the VAE’s spatial and temporal domains, achieving approximately a 20% speed boost. We evaluate the training performance using the MixKit dataset, which includes high-resolution videos (1080P, duration 12s to 100s). The training performance results are reported below.
 
 | Model       | Context                          | Method | jit_level | Precision | BS | NPUs | Size (TxHxW)  | Train T. (s/step) | script |
 |:-----------:|:--------------------------------:|:------:|:---------:|:---------:|:--:|:----:|:-------------:|:-----------------:|:------:|
 | STDiT2-XL/2 | D910\*-C19(0904)-MS_master(0904) |  SP    | O1        |    BF16   |  1 |  4   | 408x720x1280  | 44.5              | [script](scripts/run/run_train_os1.2_stage2_sp.sh)  |
+| STDiT2-XL/2 | D910\*-C19(0904)-MS_master(0904) |  DSP   | O1        |    BF16   |  1 |  4   | 408x720x1280  | 43.4              | [script](scripts/run/run_train_os1.2_stage2_dsp.sh) |
 
-> To prevent the system from running out of memory, ensure you launch the training job on a server with sufficient memory. For 4P training, at least 800GB of memory is required.\
+> To prevent the system from running out of memory, ensure you launch the training job on a server with sufficient memory. For 4P training, at least 800GB of memory is required.
 
 And we can run inference on up to 408 frames using two NPU* cards. The inference performance is reported below.
 
 | Model       | Context                          | Method | jit_level | Precision | BS | NPUs | Size (TxHxW)  | Sampling T. (s/step) | script |
 |:-----------:|:--------------------------------:|:------:|:---------:|:---------:|:--:|:----:|:-------------:|:--------------------:|:------:|
 | STDiT2-XL/2 | D910\*-C19(0904)-MS_master(0904) |  SP    | O0        |    BF16   |  1 |  2   | 408x720x1280  | 30.9                 | [script](scripts/run/run_infer_sequence_parallel.sh)     |
+| STDiT2-XL/2 | D910\*-C19(0904)-MS_master(0904) |  DSP   | O0        |    BF16   |  1 |  2   | 408x720x1280  | 26.4                 | [script](scripts/run/run_infer_sequence_parallel_dsp.sh) |
 
 ### Open-Sora 1.1
 
@@ -960,5 +962,6 @@ If you wish to contribute to this project, you can refer to the [Contribution Gu
 * [CLIP](https://github.com/openai/CLIP): A powerful text-image embedding model.
 * [T5](https://github.com/google-research/text-to-text-transfer-transformer): A powerful text encoder.
 * [LLaVA](https://github.com/haotian-liu/LLaVA): A powerful image captioning model based on [Mistral-7B](https://huggingface.co/mistralai/Mistral-7B-v0.1) and [Yi-34B](https://huggingface.co/01-ai/Yi-34B).
+* [DSP](https://github.com/NUS-HPC-AI-Lab/VideoSys): Dynamic Sequence Parallel introduced by NUS HPC AI Lab.
 
 We are grateful for their exceptional work and generous contribution to open source.

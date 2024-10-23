@@ -29,7 +29,7 @@ class LlamaRMSNorm(nn.Cell):
         self.variance_epsilon = eps
 
     def construct(self, hidden_states: Tensor):
-        return ops.rms_norm(hidden_states, self.gamma, self.variance_epsilon)[0]
+        return ops.rms_norm(hidden_states, self.gamma.to(hidden_states.dtype), self.variance_epsilon)[0]
 
 
 class Attention(nn.Cell):
@@ -152,7 +152,6 @@ class MultiHeadCrossAttention(nn.Cell):
         Return:
             (B, N, C)
         """
-        x_dtype = x.dtype
         B, N, C = x.shape
 
         # cond: (1, B*N_tokens, C) -> (B, N_tokens, C)
@@ -197,7 +196,7 @@ class MultiHeadCrossAttention(nn.Cell):
         x = ops.reshape(x, (B, N, -1))
 
         # 4. output projection
-        return self.proj_drop(self.proj(x)).to(x_dtype)
+        return self.proj_drop(self.proj(x))
 
 
 class SeqParallelMultiHeadCrossAttention(MultiHeadCrossAttention):
@@ -234,7 +233,6 @@ class SeqParallelMultiHeadCrossAttention(MultiHeadCrossAttention):
         cond: (1, b * n_token, c)
         mask (b, n_token)
         """
-        x_dtype = x.dtype
         B, N, C = x.shape
 
         # cond: (1, B*N_tokens, C) -> (B, N_tokens, C)
@@ -288,7 +286,7 @@ class SeqParallelMultiHeadCrossAttention(MultiHeadCrossAttention):
         x = ops.reshape(x, (B, N, -1))
 
         # 4. output projection
-        return self.proj_drop(self.proj(x)).to(x_dtype)
+        return self.proj_drop(self.proj(x))
 
 
 class SelfAttention(nn.Cell):
@@ -361,7 +359,6 @@ class SelfAttention(nn.Cell):
         mask: (b n), 1 - valid, 0 - padded
         """
         B, N, C = x.shape
-        x_dtype = x.dtype
 
         qkv = self.qkv(x)
         # (b, n, 3*h*d) -> (b, n, 3, h, d)
@@ -400,7 +397,7 @@ class SelfAttention(nn.Cell):
         # reshape FA output to original attn input format (b n h*d)
         out = out.view(B, N, -1)
 
-        return self.proj_drop(self.proj(out)).to(x_dtype)
+        return self.proj_drop(self.proj(out))
 
 
 class SeqParallelSelfAttention(SelfAttention):
@@ -454,7 +451,6 @@ class SeqParallelSelfAttention(SelfAttention):
         assert freqs_cis is None
 
         B, N, _ = x.shape
-        x_dtype = x.dtype
 
         qkv = self.qkv(x)
         # (b, sub_n, 3*h*d) -> (b, sub_n, 3, h, d)
@@ -485,7 +481,7 @@ class SeqParallelSelfAttention(SelfAttention):
         # reshape FA output to original attn input format (b n h*d)
         out = out.view(B, N, -1)
 
-        return self.proj_drop(self.proj(out)).to(x_dtype)
+        return self.proj_drop(self.proj(out))
 
 
 class LayerNorm(nn.Cell):
@@ -653,7 +649,7 @@ class CaptionEmbedder(nn.Cell):
 
         # manually expand dims to avoid infer-shape bug in ms2.3 daily
         caption = ops.where(
-            drop_ids[:, None, None, None], self.y_embedding[None, None, :, :], caption.to(self.y_embedding.dtype)
+            drop_ids[:, None, None, None], self.y_embedding[None, None, :, :].to(caption.dtype), caption
         )
 
         return caption

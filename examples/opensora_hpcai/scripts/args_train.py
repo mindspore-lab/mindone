@@ -138,7 +138,7 @@ def parse_train_args(parser):
         help="Specify the [beta1, beta2] parameter for the AdamW optimizer.",
     )
     parser.add_argument(
-        "--optim_eps", type=float, default=1e-8, help="Specify the eps parameter for the AdamW optimizer."
+        "--optim_eps", type=float, nargs="+", default=[1e-8], help="Specify the eps parameter for the AdamW optimizer."
     )
     parser.add_argument(
         "--group_strategy",
@@ -330,6 +330,7 @@ def parse_train_args(parser):
         type=int,
         help="The number of shards in sequence parallel. Default is 1.",
     )
+    parser.add_argument("--dsp", default=False, type=str2bool, help="Use DSP instead of SP in sequence parallel.")
     parser.add_argument("--drop_overflow_update", default=True, type=str2bool, help="drop overflow update")
     parser.add_argument("--loss_scaler_type", default="dynamic", type=str, help="dynamic or static")
     parser.add_argument(
