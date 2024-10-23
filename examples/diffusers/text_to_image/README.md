@@ -27,6 +27,8 @@ Then cd in the example folder `examples/diffusers/text_to_image` and run
 pip install -r requirements.txt
 ```
 
+The training script is compute-intensive and only runs on an Ascend 910*. Please run the scripts with MindSpore version(MS2.3.0).
+
 ### OnePiece example
 
 You need to accept the model license before downloading or using the weights. In this example we'll use model version `v1-4`, so you'll need to visit [its card](https://huggingface.co/CompVis/stable-diffusion-v1-4), read the license and tick the checkbox if you agree.
@@ -86,13 +88,34 @@ python train_text_to_image.py \
   --output_dir="sd-your-dataset-model-$(date +%Y%m%d%H%M%S)"
 ```
 
+For parallel training, use `msrun` and along with `--distributed`:
+
+```bash
+export MODEL_NAME="CompVis/stable-diffusion-v1-4"
+export TRAIN_DIR="path_to_your_dataset"
+
+msrun --worker_num=8 --local_worker_num=8 --log_dir=$output_dir  \
+  train_text_to_image.py \
+  --pretrained_model_name_or_path=$MODEL_NAME \
+  --dataset_name=$DATASET_NAME \
+  --resolution=512 --center_crop --random_flip \
+  --train_batch_size=1 \
+  --max_train_steps=15000 \
+  --learning_rate=1e-05 \
+  --max_grad_norm=1 \
+  --mixed_precision="fp16" \
+  --distributed \
+  --lr_scheduler="constant" --lr_warmup_steps=0 \
+  --output_dir="sd-your-dataset-model-$(date +%Y%m%d%H%M%S)"
+```
+
 Once the training is finished the model will be saved in the `output_dir` specified in the command. In this example it's `sd-onepiece-model`. To load the fine-tuned model for inference just pass that path to `StableDiffusionPipeline`
 
 ```python
 import mindspore as ms
 from mindone.diffusers import StableDiffusionPipeline
 
-model_path = "path_to_saved_model"
+model_path = "sd-onepiece-model"
 pipe = StableDiffusionPipeline.from_pretrained(model_path, mindspore_dtype=ms.float16)
 
 image = pipe(prompt="a man in a straw hat")[0][0]
@@ -105,7 +128,7 @@ Checkpoints only save the unet, so to run inference from a checkpoint, just load
 import mindspore as ms
 from mindone.diffusers import StableDiffusionPipeline, UNet2DConditionModel
 
-model_path = "path_to_saved_model"
+model_path = "sd-onepiece-model"
 unet = UNet2DConditionModel.from_pretrained(model_path + "/checkpoint-<N>/unet", mindspore_dtype=ms.float16)
 
 pipe = StableDiffusionPipeline.from_pretrained("<initial model>", unet=unet, mindspore_dtype=ms.float16)
@@ -142,9 +165,6 @@ In a nutshell, LoRA allows adapting pretrained models by adding pairs of rank-de
 
 [cloneofsimo](https://github.com/cloneofsimo) was the first to try out LoRA training for Stable Diffusion in the popular [lora](https://github.com/cloneofsimo/lora) GitHub repository.
 
-With LoRA, it's possible to fine-tune Stable Diffusion on a custom image-caption pair dataset
-on consumer GPUs like Tesla T4, Tesla V100.
-
 ### Training
 
 First, you need to set up your development environment as is explained in the [installation section](#installing-the-dependencies). Make sure to set the `MODEL_NAME` and `DATASET_NAME` environment variables. Here, we will use [Stable Diffusion v1-4](https://hf.co/CompVis/stable-diffusion-v1-4) and the [OnePiece dataset](https://huggingface.co/datasets/YaYaB/onepiece-blip-captions).
@@ -170,9 +190,30 @@ python train_text_to_image_lora.py \
   --output_dir="sd-onepiece-model-lora-$(date +%Y%m%d%H%M%S)"
 ```
 
+For parallel training, use `msrun` and along with `--distributed`:
+
+```bash
+export MODEL_NAME="CompVis/stable-diffusion-v1-4"
+export DATASET_NAME="YaYaB/onepiece-blip-captions"
+
+msrun --worker_num=8 --local_worker_num=8 --log_dir=$output_dir  \
+  train_text_to_image_lora.py \
+  --pretrained_model_name_or_path=$MODEL_NAME \
+  --dataset_name=$DATASET_NAME \
+  --resolution=512 --center_crop --random_flip \
+  --train_batch_size=1 \
+  --num_train_epochs=100 --checkpointing_steps=5000 \
+  --learning_rate=1e-04 --lr_scheduler="constant" --lr_warmup_steps=0 \
+  --mixed_precision="fp16" \
+  --seed=42 \
+  --distributed \
+  --validation_prompt="a man in a straw hat" \
+  --output_dir="sd-onepiece-model-lora-$(date +%Y%m%d%H%M%S)"
+```
+
 The above command will also run inference as fine-tuning progresses and log the results to local files.
 
-**___Note: When using LoRA we can use a much higher learning rate compared to non-LoRA fine-tuning. Here we use *1e-4* instead of the usual *1e-5*. Also, by using LoRA, it's possible to run `train_text_to_image_lora.py` in consumer GPUs like T4 or V100.___**
+**___Note: When using LoRA we can use a much higher learning rate compared to non-LoRA fine-tuning. Here we use *1e-4* instead of the usual *1e-5*.
 
 The final LoRA embedding weights have been uploaded to [sayakpaul/sd-model-finetuned-lora-t4](https://huggingface.co/sayakpaul/sd-model-finetuned-lora-t4). **___Note: [The final weights](https://huggingface.co/sayakpaul/sd-model-finetuned-lora-t4/blob/main/pytorch_lora_weights.bin) are only 3 MB in size, which is orders of magnitudes smaller than the original model.___**
 
@@ -180,20 +221,20 @@ You can check some inference samples that were logged during the course of the f
 
 ### Inference
 
-Once you have trained a model using above command, the inference can be done simply using the `StableDiffusionPipeline` after loading the trained LoRA weights.  You
+If the LoRA weights you want to use is from huggingface, you can replace the following model_path like `model_path = "sayakpaul/sd-model-finetuned-lora-t4"`. Once you have trained a model using above command, the inference can be done simply using the `StableDiffusionPipeline` after loading the trained LoRA weights. You
 need to pass the `output_dir` for loading the LoRA weights which, in this case, is `sd-onepiece-model-lora`.
 
 ```python
 import mindspore as ms
 from mindone.diffusers import StableDiffusionPipeline
 
-model_path = "sayakpaul/sd-model-finetuned-lora-t4"
+model_path = "sd-onepiece-model-lora"
 pipe = StableDiffusionPipeline.from_pretrained("CompVis/stable-diffusion-v1-4", mindspore_dtype=ms.float16)
 pipe.load_lora_weights(model_path)
 
-prompt = "A pokemon with green eyes and red legs."
+prompt = "a man in a straw hat"
 image = pipe(prompt, num_inference_steps=30, guidance_scale=7.5)[0][0]
-image.save("pokemon.png")
+image.save(f"a-man-in-a-straw-hat.png")
 ```
 
 If you are loading the LoRA parameters from the Hub and if the Hub repository has
@@ -214,3 +255,7 @@ pipe = StableDiffusionPipeline.from_pretrained(base_model_id, mindspore_dtype=ms
 ## Stable Diffusion XL
 
 * We support fine-tuning the UNet shipped in [Stable Diffusion XL](https://huggingface.co/papers/2307.01952) via the `train_text_to_image_sdxl.py` script. Please refer to the docs [here](./README_sdxl.md).
+
+## Tutorials
+
+The above training performance and inference results are recorded [here](https://github.com/liuchuting/tutorials/blob/sd_doc/aigc/diffusers/text_to_image/sd_performance_and_inference_results.md).
