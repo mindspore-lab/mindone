@@ -15,6 +15,8 @@
 """Learning Rate Scheduler Factory"""
 import logging
 
+from mindcv.scheduler.dynamic_lr import cosine_annealing_warm_restarts_lr
+
 from .dynamic_lr import cosine_decay_refined_lr, linear_refined_lr, multi_step_lr, polynomial_refined_lr
 
 _logger = logging.getLogger(__name__)
@@ -97,6 +99,10 @@ def create_scheduler(
         main_lr_scheduler = multi_step_lr(milestones=milestones, gamma=decay_rate, lr=lr, total_steps=main_steps)
     elif name == "constant":
         main_lr_scheduler = [lr for _ in range(main_steps)]
+    elif name == "cosine_annealing_warm_restarts_lr":
+        main_lr_scheduler = cosine_annealing_warm_restarts_lr(
+            te=3000, tm=1, eta_min=lr / 10, eta_max=lr, steps_per_epoch=steps_per_epoch, epochs=main_steps
+        )
     else:
         raise ValueError(f"Invalid scheduler: {name}")
 
