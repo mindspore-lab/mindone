@@ -15,6 +15,7 @@ _import_structure = {
         "AutoPipelineForText2Image",
     ],
     "blip_diffusion": ["BlipDiffusionPipeline"],
+    "cogvideo": ["CogVideoXPipeline"],
     "consistency_models": ["ConsistencyModelPipeline"],
     "controlnet": [
         "BlipDiffusionControlNetPipeline",
@@ -138,6 +139,7 @@ if TYPE_CHECKING:
     from .animatediff import AnimateDiffPipeline, AnimateDiffSDXLPipeline, AnimateDiffVideoToVideoPipeline
     from .auto_pipeline import AutoPipelineForImage2Image, AutoPipelineForInpainting, AutoPipelineForText2Image
     from .blip_diffusion import BlipDiffusionPipeline
+    from .cogvideo import CogVideoXPipeline
     from .consistency_models import ConsistencyModelPipeline
     from .controlnet import (
         BlipDiffusionControlNetPipeline,

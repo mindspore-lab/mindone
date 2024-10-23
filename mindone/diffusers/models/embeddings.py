@@ -34,10 +34,21 @@ def get_timestep_embedding(
     """
     This matches the implementation in Denoising Diffusion Probabilistic Models: Create sinusoidal timestep embeddings.
 
-    :param timesteps: a 1-D Tensor of N indices, one per batch element.
-                      These may be fractional.
-    :param embedding_dim: the dimension of the output. :param max_period: controls the minimum frequency of the
-    embeddings. :return: an [N x dim] Tensor of positional embeddings.
+    Args
+        timesteps (ms.Tensor):
+            a 1-D Tensor of N indices, one per batch element. These may be fractional.
+        embedding_dim (int):
+            the dimension of the output.
+        flip_sin_to_cos (bool):
+            Whether the embedding order should be `cos, sin` (if True) or `sin, cos` (if False)
+        downscale_freq_shift (float):
+            Controls the delta between frequencies between dimensions
+        scale (float):
+            Scaling factor applied to the embeddings.
+        max_period (int):
+            Controls the maximum frequency of the embeddings
+    Returns
+        ms.Tensor: an [N x dim] Tensor of positional embeddings.
     """
     assert len(timesteps.shape) == 1, "Timesteps should be a 1d-array"
 
@@ -62,6 +73,53 @@ def get_timestep_embedding(
     if embedding_dim % 2 == 1:
         emb = ops.pad(emb, (0, 1, 0, 0))
     return emb
+
+
+def get_3d_sincos_pos_embed(
+    embed_dim: int,
+    spatial_size: Union[int, Tuple[int, int]],
+    temporal_size: int,
+    spatial_interpolation_scale: float = 1.0,
+    temporal_interpolation_scale: float = 1.0,
+) -> np.ndarray:
+    r"""
+    Args:
+        embed_dim (`int`):
+        spatial_size (`int` or `Tuple[int, int]`):
+        temporal_size (`int`):
+        spatial_interpolation_scale (`float`, defaults to 1.0):
+        temporal_interpolation_scale (`float`, defaults to 1.0):
+    """
+    if embed_dim % 4 != 0:
+        raise ValueError("`embed_dim` must be divisible by 4")
+    if isinstance(spatial_size, int):
+        spatial_size = (spatial_size, spatial_size)
+
+    embed_dim_spatial = 3 * embed_dim // 4
+    embed_dim_temporal = embed_dim // 4
+
+    # 1. Spatial
+    grid_h = np.arange(spatial_size[1], dtype=np.float32) / spatial_interpolation_scale
+    grid_w = np.arange(spatial_size[0], dtype=np.float32) / spatial_interpolation_scale
+    grid = np.meshgrid(grid_w, grid_h)  # here w goes first
+    grid = np.stack(grid, axis=0)
+
+    grid = grid.reshape([2, 1, spatial_size[1], spatial_size[0]])
+    pos_embed_spatial = get_2d_sincos_pos_embed_from_grid(embed_dim_spatial, grid)
+
+    # 2. Temporal
+    grid_t = np.arange(temporal_size, dtype=np.float32) / temporal_interpolation_scale
+    pos_embed_temporal = get_1d_sincos_pos_embed_from_grid(embed_dim_temporal, grid_t)
+
+    # 3. Concat
+    pos_embed_spatial = pos_embed_spatial[np.newaxis, :, :]
+    pos_embed_spatial = np.repeat(pos_embed_spatial, temporal_size, axis=0)  # [T, H*W, D // 4 * 3]
+
+    pos_embed_temporal = pos_embed_temporal[:, np.newaxis, :]
+    pos_embed_temporal = np.repeat(pos_embed_temporal, spatial_size[0] * spatial_size[1], axis=1)  # [T, H*W, D // 4]
+
+    pos_embed = np.concatenate([pos_embed_temporal, pos_embed_spatial], axis=-1)  # [T, H*W, D]
+    return pos_embed
 
 
 def get_2d_sincos_pos_embed(
@@ -235,6 +293,135 @@ class PatchEmbed(nn.Cell):
         return (latent + pos_embed).to(latent.dtype)
 
 
+class CogVideoXPatchEmbed(nn.Cell):
+    def __init__(
+        self,
+        patch_size: int = 2,
+        in_channels: int = 16,
+        embed_dim: int = 1920,
+        text_embed_dim: int = 4096,
+        bias: bool = True,
+    ) -> None:
+        super().__init__()
+        self.patch_size = patch_size
+
+        self.proj = nn.Conv2d(
+            in_channels,
+            embed_dim,
+            kernel_size=(patch_size, patch_size),
+            stride=patch_size,
+            has_bias=bias,
+            pad_mode="pad",
+        )
+        self.text_proj = nn.Dense(text_embed_dim, embed_dim)
+
+    def construct(self, text_embeds: ms.Tensor, image_embeds: ms.Tensor):
+        r"""
+        Args:
+            text_embeds (`ms.Tensor`):
+                Input text embeddings. Expected shape: (batch_size, seq_length, embedding_dim).
+            image_embeds (`ms.Tensor`):
+                Input image embeddings. Expected shape: (batch_size, num_frames, channels, height, width).
+        """
+        text_embeds = self.text_proj(text_embeds)
+
+        batch, num_frames, channels, height, width = image_embeds.shape
+        image_embeds = image_embeds.reshape(-1, channels, height, width)
+        image_embeds = self.proj(image_embeds)
+        image_embeds = image_embeds.view(batch, num_frames, *image_embeds.shape[1:])
+        image_embeds = image_embeds.flatten(start_dim=3).swapaxes(2, 3)  # [batch, num_frames, height x width, channels]
+        image_embeds = image_embeds.flatten(start_dim=1, end_dim=2)  # [batch, num_frames x height x width, channels]
+
+        embeds = ops.cat(
+            [text_embeds, image_embeds], axis=1
+        ).contiguous()  # [batch, seq_length + num_frames x height x width, channels]
+        return embeds
+
+
+def get_3d_rotary_pos_embed(
+    embed_dim, crops_coords, grid_size, temporal_size, theta: int = 10000, use_real: bool = True
+) -> Union[ms.Tensor, Tuple[ms.Tensor, ms.Tensor]]:
+    """
+    RoPE for video tokens with 3D structure.
+
+    Args:
+    embed_dim: (`int`):
+        The embedding dimension size, corresponding to hidden_size_head.
+    crops_coords (`Tuple[int]`):
+        The top-left and bottom-right coordinates of the crop.
+    grid_size (`Tuple[int]`):
+        The grid size of the spatial positional embedding (height, width).
+    temporal_size (`int`):
+        The size of the temporal dimension.
+    theta (`float`):
+        Scaling factor for frequency computation.
+    use_real (`bool`):
+        If True, return real part and imaginary part separately. Otherwise, return complex numbers.
+
+    Returns:
+        `ms.Tensor`: positional embedding with shape `(temporal_size * grid_size[0] * grid_size[1], embed_dim/2)`.
+    """
+    start, stop = crops_coords
+    grid_h = np.linspace(start[0], stop[0], grid_size[0], endpoint=False, dtype=np.float32)
+    grid_w = np.linspace(start[1], stop[1], grid_size[1], endpoint=False, dtype=np.float32)
+    grid_t = np.linspace(0, temporal_size, temporal_size, endpoint=False, dtype=np.float32)
+
+    # Compute dimensions for each axis
+    dim_t = embed_dim // 4
+    dim_h = embed_dim // 8 * 3
+    dim_w = embed_dim // 8 * 3
+
+    # Temporal frequencies
+    freqs_t = 1.0 / (theta ** (ops.arange(0, dim_t, 2, dtype=ms.float32) / dim_t))
+    grid_t = ms.Tensor.from_numpy(grid_t).float()
+    freqs_t = grid_t[..., None] * freqs_t[None, ...]
+    freqs_t = freqs_t.repeat_interleave(2, dim=-1)
+
+    # Spatial frequencies for height and width
+    freqs_h = 1.0 / (theta ** (ops.arange(0, dim_h, 2, dtype=ms.float32) / dim_h))
+    freqs_w = 1.0 / (theta ** (ops.arange(0, dim_w, 2, dtype=ms.float32) / dim_w))
+    grid_h = ms.Tensor.from_numpy(grid_h).float()
+    grid_w = ms.Tensor.from_numpy(grid_w).float()
+    freqs_h = grid_h[..., None] * freqs_h[None, ...]
+    freqs_w = grid_w[..., None] * freqs_w[None, ...]
+    freqs_h = freqs_h.repeat_interleave(2, dim=-1)
+    freqs_w = freqs_w.repeat_interleave(2, dim=-1)
+
+    # Broadcast and concatenate tensors along specified dimension
+    def broadcast(tensors, dim=-1):
+        num_tensors = len(tensors)
+        shape_lens = {len(t.shape) for t in tensors}
+        assert len(shape_lens) == 1, "tensors must all have the same number of dimensions"
+        shape_len = list(shape_lens)[0]
+        dim = (dim + shape_len) if dim < 0 else dim
+        dims = list(zip(*(list(t.shape) for t in tensors)))
+        expandable_dims = [(i, val) for i, val in enumerate(dims) if i != dim]
+        assert all(
+            [*(len(set(t[1])) <= 2 for t in expandable_dims)]
+        ), "invalid dimensions for broadcastable concatenation"
+        max_dims = [(t[0], max(t[1])) for t in expandable_dims]
+        expanded_dims = [(t[0], (t[1],) * num_tensors) for t in max_dims]
+        expanded_dims.insert(dim, (dim, dims[dim]))
+        expandable_shapes = list(zip(*(t[1] for t in expanded_dims)))
+        tensors = [t[0].broadcast_to(t[1]) for t in zip(tensors, expandable_shapes)]
+        return ops.cat(tensors, axis=dim)
+
+    freqs = broadcast((freqs_t[:, None, None, :], freqs_h[None, :, None, :], freqs_w[None, None, :, :]), dim=-1)
+
+    t, h, w, d = freqs.shape
+    freqs = freqs.view(t * h * w, d)
+
+    # Generate sine and cosine components
+    sin = freqs.sin()
+    cos = freqs.cos()
+
+    if use_real:
+        return cos, sin
+    else:
+        freqs_cis = ops.polar(ops.ones_like(freqs), freqs)
+        return freqs_cis
+
+
 def get_2d_rotary_pos_embed(embed_dim, crops_coords, grid_size, use_real=True):
     """
     RoPE for image tokens with 2d structure.
@@ -250,7 +437,7 @@ def get_2d_rotary_pos_embed(embed_dim, crops_coords, grid_size, use_real=True):
         If True, return real part and imaginary part separately. Otherwise, return complex numbers.
 
     Returns:
-        `ms.Tensor`: positional embdding with shape `( grid_size * grid_size, embed_dim/2)`.
+        `ms.Tensor`: positional embedding with shape `( grid_size * grid_size, embed_dim/2)`.
     """
     start, stop = crops_coords
     grid_h = np.linspace(start[0], stop[0], grid_size[0], endpoint=False, dtype=np.float32)
@@ -315,6 +502,8 @@ def get_1d_rotary_pos_embed(dim: int, pos: Union[np.ndarray, int], theta: float 
 def apply_rotary_emb(
     x: ms.Tensor,
     freqs_cis: Union[ms.Tensor, Tuple[ms.Tensor]],
+    use_real: bool = True,
+    use_real_unbind_dim: int = -1,
 ) -> Tuple[ms.Tensor, ms.Tensor]:
     """
     Apply rotary embeddings to input tensors using the given frequency tensor. This function applies rotary embeddings
@@ -330,15 +519,29 @@ def apply_rotary_emb(
     Returns:
         Tuple[ms.Tensor, ms.Tensor]: Tuple of modified query tensor and key tensor with rotary embeddings.
     """
-    cos, sin = freqs_cis  # [S, D]
-    cos = cos[None, None]
-    sin = sin[None, None]
+    if use_real:
+        cos, sin = freqs_cis  # [S, D]
+        cos = cos[None, None]
+        sin = sin[None, None]
 
-    x_real, x_imag = x.reshape(*x.shape[:-1], -1, 2).unbind(-1)  # [B, S, H, D//2]
-    x_rotated = ops.stack([-x_imag, x_real], axis=-1).flatten(start_dim=3)
-    out = (x.float() * cos + x_rotated.float() * sin).to(x.dtype)
+        if use_real_unbind_dim == -1:
+            # Use for example in Lumina
+            x_real, x_imag = x.reshape(*x.shape[:-1], -1, 2).unbind(-1)  # [B, S, H, D//2]
+            x_rotated = ops.stack([-x_imag, x_real], axis=-1).flatten(start_dim=3)
+        elif use_real_unbind_dim == -2:
+            # Use for example in Stable Audio
+            x_real, x_imag = x.reshape(*x.shape[:-1], 2, -1).unbind(-2)  # [B, S, H, D//2]
+            x_rotated = ops.cat([-x_imag, x_real], axis=-1)
+        else:
+            raise ValueError(f"`use_real_unbind_dim={use_real_unbind_dim}` but should be -1 or -2.")
 
-    return out
+        out = (x.float() * cos + x_rotated.float() * sin).to(x.dtype)
+
+        return out
+    else:
+        raise NotImplementedError(
+            "Complex tensors are not supported for `apply_rotary_emb`, concat @townwish4git for it if neccessary."
+        )
 
 
 class TimestepEmbedding(nn.Cell):
@@ -390,11 +593,12 @@ class TimestepEmbedding(nn.Cell):
 
 
 class Timesteps(nn.Cell):
-    def __init__(self, num_channels: int, flip_sin_to_cos: bool, downscale_freq_shift: float):
+    def __init__(self, num_channels: int, flip_sin_to_cos: bool, downscale_freq_shift: float, scale: int = 1):
         super().__init__()
         self.num_channels = num_channels
         self.flip_sin_to_cos = flip_sin_to_cos
         self.downscale_freq_shift = downscale_freq_shift
+        self.scale = scale
 
     def construct(self, timesteps):
         t_emb = get_timestep_embedding(
@@ -402,6 +606,7 @@ class Timesteps(nn.Cell):
             self.num_channels,
             flip_sin_to_cos=self.flip_sin_to_cos,
             downscale_freq_shift=self.downscale_freq_shift,
+            scale=self.scale,
         )
         return t_emb
 

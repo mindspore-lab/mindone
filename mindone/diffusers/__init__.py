@@ -17,8 +17,10 @@ _import_structure = {
     "models": [
         "AsymmetricAutoencoderKL",
         "AutoencoderKL",
+        "AutoencoderKLCogVideoX",
         "AutoencoderKLTemporalDecoder",
         "AutoencoderTiny",
+        "CogVideoXTransformer3DModel",
         "ConsistencyDecoderVAE",
         "ControlNetModel",
         "ControlNetXSAdapter",
@@ -66,6 +68,7 @@ _import_structure = {
         "AutoPipelineForText2Image",
         "BlipDiffusionControlNetPipeline",
         "BlipDiffusionPipeline",
+        "CogVideoXPipeline",
         "ConsistencyModelPipeline",
         "DanceDiffusionPipeline",
         "DDIMPipeline",
@@ -151,6 +154,8 @@ _import_structure = {
     "schedulers": [
         "ConsistencyDecoderScheduler",
         "CMStochasticIterativeScheduler",
+        "CogVideoXDDIMScheduler",
+        "CogVideoXDPMScheduler",
         "DDIMScheduler",
         "DDIMInverseScheduler",
         "DDIMParallelScheduler",
@@ -190,8 +195,10 @@ if TYPE_CHECKING:
     from .models import (
         AsymmetricAutoencoderKL,
         AutoencoderKL,
+        AutoencoderKLCogVideoX,
         AutoencoderKLTemporalDecoder,
         AutoencoderTiny,
+        CogVideoXTransformer3DModel,
         ConsistencyDecoderVAE,
         ControlNetModel,
         ControlNetXSAdapter,
@@ -239,6 +246,7 @@ if TYPE_CHECKING:
         AutoPipelineForText2Image,
         BlipDiffusionControlNetPipeline,
         BlipDiffusionPipeline,
+        CogVideoXPipeline,
         ConsistencyModelPipeline,
         DDIMPipeline,
         DDPMPipeline,
@@ -322,6 +330,8 @@ if TYPE_CHECKING:
     )
     from .schedulers import (
         CMStochasticIterativeScheduler,
+        CogVideoXDDIMScheduler,
+        CogVideoXDPMScheduler,
         ConsistencyDecoderScheduler,
         DDIMInverseScheduler,
         DDIMParallelScheduler,
