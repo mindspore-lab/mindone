@@ -20,7 +20,7 @@ After obtaining the weights, place them into `checkpoints/`. Next, start the dem
 | mindspore      | ascend driver | firmware    | cann toolkit/kernel |
 | -------------- | ------------- | ----------- | ------------------- |
 | 2.2.10～2.2.12 | 23.0.3        | 7.1.0.5.220 | 7.0.0.beta1         |
-| 2.3.0/2.3.1    | 24.1.RC2      | 7.3.0.1.231 | 8.0.R2.beta1        |
+| 2.3.0/2.3.1    | 24.1.RC2      | 7.3.0.1.231 | 8.0.RC2.beta1        |
 
 To install the dependency, please run
 
