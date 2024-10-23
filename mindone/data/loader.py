@@ -19,8 +19,8 @@ def create_dataloader(
     python_multiprocessing: bool = True,
     prefetch_size: int = 16,
     max_rowsize: int = 64,
-    device_num: int = 1,
-    rank_id: int = 0,
+    device_num: Optional[int] = None,
+    rank_id: Optional[int] = None,
     debug: bool = False,
     enable_modelarts: bool = False,
 ) -> ms.dataset.BatchDataset:
