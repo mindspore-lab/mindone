@@ -1,0 +1,73 @@
+# system
+use_parallel: False
+profile: False
+dataset_sink_mode: False
+log_level: "logging.INFO"
+
+# model
+use_fp16: True
+model_config: "config/v2-vpred-train.yaml"
+ckpt_save_interval: 1
+step_mode: False
+use_ema: True
+clip_grad: False
+max_grad_norm: 1.0
+enable_flash_attention: False
+unet_initialize_random: False
+drop_overflow_update: True
+
+# training
+seed: 2024
+callback_size: 1
+
+trainer:
+  name: MarigoldTrainer
+  training_noise_scheduler:
+    pretrained_path: stable-diffusion-2
+
+multi_res_noise:
+  strength: 0.9
+  annealed: True
+  downscale_strategy: original
+
+max_epoch: 10000
+max_iter: 30000  # usually converges at around 20k
+
+# dataset
+base_config:
+- config/dataset/dataset_train.yaml
+
+depth_normalization:
+  type: scale_shift_depth
+  clip: true
+  norm_min: -1.0
+  norm_max: 1.0
+  min_max_quantile: 0.02
+
+augmentation:
+  lr_flip_p: 0.5
+
+dataloader:
+  num_workers: 2
+  effective_batch_size: 32
+  max_train_batch_size: 1
+
+# lr scheduler
+lr: 3.0e-05
+lr_scheduler:
+  name: "iter_exponential"
+  kwargs:
+    total_iter: 25000
+    final_ratio: 0.01
+    warmup_steps: 100
+
+# optimizer
+optim: "adam"
+betas: [0.9, 0.999]
+weight_decay: 1e-6
+
+# loss scaler
+loss_scaler_type: "dynamic"
+init_loss_scale: 65536
+loss_scale_factor: 2
+scale_window: 1000
