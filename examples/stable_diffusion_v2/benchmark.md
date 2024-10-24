@@ -45,7 +45,7 @@
 | 2.0           |    D910*x1-MS2.3.1       |    LoRA      |      4x1             |     512x512         | Graph, DS, FP16,  |      O0 |     9.98     |
 | 2.0           |    D910*x8-MS2.3.1       |    LoRA      |      32x1             |     512x512         | Graph, DS, FP16,  |     O0 |      73.72     |
 | 2.0           |    D910*x1-MS2.3.1       |    Dreambooth      |      1x1             |     512x512         | Graph, DS, FP16,  |  O0 |   1.19         |
-| 2.0           |    D910*x1-MS2.3.1      |    TextualInversion      |      1x4             |     512x512         | Graph, DS, FP16,  |  O0 |    1.72          |
+| 2.0           |    D910*x1-MS2.3.1      |    TextualInversion      |      1x4             |     512x512         | Graph, DS, FP16,  |  O0 |    1.24          |
 | 2.1-v           |    D910*x1-MS2.3.1       |    Vanilla      |      3x1             |     768x768         | Graph, DS, FP16, FA  |   O0 |   6.46        |
 | 2.1-v           |    D910*x8-MS2.3.1       |    Vanilla      |      24x1             |     768x768         | Graph, DS, FP16, FA  |   O0 |    43.06        |
 | 2.1-v           |    D910*x1-MS2.3.1       |    LoRA      |      4x1                 |     768x768         | Graph, DS, FP16, FA |   O0 |   6.88        |
@@ -90,7 +90,7 @@ Flash Attention,
 | 2.1-v         |     D910*x1-MS2.3.0   |  DDIM       |   30       |    768x768         |       4      | O2     |      2.91     |         0.36      |
 | 1.5           |     D910*x1-MS2.3.1   |  DDIM       |   30       |    512x512         |       4     | O0      |       5.72     |         0.45      |
 | 2.0           |     D910*x1-MS2.3.1   |  DDIM       |   30       |    512x512         |       4      | O0     |      9.60     |         1.05      |
-| 2.1-v         |     D910*x1-MS2.3.1   |  DDIM       |   30       |    768x768         |       4      | O0     |      4.68     |         0.79      |
+| 2.1-v         |     D910*x1-MS2.3.1   |  DDIM       |   30       |    768x768         |       4      | O0     |      4.68     |         0.49      |
 
 
 > Context: {Ascend chip}-{number of NPUs}-{mindspore version}.
