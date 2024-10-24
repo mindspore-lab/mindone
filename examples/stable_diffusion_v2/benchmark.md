@@ -30,10 +30,10 @@
 | 2.0           |    D910*x1-MS2.3.0       |    LoRA      |      4x1             |     512x512         | Graph, DS, FP16,  |      O2 |     16.53     |
 | 2.0           |    D910*x8-MS2.3.0       |    LoRA      |      32x1             |     512x512         | Graph, DS, FP16,  |     O2 |      129.70     |
 | 2.0           |    D910*x1-MS2.3.0       |    Dreambooth      |      1x1             |     512x512         | Graph, DS, FP16,  |  O2 |   3.76         |
-| 2.1-v           |    D910*x1-MS2.3.0       |    Vanilla      |      3x1             |     768x768         | Graph, DS, FP16, FA  |   02 |   7.16        |
-| 2.1-v           |    D910*x8-MS2.3.0       |    Vanilla      |      24x1             |     768x768         | Graph, DS, FP16, FA  |   02 |    49.27        |
-| 2.1-v           |    D910*x1-MS2.3.0       |    LoRA      |      4x1                 |     768x768         | Graph, DS, FP16, FA |   02 |   9.51        |
-| 2.1-v           |    D910*x8-MS2.3.0       |    LoRA      |      32x1                 |     768x768         | Graph, DS, FP16, FA  |   02 |    71.51        |
+| 2.1-v           |    D910*x1-MS2.3.0       |    Vanilla      |      3x1             |     768x768         | Graph, DS, FP16, FA  |   O2 |   7.16        |
+| 2.1-v           |    D910*x8-MS2.3.0       |    Vanilla      |      24x1             |     768x768         | Graph, DS, FP16, FA  |   O2 |    49.27        |
+| 2.1-v           |    D910*x1-MS2.3.0       |    LoRA      |      4x1                 |     768x768         | Graph, DS, FP16, FA |   O2 |   9.51        |
+| 2.1-v           |    D910*x8-MS2.3.0       |    LoRA      |      32x1                 |     768x768         | Graph, DS, FP16, FA  |   O2 |    71.51        |
 | 1.5           |    D910*x1-MS2.3.1      |    Vanilla   |      3x1             |     512x512         | Graph, DS, FP16,  |     O0 |   7.52          |
 | 1.5           |    D910*x8-MS2.3.1      |    Vanilla   |      24x1             |     512x512         | Graph, DS, FP16,  |  O0 |  34.43          |
 | 1.5           |    D910*x1-MS2.3.1      |    LoRA      |      4x1             |     512x512         | Graph, DS, FP16,  |   O0 |  9.86          |
@@ -44,10 +44,10 @@
 | 2.0           |    D910*x1-MS2.3.1       |    LoRA      |      4x1             |     512x512         | Graph, DS, FP16,  |      O0 |     9.98     |
 | 2.0           |    D910*x8-MS2.3.1       |    LoRA      |      32x1             |     512x512         | Graph, DS, FP16,  |     O0 |      73.72     |
 | 2.0           |    D910*x1-MS2.3.1       |    Dreambooth      |      1x1             |     512x512         | Graph, DS, FP16,  |  O0 |   1.19         |
-| 2.1-v           |    D910*x1-MS2.3.1       |    Vanilla      |      3x1             |     768x768         | Graph, DS, FP16, FA  |   00 |   6.46        |
-| 2.1-v           |    D910*x8-MS2.3.1       |    Vanilla      |      24x1             |     768x768         | Graph, DS, FP16, FA  |   00 |    43.06        |
-| 2.1-v           |    D910*x1-MS2.3.1       |    LoRA      |      4x1                 |     768x768         | Graph, DS, FP16, FA |   00 |   6.88        |
-| 2.1-v           |    D910*x8-MS2.3.1       |    LoRA      |      32x1                 |     768x768         | Graph, DS, FP16, FA  |   00 |    57.42        |
+| 2.1-v           |    D910*x1-MS2.3.1       |    Vanilla      |      3x1             |     768x768         | Graph, DS, FP16, FA  |   O0 |   6.46        |
+| 2.1-v           |    D910*x8-MS2.3.1       |    Vanilla      |      24x1             |     768x768         | Graph, DS, FP16, FA  |   O0 |    43.06        |
+| 2.1-v           |    D910*x1-MS2.3.1       |    LoRA      |      4x1                 |     768x768         | Graph, DS, FP16, FA |   O0 |   6.88        |
+| 2.1-v           |    D910*x8-MS2.3.1       |    LoRA      |      32x1                 |     768x768         | Graph, DS, FP16, FA  |   O0 |    57.42        |
 > Context: {Ascend chip}-{number of NPUs}-{mindspore version}.
 >
 > Acceleration: DS: data sink mode, FP16: float16 computation. FA: flash attention.
@@ -88,7 +88,7 @@ Flash Attention,
 | 2.1-v         |     D910*x1-MS2.3.0   |  DDIM       |   30       |    768x768         |       4      | O2     |      2.91     |         0.36      |
 | 1.5           |     D910*x1-MS2.3.1   |  DDIM       |   30       |    512x512         |       4     | O0      |       5.72     |         0.45      |
 | 2.0           |     D910*x1-MS2.3.1   |  DDIM       |   30       |    512x512         |       4      | O0     |      9.60     |         1.05      |
-| 2.1-v         |     D910*x1-MS2.3.1   |  DDIM       |   30       |    768x768         |       4      | O0     |      9.31     |         1.01      |
+| 2.1-v         |     D910*x1-MS2.3.1   |  DDIM       |   30       |    768x768         |       4      | O0     |      4.68     |         0.79      |
 
 
 > Context: {Ascend chip}-{number of NPUs}-{mindspore version}.
