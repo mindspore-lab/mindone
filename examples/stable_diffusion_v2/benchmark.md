@@ -6,17 +6,17 @@
 
 | SD Model      |   Context      |  Method      | Global Batch Size x Grad. Accu. |   Resolution       |   Acceleration   | jit_level  |FPS (img/s)  |
 |:---------------:|:---------------:|:--------------:|:-------------------:|:------------------:|:----------------:|:----------------:|:----------:|
-| 1.5           |    D910x1-MS2.1      |    Vanilla   |      3x1             |     512x512         | Graph, DS, FP16,  |     N/A |       5.98          |
-| 1.5           |    D910x8-MS2.1      |    Vanilla   |      24x1             |     512x512         | Graph, DS, FP16,  |    N/A |     31.18          |
-| 1.5           |    D910x1-MS2.1      |    LoRA      |      4x1             |     512x512         | Graph, DS, FP16,  |      N/A |   8.25          |
-| 1.5           |    D910x8-MS2.1      |    LoRA      |      32x1             |     512x512         | Graph, DS, FP16,  |      N/A |  63.85          |
-| 1.5           |    D910x1-MS2.1      |    Dreambooth      |      1x1             |     512x512         | Graph, DS, FP16,  |   N/A |   2.09            |
-| 2.0           |    D910x1-MS2.1       |    Vanilla      |      3x1             |     512x512         | Graph, DS, FP16,  |     N/A |   6.19          |
-| 2.0           |    D910x8-MS2.1       |    Vanilla      |      24x1             |     512x512         | Graph, DS, FP16,  |     N/A |   33.50          |
-| 2.0           |    D910x1-MS2.1       |    LoRA      |      4x1             |     512x512         | Graph, DS, FP16,  |       N/A |   9.46       |
-| 2.0           |    D910x8-MS2.1       |    LoRA      |      32x1             |     512x512         | Graph, DS, FP16,  |      N/A |    73.51       |
-| 2.0           |    D910x1-MS2.1       |    Dreambooth      |      1x1             |     512x512         | Graph, DS, FP16,  |     N/A |  2.18            |
-| 2.1-v           |    D910x1-MS2.1       |    Vanilla      |      3x1             |     768x768         | Graph, DS, FP16, FA  |      N/A |   3.16          |
+| 1.5           |    D910x1-MS2.1      |    Vanilla   |      3x1             |     512x512         | Graph, DS, FP16,  |     N/A |       5.53          |
+| 1.5           |    D910x8-MS2.1      |    Vanilla   |      24x1             |     512x512         | Graph, DS, FP16,  |    N/A |     45.74          |
+| 1.5           |    D910x1-MS2.1      |    LoRA      |      4x1             |     512x512         | Graph, DS, FP16,  |      N/A |   7.75          |
+| 1.5           |    D910x8-MS2.1      |    LoRA      |      32x1             |     512x512         | Graph, DS, FP16,  |      N/A |  64.15          |
+| 1.5           |    D910x1-MS2.1      |    Dreambooth      |      1x1             |     512x512         | Graph, DS, FP16,  |   N/A |   1.95            |
+| 2.0           |    D910x1-MS2.1       |    Vanilla      |      3x1             |     512x512         | Graph, DS, FP16,  |     N/A |   6.17          |
+| 2.0           |    D910x8-MS2.1       |    Vanilla      |      24x1             |     512x512         | Graph, DS, FP16,  |     N/A |   51.49          |
+| 2.0           |    D910x1-MS2.1       |    LoRA      |      4x1             |     512x512         | Graph, DS, FP16,  |       N/A |   9.01       |
+| 2.0           |    D910x8-MS2.1       |    LoRA      |      32x1             |     512x512         | Graph, DS, FP16,  |      N/A |    76.52       |
+| 2.0           |    D910x1-MS2.1       |    Dreambooth      |      1x1             |     512x512         | Graph, DS, FP16,  |     N/A |  1.97            |
+| 2.1-v           |    D910x1-MS2.1       |    Vanilla      |      3x1             |     768x768         | Graph, DS, FP16, FA  |      N/A |   5.43          |
 | 2.1-v           |    D910x8-MS2.1       |    Vanilla      |      24x1             |     768x768         | Graph, DS, FP16, FA  |     N/A |    18.98          |
 | 2.1-v           |    D910x1-MS2.1       |    LoRA      |      4x1                 |     768x768         | Graph, DS, FP16, FA  |      N/A |   3.39          |
 | 2.1-v           |    D910x8-MS2.1       |    LoRA      |      32x1                 |     768x768         | Graph, DS, FP16, FA  |     N/A |    23.45          |
@@ -76,16 +76,19 @@ Flash Attention,
 ### Inference
 
 | SD Model      |     Context |  Scheduler   | Steps              |  Resolution   |      Batch Size   |  jit_level  |  Speed (step/s)     | FPS (img/s)     |
-|:---------------:|:------------:|:-------------------:|:-------------------:|:-------------:|:----------------:|:----------------:|----------:|:----------:|
+|:---------------:|:------------:|:-------------------:|:-------------------:|:-------------:|:----------------:|:----------------:|:----------:|:----------:|
+| 1.5           |     D910x1-MS2.1.0    |  DDIM       |   30       |    512x512         |       4     | N/A     |    3.11     |         0.37      |
+| 2.0           |     D910x1-MS2.1.0    |  DDIM       |   30       |    512x512         |       4     | N/A      |    3.58     |         0.42      |
+| 2.1-v         |     D910x1-MS2.1.0    |  DDIM       |   30       |    768x768         |       4     | N/A      |     3.61     |         0.32      |
 | 1.5           |     D910x1-MS2.2.10    |  DDIM       |   30       |    512x512         |       4     | N/A     |    3.58        |       0.44       |
 | 2.0           |     D910x1-MS2.2.10    |  DDIM       |   30       |    512x512         |       4     | N/A      |    4.12       |        0.49       |
 | 2.1-v         |     D910x1-MS2.2.10    |  DDIM       |   30       |    768x768         |       4     | N/A      |     1.14     |         0.14      |
 | 1.5           |     D910*x1-MS2.3.0   |  DDIM       |   30       |    512x512         |       4     | O2      |       6.69     |         0.77      |
 | 2.0           |     D910*x1-MS2.3.0   |  DDIM       |   30       |    512x512         |       4      | O2     |      8.30     |         0.91      |
 | 2.1-v         |     D910*x1-MS2.3.0   |  DDIM       |   30       |    768x768         |       4      | O2     |      2.91     |         0.36      |
-| 1.5           |     D910*x1-MS2.3.1   |  DDIM       |   30       |    512x512         |       4     | O0      |       3.11     |         0.37      |
-| 2.0           |     D910*x1-MS2.3.1   |  DDIM       |   30       |    512x512         |       4      | O0     |      3.58     |         0.42      |
-| 2.1-v         |     D910*x1-MS2.3.1   |  DDIM       |   30       |    768x768         |       4      | O0     |      3.61     |         0.32      |
+| 1.5           |     D910*x1-MS2.3.1   |  DDIM       |   30       |    512x512         |       4     | O0      |       5.72     |         0.45      |
+| 2.0           |     D910*x1-MS2.3.1   |  DDIM       |   30       |    512x512         |       4      | O0     |      9.60     |         1.05      |
+| 2.1-v         |     D910*x1-MS2.3.1   |  DDIM       |   30       |    768x768         |       4      | O0     |      9.31     |         1.01      |
 
 
 > Context: {Ascend chip}-{number of NPUs}-{mindspore version}.
@@ -105,6 +108,3 @@ Add a column for model/pipeline yaml config?
 Mixed precision belongs to configuration
 -->
 
-## Image-to-Image
-
-Coming soon

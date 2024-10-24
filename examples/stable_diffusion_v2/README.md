@@ -9,7 +9,8 @@
 
 ## Table of Contents
 - [Introduction](#introduction)
-    - [Supported Models and Pipelines](#supported-models-and-pipelines) 🔥
+    - [Supported Models and Pipelines](#supported-models-and-pipelines) 
+    - [Benchmark](#benchmark)🔥
 - [Installation](#installation)
 - [Dataset Preparation](#dataset-preparation)
 - [Text-to-Image](#text-to-image)
@@ -30,8 +31,6 @@
     - [Schedulers](#schedulers)
     - [Training with v-prediction](#training-with-v-prediction)
     - [Diffusion Model Evaluation](#diffusion-model-evaluation)
-    - [Safety Checker](#safety-checker)
-    - [Watermark](#watermark)
 
 ## Introduction
 
@@ -57,6 +56,7 @@ This repository provides "small" but popularly used diffusion models like SD1.5.
 
 You may click the link in the table to access the running instructions directly.
 
+### Benchmark
 For model performance, please refer to [benchmark](benchmark.md).
 
 ## Installation
@@ -85,8 +85,6 @@ For detailed instructions to install CANN and MindSpore, please refer to the off
 **Note:** Running on other platforms (such as GPUs) and MindSpore versions may not be reliable.
 It's highly recommended to use the verified CANN and MindSpore versions. More compatible versions will be continuously updated.
 
-<details close markdown>
-
 ### Dependency
 
 ```shell
@@ -103,8 +101,6 @@ cd mindone/examples/stable_diffusion_v2
 </details>
 
 ## Dataset Preparation
-
-<details close markdown>
 
 This section describes the data format and protocol for diffusion model training.
 
@@ -560,14 +556,6 @@ To alter the objective to v-prediction, which is used in SD 2.0-v and SD 2.1-v, 
 
 We provide different evaluation methods including FID and CLIP-score to evaluate the quality of the generated images.
 For detailed usage, please refer to [Evaluation for Diffusion Models](tools/eval/README.md)
-
-### Safety Checker
-
-Coming soon
-
-### Watermark
-
-Coming soon
 
 ### FAQ
 
