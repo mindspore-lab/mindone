@@ -73,7 +73,7 @@
 
 #### (2) 代码实现保持一致，均使用公版DDPM流程进行训练
 
-#### (3) 超参数保持一致，超参配置及介绍参考[hyper_parameters.md](./hyper_parameters.md)
+#### (3) 超参数保持一致，超参配置及介绍参考[configuration_guidance](./configuration_guidance.md)
 
 </details>
 
