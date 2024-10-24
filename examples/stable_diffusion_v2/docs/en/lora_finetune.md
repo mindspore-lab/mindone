@@ -110,10 +110,11 @@ To perform text-to-image generation with the fine-tuned lora checkpoint, please 
 python text_to_image.py \
         --prompt "A drawing of a fox with a red tail" \
         --use_lora True \
-        --lora_ckpt_path {path/to/lora_checkpoint_after_finetune}
+        --lora_ckpt_path {path/to/lora_checkpoint_after_finetune} \
+        --version {Stable diffusion version}
 ```
 
-Please update `lora_ckpt_path` according to your fine-tuning settings.
+Please update `lora_ckpt_path` and `version`according to your fine-tuning settings.
 
 Here are the example results.
 
