@@ -244,7 +244,7 @@ class BlipDiffusionPipeline(DiffusionPipeline):
                 The number of times the prompt is repeated along with prompt_strength to amplify the prompt.
             output_type (`str`, *optional*, defaults to `"pil"`):
                 The output format of the generate image. Choose between: `"pil"` (`PIL.Image.Image`), `"np"`
-                (`np.array`) or `"pt"` (`torch.Tensor`).
+                (`np.array`) or `"pt"` (`mindspore.Tensor`).
             return_dict (`bool`, *optional*, defaults to `False`):
                 Whether or not to return a [`~pipelines.ImagePipelineOutput`] instead of a plain tuple.
         Examples:

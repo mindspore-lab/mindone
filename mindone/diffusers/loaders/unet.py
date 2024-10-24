@@ -67,7 +67,7 @@ class UNet2DConditionLoadersMixin:
         Load pretrained attention processor layers into [`UNet2DConditionModel`]. Attention processor layers have to be
         defined in
         [`attention_processor.py`](https://github.com/huggingface/diffusers/blob/main/src/diffusers/models/attention_processor.py)
-        and be a `torch.nn.Module` class. Currently supported: LoRA, Custom Diffusion. For LoRA, one must install
+        and be a `mindspore.nn.Cell` class. Currently supported: LoRA, Custom Diffusion. For LoRA, one must install
         `peft`: `pip install -U peft`.
 
         Parameters:
@@ -78,8 +78,7 @@ class UNet2DConditionLoadersMixin:
                       the Hub.
                     - A path to a directory (for example `./my_model_directory`) containing the model weights saved
                       with [`ModelMixin.save_pretrained`].
-                    - A [torch state
-                      dict](https://pytorch.org/tutorials/beginner/saving_loading_models.html#what-is-a-state-dict).
+                    - A mindspore state dict.
 
             cache_dir (`Union[str, os.PathLike]`, *optional*):
                 Path to a directory where a downloaded pretrained model configuration is cached if the standard cache
@@ -117,12 +116,12 @@ class UNet2DConditionLoadersMixin:
         Example:
 
         ```py
-        from diffusers import AutoPipelineForText2Image
-        import torch
+        from mindone.diffusers import AutoPipelineForText2Image
+        import mindspore as ms
 
         pipeline = AutoPipelineForText2Image.from_pretrained(
-            "stabilityai/stable-diffusion-xl-base-1.0", torch_dtype=torch.float16
-        ).to("cuda")
+            "stabilityai/stable-diffusion-xl-base-1.0", mindspore_dtype=ms.float16
+        )
         pipeline.unet.load_attn_procs(
             "jbilcke-hf/sdxl-cinematic-1", weight_name="pytorch_lora_weights.safetensors", adapter_name="cinematic"
         )
@@ -317,7 +316,7 @@ class UNet2DConditionLoadersMixin:
                 process to avoid race conditions.
             save_function (`Callable`):
                 The function to use to save the state dictionary. Useful during distributed training when you need to
-                replace `torch.save` with another method. Can be configured with the environment variable
+                replace `MindSpore.save_checkpoint` with another method. Can be configured with the environment variable
                 `DIFFUSERS_SAVE_MODE`.
             safe_serialization (`bool`, *optional*, defaults to `True`):
                 Whether to save the model using `safetensors` or with `pickle`.
@@ -431,12 +430,12 @@ class UNet2DConditionLoadersMixin:
         Example:
 
         ```py
-        from diffusers import AutoPipelineForText2Image
-        import torch
+        from mindone.diffusers import AutoPipelineForText2Image
+        import mindspore as ms
 
         pipeline = AutoPipelineForText2Image.from_pretrained(
-            "stabilityai/stable-diffusion-xl-base-1.0", torch_dtype=torch.float16
-        ).to("cuda")
+            "stabilityai/stable-diffusion-xl-base-1.0", mindspore_dtype=ms.float16
+        )
         pipeline.load_lora_weights(
             "jbilcke-hf/sdxl-cinematic-1", weight_name="pytorch_lora_weights.safetensors", adapter_name="cinematic"
         )
@@ -472,12 +471,12 @@ class UNet2DConditionLoadersMixin:
         Example:
 
         ```py
-        from diffusers import AutoPipelineForText2Image
-        import torch
+        from mindone.diffusers import AutoPipelineForText2Image
+        import mindspore as ms
 
         pipeline = AutoPipelineForText2Image.from_pretrained(
-            "stabilityai/stable-diffusion-xl-base-1.0", torch_dtype=torch.float16
-        ).to("cuda")
+            "stabilityai/stable-diffusion-xl-base-1.0", mindspore_dtype=ms.float16
+        )
         pipeline.load_lora_weights(
             "jbilcke-hf/sdxl-cinematic-1", weight_name="pytorch_lora_weights.safetensors", adapter_name="cinematic"
         )
@@ -493,12 +492,12 @@ class UNet2DConditionLoadersMixin:
         Example:
 
         ```py
-        from diffusers import AutoPipelineForText2Image
-        import torch
+        from mindone.diffusers import AutoPipelineForText2Image
+        import mindspore as ms
 
         pipeline = AutoPipelineForText2Image.from_pretrained(
-            "stabilityai/stable-diffusion-xl-base-1.0", torch_dtype=torch.float16
-        ).to("cuda")
+            "stabilityai/stable-diffusion-xl-base-1.0", mindspore_dtype=ms.float16
+        )
         pipeline.load_lora_weights(
             "jbilcke-hf/sdxl-cinematic-1", weight_name="pytorch_lora_weights.safetensors", adapter_name="cinematic"
         )
@@ -518,12 +517,12 @@ class UNet2DConditionLoadersMixin:
         Example:
 
         ```py
-        from diffusers import AutoPipelineForText2Image
-        import torch
+        from mindone.diffusers import AutoPipelineForText2Image
+        import mindspore as ms
 
         pipeline = AutoPipelineForText2Image.from_pretrained(
-            "stabilityai/stable-diffusion-xl-base-1.0", torch_dtype=torch.float16
-        ).to("cuda")
+            "stabilityai/stable-diffusion-xl-base-1.0", mindspore_dtype=ms.float16
+        )
         pipeline.load_lora_weights(
             "jbilcke-hf/sdxl-cinematic-1", weight_name="pytorch_lora_weights.safetensors", adapter_names="cinematic"
         )
