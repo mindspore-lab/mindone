@@ -9,7 +9,8 @@
 
 ## Table of Contents
 - [Introduction](#introduction)
-    - [Supported Models and Pipelines](#supported-models-and-pipelines) 🔥
+    - [Supported Models and Pipelines](#supported-models-and-pipelines)
+    - [Benchmark](#benchmark)🔥
 - [Installation](#installation)
 - [Dataset Preparation](#dataset-preparation)
 - [Text-to-Image](#text-to-image)
@@ -30,8 +31,6 @@
     - [Schedulers](#schedulers)
     - [Training with v-prediction](#training-with-v-prediction)
     - [Diffusion Model Evaluation](#diffusion-model-evaluation)
-    - [Safety Checker](#safety-checker)
-    - [Watermark](#watermark)
 
 ## Introduction
 
@@ -57,6 +56,7 @@ This repository provides "small" but popularly used diffusion models like SD1.5.
 
 You may click the link in the table to access the running instructions directly.
 
+### Benchmark
 For model performance, please refer to [benchmark](benchmark.md).
 
 ## Installation
@@ -70,10 +70,9 @@ The compatible framework versions that are well-tested are listed as follows.
 
 | Ascend    |  MindSpore   | CANN   | driver | Python | MindONE |
 |:-----------:|:----------------:|:--------:|:---------:|:------:|:---------:|
-| 910      |     2.0         |   6.3 RC1   |  23.0.rc1 | 3.7.16  | master (4c33849)  |
-| 910      |     2.1         |   6.3 RC2   |  23.0.rc2 | 3.9.18  | master (4c33849)  |
-| 910*      |     2.2.1 (20231124)    |   7.1  | 23.0.rc3.6   |  3.7.16  | master (4c33849)  |
+| 910      |     2.1.0         |   6.3 RC2   |  24.1.RC1 | 3.9.20  | master   |
 | 910*      |     2.3.0     |   7.3  | 23.0.3   |  3.8.8  | master   |
+| 910*      |     2.3.1     |   8.0.RC2.bata1  | 24.1.RC2   |  3.8.8  | master   |
 
 </div>
 
@@ -85,8 +84,6 @@ For detailed instructions to install CANN and MindSpore, please refer to the off
 
 **Note:** Running on other platforms (such as GPUs) and MindSpore versions may not be reliable.
 It's highly recommended to use the verified CANN and MindSpore versions. More compatible versions will be continuously updated.
-
-<details close markdown>
 
 ### Dependency
 
@@ -104,8 +101,6 @@ cd mindone/examples/stable_diffusion_v2
 </details>
 
 ## Dataset Preparation
-
-<details close markdown>
 
 This section describes the data format and protocol for diffusion model training.
 
@@ -149,7 +144,7 @@ To generate images by providing a text prompt, please download one of the follow
 <div align="center">
 
 | **SD Version**     |  Lang.   | **MindSpore Checkpoint**                                                                                                          | **Ref. Official Model**                                                                           | **Resolution** |
-|--------------------|----------|-------------------------------------------------------------------------------------------------------------------------|---------------------------------------------------------------------------------------------------|----------------|
+|:--------------------:|:----------:|:-------------------------------------------------------------------------------------------------------------------------:|:---------------------------------------------------------------------------------------------------:|:----------------:|
 | 1.5                |   EN   | [sd_v1.5-d0ab7146.ckpt](https://download.mindspore.cn/toolkits/mindone/stable_diffusion/sd_v1.5-d0ab7146.ckpt)                    | [stable-diffusion-v1-5](https://huggingface.co/runwayml/stable-diffusion-v1-5)                    | 512x512        |
 | 1.5-wukong         |   CN    | [wukong-huahua-ms.ckpt](https://download.mindspore.cn/toolkits/minddiffusion/wukong-huahua/wukong-huahua-ms.ckpt)                 |          N.A.                                                                                     | 512x512        |
 | 2.0                |   EN   |  [sd_v2_base-57526ee4.ckpt](https://download.mindspore.cn/toolkits/mindone/stable_diffusion/sd_v2_base-57526ee4.ckpt)              | [stable-diffusion-2-base](https://huggingface.co/stabilityai/stable-diffusion-2-base)             | 512x512        |
@@ -343,7 +338,7 @@ To generate variant images by providing a source image, please download one of t
 <div align="center">
 
 | **SD Version**     |  Lang.   | **MindSpore Checkpoint**                                                                                                          | **Ref. Official Model**                                                                 | **Resolution** |
-|--------------------|----------|-------------------------------------------------------------------------------------------------------------------------|---------------------------------------------------------------------------------------------------|----------------|
+|:--------------------:|:----------:|:-------------------------------------------------------------------------------------------------------------------------:|:---------------------------------------------------------------------------------------------------:|:----------------:|
 | 2.1-unclip-l       |   EN    | [sd21-unclip-l-baa7c8b5.ckpt](https://download.mindspore.cn/toolkits/mindone/stable_diffusion/sd21-unclip-l-baa7c8b5.ckpt)      | [stable-diffusion-2-1-unclip](https://huggingface.co/stabilityai/stable-diffusion-2-1-unclip)       | 768x768        |
 | 2.1-unclip-h       |   EN    | [sd21-unclip-h-6a73eca5.ckpt](https://download.mindspore.cn/toolkits/mindone/stable_diffusion/sd21-unclip-h-6a73eca5.ckpt)       |   [stable-diffusion-2-1-unclip](https://huggingface.co/stabilityai/stable-diffusion-2-1-unclip)     | 768x768        |
 
@@ -400,7 +395,7 @@ To perform inpainting on an input image, please download one of the following ch
 <div align="center">
 
 | **SD Version**     |  Lang.   | **MindSpore Checkpoint**                                                                                                          | **Ref. Official Model**                                                                 | **Resolution** |
-|--------------------|----------|-------------------------------------------------------------------------------------------------------------------------|---------------------------------------------------------------------------------------------------|----------------|
+|:--------------------:|:----------:|:-------------------------------------------------------------------------------------------------------------------------:|:---------------------------------------------------------------------------------------------------:|:----------------:|
 | 2.0-inpaint        |  EN      | [sd_v2_inpaint-f694d5cf.ckpt](https://download.mindspore.cn/toolkits/mindone/stable_diffusion/sd_v2_inpaint-f694d5cf.ckpt)        | [stable-diffusion-2-inpainting](https://huggingface.co/stabilityai/stable-diffusion-2-inpainting) | 512x512        |
 | 1.5-wukong-inpaint |  CN      | [wukong-huahua-inpaint-ms.ckpt](https://download.mindspore.cn/toolkits/minddiffusion/wukong-huahua/wukong-huahua-inpaint-ms.ckpt) |                                                  N.A.                                               | 512x512        |
 </div>
@@ -462,7 +457,7 @@ and generate new images conditioning on the image depth, the image, and the text
 <div align="center">
 
 | **SD Version**     |  Lang.   | **MindSpore Checkpoint**                                                                                                          | **Ref. Official Model**                                                                 | **Resolution** |
-|--------------------|----------|-------------------------------------------------------------------------------------------------------------------------|---------------------------------------------------------------------------------------------------|----------------|
+|:--------------------:|:----------:|:-------------------------------------------------------------------------------------------------------------------------:|:---------------------------------------------------------------------------------------------------:|:----------------:|
 | 2.0               |  EN       | [sd_v2_depth-186e18a0.ckpt](https://download-mindspore.osinfra.cn/toolkits/mindone/stable_diffusion/sd_v2_depth-186e18a0.ckpt)        | [stable-diffusion-2-depth](https://huggingface.co/stabilityai/stable-diffusion-2-depth) | 512x512        |
 
 </div>
@@ -561,14 +556,6 @@ To alter the objective to v-prediction, which is used in SD 2.0-v and SD 2.1-v, 
 
 We provide different evaluation methods including FID and CLIP-score to evaluate the quality of the generated images.
 For detailed usage, please refer to [Evaluation for Diffusion Models](tools/eval/README.md)
-
-### Safety Checker
-
-Coming soon
-
-### Watermark
-
-Coming soon
 
 ### FAQ
 
