@@ -3,22 +3,12 @@
 ## Introduction
 unCLIP is the approach behind OpenAI's DALL·E 2, trained to invert CLIP image embeddings. This method finetunes SD to accept a CLIP ViT-L/14 image embedding in addition to the text encodings. This means that the model can be used to produce image variations with or without text input.
 
-## Get Started
 
-### Preparation
+## Preparation
 
 #### Dependency
 
-Please make sure the following frameworks are installed.
-
-- mindspore >= 1.9  [[install](https://www.mindspore.cn/install)] (2.0 is recommended for the best performance.)
-- python >= 3.7
-- openmpi 4.0.3 (for distributed training/evaluation)  [[install](https://www.open-mpi.org/software/ompi/v4.0/)]
-
-Install the dependent packages by running:
-```shell
-pip install -r requirements.txt
-```
+Please refer to the [Installation](../../README.md#installation) section.
 
 #### Pretrained Models
 
@@ -54,7 +44,7 @@ For convenience, we have prepared one public text-image dataset obeying the abov
 
 To use it, please download `pokemon_blip.zip` from the [openi dataset website](https://openi.pcl.ac.cn/jasonhuang/mindone/datasets). Then unzip them on your local directory, e.g. `./datasets/pokemon_blip`.
 
-### unCLIP Finetune
+## unCLIP Finetune
 
 We will use the `train_unclip_image_variation.py` script to train the unclip image variation.
 Before running, please modify the following arguments to your local path in the shell or in the config file `train_config_vanilla_v2_vpred_unclip_l.yaml`:
@@ -86,7 +76,7 @@ Below are some arguments that you may want to tune for a better performance on y
 
 For more argument illustration, please run `python train_unclip_image_variation.py -h`.
 
-### Inference
+## Inference
 
 To perform image-to-image generation with the finetuned checkpoint, please prepare a test image and run
 

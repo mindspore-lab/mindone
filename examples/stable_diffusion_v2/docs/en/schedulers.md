@@ -1,16 +1,15 @@
 # Schedulers for Stable Diffusion Inference
 
-## 1. Introduction
-Mindone contains multiple schedule functions for the diffusion process.
+## Introduction
 
 The schedule functions take in the output of a pre-trained model, a sample which the diffusion process is iterating on, and a timestep to return a denoised sample. Schedulers define the method for iteratively adding noise to an image or for updating a sample based on model outputs (removing noise). Schedulers are often defined by a noise schedule and an update rule to solve the differential equation solution.
 
-## 2. Summary of Schedulers
+## Summary of Schedulers
 
-Mindone implements 5 different schedulers in addition to the DDPM scheduler. The following table summarizes these schedulers:
+The following table summarizes different schedulers:
 
-| Scheduler | Reference |
-|:------:|:------:|
+| scheduler | reference |
+|:------|:------|
 | DDPM | [Denoising Diffusion Probabilistic Models](https://arxiv.org/abs/2006.11239) |
 | DDIM | [Denoising Diffusion Implicit Models](https://arxiv.org/abs/2010.02502) |
 | PLMS | [Pseudo Numerical Methods for Diffusion Models on Manifolds](https://arxiv.org/abs/2202.09778) |
@@ -18,32 +17,21 @@ Mindone implements 5 different schedulers in addition to the DDPM scheduler. The
 | DPM-Solver++ | [DPM-Solver++: Fast Solver for Guided Sampling of Diffusion Probabilistic Models](https://arxiv.org/abs/2211.01095) |
 | UniPC | [UniPC: A Unified Predictor-Corrector Framework for Fast Sampling of Diffusion Models](https://arxiv.org/abs/2302.04867) |
 
-## 3. Inference with SD2.0
 
-### 3.1 Quick Start
+## Inference with SD2.0
 
-Normally, you can test the stable diffusion model using the following command with the default **DPM-Solver++** scheduler (Refer to [Stable Diffusion 2.0-Inference](./README.md#stable-diffusion-20)).
+Example using the default **DPM-Solver++** scheduler (Refer to [Stable Diffusion 2.0-Inference](./README.md#stable-diffusion-20)).
 
 ```shell
 # Text to image generation with SD2.0
 python text_to_image.py --prompt "A wolf in winter" --version 2.0
 ```
 
-You can obtain diverse results according to the given **prompt**. Here are 5 examples:
-
 | DPM-Solver++ #1 | DPM-Solver++ #2 | DPM-Solver++ #3  | DPM-Solver++ #4 | DPM-Solver++ #5 |
 | :----: | :----: |:--------------------------------------------------------------------------------------------------------------------------------:| :----: | :----: |
 | <img src="https://github.com/zhaoyuzhi/mindone/assets/13333802/6a84e5ae-baab-4461-91ec-14f55b16aee2" width="155" height="155" /> | <img src="https://github.com/zhaoyuzhi/mindone/assets/13333802/62c0bb93-68a8-4ff1-8bc5-0c9305931ac0" width="155" height="155" /> | <img src="https://github.com/zhaoyuzhi/mindone/assets/13333802/92441896-8786-465b-82a2-3438aad85476" width="155" height="155" /> | <img src="https://github.com/zhaoyuzhi/mindone/assets/13333802/e626ae1b-8fa6-4ad8-a083-ec39e4944277" width="155" height="155" /> | <img src="https://github.com/zhaoyuzhi/mindone/assets/13333802/d3728d81-4a31-4d53-baf0-cd79b6046ca3" width="155" height="155" /> |
 
-### 3.2 Inference with Different Schedulers
 
-As quantitative evaluation for different schedulers is usually insufficient to determine which is the best, it is often recommended to simply try them out and visually compare the results.
-In this chapter, we will demonstrate how to generate images using different schedulers, and show you the visual comparison of images, the time required for each scheduler for reference.
-
-#### 3.2.1 Commands of Inference with Different Schedulers
-
- You can test the stable diffusion model with **different scheduler** using the **following commands**.
- The `${scheduler}` can be one of **ddim**, **plms**, **dpm_solver** and **uni_pc** (note: the default scheduler is **DPM-Solver++**).
  The optimal Hyperparameters can vary for different schedulers. For example, the optimal `${sampling_steps}` is 50 for PLMS, DDIM and 20 for UniPC,DPM-Solver, DPM-Solver++.
 
 ```shell
@@ -67,9 +55,7 @@ python text_to_image.py \
     --sampling_steps ${sampling_steps}
 ```
 
- Note that, If you set big sampling steps for UniPC schedulers, the program will report a warning such as **The selected sampling timesteps are not appropriate for UniPC sampler**. The default `${prompt}` is "A Van Gogh style oil painting of sunflower".
-
-#### 3.2.2 Visual Comparison
+#### Examples
 
 Now, let's execute the [command above](#321-commands-of-inference-with-different-schedulers) to generate some images with different `${prompt}` and different `${scheduler}`. All these images have a default resolution of **512x512**.
 
@@ -128,28 +114,23 @@ python text_to_image.py  --prompt "A pikachu fine dining with a view to the Eiff
 | <img src="https://github.com/zhaoyuzhi/mindone/assets/13333802/8eee6ecc-7fa0-4a06-a9fe-a26a2b9b8660" width="155" height="155" /> | <img src="https://github.com/zhaoyuzhi/mindone/assets/13333802/c7a90a16-0d20-4715-ba87-dfece253f1b7" width="155" height="155" /> | <img src="https://github.com/zhaoyuzhi/mindone/assets/13333802/f743beeb-8551-43f4-8161-04fc521912e5" width="155" height="155" /> | <img src="https://github.com/zhaoyuzhi/mindone/assets/13333802/0a9b2411-a38e-4009-816c-7682ad12c78e" width="155" height="155" /> | <img src="https://github.com/zhaoyuzhi/mindone/assets/13333802/db56e390-fefa-4a5a-a7c3-92d76901f9e7" width="155" height="155" /> |
 | <img src="https://github.com/zhaoyuzhi/mindone/assets/13333802/d0430b42-db22-429b-ba42-fcb9a6cbe801" width="155" height="155" /> | <img src="https://github.com/zhaoyuzhi/mindone/assets/13333802/3b6dd274-a8d5-4b0f-86cc-568cda16d179" width="155" height="155" /> | <img src="https://github.com/zhaoyuzhi/mindone/assets/13333802/8002fa97-aa80-47ac-9f3c-23969bc38cf2" width="155" height="155" /> | <img src="https://github.com/zhaoyuzhi/mindone/assets/13333802/53e9ae3b-40ab-449b-b1a8-2254ffa267a1" width="155" height="155" /> | <img src="https://github.com/zhaoyuzhi/mindone/assets/13333802/f309319c-43bf-4db9-920f-e60720973bf1" width="155" height="155" /> |
 
-#### 3.2.3 Time Comparison
+#### Performance
 
-We made the following table to compare the **time required** for **different schedulers** (with their optimal sampling steps) to generate images by executing
-the **[command above](#321-commands-of-inference-with-different-schedulers)** on Ascend 910. This means that the image resolution is **521x512**, `n_iter` is **8**, `n_samples` is **1**(calculate the average of the last 7 iterations).
-Please note that if `n_samples` is increased (e.g., 8), the time required for each sample will decrease.
-
+experiments are tested on ascend 910 with mindspore2.1.0 graph mode
 | **scheduler** | **sampling_steps** | **time(second/image)** |
-|:-------------:|:------------------:|:----------------------:|
+|:-------------|:------------------:|:----------------------:|
 |     ddim      |         50         |         16.48s         |
 |     plms      |         50         |         16.77s         |
 |  dmp_solver   |         20         |         12.72s         |
 | dmp_solver_pp |         20         |         13.43s         |
 |    uni_pc     |         20         |         14.97s         |
 
-## 4. Inference (based on LoRA)
+## Inference based on LoRA
 
 The difference schedulers can be used for stable diffusion model + LoRA inference (see [LoRA](./lora_finetune.md#introduction) for more information).
 Users can specify schedulers in the same manner as described in chapter [Inference with Different Schedulers](#32-inference-with-different-schedulers).
-For detailed additional information, please refer to [Use LoRA for Stable Diffusion Finetune](lora_finetune.md).
-In this chapter, we will provide a visual, qualitative and quantitative comparison with Diffusers using different schedulers based on LoRa finetune.
 
-### 4.1 Visual Comparison
+#### Examples
 
 Based on the LoRA models trained on pokemon and chinese_art datasets (see [LoRA](./lora_finetune.md#get-started) for more information), we test them using different schedulers. The base model is Stable Diffusion 2.0.
 
@@ -201,7 +182,7 @@ bash scripts/run_test_to_image_v2_lora.sh
 | :----: | :----: | :----: | :----: | :----: |
 | <img src="https://github.com/zhaoyuzhi/mindone/assets/13333802/37ddf56d-7e88-4093-919d-9a79f0b59961" width="155" height="155" /> | <img src="https://github.com/zhaoyuzhi/mindone/assets/13333802/fdab0742-2809-4dbb-ac35-2e3abda5b654" width="155" height="155" /> | <img src="https://github.com/zhaoyuzhi/mindone/assets/13333802/3ca860e7-027d-4e03-b114-488e244d48a7" width="155" height="155" /> | <img src="https://github.com/zhaoyuzhi/mindone/assets/13333802/f3b5e5f5-279b-4c03-b54f-cf6e1ff10953" width="155" height="155" /> | <img src="https://github.com/zhaoyuzhi/mindone/assets/13333802/49a5c26f-03cb-4430-935f-b4e9940f725a" width="155" height="155" /> |
 
-### 4.2 Qualitative Comparison with Diffusers
+#### Qualitative Comparison with Diffusers
 
 We also show some text-to-image generation samples for the LoRA models trained by **MindOne** and **Diffusers**. The base model is Stable Diffusion 2.0.
 
@@ -211,7 +192,7 @@ We also show some text-to-image generation samples for the LoRA models trained b
 ${prompt}="a drawing of a black and gray dragon"
 ```
 
-| Framework | PLMS | DDIM | DPM-Solver++ | UniPC |
+|        | PLMS | DDIM | DPM-Solver++ | UniPC |
 | :----: | :----: | :----: | :----: | :----: |
 | MindOne | <img src="https://github.com/zhaoyuzhi/mindone/assets/13333802/7fb311b7-a0f4-4aa2-b10d-8eb2deebbcdf" width="155" height="155" /> | <img src="https://github.com/zhaoyuzhi/mindone/assets/13333802/3ebd8598-468e-4853-ab87-ec5457ae2590" width="155" height="155" /> | <img src="https://github.com/zhaoyuzhi/mindone/assets/13333802/514469e1-df82-45d6-9acc-c8d1e5ff312c" width="155" height="155" /> | <img src="https://github.com/zhaoyuzhi/mindone/assets/13333802/26062b45-7c36-4277-b10a-61e2ebd23af8" width="155" height="155" /> |
 | Diffusers | <img src="https://github.com/zhaoyuzhi/mindone/assets/13333802/0a7fa4e5-0f62-4985-8bc7-873a7a5e61a4" width="155" height="155" /> | <img src="https://github.com/zhaoyuzhi/mindone/assets/13333802/91b2fd08-d283-49e8-96a2-db15f8e93e23" width="155" height="155" /> | <img src="https://github.com/zhaoyuzhi/mindone/assets/13333802/ecc3676b-ca14-480e-8719-02694a176e9d" width="155" height="155" /> | <img src="https://github.com/zhaoyuzhi/mindone/assets/13333802/37430894-9d5c-4aa1-82d3-4b84464c5bf8" width="155" height="155" /> |
@@ -220,7 +201,7 @@ ${prompt}="a drawing of a black and gray dragon"
 ${prompt}="a cartoon panda with a leaf in its mouth"
 ```
 
-| Framework | PLMS | DDIM | DPM-Solver++ | UniPC |
+|        | PLMS | DDIM | DPM-Solver++ | UniPC |
 | :----: | :----: | :----: | :----: | :----: |
 | MindOne | <img src="https://github.com/zhaoyuzhi/mindone/assets/13333802/d89031eb-9ad8-4d51-9126-d6638ee7cae7" width="155" height="155" /> | <img src="https://github.com/zhaoyuzhi/mindone/assets/13333802/4302c116-ba08-4d63-ae62-163da37e634c" width="155" height="155" /> | <img src="https://github.com/zhaoyuzhi/mindone/assets/13333802/41487edd-ef09-4525-b09a-42e8ff79ce5b" width="155" height="155" /> | <img src="https://github.com/zhaoyuzhi/mindone/assets/13333802/3408fe57-2700-495e-8677-26ddb618b2e6" width="155" height="155" /> |
 | Diffusers | <img src="https://github.com/zhaoyuzhi/mindone/assets/13333802/cdcf7b06-7822-4dc2-b33a-ad26d7eed705" width="155" height="155" /> | <img src="https://github.com/zhaoyuzhi/mindone/assets/13333802/08ed029d-4ccc-40b7-a877-0a37684ee753" width="155" height="155" /> | <img src="https://github.com/zhaoyuzhi/mindone/assets/13333802/5fddf4b1-07ab-4fb6-bcfe-1406720b15a4" width="155" height="155" /> | <img src="https://github.com/zhaoyuzhi/mindone/assets/13333802/6bc6986b-88af-416d-9e20-dd3ac9a9dee0" width="155" height="155" /> |
@@ -231,47 +212,7 @@ ${prompt}="a cartoon panda with a leaf in its mouth"
 ${prompt}="a painting of a landscape with a mountain in the background and a river running through it with a few people on it"
 ```
 
-| Framework | PLMS | DDIM | DPM-Solver++ | UniPC |
+| | PLMS | DDIM | DPM-Solver++ | UniPC |
 | :----: | :----: | :----: | :----: | :----: |
 | MindOne | <img src="https://github.com/zhaoyuzhi/mindone/assets/13333802/e3f8893a-419d-4f59-9ede-63e6ff307c9b" width="155" height="155" /> | <img src="https://github.com/zhaoyuzhi/mindone/assets/13333802/70a24b3e-5439-4ccd-bd63-afbd94ecfc27" width="155" height="155" /> | <img src="https://github.com/zhaoyuzhi/mindone/assets/13333802/b3a4d82a-c8c7-4f85-bd80-613e7d085a6b" width="155" height="155" /> | <img src="https://github.com/zhaoyuzhi/mindone/assets/13333802/f889c713-da74-40a9-a17d-bc363d77ba7e" width="155" height="155" /> |
 | Diffusers | <img src="https://github.com/zhaoyuzhi/mindone/assets/13333802/00a41bc8-c38d-463d-af8a-8e204e41c14a" width="155" height="155" /> | <img src="https://github.com/zhaoyuzhi/mindone/assets/13333802/f95715eb-d92f-4464-ad84-f8af554c81f2" width="155" height="155" /> | <img src="https://github.com/zhaoyuzhi/mindone/assets/13333802/3adf40cc-43cd-4dcc-b05c-71541a2a8b2e" width="155" height="155" /> | <img src="https://github.com/zhaoyuzhi/mindone/assets/13333802/f9c73e9b-ea3e-4232-83b8-8b640d792896" width="155" height="155" /> |
-
-### 4.3 Quantitative Comparison with Diffusers
-
-Here are the evaluation results for our implementation.
-
-<div align="center">
-
-| Pretrained Model        | Dataset  |   Finetune Method | Sampling Algorithm | FID (MindOne) &#8595; |  FID (Diffusers) &#8595; |
-|--------------|------|-------------|-----------|--------|------------|
-| stable_diffusion_2.0_base | pokemon_blip |  LoRA  | PLMS (scale: 9, steps: 50)   |   103  |   105  |
-| stable_diffusion_2.0_base | pokemon_blip |  LoRA  | DDIM (scale: 9, steps: 50)   |   101  |   109  |
-| stable_diffusion_2.0_base | pokemon_blip |  LoRA  | DPM Solver ++ (scale: 9, steps: 20)   |   98  |   107  |
-| stable_diffusion_2.0_base | pokemon_blip |  LoRA  | UniPC (scale: 9, steps: 20)   |   104  |   107  |
-| stable_diffusion_2.0_base | chinese_art_blip |  LoRA  | PLMS (scale: 9, steps: 50)   |   279  |   260  |
-| stable_diffusion_2.0_base | chinese_art_blip |  LoRA  | DDIM (scale: 9, steps: 50)   |   277  |   250  |
-| stable_diffusion_2.0_base | chinese_art_blip |  LoRA  | DPM Solver ++ (scale: 9, steps: 20)   |   265  |   254  |
-| stable_diffusion_2.0_base | chinese_art_blip |  LoRA  | UniPC (scale: 9, steps: 20)   |   288  |   254  |
-
-</div>
-
-## 5. Inference with SD1.5
-
-These different schedulers are also suitable for SD1.5 (See [Stable Diffusion 1.5](./README.md#stable-diffusion-15) for more detail).
-Users can specify schedulers in the same manner as described in chapter [Inference with Different Schedulers](#32-inference-with-different-schedulers), except
-switching SD from 2.0 to 1.5 by setting the `--version` (`-v`) argument. In this chapter, we will provide a visual text to image generation using different
-schedulers base on SD1.5.
-
-### 5.1 Visual comparison
-
-```bash
-# Set ${scheduler} to plms, ddim, dpm_solver and uni_pc in turn (Note: also use their respective optimal ${sampling_steps})
-# Note: no need to pass ${scheduler} while using dpm_solver_pp
-# Note: here, the ${version} is 1.5 and config file is "configs/v1-inference.yaml"
- python text_to_image.py  --prompt "A wolf in winter"  --config configs/v1-inference.yaml  --version 1.5  --seed 42  --${scheduler}  --n_iter 8  --n_samples 1  --sampling_steps ${sampling_steps}
-```
-
-| PLMS | DDIM | DPM-Solver | DPM-Solver++ | UniPC |
-| :----: | :----: | :----: | :----: | :----: |
-| <img src="https://github.com/sageyou/mindone/assets/107303365/7efc53ee-4b0b-463e-a297-d055e04eddb1" width="155" height="155" /> | <img src="https://github.com/sageyou/mindone/assets/107303365/75030ab7-9ec0-4c4e-ade4-76c694837c76" width="155" height="155" /> | <img src="https://github.com/sageyou/mindone/assets/107303365/9bbf3a65-0293-4b25-815a-534348cde997" width="155" height="155" /> | <img src="https://github.com/sageyou/mindone/assets/107303365/3d1b52bf-dbda-4315-bbee-ecc2d65af96c" width="155" height="155" /> | <img src="https://github.com/sageyou/mindone/assets/107303365/ff77e523-c7ce-44cb-9b3d-6e9368bdc80c" width="155" height="155" /> |
-| <img src="https://github.com/sageyou/mindone/assets/107303365/df214586-7d92-4a35-9180-a120fc290f69" width="155" height="155" /> | <img src="https://github.com/sageyou/mindone/assets/107303365/19aaa63b-f8c5-495a-94b7-0554e8bb14f3" width="155" height="155" /> | <img src="https://github.com/sageyou/mindone/assets/107303365/9fcb9bab-37d5-4387-b699-a71511c7ff92" width="155" height="155" /> | <img src="https://github.com/sageyou/mindone/assets/107303365/0ad3cdd0-6186-4846-8c1c-8bb42db3500b" width="155" height="155" /> | <img src="https://github.com/sageyou/mindone/assets/107303365/34bdc384-5064-4f77-8918-e5292f14720b" width="155" height="155" /> |

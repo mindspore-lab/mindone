@@ -28,8 +28,8 @@ Please refer to the [Installation](../../README.md#installation) section.
 
 To perform controllable image generation with existing ControlNet checkpoints, please download one of the following checkpoints and put it in `models` folder:
 
-| **SD Version**     |  Lang.   | **MindSpore Checkpoint**                                                                                                          | **Ref. Official Model**                                                                 | **Resolution** |
-|--------------------|----------|-------------------------------------------------------------------------------------------------------------------------|---------------------------------------------------------------------------------------------------|----------------|
+| **sd version**     |  language   | **mindspore checkpoint**                                                                                                          | **ref. official model**                                                                 | **resolution** |
+|:--------------------:|:----------:|:-------------------------------------------------------------------------------------------------------------------------:|:---------------------------------------------------------------------------------------------------:|:----------------:|
 |   SD1.5            |  EN      | [SD1.5-canny-ms checkpoint](https://download.mindspore.cn/toolkits/mindone/stable_diffusion/control_canny_sd_v1.5_static-6350d204.ckpt)        | [control_sd15_canny.pth](https://huggingface.co/lllyasviel/ControlNet/tree/main/models) | 512x512        |
 |   SD1.5            |  EN      | [SD1.5-segmentation-ms checkpoint](https://download.mindspore.cn/toolkits/mindone/stable_diffusion/control_segmentation_sd_v1.5_static-77bea2e9.ckpt) |       [control_sd15_seg.pth](https://huggingface.co/lllyasviel/ControlNet/tree/main/models)                                                                                      | 512x512        |
 |   SD1.5            |  EN      | [SD1.5-openpose-ms checkpoint](https://download.mindspore.cn/toolkits/mindone/stable_diffusion/control_openpose_sd_v1.5_static-6167c529.ckpt)        | [control_sd15_openpose.pth](https://huggingface.co/lllyasviel/ControlNet/tree/main/models) | 512x512        |
@@ -302,20 +302,14 @@ The resulting log will be saved in $output_dir as defined in the script, and the
 
 Here are the training performances:
 
-| Context | Dataset | Task | Batch Size |  jit_level| Acceleration |Training Performance |
-| -------- | ------- | ---- |  --------- |-----------|---------- | ---|
-| D910x1-MS2.0.0 | Fill50k | Canny2Image | 4 | N.A|  Graph,FP16 | 620 ms/step|
-| D910x1-MS2.0.0 | MPII1K | Pose2Image | 2 | N.A| Graph,FP16 | 490 ms/step|
-| D910*x1-MS2.3.0 | Fill50k | Canny2Image | 4 | O2| Graph,FP16 |377 ms/step|
-| D910*x1-MS2.3.0 | MPII1K | Canny2Image | 2 | O2| Graph,FP16 |253 ms/step|
+experiments are tested on ascend 910* with mindspore2.3.0 graph mode
+| dataset | task | batch size |  jit_level| dtype |speed(ms/step) |
+|:--------:|:-------:|:----:|:---------:|:---:|:----------:|
+| Fill50k | Canny2Image | 4 | O2| FP16 |377 ms/step|
+| MPII1K | Canny2Image | 2 | O2| FP16 |253 ms/step|
 
-> Context: {Ascend chip}-{number of NPUs}-{mindspore version}.
 >
-> Acceleration: Graph: Graph Mode. FP16: float16 computation.
->
->jie_level: Used to control the compilation optimization level. N/A means that the current MindSpore version does not support setting jit_level.
-
-Note that the jit_level only can be used for MindSpore 2.3.
+>jie_level: control the compilation optimization level. N/A means the respective MindSpore version does not have the option.
 
 
 #### 4. Evaluation
@@ -329,33 +323,18 @@ sh scripts/run_infer_cldm.sh $CARD_ID $CHECKPOINT_PATH $OUTPUT_FOLDER_NAME
 The result would be saved at ./inference/output/$OUTPUT_FOLDER_NAME.
 
 Here are some inference results of canny2image task after training Fill50k dataset (lr=5e-4, bs=2, epoch=4):
-
-![controlnet_train_validate](https://github.com/congw729/mindone/assets/115451386/62ad40a3-0510-4606-84cb-780c72989b36)
-
-Comparing the results with ground truth:
-![controlnet_train_gt](https://github.com/congw729/mindone/assets/115451386/b0e5740c-2488-4924-842f-72afcfc0abea)
-
-
-Control:
-![controlnet_train_control](https://github.com/congw729/mindone/assets/115451386/8b695f01-4220-4d4f-afff-01ae604169e0)
-
-Prompt:
-![controlnet_train_prompt](https://github.com/congw729/mindone/assets/115451386/7adb909a-a4b3-4ca3-856a-b996233b7b33)
+| Prompt  | control  | result |  ground truth |
+|---|---|---|---|
+| "a blue jellyfish with red eyes and a red nose"  | <img src="https://github.com/user-attachments/assets/7c233933-5bca-4022-8b67-e3ce43d1e3dc" width="200"/> | <img src="https://github.com/user-attachments/assets/1cd7ee01-550e-4318-be31-7d98aa2a8c21" width="200"/> | <img src="https://github.com/user-attachments/assets/1f62423d-1f8e-4bbf-b3f8-b99cd860f64f" width="200"/> |
+| "light green circle with snow backround" | <img src="https://github.com/user-attachments/assets/c4f6e077-0079-47fa-b777-7895585857f6" width="200"/> | <img src="https://github.com/user-attachments/assets/76ea33d9-9227-41fc-a4d1-956e97e55a24" width="200"/> | <img src="https://github.com/user-attachments/assets/599f3dc1-fa82-4545-8126-26e0df1ebddb" width="200"/> |
 
 
 Here are some inference results of pose2image task after training MPII1K dataset (lr=2e-4, group_lr_scaler=5, bs=2, epoch=30):
 
-*prompt: A man riding a motor bike across a forest.*
-
-test image 1:
-
-<img src="https://github.com/congw729/mindone/assets/115451386/2b7de126-4866-48d1-8c8d-9065980258c7" alt="image" width="256" height="auto">
-<img src="https://github.com/congw729/mindone/assets/115451386/3e4f972b-fc5c-4291-8e22-0a72f4f12f67" alt="image" width="256" height="auto">
-
-test image 2:
-
-<img src="https://github.com/congw729/mindone/assets/115451386/e34bf3d0-f13a-4c0e-a199-5c092a392b1c" alt="image" width="256" height="auto">
-<img src="https://github.com/congw729/mindone/assets/115451386/d661b967-5f56-4ec5-b8e9-ed91ff160306" alt="image" width="256" height="auto">
+| Prompt  | pose  | result |
+|---|---|---|
+| "A man riding a motor bike across a forest"  | <img src="https://github.com/congw729/mindone/assets/115451386/2b7de126-4866-48d1-8c8d-9065980258c7" alt="image" width="256" height="auto"> | <img src="https://github.com/congw729/mindone/assets/115451386/3e4f972b-fc5c-4291-8e22-0a72f4f12f67" alt="image" width="256" height="auto"> |
+| "A man riding a motor bike across a forest" | <img src="https://github.com/congw729/mindone/assets/115451386/e34bf3d0-f13a-4c0e-a199-5c092a392b1c" alt="image" width="256" height="auto"> | <img src="https://github.com/congw729/mindone/assets/115451386/d661b967-5f56-4ec5-b8e9-ed91ff160306" alt="image" width="256" height="auto">|
 
 
 

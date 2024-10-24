@@ -31,29 +31,34 @@ There are multiple advantages of this architecture:
 | mindspore  | ascend driver | firmware    | cann toolkit/kernel
 | :---      |:---           | :--         |:--
 | 2.1.0     | 23.0.rc2 | 6.4.12.1.241 | 6.3.RC2
-- experiments for ascend 910* with mindspore 2.3.1 graph mode will comming soon
+
 ## Pretrained Models
 
-<div align="center">
+SDXL
+| task          | sd train version | dataset                                | weights                                                                                                          |
+|---------------|:----------------:|----------------------------------------|------------------------------------------------------------------------------------------------------------------|
+| Canny         |     SDXL 1.0     | LAION-Aesthetics V2 (3M)               | [Download](https://download.mindspore.cn/toolkits/mindone/t2i-adapters/adapter_xl_canny-aecfc7d6.ckpt)           |
+| Depth (MiDaS) |     SDXL 1.0     | LAION-Aesthetics V2 (3M)               | [Download](https://download.mindspore.cn/toolkits/mindone/t2i-adapters/adapter_xl_depth-5ce5acf2.ckpt)           |
+| LineArt       |     SDXL 1.0     | LAION-Aesthetics V2 (3M)               | [Download](https://download.mindspore.cn/toolkits/mindone/t2i-adapters/adapter_xl_lineart-6110edd0.ckpt)         |
+| OpenPose      |     SDXL 1.0     | LAION-Aesthetics V2 (3M)               | [Download](https://download.mindspore.cn/toolkits/mindone/t2i-adapters/adapter_xl_openpose-88397cd1.ckpt)        |
+| Sketch        |     SDXL 1.0     | LAION-Aesthetics V2 (3M)               | [Download](https://download.mindspore.cn/toolkits/mindone/t2i-adapters/adapter_xl_sketch-98dbd348.ckpt)          |
 
-| SD Compatibility | Task          | SD Train Version | Dataset                                | Recipe                             | Weights                                                                                                          |
-|:----------------:|---------------|:----------------:|----------------------------------------|------------------------------------|------------------------------------------------------------------------------------------------------------------|
-|       SDXL       | Canny         |     SDXL 1.0     | LAION-Aesthetics V2 (3M)               |                                    | [Download](https://download.mindspore.cn/toolkits/mindone/t2i-adapters/adapter_xl_canny-aecfc7d6.ckpt)           |
-|                  | Depth (MiDaS) |     SDXL 1.0     | LAION-Aesthetics V2 (3M)               |                                    | [Download](https://download.mindspore.cn/toolkits/mindone/t2i-adapters/adapter_xl_depth-5ce5acf2.ckpt)           |
-|                  | LineArt       |     SDXL 1.0     | LAION-Aesthetics V2 (3M)               |                                    | [Download](https://download.mindspore.cn/toolkits/mindone/t2i-adapters/adapter_xl_lineart-6110edd0.ckpt)         |
-|                  | OpenPose      |     SDXL 1.0     | LAION-Aesthetics V2 (3M)               |                                    | [Download](https://download.mindspore.cn/toolkits/mindone/t2i-adapters/adapter_xl_openpose-88397cd1.ckpt)        |
-|                  | Sketch        |     SDXL 1.0     | LAION-Aesthetics V2 (3M)               |                                    | [Download](https://download.mindspore.cn/toolkits/mindone/t2i-adapters/adapter_xl_sketch-98dbd348.ckpt)          |
-|                  |               |                  |                                        |                                    |                                                                                                                  |
-|       2.x        | Segmentation  |       2.1        | [COCO-Stuff](#segmentation-coco-stuff) | [yaml](configs/sd_v2.1_train.yaml) | [Download](https://download.mindspore.cn/toolkits/mindone/t2i-adapters/t2iadapter_seg_sd21-86d4e0db.ckpt)        |
-|                  |               |                  |                                        |                                    |                                                                                                                  |
-|       1.x        | Canny         |       1.5        | [COCO-Stuff](#segmentation-coco-stuff) |                                    | [Download](https://download.mindspore.cn/toolkits/mindone/t2i-adapters/t2iadapter_canny_sd15v2-c484cd69.ckpt)    |
-|                  | Color         |       1.4        | LAION-Aesthetics V2 (625K)             |                                    | [Download](https://download.mindspore.cn/toolkits/mindone/t2i-adapters/t2iadapter_color_sd14v1-7cb31ebd.ckpt)    |
-|                  | Depth (MiDaS) |       1.5        | LAION-Aesthetics V2 (625K)             |                                    | [Download](https://download.mindspore.cn/toolkits/mindone/t2i-adapters/t2iadapter_depth_sd15v2-dc86209b.ckpt)    |
-|                  | KeyPose       |       1.4        | LAION-Aesthetics V2 (625K)             |                                    | [Download](https://download.mindspore.cn/toolkits/mindone/t2i-adapters/t2iadapter_keypose_sd14v1-ee27ccf0.ckpt)  |
-|                  | OpenPose      |       1.4        | LAION-Aesthetics V2 (625K)             |                                    | [Download](https://download.mindspore.cn/toolkits/mindone/t2i-adapters/t2iadapter_openpose_sd14v1-ebcdb5cb.ckpt) |
-|                  | Segmentation  |       1.4        | [COCO-Stuff](#segmentation-coco-stuff) |                                    | [Download](https://download.mindspore.cn/toolkits/mindone/t2i-adapters/t2iadapter_seg_sd14v1-1d2e8478.ckpt)      |
-|                  | Sketch        |       1.5        | [COCO-Stuff](#segmentation-coco-stuff) |                                    | [Download](https://download.mindspore.cn/toolkits/mindone/t2i-adapters/t2iadapter_sketch_sd15v2-6c537e26.ckpt)   |
-|                  | Style         |       1.4        |                                        |                                    | [Download](https://download.mindspore.cn/toolkits/mindone/t2i-adapters/t2iadapter_style_sd14v1-a620ae97.ckpt)    |
+SD2.x
+| task          | sd train version | dataset                                | recipe                             | weights                                                                                                          |
+|---------------|:----------------:|----------------------------------------|------------------------------------|------------------------------------------------------------------------------------------------------------------|
+| Segmentation  |       2.1        | [COCO-Stuff](#segmentation-coco-stuff) | [yaml](configs/sd_v2.1_train.yaml) | [Download](https://download.mindspore.cn/toolkits/mindone/t2i-adapters/t2iadapter_seg_sd21-86d4e0db.ckpt)        |
+
+SD1.x
+| task          | sd train version | dataset                                | weights                                                                                                          |
+|---------------|:----------------:|----------------------------------------|------------------------------------------------------------------------------------------------------------------|
+| Canny         |       1.5        | [COCO-Stuff](#segmentation-coco-stuff) | [Download](https://download.mindspore.cn/toolkits/mindone/t2i-adapters/t2iadapter_canny_sd15v2-c484cd69.ckpt)    |
+| Color         |       1.4        | LAION-Aesthetics V2 (625K)             | [Download](https://download.mindspore.cn/toolkits/mindone/t2i-adapters/t2iadapter_color_sd14v1-7cb31ebd.ckpt)    |
+| Depth (MiDaS) |       1.5        | LAION-Aesthetics V2 (625K)             | [Download](https://download.mindspore.cn/toolkits/mindone/t2i-adapters/t2iadapter_depth_sd15v2-dc86209b.ckpt)    |
+| KeyPose       |       1.4        | LAION-Aesthetics V2 (625K)             | [Download](https://download.mindspore.cn/toolkits/mindone/t2i-adapters/t2iadapter_keypose_sd14v1-ee27ccf0.ckpt)  |
+| OpenPose      |       1.4        | LAION-Aesthetics V2 (625K)             | [Download](https://download.mindspore.cn/toolkits/mindone/t2i-adapters/t2iadapter_openpose_sd14v1-ebcdb5cb.ckpt) |
+| Segmentation  |       1.4        | [COCO-Stuff](#segmentation-coco-stuff) | [Download](https://download.mindspore.cn/toolkits/mindone/t2i-adapters/t2iadapter_seg_sd14v1-1d2e8478.ckpt)      |
+| Sketch        |       1.5        | [COCO-Stuff](#segmentation-coco-stuff) | [Download](https://download.mindspore.cn/toolkits/mindone/t2i-adapters/t2iadapter_sketch_sd15v2-6c537e26.ckpt)   |
+| Style         |       1.4        | [COCO-Stuff](#segmentation-coco-stuff) | [Download](https://download.mindspore.cn/toolkits/mindone/t2i-adapters/t2iadapter_style_sd14v1-a620ae97.ckpt)    |
 
 </div>
 
@@ -90,18 +95,7 @@ and [here](https://huggingface.co/TencentARC/t2i-adapter-canny-sdxl-1.0)
 
 ### Individual Adapters
 
-#### Canny Adapter
-
-##### SD
-
-<p align="center">
-<img width="256" alt="SD Canny input" src="https://github.com/mindspore-lab/mindone/assets/16683750/c6ae6ca5-356e-4028-9dd9-930e1be8adf2"/>
-<img width="256" alt="SD Canny output" src="https://github.com/mindspore-lab/mindone/assets/16683750/1b63916e-417d-447a-ad3f-ce362db19f35"/>
-<br><em>Prompt: Cute toy, best quality, extremely detailed</em>
-</p>
-
-<details>
-<summary>Execution command</summary>
+#### Canny Adapter for SD
 
 ```shell
 python adapter_image2image_sd.py \
@@ -113,18 +107,14 @@ python adapter_image2image_sd.py \
 --condition_image samples/canny/toy_canny.png
 ```
 
-</details>
-
-##### SDXL
-
 <p align="center">
-<img width="256" alt="SDXL Canny input" src="https://github.com/mindspore-lab/mindone/assets/16683750/b91de7f5-d498-4945-9cbd-d558f4e4858c"/>
-<img width="256" alt="SDXL Canny output" src="https://github.com/mindspore-lab/mindone/assets/16683750/2b373694-460f-476b-b6c8-9ffd6b1ac9df"/>
-<br><em>Prompt: Mystical fairy in real, magic, 4k picture, high quality</em>
+<img width="256" alt="SD Canny input" src="https://github.com/mindspore-lab/mindone/assets/16683750/c6ae6ca5-356e-4028-9dd9-930e1be8adf2"/>
+<img width="256" alt="SD Canny output" src="https://github.com/mindspore-lab/mindone/assets/16683750/1b63916e-417d-447a-ad3f-ce362db19f35"/>
+<br><em>Prompt: Cute toy, best quality, extremely detailed</em>
 </p>
 
-<details>
-<summary>Execution command</summary>
+
+#### Canny Adapter for SDXL
 
 ```shell
 python adapter_image2image_sdxl.py \
@@ -139,20 +129,14 @@ python adapter_image2image_sdxl.py \
 --n_samples=4
 ```
 
-</details>
-
-#### LineArt Adapter
-
-##### SDXL
-
 <p align="center">
-<img width="480" alt="SDXL LineArt input" src="https://github.com/mindspore-lab/mindone/assets/16683750/fed6d28a-96c2-4463-8c91-1ff0252be1d0"/>
-<img width="480" alt="SDXL LineArt output" src="https://github.com/mindspore-lab/mindone/assets/16683750/2c77f8c6-52c3-4e89-a3e8-437da2c735d6"/>
-<br><em>Prompt: Ice dragon roar, 4k photo</em>
+<img width="256" alt="SDXL Canny input" src="https://github.com/mindspore-lab/mindone/assets/16683750/b91de7f5-d498-4945-9cbd-d558f4e4858c"/>
+<img width="256" alt="SDXL Canny output" src="https://github.com/mindspore-lab/mindone/assets/16683750/2b373694-460f-476b-b6c8-9ffd6b1ac9df"/>
+<br><em>Prompt: Mystical fairy in real, magic, 4k picture, high quality</em>
 </p>
 
-<details>
-<summary>Execution command</summary>
+
+#### LineArt Adapter for SDXL
 
 ```shell
 python adapter_image2image_sdxl.py \
@@ -167,18 +151,13 @@ python adapter_image2image_sdxl.py \
 --n_samples=4
 ```
 
-</details>
-
-#### Spatial Palette (Color) Adapter (SD only)
-
 <p align="center">
-<img width="320" alt="Color input" src="https://github.com/mindspore-lab/mindone/assets/16683750/01e41f01-188e-4331-adac-597d2e3fc9f7"/>
-<img width="320" alt="Color output" src="https://github.com/mindspore-lab/mindone/assets/16683750/3e1f51ff-1acf-4b80-bac4-aeabf95c564f"/>
-<br><em>Prompt: A photo of scenery</em>
+<img width="480" alt="SDXL LineArt input" src="https://github.com/mindspore-lab/mindone/assets/16683750/fed6d28a-96c2-4463-8c91-1ff0252be1d0"/>
+<img width="480" alt="SDXL LineArt output" src="https://github.com/mindspore-lab/mindone/assets/16683750/2c77f8c6-52c3-4e89-a3e8-437da2c735d6"/>
+<br><em>Prompt: Ice dragon roar, 4k photo</em>
 </p>
 
-<details>
-<summary>Execution command</summary>
+#### Spatial Palette (Color) Adapter (SD only)
 
 ```shell
 python adapter_image2image_sd.py \
@@ -191,20 +170,14 @@ python adapter_image2image_sd.py \
 --scale 9
 ```
 
-</details>
-
-#### Depth Adapter
-
-##### SD
-
 <p align="center">
-<img height="366" alt="Depth input" src="https://github.com/mindspore-lab/mindone/assets/16683750/592ee66b-d3cc-428b-8efc-f3f89a02e5bd"/>
-<img height="366" alt="Depth output" src="https://github.com/mindspore-lab/mindone/assets/16683750/30efde92-eaaa-4e74-8c4f-c7fa8535bfc3"/>
-<br><em>Prompt: desk, best quality, extremely detailed</em>
+<img width="320" alt="Color input" src="https://github.com/mindspore-lab/mindone/assets/16683750/01e41f01-188e-4331-adac-597d2e3fc9f7"/>
+<img width="320" alt="Color output" src="https://github.com/mindspore-lab/mindone/assets/16683750/3e1f51ff-1acf-4b80-bac4-aeabf95c564f"/>
+<br><em>Prompt: A photo of scenery</em>
 </p>
 
-<details>
-<summary>Execution command</summary>
+
+#### Depth Adapter for SD
 
 ```shell
 python adapter_image2image_sd.py \
@@ -216,20 +189,14 @@ python adapter_image2image_sd.py \
 --condition_image samples/depth/desk_depth.png
 ```
 
-</details>
-
-#### OpenPose Adapter
-
-##### SD
-
 <p align="center">
-<img width="256" alt="OpenPose input" src="https://github.com/mindspore-lab/mindone/assets/16683750/04b8aa78-3914-46c0-bf8c-37acc064cd4d"/>
-<img width="256" alt="OpenPose output" src="https://github.com/mindspore-lab/mindone/assets/16683750/56db6db4-aa77-4b15-ae03-485bb8144e71"/>
-<br><em>Prompt: Iron man, high-quality, high-res</em>
+<img height="366" alt="Depth input" src="https://github.com/mindspore-lab/mindone/assets/16683750/592ee66b-d3cc-428b-8efc-f3f89a02e5bd"/>
+<img height="366" alt="Depth output" src="https://github.com/mindspore-lab/mindone/assets/16683750/30efde92-eaaa-4e74-8c4f-c7fa8535bfc3"/>
+<br><em>Prompt: desk, best quality, extremely detailed</em>
 </p>
 
-<details>
-<summary>Execution command</summary>
+
+#### OpenPose Adapter for SD
 
 ```shell
 python adapter_image2image_sd.py \
@@ -241,22 +208,13 @@ python adapter_image2image_sd.py \
 --condition_image samples/openpose/iron_man_pose.png
 ```
 
-</details>
-
-#### Segmentation Adapter
-
-##### SD
-
 <p align="center">
-<img width="320" alt="Segmentation input" src="https://github.com/mindspore-lab/mindone/assets/16683750/f7486cf2-1c0d-4b4f-bb04-fcfc1aeeae87"/>
-<img width="320" alt="Segmentation output SDv1.5" src="https://github.com/mindspore-lab/mindone/assets/16683750/6e3b547d-1c42-4b4b-9751-26bd9d80aee4"/>
-<img width="320" alt="Segmentation output SDv2.1" src="https://github.com/mindspore-lab/mindone/assets/16683750/31a95dac-00cd-47a3-85b6-e3732ff96ec6"/>
-<br><em>Prompt: A black Honda motorcycle parked in front of a garage, best quality, extremely detailed</em>
-<br><em>SD1.5 output on the left and SD2.1 output on the right.</em>
+<img width="256" alt="OpenPose input" src="https://github.com/mindspore-lab/mindone/assets/16683750/04b8aa78-3914-46c0-bf8c-37acc064cd4d"/>
+<img width="256" alt="OpenPose output" src="https://github.com/mindspore-lab/mindone/assets/16683750/56db6db4-aa77-4b15-ae03-485bb8144e71"/>
+<br><em>Prompt: Iron man, high-quality, high-res</em>
 </p>
 
-<details>
-<summary>Execution command</summary>
+#### Segmentation Adapter for SD
 
 ```shell
 # StableDiffusion v2.1
@@ -281,20 +239,15 @@ python adapter_image2image_sd.py \
 --condition_image samples/seg/motor.png
 ```
 
-</details>
-
-#### Sketch Adapter
-
-##### SD
-
 <p align="center">
-<img width="320" alt="SD Sketch input" src="https://github.com/mindspore-lab/mindone/assets/16683750/feef1c90-6ed9-4af4-a3ee-a949000fcc59"/>
-<img width="320" alt="SD Sketch output" src="https://github.com/mindspore-lab/mindone/assets/16683750/e5661fe2-dc29-4f1b-a901-387329b06e52"/>
-<br><em>Prompt: A car with flying wings</em>
+<img width="320" alt="Segmentation input" src="https://github.com/mindspore-lab/mindone/assets/16683750/f7486cf2-1c0d-4b4f-bb04-fcfc1aeeae87"/>
+<img width="320" alt="Segmentation output SDv1.5" src="https://github.com/mindspore-lab/mindone/assets/16683750/6e3b547d-1c42-4b4b-9751-26bd9d80aee4"/>
+<img width="320" alt="Segmentation output SDv2.1" src="https://github.com/mindspore-lab/mindone/assets/16683750/31a95dac-00cd-47a3-85b6-e3732ff96ec6"/>
+<br><em>Prompt: A black Honda motorcycle parked in front of a garage, best quality, extremely detailed</em>
+<br><em>SD1.5 output on the left and SD2.1 output on the right.</em>
 </p>
 
-<details>
-<summary>Execution command</summary>
+#### Sketch Adapter for SD
 
 ```shell
 python adapter_image2image_sd.py \
@@ -307,18 +260,15 @@ python adapter_image2image_sd.py \
 --cond_tau 0.5
 ```
 
-</details>
-
-##### SDXL
-
 <p align="center">
-<img width="256" alt="SDXL Sketch input" src="https://github.com/mindspore-lab/mindone/assets/16683750/81f4098b-9ba3-424b-a335-f9d5e96988d5"/>
-<img width="256" alt="SDXL Sketch output" src="https://github.com/mindspore-lab/mindone/assets/16683750/98c6adf7-d0f3-4efc-b6d3-1e7b66ced5f1"/>
-<br><em>Prompt: a robot, mount fuji in the background, 4k photo, highly detailed</em>
+<img width="320" alt="SD Sketch input" src="https://github.com/mindspore-lab/mindone/assets/16683750/feef1c90-6ed9-4af4-a3ee-a949000fcc59"/>
+<img width="320" alt="SD Sketch output" src="https://github.com/mindspore-lab/mindone/assets/16683750/e5661fe2-dc29-4f1b-a901-387329b06e52"/>
+<br><em>Prompt: A car with flying wings</em>
 </p>
 
-<details>
-<summary>Execution command</summary>
+
+
+#### Sketch Adapter for SDXL
 
 ```shell
 python adapter_image2image_sdxl.py \
@@ -333,23 +283,18 @@ python adapter_image2image_sdxl.py \
 --n_samples=4
 ```
 
-</details>
+<p align="center">
+<img width="256" alt="SDXL Sketch input" src="https://github.com/mindspore-lab/mindone/assets/16683750/81f4098b-9ba3-424b-a335-f9d5e96988d5"/>
+<img width="256" alt="SDXL Sketch output" src="https://github.com/mindspore-lab/mindone/assets/16683750/98c6adf7-d0f3-4efc-b6d3-1e7b66ced5f1"/>
+<br><em>Prompt: a robot, mount fuji in the background, 4k photo, highly detailed</em>
+</p>
+
 
 ### Combined Adapters
 
 Individual T2I-Adapters can also be combined without retraining to condition on multiple images.
 
-#### Color + Sketch
-
-##### SD
-
-<p align="center">
-<img height="256" alt="Sketch input" src="https://github.com/mindspore-lab/mindone/assets/16683750/a30661ce-26e3-42a3-b935-6caabe406d02"/>
-<br><em>Prompt: A car with flying wings</em>
-</p>
-
-<details>
-<summary>Execution command</summary>
+#### Color + Sketch for SD
 
 ```shell
 python adapter_image2image_sd.py \
@@ -362,7 +307,11 @@ python adapter_image2image_sd.py \
 --ddim
 ```
 
-</details>
+<p align="center">
+<img height="256" alt="Sketch input" src="https://github.com/mindspore-lab/mindone/assets/16683750/a30661ce-26e3-42a3-b935-6caabe406d02"/>
+<br><em>Prompt: A car with flying wings</em>
+</p>
+
 
 ## Training
 
@@ -371,8 +320,8 @@ experiments are tested on ascend 910 with mindspore 2.1 graph mode
 
 <div align="center">
 
-| Task         | SD Version | Dataset                                      | cards| Train Time      | Throughput   | Recipe                             |
-|--------------|:----------:|----------------------------------------------|-----------------|-----------------|--------------|------------------------------------|
+| task         | sd version | dataset                                      | cards| train time      | throughput   | recipe                             |
+|:--------------:|:----------:|----------------------------------------------|:-------------:|:-----------------:|--------------|:------------------------------------:|
 | Segmentation |    2.1     | [COCO-Stuff Train](#segmentation-coco-stuff) | 4 | 10h 35m / epoch | 39.2 img / s | [yaml](configs/sd_v2.1_train.yaml) |
 
 
@@ -419,9 +368,9 @@ The following table summarizes the performance of T2I-Adapters:
 
 <div align="center">
 
-| Task         | SD Version | Dataset                                    | FID ↓ | CLIP Score ↑ | Recipe                             |
-|--------------|:----------:|--------------------------------------------|-------|--------------|------------------------------------|
-| Segmentation |    2.1     | [COCO-Stuff Val](#segmentation-coco-stuff) | 26.10 | 26.32        | [yaml](configs/sd_v2.1_train.yaml) |
+| task         | sd version | dataset                                    | FID ↓ | clip score ↑ | recipe                             |
+|:--------------:|:----------:|:--------------------------------------------:|:-------:|:--------------:|:------------------------------------:|
+| Segmentation |    2.1     | [COCO-Stuff Val](#segmentation-coco-stuff) | 26.10 | 26.32   | [yaml](configs/sd_v2.1_train.yaml) |
 
 </div>
 
