@@ -17,3 +17,7 @@
   --md-footer-bg-color:                hsla(0, 0%, 100%, 0.87);
   --md-footer-bg-color--dark:          hsla(0, 0%, 100%, 0.32);
 }
+
+img {
+    border-radius: 15px;
+}
