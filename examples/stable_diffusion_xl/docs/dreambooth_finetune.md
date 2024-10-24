@@ -26,7 +26,7 @@ pip install -r requirement.txt
 
 #### Pretrained models
 
-Download the official pre-train weights from huggingface, convert the weights from `.safetensors` format to Mindspore `.ckpt` format, and put them to `./checkpoints/` folder. Please refer to SDXL [weight_convertion](./Preparation.md#convert-pretrained-checkpoint) for detailed steps.
+Download the official pre-train weights from huggingface, convert the weights from `.safetensors` format to Mindspore `.ckpt` format, and put them to `./checkpoints/` folder. Please refer to SDXL [weight_convertion](./preparation.md#convert-pretrained-checkpoint) for detailed steps.
 
 #### Finetuning Dataset Preparation
 
@@ -165,5 +165,5 @@ The [dog6](https://github.com/google/dreambooth/tree/main/dataset/dog6) example 
 Experiments are tested on ascend 910* with mindspore 2.2.12 graph mode. Experiments use the Dreambooth method with LoRA and enable UNet training only.
 
 | Model Name    | Card | bs * grad accu. |   Resolution       |   Time(ms/step)  |
-|---------------|:----------------:|:----------------:|------------------|:----------------:|
+|:---------------:|:----------------:|:----------------:|------------------|:----------------:|
 | SDXL-Base     |      1            |      1x1             |     1024x1024         |       1280       |

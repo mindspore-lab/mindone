@@ -40,7 +40,7 @@ pip install -r requirement.txt
 
 #### Pretrained models
 
-Download the official pre-train weights from huggingface, convert the weights from `.safetensors` format to Mindspore `.ckpt` format, and put them to `./checkpoints/` folder. Please refer to SDXL [weight_convertion](./Preparation.md#convert-pretrained-checkpoint) for detailed steps.
+Download the official pre-train weights from huggingface, convert the weights from `.safetensors` format to Mindspore `.ckpt` format, and put them to `./checkpoints/` folder. Please refer to SDXL [weight_convertion](./preparation.md#convert-pretrained-checkpoint) for detailed steps.
 
 
 #### Finetuning Dataset Preparation

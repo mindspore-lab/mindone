@@ -57,7 +57,7 @@ python convert_diffusers_to_mindone_sdxl.py \
 
 ## Dataset Preparation for Fine-Tuning (Optional)
 
-Please also refer to doc of a specific finetune method for data preparation.
+Please also refer to docs of specific finetune methods for data preparation.
 
 ### General text-image datasets
 

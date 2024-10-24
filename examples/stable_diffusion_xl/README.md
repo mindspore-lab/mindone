@@ -20,7 +20,7 @@ This folder contains [Stable Diffusion XL (SDXL)](https://arxiv.org/abs/2307.019
 ### Finetune with SDXL-1.0-Base
 
 | Vallina | Dreambooth | LoRA | Textual Inversion | ControlNet |
-|:-------:|:---------- |:----:|:-----------------:|:----------:|
+|:-------:|:----------: |:----:|:-----------------:|:----------:|
 | ✅       | ✅          | ✅    | ✅                 | ✅          |
 
 ## Guide
@@ -35,9 +35,7 @@ This folder contains [Stable Diffusion XL (SDXL)](https://arxiv.org/abs/2307.019
     - [Offline Infer](./offline_inference/README.md)
 
 3. Finetune
-
-    * [Configuration Guidance](./docs/configuration_guidance.md)
-
+    - [Configuration Guidance](./docs/configuration_guidance.md)
     - [Vanilla Finetune](./docs/vanilla_finetune.md)
     - [LoRA Finetune](./docs/lora_finetune.md)
     - [DreamBooth Finetune](./docs/dreambooth_finetune.md)

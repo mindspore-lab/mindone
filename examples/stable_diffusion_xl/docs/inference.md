@@ -5,7 +5,7 @@
 <img src="https://github.com/mindspore-lab/mindone/assets/20476835/dbaf0c77-d8d3-4457-b03c-82c3e4c1ba1d" width="200" />
 <img src="https://github.com/mindspore-lab/mindone/assets/20476835/f52168ef-53aa-4ee9-9f17-6889f10e0afb" width="200" />
 
-### Requirements
+## Requirements
 
 | mindspore      | ascend driver | firmware    | cann toolkit/kernel |
 |:-------------:|:-------------:|:-----------:|:-------------------:|
@@ -17,11 +17,13 @@ To install the dependency, please run
 pip install -r requirements.txt
 ```
 
-### Pretrained models
+## Pretrained models
 
-Download the official pre-train weights from huggingface, convert the weights from `.safetensors` format to Mindspore `.ckpt` format, and put them in `./checkpoints/` folder. Please refer to SDXL [weight_convertion.md](./weight_convertion.md) for detailed steps.
+Download the official pre-train weights from huggingface, convert the weights from `.safetensors` format to Mindspore `.ckpt` format, and put them in `./checkpoints/` folder. Please refer to SDXL [weight_convertion](./preparation.md#convert-pretrained-checkpoint) for detailed steps.
 
 The inference scripts automatically download the clip tokenizer, but if you have network issues with it, please manually download [openai/clip-vit-large-patch14](https://huggingface.co/openai/clip-vit-large-patch14) from huggingface and change `version: openai/clip-vit-large-patch14` in `configs/inference/sd_xl_base.yaml` to `version: your_path/to/clip-vit-large-patch14`
+
+## Inference
 
 ### 1. Inference with SDXL-Base
 
@@ -75,7 +77,7 @@ Please refer to [T2I-Adapter](../../t2i_adapter/README.md) page for inference an
 
 ### 4. Inference with ControlNet
 
-[ControlNet](https://arxiv.org/abs/2302.05543) controls pretrained large diffusion models to support additional input conditions. The ControlNet learns task-specific conditions in an end-to-end way, and the learning is robust even when the training dataset is small. Large diffusion models like Stable Diffusion can be augmented with ControlNets to enable conditional inputs like canny edge maps, segmentation maps, key points, etc.
+ControlNet controls pretrained large diffusion models to support additional input conditions. The ControlNet learns task-specific conditions in an end-to-end way, and the learning is robust even when the training dataset is small. Large diffusion models like Stable Diffusion can be augmented with ControlNets to enable conditional inputs like canny edge maps, segmentation maps, key points, etc.
 
 Please refer to [ControlNet](controlnet.md) page for inference and training with ControlNet.
 
@@ -185,7 +187,7 @@ python demo/sampling_without_streamlit.py \
 </p>
 </div>
 
-### 7. Performance
+## Performance
 
 Experiments are tested on ascend 910* with mindspore 2.2.12 raph mode.
 | Model Name    | ImageSize | Compile Cost |Flash Attention| Sampler  | Sample Step | Sample Time |
