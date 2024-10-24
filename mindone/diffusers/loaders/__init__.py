@@ -51,7 +51,14 @@ def text_encoder_attn_modules(text_encoder):
 _import_structure = {
     "single_file_model": ["FromOriginalModelMixin"],
     "ip_adapter": ["IPAdapterMixin"],
-    "lora": ["LoraLoaderMixin", "SD3LoraLoaderMixin", "StableDiffusionXLLoraLoaderMixin"],
+    "lora_pipeline": [
+        "AmusedLoraLoaderMixin",
+        "StableDiffusionLoraLoaderMixin",
+        "SD3LoraLoaderMixin",
+        "StableDiffusionXLLoraLoaderMixin",
+        "LoraLoaderMixin",
+        "FluxLoraLoaderMixin",
+    ],
     "peft": ["PeftAdapterMixin"],
     "single_file": ["FromSingleFileMixin"],
     "textual_inversion": ["TextualInversionLoaderMixin"],
@@ -61,7 +68,14 @@ _import_structure = {
 
 if TYPE_CHECKING:
     from .ip_adapter import IPAdapterMixin
-    from .lora import LoraLoaderMixin, SD3LoraLoaderMixin, StableDiffusionXLLoraLoaderMixin
+    from .lora_pipeline import (
+        AmusedLoraLoaderMixin,
+        FluxLoraLoaderMixin,
+        LoraLoaderMixin,
+        SD3LoraLoaderMixin,
+        StableDiffusionLoraLoaderMixin,
+        StableDiffusionXLLoraLoaderMixin,
+    )
     from .peft import PeftAdapterMixin
     from .single_file import FromSingleFileMixin
     from .single_file_model import FromOriginalModelMixin
