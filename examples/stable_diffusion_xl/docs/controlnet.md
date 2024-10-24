@@ -11,24 +11,24 @@ ControlNet controls pretrained large diffusion models to support additional inpu
   <em> Fig 1. Illustration of a ControlNet [<a href="#reference">1</a>] </em>
 </p>
 
+## Requirements
 
-## Dependency
-
-- AI framework: MindSpore >= 2.2
-- Hardware: Ascend 910*
+| mindspore      | ascend driver | firmware    | cann toolkit/kernel |
+|:--------------:|:-------------:|:-----------:|:-------------------:|
+| 2.2.10～2.2.12 | 23.0.3        | 7.1.0.5.220 | 7.0.0.beta1         |
 
 ```shell
 cd examples/stable_diffusion_xl
 pip install -r requirement.txt
 ```
 
-## Inferece
+## Inference
 
 ### Prepare model weight
 
 **1. Convert trained weight from Diffusers**
 
-  **Step1**: Convert SDXL-base-1.0 model weight from Diffusers to MindONE, refer to [here](../../GETTING_STARTED.md#convert-pretrained-checkpoint). Get `sd_xl_base_1.0_ms.ckpt`.
+  **Step1**: Convert SDXL-base-1.0 model weight from Diffusers to MindONE, refer to [weight_convertion](./preparation.md#convert-pretrained-checkpoint). Get `sd_xl_base_1.0_ms.ckpt`.
 
   **Step2**: Since ControlNet acts like a plug-in to the SDXL, we convert the ControlNet weight `diffusion_pytorch_model.safetensors` from [diffusers/controlnet-canny-sdxl-1.0](https://huggingface.co/diffusers/controlnet-canny-sdxl-1.0/tree/main)
   to MindSpore version and then merge it into the SDXL-base-1.0 MindONE model weight (`sd_xl_base_1.0_ms.ckpt`). Eventually, we get the ControlNet + SDXL-base-1.0 MindONE model weight (`sd_xl_base_1.0_controlnet_canny_ms.ckpt`).
@@ -115,7 +115,7 @@ You can check all arguments description by running `python demo/sampling_without
 ## Training
 
 ### Prepare init model weight
-**Step1**: Convert SDXL-base-1.0 model weight from Diffusers to MindONE, refer to [here](../../GETTING_STARTED.md#convert-pretrained-checkpoint). Get `sd_xl_base_1.0_ms.ckpt`.
+**Step1**: Convert SDXL-base-1.0 model weight from Diffusers to MindONE, refer to [here](GETTING_STARTED.md#convert-pretrained-checkpoint). Get `sd_xl_base_1.0_ms.ckpt`.
 
 **Step2**:
 

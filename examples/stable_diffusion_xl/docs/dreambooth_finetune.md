@@ -8,16 +8,15 @@ For example, we have 5 images of a specific [dog](https://github.com/google/drea
 
 The `train_dreambooth.py` script implements DreamBooth finetune for SDXL based on MindSpore and Ascend platforms.
 
-**Note**: now we only allow DreamBooth fine-tuning of SDXL UNet via [LoRA](https://arxiv.org/abs/2106.09685) .
-
 ## Preparation
 
-#### Dependency
+#### Requirements
 
-Make sure the following frameworks are installed.
+| mindspore      | ascend driver | firmware    | cann toolkit/kernel |
+|:--------------:|:-------------:|:-----------:|:-------------------:|
+| 2.2.10～2.2.12 | 23.0.3        | 7.1.0.5.220 | 7.0.0.beta1         |
 
-- mindspore 2.1.0 (Ascend 910) / mindspore 2.2.1 (Ascend 910*)
-- openmpi 4.0.3 (for distributed mode)
+Please install openmpi 4.0.3 for distributed mode.
 
 Enter the `example/stable_diffusion_xl` folder and run
 
@@ -27,7 +26,7 @@ pip install -r requirement.txt
 
 #### Pretrained models
 
-Download the official pre-train weights from huggingface, convert the weights from `.safetensors` format to Mindspore `.ckpt` format, and put them to `./checkpoints/` folder. Please refer to SDXL [weight_convertion.md](./weight_convertion.md) for detailed steps.
+Download the official pre-train weights from huggingface, convert the weights from `.safetensors` format to Mindspore `.ckpt` format, and put them to `./checkpoints/` folder. Please refer to SDXL [weight_convertion](./preparation.md#convert-pretrained-checkpoint) for detailed steps.
 
 #### Finetuning Dataset Preparation
 
@@ -111,12 +110,12 @@ Alongside the Unet, **training with the two text encoders in SDXL is also suppor
 
 Notice that the training command above gets finetuned lora weights in the specified `save_path`. Now we could use the inference command to generate images on a given prompt. Assume that the pretrained ckpt path is `checkpoints/sd_xl_base_1.0_ms.ckpt` and the trained lora ckpt path is `runs/SDXL_base_1.0_1000_lora.ckpt`, examples of inference command are as below.
 
-* (Recommend) Run with interactive visualization.
+* Run with interactive visualization.
 
   Replace the path of weights and yaml file at the constant `VERSION2SPECS`  in `demo/sampling.py`  , specify the prompt in `__main__` and run:
 
   ```shell
-  # (recommend) run with streamlit
+  # run with streamlit
   export PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION=python
   streamlit run demo/sampling.py --server.port <your_port>
   ```
@@ -159,3 +158,12 @@ The [dog6](https://github.com/google/dreambooth/tree/main/dataset/dog6) example 
 
 <p align="center">
   <img src="https://github.com/mindspore-lab/mindone/assets/33061146/6b2a6656-10a0-4d9d-8542-a9fa0527bc8a" width=700 />
+
+
+## Performance
+
+Experiments are tested on ascend 910* with mindspore 2.2.12 graph mode. Experiments use the Dreambooth method with LoRA and enable UNet training only.
+
+| Model Name    | Card | bs * grad accu. |   Resolution       |   Time(ms/step)  |
+|:---------------:|:----------------:|:----------------:|------------------|:----------------:|
+| SDXL-Base     |      1            |      1x1             |     1024x1024         |       1280       |

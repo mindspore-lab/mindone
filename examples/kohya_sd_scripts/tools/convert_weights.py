@@ -70,12 +70,12 @@ if __name__ == "__main__":
     parser.add_argument(
         "--convert_type",
         type=str,
-        choices=["ms_to_pt", "pt_to_ms"],
+        choices=["ms_to_st", "st_to_ms"],
         help="mindspore ckpt to torch safetensor or torch safetensor to mindspore ckpt",
     )
 
     args, _ = parser.parse_known_args()
-    if args.convert_type == "ms_to_pt":
+    if args.convert_type == "ms_to_st":
         convert_ckpt_to_safetensors(args)
-    elif args.convert_type == "pt_to_ms":
+    elif args.convert_type == "st_to_ms":
         convert_safetensors_to_ckpt(args)

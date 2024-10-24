@@ -69,7 +69,7 @@ def _load_target_model(name_or_path: str, vae_path: Optional[str], model_version
                 pipe = StableDiffusionXLPipeline.from_pretrained(
                     name_or_path, mindspore_dtype=model_dtype, variant=variant, tokenizer=None
                 )
-            except EnvironmentError as ex:
+            except Exception as ex:
                 if variant is not None:
                     logger.info("try to load fp32 model")
                     pipe = StableDiffusionXLPipeline.from_pretrained(name_or_path, variant=None, tokenizer=None)

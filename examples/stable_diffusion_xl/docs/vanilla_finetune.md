@@ -1,20 +1,26 @@
 # Vanilla Finetune
 
-### Introduction
-
 We provide the script `train.py` for full parameter training of sdxl.
 
-> Note: If you have network issues on downloading clip tokenizer, please manually download [openai/clip-vit-large-patch14](https://huggingface.co/openai/clip-vit-large-patch14) from huggingface and change `version: openai/clip-vit-large-patch14` in `configs/inference/sd_xl_base.yaml` to `version: your_path/to/clip-vit-large-patch14`
+## Requirements
 
-### Pretrained models
+| mindspore      | ascend driver | firmware    | cann toolkit/kernel |
+|:--------------:| :------------:| :----------:| :------------------:|
+| 2.2.10～2.2.12 | 23.0.3        | 7.1.0.5.220 | 7.0.0.beta1         |
 
-Download the official pre-train weights from huggingface, convert the weights from `.safetensors` format to Mindspore `.ckpt` format, and put them to `./checkpoints/` folder. Please refer to SDXL [weight_convertion.md](./weight_convertion.md) for detailed steps.
+## Pretrained models
 
-### hyper-parameters setting
+Download the official pre-train weights from huggingface, convert the weights from `.safetensors` format to Mindspore `.ckpt` format, and put them in `./checkpoints/` folder. Please refer to SDXL [weight_convertion](./preparation.md#convert-pretrained-checkpoint) for detailed steps.
 
-[hyper_parameters.md](./hyper_parameters.md)
+The scripts automatically download the clip tokenizer, but if you have network issues with it, please manually download [openai/clip-vit-large-patch14](https://huggingface.co/openai/clip-vit-large-patch14) from huggingface and change `version: openai/clip-vit-large-patch14` in `configs/inference/sd_xl_base.yaml` to `version: your_path/to/clip-vit-large-patch14`.
 
-> ⚠️: It is not recommended to turn on `--param_fp16`, that will force to convert the weight to `fp16` and may lead to unstable training.
+## Configuration Guidance
+
+Please refer to [Configuration Guidance](./configuration_guidance.md) for hyper-parameters setting.
+
+> ⚠️: It is not recommended to turn on `--param_fp16`, which will force weight conversion to `fp16` and may lead to unstable training.
+
+## Finetuning
 
 ### 1. vanilla fine-tune
 
@@ -28,7 +34,7 @@ python train.py \
 
 ### 2. vanilla fine-tune for distribute
 
-Prepare hccl [rank_table](./tools/rank_table_generation/README.md) file for single/multi-server(s).
+Prepare hccl [rank_table](../tools/rank_table_generation/README.md) file for single/multi-server(s).
 
 ```shell
 # sdxl-base fine-tune with 8p
@@ -102,20 +108,15 @@ python train.py \
 ```
 
 
-### 5. Support List
+## Performance
 
-[MindSpore 2.2.11](https://www.mindspore.cn/versions#2.2.11)
+Experiments are tested on ascend 910* with mindspore 2.2.11 graph mode.
 
-<div align="center">
-
-| model name | device | cards | imagesize | graph compile | bs  | amp fp16 | fa  | cache | sink | step time |  fps  |
-|:----------:|:------:|:-----:|:---------:|:-------------:|:---:|:--------:|:---:|:-----:|:----:|:---------:|:-----:|
-| SDXL-Base  |  910*  | 1*8p  | 1024x1024 |  30~38 mins   | 1*8 |    on    | off |  off  | off  |   1.10s   | 7.27  |
-| SDXL-Base  |  910*  | 1*8p  | 1024x1024 |  30~38 mins   | 1*8 |    on    | on  |  on   |  on  |   0.74s   | 10.81 |
-| SDXL-Base  |  910*  | 1*8p  | 1024x1024 |  30~38 mins   | 2*8 |    on    | on  |  on   |  on  |   0.87s   | 18.39 |
-| SDXL-Base  |  910*  | 1*8p  | 1024x1024 |  30~38 mins   | 4*8 |    on    | on  |  on   |  on  |   1.38s   | 23.18 |
-| SDXL-Base  |  910*  | 1*8p  | 1024x1024 |  30~38 mins   | 6*8 |    on    | on  |  on   |  on  |   1.96s   | 24.48 |
-| SDXL-Base  |  910*  | 1*8p  | 1024x1024 |  30~38 mins   | 8*8 |    on    | on  |  on   |  on  |   2.51s   | 25.52 |
-
-</div>
-<br>
+| model name | cards | image size | graph compile |  bs  | amp fp16 |  fa  | cache | sink | step time |  fps  |
+| :--------: | :---: | :--------: | :-----------: | :--: | :------: | :--: | :---: | :--: | :-------: | :---: |
+| SDXL-Base  | 1*8p  | 1024x1024  |  30~38 mins   | 1*8  |    on    | off  |  off  | off  |   1.10s   | 7.27  |
+| SDXL-Base  | 1*8p  | 1024x1024  |  30~38 mins   | 1*8  |    on    |  on  |  on   |  on  |   0.74s   | 10.81 |
+| SDXL-Base  | 1*8p  | 1024x1024  |  30~38 mins   | 2*8  |    on    |  on  |  on   |  on  |   0.87s   | 18.39 |
+| SDXL-Base  | 1*8p  | 1024x1024  |  30~38 mins   | 4*8  |    on    |  on  |  on   |  on  |   1.38s   | 23.18 |
+| SDXL-Base  | 1*8p  | 1024x1024  |  30~38 mins   | 6*8  |    on    |  on  |  on   |  on  |   1.96s   | 24.48 |
+| SDXL-Base  | 1*8p  | 1024x1024  |  30~38 mins   | 8*8  |    on    |  on  |  on   |  on  |   2.51s   | 25.52 |
