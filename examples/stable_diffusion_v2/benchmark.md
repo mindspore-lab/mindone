@@ -39,11 +39,13 @@
 | 1.5           |    D910*x1-MS2.3.1      |    LoRA      |      4x1             |     512x512         | Graph, DS, FP16,  |   O0 |  9.86          |
 | 1.5           |    D910*x8-MS2.3.1      |    LoRA      |      32x1             |     512x512         | Graph, DS, FP16,  |   O0 |  71.54          |
 | 1.5           |    D910*x1-MS2.3.1      |    Dreambooth      |      1x1             |     512x512         | Graph, DS, FP16,  |  O0 |    1.35          |
+| 1.5           |    D910*x1-MS2.3.1      |    TextualInversion      |      1x4             |     512x512         | Graph, DS, FP16,  |  O0 |    1.72          |
 | 2.0           |    D910*x1-MS2.3.1       |    Vanilla      |      3x1             |     512x512         | Graph, DS, FP16,  |     O0 |   7.47        |
 | 2.0           |    D910*x8-MS2.3.1       |    Vanilla      |      24x1             |     512x512         | Graph, DS, FP16,  |   O0 |    38.73        |
 | 2.0           |    D910*x1-MS2.3.1       |    LoRA      |      4x1             |     512x512         | Graph, DS, FP16,  |      O0 |     9.98     |
 | 2.0           |    D910*x8-MS2.3.1       |    LoRA      |      32x1             |     512x512         | Graph, DS, FP16,  |     O0 |      73.72     |
 | 2.0           |    D910*x1-MS2.3.1       |    Dreambooth      |      1x1             |     512x512         | Graph, DS, FP16,  |  O0 |   1.19         |
+| 2.0           |    D910*x1-MS2.3.1      |    TextualInversion      |      1x4             |     512x512         | Graph, DS, FP16,  |  O0 |    1.72          |
 | 2.1-v           |    D910*x1-MS2.3.1       |    Vanilla      |      3x1             |     768x768         | Graph, DS, FP16, FA  |   O0 |   6.46        |
 | 2.1-v           |    D910*x8-MS2.3.1       |    Vanilla      |      24x1             |     768x768         | Graph, DS, FP16, FA  |   O0 |    43.06        |
 | 2.1-v           |    D910*x1-MS2.3.1       |    LoRA      |      4x1                 |     768x768         | Graph, DS, FP16, FA |   O0 |   6.88        |
