@@ -9,7 +9,7 @@
 
 ## Table of Contents
 - [Introduction](#introduction)
-    - [Supported Models and Pipelines](#supported-models-and-pipelines) 
+    - [Supported Models and Pipelines](#supported-models-and-pipelines)
     - [Benchmark](#benchmark)🔥
 - [Installation](#installation)
 - [Dataset Preparation](#dataset-preparation)

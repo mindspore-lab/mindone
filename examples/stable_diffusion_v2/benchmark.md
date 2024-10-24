@@ -17,9 +17,9 @@
 | 2.0           |    D910x8-MS2.1       |    LoRA      |      32x1             |     512x512         | Graph, DS, FP16,  |      N/A |    76.52       |
 | 2.0           |    D910x1-MS2.1       |    Dreambooth      |      1x1             |     512x512         | Graph, DS, FP16,  |     N/A |  1.97            |
 | 2.1-v           |    D910x1-MS2.1       |    Vanilla      |      3x1             |     768x768         | Graph, DS, FP16, FA  |      N/A |   5.43          |
-| 2.1-v           |    D910x8-MS2.1       |    Vanilla      |      24x1             |     768x768         | Graph, DS, FP16, FA  |     N/A |    18.98          |
-| 2.1-v           |    D910x1-MS2.1       |    LoRA      |      4x1                 |     768x768         | Graph, DS, FP16, FA  |      N/A |   3.39          |
-| 2.1-v           |    D910x8-MS2.1       |    LoRA      |      32x1                 |     768x768         | Graph, DS, FP16, FA  |     N/A |    23.45          |
+| 2.1-v           |    D910x8-MS2.1       |    Vanilla      |      24x1             |     768x768         | Graph, DS, FP16, FA  |     N/A |    45.21          |
+| 2.1-v           |    D910x1-MS2.1       |    LoRA      |      4x1                 |     768x768         | Graph, DS, FP16, FA  |      N/A |   8.92          |
+| 2.1-v           |    D910x8-MS2.1       |    LoRA      |      32x1                 |     768x768         | Graph, DS, FP16, FA  |     N/A |    76.56          |
 | 1.5           |    D910*x1-MS2.3.0      |    Vanilla   |      3x1             |     512x512         | Graph, DS, FP16,  |     O2 |   11.86          |
 | 1.5           |    D910*x8-MS2.3.0      |    Vanilla   |      24x1             |     512x512         | Graph, DS, FP16,  |  O2 |  75.53          |
 | 1.5           |    D910*x1-MS2.3.0      |    LoRA      |      4x1             |     512x512         | Graph, DS, FP16,  |   O2 |  15.27          |
@@ -109,4 +109,3 @@ Note that the performance of SD2.1 should be similar to SD2.0 since they have th
 Add a column for model/pipeline yaml config?
 Mixed precision belongs to configuration
 -->
-
