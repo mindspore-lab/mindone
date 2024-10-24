@@ -285,8 +285,7 @@ class TextualInversionLoaderMixin:
                     - A path to a *directory* (for example `./my_text_inversion_directory/`) containing the textual
                       inversion weights.
                     - A path to a *file* (for example `./my_text_inversions.pt`) containing textual inversion weights.
-                    - A [torch state
-                      dict](https://pytorch.org/tutorials/beginner/saving_loading_models.html#what-is-a-state-dict).
+                    - A mindspore state dict.
 
             token (`str` or `List[str]`, *optional*):
                 Override the token to use for the textual inversion weights. If `pretrained_model_name_or_path` is a
@@ -422,8 +421,8 @@ class TextualInversionLoaderMixin:
 
         Example:
         ```py
-        from diffusers import AutoPipelineForText2Image
-        import torch
+        from mindone.diffusers import AutoPipelineForText2Image
+        import mindspore as ms
 
         pipeline = AutoPipelineForText2Image.from_pretrained("runwayml/stable-diffusion-v1-5")
 
