@@ -148,7 +148,7 @@ To generate images by providing a text prompt, please download one of the follow
 <div align="center">
 
 | **SD Version**     |  Lang.   | **MindSpore Checkpoint**                                                                                                          | **Ref. Official Model**                                                                           | **Resolution** |
-|--------------------|----------|-------------------------------------------------------------------------------------------------------------------------|---------------------------------------------------------------------------------------------------|----------------|
+|:--------------------:|:----------:|:-------------------------------------------------------------------------------------------------------------------------:|:---------------------------------------------------------------------------------------------------:|:----------------:|
 | 1.5                |   EN   | [sd_v1.5-d0ab7146.ckpt](https://download.mindspore.cn/toolkits/mindone/stable_diffusion/sd_v1.5-d0ab7146.ckpt)                    | [stable-diffusion-v1-5](https://huggingface.co/runwayml/stable-diffusion-v1-5)                    | 512x512        |
 | 1.5-wukong         |   CN    | [wukong-huahua-ms.ckpt](https://download.mindspore.cn/toolkits/minddiffusion/wukong-huahua/wukong-huahua-ms.ckpt)                 |          N.A.                                                                                     | 512x512        |
 | 2.0                |   EN   |  [sd_v2_base-57526ee4.ckpt](https://download.mindspore.cn/toolkits/mindone/stable_diffusion/sd_v2_base-57526ee4.ckpt)              | [stable-diffusion-2-base](https://huggingface.co/stabilityai/stable-diffusion-2-base)             | 512x512        |
@@ -342,7 +342,7 @@ To generate variant images by providing a source image, please download one of t
 <div align="center">
 
 | **SD Version**     |  Lang.   | **MindSpore Checkpoint**                                                                                                          | **Ref. Official Model**                                                                 | **Resolution** |
-|--------------------|----------|-------------------------------------------------------------------------------------------------------------------------|---------------------------------------------------------------------------------------------------|----------------|
+|:--------------------:|:----------:|:-------------------------------------------------------------------------------------------------------------------------:|:---------------------------------------------------------------------------------------------------:|:----------------:|
 | 2.1-unclip-l       |   EN    | [sd21-unclip-l-baa7c8b5.ckpt](https://download.mindspore.cn/toolkits/mindone/stable_diffusion/sd21-unclip-l-baa7c8b5.ckpt)      | [stable-diffusion-2-1-unclip](https://huggingface.co/stabilityai/stable-diffusion-2-1-unclip)       | 768x768        |
 | 2.1-unclip-h       |   EN    | [sd21-unclip-h-6a73eca5.ckpt](https://download.mindspore.cn/toolkits/mindone/stable_diffusion/sd21-unclip-h-6a73eca5.ckpt)       |   [stable-diffusion-2-1-unclip](https://huggingface.co/stabilityai/stable-diffusion-2-1-unclip)     | 768x768        |
 
@@ -399,7 +399,7 @@ To perform inpainting on an input image, please download one of the following ch
 <div align="center">
 
 | **SD Version**     |  Lang.   | **MindSpore Checkpoint**                                                                                                          | **Ref. Official Model**                                                                 | **Resolution** |
-|--------------------|----------|-------------------------------------------------------------------------------------------------------------------------|---------------------------------------------------------------------------------------------------|----------------|
+|:--------------------:|:----------:|:-------------------------------------------------------------------------------------------------------------------------:|:---------------------------------------------------------------------------------------------------:|:----------------:|
 | 2.0-inpaint        |  EN      | [sd_v2_inpaint-f694d5cf.ckpt](https://download.mindspore.cn/toolkits/mindone/stable_diffusion/sd_v2_inpaint-f694d5cf.ckpt)        | [stable-diffusion-2-inpainting](https://huggingface.co/stabilityai/stable-diffusion-2-inpainting) | 512x512        |
 | 1.5-wukong-inpaint |  CN      | [wukong-huahua-inpaint-ms.ckpt](https://download.mindspore.cn/toolkits/minddiffusion/wukong-huahua/wukong-huahua-inpaint-ms.ckpt) |                                                  N.A.                                               | 512x512        |
 </div>
@@ -461,7 +461,7 @@ and generate new images conditioning on the image depth, the image, and the text
 <div align="center">
 
 | **SD Version**     |  Lang.   | **MindSpore Checkpoint**                                                                                                          | **Ref. Official Model**                                                                 | **Resolution** |
-|--------------------|----------|-------------------------------------------------------------------------------------------------------------------------|---------------------------------------------------------------------------------------------------|----------------|
+|:--------------------:|:----------:|:-------------------------------------------------------------------------------------------------------------------------:|:---------------------------------------------------------------------------------------------------:|:----------------:|
 | 2.0               |  EN       | [sd_v2_depth-186e18a0.ckpt](https://download-mindspore.osinfra.cn/toolkits/mindone/stable_diffusion/sd_v2_depth-186e18a0.ckpt)        | [stable-diffusion-2-depth](https://huggingface.co/stabilityai/stable-diffusion-2-depth) | 512x512        |
 
 </div>

@@ -34,7 +34,6 @@
 | 2.1-v           |    D910*x8-MS2.3.0       |    Vanilla      |      24x1             |     768x768         | Graph, DS, FP16, FA  |   02 |    49.27        |
 | 2.1-v           |    D910*x1-MS2.3.0       |    LoRA      |      4x1                 |     768x768         | Graph, DS, FP16, FA |   02 |   9.51        |
 | 2.1-v           |    D910*x8-MS2.3.0       |    LoRA      |      32x1                 |     768x768         | Graph, DS, FP16, FA  |   02 |    71.51        |
-
 | 1.5           |    D910*x1-MS2.3.1      |    Vanilla   |      3x1             |     512x512         | Graph, DS, FP16,  |     O0 |   7.52          |
 | 1.5           |    D910*x8-MS2.3.1      |    Vanilla   |      24x1             |     512x512         | Graph, DS, FP16,  |  O0 |  34.43          |
 | 1.5           |    D910*x1-MS2.3.1      |    LoRA      |      4x1             |     512x512         | Graph, DS, FP16,  |   O0 |  9.86          |
