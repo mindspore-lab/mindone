@@ -13,9 +13,9 @@ ControlNet controls pretrained large diffusion models to support additional inpu
 
 ## Requirements
 
-| hardware      | mindspore      | ascend driver | firmware    | cann toolkit/kernel |
-| --------------| -------------- | ------------- | ----------- | ------------------- |
-| Ascend 910*   | 2.2.10～2.2.12 | 23.0.3        | 7.1.0.5.220 | 7.0.0.beta1         |
+| mindspore      | ascend driver | firmware    | cann toolkit/kernel |
+|:--------------:|:-------------:|:-----------:|:-------------------:|
+| 2.2.10～2.2.12 | 23.0.3        | 7.1.0.5.220 | 7.0.0.beta1         |
 
 ```shell
 cd examples/stable_diffusion_xl

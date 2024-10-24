@@ -17,7 +17,7 @@ Currently, we support
 The scripts work on Ascend 910* with [CANN 8.0.RC2.beta1](https://www.hiascend.com/developer/download/community/result?module=cann&cann=8.0.RC2.beta1) and [MindSpore 2.3.0 ](https://www.mindspore.cn/versions#2.3.0).
 
 | mindspore | ascend driver | firmware    | cann toolkit/kernel |
-| --------- | ------------- | ----------- | ------------------- |
+|:---------:|:-------------:|:-----------:| :------------------:|
 | 2.3.0     | 24.1.RC2      | 7.3.0.1.231 | 8.0.RC2.beta1       |
 
 Check your versions by running the following commands. The default installation path of CANN is usually  `/usr/local/Ascend/ascend-toolkit` unless you specify a custom one.
@@ -56,7 +56,7 @@ Prepare image files for learning data in any folder (multiple folders are also a
 You can specify the learning data in several ways, depending on the number of learning data, learning target, whether captions (image descriptions) can be prepared, etc. Kohya LoRA script supports three methods as follows. Choose a method and configure the datasets in a `.toml` file. It can be passed with the `--dataset_config` option to the training script.
 
 | Learning target or method | Script                  | DB / class+identifier | DB / Caption | fine-tuning |
-| ------------------------- | ----------------------- | --------------------- | ------------ | ----------- |
+|:-------------------------:|:-----------------------:|:---------------------:|:------------:|:-----------:|
 | LoRA                      | `sdxl_train_network.py` | o                     | o            | o           |
 
 Here we take the [Pokemon_blip dataset]() as an example to explain the three learning data patterns.  Please refer to [Config Readme](https://github.com/kohya-ss/sd-scripts/blob/main/docs/config_README-en.md) and  [Common Learning Guide](https://github.com/kohya-ss/sd-scripts/blob/main/docs/train_README-zh.md) from kohya's official repo for details.

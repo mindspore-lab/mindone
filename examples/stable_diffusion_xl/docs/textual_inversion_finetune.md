@@ -26,9 +26,9 @@ As shown above, the textual inversion method consists of the following steps:
 
 #### Requirements
 
-| hardware       | mindspore      | ascend driver | firmware    | cann toolkit/kernel |
-| -------------- | -------------- | ------------- | ----------- | ------------------- |
-| Ascend 910*  | 2.2.10～2.2.12 | 23.0.3        | 7.1.0.5.220 | 7.0.0.beta1         |
+| mindspore      | ascend driver | firmware    | cann toolkit/kernel |
+|:--------------:|:-------------:|:-----------:|:-------------------:|
+| 2.2.10～2.2.12 | 23.0.3        | 7.1.0.5.220 | 7.0.0.beta1         |
 
 Please install openmpi 4.0.3 for distributed mode.
 
@@ -40,7 +40,7 @@ pip install -r requirement.txt
 
 #### Pretrained models
 
-Download the official pre-train weights from huggingface, convert the weights from `.safetensors` format to Mindspore `.ckpt` format, and put them to `./checkpoints/` folder. Please refer to SDXL [weight_convertion.md](./weight_convertion.md) for detailed steps.
+Download the official pre-train weights from huggingface, convert the weights from `.safetensors` format to Mindspore `.ckpt` format, and put them to `./checkpoints/` folder. Please refer to SDXL [weight_convertion](./Preparation.md#convert-pretrained-checkpoint) for detailed steps.
 
 
 #### Finetuning Dataset Preparation

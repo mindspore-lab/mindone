@@ -8,16 +8,13 @@ For example, we have 5 images of a specific [dog](https://github.com/google/drea
 
 The `train_dreambooth.py` script implements DreamBooth finetune for SDXL based on MindSpore and Ascend platforms.
 
-**Note**: now we only allow DreamBooth fine-tuning of SDXL UNet via [LoRA](https://arxiv.org/abs/2106.09685) .
-
 ## Preparation
 
 #### Requirements
 
 | mindspore      | ascend driver | firmware    | cann toolkit/kernel |
-| -------------- | ------------- | ----------- | ------------------- |
+|:--------------:|:-------------:|:-----------:|:-------------------:|
 | 2.2.10～2.2.12 | 23.0.3        | 7.1.0.5.220 | 7.0.0.beta1         |
-| 2.3.0/2.3.1    | 24.1.RC2      | 7.3.0.1.231 | 8.0.RC2.beta1        |
 
 Please install openmpi 4.0.3 for distributed mode.
 
@@ -29,7 +26,7 @@ pip install -r requirement.txt
 
 #### Pretrained models
 
-Download the official pre-train weights from huggingface, convert the weights from `.safetensors` format to Mindspore `.ckpt` format, and put them to `./checkpoints/` folder. Please refer to SDXL [weight_convertion.md](./weight_convertion.md) for detailed steps.
+Download the official pre-train weights from huggingface, convert the weights from `.safetensors` format to Mindspore `.ckpt` format, and put them to `./checkpoints/` folder. Please refer to SDXL [weight_convertion](./Preparation.md#convert-pretrained-checkpoint) for detailed steps.
 
 #### Finetuning Dataset Preparation
 
@@ -165,9 +162,8 @@ The [dog6](https://github.com/google/dreambooth/tree/main/dataset/dog6) example 
 
 ## Performance
 
-Experiments are tested on ascend 910* with mindspore 2.2.12/2.3.1 graph mode. For tests on MindSpore 2.3.1, the scripts use jit level O2. Experiments use the Dreambooth method with LoRA and enable UNet training only.
+Experiments are tested on ascend 910* with mindspore 2.2.12 graph mode. Experiments use the Dreambooth method with LoRA and enable UNet training only.
 
-| Model Name      | Device | Card | MindSpore | bs * grad accu. |   Resolution       |   Time(ms/step)  |
-|---------------|:-------------------:|:------------------:|:----------------:|:----------------:|------------------|:----------------:|
-| SDXL-Base     |      910*      |      1            |      2.2.12      |      1x1             |     1024x1024         |       1280       |
-| SDXL-Base     |      910*         |      1            |      2.3.1      |      1x1             |     1024x1024         |       1100       |
+| Model Name    | Card | bs * grad accu. |   Resolution       |   Time(ms/step)  |
+|---------------|:----------------:|:----------------:|------------------|:----------------:|
+| SDXL-Base     |      1            |      1x1             |     1024x1024         |       1280       |

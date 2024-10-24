@@ -27,7 +27,7 @@ To convert the finetuned mindspore checkpoints, run as follows.
 
 ```shell
 python convert_weight.py \
-  --task ms_to_pt \
+  --task ms_to_st \
   --weight_safetensors ./checkpoints/sd_xl_base_finetuned_pt.safetensors \
   --weight_ms ./checkpoints/sd_xl_base_finetuned_ms.ckpt  \
   --key_torch torch_key_base.yaml \
