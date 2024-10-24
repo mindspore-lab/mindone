@@ -70,10 +70,9 @@ The compatible framework versions that are well-tested are listed as follows.
 
 | Ascend    |  MindSpore   | CANN   | driver | Python | MindONE |
 |:-----------:|:----------------:|:--------:|:---------:|:------:|:---------:|
-| 910      |     2.0         |   6.3 RC1   |  23.0.rc1 | 3.7.16  | master (4c33849)  |
-| 910      |     2.1         |   6.3 RC2   |  23.0.rc2 | 3.9.18  | master (4c33849)  |
-| 910*      |     2.2.1 (20231124)    |   7.1  | 23.0.rc3.6   |  3.7.16  | master (4c33849)  |
+| 910      |     2.1.0         |   6.3 RC2   |  24.1.RC1 | 3.9.20  | master   |
 | 910*      |     2.3.0     |   7.3  | 23.0.3   |  3.8.8  | master   |
+| 910*      |     2.3.1     |   8.0.RC2.bata1  | 24.1.RC2   |  3.8.8  | master   |
 
 </div>
 

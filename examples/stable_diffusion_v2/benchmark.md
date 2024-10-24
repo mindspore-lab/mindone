@@ -5,7 +5,7 @@
 ### Training
 
 | SD Model      |   Context      |  Method      | Global Batch Size x Grad. Accu. |   Resolution       |   Acceleration   | jit_level  |FPS (img/s)  |
-|---------------|---------------|--------------|:-------------------:|:------------------:|:----------------:|:----------------:|----------:|
+|:---------------:|:---------------:|:--------------:|:-------------------:|:------------------:|:----------------:|:----------------:|:----------:|
 | 1.5           |    D910x1-MS2.1      |    Vanilla   |      3x1             |     512x512         | Graph, DS, FP16,  |     N/A |       5.98          |
 | 1.5           |    D910x8-MS2.1      |    Vanilla   |      24x1             |     512x512         | Graph, DS, FP16,  |    N/A |     31.18          |
 | 1.5           |    D910x1-MS2.1      |    LoRA      |      4x1             |     512x512         | Graph, DS, FP16,  |      N/A |   8.25          |
@@ -34,6 +34,21 @@
 | 2.1-v           |    D910*x8-MS2.3.0       |    Vanilla      |      24x1             |     768x768         | Graph, DS, FP16, FA  |   02 |    49.27        |
 | 2.1-v           |    D910*x1-MS2.3.0       |    LoRA      |      4x1                 |     768x768         | Graph, DS, FP16, FA |   02 |   9.51        |
 | 2.1-v           |    D910*x8-MS2.3.0       |    LoRA      |      32x1                 |     768x768         | Graph, DS, FP16, FA  |   02 |    71.51        |
+
+| 1.5           |    D910*x1-MS2.3.1      |    Vanilla   |      3x1             |     512x512         | Graph, DS, FP16,  |     O0 |   7.52          |
+| 1.5           |    D910*x8-MS2.3.1      |    Vanilla   |      24x1             |     512x512         | Graph, DS, FP16,  |  O0 |  34.43          |
+| 1.5           |    D910*x1-MS2.3.1      |    LoRA      |      4x1             |     512x512         | Graph, DS, FP16,  |   O0 |  9.86          |
+| 1.5           |    D910*x8-MS2.3.1      |    LoRA      |      32x1             |     512x512         | Graph, DS, FP16,  |   O0 |  71.54          |
+| 1.5           |    D910*x1-MS2.3.1      |    Dreambooth      |      1x1             |     512x512         | Graph, DS, FP16,  |  O0 |    1.35          |
+| 2.0           |    D910*x1-MS2.3.1       |    Vanilla      |      3x1             |     512x512         | Graph, DS, FP16,  |     O0 |   7.47        |
+| 2.0           |    D910*x8-MS2.3.1       |    Vanilla      |      24x1             |     512x512         | Graph, DS, FP16,  |   O0 |    38.73        |
+| 2.0           |    D910*x1-MS2.3.1       |    LoRA      |      4x1             |     512x512         | Graph, DS, FP16,  |      O0 |     9.98     |
+| 2.0           |    D910*x8-MS2.3.1       |    LoRA      |      32x1             |     512x512         | Graph, DS, FP16,  |     O0 |      73.72     |
+| 2.0           |    D910*x1-MS2.3.1       |    Dreambooth      |      1x1             |     512x512         | Graph, DS, FP16,  |  O0 |   1.19         |
+| 2.1-v           |    D910*x1-MS2.3.1       |    Vanilla      |      3x1             |     768x768         | Graph, DS, FP16, FA  |   00 |   6.46        |
+| 2.1-v           |    D910*x8-MS2.3.1       |    Vanilla      |      24x1             |     768x768         | Graph, DS, FP16, FA  |   00 |    43.06        |
+| 2.1-v           |    D910*x1-MS2.3.1       |    LoRA      |      4x1                 |     768x768         | Graph, DS, FP16, FA |   00 |   6.88        |
+| 2.1-v           |    D910*x8-MS2.3.1       |    LoRA      |      32x1                 |     768x768         | Graph, DS, FP16, FA  |   00 |    57.42        |
 > Context: {Ascend chip}-{number of NPUs}-{mindspore version}.
 >
 > Acceleration: DS: data sink mode, FP16: float16 computation. FA: flash attention.
@@ -62,13 +77,16 @@ Flash Attention,
 ### Inference
 
 | SD Model      |     Context |  Scheduler   | Steps              |  Resolution   |      Batch Size   |  jit_level  |  Speed (step/s)     | FPS (img/s)     |
-|---------------|------------|--------------|:-------------------:|:-------------:|:----------------:|:----------------:|----------:|----------|
+|:---------------:|:------------:|:-------------------:|:-------------------:|:-------------:|:----------------:|:----------------:|----------:|:----------:|
 | 1.5           |     D910x1-MS2.2.10    |  DDIM       |   30       |    512x512         |       4     | N/A     |    3.58        |       0.44       |
 | 2.0           |     D910x1-MS2.2.10    |  DDIM       |   30       |    512x512         |       4     | N/A      |    4.12       |        0.49       |
 | 2.1-v         |     D910x1-MS2.2.10    |  DDIM       |   30       |    768x768         |       4     | N/A      |     1.14     |         0.14      |
 | 1.5           |     D910*x1-MS2.3.0   |  DDIM       |   30       |    512x512         |       4     | O2      |       6.69     |         0.77      |
 | 2.0           |     D910*x1-MS2.3.0   |  DDIM       |   30       |    512x512         |       4      | O2     |      8.30     |         0.91      |
 | 2.1-v         |     D910*x1-MS2.3.0   |  DDIM       |   30       |    768x768         |       4      | O2     |      2.91     |         0.36      |
+| 1.5           |     D910*x1-MS2.3.1   |  DDIM       |   30       |    512x512         |       4     | O0      |       3.11     |         0.37      |
+| 2.0           |     D910*x1-MS2.3.1   |  DDIM       |   30       |    512x512         |       4      | O0     |      3.58     |         0.42      |
+| 2.1-v         |     D910*x1-MS2.3.1   |  DDIM       |   30       |    768x768         |       4      | O0     |      3.61     |         0.32      |
 
 
 > Context: {Ascend chip}-{number of NPUs}-{mindspore version}.
