@@ -1,4 +1,3 @@
-unset RANK_TABLE_FILE
 export ASCEND_RT_VISIBLE_DEVICES=0,1,2,3,4,5,6,7
 
 mpirun --allow-run-as-root -n 8 --output-filename log_output --merge-stderr-to-stdout \

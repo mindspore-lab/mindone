@@ -1,4 +1,3 @@
-unset RANK_TABLE_FILE
 export ASCEND_RT_VISIBLE_DEVICES=0,1,2,3,4,5,6,7
 
 # msrun --master_port=8200 --worker_num=8 --local_worker_num=8 --log_dir=log_output  \
