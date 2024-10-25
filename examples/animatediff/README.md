@@ -4,24 +4,18 @@ This repository is the MindSpore implementation of [AnimateDiff](https://arxiv.o
 
 ## Features
 
-- [x] Text-to-video generation with AnimdateDiff v2, supporting 16 frames @512x512 resolution on Ascend 910B, 16 frames @256x256 resolution on GPU 3090
+- [x] Text-to-video generation with AnimdateDiff v2, supporting 16 frames @512x512 resolution on Ascend 910*
 - [x] MotionLoRA inference
 - [x] Motion Module Training
 - [X] Motion LoRA Training
 - [X] AnimateDiff v3 Inference
-- [ ] AnimateDiff v3 Training
-- [ ] SDXL support
 
 ## Requirements
 
-
-The scripts work on Acend 910* with [CANN 7.0.0.beta1](https://www.hiascend.com/developer/download/community/result?module=cann&cann=7.0.0.beta1) and [MindSpore 2.2.10 ](https://www.mindspore.cn/versions#2.2.10). Check your versions by running the following commands. The default installation path of CANN is usually  `/usr/local/Ascend/ascend-toolkit` unless you specify a custom one.
-
-```bash
-cat /usr/local/Ascend/ascend-toolkit/latest/version.cfg  
-
-python -c "import mindspore;mindspore.set_context(device_target='Ascend');mindspore.run_check()"
-```
+| mindspore  | ascend driver  |  firmware   |cann toolkit/kernel |
+|:----------:|:--------------:|:-----------:|:------------------:|
+|   2.3.1    |    24.1.RC2    | 7.3.0.1.231 |   8.0.RC2.beta1    |
+|   2.2.10   |     23.0.3     | 7.1.0.5.220 |    7.0.0.beta1     |
 
 To install other dependent packages:
 ```bash
@@ -30,8 +24,6 @@ pip install -r requirements.txt
 
 In case `decord` package is not available, try `pip install eva-decord`.
 For EulerOS, instructions on ffmpeg and decord installation are as follows.
-
-<details onclose>
 
 ```
 1. install ffmpeg 4, referring to https://ffmpeg.org/releases
@@ -53,11 +45,7 @@ For EulerOS, instructions on ffmpeg and decord installation are as follows.
     python3 setup.py install --user
 ```
 
-</details>
-
 ## Prepare Model Weights
-
-<details onclose>
 
 First, download the torch pretrained weights referring to [torch animatediff checkpoints](https://github.com/guoyww/AnimateDiff/blob/main/__assets__/docs/animatediff.md#download-base-t2i--motion-module-checkpoints).
 
@@ -126,11 +114,9 @@ models
     └── sd_v1.5-d0ab7146.ckpt
 ```
 
-</details>
-
 ## Inference (AnimateDiff v3 and SparseCtrl)
 
-- Running On Ascend 910\*:
+- Running On Ascend 910*:
 ```
 # download demo images
 bash scripts/download_demo_images.sh
@@ -178,17 +164,13 @@ Results:
     </tr>
 </table>
 
-- Running on GPU:
-
-Please append `--device_target GPU` to the end of the commands above.
-
 If you use the checkpoint converted from torch for inference, please also append `--vae_fp16=False` to the command above.
 
 ## Inference (AnimateDiff v2)
 
 ### Text-to-Video
 
-- Running On Ascend 910\*:
+- Running On Ascend 910*:
 ```
 python text_to_video.py --config configs/prompts/v2/1-ToonYou.yaml --L 16 --H 512 --W 512
 ```
@@ -203,16 +185,10 @@ Results:
 <img src=https://github.com/SamitHuang/mindone/assets/8156835/fb9e2069-041a-4e81-b88e-ccdcfa8afd32 width="25%" />
 </p>
 
-
-- Running on GPU:
-```
-python text_to_video.py --config configs/prompts/v2/1-ToonYou.yaml --L 16 --H 256 --W 256 --device_target GPU
-```
-
 If you use the checkpoint converted from torch for inference, please also append `--vae_fp16=False` to the command above.
 
 ### Motion LoRA
-- Running On Ascend 910\*:
+- Running On Ascend 910*:
 ```
 python text_to_video.py --config configs/prompts/v2/1-ToonYou-MotionLoRA.yaml --L 16 --H 512 --W 512
 ```
@@ -227,12 +203,6 @@ Results using Zoom-In motion lora:
 <img src=https://github.com/SamitHuang/mindone/assets/8156835/d4d947a3-4d10-4c7e-b134-a725269037c3 width="25%" />
 </p>
 
-
-- Running on GPU:
-```
-python text_to_video.py --config configs/prompts/v2/1-ToonYou-MotionLoRA.yaml --L 16 --H 256 --W 256 --device_target GPU
-```
-
 ## Training
 
 ### Image Finetuning
@@ -240,15 +210,24 @@ python text_to_video.py --config configs/prompts/v2/1-ToonYou-MotionLoRA.yaml --
 ```
 python train.py --config configs/training/image_finetune.yaml
 ```
-> For 910B, please set `export MS_ASCEND_CHECK_OVERFLOW_MODE="INFNAN_MODE"` before running training.
+> Please set `export MS_ASCEND_CHECK_OVERFLOW_MODE="INFNAN_MODE"` before running train script if mindspore 2.2.10 is used.
 
+- Evaluation
+
+To infer with the trained model, run
+
+```
+python text_to_video.py --config configs/prompts/v2/base_video.yaml \
+    --pretrained_model_path {path to saved checkpoint} \
+    --prompt  {text prompt}  \
+```
 
 ### Motion Module Training
 
 ```
 python train.py --config configs/training/mmv2_train.yaml
 ```
-> For 910B, please set `export MS_ASCEND_CHECK_OVERFLOW_MODE="INFNAN_MODE"` before running training.
+> Please set `export MS_ASCEND_CHECK_OVERFLOW_MODE="INFNAN_MODE"` before running train script if mindspore 2.2.10 is used.
 
 You may change the arguments including data path, output directory, lr, etc in the yaml config file. You can also change by command line arguments referring to `args_train.py` or `python train.py --help`
 
@@ -292,8 +271,8 @@ Min-SNR weighting can be used to improve diffusion training convergence. You can
 ```
 python train.py --config configs/training/mmv2_lora.yaml
 ```
-> For 910B, please set `export MS_ASCEND_CHECK_OVERFLOW_MODE="INFNAN_MODE"` before running training.
 
+> Please set `export MS_ASCEND_CHECK_OVERFLOW_MODE="INFNAN_MODE"` before running train script if mindspore 2.2.10 is used.
 
 - Evaluation
 
@@ -323,36 +302,43 @@ Here are some generation results after lora fine-tuning on 512x512 resolution an
 </table>
 
 
-### Training on GPU
-
-Please add `--device_target GPU` in the above training commands and adjust `image_size`/`num_frames`/`train_batch_size` to fit your device memory. Below is an example for 3090.
-
-```
-# reduce num frames and batch size to avoid OOM in 3090
-python train.py --config configs/training/mmv2_train.yaml --data_path ../videocomposer/datasets/webvid5 --image_size 256 --num_frames=4 --device_target GPU --train_batch_size=1
-```
-
-## Performance
+## Performance(animate diff v2)
 
 ### Inference
 
-| Model      |     Context |  Scheduler   | Steps              |  Resolution   |      Frame |  Speed (step/s)     | Time(s/video)     |
-|:---------------|:-----------|:------------:|:------------------:|:----------------:|:----------------:|:----------------:|:----------------:|
-| AnimateDiff v2    |     D910*x1-MS2.2.10    |  DDIM       |   30       |    512x512         |       16          |      1.2      |       25       |
-> Context: {Ascend chip}-{number of NPUs}-{mindspore version}.
+- mindspore 2.3.1
 
+|   model name   | mindspore |  Scheduler  | Steps  | Resolution | Frame | Speed (step/s) | Time(s/video) |
+|:--------------:|:---------:|:-----------:|:------:|:----------:|:-----:|:--------------:|:-------------:|
+| AnimateDiff v2 |   2.3.1   |    DDIM     |   30   |  512x512   |  16   |      0.6       |      18       |
+
+- mindspore 2.2.10
+
+|   model name   | mindspore |  Scheduler  | Steps  | Resolution | Frame | Speed (step/s) | Time(s/video) |
+|:--------------:|:---------:|:-----------:|:------:|:----------:|:-----:|:--------------:|:-------------:|
+| AnimateDiff v2 |  2.2.10   |    DDIM     |   30   |  512x512   |  16   |      1.2       |      25       |
 
 ### Training
 
+Experiments are tested on ascend 910* graph mode with single card.
 
-| Model          |   Context   |  Task         | Local BS x Grad. Accu.  |   Resolution  | Frame      |   Step T. (s/step)  |
-|:---------------|:---------------|:--------------|:-----------------------:|:----------:|:------------:|:----------------:|
-| AnimateDiff v2    |    D910*x1-MS2.2.10       |   MM training  |      1x1             |    512x512  |  16 |  1.29     |
-| AnimateDiff v2    |    D910*x1-MS2.2.10       |   Motion Lora |      1x1             |    512x512  |  16 |  1.26       |
-| AnimateDiff v2    |    D910*x1-MS2.2.10       |   MM training w/ Embed. cached |      1x1             |    512x512  |  16 |  0.75     |
-| AnimateDiff v2    |    D910*x1-MS2.2.10       |   Motion Lora w/ Embed. cached |      1x1           |    512x512  |  16 |  0.71       |
-> Context: {Ascend chip}-{number of NPUs}-{mindspore version}.
->
+- mindspore 2.3.1
+
+|             task             | image size | frames  | batch size | recompute | data sink | flash attention | jit level | step time(s) | train. imgs/s |
+|:----------------------------:|:----------:|:-------:|:----------:|:---------:|:---------:|:---------------:|:---------:|:------------:|:-------------:|
+|         MM training          |    512     |   16    |     1      |    OFF    |    OFF    |       ON        |    O0     |    1.320     |     0.75      |
+|         Motion Lora          |    512     |   16    |     1      |    ON     |    OFF    |       ON        |    O0     |    1.566     |     0.638     |
+| MM training w/ Embed. cached |    512     |   16    |     1      |    OFF    |    OFF    |       ON        |    O0     |    1.004     |     0.996     |
+| Motion Lora w/ Embed. cached |    512     |   16    |     1      |    ON     |    OFF    |       ON        |    O0     |    1.009     |     0.991     |
+
+- mindspore 2.2.10
+
+|             task             | image size | frames  | batch size | recompute | data sink | flash attention | jit level | step time(s) | train. imgs/s |
+|:----------------------------:|:----------:|:-------:|:----------:|:---------:|:---------:|:---------------:|:---------:|:------------:|:-------------:|
+|         MM training          |    512     |   16    |     1      |    OFF    |    OFF    |       OFF       |    NA     |     1.29     |     0.775     |
+|         Motion Lora          |    512     |   16    |     1      |    ON     |    OFF    |       OFF       |    NA     |     1.26     |     0.794     |
+| MM training w/ Embed. cached |    512     |   16    |     1      |    OFF    |    OFF    |       OFF       |    NA     |     0.75     |     1.333     |
+| Motion Lora w/ Embed. cached |    512     |   16    |     1      |    ON     |    OFF    |       OFF       |    NA     |     0.71     |     1.408     |
+
 > MM training: Motion Module training
->
 > Embed. cached: The video embedding (VAE-encoder outputs) and text embedding are pre-computed and stored before diffusion training.

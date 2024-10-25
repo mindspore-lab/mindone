@@ -279,6 +279,8 @@ def main(args):
             max_rowsize=32,
             random_drop_text=args.random_drop_text,
             random_drop_text_ratio=args.random_drop_text_ratio,
+            video_column=args.video_column,
+            caption_column=args.caption_column,
             train_data_type=args.train_data_type,
             disable_flip=args.disable_flip,
         )
@@ -394,7 +396,7 @@ def main(args):
         raise ValueError
 
     # resume ckpt
-    ckpt_dir = os.path.join(args.output_path, "ckpt")
+    ckpt_dir = os.path.join(args.output_path, "../ckpt")
     start_epoch = 0
     if args.resume:
         resume_ckpt = os.path.join(ckpt_dir, "train_resume.ckpt") if isinstance(args.resume, bool) else args.resume

@@ -62,7 +62,7 @@ def parse_args():
     parser.add_argument(
         "--resume",
         default=False,
-        type=str,
+        type=str2bool,
         help="It can be a string for path to resume checkpoint, or a bool False for not resuming.(default=False)",
     )
     # training hyper-params
