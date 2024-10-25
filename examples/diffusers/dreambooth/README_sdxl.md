@@ -55,7 +55,7 @@ export INSTANCE_DIR="dog"
 export OUTPUT_DIR="lora-trained-xl"
 export VAE_PATH="madebyollin/sdxl-vae-fp16-fix"
 
-accelerate launch train_dreambooth_lora_sdxl.py \
+python train_dreambooth_lora_sdxl.py \
   --pretrained_model_name_or_path=$MODEL_NAME  \
   --pretrained_vae_model_name_or_path=$VAE_PATH \
   --instance_data_dir=$INSTANCE_DIR \
@@ -175,7 +175,7 @@ For the SDXL model, simple set:
 Other SDXL-like models that use the EDM formulation, such as [playgroundai/playground-v2.5-1024px-aesthetic](https://huggingface.co/playgroundai/playground-v2.5-1024px-aesthetic), can also be DreamBooth'd with the script. Below is an example command:
 
 ```bash
-accelerate launch train_dreambooth_lora_sdxl.py \
+python train_dreambooth_lora_sdxl.py \
   --pretrained_model_name_or_path="playgroundai/playground-v2.5-1024px-aesthetic"  \
   --instance_data_dir="dog" \
   --output_dir="dog-playground-lora" \

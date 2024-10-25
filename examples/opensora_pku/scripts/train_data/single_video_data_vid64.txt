@@ -1,1 +1,0 @@
-/home_host/ddd/workspace/datasets/vid64/videos,/home_host/ddd/workspace/datasets/vid64/t5-len=300,/home_host/ddd/workspace/datasets/sharegpt4v_path_cap_64x512x512-vid64.json
