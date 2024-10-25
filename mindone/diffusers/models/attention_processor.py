@@ -15,7 +15,7 @@ import math
 from typing import Callable, List, Optional, Union
 
 import mindspore as ms
-from mindspore import mint, nn, ops
+from mindspore import nn, ops
 
 from ..image_processor import IPAdapterMaskProcessor
 from ..utils import logging
@@ -903,7 +903,7 @@ class FusedJointAttnProcessor:
         # `sample` projections.
         qkv = attn.to_qkv(hidden_states)
         split_size = qkv.shape[-1] // 3
-        query, key, value = mint.split(qkv, split_size, dim=-1)
+        query, key, value = ms.mint.split(qkv, split_size, dim=-1)
 
         # `context` projections.
         encoder_qkv = attn.to_added_qkv(encoder_hidden_states)
@@ -912,7 +912,7 @@ class FusedJointAttnProcessor:
             encoder_hidden_states_query_proj,
             encoder_hidden_states_key_proj,
             encoder_hidden_states_value_proj,
-        ) = mint.split(encoder_qkv, split_size, dim=-1)
+        ) = ms.mint.split(encoder_qkv, split_size, dim=-1)
 
         # attention
         query = ops.cat([query, encoder_hidden_states_query_proj], axis=1)

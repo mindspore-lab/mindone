@@ -35,14 +35,24 @@ def parse_train_args(parser):
     parser.add_argument("--device", type=str, default="Ascend", help="Ascend or GPU")
     parser.add_argument("--max_device_memory", type=str, default=None, help="e.g. `30GB` for 910a, `59GB` for 910b")
     parser.add_argument("--mode", default=0, type=int, help="Specify the mode: 0 for graph mode, 1 for pynative mode")
+    parser.add_argument(
+        "--jit_syntax_level", default="strict", type=str, help="Specify syntax level for graph mode: strict or lax"
+    )
     parser.add_argument("--use_parallel", default=False, type=str2bool, help="use parallel")
     parser.add_argument(
         "--parallel_mode",
         default="data",
         type=str,
-        choices=["data", "optim", "semi"],
-        help="parallel mode: data, optim",
+        choices=["data", "optim", "semi", "zero"],
+        help="parallel mode: data, optim, zero",
     )
+    parser.add_argument(
+        "--zero_stage",
+        default=2,
+        type=int,
+        help="run parallelism like deepspeed, supporting zero0, zero1, zero2, and zero3, if parallel_mode==zero",
+    )
+    parser.add_argument("--comm_fusion", default=True, type=str2bool)
     parser.add_argument("--seed", default=3407, type=int, help="data path")
     parser.add_argument(
         "--mempool_block_size",
@@ -60,7 +70,7 @@ def parse_train_args(parser):
     #################################################################################
     #                                   Optimizers                                  #
     #################################################################################
-    parser.add_argument("--optim", default="adamw", type=str, help="optimizer")
+    parser.add_argument("--optim", default="adamw_re", type=str, help="optimizer, use adamw from mindcv by default")
     parser.add_argument(
         "--betas",
         type=float,
@@ -86,7 +96,8 @@ def parse_train_args(parser):
         help="max gradient norm for clipping, effective when `clip_grad` enabled.",
     )
     parser.add_argument("--use_ema", default=False, type=str2bool, help="whether use EMA")
-    parser.add_argument("--ema_decay", default=0.9999, type=float, help="EMA decay")
+    parser.add_argument("--ema_offload", default=True, type=str2bool, help="whether use EMA CPU offload")
+    parser.add_argument("--ema_decay", default=0.999, type=float, help="EMA decay")
 
     #################################################################################
     #                                Learning Rate                                  #
@@ -112,17 +123,18 @@ def parse_train_args(parser):
     #################################################################################
     #                           Dataset and DataLoader                              #
     #################################################################################
-    parser.add_argument("--batch_size", default=10, type=int, help="batch size")
+    parser.add_argument("--train_batch_size", default=10, type=int, help="train batch size")
+    parser.add_argument("--val_batch_size", default=1, type=int, help="validation batch size")
     parser.add_argument("--dataset_sink_mode", default=False, type=str2bool, help="sink mode")
     parser.add_argument("--sink_size", default=-1, type=int, help="dataset sink size. If -1, sink size = dataset size.")
     parser.add_argument(
-        "--epochs",
+        "--num_train_epochs",
         default=10,
         type=int,
         help="epochs. When epochs is specified, the total number of training steps = epochs x num_batches",
     )
     parser.add_argument("--dataloader_num_workers", default=12, type=int, help="num workers for dataloder")
-    parser.add_argument("--max_rowsize", default=64, type=int, help="max rowsize for data loading")
+    parser.add_argument("--max_rowsize", default=32, type=int, help="max rowsize for data loading")
 
     #################################################################################
     #                         Mixed Precision: Loss scaler etc.                     #
@@ -139,7 +151,7 @@ def parse_train_args(parser):
     )
     parser.add_argument(
         "--amp_level",
-        default="O1",
+        default="O2",
         type=str,
         help="mindspore amp level, O1: most fp32, only layers in whitelist compute in fp16 (dense, conv, etc); \
             O2: most fp16, only layers in blacklist compute in fp32 (batch norm etc)",
@@ -167,12 +179,7 @@ def parse_train_args(parser):
         type=str2bool,
         help="whether use recompute.",
     )
-    parser.add_argument(
-        "--enable_flash_attention",
-        default=None,
-        type=str2bool,
-        help="whether to enable flash attention.",
-    )
+
     #################################################################################
     #                                Training Callbacks                            #
     #################################################################################
@@ -190,6 +197,13 @@ def parse_train_args(parser):
         type=str2bool,
         help="whether save ckpt by steps. If False, save ckpt by epochs.",
     )
+    parser.add_argument(
+        "--validate",
+        default=False,
+        type=str2bool,
+        help="whether to compute the validation set loss during training",
+    )
+    parser.add_argument("--val_interval", default=1, type=int, help="Validation frequency in epochs")
     parser.add_argument("--profile", default=False, type=str2bool, help="Profile or not")
     parser.add_argument(
         "--log_level",
