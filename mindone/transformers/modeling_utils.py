@@ -58,7 +58,7 @@ from mindspore import Tensor, nn, ops
 from .integrations import PeftAdapterMixin
 from .modeling_attn_mask_utils import dtype_to_min
 from .generation.utils import GenerationMixin
-from .utils.import_utils import is_flash_attn_2_available
+from .utils.import_utils import is_flash_attn_2_available, is_sdpa_available
 
 
 if is_safetensors_available():
@@ -671,7 +671,11 @@ class MSPreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMix
                 hard_check_only=False,
             )
         elif requested_attn_implementation in [None, "sdpa"]:
-            raise NotImplementedError
+            # use_flash_attention_2 takes priority over SDPA, hence SDPA treated in this elif.
+            config = cls._check_and_enable_sdpa(
+                config,
+                hard_check_only=False if requested_attn_implementation is None else True,
+            )
         else:
             config._attn_implementation = "eager"
 
@@ -726,6 +730,32 @@ class MSPreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMix
 
         if not hard_check_only:
             config._attn_implementation = "flash_attention_2"
+        return config
+
+    @classmethod
+    def _check_and_enable_sdpa(cls, config, hard_check_only: bool = False) -> PretrainedConfig:
+        """
+        Checks the availability of SDPA for a given model.
+
+        If all checks pass and `hard_check_only` is False, the method will set the config attribute `_attn_implementation` to "flash_attention_2" so that the model can initialize the correct attention module.
+        """
+        if hard_check_only:
+            if not cls._supports_sdpa:
+                raise ValueError(
+                    f"{cls.__name__} does not support an attention implementation through torch.nn.functional.scaled_dot_product_attention yet."
+                    " Please request the support for this architecture: https://github.com/huggingface/transformers/issues/28005. If you believe"
+                    ' this error is a bug, please open an issue in Transformers GitHub repository and load your model with the argument `attn_implementation="eager"` meanwhile. Example: `model = AutoModel.from_pretrained("openai/whisper-tiny", attn_implementation="eager")`'
+                )
+            if not is_sdpa_available():
+                raise ImportError(
+                    "SDPA requirements in Transformers are not met."
+                )
+
+        if not is_sdpa_available() or not cls._supports_sdpa:
+            return config
+
+        if not hard_check_only:
+            config._attn_implementation = "sdpa"
         return config
 
     def get_input_embeddings(self) -> nn.Cell:

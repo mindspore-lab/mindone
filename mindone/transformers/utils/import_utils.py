@@ -6,3 +6,7 @@ def is_flash_attn_2_available():
         return True
 
     return False
+
+
+def is_sdpa_available():
+    return False
