@@ -449,7 +449,6 @@ class LlamaFlashAttention2(LlamaAttention):
 
         # 1. flash attention
         if attention_mask is not None:  # no matter the length, we just slice it
-            breakpoint()
             attention_mask = attention_mask[:, :, :, : key_states.shape[-2]]
         attention_mask = self.convert_mask_to_fa_format(attention_mask)
         attn_output = self.flash_attention(query_states, key_states, value_states, attention_mask)
@@ -808,8 +807,8 @@ class LlamaModel(LlamaPreTrainedModel):
             output_attentions: bool = False,
     ):
 
-        if self._attn_implementation == "flash_attention_2":
-            return attention_mask
+        # if self._attn_implementation == "flash_attention_2":
+        #     return attention_mask
 
         # For SDPA, when possible, we will rely on its `is_causal` argument instead of its `attn_mask` argument, in
         # order to dispatch on Flash Attention 2. This feature is not compatible with static cache, as SDPA will fail
@@ -829,11 +828,8 @@ class LlamaModel(LlamaPreTrainedModel):
 
         if attention_mask is not None and len(attention_mask.shape) == 4:
             # in this case we assume that the mask comes already in inverted form and requires no inversion or slicing
-
             # if attention_mask.max() != 0:
             #     raise ValueError("Custom 4D attention mask should be passed in inverted form with max==0`")
-            # assert attention_mask.max() == 0
-
             causal_mask = attention_mask
         else:
             causal_mask = ops.broadcast_to(_MIN_FP16, (sequence_length, target_length))
