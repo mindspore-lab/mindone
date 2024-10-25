@@ -365,7 +365,10 @@ class LatentDiffusion(DDPM):
         """
 
         # 1. get image/video latents z using vae
-        z = self.get_latents(x)
+        if self.emb_cache:
+            z = x
+        else:
+            z = self.get_latents(x)
 
         # 2. sample timestep and add noise to latents
         t = self.uniform_int(

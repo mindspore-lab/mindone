@@ -19,7 +19,7 @@ __all__ = ["AutoencoderKL"]
 _logger = logging.getLogger(__name__)
 SD_CONFIG = {
     "double_z": True,
-    "z_channels": 4,
+    "z_channels": 4,  # TODO: set 16
     "resolution": 256,
     "in_channels": 3,
     "out_ch": 3,
@@ -31,34 +31,6 @@ SD_CONFIG = {
 }
 SDXL_CONFIG = SD_CONFIG.copy()
 SDXL_CONFIG.update({"resolution": 512})
-
-
-class AutoencoderKL(AutoencoderKL_SD):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.split = get_split_op()
-
-    def init_from_ckpt(self, path, ignore_keys=list()):
-        if not os.path.exists(path):
-            raise ValueError(
-                "Maybe download failed. Please download the VAE encoder from https://huggingface.co/stabilityai/sd-vae-ft-ema"
-            )
-        param_dict = ms.load_checkpoint(path)
-        param_not_load, ckpt_not_load = ms.load_param_into_net(self, param_dict, strict_load=True)
-        if param_not_load or ckpt_not_load:
-            _logger.warning(
-                f"{param_not_load} in network is not loaded or {ckpt_not_load} in checkpoint is not loaded!"
-            )
-
-    def encode_with_moments_output(self, x):
-        """For latent caching usage"""
-        h = self.encoder(x)
-        moments = self.quant_conv(h)
-        mean, logvar = self.split(moments, moments.shape[1] // 2, 1)
-        logvar = ops.clip_by_value(logvar, -30.0, 20.0)
-        std = self.exp(0.5 * logvar)
-
-        return mean, std
 
 
 class VideoAutoencoderKL(nn.Cell):
@@ -483,3 +455,33 @@ def OpenSoraVAE_V1_2(
         pu, cu = ms.load_param_into_net(model.spatial_vae, sd, strict_load=False)
 
     return model
+
+
+class AutoencoderKL(AutoencoderKL_SD):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.split = get_split_op()
+
+    def init_from_ckpt(self, path, ignore_keys=list()):
+        if not os.path.exists(path):
+            raise ValueError(
+                "Maybe download failed. Please download the VAE encoder from https://huggingface.co/stabilityai/sd-vae-ft-ema"
+            )
+        param_dict = ms.load_checkpoint(path)
+        param_not_load, ckpt_not_load = ms.load_param_into_net(self, param_dict, strict_load=True)
+        if param_not_load or ckpt_not_load:
+            _logger.warning(
+                f"{param_not_load} in network is not loaded or {ckpt_not_load} in checkpoint is not loaded!"
+            )
+
+    def encode_with_moments_output(self, x):
+        """For latent caching usage"""
+        h = self.encoder(x)
+        moments = self.quant_conv(h)
+        mean, logvar = self.split(moments, moments.shape[1] // 2, 1)
+        logvar = ops.clip_by_value(logvar, -30.0, 20.0)
+        std = self.exp(0.5 * logvar)
+
+        return mean, std
+
+
