@@ -68,7 +68,7 @@ Using the multiview images input from 3D mesh extracted from [the sv3d pipeline]
 
 The illustrations here are better viewed in viewers than with HTML support (e.g., the vscode built-in viewer).
 
-## Environments
+## Environment Requirements
 
 1. To kickstart:
 
@@ -78,11 +78,9 @@ pip install -r requirements.txt
 
 2. Inference is tested on the machine with the following specs using 1x NPU:
 
-```text
-Mindspore Version:               2.3.1 release
-CANN Version:                    7.3
-Ascend Driver:                   23.0.rc3.6
-```
+| mindspore |	ascend driver | firmware	| cann toolkit/kernel |
+| :--- | :--- | :--- | :--- |
+| 2.3.1	    | 24.1.RC2 |7.3.0.1.231	| 8.0.RC2.beta1 |
 
 ## Pretrained Models
 
