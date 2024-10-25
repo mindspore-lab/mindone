@@ -12,11 +12,7 @@ _logger = logging.getLogger(__name__)
 
 class LPIPS(nn.Cell):
     # Learned perceptual metric
-    def __init__(
-        self,
-        use_dropout=True,
-        normalize=False,
-    ):
+    def __init__(self, use_dropout=True, normalize=False, pretrained_vgg_mindcv=False):
         super().__init__()
         self.scaling_layer = ScalingLayer()
         self.chns = [64, 128, 256, 512, 512]  # vgg16 features
@@ -32,7 +28,11 @@ class LPIPS(nn.Cell):
         self.load_from_pretrained("YOUR_PATH/lpips_vgg-426bf45c.ckpt")
 
         # create vision backbone and load pretrained weights
-        self.net = vgg16(pretrained=True, requires_grad=False)
+        self.net = vgg16(
+            pretrained=pretrained_vgg_mindcv,
+            ckpt_path="./th-vgg16-397923af.ckpt",  # torch ckpt different from mindcv ckpt
+            requires_grad=False,
+        )
 
         # ensure that lpips's param not tuned, but lpips loss still supervises
         self.set_train(False)
@@ -108,10 +108,10 @@ class NetLinLayer(nn.Cell):
 
 
 class vgg16(nn.Cell):
-    def __init__(self, requires_grad=False, pretrained=True):
+    def __init__(self, requires_grad=False, pretrained=True, ckpt_path=None):
         super(vgg16, self).__init__()
         # TODO: add bias in vgg. use the same model weights in PT.
-        model = mindcv.create_model("vgg16", pretrained=pretrained)
+        model = mindcv.create_model("vgg16", pretrained=pretrained, checkpoint_path=ckpt_path if not pretrained else "")
         model.set_train(False)
         vgg_pretrained_features = model.features
         self.slice1 = nn.SequentialCell()

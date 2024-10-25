@@ -101,6 +101,11 @@ python inference.py --ckpt PATH_TO_CKPT \
 ```shell
 python train.py --base configs/YOUR_CFG
 ```
+One needs to patch `mindcv.models.vgg` in L62 to enable conv kernel bias to align with the torchmetric implementation of lpips loss.
+```diff
+- conv2d = nn.Conv2d(in_channels, v, kernel_size=3, pad_mode="pad", padding=1)
++ conv2d = nn.Conv2d(in_channels, v, kernel_size=3, pad_mode="pad", padding=1, has_bias=True)
+```
 
 ### Data Curation
 We used Blender to render multiview frames for a 3D object in `.obj` for training.
