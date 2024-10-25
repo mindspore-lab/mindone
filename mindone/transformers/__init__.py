@@ -1,3 +1,7 @@
+
+__version__ = "4.42.4"
+
+
 from .modeling_utils import MSPreTrainedModel
 from .models.bert import (
     BertForMaskedLM,
