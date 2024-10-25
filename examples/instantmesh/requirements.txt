@@ -5,3 +5,4 @@ loguru
 einops
 huggingface_hub
 omegaconf
+mindcv==0.3.0
