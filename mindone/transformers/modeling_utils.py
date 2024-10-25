@@ -13,6 +13,8 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import importlib.metadata
+import importlib.util
 import copy
 import gc
 import json
@@ -56,6 +58,8 @@ from mindspore import Tensor, nn, ops
 from .integrations import PeftAdapterMixin
 from .modeling_attn_mask_utils import dtype_to_min
 from .generation.utils import GenerationMixin
+from .utils.import_utils import is_flash_attn_2_available
+
 
 if is_safetensors_available():
     from safetensors import safe_open
@@ -619,6 +623,61 @@ class MSPreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMix
         self.init_weights()
 
     @classmethod
+    def _autoset_attn_implementation(
+            cls,
+            config,
+            use_flash_attention_2: bool = False,
+            mindspore_dtype = None,
+    ):
+        """
+        Automatically checks and dispatches to a default attention implementation. In order of priority:
+            1. An implementation specified in `config._attn_implementation` (due for example to the argument attn_implementation="sdpa" in from_pretrained).
+            2. DEPRECATED: if use_flash_attention_2 is set to `True` and `flash_attn` is available, flash attention. (`LlamaFlashAttention` for example)
+            3. SDPA implementation, if available and supported by the model type. (`LlamaSdpaAttention` for example)
+            4. The default model's implementation otherwise (`LlamaAttention` for example) .
+        """
+        # Here we use config._attn_implementation_internal to check whether the attention implementation was explicitely set by the user.
+        # The property `PretrainedConfig._attn_implementation` is never `None`, for backward compatibility (always fall back on "eager").
+        # The `hasattr` here is used as some Transformers tests for some reason do not call PretrainedConfig __init__ (e.g. test_no_super_init_config_and_model)
+        requested_attn_implementation = None
+        if hasattr(config, "_attn_implementation_internal") and config._attn_implementation_internal is not None:
+            if config._attn_implementation != "flash_attention_2" and use_flash_attention_2:
+                raise ValueError(
+                    f'Both attn_implementation="{config._attn_implementation}" and `use_flash_attention_2=True` were used when loading the model, which are not compatible.'
+                    ' We recommend to just use `attn_implementation="flash_attention_2"` when loading the model.'
+                )
+
+            if config._attn_implementation not in ["eager", "sdpa", "flash_attention_2"]:
+                message = f'Specified `attn_implementation="{config._attn_implementation}"` is not supported. The only possible arguments are `attn_implementation="eager"` (manual attention implementation)'
+                if cls._supports_flash_attn_2:
+                    message += ', `"attn_implementation=flash_attention_2"` (implementation using flash attention 2)'
+                if cls._supports_sdpa:
+                    message += ', `"attn_implementation=sdpa"` (implementation using scaled_dot_product_attention)'
+                raise ValueError(message + ".")
+
+            # If a config is passed with a preset attn_implementation, we skip the automatic dispatch and use the user-provided config, with hard checks that the requested attention implementation is available.
+            requested_attn_implementation = config._attn_implementation_internal
+
+        if use_flash_attention_2:
+            logger.warning_once(
+                'The model was loaded with use_flash_attention_2=True, which is deprecated and may be removed in a future release. Please use `attn_implementation="flash_attention_2"` instead.'
+            )
+            config._attn_implementation = "flash_attention_2"
+
+        if config._attn_implementation == "flash_attention_2":
+            cls._check_and_enable_flash_attn_2(
+                config,
+                mindspore_dtype=mindspore_dtype,
+                hard_check_only=False,
+            )
+        elif requested_attn_implementation in [None, "sdpa"]:
+            raise NotImplementedError
+        else:
+            config._attn_implementation = "eager"
+
+        return config
+
+    @classmethod
     def can_generate(cls) -> bool:
         """
         Returns whether this model can generate sequences with `.generate()`.
@@ -631,6 +690,43 @@ class MSPreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMix
         if "GenerationMixin" in str(cls.prepare_inputs_for_generation) and "GenerationMixin" in str(cls.generate):
             return False
         return True
+
+    @classmethod
+    def _check_and_enable_flash_attn_2(
+            cls,
+            config,
+            mindspore_dtype=None,
+            hard_check_only: bool = False,
+    ) -> PretrainedConfig:
+        """
+        Checks the availability of Flash Attention 2 and compatibility with the current model.
+
+        If all checks pass and `hard_check_only` is False, the method will set the config attribute `attn_implementation` to "flash_attention_2" so that the model can initialize the correct attention module.
+        """
+        if not cls._supports_flash_attn_2:
+            raise ValueError(
+                f"{cls.__name__} does not support Flash Attention 2.0 yet. Please request to add support where"
+                f" the model is hosted, on its model hub page: https://huggingface.co/{config._name_or_path}/discussions/new"
+                " or in the Transformers GitHub repo: https://github.com/huggingface/transformers/issues/new"
+            )
+
+        if not is_flash_attn_2_available():
+            raise ImportError("FlashAttention2 has been toggled on, but it cannot be used due to some error")
+
+        if mindspore_dtype is None:
+            logger.warning_once(
+                "You are attempting to use Flash Attention 2.0 without specifying a MindSpore dtype. This might lead to unexpected behaviour"
+            )
+        elif mindspore_dtype is not None and mindspore_dtype not in [ms.float16, ms.bfloat16]:
+            logger.warning_once(
+                "Flash Attention 2.0 only supports ms.float16 and ms.bfloat16 dtypes, but"
+                f" the current dype in {cls.__name__} is {mindspore_dtype}. You should run training or inference using Automatic Mixed-Precision via the `network=auto_mix_precision(network, ...)` decorator,"
+                ' or load the model with the `mindspore_dtype` argument. Example: `model = AutoModel.from_pretrained("openai/whisper-tiny", attn_implementation="flash_attention_2", mindspore_dtype=ms.float16)`'
+            )
+
+        if not hard_check_only:
+            config._attn_implementation = "flash_attention_2"
+        return config
 
     def get_input_embeddings(self) -> nn.Cell:
         """
@@ -1351,6 +1447,7 @@ class MSPreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMix
         subfolder = kwargs.pop("subfolder", "")
         commit_hash = kwargs.pop("_commit_hash", None)
         variant = kwargs.pop("variant", None)
+        use_flash_attention_2 = kwargs.pop("use_flash_attention_2", False)
 
         if use_auth_token is not None:
             warnings.warn(
@@ -1744,7 +1841,12 @@ class MSPreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMix
                 loaded_state_dict_keys = list(state_dict.keys())
 
         config.name_or_path = pretrained_model_name_or_path
+
         config = copy.deepcopy(config)  # We do not want to modify the config inplace in from_pretrained.
+        config = cls._autoset_attn_implementation(
+            config, use_flash_attention_2=use_flash_attention_2, mindspore_dtype=mindspore_dtype
+        )
+
         model = cls(config, *model_args, **model_kwargs)
         # We cannot set default mindspore dtype. So we need to cast model weights after creating.
         if mindspore_dtype is not None:

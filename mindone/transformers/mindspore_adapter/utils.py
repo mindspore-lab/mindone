@@ -1,6 +1,8 @@
 import mindspore as ms
 import numpy as np
-from mindspore import Tensor, Parameter, context, ParallelMode
+from mindspore import Tensor, Parameter, ParallelMode
+
+from transformers.utils.import_utils import _is_package_available
 
 
 _DTYPE_2_STRING = {
@@ -36,11 +38,15 @@ def dtype_to_min(dtype):
 
 
 def _is_parallel():
-    return context.get_auto_parallel_context("parallel_mode") not in (ParallelMode.STAND_ALONE,)
+    return ms.context.get_auto_parallel_context("parallel_mode") not in (ParallelMode.STAND_ALONE,)
 
 
 def _is_graph():
-    return context.get_context("mode") == context.GRAPH_MODE
+    return ms.context.get_context("mode") == ms.GRAPH_MODE
+
+
+def _is_ascend():
+    return ms.context.get_context("device_target") == "Ascend"
 
 
 # FIXME: Can't work on MindSpore 2.3.0

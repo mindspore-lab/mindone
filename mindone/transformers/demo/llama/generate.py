@@ -16,7 +16,7 @@ def run_llama3_generate(args):
     s_time = time.time()
 
     tokenizer = AutoTokenizer.from_pretrained(args.model_path)
-    model = LlamaForCausalLM.from_pretrained(args.model_path)
+    model = LlamaForCausalLM.from_pretrained(args.model_path, use_flash_attention_2=args.use_fa)
 
     print(f"=====> Building model done.")
 
@@ -57,6 +57,7 @@ if __name__ == '__main__':
     parser.add_argument("--pynative_synchronize", type=ast.literal_eval, default=True)
     parser.add_argument("--jit_level", type=str, default="O0")
     parser.add_argument("--model_path", type=str, default="../hf_configs/meta-llama/Meta-Llama-3-8B")
+    parser.add_argument("--use_fa", type=ast.literal_eval, default=True)
     parser.add_argument("--use_cache", type=ast.literal_eval, default=True)
     parser.add_argument("--use_embed_input", type=ast.literal_eval, default=True)
     args, _ = parser.parse_known_args()
