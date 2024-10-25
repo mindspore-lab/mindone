@@ -96,9 +96,3 @@ def save_videos(frames: np.ndarray, path: str, fps: Union[int, float] = 8, loop=
         else:
             create_video_from_numpy_frames(frames[0], path, fps, fmt, loop)
 
-
-if __name__ == "__main__":
-    import numpy as np
-
-    img_arr = np.zeros([64, 256, 256, 3]).astype(np.uint8)
-    create_video_from_rgb_numpy_arrays(img_arr, "tmp.mp4", fps=24)
