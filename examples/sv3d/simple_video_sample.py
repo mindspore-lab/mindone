@@ -144,14 +144,6 @@ class SV3DInferPipeline(nn.Cell):
 
         additional_model_inputs = {}
         additional_model_inputs["image_only_indicator"] = ops.zeros((2, self.num_frames))
-        # additional_model_inputs["num_video_frames"] = batch["num_video_frames"]
-
-        # calling self.model.model under .construct() is NOT working
-        # def denoiser(input, sigma, c):
-        #     return self.model.denoiser(
-        #         self.model.model, input, sigma, c, **additional_model_inputs
-        #     )
-
         samples_z = self.model.sampler(
             self.model, randn, cond=c, uc=uc, num_frames=self.num_frames, **additional_model_inputs
         )
@@ -285,11 +277,7 @@ def get_batch(keys, value_dict, N, T):
     batch_uc = {}
 
     for key in keys:
-        if key == "fps_id":
-            batch[key] = Tensor([value_dict["fps_id"]]).repeat(int(math.prod(N)))
-        elif key == "motion_bucket_id":
-            batch[key] = Tensor([value_dict["motion_bucket_id"]]).repeat(int(math.prod(N)))
-        elif key == "cond_aug":
+        if key == "cond_aug":
             batch[key] = Tensor([value_dict["cond_aug"]]).repeat(math.prod(N))
         elif key == "cond_frames" or key == "cond_frames_without_noise":
             # batch[key] = repeat(value_dict[key], "1 ... -> b ...", b=N[0])

@@ -36,9 +36,9 @@ pip install -r requirements.txt
 ```
 2. Inference is tested on the machine with the following specs using 1x NPU:
 ```text
-Mindspore Version:               2.3.0.B528
-CANN Version:                    7.3
-Ascend Driver:                   23.0.rc3.6
+Mindspore Version:               2.4.0
+CANN Version:                    7.5
+Ascend Driver:                   24.1.rc3.b080
 ```
 
 ## Pretrained Models
@@ -47,9 +47,21 @@ You can easily convert [the SV3D ckpt](https://huggingface.co/stabilityai/sv3d/b
 ## Inference
 
 ```shell
-python simple_video_sample.py --config configs/sv3d_u.yaml \
---ckpt PATH_TO_CKPT \
---image PATH_TO_INPUT_IMAGE
+python simple_video_sample.py \
+    --config configs/sv3d_u.yaml \
+    --ckpt PATH_TO_CKPT \
+    --image PATH_TO_INPUT_IMAGE
+```
+
+## Training
+1. Prepare the SVD checkpoints as mentioned in the paper. SV3D needs to be finetuned from SVD to cut down training time.
+2. Prepare Objaverse overfitting dataset, can refer to our implementation in another 3D project [here](instantmeshpr).
+3. Comment out the VAE setup in the original cfg file, and uncomment those for training. We found that the original cfg setup for SV3D cannot diverge with SVD checkpoints loaded during SV3D training. By modifying the cfgs, the correct VAE can be obtained and overfitting training converges within hours.
+
+
+```shell
+python train.py --model_cfg configs/sampling/sv3d_u.yaml \
+--train_cfg 
 ```
 
 ## Acknowledgements
