@@ -449,6 +449,7 @@ class LlamaFlashAttention2(LlamaAttention):
 
         # 1. flash attention
         if attention_mask is not None:  # no matter the length, we just slice it
+            breakpoint()
             attention_mask = attention_mask[:, :, :, : key_states.shape[-2]]
         attention_mask = self.convert_mask_to_fa_format(attention_mask)
         attn_output = self.flash_attention(query_states, key_states, value_states, attention_mask)
