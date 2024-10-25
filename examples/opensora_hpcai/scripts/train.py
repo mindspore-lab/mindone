@@ -70,7 +70,7 @@ def init_env(
     dynamic_shape: bool = False,
     enable_sequence_parallelism: bool = False,
     sequence_parallel_shards: int = 1,
-    save_graphs: bool=False,
+    save_graphs: int = False,
     debug: bool = False,
 ) -> Tuple[int, int]:
     """
@@ -162,9 +162,9 @@ def init_env(
     if dynamic_shape:
         logger.info("Dynamic shape mode enabled, repeat_interleave/split/chunk will be called from mint module")
         set_dynamic_mode(True)
-    
-    if save_graphs:
-        ms.set_context(save_graphs=True)
+
+    if save_graphs > 0:
+        ms.set_context(save_graphs=args.save_graphs)
 
     return rank_id, device_num
 
