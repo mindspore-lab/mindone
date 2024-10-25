@@ -1,3 +1,4 @@
+unset RANK_TABLE_FILE
 export ASCEND_RT_VISIBLE_DEVICES=0,1
 
 msrun --master_port=8200 --worker_num=2 --local_worker_num=2 --log_dir="logs" scripts/inference.py \
