@@ -309,10 +309,11 @@ class TopPLogitsWarper(LogitsWarper):
 
             # scatter sorted tensors to original indexing
             # indices_to_remove = sorted_indices_to_remove.scatter(1, sorted_indices, sorted_indices_to_remove)
+            sorted_indices_to_remove = sorted_indices_to_remove.astype(ms.int32)
             indices_to_remove = ops.tensor_scatter_elements(
                 sorted_indices_to_remove, indices=sorted_indices, updates=sorted_indices_to_remove, axis=1)
 
-            scores_processed = scores.masked_fill(indices_to_remove, filter_value)
+            scores_processed = scores.masked_fill(indices_to_remove.astype(ms.bool_), filter_value)
         elif isinstance(scores, np.ndarray):
             raise NotImplementedError
         else:
