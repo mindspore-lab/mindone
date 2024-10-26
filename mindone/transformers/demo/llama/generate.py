@@ -41,6 +41,7 @@ def run_llama3_generate(args):
             use_cache=args.use_cache,
             max_new_tokens=20
         )
+        output_ids = output_ids.asnumpy()
 
         outputs = tokenizer.batch_decode(output_ids, skip_special_tokens=True)[0].strip()
 
