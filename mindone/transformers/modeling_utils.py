@@ -2072,8 +2072,6 @@ class MSPreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMix
             # Whole checkpoint
             state_dict = _convert_state_dict(model, state_dict, start_prefix)
 
-            breakpoint()
-
             mismatched_keys = _find_mismatched_keys(
                 state_dict,
                 model_state_dict,
@@ -2100,6 +2098,8 @@ class MSPreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMix
             for shard_file in resolved_archive_file:
                 state_dict = load_state_dict(shard_file)
                 state_dict = _convert_state_dict(model, state_dict, start_prefix)
+
+                breakpoint()
 
                 # Mismatched keys contains tuples key/shape1/shape2 of weights in the checkpoint that have a shape not
                 # matching the weights in the model.
