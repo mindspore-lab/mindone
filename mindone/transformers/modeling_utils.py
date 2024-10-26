@@ -2071,6 +2071,9 @@ class MSPreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMix
         if state_dict is not None:
             # Whole checkpoint
             state_dict = _convert_state_dict(model, state_dict, start_prefix)
+
+            breakpoint()
+
             mismatched_keys = _find_mismatched_keys(
                 state_dict,
                 model_state_dict,
