@@ -342,7 +342,7 @@ class StableDiffusionXLPipeline(
                 text_input_ids = text_inputs.input_ids
                 untruncated_ids = tokenizer(prompt, padding="longest", return_tensors="np").input_ids
 
-                if untruncated_ids.shape[-1] >= text_input_ids.shape[-1] and not ops.equal(
+                if untruncated_ids.shape[-1] >= text_input_ids.shape[-1] and not np.array_equal(
                     text_input_ids, untruncated_ids
                 ):
                     removed_text = tokenizer.batch_decode(untruncated_ids[:, tokenizer.model_max_length - 1 : -1])
@@ -1141,7 +1141,7 @@ class StableDiffusionXLPipeline(
                     encoder_hidden_states=prompt_embeds,
                     timestep_cond=timestep_cond,
                     cross_attention_kwargs=self.cross_attention_kwargs,
-                    added_cond_kwargs=added_cond_kwargs,
+                    added_cond_kwargs=ms.mutable(added_cond_kwargs),
                     return_dict=False,
                 )[0]
 
