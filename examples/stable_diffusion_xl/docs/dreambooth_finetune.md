@@ -1,34 +1,25 @@
 # DreamBooth finetune for Stable Diffusion XL (SDXL)
 
-[DreamBooth: Fine Tuning Text-to-Image Diffusion Models for Subject-Driven Generation](https://arxiv.org/abs/2208.12242)
-
-DreamBooth is a method for personalizing text-to-image diffusion models, with just a few images (3~5) of a subject and its name as a Unique Identifier. During fine-tuning, a class-specific prior-preservation loss is applied in parallel, which leverages the semantic prior that the model has on the class and encourages output diversity.
+[DreamBooth](https://arxiv.org/abs/2208.12242) is a method for personalizing text-to-image diffusion models, with just a few images (3~5) of a subject and its name as a Unique Identifier. During fine-tuning, a class-specific prior-preservation loss is applied in parallel, which leverages the semantic prior that the model has on the class and encourages output diversity.
 
 For example, we have 5 images of a specific [dog](https://github.com/google/dreambooth/tree/main/dataset/dog) belonging to the prompt "a sks dog" for fine-tuning, where "sks" is a Unique Identifier. In parallel, images of general dogs, which are the class images in a text prompt "a dog", are inputted, so that the models will not forget other dogs' look.
 
-The `train_dreambooth.py` script implements DreamBooth finetune for SDXL based on MindSpore and Ascend platforms.
+The `train_dreambooth.py` script implements DreamBooth finetune for SDXL.
 
-## Preparation
-
-#### Requirements
+## Requirements
 
 | mindspore      | ascend driver | firmware    | cann toolkit/kernel |
 |:--------------:|:-------------:|:-----------:|:-------------------:|
 | 2.2.10～2.2.12 | 23.0.3        | 7.1.0.5.220 | 7.0.0.beta1         |
 
-Please install openmpi 4.0.3 for distributed mode.
 
-Enter the `example/stable_diffusion_xl` folder and run
+## Pretrained models
 
-```shell
-pip install -r requirement.txt
-```
+Please follow SDXL [weight conversion](./preparation.md#convert-pretrained-checkpoint) for detailed steps and put the pre-trained weight to `./checkpoints/`.
 
-#### Pretrained models
+The scripts automatically download the clip tokenizer. If you have network issues with it, [FAQ Qestion 5](./faq_cn.md#5-连接不上huggingface-报错-cant-load-tokenizer-for-openaiclip-vit-large-patch14) helps.
 
-Download the official pre-train weights from huggingface, convert the weights from `.safetensors` format to Mindspore `.ckpt` format, and put them to `./checkpoints/` folder. Please refer to SDXL [weight_convertion](./preparation.md#convert-pretrained-checkpoint) for detailed steps.
-
-#### Finetuning Dataset Preparation
+## Datasets preparation
 
 The finetuning dataset should contain 3-5 images from the same subject in the same folder.
 
@@ -69,7 +60,7 @@ Before running the fintune scripts `train_dreambooth.py`, please specify the arg
 
 Modify other arguments in the shell when running the command or the hyper-parameters in the config file `sd_xl_base_finetune_dreambooth_lora_910*.yaml` if needed.
 
-Run with multiple NPUs (for example, 4) training using :
+Run with multiple NPUs (for example, 4) training,
 
 ```shell
 mpirun --allow-run-as-root -n 4 python train_dreambooth.py \
@@ -85,7 +76,7 @@ mpirun --allow-run-as-root -n 4 python train_dreambooth.py \
   --device_target Ascend
 ```
 
-Launch a standalone training using:
+Launch a standalone training,
 
 ```shell
 python train_dreambooth.py \
@@ -103,36 +94,21 @@ python train_dreambooth.py \
 
 Our implementation is trained with prior-preservation loss, which avoids overfitting and language drift. We first generate images using the pertained model with a class prompt, and input those data in parallel with our data during finetuning. The `num_class_images` in the arguments of `train_dreambooth.py`  specifies the number of class images for prior-preservation. If not enough images are present in `class_image_path`, additional images will be sampled with `class_prompt`. And you would need to relaunch the training using the command above when sampling is finished. It takes about 25 minutes to sample 50 class images.
 
-Alongside the Unet, **training with the two text encoders in SDXL is also supported**. The implementation is via LoRA as well.  To do so, just replace the config of training commands above with `configs/training/sd_xl_base_finetune_dreambooth_textencoder_lora_910b.yaml`. In our experiment, training without text encoders yields better generation results.
+**Training with the two text encoders in SDXL is supported** by replacing the config of training commands above with `configs/training/sd_xl_base_finetune_dreambooth_textencoder_lora_910b.yaml`. In our experiment, training without text encoders yields better generation results.
 
 
 ## Inference
 
-Notice that the training command above gets finetuned lora weights in the specified `save_path`. Now we could use the inference command to generate images on a given prompt. Assume that the pretrained ckpt path is `checkpoints/sd_xl_base_1.0_ms.ckpt` and the trained lora ckpt path is `runs/SDXL_base_1.0_1000_lora.ckpt`, examples of inference command are as below.
+Training above get finetuned weights in the specified `save_path`. Assume that the pretrained ckpt path is `checkpoints/sd_xl_base_1.0_ms.ckpt` and the trained lora ckpt path is `runs/SDXL_base_1.0_1000_lora.ckpt`. The two paths are separated by a comma without space and passed to the inference command.
 
-* Run with interactive visualization.
-
-  Replace the path of weights and yaml file at the constant `VERSION2SPECS`  in `demo/sampling.py`  , specify the prompt in `__main__` and run:
-
-  ```shell
-  # run with streamlit
-  export PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION=python
-  streamlit run demo/sampling.py --server.port <your_port>
-  ```
-
-* Run with another command:
-
-  ```shell
-  # run with other commands
-  python demo/sampling_without_streamlit.py \
-    --task txt2img \
-    --config configs/training/sd_xl_base_finetune_dreambooth_lora_910b.yaml \
-    --weight checkpoints/sd_xl_base_1.0_ms.ckpt,runs/SDXL_base_1.0_1000_lora.ckpt \
-    --prompt "a sks dog swimming in a pool" \
-    --device_target Ascend
-  ```
-
-The two weights (the pre-trained weight and the finetuned lora weight) for the keyword `weight` are separated by a comma without space.
+```shell
+python demo/sampling_without_streamlit.py \
+  --task txt2img \
+  --config configs/training/sd_xl_base_finetune_dreambooth_lora_910b.yaml \
+  --weight checkpoints/sd_xl_base_1.0_ms.ckpt,runs/SDXL_base_1.0_1000_lora.ckpt \
+  --prompt "a sks dog swimming in a pool" \
+  --device_target Ascend
+```
 
 Examples of generated images with the DreamBooth model using different prompts are shown below.
 
@@ -164,6 +140,7 @@ The [dog6](https://github.com/google/dreambooth/tree/main/dataset/dog6) example 
 
 Experiments are tested on ascend 910* with mindspore 2.2.12 graph mode. Experiments use the Dreambooth method with LoRA and enable UNet training only.
 
-| Model Name    | Card | bs * grad accu. |   Resolution       |   Time(ms/step)  |
-|:---------------:|:----------------:|:----------------:|------------------|:----------------:|
-| SDXL-Base     |      1            |      1x1             |     1024x1024         |       1280       |
+| model name    | card | bs * grad accu. |   resolution       |  flash attention |  ms/step  | fps |
+|:---------------:|:----------------:|:----------------:|------------------| :--: |:----------------:|:--: |
+| SDXL-Base     |      1            |      1x1             |     1024x1024         | ON |       1280       |0.78 |
+> fps: images per second during training. average training time (s/step) = batch_size / fps

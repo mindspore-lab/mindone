@@ -11,17 +11,11 @@
 |:-------------:|:-------------:|:-----------:|:-------------------:|
 |2.2.10～2.2.12 | 23.0.3        | 7.1.0.5.220  | 7.0.0.beta1         |
 
-To install the dependency, please run
-
-```shell
-pip install -r requirements.txt
-```
-
 ## Pretrained models
 
-Download the official pre-train weights from huggingface, convert the weights from `.safetensors` format to Mindspore `.ckpt` format, and put them in `./checkpoints/` folder. Please refer to SDXL [weight_convertion](./preparation.md#convert-pretrained-checkpoint) for detailed steps.
+Please follow SDXL [weight convertion](./preparation.md#convert-pretrained-checkpoint) for detailed steps and put the pretrained weight to `./checkpoints/`.
 
-The inference scripts automatically download the clip tokenizer, but if you have network issues with it, please manually download [openai/clip-vit-large-patch14](https://huggingface.co/openai/clip-vit-large-patch14) from huggingface and change `version: openai/clip-vit-large-patch14` in `configs/inference/sd_xl_base.yaml` to `version: your_path/to/clip-vit-large-patch14`
+The scripts automatically download the clip tokenizer. If you have network issues with it, [FAQ Qestion 5](./faq_cn.md#5-连接不上huggingface-报错-cant-load-tokenizer-for-openaiclip-vit-large-patch14) helps.
 
 ## Inference
 
@@ -67,22 +61,8 @@ python demo/sampling_without_streamlit.py \
   --pipeline_weight checkpoints/sd_xl_refiner_1.0_ms.ckpt
 ```
 
-### 3. Inference with T2i-Adapter
 
-T2I-Adapter is a simple and lightweight network that provides extra visual guidance for
-Stable Diffusion models without re-training them. The adapter acts as a plug-in to SDXL models, making it easy to
-integrate and use.
-
-Please refer to [T2I-Adapter](../../t2i_adapter/README.md) page for inference and training with T2I-Adapters.
-
-### 4. Inference with ControlNet
-
-ControlNet controls pretrained large diffusion models to support additional input conditions. The ControlNet learns task-specific conditions in an end-to-end way, and the learning is robust even when the training dataset is small. Large diffusion models like Stable Diffusion can be augmented with ControlNets to enable conditional inputs like canny edge maps, segmentation maps, key points, etc.
-
-Please refer to [ControlNet](controlnet.md) page for inference and training with ControlNet.
-
-
-### 5. Inference with different schedulers
+### 4. Inference with different schedulers
 
 A scheduler defines how to iteratively add noise to an image in training and how to update a sample based on a model’s output in inference.
 
@@ -124,11 +104,11 @@ Examples of [EDM-style](https://arxiv.org/abs/2006.11239) inference are as below
     --rho 7.0
   ```
 
-### 6. Inference with LCM sampler
+### 5. Inference with LCM sampler
 
 [Latent Consistency Models (LCM)](https://arxiv.org/abs/2310.04378) enable quality image generation in typically 2-4 steps making it possible to use diffusion models in almost real-time settings.
 
-We need checkpoint conversion first:
+LCM uses a different UNet weight from the offical SDXL weights from stabilityai, so need another checkpoint conversion.
 
 1. Download the [vae](https://huggingface.co/stabilityai/stable-diffusion-xl-base-1.0/tree/main/vae), [text_encoder](https://huggingface.co/stabilityai/stable-diffusion-xl-base-1.0/tree/main/text_encoder), [text_encoder_2](https://huggingface.co/stabilityai/stable-diffusion-xl-base-1.0/tree/main/text_encoder_2) folders from the official sdxl-base, and the [unet](https://huggingface.co/latent-consistency/lcm-sdxl/tree/main) from lcm-sdxl on hugging face. Put the 4 folders in a local path as HF Diffusers format weights.
 
@@ -190,7 +170,7 @@ python demo/sampling_without_streamlit.py \
 ## Performance
 
 Experiments are tested on ascend 910* with mindspore 2.2.12 raph mode.
-| Model Name    | ImageSize | Compile Cost |Flash Attention| Sampler  | Sample Step | Sample Time |
+| model name    | resolution | compile cost |flash attention| sampler  | sample step | sample time |
 |:-------------:|:---------:|:------------:|:-------------:|:--------:|:-----------:|:-----------:|
 | SDXL-Base     | 1024x1024 | 182s         | ON            | EulerEDM | 40          | 6.66s       |
 | SDXL-Base     | 1024x1024 | 182s         | ON            | DPM++2M Karras | 20    | 4.3s        |

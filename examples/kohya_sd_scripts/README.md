@@ -299,7 +299,7 @@ python sdxl_minimal_inference.py \
 
 Experiments are tested on ascend 910* with mindspore 2.3.0 graph mode, enabling unet training only.
 
-| NPUs | Global Batch size | Resolution | Mixed Precision | Graph Compile | Jit level | Speed (s/step) |
+| cards | global batch size | resolution | mixed precision | graph compile | jit level | s/step |
 | ---- | ----------------- | ---------- | --------------- | ------------- | -------------- | -------------- |
 | 1    | 1*1               | 1024x1024  | None     | 24mins | O1 | 1.66s-1.8s     |
 | 1    | 1*1               | 1024x1024  | fp16            | 33mins | O1   | 1.66s-1.8s     |

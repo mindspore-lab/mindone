@@ -1,4 +1,4 @@
-# Configuration Guidance for Training
+# Training config guide
 
 ## 1. Script parameters
 
@@ -10,12 +10,12 @@
 - `--per_batch_size`: training batch size of per device card
 - `--gradient_accumulation_steps`: gradient accumulation steps
 - `--clip_grad`: whether apply gradient clipping
-- `--max_grad_norm`: max gradient norm for clipping, effective when `clip_grad` enabled.
+- `--max_grad_norm`: max gradient norm for clipping, effective when `clip_grad` is enabled.
 - `--use_ema`: whether use ema
 - `--scale_lr`: whether scale lr with global batch size
 - `--max_device_memory`: set the maximum memory usage for model training, recommended to `59GB` on 910*
 
-- `--is_parallel`: whether to train the model in parallel, must be `True` during multi card training
+- `--is_parallel`: whether to train the model in parallel, must be `True` during multi-card training
 
 - `--data_sink`: whether sink data to npu device
 - `--sink_size`: sink size, effective when `data_sink` enabled.
@@ -97,7 +97,7 @@ python train.py \
   ```
 
 
-## 2. Configure
+## 2. Config file
 
 ```shell
 # Diffusion Engine
@@ -226,7 +226,7 @@ data:
 
 ## 3. Long prompts training
 
-By default, SDXL only supports the token sequence no longer than 77. For those sequences longer than 77, they will be truncated to 77, which can cause information loss.
+By default, SDXL only supports the token sequence no longer than 77. Those sequences longer than 77 will be truncated to 77, which can cause information loss.
 
 To avoid information loss for long text prompts, we add the feature of long prompts training. Long prompts training is supported by `args.lpw` in `train.py`.
 
@@ -242,7 +242,7 @@ python train.py \
 
 By default, SDXL uses DDPM for training. It can be changed to the EDM-style training by configuring the `denoiser` and other related parameters of the training.
 
-We have provided a EDM-style-training yaml configuration file, in which parameters `denoiser_config` its associated `weighting_config,` and `scaling_config` are modified to support EDM training. You can refer to the following case to make it effective.
+We have provided an EDM-style-training yaml configuration file, in which parameters `denoiser_config` its associated `weighting_config,` and `scaling_config` are modified to support EDM training. You can refer to the following case to make it effective.
 
 ```shell
 python train.py \

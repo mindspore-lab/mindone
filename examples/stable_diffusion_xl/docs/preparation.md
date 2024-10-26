@@ -2,9 +2,9 @@
 
 ## Requirements
 
-| hardware    | mindspore      | ascend driver | firmware    | cann toolkit/kernel |
-|:-----------:|:--------------:|:-------------:|:-----------:|:-------------------:|
-| Ascend 910* | 2.2.10～2.2.12 | 23.0.3        | 7.1.0.5.220 | 7.0.0.beta1         |
+| mindspore      | ascend driver | firmware    | cann toolkit/kernel |
+|:--------------:|:-------------:|:-----------:|:-------------------:|
+| 2.2.10～2.2.12 | 23.0.3        | 7.1.0.5.220 | 7.0.0.beta1         |
 
 
 Please install [openmpi 4.0.3](https://www.open-mpi.org/software/ompi/v4.0/) for distributed mode.
@@ -57,7 +57,7 @@ python convert_diffusers_to_mindone_sdxl.py \
 
 ## Dataset Preparation for Fine-Tuning (Optional)
 
-Please also refer to docs of specific finetune methods for data preparation.
+Please also refer to the docs of specific finetune methods for data preparation.
 
 ### General text-image datasets
 

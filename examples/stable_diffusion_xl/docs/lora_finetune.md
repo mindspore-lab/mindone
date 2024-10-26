@@ -1,6 +1,6 @@
-# Lora Finetune
+# LoRA Finetune
 
-We provide the script `train.py` for lora finetuning of sdxl.
+We provide the script `train.py` for [LoRA](https://arxiv.org/abs/2106.09685) finetune of sdxl.
 
 ## Requirements
 
@@ -10,11 +10,15 @@ We provide the script `train.py` for lora finetuning of sdxl.
 
 ## Pretrained models
 
-Download the official pre-train weights from huggingface, convert the weights from `.safetensors` format to Mindspore `.ckpt` format, and put them in `./checkpoints/` folder. Please refer to SDXL [weight_convertion](./preparation.md#convert-pretrained-checkpoint) for detailed steps.
+Please follow SDXL [weight conversion](./preparation.md#convert-pretrained-checkpoint) for detailed steps and put the pre-trained weight to `./checkpoints/`.
 
-The scripts automatically download the clip tokenizer, but if you have network issues with it, please manually download [openai/clip-vit-large-patch14](https://huggingface.co/openai/clip-vit-large-patch14) from huggingface and change `version: openai/clip-vit-large-patch14` in `configs/inference/sd_xl_base.yaml` to `version: your_path/to/clip-vit-large-patch14`.
+The scripts automatically download the clip tokenizer. If you have network issues with it, [FAQ Qestion 5](./faq_cn.md#5-连接不上huggingface-报错-cant-load-tokenizer-for-openaiclip-vit-large-patch14) helps.
 
-## lora finetune
+## Datasets preparation
+
+See [dataset preparation](./preparation.md#general-text-image-datasets) to prepare a general text-image dataset for LoRA finetune.
+
+## Finetuning
 
 ```shell
 # sdxl-base lora fine-tune with 1p on Ascend
@@ -22,10 +26,11 @@ python train.py \
   --config configs/training/sd_xl_base_finetune_lora_910b.yaml \
   --weight checkpoints/sd_xl_base_1.0_ms.ckpt \
   --data_path /PATH TO/YOUR DATASET/ \
-  --gradient_accumulation_steps 4 \
+  --gradient_accumulation_steps 4
 ```
 
-## Inference, run lora(unmerge weight) without streamlit on Ascend
+## Inference
+Run lora (unmerge weight) without streamlit,
 
 ```shell
 python demo/sampling_without_streamlit.py \
@@ -40,10 +45,10 @@ python demo/sampling_without_streamlit.py \
 
 Experiments are tested on ascend 910* with mindspore 2.2.10 graph mode.
 
-| Model Name      | Card | bs * grad accu. |   Resolution       |   acceleration   |   Time(ms/step)  |   FPS (img/s)|
-|---------------|:------------------:|:----------------:|:----------------:|:----------------:|------------------|:----------------:|
-| SDXL-Base     |      1            |      1x1             |     1024x1024         | DS           |       539.77         |    1.85       |
-| SDXL-Base     |      1            |      1x1             |     1024x1024         | FA, DS |       524.38          |    1.91   |
-> Acceleration: DS: data sink mode. FA: flash attention.
+| model name      | card | bs * grad accu. |   resolution       |   ds   | fa |   ms/step  |   fps (img/s)|
+|---------------|:------------------:|:----------------:|:----------------:|:--:|:----------------:|------------------|:----------------:|
+| SDXL-Base     |      1            |      1x1             |     1024x1024         | ON    |OFF       |       539.77         |    1.85       |
+| SDXL-Base     |      1            |      1x1             |     1024x1024         | ON| ON |       524.38          |    1.91   |
+> ds: data sink mode. fa: flash attention.
 >
->FPS: images per second during training. average training time (s/step) = batch_size / FPS
+> fps: images per second during training. average training time (s/step) = batch_size / fps
