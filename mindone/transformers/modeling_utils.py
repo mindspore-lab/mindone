@@ -2099,8 +2099,6 @@ class MSPreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMix
                 state_dict = load_state_dict(shard_file)
                 state_dict = _convert_state_dict(model, state_dict, start_prefix)
 
-                breakpoint()
-
                 # Mismatched keys contains tuples key/shape1/shape2 of weights in the checkpoint that have a shape not
                 # matching the weights in the model.
                 mismatched_keys += _find_mismatched_keys(
