@@ -108,7 +108,7 @@ Examples of [EDM-style](https://arxiv.org/abs/2006.11239) inference are as below
 
 [Latent Consistency Models (LCM)](https://arxiv.org/abs/2310.04378) enable quality image generation in typically 2-4 steps making it possible to use diffusion models in almost real-time settings.
 
-LCM uses a different UNet weight from the offical SDXL weights from stabilityai, so need another checkpoint conversion.
+LCM uses a different UNet weight from the offical SDXL weights of stabilityai, so we need another checkpoint conversion.
 
 1. Download the [vae](https://huggingface.co/stabilityai/stable-diffusion-xl-base-1.0/tree/main/vae), [text_encoder](https://huggingface.co/stabilityai/stable-diffusion-xl-base-1.0/tree/main/text_encoder), [text_encoder_2](https://huggingface.co/stabilityai/stable-diffusion-xl-base-1.0/tree/main/text_encoder_2) folders from the official sdxl-base, and the [unet](https://huggingface.co/latent-consistency/lcm-sdxl/tree/main) from lcm-sdxl on hugging face. Put the 4 folders in a local path as HF Diffusers format weights.
 
@@ -169,7 +169,7 @@ python demo/sampling_without_streamlit.py \
 
 ## Performance
 
-Experiments are tested on ascend 910* with mindspore 2.2.12 raph mode.
+Experiments are tested on ascend 910* with mindspore 2.2.12 graph mode.
 | model name    | resolution | compile cost |flash attention| sampler  | sample step | sample time |
 |:-------------:|:---------:|:------------:|:-------------:|:--------:|:-----------:|:-----------:|
 | SDXL-Base     | 1024x1024 | 182s         | ON            | EulerEDM | 40          | 6.66s       |
