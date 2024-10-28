@@ -76,6 +76,7 @@ class VideoDataset:
             self.read_from_data_file = True
         else:
             self.real_video_files = self.combine_without_prefix(real_video_dir)
+            self.read_from_data_file = False
         self.generated_video_files = self.combine_without_prefix(generated_video_dir)
         assert (
             len(self.real_video_files) == len(self.generated_video_files) and len(self.real_video_files) > 0
@@ -171,7 +172,7 @@ class VideoDataset:
                 continue
             if osp.isfile(osp.join(folder_path, name)):
                 folder.append(osp.join(folder_path, name))
-        folder = folder.sorted(folder, key=lambda x: os.path.basename(x))
+        folder = sorted(folder, key=lambda x: os.path.basename(x))
         return folder
 
 
