@@ -28,7 +28,7 @@ def run_llama3_generate_pt(args):
             break
 
         prompt = [prompt,]
-        input_ids = torch.tensor(tokenizer(prompt).input_ids, torch.int32)
+        input_ids = torch.tensor(tokenizer(prompt).input_ids)
 
         input_kwargs = {}
         if args.use_embed_input:
