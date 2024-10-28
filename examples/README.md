@@ -13,6 +13,7 @@ Here we provide various examples for image/video/audio generation models built o
 
 </details>
 
+![289498762-8b695f01-4220-4d4f-afff-01ae604169e0 (1)(1)](https://github.com/user-attachments/assets/c4f6e077-0079-47fa-b777-7895585857f6)
 
 <details open markdown>
 <summary> Video Generation </summary>
