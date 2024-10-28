@@ -496,13 +496,13 @@ def main(args):
 
         # save result
         for j in range(ns):
-            global_idx = base_data_idx + i + j
             if args.text_embed_folder is None:
+                global_idx = base_data_idx + i + j
                 prompt = "-".join((batch_prompts[j][0].replace("/", "").split(" ")[:10]))
                 save_fp = f"{save_dir}/{global_idx:03d}-{prompt}.{args.save_format}"
                 latent_save_fp = f"{latent_dir}/{global_idx:03d}-{prompt}.npy"
             else:
-                fn = prompt_prefix[global_idx]
+                fn = prompt_prefix[i + j]
                 save_fp = f"{save_dir}/{fn}.{args.save_format}"
                 latent_save_fp = f"{latent_dir}/{fn}.npy"
 
