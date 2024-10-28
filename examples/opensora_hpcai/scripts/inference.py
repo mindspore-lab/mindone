@@ -163,11 +163,13 @@ def main(args):
         latent_condition_frame_length = round(latent_condition_frame_length / 17 * 5)
 
     captions = process_prompts(captions, args.loop)  # in v1.1 and above, each loop can have a different caption
-    start_idx, end_idx = 0, len(captions)
+    start_idx = 0
+    end_idx = len(
+        captions if args.text_embed_folder is None else glob.glob(os.path.join(args.text_embed_folder, "*.npz"))
+    )
     if not args.enable_sequence_parallelism:
         # split samples to NPUs as even as possible
-        start_idx, end_idx = distribute_samples(len(captions), rank_id, device_num)
-        captions = captions[start_idx:end_idx]
+        start_idx, end_idx = distribute_samples(end_idx, rank_id, device_num)
         if args.reference_path is not None:
             args.reference_path = args.reference_path[start_idx:end_idx]
         if args.mask_strategy is not None:
@@ -177,7 +179,7 @@ def main(args):
         base_data_idx = 0
 
     if args.use_parallel and not args.enable_sequence_parallelism:
-        print(f"Num captions for rank {rank_id}: {len(captions)}")
+        print(f"Num captions for rank {rank_id}: {end_idx - start_idx}")
 
     # 2. model initiate and weight loading
     # 2.1 vae
@@ -289,6 +291,7 @@ def main(args):
         text_encoder, tokenizer = get_text_encoder_and_tokenizer(
             "t5", args.t5_model_dir, model_max_length=args.model_max_length
         )
+        captions = captions[start_idx:end_idx]
         num_prompts = len(captions)
         text_tokens, mask = zip(
             *[text_encoder.get_text_tokens_and_mask(caption, return_tensor=False) for caption in captions]
@@ -309,10 +312,10 @@ def main(args):
         if args.model_version != "v1":
             logger.warning("For embedded captions, only one prompt per video is supported at this moment.")
 
-        embed_paths = sorted(glob.glob(os.path.join(args.text_embed_folder, "*.npz")))
+        embed_paths = sorted(glob.glob(os.path.join(args.text_embed_folder, "*.npz")))[start_idx:end_idx]
         prompt_prefix = []
         text_tokens, mask, text_emb = [], [], []
-        for fp in embed_paths[start_idx:end_idx]:
+        for fp in embed_paths:
             prompt_prefix.append(os.path.basename(fp)[:-4])
             with np.load(fp) as dat:
                 text_tokens.append(dat["tokens"])
