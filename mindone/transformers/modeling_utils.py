@@ -2094,27 +2094,26 @@ class MSPreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMix
             if len(resolved_archive_file) > 1:
                 resolved_archive_file = logging.tqdm(resolved_archive_file, desc="Loading checkpoint shards")
 
-            # zhy_test
             # loading checkpoint
-            # for shard_file in resolved_archive_file:
-            #     state_dict = load_state_dict(shard_file)
-            #     state_dict = _convert_state_dict(model, state_dict, start_prefix)
-            #
-            #     # Mismatched keys contains tuples key/shape1/shape2 of weights in the checkpoint that have a shape not
-            #     # matching the weights in the model.
-            #     mismatched_keys += _find_mismatched_keys(
-            #         state_dict,
-            #         model_state_dict,
-            #         original_loaded_keys,
-            #         add_prefix_to_model,
-            #         remove_prefix_from_model,
-            #         ignore_mismatched_sizes,
-            #     )
-            #     error_msgs += _load_state_dict_into_model(model_to_load, state_dict, start_prefix, is_sharded=True)
-            #
-            #     # force memory release
-            #     del state_dict
-            #     gc.collect()
+            for shard_file in resolved_archive_file:
+                state_dict = load_state_dict(shard_file)
+                state_dict = _convert_state_dict(model, state_dict, start_prefix)
+
+                # Mismatched keys contains tuples key/shape1/shape2 of weights in the checkpoint that have a shape not
+                # matching the weights in the model.
+                mismatched_keys += _find_mismatched_keys(
+                    state_dict,
+                    model_state_dict,
+                    original_loaded_keys,
+                    add_prefix_to_model,
+                    remove_prefix_from_model,
+                    ignore_mismatched_sizes,
+                )
+                error_msgs += _load_state_dict_into_model(model_to_load, state_dict, start_prefix, is_sharded=True)
+
+                # force memory release
+                del state_dict
+                gc.collect()
 
         if len(error_msgs) > 0:
             error_msg = "\n\t".join(error_msgs)

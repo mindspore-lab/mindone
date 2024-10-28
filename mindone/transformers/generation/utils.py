@@ -1148,7 +1148,7 @@ class GenerationMixin:
         padded_position_ids = ops.zeros((bs, max_length), ms.int32)
         padded_attention_mask = ops.zeros((bs, max_length), ms.bool_)
 
-        padded_inputs_embeds = ops.zeros((bs, max_length, emb_length), ms.int32) if inputs_embeds is not None else None
+        padded_inputs_embeds = ops.zeros((bs, max_length, emb_length), inputs_embeds.dtype) if inputs_embeds is not None else None
 
         _labels = labels
         _position_ids = position_ids
