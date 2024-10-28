@@ -1,3 +1,6 @@
+
+from transformers.utils import is_datasets_available
+
 from ..mindspore_adapter.utils import _is_ascend
 
 
