@@ -7,7 +7,6 @@ from mindspore import nn, ops
 from ...configuration_utils import ConfigMixin, register_to_config
 from ...loaders import UNet2DConditionLoadersMixin
 from ...utils import BaseOutput, logging
-from ..activations import SiLU
 from ..attention_processor import CROSS_ATTENTION_PROCESSORS, AttentionProcessor, AttnProcessor
 from ..embeddings import TimestepEmbedding, Timesteps
 from ..modeling_utils import ModelMixin
@@ -32,8 +31,8 @@ class UNetSpatioTemporalConditionOutput(BaseOutput):
 
 class UNetSpatioTemporalConditionModel(ModelMixin, ConfigMixin, UNet2DConditionLoadersMixin):
     r"""
-    A conditional Spatio-Temporal UNet model that takes a noisy video frames, conditional state, and a timestep and returns a sample
-    shaped output.
+    A conditional Spatio-Temporal UNet model that takes a noisy video frames, conditional state, and a timestep and
+    returns a sample shaped output.
 
     This model inherits from [`ModelMixin`]. Check the superclass documentation for it's generic methods implemented
     for all models (such as downloading or saving).
@@ -60,8 +59,9 @@ class UNetSpatioTemporalConditionModel(ModelMixin, ConfigMixin, UNet2DConditionL
             The dimension of the cross attention features.
         transformer_layers_per_block (`int`, `Tuple[int]`, or `Tuple[Tuple]` , *optional*, defaults to 1):
             The number of transformer blocks of type [`~models.attention.BasicTransformerBlock`]. Only relevant for
-            [`~models.unet_3d_blocks.CrossAttnDownBlockSpatioTemporal`], [`~models.unet_3d_blocks.CrossAttnUpBlockSpatioTemporal`],
-            [`~models.unet_3d_blocks.UNetMidBlockSpatioTemporal`].
+            [`~models.unets.unet_3d_blocks.CrossAttnDownBlockSpatioTemporal`],
+            [`~models.unets.unet_3d_blocks.CrossAttnUpBlockSpatioTemporal`],
+            [`~models.unets.unet_3d_blocks.UNetMidBlockSpatioTemporal`].
         num_attention_heads (`int`, `Tuple[int]`, defaults to `(5, 10, 10, 20)`):
             The number of attention heads.
         dropout (`float`, *optional*, defaults to 0.0): The dropout probability to use.
@@ -249,7 +249,7 @@ class UNetSpatioTemporalConditionModel(ModelMixin, ConfigMixin, UNet2DConditionL
 
         # out
         self.conv_norm_out = GroupNorm(num_channels=block_out_channels[0], num_groups=32, eps=1e-5)
-        self.conv_act = SiLU()
+        self.conv_act = nn.SiLU()
 
         self.conv_out = nn.Conv2d(
             block_out_channels[0],
@@ -356,10 +356,10 @@ class UNetSpatioTemporalConditionModel(ModelMixin, ConfigMixin, UNet2DConditionL
             if hasattr(module, "set_chunk_feed_forward"):
                 module.set_chunk_feed_forward(chunk_size=chunk_size, dim=dim)
 
-            for child in module.name_cells().items():
+            for child in module.name_cells().values():
                 fn_recursive_feed_forward(child, chunk_size, dim)
 
-        for module in self.name_cells().items():
+        for module in self.name_cells().values():
             fn_recursive_feed_forward(module, chunk_size, dim)
 
     def construct(
@@ -383,12 +383,12 @@ class UNetSpatioTemporalConditionModel(ModelMixin, ConfigMixin, UNet2DConditionL
                 The additional time ids with shape `(batch, num_additional_ids)`. These are encoded with sinusoidal
                 embeddings and added to the time embeddings.
             return_dict (`bool`, *optional*, defaults to `False`):
-                Whether or not to return a [`~models.unet_slatio_temporal.UNetSpatioTemporalConditionOutput`] instead of a plain
-                tuple.
+                Whether or not to return a [`~models.unet_slatio_temporal.UNetSpatioTemporalConditionOutput`] instead
+                of a plain tuple.
         Returns:
             [`~models.unet_slatio_temporal.UNetSpatioTemporalConditionOutput`] or `tuple`:
-                If `return_dict` is True, an [`~models.unet_slatio_temporal.UNetSpatioTemporalConditionOutput`] is returned, otherwise
-                a `tuple` is returned where the first element is the sample tensor.
+                If `return_dict` is True, an [`~models.unet_slatio_temporal.UNetSpatioTemporalConditionOutput`] is
+                returned, otherwise a `tuple` is returned where the first element is the sample tensor.
         """
         # 1. time
         timesteps = timestep

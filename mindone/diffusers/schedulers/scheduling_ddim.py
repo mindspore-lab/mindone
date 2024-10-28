@@ -83,7 +83,7 @@ def betas_for_alpha_bar(
             return math.exp(t * -12.0)
 
     else:
-        raise ValueError(f"Unsupported alpha_tranform_type: {alpha_transform_type}")
+        raise ValueError(f"Unsupported alpha_transform_type: {alpha_transform_type}")
 
     betas = []
     for i in range(num_diffusion_timesteps):
@@ -214,7 +214,7 @@ class DDIMScheduler(SchedulerMixin, ConfigMixin):
             # Glide cosine schedule
             self.betas = betas_for_alpha_bar(num_train_timesteps)
         else:
-            raise NotImplementedError(f"{beta_schedule} does is not implemented for {self.__class__}")
+            raise NotImplementedError(f"{beta_schedule} is not implemented for {self.__class__}")
 
         # Rescale for zero SNR
         if rescale_betas_zero_snr:
@@ -445,7 +445,7 @@ class DDIMScheduler(SchedulerMixin, ConfigMixin):
         # 5. compute variance: "sigma_t(η)" -> see formula (16)
         # σ_t = sqrt((1 − α_t−1)/(1 − α_t)) * sqrt(1 − α_t/α_t−1)
         variance = self._get_variance(timestep, prev_timestep)
-        std_dev_t = (eta * variance ** (0.5)).to(dtype=prev_timestep.dtype)
+        std_dev_t = (eta * variance ** (0.5)).to(dtype)
 
         if use_clipped_model_output:
             # the pred_epsilon is always re-derived from the clipped x_0 in Glide
@@ -494,14 +494,16 @@ class DDIMScheduler(SchedulerMixin, ConfigMixin):
         sqrt_alpha_prod = sqrt_alpha_prod.flatten()
         # while len(sqrt_alpha_prod.shape) < len(original_samples.shape):
         #     sqrt_alpha_prod = sqrt_alpha_prod.unsqueeze(-1)
-        sqrt_alpha_prod = ops.reshape(sqrt_alpha_prod, (timesteps.shape[0],) + (1,) * (len(broadcast_shape) - 1))
+        sqrt_alpha_prod = ops.reshape(
+            sqrt_alpha_prod, (timesteps.reshape((-1,)).shape[0],) + (1,) * (len(broadcast_shape) - 1)
+        )
 
         sqrt_one_minus_alpha_prod = (1 - alphas_cumprod[timesteps]) ** 0.5
         sqrt_one_minus_alpha_prod = sqrt_one_minus_alpha_prod.flatten()
         # while len(sqrt_one_minus_alpha_prod.shape) < len(original_samples.shape):
         #     sqrt_one_minus_alpha_prod = sqrt_one_minus_alpha_prod.unsqueeze(-1)
         sqrt_one_minus_alpha_prod = ops.reshape(
-            sqrt_one_minus_alpha_prod, (timesteps.shape[0],) + (1,) * (len(broadcast_shape) - 1)
+            sqrt_one_minus_alpha_prod, (timesteps.reshape((-1,)).shape[0],) + (1,) * (len(broadcast_shape) - 1)
         )
 
         noisy_samples = sqrt_alpha_prod * original_samples + sqrt_one_minus_alpha_prod * noise

@@ -5,7 +5,7 @@ import random
 import time
 from abc import ABCMeta, abstractmethod
 from multiprocessing import Process, Queue
-from typing import Any, Dict, Iterable, List, Optional, Union
+from typing import Any, Dict, Iterable, List, Optional, Tuple, Union
 
 import numpy as np
 from tqdm.auto import tqdm
@@ -13,11 +13,12 @@ from tqdm.auto import tqdm
 import mindspore as ms
 from mindspore import context, nn, ops
 from mindspore.amp import DynamicLossScaler, StaticLossScaler, all_finite
-from mindspore.common.api import _function_forbid_reuse
 from mindspore.communication import get_group_size, get_local_rank, get_rank, init
 
 from mindone.diffusers._peft import set_peft_model_state_dict
 
+from .models import UNet2DConditionModel
+from .schedulers import SchedulerMixin
 from .utils import convert_state_dict_to_diffusers, convert_state_dict_to_peft
 
 logger = logging.getLogger(__name__)
@@ -47,6 +48,58 @@ def compute_snr(noise_scheduler, timesteps):
     # Compute SNR.
     snr = (alpha / sigma) ** 2
     return snr
+
+
+def compute_dream_and_update_latents(
+    unet: UNet2DConditionModel,
+    noise_scheduler: SchedulerMixin,
+    timesteps: ms.Tensor,
+    noise: ms.Tensor,
+    noisy_latents: ms.Tensor,
+    target: ms.Tensor,
+    encoder_hidden_states: ms.Tensor,
+    dream_detail_preservation: float = 1.0,
+) -> Tuple[Optional[ms.Tensor], Optional[ms.Tensor]]:
+    """
+    Implements "DREAM (Diffusion Rectification and Estimation-Adaptive Models)" from http://arxiv.org/abs/2312.00210.
+    DREAM helps align training with sampling to help training be more efficient and accurate at the cost of an extra
+    forward step without gradients.
+
+    Args:
+        `unet`: The state unet to use to make a prediction.
+        `noise_scheduler`: The noise scheduler used to add noise for the given timestep.
+        `timesteps`: The timesteps for the noise_scheduler to user.
+        `noise`: A tensor of noise in the shape of noisy_latents.
+        `noisy_latents`: Previously noise latents from the training loop.
+        `target`: The ground-truth tensor to predict after eps is removed.
+        `encoder_hidden_states`: Text embeddings from the text model.
+        `dream_detail_preservation`: A float value that indicates detail preservation level.
+          See reference.
+
+    Returns:
+        `tuple[ms.Tensor, ms.Tensor]`: Adjusted noisy_latents and target.
+    """
+    alphas_cumprod = noise_scheduler.alphas_cumprod[timesteps, None, None, None]
+    sqrt_one_minus_alphas_cumprod = (1.0 - alphas_cumprod) ** 0.5
+
+    # The paper uses lambda = sqrt(1 - alpha) ** p, with p = 1 in their experiments.
+    dream_lambda = sqrt_one_minus_alphas_cumprod**dream_detail_preservation
+
+    pred = unet(noisy_latents, timesteps, encoder_hidden_states)[0]
+
+    _noisy_latents, _target = (None, None)
+    if noise_scheduler.config["prediction_type"] == "epsilon":
+        predicted_noise = pred
+        delta_noise = ops.stop_gradient(noise - predicted_noise)
+        delta_noise = delta_noise * dream_lambda
+        _noisy_latents = noisy_latents.add(sqrt_one_minus_alphas_cumprod * delta_noise)
+        _target = target.add(delta_noise)
+    elif noise_scheduler.config["prediction_type"] == "v_prediction":
+        raise NotImplementedError("DREAM has not been implemented for v-prediction")
+    else:
+        raise ValueError(f"Unknown prediction type {noise_scheduler.config['prediction_type']}")
+
+    return _noisy_latents, _target
 
 
 def cast_training_params(model: Union[nn.Cell, List[nn.Cell]], dtype=ms.float32):
@@ -265,45 +318,6 @@ class EMAModel:
                 raise ValueError("shadow_params must be a list")
             if not all(isinstance(p, ms.Tensor) for p in self.shadow_params):
                 raise ValueError("shadow_params must all be Tensors")
-
-
-@_function_forbid_reuse
-def multinomial(input, num_samples, replacement=True, **kwargs):
-    assert isinstance(input, ms.Tensor) and input.ndim in (
-        1,
-        2,
-    ), "argument input should be a MindSpore Tensor with 1 or 2 dim."
-    assert (
-        replacement or num_samples <= input.shape[-1]
-    ), "cannot sample n_sample > prob_dist.size(-1) samples without replacement."
-
-    input = input.float()
-    input /= input.sum(-1, keepdims=True)
-
-    if num_samples == 1 or not replacement:
-        # The algorithm is from gumbel softmax.
-        # s = argmax( logp - log(-log(eps)) ) where eps ~ U(0, 1)
-        # Here we can apply exp to the formula which will not affect result of
-        # argmax or topk. Then we have
-        # s = argmax( p / (-log(eps)) ) where eps ~ U(0, 1).
-        # We can also simplify the formula above by
-        # s = argmax( p / q ) where q ~ Exp(1)
-        # No proper Exp generator op in MindSpore,
-        # so we still generate it by -log(eps)
-        q = -ops.log(ops.rand_like(input))
-        if num_samples == 1:
-            result = (input / q).argmax(-1, keepdim=True)
-        else:
-            _, result = ops.topk(input / q, k=num_samples, dim=-1)
-    else:
-        # To generate scalar random variable X with cumulative distribution F(x)
-        # just let X = F^(-1)(U) where U ~ U(0, 1)
-        input = input.cumsum(-1).expand_dims(-1)
-        rshape = (1, num_samples) if input.ndim == 2 else (input.shape[0], 1, num_samples)
-        rand = ops.rand(*rshape, dtype=input.dtype)
-        result = ops.ge(rand, input).long().sum(-2)
-
-    return result.long()
 
 
 def is_master(args):

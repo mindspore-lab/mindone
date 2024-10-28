@@ -2,7 +2,7 @@ import logging
 import os
 from typing import Tuple
 
-from opensora.acceleration.parallel_states import get_sequence_parallel_state, initialize_sequence_parallel_state
+from opensora.acceleration.parallel_states import initialize_sequence_parallel_state
 
 import mindspore as ms
 from mindspore.communication.management import get_group_size, get_rank, init
@@ -28,6 +28,8 @@ def init_env(
     jit_level: str = None,
     enable_parallel_fusion: bool = False,
     precision_mode: str = None,
+    jit_syntax_level: str = "strict",
+    comm_fusion=False,
 ) -> Tuple[int, int, int]:
     """
     Initialize MindSpore environment.
@@ -69,7 +71,6 @@ def init_env(
         ms.set_context(
             mode=mode,
             device_target=device_target,
-            ascend_config={"precision_mode": "allow_fp32_to_fp16"},
         )
         if parallel_mode == "optim":
             logger.info("use optim parallel")
@@ -98,6 +99,25 @@ def init_env(
                 gradients_mean=True,
                 device_num=device_num,
             )
+        elif parallel_mode == "zero":
+            init()
+            logger.info("use parallelism like deepspeed")
+            device_num = get_group_size()
+            rank_id = get_rank()
+            logger.debug(f"rank_id: {rank_id}, device_num: {device_num}")
+            ms.reset_auto_parallel_context()
+            ms.set_auto_parallel_context(
+                parallel_mode=ms.ParallelMode.DATA_PARALLEL,
+                gradients_mean=True,
+            )
+            if comm_fusion:
+                comm_fusion_dict = {
+                    "allreduce": {"mode": "auto", "config": None},
+                    "reducescatter": {"mode": "auto", "config": None},
+                    "allgather": {"mode": "auto", "config": None},
+                }
+                ms.set_auto_parallel_context(comm_fusion=comm_fusion_dict)
+
         else:
             raise ValueError(f"{parallel_mode} not supported!")
 
@@ -107,11 +127,12 @@ def init_env(
 
     else:
         device_num = 1
-        rank_id = device_id if device_id is not None else int(os.getenv("DEVICE_ID", 0))
+        device_id = device_id if device_id is not None else int(os.getenv("DEVICE_ID", 0))
+        rank_id = 0
         ms.set_context(
             mode=mode,
             device_target=device_target,
-            ascend_config={"precision_mode": "allow_fp32_to_fp16"},
+            device_id=device_id,
         )
 
     if jit_level is not None:
@@ -132,6 +153,11 @@ def init_env(
                     "please upgrade the MindSpore version."
                 )
                 raise Exception
+
+    if mode == 0:
+        # graph mode apply jit_syntax_level
+        jit_syntax_level = ms.STRICT if jit_syntax_level == "strict" else ms.LAX
+        ms.set_context(jit_syntax_level=jit_syntax_level)
     if precision_mode is not None and len(precision_mode) > 0:
         ms.set_context(ascend_config={"precision_mode": precision_mode})
     if global_bf16:
@@ -143,9 +169,4 @@ def init_env(
         f"unable to use sequence parallelism, " f"device num: {device_num}, sp size: {sp_size}"
     )
     initialize_sequence_parallel_state(sp_size)
-    if get_sequence_parallel_state():
-        assert (
-            parallel_mode == "data"
-        ), f"only support seq parallelism with parallel mode `data`, but got `{parallel_mode}`"
-
     return rank_id, device_num

@@ -16,9 +16,12 @@ class AutoencoderKL(nn.Cell):
         ignore_keys=[],
         image_key="image",
         monitor=None,
+        use_recompute=False,
+        sample_deterministic=False,
     ):
         super().__init__()
         self.image_key = image_key
+        self.sample_deterministic = sample_deterministic
         self.encoder = Encoder(**ddconfig)
         self.decoder = Decoder(**ddconfig)
         # assert ddconfig["double_z"]
@@ -34,6 +37,20 @@ class AutoencoderKL(nn.Cell):
         self.exp = ops.Exp()
         self.stdnormal = ops.StandardNormal()
         self.split = get_split_op()
+
+        if use_recompute:
+            self.recompute(self.encoder)
+            self.recompute(self.quant_conv)
+            self.recompute(self.post_quant_conv)
+            self.recompute(self.decoder)
+
+    def recompute(self, b):
+        if not b._has_config_recompute:
+            b.recompute()
+        if isinstance(b, nn.CellList):
+            self.recompute(b[-1])
+        else:
+            b.add_flags(output_no_recompute=True)
 
     def init_from_ckpt(
         self, path, ignore_keys=list(), remove_prefix=["first_stage_model.", "autoencoder.", "spatial_vae.module."]
@@ -82,6 +99,8 @@ class AutoencoderKL(nn.Cell):
     def encode(self, x):
         # embedding, get latent representation z
         posterior_mean, posterior_logvar = self._encode(x)
+        if self.sample_deterministic:
+            return posterior_mean
         z = self.sample(posterior_mean, posterior_logvar)
 
         return z

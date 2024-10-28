@@ -28,10 +28,14 @@ from ...image_processor import PipelineImageInput, VaeImageProcessor
 from ...loaders import FromSingleFileMixin, StableDiffusionXLLoraLoaderMixin, TextualInversionLoaderMixin
 from ...models import AutoencoderKL, UNet2DConditionModel
 from ...schedulers import KarrasDiffusionSchedulers
-from ...utils import deprecate, logging, scale_lora_layers
+from ...utils import deprecate, is_invisible_watermark_available, logging, scale_lora_layers
 from ...utils.mindspore_utils import randn_tensor
-from ..pipeline_utils import DiffusionPipeline
+from ..pipeline_utils import DiffusionPipeline, StableDiffusionMixin
 from .pipeline_output import StableDiffusionXLPipelineOutput
+
+if is_invisible_watermark_available():
+    from .watermark import StableDiffusionXLWatermarker
+
 
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
 
@@ -67,9 +71,11 @@ EXAMPLE_DOC_STRING = """
 
 
 # Copied from mindone.diffusers.pipelines.stable_diffusion.pipeline_stable_diffusion_img2img.retrieve_latents
-def retrieve_latents(vae, encoder_output: ms.Tensor, sample_mode: str = "sample"):
+def retrieve_latents(
+    vae, encoder_output: ms.Tensor, generator: Optional[np.random.Generator] = None, sample_mode: str = "sample"
+):
     if sample_mode == "sample":
-        return vae.diag_gauss_dist.sample(encoder_output)
+        return vae.diag_gauss_dist.sample(encoder_output, generator=generator)
     elif sample_mode == "argmax":
         return vae.diag_gauss_dist.mode(encoder_output)
     # This branch is not needed because the encoder_output type is ms.Tensor as per AutoencoderKLOutput change
@@ -85,8 +91,8 @@ def rescale_noise_cfg(noise_cfg, noise_pred_text, guidance_rescale=0.0):
     Rescale `noise_cfg` according to `guidance_rescale`. Based on findings of [Common Diffusion Noise Schedules and
     Sample Steps are Flawed](https://arxiv.org/pdf/2305.08891.pdf). See Section 3.4
     """
-    std_text = noise_pred_text.std(axis=list(range(1, noise_pred_text.ndim)), keepdims=True)
-    std_cfg = noise_cfg.std(axis=list(range(1, noise_cfg.ndim)), keepdims=True)
+    std_text = noise_pred_text.std(axis=tuple(range(1, noise_pred_text.ndim)), keepdims=True)
+    std_cfg = noise_cfg.std(axis=tuple(range(1, noise_cfg.ndim)), keepdims=True)
     # rescale the results from guidance (fixes overexposure)
     noise_pred_rescaled = noise_cfg * (std_text / std_cfg)
     # mix with the original results from guidance by factor guidance_rescale to avoid "plain looking" images
@@ -96,6 +102,7 @@ def rescale_noise_cfg(noise_cfg, noise_pred_text, guidance_rescale=0.0):
 
 class StableDiffusionXLInstructPix2PixPipeline(
     DiffusionPipeline,
+    StableDiffusionMixin,
     TextualInversionLoaderMixin,
     FromSingleFileMixin,
     StableDiffusionXLLoraLoaderMixin,
@@ -145,6 +152,8 @@ class StableDiffusionXLInstructPix2PixPipeline(
             Whether to use the [invisible_watermark library](https://github.com/ShieldMnt/invisible-watermark/) to
             watermark output images. If not defined, it will default to True if the package is installed, otherwise no
             watermarker will be used.
+        is_cosxl_edit (`bool`, *optional*):
+            When set the image latents are scaled.
     """
 
     model_cpu_offload_seq = "text_encoder->text_encoder_2->unet->vae"
@@ -161,6 +170,7 @@ class StableDiffusionXLInstructPix2PixPipeline(
         scheduler: KarrasDiffusionSchedulers,
         force_zeros_for_empty_prompt: bool = True,
         add_watermarker: Optional[bool] = None,
+        is_cosxl_edit: Optional[bool] = False,
     ):
         super().__init__()
 
@@ -177,9 +187,14 @@ class StableDiffusionXLInstructPix2PixPipeline(
         self.vae_scale_factor = 2 ** (len(self.vae.config.block_out_channels) - 1)
         self.image_processor = VaeImageProcessor(vae_scale_factor=self.vae_scale_factor)
         self.default_sample_size = self.unet.config.sample_size
+        self.is_cosxl_edit = is_cosxl_edit
+
+        add_watermarker = add_watermarker if add_watermarker is not None else is_invisible_watermark_available()
 
         if add_watermarker:
-            logger.warning("watermarker is not supported!")
+            self.watermark = StableDiffusionXLWatermarker()
+        else:
+            self.watermark = None
 
     def encode_prompt(
         self,
@@ -443,7 +458,12 @@ class StableDiffusionXLInstructPix2PixPipeline(
 
     # Copied from diffusers.pipelines.stable_diffusion.pipeline_stable_diffusion.StableDiffusionPipeline.prepare_latents
     def prepare_latents(self, batch_size, num_channels_latents, height, width, dtype, generator, latents=None):
-        shape = (batch_size, num_channels_latents, height // self.vae_scale_factor, width // self.vae_scale_factor)
+        shape = (
+            batch_size,
+            num_channels_latents,
+            int(height) // self.vae_scale_factor,
+            int(width) // self.vae_scale_factor,
+        )
         if isinstance(generator, list) and len(generator) != batch_size:
             raise ValueError(
                 f"You have passed a list of generators of length {len(generator)}, but requested an effective batch"
@@ -475,8 +495,8 @@ class StableDiffusionXLInstructPix2PixPipeline(
             # make sure the VAE is in float32 mode, as it overflows in float16
             needs_upcasting = self.vae.dtype == ms.float16 and self.vae.config.force_upcast
             if needs_upcasting:
+                image = image.float()
                 self.upcast_vae()
-                image = image.to(next(iter(self.vae.post_quant_conv.get_parameters())).dtype)
 
             image_latents = retrieve_latents(self.vae, self.vae.encode(image)[0], sample_mode="argmax")
 
@@ -508,6 +528,9 @@ class StableDiffusionXLInstructPix2PixPipeline(
 
         if image_latents.dtype != self.vae.dtype:
             image_latents = image_latents.to(dtype=self.vae.dtype)
+
+        if self.is_cosxl_edit:
+            image_latents = image_latents * self.vae.config.scaling_factor
 
         return image_latents
 
@@ -888,6 +911,10 @@ class StableDiffusionXLInstructPix2PixPipeline(
                 self.vae.to(dtype=ms.float16)
         else:
             return StableDiffusionXLPipelineOutput(images=latents)
+
+        # apply watermark if available
+        if self.watermark is not None:
+            image = self.watermark.apply_watermark(image)
 
         image = self.image_processor.postprocess(image, output_type=output_type)
 

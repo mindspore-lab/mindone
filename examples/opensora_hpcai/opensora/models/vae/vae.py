@@ -4,8 +4,11 @@ import os
 from transformers import PretrainedConfig
 
 import mindspore as ms
-from mindspore import nn, ops
+from mindspore import mint, nn, ops
+from mindspore.communication import get_group_size
 
+from ...acceleration.communications import GatherFowardSplitBackward, SplitFowardGatherBackward
+from ...acceleration.parallel_states import get_sequence_parallel_group
 from ..layers.operation_selector import get_split_op
 from .autoencoder_kl import AutoencoderKL as AutoencoderKL_SD
 from .vae_temporal import VAE_Temporal_SD  # noqa: F401
@@ -68,6 +71,10 @@ class VideoAutoencoderKL(nn.Cell):
         config=SDXL_CONFIG,
         ckpt_path=None,
         micro_batch_size=None,
+        scale_factor=0.18215,
+        use_recompute=False,
+        micro_batch_parallel=False,
+        sample_deterministic=False,
     ):
         super().__init__()
 
@@ -75,17 +82,30 @@ class VideoAutoencoderKL(nn.Cell):
             ddconfig=config,
             embed_dim=config["z_channels"],
             ckpt_path=ckpt_path,
+            use_recompute=use_recompute,
+            sample_deterministic=sample_deterministic,
         )
 
         self.out_channels = config["z_channels"]  # self.module.config.latent_channels
         self.patch_size = (1, 8, 8)
         self.micro_batch_size = micro_batch_size
+        self.micro_batch_parallel = micro_batch_parallel
+        if self.micro_batch_parallel:
+            sp_group = get_sequence_parallel_group()
+            _logger.info(f"Initialize Spatial VAE model with parallel group `{sp_group}`.")
+            self.sp_size = get_group_size(sp_group)
+            self.split_forward_gather_backward = SplitFowardGatherBackward(dim=0, grad_scale="down", group=sp_group)
+            self.gather_forward_split_backward = GatherFowardSplitBackward(dim=0, grad_scale="up", group=sp_group)
+            # TODO: drop the assertion once conv3d support fp32, test with test suites
+            assert self.micro_batch_size == 1
 
         # FIXME: "scaling_factor": 0.13025 is set in
         # https://huggingface.co/PixArt-alpha/pixart_sigma_sdxlvae_T5_diffusers/blob/main/vae/config.json.
         # This is a mistake made during the training of OpenSora v1.2.
         # To re-use the trained model, we need to keep this mistake.
         # For training, we should refine to 0.13025.
+        self.scale_factor = scale_factor
+        self.split = get_split_op()
         self.scale_factor = 0.18215
 
     @staticmethod
@@ -119,53 +139,58 @@ class VideoAutoencoderKL(nn.Cell):
         # is_video = (x.ndim == 5)
 
         B = x.shape[0]
-        # x = rearrange(x, "B C T H W -> (B T) C H W")
+        # B C T H W -> (B T) C H W
         x = self.rearrange_in(x)
 
+        pad_num = None
+        if self.micro_batch_parallel:
+            # select part of x for micro_batch
+            pad_num = self.get_pad_num(x.shape[0])
+            if pad_num > 0:
+                x = mint.nn.functional.pad(x, (0, 0, 0, 0, 0, 0, 0, pad_num))
+            x = self.split_forward_gather_backward(x)
+
         if self.micro_batch_size is None:
-            # x = self.module.encode(x).latent_dist.sample().mul_(0.18215)
-            x = self.module.encode(x) * self.scale_factor
+            x_out = self.module.encode(x) * self.scale_factor
         else:
             bs = self.micro_batch_size
-            # Not sure whether to enter the for loop because of dynamic shape,
-            # avoid initialize x_out as an empty list
-            x_out = [self.module.encode(x[:bs]) * self.scale_factor]
-            # FIXME: supported in graph mode? or use split
+            x_out = self.module.encode(x[:bs]) * self.scale_factor
             for i in range(bs, x.shape[0], bs):
-                x_bs = x[i : i + bs]
-                x_bs = self.module.encode(x_bs) * self.scale_factor
-                x_out.append(x_bs)
-            x = ops.cat(x_out, axis=0)
+                x_cur = self.module.encode(x[i : i + bs]) * self.scale_factor
+                x_out = ops.cat((x_out, x_cur), axis=0)
 
-        # x = rearrange(x, "(B T) C H W -> B C T H W", B=B)
-        x = self.rearrange_out(x, B=B)
+        if self.micro_batch_parallel:
+            x_out = self.gather_forward_split_backward(x_out)
+            if pad_num > 0:
+                x_out = x_out.narrow(0, 0, x_out.shape[0] - pad_num)
 
-        return x
+        # (B T) C H W -> B C T H W
+        x_out = self.rearrange_out(x_out, B=B)
+
+        return x_out
 
     def decode(self, x, **kwargs):
         # is_video = (x.ndim == 5)
 
         B = x.shape[0]
         # x: (B, Z, T, H, W)
-        # x = rearrange(x, "B Z T H W -> (B T) Z H W")
+        # B Z T H W -> (B T) Z H W
         x = self.rearrange_in(x)
 
         if self.micro_batch_size is None:
-            x = self.module.decode(x / self.scale_factor)
+            x_out = self.module.decode(x / self.scale_factor)
         else:
-            # NOTE: cannot be used for training
-            bs = self.micro_batch_size
-            x_out = []
-            for i in range(0, x.shape[0], bs):
-                x_bs = x[i : i + bs]
-                x_bs = self.module.decode(x_bs / self.scale_factor)
-                x_out.append(x_bs)
-            x = ops.cat(x_out, axis=0)
+            mbs = self.micro_batch_size
 
-        # x = rearrange(x, "(B T) Z H W -> B Z T H W", B=B)
-        x = self.rearrange_out(x, B=B)
+            x_out = self.module.decode(x[:mbs] / self.scale_factor)
+            for i in range(mbs, x.shape[0], mbs):
+                x_cur = self.module.decode(x[i : i + mbs] / self.scale_factor)
+                x_out = ops.cat((x_out, x_cur), axis=0)
 
-        return x
+        # (B T) Z H W -> B Z T H W
+        x_out = self.rearrange_out(x_out, B=B)
+
+        return x_out
 
     def get_latent_size(self, input_size):
         latent_size = []
@@ -175,6 +200,10 @@ class VideoAutoencoderKL(nn.Cell):
             # ), "Input size must be divisible by patch size"
             latent_size.append(input_size[i] // self.patch_size[i] if input_size[i] is not None else None)
         return latent_size
+
+    def get_pad_num(self, dim_size: int) -> int:
+        pad = (self.sp_size - (dim_size % self.sp_size)) % self.sp_size
+        return pad
 
 
 class VideoAutoencoderPipelineConfig(PretrainedConfig):
@@ -188,8 +217,11 @@ class VideoAutoencoderPipelineConfig(PretrainedConfig):
         freeze_vae_2d=False,
         cal_loss=False,
         micro_frame_size=None,
+        concat_posterior=False,
         shift=0.0,
         scale=1.0,
+        micro_frame_parallel=False,
+        sample_deterministic=False,
         **kwargs,
     ):
         self.vae_2d = vae_2d
@@ -200,6 +232,9 @@ class VideoAutoencoderPipelineConfig(PretrainedConfig):
         self.micro_frame_size = micro_frame_size
         self.shift = shift
         self.scale = scale
+        self.concat_posterior = (concat_posterior,)
+        self.micro_frame_parallel = micro_frame_parallel
+        self.sample_deterministic = sample_deterministic
         super().__init__(**kwargs)
 
 
@@ -232,12 +267,16 @@ class VideoAutoencoderPipeline(nn.Cell):
         self.cal_loss = config.cal_loss
         self.micro_frame_size = config.micro_frame_size
         self.micro_z_frame_size = self.temporal_vae.get_latent_size([config.micro_frame_size, None, None])[0]
+        print(f"micro_frame_size: {self.micro_frame_size}, micro_z_frame_size: {self.micro_z_frame_size}")
+        self.micro_frame_parallel = config.micro_frame_parallel
+        self.sample_deterministic = config.sample_deterministic
 
         if config.freeze_vae_2d:
             for param in self.spatial_vae.get_parameters():
                 param.requires_grad = False
 
         self.out_channels = self.temporal_vae.out_channels
+        self.split = get_split_op()
 
         # normalization parameters
         scale = ms.Tensor(config.scale)
@@ -248,55 +287,107 @@ class VideoAutoencoderPipeline(nn.Cell):
             shift = shift[None, :, None, None, None]
         self.scale = ms.Parameter(scale, requires_grad=False)
         self.shift = ms.Parameter(shift, requires_grad=False)
+        self.freeze_vae_2d = config.freeze_vae_2d
+        self.concat_posterior = config.concat_posterior
+
+        if self.micro_frame_parallel:
+            sp_group = get_sequence_parallel_group()
+            _logger.info(f"Initialize Temporal VAE model with parallel group `{sp_group}`.")
+            self.sp_size = get_group_size(sp_group)
+            self.split_forward_gather_backward = SplitFowardGatherBackward(dim=2, grad_scale="down", group=sp_group)
+            self.gather_forward_split_backward = GatherFowardSplitBackward(dim=2, grad_scale="up", group=sp_group)
+            if self.cal_loss:
+                raise NotImplementedError("Not Supported yet.")
 
     def encode(self, x):
-        x_z = self.spatial_vae.encode(x)
+        if self.freeze_vae_2d:
+            x_z = ops.stop_gradient(self.spatial_vae.encode(x))
+        else:
+            x_z = self.spatial_vae.encode(x)
+
+        if self.micro_frame_parallel:
+            # TODO: drop assertion and add padding
+            assert x_z.shape[2] % self.sp_size == 0
+            if self.micro_frame_size is not None:
+                assert x_z.shape[2] % self.micro_frame_size == 0
+            x_z = self.split_forward_gather_backward(x_z)
 
         if self.micro_frame_size is None:
             posterior_mean, posterior_logvar = self.temporal_vae._encode(x_z)
-            z = self.temporal_vae.sample(posterior_mean, posterior_logvar)
-        else:
-            z_list = []
-            # TODO: there is a bug in torch impl. need to concat posterior as well. But ot save memory for concatnated posterior. Let's remain unchange.
-            for i in range(0, x_z.shape[2], self.micro_frame_size):
-                x_z_bs = x_z[:, :, i : i + self.micro_frame_size]
-                posterior_mean, posterior_logvar = self.temporal_vae._encode(x_z_bs)
-                z_bs = self.temporal_vae.sample(posterior_mean, posterior_logvar)
-                z_list.append(z_bs)
-            z = ops.cat(z_list, axis=2)
-            if self.cal_loss:
-                raise ValueError(
-                    "Please fix the bug of posterior concatenation for temporal vae training with micro_frame_size"
-                )
+            if self.sample_deterministic:
+                z_out = posterior_mean
+            else:
+                z_out = self.temporal_vae.sample(posterior_mean, posterior_logvar)
 
-        if self.cal_loss:
-            return z, posterior_mean, posterior_logvar, x_z
+            if self.cal_loss:
+                return z_out, posterior_mean, posterior_logvar, x_z
+            else:
+                if self.micro_frame_parallel:
+                    z_out = self.gather_forward_split_backward(z_out)
+                return (z_out - self.shift) / self.scale
         else:
-            return (z - self.shift) / self.scale
+            # x_z: (b z t h w)
+            mfs = self.micro_frame_size
+            if self.cal_loss:
+                # TODO: fix the bug in torch, output concat of the splitted posteriors instead of the last split
+                posterior_mean, posterior_logvar = self.temporal_vae._encode(x_z[:, :, :mfs])
+                if self.sample_deterministic:
+                    z_out = posterior_mean
+                else:
+                    z_out = self.temporal_vae.sample(posterior_mean, posterior_logvar)
+                for i in range(mfs, x_z.shape[2], mfs):
+                    posterior_mean, posterior_logvar = self.temporal_vae._encode(x_z[:, :, i : i + mfs])
+                    if self.sample_deterministic:
+                        z_cur = posterior_mean
+                    else:
+                        z_cur = self.temporal_vae.sample(posterior_mean, posterior_logvar)
+                    z_out = ops.cat((z_out, z_cur), axis=2)
+
+                return z_out, posterior_mean, posterior_logvar, x_z
+            else:
+                # no posterior cache to reduce memory in inference
+                z_out = self.temporal_vae.encode(x_z[:, :, :mfs])
+                for i in range(mfs, x_z.shape[2], mfs):
+                    z_cur = self.temporal_vae.encode(x_z[:, :, i : i + mfs])
+                    z_out = ops.cat((z_out, z_cur), axis=2)
+
+                if self.micro_frame_parallel:
+                    z_out = self.gather_forward_split_backward(z_out)
+
+                return (z_out - self.shift) / self.scale
 
     def decode(self, z, num_frames=None):
         if not self.cal_loss:
             z = z * self.scale.to(z.dtype) + self.shift.to(z.dtype)
 
         if self.micro_frame_size is None:
-            x_z = self.temporal_vae.decode(z, num_frames=num_frames)
-            x = self.spatial_vae.decode(x_z)
+            x_z_out = self.temporal_vae.decode(z, num_frames=num_frames)
+            x = self.spatial_vae.decode(x_z_out)
+            if self.cal_loss:
+                return x, x_z_out
+            else:
+                return x
         else:
-            x_z_list = []
-            for i in range(0, z.shape[2], self.micro_z_frame_size):
-                z_bs = z[:, :, i : i + self.micro_z_frame_size]
-                x_z_bs = self.temporal_vae.decode(z_bs, num_frames=min(self.micro_frame_size, num_frames))
-                x_z_list.append(x_z_bs)
-                num_frames -= self.micro_frame_size
-            x_z = ops.cat(x_z_list, axis=2)
-            x = self.spatial_vae.decode(x_z)
+            mz = self.micro_z_frame_size
+            remain_frames = num_frames if self.micro_frame_size > num_frames else self.micro_frame_size
+            x_z_out = self.temporal_vae.decode(z[:, :, :mz], num_frames=remain_frames)
+            num_frames -= self.micro_frame_size
 
-        if self.cal_loss:
-            return x, x_z
-        else:
-            return x
+            for i in range(mz, z.shape[2], mz):
+                remain_frames = num_frames if self.micro_frame_size > num_frames else self.micro_frame_size
+                x_z_cur = self.temporal_vae.decode(z[:, :, i : i + mz], num_frames=remain_frames)
+                x_z_out = ops.cat((x_z_out, x_z_cur), axis=2)
+                num_frames -= self.micro_frame_size
+
+            x = self.spatial_vae.decode(x_z_out)
+
+            if self.cal_loss:
+                return x, x_z_out
+            else:
+                return x
 
     def construct(self, x):
+        # assert self.cal_loss, "This method is only available when cal_loss is True"
         z, posterior_mean, posterior_logvar, x_z = self.encode(x)
         x_rec, x_z_rec = self.decode(z, num_frames=x_z.shape[2])
         return x_rec, x_z_rec, z, posterior_mean, posterior_logvar, x_z
@@ -321,18 +412,40 @@ class VideoAutoencoderPipeline(nn.Cell):
 def OpenSoraVAE_V1_2(
     micro_batch_size=4,
     micro_frame_size=17,
+    micro_batch_parallel=False,
+    micro_frame_parallel=False,
     ckpt_path=None,
+    vae2d_ckpt_path=None,
     freeze_vae_2d=False,
     cal_loss=False,
+    use_recompute=False,
+    sample_deterministic=False,
 ):
+    """
+    ckpt_path: path to the checkpoint of the overall model (vae2d + temporal vae)
+    vae_2d_ckpt_path: path to the checkpoint of the vae 2d model. It will only be loaded when `ckpt_path` not provided.
+    """
+
+    if isinstance(micro_batch_size, int):
+        if micro_batch_size <= 0:
+            micro_batch_size = None
+    if isinstance(micro_frame_size, int):
+        if micro_frame_size <= 0:
+            micro_frame_size = None
+
     vae_2d = dict(
         type="VideoAutoencoderKL",
         config=SDXL_CONFIG,
         micro_batch_size=micro_batch_size,
+        micro_batch_parallel=micro_batch_parallel,
+        use_recompute=use_recompute,
+        sample_deterministic=sample_deterministic,
     )
     vae_temporal = dict(
         type="VAE_Temporal_SD",
         from_pretrained=None,
+        use_recompute=use_recompute,
+        sample_deterministic=sample_deterministic,
     )
     shift = (-0.10, 0.34, 0.27, 0.98)
     scale = (3.85, 2.32, 2.33, 3.06)
@@ -344,15 +457,29 @@ def OpenSoraVAE_V1_2(
         micro_frame_size=micro_frame_size,
         shift=shift,
         scale=scale,
+        micro_frame_parallel=micro_frame_parallel,
+        sample_deterministic=sample_deterministic,
     )
 
     config = VideoAutoencoderPipelineConfig(**kwargs)
     model = VideoAutoencoderPipeline(config)
 
-    if ckpt_path is not None:
+    # load model weights
+    if (ckpt_path is not None) and (os.path.exists(ckpt_path)):
         sd = ms.load_checkpoint(ckpt_path)
+
+        # remove the added prefix in the trained checkpoint
+        pnames = list(sd.keys())
+        for pn in pnames:
+            new_pn = pn.replace("autoencoder.", "").replace("_backbone.", "")
+            sd[new_pn] = sd.pop(pn)
+
         pu, cu = ms.load_param_into_net(model, sd, strict_load=False)
         print(f"Net param not loaded : {pu}")
         print(f"Checkpoint param not loaded : {cu}")
+    elif (vae2d_ckpt_path is not None) and (os.path.exists(vae2d_ckpt_path)):
+        sd = ms.load_checkpoint(vae2d_ckpt_path)
+        # TODO: add spatial_vae prefix to the param name
+        pu, cu = ms.load_param_into_net(model.spatial_vae, sd, strict_load=False)
 
     return model

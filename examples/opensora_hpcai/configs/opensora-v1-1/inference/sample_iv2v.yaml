@@ -19,7 +19,7 @@ sampling_steps: 100
 guidance_scale: 7.0
 guidance_channels: 3
 seed: 42
-ddim_sampling: False
+sampling: ddpm
 
 loop: 1
 condition_frame_length: 4
@@ -29,7 +29,7 @@ captions:
 
 mask_strategy:
   # 6 numbers: loop index, reference id, reference starting frame, position in the generated video,
-  # number of conditioning frames, editing strength. For more, see docs/quick_start.md#imagevideo-to-video
+  # number of conditioning frames, editing strength. For more, see docs/quick_start.md#imagevideo-to-video-opensora-v11-and-above
   - "0, 0, 0, 0, 1, 0"
 
 reference_path:

@@ -150,6 +150,7 @@ def get_activation_fn(activation):
 class Encoder(nn.Cell):
     """Encoder Blocks."""
 
+    # @ms.lazy_inline()
     def __init__(
         self,
         in_out_channels=4,
@@ -260,6 +261,7 @@ class Encoder(nn.Cell):
 class Decoder(nn.Cell):
     """Decoder Blocks."""
 
+    # @ms.lazy_inline()
     def __init__(
         self,
         in_out_channels=4,
@@ -342,10 +344,6 @@ class Decoder(nn.Cell):
 
         self.conv_out = self.conv_fn(filters, in_out_channels, 3)
 
-        # recompute
-        # for block in self.res_blocks:
-        #    block.recompute()
-
     @staticmethod
     def rearrange(x, ts, hs=1, ws=1):
         # "B (C ts hs ws) T H W -> B C (T ts) (H hs) (W ws)",
@@ -408,6 +406,7 @@ class VAE_Temporal(nn.Cell):
         num_groups=32,  # for nn.GroupNorm
         activation_fn="swish",
         use_recompute=False,
+        sample_deterministic=False,
     ):
         super().__init__()
 
@@ -415,6 +414,7 @@ class VAE_Temporal(nn.Cell):
         # self.time_padding = self.time_downsample_factor - 1
         self.patch_size = (self.time_downsample_factor, 1, 1)
         self.out_channels = in_out_channels
+        self.sample_deterministic = sample_deterministic
 
         # NOTE: following MAGVIT, conv in bias=False in encoder first conv
         self.encoder = Encoder(
@@ -440,20 +440,15 @@ class VAE_Temporal(nn.Cell):
             num_groups=num_groups,  # for nn.GroupNorm
             activation_fn=activation_fn,
         )
+        self.split = ops.Split(axis=1, output_num=2)
         self.stdnormal = ops.StandardNormal()
+        self.split = get_split_op()
 
         if use_recompute:
-            print("D--: temporal vae recompute")
             self.recompute(self.encoder)
             self.recompute(self.quant_conv)
             self.recompute(self.post_quant_conv)
             self.recompute(self.decoder)
-            # self.encoder.recompute()
-            # self.quant_conv.recompute()
-            # self.post_quant_conv.recompute()
-            # self.decoder.recompute()
-
-        self.split = get_split_op()
 
     def recompute(self, b):
         if not b._has_config_recompute:
@@ -512,6 +507,8 @@ class VAE_Temporal(nn.Cell):
     def encode(self, x):
         # embedding, get latent representation z
         posterior_mean, posterior_logvar = self._encode(x)
+        if self.sample_deterministic:
+            return posterior_mean
         z = self.sample(posterior_mean, posterior_logvar)
 
         return z

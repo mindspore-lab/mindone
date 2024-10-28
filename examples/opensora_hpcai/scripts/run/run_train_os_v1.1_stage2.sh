@@ -19,7 +19,7 @@ msrun --bind_core=True --master_port=8207 --worker_num=8 --local_worker_num=8 --
 	--config configs/opensora-v1-1/train/train_stage2.yaml \
 	--csv_path datasets/mixkit-100videos/video_caption_train.csv \
 	--video_folder datasets/mixkit-100videos/mixkit \
-	--text_embed_folder datasets/mikit-100videos/t5_emb_200 \
+	--text_embed_folder datasets/mixkit-100videos/t5_emb_200 \
   --use_parallel True \
   --jit_level O0 \
   --dataset_sink_mode=False \

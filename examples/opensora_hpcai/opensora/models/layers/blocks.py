@@ -3,10 +3,13 @@ import numbers
 from typing import Optional, Tuple, Type, Union
 
 import numpy as np
+from opensora.acceleration.communications import AlltoAll, SplitFowardGatherBackward
+from opensora.acceleration.parallel_states import get_sequence_parallel_group
 
 import mindspore as ms
-from mindspore import Parameter, Tensor, nn, ops
+from mindspore import Parameter, Tensor, mint, nn, ops
 from mindspore.common.initializer import initializer
+from mindspore.communication import get_group_size
 
 from mindone.models.modules.flash_attention import FLASH_IS_AVAILABLE, MSFlashAttention
 from mindone.models.modules.pos_embed import _get_1d_sincos_pos_embed_from_grid, _get_2d_sincos_pos_embed_from_grid
@@ -26,9 +29,7 @@ class LlamaRMSNorm(nn.Cell):
         self.variance_epsilon = eps
 
     def construct(self, hidden_states: Tensor):
-        variance = hidden_states.pow(2).mean(-1, keep_dims=True)
-        hidden_states = hidden_states * ops.rsqrt(variance + self.variance_epsilon)
-        return self.gamma * hidden_states
+        return ops.rms_norm(hidden_states, self.gamma, self.variance_epsilon)[0]
 
 
 class Attention(nn.Cell):
@@ -176,7 +177,7 @@ class MultiHeadCrossAttention(nn.Cell):
         # 2+: mask adaptation for multi-head attention
         if mask is not None:
             # flip mask, since ms FA treats 1 as discard, 0 as retain.
-            mask = 1 - mask
+            mask = 1 - mask.to(ms.int32)
 
         # 3. attn compute
         if self.enable_flash_attention:
@@ -184,7 +185,7 @@ class MultiHeadCrossAttention(nn.Cell):
                 # (b n_k) -> (b 1 1 n_k), will be broadcast according to qk sim, e.g. (b num_heads n_q n_k)
                 mask = mask[:, None, None, :]
                 # (b 1 1 n_k) -> (b 1 n_q n_k)
-                mask = self.repeat_interleave(mask.to(ms.int32), int(q.shape[1]), -2)
+                mask = self.repeat_interleave(mask, int(q.shape[1]), -2)
             x = self.flash_attention(q, k, v, mask=mask)
 
             # FA attn_mask def: retention and 1 indicates discard. Input tensor of shape :math:`(B, N1, S1, S2)`, `(B, 1, S1, S2)` `(S1, S2)`
@@ -193,6 +194,97 @@ class MultiHeadCrossAttention(nn.Cell):
                 mask = mask[:, None, :]
             x = self.attention(q, k, v, mask)
 
+        x = ops.reshape(x, (B, N, -1))
+
+        # 4. output projection
+        return self.proj_drop(self.proj(x)).to(x_dtype)
+
+
+class SeqParallelMultiHeadCrossAttention(MultiHeadCrossAttention):
+    def __init__(
+        self,
+        d_model: int,
+        num_heads: int,
+        attn_drop: float = 0.0,
+        proj_drop: float = 0.0,
+        has_bias: bool = True,
+        enable_flash_attention: bool = False,
+    ) -> None:
+        super().__init__(d_model, num_heads, attn_drop, proj_drop, has_bias, enable_flash_attention)
+
+        sp_group = get_sequence_parallel_group()
+        sp_size = get_group_size(sp_group)
+        self.alltoall = AlltoAll(split_dim=2, concat_dim=1, group=sp_group)
+        self.alltoall_back = AlltoAll(split_dim=1, concat_dim=2, group=sp_group)
+        self.split = SplitFowardGatherBackward(dim=3, grad_scale="down", group=sp_group)
+
+        if enable_flash_attention:
+            attn_dtype = ms.bfloat16
+            self.flash_attention = MSFlashAttention(
+                head_dim=self.head_dim,
+                head_num=num_heads // sp_size,  # sub_h
+                attention_dropout=attn_drop,
+                input_layout="BSH",
+                dtype=attn_dtype,
+            )
+
+    def construct(self, x: Tensor, cond: Tensor, mask: Optional[Tensor] = None) -> Tensor:
+        """
+        x: (b sub_n c)
+        cond: (1, b * n_token, c)
+        mask (b, n_token)
+        """
+        x_dtype = x.dtype
+        B, N, C = x.shape
+
+        # cond: (1, B*N_tokens, C) -> (B, N_tokens, C)
+        cond = ops.reshape(cond, (B, -1, C))
+        N_k = cond.shape[1]
+
+        # 1. q, kv linear projection
+        q = self.q_linear(x)
+        kv = self.kv_linear(cond)
+
+        # 2. reshape qkv for multi-head attn
+        # q: (B SUB_N C) -> (B SUB_N num_head head_dim)
+        q = ops.reshape(q, (B, N, self.num_heads, self.head_dim))
+
+        # kv: (B N_k C*2) -> (B N_k 2 C) -> (B N_k 2 num_head head_dim).
+        kv = ops.reshape(kv, (B, N_k, 2, self.num_heads, self.head_dim))
+
+        # (b, n_k, 2, h, d) -> (b, n_k, 2, sub_h, d)
+        kv = self.split(kv)
+
+        k, v = ops.split(kv, 1, axis=2)
+        # (b n_k sub_h d)
+        k = ops.squeeze(k, axis=2)
+        v = ops.squeeze(v, axis=2)
+
+        # (b, sub_n, h, d) -> (b, n, sub_h, d)
+        q = self.alltoall(q)
+
+        # 2+: mask adaptation for multi-head attention
+        if mask is not None:
+            # flip mask, since ms FA treats 1 as discard, 0 as retain.
+            mask = 1 - mask.to(ms.int32)
+
+        # 3. attn compute
+        if self.enable_flash_attention:
+            if mask is not None:
+                # (b n_k) -> (b 1 1 n_k), will be broadcast according to qk sim, e.g. (b num_heads n_q n_k)
+                mask = mask[:, None, None, :]
+                # (b 1 1 n_k) -> (b 1 n_q n_k)
+                mask = self.repeat_interleave(mask.to(ms.int32), int(q.shape[1]), axis=-2)
+            x = self.flash_attention(q, k, v, mask=mask)
+
+            # FA attn_mask def: retention and 1 indicates discard. Input tensor of shape :math:`(B, N1, S1, S2)`, `(B, 1, S1, S2)` `(S1, S2)`
+        else:
+            if mask is not None:
+                mask = mask[:, None, :]
+            x = self.attention(q, k, v, mask)
+
+        # (b, n, sub_h, d) -> (b, sub_n, h, d)
+        x = self.alltoall_back(x)
         x = ops.reshape(x, (B, N, -1))
 
         # 4. output projection
@@ -222,6 +314,7 @@ class SelfAttention(nn.Cell):
         norm_layer: Type[nn.Cell] = LlamaRMSNorm,
         enable_flash_attention=False,
         rope=None,
+        qk_norm_legacy: bool = False,
     ):
         super().__init__()
         assert dim % num_heads == 0, "dim should be divisible by num_heads"
@@ -234,6 +327,7 @@ class SelfAttention(nn.Cell):
         self.qkv = nn.Dense(dim, dim * 3, has_bias=qkv_bias, weight_init="XavierUniform", bias_init="Zero")
         self.q_norm = norm_layer(self.head_dim) if qk_norm else nn.Identity()
         self.k_norm = norm_layer(self.head_dim) if qk_norm else nn.Identity()
+        self._qk_norm_legacy = qk_norm_legacy
 
         self.enable_flash_attention = (
             enable_flash_attention and FLASH_IS_AVAILABLE and (ms.context.get_context("device_target") == "Ascend")
@@ -277,29 +371,116 @@ class SelfAttention(nn.Cell):
         k = ops.squeeze(k, axis=2)
         v = ops.squeeze(v, axis=2)
 
-        # WARNING: this may be a bug
+        if not self._qk_norm_legacy:  # Normalize q and k before applying Rope
+            q, k = self.q_norm(q), self.k_norm(k)
         if self.rotary_emb is not None and freqs_cis is None:
             q = self.rotary_emb(q)
             k = self.rotary_emb(k)
         elif freqs_cis is not None:
             q = rope_1d(q, freqs_cis)
             k = rope_1d(k, freqs_cis)
-        q, k = self.q_norm(q), self.k_norm(k)
+        if self._qk_norm_legacy:  # Legacy: normalize q and k after applying Rope
+            q, k = self.q_norm(q), self.k_norm(k)
 
         # mask process
         if mask is not None:
-            mask = 1 - mask
+            mask = 1 - mask.to(ms.int32)
 
         if self.enable_flash_attention:
             if mask is not None:
                 mask = mask[:, None, None, :]
                 # mask: (b n_k) -> (b 1 n_q n_k)
-                mask = self.repeat_interleave(mask.to(ms.int32), int(q.shape[1]), -2)
+                mask = self.repeat_interleave(mask, int(q.shape[1]), -2)
             out = self.flash_attention(q, k, v, mask=mask)
         else:
             if mask is not None:
                 mask = mask[:, None, :]
             out = self.attention(q, k, v, mask)
+
+        # reshape FA output to original attn input format (b n h*d)
+        out = out.view(B, N, -1)
+
+        return self.proj_drop(self.proj(out)).to(x_dtype)
+
+
+class SeqParallelSelfAttention(SelfAttention):
+    def __init__(
+        self,
+        dim,
+        num_heads: int = 8,
+        qkv_bias: bool = False,
+        qk_norm: bool = False,
+        attn_drop: float = 0.0,
+        proj_drop: float = 0.0,
+        norm_layer: nn.Cell = LlamaRMSNorm,
+        enable_flash_attention: bool = False,
+        rope=None,
+        qk_norm_legacy: bool = False,
+    ) -> None:
+        super().__init__(
+            dim,
+            num_heads,
+            qkv_bias,
+            qk_norm,
+            attn_drop,
+            proj_drop,
+            norm_layer,
+            enable_flash_attention,
+            rope,
+            qk_norm_legacy,
+        )
+
+        assert qk_norm_legacy is False
+        sp_group = get_sequence_parallel_group()
+        sp_size = get_group_size(sp_group)
+        self.alltoall = AlltoAll(split_dim=3, concat_dim=1, group=sp_group)
+        self.alltoall_back = AlltoAll(split_dim=1, concat_dim=2, group=sp_group)
+
+        if enable_flash_attention:
+            attn_dtype = ms.bfloat16
+            self.flash_attention = MSFlashAttention(
+                head_dim=self.head_dim,
+                head_num=num_heads // sp_size,  # sub_h
+                attention_dropout=attn_drop,
+                input_layout="BSH",
+                dtype=attn_dtype,
+            )
+
+    def construct(self, x: Tensor, mask: Optional[Tensor] = None, freqs_cis: Optional[Tensor] = None) -> Tensor:
+        """
+        x: (b sub_n c)
+        """
+        assert mask is None
+        assert freqs_cis is None
+
+        B, N, _ = x.shape
+        x_dtype = x.dtype
+
+        qkv = self.qkv(x)
+        # (b, sub_n, 3*h*d) -> (b, sub_n, 3, h, d)
+        qkv = ops.reshape(qkv, (B, N, 3, self.num_heads, self.head_dim))
+
+        # (b, sub_n, 3, h, d) -> (b, n, 3, sub_h, d)
+        qkv = self.alltoall(qkv)
+
+        q, k, v = ops.split(qkv, 1, axis=2)  # (b n sub_h d)
+        q = ops.squeeze(q, axis=2)
+        k = ops.squeeze(k, axis=2)
+        v = ops.squeeze(v, axis=2)
+
+        q, k = self.q_norm(q), self.k_norm(k)
+
+        if self.rotary_emb is not None:
+            q = self.rotary_emb(q)
+            k = self.rotary_emb(k)
+
+        if self.enable_flash_attention:
+            out = self.flash_attention(q, k, v, mask=mask)
+        else:
+            out = self.attention(q, k, v, mask)
+
+        # (b, n, sub_h, d) -> (b, sub_n, h, d)
+        out = self.alltoall_back(out)
 
         # reshape FA output to original attn input format (b n h*d)
         out = out.view(B, N, -1)
@@ -321,10 +502,12 @@ class LayerNorm(nn.Cell):
         else:
             self.gamma = ops.ones(normalized_shape, dtype=dtype)
             self.beta = ops.zeros(normalized_shape, dtype=dtype)
-        self.layer_norm = ops.LayerNorm(-1, -1, epsilon=eps)
 
     def construct(self, x: Tensor):
-        x, _, _ = self.layer_norm(x, self.gamma, self.beta)
+        normalized_shape = x.shape[-1:]
+        # mint layer_norm fuses the operations in layer normorlization and it's faster than ops.LayerNorm
+        x = mint.nn.functional.layer_norm(x, normalized_shape, self.gamma, self.beta, self.eps)
+
         return x
 
 
@@ -415,13 +598,6 @@ class T2IFinalLayer(nn.Cell):
         self.d_s = d_s
         self.chunk = get_chunk_op()
 
-    @staticmethod
-    def t_mask_select(x_mask: Tensor, x: Tensor, masked_x: Tensor, T: int, S: int) -> Tensor:
-        x = x.reshape(x.shape[0], T, S, x.shape[-1])  # B (T S) C -> B T S C
-        masked_x = masked_x.reshape(masked_x.shape[0], T, S, masked_x.shape[-1])  # B (T S) C -> B T S C
-        x = ops.where(x_mask[:, :, None, None], x, masked_x)  # x_mask: [B, T]
-        return x.reshape(x.shape[0], T * S, x.shape[-1])  # B T S C -> B (T S) C
-
     def construct(
         self,
         x: Tensor,
@@ -441,7 +617,7 @@ class T2IFinalLayer(nn.Cell):
         if frames_mask is not None:
             shift_zero, scale_zero = self.chunk(self.scale_shift_table[None] + t0[:, None], 2, 1)
             x_zero = t2i_modulate(self.norm_final(x), shift_zero, scale_zero)
-            x = self.t_mask_select(frames_mask, x, x_zero, T, S)
+            x = t_mask_select(frames_mask, x, x_zero, T, S)
 
         x = self.linear(x)
         return x
@@ -719,6 +895,7 @@ class PositionEmbedding2D(nn.Cell):
         assert dim % 4 == 0, "dim must be divisible by 4"
         half_dim = dim // 2
         self.inv_freq = Tensor(1.0 / (10000 ** (np.arange(0, half_dim, 2) / half_dim)), dtype=ms.float32)
+        self.set_grad(False)  # set explicitly for PyNative as ops.meshgrid() doesn't have backprop
 
     def _get_sin_cos_emb(self, t: Tensor) -> Tensor:
         out = t[..., None] * self.inv_freq
@@ -740,12 +917,7 @@ class PositionEmbedding2D(nn.Cell):
             grid_h *= base_size / h
             grid_w *= base_size / w
 
-        orig_dtype = grid_h.dtype
-        if orig_dtype == ms.bfloat16:  # BUG MS2.3rc1: ops.meshgrid() doesn't support bf16
-            grid_h = grid_h.astype(ms.float32)
-            grid_w = grid_w.astype(ms.float32)
         grid_h, grid_w = ops.meshgrid(grid_w, grid_h, indexing="ij")  # here w goes first
-        grid_h, grid_w = grid_h.astype(orig_dtype), grid_w.astype(orig_dtype)
 
         grid_h = grid_h.t().reshape(-1)
         grid_w = grid_w.t().reshape(-1)
@@ -761,3 +933,10 @@ class PositionEmbedding2D(nn.Cell):
         base_size: Optional[int] = None,
     ) -> Tensor:
         return self._get_cached_emb(h, w, scale, base_size)
+
+
+def t_mask_select(x_mask: Tensor, x: Tensor, masked_x: Tensor, T: int, S: int) -> Tensor:
+    x = x.reshape(x.shape[0], T, S, x.shape[-1])  # B (T S) C -> B T S C
+    masked_x = masked_x.reshape(masked_x.shape[0], T, S, masked_x.shape[-1])  # B (T S) C -> B T S C
+    x = ops.where(x_mask[:, :, None, None], x, masked_x)  # x_mask: [B, T]
+    return x.reshape(x.shape[0], T * S, x.shape[-1])  # B T S C -> B (T S) C

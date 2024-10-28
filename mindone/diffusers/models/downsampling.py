@@ -107,7 +107,6 @@ class Downsample2D(nn.Cell):
         self.padding = padding
         stride = 2
         self.name = name
-        conv_cls = nn.Conv2d
 
         if norm_type == "ln_norm":
             self.norm = LayerNorm(channels, eps, elementwise_affine)
@@ -119,7 +118,7 @@ class Downsample2D(nn.Cell):
             raise ValueError(f"unknown norm_type: {norm_type}")
 
         if use_conv:
-            conv = conv_cls(
+            conv = nn.Conv2d(
                 self.channels,
                 self.out_channels,
                 kernel_size=kernel_size,
@@ -292,7 +291,8 @@ class KDownsample2D(nn.Cell):
                 inputs.shape[1],
                 self.kernel.shape[0],
                 self.kernel.shape[1],
-            ]
+            ],
+            dtype=inputs.dtype,
         )
         indices = ops.arange(inputs.shape[1])
         kernel = self.kernel.to(weight.dtype)[None, :].broadcast_to((inputs.shape[1], -1, -1))

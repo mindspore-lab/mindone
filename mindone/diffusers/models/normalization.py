@@ -21,8 +21,9 @@ import mindspore as ms
 from mindspore import Parameter, Tensor, nn, ops
 from mindspore.common.initializer import initializer
 
-from .activations import SiLU, get_activation
+from .activations import get_activation
 from .embeddings import CombinedTimestepLabelEmbeddings, PixArtAlphaCombinedTimestepSizeEmbeddings
+from .layers_compat import group_norm
 
 
 class AdaLayerNorm(nn.Cell):
@@ -37,7 +38,7 @@ class AdaLayerNorm(nn.Cell):
     def __init__(self, embedding_dim: int, num_embeddings: int):
         super().__init__()
         self.emb = nn.Embedding(num_embeddings, embedding_dim)
-        self.silu = SiLU()
+        self.silu = nn.SiLU()
         self.linear = nn.Dense(embedding_dim, embedding_dim * 2)
         self.norm = LayerNorm(embedding_dim, elementwise_affine=False)
 
@@ -66,7 +67,7 @@ class AdaLayerNormZero(nn.Cell):
         else:
             self.emb = None
 
-        self.silu = SiLU()
+        self.silu = nn.SiLU()
         self.linear = nn.Dense(embedding_dim, 6 * embedding_dim, has_bias=True)
         self.norm = LayerNorm(embedding_dim, elementwise_affine=False, eps=1e-6)
 
@@ -104,7 +105,7 @@ class AdaLayerNormSingle(nn.Cell):
             embedding_dim, size_emb_dim=embedding_dim // 3, use_additional_conditions=use_additional_conditions
         )
 
-        self.silu = SiLU()
+        self.silu = nn.SiLU()
         self.linear = nn.Dense(embedding_dim, 6 * embedding_dim, has_bias=True)
 
     def construct(
@@ -152,7 +153,7 @@ class AdaGroupNorm(nn.Cell):
         emb = emb[:, :, None, None]
         scale, shift = emb.chunk(2, axis=1)
 
-        x = _group_norm(x, self.num_groups, None, None, self.eps)
+        x = group_norm(x, self.num_groups, None, None, self.eps)
         x = x * (1 + scale) + shift
         return x
 
@@ -173,7 +174,7 @@ class AdaLayerNormContinuous(nn.Cell):
         norm_type="layer_norm",
     ):
         super().__init__()
-        self.silu = SiLU()
+        self.silu = nn.SiLU()
         self.linear = nn.Dense(conditioning_embedding_dim, embedding_dim * 2, has_bias=bias)
         if norm_type == "layer_norm":
             self.norm = LayerNorm(embedding_dim, eps, elementwise_affine, bias=bias)
@@ -183,7 +184,8 @@ class AdaLayerNormContinuous(nn.Cell):
             raise ValueError(f"unknown norm_type {norm_type}")
 
     def construct(self, x: ms.Tensor, conditioning_embedding: ms.Tensor) -> ms.Tensor:
-        emb = self.linear(self.silu(conditioning_embedding))
+        # convert back to the original dtype in case `conditioning_embedding`` is upcasted to float32 (needed for hunyuanDiT)
+        emb = self.linear(self.silu(conditioning_embedding).to(x.dtype))
         scale, shift = ops.chunk(emb, 2, axis=1)
         x = self.norm(x) * (1 + scale)[:, None, :] + shift[:, None, :]
         return x
@@ -362,7 +364,7 @@ class GroupNorm(nn.Cell):
             self.bias = None
 
     def construct(self, x: Tensor):
-        x = _group_norm(x, self.num_groups, self.weight, self.bias, self.eps)
+        x = group_norm(x, self.num_groups, self.weight, self.bias, self.eps)
         return x
 
 
@@ -410,17 +412,3 @@ class GlobalResponseNorm(nn.Cell):
         nx = gx / (gx.mean(axis=-1, keep_dims=True) + 1e-6)
         out = (self.gamma * (x * nx) + self.beta + x).to(x.dtype)
         return out
-
-
-def _group_norm(x, num_groups, weight, bias, eps):
-    x_shape = x.shape
-    x = x.reshape(x_shape[0], num_groups, -1)
-    var, mean = ops.var_mean(x, axis=-1, keepdims=True)
-    x = (x - mean) / ops.sqrt(var + eps)
-    x = x.reshape(x_shape)
-
-    if weight is not None and bias is not None:
-        expanded_shape = (1, -1) + (1,) * len(x_shape[2:])
-        x = x * weight.reshape(expanded_shape) + bias.reshape(expanded_shape)
-
-    return x

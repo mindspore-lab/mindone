@@ -30,7 +30,7 @@ from ...models import AutoencoderKL, UNet2DConditionModel
 from ...schedulers import EulerDiscreteScheduler
 from ...utils import deprecate, logging
 from ...utils.mindspore_utils import randn_tensor
-from ..pipeline_utils import DiffusionPipeline, ImagePipelineOutput
+from ..pipeline_utils import DiffusionPipeline, ImagePipelineOutput, StableDiffusionMixin
 
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
 
@@ -62,7 +62,7 @@ def preprocess(image):
     return image
 
 
-class StableDiffusionLatentUpscalePipeline(DiffusionPipeline, FromSingleFileMixin):
+class StableDiffusionLatentUpscalePipeline(DiffusionPipeline, StableDiffusionMixin, FromSingleFileMixin):
     r"""
     Pipeline for upscaling Stable Diffusion output image resolution by a factor of 2.
 
@@ -142,7 +142,7 @@ class StableDiffusionLatentUpscalePipeline(DiffusionPipeline, FromSingleFileMixi
             )
 
         text_encoder_out = self.text_encoder(ms.Tensor(text_input_ids), output_hidden_states=True)
-        text_embeddings = text_encoder_out[0][-1]
+        text_embeddings = text_encoder_out[0]
         text_pooler_out = text_encoder_out[1]
 
         # get unconditional embeddings for classifier free guidance

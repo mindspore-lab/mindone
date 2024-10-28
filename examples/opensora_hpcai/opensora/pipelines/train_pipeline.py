@@ -1,8 +1,15 @@
 import logging
 from typing import Optional, Tuple
 
+try:
+    from typing import Literal
+except ImportError:
+    from typing_extensions import Literal  # FIXME: python 3.7
+
+import numpy as np
+
 import mindspore as ms
-from mindspore import Tensor, nn, ops
+from mindspore import Tensor, _no_grad, jit_class, nn, ops
 
 from ..models.layers.operation_selector import get_split_op
 from ..schedulers.iddpm import SpacedDiffusion
@@ -12,10 +19,30 @@ from ..schedulers.iddpm.diffusion_utils import (
     mean_flat,
     normal_kl,
 )
+from ..schedulers.rectified_flow import RFlowScheduler
 
-__all__ = ["DiffusionWithLoss"]
+__all__ = ["DiffusionWithLoss", "DiffusionWithLossFiTLike", "RFlowDiffusionWithLoss", "RFlowEvalDiffusionWithLoss"]
 
 logger = logging.getLogger(__name__)
+
+
+@jit_class
+class no_grad(_no_grad):
+    """
+    A context manager that suppresses gradient memory allocation in PyNative mode.
+    """
+
+    def __init__(self):
+        super().__init__()
+        self._pynative = ms.get_context("mode") == ms.PYNATIVE_MODE
+
+    def __enter__(self):
+        if self._pynative:
+            super().__enter__()
+
+    def __exit__(self, *args):
+        if self._pynative:
+            super().__exit__(*args)
 
 
 class DiffusionWithLoss(nn.Cell):
@@ -48,8 +75,7 @@ class DiffusionWithLoss(nn.Cell):
         video_emb_cached: bool = False,
     ):
         super().__init__()
-        # TODO: is set_grad() necessary?
-        self.network = network.set_grad()
+        self.network = network
         self.vae = vae
         self.diffusion = diffusion
         self.text_encoder = text_encoder
@@ -68,7 +94,6 @@ class DiffusionWithLoss(nn.Cell):
 
         if self.cond_stage_trainable and self.text_encoder:
             self.text_encoder.set_train(True)
-            self.text_encoder.set_grad(True)
 
         self.split = get_split_op()
 
@@ -117,19 +142,31 @@ class DiffusionWithLoss(nn.Cell):
             - assume model input/output shape: (b c f h w)
                 unet2d input/output shape: (b c h w)
         """
-        # 1. get image/video latents z using vae
-        # (b f c h w) -> (b c f h w)
-        x = ops.transpose(x, (0, 2, 1, 3, 4))
+        print("x shape", x.shape)
+        with no_grad():
+            # 1. get image/video latents z using vae
+            # (b f c h w) -> (b c f h w)
+            x = ops.transpose(x, (0, 2, 1, 3, 4))
 
-        if not self.video_emb_cached:
-            x = self.get_latents(x)
+            if not self.video_emb_cached:
+                x = self.get_latents(x)
 
-        # 2. get conditions
-        if not self.text_emb_cached:
-            text_embed = self.get_condition_embeddings(text_tokens)
-        else:
-            text_embed = text_tokens  # dataset retunrs text embeddings instead of text tokens
-        loss = self.compute_loss(x, text_embed, mask, frames_mask, num_frames, height, width, fps, ar)
+            # 2. get conditions
+            if not self.text_emb_cached:
+                text_embed = self.get_condition_embeddings(text_tokens)
+            else:
+                text_embed = text_tokens  # dataset returns text embeddings instead of text tokens
+        loss = self.compute_loss(
+            x,
+            text_embed,
+            mask,
+            frames_mask=frames_mask,
+            num_frames=num_frames,
+            height=height,
+            width=width,
+            fps=fps,
+            ar=ar,
+        )
 
         return loss
 
@@ -276,12 +313,12 @@ class DiffusionWithLossFiTLike(DiffusionWithLoss):
             - assume model input/output shape: (b c f h w)
                 unet2d input/output shape: (b c h w)
         """
-
-        # get conditions
-        if not self.text_emb_cached:
-            text_embed = self.get_condition_embeddings(text_tokens)
-        else:
-            text_embed = text_tokens  # dataset retunrs text embeddings instead of text tokens
+        with no_grad():
+            # get conditions
+            if not self.text_emb_cached:
+                text_embed = self.get_condition_embeddings(text_tokens)
+            else:
+                text_embed = text_tokens  # dataset retunrs text embeddings instead of text tokens
         loss = self.compute_loss(
             x,
             text_embed,
@@ -376,3 +413,86 @@ class DiffusionWithLossFiTLike(DiffusionWithLoss):
         x = ops.transpose(x, (0, 4, 1, 2, 5, 3, 6))
         x = ops.reshape(x, (n, self.c, f, self.nh * self.p[1], self.nw * self.p[2]))
         return x
+
+
+# TODO: poor design, extract schedulers away from DiffusionWithLoss
+class RFlowDiffusionWithLoss(DiffusionWithLoss):
+    def __init__(
+        self,
+        *args,
+        sample_method: Literal["discrete-uniform", "uniform", "logit-normal"] = "uniform",
+        use_timestep_transform: bool = False,
+        **kwargs,
+    ):
+        super().__init__(*args, **kwargs)
+        self.scheduler = RFlowScheduler(sample_method=sample_method, use_timestep_transform=use_timestep_transform)
+
+    def compute_loss(
+        self,
+        x: Tensor,
+        text_embed: Tensor,
+        mask: Optional[Tensor] = None,
+        frames_mask: Optional[Tensor] = None,
+        num_frames: Optional[Tensor] = None,
+        height: Optional[Tensor] = None,
+        width: Optional[Tensor] = None,
+        fps: Optional[Tensor] = None,
+        **kwargs,
+    ):
+        return self.scheduler.training_losses(
+            self.network,
+            x,
+            text_embed,
+            mask,
+            frames_mask=frames_mask,
+            num_frames=num_frames,
+            height=height,
+            width=width,
+            fps=fps,
+            **kwargs,
+        )
+
+
+class RFlowEvalDiffusionWithLoss(DiffusionWithLoss):
+    def __init__(
+        self,
+        *args,
+        num_eval_timesteps: int = 10,
+        **kwargs,
+    ):
+        super().__init__(*args, **kwargs)
+        self.scheduler = RFlowScheduler(use_timestep_transform=False)
+        self._timesteps = Tensor(
+            np.linspace(0, self.scheduler.num_timesteps, num_eval_timesteps + 2)[1:-1], dtype=ms.float32
+        )
+
+    def compute_loss(
+        self,
+        x: Tensor,
+        text_embed: Tensor,
+        mask: Optional[Tensor] = None,
+        frames_mask: Optional[Tensor] = None,
+        num_frames: Optional[Tensor] = None,
+        height: Optional[Tensor] = None,
+        width: Optional[Tensor] = None,
+        fps: Optional[Tensor] = None,
+        **kwargs,
+    ):
+        loss = Tensor(0, dtype=ms.float32)
+        for t in self._timesteps:
+            t = t.repeat(x.shape[0])
+            loss += self.scheduler.training_losses(
+                self.network,
+                x,
+                text_embed,
+                mask,
+                frames_mask=frames_mask,
+                num_frames=num_frames,
+                height=height,
+                width=width,
+                fps=fps,
+                t=t,
+                **kwargs,
+            )
+
+        return loss / len(self._timesteps), height, width, num_frames
