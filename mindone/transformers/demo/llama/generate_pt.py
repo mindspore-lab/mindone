@@ -15,8 +15,12 @@ def run_llama3_generate_pt(args):
 
     s_time = time.time()
 
+    device = "cuda:0"
+
     tokenizer = AutoTokenizer.from_pretrained(args.model_path)
     model = LlamaForCausalLM.from_pretrained(args.model_path)
+    model.to(device)
+
 
     print(f"=====> Building model done.")
 
@@ -28,7 +32,7 @@ def run_llama3_generate_pt(args):
             break
 
         prompt = [prompt,]
-        input_ids = torch.tensor(tokenizer(prompt).input_ids)
+        input_ids = torch.tensor(tokenizer(prompt).input_ids).to(device)
 
         input_kwargs = {}
         if args.use_embed_input:
