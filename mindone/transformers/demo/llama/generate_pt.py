@@ -40,6 +40,8 @@ def run_llama3_generate_pt(args):
         else:
             input_kwargs["input_ids"] = input_ids
 
+        breakpoint()
+
         output_ids = model.generate(
             **input_kwargs,
             use_cache=args.use_cache,
