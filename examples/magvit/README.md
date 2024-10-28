@@ -13,19 +13,18 @@ Thanks for their great work.
 - [x] VQVAE-2d Training
 - [x] VQVAE-3d Training
 - [x] VQGAN Training
-- [ ] MAGVIT-v2 Transformers
-- [ ] MAGVIT-v2 Training
+
 
 ## Requirements
 
-### Mindspore + Ascend
-- **Env**: `Python 3.8.18` and [`CANN 8.0.RC2.beta1`](https://www.hiascend.com/software/cann)
-- **Main Dependencies**: [`Mindspore>=2.3`](https://www.mindspore.cn/)
-- **Other Dependencies**: see in `requirements.txt`
+| mindspore | ascend driver | firmware | cann toolkit/kernel |
+| --------- | ------------- | -------- | ------------------- |
+| [2.3.1](https://www.mindspore.cn/)  | 24.1.RC2 |7.3.0.1.231 |	[`CANN 8.0.RC2.beta1`](https://www.hiascend.com/software/cann) |
+
 
 #### Installation Tutorials:
 
-1. Install Mindspore >=2.3 according to the [official tutorials](https://www.mindspore.cn/install)
+1. Install Mindspore==2.3.1 according to the [official tutorials](https://www.mindspore.cn/install)
 2. Ascend users please install the corresponding *CANN 8.0.RC2.beta1* in [community edition](https://www.hiascend.com/developer/download/community/result?module=cann&cann=8.0.RC2.beta1) as well as the relevant driver and firmware packages in [firmware and driver](https://www.hiascend.com/hardware/firmware-drivers/community), as stated in the [official document](https://www.mindspore.cn/install/#%E5%AE%89%E8%A3%85%E6%98%87%E8%85%BEai%E5%A4%84%E7%90%86%E5%99%A8%E9%85%8D%E5%A5%97%E8%BD%AF%E4%BB%B6%E5%8C%85).
 3. Install the pacakges listed in requirements.txt with `pip install -r requirements.txt`
 
