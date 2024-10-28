@@ -18,7 +18,7 @@ def run_llama3_generate_pt(args):
     device = "cuda:0"
 
     tokenizer = AutoTokenizer.from_pretrained(args.model_path)
-    model = LlamaForCausalLM.from_pretrained(args.model_path)
+    model = LlamaForCausalLM.from_pretrained(args.model_path, attn_implementation="eager")
     model.to(device)
 
 
