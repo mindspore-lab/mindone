@@ -6,6 +6,7 @@ mpirun --allow-run-as-root -n 8 --output-filename log_output --merge-stderr-to-s
     python scripts/infer_t5.py\
     --dtype=fp32 \
     --batch_size=4 \
-    --csv_path datasets/sora_overfitting_dataset_0410/vcg_200.csv \
-    --output_path datasets/sora_overfitting_dataset_0410_t5 \
+    --csv_path /path/to/video_caption.csv \
+    --output_path /path/to/text_embed_folder \
     --use_parallel=True \
+    --model_max_length 300     # 300 for OpenSora v1.2, 200 for OpenSora v1.1, 120 for OpenSora v1.0
