@@ -780,6 +780,8 @@ class LlamaModel(LlamaPreTrainedModel):
                 cache_position=cache_position,
             )
 
+            breakpoint()  # zhy_test
+
             hidden_states = layer_outputs[0]
 
             if use_cache:
