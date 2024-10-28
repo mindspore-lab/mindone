@@ -40,7 +40,7 @@ def run_llama3_generate(args):
             **input_kwargs,
             use_cache=args.use_cache,
             max_new_tokens=20,
-            do_sample=True
+            do_sample=False
         )
         output_ids = output_ids.asnumpy()
 
