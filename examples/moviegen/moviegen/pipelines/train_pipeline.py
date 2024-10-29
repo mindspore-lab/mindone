@@ -13,7 +13,7 @@ class DiffusionWithLoss(nn.Cell):
         network: RFlowLossWrapper,
         vae: Optional[nn.Cell] = None,
         text_encoder: Optional[nn.Cell] = None,
-        scale_factor: float = 0.18215,
+        scale_factor: float = 0.13025,
         text_emb_cached: bool = True,
         video_emb_cached: bool = False,
     ):
