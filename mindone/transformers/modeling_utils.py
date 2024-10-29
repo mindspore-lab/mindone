@@ -2099,10 +2099,10 @@ class MSPreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMix
             _s_time = time.time()
             for shard_file in resolved_archive_file:
                 state_dict = load_state_dict(shard_file)
-                print(f"====> time cost, load_state_dict: {time.time() - _s_time}")
+                print(f"====> time cost, load_state_dict: {time.time() - _s_time:.3f}s")
                 _s_time = time.time()
                 state_dict = _convert_state_dict(model, state_dict, start_prefix)
-                print(f"====> time cost, _convert_state_dict: {time.time() - _s_time}")
+                print(f"====> time cost, _convert_state_dict: {time.time() - _s_time:.3f}s")
                 _s_time = time.time()
 
                 # Mismatched keys contains tuples key/shape1/shape2 of weights in the checkpoint that have a shape not
@@ -2115,10 +2115,10 @@ class MSPreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMix
                     remove_prefix_from_model,
                     ignore_mismatched_sizes,
                 )
-                print(f"====> time cost, _find_mismatched_keys: {time.time() - _s_time}")
+                print(f"====> time cost, _find_mismatched_keys: {time.time() - _s_time:.3f}s")
                 _s_time = time.time()
                 error_msgs += _load_state_dict_into_model(model_to_load, state_dict, start_prefix, is_sharded=True)
-                print(f"====> time cost, _load_state_dict_into_model: {time.time() - _s_time}")
+                print(f"====> time cost, _load_state_dict_into_model: {time.time() - _s_time:.3f}s")
                 _s_time = time.time()
 
                 # force memory release

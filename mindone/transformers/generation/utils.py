@@ -728,6 +728,13 @@ class GenerationMixin:
                     "Please refer to the documentation for more information. "
                     "(https://huggingface.co/docs/transformers/main/en/main_classes/text_generation)"
                 )
+
+            logger.warning(
+                "Unlike the original transformers, `input_ids` will pad with inputs prompt token "
+                "and `max_new_tokens` contains the length of the input, "
+                "please set bigger `max_new_tokens` while considering the input length !"
+            )
+
             generation_config.max_length = generation_config.max_new_tokens + input_ids_length
 
         # if both `inputs_embeds` and `input_ids` are passed, we do not correct the length
@@ -1490,6 +1497,9 @@ class GenerationMixin:
                 streamer=streamer,
                 **model_kwargs,
             )
+
+            # 14. delete the length of the input
+            result = result[:, input_ids.shape[1]:]
 
         elif generation_mode in (GenerationMode.BEAM_SAMPLE, GenerationMode.BEAM_SEARCH):
             raise NotImplementedError
