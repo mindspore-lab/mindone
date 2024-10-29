@@ -6,10 +6,18 @@ from typing import List, Optional, Union
 import numpy as np
 
 import mindspore as ms
-from mindspore import Tensor, nn, ops
+from mindspore import Tensor, mint, nn, ops
 from mindspore.ops import composite as C
 from mindspore.ops import functional as F
-from mindspore.train.amp import AMP_BLACK_LIST, AMP_WHITE_LIST, _auto_black_list, _auto_white_list
+from mindspore.train.amp import AMP_BLACK_LIST, AMP_WHITE_LIST, _auto_black_list, _auto_mixed_precision_rewrite
+
+
+class Inverse(nn.Cell):
+    def construct(self, x):
+        return mint.inverse(x.to(ms.float32)).to(ms.float16)
+
+
+CUSTOM_BLACK_LIST = AMP_BLACK_LIST + [Inverse]
 
 
 def exists(x):
@@ -204,18 +212,18 @@ def auto_mixed_precision(network, amp_level="O0"):
     if amp_level == "O0":
         pass
     elif amp_level == "O1":
-        return _auto_white_list(network, AMP_WHITE_LIST)
+        return _auto_mixed_precision_rewrite(network, ms.float16, white_list=AMP_WHITE_LIST)
     elif amp_level == "O2":
         try:
             _auto_black_list(
                 network,
-                AMP_BLACK_LIST + [nn.GroupNorm, nn.SiLU],
+                CUSTOM_BLACK_LIST + [nn.GroupNorm, nn.SiLU],
                 ms.float16,
             )
         except Exception:
             _auto_black_list(
                 network,
-                AMP_BLACK_LIST + [nn.GroupNorm, nn.SiLU],
+                CUSTOM_BLACK_LIST + [nn.GroupNorm, nn.SiLU],  # FIXME use customized black list
             )
     elif amp_level == "O3":
         network.to_float(ms.float16)

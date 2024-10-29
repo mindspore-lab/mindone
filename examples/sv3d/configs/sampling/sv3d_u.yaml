@@ -3,7 +3,7 @@ model:
   params:
     scale_factor: 0.18215
     disable_first_stage_amp: True
-#    ckpt_path: ckpt/sv3d_u.ckpt  # do not pass in the ckpt path here, as the ckpt already been init under the main func, passing in here will reinit the model under the diffusion module class
+    en_and_decode_n_samples_a_time: 7
 
     denoiser_config:
       target: sgm.modules.diffusionmodules.denoiser.Denoiser
@@ -14,6 +14,21 @@ model:
             sigma_data: 1.0
         scaling_config:
           target: sgm.modules.diffusionmodules.denoiser_scaling.VScalingWithEDMcNoise
+
+    sampler_config:
+      target: sgm.modules.diffusionmodules.sampler.EulerEDMSampler
+      params:
+        discretization_config:
+          target: sgm.modules.diffusionmodules.discretizer.EDMDiscretization
+          params:
+            sigma_max: 700.0
+
+        guider_config:
+          target: sgm.modules.diffusionmodules.guiders.TrianglePredictionGuider
+          params:
+            max_scale: 2.5
+            num_frames: 21          # for running pretrained sv3d_u ckpt
+            # num_frames: 16        # CFG's scale generation, just to make training and inference the same is ok.
 
     network_config:
       target: modules.video_model.VideoUNet
@@ -72,7 +87,7 @@ model:
                   in_channels: 3
                   out_ch: 3
                   ch: 128
-                  ch_mult: [1, 2, 4, 4]
+                  ch_mult: [1, 2, 4, 4]  # len of this var desides # of downsample_2x
                   num_res_blocks: 2
                   attn_resolutions: []
                   dropout: 0.0
@@ -92,9 +107,9 @@ model:
           target: mindspore.nn.Identity
         regularizer_config:
           target: sgm.modules.autoencoding.regularizers.DiagonalGaussianRegularizer
-        encoder_config:
-          target: mindspore.nn.Identity
-        decoder_config:
+        encoder_config: # vanilla sv3d ckpt, only for inference & pynative mode only: bug with graph mode if using the raw cfg
+          target: torch.nn.Identity
+        decoder_config: # vanilla sv3d ckpt
           target: sgm.modules.diffusionmodules.model.Decoder
           params:
             attn_type: flash-attention
@@ -108,17 +123,32 @@ model:
             num_res_blocks: 2
             attn_resolutions: [ ]
             dropout: 0.0
-
-    sampler_config:
-      target: sgm.modules.diffusionmodules.sampler.EulerEDMSampler
-      params:
-        discretization_config:
-          target: sgm.modules.diffusionmodules.discretizer.EDMDiscretization
-          params:
-            sigma_max: 700.0
-
-        guider_config:
-          target: sgm.modules.diffusionmodules.guiders.TrianglePredictionGuider
-          params:
-            max_scale: 2.5
-            num_frames: 21
+        # encoder_config:   # training: the correct x should be created by this encoder. If using the official vae cfg above pynative training can penetrate, but wrong result preloading svd ckpts. Graph mode will directly fail as the video_model as redudant keys (which is meant to be used with these training setup below)
+        #   target: sgm.modules.diffusionmodules.model.Encoder
+        #   params:
+        #     attn_type: flash-attention
+        #     double_z: True
+        #     z_channels: 4
+        #     resolution: 256
+        #     in_channels: 3
+        #     out_ch: 3
+        #     ch: 128
+        #     ch_mult: [ 1, 2, 4, 4 ]
+        #     num_res_blocks: 2
+        #     attn_resolutions: [ ]
+        #     dropout: 0.0
+        # decoder_config:  # changed for training
+        #   target: modules.temporal_ae.VideoDecoder
+        #   params:
+        #     attn_type: flash-attention
+        #     double_z: True
+        #     z_channels: 4
+        #     resolution: 256
+        #     in_channels: 3
+        #     out_ch: 3
+        #     ch: 128
+        #     ch_mult: [ 1, 2, 4, 4 ]
+        #     num_res_blocks: 2
+        #     attn_resolutions: [ ]
+        #     dropout: 0.0
+        #     video_kernel_size: [ 3, 1, 1 ]

@@ -18,7 +18,7 @@ from sgm.util import default, exists
 import mindspore as ms
 from mindspore import jit, nn, ops
 
-_logger = logging.getLogger(__name__)
+_logger = logging.getLogger("")
 
 
 class TimestepBlock(nn.Cell):

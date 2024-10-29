@@ -26,7 +26,7 @@ except ImportError:
     print("flash attention is unavailable.")
 
 
-_logger = logging.getLogger(__name__)
+_logger = logging.getLogger("")
 
 
 # feedforward

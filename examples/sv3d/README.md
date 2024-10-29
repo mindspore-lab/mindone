@@ -35,11 +35,9 @@ More demos can be found here. Input images are from [the Unique 3D repo](https:/
 pip install -r requirements.txt
 ```
 2. Inference is tested on the machine with the following specs using 1x NPU:
-```text
-Mindspore Version:               2.4.0
-CANN Version:                    7.5
-Ascend Driver:                   24.1.rc3.b080
-```
+    | mindspore |	ascend driver | firmware	| cann toolkit/kernel |
+    | :--- | :--- | :--- | :--- |
+    | 2.3.1	    | 24.1.RC2 |7.3.0.1.231	| 8.0.RC2.beta1 |
 
 ## Pretrained Models
 You can easily convert [the SV3D ckpt](https://huggingface.co/stabilityai/sv3d/blob/main/sv3d_u.safetensors) with [our mindone script under svd](https://github.com/mindspore-lab/mindone/blob/master/examples/svd/svd_tools/convert.py).
@@ -56,12 +54,15 @@ python simple_video_sample.py \
 ## Training
 1. Prepare the SVD checkpoints as mentioned in the paper. SV3D needs to be finetuned from SVD to cut down training time.
 2. Prepare Objaverse overfitting dataset, can refer to our implementation in another 3D project [here](instantmeshpr).
-3. Comment out the VAE setup in the original cfg file, and uncomment those for training. We found that the original cfg setup for SV3D cannot diverge with SVD checkpoints loaded during SV3D training. By modifying the cfgs, the correct VAE can be obtained and overfitting training converges within hours.
+3. The SVD VAE setup is different from the vanilla SV3D structure. To adapt, comment out the VAE setup in the original cfg file, and uncomment those for training. We found that the original cfg setup for SV3D cannot diverge with SVD checkpoints loaded during SV3D training. By modifying the cfgs, the correct VAE can be obtained and overfitting training converges within hours.
+```diff
 
+```
 
+4. Launch training by running the following script:
 ```shell
 python train.py --model_cfg configs/sampling/sv3d_u.yaml \
---train_cfg 
+--train_cfg
 ```
 
 ## Acknowledgements

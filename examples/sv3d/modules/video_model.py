@@ -349,6 +349,7 @@ class VideoUNet(nn.Cell):
         out_channels: int,
         num_res_blocks: int,
         attention_resolutions: int,
+        use_recompute: bool = False,
         dropout: float = 0.0,
         channel_mult: List[int] = (1, 2, 4, 8),
         conv_resample: bool = True,
@@ -418,7 +419,7 @@ class VideoUNet(nn.Cell):
             if isinstance(self.num_classes, int):
                 self.label_emb = nn.Embedding(num_classes, time_embed_dim)
             elif self.num_classes == "continuous":
-                print("setting up linear c_adm embedding layer")
+                # print("setting up linear c_adm embedding layer")
                 self.label_emb = nn.Dense(1, time_embed_dim)
             elif self.num_classes == "timestep":
                 self.label_emb = nn.SequentialCell(
@@ -540,6 +541,8 @@ class VideoUNet(nn.Cell):
                 self.input_blocks.append(TimestepEmbedSequential(*layers))
                 self._feature_size += ch
                 input_block_chans.append(ch)
+                if use_recompute:
+                    self.input_blocks[-1].recompute()
             if level != len(channel_mult) - 1:
                 ds *= 2
                 out_ch = ch
@@ -567,6 +570,8 @@ class VideoUNet(nn.Cell):
                         )
                     )
                 )
+                if use_recompute:
+                    self.input_blocks[-1].recompute()
                 ch = out_ch
                 input_block_chans.append(ch)
 
@@ -673,6 +678,8 @@ class VideoUNet(nn.Cell):
                     )
 
                 self.output_blocks.append(TimestepEmbedSequential(*layers))
+                if use_recompute:
+                    self.output_blocks[-1].recompute()
                 self._feature_size += ch
 
         self.out = nn.SequentialCell(
@@ -680,6 +687,10 @@ class VideoUNet(nn.Cell):
             nn.SiLU(),
             zero_module(conv_nd(dims, model_channels, out_channels, 3, pad_mode="same")),
         )
+
+        if use_recompute:
+            self.label_emb.recompute()
+            self.middle_block.recompute()
 
     def get_temporal_param_names(self, prefix: str = "") -> Set[str]:
         return {
@@ -696,7 +707,7 @@ class VideoUNet(nn.Cell):
         y: Optional[Tensor] = None,
         time_context: Optional[Tensor] = None,
         num_frames: Optional[int] = None,
-        image_only_indicator: Optional[Tensor] = None,
+        image_only_indicator: Optional[Tensor] = ops.zeros((1, 1)),
     ):
         assert (y is not None) == (
             self.num_classes is not None

@@ -7,7 +7,7 @@ try:
 except ImportError:
     from typing_extensions import Literal  # FIXME: python 3.7
 
-from sgm.modules.diffusionmodules.video_model import TemporalTransformerBlock
+from modules.video_model import TemporalTransformerBlock
 
 from mindspore import Parameter, Tensor, float16, nn, ops
 

@@ -1,3 +1,3 @@
-from .modules import ConcatTimestepEmbedderND, FrozenCLIPEmbedder, FrozenOpenCLIPEmbedder2, GeneralConditioner
+from .modules import ConcatTimestepEmbedderND, GeneralConditioner
 
-__all__ = ["FrozenCLIPEmbedder", "FrozenOpenCLIPEmbedder2", "GeneralConditioner", "ConcatTimestepEmbedderND"]
+__all__ = ["GeneralConditioner", "ConcatTimestepEmbedderND"]

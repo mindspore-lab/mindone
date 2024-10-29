@@ -50,13 +50,36 @@ class LinearPredictionGuider(nn.Cell):
     def prepare_inputs(self, x: Tensor, s: Tensor, c: dict, uc: dict) -> Tuple[Tensor, Tensor, dict]:
         c_out = dict()
 
-        for k in c:
-            if k in ["vector", "crossattn", "concat"] + self.additional_cond_keys:
-                c_out[k] = ops.cat((uc[k], c[k]))
-            else:
-                assert c[k] == uc[k]
-                c_out[k] = c[k]
+        # for k in c:
+        #     if k in ["vector", "crossattn", "concat"] + self.additional_cond_keys:
+        #         c_out[k] = ops.cat((uc[k], c[k]))
+        #     else:
+        #         assert c[k] == uc[k]
+        #         c_out[k] = c[k]
+
+        c_out["vector"] = ops.cat((uc["vector"], c["vector"]))
+        c_out["crossattn"] = ops.cat((uc["crossattn"], c["crossattn"]))
+        c_out["concat"] = ops.cat((uc["concat"], c["concat"]))
         return ops.concat((x, x)), ops.concat((s, s)), c_out
+
+    # def prepare_inputs(
+    #     self,
+    #     x: Tensor,
+    #     s: Tensor,
+    #     vector_c: Tensor,
+    #     crossattn_c: Tensor,
+    #     concat_c: Tensor,
+    #     vector_uc: Tensor,
+    #     crossattn_uc: Tensor,
+    #     concat_uc: Tensor,
+    # ) -> Tuple[Tensor, Tensor, dict]:
+    #     c_out = dict()
+
+    #     # for k in ["vector", "crossattn", "concat"] :
+    #     c_out["vector"] = ops.cat((vector_uc, vector_c))
+    #     c_out["crossattn"] = ops.cat((crossattn_uc, crossattn_c))
+    #     c_out["concat"] = ops.cat((concat_uc, concat_c))
+    #     return ops.concat((x, x)), ops.concat((s, s)), c_out
 
 
 class VanillaCFG:
@@ -135,5 +158,5 @@ class TrianglePredictionGuider(LinearPredictionGuider):
             scale = ops.max(ops.stack(scales), axis=0)[0]
         self.scale = (scale * (max_scale - min_scale) + min_scale).unsqueeze(0)
 
-    def triangle_wave(self, values: Tensor, period) -> Tensor:
+    def triangle_wave(self, values: Tensor, period: float) -> Tensor:
         return 2 * (values / period - ops.floor(values / period + 0.5)).abs()

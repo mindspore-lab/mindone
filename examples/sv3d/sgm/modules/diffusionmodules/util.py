@@ -5,7 +5,7 @@ from typing import Optional
 import numpy as np
 
 import mindspore as ms
-from mindspore import Tensor, float16, nn, ops
+from mindspore import Tensor, float16, mint, nn, ops
 
 try:
     from typing import Literal
@@ -49,17 +49,17 @@ def timestep_embedding(timesteps, dim, max_period=10000, repeat_only=False, dtyp
     """
     if not repeat_only:
         half = dim // 2
-        freqs = ops.exp(
-            -ops.log(ops.ones(1, dtype=ms.float32) * max_period)
-            * ops.arange(start=0, end=half, dtype=ms.float32)
+        freqs = mint.exp(
+            -mint.log(mint.ones(1, dtype=ms.float32) * max_period)
+            * mint.arange(start=0, end=half, dtype=ms.float32)
             / half
         )
         args = timesteps[:, None].astype(ms.float32) * freqs[None]
-        embedding = ops.concat((ops.cos(args), ops.sin(args)), axis=-1)
+        embedding = mint.cat((mint.cos(args), mint.sin(args)), dim=-1)
         if dim % 2:
-            embedding = ops.concat((embedding, ops.zeros_like(embedding[:, :1])), axis=-1)
+            embedding = mint.cat((embedding, mint.zeros_like(embedding[:, :1])), dim=-1)
     else:
-        embedding = ops.broadcast_to(timesteps[:, None], (-1, dim))
+        embedding = mint.broadcast_to(timesteps[:, None], (-1, dim))
     return embedding.astype(dtype)
 
 

@@ -1,15 +1,13 @@
 # reference to https://github.com/Stability-AI/generative-models
 
 import copy
-from contextlib import contextmanager
 from typing import Dict, List, Optional, Union
 
 import numpy as np
 from omegaconf import ListConfig, OmegaConf
 from sgm.helpers import get_batch, get_unique_embedder_keys_from_conditioner
-from sgm.modules import UNCONDITIONAL_CONFIG
 from sgm.modules.diffusionmodules.wrappers import OpenAIWrapper
-from sgm.util import append_dims, default, get_obj_from_str, instantiate_from_config
+from sgm.util import append_dims, get_obj_from_str, instantiate_from_config
 
 import mindspore as ms
 from mindspore import Tensor, nn, ops
@@ -27,8 +25,6 @@ class DiffusionEngine(nn.Cell):
         loss_fn_config: Union[None, Dict, ListConfig, OmegaConf] = None,
         network_wrapper: Union[None, str] = None,
         ckpt_path: Union[None, str] = None,
-        use_ema: bool = False,
-        ema_decay_rate: float = 0.9999,
         scale_factor: float = 1.0,
         latents_mean: Union[List, ListConfig, None] = None,
         latents_std: Union[List, ListConfig, None] = None,
@@ -59,12 +55,13 @@ class DiffusionEngine(nn.Cell):
         self.first_stage_model = self.init_freeze_first_stage(first_stage_config) if load_first_stage_model else None
 
         # 3. text-encoders and vector conditioner
-        self.conditioner = (
-            instantiate_from_config(default(conditioner_config, UNCONDITIONAL_CONFIG)) if load_conditioner else None
-        )
+        # ? should not wrapped it with tuple? SHOULD NOT USE default in graph mode...
+        self.conditioner = instantiate_from_config(conditioner_config) if load_conditioner else None
 
         self.denoiser = instantiate_from_config(denoiser_config)
-        self.sampler = instantiate_from_config(sampler_config) if sampler_config is not None else None
+
+        # # comment out sampler when using new sampler.py, as the new one init a model within sampler's instance method
+        # self.sampler = instantiate_from_config(sampler_config) if sampler_config is not None else None
 
         # for train
         self.sigma_sampler = instantiate_from_config(sigma_sampler_config) if sigma_sampler_config else None
@@ -218,23 +215,6 @@ class DiffusionEngine(nn.Cell):
 
         return loss, overflow
 
-    @contextmanager
-    def ema_scope(self, context=None):
-        if self.ema:
-            # TODO: Add ema store and copy
-            # self.model_ema.store(self.model.parameters())
-            # self.model_ema.copy_to(self.model)
-            if context is not None:
-                print(f"{context}: Switched to EMA weights")
-        try:
-            yield None
-        finally:
-            if self.ema:
-                # TODO: Add ema restore
-                # self.model_ema.restore(self.model.parameters())
-                if context is not None:
-                    print(f"{context}: Restored training weights")
-
     def instantiate_optimizer_from_config(self, params, learning_rate, cfg):
         return get_obj_from_str(cfg["target"])(params, learning_rate=learning_rate, **cfg.get("params", dict()))
 
@@ -343,183 +323,3 @@ class DiffusionEngine(nn.Cell):
         if return_latents:
             return samples, samples_z
         return samples
-
-    def do_img2img(
-        self,
-        img,
-        sampler,
-        value_dict,
-        num_samples,
-        force_uc_zero_embeddings=[],
-        additional_kwargs={},
-        offset_noise_level: int = 0.0,
-        return_latents=False,
-        skip_encode=False,
-        filter=None,
-        add_noise=True,
-        amp_level="O0",
-        lpw=False,
-        max_embeddings_multiples=4,
-    ):
-        dtype = ms.float32 if amp_level not in ("O2", "O3") else ms.float16
-
-        batch, batch_uc = get_batch(
-            get_unique_embedder_keys_from_conditioner(self.conditioner), value_dict, [num_samples], dtype=dtype
-        )
-        for key in batch:
-            if isinstance(batch[key], Tensor):
-                print(key, batch[key].shape)
-            elif isinstance(batch[key], list):
-                print(key, [len(i) for i in batch[key]])
-            else:
-                print(key, batch[key])
-        print("Get Condition Done.")
-
-        print("Embedding Starting...")
-        c, uc = self.conditioner.get_unconditional_conditioning(
-            batch,
-            batch_uc=batch_uc,
-            force_uc_zero_embeddings=force_uc_zero_embeddings,
-            lpw=lpw,
-            max_embeddings_multiples=max_embeddings_multiples,
-        )
-        print("Embedding Done.")
-
-        for k in c:
-            c[k], uc[k] = map(lambda y: y[k][:num_samples], (c, uc))
-        for k in additional_kwargs:
-            c[k] = uc[k] = additional_kwargs[k]
-
-        z = img if skip_encode else self.encode_first_stage(img)
-        noise = ops.randn_like(z)
-
-        sigmas = sampler.discretization(sampler.num_steps)
-        sigma = Tensor(sigmas[0], z.dtype)
-        print(f"all sigmas: {sigmas}")
-        print(f"noising sigma: {sigmas[0]}")
-
-        if offset_noise_level > 0.0:
-            noise = noise + offset_noise_level * append_dims(ops.randn(z.shape[0], dtype=z.dtype), z.ndim)
-        if add_noise:
-            noised_z = z + noise * append_dims(sigma, z.ndim)
-            noised_z = noised_z / ops.sqrt(
-                1.0 + sigma**2.0
-            )  # Note: hardcoded to DDPM-like scaling. need to generalize later.
-        else:
-            noised_z = z / ops.sqrt(1.0 + sigma**2.0)
-
-        print("Sample latent Starting...")
-        samples_z = sampler(self, noised_z, cond=c, uc=uc)
-        print("Sample latent Done.")
-
-        print("Decode latent Starting...")
-        samples_x = self.decode_first_stage(samples_z)
-        samples_x = samples_x.asnumpy()
-        print("Decode latent Done.")
-
-        samples = np.clip((samples_x + 1.0) / 2.0, a_min=0.0, a_max=1.0)
-
-        if filter is not None:
-            samples = filter(samples)
-
-        if return_latents:
-            return samples, samples_z
-
-        return samples
-
-
-class DiffusionEngineMultiGraph(DiffusionEngine):
-    def __init__(self, **kwargs):
-        network_config = kwargs.pop("network_config", None)
-        if not network_config["target"] == "sgm.modules.diffusionmodules.openaimodel.UNetModel":
-            raise NotImplementedError
-        kwargs["network_config"] = None
-
-        super(DiffusionEngineMultiGraph, self).__init__(**kwargs)
-
-        from sgm.modules.diffusionmodules.openaimodel import UNetModelStage1, UNetModelStage2
-        from sgm.modules.diffusionmodules.wrappers import IdentityWrapper
-
-        params = network_config["params"]
-        self.stage1 = IdentityWrapper(UNetModelStage1(**params))
-        self.stage2 = IdentityWrapper(UNetModelStage2(**params))
-        self.model = None
-
-    def load_pretrained(self, ckpts, verbose=True):
-        if ckpts:
-            print(f"Loading MG model from {ckpts}")
-            if isinstance(ckpts, str):
-                ckpts = [ckpts]
-
-            sd_dict = {}
-            for ckpt in ckpts:
-                assert ckpt.endswith(".ckpt")
-                _sd_dict = ms.load_checkpoint(ckpt)
-                sd_dict.update(_sd_dict)
-
-                if "global_step" in sd_dict:
-                    global_step = sd_dict["global_step"]
-                    print(f"loaded ckpt from global step {global_step}")
-                    print(f"Global Step: {sd_dict['global_step']}")
-
-            # filter for multi-stage model
-            new_stage_dict = {}
-            for k in sd_dict:
-                if k.startswith("model.diffusion_model."):
-                    if (
-                        k.startswith("model.diffusion_model.output_blocks")
-                        or k.startswith("model.diffusion_model.out")
-                        or k.startswith("model.diffusion_model.id_predictor")
-                    ):
-                        new_k = "stage2" + k[len("model") :]
-                    else:
-                        new_k = "stage1" + k[len("model") :]
-                else:
-                    new_k = k
-
-                new_stage_dict[new_k] = sd_dict[k]
-
-            m, u = ms.load_param_into_net(self, new_stage_dict, strict_load=False)
-
-            if len(m) > 0 and verbose:
-                ignore_lora_key = len(ckpts) == 1
-                m = m if not ignore_lora_key else [k for k in m if "lora_" not in k]
-                print("missing keys:")
-                print(m)
-            if len(u) > 0 and verbose:
-                print("unexpected keys:")
-                print(u)
-        else:
-            print(f"Warning: DiffusionEngineMultiGraph, Loading checkpoint from {ckpts} fail")
-
-    def save_checkpoint(self, save_ckpt_dir):
-        ckpt = []
-        for n, p in self.parameters_and_names():
-            new_n = n[:]
-
-            # FIXME: save checkpoint bug on mindspore 2.2.0
-            if "._backbone" in new_n:
-                _index = new_n.find("._backbone")
-                new_n = new_n[:_index] + new_n[_index + len("._backbone") :]
-
-            if new_n.startswith("stage1."):
-                new_n = "model." + new_n[len("stage1.") :]
-            elif new_n.startswith("stage2."):
-                new_n = "model." + new_n[len("stage2.") :]
-
-            ckpt.append({"name": new_n, "data": Tensor(p.asnumpy())})
-
-        ms.save_checkpoint(ckpt, save_ckpt_dir)
-        print(f"Save checkpoint to {save_ckpt_dir}")
-
-    def do_sample(self, *args, **kwargs):
-        raise NotImplementedError
-
-    def do_img2img(self, *args, **kwargs):
-        raise NotImplementedError
-
-    def get_grad_func(self, *args, **kwargs):
-        raise NotImplementedError
-
-    def train_step_pynative(self, *args, **kwargs):
-        raise NotImplementedError

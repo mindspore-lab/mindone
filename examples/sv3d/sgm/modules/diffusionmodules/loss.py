@@ -31,7 +31,7 @@ class StandardDiffusionLoss(nn.Cell):
         self.batch2model_keys = set(batch2model_keys)
 
     def get_noise_input(self, pred, noise, sigmas):
-        input = pred
+        input = pred  # init a tensor in this node, for graph mode?
         if self.offset_noise_level > 0.0:
             noise = noise + self.offset_noise_level * append_dims(
                 ops.randn(input.shape[0], dtype=input.dtype), input.ndim

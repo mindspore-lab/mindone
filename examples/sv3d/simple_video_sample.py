@@ -1,11 +1,3 @@
-""" Note that this file is adapted from `simple_video_sample.py`, as modular design is current not supported under examples.
-
-Adapted from https://github.com/Stability-AI/generative-models/blob/main/scripts/sampling/simple_video_sample.py
-python simple_video_sample.py --version sv3d_u
-"""
-
-from __future__ import annotations
-
 import argparse
 import math
 import os
@@ -13,8 +5,6 @@ import sys
 from glob import glob
 from pathlib import Path
 from typing import Optional
-
-from loguru import logger
 
 __dir__ = os.path.dirname(os.path.abspath(__file__))
 mindone_lib_path = os.path.abspath(os.path.join(__dir__, "../../"))
@@ -33,129 +23,123 @@ try:
 except ImportError:
     from typing_extensions import Literal  # FIXME: python 3.7
 
-from sgm.helpers import create_model_sv3d as create_model
-from sgm.util import default
-from utils import mixed_precision
+from sgm.helpers import create_model_sv3d
+from sgm.util import default, instantiate_from_config
+from tools.vid2gif import DumperGif
 
 import mindspore as ms
-from mindspore import Tensor, nn, ops
+from mindspore import Tensor, ops
 from mindspore.dataset.vision import ToTensor
 
+from mindone.utils.amp import auto_mixed_precision
+from mindone.utils.logger import set_logger
 from mindone.utils.seed import set_random_seed
 
 
-class SV3DInferPipeline(nn.Cell):
+class SV3DInferPipeline:
     def __init__(
         self,
         model_config: str,
         ckpt_path: str,
-        num_frames: Optional[int],  # 21 for SV3D
+        num_frames: Optional[int],  # 21 default by sv3d
         device: str,
         num_steps: int,
         version: str,
-        motion_bucket_id: int,
-        fps_id: int,
-        cond_aug: int,
+        cond_aug: float,
         decoding_t: int = 14,
+        elevations_deg: float = None,  # TODO: for sv3d_p
+        azimuths_deg: float = None,
         verbose=False,
         amp_level: Literal["O0", "O2"] = "O0",
     ):
         super().__init__()
         model_config = OmegaConf.load(model_config)
+        model_config.model.params.config_arch_toload_vanilla_sv3d_ckpt = True
         model_config.model.params.sampler_config.params.verbose = verbose
         model_config.model.params.sampler_config.params.num_steps = num_steps
         model_config.model.params.sampler_config.params.guider_config.params.num_frames = num_frames
-        self.model, _ = create_model(model_config, checkpoints=ckpt_path, freeze=True, amp_level=amp_level)
+        self.model, _ = create_model_sv3d(model_config, checkpoints=ckpt_path, freeze=True, amp_level=amp_level)
+        self.model.en_and_decode_n_samples_a_time = decoding_t
+
+        # for the new sampler only
+        sampler_cfg = model_config.model.params.sampler_config
+        sampler_cfg.params["network_config"] = model_config
+        sampler_cfg.params["network_ckpt"] = ckpt_path
+        self.sampler = instantiate_from_config(sampler_cfg)
+
+        self.cond_aug = cond_aug
         self.num_frames = num_frames
         self.version = version
-        self.motion_bucket_id = motion_bucket_id
-        self.fps_id = fps_id
-        self.cond_aug = cond_aug
-        self.decoding_t = decoding_t
         self.device = device
 
-        if amp_level == "O2":
-            mixed_precision(self.model)
+        # preproc for graph mode
+        self.expand_dims_ops = ops.ExpandDims()
 
-    def construct(self, image: Tensor) -> Tensor:
+        if amp_level == "O2":
+            auto_mixed_precision(self.model)
+
+    @ms.jit
+    def get_batch(
+        self,
+        cond_frames: Tensor,
+        cond_frames_without_noise: Tensor,
+    ):
+        batch = {
+            "cond_frames": cond_frames,
+            "cond_frames_without_noise": cond_frames_without_noise,
+        }
+        batch_uc = {}
+        batch["cond_aug"] = Tensor(self.cond_aug).repeat(math.prod([1, self.num_frames]))
+
+        for key in batch.keys():
+            if key not in batch_uc and isinstance(batch[key], Tensor):
+                batch_uc[key] = batch[key].copy()
+        return batch, batch_uc
+
+    @ms.jit
+    def extract_samples(self, samples_z: Tensor, cond_frames_without_noise: Tensor):
+        samples_x = self.model.decode_first_stage(samples_z)
+        samples_x[-1:] = cond_frames_without_noise
+        samples = ops.clamp((samples_x + 1.0) / 2.0, min=0.0, max=1.0)
+        return samples
+
+    def __call__(self, image: Tensor) -> Tensor:
         image = image * 2.0 - 1.0
 
         image = image.unsqueeze(0)
-        H, W = image.shape[2:]
+        H, W = image.shape[-2:]
         assert image.shape[1] == 3
         F = 8
         C = 4
-        shape = (self.num_frames, C, H // F, W // F)
-        if (H, W) != (576, 1024) and "sv3d" not in self.version:
-            print(
-                "WARNING: The conditioning frame you provided is not 576x1024."
-                "This leads to suboptimal performance as model was only trained on 576x1024."
-                "Consider increasing `cond_aug`."
-            )
-        if (H, W) != (576, 576) and "sv3d" in self.version:
-            print(
-                "WARNING: The conditioning frame you provided is not 576x576."
-                "This leads to suboptimal performance as model was only trained on 576x576."
-            )
-        if self.motion_bucket_id > 255:
-            print("WARNING: High motion bucket! This may lead to suboptimal performance.")
+        _cond_aug = Tensor(self.cond_aug, dtype=ms.float32)
+        cond_frames = image + _cond_aug * ops.randn_like(image)
+        cond_frames_without_noise = image
+        batch, batch_uc = self.get_batch(cond_frames, cond_frames_without_noise)
 
-        if self.fps_id < 5:
-            print("WARNING: Small fps value! This may lead to suboptimal performance.")
-
-        if self.fps_id > 30:
-            print("WARNING: Large fps value! This may lead to suboptimal performance.")
-
-        value_dict = {}
-        value_dict["cond_frames_without_noise"] = image
-        value_dict["motion_bucket_id"] = self.motion_bucket_id
-        value_dict["fps_id"] = self.fps_id
-        value_dict["cond_aug"] = self.cond_aug
-        value_dict["cond_frames"] = image + self.cond_aug * ops.randn_like(image)
-
-        # with torch.no_grad():
-        # ops.stop_gradient(model)
-        # with torch.autocast(device):
-        batch, batch_uc = get_batch(
-            get_unique_embedder_keys_from_conditioner(self.model.conditioner),
-            value_dict,
-            [1, self.num_frames],
-            T=self.num_frames,
-        )
         c, uc = self.model.conditioner.get_unconditional_conditioning(
             batch,
-            batch_uc=batch_uc,
+            batch_uc,
             force_uc_zero_embeddings=[
                 "cond_frames",
                 "cond_frames_without_noise",
             ],
         )
-        expand_dims_ops = ops.ExpandDims()
 
         for k in ["crossattn", "concat"]:
-            uc[k] = expand_dims_ops(uc[k], 1)
+            uc[k] = self.expand_dims_ops(uc[k], 1)
             uc[k] = uc[k].repeat(self.num_frames, axis=1)
             uc[k] = uc[k].flatten(order="C", start_dim=0, end_dim=1)
-            c[k] = expand_dims_ops(c[k], 1)
+            c[k] = self.expand_dims_ops(c[k], 1)
             c[k] = c[k].repeat(self.num_frames, axis=1)
             c[k] = c[k].flatten(order="C", start_dim=0, end_dim=1)
 
+        shape = (self.num_frames, C, H // F, W // F)
         randn = ops.randn(shape)
-
         additional_model_inputs = {}
         additional_model_inputs["image_only_indicator"] = ops.zeros((2, self.num_frames))
-        samples_z = self.model.sampler(
-            self.model, randn, cond=c, uc=uc, num_frames=self.num_frames, **additional_model_inputs
-        )
+        samples_z = self.sampler(randn, cond=c, uc=uc, num_frames=self.num_frames, **additional_model_inputs)
 
-        # # unlike the sv3d version of sdxl, we followed the original sdxl in mindone by passing in the whole model to sampler
-        # rather than a denoiser in sv3d, as in the openai_wrapper the ms concat func does not support the current rank setup
-        # samples_z = self.model.sampler(model, randn, cond=c, uc=uc, num_frames=num_frames)
-        self.model.en_and_decode_n_samples_a_time = self.decoding_t
-        samples_x = self.model.decode_first_stage(samples_z)
-        if "sv3d" in self.version:
-            samples_x[-1:] = value_dict["cond_frames_without_noise"]
-        samples = ops.clamp((samples_x + 1.0) / 2.0, min=0.0, max=1.0)
+        samples = self.extract_samples(samples_z, cond_frames_without_noise)
 
         return samples
 
@@ -165,11 +149,11 @@ def sample(
     ckpt_path: str,
     num_steps: Optional[int] = None,
     version: str = "sv3d_u",
-    fps_id: int = 6,
-    motion_bucket_id: int = 127,
     seed: int = 42,
     decoding_t: int = 7,  # Number of frames decoded at a time! This eats most VRAM. Reduce if necessary.
+    mode: str = 1,
     device: str = "Ascend",
+    device_id: int = 0,
     output_folder: Optional[str] = None,
     image_frame_ratio: Optional[float] = None,
 ):
@@ -187,13 +171,18 @@ def sample(
     else:
         raise ValueError(f"Version {version} is not supported for this example yet.")
 
-    ms.context.set_context(mode=1, device_target=device, device_id=4)
+    logger = set_logger(
+        name="",
+        output_dir=str(output_folder),
+    )  # all the logger needs to follow name, to use the mindone callbacks directly, need to put name as ""
+    logger.info("program started")
+
+    ms.context.set_context(mode=mode, device_target=device, device_id=device_id)
     set_random_seed(seed)
     path = Path(input_path)
-    pipeline = SV3DInferPipeline(
-        model_config, ckpt_path, num_frames, device, num_steps, version, motion_bucket_id, fps_id, cond_aug, decoding_t
-    )
+    pipeline = SV3DInferPipeline(model_config, ckpt_path, num_frames, device, num_steps, version, cond_aug, decoding_t)
     all_img_paths = []
+    logger.info(f"path posix: {path}")
     if path.is_file():
         if any([input_path.endswith(x) for x in ["jpg", "jpeg", "png"]]):
             all_img_paths = [input_path]
@@ -207,6 +196,8 @@ def sample(
             raise ValueError("Folder does not contain any images.")
     else:
         raise ValueError("Input img path unavailable.")
+
+    gif_dumper = DumperGif()
 
     for input_img_path in all_img_paths:
         if "sv3d" in version:
@@ -251,63 +242,49 @@ def sample(
                     print(
                         f"WARNING: Your image is of size {h}x{w} which is not divisible by 64. We are resizing to {height}x{width}!"
                     )
-        image = Tensor(ToTensor()(input_image))
-        logger.info("Starting 3D generation, this may take a while...")
+        image = Tensor(ToTensor()(input_image), ms.float32)
+        logger.info(f"Starting 3D generation for {input_img_path}, this may take a while...")
         samples = pipeline(image)
-        logger.info("Samples generated")
+        logger.info("program finished")
+
+        logger.info(f"Samples of {input_img_path} generated")
         os.makedirs(output_folder, exist_ok=True)
         base_count = len(glob(os.path.join(output_folder, "*.mp4")))
 
         imageio.imwrite(os.path.join(output_folder, f"{base_count: 06d}.jpg"), input_image)
-        # samples = embed_watermark(samples)  # TODO get the filtering/watermarking work
-        # samples = filter(samples)
         samples = samples.asnumpy()
         vid = (rearrange(samples, "t c h w -> t h w c") * 255).astype(np.uint8)
 
         video_path = os.path.join(output_folder, f"{base_count: 06d}.mp4")
         imageio.mimwrite(video_path, vid)
-
-
-def get_unique_embedder_keys_from_conditioner(conditioner):
-    return list(set([x.input_key for x in conditioner.embedders]))
-
-
-def get_batch(keys, value_dict, N, T):
-    batch = {}
-    batch_uc = {}
-
-    for key in keys:
-        if key == "cond_aug":
-            batch[key] = Tensor([value_dict["cond_aug"]]).repeat(math.prod(N))
-        elif key == "cond_frames" or key == "cond_frames_without_noise":
-            # batch[key] = repeat(value_dict[key], "1 ... -> b ...", b=N[0])
-            # nothing happens when bsize==N[0]==1, so just skip first
-            batch[key] = value_dict[key]
-        elif key == "polars_rad" or key == "azimuths_rad":
-            batch[key] = Tensor(value_dict[key]).repeat(N[0])
-        else:
-            batch[key] = value_dict[key]
-
-    if T is not None:
-        batch["num_video_frames"] = T
-
-    logger.info(f"keys are {keys}")
-
-    for key in batch.keys():
-        if key not in batch_uc and isinstance(batch[key], Tensor):
-            batch_uc[key] = batch[key].copy()
-
-    logger.info(f"batch are {batch}")
-
-    return batch, batch_uc
+        gif_path = os.path.join(output_folder, f"{base_count: 06d}.gif")
+        gif_dumper.vid2gif(gif_path, vid)
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--ckpt", default="PATHTOYOURCKPT", type=str, help="path to the ckpt")
     parser.add_argument(
-        "--input", default="PATHTOYOURINPUT", type=str, help="path to the input img, or the input imgs dir path"
+        "--ckpt",
+        # default="PATHTOYOURCKPT",
+        default="/mnt/disk4/fredhong/from_local/mindone/fred_examples/sv3d/ckpt/sv3d_u.ckpt",
+        type=str,
+        help="path to the ckpt",
+    )
+    parser.add_argument(
+        "--input",
+        # default="PATHTOYOURINPUT",
+        default="/mnt/disk4/fredhong/mindone_master/examples/sv3d/tools_gif/mindone.png",
+        type=str,
+        help="path to the input img, or the input imgs dir path",
+    )
+    parser.add_argument(
+        "--mode", default="1", type=str, help="MindSpore execution mode: Graph mode[0] or Pynative mode[1]"
+    )
+    parser.add_argument(
+        "--device_id", default="2", type=str, help="MindSpore execution mode: Graph mode[0] or Pynative mode[1]"
     )
     args = parser.parse_args()
     print(args)
-    sample(args.input, args.ckpt)
+    sample(
+        args.input, args.ckpt, mode=int(args.mode), device_id=int(args.device_id), output_folder="oct_22_pynative_speed"
+    )

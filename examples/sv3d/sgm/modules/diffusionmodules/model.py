@@ -292,6 +292,7 @@ class Encoder(nn.Cell):
         use_linear_attn=False,
         attn_type="vanilla",
         encoder_attn_dtype=None,
+        use_recompute=False,
         **ignore_kwargs,
     ):
         super().__init__()
@@ -374,6 +375,9 @@ class Encoder(nn.Cell):
             pad_mode="pad",
             has_bias=True,
         )
+        if use_recompute:
+            self.conv_in.recompute()
+            self.down.recompute()
 
     def construct(self, x):
         # timestep embedding
