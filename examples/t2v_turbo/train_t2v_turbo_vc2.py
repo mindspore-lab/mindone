@@ -222,8 +222,8 @@ def main(args):
         " doing mixed precision training, copy of the weights should still be float32."
     )
 
-    if unet.dtype != ms.float32:
-        raise ValueError(f"Controlnet loaded as datatype {unet.dtype}. {low_precision_error_string}")
+    # if unet.dtype != ms.float32:
+    #     raise ValueError(f"Controlnet loaded as datatype {unet.dtype}. {low_precision_error_string}")
 
     # 9. Handle mixed precision and device placement
     # For mixed precision training we cast all non-trainable weigths to half-precision

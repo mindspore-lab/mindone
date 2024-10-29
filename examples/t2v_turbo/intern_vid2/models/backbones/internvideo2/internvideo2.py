@@ -3,7 +3,12 @@ import logging
 
 import mindspore as ms
 from mindspore import ops, nn, mint
-
+from mindspore import Parameter, Tensor
+from mindspore.common.initializer import (
+    TruncatedNormal,
+    Constant,
+    initializer,
+)
 from functools import partial
 
 from .pos_embed import get_3d_sincos_pos_embed, interpolate_pos_embed_internvideo2
@@ -22,6 +27,10 @@ logger = logging.getLogger(__name__)
 #     from flash_attn.ops.rms_norm import DropoutAddRMSNorm
 # except:
 #     logger.warn(f'DropoutAddRMSNorm of flash_attn is not installed!!!')
+
+
+def trunc_normal_(tensor: ms.Parameter, mean: float = 0.0, std: float = 1.0, a: float = -2.0, b: float = 2.0):
+    tensor.set_data(initializer(TruncatedNormal(std, mean, a, b), tensor.shape, tensor.dtype))
 
 
 class DropPath(nn.Cell):
@@ -43,6 +52,15 @@ class DropPath(nn.Cell):
         if not self.scale_by_keep:
             random_tensor = ops.mul(random_tensor, self.keep_prob)
         return x * random_tensor
+
+
+class LayerNorm(nn.LayerNorm):
+    """subclass torch's LayerNorm to handle fp16."""
+
+    def construct(self, x: Tensor):
+        orig_type = x.dtype
+        ret = super().construct(ops.cast(x, ms.float32))
+        return ops.cast(ret, orig_type)
 
 
 class CrossAttention(nn.Cell):
@@ -100,7 +118,7 @@ class CrossAttention(nn.Cell):
         q = q * self.scale
         attn = (q @ k.swapaxes(-2, -1))  # (B, N_head, N_q, N_k)
         
-        attn = attn.softmax(axis=-1)
+        attn = ops.softmax(attn.astype(ms.float32), axis=-1).astype(attn.dtype)
         attn = self.attn_drop(attn)
         
         x = (attn @ v).swapaxes(1, 2).reshape(B, N, -1)
@@ -113,12 +131,12 @@ class CrossAttention(nn.Cell):
 class AttentiveBlock(nn.Cell):
     
     def __init__(self, dim, num_heads, qkv_bias=False, qk_scale=None, drop=0., attn_drop=0.,
-                 drop_path=0., norm_layer=nn.LayerNorm, attn_head_dim=None, out_dim=None):
+                 drop_path=0., norm_layer=LayerNorm, attn_head_dim=None, out_dim=None):
         super().__init__()
         
-        self.norm1_q = norm_layer(dim)
-        self.norm1_k = norm_layer(dim)
-        self.norm1_v = norm_layer(dim)
+        self.norm1_q = norm_layer((dim,))
+        self.norm1_k = norm_layer((dim,))
+        self.norm1_v = norm_layer((dim,))
         self.cross_attn = CrossAttention(
             dim, num_heads=num_heads, qkv_bias=qkv_bias, qk_scale=qk_scale, attn_drop=attn_drop,
             proj_drop=drop, attn_head_dim=attn_head_dim, out_dim=out_dim)
@@ -147,15 +165,14 @@ class AttentionPoolingBlock(AttentiveBlock):
 class RMSNorm(nn.Cell):
     def __init__(self, hidden_size, eps=1e-6):
         super().__init__()
-        self.weight = ms.Parameter(ops.ones(hidden_size))
+        self.weight = ms.Parameter(np.ones(hidden_size).astype(np.float32))
         self.variance_epsilon = eps
     
     def construct(self, hidden_states):
         input_dtype = hidden_states.dtype
         hidden_states = hidden_states.to(ms.float32)
-        variance = hidden_states.pow(2).mean(-1, keep_dims=True)
-        hidden_states = hidden_states * ops.rsqrt(variance + self.variance_epsilon)
-        return self.weight * hidden_states.to(input_dtype)
+        hidden_states = ops.rms_norm(hidden_states, self.weight, self.variance_epsilon)[0]
+        return hidden_states.to(input_dtype)
 
 
 class LayerScale(nn.Cell):
@@ -177,7 +194,7 @@ class LayerScale(nn.Cell):
 
 class Attention(nn.Cell):
     def __init__(self, dim, num_heads=8, qkv_bias=False, attn_drop=0., proj_drop=0., use_flash_attn=False,
-                 causal=False, norm_layer=nn.LayerNorm, qk_normalization=False, use_fused_rmsnorm=False):
+                 causal=False, norm_layer=LayerNorm, qk_normalization=False, use_fused_rmsnorm=False):
         super().__init__()
         assert dim % num_heads == 0, 'dim should be divisible by num_heads'
         self.num_heads = num_heads
@@ -195,8 +212,8 @@ class Attention(nn.Cell):
             self.inner_attn = FlashAttention(attention_dropout=attn_drop)
         
         self.qk_normalization = qk_normalization
-        self.q_norm = norm_layer(dim) if qk_normalization else nn.Identity()
-        self.k_norm = norm_layer(dim) if qk_normalization else nn.Identity()
+        self.q_norm = norm_layer((dim,)) if qk_normalization else nn.Identity()
+        self.k_norm = norm_layer((dim,)) if qk_normalization else nn.Identity()
         self.use_fused_rmsnorm = use_fused_rmsnorm
     
     def _naive_attn(self, x):
@@ -212,7 +229,7 @@ class Attention(nn.Cell):
         
         attn = ((q * self.scale) @ k.swapaxes(-2, -1))
         # attn = attn - attn.max(-1)[0].unsqueeze(-1)  # in case of overflow for fp16
-        attn = attn.softmax(axis=-1)
+        attn = ops.softmax(attn.astype(ms.float32), axis=-1).astype(attn.dtype)
         attn = self.attn_drop(attn)
         # print(torch.cuda.memory_allocated(), torch.cuda.memory_allocated())
         x = (attn @ v).swapaxes(1, 2).reshape(B, N, C)
@@ -265,7 +282,7 @@ class Mlp(nn.Cell):
         drop_probs = to_2tuple(drop)
         
         self.fc1 = nn.Dense(in_features, hidden_features, has_bias=bias[0])
-        self.act = act_layer()
+        self.act = act_layer(approximate=False)
         self.drop1 = nn.Dropout(drop_probs[0])
         self.fc2 = nn.Dense(hidden_features, out_features, has_bias=bias[1])
         self.drop2 = nn.Dropout(drop_probs[1])
@@ -283,12 +300,12 @@ class Block(nn.Cell):
     
     def __init__(
             self, dim, num_heads, mlp_ratio=4., qkv_bias=False, drop=0., attn_drop=0., init_values=None,
-            drop_path=0., act_layer=nn.GELU, norm_layer=nn.LayerNorm, use_flash_attn=False, use_fused_mlp=False,
+            drop_path=0., act_layer=nn.GELU, norm_layer=LayerNorm, use_flash_attn=False, use_fused_mlp=False,
             fused_mlp_heuristic=1, with_cp=False, qk_normalization=False, layerscale_no_force_fp32=False,
             use_fused_rmsnorm=False):
         super().__init__()
         
-        self.norm1 = norm_layer(dim)
+        self.norm1 = norm_layer((dim,))
         self.attn = Attention(dim, num_heads=num_heads, qkv_bias=qkv_bias, attn_drop=attn_drop, proj_drop=drop,
                               use_flash_attn=use_flash_attn, causal=False, norm_layer=norm_layer,
                               qk_normalization=qk_normalization,
@@ -298,7 +315,7 @@ class Block(nn.Cell):
         # NOTE: drop path for stochastic depth, we shall see if this is better than dropout here
         self.drop_path1 = DropPath(drop_path) if drop_path > 0. else nn.Identity()
         
-        self.norm2 = norm_layer(dim)
+        self.norm2 = norm_layer((dim,))
         mlp_hidden_dim = int(dim * mlp_ratio)
         if use_fused_mlp:
             self.mlp = FusedMLP(in_features=dim, hidden_features=mlp_hidden_dim, heuristic=fused_mlp_heuristic)
@@ -355,7 +372,7 @@ class PatchEmbed(nn.Cell):
             stride=(tubelet_size, patch_size[0], patch_size[1]),
             has_bias=True,
         )
-        self.norm = norm_layer(embed_dim) if norm_layer else nn.Identity()
+        self.norm = norm_layer((embed_dim,)) if norm_layer else nn.Identity()
     
     def construct(self, x):
         x = self.proj(x)
@@ -366,13 +383,13 @@ class PatchEmbed(nn.Cell):
 
 class Linear_Decoder(nn.Cell):
     def __init__(self, in_channels=1408, out_channels=3200, 
-                 norm_layer=nn.LayerNorm, clip_norm_type='l2'):
+                 norm_layer=LayerNorm, clip_norm_type='l2'):
         super().__init__()
         self.clip_norm_type = clip_norm_type
         logger.info(f'Normalization Type: {clip_norm_type}')
 
         self.head = nn.Dense(in_channels, out_channels)
-        self.norm =  norm_layer(out_channels)
+        self.norm =  norm_layer((out_channels,))
 
     def construct(self, x):
         x = self.norm(self.head(x))
@@ -492,14 +509,14 @@ class PretrainInternVideo2(nn.Cell):
             for i in range(depth)])
         self.clip_projector = AttentionPoolingBlock(
             dim=embed_dim, num_heads=attn_pool_num_heads, qkv_bias=True, qk_scale=None,
-            drop=0., attn_drop=0., norm_layer=partial(nn.LayerNorm, eps=1e-5), out_dim=clip_embed_dim)
+            drop=0., attn_drop=0., norm_layer=partial(LayerNorm, eps=1e-5), out_dim=clip_embed_dim)
         
         # CLIP decoder
         self.clip_decoder = nn.CellList([
             Linear_Decoder(
                 in_channels=embed_dim, 
                 out_channels=clip_teacher_embed_dim, 
-                norm_layer=partial(nn.LayerNorm, eps=1e-5), 
+                norm_layer=partial(LayerNorm, eps=1e-5), 
                 clip_norm_type=clip_norm_type
             ) for _ in range(clip_return_layer)
         ])
@@ -508,14 +525,14 @@ class PretrainInternVideo2(nn.Cell):
             self.final_clip_decoder = Linear_Decoder(
                 in_channels=clip_embed_dim, 
                 out_channels=clip_teacher_final_dim, 
-                norm_layer=partial(nn.LayerNorm, eps=1e-5), 
+                norm_layer=partial(LayerNorm, eps=1e-5), 
                 clip_norm_type=clip_norm_type
             )
         
-        # self.init_pos_embed()
-        # trunc_normal_(self.cls_token, std=.02)
-        # self.apply(self._init_weights)
-        # self.fix_init_weight()
+        self.init_pos_embed()
+        trunc_normal_(self.cls_token, std=.02)
+        self.apply(self._init_weights)
+        self.fix_init_weight()
 
     def init_pos_embed(self):
         logger.info("Init pos_embed from sincos pos_embed")
@@ -530,8 +547,8 @@ class PretrainInternVideo2(nn.Cell):
                 self.patch_embed.grid_size[0], # t_size
                 cls_token=True
             )
-            self.pos_embed.data.copy_(ms.Tensor.from_numpy(pos_embed).float().unsqueeze(0))
-            self.clip_pos_embed.data.copy_(ms.Tensor.from_numpy(pos_embed).float().unsqueeze(0))
+            self.pos_embed.set_data(ms.Tensor(pos_embed).float().unsqueeze(0))
+            self.clip_pos_embed.set_data(ms.Tensor(pos_embed).float().unsqueeze(0))
             
             if self.sep_image_video_pos_embed:
                 img_pos_embed = get_3d_sincos_pos_embed(
@@ -540,21 +557,21 @@ class PretrainInternVideo2(nn.Cell):
                     1,
                     cls_token=True
                 )
-                self.img_pos_embed.data.copy_(ms.Tensorfrom_numpy(img_pos_embed).float().unsqueeze(0))
-                self.clip_img_pos_embed.data.copy_(ms.Tensor.from_numpy(img_pos_embed).float().unsqueeze(0))
+                self.img_pos_embed.set_data(ms.Tensor(img_pos_embed).float().unsqueeze(0))
+                self.clip_img_pos_embed.set_data(ms.Tensor(img_pos_embed).float().unsqueeze(0))
 
     def _init_weights(self, m):
         if isinstance(m, nn.Dense):
             trunc_normal_(m.weight, std=.02)
             if isinstance(m, nn.Dense) and m.bias is not None:
-                nn.init.constant_(m.bias, 0)
+                m.bias.set_data(initializer(Constant(0), m.bias.shape, m.bias.dtype))
         elif isinstance(m, nn.LayerNorm):
-            nn.init.constant_(m.bias, 0)
-            nn.init.constant_(m.weight, 1.0)
+            m.beta.set_data(initializer(Constant(0), m.beta.shape, m.beta.dtype))
+            m.gamma.set_data(initializer(Constant(1.0), m.gamma.shape, m.gamma.dtype))
 
     def fix_init_weight(self):
         def rescale(param, layer_id):
-            param.div_(math.sqrt(2.0 * layer_id))
+            param = param.div(math.sqrt(2.0 * layer_id))
 
         for layer_id, layer in enumerate(self.blocks):
             rescale(layer.attn.proj.weight.data, layer_id + 1)
@@ -723,14 +740,14 @@ def pretrain_internvideo2_1b_patch14_224(config):
         logger.info(f"Loading pretrained weights from {config.vision_encoder.pretrained}")
         state_dict = ms.load_checkpoint(config.vision_encoder.pretrained)
 
-        state_dict_new = {}
-        for k, v in state_dict.items():
-            if k.startswith("vision_encoder"):
-                state_dict_new[k[len("vision_encoder."):]] = v
-        state_dict = state_dict_new
+        # state_dict_new = {}
+        # for k, v in state_dict.items():
+        #     if k.startswith("vision_encoder"):
+        #         state_dict_new[k[len("vision_encoder."):]] = v
+        # state_dict = state_dict_new
 
-        interpolate_pos_embed_internvideo2(state_dict, model, orig_t_size=4)
-        ms.load_param_into_net(model, state_dict, strict_load=False)
+        interpolate_pos_embed_internvideo2(state_dict, model, orig_t_size=8)
+        ms.load_param_into_net(model, state_dict)
     else:
         logger.info("No pretrained weights!!!")
     return model

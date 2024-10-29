@@ -17,37 +17,42 @@
 
 import math
 import os
+import sys
 import warnings
+import inspect
 from dataclasses import dataclass
 from typing import Optional, Tuple
+from collections import OrderedDict
 
 import numpy as np
 import mindspore as ms
 from mindspore import nn, ops, Tensor
 from mindspore.common.initializer import initializer, Normal
 from mindspore.nn import CrossEntropyLoss, MSELoss
-from mindnlp.transformers.activations import ACT2FN
-from mindnlp.transformers.configuration_utils import PretrainedConfig
-from mindnlp.transformers.modeling_outputs import (
+from mindspore.amp import auto_mixed_precision
+from mindspore.common.initializer import Normal, TruncatedNormal, initializer
+
+from transformers.configuration_utils import PretrainedConfig
+from mindnlp.utils import ModelOutput, logging
+
+__dir__ = os.path.dirname(os.path.abspath(__file__))
+mindone_lib_path = os.path.abspath(os.path.join(__dir__, "../../../../../../"))
+sys.path.insert(0, mindone_lib_path)
+sys.path.insert(0, os.path.abspath(os.path.join(__dir__, "..")))
+
+from mindone.transformers.modeling_outputs import (
     BaseModelOutputWithPastAndCrossAttentions,
     BaseModelOutputWithPoolingAndCrossAttentions,
     CausalLMOutputWithCrossAttentions, MaskedLMOutput,
     MultipleChoiceModelOutput, NextSentencePredictorOutput,
     QuestionAnsweringModelOutput, SequenceClassifierOutput,
     TokenClassifierOutput)
-from mindnlp.transformers.modeling_utils import PreTrainedModel
-from mindnlp.transformers.ms_utils import (
-    apply_chunking_to_forward,
+from mindone.transformers.modeling_utils import MSPreTrainedModel
+from mindone.transformers.mindspore_utils import (
     find_pruneable_heads_and_indices,
     prune_linear_layer)
-from mindnlp.transformers.models.bert.modeling_bert import (
-    BertIntermediate,
-    BertOutput,
-    BertSelfOutput,
-    BertEmbeddings,
-    BertPooler,
-)
-from mindnlp.utils import ModelOutput, logging
+from mindone.transformers.models.bert.modeling_bert import BertPooler
+
 
 logging.set_verbosity_error()
 
@@ -81,6 +86,101 @@ BERT_PRETRAINED_MODEL_ARCHIVE_LIST = [
     "wietsedv/bert-base-dutch-cased",
     # See all BERT models at https://huggingface.co/models?filter=bert
 ]
+
+
+def apply_chunking_to_forward(forward_fn, chunk_size, chunk_axis, *input_tensors):
+    """
+    This function chunks the `input_tensors` into smaller input tensor parts of size `chunk_size` over the dimension
+    `chunk_axis`. It then applies a layer `forward_fn` to each chunk independently to save memory.
+    If the `forward_fn` is independent across the `chunk_dim` this function will yield the same result as directly
+    applying `forward_fn` to `input_tensors`.
+
+    Args:
+        forward_fn (`Callable[..., mindspore.Tensor]`):
+            The forward function of the model.
+        chunk_size (`int`):
+            The chunk size of a chunked tensor: `num_chunks = len(input_tensors[0]) / chunk_size`.
+        chunk_axis (`int`):
+            The dimension over which the `input_tensors` should be chunked.
+        input_tensors (`Tuple[mindspore.Tensor]`):
+            The input tensors of `forward_fn` which will be chunked
+
+    Returns:
+        `mindspore.Tensor`: A tensor with the same shape as the `forward_fn` would have given if applied`.
+    """
+    assert len(input_tensors) > 0, f"{input_tensors} has to be a tuple/list of tensors"
+
+     # inspect.signature exist since python 3.5 and is a python method -> no problem with backward compatibility
+    num_args_in_forward_chunk_fn = len(inspect.signature(forward_fn).parameters)
+    if num_args_in_forward_chunk_fn != len(input_tensors):
+        raise ValueError(
+            f"forward_chunk_fn expects {num_args_in_forward_chunk_fn} arguments, but only {len(input_tensors)} input "
+            "tensors are given"
+        )
+
+    if chunk_size > 0:
+        tensor_shape = input_tensors[0].shape[chunk_axis]
+        for input_tensor in input_tensors:
+            if input_tensor.shape[chunk_axis] != tensor_shape:
+                raise ValueError(
+                    f"All input tenors have to be of the same shape: {tensor_shape}, "
+                    f"found shape {input_tensor.shape[chunk_axis]}"
+                )
+
+        if input_tensors[0].shape[chunk_axis] % chunk_size != 0:
+            raise ValueError(
+                f"The dimension to be chunked {input_tensors[0].shape[chunk_axis]} has to be a multiple of the chunk "
+                f"size {chunk_size}"
+            )
+
+        num_chunks = input_tensors[0].shape[chunk_axis] // chunk_size
+
+        # chunk input tensor into tuples
+        input_tensors_chunks = tuple(ops.chunk(input_tensor, num_chunks, axis=chunk_axis) for input_tensor in input_tensors)
+        # apply forward fn to every tuple
+        output_chunks = tuple(forward_fn(*input_tensors_chunk) for input_tensors_chunk in zip(*input_tensors_chunks))
+        # concatenate output at same dimension
+        return ops.cat(output_chunks, axis=chunk_axis)
+
+    return forward_fn(*input_tensors)
+
+
+class ClassInstantier(OrderedDict):
+    def __getitem__(self, key):
+        content = super().__getitem__(key)
+        cls, kwargs = content if isinstance(content, tuple) else (content, {})
+        return cls(**kwargs)
+
+
+ACT2CLS = {
+    """
+    Excitation equation matrix
+    """
+    "relu": nn.ReLU,
+    "gelu": (nn.GELU, {"approximate": False}),
+    "gelu_new": nn.GELU,
+    "gelu_approximate": nn.GELU,
+    "swish": nn.SiLU,
+    "gelu_10": nn.GELU,
+    "gelu_fast": nn.FastGelu,
+    "gelu_python": nn.GELU,
+    "linear": nn.ReLU,
+    "mish": nn.Mish,
+    "quick_gelu": nn.FastGelu,
+    "relu": nn.ReLU,
+    "relu6": nn.ReLU6,
+    "sigmoid": nn.Sigmoid,
+    "silu": nn.SiLU,
+    "tanh": nn.Tanh,
+}
+ACT2FN = ClassInstantier(ACT2CLS)
+
+
+class LayerNormFp32(nn.LayerNorm):
+    def construct(self, x: Tensor):
+        orig_type = x.dtype
+        res = super().construct(ops.cast(x, ms.float32))
+        return ops.cast(res, orig_type)
 
 
 class BertConfig(PretrainedConfig):
@@ -189,6 +289,113 @@ class BertConfig(PretrainedConfig):
         self.use_cache = use_cache
         self.classifier_dropout = classifier_dropout
         self.cross_module = cross_module
+
+
+class BertSelfOutput(nn.Cell):
+    r"""
+    Bert Self Output
+    """
+
+    def __init__(self, config):
+        super().__init__()
+        self.dense = nn.Dense(config.hidden_size, config.hidden_size)
+        self.LayerNorm = LayerNormFp32((config.hidden_size,), epsilon=config.layer_norm_eps)
+        self.dropout = nn.Dropout(p=config.hidden_dropout_prob)
+
+    def construct(self, hidden_states, input_tensor):
+        hidden_states = self.dense(hidden_states)
+        hidden_states = self.dropout(hidden_states)
+        hidden_states = self.LayerNorm(hidden_states + input_tensor)
+        return hidden_states
+
+
+class BertIntermediate(nn.Cell):
+    def __init__(self, config):
+        super().__init__()
+        self.dense = nn.Dense(config.hidden_size, config.intermediate_size)
+        if isinstance(config.hidden_act, str):
+            self.intermediate_act_fn = ACT2FN[config.hidden_act]
+        else:
+            self.intermediate_act_fn = config.hidden_act
+
+    def construct(self, hidden_states: ms.Tensor) -> ms.Tensor:
+        hidden_states = self.dense(hidden_states)
+        hidden_states = self.intermediate_act_fn(hidden_states)
+        return hidden_states
+
+
+class BertOutput(nn.Cell):
+    def __init__(self, config):
+        super().__init__()
+        self.dense = nn.Dense(config.intermediate_size, config.hidden_size)
+        self.LayerNorm = LayerNormFp32((config.hidden_size,), epsilon=config.layer_norm_eps)
+        self.dropout = nn.Dropout(p=config.hidden_dropout_prob)
+
+    def construct(self, hidden_states: ms.Tensor, input_tensor: ms.Tensor) -> ms.Tensor:
+        hidden_states = self.dense(hidden_states)
+        hidden_states = self.dropout(hidden_states)
+        hidden_states = self.LayerNorm(hidden_states + input_tensor)
+        return hidden_states
+
+
+class BertEmbeddings(nn.Cell):
+    """Construct the embeddings from word, position and token_type embeddings."""
+
+    def __init__(self, config):
+        super().__init__()
+        self.word_embeddings = nn.Embedding(config.vocab_size, config.hidden_size, padding_idx=config.pad_token_id)
+        self.position_embeddings = nn.Embedding(config.max_position_embeddings, config.hidden_size)
+        self.token_type_embeddings = nn.Embedding(config.type_vocab_size, config.hidden_size)
+
+        # self.LayerNorm is not snake-cased to stick with TensorFlow model variable name and be able to load
+        # any TensorFlow checkpoint file
+        self.LayerNorm = LayerNormFp32((config.hidden_size,), epsilon=config.layer_norm_eps)
+        self.dropout = nn.Dropout(p=config.hidden_dropout_prob)
+        # position_ids (1, len position emb) is contiguous in memory and exported when serialized
+        self.position_embedding_type = getattr(config, "position_embedding_type", "absolute")
+        self.position_ids = ops.arange(config.max_position_embeddings).broadcast_to((1, -1))
+        self.token_type_ids = ops.zeros(self.position_ids.shape, dtype=ms.int32)
+
+    def construct(
+        self,
+        input_ids: Optional[ms.Tensor] = None,
+        token_type_ids: Optional[ms.Tensor] = None,
+        position_ids: Optional[ms.Tensor] = None,
+        inputs_embeds: Optional[ms.Tensor] = None,
+        past_key_values_length: int = 0,
+    ) -> ms.Tensor:
+        if input_ids is not None:
+            input_shape = input_ids.shape
+        else:
+            input_shape = inputs_embeds.shape[:-1]
+
+        seq_length = input_shape[1]
+
+        if position_ids is None:
+            position_ids = self.position_ids[:, past_key_values_length : seq_length + past_key_values_length]
+
+        # Setting the token_type_ids to the registered buffer in constructor where it is all zeros, which usually occurs
+        # when its auto-generated, registered buffer helps users when tracing the model without passing token_type_ids, solves
+        # issue #5664
+        if token_type_ids is None:
+            if hasattr(self, "token_type_ids"):
+                buffered_token_type_ids = self.token_type_ids[:, :seq_length]
+                buffered_token_type_ids_expanded = buffered_token_type_ids.broadcast_to((input_shape[0], seq_length))
+                token_type_ids = buffered_token_type_ids_expanded
+            else:
+                token_type_ids = ops.zeros(input_shape, dtype=ms.int32)
+
+        if inputs_embeds is None:
+            inputs_embeds = self.word_embeddings(input_ids.int())
+        token_type_embeddings = self.token_type_embeddings(token_type_ids)
+
+        embeddings = inputs_embeds + token_type_embeddings
+        if self.position_embedding_type == "absolute":
+            position_embeddings = self.position_embeddings(position_ids)
+            embeddings += position_embeddings
+        embeddings = self.LayerNorm(embeddings)
+        embeddings = self.dropout(embeddings)
+        return embeddings
 
 
 class BertSelfAttention(nn.Cell):
@@ -318,13 +525,13 @@ class BertSelfAttention(nn.Cell):
                 )  # "bhrd,lrd->bhlr"
                 attention_scores = attention_scores + relative_position_scores_query + relative_position_scores_key
 
-        attention_scores = attention_scores / math.sqrt(self.attention_head_size)
+        attention_scores = attention_scores / ops.sqrt(ms.Tensor(self.attention_head_size, ms.float32))
         if attention_mask is not None:
             # Apply the attention mask is (precomputed for all layers in BertModel forward() function)
             attention_scores = attention_scores + attention_mask
 
         # Normalize the attention scores to probabilities.
-        attention_probs = ops.softmax(attention_scores, axis=-1)
+        attention_probs = ops.softmax(attention_scores.astype(ms.float32), axis=-1).astype(attention_scores.dtype)
 
         if is_cross_attention and self.save_attention:
             self.save_attention_map(attention_probs)
@@ -396,13 +603,13 @@ class BertAttention(nn.Cell):
         output_attentions=False,
     ):
         self_outputs = self.self(
-            hidden_states,
-            attention_mask,
-            head_mask,
-            encoder_hidden_states,
-            encoder_attention_mask,
-            past_key_value,
-            output_attentions,
+            hidden_states=hidden_states,
+            attention_mask=attention_mask,
+            head_mask=head_mask,
+            encoder_hidden_states=encoder_hidden_states,
+            encoder_attention_mask=encoder_attention_mask,
+            past_key_value=past_key_value,
+            output_attentions=output_attentions,
         )
         attention_output = self.output(self_outputs[0], hidden_states)
         # add attentions if we output them
@@ -437,9 +644,9 @@ class BertLayer(nn.Cell):
         # decoder uni-directional self-attention cached key/values tuple is at positions 1,2
         self_attn_past_key_value = past_key_value[:2] if past_key_value is not None else None
         self_attention_outputs = self.attention(
-            hidden_states,
-            attention_mask,
-            head_mask,
+            hidden_states=hidden_states,
+            attention_mask=attention_mask,
+            head_mask=head_mask,
             output_attentions=output_attentions,
             past_key_value=self_attn_past_key_value,
         )  # (context_layer, attention_probs, attention_scores, past_key_value,)
@@ -694,7 +901,7 @@ class BertPreTrainingHeads(nn.Cell):
         return prediction_scores, seq_relationship_score
 
 
-class BertPreTrainedModel(PreTrainedModel):
+class BertPreTrainedModel(MSPreTrainedModel):
     """BertPretrainedModel"""
     config_class = BertConfig
     base_model_prefix = 'bert'

@@ -455,11 +455,11 @@ def get_intern_vid2_score_fn(rm_ckpt_dir: str, precision="amp", n_frames=8):
             padding="max_length",
             truncation=True,
             max_length=40,
-            return_tensors="ms",
+            return_tensors="np",
         )
         return tokens
 
-    def score_fn(image_inputs: ms.Tensor, text_inputs: str):
+    def score_fn(image_inputs: ms.Tensor, text_inputs):
         # Process pixels and multicrop
         b, t = image_inputs.shape[:2]
         image_inputs = image_inputs.view(b * t, *image_inputs.shape[2:])
@@ -470,14 +470,16 @@ def get_intern_vid2_score_fn(rm_ckpt_dir: str, precision="amp", n_frames=8):
         pixel_values = pixel_values.view(b, t, *pixel_values.shape[1:])
         video_features = vi_clip.get_vid_feat_with_grad(pixel_values)
 
+        if not isinstance(text_inputs, str):
+            text_inputs = text_inputs[0].astype(str)
+
         with ms._no_grad():
             text_inputs = tokenize_fn(text_inputs)
+            text_inputs = {k: ms.Tensor(v) for k, v in text_inputs.items()}
             _, text_features = vi_clip.encode_text(text_inputs)
             text_features = vi_clip.text_proj(text_features)
             text_features /= text_features.norm(dim=-1, keepdim=True)
 
-        video_features = video_features.astype(ms.float32)
-        text_features = text_features.astype(ms.float32)
         score = (video_features * text_features).sum(-1)
         return score
 

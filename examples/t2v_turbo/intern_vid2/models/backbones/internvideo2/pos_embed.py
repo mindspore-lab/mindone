@@ -185,7 +185,7 @@ def interpolate_pos_embed(checkpoint_model, model, orig_t_size=4, pos_name='visi
 
 def interpolate_pos_embed_internvideo2(checkpoint_model, model, orig_t_size = 8):
     # interpolate position embedding
-    for pos_name in ['pos_embed', 'clip_pos_embed']:
+    for pos_name in ['vision_encoder.pos_embed', 'vision_encoder.clip_pos_embed']:
         if pos_name in checkpoint_model:
             pos_embed_checkpoint = checkpoint_model[pos_name]
 
@@ -216,7 +216,7 @@ def interpolate_pos_embed_internvideo2(checkpoint_model, model, orig_t_size = 8)
                 pos_tokens = ops.interpolate(pos_tokens, size=(new_t_size,), mode='linear')
                 pos_tokens = pos_tokens.view(1, -1, embedding_size, new_t_size)
                 pos_tokens = pos_tokens.permute(0, 3, 1, 2).reshape(1, -1, embedding_size)
-                new_pos_embed = mint.cat((extra_tokens, pos_tokens), dim=1)
+                new_pos_embed = ops.cat((extra_tokens, pos_tokens), axis=1)
 
                 new_pos_embed = new_pos_embed.to(ori_dtype)
                 checkpoint_model[pos_name] = ms.Parameter(new_pos_embed, name=checkpoint_model[pos_name].name)
@@ -236,7 +236,7 @@ def interpolate_pos_embed_internvideo2(checkpoint_model, model, orig_t_size = 8)
                 # BT, C, H, W -> BT, H, W, C ->  B, T, H, W, C
                 pos_tokens = pos_tokens.permute(0, 2, 3, 1).reshape(-1, new_t_size, new_size, new_size, embedding_size) 
                 pos_tokens = pos_tokens.flatten(1, 3) # B, L, C
-                new_pos_embed = mint.cat((extra_tokens, pos_tokens), dim=1)
+                new_pos_embed = ops.cat((extra_tokens, pos_tokens), axis=1)
                 new_pos_embed = new_pos_embed.to(ori_dtype)
                 checkpoint_model[pos_name] = ms.Parameter(new_pos_embed, name=checkpoint_model[pos_name].name)
     

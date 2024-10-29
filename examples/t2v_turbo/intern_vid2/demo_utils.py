@@ -16,7 +16,7 @@ from intern_vid2.models.backbones.internvideo2.pos_embed import (
     interpolate_pos_embed_internvideo2_new,
 )
 from mindnlp.transformers import BertTokenizer
-# from intern_vid2.models.backbones.bert.tokenization_bert import BertTokenizer
+from intern_vid2.models.backbones.bert.tokenization_bert import BertTokenizer
 
 
 def _frame_from_video(video):
@@ -99,7 +99,7 @@ def setup_internvideo2(config: dict, dtype=ms.float32):
     #     ms.set_float32_matmul_precision("high")
     #     model = ms.compile(model)
 
-    model_without_ddp = model
+    # model_without_ddp = model
 
     if (
         config.pretrained_path.strip()
@@ -107,43 +107,44 @@ def setup_internvideo2(config: dict, dtype=ms.float32):
         or "s3://" in config.pretrained_path
     ):
         state_dict = ms.load_checkpoint(config.pretrained_path)
+        ms.load_param_into_net(model, state_dict)
 
-        text_encoder_state_dict = {}
-        vision_proj_state_dict = {}
-        text_proj_state_dict = {}
-        for k, v in state_dict.items():
-            if k.startswith("text_encoder.bert."):
-                text_encoder_state_dict["text_encoder." + k[len("text_encoder.bert."):]] = v
-            elif k.startswith("vision_proj."):
-                vision_proj_state_dict[k] = v
-            elif k.startswith("text_proj."):
-                text_proj_state_dict[k] = v
+        # text_encoder_state_dict = {}
+        # vision_proj_state_dict = {}
+        # text_proj_state_dict = {}
+        # for k, v in state_dict.items():
+        #     if k.startswith("text_encoder.bert."):
+        #         text_encoder_state_dict["text_encoder." + k[len("text_encoder.bert."):]] = v
+        #     elif k.startswith("vision_proj."):
+        #         vision_proj_state_dict[k] = v
+        #     elif k.startswith("text_proj."):
+        #         text_proj_state_dict[k] = v
 
-        ms.load_param_into_net(model_without_ddp.text_encoder, text_encoder_state_dict)
-        ms.load_param_into_net(model_without_ddp.vision_proj, vision_proj_state_dict)
-        ms.load_param_into_net(model_without_ddp.text_proj, text_proj_state_dict)
+        # ms.load_param_into_net(model_without_ddp.text_encoder, text_encoder_state_dict)
+        # ms.load_param_into_net(model_without_ddp.vision_proj, vision_proj_state_dict)
+        # ms.load_param_into_net(model_without_ddp.text_proj, text_proj_state_dict)
 
-        if config.get("origin_num_frames", None) is not None:
-            a = len(state_dict)
-            interpolate_pos_embed_internvideo2_new(
-                state_dict,
-                model_without_ddp.vision_encoder,
-                orig_t_size=config.origin_num_frames,
-            )
-            assert a == len(state_dict), state_dict.keys()
+        # if config.get("origin_num_frames", None) is not None:
+        #     a = len(state_dict)
+        #     interpolate_pos_embed_internvideo2_new(
+        #         state_dict,
+        #         model_without_ddp.vision_encoder,
+        #         orig_t_size=config.origin_num_frames,
+        #     )
+        #     assert a == len(state_dict), state_dict.keys()
 
         del state_dict
         gc.collect()
 
-    if config.get("use_bf16", False):
-        model_without_ddp = model_without_ddp.to_float(ms.bfloat16)
-    elif config.get("use_half_precision", False):
-        model_without_ddp = model_without_ddp.to_float(ms.float16)
-    else:
-        model_without_ddp = model_without_ddp.to_float(ms.float32)
+    # if config.get("use_bf16", False):
+    #     model = model.to_float(ms.bfloat16)
+    # elif config.get("use_half_precision", False):
+    #     model = model.to_float(ms.float16)
+    # else:
+    #     model = model.to_float(ms.float32)
 
     return (
-        model_without_ddp,
+        model,
         tokenizer,
     )
 
@@ -253,8 +254,8 @@ class InternVideo2_Stage2(nn.Cell):
         """
         encoder = self.get_text_encoder()
         text_output = encoder(
-            text.input_ids,
-            attention_mask=text.attention_mask,
+            text["input_ids"],
+            attention_mask=text["attention_mask"],
             return_dict=True,
             mode="text",
         )
