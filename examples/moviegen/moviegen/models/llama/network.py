@@ -383,7 +383,8 @@ class LlamaModel(nn.Cell):
 
         # recompute
         if gradient_checkpointing:
-            self.layers.recompute()
+            for layer in self.layers:  # Explicitly recompute each block for PyNative
+                layer.recompute()
 
     @property
     def dtype(self):
