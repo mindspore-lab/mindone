@@ -22,11 +22,13 @@ __dir__ = os.path.dirname(os.path.abspath(__file__))
 mindone_lib_path = os.path.abspath(os.path.join(__dir__, "../../../"))
 sys.path.insert(0, mindone_lib_path)
 sys.path.insert(0, os.path.abspath(os.path.join(__dir__, "..")))
+sys.path.insert(0, os.path.abspath(os.path.join(__dir__, "../../moviegen")))
+
 from args_train import parse_args
 from opensora.acceleration.parallel_states import create_parallel_group
 from opensora.datasets.aspect import ASPECT_RATIOS, get_image_size
 from opensora.models.layers.operation_selector import set_dynamic_mode
-from opensora.models.stdit import STDiT2_XL_2, STDiT3_XL_2, STDiT_XL_2
+from opensora.models.stdit import STDiT2_XL_2, STDiT3_XL_2, STDiT_XL_2, STDiTLlama3Wrapper
 from opensora.models.vae.vae import SD_CONFIG, OpenSoraVAE_V1_2, VideoAutoencoderKL
 from opensora.pipelines import (
     DiffusionWithLoss,
@@ -69,7 +71,9 @@ def init_env(
     global_bf16: bool = False,
     dynamic_shape: bool = False,
     enable_sequence_parallelism: bool = False,
+    enable_model_parallelism: bool = False,
     sequence_parallel_shards: int = 1,
+    model_parallel_shards: int = 1,
     debug: bool = False,
 ) -> Tuple[int, int]:
     """
@@ -84,12 +88,16 @@ def init_env(
     """
     set_random_seed(seed)
 
-    if enable_sequence_parallelism:
+    if enable_sequence_parallelism or enable_model_parallelism:
         if parallel_mode != "data" or not distributed:
             raise ValueError(
-                "sequence parallel can only be used in data parallel mode, "
+                "sequence parallel / tensor parallel can only be used in data parallel mode, "
                 f"but get parallel_mode=`{parallel_mode}` with distributed=`{distributed}`."
             )
+    if enable_sequence_parallelism and enable_model_parallelism:
+        raise ValueError(
+            "Cannot turn on sequence parallel (Non-Llama structure) / model paralell (Llama structure) in the same time."
+        )
 
     if debug and mode == ms.GRAPH_MODE:  # force PyNative mode when debugging
         logger.warning("Debug mode is on, switching execution mode to PyNative.")
@@ -126,8 +134,11 @@ def init_env(
             )
 
             if enable_sequence_parallelism:
-                create_parallel_group(sequence_parallel_shards)
+                create_parallel_group(sequence_parallel_shards=sequence_parallel_shards)
                 ms.set_auto_parallel_context(enable_alltoall=True)
+
+            if enable_model_parallelism:
+                create_parallel_group(model_parallel_shards=model_parallel_shards)
 
         var_info = ["device_num", "rank_id", "device_num / 8", "rank_id / 8"]
         var_value = [device_num, rank_id, int(device_num / 8), int(rank_id / 8)]
@@ -186,7 +197,6 @@ def initialize_dataset(
     args,
     csv_path,
     video_folder,
-    text_embed_folder,
     vae_latent_folder,
     batch_size,
     img_h,
@@ -204,7 +214,7 @@ def initialize_dataset(
         ds_config = dict(
             csv_path=csv_path,
             video_folder=video_folder,
-            text_emb_folder=text_embed_folder,
+            text_emb_folder=args.text_embed_folder,
             return_text_emb=True,
             vae_latent_folder=vae_latent_folder,
             return_vae_latent=args.train_with_vae_latent,
@@ -254,6 +264,24 @@ def initialize_dataset(
         output_columns = ["video", "caption", "mask", "frames_mask", "num_frames", "height", "width", "fps", "ar"]
         if args.pre_patchify:
             output_columns.extend(["spatial_pos", "spatial_mask", "temporal_pos", "temporal_mask"])
+
+        text_embed_folder = {}
+        if args.text_embed_folder:
+            text_embed_folder["t5"] = args.text_embed_folder
+        if args.ul2_text_embed_folder:
+            text_embed_folder["ul2"] = args.ul2_text_embed_folder
+        if args.byt5_text_embed_folder:
+            text_embed_folder["byt5"] = args.byt5_text_embed_folder
+
+        if not len(text_embed_folder):
+            text_embed_folder = None
+        elif len(text_embed_folder) == 1:
+            text_embed_folder = list(text_embed_folder.values())[0]
+        else:
+            # FIXME: hardcoding
+            output_columns[1] = "ul2_caption"
+            output_columns[2] = "ul2_mask"
+            output_columns.extend(["byt5_caption", "byt5_mask"])
 
         datasets = [
             VideoDatasetRefactored(
@@ -359,7 +387,9 @@ def main(args):
         global_bf16=args.global_bf16,
         dynamic_shape=(args.bucket_config is not None),
         enable_sequence_parallelism=args.enable_sequence_parallelism,
+        enable_model_parallelism=args.enable_model_parallelism,
         sequence_parallel_shards=args.sequence_parallel_shards,
+        model_parallel_shards=args.model_parallel_shards,
         debug=args.debug,
     )
     set_logger(name="", output_dir=args.output_path, rank=rank_id, log_level=eval(args.log_level))
@@ -430,6 +460,7 @@ def main(args):
         manual_pad=args.manual_pad,
         enable_flashattn=args.enable_flash_attention,
         enable_sequence_parallelism=args.enable_sequence_parallelism,
+        enable_model_parallelism=args.enable_model_parallelism,
         use_recompute=args.use_recompute,
         num_recompute_blocks=args.num_recompute_blocks,
     )
@@ -455,6 +486,12 @@ def main(args):
         model_extra_args["qk_norm"] = True
         model_extra_args["freeze_y_embedder"] = args.freeze_y_embedder
         latte_model = STDiT3_XL_2(**model_extra_args)
+    elif args.model_version == "llama3_1b":
+        model_name = "Llama3-1B"
+        latte_model = STDiTLlama3Wrapper(model_size="1B", **model_extra_args)
+    elif args.model_version == "llama3_5b":
+        model_name = "Llama3-5B"
+        latte_model = STDiTLlama3Wrapper(model_size="5B", **model_extra_args)
     else:
         raise ValueError(f"Unknown model version: {args.model_version}")
     logger.info(f"{model_name} input size: {latent_size if args.bucket_config is None else 'Variable'}")
@@ -545,6 +582,10 @@ def main(args):
         data_device_num = device_num // args.sequence_parallel_shards
         data_rank_id = rank_id // args.sequence_parallel_shards
         logger.info(f"Creating dataloader: ID={rank_id}, group={data_rank_id}, num_groups={data_device_num}")
+    elif args.enable_model_parallelism:
+        data_device_num = device_num // args.model_parallel_shards
+        data_rank_id = rank_id // args.model_parallel_shards
+        logger.info(f"Creating dataloader: ID={rank_id}, group={data_rank_id}, num_groups={data_device_num}")
     else:
         data_device_num = device_num
         data_rank_id = rank_id
@@ -553,7 +594,6 @@ def main(args):
         args,
         args.csv_path,
         args.video_folder,
-        args.text_embed_folder,
         args.vae_latent_folder,
         args.batch_size,
         img_h,
@@ -747,7 +787,10 @@ def main(args):
             logger.info(
                 "As steps per epoch are inaccurate with bucket config, TimeMonitor is disabled. See result.log for the actual step time"
             )
-        if rank_id == 0:
+        if rank_id == 0 or args.enable_model_parallelism:
+            if args.enable_model_parallelism:
+                ckpt_dir = os.path.join(ckpt_dir, f"rank_{rank_id}")
+
             save_cb = EvalSaveCallback(
                 network=latent_diffusion_with_loss.network,
                 rank_id=rank_id,
@@ -766,6 +809,8 @@ def main(args):
                 record_lr=False,
                 train_steps=args.train_steps,
             )
+
+        if rank_id == 0:
             rec_cb = PerfRecorderCallback(
                 save_dir=args.output_path,
                 file_name="result_val.log",

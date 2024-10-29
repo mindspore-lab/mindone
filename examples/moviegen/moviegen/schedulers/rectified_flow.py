@@ -1,0 +1,147 @@
+import logging
+from typing import Literal, Optional, Tuple
+
+import numpy as np
+from tqdm import tqdm
+
+import mindspore as ms
+import mindspore.mint.nn.functional as F
+from mindspore import Tensor, mint, nn, ops
+
+from ..models import LlamaModel
+
+logger = logging.getLogger(__name__)
+
+__all__ = ["RFLOW", "RFlowLossWrapper"]
+
+
+class LogisticNormal(nn.Cell):
+    def __init__(self, loc: float = 0.0, scale: float = 1.0) -> None:
+        super().__init__()
+        self.mean = loc
+        self.std = scale
+        self._min = Tensor(np.finfo(np.float32).tiny, dtype=ms.float32)
+        self._max = Tensor(1.0 - np.finfo(np.float32).eps, dtype=ms.float32)
+
+    def construct(self, shape: Tuple[int, ...]) -> Tensor:
+        assert shape[-1] == 1
+        x = mint.normal(mean=self.mean, std=self.std, size=shape)
+        offset = x.shape[-1] + 1 - mint.cumsum(mint.ones(x.shape[-1]), dim=-1)
+        z = self._clipped_sigmoid(x - mint.log(offset))
+        z_cumprod = ops.cumprod((1 - z), dim=-1)
+        y = F.pad(z, [0, 1], value=1) * F.pad(z_cumprod, [1, 0], value=1)
+        return y[:, 0]
+
+    def _clipped_sigmoid(self, x: Tensor) -> Tensor:
+        x = mint.clamp(mint.sigmoid(x), min=self._min, max=self._max)
+        return x
+
+
+class RFLOW:
+    def __init__(
+        self,
+        num_sampling_steps: int = 50,
+        num_timesteps: int = 1000,
+        sample_method: Literal["linear", "linear-quadratic"] = "linear",
+    ) -> None:
+        self.num_sampling_steps = num_sampling_steps
+        self.num_timesteps = num_timesteps
+        self.sample_method = sample_method
+
+    def __call__(self, model: nn.Cell, x: Tensor, text_embedding: Tensor) -> Tensor:
+        """
+        x: (N, T, C, H, W) tensor of inputs (latent representations of video)
+        text_embedding: (N, L, C') tensor of the text embedding
+        """
+        # prepare timesteps
+        if self.sample_method == "linear":
+            timesteps = (1.0 - np.arange(self.num_sampling_steps) / self.num_sampling_steps) * self.num_timesteps
+        else:
+            raise NotImplementedError("Not supported yet.")
+
+        timesteps = np.tile(timesteps[None, ...], (x.shape[0], 1))
+        timesteps = Tensor(timesteps, dtype=ms.int64)
+
+        for i, timestep in tqdm(enumerate(timesteps), total=self.num_sampling_steps):
+            pred = model(x, timestep, text_embedding)
+
+            # update z
+            dt = timesteps[i] - timesteps[i + 1] if i < len(timesteps) - 1 else timesteps[i]
+            dt = dt / self.num_timesteps
+            x = x + pred * dt[:, None, None, None, None]
+
+        return x
+
+
+class RFlowLossWrapper(nn.Cell):
+    """Wrapper for calculating the training loss"""
+
+    def __init__(
+        self,
+        model: LlamaModel,
+        num_timesteps: int = 1000,
+        sample_method: Literal["discrete-uniform", "uniform", "logit-normal"] = "logit-normal",
+        loc: float = 0.0,
+        scale: float = 1.0,
+        eps: float = 1e-5,
+    ) -> None:
+        super().__init__(auto_prefix=False)
+        self.num_timesteps = num_timesteps
+        self.eps = eps
+
+        if sample_method == "discrete-uniform":
+            self._sample_func = self._discrete_sample
+        elif sample_method == "uniform":
+            self._sample_func = self._uniform_sample
+        elif sample_method == "logit-normal":
+            self.distribution = LogisticNormal(loc=loc, scale=scale)
+            self._sample_func = self._logit_normal_sample
+        else:
+            raise ValueError(f"Unknown sample method: {sample_method}")
+
+        self.model = model
+        self.criteria = nn.MSELoss()
+
+    def _discrete_sample(self, size: int) -> Tensor:
+        return ops.randint(0, self.num_timesteps, (size,), dtype=ms.int64)
+
+    def _uniform_sample(self, size: int) -> Tensor:
+        return mint.rand((size,), dtype=ms.float32) * self.num_timesteps
+
+    def _logit_normal_sample(self, size: int) -> Tensor:
+        return self.distribution((size, 1)) * self.num_timesteps
+
+    def construct(self, x: Tensor, text_embedding: Tensor, timestep: Optional[Tensor] = None) -> Tensor:
+        """Calculate the training loss for the corresponding timestep.
+        x: (N, T, C, H, W) tensor of inputs (latent representations of video)
+        text_embedding: (N, L, C') tensor of the text embedding
+        timestep: (N,) tensor to indicate denoising step
+        """
+        x = x.to(ms.float32)
+
+        if timestep is None:
+            timestep = self._sample_func(x.shape[0])
+
+        noise = mint.normal(size=x.shape)
+        x_t = self.add_noise(x, noise, timestep)
+
+        model_output = self.model(x_t.to(self.model.dtype), timestep, text_embedding.to(self.model.dtype)).to(
+            ms.float32
+        )
+        v_t = x - (1 - self.eps) * noise
+
+        # 3.1.2 Eqa (2)
+        loss = self.criteria(model_output, v_t)
+        return loss
+
+    def add_noise(self, x: Tensor, noise: Tensor, timesteps: Tensor) -> Tensor:
+        """
+        x: (N, T, C, H, W) tensor of ground truth
+        noise: (N, T, C, H, W) tensor of white noise
+        timesteps: (N,) tensor of timestamps with range [0, num_timesteps)
+        """
+        timesteps = 1 - timesteps.to(ms.float32) / self.num_timesteps
+        timesteps = timesteps[:, None, None, None, None]
+
+        # 3.1.2 First Eqa.
+        return timesteps * x + (1 - (1 - self.eps) * timesteps) * noise

@@ -87,6 +87,8 @@ class RFLOW:
                 noise_added = mask_t_upper
 
             pred = model(z, t, **model_kwargs)
+            # FIXME: a tmp solution for inference with cfg==1.0
+            pred = pred[:, :4]
 
             # update z
             dt = timesteps[i] - timesteps[i + 1] if i < len(timesteps) - 1 else timesteps[i]

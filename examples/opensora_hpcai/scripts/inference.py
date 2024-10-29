@@ -17,10 +17,11 @@ __dir__ = os.path.dirname(os.path.abspath(__file__))
 mindone_lib_path = os.path.abspath(os.path.join(__dir__, "../../../"))
 sys.path.insert(0, mindone_lib_path)
 sys.path.insert(0, os.path.abspath(os.path.join(__dir__, "..")))
+sys.path.insert(0, os.path.abspath(os.path.join(__dir__, "../../moviegen")))
 
 from opensora.acceleration.parallel_states import set_sequence_parallel_group
 from opensora.datasets.aspect import ASPECT_RATIO_MAP, ASPECT_RATIOS, get_image_size, get_num_frames
-from opensora.models.stdit import STDiT2_XL_2, STDiT3_XL_2, STDiT_XL_2
+from opensora.models.stdit import STDiT2_XL_2, STDiT3_XL_2, STDiT_XL_2, STDiTLlama3Wrapper
 from opensora.models.text_encoder.t5 import get_text_encoder_and_tokenizer
 from opensora.models.vae.vae import SD_CONFIG, OpenSoraVAE_V1_2, VideoAutoencoderKL
 from opensora.pipelines import InferPipeline, InferPipelineFiTLike
@@ -163,16 +164,24 @@ def main(args):
         latent_condition_frame_length = round(latent_condition_frame_length / 17 * 5)
 
     captions = process_prompts(captions, args.loop)  # in v1.1 and above, each loop can have a different caption
+    start_idx, end_idx = 0, len(captions)
+    if args.text_embed_folder:
+        end_idx = len(glob.glob(os.path.join(args.text_embed_folder, "*.npz")))
+    elif args.ul2_text_embed_folder:
+        end_idx = len(glob.glob(os.path.join(args.ul2_text_embed_folder, "*.npz")))
     if not args.enable_sequence_parallelism:
         # split samples to NPUs as even as possible
-        start_idx, end_idx = distribute_samples(len(captions), rank_id, device_num)
-        captions = captions[start_idx:end_idx]
+        start_idx, end_idx = distribute_samples(end_idx, rank_id, device_num)
+        if args.reference_path is not None:
+            args.reference_path = args.reference_path[start_idx:end_idx]
+        if args.mask_strategy is not None:
+            args.mask_strategy = args.mask_strategy[start_idx:end_idx]
         base_data_idx = start_idx
     else:
         base_data_idx = 0
 
     if args.use_parallel and not args.enable_sequence_parallelism:
-        print(f"Num captions for rank {rank_id}: {len(captions)}")
+        print(f"Num captions for rank {rank_id}: {end_idx - start_idx}")
 
     # 2. model initiate and weight loading
     # 2.1 vae
@@ -253,6 +262,12 @@ def main(args):
         model_extra_args["qk_norm"] = True
         logger.info(f"{model_name} init")
         latte_model = STDiT3_XL_2(**model_extra_args)
+    elif args.model_version == "llama3_1b":
+        model_name = "Llama3-1B"
+        latte_model = STDiTLlama3Wrapper(model_size="1B", **model_extra_args)
+    elif args.model_version == "llama3_5b":
+        model_name = "Llama3-5B"
+        latte_model = STDiTLlama3Wrapper(model_size="5B", **model_extra_args)
     else:
         raise ValueError(f"Unknown model version: {args.model_version}")
 
@@ -280,10 +295,13 @@ def main(args):
         logger.warning(f"{model_name} uses random initialization!")
 
     # 2.3 text encoder
-    if args.text_embed_folder is None:
+    if not args.text_embed_folder and not (args.ul2_text_embed_folder and args.byt5_text_embed_folder):
+        if args.model_version in ["llama3_1b", "llama3_5b"]:
+            raise ValueError("UL2 and ByT5 text embedding folders are required for MovieGen.")
         text_encoder, tokenizer = get_text_encoder_and_tokenizer(
             "t5", args.t5_model_dir, model_max_length=args.model_max_length
         )
+        captions = captions[start_idx:end_idx]
         num_prompts = len(captions)
         text_tokens, mask = zip(
             *[text_encoder.get_text_tokens_and_mask(caption, return_tensor=False) for caption in captions]
@@ -301,28 +319,44 @@ def main(args):
             )
         logger.info(f"Num tokens: {mask.asnumpy().sum(2)}")
     else:
-        assert not args.use_parallel, "parallel inference is not supported for t5 cached sampling currently."
         if args.model_version != "v1":
             logger.warning("For embedded captions, only one prompt per video is supported at this moment.")
 
-        embed_paths = sorted(glob.glob(os.path.join(args.text_embed_folder, "*.npz")))
-        prompt_prefix = []
-        text_tokens, mask, text_emb = [], [], []
-        for fp in embed_paths:
-            prompt_prefix.append(os.path.basename(fp)[:-4])
-            dat = np.load(fp)
-            text_tokens.append(dat["tokens"])
-            mask.append(dat["mask"])
-            text_emb.append(dat["text_emb"])
-        text_tokens = np.concatenate(text_tokens)
-        mask = np.concatenate(mask)
-        text_emb = np.concatenate(text_emb)
-        logger.info(f"Num tokens: {mask.sum(1)}")
+        extra_embed_paths1 = None
+        if args.text_embed_folder:
+            assert args.model_version not in [
+                "llama3_1b",
+                "llama3_5b",
+            ], "UL2 and ByT5 text embedding folders are required for MovieGen."
+            main_embed_paths = sorted(glob.glob(os.path.join(args.text_embed_folder, "*.npz")))[start_idx:end_idx]
+        elif args.ul2_text_embed_folder and args.byt5_text_embed_folder:
+            main_embed_paths = sorted(glob.glob(os.path.join(args.ul2_text_embed_folder, "*.npz")))[start_idx:end_idx]
+            extra_embed_paths1 = sorted(glob.glob(os.path.join(args.byt5_text_embed_folder, "*.npz")))[
+                start_idx:end_idx
+            ]
+        else:
+            raise NotImplementedError("T5 or UL2 and ByT5 text embedding should be provided.")
 
+        def read_embeddings(embed_paths):
+            prefix = []
+            _mask, _text_emb = [], []
+            for fp in embed_paths:
+                prefix.append(os.path.basename(fp)[:-4])
+                with np.load(fp) as dat:
+                    _mask.append(dat["mask"])
+                    _text_emb.append(dat["text_emb"])
+            return (
+                ms.Tensor(np.concatenate(_mask), dtype=ms.uint8),
+                ms.Tensor(np.concatenate(_text_emb), dtype=ms.float32),
+                prefix,
+            )
+
+        mask, text_emb, prompt_prefix = read_embeddings(main_embed_paths)
+        extra_mask1, extra_text_emb1, _ = (
+            read_embeddings(extra_embed_paths1) if extra_embed_paths1 else (None, None, None)
+        )
+        logger.info(f"Num tokens: {mask.sum(1)}")
         num_prompts = text_emb.shape[0]
-        text_tokens = ms.Tensor(text_tokens)
-        mask = ms.Tensor(mask, dtype=ms.uint8)
-        text_emb = ms.Tensor(text_emb, dtype=ms.float32)
         text_encoder = None
 
     if (args.model_version == "v1" or args.reference_path is None) and num_prompts < 1:
@@ -457,6 +491,9 @@ def main(args):
                 inputs["text_tokens"] = None
                 inputs["text_emb"] = text_emb[i : i + ns]
                 inputs["mask"] = mask[i : i + ns]
+                if extra_text_emb1 is not None:
+                    model_args["extra_text_embed1"] = extra_text_emb1[i : i + ns]
+                    model_args["extra_mask1"] = extra_mask1[i : i + ns]
 
             logger.info("Sampling captions:")
             for j in range(ns):
@@ -489,13 +526,13 @@ def main(args):
 
         # save result
         for j in range(ns):
-            global_idx = base_data_idx + i + j
-            if args.text_embed_folder is None:
+            if not args.text_embed_folder and not (args.ul2_text_embed_folder and args.byt5_text_embed_folder):
+                global_idx = base_data_idx + i + j
                 prompt = "-".join((batch_prompts[j][0].replace("/", "").split(" ")[:10]))
                 save_fp = f"{save_dir}/{global_idx:03d}-{prompt}.{args.save_format}"
                 latent_save_fp = f"{latent_dir}/{global_idx:03d}-{prompt}.npy"
             else:
-                fn = prompt_prefix[global_idx]
+                fn = prompt_prefix[i + j]
                 save_fp = f"{save_dir}/{fn}.{args.save_format}"
                 latent_save_fp = f"{latent_dir}/{fn}.npy"
 
@@ -520,7 +557,11 @@ def parse_args():
         help="path to load a config yaml file that describes the setting which will override the default arguments",
     )
     parser.add_argument(
-        "--model_version", default="v1", type=str, choices=["v1", "v1.1", "v1.2"], help="OpenSora model version."
+        "--model_version",
+        default="v1",
+        type=str,
+        choices=["v1", "v1.1", "v1.2", "llama3_1b", "llama3_5b"],
+        help="OpenSora model version.",
     )
     parser.add_argument("--image_size", type=int, nargs="+", help="image size in [256, 512]")
     parser.add_argument("--resolution", type=str, help=f"Supported video resolutions: {list(ASPECT_RATIOS.keys())}")
@@ -696,6 +737,8 @@ def parse_args():
     parser.add_argument("--fps", type=int, default=8, help="FPS in the saved video")
     parser.add_argument("--batch_size", default=4, type=int, help="infer batch size")
     parser.add_argument("--text_embed_folder", type=str, default=None, help="path to t5 embedding")
+    parser.add_argument("--ul2_text_embed_folder", type=str, help="path to ul2 embedding")
+    parser.add_argument("--byt5_text_embed_folder", type=str, help="path to byt5 embedding")
     parser.add_argument(
         "--save_latent",
         type=str2bool,

@@ -1072,7 +1072,7 @@ class T5ForConditionalGeneration(T5PreTrainedModel):
         use_cache: Optional[bool] = None,
         output_attentions: Optional[bool] = None,
         output_hidden_states: Optional[bool] = None,
-        return_dict: Optional[bool] = False,
+        return_dict: Optional[bool] = None,
     ) -> Union[Tuple[ms.Tensor], Seq2SeqLMOutput]:
         r"""
         labels (`torch.LongTensor` of shape `(batch_size,)`, *optional*):
@@ -1099,6 +1099,7 @@ class T5ForConditionalGeneration(T5PreTrainedModel):
         >>> logits = outputs[1]
         ```"""
         use_cache = use_cache if use_cache is not None else self.use_cache
+        return_dict = return_dict if return_dict is not None else self.config.use_return_dict
 
         # Encode if needed (training, first prediction pass)
         if encoder_outputs is None:

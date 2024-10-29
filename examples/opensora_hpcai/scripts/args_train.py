@@ -40,7 +40,9 @@ def parse_train_args(parser):
         "--caption_column", default="caption", type=str, help="name of column for captions saved in csv file"
     )
     parser.add_argument("--video_folder", required=True, type=str, help="root dir for the video data")
-    parser.add_argument("--text_embed_folder", type=str, help="root dir for the text embeding data")
+    parser.add_argument("--text_embed_folder", type=str, help="root dir for the text embedding data")
+    parser.add_argument("--ul2_text_embed_folder", type=str, help="root dir for the text embedding data")
+    parser.add_argument("--byt5_text_embed_folder", type=str, help="root dir for the text embedding data")
     parser.add_argument("--vae_latent_folder", type=str, help="root dir for the vae latent data")
     parser.add_argument("--filter_data", default=False, type=str2bool, help="Filter non-existing videos.")
     parser.add_argument("--output_path", default="output/", type=str, help="output directory to save training results")
@@ -49,7 +51,11 @@ def parse_train_args(parser):
     )
     # model
     parser.add_argument(
-        "--model_version", default="v1", type=str, choices=["v1", "v1.1"], help="OpenSora model version."
+        "--model_version",
+        default="v1",
+        type=str,
+        choices=["v1", "v1.1", "v1.2", "llama3_1b", "llama3_5b"],
+        help="OpenSora model version.",
     )
     parser.add_argument(
         "--pretrained_model_path",
@@ -329,6 +335,18 @@ def parse_train_args(parser):
         default=1,
         type=int,
         help="The number of shards in sequence parallel. Default is 1.",
+    )
+    parser.add_argument(
+        "--enable_model_parallelism",
+        default=False,
+        type=str2bool,
+        help="whether to enable model parallelism. Default is False. Only for LLama3 strcture,",
+    )
+    parser.add_argument(
+        "--model_parallel_shards",
+        default=1,
+        type=int,
+        help="The number of shards in model parallel. Default is 1.",
     )
     parser.add_argument("--drop_overflow_update", default=True, type=str2bool, help="drop overflow update")
     parser.add_argument("--loss_scaler_type", default="dynamic", type=str, help="dynamic or static")
