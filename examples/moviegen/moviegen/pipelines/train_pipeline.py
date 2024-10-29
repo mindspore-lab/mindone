@@ -2,7 +2,7 @@ from typing import Optional
 
 from mindspore import Tensor, nn, ops
 
-from ..schedulers.rectified_flow import RFlowScheduler
+from ..schedulers import RFlowLossWrapper
 
 __all__ = ["DiffusionWithLoss"]
 
@@ -10,8 +10,7 @@ __all__ = ["DiffusionWithLoss"]
 class DiffusionWithLoss(nn.Cell):
     def __init__(
         self,
-        network: nn.Cell,
-        scheduler: RFlowScheduler,
+        network: RFlowLossWrapper,
         vae: Optional[nn.Cell] = None,
         text_encoder: Optional[nn.Cell] = None,
         scale_factor: float = 0.18215,
@@ -27,7 +26,6 @@ class DiffusionWithLoss(nn.Cell):
 
         self.network = network
         self.vae = vae
-        self.scheduler = scheduler
         self.text_encoder = text_encoder
         self.scale_factor = scale_factor
         self.text_emb_cached = text_emb_cached
@@ -50,10 +48,10 @@ class DiffusionWithLoss(nn.Cell):
     def get_latents(self, video_tokens: Tensor) -> Tensor:
         if self.video_emb_cached:
             return video_tokens
-        video_emb = ops.stop_gradient(self.vae.encode(video_tokens))
+        video_emb = ops.stop_gradient(self.vae.encode(video_tokens) * self.scale_factor)
         return video_emb
 
     def construct(self, video_tokens: Tensor, text_tokens: Tensor) -> Tensor:
         latent_embedding = self.get_latents(video_tokens)
         text_embedding = self.get_condition_embeddings(text_tokens)
-        return self.scheduler.training_loss(self.network, latent_embedding, text_embedding)
+        return self.network(latent_embedding, text_embedding)

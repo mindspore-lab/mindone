@@ -7,8 +7,10 @@ from tqdm import tqdm
 import mindspore as ms
 import mindspore.mint.nn.functional as F
 from mindspore import Tensor, mint, nn, ops
+from mindspore.communication import get_rank
 
 from ..models import LlamaModel
+from ..parallel import get_model_parallel_group
 
 logger = logging.getLogger(__name__)
 
@@ -102,6 +104,13 @@ class RFlowLossWrapper(nn.Cell):
         self.model = model
         self.criteria = nn.MSELoss()
 
+        self.mp_group = get_model_parallel_group()
+        if self.mp_group is not None:
+            logging.info(
+                f"Broadcasting all random variables from rank (0) to current rank ({get_rank(self.mp_group)}) in group `{self.mp_group}`."
+            )
+            self.broadcast = ops.Broadcast(0, group=self.mp_group)
+
     def _discrete_sample(self, size: int) -> Tensor:
         return ops.randint(0, self.num_timesteps, (size,), dtype=ms.int64)
 
@@ -110,6 +119,11 @@ class RFlowLossWrapper(nn.Cell):
 
     def _logit_normal_sample(self, size: int) -> Tensor:
         return self.distribution((size, 1)) * self.num_timesteps
+
+    def _broadcast(self, x: Tensor) -> Tensor:
+        if self.mp_group is None:
+            return x
+        return self.broadcast((x,))[0]
 
     def construct(self, x: Tensor, text_embedding: Tensor, timestep: Optional[Tensor] = None) -> Tensor:
         """Calculate the training loss for the corresponding timestep.
@@ -120,9 +134,9 @@ class RFlowLossWrapper(nn.Cell):
         x = x.to(ms.float32)
 
         if timestep is None:
-            timestep = self._sample_func(x.shape[0])
+            timestep = self._broadcast(self._sample_func(x.shape[0]))
 
-        noise = mint.normal(size=x.shape)
+        noise = self._broadcast(mint.normal(size=x.shape))
         x_t = self.add_noise(x, noise, timestep)
 
         model_output = self.model(x_t.to(self.model.dtype), timestep, text_embedding.to(self.model.dtype)).to(
