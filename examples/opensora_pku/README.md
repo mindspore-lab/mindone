@@ -508,6 +508,24 @@ We also support training with sequence parallelism and zero2 parallelism togethe
 
 See `train_video3d_29x720p_zero2_sp.sh` under `scripts/text_condition/mult-devices/` for detailed usage.
 
+#### Multi-node Training
+
+When training on NPU clusters, you may need to train with multiple nodes and multiple devices. Here we provide some example scripts for training on 2 nodes, 16 NPUs. See `train_video3d_nx480p_zero2_multi_node.sh` and `train_video3d_29x720p_zero2_sp_multi_node.sh` under `scripts/text_condition/mult-devices/` for detailed usage.
+
+The major differences between the single-node training script and the multi-node training sccript are as follows:
+```bash
+MS_WORKER_NUM=16                      # the total number of workers in all nodes
+LOCAL_WORKER_NUM=8                    # the number of workers in the current node
+NODE_RANK=0                           # the ID of the current node, change it to 1 in another node
+MASTER_NODE_ADDRESS="7.242.107.148"   # the address of the master node. Use the same master address in two nodes
+```
+`MS_WORKER_NUM` means the total number of workers in the two nodes, which is 16. `LOCAL_WORKER_NUM` is the number of workers in the current node, which is 8, since we have 8 NPUs in each node. `NODE_RANK` is the ID of each node. By default, we use `NODE_RANK=0` for the master node, and `NODE_RANK=1` for the other node. Finally, `MASTER_NODE_ADDRESS` is the address of the master node and please edit it to your master **server address**.
+
+Suppose we have two nodes: node_0 and node_1. Each node has 8 NPUs. Please follow the steps below to launch a two-node training of stage 3 using `train_video3d_nx480p_zero2_multi_node.sh`:
+> 1. Prepare the datasets and edit the `merge_data.txt` on the two nodes following the instructions of [Sec. Preparation](./README.md#preparation-1).
+> 2. Change the `NODE_RANK` of `train_video3d_nx480p_zero2_multi_node.sh`: the training script of node_0 should have `NODE_RANK=0`, and the training script of node_1 should have `NODE_RANK=1`. This the **only difference** between the training scripts on the two nodes.
+> 3. Launch the two training scripts on node_0 and node_1 sequentially.
+
 #### Tips on Finetuning
 
 To align with the hyper-parameters, we use the same learning rate (LR) $1e^{-4}$ as [Open-Sora-Plan v1.2.0](https://github.com/PKU-YuanGroup/Open-Sora-Plan/tree/v1.2.0). However, our experience indicates that $1e^{-4}$ might be too large for finetuning the model on a small training set. If you want to finetune Open-Sora-Plan on your custom data with a small size, and notice that the large LR leads to unstable training, we have a few tips for you:
