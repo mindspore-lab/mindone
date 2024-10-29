@@ -67,7 +67,6 @@ if __name__ == "__main__":
     ms.set_context(
         mode=1,
         device_target="Ascend",
-        # device_target='CPU',
         device_id=6,
         pynative_synchronize=True,
     )

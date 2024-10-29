@@ -122,7 +122,6 @@ def parse_args():
     parser.add_argument("--itmh_ckpt", default="CKPT_PATH")
     parser.add_argument(
         "--debug",
-        # default=True,  # also setting debug as true will set pynative sync as true as well
         default=False,  # also setting debug as true will set pynative sync as true as well
         help="When debugging, set it true, to avoid saving too many ckpts and burn out the storage.",
     )

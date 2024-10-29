@@ -135,7 +135,6 @@ def parse_train_args(parser):
     )
     parser.add_argument(
         "--epochs",
-        # default=3,
         default=7000,
         type=int,
         help="epochs. If dataset_sink_mode is on, epochs is with respect to dataset sink size. Otherwise, it's w.r.t the dataset size.",
@@ -192,11 +191,12 @@ def parse_train_args(parser):
 
 def main(args):
     time_str = datetime.datetime.now().strftime("%Y-%m-%dT%H-%M-%S")
-    if not args.resume:
-        args.output_path = os.path.join(args.output_path, time_str) if not args.debug else args.output_path
+    if args.resume:
+        args.output_path = args.resume
+    elif not args.debug:
+        args.output_path = os.path.join(args.output_path, time_str)
     else:
-        # FIXME now when resume the output path overwrites the debug path, fix it...
-        pass
+        print("make sure you are debugging now, as no ckpt will be saved.")
 
     # 1. init
     did, rank_id, device_num = init_train_env(
@@ -241,8 +241,6 @@ def main(args):
         python_multiprocessing=args.data_multiprocessing,
         max_rowsize=args.max_rowsize,
         debug=False,  # ms240_sept4: THIS CANNOT BE TRUE, OTHERWISE loader error
-        # Sort output columns to match DiffusionWithLoss input
-        # project_columns=project_columns,  # not sure input/target frames data should use this option ornot
     )
 
     dataset_size = dataloader.get_dataset_size()
@@ -449,7 +447,6 @@ def main(args):
     model.fit(
         sink_epochs,
         dataloader,
-        # valid_dataset=val_dataloader,
         callbacks=callback,
         dataset_sink_mode=args.dataset_sink_mode,
         sink_size=args.sink_size,
