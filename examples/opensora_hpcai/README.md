@@ -349,6 +349,9 @@ For more usage on the inference script, please run `python scripts/inference.py 
 
 </details>
 
+<br>
+
+> ⚠️ Note: When running parallel inference scripts under `scripts/run/` on ModelArts, please `unset RANK_TABLE_FILE` before the inference starts.
 
 ## Data Processing
 
