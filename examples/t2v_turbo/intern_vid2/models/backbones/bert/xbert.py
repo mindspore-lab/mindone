@@ -27,13 +27,11 @@ from collections import OrderedDict
 import numpy as np
 import mindspore as ms
 from mindspore import nn, ops, Tensor
-from mindspore.common.initializer import initializer, Normal
 from mindspore.nn import CrossEntropyLoss, MSELoss
-from mindspore.amp import auto_mixed_precision
-from mindspore.common.initializer import Normal, TruncatedNormal, initializer
+from mindspore.common.initializer import Normal, initializer
 
 from transformers.configuration_utils import PretrainedConfig
-from mindnlp.utils import ModelOutput, logging
+from transformers.utils import ModelOutput, logging
 
 __dir__ = os.path.dirname(os.path.abspath(__file__))
 mindone_lib_path = os.path.abspath(os.path.join(__dir__, "../../../../../../"))

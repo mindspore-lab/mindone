@@ -85,11 +85,18 @@ def main(args):
 
     config = OmegaConf.load(args.config)
     model_config = config.pop("model", OmegaConf.create())
+
+    clip_dir = model_config["params"]["cond_stage_config"]["params"].get("pretrained_ckpt_path", None)
+    if clip_dir:
+        clip_dir = os.path.join(base_model_dir, clip_dir)
+        model_config["params"]["cond_stage_config"]["params"]["pretrained_ckpt_path"] = clip_dir
+
     pretrained_t2v = instantiate_from_config(model_config)
     pretrained_t2v = load_model_checkpoint(pretrained_t2v, base_model_dir)
 
     unet_config = model_config["params"]["unet_config"]
     unet_config["params"]["time_cond_proj_dim"] = 256
+    unet_config["params"]["use_checkpoint"] = False
     unet = instantiate_from_config(unet_config)
     ms.load_param_into_net(unet, pretrained_t2v.model.diffusion_model.parameters_dict(), False)
 

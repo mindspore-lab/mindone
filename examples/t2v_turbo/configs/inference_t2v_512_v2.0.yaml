@@ -76,3 +76,4 @@ model:
       params:
         freeze: true
         layer: penultimate
+        pretrained_ckpt_path: open_clip_vit_h_14-9bb07a10.ckpt
