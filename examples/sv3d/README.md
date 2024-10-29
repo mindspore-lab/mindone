@@ -2,7 +2,7 @@
 
 <p align="center"><img width="600" alt="Output Vis"
 src="https://github.com/mindspore-lab/mindone/assets/13991298/0da9cff8-f90a-4fd2-b042-8f92b387a46b"/>
-<em>Output Multiview Images (21x576x576)</em>
+<br><em>Output Multiview Images (21x576x576)</em></br>
 </p>
 
 ## Introduction
