@@ -1,14 +1,11 @@
-import logging
 from typing import Tuple, Union
 
-import numpy as np
+try:
+    from opensora.npu_config import npu_config
+except ImportError:
+    npu_config = None
 
-import mindspore as ms
-from mindspore import nn, ops
-
-# from mindspore import mint
-
-_logger = logging.getLogger(__name__)
+from mindspore import mint, nn, ops
 
 
 def divisible_by(num, den):
@@ -31,7 +28,7 @@ class Conv2d(nn.Conv2d):
     def rearrange_in(self, x):
         # b c f h w -> b f c h w
         B, C, F, H, W = x.shape
-        x = ops.transpose(x, (0, 2, 1, 3, 4))
+        x = mint.permute(x, (0, 2, 1, 3, 4))
         # -> (b*f c h w)
         x = ops.reshape(x, (-1, C, H, W))
 
@@ -42,7 +39,7 @@ class Conv2d(nn.Conv2d):
         # (b*f D h w) -> (b f D h w)
         x = ops.reshape(x, (BF // F, F, D, H_, W_))
         # -> (b D f h w)
-        x = ops.transpose(x, (0, 2, 1, 3, 4))
+        x = mint.permute(x, (0, 2, 1, 3, 4))
 
         return x
 
@@ -60,101 +57,73 @@ class Conv2d(nn.Conv2d):
 
 
 class CausalConv3d(nn.Cell):
-    """
-    Temporal padding: Padding with the first frame, by repeating K_t-1 times.
-    Spatial padding: follow standard conv3d, determined by pad mode and padding
-    Ref: opensora plan
-
-    Args:
-        kernel_size: order (T, H, W)
-        stride: order (T, H, W)
-        padding: int, controls the amount of spatial padding applied to the input on both sides
-    """
-
     def __init__(
         self,
         chan_in,
         chan_out,
         kernel_size: Union[int, Tuple[int, int, int]],
-        padding: int = 0,
-        dtype=ms.bfloat16,
+        enable_cached=False,
+        bias=True,
         **kwargs,
     ):
         super().__init__()
-        assert isinstance(padding, int)
-        kernel_size = cast_tuple(kernel_size, 3)
-        time_kernel_size, height_kernel_size, width_kernel_size = kernel_size
-        self.time_kernel_size = time_kernel_size
-
-        assert is_odd(height_kernel_size) and is_odd(width_kernel_size)
-
-        dilation = kwargs.pop("dilation", 1)
-        stride = kwargs.pop("stride", 1)
-        stride = cast_tuple(stride, 3)  # (stride, 1, 1)
-        dilation = cast_tuple(dilation, 3)  # (dilation, 1, 1)
-
-        """
-        if isinstance(padding, str):
-            if padding == 'same':
-                height_pad = height_kernel_size // 2
-                width_pad = width_kernel_size // 2
-            elif padding == 'valid':
-                height_pad = 0
-                width_pad = 0
-            else:
-                raise ValueError
+        self.kernel_size = cast_tuple(kernel_size, 3)
+        self.time_kernel_size = self.kernel_size[0]
+        self.chan_in = chan_in
+        self.chan_out = chan_out
+        self.stride = kwargs.pop("stride", 1)
+        self.padding = kwargs.pop("padding", 0)
+        self.stride = cast_tuple(self.stride, 3)
+        if self.padding == 0:
+            self.conv = nn.Conv3d(
+                chan_in, chan_out, self.kernel_size, stride=self.stride, pad_mode="valid", has_bias=bias, **kwargs
+            )
         else:
-            padding = list(cast_tuple(padding, 3))
-        """
-        # pad h,w dimensions if used, by conv3d API
-        # diff from torch: bias, pad_mode
+            self.padding = list(cast_tuple(self.padding, 6))
+            self.padding[0] = 0
+            self.padding[1] = 0
 
-        # TODO: why not use HeUniform init?
-        weight_init_value = 1.0 / (np.prod(kernel_size) * chan_in)
-        if padding == 0:
             self.conv = nn.Conv3d(
                 chan_in,
                 chan_out,
-                kernel_size,
-                stride=stride,
-                dilation=dilation,
-                has_bias=True,
-                pad_mode="valid",
-                weight_init=weight_init_value,
-                bias_init="zeros",
-                **kwargs,
-            ).to_float(dtype)
-        else:
-            # axis order (t0, t1, h0 ,h1, w0, w2)
-            padding = list(cast_tuple(padding, 6))
-            padding[0] = 0
-            padding[1] = 0
-            padding = tuple(padding)
-            self.conv = nn.Conv3d(
-                chan_in,
-                chan_out,
-                kernel_size,
-                stride=stride,
-                dilation=dilation,
-                has_bias=True,
+                self.kernel_size,
+                stride=self.stride,
+                padding=tuple(self.padding),
                 pad_mode="pad",
-                padding=padding,
-                weight_init=weight_init_value,
-                bias_init="zeros",
+                has_bias=bias,
                 **kwargs,
-            ).to_float(dtype)
-        self.dtype = dtype
+            )
+        self.enable_cached = enable_cached
+        self.causal_cached = None
+        self.cache_offset = 0
 
     def construct(self, x):
+        x_dtype = x.dtype
         # x: (bs, Cin, T, H, W )
         # first_frame_pad = ops.repeat_interleave(first_frame, (self.time_kernel_size - 1), axis=2)
         if self.time_kernel_size - 1 > 0:
-            first_frame = x[:, :, :1, :, :]
-            first_frame_pad = ops.cat([first_frame] * (self.time_kernel_size - 1), axis=2)
-            # first_frame_pad = mint.repeat_interleave([first_frame], self.time_kernel_size - 1, 2)
-            x = ops.concat((first_frame_pad, x), axis=2)
+            if self.causal_cached is None:
+                first_frame = x[:, :, :1, :, :]
+                first_frame_pad = mint.cat([first_frame] * (self.time_kernel_size - 1), dim=2)
+                # first_frame_pad = x[:, :, :1, :, :].repeat((1, 1, self.time_kernel_size - 1, 1, 1))
+            else:
+                first_frame_pad = self.causal_cached
 
-        if x.dtype == ms.float32:
-            return self.conv(x).to(ms.float32)
+            x = mint.cat((first_frame_pad, x), dim=2)
+
+        if self.enable_cached and self.time_kernel_size != 1:
+            if (self.time_kernel_size - 1) // self.stride[0] != 0:
+                if self.cache_offset == 0:
+                    self.causal_cached = x[:, :, -(self.time_kernel_size - 1) // self.stride[0] :]
+                else:
+                    self.causal_cached = x[:, :, : -self.cache_offset][
+                        :, :, -(self.time_kernel_size - 1) // self.stride[0] :
+                    ]
+            else:
+                self.causal_cached = x[:, :, 0:0, :, :]
+
+        if npu_config is not None and npu_config.on_npu:
+            return npu_config.run_conv3d(self.conv, x, x_dtype)
         else:
-            return self.conv(x)
+            x = self.conv(x)
+            return x

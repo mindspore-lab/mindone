@@ -21,11 +21,11 @@ msrun --bind_core=True --worker_num=8 --local_worker_num=8 --master_port=9000 --
     --load_from_checkpoint pretrained/causal_vae_488_init.ckpt \
     --start_learning_rate 1e-5 \
     --lr_scheduler constant \
-    --optim adam \
+    --optim adamw \
     --betas 0.9 0.999 \
     --clip_grad True \
     --weight_decay 0.0 \
-    --mode 0 \
+    --mode 1 \
     --init_loss_scale 65536 \
     --jit_level "O0" \
     --use_discriminator True \

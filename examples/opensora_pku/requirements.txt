@@ -14,9 +14,8 @@ safetensors
 omegaconf
 pyyaml
 sentencepiece
-av
-beautifulsoup4
-huggingface_hub>=0.22.2,<0.26
-transformers
-tokenizers
-pillow
+mindnlp==0.4.0
+transformers>=4.46.0
+pyav
+bs4
+huggingface_hub>=0.22.2

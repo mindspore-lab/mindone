@@ -120,19 +120,16 @@ For EulerOS, instructions on ffmpeg and decord installation are as follows.
 
 ## Model Weights
 
-### Open-Sora-Plan v1.2.0 Model Weights
+### Open-Sora-Plan v1.3.0 Model Weights
 
-Please download the torch checkpoint of mT5-xxl from [google/mt5-xxl](https://huggingface.co/google/mt5-xxl/tree/main), and download the opensora v1.2.0 models' weights from [LanguageBind/Open-Sora-Plan-v1.2.0](https://huggingface.co/LanguageBind/Open-Sora-Plan-v1.2.0/tree/main). Place them under `examples/opensora_pku` as shown below:
+Please download the torch checkpoint of mT5-xxl from [google/mt5-xxl](https://huggingface.co/google/mt5-xxl/tree/main), and download the opensora v1.2.0 models' weights from [LanguageBind/Open-Sora-Plan-v1.3.0](https://huggingface.co/LanguageBind/Open-Sora-Plan-v1.3.0/tree/main). Place them under `examples/opensora_pku` as shown below:
 ```bash
 mindone/examples/opensora_pku
 ├───LanguageBind
-│   └───Open-Sora-Plan-v1.2.0
-│       ├───1x480p/
-│       ├───29x480p/
-│       ├───29x720p/
-│       ├───93x480p/
-│       ├───93x480p_i2v/
-│       ├───93x720p/
+│   └───Open-Sora-Plan-v1.3.0
+│       ├───any93x640x640/
+│       ├───any93x640x640_i2v/
+│       ├───prompt_refiner/
 │       └───vae/
 └───google/
     └───mt5-xxl/
@@ -147,7 +144,7 @@ mindone/examples/opensora_pku
 Currently, we can load `.safetensors` files directly in MindSpore, but not `.bin` or `.ckpt` files. We recommend you to convert the
 `vae/checkpoint.ckpt` and `mt5-xxl/pytorch_model.bin` files to `.safetensor` files manually by running the following commands:
 ```shell
-python tools/model_conversion/convert_pytorch_ckpt_to_safetensors.py --src LanguageBind/Open-Sora-Plan-v1.2.0/vae/checkpoint.ckpt --target LanguageBind/Open-Sora-Plan-v1.2.0/vae/diffusion_pytorch_model.safetensors  --config LanguageBind/Open-Sora-Plan-v1.2.0/vae/config.json
+python tools/model_conversion/convert_wfvae.py --src LanguageBind/Open-Sora-Plan-v1.3.0/vae/merged.ckpt --target LanguageBind/Open-Sora-Plan-v1.3.0/vae/diffusion_pytorch_model.safetensors  --config LanguageBind/Open-Sora-Plan-v1.3.0/vae/config.json
 
 python tools/model_conversion/convert_pytorch_ckpt_to_safetensors.py --src google/mt5-xxl/pytorch_model.bin --target google/mt5-xxl/model.safetensors  --config google/mt5-xxl/config.json
 ```
@@ -161,23 +158,26 @@ Once the checkpoint files have all been prepared, you can refer to the inference
 You can run video-to-video reconstruction task using `scripts/causalvae/rec_video.sh`:
 ```bash
 python examples/rec_video.py \
-    --ae_path LanguageBind/Open-Sora-Plan-v1.2.0/vae \
+    --ae "WFVAEModel_D8_4x8x8" \
+    --ae_path LanguageBind/Open-Sora-Plan-v1.3.0/vae \
     --video_path test.mp4 \
     --rec_path rec.mp4 \
     --device Ascend \
     --sample_rate 1 \
-    --num_frames 65 \
-    --height 480 \
-    --width 640 \
+    --num_frames 61 \
+    --height 512 \
+    --width 512 \
+    --fps 30 \
     --enable_tiling \
-    --tile_overlap_factor 0.125 \
-    --save_memory
+    --mode 1 \
 ```
 Please change the `--video_path` to the existing video file path and `--rec_path` to the reconstructed video file path. You can set `--grid` to save the original video and the reconstructed video in the same output file.
 
 You can also run video reconstruction given an input video folder. See `scripts/causalvae/rec_video_folder.sh`.
 
-### Open-Sora-Plan v1.2.0 Command Line Inference
+### Open-Sora-Plan v1.3.0 Command Line Inference
+
+**To be revised.**
 
 You can run text-to-video inference on a single Ascend device using the script `scripts/text_condition/single-device/sample_t2v_29x720p.sh`.
 ```bash
