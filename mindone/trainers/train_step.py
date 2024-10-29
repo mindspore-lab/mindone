@@ -1,6 +1,8 @@
 """Train step wrapper supporting setting drop overflow update, ema etc"""
 from typing import Optional
 
+from typing import Callable, Tuple
+
 from packaging import version
 
 import mindspore as ms
@@ -10,6 +12,7 @@ from mindspore.boost.grad_accumulation import gradient_accumulation_op as _grad_
 from mindspore.boost.grad_accumulation import gradient_clear_op as _grad_clear_op
 from mindspore.common import RowTensor
 from mindspore.common import dtype as mstype
+from mindspore.communication import get_group_size
 from mindspore.ops import composite as C
 from mindspore.ops import functional as F
 from mindspore.ops import operations as P
@@ -33,6 +36,38 @@ def tensor_grad_scale_row_tensor(scale, grad):
         grad.values * F.cast(reciprocal(scale), F.dtype(grad.values)),
         grad.dense_shape,
     )
+
+
+communicate_opt = C.MultitypeFuncGraph("communicate_opt")
+
+
+@communicate_opt.register("Function", "Number", "Tensor", "Bool")
+def _communicate_opt(func: Callable[[Tensor], Tensor], num: int, grad: Tensor, need_reduce: bool):
+    if not need_reduce:
+        return grad
+    grad = func(grad)
+    grad = grad / num
+    return grad
+
+
+class GradReducer(nn.Cell):
+    def __init__(self):
+        super().__init__()
+        self.hypermap = C.HyperMap()
+        self.is_single = False
+        try:
+            self.num = get_group_size()
+        except RuntimeError:
+            self.is_single = True
+
+        if not self.is_single:
+            self.reduce = ops.AllReduce()
+
+    def construct(self, grads: Tuple[Tensor], need_reduce: Tuple[bool]):
+        if self.is_single:
+            return grads
+        grads = self.hypermap(ops.partial(communicate_opt, self.reduce, self.num), grads, need_reduce)
+        return grads
 
 
 class TrainOneStepWrapper(nn.TrainOneStepWithLossScaleCell):
@@ -91,6 +126,9 @@ class TrainOneStepWrapper(nn.TrainOneStepWithLossScaleCell):
         self.map = ops.Map()
         self.partial = ops.Partial()
 
+        self.grad_reducer = GradReducer()
+        self.need_reduce = tuple([2048 in x.shape for x in self.weights])
+
         # zero init
         self.zero_helper = zero_helper
         self.zero_stage = zero_helper.zero_stage if zero_helper is not None else 0
@@ -130,7 +168,7 @@ class TrainOneStepWrapper(nn.TrainOneStepWithLossScaleCell):
             grads = self.zero_helper.cal_gradients(grads)
 
         if self.accum_steps == 1:
-            grads = self.grad_reducer(grads)
+            grads = self.grad_reducer(grads, self.need_reduce)
             scaling_sens = ops.depend(scaling_sens, grads)
 
         # 2. down-scale gradients by loss_scale. grads = grads / scaling_sense  / grad_accum_steps
