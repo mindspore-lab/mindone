@@ -14,7 +14,6 @@ sys.path.append(
 
 from sgm.helpers import create_model_sv3d
 from sgm.modules.train.callback import LossMonitor
-from sgm.modules.train.trainer import TrainOneStepWrapper
 from sgm.util import get_obj_from_str
 from utils import mixed_precision
 
@@ -23,6 +22,7 @@ from mindspore import Callback, Model, nn
 from mindone.data import create_dataloader
 from mindone.trainers import create_optimizer, create_scheduler
 from mindone.trainers.callback import EvalSaveCallback, OverflowMonitor
+from mindone.trainers.train_step import TrainOneStepWrapper
 from mindone.utils.env import init_train_env
 from mindone.utils.logger import set_logger
 from mindone.utils.params import count_params
