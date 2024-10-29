@@ -7,22 +7,19 @@ import numpy as np
 from tqdm import tqdm
 
 import mindspore as ms
-from mindspore import nn
 
 mindone_lib_path = os.path.abspath("../../")
 sys.path.insert(0, mindone_lib_path)
 
-from mindone.utils.amp import auto_mixed_precision
 from mindone.utils.config import str2bool
 from mindone.utils.logger import set_logger
 from mindone.visualize.videos import save_videos
 
 sys.path.append(".")
 from opensora.acceleration.parallel_states import get_sequence_parallel_state, hccl_info
-from opensora.models import CausalVAEModelWrapper
+from opensora.models.causalvideovae import ae_wrapper
 from opensora.models.causalvideovae.model.dataset_videobase import VideoDataset, create_dataloader
-from opensora.models.causalvideovae.model.modules.updownsample import TrilinearInterpolate
-from opensora.utils.ms_utils import init_env
+from opensora.npu_config import npu_config
 from opensora.utils.utils import get_precision
 
 logger = logging.getLogger(__name__)
@@ -46,18 +43,8 @@ def main(args):
     batch_size = args.batch_size
     num_workers = args.num_workers
     assert args.dataset_name == "video", "Only support video reconstruction!"
-    rank_id, device_num = init_env(
-        args.mode,
-        seed=args.seed,
-        distributed=args.use_parallel,
-        device_target=args.device,
-        max_device_memory=args.max_device_memory,
-        parallel_mode=args.parallel_mode,
-        precision_mode=args.precision_mode,
-        sp_size=args.sp_size,
-        jit_level=args.jit_level,
-        jit_syntax_level=args.jit_syntax_level,
-    )
+    rank_id, device_num = npu_config.set_npu_env(args)
+    dtype = get_precision(args.precision)
 
     if not os.path.exists(args.generated_video_dir):
         os.makedirs(args.generated_video_dir, exist_ok=True)
@@ -72,42 +59,26 @@ def main(args):
         )
     else:
         state_dict = None
-    kwarg = {"state_dict": state_dict, "use_safetensors": True}
-    vae = CausalVAEModelWrapper(args.ae_path, **kwarg)
+    kwarg = {
+        "state_dict": state_dict,
+        "use_safetensors": True,
+        "dtype": dtype,
+    }
+    vae = ae_wrapper[args.ae](args.ae_path, **kwarg)
 
     if args.enable_tiling:
         vae.vae.enable_tiling()
         vae.vae.tile_overlap_factor = args.tile_overlap_factor
-        if args.save_memory:
-            vae.vae.tile_sample_min_size = args.tile_sample_min_size
-            vae.vae.tile_latent_min_size = 32
-            vae.vae.tile_sample_min_size_t = 29
-            vae.vae.tile_latent_min_size_t = 8
 
     vae.set_train(False)
     for param in vae.get_parameters():
         param.requires_grad = False
-    if args.precision in ["fp16", "bf16"]:
-        amp_level = "O2"
-        dtype = get_precision(args.precision)
-        if dtype == ms.float16:
-            custom_fp32_cells = [nn.GroupNorm] if args.vae_keep_gn_fp32 else []
-        else:
-            custom_fp32_cells = [nn.AvgPool2d, TrilinearInterpolate]
-        vae = auto_mixed_precision(vae, amp_level, dtype, custom_fp32_cells=custom_fp32_cells)
-        logger.info(
-            f"Set mixed precision to {amp_level} with dtype={args.precision}, custom fp32_cells {custom_fp32_cells}"
-        )
-    elif args.precision == "fp32":
-        dtype = get_precision(args.precision)
-    else:
-        raise ValueError(f"Unsupported precision {args.precision}")
 
     ds_config = dict(
         data_file_path=args.data_file_path,
         video_column=args.video_column,
         data_folder=real_video_dir,
-        size=(height, width),
+        size=max(height, width),  # SmallestMaxSize
         crop_size=(height, width),
         disable_flip=True,
         random_crop=False,
@@ -193,6 +164,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--real_video_dir", type=str, default="")
     parser.add_argument("--generated_video_dir", type=str, default="")
+    parser.add_argument("--ae", type=str, default="")
     parser.add_argument("--ae_path", type=str, default="results/pretrained")
     parser.add_argument("--ms_checkpoint", type=str, default=None)
     parser.add_argument("--sample_fps", type=int, default=30)
@@ -209,11 +181,9 @@ if __name__ == "__main__":
     parser.add_argument("--batch_size", type=int, default=1)
     parser.add_argument("--num_workers", type=int, default=8)
     parser.add_argument("--tile_overlap_factor", type=float, default=0.25)
-    parser.add_argument("--tile_sample_min_size", type=int, default=256)
     parser.add_argument("--enable_tiling", action="store_true")
-    parser.add_argument("--save_memory", action="store_true")
     parser.add_argument("--output_origin", action="store_true")
-    parser.add_argument("--mode", default=0, type=int, help="Specify the mode: 0 for graph mode, 1 for pynative mode")
+    parser.add_argument("--mode", default=1, type=int, help="Specify the mode: 0 for graph mode, 1 for pynative mode")
     parser.add_argument(
         "--precision",
         default="bf16",

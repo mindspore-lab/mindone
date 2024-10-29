@@ -1,7 +1,6 @@
 """
 Train AutoEncoders with GAN loss
 """
-import json
 import logging
 import math
 import os
@@ -12,19 +11,19 @@ import time
 import yaml
 
 import mindspore as ms
-from mindspore import Model, nn
+from mindspore import Model
 from mindspore.train.callback import TimeMonitor
 
 sys.path.append(".")
 mindone_lib_path = os.path.abspath("../../")
 sys.path.insert(0, mindone_lib_path)
-from opensora.models.causalvideovae.model import EMA, CausalVAEModel
 from opensora.models.causalvideovae.model.dataset_videobase import VideoDataset, create_dataloader
+from opensora.models.causalvideovae.model.ema_model import EMA
 from opensora.models.causalvideovae.model.losses.net_with_loss import DiscriminatorWithLoss, GeneratorWithLoss
-from opensora.models.causalvideovae.model.modules.updownsample import TrilinearInterpolate
+from opensora.models.causalvideovae.model.registry import ModelRegistry
 from opensora.models.causalvideovae.model.utils.model_utils import resolve_str_to_obj
+from opensora.npu_config import npu_config
 from opensora.train.commons import create_loss_scaler, parse_args
-from opensora.utils.ms_utils import init_env
 from opensora.utils.utils import get_precision
 
 from mindone.trainers.callback import EvalSaveCallback, OverflowMonitor, ProfilerCallback
@@ -32,7 +31,6 @@ from mindone.trainers.checkpoint import CheckpointManager, resume_train_network
 from mindone.trainers.lr_schedule import create_scheduler
 from mindone.trainers.optim import create_optimizer
 from mindone.trainers.train_step import TrainOneStepWrapper
-from mindone.utils.amp import auto_mixed_precision
 from mindone.utils.config import str2bool
 from mindone.utils.logger import set_logger
 from mindone.utils.params import count_params
@@ -42,24 +40,33 @@ logger = logging.getLogger(__name__)
 
 def main(args):
     # 1. init
-    rank_id, device_num = init_env(
-        args.mode,
-        seed=args.seed,
-        distributed=args.use_parallel,
-        device_target=args.device,
-        max_device_memory=args.max_device_memory,
-        parallel_mode=args.parallel_mode,
-        jit_level=args.jit_level,
-        jit_syntax_level=args.jit_syntax_level,
-    )
+    rank_id, device_num = npu_config.set_npu_env(args)
+    dtype = get_precision(args.precision)
+
     if args.exp_name is not None and len(args.exp_name) > 0:
         args.output_dir = os.path.join(args.output_dir, args.exp_name)
     set_logger(name="", output_dir=args.output_dir, rank=rank_id, log_level=eval(args.log_level))
 
     # Load Config
-    assert os.path.exists(args.model_config), f"{args.model_config} does not exist!"
-    model_config = json.load(open(args.model_config, "r"))
-    ae = CausalVAEModel.from_config(model_config, use_recompute=args.use_recompute)
+    model_cls = ModelRegistry.get_model(args.model_name)
+
+    if not model_cls:
+        raise ModuleNotFoundError(f"`{args.model_name}` not in {str(ModelRegistry._models.keys())}.")
+    if args.pretrained_model_name_or_path is not None:
+        if rank_id == 0:
+            logger.warning(f"You are loading a checkpoint from `{args.pretrained_model_name_or_path}`.")
+        ae = model_cls.from_pretrained(
+            args.pretrained_model_name_or_path,
+            ignore_mismatched_sizes=args.ignore_mismatched_sizes,
+            low_cpu_mem_usage=False,
+            device_map=None,
+            dtype=dtype,
+        )
+    else:
+        if rank_id == 0:
+            logger.warning(f"Model will be initialized from config file {args.model_config}.")
+        ae = model_cls.from_config(args.model_config, dtype=dtype)
+
     if args.load_from_checkpoint is not None:
         ae.init_from_ckpt(args.load_from_checkpoint)
     # discriminator (D)
@@ -76,34 +83,14 @@ def main(args):
         elif "LPIPSWithDiscriminator" in disc_type:
             disc_type = "opensora.models.causalvideovae.model.losses.discriminator.NLayerDiscriminator"
             use_3d_disc = False
-        disc = resolve_str_to_obj(disc_type, append=False)()
+        disc = resolve_str_to_obj(disc_type, append=False)(dtype=dtype)
     else:
         disc = None
 
-    # mixed precision
-    # TODO: set softmax, sigmoid computed in FP32. manually set inside network since they are ops, instead of layers whose precision will be set by AMP level.
-    if args.precision in ["fp16", "bf16"]:
-        amp_level = args.amp_level
-        dtype = get_precision(args.precision)
-        if dtype == ms.float16:
-            custom_fp32_cells = [nn.GroupNorm, nn.Softmax, nn.SiLU] if args.vae_keep_gn_fp32 else [nn.Softmax, nn.SiLU]
-        else:
-            custom_fp32_cells = [nn.AvgPool2d, TrilinearInterpolate, nn.Softmax, nn.SiLU]
-        ae = auto_mixed_precision(ae, amp_level=amp_level, dtype=dtype, custom_fp32_cells=custom_fp32_cells)
-        logger.info(
-            f"Use amp level {amp_level} for causal 3D VAE with dtype={dtype}, custom_fp32_cells {custom_fp32_cells}"
-        )
-
-        if use_discriminator:
-            disc = auto_mixed_precision(disc, amp_level, dtype)
-            logger.info(f"Use amp level {amp_level} for discriminator with dtype={dtype}")
-    elif args.precision == "fp32":
-        amp_level = "O0"
-    else:
-        raise ValueError(f"Unsupported precision {args.precision}")
-
     # 3. build net with loss (core)
     # G with loss
+    if args.wavelet_loss:
+        logger.warning("wavelet_loss is not implemented, and will be ignored.")
     ae_with_loss = GeneratorWithLoss(
         ae,
         discriminator=disc,
@@ -114,6 +101,7 @@ def main(args):
         logvar_init=args.logvar_init,
         perceptual_weight=args.perceptual_weight,
         loss_type=args.loss_type,
+        wavelet_weight=args.wavelet_weight,
     )
     disc_start = args.disc_start
 
@@ -343,12 +331,11 @@ def main(args):
         key_info = "Key Settings:\n" + "=" * 50 + "\n"
         key_info += "\n".join(
             [
-                f"MindSpore mode[GRAPH(0)/PYNATIVE(1)]: {args.mode}",
-                f"Jit level: {args.jit_level}",
+                f"MindSpore mode[GRAPH(0)/PYNATIVE(1)]: {args.mode}"
+                + (f"\nJit level: {args.jit_level}" if args.mode == 0 else ""),
                 f"Distributed mode: {args.use_parallel}",
-                f"Recompute: {args.use_recompute}",
-                f"amp level: {amp_level}",
                 f"dtype: {args.precision}",
+                f"Optimizer: {args.optim}",
                 f"Use discriminator: {args.use_discriminator}",
                 f"Learning rate: {learning_rate}",
                 f"Batch size: {args.train_batch_size}",
@@ -393,7 +380,7 @@ def main(args):
                 ckpt_save_interval=ckpt_save_interval,
                 log_interval=args.log_interval,
                 start_epoch=start_epoch,
-                model_name="vae_3d",
+                model_name=args.model_name,
                 record_lr=False,
                 save_training_resume=args.save_training_resume,
             )
@@ -566,6 +553,12 @@ def parse_causalvae_train_args(parser):
         help="the default model configuration file for the causalvae.",
     )
     parser.add_argument(
+        "--model_name",
+        default="",
+        help="the default model name for the causalvae.",
+    )
+    parser.add_argument("--pretrained_model_name_or_path", type=str, default=None, help="")
+    parser.add_argument(
         "--vae_keep_gn_fp32",
         default=True,
         type=str2bool,
@@ -625,6 +618,8 @@ def parse_causalvae_train_args(parser):
     parser.add_argument("--perceptual_weight", type=float, default=1.0, help="")
     parser.add_argument("--loss_type", type=str, default="l1", help="")
     parser.add_argument("--logvar_init", type=float, default=0.0, help="")
+    parser.add_argument("--wavelet_loss", action="store_true", help="")
+    parser.add_argument("--wavelet_weight", type=float, default=0.1, help="")
     return parser
 
 

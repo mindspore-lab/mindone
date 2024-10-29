@@ -1,5 +1,7 @@
 python opensora/train/train_causalvae.py \
     --exp_name "25x256x256" \
+    --model_name WFVAE \
+    --model_config scripts/causalvae/wfvae_4dim.json \
     --train_batch_size 1 \
     --precision fp32 \
     --max_steps 100000 \
@@ -9,24 +11,24 @@ python opensora/train/train_causalvae.py \
     --data_file_path datasets/ucf101_train.csv \
     --video_num_frames 25 \
     --resolution 256 \
-    --sample_rate 2 \
     --dataloader_num_workers 8 \
     --load_from_checkpoint pretrained/causal_vae_488_init.ckpt \
     --start_learning_rate 1e-5 \
     --lr_scheduler constant \
-    --optim adam \
+    --optim adamw \
     --betas 0.9 0.999 \
     --clip_grad True \
     --weight_decay 0.0 \
-    --mode 0 \
+    --mode 1 \
     --init_loss_scale 65536 \
     --jit_level "O0" \
     --use_discriminator True \
     --use_ema True\
-    --ema_start_step 0 \
     --ema_decay 0.999 \
     --perceptual_weight 1.0 \
     --loss_type l1 \
+    --sample_rate 1 \
     --disc_cls causalvideovae.model.losses.LPIPSWithDiscriminator3D \
-    --disc_start 2000 \
-    --use_recompute True \
+    --disc_start 0 \
+    --wavelet_loss \
+    --wavelet_weight 0.1

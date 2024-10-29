@@ -2,8 +2,8 @@ python opensora/eval/eval.py \
     --real_video_dir /data/xiaogeng_liu/data/video1 \
     --generated_video_dir /data/xiaogeng_liu/data/video2 \
     --batch_size 10 \
-    --num_frames 9 \
-    --crop_size 256 \
-    --resolution 256 \
+    --crop_size 64 \
+    --num_frames 20 \
     --device 'Ascend' \
-    --metric 'psnr'
+    --metric 'fvd' \
+    --fvd_method 'styleganv'

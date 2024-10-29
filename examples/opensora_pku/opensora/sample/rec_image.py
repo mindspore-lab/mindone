@@ -71,7 +71,7 @@ def main(args):
         state_dict = ms.load_checkpoint(args.ms_checkpoint)
         # rm 'network.' prefix
         state_dict = dict(
-            [k.replace("autoencoder.", "") if k.startswith("autoencoder.") else k, v] for k, v in state_dict.items()
+            [k.replace("network.", "") if k.startswith("network.") else k, v] for k, v in state_dict.items()
         )
     else:
         state_dict = None
