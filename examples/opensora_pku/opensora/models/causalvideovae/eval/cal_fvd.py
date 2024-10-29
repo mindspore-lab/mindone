@@ -1,15 +1,15 @@
 from tqdm import tqdm
 
-from mindspore import ops
+from mindspore import mint
 
 
 def trans(x):
     # if greyscale images add channel
     if x.shape[-3] == 1:
-        x = x.repeat(1, 1, 3, 1, 1)
+        x = x.repeat(3, axis=2)
 
     # permute BTCHW -> BCTHW
-    x = x.permute(0, 2, 1, 3, 4)
+    x = x.transpose(0, 2, 1, 3, 4)
 
     return x
 
@@ -77,8 +77,8 @@ def main():
     VIDEO_LENGTH = 50
     CHANNEL = 3
     SIZE = 64
-    videos1 = ops.zeros(NUMBER_OF_VIDEOS, VIDEO_LENGTH, CHANNEL, SIZE, SIZE)
-    videos2 = ops.ones(NUMBER_OF_VIDEOS, VIDEO_LENGTH, CHANNEL, SIZE, SIZE)
+    videos1 = mint.zeros(NUMBER_OF_VIDEOS, VIDEO_LENGTH, CHANNEL, SIZE, SIZE)
+    videos2 = mint.ones(NUMBER_OF_VIDEOS, VIDEO_LENGTH, CHANNEL, SIZE, SIZE)
 
     import json
 

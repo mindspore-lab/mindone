@@ -1,3 +1,15 @@
+"""
+Run causal vae reconstruction on a given video.
+Usage example:
+python examples/rec_video.py \
+    --ae_path path/to/vae/ckpt \
+    --video_path test.mp4 \
+    --rec_path rec.mp4 \
+    --sample_rate 1 \
+    --num_frames 65 \
+    --height 480 \
+    --width 640 \
+"""
 import argparse
 import logging
 import os

@@ -1,15 +1,38 @@
 import mindspore as ms
-from mindspore import nn
+from mindspore import mint
+
+
+def video_to_image(func):
+    def wrapper(self, x, *args, **kwargs):
+        if x.ndim == 5:
+            b, c, t, h, w = x.shape
+            if True:
+                # b c t h w -> (b t) c h w
+                x = x.swapaxes(1, 2).reshape(-1, c, h, w)  # (b*t, c, h, w)
+                x = func(self, x, *args, **kwargs)
+                x = x.reshape(x.shape[0] // t, t, x.shape[1], x.shape[2], x.shape[3])  # (b, t, c, h, w)
+                x = x.transpose(0, 2, 1, 3, 4)  # (b, c, t, h, w)
+            else:
+                # Conv 2d slice infer
+                result = []
+                for i in range(t):
+                    frame = x[:, :, i, :, :]
+                    frame = func(self, frame, *args, **kwargs)
+                    result.append(frame.unsqueeze(2))
+                x = mint.cat(result, dim=2)
+        return x
+
+    return wrapper
 
 
 def nonlinearity(x, upcast=False):
     # swish
     ori_dtype = x.dtype
-    # if upcast:
-    #     return x * (ops.sigmoid(x.astype(ms.float32))).astype(ori_dtype)
-    # else:
-    #     return x * (ops.sigmoid(x))
-    return nn.SiLU()(x.astype(ms.float32) if upcast else x).to(ori_dtype)
+    if upcast:
+        return x * (mint.sigmoid(x.astype(ms.float32))).astype(ori_dtype)
+    else:
+        return x * (mint.sigmoid(x))
+    # return nn.SiLU()(x.astype(ms.float32) if upcast else x).to(ori_dtype)
 
 
 def divisible_by(num, den):
