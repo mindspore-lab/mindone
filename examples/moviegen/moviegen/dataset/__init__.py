@@ -1,2 +1,1 @@
-from .image import ImageDataset
-from .video import VideoDataset
+from .dataset import ImageVideoDataset
