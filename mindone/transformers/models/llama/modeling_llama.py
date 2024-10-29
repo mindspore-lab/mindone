@@ -559,9 +559,8 @@ class LlamaDecoderLayer(nn.Cell):
         # if output_attentions:
         #     outputs += (self_attn_weights,)
 
-        # zhy_test
-        # if use_cache:
-        #     outputs += (present_key_value,)
+        if use_cache:
+            outputs += (present_key_value,)
 
         return outputs
 
