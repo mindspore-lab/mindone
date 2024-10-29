@@ -57,7 +57,7 @@ class LlamaRMSNorm(nn.Cell):
 
     def construct(self, hidden_states):
 
-        ops.TensorDump()("llama_rmsnorm", hidden_states) # zhy_test
+        ops.TensorDump()("llama_rmsnorm_input", hidden_states) # zhy_test
 
         input_dtype = hidden_states.dtype
         hidden_states = hidden_states.to(ms.float32)
