@@ -7,7 +7,7 @@ import mindspore as ms
 import mindspore.nn as nn
 import mindspore.ops as ops
 
-_logger = logging.getLogger(__name__)
+_logger = logging.getLogger("")
 
 
 class LPIPS(nn.Cell):

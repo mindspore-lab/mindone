@@ -9,7 +9,7 @@ from mindone.trainers.checkpoint import CheckpointManager
 
 __all__ = ["SaveCkptCallback"]
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("")
 
 
 class SaveCkptCallback(Callback):

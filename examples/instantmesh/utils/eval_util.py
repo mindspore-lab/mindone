@@ -123,8 +123,6 @@ def make_grid_ms(
 
     if not isinstance(tensor, ms.Tensor):
         raise TypeError("tensor should be of type ms Tensor")
-    if tensor.shape[0] == 1:
-        return tensor.squeeze(0)
 
     # make the mini-batch of images into a grid
     nmaps = tensor.shape[0]
@@ -137,19 +135,8 @@ def make_grid_ms(
     k = 0
     for y in range(ymaps):
         for x in range(xmaps):
-            if k >= nmaps:
-                break
-            # # Tensor.copy_() is a valid method but seems to be missing from the stubs
-            # # https://pyms.org/docs/stable/tensors.html#ms.Tensor.copy_
-            # # grid.narrow(1, y * height + padding, height - padding).narrow(  # type: ignore[attr-defined]
-            #     2, x * width + padding, width - padding
-            # # ).copy_(tensor[k])
-
-            # TODO mint.narrow operation different from torch: the below will only have the last sample passed to grid, comment for now
-            # grid_portion = mint.narrow(grid, 1, y * height + padding, height - padding)
-            # grid_portion = mint.narrow(grid_portion, 2, x * width + padding, width - padding)
-            # grid_portion.copy_(tensor[k])  # assign the kth sample to the grid
-
+            # if k >= nmaps:
+            #     break
             grid[:, y * height + padding : y * height + height, x * width + padding : x * width + width].copy_(
                 tensor[k]
             )

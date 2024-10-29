@@ -18,7 +18,7 @@ from mindspore import Model, nn
 from mindspore.nn.wrap.loss_scale import DynamicLossScaleUpdateCell
 from mindspore.train.callback import TimeMonitor
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("")
 
 import sys
 

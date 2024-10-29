@@ -1,14 +1,3 @@
-"""Eval script using the model stage 1 trained ckpt to conduct arbitral novel view synthesis.
-
-Design methdology: Unlike the ms translation that has been done for training,
-we make the eval here more similar to the inference script below with np utilization.
-Because for training, the np data proc parts should be translated into ms as much as possible
-(see ~/examples/opensora_hpcai/opensora/datasets/video_dataset_refactored.py),
-but not for the inference.
-
-Thus we can do np for all data proc here to avoid tedious ms tranlsation of data.
-Refer to inference.py for the full stage inference.
-"""
 import argparse
 import datetime
 import os
@@ -20,8 +9,7 @@ from mindspore import mint
 
 __dir__ = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.abspath(os.path.join(__dir__, "../..")))  # for loading mindone
-# from loguru import logger
-import logging
+from typing import Optional
 
 from omegaconf import OmegaConf
 from transformers import ViTImageProcessor
@@ -30,10 +18,6 @@ from utils.eval_util import init_inference_env, make_grid_ms, save_image_ms, str
 from mindone.utils.config import instantiate_from_config
 from mindone.utils.logger import set_logger
 from mindone.utils.seed import set_random_seed
-
-logger = logging.getLogger(__name__)
-
-from typing import Optional
 
 
 def evaluate(args, epoch_num: Optional[str]):
@@ -55,7 +39,7 @@ def evaluate(args, epoch_num: Optional[str]):
         debug=args.debug,
     )
     set_random_seed(42)
-    set_logger(name="", output_dir=args.output_path, rank=rid, log_level=eval(args.log_level))
+    logger = set_logger(name="", output_dir=args.output_path, rank=rid, log_level=eval(args.log_level))
 
     # valdata preparation
     config = OmegaConf.load(args.datacfg)
@@ -74,9 +58,7 @@ def evaluate(args, epoch_num: Optional[str]):
         image_path = os.path.join(image_path, "val_official_instantmesh_ckpt.png")
     else:
         if not epoch_num:  # train_resume.ckpt
-            epoch_num = ms.load_checkpoint(args.itmh_ckpt).get(
-                "epoch_num", 0
-            )  # 0 means that there is no this key in the resume ckpt file
+            epoch_num = ms.load_checkpoint(args.itmh_ckpt)["epoch_num"].item()
         image_path = os.path.join(image_path, f"val_e{epoch_num}.png")
 
     validation_step_outputs = []
@@ -84,7 +66,6 @@ def evaluate(args, epoch_num: Optional[str]):
     for index in range(0, valset_len, args.batch_size):
         val_batch_np = data.__getitem__(index)
 
-        # [torch] prepare_validation_batch_data():
         # prepare for validation batch/mv2mesh inference()
         # TODO mov this to data
         # although in torch this method is under model.py, but for torch lightning,
@@ -96,7 +77,6 @@ def evaluate(args, epoch_num: Optional[str]):
         )
         images = val_input["images"]
 
-        # [torch] forward():
         # RGB image with [0,1] scale and properly sized requested by the ViTImgProc
         if images.ndim == 5:
             (B, N, C, H, W) = images.shape
@@ -130,11 +110,7 @@ def evaluate(args, epoch_num: Optional[str]):
     logger.info("Mean Batch time: %.3fs.", mean_time)
     # save mviews outputs
     images = mint.cat(validation_step_outputs, dim=0)  # enable for multiple batches
-
-    # images = rearrange(images, 'r b c h w -> (r b) c h w')
-    # images = images.flatten(start_dim=0, end_dim=1)
     assert len(images.shape) == 4, "images' shape not matched"
-
     grid = make_grid_ms(images, nrow=1, normalize=True, value_range=(0, 1))
     if not args.debug:
         save_image_ms(grid, image_path)
@@ -198,8 +174,10 @@ def parse_args():
 
 if __name__ == "__main__":
     args = parse_args()
-    if args.itmh_ckpt.split("/")[-1] == "train_resume.ckpt":
+    ckpt_str_l = args.itmh_ckpt.split("/")
+    if ckpt_str_l[-1] == "train_resume.ckpt":
         epoch_num = None
+        args.output_path = os.path.join("output", ckpt_str_l[-3])
     else:
         epoch_num = args.itmh_ckpt.split("-e")[-1].split(".")[0]
     evaluate(args, epoch_num)

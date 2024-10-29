@@ -2,7 +2,7 @@
 import logging
 import os
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("")
 
 import numpy as np
 from einops import rearrange
