@@ -9,7 +9,7 @@
 
 | mindspore      | ascend driver | firmware    | cann toolkit/kernel |
 |:-------------:|:-------------:|:-----------:|:-------------------:|
-|2.2.10～2.2.12 | 23.0.3        | 7.1.0.5.220  | 7.0.0.beta1         |
+| 2.3.1    | 24.1.RC2      | 7.3.0.1.231 | 8.0.RC2.beta1        |
 
 ## Pretrained models
 
@@ -170,7 +170,9 @@ python demo/sampling_without_streamlit.py \
 ## Performance
 
 Experiments are tested on ascend 910* with mindspore 2.2.12 graph mode.
-| model name    | resolution | compile cost |flash attention| sampler  | sample step | sample time |
+| model name    | resolution | compile cost |flash attention| sampler  | sample step | sample time|
 |:-------------:|:---------:|:------------:|:-------------:|:--------:|:-----------:|:-----------:|
-| SDXL-Base     | 1024x1024 | 182s         | ON            | EulerEDM | 40          | 6.66s       |
-| SDXL-Base     | 1024x1024 | 182s         | ON            | DPM++2M Karras | 20    | 4.3s        |
+| SDXL-Base     | 1024x1024 | 533.59s      | ON            | EulerEDM | 40          | 6.78s       |
+| SDXL-Base     | 1024x1024 | 631.39s      | ON            | DPM++2M Karras | 20    | 3.62s       |
+| SDXL-Refiner  | 1024x1024 | 395.14s        | ON          | EulerEDM | 40          | 10.18s      |
+| SDXL-Pipeline | 1024x1024 | 324.83s/236.9s | ON          | EulerEDM | 20          | 5.78s/2.15s |

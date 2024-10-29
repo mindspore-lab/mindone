@@ -4,17 +4,14 @@
 
 | mindspore      | ascend driver | firmware    | cann toolkit/kernel |
 |:--------------:|:-------------:|:-----------:|:-------------------:|
-| 2.2.10～2.2.12 | 23.0.3        | 7.1.0.5.220 | 7.0.0.beta1         |
+| 2.3.1    | 24.1.RC2      | 7.3.0.1.231 | 8.0.RC2.beta1        |
 
-
-Please install [openmpi 4.0.3](https://www.open-mpi.org/software/ompi/v4.0/) for distributed mode.
 
 To install other dependencies, please run
 
 ```shell
 pip install -r requirements.txt
 ```
-
 
 ## Convert Pretrained Checkpoint
 

@@ -6,7 +6,7 @@ We provide the script `train.py` for [LoRA](https://arxiv.org/abs/2106.09685) fi
 
 | mindspore      | ascend driver | firmware    | cann toolkit/kernel |
 | :--------------: | :------------: |:----------: |:------------------: |
-| 2.2.10～2.2.12 | 23.0.3        | 7.1.0.5.220 | 7.0.0.beta1         |
+|  2.3.1    | 24.1.RC2      | 7.3.0.1.231 | 8.0.RC2.beta1        |
 
 ## Pretrained models
 
@@ -43,12 +43,12 @@ python demo/sampling_without_streamlit.py \
 
 ## Performance
 
-Experiments are tested on ascend 910* with mindspore 2.2.10 graph mode.
+Experiments are tested on ascend 910* with mindspore 2.3.1 graph mode.
 
 | model name      | card | bs * grad accu. |   resolution       |   ds   | fa |   ms/step  |   fps (img/s)|
 |---------------|:------------------:|:----------------:|:----------------:|:--:|:----------------:|------------------|:----------------:|
-| SDXL-Base     |      1            |      1x1             |     1024x1024         | ON    |OFF       |       539.77         |    1.85       |
-| SDXL-Base     |      1            |      1x1             |     1024x1024         | ON| ON |       524.38          |    1.91   |
+| SDXL-Base | 1 | 1x1 | 1024x1024 | ON  |OFF      | 553.47 | 1.80 |
+| SDXL-Base | 1 | 1x1 | 1024x1024 | ON  |ON       | 446.74 | 2.24 |
 > ds: data sink mode. fa: flash attention.
 >
 > fps: images per second during training. average training time (s/step) = batch_size / fps
