@@ -336,7 +336,7 @@ Using `2.0-inpaint` as an example, you can download the [example image](https://
 
 ```shell
 python inpaint.py \
-    -v `2.0-inpaint`
+    -v "2.0-inpaint" \
     --image overture-creations-5sI6fQgYIuo.png \
     --mask overture-creations-5sI6fQgYIuo_mask.png \
     --prompt "Face of a yellow cat, high resolution, sitting on a park bench"
