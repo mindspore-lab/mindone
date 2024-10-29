@@ -177,31 +177,48 @@ You can also run video reconstruction given an input video folder. See `scripts/
 
 ### Open-Sora-Plan v1.3.0 Command Line Inference
 
-**To be revised.**
+You need download the models manually.
+First, you need to download checkpoint including [diffusion model](https://huggingface.co/LanguageBind/Open-Sora-Plan-v1.3.0/tree/main/any93x640x640), [vae](https://huggingface.co/LanguageBind/Open-Sora-Plan-v1.3.0/tree/main/vae) and [text encoder](https://huggingface.co/google/mt5-xxl), and optional [second text encoder](https://huggingface.co/laion/CLIP-ViT-bigG-14-laion2B-39B-b160k). The [prompt refiner](https://huggingface.co/LanguageBind/Open-Sora-Plan-v1.3.0/tree/main/prompt_refiner) is optional.
 
-You can run text-to-video inference on a single Ascend device using the script `scripts/text_condition/single-device/sample_t2v_29x720p.sh`.
+
+
+
+You can run text-to-video inference on a single Ascend device using the script `scripts/text_condition/single-device/sample_t2v_29x1280.sh` by modifying `--model_path`, `--text_encoder_name_1` and `--ae_path`. The `--caption_refiner`  and `--text_encoder_name_2` are optional.
+
+<!-- We provide multiple inference scripts to support various requirements. We recommend configuration `--guidance_scale 7.5 --num_sampling_steps 100 --sample_method EulerAncestralDiscrete` for sampling. -->
+
 ```bash
-python opensora/sample/sample_t2v.py \
-    --model_path LanguageBind/Open-Sora-Plan-v1.2.0/29x720p \
+# Single NPU
+python opensora/sample/sample.py \
+    --model_path LanguageBind/Open-Sora-Plan-v1.3.0/any93x640x640 \
+    --version v1_3 \
     --num_frames 29 \
-    --height 720 \
+    --height 704 \
     --width 1280 \
-    --cache_dir "./" \
-    --text_encoder_name google/mt5-xxl \
+    --text_encoder_name_1 google/mt5-xxl \
+    --text_encoder_name_2 laion/CLIP-ViT-bigG-14-laion2B-39B-b160k \
     --text_prompt examples/prompt_list_0.txt \
-    --ae CausalVAEModel_D4_4x8x8  \
-    --ae_path LanguageBind/Open-Sora-Plan-v1.2.0/vae\
-    --save_img_path "./sample_videos/prompt_list_0_29x720p" \
+    --ae WFVAEModel_D8_4x8x8  \
+    --ae_path LanguageBind/Open-Sora-Plan-v1.3.0/vae \
+    --save_img_path "./sample_videos/prompt_list_0_29x1280_mt5_openclip" \
     --fps 24 \
     --guidance_scale 7.5 \
     --num_sampling_steps 100 \
     --enable_tiling \
     --max_sequence_length 512 \
     --sample_method EulerAncestralDiscrete \
-    --model_type "dit" \
+    --num_samples_per_prompt 1 \
+    --rescale_betas_zero_snr \
+    --prediction_type "v_prediction" \
+    --mode 1
 ```
-You can change the `num_frames`, `height` and `width` to match with the training shape of different checkpoints, e.g., `29x480p` requires `num_frames=29`, `height=480` and `width=640`. In case of oom on your device, you can try to append `--save_memory` to the command above, which enables a more radical tiling strategy for causal vae.
+You can change the `num_frames`, `height` and `width`.
+Note that DiT model is trained arbitrarily on stride=32. 
+So keep the resolution of the inference a multiple of 32. `num_frames` needs to be 4n+1, e.g. 93, 77, 61, 45, 29, 1.
 
+<!-- In case of oom on your device, you can try to append `--save_memory` to the command above, which enables a more radical tiling strategy for causal vae. -->
+
+**To be revised.**
 
 If you want to run a multi-device inference, e.g., 8 cards, please use `msrun` and pass `--use_parallel=True` as the example below:
 
