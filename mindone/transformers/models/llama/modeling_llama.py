@@ -555,11 +555,13 @@ class LlamaDecoderLayer(nn.Cell):
 
         outputs = (hidden_states,)
 
-        if output_attentions:
-            outputs += (self_attn_weights,)
+        # zhy_test
+        # if output_attentions:
+        #     outputs += (self_attn_weights,)
 
-        if use_cache:
-            outputs += (present_key_value,)
+        # zhy_test
+        # if use_cache:
+        #     outputs += (present_key_value,)
 
         return outputs
 
@@ -789,12 +791,14 @@ class LlamaModel(LlamaPreTrainedModel):
 
             ops.TensorDump()(f"hidden_states_{layer_idx}", hidden_states)  # 3. zhy_test
 
-            if use_cache:
-                # assert past_key_values is not None
-                next_caches += (layer_outputs[2 if output_attentions else 1],)
+            # zhy_test
+            # if use_cache:
+            #     # assert past_key_values is not None
+            #     next_caches += (layer_outputs[2 if output_attentions else 1],)
 
-            if output_attentions:
-                all_self_attns += (layer_outputs[1],)
+            # zhy_test
+            # if output_attentions:
+            #     all_self_attns += (layer_outputs[1],)
 
         hidden_states = self.norm(hidden_states)
 
