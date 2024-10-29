@@ -6,6 +6,7 @@ import mindspore as ms
 from transformers import AutoTokenizer
 
 from mindone.transformers.models.llama import LlamaForCausalLM
+from mindone.transformers.mindspore_adapter import auto_mixed_precision
 
 
 def run_llama3_generate(args):
@@ -17,6 +18,8 @@ def run_llama3_generate(args):
 
     tokenizer = AutoTokenizer.from_pretrained(args.model_path)
     model = LlamaForCausalLM.from_pretrained(args.model_path, use_flash_attention_2=args.use_fa)
+
+    model = auto_mixed_precision(model, amp_level="O2", dtype=ms.float16)
 
     print(f"=====> Building model done.")
 
