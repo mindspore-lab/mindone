@@ -1,7 +1,9 @@
 #  Stable Video 3D (SV3D)
 
 <p align="center"><img width="600" alt="Output Vis"
-src="https://github.com/mindspore-lab/mindone/assets/13991298/0da9cff8-f90a-4fd2-b042-8f92b387a46b"/></p>
+src="https://github.com/mindspore-lab/mindone/assets/13991298/0da9cff8-f90a-4fd2-b042-8f92b387a46b"/>
+<em>Output Multiview Images (21x576x576)</em>
+</p>
 
 ## Introduction
 
@@ -56,14 +58,66 @@ python simple_video_sample.py \
 2. Prepare Objaverse overfitting dataset, can refer to our implementation in another 3D project [here](instantmeshpr).
 3. The SVD VAE setup is different from the vanilla SV3D structure. To adapt, comment out the VAE setup in the original cfg file, and uncomment those for training. We found that the original cfg setup for SV3D cannot diverge with SVD checkpoints loaded during SV3D training. By modifying the cfgs, the correct VAE can be obtained and overfitting training converges within hours.
 ```diff
-
+- encoder_config: # vanilla sv3d ckpt
+-     target: torch.nn.Identity
+- decoder_config: # vanilla sv3d ckpt
+-     target: sgm.modules.diffusionmodules.model.Decoder
+-     params:
+-     attn_type: flash-attention
+-     double_z: True
+-     z_channels: 4
+-     resolution: 256
+-     in_channels: 3
+-     out_ch: 3
+-     ch: 128
+-     ch_mult: [ 1, 2, 4, 4 ]
+-     num_res_blocks: 2
+-     attn_resolutions: [ ]
+-     dropout: 0.0
++ encoder_config:   # training with the pruned vanilla svd ckpt
++     target: sgm.modules.diffusionmodules.model.Encoder
++     params:
++     attn_type: flash-attention
++     double_z: True
++     z_channels: 4
++     resolution: 256
++     in_channels: 3
++     out_ch: 3
++     ch: 128
++     ch_mult: [ 1, 2, 4, 4 ]
++     num_res_blocks: 2
++     attn_resolutions: [ ]
++     dropout: 0.0
++ decoder_config:  # trained with svd ckpt
++     target: modules.temporal_ae.VideoDecoder
++     params:
++     attn_type: flash-attention
++     double_z: True
++     z_channels: 4
++     resolution: 256
++     in_channels: 3
++     out_ch: 3
++     ch: 128
++     ch_mult: [ 1, 2, 4, 4 ]
++     num_res_blocks: 2
++     attn_resolutions: [ ]
++     dropout: 0.0
++     video_kernel_size: [ 3, 1, 1 ]
 ```
 
 4. Launch training by running the following script:
 ```shell
-python train.py --model_cfg configs/sampling/sv3d_u.yaml \
---train_cfg
+python train.py \
+    --model_cfg configs/sampling/sv3d_u.yaml \
+    --train_cfg configs/sv3d_u_train.yaml
 ```
+
+The training on an NPU-910B can achieve the following performance.
+| model name | cards    | image size    | graph compile  | batch size    | recompute | data sink | jit level | step time | train. imgs/s |
+| :---       | :---     | :---          | :---           | :---          | :---      | :---      | :---      | :---      | :---          |
+| sv3d       | 1        | 576x576   	| 3~5 mins       | 5 frames	     | ON        |  OFF	     | O0        | 2.29s     | 2.18          |
+
+dit	1	256x256		64	OFF	ON	O2	0.89s	71.91
 
 ## Acknowledgements
 
