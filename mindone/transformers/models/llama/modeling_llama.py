@@ -791,10 +791,9 @@ class LlamaModel(LlamaPreTrainedModel):
 
             ops.TensorDump()(f"hidden_states_{layer_idx}", hidden_states)  # 3. zhy_test
 
-            # zhy_test
-            # if use_cache:
-            #     # assert past_key_values is not None
-            #     next_caches += (layer_outputs[2 if output_attentions else 1],)
+            if use_cache:
+                # assert past_key_values is not None
+                next_caches += (layer_outputs[1],)
 
             # zhy_test
             # if output_attentions:
@@ -807,7 +806,7 @@ class LlamaModel(LlamaPreTrainedModel):
             all_hidden_states += (hidden_states,)
 
         # last_hidden_state, past_key_values, all_hidden_states, all_attentions
-        return hidden_states, next_caches, all_hidden_states, all_self_attns
+        return hidden_states, next_caches #, all_hidden_states, all_self_attns  #zhy_test
 
     def _update_causal_mask(
             self,
