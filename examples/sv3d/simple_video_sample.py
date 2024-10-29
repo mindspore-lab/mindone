@@ -105,7 +105,6 @@ class SV3DInferPipeline:
 
     def __call__(self, image: Tensor) -> Tensor:
         image = image * 2.0 - 1.0
-
         image = image.unsqueeze(0)
         H, W = image.shape[-2:]
         assert image.shape[1] == 3
@@ -265,15 +264,13 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--ckpt",
-        # default="PATHTOYOURCKPT",
-        default="/mnt/disk4/fredhong/from_local/mindone/fred_examples/sv3d/ckpt/sv3d_u.ckpt",
+        default="PATHTOYOURCKPT",
         type=str,
         help="path to the ckpt",
     )
     parser.add_argument(
         "--input",
-        # default="PATHTOYOURINPUT",
-        default="/mnt/disk4/fredhong/mindone_master/examples/sv3d/tools_gif/mindone.png",
+        default="PATHTOYOURINPUT",
         type=str,
         help="path to the input img, or the input imgs dir path",
     )
@@ -285,6 +282,4 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
     print(args)
-    sample(
-        args.input, args.ckpt, mode=int(args.mode), device_id=int(args.device_id), output_folder="oct_22_pynative_speed"
-    )
+    sample(args.input, args.ckpt, mode=int(args.mode), device_id=int(args.device_id), output_folder="")
