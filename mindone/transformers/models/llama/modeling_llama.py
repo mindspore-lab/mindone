@@ -745,7 +745,7 @@ class LlamaModel(LlamaPreTrainedModel):
         if inputs_embeds is None:
             inputs_embeds = self.embed_tokens(input_ids)
 
-        ops.TensorDump()("inputs_embeds_1", inputs_embeds) # 1. zhy_test
+        ops.TensorDump()("inputs_embeds", inputs_embeds) # 1. zhy_test
 
         if cache_position is None:
             past_seen_tokens = get_seq_length(past_key_values) if past_key_values is not None else 0
@@ -759,7 +759,8 @@ class LlamaModel(LlamaPreTrainedModel):
             attention_mask, inputs_embeds, cache_position, past_key_values, output_attentions
         )
 
-        ops.TensorDump()("causal_mask", causal_mask)  # 2. zhy_test
+        ops.TensorDump()("causal_mask", causal_mask)        # 2. zhy_test
+        ops.TensorDump()("attention_mask", attention_mask)  # 2.1. zhy_test
 
         # embed positions
         hidden_states = inputs_embeds
@@ -784,10 +785,9 @@ class LlamaModel(LlamaPreTrainedModel):
                 cache_position=cache_position,
             )
 
-            if layer_idx == 0:
-                ops.TensorDump()("hidden_states_0", hidden_states)  # 3. zhy_test
-
             hidden_states = layer_outputs[0]
+
+            ops.TensorDump()(f"hidden_states_{layer_idx}", hidden_states)  # 3. zhy_test
 
             if use_cache:
                 # assert past_key_values is not None
