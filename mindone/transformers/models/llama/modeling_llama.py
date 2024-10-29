@@ -56,11 +56,24 @@ class LlamaRMSNorm(nn.Cell):
         self.variance_epsilon = eps
 
     def construct(self, hidden_states):
+
+        ops.TensorDump()("llama_rmsnorm", hidden_states) # zhy_test
+
         input_dtype = hidden_states.dtype
         hidden_states = hidden_states.to(ms.float32)
         variance = hidden_states.pow(2).mean(-1, keep_dims=True)
+
+        ops.TensorDump()("llama_rmsnorm_variance", variance)  # zhy_test
+
         hidden_states = hidden_states * ops.rsqrt(variance + self.variance_epsilon)
-        return self.weight * hidden_states.to(input_dtype)
+
+        ops.TensorDump()("llama_rmsnorm_after_mul_rsqrt", hidden_states)  # zhy_test
+
+        out = self.weight * hidden_states.to(input_dtype)
+
+        ops.TensorDump()("llama_rmsnorm_out", out)  # zhy_test
+
+        return out
 
 
 ALL_LAYERNORM_LAYERS.append(LlamaRMSNorm)
