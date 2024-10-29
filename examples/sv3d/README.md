@@ -117,8 +117,6 @@ The training on an NPU-910B can achieve the following performance.
 | :---       | :---     | :---          | :---           | :---          | :---      | :---      | :---      | :---      | :---          |
 | sv3d       | 1        | 576x576   	| 3~5 mins       | 5 frames	     | ON        |  OFF	     | O0        | 2.29s     | 2.18          |
 
-dit	1	256x256		64	OFF	ON	O2	0.89s	71.91
-
 ## Acknowledgements
 
 1. Voleti, Vikram, Chun-Han Yao, Mark Boss, Adam Letts, David Pankratz, Dmitry Tochilkin, Christian Laforte, Robin Rombach, and Varun Jampani. "Sv3d: Novel multi-view synthesis and 3d generation from a single image using latent video diffusion."
