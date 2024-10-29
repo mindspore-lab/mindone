@@ -737,6 +737,10 @@ class GenerationMixin:
 
             generation_config.max_length = generation_config.max_new_tokens + input_ids_length
 
+            if generation_config.max_length < inputs_tensor.shape[1]:
+                raise ValueError(f"max_new_tokens `{generation_config.max_new_tokens}` is smaller than "
+                                 f"input length `{inputs_tensor.shape[1]}`.")
+
         # if both `inputs_embeds` and `input_ids` are passed, we do not correct the length
         # otherwise we need total length [inputs-embeds-len + new-tokens-len] to not go beyond indicated `max_length``
         elif (
@@ -1498,8 +1502,8 @@ class GenerationMixin:
                 **model_kwargs,
             )
 
-            # 14. delete the length of the input
-            result = result[:, input_ids.shape[1]:]
+            # 14. unlike the original transformers, need delete the length of the input
+            result = result[:, inputs_tensor.shape[1]:]
 
         elif generation_mode in (GenerationMode.BEAM_SAMPLE, GenerationMode.BEAM_SEARCH):
             raise NotImplementedError

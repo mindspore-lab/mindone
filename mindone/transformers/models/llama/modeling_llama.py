@@ -745,6 +745,8 @@ class LlamaModel(LlamaPreTrainedModel):
         if inputs_embeds is None:
             inputs_embeds = self.embed_tokens(input_ids)
 
+        ops.TensorDump()("inputs_embeds_1", inputs_embeds) # 1. zhy_test
+
         if cache_position is None:
             past_seen_tokens = get_seq_length(past_key_values) if past_key_values is not None else 0
             cache_position = ops.arange(
@@ -756,6 +758,8 @@ class LlamaModel(LlamaPreTrainedModel):
         causal_mask = self._update_causal_mask(
             attention_mask, inputs_embeds, cache_position, past_key_values, output_attentions
         )
+
+        ops.TensorDump()("causal_mask", causal_mask)  # 2. zhy_test
 
         # embed positions
         hidden_states = inputs_embeds
@@ -779,6 +783,9 @@ class LlamaModel(LlamaPreTrainedModel):
                 use_cache=use_cache,
                 cache_position=cache_position,
             )
+
+            if layer_idx == 0:
+                ops.TensorDump()("hidden_states_0", hidden_states)  # 3. zhy_test
 
             hidden_states = layer_outputs[0]
 
@@ -985,6 +992,9 @@ class LlamaForCausalLM(LlamaPreTrainedModel):
             logits = ops.cat(logits, axis=-1)
         else:
             logits = self.lm_head(hidden_states)
+
+        ops.TensorDump()("logits", logits)  # 4. zhy_test
+
         logits = logits.to(ms.float32)
 
         loss = None
