@@ -355,10 +355,7 @@ class LlamaAttention(nn.Cell):
         else:
             attn_output = self.o_proj(attn_output)
 
-        if not output_attentions:
-            attn_weights = None
-
-        return attn_output, attn_weights, past_key_value
+        return attn_output, past_key_value
 
 
 class LlamaFlashAttention2(LlamaAttention):
@@ -477,7 +474,7 @@ class LlamaFlashAttention2(LlamaAttention):
         else:
             attn_output = self.o_proj(attn_output)
 
-        return attn_output, None, past_key_value
+        return attn_output, past_key_value
 
 
 LLAMA_ATTENTION_CLASSES = {
@@ -534,8 +531,10 @@ class LlamaDecoderLayer(nn.Cell):
 
         hidden_states = self.input_layernorm(hidden_states)
 
+        ops.TensorDump()(f"after_layernorm_{self.self_attn.layer_idx}", hidden_states)  # zhy_test
+
         # Self Attention
-        hidden_states, self_attn_weights, present_key_value = self.self_attn(
+        hidden_states, present_key_value = self.self_attn(
             hidden_states=hidden_states,
             attention_mask=attention_mask,
             position_ids=position_ids,
@@ -544,20 +543,27 @@ class LlamaDecoderLayer(nn.Cell):
             use_cache=use_cache,
             cache_position=cache_position,
         )
+
+        ops.TensorDump()(f"after_atten_{self.self_attn.layer_idx}", hidden_states)  # zhy_test
+
         hidden_states = residual + hidden_states
 
         # Fully Connected
         residual = hidden_states
         hidden_states = self.post_attention_layernorm(hidden_states)
+
+        ops.TensorDump()(f"after_post_layernorm_{self.self_attn.layer_idx}", hidden_states)  # zhy_test
+
         hidden_states = self.mlp(hidden_states)
+
+        ops.TensorDump()(f"after_mlp_{self.self_attn.layer_idx}", hidden_states)  # zhy_test
+
         hidden_states = residual + hidden_states
         hidden_states = self.output_identity(hidden_states)
 
-        outputs = (hidden_states,)
+        ops.TensorDump()(f"after_identity_{self.self_attn.layer_idx}", hidden_states)  # zhy_test
 
-        # zhy_test
-        # if output_attentions:
-        #     outputs += (self_attn_weights,)
+        outputs = (hidden_states,)
 
         if use_cache:
             outputs += (present_key_value,)
