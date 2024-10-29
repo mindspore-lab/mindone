@@ -7,14 +7,12 @@ model:
   params:
     input_size: 320
     render_size: 192
-    # render_size: 96
     lrm_generator_config:
       openlrm_ckpt: 'YOUR_PATH/openlrm.ckpt'
       target: models.lrm.InstantNeRF
       params:
         encoder_feat_dim: 768
         encoder_freeze: false
-        # encoder_model_name: facebook/dino-vitb16
         encoder_model_name: 'YOUR_PATH_HF/models--facebook--dino-vitb16/snapshots/f205d5d8e640a89a2b8ef0369670dfc37cc07fc2'  # coz needs to enforce the is_local flag (with pretrained_model_name_or_path as dir), thus here put in the abs path as a workaround
         transformer_dim: 1024
         transformer_layers: 16
@@ -22,10 +20,10 @@ model:
         triplane_low_res: 32
         triplane_high_res: 64
         triplane_dim: 80
-        rendering_samples_per_ray: 64  # official ckpt is 128, if loaded pretrained make sure it's 128
+        rendering_samples_per_ray: 64  # for the vanilla ckpt is 128, if loaded pretrained make sure it's 128
         use_recompute: true
 
-eval_render_size: 96  # large may have oom
+eval_render_size: 96  # larger may lead to oom in eval.py
 
 data:
   batch_size: 1
