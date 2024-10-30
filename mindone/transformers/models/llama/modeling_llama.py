@@ -855,7 +855,7 @@ class LlamaModel(LlamaPreTrainedModel):
 
         sequence_length = input_tensor.shape[1]
 
-        if past_key_values:
+        if past_key_values is not None:
             target_length = get_max_length(past_key_values)
         else:
             target_length = (
@@ -1026,7 +1026,9 @@ class LlamaForCausalLM(LlamaPreTrainedModel):
 
         logits = logits.to(ms.float32)
 
-        loss = None
+
+        # loss = None  # FIXME: Will get wrong result with graph and jit_level O0 on MindSpore 2.3.1 !!!
+        loss = ops.full((), -1, dtype=logits.dtype)
         if labels is not None:
             # Shift so that tokens < n predict n
             shift_logits = logits[..., :-1, :]
