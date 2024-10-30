@@ -182,7 +182,7 @@ Experiments are tested on ascend [910*] with mindspore [2.3.1] graph mode
 | PixArt-Sigma | 4     | 1024 (multi) | 3~5 mins      | 12         | ON        | OFF       | O1        | 7.042s    | 6.8           | [pixart-sigma-1024-MS.yaml](configs/train/pixart-sigma-1024-MS.yaml) |
 | PixArt-Sigma | 4     | 2048 (multi) | 3~5 mins      | 1          | ON        | OFF       | O1        | 8.772s    | 0.5           | [pixart-sigma-2K-MS.yaml](configs/train/pixart-sigma-2K-MS.yaml)     |
 
-> step time: training time measured in the number of seconds for each training stesp.\
+> step time: training time measured in the number of seconds for each training step.\
 > train. imgs/s: images per second during training. train. imgs/s = cards * batch_size / step time
 
 ### Inference
