@@ -117,15 +117,16 @@ class GeneratorWithLoss(nn.Cell):
         nll_loss = rec_loss / mint.exp(self.logvar) + self.logvar
         if weights is not None:
             weighted_nll_loss = weights * nll_loss
-            mean_weighted_nll_loss = weighted_nll_loss.sum() / bs
+            mean_weighted_nll_loss = weighted_nll_loss.sum() / weighted_nll_loss.shape[0]
             # mean_nll_loss = nll_loss.sum() / bs
         else:
-            mean_weighted_nll_loss = nll_loss.sum() / bs
+            mean_weighted_nll_loss = nll_loss.sum() / nll_loss.shape[0]
             # mean_nll_loss = mean_weighted_nll_loss
+        nll_loss = nll_loss.sum() / nll_loss.shape[0]
 
         # 2.3 kl loss
         kl_loss = self.kl(mean, logvar)
-        kl_loss = kl_loss.sum() / bs
+        kl_loss = kl_loss.sum() / kl_loss.shape[0]
         if wavelet_coeffs:
             wl_loss_l2 = mint.sum(l1(wavelet_coeffs[0], wavelet_coeffs[1])) / bs
             wl_loss_l3 = mint.sum(l1(wavelet_coeffs[2], wavelet_coeffs[3])) / bs
