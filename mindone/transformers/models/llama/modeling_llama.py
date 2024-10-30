@@ -22,7 +22,7 @@ import numpy as np
 from typing import List, Optional, Tuple, Union
 
 import mindspore as ms
-from mindspore import nn, ops, Tensor, Parameter
+from mindspore import nn, ops, mint, Tensor, Parameter
 
 from transformers import LlamaConfig, GenerationConfig
 from transformers.utils import (
@@ -64,7 +64,7 @@ class LlamaRMSNorm(nn.Cell):
 
         # zhy_test
         # variance = hidden_states.pow(2).mean(-1, keep_dims=True)
-        variance = (hidden_states ** 2).mean(-1, keep_dims=True)
+        variance = mint.mean(mint.pow(hidden_states, 2), axis=-1, keep_dims=True)
 
         ops.TensorDump()("llama_rmsnorm_variance", variance)  # zhy_test
 

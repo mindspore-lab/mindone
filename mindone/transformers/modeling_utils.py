@@ -2096,6 +2096,7 @@ class MSPreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMix
                 resolved_archive_file = logging.tqdm(resolved_archive_file, desc="Loading checkpoint shards")
 
             # loading checkpoint
+            all_state_dict = {}
             _s_time = time.time()
             for shard_file in resolved_archive_file:
                 state_dict = load_state_dict(shard_file)
@@ -2116,14 +2117,25 @@ class MSPreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMix
                     ignore_mismatched_sizes,
                 )
                 print(f"====> time cost, _find_mismatched_keys: {time.time() - _s_time:.3f}s")
+
                 _s_time = time.time()
-                error_msgs += _load_state_dict_into_model(model_to_load, state_dict, start_prefix, is_sharded=True)
-                print(f"====> time cost, _load_state_dict_into_model: {time.time() - _s_time:.3f}s")
+                all_state_dict.update(state_dict)
+                print(f"====> time cost, all_state_dict.update: {time.time() - _s_time:.3f}s")
                 _s_time = time.time()
+
+                # _s_time = time.time()
+                # error_msgs += _load_state_dict_into_model(model_to_load, state_dict, start_prefix, is_sharded=True)
+                # print(f"====> time cost, _load_state_dict_into_model: {time.time() - _s_time:.3f}s")
+                # _s_time = time.time()
 
                 # force memory release
                 del state_dict
                 gc.collect()
+
+            _s_time = time.time()
+            error_msgs += _load_state_dict_into_model(model_to_load, all_state_dict, start_prefix)
+            print(f"====> time cost, _load_state_dict_into_model: {time.time() - _s_time:.3f}s")
+            _s_time = time.time()
 
         if len(error_msgs) > 0:
             error_msg = "\n\t".join(error_msgs)
