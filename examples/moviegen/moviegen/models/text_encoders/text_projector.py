@@ -3,6 +3,8 @@ from typing import Type
 import mindspore as ms
 from mindspore import Tensor, mint, nn
 
+from mindone.models.utils import normal_, zeros_
+
 
 class TextProjector(nn.Cell):
     def __init__(
@@ -13,6 +15,8 @@ class TextProjector(nn.Cell):
         out_features: int = 6144,
         layer_norm: Type[nn.Cell] = mint.nn.LayerNorm,
         norm_eps: float = 1e-5,
+        initializer_range: float = 0.02,
+        post_init_weight: bool = True,
         dtype: ms.Type = ms.float32,
     ):
         super().__init__()
@@ -34,6 +38,23 @@ class TextProjector(nn.Cell):
                 layer_norm((out_features,), eps=norm_eps, dtype=dtype),
             ]
         )
+        self.initializer_range = initializer_range
+
+        # post-init
+        if post_init_weight:
+            self.initializer_range = initializer_range
+            self.init_weights()
+
+    def init_weights(self):
+        std = self.initializer_range
+
+        def _init_weights(module):
+            if isinstance(module, mint.nn.Linear):
+                normal_(module.weight, mean=0.0, std=std)
+                if module.bias is not None:
+                    zeros_(module.weight)
+
+        self.apply(_init_weights)
 
     def construct(self, ul2_text: Tensor, metaclip_text: Tensor, byt5_text: Tensor) -> Tensor:
         ul2_hidden_states = self.ul2_projector(ul2_text)
