@@ -335,6 +335,16 @@ python examples/rec_video_folder.py \
 Runing this command will generate reconstructed videos under the given `output_generated_video_dir`. You can then evalute some common metrics (e.g., ssim, psnr) using the script under `opensora/eval/script`.
 
 
+####  Performance Evaluation
+
+Here, we report the training performance and evaluation results on the UCF-101 dataset. Experiments are tested on Ascend 910* with mindspore 2.3.1 graph mode.
+
+| model name  | cards  |  graph compile | batch size | Resolution(framesxHxW) | Precision | Discriminator |data sink | jit level| Train T. (s/step) | PSNR | SSIM  |
+|:-----------|:------ |:---------------:|:----------:|:---------------------:|:----------:|:-------------:|:--------:|:-------:|-------------------:|:----:|-------:|
+| CausalVAE  |  8     |       3mins    |     1x8      |           9x256x256    |   FP32     |    TRUE      |    FALSE |     O0   |    2.04           |  29.30 |   0.88      |
+| CausalVAE  |  8    |       3mins     |     1x8     |           25x256x256   |   BF16     |     FALSE    |    FALSE |     O0  |     4.21           | 28.92 |    0.87     |
+
+
 
 ### Training Diffusion Model
 
