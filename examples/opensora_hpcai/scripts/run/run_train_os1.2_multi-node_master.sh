@@ -1,7 +1,7 @@
 # rm -rf device
 unset RANK_TABLE_FILE
 output_dir=outputs/os1.2_stage2_16p
-mkdir $output_dir 
+mkdir $output_dir
 echo "start training"
 
 # operation/graph fusion for dynamic shape
@@ -65,4 +65,4 @@ python scripts/train.py \
 	--vae_dtype=fp16 \
 	--train_steps=8000 --ckpt_save_steps=500 \
 	--use_parallel=True \
-	> $output_dir/scheduler.log 2>&1 & 
+	> $output_dir/scheduler.log 2>&1 &

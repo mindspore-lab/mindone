@@ -95,4 +95,3 @@ def save_videos(frames: np.ndarray, path: str, fps: Union[int, float] = 8, loop=
                     create_video_from_numpy_frames(frames[idx], cur_path, fps, fmt, loop)
         else:
             create_video_from_numpy_frames(frames[0], path, fps, fmt, loop)
-

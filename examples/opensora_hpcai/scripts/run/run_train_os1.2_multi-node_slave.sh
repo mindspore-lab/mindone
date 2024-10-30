@@ -44,4 +44,3 @@ do
         > $output_dir/worker_$i.log 2>&1 &
 
 done
-
