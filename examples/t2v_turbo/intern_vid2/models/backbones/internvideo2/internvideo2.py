@@ -740,13 +740,13 @@ def pretrain_internvideo2_1b_patch14_224(config):
         logger.info(f"Loading pretrained weights from {config.vision_encoder.pretrained}")
         state_dict = ms.load_checkpoint(config.vision_encoder.pretrained)
 
-        # state_dict_new = {}
-        # for k, v in state_dict.items():
-        #     if k.startswith("vision_encoder"):
-        #         state_dict_new[k[len("vision_encoder."):]] = v
-        # state_dict = state_dict_new
+        state_dict_new = {}
+        for k, v in state_dict.items():
+            if k.startswith("vision_encoder"):
+                state_dict_new[k[len("vision_encoder."):]] = v
+        state_dict = state_dict_new
 
-        interpolate_pos_embed_internvideo2(state_dict, model, orig_t_size=8)
+        interpolate_pos_embed_internvideo2(state_dict, model, orig_t_size=4)
         ms.load_param_into_net(model, state_dict)
     else:
         logger.info("No pretrained weights!!!")

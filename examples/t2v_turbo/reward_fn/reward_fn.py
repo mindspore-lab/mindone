@@ -164,8 +164,6 @@ def get_hpsv2_fn(precision="no", rm_ckpt_dir="HPS_v2_compressed.ckpt"):
         with ms._no_grad():
             text_features = model.encode_text(text_inputs, normalize=True)
 
-        image_features = image_features.astype(ms.float32)
-        text_features = text_features.astype(ms.float32)
         hps_score = (image_features * text_features).sum(-1)
         if return_logits:
             hps_score = hps_score * model.logit_scale.exp()

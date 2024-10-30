@@ -185,7 +185,7 @@ def interpolate_pos_embed(checkpoint_model, model, orig_t_size=4, pos_name='visi
 
 def interpolate_pos_embed_internvideo2(checkpoint_model, model, orig_t_size = 8):
     # interpolate position embedding
-    for pos_name in ['vision_encoder.pos_embed', 'vision_encoder.clip_pos_embed']:
+    for pos_name in ['pos_embed', 'clip_pos_embed']:
         if pos_name in checkpoint_model:
             pos_embed_checkpoint = checkpoint_model[pos_name]
 
