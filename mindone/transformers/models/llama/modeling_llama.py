@@ -22,7 +22,7 @@ import numpy as np
 from typing import List, Optional, Tuple, Union
 
 import mindspore as ms
-from mindspore import nn, ops, mint, Tensor, Parameter
+from mindspore import nn, ops, Tensor, Parameter
 
 from transformers import LlamaConfig, GenerationConfig
 from transformers.utils import (
@@ -34,7 +34,7 @@ from transformers.utils import (
 from transformers.modeling_outputs import CausalLMOutputWithPast
 
 from mindone.transformers.activations import ACT2FN
-from mindone.transformers.modeling_utils import MSPreTrainedModel
+from mindone.transformers.modeling_utils import MSPreTrainedModel as PreTrainedModel
 from mindone.transformers.mindspore_utils import ALL_LAYERNORM_LAYERS
 from mindone.transformers.modeling_attn_mask_utils import _MIN_FP16
 from mindone.transformers.mindspore_adapter.attention import FlashAttention2
@@ -62,10 +62,7 @@ class LlamaRMSNorm(nn.Cell):
         input_dtype = hidden_states.dtype
         hidden_states = hidden_states.to(ms.float32)
 
-        # zhy_test
-        # variance = hidden_states.pow(2).mean(-1, keep_dims=True)
-        variance = mint.mean(mint.pow(hidden_states, 2), -1, True)
-
+        variance = hidden_states.pow(2).mean(-1, keep_dims=True)
         ops.TensorDump()("llama_rmsnorm_variance", variance)  # zhy_test
 
         hidden_states = hidden_states * ops.rsqrt(variance + self.variance_epsilon)
@@ -371,7 +368,12 @@ class LlamaAttention(nn.Cell):
         else:
             attn_output = self.o_proj(attn_output)
 
-        return attn_output, past_key_value
+        outputs = (attn_output,)
+        if past_key_value is not None:
+            outputs += (past_key_value,)
+
+        # attn_output, past_key_value
+        return outputs
 
 
 class LlamaFlashAttention2(LlamaAttention):
@@ -490,7 +492,12 @@ class LlamaFlashAttention2(LlamaAttention):
         else:
             attn_output = self.o_proj(attn_output)
 
-        return attn_output, past_key_value
+        outputs = (attn_output,)
+        if past_key_value is not None:
+            outputs += (past_key_value,)
+
+        # attn_output, past_key_value
+        return outputs
 
 
 LLAMA_ATTENTION_CLASSES = {
@@ -550,7 +557,7 @@ class LlamaDecoderLayer(nn.Cell):
         ops.TensorDump()(f"after_layernorm_{self.self_attn.layer_idx}", hidden_states)  # zhy_test
 
         # Self Attention
-        hidden_states, present_key_value = self.self_attn(
+        attn_output = self.self_attn(
             hidden_states=hidden_states,
             attention_mask=attention_mask,
             position_ids=position_ids,
@@ -559,6 +566,8 @@ class LlamaDecoderLayer(nn.Cell):
             use_cache=use_cache,
             cache_position=cache_position,
         )
+        hidden_states = attn_output[0]
+        present_key_value = None if len(attn_output) == 1 else attn_output[1]
 
         ops.TensorDump()(f"after_atten_{self.self_attn.layer_idx}", hidden_states)  # zhy_test
 
@@ -581,14 +590,14 @@ class LlamaDecoderLayer(nn.Cell):
 
         outputs = (hidden_states,)
 
-        if use_cache:
+        if use_cache and present_key_value is not None:
             outputs += (present_key_value,)
 
         return outputs
 
 
 LLAMA_START_DOCSTRING = r"""
-    This model inherits from [`MSPreTrainedModel`]. Check the superclass documentation for the generic methods the
+    This model inherits from [`PreTrainedModel`]. Check the superclass documentation for the generic methods the
     library implements for all its model (such as downloading or saving, resizing the input embeddings, pruning heads
     etc.)
 
@@ -600,15 +609,16 @@ LLAMA_START_DOCSTRING = r"""
         config ([`LlamaConfig`]):
             Model configuration class with all the parameters of the model. Initializing with a config file does not
             load the weights associated with the model, only the configuration. Check out the
-            [`~MSPreTrainedModel.from_pretrained`] method to load the model weights.
+            [`~PreTrainedModel.from_pretrained`] method to load the model weights.
 """
 
 
-@add_start_docstrings(
-    "The bare LLaMA Model outputting raw hidden-states without any specific head on top.",
-    LLAMA_START_DOCSTRING,
-)
-class LlamaPreTrainedModel(MSPreTrainedModel):
+# zhy_test
+# @add_start_docstrings(
+#     "The bare LLaMA Model outputting raw hidden-states without any specific head on top.",
+#     LLAMA_START_DOCSTRING,
+# )
+class LlamaPreTrainedModel(PreTrainedModel):
     config_class = LlamaConfig
     base_model_prefix = "model"
     _no_split_modules = ["LlamaDecoderLayer"]
@@ -695,10 +705,11 @@ LLAMA_INPUTS_DOCSTRING = r"""
 """
 
 
-@add_start_docstrings(
-    "The bare LLaMA Model outputting raw hidden-states without any specific head on top.",
-    LLAMA_START_DOCSTRING,
-)
+# zhy_test
+# @add_start_docstrings(
+#     "The bare LLaMA Model outputting raw hidden-states without any specific head on top.",
+#     LLAMA_START_DOCSTRING,
+# )
 class LlamaModel(LlamaPreTrainedModel):
     """
     Transformer decoder consisting of *config.num_hidden_layers* layers. Each layer is a [`LlamaDecoderLayer`]
@@ -741,7 +752,8 @@ class LlamaModel(LlamaPreTrainedModel):
 
         self.embed_tokens.embedding_table.name = ori_name
 
-    @add_start_docstrings_to_model_forward(LLAMA_INPUTS_DOCSTRING)
+    # zhy_test
+    # @add_start_docstrings_to_model_forward(LLAMA_INPUTS_DOCSTRING)
     def construct(
             self,
             input_ids: ms.Tensor = None,
@@ -779,7 +791,7 @@ class LlamaModel(LlamaPreTrainedModel):
             position_ids = cache_position.unsqueeze(0)
 
         causal_mask = self._update_causal_mask(
-            attention_mask, inputs_embeds, cache_position, past_key_values, output_attentions
+            attention_mask, inputs_embeds, cache_position, past_key_values
         )
 
         ops.TensorDump()("causal_mask", causal_mask)        # 2. zhy_test
@@ -790,13 +802,8 @@ class LlamaModel(LlamaPreTrainedModel):
 
         # decoder layers
         next_caches = ()
-        all_hidden_states = () if output_hidden_states else None
-        all_self_attns = () if output_attentions else None
 
         for layer_idx, decoder_layer in enumerate(self.layers):
-
-            if output_hidden_states:
-                all_hidden_states += (hidden_states,)
 
             layer_outputs = decoder_layer(
                 hidden_states,
@@ -822,12 +829,12 @@ class LlamaModel(LlamaPreTrainedModel):
 
         hidden_states = self.norm(hidden_states)
 
-        # add hidden states from the last decoder layer
-        if output_hidden_states:
-            all_hidden_states += (hidden_states,)
+        outputs = (hidden_states,)
+        if use_cache:
+            outputs += (next_caches,)
 
         # last_hidden_state, past_key_values, all_hidden_states, all_attentions
-        return hidden_states, next_caches #, all_hidden_states, all_self_attns  #zhy_test
+        return outputs
 
     def _update_causal_mask(
             self,
@@ -940,7 +947,8 @@ class LlamaForCausalLM(LlamaPreTrainedModel):
 
         logger.info(f"{self.__class__.__name__}: enable recompute done.")
 
-    @add_start_docstrings_to_model_forward(LLAMA_INPUTS_DOCSTRING)
+    # zhy_test
+    # @add_start_docstrings_to_model_forward(LLAMA_INPUTS_DOCSTRING)
     def construct(
             self,
             input_ids: ms.Tensor = None,
@@ -981,16 +989,12 @@ class LlamaForCausalLM(LlamaPreTrainedModel):
         "Hey, are you conscious? Can you talk to me?\nI'm not conscious, but I can talk to you."
         ```"""
 
+        # assert not output_attentions
+        # assert not output_hidden_states
         # assert ((input_ids is None) and (inputs_embeds is not None)) or \
         #        ((input_ids is not None) and (inputs_embeds is None))
         # assert (input_ids is None) ^ (inputs_embeds is None)
         # assert not return_dict
-
-        output_attentions = output_attentions if output_attentions is not None else self.output_attentions
-        output_hidden_states = (
-            output_hidden_states if output_hidden_states is not None else self.output_hidden_states
-        )
-        return_dict = return_dict if return_dict is not None else self.use_return_dict
 
         # decoder outputs consists of (dec_features, layer_state, dec_hidden, dec_attn)
         outputs = self.model(
@@ -1008,7 +1012,8 @@ class LlamaForCausalLM(LlamaPreTrainedModel):
 
         hidden_states = outputs[0]
 
-        past_key_values = outputs[1] if use_cache else None
+        if use_cache:
+            past_key_values = outputs[1]
 
         if self.pretraining_tp > 1:
             lm_head_slices = self.lm_head.weight.split(self.vocab_size // self.pretraining_tp, axis=0)
@@ -1033,10 +1038,10 @@ class LlamaForCausalLM(LlamaPreTrainedModel):
             shift_labels = shift_labels.to(shift_logits.device)
             loss = self.cross_entropy_loss(shift_logits, shift_labels)
 
-        outputs = (loss, logits, past_key_values) if past_key_values is not None else (loss, logits)
-
-        # loss, logits, past_key_values, all_hidden_states, all_attentions
-        return outputs
+        if use_cache:
+            return loss, logits, past_key_values
+        else:
+            return loss, logits
 
     def get_return_dict(self, tuple_outputs: Tuple) -> CausalLMOutputWithPast:
         sorted_names = ["loss", "logits", "past_key_values", "hidden_states", "attentions"]
