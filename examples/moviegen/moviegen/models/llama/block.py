@@ -1,6 +1,7 @@
 import logging
 from typing import Optional, Sequence, Tuple, Union
 
+import numpy as np
 from moviegen.parallel import (
     ColumnParallelLinear,
     FusedColumnParallelLinear,
@@ -26,7 +27,7 @@ logger = logging.getLogger(__name__)
 class LlamaRMSNorm(nn.Cell):
     def __init__(self, hidden_size: Union[int, Sequence[int]], eps: float = 1e-6, dtype: ms.Type = ms.float32) -> None:
         super().__init__()
-        self.weight = Parameter(mint.ones(hidden_size, dtype=dtype))
+        self.weight = Parameter(Tensor(np.ones(hidden_size), dtype=dtype))
         self.variance_epsilon = eps
 
     def construct(self, hidden_states: Tensor) -> Tensor:
@@ -496,22 +497,3 @@ class TimestepEmbedder(nn.Cell):
         t_freq = self.timestep_embedding(t, self.frequency_embedding_size)
         t_emb = self.mlp(t_freq.to(self.dtype))
         return t_emb
-
-
-class CaptionEmbedder(nn.Cell):
-    def __init__(
-        self,
-        in_channels: int,
-        hidden_size: int,
-        eps: float = 1e-6,
-        dtype: ms.Type = ms.float32,
-    ) -> None:
-        super().__init__()
-        self.proj = nn.SequentialCell(
-            mint.nn.Linear(in_channels, hidden_size, bias=False, dtype=dtype),
-            LlamaRMSNorm((hidden_size,), eps=eps, dtype=dtype),
-        )
-
-    def construct(self, caption: Tensor) -> Tensor:
-        caption_emb = self.proj(caption)
-        return caption_emb

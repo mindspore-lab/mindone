@@ -10,6 +10,8 @@ except ImportError:
 import mindspore as ms
 from mindspore.communication import get_group_size, get_rank, init
 
+from .version_control import MS_VERSION
+
 _logger = logging.getLogger(__name__)
 
 
@@ -22,6 +24,7 @@ def init_train_env(
     cache_path: str = "./cache",
     distributed: bool = False,
     ascend_config: Optional[dict] = None,
+    jit_level: Optional[Literal["O0", "O1", "O2"]] = None,
     enable_modelarts: bool = False,
     max_device_memory: str = None,
     num_workers: int = 1,
@@ -41,6 +44,8 @@ def init_train_env(
         cache_path: The path to save or load the saved computation graph.
         distributed: Whether to enable distributed training. Default is False.
         ascend_config: Parameters specific to the Ascend hardware platform.
+        jit_level: The compilation optimization level. Options: "O0", "O1", "O2".
+                   Default is None and the level selected based on the device.
         enable_modelarts: Whether to enable modelarts (OpenI) support. Default is False.
         max_device_memory (str, default: None): The maximum amount of memory that can be allocated on the Ascend device.
         num_workers: The number of modelarts workers. Used only when `enable_modelarts` is True. Default is 1.
@@ -58,9 +63,18 @@ def init_train_env(
         mode = ms.PYNATIVE_MODE
     if max_device_memory is not None:
         ms.set_context(max_device_memory=max_device_memory)
+    if jit_level:
+        if MS_VERSION < "2.3":
+            _logger.warning("Compilation optimization (JIT Level) is supported only in MindSpore 2.3 or later.")
+        else:
+            ms.set_context(jit_config={"jit_level": jit_level})
+
     if distributed:
-        device_id = int(os.getenv("DEVICE_ID"))
-        ms.set_context(mode=mode, device_target=device_target, device_id=device_id, ascend_config=ascend_config or {})
+        device_id, kwargs = None, {}  # if no rank table
+        if os.getenv("DEVICE_ID"):
+            device_id = int(os.getenv("DEVICE_ID"))
+            kwargs = {"device_id": int(os.getenv("DEVICE_ID"))}
+        ms.set_context(mode=mode, device_target=device_target, ascend_config=ascend_config or {}, **kwargs)
         init()
         device_num = get_group_size()
         rank_id = get_rank()
