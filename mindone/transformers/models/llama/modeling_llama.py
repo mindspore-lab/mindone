@@ -64,7 +64,7 @@ class LlamaRMSNorm(nn.Cell):
 
         # zhy_test
         # variance = hidden_states.pow(2).mean(-1, keep_dims=True)
-        variance = mint.mean(mint.pow(hidden_states, 2), -1, keep_dims=True)
+        variance = mint.mean(mint.pow(hidden_states, 2), -1, True)
 
         ops.TensorDump()("llama_rmsnorm_variance", variance)  # zhy_test
 
