@@ -66,8 +66,6 @@ def evaluate(args, epoch_num: Optional[str]):
     for index in range(0, valset_len, args.batch_size):
         val_batch_np = data.__getitem__(index)
 
-        # prepare for validation batch/mv2mesh inference()
-        # TODO mov this to data
         # although in torch this method is under model.py, but for torch lightning,
         # it's actually implemented as a part of dataset
         val_input = model.prepare_validation_batch_data(

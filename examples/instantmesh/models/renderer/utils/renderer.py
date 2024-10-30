@@ -1,8 +1,7 @@
 """ The renderer is a module that takes in rays, decides where to sample along each
 ray, and computes pixel colors using the volume rendering equation.
 """
-import itertools
-from typing import Dict
+from typing import Dict, Optional
 
 import mindspore as ms
 import mindspore.nn as nn
@@ -12,55 +11,10 @@ from . import math_utils
 from .ray_marcher import MipRayMarcher2
 
 
-class OSGDecoder(nn.Cell):
-    """
-    Triplane decoder that gives RGB and sigma values from sampled features.
-    Using ReLU here instead of Softplus in the original implementation.
-
-    Reference:
-    EG3D: https://github.com/NVlabs/eg3d/blob/main/eg3d/training/triplane.py#L112
-    """
-
-    def __init__(self, n_features: int, hidden_dim: int = 64, num_layers: int = 4, activation: nn.Cell = nn.ReLU):
-        super().__init__()
-        self.net = nn.SequentialCell(
-            nn.Dense(3 * n_features, hidden_dim),
-            activation(),
-            *itertools.chain(
-                *[
-                    [
-                        nn.Dense(hidden_dim, hidden_dim),
-                        activation(),
-                    ]
-                    for _ in range(num_layers - 2)
-                ]
-            ),
-            nn.Dense(hidden_dim, 1 + 3),
-        )
-        # bias init as zero by default, can refer to ~/examples/stable_diffusion_v2/tests/test_lora.py & lora_torch.py for evidence
-
-    def construct(self, sampled_features):
-        # Aggregate features by mean
-        # sampled_features = sampled_features.mean(1)
-        # Aggregate features by concatenation
-        _N, n_planes, _M, _C = sampled_features.shape
-        x = sampled_features.permute(0, 2, 1, 3).reshape(_N, _M, n_planes * _C)
-
-        N, M, color = x.shape
-        x = x.view((N * M, color))
-
-        x = self.net(x)
-        x = x.view((N, M, -1))
-        rgb = mint.sigmoid(x[..., 1:]) * (1 + 2 * 0.001) - 0.001  # Uses sigmoid clamping from MipNeRF
-        sigma = x[..., 0:1]
-
-        return rgb, sigma
-
-
 class ImportanceRenderer(nn.Cell):
     """Modified version of the filtering the out-of-box sampels as TensorRF does."""
 
-    def __init__(self, opts: Dict, dtype: ms.dtype, debug: bool = False):
+    def __init__(self, opts: Dict, dtype: ms.dtype, debug: bool = False, decoder: Optional[nn.Cell] = None):
         super().__init__()
         self.rendering_options = opts
 
@@ -73,10 +27,8 @@ class ImportanceRenderer(nn.Cell):
         self.plane_axes = generate_planes().astype(dtype)
         self.max_pool1d_layer = nn.MaxPool1d(2, 1, pad_mode="pad", padding=1)
         self.avg_pool1d_layer = nn.AvgPool1d(2, 1)
-        self.decoder = OSGDecoder(n_features=80)  # triplane_dim
+        self.decoder = decoder
         self.debug_logging = debug
-
-        self.path_to_save_grad = "./renderer_save_grad/"
 
     def project_onto_planes(
         self,
@@ -113,21 +65,7 @@ class ImportanceRenderer(nn.Cell):
 
         coordinates = (2 / self.rendering_options["box_warp"]) * coordinates  # add specific box bounds
 
-        # debug
-        # plane_features += self.plane_feat_grad
-
         projected_coordinates = self.project_onto_planes(self.plane_axes, coordinates).unsqueeze(1)
-
-        # ts.save(self.path_to_save_grad + 'pf_input', plane_features)
-        # plane_features = ts.save_grad(self.path_to_save_grad + 'pf_input_grad', plane_features)
-
-        # output_features = ops.grid_sample(
-        #     plane_features,
-        #     projected_coordinates,
-        #     mode=mode,
-        #     padding_mode=padding_mode,
-        #     align_corners=False,
-        # ).permute(0, 3, 2, 1).reshape(N, n_planes, M, C)
 
         output_features = (
             mint.nn.functional.grid_sample(
@@ -140,9 +78,6 @@ class ImportanceRenderer(nn.Cell):
             .permute(0, 3, 2, 1)
             .reshape(N, n_planes, M, C)
         )
-
-        # ts.save(self.path_to_save_grad + 'pf_output', plane_features)
-        # output_features = ts.save_grad(self.path_to_save_grad + 'output_features_output_grad', output_features)
 
         return output_features
 

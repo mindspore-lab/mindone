@@ -25,7 +25,6 @@ class OSGDecoder(nn.Cell):
         hidden_dim: int = 64,
         num_layers: int = 4,
         activation: nn.Cell = nn.ReLU,
-        use_recompute: bool = True,
     ):
         super().__init__()
         self.net = nn.SequentialCell(
@@ -98,16 +97,15 @@ class TriplaneSynthesizer(nn.Cell):
             "depth_resolution_importance": dep_res_imp,
         }
 
-        # renderings
-        self.renderer = ImportanceRenderer(self.rendering_kwargs, dtype=dtype)
-        self.ray_sampler = RaySampler()
-
-        # modules
+        # nerf decoder
         self.decoder = OSGDecoder(n_features=triplane_dim)
+
+        # renderings
+        self.renderer = ImportanceRenderer(self.rendering_kwargs, dtype=dtype, decoder=self.decoder)
+        self.ray_sampler = RaySampler()
 
         if use_recompute:
             self.renderer.recompute()
-            self.decoder.recompute()
 
     # @ms.jit  # now has the error in the renderer: Exceed function call depth limit 1000, (function call depth: 1001, simulate call depth: 508).
     def construct(self, planes, cameras, render_size, crop_params):
