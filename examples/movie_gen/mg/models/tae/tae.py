@@ -1,7 +1,6 @@
 import mindspore as ms
 from mindspore import nn, ops
 
-
 SDXL_CONFIG = {
     "double_z": True,
     "z_channels": 4,
@@ -24,29 +23,28 @@ class VideoAutoencoder(nn.Cell):
         config (`dict`): config dict
         pretrained (`str`): checkpoint path
     """
+
     def __init__(
-            self,
-            config: dict=SDXL_CONFIG,
-            pretrained: str=None,
-            ):
+        self,
+        config: dict = SDXL_CONFIG,
+        pretrained: str = None,
+    ):
         super().__init__()
 
         # encoder
         self.encoder = Encoder(**config)
 
         # quant and post quant
-        self.quant_conv = nn.Conv2d(2 * ddconfig["z_channels"], 2 * embed_dim, 1, pad_mode="valid", has_bias=True)
-        self.post_quant_conv = nn.Conv2d(embed_dim, ddconfig["z_channels"], 1, pad_mode="valid", has_bias=True)
+        self.quant_conv = Conv2_5d(2 * config["z_channels"], 2 * embed_dim, 1, pad_mode="valid", has_bias=True)
+        self.post_quant_conv = Conv2_5d(embed_dim, config["z_channels"], 1, pad_mode="valid", has_bias=True)
 
         # decoder
         self.decoder = Decoder(**config)
 
     def encode(self, x: ms.Tensor) -> ms.Tensor:
-
         return x
 
     def decode(self, x: ms.Tensor) -> ms.Tensor:
-
         return x
 
     def construct(self, x: ms.Tensor) -> ms.Tensor:
@@ -57,4 +55,3 @@ class VideoAutoencoder(nn.Cell):
         """
 
         return x
-

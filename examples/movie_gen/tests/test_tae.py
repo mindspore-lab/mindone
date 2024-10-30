@@ -1,8 +1,21 @@
 import numpy as np
-import mindspore as ms
-from mg.models.tae.modules import Conv2_5d, ResnetBlock, SpatialAttnBlock, SpatialAttnBlockV2, TemporalAttnBlock, TemporalUpsample, TemporalDownsample, SpatialDownsample, Encoder
-
+from mg.models.tae.modules import (
+    Conv2_5d,
+    Decoder,
+    Encoder,
+    ResnetBlock,
+    SpatialAttnBlock,
+    SpatialAttnBlockV2,
+    SpatialDownsample,
+    SpatialUpsample,
+    TemporalAttnBlock,
+    TemporalDownsample,
+    TemporalUpsample,
+)
 from mg.models.tae.tae import SDXL_CONFIG
+
+import mindspore as ms
+
 
 def test_conv25d():
     in_shape = (B, C, T, H, W) = (2, 3, 16, 256, 256)
@@ -17,16 +30,17 @@ def test_conv25d():
 
     print(y.shape)
 
+
 def test_resnetblock():
     in_shape = (B, C, T, H, W) = (1, 64, 4, 32, 32)
     cout = C
     x = np.random.normal(size=in_shape).astype(np.float32)
 
     rb = ResnetBlock(
-                    in_channels=C,
-                    out_channels=cout,
-                    dropout=0.,
-                )
+        in_channels=C,
+        out_channels=cout,
+        dropout=0.0,
+    )
 
     ms.set_context(mode=0)
     x = ms.Tensor(x)
@@ -70,6 +84,7 @@ def test_temporal_attn():
     print(y.shape)
     print(y.mean(), y.std())
 
+
 def test_spatial_downsample():
     # in_shape = (B, C, T, H, W) = (1, 64, 1, 32, 32)
     in_shape = (B, C, T, H, W) = (1, 64, 4, 32, 32)
@@ -78,6 +93,18 @@ def test_spatial_downsample():
 
     x = ms.Tensor(x)
     y = sd(x)
+
+    print(y.shape)
+
+
+def test_spatial_upsample():
+    # in_shape = (B, C, T, H, W) = (1, 64, 1, 32, 32)
+    in_shape = (B, C, T, H, W) = (1, 64, 4, 32, 32)
+    x = np.random.normal(size=in_shape).astype(np.float32)
+    su = SpatialUpsample(C, True)
+
+    x = ms.Tensor(x)
+    y = su(x)
 
     print(y.shape)
 
@@ -94,7 +121,6 @@ def test_temporal_downsample():
 
     print(y[0, 0, :, 0, 0])
     print(y.shape)
-
 
 
 def test_temporal_upsample():
@@ -123,6 +149,17 @@ def test_encoder():
     print(y.shape)
 
 
+def test_decoder():
+    # in_shape = (B, C, T, H, W) = (1, 64, 1, 32, 32)
+    in_shape = (B, C, T, H, W) = (1, 4, 4, 16, 16)
+    x = np.random.normal(size=in_shape).astype(np.float32)
+    dec = Decoder(**SDXL_CONFIG)
+
+    x = ms.Tensor(x)
+    y = dec(x)
+
+    print(y.shape)
+
 
 if __name__ == "__main__":
     # test_conv25d()
@@ -131,7 +168,8 @@ if __name__ == "__main__":
     # test_temporal_attn()
     # test_spatial_downsample()
     # test_temporal_downsample()
+    # test_encoder()
+
     # test_temporal_upsample()
-    test_encoder()
-
-
+    # test_spatial_upsample()
+    test_decoder()

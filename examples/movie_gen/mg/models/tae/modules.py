@@ -1,7 +1,7 @@
 import logging
-from packaging import version
 
 import numpy as np
+from packaging import version
 
 import mindspore as ms
 from mindspore import nn, ops
@@ -188,7 +188,7 @@ class Conv2_5d(nn.Cell):
         return x
 
 
-class Upsample(nn.Cell):
+class SpatialUpsample(nn.Cell):
     def __init__(self, in_channels, with_conv):
         super().__init__()
         self.with_conv = with_conv
@@ -198,12 +198,27 @@ class Upsample(nn.Cell):
             )
 
     def construct(self, x):
+        '''
+        x: (b c t h w)
+        return: (b c t h w)
+        '''
+        B, Ci, T, Hi, Wi = x.shape
+        # (b c t h w) -> (b t c h w)
+        x = ops.transpose(x, (0, 2, 1, 3, 4))
+        # (b t c h w) -> (b*t c h w)
+        x = ops.reshape(x, (B*T, Ci, Hi, Wi))
+
         in_shape = x.shape[-2:]
         out_shape = tuple(2 * x for x in in_shape)
         x = ops.ResizeNearestNeighbor(out_shape)(x)
 
         if self.with_conv:
             x = self.conv(x)
+
+        _, Co, Ho, Wo = x.shape
+        x = ops.reshape(x, (B, T, Co, Ho, Wo))
+        x = ops.transpose(x, (0, 2, 1, 3, 4))
+
         return x
 
 
@@ -593,11 +608,14 @@ class Encoder(nn.Cell):
             down.block = block
             down.attn = attn
             if i_level != self.num_resolutions - 1:
-                down.downsample_spat = SpatialDownsample(block_in, resamp_with_conv)
-                down.downsample_temp = TemporalDownsample(block_in)
+                # down.downsample_spat = SpatialDownsample(block_in, resamp_with_conv)
+                # down.downsample_temp = TemporalDownsample(block_in)
+                down.downsample = nn.SequentialCell(
+                        SpatialDownsample(block_in, resamp_with_conv),
+                        TemporalDownsample(block_in),
+                        )
             else:
-                down.downsample_spat = nn.Identity()
-                down.downsample_temp = nn.Identity()
+                down.downsample = nn.Identity()
             curr_res = curr_res // 2
             down.update_parameters_name(prefix=self.param_prefix + f"down.{i_level}.")
             self.down.append(down)
@@ -645,8 +663,7 @@ class Encoder(nn.Cell):
                     h = self.down[i_level].attn[i_block](h)
                 hs = h
             if i_level != self.num_resolutions - 1:
-                hs = self.down[i_level].downsample_spat(hs)
-                hs = self.down[i_level].downsample_temp(hs)
+                hs = self.down[i_level].downsample(hs)
 
         # middle
         h = hs
@@ -701,7 +718,7 @@ class Decoder(nn.Cell):
         _logger.debug("Working with z of shape {} = {} dimensions.".format(self.z_shape, np.prod(self.z_shape)))
 
         # z to block_in
-        self.conv_in = nn.Conv2d(
+        self.conv_in = Conv2_5d(
             z_channels, block_in, kernel_size=3, stride=1, pad_mode="pad", padding=1, has_bias=True
         )
 
@@ -736,7 +753,10 @@ class Decoder(nn.Cell):
             up.block = block
             up.attn = attn
             if i_level != 0:
-                up.upsample = Upsample(block_in, resamp_with_conv)
+                up.upsample = nn.SequentialCell(
+                        SpatialUpsample(block_in, resamp_with_conv),
+                        TemporalUpsample(block_in),
+                        )
             else:
                 up.upsample = nn.Identity()
             curr_res = curr_res * 2
@@ -748,9 +768,16 @@ class Decoder(nn.Cell):
 
         # end
         self.norm_out = Normalize(block_in)
-        self.conv_out = nn.Conv2d(block_in, out_ch, kernel_size=3, stride=1, pad_mode="pad", padding=1, has_bias=True)
+        self.conv_out = Conv2_5d(block_in, out_ch, kernel_size=3, stride=1, pad_mode="pad", padding=1, has_bias=True)
 
     def construct(self, z):
+        '''
+        Args:
+            x: (b c t h w)
+        Returns:
+            (b c t h w)
+        '''
+
         # z to block_in
         h = self.conv_in(z)
 

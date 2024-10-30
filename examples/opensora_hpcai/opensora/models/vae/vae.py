@@ -483,5 +483,3 @@ class AutoencoderKL(AutoencoderKL_SD):
         std = self.exp(0.5 * logvar)
 
         return mean, std
-
-
