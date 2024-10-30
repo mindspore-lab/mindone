@@ -444,7 +444,15 @@ def main(args):
 
                 cur_global_step = epoch * dataset_size + step + 1  # starting from 1 for logging
                 if overflow:
-                    logger.warning(f"Overflow occurs in step {cur_global_step}")
+                    logger.warning(
+                        f"Overflow occurs in step {cur_global_step} in autoencoder"
+                        + (", drop update." if args.drop_overflow_update else ", still update.")
+                    )
+                if overflow_d:
+                    logger.warning(
+                        f"Overflow occurs in step {cur_global_step} in discriminator"
+                        + (", drop update." if args.drop_overflow_update else ", still update.")
+                    )
 
                 # log
                 step_time = time.time() - start_time_s
