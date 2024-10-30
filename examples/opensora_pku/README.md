@@ -341,10 +341,10 @@ Runing this command will generate reconstructed videos under the given `output_g
 
 Here, we report the training performance and evaluation results on the UCF-101 dataset. Experiments are tested on Ascend 910* with mindspore 2.3.1 graph mode.
 
-| model name  | cards  |  batch size | resolution | graph compile | precision | discriminator |sink | jit level| s/step | img/s  | psnr | ssim  |
-|:-----------|:------ |:-----------:|:----------:|:-------------:|:----------:|:------------:|:---:|:--------:|--------:|------:|:----:|-------:|
-| CausalVAE  |  8     |       1    |  9x256x256  |     3 mins   |   FP32     |    TRUE      | OFF  |    O0   |    2.04   |  35.29 |  29.30 |   0.88    |
-| CausalVAE  |  8    |       1     | 25x256x256  |    3 mins   |   BF16     |     FALSE    |  OFF |     O0  |     4.21   |  47.51 | 28.92 |    0.87    |
+| model name  | cards  |  graph compile | batch size | Resolution(framesxHxW) | Precision | Discriminator |data sink | jit level| Train T. (s/step) | PSNR | SSIM  |
+|:-----------|:------ |:---------------:|:----------:|:---------------------:|:----------:|:-------------:|:--------:|:-------:|-------------------:|:----:|-------:|
+| CausalVAE  |  8     |       3mins    |     1x8      |           9x256x256    |   FP32     |    TRUE      |    FALSE |     O0   |    2.04           |  29.30 |   0.88      |
+| CausalVAE  |  8    |       3mins     |     1x8     |           25x256x256   |   BF16     |     FALSE    |    FALSE |     O0  |     4.21           | 28.92 |    0.87     |
 
 
 
