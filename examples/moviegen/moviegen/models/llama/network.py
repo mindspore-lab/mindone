@@ -103,7 +103,9 @@ class LlamaDecoderLayer(nn.Cell):
         hidden_states = hidden_states + position_embedding
 
         # 3.1.3 Adaptive Layer Norm
-        modulation_parameters = self.scale_shift_table.to(hidden_states.dtype) + modulation_parameters.reshape(B, 6, -1)
+        modulation_parameters = self.scale_shift_table.to(hidden_states.dtype) + ops.reshape(
+            modulation_parameters, (B, 6, -1)
+        )
         shift_msa, scale_msa, gate_msa, shift_mlp, scale_mlp, gate_mlp = mint.chunk(modulation_parameters, 6, dim=1)
 
         # Self Attention (Bi-Directional Attention)
@@ -210,7 +212,9 @@ class ModelParallelLlamaDecoderLayer(nn.Cell):
         hidden_states = hidden_states + position_embedding
 
         # 3.1.3 Adaptive Layer Norm
-        modulation_parameters = self.scale_shift_table.to(hidden_states.dtype) + modulation_parameters.reshape(B, 6, -1)
+        modulation_parameters = self.scale_shift_table.to(hidden_states.dtype) + ops.reshape(
+            modulation_parameters, (B, 6, -1)
+        )
         shift_msa, scale_msa, gate_msa, shift_mlp, scale_mlp, gate_mlp = mint.chunk(modulation_parameters, 6, dim=1)
 
         # Self Attention (Bi-Directional Attention)

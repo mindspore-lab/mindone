@@ -197,8 +197,8 @@ class LlamaAttention(nn.Cell):
 
         # upcast attention to fp32
         attn_weights = attn_weights.to(ms.float32)
-        attn_weights = ops.softmax(attn_weights, axis=-1).to(query_states.dtype)
-        attn_weights = ops.dropout(attn_weights, p=self.attention_dropout, training=self.training)
+        attn_weights = mint.softmax(attn_weights, dim=-1).to(query_states.dtype)
+        attn_weights = mint.dropout(attn_weights, p=self.attention_dropout, training=self.training)
         attn_output = mint.matmul(attn_weights, value_states)
 
         attn_output = mint.permute(attn_output, (0, 2, 1, 3))
@@ -272,8 +272,8 @@ class ContextParallelLlamaAttention(nn.Cell):
 
         # upcast attention to fp32
         attn_weights = attn_weights.to(ms.float32)
-        attn_weights = ops.softmax(attn_weights, axis=-1).to(query_states.dtype)
-        attn_weights = ops.dropout(attn_weights, p=self.attention_dropout, training=self.training)
+        attn_weights = mint.softmax(attn_weights, dim=-1).to(query_states.dtype)
+        attn_weights = mint.dropout(attn_weights, p=self.attention_dropout, training=self.training)
         attn_output = mint.matmul(attn_weights, value_states)
 
         attn_output = mint.permute(attn_output, (0, 2, 1, 3))
@@ -475,7 +475,11 @@ class TimestepEmbedder(nn.Cell):
             mint.nn.Linear(hidden_size, hidden_size, bias=False, dtype=dtype),
         )
         self.frequency_embedding_size = frequency_embedding_size
-        self.dtype = dtype
+        self._dtype = dtype
+
+    @property
+    def dtype(self):
+        return self._dtype
 
     @staticmethod
     def timestep_embedding(t: Tensor, dim: int, max_period: int = 10000) -> Tensor:
