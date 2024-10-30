@@ -57,21 +57,21 @@ class LlamaRMSNorm(nn.Cell):
 
     def construct(self, hidden_states):
 
-        ops.TensorDump()("llama_rmsnorm_input", hidden_states) # zhy_test
+        # ops.TensorDump()("llama_rmsnorm_input", hidden_states) # zhy_test
 
         input_dtype = hidden_states.dtype
         hidden_states = hidden_states.to(ms.float32)
 
         variance = hidden_states.pow(2).mean(-1, keep_dims=True)
-        ops.TensorDump()("llama_rmsnorm_variance", variance)  # zhy_test
+        # ops.TensorDump()("llama_rmsnorm_variance", variance)  # zhy_test
 
         hidden_states = hidden_states * ops.rsqrt(variance + self.variance_epsilon)
 
-        ops.TensorDump()("llama_rmsnorm_after_mul_rsqrt", hidden_states)  # zhy_test
+        # ops.TensorDump()("llama_rmsnorm_after_mul_rsqrt", hidden_states)  # zhy_test
 
         out = self.weight * hidden_states.to(input_dtype)
 
-        ops.TensorDump()("llama_rmsnorm_out", out)  # zhy_test
+        # ops.TensorDump()("llama_rmsnorm_out", out)  # zhy_test
 
         return out
 
@@ -554,7 +554,7 @@ class LlamaDecoderLayer(nn.Cell):
 
         hidden_states = self.input_layernorm(hidden_states)
 
-        ops.TensorDump()(f"after_layernorm_{self.self_attn.layer_idx}", hidden_states)  # zhy_test
+        # ops.TensorDump()(f"after_layernorm_{self.self_attn.layer_idx}", hidden_states)  # zhy_test
 
         # Self Attention
         attn_output = self.self_attn(
@@ -569,7 +569,7 @@ class LlamaDecoderLayer(nn.Cell):
         hidden_states = attn_output[0]
         present_key_value = None if len(attn_output) == 1 else attn_output[1]
 
-        ops.TensorDump()(f"after_atten_{self.self_attn.layer_idx}", hidden_states)  # zhy_test
+        # ops.TensorDump()(f"after_atten_{self.self_attn.layer_idx}", hidden_states)  # zhy_test
 
         hidden_states = residual + hidden_states
 
@@ -577,16 +577,16 @@ class LlamaDecoderLayer(nn.Cell):
         residual = hidden_states
         hidden_states = self.post_attention_layernorm(hidden_states)
 
-        ops.TensorDump()(f"after_post_layernorm_{self.self_attn.layer_idx}", hidden_states)  # zhy_test
+        # ops.TensorDump()(f"after_post_layernorm_{self.self_attn.layer_idx}", hidden_states)  # zhy_test
 
         hidden_states = self.mlp(hidden_states)
 
-        ops.TensorDump()(f"after_mlp_{self.self_attn.layer_idx}", hidden_states)  # zhy_test
+        # ops.TensorDump()(f"after_mlp_{self.self_attn.layer_idx}", hidden_states)  # zhy_test
 
         hidden_states = residual + hidden_states
         hidden_states = self.output_identity(hidden_states)
 
-        ops.TensorDump()(f"after_identity_{self.self_attn.layer_idx}", hidden_states)  # zhy_test
+        # ops.TensorDump()(f"after_identity_{self.self_attn.layer_idx}", hidden_states)  # zhy_test
 
         outputs = (hidden_states,)
 
@@ -780,7 +780,7 @@ class LlamaModel(LlamaPreTrainedModel):
         if inputs_embeds is None:
             inputs_embeds = self.embed_tokens(input_ids)
 
-        ops.TensorDump()("inputs_embeds", inputs_embeds) # 1. zhy_test
+        # ops.TensorDump()("inputs_embeds", inputs_embeds) # 1. zhy_test
 
         if cache_position is None:
             past_seen_tokens = get_seq_length(past_key_values) if past_key_values is not None else 0
@@ -794,8 +794,8 @@ class LlamaModel(LlamaPreTrainedModel):
             attention_mask, inputs_embeds, cache_position, past_key_values
         )
 
-        ops.TensorDump()("causal_mask", causal_mask)        # 2. zhy_test
-        ops.TensorDump()("attention_mask", attention_mask)  # 2.1. zhy_test
+        # ops.TensorDump()("causal_mask", causal_mask)        # 2. zhy_test
+        # ops.TensorDump()("attention_mask", attention_mask)  # 2.1. zhy_test
 
         # embed positions
         hidden_states = inputs_embeds
@@ -817,7 +817,7 @@ class LlamaModel(LlamaPreTrainedModel):
 
             hidden_states = layer_outputs[0]
 
-            ops.TensorDump()(f"hidden_states_{layer_idx}", hidden_states)  # 3. zhy_test
+            # ops.TensorDump()(f"hidden_states_{layer_idx}", hidden_states)  # 3. zhy_test
 
             if use_cache:
                 # assert past_key_values is not None
@@ -1022,7 +1022,7 @@ class LlamaForCausalLM(LlamaPreTrainedModel):
         else:
             logits = self.lm_head(hidden_states)
 
-        ops.TensorDump()("logits", logits)  # 4. zhy_test
+        # ops.TensorDump()("logits", logits)  # 4. zhy_test
 
         logits = logits.to(ms.float32)
 
