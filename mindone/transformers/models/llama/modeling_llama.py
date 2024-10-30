@@ -61,7 +61,10 @@ class LlamaRMSNorm(nn.Cell):
 
         input_dtype = hidden_states.dtype
         hidden_states = hidden_states.to(ms.float32)
-        variance = hidden_states.pow(2).mean(-1, keep_dims=True)
+
+        # zhy_test
+        # variance = hidden_states.pow(2).mean(-1, keep_dims=True)
+        variance = (hidden_states ** 2).mean(-1, keep_dims=True)
 
         ops.TensorDump()("llama_rmsnorm_variance", variance)  # zhy_test
 
