@@ -145,7 +145,7 @@ class Dataset(Generic[T_co]):
     # in mindone/transformers/mindspore_adapter/data.py:Sampler
 
 
-class TensorDataset:
+class TensorDataset(Dataset):
     r"""Dataset wrapping tensors.
 
     Each sample will be retrieved by indexing tensors along the first dimension.
@@ -153,7 +153,6 @@ class TensorDataset:
     Args:
         *tensors (Tensor): tensors that have the same size of the first dimension.
     """
-    tensors: Optional[Tuple[ms.Tensor, ...], Tuple[np.ndarray, ...]]
 
     def __init__(self, *tensors: Optional[ms.Tensor, np.ndarray]) -> None:
         assert all(tensors[0].shape[0] == tensor.shape[0] for tensor in tensors), "Size mismatch between tensors"
