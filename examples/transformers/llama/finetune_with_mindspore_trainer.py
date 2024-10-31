@@ -2,24 +2,31 @@ import argparse
 import evaluate
 import numpy as np
 from datasets import load_dataset
-from transformers import AutoTokenizer
+from transformers import AutoTokenizer, HfArgumentParser
+from dataclasses import dataclass, field
 
 from mindone.transformers.models.llama import LlamaForSequenceClassification
 from mindone.transformers.training_args import TrainingArguments
 from mindone.transformers.trainer import Trainer
 
 
+@dataclass
+class Arguments(TrainingArguments):
+    model_path: str = field(default="../hf_configs/meta-llama/Meta-Llama-3-8B/")
+
+    rank_size: int = field(default=1)
+    rank: int = field(default=0)
+
+
 def main():
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--model_name", type=str, default="meta-llama/Meta-Llama-3-8B", help="pretrained model name")
 
-    parser.add_argument("--rank_size", type=int, default=1)
-    parser.add_argument("--rank", type=int, default=0)
-
-    args = parser.parse_args()
+    parser = HfArgumentParser((
+        Arguments,
+    ))
+    args = parser.parse_args_into_dataclasses()
 
     dataset = load_dataset("yelp_review_full")
-    tokenizer = AutoTokenizer.from_pretrained(args.model_name)
+    tokenizer = AutoTokenizer.from_pretrained(args.model_path)
 
     def tokenize_function(examples):
         return tokenizer(examples["text"], padding="max_length", truncation=True)
@@ -29,7 +36,7 @@ def main():
     small_train_dataset = tokenized_datasets["train"].shuffle(seed=42).select(range(1000))
     small_eval_dataset = tokenized_datasets["test"].shuffle(seed=42).select(range(1000))
 
-    model = LlamaForSequenceClassification.from_pretrained(args.model_name, num_labels=5)
+    model = LlamaForSequenceClassification.from_pretrained(args.model_path, num_labels=5)
 
     metric = evaluate.load("accuracy")
 
