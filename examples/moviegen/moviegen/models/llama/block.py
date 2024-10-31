@@ -1,5 +1,5 @@
 import logging
-from typing import Optional, Tuple
+from typing import Optional, Sequence, Tuple, Union
 
 from moviegen.parallel import (
     ColumnParallelLinear,
@@ -24,7 +24,7 @@ logger = logging.getLogger(__name__)
 
 
 class LlamaRMSNorm(nn.Cell):
-    def __init__(self, hidden_size: int, eps: float = 1e-6, dtype: ms.Type = ms.float32) -> None:
+    def __init__(self, hidden_size: Union[int, Sequence[int]], eps: float = 1e-6, dtype: ms.Type = ms.float32) -> None:
         super().__init__()
         self.weight = Parameter(mint.ones(hidden_size, dtype=dtype))
         self.variance_epsilon = eps
