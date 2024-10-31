@@ -11,6 +11,7 @@ from moviegen.parallel import (
 
 import mindspore as ms
 import mindspore.mint as mint
+import mindspore.mint.nn.functional as F
 import mindspore.nn as nn
 import mindspore.ops as ops
 from mindspore import Parameter, Tensor
@@ -197,8 +198,8 @@ class LlamaAttention(nn.Cell):
 
         # upcast attention to fp32
         attn_weights = attn_weights.to(ms.float32)
-        attn_weights = mint.softmax(attn_weights, dim=-1).to(query_states.dtype)
-        attn_weights = mint.dropout(attn_weights, p=self.attention_dropout, training=self.training)
+        attn_weights = F.softmax(attn_weights, dim=-1).to(query_states.dtype)
+        attn_weights = F.dropout(attn_weights, p=self.attention_dropout, training=self.training)
         attn_output = mint.matmul(attn_weights, value_states)
 
         attn_output = mint.permute(attn_output, (0, 2, 1, 3))
@@ -272,8 +273,8 @@ class ContextParallelLlamaAttention(nn.Cell):
 
         # upcast attention to fp32
         attn_weights = attn_weights.to(ms.float32)
-        attn_weights = mint.softmax(attn_weights, dim=-1).to(query_states.dtype)
-        attn_weights = mint.dropout(attn_weights, p=self.attention_dropout, training=self.training)
+        attn_weights = F.softmax(attn_weights, dim=-1).to(query_states.dtype)
+        attn_weights = F.dropout(attn_weights, p=self.attention_dropout, training=self.training)
         attn_output = mint.matmul(attn_weights, value_states)
 
         attn_output = mint.permute(attn_output, (0, 2, 1, 3))
