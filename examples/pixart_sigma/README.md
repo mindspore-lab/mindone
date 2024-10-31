@@ -171,7 +171,7 @@ Followed by some generated images using the testing prompts.
 
 ## Benchmark
 
-### Performance
+### Training Performance
 
 Experiments are tested on ascend [910*] with mindspore [2.3.1] graph mode
 
@@ -185,17 +185,16 @@ Experiments are tested on ascend [910*] with mindspore [2.3.1] graph mode
 > step time: training time measured in the number of seconds for each training step.\
 > train. imgs/s: images per second during training. train. imgs/s = cards * batch_size / step time
 
-### Inference
+### Inference Performance
 
-| Context       | Scheduler | Steps | Resolution   | Batch Size | Speed (step/s) | Config                                                                  |
-|---------------|-----------|-------|--------------|------------|----------------|-------------------------------------------------------------------------|
-| D910*x1-MS2.3 | DPM++     | 20    | 256 x 256    | 1          | 18.04          | [pixart-sigma-256x256.yaml](configs/inference/pixart-sigma-256x256.yaml)|
-| D910*x1-MS2.3 | DPM++     | 20    | 512 x 512    | 1          | 15.95          | [pixart-sigma-512-MS.yaml](configs/inference/pixart-sigma-512-MS.yaml)  |
-| D910*x1-MS2.3 | DPM++     | 20    | 1024 x 1024  | 1          | 4.96           | [pixart-sigma-1024-MS.yaml](configs/inference/pixart-sigma-1024-MS.yaml)|
-| D910*x1-MS2.3 | DPM++     | 20    | 2048 x 2048  | 1          | 0.57           | [pixart-sigma-2K-MS.yaml](configs/inference/pixart-sigma-2K-MS.yaml)    |
+| model name   | cards | image size   | graph compile | batch size | jit level | step time |  config                                                                  |
+|--------------|-------|--------------|---------------|------------|-----------|-----------|--------------------------------------------------------------------------|
+| PixArt-Sigma | 1     | 256 x 256    | < 3 mins      | 1          | O1        | 0.055s    | [pixart-sigma-256x256.yaml](configs/inference/pixart-sigma-256x256.yaml) |
+| PixArt-Sigma | 1     | 512 x 512    | < 3 mins      | 1          | O1        | 0.063s    | [pixart-sigma-512-MS.yaml](configs/inference/pixart-sigma-512-MS.yaml)   |
+| PixArt-Sigma | 1     | 1024 x 1024  | < 3 mins      | 1          | O1        | 0.202s    | [pixart-sigma-1024-MS.yaml](configs/inference/pixart-sigma-1024-MS.yaml) |
+| PixArt-Sigma | 1     | 2048 x 2048  | < 3 mins      | 1          | O1        | 1.754s    | [pixart-sigma-2K-MS.yaml](configs/inference/pixart-sigma-2K-MS.yaml)     |
 
-> Context: {Ascend chip}-{number of NPUs}-{mindspore version}.\
-> Speed (step/s): sampling speed measured in the number of sampling steps per second.
+> step time: inference time measured in the number of seconds for each sampling step.
 
 # References
 
