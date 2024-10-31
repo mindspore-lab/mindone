@@ -29,6 +29,12 @@ This repo contains Mindspore model definitions, pre-trained weights and inferenc
 
 Then, run `pip install -r requirements.txt` to install the necessary packages.
 
+## Requirements
+
+| mindspore | ascend driver | firmware    | cann toolkit/kernel |
+|-----------|---------------|-------------|---------------------|
+| 2.3.1     | 24.1.RC2      | 7.3.0.1.231 | 8.0.RC2.beta1       |
+
 ## Getting Start
 
 ### Downloading Pretrained Checkpoints
@@ -165,32 +171,30 @@ Followed by some generated images using the testing prompts.
 
 ## Benchmark
 
-### Training
+### Training Performance
 
-| Context       | Optimizer | Global Batch Size | Resolution | Bucket Training | VAE/T5 Cache | Speed (step/s) | FPS (img/s) |  Config                                                             |
-|---------------|-----------|-------------------|------------|-----------------|--------------|----------------|-------------|---------------------------------------------------------------------|
-| D910*x4-MS2.3 | CAME      | 4 x 64            | 256x256    | No              | No           | 0.344          | 88.1        | [pixart-sigma-256x256.yaml](configs/train/pixart-sigma-256x256.yaml)|
-| D910*x4-MS2.3 | CAME      | 4 x 32            | 512        | Yes             | No           | 0.262          | 33.5        | [pixart-sigma-512-MS.yaml](configs/train/pixart-sigma-512-MS.yaml)  |
-| D910*x4-MS2.3 | CAME      | 4 x 12            | 1024       | Yes             | No           | 0.142          | 6.8         | [pixart-sigma-1024-MS.yaml](configs/train/pixart-sigma-1024-MS.yaml)|
-| D910*x4-MS2.3 | CAME      | 4 x 1             | 2048       | Yes             | No           | 0.114          | 0.5         | [pixart-sigma-2K-MS.yaml](configs/train/pixart-sigma-2K-MS.yaml)    |
+Experiments are tested on ascend [910*] with mindspore [2.3.1] graph mode
 
-> Context: {Ascend chip}-{number of NPUs}-{mindspore version}\
-> Bucket Training: Training images with different aspect ratios based on bucketing.\
-> VAE/T5 Cache: Use the pre-generated T5 Embedding and VAE Cache for training.\
-> Speed (step/s): sampling speed measured in the number of training steps per second.\
-> FPS (img/s): images per second during training. average training time (s/step) = global batch_size / FPS
+| model name   | cards | image size   | graph compile | batch size | recompute | data sink | jit level | step time | train. imgs/s | config                                                               |
+|--------------|-------|--------------|---------------|------------|-----------|-----------|-----------|-----------|---------------|----------------------------------------------------------------------|
+| PixArt-Sigma | 4     | 256x256      | 3~5 mins      | 64         | ON        | OFF       | O1        | 2.907s    | 88.1          | [pixart-sigma-256x256.yaml](configs/train/pixart-sigma-256x256.yaml) |
+| PixArt-Sigma | 4     | 512 (multi)  | 3~5 mins      | 32         | ON        | OFF       | O1        | 3.817s    | 33.5          | [pixart-sigma-512-MS.yaml](configs/train/pixart-sigma-512-MS.yaml)   |
+| PixArt-Sigma | 4     | 1024 (multi) | 3~5 mins      | 12         | ON        | OFF       | O1        | 7.042s    | 6.8           | [pixart-sigma-1024-MS.yaml](configs/train/pixart-sigma-1024-MS.yaml) |
+| PixArt-Sigma | 4     | 2048 (multi) | 3~5 mins      | 1          | ON        | OFF       | O1        | 8.772s    | 0.5           | [pixart-sigma-2K-MS.yaml](configs/train/pixart-sigma-2K-MS.yaml)     |
 
-### Inference
+> step time: training time measured in the number of seconds for each training step.\
+> train. imgs/s: images per second during training. train. imgs/s = cards * batch_size / step time
 
-| Context       | Scheduler | Steps | Resolution   | Batch Size | Speed (step/s) | Config                                                                  |
-|---------------|-----------|-------|--------------|------------|----------------|-------------------------------------------------------------------------|
-| D910*x1-MS2.3 | DPM++     | 20    | 256 x 256    | 1          | 18.04          | [pixart-sigma-256x256.yaml](configs/inference/pixart-sigma-256x256.yaml)|
-| D910*x1-MS2.3 | DPM++     | 20    | 512 x 512    | 1          | 15.95          | [pixart-sigma-512-MS.yaml](configs/inference/pixart-sigma-512-MS.yaml)  |
-| D910*x1-MS2.3 | DPM++     | 20    | 1024 x 1024  | 1          | 4.96           | [pixart-sigma-1024-MS.yaml](configs/inference/pixart-sigma-1024-MS.yaml)|
-| D910*x1-MS2.3 | DPM++     | 20    | 2048 x 2048  | 1          | 0.57           | [pixart-sigma-2K-MS.yaml](configs/inference/pixart-sigma-2K-MS.yaml)    |
+### Inference Performance
 
-> Context: {Ascend chip}-{number of NPUs}-{mindspore version}.\
-> Speed (step/s): sampling speed measured in the number of sampling steps per second.
+| model name   | cards | image size   | graph compile | batch size | jit level | step time |  config                                                                  |
+|--------------|-------|--------------|---------------|------------|-----------|-----------|--------------------------------------------------------------------------|
+| PixArt-Sigma | 1     | 256 x 256    | < 3 mins      | 1          | O1        | 0.055s    | [pixart-sigma-256x256.yaml](configs/inference/pixart-sigma-256x256.yaml) |
+| PixArt-Sigma | 1     | 512 x 512    | < 3 mins      | 1          | O1        | 0.063s    | [pixart-sigma-512-MS.yaml](configs/inference/pixart-sigma-512-MS.yaml)   |
+| PixArt-Sigma | 1     | 1024 x 1024  | < 3 mins      | 1          | O1        | 0.202s    | [pixart-sigma-1024-MS.yaml](configs/inference/pixart-sigma-1024-MS.yaml) |
+| PixArt-Sigma | 1     | 2048 x 2048  | < 3 mins      | 1          | O1        | 1.754s    | [pixart-sigma-2K-MS.yaml](configs/inference/pixart-sigma-2K-MS.yaml)     |
+
+> step time: inference time measured in the number of seconds for each sampling step.
 
 # References
 
