@@ -94,6 +94,7 @@ For EulerOS, instructions on ffmpeg and decord installation are as follows.
 
 <details onclose>
 <summary>How to install ffmpeg and decord</summary>
+
 ```
 1. install ffmpeg 4, referring to https://ffmpeg.org/releases
     wget https://ffmpeg.org/releases/ffmpeg-4.0.1.tar.bz2 --no-check-certificate
