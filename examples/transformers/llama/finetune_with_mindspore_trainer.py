@@ -24,7 +24,7 @@ def main():
     parser = HfArgumentParser(
         Arguments
     )
-    args = parser.parse_args_into_dataclasses()
+    args = parser.parse_args_into_dataclasses()[0]
 
     dataset = load_dataset(args.dataset_path)
     tokenizer = AutoTokenizer.from_pretrained(args.model_path)
