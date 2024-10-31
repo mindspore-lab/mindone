@@ -81,7 +81,7 @@ Other useful documents and links are listed below.
 ## Installation
 1. Use python>=3.8 [[install]](https://www.python.org/downloads/)
 
-2. Please install MindSpore 2.3.1 according to the [MindSpore official website](https://www.mindspore.cn/install/) and install [CANN 8.0.RC2.beta1](https://www.hiascend.com/developer/download/community/result?module=cann&cann=8.0.RC2.2.beta1) as recommended by the official installation website.
+2. Please install MindSpore 2.3.1 according to the [MindSpore official website](https://www.mindspore.cn/install/) and install [CANN 8.0.RC2.beta1](https://www.hiascend.com/developer/download/community/result?module=cann&cann=8.0.RC2.beta1) as recommended by the official installation website.
 
 
 3. Install requirements
