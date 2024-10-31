@@ -1233,7 +1233,7 @@ class IPAdapterAttnProcessor(nn.Cell):
             [nn.Dense(cross_attention_dim, hidden_size, has_bias=False) for _ in range(len(num_tokens))]
         )
 
-    def __call__(
+    def construct(
         self,
         attn: Attention,
         hidden_states: ms.Tensor,
@@ -1255,6 +1255,8 @@ class IPAdapterAttnProcessor(nn.Cell):
                     encoder_hidden_states[:, :end_pos, :],
                     [encoder_hidden_states[:, end_pos:, :]],
                 )
+        else:
+            ip_hidden_states = None
 
         if attn.spatial_norm is not None:
             hidden_states = attn.spatial_norm(hidden_states, temb)
@@ -1264,6 +1266,8 @@ class IPAdapterAttnProcessor(nn.Cell):
         if input_ndim == 4:
             batch_size, channel, height, width = hidden_states.shape
             hidden_states = hidden_states.view(batch_size, channel, height * width).swapaxes(1, 2)
+        else:
+            batch_size, channel, height, width = None, None, None, None
 
         batch_size, sequence_length, _ = (
             hidden_states.shape if encoder_hidden_states is None else encoder_hidden_states.shape
