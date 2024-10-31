@@ -13,6 +13,7 @@ from mindone.transformers.trainer import Trainer
 @dataclass
 class Arguments(TrainingArguments):
     model_path: str = field(default="../hf_configs/meta-llama/Meta-Llama-3-8B/")
+    dataset_path: str = field(default="Yelp/yelp_review_full")
 
     rank_size: int = field(default=1)
     rank: int = field(default=0)
@@ -25,7 +26,7 @@ def main():
     ))
     args = parser.parse_args_into_dataclasses()
 
-    dataset = load_dataset("yelp_review_full")
+    dataset = load_dataset(args.dataset_path)
     tokenizer = AutoTokenizer.from_pretrained(args.model_path)
 
     def tokenize_function(examples):
