@@ -765,7 +765,7 @@ class TrainingArguments:
         },
     )
     dataloader_num_workers: int = field(
-        default=0,
+        default=1,
         metadata={
             "help": (
                 "Number of subprocesses to use for data loading. 0 means that the data will be loaded"
