@@ -21,9 +21,9 @@ class Arguments(TrainingArguments):
 
 def main():
 
-    parser = HfArgumentParser((
-        Arguments,
-    ))
+    parser = HfArgumentParser(
+        Arguments
+    )
     args = parser.parse_args_into_dataclasses()
 
     dataset = load_dataset(args.dataset_path)
