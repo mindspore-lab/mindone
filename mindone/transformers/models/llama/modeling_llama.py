@@ -1136,7 +1136,8 @@ class LlamaForSequenceClassification(LlamaPreTrainedModel):
         problem_type_map = {
             "regression": 0,
             "single_label_classification": 1,
-            "multi_label_classification": 2
+            "multi_label_classification": 2,
+            None: None
         }
         self.problem_type = problem_type_map[config.problem_type]
         self.pad_token_id = config.pad_token_id
