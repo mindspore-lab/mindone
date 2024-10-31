@@ -23,7 +23,8 @@ from .debug_utils import DebugOption
 from .mindspore_adapter.utils import _is_parallel
 from .utils.generic import ExplicitEnum, cached_property
 
-from transformers.utils import logging
+from transformers import logging, is_safetensors_available
+
 
 logger = logging.get_logger(__name__)
 log_levels = logging.get_log_levels_dict().copy()
@@ -1136,7 +1137,7 @@ class TrainingArguments:
                     f"steps, but found {self.save_steps}, which is not a round multiple of {self.eval_steps}."
                 )
 
-        safetensors_available = False  #is_safetensors_available()
+        safetensors_available = is_safetensors_available()
         if self.save_safetensors and not safetensors_available:
             raise ValueError(f"--save_safetensors={self.save_safetensors} requires safetensors to be installed!")
         if not self.save_safetensors and safetensors_available:
