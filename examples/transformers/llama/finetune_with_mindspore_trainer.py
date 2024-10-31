@@ -27,13 +27,15 @@ def main():
     args = parser.parse_args_into_dataclasses()[0]
 
     dataset = load_dataset(args.dataset_path)
+    dataset["train"] = dataset["train"].shuffle(seed=42).select(range(1000))
+    dataset["test"] = dataset["test"].shuffle(seed=42).select(range(1000))
+
     tokenizer = AutoTokenizer.from_pretrained(args.model_path)
 
     def tokenize_function(examples):
         return tokenizer(examples["text"], padding="max_length", truncation=True)
 
     tokenized_datasets = dataset.map(tokenize_function, batched=True)
-
     small_train_dataset = tokenized_datasets["train"].shuffle(seed=42).select(range(1000))
     small_eval_dataset = tokenized_datasets["test"].shuffle(seed=42).select(range(1000))
 
