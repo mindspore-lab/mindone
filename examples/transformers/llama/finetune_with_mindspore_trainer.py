@@ -41,12 +41,15 @@ def main():
 
     model = LlamaForSequenceClassification.from_pretrained(args.model_path, num_labels=5)
 
-    metric = evaluate.load("accuracy")
+    if args.do_eval:
+        metric = evaluate.load("accuracy")
 
-    def compute_metrics(eval_pred):
-        logits, labels = eval_pred
-        predictions = np.argmax(logits, axis=-1)
-        return metric.compute(predictions=predictions, references=labels)
+        def compute_metrics(eval_pred):
+            logits, labels = eval_pred
+            predictions = np.argmax(logits, axis=-1)
+            return metric.compute(predictions=predictions, references=labels)
+    else:
+        compute_metrics = None
 
     training_args = TrainingArguments(output_dir="test_trainer", eval_strategy="epoch")
 
