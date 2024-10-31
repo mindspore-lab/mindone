@@ -546,6 +546,7 @@ def create_dataloader(
             dataloader = dataloader.batch(
                 batch_size,
                 drop_remainder=drop_remainder,
+                num_parallel_workers=num_parallel_workers,
             )
 
     return dataloader
