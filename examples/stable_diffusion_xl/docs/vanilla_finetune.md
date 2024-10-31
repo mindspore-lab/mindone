@@ -5,7 +5,7 @@ We provide the script `train.py` for full parameter training of sdxl.
 ## Requirements
 
 | mindspore      | ascend driver | firmware    | cann toolkit/kernel |
-|:--------------:| :------------:| :----------:| :------------------:|
+|:--------------| :------------| :----------| :------------------|
 |  2.3.1    | 24.1.RC2      | 7.3.0.1.231 | 8.0.RC2.beta1        |
 
 ## Pretrained models
@@ -125,11 +125,10 @@ python train.py \
 
 Experiments are tested on ascend 910* with mindspore 2.3.1 graph mode.
 
-| model name | cards | image size | graph compile |  local bs  | amp fp16 |  fa  | cache | sink | s/step |  fps  |
-| :--------: | :---: | :--------: | :-----------: | :--: | :------: | :--: | :---: | :--: | :-------: | :---: |
-| SDXL-Base  | 1  | 1024x1024  |  20~25 mins   | 1  |    off   | off  |  off  | off  |   0.72s   | 1.38  |
-| SDXL-Base  | 8  | 1024x1024  |  30~35 mins   | 1  |    on    | off  |  off  | off  |   0.88s   | 9.09  |
-| SDXL-Base  | 8  | 1024x1024  |  30~35 mins   | 1  |    on    |  on  |  on   |  on  |   0.53s   | 15.09 |
-| SDXL-Base  | 8  | 1024x1024  |  30~35 mins   | 2  |    on    |  on  |  on   |  on  |   0.71s   | 22.54 |
-| SDXL-Base  | 8  | 1024x1024  |  30~38 mins   | 4  |    on    |  on  |  on   |  on  |   1.07s   | 29.91 |
-> fa: flash attention. fps: images per second during training, average training time (s/step) = batch_size / fps
+| model name | cards | resolution | graph compile |  batch size  | amp fp16 |  flash attn  | cache | sink |jit level| s/step |  img/s  |
+| :--------: | :---: | :--------: | :-----------: | :--: | :------: | :--: | :---: | :--: | :-------: | :---: | :---: |
+| SDXL-Base  | 1  | 1024x1024  |  20~25 mins   | 1  |    OFF   | OFF  |  OFF  | OFF  |O2|   0.72   | 1.38  |
+| SDXL-Base  | 8  | 1024x1024  |  30~35 mins   | 1  |    ON    | OFF  |  OFF  | OFF  |O2|   0.88   | 9.09  |
+| SDXL-Base  | 8  | 1024x1024  |  30~35 mins   | 1  |    ON    |  ON  |  ON   |  ON  |O2|   0.53   | 15.09 |
+| SDXL-Base  | 8  | 1024x1024  |  30~35 mins   | 2  |    ON    |  ON  |  ON   |  ON  |O2|   0.71   | 22.54 |
+| SDXL-Base  | 8  | 1024x1024  |  30~38 mins   | 4  |    ON    |  ON  |  ON   |  ON  |O2|   1.07   | 29.91 |

@@ -5,7 +5,7 @@ We provide the script `train.py` for [LoRA](https://arxiv.org/abs/2106.09685) fi
 ## Requirements
 
 | mindspore      | ascend driver | firmware    | cann toolkit/kernel |
-| :--------------: | :------------: |:----------: |:------------------: |
+| :--------------| :------------ |:---------- |:------------------ |
 |  2.3.1    | 24.1.RC2      | 7.3.0.1.231 | 8.0.RC2.beta1        |
 
 ## Pretrained models
@@ -45,10 +45,7 @@ python demo/sampling_without_streamlit.py \
 
 Experiments are tested on ascend 910* with mindspore 2.3.1 graph mode.
 
-| model name      | card | bs * grad accu. |   resolution       |   ds   | fa |   ms/step  |   fps (img/s)|
-|---------------|:------------------:|:----------------:|:----------------:|:--:|:----------------:|------------------|:----------------:|
-| SDXL-Base | 1 | 1x1 | 1024x1024 | ON  |OFF      | 553.47 | 1.80 |
-| SDXL-Base | 1 | 1x1 | 1024x1024 | ON  |ON       | 446.74 | 2.24 |
-> ds: data sink mode. fa: flash attention.
->
-> fps: images per second during training. average training time (s/step) = batch_size / fps
+| model name      | cards | batch size | grad accu. |   resolution    |   sink   | flash attn |jit level| graph compile |  ms/step  |   img/s |
+|---------------|:--------:|:----------:|:----------------:|:--------:|:--------:|:--:|:----------:|:------:|------------------|:----------------:|
+| SDXL-Base | 1 | 1 | 1 | 1024x1024 | ON  |OFF  |O2| 20~25mins    | 553.47 | 1.80 |
+| SDXL-Base | 1 | 1 | 1 | 1024x1024 | ON  |ON   |O2| 20~25mins    | 446.74 | 2.24 |
