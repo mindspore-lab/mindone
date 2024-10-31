@@ -17,7 +17,7 @@ import numpy as np
 from collections.abc import Mapping
 from packaging import version
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Tuple, Union, NamedTuple
+from typing import TYPE_CHECKING, Any, Callable, Iterable, Dict, List, Optional, Tuple, Union, NamedTuple
 
 import mindspore as ms
 from mindspore import nn, ops, Tensor
@@ -28,13 +28,18 @@ from transformers.utils import logging
 from transformers.integrations import get_reporting_integration_callbacks
 
 from .mindspore_adapter.utils import _is_parallel
-from .mindspore_adapter.amp import auto_mixed_precision
+from .mindspore_adapter import (
+    auto_mixed_precision,
+    Sampler,
+    RandomSampler
+)
 
 from .modeling_utils import MSPreTrainedModel as PreTrainedModel
 from .trainer_ms_utils import (
     get_model_param_count,
     _get_learning_rate,
-    TrainOneStepWrapper
+    TrainOneStepWrapper,
+    LengthGroupedSampler
 )
 from .training_args import TrainingArguments, OptimizerNames
 from .trainer_utils import (
@@ -113,8 +118,8 @@ class Trainer:
             model: Union[PreTrainedModel, nn.Cell] = None,
             args: TrainingArguments = None,
             data_collator: Optional[DataCollator] = None,
-            train_dataset: Optional[ms.dataset.GeneratorDataset] = None,
-            eval_dataset: Optional[ms.dataset.GeneratorDataset] = None,
+            train_dataset: Optional[Iterable] = None,
+            eval_dataset: Optional[Iterable] = None,
             tokenizer: Optional[PreTrainedTokenizerBase] = None,
             model_init: Optional[Callable[[], PreTrainedModel]] = None,
             compute_metrics: Optional[Callable[[EvalPrediction], Dict]] = None,
@@ -519,10 +524,10 @@ class Trainer:
             "column_names": "item"
         }
         ds_batch_params = {
-            "num_parallel_workers": self.args.dataloader_num_workers,
-            "batch_size": self.args.per_device_train_batch_size,    # per device batch size
-            "per_batch_map": data_collator,                         # collate_fn
-            "drop_remainder": self.args.dataloader_drop_last,       # drop_last
+            "num_parallel_workers": self.args.dataloader_num_workers,  # num workers
+            "batch_size": self.args.per_device_train_batch_size,       # per device batch size
+            "per_batch_map": data_collator,                            # collate function
+            "drop_remainder": self.args.dataloader_drop_last,          # drop last
         }
         ds_repeat_params = {
             "count": 1  # self.args.num_train_epochs            # num_train_epochs, loop at train func
@@ -540,8 +545,30 @@ class Trainer:
 
         return loader
 
-    def _get_train_sampler(self) -> Optional[ms.dataset.Sampler]:
-        raise NotImplementedError
+    def _get_train_sampler(self) -> Optional[Sampler]:
+        if self.train_dataset is None or not has_length(self.train_dataset):
+            return None
+
+        # Build the sampler.
+        if self.args.group_by_length:
+            if is_datasets_available() and isinstance(self.train_dataset, datasets.Dataset):
+                lengths = (
+                    self.train_dataset[self.args.length_column_name]
+                    if self.args.length_column_name in self.train_dataset.column_names
+                    else None
+                )
+            else:
+                lengths = None
+            model_input_name = self.tokenizer.model_input_names[0] if self.tokenizer is not None else None
+            return LengthGroupedSampler(
+                self.args.train_batch_size * self.args.gradient_accumulation_steps,
+                dataset=self.train_dataset,
+                lengths=lengths,
+                model_input_name=model_input_name,
+            )
+
+        else:
+            return RandomSampler(self.train_dataset)
 
     def num_examples(self, dataloader: ms.dataset.Dataset) -> int:
         if not isinstance(dataloader, ms.dataset.Dataset):

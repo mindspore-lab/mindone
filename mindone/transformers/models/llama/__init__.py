@@ -1,4 +1,4 @@
-from .modeling_llama import LlamaModel, LlamaForCausalLM, LlamaConfig
+from .modeling_llama import LlamaConfig, LlamaModel, LlamaForCausalLM, LlamaForSequenceClassification
 
 
-__all__ = ["LlamaModel", "LlamaForCausalLM", "LlamaConfig"]
+__all__ = ["LlamaConfig", "LlamaModel", "LlamaForCausalLM", "LlamaForSequenceClassification"]

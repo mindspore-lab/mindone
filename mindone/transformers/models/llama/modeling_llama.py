@@ -31,7 +31,7 @@ from transformers.utils import (
     logging,
     replace_return_docstrings,
 )
-from transformers.modeling_outputs import CausalLMOutputWithPast
+from transformers.modeling_outputs import CausalLMOutputWithPast, SequenceClassifierOutputWithPast
 
 from mindone.transformers.activations import ACT2FN
 from mindone.transformers.modeling_utils import MSPreTrainedModel as PreTrainedModel
@@ -68,7 +68,7 @@ ALL_LAYERNORM_LAYERS.append(LlamaRMSNorm)
 
 
 class LlamaRotaryEmbedding(nn.Cell):
-    def __init__(self, dim, max_position_embeddings=2048, base=10000, device=None, scaling_factor=1.0):
+    def __init__(self, dim, max_position_embeddings=2048, base=10000, scaling_factor=1.0):
         super().__init__()
         self.scaling_factor = scaling_factor
         self.dim = dim
@@ -996,7 +996,6 @@ class LlamaForCausalLM(LlamaPreTrainedModel):
             shift_logits = shift_logits.view(-1, self.vocab_size)
             shift_labels = shift_labels.view(-1)
             # Enable model parallelism
-            shift_labels = shift_labels.to(shift_logits.device)
             loss = self.cross_entropy_loss(shift_logits, shift_labels)
 
         if use_cache:
@@ -1106,3 +1105,137 @@ class LlamaForCausalLM(LlamaPreTrainedModel):
     @staticmethod
     def _reorder_cache(past_key_values, beam_idx):
         raise NotImplementedError
+
+
+@add_start_docstrings(
+    """
+    The LLaMa Model transformer with a sequence classification head on top (linear layer).
+
+    [`LlamaForSequenceClassification`] uses the last token in order to do the classification, as other causal models
+    (e.g. GPT-2) do.
+
+    Since it does classification on the last token, it requires to know the position of the last token. If a
+    `pad_token_id` is defined in the configuration, it finds the last token that is not a padding token in each row. If
+    no `pad_token_id` is defined, it simply takes the last value in each row of the batch. Since it cannot guess the
+    padding tokens when `inputs_embeds` are passed instead of `input_ids`, it does the same (take the last value in
+    each row of the batch).
+    """,
+    LLAMA_START_DOCSTRING,
+)
+class LlamaForSequenceClassification(LlamaPreTrainedModel):
+    def __init__(self, config):
+        super().__init__(config)
+        self.num_labels = config.num_labels
+        self.model = LlamaModel(config)
+        self.score = nn.Dense(config.hidden_size, self.num_labels, has_bias=False)
+
+        self.loss_fct_regression = nn.MSELoss()
+        self.loss_fct_single_label_classification = nn.CrossEntropyLoss()
+        self.loss_fct_multi_label_classification = nn.BCEWithLogitsLoss()
+
+        problem_type_map = {
+            "regression": 0,
+            "single_label_classification": 1,
+            "multi_label_classification": 2
+        }
+        self.problem_type = problem_type_map[config.problem_type]
+        self.pad_token_id = config.pad_token_id
+
+        # Initialize weights and apply final processing
+        # self.post_init()
+
+    def get_input_embeddings(self):
+        return self.model.embed_tokens
+
+    def set_input_embeddings(self, value):
+        self.model.embed_tokens = value
+
+    @add_start_docstrings_to_model_forward(LLAMA_INPUTS_DOCSTRING)
+    def construct(
+        self,
+        input_ids: ms.Tensor = None,
+        attention_mask: Optional[ms.Tensor] = None,
+        position_ids: Optional[ms.Tensor] = None,
+        past_key_values: Optional[Tuple[Tuple[ms.Tensor, ms.Tensor]]] = None,
+        inputs_embeds: Optional[ms.Tensor] = None,
+        labels: Optional[ms.Tensor] = None,
+        use_cache: Optional[bool] = None,
+        output_attentions: Optional[bool] = None,
+        output_hidden_states: Optional[bool] = None,
+        return_dict: Optional[bool] = None,
+    ) -> Tuple:
+        r"""
+        labels (`torch.LongTensor` of shape `(batch_size,)`, *optional*):
+            Labels for computing the sequence classification/regression loss. Indices should be in `[0, ...,
+            config.num_labels - 1]`. If `config.num_labels == 1` a regression loss is computed (Mean-Square loss), If
+            `config.num_labels > 1` a classification loss is computed (Cross-Entropy).
+        """
+        transformer_outputs = self.model(
+            input_ids,
+            attention_mask=attention_mask,
+            position_ids=position_ids,
+            past_key_values=past_key_values,
+            inputs_embeds=inputs_embeds,
+            use_cache=use_cache,
+            output_attentions=output_attentions,
+            output_hidden_states=output_hidden_states,
+            return_dict=return_dict,
+        )
+        hidden_states = transformer_outputs[0]
+        logits = self.score(hidden_states)
+
+        if input_ids is not None:
+            batch_size = input_ids.shape[0]
+        else:
+            batch_size = inputs_embeds.shape[0]
+
+        # if self.pad_token_id is None and batch_size != 1:
+        #     raise ValueError("Cannot handle batch sizes > 1 if no padding token is defined.")
+        if self.pad_token_id is None:
+            sequence_lengths = -1
+        else:
+            if input_ids is not None:
+                # if no pad token found, use modulo instead of reverse indexing for ONNX compatibility
+                sequence_lengths = ops.equal(input_ids, self.pad_token_id).to(ms.int32).argmax(-1) - 1
+                sequence_lengths = sequence_lengths % input_ids.shape[-1]
+            else:
+                sequence_lengths = -1
+
+        pooled_logits = logits[ops.arange(batch_size), sequence_lengths]
+
+        loss = ops.full((), -1., dtype=ms.float32)
+        if labels is not None:
+            if self.problem_type is None:
+                if self.num_labels == 1:
+                    problem_type = 0  #"regression"
+                elif self.num_labels > 1 and (labels.dtype in (ms.int32, ms.int64)):
+                    problem_type = 1  #"single_label_classification"
+                else:
+                    problem_type = 2  #"multi_label_classification"
+            else:
+                problem_type = self.problem_type
+
+            if problem_type == 0:  #"regression"
+                if self.num_labels == 1:
+                    loss = self.loss_fct_regression(pooled_logits.squeeze(), labels.squeeze())
+                else:
+                    loss = self.loss_fct_regression(pooled_logits, labels)
+            elif problem_type == 1:  #"single_label_classification"
+                loss = self.loss_fct_single_label_classification(pooled_logits.view(-1, self.num_labels), labels.view(-1))
+            elif problem_type == 2:  #"multi_label_classification"
+                loss = self.loss_fct_multi_label_classification(pooled_logits, labels)
+
+        outputs = (loss, pooled_logits)
+        if use_cache:
+            outputs += (transformer_outputs[1])
+
+        return outputs
+
+    def get_return_dict(self, tuple_outputs):
+        sorted_names = ["loss", "logits", "past_key_values", "hidden_states", "attentions"]
+        output_dict = {}
+        for i in range(len(tuple_outputs)):
+            output_dict[sorted_names[i]] = tuple_outputs[i]
+        return SequenceClassifierOutputWithPast(
+            **output_dict
+        )
