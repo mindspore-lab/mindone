@@ -154,7 +154,7 @@ class TensorDataset(Dataset):
         *tensors (Tensor): tensors that have the same size of the first dimension.
     """
 
-    def __init__(self, *tensors: Optional[ms.Tensor, np.ndarray]) -> None:
+    def __init__(self, *tensors: Union[ms.Tensor, np.ndarray]) -> None:
         assert all(tensors[0].shape[0] == tensor.shape[0] for tensor in tensors), "Size mismatch between tensors"
         self.tensors = tensors
 
