@@ -17,7 +17,7 @@ def transform_conditional_images(image_paths, H, W, random_crop=True, normalize=
     image_paths = list(image_paths)
     images = load_rgb_images(image_paths)
     if random_crop:
-        cropper = albumentations.RandomResizedCrop(H, W, (1.0, 1.0), ratio=(W / H, W / H))
+        cropper = albumentations.RandomResizedCrop(H, W, 1.0, ratio=(W / H, W / H))
     else:
         cropper = albumentations.CenterCrop(height=H, width=W)
 

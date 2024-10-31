@@ -36,6 +36,8 @@ model:
         use_fp16: True
         dropout: 0.1
         use_recompute: False # debug
+        recompute_strategy: "down_blocks"
+        enable_flash_attention: false
         # Additional args for mm v2
         use_inflated_groupnorm: true
         unet_use_cross_frame_attention: false

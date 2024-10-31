@@ -511,7 +511,7 @@ class UNet3DModel(nn.Cell):
                     for cell in oblock:
                         if isinstance(cell, VanillaTemporalModule):
                             self.recompute(cell)
-            elif recompute_strategy == "up_down":
+            elif recompute_strategy == "down_up":
                 for iblock in self.input_blocks:
                     self.recompute(iblock)
                 for oblock in self.output_blocks:
