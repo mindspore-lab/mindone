@@ -450,12 +450,12 @@ def main(args):
                 if step % args.log_interval == 0:
                     loss_ae = float(loss_ae_t.asnumpy())
                     logger.info(
-                        f"E: {epoch+1}, S: {step+1}, Loss ae: {loss_ae:.4f}, ae loss scaler {loss_scaler_ae.loss_scale_value},"
+                        f"E: {epoch+1}, S: {step+1}, Loss ae: {loss_ae:.4f}, ae loss scaler {scaling_sens},"
                         + f" Step time: {step_time*1000:.2f}ms"
                     )
                     if global_step >= disc_start:
                         loss_disc = float(loss_disc_t.asnumpy())
-                        logger.info(f"Loss disc: {loss_disc:.4f}, disc loss scaler {loss_scaler_disc.loss_scale_value}")
+                        logger.info(f"Loss disc: {loss_disc:.4f}, disc loss scaler {scaling_sens_d}")
                         loss_log_file.write(f"{cur_global_step}\t{loss_ae:.7f}\t{loss_disc:.7f}\t{step_time:.2f}\n")
                     else:
                         loss_log_file.write(f"{cur_global_step}\t{loss_ae:.7f}\t{0.0}\t{step_time:.2f}\n")
@@ -478,7 +478,7 @@ def main(args):
                                 os.path.join(ckpt_dir, "train_resume.ckpt"),
                                 append_dict={
                                     "epoch_num": cur_epoch - 1,
-                                    "loss_scale": loss_scaler_ae.loss_scale_value,
+                                    "loss_scale": scaling_sens,
                                 },
                             )
                             ms.save_checkpoint(
@@ -486,7 +486,7 @@ def main(args):
                                 os.path.join(ckpt_dir, "train_resume_disc.ckpt"),
                                 append_dict={
                                     "epoch_num": cur_epoch - 1,
-                                    "loss_scale": loss_scaler_disc.loss_scale_value,
+                                    "loss_scale": scaling_sens_d,
                                 },
                             )
                         if ema is not None:
@@ -519,7 +519,7 @@ def main(args):
                             os.path.join(ckpt_dir, "train_resume.ckpt"),
                             append_dict={
                                 "epoch_num": cur_epoch - 1,
-                                "loss_scale": loss_scaler_ae.loss_scale_value,
+                                "loss_scale": scaling_sens,
                             },
                         )
                         ms.save_checkpoint(
@@ -527,7 +527,7 @@ def main(args):
                             os.path.join(ckpt_dir, "train_resume_disc.ckpt"),
                             append_dict={
                                 "epoch_num": cur_epoch - 1,
-                                "loss_scale": loss_scaler_disc.loss_scale_value,
+                                "loss_scale": scaling_sens_d,
                             },
                         )
                     if ema is not None:
