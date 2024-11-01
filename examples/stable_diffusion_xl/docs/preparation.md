@@ -52,7 +52,7 @@ python convert_diffusers_to_mindone_sdxl.py \
 ```
 
 
-## Dataset Preparation for Fine-Tuning (Optional)
+## Datasets Preparation for Fine-Tuning (Optional)
 
 Please also refer to the docs of specific finetune methods for data preparation.
 

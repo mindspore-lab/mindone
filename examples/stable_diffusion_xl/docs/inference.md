@@ -5,6 +5,10 @@
 <img src="https://github.com/mindspore-lab/mindone/assets/20476835/dbaf0c77-d8d3-4457-b03c-82c3e4c1ba1d" width="200" />
 <img src="https://github.com/mindspore-lab/mindone/assets/20476835/f52168ef-53aa-4ee9-9f17-6889f10e0afb" width="200" />
 
+| [Model] SDXL-Base | [Model] SDXL-Pipeline | [Model] SDXL-Refiner | [Func] Samplers | [Func] Flash Attn |
+|:-----------------:|:---------------------:|:--------------------:|:---------------:|:-----------------:|
+| ✅                 | ✅                   | ✅                  | 7 samplers       | ✅                |
+
 ## Requirements
 
 | mindspore      | ascend driver | firmware    | cann toolkit/kernel |
