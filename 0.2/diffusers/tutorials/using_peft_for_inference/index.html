@@ -14,7 +14,7 @@
         <link rel="prev" href="../basic_training/">
       
       
-        <link rel="next" href="../../api/loaders/ip_adapter/">
+        <link rel="next" href="../../using-diffusers/loading_overview/">
       
       
       <link rel="icon" href="../../../assets/images/favicon.png">
@@ -760,6 +760,21 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="Merge adapters">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#customize-adapters-strength" class="md-nav__link">
+    <span class="md-ellipsis">
+      Customize adapters strength
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -817,7 +832,7 @@
             
   
   <span class="md-ellipsis">
-    API
+    Load pipelines and adapters
   </span>
   
 
@@ -826,6 +841,1404 @@
         
         <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_2_3_label" aria-expanded="false">
           <label class="md-nav__title" for="__nav_2_3">
+            <span class="md-nav__icon md-icon"></span>
+            Load pipelines and adapters
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../using-diffusers/loading_overview/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Overview
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../using-diffusers/loading/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Load pipelines
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../using-diffusers/schedulers/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Load schedulers and models
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../using-diffusers/other-formats/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Model files and layouts
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../using-diffusers/loading_adapters/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Load adapters
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../using-diffusers/push_to_hub/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Push files to the Hub
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+      
+      
+        
+          
+          
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_2_4" id="__nav_2_4_label" tabindex="">
+            
+  
+  <span class="md-ellipsis">
+    Generative tasks
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_2_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_4">
+            <span class="md-nav__icon md-icon"></span>
+            Generative tasks
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../using-diffusers/unconditional_image_generation/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Unconditional image generation
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../using-diffusers/conditional_image_generation/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Text-to-image
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../using-diffusers/img2img/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Image-to-image
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../using-diffusers/inpaint/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Inpainting
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../using-diffusers/text-img2vid/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Text or image-to-video
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../using-diffusers/depth2img/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Depth-to-image
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+      
+      
+        
+          
+          
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_2_5" id="__nav_2_5_label" tabindex="">
+            
+  
+  <span class="md-ellipsis">
+    Inference techniques
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_2_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_5">
+            <span class="md-nav__icon md-icon"></span>
+            Inference techniques
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../using-diffusers/overview_techniques/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Overview
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../using-diffusers/merge_loras/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Merge LoRAs
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../using-diffusers/scheduler_features/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Scheduler features
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../using-diffusers/callback/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Pipeline callbacks
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../using-diffusers/reusing_seeds/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Reproducible pipelines
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+      
+      
+        
+          
+          
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_6" >
+        
+          
+          <label class="md-nav__link" for="__nav_2_6" id="__nav_2_6_label" tabindex="">
+            
+  
+  <span class="md-ellipsis">
+    Specific pipeline examples
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_2_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_6">
+            <span class="md-nav__icon md-icon"></span>
+            Specific pipeline examples
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../using-diffusers/sdxl/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Stable Diffusion XL
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../using-diffusers/sdxl_turbo/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    SDXL Turbo
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../using-diffusers/kandinsky/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Kandinsky
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../using-diffusers/ip_adapter/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    IP-Adapter
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../using-diffusers/controlnet/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    ControlNet
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../using-diffusers/t2i_adapter/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    T2I-Adapter
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../using-diffusers/inference_with_lcm/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Latent Consistency Model
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../using-diffusers/textual_inversion_inference/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Textual inversion
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../using-diffusers/shap-e/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Shap-E
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../using-diffusers/diffedit/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    DiffEdit
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../using-diffusers/inference_with_tcd_lora/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Trajectory Consistency Distillation-LoRA
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../using-diffusers/svd/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Stable Video Diffusion
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../using-diffusers/marigold_usage/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Marigold Computer Vision
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+      
+      
+        
+          
+          
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_7" >
+        
+          
+          <label class="md-nav__link" for="__nav_2_7" id="__nav_2_7_label" tabindex="">
+            
+  
+  <span class="md-ellipsis">
+    Training
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_2_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_7">
+            <span class="md-nav__icon md-icon"></span>
+            Training
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../training/overview/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Overview
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../training/create_dataset/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Create a dataset for training
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../training/adapt_a_model/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Adapt a model to a new task
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_7_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_2_7_4" id="__nav_2_7_4_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Models
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_2_7_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_7_4">
+            <span class="md-nav__icon md-icon"></span>
+            Models
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../training/unconditional_training/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Unconditional image generation
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../training/text2image/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Text-to-image
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../training/sdxl/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Stable Diffusion XL
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../training/controlnet/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    ControlNet
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_7_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_2_7_5" id="__nav_2_7_5_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Methods
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_2_7_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_7_5">
+            <span class="md-nav__icon md-icon"></span>
+            Methods
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../training/text_inversion/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Textual Inversion
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../training/dreambooth/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    DreamBooth
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../training/lora/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    LoRA
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+      
+      
+        
+          
+          
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_8" >
+        
+          
+          <label class="md-nav__link" for="__nav_2_8" id="__nav_2_8_label" tabindex="">
+            
+  
+  <span class="md-ellipsis">
+    Accelerate inference and reduce memory
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_2_8_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_8">
+            <span class="md-nav__icon md-icon"></span>
+            Accelerate inference and reduce memory
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../optimization/fp16/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Speed up inference
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../optimization/memory/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Reduce memory usage
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../optimization/xformers/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    xFormers
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+      
+      
+        
+          
+          
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_9" >
+        
+          
+          <label class="md-nav__link" for="__nav_2_9" id="__nav_2_9_label" tabindex="">
+            
+  
+  <span class="md-ellipsis">
+    Conceptual Guides
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_2_9_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_9">
+            <span class="md-nav__icon md-icon"></span>
+            Conceptual Guides
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../conceptual/philosophy/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Philosophy
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../using-diffusers/controlling_generation/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Controlled generation
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+      
+      
+        
+          
+          
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_10" >
+        
+          
+          <label class="md-nav__link" for="__nav_2_10" id="__nav_2_10_label" tabindex="">
+            
+  
+  <span class="md-ellipsis">
+    API
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_2_10_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_10">
             <span class="md-nav__icon md-icon"></span>
             API
           </label>
@@ -850,10 +2263,121 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_3_1" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_10_1" >
         
           
-          <label class="md-nav__link" for="__nav_2_3_1" id="__nav_2_3_1_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_2_10_1" id="__nav_2_10_1_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Main Classes
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_2_10_1_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_10_1">
+            <span class="md-nav__icon md-icon"></span>
+            Main Classes
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/configuration/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Configuration
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/logging/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Logging
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/outputs/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Outputs
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_10_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2_10_2" id="__nav_2_10_2_label" tabindex="0">
             
   
   <span class="md-ellipsis">
@@ -864,8 +2388,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_2_3_1_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_2_3_1">
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_2_10_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_10_2">
             <span class="md-nav__icon md-icon"></span>
             Loaders
           </label>
@@ -1024,10 +2548,10 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_3_2" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_10_3" >
         
           
-          <label class="md-nav__link" for="__nav_2_3_2" id="__nav_2_3_2_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_2_10_3" id="__nav_2_10_3_label" tabindex="0">
             
   
   <span class="md-ellipsis">
@@ -1038,8 +2562,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_2_3_2_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_2_3_2">
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_2_10_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_10_3">
             <span class="md-nav__icon md-icon"></span>
             Models
           </label>
@@ -1513,10 +3037,10 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_3_3" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_10_4" >
         
           
-          <label class="md-nav__link" for="__nav_2_3_3" id="__nav_2_3_3_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_2_10_4" id="__nav_2_10_4_label" tabindex="0">
             
   
   <span class="md-ellipsis">
@@ -1527,8 +3051,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_2_3_3_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_2_3_3">
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_2_10_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_10_4">
             <span class="md-nav__icon md-icon"></span>
             Pipelines
           </label>
@@ -2107,6 +3631,369 @@
   
   
   
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_10_4_28" >
+        
+          
+          <label class="md-nav__link" for="__nav_2_10_4_28" id="__nav_2_10_4_28_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Stable Diffusion
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="4" aria-labelledby="__nav_2_10_4_28_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_10_4_28">
+            <span class="md-nav__icon md-icon"></span>
+            Stable Diffusion
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/pipelines/stable_diffusion/overview/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Overview
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/pipelines/stable_diffusion/text2img/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Text-to-image
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/pipelines/stable_diffusion/img2img/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Image-to-image
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/pipelines/stable_diffusion/svd/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Image-to-video
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/pipelines/stable_diffusion/inpaint/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Inpainting
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/pipelines/stable_diffusion/depth2img/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Depth-to-image
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/pipelines/stable_diffusion/image_variation/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Image variation
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/pipelines/stable_diffusion/stable_diffusion_2/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Stable Diffusion 2
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/pipelines/stable_diffusion/stable_diffusion_3/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Stable Diffusion 3
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/pipelines/stable_diffusion/stable_diffusion_xl/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Stable Diffusion XL
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/pipelines/stable_diffusion/sdxl_turbo/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    SDXL Turbo
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/pipelines/stable_diffusion/latent_upscale/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Latent upscaler
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/pipelines/stable_diffusion/upscale/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Super-resolution
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/pipelines/stable_diffusion/adapter/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    T2I-Adapter
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/pipelines/stable_diffusion/gligen/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    GLIGEN (Grounded Language-to-Image Generation)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
     <li class="md-nav__item">
       <a href="../../api/pipelines/unclip/" class="md-nav__link">
         
@@ -2170,10 +4057,646 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_3_4" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_10_5" >
         
           
-          <label class="md-nav__link" for="__nav_2_3_4" id="__nav_2_3_4_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_2_10_5" id="__nav_2_10_5_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Schedulers
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_2_10_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_10_5">
+            <span class="md-nav__icon md-icon"></span>
+            Schedulers
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/schedulers/overview/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Overview
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/schedulers/cm_stochastic_iterative/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    CMStochasticIterativeScheduler
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/schedulers/consistency_decoder/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    ConsistencyDecoderScheduler
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/schedulers/ddim_inverse/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    DDIMInverseScheduler
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/schedulers/ddim/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    DDIMScheduler
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/schedulers/ddpm/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    DDPMScheduler
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/schedulers/deis/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    DEISMultistepScheduler
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/schedulers/multistep_dpm_solver_inverse/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    DPMSolverMultistepInverse
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/schedulers/multistep_dpm_solver/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    DPMSolverMultistepScheduler
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/schedulers/singlestep_dpm_solver/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    DPMSolverSinglestepScheduler
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/schedulers/edm_multistep_dpm_solver/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    EDMDPMSolverMultistepScheduler
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/schedulers/edm_euler/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    EDMEulerScheduler
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/schedulers/euler_ancestral/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    EulerAncestralDiscreteScheduler
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/schedulers/euler/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    EulerDiscreteScheduler
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/schedulers/flow_match_euler_discrete/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    FlowMatchEulerDiscreteScheduler
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/schedulers/heun/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    HeunDiscreteScheduler
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/schedulers/ipndm/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    IPNDMScheduler
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/schedulers/dpm_discrete_ancestral/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    KDPM2AncestralDiscreteScheduler
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/schedulers/dpm_discrete/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    KDPM2DiscreteScheduler
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/schedulers/lcm/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    LCMScheduler
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/schedulers/lms_discrete/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    LMSDiscreteScheduler
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/schedulers/pndm/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    PNDMScheduler
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/schedulers/repaint/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    RePaintScheduler
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/schedulers/score_sde_ve/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    ScoreSdeVeScheduler
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/schedulers/score_sde_vp/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    ScoreSdeVpScheduler
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/schedulers/tcd/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    TCDScheduler
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/schedulers/unipc/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    UniPCMultistepScheduler
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/schedulers/vq_diffusion/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    VQDiffusionScheduler
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_10_6" >
+        
+          
+          <label class="md-nav__link" for="__nav_2_10_6" id="__nav_2_10_6_label" tabindex="0">
             
   
   <span class="md-ellipsis">
@@ -2184,8 +4707,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_2_3_4_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_2_3_4">
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_2_10_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_10_6">
             <span class="md-nav__icon md-icon"></span>
             Internal Class
           </label>
@@ -2626,6 +5149,21 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="Merge adapters">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#customize-adapters-strength" class="md-nav__link">
+    <span class="md-ellipsis">
+      Customize adapters strength
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -2686,7 +5224,7 @@ specific language governing permissions and limitations under the License.
 <p>Let's first install all the required libraries.</p>
 <div class="highlight"><pre><span></span><code>!pip<span class="w"> </span>install<span class="w"> </span>transformers<span class="w"> </span>mindone
 </code></pre></div>
-<p>Now, load a pipeline with a <a href="../api/pipelines/stable_diffusion/stable_diffusion_xl">Stable Diffusion XL (SDXL)</a> checkpoint:</p>
+<p>Now, load a pipeline with a <a href="../../api/pipelines/stable_diffusion/stable_diffusion_xl/">Stable Diffusion XL (SDXL)</a> checkpoint:</p>
 <div class="highlight"><pre><span></span><code><span class="kn">from</span> <span class="nn">mindone.diffusers</span> <span class="kn">import</span> <span class="n">DiffusionPipeline</span>
 <span class="kn">import</span> <span class="nn">mindspore</span>
 <span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
@@ -2694,21 +5232,21 @@ specific language governing permissions and limitations under the License.
 <span class="n">pipe_id</span> <span class="o">=</span> <span class="s2">&quot;stabilityai/stable-diffusion-xl-base-1.0&quot;</span>
 <span class="n">pipe</span> <span class="o">=</span> <span class="n">DiffusionPipeline</span><span class="o">.</span><span class="n">from_pretrained</span><span class="p">(</span><span class="n">pipe_id</span><span class="p">,</span> <span class="n">mindspore_dtype</span><span class="o">=</span><span class="n">mindspore</span><span class="o">.</span><span class="n">float16</span><span class="p">)</span>
 </code></pre></div>
-<p>Next, load a <a href="https://huggingface.co/CiroN2022/toy-face">CiroN2022/toy-face</a> adapter with the [<code>~diffusers.loaders.StableDiffusionXLLoraLoaderMixin.load_lora_weights</code>] method. With the 🤗 PEFT integration, you can assign a specific <code>adapter_name</code> to the checkpoint, which let's you easily switch between different LoRA checkpoints. Let's call this adapter <code>"toy"</code>.</p>
+<p>Next, load a <a href="https://huggingface.co/CiroN2022/toy-face">CiroN2022/toy-face</a> adapter with the <a href="https://mindspore-lab.github.io/mindone/latest/diffusers/api/loaders/lora#mindone.diffusers.loaders.lora.StableDiffusionXLLoraLoaderMixin.load_lora_weights"><code>load_lora_weights</code></a> method. With the 🤗 PEFT integration, you can assign a specific <code>adapter_name</code> to the checkpoint, which let's you easily switch between different LoRA checkpoints. Let's call this adapter <code>"toy"</code>.</p>
 <div class="highlight"><pre><span></span><code><span class="n">pipe</span><span class="o">.</span><span class="n">load_lora_weights</span><span class="p">(</span><span class="s2">&quot;CiroN2022/toy-face&quot;</span><span class="p">,</span> <span class="n">weight_name</span><span class="o">=</span><span class="s2">&quot;toy_face_sdxl.safetensors&quot;</span><span class="p">,</span> <span class="n">adapter_name</span><span class="o">=</span><span class="s2">&quot;toy&quot;</span><span class="p">)</span>
 </code></pre></div>
 <p>Make sure to include the token <code>toy_face</code> in the prompt and then you can perform inference:</p>
 <div class="highlight"><pre><span></span><code><span class="n">prompt</span> <span class="o">=</span> <span class="s2">&quot;toy_face of a hacker with a hoodie&quot;</span>
 
-<span class="n">lora_scale</span><span class="o">=</span> <span class="mf">0.9</span>
+<span class="n">lora_scale</span> <span class="o">=</span> <span class="mf">0.9</span>
 <span class="n">image</span> <span class="o">=</span> <span class="n">pipe</span><span class="p">(</span>
     <span class="n">prompt</span><span class="p">,</span> <span class="n">num_inference_steps</span><span class="o">=</span><span class="mi">30</span><span class="p">,</span> <span class="n">cross_attention_kwargs</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;scale&quot;</span><span class="p">:</span> <span class="n">lora_scale</span><span class="p">},</span> <span class="n">generator</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">Generator</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">PCG64</span><span class="p">(</span><span class="mi">0</span><span class="p">))</span>
 <span class="p">)[</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
 <span class="n">image</span>
 </code></pre></div>
-<p><img alt="toy-face" src="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/diffusers/peft_integration/diffusers_peft_lora_inference_8_1.png" /></p>
+<p><img alt="toy-face" src="https://github.com/user-attachments/assets/c1796924-ee98-49c4-829b-887874ed7f3d" /></p>
 <p>With the <code>adapter_name</code> parameter, it is really easy to use another adapter for inference! Load the <a href="https://huggingface.co/nerijs/pixel-art-xl">nerijs/pixel-art-xl</a> adapter that has been fine-tuned to generate pixel art images and call it <code>"pixel"</code>.</p>
-<p>The pipeline automatically sets the first loaded adapter (<code>"toy"</code>) as the active adapter, but you can activate the <code>"pixel"</code> adapter with the [<code>~diffusers.loaders.UNet2DConditionLoadersMixin.set_adapters</code>] method:</p>
+<p>The pipeline automatically sets the first loaded adapter (<code>"toy"</code>) as the active adapter, but you can activate the <code>"pixel"</code> adapter with the <a href="https://mindspore-lab.github.io/mindone/latest/diffusers/api/loaders/unet/#mindone.diffusers.loaders.unet.UNet2DConditionLoadersMixin.set_adapters"><code>set_adapters</code></a> method:</p>
 <div class="highlight"><pre><span></span><code><span class="n">pipe</span><span class="o">.</span><span class="n">load_lora_weights</span><span class="p">(</span><span class="s2">&quot;nerijs/pixel-art-xl&quot;</span><span class="p">,</span> <span class="n">weight_name</span><span class="o">=</span><span class="s2">&quot;pixel-art-xl.safetensors&quot;</span><span class="p">,</span> <span class="n">adapter_name</span><span class="o">=</span><span class="s2">&quot;pixel&quot;</span><span class="p">)</span>
 <span class="n">pipe</span><span class="o">.</span><span class="n">set_adapters</span><span class="p">(</span><span class="s2">&quot;pixel&quot;</span><span class="p">)</span>
 </code></pre></div>
@@ -2719,57 +5257,99 @@ specific language governing permissions and limitations under the License.
 <span class="p">)[</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
 <span class="n">image</span>
 </code></pre></div>
-<p><img alt="pixel-art" src="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/diffusers/peft_integration/diffusers_peft_lora_inference_12_1.png" /></p>
+<p><img alt="pixel-art" src="https://github.com/user-attachments/assets/fa0e31c8-787e-42dd-8027-a8be89884863" /></p>
 <h2 id="merge-adapters">Merge adapters<a class="headerlink" href="#merge-adapters" title="Permanent link">&para;</a></h2>
 <p>You can also merge different adapter checkpoints for inference to blend their styles together.</p>
-<p>Once again, use the [<code>~diffusers.loaders.UNet2DConditionLoadersMixin.set_adapters</code>] method to activate the <code>pixel</code> and <code>toy</code> adapters and specify the weights for how they should be merged.</p>
+<p>Once again, use the <a href="https://mindspore-lab.github.io/mindone/latest/diffusers/api/loaders/unet/#mindone.diffusers.loaders.unet.UNet2DConditionLoadersMixin.set_adapters"><code>set_adapters</code></a> method to activate the <code>pixel</code> and <code>toy</code> adapters and specify the weights for how they should be merged.</p>
 <div class="highlight"><pre><span></span><code><span class="n">pipe</span><span class="o">.</span><span class="n">set_adapters</span><span class="p">([</span><span class="s2">&quot;pixel&quot;</span><span class="p">,</span> <span class="s2">&quot;toy&quot;</span><span class="p">],</span> <span class="n">adapter_weights</span><span class="o">=</span><span class="p">[</span><span class="mf">0.5</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">])</span>
 </code></pre></div>
 <div class="admonition tip">
 <p class="admonition-title">Tip</p>
-<p>LoRA checkpoints in the diffusion community are almost always obtained with <a href="https://huggingface.co/docs/diffusers/main/en/training/dreambooth">DreamBooth</a>. DreamBooth training often relies on "trigger" words in the input text prompts in order for the generation results to look as expected. When you combine multiple LoRA checkpoints, it's important to ensure the trigger words for the corresponding LoRA checkpoints are present in the input text prompts.</p>
+<p>LoRA checkpoints in the diffusion community are almost always obtained with <a href="https://mindspore-lab.github.io/mindone/latest/diffusers/training/dreambooth/">DreamBooth</a>. DreamBooth training often relies on "trigger" words in the input text prompts in order for the generation results to look as expected. When you combine multiple LoRA checkpoints, it's important to ensure the trigger words for the corresponding LoRA checkpoints are present in the input text prompts.</p>
 </div>
 <p>Remember to use the trigger words for <a href="https://hf.co/CiroN2022/toy-face">CiroN2022/toy-face</a> and <a href="https://hf.co/nerijs/pixel-art-xl">nerijs/pixel-art-xl</a> (these are found in their repositories) in the prompt to generate an image.</p>
 <div class="highlight"><pre><span></span><code><span class="n">prompt</span> <span class="o">=</span> <span class="s2">&quot;toy_face of a hacker with a hoodie, pixel art&quot;</span>
 <span class="n">image</span> <span class="o">=</span> <span class="n">pipe</span><span class="p">(</span>
-    <span class="n">prompt</span><span class="p">,</span> <span class="n">num_inference_steps</span><span class="o">=</span><span class="mi">30</span><span class="p">,</span> <span class="n">cross_attention_kwargs</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;scale&quot;</span><span class="p">:</span> <span class="mf">1.0</span><span class="p">},</span> <span class="n">generator</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">manual_seed</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
-<span class="p">)</span><span class="o">.</span><span class="n">images</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="n">prompt</span><span class="p">,</span> <span class="n">num_inference_steps</span><span class="o">=</span><span class="mi">30</span><span class="p">,</span> <span class="n">cross_attention_kwargs</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;scale&quot;</span><span class="p">:</span> <span class="mf">1.0</span><span class="p">},</span> <span class="n">generator</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">Generator</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">PCG64</span><span class="p">(</span><span class="mi">0</span><span class="p">))</span>
+<span class="p">)[</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
 <span class="n">image</span>
 </code></pre></div>
-<p><img alt="toy-face-pixel-art" src="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/diffusers/peft_integration/diffusers_peft_lora_inference_16_1.png" /></p>
+<p><img alt="toy-face-pixel-art" src="https://github.com/user-attachments/assets/ee327669-3c18-4293-8eaa-0bbd93afbe02" /></p>
 <p>Impressive! As you can see, the model generated an image that mixed the characteristics of both adapters.</p>
 <div class="admonition tip">
 <p class="admonition-title">Tip</p>
-<p>Through its PEFT integration, Diffusers also offers more efficient merging methods which you can learn about in the <a href="../using-diffusers/merge_loras">Merge LoRAs</a> guide!</p>
+<p>Through its PEFT integration, Diffusers also offers more efficient merging methods which you can learn about in the <a href="../../using-diffusers/merge_loras/">Merge LoRAs</a> guide!</p>
 </div>
-<p>To return to only using one adapter, use the [<code>~diffusers.loaders.UNet2DConditionLoadersMixin.set_adapters</code>] method to activate the <code>"toy"</code> adapter:</p>
+<p>To return to only using one adapter, use the <a href="https://mindspore-lab.github.io/mindone/latest/diffusers/api/loaders/unet/#mindone.diffusers.loaders.unet.UNet2DConditionLoadersMixin.set_adapters"><code>set_adapters</code></a> method to activate the <code>"toy"</code> adapter:</p>
 <div class="highlight"><pre><span></span><code><span class="n">pipe</span><span class="o">.</span><span class="n">set_adapters</span><span class="p">(</span><span class="s2">&quot;toy&quot;</span><span class="p">)</span>
 
 <span class="n">prompt</span> <span class="o">=</span> <span class="s2">&quot;toy_face of a hacker with a hoodie&quot;</span>
-<span class="n">lora_scale</span><span class="o">=</span> <span class="mf">0.9</span>
+<span class="n">lora_scale</span> <span class="o">=</span> <span class="mf">0.9</span>
 <span class="n">image</span> <span class="o">=</span> <span class="n">pipe</span><span class="p">(</span>
     <span class="n">prompt</span><span class="p">,</span> <span class="n">num_inference_steps</span><span class="o">=</span><span class="mi">30</span><span class="p">,</span> <span class="n">cross_attention_kwargs</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;scale&quot;</span><span class="p">:</span> <span class="n">lora_scale</span><span class="p">},</span> <span class="n">generator</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">Generator</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">PCG64</span><span class="p">(</span><span class="mi">0</span><span class="p">))</span>
 <span class="p">)[</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
 <span class="n">image</span>
 </code></pre></div>
-<p>Or to disable all adapters entirely, use the [<code>~diffusers.loaders.UNet2DConditionLoadersMixin.disable_lora</code>] method to return the base model.</p>
+<p>Or to disable all adapters entirely, use the <a href="https://mindspore-lab.github.io/mindone/latest/diffusers/api/loaders/unet/#mindone.diffusers.loaders.unet.UNet2DConditionLoadersMixin.disable_lora"><code>disable_lora</code></a> method to return the base model.</p>
 <div class="highlight"><pre><span></span><code><span class="n">pipe</span><span class="o">.</span><span class="n">disable_lora</span><span class="p">()</span>
 
 <span class="n">prompt</span> <span class="o">=</span> <span class="s2">&quot;toy_face of a hacker with a hoodie&quot;</span>
-<span class="n">lora_scale</span><span class="o">=</span> <span class="mf">0.9</span>
 <span class="n">image</span> <span class="o">=</span> <span class="n">pipe</span><span class="p">(</span><span class="n">prompt</span><span class="p">,</span> <span class="n">num_inference_steps</span><span class="o">=</span><span class="mi">30</span><span class="p">,</span> <span class="n">generator</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">Generator</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">PCG64</span><span class="p">(</span><span class="mi">0</span><span class="p">)))[</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
 <span class="n">image</span>
 </code></pre></div>
+<p><img alt="no-lora" src="https://github.com/user-attachments/assets/c17dc29e-4a5f-4243-b5f6-18b3dc05e570" /></p>
+<h3 id="customize-adapters-strength">Customize adapters strength<a class="headerlink" href="#customize-adapters-strength" title="Permanent link">&para;</a></h3>
+<p>For even more customization, you can control how strongly the adapter affects each part of the pipeline. For this, pass a dictionary with the control strengths (called "scales") to <a href="https://mindspore-lab.github.io/mindone/latest/diffusers/api/loaders/unet/#mindone.diffusers.loaders.unet.UNet2DConditionLoadersMixin.set_adapters"><code>set_adapters</code></a>.</p>
+<p>For example, here's how you can turn on the adapter for the <code>down</code> parts, but turn it off for the <code>mid</code> and <code>up</code> parts:
+<div class="highlight"><pre><span></span><code><span class="n">pipe</span><span class="o">.</span><span class="n">enable_lora</span><span class="p">()</span>  <span class="c1"># enable lora again, after we disabled it above</span>
+<span class="n">prompt</span> <span class="o">=</span> <span class="s2">&quot;toy_face of a hacker with a hoodie, pixel art&quot;</span>
+<span class="n">adapter_weight_scales</span> <span class="o">=</span> <span class="p">{</span> <span class="s2">&quot;unet&quot;</span><span class="p">:</span> <span class="p">{</span> <span class="s2">&quot;down&quot;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span> <span class="s2">&quot;mid&quot;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span> <span class="s2">&quot;up&quot;</span><span class="p">:</span> <span class="mi">0</span><span class="p">}</span> <span class="p">}</span>
+<span class="n">pipe</span><span class="o">.</span><span class="n">set_adapters</span><span class="p">(</span><span class="s2">&quot;pixel&quot;</span><span class="p">,</span> <span class="n">adapter_weight_scales</span><span class="p">)</span>
+<span class="n">image</span> <span class="o">=</span> <span class="n">pipe</span><span class="p">(</span><span class="n">prompt</span><span class="p">,</span> <span class="n">num_inference_steps</span><span class="o">=</span><span class="mi">30</span><span class="p">,</span> <span class="n">generator</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">Generator</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">PCG64</span><span class="p">(</span><span class="mi">0</span><span class="p">)))[</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
+<span class="n">image</span>
+</code></pre></div></p>
+<p><img alt="block-lora-text-and-down" src="https://github.com/user-attachments/assets/97822bc2-643b-44bd-837d-94b3f309cf20" /></p>
+<p>Let's see how turning off the <code>down</code> part and turning on the <code>mid</code> and <code>up</code> part respectively changes the image.
+<div class="highlight"><pre><span></span><code><span class="n">adapter_weight_scales</span> <span class="o">=</span> <span class="p">{</span> <span class="s2">&quot;unet&quot;</span><span class="p">:</span> <span class="p">{</span> <span class="s2">&quot;down&quot;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span> <span class="s2">&quot;mid&quot;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span> <span class="s2">&quot;up&quot;</span><span class="p">:</span> <span class="mi">0</span><span class="p">}</span> <span class="p">}</span>
+<span class="n">pipe</span><span class="o">.</span><span class="n">set_adapters</span><span class="p">(</span><span class="s2">&quot;pixel&quot;</span><span class="p">,</span> <span class="n">adapter_weight_scales</span><span class="p">)</span>
+<span class="n">image</span> <span class="o">=</span> <span class="n">pipe</span><span class="p">(</span><span class="n">prompt</span><span class="p">,</span> <span class="n">num_inference_steps</span><span class="o">=</span><span class="mi">30</span><span class="p">,</span> <span class="n">generator</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">Generator</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">PCG64</span><span class="p">(</span><span class="mi">0</span><span class="p">)))[</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
+<span class="n">image</span>
+</code></pre></div></p>
+<p><img alt="block-lora-text-and-mid" src="https://github.com/user-attachments/assets/86469036-8492-4cd3-bed7-493cf0c28da2" /></p>
+<div class="highlight"><pre><span></span><code><span class="n">adapter_weight_scales</span> <span class="o">=</span> <span class="p">{</span> <span class="s2">&quot;unet&quot;</span><span class="p">:</span> <span class="p">{</span> <span class="s2">&quot;down&quot;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span> <span class="s2">&quot;mid&quot;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span> <span class="s2">&quot;up&quot;</span><span class="p">:</span> <span class="mi">1</span><span class="p">}</span> <span class="p">}</span>
+<span class="n">pipe</span><span class="o">.</span><span class="n">set_adapters</span><span class="p">(</span><span class="s2">&quot;pixel&quot;</span><span class="p">,</span> <span class="n">adapter_weight_scales</span><span class="p">)</span>
+<span class="n">image</span> <span class="o">=</span> <span class="n">pipe</span><span class="p">(</span><span class="n">prompt</span><span class="p">,</span> <span class="n">num_inference_steps</span><span class="o">=</span><span class="mi">30</span><span class="p">,</span> <span class="n">generator</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">Generator</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">PCG64</span><span class="p">(</span><span class="mi">0</span><span class="p">)))[</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
+<span class="n">image</span>
+</code></pre></div>
+<p><img alt="block-lora-text-and-up" src="https://github.com/user-attachments/assets/b5d80d23-e463-41f3-a9b6-6a5f8f55a7b8" /></p>
+<p>Looks cool!</p>
+<p>This is a really powerful feature. You can use it to control the adapter strengths down to per-transformer level. And you can even use it for multiple adapters.
+<div class="highlight"><pre><span></span><code><span class="n">adapter_weight_scales_toy</span> <span class="o">=</span> <span class="mf">0.5</span>
+<span class="n">adapter_weight_scales_pixel</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="s2">&quot;unet&quot;</span><span class="p">:</span> <span class="p">{</span>
+        <span class="s2">&quot;down&quot;</span><span class="p">:</span> <span class="mf">0.9</span><span class="p">,</span>  <span class="c1"># all transformers in the down-part will use scale 0.9</span>
+        <span class="c1"># &quot;mid&quot;  # because, in this example, &quot;mid&quot; is not given, all transformers in the mid part will use the default scale 1.0</span>
+        <span class="s2">&quot;up&quot;</span><span class="p">:</span> <span class="p">{</span>
+            <span class="s2">&quot;block_0&quot;</span><span class="p">:</span> <span class="mf">0.6</span><span class="p">,</span>  <span class="c1"># all 3 transformers in the 0th block in the up-part will use scale 0.6</span>
+            <span class="s2">&quot;block_1&quot;</span><span class="p">:</span> <span class="p">[</span><span class="mf">0.4</span><span class="p">,</span> <span class="mf">0.8</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">],</span>  <span class="c1"># the 3 transformers in the 1st block in the up-part will use scales 0.4, 0.8 and 1.0 respectively</span>
+        <span class="p">}</span>
+    <span class="p">}</span>
+<span class="p">}</span>
+<span class="n">pipe</span><span class="o">.</span><span class="n">set_adapters</span><span class="p">([</span><span class="s2">&quot;toy&quot;</span><span class="p">,</span> <span class="s2">&quot;pixel&quot;</span><span class="p">],</span> <span class="p">[</span><span class="n">adapter_weight_scales_toy</span><span class="p">,</span> <span class="n">adapter_weight_scales_pixel</span><span class="p">])</span>
+<span class="n">image</span> <span class="o">=</span> <span class="n">pipe</span><span class="p">(</span><span class="n">prompt</span><span class="p">,</span> <span class="n">num_inference_steps</span><span class="o">=</span><span class="mi">30</span><span class="p">,</span> <span class="n">generator</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">Generator</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">PCG64</span><span class="p">(</span><span class="mi">0</span><span class="p">)))[</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
+<span class="n">image</span>
+</code></pre></div></p>
+<p><img alt="block-lora-mixed" src="https://github.com/user-attachments/assets/c4ffe4dc-6bf9-48e1-9a9e-4ca35c24a7a1" /></p>
 <h2 id="manage-active-adapters">Manage active adapters<a class="headerlink" href="#manage-active-adapters" title="Permanent link">&para;</a></h2>
-<p>You have attached multiple adapters in this tutorial, and if you're feeling a bit lost on what adapters have been attached to the pipeline's components, use the [<code>~diffusers.loaders.LoraLoaderMixin.get_active_adapters</code>] method to check the list of active adapters:</p>
+<p>You have attached multiple adapters in this tutorial, and if you're feeling a bit lost on what adapters have been attached to the pipeline's components, use the <a href="https://mindspore-lab.github.io/mindone/latest/diffusers/api/loaders/lora/#mindone.diffusers.loaders.lora.LoraLoaderMixin.get_active_adapters"><code>get_active_adapters</code></a> method to check the list of active adapters:</p>
 <div class="highlight"><pre><span></span><code><span class="n">active_adapters</span> <span class="o">=</span> <span class="n">pipe</span><span class="o">.</span><span class="n">get_active_adapters</span><span class="p">()</span>
 <span class="n">active_adapters</span>
-<span class="p">[</span><span class="s2">&quot;toy&quot;</span><span class="p">,</span> <span class="s2">&quot;pixel&quot;</span><span class="p">]</span>
+<span class="p">[</span><span class="s1">&#39;toy&#39;</span><span class="p">,</span> <span class="s1">&#39;pixel&#39;</span><span class="p">]</span>
 </code></pre></div>
 <p>You can also get the active adapters of each pipeline component with [<code>~diffusers.loaders.LoraLoaderMixin.get_list_adapters</code>]:</p>
 <div class="highlight"><pre><span></span><code><span class="n">list_adapters_component_wise</span> <span class="o">=</span> <span class="n">pipe</span><span class="o">.</span><span class="n">get_list_adapters</span><span class="p">()</span>
 <span class="n">list_adapters_component_wise</span>
-<span class="p">{</span><span class="s2">&quot;text_encoder&quot;</span><span class="p">:</span> <span class="p">[</span><span class="s2">&quot;toy&quot;</span><span class="p">,</span> <span class="s2">&quot;pixel&quot;</span><span class="p">],</span> <span class="s2">&quot;unet&quot;</span><span class="p">:</span> <span class="p">[</span><span class="s2">&quot;toy&quot;</span><span class="p">,</span> <span class="s2">&quot;pixel&quot;</span><span class="p">],</span> <span class="s2">&quot;text_encoder_2&quot;</span><span class="p">:</span> <span class="p">[</span><span class="s2">&quot;toy&quot;</span><span class="p">,</span> <span class="s2">&quot;pixel&quot;</span><span class="p">]}</span>
+<span class="p">{</span><span class="s2">&quot;unet&quot;</span><span class="p">:</span> <span class="p">[</span><span class="s1">&#39;toy&#39;</span><span class="p">,</span> <span class="s1">&#39;pixel&#39;</span><span class="p">]}</span>
 </code></pre></div>
 
 
@@ -2793,7 +5373,7 @@ specific language governing permissions and limitations under the License.
     <span class="md-icon" title="Last update">
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M21 13.1c-.1 0-.3.1-.4.2l-1 1 2.1 2.1 1-1c.2-.2.2-.6 0-.8l-1.3-1.3c-.1-.1-.2-.2-.4-.2m-1.9 1.8-6.1 6V23h2.1l6.1-6.1zM12.5 7v5.2l4 2.4-1 1L11 13V7zM11 21.9c-5.1-.5-9-4.8-9-9.9C2 6.5 6.5 2 12 2c5.3 0 9.6 4.1 10 9.3-.3-.1-.6-.2-1-.2s-.7.1-1 .2C19.6 7.2 16.2 4 12 4c-4.4 0-8 3.6-8 8 0 4.1 3.1 7.5 7.1 7.9l-.1.2z"/></svg>
     </span>
-    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-date">July 5, 2024</span>
+    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-date">November 1, 2024</span>
   </span>
 
     
@@ -2813,12 +5393,13 @@ specific language governing permissions and limitations under the License.
   <span class="md-source-file__fact">
     <span class="md-icon" title="Contributors">
       
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 4a4 4 0 0 1 4 4 4 4 0 0 1-4 4 4 4 0 0 1-4-4 4 4 0 0 1 4-4m0 10c4.42 0 8 1.79 8 4v2H4v-2c0-2.21 3.58-4 8-4"/></svg>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 5.5A3.5 3.5 0 0 1 15.5 9a3.5 3.5 0 0 1-3.5 3.5A3.5 3.5 0 0 1 8.5 9 3.5 3.5 0 0 1 12 5.5M5 8c.56 0 1.08.15 1.53.42-.15 1.43.27 2.85 1.13 3.96C7.16 13.34 6.16 14 5 14a3 3 0 0 1-3-3 3 3 0 0 1 3-3m14 0a3 3 0 0 1 3 3 3 3 0 0 1-3 3c-1.16 0-2.16-.66-2.66-1.62a5.54 5.54 0 0 0 1.13-3.96c.45-.27.97-.42 1.53-.42M5.5 18.25c0-2.07 2.91-3.75 6.5-3.75s6.5 1.68 6.5 3.75V20h-13zM0 20v-1.5c0-1.39 1.89-2.56 4.45-2.9-.59.68-.95 1.62-.95 2.65V20zm24 0h-3.5v-1.75c0-1.03-.36-1.97-.95-2.65 2.56.34 4.45 1.51 4.45 2.9z"/></svg>
       
     </span>
     <nav>
       
-        <a href="mailto:74176172+geniuspatrick@users.noreply.github.com">Genius Patrick</a>
+        <a href="mailto:74176172+geniuspatrick@users.noreply.github.com">Genius Patrick</a>, 
+        <a href="mailto:53842165+the-truthh@users.noreply.github.com">The-truthh</a>
     </nav>
   </span>
 
@@ -2872,13 +5453,13 @@ specific language governing permissions and limitations under the License.
         
         
           
-          <a href="../../api/loaders/ip_adapter/" class="md-footer__link md-footer__link--next" aria-label="Next: IP-Adapter">
+          <a href="../../using-diffusers/loading_overview/" class="md-footer__link md-footer__link--next" aria-label="Next: Overview">
             <div class="md-footer__title">
               <span class="md-footer__direction">
                 Next
               </span>
               <div class="md-ellipsis">
-                IP-Adapter
+                Overview
               </div>
             </div>
             <div class="md-footer__button md-icon">
