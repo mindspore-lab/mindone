@@ -41,7 +41,7 @@ ONE is short for "ONE for all"
 | [dynamicrafter](https://github.com/mindspore-lab/mindone/blob/master/examples/dynamicrafter)     | support image to video generation | 
 
 ###  run hf diffusers on mindspore
-mindone diffusers is under active development, most tasks were tested with mindspore 2.2.10 and ascend 910 hardware.
+mindone diffusers is under active development.
 
 | component  |  features  
 | :---   |  :--  
