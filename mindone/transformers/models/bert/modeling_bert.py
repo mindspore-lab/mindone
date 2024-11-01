@@ -814,6 +814,11 @@ class BertModel(BertPreTrainedModel):
         self.encoder = BertEncoder(config)
 
         self.pooler = BertPooler(config) if add_pooling_layer else None
+        if self.pooler is None:
+            logger.warning(
+                "Pooler is None, not returning `pooled_output`. "
+                "Model output will be (`last_hidden_stat`, `past_key_values`, `hidden_states`, `attentions`, `cross_attentions`)"
+            )
 
         self.attn_implementation = config._attn_implementation
         self.position_embedding_type = config.position_embedding_type
@@ -992,7 +997,10 @@ class BertModel(BertPreTrainedModel):
         pooled_output = self.pooler(sequence_output) if self.pooler is not None else None
 
         if not return_dict:
-            return (sequence_output, pooled_output) + encoder_outputs[1:]
+            if pooled_output is not None:
+                return (sequence_output, pooled_output) + encoder_outputs[1:]
+            else:
+                return (sequence_output,) + encoder_outputs[1:]
 
         return BaseModelOutputWithPoolingAndCrossAttentions(
             last_hidden_state=sequence_output,

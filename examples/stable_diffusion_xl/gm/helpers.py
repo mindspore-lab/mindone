@@ -111,6 +111,19 @@ def set_default(args):
         context.set_context(max_device_memory=args.max_device_memory)
         context.set_context(memory_optimize_level="O1", ascend_config={"atomic_clean_policy": 1})
 
+    try:
+        if args.jit_level in ["O0", "O1", "O2"]:
+            ms.set_context(jit_config={"jit_level": args.jit_level})
+            print(f"set jit_level: {args.jit_level}.")
+        else:
+            print(
+                f"WARNING: Unsupport jit_level: {args.jit_level}. The framework automatically selects the execution method"
+            )
+    except Exception:
+        print(
+            "WARNING: The current jit_level is not suitable because current MindSpore version or mode does not match,"
+            "please ensure the MindSpore version >= ms2.3.0, and use GRAPH_MODE."
+        )
     # Set Parallel
     if args.is_parallel:
         init()
@@ -254,16 +267,23 @@ def create_model(
     load_first_stage_model: bool = True,
     load_conditioner: bool = True,
 ):
-    from gm.models.diffusion import DiffusionEngine
+    from gm.models.diffusion import DiffusionEngine, DiffusionEngineControlNet, DiffusionEngineDreamBooth
 
-    assert (
-        config.model["target"] == "gm.models.diffusion.DiffusionEngine"
-    ), f"Not supported for `class {config.model['target']}`"
+    assert config.model["target"] in [
+        "gm.models.diffusion.DiffusionEngine",
+        "gm.models.diffusion.DiffusionEngineDreamBooth",
+        "gm.models.diffusion.DiffusionEngineControlNet",
+    ], f"Not supported for `class {config.model['target']}`"
 
     # create diffusion engine
     config.model["params"]["load_first_stage_model"] = load_first_stage_model
     config.model["params"]["load_conditioner"] = load_conditioner
-    sdxl = DiffusionEngine(**config.model.get("params", dict()))
+    target_map = {
+        "gm.models.diffusion.DiffusionEngine": DiffusionEngine,
+        "gm.models.diffusion.DiffusionEngineDreamBooth": DiffusionEngineDreamBooth,
+        "gm.models.diffusion.DiffusionEngineControlNet": DiffusionEngineControlNet,
+    }
+    sdxl = target_map[config.model["target"]](**config.model.get("params", dict()))
 
     # load pretrained
     sdxl.load_pretrained(checkpoints)
