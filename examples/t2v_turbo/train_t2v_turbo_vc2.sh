@@ -29,6 +29,7 @@ python train_t2v_turbo_vc2.py \
   --csv_path $CSV_PATH \
   --data_path $DATA_PATH \
   --max_train_samples 100 \
+  --dataloader_num_workers 1 \
   --mode 1 \
   --cast_teacher_unet \
   --lora_rank 64 \

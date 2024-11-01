@@ -107,10 +107,7 @@ class AutoencoderKL(nn.Cell):
 
     def decode(self, z, **kwargs):
         z = self.post_quant_conv(z)
-        if kwargs.get("use_recompute", False):
-            dec = ms.recompute(self.decoder, z)
-        else:
-            dec = self.decoder(z)
+        dec = self.decoder(z)
         return dec
 
     def construct(self, input, sample_posterior=True):

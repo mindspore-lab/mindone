@@ -449,8 +449,6 @@ def main(args):
             if ema is not None:
                 ema.swap_after_eval()
 
-        train_dataloader.reset()
-
 
 if __name__ == "__main__":
     args = parse_args()

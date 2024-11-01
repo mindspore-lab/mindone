@@ -91,9 +91,9 @@ class CrossAttention(nn.Cell):
             self.k_bias = None
             self.v_bias = None
         
-        self.attn_drop = nn.Dropout(attn_drop)
+        self.attn_drop = nn.Dropout(p=attn_drop)
         self.proj = nn.Dense(all_head_dim, out_dim)
-        self.proj_drop = nn.Dropout(proj_drop)
+        self.proj_drop = nn.Dropout(p=proj_drop)
     
     def construct(self, x, k=None, v=None):
         B, N, C = x.shape
@@ -202,9 +202,9 @@ class Attention(nn.Cell):
         self.scale = head_dim ** -0.5
         
         self.qkv = nn.Dense(dim, dim * 3, has_bias=qkv_bias)
-        self.attn_drop = nn.Dropout(attn_drop)
+        self.attn_drop = nn.Dropout(p=attn_drop)
         self.proj = nn.Dense(dim, dim)
-        self.proj_drop = nn.Dropout(proj_drop)
+        self.proj_drop = nn.Dropout(p=proj_drop)
         
         self.use_flash_attn = use_flash_attn
         if use_flash_attn:
@@ -283,9 +283,9 @@ class Mlp(nn.Cell):
         
         self.fc1 = nn.Dense(in_features, hidden_features, has_bias=bias[0])
         self.act = act_layer(approximate=False)
-        self.drop1 = nn.Dropout(drop_probs[0])
+        self.drop1 = nn.Dropout(p=drop_probs[0])
         self.fc2 = nn.Dense(hidden_features, out_features, has_bias=bias[1])
-        self.drop2 = nn.Dropout(drop_probs[1])
+        self.drop2 = nn.Dropout(p=drop_probs[1])
     
     def construct(self, x):
         x = self.fc1(x)
@@ -467,7 +467,7 @@ class PretrainInternVideo2(nn.Cell):
         num_patches = self.patch_embed.num_patches
         num_img_patches = self.patch_embed.num_img_patches
 
-        self.cls_token = ms.Parameter(ops.zeros(1, 1, embed_dim))
+        self.cls_token = ms.Parameter(ops.zeros((1, 1, embed_dim)))
         
         # stolen from https://github.com/facebookresearch/mae_st/blob/dc072aaaf640d06892e23a33b42223a994efe272/models_vit.py#L65-L73C17
         self.sep_pos_embed = sep_pos_embed
@@ -477,15 +477,15 @@ class PretrainInternVideo2(nn.Cell):
         else:
             if sep_image_video_pos_embed:
                 logger.info("Use joint position embedding, for image and video we use different pos_embed.")
-                self.pos_embed = ms.Parameter(ops.zeros(1, num_patches + 1, embed_dim))
-                self.img_pos_embed = ms.Parameter(ops.zeros(1, num_img_patches + 1, embed_dim))
+                self.pos_embed = ms.Parameter(ops.zeros((1, num_patches + 1, embed_dim)))
+                self.img_pos_embed = ms.Parameter(ops.zeros((1, num_img_patches + 1, embed_dim)))
                 # for CLIP decoder
-                self.clip_pos_embed = ms.Parameter(ops.zeros(1, num_patches + 1, embed_dim))
-                self.clip_img_pos_embed = ms.Parameter(ops.zeros(1, num_img_patches + 1, embed_dim))
+                self.clip_pos_embed = ms.Parameter(ops.zeros((1, num_patches + 1, embed_dim)))
+                self.clip_img_pos_embed = ms.Parameter(ops.zeros((1, num_img_patches + 1, embed_dim)))
             else:
                 logger.info("Use joint position embedding, for image and video we use same pos_embed.")
-                self.pos_embed = ms.Parameter(ops.zeros(1, num_patches + 1, embed_dim))
-                self.clip_pos_embed = ms.Parameter(ops.zeros(1, num_patches + 1, embed_dim))
+                self.pos_embed = ms.Parameter(ops.zeros((1, num_patches + 1, embed_dim)))
+                self.clip_pos_embed = ms.Parameter(ops.zeros((1, num_patches + 1, embed_dim)))
         dpr = [x.item() for x in ops.linspace(0, drop_path_rate, depth)]
         # choose which layer to use checkpoint
         with_cp_list = [False] * depth
@@ -509,14 +509,14 @@ class PretrainInternVideo2(nn.Cell):
             for i in range(depth)])
         self.clip_projector = AttentionPoolingBlock(
             dim=embed_dim, num_heads=attn_pool_num_heads, qkv_bias=True, qk_scale=None,
-            drop=0., attn_drop=0., norm_layer=partial(LayerNorm, eps=1e-5), out_dim=clip_embed_dim)
+            drop=0., attn_drop=0., norm_layer=partial(LayerNorm, epsilon=1e-5), out_dim=clip_embed_dim)
         
         # CLIP decoder
         self.clip_decoder = nn.CellList([
             Linear_Decoder(
                 in_channels=embed_dim, 
                 out_channels=clip_teacher_embed_dim, 
-                norm_layer=partial(LayerNorm, eps=1e-5), 
+                norm_layer=partial(LayerNorm, epsilon=1e-5), 
                 clip_norm_type=clip_norm_type
             ) for _ in range(clip_return_layer)
         ])
@@ -525,7 +525,7 @@ class PretrainInternVideo2(nn.Cell):
             self.final_clip_decoder = Linear_Decoder(
                 in_channels=clip_embed_dim, 
                 out_channels=clip_teacher_final_dim, 
-                norm_layer=partial(LayerNorm, eps=1e-5), 
+                norm_layer=partial(LayerNorm, epsilon=1e-5), 
                 clip_norm_type=clip_norm_type
             )
         
@@ -606,7 +606,7 @@ class PretrainInternVideo2(nn.Cell):
         x = x.reshape([B, T * L, C])
 
         # append cls token
-        cls_tokens = self.cls_token.expand(B, -1, -1)
+        cls_tokens = self.cls_token.repeat_interleave(B, 0)
         x = mint.cat((cls_tokens, x), dim=1)
 
         # add pos_embed
@@ -810,12 +810,12 @@ if __name__ == '__main__':
     # print(time.time()-s)
 
     mask = ops.cat([
-        ops.ones(1, 8 * int(16 * 16 * 0.75)),
-        ops.zeros(1, 8 * int(16 * 16 * 0.25)),
-        ops.zeros(1, 1),
+        ops.ones((1, 8 * int(16 * 16 * 0.75))),
+        ops.zeros((1, 8 * int(16 * 16 * 0.25))),
+        ops.zeros((1, 1)),
     ], dim=-1).to(ms.bool)
     
-    output = model(ops.rand(4, 3, num_frames, img_size, img_size), mask.repeat(4, 1))
+    output = model(ops.rand((4, 3, num_frames, img_size, img_size)), mask.repeat(4, 1))
     print(output[0].shape)
     print(output[1].shape)
     print(output[2].shape)

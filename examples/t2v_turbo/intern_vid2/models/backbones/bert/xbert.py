@@ -182,7 +182,7 @@ class LayerNormFp32(nn.LayerNorm):
 
 
 class BertConfig(PretrainedConfig):
-    r"""
+    """
     This is the configuration class to store the configuration of a [`BertModel`] or a [`TFBertModel`]. It is used to
     instantiate a BERT model according to the specified arguments, defining the model architecture. Instantiating a
     configuration with the defaults will yield a similar configuration to that of the BERT
@@ -290,7 +290,7 @@ class BertConfig(PretrainedConfig):
 
 
 class BertSelfOutput(nn.Cell):
-    r"""
+    """
     Bert Self Output
     """
 
@@ -300,7 +300,7 @@ class BertSelfOutput(nn.Cell):
         self.LayerNorm = LayerNormFp32((config.hidden_size,), epsilon=config.layer_norm_eps)
         self.dropout = nn.Dropout(p=config.hidden_dropout_prob)
 
-    def construct(self, hidden_states, input_tensor):
+    def construct(self, hidden_states: ms.Tensor, input_tensor: ms.Tensor) -> ms.Tensor:
         hidden_states = self.dense(hidden_states)
         hidden_states = self.dropout(hidden_states)
         hidden_states = self.LayerNorm(hidden_states + input_tensor)
@@ -975,8 +975,6 @@ class BertModel(BertPreTrainedModel):
 
         self.pooler = BertPooler(config) if add_pooling_layer else None
 
-        self.init_weights()
-
     def get_input_embeddings(self):
         return self.embeddings.word_embeddings
 
@@ -1081,7 +1079,7 @@ class BertModel(BertPreTrainedModel):
         mode="multi_modal",
         normalize_attention=True,
     ):
-        r"""
+        """
         encoder_hidden_states  (:obj:`ms.Tensor` of shape :obj:`(batch_size, sequence_length, hidden_size)`, `optional`):
             Sequence of hidden-states at the output of the last layer of the encoder. Used in the cross-attention if
             the model is configured as a decoder.
@@ -1234,8 +1232,6 @@ class BertForPreTraining(BertPreTrainedModel):
         self.bert = BertModel(config)
         self.cls = BertPreTrainingHeads(config)
 
-        self.init_weights()
-
     def get_output_embeddings(self):
         return self.cls.predictions.decoder
 
@@ -1256,7 +1252,7 @@ class BertForPreTraining(BertPreTrainedModel):
         output_hidden_states=None,
         return_dict=None,
     ):
-        r"""
+        """
         labels (:obj:`ms.Tensor` of shape ``(batch_size, sequence_length)``, `optional`):
             Labels for computing the masked language modeling loss. Indices should be in ``[-100, 0, ...,
             config.vocab_size]`` (see ``input_ids`` docstring) Tokens with indices set to ``-100`` are ignored
@@ -1331,8 +1327,6 @@ class BertLMHeadModel(BertPreTrainedModel):
         self.bert = BertModel(config, add_pooling_layer=False)
         self.cls = BertOnlyMLMHead(config)
 
-        self.init_weights()
-
     def get_output_embeddings(self):
         return self.cls.predictions.decoder
 
@@ -1363,7 +1357,7 @@ class BertLMHeadModel(BertPreTrainedModel):
         alpha=0,
         return_logits=False,
     ):
-        r"""
+        """
         encoder_hidden_states  (:obj:`ms.Tensor` of shape :obj:`(batch_size, sequence_length, hidden_size)`, `optional`):
             Sequence of hidden-states at the output of the last layer of the encoder. Used in the cross-attention if
             the model is configured as a decoder.
@@ -1513,8 +1507,6 @@ class BertForMaskedLM(BertPreTrainedModel):
         self.bert = BertModel(config, add_pooling_layer=False)
         self.cls = BertOnlyMLMHead(config)
 
-        self.init_weights()
-
     def tie_aux_decoder_weights(self, module, aux_modules):
         """Tie decoder weights of all `aux_modules` to `module`, (not bias)"""
         for m in aux_modules:
@@ -1637,8 +1629,6 @@ class BertForNextSentencePrediction(BertPreTrainedModel):
         self.bert = BertModel(config)
         self.cls = BertOnlyNSPHead(config)
 
-        self.init_weights()
-
     def construct(
         self,
         input_ids=None,
@@ -1726,8 +1716,6 @@ class BertForSequenceClassification(BertPreTrainedModel):
         self.dropout = nn.Dropout(config.hidden_dropout_prob)
         self.classifier = nn.Dense(config.hidden_size, config.num_labels)
 
-        self.init_weights()
-
     def construct(
         self,
         input_ids=None,
@@ -1795,8 +1783,6 @@ class BertForMultipleChoice(BertPreTrainedModel):
         self.bert = BertModel(config)
         self.dropout = nn.Dropout(config.hidden_dropout_prob)
         self.classifier = nn.Dense(config.hidden_size, 1)
-
-        self.init_weights()
 
     def construct(
         self,
@@ -1887,8 +1873,6 @@ class BertForTokenClassification(BertPreTrainedModel):
         self.dropout = nn.Dropout(config.hidden_dropout_prob)
         self.classifier = nn.Dense(config.hidden_size, config.num_labels)
 
-        self.init_weights()
-
     def construct(
         self,
         input_ids=None,
@@ -1964,8 +1948,6 @@ class BertForQuestionAnswering(BertPreTrainedModel):
 
         self.bert = BertModel(config, add_pooling_layer=False)
         self.qa_outputs = nn.Dense(config.hidden_size, config.num_labels)
-
-        self.init_weights()
 
     def construct(
         self,

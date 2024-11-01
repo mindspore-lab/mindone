@@ -147,6 +147,7 @@ class TextVideoDataset:
         max_attempts = 100
         self.prev_ok_sample = self.get_replace_data(max_attempts)
         self.require_update_prev = False
+        self.sample_size = sample_size
 
     def get_replace_data(self, max_attempts=100):
         replace_data = None
@@ -154,15 +155,6 @@ class TextVideoDataset:
         for idx in range(attempts):
             try:
                 pixel_values, caption = self.get_batch(idx)
-                inputs = {"image": pixel_values[0]}
-                num_frames = len(pixel_values)
-                for i in range(num_frames - 1):
-                    inputs[f"image{i}"] = pixel_values[i + 1]
-
-                output = self.pixel_transforms(**inputs)
-                pixel_values = np.stack(list(output.values()), axis=0)
-                # (f, h, w, c) -> (f, c, h, w)
-                pixel_values = np.transpose(pixel_values, (0, 3, 1, 2))
                 replace_data = copy.deepcopy((pixel_values, caption))
                 break
             except Exception as e:
@@ -219,33 +211,15 @@ class TextVideoDataset:
                 - video: preprocessed video frames in shape (f, c, h, w)
                 - text_data: if tokenizer provided, tokens shape (context_max_len,), otherwise text string
         """
-        pixel_values, caption = self.get_batch(idx)
-
         try:
-            # pixel value: (f, h, w, 3) -> transforms -> (f 3 h' w')
-            if self.transform_backend == "pt":
-                import torch
-
-                pixel_values = torch.from_numpy(pixel_values).permute(0, 3, 1, 2).contiguous()
-                pixel_values = self.pixel_transforms(pixel_values)
-                pixel_values = pixel_values.numpy()
-            elif self.transform_backend == "al":
-                # NOTE:it's to ensure augment all frames in a video in the same way.
-                # ref: https://albumentations.ai/docs/examples/example_multi_target/
-
-                inputs = {"image": pixel_values[0]}
-                num_frames = len(pixel_values)
-                for i in range(num_frames - 1):
-                    inputs[f"image{i}"] = pixel_values[i + 1]
-
-                output = self.pixel_transforms(**inputs)
-
-                pixel_values = np.stack(list(output.values()), axis=0)
-                # (f h w c) -> (f c h w)
-                pixel_values = np.transpose(pixel_values, (0, 3, 1, 2))
-            else:
-                raise NotImplementedError
-
+            pixel_values, caption = self.get_batch(idx)
+            h_ = pixel_values.shape[1]
+            w_ = pixel_values.shape[2]
+            assert h_ >= self.sample_size[0], f"size not large enough, h: {h_}"
+            assert w_ >= self.sample_size[1], f"size not large enough, w: {w_}"
+            if (self.prev_ok_sample is None) or (self.require_update_prev):
+                self.prev_ok_sample = copy.deepcopy((pixel_values, caption))
+                self.require_update_prev = False
         except Exception as e:
             logger.warning(f"Fail to get sample of idx {idx}. The corrupted video will be replaced.")
             print("\tError msg: {}".format(e), flush=True)
@@ -255,6 +229,30 @@ class TextVideoDataset:
 
             if idx >= self.length:
                 raise IndexError  # needed for checking the end of dataset iteration
+
+        # pixel value: (f, h, w, 3) -> transforms -> (f 3 h' w')
+        if self.transform_backend == "pt":
+            import torch
+
+            pixel_values = torch.from_numpy(pixel_values).permute(0, 3, 1, 2).contiguous()
+            pixel_values = self.pixel_transforms(pixel_values)
+            pixel_values = pixel_values.numpy()
+        elif self.transform_backend == "al":
+            # NOTE:it's to ensure augment all frames in a video in the same way.
+            # ref: https://albumentations.ai/docs/examples/example_multi_target/
+
+            inputs = {"image": pixel_values[0]}
+            num_frames = len(pixel_values)
+            for i in range(num_frames - 1):
+                inputs[f"image{i}"] = pixel_values[i + 1]
+
+            output = self.pixel_transforms(**inputs)
+
+            pixel_values = np.stack(list(output.values()), axis=0)
+            # (f h w c) -> (f c h w)
+            pixel_values = np.transpose(pixel_values, (0, 3, 1, 2))
+        else:
+            raise NotImplementedError
 
         if self.is_image:
             pixel_values = pixel_values[0]

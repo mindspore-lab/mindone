@@ -159,7 +159,7 @@ def get_hpsv2_fn(precision="no", rm_ckpt_dir="HPS_v2_compressed.ckpt"):
             text_inputs = ms.Tensor(tokenize(text_inputs)[0], ms.int32)
 
         # embed
-        image_features = model.encode_image(image_inputs, normalize=True, use_recompute=False)
+        image_features = model.encode_image(image_inputs, normalize=True)
 
         with ms._no_grad():
             text_features = model.encode_text(text_inputs, normalize=True)
