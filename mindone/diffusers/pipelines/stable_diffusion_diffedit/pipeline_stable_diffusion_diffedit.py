@@ -64,7 +64,7 @@ EXAMPLE_DOC_STRING = """
         >>> import mindspore as ms
         >>> from io import BytesIO
 
-        >>> from mindone.diffusers import StableDiffusionDiffEditPipeline, DDIMScheduler
+        >>> from mindone.diffusers import StableDiffusionDiffEditPipeline, DDIMScheduler, DDIMInverseScheduler
 
 
         >>> def download_image(url):
@@ -80,8 +80,8 @@ EXAMPLE_DOC_STRING = """
         ...     "stabilityai/stable-diffusion-2-1", mindspore_dtype=ms.float16
         ... )
 
-        >>> pipeline.scheduler = DDIMScheduler.from_config(pipeline.scheduler.config)
-        >>> pipeline.inverse_scheduler = DDIMInverseScheduler.from_config(pipeline.scheduler.config)
+        >>> pipe.scheduler = DDIMScheduler.from_config(pipe.scheduler.config)
+        >>> pipe.inverse_scheduler = DDIMInverseScheduler.from_config(pipe.scheduler.config)
 
         >>> mask_prompt = "A bowl of fruits"
         >>> prompt = "A bowl of pears"
@@ -460,11 +460,12 @@ class StableDiffusionDiffEditPipeline(
                 truncation=True,
                 return_tensors="np",
             )
-            text_input_ids = ms.Tensor(text_inputs.input_ids)
+            text_input_ids = text_inputs.input_ids
             untruncated_ids = self.tokenizer(prompt, padding="longest", return_tensors="np").input_ids
-            untruncated_ids = ms.Tensor(untruncated_ids)
 
-            if untruncated_ids.shape[-1] >= text_input_ids.shape[-1] and not ops.equal(text_input_ids, untruncated_ids):
+            if untruncated_ids.shape[-1] >= text_input_ids.shape[-1] and not np.array_equal(
+                text_input_ids, untruncated_ids
+            ):
                 removed_text = self.tokenizer.batch_decode(untruncated_ids[:, self.tokenizer.model_max_length - 1 : -1])
                 logger.warning(
                     "The following part of your input was truncated because CLIP can only handle sequences up to"
@@ -472,16 +473,16 @@ class StableDiffusionDiffEditPipeline(
                 )
 
             if hasattr(self.text_encoder.config, "use_attention_mask") and self.text_encoder.config.use_attention_mask:
-                attention_mask = text_inputs.attention_mask
+                attention_mask = ms.tensor(text_inputs.attention_mask)
             else:
                 attention_mask = None
 
             if clip_skip is None:
-                prompt_embeds = self.text_encoder(text_input_ids, attention_mask=attention_mask)
+                prompt_embeds = self.text_encoder(ms.tensor(text_input_ids), attention_mask=attention_mask)
                 prompt_embeds = prompt_embeds[0]
             else:
                 prompt_embeds = self.text_encoder(
-                    text_input_ids, attention_mask=attention_mask, output_hidden_states=True
+                    ms.tensor(text_input_ids), attention_mask=attention_mask, output_hidden_states=True
                 )
                 # Access the `hidden_states` first, that contains a tuple of
                 # all the hidden states from the encoder layers. Then index into
@@ -734,7 +735,7 @@ class StableDiffusionDiffEditPipeline(
             latents = randn_tensor(shape, generator=generator, dtype=dtype)
 
         # scale the initial noise by the standard deviation required by the scheduler
-        latents = latents * self.scheduler.init_noise_sigma
+        latents = (latents * self.scheduler.init_noise_sigma).to(dtype)
         return latents
 
     def prepare_image_latents(self, image, batch_size, dtype, generator=None):

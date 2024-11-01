@@ -36,15 +36,12 @@ logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
 EXAMPLE_DOC_STRING = """
     Examples:
         ```py
-        >>> import torch
-        >>> from diffusers import DiffusionPipeline
-        >>> from diffusers.utils import export_to_gif
-
-        >>> device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        >>> import mindspore as ms
+        >>> from mindone.diffusers import DiffusionPipeline
+        >>> from mindone.diffusers.utils import export_to_gif
 
         >>> repo = "openai/shap-e"
-        >>> pipe = DiffusionPipeline.from_pretrained(repo, torch_dtype=torch.float16)
-        >>> pipe = pipe.to(device)
+        >>> pipe = DiffusionPipeline.from_pretrained(repo, mindspore_dtype=ms.float16)
 
         >>> guidance_scale = 15.0
         >>> prompt = "a shark"
@@ -54,7 +51,7 @@ EXAMPLE_DOC_STRING = """
         ...     guidance_scale=guidance_scale,
         ...     num_inference_steps=64,
         ...     frame_size=256,
-        ... ).images
+        ... )[0]
 
         >>> gif_path = export_to_gif(images[0], "shark_3d.gif")
         ```
@@ -145,17 +142,19 @@ class ShapEPipeline(DiffusionPipeline):
             truncation=True,
             return_tensors="np",
         )
-        text_input_ids = ms.Tensor.from_numpy(text_inputs.input_ids)
-        untruncated_ids = ms.Tensor.from_numpy(self.tokenizer(prompt, padding="longest", return_tensors="np").input_ids)
+        text_input_ids = text_inputs.input_ids
+        untruncated_ids = self.tokenizer(prompt, padding="longest", return_tensors="np").input_ids
 
-        if untruncated_ids.shape[-1] >= text_input_ids.shape[-1] and not ops.equal(text_input_ids, untruncated_ids):
+        if untruncated_ids.shape[-1] >= text_input_ids.shape[-1] and not np.array_equal(
+            text_input_ids, untruncated_ids
+        ):
             removed_text = self.tokenizer.batch_decode(untruncated_ids[:, self.tokenizer.model_max_length - 1 : -1])
             logger.warning(
                 "The following part of your input was truncated because CLIP can only handle sequences up to"
                 f" {self.tokenizer.model_max_length} tokens: {removed_text}"
             )
 
-        text_encoder_output = self.text_encoder(text_input_ids)
+        text_encoder_output = self.text_encoder(ms.tensor(text_input_ids))
         prompt_embeds = text_encoder_output[0]
 
         prompt_embeds = prompt_embeds.repeat_interleave(num_images_per_prompt, dim=0)
