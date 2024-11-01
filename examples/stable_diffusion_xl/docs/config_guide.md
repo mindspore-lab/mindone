@@ -1,4 +1,4 @@
-# Hyper-Parameters (Training)
+# Training config guide
 
 ## 1. Script parameters
 
@@ -10,12 +10,12 @@
 - `--per_batch_size`: training batch size of per device card
 - `--gradient_accumulation_steps`: gradient accumulation steps
 - `--clip_grad`: whether apply gradient clipping
-- `--max_grad_norm`: max gradient norm for clipping, effective when `clip_grad` enabled.
+- `--max_grad_norm`: max gradient norm for clipping, effective when `clip_grad` is enabled.
 - `--use_ema`: whether use ema
 - `--scale_lr`: whether scale lr with global batch size
 - `--max_device_memory`: set the maximum memory usage for model training, recommended to `59GB` on 910*
 
-- `--is_parallel`: whether to train the model in parallel, must be `True` during multi card training
+- `--is_parallel`: whether to train the model in parallel, must be `True` during multi-card training
 
 - `--data_sink`: whether sink data to npu device
 - `--sink_size`: sink size, effective when `data_sink` enabled.
@@ -29,11 +29,11 @@
 
 ### mix-precision training
 
-- `--ms_amp_level`: setting mindspore auto-mix-precision level, e.g. default is `O2` level, keep full precision operations for cells and operators in blacklist(norm layer/silu), and convert the rest to lower precision operations. reference to [MindSpore Document](https://www.mindspore.cn/docs/en/r2.2/api_python/amp/mindspore.amp.auto_mixed_precision.html).
+- `--ms_amp_level`: setting mindspore auto-mix-precision level, e.g. default is `O2` level, keep full precision operations for cells and operators in the blacklist(norm layer/silu), and convert the rest to lower precision operations. reference to [MindSpore Document](https://www.mindspore.cn/docs/en/r2.2/api_python/amp/mindspore.amp.auto_mixed_precision.html).
 
 - `--param_fp16`: convert weight to `fp16`
 
-  > ⚠️: It is not recommended to turn on `--param_fp16`, that will force to convert the weight to `fp16` and may lead to unstable training.
+  > ⚠️: It is not recommended to turn on `--param_fp16`, which will force the conversion of the weight to `fp16` and may lead to unstable training.
 
   > ⚠️: If you still insist on using it, you can try replacing the [vae-fp16-fix weight](./weight_convertion.md), which can bring slight help.
 
@@ -97,7 +97,7 @@ python train.py \
   ```
 
 
-## 2. Configure
+## 2. Config file
 
 ```shell
 # Diffusion Engine
@@ -221,4 +221,31 @@ data:
                 - target: gm.data.mappers.Transpose
                   params:
                     type: hwc2chw
+```
+
+
+## 3. Long prompts training
+
+By default, SDXL only supports the token sequence no longer than 77. Those sequences longer than 77 will be truncated to 77, which can cause information loss.
+
+To avoid information loss for long text prompts, we add the feature of long prompts training. Long prompts training is supported by `args.lpw` in `train.py`.
+
+```shell
+python train.py \
+  ...  \  # other arguments configurations
+  --lpw True \
+```
+
+## 4. EDM training
+
+> [Elucidating the Design Space of Diffusion-Based Generative Models](https://arxiv.org/pdf/2206.00364.pdf)
+
+By default, SDXL uses DDPM for training. It can be changed to the EDM-style training by configuring the `denoiser` and other related parameters of the training.
+
+We have provided an EDM-style-training yaml configuration file, in which parameters `denoiser_config` its associated `weighting_config,` and `scaling_config` are modified to support EDM training. You can refer to the following case to make it effective.
+
+```shell
+python train.py \
+  ...  \  # other arguments configurations
+  --config configs/training/sd_xl_base_finetune_910b_edm.yaml \
 ```
