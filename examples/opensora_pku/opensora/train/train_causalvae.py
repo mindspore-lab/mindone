@@ -278,6 +278,7 @@ def main(args):
             weight_decay=args.weight_decay,
         )
         loss_scaler_disc = create_loss_scaler(args)
+        scaling_sens_d = loss_scaler_disc.loss_scale_value
 
     assert args.ema_start_step == 0, "Now only support to update EMA from the first step"
     ema = EMA(ae_with_loss.autoencoder, ema_decay=args.ema_decay, offloading=args.ema_offload) if args.use_ema else None
