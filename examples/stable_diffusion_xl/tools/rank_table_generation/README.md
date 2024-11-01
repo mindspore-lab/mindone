@@ -42,6 +42,17 @@ python merge_hccl.py hccl*.json
 python merge_hccl.py hccl1.json hccl2.json --save_path specific/save/path
 ```
 
+Example uasge of distributed vallina training using rank table file.
+
+```shell
+# sdxl-base fine-tune with 8p
+bash scripts/run_distribute_vanilla_ft_910b.sh /path_to/hccl_8p.json 0 8 8 /path_to/dataset/
+
+# sdxl-base fine-tune with 16p on Ascend
+bash scripts/run_distribute_vanilla_ft_910b.sh /path_to/hccl_16p.json 0 8 16 /path_to/dataset/  # run on server 1
+bash scripts/run_distribute_vanilla_ft_910b.sh /path_to/hccl_16p.json 8 16 16 /path_to/dataset/ # run on server 2
+```
+
 ### Note
 
 The server order in the output config file comes from the order of the input file list.

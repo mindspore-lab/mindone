@@ -37,7 +37,7 @@ python train.py \
 
 ### 2. vanilla fine-tune for distribute
 
-Distributed training with `msrun` command, (recommanded)
+Distributed training with `msrun` command,
 ```shell
 # sdxl-base fine-tune with 8p
 msrun --worker_num=8 \
@@ -52,16 +52,6 @@ msrun --worker_num=8 \
     --max_device_memory "59GB" \
     --param_fp16 True \
     --is_parallel True
-```
-or prepare hccl [rank table](../tools/rank_table_generation/README.md) file for single/multi-server(s),
-
-```shell
-# sdxl-base fine-tune with 8p
-bash scripts/run_distribute_vanilla_ft_910b.sh /path_to/hccl_8p.json 0 8 8 /path_to/dataset/
-
-# sdxl-base fine-tune with 16p on Ascend
-bash scripts/run_distribute_vanilla_ft_910b.sh /path_to/hccl_16p.json 0 8 16 /path_to/dataset/  # run on server 1
-bash scripts/run_distribute_vanilla_ft_910b.sh /path_to/hccl_16p.json 8 16 16 /path_to/dataset/ # run on server 2
 ```
 
 ### 3. data sink mode
