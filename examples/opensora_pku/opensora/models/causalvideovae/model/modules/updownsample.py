@@ -1,76 +1,64 @@
 from typing import Tuple, Union
 
+from opensora.npu_config import npu_config
+
 import mindspore as ms
-from mindspore import nn, ops
+from mindspore import mint, nn, ops
 
 from .conv import CausalConv3d
-from .ops import cast_tuple
+from .ops import cast_tuple, video_to_image
 
 
 class Upsample(nn.Cell):
-    def __init__(self, in_channels, with_conv, dtype=ms.float32):
+    def __init__(self, in_channels, out_channels, with_conv=True, dtype=ms.float32):
         super().__init__()
         self.dtype = dtype
         self.with_conv = with_conv
         if self.with_conv:
             self.conv = nn.Conv2d(
-                in_channels, in_channels, kernel_size=3, stride=1, pad_mode="pad", padding=1, has_bias=True
+                in_channels, out_channels, kernel_size=3, stride=1, pad_mode="pad", padding=1, has_bias=True
             ).to_float(self.dtype)
 
+    @video_to_image
     def construct(self, x):
         in_shape = x.shape[-2:]
         out_shape = tuple(2 * x for x in in_shape)
         x = ops.ResizeNearestNeighbor(out_shape)(x)
-
         if self.with_conv:
             x = self.conv(x)
         return x
 
 
 class Downsample(nn.Cell):
-    def __init__(self, in_channels, with_conv=True, dtype=ms.float32):
+    def __init__(self, in_channels, out_channels, undown=False, dtype=ms.float32):
         super().__init__()
+        self.with_conv = True
+        self.undown = undown
         self.dtype = dtype
-        self.with_conv = with_conv
-        assert with_conv, "Downsample is forced to use conv in opensora v1.1"
         if self.with_conv:
             # no asymmetric padding in torch conv, must do it ourselves
-            self.conv = nn.Conv2d(
-                in_channels, in_channels, kernel_size=3, stride=2, pad_mode="valid", padding=0, has_bias=True
-            ).to_float(self.dtype)
+            if self.undown:
+                self.conv = nn.Conv2d(
+                    in_channels, out_channels, kernel_size=3, stride=1, padding=1, pad_mode="pad", has_bias=True
+                ).to_float(self.dtype)
+            else:
+                self.conv = nn.Conv2d(
+                    in_channels, out_channels, kernel_size=3, stride=2, padding=0, pad_mode="pad", has_bias=True
+                ).to_float(self.dtype)
 
-    def rearrange_in(self, x):
-        # b c f h w -> b f c h w
-        B, C, F, H, W = x.shape
-        x = ops.transpose(x, (0, 2, 1, 3, 4))
-        # -> (b*f c h w)
-        x = ops.reshape(x, (-1, C, H, W))
-
-        return x
-
-    def rearrange_out(self, x, F):
-        BF, D, H_, W_ = x.shape
-        # (b*f D h w) -> (b f D h w)
-        x = ops.reshape(x, (BF // F, F, D, H_, W_))
-        # -> (b D f h w)
-        x = ops.transpose(x, (0, 2, 1, 3, 4))
-
-        return x
-
+    @video_to_image
     def construct(self, x):
-        F = x.shape[-3]
-        x = self.rearrange_in(x)
-
         if self.with_conv:
-            pad = ((0, 0), (0, 0), (0, 1), (0, 1))
-            x = nn.Pad(paddings=pad)(x)
-            # pad = (0, 1, 0, 1)  # (pad_left, pad_right, pad_top, pad_bottom)
-            # x = ops.pad(x, pad, mode="constant", value=0)
-            x = self.conv(x)
+            if self.undown:
+                x = self.conv(x)
+            else:
+                pad = (0, 1, 0, 1)
+                x = mint.nn.functional.pad(x, pad, mode="constant", value=0)
+                x = self.conv(x)
         else:
-            x = ops.AvgPool(kernel_size=2, stride=2)(x)
-
-        x = self.rearrange_out(x, F)
+            x = npu_config.run_pool_2d(
+                mint.nn.functional.avg_pool2d, kernel_size=2, stride=2
+            )  # avgpool does not support bf16, but only fp32 and fp16
         return x
 
 
@@ -105,8 +93,8 @@ class SpatialDownsample2x(nn.Cell):
 
     def construct(self, x):
         # x shape: (b c t h w)
-        # x = ops.pad(x, self.padding, mode="constant", value=0)
-        x = self.pad(x)
+        pad = (0, 1, 0, 1, 0, 0)
+        x = mint.nn.functional.pad(x, pad, mode="constant", value=0)
         x = self.conv(x)
         return x
 
@@ -170,8 +158,8 @@ class TimeDownsample2x(nn.Cell):
     def construct(self, x):
         first_frame = x[:, :, :1, :, :]
         # first_frame_pad = ops.repeat_interleave(first_frame, self.time_pad, axis=2)
-        first_frame_pad = ops.cat([first_frame] * self.time_pad, axis=2)
-        x = ops.concat((first_frame_pad, x), axis=2)
+        first_frame_pad = mint.cat([first_frame] * self.time_pad, dim=2)
+        x = mint.cat((first_frame_pad, x), dim=2)
 
         if not self.replace_avgpool3d:
             return self.conv(x)
@@ -195,7 +183,7 @@ class TimeUpsample2x(nn.Cell):
                 x, x_ = x[:, :, :1], x[:, :, 1:]
                 # FIXME: ms2.2.10 cannot support trilinear on 910b
                 x_ = ops.interpolate(x_, scale_factor=(2.0, 1.0, 1.0), mode="trilinear")
-                x = ops.concat([x, x_], axis=2)
+                x = mint.cat([x, x_], dim=2)
             else:
                 x = ops.interpolate(x, scale_factor=(2.0, 1.0, 1.0), mode="trilinear")
 
@@ -233,14 +221,17 @@ class TimeDownsampleRes2x(nn.Cell):
         self.mix_factor = ms.Parameter(ms.Tensor([mix_factor]), requires_grad=True)
 
     def construct(self, x):
-        alpha = ops.sigmoid(self.mix_factor)
+        alpha = mint.sigmoid(self.mix_factor)
 
         first_frame = x[:, :, :1, :, :]
         # first_frame_pad = ops.repeat_interleave(first_frame, self.time_pad, axis=2)
-        first_frame_pad = ops.cat([first_frame] * self.time_pad, axis=2)
-        x = ops.concat((first_frame_pad, x), axis=2)
-
-        conv_out = self.conv(x)
+        first_frame_pad = mint.cat([first_frame] * self.time_pad, dim=2)
+        x = mint.cat((first_frame_pad, x), dim=2)
+        if npu_config is not None and npu_config.on_npu:
+            x_dtype = x.dtype
+            conv_out = npu_config.run_conv3d(self.conv, x, x_dtype)
+        else:
+            conv_out = self.conv(x)
 
         # avg pool
         if not self.replace_avgpool3d:
@@ -266,16 +257,16 @@ class TimeUpsampleRes2x(nn.Cell):
         super().__init__()
         self.conv = CausalConv3d(in_channels, out_channels, kernel_size, padding=1)
         self.mix_factor = ms.Parameter(ms.Tensor([mix_factor]), requires_grad=True)
-        self.intepolate = TrilinearInterpolate()
+        self.interpolate = TrilinearInterpolate()
 
     def construct(self, x):
-        alpha = ops.sigmoid(self.mix_factor)
+        alpha = mint.sigmoid(self.mix_factor)
         if x.shape[2] > 1:
             x, x_ = x[:, :, :1], x[:, :, 1:]
             ori_dtype = x.dtype
             # FIXME: ms2.2.10 cannot support trilinear on 910b
-            x_ = self.intepolate(x_, scale_factor=(2.0, 1.0, 1.0)).to(ori_dtype)
-            x = ops.concat([x, x_], axis=2)
+            x_ = self.interpolate(x_, scale_factor=(2.0, 1.0, 1.0)).to(ori_dtype)
+            x = mint.cat([x, x_], dim=2)
 
         return alpha * x + (1 - alpha) * self.conv(x)
 
@@ -286,20 +277,43 @@ class TrilinearInterpolate(nn.Cell):
 
 
 class Spatial2xTime2x3DUpsample(nn.Cell):
-    def __init__(self, in_channels, out_channels, dtype=ms.float32):
+    def __init__(
+        self,
+        in_channels,
+        out_channels,
+        dtype=ms.float32,
+        t_interpolation="trilinear",
+        enable_cached=False,
+    ):
         super().__init__()
         self.dtype = dtype
+        self.t_interpolation = t_interpolation
+        assert self.t_interpolation == "trilinear", "only support trilinear interpolation now"
         self.conv = CausalConv3d(in_channels, out_channels, kernel_size=3, padding=1)
-        self.intepolate = TrilinearInterpolate()
+        self.interpolate = TrilinearInterpolate()
+        self.enable_cached = enable_cached
+        self.causal_cached = None
 
     def construct(self, x):
-        if x.shape[2] > 1:
-            x, x_ = x[:, :, :1], x[:, :, 1:]
-            x_ = self.intepolate(x_, scale_factor=(2.0, 2.0, 2.0))
-            x = self.intepolate(x, scale_factor=(1.0, 2.0, 2.0))
-            x = ops.cat([x, x_], axis=2)
+        if x.shape[2] > 1 or self.causal_cached is not None:
+            if self.enable_cached and self.causal_cached is not None:
+                x = mint.cat([self.causal_cached, x], dim=2)
+                self.causal_cached = x[:, :, -2:-1]
+                x = npu_config.run_interpolate(self.interpolate, x, scale_factor=(2.0, 1.0, 1.0))
+                x = x[:, :, 2:]
+                x = npu_config.run_interpolate(self.interpolate, x, scale_factor=(1.0, 2.0, 2.0))
+            else:
+                if self.enable_cached:
+                    self.causal_cached = x[:, :, -1:]
+                x, x_ = x[:, :, :1], x[:, :, 1:]
+                x_ = npu_config.run_interpolate(self.interpolate, x_, scale_factor=(2.0, 1.0, 1.0))
+                x_ = npu_config.run_interpolate(self.interpolate, x_, scale_factor=(1.0, 2.0, 2.0))
+                x = npu_config.run_interpolate(self.interpolate, x, scale_factor=(1.0, 2.0, 2.0))
+                x = mint.cat([x, x_], dim=2)
         else:
-            x = self.intepolate(x, scale_factor=(1.0, 2.0, 2.0))
+            if self.enable_cached:
+                self.causal_cached = x[:, :, -1:]
+            x = npu_config.run_interpolate(self.interpolate, x, scale_factor=(1.0, 2.0, 2.0))
         return self.conv(x)
 
 
@@ -308,9 +322,9 @@ class Spatial2xTime2x3DDownsample(nn.Cell):
         super().__init__()
         self.dtype = dtype
         self.conv = CausalConv3d(in_channels, out_channels, kernel_size=3, padding=0, stride=2)
-        self.pad = ops.Pad(paddings=((0, 0), (0, 0), (0, 0), (0, 1), (0, 1)))
 
     def construct(self, x):
-        x = self.pad(x)
+        pad = (0, 1, 0, 1, 0, 0)
+        x = mint.nn.functional.pad(x, pad, mode="constant", value=0)
         x = self.conv(x)
         return x

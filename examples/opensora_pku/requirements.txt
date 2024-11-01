@@ -16,7 +16,8 @@ omegaconf
 pyyaml
 tokenizers>=0.15.2
 sentencepiece
-transformers>=4.39.3
+mindnlp==0.4.0
+transformers>=4.46.0
 pyav
 bs4
 huggingface_hub>=0.22.2

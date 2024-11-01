@@ -6,6 +6,7 @@ from typing import Any, Dict, Optional, Tuple
 import numpy as np
 from opensora.acceleration.communications import AllToAll_SBH
 from opensora.acceleration.parallel_states import get_sequence_parallel_state, hccl_info
+from opensora.npu_config import npu_config
 
 import mindspore as ms
 from mindspore import Parameter, mint, nn, ops
@@ -765,7 +766,12 @@ class OverlapPatchEmbed3D(nn.Cell):
         b, c, t, h, w = latent.shape
         video_latent, image_latent = None, None
         height, width = latent.shape[-2] // self.patch_size, latent.shape[-1] // self.patch_size
-        latent = self.proj(latent)
+
+        if npu_config is not None and npu_config.on_npu:
+            latent = npu_config.run_conv3d(self.proj, latent, latent.dtype)
+        else:
+            latent = self.proj(latent)
+
         if self.flatten:
             # b c t h w -> (b t) (h w) c
             latent = latent.permute(0, 2, 3, 4, 1).reshape(b * t, h * w, c)
@@ -1007,7 +1013,11 @@ class DownSampler3d(nn.Cell):
         x = x.reshape(b, t, h, w, -1).permute(0, 4, 1, 2, 3)
 
         x_dtype = x.dtype
-        x = self.layer(x).to(x_dtype) + (x if self.down_shortcut else 0)
+        if npu_config is not None and npu_config.on_npu:
+            conv_out = npu_config.run_conv3d(self.layer, x, x_dtype)
+        else:
+            conv_out = self.layer(x)
+        x = conv_out + (x if self.down_shortcut else 0)
 
         # b d (t dt) (h dh) (w dw) -> (b dt dh dw) (t h w) d
         dt, dh, dw = self.down_factor

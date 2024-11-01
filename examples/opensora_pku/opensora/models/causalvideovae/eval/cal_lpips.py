@@ -4,7 +4,7 @@ import numpy as np
 from opensora.models.causalvideovae.model.losses.lpips import LPIPS
 
 import mindspore as ms
-from mindspore import ops
+from mindspore import mint
 
 spatial = True  # Return a spatial map of perceptual distance.
 lpips_ckpt_path = os.path.join("pretrained", "lpips_vgg-426bf45c.ckpt")
@@ -92,14 +92,14 @@ def main():
     VIDEO_LENGTH = 50
     CHANNEL = 3
     SIZE = 64
-    videos1 = ops.zeros(
+    videos1 = mint.zeros(
         NUMBER_OF_VIDEOS,
         VIDEO_LENGTH,
         CHANNEL,
         SIZE,
         SIZE,
     )
-    videos2 = ops.ones(
+    videos2 = mint.ones(
         NUMBER_OF_VIDEOS,
         VIDEO_LENGTH,
         CHANNEL,

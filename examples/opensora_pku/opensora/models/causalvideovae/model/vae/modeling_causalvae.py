@@ -5,7 +5,7 @@ from typing import Tuple
 from opensora.acceleration.parallel_states import get_sequence_parallel_state
 
 import mindspore as ms
-from mindspore import nn, ops
+from mindspore import mint, nn, ops
 
 from mindone.diffusers import __version__
 from mindone.diffusers.models.modeling_utils import load_state_dict
@@ -131,10 +131,8 @@ class CausalVAEModel(VideoBaseAE):
         if ckpt_path is not None:
             self.init_from_ckpt(ckpt_path, ignore_keys=ignore_keys)
 
-        self.split = ops.Split(axis=1, output_num=2)
-        self.concat = ops.Concat(axis=1)
-        self.exp = ops.Exp()
-        self.stdnormal = ops.StandardNormal()
+        self.exp = mint.exp
+        self.stdnormal = mint.normal
         self.depend = ops.Depend() if get_sequence_parallel_state() else None
 
         # self.encoder.recompute()
@@ -277,7 +275,7 @@ class CausalVAEModel(VideoBaseAE):
 
         if mindspore_dtype is not None and not isinstance(mindspore_dtype, ms.Type):
             raise ValueError(
-                f"{mindspore_dtype} needs to be of type `ms.Type`, e.g. `ms.float16`, but is {type(mindspore_dtype)}."
+                f"{mindspore_dtype} needs to be of type ms.Type, e.g. ms.float16, but is {type(mindspore_dtype)}."
             )
         elif mindspore_dtype is not None:
             model = model.to(mindspore_dtype)
@@ -314,7 +312,7 @@ class CausalVAEModel(VideoBaseAE):
             for kw in map_dict:
                 key_2d = key_2d.replace(kw, map_dict[kw])
 
-            assert key_2d in vae_2d_keys, f"Key {key_2d} ({key_3d}) not found in 2D VAE"
+                assert key_2d in vae_2d_keys, f"Key {key_2d} ({key_3d}) should be in 2D VAE"
 
             # set vae 3d state dict
             shape_3d = self.parameters_dict()[key_3d].shape
@@ -329,7 +327,7 @@ class CausalVAEModel(VideoBaseAE):
                 if shape_3d[:2] != shape_2d[:2]:
                     logger.info(key_2d, shape_3d, shape_2d)
                 w = vae2d_sd[key_2d]
-                new_w = ms.ops.zeros(shape_3d, dtype=w.dtype)
+                new_w = mint.zeros(shape_3d, dtype=w.dtype)
                 # tail initialization
                 new_w[:, :, -1, :, :] = w  # cin, cout, t, h, w
 
@@ -378,15 +376,15 @@ class CausalVAEModel(VideoBaseAE):
         h = self.encoder(x)
         if self.use_quant_layer:
             h = self.quant_conv(h)
-        mean, logvar = self.split(h)
+        mean, logvar = mint.split(h, [h.shape[1] // 2, h.shape[1] // 2], dim=1)
 
         return mean, logvar
 
     def sample(self, mean, logvar):
         # sample z from latent distribution
-        logvar = ops.clip_by_value(logvar, -30.0, 20.0)
+        logvar = mint.clamp(logvar, -30.0, 20.0)
         std = self.exp(0.5 * logvar)
-        z = mean + std * self.stdnormal(mean.shape)
+        z = mean + std * self.stdnormal(size=mean.shape)
 
         return z
 
@@ -443,9 +441,9 @@ class CausalVAEModel(VideoBaseAE):
                 if j > 0:
                     tile = self.blend_h(row[j - 1], tile, blend_extent)
                 result_row += (tile[:, :, :, :row_limit, :row_limit],)
-            result_rows += (ops.cat(result_row, axis=4),)
+            result_rows += (mint.cat(result_row, dim=4),)
 
-        moments = ops.cat(result_rows, axis=3)
+        moments = mint.cat(result_rows, dim=3)
         return moments
 
     def tiled_encode(self, x):
@@ -468,8 +466,8 @@ class CausalVAEModel(VideoBaseAE):
             else:
                 moment = self.tiled_encode2d(chunk_x)
             moments.append(moment)
-        moments = ops.cat(moments, axis=2)
-        mean, logvar = self.split(moments)
+        moments = mint.cat(moments, dim=2)
+        mean, logvar = mint.split(moments, [moments.shape[1] // 2, moments.shape[1] // 2], dim=1)
         return mean, logvar
 
     def decode(self, z):
@@ -518,9 +516,9 @@ class CausalVAEModel(VideoBaseAE):
                 if j > 0:
                     tile = self.blend_h(row[j - 1], tile, blend_extent)
                 result_row.append(tile[:, :, :, :row_limit, :row_limit])
-            result_rows.append(ops.cat(result_row, axis=4))
+            result_rows.append(mint.cat(result_row, dim=4))
 
-        dec = ops.cat(result_rows, axis=3)
+        dec = mint.cat(result_rows, dim=3)
         return dec
 
     def tiled_decode(self, x):
@@ -543,7 +541,7 @@ class CausalVAEModel(VideoBaseAE):
             else:
                 dec = self.tiled_decode2d(chunk_x)
             dec_.append(dec)
-        dec_ = ops.cat(dec_, axis=2)
+        dec_ = mint.cat(dec_, dim=2)
         return dec_
 
     def construct(self, input):
@@ -743,7 +741,7 @@ class Encoder(nn.Cell):
     def rearrange_in(self, x):
         # b c f h w -> b f c h w
         B, C, F, H, W = x.shape
-        x = ops.transpose(x, (0, 2, 1, 3, 4))
+        x = mint.permute(x, (0, 2, 1, 3, 4))
         # -> (b*f c h w)
         x = ops.reshape(x, (-1, C, H, W))
 
@@ -755,7 +753,7 @@ class Encoder(nn.Cell):
         # (b*f D h w) -> (b f D h w)
         x = ops.reshape(x, (BF // F, F, D, H_, W_))
         # -> (b D f h w)
-        x = ops.transpose(x, (0, 2, 1, 3, 4))
+        x = mint.permute(x, (0, 2, 1, 3, 4))
 
         return x
 

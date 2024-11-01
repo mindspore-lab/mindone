@@ -63,6 +63,7 @@ class VideoDataset:
             self.read_from_data_file = False
 
         self.length = len(self.dataset)
+        assert self.length > 0, "The input dataset must not be empty!"
         logger.info(f"Num data samples: {self.length}")
         logger.info(f"sample_n_frames: {sample_n_frames}")
 
