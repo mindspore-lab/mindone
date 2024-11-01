@@ -1,5 +1,0 @@
-streamlit
-omegaconf
-ftfy
-transformers
-imagesize
