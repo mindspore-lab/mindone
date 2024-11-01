@@ -67,6 +67,16 @@ def get_parser_train():
     parser.add_argument(
         "--ms_mode", type=int, default=0, help="Running in GRAPH_MODE(0) or PYNATIVE_MODE(1) (default=1)"
     )
+    parser.add_argument(
+        "--jit_level",
+        default="O2",
+        type=str,
+        choices=["O0", "O1", "O2"],
+        help="Used to control the compilation optimization level. Supports ['O0', 'O1', 'O2']."
+        "O0: Except for optimizations that may affect functionality, all other optimizations are turned off, adopt KernelByKernel execution mode."
+        "O1: Using commonly used optimizations and automatic operator fusion optimizations, adopt KernelByKernel execution mode."
+        "O2: Ultimate performance optimization, adopt Sink execution mode.",
+    )
     parser.add_argument("--ms_amp_level", type=str, default="O2")
     parser.add_argument(
         "--ms_enable_graph_kernel", type=ast.literal_eval, default=False, help="use enable_graph_kernel or not"
@@ -137,6 +147,12 @@ def get_parser_train():
             "the template file which provides a list of strings of templates, like `a photo of {{}}`."
             " If `None`, it will use default templates for each learnable_property."
         ),
+    )
+    parser.add_argument(
+        "--max_num_ckpt",
+        type=int,
+        default=None,
+        help="Max number of ckpts saved. If exceeds, delete the oldest one. Set None: keep all ckpts.",
     )
 
     return parser
