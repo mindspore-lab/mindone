@@ -10,7 +10,7 @@ from PIL import Image
 from utils.loss_util import LPIPS
 
 import mindspore as ms
-from mindspore import Tensor, mint, nn, ops
+from mindspore import Tensor, mint, nn
 from mindspore.dataset.vision import ToPIL
 
 from mindone.utils.config import instantiate_from_config
@@ -78,22 +78,22 @@ class InstantMeshStage1WithLoss(nn.Cell):
         input_Ks = batch["input_Ks"].flatten(start_dim=-2)
 
         input_extrinsics = input_c2ws[:, :12]
-        input_intrinsics = ops.stack(
+        input_intrinsics = mint.stack(
             [
                 input_Ks[:, 0],
                 input_Ks[:, 4],
                 input_Ks[:, 2],
                 input_Ks[:, 5],
             ],
-            axis=-1,
+            dim=-1,
         )
-        cameras = ops.cat([input_extrinsics, input_intrinsics], axis=-1)
+        cameras = mint.cat([input_extrinsics, input_intrinsics], dim=-1)
 
         lrm_generator_input["cameras"] = cameras
 
         render_c2ws = batch["render_c2ws"].flatten(start_dim=-2)
         render_Ks = batch["render_Ks"].flatten(start_dim=-2)
-        render_cameras = ops.cat([render_c2ws, render_Ks], axis=-1)
+        render_cameras = mint.cat([render_c2ws, render_Ks], dim=-1)
         lrm_generator_input["render_cameras"] = render_cameras
 
         # create batch dim when not using dataloader, presuming bsize==1
@@ -121,8 +121,8 @@ class InstantMeshStage1WithLoss(nn.Cell):
         images_rgb, images_depth, images_weight = self.lrm_generator(
             images, cameras, render_cameras, render_size.item(), crop_params  # to int
         )
-        render_images = ops.clamp(images_rgb, 0.0, 1.0)
-        render_alphas = ops.clamp(images_weight, 0.0, 1.0)
+        render_images = mint.clamp(images_rgb, 0.0, 1.0)
+        render_alphas = mint.clamp(images_weight, 0.0, 1.0)
 
         loss = self.compute_loss(render_images, render_alphas, target_images, target_alphas)
 
@@ -134,8 +134,8 @@ class InstantMeshStage1WithLoss(nn.Cell):
         images_rgb, images_depth, images_weight = self.lrm_generator(
             images, cameras, render_cameras, render_size, crop_params=None
         )
-        render_images = ops.clamp(images_rgb, 0.0, 1.0)
-        render_alphas = ops.clamp(images_weight, 0.0, 1.0)
+        render_images = mint.clamp(images_rgb, 0.0, 1.0)
+        render_alphas = mint.clamp(images_weight, 0.0, 1.0)
         return render_images, render_alphas
 
     def compute_loss(self, render_images, render_alphas, target_images, target_alphas):
@@ -152,14 +152,10 @@ class InstantMeshStage1WithLoss(nn.Cell):
         b, n, c, h, w = target_images.shape
         target_images = target_images.reshape(b * n, c, h, w) * 2.0 - 1.0
 
-        loss_mse = ops.mse_loss(render_images, target_images)
-
-        # FIXME current lpips loss wrong, not positive. And 2e3 scale here is for the difference of the lpips implemented here vs. torchmetric's
-        # loss_lpips = 2e2 * mint.mean(self.lpips(render_images, target_images))
+        loss_mse = mint.nn.functional.mse_loss(render_images, target_images)
         loss_lpips = 2.0 * mint.mean(self.lpips(render_images, target_images))
-
         target_alphas = target_alphas.permute((0, 1, 4, 2, 3))  # b n h w c -> b n c h w
-        loss_mask = ops.mse_loss(render_alphas, target_alphas)
+        loss_mask = mint.nn.functional.mse_loss(render_alphas, target_alphas)
 
         logger.info(f"loss mse: {loss_mse}, loss mask: {loss_mask}, loss lpips: {loss_lpips}")
 

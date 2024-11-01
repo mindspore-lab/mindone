@@ -1,10 +1,7 @@
 import mindspore as ms
 import mindspore.nn as nn
 
-# comment when debug
 from .dino import ViTModel
-
-# from dino import ViTModel
 
 
 class DinoWrapper(nn.Cell):
@@ -23,12 +20,15 @@ class DinoWrapper(nn.Cell):
         if use_recompute:
             self.camera_embedder.recompute()
             self.model.encoder.recompute()
-            self.model.layernorm.recompute()
+            self.model.layernorm.recompute()  # recompute layernorm causes gram leackage?
 
+    # @ms.jit, for now don't make it graph mode, as the vit encoder output dict will be none weirdly
     def construct(self, images: ms.Tensor, camera: ms.Tensor):  # because img processor only takes np img
         # image: [B, N, C, H, W]
         # camera: [B, N, D]
+        # logger.info(f'input np image shape is {images.shape}')
         if images.ndim == 5:
+            # image = rearrange(image, 'b n c h w -> (b n) c h w')  # NOW ITS ALREADY NCHW
             (B, N, C, H, W) = images.shape
             images = images.reshape(B * N, C, H, W)
 
@@ -39,9 +39,11 @@ class DinoWrapper(nn.Cell):
         cam_emb_shape = camera_embeddings.shape
         camera_embeddings = camera_embeddings.reshape(cam_emb_shape[0] * cam_emb_shape[1], cam_emb_shape[2])
         embeddings = camera_embeddings
+        # logger.info(f'emd shape {embeddings.shape}')
 
         # This resampling of positional embedding uses bicubic interpolation
         outputs = self.model(pixel_values=images, adaln_input=embeddings, interpolate_pos_encoding=True)[0]
+        # last_hidden_states = outputs.last_hidden_state
         return outputs
 
     @staticmethod

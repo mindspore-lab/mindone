@@ -32,7 +32,7 @@ class MipRayMarcher2(nn.Cell):
 
         alpha = 1 - mint.exp(-density_delta).to(dtype)
 
-        alpha_shifted = ops.cat([mint.ones_like(alpha[:, :, :1]), 1 - alpha + 1e-10], -2)
+        alpha_shifted = mint.cat([mint.ones_like(alpha[:, :, :1]), 1 - alpha + 1e-10], -2)
         weights = alpha * ops.cumprod(alpha_shifted, -2)[:, :, :-1]
         weights = weights.to(dtype)
 
@@ -43,6 +43,10 @@ class MipRayMarcher2(nn.Cell):
 
         # clip the composite to min/max range of depths
         composite_depth = ops.nan_to_num(composite_depth, float("inf")).to(dtype)
+
+        min_val = mint.min(depths)
+        max_val = mint.max(depths)
+        composite_depth = mint.clamp(composite_depth, min_val, max_val)
 
         if self.white_back:
             composite_rgb = composite_rgb + 1 - weight_total

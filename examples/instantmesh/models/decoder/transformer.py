@@ -1,6 +1,6 @@
 import mindspore as ms
 import mindspore.nn as nn
-import mindspore.ops as ops
+from mindspore import mint
 
 
 class BasicTransformerBlock(nn.Cell):
@@ -94,7 +94,7 @@ class TriplaneTransformer(nn.Cell):
         # modules
         # initialize pos_embed with 1/sqrt(dim) * N(0, 1)
         self.pos_embed = ms.Parameter(
-            ops.randn(1, 3 * triplane_low_res**2, inner_dim) * (1.0 / inner_dim) ** 0.5
+            mint.normal(size=(1, 3 * triplane_low_res**2, inner_dim)) * (1.0 / inner_dim) ** 0.5
         )  # [L, D]
         self.layers = nn.CellList(
             [
@@ -130,13 +130,13 @@ class TriplaneTransformer(nn.Cell):
 
         # separate each plane and apply deconv
         x = x.view(N, 3, H, W, -1)
-        # x = ops.einsum('nihwd->indhw', x)  # [3, N, D, H, W]
-        # x = ops.reshape(x, (3, N, -1, H, W))
-        x = ops.permute(x, (1, 0, 4, 2, 3))
+        # x = mint.einsum('nihwd->indhw', x)  # [3, N, D, H, W]
+        # x = mint.reshape(x, (3, N, -1, H, W))
+        x = mint.permute(x, (1, 0, 4, 2, 3))
         x = x.view(3 * N, -1, H, W)  # [3*N, D, H, W]
         x = self.deconv(x)  # [3*N, D', H', W']
         x = x.view(3, N, *x.shape[-3:])  # [3, N, D', H', W']
-        # x = ops.einsum('indhw->nidhw', x)  # [N, 3, D', H', W']
-        x = ops.permute(x, (1, 0, 2, 3, 4))
+        # x = mint.einsum('indhw->nidhw', x)  # [N, 3, D', H', W']
+        x = mint.permute(x, (1, 0, 2, 3, 4))
 
         return x

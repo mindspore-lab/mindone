@@ -1,14 +1,19 @@
 """ The renderer is a module that takes in rays, decides where to sample along each
 ray, and computes pixel colors using the volume rendering equation.
 """
+import logging
 from typing import Dict, Optional
+
+import math_utils
 
 import mindspore as ms
 import mindspore.nn as nn
 from mindspore import _no_grad, mint, ops
 
-from . import math_utils
+# comment below for debugging insitu
 from .ray_marcher import MipRayMarcher2
+
+logger = logging.getLogger(__name__)
 
 
 class ImportanceRenderer(nn.Cell):
@@ -27,6 +32,7 @@ class ImportanceRenderer(nn.Cell):
         self.plane_axes = generate_planes().astype(dtype)
         self.max_pool1d_layer = nn.MaxPool1d(2, 1, pad_mode="pad", padding=1)
         self.avg_pool1d_layer = nn.AvgPool1d(2, 1)
+
         self.decoder = decoder
         self.debug_logging = debug
 
@@ -61,10 +67,8 @@ class ImportanceRenderer(nn.Cell):
         N, n_planes, C, H, W = plane_features.shape
         _, M, _ = coordinates.shape
         plane_features = plane_features.view(N * n_planes, C, H, W)
-        # dtype = plane_features.dtype
 
         coordinates = (2 / self.rendering_options["box_warp"]) * coordinates  # add specific box bounds
-
         projected_coordinates = self.project_onto_planes(self.plane_axes, coordinates).unsqueeze(1)
 
         output_features = (
@@ -111,7 +115,7 @@ class ImportanceRenderer(nn.Cell):
         )
 
         # filter out-of-box samples
-        mask_inbox = ops.logical_and(
+        mask_inbox = mint.logical_and(
             self.rendering_options["sampler_bbox_min"] <= sample_coordinates,
             sample_coordinates <= self.rendering_options["sampler_bbox_max"],
         )
@@ -123,11 +127,17 @@ class ImportanceRenderer(nn.Cell):
         # set out-of-box samples to zeros(rgb) & -inf(sigma)
         SAFE_GUARD = 3
         DATA_TYPE = _sigma.dtype
-        colors_pass = ops.zeros((batch_size, num_rays * samples_per_ray, 3), dtype=DATA_TYPE)
+        colors_pass = mint.zeros((batch_size, num_rays * samples_per_ray, 3), dtype=DATA_TYPE)
         densities_pass = (
             ops.nan_to_num(mint.full((batch_size, num_rays * samples_per_ray, 1), -float("inf"), dtype=DATA_TYPE))
             / SAFE_GUARD
         )
+
+        if self.debug_logging:
+            logger.info(
+                f"shape] depths: {mask_inbox.shape}, rd: {_rgb.shape}, ro: {colors_pass.shape}, planes: {planes.shape}"
+            )
+            logger.info(f"shape] mi: {mask_inbox.shape}, rgb: {_rgb.shape}, colorpass: {colors_pass.shape}")
 
         # colors_pass[mask_inbox] = _rgb[mask_inbox]
         mask_inbox = mask_inbox[..., None]
@@ -142,23 +152,23 @@ class ImportanceRenderer(nn.Cell):
         return colors_pass, densities_pass
 
     def sort_samples(self, all_depths, all_colors, all_densities):
-        _, indices = ops.sort(all_depths, axis=-2)
+        _, indices = mint.sort(all_depths, dim=-2)
         all_depths = mint.gather(all_depths, -2, indices)
         all_colors = mint.gather(all_colors, -2, indices.broadcast_to((-1, -1, -1, all_colors.shape[-1])))
         all_densities = mint.gather(all_densities, -2, indices.broadcast_to((-1, -1, -1, 1)))
         return all_depths, all_colors, all_densities
 
     def unify_samples(self, depths1, colors1, densities1, depths2, colors2, densities2, normals1=None, normals2=None):
-        all_depths = ops.cat([depths1, depths2], axis=-2)
-        all_colors = ops.cat([colors1, colors2], axis=-2)
-        all_densities = ops.cat([densities1, densities2], axis=-2)
+        all_depths = mint.cat([depths1, depths2], dim=-2)
+        all_colors = mint.cat([colors1, colors2], dim=-2)
+        all_densities = mint.cat([densities1, densities2], dim=-2)
 
         if normals1 is not None and normals2 is not None:
-            all_normals = ops.cat([normals1, normals2], axis=-2)
+            all_normals = mint.cat([normals1, normals2], dim=-2)
         else:
             all_normals = None
 
-        _, indices = ops.sort(all_depths, axis=-2)
+        _, indices = mint.sort(all_depths, dim=-2)
         all_depths = mint.gather(all_depths, -2, indices)
         all_colors = mint.gather(all_colors, -2, indices.broadcast_to((-1, -1, -1, all_colors.shape[-1])))
         all_densities = mint.gather(all_densities, -2, indices.broadcast_to((-1, -1, -1, 1)))
@@ -212,15 +222,15 @@ class ImportanceRenderer(nn.Cell):
         N_rays, N_samples_ = weights.shape
         weights = weights + eps  # prevent division by zero (don't do inplace op!)
         pdf = weights / mint.sum(weights, -1, keepdim=True)  # (N_rays, N_samples_)
-        cdf = ops.cumsum(pdf, -1)  # (N_rays, N_samples), cumulative distribution function
-        cdf = ops.cat([mint.zeros_like(cdf[:, :1]), cdf], -1)  # (N_rays, N_samples_+1)
+        cdf = mint.cumsum(pdf, -1)  # (N_rays, N_samples), cumulative distribution function
+        cdf = mint.cat([mint.zeros_like(cdf[:, :1]), cdf], -1)  # (N_rays, N_samples_+1)
         # padded to 0~1 inclusive
 
         if det:
             u = mint.linspace(0, 1, self.N_importance)
             u = u.broadcast_to((N_rays, self.N_importance))
         else:
-            u = ops.rand(N_rays, self.N_importance)
+            u = mint.rand(N_rays, self.N_importance)
 
         inds = mint.searchsorted(cdf, u, right=True)
         below = mint.clamp(inds - 1, min=0)
@@ -272,7 +282,7 @@ class ImportanceRenderer(nn.Cell):
         is_ray_valid = ray_end > ray_start
 
         # FIXME below take item may degrade the shape, potentially into unknown errors...
-        if ops.any(is_ray_valid).item():
+        if mint.any(is_ray_valid).item():
             ray_start[~is_ray_valid] = ray_start[is_ray_valid].min()
             ray_end[~is_ray_valid] = ray_start[is_ray_valid].max()
         depths_coarse = self.sample_stratified(ray_origins, ray_start, ray_end)

@@ -33,7 +33,7 @@ class RaySampler(nn.Cell):
         cy = intrinsics[:, 1, 2]
         sk = intrinsics[:, 0, 1]
 
-        uv = ops.stack(
+        uv = mint.stack(
             ops.meshgrid(
                 mint.arange(render_size, dtype=dtype),
                 mint.arange(render_size, dtype=dtype),
@@ -45,7 +45,7 @@ class RaySampler(nn.Cell):
 
         x_cam = uv[:, :, 0].view(N, -1) * (1.0 / render_size) + (0.5 / render_size)
         y_cam = uv[:, :, 1].view(N, -1) * (1.0 / render_size) + (0.5 / render_size)
-        z_cam = ops.ones((N, M), dtype=dtype)
+        z_cam = mint.ones((N, M), dtype=dtype)
 
         x_lift = (
             (

@@ -89,7 +89,7 @@ class InstantNeRF(nn.Cell):
         cameras: ms.Tensor,
         render_cameras: ms.Tensor,
         render_size: int,
-        crop_params: Tuple[int],
+        crop_params: Optional[Tuple[int]],
     ):
         # images: [B, V, C_img, H_img, W_img]
         # cameras: [B, V, 16]

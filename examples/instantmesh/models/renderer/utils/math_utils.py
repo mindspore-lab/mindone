@@ -14,7 +14,7 @@ def normalize_vecs(vectors: ms.Tensor) -> ms.Tensor:
     """
     Normalize vector lengths.
     """
-    return vectors / (ops.norm(vectors, dim=-1, keepdim=True))
+    return vectors / (mint.norm(vectors, dim=-1, keepdim=True))
 
 
 def get_ray_limits_box(
@@ -32,7 +32,7 @@ def get_ray_limits_box(
     bb_min = [-1 * (box_side_length / 2), -1 * (box_side_length / 2), -1 * (box_side_length / 2)]
     bb_max = [1 * (box_side_length / 2), 1 * (box_side_length / 2), 1 * (box_side_length / 2)]
     bounds = ms.Tensor((bb_min, bb_max), dtype=rays_o.dtype)
-    is_valid = ops.ones(rays_o.shape[:-1], dtype=ms.bool_)
+    is_valid = mint.ones(rays_o.shape[:-1], dtype=ms.bool_)
 
     # Precompute inverse for stability.
     invdir = 1 / rays_d

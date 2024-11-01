@@ -9,7 +9,7 @@ from transformers import ViTConfig
 
 import mindspore as ms
 import mindspore.nn as nn
-from mindspore import Parameter, Tensor, ops
+from mindspore import Parameter, Tensor, mint, ops
 from mindspore.common.initializer import TruncatedNormal, initializer
 from mindspore.nn import LayerNorm
 
@@ -27,11 +27,11 @@ class ViTEmbeddings(nn.Cell):
     def __init__(self, config: ViTConfig, use_mask_token: bool = False) -> None:
         super().__init__()
 
-        self.cls_token = Parameter(ops.randn(1, 1, config.hidden_size))
-        self.mask_token = Parameter(ops.zeros((1, 1, config.hidden_size))) if use_mask_token else None
+        self.cls_token = Parameter(mint.normal(size=(1, 1, config.hidden_size)))
+        self.mask_token = Parameter(mint.zeros((1, 1, config.hidden_size))) if use_mask_token else None
         self.patch_embeddings = ViTPatchEmbeddings(config)
         num_patches = self.patch_embeddings.num_patches
-        self.position_embeddings = Parameter(ops.randn(1, num_patches + 1, config.hidden_size))
+        self.position_embeddings = Parameter(mint.normal(size=(1, num_patches + 1, config.hidden_size)))
         self.dropout = nn.Dropout(p=config.hidden_dropout_prob)
         self.config = config
 
@@ -70,7 +70,7 @@ class ViTEmbeddings(nn.Cell):
 
         assert int(h0) == patch_pos_embed.shape[-2] and int(w0) == patch_pos_embed.shape[-1]
         patch_pos_embed = patch_pos_embed.permute(0, 2, 3, 1).view(1, -1, dim)
-        return ops.cat((class_pos_embed.unsqueeze(0), patch_pos_embed), axis=1)
+        return mint.cat((class_pos_embed.unsqueeze(0), patch_pos_embed), dim=1)
 
     def construct(
         self,
@@ -90,7 +90,7 @@ class ViTEmbeddings(nn.Cell):
 
         # add the [CLS] token to the embedded patch tokens
         cls_tokens = self.cls_token.to(embeddings.dtype).broadcast_to((batch_size, -1, -1))
-        embeddings = ops.cat((cls_tokens, embeddings), axis=1)
+        embeddings = mint.cat((cls_tokens, embeddings), dim=1)
 
         # add positional encoding to each token
         if interpolate_pos_encoding:
@@ -147,7 +147,7 @@ class ViTSelfAttention(nn.Cell):
         super().__init__()
         if config.hidden_size % config.num_attention_heads != 0 and not hasattr(config, "embedding_size"):
             raise ValueError(
-                f"The hidden size {config.hidden_size} is not a multiple of the number of attention "
+                f"The hidden size {config.hidden_size, } is not a multiple of the number of attention "
                 f"heads {config.num_attention_heads}."
             )
 
@@ -175,12 +175,12 @@ class ViTSelfAttention(nn.Cell):
         query_layer = self.transpose_for_scores(mixed_query_layer)
 
         # Take the dot product between "query" and "key" to get the raw attention scores.
-        attention_scores = ops.matmul(query_layer, key_layer.swapaxes(-1, -2))
+        attention_scores = mint.matmul(query_layer, key_layer.swapaxes(-1, -2))
 
         attention_scores = attention_scores / math.sqrt(self.attention_head_size)
 
         # Normalize the attention scores to probabilities.
-        attention_probs = ops.Softmax(axis=-1)(attention_scores)
+        attention_probs = mint.nn.Softmax(dim=-1)(attention_scores)
 
         # This is actually dropping out entire tokens to attend to, which might
         # seem a bit unusual, but is taken from the original Transformer paper.
@@ -190,7 +190,7 @@ class ViTSelfAttention(nn.Cell):
         if head_mask is not None:
             attention_probs = attention_probs * head_mask
 
-        context_layer = ops.matmul(attention_probs, value_layer)
+        context_layer = mint.matmul(attention_probs, value_layer)
 
         context_layer = context_layer.permute(0, 2, 1, 3)
         new_context_layer_shape = context_layer.shape[:-2] + (self.all_head_size,)
@@ -311,8 +311,8 @@ class ViTLayer(nn.Cell):
         )
         # nn.init.constant_(self.adaLN_modulation[-1].weight, 0)
         # nn.init.constant_(self.adaLN_modulation[-1].bias, 0)
-        self.adaLN_modulation[-1].weight = ops.zeros_like(self.adaLN_modulation[-1].weight)
-        self.adaLN_modulation[-1].bias = ops.zeros_like(self.adaLN_modulation[-1].bias)
+        self.adaLN_modulation[-1].weight = mint.zeros_like(self.adaLN_modulation[-1].weight)
+        self.adaLN_modulation[-1].bias = mint.zeros_like(self.adaLN_modulation[-1].bias)
 
     def construct(
         self,

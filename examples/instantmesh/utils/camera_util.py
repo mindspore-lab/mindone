@@ -1,7 +1,7 @@
 import numpy as np
 
 import mindspore as ms
-from mindspore import Tensor, ops
+from mindspore import Tensor, mint, ops
 
 
 def pad_camera_extrinsics_4x4(extrinsics):
@@ -10,7 +10,7 @@ def pad_camera_extrinsics_4x4(extrinsics):
     padding = Tensor([[0, 0, 0, 1]]).to(extrinsics.dtype)
     if extrinsics.ndim == 3:
         padding = padding.unsqueeze(0).tile((extrinsics.shape[0], 1, 1))
-    extrinsics = ops.cat([extrinsics, padding], axis=-2)
+    extrinsics = mint.cat([extrinsics, padding], dim=-2)
     return extrinsics
 
 
@@ -21,7 +21,7 @@ def center_looking_at_camera_pose(camera_position: Tensor, look_at=None, up_worl
     camera_position: (M, 3) or (3,)
     look_at: (3)
     up_world: (3)
-    return: (M, 3, 4) or (3, 4)
+    return: Tensor, (M, 3, 4) or (3, 4)
     """
     # by default, looking at the origin and world up is z-axis
     if look_at is None:
@@ -36,13 +36,13 @@ def center_looking_at_camera_pose(camera_position: Tensor, look_at=None, up_worl
     z_axis = camera_position - look_at
     norm = ops.L2Normalize(axis=-1)
     z_axis = norm(z_axis)
-    x_axis = ops.cross(up_world, z_axis, dim=-1)
+    x_axis = mint.cross(up_world, z_axis, dim=-1)
     x_axis = norm(x_axis)
-    y_axis = ops.cross(z_axis, x_axis, dim=-1)
+    y_axis = mint.cross(z_axis, x_axis, dim=-1)
     y_axis = norm(y_axis)
     print(f"zshape: {z_axis.shape}, xshape: {x_axis.shape}, yshape: {y_axis.shape}")
 
-    extrinsics = ops.stack([x_axis, y_axis, z_axis, camera_position], axis=-1)
+    extrinsics = mint.stack([x_axis, y_axis, z_axis, camera_position], dim=-1)
     print(f"fred: the extrinsics shape of {extrinsics.shape}")
     extrinsics = pad_camera_extrinsics_4x4(extrinsics)
     return extrinsics
@@ -108,11 +108,11 @@ def get_sv3d_input_cameras(bs=1, radius=4.0, fov=30.0):
     pose_cam2world = spherical_camera_pose(azimuths, elevations, radius)
     pose_cam2world = pose_cam2world.float().flatten(start_dim=-2)
 
-    Ks = FOV_to_intrinsics(fov).unsqueeze(0).tile((21, 1, 1)).float().flatten(start_dim=-2)
+    Ks = Tensor(FOV_to_intrinsics(fov)).unsqueeze(0).tile((21, 1, 1)).float().flatten(start_dim=-2)
 
     extrinsics = pose_cam2world[:, :12]
-    intrinsics = ops.stack([Ks[:, 0], Ks[:, 4], Ks[:, 2], Ks[:, 5]], axis=-1)
-    cameras = ops.cat([extrinsics, intrinsics], axis=-1)
+    intrinsics = mint.stack([Ks[:, 0], Ks[:, 4], Ks[:, 2], Ks[:, 5]], dim=-1)
+    cameras = mint.cat([extrinsics, intrinsics], dim=-1)
 
     print(f"cameras dtype is {cameras.dtype}")
 

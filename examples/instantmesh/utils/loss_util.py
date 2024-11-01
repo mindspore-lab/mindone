@@ -5,7 +5,7 @@ import mindcv
 
 import mindspore as ms
 import mindspore.nn as nn
-import mindspore.ops as ops
+from mindspore import mint
 
 _logger = logging.getLogger("")
 
@@ -71,7 +71,7 @@ class LPIPS(nn.Cell):
             diff = (normalize_tensor(outs0[kk]) - normalize_tensor(outs1[kk])) ** 2
             # res += spatial_average(lins[kk](diff), keepdim=True)
             # lin_layer = lins[kk]
-            val += ops.mean(self.lins[kk](diff), axis=[2, 3], keep_dims=True)
+            val += mint.mean(self.lins[kk](diff), dim=[2, 3], keep_dims=True)
         return val
 
 
@@ -152,7 +152,7 @@ class vgg16(nn.Cell):
 
 
 def normalize_tensor(x, eps=1e-10):
-    norm_factor = ops.sqrt((x**2).sum(1, keepdims=True))
+    norm_factor = mint.sqrt((x**2).sum(1, keepdims=True))
     return x / (norm_factor + eps)
 
 
