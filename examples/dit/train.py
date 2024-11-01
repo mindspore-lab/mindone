@@ -75,6 +75,20 @@ def main(args):
         max_device_memory=args.max_device_memory,
         ascend_config=None if args.precision_mode is None else {"precision_mode": args.precision_mode},
     )
+    if args.ms_mode == ms.GRAPH_MODE:
+        try:
+            if args.jit_level in ["O0", "O1", "O2"]:
+                ms.set_context(jit_config={"jit_level": args.jit_level})
+                logger.info(f"set jit_level: {args.jit_level}.")
+            else:
+                logger.warning(
+                    f"Unsupport jit_level: {args.jit_level}. The framework automatically selects the execution method"
+                )
+        except Exception:
+            logger.warning(
+                "The current jit_level is not suitable because current MindSpore version does not match,"
+                "please ensure the MindSpore version >= ms2.3_0615."
+            )
     set_logger(name="", output_dir=args.output_path, rank=rank_id, log_level=eval(args.log_level))
 
     # 2. model initiate and weight loading

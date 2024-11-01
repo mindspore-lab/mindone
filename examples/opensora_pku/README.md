@@ -2,12 +2,14 @@
 
 Here we provide an efficient MindSpore version of [Open-Sora-Plan](https://github.com/PKU-YuanGroup/Open-Sora-Plan/tree/main) from Peking University. We would like to express our gratitude to their contributions! :+1:
 
-**OpenSora-PKU is still under active development.** Currently, we are in line with **Open-Sora-Plan v1.1.0**.
+**OpenSora-PKU is still under active development.** Currently, we are in line with **Open-Sora-Plan v1.2.0** ([commit id](https://github.com/PKU-YuanGroup/Open-Sora-Plan/commit/294993ca78bf65dec1c3b6fb25541432c545eda9)).
 
 ## 📰 News & States
 
 |        Official News from OpenSora-PKU  | MindSpore Support     |
 | ------------------ | ---------- |
+| **[2024.10.16]** 🎉 PKU released version 1.3.0, featuring: **WFVAE**, **pompt refiner**, **data filtering strategy**, **sparse attention**, and **bucket training strategy**. They also support 93x480p within **24G VRAM**. More details can be found at their latest [report](https://github.com/PKU-YuanGroup/Open-Sora-Plan/blob/main/docs/Report-v1.3.0.md). | 📝 Working in Progress |
+| **[2024.07.24]** 🔥🔥🔥 PKU launched Open-Sora Plan v1.2.0, utilizing a 3D full attention architecture instead of 2+1D. See their latest [report](https://github.com/PKU-YuanGroup/Open-Sora-Plan/blob/main/docs/Report-v1.2.0.md). | ✅ V.1.2.0 CausalVAE inference & OpenSoraT2V multi-stage training|
 | **[2024.05.27]** 🚀🚀🚀 PKU launched Open-Sora Plan v1.1.0, which significantly improves video quality and length, and is fully open source! Please check out their latest [report](https://github.com/PKU-YuanGroup/Open-Sora-Plan/blob/main/docs/Report-v1.1.0.md). | ✅ V.1.1.0 CausalVAE inference and LatteT2V infernece & three-stage training (`65x512x512`, `221x512x512`, `513x512x512`) |
 | **[2024.04.09]** 🚀 PKU shared the latest exploration on metamorphic time-lapse video generation: [MagicTime](https://github.com/PKU-YuanGroup/MagicTime), and the dataset for train (updating): [Open-Sora-Dataset](https://github.com/PKU-YuanGroup/Open-Sora-Dataset).| N.A.  |
 | **[2024.04.07]** 🔥🔥🔥 PKU released Open-Sora-Plan v1.0.0. See their [report](https://github.com/PKU-YuanGroup/Open-Sora-Plan/blob/main/docs/Report-v1.0.0.md). | ✅ CausalVAE+LatteT2V+T5 inference and three-stage training (`17×256×256`, `65×256×256`, `65x512x512`)  |
@@ -16,58 +18,55 @@ Here we provide an efficient MindSpore version of [Open-Sora-Plan](https://githu
 | **[2024.03.08]** PKU support the training code of text condition with 16 frames of 512x512. |   ✅ CausalVAE+LatteT2V+T5 training (`16x512x512`)|
 | **[2024.03.07]** PKU support training with 128 frames (when sample rate = 3, which is about 13 seconds) of 256x256, or 64 frames (which is about 6 seconds) of 512x512. | class-conditioned training is under-development.|
 
-[PKU Open-Sora-Plan](https://github.com/PKU-YuanGroup/Open-Sora-Plan) is under rapid development, and currently we have aligned our implementation with its code version on [20240611](https://github.com/PKU-YuanGroup/Open-Sora-Plan/commit/b08681f697658c81361e1ec6c07fba55c79bb4bd).  
+
+## Requirements
+
+| mindspore | ascend driver | firmware | cann tookit/kernel |
+| ---       |   ---         | ---      | ---                |
+| 2.3.1     |  24.1RC2      |7.3.0.1.231|   8.0.RC2.beta1   |
 
 ## 🎥 Demo
 
 The following videos are generated based on MindSpore and Ascend 910*.
 
-<summary>Open-Sora-Plan v1.1.0 Demo</summary>
+<summary>Open-Sora-Plan v1.2.0 Demo</summary>
 
+29×1280×720 Text-to-Video Generation.
 
-| 221×512×512 (9.2s) | 221×512×512 (9.2s) | 221×512×512 (9.2s) |
-| --- | --- | --- |
-| <img src="https://github.com/wtomin/mindone-assets/blob/main/opensora_pku/v1.1/t2v/f221/An%20aerial%20shot%20of%20a%20lighthouse%20standing%20tall%20on%20a%20rocky%20cliff,%20its%20beacon%20cutting%20through%20the%20early%20.gif?raw=true" width=224> | <img src="https://github.com/wtomin/mindone-assets/blob/main/opensora_pku/v1.1/t2v/f221/The%20camera%20rotates%20around%20a%20large%20stack%20of%20vintage%20televisions%20all%20showing%20different%20programs-1950s.gif?raw=true" width=224>  | <img src="https://github.com/wtomin/mindone-assets/blob/main/opensora_pku/v1.1/t2v/f221/The%20video%20captures%20the%20spectacle%20of%20a%20continuous%20fireworks%20show%20against%20the%20backdrop%20of%20a%20starry%20nig.gif?raw=true" width=224> |
-| An aerial shot of a lighthouse standing tall on a rocky cliff... | The camera rotates around a large stack of vintage televisions...  | The video captures the spectacle of a continuous fireworks...  |
-| <img src="https://github.com/wtomin/mindone-assets/blob/main/opensora_pku/v1.1/t2v/f221/Aerial%20view%20of%20Santorini%20during%20the%20blue%20hour%2C%20showcasing%20the%20stunning%20architecture%20of%20white%20Cycladi.gif?raw=true" width=224> |<img src="https://github.com/wtomin/mindone-assets/blob/main/opensora_pku/v1.1/t2v/f221/Drone%20shot%20along%20the%20Hawaii%20jungle%20coastline%2C%20sunny%20day.%20Kayaks%20in%20the%20water.gif?raw=true" width=224> | <img src="https://github.com/wtomin/mindone-assets/blob/main/opensora_pku/v1.1/t2v/f221/The%20video%20presents%20an%20abstract%20composition%20centered%20around%20a%20hexagonal%20shape%20adorned%20with%20a%20starburs.gif?raw=true" width=224>  |
-| Aerial view of Santorini during the blue hour... | Drone shot along the Hawaii jungle coastline...  | The video presents an abstract composition centered around a hexagonal shape...  |
+| 29x720x1280 (1.2s) |
+| --- |
+| <img src="https://github.com/wtomin/mindone-assets/blob/main/opensora_pku/v1.2/29x720p/0-A%20close-up%20of%20a%20woman%E2%80%99s%20face%2C%20illuminated%20by%20the%20soft%20light%20of%20dawn%2C%20her%20expression%20serene%20and%20conte.gif?raw=true" width=720> |
+| A close-up of a woman’s face, illuminated by the soft light of dawn... |
 
+| 29x720x1280 (1.2s) |
+| --- |
+| <img src="https://github.com/wtomin/mindone-assets/blob/main/opensora_pku/v1.2/29x720p/0-A%20young%20man%20at%20his%2020s%20is%20sitting%20on%20a%20piece%20of%20cloud%20in%20the%20sky%2C%20reading%20a%20book..gif?raw=true" width=720>  |
+| 0-A young man at his 20s is sitting on a piece of cloud in the sky, reading a book...  |
 
-| 65×512×512 (2.7s) | 65×512×512 (2.7s) | 65×512×512 (2.7s) |
-| --- | --- | --- |
-| <img src="https://github.com/wtomin/mindone-assets/blob/main/opensora_pku/v1.1/t2v/f65/0-3D%20animation%20of%20a%20small,%20round,%20fluffy%20creature%20with%20big,%20expressive%20eyes%20explores%20a%20vibrant,%20enchan.gif?raw=true" width=224> | <img src="https://github.com/wtomin/mindone-assets/blob/main/opensora_pku/v1.1/t2v/f65/0-A%20corgi%20vlogging%20itself%20in%20tropical%20Maui..gif?raw=true" width=224>  | <img src="https://github.com/wtomin/mindone-assets/blob/main/opensora_pku/v1.1/t2v/f65/0-A%20painting%20of%20a%20boat%20on%20water%20comes%20to%20life,%20with%20waves%20crashing%20and%20the%20boat%20becoming%20submerged..gif?raw=true" width=224> |
-| 3D animation of a small, round, fluffy creature with... | A corgi vlogging itself in tropical Maui.  | A painting of a boat on water comes to life...  |
-| <img src="https://github.com/wtomin/mindone-assets/blob/main/opensora_pku/v1.1/t2v/f65/0-A%20solitary%20astronaut%20plants%20a%20flag%20on%20an%20alien%20planet%20covered%20in%20crystal%20formations.%20The%20shot%20tracks.gif?raw=true" width=224> |<img src="https://github.com/wtomin/mindone-assets/blob/main/opensora_pku/v1.1/t2v/f65/0-Extreme%20close-up%20of%20chicken%20and%20green%20pepper%20kebabs%20grilling%20on%20a%20barbeque%20with%20flames.%20Shallow%20focu.gif?raw=true" width=224> | <img src="https://github.com/wtomin/mindone-assets/blob/main/opensora_pku/v1.1/t2v/f65/0-In%20an%20ornate,%20historical%20hall,%20a%20massive%20tidal%20wave%20peaks%20and%20begins%20to%20crash.%20Two%20surfers,%20surfing..gif?raw=true" width=224>  |
-| A solitary astronaut plants a flag on an alien planet... | Extreme close-up of chicken and green pepper kebabs...  | In an ornate, historical hall, a massive tidal wave...  |
+| 29x720x1280 (1.2s) |
+| --- |
+| <img src="https://github.com/wtomin/mindone-assets/blob/main/opensora_pku/v1.2/29x720p/0-A%20close-up%20of%20a%20woman%20with%20a%20vintage%20hairstyle%20and%20bright%20red%20lipstick%2C%20gazing%20seductively%20into%20the%20.gif?raw=true" width=720> |
+| 0-A close-up of a woman with a vintage hairstyle and bright red lipstick...  |
 
-
-
-Videos are saved to `.gif` for display. See the text prompts in `examples/prompt_list_65.txt` and `examples/prompt_list_221.txt`.
+Videos are saved to `.gif` for display.
 
 ## 🔆 Features
 
-- 📍 **Open-Sora-Plan v1.1.0** with the following features
-    - ✅ Sequence parallelism
-    - ✅ CausalVAE-4x8x8 training and inference. Supports video reconstruction.
-    - ✅ T5 TextEncoder model inference.
-    - ✅ Text-to-video generation in 512x512 resolution and up to 513 frames.
-    - ✅ Three-stage training: i) 65x512x512 pretraining; ii) 221x512x512 finetuning; iii) 513x512x512 finetuning.
+- 📍 **Open-Sora-Plan v1.2.0** with the following features
+    - ✅ CausalVAEModel_D4_4x8x8 inference. Supports video reconstruction.
+    - ✅ mT5-xxl TextEncoder model inference.
+    - ✅ Text-to-video generation up to 93 frames and 720x1280 resolution.
+    - ✅ Multi-stage training using Zero2 and Sequence parallelism.
     - ✅ Acceleration methods: flash attention, recompute (graident checkpointing), mixed precision, data parallelism, optimizer-parallel, etc..
     - ✅ Evaluation metrics : PSNR and SSIM.
 
 
 ### TODO
+* [ ] Image-to-Video model **[WIP]**.
 * [ ] Scaling model parameters and dataset size **[WIP]**.
 * [ ] Evaluation of various metrics **[WIP]**.
 
 You contributions are welcome.
-
-<details>
-<summary>View more</summary>
-
-* [ ] Super-resolution model
-* [ ] frame-interpolation model
-</details>
 
 ## Contents
 
@@ -79,13 +78,10 @@ You contributions are welcome.
 
 Other useful documents and links are listed below.
 
-* Repo structure: [structure.md](docs/structure.md)
-
-
 ## Installation
 1. Use python>=3.8 [[install]](https://www.python.org/downloads/)
 
-2. Install MindSpore 2.3 master (0705daily) according to the [website](https://repo.mindspore.cn/mindspore/mindspore/version/202407/20240705/master_20240705220018_51f414917fd9a312dd43ea62eea61cf37c3dfbd6_newest/unified/). Select the corresponding wheel file based your computer's OS and the python verison. Please use C18 CANN (0705) which can be downloaded from [here](https://repo.mindspore.cn/ascend/ascend910/20240705/).
+2. Please install MindSpore 2.3.1 according to the [MindSpore official website](https://www.mindspore.cn/install/) and install [CANN 8.0.RC2.beta1](https://www.hiascend.com/developer/download/community/result?module=cann&cann=8.0.RC2.2.beta1) as recommended by the official installation website.
 
 
 3. Install requirements
@@ -97,6 +93,7 @@ In case `decord` package is not available, try `pip install eva-decord`.
 For EulerOS, instructions on ffmpeg and decord installation are as follows.
 
 <details onclose>
+<summary>How to install ffmpeg and decord</summary>
 
 ```
 1. install ffmpeg 4, referring to https://ffmpeg.org/releases
@@ -107,6 +104,7 @@ For EulerOS, instructions on ffmpeg and decord installation are as follows.
     ./configure --enable-shared         # --enable-shared is needed for sharing libavcodec with decord
     make -j 64
     make install
+
 2. install decord, referring to https://github.com/dmlc/decord?tab=readme-ov-file#install-from-source
     git clone --recursive https://github.com/dmlc/decord
     cd decord
@@ -122,84 +120,88 @@ For EulerOS, instructions on ffmpeg and decord installation are as follows.
 
 ## Model Weights
 
-### Open-Sora-Plan v1.1.0 Model Weights
+### Open-Sora-Plan v1.2.0 Model Weights
 
-Please download the torch checkpoint of T5 from [DeepFloyd/t5-v1_1-xxl](https://huggingface.co/DeepFloyd/t5-v1_1-xxl), and download the opensora v1.1.0 models' weights from [LanguageBind/Open-Sora-Plan-v1.1.0](https://huggingface.co/LanguageBind/Open-Sora-Plan-v1.1.0/tree/main). Place them under `examples/opensora_pku` as shown below:
+Please download the torch checkpoint of mT5-xxl from [google/mt5-xxl](https://huggingface.co/google/mt5-xxl/tree/main), and download the opensora v1.2.0 models' weights from [LanguageBind/Open-Sora-Plan-v1.2.0](https://huggingface.co/LanguageBind/Open-Sora-Plan-v1.2.0/tree/main). Place them under `examples/opensora_pku` as shown below:
 ```bash
-opensora_pku
+mindone/examples/opensora_pku
 ├───LanguageBind
-│   └───Open-Sora-Plan-v1.1.0
-│       ├───221x512x512
-│       │   ├───config.json
-│       │   └───diffusion_pytorch_model.safetensors
-│       ├───65x512x512
-│       │   ├───config.json
-│       │   └───diffusion_pytorch_model.safetensors
-│       └───vae
-│          ├───config.json
-│          └───diffusion_pytorch_model.safetensors
-└───DeepFloyd/
-    └───t5-v1_1-xxl
+│   └───Open-Sora-Plan-v1.2.0
+│       ├───1x480p/
+│       ├───29x480p/
+│       ├───29x720p/
+│       ├───93x480p/
+│       ├───93x480p_i2v/
+│       ├───93x720p/
+│       └───vae/
+└───google/
+    └───mt5-xxl/
         ├───config.json
-        ├───pytorch_model-00001-of-00002.bin
-        ├───pytorch_model-00002-of-00002.bin
-        ├───pytorch_model.bin.index.json
+        ├───generation_config.json
+        ├───pytorch_model.bin
         ├───special_tokens_map.json
         ├───spiece.model
         └───tokenizer_config.json
 ```
 
-After all weights being downloaded, please run the following script to run model conversion.
-```bash
-bash scripts/model_conversion/convert_all.sh
+Currently, we can load `.safetensors` files directly in MindSpore, but not `.bin` or `.ckpt` files. We recommend you to convert the
+`vae/checkpoint.ckpt` and `mt5-xxl/pytorch_model.bin` files to `.safetensor` files manually by running the following commands:
+```shell
+python tools/model_conversion/convert_pytorch_ckpt_to_safetensors.py --src LanguageBind/Open-Sora-Plan-v1.2.0/vae/checkpoint.ckpt --target LanguageBind/Open-Sora-Plan-v1.2.0/vae/diffusion_pytorch_model.safetensors  --config LanguageBind/Open-Sora-Plan-v1.2.0/vae/config.json
+
+python tools/model_conversion/convert_pytorch_ckpt_to_safetensors.py --src google/mt5-xxl/pytorch_model.bin --target google/mt5-xxl/model.safetensors  --config google/mt5-xxl/config.json
 ```
 
+Once the checkpoint files have all been prepared, you can refer to the inference guidance below.
 
 ## Inference
 
 ### CausalVAE Command Line Inference
 
-You can run video-to-video reconstruction task using `scripts/causalvae/reconstruction.sh`:
+You can run video-to-video reconstruction task using `scripts/causalvae/rec_video.sh`:
 ```bash
-python examples/rec_imvi_vae.py \
-    --model_path LanguageBind/Open-Sora-Plan-v1.1.0/vae \
+python examples/rec_video.py \
+    --ae_path LanguageBind/Open-Sora-Plan-v1.2.0/vae \
     --video_path test.mp4 \
     --rec_path rec.mp4 \
     --device Ascend \
     --sample_rate 1 \
-    --num_frames 513 \
-    --resolution 256 \
-    --crop_size 256 \
-    --ae CausalVAEModel_4x8x8
+    --num_frames 65 \
+    --height 480 \
+    --width 640 \
+    --enable_tiling \
+    --tile_overlap_factor 0.125 \
+    --save_memory
 ```
 Please change the `--video_path` to the existing video file path and `--rec_path` to the reconstructed video file path. You can set `--grid` to save the original video and the reconstructed video in the same output file.
 
-You can also run video reconstruction given an input video folder. See `scripts/causalvae/gen_video.sh`.
+You can also run video reconstruction given an input video folder. See `scripts/causalvae/rec_video_folder.sh`.
 
-### Open-Sora-Plan v1.1.0 Command Line Inference
+### Open-Sora-Plan v1.2.0 Command Line Inference
 
-You can run text-to-video inference on a single Ascend device using the script `scripts/text_condition/sample_video_65.sh` or `scripts/text_condition/sample_video_221.sh`.
+You can run text-to-video inference on a single Ascend device using the script `scripts/text_condition/single-device/sample_t2v_29x720p.sh`.
 ```bash
 python opensora/sample/sample_t2v.py \
-    --model_path LanguageBind/Open-Sora-Plan-v1.1.0 \
-    --text_encoder_name DeepFloyd/t5-v1_1-xxl \
-    --text_prompt examples/prompt_list_65.txt \
-    --ae CausalVAEModel_4x8x8 \
-    --version 65x512x512 \
-    --num_frames 65 \
-    --height 512 \
-    --width 512 \
-    --save_img_path "./sample_videos/prompt_list_65" \
+    --model_path LanguageBind/Open-Sora-Plan-v1.2.0/29x720p \
+    --num_frames 29 \
+    --height 720 \
+    --width 1280 \
+    --cache_dir "./" \
+    --text_encoder_name google/mt5-xxl \
+    --text_prompt examples/prompt_list_0.txt \
+    --ae CausalVAEModel_D4_4x8x8  \
+    --ae_path LanguageBind/Open-Sora-Plan-v1.2.0/vae\
+    --save_img_path "./sample_videos/prompt_list_0_29x720p" \
     --fps 24 \
     --guidance_scale 7.5 \
-    --num_sampling_steps 150 \
-    --enable_tiling
+    --num_sampling_steps 100 \
+    --enable_tiling \
+    --max_sequence_length 512 \
+    --sample_method EulerAncestralDiscrete \
+    --model_type "dit" \
 ```
-You can change the `version` to `221x512x512` to change the number of frames and resolutions.
+You can change the `num_frames`, `height` and `width` to match with the training shape of different checkpoints, e.g., `29x480p` requires `num_frames=29`, `height=480` and `width=640`. In case of oom on your device, you can try to append `--save_memory` to the command above, which enables a more radical tiling strategy for causal vae.
 
-> In case of OOM error, there are two options:
-> 1. Pass `--enable_time_chunk True` to allow vae decoding temporal frames as small, overlapped chunks. This can reduce the memory usage, which sacrificies a bit of temporal consistency.
-> 2. Seperate the inference into two stages. In stage 1, please run inference with `--save_latents`. This will save some `.npy` files in the output directory. Then in stage 2, please run the same inference script with `--decode_latents`. The generated videos will be saved in the output directory.
 
 If you want to run a multi-device inference, e.g., 8 cards, please use `msrun` and pass `--use_parallel=True` as the example below:
 
@@ -220,7 +222,17 @@ RuntimtError: Failed to register the compute graph node: 0. Reason: Repeated reg
 
 Please edit the `master_port` to a different port number in the range 1024 to 65535, and run the script again.
 
+See more examples of multi-device inference scripts under `scripts/text_condifion/multi-devices`.
 
+
+### Sequence Parallelism
+
+We support running inference with sequence parallelism. Please see the `sample_t2v_29x480p_sp.sh` and `sample_t2v_29x720p_sp.sh` under `scripts/text_condition/multi-devices/`.
+
+If you set `--sp_size 8` to run sequence parallelism on 8 NPUs, you should also edit as follows:
+```shell
+export ASCEND_RT_VISIBLE_DEVICES=0,1,2,3,4,5,6,7
+```
 ## Training
 
 ### Causal Video VAE
@@ -229,24 +241,31 @@ Please edit the `master_port` to a different port number in the range 1024 to 65
 
 **Step 1: Downloading Datasets**:
 
-To train the causal vae model, you need to prepare a video dataset. You can download this video dataset from [Open-Sora-Dataset-v1.1.0](https://huggingface.co/datasets/LanguageBind/Open-Sora-Plan-v1.1.0/tree/main). We give a tutorial on how to download these datasets. See [downloading tutorial](./tools/download/README.md).
+To train the causal vae model, you need to prepare a video dataset. Open-Sora-Plan-v1.2.0 trains vae in two stages. In the first stage, the authors trained vae on the Kinetic400 video dataset. Please download K400 dataset from [this repository](https://github.com/cvdfoundation/kinetics-dataset). In the second stage, they trained vae on Open-Sora-Dataset-v1.1.0 dataset. We give a tutorial on how to download the v1.1.0 datasets. See [downloading tutorial](./tools/download/README.md).
 
 **Step 2: Converting Pretrained Weights**:
 
-Causal video vae can be initialized from vae 2d for better convergence. This can be done by inflating the 2d vae model checkpoint as follows:
+As with v1.1.0, they initialized from the [SD2.1 VAE](https://huggingface.co/stabilityai/sd-vae-ft-mse) using tail initialization for better convergence. Please download the torch weight file from the given [URL](https://huggingface.co/stabilityai/sd-vae-ft-mse/tree/main).
 
+After downloading the [sd-vae-ft-mse](https://huggingface.co/stabilityai/sd-vae-ft-mse/tree/main) weights, you can run:
+```bash
+python tools/model_conversion/convert_vae_2d.py --src path/to/diffusion.safetensor --target /path/to/sd-vae-ft-mse.ckpt.
 ```
+This can convert the torch weight file into mindspore weight file.
+
+They you can inflate the 2d vae model checkpoint into a 3d causal vae initial weight file as follows:
+
+```bash
 python tools/model_conversion/inflate_vae2d_to_vae3d.py \
     --src /path/to/sd-vae-ft-mse.ckpt  \
     --target pretrained/causal_vae_488_init.ckpt
 ```
-> In case you lack vae 2d checkpoint in mindspore format, please use `tools/model_conversion/convert_vae_2d.py` for model conversion. After downloading the [sd-vae-ft-mse](https://huggingface.co/stabilityai/sd-vae-ft-mse/tree/main) weights, you can run `python tools/model_conversion/convert_vae_2d.py --src path/to/diffusion.safetensor --target /path/to/sd-vae-ft-mse.ckpt`.
 
-Please also download [lpips_vgg-426bf45c.ckpt](https://download-mindspore.osinfra.cn/toolkits/mindone/autoencoders/lpips_vgg-426bf45c.ckpt) and put it under `pretrained/` for training with lpips loss.
+In order to train vae with lpips loss, please also download [lpips_vgg-426bf45c.ckpt](https://download-mindspore.osinfra.cn/toolkits/mindone/autoencoders/lpips_vgg-426bf45c.ckpt) and put it under `pretrained/`.
 
 #### Standalone Training
 
-After downloading the datasets and preparing the pretrained weight, you can revise the `--video_path` in the training script to the video folder path of your downloaded dataset. This will allow the training script to load all video files under `video_path` in a **recursive manner**, and use them as the training data. Make sure the `--load_from_checkpoint` is set to the pretrained weight, e.g., `pretrained/causal_vae_488_init.ckpt`.
+The first-stage training is conducted on 25-frame 256×256 videos of the [K400](https://github.com/cvdfoundation/kinetics-dataset) dataset. you can revise the `--video_path` in the training script to the video folder path of your downloaded dataset. This will allow the training script to load all video files under `video_path` in a **recursive manner**, and use them as the training data. Make sure the `--load_from_checkpoint` is set to the pretrained weight, e.g., `pretrained/causal_vae_488_init.ckpt`.
 
 
 <details>
@@ -271,12 +290,10 @@ python opensora/train/train_causalvae.py \
 Similarly, you can create a csv file to include the test set videos, and pass the csv file to `--data_file_path` in `examples/rec_video_vae.py`.
 </details>
 
-To launch a single-card training using perceputal loss, you can refer to `scripts/causalvae/train_without_gan_loss.sh` and run:
+To launch a single-card training, please run:
 ```bash
-bash scripts/causalvae/train_without_gan_loss.sh
+bash scripts/causalvae/train_with_gan_loss.sh
 ```
-
-If you want to train causalvae with perceputal loss and GAN loss, you can refer to `scripts/causalvae/train_with_gan_loss.sh`.
 
 > Note:
 > - Supports resume training by setting `--resume_training_checkpoint True`. It is the same for the multi-device training script.
@@ -293,55 +310,32 @@ msrun --master_port=8200 --worker_num=8 --local_worker_num=8 --log_dir="output_l
 ```
 For more details, please take `scripts/causalvae/train_with_gan_loss_multi_device.sh` as an example.
 
-#### Multi-Stage Training
-
-As stated in [Training Details](https://github.com/PKU-YuanGroup/Open-Sora-Plan/blob/main/docs/Report-v1.1.0.md#training-details), the authors trained for 100k steps in the first stage with a video shape of 9×256×256. Then they increased the frame count from 9 to 25 and found that this significantly improved the model's performance. In the first two stages, they enabled the learnable mixed factor in `TimeUpsampleRes2x` and `TimeDownsampleRes2x`. In the third stage, they reinitialized the mixed factor to 0.5 (sigmoid(0.5) = 0.6225) to further enhance the model's capabilities.
-
-You can revise `--video_num_frames` and `--resolution` in the training scripts under `scripts/causalvae/` for each stage accordingly.
-
-
 
 #### Inference After Training
 
-After training, you will find the checkpoint files under the `ckpt/` folder of the output directory. To evaluate the reconstruction of the checkpoint file, you can take `scripts/causalvae/gen_video.sh` and revise it like:
+After training, you will find the checkpoint files under the `ckpt/` folder of the output directory. To evaluate the reconstruction of the checkpoint file, you can take `scripts/causalvae/rec_video_folder.sh` and revise it like:
 
 ```bash
-python examples/rec_video_vae.py \
+python examples/rec_video_folder.py \
     --batch_size 1 \
     --real_video_dir input_real_video_dir \
     --generated_video_dir output_generated_video_dir \
     --device Ascend \
     --sample_fps 10 \
     --sample_rate 1 \
-    --num_frames 9 \  # revise according to your training stage
-    --resolution 256 \ # revise according to your training stage
-    --crop_size 256 \ # revise according to your training stage
+    --num_frames 65 \
+    --height 480 \
+    --width 640 \
     --num_workers 8 \
-    --ckpt /path/to/your/.ckpt/file
+    --ae_path LanguageBind/Open-Sora-Plan-v1.2.0/vae \
+    --enable_tiling \
+    --tile_overlap_factor 0.125 \
+    --save_memory \
+    --ms_checkpoint /path/to/ms/checkpoint \
 ```
 
 Runing this command will generate reconstructed videos under the given `output_generated_video_dir`. You can then evalute some common metrics (e.g., ssim, psnr) using the script under `opensora/eval/script`.
 
-#### Performance
-
-Taking the stage-1 training as an example, we record the training speed as follows:
-
-| Model           | Context        | Precision | BS  | NPUs | num_frames | Resolution  | With GAN loss  | Train T. (s/step) |
-|:----------------|:---------------|:----------|:---:|:----:|:-----------------------:|:-----------:|:-----------:|:-----------------:|
-| CausalVAE_4x8x8  | D910\*-[CANN C18(0705)](https://repo.mindspore.cn/ascend/ascend910/20240705/)-[MS2.3_master(0705)](https://repo.mindspore.cn/mindspore/mindspore/version/202407/20240705/master_20240705220018_51f414917fd9a312dd43ea62eea61cf37c3dfbd6_newest/unified/) | BF16      |  1  |  8   |         9         | 256x256     |  False |     0.97      |
-| CausalVAE_4x8x8  | D910\*-[CANN C18(0705)](https://repo.mindspore.cn/ascend/ascend910/20240705/)-[MS2.3_master(0705)](https://repo.mindspore.cn/mindspore/mindspore/version/202407/20240705/master_20240705220018_51f414917fd9a312dd43ea62eea61cf37c3dfbd6_newest/unified/) | FP32      |  1  |  8   |         9         | 256x256     |  True |     1.63        |
-
-#### Example of Training Experiment
-
-To validate the training script, we run 8-card parallel training of CausalVAE_4x8x8 with GAN loss using the [UCF-101 dataset](https://www.crcv.ucf.edu/research/data-sets/ucf101/). The training set consists of 10656 videos and the test set consists of 2664 videos.
-
-We revise the `video_path` of `scripts/causalvae/train_with_gan_loss_multi_device.sh` to the UCF-101 training set, and then start training. After training, we run inference with the checkpoint using `scripts/causalvae/gen_video.sh` to save the generated videos. Then we revise the `real_video_dir` and `generated_video_dir` in `opensora/eval/scripts/cal_ssim.sh` to the video folder of the test set and the video folder of the generated videos to evaluate SSIM scores. The similar process is needed to evaluate PSNR scores using `opensora/eval/scripts/cal_psnr.sh`
-
-Here are the evaluation metrics of the checkpoint file trained for 135k steps:
-
-| Train Steps | With GAN loss | PSNR | SSIM |
-| --- | ---| ---|---|
-|135000 | True|29.8343 | 0.8893|
 
 
 ### Training Diffusion Model
@@ -349,6 +343,24 @@ Here are the evaluation metrics of the checkpoint file trained for 135k steps:
 #### Preparation
 
 **Step 1: Downloading Datasets**:
+
+
+The [Open-Sora-Dataset-v1.2.0](https://huggingface.co/datasets/LanguageBind/Open-Sora-Plan-v1.2.0) contains annotation json files, which are listed below:
+
+```text
+Panda70M_HQ1M.json
+Panda70M_HQ6M.json
+sam_image_11185255_resolution.json
+v1.1.0_HQ_part1.json
+v1.1.0_HQ_part2.json
+v1.1.0_HQ_part3.json
+```
+
+Please check the [readme doc](https://huggingface.co/datasets/LanguageBind/Open-Sora-Plan-v1.2.0) for details of these annotation files. [Open-Sora-Dataset-v1.2.0](https://huggingface.co/datasets/LanguageBind/Open-Sora-Plan-v1.2.0) contains the [Panda70M (training full)](https://drive.google.com/file/d/1DeODUcdJCEfnTjJywM-ObmrlVg-wsvwz/view?usp=sharing), [SAM](https://ai.meta.com/datasets/segment-anything/), and the data from [Open-Sora-Dataset-v1.1.0](https://huggingface.co/datasets/LanguageBind/Open-Sora-Plan-v1.1.0/tree/main). You can take the following instructions only how to download [Open-Sora-Dataset-v1.1.0](https://huggingface.co/datasets/LanguageBind/Open-Sora-Plan-v1.1.0/tree/main).
+
+
+<details>
+<summary> How to download Open-Sora-Dataset-v1.1.0? </summary>
 
 The [Open-Sora-Dataset-v1.1.0](https://huggingface.co/datasets/LanguageBind/Open-Sora-Plan-v1.1.0/tree/main) includes three image-text datasets and three video-text datasets. As reported in [Report v1.1.0](https://github.com/PKU-YuanGroup/Open-Sora-Plan/blob/main/docs/Report-v1.1.0.md), the three image-text datasets are:
 | Name | Image Source | Text Captioner | Num pair |
@@ -407,6 +419,8 @@ anno_jsons/
 ├───anytext_en_1886137.json
 └───sam_image_11185255.json
 ```
+</details>
+
 
 **Step 2: Extracting Embedding Cache**:
 
@@ -417,152 +431,99 @@ python opensora/sample/sample_text_embed.py \
     --data_file_path /path/to/caption.json \
     --output_path /path/to/text_embed_folder \
 ```
-To extract text embeddings for all annotation json files using a single card, you can refer to `scripts/embedding_cache/extract_all.sh`. If you want to try extracting embedding cache using multiple cards in a single node, please refer to `scripts/embedding_cache/extract_multi.sh`.
 
-The text embeddings are extracted and saved under the specified `output_path`. The `output_path` folder structure is similar to, e.g.,:
-```bash
-datasets/
-├───mixkit-t5-emb-len=300_65f/
-│   ├───Airplane/
-│   │       ├───[video-file-name]-frame_idx-0:65.npz
-│   │       ├───[video-file-name]-frame_idx-65:130.npz
-│   │       └───...
-│   └───...
-└───mixkit-t5-emb-len=300_513f/
-    ├───Airplane/
-    │       ├───[video-file-name]-frame_idx-0:513.npz
-    │       ├───[video-file-name]-frame_idx-513:1026.npz
-    │       └───...
-    └───...
-```
+The text embeddings are extracted and saved under the specified `output_path`.
+
 **Step 3: Revising the Paths**:
 
 After extracting the embedding cache, you will have the following three paths ready:
 ```text
-images/videos path: e.g., datasets/images/
-t5 embedding path: e.g., datasets/images-t5-emb-len=300/
-annotation json path: e.g., anno_jsons/human_images162094.json
+images/videos path: e.g., datasets/panda70m/
+text embedding path: e.g., datasets/panda70m_emb-len=512/
+annotation json path: e.g., datasets/anno_jsons/Panda70M_HQ1M.json
 ```
-In the dataset file, for example, `scripts/train_data/image_data.txt`, each line represents one dataset. Each line includes three paths: the images/videos folder, the t5 embedding cache folder, and the path to the annotation json file. Please revise them accordingly to the paths on your disk.
+In the dataset file, for example, `scripts/train_data/merge_data.txt`, each line represents one dataset. Each line includes three paths: the images/videos folder, the text embedding cache folder, and the path to the annotation json file. Please revise them accordingly to the paths on your disk.
 
-**Step 4: Converting Pretrained Weights**:
-
-The first-stage training depends on the `t2v.pt` from [Vchitect/Latte](https://huggingface.co/maxin-cn/Latte/tree/main). Please download `t2v.pt` and place it under `LanguageBind/Open-Sora-Plan-v1.1.0/t2v.pt`. Then run model conversion with:
-```bash
-python tools/model_conversion/convert_latte.py \
-  --src LanguageBind/Open-Sora-Plan-v1.1.0/t2v.pt \
-  --target LanguageBind/Open-Sora-Plan-v1.1.0/t2v.ckpt
-```
-
-> **Since [Vchitect/Latte](https://huggingface.co/maxin-cn/Latte/tree/main) has deleted `t2v.pt` from their HF repo, please download `t2v.ckpt` from this [URL](https://download-mindspore.osinfra.cn/toolkits/mindone/opensora-pku/t2v.ckpt). There is no need to convert it.**
 
 #### Example of Training Scripts
-Here we choose an example of training scripts (`train_videoae_65x512x512.sh`) and explain the meanings of some experimental arguments. This is an example of parallel training script which uses data parallelism. If you want to try single-device training, please refer to `train_videoae_65x512x512_single_device.sh`.
 
-There some hyper-parameters that may vary between different experiments:
+The training scripts are stored under `scripts/text_condition`. The single-device training scripts are under the `single-device` folder for demonstration. We recommend to use the parallel-training scripts under the `multi-devices` folder.
+
+Here we choose an example of training scripts (`train_video3d_nx480p_zero2.sh`) and explain the meanings of some experimental arguments.
+
+Here is the major command of the training script:
 ```shell
-image_size=512  # the image size of frames, same to image height and image width
-use_image_num=4  # to include n number of images in an input sample
-num_frames=65  # to sample m frames from a single video. The total number of images： num_frames + use_image_num
-model_dtype="bf16" # the data type used for mixed precision of the diffusion transformer model (LatteT2V).
-amp_level="O2" # the default auto mixed precision level for LatteT2V.
-enable_flash_attention="True" # whether to use MindSpore Flash Attention
-batch_size=2 # training batch size
-lr="2e-05" # learning rate. Default learning schedule is constant
+NUM_FRAME=29
+python  opensora/train/train_t2v_diffusers.py \
+    --data "scripts/train_data/merge_data.txt" \
+    --num_frames ${NUM_FRAME} \
+    --max_height 480 \
+    --max_width 640 \
+    --attention_mode xformers \
+    --gradient_checkpointing \
+    --pretrained "path/to/ms-or-safetensors-ckpt/from/last/stage" \
+    --parallel_mode "zero" \
+    --zero_stage 2 \
+    # pass other arguments
 ```
-
-Here is the major command of the parallel-training script:
-```shell
-msrun --bind_core=True --worker_num=8 --local_worker_num=8 --master_port=9000 --log_dir=$output_dir/parallel_logs opensora/train/train_t2v.py \
-      --video_data "scripts/train_data/video_data.txt" \
-      --image_data "scripts/train_data/image_data.txt" \
-      --pretrained LanguageBind/Open-Sora-Plan-v1.1.0/t2v.ckpt \
-    ... # pass other arguments
-```
-We use `msrun` to launch the parallel training tasks. For single-node multi-device training, `worker_num` and `local_worker_num` should be the same to the number of training devices.  `master_port` specifies the scheduler binding port number.
-
 There are some arguments related to the training dataset path:
-- `video_data` or `image_data`: the text file to the video/image dataset. The text file should contain N lines corresponding to N datasets. Each line should have two or three items. If two items are available, they correspond to the video folder and the annotation json file. If three items are available, they correspond to the video folder, the text embedding cache folder, and the annotation json file.
-- `pretrained`: the pretrained checkpoint to be loaded as initial weights before training. If not provided, the LatteT2V will use random initialization.
+- `data`: the text file to the video/image dataset. The text file should contain N lines corresponding to N datasets. Each line should have two or three items. If two items are available, they correspond to the video folder and the annotation json file. If three items are available, they correspond to the video folder, the text embedding cache folder, and the annotation json file.
+- `num_frames`: the number of frames of each video sample.
+- `max_height` and `max_width`: the frame maximum height and width.
+- `attention_mode`: the attention mode, choosing from `math` or `xformers`. Note that we are not using the actual [xformers](https://link.zhihu.com/?target=https%3A//github.com/facebookresearch/xformers) library to accelerate training, but using MindSpore-native `FlashAttentionScore`. The `xformers` is kept for compatibility and maybe discarded in the future.
+- `gradient_checkpointing`: it is referred to MindSpore [recomputation](https://www.mindspore.cn/docs/en/r2.3.1/api_python/mindspore/mindspore.recompute.html) feature, which can save memory by recomputing the intermediate activations in the backward pass.
+- `pretrained`: the pretrained checkpoint to be loaded as initial weights before training. If not provided, the OpenSoraT2V will use random initialization. If provided, the path should be either the safetensors checkpoint directiory or path, e.g., "LanguageBind/Open-Sora-Plan-v1.2.0/1x480p" or "LanguageBind/Open-Sora-Plan-v1.2.0/1x480p/diffusion_pytorch_model.safetensors", or MindSpore checkpoint path, e.g., "t2i-image3d-1x480p/ckpt/OpenSoraT2V-ROPE-L-122.ckpt".
+- `parallel_mode`: the parallelism mode chosen from ["data", "optim", "zero"], which denotes the data parallelism, the optimizer parallelism and the deepspeed zero_x parallelism.
+- `zero_stage`: runs parallelism like deepspeed, supporting zero0, zero1, zero2, and zero3, if parallel_mode is "zero".
 
-For the detailed explanations for other arguments, please refer to the document for [training arguments](docs/training_args.md).
+For the stage 4 (`29x720p`) and stage 5 (`93x720p`) training script, please refer to `train_video3d_29x720p_zero2_sp.sh` and `train_video3d_93x720p_zero2_sp.sh`.
 
-> Note:
-> - In Graph mode (default), MindSpore takes about 10~20 mins for graph compilation.
-> - For acceleration, we set the `dataset_sink_mode` to True by default. For more information about data sink mode, see [MindSpore doc for data sink](https://www.mindspore.cn/docs/en/master/api_python/mindspore/mindspore.data_sink.html).
-> - Supports resume training by setting `--resume_training_checkpoint True`.
+#### Validation During Training
 
-#### Parallel Training
-
-Before launching the first-stage training, please make sure you set the three paths correctly in `image_data.txt` and `video_data.txt`.
-
-```bash
-# start 65x512x512 pretraining, 8 NPUs
-bash scripts/text_condition/train_videoae_65x512x512.sh
+We also support to run validation during training. This is supported by editing the training script like this:
+```diff
+- --data "scripts/train_data/merge_data.txt" \
++ --data "scripts/train_data/merge_data_train.txt" \
++ --val_data "scripts/train_data/merge_data_val.txt" \
++ --validate True \
++ --val_batch_size 1 \
++ --val_interval 1 \
 ```
-During training, the training logs will be saved under `parallel_logs/` folder of the specified output directory, e.g., `parallel_logs/worker_0.log`. The loss values and average per step time will saved in `result.log` in the output directory.
+The edits allow to compute the loss on the validation set specified by `merge_data_val.txt` for every 1 epoch (defined by `val_interval`). `merge_data_val.txt` has the same format as `merge_data_train.txt`, but specifies a different subset from the train set. The validation loss will be recorded in the `result_val.log` under the output directory. For example training script, please refer to `train_video3d_29x720p_zero2_sp_val.sh` under `scripts/text_conditions/multi-devices/`.
 
-After the first-stage training, if data parallelism (the default parallel mode) is applied, the checkpoint files will be saved under `ckpt/` folder. If optimizer parallelism is applied (setting `--parallel_mode` to "optim"), there will be multiple checkpoint shards saved in the `ckpt/`. See the following method on how to merge multiple checkpoint shards into a full checkpoint file.
-<details>
-<summary>How to merge multiple checkpoint shards</summary>
 
-Please run the following command to combine the multiple checkpoint shards into a full one:
+#### Sequence Parallelism
+
+We also support training with sequence parallelism and zero2 parallelism together. This is enabled by setting `--sp_size` and `--train_sp_batch_size`.  For example, with `sp_size=8` and `train_sp_batch_size=4`, 2 NPUs are used for a single video sample.
+
+See `train_video3d_29x720p_zero2_sp.sh` under `scripts/text_condition/mult-devices/` for detailed usage.
+
+#### Tips on Finetuning
+
+To align with the hyper-parameters, we use the same learning rate (LR) $1e^{-4}$ as [Open-Sora-Plan v1.2.0](https://github.com/PKU-YuanGroup/Open-Sora-Plan/tree/v1.2.0). However, our experience indicates that $1e^{-4}$ might be too large for finetuning the model on a small training set. If you want to finetune Open-Sora-Plan on your custom data with a small size, and notice that the large LR leads to unstable training, we have a few tips for you:
+
+1. You can lower your LR or increase the effective batch size, for example, by increasing `gradient_accumulation_steps` or running multi-machine training.
+2. You can try a different LR scheduler, for example, you can change the current constant LR scheduler to `polynomial decay` by:
+```diff
+-  --lr_scheduler="constant" \
++  --lr_scheduler="polynomial_decay" \
++  --lr_decay_steps=1000000 \
 ```
-python tools/ckpt/combine_ckpt.py --src output_dir/ckpt --dest output_dir/ckpt --strategy_ckpt output_dir/src_strategy.ckpt
-```
-Afterwards, you will obtain a full checkpoint file under `output_dir/ckpt/rank_0/full_0.ckpt`.
-
-</details>
-
-> Note:
-> - If you want to run inference with a checkpoint file, please revise the script `scripts/text_condition/sample_video.sh` and append `--pretrained_ckpt path/to/your.ckpt` to the end of the inference command.
-
-Then please revise `scripts/text_condition/train_videoae_221x512x512.sh`, and change `--pretrained` to the full checkpoint path from the `65x512x512` stage. Then run:
-
-```bash
-# start 221x512x512 finetuning, 8 NPUs
-bash scripts/text_condition/train_videoae_221x512x512_sp.sh
-```
-> Note:
-> - You can try modifying `--dataloader_num_workers` and `--dataloader_prefetch_size` on `train_videoae_221x512x512_sp.sh` to speed up when you have enough cpu memory.
-
-Simiarly, please revise the `--pretrained` to the checkpoint path from the `221x512x512` stage, and then start the third-stage training:
-
-```bash
-# start 513x512x512 finetuning, 8 NPUs
-bash scripts/text_condition/train_videoae_513x512x512_sp.sh
-```
-> Note:
-> - You can try modifying `--dataloader_num_workers` and `--dataloader_prefetch_size` on `train_videoae_513x512x512_sp.sh` to speed up when you have enough cpu memory.
-
-
-#### Overfitting Experiment
-
-To verify the training script and convergence speed, we performed an overfitting experiment: training the stage 1 model $(65+4)\times512\times512$ on 64 videos selected from the mixkit dataset. The stage 1 model was intialized with `t2v.ckpt`, and we trained it with the hyper-parameters listed in `scripts/text_condition/train_videoae_65x512x512.sh`, except that we only trained it on 64 videos for 3000 steps.
-
-The checkpoint after 3000 steps generated videos similar to the original videos, which means the convergence of the overfitting experiment was as good as we expected. Some generated videos are shown below:
-
-| 65×512×512 (2.7s) | 65×512×512 (2.7s) | 65×512×512 (2.7s) |
-| --- | --- | --- |
-| <img src="https://github.com/wtomin/mindone-assets/blob/main/opensora_pku/v1.1/t2v/overfit-fp65/0-a%20lively%20scene%20at%20a%20ski%20resort%20nestled%20in%20the%20heart%20of%20a%20snowy%20mountain%20range.%20From%20a%20high%20vantage%20p.gif?raw=true" width=224> | <img src="https://github.com/wtomin/mindone-assets/blob/main/opensora_pku/v1.1/t2v/overfit-fp65/0-a%20serene%20scene%20of%20a%20clear%20blue%20sky.%20Dominating%20the%20top%20right%20corner%20of%20the%20frame%20is%20a%20single,%20fluffy.gif?raw=true" width=224>  | <img src="https://github.com/wtomin/mindone-assets/blob/main/opensora_pku/v1.1/t2v/overfit-fp65/0-an%20aerial%20view%20of%20a%20rugged%20landscape.%20Dominating%20the%20scene%20are%20large,%20jagged%20rocks%20that%20cut%20across%20e.gif?raw=true" width=224> |
-| a lively scene at a ski resort... | a serene scene of a clear blue sky...  | an aerial view of a rugged landscape...  |
-
+The edits will set the polynomial_decay LR scheduler, and decay the start LR to the end LR in 1000000 steps. You can adjust `lr_decay_steps` based on your `max_train_steps`. See other options of LR scheduler in `mindone/trainers/lr_schedule.py`.
 
 #### Performance
 
-We evaluated the training performance on MindSpore and Ascend NPUs. The results are as follows.
+We evaluated the training performance on Ascend NPUs. The results are as follows.
 
-| Model           | Context        | Precision | BS  | NPUs | num_frames + num_images | Resolution  | Train T. (s/step) |
-|:----------------|:---------------|:----------|:---:|:----:|:-----------------------:|:-----------:|:-----------------:|
-| LatteT2V-XL/122 | D910\*-[CANN C18(0705)](https://repo.mindspore.cn/ascend/ascend910/20240705/)-[MS2.3_master(0705)](https://repo.mindspore.cn/mindspore/mindspore/version/202407/20240705/master_20240705220018_51f414917fd9a312dd43ea62eea61cf37c3dfbd6_newest/unified/) | BF16      |  2  |  8   |         17 + 4          | 512x512     |       2.45        |
-| LatteT2V-XL/122 | D910\*-[CANN C18(0705)](https://repo.mindspore.cn/ascend/ascend910/20240705/)-[MS2.3_master(0705)](https://repo.mindspore.cn/mindspore/mindspore/version/202407/20240705/master_20240705220018_51f414917fd9a312dd43ea62eea61cf37c3dfbd6_newest/unified/) | BF16      |  2  |  8   |         65 + 16         | 512x512     |       9.36       |
-| LatteT2V-XL/122 | D910\*-[CANN C18(0705)](https://repo.mindspore.cn/ascend/ascend910/20240705/)-[MS2.3_master(0705)](https://repo.mindspore.cn/mindspore/mindspore/version/202407/20240705/master_20240705220018_51f414917fd9a312dd43ea62eea61cf37c3dfbd6_newest/unified/) | BF16      |  2  |  8   |         65 + 4          | 512x512     |       7.02        |
-| LatteT2V-XL/122 | D910\*-[CANN C18(0705)](https://repo.mindspore.cn/ascend/ascend910/20240705/)-[MS2.3_master(0705)](https://repo.mindspore.cn/mindspore/mindspore/version/202407/20240705/master_20240705220018_51f414917fd9a312dd43ea62eea61cf37c3dfbd6_newest/unified/) | BF16      |  1  |  8   |         221 + 4         | 512x512     |       7.18        |
-| LatteT2V-XL/122 | D910\*-[CANN C18(0705)](https://repo.mindspore.cn/ascend/ascend910/20240705/)-[MS2.3_master(0705)](https://repo.mindspore.cn/mindspore/mindspore/version/202407/20240705/master_20240705220018_51f414917fd9a312dd43ea62eea61cf37c3dfbd6_newest/unified/) | BF16      |  1  |  8   |         513 + 8         | 512x512     |        12.3       |
+| model name      | cards       |  stage     |graph compile | batch size (local)   | video size  | Paramllelism |recompute |data sink | jit level| step time | train imgs/s |
+|:----------------|:----------- |:----------|:---------:|:-----:|:----------:|:----------:|:----------:|:----------:|:----------:|-------------------:|:----------:|
+| OpenSoraT2V-ROPE-L-122 |  8   | 2 | 3mins     |  8  |           1x640x480     |         zero2                     | TRUE | TRUE | O0 |    2.35      |  27.3 |
+| OpenSoraT2V-ROPE-L-122 |  8   | 3 |  6mins    |  1  |           29x640x480    |         zero2                      |  TRUE | TRUE | O0 |     3.68     | 63.0 |
+| OpenSoraT2V-ROPE-L-122 |  8   | 4 | 10mins    |  1  |           29x1280x720   |         zero2 + SP(sp_size=8)      |  FALSE | TRUE | O0 |    4.32     | 6.71 |
+| OpenSoraT2V-ROPE-L-122 |  8   | 5 | 15mins    |  1  |           93x1280x720   |         zero2 + SP(sp_size=8)      |  TRUE | TRUE | O0 |    24.4     | 3.81  |
 
-> Context: {NPU type}-{CANN version}-{MindSpore version}
 
-See [Performance Boosting History](docs/performance_boosting_history.md) 🚀🚀🚀 on how we achieve the state of the art performance.
+> SP: sequence parallelism.
 
 ## 👍 Acknowledgement
 * [Latte](https://github.com/Vchitect/Latte): The **main codebase** we built upon and it is an wonderful video generated model.
