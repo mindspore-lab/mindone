@@ -119,8 +119,8 @@ def prepare_mask_and_masked_image(image, mask, height, width, return_image=False
     converted to ``ms.Tensor`` with shapes ``batch x channels x height x width`` where ``channels`` is ``3`` for the
     ``image`` and ``1`` for the ``mask``.
 
-    The ``image`` will be converted to ``torch.float32`` and normalized to be in ``[-1, 1]``. The ``mask`` will be
-    binarized (``mask > 0.5``) and cast to ``torch.float32`` too.
+    The ``image`` will be converted to ``mindspore.float32`` and normalized to be in ``[-1, 1]``. The ``mask`` will be
+    binarized (``mask > 0.5``) and cast to ``mindspore.float32`` too.
 
     Args:
         image (Union[np.array, PIL.Image, ms.Tensor]): The image to inpaint.
