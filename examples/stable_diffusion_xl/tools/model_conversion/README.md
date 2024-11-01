@@ -1,6 +1,6 @@
 # Model Conversion between Mindspore and Torch Inference
 
-We provide scripts of the checkpoint conversion between `.safetensors`  from Torch and `.ckpt` format from MindSpore. For training or inference in Mindspore, we use the pre-trained weights from hugging face and convert them to `.ckpt` format. Please refer to [the preparation part of GETTING_STARTED.md](https://github.com/mindspore-lab/mindone/blob/master/examples/stable_diffusion_xl/GETTING_STARTED.md#convert-pretrained-checkpoint) for details. After finetuning in Mindspore, we can convert the checkpoints back for Torch inference as well.
+We provide scripts of the checkpoint conversion between `.safetensors`  from Torch and `.ckpt` format from MindSpore. For training or inference in Mindspore, we use the pre-trained weights from hugging face and convert them to `.ckpt` format. Please refer to [the preparation part of GETTING_STARTED.md](https://github.com/mindspore-lab/mindone/blob/master/examples/stable_diffusion_xl/docs/GETTING_STARTED.md#convert-pretrained-checkpoint) for details. After finetuning in Mindspore, we can convert the checkpoints back for Torch inference as well.
 
 The tutorial shows how to run inference in the official SDXL repo, [generative-models](https://github.com/Stability-AI/generative-models), with Mindspore checkpoints. Please refer to this [tutorial](https://github.com/mindspore-lab/mindone/blob/master/examples/stable_diffusion_xl/tools/lora_conversion/README.md) if running in diffusers.
 
@@ -84,7 +84,7 @@ To check inference consistency quantitatively, you should ensure MS and PT use t
 
 ## Results
 
-Here are the generation results for comparison between MS and PT of Dreambooth via LoRA inference, where the Dreambooth-LoRA checkpoint is derived by fine-tuning the [dog](https://github.com/google/dreambooth/tree/main/dataset/dog) dataset using MindONE (refer to [dreambooth_finetune.md](https://github.com/mindspore-lab/mindone/blob/master/examples/stable_diffusion_xl/dreambooth_finetune.md)).
+Here are the generation results for comparison between MS and PT of Dreambooth via LoRA inference, where the Dreambooth-LoRA checkpoint is derived by fine-tuning the [dog](https://github.com/google/dreambooth/tree/main/dataset/dog) dataset using MindONE (refer to [dreambooth_finetune.md](https://github.com/mindspore-lab/mindone/blob/master/examples/stable_diffusion_xl/docs/dreambooth_finetune.md)).
 
 The generated images for MS (left) and PT (right) are highly consistent as we can see. Quantitatively, the average absolute pixel error between MS and PT-generated images is below 5.
 

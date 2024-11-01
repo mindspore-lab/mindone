@@ -30,6 +30,13 @@ from .models.clip import (
     CLIPVisionModelWithProjection,
 )
 from .models.dpt import DPTForDepthEstimation
+from .models.gemma import (
+    GemmaForCausalLM,
+    GemmaForSequenceClassification,
+    GemmaForTokenClassification,
+    GemmaModel,
+    GemmaPreTrainedModel,
+)
 from .models.mt5 import (
     MT5_PRETRAINED_MODEL_ARCHIVE_LIST,
     MT5EncoderModel,
