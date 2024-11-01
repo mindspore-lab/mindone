@@ -326,7 +326,7 @@ class KandinskyV22Img2ImgPipeline(DiffusionPipeline):
                 sample=latent_model_input,
                 timestep=t,
                 encoder_hidden_states=None,
-                added_cond_kwargs=added_cond_kwargs,
+                added_cond_kwargs=ms.mutable(added_cond_kwargs),
                 return_dict=False,
             )[0]
 

@@ -33,7 +33,7 @@ TEXT2IMAGE_EXAMPLE_DOC_STRING = """
         ```py
         >>> import mindspore as ms
         >>> from mindone.diffusers import StableCascadeCombinedPipeline
-        >>> pipe = StableCascadeCombinedPipeline.from_pretrained("stabilityai/stable-cascade", variant="fp16", mindspore_dtype=mindspore.float16)
+        >>> pipe = StableCascadeCombinedPipeline.from_pretrained("stabilityai/stable-cascade", mindspore_dtype=ms.float32)
         >>> prompt = "an image of a shiba inu, donning a spacesuit and helmet"
         >>> images = pipe(prompt=prompt)
         ```
@@ -259,10 +259,10 @@ class StableCascadeCombinedPipeline(DiffusionPipeline):
             callback_on_step_end_tensor_inputs=prior_callback_on_step_end_tensor_inputs,
         )
         image_embeddings = prior_outputs[0]
-        prompt_embeds = prior_outputs.get("prompt_embeds", None)
-        prompt_embeds_pooled = prior_outputs.get("prompt_embeds_pooled", None)
-        negative_prompt_embeds = prior_outputs.get("negative_prompt_embeds", None)
-        negative_prompt_embeds_pooled = prior_outputs.get("negative_prompt_embeds_pooled", None)
+        prompt_embeds = prior_outputs[1]
+        prompt_embeds_pooled = prior_outputs[2]
+        negative_prompt_embeds = prior_outputs[3]
+        negative_prompt_embeds_pooled = prior_outputs[4]
 
         outputs = self.decoder_pipe(
             image_embeddings=image_embeddings,

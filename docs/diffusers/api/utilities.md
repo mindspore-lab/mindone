@@ -16,7 +16,7 @@ Utility and helper functions for working with 🤗 Diffusers.
 
 ::: mindone.diffusers.utils.numpy_to_pil
 
-::: mindone.diffusers.utils.pt_to_pil
+::: mindone.diffusers.utils.ms_to_pil
 
 ::: mindone.diffusers.utils.load_image
 
