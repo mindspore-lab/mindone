@@ -1,12 +1,12 @@
 python opensora/train/train_causalvae.py \
-    --exp_name "25x256x256" \
+    --exp_name "9x256x256" \
     --train_batch_size 1 \
-    --precision bf16 \
+    --precision fp32 \
     --max_steps 100000 \
     --save_steps 2000 \
     --output_dir results/causalvae \
     --video_path /remote-home1/dataset/data_split_tt \
-    --video_num_frames 25 \
+    --video_num_frames 9 \
     --resolution 256 \
     --sample_rate 2 \
     --dataloader_num_workers 8 \
