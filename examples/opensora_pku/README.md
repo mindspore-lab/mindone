@@ -341,8 +341,8 @@ Here, we report the training performance and evaluation results on the UCF-101 d
 
 | model name  | cards  |  batch size | resolution | graph compile | precision | discriminator |sink | jit level| s/step | img/s  | psnr | ssim  |
 |:-----------|:------ |:-----------:|:----------:|:-------------:|:----------:|:------------:|:---:|:--------:|--------:|------:|:----:|-------:|
-| CausalVAE  |  8     |       1    |  9x256x256  |     3 mins   |   FP32     |    TRUE      | OFF  |    O0   |    2.04   |  3.92 |  29.30 |   0.88    |
-| CausalVAE  |  8    |       1     | 25x256x256  |    3 mins   |   BF16     |     FALSE    |  OFF |     O0  |     4.21   |  1.90 | 28.92 |    0.87    |
+| CausalVAE  |  8     |       1    |  9x256x256  |     3 mins   |   FP32     |    ON      | OFF  |    O0   |    2.04   |  3.92 |  29.30 |   0.88    |
+| CausalVAE  |  8    |       1     | 25x256x256  |    3 mins   |   BF16     |     OFF    |  OFF |     O0  |     4.21   |  1.90 | 28.92 |    0.87    |
 
 
 
