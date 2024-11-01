@@ -277,7 +277,7 @@ class DiffusionPipeline(ConfigMixin, PushToHubMixin):
         - `to(dtype) → DiffusionPipeline` to return a pipeline with the specified `dtype`
 
         Arguments:
-            dtype (`torch.dtype`):
+            dtype (`mindspore.dtype`):
                 Returns a pipeline with the specified `dtype`
 
         Returns:
@@ -294,7 +294,7 @@ class DiffusionPipeline(ConfigMixin, PushToHubMixin):
     def dtype(self) -> ms.dtype:
         r"""
         Returns:
-            `torch.dtype`: The torch dtype on which the pipeline is located.
+            `mindspore.dtype`: The mindspore dtype on which the pipeline is located.
         """
         module_names, _ = self._get_signature_keys(self)
         modules = [getattr(self, n, None) for n in module_names]
@@ -331,8 +331,8 @@ class DiffusionPipeline(ConfigMixin, PushToHubMixin):
                     - A path to a *directory* (for example `./my_pipeline_directory/`) containing pipeline weights
                       saved using
                     [`~DiffusionPipeline.save_pretrained`].
-            mindspore_dtype (`str` or `torch.dtype`, *optional*):
-                Override the default `torch.dtype` and load the model with another dtype. If "auto" is passed, the
+            mindspore_dtype (`str` or `mindspore.dtype`, *optional*):
+                Override the default `mindspore.dtype` and load the model with another dtype. If "auto" is passed, the
                 dtype is automatically derived from the model's weights.
             custom_pipeline (`str`, *optional*):
 
