@@ -5977,7 +5977,9 @@ specific language governing permissions and limitations under the License.
 <span class="normal">843</span>
 <span class="normal">844</span>
 <span class="normal">845</span>
-<span class="normal">846</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span> <span class="nc">PixArtSigmaPipeline</span><span class="p">(</span><span class="n">DiffusionPipeline</span><span class="p">):</span>
+<span class="normal">846</span>
+<span class="normal">847</span>
+<span class="normal">848</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span> <span class="nc">PixArtSigmaPipeline</span><span class="p">(</span><span class="n">DiffusionPipeline</span><span class="p">):</span>
 <span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Pipeline for text-to-image generation using PixArt-Sigma.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
@@ -6083,10 +6085,12 @@ specific language governing permissions and limitations under the License.
                 <span class="n">add_special_tokens</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
                 <span class="n">return_tensors</span><span class="o">=</span><span class="s2">&quot;np&quot;</span><span class="p">,</span>
             <span class="p">)</span>
-            <span class="n">text_input_ids</span> <span class="o">=</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="o">.</span><span class="n">from_numpy</span><span class="p">(</span><span class="n">text_inputs</span><span class="o">.</span><span class="n">input_ids</span><span class="p">)</span>
-            <span class="n">untruncated_ids</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">tokenizer</span><span class="p">(</span><span class="n">prompt</span><span class="p">,</span> <span class="n">padding</span><span class="o">=</span><span class="s2">&quot;longest&quot;</span><span class="p">,</span> <span class="n">return_tensors</span><span class="o">=</span><span class="s2">&quot;pt&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">input_ids</span>
+            <span class="n">text_input_ids</span> <span class="o">=</span> <span class="n">text_inputs</span><span class="o">.</span><span class="n">input_ids</span>
+            <span class="n">untruncated_ids</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">tokenizer</span><span class="p">(</span><span class="n">prompt</span><span class="p">,</span> <span class="n">padding</span><span class="o">=</span><span class="s2">&quot;longest&quot;</span><span class="p">,</span> <span class="n">return_tensors</span><span class="o">=</span><span class="s2">&quot;np&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">input_ids</span>
 
-            <span class="k">if</span> <span class="n">untruncated_ids</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">&gt;=</span> <span class="n">text_input_ids</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">ops</span><span class="o">.</span><span class="n">equal</span><span class="p">(</span><span class="n">text_input_ids</span><span class="p">,</span> <span class="n">untruncated_ids</span><span class="p">):</span>
+            <span class="k">if</span> <span class="n">untruncated_ids</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">&gt;=</span> <span class="n">text_input_ids</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">np</span><span class="o">.</span><span class="n">array_equal</span><span class="p">(</span>
+                <span class="n">text_input_ids</span><span class="p">,</span> <span class="n">untruncated_ids</span>
+            <span class="p">):</span>
                 <span class="n">removed_text</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">tokenizer</span><span class="o">.</span><span class="n">batch_decode</span><span class="p">(</span><span class="n">untruncated_ids</span><span class="p">[:,</span> <span class="n">max_length</span> <span class="o">-</span> <span class="mi">1</span> <span class="p">:</span> <span class="o">-</span><span class="mi">1</span><span class="p">])</span>
                 <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
                     <span class="s2">&quot;The following part of your input was truncated because CLIP can only handle sequences up to&quot;</span>
@@ -6095,7 +6099,7 @@ specific language governing permissions and limitations under the License.
 
             <span class="n">prompt_attention_mask</span> <span class="o">=</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="o">.</span><span class="n">from_numpy</span><span class="p">(</span><span class="n">text_inputs</span><span class="o">.</span><span class="n">attention_mask</span><span class="p">)</span>
 
-            <span class="n">prompt_embeds</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">text_encoder</span><span class="p">(</span><span class="n">text_input_ids</span><span class="p">,</span> <span class="n">attention_mask</span><span class="o">=</span><span class="n">prompt_attention_mask</span><span class="p">)</span>
+            <span class="n">prompt_embeds</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">text_encoder</span><span class="p">(</span><span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">(</span><span class="n">text_input_ids</span><span class="p">),</span> <span class="n">attention_mask</span><span class="o">=</span><span class="n">prompt_attention_mask</span><span class="p">)</span>
             <span class="n">prompt_embeds</span> <span class="o">=</span> <span class="n">prompt_embeds</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
 
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">text_encoder</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
@@ -7169,9 +7173,7 @@ returned where the first element is a list with the generated images</p>
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/pipelines/pixart_alpha/pipeline_pixart_sigma.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">589</span>
-<span class="normal">590</span>
-<span class="normal">591</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">591</span>
 <span class="normal">592</span>
 <span class="normal">593</span>
 <span class="normal">594</span>
@@ -7426,7 +7428,9 @@ returned where the first element is a list with the generated images</p>
 <span class="normal">843</span>
 <span class="normal">844</span>
 <span class="normal">845</span>
-<span class="normal">846</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="fm">__call__</span><span class="p">(</span>
+<span class="normal">846</span>
+<span class="normal">847</span>
+<span class="normal">848</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="fm">__call__</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">prompt</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="n">negative_prompt</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span><span class="p">,</span>
@@ -7992,7 +7996,9 @@ string.</p>
 <span class="normal">333</span>
 <span class="normal">334</span>
 <span class="normal">335</span>
-<span class="normal">336</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">encode_prompt</span><span class="p">(</span>
+<span class="normal">336</span>
+<span class="normal">337</span>
+<span class="normal">338</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">encode_prompt</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">prompt</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]],</span>
     <span class="n">do_classifier_free_guidance</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
@@ -8056,10 +8062,12 @@ string.</p>
             <span class="n">add_special_tokens</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
             <span class="n">return_tensors</span><span class="o">=</span><span class="s2">&quot;np&quot;</span><span class="p">,</span>
         <span class="p">)</span>
-        <span class="n">text_input_ids</span> <span class="o">=</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="o">.</span><span class="n">from_numpy</span><span class="p">(</span><span class="n">text_inputs</span><span class="o">.</span><span class="n">input_ids</span><span class="p">)</span>
-        <span class="n">untruncated_ids</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">tokenizer</span><span class="p">(</span><span class="n">prompt</span><span class="p">,</span> <span class="n">padding</span><span class="o">=</span><span class="s2">&quot;longest&quot;</span><span class="p">,</span> <span class="n">return_tensors</span><span class="o">=</span><span class="s2">&quot;pt&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">input_ids</span>
+        <span class="n">text_input_ids</span> <span class="o">=</span> <span class="n">text_inputs</span><span class="o">.</span><span class="n">input_ids</span>
+        <span class="n">untruncated_ids</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">tokenizer</span><span class="p">(</span><span class="n">prompt</span><span class="p">,</span> <span class="n">padding</span><span class="o">=</span><span class="s2">&quot;longest&quot;</span><span class="p">,</span> <span class="n">return_tensors</span><span class="o">=</span><span class="s2">&quot;np&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">input_ids</span>
 
-        <span class="k">if</span> <span class="n">untruncated_ids</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">&gt;=</span> <span class="n">text_input_ids</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">ops</span><span class="o">.</span><span class="n">equal</span><span class="p">(</span><span class="n">text_input_ids</span><span class="p">,</span> <span class="n">untruncated_ids</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">untruncated_ids</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">&gt;=</span> <span class="n">text_input_ids</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">np</span><span class="o">.</span><span class="n">array_equal</span><span class="p">(</span>
+            <span class="n">text_input_ids</span><span class="p">,</span> <span class="n">untruncated_ids</span>
+        <span class="p">):</span>
             <span class="n">removed_text</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">tokenizer</span><span class="o">.</span><span class="n">batch_decode</span><span class="p">(</span><span class="n">untruncated_ids</span><span class="p">[:,</span> <span class="n">max_length</span> <span class="o">-</span> <span class="mi">1</span> <span class="p">:</span> <span class="o">-</span><span class="mi">1</span><span class="p">])</span>
             <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
                 <span class="s2">&quot;The following part of your input was truncated because CLIP can only handle sequences up to&quot;</span>
@@ -8068,7 +8076,7 @@ string.</p>
 
         <span class="n">prompt_attention_mask</span> <span class="o">=</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="o">.</span><span class="n">from_numpy</span><span class="p">(</span><span class="n">text_inputs</span><span class="o">.</span><span class="n">attention_mask</span><span class="p">)</span>
 
-        <span class="n">prompt_embeds</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">text_encoder</span><span class="p">(</span><span class="n">text_input_ids</span><span class="p">,</span> <span class="n">attention_mask</span><span class="o">=</span><span class="n">prompt_attention_mask</span><span class="p">)</span>
+        <span class="n">prompt_embeds</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">text_encoder</span><span class="p">(</span><span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">(</span><span class="n">text_input_ids</span><span class="p">),</span> <span class="n">attention_mask</span><span class="o">=</span><span class="n">prompt_attention_mask</span><span class="p">)</span>
         <span class="n">prompt_embeds</span> <span class="o">=</span> <span class="n">prompt_embeds</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
 
     <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">text_encoder</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>

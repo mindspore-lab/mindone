@@ -6100,7 +6100,11 @@ library implements for all the pipelines (such as downloading or saving, running
 <span class="normal">940</span>
 <span class="normal">941</span>
 <span class="normal">942</span>
-<span class="normal">943</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span> <span class="nc">PixArtAlphaPipeline</span><span class="p">(</span><span class="n">DiffusionPipeline</span><span class="p">):</span>
+<span class="normal">943</span>
+<span class="normal">944</span>
+<span class="normal">945</span>
+<span class="normal">946</span>
+<span class="normal">947</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span> <span class="nc">PixArtAlphaPipeline</span><span class="p">(</span><span class="n">DiffusionPipeline</span><span class="p">):</span>
 <span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Pipeline for text-to-image generation using PixArt-Alpha.</span>
 
@@ -6223,10 +6227,12 @@ library implements for all the pipelines (such as downloading or saving, running
                 <span class="n">add_special_tokens</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
                 <span class="n">return_tensors</span><span class="o">=</span><span class="s2">&quot;np&quot;</span><span class="p">,</span>
             <span class="p">)</span>
-            <span class="n">text_input_ids</span> <span class="o">=</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="o">.</span><span class="n">from_numpy</span><span class="p">(</span><span class="n">text_inputs</span><span class="o">.</span><span class="n">input_ids</span><span class="p">)</span>
-            <span class="n">untruncated_ids</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">tokenizer</span><span class="p">(</span><span class="n">prompt</span><span class="p">,</span> <span class="n">padding</span><span class="o">=</span><span class="s2">&quot;longest&quot;</span><span class="p">,</span> <span class="n">return_tensors</span><span class="o">=</span><span class="s2">&quot;pt&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">input_ids</span>
+            <span class="n">text_input_ids</span> <span class="o">=</span> <span class="n">text_inputs</span><span class="o">.</span><span class="n">input_ids</span>
+            <span class="n">untruncated_ids</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">tokenizer</span><span class="p">(</span><span class="n">prompt</span><span class="p">,</span> <span class="n">padding</span><span class="o">=</span><span class="s2">&quot;longest&quot;</span><span class="p">,</span> <span class="n">return_tensors</span><span class="o">=</span><span class="s2">&quot;np&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">input_ids</span>
 
-            <span class="k">if</span> <span class="n">untruncated_ids</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">&gt;=</span> <span class="n">text_input_ids</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">ops</span><span class="o">.</span><span class="n">equal</span><span class="p">(</span><span class="n">text_input_ids</span><span class="p">,</span> <span class="n">untruncated_ids</span><span class="p">):</span>
+            <span class="k">if</span> <span class="n">untruncated_ids</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">&gt;=</span> <span class="n">text_input_ids</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">np</span><span class="o">.</span><span class="n">array_equal</span><span class="p">(</span>
+                <span class="n">text_input_ids</span><span class="p">,</span> <span class="n">untruncated_ids</span>
+            <span class="p">):</span>
                 <span class="n">removed_text</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">tokenizer</span><span class="o">.</span><span class="n">batch_decode</span><span class="p">(</span><span class="n">untruncated_ids</span><span class="p">[:,</span> <span class="n">max_length</span> <span class="o">-</span> <span class="mi">1</span> <span class="p">:</span> <span class="o">-</span><span class="mi">1</span><span class="p">])</span>
                 <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
                     <span class="s2">&quot;The following part of your input was truncated because T5 can only handle sequences up to&quot;</span>
@@ -6235,7 +6241,7 @@ library implements for all the pipelines (such as downloading or saving, running
 
             <span class="n">prompt_attention_mask</span> <span class="o">=</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="o">.</span><span class="n">from_numpy</span><span class="p">(</span><span class="n">text_inputs</span><span class="o">.</span><span class="n">attention_mask</span><span class="p">)</span>
 
-            <span class="n">prompt_embeds</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">text_encoder</span><span class="p">(</span><span class="n">text_input_ids</span><span class="p">,</span> <span class="n">attention_mask</span><span class="o">=</span><span class="n">prompt_attention_mask</span><span class="p">)</span>
+            <span class="n">prompt_embeds</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">text_encoder</span><span class="p">(</span><span class="n">ms</span><span class="o">.</span><span class="n">tensor</span><span class="p">(</span><span class="n">text_input_ids</span><span class="p">),</span> <span class="n">attention_mask</span><span class="o">=</span><span class="n">prompt_attention_mask</span><span class="p">)</span>
             <span class="n">prompt_embeds</span> <span class="o">=</span> <span class="n">prompt_embeds</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
 
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">text_encoder</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
@@ -6775,7 +6781,9 @@ library implements for all the pipelines (such as downloading or saving, running
                     <span class="n">encoder_hidden_states</span><span class="o">=</span><span class="n">prompt_embeds</span><span class="p">,</span>
                     <span class="n">encoder_attention_mask</span><span class="o">=</span><span class="n">prompt_attention_mask</span><span class="p">,</span>
                     <span class="n">timestep</span><span class="o">=</span><span class="n">current_timestep</span><span class="p">,</span>
-                    <span class="n">added_cond_kwargs</span><span class="o">=</span><span class="n">added_cond_kwargs</span><span class="p">,</span>
+                    <span class="n">added_cond_kwargs</span><span class="o">=</span><span class="n">ms</span><span class="o">.</span><span class="n">mutable</span><span class="p">(</span><span class="n">added_cond_kwargs</span><span class="p">)</span>
+                    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">transformer</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">sample_size</span> <span class="o">==</span> <span class="mi">128</span>
+                    <span class="k">else</span> <span class="n">added_cond_kwargs</span><span class="p">,</span>
                     <span class="n">return_dict</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
                 <span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
 
@@ -7330,9 +7338,7 @@ returned where the first element is a list with the generated images</p>
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/pipelines/pixart_alpha/pipeline_pixart_alpha.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">662</span>
-<span class="normal">663</span>
-<span class="normal">664</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">664</span>
 <span class="normal">665</span>
 <span class="normal">666</span>
 <span class="normal">667</span>
@@ -7611,7 +7617,11 @@ returned where the first element is a list with the generated images</p>
 <span class="normal">940</span>
 <span class="normal">941</span>
 <span class="normal">942</span>
-<span class="normal">943</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="fm">__call__</span><span class="p">(</span>
+<span class="normal">943</span>
+<span class="normal">944</span>
+<span class="normal">945</span>
+<span class="normal">946</span>
+<span class="normal">947</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="fm">__call__</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">prompt</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="n">negative_prompt</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span><span class="p">,</span>
@@ -7846,7 +7856,9 @@ returned where the first element is a list with the generated images</p>
                 <span class="n">encoder_hidden_states</span><span class="o">=</span><span class="n">prompt_embeds</span><span class="p">,</span>
                 <span class="n">encoder_attention_mask</span><span class="o">=</span><span class="n">prompt_attention_mask</span><span class="p">,</span>
                 <span class="n">timestep</span><span class="o">=</span><span class="n">current_timestep</span><span class="p">,</span>
-                <span class="n">added_cond_kwargs</span><span class="o">=</span><span class="n">added_cond_kwargs</span><span class="p">,</span>
+                <span class="n">added_cond_kwargs</span><span class="o">=</span><span class="n">ms</span><span class="o">.</span><span class="n">mutable</span><span class="p">(</span><span class="n">added_cond_kwargs</span><span class="p">)</span>
+                <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">transformer</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">sample_size</span> <span class="o">==</span> <span class="mi">128</span>
+                <span class="k">else</span> <span class="n">added_cond_kwargs</span><span class="p">,</span>
                 <span class="n">return_dict</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
             <span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
 
@@ -8201,7 +8213,9 @@ string.</p>
 <span class="normal">409</span>
 <span class="normal">410</span>
 <span class="normal">411</span>
-<span class="normal">412</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">encode_prompt</span><span class="p">(</span>
+<span class="normal">412</span>
+<span class="normal">413</span>
+<span class="normal">414</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">encode_prompt</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">prompt</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]],</span>
     <span class="n">do_classifier_free_guidance</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
@@ -8265,10 +8279,12 @@ string.</p>
             <span class="n">add_special_tokens</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
             <span class="n">return_tensors</span><span class="o">=</span><span class="s2">&quot;np&quot;</span><span class="p">,</span>
         <span class="p">)</span>
-        <span class="n">text_input_ids</span> <span class="o">=</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="o">.</span><span class="n">from_numpy</span><span class="p">(</span><span class="n">text_inputs</span><span class="o">.</span><span class="n">input_ids</span><span class="p">)</span>
-        <span class="n">untruncated_ids</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">tokenizer</span><span class="p">(</span><span class="n">prompt</span><span class="p">,</span> <span class="n">padding</span><span class="o">=</span><span class="s2">&quot;longest&quot;</span><span class="p">,</span> <span class="n">return_tensors</span><span class="o">=</span><span class="s2">&quot;pt&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">input_ids</span>
+        <span class="n">text_input_ids</span> <span class="o">=</span> <span class="n">text_inputs</span><span class="o">.</span><span class="n">input_ids</span>
+        <span class="n">untruncated_ids</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">tokenizer</span><span class="p">(</span><span class="n">prompt</span><span class="p">,</span> <span class="n">padding</span><span class="o">=</span><span class="s2">&quot;longest&quot;</span><span class="p">,</span> <span class="n">return_tensors</span><span class="o">=</span><span class="s2">&quot;np&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">input_ids</span>
 
-        <span class="k">if</span> <span class="n">untruncated_ids</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">&gt;=</span> <span class="n">text_input_ids</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">ops</span><span class="o">.</span><span class="n">equal</span><span class="p">(</span><span class="n">text_input_ids</span><span class="p">,</span> <span class="n">untruncated_ids</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">untruncated_ids</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">&gt;=</span> <span class="n">text_input_ids</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">np</span><span class="o">.</span><span class="n">array_equal</span><span class="p">(</span>
+            <span class="n">text_input_ids</span><span class="p">,</span> <span class="n">untruncated_ids</span>
+        <span class="p">):</span>
             <span class="n">removed_text</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">tokenizer</span><span class="o">.</span><span class="n">batch_decode</span><span class="p">(</span><span class="n">untruncated_ids</span><span class="p">[:,</span> <span class="n">max_length</span> <span class="o">-</span> <span class="mi">1</span> <span class="p">:</span> <span class="o">-</span><span class="mi">1</span><span class="p">])</span>
             <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
                 <span class="s2">&quot;The following part of your input was truncated because T5 can only handle sequences up to&quot;</span>
@@ -8277,7 +8293,7 @@ string.</p>
 
         <span class="n">prompt_attention_mask</span> <span class="o">=</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="o">.</span><span class="n">from_numpy</span><span class="p">(</span><span class="n">text_inputs</span><span class="o">.</span><span class="n">attention_mask</span><span class="p">)</span>
 
-        <span class="n">prompt_embeds</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">text_encoder</span><span class="p">(</span><span class="n">text_input_ids</span><span class="p">,</span> <span class="n">attention_mask</span><span class="o">=</span><span class="n">prompt_attention_mask</span><span class="p">)</span>
+        <span class="n">prompt_embeds</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">text_encoder</span><span class="p">(</span><span class="n">ms</span><span class="o">.</span><span class="n">tensor</span><span class="p">(</span><span class="n">text_input_ids</span><span class="p">),</span> <span class="n">attention_mask</span><span class="o">=</span><span class="n">prompt_attention_mask</span><span class="p">)</span>
         <span class="n">prompt_embeds</span> <span class="o">=</span> <span class="n">prompt_embeds</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
 
     <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">text_encoder</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>

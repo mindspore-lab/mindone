@@ -6186,7 +6186,9 @@ HunyuanDiT uses a fine-tuned [bilingual CLIP].</p>
 <span class="normal">869</span>
 <span class="normal">870</span>
 <span class="normal">871</span>
-<span class="normal">872</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span> <span class="nc">HunyuanDiTPipeline</span><span class="p">(</span><span class="n">DiffusionPipeline</span><span class="p">):</span>
+<span class="normal">872</span>
+<span class="normal">873</span>
+<span class="normal">874</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span> <span class="nc">HunyuanDiTPipeline</span><span class="p">(</span><span class="n">DiffusionPipeline</span><span class="p">):</span>
 <span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Pipeline for English/Chinese-to-image generation using HunyuanDiT.</span>
 
@@ -6370,10 +6372,12 @@ HunyuanDiT uses a fine-tuned [bilingual CLIP].</p>
                 <span class="n">return_attention_mask</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
                 <span class="n">return_tensors</span><span class="o">=</span><span class="s2">&quot;np&quot;</span><span class="p">,</span>
             <span class="p">)</span>
-            <span class="n">text_input_ids</span> <span class="o">=</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="o">.</span><span class="n">from_numpy</span><span class="p">(</span><span class="n">text_inputs</span><span class="o">.</span><span class="n">input_ids</span><span class="p">)</span>
-            <span class="n">untruncated_ids</span> <span class="o">=</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="o">.</span><span class="n">from_numpy</span><span class="p">(</span><span class="n">tokenizer</span><span class="p">(</span><span class="n">prompt</span><span class="p">,</span> <span class="n">padding</span><span class="o">=</span><span class="s2">&quot;longest&quot;</span><span class="p">,</span> <span class="n">return_tensors</span><span class="o">=</span><span class="s2">&quot;np&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">input_ids</span><span class="p">)</span>
+            <span class="n">text_input_ids</span> <span class="o">=</span> <span class="n">text_inputs</span><span class="o">.</span><span class="n">input_ids</span>
+            <span class="n">untruncated_ids</span> <span class="o">=</span> <span class="n">tokenizer</span><span class="p">(</span><span class="n">prompt</span><span class="p">,</span> <span class="n">padding</span><span class="o">=</span><span class="s2">&quot;longest&quot;</span><span class="p">,</span> <span class="n">return_tensors</span><span class="o">=</span><span class="s2">&quot;np&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">input_ids</span>
 
-            <span class="k">if</span> <span class="n">untruncated_ids</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">&gt;=</span> <span class="n">text_input_ids</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">ops</span><span class="o">.</span><span class="n">equal</span><span class="p">(</span><span class="n">text_input_ids</span><span class="p">,</span> <span class="n">untruncated_ids</span><span class="p">):</span>
+            <span class="k">if</span> <span class="n">untruncated_ids</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">&gt;=</span> <span class="n">text_input_ids</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">np</span><span class="o">.</span><span class="n">array_equal</span><span class="p">(</span>
+                <span class="n">text_input_ids</span><span class="p">,</span> <span class="n">untruncated_ids</span>
+            <span class="p">):</span>
                 <span class="n">removed_text</span> <span class="o">=</span> <span class="n">tokenizer</span><span class="o">.</span><span class="n">batch_decode</span><span class="p">(</span><span class="n">untruncated_ids</span><span class="p">[:,</span> <span class="n">tokenizer</span><span class="o">.</span><span class="n">model_max_length</span> <span class="o">-</span> <span class="mi">1</span> <span class="p">:</span> <span class="o">-</span><span class="mi">1</span><span class="p">])</span>
                 <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
                     <span class="s2">&quot;The following part of your input was truncated because CLIP can only handle sequences up to&quot;</span>
@@ -6382,7 +6386,7 @@ HunyuanDiT uses a fine-tuned [bilingual CLIP].</p>
 
             <span class="n">prompt_attention_mask</span> <span class="o">=</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="o">.</span><span class="n">from_numpy</span><span class="p">(</span><span class="n">text_inputs</span><span class="o">.</span><span class="n">attention_mask</span><span class="p">)</span>
             <span class="n">prompt_embeds</span> <span class="o">=</span> <span class="n">text_encoder</span><span class="p">(</span>
-                <span class="n">text_input_ids</span><span class="p">,</span>
+                <span class="n">ms</span><span class="o">.</span><span class="n">tensor</span><span class="p">(</span><span class="n">text_input_ids</span><span class="p">),</span>
                 <span class="n">attention_mask</span><span class="o">=</span><span class="n">prompt_attention_mask</span><span class="p">,</span>
             <span class="p">)</span>
             <span class="n">prompt_embeds</span> <span class="o">=</span> <span class="n">prompt_embeds</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
@@ -7480,9 +7484,7 @@ second element is a list of <code>bool</code>s indicating whether the correspond
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/pipelines/hunyuandit/pipeline_hunyuandit.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">551</span>
-<span class="normal">552</span>
-<span class="normal">553</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">553</span>
 <span class="normal">554</span>
 <span class="normal">555</span>
 <span class="normal">556</span>
@@ -7801,7 +7803,9 @@ second element is a list of <code>bool</code>s indicating whether the correspond
 <span class="normal">869</span>
 <span class="normal">870</span>
 <span class="normal">871</span>
-<span class="normal">872</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="fm">__call__</span><span class="p">(</span>
+<span class="normal">872</span>
+<span class="normal">873</span>
+<span class="normal">874</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="fm">__call__</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">prompt</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="n">height</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
@@ -8510,7 +8514,9 @@ argument.</p>
 <span class="normal">382</span>
 <span class="normal">383</span>
 <span class="normal">384</span>
-<span class="normal">385</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">encode_prompt</span><span class="p">(</span>
+<span class="normal">385</span>
+<span class="normal">386</span>
+<span class="normal">387</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">encode_prompt</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">prompt</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
     <span class="n">dtype</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">ms</span><span class="o">.</span><span class="n">Type</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
@@ -8593,10 +8599,12 @@ argument.</p>
             <span class="n">return_attention_mask</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
             <span class="n">return_tensors</span><span class="o">=</span><span class="s2">&quot;np&quot;</span><span class="p">,</span>
         <span class="p">)</span>
-        <span class="n">text_input_ids</span> <span class="o">=</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="o">.</span><span class="n">from_numpy</span><span class="p">(</span><span class="n">text_inputs</span><span class="o">.</span><span class="n">input_ids</span><span class="p">)</span>
-        <span class="n">untruncated_ids</span> <span class="o">=</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="o">.</span><span class="n">from_numpy</span><span class="p">(</span><span class="n">tokenizer</span><span class="p">(</span><span class="n">prompt</span><span class="p">,</span> <span class="n">padding</span><span class="o">=</span><span class="s2">&quot;longest&quot;</span><span class="p">,</span> <span class="n">return_tensors</span><span class="o">=</span><span class="s2">&quot;np&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">input_ids</span><span class="p">)</span>
+        <span class="n">text_input_ids</span> <span class="o">=</span> <span class="n">text_inputs</span><span class="o">.</span><span class="n">input_ids</span>
+        <span class="n">untruncated_ids</span> <span class="o">=</span> <span class="n">tokenizer</span><span class="p">(</span><span class="n">prompt</span><span class="p">,</span> <span class="n">padding</span><span class="o">=</span><span class="s2">&quot;longest&quot;</span><span class="p">,</span> <span class="n">return_tensors</span><span class="o">=</span><span class="s2">&quot;np&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">input_ids</span>
 
-        <span class="k">if</span> <span class="n">untruncated_ids</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">&gt;=</span> <span class="n">text_input_ids</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">ops</span><span class="o">.</span><span class="n">equal</span><span class="p">(</span><span class="n">text_input_ids</span><span class="p">,</span> <span class="n">untruncated_ids</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">untruncated_ids</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">&gt;=</span> <span class="n">text_input_ids</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">np</span><span class="o">.</span><span class="n">array_equal</span><span class="p">(</span>
+            <span class="n">text_input_ids</span><span class="p">,</span> <span class="n">untruncated_ids</span>
+        <span class="p">):</span>
             <span class="n">removed_text</span> <span class="o">=</span> <span class="n">tokenizer</span><span class="o">.</span><span class="n">batch_decode</span><span class="p">(</span><span class="n">untruncated_ids</span><span class="p">[:,</span> <span class="n">tokenizer</span><span class="o">.</span><span class="n">model_max_length</span> <span class="o">-</span> <span class="mi">1</span> <span class="p">:</span> <span class="o">-</span><span class="mi">1</span><span class="p">])</span>
             <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
                 <span class="s2">&quot;The following part of your input was truncated because CLIP can only handle sequences up to&quot;</span>
@@ -8605,7 +8613,7 @@ argument.</p>
 
         <span class="n">prompt_attention_mask</span> <span class="o">=</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="o">.</span><span class="n">from_numpy</span><span class="p">(</span><span class="n">text_inputs</span><span class="o">.</span><span class="n">attention_mask</span><span class="p">)</span>
         <span class="n">prompt_embeds</span> <span class="o">=</span> <span class="n">text_encoder</span><span class="p">(</span>
-            <span class="n">text_input_ids</span><span class="p">,</span>
+            <span class="n">ms</span><span class="o">.</span><span class="n">tensor</span><span class="p">(</span><span class="n">text_input_ids</span><span class="p">),</span>
             <span class="n">attention_mask</span><span class="o">=</span><span class="n">prompt_attention_mask</span><span class="p">,</span>
         <span class="p">)</span>
         <span class="n">prompt_embeds</span> <span class="o">=</span> <span class="n">prompt_embeds</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>

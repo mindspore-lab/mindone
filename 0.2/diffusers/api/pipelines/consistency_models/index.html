@@ -5576,7 +5576,7 @@ compatible with [<code>CMStochasticIterativeScheduler</code>].</p>
             <span class="n">latents</span> <span class="o">=</span> <span class="n">latents</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">dtype</span><span class="o">=</span><span class="n">dtype</span><span class="p">)</span>
 
         <span class="c1"># scale the initial noise by the standard deviation required by the scheduler</span>
-        <span class="n">latents</span> <span class="o">=</span> <span class="n">latents</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">scheduler</span><span class="o">.</span><span class="n">init_noise_sigma</span>
+        <span class="n">latents</span> <span class="o">=</span> <span class="p">(</span><span class="n">latents</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">scheduler</span><span class="o">.</span><span class="n">init_noise_sigma</span><span class="p">)</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">dtype</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">latents</span>
 
     <span class="c1"># Follows diffusers.VaeImageProcessor.postprocess</span>
@@ -5591,7 +5591,7 @@ compatible with [<code>CMStochasticIterativeScheduler</code>].</p>
         <span class="k">if</span> <span class="n">output_type</span> <span class="o">==</span> <span class="s2">&quot;ms&quot;</span><span class="p">:</span>
             <span class="k">return</span> <span class="n">sample</span>
 
-        <span class="c1"># Equivalent to diffusers.VaeImageProcessor.pt_to_numpy</span>
+        <span class="c1"># Equivalent to diffusers.VaeImageProcessor.ms_to_numpy</span>
         <span class="n">sample</span> <span class="o">=</span> <span class="n">sample</span><span class="o">.</span><span class="n">permute</span><span class="p">((</span><span class="mi">0</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">1</span><span class="p">))</span><span class="o">.</span><span class="n">numpy</span><span class="p">()</span>
         <span class="k">if</span> <span class="n">output_type</span> <span class="o">==</span> <span class="s2">&quot;np&quot;</span><span class="p">:</span>
             <span class="k">return</span> <span class="n">sample</span>

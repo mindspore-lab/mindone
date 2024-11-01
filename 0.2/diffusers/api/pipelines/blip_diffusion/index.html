@@ -5763,7 +5763,7 @@ library implements for all the pipelines (such as downloading or saving, running
             <span class="n">latents</span> <span class="o">=</span> <span class="n">latents</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">dtype</span><span class="o">=</span><span class="n">dtype</span><span class="p">)</span>
 
         <span class="c1"># scale the initial noise by the standard deviation required by the scheduler</span>
-        <span class="n">latents</span> <span class="o">=</span> <span class="n">latents</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">scheduler</span><span class="o">.</span><span class="n">init_noise_sigma</span>
+        <span class="n">latents</span> <span class="o">=</span> <span class="p">(</span><span class="n">latents</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">scheduler</span><span class="o">.</span><span class="n">init_noise_sigma</span><span class="p">)</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">dtype</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">latents</span>
 
     <span class="k">def</span> <span class="nf">encode_prompt</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">query_embeds</span><span class="p">,</span> <span class="n">prompt</span><span class="p">):</span>
@@ -7180,7 +7180,7 @@ library implements for all the pipelines (such as downloading or saving, running
             <span class="n">latents</span> <span class="o">=</span> <span class="n">latents</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">dtype</span><span class="o">=</span><span class="n">dtype</span><span class="p">)</span>
 
         <span class="c1"># scale the initial noise by the standard deviation required by the scheduler</span>
-        <span class="n">latents</span> <span class="o">=</span> <span class="n">latents</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">scheduler</span><span class="o">.</span><span class="n">init_noise_sigma</span>
+        <span class="n">latents</span> <span class="o">=</span> <span class="p">(</span><span class="n">latents</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">scheduler</span><span class="o">.</span><span class="n">init_noise_sigma</span><span class="p">)</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">dtype</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">latents</span>
 
     <span class="k">def</span> <span class="nf">encode_prompt</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">query_embeds</span><span class="p">,</span> <span class="n">prompt</span><span class="p">):</span>

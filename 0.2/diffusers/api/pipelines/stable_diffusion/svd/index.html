@@ -5872,7 +5872,7 @@ implemented for all pipelines (downloading, saving, running on a particular devi
 
         <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">image</span><span class="p">,</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">):</span>
             <span class="n">image</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">video_processor</span><span class="o">.</span><span class="n">pil_to_numpy</span><span class="p">(</span><span class="n">image</span><span class="p">)</span>
-            <span class="n">image</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">video_processor</span><span class="o">.</span><span class="n">numpy_to_pt</span><span class="p">(</span><span class="n">image</span><span class="p">)</span>
+            <span class="n">image</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">video_processor</span><span class="o">.</span><span class="n">numpy_to_ms</span><span class="p">(</span><span class="n">image</span><span class="p">)</span>
 
             <span class="c1"># We normalize the image before resizing to match with the original implementation.</span>
             <span class="c1"># Then we unnormalize it after resizing.</span>

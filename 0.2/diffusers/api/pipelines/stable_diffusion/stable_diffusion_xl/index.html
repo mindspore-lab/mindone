@@ -6945,7 +6945,7 @@ watermarker will be used.</p>
                 <span class="n">text_input_ids</span> <span class="o">=</span> <span class="n">text_inputs</span><span class="o">.</span><span class="n">input_ids</span>
                 <span class="n">untruncated_ids</span> <span class="o">=</span> <span class="n">tokenizer</span><span class="p">(</span><span class="n">prompt</span><span class="p">,</span> <span class="n">padding</span><span class="o">=</span><span class="s2">&quot;longest&quot;</span><span class="p">,</span> <span class="n">return_tensors</span><span class="o">=</span><span class="s2">&quot;np&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">input_ids</span>
 
-                <span class="k">if</span> <span class="n">untruncated_ids</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">&gt;=</span> <span class="n">text_input_ids</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">ops</span><span class="o">.</span><span class="n">equal</span><span class="p">(</span>
+                <span class="k">if</span> <span class="n">untruncated_ids</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">&gt;=</span> <span class="n">text_input_ids</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">np</span><span class="o">.</span><span class="n">array_equal</span><span class="p">(</span>
                     <span class="n">text_input_ids</span><span class="p">,</span> <span class="n">untruncated_ids</span>
                 <span class="p">):</span>
                     <span class="n">removed_text</span> <span class="o">=</span> <span class="n">tokenizer</span><span class="o">.</span><span class="n">batch_decode</span><span class="p">(</span><span class="n">untruncated_ids</span><span class="p">[:,</span> <span class="n">tokenizer</span><span class="o">.</span><span class="n">model_max_length</span> <span class="o">-</span> <span class="mi">1</span> <span class="p">:</span> <span class="o">-</span><span class="mi">1</span><span class="p">])</span>
@@ -7744,7 +7744,7 @@ watermarker will be used.</p>
                     <span class="n">encoder_hidden_states</span><span class="o">=</span><span class="n">prompt_embeds</span><span class="p">,</span>
                     <span class="n">timestep_cond</span><span class="o">=</span><span class="n">timestep_cond</span><span class="p">,</span>
                     <span class="n">cross_attention_kwargs</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">cross_attention_kwargs</span><span class="p">,</span>
-                    <span class="n">added_cond_kwargs</span><span class="o">=</span><span class="n">added_cond_kwargs</span><span class="p">,</span>
+                    <span class="n">added_cond_kwargs</span><span class="o">=</span><span class="n">ms</span><span class="o">.</span><span class="n">mutable</span><span class="p">(</span><span class="n">added_cond_kwargs</span><span class="p">),</span>
                     <span class="n">return_dict</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
                 <span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
 
@@ -9424,7 +9424,7 @@ will be passed as <code>callback_kwargs</code> argument. You will only be able t
                 <span class="n">encoder_hidden_states</span><span class="o">=</span><span class="n">prompt_embeds</span><span class="p">,</span>
                 <span class="n">timestep_cond</span><span class="o">=</span><span class="n">timestep_cond</span><span class="p">,</span>
                 <span class="n">cross_attention_kwargs</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">cross_attention_kwargs</span><span class="p">,</span>
-                <span class="n">added_cond_kwargs</span><span class="o">=</span><span class="n">added_cond_kwargs</span><span class="p">,</span>
+                <span class="n">added_cond_kwargs</span><span class="o">=</span><span class="n">ms</span><span class="o">.</span><span class="n">mutable</span><span class="p">(</span><span class="n">added_cond_kwargs</span><span class="p">),</span>
                 <span class="n">return_dict</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
             <span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
 
@@ -10079,7 +10079,7 @@ the output of the pre-final layer will be used for computing the prompt embeddin
             <span class="n">text_input_ids</span> <span class="o">=</span> <span class="n">text_inputs</span><span class="o">.</span><span class="n">input_ids</span>
             <span class="n">untruncated_ids</span> <span class="o">=</span> <span class="n">tokenizer</span><span class="p">(</span><span class="n">prompt</span><span class="p">,</span> <span class="n">padding</span><span class="o">=</span><span class="s2">&quot;longest&quot;</span><span class="p">,</span> <span class="n">return_tensors</span><span class="o">=</span><span class="s2">&quot;np&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">input_ids</span>
 
-            <span class="k">if</span> <span class="n">untruncated_ids</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">&gt;=</span> <span class="n">text_input_ids</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">ops</span><span class="o">.</span><span class="n">equal</span><span class="p">(</span>
+            <span class="k">if</span> <span class="n">untruncated_ids</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">&gt;=</span> <span class="n">text_input_ids</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">np</span><span class="o">.</span><span class="n">array_equal</span><span class="p">(</span>
                 <span class="n">text_input_ids</span><span class="p">,</span> <span class="n">untruncated_ids</span>
             <span class="p">):</span>
                 <span class="n">removed_text</span> <span class="o">=</span> <span class="n">tokenizer</span><span class="o">.</span><span class="n">batch_decode</span><span class="p">(</span><span class="n">untruncated_ids</span><span class="p">[:,</span> <span class="n">tokenizer</span><span class="o">.</span><span class="n">model_max_length</span> <span class="o">-</span> <span class="mi">1</span> <span class="p">:</span> <span class="o">-</span><span class="mi">1</span><span class="p">])</span>
@@ -10584,7 +10584,8 @@ watermarker will be used.</p>
 
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/pipelines/stable_diffusion_xl/pipeline_stable_diffusion_xl_img2img.py</code></summary>
-                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"> 154</span>
+                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"> 153</span>
+<span class="normal"> 154</span>
 <span class="normal"> 155</span>
 <span class="normal"> 156</span>
 <span class="normal"> 157</span>
@@ -11837,8 +11838,7 @@ watermarker will be used.</p>
 <span class="normal">1404</span>
 <span class="normal">1405</span>
 <span class="normal">1406</span>
-<span class="normal">1407</span>
-<span class="normal">1408</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span> <span class="nc">StableDiffusionXLImg2ImgPipeline</span><span class="p">(</span>
+<span class="normal">1407</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span> <span class="nc">StableDiffusionXLImg2ImgPipeline</span><span class="p">(</span>
     <span class="n">DiffusionPipeline</span><span class="p">,</span>
     <span class="n">StableDiffusionMixin</span><span class="p">,</span>
     <span class="n">FromSingleFileMixin</span><span class="p">,</span>
@@ -12052,7 +12052,7 @@ watermarker will be used.</p>
                 <span class="n">text_input_ids</span> <span class="o">=</span> <span class="n">text_inputs</span><span class="o">.</span><span class="n">input_ids</span>
                 <span class="n">untruncated_ids</span> <span class="o">=</span> <span class="n">tokenizer</span><span class="p">(</span><span class="n">prompt</span><span class="p">,</span> <span class="n">padding</span><span class="o">=</span><span class="s2">&quot;longest&quot;</span><span class="p">,</span> <span class="n">return_tensors</span><span class="o">=</span><span class="s2">&quot;np&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">input_ids</span>
 
-                <span class="k">if</span> <span class="n">untruncated_ids</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">&gt;=</span> <span class="n">text_input_ids</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">ops</span><span class="o">.</span><span class="n">equal</span><span class="p">(</span>
+                <span class="k">if</span> <span class="n">untruncated_ids</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">&gt;=</span> <span class="n">text_input_ids</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">np</span><span class="o">.</span><span class="n">array_equal</span><span class="p">(</span>
                     <span class="n">text_input_ids</span><span class="p">,</span> <span class="n">untruncated_ids</span>
                 <span class="p">):</span>
                     <span class="n">removed_text</span> <span class="o">=</span> <span class="n">tokenizer</span><span class="o">.</span><span class="n">batch_decode</span><span class="p">(</span><span class="n">untruncated_ids</span><span class="p">[:,</span> <span class="n">tokenizer</span><span class="o">.</span><span class="n">model_max_length</span> <span class="o">-</span> <span class="mi">1</span> <span class="p">:</span> <span class="o">-</span><span class="mi">1</span><span class="p">])</span>
@@ -13013,7 +13013,7 @@ watermarker will be used.</p>
                     <span class="n">encoder_hidden_states</span><span class="o">=</span><span class="n">prompt_embeds</span><span class="p">,</span>
                     <span class="n">timestep_cond</span><span class="o">=</span><span class="n">timestep_cond</span><span class="p">,</span>
                     <span class="n">cross_attention_kwargs</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">cross_attention_kwargs</span><span class="p">,</span>
-                    <span class="n">added_cond_kwargs</span><span class="o">=</span><span class="n">added_cond_kwargs</span><span class="p">,</span>
+                    <span class="n">added_cond_kwargs</span><span class="o">=</span><span class="n">ms</span><span class="o">.</span><span class="n">mutable</span><span class="p">(</span><span class="n">added_cond_kwargs</span><span class="p">),</span>
                     <span class="n">return_dict</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
                 <span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
 
@@ -13918,7 +13918,8 @@ will be passed as <code>callback_kwargs</code> argument. You will only be able t
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/pipelines/stable_diffusion_xl/pipeline_stable_diffusion_xl_img2img.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"> 909</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"> 908</span>
+<span class="normal"> 909</span>
 <span class="normal"> 910</span>
 <span class="normal"> 911</span>
 <span class="normal"> 912</span>
@@ -14416,8 +14417,7 @@ will be passed as <code>callback_kwargs</code> argument. You will only be able t
 <span class="normal">1404</span>
 <span class="normal">1405</span>
 <span class="normal">1406</span>
-<span class="normal">1407</span>
-<span class="normal">1408</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="fm">__call__</span><span class="p">(</span>
+<span class="normal">1407</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="fm">__call__</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">prompt</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="n">prompt_2</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
@@ -14837,7 +14837,7 @@ will be passed as <code>callback_kwargs</code> argument. You will only be able t
                 <span class="n">encoder_hidden_states</span><span class="o">=</span><span class="n">prompt_embeds</span><span class="p">,</span>
                 <span class="n">timestep_cond</span><span class="o">=</span><span class="n">timestep_cond</span><span class="p">,</span>
                 <span class="n">cross_attention_kwargs</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">cross_attention_kwargs</span><span class="p">,</span>
-                <span class="n">added_cond_kwargs</span><span class="o">=</span><span class="n">added_cond_kwargs</span><span class="p">,</span>
+                <span class="n">added_cond_kwargs</span><span class="o">=</span><span class="n">ms</span><span class="o">.</span><span class="n">mutable</span><span class="p">(</span><span class="n">added_cond_kwargs</span><span class="p">),</span>
                 <span class="n">return_dict</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
             <span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
 
@@ -15173,7 +15173,8 @@ the output of the pre-final layer will be used for computing the prompt embeddin
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/pipelines/stable_diffusion_xl/pipeline_stable_diffusion_xl_img2img.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">269</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">268</span>
+<span class="normal">269</span>
 <span class="normal">270</span>
 <span class="normal">271</span>
 <span class="normal">272</span>
@@ -15387,8 +15388,7 @@ the output of the pre-final layer will be used for computing the prompt embeddin
 <span class="normal">480</span>
 <span class="normal">481</span>
 <span class="normal">482</span>
-<span class="normal">483</span>
-<span class="normal">484</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">encode_prompt</span><span class="p">(</span>
+<span class="normal">483</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">encode_prompt</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">prompt</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
     <span class="n">prompt_2</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
@@ -15487,7 +15487,7 @@ the output of the pre-final layer will be used for computing the prompt embeddin
             <span class="n">text_input_ids</span> <span class="o">=</span> <span class="n">text_inputs</span><span class="o">.</span><span class="n">input_ids</span>
             <span class="n">untruncated_ids</span> <span class="o">=</span> <span class="n">tokenizer</span><span class="p">(</span><span class="n">prompt</span><span class="p">,</span> <span class="n">padding</span><span class="o">=</span><span class="s2">&quot;longest&quot;</span><span class="p">,</span> <span class="n">return_tensors</span><span class="o">=</span><span class="s2">&quot;np&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">input_ids</span>
 
-            <span class="k">if</span> <span class="n">untruncated_ids</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">&gt;=</span> <span class="n">text_input_ids</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">ops</span><span class="o">.</span><span class="n">equal</span><span class="p">(</span>
+            <span class="k">if</span> <span class="n">untruncated_ids</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">&gt;=</span> <span class="n">text_input_ids</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">np</span><span class="o">.</span><span class="n">array_equal</span><span class="p">(</span>
                 <span class="n">text_input_ids</span><span class="p">,</span> <span class="n">untruncated_ids</span>
             <span class="p">):</span>
                 <span class="n">removed_text</span> <span class="o">=</span> <span class="n">tokenizer</span><span class="o">.</span><span class="n">batch_decode</span><span class="p">(</span><span class="n">untruncated_ids</span><span class="p">[:,</span> <span class="n">tokenizer</span><span class="o">.</span><span class="n">model_max_length</span> <span class="o">-</span> <span class="mi">1</span> <span class="p">:</span> <span class="o">-</span><span class="mi">1</span><span class="p">])</span>
@@ -15711,7 +15711,8 @@ the output of the pre-final layer will be used for computing the prompt embeddin
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/pipelines/stable_diffusion_xl/pipeline_stable_diffusion_xl_img2img.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">840</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">839</span>
+<span class="normal">840</span>
 <span class="normal">841</span>
 <span class="normal">842</span>
 <span class="normal">843</span>
@@ -15738,8 +15739,7 @@ the output of the pre-final layer will be used for computing the prompt embeddin
 <span class="normal">864</span>
 <span class="normal">865</span>
 <span class="normal">866</span>
-<span class="normal">867</span>
-<span class="normal">868</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">get_guidance_scale_embedding</span><span class="p">(</span>
+<span class="normal">867</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">get_guidance_scale_embedding</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span> <span class="n">w</span><span class="p">:</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">embedding_dim</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">512</span><span class="p">,</span> <span class="n">dtype</span><span class="p">:</span> <span class="n">ms</span><span class="o">.</span><span class="n">Type</span> <span class="o">=</span> <span class="n">ms</span><span class="o">.</span><span class="n">float32</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
@@ -17463,7 +17463,8 @@ watermarker will be used.</p>
 <span class="normal">1764</span>
 <span class="normal">1765</span>
 <span class="normal">1766</span>
-<span class="normal">1767</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span> <span class="nc">StableDiffusionXLInpaintPipeline</span><span class="p">(</span>
+<span class="normal">1767</span>
+<span class="normal">1768</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span> <span class="nc">StableDiffusionXLInpaintPipeline</span><span class="p">(</span>
     <span class="n">DiffusionPipeline</span><span class="p">,</span>
     <span class="n">StableDiffusionMixin</span><span class="p">,</span>
     <span class="n">FromSingleFileMixin</span><span class="p">,</span>
@@ -17757,7 +17758,7 @@ watermarker will be used.</p>
                 <span class="n">text_input_ids</span> <span class="o">=</span> <span class="n">text_inputs</span><span class="o">.</span><span class="n">input_ids</span>
                 <span class="n">untruncated_ids</span> <span class="o">=</span> <span class="n">tokenizer</span><span class="p">(</span><span class="n">prompt</span><span class="p">,</span> <span class="n">padding</span><span class="o">=</span><span class="s2">&quot;longest&quot;</span><span class="p">,</span> <span class="n">return_tensors</span><span class="o">=</span><span class="s2">&quot;np&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">input_ids</span>
 
-                <span class="k">if</span> <span class="n">untruncated_ids</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">&gt;=</span> <span class="n">text_input_ids</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">ops</span><span class="o">.</span><span class="n">equal</span><span class="p">(</span>
+                <span class="k">if</span> <span class="n">untruncated_ids</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">&gt;=</span> <span class="n">text_input_ids</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">np</span><span class="o">.</span><span class="n">array_equal</span><span class="p">(</span>
                     <span class="n">text_input_ids</span><span class="p">,</span> <span class="n">untruncated_ids</span>
                 <span class="p">):</span>
                     <span class="n">removed_text</span> <span class="o">=</span> <span class="n">tokenizer</span><span class="o">.</span><span class="n">batch_decode</span><span class="p">(</span><span class="n">untruncated_ids</span><span class="p">[:,</span> <span class="n">tokenizer</span><span class="o">.</span><span class="n">model_max_length</span> <span class="o">-</span> <span class="mi">1</span> <span class="p">:</span> <span class="o">-</span><span class="mi">1</span><span class="p">])</span>
@@ -18051,6 +18052,7 @@ watermarker will be used.</p>
         <span class="k">else</span><span class="p">:</span>
             <span class="n">noise</span> <span class="o">=</span> <span class="n">randn_tensor</span><span class="p">(</span><span class="n">shape</span><span class="p">,</span> <span class="n">generator</span><span class="o">=</span><span class="n">generator</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">dtype</span><span class="p">)</span>
             <span class="n">latents</span> <span class="o">=</span> <span class="n">image_latents</span>
+        <span class="n">latents</span> <span class="o">=</span> <span class="n">latents</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">dtype</span><span class="p">)</span>
 
         <span class="n">outputs</span> <span class="o">=</span> <span class="p">(</span><span class="n">latents</span><span class="p">,)</span>
 
@@ -18837,7 +18839,7 @@ watermarker will be used.</p>
                     <span class="n">encoder_hidden_states</span><span class="o">=</span><span class="n">prompt_embeds</span><span class="p">,</span>
                     <span class="n">timestep_cond</span><span class="o">=</span><span class="n">timestep_cond</span><span class="p">,</span>
                     <span class="n">cross_attention_kwargs</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">cross_attention_kwargs</span><span class="p">,</span>
-                    <span class="n">added_cond_kwargs</span><span class="o">=</span><span class="n">added_cond_kwargs</span><span class="p">,</span>
+                    <span class="n">added_cond_kwargs</span><span class="o">=</span><span class="n">ms</span><span class="o">.</span><span class="n">mutable</span><span class="p">(</span><span class="n">added_cond_kwargs</span><span class="p">),</span>
                     <span class="n">return_dict</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
                 <span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
 
@@ -19827,8 +19829,7 @@ will be passed as <code>callback_kwargs</code> argument. You will only be able t
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/pipelines/stable_diffusion_xl/pipeline_stable_diffusion_xl_inpaint.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1138</span>
-<span class="normal">1139</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1139</span>
 <span class="normal">1140</span>
 <span class="normal">1141</span>
 <span class="normal">1142</span>
@@ -20456,7 +20457,8 @@ will be passed as <code>callback_kwargs</code> argument. You will only be able t
 <span class="normal">1764</span>
 <span class="normal">1765</span>
 <span class="normal">1766</span>
-<span class="normal">1767</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="fm">__call__</span><span class="p">(</span>
+<span class="normal">1767</span>
+<span class="normal">1768</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="fm">__call__</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">prompt</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="n">prompt_2</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
@@ -20988,7 +20990,7 @@ will be passed as <code>callback_kwargs</code> argument. You will only be able t
                 <span class="n">encoder_hidden_states</span><span class="o">=</span><span class="n">prompt_embeds</span><span class="p">,</span>
                 <span class="n">timestep_cond</span><span class="o">=</span><span class="n">timestep_cond</span><span class="p">,</span>
                 <span class="n">cross_attention_kwargs</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">cross_attention_kwargs</span><span class="p">,</span>
-                <span class="n">added_cond_kwargs</span><span class="o">=</span><span class="n">added_cond_kwargs</span><span class="p">,</span>
+                <span class="n">added_cond_kwargs</span><span class="o">=</span><span class="n">ms</span><span class="o">.</span><span class="n">mutable</span><span class="p">(</span><span class="n">added_cond_kwargs</span><span class="p">),</span>
                 <span class="n">return_dict</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
             <span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
 
@@ -21656,7 +21658,7 @@ the output of the pre-final layer will be used for computing the prompt embeddin
             <span class="n">text_input_ids</span> <span class="o">=</span> <span class="n">text_inputs</span><span class="o">.</span><span class="n">input_ids</span>
             <span class="n">untruncated_ids</span> <span class="o">=</span> <span class="n">tokenizer</span><span class="p">(</span><span class="n">prompt</span><span class="p">,</span> <span class="n">padding</span><span class="o">=</span><span class="s2">&quot;longest&quot;</span><span class="p">,</span> <span class="n">return_tensors</span><span class="o">=</span><span class="s2">&quot;np&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">input_ids</span>
 
-            <span class="k">if</span> <span class="n">untruncated_ids</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">&gt;=</span> <span class="n">text_input_ids</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">ops</span><span class="o">.</span><span class="n">equal</span><span class="p">(</span>
+            <span class="k">if</span> <span class="n">untruncated_ids</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">&gt;=</span> <span class="n">text_input_ids</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">np</span><span class="o">.</span><span class="n">array_equal</span><span class="p">(</span>
                 <span class="n">text_input_ids</span><span class="p">,</span> <span class="n">untruncated_ids</span>
             <span class="p">):</span>
                 <span class="n">removed_text</span> <span class="o">=</span> <span class="n">tokenizer</span><span class="o">.</span><span class="n">batch_decode</span><span class="p">(</span><span class="n">untruncated_ids</span><span class="p">[:,</span> <span class="n">tokenizer</span><span class="o">.</span><span class="n">model_max_length</span> <span class="o">-</span> <span class="mi">1</span> <span class="p">:</span> <span class="o">-</span><span class="mi">1</span><span class="p">])</span>
@@ -21880,8 +21882,7 @@ the output of the pre-final layer will be used for computing the prompt embeddin
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/pipelines/stable_diffusion_xl/pipeline_stable_diffusion_xl_inpaint.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1069</span>
-<span class="normal">1070</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1070</span>
 <span class="normal">1071</span>
 <span class="normal">1072</span>
 <span class="normal">1073</span>
@@ -21908,7 +21909,8 @@ the output of the pre-final layer will be used for computing the prompt embeddin
 <span class="normal">1094</span>
 <span class="normal">1095</span>
 <span class="normal">1096</span>
-<span class="normal">1097</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">get_guidance_scale_embedding</span><span class="p">(</span>
+<span class="normal">1097</span>
+<span class="normal">1098</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">get_guidance_scale_embedding</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span> <span class="n">w</span><span class="p">:</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">embedding_dim</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">512</span><span class="p">,</span> <span class="n">dtype</span><span class="p">:</span> <span class="n">ms</span><span class="o">.</span><span class="n">Type</span> <span class="o">=</span> <span class="n">ms</span><span class="o">.</span><span class="n">float32</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>

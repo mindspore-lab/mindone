@@ -6709,7 +6709,9 @@ about a model's potential harms.</p>
 <span class="normal">1283</span>
 <span class="normal">1284</span>
 <span class="normal">1285</span>
-<span class="normal">1286</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span> <span class="nc">StableDiffusionControlNetPipeline</span><span class="p">(</span>
+<span class="normal">1286</span>
+<span class="normal">1287</span>
+<span class="normal">1288</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span> <span class="nc">StableDiffusionControlNetPipeline</span><span class="p">(</span>
     <span class="n">DiffusionPipeline</span><span class="p">,</span>
     <span class="n">StableDiffusionMixin</span><span class="p">,</span>
     <span class="n">TextualInversionLoaderMixin</span><span class="p">,</span>
@@ -6911,7 +6913,9 @@ about a model's potential harms.</p>
             <span class="n">text_input_ids</span> <span class="o">=</span> <span class="n">text_inputs</span><span class="o">.</span><span class="n">input_ids</span>
             <span class="n">untruncated_ids</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">tokenizer</span><span class="p">(</span><span class="n">prompt</span><span class="p">,</span> <span class="n">padding</span><span class="o">=</span><span class="s2">&quot;longest&quot;</span><span class="p">,</span> <span class="n">return_tensors</span><span class="o">=</span><span class="s2">&quot;np&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">input_ids</span>
 
-            <span class="k">if</span> <span class="n">untruncated_ids</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">&gt;=</span> <span class="n">text_input_ids</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">ops</span><span class="o">.</span><span class="n">equal</span><span class="p">(</span><span class="n">text_input_ids</span><span class="p">,</span> <span class="n">untruncated_ids</span><span class="p">):</span>
+            <span class="k">if</span> <span class="n">untruncated_ids</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">&gt;=</span> <span class="n">text_input_ids</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">np</span><span class="o">.</span><span class="n">array_equal</span><span class="p">(</span>
+                <span class="n">text_input_ids</span><span class="p">,</span> <span class="n">untruncated_ids</span>
+            <span class="p">):</span>
                 <span class="n">removed_text</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">tokenizer</span><span class="o">.</span><span class="n">batch_decode</span><span class="p">(</span><span class="n">untruncated_ids</span><span class="p">[:,</span> <span class="bp">self</span><span class="o">.</span><span class="n">tokenizer</span><span class="o">.</span><span class="n">model_max_length</span> <span class="o">-</span> <span class="mi">1</span> <span class="p">:</span> <span class="o">-</span><span class="mi">1</span><span class="p">])</span>
                 <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
                     <span class="s2">&quot;The following part of your input was truncated because CLIP can only handle sequences up to&quot;</span>
@@ -7809,7 +7813,7 @@ about a model's potential harms.</p>
                     <span class="n">cross_attention_kwargs</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">cross_attention_kwargs</span><span class="p">,</span>
                     <span class="n">down_block_additional_residuals</span><span class="o">=</span><span class="n">ms</span><span class="o">.</span><span class="n">mutable</span><span class="p">(</span><span class="n">down_block_res_samples</span><span class="p">),</span>
                     <span class="n">mid_block_additional_residual</span><span class="o">=</span><span class="n">mid_block_res_sample</span><span class="p">,</span>
-                    <span class="n">added_cond_kwargs</span><span class="o">=</span><span class="n">added_cond_kwargs</span><span class="p">,</span>
+                    <span class="n">added_cond_kwargs</span><span class="o">=</span><span class="n">ms</span><span class="o">.</span><span class="n">mutable</span><span class="p">(</span><span class="n">added_cond_kwargs</span><span class="p">)</span> <span class="k">if</span> <span class="n">added_cond_kwargs</span> <span class="k">else</span> <span class="n">added_cond_kwargs</span><span class="p">,</span>
                     <span class="n">return_dict</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
                 <span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
 
@@ -8476,9 +8480,7 @@ second element is a list of <code>bool</code>s indicating whether the correspond
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/pipelines/controlnet/pipeline_controlnet.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"> 862</span>
-<span class="normal"> 863</span>
-<span class="normal"> 864</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"> 864</span>
 <span class="normal"> 865</span>
 <span class="normal"> 866</span>
 <span class="normal"> 867</span>
@@ -8900,7 +8902,9 @@ second element is a list of <code>bool</code>s indicating whether the correspond
 <span class="normal">1283</span>
 <span class="normal">1284</span>
 <span class="normal">1285</span>
-<span class="normal">1286</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="fm">__call__</span><span class="p">(</span>
+<span class="normal">1286</span>
+<span class="normal">1287</span>
+<span class="normal">1288</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="fm">__call__</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">prompt</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="n">image</span><span class="p">:</span> <span class="n">PipelineImageInput</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
@@ -9278,7 +9282,7 @@ second element is a list of <code>bool</code>s indicating whether the correspond
                 <span class="n">cross_attention_kwargs</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">cross_attention_kwargs</span><span class="p">,</span>
                 <span class="n">down_block_additional_residuals</span><span class="o">=</span><span class="n">ms</span><span class="o">.</span><span class="n">mutable</span><span class="p">(</span><span class="n">down_block_res_samples</span><span class="p">),</span>
                 <span class="n">mid_block_additional_residual</span><span class="o">=</span><span class="n">mid_block_res_sample</span><span class="p">,</span>
-                <span class="n">added_cond_kwargs</span><span class="o">=</span><span class="n">added_cond_kwargs</span><span class="p">,</span>
+                <span class="n">added_cond_kwargs</span><span class="o">=</span><span class="n">ms</span><span class="o">.</span><span class="n">mutable</span><span class="p">(</span><span class="n">added_cond_kwargs</span><span class="p">)</span> <span class="k">if</span> <span class="n">added_cond_kwargs</span> <span class="k">else</span> <span class="n">added_cond_kwargs</span><span class="p">,</span>
                 <span class="n">return_dict</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
             <span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
 
@@ -9666,7 +9670,9 @@ the output of the pre-final layer will be used for computing the prompt embeddin
 <span class="normal">441</span>
 <span class="normal">442</span>
 <span class="normal">443</span>
-<span class="normal">444</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">encode_prompt</span><span class="p">(</span>
+<span class="normal">444</span>
+<span class="normal">445</span>
+<span class="normal">446</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">encode_prompt</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">prompt</span><span class="p">,</span>
     <span class="n">num_images_per_prompt</span><span class="p">,</span>
@@ -9734,7 +9740,9 @@ the output of the pre-final layer will be used for computing the prompt embeddin
         <span class="n">text_input_ids</span> <span class="o">=</span> <span class="n">text_inputs</span><span class="o">.</span><span class="n">input_ids</span>
         <span class="n">untruncated_ids</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">tokenizer</span><span class="p">(</span><span class="n">prompt</span><span class="p">,</span> <span class="n">padding</span><span class="o">=</span><span class="s2">&quot;longest&quot;</span><span class="p">,</span> <span class="n">return_tensors</span><span class="o">=</span><span class="s2">&quot;np&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">input_ids</span>
 
-        <span class="k">if</span> <span class="n">untruncated_ids</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">&gt;=</span> <span class="n">text_input_ids</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">ops</span><span class="o">.</span><span class="n">equal</span><span class="p">(</span><span class="n">text_input_ids</span><span class="p">,</span> <span class="n">untruncated_ids</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">untruncated_ids</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">&gt;=</span> <span class="n">text_input_ids</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">np</span><span class="o">.</span><span class="n">array_equal</span><span class="p">(</span>
+            <span class="n">text_input_ids</span><span class="p">,</span> <span class="n">untruncated_ids</span>
+        <span class="p">):</span>
             <span class="n">removed_text</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">tokenizer</span><span class="o">.</span><span class="n">batch_decode</span><span class="p">(</span><span class="n">untruncated_ids</span><span class="p">[:,</span> <span class="bp">self</span><span class="o">.</span><span class="n">tokenizer</span><span class="o">.</span><span class="n">model_max_length</span> <span class="o">-</span> <span class="mi">1</span> <span class="p">:</span> <span class="o">-</span><span class="mi">1</span><span class="p">])</span>
             <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
                 <span class="s2">&quot;The following part of your input was truncated because CLIP can only handle sequences up to&quot;</span>
@@ -9944,9 +9952,7 @@ the output of the pre-final layer will be used for computing the prompt embeddin
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/pipelines/controlnet/pipeline_controlnet.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">809</span>
-<span class="normal">810</span>
-<span class="normal">811</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">811</span>
 <span class="normal">812</span>
 <span class="normal">813</span>
 <span class="normal">814</span>
@@ -9972,7 +9978,9 @@ the output of the pre-final layer will be used for computing the prompt embeddin
 <span class="normal">834</span>
 <span class="normal">835</span>
 <span class="normal">836</span>
-<span class="normal">837</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">get_guidance_scale_embedding</span><span class="p">(</span>
+<span class="normal">837</span>
+<span class="normal">838</span>
+<span class="normal">839</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">get_guidance_scale_embedding</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span> <span class="n">w</span><span class="p">:</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">embedding_dim</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">512</span><span class="p">,</span> <span class="n">dtype</span><span class="p">:</span> <span class="n">ms</span><span class="o">.</span><span class="n">Type</span> <span class="o">=</span> <span class="n">ms</span><span class="o">.</span><span class="n">float32</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
@@ -11331,7 +11339,9 @@ about a model's potential harms.</p>
 <span class="normal">1275</span>
 <span class="normal">1276</span>
 <span class="normal">1277</span>
-<span class="normal">1278</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span> <span class="nc">StableDiffusionControlNetImg2ImgPipeline</span><span class="p">(</span>
+<span class="normal">1278</span>
+<span class="normal">1279</span>
+<span class="normal">1280</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span> <span class="nc">StableDiffusionControlNetImg2ImgPipeline</span><span class="p">(</span>
     <span class="n">DiffusionPipeline</span><span class="p">,</span>
     <span class="n">StableDiffusionMixin</span><span class="p">,</span>
     <span class="n">TextualInversionLoaderMixin</span><span class="p">,</span>
@@ -11533,7 +11543,9 @@ about a model's potential harms.</p>
             <span class="n">text_input_ids</span> <span class="o">=</span> <span class="n">text_inputs</span><span class="o">.</span><span class="n">input_ids</span>
             <span class="n">untruncated_ids</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">tokenizer</span><span class="p">(</span><span class="n">prompt</span><span class="p">,</span> <span class="n">padding</span><span class="o">=</span><span class="s2">&quot;longest&quot;</span><span class="p">,</span> <span class="n">return_tensors</span><span class="o">=</span><span class="s2">&quot;np&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">input_ids</span>
 
-            <span class="k">if</span> <span class="n">untruncated_ids</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">&gt;=</span> <span class="n">text_input_ids</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">ops</span><span class="o">.</span><span class="n">equal</span><span class="p">(</span><span class="n">text_input_ids</span><span class="p">,</span> <span class="n">untruncated_ids</span><span class="p">):</span>
+            <span class="k">if</span> <span class="n">untruncated_ids</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">&gt;=</span> <span class="n">text_input_ids</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">np</span><span class="o">.</span><span class="n">array_equal</span><span class="p">(</span>
+                <span class="n">text_input_ids</span><span class="p">,</span> <span class="n">untruncated_ids</span>
+            <span class="p">):</span>
                 <span class="n">removed_text</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">tokenizer</span><span class="o">.</span><span class="n">batch_decode</span><span class="p">(</span><span class="n">untruncated_ids</span><span class="p">[:,</span> <span class="bp">self</span><span class="o">.</span><span class="n">tokenizer</span><span class="o">.</span><span class="n">model_max_length</span> <span class="o">-</span> <span class="mi">1</span> <span class="p">:</span> <span class="o">-</span><span class="mi">1</span><span class="p">])</span>
                 <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
                     <span class="s2">&quot;The following part of your input was truncated because CLIP can only handle sequences up to&quot;</span>
@@ -13077,9 +13089,7 @@ second element is a list of <code>bool</code>s indicating whether the correspond
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/pipelines/controlnet/pipeline_controlnet_img2img.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"> 855</span>
-<span class="normal"> 856</span>
-<span class="normal"> 857</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"> 857</span>
 <span class="normal"> 858</span>
 <span class="normal"> 859</span>
 <span class="normal"> 860</span>
@@ -13500,7 +13510,9 @@ second element is a list of <code>bool</code>s indicating whether the correspond
 <span class="normal">1275</span>
 <span class="normal">1276</span>
 <span class="normal">1277</span>
-<span class="normal">1278</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="fm">__call__</span><span class="p">(</span>
+<span class="normal">1278</span>
+<span class="normal">1279</span>
+<span class="normal">1280</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="fm">__call__</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">prompt</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="n">image</span><span class="p">:</span> <span class="n">PipelineImageInput</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
@@ -14265,7 +14277,9 @@ the output of the pre-final layer will be used for computing the prompt embeddin
 <span class="normal">425</span>
 <span class="normal">426</span>
 <span class="normal">427</span>
-<span class="normal">428</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">encode_prompt</span><span class="p">(</span>
+<span class="normal">428</span>
+<span class="normal">429</span>
+<span class="normal">430</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">encode_prompt</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">prompt</span><span class="p">,</span>
     <span class="n">num_images_per_prompt</span><span class="p">,</span>
@@ -14333,7 +14347,9 @@ the output of the pre-final layer will be used for computing the prompt embeddin
         <span class="n">text_input_ids</span> <span class="o">=</span> <span class="n">text_inputs</span><span class="o">.</span><span class="n">input_ids</span>
         <span class="n">untruncated_ids</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">tokenizer</span><span class="p">(</span><span class="n">prompt</span><span class="p">,</span> <span class="n">padding</span><span class="o">=</span><span class="s2">&quot;longest&quot;</span><span class="p">,</span> <span class="n">return_tensors</span><span class="o">=</span><span class="s2">&quot;np&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">input_ids</span>
 
-        <span class="k">if</span> <span class="n">untruncated_ids</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">&gt;=</span> <span class="n">text_input_ids</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">ops</span><span class="o">.</span><span class="n">equal</span><span class="p">(</span><span class="n">text_input_ids</span><span class="p">,</span> <span class="n">untruncated_ids</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">untruncated_ids</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">&gt;=</span> <span class="n">text_input_ids</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">np</span><span class="o">.</span><span class="n">array_equal</span><span class="p">(</span>
+            <span class="n">text_input_ids</span><span class="p">,</span> <span class="n">untruncated_ids</span>
+        <span class="p">):</span>
             <span class="n">removed_text</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">tokenizer</span><span class="o">.</span><span class="n">batch_decode</span><span class="p">(</span><span class="n">untruncated_ids</span><span class="p">[:,</span> <span class="bp">self</span><span class="o">.</span><span class="n">tokenizer</span><span class="o">.</span><span class="n">model_max_length</span> <span class="o">-</span> <span class="mi">1</span> <span class="p">:</span> <span class="o">-</span><span class="mi">1</span><span class="p">])</span>
             <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
                 <span class="s2">&quot;The following part of your input was truncated because CLIP can only handle sequences up to&quot;</span>
@@ -14620,9 +14636,7 @@ about a model's potential harms.</p>
 
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/pipelines/controlnet/pipeline_controlnet_inpaint.py</code></summary>
-                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"> 238</span>
-<span class="normal"> 239</span>
-<span class="normal"> 240</span>
+                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"> 240</span>
 <span class="normal"> 241</span>
 <span class="normal"> 242</span>
 <span class="normal"> 243</span>
@@ -15970,7 +15984,11 @@ about a model's potential harms.</p>
 <span class="normal">1585</span>
 <span class="normal">1586</span>
 <span class="normal">1587</span>
-<span class="normal">1588</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span> <span class="nc">StableDiffusionControlNetInpaintPipeline</span><span class="p">(</span>
+<span class="normal">1588</span>
+<span class="normal">1589</span>
+<span class="normal">1590</span>
+<span class="normal">1591</span>
+<span class="normal">1592</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span> <span class="nc">StableDiffusionControlNetInpaintPipeline</span><span class="p">(</span>
     <span class="n">DiffusionPipeline</span><span class="p">,</span>
     <span class="n">StableDiffusionMixin</span><span class="p">,</span>
     <span class="n">TextualInversionLoaderMixin</span><span class="p">,</span>
@@ -16186,7 +16204,9 @@ about a model's potential harms.</p>
             <span class="n">text_input_ids</span> <span class="o">=</span> <span class="n">text_inputs</span><span class="o">.</span><span class="n">input_ids</span>
             <span class="n">untruncated_ids</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">tokenizer</span><span class="p">(</span><span class="n">prompt</span><span class="p">,</span> <span class="n">padding</span><span class="o">=</span><span class="s2">&quot;longest&quot;</span><span class="p">,</span> <span class="n">return_tensors</span><span class="o">=</span><span class="s2">&quot;np&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">input_ids</span>
 
-            <span class="k">if</span> <span class="n">untruncated_ids</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">&gt;=</span> <span class="n">text_input_ids</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">ops</span><span class="o">.</span><span class="n">equal</span><span class="p">(</span><span class="n">text_input_ids</span><span class="p">,</span> <span class="n">untruncated_ids</span><span class="p">):</span>
+            <span class="k">if</span> <span class="n">untruncated_ids</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">&gt;=</span> <span class="n">text_input_ids</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">np</span><span class="o">.</span><span class="n">array_equal</span><span class="p">(</span>
+                <span class="n">text_input_ids</span><span class="p">,</span> <span class="n">untruncated_ids</span>
+            <span class="p">):</span>
                 <span class="n">removed_text</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">tokenizer</span><span class="o">.</span><span class="n">batch_decode</span><span class="p">(</span><span class="n">untruncated_ids</span><span class="p">[:,</span> <span class="bp">self</span><span class="o">.</span><span class="n">tokenizer</span><span class="o">.</span><span class="n">model_max_length</span> <span class="o">-</span> <span class="mi">1</span> <span class="p">:</span> <span class="o">-</span><span class="mi">1</span><span class="p">])</span>
                 <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
                     <span class="s2">&quot;The following part of your input was truncated because CLIP can only handle sequences up to&quot;</span>
@@ -16705,10 +16725,10 @@ about a model's potential harms.</p>
             <span class="c1"># if strength is 1. then initialise the latents to noise, else initial to image + noise</span>
             <span class="n">latents</span> <span class="o">=</span> <span class="n">noise</span> <span class="k">if</span> <span class="n">is_strength_max</span> <span class="k">else</span> <span class="bp">self</span><span class="o">.</span><span class="n">scheduler</span><span class="o">.</span><span class="n">add_noise</span><span class="p">(</span><span class="n">image_latents</span><span class="p">,</span> <span class="n">noise</span><span class="p">,</span> <span class="n">timestep</span><span class="p">)</span>
             <span class="c1"># if pure noise then scale the initial latents by the  Scheduler&#39;s init sigma</span>
-            <span class="n">latents</span> <span class="o">=</span> <span class="n">latents</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">scheduler</span><span class="o">.</span><span class="n">init_noise_sigma</span> <span class="k">if</span> <span class="n">is_strength_max</span> <span class="k">else</span> <span class="n">latents</span>
+            <span class="n">latents</span> <span class="o">=</span> <span class="p">(</span><span class="n">latents</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">scheduler</span><span class="o">.</span><span class="n">init_noise_sigma</span><span class="p">)</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">dtype</span><span class="p">)</span> <span class="k">if</span> <span class="n">is_strength_max</span> <span class="k">else</span> <span class="n">latents</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="n">noise</span> <span class="o">=</span> <span class="n">latents</span>
-            <span class="n">latents</span> <span class="o">=</span> <span class="n">noise</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">scheduler</span><span class="o">.</span><span class="n">init_noise_sigma</span>
+            <span class="n">latents</span> <span class="o">=</span> <span class="p">(</span><span class="n">noise</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">scheduler</span><span class="o">.</span><span class="n">init_noise_sigma</span><span class="p">)</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">dtype</span><span class="p">)</span>
 
         <span class="n">outputs</span> <span class="o">=</span> <span class="p">(</span><span class="n">latents</span><span class="p">,)</span>
 
@@ -17250,7 +17270,7 @@ about a model's potential harms.</p>
                     <span class="n">cross_attention_kwargs</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">cross_attention_kwargs</span><span class="p">,</span>
                     <span class="n">down_block_additional_residuals</span><span class="o">=</span><span class="n">ms</span><span class="o">.</span><span class="n">mutable</span><span class="p">(</span><span class="n">down_block_res_samples</span><span class="p">),</span>
                     <span class="n">mid_block_additional_residual</span><span class="o">=</span><span class="n">mid_block_res_sample</span><span class="p">,</span>
-                    <span class="n">added_cond_kwargs</span><span class="o">=</span><span class="n">added_cond_kwargs</span><span class="p">,</span>
+                    <span class="n">added_cond_kwargs</span><span class="o">=</span><span class="n">ms</span><span class="o">.</span><span class="n">mutable</span><span class="p">(</span><span class="n">added_cond_kwargs</span><span class="p">)</span> <span class="k">if</span> <span class="n">added_cond_kwargs</span> <span class="k">else</span> <span class="n">added_cond_kwargs</span><span class="p">,</span>
                     <span class="n">return_dict</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
                 <span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
 
@@ -17889,11 +17909,7 @@ second element is a list of <code>bool</code>s indicating whether the correspond
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/pipelines/controlnet/pipeline_controlnet_inpaint.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1070</span>
-<span class="normal">1071</span>
-<span class="normal">1072</span>
-<span class="normal">1073</span>
-<span class="normal">1074</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1074</span>
 <span class="normal">1075</span>
 <span class="normal">1076</span>
 <span class="normal">1077</span>
@@ -18407,7 +18423,11 @@ second element is a list of <code>bool</code>s indicating whether the correspond
 <span class="normal">1585</span>
 <span class="normal">1586</span>
 <span class="normal">1587</span>
-<span class="normal">1588</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="fm">__call__</span><span class="p">(</span>
+<span class="normal">1588</span>
+<span class="normal">1589</span>
+<span class="normal">1590</span>
+<span class="normal">1591</span>
+<span class="normal">1592</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="fm">__call__</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">prompt</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="n">image</span><span class="p">:</span> <span class="n">PipelineImageInput</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
@@ -18855,7 +18875,7 @@ second element is a list of <code>bool</code>s indicating whether the correspond
                 <span class="n">cross_attention_kwargs</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">cross_attention_kwargs</span><span class="p">,</span>
                 <span class="n">down_block_additional_residuals</span><span class="o">=</span><span class="n">ms</span><span class="o">.</span><span class="n">mutable</span><span class="p">(</span><span class="n">down_block_res_samples</span><span class="p">),</span>
                 <span class="n">mid_block_additional_residual</span><span class="o">=</span><span class="n">mid_block_res_sample</span><span class="p">,</span>
-                <span class="n">added_cond_kwargs</span><span class="o">=</span><span class="n">added_cond_kwargs</span><span class="p">,</span>
+                <span class="n">added_cond_kwargs</span><span class="o">=</span><span class="n">ms</span><span class="o">.</span><span class="n">mutable</span><span class="p">(</span><span class="n">added_cond_kwargs</span><span class="p">)</span> <span class="k">if</span> <span class="n">added_cond_kwargs</span> <span class="k">else</span> <span class="n">added_cond_kwargs</span><span class="p">,</span>
                 <span class="n">return_dict</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
             <span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
 
@@ -19097,9 +19117,7 @@ the output of the pre-final layer will be used for computing the prompt embeddin
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/pipelines/controlnet/pipeline_controlnet_inpaint.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">386</span>
-<span class="normal">387</span>
-<span class="normal">388</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">388</span>
 <span class="normal">389</span>
 <span class="normal">390</span>
 <span class="normal">391</span>
@@ -19267,7 +19285,11 @@ the output of the pre-final layer will be used for computing the prompt embeddin
 <span class="normal">553</span>
 <span class="normal">554</span>
 <span class="normal">555</span>
-<span class="normal">556</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">encode_prompt</span><span class="p">(</span>
+<span class="normal">556</span>
+<span class="normal">557</span>
+<span class="normal">558</span>
+<span class="normal">559</span>
+<span class="normal">560</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">encode_prompt</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">prompt</span><span class="p">,</span>
     <span class="n">num_images_per_prompt</span><span class="p">,</span>
@@ -19335,7 +19357,9 @@ the output of the pre-final layer will be used for computing the prompt embeddin
         <span class="n">text_input_ids</span> <span class="o">=</span> <span class="n">text_inputs</span><span class="o">.</span><span class="n">input_ids</span>
         <span class="n">untruncated_ids</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">tokenizer</span><span class="p">(</span><span class="n">prompt</span><span class="p">,</span> <span class="n">padding</span><span class="o">=</span><span class="s2">&quot;longest&quot;</span><span class="p">,</span> <span class="n">return_tensors</span><span class="o">=</span><span class="s2">&quot;np&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">input_ids</span>
 
-        <span class="k">if</span> <span class="n">untruncated_ids</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">&gt;=</span> <span class="n">text_input_ids</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">ops</span><span class="o">.</span><span class="n">equal</span><span class="p">(</span><span class="n">text_input_ids</span><span class="p">,</span> <span class="n">untruncated_ids</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">untruncated_ids</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">&gt;=</span> <span class="n">text_input_ids</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">np</span><span class="o">.</span><span class="n">array_equal</span><span class="p">(</span>
+            <span class="n">text_input_ids</span><span class="p">,</span> <span class="n">untruncated_ids</span>
+        <span class="p">):</span>
             <span class="n">removed_text</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">tokenizer</span><span class="o">.</span><span class="n">batch_decode</span><span class="p">(</span><span class="n">untruncated_ids</span><span class="p">[:,</span> <span class="bp">self</span><span class="o">.</span><span class="n">tokenizer</span><span class="o">.</span><span class="n">model_max_length</span> <span class="o">-</span> <span class="mi">1</span> <span class="p">:</span> <span class="o">-</span><span class="mi">1</span><span class="p">])</span>
             <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
                 <span class="s2">&quot;The following part of your input was truncated because CLIP can only handle sequences up to&quot;</span>

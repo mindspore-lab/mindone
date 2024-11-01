@@ -6811,9 +6811,9 @@ with varying optimal processing resolution values.</p>
 
         <span class="c1"># 10. Prepare the final outputs.</span>
         <span class="k">if</span> <span class="n">output_type</span> <span class="o">==</span> <span class="s2">&quot;np&quot;</span><span class="p">:</span>
-            <span class="n">prediction</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">image_processor</span><span class="o">.</span><span class="n">pt_to_numpy</span><span class="p">(</span><span class="n">prediction</span><span class="p">)</span>  <span class="c1"># [N,H,W,1]</span>
+            <span class="n">prediction</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">image_processor</span><span class="o">.</span><span class="n">ms_to_numpy</span><span class="p">(</span><span class="n">prediction</span><span class="p">)</span>  <span class="c1"># [N,H,W,1]</span>
             <span class="k">if</span> <span class="n">uncertainty</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">output_uncertainty</span><span class="p">:</span>
-                <span class="n">uncertainty</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">image_processor</span><span class="o">.</span><span class="n">pt_to_numpy</span><span class="p">(</span><span class="n">uncertainty</span><span class="p">)</span>  <span class="c1"># [N,H,W,1]</span>
+                <span class="n">uncertainty</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">image_processor</span><span class="o">.</span><span class="n">ms_to_numpy</span><span class="p">(</span><span class="n">uncertainty</span><span class="p">)</span>  <span class="c1"># [N,H,W,1]</span>
 
         <span class="k">if</span> <span class="ow">not</span> <span class="n">return_dict</span><span class="p">:</span>
             <span class="k">return</span> <span class="p">(</span><span class="n">prediction</span><span class="p">,</span> <span class="n">uncertainty</span><span class="p">,</span> <span class="n">pred_latent</span><span class="p">)</span>
@@ -7866,9 +7866,9 @@ If <code>return_dict</code> is <code>True</code>, [<code>~pipelines.marigold.Mar
 
     <span class="c1"># 10. Prepare the final outputs.</span>
     <span class="k">if</span> <span class="n">output_type</span> <span class="o">==</span> <span class="s2">&quot;np&quot;</span><span class="p">:</span>
-        <span class="n">prediction</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">image_processor</span><span class="o">.</span><span class="n">pt_to_numpy</span><span class="p">(</span><span class="n">prediction</span><span class="p">)</span>  <span class="c1"># [N,H,W,1]</span>
+        <span class="n">prediction</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">image_processor</span><span class="o">.</span><span class="n">ms_to_numpy</span><span class="p">(</span><span class="n">prediction</span><span class="p">)</span>  <span class="c1"># [N,H,W,1]</span>
         <span class="k">if</span> <span class="n">uncertainty</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">output_uncertainty</span><span class="p">:</span>
-            <span class="n">uncertainty</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">image_processor</span><span class="o">.</span><span class="n">pt_to_numpy</span><span class="p">(</span><span class="n">uncertainty</span><span class="p">)</span>  <span class="c1"># [N,H,W,1]</span>
+            <span class="n">uncertainty</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">image_processor</span><span class="o">.</span><span class="n">ms_to_numpy</span><span class="p">(</span><span class="n">uncertainty</span><span class="p">)</span>  <span class="c1"># [N,H,W,1]</span>
 
     <span class="k">if</span> <span class="ow">not</span> <span class="n">return_dict</span><span class="p">:</span>
         <span class="k">return</span> <span class="p">(</span><span class="n">prediction</span><span class="p">,</span> <span class="n">uncertainty</span><span class="p">,</span> <span class="n">pred_latent</span><span class="p">)</span>
@@ -9651,9 +9651,9 @@ with varying optimal processing resolution values.</p>
 
         <span class="c1"># 10. Prepare the final outputs.</span>
         <span class="k">if</span> <span class="n">output_type</span> <span class="o">==</span> <span class="s2">&quot;np&quot;</span><span class="p">:</span>
-            <span class="n">prediction</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">image_processor</span><span class="o">.</span><span class="n">pt_to_numpy</span><span class="p">(</span><span class="n">prediction</span><span class="p">)</span>  <span class="c1"># [N,H,W,3]</span>
+            <span class="n">prediction</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">image_processor</span><span class="o">.</span><span class="n">ms_to_numpy</span><span class="p">(</span><span class="n">prediction</span><span class="p">)</span>  <span class="c1"># [N,H,W,3]</span>
             <span class="k">if</span> <span class="n">uncertainty</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">output_uncertainty</span><span class="p">:</span>
-                <span class="n">uncertainty</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">image_processor</span><span class="o">.</span><span class="n">pt_to_numpy</span><span class="p">(</span><span class="n">uncertainty</span><span class="p">)</span>  <span class="c1"># [N,H,W,1]</span>
+                <span class="n">uncertainty</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">image_processor</span><span class="o">.</span><span class="n">ms_to_numpy</span><span class="p">(</span><span class="n">uncertainty</span><span class="p">)</span>  <span class="c1"># [N,H,W,1]</span>
 
         <span class="k">if</span> <span class="ow">not</span> <span class="n">return_dict</span><span class="p">:</span>
             <span class="k">return</span> <span class="p">(</span><span class="n">prediction</span><span class="p">,</span> <span class="n">uncertainty</span><span class="p">,</span> <span class="n">pred_latent</span><span class="p">)</span>
@@ -10584,9 +10584,9 @@ If <code>return_dict</code> is <code>True</code>, [<code>~pipelines.marigold.Mar
 
     <span class="c1"># 10. Prepare the final outputs.</span>
     <span class="k">if</span> <span class="n">output_type</span> <span class="o">==</span> <span class="s2">&quot;np&quot;</span><span class="p">:</span>
-        <span class="n">prediction</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">image_processor</span><span class="o">.</span><span class="n">pt_to_numpy</span><span class="p">(</span><span class="n">prediction</span><span class="p">)</span>  <span class="c1"># [N,H,W,3]</span>
+        <span class="n">prediction</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">image_processor</span><span class="o">.</span><span class="n">ms_to_numpy</span><span class="p">(</span><span class="n">prediction</span><span class="p">)</span>  <span class="c1"># [N,H,W,3]</span>
         <span class="k">if</span> <span class="n">uncertainty</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">output_uncertainty</span><span class="p">:</span>
-            <span class="n">uncertainty</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">image_processor</span><span class="o">.</span><span class="n">pt_to_numpy</span><span class="p">(</span><span class="n">uncertainty</span><span class="p">)</span>  <span class="c1"># [N,H,W,1]</span>
+            <span class="n">uncertainty</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">image_processor</span><span class="o">.</span><span class="n">ms_to_numpy</span><span class="p">(</span><span class="n">uncertainty</span><span class="p">)</span>  <span class="c1"># [N,H,W,1]</span>
 
     <span class="k">if</span> <span class="ow">not</span> <span class="n">return_dict</span><span class="p">:</span>
         <span class="k">return</span> <span class="p">(</span><span class="n">prediction</span><span class="p">,</span> <span class="n">uncertainty</span><span class="p">,</span> <span class="n">pred_latent</span><span class="p">)</span>

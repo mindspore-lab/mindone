@@ -6251,7 +6251,9 @@ library implements for all the pipelines (such as downloading or saving, running
 <span class="normal">528</span>
 <span class="normal">529</span>
 <span class="normal">530</span>
-<span class="normal">531</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span> <span class="nc">KandinskyV22PriorPipeline</span><span class="p">(</span><span class="n">DiffusionPipeline</span><span class="p">):</span>
+<span class="normal">531</span>
+<span class="normal">532</span>
+<span class="normal">533</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span> <span class="nc">KandinskyV22PriorPipeline</span><span class="p">(</span><span class="n">DiffusionPipeline</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Pipeline for generating image prior for Kandinsky</span>
 
@@ -6407,7 +6409,7 @@ library implements for all the pipelines (such as downloading or saving, running
             <span class="k">if</span> <span class="n">latents</span><span class="o">.</span><span class="n">shape</span> <span class="o">!=</span> <span class="n">shape</span><span class="p">:</span>
                 <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Unexpected latents shape, got </span><span class="si">{</span><span class="n">latents</span><span class="o">.</span><span class="n">shape</span><span class="si">}</span><span class="s2">, expected </span><span class="si">{</span><span class="n">shape</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
 
-        <span class="n">latents</span> <span class="o">=</span> <span class="n">latents</span> <span class="o">*</span> <span class="n">scheduler</span><span class="o">.</span><span class="n">init_noise_sigma</span>
+        <span class="n">latents</span> <span class="o">=</span> <span class="p">(</span><span class="n">latents</span> <span class="o">*</span> <span class="n">scheduler</span><span class="o">.</span><span class="n">init_noise_sigma</span><span class="p">)</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">dtype</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">latents</span>
 
     <span class="c1"># Copied from diffusers.pipelines.kandinsky.pipeline_kandinsky_prior.KandinskyPriorPipeline.get_zero_embed</span>
@@ -6436,12 +6438,14 @@ library implements for all the pipelines (such as downloading or saving, running
             <span class="n">truncation</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
             <span class="n">return_tensors</span><span class="o">=</span><span class="s2">&quot;np&quot;</span><span class="p">,</span>
         <span class="p">)</span>
-        <span class="n">text_input_ids</span> <span class="o">=</span> <span class="n">ms</span><span class="o">.</span><span class="n">tensor</span><span class="p">(</span><span class="n">text_inputs</span><span class="o">.</span><span class="n">input_ids</span><span class="p">)</span>
+        <span class="n">text_input_ids</span> <span class="o">=</span> <span class="n">text_inputs</span><span class="o">.</span><span class="n">input_ids</span>
         <span class="n">text_mask</span> <span class="o">=</span> <span class="n">ms</span><span class="o">.</span><span class="n">tensor</span><span class="p">(</span><span class="n">text_inputs</span><span class="o">.</span><span class="n">attention_mask</span><span class="p">)</span>
 
-        <span class="n">untruncated_ids</span> <span class="o">=</span> <span class="n">ms</span><span class="o">.</span><span class="n">tensor</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">tokenizer</span><span class="p">(</span><span class="n">prompt</span><span class="p">,</span> <span class="n">padding</span><span class="o">=</span><span class="s2">&quot;longest&quot;</span><span class="p">,</span> <span class="n">return_tensors</span><span class="o">=</span><span class="s2">&quot;np&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">input_ids</span><span class="p">)</span>
+        <span class="n">untruncated_ids</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">tokenizer</span><span class="p">(</span><span class="n">prompt</span><span class="p">,</span> <span class="n">padding</span><span class="o">=</span><span class="s2">&quot;longest&quot;</span><span class="p">,</span> <span class="n">return_tensors</span><span class="o">=</span><span class="s2">&quot;np&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">input_ids</span>
 
-        <span class="k">if</span> <span class="n">untruncated_ids</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">&gt;=</span> <span class="n">text_input_ids</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">text_input_ids</span><span class="o">.</span><span class="n">shape</span> <span class="o">==</span> <span class="n">untruncated_ids</span><span class="o">.</span><span class="n">shape</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">untruncated_ids</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">&gt;=</span> <span class="n">text_input_ids</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">np</span><span class="o">.</span><span class="n">array_equal</span><span class="p">(</span>
+            <span class="n">text_input_ids</span><span class="p">,</span> <span class="n">untruncated_ids</span>
+        <span class="p">):</span>
             <span class="n">removed_text</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">tokenizer</span><span class="o">.</span><span class="n">batch_decode</span><span class="p">(</span><span class="n">untruncated_ids</span><span class="p">[:,</span> <span class="bp">self</span><span class="o">.</span><span class="n">tokenizer</span><span class="o">.</span><span class="n">model_max_length</span> <span class="o">-</span> <span class="mi">1</span> <span class="p">:</span> <span class="o">-</span><span class="mi">1</span><span class="p">])</span>
             <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
                 <span class="s2">&quot;The following part of your input was truncated because CLIP can only handle sequences up to&quot;</span>
@@ -6449,7 +6453,7 @@ library implements for all the pipelines (such as downloading or saving, running
             <span class="p">)</span>
             <span class="n">text_input_ids</span> <span class="o">=</span> <span class="n">text_input_ids</span><span class="p">[:,</span> <span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">tokenizer</span><span class="o">.</span><span class="n">model_max_length</span><span class="p">]</span>
 
-        <span class="n">text_encoder_output</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">text_encoder</span><span class="p">(</span><span class="n">text_input_ids</span><span class="p">)</span>
+        <span class="n">text_encoder_output</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">text_encoder</span><span class="p">(</span><span class="n">ms</span><span class="o">.</span><span class="n">tensor</span><span class="p">(</span><span class="n">text_input_ids</span><span class="p">))</span>
 
         <span class="n">prompt_embeds</span> <span class="o">=</span> <span class="n">text_encoder_output</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
         <span class="n">text_encoder_hidden_states</span> <span class="o">=</span> <span class="n">text_encoder_output</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
@@ -6975,9 +6979,7 @@ will be passed as <code>callback_kwargs</code> argument. You will only be able t
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/pipelines/kandinsky2_2/pipeline_kandinsky2_2_prior.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">358</span>
-<span class="normal">359</span>
-<span class="normal">360</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">360</span>
 <span class="normal">361</span>
 <span class="normal">362</span>
 <span class="normal">363</span>
@@ -7148,7 +7150,9 @@ will be passed as <code>callback_kwargs</code> argument. You will only be able t
 <span class="normal">528</span>
 <span class="normal">529</span>
 <span class="normal">530</span>
-<span class="normal">531</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="fm">__call__</span><span class="p">(</span>
+<span class="normal">531</span>
+<span class="normal">532</span>
+<span class="normal">533</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="fm">__call__</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">prompt</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]],</span>
     <span class="n">negative_prompt</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
@@ -8122,7 +8126,7 @@ library implements for all the pipelines (such as downloading or saving, running
             <span class="k">if</span> <span class="n">latents</span><span class="o">.</span><span class="n">shape</span> <span class="o">!=</span> <span class="n">shape</span><span class="p">:</span>
                 <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Unexpected latents shape, got </span><span class="si">{</span><span class="n">latents</span><span class="o">.</span><span class="n">shape</span><span class="si">}</span><span class="s2">, expected </span><span class="si">{</span><span class="n">shape</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
 
-        <span class="n">latents</span> <span class="o">=</span> <span class="n">latents</span> <span class="o">*</span> <span class="n">scheduler</span><span class="o">.</span><span class="n">init_noise_sigma</span>
+        <span class="n">latents</span> <span class="o">=</span> <span class="p">(</span><span class="n">latents</span> <span class="o">*</span> <span class="n">scheduler</span><span class="o">.</span><span class="n">init_noise_sigma</span><span class="p">)</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">dtype</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">latents</span>
 
     <span class="nd">@property</span>
@@ -8271,7 +8275,7 @@ library implements for all the pipelines (such as downloading or saving, running
                 <span class="n">sample</span><span class="o">=</span><span class="n">latent_model_input</span><span class="p">,</span>
                 <span class="n">timestep</span><span class="o">=</span><span class="n">t</span><span class="p">,</span>
                 <span class="n">encoder_hidden_states</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-                <span class="n">added_cond_kwargs</span><span class="o">=</span><span class="n">added_cond_kwargs</span><span class="p">,</span>
+                <span class="n">added_cond_kwargs</span><span class="o">=</span><span class="n">ms</span><span class="o">.</span><span class="n">mutable</span><span class="p">(</span><span class="n">added_cond_kwargs</span><span class="p">),</span>
                 <span class="n">return_dict</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
             <span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
 
@@ -8960,7 +8964,7 @@ will be passed as <code>callback_kwargs</code> argument. You will only be able t
             <span class="n">sample</span><span class="o">=</span><span class="n">latent_model_input</span><span class="p">,</span>
             <span class="n">timestep</span><span class="o">=</span><span class="n">t</span><span class="p">,</span>
             <span class="n">encoder_hidden_states</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-            <span class="n">added_cond_kwargs</span><span class="o">=</span><span class="n">added_cond_kwargs</span><span class="p">,</span>
+            <span class="n">added_cond_kwargs</span><span class="o">=</span><span class="n">ms</span><span class="o">.</span><span class="n">mutable</span><span class="p">(</span><span class="n">added_cond_kwargs</span><span class="p">),</span>
             <span class="n">return_dict</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
         <span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
 
@@ -10593,7 +10597,7 @@ library implements for all the pipelines (such as downloading or saving, running
             <span class="k">if</span> <span class="n">latents</span><span class="o">.</span><span class="n">shape</span> <span class="o">!=</span> <span class="n">shape</span><span class="p">:</span>
                 <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Unexpected latents shape, got </span><span class="si">{</span><span class="n">latents</span><span class="o">.</span><span class="n">shape</span><span class="si">}</span><span class="s2">, expected </span><span class="si">{</span><span class="n">shape</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
 
-        <span class="n">latents</span> <span class="o">=</span> <span class="n">latents</span> <span class="o">*</span> <span class="n">scheduler</span><span class="o">.</span><span class="n">init_noise_sigma</span>
+        <span class="n">latents</span> <span class="o">=</span> <span class="p">(</span><span class="n">latents</span> <span class="o">*</span> <span class="n">scheduler</span><span class="o">.</span><span class="n">init_noise_sigma</span><span class="p">)</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">dtype</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">latents</span>
 
     <span class="k">def</span> <span class="fm">__call__</span><span class="p">(</span>
@@ -10711,7 +10715,7 @@ library implements for all the pipelines (such as downloading or saving, running
                 <span class="n">sample</span><span class="o">=</span><span class="n">latent_model_input</span><span class="p">,</span>
                 <span class="n">timestep</span><span class="o">=</span><span class="n">t</span><span class="p">,</span>
                 <span class="n">encoder_hidden_states</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-                <span class="n">added_cond_kwargs</span><span class="o">=</span><span class="n">added_cond_kwargs</span><span class="p">,</span>
+                <span class="n">added_cond_kwargs</span><span class="o">=</span><span class="n">ms</span><span class="o">.</span><span class="n">mutable</span><span class="p">(</span><span class="n">added_cond_kwargs</span><span class="p">),</span>
                 <span class="n">return_dict</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
             <span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
 
@@ -11376,7 +11380,7 @@ every step.</p>
             <span class="n">sample</span><span class="o">=</span><span class="n">latent_model_input</span><span class="p">,</span>
             <span class="n">timestep</span><span class="o">=</span><span class="n">t</span><span class="p">,</span>
             <span class="n">encoder_hidden_states</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-            <span class="n">added_cond_kwargs</span><span class="o">=</span><span class="n">added_cond_kwargs</span><span class="p">,</span>
+            <span class="n">added_cond_kwargs</span><span class="o">=</span><span class="n">ms</span><span class="o">.</span><span class="n">mutable</span><span class="p">(</span><span class="n">added_cond_kwargs</span><span class="p">),</span>
             <span class="n">return_dict</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
         <span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
 
@@ -11987,7 +11991,9 @@ library implements for all the pipelines (such as downloading or saving, running
 <span class="normal">463</span>
 <span class="normal">464</span>
 <span class="normal">465</span>
-<span class="normal">466</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span> <span class="nc">KandinskyV22PriorEmb2EmbPipeline</span><span class="p">(</span><span class="n">DiffusionPipeline</span><span class="p">):</span>
+<span class="normal">466</span>
+<span class="normal">467</span>
+<span class="normal">468</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span> <span class="nc">KandinskyV22PriorEmb2EmbPipeline</span><span class="p">(</span><span class="n">DiffusionPipeline</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Pipeline for generating image prior for Kandinsky</span>
 
@@ -12192,12 +12198,14 @@ library implements for all the pipelines (such as downloading or saving, running
             <span class="n">truncation</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
             <span class="n">return_tensors</span><span class="o">=</span><span class="s2">&quot;np&quot;</span><span class="p">,</span>
         <span class="p">)</span>
-        <span class="n">text_input_ids</span> <span class="o">=</span> <span class="n">ms</span><span class="o">.</span><span class="n">tensor</span><span class="p">(</span><span class="n">text_inputs</span><span class="o">.</span><span class="n">input_ids</span><span class="p">)</span>
+        <span class="n">text_input_ids</span> <span class="o">=</span> <span class="n">text_inputs</span><span class="o">.</span><span class="n">input_ids</span>
         <span class="n">text_mask</span> <span class="o">=</span> <span class="n">ms</span><span class="o">.</span><span class="n">tensor</span><span class="p">(</span><span class="n">text_inputs</span><span class="o">.</span><span class="n">attention_mask</span><span class="p">)</span>
 
-        <span class="n">untruncated_ids</span> <span class="o">=</span> <span class="n">ms</span><span class="o">.</span><span class="n">tensor</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">tokenizer</span><span class="p">(</span><span class="n">prompt</span><span class="p">,</span> <span class="n">padding</span><span class="o">=</span><span class="s2">&quot;longest&quot;</span><span class="p">,</span> <span class="n">return_tensors</span><span class="o">=</span><span class="s2">&quot;np&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">input_ids</span><span class="p">)</span>
+        <span class="n">untruncated_ids</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">tokenizer</span><span class="p">(</span><span class="n">prompt</span><span class="p">,</span> <span class="n">padding</span><span class="o">=</span><span class="s2">&quot;longest&quot;</span><span class="p">,</span> <span class="n">return_tensors</span><span class="o">=</span><span class="s2">&quot;np&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">input_ids</span>
 
-        <span class="k">if</span> <span class="n">untruncated_ids</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">&gt;=</span> <span class="n">text_input_ids</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">text_input_ids</span><span class="o">.</span><span class="n">shape</span> <span class="o">==</span> <span class="n">untruncated_ids</span><span class="o">.</span><span class="n">shape</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">untruncated_ids</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">&gt;=</span> <span class="n">text_input_ids</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">np</span><span class="o">.</span><span class="n">array_equal</span><span class="p">(</span>
+            <span class="n">text_input_ids</span><span class="p">,</span> <span class="n">untruncated_ids</span>
+        <span class="p">):</span>
             <span class="n">removed_text</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">tokenizer</span><span class="o">.</span><span class="n">batch_decode</span><span class="p">(</span><span class="n">untruncated_ids</span><span class="p">[:,</span> <span class="bp">self</span><span class="o">.</span><span class="n">tokenizer</span><span class="o">.</span><span class="n">model_max_length</span> <span class="o">-</span> <span class="mi">1</span> <span class="p">:</span> <span class="o">-</span><span class="mi">1</span><span class="p">])</span>
             <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
                 <span class="s2">&quot;The following part of your input was truncated because CLIP can only handle sequences up to&quot;</span>
@@ -12205,7 +12213,7 @@ library implements for all the pipelines (such as downloading or saving, running
             <span class="p">)</span>
             <span class="n">text_input_ids</span> <span class="o">=</span> <span class="n">text_input_ids</span><span class="p">[:,</span> <span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">tokenizer</span><span class="o">.</span><span class="n">model_max_length</span><span class="p">]</span>
 
-        <span class="n">text_encoder_output</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">text_encoder</span><span class="p">(</span><span class="n">text_input_ids</span><span class="p">)</span>
+        <span class="n">text_encoder_output</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">text_encoder</span><span class="p">(</span><span class="n">ms</span><span class="o">.</span><span class="n">tensor</span><span class="p">(</span><span class="n">text_input_ids</span><span class="p">))</span>
 
         <span class="n">prompt_embeds</span> <span class="o">=</span> <span class="n">text_encoder_output</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
         <span class="n">text_encoder_hidden_states</span> <span class="o">=</span> <span class="n">text_encoder_output</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
@@ -12680,9 +12688,7 @@ usually at the expense of lower image quality.</p>
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/pipelines/kandinsky2_2/pipeline_kandinsky2_2_prior_emb2emb.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">305</span>
-<span class="normal">306</span>
-<span class="normal">307</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">307</span>
 <span class="normal">308</span>
 <span class="normal">309</span>
 <span class="normal">310</span>
@@ -12841,7 +12847,9 @@ usually at the expense of lower image quality.</p>
 <span class="normal">463</span>
 <span class="normal">464</span>
 <span class="normal">465</span>
-<span class="normal">466</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="fm">__call__</span><span class="p">(</span>
+<span class="normal">466</span>
+<span class="normal">467</span>
+<span class="normal">468</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="fm">__call__</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">prompt</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]],</span>
     <span class="n">image</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">],</span> <span class="n">PIL</span><span class="o">.</span><span class="n">Image</span><span class="o">.</span><span class="n">Image</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="n">PIL</span><span class="o">.</span><span class="n">Image</span><span class="o">.</span><span class="n">Image</span><span class="p">]],</span>
@@ -14016,7 +14024,7 @@ library implements for all the pipelines (such as downloading or saving, running
                 <span class="n">sample</span><span class="o">=</span><span class="n">latent_model_input</span><span class="p">,</span>
                 <span class="n">timestep</span><span class="o">=</span><span class="n">t</span><span class="p">,</span>
                 <span class="n">encoder_hidden_states</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-                <span class="n">added_cond_kwargs</span><span class="o">=</span><span class="n">added_cond_kwargs</span><span class="p">,</span>
+                <span class="n">added_cond_kwargs</span><span class="o">=</span><span class="n">ms</span><span class="o">.</span><span class="n">mutable</span><span class="p">(</span><span class="n">added_cond_kwargs</span><span class="p">),</span>
                 <span class="n">return_dict</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
             <span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
 
@@ -14743,7 +14751,7 @@ will be passed as <code>callback_kwargs</code> argument. You will only be able t
             <span class="n">sample</span><span class="o">=</span><span class="n">latent_model_input</span><span class="p">,</span>
             <span class="n">timestep</span><span class="o">=</span><span class="n">t</span><span class="p">,</span>
             <span class="n">encoder_hidden_states</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-            <span class="n">added_cond_kwargs</span><span class="o">=</span><span class="n">added_cond_kwargs</span><span class="p">,</span>
+            <span class="n">added_cond_kwargs</span><span class="o">=</span><span class="n">ms</span><span class="o">.</span><span class="n">mutable</span><span class="p">(</span><span class="n">added_cond_kwargs</span><span class="p">),</span>
             <span class="n">return_dict</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
         <span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
 
@@ -16627,7 +16635,7 @@ library implements for all the pipelines (such as downloading or saving, running
                 <span class="n">sample</span><span class="o">=</span><span class="n">latent_model_input</span><span class="p">,</span>
                 <span class="n">timestep</span><span class="o">=</span><span class="n">t</span><span class="p">,</span>
                 <span class="n">encoder_hidden_states</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-                <span class="n">added_cond_kwargs</span><span class="o">=</span><span class="n">added_cond_kwargs</span><span class="p">,</span>
+                <span class="n">added_cond_kwargs</span><span class="o">=</span><span class="n">ms</span><span class="o">.</span><span class="n">mutable</span><span class="p">(</span><span class="n">added_cond_kwargs</span><span class="p">),</span>
                 <span class="n">return_dict</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
             <span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
 
@@ -17295,7 +17303,7 @@ every step.</p>
             <span class="n">sample</span><span class="o">=</span><span class="n">latent_model_input</span><span class="p">,</span>
             <span class="n">timestep</span><span class="o">=</span><span class="n">t</span><span class="p">,</span>
             <span class="n">encoder_hidden_states</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-            <span class="n">added_cond_kwargs</span><span class="o">=</span><span class="n">added_cond_kwargs</span><span class="p">,</span>
+            <span class="n">added_cond_kwargs</span><span class="o">=</span><span class="n">ms</span><span class="o">.</span><span class="n">mutable</span><span class="p">(</span><span class="n">added_cond_kwargs</span><span class="p">),</span>
             <span class="n">return_dict</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
         <span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
 
@@ -17789,7 +17797,7 @@ library implements for all the pipelines (such as downloading or saving, running
             <span class="k">if</span> <span class="n">latents</span><span class="o">.</span><span class="n">shape</span> <span class="o">!=</span> <span class="n">shape</span><span class="p">:</span>
                 <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Unexpected latents shape, got </span><span class="si">{</span><span class="n">latents</span><span class="o">.</span><span class="n">shape</span><span class="si">}</span><span class="s2">, expected </span><span class="si">{</span><span class="n">shape</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
 
-        <span class="n">latents</span> <span class="o">=</span> <span class="n">latents</span> <span class="o">*</span> <span class="n">scheduler</span><span class="o">.</span><span class="n">init_noise_sigma</span>
+        <span class="n">latents</span> <span class="o">=</span> <span class="p">(</span><span class="n">latents</span> <span class="o">*</span> <span class="n">scheduler</span><span class="o">.</span><span class="n">init_noise_sigma</span><span class="p">)</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">dtype</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">latents</span>
 
     <span class="nd">@property</span>
@@ -17984,7 +17992,7 @@ library implements for all the pipelines (such as downloading or saving, running
                 <span class="n">sample</span><span class="o">=</span><span class="n">latent_model_input</span><span class="p">,</span>
                 <span class="n">timestep</span><span class="o">=</span><span class="n">t</span><span class="p">,</span>
                 <span class="n">encoder_hidden_states</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-                <span class="n">added_cond_kwargs</span><span class="o">=</span><span class="n">added_cond_kwargs</span><span class="p">,</span>
+                <span class="n">added_cond_kwargs</span><span class="o">=</span><span class="n">ms</span><span class="o">.</span><span class="n">mutable</span><span class="p">(</span><span class="n">added_cond_kwargs</span><span class="p">),</span>
                 <span class="n">return_dict</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
             <span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
 
@@ -18831,7 +18839,7 @@ will be passed as <code>callback_kwargs</code> argument. You will only be able t
             <span class="n">sample</span><span class="o">=</span><span class="n">latent_model_input</span><span class="p">,</span>
             <span class="n">timestep</span><span class="o">=</span><span class="n">t</span><span class="p">,</span>
             <span class="n">encoder_hidden_states</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-            <span class="n">added_cond_kwargs</span><span class="o">=</span><span class="n">added_cond_kwargs</span><span class="p">,</span>
+            <span class="n">added_cond_kwargs</span><span class="o">=</span><span class="n">ms</span><span class="o">.</span><span class="n">mutable</span><span class="p">(</span><span class="n">added_cond_kwargs</span><span class="p">),</span>
             <span class="n">return_dict</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
         <span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
 

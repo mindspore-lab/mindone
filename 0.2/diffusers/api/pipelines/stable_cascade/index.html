@@ -6302,10 +6302,10 @@ library implements for all the pipelines (such as downloading or saving, running
             <span class="n">callback_on_step_end_tensor_inputs</span><span class="o">=</span><span class="n">prior_callback_on_step_end_tensor_inputs</span><span class="p">,</span>
         <span class="p">)</span>
         <span class="n">image_embeddings</span> <span class="o">=</span> <span class="n">prior_outputs</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
-        <span class="n">prompt_embeds</span> <span class="o">=</span> <span class="n">prior_outputs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;prompt_embeds&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
-        <span class="n">prompt_embeds_pooled</span> <span class="o">=</span> <span class="n">prior_outputs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;prompt_embeds_pooled&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
-        <span class="n">negative_prompt_embeds</span> <span class="o">=</span> <span class="n">prior_outputs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;negative_prompt_embeds&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
-        <span class="n">negative_prompt_embeds_pooled</span> <span class="o">=</span> <span class="n">prior_outputs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;negative_prompt_embeds_pooled&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+        <span class="n">prompt_embeds</span> <span class="o">=</span> <span class="n">prior_outputs</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+        <span class="n">prompt_embeds_pooled</span> <span class="o">=</span> <span class="n">prior_outputs</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span>
+        <span class="n">negative_prompt_embeds</span> <span class="o">=</span> <span class="n">prior_outputs</span><span class="p">[</span><span class="mi">3</span><span class="p">]</span>
+        <span class="n">negative_prompt_embeds_pooled</span> <span class="o">=</span> <span class="n">prior_outputs</span><span class="p">[</span><span class="mi">4</span><span class="p">]</span>
 
         <span class="n">outputs</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">decoder_pipe</span><span class="p">(</span>
             <span class="n">image_embeddings</span><span class="o">=</span><span class="n">image_embeddings</span><span class="p">,</span>
@@ -7114,10 +7114,10 @@ will be passed as <code>callback_kwargs</code> argument. You will only be able t
         <span class="n">callback_on_step_end_tensor_inputs</span><span class="o">=</span><span class="n">prior_callback_on_step_end_tensor_inputs</span><span class="p">,</span>
     <span class="p">)</span>
     <span class="n">image_embeddings</span> <span class="o">=</span> <span class="n">prior_outputs</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
-    <span class="n">prompt_embeds</span> <span class="o">=</span> <span class="n">prior_outputs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;prompt_embeds&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
-    <span class="n">prompt_embeds_pooled</span> <span class="o">=</span> <span class="n">prior_outputs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;prompt_embeds_pooled&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
-    <span class="n">negative_prompt_embeds</span> <span class="o">=</span> <span class="n">prior_outputs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;negative_prompt_embeds&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
-    <span class="n">negative_prompt_embeds_pooled</span> <span class="o">=</span> <span class="n">prior_outputs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;negative_prompt_embeds_pooled&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+    <span class="n">prompt_embeds</span> <span class="o">=</span> <span class="n">prior_outputs</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+    <span class="n">prompt_embeds_pooled</span> <span class="o">=</span> <span class="n">prior_outputs</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span>
+    <span class="n">negative_prompt_embeds</span> <span class="o">=</span> <span class="n">prior_outputs</span><span class="p">[</span><span class="mi">3</span><span class="p">]</span>
+    <span class="n">negative_prompt_embeds_pooled</span> <span class="o">=</span> <span class="n">prior_outputs</span><span class="p">[</span><span class="mi">4</span><span class="p">]</span>
 
     <span class="n">outputs</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">decoder_pipe</span><span class="p">(</span>
         <span class="n">image_embeddings</span><span class="o">=</span><span class="n">image_embeddings</span><span class="p">,</span>
@@ -7842,7 +7842,9 @@ library implements for all the pipelines (such as downloading or saving, running
 <span class="normal">618</span>
 <span class="normal">619</span>
 <span class="normal">620</span>
-<span class="normal">621</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span> <span class="nc">StableCascadePriorPipeline</span><span class="p">(</span><span class="n">DiffusionPipeline</span><span class="p">):</span>
+<span class="normal">621</span>
+<span class="normal">622</span>
+<span class="normal">623</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span> <span class="nc">StableCascadePriorPipeline</span><span class="p">(</span><span class="n">DiffusionPipeline</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Pipeline for generating image prior for Stable Cascade.</span>
 
@@ -7908,7 +7910,7 @@ library implements for all the pipelines (such as downloading or saving, running
             <span class="k">if</span> <span class="n">latents</span><span class="o">.</span><span class="n">shape</span> <span class="o">!=</span> <span class="n">latent_shape</span><span class="p">:</span>
                 <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Unexpected latents shape, got </span><span class="si">{</span><span class="n">latents</span><span class="o">.</span><span class="n">shape</span><span class="si">}</span><span class="s2">, expected </span><span class="si">{</span><span class="n">latent_shape</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
 
-        <span class="n">latents</span> <span class="o">=</span> <span class="n">latents</span> <span class="o">*</span> <span class="n">scheduler</span><span class="o">.</span><span class="n">init_noise_sigma</span>
+        <span class="n">latents</span> <span class="o">=</span> <span class="p">(</span><span class="n">latents</span> <span class="o">*</span> <span class="n">scheduler</span><span class="o">.</span><span class="n">init_noise_sigma</span><span class="p">)</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">dtype</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">latents</span>
 
     <span class="k">def</span> <span class="nf">encode_prompt</span><span class="p">(</span>
@@ -7932,12 +7934,14 @@ library implements for all the pipelines (such as downloading or saving, running
                 <span class="n">truncation</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
                 <span class="n">return_tensors</span><span class="o">=</span><span class="s2">&quot;np&quot;</span><span class="p">,</span>
             <span class="p">)</span>
-            <span class="n">text_input_ids</span> <span class="o">=</span> <span class="n">ms</span><span class="o">.</span><span class="n">tensor</span><span class="p">(</span><span class="n">text_inputs</span><span class="o">.</span><span class="n">input_ids</span><span class="p">)</span>
+            <span class="n">text_input_ids</span> <span class="o">=</span> <span class="n">text_inputs</span><span class="o">.</span><span class="n">input_ids</span>
             <span class="n">attention_mask</span> <span class="o">=</span> <span class="n">ms</span><span class="o">.</span><span class="n">tensor</span><span class="p">(</span><span class="n">text_inputs</span><span class="o">.</span><span class="n">attention_mask</span><span class="p">)</span>
 
-            <span class="n">untruncated_ids</span> <span class="o">=</span> <span class="n">ms</span><span class="o">.</span><span class="n">tensor</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">tokenizer</span><span class="p">(</span><span class="n">prompt</span><span class="p">,</span> <span class="n">padding</span><span class="o">=</span><span class="s2">&quot;longest&quot;</span><span class="p">,</span> <span class="n">return_tensors</span><span class="o">=</span><span class="s2">&quot;np&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">input_ids</span><span class="p">)</span>
+            <span class="n">untruncated_ids</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">tokenizer</span><span class="p">(</span><span class="n">prompt</span><span class="p">,</span> <span class="n">padding</span><span class="o">=</span><span class="s2">&quot;longest&quot;</span><span class="p">,</span> <span class="n">return_tensors</span><span class="o">=</span><span class="s2">&quot;np&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">input_ids</span>
 
-            <span class="k">if</span> <span class="n">untruncated_ids</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">&gt;=</span> <span class="n">text_input_ids</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">ops</span><span class="o">.</span><span class="n">equal</span><span class="p">(</span><span class="n">text_input_ids</span><span class="p">,</span> <span class="n">untruncated_ids</span><span class="p">):</span>
+            <span class="k">if</span> <span class="n">untruncated_ids</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">&gt;=</span> <span class="n">text_input_ids</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">np</span><span class="o">.</span><span class="n">array_equal</span><span class="p">(</span>
+                <span class="n">text_input_ids</span><span class="p">,</span> <span class="n">untruncated_ids</span>
+            <span class="p">):</span>
                 <span class="n">removed_text</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">tokenizer</span><span class="o">.</span><span class="n">batch_decode</span><span class="p">(</span><span class="n">untruncated_ids</span><span class="p">[:,</span> <span class="bp">self</span><span class="o">.</span><span class="n">tokenizer</span><span class="o">.</span><span class="n">model_max_length</span> <span class="o">-</span> <span class="mi">1</span> <span class="p">:</span> <span class="o">-</span><span class="mi">1</span><span class="p">])</span>
                 <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
                     <span class="s2">&quot;The following part of your input was truncated because CLIP can only handle sequences up to&quot;</span>
@@ -7947,7 +7951,7 @@ library implements for all the pipelines (such as downloading or saving, running
                 <span class="n">attention_mask</span> <span class="o">=</span> <span class="n">attention_mask</span><span class="p">[:,</span> <span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">tokenizer</span><span class="o">.</span><span class="n">model_max_length</span><span class="p">]</span>
 
             <span class="n">text_encoder_output</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">text_encoder</span><span class="p">(</span>
-                <span class="n">text_input_ids</span><span class="p">,</span> <span class="n">attention_mask</span><span class="o">=</span><span class="n">attention_mask</span><span class="p">,</span> <span class="n">output_hidden_states</span><span class="o">=</span><span class="kc">True</span>
+                <span class="n">ms</span><span class="o">.</span><span class="n">tensor</span><span class="p">(</span><span class="n">text_input_ids</span><span class="p">),</span> <span class="n">attention_mask</span><span class="o">=</span><span class="n">attention_mask</span><span class="p">,</span> <span class="n">output_hidden_states</span><span class="o">=</span><span class="kc">True</span>
             <span class="p">)</span>
             <span class="n">prompt_embeds</span> <span class="o">=</span> <span class="n">text_encoder_output</span><span class="p">[</span><span class="mi">2</span><span class="p">][</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
             <span class="k">if</span> <span class="n">prompt_embeds_pooled</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
@@ -8817,9 +8821,7 @@ will be passed as <code>callback_kwargs</code> argument. You will only be able t
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/pipelines/stable_cascade/pipeline_stable_cascade_prior.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">359</span>
-<span class="normal">360</span>
-<span class="normal">361</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">361</span>
 <span class="normal">362</span>
 <span class="normal">363</span>
 <span class="normal">364</span>
@@ -9079,7 +9081,9 @@ will be passed as <code>callback_kwargs</code> argument. You will only be able t
 <span class="normal">618</span>
 <span class="normal">619</span>
 <span class="normal">620</span>
-<span class="normal">621</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="fm">__call__</span><span class="p">(</span>
+<span class="normal">621</span>
+<span class="normal">622</span>
+<span class="normal">623</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="fm">__call__</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">prompt</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="n">images</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">PIL</span><span class="o">.</span><span class="n">Image</span><span class="o">.</span><span class="n">Image</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">],</span> <span class="n">List</span><span class="p">[</span><span class="n">PIL</span><span class="o">.</span><span class="n">Image</span><span class="o">.</span><span class="n">Image</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
@@ -10040,7 +10044,9 @@ width=int(24*10.67)=256 in order to match the training conditions.</p>
 <span class="normal">487</span>
 <span class="normal">488</span>
 <span class="normal">489</span>
-<span class="normal">490</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span> <span class="nc">StableCascadeDecoderPipeline</span><span class="p">(</span><span class="n">DiffusionPipeline</span><span class="p">):</span>
+<span class="normal">490</span>
+<span class="normal">491</span>
+<span class="normal">492</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span> <span class="nc">StableCascadeDecoderPipeline</span><span class="p">(</span><span class="n">DiffusionPipeline</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Pipeline for generating images from the Stable Cascade model.</span>
 
@@ -10134,12 +10140,14 @@ width=int(24*10.67)=256 in order to match the training conditions.</p>
                 <span class="n">truncation</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
                 <span class="n">return_tensors</span><span class="o">=</span><span class="s2">&quot;np&quot;</span><span class="p">,</span>
             <span class="p">)</span>
-            <span class="n">text_input_ids</span> <span class="o">=</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">(</span><span class="n">text_inputs</span><span class="o">.</span><span class="n">input_ids</span><span class="p">)</span>
+            <span class="n">text_input_ids</span> <span class="o">=</span> <span class="n">text_inputs</span><span class="o">.</span><span class="n">input_ids</span>
             <span class="n">attention_mask</span> <span class="o">=</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">(</span><span class="n">text_inputs</span><span class="o">.</span><span class="n">attention_mask</span><span class="p">)</span>
 
-            <span class="n">untruncated_ids</span> <span class="o">=</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">tokenizer</span><span class="p">(</span><span class="n">prompt</span><span class="p">,</span> <span class="n">padding</span><span class="o">=</span><span class="s2">&quot;longest&quot;</span><span class="p">,</span> <span class="n">return_tensors</span><span class="o">=</span><span class="s2">&quot;np&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">input_ids</span><span class="p">)</span>
+            <span class="n">untruncated_ids</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">tokenizer</span><span class="p">(</span><span class="n">prompt</span><span class="p">,</span> <span class="n">padding</span><span class="o">=</span><span class="s2">&quot;longest&quot;</span><span class="p">,</span> <span class="n">return_tensors</span><span class="o">=</span><span class="s2">&quot;np&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">input_ids</span>
 
-            <span class="k">if</span> <span class="n">untruncated_ids</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">&gt;=</span> <span class="n">text_input_ids</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">ops</span><span class="o">.</span><span class="n">equal</span><span class="p">(</span><span class="n">text_input_ids</span><span class="p">,</span> <span class="n">untruncated_ids</span><span class="p">):</span>
+            <span class="k">if</span> <span class="n">untruncated_ids</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">&gt;=</span> <span class="n">text_input_ids</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">np</span><span class="o">.</span><span class="n">array_equal</span><span class="p">(</span>
+                <span class="n">text_input_ids</span><span class="p">,</span> <span class="n">untruncated_ids</span>
+            <span class="p">):</span>
                 <span class="n">removed_text</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">tokenizer</span><span class="o">.</span><span class="n">batch_decode</span><span class="p">(</span><span class="n">untruncated_ids</span><span class="p">[:,</span> <span class="bp">self</span><span class="o">.</span><span class="n">tokenizer</span><span class="o">.</span><span class="n">model_max_length</span> <span class="o">-</span> <span class="mi">1</span> <span class="p">:</span> <span class="o">-</span><span class="mi">1</span><span class="p">])</span>
                 <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
                     <span class="s2">&quot;The following part of your input was truncated because CLIP can only handle sequences up to&quot;</span>
@@ -10149,7 +10157,7 @@ width=int(24*10.67)=256 in order to match the training conditions.</p>
                 <span class="n">attention_mask</span> <span class="o">=</span> <span class="n">attention_mask</span><span class="p">[:,</span> <span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">tokenizer</span><span class="o">.</span><span class="n">model_max_length</span><span class="p">]</span>
 
             <span class="n">text_encoder_output</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">text_encoder</span><span class="p">(</span>
-                <span class="n">text_input_ids</span><span class="p">,</span> <span class="n">attention_mask</span><span class="o">=</span><span class="n">attention_mask</span><span class="p">,</span> <span class="n">output_hidden_states</span><span class="o">=</span><span class="kc">True</span>
+                <span class="n">ms</span><span class="o">.</span><span class="n">tensor</span><span class="p">(</span><span class="n">text_input_ids</span><span class="p">),</span> <span class="n">attention_mask</span><span class="o">=</span><span class="n">attention_mask</span><span class="p">,</span> <span class="n">output_hidden_states</span><span class="o">=</span><span class="kc">True</span>
             <span class="p">)</span>
             <span class="n">prompt_embeds</span> <span class="o">=</span> <span class="n">text_encoder_output</span><span class="p">[</span><span class="mi">2</span><span class="p">][</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
             <span class="k">if</span> <span class="n">prompt_embeds_pooled</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
@@ -10864,9 +10872,7 @@ will be passed as <code>callback_kwargs</code> argument. You will only be able t
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/pipelines/stable_cascade/pipeline_stable_cascade.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">281</span>
-<span class="normal">282</span>
-<span class="normal">283</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">283</span>
 <span class="normal">284</span>
 <span class="normal">285</span>
 <span class="normal">286</span>
@@ -11073,7 +11079,9 @@ will be passed as <code>callback_kwargs</code> argument. You will only be able t
 <span class="normal">487</span>
 <span class="normal">488</span>
 <span class="normal">489</span>
-<span class="normal">490</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="fm">__call__</span><span class="p">(</span>
+<span class="normal">490</span>
+<span class="normal">491</span>
+<span class="normal">492</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="fm">__call__</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">image_embeddings</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">]],</span>
     <span class="n">prompt</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>

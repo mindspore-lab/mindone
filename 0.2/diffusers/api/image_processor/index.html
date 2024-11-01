@@ -4883,6 +4883,15 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#mindone.diffusers.image_processor.VaeImageProcessor.ms_to_numpy" class="md-nav__link">
+    <span class="md-ellipsis">
+      ms_to_numpy
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#mindone.diffusers.image_processor.VaeImageProcessor.normalize" class="md-nav__link">
     <span class="md-ellipsis">
       normalize
@@ -4892,18 +4901,18 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#mindone.diffusers.image_processor.VaeImageProcessor.numpy_to_pil" class="md-nav__link">
+  <a href="#mindone.diffusers.image_processor.VaeImageProcessor.numpy_to_ms" class="md-nav__link">
     <span class="md-ellipsis">
-      numpy_to_pil
+      numpy_to_ms
     </span>
   </a>
   
 </li>
         
           <li class="md-nav__item">
-  <a href="#mindone.diffusers.image_processor.VaeImageProcessor.numpy_to_pt" class="md-nav__link">
+  <a href="#mindone.diffusers.image_processor.VaeImageProcessor.numpy_to_pil" class="md-nav__link">
     <span class="md-ellipsis">
-      numpy_to_pt
+      numpy_to_pil
     </span>
   </a>
   
@@ -4931,15 +4940,6 @@
   <a href="#mindone.diffusers.image_processor.VaeImageProcessor.preprocess" class="md-nav__link">
     <span class="md-ellipsis">
       preprocess
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#mindone.diffusers.image_processor.VaeImageProcessor.pt_to_numpy" class="md-nav__link">
-    <span class="md-ellipsis">
-      pt_to_numpy
     </span>
   </a>
   
@@ -5401,6 +5401,15 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#mindone.diffusers.image_processor.VaeImageProcessor.ms_to_numpy" class="md-nav__link">
+    <span class="md-ellipsis">
+      ms_to_numpy
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#mindone.diffusers.image_processor.VaeImageProcessor.normalize" class="md-nav__link">
     <span class="md-ellipsis">
       normalize
@@ -5410,18 +5419,18 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#mindone.diffusers.image_processor.VaeImageProcessor.numpy_to_pil" class="md-nav__link">
+  <a href="#mindone.diffusers.image_processor.VaeImageProcessor.numpy_to_ms" class="md-nav__link">
     <span class="md-ellipsis">
-      numpy_to_pil
+      numpy_to_ms
     </span>
   </a>
   
 </li>
         
           <li class="md-nav__item">
-  <a href="#mindone.diffusers.image_processor.VaeImageProcessor.numpy_to_pt" class="md-nav__link">
+  <a href="#mindone.diffusers.image_processor.VaeImageProcessor.numpy_to_pil" class="md-nav__link">
     <span class="md-ellipsis">
-      numpy_to_pt
+      numpy_to_pil
     </span>
   </a>
   
@@ -5449,15 +5458,6 @@
   <a href="#mindone.diffusers.image_processor.VaeImageProcessor.preprocess" class="md-nav__link">
     <span class="md-ellipsis">
       preprocess
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#mindone.diffusers.image_processor.VaeImageProcessor.pt_to_numpy" class="md-nav__link">
-    <span class="md-ellipsis">
-      pt_to_numpy
     </span>
   </a>
   
@@ -6430,9 +6430,9 @@ specific language governing permissions and limitations under the License.
         <span class="k">return</span> <span class="n">images</span>
 
     <span class="nd">@staticmethod</span>
-    <span class="k">def</span> <span class="nf">numpy_to_pt</span><span class="p">(</span><span class="n">images</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
+    <span class="k">def</span> <span class="nf">numpy_to_ms</span><span class="p">(</span><span class="n">images</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Convert a NumPy image to a PyTorch tensor.</span>
+<span class="sd">        Convert a NumPy image to a MindSpore tensor.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">if</span> <span class="n">images</span><span class="o">.</span><span class="n">ndim</span> <span class="o">==</span> <span class="mi">3</span><span class="p">:</span>
             <span class="n">images</span> <span class="o">=</span> <span class="n">images</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="kc">None</span><span class="p">]</span>
@@ -6441,9 +6441,9 @@ specific language governing permissions and limitations under the License.
         <span class="k">return</span> <span class="n">images</span>
 
     <span class="nd">@staticmethod</span>
-    <span class="k">def</span> <span class="nf">pt_to_numpy</span><span class="p">(</span><span class="n">images</span><span class="p">:</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+    <span class="k">def</span> <span class="nf">ms_to_numpy</span><span class="p">(</span><span class="n">images</span><span class="p">:</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Convert a PyTorch tensor to a NumPy image.</span>
+<span class="sd">        Convert a MindSpore tensor to a NumPy image.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">images</span> <span class="o">=</span> <span class="n">images</span><span class="o">.</span><span class="n">permute</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">float</span><span class="p">()</span><span class="o">.</span><span class="n">numpy</span><span class="p">()</span>
         <span class="k">return</span> <span class="n">images</span>
@@ -6662,7 +6662,7 @@ specific language governing permissions and limitations under the License.
 
 <span class="sd">        Args:</span>
 <span class="sd">            image (`PIL.Image.Image`, `np.ndarray` or `ms.Tensor`):</span>
-<span class="sd">                The image input, can be a PIL image, numpy array or pytorch tensor.</span>
+<span class="sd">                The image input, can be a PIL image, numpy array or mindspore tensor.</span>
 <span class="sd">            height (`int`):</span>
 <span class="sd">                The height to resize to.</span>
 <span class="sd">            width (`int`):</span>
@@ -6698,12 +6698,12 @@ specific language governing permissions and limitations under the License.
                 <span class="n">size</span><span class="o">=</span><span class="p">(</span><span class="n">height</span><span class="p">,</span> <span class="n">width</span><span class="p">),</span>
             <span class="p">)</span>
         <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">image</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">):</span>
-            <span class="n">image</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">numpy_to_pt</span><span class="p">(</span><span class="n">image</span><span class="p">)</span>
+            <span class="n">image</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">numpy_to_ms</span><span class="p">(</span><span class="n">image</span><span class="p">)</span>
             <span class="n">image</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">interpolate</span><span class="p">(</span>
                 <span class="n">image</span><span class="p">,</span>
                 <span class="n">size</span><span class="o">=</span><span class="p">(</span><span class="n">height</span><span class="p">,</span> <span class="n">width</span><span class="p">),</span>
             <span class="p">)</span>
-            <span class="n">image</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">pt_to_numpy</span><span class="p">(</span><span class="n">image</span><span class="p">)</span>
+            <span class="n">image</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">ms_to_numpy</span><span class="p">(</span><span class="n">image</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">image</span>
 
     <span class="k">def</span> <span class="nf">binarize</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">image</span><span class="p">:</span> <span class="n">PIL</span><span class="o">.</span><span class="n">Image</span><span class="o">.</span><span class="n">Image</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">PIL</span><span class="o">.</span><span class="n">Image</span><span class="o">.</span><span class="n">Image</span><span class="p">:</span>
@@ -6735,8 +6735,8 @@ specific language governing permissions and limitations under the License.
 
 <span class="sd">        Args:</span>
 <span class="sd">            image(`PIL.Image.Image`, `np.ndarray` or `ms.Tensor`):</span>
-<span class="sd">                The image input, can be a PIL image, numpy array or pytorch tensor. if it is a numpy array, should have</span>
-<span class="sd">                shape `[batch, height, width]` or `[batch, height, width, channel]` if it is a pytorch tensor, should</span>
+<span class="sd">                The image input, can be a PIL image, numpy array or mindspore tensor. if it is a numpy array, should have</span>
+<span class="sd">                shape `[batch, height, width]` or `[batch, height, width, channel]` if it is a mindspore tensor, should</span>
 <span class="sd">                have shape `[batch, channel, height, width]`.</span>
 <span class="sd">            height (`int`, *optional*, defaults to `None`):</span>
 <span class="sd">                The height in preprocessed image. If `None`, will use the height of `image` input.</span>
@@ -6779,7 +6779,7 @@ specific language governing permissions and limitations under the License.
 
 <span class="sd">        Args:</span>
 <span class="sd">            image (`pipeline_image_input`):</span>
-<span class="sd">                The image input, accepted formats are PIL images, NumPy arrays, PyTorch tensors; Also accept list of</span>
+<span class="sd">                The image input, accepted formats are PIL images, NumPy arrays, MindSpore tensors; Also accept list of</span>
 <span class="sd">                supported formats.</span>
 <span class="sd">            height (`int`, *optional*, defaults to `None`):</span>
 <span class="sd">                The height in preprocessed image. If `None`, will use the `get_default_height_width()` to get default</span>
@@ -6799,10 +6799,10 @@ specific language governing permissions and limitations under the License.
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">supported_formats</span> <span class="o">=</span> <span class="p">(</span><span class="n">PIL</span><span class="o">.</span><span class="n">Image</span><span class="o">.</span><span class="n">Image</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">)</span>
 
-        <span class="c1"># Expand the missing dimension for 3-dimensional pytorch tensor or numpy array that represents grayscale image</span>
+        <span class="c1"># Expand the missing dimension for 3-dimensional mindspore tensor or numpy array that represents grayscale image</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">do_convert_grayscale</span> <span class="ow">and</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">image</span><span class="p">,</span> <span class="p">(</span><span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">))</span> <span class="ow">and</span> <span class="n">image</span><span class="o">.</span><span class="n">ndim</span> <span class="o">==</span> <span class="mi">3</span><span class="p">:</span>
             <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">image</span><span class="p">,</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">):</span>
-                <span class="c1"># if image is a pytorch tensor could have 2 possible shapes:</span>
+                <span class="c1"># if image is a mindspore tensor could have 2 possible shapes:</span>
                 <span class="c1">#    1. batch x height x width: we should insert the channel dimension at position 1</span>
                 <span class="c1">#    2. channnel x height x width: we should insert batch dimension at position 0,</span>
                 <span class="c1">#       however, since both channel and batch dimension has same size 1, it is same to insert at position 1</span>
@@ -6850,12 +6850,12 @@ specific language governing permissions and limitations under the License.
             <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">do_convert_grayscale</span><span class="p">:</span>
                 <span class="n">image</span> <span class="o">=</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">convert_to_grayscale</span><span class="p">(</span><span class="n">i</span><span class="p">)</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">image</span><span class="p">]</span>
             <span class="n">image</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">pil_to_numpy</span><span class="p">(</span><span class="n">image</span><span class="p">)</span>  <span class="c1"># to np</span>
-            <span class="n">image</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">numpy_to_pt</span><span class="p">(</span><span class="n">image</span><span class="p">)</span>  <span class="c1"># to pt</span>
+            <span class="n">image</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">numpy_to_ms</span><span class="p">(</span><span class="n">image</span><span class="p">)</span>  <span class="c1"># to ms</span>
 
         <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">image</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">):</span>
             <span class="n">image</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">concatenate</span><span class="p">(</span><span class="n">image</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span> <span class="k">if</span> <span class="n">image</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">ndim</span> <span class="o">==</span> <span class="mi">4</span> <span class="k">else</span> <span class="n">np</span><span class="o">.</span><span class="n">stack</span><span class="p">(</span><span class="n">image</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
 
-            <span class="n">image</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">numpy_to_pt</span><span class="p">(</span><span class="n">image</span><span class="p">)</span>
+            <span class="n">image</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">numpy_to_ms</span><span class="p">(</span><span class="n">image</span><span class="p">)</span>
 
             <span class="n">height</span><span class="p">,</span> <span class="n">width</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_default_height_width</span><span class="p">(</span><span class="n">image</span><span class="p">,</span> <span class="n">height</span><span class="p">,</span> <span class="n">width</span><span class="p">)</span>
             <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">do_resize</span><span class="p">:</span>
@@ -6881,7 +6881,7 @@ specific language governing permissions and limitations under the License.
         <span class="k">if</span> <span class="n">do_normalize</span> <span class="ow">and</span> <span class="n">image</span><span class="o">.</span><span class="n">min</span><span class="p">()</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">:</span>
             <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span>
                 <span class="s2">&quot;Passing `image` as torch tensor with value range in [-1,1] is deprecated. The expected value range for image tensor is [0,1] &quot;</span>
-                <span class="sa">f</span><span class="s2">&quot;when passing as pytorch tensor or numpy Array. You passed `image` with value range [</span><span class="si">{</span><span class="n">image</span><span class="o">.</span><span class="n">min</span><span class="p">()</span><span class="si">}</span><span class="s2">,</span><span class="si">{</span><span class="n">image</span><span class="o">.</span><span class="n">max</span><span class="p">()</span><span class="si">}</span><span class="s2">]&quot;</span><span class="p">,</span>
+                <span class="sa">f</span><span class="s2">&quot;when passing as mindspore tensor or numpy Array. You passed `image` with value range [</span><span class="si">{</span><span class="n">image</span><span class="o">.</span><span class="n">min</span><span class="p">()</span><span class="si">}</span><span class="s2">,</span><span class="si">{</span><span class="n">image</span><span class="o">.</span><span class="n">max</span><span class="p">()</span><span class="si">}</span><span class="s2">]&quot;</span><span class="p">,</span>
                 <span class="ne">FutureWarning</span><span class="p">,</span>
             <span class="p">)</span>
             <span class="n">do_normalize</span> <span class="o">=</span> <span class="kc">False</span>
@@ -6905,7 +6905,7 @@ specific language governing permissions and limitations under the License.
 
 <span class="sd">        Args:</span>
 <span class="sd">            image (`ms.Tensor`):</span>
-<span class="sd">                The image input, should be a pytorch tensor with shape `B x C x H x W`.</span>
+<span class="sd">                The image input, should be a mindspore tensor with shape `B x C x H x W`.</span>
 <span class="sd">            output_type (`str`, *optional*, defaults to `pil`):</span>
 <span class="sd">                The output type of the image, can be one of `pil`, `np`, `pt`, `latent`.</span>
 <span class="sd">            do_denormalize (`List[bool]`, *optional*, defaults to `None`):</span>
@@ -6918,12 +6918,12 @@ specific language governing permissions and limitations under the License.
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">image</span><span class="p">,</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">):</span>
             <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
-                <span class="sa">f</span><span class="s2">&quot;Input for postprocessing is in incorrect format: </span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="n">image</span><span class="p">)</span><span class="si">}</span><span class="s2">. We only support pytorch tensor&quot;</span>
+                <span class="sa">f</span><span class="s2">&quot;Input for postprocessing is in incorrect format: </span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="n">image</span><span class="p">)</span><span class="si">}</span><span class="s2">. We only support mindspore tensor&quot;</span>
             <span class="p">)</span>
-        <span class="k">if</span> <span class="n">output_type</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">&quot;latent&quot;</span><span class="p">,</span> <span class="s2">&quot;pt&quot;</span><span class="p">,</span> <span class="s2">&quot;np&quot;</span><span class="p">,</span> <span class="s2">&quot;pil&quot;</span><span class="p">]:</span>
+        <span class="k">if</span> <span class="n">output_type</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">&quot;latent&quot;</span><span class="p">,</span> <span class="s2">&quot;ms&quot;</span><span class="p">,</span> <span class="s2">&quot;np&quot;</span><span class="p">,</span> <span class="s2">&quot;pil&quot;</span><span class="p">]:</span>
             <span class="n">deprecation_message</span> <span class="o">=</span> <span class="p">(</span>
                 <span class="sa">f</span><span class="s2">&quot;the output_type </span><span class="si">{</span><span class="n">output_type</span><span class="si">}</span><span class="s2"> is outdated and has been set to `np`. Please make sure to set it to one of these instead: &quot;</span>
-                <span class="s2">&quot;`pil`, `np`, `pt`, `latent`&quot;</span>
+                <span class="s2">&quot;`pil`, `np`, `ms`, `latent`&quot;</span>
             <span class="p">)</span>
             <span class="n">deprecate</span><span class="p">(</span><span class="s2">&quot;Unsupported output_type&quot;</span><span class="p">,</span> <span class="s2">&quot;1.0.0&quot;</span><span class="p">,</span> <span class="n">deprecation_message</span><span class="p">,</span> <span class="n">standard_warn</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
             <span class="n">output_type</span> <span class="o">=</span> <span class="s2">&quot;np&quot;</span>
@@ -6938,10 +6938,10 @@ specific language governing permissions and limitations under the License.
             <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">denormalize</span><span class="p">(</span><span class="n">image</span><span class="p">[</span><span class="n">i</span><span class="p">])</span> <span class="k">if</span> <span class="n">do_denormalize</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="k">else</span> <span class="n">image</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">image</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">])]</span>
         <span class="p">)</span>
 
-        <span class="k">if</span> <span class="n">output_type</span> <span class="o">==</span> <span class="s2">&quot;pt&quot;</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">output_type</span> <span class="o">==</span> <span class="s2">&quot;ms&quot;</span><span class="p">:</span>
             <span class="k">return</span> <span class="n">image</span>
 
-        <span class="n">image</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">pt_to_numpy</span><span class="p">(</span><span class="n">image</span><span class="p">)</span>
+        <span class="n">image</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">ms_to_numpy</span><span class="p">(</span><span class="n">image</span><span class="p">)</span>
 
         <span class="k">if</span> <span class="n">output_type</span> <span class="o">==</span> <span class="s2">&quot;np&quot;</span><span class="p">:</span>
             <span class="k">return</span> <span class="n">image</span>
@@ -7679,8 +7679,8 @@ processing are 512x512, the region will be expanded to 128x128.</p>
             <td><code>image(`PIL.Image.Image`,</code></td>
             <td class="doc-param-details">
               <div class="doc-md-description">
-                <p>The image input, can be a PIL image, numpy array or pytorch tensor. if it is a numpy array, should have
-shape <code>[batch, height, width]</code> or <code>[batch, height, width, channel]</code> if it is a pytorch tensor, should
+                <p>The image input, can be a PIL image, numpy array or mindspore tensor. if it is a numpy array, should have
+shape <code>[batch, height, width]</code> or <code>[batch, height, width, channel]</code> if it is a mindspore tensor, should
 have shape <code>[batch, channel, height, width]</code>.</p>
               </div>
               <p>
@@ -7785,8 +7785,8 @@ have shape <code>[batch, channel, height, width]</code>.</p>
 
 <span class="sd">    Args:</span>
 <span class="sd">        image(`PIL.Image.Image`, `np.ndarray` or `ms.Tensor`):</span>
-<span class="sd">            The image input, can be a PIL image, numpy array or pytorch tensor. if it is a numpy array, should have</span>
-<span class="sd">            shape `[batch, height, width]` or `[batch, height, width, channel]` if it is a pytorch tensor, should</span>
+<span class="sd">            The image input, can be a PIL image, numpy array or mindspore tensor. if it is a numpy array, should have</span>
+<span class="sd">            shape `[batch, height, width]` or `[batch, height, width, channel]` if it is a mindspore tensor, should</span>
 <span class="sd">            have shape `[batch, channel, height, width]`.</span>
 <span class="sd">        height (`int`, *optional*, defaults to `None`):</span>
 <span class="sd">            The height in preprocessed image. If `None`, will use the height of `image` input.</span>
@@ -7824,6 +7824,44 @@ have shape <code>[batch, channel, height, width]</code>.</p>
 <div class="doc doc-object doc-function">
 
 
+<h3 id="mindone.diffusers.image_processor.VaeImageProcessor.ms_to_numpy" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">mindone</span><span class="o">.</span><span class="n">diffusers</span><span class="o">.</span><span class="n">image_processor</span><span class="o">.</span><span class="n">VaeImageProcessor</span><span class="o">.</span><span class="n">ms_to_numpy</span><span class="p">(</span><span class="n">images</span><span class="p">)</span></code>
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-staticmethod"><code>staticmethod</code></small>
+  </span>
+
+<a href="#mindone.diffusers.image_processor.VaeImageProcessor.ms_to_numpy" class="headerlink" title="Permanent link">&para;</a></h3>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Convert a MindSpore tensor to a NumPy image.</p>
+
+            <details class="quote">
+              <summary>Source code in <code>mindone/diffusers/image_processor.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">142</span>
+<span class="normal">143</span>
+<span class="normal">144</span>
+<span class="normal">145</span>
+<span class="normal">146</span>
+<span class="normal">147</span>
+<span class="normal">148</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@staticmethod</span>
+<span class="k">def</span> <span class="nf">ms_to_numpy</span><span class="p">(</span><span class="n">images</span><span class="p">:</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Convert a MindSpore tensor to a NumPy image.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">images</span> <span class="o">=</span> <span class="n">images</span><span class="o">.</span><span class="n">permute</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">float</span><span class="p">()</span><span class="o">.</span><span class="n">numpy</span><span class="p">()</span>
+    <span class="k">return</span> <span class="n">images</span>
+</code></pre></div></td></tr></table></div>
+            </details>
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
 <h3 id="mindone.diffusers.image_processor.VaeImageProcessor.normalize" class="doc doc-heading">
             <code class="highlight language-python"><span class="n">mindone</span><span class="o">.</span><span class="n">diffusers</span><span class="o">.</span><span class="n">image_processor</span><span class="o">.</span><span class="n">VaeImageProcessor</span><span class="o">.</span><span class="n">normalize</span><span class="p">(</span><span class="n">images</span><span class="p">)</span></code>
 
@@ -7851,6 +7889,50 @@ have shape <code>[batch, channel, height, width]</code>.</p>
 <span class="sd">    Normalize an image array to [-1,1].</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="k">return</span> <span class="mf">2.0</span> <span class="o">*</span> <span class="n">images</span> <span class="o">-</span> <span class="mf">1.0</span>
+</code></pre></div></td></tr></table></div>
+            </details>
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="mindone.diffusers.image_processor.VaeImageProcessor.numpy_to_ms" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">mindone</span><span class="o">.</span><span class="n">diffusers</span><span class="o">.</span><span class="n">image_processor</span><span class="o">.</span><span class="n">VaeImageProcessor</span><span class="o">.</span><span class="n">numpy_to_ms</span><span class="p">(</span><span class="n">images</span><span class="p">)</span></code>
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-staticmethod"><code>staticmethod</code></small>
+  </span>
+
+<a href="#mindone.diffusers.image_processor.VaeImageProcessor.numpy_to_ms" class="headerlink" title="Permanent link">&para;</a></h3>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Convert a NumPy image to a MindSpore tensor.</p>
+
+            <details class="quote">
+              <summary>Source code in <code>mindone/diffusers/image_processor.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">131</span>
+<span class="normal">132</span>
+<span class="normal">133</span>
+<span class="normal">134</span>
+<span class="normal">135</span>
+<span class="normal">136</span>
+<span class="normal">137</span>
+<span class="normal">138</span>
+<span class="normal">139</span>
+<span class="normal">140</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@staticmethod</span>
+<span class="k">def</span> <span class="nf">numpy_to_ms</span><span class="p">(</span><span class="n">images</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Convert a NumPy image to a MindSpore tensor.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">images</span><span class="o">.</span><span class="n">ndim</span> <span class="o">==</span> <span class="mi">3</span><span class="p">:</span>
+        <span class="n">images</span> <span class="o">=</span> <span class="n">images</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="kc">None</span><span class="p">]</span>
+
+    <span class="n">images</span> <span class="o">=</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">(</span><span class="n">images</span><span class="o">.</span><span class="n">transpose</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">))</span>
+    <span class="k">return</span> <span class="n">images</span>
 </code></pre></div></td></tr></table></div>
             </details>
     </div>
@@ -7905,50 +7987,6 @@ have shape <code>[batch, channel, height, width]</code>.</p>
         <span class="n">pil_images</span> <span class="o">=</span> <span class="p">[</span><span class="n">Image</span><span class="o">.</span><span class="n">fromarray</span><span class="p">(</span><span class="n">image</span><span class="p">)</span> <span class="k">for</span> <span class="n">image</span> <span class="ow">in</span> <span class="n">images</span><span class="p">]</span>
 
     <span class="k">return</span> <span class="n">pil_images</span>
-</code></pre></div></td></tr></table></div>
-            </details>
-    </div>
-
-</div>
-
-<div class="doc doc-object doc-function">
-
-
-<h3 id="mindone.diffusers.image_processor.VaeImageProcessor.numpy_to_pt" class="doc doc-heading">
-            <code class="highlight language-python"><span class="n">mindone</span><span class="o">.</span><span class="n">diffusers</span><span class="o">.</span><span class="n">image_processor</span><span class="o">.</span><span class="n">VaeImageProcessor</span><span class="o">.</span><span class="n">numpy_to_pt</span><span class="p">(</span><span class="n">images</span><span class="p">)</span></code>
-
-  <span class="doc doc-labels">
-      <small class="doc doc-label doc-label-staticmethod"><code>staticmethod</code></small>
-  </span>
-
-<a href="#mindone.diffusers.image_processor.VaeImageProcessor.numpy_to_pt" class="headerlink" title="Permanent link">&para;</a></h3>
-
-
-    <div class="doc doc-contents ">
-
-        <p>Convert a NumPy image to a PyTorch tensor.</p>
-
-            <details class="quote">
-              <summary>Source code in <code>mindone/diffusers/image_processor.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">131</span>
-<span class="normal">132</span>
-<span class="normal">133</span>
-<span class="normal">134</span>
-<span class="normal">135</span>
-<span class="normal">136</span>
-<span class="normal">137</span>
-<span class="normal">138</span>
-<span class="normal">139</span>
-<span class="normal">140</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@staticmethod</span>
-<span class="k">def</span> <span class="nf">numpy_to_pt</span><span class="p">(</span><span class="n">images</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    Convert a NumPy image to a PyTorch tensor.</span>
-<span class="sd">    &quot;&quot;&quot;</span>
-    <span class="k">if</span> <span class="n">images</span><span class="o">.</span><span class="n">ndim</span> <span class="o">==</span> <span class="mi">3</span><span class="p">:</span>
-        <span class="n">images</span> <span class="o">=</span> <span class="n">images</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="kc">None</span><span class="p">]</span>
-
-    <span class="n">images</span> <span class="o">=</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">(</span><span class="n">images</span><span class="o">.</span><span class="n">transpose</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">))</span>
-    <span class="k">return</span> <span class="n">images</span>
 </code></pre></div></td></tr></table></div>
             </details>
     </div>
@@ -8027,7 +8065,7 @@ have shape <code>[batch, channel, height, width]</code>.</p>
             <td><code>image</code></td>
             <td class="doc-param-details">
               <div class="doc-md-description">
-                <p>The image input, should be a pytorch tensor with shape <code>B x C x H x W</code>.</p>
+                <p>The image input, should be a mindspore tensor with shape <code>B x C x H x W</code>.</p>
               </div>
               <p>
                   <span class="doc-param-annotation">
@@ -8168,7 +8206,7 @@ The postprocessed image.</p>
 
 <span class="sd">    Args:</span>
 <span class="sd">        image (`ms.Tensor`):</span>
-<span class="sd">            The image input, should be a pytorch tensor with shape `B x C x H x W`.</span>
+<span class="sd">            The image input, should be a mindspore tensor with shape `B x C x H x W`.</span>
 <span class="sd">        output_type (`str`, *optional*, defaults to `pil`):</span>
 <span class="sd">            The output type of the image, can be one of `pil`, `np`, `pt`, `latent`.</span>
 <span class="sd">        do_denormalize (`List[bool]`, *optional*, defaults to `None`):</span>
@@ -8181,12 +8219,12 @@ The postprocessed image.</p>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">image</span><span class="p">,</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">):</span>
         <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
-            <span class="sa">f</span><span class="s2">&quot;Input for postprocessing is in incorrect format: </span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="n">image</span><span class="p">)</span><span class="si">}</span><span class="s2">. We only support pytorch tensor&quot;</span>
+            <span class="sa">f</span><span class="s2">&quot;Input for postprocessing is in incorrect format: </span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="n">image</span><span class="p">)</span><span class="si">}</span><span class="s2">. We only support mindspore tensor&quot;</span>
         <span class="p">)</span>
-    <span class="k">if</span> <span class="n">output_type</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">&quot;latent&quot;</span><span class="p">,</span> <span class="s2">&quot;pt&quot;</span><span class="p">,</span> <span class="s2">&quot;np&quot;</span><span class="p">,</span> <span class="s2">&quot;pil&quot;</span><span class="p">]:</span>
+    <span class="k">if</span> <span class="n">output_type</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">&quot;latent&quot;</span><span class="p">,</span> <span class="s2">&quot;ms&quot;</span><span class="p">,</span> <span class="s2">&quot;np&quot;</span><span class="p">,</span> <span class="s2">&quot;pil&quot;</span><span class="p">]:</span>
         <span class="n">deprecation_message</span> <span class="o">=</span> <span class="p">(</span>
             <span class="sa">f</span><span class="s2">&quot;the output_type </span><span class="si">{</span><span class="n">output_type</span><span class="si">}</span><span class="s2"> is outdated and has been set to `np`. Please make sure to set it to one of these instead: &quot;</span>
-            <span class="s2">&quot;`pil`, `np`, `pt`, `latent`&quot;</span>
+            <span class="s2">&quot;`pil`, `np`, `ms`, `latent`&quot;</span>
         <span class="p">)</span>
         <span class="n">deprecate</span><span class="p">(</span><span class="s2">&quot;Unsupported output_type&quot;</span><span class="p">,</span> <span class="s2">&quot;1.0.0&quot;</span><span class="p">,</span> <span class="n">deprecation_message</span><span class="p">,</span> <span class="n">standard_warn</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
         <span class="n">output_type</span> <span class="o">=</span> <span class="s2">&quot;np&quot;</span>
@@ -8201,10 +8239,10 @@ The postprocessed image.</p>
         <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">denormalize</span><span class="p">(</span><span class="n">image</span><span class="p">[</span><span class="n">i</span><span class="p">])</span> <span class="k">if</span> <span class="n">do_denormalize</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="k">else</span> <span class="n">image</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">image</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">])]</span>
     <span class="p">)</span>
 
-    <span class="k">if</span> <span class="n">output_type</span> <span class="o">==</span> <span class="s2">&quot;pt&quot;</span><span class="p">:</span>
+    <span class="k">if</span> <span class="n">output_type</span> <span class="o">==</span> <span class="s2">&quot;ms&quot;</span><span class="p">:</span>
         <span class="k">return</span> <span class="n">image</span>
 
-    <span class="n">image</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">pt_to_numpy</span><span class="p">(</span><span class="n">image</span><span class="p">)</span>
+    <span class="n">image</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">ms_to_numpy</span><span class="p">(</span><span class="n">image</span><span class="p">)</span>
 
     <span class="k">if</span> <span class="n">output_type</span> <span class="o">==</span> <span class="s2">&quot;np&quot;</span><span class="p">:</span>
         <span class="k">return</span> <span class="n">image</span>
@@ -8243,7 +8281,7 @@ The postprocessed image.</p>
             <td><code>image</code></td>
             <td class="doc-param-details">
               <div class="doc-md-description">
-                <p>The image input, accepted formats are PIL images, NumPy arrays, PyTorch tensors; Also accept list of
+                <p>The image input, accepted formats are PIL images, NumPy arrays, MindSpore tensors; Also accept list of
 supported formats.</p>
               </div>
               <p>
@@ -8477,7 +8515,7 @@ supported for PIL image input.</p>
 
 <span class="sd">    Args:</span>
 <span class="sd">        image (`pipeline_image_input`):</span>
-<span class="sd">            The image input, accepted formats are PIL images, NumPy arrays, PyTorch tensors; Also accept list of</span>
+<span class="sd">            The image input, accepted formats are PIL images, NumPy arrays, MindSpore tensors; Also accept list of</span>
 <span class="sd">            supported formats.</span>
 <span class="sd">        height (`int`, *optional*, defaults to `None`):</span>
 <span class="sd">            The height in preprocessed image. If `None`, will use the `get_default_height_width()` to get default</span>
@@ -8497,10 +8535,10 @@ supported for PIL image input.</p>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="n">supported_formats</span> <span class="o">=</span> <span class="p">(</span><span class="n">PIL</span><span class="o">.</span><span class="n">Image</span><span class="o">.</span><span class="n">Image</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">)</span>
 
-    <span class="c1"># Expand the missing dimension for 3-dimensional pytorch tensor or numpy array that represents grayscale image</span>
+    <span class="c1"># Expand the missing dimension for 3-dimensional mindspore tensor or numpy array that represents grayscale image</span>
     <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">do_convert_grayscale</span> <span class="ow">and</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">image</span><span class="p">,</span> <span class="p">(</span><span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">))</span> <span class="ow">and</span> <span class="n">image</span><span class="o">.</span><span class="n">ndim</span> <span class="o">==</span> <span class="mi">3</span><span class="p">:</span>
         <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">image</span><span class="p">,</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">):</span>
-            <span class="c1"># if image is a pytorch tensor could have 2 possible shapes:</span>
+            <span class="c1"># if image is a mindspore tensor could have 2 possible shapes:</span>
             <span class="c1">#    1. batch x height x width: we should insert the channel dimension at position 1</span>
             <span class="c1">#    2. channnel x height x width: we should insert batch dimension at position 0,</span>
             <span class="c1">#       however, since both channel and batch dimension has same size 1, it is same to insert at position 1</span>
@@ -8548,12 +8586,12 @@ supported for PIL image input.</p>
         <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">do_convert_grayscale</span><span class="p">:</span>
             <span class="n">image</span> <span class="o">=</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">convert_to_grayscale</span><span class="p">(</span><span class="n">i</span><span class="p">)</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">image</span><span class="p">]</span>
         <span class="n">image</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">pil_to_numpy</span><span class="p">(</span><span class="n">image</span><span class="p">)</span>  <span class="c1"># to np</span>
-        <span class="n">image</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">numpy_to_pt</span><span class="p">(</span><span class="n">image</span><span class="p">)</span>  <span class="c1"># to pt</span>
+        <span class="n">image</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">numpy_to_ms</span><span class="p">(</span><span class="n">image</span><span class="p">)</span>  <span class="c1"># to ms</span>
 
     <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">image</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">):</span>
         <span class="n">image</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">concatenate</span><span class="p">(</span><span class="n">image</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span> <span class="k">if</span> <span class="n">image</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">ndim</span> <span class="o">==</span> <span class="mi">4</span> <span class="k">else</span> <span class="n">np</span><span class="o">.</span><span class="n">stack</span><span class="p">(</span><span class="n">image</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
 
-        <span class="n">image</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">numpy_to_pt</span><span class="p">(</span><span class="n">image</span><span class="p">)</span>
+        <span class="n">image</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">numpy_to_ms</span><span class="p">(</span><span class="n">image</span><span class="p">)</span>
 
         <span class="n">height</span><span class="p">,</span> <span class="n">width</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_default_height_width</span><span class="p">(</span><span class="n">image</span><span class="p">,</span> <span class="n">height</span><span class="p">,</span> <span class="n">width</span><span class="p">)</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">do_resize</span><span class="p">:</span>
@@ -8579,7 +8617,7 @@ supported for PIL image input.</p>
     <span class="k">if</span> <span class="n">do_normalize</span> <span class="ow">and</span> <span class="n">image</span><span class="o">.</span><span class="n">min</span><span class="p">()</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">:</span>
         <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span>
             <span class="s2">&quot;Passing `image` as torch tensor with value range in [-1,1] is deprecated. The expected value range for image tensor is [0,1] &quot;</span>
-            <span class="sa">f</span><span class="s2">&quot;when passing as pytorch tensor or numpy Array. You passed `image` with value range [</span><span class="si">{</span><span class="n">image</span><span class="o">.</span><span class="n">min</span><span class="p">()</span><span class="si">}</span><span class="s2">,</span><span class="si">{</span><span class="n">image</span><span class="o">.</span><span class="n">max</span><span class="p">()</span><span class="si">}</span><span class="s2">]&quot;</span><span class="p">,</span>
+            <span class="sa">f</span><span class="s2">&quot;when passing as mindspore tensor or numpy Array. You passed `image` with value range [</span><span class="si">{</span><span class="n">image</span><span class="o">.</span><span class="n">min</span><span class="p">()</span><span class="si">}</span><span class="s2">,</span><span class="si">{</span><span class="n">image</span><span class="o">.</span><span class="n">max</span><span class="p">()</span><span class="si">}</span><span class="s2">]&quot;</span><span class="p">,</span>
             <span class="ne">FutureWarning</span><span class="p">,</span>
         <span class="p">)</span>
         <span class="n">do_normalize</span> <span class="o">=</span> <span class="kc">False</span>
@@ -8591,44 +8629,6 @@ supported for PIL image input.</p>
         <span class="n">image</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">binarize</span><span class="p">(</span><span class="n">image</span><span class="p">)</span>
 
     <span class="k">return</span> <span class="n">image</span>
-</code></pre></div></td></tr></table></div>
-            </details>
-    </div>
-
-</div>
-
-<div class="doc doc-object doc-function">
-
-
-<h3 id="mindone.diffusers.image_processor.VaeImageProcessor.pt_to_numpy" class="doc doc-heading">
-            <code class="highlight language-python"><span class="n">mindone</span><span class="o">.</span><span class="n">diffusers</span><span class="o">.</span><span class="n">image_processor</span><span class="o">.</span><span class="n">VaeImageProcessor</span><span class="o">.</span><span class="n">pt_to_numpy</span><span class="p">(</span><span class="n">images</span><span class="p">)</span></code>
-
-  <span class="doc doc-labels">
-      <small class="doc doc-label doc-label-staticmethod"><code>staticmethod</code></small>
-  </span>
-
-<a href="#mindone.diffusers.image_processor.VaeImageProcessor.pt_to_numpy" class="headerlink" title="Permanent link">&para;</a></h3>
-
-
-    <div class="doc doc-contents ">
-
-        <p>Convert a PyTorch tensor to a NumPy image.</p>
-
-            <details class="quote">
-              <summary>Source code in <code>mindone/diffusers/image_processor.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">142</span>
-<span class="normal">143</span>
-<span class="normal">144</span>
-<span class="normal">145</span>
-<span class="normal">146</span>
-<span class="normal">147</span>
-<span class="normal">148</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@staticmethod</span>
-<span class="k">def</span> <span class="nf">pt_to_numpy</span><span class="p">(</span><span class="n">images</span><span class="p">:</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    Convert a PyTorch tensor to a NumPy image.</span>
-<span class="sd">    &quot;&quot;&quot;</span>
-    <span class="n">images</span> <span class="o">=</span> <span class="n">images</span><span class="o">.</span><span class="n">permute</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">float</span><span class="p">()</span><span class="o">.</span><span class="n">numpy</span><span class="p">()</span>
-    <span class="k">return</span> <span class="n">images</span>
 </code></pre></div></td></tr></table></div>
             </details>
     </div>
@@ -8661,7 +8661,7 @@ supported for PIL image input.</p>
             <td><code>image</code></td>
             <td class="doc-param-details">
               <div class="doc-md-description">
-                <p>The image input, can be a PIL image, numpy array or pytorch tensor.</p>
+                <p>The image input, can be a PIL image, numpy array or mindspore tensor.</p>
               </div>
               <p>
                   <span class="doc-param-annotation">
@@ -8819,7 +8819,7 @@ The resized image.</p>
 
 <span class="sd">    Args:</span>
 <span class="sd">        image (`PIL.Image.Image`, `np.ndarray` or `ms.Tensor`):</span>
-<span class="sd">            The image input, can be a PIL image, numpy array or pytorch tensor.</span>
+<span class="sd">            The image input, can be a PIL image, numpy array or mindspore tensor.</span>
 <span class="sd">        height (`int`):</span>
 <span class="sd">            The height to resize to.</span>
 <span class="sd">        width (`int`):</span>
@@ -8855,12 +8855,12 @@ The resized image.</p>
             <span class="n">size</span><span class="o">=</span><span class="p">(</span><span class="n">height</span><span class="p">,</span> <span class="n">width</span><span class="p">),</span>
         <span class="p">)</span>
     <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">image</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">):</span>
-        <span class="n">image</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">numpy_to_pt</span><span class="p">(</span><span class="n">image</span><span class="p">)</span>
+        <span class="n">image</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">numpy_to_ms</span><span class="p">(</span><span class="n">image</span><span class="p">)</span>
         <span class="n">image</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">interpolate</span><span class="p">(</span>
             <span class="n">image</span><span class="p">,</span>
             <span class="n">size</span><span class="o">=</span><span class="p">(</span><span class="n">height</span><span class="p">,</span> <span class="n">width</span><span class="p">),</span>
         <span class="p">)</span>
-        <span class="n">image</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">pt_to_numpy</span><span class="p">(</span><span class="n">image</span><span class="p">)</span>
+        <span class="n">image</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">ms_to_numpy</span><span class="p">(</span><span class="n">image</span><span class="p">)</span>
     <span class="k">return</span> <span class="n">image</span>
 </code></pre></div></td></tr></table></div>
             </details>
