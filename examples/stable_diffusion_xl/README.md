@@ -26,7 +26,6 @@ This folder contains [Stable Diffusion XL (SDXL)](https://arxiv.org/abs/2307.019
 
 1. Preparation
    - [Preparation](./docs/preparation.md)
-   - [RankTable Generation](./tools/rank_table_generation/README.md)
 
 2. Inference
     - [Inference](./docs/inference.md)
