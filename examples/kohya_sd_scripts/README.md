@@ -301,11 +301,11 @@ Experiments are tested on ascend 910* with mindspore 2.3.0 graph mode, enabling 
 
 | model name | cards | batch size | resolution | mixed precision | graph compile | jit level | s/step |
 | :----:  | :----: | :-----------------: | :----------: | :---------------: | :-------------: | :--------------: | :--------------: |
-| SDXL-Base | 1    | 1               | 1024x1024  | None     | 24mins | O1 | 1.66-1.80     |
-| SDXL-Base | 1    | 1               | 1024x1024  | fp16            | 33mins | O1   | 1.66-1.80     |
-| SDXL-Base | 1 | 1 | 1024x1024 | bf16 | 28mins | O1 | 1.85-1.95 |
-| SDXL-Base | 1 | 1 | 1024x1024 | fp16 (full_fp16) | 30mins        | O1  | 1.71-1.85    |
-| SDXL-Base | 1 | 1 | 1024x1024 | bf16 (full_bf16) | 31mins | O1 | 1.67-1.82 |
+| SDXL-Base | 1    | 1               | 1024x1024  | None     | 24mins | O1 | 1.73     |
+| SDXL-Base | 1    | 1               | 1024x1024  | fp16            | 33mins | O1   | 1.75     |
+| SDXL-Base | 1 | 1 | 1024x1024 | bf16 | 28mins | O1 | 1.85 |
+| SDXL-Base | 1 | 1 | 1024x1024 | fp16 (full_fp16) | 30mins        | O1  | 1.80    |
+| SDXL-Base | 1 | 1 | 1024x1024 | bf16 (full_bf16) | 31mins | O1 | 1.75 |
 
 > Notes:
 >

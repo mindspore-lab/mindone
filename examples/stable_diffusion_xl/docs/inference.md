@@ -169,7 +169,7 @@ python demo/sampling_without_streamlit.py \
 
 ## Performance
 
-Experiments are tested on ascend 910* with mindspore 2.2.12 graph mode.
+Experiments are tested on ascend 910* with mindspore 2.3.1 graph mode.
 | model name    | resolution | compile cost |flash attention| sampler  | sample step | sample time|
 |:-------------:|:---------:|:------------:|:-------------:|:--------:|:-----------:|:-----------:|
 | SDXL-Base     | 1024x1024 | 533.59s      | ON            | EulerEDM | 40          | 6.78s       |
