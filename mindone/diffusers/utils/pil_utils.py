@@ -23,7 +23,7 @@ else:
     }
 
 
-def pt_to_pil(images):
+def ms_to_pil(images):
     """
     Convert a torch image to a PIL image.
     """

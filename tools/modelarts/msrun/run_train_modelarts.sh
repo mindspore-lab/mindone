@@ -38,6 +38,15 @@ unset RANK_ID
 # fi
 
 
+if [ -z "${ms_whl}" ]; then
+    echo "Keep MindSpore version unchanged in the docker container."
+else
+    echo "Updating MindSpore version from ${ms_whl}..."
+    pip uninstall -y mindspore
+    pip install ${ms_whl}/mindspore-*.whl
+fi
+
+
 if [ -z "${output_path}" ]; then
     log_root_dir="/home/ma-user/modelarts/outputs/output_path_0"  # no $output_path , set to ModelArts default output directory
 else

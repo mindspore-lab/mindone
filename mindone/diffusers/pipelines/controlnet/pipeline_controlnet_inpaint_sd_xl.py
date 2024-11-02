@@ -78,6 +78,8 @@ EXAMPLE_DOC_STRING = """
         ... )
         >>> init_image = init_image.resize((1024, 1024))
 
+        >>> generator = np.random.Generator(np.random.PCG64(1))
+
         >>> mask_image = load_image(
         ...     "https://huggingface.co/datasets/diffusers/test-arrays/resolve/main/stable_diffusion_inpaint/boy_mask.png"
         ... )
@@ -353,7 +355,7 @@ class StableDiffusionXLControlNetInpaintPipeline(
                 text_input_ids = text_inputs.input_ids
                 untruncated_ids = tokenizer(prompt, padding="longest", return_tensors="np").input_ids
 
-                if untruncated_ids.shape[-1] >= text_input_ids.shape[-1] and not ops.equal(
+                if untruncated_ids.shape[-1] >= text_input_ids.shape[-1] and not np.array_equal(
                     text_input_ids, untruncated_ids
                 ):
                     removed_text = tokenizer.batch_decode(untruncated_ids[:, tokenizer.model_max_length - 1 : -1])
@@ -881,10 +883,10 @@ class StableDiffusionXLControlNetInpaintPipeline(
             # if strength is 1. then initialise the latents to noise, else initial to image + noise
             latents = noise if is_strength_max else self.scheduler.add_noise(image_latents, noise, timestep)
             # if pure noise then scale the initial latents by the  Scheduler's init sigma
-            latents = latents * self.scheduler.init_noise_sigma if is_strength_max else latents
+            latents = (latents * self.scheduler.init_noise_sigma).to(dtype) if is_strength_max else latents
         elif add_noise:
             noise = latents
-            latents = noise * self.scheduler.init_noise_sigma
+            latents = (noise * self.scheduler.init_noise_sigma).to(dtype)
         else:
             noise = randn_tensor(shape, generator=generator, dtype=dtype)
             latents = image_latents

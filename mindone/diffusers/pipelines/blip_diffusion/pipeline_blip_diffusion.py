@@ -157,7 +157,7 @@ class BlipDiffusionPipeline(DiffusionPipeline):
             latents = latents.to(dtype=dtype)
 
         # scale the initial noise by the standard deviation required by the scheduler
-        latents = latents * self.scheduler.init_noise_sigma
+        latents = (latents * self.scheduler.init_noise_sigma).to(dtype)
         return latents
 
     def encode_prompt(self, query_embeds, prompt):
@@ -244,7 +244,7 @@ class BlipDiffusionPipeline(DiffusionPipeline):
                 The number of times the prompt is repeated along with prompt_strength to amplify the prompt.
             output_type (`str`, *optional*, defaults to `"pil"`):
                 The output format of the generate image. Choose between: `"pil"` (`PIL.Image.Image`), `"np"`
-                (`np.array`) or `"pt"` (`torch.Tensor`).
+                (`np.array`) or `"pt"` (`mindspore.Tensor`).
             return_dict (`bool`, *optional*, defaults to `False`):
                 Whether or not to return a [`~pipelines.ImagePipelineOutput`] instead of a plain tuple.
         Examples:

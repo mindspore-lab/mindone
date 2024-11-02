@@ -19,7 +19,8 @@ python $MA_JOB_DIR/mindone/tools/modelarts/msrun/msrun.py mindone/examples/opens
 
 ⚠️ Note:
 - `$output_path` should be an **ABSOLUTE** path.
-- if no `$output_path`, the msrun logs will be saved at the ModelArts default output directory: `/home/ma-user/modelarts/outputs/output_path_0/`.
+- If no `$output_path`, the msrun logs will be saved at the ModelArts default output directory: `/home/ma-user/modelarts/outputs/output_path_0/`.
+- If you want to update MindSpore version before the training starts, please `export ms_whl=[PATH_TO_MINDSPORE_WHL_FILE]`, and check the log to confirm whether the MindSpore is updated successfully.
 
 ## Launch with rank table
 Refer to [here](https://support.huaweicloud.com/bestpractice-modelarts/develop-modelarts-0120.html).

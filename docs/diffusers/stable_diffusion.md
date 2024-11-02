@@ -12,18 +12,18 @@ specific language governing permissions and limitations under the License.
 
 # Effective and efficient diffusion
 
-Getting the [`DiffusionPipeline`] to generate images in a certain style or include what you want can be tricky. Often times, you have to run the [`DiffusionPipeline`] several times before you end up with an image you're happy with. But generating something out of nothing is a computationally intensive process, especially if you're running inference over and over again.
+Getting the [`DiffusionPipeline`](https://mindspore-lab.github.io/mindone/latest/diffusers/api/pipelines/overview/#mindone.diffusers.DiffusionPipeline) to generate images in a certain style or include what you want can be tricky. Often times, you have to run the [`DiffusionPipeline`](https://mindspore-lab.github.io/mindone/latest/diffusers/api/pipelines/overview/#mindone.diffusers.DiffusionPipeline) several times before you end up with an image you're happy with. But generating something out of nothing is a computationally intensive process, especially if you're running inference over and over again.
 
-This is why it's important to get the most *computational* (speed) and *memory* (GPU vRAM) efficiency from the pipeline to reduce the time between inference cycles so you can iterate faster.
+This is why it's important to get the most *computational* (speed) and *memory* (NPU vRAM) efficiency from the pipeline to reduce the time between inference cycles so you can iterate faster.
 
-This tutorial walks you through how to generate faster and better with the [`DiffusionPipeline`].
+This tutorial walks you through how to generate faster and better with the [`DiffusionPipeline`](https://mindspore-lab.github.io/mindone/latest/diffusers/api/pipelines/overview/#mindone.diffusers.DiffusionPipeline).
 
-Begin by loading the [`runwayml/stable-diffusion-v1-5`](https://huggingface.co/runwayml/stable-diffusion-v1-5) model:
+Begin by loading the [`stable-diffusion-v1-5/stable-diffusion-v1-5`](https://huggingface.co/stable-diffusion-v1-5/stable-diffusion-v1-5) model:
 
 ```python
 from mindone.diffusers import DiffusionPipeline
 
-model_id = "runwayml/stable-diffusion-v1-5"
+model_id = "stable-diffusion-v1-5/stable-diffusion-v1-5"
 pipeline = DiffusionPipeline.from_pretrained(model_id, use_safetensors=True)
 ```
 
@@ -35,14 +35,14 @@ prompt = "portrait photo of a old warrior chief"
 
 ## Speed
 
-One of the simplest ways to speed up inference is to place the pipeline on a GPU the same way you would with any Mindspore cell.
+One of the simplest ways to speed up inference is to place the pipeline on a NPU the same way you would with any Mindspore cell.
 That is, do nothing! MindSpore will automatically take care of model placement, so you don't need to:
 
 ```diff
 - pipeline = pipeline.to("cuda")
 ```
 
-To make sure you can use the same image and improve on it, use a [`Generator`](https://numpy.org/doc/stable/reference/random/generator.html) and set a seed for [reproducibility](./using-diffusers/reproducibility):
+To make sure you can use the same image and improve on it, use a [`Generator`](https://numpy.org/doc/stable/reference/random/generator.html) and set a seed for [reproducibility](./using-diffusers/reusing_seeds.md):
 
 ```python
 import numpy as np
@@ -57,11 +57,11 @@ image = pipeline(prompt, generator=generator)[0][0]
 image
 ```
 
-<div align="center">
-    <img src="https://huggingface.co/datasets/diffusers/docs-images/resolve/main/stable_diffusion_101/sd_101_1.png">
+<div style="display: flex; justify-content: center; align-items: flex-start; text-align: center; max-width: 98%; margin: 0 auto; gap: 1vw;">
+    <img src="https://github.com/user-attachments/assets/67b06273-9081-4b4f-a31f-585b23f70f27">
 </div>
 
-This process took ~30 seconds on a T4 GPU (it might be faster if your allocated GPU is better than a T4). By default, the [`DiffusionPipeline`] runs inference with full `float32` precision for 50 inference steps. You can speed this up by switching to a lower precision like `float16` or running fewer inference steps.
+This process took ~5.6 seconds on a Ascend 910B in Graph mode. By default, the [`DiffusionPipeline`](https://mindspore-lab.github.io/mindone/latest/diffusers/api/pipelines/overview/#mindone.diffusers.DiffusionPipeline) runs inference with full `float32` precision for 50 inference steps. You can speed this up by switching to a lower precision like `float16` or running fewer inference steps.
 
 Let's start by loading the model in `float16` and generate an image:
 
@@ -74,39 +74,39 @@ image = pipeline(prompt, generator=generator)[0][0]
 image
 ```
 
-<div align="center">
-    <img src="https://huggingface.co/datasets/diffusers/docs-images/resolve/main/stable_diffusion_101/sd_101_2.png">
+<div style="display: flex; justify-content: center; align-items: flex-start; text-align: center; max-width: 98%; margin: 0 auto; gap: 1vw;">
+    <img src="https://github.com/user-attachments/assets/1fc7d859-4164-4eff-841a-57b073cd8bb3">
 </div>
 
-This time, it only took ~11 seconds to generate the image, which is almost 3x faster than before!
+This time, it only took ~3.8 seconds to generate the image, which is almost 1.5x faster than before!
 
 !!! tip
 
     💡 We strongly suggest always running your pipelines in `float16`, and so far, we've rarely seen any degradation in output quality.
 
-Another option is to reduce the number of inference steps. Choosing a more efficient scheduler could help decrease the number of steps without sacrificing output quality. You can find which schedulers are compatible with the current model in the [`DiffusionPipeline`] by calling the `compatibles` method:
+Another option is to reduce the number of inference steps. Choosing a more efficient scheduler could help decrease the number of steps without sacrificing output quality. You can find which schedulers are compatible with the current model in the [`DiffusionPipeline`](https://mindspore-lab.github.io/mindone/latest/diffusers/api/pipelines/overview/#mindone.diffusers.DiffusionPipeline) by calling the `compatibles` method:
 
 ```python
 pipeline.scheduler.compatibles
 [
-    diffusers.schedulers.scheduling_lms_discrete.LMSDiscreteScheduler,
-    diffusers.schedulers.scheduling_unipc_multistep.UniPCMultistepScheduler,
-    diffusers.schedulers.scheduling_k_dpm_2_discrete.KDPM2DiscreteScheduler,
-    diffusers.schedulers.scheduling_deis_multistep.DEISMultistepScheduler,
-    diffusers.schedulers.scheduling_euler_discrete.EulerDiscreteScheduler,
-    diffusers.schedulers.scheduling_dpmsolver_multistep.DPMSolverMultistepScheduler,
-    diffusers.schedulers.scheduling_ddpm.DDPMScheduler,
-    diffusers.schedulers.scheduling_dpmsolver_singlestep.DPMSolverSinglestepScheduler,
-    diffusers.schedulers.scheduling_k_dpm_2_ancestral_discrete.KDPM2AncestralDiscreteScheduler,
-    diffusers.utils.dummy_torch_and_torchsde_objects.DPMSolverSDEScheduler,
-    diffusers.schedulers.scheduling_heun_discrete.HeunDiscreteScheduler,
-    diffusers.schedulers.scheduling_pndm.PNDMScheduler,
-    diffusers.schedulers.scheduling_euler_ancestral_discrete.EulerAncestralDiscreteScheduler,
-    diffusers.schedulers.scheduling_ddim.DDIMScheduler,
+    <class 'mindone.diffusers.schedulers.scheduling_ddpm.DDPMScheduler'>,
+    <class 'mindone.diffusers.schedulers.scheduling_dpmsolver_multistep.DPMSolverMultistepScheduler'>,
+    <class 'mindone.diffusers.schedulers.scheduling_euler_ancestral_discrete.EulerAncestralDiscreteScheduler'>,
+    <class 'mindone.diffusers.schedulers.scheduling_lms_discrete.LMSDiscreteScheduler'>,
+    <class 'mindone.diffusers.schedulers.scheduling_euler_discrete.EulerDiscreteScheduler'>,
+    <class 'mindone.diffusers.schedulers.scheduling_k_dpm_2_discrete.KDPM2DiscreteScheduler'>,
+    <class 'mindone.diffusers.schedulers.scheduling_edm_euler.EDMEulerScheduler'>,
+    <class 'mindone.diffusers.schedulers.scheduling_dpmsolver_singlestep.DPMSolverSinglestepScheduler'>,
+    <class 'mindone.diffusers.schedulers.scheduling_pndm.PNDMScheduler'>,
+    <class 'mindone.diffusers.schedulers.scheduling_heun_discrete.HeunDiscreteScheduler'>,
+    <class 'mindone.diffusers.schedulers.scheduling_unipc_multistep.UniPCMultistepScheduler'>,
+    <class 'mindone.diffusers.schedulers.scheduling_ddim.DDIMScheduler'>,
+    <class 'mindone.diffusers.schedulers.scheduling_k_dpm_2_ancestral_discrete.KDPM2AncestralDiscreteScheduler'>,
+    <class 'mindone.diffusers.schedulers.scheduling_deis_multistep.DEISMultistepScheduler'>
 ]
 ```
 
-The Stable Diffusion model uses the [`PNDMScheduler`] by default which usually requires ~50 inference steps, but more performant schedulers like [`DPMSolverMultistepScheduler`], require only ~20 or 25 inference steps. Use the [`~ConfigMixin.from_config`] method to load a new scheduler:
+The Stable Diffusion model uses the [`PNDMScheduler`](https://mindspore-lab.github.io/mindone/latest/diffusers/api/schedulers/pndm/#mindone.diffusers.PNDMScheduler) by default which usually requires ~50 inference steps, but more performant schedulers like [`DPMSolverMultistepScheduler`](https://mindspore-lab.github.io/mindone/latest/diffusers/api/schedulers/multistep_dpm_solver/#mindone.diffusers.DPMSolverMultistepScheduler), require only ~20 or 25 inference steps. Use the [`from_config`](https://mindspore-lab.github.io/mindone/latest/diffusers/api/configuration/#mindone.diffusers.configuration_utils.ConfigMixin.from_config) method to load a new scheduler:
 
 ```python
 from mindone.diffusers import DPMSolverMultistepScheduler
@@ -122,8 +122,8 @@ image = pipeline(prompt, generator=generator, num_inference_steps=20)[0][0]
 image
 ```
 
-<div align="center">
-    <img src="https://huggingface.co/datasets/diffusers/docs-images/resolve/main/stable_diffusion_101/sd_101_3.png">
+<div style="display: flex; justify-content: center; align-items: flex-start; text-align: center; max-width: 98%; margin: 0 auto; gap: 1vw;">
+    <img src="https://github.com/user-attachments/assets/2461137f-8a3d-4f66-8190-d1ac398b8c86">
 </div>
 
 Great, you've managed to cut the inference time to just 4 seconds! ⚡️
@@ -152,24 +152,18 @@ images = pipeline(**get_inputs(batch_size=4))[0]
 make_image_grid(images, 2, 2)
 ```
 
-Unless you have a GPU with more vRAM, the code above probably returned an `OOM` error! Most of the memory is taken up by the cross-attention layers. Instead of running this operation in a batch, you can run it sequentially to save a significant amount of memory. All you have to do is configure the pipeline to use the [`~DiffusionPipeline.enable_attention_slicing`] function:
-
-```python
-pipeline.enable_attention_slicing()
-```
-
 Now try increasing the `batch_size` to 8!
 
 ```python
-images = pipeline(**get_inputs(batch_size=8)).images
+images = pipeline(**get_inputs(batch_size=8))[0]
 make_image_grid(images, rows=2, cols=4)
 ```
 
-<div align="center">
-    <img src="https://huggingface.co/datasets/diffusers/docs-images/resolve/main/stable_diffusion_101/sd_101_5.png">
+<div style="display: flex; justify-content: center; align-items: flex-start; text-align: center; max-width: 98%; margin: 0 auto; gap: 1vw;">
+    <img src="https://github.com/user-attachments/assets/5028a23d-7acd-4bb0-8633-38f8371eb393">
 </div>
 
-Whereas before you couldn't even generate a batch of 4 images, now you can generate a batch of 8 images at ~3.5 seconds per image! This is probably the fastest you can go on a T4 GPU without sacrificing quality.
+Whereas before you couldn't even generate a batch of 4 images, now you can generate a batch of 8 images at ~1.6 seconds per image! This is probably the fastest you can go on a Ascend 910B without sacrificing quality.
 
 ## Quality
 
@@ -188,14 +182,14 @@ You can also try replacing the current pipeline components with a newer version.
 ```python
 from mindone.diffusers import AutoencoderKL
 
-vae = AutoencoderKL.from_pretrained("stabilityai/sd-vae-ft-mse", mindspore_dtype=mindspore.float16).to("cuda")
+vae = AutoencoderKL.from_pretrained("stabilityai/sd-vae-ft-mse", mindspore_dtype=mindspore.float16)
 pipeline.vae = vae
 images = pipeline(**get_inputs(batch_size=8))[0]
 make_image_grid(images, rows=2, cols=4)
 ```
 
-<div align="center">
-    <img src="https://huggingface.co/datasets/diffusers/docs-images/resolve/main/stable_diffusion_101/sd_101_6.png">
+<div style="display: flex; justify-content: center; align-items: flex-start; text-align: center; max-width: 98%; margin: 0 auto; gap: 1vw;">
+    <img src="https://github.com/user-attachments/assets/377b1522-58e8-41a4-96e7-6a8511dd1d05">
 </div>
 
 ### Better prompt engineering
@@ -219,8 +213,8 @@ images = pipeline(**get_inputs(batch_size=8))[0]
 make_image_grid(images, rows=2, cols=4)
 ```
 
-<div align="center">
-    <img src="https://huggingface.co/datasets/diffusers/docs-images/resolve/main/stable_diffusion_101/sd_101_7.png">
+<div style="display: flex; justify-content: center; align-items: flex-start; text-align: center; max-width: 98%; margin: 0 auto; gap: 1vw;">
+    <img src="https://github.com/user-attachments/assets/90bb69c1-0174-4d05-b47f-83b16281f8a1">
 </div>
 
 Pretty impressive! Let's tweak the second image - corresponding to the `Generator` with a seed of `1` - a bit more by adding some text about the age of the subject:
@@ -238,14 +232,13 @@ images = pipeline(prompt=prompts, generator=generator, num_inference_steps=25)[0
 make_image_grid(images, 2, 2)
 ```
 
-<div align="center">
-    <img src="https://huggingface.co/datasets/diffusers/docs-images/resolve/main/stable_diffusion_101/sd_101_8.png">
+<div style="display: flex; justify-content: center; align-items: flex-start; text-align: center; max-width: 98%; margin: 0 auto; gap: 1vw;">
+    <img src="https://github.com/user-attachments/assets/7dab5585-e3c8-4b56-a421-ff8d49b4a7f2">
 </div>
 
 ## Next steps
 
-In this tutorial, you learned how to optimize a [`DiffusionPipeline`] for computational and memory efficiency as well as improving the quality of generated outputs. If you're interested in making your pipeline even faster, take a look at the following resources:
+In this tutorial, you learned how to optimize a [`DiffusionPipeline`](https://mindspore-lab.github.io/mindone/latest/diffusers/api/pipelines/overview/#mindone.diffusers.DiffusionPipeline) for computational and memory efficiency as well as improving the quality of generated outputs. If you're interested in making your pipeline even faster, take a look at the following resources:
 
-- Learn how [PyTorch 2.0](./optimization/torch2.0) and [`torch.compile`](https://pytorch.org/docs/stable/generated/torch.compile.html) can yield 5 - 300% faster inference speed. On an A100 GPU, inference can be up to 50% faster!
-- If you can't use PyTorch 2, we recommend you install [xFormers](./optimization/xformers). Its memory-efficient attention mechanism works great with PyTorch 1.13.1 for faster speed and reduced memory consumption.
-- Other optimization techniques, such as model offloading, are covered in [this guide](./optimization/fp16).
+- We recommend you use [xFormers](./optimization/xformers.md). Its memory-efficient attention mechanism works great for faster speed and reduced memory consumption.
+- Other optimization techniques, such as model offloading, are covered in [this guide](./optimization/fp16.md).
