@@ -9,36 +9,30 @@
 
 ## Table of Contents
 - [Introduction](#introduction)
-    - [Supported Models and Pipelines](#supported-models-and-pipelines) 🔥
+    - [Supported Models and Pipelines](#supported-models-and-pipelines)
 - [Installation](#installation)
 - [Dataset Preparation](#dataset-preparation)
-- [Text-to-Image](#text-to-image)
+- [Text-to-Image](#text-to-image)🔥
     - [Inference](#inference)
     - [Training](#training)
         - [Distributed Training](#distributed-training)
     - [LoRA Fine-tuning](#lora-fine-tuning) 🔥
     - [Dreambooth Fine-tuning](#dreambooth-fine-tuning)
     - [Textual Inversion Fine-tuning](#textual-inversion-fine-tuning)
+    - [Benchmark](#benchmark)
 - [Image-to-Image](#image-to-image)
-    - [Image Variation](#image-variation)
     - [Inpainting](#inpainting)
     - [Depth-to-Image](#depth-to-image)
-- [ControlNet](#controlnet)
-- [T2I Adapter](#t2i-adapter)
 - [Advanced Usage](#advanced-usage)
     - [Model Conversion](#model-conversion)
     - [Schedulers](#schedulers)
     - [Training with v-prediction](#training-with-v-prediction)
     - [Diffusion Model Evaluation](#diffusion-model-evaluation)
-    - [Safety Checker](#safety-checker)
-    - [Watermark](#watermark)
 
 ## Introduction
 
 This repository integrates state-of-the-art [Stable Diffusion](https://arxiv.org/abs/2112.10752) models including SD1.5, SD2.0, and SD2.1,
 supporting various generation tasks and pipelines. Efficient training and fast inference are implemented based on MindSpore.
-
-New models and features will be continuously updated.
 
 <!--
 This repository provides "small" but popularly used diffusion models like SD1.5. Currently, we support the following tasks and models.
@@ -46,49 +40,33 @@ This repository provides "small" but popularly used diffusion models like SD1.5.
 
 ### Supported Models and Pipelines
 
+#### SD1.5
+| **text-to-image** |
+|:--------------:|
+| [Inference](#inference) \| [Training](#training) |
 
-| **SD Model**  | **Text-to-Image**      | **Image Variation** | **Inpainting**  | **Depth-to-Image**  | **ControlNet**  |**T2I Adapter**|
-|:---------------:|:--------------:|:--------------------:|:-----------------------:|:----------------:|:---------------:|:---------------:|
-| 1.5           | [Inference](#inference) \| [Training](#training) | N.A.            |   N.A.                 |  N.A.            |  [Inference](docs/en/controlnet.md) \| [Training](docs/en/controlnet.md) |    [Inference](../t2i_adapter/README.md#inference-and-examples)     |
-| 2.0 & 2.1     | [Inference](#inference) \| [Training](#training) | [Inference](#image-variation) \| [Training](docs/en/image_variation_unclip.md)       |  [Inference](#inpainting)            | [Inference](#depth-to-image)     |   N.A.          |  [Inference](../t2i_adapter/README.md#inference-and-examples) \| [Training](../t2i_adapter/README.md#training)     |
-| wukong       | [Inference](#inference) \| [Training](#training) | N.A.            |   [Inference](#inpainting)                |  N.A.            |  N.A. |    N.A.     |
-
-> Although some combinations are not supported currently (due to the lack of checkpoints pretrained on the specific task and SD model), you can use the [Model Conversion](#model-conversion) tool to convert the checkpoint (e.g. from HF) then adapt it to the existing pipelines (e.g. image variation pipeline with SD 1.5)
+#### SD2.0 & SD2.1
+| **text-to-image**      | **inpainting**  | **depth-to-image**  |
+|:--------------:|:--------------------:|:-----------------------:|
+| [Inference](#inference) \| [Training](#training) |  [Inference](#inpainting)            | [Inference](#depth-to-image)     |
 
 You may click the link in the table to access the running instructions directly.
 
-For model performance, please refer to [benchmark](benchmark.md).
-
 ## Installation
 
-### Supported Platforms & Versions
+### Requirements
 
-Our code is mainly developed and tested on Ascend 910 platforms with MindSpore framework.
-The compatible framework versions that are well-tested are listed as follows.
+| ascend    |  mindspore   | cann   | driver | python |
+|:-----------:|:----------------:|:--------:|:---------:|:------:|
+| 910      |     2.1.0         |   6.3.RC2   |  24.1.RC1 | 3.9  |
+| 910*      |     2.3.0     |   7.3  | 23.0.3   |  3.8  |
+| 910*      |     2.3.1     |   8.0.RC2.bata1  | 24.1.RC2   |  3.8  |
 
-<div align="center">
 
-| Ascend    |  MindSpore   | CANN   | driver | Python | MindONE |
-|:-----------:|:----------------:|:--------:|:---------:|:------:|:---------:|
-| 910      |     2.0         |   6.3 RC1   |  23.0.rc1 | 3.7.16  | master (4c33849)  |
-| 910      |     2.1         |   6.3 RC2   |  23.0.rc2 | 3.9.18  | master (4c33849)  |
-| 910*      |     2.2.1 (20231124)    |   7.1  | 23.0.rc3.6   |  3.7.16  | master (4c33849)  |
-| 910*      |     2.3.0     |   7.3  | 23.0.3   |  3.8.8  | master   |
-
-</div>
-
-<!---
-TODO: list more tested versions
--->
 
 For detailed instructions to install CANN and MindSpore, please refer to the official webpage [MindSpore Installation](https://www.mindspore.cn/install).
 
-**Note:** Running on other platforms (such as GPUs) and MindSpore versions may not be reliable.
-It's highly recommended to use the verified CANN and MindSpore versions. More compatible versions will be continuously updated.
-
-<details close markdown>
-
-### Dependency
+To install other dependent packages:
 
 ```shell
 pip install -r requirements.txt
@@ -105,8 +83,6 @@ cd mindone/examples/stable_diffusion_v2
 
 ## Dataset Preparation
 
-<details close markdown>
-
 This section describes the data format and protocol for diffusion model training.
 
 The text-image pair dataset should be organized as follows.
@@ -119,7 +95,7 @@ data_path
 └── img_txt.csv
 ```
 
-, where `img_txt.csv` is the image-caption file annotated in the following format.
+where `img_txt.csv` is the image-caption file annotated in the following format.
 
 ```text
 dir,text
@@ -148,10 +124,9 @@ To generate images by providing a text prompt, please download one of the follow
 
 <div align="center">
 
-| **SD Version**     |  Lang.   | **MindSpore Checkpoint**                                                                                                          | **Ref. Official Model**                                                                           | **Resolution** |
-|--------------------|----------|-------------------------------------------------------------------------------------------------------------------------|---------------------------------------------------------------------------------------------------|----------------|
+| **sd version**     |  language   | **mindspore checkpoint**                                                                                                          | **ref. official model**                                                                           | **resolution** |
+|:--------------------:|:----------:|:-------------------------------------------------------------------------------------------------------------------------:|:---------------------------------------------------------------------------------------------------:|:----------------:|
 | 1.5                |   EN   | [sd_v1.5-d0ab7146.ckpt](https://download.mindspore.cn/toolkits/mindone/stable_diffusion/sd_v1.5-d0ab7146.ckpt)                    | [stable-diffusion-v1-5](https://huggingface.co/runwayml/stable-diffusion-v1-5)                    | 512x512        |
-| 1.5-wukong         |   CN    | [wukong-huahua-ms.ckpt](https://download.mindspore.cn/toolkits/minddiffusion/wukong-huahua/wukong-huahua-ms.ckpt)                 |          N.A.                                                                                     | 512x512        |
 | 2.0                |   EN   |  [sd_v2_base-57526ee4.ckpt](https://download.mindspore.cn/toolkits/mindone/stable_diffusion/sd_v2_base-57526ee4.ckpt)              | [stable-diffusion-2-base](https://huggingface.co/stabilityai/stable-diffusion-2-base)             | 512x512        |
 | 2.0-v              |   EN   |  [sd_v2_768_v-e12e3a9b.ckpt](https://download.mindspore.cn/toolkits/mindone/stable_diffusion/sd_v2_768_v-e12e3a9b.ckpt)            | [stable-diffusion-2](https://huggingface.co/stabilityai/stable-diffusion-2)                       | 768x768        |
 | 2.1                |   EN   | [sd_v2-1_base-7c8d09ce.ckpt](https://download.mindspore.cn/toolkits/mindone/stable_diffusion/sd_v2-1_base-7c8d09ce.ckpt)          | [stable-diffusion-2-1-base](https://huggingface.co/stabilityai/stable-diffusion-2-1-base)         | 512x512        |
@@ -182,11 +157,21 @@ Take SD 1.5 as an example:
 python text_to_image.py --prompt "elven forest" -v 1.5
 ```
 
+<div align="center">
+<img src="https://github.com/SamitHuang/mindone/assets/8156835/1c35853d-036f-459c-944c-9953d2da8087" width="320" />
+</div>
+
+
 Take SD 2.0 as an example:
 ```shell
 # Use SD 2.0 instead and add negative prompt guidance to eliminate artifacts
 python text_to_image.py --prompt "elven forest" -v 2.0 --negative_prompt "moss" --scale 9.0 --seed 42
 ```
+
+</div>
+<p align="center">
+<img src="https://github.com/SamitHuang/mindone/assets/8156835/b1f037ca-4e03-40e4-8da2-d358801eadd5)" width="320" />
+
 
 ##### Inference with different samplers
 By default, the inference use dpm++ 2M samplers. You can use others if needed. The support list and detailed illustrations refer to  [schedulers](docs/en/schedulers.md).
@@ -200,11 +185,9 @@ By default, the inference use dpm++ 2M samplers. You can use others if needed. T
    ```
    > Note: Parallel inference only can be used for mutilple-prompt.
 
-<details>
+##### Long Prompts Support
 
-  <summary>Long Prompts Support</summary>
-
-  By Default, SD V2(1.5) only supports the token sequence no longer than 77. For those sequences longer than 77, they will be truncated to 77, which can cause information loss.
+  By default, SD V2(1.5) only supports the token sequence no longer than 77. For those sequences longer than 77, they will be truncated to 77, which can cause information loss.
 
   To avoid information loss for long text prompts, we can divide one long tokens sequence (N>77) into several shorter sub-sequences (N<=77) to bypass the constraint of context length of the text encoders. This feature is supported by `args.support_long_prompts` in `text_to_image.py`.
 
@@ -215,13 +198,11 @@ By default, the inference use dpm++ 2M samplers. You can use others if needed. T
   ...  \  # other arguments configurations
   --support_long_prompts True \  # allow long text prompts
   ```
-</details>
 
-<details>
 
-  <summary>Flash-Attention Support</summary>
+##### Flash-Attention Support
 
-  MindONE supports flash attention by setting the argument `enable_flash_attention` as `True` in `configs/v1-inference.yaml` or `configs/v2-inference.yaml`. For example, in `configs/v1-inference.yaml`:
+  Flash attention supported by setting the argument `enable_flash_attention` as `True` in `configs/v1-inference.yaml` or `configs/v2-inference.yaml`. For example, in `configs/v1-inference.yaml`:
 
   ```
       unet_config:
@@ -233,21 +214,7 @@ By default, the inference use dpm++ 2M samplers. You can use others if needed. T
   ```
   One can set `enable_flash_attention` to `True`. In case of OOM (out of memory) error, please reduce the `fa_max_head_dim` to 128.
 
-</details>
 
-Here are some generation results.
-
-<div align="center">
-<img src="https://github.com/SamitHuang/mindone/assets/8156835/1c35853d-036f-459c-944c-9953d2da8087" width="320" />
-  &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-<img src="https://github.com/SamitHuang/mindone/assets/8156835/b1f037ca-4e03-40e4-8da2-d358801eadd5)" width="320" />
-</div>
-<p align="center">
-  <em> Prompt: "elven forest"</em>
-  &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-  &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-  <em> With negative prompt: "moss" </em>
-</p>
 
 
 ### Training
@@ -327,67 +294,13 @@ Textual Inversion learns one or a few text embedding vectors for a new concept, 
 
 Please refer to the tutorial of [Textual Inversion for Stable Diffusion Finetuning](docs/en/textual_inversion_finetune.md) for detailed instructions.
 
+
+### Benchmark
+For model performance, please refer to [benchmark](benchmark.md).
+
 ## Image-to-Image
 
-### Image Variation
-
-This pipeline uses a fine-tuned version of Stable Diffusion 2.1, which can be used to create image variations (image-to-image).
-The pipeline comes with two pre-trained models, `2.1-unclip-l` and `2.1-unclip-h`, which use the pretrained CLIP Image embedder and OpenCLIP Image embedder separately.
-You can use the `-v` argument to decide which model to use.
-The amount of image variation can be controlled by the noise injected to the image embedding, which can be input by the `--noise_level` argument.
-A value of 0 means no noise, while a value of 1000 means full noise.
-
-#### Preparing Pretrained Weights
-To generate variant images by providing a source image, please download one of the following checkpoints and put it in `models` folder:
-
-<div align="center">
-
-| **SD Version**     |  Lang.   | **MindSpore Checkpoint**                                                                                                          | **Ref. Official Model**                                                                 | **Resolution** |
-|--------------------|----------|-------------------------------------------------------------------------------------------------------------------------|---------------------------------------------------------------------------------------------------|----------------|
-| 2.1-unclip-l       |   EN    | [sd21-unclip-l-baa7c8b5.ckpt](https://download.mindspore.cn/toolkits/mindone/stable_diffusion/sd21-unclip-l-baa7c8b5.ckpt)      | [stable-diffusion-2-1-unclip](https://huggingface.co/stabilityai/stable-diffusion-2-1-unclip)       | 768x768        |
-| 2.1-unclip-h       |   EN    | [sd21-unclip-h-6a73eca5.ckpt](https://download.mindspore.cn/toolkits/mindone/stable_diffusion/sd21-unclip-h-6a73eca5.ckpt)       |   [stable-diffusion-2-1-unclip](https://huggingface.co/stabilityai/stable-diffusion-2-1-unclip)     | 768x768        |
-
-</div>
-
-And download the image encoder checkpoint [ViT-L-14_stats-b668e2ca.ckpt](https://download.mindspore.cn/toolkits/mindone/stable_diffusion/unclip/ViT-L-14_stats-b668e2ca.ckpt) to `models` folder.
-
 #### Generating Image Variation
-
-After preparing the pretrained weights, you can run image variation generation by:
-
-```shell
-python unclip_image_variation.py \
-    -v {model version} \
-    --image_path {path to input image} \
-    --prompt "your magic prompt to run image variation."
-```
-> `-v`: model version. Valid values can be referred to `SD Version` in the above table.
-
-For more argument usage, please run `python unclip_image_variation.py --help`
-
-Using `2.1-unclip-l` model as an example, you may generate variant images based on the [example image](https://huggingface.co/datasets/hf-internal-testing/diffusers-images/resolve/main/stable_unclip/tarsila_do_amaral.png) by
-
-```shell
-python unclip_image_variation.py \
-    -v 2.1-unclip-l \
-    --image_path tarsila_do_amaral.png \
-    --prompt "a cute cat sitting in the garden"
-```
-
-The output images will be saved in `output/samples` directory.
-
-you can also add extra noise to the image embedding to increase the amount of variation in the generated images.
-
-```shell
-python unclip_image_variation.py -v 2.1-unclip-l --image_path tarsila_do_amaral.png --prompt "a cute cat sitting in the garden" --noise_level 200
-```
-
-<div align="center">
-<img src="https://github.com/zhtmike/mindone/assets/8342575/393832cf-803a-4745-9fb1-7ef1107f9c37" width="760" />
-</div>
-
-
-For image-to-image fine-tuning, please refer to the tutorial of [Stable Diffusion unCLIP Finetuning](docs/en/image_variation_unclip.md) for detailed instructions.
 
 ### Inpainting
 
@@ -399,10 +312,9 @@ To perform inpainting on an input image, please download one of the following ch
 
 <div align="center">
 
-| **SD Version**     |  Lang.   | **MindSpore Checkpoint**                                                                                                          | **Ref. Official Model**                                                                 | **Resolution** |
-|--------------------|----------|-------------------------------------------------------------------------------------------------------------------------|---------------------------------------------------------------------------------------------------|----------------|
+| **sd version**     |  language   | **mindspore checkpoint**                                                                                                          | **ref. official model**                                                                           | **resolution** |
+|:--------------------:|:----------:|:-------------------------------------------------------------------------------------------------------------------------:|:---------------------------------------------------------------------------------------------------:|:----------------:|
 | 2.0-inpaint        |  EN      | [sd_v2_inpaint-f694d5cf.ckpt](https://download.mindspore.cn/toolkits/mindone/stable_diffusion/sd_v2_inpaint-f694d5cf.ckpt)        | [stable-diffusion-2-inpainting](https://huggingface.co/stabilityai/stable-diffusion-2-inpainting) | 512x512        |
-| 1.5-wukong-inpaint |  CN      | [wukong-huahua-inpaint-ms.ckpt](https://download.mindspore.cn/toolkits/minddiffusion/wukong-huahua/wukong-huahua-inpaint-ms.ckpt) |                                                  N.A.                                               | 512x512        |
 </div>
 
 #### Running Image Inpainting
@@ -424,7 +336,7 @@ Using `2.0-inpaint` as an example, you can download the [example image](https://
 
 ```shell
 python inpaint.py \
-    -v `2.0-inpaint`
+    -v "2.0-inpaint" \
     --image overture-creations-5sI6fQgYIuo.png \
     --mask overture-creations-5sI6fQgYIuo_mask.png \
     --prompt "Face of a yellow cat, high resolution, sitting on a park bench"
@@ -461,8 +373,8 @@ and generate new images conditioning on the image depth, the image, and the text
 
 <div align="center">
 
-| **SD Version**     |  Lang.   | **MindSpore Checkpoint**                                                                                                          | **Ref. Official Model**                                                                 | **Resolution** |
-|--------------------|----------|-------------------------------------------------------------------------------------------------------------------------|---------------------------------------------------------------------------------------------------|----------------|
+| **sd version**     |  language   | **mindspore checkpoint**                                                                                                          | **ref. Official model**                                                                           | **resolution** |
+|:--------------------:|:----------:|:-------------------------------------------------------------------------------------------------------------------------:|:---------------------------------------------------------------------------------------------------:|:----------------:|
 | 2.0               |  EN       | [sd_v2_depth-186e18a0.ckpt](https://download-mindspore.osinfra.cn/toolkits/mindone/stable_diffusion/sd_v2_depth-186e18a0.ckpt)        | [stable-diffusion-2-depth](https://huggingface.co/stabilityai/stable-diffusion-2-depth) | 512x512        |
 
 </div>
@@ -513,22 +425,6 @@ Here are some generated results.
 
 The two cats are replaced with two tigers while the background and image structure are mostly preserved in the generated images.
 
-
-## ControlNet
-
-ControlNet is a type of model for controllable image generation. It helps make image diffusion models more controllable by conditioning the model with an additional input image.
-Stable Diffusion can be augmented with ControlNets to enable conditional inputs like canny edge maps, segmentation maps, keypoints, etc.
-
-For detailed instructions on inference and training with ControlNet, please refer to [Stable Diffusion with ControlNet](docs/en/controlnet.md).
-
-## T2I Adapter
-
-[T2I-Adapter](../t2i_adapter/README.md) is a simple and lightweight network that provides extra visual guidance for
-Stable Diffusion models without re-training them. The adapter act as plug-in to SD models, making it easy to integrate
-and use.
-
-For detailed instructions on inference and training with T2I-Adapters, please refer to [T2I-Adapter](../t2i_adapter/README.md).
-
 ## Advanced Usage
 
 ### Model Conversion
@@ -561,18 +457,6 @@ To alter the objective to v-prediction, which is used in SD 2.0-v and SD 2.1-v, 
 
 We provide different evaluation methods including FID and CLIP-score to evaluate the quality of the generated images.
 For detailed usage, please refer to [Evaluation for Diffusion Models](tools/eval/README.md)
-
-### Safety Checker
-
-Coming soon
-
-### Watermark
-
-Coming soon
-
-### FAQ
-
-plaese refer to [Frequently Asked Questions](docs/en/faq.md)
 
 ## What's New
 - 2024.01.10

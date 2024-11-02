@@ -44,6 +44,7 @@ class BaseDiffusionSampler:
         num_sigmas = len(sigmas)
 
         s_in = ops.ones((x.shape[0],), x.dtype)
+        sigmas = Tensor(sigmas)
 
         return x, s_in, sigmas, num_sigmas, cond, uc
 

@@ -169,7 +169,7 @@ class BlipDiffusionControlNetPipeline(DiffusionPipeline):
             latents = latents.to(dtype=dtype)
 
         # scale the initial noise by the standard deviation required by the scheduler
-        latents = latents * self.scheduler.init_noise_sigma
+        latents = (latents * self.scheduler.init_noise_sigma).to(dtype)
         return latents
 
     def encode_prompt(self, query_embeds, prompt):

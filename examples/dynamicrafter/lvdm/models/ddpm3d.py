@@ -368,8 +368,8 @@ class LatentDiffusion(DDPM):
             results = ops.cat(results, axis=0)
 
         if reshape_back:
-            x = ops.reshape(x, (b, t, *x.shape[1:]))  # (b t c h w)
-            x = ops.transpose(x, (0, 2, 1, 3, 4))  # (b c t h w)
+            results = ops.reshape(results, (b, t, *results.shape[1:]))  # (b t c h w)
+            results = ops.transpose(results, (0, 2, 1, 3, 4))  # (b c t h w)
 
         return results
 

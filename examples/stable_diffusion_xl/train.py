@@ -2,8 +2,12 @@ import argparse
 import ast
 import os
 import random
+import sys
 import time
 from functools import partial
+
+mindone_lib_path = os.path.abspath(os.path.abspath("../../"))
+sys.path.insert(0, mindone_lib_path)
 
 import numpy as np
 from gm.data.loader import create_loader
@@ -144,7 +148,17 @@ def get_parser_train():
     # args for env
     parser.add_argument("--device_target", type=str, default="Ascend", help="device target, Ascend/GPU/CPU")
     parser.add_argument(
-        "--ms_mode", type=int, default=0, help="Running in GRAPH_MODE(0) or PYNATIVE_MODE(1) (default=1)"
+        "--ms_mode", type=int, default=0, help="Running in GRAPH_MODE(0) or PYNATIVE_MODE(1) (default=0)"
+    )
+    parser.add_argument(
+        "--jit_level",
+        default="O2",
+        type=str,
+        choices=["O0", "O1", "O2"],
+        help="Used to control the compilation optimization level. Supports ['O0', 'O1', 'O2']."
+        "O0: Except for optimizations that may affect functionality, all other optimizations are turned off, adopt KernelByKernel execution mode."
+        "O1: Using commonly used optimizations and automatic operator fusion optimizations, adopt KernelByKernel execution mode."
+        "O2: Ultimate performance optimization, adopt Sink execution mode.",
     )
     parser.add_argument("--ms_amp_level", type=str, default="O2")
     parser.add_argument(
@@ -272,6 +286,7 @@ def train(args):
         if isinstance(model.model, nn.Cell):
             from gm.models.trainer_factory import TrainOneStepCell
 
+            model.model = auto_mixed_precision(model.model, amp_level=args.ms_amp_level)
             train_step_fn = TrainOneStepCell(
                 model,
                 optimizer,
@@ -287,7 +302,19 @@ def train(args):
                 timestep_bias_weighting=timestep_bias_weighting,
                 snr_gamma=args.snr_gamma,
             )
-            train_step_fn = auto_mixed_precision(train_step_fn, amp_level=args.ms_amp_level)
+
+            dynamic_shape = True if "multi_aspect" in config.data.dataset_config.params.keys() else False
+            if dynamic_shape:
+                input_dyn = Tensor(shape=[per_batch_size, 3, None, None], dtype=ms.float32)
+                token1 = Tensor(np.ones((per_batch_size, 77)), dtype=ms.int32)
+                token2 = Tensor(np.ones((per_batch_size, 77)), dtype=ms.int32)
+                token3 = Tensor(np.ones((per_batch_size, 2)), dtype=ms.float32)
+                token4 = Tensor(np.ones((per_batch_size, 2)), dtype=ms.float32)
+                token5 = Tensor(np.ones((per_batch_size, 2)), dtype=ms.float32)
+                token = [token1, token2, token3, token4, token5]
+
+                train_step_fn.set_inputs(input_dyn, *token)
+
             if model.disable_first_stage_amp and train_step_fn.first_stage_model is not None:
                 train_step_fn.first_stage_model.to_float(ms.float32)
             jit_config = ms.JitConfig()

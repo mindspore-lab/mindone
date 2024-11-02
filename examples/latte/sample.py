@@ -38,6 +38,20 @@ def init_env(args):
         device_target=args.device_target,
         device_id=device_id,
     )
+    if args.mode == ms.GRAPH_MODE:
+        try:
+            if args.jit_level in ["O0", "O1", "O2"]:
+                ms.set_context(jit_config={"jit_level": args.jit_level})
+                logger.info(f"set jit_level: {args.jit_level}.")
+            else:
+                logger.warning(
+                    f"Unsupport jit_level: {args.jit_level}. The framework automatically selects the execution method"
+                )
+        except Exception:
+            logger.warning(
+                "The current jit_level is not suitable because current MindSpore version does not match,"
+                "please ensure the MindSpore version >= ms2.3.0."
+            )
     if args.precision_mode is not None:
         ms.set_context(ascend_config={"precision_mode": args.precision_mode})
     return device_id
@@ -145,6 +159,16 @@ def parse_args():
         help="Whether to use conv2d layer or dense (linear layer) as Patch Embedder.",
     )
     parser.add_argument("--ddim_sampling", type=str2bool, default=True, help="Whether to use DDIM for sampling")
+    parser.add_argument(
+        "--jit_level",
+        default="O2",
+        type=str,
+        choices=["O0", "O1", "O2"],
+        help="Used to control the compilation optimization level. Supports [“O0”, “O1”, “O2”]."
+        "O0: Except for optimizations that may affect functionality, all other optimizations are turned off, adopt KernelByKernel execution mode."
+        "O1: Using commonly used optimizations and automatic operator fusion optimizations, adopt KernelByKernel execution mode."
+        "O2: Ultimate performance optimization, adopt Sink execution mode.",
+    )
     default_args = parser.parse_args()
     abs_path = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), ""))
     if default_args.config:

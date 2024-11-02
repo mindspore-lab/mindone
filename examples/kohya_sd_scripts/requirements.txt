@@ -4,3 +4,4 @@ imagesize
 opencv-python
 einops
 voluptuous
+toml

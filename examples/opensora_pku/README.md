@@ -81,7 +81,7 @@ Other useful documents and links are listed below.
 ## Installation
 1. Use python>=3.8 [[install]](https://www.python.org/downloads/)
 
-2. Please install MindSpore 2.3.1 according to the [MindSpore official website](https://www.mindspore.cn/install/) and install [CANN 8.0.RC2.beta1](https://www.hiascend.com/developer/download/community/result?module=cann&cann=8.0.RC2.2.beta1) as recommended by the official installation website.
+2. Please install MindSpore 2.3.1 according to the [MindSpore official website](https://www.mindspore.cn/install/) and install [CANN 8.0.RC2.beta1](https://www.hiascend.com/developer/download/community/result?module=cann&cann=8.0.RC2.beta1) as recommended by the official installation website.
 
 
 3. Install requirements
@@ -94,6 +94,7 @@ For EulerOS, instructions on ffmpeg and decord installation are as follows.
 
 <details onclose>
 <summary>How to install ffmpeg and decord</summary>
+
 ```
 1. install ffmpeg 4, referring to https://ffmpeg.org/releases
     wget https://ffmpeg.org/releases/ffmpeg-4.0.1.tar.bz2 --no-check-certificate
@@ -103,6 +104,7 @@ For EulerOS, instructions on ffmpeg and decord installation are as follows.
     ./configure --enable-shared         # --enable-shared is needed for sharing libavcodec with decord
     make -j 64
     make install
+
 2. install decord, referring to https://github.com/dmlc/decord?tab=readme-ov-file#install-from-source
     git clone --recursive https://github.com/dmlc/decord
     cd decord
@@ -333,6 +335,16 @@ python examples/rec_video_folder.py \
 ```
 
 Runing this command will generate reconstructed videos under the given `output_generated_video_dir`. You can then evalute some common metrics (e.g., ssim, psnr) using the script under `opensora/eval/script`.
+
+
+####  Performance Evaluation
+
+Here, we report the training performance and evaluation results on the UCF-101 dataset. Experiments are tested on Ascend 910* with mindspore 2.3.1 graph mode.
+
+| model name  | cards  |  batch size | resolution | graph compile | precision | discriminator |sink | jit level| s/step | img/s  | psnr | ssim  |
+|:-----------|:------ |:-----------:|:----------:|:-------------:|:----------:|:------------:|:---:|:--------:|--------:|------:|:----:|-------:|
+| CausalVAE  |  8     |       1    |  9x256x256  |     3 mins   |   FP32     |    TRUE      | OFF  |    O0   |    2.04   |  35.29 |  29.30 |   0.88    |
+| CausalVAE  |  8    |       1     | 25x256x256  |    3 mins   |   BF16     |     FALSE    |  OFF |     O0  |     4.21   |  47.51 | 28.92 |    0.87    |
 
 
 

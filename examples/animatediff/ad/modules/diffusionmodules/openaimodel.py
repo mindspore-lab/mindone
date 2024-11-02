@@ -468,7 +468,6 @@ class UNetModel(nn.Cell):
                             dropout=self.dropout,
                             use_linear=use_linear_in_transformer,
                             enable_flash_attention=enable_flash_attention,
-                            cross_frame_attention=cross_frame_attention,
                             unet_chunk_size=unet_chunk_size,
                         )
                     )
@@ -544,7 +543,6 @@ class UNetModel(nn.Cell):
                     dropout=self.dropout,
                     use_linear=use_linear_in_transformer,
                     enable_flash_attention=enable_flash_attention,
-                    cross_frame_attention=cross_frame_attention,
                     unet_chunk_size=unet_chunk_size,
                 ),
                 ResBlock(
@@ -608,7 +606,6 @@ class UNetModel(nn.Cell):
                             dropout=self.dropout,
                             use_linear=use_linear_in_transformer,
                             enable_flash_attention=enable_flash_attention,
-                            cross_frame_attention=cross_frame_attention,
                             unet_chunk_size=unet_chunk_size,
                         )
                     )
