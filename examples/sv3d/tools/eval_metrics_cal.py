@@ -4,7 +4,7 @@ import sys
 __dir__ = os.path.dirname(os.path.abspath(__file__))
 mindone_lib_path = os.path.abspath(os.path.join(__dir__, "../../"))
 sys.path.insert(0, mindone_lib_path)
-sys.path.append("..s/instantmesh/utils/")
+sys.path.append("../instantmesh/utils/")
 
 import numpy as np
 from loss_util import LPIPS
