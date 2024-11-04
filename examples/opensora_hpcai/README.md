@@ -25,7 +25,7 @@ This repository is built on the models and code released by HPC-AI Tech. We are 
 
 | mindspore | ascend driver | firmware | cann tookit/kernel |
 | :---:     |   :---:       | :---:    | :---:              |
-| 2.3.1     |  23.0.6      |7.1.0.9.220    |   8.0.RC2.beta1   |
+| 2.3.1     |  23.0.3     |7.1.0.9.220    |   8.0.RC2.beta1   |
 
 
 
