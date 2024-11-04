@@ -26,6 +26,7 @@ from mindspore.communication.management import get_group_size
 from transformers import PreTrainedTokenizerBase
 from transformers.utils import logging
 from transformers.integrations import get_reporting_integration_callbacks
+from transformers.models.auto.modeling_auto import MODEL_FOR_CAUSAL_LM_MAPPING_NAMES
 
 from .mindspore_adapter.utils import _is_parallel
 from .mindspore_adapter import (
@@ -698,8 +699,30 @@ class Trainer:
             # FIXME: level 3, just build model, time not included compile cost.
             self.jit_compilation_time = round(time.time() - start_time, 4)
 
+        # Note: unlike the original transformers, support label_smoother through `Trainer._wrap_model`, and origin support it at `Trainer.compute_loss`
+        if self.label_smoother is not None:
+            class LabelSmootherModel(nn.Cell):
+                def __init__(self, model, label_smoother):
+                    super(LabelSmootherModel, self).__init__(auto_prefix=False)
+                    self.model = model
+                    self.label_smoother_ = label_smoother
+                    self.shift_labels = model._get_name() in MODEL_FOR_CAUSAL_LM_MAPPING_NAMES.values()
+
+                def construct(self, *args, labels=None, **kwargs):
+                    loss, logits = self.model(*args, **kwargs)
+                    if labels is not None:
+                        loss = self.label_smoother_(logits, labels, self.shift_labels)
+
+                    return loss
+
+            model_ = LabelSmootherModel(model, self.label_smoother)
+        else:
+            model_ = model
+
+        # Note: unlike the original transformers, we will define train step process
+        # that include auto mix precision, forward process, loss compute and optimizer step on `train_model`
         train_model = TrainOneStepWrapper(
-            model,
+            model_,
             self.optimizer,
             ema=None,
             drop_overflow_step=True,
@@ -1344,6 +1367,48 @@ class Trainer:
 
         return inputs
 
+    def _prepare_inputs_ms(self, inputs: Dict[str, Union[Tensor, Any]]):
+        # 1. get model args
+        model_to_inspect = self.model
+        signature = inspect.signature(model_to_inspect.construct)
+        for n, p in signature.parameters.items():
+            assert p.kind in (inspect.Parameter.POSITIONAL_OR_KEYWORD,
+                              inspect.Parameter.POSITIONAL_ONLY,
+                              inspect.Parameter.VAR_POSITIONAL), \
+                f"construct func input not position args, check in `class {model_to_inspect.__class__.__name__}`"
+        _signature_columns = list(signature.parameters.keys())
+        _signature_columns = _signature_columns[1:] if _signature_columns[0] == self else _signature_columns
+
+        input_keys = _signature_columns
+        dict_inputs = inputs
+        input_len = len(inputs)
+
+        # 2. to tuple
+        tuple_inputs = ()
+        for k in input_keys[:input_len]:
+            if k not in dict_inputs:
+                assert not isinstance(signature.parameters[k].default, inspect._empty)
+                v = signature.parameters[k].default
+            else:
+                v = dict_inputs[k]
+            if isinstance(v, (tuple, list)):
+                tuple_inputs += (*v,)
+            else:
+                tuple_inputs += (v,)
+
+        # 3. to tensor
+        inputs = ()
+        for data in tuple_inputs:
+            if data is not None:
+                if hasattr(self.args, "input_dtype") and \
+                        data.dtype in (np.float32, np.float16, np.float64):
+                    data = Tensor(data, dtype=self.args.input_dtype)
+                else:
+                    data = Tensor(data)
+            inputs += (data,)
+
+        return inputs
+
 
     def call_model_init(self, trial=None):
         model_init_argcount = number_of_arguments(self.model_init)
@@ -1359,8 +1424,41 @@ class Trainer:
 
         return model
 
-    def training_step(self, model: nn.Cell, inputs: Dict[str, Union[Tensor, Any]]) -> Tensor:
-        raise NotImplementedError
+    def training_step(self, model: nn.Cell, inputs: Dict[str, Union[ms.Tensor, Any]]) -> Tuple[ms.Tensor, ms.Tensor]:
+        """
+        Perform a training step on a batch of inputs.
+
+        Subclass and override to inject custom behavior.
+
+        Args:
+            model (`nn.Cell`):
+                The model to train.
+            inputs (`Dict[str, Union[ms.Tensor, Any]]`):
+                The inputs and targets of the model.
+
+                The dictionary will be unpacked before being fed to the model. Most models expect the targets under the
+                argument `labels`. Check your model's documentation for all accepted arguments.
+
+        Return:
+            `Tuple[ms.Tensor, ms.Tensor]`: The tensor with training loss and overflow flag on this batch.
+        """
+        train_model = model
+        train_model.set_train()
+        inputs = self._prepare_inputs_ms(inputs)
+
+        loss, _, overflow = train_model(*inputs)
+
+        # For LOMO optimizers you need to explicitly use the learnign rate
+        if self.args.optim in [OptimizerNames.LOMO, OptimizerNames.ADALOMO]:
+            raise NotImplementedError
+
+        if self.args.n_gpu > 1:
+            loss = loss.mean()  # mean() to average on multi-gpu parallel training
+
+        if self.use_apex:
+            raise NotImplementedError
+
+        return loss / self.args.gradient_accumulation_steps, overflow
 
     def compute_loss(self, model, inputs, return_outputs=False):
         raise NotImplementedError

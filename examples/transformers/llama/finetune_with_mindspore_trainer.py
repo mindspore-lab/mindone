@@ -33,23 +33,17 @@ def main():
     tokenizer = AutoTokenizer.from_pretrained(args.model_path)
     tokenizer.pad_token = tokenizer.eos_token
 
-    from transformers import PreTrainedTokenizerFast, PreTrainedTokenizerBase
     def tokenize_function(examples):
         return tokenizer(
             examples["text"],
             padding="max_length",
             truncation=True,
-            max_length=512,
-            # padding_side="right",
-            # pad_token="<|reserved_special_token_0|>",
-            # pad_token_id=128002
+            max_length=512,        # Note: pad is need for training batch size is gather than 1.
         )
 
     tokenized_datasets = dataset.map(tokenize_function, batched=True)
     small_train_dataset = tokenized_datasets["train"]
     small_eval_dataset = tokenized_datasets["test"]
-
-    breakpoint()
 
     model = LlamaForSequenceClassification.from_pretrained(args.model_path, num_labels=5)
 

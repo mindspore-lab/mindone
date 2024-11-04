@@ -29,8 +29,7 @@ class LabelSmoother:
     epsilon: float = 0.1
     ignore_index: int = -100
 
-    def __call__(self, model_output: Dict, labels: Tensor, shift_labels: bool = False):
-        logits = model_output["logits"] if isinstance(model_output, dict) else model_output[0]
+    def __call__(self, logits: ms.Tensor, labels: ms.Tensor, shift_labels: bool = False):
         if shift_labels:
             logits = logits[..., :-1, :]
             labels = labels[..., 1:]

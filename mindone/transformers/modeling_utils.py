@@ -329,6 +329,9 @@ class ModuleUtilsMixin:
     A few utilities for `mindspore.nn.Cell`, to be used as a mixin.
     """
 
+    def _get_name(self):
+        return self.__class__.__name__
+
     def to(self, dtype: Optional[ms.Type] = None):
         for p in self.get_parameters():
             p.set_dtype(dtype)
