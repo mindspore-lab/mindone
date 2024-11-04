@@ -741,6 +741,8 @@ class LlamaModel(LlamaPreTrainedModel):
             cache_position: Optional[ms.Tensor] = None,
     ) -> Tuple:
         use_cache = use_cache if use_cache is not None else self.use_cache
+        if self.training:
+            use_cache = False
 
         # if self.training:
         #     assert not use_cache

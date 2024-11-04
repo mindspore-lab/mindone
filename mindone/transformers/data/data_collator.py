@@ -88,8 +88,6 @@ def default_data_collator(features: List[InputDataClass], return_tensors="np") -
 
 
 def numpy_default_data_collator(features: List[InputDataClass]) -> Dict[str, Any]:
-    breakpoint()
-
     if not isinstance(features[0], Mapping):
         features = [vars(f) for f in features]
     first = features[0]
