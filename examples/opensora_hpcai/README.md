@@ -331,9 +331,9 @@ Experiments are tested on ascend 910* with mindspore 2.3.1 graph mode.
 
 | model name      |  cards | batch size | resolution |  jit_level | precision |  scheduler   | step      | graph compile | s/step     | s/video | recipe |
 | :--:         | :--:   | :--:       | :--:       | :--:       | :--:       | :--:       | :--:       | :--:      |:--:    | :--:   |:--:   |
-| STDiT2-XL/2  |  1     | 1          | 16x640x360   | O0       | bf16       |  ddpm     |   100   |  1~2 mins |  1.56    |    156.00      |  [yaml](configs/opensora-v1-1/inference/sample_t2v.yaml) | 
-| STDiT3-XL/2  |  1     | 1          | 51x720x1280   | O0      | bf16       |  rflow    |   30    |  1~2 mins  |  5.88      |  176.40   | [yaml](configs/opensora-v1-2/inference/sample_t2v.yaml) | 
-| STDiT3-XL/2  |  1     | 1          | 102x720x1280  | O0      | bf16       |  rflow    |   30    |  1~2 min   | 13.71      |  411.30  | [yaml](configs/opensora-v1-2/inference/sample_t2v.yaml) | 
+| STDiT2-XL/2  |  1     | 1          | 16x640x360   | O0       | bf16       |  ddpm     |   100   |  1~2 mins |  1.56    |    156.00      |  [yaml](configs/opensora-v1-1/inference/sample_t2v.yaml) |
+| STDiT3-XL/2  |  1     | 1          | 51x720x1280   | O0      | bf16       |  rflow    |   30    |  1~2 mins  |  5.88      |  176.40   | [yaml](configs/opensora-v1-2/inference/sample_t2v.yaml) |
+| STDiT3-XL/2  |  1     | 1          | 102x720x1280  | O0      | bf16       |  rflow    |   30    |  1~2 min   | 13.71      |  411.30  | [yaml](configs/opensora-v1-2/inference/sample_t2v.yaml) |
 
 
 
@@ -668,14 +668,14 @@ Here ✅ means that the data is seen during training, and 🆗 means although no
 We evaluate the training performance of Open-Sora v1.2 on the MixKit dataset with high-resolution videos (1080P, duration 12s to 100s).
 
 Experiments are tested on ascend 910* with mindspore 2.3.1 graph mode.
-| model name   | cards  | batch size | resolution | precision  | sink      | jit level | graph compile |  s/step | recipe | 
+| model name   | cards  | batch size | resolution | precision  | sink      | jit level | graph compile |  s/step | recipe |
 | :--:         | :--:   | :--:       | :--:       | :--:       | :--:      | :--:      |:--:          | :--:       | :--:   |
 | STDiT3-XL/2  |  8     | 1          | 51x720x1280| bf16       | ON      | O1        |    12 mins   | 14.23   | [yaml](configs/opensora-v1-2/train/train_720x1280x51.yaml)
 | STDiT3-XL/2  |  8     | dynamic    | stage 1 | bf16       |   OFF    | O1        |      22 mins   | 13.17   | [yaml](configs/opensora-v1-2/train/train_stage1_ms.yaml)
 | STDiT3-XL/2  |  8     | dynamic    | stage 2 | bf16       |   OFF    | O1        |     22 mins     | 31.04   | [yaml](configs/opensora-v1-2/train/train_stage2_ms.yaml)
 | STDiT3-XL/2  |  8     | dynamic    | stage 3 | bf16       |   OFF    | O1        |     22 mins     | 31.17   | [yaml](configs/opensora-v1-2/train/train_stage3_ms.yaml)
 
-Note that the step time of dynamic training can be influenced by the resolution and duration distribution of the source videos. 
+Note that the step time of dynamic training can be influenced by the resolution and duration distribution of the source videos.
 
 To reproduce the above performance, you may refer to `scripts/run/run_train_os1.2_720x1280x51.sh` and  `scripts/run/run_train_os1.2_stage2.sh`.
 
@@ -713,14 +713,14 @@ We evaluate the training performance of Open-Sora v1.1 on a subset of the MixKit
 Experiments are tested on ascend 910* with mindspore 2.3.1 graph mode.
 
 | model name   | cards  | batch size | resolution   | vae cache  | precision  | sink       | jit level    | graph compile | s/step    | recipe |
-| :--:         | :--:   | :--:       | :--:         | :--:       | :--:       | :--:       | :--:         | :--:          | :--:      | :--:   | 
-| STDiT3-XL/2  |  8     | 1          | 64x512x512   | OFF        | bf16       | OFF        | O1           |  13 mins      | 8.57      | [yaml](configs/opensora-v1-1/train/stdit2_512x512x64.yaml) | 
+| :--:         | :--:   | :--:       | :--:         | :--:       | :--:       | :--:       | :--:         | :--:          | :--:      | :--:   |
+| STDiT3-XL/2  |  8     | 1          | 64x512x512   | OFF        | bf16       | OFF        | O1           |  13 mins      | 8.57      | [yaml](configs/opensora-v1-1/train/stdit2_512x512x64.yaml) |
 | STDiT3-XL/2  |  8     | 1          | 24x576x1024  | OFF        | bf16       | OFF        | O1           |  13 mins      | 8.55      | [yaml](configs/opensora-v1-1/train/stdit2_576x1024x24.yaml) |
 | STDiT3-XL/2  |  8     | 1          | 64x576x1024  | ON         | bf16       | OFF        | O1           |  13 mins      | 18.94     | [yaml](configs/opensora-v1-1/train/stdit2_576x1024x24.yaml) |
 
-> vae cache: whether vae embedding is pre-computed and cached before training. 
+> vae cache: whether vae embedding is pre-computed and cached before training.
 
-Note that T5 text embedding is pre-computed before training. 
+Note that T5 text embedding is pre-computed before training.
 
 Here are some generation results after fine-tuning STDiT2 on a mixkit subset.
 
@@ -753,8 +753,8 @@ Here are some generation results after fine-tuning STDiT2 on a mixkit subset.
 #### Training Performance
 
 Experiments are tested on ascend 910* with mindspore 2.3.1 graph mode.
-| model name   | cards  | batch size | resolution   | stage | precision | sink |  jit level   | graph compile | s/step | recipe | 
-| :--:         | :--:   | :--:       | :--:         | :--:  | :--:      |:--:  | :--:         | :--:          |:--:    |:--:    | 
+| model name   | cards  | batch size | resolution   | stage | precision | sink |  jit level   | graph compile | s/step | recipe |
+| :--:         | :--:   | :--:       | :--:         | :--:  | :--:      |:--:  | :--:         | :--:          |:--:    |:--:    |
 | STDiT-XL/2  |  8     | 3          | 16x256x256   | 1     | bf16      |  ON  | O1           | 5~6 mins      |  1.43  | [yaml](configs/opensora/train/stdit_256x256x16_ms.yaml) |
 | STDiT-XL/2  |  8     | 1          | 16x512x512   | 2     | bf16      |  ON  | O1           | 5~6 mins      |  2.05  | [yaml](configs/opensora/train/stdit_512x512x16.yaml) |
 | STDiT-XL/2  |  8     | 1          | 64x512x512   | 3     | bf16      |  ON  | O1           | 5~6 mins      |  7.82  | [yaml](configs/opensora/train/stdit_512x512x64_ms.yaml) |
@@ -868,7 +868,7 @@ Experiments are tested on ascend 910* with mindspore 2.3.0 graph mode.
 
 | model name   | cards  | batch size | resolution   |  precision  |  jit level    | graph compile | s/step    | PSNR   | SSIM  | recipe |
 | :--:         | :--:   | :--:       | :--:         | :--:       | :--:         | :--:          | :--:      | :--:   | :--:      | :--:      |
-| VAE-3D  |  8     | 1          | 17x256x256   | bf16       |  O1           |  5~10 mins      | 0.93     |  29.29   | 0.88  | [yaml](configs/vae/train/stage3.yaml) | 
+| VAE-3D  |  8     | 1          | 17x256x256   | bf16       |  O1           |  5~10 mins      | 0.93     |  29.29   | 0.88  | [yaml](configs/vae/train/stage3.yaml) |
 
 
 Note that we train with mixed video ang image strategy i.e. `--mixed_strategy=mixed_video_image` for stage 3 instead of random number of frames (`mixed_video_random`). Random frame training will be supported in the future.
