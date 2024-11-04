@@ -672,8 +672,8 @@ Experiments are tested on ascend 910* with mindspore 2.3.1 graph mode.
 | :--:         | :--:   | :--:       | :--:       | :--:       | :--:      | :--:      |:--:          | :--:       | :--:   |
 | STDiT3-XL/2  |  8     | 1          | 51x720x1280| bf16       | ON      | O1        |    12 mins   | 14.23   | [yaml](configs/opensora-v1-2/train/train_720x1280x51.yaml)
 | STDiT3-XL/2  |  8     | dynamic    | stage 1 | bf16       |   OFF    | O1        |      22 mins   | 13.17   | [yaml](configs/opensora-v1-2/train/train_stage1_ms.yaml)
-| STDiT3-XL/2  |  8     | dynamic    | stage 2 | bf16       |   OFF    | O1        |     22 mins     |   (tbu)   | [yaml](configs/opensora-v1-2/train/train_stage2_ms.yaml)
-| STDiT3-XL/2  |  8     | dynamic    | stage 3 | bf16       |   OFF    | O1        |     22 mins     | 31.17   | [yaml](configs/opensora-v1-2/train/train_stage3.yaml)
+| STDiT3-XL/2  |  8     | dynamic    | stage 2 | bf16       |   OFF    | O1        |     22 mins     | 31.04   | [yaml](configs/opensora-v1-2/train/train_stage2_ms.yaml)
+| STDiT3-XL/2  |  8     | dynamic    | stage 3 | bf16       |   OFF    | O1        |     22 mins     | 31.17   | [yaml](configs/opensora-v1-2/train/train_stage3_ms.yaml)
 
 Note that the step time of dynamic training can be influenced by the resolution and duration distribution of the source videos. 
 
