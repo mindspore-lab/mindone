@@ -174,9 +174,9 @@ python demo/sampling_without_streamlit.py \
 ## Performance
 
 Experiments are tested on ascend 910* with mindspore 2.3.1 graph mode.
-| model name    | resolution | graph compile |flash attn| sampler  | sample step | s/img |
-|:-------------:|:---------:|:------------:|:-------------:|:--------:|:-----------:|:-----------:|
-| SDXL-Base     | 1024x1024 | 533.59s      | ON            | EulerEDM | 40          | 6.78s       |
-| SDXL-Base     | 1024x1024 | 631.39s      | ON            | DPM++2M Karras | 20    | 3.62s       |
-| SDXL-Refiner  | 1024x1024 | 395.14s        | ON          | EulerEDM | 40          | 10.18s      |
-| SDXL-Pipeline | 1024x1024 | 324.83s/236.9s | ON          | EulerEDM | 20          | 5.78s/2.15s |
+| model name    | resolution |flash attn     | sampler        | steps        | jit level  | graph compile | s/img |
+|:-------------:|:---------:  |:-------------:|:--------:      |:-----------:| :--:       |:------------: |:-----------:|
+| SDXL-Base     | 1024x1024   | ON            | EulerEDM       | 40          | O2         | 533.59s       | 6.78       |
+| SDXL-Base     | 1024x1024   | ON            | DPM++2M Karras | 20          | O2         | 631.39s       | 3.62       |
+| SDXL-Refiner  | 1024x1024   | ON            | EulerEDM       | 40          | O2         | 395.14s       | 10.18      |
+| SDXL-Pipeline | 1024x1024   | ON            | EulerEDM       | 20          | O2         | 324.83s/236.9s| 5.78/2.15 |

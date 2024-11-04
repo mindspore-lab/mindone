@@ -45,7 +45,8 @@ python demo/sampling_without_streamlit.py \
 
 Experiments are tested on ascend 910* with mindspore 2.3.1 graph mode.
 
-| model name      | cards | batch size | grad accu. |   resolution    |   sink   | flash attn |jit level| graph compile |  ms/step  |   img/s |
-|---------------|:--------:|:----------:|:----------------:|:--------:|:--------:|:--:|:----------:|:------:|------------------|:----------------:|
-| SDXL-Base | 1 | 1 | 1 | 1024x1024 | ON  |OFF  |O2| 20~25mins    | 553.47 | 1.80 |
-| SDXL-Base | 1 | 1 | 1 | 1024x1024 | ON  |ON   |O2| 20~25mins    | 446.74 | 2.24 |
+| model name| cards  |batch size  |    resolution    | grad accu        |   sink   | flash attn |jit level| graph compile |  ms/step  |   img/s |
+|:---------:|:------:|:----------:|:--------:       |:----------------:|:--------:|:--:|:----------:|:------:|------------------|:----------------:|
+| SDXL-Base | 1      | 1          | 1024x1024       | 1                | ON  |OFF  |O2| 20~25mins    | 553.47 | 1.80 |
+| SDXL-Base | 1      | 1          | 1024x1024       | 1                | ON  |ON   |O2| 20~25mins    | 446.74 | 2.24 |
+> grad accu: gradient accumulation steps.
