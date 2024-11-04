@@ -13,7 +13,7 @@ model:
   dtype: bf16
 
 vae:
-  pretrained_model_name_or_path: stabilityai/sd-vae-ft-ema
+  ckpt_path: models/OpenSora-VAE-v1.2/model.ckpt
   dtype: fp16
 
 dataset:

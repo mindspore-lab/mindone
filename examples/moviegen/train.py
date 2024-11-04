@@ -6,7 +6,7 @@ from typing import Literal, Optional
 from jsonargparse import ActionConfigFile, ArgumentParser
 from jsonargparse.typing import Path_fr, path_type
 
-from mindspore import Model, nn
+from mindspore import Model, amp, nn
 from mindspore.train.callback import TimeMonitor
 
 # TODO: remove in future when mindone is ready for install
@@ -21,11 +21,14 @@ from moviegen.schedulers import RFlowLossWrapper
 from moviegen.utils import EMA, MODEL_DTYPE, MODEL_SPEC, load_ckpt_params
 
 from mindone.data import create_dataloader
-from mindone.diffusers import AutoencoderKL
 from mindone.trainers import create_optimizer, create_scheduler
 from mindone.trainers.callback import EvalSaveCallback, OverflowMonitor
 from mindone.trainers.zero import prepare_train_network
 from mindone.utils import count_params, init_train_env, set_logger
+
+# TODO: remove when VAE is added to the project
+sys.path.append(os.path.join(__dir__, "../opensora_hpcai/"))
+from opensora.models.vae.vae import OpenSoraVAE_V1_2
 
 logger = logging.getLogger(__name__)
 
@@ -72,14 +75,18 @@ def main(args):
     logger.info("vae init")
     # TODO: add support of training with latents
     vae_args = args.vae.as_dict()
-    vae_args["mindspore_dtype"] = MODEL_DTYPE[vae_args.pop("dtype")]  # Replace non-standard key
-    vae = AutoencoderKL.from_pretrained(**vae_args, local_files_only=True)
+    vae_dtype = vae_args.pop("dtype")
+    vae = OpenSoraVAE_V1_2(**vae_args).set_train(False)
+    if vae_dtype != "fp32":
+        vae_dtype = MODEL_DTYPE[vae_dtype]
+        # FIXME: remove AMP and add custom dtype conversion support for better compatibility with PyNative
+        amp.custom_mixed_precision(vae, black_list=amp.get_black_list() + [nn.GroupNorm], dtype=vae_dtype)
 
     # 2.4 LossWrapper
     rflow_loss_wrapper = RFlowLossWrapper(network)
 
     # 3. build training network
-    latent_diffusion_with_loss = DiffusionWithLoss(rflow_loss_wrapper, vae, scale_factor=vae.config.scaling_factor)
+    latent_diffusion_with_loss = DiffusionWithLoss(rflow_loss_wrapper, vae)
 
     # 4. build dataset
     dataset = ImageVideoDataset(**args.dataset)
@@ -174,7 +181,7 @@ if __name__ == "__main__":
     )
     parser.add_function_arguments(init_train_env, "env")
     parser.add_function_arguments(init_model, "model")
-    parser.add_method_arguments(AutoencoderKL, "from_pretrained", "vae", fail_untyped=True)
+    parser.add_function_arguments(OpenSoraVAE_V1_2, "vae", fail_untyped=False)
     parser.add_argument(
         "--vae.dtype", default="fp32", type=str, choices=["fp32", "fp16", "bf16"], help="VAE model precision."
     )

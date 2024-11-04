@@ -1,6 +1,6 @@
 from typing import Optional
 
-from mindspore import Tensor, nn, ops
+from mindspore import Tensor, nn, ops, float32
 
 from ..schedulers import RFlowLossWrapper
 from ..utils.model_utils import no_grad
@@ -14,7 +14,6 @@ class DiffusionWithLoss(nn.Cell):
         network: RFlowLossWrapper,
         vae: Optional[nn.Cell] = None,
         text_encoder: Optional[nn.Cell] = None,
-        scale_factor: float = 0.13025,
         text_emb_cached: bool = True,
         video_emb_cached: bool = False,
     ):
@@ -28,7 +27,6 @@ class DiffusionWithLoss(nn.Cell):
         self.network = network
         self.vae = vae
         self.text_encoder = text_encoder
-        self.scale_factor = scale_factor
         self.text_emb_cached = text_emb_cached
         self.video_emb_cached = video_emb_cached
 
@@ -51,10 +49,10 @@ class DiffusionWithLoss(nn.Cell):
         if self.video_emb_cached:
             return video_tokens
         with no_grad():
-            b, f, *_ = video_tokens.shape  # FIXME: no VideoAutoencoderKL in mindone.differs
-            video_tokens = video_tokens.reshape(-1, *video_tokens.shape[2:])
-            video_emb = ops.stop_gradient(self.vae.encode(video_tokens.astype(self.vae.dtype))[0] * self.scale_factor)
-            video_emb = video_emb.reshape(b, f, *video_emb.shape[1:])
+            # (b c f h w) shape is expected. FIXME: remove this redundancy
+            video_tokens = ops.transpose(video_tokens, (0, 2, 1, 3, 4))
+            video_emb = ops.stop_gradient(self.vae.encode(video_tokens)).astype(float32)
+            video_emb = ops.transpose(video_emb, (0, 2, 1, 3, 4))   # FIXME
         return video_emb
 
     def construct(self, video_tokens: Tensor, ul2_tokens: Tensor, byt5_tokens: Tensor) -> Tensor:
