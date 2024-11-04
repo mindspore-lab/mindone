@@ -134,12 +134,6 @@ Videos are downsampled to `.gif` for display. Click for original videos. Prompts
 
 </details>
 
-### TODO
-* [ ] Optimizer-parallel and sequence-parallel training **[WIP]**
-* [ ] Scaling model parameters and dataset size.
-
-Your contributions are welcome.
-
 <details>
 <summary>View more</summary>
 
