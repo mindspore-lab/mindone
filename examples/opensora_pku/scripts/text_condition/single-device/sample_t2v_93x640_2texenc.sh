@@ -1,5 +1,8 @@
+# This script is for futher function
+# Does not work yet for 2nd text encoder
+
 export DEVICE_ID=0
-python opensora/sample/sample_v1_3.py \
+python opensora/sample/sample.py \
     --model_path LanguageBind/Open-Sora-Plan-v1.3.0/any93x640x640 \
     --version v1_3 \
     --num_frames 93 \

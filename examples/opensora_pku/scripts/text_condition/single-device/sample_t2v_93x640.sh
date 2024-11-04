@@ -2,7 +2,7 @@
 # So keep the resolution of the inference a multiple of 32. Frames needs to be 4n+1, e.g. 93, 77, 61, 45, 29, 1 (image).
 
 export DEVICE_ID=0
-python opensora/sample/sample_v1_3.py \
+python opensora/sample/sample.py \
     --model_path LanguageBind/Open-Sora-Plan-v1.3.0/any93x640x640 \
     --version v1_3 \
     --num_frames 93 \
