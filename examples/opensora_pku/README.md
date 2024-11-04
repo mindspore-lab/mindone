@@ -337,14 +337,14 @@ python examples/rec_video_folder.py \
 Runing this command will generate reconstructed videos under the given `output_generated_video_dir`. You can then evalute some common metrics (e.g., ssim, psnr) using the script under `opensora/eval/script`.
 
 
-####  Performance Evaluation
+####  Performance
 
 Here, we report the training performance and evaluation results on the UCF-101 dataset. Experiments are tested on Ascend 910* with mindspore 2.3.1 graph mode.
 
 | model name  | cards  |  batch size | resolution | graph compile | precision | discriminator |sink | jit level| s/step | img/s  | psnr | ssim  |
-|:-----------|:------ |:-----------:|:----------:|:-------------:|:----------:|:------------:|:---:|:--------:|--------:|------:|:----:|-------:|
-| CausalVAE  |  8     |       1    |  9x256x256  |     3 mins   |   FP32     |    TRUE      | OFF  |    O0   |    2.04   |  35.29 |  29.30 |   0.88    |
-| CausalVAE  |  8    |       1     | 25x256x256  |    3 mins   |   BF16     |     FALSE    |  OFF |     O0  |     4.21   |  47.51 | 28.92 |    0.87    |
+|:-----------:|:------: |:-----------:|:----------:|:-------------:|:----------:|:------------:|:---:|:--------:|--------:|------:|:----:|-------:|
+| CausalVAE  |  8     |       1    |  9x256x256  |     3 mins   |   fp32     |    ON      | OFF  |    O0   |    2.04   |  35.29 |  29.30 |   0.88    |
+| CausalVAE  |  8    |       1     | 25x256x256  |    3 mins   |   bf16     |     OFF    |  OFF |     O0  |     4.21   |  47.51 | 28.92 |    0.87    |
 
 
 

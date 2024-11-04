@@ -134,13 +134,12 @@ bash scripts/run_distributed.sh -h
 ## 评估
 
 实验在MindSpore 2.3.1（图模式）的Ascend 910*上进行验证：
-
-| model name | cards | resolution | batch size | recompute | sink | jit level | graph compile | s/step | img/s |
-| :--------: | :---: | :--------: | :-----------: | :--------: | :-------: | :---------------: | :-------: | :-------: | :-----------: |
-|    dit     |   1   |  256x256   |      64     |    OFF   |        ON         |    O2     |  3~5 mins    |   0.89   |     71.91     |
-|    dit     |   1   |  256x256   |     64     |    ON     |        ON         |    O2     |   3~5 mins    |   0.95   |     67.37     |
-|    dit     |   4   |  256x256   |     64     |    ON     |        ON         |    O2     |   3~5 mins    |   1.03   |    248.52     |
-|    dit     |   8   |  256x256   |     64     |    ON     |        ON         |    O2     |   3~5 mins    |   0.93   |    515.61     |
+| model name | cards | batch size   | resolution  | recompute | sink | jit level | graph compile | s/step | img/s |
+| :--------: | :---: | :-----------:| :--------:  | :--------: | :-------: | :---------------: | :-------: | :-------: | :-----------: |
+|    dit     |   1   |      64      |  256x256    |    OFF    |        ON         |    O2     |  3~5 mins    |   0.89   |     71.91     |
+|    dit     |   1   |     64       |  256x256    |    ON     |        ON         |    O2     |   3~5 mins    |   0.95   |     67.37     |
+|    dit     |   4   |     64       |  256x256    |    ON     |        ON         |    O2     |   3~5 mins    |   1.03   |    248.52     |
+|    dit     |   8   |     64       |  256x256    |    ON     |        ON         |    O2     |   3~5 mins    |   0.93   |    515.61     |
 
 
 # 参考文献

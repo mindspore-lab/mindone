@@ -230,7 +230,7 @@ bash scripts/run_distributed_sky_numpy_video.sh path/to/rank/table 0 4
 The first number `0` indicates the start index of the training devices, and the second number `4` indicates the total number of distributed processes you want to launch.
 
 
-## 5. Evaluation
+## 5. Performance
 
 Experiments are tested on ascend 910* with mindspore 2.3.1 graph mode:
 
