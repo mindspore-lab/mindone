@@ -104,7 +104,7 @@ class VideoDatasetRefactored(BaseDataset):
         self._vae_scale_factor = vae_scale_factor
         self._fmask_gen = frames_mask_generator
         if t_compress_func is None:
-            self._t_compress_func = lambda x: x 
+            self._t_compress_func = lambda x: x
         else:
             self._t_compress_func = t_compress_func
         self._pre_patchify = pre_patchify
@@ -251,7 +251,7 @@ class VideoDatasetRefactored(BaseDataset):
             latent_mean, latent_std = latent_mean[batch_index], latent_std[batch_index]
             vae_latent = latent_mean + latent_std * np.random.standard_normal(latent_mean.shape)
             video = (vae_latent * self._vae_scale_factor).astype(np.float32)
-            
+
             data["height"] = np.array(video.shape[-2] * self._vae_downsample_rate, dtype=np.float32)
             data["width"] = np.array(video.shape[-1] * self._vae_downsample_rate, dtype=np.float32)
             # NOTE: here ar = h / w, aligned to torch, while the common practice is w / h

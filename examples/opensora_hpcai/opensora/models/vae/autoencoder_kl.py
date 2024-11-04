@@ -1,5 +1,5 @@
 import mindspore as ms
-from mindspore import nn, ops, mint
+from mindspore import nn, ops
 
 from ..layers.operation_selector import get_split_op
 from .modules import Decoder, Encoder
@@ -93,7 +93,6 @@ class AutoencoderKL(nn.Cell):
         logvar = ops.clip_by_value(logvar, -30.0, 20.0)
         std = self.exp(0.5 * logvar)
         z = mean + std * self.stdnormal(mean.shape)
-        # z = mean + std * mint.normal(size=mean.shape)
 
         return z
 
