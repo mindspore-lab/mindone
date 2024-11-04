@@ -2,670 +2,670 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
     <url>
          <loc>https://mindspore-lab.github.io/mindone/0.2/</loc>
-         <lastmod>2024-11-01</lastmod>
+         <lastmod>2024-11-04</lastmod>
     </url>
     <url>
          <loc>https://mindspore-lab.github.io/mindone/0.2/diffusers/</loc>
-         <lastmod>2024-11-01</lastmod>
+         <lastmod>2024-11-04</lastmod>
     </url>
     <url>
          <loc>https://mindspore-lab.github.io/mindone/0.2/diffusers/installation/</loc>
-         <lastmod>2024-11-01</lastmod>
+         <lastmod>2024-11-04</lastmod>
     </url>
     <url>
          <loc>https://mindspore-lab.github.io/mindone/0.2/diffusers/limitations/</loc>
-         <lastmod>2024-11-01</lastmod>
+         <lastmod>2024-11-04</lastmod>
     </url>
     <url>
          <loc>https://mindspore-lab.github.io/mindone/0.2/diffusers/quicktour/</loc>
-         <lastmod>2024-11-01</lastmod>
+         <lastmod>2024-11-04</lastmod>
     </url>
     <url>
          <loc>https://mindspore-lab.github.io/mindone/0.2/diffusers/stable_diffusion/</loc>
-         <lastmod>2024-11-01</lastmod>
+         <lastmod>2024-11-04</lastmod>
     </url>
     <url>
          <loc>https://mindspore-lab.github.io/mindone/0.2/diffusers/api/activations/</loc>
-         <lastmod>2024-11-01</lastmod>
+         <lastmod>2024-11-04</lastmod>
     </url>
     <url>
          <loc>https://mindspore-lab.github.io/mindone/0.2/diffusers/api/attnprocessor/</loc>
-         <lastmod>2024-11-01</lastmod>
+         <lastmod>2024-11-04</lastmod>
     </url>
     <url>
          <loc>https://mindspore-lab.github.io/mindone/0.2/diffusers/api/configuration/</loc>
-         <lastmod>2024-11-01</lastmod>
+         <lastmod>2024-11-04</lastmod>
     </url>
     <url>
          <loc>https://mindspore-lab.github.io/mindone/0.2/diffusers/api/image_processor/</loc>
-         <lastmod>2024-11-01</lastmod>
+         <lastmod>2024-11-04</lastmod>
     </url>
     <url>
          <loc>https://mindspore-lab.github.io/mindone/0.2/diffusers/api/internal_classes_overview/</loc>
-         <lastmod>2024-11-01</lastmod>
+         <lastmod>2024-11-04</lastmod>
     </url>
     <url>
          <loc>https://mindspore-lab.github.io/mindone/0.2/diffusers/api/logging/</loc>
-         <lastmod>2024-11-01</lastmod>
+         <lastmod>2024-11-04</lastmod>
     </url>
     <url>
          <loc>https://mindspore-lab.github.io/mindone/0.2/diffusers/api/normalization/</loc>
-         <lastmod>2024-11-01</lastmod>
+         <lastmod>2024-11-04</lastmod>
     </url>
     <url>
          <loc>https://mindspore-lab.github.io/mindone/0.2/diffusers/api/outputs/</loc>
-         <lastmod>2024-11-01</lastmod>
+         <lastmod>2024-11-04</lastmod>
     </url>
     <url>
          <loc>https://mindspore-lab.github.io/mindone/0.2/diffusers/api/utilities/</loc>
-         <lastmod>2024-11-01</lastmod>
+         <lastmod>2024-11-04</lastmod>
     </url>
     <url>
          <loc>https://mindspore-lab.github.io/mindone/0.2/diffusers/api/video_processor/</loc>
-         <lastmod>2024-11-01</lastmod>
+         <lastmod>2024-11-04</lastmod>
     </url>
     <url>
          <loc>https://mindspore-lab.github.io/mindone/0.2/diffusers/api/loaders/ip_adapter/</loc>
-         <lastmod>2024-11-01</lastmod>
+         <lastmod>2024-11-04</lastmod>
     </url>
     <url>
          <loc>https://mindspore-lab.github.io/mindone/0.2/diffusers/api/loaders/lora/</loc>
-         <lastmod>2024-11-01</lastmod>
+         <lastmod>2024-11-04</lastmod>
     </url>
     <url>
          <loc>https://mindspore-lab.github.io/mindone/0.2/diffusers/api/loaders/peft/</loc>
-         <lastmod>2024-11-01</lastmod>
+         <lastmod>2024-11-04</lastmod>
     </url>
     <url>
          <loc>https://mindspore-lab.github.io/mindone/0.2/diffusers/api/loaders/single_file/</loc>
-         <lastmod>2024-11-01</lastmod>
+         <lastmod>2024-11-04</lastmod>
     </url>
     <url>
          <loc>https://mindspore-lab.github.io/mindone/0.2/diffusers/api/loaders/textual_inversion/</loc>
-         <lastmod>2024-11-01</lastmod>
+         <lastmod>2024-11-04</lastmod>
     </url>
     <url>
          <loc>https://mindspore-lab.github.io/mindone/0.2/diffusers/api/loaders/unet/</loc>
-         <lastmod>2024-11-01</lastmod>
+         <lastmod>2024-11-04</lastmod>
     </url>
     <url>
          <loc>https://mindspore-lab.github.io/mindone/0.2/diffusers/api/models/asymmetricautoencoderkl/</loc>
-         <lastmod>2024-11-01</lastmod>
+         <lastmod>2024-11-04</lastmod>
     </url>
     <url>
          <loc>https://mindspore-lab.github.io/mindone/0.2/diffusers/api/models/autoencoder_tiny/</loc>
-         <lastmod>2024-11-01</lastmod>
+         <lastmod>2024-11-04</lastmod>
     </url>
     <url>
          <loc>https://mindspore-lab.github.io/mindone/0.2/diffusers/api/models/autoencoderkl/</loc>
-         <lastmod>2024-11-01</lastmod>
+         <lastmod>2024-11-04</lastmod>
     </url>
     <url>
          <loc>https://mindspore-lab.github.io/mindone/0.2/diffusers/api/models/consistency_decoder_vae/</loc>
-         <lastmod>2024-11-01</lastmod>
+         <lastmod>2024-11-04</lastmod>
     </url>
     <url>
          <loc>https://mindspore-lab.github.io/mindone/0.2/diffusers/api/models/controlnet/</loc>
-         <lastmod>2024-11-01</lastmod>
+         <lastmod>2024-11-04</lastmod>
     </url>
     <url>
          <loc>https://mindspore-lab.github.io/mindone/0.2/diffusers/api/models/controlnet_sd3/</loc>
-         <lastmod>2024-11-01</lastmod>
+         <lastmod>2024-11-04</lastmod>
     </url>
     <url>
          <loc>https://mindspore-lab.github.io/mindone/0.2/diffusers/api/models/dit_transformer2d/</loc>
-         <lastmod>2024-11-01</lastmod>
+         <lastmod>2024-11-04</lastmod>
     </url>
     <url>
          <loc>https://mindspore-lab.github.io/mindone/0.2/diffusers/api/models/hunyuan_transformer2d/</loc>
-         <lastmod>2024-11-01</lastmod>
+         <lastmod>2024-11-04</lastmod>
     </url>
     <url>
          <loc>https://mindspore-lab.github.io/mindone/0.2/diffusers/api/models/overview/</loc>
-         <lastmod>2024-11-01</lastmod>
+         <lastmod>2024-11-04</lastmod>
     </url>
     <url>
          <loc>https://mindspore-lab.github.io/mindone/0.2/diffusers/api/models/pixart_transformer2d/</loc>
-         <lastmod>2024-11-01</lastmod>
+         <lastmod>2024-11-04</lastmod>
     </url>
     <url>
          <loc>https://mindspore-lab.github.io/mindone/0.2/diffusers/api/models/prior_transformer/</loc>
-         <lastmod>2024-11-01</lastmod>
+         <lastmod>2024-11-04</lastmod>
     </url>
     <url>
          <loc>https://mindspore-lab.github.io/mindone/0.2/diffusers/api/models/sd3_transformer2d/</loc>
-         <lastmod>2024-11-01</lastmod>
+         <lastmod>2024-11-04</lastmod>
     </url>
     <url>
          <loc>https://mindspore-lab.github.io/mindone/0.2/diffusers/api/models/transformer2d/</loc>
-         <lastmod>2024-11-01</lastmod>
+         <lastmod>2024-11-04</lastmod>
     </url>
     <url>
          <loc>https://mindspore-lab.github.io/mindone/0.2/diffusers/api/models/transformer_temporal/</loc>
-         <lastmod>2024-11-01</lastmod>
+         <lastmod>2024-11-04</lastmod>
     </url>
     <url>
          <loc>https://mindspore-lab.github.io/mindone/0.2/diffusers/api/models/unet-motion/</loc>
-         <lastmod>2024-11-01</lastmod>
+         <lastmod>2024-11-04</lastmod>
     </url>
     <url>
          <loc>https://mindspore-lab.github.io/mindone/0.2/diffusers/api/models/unet/</loc>
-         <lastmod>2024-11-01</lastmod>
+         <lastmod>2024-11-04</lastmod>
     </url>
     <url>
          <loc>https://mindspore-lab.github.io/mindone/0.2/diffusers/api/models/unet2d-cond/</loc>
-         <lastmod>2024-11-01</lastmod>
+         <lastmod>2024-11-04</lastmod>
     </url>
     <url>
          <loc>https://mindspore-lab.github.io/mindone/0.2/diffusers/api/models/unet2d/</loc>
-         <lastmod>2024-11-01</lastmod>
+         <lastmod>2024-11-04</lastmod>
     </url>
     <url>
          <loc>https://mindspore-lab.github.io/mindone/0.2/diffusers/api/models/unet3d-cond/</loc>
-         <lastmod>2024-11-01</lastmod>
+         <lastmod>2024-11-04</lastmod>
     </url>
     <url>
          <loc>https://mindspore-lab.github.io/mindone/0.2/diffusers/api/models/uvit2d/</loc>
-         <lastmod>2024-11-01</lastmod>
+         <lastmod>2024-11-04</lastmod>
     </url>
     <url>
          <loc>https://mindspore-lab.github.io/mindone/0.2/diffusers/api/models/vq/</loc>
-         <lastmod>2024-11-01</lastmod>
+         <lastmod>2024-11-04</lastmod>
     </url>
     <url>
          <loc>https://mindspore-lab.github.io/mindone/0.2/diffusers/api/pipelines/animatediff/</loc>
-         <lastmod>2024-11-01</lastmod>
+         <lastmod>2024-11-04</lastmod>
     </url>
     <url>
          <loc>https://mindspore-lab.github.io/mindone/0.2/diffusers/api/pipelines/blip_diffusion/</loc>
-         <lastmod>2024-11-01</lastmod>
+         <lastmod>2024-11-04</lastmod>
     </url>
     <url>
          <loc>https://mindspore-lab.github.io/mindone/0.2/diffusers/api/pipelines/consistency_models/</loc>
-         <lastmod>2024-11-01</lastmod>
+         <lastmod>2024-11-04</lastmod>
     </url>
     <url>
          <loc>https://mindspore-lab.github.io/mindone/0.2/diffusers/api/pipelines/controlnet/</loc>
-         <lastmod>2024-11-01</lastmod>
+         <lastmod>2024-11-04</lastmod>
     </url>
     <url>
          <loc>https://mindspore-lab.github.io/mindone/0.2/diffusers/api/pipelines/controlnet_sd3/</loc>
-         <lastmod>2024-11-01</lastmod>
+         <lastmod>2024-11-04</lastmod>
     </url>
     <url>
          <loc>https://mindspore-lab.github.io/mindone/0.2/diffusers/api/pipelines/controlnet_sdxl/</loc>
-         <lastmod>2024-11-01</lastmod>
+         <lastmod>2024-11-04</lastmod>
     </url>
     <url>
          <loc>https://mindspore-lab.github.io/mindone/0.2/diffusers/api/pipelines/controlnetxs/</loc>
-         <lastmod>2024-11-01</lastmod>
+         <lastmod>2024-11-04</lastmod>
     </url>
     <url>
          <loc>https://mindspore-lab.github.io/mindone/0.2/diffusers/api/pipelines/controlnetxs_sdxl/</loc>
-         <lastmod>2024-11-01</lastmod>
+         <lastmod>2024-11-04</lastmod>
     </url>
     <url>
          <loc>https://mindspore-lab.github.io/mindone/0.2/diffusers/api/pipelines/dance_diffusion/</loc>
-         <lastmod>2024-11-01</lastmod>
+         <lastmod>2024-11-04</lastmod>
     </url>
     <url>
          <loc>https://mindspore-lab.github.io/mindone/0.2/diffusers/api/pipelines/ddim/</loc>
-         <lastmod>2024-11-01</lastmod>
+         <lastmod>2024-11-04</lastmod>
     </url>
     <url>
          <loc>https://mindspore-lab.github.io/mindone/0.2/diffusers/api/pipelines/ddpm/</loc>
-         <lastmod>2024-11-01</lastmod>
+         <lastmod>2024-11-04</lastmod>
     </url>
     <url>
          <loc>https://mindspore-lab.github.io/mindone/0.2/diffusers/api/pipelines/deepfloyd_if/</loc>
-         <lastmod>2024-11-01</lastmod>
+         <lastmod>2024-11-04</lastmod>
     </url>
     <url>
          <loc>https://mindspore-lab.github.io/mindone/0.2/diffusers/api/pipelines/diffedit/</loc>
-         <lastmod>2024-11-01</lastmod>
+         <lastmod>2024-11-04</lastmod>
     </url>
     <url>
          <loc>https://mindspore-lab.github.io/mindone/0.2/diffusers/api/pipelines/dit/</loc>
-         <lastmod>2024-11-01</lastmod>
+         <lastmod>2024-11-04</lastmod>
     </url>
     <url>
          <loc>https://mindspore-lab.github.io/mindone/0.2/diffusers/api/pipelines/hunyuandit/</loc>
-         <lastmod>2024-11-01</lastmod>
+         <lastmod>2024-11-04</lastmod>
     </url>
     <url>
          <loc>https://mindspore-lab.github.io/mindone/0.2/diffusers/api/pipelines/i2vgenxl/</loc>
-         <lastmod>2024-11-01</lastmod>
+         <lastmod>2024-11-04</lastmod>
     </url>
     <url>
          <loc>https://mindspore-lab.github.io/mindone/0.2/diffusers/api/pipelines/kandinsky/</loc>
-         <lastmod>2024-11-01</lastmod>
+         <lastmod>2024-11-04</lastmod>
     </url>
     <url>
          <loc>https://mindspore-lab.github.io/mindone/0.2/diffusers/api/pipelines/kandinsky3/</loc>
-         <lastmod>2024-11-01</lastmod>
+         <lastmod>2024-11-04</lastmod>
     </url>
     <url>
          <loc>https://mindspore-lab.github.io/mindone/0.2/diffusers/api/pipelines/kandinsky_v22/</loc>
-         <lastmod>2024-11-01</lastmod>
+         <lastmod>2024-11-04</lastmod>
     </url>
     <url>
          <loc>https://mindspore-lab.github.io/mindone/0.2/diffusers/api/pipelines/latent_consistency_models/</loc>
-         <lastmod>2024-11-01</lastmod>
+         <lastmod>2024-11-04</lastmod>
     </url>
     <url>
          <loc>https://mindspore-lab.github.io/mindone/0.2/diffusers/api/pipelines/latent_diffusion/</loc>
-         <lastmod>2024-11-01</lastmod>
+         <lastmod>2024-11-04</lastmod>
     </url>
     <url>
          <loc>https://mindspore-lab.github.io/mindone/0.2/diffusers/api/pipelines/marigold/</loc>
-         <lastmod>2024-11-01</lastmod>
+         <lastmod>2024-11-04</lastmod>
     </url>
     <url>
          <loc>https://mindspore-lab.github.io/mindone/0.2/diffusers/api/pipelines/overview/</loc>
-         <lastmod>2024-11-01</lastmod>
+         <lastmod>2024-11-04</lastmod>
     </url>
     <url>
          <loc>https://mindspore-lab.github.io/mindone/0.2/diffusers/api/pipelines/pix2pix/</loc>
-         <lastmod>2024-11-01</lastmod>
+         <lastmod>2024-11-04</lastmod>
     </url>
     <url>
          <loc>https://mindspore-lab.github.io/mindone/0.2/diffusers/api/pipelines/pixart/</loc>
-         <lastmod>2024-11-01</lastmod>
+         <lastmod>2024-11-04</lastmod>
     </url>
     <url>
          <loc>https://mindspore-lab.github.io/mindone/0.2/diffusers/api/pipelines/pixart_sigma/</loc>
-         <lastmod>2024-11-01</lastmod>
+         <lastmod>2024-11-04</lastmod>
     </url>
     <url>
          <loc>https://mindspore-lab.github.io/mindone/0.2/diffusers/api/pipelines/shap_e/</loc>
-         <lastmod>2024-11-01</lastmod>
+         <lastmod>2024-11-04</lastmod>
     </url>
     <url>
          <loc>https://mindspore-lab.github.io/mindone/0.2/diffusers/api/pipelines/stable_cascade/</loc>
-         <lastmod>2024-11-01</lastmod>
+         <lastmod>2024-11-04</lastmod>
     </url>
     <url>
          <loc>https://mindspore-lab.github.io/mindone/0.2/diffusers/api/pipelines/unclip/</loc>
-         <lastmod>2024-11-01</lastmod>
+         <lastmod>2024-11-04</lastmod>
     </url>
     <url>
          <loc>https://mindspore-lab.github.io/mindone/0.2/diffusers/api/pipelines/wuerstchen/</loc>
-         <lastmod>2024-11-01</lastmod>
+         <lastmod>2024-11-04</lastmod>
     </url>
     <url>
          <loc>https://mindspore-lab.github.io/mindone/0.2/diffusers/api/pipelines/stable_diffusion/adapter/</loc>
-         <lastmod>2024-11-01</lastmod>
+         <lastmod>2024-11-04</lastmod>
     </url>
     <url>
          <loc>https://mindspore-lab.github.io/mindone/0.2/diffusers/api/pipelines/stable_diffusion/depth2img/</loc>
-         <lastmod>2024-11-01</lastmod>
+         <lastmod>2024-11-04</lastmod>
     </url>
     <url>
          <loc>https://mindspore-lab.github.io/mindone/0.2/diffusers/api/pipelines/stable_diffusion/gligen/</loc>
-         <lastmod>2024-11-01</lastmod>
+         <lastmod>2024-11-04</lastmod>
     </url>
     <url>
          <loc>https://mindspore-lab.github.io/mindone/0.2/diffusers/api/pipelines/stable_diffusion/image_variation/</loc>
-         <lastmod>2024-11-01</lastmod>
+         <lastmod>2024-11-04</lastmod>
     </url>
     <url>
          <loc>https://mindspore-lab.github.io/mindone/0.2/diffusers/api/pipelines/stable_diffusion/img2img/</loc>
-         <lastmod>2024-11-01</lastmod>
+         <lastmod>2024-11-04</lastmod>
     </url>
     <url>
          <loc>https://mindspore-lab.github.io/mindone/0.2/diffusers/api/pipelines/stable_diffusion/inpaint/</loc>
-         <lastmod>2024-11-01</lastmod>
+         <lastmod>2024-11-04</lastmod>
     </url>
     <url>
          <loc>https://mindspore-lab.github.io/mindone/0.2/diffusers/api/pipelines/stable_diffusion/latent_upscale/</loc>
-         <lastmod>2024-11-01</lastmod>
+         <lastmod>2024-11-04</lastmod>
     </url>
     <url>
          <loc>https://mindspore-lab.github.io/mindone/0.2/diffusers/api/pipelines/stable_diffusion/overview/</loc>
-         <lastmod>2024-11-01</lastmod>
+         <lastmod>2024-11-04</lastmod>
     </url>
     <url>
          <loc>https://mindspore-lab.github.io/mindone/0.2/diffusers/api/pipelines/stable_diffusion/sdxl_turbo/</loc>
-         <lastmod>2024-11-01</lastmod>
+         <lastmod>2024-11-04</lastmod>
     </url>
     <url>
          <loc>https://mindspore-lab.github.io/mindone/0.2/diffusers/api/pipelines/stable_diffusion/stable_diffusion_2/</loc>
-         <lastmod>2024-11-01</lastmod>
+         <lastmod>2024-11-04</lastmod>
     </url>
     <url>
          <loc>https://mindspore-lab.github.io/mindone/0.2/diffusers/api/pipelines/stable_diffusion/stable_diffusion_3/</loc>
-         <lastmod>2024-11-01</lastmod>
+         <lastmod>2024-11-04</lastmod>
     </url>
     <url>
          <loc>https://mindspore-lab.github.io/mindone/0.2/diffusers/api/pipelines/stable_diffusion/stable_diffusion_xl/</loc>
-         <lastmod>2024-11-01</lastmod>
+         <lastmod>2024-11-04</lastmod>
     </url>
     <url>
          <loc>https://mindspore-lab.github.io/mindone/0.2/diffusers/api/pipelines/stable_diffusion/svd/</loc>
-         <lastmod>2024-11-01</lastmod>
+         <lastmod>2024-11-04</lastmod>
     </url>
     <url>
          <loc>https://mindspore-lab.github.io/mindone/0.2/diffusers/api/pipelines/stable_diffusion/text2img/</loc>
-         <lastmod>2024-11-01</lastmod>
+         <lastmod>2024-11-04</lastmod>
     </url>
     <url>
          <loc>https://mindspore-lab.github.io/mindone/0.2/diffusers/api/pipelines/stable_diffusion/upscale/</loc>
-         <lastmod>2024-11-01</lastmod>
+         <lastmod>2024-11-04</lastmod>
     </url>
     <url>
          <loc>https://mindspore-lab.github.io/mindone/0.2/diffusers/api/schedulers/cm_stochastic_iterative/</loc>
-         <lastmod>2024-11-01</lastmod>
+         <lastmod>2024-11-04</lastmod>
     </url>
     <url>
          <loc>https://mindspore-lab.github.io/mindone/0.2/diffusers/api/schedulers/consistency_decoder/</loc>
-         <lastmod>2024-11-01</lastmod>
+         <lastmod>2024-11-04</lastmod>
     </url>
     <url>
          <loc>https://mindspore-lab.github.io/mindone/0.2/diffusers/api/schedulers/ddim/</loc>
-         <lastmod>2024-11-01</lastmod>
+         <lastmod>2024-11-04</lastmod>
     </url>
     <url>
          <loc>https://mindspore-lab.github.io/mindone/0.2/diffusers/api/schedulers/ddim_inverse/</loc>
-         <lastmod>2024-11-01</lastmod>
+         <lastmod>2024-11-04</lastmod>
     </url>
     <url>
          <loc>https://mindspore-lab.github.io/mindone/0.2/diffusers/api/schedulers/ddpm/</loc>
-         <lastmod>2024-11-01</lastmod>
+         <lastmod>2024-11-04</lastmod>
     </url>
     <url>
          <loc>https://mindspore-lab.github.io/mindone/0.2/diffusers/api/schedulers/deis/</loc>
-         <lastmod>2024-11-01</lastmod>
+         <lastmod>2024-11-04</lastmod>
     </url>
     <url>
          <loc>https://mindspore-lab.github.io/mindone/0.2/diffusers/api/schedulers/dpm_discrete/</loc>
-         <lastmod>2024-11-01</lastmod>
+         <lastmod>2024-11-04</lastmod>
     </url>
     <url>
          <loc>https://mindspore-lab.github.io/mindone/0.2/diffusers/api/schedulers/dpm_discrete_ancestral/</loc>
-         <lastmod>2024-11-01</lastmod>
+         <lastmod>2024-11-04</lastmod>
     </url>
     <url>
          <loc>https://mindspore-lab.github.io/mindone/0.2/diffusers/api/schedulers/edm_euler/</loc>
-         <lastmod>2024-11-01</lastmod>
+         <lastmod>2024-11-04</lastmod>
     </url>
     <url>
          <loc>https://mindspore-lab.github.io/mindone/0.2/diffusers/api/schedulers/edm_multistep_dpm_solver/</loc>
-         <lastmod>2024-11-01</lastmod>
+         <lastmod>2024-11-04</lastmod>
     </url>
     <url>
          <loc>https://mindspore-lab.github.io/mindone/0.2/diffusers/api/schedulers/euler/</loc>
-         <lastmod>2024-11-01</lastmod>
+         <lastmod>2024-11-04</lastmod>
     </url>
     <url>
          <loc>https://mindspore-lab.github.io/mindone/0.2/diffusers/api/schedulers/euler_ancestral/</loc>
-         <lastmod>2024-11-01</lastmod>
+         <lastmod>2024-11-04</lastmod>
     </url>
     <url>
          <loc>https://mindspore-lab.github.io/mindone/0.2/diffusers/api/schedulers/flow_match_euler_discrete/</loc>
-         <lastmod>2024-11-01</lastmod>
+         <lastmod>2024-11-04</lastmod>
     </url>
     <url>
          <loc>https://mindspore-lab.github.io/mindone/0.2/diffusers/api/schedulers/heun/</loc>
-         <lastmod>2024-11-01</lastmod>
+         <lastmod>2024-11-04</lastmod>
     </url>
     <url>
          <loc>https://mindspore-lab.github.io/mindone/0.2/diffusers/api/schedulers/ipndm/</loc>
-         <lastmod>2024-11-01</lastmod>
+         <lastmod>2024-11-04</lastmod>
     </url>
     <url>
          <loc>https://mindspore-lab.github.io/mindone/0.2/diffusers/api/schedulers/lcm/</loc>
-         <lastmod>2024-11-01</lastmod>
+         <lastmod>2024-11-04</lastmod>
     </url>
     <url>
          <loc>https://mindspore-lab.github.io/mindone/0.2/diffusers/api/schedulers/lms_discrete/</loc>
-         <lastmod>2024-11-01</lastmod>
+         <lastmod>2024-11-04</lastmod>
     </url>
     <url>
          <loc>https://mindspore-lab.github.io/mindone/0.2/diffusers/api/schedulers/multistep_dpm_solver/</loc>
-         <lastmod>2024-11-01</lastmod>
+         <lastmod>2024-11-04</lastmod>
     </url>
     <url>
          <loc>https://mindspore-lab.github.io/mindone/0.2/diffusers/api/schedulers/multistep_dpm_solver_inverse/</loc>
-         <lastmod>2024-11-01</lastmod>
+         <lastmod>2024-11-04</lastmod>
     </url>
     <url>
          <loc>https://mindspore-lab.github.io/mindone/0.2/diffusers/api/schedulers/overview/</loc>
-         <lastmod>2024-11-01</lastmod>
+         <lastmod>2024-11-04</lastmod>
     </url>
     <url>
          <loc>https://mindspore-lab.github.io/mindone/0.2/diffusers/api/schedulers/pndm/</loc>
-         <lastmod>2024-11-01</lastmod>
+         <lastmod>2024-11-04</lastmod>
     </url>
     <url>
          <loc>https://mindspore-lab.github.io/mindone/0.2/diffusers/api/schedulers/repaint/</loc>
-         <lastmod>2024-11-01</lastmod>
+         <lastmod>2024-11-04</lastmod>
     </url>
     <url>
          <loc>https://mindspore-lab.github.io/mindone/0.2/diffusers/api/schedulers/score_sde_ve/</loc>
-         <lastmod>2024-11-01</lastmod>
+         <lastmod>2024-11-04</lastmod>
     </url>
     <url>
          <loc>https://mindspore-lab.github.io/mindone/0.2/diffusers/api/schedulers/score_sde_vp/</loc>
-         <lastmod>2024-11-01</lastmod>
+         <lastmod>2024-11-04</lastmod>
     </url>
     <url>
          <loc>https://mindspore-lab.github.io/mindone/0.2/diffusers/api/schedulers/singlestep_dpm_solver/</loc>
-         <lastmod>2024-11-01</lastmod>
+         <lastmod>2024-11-04</lastmod>
     </url>
     <url>
          <loc>https://mindspore-lab.github.io/mindone/0.2/diffusers/api/schedulers/tcd/</loc>
-         <lastmod>2024-11-01</lastmod>
+         <lastmod>2024-11-04</lastmod>
     </url>
     <url>
          <loc>https://mindspore-lab.github.io/mindone/0.2/diffusers/api/schedulers/unipc/</loc>
-         <lastmod>2024-11-01</lastmod>
+         <lastmod>2024-11-04</lastmod>
     </url>
     <url>
          <loc>https://mindspore-lab.github.io/mindone/0.2/diffusers/api/schedulers/vq_diffusion/</loc>
-         <lastmod>2024-11-01</lastmod>
+         <lastmod>2024-11-04</lastmod>
     </url>
     <url>
          <loc>https://mindspore-lab.github.io/mindone/0.2/diffusers/conceptual/philosophy/</loc>
-         <lastmod>2024-11-01</lastmod>
+         <lastmod>2024-11-04</lastmod>
     </url>
     <url>
          <loc>https://mindspore-lab.github.io/mindone/0.2/diffusers/optimization/fp16/</loc>
-         <lastmod>2024-11-01</lastmod>
+         <lastmod>2024-11-04</lastmod>
     </url>
     <url>
          <loc>https://mindspore-lab.github.io/mindone/0.2/diffusers/optimization/memory/</loc>
-         <lastmod>2024-11-01</lastmod>
+         <lastmod>2024-11-04</lastmod>
     </url>
     <url>
          <loc>https://mindspore-lab.github.io/mindone/0.2/diffusers/optimization/xformers/</loc>
-         <lastmod>2024-11-01</lastmod>
+         <lastmod>2024-11-04</lastmod>
     </url>
     <url>
          <loc>https://mindspore-lab.github.io/mindone/0.2/diffusers/training/adapt_a_model/</loc>
-         <lastmod>2024-11-01</lastmod>
+         <lastmod>2024-11-04</lastmod>
     </url>
     <url>
          <loc>https://mindspore-lab.github.io/mindone/0.2/diffusers/training/controlnet/</loc>
-         <lastmod>2024-11-01</lastmod>
+         <lastmod>2024-11-04</lastmod>
     </url>
     <url>
          <loc>https://mindspore-lab.github.io/mindone/0.2/diffusers/training/create_dataset/</loc>
-         <lastmod>2024-11-01</lastmod>
+         <lastmod>2024-11-04</lastmod>
     </url>
     <url>
          <loc>https://mindspore-lab.github.io/mindone/0.2/diffusers/training/dreambooth/</loc>
-         <lastmod>2024-11-01</lastmod>
+         <lastmod>2024-11-04</lastmod>
     </url>
     <url>
          <loc>https://mindspore-lab.github.io/mindone/0.2/diffusers/training/lora/</loc>
-         <lastmod>2024-11-01</lastmod>
+         <lastmod>2024-11-04</lastmod>
     </url>
     <url>
          <loc>https://mindspore-lab.github.io/mindone/0.2/diffusers/training/overview/</loc>
-         <lastmod>2024-11-01</lastmod>
+         <lastmod>2024-11-04</lastmod>
     </url>
     <url>
          <loc>https://mindspore-lab.github.io/mindone/0.2/diffusers/training/sdxl/</loc>
-         <lastmod>2024-11-01</lastmod>
+         <lastmod>2024-11-04</lastmod>
     </url>
     <url>
          <loc>https://mindspore-lab.github.io/mindone/0.2/diffusers/training/text2image/</loc>
-         <lastmod>2024-11-01</lastmod>
+         <lastmod>2024-11-04</lastmod>
     </url>
     <url>
          <loc>https://mindspore-lab.github.io/mindone/0.2/diffusers/training/text_inversion/</loc>
-         <lastmod>2024-11-01</lastmod>
+         <lastmod>2024-11-04</lastmod>
     </url>
     <url>
          <loc>https://mindspore-lab.github.io/mindone/0.2/diffusers/training/unconditional_training/</loc>
-         <lastmod>2024-11-01</lastmod>
+         <lastmod>2024-11-04</lastmod>
     </url>
     <url>
          <loc>https://mindspore-lab.github.io/mindone/0.2/diffusers/tutorials/basic_training/</loc>
-         <lastmod>2024-11-01</lastmod>
+         <lastmod>2024-11-04</lastmod>
     </url>
     <url>
          <loc>https://mindspore-lab.github.io/mindone/0.2/diffusers/tutorials/tutorial_overview/</loc>
-         <lastmod>2024-11-01</lastmod>
+         <lastmod>2024-11-04</lastmod>
     </url>
     <url>
          <loc>https://mindspore-lab.github.io/mindone/0.2/diffusers/tutorials/using_peft_for_inference/</loc>
-         <lastmod>2024-11-01</lastmod>
+         <lastmod>2024-11-04</lastmod>
     </url>
     <url>
          <loc>https://mindspore-lab.github.io/mindone/0.2/diffusers/using-diffusers/callback/</loc>
-         <lastmod>2024-11-01</lastmod>
+         <lastmod>2024-11-04</lastmod>
     </url>
     <url>
          <loc>https://mindspore-lab.github.io/mindone/0.2/diffusers/using-diffusers/conditional_image_generation/</loc>
-         <lastmod>2024-11-01</lastmod>
+         <lastmod>2024-11-04</lastmod>
     </url>
     <url>
          <loc>https://mindspore-lab.github.io/mindone/0.2/diffusers/using-diffusers/controlling_generation/</loc>
-         <lastmod>2024-11-01</lastmod>
+         <lastmod>2024-11-04</lastmod>
     </url>
     <url>
          <loc>https://mindspore-lab.github.io/mindone/0.2/diffusers/using-diffusers/controlnet/</loc>
-         <lastmod>2024-11-01</lastmod>
+         <lastmod>2024-11-04</lastmod>
     </url>
     <url>
          <loc>https://mindspore-lab.github.io/mindone/0.2/diffusers/using-diffusers/depth2img/</loc>
-         <lastmod>2024-11-01</lastmod>
+         <lastmod>2024-11-04</lastmod>
     </url>
     <url>
          <loc>https://mindspore-lab.github.io/mindone/0.2/diffusers/using-diffusers/diffedit/</loc>
-         <lastmod>2024-11-01</lastmod>
+         <lastmod>2024-11-04</lastmod>
     </url>
     <url>
          <loc>https://mindspore-lab.github.io/mindone/0.2/diffusers/using-diffusers/img2img/</loc>
-         <lastmod>2024-11-01</lastmod>
+         <lastmod>2024-11-04</lastmod>
     </url>
     <url>
          <loc>https://mindspore-lab.github.io/mindone/0.2/diffusers/using-diffusers/inference_with_lcm/</loc>
-         <lastmod>2024-11-01</lastmod>
+         <lastmod>2024-11-04</lastmod>
     </url>
     <url>
          <loc>https://mindspore-lab.github.io/mindone/0.2/diffusers/using-diffusers/inference_with_tcd_lora/</loc>
-         <lastmod>2024-11-01</lastmod>
+         <lastmod>2024-11-04</lastmod>
     </url>
     <url>
          <loc>https://mindspore-lab.github.io/mindone/0.2/diffusers/using-diffusers/inpaint/</loc>
-         <lastmod>2024-11-01</lastmod>
+         <lastmod>2024-11-04</lastmod>
     </url>
     <url>
          <loc>https://mindspore-lab.github.io/mindone/0.2/diffusers/using-diffusers/ip_adapter/</loc>
-         <lastmod>2024-11-01</lastmod>
+         <lastmod>2024-11-04</lastmod>
     </url>
     <url>
          <loc>https://mindspore-lab.github.io/mindone/0.2/diffusers/using-diffusers/kandinsky/</loc>
-         <lastmod>2024-11-01</lastmod>
+         <lastmod>2024-11-04</lastmod>
     </url>
     <url>
          <loc>https://mindspore-lab.github.io/mindone/0.2/diffusers/using-diffusers/loading/</loc>
-         <lastmod>2024-11-01</lastmod>
+         <lastmod>2024-11-04</lastmod>
     </url>
     <url>
          <loc>https://mindspore-lab.github.io/mindone/0.2/diffusers/using-diffusers/loading_adapters/</loc>
-         <lastmod>2024-11-01</lastmod>
+         <lastmod>2024-11-04</lastmod>
     </url>
     <url>
          <loc>https://mindspore-lab.github.io/mindone/0.2/diffusers/using-diffusers/loading_overview/</loc>
-         <lastmod>2024-11-01</lastmod>
+         <lastmod>2024-11-04</lastmod>
     </url>
     <url>
          <loc>https://mindspore-lab.github.io/mindone/0.2/diffusers/using-diffusers/marigold_usage/</loc>
-         <lastmod>2024-11-01</lastmod>
+         <lastmod>2024-11-04</lastmod>
     </url>
     <url>
          <loc>https://mindspore-lab.github.io/mindone/0.2/diffusers/using-diffusers/merge_loras/</loc>
-         <lastmod>2024-11-01</lastmod>
+         <lastmod>2024-11-04</lastmod>
     </url>
     <url>
          <loc>https://mindspore-lab.github.io/mindone/0.2/diffusers/using-diffusers/other-formats/</loc>
-         <lastmod>2024-11-01</lastmod>
+         <lastmod>2024-11-04</lastmod>
     </url>
     <url>
          <loc>https://mindspore-lab.github.io/mindone/0.2/diffusers/using-diffusers/overview_techniques/</loc>
-         <lastmod>2024-11-01</lastmod>
+         <lastmod>2024-11-04</lastmod>
     </url>
     <url>
          <loc>https://mindspore-lab.github.io/mindone/0.2/diffusers/using-diffusers/push_to_hub/</loc>
-         <lastmod>2024-11-01</lastmod>
+         <lastmod>2024-11-04</lastmod>
     </url>
     <url>
          <loc>https://mindspore-lab.github.io/mindone/0.2/diffusers/using-diffusers/reusing_seeds/</loc>
-         <lastmod>2024-11-01</lastmod>
+         <lastmod>2024-11-04</lastmod>
     </url>
     <url>
          <loc>https://mindspore-lab.github.io/mindone/0.2/diffusers/using-diffusers/scheduler_features/</loc>
-         <lastmod>2024-11-01</lastmod>
+         <lastmod>2024-11-04</lastmod>
     </url>
     <url>
          <loc>https://mindspore-lab.github.io/mindone/0.2/diffusers/using-diffusers/schedulers/</loc>
-         <lastmod>2024-11-01</lastmod>
+         <lastmod>2024-11-04</lastmod>
     </url>
     <url>
          <loc>https://mindspore-lab.github.io/mindone/0.2/diffusers/using-diffusers/sdxl/</loc>
-         <lastmod>2024-11-01</lastmod>
+         <lastmod>2024-11-04</lastmod>
     </url>
     <url>
          <loc>https://mindspore-lab.github.io/mindone/0.2/diffusers/using-diffusers/sdxl_turbo/</loc>
-         <lastmod>2024-11-01</lastmod>
+         <lastmod>2024-11-04</lastmod>
     </url>
     <url>
          <loc>https://mindspore-lab.github.io/mindone/0.2/diffusers/using-diffusers/shap-e/</loc>
-         <lastmod>2024-11-01</lastmod>
+         <lastmod>2024-11-04</lastmod>
     </url>
     <url>
          <loc>https://mindspore-lab.github.io/mindone/0.2/diffusers/using-diffusers/svd/</loc>
-         <lastmod>2024-11-01</lastmod>
+         <lastmod>2024-11-04</lastmod>
     </url>
     <url>
          <loc>https://mindspore-lab.github.io/mindone/0.2/diffusers/using-diffusers/t2i_adapter/</loc>
-         <lastmod>2024-11-01</lastmod>
+         <lastmod>2024-11-04</lastmod>
     </url>
     <url>
          <loc>https://mindspore-lab.github.io/mindone/0.2/diffusers/using-diffusers/text-img2vid/</loc>
-         <lastmod>2024-11-01</lastmod>
+         <lastmod>2024-11-04</lastmod>
     </url>
     <url>
          <loc>https://mindspore-lab.github.io/mindone/0.2/diffusers/using-diffusers/textual_inversion_inference/</loc>
-         <lastmod>2024-11-01</lastmod>
+         <lastmod>2024-11-04</lastmod>
     </url>
     <url>
          <loc>https://mindspore-lab.github.io/mindone/0.2/diffusers/using-diffusers/unconditional_image_generation/</loc>
-         <lastmod>2024-11-01</lastmod>
+         <lastmod>2024-11-04</lastmod>
     </url>
     <url>
          <loc>https://mindspore-lab.github.io/mindone/0.2/diffusers/using-diffusers/write_own_pipeline/</loc>
-         <lastmod>2024-11-01</lastmod>
+         <lastmod>2024-11-04</lastmod>
     </url>
     <url>
          <loc>https://mindspore-lab.github.io/mindone/0.2/peft/</loc>
-         <lastmod>2024-11-01</lastmod>
+         <lastmod>2024-11-04</lastmod>
     </url>
     <url>
          <loc>https://mindspore-lab.github.io/mindone/0.2/transformers/</loc>
-         <lastmod>2024-11-01</lastmod>
+         <lastmod>2024-11-04</lastmod>
     </url>
 </urlset>
