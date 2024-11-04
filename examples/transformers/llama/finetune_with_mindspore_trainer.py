@@ -34,7 +34,15 @@ def main():
 
     from transformers import PreTrainedTokenizerFast, PreTrainedTokenizerBase
     def tokenize_function(examples):
-        return tokenizer(examples["text"], max_length=512, padding="max_length", truncation=True)
+        return tokenizer(
+            examples["text"],
+            padding="max_length",
+            truncation=True,
+            max_length=512,
+            padding_side="right",
+            pad_token="<|reserved_special_token_0|>",
+            pad_token_id=128002
+        )
 
     tokenized_datasets = dataset.map(tokenize_function, batched=True)
     small_train_dataset = tokenized_datasets["train"]
