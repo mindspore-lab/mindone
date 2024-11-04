@@ -11,7 +11,6 @@ use_recompute: True
 vae_dtype: bf16
 
 # data
-image_size: [ 512, 512 ]
 num_frames: 16
 frame_stride: 3
 
