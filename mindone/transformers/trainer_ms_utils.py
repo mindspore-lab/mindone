@@ -76,7 +76,7 @@ def get_length_grouped_indices(lengths, batch_size, mega_batch_mult=None):
         if mega_batch_mult == 0:
             mega_batch_mult = 1
 
-    # We need to use torch for the random part as a distributed sampler will set the random seed for torch.
+    # We need to use numpy for the random part as a distributed sampler will set the random seed for numpy.
     indices = np.random.permutation(len(lengths))
     megabatch_size = mega_batch_mult * batch_size
     megabatches = [indices[i : i + megabatch_size].tolist() for i in range(0, len(lengths), megabatch_size)]
