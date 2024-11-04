@@ -208,7 +208,7 @@ class Trainer:
         default_collator = (
             DataCollatorWithPadding(tokenizer)
             if tokenizer is not None and isinstance(tokenizer, (PreTrainedTokenizerBase, SequenceFeatureExtractor))
-            else default_data_collator
+            else lambda features, batch_info: default_data_collator(features, return_tensors='np')
         )
         self.data_collator = data_collator if data_collator is not None else default_collator
         self.train_dataset = train_dataset
