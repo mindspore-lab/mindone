@@ -684,14 +684,14 @@ Below are some generation results after fine-tuning STDiT3 with **Stage 2** buck
 
 #### Inference Performance
 
-We evaluate the inference performance of text-to-video generation by measuring the average sampling time per step.
+We evaluate the inference performance of text-to-video generation by measuring the average sampling time per step and the total sampling time of a video.
 
 Experiments are tested on ascend 910* with mindspore 2.3.1 graph mode.
 
-| model name   | cards  | batch size | resolution   | precision  | jit level    | s/step    |  recipe |
+| model name   | cards  | batch size | resolution   | precision  | jit level    | s/step    |   s/video  |  recipe |
 | :--:         | :--:   | :--:       | :--:         | :--:       | :--:         | :--:      |  :--:   | 
-| STDiT3-XL/2  |  1     | 1          | 51x720x1280   | bf16      | O0           | 5.88       | [yaml](configs/opensora-v1-2/inference/sample_t2v.yaml) | 
-| STDiT3-XL/2  |  1     | 1          | 102x720x1280  | bf16      | O0           | 13.71       | [yaml](configs/opensora-v1-2/inference/sample_t2v.yaml) | 
+| STDiT3-XL/2  |  1     | 1          | 51x720x1280   | bf16      | O0           | 5.88      |  176.40   | [yaml](configs/opensora-v1-2/inference/sample_t2v.yaml) | 
+| STDiT3-XL/2  |  1     | 1          | 102x720x1280  | bf16      | O0           | 13.71      |  411.30  | [yaml](configs/opensora-v1-2/inference/sample_t2v.yaml) | 
 
 
 ### Open-Sora 1.1
@@ -739,7 +739,7 @@ Here are some generation results after fine-tuning STDiT2 on a mixkit subset.
 
 #### Inference Performance
 
-We evaluate the inference performance of text-to-video generation by measuring the average sampling time per step.
+We evaluate the inference performance of text-to-video generation by measuring the average sampling time per step and the total sampling time of a video.
 
 Experiments are tested on ascend 910* with mindspore 2.3.1 graph mode.
 
@@ -763,8 +763,6 @@ Experiments are tested on ascend 910* with mindspore 2.3.1 graph mode.
 | STDiT3-XL/2  |  8     | 1          | 16x512x512   | 2     | bf16      |  ON  | O1           | 5~6 mins      |  2.05  | [yaml](configs/opensora/train/stdit_512x512x16.yaml) |
 | STDiT3-XL/2  |  8     | 1          | 64x512x512   | 3     | bf16      |  ON  | O1           | 5~6 mins      |  7.82  | [yaml](configs/opensora/train/stdit_512x512x64_ms.yaml) |
 
-
-** Tips ** for performance optimization: to speed up training, you can set `dataset_sink_mode` as True and reduce `num_recompute_blocks` from 28 to a number that doesn't lead to out-of-memory.
 
 #### Loss Curves
 
