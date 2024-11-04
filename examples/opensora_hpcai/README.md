@@ -326,7 +326,7 @@ python scripts/inference.py --config configs/opensora-v1-1/inference/sample_t2v.
 
 We evaluate the inference performance of text-to-video generation by measuring the average sampling time per step and the total sampling time of a video.
 
-Experiments are tested on ascend 910* with mindspore 2.3.1 graph mode.
+All experiments are tested on ascend 910* with mindspore 2.3.1 graph mode.
 
 
 | model name      |  cards | batch size | resolution |  jit_level | precision |  scheduler   | step      | graph compile | s/step     | s/video | recipe |
@@ -364,7 +364,7 @@ For more usage on the inference script, please run `python scripts/inference.py 
 
 We evaluate the inference performance of text-to-video generation by measuring the average sampling time per step and the total sampling time of a video.
 
-Experiments are tested on ascend 910* with mindspore 2.3.1 graph mode.
+All experiments are tested on ascend 910* with mindspore 2.3.1 graph mode.
 
 | model name      |  cards | batch size | resolution |  jit_level | precision |  scheduler   | step      | graph compile | s/step     | s/video | recipe |
 | :--:         | :--:   | :--:       | :--:       | :--:       | :--:       | :--:       | :--:       | :--:      |:--:    | :--:   |:--:   |
@@ -667,7 +667,7 @@ Here ✅ means that the data is seen during training, and 🆗 means although no
 
 We evaluate the training performance of Open-Sora v1.2 on the MixKit dataset with high-resolution videos (1080P, duration 12s to 100s).
 
-Experiments are tested on ascend 910* with mindspore 2.3.1 graph mode.
+All experiments are tested on ascend 910* with mindspore 2.3.1 graph mode.
 | model name   | cards  | batch size | resolution | precision  | sink      | jit level | graph compile |  s/step | recipe |
 | :--:         | :--:   | :--:       | :--:       | :--:       | :--:      | :--:      |:--:          | :--:       | :--:   |
 | STDiT3-XL/2  |  8     | 1          | 51x720x1280| bf16       | ON      | O1        |    12 mins   | 14.23   | [yaml](configs/opensora-v1-2/train/train_720x1280x51.yaml)
@@ -710,7 +710,7 @@ Below are some generation results after fine-tuning STDiT3 with **Stage 2** buck
 
 We evaluate the training performance of Open-Sora v1.1 on a subset of the MixKit dataset.
 
-Experiments are tested on ascend 910* with mindspore 2.3.1 graph mode.
+All experiments are tested on ascend 910* with mindspore 2.3.1 graph mode.
 
 | model name   | cards  | batch size | resolution   | vae cache  | precision  | sink       | jit level    | graph compile | s/step    | recipe |
 | :--:         | :--:   | :--:       | :--:         | :--:       | :--:       | :--:       | :--:         | :--:          | :--:      | :--:   |
@@ -752,7 +752,7 @@ Here are some generation results after fine-tuning STDiT2 on a mixkit subset.
 
 #### Training Performance
 
-Experiments are tested on ascend 910* with mindspore 2.3.1 graph mode.
+All experiments are tested on ascend 910* with mindspore 2.3.1 graph mode.
 | model name   | cards  | batch size | resolution   | stage | precision | sink |  jit level   | graph compile | s/step | recipe |
 | :--:         | :--:   | :--:       | :--:         | :--:  | :--:      |:--:  | :--:         | :--:          |:--:    |:--:    |
 | STDiT-XL/2  |  8     | 3          | 16x256x256   | 1     | bf16      |  ON  | O1           | 5~6 mins      |  1.43  | [yaml](configs/opensora/train/stdit_256x256x16_ms.yaml) |
@@ -864,7 +864,7 @@ You can change the `csv_path` and `video_folder` to evaluate on your own data.
 Here, we report the training performance and evaluation results on the UCF-101 dataset.
 
 
-Experiments are tested on ascend 910* with mindspore 2.3.0 graph mode.
+All experiments are tested on ascend 910* with mindspore 2.3.0 graph mode.
 
 | model name   | cards  | batch size | resolution   |  precision  |  jit level    | graph compile | s/step    | PSNR   | SSIM  | recipe |
 | :--:         | :--:   | :--:       | :--:         | :--:       | :--:         | :--:          | :--:      | :--:   | :--:      | :--:      |
