@@ -184,6 +184,6 @@ Experiments are tested on ascend 910* with mindspore 2.3.1 graph mode.
 
 | model name    | cards    | batch size | resolution   | scheduler |    steps |  jit level|step/s |  
 |:-------:      |:--------:|:-------:   |:-----------: |:--------------:|:------------:|:-------:|:---------:|
-|HunyuanDiT-v1.0|1         |1           |1024x1024     |ddpm            |20|O1|2.90|
-|HunyuanDiT-v1.1|1         |1           |1024x1024     |ddpm            |20|O1|2.91|
-|HunyuanDiT-v1.2|1         |1           |1024x1024     |ddpm            |20|O1|2.89|
+|HunyuanDiT-v1.0|1         |1           |1024x1024     |ddpm            |100|O0|2.90|
+|HunyuanDiT-v1.1|1         |1           |1024x1024     |ddpm            |100|O0|2.91|
+|HunyuanDiT-v1.2|1         |1           |1024x1024     |ddpm            |100|O0|2.89|

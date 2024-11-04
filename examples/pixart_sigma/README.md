@@ -185,7 +185,7 @@ Experiments are tested on ascend 910* with mindspore 2.3.1 graph mode
 
 ### Inference Performance
 
-| model name   | cards |  batch size | resolution   | jit level |  graph compile | s/step |  config                                                                  |
+| model name   | cards |  batch size | resolution   | jit level |  graph compile | s/step |  recipe                                                                  |
 |:------------:|:-----:|:-----------:|:------------:|:----------:|:---------:|:---------:|:------------------------------------------------------------------------|
 | PixArt-Sigma | 1     | 1           | 256 x 256    | O1        | < 3 mins      | 0.055    | [pixart-sigma-256x256.yaml](configs/inference/pixart-sigma-256x256.yaml) |
 | PixArt-Sigma | 1     | 1           | 512 x 512    | O1        | < 3 mins      | 0.063    | [pixart-sigma-512-MS.yaml](configs/inference/pixart-sigma-512-MS.yaml)   |
