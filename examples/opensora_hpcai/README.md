@@ -745,6 +745,7 @@ Experiments are tested on ascend 910* with mindspore 2.3.1 graph mode.
 ### Open-Sora 1.0
 <details>
 <summary>View more</summary>
+    
 #### Training Performance
 
 We evaluated the training performance on MindSpore and Ascend NPUs. The results are as follows.
