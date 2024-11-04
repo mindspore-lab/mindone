@@ -36,8 +36,10 @@ def main():
         return tokenizer(examples["text"], padding="max_length", truncation=True)
 
     tokenized_datasets = dataset.map(tokenize_function, batched=True)
-    small_train_dataset = tokenized_datasets["train"].shuffle(seed=42).select(range(1000))
-    small_eval_dataset = tokenized_datasets["test"].shuffle(seed=42).select(range(1000))
+    small_train_dataset = tokenized_datasets["train"]
+    small_eval_dataset = tokenized_datasets["test"]
+
+    breakpoint()
 
     model = LlamaForSequenceClassification.from_pretrained(args.model_path, num_labels=5)
 
