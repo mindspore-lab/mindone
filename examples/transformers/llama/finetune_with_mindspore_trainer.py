@@ -32,8 +32,9 @@ def main():
 
     tokenizer = AutoTokenizer.from_pretrained(args.model_path)
 
+    from transformers import PreTrainedTokenizerFast, PreTrainedTokenizerBase
     def tokenize_function(examples):
-        return tokenizer(examples["text"], max_len=512, padding="max_length", truncation=True)
+        return tokenizer(examples["text"], max_length=512, padding="max_length", truncation=True)
 
     tokenized_datasets = dataset.map(tokenize_function, batched=True)
     small_train_dataset = tokenized_datasets["train"]
