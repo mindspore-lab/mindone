@@ -569,6 +569,8 @@ class Trainer:
                     self.dataset = dataset
                 def __getitem__(self, item):
                     return self.dataset[int(item)]
+                def __len__(self):
+                    return len(self.dataset)
 
             train_dataset = self._remove_unused_columns(train_dataset, description="training")
             train_dataset = WrapDataset(train_dataset)
