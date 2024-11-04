@@ -269,7 +269,7 @@ def initialize_dataset(
                 sample_n_frames=args.num_frames,
                 sample_stride=args.frame_stride,
                 frames_mask_generator=mask_gen,
-                t_compress_func=lambda x: vae.get_latent_size((x, None, None))[0],
+                t_compress_func=(lambda x: vae.get_latent_size((x, None, None))[0]) if vae is not None else None,
                 buckets=buckets,
                 filter_data=args.filter_data,
                 pre_patchify=args.pre_patchify,
