@@ -26,7 +26,6 @@ This repository is built on the models and code released by HPC-AI Tech. We are 
 | mindspore | ascend driver | firmware | cann tookit/kernel |
 | :---:     |   :---:       | :---:    | :---:              |
 | 2.3.1     |  23.0.6      |7.1.0.9.220    |   8.0.RC2.beta1   |
-| 2.3.0     |  23.0.3      |7.1.0.9.220    |   8.0.RC2.beta1   |
 
 
 
@@ -323,11 +322,11 @@ We evaluate the inference performance of text-to-video generation by measuring t
 All experiments are tested on ascend 910* with mindspore 2.3.1 graph mode.
 
 
-| model name      |  cards | batch size | resolution |  jit_level | precision |  scheduler   | step      | graph compile | s/step     | s/video | recipe |
+| model name      |  cards | batch size | resolution |  jit level | precision |  scheduler   | step      | graph compile | s/step     | s/video | recipe |
 | :--:         | :--:   | :--:       | :--:       | :--:       | :--:       | :--:       | :--:       | :--:      |:--:    | :--:   |:--:   |
-| STDiT2-XL/2  |  1     | 1          | 16x640x360   | O0       | bf16       |  ddpm     |   100   |  1~2 mins |  1.56    |    156.00      |  [yaml](configs/opensora-v1-1/inference/sample_t2v.yaml) |
-| STDiT3-XL/2  |  1     | 1          | 51x720x1280   | O0      | bf16       |  rflow    |   30    |  1~2 mins  |  5.88      |  176.40   | [yaml](configs/opensora-v1-2/inference/sample_t2v.yaml) |
-| STDiT3-XL/2  |  1     | 1          | 102x720x1280  | O0      | bf16       |  rflow    |   30    |  1~2 min   | 13.71      |  411.30  | [yaml](configs/opensora-v1-2/inference/sample_t2v.yaml) |
+| STDiT2-XL/2  |  1     | 1          | 16x640x360   | O0       | bf16       |  DDPM     |   100   |  1~2 mins |  1.56    |    156.00      |  [yaml](configs/opensora-v1-1/inference/sample_t2v.yaml) |
+| STDiT3-XL/2  |  1     | 1          | 51x720x1280   | O0      | bf16       |  RFlow    |   30    |  1~2 mins  |  5.88      |  176.40   | [yaml](configs/opensora-v1-2/inference/sample_t2v.yaml) |
+| STDiT3-XL/2  |  1     | 1          | 102x720x1280  | O0      | bf16       |  RFlow    |   30    |  1~2 min   | 13.71      |  411.30  | [yaml](configs/opensora-v1-2/inference/sample_t2v.yaml) |
 
 
 
@@ -360,11 +359,11 @@ We evaluate the inference performance of text-to-video generation by measuring t
 
 All experiments are tested on ascend 910* with mindspore 2.3.1 graph mode.
 
-| model name      |  cards | batch size | resolution |  jit_level | precision |  scheduler   | step      | graph compile | s/step     | s/video | recipe |
+| model name      |  cards | batch size | resolution |  jit level | precision |  scheduler   | step      | graph compile | s/step     | s/video | recipe |
 | :--:         | :--:   | :--:       | :--:       | :--:       | :--:       | :--:       | :--:       | :--:      |:--:    | :--:   |:--:   |
-| STDiT-XL/2 | 1 | 4 | 16x256x256 |  O0 | fp32 | ddpm | 100 |  1~2 mins | 0.39 | 39.22 | [yaml](configs/opensora/inference/stdit_256x256x16.yaml) |
-| STDiT-XL/2 | 1 | 1 | 16x512x512 | O0 | fp32 | ddpm | 100 | 1~2 mins |  1.85 | 185.00 | [yaml](configs/opensora/inference/stdit_512x512x16.yaml) |
-| STDiT-XL/2 | 1 | 1 | 64x512x512 |  O0 | bf16 | ddpm | 100 | 1~2 mins | 2.78 | 278.45 | [yaml](configs/opensora/inference/stdit_512x512x64.yaml) |
+| STDiT-XL/2 | 1 | 4 | 16x256x256 |  O0 | fp32 | DDPM | 100 |  1~2 mins | 0.39 | 39.22 | [yaml](configs/opensora/inference/stdit_256x256x16.yaml) |
+| STDiT-XL/2 | 1 | 1 | 16x512x512 | O0 | fp32 | DDPM | 100 | 1~2 mins |  1.85 | 185.00 | [yaml](configs/opensora/inference/stdit_512x512x16.yaml) |
+| STDiT-XL/2 | 1 | 1 | 64x512x512 |  O0 | bf16 | DDPM | 100 | 1~2 mins | 2.78 | 278.45 | [yaml](configs/opensora/inference/stdit_512x512x64.yaml) |
 
 </details>
 
@@ -859,11 +858,11 @@ You can change the `csv_path` and `video_folder` to evaluate on your own data.
 Here, we report the training performance and evaluation results on the UCF-101 dataset.
 
 
-All experiments are tested on ascend 910* with mindspore 2.3.0 graph mode.
+All experiments are tested on ascend 910* with mindspore 2.3.1 graph mode.
 
 | model name   | cards  | batch size | resolution   |  precision  |  jit level    | graph compile | s/step    | PSNR   | SSIM  | recipe |
 | :--:         | :--:   | :--:       | :--:         | :--:       | :--:         | :--:          | :--:      | :--:   | :--:      | :--:      |
-| VAE-3D  |  8     | 1          | 17x256x256   | bf16       |  O1           |  5~10 mins      | 0.93     |  29.29   | 0.88  | [yaml](configs/vae/train/stage3.yaml) |
+| VAE-3D  |  8     | 1          | 17x256x256   | bf16       |  O1           |  5 mins      | 1.09     |  29.29   | 0.88  | [yaml](configs/vae/train/stage3.yaml) |
 
 
 Note that we train with mixed video ang image strategy i.e. `--mixed_strategy=mixed_video_image` for stage 3 instead of random number of frames (`mixed_video_random`). Random frame training will be supported in the future.
