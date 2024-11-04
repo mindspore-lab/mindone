@@ -564,17 +564,16 @@ class Trainer:
         train_dataset = self.train_dataset
         data_collator = self.data_collator
         if is_datasets_available() and isinstance(train_dataset, datasets.Dataset):
-            class WrapDataset:
-                def __init__(self, dataset: datasets.Dataset):
-                    self.dataset = dataset
-                def __getitem__(self, item):
-                    breakpoint()
-                    return self.dataset[int(item)]
-                def __len__(self):
-                    return len(self.dataset)
+            # class WrapDataset:
+            #     def __init__(self, dataset: datasets.Dataset):
+            #         self.dataset = dataset
+            #     def __getitem__(self, item):
+            #         return self.dataset[int(item)]
+            #     def __len__(self):
+            #         return len(self.dataset)
 
             train_dataset = self._remove_unused_columns(train_dataset, description="training")
-            train_dataset = WrapDataset(train_dataset)
+            # train_dataset = WrapDataset(train_dataset)
 
         else:
             data_collator = self._get_collator_with_removed_columns(data_collator, description="training")
@@ -623,29 +622,26 @@ class Trainer:
         if self.train_dataset is None or not has_length(self.train_dataset):
             return None
 
-        # zhy_test
-        return None
+        # Build the sampler.
+        if self.args.group_by_length:
+            if is_datasets_available() and isinstance(self.train_dataset, datasets.Dataset):
+                lengths = (
+                    self.train_dataset[self.args.length_column_name]
+                    if self.args.length_column_name in self.train_dataset.column_names
+                    else None
+                )
+            else:
+                lengths = None
+            model_input_name = self.tokenizer.model_input_names[0] if self.tokenizer is not None else None
+            return LengthGroupedSampler(
+                self.args.train_batch_size * self.args.gradient_accumulation_steps,
+                dataset=self.train_dataset,
+                lengths=lengths,
+                model_input_name=model_input_name,
+            )
 
-        # # Build the sampler.
-        # if self.args.group_by_length:
-        #     if is_datasets_available() and isinstance(self.train_dataset, datasets.Dataset):
-        #         lengths = (
-        #             self.train_dataset[self.args.length_column_name]
-        #             if self.args.length_column_name in self.train_dataset.column_names
-        #             else None
-        #         )
-        #     else:
-        #         lengths = None
-        #     model_input_name = self.tokenizer.model_input_names[0] if self.tokenizer is not None else None
-        #     return LengthGroupedSampler(
-        #         self.args.train_batch_size * self.args.gradient_accumulation_steps,
-        #         dataset=self.train_dataset,
-        #         lengths=lengths,
-        #         model_input_name=model_input_name,
-        #     )
-        #
-        # else:
-        #     return RandomSampler(self.train_dataset)
+        else:
+            return RandomSampler(self.train_dataset)
 
     def num_examples(self, dataloader: ms.dataset.Dataset) -> int:
         if not isinstance(dataloader, ms.dataset.Dataset):
