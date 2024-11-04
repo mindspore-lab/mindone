@@ -83,6 +83,8 @@ def default_data_collator(features: List[InputDataClass], return_tensors="np") -
         raise NotImplementedError
     elif return_tensors == "np":
         return numpy_default_data_collator(features)
+    else:
+        raise ValueError
 
 
 def numpy_default_data_collator(features: List[InputDataClass]) -> Dict[str, Any]:
