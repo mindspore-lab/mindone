@@ -19,6 +19,7 @@ import mindspore as ms
 from mindspore import nn, ops
 from mindspore.common.initializer import Normal, Zero, initializer
 
+
 ALL_LAYERNORM_LAYERS = [nn.LayerNorm]
 
 logger = logging.get_logger(__name__)

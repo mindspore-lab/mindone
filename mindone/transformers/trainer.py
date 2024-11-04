@@ -105,7 +105,7 @@ _re_checkpoint = re.compile(r"^" + PREFIX_CHECKPOINT_DIR + r"\-(\d+)$")
 # Name of the files used for checkpointing
 TRAINER_STATE_NAME = "trainer_state.json"
 OPTIMIZER_NAME = "optimizer.ckpt"
-SCHEDULER_NAME = "scheduler.ckpt"
+# SCHEDULER_NAME = "scheduler.ckpt"     # Note: lr_scheduler is already included in the optimizer on MindSpore 2.3.1
 SCALER_NAME = "scaler.ckpt"
 
 
@@ -404,12 +404,74 @@ class Trainer:
         Trainer's init through `optimizers`, or subclass and override this method (or `create_optimizer` and/or
         `create_scheduler`) in a subclass.
         """
-        self.create_optimizer()
-        optimizer = self.optimizer
-        self.create_scheduler(num_training_steps=num_training_steps, optimizer=optimizer)
+        lr_scheduler = self.create_scheduler(num_training_steps=num_training_steps)
+        self.create_optimizer(lr_scheduler)
 
-    def create_optimizer(self):
-        raise NotImplementedError
+    def get_decay_parameter_names(self, model) -> List[str]:
+        """
+        Get all parameter names that weight decay will be applied to
+
+        Note that some models implement their own layernorm instead of calling nn.LayerNorm, weight decay could still
+        apply to those modules since this function only filter out instance of nn.LayerNorm
+        """
+        decay_parameters = get_parameter_names(model, ALL_LAYERNORM_LAYERS)
+        decay_parameters = [name for name in decay_parameters if "bias" not in name]
+        return decay_parameters
+
+    def create_optimizer(self, lr_scheduler: Union[Tuple, List] = None):
+        """
+        Setup the optimizer.
+
+        We provide a reasonable default that works well. If you want to use something else, you can pass a tuple in the
+        Trainer's init through `optimizers`, or subclass and override this method in a subclass.
+        """
+        opt_model = self.model
+
+        if self.optimizer is None:
+            decay_parameters = self.get_decay_parameter_names(opt_model)
+            optimizer_grouped_parameters = [
+                {
+                    "params": [
+                        p for n, p in opt_model.parameters_and_names() if (n in decay_parameters and p.requires_grad)
+                    ],
+                    "weight_decay": self.args.weight_decay,
+                },
+                {
+                    "params": [
+                        p for n, p in opt_model.parameters_and_names() if (n not in decay_parameters and p.requires_grad)
+                    ],
+                    "weight_decay": 0.0,
+                },
+            ]
+
+            optimizer_cls, optimizer_kwargs = Trainer.get_optimizer_cls_and_kwargs(self.args, opt_model)
+
+            # Overwrite `params` in case it's created by `get_optimizer_cls_and_kwargs`
+            # e.g. for GaLore optimizer.
+            if "params" in optimizer_kwargs:
+                optimizer_grouped_parameters = optimizer_kwargs.pop("params")
+
+            # Overwrite `model` in case it's created by `get_optimizer_cls_and_kwargs`
+            # e.g. for LOMO optimizer.
+            if "model" in optimizer_kwargs:
+                optimizer_grouped_parameters = optimizer_kwargs.pop("model")
+
+            # For layer-wise dummy optimizers we overwrite optimizer_grouped_parameters with `optimizer_dict`
+            # to avoid arguments conflicts.
+            if "optimizer_dict" in optimizer_kwargs:
+                optimizer_grouped_parameters = optimizer_kwargs.pop("optimizer_dict")
+
+            # Note: Init optimizer with lr scheduler on MindSpore 2.3.1
+            # Update learning rate with lr_scheduler
+            if lr_scheduler is not None:
+                optimizer_kwargs.update({"learning_rate": lr_scheduler})
+
+            self.optimizer = optimizer_cls(optimizer_grouped_parameters, **optimizer_kwargs)
+
+            if optimizer_cls.__name__ == "Adam8bit":
+                raise NotImplementedError
+
+        return self.optimizer
 
     @staticmethod
     def get_optimizer_cls_and_kwargs(
@@ -468,7 +530,7 @@ class Trainer:
             raise ValueError(f"Trainer cannot instantiate unsupported optimizer: {args.optim}")
         return optimizer_cls, optimizer_kwargs
 
-    def create_scheduler(self, num_training_steps: int, optimizer: ms.nn.Optimizer = None):
+    def create_scheduler(self, num_training_steps: int):
         """
         Setup the scheduler. The optimizer of the trainer must have been set up either before this method is called or
         passed as an argument.
@@ -479,7 +541,7 @@ class Trainer:
         if self.lr_scheduler is None:
             self.lr_scheduler = get_scheduler(
                 self.args.lr_scheduler_type,
-                optimizer=self.optimizer if optimizer is None else optimizer,
+                base_lr=self.args.learning_rate,
                 num_warmup_steps=self.args.get_warmup_steps(num_training_steps),
                 num_training_steps=num_training_steps,
                 scheduler_specific_kwargs=self.args.lr_scheduler_kwargs,
@@ -1111,7 +1173,9 @@ class Trainer:
 
         # get path to file
         OPTIMIZER_PATH = os.path.join(resume_from_checkpoint, OPTIMIZER_NAME)
-        LR_PATH = os.path.join(resume_from_checkpoint, SCHEDULER_NAME)
+
+        # Note: lr_scheduler is already included in the optimizer on MindSpore 2.3.1
+        # LR_PATH = os.path.join(resume_from_checkpoint, SCHEDULER_NAME)
 
         if os.path.isfile(OPTIMIZER_PATH):
             optimizer_state = ms.load_checkpoint(OPTIMIZER_PATH)
@@ -1121,12 +1185,13 @@ class Trainer:
         else:
             logger.warning(f"Not exist optimizer state checkpoint path: `{OPTIMIZER_PATH}`")
 
-        if os.path.isfile(LR_PATH):
-            lr_scheduler_state = ms.load_checkpoint(LR_PATH)
-            ms.load_param_into_net(self.lr_scheduler, lr_scheduler_state)
-            logger.info(f"LR scheduler state successfully loaded from {LR_PATH}")
-        else:
-            logger.warning(f"Not exist lr scheduler state checkpoint path: `{LR_PATH}`")
+        # Note: lr_scheduler is already included in the optimizer on MindSpore 2.3.1
+        # if os.path.isfile(LR_PATH):
+        #     lr_scheduler_state = ms.load_checkpoint(LR_PATH)
+        #     ms.load_param_into_net(self.lr_scheduler, lr_scheduler_state)
+        #     logger.info(f"LR scheduler state successfully loaded from {LR_PATH}")
+        # else:
+        #     logger.warning(f"Not exist lr scheduler state checkpoint path: `{LR_PATH}`")
 
         print("Loaded optimizer and lr scheduler state done.")
 
