@@ -1,53 +1,44 @@
 # Repo Structure
 
 ```plaintext
-opensora_cai
+opensora_hpcai
 ├── README.md
 ├── assets
 │   └── texts                               -> prompts used for text-conditioned generation
 │       └── t2v_samples.txt
 ├── configs                                 -> configs for training & inference
 │   ├── opensora
-│   │   ├── inference
-│   │   │   ├── stdit_256x256x16.yaml
-│   │   │   ├── stdit_512x512x16.yaml
-│   │   │   └── stdit_512x512x64.yaml
-│   │   └── train
-│   │       ├── stdit_256x256x16.yaml
-│   │       ├── stdit_256x256x16_ms.yaml    -> training receipe optimized for MindSpore
-│   │       ├── stdit_512x512x16.yaml
-│   │       ├── stdit_512x512x64.yaml
-│   │       └── stdit_512x512x64_ms.yaml    -> training receipe optimized for MindSpore:
 │   ├── opensora-v1-1
 │   │   ├── inference
 │   │   └── train
-│   └── opensora-v1-2
+│   │── opensora-v1-2
 │   │   ├── inference
 │   │   └── train
-├── docs
-│   ├── config.md
-│   ├── quick_start.md
-│   └── structure.md
+│   └── cogvideox 
+│       └── train
+│          └── cogvideo5b_720x480x48.yaml    -> **high-quality video finetuning config; zero-2, context parallel ** 
 ├── opensora
 │   ├── datasets
-│   │   ├── t2v_dataset.py
+│   │   ├── t2v_dataset.py		    -> **frame packing (optional)**
 │   │   └── text_dataset.py
 │   ├── models
-│   │   ├── vae                             -> VAE as image encoder
-│   │   ├── text_encoder                    -> Text encoder
-│   │   ├── layers                          -> Common layers
-│   │   └── stidit                          -> STDiT models
+│   │   ├── vae                             -> ** causal vae 3d, context parallel or vae tiling/caching **
+│   │   ├── text_encoder                   
+│   │   ├── layers                          
+│   │   ├── stidit                          -> STDiT models
+│   │   └── cogvideox                       -> ** cogvideox dit arch (key changes: full attn, RoPE-3d)** 
 │   ├── pipelines
 │   │   ├── __init__.py
 │   │   ├── infer_pipeline.py               -> efficient inference pipeline for MindSpore
-│   │   └── train_pipeline.py               -> efficient training pipeline for MindSpore
+│   │   └── train_pipeline.py               -> ** add v-pred, zero-SNR **
 │   ├── schedulers
+│   │   ├── rectified_flow.py
 │   │   └── iddpm                           -> IDDPM for training and inference
 │   │       ├── __init__.py
 │   │       ├── diffusion_utils.py
 │   │       ├── gaussian_diffusion.py
 │   │       ├── respace.py
-│   │       └── timestep_sampler.py
+│   │       └── timestep_sampler.py	    -> ** add Explicit Uniform Sampling ** 
 │   └── utils
 ├── requirements.txt
 ├── scripts
