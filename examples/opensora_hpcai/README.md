@@ -345,6 +345,14 @@ We also provide a three-stage sampling script `run_sole_3stages.sh` to reduce me
 
 For more usage on the inference script, please run `python scripts/inference.py -h`
 
+#### Inference Performance
+
+| model name      |  cards | batch size | resolution | graph compile | jit_level | precision |  scheduler   | step      | s/step     | s/video | recipe |
+| :--:         | :--:   | :--:       | :--:       | :--:       | :--:       | :--:       | :--:       | :--:      |:--:    | :--:   |:--:   |
+| STDiT2-XL/2 | 1 | 4 | 16x256x256 | 1~2 mins | O0 | fp32 | DDPM | 100 |  0.39 | 39.22 | [yaml](configs/opensora/inference/stdit_256x256x16.yaml) |
+| STDiT2-XL/2 | 1 | 1 | 16x512x512 | 1~2 mins | O0 | fp32 | DDPM | 100 |  1.85 | 185.00 | [yaml](configs/opensora/inference/stdit_512x512x16.yaml) |
+| STDiT2-XL/2 | 1 | 1 | 64x512x512 | 1~2 mins | O0 | bf16 | DDPM | 100 |  2.78 | 278.45 | [yaml](configs/opensora/inference/stdit_512x512x64.yaml) |
+
 </details>
 
 <br>
@@ -745,21 +753,16 @@ Experiments are tested on ascend 910* with mindspore 2.3.1 graph mode.
 ### Open-Sora 1.0
 <details>
 <summary>View more</summary>
-    
+
 #### Training Performance
 
-We evaluated the training performance on MindSpore and Ascend NPUs. The results are as follows.
+Experiments are tested on ascend 910* with mindspore 2.3.1 graph mode.
+| model name   | cards  | batch size | resolution   | stage | precision | sink |  jit level   | graph compile | s/step | recipe | 
+| :--:         | :--:   | :--:       | :--:         | :--:  | :--:      |:--:  | :--:         | :--:          |:--:    |:--:    | 
+| STDiT2-XL/2  |  8     | 3          | 16x256x256   | 1     | bf16      |  ON  | O1           | 5~6 mins      |  1.43  | [yaml](configs/opensora/train/stdit_256x256x16_ms.yaml) |
+| STDiT3-XL/2  |  8     | 1          | 16x512x512   | 2     | bf16      |  ON  | O1           | 5~6 mins      |  2.05  | [yaml](configs/opensora/train/stdit_512x512x16.yaml) |
+| STDiT3-XL/2  |  8     | 1          | 64x512x512   | 3     | bf16      |  ON  | O1           | 5~6 mins      |  7.82  | [yaml](configs/opensora/train/stdit_512x512x64_ms.yaml) |
 
-| Model      | Context      | Precision | BS | NPUs | Size (TxHxW)  | Train T. (s/step) |
-|:-----------|:-------------|:----------|:--:|:----:|:-----------:|:-----------------:|
-| STDiT-XL/2 | D910\*-MS2.3 | FP16      | 2  |  8   | 16x256x256  |       1.10        |
-| STDiT-XL/2 | D910\*-MS2.3 | FP16      | 1  |  8   | 16x512x512  |       1.67        |
-| STDiT-XL/2 | D910\*-MS2.3 | FP16      | 1  |  8   | 64x512x512  |       5.72        |
-| STDiT-XL/2 | D910\*-MS2.3 | BF16      | 1  |  8   | 64x512x512  |       6.80        |
-| STDiT-XL/2 | D910\*-MS2.3 | FP16      | 1  |  8   | 300x512x512 |        37         |
-> Context: {G:GPU, D:Ascend}{chip type}-{mindspore version}.
-
-Note that training on 300 frames at 512x512 resolution is achieved by optimization+data parallelism with t5 cached embeddings.
 
 ** Tips ** for performance optimization: to speed up training, you can set `dataset_sink_mode` as True and reduce `num_recompute_blocks` from 28 to a number that doesn't lead to out-of-memory.
 

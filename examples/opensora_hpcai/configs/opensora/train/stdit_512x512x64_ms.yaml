@@ -18,7 +18,7 @@ max_rowsize: 96
 
 # mixed precision
 vae_dtype: "fp32"
-global_bf16: True  # stidit
+global_bf16: True  # stdit
 init_loss_scale: 65536
 
 # training hyper-params
