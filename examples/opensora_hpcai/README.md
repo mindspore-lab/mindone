@@ -322,6 +322,21 @@ when using `sample_iv2v.yaml`.
 python scripts/inference.py --config configs/opensora-v1-1/inference/sample_t2v.yaml --ckpt_path /path/to/your/opensora-v1-1.ckpt
 ```
 
+#### Inference Performance
+
+We evaluate the inference performance of text-to-video generation by measuring the average sampling time per step and the total sampling time of a video.
+
+Experiments are tested on ascend 910* with mindspore 2.3.1 graph mode.
+
+
+| model name      |  cards | batch size | resolution |  jit_level | precision |  scheduler   | step      | graph compile | s/step     | s/video | recipe |
+| :--:         | :--:   | :--:       | :--:       | :--:       | :--:       | :--:       | :--:       | :--:      |:--:    | :--:   |:--:   |
+| STDiT2-XL/2  |  1     | 1          | 16x640x360   | O0       | bf16       |  ddpm     |   100   |  1~2 mins |  1.56    |    156.00      |  [yaml](configs/opensora-v1-1/inference/sample_t2v.yaml) | 
+| STDiT3-XL/2  |  1     | 1          | 51x720x1280   | O0      | bf16       |  rflow    |   30    |  1~2 mins  |  5.88      |  176.40   | [yaml](configs/opensora-v1-2/inference/sample_t2v.yaml) | 
+| STDiT3-XL/2  |  1     | 1          | 102x720x1280  | O0      | bf16       |  rflow    |   30    |  1~2 min   | 13.71      |  411.30  | [yaml](configs/opensora-v1-2/inference/sample_t2v.yaml) | 
+
+
+
 ### Open-Sora 1.0 Command Line Inference
 
 <details>
@@ -347,11 +362,15 @@ For more usage on the inference script, please run `python scripts/inference.py 
 
 #### Inference Performance
 
-| model name      |  cards | batch size | resolution | graph compile | jit_level | precision |  scheduler   | step      | s/step     | s/video | recipe |
+We evaluate the inference performance of text-to-video generation by measuring the average sampling time per step and the total sampling time of a video.
+
+Experiments are tested on ascend 910* with mindspore 2.3.1 graph mode.
+
+| model name      |  cards | batch size | resolution |  jit_level | precision |  scheduler   | step      | graph compile | s/step     | s/video | recipe |
 | :--:         | :--:   | :--:       | :--:       | :--:       | :--:       | :--:       | :--:       | :--:      |:--:    | :--:   |:--:   |
-| STDiT2-XL/2 | 1 | 4 | 16x256x256 | 1~2 mins | O0 | fp32 | DDPM | 100 |  0.39 | 39.22 | [yaml](configs/opensora/inference/stdit_256x256x16.yaml) |
-| STDiT2-XL/2 | 1 | 1 | 16x512x512 | 1~2 mins | O0 | fp32 | DDPM | 100 |  1.85 | 185.00 | [yaml](configs/opensora/inference/stdit_512x512x16.yaml) |
-| STDiT2-XL/2 | 1 | 1 | 64x512x512 | 1~2 mins | O0 | bf16 | DDPM | 100 |  2.78 | 278.45 | [yaml](configs/opensora/inference/stdit_512x512x64.yaml) |
+| STDiT-XL/2 | 1 | 4 | 16x256x256 |  O0 | fp32 | ddpm | 100 |  1~2 mins | 0.39 | 39.22 | [yaml](configs/opensora/inference/stdit_256x256x16.yaml) |
+| STDiT-XL/2 | 1 | 1 | 16x512x512 | O0 | fp32 | ddpm | 100 | 1~2 mins |  1.85 | 185.00 | [yaml](configs/opensora/inference/stdit_512x512x16.yaml) |
+| STDiT-XL/2 | 1 | 1 | 64x512x512 |  O0 | bf16 | ddpm | 100 | 1~2 mins | 2.78 | 278.45 | [yaml](configs/opensora/inference/stdit_512x512x64.yaml) |
 
 </details>
 
@@ -682,18 +701,6 @@ Below are some generation results after fine-tuning STDiT3 with **Stage 2** buck
 </table>
 
 
-#### Inference Performance
-
-We evaluate the inference performance of text-to-video generation by measuring the average sampling time per step and the total sampling time of a video.
-
-Experiments are tested on ascend 910* with mindspore 2.3.1 graph mode.
-
-| model name   | cards  | batch size | resolution   | precision  | jit level    | s/step    |   s/video  |  recipe |
-| :--:         | :--:   | :--:       | :--:         | :--:       | :--:         | :--:      |  :--:   | 
-| STDiT3-XL/2  |  1     | 1          | 51x720x1280   | bf16      | O0           | 5.88      |  176.40   | [yaml](configs/opensora-v1-2/inference/sample_t2v.yaml) | 
-| STDiT3-XL/2  |  1     | 1          | 102x720x1280  | bf16      | O0           | 13.71      |  411.30  | [yaml](configs/opensora-v1-2/inference/sample_t2v.yaml) | 
-
-
 ### Open-Sora 1.1
 
 <details>
@@ -737,17 +744,6 @@ Here are some generation results after fine-tuning STDiT2 on a mixkit subset.
 </table>
 
 
-#### Inference Performance
-
-We evaluate the inference performance of text-to-video generation by measuring the average sampling time per step and the total sampling time of a video.
-
-Experiments are tested on ascend 910* with mindspore 2.3.1 graph mode.
-
-| model name   | cards  | batch size | resolution   | precision  | jit level    | s/step    |  recipe |
-| :--:         | :--:   | :--:       | :--:         | :--:       | :--:         | :--:      |  :--:   | 
-| STDiT2-XL/2  |  1     | 1          | 16x640x360   | bf16      | O0           |   1.56    | [yaml](configs/opensora-v1-1/inference/sample_t2v.yaml) | 
-
-
 </details>
 
 ### Open-Sora 1.0
@@ -759,9 +755,9 @@ Experiments are tested on ascend 910* with mindspore 2.3.1 graph mode.
 Experiments are tested on ascend 910* with mindspore 2.3.1 graph mode.
 | model name   | cards  | batch size | resolution   | stage | precision | sink |  jit level   | graph compile | s/step | recipe | 
 | :--:         | :--:   | :--:       | :--:         | :--:  | :--:      |:--:  | :--:         | :--:          |:--:    |:--:    | 
-| STDiT2-XL/2  |  8     | 3          | 16x256x256   | 1     | bf16      |  ON  | O1           | 5~6 mins      |  1.43  | [yaml](configs/opensora/train/stdit_256x256x16_ms.yaml) |
-| STDiT3-XL/2  |  8     | 1          | 16x512x512   | 2     | bf16      |  ON  | O1           | 5~6 mins      |  2.05  | [yaml](configs/opensora/train/stdit_512x512x16.yaml) |
-| STDiT3-XL/2  |  8     | 1          | 64x512x512   | 3     | bf16      |  ON  | O1           | 5~6 mins      |  7.82  | [yaml](configs/opensora/train/stdit_512x512x64_ms.yaml) |
+| STDiT-XL/2  |  8     | 3          | 16x256x256   | 1     | bf16      |  ON  | O1           | 5~6 mins      |  1.43  | [yaml](configs/opensora/train/stdit_256x256x16_ms.yaml) |
+| STDiT-XL/2  |  8     | 1          | 16x512x512   | 2     | bf16      |  ON  | O1           | 5~6 mins      |  2.05  | [yaml](configs/opensora/train/stdit_512x512x16.yaml) |
+| STDiT-XL/2  |  8     | 1          | 64x512x512   | 3     | bf16      |  ON  | O1           | 5~6 mins      |  7.82  | [yaml](configs/opensora/train/stdit_512x512x64_ms.yaml) |
 
 
 #### Loss Curves
