@@ -604,6 +604,8 @@ class Trainer:
             "batch_size": self.args.per_device_train_batch_size,       # per device batch size
             "per_batch_map": data_collator,                            # collate function
             "drop_remainder": self.args.dataloader_drop_last,          # drop last
+            "input_columns": "item",
+            "output_columns": "item",
         }
         ds_repeat_params = {
             "count": 1  # self.args.num_train_epochs            # num_train_epochs, loop at train func
