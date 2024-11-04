@@ -183,7 +183,7 @@ First, you need to download checkpoint including [diffusion model](https://huggi
 
 
 
-You can run text-to-video inference on a single Ascend device using the script `scripts/text_condition/single-device/sample_t2v_29x1280.sh` by modifying `--model_path`, `--text_encoder_name_1` and `--ae_path`. The `--caption_refiner`  and `--text_encoder_name_2` are optional.
+You can run text-to-video inference on a single Ascend device using the script `scripts/text_condition/single-device/sample_t2v_93x640.sh` by modifying `--model_path`, `--text_encoder_name_1` and `--ae_path`. The `--caption_refiner`  and `--text_encoder_name_2` are optional.
 
 <!-- We provide multiple inference scripts to support various requirements. We recommend configuration `--guidance_scale 7.5 --num_sampling_steps 100 --sample_method EulerAncestralDiscrete` for sampling. -->
 
@@ -192,16 +192,15 @@ You can run text-to-video inference on a single Ascend device using the script `
 python opensora/sample/sample.py \
     --model_path LanguageBind/Open-Sora-Plan-v1.3.0/any93x640x640 \
     --version v1_3 \
-    --num_frames 29 \
-    --height 704 \
-    --width 1280 \
+    --num_frames 93 \
+    --height 352 \
+    --width 640 \
     --text_encoder_name_1 google/mt5-xxl \
-    --text_encoder_name_2 laion/CLIP-ViT-bigG-14-laion2B-39B-b160k \
     --text_prompt examples/prompt_list_0.txt \
     --ae WFVAEModel_D8_4x8x8  \
     --ae_path LanguageBind/Open-Sora-Plan-v1.3.0/vae \
-    --save_img_path "./sample_videos/prompt_list_0_29x1280_mt5_openclip" \
-    --fps 24 \
+    --save_img_path "./sample_videos/prompt_list_0_93x640" \
+    --fps 18 \
     --guidance_scale 7.5 \
     --num_sampling_steps 100 \
     --enable_tiling \

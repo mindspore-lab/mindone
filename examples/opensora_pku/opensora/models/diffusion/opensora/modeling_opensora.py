@@ -15,9 +15,10 @@ from mindone.diffusers.configuration_utils import ConfigMixin, register_to_confi
 from mindone.diffusers.models.embeddings import PixArtAlphaTextProjection
 from mindone.diffusers.models.modeling_utils import ModelMixin, load_state_dict
 from mindone.diffusers.models.normalization import AdaLayerNormSingle
-from mindone.diffusers.utils import SAFETENSORS_WEIGHTS_NAME, WEIGHTS_NAME, _add_variant, _get_model_file, deprecate
+from mindone.diffusers.utils import SAFETENSORS_WEIGHTS_NAME, WEIGHTS_NAME, _add_variant, _get_model_file
 
-from examples.opensora_pku.opensora.models.diffusion.opensora.modules import BasicTransformerBlock, LayerNorm, Attention, PatchEmbed2D
+from opensora.models.diffusion.opensora.modules import BasicTransformerBlock, LayerNorm, Attention
+from opensora.models.diffusion.common import PatchEmbed2D
 
 class OpenSoraT2V_v1_3(ModelMixin, ConfigMixin):
     _supports_gradient_checkpointing = True
@@ -115,7 +116,8 @@ class OpenSoraT2V_v1_3(ModelMixin, ConfigMixin):
         self.adaln_single = AdaLayerNormSingle(self.config.hidden_size)
         self.max_pool3d = nn.MaxPool3d(
             kernel_size=(self.config.patch_size_t, self.config.patch_size, self.config.patch_size), 
-            stride=(self.config.patch_size_t, self.config.patch_size, self.config.patch_size)
+            stride=(self.config.patch_size_t, self.config.patch_size, self.config.patch_size),
+            pad_mode="pad"
         )
 
     # rewrite class method to allow the state dict as input
@@ -266,7 +268,7 @@ class OpenSoraT2V_v1_3(ModelMixin, ConfigMixin):
         # return_dict: bool = True,
         **kwargs, 
     ):
-        
+        dtype = ms.float16
         batch_size, c, frame, h, w = hidden_states.shape
         # ensure attention_mask is a bias, and give it a singleton query_tokens dimension.
         #   we may have done this conversion already, e.g. if we came here via UNet2DConditionModel#forward.
@@ -306,9 +308,8 @@ class OpenSoraT2V_v1_3(ModelMixin, ConfigMixin):
         frame = ((frame - 1) // self.config.patch_size_t + 1) if frame % 2 == 1 else frame // self.config.patch_size_t  # patchfy
         height, width = hidden_states.shape[-2] // self.config.patch_size, hidden_states.shape[-1] // self.config.patch_size
 
-
         hidden_states, encoder_hidden_states, timestep, embedded_timestep = self._operate_on_patched_inputs(
-            hidden_states, encoder_hidden_states, timestep, batch_size, frame
+            hidden_states, encoder_hidden_states, timestep, batch_size, frame, dtype=dtype
         )
 
         if get_sequence_parallel_state():
@@ -352,6 +353,7 @@ class OpenSoraT2V_v1_3(ModelMixin, ConfigMixin):
                     width=width, 
                 ) # BSH
 
+
         if get_sequence_parallel_state():
             # To (b, t*h*w, h) or (b, t//sp*h*w, h)
             # s b h -> b s h
@@ -367,16 +369,15 @@ class OpenSoraT2V_v1_3(ModelMixin, ConfigMixin):
             width=width,
         )  # b c t h w
 
+
         return output
 
-
-    def _operate_on_patched_inputs(self, hidden_states, encoder_hidden_states, timestep, batch_size, frame):
-        
-        hidden_states = self.pos_embed(hidden_states.to(self.dtype)) # (b, t*h*w, d)
-
+    def _operate_on_patched_inputs(self, hidden_states, encoder_hidden_states, timestep, batch_size, frame, dtype=ms.float16):
+        hidden_states = self.pos_embed(hidden_states.to(dtype)) # (b, t*h*w, d)
+    
         added_cond_kwargs = {"resolution": None, "aspect_ratio": None}
         timestep, embedded_timestep = self.adaln_single(
-            timestep, added_cond_kwargs, batch_size=batch_size, hidden_dtype=self.dtype
+            timestep, added_cond_kwargs, batch_size=batch_size, hidden_dtype=dtype
         )  # b 6d, b d
 
         encoder_hidden_states = self.caption_projection(encoder_hidden_states)  # b, 1, l, d
@@ -386,7 +387,6 @@ class OpenSoraT2V_v1_3(ModelMixin, ConfigMixin):
 
         return hidden_states, encoder_hidden_states, timestep, embedded_timestep
 
-    
     
     def _get_output_for_patched_inputs(
         self, hidden_states, timestep, embedded_timestep, num_frames, height, width
@@ -432,7 +432,7 @@ if __name__ == '__main__':
 
     args = type('args', (), 
     {
-        'ae': "CausalVAEModel_D4_4x8x8", #'WFVAEModel_D8_4x8x8', 
+        'ae': "WFVAEModel_D8_4x8x8", 
         'model_max_length': 300, 
         'max_height': 256,
         'max_width': 512,
@@ -480,6 +480,8 @@ if __name__ == '__main__':
         ckpt = safe_load(path, device="cpu")
         msg = model.load_state_dict(ckpt, strict=True)
         print(msg)
+        # some difference from sample.py
+        # e.g. do not have mix precision
     except Exception as e:
         print(e)
     # print(model)

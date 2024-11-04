@@ -7,6 +7,35 @@ import mindspore as ms
 from mindspore import mint, nn, ops
 
 
+# V1.3, Different from v1.2
+class PatchEmbed2D(nn.Cell):
+    """2D Image to Patch Embedding but with video"""
+
+    def __init__(
+        self,
+        patch_size=16, #2
+        in_channels=3, #8
+        embed_dim=768, # 24*96=2304
+        bias=True,
+    ):
+        super().__init__()
+        self.proj = nn.Conv2d(
+            in_channels, embed_dim, 
+            kernel_size=(patch_size, patch_size), stride=(patch_size, patch_size), has_bias=bias
+        )
+
+    def construct(self, latent):
+        b, c, t, h, w = latent.shape # b, c=in_channels, t, h, w
+        # b c t h w -> (b t) c h w
+        latent = latent.permute(0, 2, 1, 3, 4).reshape(b*t, c, h, w) # b*t, c, h, w
+        latent = self.proj(latent)  # b*t, embed_dim, h, w
+        # (b t) c h w -> b (t h w) c
+        _, c, h, w = latent.shape
+        latent = latent.reshape(b, -1, c, h, w).permute(0, 1, 3, 4, 2).reshape(b, -1, c) # b, t*h*w, embed_dim
+        
+        return latent
+
+
 class PositionGetter3D(object):
     """return positions of patches"""
 
