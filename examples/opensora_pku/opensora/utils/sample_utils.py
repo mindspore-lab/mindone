@@ -35,6 +35,7 @@ from opensora.models.causalvideovae.model.modules.updownsample import TrilinearI
 from examples.opensora_pku.opensora.models.diffusion.opensora.modeling_opensora import LayerNorm, OpenSoraT2V_v1_3
 from examples.opensora_pku.opensora.models.diffusion.opensora.modules import Attention
 from opensora.sample.pipeline_opensora import OpenSoraPipeline
+from opensora.models.diffusion.common import PatchEmbed2D
 
 from mindone.diffusers.models.embeddings import PixArtAlphaCombinedTimestepSizeEmbeddings
 from mindone.diffusers import (
@@ -253,11 +254,12 @@ def prepare_pipeline(args):
         if not args.global_bf16:
             amp_level = args.amp_level
             if dtype == ms.float16:
-                custom_fp32_cells=[LayerNorm, Attention, nn.SiLU, nn.GELU, PixArtAlphaCombinedTimestepSizeEmbeddings]
+                custom_fp32_cells=[LayerNorm, Attention, PatchEmbed2D, nn.SiLU, nn.GELU, PixArtAlphaCombinedTimestepSizeEmbeddings]
             else:
                 custom_fp32_cells= [
                     nn.MaxPool2d,
                     nn.MaxPool3d, # do not support bf16
+                    PatchEmbed2D, # low accuracy if using bf16
                     LayerNorm,
                     nn.SiLU,
                     nn.GELU,
