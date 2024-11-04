@@ -477,7 +477,7 @@ def main(args):
                 videos.append(to_numpy(samples)[:, args.condition_frame_length if loop_i > 0 else 0 :])
             batch_time = time.time() - start_time
             logger.info(
-                f"Batch time cost: {batch_time:.3f}s, sampling speed: {args.sampling_steps * ns / batch_time:.2f} step/s"
+                f"Batch time cost: {batch_time:.3f}s, sampling speed: {args.sampling_steps * ns / batch_time:.4f} step/s"
             )
 
         latents = np.concatenate(latents, axis=2)
