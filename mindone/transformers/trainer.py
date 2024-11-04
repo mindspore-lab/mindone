@@ -568,6 +568,7 @@ class Trainer:
                 def __init__(self, dataset: datasets.Dataset):
                     self.dataset = dataset
                 def __getitem__(self, item):
+                    breakpoint()
                     return self.dataset[int(item)]
                 def __len__(self):
                     return len(self.dataset)
