@@ -5,8 +5,8 @@ python opensora/train/train_causalvae.py \
     --max_steps 100000 \
     --save_steps 2000 \
     --output_dir results/causalvae \
-    --video_path /home_host/ddd/workspace/datasets/UCF-101 \
-    --data_file_path /home_host/ddd/workspace/datasets/ucf101_train.csv \
+    --video_path datasets/UCF-101 \
+    --data_file_path datasets/ucf101_train.csv \
     --video_num_frames 25 \
     --resolution 256 \
     --sample_rate 2 \
