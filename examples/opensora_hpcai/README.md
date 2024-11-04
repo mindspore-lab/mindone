@@ -653,8 +653,8 @@ Experiments are tested on ascend 910* with mindspore 2.3.1 graph mode.
 | :--:         | :--:   | :--:       | :--:       | :--:       | :--:      | :--:      |:--:          | :--:       | :--:   |
 | STDiT3-XL/2  |  8     | 1          | 51x720x1280| bf16       | ON      | O1        |    12 mins   | 14.23   | [yaml](configs/opensora-v1-2/train/train_720x1280x51.yaml)
 | STDiT3-XL/2  |  8     | dynamic    | stage 1 | bf16       |   OFF    | O1        |      22 mins   | 13.17   | [yaml](configs/opensora-v1-2/train/train_stage1_ms.yaml)
-| STDiT3-XL/2  |  8     | dynamic    | stage 2 | bf16       |   OFF    | O1        |     22 mins     |  17.96   | [yaml](configs/opensora-v1-2/train/train_stage2_ms.yaml)
-| STDiT3-XL/2  |  8     | dynamic    | stage 3 | bf16       |   OFF    | O1        |     22 mins     |  34.00 (tbu)  | [yaml](configs/opensora-v1-2/train/train_stage3.yaml)
+| STDiT3-XL/2  |  8     | dynamic    | stage 2 | bf16       |   OFF    | O1        |     22 mins     |   (tbu)   | [yaml](configs/opensora-v1-2/train/train_stage2_ms.yaml)
+| STDiT3-XL/2  |  8     | dynamic    | stage 3 | bf16       |   OFF    | O1        |     22 mins     | 31.17   | [yaml](configs/opensora-v1-2/train/train_stage3.yaml)
 
 Note that the step time of dynamic training can be influenced by the resolution and duration distribution of the source videos. 
 
@@ -684,7 +684,7 @@ Below are some generation results after fine-tuning STDiT3 with **Stage 2** buck
 
 #### Inference Performance
 
-We evaluate the inference performance on text-to-video generation, which is measured by the average sampling time per step.   
+We evaluate the inference performance of text-to-video generation by measuring the average sampling time per step.
 
 Experiments are tested on ascend 910* with mindspore 2.3.1 graph mode.
 
@@ -735,6 +735,18 @@ Here are some generation results after fine-tuning STDiT2 on a mixkit subset.
   <td width=50%><video src="https://github.com/mindspore-lab/mindone/assets/52945530/532f9d62-9b16-44dc-bd7a-4a24bd930e21" autoplay></td>
 </tr>
 </table>
+
+
+#### Inference Performance
+
+We evaluate the inference performance of text-to-video generation by measuring the average sampling time per step.
+
+Experiments are tested on ascend 910* with mindspore 2.3.1 graph mode.
+
+| model name   | cards  | batch size | resolution   | precision  | jit level    | s/step    |  recipe |
+| :--:         | :--:   | :--:       | :--:         | :--:       | :--:         | :--:      |  :--:   | 
+| STDiT2-XL/2  |  1     | 1          | 16x640x360   | bf16      | O0           |   1.56    | [yaml](configs/opensora-v1-1/inference/sample_t2v.yaml) | 
+
 
 </details>
 
@@ -857,89 +869,17 @@ You can change the `csv_path` and `video_folder` to evaluate on your own data.
 
 Here, we report the training performance and evaluation results on the UCF-101 dataset.
 
-| Model       | Context      | jit_level | Precision | BS | NPUs | Resolution(framesxHxW) | Train T. (s/step) |    PSNR   |   SSIM  |
-|:------------|:-------------|:--------|:---------:|:--:|:----:|:----------------------:|:-----------------:|:-----------------:|:-----------------:|
-| VAE-3D | D910\*-[MS2.3.1](https://www.mindspore.cn/install) |    O0  |    BF16   |  1 |  8   |       stage1-17x256x256       |       0.21         |    n.a.      |    n.a.    |
-| VAE-3D | D910\*-[MS2.3.1](https://www.mindspore.cn/install) |    O2  |    BF16   |  1 |  1   |       stage2-17x256x256      |        0.41         |    n.a.      |    n.a.    |
-| VAE-3D | D910\*-[CANN C18(0705)](https://repo.mindspore.cn/ascend/ascend910/20240705/)-[MS2.3](https://www.mindspore.cn/install) |    O1  |    BF16   |  1 |  8   |       stage3-17x256x256      |       0.93        |    29.29      |    0.88    |
-> Context: {G:GPU, D:Ascend}{chip type}-{mindspore version}.
+
+Experiments are tested on ascend 910* with mindspore 2.3.0 graph mode.
+
+| model name   | cards  | batch size | resolution   |  precision  |  jit level    | graph compile | s/step    | PSNR   | SSIM  | recipe |
+| :--:         | :--:   | :--:       | :--:         | :--:       | :--:         | :--:          | :--:      | :--:   | :--:      | :--:      |
+| VAE-3D  |  8     | 1          | 17x256x256   | bf16       |  O1           |  5~10 mins      | 0.93     |  29.29   | 0.88  | [yaml](configs/vae/train/stage3.yaml) | 
+
 
 Note that we train with mixed video ang image strategy i.e. `--mixed_strategy=mixed_video_image` for stage 3 instead of random number of frames (`mixed_video_random`). Random frame training will be supported in the future.
 
 
-## Training and Inference Using the FiT-Like Pipeline
-
-<details>
-<summary>View more</summary>
-
-We provide support for training Open-Sora 1.1 using the FiT-Like pipeline as an alternative solution for handling multi-resolution videos, in contrast to the bucketing strategy.
-
-### FiT-Like Training
-
-To begin, we need to prepare the VAE (Variational Autoencoder) latents from multi-resolution videos. For instance, if you intend to train at a resolution of up to 512x512 pixels, please run
-
-```bash
-python script/infer_vae.py \
-    --csv_path /path/to/video_caption.csv  \
-    --video_folder /path/to/video_folder  \
-    --output_path /path/to/video_embed_folder  \
-    --vae_checkpoint models/sd-vae-ft-ema.ckpt \
-    --image_size 512 \
-    --resize_by_max_value True \
-    --vae-micro-batch-size 1
-    --mode 1
-```
-
-The extracted VAE latent will be saved in the video embedding folder.
-
-Then, to launch a distributed training with eight NPU cards, please run
-
-```bash
-msrun --worker_num=8 --local_worker_num=8  \
-    scripts/train.py --config configs/opensora-v1-1/train/train_stage1_fit.yaml \
-    --csv_path /path/to/video_caption.csv \
-    --video_folder /path/to/video_folder \
-    --text_embed_folder /path/to/text_embed_folder \
-    --vae_latent_folder /path/to/video_embed_folder \
-    --use_parallel True \
-    --max_image_size 512 \
-```
-
-We evaluated the training performance on MindSpore and Ascend NPUs. The results are as follows.
-
-| Model       | Context      | Precision | BS | NPUs | Max. Size | Train T. (s/step) |
-|:------------|:-------------|:----------|:--:|:----:|:---------------:|:-----------------:|
-| STDiT2-XL/2 | D910\*-MS2.3_master | BF16      | 1  |  4   | 16x512x512      |       2.3         |
-
-
-### FiT-Like Inference
-
-To sample a video with a resolution of 384x672 using the trained checkpoint. You can run
-
-```bash
-python scripts/inference_i2v.py --config configs/opensora-v1-1/inference/t2v_fit.yaml \
-    --ckpt_path /path/to/your/opensora-v1-1.ckpt \
-    --prompt_path /path/to/prompt.txt \
-    --image_size 384 672 \
-    --max_image_size 512 \
-```
-
-Make sure that the `max_image_size` parameter remains consistent between your training and inference commands.
-
-Here are some generation results after fine-tuning STDiT on a small dataset:
-
-<table class="center">
-<tr>
-  <td style="text-align:center;"><b>384x672x16</b></td>
-  <td style="text-align:center;"><b>672x384x16</b></td>
-</tr>
-<tr>
-  <td><video src="https://github.com/zhtmike/mindone/assets/8342575/97d8f37d-8ac3-49a8-af6d-5103f299e481" autoplay></td>
-  <td><video src="https://github.com/zhtmike/mindone/assets/8342575/abefa666-8e88-4eef-974e-a4d4bfa1cd53" autoplay></td>
-</tr>
-</table>
-
-</details>
 
 ## Contribution
 
