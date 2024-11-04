@@ -31,6 +31,7 @@ def main():
     dataset["test"] = dataset["test"].shuffle(seed=42).select(range(1000))
 
     tokenizer = AutoTokenizer.from_pretrained(args.model_path)
+    tokenizer.pad_token = tokenizer.eos_token
 
     from transformers import PreTrainedTokenizerFast, PreTrainedTokenizerBase
     def tokenize_function(examples):
@@ -39,9 +40,9 @@ def main():
             padding="max_length",
             truncation=True,
             max_length=512,
-            padding_side="right",
-            pad_token="<|reserved_special_token_0|>",
-            pad_token_id=128002
+            # padding_side="right",
+            # pad_token="<|reserved_special_token_0|>",
+            # pad_token_id=128002
         )
 
     tokenized_datasets = dataset.map(tokenize_function, batched=True)
