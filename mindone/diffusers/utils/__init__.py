@@ -48,6 +48,7 @@ from .import_utils import (
     is_opencv_available,
     is_peft_version,
     is_scipy_available,
+    is_sentencepiece_available,
     is_transformers_available,
     maybe_import_module_in_mindone,
 )
