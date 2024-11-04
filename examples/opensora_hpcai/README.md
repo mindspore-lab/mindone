@@ -641,12 +641,12 @@ Here ✅ means that the data is seen during training, and 🆗 means although no
 We evaluate the training performance of Open-Sora v1.2 on the MixKit dataset with high-resolution videos (1080P, duration 12s to 100s).
 
 Experiments are tested on ascend 910* with mindspore 2.3.1 graph mode.
-| model name   | cards  | batch size | resolution | precision  | sink      | jit level | s/step | config | 
-| :--:         | :--:   | :--:       | :--:       | :--:       | :--:      | :--:      |:--:    | :--:   |
-| STDiT3-XL/2  |  8     | 1          | 51x720x1280| bf16       | ON      | O1        | 14.23   | [yaml](configs/opensora-v1-2/train/train_720x1280x51.yaml)
-| STDiT3-XL/2  |  8     | dynamic    | stage 1 | bf16       |   OFF    | O1        | 13.17   | [yaml](configs/opensora-v1-2/train/train_stage1_ms.yaml)
-| STDiT3-XL/2  |  8     | dynamic    | stage 2 | bf16       |   OFF    | O1        | 28.60 (tbu)   | [yaml](configs/opensora-v1-2/train/train_stage2.yaml)
-| STDiT3-XL/2  |  8     | dynamic    | stage 3 | bf16       |   OFF    | O1        | 34.00 (tbu)  | [yaml](configs/opensora-v1-2/train/train_stage3.yaml)
+| model name   | cards  | batch size | resolution | precision  | sink      | jit level | graph compile |  s/step | config | 
+| :--:         | :--:   | :--:       | :--:       | :--:       | :--:      | :--:      |:--:          | :--:       | :--:   |
+| STDiT3-XL/2  |  8     | 1          | 51x720x1280| bf16       | ON      | O1        |    12 mins   | 14.23   | [yaml](configs/opensora-v1-2/train/train_720x1280x51.yaml)
+| STDiT3-XL/2  |  8     | dynamic    | stage 1 | bf16       |   OFF    | O1        |      22 mins   | 13.17   | [yaml](configs/opensora-v1-2/train/train_stage1_ms.yaml)
+| STDiT3-XL/2  |  8     | dynamic    | stage 2 | bf16       |   OFF    | O1        |     22 mins     |   28.60 (tbu)   | [yaml](configs/opensora-v1-2/train/train_stage2.yaml)
+| STDiT3-XL/2  |  8     | dynamic    | stage 3 | bf16       |   OFF    | O1        |     22 mins     |  34.00 (tbu)  | [yaml](configs/opensora-v1-2/train/train_stage3.yaml)
 
 Note that the step time of dynamic training can be influenced by the resolution and duration distribution of the source videos. 
 
@@ -696,12 +696,12 @@ We evaluate the training performance of Open-Sora v1.1 on a subset of the MixKit
 
 Experiments are tested on ascend 910* with mindspore 2.3.1 graph mode.
 
-| model name   | cards  | batch size | resolution   | vae cache  | precision  | sink       | jit level    | s/step    | 
-| :--:         | :--:   | :--:       | :--:         | :--:       | :--:       | :--:       | :--:         | :--:      | 
-| STDiT2-XL/2  |  8     | 1          | 16x512x512   | OFF        | bf16       | OFF        | O1           | 2.00 tbu       | 
-| STDiT3-XL/2  |  8     | 1          | 64x512x512   | OFF        | bf16       | OFF        | O1           | 8.57      | 
-| STDiT3-XL/2  |  8     | 1          | 24x576x1024  | OFF        | bf16       | OFF        | O1           | 8.55      | 
-| STDiT3-XL/2  |  8     | 1          | 64x576x1024  | ON         | bf16       | OFF        | O1           | 18.94     | 
+| model name   | cards  | batch size | resolution   | vae cache  | precision  | sink       | jit level    | graph compile | s/step    | 
+| :--:         | :--:   | :--:       | :--:         | :--:       | :--:       | :--:       | :--:         | :--:          | :--:      | 
+| STDiT2-XL/2  |  8     | 1          | 16x512x512   | OFF        | bf16       | OFF        | O1           |  13 mins      | 2.00 tbu       | 
+| STDiT3-XL/2  |  8     | 1          | 64x512x512   | OFF        | bf16       | OFF        | O1           |  13 mins      | 8.57      | 
+| STDiT3-XL/2  |  8     | 1          | 24x576x1024  | OFF        | bf16       | OFF        | O1           |  13 mins      | 8.55      | 
+| STDiT3-XL/2  |  8     | 1          | 64x576x1024  | ON         | bf16       | OFF        | O1           |  13 mins      | 18.94     | 
 
 > vae cache: whether vae embedding is pre-computed and cached before training. 
 
