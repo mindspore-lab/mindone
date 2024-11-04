@@ -596,7 +596,7 @@ class Trainer:
             "column_names": "item"
         }
 
-        breakpoint()
+        breakpoint()  # zhy_test
 
         ds_batch_params = {
             "num_parallel_workers": self.args.dataloader_num_workers,  # num workers
