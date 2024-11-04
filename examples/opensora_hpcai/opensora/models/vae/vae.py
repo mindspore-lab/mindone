@@ -481,5 +481,7 @@ def OpenSoraVAE_V1_2(
         sd = ms.load_checkpoint(vae2d_ckpt_path)
         # TODO: add spatial_vae prefix to the param name
         pu, cu = ms.load_param_into_net(model.spatial_vae, sd, strict_load=False)
+    else:
+        _logger.warning("VAE checkpoint is NOT loaded!")
 
     return model
