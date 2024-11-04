@@ -355,10 +355,12 @@ class ProfilerCallback(ms.Callback):
         cur_step = cb_params.cur_step_num
         if cur_step == self.end_step:
             self.profiler.stop()
-            self.profiler.analyse()
-            _logger.info(f"finish analyzing profiler in step range [{self.start_step}, {self.end_step}]")
+            _logger.info(f"Finished profiling in step range [{self.start_step}, {self.end_step}]")
             if self.exit_after_analyze:
                 run_context.request_stop()
+
+    def on_train_end(self, run_context):
+        self.profiler.analyse()
 
 
 class ProfilerCallbackEpoch(ms.Callback):
@@ -379,4 +381,6 @@ class ProfilerCallbackEpoch(ms.Callback):
         epoch_num = cb_params.cur_epoch_num
         if epoch_num == self.stop_epoch:
             self.profiler.stop()
-            self.profiler.analyse()
+
+    def on_train_end(self, run_context):
+        self.profiler.analyse()

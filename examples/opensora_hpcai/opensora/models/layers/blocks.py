@@ -177,7 +177,7 @@ class MultiHeadCrossAttention(nn.Cell):
         # 2+: mask adaptation for multi-head attention
         if mask is not None:
             # flip mask, since ms FA treats 1 as discard, 0 as retain.
-            mask = 1 - mask.to(ms.int32)
+            mask = 1 - mask
 
         # 3. attn compute
         if self.enable_flash_attention:
@@ -266,7 +266,7 @@ class SeqParallelMultiHeadCrossAttention(MultiHeadCrossAttention):
         # 2+: mask adaptation for multi-head attention
         if mask is not None:
             # flip mask, since ms FA treats 1 as discard, 0 as retain.
-            mask = 1 - mask.to(ms.int32)
+            mask = 1 - mask
 
         # 3. attn compute
         if self.enable_flash_attention:
@@ -274,7 +274,7 @@ class SeqParallelMultiHeadCrossAttention(MultiHeadCrossAttention):
                 # (b n_k) -> (b 1 1 n_k), will be broadcast according to qk sim, e.g. (b num_heads n_q n_k)
                 mask = mask[:, None, None, :]
                 # (b 1 1 n_k) -> (b 1 n_q n_k)
-                mask = self.repeat_interleave(mask.to(ms.int32), int(q.shape[1]), axis=-2)
+                mask = self.repeat_interleave(mask, int(q.shape[1]), axis=-2)
             x = self.flash_attention(q, k, v, mask=mask)
 
             # FA attn_mask def: retention and 1 indicates discard. Input tensor of shape :math:`(B, N1, S1, S2)`, `(B, 1, S1, S2)` `(S1, S2)`
@@ -384,7 +384,7 @@ class SelfAttention(nn.Cell):
 
         # mask process
         if mask is not None:
-            mask = 1 - mask.to(ms.int32)
+            mask = 1 - mask
 
         if self.enable_flash_attention:
             if mask is not None:
@@ -500,8 +500,8 @@ class LayerNorm(nn.Cell):
             self.gamma = Parameter(initializer("ones", normalized_shape, dtype=dtype))
             self.beta = Parameter(initializer("zeros", normalized_shape, dtype=dtype))
         else:
-            self.gamma = ops.ones(normalized_shape, dtype=dtype)
-            self.beta = ops.zeros(normalized_shape, dtype=dtype)
+            self.gamma = Tensor(np.ones(normalized_shape, dtype=np.float32))
+            self.beta = Tensor(np.zeros(normalized_shape, dtype=np.float32))
 
     def construct(self, x: Tensor):
         normalized_shape = x.shape[-1:]
@@ -592,7 +592,7 @@ class T2IFinalLayer(nn.Cell):
         self.norm_final = LayerNorm(hidden_size, elementwise_affine=False, eps=1e-6)
         # (1152, 4*8)
         self.linear = nn.Dense(hidden_size, num_patch * out_channels, has_bias=True)
-        self.scale_shift_table = Parameter(ops.randn(2, hidden_size) / hidden_size**0.5)
+        self.scale_shift_table = Parameter(np.random.randn(2, hidden_size).astype(np.float32) / hidden_size**0.5)
         self.out_channels = out_channels
         self.d_t = d_t
         self.d_s = d_s
@@ -611,11 +611,13 @@ class T2IFinalLayer(nn.Cell):
             T = self.d_t
         if S is None:
             S = self.d_s
-        shift, scale = self.chunk(self.scale_shift_table[None] + t[:, None], 2, 1)
+
+        scale_shift_table = self.scale_shift_table.to(x.dtype)
+        shift, scale = self.chunk(scale_shift_table[None] + t[:, None], 2, 1)
         x = t2i_modulate(self.norm_final(x), shift, scale)
 
         if frames_mask is not None:
-            shift_zero, scale_zero = self.chunk(self.scale_shift_table[None] + t0[:, None], 2, 1)
+            shift_zero, scale_zero = self.chunk(scale_shift_table[None] + t0[:, None], 2, 1)
             x_zero = t2i_modulate(self.norm_final(x), shift_zero, scale_zero)
             x = t_mask_select(frames_mask, x, x_zero, T, S)
 
@@ -636,9 +638,9 @@ class CaptionEmbedder(nn.Cell):
             in_features=in_channels, hidden_features=hidden_size, out_features=hidden_size, act_layer=act_layer, drop=0
         )
 
-        y_embedding = ops.randn(token_num, in_channels) / in_channels**0.5
+        y_embedding = np.random.randn(token_num, in_channels).astype(np.float32) / in_channels**0.5
         # just for token dropping replacement, not learnable
-        self.y_embedding = Parameter(Tensor(y_embedding, dtype=ms.float32), requires_grad=False)
+        self.y_embedding = Parameter(y_embedding, requires_grad=False)
 
         self.uncond_prob = uncond_prob
 
@@ -653,7 +655,7 @@ class CaptionEmbedder(nn.Cell):
 
         # manually expand dims to avoid infer-shape bug in ms2.3 daily
         caption = ops.where(
-            drop_ids[:, None, None, None], self.y_embedding[None, None, :, :], caption.to(self.y_embedding.dtype)
+            drop_ids[:, None, None, None], self.y_embedding[None, None, :, :].to(caption.dtype), caption
         )
 
         return caption
