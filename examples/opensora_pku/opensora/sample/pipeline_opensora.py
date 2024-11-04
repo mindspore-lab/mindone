@@ -16,6 +16,7 @@ from mindone.diffusers.pipelines.pipeline_utils import DiffusionPipeline, ImageP
 from mindone.diffusers.utils import BACKENDS_MAPPING, deprecate, is_bs4_available, is_ftfy_available, BaseOutput
 from mindone.diffusers import AutoencoderKL
 from mindone.diffusers import DDPMScheduler, FlowMatchEulerDiscreteScheduler
+from mindone.diffusers.utils.mindspore_utils import randn_tensor
 # from diffusers.callbacks import MultiPipelineCallbacks, PipelineCallback #TODO:TBD
 
 from mindone.transformers import CLIPTextModelWithProjection, T5EncoderModel
@@ -46,14 +47,13 @@ def rescale_noise_cfg(noise_cfg, noise_pred_text, guidance_rescale=0.0):
     Rescale `noise_cfg` according to `guidance_rescale`. Based on findings of [Common Diffusion Noise Schedules and
     Sample Steps are Flawed](https://arxiv.org/pdf/2305.08891.pdf). See Section 3.4
     """
-    std_text = noise_pred_text.std(axis=list(range(1, noise_pred_text.ndim)), ddof=True, keepdims=True)
-    std_cfg = noise_cfg.std(axis=list(range(1, noise_cfg.ndim)), ddof=True, keepdims=True)
+    std_text = ops.std(noise_pred_text, axis=tuple(range(1, len(noise_pred_text.shape))), keepdims=True)
+    std_cfg = ops.std(noise_cfg, axis=tuple(range(1, len(noise_cfg.shape))), keepdims=True)
     # rescale the results from guidance (fixes overexposure)
     noise_pred_rescaled = noise_cfg * (std_text / std_cfg)
     # mix with the original results from guidance by factor guidance_rescale to avoid "plain looking" images
     noise_cfg = guidance_rescale * noise_pred_rescaled + (1 - guidance_rescale) * noise_cfg
     return noise_cfg
-
 
 # Copied from diffusers.pipelines.stable_diffusion.pipeline_stable_diffusion.retrieve_timesteps
 def retrieve_timesteps(
@@ -238,15 +238,15 @@ class OpenSoraPipeline(DiffusionPipeline):
                 padding="max_length",
                 max_length=max_length,
                 truncation=True,
-                # return_attention_mask=True,
+                return_attention_mask=True,
                 return_tensors=None,
             )
             text_input_ids = ms.Tensor(text_inputs.input_ids)
             untruncated_ids = ms.Tensor(tokenizer(prompt, padding="longest", return_tensors=None).input_ids)
 
             if (
-                untruncated_ids.shape[-1] >= text_input_ids.shape[-1] 
-                and not ops.equal(text_input_ids, untruncated_ids[:, :text_input_ids.shape[-1]]).all()
+                untruncated_ids.shape[-1] > text_input_ids.shape[-1] or 
+                (untruncated_ids.shape[-1] == text_input_ids.shape[-1] and not ops.equal(text_input_ids, untruncated_ids).all())
             ):
                 removed_text = tokenizer.batch_decode(untruncated_ids[:, tokenizer.model_max_length - 1 : -1])
                 logger.warning(
@@ -439,14 +439,14 @@ class OpenSoraPipeline(DiffusionPipeline):
             )
 
         if latents is None:
-            latents = ops.randn(shape, dtype=dtype) #generator=generator
+            latents = randn_tensor(shape=shape, generator=generator, dtype=dtype)
         else:
             latents = latents
 
         if not isinstance(self.scheduler, FlowMatchEulerDiscreteScheduler):
             # scale the initial noise by the standard deviation required by the scheduler
             latents = latents * self.scheduler.init_noise_sigma
-        return latents
+        return latents.to(dtype)
 
     def prepare_parallel_latent(self, video_states):
         sp_size = hccl_info.world_size
@@ -498,7 +498,7 @@ class OpenSoraPipeline(DiffusionPipeline):
         negative_prompt: Optional[Union[str, List[str]]] = None,
         num_samples_per_prompt: Optional[int] = 1,
         eta: Optional[float] = 0.0,
-        generator = None,
+        generator: Optional[np.random.Generator] = None,
         latents: Optional[ms.Tensor] = None,
         prompt_embeds: Optional[ms.Tensor] = None,
         prompt_embeds_2: Optional[ms.Tensor] = None,
@@ -513,9 +513,12 @@ class OpenSoraPipeline(DiffusionPipeline):
         callback_on_step_end: Optional[Callable[[int, int, ms.Tensor], None]] = None, #  Optional[Union[Callable[[int, int, Dict], None], PipelineCallback, MultiPipelineCallbacks]]
         callback_on_step_end_tensor_inputs: List[str] = ["latents"],
         guidance_rescale: float = 0.0,
-        max_sequence_length: int = 512
+        max_sequence_length: int = 512,
     ):
-        # TODO
+        
+        # TODO 
+        if hasattr(callback_on_step_end, 'tensor_inputs'):
+            callback_on_step_end_tensor_inputs = callback_on_step_end.tensor_inputs
         # if isinstance(callback_on_step_end, (PipelineCallback, MultiPipelineCallbacks)):
         #     callback_on_step_end_tensor_inputs = callback_on_step_end.tensor_inputs
 
@@ -523,6 +526,7 @@ class OpenSoraPipeline(DiffusionPipeline):
         num_frames = num_frames or (self.transformer.config.sample_size_t - 1) * self.vae.vae_scale_factor[0] + 1
         height = height or self.transformer.config.sample_size[0] * self.vae.vae_scale_factor[1]
         width = width or self.transformer.config.sample_size[1] * self.vae.vae_scale_factor[2]
+
 
         # 1. Check inputs. Raise error if not correct
         self.check_inputs(
@@ -563,7 +567,7 @@ class OpenSoraPipeline(DiffusionPipeline):
             negative_prompt_attention_mask,
         ) = self.encode_prompt(
             prompt=prompt,
-            dtype=self.transformer.dtype,
+            dtype=ms.float16, #self.transformer.dtype,
             num_samples_per_prompt=num_samples_per_prompt,
             do_classifier_free_guidance=self.do_classifier_free_guidance,
             negative_prompt=negative_prompt,
@@ -574,6 +578,7 @@ class OpenSoraPipeline(DiffusionPipeline):
             max_sequence_length=max_sequence_length,
             text_encoder_index=0,
         )
+            
         if self.tokenizer_2 is not None:
             (
                 prompt_embeds_2,
@@ -582,7 +587,7 @@ class OpenSoraPipeline(DiffusionPipeline):
                 negative_prompt_attention_mask_2,
             ) = self.encode_prompt(
                 prompt=prompt,
-                dtype=self.transformer.dtype,
+                dtype=ms.float16, #self.transformer.dtype,
                 num_samples_per_prompt=num_samples_per_prompt,
                 do_classifier_free_guidance=self.do_classifier_free_guidance,
                 negative_prompt=negative_prompt,
@@ -663,15 +668,14 @@ class OpenSoraPipeline(DiffusionPipeline):
             prompt_embeds = prompt_embeds[:, index, :, :]
         else:
             temp_attention_mask = None
-        # ==================make sp=====================================
 
+        # ==================make sp=====================================
         # 8. Denoising loop
         with self.progress_bar(total=num_inference_steps) as progress_bar:
             for i, t in enumerate(timesteps):
                 if self.interrupt:
                     continue
                 
-                # print(f"t {t}:, latents {latents.shape}")
                 # expand the latents if we are doing classifier free guidance
                 latent_model_input = ops.cat([latents] * 2) if self.do_classifier_free_guidance else latents
                 if not isinstance(self.scheduler, FlowMatchEulerDiscreteScheduler):
@@ -692,7 +696,8 @@ class OpenSoraPipeline(DiffusionPipeline):
                 if prompt_attention_mask.ndim == 2:
                     prompt_attention_mask = prompt_attention_mask.unsqueeze(1)  # b l -> b 1 l
                 if prompt_embeds_2 is not None and prompt_embeds_2.ndim == 2:
-                    prompt_embeds = prompt_embeds.unsqueeze(1)  # b d -> b 1 d
+                    prompt_embeds = prompt_embeds.unsqueeze(1)  # b d -> b 1 d #OFFICIAL VER. DONT KNOW WHY
+                    # prompt_embeds_2 = prompt_embeds_2.unsqueeze(1)  # 
                 
                 attention_mask = ops.ones_like(latent_model_input)[:, 0]
                 if temp_attention_mask is not None:
@@ -715,11 +720,12 @@ class OpenSoraPipeline(DiffusionPipeline):
                         encoder_hidden_states=prompt_embeds,
                         encoder_attention_mask=prompt_attention_mask,
                         timestep=current_timestep,
-                        pooled_projections=prompt_embeds_2,
+                        pooled_projections=prompt_embeds_2, # UNUSED!!!!
                         return_dict=False,
                     )
                 ) # b,c,t,h,w 
                 assert not ops.any(ops.isnan(noise_pred.float())) 
+
                 # perform guidance
                 if self.do_classifier_free_guidance:
                     noise_pred_uncond, noise_pred_text = noise_pred.chunk(2)
@@ -772,20 +778,19 @@ class OpenSoraPipeline(DiffusionPipeline):
             return (videos, )
 
         return OpenSoraPipelineOutput(videos=videos)
-        # TODO: update OpenSoraPipelineOutput according to VAE usage
 
-    
+
     # def decode_latents(self, latents):
     #     print(f'before vae decode {latents.shape}', ops.max(latents).item(), ops.min(latents).item(), ops.mean(latents).item(), ops.std(latents).item())
-    #     video = self.vae.decode(latents.to(self.vae.vae.dtype))
+    #     video = self.vae.decode(latents.to(self.vae.vae.dtype)) # (b t c h w)
     #     print(f'after vae decode {latents.shape}', ops.max(video).item(), ops.min(video).item(), ops.mean(video).item(), ops.std(video).item())
     #     video = ((video / 2.0 + 0.5).clamp(0, 1) * 255).to(dtype=ms.uint8).permute(0, 1, 3, 4, 2).contiguous() # b t h w c
     #     return video
-    
-    #TODO: TBD depending on VAE usage
+
     def decode_latents_per_sample(self, latents):
-        # video = self.vae.decode(latents)
+        print(f'before vae decode {latents.shape}', latents.max().item(), latents.min().item(), latents.mean().item(), latents.std().item())
         video = self.vae.decode(latents).to(ms.float32)  # (b t c h w)
+        print(f'after vae decode {latents.shape}', latents.max().item(), latents.min().item(), latents.mean().item(), latents.std().item())
         video = ops.clip_by_value((video / 2.0 + 0.5), clip_value_min=0.0, clip_value_max=1.0).permute(0, 1, 3, 4, 2)
         return video  # b t h w c
 
