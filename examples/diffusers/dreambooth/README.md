@@ -16,13 +16,9 @@ To make sure you can successfully run the latest versions of the example scripts
 ```bash
 git clone https://github.com/mindspore-lab/mindone
 cd mindone
-pip install -e .
+pip install -e ".[training]"
 ```
 
-Then cd in the example folder and run
-```bash
-pip install -r requirements.txt
-```
 
 ### Dog toy example
 
@@ -122,16 +118,6 @@ python train_dreambooth.py \
   --num_class_images=200 \
   --max_train_steps=800 \
   --train_text_encoder
-```
-
-### Using DreamBooth for pipelines other than Stable Diffusion
-
-The [AltDiffusion pipeline](https://huggingface.co/docs/diffusers/api/pipelines/alt_diffusion) also supports dreambooth fine-tuning. The process is the same as above, all you need to do is replace the `MODEL_NAME` like this:
-
-```
-export MODEL_NAME="CompVis/stable-diffusion-v1-4" --> export MODEL_NAME="BAAI/AltDiffusion-m9"
-or
-export MODEL_NAME="CompVis/stable-diffusion-v1-4" --> export MODEL_NAME="BAAI/AltDiffusion"
 ```
 
 ### Inference
@@ -238,7 +224,7 @@ pipe.load_lora_weights("path-to-the-lora-checkpoint")
 Finally, we can run the model in inference.
 
 ```python
-image = pipe("A picture of a sks dog in a bucket", num_inference_steps=25)[0][0]
+image = pipe("A picture of a sks dog in a bucket", num_inference_steps=50)[0][0]
 ```
 
 If you are loading the LoRA parameters from the Hub and if the Hub repository has
@@ -391,7 +377,7 @@ python train_dreambooth_lora.py \
 export MODEL_NAME="DeepFloyd/IF-II-L-v1.0"
 export INSTANCE_DIR="dog"
 export OUTPUT_DIR="dreambooth_dog_upscale"
-export VALIDATION_IMAGES="dog_downsized/image_1.png dog_downsized/image_2.png dog_downsized/image_3.png dog_downsized/image_4.png"
+export VALIDATION_IMAGES="dog_downsized/image_1.jpg dog_downsized/image_2.jpg dog_downsized/image_3.jpg dog_downsized/image_4.jpg"
 
 python train_dreambooth_lora.py \
     --pretrained_model_name_or_path=$MODEL_NAME \
@@ -464,7 +450,7 @@ faces required large effective batch sizes.
 export MODEL_NAME="DeepFloyd/IF-II-L-v1.0"
 export INSTANCE_DIR="dog"
 export OUTPUT_DIR="dreambooth_dog_upscale"
-export VALIDATION_IMAGES="dog_downsized/image_1.png dog_downsized/image_2.png dog_downsized/image_3.png dog_downsized/image_4.png"
+export VALIDATION_IMAGES="dog_downsized/image_1.jpg dog_downsized/image_2.jpg dog_downsized/image_3.jpg dog_downsized/image_4.jpg"
 
 python train_dreambooth.py \
   --pretrained_model_name_or_path=$MODEL_NAME \

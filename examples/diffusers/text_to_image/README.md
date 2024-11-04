@@ -19,13 +19,9 @@ To make sure you can successfully run the latest versions of the example scripts
 ```bash
 git clone https://github.com/mindspore-lab/mindone
 cd mindone
-pip install .
+pip install -e ".[training]"
 ```
 
-Then cd in the example folder `examples/diffusers/text_to_image` and run
-```bash
-pip install -r requirements.txt
-```
 
 ### OnePiece example
 

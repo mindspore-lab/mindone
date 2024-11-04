@@ -20,13 +20,9 @@ To make sure you can successfully run the latest versions of the example scripts
 ```bash
 git clone https://github.com/mindspore-lab/mindone
 cd mindone
-pip install -e .
+pip install -e ".[training]"
 ```
 
-Then cd in the `examples/dreambooth` folder and run
-```bash
-pip install -r requirements_sdxl.txt
-```
 
 ### Dog toy example
 
@@ -184,7 +180,7 @@ python train_dreambooth_lora_sdxl.py \
   --resolution=1024 \
   --train_batch_size=1 \
   --gradient_accumulation_steps=4 \
-  --learning_rate=1e-5 \
+  --learning_rate=1e-4 \
   --lr_scheduler="constant" \
   --lr_warmup_steps=0 \
   --max_train_steps=500 \
