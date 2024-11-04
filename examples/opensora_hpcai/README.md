@@ -708,6 +708,7 @@ All experiments are tested on ascend 910* with mindspore 2.3.1 graph mode.
 
 | model name   | cards  | batch size | resolution   | vae cache  | precision  | sink       | jit level    | graph compile | s/step    | recipe |
 | :--:         | :--:   | :--:       | :--:         | :--:       | :--:       | :--:       | :--:         | :--:          | :--:      | :--:   |
+| STDiT3-XL/2  |  8     | 1          | 16x512x512   | OFF        | bf16       | OFF        | O1           |  13 mins      | 2.28      | [yaml](configs/opensora-v1-1/train/stdit2_512x512x64.yaml) |
 | STDiT3-XL/2  |  8     | 1          | 64x512x512   | OFF        | bf16       | OFF        | O1           |  13 mins      | 8.57      | [yaml](configs/opensora-v1-1/train/stdit2_512x512x64.yaml) |
 | STDiT3-XL/2  |  8     | 1          | 24x576x1024  | OFF        | bf16       | OFF        | O1           |  13 mins      | 8.55      | [yaml](configs/opensora-v1-1/train/stdit2_576x1024x24.yaml) |
 | STDiT3-XL/2  |  8     | 1          | 64x576x1024  | ON         | bf16       | OFF        | O1           |  13 mins      | 18.94     | [yaml](configs/opensora-v1-1/train/stdit2_576x1024x24.yaml) |
