@@ -1,5 +1,6 @@
 import mindspore as ms
 from mindspore import nn, ops
+from .modules import Conv2_5d, Encoder, Decoder
 
 SDXL_CONFIG = {
     "double_z": True,
@@ -35,17 +36,47 @@ class VideoAutoencoder(nn.Cell):
         self.encoder = Encoder(**config)
 
         # quant and post quant
+        embed_dim = config['z_channels']
         self.quant_conv = Conv2_5d(2 * config["z_channels"], 2 * embed_dim, 1, pad_mode="valid", has_bias=True)
         self.post_quant_conv = Conv2_5d(embed_dim, config["z_channels"], 1, pad_mode="valid", has_bias=True)
 
         # decoder
         self.decoder = Decoder(**config)
 
+        self.exp = ops.Exp()
+        self.stdnormal = ops.StandardNormal()
+        self.split = ms.ops.split
+        self.sample_deterministic=False
+
+    def _encode(self, x):
+        # return latent distribution, N(mean, logvar)
+        h = self.encoder(x)
+        moments = self.quant_conv(h)
+        mean, logvar = self.split(moments, moments.shape[1] // 2, 1)
+
+        return mean, logvar
+
+    def sample(self, mean, logvar):
+        # sample z from latent distribution
+        logvar = ops.clip_by_value(logvar, -30.0, 20.0)
+        std = self.exp(0.5 * logvar)
+        z = mean + std * self.stdnormal(mean.shape)
+
+        return z
+
     def encode(self, x: ms.Tensor) -> ms.Tensor:
-        return x
+        # embedding, get latent representation z
+        posterior_mean, posterior_logvar = self._encode(x)
+        if self.sample_deterministic:
+            return posterior_mean
+        z = self.sample(posterior_mean, posterior_logvar)
+
+        return z
 
     def decode(self, x: ms.Tensor) -> ms.Tensor:
-        return x
+        z = self.post_quant_conv(z)
+        dec = self.decoder(z)
+        return dec
 
     def construct(self, x: ms.Tensor) -> ms.Tensor:
         """
