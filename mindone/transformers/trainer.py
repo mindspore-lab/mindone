@@ -717,7 +717,15 @@ class Trainer:
 
             model_ = LabelSmootherModel(model, self.label_smoother)
         else:
-            model_ = model
+            class ReturnLoss(nn.Cell):
+                def __init__(self, model):
+                    super(ReturnLoss, self).__init__(auto_prefix=False)
+                    self.model = model
+                def construct(self, *args, **kwargs):
+                    loss, logits = self.model(*args, **kwargs)
+                    return loss
+
+            model_ = ReturnLoss(model)
 
         # Note: unlike the original transformers, we will define train step process
         # that include auto mix precision, forward process, loss compute and optimizer step on `train_model`
