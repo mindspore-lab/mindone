@@ -268,7 +268,7 @@ class OpenSoraT2V_v1_3(ModelMixin, ConfigMixin):
         # return_dict: bool = True,
         **kwargs, 
     ):
-        dtype = ms.float16
+        dtype = self.dtype # debug use
         batch_size, c, frame, h, w = hidden_states.shape
         # ensure attention_mask is a bias, and give it a singleton query_tokens dimension.
         #   we may have done this conversion already, e.g. if we came here via UNet2DConditionModel#forward.
