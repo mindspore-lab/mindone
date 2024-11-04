@@ -641,7 +641,7 @@ Here ✅ means that the data is seen during training, and 🆗 means although no
 We evaluate the training performance of Open-Sora v1.2 on the MixKit dataset with high-resolution videos (1080P, duration 12s to 100s).
 
 Experiments are tested on ascend 910* with mindspore 2.3.1 graph mode.
-| model name   | cards  | batch size | resolution | precision  | sink      | jit level | graph compile |  s/step | config | 
+| model name   | cards  | batch size | resolution | precision  | sink      | jit level | graph compile |  s/step | recipe | 
 | :--:         | :--:   | :--:       | :--:       | :--:       | :--:      | :--:      |:--:          | :--:       | :--:   |
 | STDiT3-XL/2  |  8     | 1          | 51x720x1280| bf16       | ON      | O1        |    12 mins   | 14.23   | [yaml](configs/opensora-v1-2/train/train_720x1280x51.yaml)
 | STDiT3-XL/2  |  8     | dynamic    | stage 1 | bf16       |   OFF    | O1        |      22 mins   | 13.17   | [yaml](configs/opensora-v1-2/train/train_stage1_ms.yaml)
@@ -680,9 +680,10 @@ We evaluate the inference performance on text-to-video generation, which is meas
 
 Experiments are tested on ascend 910* with mindspore 2.3.1 graph mode.
 
-| model name   | cards  | batch size | resolution   | precision  | jit level    | s/step    | 
-| :--:         | :--:   | :--:       | :--:         | :--:       | :--:         | :--:      | 
-| STDiT3-XL/2  |  1     | 1          | 51x720x1280   | bf16      | O0           | 5.88       | 
+| model name   | cards  | batch size | resolution   | precision  | jit level    | s/step    |  recipe |
+| :--:         | :--:   | :--:       | :--:         | :--:       | :--:         | :--:      |  :--:   | 
+| STDiT3-XL/2  |  1     | 1          | 51x720x1280   | bf16      | O0           | 5.88       | [yaml](configs/opensora-v1-2/inference/sample_t2v.yaml) | 
+| STDiT3-XL/2  |  1     | 1          | 102x720x1280  | bf16      | O0           | 13.71       | [yaml](configs/opensora-v1-2/inference/sample_t2v.yaml) | 
 
 
 ### Open-Sora 1.1
@@ -696,7 +697,7 @@ We evaluate the training performance of Open-Sora v1.1 on a subset of the MixKit
 
 Experiments are tested on ascend 910* with mindspore 2.3.1 graph mode.
 
-| model name   | cards  | batch size | resolution   | vae cache  | precision  | sink       | jit level    | graph compile | s/step    | config |
+| model name   | cards  | batch size | resolution   | vae cache  | precision  | sink       | jit level    | graph compile | s/step    | recipe |
 | :--:         | :--:   | :--:       | :--:         | :--:       | :--:       | :--:       | :--:         | :--:          | :--:      | :--:   | 
 | STDiT3-XL/2  |  8     | 1          | 64x512x512   | OFF        | bf16       | OFF        | O1           |  13 mins      | 8.57      | [yaml](configs/opensora-v1-1/train/stdit2_512x512x64.yaml) | 
 | STDiT3-XL/2  |  8     | 1          | 24x576x1024  | OFF        | bf16       | OFF        | O1           |  13 mins      | 8.55      | [yaml](configs/opensora-v1-1/train/stdit2_576x1024x24.yaml) |
