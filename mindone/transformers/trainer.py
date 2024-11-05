@@ -510,9 +510,7 @@ class Trainer:
         elif args.optim in (OptimizerNames.ADAMW_ZERO1_MINDSPORE, OptimizerNames.ADAMW_ZERO2_MINDSPORE):
             from .mindspore_adapter.adamw_zero import AdamWeightDecayZeRO1, AdamWeightDecayZeRO2
             optimizer_cls = \
-                AdamWeightDecayZeRO1 \
-                if args.optim == OptimizerNames.ADAMW_ZERO1_MINDSPORE else \
-                AdamWeightDecayZeRO2
+                AdamWeightDecayZeRO1 if args.optim == OptimizerNames.ADAMW_ZERO1_MINDSPORE else AdamWeightDecayZeRO2
             optimizer_kwargs.update(adam_kwargs)
             optimizer_kwargs.update({"enable_fuse": getattr(args, "adamw_enable_fuse", True)})
             optimizer_kwargs.update({"shard_size": getattr(args, "adamw_zero_shard_size", None)})
@@ -521,6 +519,7 @@ class Trainer:
             optimizer_cls = nn.SGD
         elif args.optim == OptimizerNames.Momentum:
             optimizer_cls = nn.Momentum
+            optimizer_kwargs.update({"momentum": getattr(args, "momentum_value", 0.9)})
         elif args.optim == OptimizerNames.ADAGRAD:
             optimizer_cls = nn.Adagrad
         elif args.optim == OptimizerNames.RMSPROP:

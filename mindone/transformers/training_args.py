@@ -158,6 +158,8 @@ class TrainingArguments:
             The beta2 hyperparameter for the [`AdamW`] optimizer.
         adam_epsilon (`float`, *optional*, defaults to 1e-8):
             The epsilon hyperparameter for the [`AdamW`] optimizer.
+        momentum_value (`float`, *optional*, defaults to 0.9):
+            The momentum hyperparameter for the [`Momentum`] optimizer.
         max_grad_norm (`float`, *optional*, defaults to 1.0):
             Maximum gradient norm (for gradient clipping).
         num_train_epochs(`float`, *optional*, defaults to 3.0):
@@ -553,6 +555,7 @@ class TrainingArguments:
     adam_beta1: float = field(default=0.9, metadata={"help": "Beta1 for AdamW optimizer"})
     adam_beta2: float = field(default=0.999, metadata={"help": "Beta2 for AdamW optimizer"})
     adam_epsilon: float = field(default=1e-8, metadata={"help": "Epsilon for AdamW optimizer."})
+    momentum_value: float = field(default=0.9, metadata={"help": "Momentum value for Momentum optimizer"})
     max_grad_norm: float = field(default=1.0, metadata={"help": "Max gradient norm."})
 
     num_train_epochs: float = field(default=3.0, metadata={"help": "Total number of training epochs to perform."})
