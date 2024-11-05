@@ -156,6 +156,8 @@ class Trainer:
         log_level = args.get_process_log_level()
         logging.set_verbosity(log_level)
 
+        breakpoint()
+
         if model is None:
             if model_init is not None:
                 self.model_init = model_init
@@ -1463,6 +1465,7 @@ class Trainer:
         Return:
             `Tuple[ms.Tensor, ms.Tensor]`: The tensor with training loss and overflow flag on this batch.
         """
+        breakpoint()
         train_model = model
         train_model.set_train()
         tuple_inputs, dict_inputs = self._prepare_inputs_ms(inputs)
