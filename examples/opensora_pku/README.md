@@ -22,7 +22,7 @@ Here we provide an efficient MindSpore version of [Open-Sora-Plan](https://githu
 ## Requirements
 
 | mindspore | ascend driver | firmware | cann tookit/kernel |
-| ---       |   ---         | ---      | ---                |
+| :---:       |   :---:         | :---:      | :---:                |
 | 2.3.1     |  24.1RC2      |7.3.0.1.231|   8.0.RC2.beta1   |
 
 ## 🎥 Demo
@@ -337,14 +337,14 @@ python examples/rec_video_folder.py \
 Runing this command will generate reconstructed videos under the given `output_generated_video_dir`. You can then evalute some common metrics (e.g., ssim, psnr) using the script under `opensora/eval/script`.
 
 
-####  Performance Evaluation
+####  Performance
 
 Here, we report the training performance and evaluation results on the UCF-101 dataset. Experiments are tested on Ascend 910* with mindspore 2.3.1 graph mode.
 
-| model name  | cards  |  batch size | resolution | graph compile | precision | discriminator |sink | jit level| s/step | img/s  | psnr | ssim  |
-|:-----------|:------ |:-----------:|:----------:|:-------------:|:----------:|:------------:|:---:|:--------:|--------:|------:|:----:|-------:|
-| CausalVAE  |  8     |       1    |  9x256x256  |     3 mins   |   FP32     |    TRUE      | OFF  |    O0   |    2.04   |  35.29 |  29.30 |   0.88    |
-| CausalVAE  |  8    |       1     | 25x256x256  |    3 mins   |   BF16     |     FALSE    |  OFF |     O0  |     4.21   |  47.51 | 28.92 |    0.87    |
+| model name  | cards  |  batch size | resolution | precision | discriminator |sink | jit level| graph compile | s/step | img/s  | psnr | ssim  |
+|:-----------:|:------: |:-----------:|:---------:|:----------:|:------------:|:---:|:--------:|:-------------:|--------:|------:|:----:|-------:|
+| CausalVAE  |  8     |       1    |  9x256x256   |   fp32     |    ON      | OFF  |    O0   |       3 mins    |  2.04   |  35.29 |  29.30 |   0.88    |
+| CausalVAE  |  8    |       1     | 25x256x256   |   bf16     |     OFF    |  OFF |     O0  |      3 mins     |   4.21   |  47.51 | 28.92 |    0.87    |
 
 
 
@@ -523,17 +523,19 @@ The edits will set the polynomial_decay LR scheduler, and decay the start LR to 
 
 #### Performance
 
-We evaluated the training performance on Ascend NPUs. The results are as follows.
+Experiments are tested on Ascend 910* on MindSpore 2.3.1.
 
-| model name      | cards       |  stage     |graph compile | batch size (local)   | video size  | Paramllelism |recompute |data sink | jit level| step time | train imgs/s |
-|:----------------|:----------- |:----------|:---------:|:-----:|:----------:|:----------:|:----------:|:----------:|:----------:|-------------------:|:----------:|
-| OpenSoraT2V-ROPE-L-122 |  8   | 2 | 3mins     |  8  |           1x640x480     |         zero2                     | TRUE | TRUE | O0 |    2.35      |  27.3 |
-| OpenSoraT2V-ROPE-L-122 |  8   | 3 |  6mins    |  1  |           29x640x480    |         zero2                      |  TRUE | TRUE | O0 |     3.68     | 63.0 |
-| OpenSoraT2V-ROPE-L-122 |  8   | 4 | 10mins    |  1  |           29x1280x720   |         zero2 + SP(sp_size=8)      |  FALSE | TRUE | O0 |    4.32     | 6.71 |
-| OpenSoraT2V-ROPE-L-122 |  8   | 5 | 15mins    |  1  |           93x1280x720   |         zero2 + SP(sp_size=8)      |  TRUE | TRUE | O0 |    24.4     | 3.81  |
+| model name      | cards       | batch size   | resolution  |  stage     | paramllelism |recompute | sink | jit level |graph compile | s/step | img/s |
+|:---------------:|:----------: |:---------:   |:-----:      |:---------: |:----------:|:----------:|:----------:|:----------:|:----------:|-------------------:|:----------:|
+| OpenSoraT2V-ROPE-L-122 |  8   |  8           | 1x640x480   | 2          |         zero2                     | ON | ON | O0 |   3mins| 2.35      |  27.3 |
+| OpenSoraT2V-ROPE-L-122 |  8   |  1           | 29x640x480  | 3          |         zero2                      |  ON | ON | O0 | 6mins|    3.68     | 63.0 |
+| OpenSoraT2V-ROPE-L-122 |  8   |  1           | 29x1280x720 | 4          |         zero2 + SP(sp_size=8)      |  OFF | ON | O0 | 10mins|   4.32     | 6.71 |
+| OpenSoraT2V-ROPE-L-122 |  8   |  1           | 93x1280x720 | 5          |         zero2 + SP(sp_size=8)      |  ON | ON | O0 |  15mins|  24.4     | 3.81  |
 
 
 > SP: sequence parallelism.
+>
+> Stage means the muti-stage training as illustrated above.
 
 ## 👍 Acknowledgement
 * [Latte](https://github.com/Vchitect/Latte): The **main codebase** we built upon and it is an wonderful video generated model.

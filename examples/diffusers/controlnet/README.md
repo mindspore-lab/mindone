@@ -53,11 +53,7 @@ python train_controlnet.py \
  --train_batch_size=4
 ```
 
-This default configuration requires ~38GB VRAM.
-
-By default, the training script logs outputs to tensorboard.
-
-Gradient accumulation with a smaller batch size can be used to reduce training requirements to ~20 GB VRAM.
+Gradient accumulation with a smaller batch size can be used to reduce training requirements,
 
 ```bash
 export MODEL_DIR="runwayml/stable-diffusion-v1-5"
