@@ -22,11 +22,9 @@ class MyArguments(MindSporeArguments, TrainingArguments):
 def main():
 
     parser = HfArgumentParser(
-        MyArguments(gradient_checkpointing=field(default=True), output_dir=field(default="./outputs"))
+        MyArguments
     )
     args = parser.parse_args_into_dataclasses()[0]
-
-    breakpoint()
 
     init_environment(args)
 
