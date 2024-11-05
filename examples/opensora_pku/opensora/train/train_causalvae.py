@@ -61,11 +61,12 @@ def main(args):
             low_cpu_mem_usage=False,
             device_map=None,
             dtype=dtype,
+            use_recompute=args.use_recompute,
         )
     else:
         if rank_id == 0:
             logger.warning(f"Model will be initialized from config file {args.model_config}.")
-        ae = model_cls.from_config(args.model_config, dtype=dtype)
+        ae = model_cls.from_config(args.model_config, dtype=dtype, use_recompute=args.use_recompute)
 
     if args.load_from_checkpoint is not None:
         ae.init_from_ckpt(args.load_from_checkpoint)
@@ -334,6 +335,7 @@ def main(args):
                 f"MindSpore mode[GRAPH(0)/PYNATIVE(1)]: {args.mode}"
                 + (f"\nJit level: {args.jit_level}" if args.mode == 0 else ""),
                 f"Distributed mode: {args.use_parallel}",
+                f"Recompute: {args.use_recompute}",
                 f"dtype: {args.precision}",
                 f"Optimizer: {args.optim}",
                 f"Use discriminator: {args.use_discriminator}",
@@ -441,7 +443,6 @@ def main(args):
                         f"Overflow occurs in step {cur_global_step} in discriminator"
                         + (", drop update." if args.drop_overflow_update else ", still update.")
                     )
-
                 # log
                 step_time = time.time() - start_time_s
                 if step % args.log_interval == 0:
