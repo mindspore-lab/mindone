@@ -1,4 +1,5 @@
 import logging
+from math import ceil
 from typing import Literal, Optional, Tuple
 
 import numpy as np
@@ -50,7 +51,7 @@ class RFLOW:
         self.num_timesteps = num_timesteps
         self.sample_method = sample_method
 
-    def __call__(self, model: nn.Cell, x: Tensor, text_embedding: Tensor) -> Tensor:
+    def __call__(self, model: nn.Cell, x: Tensor, ul2_emb: Tensor, metaclip_emb: Tensor, byt5_emb: Tensor) -> Tensor:
         """
         x: (N, T, C, H, W) tensor of inputs (latent representations of video)
         text_embedding: (N, L, C') tensor of the text embedding
@@ -59,13 +60,18 @@ class RFLOW:
         if self.sample_method == "linear":
             timesteps = (1.0 - np.arange(self.num_sampling_steps) / self.num_sampling_steps) * self.num_timesteps
         else:
-            raise NotImplementedError("Not supported yet.")
+            first_half = ceil(self.num_sampling_steps / 2)
+            second_half = self.num_sampling_steps - first_half  # in the case of an odd number of sampling steps
+            linear = np.arange(first_half, 0, -1)
+            quadratic = (np.arange(second_half, 0, -1) ** 2) / (second_half**2)
+            quadratic = (self.num_timesteps - first_half) * quadratic + first_half  # scale and shift
+            timesteps = np.concatenate([quadratic, linear])
 
-        timesteps = np.tile(timesteps[None, ...], (x.shape[0], 1))
-        timesteps = Tensor(timesteps, dtype=ms.int64)
+        timesteps = np.tile(timesteps[..., None], (1, x.shape[0]))
+        timesteps = Tensor(timesteps, dtype=model.dtype)  # FIXME: avoid calculations on tensors outside `construct`
 
         for i, timestep in tqdm(enumerate(timesteps), total=self.num_sampling_steps):
-            pred = model(x, timestep, text_embedding)
+            pred = model(x, timestep, ul2_emb, metaclip_emb, byt5_emb)
 
             # update z
             dt = timesteps[i] - timesteps[i + 1] if i < len(timesteps) - 1 else timesteps[i]

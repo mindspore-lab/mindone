@@ -58,12 +58,11 @@ class InferPipeline:
             self.use_cfg = False
 
         self.text_encoder = text_encoder
-        self.diffusion = create_diffusion(str(num_inference_steps))
 
         if sampling.lower() == "ddim":
-            self.sampling_func = self.diffusion.ddim_sample_loop
+            self.sampling_func = create_diffusion(str(num_inference_steps)).ddim_sample_loop
         elif sampling.lower() == "ddpm":
-            self.sampling_func = self.diffusion.p_sample_loop
+            self.sampling_func = create_diffusion(str(num_inference_steps)).p_sample_loop
         elif sampling.lower() == "rflow":
             self.sampling_func = RFLOW(num_inference_steps, cfg_scale=guidance_rescale, use_timestep_transform=True)
         else:

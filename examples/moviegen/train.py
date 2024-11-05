@@ -1,10 +1,9 @@
 import logging
 import os
 import sys
-from typing import Literal, Optional
 
 from jsonargparse import ActionConfigFile, ArgumentParser
-from jsonargparse.typing import Path_fr, path_type
+from jsonargparse.typing import path_type
 
 from mindspore import Model, amp, nn
 from mindspore.train.callback import TimeMonitor
@@ -12,13 +11,13 @@ from mindspore.train.callback import TimeMonitor
 # TODO: remove in future when mindone is ready for install
 __dir__ = os.path.dirname(os.path.abspath(__file__))
 mindone_lib_path = os.path.abspath(os.path.join(__dir__, "../../"))
-sys.path.insert(0, mindone_lib_path)
+sys.path.append(mindone_lib_path)
 
 from moviegen.dataset import ImageVideoDataset
-from moviegen.models.llama import LlamaModel
 from moviegen.pipelines import DiffusionWithLoss
 from moviegen.schedulers import RFlowLossWrapper
-from moviegen.utils import EMA, MODEL_DTYPE, MODEL_SPEC, load_ckpt_params
+from moviegen.utils import EMA
+from moviegen.utils.model_utils import MODEL_DTYPE, init_model
 
 from mindone.data import create_dataloader
 from mindone.trainers import create_optimizer
@@ -31,30 +30,6 @@ sys.path.append(os.path.join(__dir__, "../opensora_hpcai/"))
 from opensora.models.vae.vae import OpenSoraVAE_V1_2
 
 logger = logging.getLogger(__name__)
-
-Path_dcc = path_type("dcc")  # path to a directory that can be created if it does not exist
-
-
-def init_model(
-    name: Literal["llama-1B", "llama-5B", "llama-30B"],
-    in_channels: int = 4,
-    pretrained_model_path: Optional[Path_fr] = None,
-    enable_flash_attention: bool = True,
-    recompute: bool = False,
-    dtype: Literal["fp32", "fp16", "bf16"] = "fp32",
-) -> LlamaModel:
-    attn_implementation = "flash_attention" if enable_flash_attention else "eager"
-    model = MODEL_SPEC[name](
-        in_channels=in_channels,
-        attn_implementation=attn_implementation,
-        gradient_checkpointing=recompute,
-        dtype=MODEL_DTYPE[dtype],
-    )
-    if pretrained_model_path:
-        model = load_ckpt_params(model, pretrained_model_path)
-    else:
-        logger.info("Initialize network randomly.")
-    return model
 
 
 def main(args):
@@ -75,9 +50,8 @@ def main(args):
     vae_dtype = vae_args.pop("dtype")
     vae = OpenSoraVAE_V1_2(**vae_args).set_train(False)
     if vae_dtype != "fp32":
-        vae_dtype = MODEL_DTYPE[vae_dtype]
         # FIXME: remove AMP and add custom dtype conversion support for better compatibility with PyNative
-        amp.custom_mixed_precision(vae, black_list=amp.get_black_list() + [nn.GroupNorm], dtype=vae_dtype)
+        amp.custom_mixed_precision(vae, black_list=amp.get_black_list() + [nn.GroupNorm], dtype=MODEL_DTYPE[vae_dtype])
 
     # 2.2 Llama 3
     network = init_model(in_channels=vae.out_channels, **args.model)
@@ -114,7 +88,6 @@ def main(args):
 
     # 5.4 callbacks
     callbacks = [OverflowMonitor()]
-
     if rank_id == 0:
         callbacks.extend(
             [
@@ -205,7 +178,10 @@ if __name__ == "__main__":
     )
     parser.add_subclass_arguments(EMA, "train.ema", skip={"network"}, required=False, instantiate=False)
     parser.add_argument(
-        "--train.output_path", default="output/", type=Path_dcc, help="Output directory to save training results."
+        "--train.output_path",
+        default="output/",
+        type=path_type("dcc"),  # path to a directory that can be created if it does not exist
+        help="Output directory to save training results.",
     )
     parser.add_argument("--train.epochs", default=10, type=int, help="Number of epochs to train. Default: 100.")
     parser.add_class_arguments(
