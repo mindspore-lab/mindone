@@ -182,6 +182,8 @@ class TrainOneStepWrapper(nn.Cell):
 
     def construct(self, *inputs):
         loss = self.network(*inputs)
+        if isinstance(loss, (tuple, list)):
+            loss = loss[0]
 
         sens = ops.fill(loss.dtype, loss.shape, self.scaler.scale_value)
         grads = self.grad_fn(*inputs, sens)

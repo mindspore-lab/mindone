@@ -3,7 +3,8 @@ import argparse
 import evaluate
 import numpy as np
 import mindspore as ms
-
+from mindspore import nn
+from typing import Dict
 from datasets import load_dataset
 from transformers import AutoTokenizer, HfArgumentParser
 from dataclasses import dataclass, field
@@ -11,7 +12,7 @@ from dataclasses import dataclass, field
 from mindone.transformers.models.llama import LlamaForSequenceClassification
 from mindone.transformers.trainer import Trainer
 from mindone.transformers.training_args import TrainingArguments
-from mindone.transformers.mindspore_adapter import HF2MSDataset
+from mindone.transformers.mindspore_adapter import HF2MSDataset, TrainOneStepWrapper
 
 
 def main():
@@ -27,7 +28,6 @@ def main():
 
     if not os.path.exists(args.output_dir):
         os.makedirs(args.output_dir)
-
 
     # 1. create dataset
     dataset = load_dataset(args.dataset_path)
@@ -47,48 +47,36 @@ def main():
     tokenized_datasets = dataset.map(tokenize_function, batched=True)
     small_train_dataset = tokenized_datasets["train"]
 
-    model = LlamaForSequenceClassification.from_pretrained(args.model_path, num_labels=5)
+    def ms_data_collator(features, batch_info):
+        first = features[0]
+        assert isinstance(first, Dict)
+        batch = {}
+        batch["labels"] = np.array([f["label"] for f in features], dtype=np.int32)
+        for k, v in first.items():
+            if k not in ("label", "label_ids") and v is not None and not isinstance(v, str):
+                if isinstance(v, np.ndarray):
+                    batch[k] = np.stack([f[k] for f in features])
+                else:
+                    batch[k] = np.array([f[k] for f in features])
 
-    ds_init_params = {
-        "num_parallel_workers": self.args.dataloader_num_workers,
-        "sampler": self._get_train_sampler(),
-        "python_multiprocessing": False,
-        "num_shards": getattr(self.args, "rank_size", 1),
-        "shard_id": getattr(self.args, "rank", 0),
-        "column_names": "item"
-    }
-
-    train_dataloader = ms.dataset.GeneratorDataset(
-        HF2MSDataset(small_train_dataset),
-        num_parallel_workers=1,
-        python_multiprocessing=False,
-        num_shards=args.rank_size,
-        shard_id=args.rank,
-        column_names="item"
-    )
-    train_dataloader = train_dataloader.batch(
-        batch_size=args.train_batch_size,
-        num_parallel_workers=1,
-        per_batch_map=lambda data_tuples: [np.stack([d[idx] for d in data_tuples], axis=0) for idx in range(4)],
-        drop_remainder=True
-    )
+    train_dataloader = ms.dataset.GeneratorDataset(HF2MSDataset(small_train_dataset), column_names="item")
+    train_dataloader = train_dataloader.batch(batch_size=1, per_batch_map=ms_data_collator)
     train_dataloader = train_dataloader.repeat(1)
 
-    eval_data = TensorDataset(*eval_tensor_dataset)
-    eval_sampler = SequentialSampler(eval_data)
-    eval_dataloader = ms.dataset.GeneratorDataset(
-        eval_data,
-        sampler=eval_sampler,
-        num_parallel_workers=1,
-        python_multiprocessing=False,
-    )
-    eval_dataloader = eval_dataloader.batch(
-        batch_size=args.eval_batch_size,
-        num_parallel_workers=1,
-        per_batch_map=lambda data_tuples: [np.stack([d[idx] for d in data_tuples], axis=0) for idx in range(4)],
-        drop_remainder=False
-    )
-    eval_dataloader = eval_dataloader.repeat(1)
+    # 2. create train network
+    model = LlamaForSequenceClassification.from_pretrained(args.model_path, num_labels=5)
+    optimizer = nn.AdamWeightDecay(model, learning_rate=5e-6)
+
+    class ReturnLoss(nn.Cell):
+        def __init__(self, model):
+            super(ReturnLoss, self).__init__(auto_prefix=False)
+            self.model = model
+
+        def construct(self, *args, **kwargs):
+            loss, logits = self.model(*args, **kwargs)
+            return loss
+
+    train_model = TrainOneStepWrapper(ReturnLoss(model), optimizer)
 
     # Prepare optimizer
     if args.do_train:
@@ -164,44 +152,6 @@ def main():
         ms.save_checkpoint(model_to_save, output_model_file)
         model_to_save.config.to_json_file(output_config_file)
         tokenizer.save_vocabulary(args.output_dir)
-
-    if args.do_eval:
-        model.set_train(False)
-        eval_loss, eval_accuracy = 0, 0
-        nb_eval_steps, nb_eval_examples = 0, 0
-        eval_iterator = eval_dataloader.create_tuple_iterator(num_epochs=1, output_numpy=True)
-        for batch in eval_iterator:
-            input_ids, mc_token_ids, lm_labels, mc_labels = batch
-
-            # to tensor
-            input_ids, mc_token_ids, lm_labels, mc_labels = \
-                ms.Tensor(input_ids), ms.Tensor(mc_token_ids), ms.Tensor(lm_labels), ms.Tensor(mc_labels)
-
-            _, mc_loss, _, mc_logits = model(
-                input_ids, mc_token_ids=mc_token_ids, lm_labels=lm_labels, mc_labels=mc_labels
-            )
-
-            mc_logits = mc_logits.asnumpy()
-            mc_labels = mc_labels.asnumpy()
-            tmp_eval_accuracy = accuracy(mc_logits, mc_labels)
-
-            eval_loss += mc_loss.mean().item()
-            eval_accuracy += tmp_eval_accuracy
-
-            nb_eval_examples += input_ids.shape[0]
-            nb_eval_steps += 1
-
-        eval_loss = eval_loss / nb_eval_steps
-        eval_accuracy = eval_accuracy / nb_eval_examples
-        train_loss = tr_loss / nb_tr_steps if args.do_train else None
-        result = {"eval_loss": eval_loss, "eval_accuracy": eval_accuracy, "train_loss": train_loss}
-
-        output_eval_file = os.path.join(args.output_dir, "eval_results.txt")
-        with open(output_eval_file, "w") as writer:
-            logger.info("***** Eval results *****")
-            for key in sorted(result.keys()):
-                logger.info("  %s = %s", key, str(result[key]))
-                writer.write("%s = %s\n" % (key, str(result[key])))
 
 
 if __name__ == '__main__':
