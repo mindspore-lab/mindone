@@ -61,11 +61,12 @@ def main(args):
             low_cpu_mem_usage=False,
             device_map=None,
             dtype=dtype,
+            use_recompute=args.use_recompute,
         )
     else:
         if rank_id == 0:
             logger.warning(f"Model will be initialized from config file {args.model_config}.")
-        ae = model_cls.from_config(args.model_config, dtype=dtype)
+        ae = model_cls.from_config(args.model_config, dtype=dtype, use_recompute=args.use_recompute)
 
     if args.load_from_checkpoint is not None:
         ae.init_from_ckpt(args.load_from_checkpoint)
@@ -333,6 +334,7 @@ def main(args):
                 f"MindSpore mode[GRAPH(0)/PYNATIVE(1)]: {args.mode}"
                 + (f"\nJit level: {args.jit_level}" if args.mode == 0 else ""),
                 f"Distributed mode: {args.use_parallel}",
+                f"Recompute: {args.use_recompute}",
                 f"dtype: {args.precision}",
                 f"Optimizer: {args.optim}",
                 f"Use discriminator: {args.use_discriminator}",
@@ -431,19 +433,26 @@ def main(args):
 
                 cur_global_step = epoch * dataset_size + step + 1  # starting from 1 for logging
                 if overflow:
-                    logger.warning(f"Overflow occurs in step {cur_global_step}")
-
+                    logger.warning(
+                        f"Overflow occurs in step {cur_global_step} in autoencoder"
+                        + (", drop update." if args.drop_overflow_update else ", still update.")
+                    )
+                if global_step >= disc_start and overflow_d:
+                    logger.warning(
+                        f"Overflow occurs in step {cur_global_step} in discriminator"
+                        + (", drop update." if args.drop_overflow_update else ", still update.")
+                    )
                 # log
                 step_time = time.time() - start_time_s
                 if step % args.log_interval == 0:
                     loss_ae = float(loss_ae_t.asnumpy())
                     logger.info(
-                        f"E: {epoch+1}, S: {step+1}, Loss ae: {loss_ae:.4f}, ae loss scaler {loss_scaler_ae.loss_scale_value},"
+                        f"E: {epoch+1}, S: {step+1}, Loss ae: {loss_ae:.4f}, ae loss scaler {scaling_sens},"
                         + f" Step time: {step_time*1000:.2f}ms"
                     )
                     if global_step >= disc_start:
                         loss_disc = float(loss_disc_t.asnumpy())
-                        logger.info(f"Loss disc: {loss_disc:.4f}, disc loss scaler {loss_scaler_disc.loss_scale_value}")
+                        logger.info(f"Loss disc: {loss_disc:.4f}, disc loss scaler {scaling_sens_d}")
                         loss_log_file.write(f"{cur_global_step}\t{loss_ae:.7f}\t{loss_disc:.7f}\t{step_time:.2f}\n")
                     else:
                         loss_log_file.write(f"{cur_global_step}\t{loss_ae:.7f}\t{0.0}\t{step_time:.2f}\n")
