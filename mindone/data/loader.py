@@ -3,6 +3,7 @@ from typing import List, Optional, Union
 import mindspore as ms
 from mindspore.communication import get_local_rank, get_local_rank_size
 
+from ..utils.version_control import MS_VERSION
 from .dataset import BaseDataset
 
 
@@ -89,7 +90,7 @@ def create_dataloader(
                 **transform,
                 python_multiprocessing=python_multiprocessing,
                 num_parallel_workers=num_workers,
-                max_rowsize=max_rowsize,
+                max_rowsize=max_rowsize if MS_VERSION < "2.3" else -1,  # MS 2.3 and above: allocate memory dynamically
             )
 
     if project_columns:

@@ -1,10 +1,10 @@
 import logging
-from typing import Dict, Tuple, Union
+from typing import Dict, Union
 
 import mindspore as ms
-import mindspore.nn as nn
+from mindspore import _no_grad, jit_class, nn
 
-__all__ = ["load_ckpt_params", "count_params"]
+__all__ = ["load_ckpt_params", "no_grad"]
 
 logger = logging.getLogger(__name__)
 
@@ -26,7 +26,20 @@ def load_ckpt_params(model: nn.Cell, ckpt: Union[str, Dict]) -> nn.Cell:
     return model
 
 
-def count_params(model: nn.Cell) -> Tuple[int, int]:
-    total_params = sum([param.size for param in model.get_parameters()])
-    trainable_params = sum([param.size for param in model.trainable_params()])
-    return total_params, trainable_params
+@jit_class
+class no_grad(_no_grad):
+    """
+    A context manager that suppresses gradient memory allocation in PyNative mode.
+    """
+
+    def __init__(self):
+        super().__init__()
+        self._pynative = ms.get_context("mode") == ms.PYNATIVE_MODE
+
+    def __enter__(self):
+        if self._pynative:
+            super().__enter__()
+
+    def __exit__(self, *args):
+        if self._pynative:
+            super().__exit__(*args)

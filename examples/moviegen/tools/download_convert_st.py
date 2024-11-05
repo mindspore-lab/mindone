@@ -10,7 +10,7 @@ from typing import Dict, List, Optional, Set
 
 import requests
 import torch
-from huggingface_hub import HfApi, configure_http_backend, hf_hub_download
+from huggingface_hub import HfApi, configure_http_backend, hf_hub_download, snapshot_download
 from safetensors.torch import _find_shared_tensors, _is_complete, load_file, save_file
 
 
@@ -138,7 +138,7 @@ def convert_multi(
     filenames = set(data["weight_map"].values())
     for filename in filenames:
         pt_filename = hf_hub_download(
-            repo_id=model_id, filename=filename, token=token, cache_dir=folder, endpoint=endpoint
+            model_id, revision=revision, filename=filename, token=token, cache_dir=folder, endpoint=endpoint
         )
         sf_filename = rename(pt_filename)
         sf_filename = os.path.join(save_path, sf_filename)
@@ -247,35 +247,52 @@ def convert(
 
     library_name = getattr(info, "library_name", None)
     if any(filename.endswith(".safetensors") for filename in filenames) and not force:
-        raise AlreadyExists(f"Model {model_id} is already converted, skipping..")
-    elif library_name == "transformers":
-        discard_names = get_discard_names(
-            model_id, revision=revision, folder=folder, token=api.token, endpoint=endpoint
+        print(f"Model {model_id} is already converted. Downloading safetensors...")
+        save_path = snapshot_download(  # Download an entire directory, including the tokenizer config
+            model_id,
+            revision=revision,
+            allow_patterns=["*.safetensors", "*.json", "*.model"],
+            token=api.token,
+            cache_dir=folder,
+            endpoint=endpoint,
         )
-        if "pytorch_model.bin" in filenames:
-            save_path = convert_single(
-                model_id,
-                revision=revision,
-                folder=folder,
-                token=api.token,
-                discard_names=discard_names,
-                endpoint=endpoint,
-            )
-        elif "pytorch_model.bin.index.json" in filenames:
-            save_path = convert_multi(
-                model_id,
-                revision=revision,
-                folder=folder,
-                token=api.token,
-                discard_names=discard_names,
-                endpoint=endpoint,
-            )
-        else:
-            raise RuntimeError(f"Model {model_id} doesn't seem to be a valid pytorch model. Cannot convert")
     else:
-        save_path = convert_generic(
-            model_id, revision=revision, folder=folder, filenames=filenames, token=api.token, endpoint=endpoint
+        snapshot_download(  # Download an entire directory, including the tokenizer config
+            model_id,
+            revision=revision,
+            allow_patterns=["*.bin", "*.json", "*.model"],
+            token=api.token,
+            cache_dir=folder,
+            endpoint=endpoint,
         )
+        if library_name == "transformers":
+            discard_names = get_discard_names(
+                model_id, revision=revision, folder=folder, token=api.token, endpoint=endpoint
+            )
+            if "pytorch_model.bin" in filenames:
+                save_path = convert_single(
+                    model_id,
+                    revision=revision,
+                    folder=folder,
+                    token=api.token,
+                    discard_names=discard_names,
+                    endpoint=endpoint,
+                )
+            elif "pytorch_model.bin.index.json" in filenames:
+                save_path = convert_multi(
+                    model_id,
+                    revision=revision,
+                    folder=folder,
+                    token=api.token,
+                    discard_names=discard_names,
+                    endpoint=endpoint,
+                )
+            else:
+                raise RuntimeError(f"Model {model_id} doesn't seem to be a valid pytorch model. Cannot convert")
+        else:
+            save_path = convert_generic(
+                model_id, revision=revision, folder=folder, filenames=filenames, token=api.token, endpoint=endpoint
+            )
     return save_path
 
 

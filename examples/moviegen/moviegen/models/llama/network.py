@@ -15,9 +15,9 @@ from mindspore.communication import GlobalComm, get_group_size
 
 from mindone.models.utils import normal_, zeros_
 
+from ..text_encoders import TextProjector
 from .activation import ACT2FN
 from .block import (
-    CaptionEmbedder,
     ContextParallelLlamaAttention,
     ContextParallelLlamaFlashAttention,
     FusedTensorParallelLlamaMLP,
@@ -86,7 +86,7 @@ class LlamaDecoderLayer(nn.Cell):
             intermediate_size=intermediate_size, hidden_size=hidden_size, hidden_act=hidden_act, dtype=dtype
         )
 
-        self.scale_shift_table = Parameter(Tensor(np.random.randn(1, 6, hidden_size), dtype=dtype) / hidden_size**0.5)
+        self.scale_shift_table = Parameter(Tensor(np.random.randn(1, 6, hidden_size) / hidden_size**0.5, dtype=dtype))
         self.input_layernorm = LlamaRMSNorm(hidden_size, eps=rms_norm_eps, dtype=dtype)
         self.post_attention_layernorm = LlamaRMSNorm(hidden_size, eps=rms_norm_eps, dtype=dtype)
 
@@ -188,7 +188,7 @@ class ModelParallelLlamaDecoderLayer(nn.Cell):
                 dtype=dtype,
             )
 
-        self.scale_shift_table = Parameter(Tensor(np.random.randn(1, 6, hidden_size), dtype=dtype) / hidden_size**0.5)
+        self.scale_shift_table = Parameter(Tensor(np.random.randn(1, 6, hidden_size) / hidden_size**0.5, dtype=dtype))
         self.input_layernorm = LlamaRMSNorm(hidden_size, eps=rms_norm_eps, dtype=dtype)
         self.post_attention_layernorm = LlamaRMSNorm(hidden_size, eps=rms_norm_eps, dtype=dtype)
 
@@ -257,7 +257,7 @@ class LlamaFinalLayer(nn.Cell):
         self.proj = nn.Dense(
             hidden_size, patch_size[0] * patch_size[1] * patch_size[2] * out_channels, has_bias=False, dtype=dtype
         )
-        self.scale_shift_table = Parameter(Tensor(np.random.randn(2, hidden_size), dtype=dtype) / hidden_size**0.5)
+        self.scale_shift_table = Parameter(Tensor(np.random.randn(2, hidden_size) / hidden_size**0.5, dtype=dtype))
 
     def construct(self, hidden_states: Tensor, timestep_embedding: Tensor):
         shift, scale = mint.chunk(
@@ -368,8 +368,9 @@ class LlamaModel(nn.Cell):
             ACT2FN[hidden_act], mint.nn.Linear(self.hidden_size, 6 * self.hidden_size, bias=False, dtype=dtype)
         )
 
-        # TODO: drop this
-        self.caption_embedder = CaptionEmbedder(caption_channels, self.hidden_size, eps=rms_norm_eps, dtype=dtype)
+        self.text_projector = TextProjector(
+            out_features=self.hidden_size, layer_norm=LlamaRMSNorm, norm_eps=self.rms_norm_eps, dtype=dtype
+        )
 
         if self.model_parallelism:
             self.group_size = get_group_size(mp_group)
@@ -383,7 +384,8 @@ class LlamaModel(nn.Cell):
 
         # recompute
         if gradient_checkpointing:
-            self.layers.recompute()
+            for layer in self.layers:  # Explicitly recompute each block for PyNative
+                layer.recompute()
 
     @property
     def dtype(self):
@@ -459,15 +461,14 @@ class LlamaModel(nn.Cell):
         return output
 
     def construct(
-        self,
-        latent_embedding: Tensor,
-        timestep: Tensor,
-        text_embedding: Tensor,
+        self, latent_embedding: Tensor, timestep: Tensor, ul2_emb: Tensor, metaclip_emb: Tensor, byt5_emb: Tensor
     ) -> Tensor:
         """
         latent_embedding: (N, T, C, H, W) tensor of inputs (latent representations of video)
-        timestep: (N,) tensor to indicate denoising step
-        text_embedding: (N, L, C') tensor of the text embedding
+        timestep: (N,) tensor to indicate a denoising step
+        ul2_emb: (N, L1, 4096) UL2 text embeddings
+        metaclip_emb: (N, L2, 1280) MetaCLIP text embeddings
+        byt5_emb: (N, L3, 1472) ByT5 text embeddings
         """
         _, t, _, h, w = latent_embedding.shape
 
@@ -483,7 +484,7 @@ class LlamaModel(nn.Cell):
         modulation_parameters = self.adaLN_modulation(timestep_embedding)
 
         # 3.1.4 text embedding
-        text_embedding = self.caption_embedder(text_embedding)
+        text_embedding = self.text_projector(ul2_emb, metaclip_emb, byt5_emb)
 
         # main blocks
         hidden_states = latent_embedding

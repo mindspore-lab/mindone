@@ -56,9 +56,9 @@ class TextProjector(nn.Cell):
 
         self.apply(_init_weights)
 
-    def construct(self, ul2_text: Tensor, metaclip_text: Tensor, byt5_text: Tensor) -> Tensor:
-        ul2_hidden_states = self.ul2_projector(ul2_text)
-        metaclip_hidden_states = self.metaclip_projector(metaclip_text)
-        byt5_hidden_states = self.byt5_projector(byt5_text)
+    def construct(self, ul2_emb: Tensor, metaclip_emb: Tensor, byt5_emb: Tensor) -> Tensor:
+        ul2_hidden_states = self.ul2_projector(ul2_emb)
+        metaclip_hidden_states = self.metaclip_projector(metaclip_emb)
+        byt5_hidden_states = self.byt5_projector(byt5_emb)
 
         return mint.cat((ul2_hidden_states, metaclip_hidden_states, byt5_hidden_states), dim=1)
