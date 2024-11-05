@@ -1,6 +1,8 @@
 import argparse
 import evaluate
 import numpy as np
+import mindspore as ms
+
 from datasets import load_dataset
 from transformers import AutoTokenizer, HfArgumentParser
 from dataclasses import dataclass, field
@@ -15,6 +17,7 @@ class Arguments(TrainingArguments):
     model_path: str = field(default="../hf_configs/meta-llama/Meta-Llama-3-8B/")
     dataset_path: str = field(default="Yelp/yelp_review_full")
 
+    ms_mode: int = field(default=0)
     rank_size: int = field(default=1)
     rank: int = field(default=0)
 
@@ -25,6 +28,8 @@ def main():
         Arguments
     )
     args = parser.parse_args_into_dataclasses()[0]
+
+    ms.set_context(mode=args.ms_mode)
 
     dataset = load_dataset(args.dataset_path)
     dataset["train"] = dataset["train"].shuffle(seed=42).select(range(1000))
