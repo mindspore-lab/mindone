@@ -43,6 +43,8 @@ def main():
     tokenized_datasets = dataset.map(tokenize_function, batched=True)
     small_train_dataset = tokenized_datasets["train"]
 
+    breakpoint()
+
     def ms_data_collator(features, batch_info):
         first = features[0]
         assert isinstance(first, Dict)
