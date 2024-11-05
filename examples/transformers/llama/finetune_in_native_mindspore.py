@@ -66,62 +66,13 @@ def main():
     # 2. create train network
     model = LlamaForSequenceClassification.from_pretrained(args.model_path, num_labels=5)
     optimizer = nn.AdamWeightDecay(model, learning_rate=5e-6)
+    train_model = TrainOneStepWrapper(model, optimizer)
 
-    class ReturnLoss(nn.Cell):
-        def __init__(self, model):
-            super(ReturnLoss, self).__init__(auto_prefix=False)
-            self.model = model
-
-        def construct(self, *args, **kwargs):
-            loss, logits = self.model(*args, **kwargs)
-            return loss
-
-    train_model = TrainOneStepWrapper(ReturnLoss(model), optimizer)
-
-    # Prepare optimizer
-    if args.do_train:
-        if args.max_steps > 0:
-            t_total = args.max_steps
-            args.num_train_epochs = args.max_steps // (len(train_dataloader) // args.gradient_accumulation_steps) + 1
-        else:
-            t_total = len(train_dataloader) // args.gradient_accumulation_steps * args.num_train_epochs
-
-        param_optimizer = list(model.named_parameters())
-        no_decay = ["bias", "LayerNorm.bias", "LayerNorm.weight"]
-        optimizer_grouped_parameters = [
-            {
-                "params": [p for n, p in param_optimizer if not any(nd in n for nd in no_decay)],
-                "weight_decay": args.weight_decay,
-            },
-            {"params": [p for n, p in param_optimizer if any(nd in n for nd in no_decay)], "weight_decay": 0.0},
-        ]
-        lr_scheduler = get_linear_schedule_with_warmup(
-            args.learning_rate, num_warmup_steps=args.warmup_steps, num_training_steps=t_total
-        )
-        optimizer = nn.AdamWeightDecay(optimizer_grouped_parameters, learning_rate=lr_scheduler, eps=args.adam_epsilon)
-
-        class NetWithLoss(nn.Cell):
-            def __init__(self, model, lm_coef):
-                super(NetWithLoss, self).__init__(auto_prefix=False)
-                self.model = model
-                self.lm_coef = lm_coef
-
-            def construct(self, *args, **kwargs):
-                losses = self.model(*args, **kwargs)
-                return self.lm_coef * losses[0] + losses[1]
-
-        train_step_fn = TrainOneStepWrapper(
-            network=NetWithLoss(model, args.lm_coef),
-            optimizer=optimizer,
-            gradient_accumulation_steps=args.gradient_accumulation_steps,
-            clip_grad="global",
-            clip_value=args.max_grad_norm
-        )
 
     if args.do_train:
         nb_tr_steps, tr_loss, exp_average_loss = 0, 0, None
         model.set_train(True)
-        for epoch in trange(int(args.num_train_epochs), desc="Epoch"):
+        for epoch in range(int(args.num_train_epochs), desc="Epoch"):
             tr_loss = 0
             nb_tr_steps = 0
             train_iterator = train_dataloader.create_tuple_iterator(num_epochs=1, output_numpy=True)
