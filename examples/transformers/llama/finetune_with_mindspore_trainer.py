@@ -8,28 +8,27 @@ from transformers import AutoTokenizer, HfArgumentParser
 from dataclasses import dataclass, field
 
 from mindone.transformers.models.llama import LlamaForSequenceClassification
-from mindone.transformers.training_args import TrainingArguments
 from mindone.transformers.trainer import Trainer
+from mindone.transformers.training_args import TrainingArguments
+from mindone.transformers.mindspore_adapter import MindSporeArguments, init_environment
 
 
 @dataclass
-class Arguments(TrainingArguments):
+class MyArguments(MindSporeArguments, TrainingArguments):
     model_path: str = field(default="../hf_configs/meta-llama/Meta-Llama-3-8B/")
     dataset_path: str = field(default="Yelp/yelp_review_full")
-
-    ms_mode: int = field(default=0)
-    rank_size: int = field(default=1)
-    rank: int = field(default=0)
 
 
 def main():
 
     parser = HfArgumentParser(
-        Arguments
+        MyArguments(gradient_checkpointing=True, output_dir="./outputs")
     )
     args = parser.parse_args_into_dataclasses()[0]
 
-    ms.set_context(mode=args.ms_mode)
+    breakpoint()
+
+    init_environment(args)
 
     dataset = load_dataset(args.dataset_path)
     dataset["train"] = dataset["train"].shuffle(seed=42).select(range(1000))

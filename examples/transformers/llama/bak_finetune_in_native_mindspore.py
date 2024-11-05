@@ -1,3 +1,34 @@
+#!/usr/bin/env python
+# coding=utf-8
+# Copyright 2018 Google AI, Google Brain and Carnegie Mellon University Authors and the HuggingFace Inc. team.
+# Copyright (c) 2018, NVIDIA CORPORATION.  All rights reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+""" Llama 3 model fine-tuning script.
+    reference to https://github.com/huggingface/pytorch-openai-transformer-lm/blob/master/train.py
+                 https://github.com/huggingface/transformers/blob/main/examples/legacy/run_openai_gpt.py
+
+    This script with default values fine-tunes and evaluate a pretrained Meta Llama3 on the RocStories dataset:
+        python run_openai_gpt.py \
+          --model_name meta-llama/Meta-Llama-3-8B \
+          --do_train \
+          --do_eval \
+          --train_dataset "$ROC_STORIES_DIR/cloze_test_val__spring2016 - cloze_test_ALL_val.csv" \
+          --eval_dataset "$ROC_STORIES_DIR/cloze_test_test__spring2016 - cloze_test_ALL_test.csv" \
+          --output_dir ../log \
+          --train_batch_size 16 \
+"""
+
 import argparse
 import csv
 import logging
@@ -28,12 +59,87 @@ from mindone.transformers.mindspore_adapter import (
 )
 
 
+logging.basicConfig(
+    format="%(asctime)s - %(levelname)s - %(name)s - %(message)s", datefmt="%m/%d/%Y %H:%M:%S", level=logging.INFO
+)
+logger = logging.getLogger(__name__)
+
+
+def accuracy(out, labels):
+    outputs = np.argmax(out, axis=1)
+    return np.sum(outputs == labels)
+
+
+def load_rocstories_dataset(dataset_path):
+    """Output a list of tuples(story, 1st continuation, 2nd continuation, label)"""
+    with open(dataset_path, encoding="utf_8") as f:
+        f = csv.reader(f)
+        output = []
+        next(f)  # skip the first line
+        for line in tqdm(f):
+            output.append((" ".join(line[1:5]), line[5], line[6], int(line[-1]) - 1))
+    return output
+
+
+def pre_process_datasets(encoded_datasets, input_len, cap_length, start_token, delimiter_token, clf_token):
+    """Pre-process datasets containing lists of tuples(story, 1st continuation, 2nd continuation, label)
+
+    To Transformer inputs of shape (n_batch, n_alternative, length) comprising for each batch, continuation:
+    input_ids[batch, alternative, :] = [start_token] + story[:cap_length] + [delimiter_token] + cont1[:cap_length] + [clf_token]
+    """
+    tensor_datasets = []
+    for dataset in encoded_datasets:
+        n_batch = len(dataset)
+        input_ids = np.zeros((n_batch, 2, input_len), dtype=np.int64)
+        mc_token_ids = np.zeros((n_batch, 2), dtype=np.int64)
+        lm_labels = np.full((n_batch, 2, input_len), fill_value=-100, dtype=np.int64)
+        mc_labels = np.zeros((n_batch,), dtype=np.int64)
+        for (
+            i,
+            (story, cont1, cont2, mc_label),
+        ) in enumerate(dataset):
+            with_cont1 = [start_token] + story[:cap_length] + [delimiter_token] + cont1[:cap_length] + [clf_token]
+            with_cont2 = [start_token] + story[:cap_length] + [delimiter_token] + cont2[:cap_length] + [clf_token]
+            input_ids[i, 0, : len(with_cont1)] = with_cont1
+            input_ids[i, 1, : len(with_cont2)] = with_cont2
+            mc_token_ids[i, 0] = len(with_cont1) - 1
+            mc_token_ids[i, 1] = len(with_cont2) - 1
+            lm_labels[i, 0, : len(with_cont1)] = with_cont1
+            lm_labels[i, 1, : len(with_cont2)] = with_cont2
+            mc_labels[i] = mc_label
+        all_inputs = (input_ids, mc_token_ids, lm_labels, mc_labels)
+        tensor_datasets.append(tuple(all_inputs))
+    return tensor_datasets
+
+
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--model_path", type=str, default="meta-llama/Meta-Llama-3-8B", help="pretrained model name")
-    parser.add_argument("--dataset_path", type=str, help="dataset path.")
-    parser.add_argument("--epochs", type=int, default=3)
+    parser.add_argument("--model_name", type=str, default="meta-llama/Meta-Llama-3-8B", help="pretrained model name")
+    parser.add_argument("--do_train", action="store_true", help="Whether to run training.")
+    parser.add_argument("--do_eval", action="store_true", help="Whether to run eval on the dev set.")
+    parser.add_argument(
+        "--output_dir",
+        default=None,
+        type=str,
+        required=True,
+        help="The output directory where the model predictions and checkpoints will be written.",
+    )
+    parser.add_argument("--train_dataset", type=str, default="")
+    parser.add_argument("--eval_dataset", type=str, default="")
+    parser.add_argument("--seed", type=int, default=42)
+    parser.add_argument("--num_train_epochs", type=int, default=3)
     parser.add_argument("--train_batch_size", type=int, default=8)
+    parser.add_argument("--eval_batch_size", type=int, default=16)
+    parser.add_argument("--adam_epsilon", default=1e-8, type=float, help="Epsilon for Adam optimizer.")
+    parser.add_argument("--max_grad_norm", type=int, default=1)
+    parser.add_argument(
+        "--max_steps",
+        default=-1,
+        type=int,
+        help=(
+            "If > 0: set total number of training                         steps to perform. Override num_train_epochs."
+        ),
+    )
     parser.add_argument(
         "--gradient_accumulation_steps",
         type=int,

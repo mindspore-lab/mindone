@@ -135,7 +135,6 @@ class TrainOneStepWrapper(nn.Cell):
             from mindone.transformers.mindspore_adapter.clip_grad import clip_grad_global as clip_grad_global_
             clip_grad_fn = clip_grad_global_
         elif clip_grad.lower() in ("local", "local_norm", "norm"):
-            # FIXME, level 1, high memory usage, resolve it by llama3-8b
             from mindone.transformers.mindspore_adapter.clip_grad import clip_grad as clip_grad_
             clip_grad_fn = clip_grad_
         elif clip_grad.lower() == "none":
