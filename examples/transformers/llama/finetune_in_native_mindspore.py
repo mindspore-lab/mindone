@@ -54,6 +54,7 @@ def main():
                     batch[k] = np.stack([f[k] for f in features])
                 else:
                     batch[k] = np.array([f[k] for f in features])
+        return batch
 
     batch_size, num_epochs = 1, 3
     train_dataloader = ms.dataset.GeneratorDataset(HF2MSDataset(small_train_dataset), column_names="item")
