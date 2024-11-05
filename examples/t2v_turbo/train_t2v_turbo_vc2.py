@@ -186,6 +186,7 @@ def main(args):
             precision=args.mixed_precision,
             rm_ckpt_dir=args.video_rm_ckpt_dir,
             n_frames=args.video_rm_batch_size,
+            use_recompute=args.use_recompute,
         )
     else:
         video_rm_fn = None

@@ -196,8 +196,11 @@ class CLIPModel(nn.Cell):
         text_ = mint.matmul(text_[ms.numpy.arange(text_.shape[0]), text.argmax(-1)], self.text_projection)
         return text_
     
-    def encode_image(self, image, normalize: bool=False):
-        features = self.visual(image)
+    def encode_image(self, image, normalize: bool=False, use_recompute: bool = False):
+        if use_recompute:
+            features = ms.recompute(self.visual, image)
+        else:
+            features = self.visual(image)
         if normalize:
             features = normalize_func(features, dim=-1)
         return features
