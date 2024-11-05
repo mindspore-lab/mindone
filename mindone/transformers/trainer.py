@@ -18,6 +18,7 @@ from collections.abc import Mapping
 from packaging import version
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Callable, Iterable, Dict, List, Optional, Tuple, Union, NamedTuple
+from ezcolorlog import root_logger as logger
 
 import mindspore as ms
 from mindspore import nn, ops, Tensor
@@ -82,9 +83,6 @@ if is_datasets_available():
 
 DEFAULT_CALLBACKS = [DefaultFlowCallback]
 DEFAULT_PROGRESS_CALLBACK = ProgressCallback
-
-
-logger = logging.get_logger(__name__)
 
 
 def _is_peft_model(model):
