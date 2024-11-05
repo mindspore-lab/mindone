@@ -57,7 +57,7 @@ def main():
     else:
         compute_metrics = None
 
-    training_args = TrainingArguments(output_dir="test_trainer", eval_strategy="epoch")
+    training_args = TrainingArguments(output_dir="test_trainer", eval_strategy="no")
 
     trainer = Trainer(
         model=model,

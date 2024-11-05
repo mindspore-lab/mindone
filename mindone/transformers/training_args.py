@@ -577,7 +577,7 @@ class TrainingArguments:
     warmup_steps: int = field(default=0, metadata={"help": "Linear warmup over warmup_steps."})
 
     log_level: Optional[str] = field(
-        default="passive",
+        default="info",
         metadata={
             "help": (
                 "Logger log level to use on the main node. Possible choices are the log levels as strings: 'debug',"
