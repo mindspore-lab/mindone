@@ -48,8 +48,6 @@ def main():
     small_eval_dataset = tokenized_datasets["test"]
 
     model = LlamaForSequenceClassification.from_pretrained(args.model_path, num_labels=5, use_flash_attention_2=True)
-    model.half()
-    model.gradient_checkpointing_enable()
 
     if args.do_eval:
         metric = evaluate.load("accuracy")

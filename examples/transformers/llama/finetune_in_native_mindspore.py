@@ -27,6 +27,7 @@ def main():
     # 1. create dataset
     dataset = load_dataset(args.dataset_path)
     dataset["train"] = dataset["train"].shuffle(seed=42).select(range(1000))
+    dataset["test"] = dataset["test"].shuffle(seed=42).select(range(1000))
 
     tokenizer = AutoTokenizer.from_pretrained(args.model_path)
     tokenizer.pad_token = tokenizer.eos_token
@@ -62,7 +63,7 @@ def main():
 
     # 2. create train network
     model = LlamaForSequenceClassification.from_pretrained(args.model_path, num_labels=5, use_flash_attention_2=True)
-    optimizer = nn.AdamWeightDecay(model, learning_rate=5e-6)
+    optimizer = nn.AdamWeightDecay(model.trainable_params(), learning_rate=5e-6)
     train_model = TrainOneStepWrapper(model, optimizer)
 
     # 3. training
