@@ -2,40 +2,23 @@ import csv
 import logging
 import os
 import random
-import sys
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional, Tuple, Union
+from typing import Callable, Dict, List, Optional, Tuple, Union
 
 import cv2
 import numpy as np
 from tqdm import tqdm
 
-from mindspore.dataset.transforms import Compose
-
+from mindone.data import BaseDataset
 from mindone.data.video_reader import VideoReader
 
 from .transforms import ResizeCrop
-
-# FIXME: remove in future when mindone is ready for install
-sys.path.append(os.path.join(os.path.dirname(__file__), "../../../.."))
-from mindone.data import BaseDataset
 
 _logger = logging.getLogger(__name__)
 
 
 IMAGE_EXT = (".jpg", ".jpeg", ".png", ".gif", ".webp")
-
-
-def create_infer_transforms(target_size: Tuple[int, int], interpolation=cv2.INTER_LINEAR):
-    return Compose(
-        [
-            ResizeCrop(target_size, interpolation=interpolation),
-            lambda x: x.astype(np.float32) / 127.5 - 1,
-            lambda x: x[None, ...] if x.ndim == 3 else x,  # if image
-            lambda x: np.transpose(x, (0, 3, 1, 2)),
-        ]
-    )
 
 
 class ImageVideoDataset(BaseDataset):
@@ -140,7 +123,7 @@ class ImageVideoDataset(BaseDataset):
         _logger.info(f"Number of data samples: {len(data)}")
         return data
 
-    def _get_replacement(self, max_attempts: int = 100) -> Tuple[Any, ...]:
+    def _get_replacement(self, max_attempts: int = 100) -> Tuple[np.ndarray, ...]:
         attempts, error = min(max_attempts, len(self)), None
         for idx in range(attempts):
             try:
@@ -151,7 +134,7 @@ class ImageVideoDataset(BaseDataset):
 
         raise RuntimeError(f"Fail to load a replacement sample in {attempts} attempts. Error: {repr(error)}")
 
-    def _get_item(self, idx: int, thw: Optional[Tuple[int, int, int]] = None) -> Tuple[Any, ...]:
+    def _get_item(self, idx: int, thw: Optional[Tuple[int, int, int]] = None) -> Tuple[np.ndarray, ...]:
         data = self._data[idx].copy()
         num_frames = self._frames
 
@@ -214,11 +197,11 @@ class ImageVideoDataset(BaseDataset):
 
         return tuple(data[c] for c in self.output_columns)
 
-    def get_bucket(self, thw: Tuple[int, int, int], sample_ids: List[int]) -> Tuple[Any, ...]:
+    def get_bucket(self, thw: Tuple[int, int, int], sample_ids: List[int]) -> Tuple[np.ndarray, ...]:
         batch = [self._get_item(sample_id, thw) for sample_id in sample_ids]
         return tuple(np.stack(item) for item in map(list, zip(*batch)))
 
-    def __getitem__(self, idx: int) -> Tuple[Any, ...]:
+    def __getitem__(self, idx: int) -> Tuple[np.ndarray, ...]:
         try:
             sample = self._get_item(idx)
             if self._require_update_prev:

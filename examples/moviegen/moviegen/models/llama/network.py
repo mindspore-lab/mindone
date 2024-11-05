@@ -465,8 +465,10 @@ class LlamaModel(nn.Cell):
     ) -> Tensor:
         """
         latent_embedding: (N, T, C, H, W) tensor of inputs (latent representations of video)
-        timestep: (N,) tensor to indicate denoising step
-        text_embedding: (N, L, C') tensor of the text embedding
+        timestep: (N,) tensor to indicate a denoising step
+        ul2_emb: (N, L1, 4096) UL2 text embeddings
+        metaclip_emb: (N, L2, 1280) MetaCLIP text embeddings
+        byt5_emb: (N, L3, 1472) ByT5 text embeddings
         """
         _, t, _, h, w = latent_embedding.shape
 

@@ -36,9 +36,10 @@ train:
   output_path: output/moviegen_t2i_256x256
 
   lr_scheduler:
-    name: constant
-    lr: 1.0e-4
-    warmup_steps: 1000
+    class_path: mindspore.nn.WarmUpLR
+    init_args:
+      learning_rate: 1.0e-4
+      warmup_steps: 1000
 
   optimizer:
     name: adamw_re

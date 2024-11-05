@@ -128,10 +128,13 @@ class RFlowLossWrapper(nn.Cell):
     def construct(
         self, x: Tensor, ul2_emb: Tensor, metaclip_emb: Tensor, byt5_emb: Tensor, timestep: Optional[Tensor] = None
     ) -> Tensor:
-        """Calculate the training loss for the corresponding timestep.
+        """
+        Calculate the training loss for the corresponding timestep.
         x: (N, T, C, H, W) tensor of inputs (latent representations of video)
-        text_embedding: (N, L, C') tensor of the text embedding
-        timestep: (N,) tensor to indicate denoising step
+        ul2_emb: (N, L1, 4096) UL2 text embeddings
+        metaclip_emb: (N, L2, 1280) MetaCLIP text embeddings
+        byt5_emb: (N, L3, 1472) ByT5 text embeddings
+        timestep: (N,) tensor to indicate a denoising step
         """
         x = x.to(ms.float32)
 
@@ -148,11 +151,10 @@ class RFlowLossWrapper(nn.Cell):
             metaclip_emb.to(self.model.dtype),
             byt5_emb.to(self.model.dtype),
         ).to(ms.float32)
-        velocity_pred = mint.chunk(model_output, 2, dim=2)[0]
         v_t = x - (1 - self.eps) * noise
 
         # 3.1.2 Eqa (2)
-        loss = self.criteria(velocity_pred, v_t)
+        loss = self.criteria(model_output, v_t)
         return loss
 
     def add_noise(self, x: Tensor, noise: Tensor, timesteps: Tensor) -> Tensor:

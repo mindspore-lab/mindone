@@ -21,7 +21,7 @@ from moviegen.schedulers import RFlowLossWrapper
 from moviegen.utils import EMA, MODEL_DTYPE, MODEL_SPEC, load_ckpt_params
 
 from mindone.data import create_dataloader
-from mindone.trainers import create_optimizer, create_scheduler
+from mindone.trainers import create_optimizer
 from mindone.trainers.callback import EvalSaveCallback, OverflowMonitor
 from mindone.trainers.zero import prepare_train_network
 from mindone.utils import count_params, init_train_env, set_logger
@@ -37,6 +37,7 @@ Path_dcc = path_type("dcc")  # path to a directory that can be created if it doe
 
 def init_model(
     name: Literal["llama-1B", "llama-5B", "llama-30B"],
+    in_channels: int = 4,
     pretrained_model_path: Optional[Path_fr] = None,
     enable_flash_attention: bool = True,
     recompute: bool = False,
@@ -44,8 +45,7 @@ def init_model(
 ) -> LlamaModel:
     attn_implementation = "flash_attention" if enable_flash_attention else "eager"
     model = MODEL_SPEC[name](
-        in_channels=4,
-        out_channels=8,
+        in_channels=in_channels,
         attn_implementation=attn_implementation,
         gradient_checkpointing=recompute,
         dtype=MODEL_DTYPE[dtype],
@@ -68,10 +68,7 @@ def main(args):
     initializer = parser.instantiate_classes(cfg)
 
     # 2. model initialize and weight loading
-    # 2.1 Llama 3
-    network = init_model(**args.model)
-
-    # 2.2 VAE
+    # 2.1 VAE
     logger.info("vae init")
     # TODO: add support of training with latents
     vae_args = args.vae.as_dict()
@@ -82,7 +79,9 @@ def main(args):
         # FIXME: remove AMP and add custom dtype conversion support for better compatibility with PyNative
         amp.custom_mixed_precision(vae, black_list=amp.get_black_list() + [nn.GroupNorm], dtype=vae_dtype)
 
-    # 2.4 LossWrapper
+    # 2.2 Llama 3
+    network = init_model(in_channels=vae.out_channels, **args.model)
+    # 2.3 LossWrapper
     rflow_loss_wrapper = RFlowLossWrapper(network)
 
     # 3. build training network
@@ -99,15 +98,14 @@ def main(args):
 
     # 5. build training utils: lr, optim, callbacks, trainer
     # 5.1 LR
-    lr = create_scheduler(steps_per_epoch=dataloader.get_dataset_size(), **args.train.lr_scheduler)
+    lr = initializer.train.lr_scheduler
 
     # 5.2 optimizer
     optimizer = create_optimizer(latent_diffusion_with_loss.trainable_params(), lr=lr, **args.train.optimizer)
 
-    loss_scaler = initializer.train.loss_scaler
-
     # 5.3 trainer (standalone and distributed)
     ema = EMA(latent_diffusion_with_loss.network, **args.train.ema.init_args) if args.train.ema else None
+    loss_scaler = initializer.train.loss_scaler
     net_with_grads = prepare_train_network(
         latent_diffusion_with_loss, optimizer=optimizer, scale_sense=loss_scaler, ema=ema, **args.train.settings
     )
@@ -147,7 +145,7 @@ def main(args):
                 f"Num trainable params: {num_params_trainable:,}",
                 f"Model dtype: {args.model.dtype}",
                 f"VAE dtype: {args.vae.dtype}",
-                f"Learning rate: {args.train.lr_scheduler.lr:.0e}",
+                f"Learning rate: {args.train.lr_scheduler.init_args.learning_rate:.0e}",
                 f"Batch size: {args.dataloader.batch_size}",
                 f"Image size: {args.dataset.target_size}",
                 f"Frames: {args.dataset.sample_n_frames}",
@@ -180,7 +178,7 @@ if __name__ == "__main__":
         help="Path to load a config yaml file that describes the setting which will override the default arguments.",
     )
     parser.add_function_arguments(init_train_env, "env")
-    parser.add_function_arguments(init_model, "model")
+    parser.add_function_arguments(init_model, "model", skip={"in_channels"})
     parser.add_function_arguments(OpenSoraVAE_V1_2, "vae", fail_untyped=False)
     parser.add_argument(
         "--vae.dtype", default="fp32", type=str, choices=["fp32", "fp16", "bf16"], help="VAE model precision."
@@ -192,7 +190,9 @@ if __name__ == "__main__":
         create_dataloader, "dataloader", skip={"dataset", "transforms", "device_num", "rank_id"}
     )
     parser.link_arguments("env.debug", "dataloader.debug", apply_on="parse")
-    parser.add_function_arguments(create_scheduler, "train.lr_scheduler", skip={"steps_per_epoch"})
+    parser.add_subclass_arguments(
+        nn.learning_rate_schedule.LearningRateSchedule, "train.lr_scheduler", fail_untyped=False
+    )
     parser.add_function_arguments(create_optimizer, "train.optimizer", skip={"params", "lr"})
     parser.add_subclass_arguments(
         nn.Cell,
@@ -208,7 +208,6 @@ if __name__ == "__main__":
         "--train.output_path", default="output/", type=Path_dcc, help="Output directory to save training results."
     )
     parser.add_argument("--train.epochs", default=10, type=int, help="Number of epochs to train. Default: 100.")
-    parser.link_arguments("train.epochs", "train.lr_scheduler.num_epochs", apply_on="parse")
     parser.add_class_arguments(
         EvalSaveCallback,
         "train.save",
