@@ -531,7 +531,6 @@ The training performance are tested on ascend 910* with mindspore 2.3.1 graph mo
 | OpenSoraT2V-ROPE-L-122 |  8   | 4 |  1  |          29 |1280x720   |   10mins    |       zero2 + SP(sp_size=8)      |  OFF | ON | O0 |    4.32     | 6.71 |
 | OpenSoraT2V-ROPE-L-122 |  8   | 5 |  1  |          93 | 1280x720   |   15mins    |       zero2 + SP(sp_size=8)      |  ON | ON | O0 |    24.40     | 3.81  |
 
-
 > SP: sequence parallelism.
 >
 > Stage means the muti-stage training as illustrated above.
