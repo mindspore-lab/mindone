@@ -181,11 +181,11 @@ class TrainOneStepWrapper(nn.Cell):
 
         return loss
 
-    def construct(self, *inputs):
-        loss = self.network(*inputs)
+    def construct(self, *args, **kwargs):
+        loss = self.network(*args, **kwargs)
 
         sens = ops.fill(loss.dtype, loss.shape, self.scaler.scale_value)
-        grads = self.grad_fn(*inputs, sens)
+        grads = self.grad_fn(*args, **kwargs, sens)
         if self.run_optimizer_reduce:
             grads = self.optimizer.grad_reduce(grads)
         else:
