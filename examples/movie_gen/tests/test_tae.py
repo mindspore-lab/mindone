@@ -162,7 +162,7 @@ def test_decoder():
 
 
 def test_tae_encode():
-    in_shape = (B, C, T, H, W) = (1, 3, 1, 64, 64)
+    in_shape = (B, C, T, H, W) = (1, 3, 8, 64, 64)
     x = np.random.normal(size=in_shape).astype(np.float32)
     x = ms.Tensor(x)
 
@@ -170,6 +170,28 @@ def test_tae_encode():
     y = tae.encode(x)
 
     print(y.shape)
+
+def test_tae_decode():
+    # in_shape = (B, C, T, H, W) = (1, 3, 1, 64, 64)
+    in_shape = (B, C, T, H, W) = (1, 4, 1, 8, 8)
+    x = np.random.normal(size=in_shape).astype(np.float32)
+    x = ms.Tensor(x)
+
+    tae = VideoAutoencoder(config=SDXL_CONFIG)
+    y = tae.decode(x)
+
+    print(y.shape)
+
+
+def test_tae_rec():
+    in_shape = (B, C, T, H, W) = (1, 3, 8, 64, 64)
+    x = np.random.normal(size=in_shape).astype(np.float32)
+    x = ms.Tensor(x)
+
+    tae = VideoAutoencoder(config=SDXL_CONFIG)
+    y = tae(x)
+
+    print(y[0].shape)
 
 
 if __name__ == "__main__":
@@ -184,4 +206,6 @@ if __name__ == "__main__":
     # test_temporal_upsample()
     # test_spatial_upsample()
     # test_decoder()
-    test_tae_encode()
+    # test_tae_encode()
+    # test_tae_decode()
+    test_tae_rec()

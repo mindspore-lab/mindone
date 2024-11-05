@@ -73,7 +73,7 @@ class VideoAutoencoder(nn.Cell):
 
         return z
 
-    def decode(self, x: ms.Tensor) -> ms.Tensor:
+    def decode(self, z: ms.Tensor) -> ms.Tensor:
         z = self.post_quant_conv(z)
         dec = self.decoder(z)
         return dec
@@ -85,4 +85,11 @@ class VideoAutoencoder(nn.Cell):
         x: (b c t h w)
         """
 
-        return x
+        posterior_mean, posterior_logvar = self._encode(x)
+        z = self.sample(posterior_mean, posterior_logvar)
+        recons = self.decode(z)
+
+        # TODO: discard supurious frames
+
+        return recons, posterior_mean, posterior_logvar
+
