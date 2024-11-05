@@ -1,114 +1,65 @@
-import argparse
-import csv
-import logging
 import os
-import random
+import argparse
+import evaluate
 import numpy as np
-from tqdm import tqdm, trange
-
 import mindspore as ms
-from mindspore import nn, ops
-from mindspore.dataset import GeneratorDataset
-from mindspore.communication.management import init, get_rank, get_group_size
 
-from transformers import (
-    CONFIG_NAME,
-    WEIGHTS_NAME,
-    AutoTokenizer,
-    get_linear_schedule_with_warmup,
-)
+from datasets import load_dataset
+from transformers import AutoTokenizer, HfArgumentParser
+from dataclasses import dataclass, field
 
-from mindone.transformers.models.llama import LlamaForCausalLM
-from mindone.transformers.mindspore_adapter.utils import _is_parallel
-from mindone.transformers.mindspore_adapter import (
-    TrainOneStepWrapper,
-    TensorDataset,
-    RandomSampler,
-    SequentialSampler
-)
+from mindone.transformers.models.llama import LlamaForSequenceClassification
+from mindone.transformers.trainer import Trainer
+from mindone.transformers.training_args import TrainingArguments
+from mindone.transformers.mindspore_adapter import HF2MSDataset
 
 
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--model_path", type=str, default="meta-llama/Meta-Llama-3-8B", help="pretrained model name")
-    parser.add_argument("--dataset_path", type=str, help="dataset path.")
-    parser.add_argument("--epochs", type=int, default=3)
-    parser.add_argument("--train_batch_size", type=int, default=8)
-    parser.add_argument(
-        "--gradient_accumulation_steps",
-        type=int,
-        default=1,
-        help="Number of updates steps to accumulate before                        performing a backward/update pass.",
-    )
-    parser.add_argument("--learning_rate", type=float, default=6.25e-5)
-    parser.add_argument("--warmup_steps", default=0, type=int, help="Linear warmup over warmup_steps.")
-    parser.add_argument("--lr_schedule", type=str, default="warmup_linear")
-    parser.add_argument("--weight_decay", type=float, default=0.01)
-    parser.add_argument("--lm_coef", type=float, default=0.9)
-    parser.add_argument("--n_valid", type=int, default=374)
-
+    parser.add_argument("--dataset_path", type=str, default="Yelp/yelp_review_full", help="dataset path.")
+    parser.add_argument("--train_batch_size", type=int, default=1, help="train batch size")
+    parser.add_argument("--output_dir", type=str, default="./outputs", help="dataset path.")
     parser.add_argument("--rank_size", type=int, default=1)
     parser.add_argument("--rank", type=int, default=0)
-
     args = parser.parse_args()
     print(args)
-
-    random.seed(args.seed)
-    np.random.seed(args.seed)
-    ms.set_seed(args.seed)
-
-    n_npu = get_group_size() if _is_parallel() else 1
-    logger.info("num cards: {}".format(n_npu))
-
-    if not args.do_train and not args.do_eval:
-        raise ValueError("At least one of `do_train` or `do_eval` must be True.")
 
     if not os.path.exists(args.output_dir):
         os.makedirs(args.output_dir)
 
-    # Load tokenizer and model
-    # This loading functions also add new tokens and embeddings called `special tokens`
-    # These new embeddings will be fine-tuned on the RocStories dataset
-    special_tokens = ["_start_", "_delimiter_", "_classify_"]
-    tokenizer = AutoTokenizer.from_pretrained(args.model_name)
-    tokenizer.add_tokens(special_tokens)
-    special_tokens_ids = tokenizer.convert_tokens_to_ids(special_tokens)
-    model = LlamaForCausalLM.from_pretrained(args.model_name)
-    model.resize_token_embeddings(len(tokenizer))
 
-    # Load and encode the datasets
-    def tokenize_and_encode(obj):
-        """Tokenize and encode a nested object"""
-        if isinstance(obj, str):
-            return tokenizer.convert_tokens_to_ids(tokenizer.tokenize(obj))
-        elif isinstance(obj, int):
-            return obj
-        return [tokenize_and_encode(o) for o in obj]
+    # 1. create dataset
+    dataset = load_dataset(args.dataset_path)
+    dataset["train"] = dataset["train"].shuffle(seed=42).select(range(1000))
 
-    logger.info("Encoding dataset...")
-    train_dataset = load_rocstories_dataset(args.train_dataset)
-    eval_dataset = load_rocstories_dataset(args.eval_dataset)
-    datasets = (train_dataset, eval_dataset)
-    encoded_datasets = tokenize_and_encode(datasets)
+    tokenizer = AutoTokenizer.from_pretrained(args.model_path)
+    tokenizer.pad_token = tokenizer.eos_token
 
-    # Compute the max input length for the Transformer
-    max_length = model.config.n_positions // 2 - 2
-    input_length = max(
-        len(story[:max_length]) + max(len(cont1[:max_length]), len(cont2[:max_length])) + 3
-        for dataset in encoded_datasets
-        for story, cont1, cont2, _ in dataset
-    )
-    input_length = min(input_length, model.config.n_positions)  # Max size of input for the pre-trained model
+    def tokenize_function(examples):
+        return tokenizer(
+            examples["text"],
+            padding="max_length",
+            truncation=True,
+            max_length=512,  # Note: pad is need for training batch size is gather than 1.
+        )
 
-    # Prepare inputs tensors and dataloaders
-    tensor_datasets = pre_process_datasets(encoded_datasets, input_length, max_length, *special_tokens_ids)
-    train_tensor_dataset, eval_tensor_dataset = tensor_datasets[0], tensor_datasets[1]
+    tokenized_datasets = dataset.map(tokenize_function, batched=True)
+    small_train_dataset = tokenized_datasets["train"]
 
-    train_data = TensorDataset(*train_tensor_dataset)
-    train_sampler = RandomSampler(train_data)
+    model = LlamaForSequenceClassification.from_pretrained(args.model_path, num_labels=5)
+
+    ds_init_params = {
+        "num_parallel_workers": self.args.dataloader_num_workers,
+        "sampler": self._get_train_sampler(),
+        "python_multiprocessing": False,
+        "num_shards": getattr(self.args, "rank_size", 1),
+        "shard_id": getattr(self.args, "rank", 0),
+        "column_names": "item"
+    }
+
     train_dataloader = ms.dataset.GeneratorDataset(
-        train_data,
-        sampler=train_sampler,
+        HF2MSDataset(small_train_dataset),
         num_parallel_workers=1,
         python_multiprocessing=False,
         num_shards=args.rank_size,
