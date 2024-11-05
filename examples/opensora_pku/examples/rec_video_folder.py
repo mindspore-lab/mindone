@@ -154,7 +154,8 @@ def main(args):
         latents = vae.encode(x)
         video_recon = vae.decode(latents)
         for idx, video in enumerate(video_recon):
-            file_name = os.path.basename(eval(str(file_paths))[idx])
+            file_paths = eval(str(file_paths).replace("/n", ","))
+            file_name = os.path.basename(file_paths[idx])
             if ".avi" in os.path.basename(file_name):
                 file_name = file_name.replace(".avi", ".mp4")
             output_path = os.path.join(generated_video_dir, file_name)
