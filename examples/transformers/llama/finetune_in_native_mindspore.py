@@ -65,7 +65,17 @@ def main():
     # 2. create train network
     model = LlamaForSequenceClassification.from_pretrained(args.model_path, num_labels=5, use_flash_attention_2=True)
     optimizer = nn.AdamWeightDecay(model.trainable_params(), learning_rate=5e-6)
-    train_model = TrainOneStepWrapper(model, optimizer)
+
+    class ReturnLoss(nn.Cell):
+        def __init__(self, model):
+            super(ReturnLoss, self).__init__(auto_prefix=False)
+            self.model = model
+
+        def construct(self, *args, **kwargs):
+            loss, logits = self.model(*args, **kwargs)
+            return loss
+    
+    train_model = TrainOneStepWrapper(ReturnLoss(model), optimizer)
 
     # 3. training
     train_model.set_train()
