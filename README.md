@@ -20,18 +20,18 @@ To install MindONE, please checkout [Installation](https://mindspore-lab.github.
 <img src="https://github.com/townwish4git/mindone/assets/143256262/8c25ae9a-67b1-436f-abf6-eca36738cd17" alt="sd3" width="512" height="512">
 </div>
 
-    ```py
-    import mindspore
-    from mindone.diffusers import StableDiffusion3Pipeline
+```py
+import mindspore
+from mindone.diffusers import StableDiffusion3Pipeline
 
-    pipe = StableDiffusion3Pipeline.from_pretrained(
-        "stabilityai/stable-diffusion-3-medium-diffusers",
-        mindspore_dtype=mindspore.float16,
-    )
-    prompt = "A cat holding a sign that says 'Hello MindSpore'"
-    image = pipe(prompt)[0][0]
-    image.save("sd3.png")
-    ```
+pipe = StableDiffusion3Pipeline.from_pretrained(
+    "stabilityai/stable-diffusion-3-medium-diffusers",
+    mindspore_dtype=mindspore.float16,
+)
+prompt = "A cat holding a sign that says 'Hello MindSpore'"
+image = pipe(prompt)[0][0]
+image.save("sd3.png")
+```
 
 ### supported models under mindone/examples
 | model  |  features  
