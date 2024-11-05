@@ -972,8 +972,6 @@ class Trainer:
         else:
             logger.warning("No available resume checkpoint.")
 
-        breakpoint()
-
         # Train!
         logger.info("***** Running training *****")
         logger.info(f"  Num examples = {num_examples:,}")
@@ -1483,9 +1481,11 @@ class Trainer:
         inputs = ()
         for data in tuple_inputs:
             if data is not None:
-                if hasattr(self.args, "input_dtype") and \
-                        data.dtype in (np.float16, np.float32, np.float64):
+                if hasattr(self.args, "input_dtype") and data.dtype in (np.float16, np.float32, np.float64):
                     data = ms.Tensor(data, dtype=self.args.input_dtype)
+                elif data.dtype in (np.uint8, np.uint16, np.uint32, np.uint64,
+                                    np.int8, np.int16, np.int32, np.int64):
+                    data = ms.Tensor(data, dtype=ms.int32)
                 else:
                     data = ms.Tensor(data)
             inputs += (data,)
