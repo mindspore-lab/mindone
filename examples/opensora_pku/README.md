@@ -341,11 +341,10 @@ Runing this command will generate reconstructed videos under the given `output_g
 
 Here, we report the training performance and evaluation results on the UCF-101 dataset. Experiments are tested on Ascend 910* with mindspore 2.3.1 graph mode.
 
-| model name  | cards  |  batch size | resolution | precision | discriminator |sink | jit level| graph compile | s/step | img/s  | psnr | ssim  |
-|:-----------:|:------: |:-----------:|:---------:|:----------:|:------------:|:---:|:--------:|:-------------:|--------:|------:|:----:|-------:|
-| CausalVAE  |  8     |       1    |  9x256x256   |   fp32     |    ON      | OFF  |    O0   |       3 mins    |  2.04   |  35.29 |  29.30 |   0.88    |
-| CausalVAE  |  8    |       1     | 25x256x256   |   bf16     |     OFF    |  OFF |     O0  |      3 mins     |   4.21   |  47.51 | 28.92 |    0.87    |
-
+| model name  | cards  |  batch size | resolution | precision | discriminator |sink |recompute| jit level|  graph compile | s/step | img/s  | psnr | ssim  | recipe|
+|:-----------|:------ |:-----------:|:----------:|:-------------:|:----------:|:------------:|:---:|:--------:|:--------:|--------:|------:|:----:|-------:|-------:|
+| CausalVAE  |  8    |       1     | 25x256x256  |     BF16     |     FALSE    |  OFF |    OFF |    O0  |  3 mins   |     4.21   |  47.51 | 28.92 |    0.87    | [train](./scripts/causalvae/train_without_gan_loss_multi_device.sh) |
+| CausalVAE  |  8    |      1      | 25x256x256  |  FP32     |     TRUE     |  OFF |    ON |    O0  |   3 mins    |    5.45 |   36.70  | 29.28 |   0.88   |  [train](./scripts/causalvae/train_with_gan_loss_multi_device.sh) |
 
 
 ### Training Diffusion Model
@@ -523,19 +522,21 @@ The edits will set the polynomial_decay LR scheduler, and decay the start LR to 
 
 #### Performance
 
-Experiments are tested on Ascend 910* on MindSpore 2.3.1.
+The training performance are tested on ascend 910* with mindspore 2.3.1 graph mode.
 
-| model name      | cards       | batch size   | resolution  |  stage     | paramllelism |recompute | sink | jit level |graph compile | s/step | img/s |
-|:---------------:|:----------: |:---------:   |:-----:      |:---------: |:----------:|:----------:|:----------:|:----------:|:----------:|-------------------:|:----------:|
-| OpenSoraT2V-ROPE-L-122 |  8   |  8           | 1x640x480   | 2          |         zero2                     | ON | ON | O0 |   3mins| 2.35      |  27.3 |
-| OpenSoraT2V-ROPE-L-122 |  8   |  1           | 29x640x480  | 3          |         zero2                      |  ON | ON | O0 | 6mins|    3.68     | 63.0 |
-| OpenSoraT2V-ROPE-L-122 |  8   |  1           | 29x1280x720 | 4          |         zero2 + SP(sp_size=8)      |  OFF | ON | O0 | 10mins|   4.32     | 6.71 |
-| OpenSoraT2V-ROPE-L-122 |  8   |  1           | 93x1280x720 | 5          |         zero2 + SP(sp_size=8)      |  ON | ON | O0 |  15mins|  24.4     | 3.81  |
+| model name      | cards       |  stage     |batch size   | num frames| resolution  | graph compile | parallelism | recompute | sink | jit level| s/step | img/s |
+|:----------------|:----------- |:----------|:---------:|:-----:|:----------:|:----------:|:----------:|:----------:|:----------:|:----------:|-------------------:|:----------:|
+| OpenSoraT2V-ROPE-L-122 |  8   | 2 | 8  |           1 | 640x480     |  3mins     |         zero2                     | ON | ON | O0 |    2.35      | 27.23 |
+| OpenSoraT2V-ROPE-L-122 |  8   | 3 |  1  |          29 | 640x480    |    6mins    |       zero2                      |  ON | ON | O0 |     3.68     | 63.04 |
+| OpenSoraT2V-ROPE-L-122 |  8   | 4 |  1  |          29 |1280x720   |   10mins    |       zero2 + SP(sp_size=8)      |  OFF | ON | O0 |    4.32     | 6.71 |
+| OpenSoraT2V-ROPE-L-122 |  8   | 5 |  1  |          93 | 1280x720   |   15mins    |       zero2 + SP(sp_size=8)      |  ON | ON | O0 |    24.40     | 3.81  |
 
 
 > SP: sequence parallelism.
 >
 > Stage means the muti-stage training as illustrated above.
+
+> batch size: the local batch size for a single card.
 
 ## 👍 Acknowledgement
 * [Latte](https://github.com/Vchitect/Latte): The **main codebase** we built upon and it is an wonderful video generated model.
