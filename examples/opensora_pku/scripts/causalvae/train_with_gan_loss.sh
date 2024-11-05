@@ -7,7 +7,8 @@ python opensora/train/train_causalvae.py \
     --max_steps 100000 \
     --save_steps 2000 \
     --output_dir results/causalvae \
-    --video_path /remote-home1/dataset/data_split_tt \
+    --video_path datasets/UCF-101 \
+    --data_file_path datasets/ucf101_train.csv \
     --video_num_frames 25 \
     --resolution 256 \
     --dataloader_num_workers 8 \
