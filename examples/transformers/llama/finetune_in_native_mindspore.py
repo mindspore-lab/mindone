@@ -70,7 +70,7 @@ def main():
     # 3. training
     train_model.set_train()
     for step, batch in enumerate(train_dataloader):
-        breakpoint()
+        batch = batch["item"]
 
         # inputs dict to tuple
         tuple_inputs = (
