@@ -21,7 +21,7 @@ DiTs是扩散模型的可扩展架构。作者发现网络复杂性（以Gflops�
 ### 配套版本
 
 | mindspore | ascend driver | firmware     | cann toolkit/kernel|
-|:----------|:---           | :--          |:--|
+|:----------:|:---:           | :--:          |:--:|
 | 2.3.1     | 24.1.RC2      | 7.3.0.1.231  | 8.0.RC2.beta1|
 
 ### 环境设置
@@ -83,9 +83,9 @@ ddim_sampling: True
 
 实验在MindSpore 2.3.1（图模式）的Ascend 910*上进行验证：
 
-| model name | cards | image size | method | steps | jit level | ckpt loading time | graph compile | sample time |
-| :--------: | :---: | :--------: | :----: | :---: | :-------: | :---------------: | :-----------: | :---------: |
-|    dit     |   1   |  256x256   |  ddpm  |  250  |    O2     |      16.41s       |    82.83s     |   58.45s    |
+| model name | cards | resolution | scheduler | steps | jit level | graph compile | s/img |
+| :--------: | :---: | :--------: | :----: | :---: | :-------: | :-----------: | :---------: |
+|    dit     |   1   |  256x256   |  ddpm  |  250  |    O2     |    82.83s     |   58.45    |
 
 一些生成的示例图像如下所示：
 Some generated example images are shown below:
@@ -134,13 +134,12 @@ bash scripts/run_distributed.sh -h
 ## 评估
 
 实验在MindSpore 2.3.1（图模式）的Ascend 910*上进行验证：
-
-| model name | cards | image size | graph compile | batch size | recompute | dataset sink mode | jit level | step time | train. imgs/s |
-| :--------: | :---: | :--------: | :-----------: | :--------: | :-------: | :---------------: | :-------: | :-------: | :-----------: |
-|    dit     |   1   |  256x256   |   3~5 mins    |     64     |    OFF    |        ON         |    O2     |   0.89s   |     71.91     |
-|    dit     |   1   |  256x256   |   3~5 mins    |     64     |    ON     |        ON         |    O2     |   0.95s   |     67.37     |
-|    dit     |   4   |  256x256   |   3~5 mins    |     64     |    ON     |        ON         |    O2     |   1.03s   |    248.52     |
-|    dit     |   8   |  256x256   |   3~5 mins    |     64     |    ON     |        ON         |    O2     |   0.93s   |    515.61     |
+| model name | cards | batch size   | resolution  | recompute | sink | jit level | graph compile | s/step | img/s |
+| :--------: | :---: | :-----------:| :--------:  | :--------: | :-------: | :---------------: | :-------: | :-------: | :-----------: |
+|    dit     |   1   |      64      |  256x256    |    OFF    |        ON         |    O2     |  3~5 mins    |   0.89   |     71.91     |
+|    dit     |   1   |     64       |  256x256    |    ON     |        ON         |    O2     |   3~5 mins    |   0.95   |     67.37     |
+|    dit     |   4   |     64       |  256x256    |    ON     |        ON         |    O2     |   3~5 mins    |   1.03   |    248.52     |
+|    dit     |   8   |     64       |  256x256    |    ON     |        ON         |    O2     |   3~5 mins    |   0.93   |    515.61     |
 
 
 # 参考文献

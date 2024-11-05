@@ -22,7 +22,7 @@ Here we provide an efficient MindSpore version of [Open-Sora-Plan](https://githu
 ## Requirements
 
 | mindspore | ascend driver | firmware | cann tookit/kernel |
-| ---       |   ---         | ---      | ---                |
+| :---:       |   :---:         | :---:      | :---:                |
 | 2.3.1     |  24.1RC2      |7.3.0.1.231|   8.0.RC2.beta1   |
 
 ## 🎥 Demo
@@ -337,7 +337,7 @@ python examples/rec_video_folder.py \
 Runing this command will generate reconstructed videos under the given `output_generated_video_dir`. You can then evalute some common metrics (e.g., ssim, psnr) using the script under `opensora/eval/script`.
 
 
-####  Performance Evaluation
+####  Performance
 
 Here, we report the training performance and evaluation results on the UCF-101 dataset. Experiments are tested on Ascend 910* with mindspore 2.3.1 graph mode.
 
@@ -533,6 +533,8 @@ The training performance are tested on ascend 910* with mindspore 2.3.1 graph mo
 
 
 > SP: sequence parallelism.
+>
+> Stage means the muti-stage training as illustrated above.
 
 > batch size: the local batch size for a single card.
 
