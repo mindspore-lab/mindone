@@ -155,6 +155,7 @@ class Trainer:
         # set the correct log level depending on the node
         log_level = args.get_process_log_level()
         logging.set_verbosity(log_level)
+        breakpoint()
 
         if model is None:
             if model_init is not None:
@@ -696,7 +697,7 @@ class Trainer:
             start_time = time.time()
             model = self.mindspore_jit_model(model, dataloader)
 
-            # FIXME: level 3, just build model, time not included compile cost.
+            # FIXME: just build model, time not included compile cost.
             self.jit_compilation_time = round(time.time() - start_time, 4)
 
         # Note: unlike the original transformers, support label_smoother through `Trainer._wrap_model`, and origin support it at `Trainer.compute_loss`
@@ -1027,7 +1028,7 @@ class Trainer:
         total_batched_samples = 0
         for epoch in range(epochs_trained, num_train_epochs):
             epoch_iterator = train_dataloader.create_dict_iterator(num_epochs=1, output_numpy=True)
-            # FIXME: level 3, consider resume, skip the previous steps
+            # FIXME: consider resume, skip the previous steps
             if hasattr(epoch_iterator, "set_epoch"):
                 epoch_iterator.set_epoch(epoch)
 
@@ -1043,7 +1044,7 @@ class Trainer:
             self.control = self.callback_handler.on_epoch_begin(args, self.state, self.control)
 
             if epoch == epochs_trained and resume_from_checkpoint is not None and steps_trained_in_current_epoch == 0:
-                # self._load_rng_state(resume_from_checkpoint)  # FIXME: level 3
+                # self._load_rng_state(resume_from_checkpoint)  # FIXME: load rng state
                 pass
 
             rng_to_sync = False
@@ -1284,7 +1285,7 @@ class Trainer:
 
             logs: Dict[str, float] = {}
 
-            # FIXME: level 3
+            # FIXME: consider parallel reduce
             # get average loss over all processes
             # tr_loss_scalar = self._nested_gather(tr_loss).mean().item()
             # if _is_parallel():
@@ -1299,7 +1300,7 @@ class Trainer:
             logs["loss"] = round(tr_loss_scalar / (self.state.global_step - self._globalstep_last_logged), 4)
             if grad_norm is not None:
                 logs["grad_norm"] = grad_norm.item() if isinstance(grad_norm, (Tensor, np.ndarray)) else grad_norm
-            # logs["learning_rate"] = _get_learning_rate(self.optimizer, self.state.global_step) # FIXME: level 1, may causl memory leak?
+            # logs["learning_rate"] = _get_learning_rate(self.optimizer, self.state.global_step) # FIXME: may causl memory leak?
 
             self._total_loss_scalar += tr_loss_scalar
             self._globalstep_last_logged = self.state.global_step
@@ -1513,7 +1514,7 @@ class Trainer:
         # Storing the number of floating-point operations that went into the model
 
         if _is_parallel():
-            # FIXME: level 3
+            # FIXME: consider parallel reduce when dynamic size
             # self.state.total_flos += (
             #     ops.AllReduce()(Tensor(self.current_flos, ms.float32)).item()
             # )
