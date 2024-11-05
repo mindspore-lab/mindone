@@ -37,7 +37,7 @@ weight_decay: 0.
 use_recompute: True
 
 epochs: 400
-ckpt_save_interval: 100
+ckpt_save_interval: 20
 init_loss_scale: 1.
 
 scheduler: "constant"
