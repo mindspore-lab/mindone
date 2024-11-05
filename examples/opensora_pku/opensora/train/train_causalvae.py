@@ -256,6 +256,7 @@ def main(args):
         lr=lr,
     )
     loss_scaler_ae = create_loss_scaler(args)
+    scaling_sens = loss_scaler_ae.loss_scale_value
 
     if use_discriminator:
         optim_disc = create_optimizer(
