@@ -3,15 +3,22 @@
 This repository contains SoTA algorithms, models, and interesting projects in the area of multimodal understanding and content generation
 
 ONE is short for "ONE for all"
+
 ## News
+- [2024.11.06] MindONE v0.2.0 is released
+
+## Quick tour
+
+To install MindONE, please checkout [Installation](https://mindspore-lab.github.io/mindone/latest/diffusers/installation/#installation)
+
+
+[mindone/diffusers](mindone/diffusers) supports state-of-the-art diffusion models for generating images, audio, and video. Let's get started using [Stable Diffusion 3](https://huggingface.co/stabilityai/stable-diffusion-3-medium) as an example.
 
 **Hello MindSpore** from **Stable Diffusion 3**!
 
 <div>
 <img src="https://github.com/townwish4git/mindone/assets/143256262/8c25ae9a-67b1-436f-abf6-eca36738cd17" alt="sd3" width="512" height="512">
 </div>
-
-- [mindone/diffusers](mindone/diffusers) now supports [Stable Diffusion 3](https://huggingface.co/stabilityai/stable-diffusion-3-medium). Give it a try yourself!
 
     ```py
     import mindspore
@@ -45,15 +52,18 @@ ONE is short for "ONE for all"
 | [video composer](https://github.com/mindspore-lab/mindone/tree/master/examples/videocomposer)     | support conditional video generation with motion transfer and etc.|
 | [ip adapter](https://github.com/mindspore-lab/mindone/blob/master/examples/ip_adapter)     | refactoring  |
 | [t2i-adapter](https://github.com/mindspore-lab/mindone/blob/master/examples/t2i_adapter)     | refactoring |
+| [dynamicrafter](https://github.com/mindspore-lab/mindone/blob/master/examples/dynamicrafter)     | support image to video generation |
+| [hunyuan_dit](https://github.com/mindspore-lab/mindone/blob/master/examples/hunyuan_dit)     | support text to image fine tune |
+| [pixart_sigma](https://github.com/mindspore-lab/mindone/blob/master/examples/pixart_sigma)     | suuport text to image fine tune at different aspect ratio |
 
 ###  run hf diffusers on mindspore
-mindone diffusers is under active development, most tasks were tested with mindspore 2.2.10 and ascend 910 hardware.
+mindone diffusers is under active development, most tasks were tested with mindspore 2.3+ and ascend 910 hardware.
 
 | component  |  features  
 | :---   |  :--  
 | [pipeline](https://github.com/mindspore-lab/mindone/tree/master/mindone/diffusers/pipelines) | support text2image,text2video,text2audio tasks 30+
 | [models](https://github.com/mindspore-lab/mindone/tree/master/mindone/diffusers/models) | support audoencoder & transformers base models same as hf diffusers
 | [schedulers](https://github.com/mindspore-lab/mindone/tree/master/mindone/diffusers/schedulers) | support ddpm & dpm solver 10+ schedulers same as hf diffusers
+
 #### TODO
-* [ ] mindspore 2.3.0 version adaption
 * [ ] hf diffusers 0.30.0 version adaption
