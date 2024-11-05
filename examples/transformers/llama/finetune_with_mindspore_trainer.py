@@ -62,11 +62,9 @@ def main():
     else:
         compute_metrics = None
 
-    training_args = TrainingArguments(output_dir="test_trainer", eval_strategy="no")
-
     trainer = Trainer(
         model=model,
-        args=training_args,
+        args=args,
         train_dataset=small_train_dataset,
         eval_dataset=small_eval_dataset,
         compute_metrics=compute_metrics,

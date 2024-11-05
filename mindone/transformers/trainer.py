@@ -25,10 +25,12 @@ from mindspore import nn, ops, Tensor
 from mindspore.communication.management import get_group_size
 
 from transformers import PreTrainedTokenizerBase
-from transformers.utils import logging
+from transformers.utils import logging, SAFE_WEIGHTS_NAME, WEIGHTS_NAME
 from transformers.integrations import get_reporting_integration_callbacks
 from transformers.models.auto.modeling_auto import MODEL_FOR_CAUSAL_LM_MAPPING_NAMES
 
+
+from ..safetensors.mindspore import save_file
 from .mindspore_adapter.utils import _is_parallel
 from .mindspore_adapter import (
     auto_mixed_precision,
@@ -1321,7 +1323,6 @@ class Trainer:
             self.control = self.callback_handler.on_save(self.args, self.state, self.control)
 
     def _save_checkpoint(self, model, trial, metrics=None):
-        raise NotImplementedError
         # In all cases, including ddp/dp/deepspeed, self.model is always a reference to the model we
         # want to save except FullyShardedDDP.
         # assert unwrap_model(model) is self.model, "internal model should be a reference to self.model"
@@ -1571,6 +1572,57 @@ class Trainer:
         # Special case for SageMaker ModelParallel since there process_index is dp_process_index, not the global
         # process index.
         return self.args.process_index == 0
+
+    def save_model(self, output_dir: Optional[str] = None, _internal_call: bool = False):
+        """
+        Will save the model, so you can reload it using `from_pretrained()`.
+
+        Will only save from the main process.
+        """
+
+        if output_dir is None:
+            output_dir = self.args.output_dir
+
+        if self.args.should_save:
+            self._save(output_dir)
+
+        # Push to the Hub when `save_model` is called by the user.
+        if self.args.push_to_hub and not _internal_call:
+            # self.push_to_hub(commit_message="Model save")
+            raise NotImplementedError
+
+    def _save(self, output_dir: Optional[str] = None, state_dict=None):
+        # If we are executing this function, we are the process zero, so we don't check for that.
+        output_dir = output_dir if output_dir is not None else self.args.output_dir
+        os.makedirs(output_dir, exist_ok=True)
+        logger.info(f"Saving model checkpoint to {output_dir}")
+
+        supported_classes = (PreTrainedModel,)
+        # Save a trained model and configuration using `save_pretrained()`.
+        # They can then be reloaded using `from_pretrained()`
+        if not isinstance(self.model, supported_classes):
+            if state_dict is None:
+                state_dict = {k: v for k, v in self.model.parameters_and_names()}
+
+            logger.info("Trainer.model is not a `PreTrainedModel`, only saving its state dict.")
+
+            if self.args.save_safetensors:
+                save_file(
+                    state_dict, os.path.join(output_dir, SAFE_WEIGHTS_NAME), metadata={"format": "ms"}
+                )
+            else:
+                ms.save_checkpoint(state_dict, os.path.join(output_dir, WEIGHTS_NAME))
+        else:
+            self.model.save_pretrained(
+                output_dir, state_dict=state_dict, safe_serialization=self.args.save_safetensors
+            )
+
+        if self.tokenizer is not None:
+            self.tokenizer.save_pretrained(output_dir)
+
+        # TODO: save args
+        # Good practice: save your training arguments together with the trained model
+        # torch.save(self.args, os.path.join(output_dir, TRAINING_ARGS_NAME))
 
     def store_flos(self):
         # Storing the number of floating-point operations that went into the model
