@@ -16,9 +16,7 @@ msrun --bind_core=True --worker_num=8 --local_worker_num=8 --master_port=9000 --
     --data_file_path datasets/ucf101_train.csv \
     --video_num_frames 25 \
     --resolution 256 \
-    --sample_rate 2 \
     --dataloader_num_workers 8 \
-    --load_from_checkpoint pretrained/causal_vae_488_init.ckpt \
     --start_learning_rate 1e-5 \
     --lr_scheduler constant \
     --optim adamw \
@@ -26,15 +24,16 @@ msrun --bind_core=True --worker_num=8 --local_worker_num=8 --master_port=9000 --
     --clip_grad True \
     --weight_decay 0.0 \
     --mode 1 \
-    --init_loss_scale 65536 \
+    --init_loss_scale 1 \
     --jit_level "O0" \
     --use_discriminator True \
     --use_parallel True \
     --use_ema True\
-    --ema_start_step 0 \
     --ema_decay 0.999 \
     --perceptual_weight 1.0 \
     --loss_type l1 \
+    --sample_rate 1 \
     --disc_cls causalvideovae.model.losses.LPIPSWithDiscriminator3D \
-    --disc_start 2000 \
-    --use_recompute True \
+    --disc_start 0 \
+    --wavelet_loss \
+    --wavelet_weight 0.1
