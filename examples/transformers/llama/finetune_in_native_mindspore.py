@@ -43,10 +43,11 @@ def main():
     tokenized_datasets = dataset.map(tokenize_function, batched=True)
     small_train_dataset = tokenized_datasets["train"]
 
-    breakpoint()
-
     def ms_data_collator(features, batch_info):
         first = features[0]
+
+        breakpoint()
+
         assert isinstance(first, Dict)
         batch = {}
         batch["labels"] = np.array([f["label"] for f in features], dtype=np.int32)
