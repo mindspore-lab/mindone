@@ -523,19 +523,21 @@ The edits will set the polynomial_decay LR scheduler, and decay the start LR to 
 
 #### Performance
 
-Experiments are tested on Ascend 910* on MindSpore 2.3.1.
+The training performance are tested on ascend 910* with mindspore 2.3.1 graph mode.
 
-| model name      | cards       | batch size   | resolution  |  stage     | paramllelism |recompute | sink | jit level |graph compile | s/step | img/s |
-|:---------------:|:----------: |:---------:   |:-----:      |:---------: |:----------:|:----------:|:----------:|:----------:|:----------:|-------------------:|:----------:|
-| OpenSoraT2V-ROPE-L-122 |  8   |  8           | 1x640x480   | 2          |         zero2                     | ON | ON | O0 |   3mins| 2.35      |  27.3 |
-| OpenSoraT2V-ROPE-L-122 |  8   |  1           | 29x640x480  | 3          |         zero2                      |  ON | ON | O0 | 6mins|    3.68     | 63.0 |
-| OpenSoraT2V-ROPE-L-122 |  8   |  1           | 29x1280x720 | 4          |         zero2 + SP(sp_size=8)      |  OFF | ON | O0 | 10mins|   4.32     | 6.71 |
-| OpenSoraT2V-ROPE-L-122 |  8   |  1           | 93x1280x720 | 5          |         zero2 + SP(sp_size=8)      |  ON | ON | O0 |  15mins|  24.4     | 3.81  |
+| model name      | cards       |  stage     |batch size   | num frames| resolution  | graph compile | parallelism | recompute | sink | jit level| s/step | img/s |
+|:----------------|:----------- |:----------|:---------:|:-----:|:----------:|:----------:|:----------:|:----------:|:----------:|:----------:|-------------------:|:----------:|
+| OpenSoraT2V-ROPE-L-122 |  8   | 2 | 8  |           1 | 640x480     |  3mins     |         zero2                     | ON | ON | O0 |    2.35      | 27.23 |
+| OpenSoraT2V-ROPE-L-122 |  8   | 3 |  1  |          29 | 640x480    |    6mins    |       zero2                      |  ON | ON | O0 |     3.68     | 63.04 |
+| OpenSoraT2V-ROPE-L-122 |  8   | 4 |  1  |          29 |1280x720   |   10mins    |       zero2 + SP(sp_size=8)      |  OFF | ON | O0 |    4.32     | 6.71 |
+| OpenSoraT2V-ROPE-L-122 |  8   | 5 |  1  |          93 | 1280x720   |   15mins    |       zero2 + SP(sp_size=8)      |  ON | ON | O0 |    24.40     | 3.81  |
 
 
 > SP: sequence parallelism.
 >
 > Stage means the muti-stage training as illustrated above.
+
+> batch size: the local batch size for a single card.
 
 ## 👍 Acknowledgement
 * [Latte](https://github.com/Vchitect/Latte): The **main codebase** we built upon and it is an wonderful video generated model.
