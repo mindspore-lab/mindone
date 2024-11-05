@@ -662,7 +662,7 @@ class TrainingArguments:
         },
     )
     save_only_model: bool = field(
-        default=False,
+        default=True,
         metadata={
             "help": (
                 "When checkpointing, whether to only save the model, or also the optimizer, scheduler & rng state."

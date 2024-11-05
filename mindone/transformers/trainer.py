@@ -29,7 +29,6 @@ from transformers.utils import logging, SAFE_WEIGHTS_NAME, WEIGHTS_NAME
 from transformers.integrations import get_reporting_integration_callbacks
 from transformers.models.auto.modeling_auto import MODEL_FOR_CAUSAL_LM_MAPPING_NAMES
 
-
 from ..safetensors.mindspore import save_file
 from .mindspore_adapter.utils import _is_parallel
 from .mindspore_adapter import (
@@ -1243,33 +1242,6 @@ class Trainer:
 
         print("Loaded optimizer and lr scheduler state done.")
 
-    def _sorted_checkpoints(
-        self, output_dir=None, checkpoint_prefix=PREFIX_CHECKPOINT_DIR, use_mtime=False
-    ) -> List[str]:
-        ordering_and_checkpoint_path = []
-
-        glob_checkpoints = [str(x) for x in Path(output_dir).glob(f"{checkpoint_prefix}-*") if os.path.isdir(x)]
-
-        for path in glob_checkpoints:
-            if use_mtime:
-                ordering_and_checkpoint_path.append((os.path.getmtime(path), path))
-            else:
-                regex_match = re.match(f".*{checkpoint_prefix}-([0-9]+)", path)
-                if regex_match is not None and regex_match.groups() is not None:
-                    ordering_and_checkpoint_path.append((int(regex_match.groups()[0]), path))
-
-        checkpoints_sorted = sorted(ordering_and_checkpoint_path)
-        checkpoints_sorted = [checkpoint[1] for checkpoint in checkpoints_sorted]
-        # Make sure we don't delete the best model.
-        if (
-            self.state.best_model_checkpoint is not None
-            and str(Path(self.state.best_model_checkpoint)) in checkpoints_sorted
-        ):
-            best_model_index = checkpoints_sorted.index(str(Path(self.state.best_model_checkpoint)))
-            for i in range(best_model_index, len(checkpoints_sorted) - 2):
-                checkpoints_sorted[i], checkpoints_sorted[i + 1] = checkpoints_sorted[i + 1], checkpoints_sorted[i]
-        return checkpoints_sorted
-
     def _nested_reduce_sum(self, tensors, name=None):
         """
         Gather value of `tensors` (tensor or list/tuple of nested tensors) and convert them to numpy before
@@ -1339,9 +1311,12 @@ class Trainer:
 
         if not self.args.save_only_model:
             # Save optimizer and scheduler
-            self._save_optimizer_and_scheduler(output_dir)
+            # self._save_optimizer_and_scheduler(output_dir)
+
             # Save RNG state
-            self._save_rng_state(output_dir)
+            # self._save_rng_state(output_dir)
+
+            raise NotImplementedError
 
         # Determine the new best metric / best model checkpoint
         if metrics is not None and self.args.metric_for_best_model is not None:
@@ -1372,7 +1347,8 @@ class Trainer:
             self.state.save_to_json(os.path.join(output_dir, TRAINER_STATE_NAME))
 
         if self.args.push_to_hub:
-            self._push_from_checkpoint(output_dir)
+            # self._push_from_checkpoint(output_dir)
+            raise NotImplementedError
 
         # Maybe delete some older checkpoints.
         if self.args.should_save:
@@ -1637,6 +1613,58 @@ class Trainer:
         else:
             self.state.total_flos += self.current_flos
             self.current_flos = 0
+
+    def _sorted_checkpoints(
+        self, output_dir=None, checkpoint_prefix=PREFIX_CHECKPOINT_DIR, use_mtime=False
+    ) -> List[str]:
+        ordering_and_checkpoint_path = []
+
+        glob_checkpoints = [str(x) for x in Path(output_dir).glob(f"{checkpoint_prefix}-*") if os.path.isdir(x)]
+
+        for path in glob_checkpoints:
+            if use_mtime:
+                ordering_and_checkpoint_path.append((os.path.getmtime(path), path))
+            else:
+                regex_match = re.match(f".*{checkpoint_prefix}-([0-9]+)", path)
+                if regex_match is not None and regex_match.groups() is not None:
+                    ordering_and_checkpoint_path.append((int(regex_match.groups()[0]), path))
+
+        checkpoints_sorted = sorted(ordering_and_checkpoint_path)
+        checkpoints_sorted = [checkpoint[1] for checkpoint in checkpoints_sorted]
+        # Make sure we don't delete the best model.
+        if (
+            self.state.best_model_checkpoint is not None
+            and str(Path(self.state.best_model_checkpoint)) in checkpoints_sorted
+        ):
+            best_model_index = checkpoints_sorted.index(str(Path(self.state.best_model_checkpoint)))
+            for i in range(best_model_index, len(checkpoints_sorted) - 2):
+                checkpoints_sorted[i], checkpoints_sorted[i + 1] = checkpoints_sorted[i + 1], checkpoints_sorted[i]
+        return checkpoints_sorted
+
+    def _rotate_checkpoints(self, use_mtime=False, output_dir=None) -> None:
+        if self.args.save_total_limit is None or self.args.save_total_limit <= 0:
+            return
+
+        # Check if we should delete older checkpoint(s)
+        checkpoints_sorted = self._sorted_checkpoints(use_mtime=use_mtime, output_dir=output_dir)
+        if len(checkpoints_sorted) <= self.args.save_total_limit:
+            return
+
+        # If save_total_limit=1 with load_best_model_at_end=True, we could end up deleting the last checkpoint, which
+        # we don't do to allow resuming.
+        save_total_limit = self.args.save_total_limit
+        if (
+            self.state.best_model_checkpoint is not None
+            and self.args.save_total_limit == 1
+            and checkpoints_sorted[-1] != self.state.best_model_checkpoint
+        ):
+            save_total_limit = 2
+
+        number_of_checkpoints_to_delete = max(0, len(checkpoints_sorted) - save_total_limit)
+        checkpoints_to_be_deleted = checkpoints_sorted[:number_of_checkpoints_to_delete]
+        for checkpoint in checkpoints_to_be_deleted:
+            logger.info(f"Deleting older checkpoint [{checkpoint}] due to args.save_total_limit")
+            shutil.rmtree(checkpoint, ignore_errors=True)
 
     def floating_point_ops(self, inputs: Dict[str, Union[Tensor, Any]]):
         """
