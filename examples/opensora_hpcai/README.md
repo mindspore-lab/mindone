@@ -361,9 +361,9 @@ All experiments are tested on ascend 910* with mindspore 2.3.1 graph mode.
 
 | model name      |  cards | batch size | resolution |  jit level | precision |  scheduler   | step      | graph compile | s/step     | s/video | recipe |
 | :--:         | :--:   | :--:       | :--:       | :--:       | :--:       | :--:       | :--:       | :--:      |:--:    | :--:   |:--:   |
-| STDiT-XL/2 | 1 | 4 | 16x256x256 |  O0 | fp32 | DDPM | 100 |  1~2 mins | 0.39 | 39.22 | [yaml](configs/opensora/inference/stdit_256x256x16.yaml) |
-| STDiT-XL/2 | 1 | 1 | 16x512x512 | O0 | fp32 | DDPM | 100 | 1~2 mins |  1.85 | 185.00 | [yaml](configs/opensora/inference/stdit_512x512x16.yaml) |
-| STDiT-XL/2 | 1 | 1 | 64x512x512 |  O0 | bf16 | DDPM | 100 | 1~2 mins | 2.78 | 278.45 | [yaml](configs/opensora/inference/stdit_512x512x64.yaml) |
+| STDiT-XL/2 | 1 | 4 | 16x256x256 |  O0 | fp32 | DDPM | 100 |  2~3 mins | 0.39 | 39.22 | [yaml](configs/opensora/inference/stdit_256x256x16.yaml) |
+| STDiT-XL/2 | 1 | 1 | 16x512x512 | O0 | fp32 | DDPM | 100 | 2~3 mins |  1.85 | 185.00 | [yaml](configs/opensora/inference/stdit_512x512x16.yaml) |
+| STDiT-XL/2 | 1 | 1 | 64x512x512 |  O0 | bf16 | DDPM | 100 | 2~3 mins | 2.78 | 278.45 | [yaml](configs/opensora/inference/stdit_512x512x64.yaml) |
 
 </details>
 
@@ -749,8 +749,8 @@ Here are some generation results after fine-tuning STDiT2 on a mixkit subset.
 All experiments are tested on ascend 910* with mindspore 2.3.1 graph mode.
 | model name   | cards  | batch size | resolution   | stage | precision | sink |  jit level   | graph compile | s/step | recipe |
 | :--:         | :--:   | :--:       | :--:         | :--:  | :--:      |:--:  | :--:         | :--:          |:--:    |:--:    |
-| STDiT-XL/2  |  8     | 3          | 16x256x256   | 1     | bf16      |  ON  | O1           | 5~6 mins      |  1.43  | [yaml](configs/opensora/train/stdit_256x256x16_ms.yaml) |
-| STDiT-XL/2  |  8     | 1          | 16x512x512   | 2     | bf16      |  ON  | O1           | 5~6 mins      |  2.05  | [yaml](configs/opensora/train/stdit_512x512x16.yaml) |
+| STDiT-XL/2  |  8     | 3          | 16x256x256   | 1     | fp16      |  ON  | O1           | 5~6 mins      |  1.53  | [yaml](configs/opensora/train/stdit_256x256x16_ms.yaml) |
+| STDiT-XL/2  |  8     | 1          | 16x512x512   | 2     | fp16      |  ON  | O1           | 5~6 mins      |  2.47  | [yaml](configs/opensora/train/stdit_512x512x16.yaml) |
 | STDiT-XL/2  |  8     | 1          | 64x512x512   | 3     | bf16      |  ON  | O1           | 5~6 mins      |  7.82  | [yaml](configs/opensora/train/stdit_512x512x64_ms.yaml) |
 
 
