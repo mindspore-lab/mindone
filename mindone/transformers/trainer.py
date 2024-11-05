@@ -698,21 +698,29 @@ class Trainer:
 
         # Note: unlike the original transformers, support label_smoother through `Trainer._wrap_model`, and origin support it at `Trainer.compute_loss`
         if self.label_smoother is not None:
+            signature_columns = list(inspect.signature(self.model.construct).parameters.keys())[1:]
+            input_labels_index = signature_columns.index("labels") if "labels" in signature_columns else None
+
             class LabelSmootherModel(nn.Cell):
-                def __init__(self, model, label_smoother):
+                def __init__(self, model, label_smoother, labels_index):
                     super(LabelSmootherModel, self).__init__(auto_prefix=False)
                     self.model = model
                     self.label_smoother_ = label_smoother
+                    self.labels_index = labels_index
                     self.shift_labels = model._get_name() in MODEL_FOR_CAUSAL_LM_MAPPING_NAMES.values()
 
-                def construct(self, *args, labels=None, **kwargs):
-                    loss, logits = self.model(*args, **kwargs)
+                def construct(self, *inputs):
+                    labels = None
+                    if self.labels_index is not None:
+                        labels = inputs[self.labels_index]
+
+                    loss, logits = self.model(*inputs)
                     if labels is not None:
                         loss = self.label_smoother_(logits, labels, self.shift_labels)
 
                     return loss
 
-            model_ = LabelSmootherModel(model, self.label_smoother)
+            model_ = LabelSmootherModel(model, self.label_smoother, input_labels_index)
         else:
             class ReturnLoss(nn.Cell):
                 def __init__(self, model):
@@ -1438,6 +1446,8 @@ class Trainer:
                 "The batch received was empty, your model won't be able to train on it. Double-check that your "
                 f"training dataset contains keys expected by the model: {','.join(self._signature_columns)}."
             )
+        if self.args.past_index >= 0 and self._past is not None:
+            inputs["mems"] = self._past
 
         # 1. get model args
         model_to_inspect = self.model
@@ -1452,9 +1462,7 @@ class Trainer:
 
         input_keys = _signature_columns
         dict_inputs = inputs
-        input_len = len(inputs)
-
-        breakpoint()
+        input_len = max([input_keys.index(k) for k in dict_inputs]) + 1
 
         # 2. to tuple
         tuple_inputs = ()
@@ -1463,11 +1471,13 @@ class Trainer:
                 assert not isinstance(signature.parameters[k].default, inspect._empty)
                 v = signature.parameters[k].default
             else:
-                v = dict_inputs[k]
+                v = dict_inputs.pop(k)
             if isinstance(v, (tuple, list)):
                 tuple_inputs += (*v,)
             else:
                 tuple_inputs += (v,)
+        if len(dict_inputs) > 0:
+            logger.warning(f"input args {dict_inputs.keys()} not found in {self.model.__class__.__name__}, ignore them.")
 
         # 3. to tensor
         inputs = ()
@@ -1480,15 +1490,7 @@ class Trainer:
                     data = ms.Tensor(data)
             inputs += (data,)
 
-        # 4. get dict inputs
-        if self.label_smoother is not None and "labels" in dict_inputs:
-            dict_inputs = {"labels": ms.Tensor(dict_inputs["labels"])}
-        else:
-            dict_inputs = {}
-        if self.args.past_index >= 0 and self._past is not None:
-            dict_inputs["mems"] = self._past if isinstance(self._past, ms.Tensor) else ms.Tensor(self._past)
-
-        return inputs, dict_inputs
+        return inputs
 
     def call_model_init(self, trial=None):
         model_init_argcount = number_of_arguments(self.model_init)
@@ -1525,12 +1527,9 @@ class Trainer:
         train_model = model
         train_model.set_train()
 
-        # zhy_test
-        # tuple_inputs, dict_inputs = self._prepare_inputs_ms(inputs)
-        # loss, _, overflow = train_model(*tuple_inputs, **dict_inputs)
+        tuple_inputs = self._prepare_inputs_ms(inputs)
 
-        inputs = self._prepare_inputs(inputs)
-        loss, _, overflow = train_model(**inputs)
+        loss, _, overflow = train_model(*tuple_inputs)
 
         # For LOMO optimizers you need to explicitly use the learnign rate
         if self.args.optim in [OptimizerNames.LOMO, OptimizerNames.ADALOMO]:
