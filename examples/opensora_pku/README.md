@@ -341,11 +341,10 @@ Runing this command will generate reconstructed videos under the given `output_g
 
 Here, we report the training performance and evaluation results on the UCF-101 dataset. Experiments are tested on Ascend 910* with mindspore 2.3.1 graph mode.
 
-| model name  | cards  |  batch size | resolution | graph compile | precision | discriminator |sink | jit level| s/step | img/s  | psnr | ssim  | train steps|
+| model name  | cards  |  batch size | resolution | graph compile | precision | discriminator |sink | jit level| s/step | img/s  | psnr | ssim  | recipe|
 |:-----------|:------ |:-----------:|:----------:|:-------------:|:----------:|:------------:|:---:|:--------:|--------:|------:|:----:|-------:|-------:|
-| CausalVAE  |  8     |       1    |  9x256x256  |     3 mins   |   FP32     |    TRUE      | OFF  |    O0   |    2.04   |  35.29 |  29.30 |   0.88    | 40k |
-| CausalVAE  |  8    |       1     | 25x256x256  |    3 mins   |   BF16     |     FALSE    |  OFF |     O0  |     4.21   |  47.51 | 28.92 |    0.87    | 24k |
-| CausalVAE  |  8    |      1      |  25x256x256   |   3 mins   | FP32       |     TRUE    |  OFF |     O0  |   5.45 |   36.70  | 29.28 |   0.88   |  40k |
+| CausalVAE  |  8    |       1     | 25x256x256  |    3 mins   |   BF16     |     FALSE    |  OFF |     O0  |     4.21   |  47.51 | 28.92 |    0.87    | [train](./scripts/causalvae/train_without_gan_loss_multi_device.sh) |
+| CausalVAE  |  8    |      1      | 25x256x256  |   3 mins    |   FP32     |     TRUE     |  OFF |     O0  |   5.45 |   36.70  | 29.28 |   0.88   |  [train](./scripts/causalvae/train_with_gan_loss_multi_device.sh) |
 
 
 ### Training Diffusion Model
