@@ -425,7 +425,7 @@ def get_vi_clip_score_fn(rm_ckpt_dir: str, precision="amp", n_frames=8):
     return score_fn
 
 
-def get_intern_vid2_score_fn(rm_ckpt_dir: str, precision="amp", n_frames=8, use_recompute=False):
+def get_intern_vid2_score_fn(rm_ckpt_dir: str, precision="amp", n_frames=8):
     from intern_vid2.demo_config import Config, eval_dict_leaf
     from intern_vid2.demo_utils import setup_internvideo2
 
@@ -466,7 +466,7 @@ def get_intern_vid2_score_fn(rm_ckpt_dir: str, precision="amp", n_frames=8, use_
         pixel_values = ((pixel_values - ViCLIP_MEAN) / ViCLIP_STD).transpose(0, 3, 1, 2)
 
         pixel_values = pixel_values.view(b, t, *pixel_values.shape[1:])
-        video_features = vi_clip.get_vid_feat_with_grad(pixel_values, use_recompute=use_recompute)
+        video_features = vi_clip.get_vid_feat_with_grad(pixel_values)
 
         if not isinstance(text_inputs, str):
             text_inputs = text_inputs[0].astype(str)

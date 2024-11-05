@@ -334,7 +334,7 @@ class InternVideo2_Stage2(nn.Cell):
             vfeat /= vfeat.norm(dim=-1, keepdim=True)
         return vfeat
 
-    def get_vid_feat_with_grad(self, frames: ms.Tensor, use_recompute: bool = False):
+    def get_vid_feat_with_grad(self, frames: ms.Tensor):
         """get the video features for the given frames with grad.
 
         Args:
@@ -345,7 +345,7 @@ class InternVideo2_Stage2(nn.Cell):
             - pooled_vision_embeds (ms.Tensor): The pooled output features. Shape: [B,1,C].
 
         """
-        _, vfeat = self.encode_vision(frames, test=True, use_recompute=use_recompute)
+        _, vfeat = self.encode_vision(frames, test=True)
         vfeat = self.vision_proj(vfeat)
         vfeat = vfeat / vfeat.norm(dim=-1, keepdim=True)
         return vfeat
