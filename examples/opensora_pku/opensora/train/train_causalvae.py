@@ -429,9 +429,13 @@ def main(args):
 
                 # NOTE: inputs must match the order in GeneratorWithLoss.construct
                 loss_ae_t, overflow, scaling_sens = training_step_ae(x, global_step)
+                if isinstance(scaling_sens, ms.Parameter):
+                    scaling_sens = scaling_sens.value()
 
                 if global_step >= disc_start:
                     loss_disc_t, overflow_d, scaling_sens_d = training_step_disc(x, global_step)
+                    if isinstance(scaling_sens_d, ms.Parameter):
+                        scaling_sens_d = scaling_sens_d.value()
 
                 cur_global_step = epoch * dataset_size + step + 1  # starting from 1 for logging
                 if overflow:
