@@ -1415,7 +1415,7 @@ class Trainer:
         for data in tuple_inputs:
             if data is not None:
                 if hasattr(self.args, "input_dtype") and \
-                        data.dtype in (np.float, np.float16, np.float32, np.float64):
+                        data.dtype in (np.float16, np.float32, np.float64):
                     data = ms.Tensor(data, dtype=self.args.input_dtype)
                 else:
                     data = ms.Tensor(data)
