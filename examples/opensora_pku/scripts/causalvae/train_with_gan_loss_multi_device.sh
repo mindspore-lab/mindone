@@ -7,6 +7,8 @@ exp_name="25x256x256"
 
 msrun --bind_core=True --worker_num=8 --local_worker_num=8 --master_port=9000 --log_dir=$output_dir/$exp_name/parallel_logs opensora/train/train_causalvae.py \
     --exp_name $exp_name \
+    --model_name WFVAE \
+    --model_config scripts/causalvae/wfvae_4dim.json \
     --train_batch_size 1 \
     --precision fp32 \
     --max_steps 100000 \

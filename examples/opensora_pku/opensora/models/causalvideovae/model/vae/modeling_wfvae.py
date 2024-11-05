@@ -378,6 +378,7 @@ class WFVAEModel(VideoBaseAE):
         l2_upsample_block: str = "Spatial2xTime2x3DUpsample",
         l2_upsample_wavelet: str = "InverseHaarWaveletTransform3D",
         dtype=ms.float32,
+        use_recompute=False,
     ) -> None:
         super().__init__()
         self.use_tiling = False
@@ -429,6 +430,20 @@ class WFVAEModel(VideoBaseAE):
         self.stdnormal = mint.normal
 
         self.update_parameters_name()  # update parameter names to solve pname mismatch
+        if use_recompute:
+            self.recompute(self.encoder)
+            self.recompute(self.decoder)
+            if self.use_quant_layer:
+                self.recompute(self.quant_conv)
+                self.recompute(self.post_quant_conv)
+
+    def recompute(self, b):
+        if not b._has_config_recompute:
+            b.recompute(parallel_optimizer_comm_recompute=True)
+        if isinstance(b, nn.CellList):
+            self.recompute(b[-1])
+        elif ms.get_context("mode") == ms.GRAPH_MODE:
+            b.add_flags(output_no_recompute=True)
 
     def get_encoder(self):
         if self.use_quant_layer:
