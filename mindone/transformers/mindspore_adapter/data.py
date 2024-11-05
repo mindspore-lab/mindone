@@ -166,3 +166,14 @@ class TensorDataset(Dataset):
 
     def __len__(self):
         return self.tensors[0].shape[0]
+
+
+class HF2MSDataset:
+    def __init__(self, dataset):
+        self.dataset = dataset
+
+    def __getitem__(self, item):
+        return self.dataset[int(item)]
+
+    def __len__(self):
+        return len(self.dataset)

@@ -563,7 +563,7 @@ class Trainer:
         train_dataset = self.train_dataset
         data_collator = self.data_collator
         if is_datasets_available() and isinstance(train_dataset, datasets.Dataset):
-            class WrapDataset:
+            class MSDataset:
                 def __init__(self, dataset: datasets.Dataset):
                     self.dataset = dataset
                 def __getitem__(self, item):
@@ -572,7 +572,7 @@ class Trainer:
                     return len(self.dataset)
 
             train_dataset = self._remove_unused_columns(train_dataset, description="training")
-            train_dataset = WrapDataset(train_dataset)
+            train_dataset = MSDataset(train_dataset)
 
         else:
             data_collator = self._get_collator_with_removed_columns(data_collator, description="training")

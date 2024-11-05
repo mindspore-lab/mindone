@@ -38,10 +38,12 @@ from mindone.transformers.modeling_utils import MSPreTrainedModel as PreTrainedM
 from mindone.transformers.mindspore_utils import ALL_LAYERNORM_LAYERS
 from mindone.transformers.modeling_attn_mask_utils import _MIN_FP16
 from mindone.transformers.mindspore_adapter.attention import FlashAttention2
-
 from mindone.transformers.cache_utils import update, get_max_length, get_seq_length
+from mindone.transformers.mindspore_adapter import recompute_except_output
+
 
 logger = logging.get_logger(__name__)
+
 
 _CONFIG_FOR_DOC = "LlamaConfig"
 
@@ -726,6 +728,26 @@ class LlamaModel(LlamaPreTrainedModel):
 
         self.embed_tokens.embedding_table.name = ori_name
 
+    def gradient_checkpointing_enable(self, gradient_checkpointing_kwargs=None):
+        if gradient_checkpointing_kwargs is None:
+            # gradient_checkpointing_kwargs = {"mp_comm_recompute": True, "parallel_optimizer_comm_recompute": True}
+            gradient_checkpointing_kwargs = {}
+
+        # llama layers
+        for decoder_layer in self.layers:
+            assert isinstance(decoder_layer, LlamaDecoderLayer)
+            for name, cell in decoder_layer.name_cells().items():
+                if "output_identity" in name:
+                    assert isinstance(cell, nn.Identity)
+                    pass
+                else:
+                    # cell._recompute()
+                    recompute_except_output(cell, **gradient_checkpointing_kwargs)
+        recompute_except_output(self.embed_tokens, **gradient_checkpointing_kwargs)
+        recompute_except_output(self.norm, **gradient_checkpointing_kwargs)
+
+        logger.info(f"{self.__class__.__name__}: enable recompute.")
+
     @add_start_docstrings_to_model_forward(LLAMA_INPUTS_DOCSTRING)
     def construct(
             self,
@@ -887,29 +909,7 @@ class LlamaForCausalLM(LlamaPreTrainedModel):
         return self.model
 
     def gradient_checkpointing_enable(self, gradient_checkpointing_kwargs=None):
-        if gradient_checkpointing_kwargs is None:
-            # gradient_checkpointing_kwargs = {"mp_comm_recompute": True, "parallel_optimizer_comm_recompute": True}
-            gradient_checkpointing_kwargs = {}
-
-        from mindone.transformers.mindspore_adapter import recompute_except_output
-
-        # llama layers
-        for decoder_layer in self.model.layers:
-            assert isinstance(decoder_layer, LlamaDecoderLayer)
-            for name, cell in decoder_layer.name_cells().items():
-                if "output_identity" in name:
-                    assert isinstance(cell, nn.Identity)
-                    pass
-                else:
-                    # cell._recompute()
-                    recompute_except_output(cell, **gradient_checkpointing_kwargs)
-        recompute_except_output(self.model.embed_tokens, **gradient_checkpointing_kwargs)
-        recompute_except_output(self.model.norm, **gradient_checkpointing_kwargs)
-
-        # llama head
-        # recompute_except_output(self.lm_head, **gradient_checkpointing_kwargs)
-
-        logger.info(f"{self.__class__.__name__}: enable recompute done.")
+        self.model.gradient_checkpointing_enable(gradient_checkpointing_kwargs)
 
     @add_start_docstrings_to_model_forward(LLAMA_INPUTS_DOCSTRING)
     def construct(
@@ -1233,6 +1233,9 @@ class LlamaForSequenceClassification(LlamaPreTrainedModel):
             outputs += (transformer_outputs[1])
 
         return outputs
+
+    def gradient_checkpointing_enable(self, gradient_checkpointing_kwargs=None):
+        self.model.gradient_checkpointing_enable(gradient_checkpointing_kwargs)
 
     def get_return_dict(self, tuple_outputs):
         sorted_names = ["loss", "logits", "past_key_values", "hidden_states", "attentions"]
