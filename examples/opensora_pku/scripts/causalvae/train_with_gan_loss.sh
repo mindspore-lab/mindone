@@ -12,7 +12,6 @@ python opensora/train/train_causalvae.py \
     --video_num_frames 25 \
     --resolution 256 \
     --dataloader_num_workers 8 \
-    --load_from_checkpoint pretrained/causal_vae_488_init.ckpt \
     --start_learning_rate 1e-5 \
     --lr_scheduler constant \
     --optim adamw \
@@ -20,7 +19,7 @@ python opensora/train/train_causalvae.py \
     --clip_grad True \
     --weight_decay 0.0 \
     --mode 1 \
-    --init_loss_scale 65536 \
+    --init_loss_scale 1 \
     --jit_level "O0" \
     --use_discriminator True \
     --use_ema True\

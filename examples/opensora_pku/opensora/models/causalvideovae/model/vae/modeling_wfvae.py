@@ -716,64 +716,6 @@ class WFVAEModel(VideoBaseAE):
 
         return model
 
-    def init_from_vae2d(self, path):
-        # default: tail init
-        # path: path to vae 2d model ckpt
-        vae2d_sd = ms.load_checkpoint(path)
-        vae_2d_keys = list(vae2d_sd.keys())
-        vae_3d_keys = list(self.parameters_dict().keys())
-
-        # 3d -> 2d
-        map_dict = {
-            "conv.weight": "weight",
-            "conv.bias": "bias",
-        }
-
-        new_state_dict = {}
-        for key_3d in vae_3d_keys:
-            if key_3d.startswith("loss"):
-                continue
-
-            # param name mapping from vae-3d to vae-2d
-            key_2d = key_3d
-            for kw in map_dict:
-                key_2d = key_2d.replace(kw, map_dict[kw])
-
-                assert key_2d in vae_2d_keys, f"Key {key_2d} ({key_3d}) should be in 2D VAE"
-
-            # set vae 3d state dict
-            shape_3d = self.parameters_dict()[key_3d].shape
-            shape_2d = vae2d_sd[key_2d].shape
-            if "bias" in key_2d:
-                assert shape_3d == shape_2d, f"Shape mismatch for key {key_3d} ({key_2d})"
-                new_state_dict[key_3d] = vae2d_sd[key_2d]
-            elif "norm" in key_2d:
-                assert shape_3d == shape_2d, f"Shape mismatch for key {key_3d} ({key_2d})"
-                new_state_dict[key_3d] = vae2d_sd[key_2d]
-            elif "conv" in key_2d or "nin_shortcut" in key_2d:
-                if shape_3d[:2] != shape_2d[:2]:
-                    logger.info(key_2d, shape_3d, shape_2d)
-                w = vae2d_sd[key_2d]
-                new_w = mint.zeros(shape_3d, dtype=w.dtype)
-                # tail initialization
-                new_w[:, :, -1, :, :] = w  # cin, cout, t, h, w
-
-                new_w = ms.Parameter(new_w, name=key_3d)
-
-                new_state_dict[key_3d] = new_w
-            elif "attn_1" in key_2d:
-                new_val = vae2d_sd[key_2d].expand_dims(axis=2)
-                new_param = ms.Parameter(new_val, name=key_3d)
-                new_state_dict[key_3d] = new_param
-            else:
-                raise NotImplementedError(f"Key {key_3d} ({key_2d}) not implemented")
-
-            m, u = ms.load_param_into_net(self, new_state_dict)
-            if len(m) > 0:
-                logger.info("net param not loaded: ", m)
-            if len(u) > 0:
-                logger.info("checkpoint param not loaded: ", u)
-
     def init_from_ckpt(self, path, ignore_keys=list()):
         # TODO: support auto download pretrained checkpoints
         sd = ms.load_checkpoint(path)
