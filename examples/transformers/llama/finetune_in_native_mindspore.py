@@ -19,15 +19,10 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--model_path", type=str, default="meta-llama/Meta-Llama-3-8B", help="pretrained model name")
     parser.add_argument("--dataset_path", type=str, default="Yelp/yelp_review_full", help="dataset path.")
-    parser.add_argument("--train_batch_size", type=int, default=1, help="train batch size")
-    parser.add_argument("--output_dir", type=str, default="./outputs", help="dataset path.")
-    parser.add_argument("--rank_size", type=int, default=1)
-    parser.add_argument("--rank", type=int, default=0)
     args = parser.parse_args()
     print(args)
 
-    if not os.path.exists(args.output_dir):
-        os.makedirs(args.output_dir)
+    ms.set_context(mode=ms.GRAPH_MODE, jit_config={"jit_level": "O0"})
 
     # 1. create dataset
     dataset = load_dataset(args.dataset_path)

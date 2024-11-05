@@ -2,3 +2,7 @@
   - local: index
     title: 🤗 Transformers
   title: Get started
+- sections:
+  - local: tutorials/finetune
+    title: Fine-tune a pretrained model
+  title: Tutorials
