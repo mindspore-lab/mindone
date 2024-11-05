@@ -82,6 +82,7 @@ class CausalVAEModel(VideoBaseAE):
         monitor=None,
         use_fp16=False,
         upcast_sigmoid=False,
+        use_recompute=False,
     ):
         super().__init__()
         dtype = ms.float16 if use_fp16 else ms.float32
@@ -152,6 +153,20 @@ class CausalVAEModel(VideoBaseAE):
             quant_conv_cls = resolve_str_to_obj(q_conv)
             self.quant_conv = quant_conv_cls(2 * z_channels, 2 * embed_dim, 1)
             self.post_quant_conv = quant_conv_cls(embed_dim, z_channels, 1)
+        if use_recompute:
+            self.recompute(self.encoder)
+            self.recompute(self.decoder)
+            if self.use_quant_layer:
+                self.recompute(self.quant_conv)
+                self.recompute(self.post_quant_conv)
+
+    def recompute(self, b):
+        if not b._has_config_recompute:
+            b.recompute(parallel_optimizer_comm_recompute=True)
+        if isinstance(b, nn.CellList):
+            self.recompute(b[-1])
+        elif ms.get_context("mode") == ms.GRAPH_MODE:
+            b.add_flags(output_no_recompute=True)
 
     def get_encoder(self):
         if self.use_quant_layer:

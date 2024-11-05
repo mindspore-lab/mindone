@@ -59,7 +59,7 @@ def main(args):
     # Load Config
     assert os.path.exists(args.model_config), f"{args.model_config} does not exist!"
     model_config = json.load(open(args.model_config, "r"))
-    ae = CausalVAEModel.from_config(model_config)
+    ae = CausalVAEModel.from_config(model_config, use_recompute=args.use_recompute)
     if args.load_from_checkpoint is not None:
         ae.init_from_ckpt(args.load_from_checkpoint)
     # discriminator (D)
@@ -346,6 +346,7 @@ def main(args):
                 f"MindSpore mode[GRAPH(0)/PYNATIVE(1)]: {args.mode}",
                 f"Jit level: {args.jit_level}",
                 f"Distributed mode: {args.use_parallel}",
+                f"Recompute: {args.use_recompute}",
                 f"amp level: {amp_level}",
                 f"dtype: {args.precision}",
                 f"Use discriminator: {args.use_discriminator}",
@@ -444,7 +445,15 @@ def main(args):
 
                 cur_global_step = epoch * dataset_size + step + 1  # starting from 1 for logging
                 if overflow:
-                    logger.warning(f"Overflow occurs in step {cur_global_step}")
+                    logger.warning(
+                        f"Overflow occurs in step {cur_global_step} in autoencoder"
+                        + (", drop update." if args.drop_overflow_update else ", still update.")
+                    )
+                if global_step >= disc_start and overflow_d:
+                    logger.warning(
+                        f"Overflow occurs in step {cur_global_step} in discriminator"
+                        + (", drop update." if args.drop_overflow_update else ", still update.")
+                    )
 
                 # log
                 step_time = time.time() - start_time_s
