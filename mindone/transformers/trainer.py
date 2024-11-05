@@ -1524,9 +1524,13 @@ class Trainer:
         """
         train_model = model
         train_model.set_train()
-        tuple_inputs, dict_inputs = self._prepare_inputs_ms(inputs)
 
-        loss, _, overflow = train_model(*tuple_inputs, **dict_inputs)
+        # zhy_test
+        # tuple_inputs, dict_inputs = self._prepare_inputs_ms(inputs)
+        # loss, _, overflow = train_model(*tuple_inputs, **dict_inputs)
+
+        inputs = self._prepare_inputs(inputs)
+        loss, _, overflow = train_model(**inputs)
 
         # For LOMO optimizers you need to explicitly use the learnign rate
         if self.args.optim in [OptimizerNames.LOMO, OptimizerNames.ADALOMO]:
