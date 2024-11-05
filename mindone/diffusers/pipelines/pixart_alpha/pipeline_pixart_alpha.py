@@ -19,11 +19,12 @@ import urllib.parse as ul
 from typing import Callable, List, Optional, Tuple, Union
 
 import numpy as np
-from transformers import T5EncoderModel, T5Tokenizer
+from transformers import T5Tokenizer
 
 import mindspore as ms
 from mindspore import ops
 
+from ....transformers import T5EncoderModel
 from ...image_processor import PixArtImageProcessor
 from ...models import AutoencoderKL, PixArtTransformer2DModel
 from ...schedulers import DPMSolverMultistepScheduler
