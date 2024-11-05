@@ -1343,7 +1343,7 @@ class Trainer:
             return type(data)({k: self._prepare_input(v) for k, v in data.items()})
         elif isinstance(data, (tuple, list)):
             return type(data)(self._prepare_input(v) for v in data)
-        elif isinstance(data, Tensor):
+        elif isinstance(data, ms.Tensor):
             if hasattr(self.args, "input_dtype"):
                 # NLP models inputs are int/uint and those get adjusted to the right dtype of the
                 # embedding. Other models such as wav2vec2's inputs are already float and thus
@@ -1376,6 +1376,12 @@ class Trainer:
         return inputs
 
     def _prepare_inputs_ms(self, inputs: Dict[str, Union[Tensor, Any]]):
+        if len(inputs) == 0:
+            raise ValueError(
+                "The batch received was empty, your model won't be able to train on it. Double-check that your "
+                f"training dataset contains keys expected by the model: {','.join(self._signature_columns)}."
+            )
+
         # 1. get model args
         model_to_inspect = self.model
         signature = inspect.signature(model_to_inspect.construct)
@@ -1409,14 +1415,21 @@ class Trainer:
         for data in tuple_inputs:
             if data is not None:
                 if hasattr(self.args, "input_dtype") and \
-                        data.dtype in (np.float32, np.float16, np.float64):
-                    data = Tensor(data, dtype=self.args.input_dtype)
+                        data.dtype in (np.float, np.float16, np.float32, np.float64):
+                    data = ms.Tensor(data, dtype=self.args.input_dtype)
                 else:
-                    data = Tensor(data)
+                    data = ms.Tensor(data)
             inputs += (data,)
 
-        return inputs
+        # 4. get dict inputs
+        if self.label_smoother is not None and "labels" in dict_inputs:
+            dict_inputs = {"labels": ms.Tensor(dict_inputs["labels"])}
+        else:
+            dict_inputs = {}
+        if self.args.past_index >= 0 and self._past is not None:
+            dict_inputs["mems"] = self._past if isinstance(self._past, ms.Tensor) else ms.Tensor(self._past)
 
+        return inputs, dict_inputs
 
     def call_model_init(self, trial=None):
         model_init_argcount = number_of_arguments(self.model_init)
@@ -1452,9 +1465,9 @@ class Trainer:
         """
         train_model = model
         train_model.set_train()
-        inputs = self._prepare_inputs_ms(inputs)
+        tuple_inputs, dict_inputs = self._prepare_inputs_ms(inputs)
 
-        loss, _, overflow = train_model(*inputs)
+        loss, _, overflow = train_model(*tuple_inputs, **dict_inputs)
 
         # For LOMO optimizers you need to explicitly use the learnign rate
         if self.args.optim in [OptimizerNames.LOMO, OptimizerNames.ADALOMO]:
