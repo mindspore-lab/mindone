@@ -519,6 +519,8 @@ class Trainer:
             optimizer_kwargs.update({"momentum_dtype": getattr(args, "adamw_zero_momentum_dtype", ms.float32)})
         elif args.optim == OptimizerNames.SGD:
             optimizer_cls = nn.SGD
+        elif args.optim == OptimizerNames.Momentum:
+            optimizer_cls = nn.Momentum
         elif args.optim == OptimizerNames.ADAGRAD:
             optimizer_cls = nn.Adagrad
         elif args.optim == OptimizerNames.RMSPROP:

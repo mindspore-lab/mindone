@@ -52,6 +52,7 @@ class OptimizerNames(ExplicitEnum):
     ADAMW_ZERO2_MINDSPORE = "adamw_zero2_mindspore"
     ADAFACTOR = "adafactor"
     SGD = "sgd"
+    Momentum = "momentum"
     ADAGRAD = "adagrad"
     RMSPROP = "rmsprop"
     LOMO = "lomo"

@@ -59,15 +59,28 @@ def main():
                 else:
                     batch[k] = np.array([f[k] for f in features])
 
+    batch_size, num_epochs = 1, 3
     train_dataloader = ms.dataset.GeneratorDataset(HF2MSDataset(small_train_dataset), column_names="item")
-    train_dataloader = train_dataloader.batch(batch_size=1, per_batch_map=ms_data_collator)
+    train_dataloader = train_dataloader.batch(batch_size=batch_size, per_batch_map=ms_data_collator)
     train_dataloader = train_dataloader.repeat(1)
+    train_dataloader = train_dataloader.create_dict_iterator(num_epochs=num_epochs, output_numpy=True)
 
     # 2. create train network
-    model = LlamaForSequenceClassification.from_pretrained(args.model_path, num_labels=5)
+    model = LlamaForSequenceClassification.from_pretrained(args.model_path, num_labels=5, use_flash_attention_2=True)
     optimizer = nn.AdamWeightDecay(model, learning_rate=5e-6)
     train_model = TrainOneStepWrapper(model, optimizer)
 
+    # 3. training
+    train_model.set_train()
+    for batch in train_dataloader:
+        tuple_inputs = (
+            ms.Tensor(batch["input_ids"], ms.int32),
+            ms.Tensor(batch["attention_mask"], ms.bool_),
+            None,
+            None,
+            None,
+            ms.tensor(batch["labels"], ms.int32)
+        )
 
     if args.do_train:
         nb_tr_steps, tr_loss, exp_average_loss = 0, 0, None
