@@ -72,7 +72,8 @@ def main():
 
     # 3. training
     train_model.set_train()
-    for batch in train_dataloader:
+    for step, batch in enumerate(train_dataloader):
+        # inputs dict to tuple
         tuple_inputs = (
             ms.Tensor(batch["input_ids"], ms.int32),
             ms.Tensor(batch["attention_mask"], ms.bool_),
@@ -82,40 +83,9 @@ def main():
             ms.tensor(batch["labels"], ms.int32)
         )
 
-    if args.do_train:
-        nb_tr_steps, tr_loss, exp_average_loss = 0, 0, None
-        model.set_train(True)
-        for epoch in range(int(args.num_train_epochs), desc="Epoch"):
-            tr_loss = 0
-            nb_tr_steps = 0
-            train_iterator = train_dataloader.create_tuple_iterator(num_epochs=1, output_numpy=True)
-            for step, batch in enumerate(train_iterator):
-                input_ids, mc_token_ids, lm_labels, mc_labels = batch
+        loss, _, overflow = train_model(*tuple_inputs)
 
-                # to tensor
-                input_ids, mc_token_ids, lm_labels, mc_labels = \
-                    ms.Tensor(input_ids), ms.Tensor(mc_token_ids), ms.Tensor(lm_labels), ms.Tensor(mc_labels)
-
-                loss = train_step_fn(input_ids, mc_token_ids=mc_token_ids, lm_labels=lm_labels, mc_labels=mc_labels)
-                tr_loss += loss.asnumpy().item()
-                exp_average_loss = (
-                    loss.item() if exp_average_loss is None else 0.7 * exp_average_loss + 0.3 * loss.item()
-                )
-                nb_tr_steps += 1
-                logger.info("Epoch: {}, Step: {}, Training loss: {:.2e}".format(epoch, step, exp_average_loss))
-
-    # Save a trained model
-    if args.do_train:
-        # Save a trained model, configuration and tokenizer
-        model_to_save = model  # Only save the model itself
-
-        # If we save using the predefined names, we can load using `from_pretrained`
-        output_model_file = os.path.join(args.output_dir, WEIGHTS_NAME)
-        output_config_file = os.path.join(args.output_dir, CONFIG_NAME)
-
-        ms.save_checkpoint(model_to_save, output_model_file)
-        model_to_save.config.to_json_file(output_config_file)
-        tokenizer.save_vocabulary(args.output_dir)
+        print(f"step: {step}, loss: {loss}")
 
 
 if __name__ == '__main__':

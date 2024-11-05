@@ -1,7 +1,13 @@
 site_name: MindOne - One for All
-site_url: https://mindspore-lab.github.io/mindone
-repo_url: https://github.com/mindspore-lab/mindone
-repo_name: mindspore-lab/mindone
+
+#site_url: https://mindspore-lab.github.io/mindone
+#repo_url: https://github.com/mindspore-lab/mindone
+#repo_name: mindspore-lab/mindone
+#copyright: Copyright &copy; 2023 - 2024 MindSpore Lab
+
+site_url: https://zhanghuiyao.github.io/mindone
+repo_url: https://github.com/zhanghuiyao/mindone
+repo_name: zhanghuiyao/mindone
 copyright: Copyright &copy; 2023 - 2024 MindSpore Lab
 
 nav:
