@@ -85,7 +85,6 @@ DEFAULT_PROGRESS_CALLBACK = ProgressCallback
 
 
 logger = logging.get_logger(__name__)
-logger.setLevel(logging.INFO)
 
 
 def _is_peft_model(model):
