@@ -156,8 +156,6 @@ class Trainer:
         log_level = args.get_process_log_level()
         logging.set_verbosity(log_level)
 
-        breakpoint()
-
         if model is None:
             if model_init is not None:
                 self.model_init = model_init
@@ -1076,13 +1074,12 @@ class Trainer:
                 if step % args.gradient_accumulation_steps == 0:
                     self.control = self.callback_handler.on_step_begin(args, self.state, self.control)
 
-                # FIXME: level 1, add overflow print
                 self.model.set_train(True)
                 self.train_model.set_train(True)
                 tr_loss_step, overflow = self.training_step(self.train_model, inputs)
                 tr_loss_step = tr_loss_step.asnumpy()
 
-                # FIXME: level 1, log by callback_fn
+                # TODO: log by callback_fn
                 logger.info(f"Epoch: {epoch}, Step: {step}, tr_loss: {tr_loss_step}, overflow: {overflow}")
 
                 if (
@@ -1465,7 +1462,6 @@ class Trainer:
         Return:
             `Tuple[ms.Tensor, ms.Tensor]`: The tensor with training loss and overflow flag on this batch.
         """
-        breakpoint()
         train_model = model
         train_model.set_train()
         tuple_inputs, dict_inputs = self._prepare_inputs_ms(inputs)
