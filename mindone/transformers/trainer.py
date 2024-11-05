@@ -1454,6 +1454,8 @@ class Trainer:
         dict_inputs = inputs
         input_len = len(inputs)
 
+        breakpoint()
+
         # 2. to tuple
         tuple_inputs = ()
         for k in input_keys[:input_len]:
