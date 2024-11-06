@@ -831,7 +831,7 @@ class TrainingArguments:
         metadata={"help": "The optimizer to use."},
     )
     optim_args: Optional[str] = field(default=None, metadata={"help": "Optional arguments to supply to optimizer."})
-    zero_stage: Optional[str] = field(
+    zero_stage: Optional[int] = field(
         default=None,
         metadata={
             "help": (
