@@ -1464,6 +1464,9 @@ class BertForSequenceClassification(BertPreTrainedModel):
         self.dropout = nn.Dropout(p=classifier_dropout)
         self.classifier = nn.Dense(config.hidden_size, config.num_labels)
 
+        # zhy_test
+        self.loss_fct = nn.CrossEntropyLoss()
+
         # Initialize weights and apply final processing
         self.post_init()
 
@@ -1522,8 +1525,7 @@ class BertForSequenceClassification(BertPreTrainedModel):
                 else:
                     loss = loss_fct(logits, labels)
             elif self.problem_type == "single_label_classification":
-                loss_fct = nn.CrossEntropyLoss()
-                loss = loss_fct(logits.view(-1, self.num_labels), labels.view(-1).int())
+                loss = self.loss_fct(logits.view(-1, self.num_labels), labels.view(-1).int())
             elif self.problem_type == "multi_label_classification":
                 loss_fct = nn.BCEWithLogitsLoss()
                 loss = loss_fct(logits, labels)
