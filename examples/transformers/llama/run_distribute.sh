@@ -17,3 +17,4 @@ python finetune_with_mindspore_trainer.py \
   \
   --is_distribute True \
   --zero_stage 2 \
+  --fp16
