@@ -359,11 +359,10 @@ class LlamaAttention(nn.Cell):
         else:
             attn_output = self.o_proj(attn_output)
 
-        outputs = (attn_output,)
-        if past_key_value is not None:
-            outputs += (past_key_value,)
+        if not output_attentions:
+            attn_weights = None
 
-        return outputs
+        return attn_output, attn_weights, past_key_value
 
 
 class LlamaFlashAttention2(LlamaAttention):
@@ -482,11 +481,7 @@ class LlamaFlashAttention2(LlamaAttention):
         else:
             attn_output = self.o_proj(attn_output)
 
-        outputs = (attn_output,)
-        if past_key_value is not None:
-            outputs += (past_key_value,)
-
-        return outputs
+        return attn_output, None, past_key_value
 
 
 LLAMA_ATTENTION_CLASSES = {
@@ -544,7 +539,7 @@ class LlamaDecoderLayer(nn.Cell):
         hidden_states = self.input_layernorm(hidden_states)
 
         # Self Attention
-        attn_outputs = self.self_attn(
+        hidden_states, self_attn_weights, present_key_value = self.self_attn(
             hidden_states=hidden_states,
             attention_mask=attention_mask,
             position_ids=position_ids,
@@ -553,7 +548,6 @@ class LlamaDecoderLayer(nn.Cell):
             use_cache=use_cache,
             cache_position=cache_position,
         )
-        hidden_states = attn_outputs[0]
         hidden_states = residual + hidden_states
 
         # Fully Connected
@@ -565,8 +559,11 @@ class LlamaDecoderLayer(nn.Cell):
 
         outputs = (hidden_states,)
 
+        if output_attentions:
+            outputs += (self_attn_weights,)
+
         if use_cache:
-            outputs += (attn_outputs[1],)
+            outputs += (present_key_value,)
 
         return outputs
 
@@ -768,7 +765,7 @@ class LlamaModel(LlamaPreTrainedModel):
             use_cache: Optional[bool] = None,
             output_attentions: Optional[bool] = None,
             output_hidden_states: Optional[bool] = None,
-            return_dict: Optional[bool] = None,
+            return_dict: Optional[bool] = False,
             cache_position: Optional[ms.Tensor] = None,
     ) -> Union[Tuple, BaseModelOutputWithPast]:
 
@@ -805,11 +802,13 @@ class LlamaModel(LlamaPreTrainedModel):
         hidden_states = inputs_embeds
 
         # decoder layers
-        all_hidden_states = None
-        all_self_attns = None
+        all_hidden_states = () if output_hidden_states else None
+        all_self_attns = () if output_attentions else None
         next_caches = () if use_cache else None
 
         for layer_idx, decoder_layer in enumerate(self.layers):
+            if output_hidden_states:
+                all_hidden_states += (hidden_states,)
 
             layer_outputs = decoder_layer(
                 hidden_states,
@@ -824,23 +823,25 @@ class LlamaModel(LlamaPreTrainedModel):
             hidden_states = layer_outputs[0]
 
             if use_cache:
-                next_caches += (layer_outputs[1],)
+                next_caches += (layer_outputs[2 if output_attentions else 1],)
+
+            if output_attentions:
+                all_self_attns += (layer_outputs[1],)
 
         hidden_states = self.norm(hidden_states)
 
-        outputs = (hidden_states,)
-        if use_cache:
-            outputs += (next_caches,)
-        return outputs
+        # add hidden states from the last decoder layer
+        if output_hidden_states:
+            all_hidden_states += (hidden_states,)
 
-        # if not return_dict:
-        #     return tuple(v for v in [hidden_states, next_caches, all_hidden_states, all_self_attns] if v is not None)
-        # return BaseModelOutputWithPast(
-        #     last_hidden_state=hidden_states,
-        #     past_key_values=next_caches,
-        #     hidden_states=all_hidden_states,
-        #     attentions=all_self_attns,
-        # )
+        if not return_dict:
+            return tuple(v for v in [hidden_states, next_caches, all_hidden_states, all_self_attns] if v is not None)
+        return BaseModelOutputWithPast(
+            last_hidden_state=hidden_states,
+            past_key_values=next_caches,
+            hidden_states=all_hidden_states,
+            attentions=all_self_attns,
+        )
 
     def _update_causal_mask(
             self,
@@ -943,7 +944,7 @@ class LlamaForCausalLM(LlamaPreTrainedModel):
             use_cache: Optional[bool] = None,
             output_attentions: Optional[bool] = None,
             output_hidden_states: Optional[bool] = None,
-            return_dict: Optional[bool] = None,
+            return_dict: Optional[bool] = False,
             cache_position: Optional[ms.Tensor] = None,
     ) -> Union[Tuple, CausalLMOutputWithPast]:
         r"""
@@ -1177,7 +1178,7 @@ class LlamaForSequenceClassification(LlamaPreTrainedModel):
         use_cache: Optional[bool] = None,
         output_attentions: Optional[bool] = None,
         output_hidden_states: Optional[bool] = None,
-        return_dict: Optional[bool] = None,
+        return_dict: Optional[bool] = False,
     ) -> Union[Tuple, SequenceClassifierOutputWithPast]:
         r"""
         labels (`ms.Tensor` of shape `(batch_size,)`, *optional*):
@@ -1220,32 +1221,27 @@ class LlamaForSequenceClassification(LlamaPreTrainedModel):
 
         pooled_logits = logits[ops.arange(batch_size), sequence_lengths]
 
-        # zhy_test
-        # loss = None
-        # if labels is not None:
-        #     if self.problem_type is None:
-        #         if self.num_labels == 1:
-        #             problem_type = 0  #"regression"
-        #         elif self.num_labels > 1 and (labels.dtype in (ms.int32, ms.int64)):
-        #             problem_type = 1  #"single_label_classification"
-        #         else:
-        #             problem_type = 2  #"multi_label_classification"
-        #     else:
-        #         problem_type = self.problem_type
-        #
-        #     if problem_type == 0:  #"regression"
-        #         if self.num_labels == 1:
-        #             loss = self.loss_fct_regression(pooled_logits.squeeze(), labels.squeeze())
-        #         else:
-        #             loss = self.loss_fct_regression(pooled_logits, labels)
-        #     elif problem_type == 1:  #"single_label_classification"
-        #         loss = self.loss_fct_single_label_classification(pooled_logits.view(-1, self.num_labels), labels.view(-1).int())
-        #     elif problem_type == 2:  #"multi_label_classification"
-        #         loss = self.loss_fct_multi_label_classification(pooled_logits, labels)
-        loss_fct = nn.CrossEntropyLoss()
-        loss = loss_fct(pooled_logits.view(-1, self.num_labels), labels.view(-1).int())
+        loss = None
+        if labels is not None:
+            if self.problem_type is None:
+                if self.num_labels == 1:
+                    problem_type = 0  #"regression"
+                elif self.num_labels > 1 and (labels.dtype in (ms.int32, ms.int64)):
+                    problem_type = 1  #"single_label_classification"
+                else:
+                    problem_type = 2  #"multi_label_classification"
+            else:
+                problem_type = self.problem_type
 
-        breakpoint()
+            if problem_type == 0:  #"regression"
+                if self.num_labels == 1:
+                    loss = self.loss_fct_regression(pooled_logits.squeeze(), labels.squeeze())
+                else:
+                    loss = self.loss_fct_regression(pooled_logits, labels)
+            elif problem_type == 1:  #"single_label_classification"
+                loss = self.loss_fct_single_label_classification(pooled_logits.view(-1, self.num_labels), labels.view(-1).int())
+            elif problem_type == 2:  #"multi_label_classification"
+                loss = self.loss_fct_multi_label_classification(pooled_logits, labels)
 
         if not return_dict:
             output = (pooled_logits,) + transformer_outputs[1:]
