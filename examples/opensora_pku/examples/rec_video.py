@@ -107,7 +107,7 @@ def main(args):
     if args.ms_checkpoint is not None and os.path.exists(args.ms_checkpoint):
         logger.info(f"Run inference with MindSpore checkpoint {args.ms_checkpoint}")
         state_dict = ms.load_checkpoint(args.ms_checkpoint)
-        # rm 'network.' prefix
+
         state_dict = dict(
             [k.replace("autoencoder.", "") if k.startswith("autoencoder.") else k, v] for k, v in state_dict.items()
         )
