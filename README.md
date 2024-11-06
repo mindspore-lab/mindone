@@ -3,6 +3,7 @@
 This repository contains SoTA algorithms, models, and interesting projects in the area of multimodal understanding and content generation
 
 ONE is short for "ONE for all"
+
 ## News
 
 **Hello MindSpore** from **Stable Diffusion 3**!
