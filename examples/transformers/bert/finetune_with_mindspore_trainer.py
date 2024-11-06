@@ -46,7 +46,7 @@ def main():
     small_train_dataset = tokenized_datasets["train"]
     small_eval_dataset = tokenized_datasets["test"]
 
-    model = BertForSequenceClassification.from_pretrained(args.model_path, num_labels=5, use_flash_attention_2=True)
+    model = BertForSequenceClassification.from_pretrained(args.model_path, num_labels=5)
 
     if args.do_eval:
         metric = evaluate.load("accuracy")
