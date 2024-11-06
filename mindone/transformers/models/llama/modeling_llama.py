@@ -1220,8 +1220,12 @@ class LlamaForSequenceClassification(LlamaPreTrainedModel):
             else:
                 sequence_lengths = -1
 
-        pooled_logits = logits[ops.arange(batch_size), sequence_lengths]
+        # zhy_test
+        # pooled_logits = logits[ops.arange(batch_size), sequence_lengths]
+        pooled_logits = logits[:, sequence_lengths][ops.arange(batch_size)]
 
+
+        # zhy_test
         # loss = None
         # if labels is not None:
         #     if self.problem_type is None:
