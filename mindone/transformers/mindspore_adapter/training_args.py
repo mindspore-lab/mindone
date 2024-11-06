@@ -10,7 +10,7 @@ from mindspore.communication.management import init, get_rank, get_group_size
 class MindSporeArguments:
     # for mindspore
 
-    mode: str = field(
+    mode: int = field(
         default=ms.GRAPH_MODE,
         metadata = {"help": "Graph/Pynative"}
     )
