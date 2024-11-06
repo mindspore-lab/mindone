@@ -19,5 +19,17 @@
   "latent_dim": 4,
   "norm_type": "layernorm",
   "t_interpolation": "trilinear",
-  "use_attention": true
+  "use_attention": true,
+  "scale": [
+    0.18215,
+    0.18215,
+    0.18215,
+    0.18215
+  ],
+  "shift": [
+    0,
+    0,
+    0,
+    0
+  ]
 }
