@@ -30,7 +30,6 @@ def main():
     dataset["test"] = dataset["test"].shuffle(seed=42).select(range(1000))
 
     tokenizer = AutoTokenizer.from_pretrained(args.model_path)
-    tokenizer.pad_token = tokenizer.eos_token
 
     def tokenize_function(examples):
         return tokenizer(
