@@ -12,7 +12,7 @@ from mg.models.tae.modules import (
     TemporalDownsample,
     TemporalUpsample,
 )
-from mg.models.tae.tae import SDXL_CONFIG, VideoAutoencoder
+from mg.models.tae.tae import SDXL_CONFIG, TemporalAutoencoder
 
 import mindspore as ms
 
@@ -166,7 +166,7 @@ def test_tae_encode():
     x = np.random.normal(size=in_shape).astype(np.float32)
     x = ms.Tensor(x)
 
-    tae = VideoAutoencoder(config=SDXL_CONFIG)
+    tae = TemporalAutoencoder(config=SDXL_CONFIG)
     y = tae.encode(x)
 
     print(y.shape)
@@ -177,7 +177,7 @@ def test_tae_decode():
     x = np.random.normal(size=in_shape).astype(np.float32)
     x = ms.Tensor(x)
 
-    tae = VideoAutoencoder(config=SDXL_CONFIG)
+    tae = TemporalAutoencoder(config=SDXL_CONFIG)
     y = tae.decode(x)
 
     print(y.shape)
@@ -188,7 +188,7 @@ def test_tae_rec():
     x = np.random.normal(size=in_shape).astype(np.float32)
     x = ms.Tensor(x)
 
-    tae = VideoAutoencoder(config=SDXL_CONFIG)
+    tae = TemporalAutoencoder(config=SDXL_CONFIG)
     y = tae(x)
 
     print(y[0].shape)

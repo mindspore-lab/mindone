@@ -2,6 +2,7 @@ import mindspore as ms
 from mindspore import nn, ops
 from .modules import Conv2_5d, Encoder, Decoder
 
+# TODO: set z_channels to 16
 SDXL_CONFIG = {
     "double_z": True,
     "z_channels": 4,
@@ -16,7 +17,7 @@ SDXL_CONFIG = {
 }
 
 
-class VideoAutoencoder(nn.Cell):
+class TemporalAutoencoder(nn.Cell):
     r"""
     TAE
 
