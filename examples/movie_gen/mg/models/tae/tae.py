@@ -46,7 +46,10 @@ class VideoAutoencoder(nn.Cell):
         self.exp = ops.Exp()
         self.stdnormal = ops.StandardNormal()
         self.split = ms.ops.split
-        self.sample_deterministic=False
+
+        self.sample_deterministic = False
+        self.discard_spurious_frames = True
+
 
     def _encode(self, x):
         # return latent distribution, N(mean, logvar)
@@ -89,7 +92,8 @@ class VideoAutoencoder(nn.Cell):
         z = self.sample(posterior_mean, posterior_logvar)
         recons = self.decode(z)
 
-        # TODO: discard supurious frames
+        if self.discard_spurious_frames and (recons.shape[-3] != x.shape[-3]):
+            recons = recons[:, :, :x.shape[-3], :, :]
 
         return recons, posterior_mean, posterior_logvar
 

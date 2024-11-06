@@ -184,7 +184,7 @@ def test_tae_decode():
 
 
 def test_tae_rec():
-    in_shape = (B, C, T, H, W) = (1, 3, 8, 64, 64)
+    in_shape = (B, C, T, H, W) = (1, 3, 9, 64, 64)
     x = np.random.normal(size=in_shape).astype(np.float32)
     x = ms.Tensor(x)
 
