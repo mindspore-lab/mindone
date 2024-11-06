@@ -83,7 +83,7 @@ def betas_for_alpha_bar(
             return math.exp(t * -12.0)
 
     else:
-        raise ValueError(f"Unsupported alpha_tranform_type: {alpha_transform_type}")
+        raise ValueError(f"Unsupported alpha_transform_type: {alpha_transform_type}")
 
     betas = []
     for i in range(num_diffusion_timesteps):
@@ -214,7 +214,7 @@ class DDIMScheduler(SchedulerMixin, ConfigMixin):
             # Glide cosine schedule
             self.betas = betas_for_alpha_bar(num_train_timesteps)
         else:
-            raise NotImplementedError(f"{beta_schedule} does is not implemented for {self.__class__}")
+            raise NotImplementedError(f"{beta_schedule} is not implemented for {self.__class__}")
 
         # Rescale for zero SNR
         if rescale_betas_zero_snr:

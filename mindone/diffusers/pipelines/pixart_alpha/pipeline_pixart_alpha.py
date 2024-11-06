@@ -24,8 +24,8 @@ from transformers import T5EncoderModel, T5Tokenizer
 import mindspore as ms
 from mindspore import ops
 
-from ...image_processor import VaeImageProcessor
-from ...models import AutoencoderKL, Transformer2DModel
+from ...image_processor import PixArtImageProcessor
+from ...models import AutoencoderKL, PixArtTransformer2DModel
 from ...schedulers import DPMSolverMultistepScheduler
 from ...utils import BACKENDS_MAPPING, deprecate, is_bs4_available, is_ftfy_available, logging
 from ...utils.mindspore_utils import randn_tensor
@@ -167,6 +167,7 @@ def retrieve_timesteps(
     scheduler,
     num_inference_steps: Optional[int] = None,
     timesteps: Optional[List[int]] = None,
+    sigmas: Optional[List[float]] = None,
     **kwargs,
 ):
     """
@@ -177,17 +178,21 @@ def retrieve_timesteps(
         scheduler (`SchedulerMixin`):
             The scheduler to get timesteps from.
         num_inference_steps (`int`):
-            The number of diffusion steps used when generating samples with a pre-trained model. If used,
-            `timesteps` must be `None`.
+            The number of diffusion steps used when generating samples with a pre-trained model. If used, `timesteps`
+            must be `None`.
         timesteps (`List[int]`, *optional*):
-                Custom timesteps used to support arbitrary spacing between timesteps. If `None`, then the default
-                timestep spacing strategy of the scheduler is used. If `timesteps` is passed, `num_inference_steps`
-                must be `None`.
+            Custom timesteps used to override the timestep spacing strategy of the scheduler. If `timesteps` is passed,
+            `num_inference_steps` and `sigmas` must be `None`.
+        sigmas (`List[float]`, *optional*):
+            Custom sigmas used to override the timestep spacing strategy of the scheduler. If `sigmas` is passed,
+            `num_inference_steps` and `timesteps` must be `None`.
 
     Returns:
         `Tuple[ms.Tensor, int]`: A tuple where the first element is the timestep schedule from the scheduler and
         the second element is the number of inference steps.
     """
+    if timesteps is not None and sigmas is not None:
+        raise ValueError("Only one of `timesteps` or `sigmas` can be passed. Please choose one to set custom values")
     if timesteps is not None:
         accepts_timesteps = "timesteps" in set(inspect.signature(scheduler.set_timesteps).parameters.keys())
         if not accepts_timesteps:
@@ -196,6 +201,16 @@ def retrieve_timesteps(
                 f" timestep schedules. Please check whether you are using the correct scheduler."
             )
         scheduler.set_timesteps(timesteps=timesteps, **kwargs)
+        timesteps = scheduler.timesteps
+        num_inference_steps = len(timesteps)
+    elif sigmas is not None:
+        accept_sigmas = "sigmas" in set(inspect.signature(scheduler.set_timesteps).parameters.keys())
+        if not accept_sigmas:
+            raise ValueError(
+                f"The current scheduler class {scheduler.__class__}'s `set_timesteps` does not support custom"
+                f" sigmas schedules. Please check whether you are using the correct scheduler."
+            )
+        scheduler.set_timesteps(sigmas=sigmas, **kwargs)
         timesteps = scheduler.timesteps
         num_inference_steps = len(timesteps)
     else:
@@ -221,8 +236,8 @@ class PixArtAlphaPipeline(DiffusionPipeline):
         tokenizer (`T5Tokenizer`):
             Tokenizer of class
             [T5Tokenizer](https://huggingface.co/docs/transformers/model_doc/t5#transformers.T5Tokenizer).
-        transformer ([`Transformer2DModel`]):
-            A text conditioned `Transformer2DModel` to denoise the encoded image latents.
+        transformer ([`PixArtTransformer2DModel`]):
+            A text conditioned `PixArtTransformer2DModel` to denoise the encoded image latents.
         scheduler ([`SchedulerMixin`]):
             A scheduler to be used in combination with `transformer` to denoise the encoded image latents.
     """
@@ -251,7 +266,7 @@ class PixArtAlphaPipeline(DiffusionPipeline):
         tokenizer: T5Tokenizer,
         text_encoder: T5EncoderModel,
         vae: AutoencoderKL,
-        transformer: Transformer2DModel,
+        transformer: PixArtTransformer2DModel,
         scheduler: DPMSolverMultistepScheduler,
     ):
         super().__init__()
@@ -261,16 +276,7 @@ class PixArtAlphaPipeline(DiffusionPipeline):
         )
 
         self.vae_scale_factor = 2 ** (len(self.vae.config.block_out_channels) - 1)
-        self.image_processor = VaeImageProcessor(vae_scale_factor=self.vae_scale_factor)
-
-    # Adapted from https://github.com/PixArt-alpha/PixArt-alpha/blob/master/diffusion/model/utils.py
-    def mask_text_embeddings(self, emb, mask):
-        if emb.shape[0] == 1:
-            keep_index = mask.sum().item()
-            return emb[:, :, :keep_index, :], keep_index
-        else:
-            masked_feature = emb * mask[:, None, :, None]
-            return masked_feature, emb.shape[2]
+        self.image_processor = PixArtImageProcessor(vae_scale_factor=self.vae_scale_factor)
 
     def encode_prompt(
         self,
@@ -336,19 +342,21 @@ class PixArtAlphaPipeline(DiffusionPipeline):
                 add_special_tokens=True,
                 return_tensors="np",
             )
-            text_input_ids = ms.Tensor.from_numpy(text_inputs.input_ids)
-            untruncated_ids = self.tokenizer(prompt, padding="longest", return_tensors="pt").input_ids
+            text_input_ids = text_inputs.input_ids
+            untruncated_ids = self.tokenizer(prompt, padding="longest", return_tensors="np").input_ids
 
-            if untruncated_ids.shape[-1] >= text_input_ids.shape[-1] and not ops.equal(text_input_ids, untruncated_ids):
+            if untruncated_ids.shape[-1] >= text_input_ids.shape[-1] and not np.array_equal(
+                text_input_ids, untruncated_ids
+            ):
                 removed_text = self.tokenizer.batch_decode(untruncated_ids[:, max_length - 1 : -1])
                 logger.warning(
-                    "The following part of your input was truncated because CLIP can only handle sequences up to"
+                    "The following part of your input was truncated because T5 can only handle sequences up to"
                     f" {max_length} tokens: {removed_text}"
                 )
 
             prompt_attention_mask = ms.Tensor.from_numpy(text_inputs.attention_mask)
 
-            prompt_embeds = self.text_encoder(text_input_ids, attention_mask=prompt_attention_mask)
+            prompt_embeds = self.text_encoder(ms.tensor(text_input_ids), attention_mask=prompt_attention_mask)
             prompt_embeds = prompt_embeds[0]
 
         if self.text_encoder is not None:
@@ -369,7 +377,7 @@ class PixArtAlphaPipeline(DiffusionPipeline):
 
         # get unconditional embeddings for classifier free guidance
         if do_classifier_free_guidance and negative_prompt_embeds is None:
-            uncond_tokens = [negative_prompt] * batch_size
+            uncond_tokens = [negative_prompt] * batch_size if isinstance(negative_prompt, str) else negative_prompt
             uncond_tokens = self._text_preprocessing(uncond_tokens, clean_caption=clean_caption)
             max_length = prompt_embeds.shape[1]
             uncond_input = self.tokenizer(
@@ -630,7 +638,12 @@ class PixArtAlphaPipeline(DiffusionPipeline):
 
     # Copied from diffusers.pipelines.stable_diffusion.pipeline_stable_diffusion.StableDiffusionPipeline.prepare_latents
     def prepare_latents(self, batch_size, num_channels_latents, height, width, dtype, generator, latents=None):
-        shape = (batch_size, num_channels_latents, height // self.vae_scale_factor, width // self.vae_scale_factor)
+        shape = (
+            batch_size,
+            num_channels_latents,
+            int(height) // self.vae_scale_factor,
+            int(width) // self.vae_scale_factor,
+        )
         if isinstance(generator, list) and len(generator) != batch_size:
             raise ValueError(
                 f"You have passed a list of generators of length {len(generator)}, but requested an effective batch"
@@ -648,44 +661,13 @@ class PixArtAlphaPipeline(DiffusionPipeline):
         latents = latents.to(dtype=dtype)
         return latents
 
-    @staticmethod
-    def classify_height_width_bin(height: int, width: int, ratios: dict) -> Tuple[int, int]:
-        """Returns binned height and width."""
-        ar = float(height / width)
-        closest_ratio = min(ratios.keys(), key=lambda ratio: abs(float(ratio) - ar))
-        default_hw = ratios[closest_ratio]
-        return int(default_hw[0]), int(default_hw[1])
-
-    @staticmethod
-    def resize_and_crop_tensor(samples: ms.Tensor, new_width: int, new_height: int) -> ms.Tensor:
-        orig_height, orig_width = samples.shape[2], samples.shape[3]
-
-        # Check if resizing is needed
-        if orig_height != new_height or orig_width != new_width:
-            ratio = max(new_height / orig_height, new_width / orig_width)
-            resized_width = int(orig_width * ratio)
-            resized_height = int(orig_height * ratio)
-
-            # Resize
-            samples = ops.interpolate(
-                samples, size=(resized_height, resized_width), mode="bilinear", align_corners=False
-            )
-
-            # Center Crop
-            start_x = (resized_width - new_width) // 2
-            end_x = start_x + new_width
-            start_y = (resized_height - new_height) // 2
-            end_y = start_y + new_height
-            samples = samples[:, :, start_y:end_y, start_x:end_x]
-
-        return samples
-
     def __call__(
         self,
         prompt: Union[str, List[str]] = None,
         negative_prompt: str = "",
         num_inference_steps: int = 20,
         timesteps: List[int] = None,
+        sigmas: List[float] = None,
         guidance_scale: float = 4.5,
         num_images_per_prompt: Optional[int] = 1,
         height: Optional[int] = None,
@@ -721,8 +703,13 @@ class PixArtAlphaPipeline(DiffusionPipeline):
                 The number of denoising steps. More denoising steps usually lead to a higher quality image at the
                 expense of slower inference.
             timesteps (`List[int]`, *optional*):
-                Custom timesteps to use for the denoising process. If not defined, equal spaced `num_inference_steps`
-                timesteps are used. Must be in descending order.
+                Custom timesteps to use for the denoising process with schedulers which support a `timesteps` argument
+                in their `set_timesteps` method. If not defined, the default behavior when `num_inference_steps` is
+                passed will be used. Must be in descending order.
+            sigmas (`List[float]`, *optional*):
+                Custom sigmas to use for the denoising process with schedulers which support a `sigmas` argument in
+                their `set_timesteps` method. If not defined, the default behavior when `num_inference_steps` is passed
+                will be used.
             guidance_scale (`float`, *optional*, defaults to 4.5):
                 Guidance scale as defined in [Classifier-Free Diffusion Guidance](https://arxiv.org/abs/2207.12598).
                 `guidance_scale` is defined as `w` of equation 2. of [Imagen
@@ -799,7 +786,7 @@ class PixArtAlphaPipeline(DiffusionPipeline):
             else:
                 raise ValueError("Invalid sample size")
             orig_height, orig_width = height, width
-            height, width = self.classify_height_width_bin(height, width, ratios=aspect_ratio_bin)
+            height, width = self.image_processor.classify_height_width_bin(height, width, ratios=aspect_ratio_bin)
 
         self.check_inputs(
             prompt,
@@ -849,7 +836,7 @@ class PixArtAlphaPipeline(DiffusionPipeline):
             prompt_attention_mask = ops.cat([negative_prompt_attention_mask, prompt_attention_mask], axis=0)
 
         # 4. Prepare timesteps
-        timesteps, num_inference_steps = retrieve_timesteps(self.scheduler, num_inference_steps, timesteps)
+        timesteps, num_inference_steps = retrieve_timesteps(self.scheduler, num_inference_steps, timesteps, sigmas)
 
         # 5. Prepare latents.
         latent_channels = self.transformer.config.in_channels
@@ -909,7 +896,9 @@ class PixArtAlphaPipeline(DiffusionPipeline):
                     encoder_hidden_states=prompt_embeds,
                     encoder_attention_mask=prompt_attention_mask,
                     timestep=current_timestep,
-                    added_cond_kwargs=added_cond_kwargs,
+                    added_cond_kwargs=ms.mutable(added_cond_kwargs)
+                    if self.transformer.config.sample_size == 128
+                    else added_cond_kwargs,
                     return_dict=False,
                 )[0]
 
@@ -926,7 +915,13 @@ class PixArtAlphaPipeline(DiffusionPipeline):
 
                 # compute previous image: x_t -> x_t-1
                 latents_dtype = latents.dtype
-                latents = self.scheduler.step(noise_pred, t, latents, **extra_step_kwargs, return_dict=False)[0]
+                if num_inference_steps == 1:
+                    # For DMD one step sampling: https://arxiv.org/abs/2311.18828
+                    latents = self.scheduler.step(
+                        noise_pred, t, latents, **extra_step_kwargs, return_dict=True
+                    ).pred_original_sample
+                else:
+                    latents = self.scheduler.step(noise_pred, t, latents, **extra_step_kwargs, return_dict=False)[0]
                 latents = latents.to(latents_dtype)
 
                 # call the callback, if provided
@@ -939,7 +934,7 @@ class PixArtAlphaPipeline(DiffusionPipeline):
         if not output_type == "latent":
             image = self.vae.decode(latents / self.vae.config.scaling_factor, return_dict=False)[0]
             if use_resolution_binning:
-                image = self.resize_and_crop_tensor(image, orig_width, orig_height)
+                image = self.image_processor.resize_and_crop_tensor(image, orig_width, orig_height)
         else:
             image = latents
 

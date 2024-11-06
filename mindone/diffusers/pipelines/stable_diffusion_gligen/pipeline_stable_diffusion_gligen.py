@@ -31,7 +31,7 @@ from ...models.attention import GatedSelfAttentionDense
 from ...schedulers import KarrasDiffusionSchedulers
 from ...utils import deprecate, logging, scale_lora_layers, unscale_lora_layers
 from ...utils.mindspore_utils import randn_tensor
-from ..pipeline_utils import DiffusionPipeline
+from ..pipeline_utils import DiffusionPipeline, StableDiffusionMixin
 from ..stable_diffusion import StableDiffusionPipelineOutput
 from ..stable_diffusion.safety_checker import StableDiffusionSafetyChecker
 
@@ -92,7 +92,7 @@ EXAMPLE_DOC_STRING = """
 """
 
 
-class StableDiffusionGLIGENPipeline(DiffusionPipeline):
+class StableDiffusionGLIGENPipeline(DiffusionPipeline, StableDiffusionMixin):
     r"""
     Pipeline for text-to-image generation using Stable Diffusion with Grounded-Language-to-Image Generation (GLIGEN).
 
@@ -265,7 +265,9 @@ class StableDiffusionGLIGENPipeline(DiffusionPipeline):
             text_input_ids = text_inputs.input_ids
             untruncated_ids = self.tokenizer(prompt, padding="longest", return_tensors="np").input_ids
 
-            if untruncated_ids.shape[-1] >= text_input_ids.shape[-1] and not ops.equal(text_input_ids, untruncated_ids):
+            if untruncated_ids.shape[-1] >= text_input_ids.shape[-1] and not np.array_equal(
+                text_input_ids, untruncated_ids
+            ):
                 removed_text = self.tokenizer.batch_decode(untruncated_ids[:, self.tokenizer.model_max_length - 1 : -1])
                 logger.warning(
                     "The following part of your input was truncated because CLIP can only handle sequences up to"
@@ -362,9 +364,10 @@ class StableDiffusionGLIGENPipeline(DiffusionPipeline):
             negative_prompt_embeds = negative_prompt_embeds.tile((1, num_images_per_prompt, 1))
             negative_prompt_embeds = negative_prompt_embeds.view(batch_size * num_images_per_prompt, seq_len, -1)
 
-        if isinstance(self, LoraLoaderMixin):
-            # Retrieve the original scale by scaling back the LoRA layers
-            unscale_lora_layers(self.text_encoder, lora_scale)
+        if self.text_encoder is not None:
+            if isinstance(self, LoraLoaderMixin):
+                # Retrieve the original scale by scaling back the LoRA layers
+                unscale_lora_layers(self.text_encoder, lora_scale)
 
         return prompt_embeds, negative_prompt_embeds
 
@@ -457,14 +460,19 @@ class StableDiffusionGLIGENPipeline(DiffusionPipeline):
                 )
 
         if len(gligen_phrases) != len(gligen_boxes):
-            ValueError(
+            raise ValueError(
                 "length of `gligen_phrases` and `gligen_boxes` has to be same, but"
                 f" got: `gligen_phrases` {len(gligen_phrases)} != `gligen_boxes` {len(gligen_boxes)}"
             )
 
     # Copied from diffusers.pipelines.stable_diffusion.pipeline_stable_diffusion.StableDiffusionPipeline.prepare_latents
     def prepare_latents(self, batch_size, num_channels_latents, height, width, dtype, generator, latents=None):
-        shape = (batch_size, num_channels_latents, height // self.vae_scale_factor, width // self.vae_scale_factor)
+        shape = (
+            batch_size,
+            num_channels_latents,
+            int(height) // self.vae_scale_factor,
+            int(width) // self.vae_scale_factor,
+        )
         if isinstance(generator, list) and len(generator) != batch_size:
             raise ValueError(
                 f"You have passed a list of generators of length {len(generator)}, but requested an effective batch"
@@ -666,7 +674,7 @@ class StableDiffusionGLIGENPipeline(DiffusionPipeline):
         timesteps = self.scheduler.timesteps
 
         # 5. Prepare latent variables
-        num_channels_latents = self.unet.in_channels
+        num_channels_latents = self.unet.config.in_channels
         latents = self.prepare_latents(
             batch_size * num_images_per_prompt,
             num_channels_latents,
@@ -699,7 +707,7 @@ class StableDiffusionGLIGENPipeline(DiffusionPipeline):
         # we represent the location information as (xmin,ymin,xmax,ymax)
         boxes = ops.zeros((max_objs, 4), dtype=self.text_encoder.dtype)
         boxes[:n_objs] = ms.Tensor(gligen_boxes)
-        text_embeddings = ops.zeros((max_objs, self.unet.cross_attention_dim), dtype=self.text_encoder.dtype)
+        text_embeddings = ops.zeros((max_objs, self.unet.config.cross_attention_dim), dtype=self.text_encoder.dtype)
         text_embeddings[:n_objs] = _text_embeddings
         # Generate a mask for each object that is entity described by phrases
         masks = ops.zeros((max_objs,), dtype=self.text_encoder.dtype)

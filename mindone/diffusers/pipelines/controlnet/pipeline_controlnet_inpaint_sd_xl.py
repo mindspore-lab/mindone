@@ -23,6 +23,7 @@ import mindspore as ms
 from mindspore import ops
 
 from ....transformers import CLIPTextModel, CLIPTextModelWithProjection, CLIPVisionModelWithProjection
+from ...callbacks import MultiPipelineCallbacks, PipelineCallback
 from ...image_processor import PipelineImageInput, VaeImageProcessor
 from ...loaders import (
     FromSingleFileMixin,
@@ -32,11 +33,15 @@ from ...loaders import (
 )
 from ...models import AutoencoderKL, ControlNetModel, ImageProjection, UNet2DConditionModel
 from ...schedulers import KarrasDiffusionSchedulers
-from ...utils import deprecate, logging, scale_lora_layers, unscale_lora_layers
+from ...utils import deprecate, is_invisible_watermark_available, logging, scale_lora_layers, unscale_lora_layers
 from ...utils.mindspore_utils import randn_tensor
-from ..pipeline_utils import DiffusionPipeline
+from ..pipeline_utils import DiffusionPipeline, StableDiffusionMixin
 from ..stable_diffusion_xl.pipeline_output import StableDiffusionXLPipelineOutput
 from .multicontrolnet import MultiControlNetModel
+
+if is_invisible_watermark_available():
+    from diffusers.pipelines.stable_diffusion_xl.watermark import StableDiffusionXLWatermarker
+
 
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
 
@@ -72,6 +77,8 @@ EXAMPLE_DOC_STRING = """
         ...     "https://huggingface.co/datasets/diffusers/test-arrays/resolve/main/stable_diffusion_inpaint/boy.png"
         ... )
         >>> init_image = init_image.resize((1024, 1024))
+
+        >>> generator = np.random.Generator(np.random.PCG64(1))
 
         >>> mask_image = load_image(
         ...     "https://huggingface.co/datasets/diffusers/test-arrays/resolve/main/stable_diffusion_inpaint/boy_mask.png"
@@ -117,8 +124,8 @@ def rescale_noise_cfg(noise_cfg, noise_pred_text, guidance_rescale=0.0):
     Rescale `noise_cfg` according to `guidance_rescale`. Based on findings of [Common Diffusion Noise Schedules and
     Sample Steps are Flawed](https://arxiv.org/pdf/2305.08891.pdf). See Section 3.4
     """
-    std_text = noise_pred_text.std(axis=list(range(1, noise_pred_text.ndim)), keepdims=True)
-    std_cfg = noise_cfg.std(axis=list(range(1, noise_cfg.ndim)), keepdims=True)
+    std_text = noise_pred_text.std(axis=tuple(range(1, noise_pred_text.ndim)), keepdims=True)
+    std_cfg = noise_cfg.std(axis=tuple(range(1, noise_cfg.ndim)), keepdims=True)
     # rescale the results from guidance (fixes overexposure)
     noise_pred_rescaled = noise_cfg * (std_text / std_cfg)
     # mix with the original results from guidance by factor guidance_rescale to avoid "plain looking" images
@@ -127,7 +134,12 @@ def rescale_noise_cfg(noise_cfg, noise_pred_text, guidance_rescale=0.0):
 
 
 class StableDiffusionXLControlNetInpaintPipeline(
-    DiffusionPipeline, StableDiffusionXLLoraLoaderMixin, FromSingleFileMixin, IPAdapterMixin
+    DiffusionPipeline,
+    StableDiffusionMixin,
+    StableDiffusionXLLoraLoaderMixin,
+    FromSingleFileMixin,
+    IPAdapterMixin,
+    TextualInversionLoaderMixin,
 ):
     r"""
     Pipeline for text-to-image generation using Stable Diffusion XL.
@@ -136,6 +148,7 @@ class StableDiffusionXLControlNetInpaintPipeline(
     library implements for all the pipelines (such as downloading or saving, running on a particular device, etc.)
 
     The pipeline also inherits the following loading methods:
+        - [`~loaders.TextualInversionLoaderMixin.load_textual_inversion`] for loading textual inversion embeddings
         - [`~loaders.StableDiffusionXLLoraLoaderMixin.load_lora_weights`] for loading LoRA weights
         - [`~loaders.StableDiffusionXLLoraLoaderMixin.save_lora_weights`] for saving LoRA weights
         - [`~loaders.FromSingleFileMixin.from_single_file`] for loading `.ckpt` files
@@ -167,8 +180,26 @@ class StableDiffusionXLControlNetInpaintPipeline(
     """
 
     model_cpu_offload_seq = "text_encoder->text_encoder_2->unet->vae"
-    _optional_components = ["tokenizer", "tokenizer_2", "text_encoder", "text_encoder_2"]
-    _callback_tensor_inputs = ["latents", "prompt_embeds", "negative_prompt_embeds"]
+
+    _optional_components = [
+        "tokenizer",
+        "tokenizer_2",
+        "text_encoder",
+        "text_encoder_2",
+        "image_encoder",
+        "feature_extractor",
+    ]
+    _callback_tensor_inputs = [
+        "latents",
+        "prompt_embeds",
+        "negative_prompt_embeds",
+        "add_text_embeds",
+        "add_time_ids",
+        "negative_pooled_prompt_embeds",
+        "add_neg_time_ids",
+        "mask",
+        "masked_image_latents",
+    ]
 
     def __init__(
         self,
@@ -178,7 +209,7 @@ class StableDiffusionXLControlNetInpaintPipeline(
         tokenizer: CLIPTokenizer,
         tokenizer_2: CLIPTokenizer,
         unet: UNet2DConditionModel,
-        controlnet: ControlNetModel,
+        controlnet: Union[ControlNetModel, List[ControlNetModel], Tuple[ControlNetModel], MultiControlNetModel],
         scheduler: KarrasDiffusionSchedulers,
         requires_aesthetics_score: bool = False,
         force_zeros_for_empty_prompt: bool = True,
@@ -214,7 +245,12 @@ class StableDiffusionXLControlNetInpaintPipeline(
             vae_scale_factor=self.vae_scale_factor, do_convert_rgb=True, do_normalize=False
         )
 
-        self.watermark = None
+        add_watermarker = add_watermarker if add_watermarker is not None else is_invisible_watermark_available()
+
+        if add_watermarker:
+            self.watermark = StableDiffusionXLWatermarker()
+        else:
+            self.watermark = None
 
     # Copied from diffusers.pipelines.stable_diffusion_xl.pipeline_stable_diffusion_xl.StableDiffusionXLPipeline.encode_prompt
     def encode_prompt(
@@ -319,7 +355,7 @@ class StableDiffusionXLControlNetInpaintPipeline(
                 text_input_ids = text_inputs.input_ids
                 untruncated_ids = tokenizer(prompt, padding="longest", return_tensors="np").input_ids
 
-                if untruncated_ids.shape[-1] >= text_input_ids.shape[-1] and not ops.equal(
+                if untruncated_ids.shape[-1] >= text_input_ids.shape[-1] and not np.array_equal(
                     text_input_ids, untruncated_ids
                 ):
                     removed_text = tokenizer.batch_decode(untruncated_ids[:, tokenizer.model_max_length - 1 : -1])
@@ -450,17 +486,15 @@ class StableDiffusionXLControlNetInpaintPipeline(
 
         image = image.to(dtype=dtype)
         if output_hidden_states:
-            image_enc_hidden_states = self.image_encoder(image, output_hidden_states=True).hidden_states[-2]
+            image_enc_hidden_states = self.image_encoder(image, output_hidden_states=True)[2][-2]
             image_enc_hidden_states = image_enc_hidden_states.repeat_interleave(num_images_per_prompt, dim=0)
-            uncond_image_enc_hidden_states = self.image_encoder(
-                ops.zeros_like(image), output_hidden_states=True
-            ).hidden_states[-2]
+            uncond_image_enc_hidden_states = self.image_encoder(ops.zeros_like(image), output_hidden_states=True)[2][-2]
             uncond_image_enc_hidden_states = uncond_image_enc_hidden_states.repeat_interleave(
                 num_images_per_prompt, dim=0
             )
             return image_enc_hidden_states, uncond_image_enc_hidden_states
         else:
-            image_embeds = self.image_encoder(image).image_embeds
+            image_embeds = self.image_encoder(image)[0]
             image_embeds = image_embeds.repeat_interleave(num_images_per_prompt, dim=0)
             uncond_image_embeds = ops.zeros_like(image_embeds)
 
@@ -817,7 +851,12 @@ class StableDiffusionXLControlNetInpaintPipeline(
         return_noise=False,
         return_image_latents=False,
     ):
-        shape = (batch_size, num_channels_latents, height // self.vae_scale_factor, width // self.vae_scale_factor)
+        shape = (
+            batch_size,
+            num_channels_latents,
+            int(height) // self.vae_scale_factor,
+            int(width) // self.vae_scale_factor,
+        )
         if isinstance(generator, list) and len(generator) != batch_size:
             raise ValueError(
                 f"You have passed a list of generators of length {len(generator)}, but requested an effective batch"
@@ -844,10 +883,10 @@ class StableDiffusionXLControlNetInpaintPipeline(
             # if strength is 1. then initialise the latents to noise, else initial to image + noise
             latents = noise if is_strength_max else self.scheduler.add_noise(image_latents, noise, timestep)
             # if pure noise then scale the initial latents by the  Scheduler's init sigma
-            latents = latents * self.scheduler.init_noise_sigma if is_strength_max else latents
+            latents = (latents * self.scheduler.init_noise_sigma).to(dtype) if is_strength_max else latents
         elif add_noise:
             noise = latents
-            latents = noise * self.scheduler.init_noise_sigma
+            latents = (noise * self.scheduler.init_noise_sigma).to(dtype)
         else:
             noise = randn_tensor(shape, generator=generator, dtype=dtype)
             latents = image_latents
@@ -954,7 +993,7 @@ class StableDiffusionXLControlNetInpaintPipeline(
                 # because `num_inference_steps` might be even given that every timestep
                 # (except the highest one) is duplicated. If `num_inference_steps` is even it would
                 # mean that we cut the timesteps in the middle of the denoising step
-                # (between 1st and 2nd devirative) which leads to incorrect results. By adding 1
+                # (between 1st and 2nd derivative) which leads to incorrect results. By adding 1
                 # we ensure that the denoising process always ends after the 2nd derivate step of the scheduler
                 num_inference_steps = num_inference_steps + 1
 
@@ -1081,7 +1120,9 @@ class StableDiffusionXLControlNetInpaintPipeline(
         aesthetic_score: float = 6.0,
         negative_aesthetic_score: float = 2.5,
         clip_skip: Optional[int] = None,
-        callback_on_step_end: Optional[Callable[[int, int, Dict], None]] = None,
+        callback_on_step_end: Optional[
+            Union[Callable[[int, int, Dict], None], PipelineCallback, MultiPipelineCallbacks]
+        ] = None,
         callback_on_step_end_tensor_inputs: List[str] = ["latents"],
         **kwargs,
     ):
@@ -1108,11 +1149,12 @@ class StableDiffusionXLControlNetInpaintPipeline(
             width (`int`, *optional*, defaults to self.unet.config.sample_size * self.vae_scale_factor):
                 The width in pixels of the generated image.
             padding_mask_crop (`int`, *optional*, defaults to `None`):
-                The size of margin in the crop to be applied to the image and masking. If `None`, no crop is applied to image and mask_image. If
-                `padding_mask_crop` is not `None`, it will first find a rectangular region with the same aspect ration of the image and
-                contains all masked area, and then expand that area based on `padding_mask_crop`. The image and mask_image will then be cropped based on
-                the expanded area before resizing to the original image size for inpainting. This is useful when the masked area is small while the image is large  # noqa: E501
-                and contain information inreleant for inpainging, such as background.
+                The size of margin in the crop to be applied to the image and masking. If `None`, no crop is applied to
+                image and mask_image. If `padding_mask_crop` is not `None`, it will first find a rectangular region
+                with the same aspect ration of the image and contains all masked area, and then expand that area based
+                on `padding_mask_crop`. The image and mask_image will then be cropped based on the expanded area before
+                resizing to the original image size for inpainting. This is useful when the masked area is small while
+                the image is large and contain information irrelevant for inpainting, such as background.
             strength (`float`, *optional*, defaults to 0.9999):
                 Conceptually, indicates how much to transform the masked portion of the reference `image`. Must be
                 between 0 and 1. `image` will be used as a starting point, adding more noise to it the larger the
@@ -1161,10 +1203,10 @@ class StableDiffusionXLControlNetInpaintPipeline(
                 argument.
             ip_adapter_image: (`PipelineImageInput`, *optional*): Optional image input to work with IP Adapters.
             ip_adapter_image_embeds (`List[ms.Tensor]`, *optional*):
-                Pre-generated image embeddings for IP-Adapter. It should be a list of length same as number of IP-adapters.
-                Each element should be a tensor of shape `(batch_size, num_images, emb_dim)`. It should contain the negative image embedding
-                if `do_classifier_free_guidance` is set to `True`.
-                If not provided, embeddings are computed from the `ip_adapter_image` input argument.
+                Pre-generated image embeddings for IP-Adapter. It should be a list of length same as number of
+                IP-adapters. Each element should be a tensor of shape `(batch_size, num_images, emb_dim)`. It should
+                contain the negative image embedding if `do_classifier_free_guidance` is set to `True`. If not
+                provided, embeddings are computed from the `ip_adapter_image` input argument.
             pooled_prompt_embeds (`ms.Tensor`, *optional*):
                 Pre-generated pooled text embeddings. Can be used to easily tweak text inputs, *e.g.* prompt weighting.
                 If not provided, pooled text embeddings will be generated from `prompt` input argument.
@@ -1219,11 +1261,11 @@ class StableDiffusionXLControlNetInpaintPipeline(
             clip_skip (`int`, *optional*):
                 Number of layers to be skipped from CLIP while computing the prompt embeddings. A value of 1 means that
                 the output of the pre-final layer will be used for computing the prompt embeddings.
-            callback_on_step_end (`Callable`, *optional*):
-                A function that calls at the end of each denoising steps during the inference. The function is called
-                with the following arguments: `callback_on_step_end(self: DiffusionPipeline, step: int, timestep: int,
-                callback_kwargs: Dict)`. `callback_kwargs` will include a list of all tensors as specified by
-                `callback_on_step_end_tensor_inputs`.
+            callback_on_step_end (`Callable`, `PipelineCallback`, `MultiPipelineCallbacks`, *optional*):
+                A function or a subclass of `PipelineCallback` or `MultiPipelineCallbacks` that is called at the end of
+                each denoising step during the inference. with the following arguments: `callback_on_step_end(self:
+                DiffusionPipeline, step: int, timestep: int, callback_kwargs: Dict)`. `callback_kwargs` will include a
+                list of all tensors as specified by `callback_on_step_end_tensor_inputs`.
             callback_on_step_end_tensor_inputs (`List`, *optional*):
                 The list of tensor inputs for the `callback_on_step_end` function. The tensors specified in the list
                 will be passed as `callback_kwargs` argument. You will only be able to include variables listed in the
@@ -1252,6 +1294,9 @@ class StableDiffusionXLControlNetInpaintPipeline(
                 "1.0.0",
                 "Passing `callback_steps` as an input argument to `__call__` is deprecated, consider using `callback_on_step_end`",
             )
+
+        if isinstance(callback_on_step_end, (PipelineCallback, MultiPipelineCallbacks)):
+            callback_on_step_end_tensor_inputs = callback_on_step_end.tensor_inputs
 
         controlnet = self.controlnet
 
@@ -1506,10 +1551,7 @@ class StableDiffusionXLControlNetInpaintPipeline(
                 1.0 - float(i / len(timesteps) < s or (i + 1) / len(timesteps) > e)
                 for s, e in zip(control_guidance_start, control_guidance_end)
             ]
-            if isinstance(self.controlnet, MultiControlNetModel):
-                controlnet_keep.append(keeps)
-            else:
-                controlnet_keep.append(keeps[0])
+            controlnet_keep.append(keeps if isinstance(controlnet, MultiControlNetModel) else keeps[0])
 
         # 9. Prepare extra step kwargs. TODO: Logic should ideally just be moved out of the pipeline
         height, width = latents.shape[-2:]
@@ -1633,7 +1675,7 @@ class StableDiffusionXLControlNetInpaintPipeline(
                     down_block_res_samples = [ops.cat([ops.zeros_like(d), d]) for d in down_block_res_samples]
                     mid_block_res_sample = ops.cat([ops.zeros_like(mid_block_res_sample), mid_block_res_sample])
 
-                if ip_adapter_image is not None:
+                if ip_adapter_image is not None or ip_adapter_image_embeds is not None:
                     added_cond_kwargs["image_embeds"] = image_embeds
 
                 if num_channels_unet == 9:

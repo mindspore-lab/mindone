@@ -27,12 +27,12 @@ from mindspore import ops
 from mindone.transformers import CLIPTextModel, CLIPVisionModelWithProjection
 
 from ...image_processor import PipelineImageInput, VaeImageProcessor
-from ...loaders import LoraLoaderMixin
-from ...models import AutoencoderKL, UNet2DConditionModel
+from ...loaders import FromSingleFileMixin, IPAdapterMixin, LoraLoaderMixin, TextualInversionLoaderMixin
+from ...models import AutoencoderKL, ImageProjection, UNet2DConditionModel
 from ...schedulers import LCMScheduler
 from ...utils import deprecate, logging, scale_lora_layers, unscale_lora_layers
 from ...utils.mindspore_utils import randn_tensor
-from ..pipeline_utils import DiffusionPipeline
+from ..pipeline_utils import DiffusionPipeline, StableDiffusionMixin
 from ..stable_diffusion import StableDiffusionPipelineOutput, StableDiffusionSafetyChecker
 
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
@@ -49,8 +49,8 @@ EXAMPLE_DOC_STRING = """
 
         >>> # Can be set to 1~50 steps. LCM support fast inference even <= 4 steps. Recommend: 1~8 steps.
         >>> num_inference_steps = 4
-        >>> images = pipe(prompt=prompt, num_inference_steps=num_inference_steps, guidance_scale=8.0)[0][0]
-        >>> images.save("image.png")
+        >>> images = pipe(prompt=prompt, num_inference_steps=num_inference_steps, guidance_scale=8.0)[0]
+        >>> images[0].save("image.png")
         ```
 """
 
@@ -60,6 +60,7 @@ def retrieve_timesteps(
     scheduler,
     num_inference_steps: Optional[int] = None,
     timesteps: Optional[List[int]] = None,
+    sigmas: Optional[List[float]] = None,
     **kwargs,
 ):
     """
@@ -70,17 +71,21 @@ def retrieve_timesteps(
         scheduler (`SchedulerMixin`):
             The scheduler to get timesteps from.
         num_inference_steps (`int`):
-            The number of diffusion steps used when generating samples with a pre-trained model. If used,
-            `timesteps` must be `None`.
+            The number of diffusion steps used when generating samples with a pre-trained model. If used, `timesteps`
+            must be `None`.
         timesteps (`List[int]`, *optional*):
-                Custom timesteps used to support arbitrary spacing between timesteps. If `None`, then the default
-                timestep spacing strategy of the scheduler is used. If `timesteps` is passed, `num_inference_steps`
-                must be `None`.
+            Custom timesteps used to override the timestep spacing strategy of the scheduler. If `timesteps` is passed,
+            `num_inference_steps` and `sigmas` must be `None`.
+        sigmas (`List[float]`, *optional*):
+            Custom sigmas used to override the timestep spacing strategy of the scheduler. If `sigmas` is passed,
+            `num_inference_steps` and `timesteps` must be `None`.
 
     Returns:
-        `Tuple[ms.Tensor, int]`: A tuple where the first element is the timestep schedule from the scheduler and the
-        second element is the number of inference steps.
+        `Tuple[ms.Tensor, int]`: A tuple where the first element is the timestep schedule from the scheduler and
+        the second element is the number of inference steps.
     """
+    if timesteps is not None and sigmas is not None:
+        raise ValueError("Only one of `timesteps` or `sigmas` can be passed. Please choose one to set custom values")
     if timesteps is not None:
         accepts_timesteps = "timesteps" in set(inspect.signature(scheduler.set_timesteps).parameters.keys())
         if not accepts_timesteps:
@@ -91,6 +96,16 @@ def retrieve_timesteps(
         scheduler.set_timesteps(timesteps=timesteps, **kwargs)
         timesteps = scheduler.timesteps
         num_inference_steps = len(timesteps)
+    elif sigmas is not None:
+        accept_sigmas = "sigmas" in set(inspect.signature(scheduler.set_timesteps).parameters.keys())
+        if not accept_sigmas:
+            raise ValueError(
+                f"The current scheduler class {scheduler.__class__}'s `set_timesteps` does not support custom"
+                f" sigmas schedules. Please check whether you are using the correct scheduler."
+            )
+        scheduler.set_timesteps(sigmas=sigmas, **kwargs)
+        timesteps = scheduler.timesteps
+        num_inference_steps = len(timesteps)
     else:
         scheduler.set_timesteps(num_inference_steps, **kwargs)
         timesteps = scheduler.timesteps
@@ -99,7 +114,11 @@ def retrieve_timesteps(
 
 class LatentConsistencyModelPipeline(
     DiffusionPipeline,
+    StableDiffusionMixin,
+    TextualInversionLoaderMixin,
+    IPAdapterMixin,
     LoraLoaderMixin,
+    FromSingleFileMixin,
 ):
     r"""
     Pipeline for text-to-image generation using a latent consistency model.
@@ -241,6 +260,9 @@ class LatentConsistencyModelPipeline(
 
         if prompt_embeds is None:
             # textual inversion: process multi-vector tokens if necessary
+            if isinstance(self, TextualInversionLoaderMixin):
+                prompt = self.maybe_convert_prompt(prompt, self.tokenizer)
+
             text_inputs = self.tokenizer(
                 prompt,
                 padding="max_length",
@@ -248,10 +270,12 @@ class LatentConsistencyModelPipeline(
                 truncation=True,
                 return_tensors="np",
             )
-            text_input_ids = ms.Tensor(text_inputs.input_ids)
-            untruncated_ids = ms.Tensor(self.tokenizer(prompt, padding="longest", return_tensors="np").input_ids)
+            text_input_ids = text_inputs.input_ids
+            untruncated_ids = self.tokenizer(prompt, padding="longest", return_tensors="np").input_ids
 
-            if untruncated_ids.shape[-1] >= text_input_ids.shape[-1] and not ops.equal(text_input_ids, untruncated_ids):
+            if untruncated_ids.shape[-1] >= text_input_ids.shape[-1] and not np.array_equal(
+                text_input_ids, untruncated_ids
+            ):
                 removed_text = self.tokenizer.batch_decode(untruncated_ids[:, self.tokenizer.model_max_length - 1 : -1])
                 logger.warning(
                     "The following part of your input was truncated because CLIP can only handle sequences up to"
@@ -264,11 +288,11 @@ class LatentConsistencyModelPipeline(
                 attention_mask = None
 
             if clip_skip is None:
-                prompt_embeds = self.text_encoder(text_input_ids, attention_mask=attention_mask)
+                prompt_embeds = self.text_encoder(ms.Tensor(text_input_ids), attention_mask=attention_mask)
                 prompt_embeds = prompt_embeds[0]
             else:
                 prompt_embeds = self.text_encoder(
-                    text_input_ids, attention_mask=attention_mask, output_hidden_states=True
+                    ms.Tensor(text_input_ids), attention_mask=attention_mask, output_hidden_states=True
                 )
                 # Access the `hidden_states` first, that contains a tuple of
                 # all the hidden states from the encoder layers. Then index into
@@ -316,6 +340,9 @@ class LatentConsistencyModelPipeline(
                 uncond_tokens = negative_prompt
 
             # textual inversion: process multi-vector tokens if necessary
+            if isinstance(self, TextualInversionLoaderMixin):
+                uncond_tokens = self.maybe_convert_prompt(uncond_tokens, self.tokenizer)
+
             max_length = prompt_embeds.shape[1]
             uncond_input = self.tokenizer(
                 uncond_tokens,
@@ -326,7 +353,7 @@ class LatentConsistencyModelPipeline(
             )
 
             if hasattr(self.text_encoder.config, "use_attention_mask") and self.text_encoder.config.use_attention_mask:
-                attention_mask = ms.tensor(uncond_input.attention_mask)
+                attention_mask = ms.Tensor(uncond_input.attention_mask)
             else:
                 attention_mask = None
 
@@ -345,11 +372,86 @@ class LatentConsistencyModelPipeline(
             negative_prompt_embeds = negative_prompt_embeds.tile((1, num_images_per_prompt, 1))
             negative_prompt_embeds = negative_prompt_embeds.view(batch_size * num_images_per_prompt, seq_len, -1)
 
-        if isinstance(self, LoraLoaderMixin):
-            # Retrieve the original scale by scaling back the LoRA layers
-            unscale_lora_layers(self.text_encoder, lora_scale)
+        if self.text_encoder is not None:
+            if isinstance(self, LoraLoaderMixin):
+                # Retrieve the original scale by scaling back the LoRA layers
+                unscale_lora_layers(self.text_encoder, lora_scale)
 
         return prompt_embeds, negative_prompt_embeds
+
+    # Copied from diffusers.pipelines.stable_diffusion.pipeline_stable_diffusion.StableDiffusionPipeline.encode_image
+    def encode_image(self, image, num_images_per_prompt, output_hidden_states=None):
+        dtype = next(self.image_encoder.get_parameters()).dtype
+
+        if not isinstance(image, ms.Tensor):
+            image = self.feature_extractor(image, return_tensors="np").pixel_values
+            image = ms.Tensor(image)
+
+        image = image.to(dtype=dtype)
+        if output_hidden_states:
+            image_enc_hidden_states = self.image_encoder(image, output_hidden_states=True)[2][-2]
+            image_enc_hidden_states = image_enc_hidden_states.repeat_interleave(num_images_per_prompt, dim=0)
+            uncond_image_enc_hidden_states = self.image_encoder(ops.zeros_like(image), output_hidden_states=True)[2][-2]
+            uncond_image_enc_hidden_states = uncond_image_enc_hidden_states.repeat_interleave(
+                num_images_per_prompt, dim=0
+            )
+            return image_enc_hidden_states, uncond_image_enc_hidden_states
+        else:
+            image_embeds = self.image_encoder(image)[0]
+            image_embeds = image_embeds.repeat_interleave(num_images_per_prompt, dim=0)
+            uncond_image_embeds = ops.zeros_like(image_embeds)
+
+            return image_embeds, uncond_image_embeds
+
+    # Copied from diffusers.pipelines.stable_diffusion.pipeline_stable_diffusion.StableDiffusionPipeline.prepare_ip_adapter_image_embeds
+    def prepare_ip_adapter_image_embeds(
+        self, ip_adapter_image, ip_adapter_image_embeds, num_images_per_prompt, do_classifier_free_guidance
+    ):
+        if ip_adapter_image_embeds is None:
+            if not isinstance(ip_adapter_image, list):
+                ip_adapter_image = [ip_adapter_image]
+
+            if len(ip_adapter_image) != len(self.unet.encoder_hid_proj.image_projection_layers):
+                raise ValueError(
+                    "`ip_adapter_image` must have same length as the number of IP Adapters. "
+                    f"Got {len(ip_adapter_image)} images and {len(self.unet.encoder_hid_proj.image_projection_layers)} IP Adapters."
+                )
+
+            image_embeds = []
+            for single_ip_adapter_image, image_proj_layer in zip(
+                ip_adapter_image, self.unet.encoder_hid_proj.image_projection_layers
+            ):
+                output_hidden_state = not isinstance(image_proj_layer, ImageProjection)
+                single_image_embeds, single_negative_image_embeds = self.encode_image(
+                    single_ip_adapter_image, 1, output_hidden_state
+                )
+                single_image_embeds = ops.stack([single_image_embeds] * num_images_per_prompt, axis=0)
+                single_negative_image_embeds = ops.stack([single_negative_image_embeds] * num_images_per_prompt, axis=0)
+
+                if do_classifier_free_guidance:
+                    single_image_embeds = ops.cat([single_negative_image_embeds, single_image_embeds])
+
+                image_embeds.append(single_image_embeds)
+        else:
+            repeat_dims = [1]
+            image_embeds = []
+            for single_image_embeds in ip_adapter_image_embeds:
+                if do_classifier_free_guidance:
+                    single_negative_image_embeds, single_image_embeds = single_image_embeds.chunk(2)
+                    single_image_embeds = single_image_embeds.tile(
+                        (num_images_per_prompt, *(repeat_dims * len(single_image_embeds.shape[1:])))
+                    )
+                    single_negative_image_embeds = single_negative_image_embeds.tile(
+                        (num_images_per_prompt, *(repeat_dims * len(single_negative_image_embeds.shape[1:])))
+                    )
+                    single_image_embeds = ops.cat([single_negative_image_embeds, single_image_embeds])
+                else:
+                    single_image_embeds = single_image_embeds.tile(
+                        (num_images_per_prompt, *(repeat_dims * len(single_image_embeds.shape[1:])))
+                    )
+                image_embeds.append(single_image_embeds)
+
+        return image_embeds
 
     # Copied from diffusers.pipelines.stable_diffusion.pipeline_stable_diffusion.StableDiffusionPipeline.run_safety_checker
     def run_safety_checker(self, image, dtype):
@@ -368,7 +470,12 @@ class LatentConsistencyModelPipeline(
 
     # Copied from diffusers.pipelines.stable_diffusion.pipeline_stable_diffusion.StableDiffusionPipeline.prepare_latents
     def prepare_latents(self, batch_size, num_channels_latents, height, width, dtype, generator, latents=None):
-        shape = (batch_size, num_channels_latents, height // self.vae_scale_factor, width // self.vae_scale_factor)
+        shape = (
+            batch_size,
+            num_channels_latents,
+            int(height) // self.vae_scale_factor,
+            int(width) // self.vae_scale_factor,
+        )
         if isinstance(generator, list) and len(generator) != batch_size:
             raise ValueError(
                 f"You have passed a list of generators of length {len(generator)}, but requested an effective batch"
@@ -377,27 +484,27 @@ class LatentConsistencyModelPipeline(
 
         if latents is None:
             latents = randn_tensor(shape, generator=generator, dtype=dtype)
-        else:
-            latents = latents
 
         # scale the initial noise by the standard deviation required by the scheduler
-        latents = latents * self.scheduler.init_noise_sigma
+        latents = (latents * self.scheduler.init_noise_sigma).to(dtype)
         return latents
 
-    def get_guidance_scale_embedding(self, w, embedding_dim=512, dtype=ms.float32):
+    def get_guidance_scale_embedding(
+        self, w: ms.Tensor, embedding_dim: int = 512, dtype: ms.Type = ms.float32
+    ) -> ms.Tensor:
         """
         See https://github.com/google-research/vdm/blob/dc27b98a554f65cdc654b800da5aa1846545d41b/model_vdm.py#L298
 
         Args:
-            timesteps (`ms.Tensor`):
-                generate embedding vectors at these timesteps
+            w (`ms.Tensor`):
+                Generate embedding vectors with a specified guidance scale to subsequently enrich timestep embeddings.
             embedding_dim (`int`, *optional*, defaults to 512):
-                dimension of the embeddings to generate
-            dtype:
-                data type of the generated embeddings
+                Dimension of the embeddings to generate.
+            dtype (`ms.dtype`, *optional*, defaults to `ms.float32`):
+                Data type of the generated embeddings.
 
         Returns:
-            `ms.Tensor`: Embedding vectors with shape `(len(timesteps), embedding_dim)`
+            `ms.Tensor`: Embedding vectors with shape `(len(w), embedding_dim)`.
         """
         assert len(w.shape) == 1
         w = w * 1000.0
@@ -650,6 +757,13 @@ class LatentConsistencyModelPipeline(
         else:
             batch_size = prompt_embeds.shape[0]
 
+        if ip_adapter_image is not None or ip_adapter_image_embeds is not None:
+            image_embeds = self.prepare_ip_adapter_image_embeds(
+                ip_adapter_image,
+                ip_adapter_image_embeds,
+                batch_size * num_images_per_prompt,
+                self.do_classifier_free_guidance,
+            )
         # 3. Encode input prompt
         lora_scale = self.cross_attention_kwargs.get("scale", None) if self.cross_attention_kwargs is not None else None
 
@@ -689,7 +803,7 @@ class LatentConsistencyModelPipeline(
         # NOTE: We use the Imagen CFG formulation that StableDiffusionPipeline uses rather than the original LCM paper
         # CFG formulation, so we need to subtract 1 from the input guidance_scale.
         # LCM CFG formulation:  cfg_noise = noise_cond + cfg_scale * (noise_cond - noise_uncond), (cfg_scale > 0.0 using CFG)
-        w = ms.tensor(self.guidance_scale - 1).repeat(bs)
+        w = ms.tensor(self.guidance_scale - 1).tile((bs,))
         w_embedding = self.get_guidance_scale_embedding(w, embedding_dim=self.unet.config.time_cond_proj_dim).to(
             dtype=latents.dtype
         )
@@ -698,7 +812,11 @@ class LatentConsistencyModelPipeline(
         extra_step_kwargs = self.prepare_extra_step_kwargs(generator, None)
 
         # 7.1 Add image embeds for IP-Adapter
-        added_cond_kwargs = None
+        added_cond_kwargs = (
+            {"image_embeds": image_embeds}
+            if ip_adapter_image is not None or ip_adapter_image_embeds is not None
+            else None
+        )
 
         # 8. LCM MultiStep Sampling Loop:
         num_warmup_steps = len(timesteps) - num_inference_steps * self.scheduler.order
@@ -714,7 +832,7 @@ class LatentConsistencyModelPipeline(
                     timestep_cond=w_embedding,
                     encoder_hidden_states=prompt_embeds,
                     cross_attention_kwargs=self.cross_attention_kwargs,
-                    added_cond_kwargs=added_cond_kwargs,
+                    added_cond_kwargs=ms.mutable(added_cond_kwargs) if added_cond_kwargs else added_cond_kwargs,
                     return_dict=False,
                 )[0]
 

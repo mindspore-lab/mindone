@@ -19,7 +19,7 @@ import os
 import re
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional, Union
+from typing import Any, Callable, Dict, List, Optional, Union, get_args, get_origin
 
 import numpy as np
 import PIL.Image
@@ -35,6 +35,7 @@ from mindspore import nn
 
 from .. import __version__
 from ..configuration_utils import ConfigMixin
+from ..models.modeling_utils import ModelMixin
 from ..schedulers.scheduling_utils import SCHEDULER_CONFIG_NAME
 from ..utils import (
     CONFIG_NAME,
@@ -53,6 +54,7 @@ from .pipeline_loading_utils import (
     CUSTOM_PIPELINE_FILE_NAME,
     LOADABLE_CLASSES,
     _fetch_class_library_tuple,
+    _get_custom_pipeline_class,
     _get_pipeline_class,
     is_safetensors_compatible,
     load_sub_model,
@@ -275,7 +277,7 @@ class DiffusionPipeline(ConfigMixin, PushToHubMixin):
         - `to(dtype) → DiffusionPipeline` to return a pipeline with the specified `dtype`
 
         Arguments:
-            dtype (`torch.dtype`):
+            dtype (`mindspore.dtype`):
                 Returns a pipeline with the specified `dtype`
 
         Returns:
@@ -292,7 +294,7 @@ class DiffusionPipeline(ConfigMixin, PushToHubMixin):
     def dtype(self) -> ms.dtype:
         r"""
         Returns:
-            `torch.dtype`: The torch dtype on which the pipeline is located.
+            `mindspore.dtype`: The mindspore dtype on which the pipeline is located.
         """
         module_names, _ = self._get_signature_keys(self)
         modules = [getattr(self, n, None) for n in module_names]
@@ -329,8 +331,8 @@ class DiffusionPipeline(ConfigMixin, PushToHubMixin):
                     - A path to a *directory* (for example `./my_pipeline_directory/`) containing pipeline weights
                       saved using
                     [`~DiffusionPipeline.save_pretrained`].
-            mindspore_dtype (`str` or `torch.dtype`, *optional*):
-                Override the default `torch.dtype` and load the model with another dtype. If "auto" is passed, the
+            mindspore_dtype (`str` or `mindspore.dtype`, *optional*):
+                Override the default `mindspore.dtype` and load the model with another dtype. If "auto" is passed, the
                 dtype is automatically derived from the model's weights.
             custom_pipeline (`str`, *optional*):
 
@@ -362,9 +364,9 @@ class DiffusionPipeline(ConfigMixin, PushToHubMixin):
             cache_dir (`Union[str, os.PathLike]`, *optional*):
                 Path to a directory where a downloaded pretrained model configuration is cached if the standard cache
                 is not used.
-            resume_download (`bool`, *optional*, defaults to `False`):
-                Whether or not to resume downloading the model weights and configuration files. If set to `False`, any
-                incompletely downloaded files are deleted.
+            resume_download:
+                Deprecated and ignored. All downloads are now resumed by default when possible. Will be removed in v1
+                of Diffusers.
             proxies (`Dict[str, str]`, *optional*):
                 A dictionary of proxy servers to use by protocol or endpoint, for example, `{'http': 'foo.bar:3128',
                 'http://hostname': 'foo.bar:4012'}`. The proxies are used on each request.
@@ -381,7 +383,8 @@ class DiffusionPipeline(ConfigMixin, PushToHubMixin):
                 allowed by Git.
             custom_revision (`str`, *optional*):
                 The specific model version to use. It can be a branch name, a tag name, or a commit id similar to
-                `revision` when loading a custom pipeline from the Hub. Defaults to the latest stable 🤗 Diffusers version.
+                `revision` when loading a custom pipeline from the Hub. Defaults to the latest stable 🤗 Diffusers
+                version.
             mirror (`str`, *optional*):
                 Mirror source to resolve accessibility issues if you’re downloading a model in China. We do not
                 guarantee the timeliness or safety of the source, and you should refer to the mirror site for more
@@ -431,7 +434,7 @@ class DiffusionPipeline(ConfigMixin, PushToHubMixin):
         ```
         """
         cache_dir = kwargs.pop("cache_dir", None)
-        resume_download = kwargs.pop("resume_download", False)
+        resume_download = kwargs.pop("resume_download", None)
         force_download = kwargs.pop("force_download", False)
         proxies = kwargs.pop("proxies", None)
         local_files_only = kwargs.pop("local_files_only", None)
@@ -550,17 +553,18 @@ class DiffusionPipeline(ConfigMixin, PushToHubMixin):
         # import it here to avoid circular import
         from mindone.diffusers import pipelines
 
-        # 6. Load each module in the pipeline
+        # 6. device map delegation which is not supported in MindSpore
+        # 7. Load each module in the pipeline
         for name, (library_name, class_name) in logging.tqdm(init_dict.items(), desc="Loading pipeline components..."):
-            # 6.1 - now that JAX/Flax is an official framework of the library, we might load from Flax names
+            # 7.1 - now that JAX/Flax is an official framework of the library, we might load from Flax names
             class_name = class_name[4:] if class_name.startswith("Flax") else class_name
 
-            # 6.2 Define all importable classes
+            # 7.2 Define all importable classes
             is_pipeline_module = hasattr(pipelines, library_name)
             importable_classes = ALL_IMPORTABLE_CLASSES
             loaded_sub_model = None
 
-            # 6.3 Use passed sub model or load class_name from library_name
+            # 7.3 Use passed sub model or load class_name from library_name
             if name in passed_class_obj:
                 # if the model is in a pipeline module, then we load it from the pipeline
                 # check that passed_class_obj has correct parent class
@@ -633,7 +637,7 @@ class DiffusionPipeline(ConfigMixin, PushToHubMixin):
                     {"_".join([prefix, name]): component for name, component in connected_pipe.components.items()}
                 )
 
-        # 7. Potentially add passed objects if expected
+        # 8. Potentially add passed objects if expected
         missing_modules = set(expected_modules) - set(init_kwargs.keys())
         passed_modules = list(passed_class_obj.keys())
         optional_modules = pipeline_class._optional_components
@@ -646,16 +650,74 @@ class DiffusionPipeline(ConfigMixin, PushToHubMixin):
                 f"Pipeline {pipeline_class} expected {expected_modules}, but only {passed_modules} were passed."
             )
 
-        # 8. Instantiate the pipeline
+        # 9. Instantiate the pipeline
         model = pipeline_class(**init_kwargs)
 
-        # 9. Save where the model was instantiated from
+        # 10. Save where the model was instantiated from
         model.register_to_config(_name_or_path=pretrained_model_name_or_path)
         return model
 
     @property
     def name_or_path(self) -> str:
         return getattr(self.config, "_name_or_path", None)
+
+    def remove_all_hooks(self):
+        r"""
+        Removes all hooks that were added when using `enable_sequential_cpu_offload` or `enable_model_cpu_offload`.
+        """
+        raise NotImplementedError("`remove_all_hooks` is not implemented.")
+
+    def enable_model_cpu_offload(self, gpu_id: Optional[int] = None, device: str = "cuda"):
+        r"""
+        Offloads all models to CPU using accelerate, reducing memory usage with a low impact on performance. Compared
+        to `enable_sequential_cpu_offload`, this method moves one whole model at a time to the GPU when its `forward`
+        method is called, and the model remains in GPU until the next model runs. Memory savings are lower than with
+        `enable_sequential_cpu_offload`, but performance is much better due to the iterative execution of the `unet`.
+
+        Arguments:
+            gpu_id (`int`, *optional*):
+                The ID of the accelerator that shall be used in inference. If not specified, it will default to 0.
+            device (`torch.Device` or `str`, *optional*, defaults to "cuda"):
+                The PyTorch device type of the accelerator that shall be used in inference. If not specified, it will
+                default to "cuda".
+        """
+        raise NotImplementedError(
+            "`enable_model_cpu_offload` is not implemented. If you want to utilize the offload function, you can try the [capabilities provided by the framework itself](https://www.mindspore.cn/docs/zh-CN/master/model_train/parallel/memory_offload.html)."  # noqa: E501
+        )
+
+    def maybe_free_model_hooks(self):
+        r"""
+        Function that offloads all components, removes all model hooks that were added when using
+        `enable_model_cpu_offload` and then applies them again. In case the model has not been offloaded this function
+        is a no-op. Make sure to add this function to the end of the `__call__` function of your pipeline so that it
+        functions correctly when applying enable_model_cpu_offload.
+        """
+        raise NotImplementedError("`maybe_free_model_hooks` is not implemented.")
+
+    def enable_sequential_cpu_offload(self, gpu_id: Optional[int] = None, device: str = "cuda"):
+        r"""
+        Offloads all models to CPU using 🤗 Accelerate, significantly reducing memory usage. When called, the state
+        dicts of all `torch.nn.Module` components (except those in `self._exclude_from_cpu_offload`) are saved to CPU
+        and then moved to `torch.device('meta')` and loaded to GPU only when their specific submodule has its `forward`
+        method called. Offloading happens on a submodule basis. Memory savings are higher than with
+        `enable_model_cpu_offload`, but performance is lower.
+
+        Arguments:
+            gpu_id (`int`, *optional*):
+                The ID of the accelerator that shall be used in inference. If not specified, it will default to 0.
+            device (`torch.Device` or `str`, *optional*, defaults to "cuda"):
+                The PyTorch device type of the accelerator that shall be used in inference. If not specified, it will
+                default to "cuda".
+        """
+        raise NotImplementedError(
+            "`enable_sequential_cpu_offload` is not implemented. If you want to utilize the offload function, you can try the [capabilities provided by the framework itself](https://www.mindspore.cn/docs/zh-CN/master/model_train/parallel/memory_offload.html)."  # noqa: E501
+        )
+
+    def reset_device_map(self):
+        r"""
+        Resets the device maps (if any) to None.
+        """
+        raise NotImplementedError("`reset_device_map` is not implemented.")
 
     @classmethod
     @validate_hf_hub_args
@@ -695,9 +757,9 @@ class DiffusionPipeline(ConfigMixin, PushToHubMixin):
             force_download (`bool`, *optional*, defaults to `False`):
                 Whether or not to force the (re-)download of the model weights and configuration files, overriding the
                 cached versions if they exist.
-            resume_download (`bool`, *optional*, defaults to `False`):
-                Whether or not to resume downloading the model weights and configuration files. If set to `False`, any
-                incompletely downloaded files are deleted.
+            resume_download:
+                Deprecated and ignored. All downloads are now resumed by default when possible. Will be removed in v1
+                of Diffusers.
             proxies (`Dict[str, str]`, *optional*):
                 A dictionary of proxy servers to use by protocol or endpoint, for example, `{'http': 'foo.bar:3128',
                 'http://hostname': 'foo.bar:4012'}`. The proxies are used on each request.
@@ -750,7 +812,7 @@ class DiffusionPipeline(ConfigMixin, PushToHubMixin):
 
         """
         cache_dir = kwargs.pop("cache_dir", None)
-        resume_download = kwargs.pop("resume_download", False)
+        resume_download = kwargs.pop("resume_download", None)
         force_download = kwargs.pop("force_download", False)
         proxies = kwargs.pop("proxies", None)
         local_files_only = kwargs.pop("local_files_only", None)
@@ -954,7 +1016,6 @@ class DiffusionPipeline(ConfigMixin, PushToHubMixin):
 
             # Don't download index files of forbidden patterns either
             ignore_patterns = ignore_patterns + [f"{i}.index.*json" for i in ignore_patterns]
-
             re_ignore_pattern = [re.compile(fnmatch.translate(p)) for p in ignore_patterns]
             re_allow_pattern = [re.compile(fnmatch.translate(p)) for p in allow_patterns]
 
@@ -1043,6 +1104,18 @@ class DiffusionPipeline(ConfigMixin, PushToHubMixin):
                 optional_parameters.remove(name)
 
         return expected_modules, optional_parameters
+
+    @classmethod
+    def _get_signature_types(cls):
+        signature_types = {}
+        for k, v in inspect.signature(cls.__init__).parameters.items():
+            if inspect.isclass(v.annotation):
+                signature_types[k] = (v.annotation,)
+            elif get_origin(v.annotation) == Union:
+                signature_types[k] = get_args(v.annotation)
+            else:
+                logger.warning(f"cannot get type annotation for Parameter {k} of {cls}.")
+        return signature_types
 
     @property
     def components(self) -> Dict[str, Any]:
@@ -1159,3 +1232,226 @@ class DiffusionPipeline(ConfigMixin, PushToHubMixin):
 
         for module in modules:
             fn_recursive_set_mem_eff(module)
+
+    @classmethod
+    def from_pipe(cls, pipeline, **kwargs):
+        r"""
+        Create a new pipeline from a given pipeline. This method is useful to create a new pipeline from the existing
+        pipeline components without reallocating additional memory.
+
+        Arguments:
+            pipeline (`DiffusionPipeline`):
+                The pipeline from which to create a new pipeline.
+
+        Returns:
+            `DiffusionPipeline`:
+                A new pipeline with the same weights and configurations as `pipeline`.
+
+        Examples:
+
+        ```py
+        >>> from mindone.diffusers import StableDiffusionPipeline, StableDiffusionSAGPipeline
+
+        >>> pipe = StableDiffusionPipeline.from_pretrained("runwayml/stable-diffusion-v1-5")
+        >>> new_pipe = StableDiffusionSAGPipeline.from_pipe(pipe)
+        ```
+        """
+
+        original_config = dict(pipeline.config)
+        mindspore_dtype = kwargs.pop("mindspore_dtype", None)
+
+        # derive the pipeline class to instantiate
+        custom_pipeline = kwargs.pop("custom_pipeline", None)
+        custom_revision = kwargs.pop("custom_revision", None)
+
+        if custom_pipeline is not None:
+            pipeline_class = _get_custom_pipeline_class(custom_pipeline, revision=custom_revision)
+        else:
+            pipeline_class = cls
+
+        expected_modules, optional_kwargs = cls._get_signature_keys(pipeline_class)
+        # true_optional_modules are optional components with default value in signature so it is ok not to pass them to `__init__`
+        # e.g. `image_encoder` for StableDiffusionPipeline
+        parameters = inspect.signature(cls.__init__).parameters
+        true_optional_modules = set(
+            {k for k, v in parameters.items() if v.default != inspect._empty and k in expected_modules}
+        )
+
+        # get the class of each component based on its type hint
+        # e.g. {"unet": UNet2DConditionModel, "text_encoder": CLIPTextMode}
+        component_types = pipeline_class._get_signature_types()
+
+        pretrained_model_name_or_path = original_config.pop("_name_or_path", None)
+        # allow users pass modules in `kwargs` to override the original pipeline's components
+        passed_class_obj = {k: kwargs.pop(k) for k in expected_modules if k in kwargs}
+
+        original_class_obj = {}
+        for name, component in pipeline.components.items():
+            if name in expected_modules and name not in passed_class_obj:
+                # for model components, we will not switch over if the class does not matches the type hint in the new pipeline's signature
+                if (
+                    not isinstance(component, ModelMixin)
+                    or type(component) in component_types[name]
+                    or (component is None and name in cls._optional_components)
+                ):
+                    original_class_obj[name] = component
+                else:
+                    logger.warning(
+                        f"component {name} is not switched over to new pipeline because type does not match the expected."
+                        f" {name} is {type(component)} while the new pipeline expect {component_types[name]}."
+                        f" please pass the component of the correct type to the new pipeline. `from_pipe(..., {name}={name})`"
+                    )
+
+        # allow users pass optional kwargs to override the original pipelines config attribute
+        passed_pipe_kwargs = {k: kwargs.pop(k) for k in optional_kwargs if k in kwargs}
+        original_pipe_kwargs = {
+            k: original_config[k]
+            for k in original_config.keys()
+            if k in optional_kwargs and k not in passed_pipe_kwargs
+        }
+
+        # config attribute that were not expected by pipeline is stored as its private attribute
+        # (i.e. when the original pipeline was also instantiated with `from_pipe` from another pipeline that has this config)
+        # in this case, we will pass them as optional arguments if they can be accepted by the new pipeline
+        additional_pipe_kwargs = [
+            k[1:]
+            for k in original_config.keys()
+            if k.startswith("_") and k[1:] in optional_kwargs and k[1:] not in passed_pipe_kwargs
+        ]
+        for k in additional_pipe_kwargs:
+            original_pipe_kwargs[k] = original_config.pop(f"_{k}")
+
+        pipeline_kwargs = {
+            **passed_class_obj,
+            **original_class_obj,
+            **passed_pipe_kwargs,
+            **original_pipe_kwargs,
+            **kwargs,
+        }
+
+        # store unused config as private attribute in the new pipeline
+        unused_original_config = {
+            f"{'' if k.startswith('_') else '_'}{k}": v for k, v in original_config.items() if k not in pipeline_kwargs
+        }
+
+        missing_modules = (
+            set(expected_modules)
+            - set(pipeline._optional_components)
+            - set(pipeline_kwargs.keys())
+            - set(true_optional_modules)
+        )
+
+        if len(missing_modules) > 0:
+            raise ValueError(
+                f"Pipeline {pipeline_class} expected {expected_modules}, but only {set(list(passed_class_obj.keys()) + list(original_class_obj.keys()))} were passed"  # noqa: E501
+            )
+
+        new_pipeline = pipeline_class(**pipeline_kwargs)
+        if pretrained_model_name_or_path is not None:
+            new_pipeline.register_to_config(_name_or_path=pretrained_model_name_or_path)
+        new_pipeline.register_to_config(**unused_original_config)
+
+        if mindspore_dtype is not None:
+            new_pipeline.to(dtype=mindspore_dtype)
+
+        return new_pipeline
+
+
+class StableDiffusionMixin:
+    r"""
+    Helper for DiffusionPipeline with vae and unet.(mainly for LDM such as stable diffusion)
+    """
+
+    def enable_vae_slicing(self):
+        r"""
+        Enable sliced VAE decoding. When this option is enabled, the VAE will split the input tensor in slices to
+        compute decoding in several steps. This is useful to save some memory and allow larger batch sizes.
+        """
+        self.vae.enable_slicing()
+
+    def disable_vae_slicing(self):
+        r"""
+        Disable sliced VAE decoding. If `enable_vae_slicing` was previously enabled, this method will go back to
+        computing decoding in one step.
+        """
+        self.vae.disable_slicing()
+
+    def enable_vae_tiling(self):
+        r"""
+        Enable tiled VAE decoding. When this option is enabled, the VAE will split the input tensor into tiles to
+        compute decoding and encoding in several steps. This is useful for saving a large amount of memory and to allow
+        processing larger images.
+        """
+        self.vae.enable_tiling()
+
+    def disable_vae_tiling(self):
+        r"""
+        Disable tiled VAE decoding. If `enable_vae_tiling` was previously enabled, this method will go back to
+        computing decoding in one step.
+        """
+        self.vae.disable_tiling()
+
+    def enable_freeu(self, s1: float, s2: float, b1: float, b2: float):
+        r"""Enables the FreeU mechanism as in https://arxiv.org/abs/2309.11497.
+
+        The suffixes after the scaling factors represent the stages where they are being applied.
+
+        Please refer to the [official repository](https://github.com/ChenyangSi/FreeU) for combinations of the values
+        that are known to work well for different pipelines such as Stable Diffusion v1, v2, and Stable Diffusion XL.
+
+        Args:
+            s1 (`float`):
+                Scaling factor for stage 1 to attenuate the contributions of the skip features. This is done to
+                mitigate "oversmoothing effect" in the enhanced denoising process.
+            s2 (`float`):
+                Scaling factor for stage 2 to attenuate the contributions of the skip features. This is done to
+                mitigate "oversmoothing effect" in the enhanced denoising process.
+            b1 (`float`): Scaling factor for stage 1 to amplify the contributions of backbone features.
+            b2 (`float`): Scaling factor for stage 2 to amplify the contributions of backbone features.
+        """
+        raise NotImplementedError(
+            "FreeU is not implemented as it requires FFT which is not fully supported by MindSpore."
+        )
+
+    def disable_freeu(self):
+        """Disables the FreeU mechanism if enabled."""
+        raise NotImplementedError(
+            "FreeU is not implemented as it requires FFT which is not fully supported by MindSpore."
+        )
+
+    def fuse_qkv_projections(self, unet: bool = True, vae: bool = True):
+        """
+        Enables fused QKV projections. For self-attention modules, all projection matrices (i.e., query, key, value)
+        are fused. For cross-attention modules, key and value projection matrices are fused.
+
+        <Tip warning={true}>
+
+        This API is 🧪 experimental.
+
+        </Tip>
+
+        Args:
+            unet (`bool`, defaults to `True`): To apply fusion on the UNet.
+            vae (`bool`, defaults to `True`): To apply fusion on the VAE.
+        """
+        raise NotImplementedError(
+            "Not implemented now. If this function is urgently needed, please contact @townwish4git."
+        )
+
+    def unfuse_qkv_projections(self, unet: bool = True, vae: bool = True):
+        """Disable QKV projection fusion if enabled.
+
+        <Tip warning={true}>
+
+        This API is 🧪 experimental.
+
+        </Tip>
+
+        Args:
+            unet (`bool`, defaults to `True`): To apply fusion on the UNet.
+            vae (`bool`, defaults to `True`): To apply fusion on the VAE.
+
+        """
+        raise NotImplementedError(
+            "Not implemented now. If this function is urgently needed, please contact @townwish4git."
+        )

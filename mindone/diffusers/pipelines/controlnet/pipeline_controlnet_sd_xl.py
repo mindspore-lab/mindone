@@ -24,6 +24,7 @@ import mindspore as ms
 from mindspore import ops
 
 from ....transformers import CLIPTextModel, CLIPTextModelWithProjection, CLIPVisionModelWithProjection
+from ...callbacks import MultiPipelineCallbacks, PipelineCallback
 from ...image_processor import PipelineImageInput, VaeImageProcessor
 from ...loaders import (
     FromSingleFileMixin,
@@ -33,11 +34,15 @@ from ...loaders import (
 )
 from ...models import AutoencoderKL, ControlNetModel, ImageProjection, UNet2DConditionModel
 from ...schedulers import KarrasDiffusionSchedulers
-from ...utils import deprecate, logging, scale_lora_layers, unscale_lora_layers
+from ...utils import deprecate, is_invisible_watermark_available, logging, scale_lora_layers, unscale_lora_layers
 from ...utils.mindspore_utils import randn_tensor
-from ..pipeline_utils import DiffusionPipeline
+from ..pipeline_utils import DiffusionPipeline, StableDiffusionMixin
 from ..stable_diffusion_xl.pipeline_output import StableDiffusionXLPipelineOutput
 from .multicontrolnet import MultiControlNetModel
+
+if is_invisible_watermark_available():
+    from ..stable_diffusion_xl.watermark import StableDiffusionXLWatermarker
+
 
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
 
@@ -87,8 +92,66 @@ EXAMPLE_DOC_STRING = """
 """
 
 
+# Copied from mindone.diffusers.pipelines.stable_diffusion.pipeline_stable_diffusion.retrieve_timesteps
+def retrieve_timesteps(
+    scheduler,
+    num_inference_steps: Optional[int] = None,
+    timesteps: Optional[List[int]] = None,
+    sigmas: Optional[List[float]] = None,
+    **kwargs,
+):
+    """
+    Calls the scheduler's `set_timesteps` method and retrieves timesteps from the scheduler after the call. Handles
+    custom timesteps. Any kwargs will be supplied to `scheduler.set_timesteps`.
+
+    Args:
+        scheduler (`SchedulerMixin`):
+            The scheduler to get timesteps from.
+        num_inference_steps (`int`):
+            The number of diffusion steps used when generating samples with a pre-trained model. If used, `timesteps`
+            must be `None`.
+        timesteps (`List[int]`, *optional*):
+            Custom timesteps used to override the timestep spacing strategy of the scheduler. If `timesteps` is passed,
+            `num_inference_steps` and `sigmas` must be `None`.
+        sigmas (`List[float]`, *optional*):
+            Custom sigmas used to override the timestep spacing strategy of the scheduler. If `sigmas` is passed,
+            `num_inference_steps` and `timesteps` must be `None`.
+
+    Returns:
+        `Tuple[ms.Tensor, int]`: A tuple where the first element is the timestep schedule from the scheduler and
+        the second element is the number of inference steps.
+    """
+    if timesteps is not None and sigmas is not None:
+        raise ValueError("Only one of `timesteps` or `sigmas` can be passed. Please choose one to set custom values")
+    if timesteps is not None:
+        accepts_timesteps = "timesteps" in set(inspect.signature(scheduler.set_timesteps).parameters.keys())
+        if not accepts_timesteps:
+            raise ValueError(
+                f"The current scheduler class {scheduler.__class__}'s `set_timesteps` does not support custom"
+                f" timestep schedules. Please check whether you are using the correct scheduler."
+            )
+        scheduler.set_timesteps(timesteps=timesteps, **kwargs)
+        timesteps = scheduler.timesteps
+        num_inference_steps = len(timesteps)
+    elif sigmas is not None:
+        accept_sigmas = "sigmas" in set(inspect.signature(scheduler.set_timesteps).parameters.keys())
+        if not accept_sigmas:
+            raise ValueError(
+                f"The current scheduler class {scheduler.__class__}'s `set_timesteps` does not support custom"
+                f" sigmas schedules. Please check whether you are using the correct scheduler."
+            )
+        scheduler.set_timesteps(sigmas=sigmas, **kwargs)
+        timesteps = scheduler.timesteps
+        num_inference_steps = len(timesteps)
+    else:
+        scheduler.set_timesteps(num_inference_steps, **kwargs)
+        timesteps = scheduler.timesteps
+    return timesteps, num_inference_steps
+
+
 class StableDiffusionXLControlNetPipeline(
     DiffusionPipeline,
+    StableDiffusionMixin,
     TextualInversionLoaderMixin,
     StableDiffusionXLLoraLoaderMixin,
     IPAdapterMixin,
@@ -147,7 +210,15 @@ class StableDiffusionXLControlNetPipeline(
         "feature_extractor",
         "image_encoder",
     ]
-    _callback_tensor_inputs = ["latents", "prompt_embeds", "negative_prompt_embeds"]
+    _callback_tensor_inputs = [
+        "latents",
+        "prompt_embeds",
+        "negative_prompt_embeds",
+        "add_text_embeds",
+        "add_time_ids",
+        "negative_pooled_prompt_embeds",
+        "negative_add_time_ids",
+    ]
 
     def __init__(
         self,
@@ -186,7 +257,12 @@ class StableDiffusionXLControlNetPipeline(
         self.control_image_processor = VaeImageProcessor(
             vae_scale_factor=self.vae_scale_factor, do_convert_rgb=True, do_normalize=False
         )
-        self.watermark = None
+        add_watermarker = add_watermarker if add_watermarker is not None else is_invisible_watermark_available()
+
+        if add_watermarker:
+            self.watermark = StableDiffusionXLWatermarker()
+        else:
+            self.watermark = None
 
         self.register_to_config(force_zeros_for_empty_prompt=force_zeros_for_empty_prompt)
 
@@ -293,7 +369,7 @@ class StableDiffusionXLControlNetPipeline(
                 text_input_ids = text_inputs.input_ids
                 untruncated_ids = tokenizer(prompt, padding="longest", return_tensors="np").input_ids
 
-                if untruncated_ids.shape[-1] >= text_input_ids.shape[-1] and not ops.equal(
+                if untruncated_ids.shape[-1] >= text_input_ids.shape[-1] and not np.array_equal(
                     text_input_ids, untruncated_ids
                 ):
                     removed_text = tokenizer.batch_decode(untruncated_ids[:, tokenizer.model_max_length - 1 : -1])
@@ -416,19 +492,17 @@ class StableDiffusionXLControlNetPipeline(
 
     # Copied from diffusers.pipelines.stable_diffusion.pipeline_stable_diffusion.StableDiffusionPipeline.encode_image
     def encode_image(self, image, num_images_per_prompt, output_hidden_states=None):
-        dtype = self.image_encoder.dtype
+        dtype = next(self.image_encoder.get_parameters()).dtype
 
         if not isinstance(image, ms.Tensor):
             image = self.feature_extractor(image, return_tensors="np").pixel_values
-            image = ms.Tensor.from_numpy(image)
+            image = ms.Tensor(image)
 
         image = image.to(dtype=dtype)
         if output_hidden_states:
-            image_enc_hidden_states = self.image_encoder(image, output_hidden_states=True)[-1][-2]
+            image_enc_hidden_states = self.image_encoder(image, output_hidden_states=True)[2][-2]
             image_enc_hidden_states = image_enc_hidden_states.repeat_interleave(num_images_per_prompt, dim=0)
-            uncond_image_enc_hidden_states = self.image_encoder(ops.zeros_like(image), output_hidden_states=True)[-1][
-                -2
-            ]
+            uncond_image_enc_hidden_states = self.image_encoder(ops.zeros_like(image), output_hidden_states=True)[2][-2]
             uncond_image_enc_hidden_states = uncond_image_enc_hidden_states.repeat_interleave(
                 num_images_per_prompt, dim=0
             )
@@ -750,7 +824,12 @@ class StableDiffusionXLControlNetPipeline(
 
     # Copied from diffusers.pipelines.stable_diffusion.pipeline_stable_diffusion.StableDiffusionPipeline.prepare_latents
     def prepare_latents(self, batch_size, num_channels_latents, height, width, dtype, generator, latents=None):
-        shape = (batch_size, num_channels_latents, height // self.vae_scale_factor, width // self.vae_scale_factor)
+        shape = (
+            batch_size,
+            num_channels_latents,
+            int(height) // self.vae_scale_factor,
+            int(width) // self.vae_scale_factor,
+        )
         if isinstance(generator, list) and len(generator) != batch_size:
             raise ValueError(
                 f"You have passed a list of generators of length {len(generator)}, but requested an effective batch"
@@ -789,20 +868,22 @@ class StableDiffusionXLControlNetPipeline(
         self.vae.to(dtype=ms.float32)
 
     # Copied from diffusers.pipelines.latent_consistency_models.pipeline_latent_consistency_text2img.LatentConsistencyModelPipeline.get_guidance_scale_embedding
-    def get_guidance_scale_embedding(self, w, embedding_dim=512, dtype=ms.float32):
+    def get_guidance_scale_embedding(
+        self, w: ms.Tensor, embedding_dim: int = 512, dtype: ms.Type = ms.float32
+    ) -> ms.Tensor:
         """
         See https://github.com/google-research/vdm/blob/dc27b98a554f65cdc654b800da5aa1846545d41b/model_vdm.py#L298
 
         Args:
-            w (`ms.Tensor`):
+            w (`mindspore.Tensor`):
                 Generate embedding vectors with a specified guidance scale to subsequently enrich timestep embeddings.
             embedding_dim (`int`, *optional*, defaults to 512):
                 Dimension of the embeddings to generate.
-            dtype:
+            dtype (`mindspore.dtype`, *optional*, defaults to `mindspore.float32`):
                 Data type of the generated embeddings.
 
         Returns:
-            `ms.Tensor`: Embedding vectors with shape `(len(w), embedding_dim)`.
+            `mindspore.Tensor`: Embedding vectors with shape `(len(w), embedding_dim)`.
         """
         assert len(w.shape) == 1
         w = w * 1000.0
@@ -852,6 +933,8 @@ class StableDiffusionXLControlNetPipeline(
         height: Optional[int] = None,
         width: Optional[int] = None,
         num_inference_steps: int = 50,
+        timesteps: List[int] = None,
+        sigmas: List[float] = None,
         denoising_end: Optional[float] = None,
         guidance_scale: float = 5.0,
         negative_prompt: Optional[Union[str, List[str]]] = None,
@@ -880,7 +963,9 @@ class StableDiffusionXLControlNetPipeline(
         negative_crops_coords_top_left: Tuple[int, int] = (0, 0),
         negative_target_size: Optional[Tuple[int, int]] = None,
         clip_skip: Optional[int] = None,
-        callback_on_step_end: Optional[Callable[[int, int, Dict], None]] = None,
+        callback_on_step_end: Optional[
+            Union[Callable[[int, int, Dict], None], PipelineCallback, MultiPipelineCallbacks]
+        ] = None,
         callback_on_step_end_tensor_inputs: List[str] = ["latents"],
         **kwargs,
     ):
@@ -896,11 +981,11 @@ class StableDiffusionXLControlNetPipeline(
             image (`ms.Tensor`, `PIL.Image.Image`, `np.ndarray`, `List[ms.Tensor]`, `List[PIL.Image.Image]`, `List[np.ndarray]`,:
                     `List[List[ms.Tensor]]`, `List[List[np.ndarray]]` or `List[List[PIL.Image.Image]]`):
                 The ControlNet input condition to provide guidance to the `unet` for generation. If the type is
-                specified as `ms.Tensor`, it is passed to ControlNet as is. `PIL.Image.Image` can also be
-                accepted as an image. The dimensions of the output image defaults to `image`'s dimensions. If height
-                and/or width are passed, `image` is resized accordingly. If multiple ControlNets are specified in
-                `init`, images must be passed as a list such that each element of the list can be correctly batched for
-                input to a single ControlNet.
+                specified as `mindspore.Tensor`, it is passed to ControlNet as is. `PIL.Image.Image` can also be accepted
+                as an image. The dimensions of the output image defaults to `image`'s dimensions. If height and/or
+                width are passed, `image` is resized accordingly. If multiple ControlNets are specified in `init`,
+                images must be passed as a list such that each element of the list can be correctly batched for input
+                to a single ControlNet.
             height (`int`, *optional*, defaults to `self.unet.config.sample_size * self.vae_scale_factor`):
                 The height in pixels of the generated image. Anything below 512 pixels won't work well for
                 [stabilityai/stable-diffusion-xl-base-1.0](https://huggingface.co/stabilityai/stable-diffusion-xl-base-1.0)
@@ -912,6 +997,14 @@ class StableDiffusionXLControlNetPipeline(
             num_inference_steps (`int`, *optional*, defaults to 50):
                 The number of denoising steps. More denoising steps usually lead to a higher quality image at the
                 expense of slower inference.
+            timesteps (`List[int]`, *optional*):
+                Custom timesteps to use for the denoising process with schedulers which support a `timesteps` argument
+                in their `set_timesteps` method. If not defined, the default behavior when `num_inference_steps` is
+                passed will be used. Must be in descending order.
+            sigmas (`List[float]`, *optional*):
+                Custom sigmas to use for the denoising process with schedulers which support a `sigmas` argument in
+                their `set_timesteps` method. If not defined, the default behavior when `num_inference_steps` is passed
+                will be used.
             denoising_end (`float`, *optional*):
                 When specified, determines the fraction (between 0.0 and 1.0) of the total denoising process to be
                 completed before it is intentionally prematurely terminated. As a result, the returned sample will
@@ -955,10 +1048,10 @@ class StableDiffusionXLControlNetPipeline(
                 argument.
             ip_adapter_image: (`PipelineImageInput`, *optional*): Optional image input to work with IP Adapters.
             ip_adapter_image_embeds (`List[ms.Tensor]`, *optional*):
-                Pre-generated image embeddings for IP-Adapter. It should be a list of length same as number of IP-adapters.
-                Each element should be a tensor of shape `(batch_size, num_images, emb_dim)`. It should contain the negative image embedding
-                if `do_classifier_free_guidance` is set to `True`.
-                If not provided, embeddings are computed from the `ip_adapter_image` input argument.
+                Pre-generated image embeddings for IP-Adapter. It should be a list of length same as number of
+                IP-adapters. Each element should be a tensor of shape `(batch_size, num_images, emb_dim)`. It should
+                contain the negative image embedding if `do_classifier_free_guidance` is set to `True`. If not
+                provided, embeddings are computed from the `ip_adapter_image` input argument.
             output_type (`str`, *optional*, defaults to `"pil"`):
                 The output format of the generated image. Choose between `PIL.Image` or `np.array`.
             return_dict (`bool`, *optional*, defaults to `False`):
@@ -1010,15 +1103,15 @@ class StableDiffusionXLControlNetPipeline(
             clip_skip (`int`, *optional*):
                 Number of layers to be skipped from CLIP while computing the prompt embeddings. A value of 1 means that
                 the output of the pre-final layer will be used for computing the prompt embeddings.
-            callback_on_step_end (`Callable`, *optional*):
-                A function that calls at the end of each denoising steps during the inference. The function is called
-                with the following arguments: `callback_on_step_end(self: DiffusionPipeline, step: int, timestep: int,
-                callback_kwargs: Dict)`. `callback_kwargs` will include a list of all tensors as specified by
-                `callback_on_step_end_tensor_inputs`.
+            callback_on_step_end (`Callable`, `PipelineCallback`, `MultiPipelineCallbacks`, *optional*):
+                A function or a subclass of `PipelineCallback` or `MultiPipelineCallbacks` that is called at the end of
+                each denoising step during the inference. with the following arguments: `callback_on_step_end(self:
+                DiffusionPipeline, step: int, timestep: int, callback_kwargs: Dict)`. `callback_kwargs` will include a
+                list of all tensors as specified by `callback_on_step_end_tensor_inputs`.
             callback_on_step_end_tensor_inputs (`List`, *optional*):
                 The list of tensor inputs for the `callback_on_step_end` function. The tensors specified in the list
                 will be passed as `callback_kwargs` argument. You will only be able to include variables listed in the
-                `._callback_tensor_inputs` attribute of your pipeine class.
+                `._callback_tensor_inputs` attribute of your pipeline class.
 
         Examples:
 
@@ -1043,6 +1136,9 @@ class StableDiffusionXLControlNetPipeline(
                 "1.0.0",
                 "Passing `callback_steps` as an input argument to `__call__` is deprecated, consider using `callback_on_step_end`",
             )
+
+        if isinstance(callback_on_step_end, (PipelineCallback, MultiPipelineCallbacks)):
+            callback_on_step_end_tensor_inputs = callback_on_step_end.tensor_inputs
 
         controlnet = self.controlnet
 
@@ -1170,8 +1266,7 @@ class StableDiffusionXLControlNetPipeline(
             assert False
 
         # 5. Prepare timesteps
-        self.scheduler.set_timesteps(num_inference_steps)
-        timesteps = self.scheduler.timesteps
+        timesteps, num_inference_steps = retrieve_timesteps(self.scheduler, num_inference_steps, timesteps, sigmas)
         self._num_timesteps = len(timesteps)
 
         # 6. Prepare latent variables
@@ -1364,6 +1459,12 @@ class StableDiffusionXLControlNetPipeline(
                     latents = callback_outputs.pop("latents", latents)
                     prompt_embeds = callback_outputs.pop("prompt_embeds", prompt_embeds)
                     negative_prompt_embeds = callback_outputs.pop("negative_prompt_embeds", negative_prompt_embeds)
+                    add_text_embeds = callback_outputs.pop("add_text_embeds", add_text_embeds)
+                    negative_pooled_prompt_embeds = callback_outputs.pop(
+                        "negative_pooled_prompt_embeds", negative_pooled_prompt_embeds
+                    )
+                    add_time_ids = callback_outputs.pop("add_time_ids", add_time_ids)
+                    negative_add_time_ids = callback_outputs.pop("negative_add_time_ids", negative_add_time_ids)
 
                 # call the callback, if provided
                 if i == len(timesteps) - 1 or ((i + 1) > num_warmup_steps and (i + 1) % self.scheduler.order == 0):

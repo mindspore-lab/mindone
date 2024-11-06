@@ -104,6 +104,12 @@ def parse_train_args(parser):
     parser.add_argument("--device_target", type=str, default="Ascend", help="Ascend or GPU")
     parser.add_argument("--max_device_memory", type=str, default=None, help="e.g. `30GB` for 910a, `59GB` for 910b")
     parser.add_argument("--mode", default=0, type=int, help="Specify the mode: 0 for graph mode, 1 for pynative mode")
+    parser.add_argument(
+        "--save_graphs",
+        type=int,
+        default=0,
+        help="save IR graphs in different level for debugging, 0 - not save, 1 - save intermediate graphs, 2 - save more information",
+    )
     parser.add_argument("--use_parallel", default=False, type=str2bool, help="use parallel")
     parser.add_argument(
         "--parallel_mode", default="data", type=str, choices=["data", "optim"], help="parallel mode: data, optim"
@@ -129,6 +135,7 @@ def parse_train_args(parser):
         "bool True: ModelArts auto resume training.",
     )
     parser.add_argument("--optim", default="adamw", type=str, help="optimizer")
+    parser.add_argument("--zero_stage", default=0, type=int, help="ZeRO stage")
     parser.add_argument(
         "--betas",
         type=float,
@@ -142,13 +149,13 @@ def parse_train_args(parser):
     parser.add_argument(
         "--group_strategy",
         type=str,
-        default="norm_and_bias",
+        default=None,
         help="Grouping strategy for weight decay. If `norm_and_bias`, weight decay filter list is [beta, gamma, bias]. \
-                If None, filter list is [layernorm, bias]. Default: norm_and_bias",
+                If None, filter list is [layernorm, bias]. Default: None",
     )
 
     parser.add_argument("--weight_decay", default=1e-6, type=float, help="Weight decay.")
-    parser.add_argument("--seed", default=3407, type=int, help="data path")
+    parser.add_argument("--seed", default=3407, type=int, help="global random seed")
     parser.add_argument("--warmup_steps", default=1000, type=int, help="warmup steps")
     parser.add_argument("--batch_size", default=10, type=int, help="batch size")
     parser.add_argument(
@@ -318,6 +325,18 @@ def parse_train_args(parser):
         default=None,
         type=str2bool,
         help="whether to enable flash attention.",
+    )
+    parser.add_argument(
+        "--enable_sequence_parallelism",
+        default=False,
+        type=str2bool,
+        help="whether to enable sequence parallelism. Default is False",
+    )
+    parser.add_argument(
+        "--sequence_parallel_shards",
+        default=1,
+        type=int,
+        help="The number of shards in sequence parallel. Default is 1.",
     )
     parser.add_argument("--drop_overflow_update", default=True, type=str2bool, help="drop overflow update")
     parser.add_argument("--loss_scaler_type", default="dynamic", type=str, help="dynamic or static")

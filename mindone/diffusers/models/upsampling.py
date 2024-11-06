@@ -110,7 +110,6 @@ class Upsample2D(nn.Cell):
         self.use_conv_transpose = use_conv_transpose
         self.name = name
         self.interpolate = interpolate
-        conv_cls = nn.Conv2d
 
         if norm_type == "ln_norm":
             self.norm = LayerNorm(channels, eps, elementwise_affine)
@@ -137,7 +136,7 @@ class Upsample2D(nn.Cell):
         elif use_conv:
             if kernel_size is None:
                 kernel_size = 3
-            conv = conv_cls(
+            conv = nn.Conv2d(
                 self.channels,
                 self.out_channels,
                 kernel_size=kernel_size,

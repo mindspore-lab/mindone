@@ -96,7 +96,7 @@ class ConsistencyModelPipeline(DiffusionPipeline):
             latents = latents.to(dtype=dtype)
 
         # scale the initial noise by the standard deviation required by the scheduler
-        latents = latents * self.scheduler.init_noise_sigma
+        latents = (latents * self.scheduler.init_noise_sigma).to(dtype)
         return latents
 
     # Follows diffusers.VaeImageProcessor.postprocess
@@ -111,7 +111,7 @@ class ConsistencyModelPipeline(DiffusionPipeline):
         if output_type == "ms":
             return sample
 
-        # Equivalent to diffusers.VaeImageProcessor.pt_to_numpy
+        # Equivalent to diffusers.VaeImageProcessor.ms_to_numpy
         sample = sample.permute((0, 2, 3, 1)).numpy()
         if output_type == "np":
             return sample

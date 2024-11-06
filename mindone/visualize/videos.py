@@ -1,4 +1,5 @@
 import os
+from fractions import Fraction
 from typing import Union
 
 import av
@@ -24,10 +25,14 @@ def create_video_from_rgb_numpy_arrays(image_arrays, output_file, fps: Union[int
 
     # Create the output container and video stream
     container = av.open(output_file, mode="w")
-    stream = container.add_stream("libx264", rate=f"{fps:.4f}")  # BUG: OverflowError: value too large to convert to int
+    stream = container.add_stream(
+        "libx264", rate=Fraction(f"{fps:.4f}")
+    )  # BUG: OverflowError: value too large to convert to int
     stream.width = width
     stream.height = height
     stream.pix_fmt = "yuv420p"
+
+    # stream.time_base = av.Rational(1, fps)
 
     # Write the frames to the video stream
     for image in image_arrays:

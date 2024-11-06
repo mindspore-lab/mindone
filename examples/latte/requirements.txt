@@ -5,3 +5,6 @@ safetensors
 albumentations
 ftfy
 regex
+torch
+av
+tqdm

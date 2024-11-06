@@ -250,7 +250,9 @@ class StableDiffusionDepth2ImgPipeline(DiffusionPipeline, TextualInversionLoader
             text_input_ids = text_inputs.input_ids
             untruncated_ids = self.tokenizer(prompt, padding="longest", return_tensors="np").input_ids
 
-            if untruncated_ids.shape[-1] >= text_input_ids.shape[-1] and not ops.equal(text_input_ids, untruncated_ids):
+            if untruncated_ids.shape[-1] >= text_input_ids.shape[-1] and not np.array_equal(
+                text_input_ids, untruncated_ids
+            ):
                 removed_text = self.tokenizer.batch_decode(untruncated_ids[:, self.tokenizer.model_max_length - 1 : -1])
                 logger.warning(
                     "The following part of your input was truncated because CLIP can only handle sequences up to"
@@ -347,9 +349,10 @@ class StableDiffusionDepth2ImgPipeline(DiffusionPipeline, TextualInversionLoader
             negative_prompt_embeds = negative_prompt_embeds.tile((1, num_images_per_prompt, 1))
             negative_prompt_embeds = negative_prompt_embeds.view(batch_size * num_images_per_prompt, seq_len, -1)
 
-        if isinstance(self, LoraLoaderMixin):
-            # Retrieve the original scale by scaling back the LoRA layers
-            unscale_lora_layers(self.text_encoder, lora_scale)
+        if self.text_encoder is not None:
+            if isinstance(self, LoraLoaderMixin):
+                # Retrieve the original scale by scaling back the LoRA layers
+                unscale_lora_layers(self.text_encoder, lora_scale)
 
         return prompt_embeds, negative_prompt_embeds
 

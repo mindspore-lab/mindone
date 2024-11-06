@@ -126,7 +126,7 @@ def image_grid(imgs, rows, cols):
 
 def main(args):
     # init
-    device_id, _, _ = init_env(
+    rank_id, device_num = init_env(
         args.ms_mode,
         seed=args.seed,
         jit_level=args.jit_level,
@@ -137,7 +137,7 @@ def main(args):
     set_logger(
         name="",
         output_dir=args.save_path,
-        rank=0,
+        rank=rank_id,
         log_level=eval(args.log_level),
     )
 

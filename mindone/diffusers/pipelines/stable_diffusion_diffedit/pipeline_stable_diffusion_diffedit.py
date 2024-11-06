@@ -31,7 +31,7 @@ from ...models import AutoencoderKL, UNet2DConditionModel
 from ...schedulers import DDIMInverseScheduler, KarrasDiffusionSchedulers
 from ...utils import PIL_INTERPOLATION, BaseOutput, deprecate, logging, scale_lora_layers, unscale_lora_layers
 from ...utils.mindspore_utils import randn_tensor
-from ..pipeline_utils import DiffusionPipeline
+from ..pipeline_utils import DiffusionPipeline, StableDiffusionMixin
 from ..stable_diffusion import StableDiffusionPipelineOutput
 from ..stable_diffusion.safety_checker import StableDiffusionSafetyChecker
 
@@ -64,7 +64,7 @@ EXAMPLE_DOC_STRING = """
         >>> import mindspore as ms
         >>> from io import BytesIO
 
-        >>> from mindone.diffusers import StableDiffusionDiffEditPipeline, DDIMScheduler
+        >>> from mindone.diffusers import StableDiffusionDiffEditPipeline, DDIMScheduler, DDIMInverseScheduler
 
 
         >>> def download_image(url):
@@ -80,8 +80,8 @@ EXAMPLE_DOC_STRING = """
         ...     "stabilityai/stable-diffusion-2-1", mindspore_dtype=ms.float16
         ... )
 
-        >>> pipeline.scheduler = DDIMScheduler.from_config(pipeline.scheduler.config)
-        >>> pipeline.inverse_scheduler = DDIMInverseScheduler.from_config(pipeline.scheduler.config)
+        >>> pipe.scheduler = DDIMScheduler.from_config(pipe.scheduler.config)
+        >>> pipe.inverse_scheduler = DDIMInverseScheduler.from_config(pipe.scheduler.config)
 
         >>> mask_prompt = "A bowl of fruits"
         >>> prompt = "A bowl of pears"
@@ -172,7 +172,7 @@ def preprocess(image):
 def preprocess_mask(mask, batch_size: int = 1):
     if not isinstance(mask, ms.Tensor):
         # preprocess mask
-        if isinstance(mask, PIL.Image.Image) or isinstance(mask, np.ndarray):
+        if isinstance(mask, (PIL.Image.Image, np.ndarray)):
             mask = [mask]
 
         if isinstance(mask, list):
@@ -222,7 +222,9 @@ def preprocess_mask(mask, batch_size: int = 1):
     return mask
 
 
-class StableDiffusionDiffEditPipeline(DiffusionPipeline, TextualInversionLoaderMixin, LoraLoaderMixin):
+class StableDiffusionDiffEditPipeline(
+    DiffusionPipeline, StableDiffusionMixin, TextualInversionLoaderMixin, LoraLoaderMixin
+):
     r"""
     <Tip warning={true}>
 
@@ -458,11 +460,12 @@ class StableDiffusionDiffEditPipeline(DiffusionPipeline, TextualInversionLoaderM
                 truncation=True,
                 return_tensors="np",
             )
-            text_input_ids = ms.Tensor(text_inputs.input_ids)
+            text_input_ids = text_inputs.input_ids
             untruncated_ids = self.tokenizer(prompt, padding="longest", return_tensors="np").input_ids
-            untruncated_ids = ms.Tensor(untruncated_ids)
 
-            if untruncated_ids.shape[-1] >= text_input_ids.shape[-1] and not ops.equal(text_input_ids, untruncated_ids):
+            if untruncated_ids.shape[-1] >= text_input_ids.shape[-1] and not np.array_equal(
+                text_input_ids, untruncated_ids
+            ):
                 removed_text = self.tokenizer.batch_decode(untruncated_ids[:, self.tokenizer.model_max_length - 1 : -1])
                 logger.warning(
                     "The following part of your input was truncated because CLIP can only handle sequences up to"
@@ -470,16 +473,16 @@ class StableDiffusionDiffEditPipeline(DiffusionPipeline, TextualInversionLoaderM
                 )
 
             if hasattr(self.text_encoder.config, "use_attention_mask") and self.text_encoder.config.use_attention_mask:
-                attention_mask = text_inputs.attention_mask
+                attention_mask = ms.tensor(text_inputs.attention_mask)
             else:
                 attention_mask = None
 
             if clip_skip is None:
-                prompt_embeds = self.text_encoder(text_input_ids, attention_mask=attention_mask)
+                prompt_embeds = self.text_encoder(ms.tensor(text_input_ids), attention_mask=attention_mask)
                 prompt_embeds = prompt_embeds[0]
             else:
                 prompt_embeds = self.text_encoder(
-                    text_input_ids, attention_mask=attention_mask, output_hidden_states=True
+                    ms.tensor(text_input_ids), attention_mask=attention_mask, output_hidden_states=True
                 )
                 # Access the `hidden_states` first, that contains a tuple of
                 # all the hidden states from the encoder layers. Then index into
@@ -559,9 +562,10 @@ class StableDiffusionDiffEditPipeline(DiffusionPipeline, TextualInversionLoaderM
             negative_prompt_embeds = negative_prompt_embeds.tile((1, num_images_per_prompt, 1))
             negative_prompt_embeds = negative_prompt_embeds.view(batch_size * num_images_per_prompt, seq_len, -1)
 
-        if isinstance(self, LoraLoaderMixin):
-            # Retrieve the original scale by scaling back the LoRA layers
-            unscale_lora_layers(self.text_encoder, lora_scale)
+        if self.text_encoder is not None:
+            if isinstance(self, LoraLoaderMixin):
+                # Retrieve the original scale by scaling back the LoRA layers
+                unscale_lora_layers(self.text_encoder, lora_scale)
 
         return prompt_embeds, negative_prompt_embeds
 
@@ -715,7 +719,12 @@ class StableDiffusionDiffEditPipeline(DiffusionPipeline, TextualInversionLoaderM
 
     # Copied from diffusers.pipelines.stable_diffusion.pipeline_stable_diffusion.StableDiffusionPipeline.prepare_latents
     def prepare_latents(self, batch_size, num_channels_latents, height, width, dtype, generator, latents=None):
-        shape = (batch_size, num_channels_latents, height // self.vae_scale_factor, width // self.vae_scale_factor)
+        shape = (
+            batch_size,
+            num_channels_latents,
+            int(height) // self.vae_scale_factor,
+            int(width) // self.vae_scale_factor,
+        )
         if isinstance(generator, list) and len(generator) != batch_size:
             raise ValueError(
                 f"You have passed a list of generators of length {len(generator)}, but requested an effective batch"
@@ -726,7 +735,7 @@ class StableDiffusionDiffEditPipeline(DiffusionPipeline, TextualInversionLoaderM
             latents = randn_tensor(shape, generator=generator, dtype=dtype)
 
         # scale the initial noise by the standard deviation required by the scheduler
-        latents = latents * self.scheduler.init_noise_sigma
+        latents = (latents * self.scheduler.init_noise_sigma).to(dtype)
         return latents
 
     def prepare_image_latents(self, image, batch_size, dtype, generator=None):
@@ -1225,7 +1234,7 @@ class StableDiffusionDiffEditPipeline(DiffusionPipeline, TextualInversionLoaderM
         callback: Optional[Callable[[int, int, ms.Tensor], None]] = None,
         callback_steps: int = 1,
         cross_attention_kwargs: Optional[Dict[str, Any]] = None,
-        clip_ckip: int = None,
+        clip_skip: int = None,
     ):
         r"""
         The call function to the pipeline for generation.
@@ -1345,7 +1354,7 @@ class StableDiffusionDiffEditPipeline(DiffusionPipeline, TextualInversionLoaderM
             prompt_embeds=prompt_embeds,
             negative_prompt_embeds=negative_prompt_embeds,
             lora_scale=text_encoder_lora_scale,
-            clip_skip=clip_ckip,
+            clip_skip=clip_skip,
         )
         # For classifier free guidance, we need to do two forward passes.
         # Here we concatenate the unconditional and text embeddings into a single batch

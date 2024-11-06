@@ -14,6 +14,7 @@
 
 # DISCLAIMER: This file is strongly influenced by https://github.com/LuChengTHU/dpm-solver and https://github.com/NVlabs/edm
 
+import math
 from typing import List, Optional, Tuple, Union
 
 import numpy as np
@@ -46,6 +47,10 @@ class EDMDPMSolverMultistepScheduler(SchedulerMixin, ConfigMixin):
             range is [0.2, 80.0].
         sigma_data (`float`, *optional*, defaults to 0.5):
             The standard deviation of the data distribution. This is set to 0.5 in the EDM paper [1].
+        sigma_schedule (`str`, *optional*, defaults to `karras`):
+            Sigma schedule to compute the `sigmas`. By default, we the schedule introduced in the EDM paper
+            (https://arxiv.org/abs/2206.00364). Other acceptable value is "exponential". The exponential schedule was
+            incorporated in this model: https://huggingface.co/stabilityai/cosxl.
         num_train_timesteps (`int`, defaults to 1000):
             The number of diffusion steps to train the model.
         solver_order (`int`, defaults to 2):
@@ -64,10 +69,9 @@ class EDMDPMSolverMultistepScheduler(SchedulerMixin, ConfigMixin):
             The threshold value for dynamic thresholding. Valid only when `thresholding=True` and
             `algorithm_type="dpmsolver++"`.
         algorithm_type (`str`, defaults to `dpmsolver++`):
-            Algorithm type for the solver; can be `dpmsolver++` or `sde-dpmsolver++`. The
-            `dpmsolver++` type implements the algorithms in the
-            [DPMSolver++](https://huggingface.co/papers/2211.01095) paper. It is recommended to use `dpmsolver++` or
-            `sde-dpmsolver++` with `solver_order=2` for guided sampling like in Stable Diffusion.
+            Algorithm type for the solver; can be `dpmsolver++` or `sde-dpmsolver++`. The `dpmsolver++` type implements
+            the algorithms in the [DPMSolver++](https://huggingface.co/papers/2211.01095) paper. It is recommended to
+            use `dpmsolver++` or `sde-dpmsolver++` with `solver_order=2` for guided sampling like in Stable Diffusion.
         solver_type (`str`, defaults to `midpoint`):
             Solver type for the second-order solver; can be `midpoint` or `heun`. The solver type slightly affects the
             sample quality, especially for a small number of steps. It is recommended to use `midpoint` solvers.
@@ -79,8 +83,8 @@ class EDMDPMSolverMultistepScheduler(SchedulerMixin, ConfigMixin):
             richness. This can stabilize the sampling of the SDE variant of DPMSolver for small number of inference
             steps, but sometimes may result in blurring.
         final_sigmas_type (`str`, defaults to `"zero"`):
-            The final `sigma` value for the noise schedule during the sampling process. If `"sigma_min"`, the final sigma
-            is the same as the last sigma in the training schedule. If `zero`, the final sigma is set to 0.
+            The final `sigma` value for the noise schedule during the sampling process. If `"sigma_min"`, the final
+            sigma is the same as the last sigma in the training schedule. If `zero`, the final sigma is set to 0.
     """
 
     _compatibles = []
@@ -92,6 +96,7 @@ class EDMDPMSolverMultistepScheduler(SchedulerMixin, ConfigMixin):
         sigma_min: float = 0.002,
         sigma_max: float = 80.0,
         sigma_data: float = 0.5,
+        sigma_schedule: str = "karras",
         num_train_timesteps: int = 1000,
         prediction_type: str = "epsilon",
         rho: float = 7.0,
@@ -116,7 +121,7 @@ class EDMDPMSolverMultistepScheduler(SchedulerMixin, ConfigMixin):
             if solver_type in ["logrho", "bh1", "bh2"]:
                 self.register_to_config(solver_type="midpoint")
             else:
-                raise NotImplementedError(f"{solver_type} does is not implemented for {self.__class__}")
+                raise NotImplementedError(f"{solver_type} is not implemented for {self.__class__}")
 
         if algorithm_type not in ["dpmsolver++", "sde-dpmsolver++"] and final_sigmas_type == "zero":
             raise ValueError(
@@ -124,7 +129,11 @@ class EDMDPMSolverMultistepScheduler(SchedulerMixin, ConfigMixin):
             )
 
         ramp = ms.tensor(np.linspace(0, 1, num_train_timesteps), dtype=ms.float32)
-        sigmas = self._compute_sigmas(ramp)
+        if sigma_schedule == "karras":
+            sigmas = self._compute_karras_sigmas(ramp)
+        elif sigma_schedule == "exponential":
+            sigmas = self._compute_exponential_sigmas(ramp)
+
         self.timesteps = self.precondition_noise(sigmas)
 
         self.sigmas = self.sigmas = ops.cat([sigmas, ops.zeros(1, dtype=sigmas.dtype)])
@@ -144,7 +153,7 @@ class EDMDPMSolverMultistepScheduler(SchedulerMixin, ConfigMixin):
     @property
     def step_index(self):
         """
-        The index counter for current timestep. It will increae 1 after each scheduler step.
+        The index counter for current timestep. It will increase 1 after each scheduler step.
         """
         return self._step_index
 
@@ -233,10 +242,13 @@ class EDMDPMSolverMultistepScheduler(SchedulerMixin, ConfigMixin):
 
         self.num_inference_steps = num_inference_steps
 
-        ramp = np.linspace(0, 1, self.num_inference_steps)
-        sigmas = self._compute_sigmas(ramp)
+        ramp = ms.tensor(np.linspace(0, 1, self.num_inference_steps))
+        if self.config.sigma_schedule == "karras":
+            sigmas = self._compute_karras_sigmas(ramp)
+        elif self.config.sigma_schedule == "exponential":
+            sigmas = self._compute_exponential_sigmas(ramp)
 
-        sigmas = ms.tensor(sigmas, dtype=ms.float32)
+        sigmas = sigmas.to(ms.float32)
         self.timesteps = self.precondition_noise(sigmas)
 
         if self.config.final_sigmas_type == "sigma_min":
@@ -259,8 +271,8 @@ class EDMDPMSolverMultistepScheduler(SchedulerMixin, ConfigMixin):
         self._step_index = None
         self._begin_index = None
 
-    # Taken from https://github.com/crowsonkb/k-diffusion/blob/686dbad0f39640ea25c8a8c6a6e56bb40eacefa2/k_diffusion/sampling.py#L17
-    def _compute_sigmas(self, ramp, sigma_min=None, sigma_max=None) -> ms.Tensor:
+    # Copied from diffusers.schedulers.scheduling_edm_euler.EDMEulerScheduler._compute_karras_sigmas
+    def _compute_karras_sigmas(self, ramp, sigma_min=None, sigma_max=None) -> ms.Tensor:
         """Constructs the noise schedule of Karras et al. (2022)."""
 
         sigma_min = sigma_min or self.config.sigma_min
@@ -270,6 +282,17 @@ class EDMDPMSolverMultistepScheduler(SchedulerMixin, ConfigMixin):
         min_inv_rho = sigma_min ** (1 / rho)
         max_inv_rho = sigma_max ** (1 / rho)
         sigmas = (max_inv_rho + ramp * (min_inv_rho - max_inv_rho)) ** rho
+        return sigmas
+
+    # Copied from diffusers.schedulers.scheduling_edm_euler.EDMEulerScheduler._compute_exponential_sigmas
+    def _compute_exponential_sigmas(self, ramp, sigma_min=None, sigma_max=None) -> ms.Tensor:
+        """Implementation closely follows k-diffusion.
+
+        https://github.com/crowsonkb/k-diffusion/blob/6ab5146d4a5ef63901326489f31f1d8e7dd36b48/k_diffusion/sampling.py#L26
+        """
+        sigma_min = sigma_min or self.config.sigma_min
+        sigma_max = sigma_max or self.config.sigma_max
+        sigmas = ms.tensor(np.linspace(math.log(sigma_min), math.log(sigma_max), len(ramp))).exp().flip((0,))
         return sigmas
 
     # Copied from diffusers.schedulers.scheduling_ddpm.DDPMScheduler._threshold_sample

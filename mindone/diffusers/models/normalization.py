@@ -184,7 +184,8 @@ class AdaLayerNormContinuous(nn.Cell):
             raise ValueError(f"unknown norm_type {norm_type}")
 
     def construct(self, x: ms.Tensor, conditioning_embedding: ms.Tensor) -> ms.Tensor:
-        emb = self.linear(self.silu(conditioning_embedding))
+        # convert back to the original dtype in case `conditioning_embedding`` is upcasted to float32 (needed for hunyuanDiT)
+        emb = self.linear(self.silu(conditioning_embedding).to(x.dtype))
         scale, shift = ops.chunk(emb, 2, axis=1)
         x = self.norm(x) * (1 + scale)[:, None, :] + shift[:, None, :]
         return x
@@ -308,8 +309,6 @@ class GroupNorm(nn.Cell):
     separately over the each group. :math:`\gamma` and :math:`\beta` are learnable
     per-channel affine transform parameter vectors of size :attr:`num_channels` if
     :attr:`affine` is ``True``.
-    The standard-deviation is calculated via the biased estimator, equivalent to
-    `torch.var(input, unbiased=False)`.
 
     This layer uses statistics computed from input data in both training and
     evaluation modes.
@@ -363,7 +362,7 @@ class GroupNorm(nn.Cell):
             self.bias = None
 
     def construct(self, x: Tensor):
-        x = group_norm(x, self.num_groups, self.weight, self.bias, self.eps)
+        x = group_norm(x, self.num_groups, self.weight.to(x.dtype), self.bias.to(x.dtype), self.eps)
         return x
 
 
