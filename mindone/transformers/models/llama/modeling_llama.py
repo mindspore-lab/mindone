@@ -1238,7 +1238,10 @@ class LlamaForSequenceClassification(LlamaPreTrainedModel):
         #         loss = self.loss_fct_single_label_classification(pooled_logits.view(-1, self.num_labels), labels.view(-1).int())
         #     elif problem_type == 2:  #"multi_label_classification"
         #         loss = self.loss_fct_multi_label_classification(pooled_logits, labels)
-        loss = self.loss_fct_single_label_classification(pooled_logits.view(-1, self.num_labels), labels.view(-1).int())
+        if pooled_logits is not None
+            loss = self.loss_fct_single_label_classification(pooled_logits.view(-1, self.num_labels), labels.view(-1).int())
+        else:
+            loss = -1.
 
 
         if not return_dict:
