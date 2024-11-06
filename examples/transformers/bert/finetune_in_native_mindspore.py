@@ -50,7 +50,7 @@ def main():
             batch[k] = np.stack([f[k] for f in features]) if isinstance(v, np.ndarray) else np.array([f[k] for f in features])
         return batch
 
-    batch_size, num_epochs = 1, 3
+    batch_size, num_epochs = 8, 3
     train_dataloader = ms.dataset.GeneratorDataset(HF2MSDataset(small_train_dataset), column_names="item")
     train_dataloader = train_dataloader.batch(batch_size=batch_size, per_batch_map=ms_data_collator)
     train_dataloader = train_dataloader.repeat(1)

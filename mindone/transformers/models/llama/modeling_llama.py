@@ -23,6 +23,7 @@ from typing import List, Optional, Tuple, Union
 
 import mindspore as ms
 from mindspore import nn, ops, Tensor, Parameter
+from mindspore.common import initializer as init
 
 from transformers import LlamaConfig, GenerationConfig
 from transformers.utils import (
@@ -598,8 +599,20 @@ class LlamaPreTrainedModel(PreTrainedModel):
     _supports_quantized_cache = False
     _supports_static_cache = False
 
-    def _init_weights(self, module):
-        raise NotImplementedError
+    def _init_weights(self, cell):
+        std = self.config.initializer_range
+        if isinstance(cell, nn.Dense):
+            cell.weight.set_data(
+                init.initializer(init.Normal(mean=0., sigma=std), cell.weight.shape, cell.weight.dtype)
+            )
+            if cell.bias is not None:
+                cell.bias.set_data(init.initializer(init.Zero(), cell.bias.shape, cell.bias.dtype))
+        elif isinstance(cell, nn.Embedding):
+            cell.embedding_table.set_data(
+                init.initializer(init.Normal(mean=0., sigma=std), cell.embedding_table.shape, cell.embedding_table.dtype)
+            )
+            if cell.padding_idx is not None:
+                cell.embedding_table.data[cell.padding_idx] = 0.
 
 
 LLAMA_INPUTS_DOCSTRING = r"""
