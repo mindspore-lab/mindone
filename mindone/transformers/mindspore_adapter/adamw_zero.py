@@ -86,6 +86,7 @@ class AdamWeightDecayZeRO1(nn.Optimizer):
         self.map = ops.Map()
         self.rank = get_rank() if _is_parallel() else 0
         self.group_size = get_group_size() if _is_parallel() else 1
+        self.is_parallel = _is_parallel()
 
         # group for split
         if shard_size == 1 or not _is_parallel():
@@ -131,10 +132,11 @@ class AdamWeightDecayZeRO1(nn.Optimizer):
         self.moments2 = self._param_init_op(self._parameters, prefix="adam_v", init="zeros", dtype=momentum_dtype)
         self.all_gather_ops = self._init_all_gather_ops(self._parameters, group=comm_group)
 
-        self.all_reduce_op = ops.AllReduce()
-        self.mean = context.get_auto_parallel_context("gradients_mean")
-        self.degree = context.get_auto_parallel_context("device_num")
-        self.degree = 1. / self.degree
+        if _is_parallel():
+            self.all_reduce_op = ops.AllReduce()
+            self.mean = context.get_auto_parallel_context("gradients_mean")
+            self.degree = context.get_auto_parallel_context("device_num")
+            self.degree = 1. / self.degree
 
         total_num = len(self.all_gather_ops)
         split_num = sum([1 for _op in self.all_gather_ops if isinstance(_op, ops.AllGather)])
@@ -210,12 +212,16 @@ class AdamWeightDecayZeRO1(nn.Optimizer):
 
     @ms.jit
     def grad_reduce(self, grads):
-        mean, degree, shard_id, shard_size = self.mean, self.degree, self.shard_id, self.shard_size
 
-        if self.shard_size == 1:
-            return self.grad_allreduce_(mean, degree, grads)
+        if self.is_parallel:
+            mean, degree, shard_id, shard_size = self.mean, self.degree, self.shard_id, self.shard_size
+
+            if self.shard_size == 1:
+                return self.grad_allreduce_(mean, degree, grads)
+            else:
+                return self.grad_allreduce_and_split(mean, degree, shard_id, shard_size, grads)
         else:
-            return self.grad_allreduce_and_split(mean, degree, shard_id, shard_size, grads)
+            return grads
 
     @ms.jit
     def grad_allreduce_and_split(self, mean, degree, shard_id, shard_size, gradients):
@@ -356,18 +362,21 @@ class AdamWeightDecayZeRO2(AdamWeightDecayZeRO1):
 
     def __init__(self, *args, **kwargs):
         super(AdamWeightDecayZeRO2, self).__init__(*args, **kwargs)
-        self.reduce_scatter_op = ops.ReduceScatter()
+        self.reduce_scatter_op = ops.ReduceScatter() if _is_parallel() else nn.Identity()
 
     def grad_reduce(self, grads):
 
-        mean, degree, shard_id, shard_size = self.mean, self.degree, self.shard_id, self.shard_size
+        if self.is_parallel:
+            mean, degree, shard_id, shard_size = self.mean, self.degree, self.shard_id, self.shard_size
 
-        if self.shard_size == 1:
-            return self.grad_allreduce_(mean, degree, grads)
-        elif self.group_size == self.shard_size:
-            return self.grad_reducescatter_and_split(mean, degree, shard_id, shard_size, grads)
+            if self.shard_size == 1:
+                return self.grad_allreduce_(mean, degree, grads)
+            elif self.group_size == self.shard_size:
+                return self.grad_reducescatter_and_split(mean, degree, shard_id, shard_size, grads)
+            else:
+                return self.grad_allreduce_and_split(mean, degree, shard_id, shard_size, grads)
         else:
-            return self.grad_allreduce_and_split(mean, degree, shard_id, shard_size, grads)
+            return grads
 
     def grad_reducescatter_and_split(self, mean, degree, shard_id, shard_size, gradients):
         gradients = ops.HyperMap()(
