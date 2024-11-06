@@ -24,7 +24,7 @@ from opensora.models.causalvideovae.model.registry import ModelRegistry
 from opensora.models.causalvideovae.model.utils.model_utils import resolve_str_to_obj
 from opensora.npu_config import npu_config
 from opensora.train.commons import create_loss_scaler, parse_args
-from opensora.utils.utils import get_precision
+from opensora.utils.utils import get_precision, save_diffusers_json
 
 from mindone.trainers.callback import EvalSaveCallback, OverflowMonitor, ProfilerCallback
 from mindone.trainers.checkpoint import CheckpointManager, resume_train_network
@@ -67,7 +67,8 @@ def main(args):
         if rank_id == 0:
             logger.warning(f"Model will be initialized from config file {args.model_config}.")
         ae = model_cls.from_config(args.model_config, dtype=dtype, use_recompute=args.use_recompute)
-
+    json_name = os.path.join(args.output_dir, "config.json")
+    save_diffusers_json(ae.config, json_name)
     if args.load_from_checkpoint is not None:
         ae.init_from_ckpt(args.load_from_checkpoint)
     # discriminator (D)
