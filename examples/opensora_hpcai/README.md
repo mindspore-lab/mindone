@@ -862,7 +862,7 @@ All experiments are tested on ascend 910* with mindspore 2.3.1 graph mode.
 
 | model name   | cards  | batch size | resolution   |  precision  |  jit level    | graph compile | s/step    | PSNR   | SSIM  | recipe |
 | :--:         | :--:   | :--:       | :--:         | :--:       | :--:         | :--:          | :--:      | :--:   | :--:      | :--:      |
-| VAE-3D  |  8     | 1          | 17x256x256   | bf16       |  O1           |  5 mins      | 1.09     |  29.29   | 0.88  | [yaml](configs/vae/train/stage3.yaml) |
+| VAE-3D  |  8     | 1          | 17x256x256   | bf16       |  O1           |  5 mins      | 1.09     |  29.02   | 0.87  | [yaml](configs/vae/train/stage3.yaml) |
 
 
 Note that we train with mixed video ang image strategy i.e. `--mixed_strategy=mixed_video_image` for stage 3 instead of random number of frames (`mixed_video_random`). Random frame training will be supported in the future.
