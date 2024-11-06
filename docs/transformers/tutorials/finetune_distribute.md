@@ -3,8 +3,9 @@
 
 The Trainer supports distributed training and mixed precision, which means you can also use it in a script. To enable both of these features:
 
+- Add the is_distribute argument to enable distribute training.
 - Add the fp16 argument to enable mixed precision.
-- Set the number of GPUs to use with the `worker_num` argument.
+- Set the number of global/local GPUs to use with the `worker_num`/`local_worker_num` argument.
 
 ```shell
 msrun --bind_core=True --worker_num=8 --local_worker_num=8 --master_port=9000 --log_dir=outputs/parallel_logs \

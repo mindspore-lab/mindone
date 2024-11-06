@@ -685,6 +685,9 @@ class TrainingArguments:
     )
     seed: int = field(default=42, metadata={"help": "Random seed that will be set at the beginning of training."})
     data_seed: Optional[int] = field(default=None, metadata={"help": "Random seed to be used with data samplers."})
+    jit_mode: bool = field(
+        default=False, metadata={"help": "Whether or not to use MindSpore jit trace"}
+    )
     bf16: bool = field(
         default=False,
         metadata={
