@@ -1080,8 +1080,6 @@ class LlamaForCausalLM(LlamaPreTrainedModel):
         if inputs_embeds is not None and past_length == 0:
             model_inputs = {"inputs_embeds": inputs_embeds}
         else:
-            # The `contiguous()` here is necessary to have a static stride during decoding. torchdynamo otherwise
-            # recompiles graphs as the stride of the inputs is a guard. Ref: https://github.com/huggingface/transformers/pull/29114
             # TODO: use `next_tokens` directly instead.
             if not isinstance(input_ids, Tensor):
                 input_ids = Tensor(input_ids, dtype=ms.int32)

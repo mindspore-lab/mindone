@@ -32,8 +32,7 @@ from transformers.trainer_utils import (
 def enable_full_determinism(seed: int):
     """
     Helper function for reproducible behavior during distributed training. See
-    - https://pytorch.org/docs/stable/notes/randomness.html for pytorch
-    - https://www.tensorflow.org/api_docs/python/tf/config/experimental/enable_op_determinism for tensorflow
+    - https://www.mindspore.cn/docs/zh-CN/r2.3.1/index.html for MindSpore
     """
     # set seed first
     set_seed(seed)
@@ -48,7 +47,7 @@ def enable_full_determinism(seed: int):
 
 def set_seed(seed: int):
     """
-    Helper function for reproducible behavior to set the seed in `random`, `numpy`, `torch` and/or `tf` (if installed).
+    Helper function for reproducible behavior to set the seed in `random`, `numpy`, `mindspore`.
 
     Args:
         seed (`int`):

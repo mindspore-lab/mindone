@@ -141,7 +141,7 @@ def get_scheduler(
     Args:
         name (`str` or `SchedulerType`):
             The name of the scheduler to use.
-        optimizer (`torch.optim.Optimizer`):
+        optimizer (`mindspore.nn.Optimizer`):
             The optimizer that will be used during training.
         num_warmup_steps (`int`, *optional*):
             The number of warmup steps to do. This is not required by all schedulers (hence the argument being

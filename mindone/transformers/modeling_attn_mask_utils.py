@@ -263,10 +263,10 @@ def _prepare_4d_causal_attention_mask(
     Args:
         attention_mask (`ms.Tensor` or `None`):
             A 2D attention mask of shape `(batch_size, key_value_length)`
-        input_shape (`tuple(int)` or `list(int)` or `torch.Size`):
+        input_shape (`tuple(int)` or `list(int)`):
             The input shape should be a tuple that defines `(batch_size, query_length)`.
         inputs_embeds (`ms.Tensor`):
-            The embedded inputs as a torch Tensor.
+            The embedded inputs as a mindspore Tensor.
         past_key_values_length (`int`):
             The length of the key value cache.
         sliding_window (`int`, *optional*):
@@ -310,8 +310,8 @@ def _prepare_4d_attention_mask(mask: ms.Tensor, dtype: ms.Type, tgt_len: Optiona
     Args:
         mask (`ms.Tensor` or `None`):
             A 2D attention mask of shape `(batch_size, key_value_length)`
-        dtype (`torch.dtype`):
-            The torch dtype the created mask shall have.
+        dtype (`ms.dtype`):
+            The mindspore dtype the created mask shall have.
         tgt_len (`int`):
             The target length or query length the created mask shall have.
     """
@@ -330,8 +330,8 @@ def _create_4d_causal_attention_mask(
     Args:
         input_shape (`tuple(int)` or `list(int)`):
             The input shape should be a tuple that defines `(batch_size, query_length)`.
-        dtype (`torch.dtype`):
-            The torch dtype the created mask shall have.
+        dtype (`ms.dtype`):
+            The mindspore dtype the created mask shall have.
         sliding_window (`int`, *optional*):
             If the model uses windowed attention, a sliding window should be passed.
     """

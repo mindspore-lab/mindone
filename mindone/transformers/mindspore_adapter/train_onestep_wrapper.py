@@ -155,7 +155,7 @@ class TrainOneStepWrapper(nn.Cell):
 
         if not self.accum_steps > 1:
             if self.clip_grad_fn is not None:
-                grads = self.clip_grad_fn(grads, self.clip_value)   # FIXME: compare with torch.nn.utils.clip_grad_norm_
+                grads = self.clip_grad_fn(grads, self.clip_value)
             loss = ops.depend(loss, self.optimizer(grads))
             if self.ema is not None:
                 self.ema.ema_update()

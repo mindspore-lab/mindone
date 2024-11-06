@@ -193,7 +193,7 @@ def shard_checkpoint(
     </Tip>
 
     Args:
-        state_dict (`Dict[str, torch.Tensor]`): The state dictionary of a model to save.
+        state_dict (`Dict[str, ms.Tensor]`): The state dictionary of a model to save.
         max_shard_size (`int` or `str`, *optional*, defaults to `"10GB"`):
             The maximum size of each sub-checkpoint. If expressed as a string, needs to be digits followed by a unit
             (like `"5MB"`).
@@ -534,7 +534,7 @@ class MSPreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMix
 
         - **config_class** ([`PretrainedConfig`]) -- A subclass of [`PretrainedConfig`] to use as configuration class
           for this model architecture.
-        - **load_tf_weights** (`Callable`) -- A python *method* for loading a TensorFlow checkpoint in a PyTorch model,
+        - **load_tf_weights** (`Callable`) -- A python *method* for loading a TensorFlow checkpoint in a MindSpore model,
           taking as arguments:
 
             - **model** ([`PreTrainedModel`]) -- An instance of the model on which to load the TensorFlow checkpoint.
@@ -590,7 +590,7 @@ class MSPreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMix
     @property
     def dummy_inputs(self) -> Dict[str, ms.Tensor]:
         """
-        `Dict[str, torch.Tensor]`: Dummy inputs to do a forward pass in the network.
+        `Dict[str, ms.Tensor]`: Dummy inputs to do a forward pass in the network.
         """
         return {"input_ids": ms.tensor(DUMMY_INPUTS)}
 
@@ -746,7 +746,7 @@ class MSPreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMix
         if hard_check_only:
             if not cls._supports_sdpa:
                 raise ValueError(
-                    f"{cls.__name__} does not support an attention implementation through torch.nn.functional.scaled_dot_product_attention yet."
+                    f"{cls.__name__} does not support an attention implementation through `scaled_dot_product_attention` yet."
                     " Please request the support for this architecture: https://github.com/huggingface/transformers/issues/28005. If you believe"
                     ' this error is a bug, please open an issue in Transformers GitHub repository and load your model with the argument `attn_implementation="eager"` meanwhile. Example: `model = AutoModel.from_pretrained("openai/whisper-tiny", attn_implementation="eager")`'
                 )
@@ -802,7 +802,7 @@ class MSPreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMix
         Initialize the weights. This method should be overridden by derived class and is
         the only initialization method that will be called when loading a checkpoint
         using `from_pretrained`. Any attempt to initialize outside of this function
-        will be useless as the torch.nn.init function are all replaced with skip.
+        will be useless as the mindspore.common.initializer function are all replaced with skip.
         """
         pass
 
@@ -827,7 +827,7 @@ class MSPreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMix
             new_num_tokens (`int`, *optional*):
                 The new number of tokens in the embedding matrix. Increasing the size will add newly initialized
                 vectors at the end. Reducing the size will remove vectors from the end. If not provided or `None`, just
-                returns a pointer to the input tokens `torch.nn.Embedding` module of the model without doing anything.
+                returns a pointer to the input tokens `mindspore.nn.Embedding` module of the model without doing anything.
             pad_to_multiple_of (`int`, *optional*):
                 If set will pad the embedding matrix to a multiple of the provided value.If `new_num_tokens` is set to
                 `None` will just pad the embedding to a multiple of `pad_to_multiple_of`.
@@ -885,7 +885,7 @@ class MSPreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMix
 
                 Increasing the size will add newly initialized vectors at the end. Reducing the size will remove
                 vectors from the end. If not provided or `None`, just returns a pointer to the input tokens
-                `torch.nn.Embedding` module of the model without doing anything.
+                `mindspore.nn.Embedding` module of the model without doing anything.
             pad_to_multiple_of (`int`, *optional*):
                 If set will pad the embedding matrix to a multiple of the provided value. If `new_num_tokens` is set to
                 `None` will just pad the embedding to a multiple of `pad_to_multiple_of`.
@@ -1066,13 +1066,13 @@ class MSPreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMix
                 Whether the process calling this is the main process or not. Useful when in distributed training like
                 TPUs and need to call this function on all processes. In this case, set `is_main_process=True` only on
                 the main process to avoid race conditions.
-            state_dict (nested dictionary of `torch.Tensor`):
+            state_dict (nested dictionary of `ms.Tensor`):
                 The state dictionary of the model to save. Will default to `self.state_dict()`, but can be used to only
                 save parts of the model or if special precautions need to be taken when recovering the state dictionary
                 of a model (like when using model parallelism).
             save_function (`Callable`):
                 The function to use to save the state dictionary. Useful on distributed training like TPUs when one
-                need to replace `torch.save` by another method.
+                need to replace `ms.save_checkpoint` by another method.
             push_to_hub (`bool`, *optional*, defaults to `False`):
                 Whether or not to push your model to the Hugging Face model hub after saving it. You can specify the
                 repository you want to push to with `repo_id` (will default to the name of `save_directory` in your
@@ -1139,7 +1139,7 @@ class MSPreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMix
         # Only save the model itself if we are using distributed training
         model_to_save = self  # we don't unwrap_model(self) in mindspore
 
-        # save the string version of dtype to the config, e.g. convert torch.float32 => "float32"
+        # save the string version of dtype to the config, e.g. convert ms.float32 => "float32"
         # we currently don't use this setting automatically, but may start to use with v5
         dtype = get_parameter_dtype(model_to_save)
         model_to_save.config.torch_dtype = repr(dtype).split(".")[1]
@@ -1230,7 +1230,7 @@ class MSPreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMix
             # in distributed settings to avoid race conditions.
             weights_no_suffix = weights_name.replace(".bin", "").replace(".safetensors", "")
 
-            # make sure that file to be deleted matches format of sharded file, e.g. pytorch_model-00001-of-00005
+            # make sure that file to be deleted matches format of sharded file, e.g. mindspore_model-00001-of-00005
             filename_no_suffix = filename.replace(".bin", "").replace(".safetensors", "")
             reg = re.compile(r"(.*?)-\d{5}-of-\d{5}")
 
@@ -1284,7 +1284,7 @@ class MSPreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMix
         **kwargs,
     ):
         r"""
-        Instantiate a pretrained pytorch model from a pre-trained model configuration.
+        Instantiate a pretrained mindspore model from a pre-trained model configuration.
 
         The model is set in evaluation mode by default using `model.eval()` (Dropout modules are deactivated). To train
         the model, you should first set it back in training mode with `model.train()`.
@@ -1306,7 +1306,7 @@ class MSPreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMix
                     - A path or url to a *tensorflow index checkpoint file* (e.g, `./tf_model/model.ckpt.index`). In
                       this case, `from_tf` should be set to `True` and a configuration object should be provided as
                       `config` argument. This loading path is slower than converting the TensorFlow checkpoint in a
-                      PyTorch model using the provided conversion scripts and loading the PyTorch model afterwards.
+                      MindSpore model using the provided conversion scripts and loading the MindSpore model afterwards.
                     - A path or url to a model folder containing a *flax checkpoint file* in *.msgpack* format (e.g,
                       `./flax_model/` containing `flax_model.msgpack`). In this case, `from_flax` should be set to
                       `True`.
@@ -1329,7 +1329,7 @@ class MSPreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMix
                       save directory.
                     - The model is loaded by supplying a local directory as `pretrained_model_name_or_path` and a
                       configuration JSON file named *config.json* is found in the directory.
-            state_dict (`Dict[str, torch.Tensor]`, *optional*):
+            state_dict (`Dict[str, ms.Tensor]`, *optional*):
                 A state dictionary to use instead of a state dictionary loaded from saved weights file.
 
                 This option can be used if you want to create a model from a pretrained configuration but load your own
@@ -1383,9 +1383,9 @@ class MSPreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMix
                 Override the default `mindspore.Type` and load the model under a specific `dtype`. The different options
                 are:
 
-                1. `torch.float16` or `torch.bfloat16` or `torch.float`: load in a specified
+                1. `ms.float16` or `ms.bfloat16` or `ms.float32`: load in a specified
                   `dtype`, ignoring the model's `config.mindspore_dtype` if one exists. If not specified
-                  - the model will get loaded in `torch.float` (fp32).
+                  - the model will get loaded in `ms.float32` (fp32).
 
                 2. `"auto"` - A `mindspore_dtype` entry in the `config.json` file of the model will be
                   attempted to be used. If this entry isn't found then next check the `dtype` of the first weight in
@@ -1405,7 +1405,7 @@ class MSPreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMix
                 In case the relevant files are located inside a subfolder of the model repo on huggingface.co, you can
                 specify the folder name here.
             variant (`str`, *optional*):
-                If specified load weights from `variant` filename, *e.g.* pytorch_model.<variant>.bin. `variant` is
+                If specified load weights from `variant` filename, *e.g.* mindspore_model.<variant>.bin. `variant` is
                 ignored when using `from_tf` or `from_flax`.
             use_safetensors (`bool`, *optional*, defaults to `None`):
                 Whether or not to use `safetensors` checkpoints. Defaults to `None`. If not specified and `safetensors`
@@ -1444,10 +1444,10 @@ class MSPreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMix
         >>> # Update configuration during loading.
         >>> model = BertModel.from_pretrained("google-bert/bert-base-uncased", output_attentions=True)
         >>> assert model.config.output_attentions == True
-        >>> # Loading from a TF checkpoint file instead of a PyTorch model (slower, for example purposes, not runnable).
+        >>> # Loading from a TF checkpoint file instead of a MindSpore model (slower, for example purposes, not runnable).
         >>> config = BertConfig.from_json_file("./tf_model/my_tf_model_config.json")
         >>> model = BertModel.from_pretrained("./tf_model/my_tf_checkpoint.ckpt.index", from_tf=True, config=config)
-        >>> # Loading from a Flax checkpoint file instead of a PyTorch model (slower)
+        >>> # Loading from a Flax checkpoint file instead of a MindSpore model (slower)
         >>> model = BertModel.from_pretrained("google-bert/bert-base-uncased", from_flax=True)
         ```
 
@@ -1818,7 +1818,7 @@ class MSPreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMix
                 pass
             elif metadata.get("format") == "tf":
                 from_tf = True
-                logger.info("A TensorFlow safetensors file is being loaded in a PyTorch model.")
+                logger.info("A TensorFlow safetensors file is being loaded in a MindSpore model.")
             elif metadata.get("format") == "flax":
                 from_flax = True
                 logger.info("A Flax safetensors file is being loaded in a PyTorch model.")

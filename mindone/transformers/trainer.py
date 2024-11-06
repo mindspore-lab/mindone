@@ -13,6 +13,8 @@ import sys
 import tempfile
 import time
 import warnings
+
+import mindspore.dataset
 import numpy as np
 from collections.abc import Mapping
 from packaging import version
@@ -187,7 +189,7 @@ class Trainer:
         # Filter out quantized + compiled models
         if _is_quantized_and_base_model and hasattr(model, "_orig_mod"):
             raise ValueError(
-                "You cannot fine-tune quantized model with `torch.compile()` make sure to pass a non-compiled model when fine-tuning a quantized model with PEFT"
+                "You cannot fine-tune quantized model with `ms.jit()` or `ms.GRAPH_MODE` make sure to pass a non-compiled model when fine-tuning a quantized model with PEFT"
             )
 
         # At this stage the model is already loaded
@@ -551,7 +553,7 @@ class Trainer:
 
     def get_train_dataloader(self) -> ms.dataset.Dataset:
         """
-        Returns the training [`~torch.utils.data.DataLoader`].
+        Returns the training [`~mindspore.dataset.GeneratorDataset`].
 
         Will use no sampler if `train_dataset` does not implement `__len__`, a random sampler (adapted to distributed
         training if necessary) otherwise.
@@ -904,11 +906,8 @@ class Trainer:
 
         if DebugOption.UNDERFLOW_OVERFLOW in self.args.debug:
             if self.args.n_gpu > 1:
-                # nn.DataParallel(model) replicates the model, creating new variables and module
-                # references registered here no longer work on other gpus, breaking the module
                 raise ValueError(
-                    "Currently --debug underflow_overflow is not supported under DP. Please use DDP"
-                    " (torchrun or torch.distributed.launch (deprecated))."
+                    "Currently --debug underflow_overflow is not supported under DP."
                 )
             else:
                 raise NotImplementedError
@@ -1677,7 +1676,7 @@ class Trainer:
         model or subclass and override this method.
 
         Args:
-            inputs (`Dict[str, Union[torch.Tensor, Any]]`):
+            inputs (`Dict[str, Union[ms.Tensor, Any]]`):
                 The inputs and targets of the model.
 
         Returns:

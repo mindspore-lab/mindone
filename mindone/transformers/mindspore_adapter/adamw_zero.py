@@ -7,11 +7,13 @@ from mindspore.communication.management import GlobalComm, get_group_size, get_r
 from mindspore.ops import functional as F
 from mindspore.ops import operations as P
 
+from .utils import _is_parallel
 from .adamw import adamw_opt, fused_adam_weight_decay
 
 
 split_params = ops.MultitypeFuncGraph("split_params")
 update_params_with_all_gather = ops.MultitypeFuncGraph("update_params_with_all_gather")
+allreduce_op = ops.MultitypeFuncGraph("reduce_op")
 allreduce_and_split_op = ops.MultitypeFuncGraph("reduce_and_split_op")
 reducescatter_and_split_op = ops.MultitypeFuncGraph("reducescatter_and_split_op")
 
@@ -31,6 +33,16 @@ def split_params(shard_id, shard_size, param):
         # param = ops.Split(0, shard_size)(param)[shard_id]
         param = ops.chunk(param, shard_size, axis=0)[shard_id]
     return param
+
+
+@allreduce_op.register("Number", "Bool", "Function", "Tensor")
+def _tensors_allreduce(degree, mean, all_reduce_op, grad):
+    # allreduce
+    grad = all_reduce_op(grad)
+    if mean:
+        grad = F.tensor_mul(grad, F.cast(degree, F.dtype(grad)))
+
+    return grad
 
 
 @allreduce_and_split_op.register("Number", "Bool", "Function", "Number", "Number", "Tensor")
@@ -70,19 +82,27 @@ class AdamWeightDecayZeRO1(nn.Optimizer):
             enable_fuse=True, momentum_dtype=ms.float32
     ):
         super(AdamWeightDecayZeRO1, self).__init__(learning_rate, params, weight_decay)
+
         self.map = ops.Map()
-        self.rank = get_rank()
-        self.group_size = get_group_size()
+        self.rank = get_rank() if _is_parallel() else 0
+        self.group_size = get_group_size() if _is_parallel() else 1
 
         # group for split
-        if shard_size is None:
+        if shard_size == 1 or not _is_parallel():
+            comm_group = None
+            g_id = 0
+            self.shard_id = self.rank
+            self.shard_size = shard_size if _is_parallel() else 1
+            print(f"[WARNING] {self.__class__.__name__} shard_size is 1, will not shard optimizer parameter, recommended to use the `mindspore.nn.AdamWeightDecay`")
+
+        elif shard_size is None:
             comm_group = GlobalComm.WORLD_COMM_GROUP
             g_id = 0
             self.shard_id = self.rank
             self.shard_size = self.group_size
+
         else:
-            assert shard_size > 1
-            assert (shard_size <= self.group_size) and (self.group_size % shard_size == 0)
+            assert (1 < shard_size <= self.group_size) and (self.group_size % shard_size == 0)
             from mindspore.communication import create_group
 
             g_id = self.rank // shard_size
@@ -93,7 +113,7 @@ class AdamWeightDecayZeRO1(nn.Optimizer):
             self.shard_size = shard_size
 
         print(
-            f"WARNING: {self.__class__.__name__} \n"
+            f"[WARNING] {self.__class__.__name__} \n"
             f"      beta1/beta2/eps     : {beta1}/{beta2}/{eps} \n"
             f"      weight_decay        : {weight_decay} \n"
             f"      shard size          : {self.shard_size} \n"
@@ -120,14 +140,16 @@ class AdamWeightDecayZeRO1(nn.Optimizer):
         split_num = sum([1 for _op in self.all_gather_ops if isinstance(_op, ops.AllGather)])
         unsplit_num = total_num - split_num
         print(
-            f"WARNING: {self.__class__.__name__}, total param num: {total_num}, "
+            f"{self.__class__.__name__}, total param num: {total_num}, "
             f"split num: {split_num}, unsplit num: {unsplit_num}"
         )
 
         self.enable_fuse = enable_fuse
         if self.enable_fuse:
             self.fused_opt = ops.AdamWeightDecay()
-            self._split_parameters = self._param_init_op(self._parameters, prefix="adam_split_p", init="same", dtype=momentum_dtype)
+
+            if self.shard_size > 1:
+                self._split_parameters = self._param_init_op(self._parameters, prefix="adam_split_p", init="same", dtype=momentum_dtype)
 
             if momentum_dtype == ms.float16:
                 print(f"[ERROR] {self.__class__.__name__}, momentum dtype fp16, may cause `sdma error` on MindSpore 2.3.0")
@@ -148,13 +170,19 @@ class AdamWeightDecayZeRO1(nn.Optimizer):
         for p in params:
             s = p.shape
             dtype = dtype if dtype is not None else p.dtype
-            if s[0] % self.shard_size == 0:
+            if self.shard_size == 1:
+                if init == "same":
+                    new = Parameter(Tensor(p.asnumpy(), dtype=dtype), name=prefix + "." + p.name)
+                else:
+                    new = Parameter(initializer(init, shape=s, dtype=dtype), name=prefix + "." + p.name)
+                setattr(p, "split_op", False)
+            elif s[0] % self.shard_size == 0:
                 s = list(s)
                 s[0] = s[0] // self.shard_size
                 s = tuple(s)
                 if init == "same":
-                    new_np = p.asnumpy() # (6, 1000) -> (2, 3, 1000) -> (3, 1000)
-                    split_shape = (self.shard_size, -1, *new_np.shape[1:])
+                    new_np = p.asnumpy()
+                    split_shape = (self.shard_size, -1, *new_np.shape[1:])  # e.g. (6, 1000) -> (2, 3, 1000) -> (3, 1000)
                     new_np = np.reshape(new_np, split_shape)[self.shard_id]
                     new = Parameter(Tensor(new_np, dtype=dtype), name=prefix + "." + p.name)
                 else:
@@ -167,7 +195,7 @@ class AdamWeightDecayZeRO1(nn.Optimizer):
                 else:
                     new = Parameter(initializer(init, shape=p.shape, dtype=dtype), name=prefix + "." + p.name)
                 setattr(p, "split_op", False)
-                print(f"[WARNING] Split {new.name} fail, keep ori shape.")
+                print(f"[WARNING] {self.__class__.__name__} split {new.name} fail, keep ori shape.")
 
             if not isinstance(new, ms.Parameter):
                 print(f"p.name: {p.name}, type(p): {type(p)}, p.shape: {p.shape}, type(new): {type(new)}")
@@ -183,7 +211,11 @@ class AdamWeightDecayZeRO1(nn.Optimizer):
     @ms.jit
     def grad_reduce(self, grads):
         mean, degree, shard_id, shard_size = self.mean, self.degree, self.shard_id, self.shard_size
-        return self.grad_allreduce_and_split(mean, degree, shard_id, shard_size, grads)
+
+        if self.shard_size == 1:
+            return self.grad_allreduce_(mean, degree, grads)
+        else:
+            return self.grad_allreduce_and_split(mean, degree, shard_id, shard_size, grads)
 
     @ms.jit
     def grad_allreduce_and_split(self, mean, degree, shard_id, shard_size, gradients):
@@ -194,9 +226,20 @@ class AdamWeightDecayZeRO1(nn.Optimizer):
         return gradients
 
     @ms.jit
+    def grad_allreduce_(self, mean, degree, gradients):
+        gradients = ops.HyperMap()(
+            F.partial(allreduce_op, degree, mean, self.all_reduce_op),
+            gradients
+        )
+        return gradients
+
+    @ms.jit
     def construct(self, split_gradients):
         if self.enable_fuse:
-            self._optim_fuse(split_gradients)
+            if self.shard_size == 1:
+                self._optim_fuse_no_shard(split_gradients)
+            else:
+                self._optim_fuse(split_gradients)
         else:
             self._optim_custom(split_gradients)
 
@@ -273,11 +316,38 @@ class AdamWeightDecayZeRO1(nn.Optimizer):
                 self._split_parameters, self.moments1, self.moments2,
                 gradients, self.decay_flags, self.optim_filter)
 
-
         success = ops.depend(
             self.hyper_map(update_params_with_all_gather, self._parameters, self._split_parameters, self.all_gather_ops),
             success
         )
+
+        return success
+
+    def _optim_fuse_no_shard(self, split_gradients):
+        gradients = split_gradients
+
+        gradients = self.flatten_gradients(gradients)
+        weight_decay = self.get_weight_decay()
+        lr = self.get_lr()
+        self.assignadd(self.global_step, self.global_step_increase_tensor)
+
+        if self.is_group:
+            if self.is_group_lr:
+                success = self.hyper_map(
+                    F.partial(fused_adam_weight_decay, self.fused_opt, self.beta1, self.beta2, self.eps),
+                    lr, weight_decay, self._parameters, self.moments1,
+                    self.moments2, gradients, self.decay_flags, self.optim_filter)
+            else:
+                success = self.hyper_map(
+                    F.partial(fused_adam_weight_decay, self.fused_opt, self.beta1, self.beta2, self.eps, lr),
+                    weight_decay, self._parameters, self.moments1, self.moments2,
+                    gradients, self.decay_flags, self.optim_filter)
+        else:
+            success = self.hyper_map(
+                F.partial(fused_adam_weight_decay, self.fused_opt, self.beta1, self.beta2, self.eps, lr,
+                          weight_decay),
+                self._parameters, self.moments1, self.moments2,
+                gradients, self.decay_flags, self.optim_filter)
 
         return success
 
@@ -292,7 +362,9 @@ class AdamWeightDecayZeRO2(AdamWeightDecayZeRO1):
 
         mean, degree, shard_id, shard_size = self.mean, self.degree, self.shard_id, self.shard_size
 
-        if self.group_size == self.shard_size:
+        if self.shard_size == 1:
+            return self.grad_allreduce_(mean, degree, grads)
+        elif self.group_size == self.shard_size:
             return self.grad_reducescatter_and_split(mean, degree, shard_id, shard_size, grads)
         else:
             return self.grad_allreduce_and_split(mean, degree, shard_id, shard_size, grads)

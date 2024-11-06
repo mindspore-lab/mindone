@@ -59,7 +59,9 @@ def auto_mixed_precision(network, amp_level="O0", dtype=ms.float16):
     return network
 
 
-def convert_module_dtype(model, dtype=ms.float16, keep_norm_fp32=True):
+def auto_convert_module_dtype(model: nn.Cell, dtype=ms.float16, keep_norm_fp32=True):
+
+    dtype2str_map = {ms.float16: "fp16", ms.bfloat16: "bf16", ms.float32: "fp32"}
 
     if dtype not in (ms.float16, ms.bfloat16, ms.float32):
         raise ValueError(f"convert_module_dtype, not support dtype: {dtype}")
@@ -72,7 +74,6 @@ def convert_module_dtype(model, dtype=ms.float16, keep_norm_fp32=True):
 
             # filter norm parameters
             if keep_norm_fp32 and ("norm" in p.name):
-                # print(f"param {p.name} keep {p.dtype}") # disable print
                 k_num += 1
             # filter bool/int parameters
             elif p.dtype in (ms.bool_, ms.int32, ms.int64, ms.uint8):
@@ -83,6 +84,6 @@ def convert_module_dtype(model, dtype=ms.float16, keep_norm_fp32=True):
                 c_num += 1
                 p.set_dtype(dtype)
 
-        print(f"Convert `{type(model).__name__}` param to fp16, keep/modify num {k_num}/{c_num}.")
+        print(f"Convert `{type(model).__name__}` param to {dtype2str_map[dtype]}, keep/modify num {k_num}/{c_num}.")
 
     return model

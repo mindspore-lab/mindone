@@ -292,7 +292,7 @@ class BertSdpaSelfAttention(BertSelfAttention):
         if self.position_embedding_type != "absolute" or output_attentions or head_mask is not None:
             # TODO: Improve this warning with e.g. `model.config._attn_implementation = "manual"` once implemented.
             logger.warning_once(
-                "BertSdpaSelfAttention is used but `torch.nn.functional.scaled_dot_product_attention` does not support "
+                "BertSdpaSelfAttention is used but `scaled_dot_product_attention` does not support "
                 "non-absolute `position_embedding_type` or `output_attentions=True` or `head_mask`. Falling back to "
                 "the manual attention implementation, but specifying the manual implementation will be required from "
                 "Transformers version v5.0.0 onwards. This warning can be removed using the argument "
@@ -339,8 +339,6 @@ class BertSdpaSelfAttention(BertSelfAttention):
             # if encoder bi-directional self-attention `past_key_value` is always `None`
             past_key_value = (key_layer, value_layer)
 
-        # We dispatch to SDPA's Flash Attention or Efficient kernels via this `is_causal` if statement instead of an inline conditional assignment
-        # in SDPA to support both torch.compile's dynamic shapes and full graph options. An inline conditional prevents dynamic shapes from compiling.
         # The tgt_len > 1 is necessary to match with AttentionMaskConverter.to_causal_4d that does not create
         # a causal mask in case tgt_len == 1.
         # is_causal = (
@@ -1059,12 +1057,13 @@ class BertForPreTraining(BertPreTrainedModel):
 
         ```python
         >>> from transformers import AutoTokenizer, BertForPreTraining
-        >>> import torch
+        >>> import mindspore as ms
 
         >>> tokenizer = AutoTokenizer.from_pretrained("google-bert/bert-base-uncased")
         >>> model = BertForPreTraining.from_pretrained("google-bert/bert-base-uncased")
 
-        >>> inputs = tokenizer("Hello, my dog is cute", return_tensors="pt")
+        >>> inputs = tokenizer("Hello, my dog is cute")
+        >>> inputs = {k:ms.Tensor(v) for k, v in inputs.items()}
         >>> outputs = model(**inputs)
 
         >>> prediction_logits = outputs.prediction_logits
@@ -1391,14 +1390,14 @@ class BertForNextSentencePrediction(BertPreTrainedModel):
 
         ```python
         >>> from transformers import AutoTokenizer, BertForNextSentencePrediction
-        >>> import torch
+        >>> import mindspore as ms
 
         >>> tokenizer = AutoTokenizer.from_pretrained("google-bert/bert-base-uncased")
         >>> model = BertForNextSentencePrediction.from_pretrained("google-bert/bert-base-uncased")
 
         >>> prompt = "In Italy, pizza served in formal settings, such as at a restaurant, is presented unsliced."
         >>> next_sentence = "The sky is blue due to the shorter wavelength of blue light."
-        >>> encoding = tokenizer(prompt, next_sentence, return_tensors="pt")
+        >>> encoding = tokenizer(prompt, next_sentence)
 
         >>> outputs = model(**encoding, labels=ms.Tensor([1]))
         >>> logits = outputs.logits

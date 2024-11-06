@@ -62,6 +62,10 @@ At this point, you should follow the section corresponding to the framework you 
 
 <details open>
 
+!!! Note
+
+    Taking bert as an example, you can find the complete code in `examples/transformers/bert/finetune_with_mindspore_trainer.py`
+
 🤗 Transformers provides a Trainer class optimized for training 🤗 Transformers models, making it easier to start training without manually writing your own training loop. The Trainer API supports a wide range of training options and features such as logging, gradient accumulation, and mixed precision.
 
 Start by loading your model and specify the number of expected labels. From the Yelp Review dataset card, you know there are five labels:
@@ -72,7 +76,7 @@ Start by loading your model and specify the number of expected labels. From the 
 >>> model = BertForSequenceClassification.from_pretrained("google-bert/bert-base-cased", num_labels=5)
 ```
 
-!!! note
+!!! Note
 
     You will see a warning about some of the pretrained weights not being used and some weights being randomly initialized. Don’t worry, this is completely normal! The pretrained head of the BERT model is discarded, and replaced with a randomly initialized classification head. You will fine-tune this new model head on your sequence classification task, transferring the knowledge of the pretrained model to it.
 
@@ -123,6 +127,10 @@ Then fine-tune your model by calling train():
 ### Train in native MindSpore
 
 <details open>
+
+!!! Note
+
+    Taking bert as an example, you can find the complete code in `examples/transformers/bert/finetune_in_native_mindspore.py`
 
 Trainer takes care of the training loop and allows you to fine-tune a model in a single line of code. For users who prefer to write their own training loop, you can also fine-tune a 🤗 Transformers model in native MindSpore.
 

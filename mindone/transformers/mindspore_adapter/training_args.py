@@ -57,22 +57,6 @@ class MindSporeArguments:
         },
     )
 
-    mix_precision: Optional[str] = field(
-        default="O2",
-        metadata={
-            "help": (
-                ""
-            )
-        },
-    )
-    zero: Optional[str] = field(
-        default=None,
-        metadata={
-            "help": (
-                "Enable zero parallelism, select from [stage1, stage2, stage3]"
-            )
-        },
-    )
     adamw_enable_fuse: Optional[bool] = field(
         default=True,
         metadata={

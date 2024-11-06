@@ -61,7 +61,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="test")
     parser.add_argument("--ms_mode", type=int, default=0, help="0 is Graph, 1 is Pynative")
     parser.add_argument("--jit_level", type=str, default="O0")
-    parser.add_argument("--model_path", type=str, default="../hf_configs/meta-llama/Meta-Llama-3-8B")
+    parser.add_argument("--model_path", type=str, default="meta-llama/Meta-Llama-3-8B")
     parser.add_argument("--use_fa", type=ast.literal_eval, default=True)
     parser.add_argument("--use_cache", type=ast.literal_eval, default=True)
     parser.add_argument("--use_embed_input", type=ast.literal_eval, default=True)

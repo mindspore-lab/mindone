@@ -59,7 +59,7 @@ def run_llama3_generate_pt(args):
 if __name__ == '__main__':
 
     parser = argparse.ArgumentParser(description="test")
-    parser.add_argument("--model_path", type=str, default="../hf_configs/meta-llama/Meta-Llama-3-8B")
+    parser.add_argument("--model_path", type=str, default="meta-llama/Meta-Llama-3-8B")
     parser.add_argument("--use_fa", type=ast.literal_eval, default=False)  # unavailable
     parser.add_argument("--use_cache", type=ast.literal_eval, default=True)
     parser.add_argument("--use_embed_input", type=ast.literal_eval, default=True)

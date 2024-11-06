@@ -127,9 +127,9 @@ class TrainingArguments:
         prediction_loss_only (`bool`, *optional*, defaults to `False`):
             When performing evaluation and generating predictions, only returns the loss.
         per_device_train_batch_size (`int`, *optional*, defaults to 8):
-            The batch size per GPU/XPU/TPU/MPS/NPU core/CPU for training.
+            The batch size per NPU/GPU/XPU/TPU/MPS core/CPU for training.
         per_device_eval_batch_size (`int`, *optional*, defaults to 8):
-            The batch size per GPU/XPU/TPU/MPS/NPU core/CPU for evaluation.
+            The batch size per NPU/GPU/XPU/TPU/MPS core/CPU for evaluation.
         gradient_accumulation_steps (`int`, *optional*, defaults to 1):
             Number of updates steps to accumulate the gradients for, before performing a backward/update pass.
 
@@ -142,7 +142,7 @@ class TrainingArguments:
 
         eval_accumulation_steps (`int`, *optional*):
             Number of predictions steps to accumulate the output tensors for, before moving the results to the CPU. If
-            left unset, the whole predictions are accumulated on GPU/NPU/TPU before being moved to the CPU (faster but
+            left unset, the whole predictions are accumulated on NPU/GPU/TPU before being moved to the CPU (faster but
             requires more memory).
         eval_delay (`float`, *optional*):
             Number of epochs or steps to wait for before the first evaluation can be performed, depending on the
@@ -256,16 +256,11 @@ class TrainingArguments:
             Random seed to be used with data samplers. If not set, random generators for data sampling will use the
             same seed as `seed`. This can be used to ensure reproducibility of data sampling, independent of the model
             seed.
-        jit_mode (`bool`, *optional*, defaults to `False`):
-            Whether or not to use MindSpore jit trace.
         bf16 (`bool`, *optional*, defaults to `False`):
             Whether to use bf16 16-bit (mixed) precision training instead of 32-bit training. Requires Ampere or higher
             NVIDIA architecture or using CPU (use_cpu) or Ascend NPU. This is an experimental API and it may change.
         fp16 (`bool`, *optional*, defaults to `False`):
             Whether to use fp16 16-bit (mixed) precision training instead of 32-bit training.
-        fp16_opt_level (`str`, *optional*, defaults to 'O1'):
-            For `fp16` training, Apex AMP optimization level selected in ['O0', 'O1', 'O2', and 'O3']. See details on
-            the [Apex documentation](https://nvidia.github.io/apex/amp).
         fp16_backend (`str`, *optional*, defaults to `"auto"`):
             This argument is deprecated. Use `half_precision_backend` instead.
         half_precision_backend (`str`, *optional*, defaults to `"auto"`):
@@ -525,10 +520,10 @@ class TrainingArguments:
     )
 
     per_device_train_batch_size: int = field(
-        default=8, metadata={"help": "Batch size per GPU/TPU/MPS/NPU core/CPU for training."}
+        default=8, metadata={"help": "Batch size per NPU/GPU/TPU/MPS core/CPU for training."}
     )
     per_device_eval_batch_size: int = field(
-        default=8, metadata={"help": "Batch size per GPU/TPU/MPS/NPU core/CPU for evaluation."}
+        default=8, metadata={"help": "Batch size per NPU/GPU/TPU/MPS core/CPU for evaluation."}
     )
 
     gradient_accumulation_steps: int = field(
@@ -690,9 +685,6 @@ class TrainingArguments:
     )
     seed: int = field(default=42, metadata={"help": "Random seed that will be set at the beginning of training."})
     data_seed: Optional[int] = field(default=None, metadata={"help": "Random seed to be used with data samplers."})
-    jit_mode: bool = field(
-        default=False, metadata={"help": "Whether or not to use MindSpore jit trace"}
-    )
     bf16: bool = field(
         default=False,
         metadata={
@@ -732,7 +724,7 @@ class TrainingArguments:
         default=None,
         metadata={
             "help": (
-                "Whether to enable tf32 mode, available in Ampere and newer GPU architectures. This is an experimental"
+                "Whether to enable tf32 mode, not available on MindSpore 2.3.1. This is an experimental"
                 " API and it may change."
             )
         },
@@ -839,6 +831,14 @@ class TrainingArguments:
         metadata={"help": "The optimizer to use."},
     )
     optim_args: Optional[str] = field(default=None, metadata={"help": "Optional arguments to supply to optimizer."})
+    zero_stage: Optional[str] = field(
+        default=None,
+        metadata={
+            "help": (
+                "Enable ZeRO optimizer parallelism, select from [1, 2]"
+            )
+        },
+    )
     adafactor: bool = field(default=False, metadata={"help": "Whether or not to replace AdamW by Adafactor."})
     group_by_length: bool = field(
         default=False,
@@ -1179,11 +1179,29 @@ class TrainingArguments:
                 FutureWarning,
             )
             self.optim = OptimizerNames.ADAFACTOR
+        if self.zero_stage is not None:
+            if self.zero_stage not in [1, 2]:
+                raise NotImplementedError
+            zero_stage_2_optim = {
+                1: OptimizerNames.ADAMW_ZERO1_MINDSPORE,
+                2: OptimizerNames.ADAMW_ZERO2_MINDSPORE
+            }
+            if self.optim in [
+                OptimizerNames.ADAMW_MINDSPORE,
+                OptimizerNames.ADAMW_ZERO1_MINDSPORE,
+                OptimizerNames.ADAMW_ZERO2_MINDSPORE
+            ]:
+                optim = zero_stage_2_optim[self.zero_stage]
+                warnings.warn(
+                    f"`--zero_stage` is {self.zero_stage}, replace {self.optim} with {optim}."
+                )
+                self.optim = optim
 
-        if self.framework == "ms" and self.tf32 is not None:
+        if self.framework == "mindspore" and self.tf32 is not None:
             if self.tf32:
                 raise NotImplementedError
 
+        # FIXME: delete it later if not available
         # if training args is specified, it will override the one specified in the accelerate config
         mixed_precision_dtype = os.environ.get("MINDSPORE_MIXED_PRECISION", "no")
         self.input_dtype = ms.float32
@@ -1250,7 +1268,7 @@ class TrainingArguments:
         The number of GPUs used by this process.
 
         Note:
-            This will only be greater than one when you have multiple GPUs available but are not using distributed
+            This will only be greater than one when you have multiple NPUs/GPUs available but are not using distributed
             training. For distributed training, it will always be 1.
         """
         # Make sure `self._n_gpu` is properly setup.

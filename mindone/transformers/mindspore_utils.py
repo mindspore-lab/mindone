@@ -90,12 +90,12 @@ def prune_conv1d_layer(layer: Conv1D, index: ms.Tensor, dim: int = 1) -> Conv1D:
     Used to remove heads.
 
     Args:
-        layer ([`~pytorch_utils.Conv1D`]): The layer to prune.
-        index (`torch.LongTensor`): The indices to keep in the layer.
+        layer ([`~mindspore_utils.Conv1D`]): The layer to prune.
+        index (`ms.Tensor`): The indices to keep in the layer.
         dim (`int`, *optional*, defaults to 1): The dimension on which to keep the indices.
 
     Returns:
-        [`~pytorch_utils.Conv1D`]: The pruned layer as a new layer with `requires_grad=True`.
+        [`~mindspore_utils.Conv1D`]: The pruned layer as a new layer with `requires_grad=True`.
     """
     w = layer.weight.index_select(dim, index).clone()
     if dim == 0:
@@ -116,17 +116,17 @@ def prune_conv1d_layer(layer: Conv1D, index: ms.Tensor, dim: int = 1) -> Conv1D:
 
 def prune_layer(layer: Union[nn.Dense, Conv1D], index: ms.Tensor, dim: Optional[int] = None) -> Union[nn.Dense, Conv1D]:
     """
-    Prune a Conv1D or linear layer to keep only entries in index.
+    Prune a Conv1D or Dense layer to keep only entries in index.
 
     Used to remove heads.
 
     Args:
-        layer (`Union[torch.nn.Linear, Conv1D]`): The layer to prune.
-        index (`torch.LongTensor`): The indices to keep in the layer.
+        layer (`Union[mindspore.nn.Dense, Conv1D]`): The layer to prune.
+        index (`mindspore.Tensor`): The indices to keep in the layer.
         dim (`int`, *optional*): The dimension on which to keep the indices.
 
     Returns:
-        `torch.nn.Linear` or [`~pytorch_utils.Conv1D`]: The pruned layer as a new layer with `requires_grad=True`.
+        `mindspore.nn.Dense` or [`~mindspore_utils.Conv1D`]: The pruned layer as a new layer with `requires_grad=True`.
     """
     if isinstance(layer, nn.Dense):
         return prune_linear_layer(layer, index, dim=0 if dim is None else dim)
@@ -149,7 +149,7 @@ def find_pruneable_heads_and_indices(
         already_pruned_heads (`Set[int]`): A set of already pruned heads.
 
     Returns:
-        `Tuple[Set[int], torch.LongTensor]`: A tuple with the indices of heads to prune taking `already_pruned_heads`
+        `Tuple[Set[int], ms.Tensor]`: A tuple with the indices of heads to prune taking `already_pruned_heads`
         into account and the indices of rows/columns to keep in the layer weight.
     """
     mask = ops.ones((n_heads, head_size))
