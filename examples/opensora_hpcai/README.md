@@ -751,7 +751,7 @@ All experiments are tested on ascend 910* with mindspore 2.3.1 graph mode.
 | :--:         | :--:   | :--:       | :--:         | :--:  | :--:      |:--:  | :--:         | :--:          |:--:    |:--:    |
 | STDiT-XL/2  |  8     | 3          | 16x256x256   | 1     | fp16      |  ON  | O1           | 5~6 mins      |  1.53  | [yaml](configs/opensora/train/stdit_256x256x16_ms.yaml) |
 | STDiT-XL/2  |  8     | 1          | 16x512x512   | 2     | fp16      |  ON  | O1           | 5~6 mins      |  2.47  | [yaml](configs/opensora/train/stdit_512x512x16.yaml) |
-| STDiT-XL/2  |  8     | 1          | 64x512x512   | 3     | bf16      |  ON  | O1           | 5~6 mins      |  7.82  | [yaml](configs/opensora/train/stdit_512x512x64_ms.yaml) |
+| STDiT-XL/2  |  8     | 1          | 64x512x512   | 3     | bf16      |  ON  | O1           | 5~6 mins      |  8.52  | [yaml](configs/opensora/train/stdit_512x512x64_ms.yaml) |
 
 
 #### Loss Curves
