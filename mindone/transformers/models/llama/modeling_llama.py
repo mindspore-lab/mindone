@@ -1245,6 +1245,7 @@ class LlamaForSequenceClassification(LlamaPreTrainedModel):
         loss_fct = nn.CrossEntropyLoss()
         loss = loss_fct(pooled_logits.view(-1, self.num_labels), labels.view(-1).int())
 
+        breakpoint()
 
         if not return_dict:
             output = (pooled_logits,) + transformer_outputs[1:]
