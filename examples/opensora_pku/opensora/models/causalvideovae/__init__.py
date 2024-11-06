@@ -1,4 +1,5 @@
 import logging
+import os
 
 import mindspore as ms
 from mindspore import nn
@@ -38,11 +39,18 @@ class CausalVAEModelWrapper(nn.Cell):
 
 
 class WFVAEModelWrapper(nn.Cell):
-    def __init__(self, model_path, dtype=ms.float32, subfolder=None, cache_dir=None, **kwargs):
+    def __init__(self, model_path=None, dtype=ms.float32, subfolder=None, cache_dir=None, vae=None, **kwargs):
         super(WFVAEModelWrapper, self).__init__()
-        self.vae = WFVAEModel.from_pretrained(
-            model_path, subfolder=subfolder, cache_dir=cache_dir, dtype=dtype, **kwargs
-        )
+        assert model_path is not None or vae is not None, "At least oen of [`model_path`, `vae`] should be provided."
+
+        if vae is not None:
+            self.vae = vae
+        else:
+            assert model_path is not None, "When `vae` is not None, expect to get `model_path`!"
+            assert os.path.exists(model_path), f"`model_path` does not exist!: {model_path}"
+            self.vae = WFVAEModel.from_pretrained(
+                model_path, subfolder=subfolder, cache_dir=cache_dir, dtype=dtype, **kwargs
+            )
         self.shift = ms.Tensor(self.vae.config.shift)[None, :, None, None, None]
         self.scale = ms.Tensor(self.vae.config.scale)[None, :, None, None, None]
 
