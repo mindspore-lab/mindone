@@ -1,6 +1,7 @@
 import argparse
 import logging
 import os
+import re
 import sys
 
 import numpy as np
@@ -18,6 +19,7 @@ sys.path.append(".")
 from opensora.acceleration.parallel_states import get_sequence_parallel_state, hccl_info
 from opensora.models.causalvideovae import ae_wrapper
 from opensora.models.causalvideovae.model.dataset_videobase import VideoDataset, create_dataloader
+from opensora.models.causalvideovae.model.registry import ModelRegistry
 from opensora.npu_config import npu_config
 from opensora.utils.utils import get_precision
 from opensora.utils.video_utils import save_videos
@@ -53,16 +55,33 @@ def main(args):
     if args.ms_checkpoint is not None and os.path.exists(args.ms_checkpoint):
         logger.info(f"Run inference with MindSpore checkpoint {args.ms_checkpoint}")
         state_dict = ms.load_checkpoint(args.ms_checkpoint)
-        # rm 'network.' prefix
+
         state_dict = dict(
             [k.replace("autoencoder.", "") if k.startswith("autoencoder.") else k, v] for k, v in state_dict.items()
         )
     else:
         state_dict = None
+
+    if args.model_config is not None:
+        assert os.path.exists(args.model_config), f"`model_config` does not exist! {args.model_config}"
+        pattern = r"^([A-Za-z]+)Model"
+        if re.match(pattern, args.ae):
+            model_name = re.match(pattern, args.ae).group(1)
+            model_cls = ModelRegistry.get_model(model_name)
+            vae = model_cls.from_config(args.model_config, dtype=dtype)
+            if args.ms_checkpoint is None or not os.path.exists(args.ms_checkpoint):
+                logger.warning(
+                    "VAE is randomly initialized. The inference results may be incorrect! Check `ms_checkpoint`!"
+                )
+
+        else:
+            logger.warning(f"Incorrect ae name, must be one of {ae_wrapper.keys()}")
+            vae = None
     kwarg = {
         "state_dict": state_dict,
         "use_safetensors": True,
         "dtype": dtype,
+        "vae": vae,
     }
     vae = ae_wrapper[args.ae](args.ae_path, **kwarg)
 
@@ -234,6 +253,9 @@ if __name__ == "__main__":
         "--video_column",
         default="video",
         help="The column of video file path in `data_file_path`. Defaults to `video`.",
+    )
+    parser.add_argument(
+        "--model_config", type=str, default=None, help="The model config file for initiating vae model."
     )
     args = parser.parse_args()
     main(args)
