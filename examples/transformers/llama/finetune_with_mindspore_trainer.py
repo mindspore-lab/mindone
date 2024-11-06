@@ -75,7 +75,10 @@ def main():
     small_train_dataset = tokenized_datasets["train"]
     small_eval_dataset = tokenized_datasets["test"]
 
-    model = LlamaForSequenceClassification.from_pretrained(args.model_path, num_labels=5, use_flash_attention_2=args.enable_flash_attention)
+    # zhy_test
+    # model = LlamaForSequenceClassification.from_pretrained(args.model_path, num_labels=5, use_flash_attention_2=args.enable_flash_attention)
+    from mindone.transformers.models.llama import LlamaForCausalLM
+    model = LlamaForCausalLM.from_pretrained(args.model_path, use_flash_attention_2=args.enable_flash_attention)
 
     if args.do_eval:
         metric = evaluate.load("accuracy")
