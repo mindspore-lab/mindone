@@ -1464,9 +1464,6 @@ class BertForSequenceClassification(BertPreTrainedModel):
         self.dropout = nn.Dropout(p=classifier_dropout)
         self.classifier = nn.Dense(config.hidden_size, config.num_labels)
 
-        # zhy_test
-        self.loss_fct = nn.CrossEntropyLoss()
-
         # Initialize weights and apply final processing
         self.post_init()
 
@@ -1510,28 +1507,28 @@ class BertForSequenceClassification(BertPreTrainedModel):
 
         loss = None
         if labels is not None:
-            # if self.problem_type is None:
-            #     if self.num_labels == 1:
-            #         self.problem_type = "regression"
-            #     elif self.num_labels > 1 and (labels.dtype == ms.int64 or labels.dtype == ms.int32):
-            #         self.problem_type = "single_label_classification"
-            #     else:
-            #         self.problem_type = "multi_label_classification"
-            #
-            # if self.problem_type == "regression":
-            #     loss_fct = nn.MSELoss()
-            #     if self.num_labels == 1:
-            #         loss = loss_fct(logits.squeeze(), labels.squeeze())
-            #     else:
-            #         loss = loss_fct(logits, labels)
-            # elif self.problem_type == "single_label_classification":
-            #     loss_fct = nn.CrossEntropyLoss()
-            #     loss = loss_fct(logits.view(-1, self.num_labels), labels.view(-1).int())
-            # elif self.problem_type == "multi_label_classification":
-            #     loss_fct = nn.BCEWithLogitsLoss()
-            #     loss = loss_fct(logits, labels)
+            if self.problem_type is None:
+                if self.num_labels == 1:
+                    problem_type = "regression"
+                elif self.num_labels > 1 and (labels.dtype == ms.int64 or labels.dtype == ms.int32):
+                    problem_type = "single_label_classification"
+                else:
+                    problem_type = "multi_label_classification"
+            else:
+                problem_type = self.problem_type
 
-            loss = self.loss_fct(logits.view(-1, self.num_labels), labels.view(-1).int())
+            if problem_type == "regression":
+                loss_fct = nn.MSELoss()
+                if self.num_labels == 1:
+                    loss = loss_fct(logits.squeeze(), labels.squeeze())
+                else:
+                    loss = loss_fct(logits, labels)
+            elif problem_type == "single_label_classification":
+                loss_fct = nn.CrossEntropyLoss()
+                loss = loss_fct(logits.view(-1, self.num_labels), labels.view(-1).int())
+            elif problem_type == "multi_label_classification":
+                loss_fct = nn.BCEWithLogitsLoss()
+                loss = loss_fct(logits, labels)
 
         if not return_dict:
             output = (logits,) + outputs[2:]
