@@ -216,9 +216,6 @@ def prepare_pipeline(args):
             logger.warning(
                     f"Detect that the loaded model version is {model_version}, but found a mismatched number of frames {args.num_frames}. Frames needs to be 4n+1, e.g. 93, 77, 61, 45, 29, 1 (image)"
                 )
-    # dit_dtype = get_precision(args.precision) 
-    # if dit_dtype == "fp16": # Attention processor cannot convert to fp16
-    dit_dtype = None
     if args.version == 'v1_3':
         # TODO
         # if args.model_type == 'inpaint' or args.model_type == 'i2v':
@@ -232,7 +229,6 @@ def prepare_pipeline(args):
             args.model_path, 
             state_dict=state_dict,
             cache_dir=args.cache_dir,
-            # mindspore_dtype=dit_dtype,
             FA_dtype = FA_dtype,
             output_loading_info=True, 
             )
@@ -565,7 +561,6 @@ def run_model_and_save_samples(args, pipeline, rank_id, device_num, save_dir, ca
     # else:
     for step, data in tqdm(enumerate(ds_iter), total=dataset_size):
         generate(step, data, ext)
-        break # TODO: debug use, delete later
     
     
     # Delete files that are no longer needed

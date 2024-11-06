@@ -21,13 +21,13 @@ class PatchEmbed2D(nn.Cell):
         super().__init__()
         self.proj = nn.Conv2d(
             in_channels, embed_dim, 
-            kernel_size=(patch_size, patch_size), stride=(patch_size, patch_size), has_bias=bias
+            kernel_size=(patch_size, patch_size), stride=(patch_size, patch_size),  has_bias=bias, pad_mode="pad"
         )
 
     def construct(self, latent):
         b, c, t, h, w = latent.shape # b, c=in_channels, t, h, w
         # b c t h w -> (b t) c h w
-        latent = latent.permute(0, 2, 1, 3, 4).reshape(b*t, c, h, w) # b*t, c, h, w
+        latent = latent.swapaxes(1, 2).reshape(b*t, c, h, w) # b*t, c, h, w
         latent = self.proj(latent)  # b*t, embed_dim, h, w
         # (b t) c h w -> b (t h w) c
         _, c, h, w = latent.shape
