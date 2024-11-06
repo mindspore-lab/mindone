@@ -9,7 +9,7 @@ from datasets import load_dataset
 from transformers import AutoTokenizer, HfArgumentParser
 from dataclasses import dataclass, field
 
-from mindone.transformers.models.llama import LlamaForSequenceClassification
+from mindone.transformers.models.bert import BertForSequenceClassification
 from mindone.transformers.trainer import Trainer
 from mindone.transformers.training_args import TrainingArguments
 from mindone.transformers.mindspore_adapter import HF2MSDataset, TrainOneStepWrapper
@@ -17,7 +17,7 @@ from mindone.transformers.mindspore_adapter import HF2MSDataset, TrainOneStepWra
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--model_path", type=str, default="meta-llama/Meta-Llama-3-8B", help="pretrained model name")
+    parser.add_argument("--model_path", type=str, default="google-bert/bert-base-cased", help="pretrained model name")
     parser.add_argument("--dataset_path", type=str, default="Yelp/yelp_review_full", help="dataset path.")
     args = parser.parse_args()
     print(args)
@@ -41,19 +41,14 @@ def main():
         )
 
     tokenized_datasets = dataset.map(tokenize_function, batched=True)
+    tokenized_datasets = tokenized_datasets.remove_columns(["text"])
+    tokenized_datasets = tokenized_datasets.rename_column("label", "labels")
     small_train_dataset = tokenized_datasets["train"]
 
     def ms_data_collator(features, batch_info):
-        first = features[0]
-        assert isinstance(first, Dict)
         batch = {}
-        batch["labels"] = np.array([f["label"] for f in features], dtype=np.int32)
-        for k, v in first.items():
-            if k not in ("label", "label_ids") and v is not None and not isinstance(v, str):
-                if isinstance(v, np.ndarray):
-                    batch[k] = np.stack([f[k] for f in features])
-                else:
-                    batch[k] = np.array([f[k] for f in features])
+        for k, v in features[0]:
+            batch[k] = np.stack([f[k] for f in features]) if isinstance(v, np.ndarray) else np.array([f[k] for f in features])
         return batch
 
     batch_size, num_epochs = 1, 3
@@ -64,7 +59,7 @@ def main():
 
 
     # 2. create train network
-    model = LlamaForSequenceClassification.from_pretrained(args.model_path, num_labels=5, use_flash_attention_2=True)
+    model = BertForSequenceClassification.from_pretrained(args.model_path, num_labels=5)
     optimizer = nn.AdamWeightDecay(model.trainable_params(), learning_rate=5e-6)
 
     class ReturnLoss(nn.Cell):
@@ -89,6 +84,7 @@ def main():
         tuple_inputs = (
             ms.Tensor(batch["input_ids"], ms.int32),
             ms.Tensor(batch["attention_mask"], ms.bool_),
+            None,
             None,
             None,
             None,

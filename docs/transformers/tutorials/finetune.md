@@ -15,405 +15,221 @@ specific language governing permissions and limitations under the License.
 There are significant benefits to using a pretrained model. It reduces computation costs, your carbon footprint, and allows you to use state-of-the-art models without having to train one from scratch. 🤗 Transformers provides access to thousands of pretrained models for a wide range of tasks. When you use a pretrained model, you train it on a dataset specific to your task. This is known as fine-tuning, an incredibly powerful training technique. In this tutorial, you will fine-tune a pretrained model with a deep learning framework of your choice:
 
 - Fine-tune a pretrained model with 🤗 Transformers Trainer.
-- Fine-tune a pretrained model in TensorFlow with Keras.
-- Fine-tune a pretrained model in native PyTorch.
+- Fine-tune a pretrained model in native MindSpore.
 
+## Prepare a dataset
 
+Before you can fine-tune a pretrained model, download a dataset and prepare it for training. The previous tutorial showed you how to process data for training, and now you get an opportunity to put those skills to the test!
 
-
-
-
-
-
-!!! tip
-
-    💡 This training tutorial is based on the [Training with 🧨 Diffusers](https://colab.research.google.com/github/huggingface/notebooks/blob/main/diffusers/training_example.ipynb) notebook. For additional details and context about diffusion models like how they work, check out the notebook!
-
-
-Before you begin, make sure you have 🤗 Datasets installed to load and preprocess image datasets, and 🤗 Accelerate, to simplify training on any number of GPUs. The following command will also install [TensorBoard](https://www.tensorflow.org/tensorboard) to visualize training metrics (you can also use [Weights & Biases](https://docs.wandb.ai/) to track your training).
-
-```py
-# uncomment to install the necessary libraries in Colab
-#!pip install mindone[training]
-```
-
-We encourage you to share your model with the community, and in order to do that, you'll need to login to your Hugging Face account (create one [here](https://hf.co/join) if you don't already have one!). You can login from a notebook and enter your token when prompted. Make sure your token has the write role.
-
-```pycon
->>> from huggingface_hub import notebook_login
-
->>> notebook_login()
-```
-
-Or login in from the terminal:
-
-```bash
-huggingface-cli login
-```
-
-Since the model checkpoints are quite large, install [Git-LFS](https://git-lfs.com/) to version these large files:
-
-```bash
-!sudo apt -qq install git-lfs
-!git config --global credential.helper store
-```
-
-## Training configuration
-
-For convenience, create a `TrainingConfig` class containing the training hyperparameters (feel free to adjust them):
-
-```pycon
->>> from dataclasses import dataclass
-
->>> @dataclass
-... class TrainingConfig:
-...     image_size = 128  # the generated image resolution
-...     train_batch_size = 16
-...     eval_batch_size = 16  # how many images to sample during evaluation
-...     num_epochs = 50
-...     gradient_accumulation_steps = 1
-...     learning_rate = 1e-4
-...     lr_warmup_steps = 500
-...     save_image_epochs = 10
-...     save_model_epochs = 30
-...     mixed_precision = "fp16"  # `no` for float32, `fp16` for automatic mixed precision
-...     output_dir = "ddpm-butterflies-128"  # the model name locally and on the HF Hub
-...
-...     push_to_hub = True  # whether to upload the saved model to the HF Hub
-...     hub_model_id = "<your-username>/<my-awesome-model>"  # the name of the repository to create on the HF Hub
-...     hub_private_repo = False
-...     overwrite_output_dir = True  # overwrite the old model when re-running the notebook
-...     seed = 0
-
->>> config = TrainingConfig()
-```
-
-## Load the dataset
-
-You can easily load the [Smithsonian Butterflies](https://huggingface.co/datasets/huggan/smithsonian_butterflies_subset) dataset with the 🤗 Datasets library:
+Begin by loading the Yelp Reviews dataset:
 
 ```pycon
 >>> from datasets import load_dataset
 
->>> config.dataset_name = "huggan/smithsonian_butterflies_subset"
->>> dataset = load_dataset(config.dataset_name, split="train")
+>>> dataset = load_dataset("yelp_review_full")
+>>> dataset["train"][100]
+{'label': 0,
+ 'text': 'My expectations for McDonalds are t rarely high. But for one to still fail so spectacularly...that takes something special!\\nThe cashier took my friends\'s order, then promptly ignored me. I had to force myself in front of a cashier who opened his register to wait on the person BEHIND me. I waited over five minutes for a gigantic order that included precisely one kid\'s meal. After watching two people who ordered after me be handed their food, I asked where mine was. The manager started yelling at the cashiers for \\"serving off their orders\\" when they didn\'t have their food. But neither cashier was anywhere near those controls, and the manager was the one serving food to customers and clearing the boards.\\nThe manager was rude when giving me my order. She didn\'t make sure that I had everything ON MY RECEIPT, and never even had the decency to apologize that I felt I was getting poor service.\\nI\'ve eaten at various McDonalds restaurants for over 30 years. I\'ve worked at more than one location. I expect bad days, bad moods, and the occasional mistake. But I have yet to have a decent experience at this store. It will remain a place I avoid unless someone in my party needs to avoid illness from low blood sugar. Perhaps I should go back to the racially biased service of Steak n Shake instead!'}
 ```
 
-!!! tip
-
-    💡 You can find additional datasets from the [HugGan Community Event](https://huggingface.co/huggan) or you can use your own dataset by creating a local [`ImageFolder`](https://huggingface.co/docs/datasets/image_dataset#imagefolder). Set `config.dataset_name` to the repository id of the dataset if it is from the HugGan Community Event, or `imagefolder` if you're using your own images.
-
-🤗 Datasets uses the [`~datasets.Image`] feature to automatically decode the image data and load it as a [`PIL.Image`](https://pillow.readthedocs.io/en/stable/reference/Image.html) which we can visualize:
+As you now know, you need a tokenizer to process the text and include a padding and truncation strategy to handle any variable sequence lengths. To process your dataset in one step, use 🤗 Datasets map method to apply a preprocessing function over the entire dataset:
 
 ```pycon
->>> import matplotlib.pyplot as plt
+>>> from transformers import AutoTokenizer
 
->>> fig, axs = plt.subplots(1, 4, figsize=(16, 4))
->>> for i, image in enumerate(dataset[:4]["image"]):
-...     axs[i].imshow(image)
-...     axs[i].set_axis_off()
->>> fig.show()
+>>> tokenizer = AutoTokenizer.from_pretrained("google-bert/bert-base-cased")
+
+
+>>> def tokenize_function(examples):
+...     return tokenizer(examples["text"], padding="max_length", truncation=True)
+
+
+>>> tokenized_datasets = dataset.map(tokenize_function, batched=True)
 ```
 
-<div align="center">
-    <img src="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/diffusers/butterflies_ds.png"/>
-</div>
-
-The images are all different sizes though, so you'll need to preprocess them first:
-
-* `Resize` changes the image size to the one defined in `config.image_size`.
-* `RandomHorizontalFlip` augments the dataset by randomly mirroring the images.
-* `Normalize` is important to rescale the pixel values into a [-1, 1] range, which is what the model expects.
+If you like, you can create a smaller subset of the full dataset to fine-tune on to reduce the time it takes:
 
 ```pycon
->>> from mindspore.dataset import transforms, vision
+small_train_dataset = tokenized_datasets["train"].shuffle(seed=42).select(range(1000))
+small_eval_dataset = tokenized_datasets["test"].shuffle(seed=42).select(range(1000))
+```
 
->>> preprocess = transforms.Compose(
-...     [
-...         vision.Resize((config.image_size, config.image_size)),
-...         vision.RandomHorizontalFlip(),
-...         vision.ToTensor(),
-...         vision.Normalize([0.5], [0.5], is_hwc=False),
-...     ]
+## Train
+
+At this point, you should follow the section corresponding to the framework you want to use. You can use the links in the right sidebar to jump to the one you want - and if you want to hide all of the content for a given framework, just use the button at the top-right of that framework’s block!
+
+### Train with MindSpore Trainer
+
+<details open>
+
+🤗 Transformers provides a Trainer class optimized for training 🤗 Transformers models, making it easier to start training without manually writing your own training loop. The Trainer API supports a wide range of training options and features such as logging, gradient accumulation, and mixed precision.
+
+Start by loading your model and specify the number of expected labels. From the Yelp Review dataset card, you know there are five labels:
+
+```pycon
+>>> from mindone.transformers.models.bert import BertForSequenceClassification
+
+>>> model = BertForSequenceClassification.from_pretrained("google-bert/bert-base-cased", num_labels=5)
+```
+
+!!! note
+
+    You will see a warning about some of the pretrained weights not being used and some weights being randomly initialized. Don’t worry, this is completely normal! The pretrained head of the BERT model is discarded, and replaced with a randomly initialized classification head. You will fine-tune this new model head on your sequence classification task, transferring the knowledge of the pretrained model to it.
+
+#### Training hyperparameters
+
+Next, create a TrainingArguments class which contains all the hyperparameters you can tune as well as flags for activating different training options. For this tutorial you can start with the default training hyperparameters, but feel free to experiment with these to find your optimal settings.
+
+Specify where to save the checkpoints from your training:
+
+```pycon
+>>> from mindone.transformers.training_args import TrainingArguments
+
+>>> training_args = TrainingArguments(output_dir="test_trainer")
+```
+
+(optional but recommended) Init environment:
+
+```pycon
+>>> import mindspore as ms
+>>> from mindone.transformers.mindspore_adapter import MindSporeArguments, init_environment
+
+>>> env_args = MindSporeArguments(mode=ms.GRAPH_MODE, device_target="Ascend")
+>>> init_environment(env_args)
+```
+
+#### Trainer
+
+Create a Trainer object with your model, training arguments, training and test datasets, and evaluation function:
+
+```pycon
+>>> trainer = Trainer(
+...     model=model,
+...     args=training_args,
+...     train_dataset=small_train_dataset,
+...     eval_dataset=small_eval_dataset,
+...     compute_metrics=compute_metrics,
 ... )
 ```
 
-Use 🤗 Datasets' [`~datasets.Dataset.set_transform`] method to apply the `preprocess` function on the fly during training:
+Then fine-tune your model by calling train():
 
 ```pycon
->>> def transform(examples):
-...     images = [preprocess(image.convert("RGB"))[0] for image in examples["image"]]
-...     return {"images": images}
-
-
->>> dataset.set_transform(transform)
+>>> trainer.train()
 ```
 
-Feel free to visualize the images again to confirm that they've been resized. Now you're ready to wrap the dataset in a [DataLoader](https://www.mindspore.cn/docs/zh-CN/master/api_python/dataset/mindspore.dataset.GeneratorDataset.html) for training!
+</details>
+
+### Train in native MindSpore
+
+<details open>
+
+Trainer takes care of the training loop and allows you to fine-tune a model in a single line of code. For users who prefer to write their own training loop, you can also fine-tune a 🤗 Transformers model in native MindSpore.
+
+At this point, you may need to restart your notebook to free memory.
+
+Next, manually postprocess `tokenized_dataset` to prepare it for training.
+
+1. Remove the text column because the model does not accept raw text as an input:
 
 ```pycon
->>> from mindspore.dataset import GeneratorDataset
-
->>> class DatasetForMindData:
-...     def __init__(self, data):
-...         self.data = data
-...
-...     def __getitem__(self, idx):
-...         idx = idx.item() if isinstance(idx, np.integer) else idx
-...         return np.array(self.data[idx]["images"], dtype=np.float32)
-...
-...     def __len__(self):
-...         return len(self.data)
-
->>> train_dataloader = GeneratorDataset(DatasetForMindData(dataset), batch_size=config.train_batch_size, shuffle=True)
+>>> tokenized_datasets = tokenized_datasets.remove_columns(["text"])
 ```
 
-## Create a UNet2DModel
-
-Pretrained models in 🧨 Diffusers are easily created from their model class with the parameters you want. For example, to create a [`UNet2DModel`]:
+2. Rename the `label` column to `labels` because the model expects the argument to be named `labels`:
 
 ```pycon
->>> from mindone.diffusers import UNet2DModel
-
->>> model = UNet2DModel(
-...     sample_size=config.image_size,  # the target image resolution
-...     in_channels=3,  # the number of input channels, 3 for RGB images
-...     out_channels=3,  # the number of output channels
-...     layers_per_block=2,  # how many ResNet layers to use per UNet block
-...     block_out_channels=(128, 128, 256, 256, 512, 512),  # the number of output channels for each UNet block
-...     down_block_types=(
-...         "DownBlock2D",  # a regular ResNet downsampling block
-...         "DownBlock2D",
-...         "DownBlock2D",
-...         "DownBlock2D",
-...         "AttnDownBlock2D",  # a ResNet downsampling block with spatial self-attention
-...         "DownBlock2D",
-...     ),
-...     up_block_types=(
-...         "UpBlock2D",  # a regular ResNet upsampling block
-...         "AttnUpBlock2D",  # a ResNet upsampling block with spatial self-attention
-...         "UpBlock2D",
-...         "UpBlock2D",
-...         "UpBlock2D",
-...         "UpBlock2D",
-...     ),
-... )
+>>> tokenized_datasets = tokenized_datasets.rename_column("label", "labels")
 ```
 
-It is often a good idea to quickly check the sample image shape matches the model output shape:
+#### DataLoader
+
+Create a MindSpore DataLoader for your training datasets so you can iterate over batches of data:
 
 ```pycon
->>> sample_image = dataset[0]["images"].unsqueeze(0)
->>> print("Input shape:", sample_image.shape)
-Input shape: [1, 3, 128, 128]
+>>> import mindspore as ms
+>>> from mindone.transformers.mindspore_adapter import HF2MSDataset
 
->>> print("Output shape:", model(mindspore.Tensor(sample_image), timestep=0)[0].shape)
-Output shape: [1, 3, 128, 128]
+>>> def ms_data_collator(features, batch_info):
+...    batch = {}
+...     for k, v in features[0]:
+...         batch[k] = np.stack([f[k] for f in features]) if isinstance(v, np.ndarray) else np.array([f[k] for f in features])
+...     return batch
+
+>>> batch_size, num_epochs = 1, 3
+>>> train_dataloader = ms.dataset.GeneratorDataset(HF2MSDataset(small_train_dataset), column_names="item")
+>>> train_dataloader = train_dataloader.batch(batch_size=batch_size, per_batch_map=ms_data_collator)
+>>> train_dataloader = train_dataloader.repeat(1)
+>>> train_dataloader = train_dataloader.create_dict_iterator(num_epochs=num_epochs, output_numpy=True)
 ```
 
-Great! Next, you'll need a scheduler to add some noise to the image.
-
-## Create a scheduler
-
-The scheduler behaves differently depending on whether you're using the model for training or inference. During inference, the scheduler generates image from the noise. During training, the scheduler takes a model output - or a sample - from a specific point in the diffusion process and applies noise to the image according to a *noise schedule* and an *update rule*.
-
-Let's take a look at the [`DDPMScheduler`] and use the `add_noise` method to add some random noise to the `sample_image` from before:
+Load your model with the number of expected labels:
 
 ```pycon
->>> import mindspore
->>> from PIL import Image
->>> from mindone.diffusers import DDPMScheduler
+>>> from mindone.transformers.models.bert import BertForSequenceClassification
 
->>> noise_scheduler = DDPMScheduler(num_train_timesteps=1000)
->>> noise = mindspore.ops.randn(sample_image.shape)
->>> timesteps = mindspore.Tensor([50])
->>> noisy_image = noise_scheduler.add_noise(sample_image, noise, timesteps)
-
->>> Image.fromarray(((noisy_image.permute(0, 2, 3, 1) + 1.0) * 127.5).type(mindspore.uint8).numpy()[0])
+>>> model = BertForSequenceClassification.from_pretrained("google-bert/bert-base-cased", num_labels=5)
 ```
 
-<div align="center">
-    <img src="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/diffusers/noisy_butterfly.png"/>
-</div>
+#### Optimizer
 
-The training objective of the model is to predict the noise added to the image. The loss at this step can be calculated by:
-
-```pycon
->>> from mindspore import ops
-
->>> noise_pred = model(noisy_image, timesteps)[0]
->>> loss = ops.mse_loss(noise_pred, noise)
-```
-
-## Train the model
-
-By now, you have most of the pieces to start training the model and all that's left is putting everything together.
-
-First, you'll need an optimizer and a learning rate scheduler:
+Create an optimizer to fine-tune the model. Let’s use the AdamWeightDecay optimizer from MindSpore:
 
 ```pycon
 >>> from mindspore import nn
->>> from mindone.diffusers.optimization import get_cosine_schedule_with_warmup
 
->>> lr_scheduler = get_cosine_schedule_with_warmup(
-...     config.learning_rate
-...     num_warmup_steps=config.lr_warmup_steps,
-...     num_training_steps=(len(train_dataloader) * config.num_epochs),
-... )
->>> optimizer = nn.AdamWeightDecay(model.trainable_params(), learning_rate=lr_scheduler)
+>>> optimizer = nn.AdamWeightDecay(model.trainable_params(), learning_rate=5e-6)
 ```
 
-Then, you'll need a way to evaluate the model. For evaluation, you can use the [`DDPMPipeline`] to generate a batch of sample images and save it as a grid:
+#### Train Network
+
+Create an MindSpore train network
 
 ```pycon
->>>import numpy as np from mindone.diffusers import DDPMPipeline
->>> from mindone.diffusers.utils import make_image_grid
->>> import os
+>>> from mindone.transformers.mindspore_adapter import TrainOneStepWrapper
 
->>> def evaluate(config, epoch, pipeline):
-...     # Sample some images from random noise (this is the backward diffusion process).
-...     # The default pipeline output type is `List[PIL.Image]`
-...     images = pipeline(
-...         batch_size=config.eval_batch_size,
-...         generator=np.random.Generator(np.random.PCG64(config.seed)),
-...     )[0]
-...
-...     # Make a grid out of the images
-...     image_grid = make_image_grid(images, rows=4, cols=4)
-...
-...     # Save the images
-...     test_dir = os.path.join(config.output_dir, "samples")
-...     os.makedirs(test_dir, exist_ok=True)
-...     image_grid.save(f"{test_dir}/{epoch:04d}.png")
-```
-
-Now you can wrap all these components together in a training loop with TensorBoard logging, gradient accumulation, and mixed precision training. To upload the model to the Hub, write a function to get your repository name and information and then push it to the Hub.
-
-!!! tip
-
-    💡 The training loop below may look intimidating and long, but it'll be worth it later when you launch your training in just one line of code! If you can't wait and want to start generating images, feel free to copy and run the code below. You can always come back and examine the training loop more closely later, like when you're waiting for your model to finish training. 🤗
-
-```pycon
->>> from huggingface_hub import create_repo, upload_folder
->>> from tqdm.auto import tqdm
->>> from pathlib import Path
->>> import os
->>> from mindone.diffusers.training_utils import TrainStep
-
->>> # Write your train step
->>> class MyTrainStep(TrainStep):
-...     def __init__(
-...         self,
-...         model: nn.Cell,
-...         optimizer: nn.Optimizer,
-...         noise_scheduler,
-...         gradient_accumulation_steps,
-...         length_of_dataloader,
-...     ):
-...         super().__init__(
-...             model,
-...             optimizer,
-...             StaticLossScaler(65536),
-...             1.0,
-...             gradient_accumulation_steps,
-...             gradient_accumulation_kwargs=dict(length_of_dataloader=length_of_dataloader),
-...         )
+>>> class ReturnLoss(nn.Cell):
+...     def __init__(self, model):
+...         super(ReturnLoss, self).__init__(auto_prefix=False)
 ...         self.model = model
-...         self.noise_scheduler = noise_scheduler
-...         self.noise_scheduler_num_train_timesteps = noise_scheduler.config.num_train_timesteps
 ...
-...     def forward(self, clean_images):
-...         # Sample noise to add to the images
-...         noise = ops.randn(clean_images.shape)
-...         bs = clean_images.shape[0]
-...
-...         # Sample a random timestep for each image
-...         timesteps = ops.randint(
-...             0, noise_scheduler_num_train_timesteps, (bs,), dtype=mindspore.int64
-...         )
-...
-...         # Add noise to the clean images according to the noise magnitude at each timestep
-...         # (this is the forward diffusion process)
-...         noisy_images = self.noise_scheduler.add_noise(clean_images, noise, timesteps)
-...
-...         # Predict the noise residual
-...         noise_pred = self.model(noisy_images, timesteps, return_dict=False)[0]
-...         loss = ops.mse_loss(noise_pred, noise)
-...         loss = self.scale_loss(loss)
-...         return loss, noise_pred
+...     def construct(self, *args, **kwargs):
+...         outputs = self.model(*args, **kwargs)
+...         loss = outputs[0]
+...         return loss
 
->>> is_main_process, is_local_main_process = True, True
->>> train_step = MyTrainStep(model, optimizer, noise_scheduler, config.gradient_accumulation_steps, len(train_dataloader))
->>> pipeline = DDPMPipeline(unet=model, scheduler=noise_scheduler)
-
->>> def train_loop(config, model, noise_scheduler, optimizer, train_dataloader, lr_scheduler):
-...     if is_main_process:
-...         if config.output_dir is not None:
-...             os.makedirs(config.output_dir, exist_ok=True)
-...         if config.push_to_hub:
-...             repo_id = create_repo(
-...                 repo_id=config.hub_model_id or Path(config.output_dir).name, exist_ok=True
-...             ).repo_id
-...
-...     global_step = 0
-...
-...     # Now you train the model
-...     for epoch in range(config.num_epochs):
-...         progress_bar = tqdm(total=len(train_dataloader), disable=not is_local_main_process)
-...         progress_bar.set_description(f"Epoch {epoch}")
-...
-...         for step, batch in enumerate(train_dataloader):
-...             loss, model_pred = train_step(*batch)
-...
-...             progress_bar.update(1)
-...             logs = {"loss": loss.detach().item(), "lr": lr_scheduler.get_last_lr()[0], "step": global_step}
-...             progress_bar.set_postfix(**logs)
-...             accelerator.log(logs, step=global_step)
-...             global_step += 1
-...
-...         # After each epoch you optionally sample some demo images with evaluate() and save the model
-...         if is_main_process:
-...             if (epoch + 1) % config.save_image_epochs == 0 or epoch == config.num_epochs - 1:
-...                 evaluate(config, epoch, pipeline)
-...
-...             if (epoch + 1) % config.save_model_epochs == 0 or epoch == config.num_epochs - 1:
-...                 if config.push_to_hub:
-...                     upload_folder(
-...                         repo_id=repo_id,
-...                         folder_path=config.output_dir,
-...                         commit_message=f"Epoch {epoch}",
-...                         ignore_patterns=["step_*", "epoch_*"],
-...                     )
-...                 else:
-...                     pipeline.save_pretrained(config.output_dir)
+>>> train_model = TrainOneStepWrapper(ReturnLoss(model), optimizer)
 ```
 
-If you want to launch a distributed training, see [tutorial](https://www.mindspore.cn/tutorials/experts/zh-CN/master/parallel/overview.html) from mindspore. And you can get the rank of process by:
+Great, now you are ready to train! 🥳
+
+#### Training loop
+
+To keep track of your training progress, use the tqdm library to add a progress bar over the number of training steps:
 
 ```pycon
->>> from mindspore.communication import get_local_rank, get_rank
->>> rank, local_rank = get_rank(), get_local_rank()
->>> is_main_process, is_local_main_process = rank == 0, local_rank == 0
+>>> from tqdm.auto import tqdm
+
+>>> num_training_steps = len(small_train_dataset) * num_epochs // batch_size
+>>> progress_bar = tqdm(range(num_training_steps))
+
+>>> train_model.train()
+>>> for step, batch in enumerate(train_dataloader):
+...     batch = batch["item"]
+... 
+...     tuple_inputs = (
+...         ms.Tensor(batch["input_ids"], ms.int32),
+...         ms.Tensor(batch["attention_mask"], ms.bool_),
+...         None,
+...         None,
+...         None,
+...         None,
+...         ms.tensor(batch["labels"], ms.int32)
+...     )
+... 
+...     loss, _, overflow = train_model(*tuple_inputs)
+... 
+...     progress_bar.update(1)
 ```
 
-Once training is complete, take a look at the final 🦋 images 🦋 generated by your diffusion model!
-
-```pycon
->>> import glob
-
->>> sample_images = sorted(glob.glob(f"{config.output_dir}/samples/*.png"))
->>> Image.open(sample_images[-1])
-```
-
-<div align="center">
-    <img src="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/diffusers/butterflies_final.png"/>
-</div>
-
-## Next steps
-
-Unconditional image generation is one example of a task that can be trained. You can explore other tasks and training techniques by visiting the [🧨 Diffusers Training Examples](../training/overview) page. Here are some examples of what you can learn:
-
-* [Textual Inversion](../training/text_inversion), an algorithm that teaches a model a specific visual concept and integrates it into the generated image.
-* [DreamBooth](../training/dreambooth), a technique for generating personalized images of a subject given several input images of the subject.
-* [Guide](../training/text2image) to finetuning a Stable Diffusion model on your own dataset.
-* [Guide](../training/lora) to using LoRA, a memory-efficient technique for finetuning really large models faster.
+</details>

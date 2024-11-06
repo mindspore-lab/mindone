@@ -716,7 +716,8 @@ class Trainer:
                     if self.labels_index is not None:
                         labels = inputs[self.labels_index]
 
-                    loss, logits = self.model(*inputs)
+                    outputs = self.model(*inputs)
+                    loss, logits = outputs[:2]
                     if labels is not None:
                         loss = self.label_smoother_(logits, labels, self.shift_labels)
 
@@ -728,8 +729,10 @@ class Trainer:
                 def __init__(self, model):
                     super(ReturnLoss, self).__init__(auto_prefix=False)
                     self.model = model
+
                 def construct(self, *args, **kwargs):
-                    loss, logits = self.model(*args, **kwargs)
+                    outputs = self.model(*args, **kwargs)
+                    loss = outputs[0]
                     return loss
 
             model_ = ReturnLoss(model)

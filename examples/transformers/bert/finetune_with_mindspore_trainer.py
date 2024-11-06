@@ -7,7 +7,7 @@ from datasets import load_dataset
 from transformers import AutoTokenizer, HfArgumentParser
 from dataclasses import dataclass, field
 
-from mindone.transformers.models.llama import LlamaForSequenceClassification
+from mindone.transformers.models.bert import BertForSequenceClassification
 from mindone.transformers.trainer import Trainer
 from mindone.transformers.training_args import TrainingArguments
 from mindone.transformers.mindspore_adapter import MindSporeArguments, init_environment
@@ -15,7 +15,7 @@ from mindone.transformers.mindspore_adapter import MindSporeArguments, init_envi
 
 @dataclass
 class MyArguments(MindSporeArguments, TrainingArguments):
-    model_path: str = field(default="meta-llama/Meta-Llama-3-8B/")
+    model_path: str = field(default="google-bert/bert-base-cased")
     dataset_path: str = field(default="Yelp/yelp_review_full")
 
 
@@ -47,7 +47,7 @@ def main():
     small_train_dataset = tokenized_datasets["train"]
     small_eval_dataset = tokenized_datasets["test"]
 
-    model = LlamaForSequenceClassification.from_pretrained(args.model_path, num_labels=5, use_flash_attention_2=True)
+    model = BertForSequenceClassification.from_pretrained(args.model_path, num_labels=5, use_flash_attention_2=True)
 
     if args.do_eval:
         metric = evaluate.load("accuracy")

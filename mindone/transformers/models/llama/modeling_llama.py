@@ -31,15 +31,15 @@ from transformers.utils import (
     logging,
     replace_return_docstrings,
 )
-from transformers.modeling_outputs import CausalLMOutputWithPast, SequenceClassifierOutputWithPast
 
-from mindone.transformers.activations import ACT2FN
-from mindone.transformers.modeling_utils import MSPreTrainedModel as PreTrainedModel
-from mindone.transformers.mindspore_utils import ALL_LAYERNORM_LAYERS
-from mindone.transformers.modeling_attn_mask_utils import _MIN_FP16
-from mindone.transformers.mindspore_adapter.attention import FlashAttention2
-from mindone.transformers.cache_utils import update, get_max_length, get_seq_length
-from mindone.transformers.mindspore_adapter import recompute_except_output
+from ...activations import ACT2FN
+from ...modeling_utils import MSPreTrainedModel as PreTrainedModel
+from ...mindspore_utils import ALL_LAYERNORM_LAYERS
+from ...modeling_attn_mask_utils import _MIN_FP16
+from ...mindspore_adapter.attention import FlashAttention2
+from ...cache_utils import update, get_max_length, get_seq_length
+from ...mindspore_adapter import recompute_except_output
+from ...modeling_outputs import BaseModelOutputWithPast, CausalLMOutputWithPast, SequenceClassifierOutputWithPast
 
 
 logger = logging.get_logger(__name__)
@@ -137,11 +137,11 @@ def apply_rotary_pos_emb(q, k, cos, sin, position_ids=None, unsqueeze_dim=1):
     """Applies Rotary Position Embedding to the query and key tensors.
 
     Args:
-        q (`torch.Tensor`): The query tensor.
-        k (`torch.Tensor`): The key tensor.
-        cos (`torch.Tensor`): The cosine part of the rotary embedding.
-        sin (`torch.Tensor`): The sine part of the rotary embedding.
-        position_ids (`torch.Tensor`, *optional*):
+        q (`ms.Tensor`): The query tensor.
+        k (`ms.Tensor`): The key tensor.
+        cos (`ms.Tensor`): The cosine part of the rotary embedding.
+        sin (`ms.Tensor`): The sine part of the rotary embedding.
+        position_ids (`ms.Tensor`, *optional*):
             Deprecated and unused.
         unsqueeze_dim (`int`, *optional*, defaults to 1):
             The 'unsqueeze_dim' argument specifies the dimension along which to unsqueeze cos[position_ids] and
@@ -151,7 +151,7 @@ def apply_rotary_pos_emb(q, k, cos, sin, position_ids=None, unsqueeze_dim=1):
             cos[position_ids] and sin[position_ids] broadcastable to the shapes of q and k. Similarly, if q and k have
             the shape [batch_size, seq_len, heads, head_dim], then set unsqueeze_dim=2.
     Returns:
-        `tuple(torch.Tensor)` comprising of the query and key tensors rotated using the Rotary Position Embedding.
+        `tuple(ms.Tensor)` comprising of the query and key tensors rotated using the Rotary Position Embedding.
     """
     cos = cos.unsqueeze(unsqueeze_dim)
     sin = sin.unsqueeze(unsqueeze_dim)
@@ -203,7 +203,7 @@ class LlamaMLP(nn.Cell):
 
 def repeat_kv(hidden_states: ms.Tensor, n_rep: int) -> ms.Tensor:
     """
-    This is the equivalent of torch.repeat_interleave(x, dim=1, repeats=n_rep). The hidden states go from (batch,
+    This is the equivalent of ops.repeat_interleave(x, axis=1, repeats=n_rep). The hidden states go from (batch,
     num_key_value_heads, seqlen, head_dim) to (batch, num_attention_heads, seqlen, head_dim)
     """
     batch, num_key_value_heads, slen, head_dim = hidden_states.shape
@@ -358,12 +358,10 @@ class LlamaAttention(nn.Cell):
         else:
             attn_output = self.o_proj(attn_output)
 
-        outputs = (attn_output,)
-        if past_key_value is not None:
-            outputs += (past_key_value,)
+        if not output_attentions:
+            attn_weights = None
 
-        # attn_output, past_key_value
-        return outputs
+        return attn_output, attn_weights, past_key_value
 
 
 class LlamaFlashAttention2(LlamaAttention):
@@ -482,12 +480,7 @@ class LlamaFlashAttention2(LlamaAttention):
         else:
             attn_output = self.o_proj(attn_output)
 
-        outputs = (attn_output,)
-        if past_key_value is not None:
-            outputs += (past_key_value,)
-
-        # attn_output, past_key_value
-        return outputs
+        return attn_output, None, past_key_value
 
 
 LLAMA_ATTENTION_CLASSES = {
@@ -520,11 +513,11 @@ class LlamaDecoderLayer(nn.Cell):
             use_cache: Optional[bool] = False,
             cache_position: Optional[ms.Tensor] = None,
             **kwargs,
-    ):
+    ) -> Tuple[ms.Tensor, Optional[Tuple[ms.Tensor, ms.Tensor]]]:
         """
         Args:
-            hidden_states (`torch.FloatTensor`): input to the layer of shape `(batch, seq_len, embed_dim)`
-            attention_mask (`torch.FloatTensor`, *optional*):
+            hidden_states (`ms.Tensor`): input to the layer of shape `(batch, seq_len, embed_dim)`
+            attention_mask (`ms.Tensor`, *optional*):
                 attention mask of size `(batch_size, sequence_length)` if flash attention is used or `(batch_size, 1,
                 query_sequence_length, key_sequence_length)` if default attention is used.
             output_attentions (`bool`, *optional*):
@@ -533,8 +526,8 @@ class LlamaDecoderLayer(nn.Cell):
             use_cache (`bool`, *optional*):
                 If set to `True`, `past_key_values` key value states are returned and can be used to speed up decoding
                 (see `past_key_values`).
-            past_key_value (`Tuple(torch.FloatTensor)`, *optional*): cached past key and value projection states
-            cache_position (`torch.LongTensor` of shape `(sequence_length)`, *optional*):
+            past_key_value (`Tuple(ms.Tensor)`, *optional*): cached past key and value projection states
+            cache_position (`ms.Tensor` of shape `(sequence_length)`, *optional*):
                 Indices depicting the position of the input sequence tokens in the sequence
             kwargs (`dict`, *optional*):
                 Arbitrary kwargs to be ignored, used for FSDP and other methods that injects code
@@ -545,7 +538,7 @@ class LlamaDecoderLayer(nn.Cell):
         hidden_states = self.input_layernorm(hidden_states)
 
         # Self Attention
-        attn_output = self.self_attn(
+        hidden_states, self_attn_weights, present_key_value = self.self_attn(
             hidden_states=hidden_states,
             attention_mask=attention_mask,
             position_ids=position_ids,
@@ -554,9 +547,6 @@ class LlamaDecoderLayer(nn.Cell):
             use_cache=use_cache,
             cache_position=cache_position,
         )
-        hidden_states = attn_output[0]
-        present_key_value = None if len(attn_output) == 1 else attn_output[1]
-
         hidden_states = residual + hidden_states
 
         # Fully Connected
@@ -568,7 +558,10 @@ class LlamaDecoderLayer(nn.Cell):
 
         outputs = (hidden_states,)
 
-        if use_cache and present_key_value is not None:
+        if output_attentions:
+            outputs += (self_attn_weights,)
+
+        if use_cache:
             outputs += (present_key_value,)
 
         return outputs
@@ -705,9 +698,6 @@ class LlamaModel(LlamaPreTrainedModel):
         )
         self.norm = LlamaRMSNorm(config.hidden_size, eps=config.rms_norm_eps)
 
-        # TODO: Initialize weights and apply final processing
-        # self.post_init()
-
         # set congig var to self attribute
         _name_list = [
             'output_attentions', 'output_hidden_states', 'use_return_dict', 'use_cache',
@@ -715,6 +705,9 @@ class LlamaModel(LlamaPreTrainedModel):
         ]
         for name in _name_list:
             setattr(self, name, getattr(config, name))
+
+        # Initialize weights and apply final processing
+        self.post_init()
 
     def get_input_embeddings(self):
         return self.embed_tokens
@@ -761,15 +754,18 @@ class LlamaModel(LlamaPreTrainedModel):
             output_hidden_states: Optional[bool] = None,
             return_dict: Optional[bool] = None,
             cache_position: Optional[ms.Tensor] = None,
-    ) -> Tuple:
+    ) -> Union[Tuple, BaseModelOutputWithPast]:
+
+        output_attentions = output_attentions if output_attentions is not None else self.output_attentions
+        output_hidden_states = (
+            output_hidden_states if output_hidden_states is not None else self.output_hidden_states
+        )
         use_cache = use_cache if use_cache is not None else self.use_cache
+        return_dict = return_dict if return_dict is not None else self.use_return_dict
+
         if self.training:
             use_cache = False
 
-        # if self.training:
-        #     assert not use_cache
-        # assert not output_attentions
-        # assert not output_hidden_states
         # assert ((input_ids is None) and (inputs_embeds is not None)) or \
         #        ((input_ids is not None) and (inputs_embeds is None))
         # # assert (input_ids is None) ^ (inputs_embeds is None)
@@ -793,9 +789,14 @@ class LlamaModel(LlamaPreTrainedModel):
         hidden_states = inputs_embeds
 
         # decoder layers
-        next_caches = ()
+        all_hidden_states = () if output_hidden_states else None
+        all_self_attns = () if output_attentions else None
+        next_caches = () if use_cache else None
 
         for layer_idx, decoder_layer in enumerate(self.layers):
+
+            if output_hidden_states:
+                all_hidden_states += (hidden_states,)
 
             layer_outputs = decoder_layer(
                 hidden_states,
@@ -810,17 +811,25 @@ class LlamaModel(LlamaPreTrainedModel):
             hidden_states = layer_outputs[0]
 
             if use_cache:
-                # assert past_key_values is not None
-                next_caches += (layer_outputs[1],)
+                next_caches += (layer_outputs[2 if output_attentions else 1],)
+
+            if output_attentions:
+                all_self_attns += (layer_outputs[1],)
 
         hidden_states = self.norm(hidden_states)
 
-        outputs = (hidden_states,)
-        if use_cache:
-            outputs += (next_caches,)
+        # add hidden states from the last decoder layer
+        if output_hidden_states:
+            all_hidden_states += (hidden_states,)
 
-        # last_hidden_state, past_key_values, all_hidden_states, all_attentions
-        return outputs
+        if not return_dict:
+            return tuple(v for v in [hidden_states, next_caches, all_hidden_states, all_self_attns] if v is not None)
+        return BaseModelOutputWithPast(
+            last_hidden_state=hidden_states,
+            past_key_values=next_caches,
+            hidden_states=all_hidden_states,
+            attentions=all_self_attns,
+        )
 
     def _update_causal_mask(
             self,
@@ -887,8 +896,8 @@ class LlamaForCausalLM(LlamaPreTrainedModel):
         for name in _name_list:
             setattr(self, name, getattr(config, name))
 
-        # TODO: Initialize weights and apply final processing
-        # self.post_init()
+        # Initialize weights and apply final processing
+        self.post_init()
 
     def get_input_embeddings(self):
         return self.model.embed_tokens
@@ -925,7 +934,7 @@ class LlamaForCausalLM(LlamaPreTrainedModel):
             output_hidden_states: Optional[bool] = None,
             return_dict: Optional[bool] = None,
             cache_position: Optional[ms.Tensor] = None,
-    ) -> Tuple:
+    ) -> Union[Tuple, CausalLMOutputWithPast]:
         r"""
         Args:
             labels (`ms.Tensor` of shape `(batch_size, sequence_length)`, *optional*):
@@ -952,12 +961,11 @@ class LlamaForCausalLM(LlamaPreTrainedModel):
         "Hey, are you conscious? Can you talk to me?\nI'm not conscious, but I can talk to you."
         ```"""
 
-        # assert not output_attentions
-        # assert not output_hidden_states
-        # assert ((input_ids is None) and (inputs_embeds is not None)) or \
-        #        ((input_ids is not None) and (inputs_embeds is None))
-        # assert (input_ids is None) ^ (inputs_embeds is None)
-        # assert not return_dict
+        output_attentions = output_attentions if output_attentions is not None else self.output_attentions
+        output_hidden_states = (
+            output_hidden_states if output_hidden_states is not None else self.output_hidden_states
+        )
+        return_dict = return_dict if return_dict is not None else self.use_return_dict
 
         # decoder outputs consists of (dec_features, layer_state, dec_hidden, dec_attn)
         outputs = self.model(
@@ -974,22 +982,15 @@ class LlamaForCausalLM(LlamaPreTrainedModel):
         )
 
         hidden_states = outputs[0]
-
-        if use_cache:
-            past_key_values = outputs[1]
-
         if self.pretraining_tp > 1:
             lm_head_slices = self.lm_head.weight.split(self.vocab_size // self.pretraining_tp, axis=0)
             logits = [ops.dense(hidden_states, lm_head_slices[i]) for i in range(self.pretraining_tp)]
             logits = ops.cat(logits, axis=-1)
         else:
             logits = self.lm_head(hidden_states)
-
         logits = logits.to(ms.float32)
 
-
-        # loss = None  # FIXME: Will get wrong result with graph and jit_level O0 on MindSpore 2.3.1 !!!
-        loss = ops.full((), -1, dtype=logits.dtype)
+        loss = None
         if labels is not None:
             # Shift so that tokens < n predict n
             shift_logits = logits[..., :-1, :]
@@ -1000,18 +1001,16 @@ class LlamaForCausalLM(LlamaPreTrainedModel):
             # Enable model parallelism
             loss = self.cross_entropy_loss(shift_logits, shift_labels)
 
-        if use_cache:
-            return loss, logits, past_key_values
-        else:
-            return loss, logits
+        if not return_dict:
+            output = (logits,) + outputs[1:]
+            return (loss,) + output if loss is not None else output
 
-    def get_return_dict(self, tuple_outputs: Tuple) -> CausalLMOutputWithPast:
-        sorted_names = ["loss", "logits", "past_key_values", "hidden_states", "attentions"]
-        output_dict = {}
-        for i in range(len(tuple_outputs)):
-            output_dict[sorted_names[i]] = tuple_outputs[i]
         return CausalLMOutputWithPast(
-            **output_dict
+            loss=loss,
+            logits=logits,
+            past_key_values=outputs.past_key_values,
+            hidden_states=outputs.hidden_states,
+            attentions=outputs.attentions,
         )
 
     def prepare_inputs_for_generation(
@@ -1145,7 +1144,7 @@ class LlamaForSequenceClassification(LlamaPreTrainedModel):
         self.pad_token_id = config.pad_token_id
 
         # Initialize weights and apply final processing
-        # self.post_init()
+        self.post_init()
 
     def get_input_embeddings(self):
         return self.model.embed_tokens
@@ -1166,13 +1165,15 @@ class LlamaForSequenceClassification(LlamaPreTrainedModel):
         output_attentions: Optional[bool] = None,
         output_hidden_states: Optional[bool] = None,
         return_dict: Optional[bool] = None,
-    ) -> Tuple:
+    ) -> Union[Tuple, SequenceClassifierOutputWithPast]:
         r"""
-        labels (`torch.LongTensor` of shape `(batch_size,)`, *optional*):
+        labels (`ms.Tensor` of shape `(batch_size,)`, *optional*):
             Labels for computing the sequence classification/regression loss. Indices should be in `[0, ...,
             config.num_labels - 1]`. If `config.num_labels == 1` a regression loss is computed (Mean-Square loss), If
             `config.num_labels > 1` a classification loss is computed (Cross-Entropy).
         """
+        return_dict = return_dict if return_dict is not None else self.use_return_dict
+
         transformer_outputs = self.model(
             input_ids,
             attention_mask=attention_mask,
@@ -1206,7 +1207,7 @@ class LlamaForSequenceClassification(LlamaPreTrainedModel):
 
         pooled_logits = logits[ops.arange(batch_size), sequence_lengths]
 
-        loss = ops.full((), -1., dtype=ms.float32)
+        loss = None
         if labels is not None:
             if self.problem_type is None:
                 if self.num_labels == 1:
@@ -1228,20 +1229,17 @@ class LlamaForSequenceClassification(LlamaPreTrainedModel):
             elif problem_type == 2:  #"multi_label_classification"
                 loss = self.loss_fct_multi_label_classification(pooled_logits, labels)
 
-        outputs = (loss, pooled_logits)
-        if use_cache:
-            outputs += (transformer_outputs[1])
+        if not return_dict:
+            output = (pooled_logits,) + transformer_outputs[1:]
+            return ((loss,) + output) if loss is not None else output
 
-        return outputs
+        return SequenceClassifierOutputWithPast(
+            loss=loss,
+            logits=pooled_logits,
+            past_key_values=transformer_outputs.past_key_values,
+            hidden_states=transformer_outputs.hidden_states,
+            attentions=transformer_outputs.attentions,
+        )
 
     def gradient_checkpointing_enable(self, gradient_checkpointing_kwargs=None):
         self.model.gradient_checkpointing_enable(gradient_checkpointing_kwargs)
-
-    def get_return_dict(self, tuple_outputs):
-        sorted_names = ["loss", "logits", "past_key_values", "hidden_states", "attentions"]
-        output_dict = {}
-        for i in range(len(tuple_outputs)):
-            output_dict[sorted_names[i]] = tuple_outputs[i]
-        return SequenceClassifierOutputWithPast(
-            **output_dict
-        )

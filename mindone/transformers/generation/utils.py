@@ -1653,6 +1653,9 @@ class GenerationMixin:
             # forward pass to get next token
             outputs = self(
                 **model_inputs,
+                return_dict=False if ms.get_context("mode") == ms.GRAPH_MODE else True,
+                output_attentions=output_attentions,
+                output_hidden_states=output_hidden_states,
             )
 
             if synced_gpus and this_peer_finished:
@@ -1662,13 +1665,11 @@ class GenerationMixin:
             s_time = time.time()
             step += 1
 
-            if hasattr(self, "get_return_dict"):
-                outputs = self.get_return_dict(outputs)
-            else:
+            if not isinstance(outputs, CausalLMOutputWithPast):
                 outputs = CausalLMOutputWithPast(
-                    loss=outputs[0],
-                    logits=outputs[1],
-                    past_key_values=outputs[2] if model_inputs.get("use_cache", False) else None,
+                    loss=None,
+                    logits=outputs[0],
+                    past_key_values=outputs[1] if model_inputs.get("use_cache", False) else None,
                 )
 
             if model_kwargs.get("attention_mask", None) is not None:
