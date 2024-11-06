@@ -987,7 +987,10 @@ class LlamaForCausalLM(LlamaPreTrainedModel):
             cache_position=cache_position,
         )
 
+        outputs = (outputs,) if not isinstance(outputs, tuple) else outputs
+
         hidden_states = outputs[0]
+
         if self.pretraining_tp > 1:
             lm_head_slices = self.lm_head.weight.split(self.vocab_size // self.pretraining_tp, axis=0)
             logits = [ops.dense(hidden_states, lm_head_slices[i]) for i in range(self.pretraining_tp)]
