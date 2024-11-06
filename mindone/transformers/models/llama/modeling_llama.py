@@ -359,7 +359,11 @@ class LlamaAttention(nn.Cell):
         else:
             attn_output = self.o_proj(attn_output)
 
-        return attn_output, past_key_value
+        outputs = (attn_output,)
+        if past_key_value is not None:
+            outputs += (past_key_value,)
+
+        return outputs
 
 
 class LlamaFlashAttention2(LlamaAttention):
@@ -478,7 +482,11 @@ class LlamaFlashAttention2(LlamaAttention):
         else:
             attn_output = self.o_proj(attn_output)
 
-        return attn_output, past_key_value
+        outputs = (attn_output,)
+        if past_key_value is not None:
+            outputs += (past_key_value,)
+
+        return outputs
 
 
 LLAMA_ATTENTION_CLASSES = {
@@ -536,7 +544,7 @@ class LlamaDecoderLayer(nn.Cell):
         hidden_states = self.input_layernorm(hidden_states)
 
         # Self Attention
-        hidden_states, present_key_value = self.self_attn(
+        attn_outputs = self.self_attn(
             hidden_states=hidden_states,
             attention_mask=attention_mask,
             position_ids=position_ids,
@@ -545,6 +553,7 @@ class LlamaDecoderLayer(nn.Cell):
             use_cache=use_cache,
             cache_position=cache_position,
         )
+        hidden_states = attn_outputs[0]
         hidden_states = residual + hidden_states
 
         # Fully Connected
@@ -557,7 +566,7 @@ class LlamaDecoderLayer(nn.Cell):
         outputs = (hidden_states,)
 
         if use_cache:
-            outputs += (present_key_value,)
+            outputs += (attn_outputs[1],)
 
         return outputs
 
@@ -796,14 +805,11 @@ class LlamaModel(LlamaPreTrainedModel):
         hidden_states = inputs_embeds
 
         # decoder layers
-        all_hidden_states = () if output_hidden_states else None
-        all_self_attns = () if output_attentions else None
+        all_hidden_states = None
+        all_self_attns = None
         next_caches = () if use_cache else None
 
         for layer_idx, decoder_layer in enumerate(self.layers):
-
-            if output_hidden_states:
-                all_hidden_states += (hidden_states,)
 
             layer_outputs = decoder_layer(
                 hidden_states,
@@ -821,10 +827,6 @@ class LlamaModel(LlamaPreTrainedModel):
                 next_caches += (layer_outputs[1],)
 
         hidden_states = self.norm(hidden_states)
-
-        # add hidden states from the last decoder layer
-        if output_hidden_states:
-            all_hidden_states += (hidden_states,)
 
         if not return_dict:
             return tuple(v for v in [hidden_states, next_caches, all_hidden_states, all_self_attns] if v is not None)
