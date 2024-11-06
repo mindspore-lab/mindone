@@ -991,9 +991,6 @@ class LlamaForCausalLM(LlamaPreTrainedModel):
             return_dict=return_dict,
             cache_position=cache_position,
         )
-
-        outputs = (outputs,) if not isinstance(outputs, tuple) else outputs
-
         hidden_states = outputs[0]
 
         if self.pretraining_tp > 1:
