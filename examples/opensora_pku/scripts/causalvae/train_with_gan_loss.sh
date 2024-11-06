@@ -1,7 +1,7 @@
 python opensora/train/train_causalvae.py \
     --exp_name "25x256x256" \
     --model_name WFVAE \
-    --model_config scripts/causalvae/wfvae_4dim.json \
+    --model_config scripts/causalvae/wfvae_8dim.json \
     --train_batch_size 1 \
     --precision fp32 \
     --max_steps 100000 \
