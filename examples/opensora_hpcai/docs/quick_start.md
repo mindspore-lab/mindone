@@ -37,11 +37,11 @@ To enable flash attention, please use mindspore>=2.3-20240422.
 Prepare the model checkpoints of T5, VAE, and STDiT and put them under `models/` folder as follows
 
 - **T5**:
-  Download the [DeepFloyd/t5-v1_1-xxl](https://huggingface.co/DeepFloyd/t5-v1_1-xxl/tree/main) model and put it under `models/`.
-  Then, convert to `safetensors` checkpoint as required by `mindone.transformers`:
+  You can download and convert the T5 model automatically by running the following command:
   ```shell
-  python tools/convert_t5.py --model_dir ./models/t5-v1_1-xxl/
+  python tools/download_convert_st.py "DeepFloyd/t5-v1_1-xxl"
   ```
+  If you encounter a `certificate verify failed` error, you can set `--disable_ssl_verify` to `True`.
 
 - VAE:
 

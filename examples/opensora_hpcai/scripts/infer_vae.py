@@ -394,13 +394,6 @@ def parse_args():
         default_args.config = to_abspath(abs_path, default_args.config)
         with open(default_args.config, "r") as f:
             cfg = yaml.safe_load(f)
-            # _check_cfgs_in_parser(cfg, parser)
-            parser.set_defaults(
-                **dict(
-                    captions=cfg["captions"],
-                    t5_model_dir=cfg["t5_model_dir"],
-                )
-            )
     args = parser.parse_args()
     # convert to absolute path, necessary for modelarts
     args.csv_path = to_abspath(abs_path, args.csv_path)

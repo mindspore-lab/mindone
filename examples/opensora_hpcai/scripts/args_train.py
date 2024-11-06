@@ -258,7 +258,9 @@ def parse_train_args(parser):
             O2: most fp16, only layers in blacklist compute in fp32 (batch norm etc)",
     )
     parser.add_argument("--vae_amp_level", default="O2", type=str, help="O2 or O3")
-    parser.add_argument("--t5_model_dir", default=None, type=str, help="the T5 cache folder path")
+    parser.add_argument(
+        "--t5_model_name_or_path", default="DeepFloyd/t5-v1_1-xxl", type=str, help="T5 model name or path"
+    )
     parser.add_argument(
         "--vae_checkpoint",
         type=str,
@@ -397,7 +399,6 @@ def parse_args():
     args.vae_latent_folder = to_abspath(abs_path, args.vae_latent_folder)
     args.output_path = to_abspath(abs_path, args.output_path)
     args.pretrained_model_path = to_abspath(abs_path, args.pretrained_model_path)
-    args.t5_model_dir = to_abspath(abs_path, args.t5_model_dir)
     args.vae_checkpoint = to_abspath(abs_path, args.vae_checkpoint)
     print(args)
 

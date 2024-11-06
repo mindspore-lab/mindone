@@ -268,8 +268,11 @@ def main(args):
 
     # 2.3 text encoder
     if args.text_embed_folder is None:
+        if args.t5_dtype == "fp16":
+            logger.warning("T5 dtype is fp16, which may lead to video color vibration. Suggest to use bf16 or fp32.")
+        # TODO: use FA in T5
         text_encoder, tokenizer = get_text_encoder_and_tokenizer(
-            "t5", args.t5_model_dir, model_max_length=args.model_max_length
+            "t5", args.t5_model_name_or_path, dtype=dtype_map[args.t5_dtype], model_max_length=args.model_max_length
         )
         num_prompts = len(captions)
         text_tokens, mask = zip(
@@ -277,15 +280,6 @@ def main(args):
         )
         text_tokens, mask = Tensor(text_tokens, dtype=ms.int32), Tensor(mask, dtype=ms.uint8)
         text_emb = None
-        # TODO: use FA in T5
-        if args.t5_dtype in ["fp16", "bf16"]:
-            if args.t5_dtype == "fp16":
-                logger.warning(
-                    "T5 dtype is fp16, which may lead to video color vibration. Suggest to use bf16 or fp32."
-                )
-            text_encoder = auto_mixed_precision(
-                text_encoder, amp_level="O2", dtype=dtype_map[args.t5_dtype], custom_fp32_cells=WHITELIST_OPS
-            )
         logger.info(f"Num tokens: {mask.asnumpy().sum(2)}")
     else:
         assert not args.use_parallel, "parallel inference is not supported for t5 cached sampling currently."
@@ -524,7 +518,9 @@ def parse_args():
         default="",
         help="latte checkpoint path. If specified, will load from it, otherwise, will use random initialization",
     )
-    parser.add_argument("--t5_model_dir", default=None, type=str, help="the T5 cache folder path")
+    parser.add_argument(
+        "--t5_model_name_or_path", default="DeepFloyd/t5-v1_1-xxl", type=str, help="T5 model name or path"
+    )
     parser.add_argument(
         "--vae_checkpoint",
         type=str,

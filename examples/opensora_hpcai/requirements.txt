@@ -18,3 +18,6 @@ tokenizers
 sentencepiece
 transformers
 pyav
+# for T5 tokenizer
+tiktoken
+sentencepiece

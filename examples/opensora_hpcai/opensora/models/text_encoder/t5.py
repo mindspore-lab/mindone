@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 import html
 import logging
-import os
 import re
 import urllib.parse as ul
 
@@ -37,19 +36,17 @@ class T5Embedder(nn.Cell):
 
     def __init__(
         self,
-        cache_dir,
+        pretrained_model_name_or_path,
         use_text_preprocessing=True,
         model_max_length=120,
-        pretrained_ckpt=None,
+        dtype=ms.float32,
     ):
         super().__init__()
         self.use_text_preprocessing = use_text_preprocessing
-        self.cache_dir = cache_dir
-        self.pretrained_ckpt = pretrained_ckpt
-
-        self.tokenizer = AutoTokenizer.from_pretrained(cache_dir, local_files_only=True)
-        self.model = T5EncoderModel.from_pretrained(cache_dir, local_files_only=True)
-
+        self.tokenizer = AutoTokenizer.from_pretrained(pretrained_model_name_or_path, local_files_only=True)
+        self.model = T5EncoderModel.from_pretrained(
+            pretrained_model_name_or_path, mindspore_dtype=dtype, local_files_only=True
+        )
         self.model_max_length = model_max_length
         self.tokenizer.context_length = model_max_length
 
@@ -215,10 +212,10 @@ class T5Embedder(nn.Cell):
         return caption.strip()
 
 
-def get_text_encoder_and_tokenizer(name, ckpt_path, **kwargs):
+def get_text_encoder_and_tokenizer(name, pretrained_model_name_or_path, **kwargs):
     if name == "t5":
         logger.info("T5 init")
-        text_encoder = T5Embedder(cache_dir=ckpt_path, pretrained_ckpt=os.path.join(ckpt_path, "model.ckpt"), **kwargs)
+        text_encoder = T5Embedder(pretrained_model_name_or_path=pretrained_model_name_or_path, **kwargs)
         tokenizer = text_encoder.tokenizer
     else:
         raise NotImplementedError
