@@ -1154,6 +1154,10 @@ class LlamaForSequenceClassification(LlamaPreTrainedModel):
         self.problem_type = problem_type_map[config.problem_type]
         self.pad_token_id = config.pad_token_id
 
+        _name_list = ['output_attentions', 'output_hidden_states', 'use_return_dict', 'pretraining_tp', 'vocab_size']
+        for name in _name_list:
+            setattr(self, name, getattr(config, name))
+
         # Initialize weights and apply final processing
         self.post_init()
 
