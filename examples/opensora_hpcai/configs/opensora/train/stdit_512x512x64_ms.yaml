@@ -6,7 +6,6 @@ pretrained_model_path: "models/OpenSora-v1-HQ-16x512x512.ckpt"
 sd_scale_factor: 0.18215
 enable_flash_attention: True
 use_recompute: True
-num_recompute_blocks: 24
 jit_level: O1
 dataset_sink_mode: True
 
@@ -19,7 +18,6 @@ num_parallel_workers: 16
 max_rowsize: 96
 
 # mixed precision
-vae_dtype: "bf16"
 global_bf16: True  # stdit
 init_loss_scale: 65536
 
