@@ -1222,27 +1222,29 @@ class LlamaForSequenceClassification(LlamaPreTrainedModel):
 
         pooled_logits = logits[ops.arange(batch_size), sequence_lengths]
 
-        loss = None
-        if labels is not None:
-            if self.problem_type is None:
-                if self.num_labels == 1:
-                    problem_type = 0  #"regression"
-                elif self.num_labels > 1 and (labels.dtype in (ms.int32, ms.int64)):
-                    problem_type = 1  #"single_label_classification"
-                else:
-                    problem_type = 2  #"multi_label_classification"
-            else:
-                problem_type = self.problem_type
+        # loss = None
+        # if labels is not None:
+        #     if self.problem_type is None:
+        #         if self.num_labels == 1:
+        #             problem_type = 0  #"regression"
+        #         elif self.num_labels > 1 and (labels.dtype in (ms.int32, ms.int64)):
+        #             problem_type = 1  #"single_label_classification"
+        #         else:
+        #             problem_type = 2  #"multi_label_classification"
+        #     else:
+        #         problem_type = self.problem_type
+        #
+        #     if problem_type == 0:  #"regression"
+        #         if self.num_labels == 1:
+        #             loss = self.loss_fct_regression(pooled_logits.squeeze(), labels.squeeze())
+        #         else:
+        #             loss = self.loss_fct_regression(pooled_logits, labels)
+        #     elif problem_type == 1:  #"single_label_classification"
+        #         loss = self.loss_fct_single_label_classification(pooled_logits.view(-1, self.num_labels), labels.view(-1).int())
+        #     elif problem_type == 2:  #"multi_label_classification"
+        #         loss = self.loss_fct_multi_label_classification(pooled_logits, labels)
+        loss = self.loss_fct_single_label_classification(pooled_logits.view(-1, self.num_labels), labels.view(-1).int())
 
-            if problem_type == 0:  #"regression"
-                if self.num_labels == 1:
-                    loss = self.loss_fct_regression(pooled_logits.squeeze(), labels.squeeze())
-                else:
-                    loss = self.loss_fct_regression(pooled_logits, labels)
-            elif problem_type == 1:  #"single_label_classification"
-                loss = self.loss_fct_single_label_classification(pooled_logits.view(-1, self.num_labels), labels.view(-1).int())
-            elif problem_type == 2:  #"multi_label_classification"
-                loss = self.loss_fct_multi_label_classification(pooled_logits, labels)
 
         if not return_dict:
             output = (pooled_logits,) + transformer_outputs[1:]
