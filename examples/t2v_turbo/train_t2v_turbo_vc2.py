@@ -65,7 +65,7 @@ from utils.utils import instantiate_from_config, freeze_params
 from ode_solver import DDIMSolver
 from reward_fn import get_reward_fn
 from scheduler.t2v_turbo_scheduler import T2VTurboScheduler
-from pipeline.lcd_with_loss import LCDWithLoss
+from pipeline.lcd_with_loss import LCDWithLoss, LCDWithStageLoss
 from utils.common_utils import load_model_checkpoint
 
 sys.path.append("./mindone/examples/stable_diffusion_xl")
@@ -323,7 +323,7 @@ def main(args):
     if isinstance(uncond_prompt_embeds, DiagonalGaussianDistribution):
         uncond_prompt_embeds = uncond_prompt_embeds.mode()
 
-    lcd_with_loss = LCDWithLoss(
+    lcd_with_loss = LCDWithStageLoss(
         vae=vae,
         text_encoder=text_encoder,
         teacher_unet=teacher_unet,
@@ -411,10 +411,13 @@ def main(args):
     global_step = 0
     ds_iter = train_dataloader.create_tuple_iterator(num_epochs=args.num_train_epochs - start_epoch)
 
+    stage_list = [0 if i % 2 == 0 else 1 for i in range(len(ds_iter))]
+
     for epoch in range(start_epoch + 1, args.num_train_epochs + 1):
         start_time_e = time.time()
         for step, data in enumerate(ds_iter, 1):
             start_time_s = time.time()
+            data = data + [stage_list[step]]
             loss, overflow, scaling_sens = net_with_grads(*data)
             step_time = time.time() - start_time_s
 
