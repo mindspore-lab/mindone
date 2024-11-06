@@ -11,7 +11,7 @@
           \
           --is_distribute True \
           --zero_stage 2 \
-          --fp16 \
+          --fp16
 
     Run with single card:
         python finetune_with_mindspore_trainer.py \
