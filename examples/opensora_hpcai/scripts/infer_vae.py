@@ -6,7 +6,6 @@ import time
 from pathlib import Path
 
 import numpy as np
-import yaml
 from tqdm import tqdm
 
 import mindspore as ms
@@ -278,13 +277,6 @@ def main(args):
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "--config",
-        "-c",
-        default="",
-        type=str,
-        help="path to load a config yaml file that describes the setting which will override the default arguments. It can contain captions.",
-    )
-    parser.add_argument(
         "--csv_path",
         default=None,
         type=str,
@@ -386,14 +378,8 @@ def parse_args():
     parser.add_argument("--batch_size", default=1, type=int, help="batch size")
     parser.add_argument("--resize_by_max_value", default=False, type=str2bool, help="resize the image by max instead.")
 
-    default_args = parser.parse_args()
     __dir__ = os.path.dirname(os.path.abspath(__file__))
     abs_path = os.path.abspath(os.path.join(__dir__, ".."))
-    if default_args.config:
-        logger.info(f"Overwrite default arguments with configuration file {default_args.config}")
-        default_args.config = to_abspath(abs_path, default_args.config)
-        with open(default_args.config, "r") as f:
-            cfg = yaml.safe_load(f)
     args = parser.parse_args()
     # convert to absolute path, necessary for modelarts
     args.csv_path = to_abspath(abs_path, args.csv_path)
