@@ -1,6 +1,7 @@
 import argparse
 import collections
 import html
+import json
 import logging
 import re
 import urllib.parse as ul
@@ -22,6 +23,23 @@ except ImportError:
     is_ftfy_available = False
 
 logger = logging.getLogger(__name__)
+
+
+# Custom JSON Encoder to serialize everything as strings
+class StringifyJSONEncoder(json.JSONEncoder):
+    def default(self, obj):
+        # Convert the object to a string
+        return str(obj)
+
+
+def save_diffusers_json(config, filename):
+    if not isinstance(config, dict):
+        config = dict(config)
+
+    # Save the regular dictionary to a JSON file using the custom encoder
+    with open(filename, "w") as json_file:
+        json.dump(config, json_file, cls=StringifyJSONEncoder, indent=4)
+    logger.info(f"Save config file to {filename}")
 
 
 def to_2tuple(x):
