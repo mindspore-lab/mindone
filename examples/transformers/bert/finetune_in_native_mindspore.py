@@ -46,7 +46,7 @@ def main():
 
     def ms_data_collator(features, batch_info):
         batch = {}
-        for k, v in features[0]:
+        for k, v in features[0].item():
             batch[k] = np.stack([f[k] for f in features]) if isinstance(v, np.ndarray) else np.array([f[k] for f in features])
         return batch
 
