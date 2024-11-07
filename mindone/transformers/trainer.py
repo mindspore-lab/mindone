@@ -358,15 +358,15 @@ class Trainer:
             dset_description = "" if description is None else f"in the {description} set"
             logger.info(
                 f"The following columns {dset_description} don't have a corresponding argument in "
-                f"`{self.model.__class__.__name__}.forward` and have been ignored: {', '.join(ignored_columns)}."
-                f" If {', '.join(ignored_columns)} are not expected by `{self.model.__class__.__name__}.forward`, "
+                f"`{self.model.__class__.__name__}.construct` and have been ignored: {', '.join(ignored_columns)}."
+                f" If {', '.join(ignored_columns)} are not expected by `{self.model.__class__.__name__}.construct`, "
                 " you can safely ignore this message."
             )
 
         columns = [k for k in signature_columns if k in dataset.column_names]
         if len(columns) == 0:
             raise ValueError(
-                "No columns in the dataset match the model's forward method signature. "
+                "No columns in the dataset match the model's construct method signature. "
                 f"The following columns have been ignored: [{', '.join(ignored_columns)}]. "
                 "Please check the dataset and model. You may need to set `remove_unused_columns=False` in `TrainingArguments`."
             )

@@ -22,7 +22,8 @@ reducescatter_and_split_op = ops.MultitypeFuncGraph("reducescatter_and_split_op"
 def _update_params_with_all_gather(param, update, all_gather):
     update = all_gather(update)
     update = update.to(param.dtype)
-    success = ops.logical_not(ops.isnan(update))
+    # Note: ops.isnan not support bfloat16 on MindSpore 2.3.1
+    success = ops.logical_not(ops.isnan(update.float() if update.dtype == ms.bfloat16 else update).any())
     success = ops.depend(success, ops.assign(param, update))
     return success
 
