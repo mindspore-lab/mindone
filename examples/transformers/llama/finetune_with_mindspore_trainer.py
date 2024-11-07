@@ -1,24 +1,22 @@
 """ Llama 3 model fine-tuning script.
     This script with default values fine-tunes a pretrained Meta Llama3 on the `Yelp/yelp_review_full` dataset,
 
-    Run with multiple cards, example as 8 cards:
+    Run with multiple cards, use auto_mix_precision and ZeRO stage2, example as 8 cards:
         msrun --bind_core=True --worker_num=8 --local_worker_num=8 --master_port=9000 --log_dir=outputs/parallel_logs \
         python finetune_with_mindspore_trainer.py \
           --model_path meta-llama/Meta-Llama-3-8B \
           --dataset_path Yelp/yelp_review_full \
           --output_dir ./outputs \
-          --per_device_train_batch_size 8 \
           \
           --is_distribute True \
-          --zero_stage 2 \
-          --fp16
+          --bf16 \
+          --zero_stage 2
 
     Run with single card:
         python finetune_with_mindspore_trainer.py \
           --model_path meta-llama/Meta-Llama-3-8B \
           --dataset_path Yelp/yelp_review_full \
           --output_dir ./outputs \
-          --per_device_train_batch_size 8
 """
 
 
