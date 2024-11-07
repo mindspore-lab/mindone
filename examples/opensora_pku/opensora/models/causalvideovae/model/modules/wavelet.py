@@ -1,3 +1,5 @@
+import logging
+
 import mindspore as ms
 from mindspore import Tensor, mint, nn, ops
 
@@ -8,6 +10,8 @@ try:
     from opensora.npu_config import npu_config
 except ImportError:
     npu_config = None
+
+logger = logging.getLogger(__name__)
 
 
 class HaarWaveletTransform3D(nn.Cell):
@@ -119,10 +123,11 @@ class InverseHaarWaveletTransform3D(nn.Cell):
 
         self.dtype = dtype
 
-        if self.dtype == ms.float32 or self.dtype == ms.bfloat16:
+        if self.dtype == ms.bfloat16:
+            # Conv3dTranspose does not support bf16
             self.dtype = ms.float16
             dtype = ms.float16
-            print("conv3d transpose layer is forced to fp16")
+            logger.warning("conv3d transpose layer does not support ms.bfloat16, and is forced to use ms.float16!")
 
         self.h = Tensor([[[1, 1], [1, 1]], [[1, 1], [1, 1]]], dtype=dtype).view(1, 1, 2, 2, 2) * 0.3536
         self.g = Tensor([[[1, -1], [1, -1]], [[1, -1], [1, -1]]], dtype=dtype).view(1, 1, 2, 2, 2) * 0.3536
