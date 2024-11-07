@@ -492,8 +492,6 @@ LLAMA_ATTENTION_CLASSES = {
 
 
 class LlamaDecoderLayer(nn.Cell):
-
-    @ms.lazy_inline   # speed up compile in MindSpore
     def __init__(self, config: LlamaConfig, layer_idx: int):
         super().__init__()
         self.hidden_size = config.hidden_size

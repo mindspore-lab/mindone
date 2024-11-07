@@ -198,7 +198,7 @@ class AdamWeightDecayZeRO1(nn.Optimizer):
                 else:
                     new = Parameter(initializer(init, shape=p.shape, dtype=dtype), name=prefix + "." + p.name)
                 setattr(p, "split_op", False)
-                print(f"[WARNING] {self.__class__.__name__} split {new.name} fail, keep ori shape.")
+                print(f"[WARNING] {self.__class__.__name__} split {new.name} fail, keep original shape.")
 
             if not isinstance(new, ms.Parameter):
                 print(f"p.name: {p.name}, type(p): {type(p)}, p.shape: {p.shape}, type(new): {type(new)}")

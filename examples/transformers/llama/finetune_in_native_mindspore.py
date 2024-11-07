@@ -108,9 +108,20 @@ def main():
     train_dataloader = train_dataloader.create_dict_iterator(num_epochs=num_epochs, output_numpy=True)
 
 
-    # 2. create train network
-    model = LlamaForSequenceClassification.from_pretrained(args.model_path, num_labels=5, use_flash_attention_2=True)
+    # 2. create train network and mix precision
+    model = LlamaForSequenceClassification.from_pretrained(
+        args.model_path,
+        num_labels=5,
+        use_flash_attention_2=True,
+        mindspore_dtype=ms.bfloat16 if args.bf16 else (ms.float16 if args.fp16 else None)
+    )
     model.gradient_checkpointing_enable()
+
+    assert not (args.fp16 and args.bf16)
+    if args.fp16:
+        model = auto_mixed_precision(model, "O2", ms.float16)
+    if args.bf16:
+        model = auto_mixed_precision(model, "O2", ms.bfloat16)
 
     if args.zero_stage == 0:
         optimizer = nn.AdamWeightDecay(model.trainable_params(), learning_rate=5e-6)
@@ -135,11 +146,6 @@ def main():
 
     train_model = TrainOneStepWrapper(ReturnLoss(model), optimizer)
 
-    assert not (args.fp16 and args.bf16)
-    if args.fp16:
-        train_model = auto_mixed_precision(train_model, "O2", ms.float16)
-    if args.bf16:
-        train_model = auto_mixed_precision(train_model, "O2", ms.bfloat16)
 
     # 3. training
     train_model.set_train()
