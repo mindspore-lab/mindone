@@ -138,6 +138,8 @@ class EDMDPMSolverMultistepScheduler(SchedulerMixin, ConfigMixin):
 
         self.sigmas = self.sigmas = ops.cat([sigmas, ops.zeros(1, dtype=sigmas.dtype)])
 
+        self.sigma_data = self.config.sigma_data
+
         # setable values
         self.num_inference_steps = None
         self.model_outputs = [None] * solver_order
@@ -177,7 +179,7 @@ class EDMDPMSolverMultistepScheduler(SchedulerMixin, ConfigMixin):
 
     # Copied from diffusers.schedulers.scheduling_edm_euler.EDMEulerScheduler.precondition_inputs
     def precondition_inputs(self, sample, sigma):
-        c_in = 1 / ((sigma**2 + self.config.sigma_data**2) ** 0.5)
+        c_in = 1 / ((sigma**2 + self.sigma_data**2) ** 0.5)
         scaled_sample = (sample * c_in).to(sample.dtype)
         return scaled_sample
 
@@ -192,7 +194,7 @@ class EDMDPMSolverMultistepScheduler(SchedulerMixin, ConfigMixin):
 
     # Copied from diffusers.schedulers.scheduling_edm_euler.EDMEulerScheduler.precondition_outputs
     def precondition_outputs(self, sample, model_output, sigma):
-        sigma_data = self.config.sigma_data
+        sigma_data = self.sigma_data
         c_skip = sigma_data**2 / (sigma**2 + sigma_data**2)
 
         if self.config.prediction_type == "epsilon":
