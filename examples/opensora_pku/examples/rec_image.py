@@ -77,7 +77,7 @@ def main(args):
         )
     else:
         state_dict = None
-
+    vae = None
     if args.model_config is not None:
         assert os.path.exists(args.model_config), f"`model_config` does not exist! {args.model_config}"
         pattern = r"^([A-Za-z]+)Model"
@@ -92,7 +92,7 @@ def main(args):
 
         else:
             logger.warning(f"Incorrect ae name, must be one of {ae_wrapper.keys()}")
-            vae = None
+
     kwarg = {
         "state_dict": state_dict,
         "use_safetensors": True,
