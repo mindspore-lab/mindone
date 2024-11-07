@@ -13,7 +13,7 @@ python finetune_with_mindspore_trainer.py \
   --model_path $local_path/meta-llama/Meta-Llama-3-8B \
   --dataset_path $local_path/yelp_review_full \
   --output_dir ./outputs \
-  --per_device_train_batch_size 1 \
+  --per_device_train_batch_size 8 \
   \
   --zero_stage 2 \
   --bf16 \
