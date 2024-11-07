@@ -26,7 +26,7 @@ msrun --bind_core=True --worker_num=8 --local_worker_num=8 --master_port=9000 --
     --clip_grad True \
     --weight_decay 0.0 \
     --mode 1 \
-    --init_loss_scale 1 \
+    --init_loss_scale 65536 \
     --jit_level "O0" \
     --use_discriminator True \
     --use_parallel True \
