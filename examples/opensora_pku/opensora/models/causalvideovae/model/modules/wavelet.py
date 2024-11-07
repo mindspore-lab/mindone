@@ -123,11 +123,10 @@ class InverseHaarWaveletTransform3D(nn.Cell):
 
         self.dtype = dtype
 
-        if self.dtype == ms.bfloat16:
-            # Conv3dTranspose does not support bf16
+        if self.dtype != ms.float16:
+            # Conv3dTranspose is forced to fp16
             self.dtype = ms.float16
             dtype = ms.float16
-            logger.warning("conv3d transpose layer does not support ms.bfloat16, and is forced to use ms.float16!")
 
         self.h = Tensor([[[1, 1], [1, 1]], [[1, 1], [1, 1]]], dtype=dtype).view(1, 1, 2, 2, 2) * 0.3536
         self.g = Tensor([[[1, -1], [1, -1]], [[1, -1], [1, -1]]], dtype=dtype).view(1, 1, 2, 2, 2) * 0.3536
