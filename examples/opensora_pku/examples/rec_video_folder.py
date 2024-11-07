@@ -62,6 +62,7 @@ def main(args):
     else:
         state_dict = None
 
+    vae = None
     if args.model_config is not None:
         assert os.path.exists(args.model_config), f"`model_config` does not exist! {args.model_config}"
         pattern = r"^([A-Za-z]+)Model"
@@ -76,7 +77,7 @@ def main(args):
 
         else:
             logger.warning(f"Incorrect ae name, must be one of {ae_wrapper.keys()}")
-            vae = None
+
     kwarg = {
         "state_dict": state_dict,
         "use_safetensors": True,
@@ -130,7 +131,7 @@ def main(args):
     )
     num_batches = dataloader.get_dataset_size()
     logger.info("Number of batches: %d", num_batches)
-    ds_iter = dataloader.create_dict_iterator(1)
+    ds_iter = dataloader.create_dict_iterator(1, output_numpy=True)
     # ---- Prepare Dataset
 
     # ---- Inference ----
@@ -140,12 +141,11 @@ def main(args):
         else:
             x = batch["video"]
         file_paths = batch["path"]
-        x = x.to(dtype=dtype)  # b c t h w
+        x = ms.Tensor(x, dtype=dtype)  # b c t h w
         latents = vae.encode(x)
         video_recon = vae.decode(latents)
         for idx, video in enumerate(video_recon):
-            file_paths = eval(str(file_paths).replace("/n", ","))
-            file_name = os.path.basename(file_paths[idx])
+            file_name = os.path.basename(str(file_paths[idx]))
             if ".avi" in os.path.basename(file_name):
                 file_name = file_name.replace(".avi", ".mp4")
             output_path = os.path.join(generated_video_dir, file_name)

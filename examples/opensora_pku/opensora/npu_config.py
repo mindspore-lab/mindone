@@ -67,6 +67,7 @@ class NPUConfig:
         rank_id, device_num = init_env(
             mode=args.mode,
             device_target=args.device,
+            distributed=args.use_parallel,
             precision_mode=getattr(args, "precision_mode", None),
             jit_level=getattr(args, "jit_level", None),
             jit_syntax_level=getattr(args, "jit_syntax_level", "strict"),
