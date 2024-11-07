@@ -235,7 +235,7 @@ encoder_outputs = outputs[1]
 
 ## Numerical Parity
 
-We check numerical parity with [huggingface/transformers](https://github.com/huggingface/transformers), as detailed below:
+We compare the numerical parity with the [huggingface/transformer](https://github.com/huggingface/transformers), as detailed below:
 
 <details onclose>
 
