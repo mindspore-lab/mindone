@@ -67,6 +67,11 @@ class SV3DInferPipeline:
         sampler_cfg.params["network_ckpt"] = ckpt_path
         self.sampler = instantiate_from_config(sampler_cfg)
 
+        # for alignment of randomness with th
+        img_shape = (576, 576)
+        self.cond_c = np.random.randn(*img_shape).astype(np.float32)
+        self.randn_n = np.random.randn(21, 4, img_shape[0] // 8, img_shape[1] // 8)
+
         self.cond_aug = cond_aug
         self.num_frames = num_frames
         self.version = version
@@ -106,12 +111,9 @@ class SV3DInferPipeline:
     def __call__(self, image: Tensor) -> Tensor:
         image = image * 2.0 - 1.0
         image = image.unsqueeze(0)
-        H, W = image.shape[-2:]
         assert image.shape[1] == 3
-        F = 8
-        C = 4
         _cond_aug = Tensor(self.cond_aug, dtype=ms.float32)
-        cond_frames = image + _cond_aug * ops.randn_like(image)
+        cond_frames = image + _cond_aug * Tensor(self.cond_c)
         cond_frames_without_noise = image
         batch, batch_uc = self.get_batch(cond_frames, cond_frames_without_noise)
 
@@ -132,8 +134,7 @@ class SV3DInferPipeline:
             c[k] = c[k].repeat(self.num_frames, axis=1)
             c[k] = c[k].flatten(order="C", start_dim=0, end_dim=1)
 
-        shape = (self.num_frames, C, H // F, W // F)
-        randn = ops.randn(shape)
+        randn = Tensor(self.randn_n)
         additional_model_inputs = {}
         additional_model_inputs["image_only_indicator"] = ops.zeros((2, self.num_frames))
         samples_z = self.sampler(randn, cond=c, uc=uc, num_frames=self.num_frames, **additional_model_inputs)

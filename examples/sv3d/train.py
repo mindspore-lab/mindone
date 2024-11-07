@@ -1,6 +1,4 @@
 import os
-
-# os.environ['DEVICE_ID'] = '7'  # for debugpy debug
 import sys
 from datetime import datetime
 from pathlib import Path
@@ -8,9 +6,7 @@ from pathlib import Path
 from jsonargparse import ArgumentParser
 from omegaconf import OmegaConf
 
-sys.path.append(
-    "/mnt/disk4/fredhong/mindone_master/"
-)  # FIXME: loading mindone, remove in future when mindone is ready for install
+sys.path.append("../..")  # FIXME: loading mindone, remove in future when mindone is ready for install
 
 from sgm.helpers import create_model_sv3d
 from sgm.modules.train.callback import LossMonitor
