@@ -44,7 +44,7 @@ class NPUConfig:
         self.original_run_dtype = None
 
         self.replaced_type = ms.float32
-        self.conv_dtype = ms.float16
+        self.conv_dtype = ms.bfloat16  # FIXME: torch uses float16
         if self.enable_FA and self.enable_FP32:
             self.inf_float = -10000.0
         else:
