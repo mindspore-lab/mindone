@@ -16,14 +16,20 @@ def parse_args():
     parser.add_argument(
         "--pretrained_model_path",
         type=str,
-        default="PATH_TO_VC2_model.pt",
+        default="PATH_TO_VC2_model.ckpt",
         help="Path to the pretrained model.",
     )
     parser.add_argument(
         "--pretrained_enc_path",
         type=str,
-        default="PATH_TO_encoder_model.pt",
+        default="PATH_TO_encoder_model.ckpt",
         help="Path to the pretrained t2v encoder model.",
+    )
+    parser.add_argument(
+        "--pretrained_lora_path",
+        type=str,
+        default=None,
+        help="Path to pretrained lora weights."
     )
     # ----------MS environment args----------
     parser.add_argument(
