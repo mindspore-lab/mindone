@@ -124,15 +124,18 @@ class GeneratorWithLoss(nn.Cell):
 
         if self.use_outlier_penalty_loss and self.opl_weight > 0:
             # (b c t h w) -> (b*t c h w)
+            # import pdb; pdb.set_trace()
             z = _rearrange_in(z)
             z_mean = ops.mean(z, axis=(-1, -2), keep_dims=True)
-            z_std = ops.std(z, axis=(-1, -2), keep_dims=True)
+            z_std = ops.std(z, axis=(-1, -2), keepdims=True)
 
             std_scale = 3  # r=3
-            opl_loss = ops.max((ops.abs(z - z_mean) - std_scale * z_std), 0)
-            opl_loss = ops.mean(opl_loss)
+            # opl_loss = ops.max((ops.abs(z - z_mean) - std_scale * z_std), 0)
+            outlier_penalty = ops.abs(z - z_mean) - std_scale * z_std
+            outlier_penalty = ops.where(outlier_penalty > 0, outlier_penalty, 0)
+            opl_loss = ops.mean(outlier_penalty)
 
-            loss += self.opl_weight + opl_loss
+            loss += self.opl_weight * opl_loss
 
         return loss
 

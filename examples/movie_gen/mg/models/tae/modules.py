@@ -1,4 +1,5 @@
 import logging
+import functools
 
 import numpy as np
 from packaging import version
@@ -117,6 +118,7 @@ class TemporalConv1d(nn.Cell):
 
         return x
 
+
 class Conv2_5d(nn.Cell):
     r"""
     Conv2.5d, a 2D spatial convolution followed by 1D temporal convolution
@@ -138,13 +140,44 @@ class Conv2_5d(nn.Cell):
         assert dilation==1
         # spatial conv
         self.conv_spat = nn.Conv2d(in_channels, out_channels, kernel_size=kernel_size, stride=stride, pad_mode=pad_mode, padding=padding, has_bias=has_bias)
+        
+        # temp_pad_mode = 'zero'
+        # temp_pad = 'mint_rep'
+        temp_pad = 'manual'
+
         # temporal conv
         if kernel_size > 1:
-            self.pad = nn.Pad(paddings=((0, 0), (0, 0), ((kernel_size-1)//2, (kernel_size-1)//2)), mode='SYMMETRIC')
-            self.use_pad = True
+            # FIXME: debugging to see how symmetric padding influence performance
+            if  temp_pad == 'zero':
+                self.conv_temp = nn.Conv1d(out_channels, out_channels, kernel_size=kernel_size, stride=stride, pad_mode="same", has_bias=has_bias)
+                self.use_pad = False
+                self.pad = nn.Identity()
+            elif temp_pad == 'mint_rep': 
+                assert kernel_size == 3
+                self.conv_temp = nn.Conv1d(out_channels, out_channels, kernel_size=kernel_size, stride=stride, pad_mode="valid", has_bias=has_bias)
+                self.pad = nn.ReplicationPad1d(((kernel_size-1)//2, (kernel_size-1)//2))
+                self.use_pad = True
+            elif temp_pad == 'manual':
+                assert kernel_size == 3, 'symmetric padding currently only support kernel size 3'
+                self.conv_temp = nn.Conv1d(out_channels, out_channels, kernel_size=kernel_size, stride=stride, pad_mode="valid", has_bias=has_bias)
+                self.pad = self.symmetric_pad1d
+                self.use_pad = True
+            elif temp_pad == 'nn_pad':
+                self.pad = nn.Pad(paddings=((0, 0), (0, 0), ((kernel_size-1)//2, (kernel_size-1)//2)), mode='SYMMETRIC')
+                self.use_pad = True
+
         else:
             self.use_pad = False
-        self.conv_temp = nn.Conv1d(out_channels, out_channels, kernel_size=kernel_size, stride=stride, pad_mode="valid", has_bias=has_bias)
+            self.conv_temp = nn.Conv1d(out_channels, out_channels, kernel_size=kernel_size, stride=stride, pad_mode="valid", has_bias=has_bias)
+    
+    @staticmethod
+    def symmetric_pad1d(x):
+        first_frame = x[:, :, :1]
+        last_frame = x[:, :, -1:]
+        # last_frame_pad = ops.cat([last_frame] * self.time_pad, axis=2)
+        x = ops.concat((first_frame, x, last_frame), axis=2)
+
+        return x
 
     def construct(self, x):
         '''
@@ -174,6 +207,7 @@ class Conv2_5d(nn.Cell):
         x = ops.reshape(x, (B*Ho*Wo, Co, T))
 
         if self.use_pad:
+            # import pdb; pdb.set_trace()
             x = self.pad(x)
 
         x = self.conv_temp(x)

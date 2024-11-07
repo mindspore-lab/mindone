@@ -193,6 +193,7 @@ def main(args):
     # 3. build models
     ae = TemporalAutoencoder(
         pretrained=args.pretrained_model_path,
+        use_recompute=args.use_recompute,
         )
 
     if args.use_discriminator:

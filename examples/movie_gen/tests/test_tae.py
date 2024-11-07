@@ -1,4 +1,7 @@
 import numpy as np
+import sys
+sys.path.insert(0, '.')
+
 from mg.models.tae.modules import (
     Conv2_5d,
     Decoder,
@@ -22,7 +25,6 @@ def test_conv25d():
     cout = 128
     x = np.random.normal(size=in_shape).astype(np.float32)
 
-    ms.set_context(mode=0)
     x = ms.Tensor(x)
     conv2d = Conv2_5d(C, cout, 3)
 
@@ -42,7 +44,6 @@ def test_resnetblock():
         dropout=0.0,
     )
 
-    ms.set_context(mode=0)
     x = ms.Tensor(x)
     y = rb(x)
 
@@ -59,7 +60,6 @@ def test_spatial_attn():
     # sa = SpatialAttnBlock(C)
     sa = SpatialAttnBlockV2(C)
 
-    ms.set_context(mode=0)
 
     x = ms.Tensor(x)
     y = sa(x)
@@ -76,7 +76,6 @@ def test_temporal_attn():
     # TODO: compare time cost for v1 and v2
     ta = TemporalAttnBlock(C)
 
-    ms.set_context(mode=0)
 
     x = ms.Tensor(x)
     y = ta(x)
@@ -184,7 +183,7 @@ def test_tae_decode():
 
 
 def test_tae_rec():
-    in_shape = (B, C, T, H, W) = (1, 3, 9, 64, 64)
+    in_shape = (B, C, T, H, W) = (1, 3, 16, 64, 64)
     x = np.random.normal(size=in_shape).astype(np.float32)
     x = ms.Tensor(x)
 
@@ -195,6 +194,8 @@ def test_tae_rec():
 
 
 if __name__ == "__main__":
+    ms.set_context(mode=1)
+
     # test_conv25d()
     # test_resnetblock()
     # test_spatial_attn()

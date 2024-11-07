@@ -30,6 +30,7 @@ class TemporalAutoencoder(nn.Cell):
         self,
         config: dict = SDXL_CONFIG,
         pretrained: str = None,
+        use_recompute: bool=False,
     ):
         super().__init__()
 
@@ -50,6 +51,21 @@ class TemporalAutoencoder(nn.Cell):
 
         self.sample_deterministic = False
         self.discard_spurious_frames = True
+
+        if use_recompute:
+            # self.recompute(self.encoder)
+            # self.recompute(self.quant_conv)
+            # self.recompute(self.post_quant_conv)
+            self.recompute(self.decoder)
+
+
+    def recompute(self, b):
+        if not b._has_config_recompute:
+            b.recompute()
+        if isinstance(b, nn.CellList):
+            self.recompute(b[-1])
+        else:
+            b.add_flags(output_no_recompute=True)
 
 
     def _encode(self, x):
