@@ -302,9 +302,29 @@ class CogVideoXPatchEmbed(nn.Cell):
         embed_dim: int = 1920,
         text_embed_dim: int = 4096,
         bias: bool = True,
+        sample_width: int = 90,
+        sample_height: int = 60,
+        sample_frames: int = 49,
+        temporal_compression_ratio: int = 4,
+        max_text_seq_length: int = 226,
+        spatial_interpolation_scale: float = 1.875,
+        temporal_interpolation_scale: float = 1.0,
+        use_positional_embeddings: bool = True,
+        use_learned_positional_embeddings: bool = True,
     ) -> None:
         super().__init__()
+
         self.patch_size = patch_size
+        self.embed_dim = embed_dim
+        self.sample_height = sample_height
+        self.sample_width = sample_width
+        self.sample_frames = sample_frames
+        self.temporal_compression_ratio = temporal_compression_ratio
+        self.max_text_seq_length = max_text_seq_length
+        self.spatial_interpolation_scale = spatial_interpolation_scale
+        self.temporal_interpolation_scale = temporal_interpolation_scale
+        self.use_positional_embeddings = use_positional_embeddings
+        self.use_learned_positional_embeddings = use_learned_positional_embeddings
 
         self.proj = nn.Conv2d(
             in_channels,
@@ -315,6 +335,32 @@ class CogVideoXPatchEmbed(nn.Cell):
             pad_mode="pad",
         )
         self.text_proj = nn.Dense(text_embed_dim, embed_dim)
+
+        if use_positional_embeddings or use_learned_positional_embeddings:
+            persistent = use_learned_positional_embeddings
+            pos_embedding = self._get_positional_embeddings(sample_height, sample_width, sample_frames)
+            self.pos_embedding = (
+                ms.Parameter(pos_embedding, name="pos_embedding", requires_grad=False) if persistent else pos_embedding
+            )
+
+    def _get_positional_embeddings(self, sample_height: int, sample_width: int, sample_frames: int) -> ms.Tensor:
+        post_patch_height = sample_height // self.patch_size
+        post_patch_width = sample_width // self.patch_size
+        post_time_compression_frames = (sample_frames - 1) // self.temporal_compression_ratio + 1
+        num_patches = post_patch_height * post_patch_width * post_time_compression_frames
+
+        pos_embedding = get_3d_sincos_pos_embed(
+            self.embed_dim,
+            (post_patch_width, post_patch_height),
+            post_time_compression_frames,
+            self.spatial_interpolation_scale,
+            self.temporal_interpolation_scale,
+        )
+        pos_embedding = ms.Tensor.from_numpy(pos_embedding).flatten(start_dim=0, end_dim=1)
+        joint_pos_embedding = ops.zeros(size=(1, self.max_text_seq_length + num_patches, self.embed_dim))
+        joint_pos_embedding[:, self.max_text_seq_length :] += pos_embedding
+
+        return joint_pos_embedding
 
     def construct(self, text_embeds: ms.Tensor, image_embeds: ms.Tensor):
         r"""

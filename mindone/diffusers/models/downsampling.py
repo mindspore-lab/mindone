@@ -354,14 +354,16 @@ class CogVideoXDownsample3D(nn.Cell):
                 x_first, x_rest = x[..., 0], x[..., 1:]
                 if x_rest.shape[-1] > 0:
                     # (batch_size * height * width, channels, frames - 1) -> (batch_size * height * width, channels, (frames - 1) // 2)
-                    x_rest = ops.avg_pool1d(x_rest, kernel_size=2, stride=2)
+                    # x_rest = ops.avg_pool1d(x_rest, kernel_size=2, stride=2) does NOT support BFloat16, so we will switch to the following equivalent method:
+                    x_rest = x_rest.reshape(batch_size * height * width, channels, -1, 2).mean(axis=-1, keep_dims=False)
 
                 x = ops.cat([x_first[..., None], x_rest], axis=-1)
                 # (batch_size * height * width, channels, (frames // 2) + 1) -> (batch_size, height, width, channels, (frames // 2) + 1) -> (batch_size, channels, (frames // 2) + 1, height, width)  # noqa: E501
                 x = x.reshape(batch_size, height, width, channels, x.shape[-1]).permute(0, 3, 4, 1, 2)
             else:
                 # (batch_size * height * width, channels, frames) -> (batch_size * height * width, channels, frames // 2)
-                x = ops.avg_pool1d(x, kernel_size=2, stride=2)
+                # x = ops.avg_pool1d(x, kernel_size=2, stride=2) does NOT support BFloat16, so we will switch to the following equivalent method:
+                x = x.reshape(batch_size * height * width, channels, -1, 2).mean(axis=-1, keep_dims=False)
                 # (batch_size * height * width, channels, frames // 2) -> (batch_size, height, width, channels, frames // 2) -> (batch_size, channels, frames // 2, height, width)  # noqa: E501
                 x = x.reshape(batch_size, height, width, channels, x.shape[-1]).permute(0, 3, 4, 1, 2)
 

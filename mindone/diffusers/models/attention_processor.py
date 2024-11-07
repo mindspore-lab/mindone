@@ -1002,9 +1002,6 @@ class CogVideoXAttnProcessor2_0:
 
         self.apply_rotary_emb = apply_rotary_emb
 
-        # if not hasattr(F, "scaled_dot_product_attention"):
-        #     raise ImportError("CogVideoXAttnProcessor requires PyTorch 2.0, to use it, please upgrade PyTorch to 2.0.")
-
     def __call__(
         self,
         attn: Attention,
@@ -1076,9 +1073,6 @@ class FusedCogVideoXAttnProcessor2_0:
         from .embeddings import apply_rotary_emb
 
         self.apply_rotary_emb = apply_rotary_emb
-
-        # if not hasattr(F, "scaled_dot_product_attention"):
-        #     raise ImportError("CogVideoXAttnProcessor requires PyTorch 2.0, to use it, please upgrade PyTorch to 2.0.")
 
     def __call__(
         self,
