@@ -9,7 +9,7 @@ __dir__ = os.path.dirname(os.path.abspath(__file__))
 mindone_lib_path = os.path.abspath(os.path.join(__dir__, "../../../"))
 sys.path.insert(0, mindone_lib_path)
 
-from opensora.utils.model_utils import _check_cfgs_in_parser, str2bool
+from mg.utils.parser import _check_cfgs_in_parser, str2bool
 
 from mindone.utils.misc import to_abspath
 

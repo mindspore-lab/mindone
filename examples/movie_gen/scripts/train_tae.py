@@ -18,10 +18,10 @@ mindone_lib_path = os.path.abspath(os.path.join(__dir__, "../../../"))
 sys.path.insert(0, mindone_lib_path)
 sys.path.insert(0, os.path.abspath(os.path.join(__dir__, "..")))
 
-from args_train_vae import parse_args
-from mg.datasets.vae_dataset import create_dataloader
+from args_train_tae import parse_args
+from mg.datasets.tae_dataset import create_dataloader
 from mg.models.tae.losses import GeneratorWithLoss
-from mg.models.tae.tae import TemporalAutoEncoder
+from mg.models.tae.tae import TemporalAutoencoder
 
 from mindone.trainers.callback import EvalSaveCallback, OverflowMonitor, ProfilerCallback
 from mindone.trainers.checkpoint import CheckpointManager, resume_train_network
@@ -191,13 +191,8 @@ def main(args):
     logger.info(f"Num batches: {dataset_size}")
 
     # 3. build models
-    ae = TemporalAutoEncoder(
-        micro_batch_size=args.micro_batch_size,
-        micro_frame_size=args.micro_frame_size,
-        ckpt_path=args.pretrained_model_path,
-        freeze_vae_2d=args.freeze_vae_2d,
-        cal_loss=True,
-        use_recompute=args.use_recompute,
+    ae = TemporalAutoencoder(
+        pretrained=args.pretrained_model_path,
         )
 
     if args.use_discriminator:
@@ -219,7 +214,7 @@ def main(args):
         ae,
         kl_weight=args.kl_loss_weight,
         perceptual_weight=args.perceptual_loss_weight,
-        use_image_identity_loss=args.use_outlier_penalty_loss,
+        use_outlier_penalty_loss=args.use_outlier_penalty_loss,
         dtype=args.dtype,
     )
 

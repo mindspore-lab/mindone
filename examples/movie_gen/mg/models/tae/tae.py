@@ -96,5 +96,5 @@ class TemporalAutoencoder(nn.Cell):
         if self.discard_spurious_frames and (recons.shape[-3] != x.shape[-3]):
             recons = recons[:, :, :x.shape[-3], :, :]
 
-        return recons, posterior_mean, posterior_logvar
+        return recons, z, posterior_mean, posterior_logvar
 

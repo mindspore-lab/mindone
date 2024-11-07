@@ -2,7 +2,7 @@ import logging
 import os
 
 import mindcv
-from opensora.utils.load_models import load_from_pretrained
+from mg.utils.load_models import load_from_pretrained
 
 import mindspore as ms
 import mindspore.nn as nn
