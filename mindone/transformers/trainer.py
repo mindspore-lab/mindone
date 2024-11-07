@@ -700,6 +700,14 @@ class Trainer:
             # FIXME: just build model, time not included compile cost.
             self.jit_compilation_time = round(time.time() - start_time, 4)
 
+        # enable auto mix precision
+        assert not (self.args.fp16 and self.args.bf16)
+        amp_level = self.args.amp_opt_level if self.args.amp_opt_level is not None else "O2"
+        if self.args.fp16:
+            model = auto_mixed_precision(model, amp_level, dtype=ms.float16)
+        if self.args.bf16:
+            model = auto_mixed_precision(model, amp_level, dtype=ms.bfloat16)
+
         # Note: unlike the original transformers, support label_smoother through `Trainer._wrap_model`, and origin support it at `Trainer.compute_loss`
         if self.label_smoother is not None:
             signature_columns = list(inspect.signature(self.model.construct).parameters.keys())[1:]
@@ -752,13 +760,6 @@ class Trainer:
             clip_grad="global_norm",
             clip_value=self.args.max_grad_norm
         )
-
-        assert not (self.args.fp16 and self.args.bf16)
-        amp_level = self.args.amp_opt_level if self.args.amp_opt_level is not None else "O2"
-        if self.args.fp16:
-            train_model = auto_mixed_precision(train_model, amp_level, dtype=ms.float16)
-        if self.args.bf16:
-            train_model = auto_mixed_precision(train_model, amp_level, dtype=ms.bfloat16)
 
         return model, train_model
 
