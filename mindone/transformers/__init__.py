@@ -3,6 +3,12 @@ __version__ = "4.42.4"
 
 
 from .modeling_utils import MSPreTrainedModel
+from .models.llama import (
+    LlamaForCausalLM,
+    LlamaForSequenceClassification,
+    LlamaModel,
+    LlamaPreTrainedModel
+)
 from .models.bert import (
     BertForMaskedLM,
     BertForMultipleChoice,

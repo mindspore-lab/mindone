@@ -1,16 +1,33 @@
-# Get Pretrained Txt/Img Encoder from 🤗 Transformers
+# Make 🤗 Transformers run on MindSpore
 
-This MindSpore patch for [🤗 Transformers](https://github.com/huggingface/transformers) enables researchers or developers
-in the field of text-to-image (t2i) and text-to-video (t2v) generation to utilize pretrained text and image models from 🤗 Transformers on MindSpore.
-The pretrained models from 🤗 Transformers can be employed either as frozen encoders or fine-tuned with denoising networks for generative tasks.
-This approach **_aligns with the practices_** of PyTorch users<sup>[[1]](https://github.com/huggingface/diffusers)[[2]](https://github.com/Stability-AI/generative-models)</sup>.
-Now, MindSpore users can benefit from the same functionality!
+<br>
 
-## Philosophy
+> State-of-the-art transformers models to perform tasks on different modalities such as text, vision, 
+> and audio in MindSpore. We've tried to provide a similar interface and usage with the 
+> [huggingface/transformers](https://github.com/huggingface/transformers). Only necessary changes are made to 
+> the [huggingface/transformers](https://github.com/huggingface/transformers) to make it seamless for users from torch.
 
-- Only the MindSpore model definition will be implemented, which will be identical to the PyTorch model.
-- Configuration, Tokenizer, etc. will utilize the original 🤗 Transformers.
-- Models here will be limited to the scope of generative tasks.
+🤗 **Development Principles**
+
+- Only necessary changes are made to the [huggingface/transformers](https://github.com/huggingface/transformers)
+- Configuration, Tokenizer, etc. will utilize the original Transformers.
+
+🤗 **Currently**, 
+we provides pretrained models, generation api, trainer, etc. 
+to be enables researchers or developers in the field of AIGC and MLLMs to utilize Transformers on MindSpore. 
+
+🤗 **Comming Soon**, 
+latest state-of-the-art models, auto class, pipeline, agent, distributed and so on.
+
+
+## Tutorials
+
+| Section                                                                                              | Description                                                                                            |
+|------------------------------------------------------------------------------------------------------|--------------------------------------------------------------------------------------------------------|
+| [Generation with LLMs](../../docs/transformers/tutorials/generation.md)                              | Generate text with an LLM                                                                              |
+| [Training and fine-tuning](../../docs/transformers/tutorials/finetune.md)                            | Using the models provided by 🤗 Transformers in a native MindSpore training loop and the `Trainer` API |
+| [Distributed training and mixed precision](../../docs/transformers/tutorials/finetune_distribute.md) | Example scripts for fine-tuning models using distribute and mix precision                              |
+
 
 ## Quick Tour
 
@@ -19,17 +36,20 @@ Remember that the models are from `mindone.transformers`, and anything else is f
 
 ```diff
 from mindspore import Tensor
+
 # use tokenizer from 🤗 Transformers
 from transformers import AutoTokenizer
-# use model from mindone.transformers
--from transformers import CLIPTextModel
-+from mindone.transformers import CLIPTextModel
 
-model = CLIPTextModel.from_pretrained("openai/clip-vit-base-patch32")
-tokenizer = AutoTokenizer.from_pretrained("openai/clip-vit-base-patch32")
+# replace model from 🤗 transformers to mindone.transformers
+-from transformers import LlamaForCausalLM
++from mindone.transformers import LlamaForCausalLM
+
+model = LlamaForCausalLM.from_pretrained("meta-llama/Meta-Llama-3-8B")
+tokenizer = AutoTokenizer.from_pretrained("meta-llama/Meta-Llama-3-8B)
+tokenizer.pad_token = tokenizer.eos_token  # Most LLMs don't have a pad token by default
 
 inputs = tokenizer(
-    ["a photo of a cat", "a photo of a dog"],
+    ["A list of colors: red, blue", "Portugal is"],
     padding=True,
 -    return_tensors="pt",
 +    return_tensors="np"
@@ -38,7 +58,26 @@ inputs = tokenizer(
 +outputs = model(Tensor(inputs.input_ids))
 ```
 
+Run text generation
+
+```diff
+generated_ids = model.generate(
+-    **inputs,
++    input_ids=Tensor(inputs.input_ids),
+    max_new_tokens=30,
+    use_cache=True,
+    do_sample=False
+)
+
+tokenizer.batch_decode(generated_ids, skip_special_tokens=True)
+```
+
+
 ## Model Zoo
+
+We introduced some of the provided models and basic usage, as detailed below:
+
+<details onclose>
 
 ### CLIP
 
@@ -191,7 +230,14 @@ logits = outputs[0]
 encoder_outputs = outputs[1]
 ```
 
+</details>
+
+
 ## Numerical Parity
+
+We check numerical parity with [huggingface/transformers](https://github.com/huggingface/transformers), as detailed below:
+
+<details onclose>
 
 MindSpore 2.2/2.3 @ Ascend **_vs._** Pytorch 2.2 @ CPU(aarch64)
 
@@ -296,3 +342,5 @@ Error Formula: `max(abs(ms-pt)) / mean(abs(pt))`
 | google-t5/t5-small                             | 4.88E-05 |
 | DeepFloyd/t5-v1_1-xxl                          | 9.84E-05 |
 | google/flan-t5-large                           | 4.55E-06 |
+
+</details>
