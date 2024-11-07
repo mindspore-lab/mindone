@@ -118,7 +118,7 @@ class HaarWaveletTransform3D(nn.Cell):
 
 
 class InverseHaarWaveletTransform3D(nn.Cell):
-    def __init__(self, enable_cached=False, dtype=ms.float16, *args, **kwargs) -> None:
+    def __init__(self, enable_cached=False, dtype=ms.float32, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
 
         self.dtype = dtype
