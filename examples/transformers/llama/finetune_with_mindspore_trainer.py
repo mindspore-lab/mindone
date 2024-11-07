@@ -73,7 +73,12 @@ def main():
     small_train_dataset = tokenized_datasets["train"]
     small_eval_dataset = tokenized_datasets["test"]
 
-    model = LlamaForSequenceClassification.from_pretrained(args.model_path, num_labels=5, use_flash_attention_2=args.enable_flash_attention)
+    model = LlamaForSequenceClassification.from_pretrained(
+        args.model_path,
+        num_labels=5,
+        use_flash_attention_2=args.enable_flash_attention,
+        mindspore_dtype=ms.bfloat16 if args.bf16 else (ms.float16 if args.fp16 else None)
+    )
 
     if args.do_eval:
         metric = evaluate.load("accuracy")
