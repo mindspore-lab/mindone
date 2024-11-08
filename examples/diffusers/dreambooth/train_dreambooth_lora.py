@@ -84,7 +84,7 @@ def log_validation(
     else:
         for image in args.validation_images:
             image = Image.open(image)
-            image = pipeline(**pipeline_args, image=image, generator=generator).images[0]
+            image = pipeline(**pipeline_args, image=image, generator=generator)[0][0]
             images.append(image)
 
     phase_name = "test" if is_final_validation else "validation"

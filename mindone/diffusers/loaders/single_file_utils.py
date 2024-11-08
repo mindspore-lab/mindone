@@ -14,6 +14,7 @@
 # limitations under the License.
 """Conversion script for the Stable Diffusion checkpoints."""
 
+import copy
 import os
 import re
 from io import BytesIO
@@ -70,11 +71,11 @@ DIFFUSERS_DEFAULT_PIPELINE_PATHS = {
     "xl_inpaint": {"pretrained_model_name_or_path": "diffusers/stable-diffusion-xl-1.0-inpainting-0.1"},
     "playground-v2-5": {"pretrained_model_name_or_path": "playgroundai/playground-v2.5-1024px-aesthetic"},
     "upscale": {"pretrained_model_name_or_path": "stabilityai/stable-diffusion-x4-upscaler"},
-    "inpainting": {"pretrained_model_name_or_path": "runwayml/stable-diffusion-inpainting"},
+    "inpainting": {"pretrained_model_name_or_path": "stable-diffusion-v1-5/stable-diffusion-inpainting"},
     "inpainting_v2": {"pretrained_model_name_or_path": "stabilityai/stable-diffusion-2-inpainting"},
     "controlnet": {"pretrained_model_name_or_path": "lllyasviel/control_v11p_sd15_canny"},
     "v2": {"pretrained_model_name_or_path": "stabilityai/stable-diffusion-2-1"},
-    "v1": {"pretrained_model_name_or_path": "runwayml/stable-diffusion-v1-5"},
+    "v1": {"pretrained_model_name_or_path": "stable-diffusion-v1-5/stable-diffusion-v1-5"},
     "stable_cascade_stage_b": {"pretrained_model_name_or_path": "stabilityai/stable-cascade", "subfolder": "decoder"},
     "stable_cascade_stage_b_lite": {
         "pretrained_model_name_or_path": "stabilityai/stable-cascade",
@@ -231,7 +232,7 @@ SCHEDULER_DEFAULT_CONFIG = {
     "timestep_spacing": "leading",
 }
 
-LDM_VAE_KEY = "first_stage_model."
+LDM_VAE_KEYS = ["first_stage_model.", "vae."]
 LDM_VAE_DEFAULT_SCALING_FACTOR = 0.18215
 PLAYGROUND_VAE_SCALING_FACTOR = 0.5
 LDM_UNET_KEY = "model.diffusion_model."
@@ -240,8 +241,8 @@ LDM_CLIP_PREFIX_TO_REMOVE = [
     "cond_stage_model.transformer.",
     "conditioner.embedders.0.transformer.",
 ]
-OPEN_CLIP_PREFIX = "conditioner.embedders.0.model."
 LDM_OPEN_CLIP_TEXT_PROJECTION_DIM = 1024
+SCHEDULER_LEGACY_KWARGS = ["prediction_type", "scheduler_type"]
 
 VALID_URL_PREFIXES = ["https://huggingface.co/", "huggingface.co/", "hf.co/", "https://hf.co/"]
 
@@ -289,6 +290,10 @@ def _is_model_weights_in_cached_folder(cached_folder, name):
             weights_exist = True
 
     return weights_exist
+
+
+def _is_legacy_scheduler_kwargs(kwargs):
+    return any(k in SCHEDULER_LEGACY_KWARGS for k in kwargs.keys())
 
 
 def load_single_file_checkpoint(

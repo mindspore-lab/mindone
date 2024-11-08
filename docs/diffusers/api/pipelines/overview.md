@@ -29,9 +29,13 @@ The table below lists all the pipelines currently available in 🤗 Diffusers an
 | Pipeline                                                       | Tasks |
 |----------------------------------------------------------------|---|
 | [AnimateDiff](animatediff.md)                                  | text2video |
+| [AuraFlow](auraflow) 											 | text2image |
 | [BLIP Diffusion](blip_diffusion.md)                            | text2image |
+| [CogVideoX](cogvideox) 										 | text2video |
 | [Consistency Models](consistency_models.md)                    | unconditional image generation |
 | [ControlNet](controlnet.md)                                    | text2image, image2image, inpainting |
+| [ControlNet with Flux.1](controlnet_flux) 					 | text2image |
+| [ControlNet with Hunyuan-DiT](controlnet_hunyuandit) 			 | text2image |
 | [ControlNet with Stable Diffusion 3](controlnet_sd3.md)        | text2image |
 | [ControlNet with Stable Diffusion XL](controlnet_sdxl.md)      | text2image |
 | [ControlNet-XS](controlnetxs.md)                               | text2image |
@@ -42,19 +46,27 @@ The table below lists all the pipelines currently available in 🤗 Diffusers an
 | [DeepFloyd IF](deepfloyd_if.md)                                | text2image, image2image, inpainting, super-resolution |
 | [DiffEdit](diffedit.md)                                        | inpainting |
 | [DiT](dit.md)                                                  | text2image |
+| [Flux](flux) 													 | text2image |
 | [Hunyuan-DiT](hunyuandit.md)                                   | text2image |
 | [I2VGen-XL](i2vgenxl.md)                                       | text2video |
 | [InstructPix2Pix](pix2pix.md)                                  | image editing |
 | [Kandinsky 2.1](kandinsky.md)                                  | text2image, image2image, inpainting, interpolation |
 | [Kandinsky 2.2](kandinsky_v22.md)                              | text2image, image2image, inpainting |
 | [Kandinsky 3](kandinsky3.md)                                   | text2image, image2image |
+| [Kolors](kolors) 												 | text2image |
 | [Latent Consistency Models](latent_consistency_models.md)      | text2image |
 | [Latent Diffusion](latent_diffusion.md)                        | text2image, super-resolution |
+| [Latte](latte) 												 | text2image |
+| [Lumina-T2X](lumina) 											 | text2image |
 | [Marigold](marigold.md)                                        | depth |
+| [PAG](pag) 													 | text2image |
 | [PixArt-α](pixart.md)                                          | text2image |
 | [PixArt-Σ](pixart_sigma.md)                                    | text2image |
 | [Shap-E](shap_e.md)                                            | text-to-3D, image-to-3D |
 | [Stable Cascade](stable_cascade.md)                            | text2image |
+| [Stable Diffusion](stable_diffusion/overview) 				 | text2image, image2image, depth2image, inpainting, image variation, latent upscaler, super-resolution |
+| [Stable Diffusion XL](stable_diffusion/stable_diffusion_xl) 	 | text2image, image2image, inpainting |
+| [T2I-Adapter](stable_diffusion/adapter) 						 | text2image |
 | [unCLIP](unclip.md)                                            | text2image, image variation |
 | [Wuerstchen](wuerstchen.md)                                    | text2image |
 
