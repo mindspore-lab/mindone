@@ -17,7 +17,7 @@ cd mindone
 pip install -e .
 ```
 
-We supports state-of-the-art diffusion models for generating images, audio, and video. Let's get started using [Stable Diffusion 3](https://huggingface.co/stabilityai/stable-diffusion-3-medium) as an example.
+We support state-of-the-art diffusion models for generating images, audio, and video. Let's get started using [Stable Diffusion 3](https://huggingface.co/stabilityai/stable-diffusion-3-medium) as an example.
 
 **Hello MindSpore** from **Stable Diffusion 3**!
 
