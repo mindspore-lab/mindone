@@ -28,7 +28,7 @@ Remember that the models are from `mindone.transformers`, and anything else is f
 ```diff
 +from mindspore import Tensor
 
-# use tokenizer from 🤗 Transformers
+# use tokenizer from 🤗 transformers
 from transformers import AutoTokenizer
 
 # replace model from 🤗 transformers to mindone.transformers
