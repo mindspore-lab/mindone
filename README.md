@@ -5,14 +5,19 @@ This repository contains SoTA algorithms, models, and interesting projects in th
 ONE is short for "ONE for all"
 
 ## News
-- [2024.11.06] MindONE v0.2.0 is released
+- [2024.11.06] MindONE [v0.2.0](https://github.com/mindspore-lab/mindone/releases/tag/v0.2.0) is released
 
 ## Quick tour
 
-To install MindONE, please checkout [Installation](https://mindspore-lab.github.io/mindone/latest/diffusers/installation/#installation)
+To install MindONE, please install [MindSpore](https://www.mindspore.cn/install) (2.3.1 is recommended) then run 
 
+```
+git clone https://github.com/mindspore-lab/mindone.git
+cd mindone
+pip install -e .
+```
 
-[mindone/diffusers](mindone/diffusers) supports state-of-the-art diffusion models for generating images, audio, and video. Let's get started using [Stable Diffusion 3](https://huggingface.co/stabilityai/stable-diffusion-3-medium) as an example.
+We supports state-of-the-art diffusion models for generating images, audio, and video. Let's get started using [Stable Diffusion 3](https://huggingface.co/stabilityai/stable-diffusion-3-medium) as an example.
 
 **Hello MindSpore** from **Stable Diffusion 3**!
 
@@ -57,7 +62,7 @@ image.save("sd3.png")
 | [pixart_sigma](https://github.com/mindspore-lab/mindone/blob/master/examples/pixart_sigma)     | suuport text to image fine tune at different aspect ratio |
 
 ###  run hf diffusers on mindspore
-mindone diffusers is under active development, most tasks were tested with mindspore 2.3+ and ascend 910 hardware.
+mindone diffusers is under active development, most tasks were tested with mindspore 2.3.1 and ascend 910 hardware.
 
 | component  |  features  
 | :---   |  :--  
