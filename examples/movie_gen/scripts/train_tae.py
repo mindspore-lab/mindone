@@ -359,7 +359,7 @@ def main(args):
                 ckpt_save_interval=args.ckpt_save_interval,
                 log_interval=args.log_interval,
                 start_epoch=start_epoch,
-                model_name="vae_3d",
+                model_name="tae",
                 record_lr=False,
             )
             callback.append(save_cb)
