@@ -49,7 +49,7 @@ inputs = tokenizer(
 +outputs = model(Tensor(inputs.input_ids))
 ```
 
-Run text generation
+Then run text generation.
 
 ```diff
 generated_ids = model.generate(
