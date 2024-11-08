@@ -20,15 +20,6 @@ to be enables researchers or developers in the field of AIGC and MLLMs to utiliz
 latest state-of-the-art models, auto class, pipeline, agent, distributed and so on.
 
 
-## Tutorials
-
-| Section                                                                                              | Description                                                                                            |
-|------------------------------------------------------------------------------------------------------|--------------------------------------------------------------------------------------------------------|
-| [Generation with LLMs](../../docs/transformers/tutorials/generation.md)                              | Generate text with an LLM                                                                              |
-| [Training and fine-tuning](../../docs/transformers/tutorials/finetune.md)                            | Using the models provided by 🤗 Transformers in a native MindSpore training loop and the `Trainer` API |
-| [Distributed training and mixed precision](../../docs/transformers/tutorials/finetune_distribute.md) | Example scripts for fine-tuning models using distribute and mix precision                              |
-
-
 ## Quick Tour
 
 The following lines of code are an example that shows you how to download and use the pretrained models.
@@ -71,6 +62,15 @@ generated_ids = model.generate(
 
 tokenizer.batch_decode(generated_ids, skip_special_tokens=True)
 ```
+
+
+## Tutorials
+
+| Section                                                                                              | Description                                                                                            |
+|------------------------------------------------------------------------------------------------------|--------------------------------------------------------------------------------------------------------|
+| [Generation with LLMs](../../docs/transformers/tutorials/generation.md)                              | Generate text with an LLM                                                                              |
+| [Training and fine-tuning](../../docs/transformers/tutorials/finetune.md)                            | Using the models provided by 🤗 Transformers in a native MindSpore training loop and the `Trainer` API |
+| [Distributed training and mixed precision](../../docs/transformers/tutorials/finetune_distribute.md) | Example scripts for fine-tuning models using distribute and mix precision                              |
 
 
 ## Model Zoo
