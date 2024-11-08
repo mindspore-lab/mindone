@@ -26,7 +26,7 @@ The following lines of code are an example that shows you how to download and us
 Remember that the models are from `mindone.transformers`, and anything else is from 🤗 Transformers.
 
 ```diff
-from mindspore import Tensor
++from mindspore import Tensor
 
 # use tokenizer from 🤗 Transformers
 from transformers import AutoTokenizer
