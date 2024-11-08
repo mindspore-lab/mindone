@@ -31,7 +31,7 @@ class UNet1DOutput(BaseOutput):
     The output of [`UNet1DModel`].
 
     Args:
-        sample (`torch.FloatTensor` of shape `(batch_size, num_channels, sample_size)`):
+        sample (`mindspore.float32` of shape `(batch_size, num_channels, sample_size)`):
             The hidden states output from the last layer of the model.
     """
 

@@ -12,25 +12,12 @@ $$
 
 V-prediction re-parameterizes the diffusion models in a way that the implied prediction $x_\theta$ remains stable as SNR varies.
 
-## Get Started
-
-**MindONE** supports v-prediction for Stable Diffusion models based on MindSpore and Ascend platforms.
-
-### Preparation
+## Preparation
 
 #### Dependency
 
-Please make sure the following frameworks are installed.
+Please refer to the [Installation](../../README.md#installation) section.
 
-- mindspore >= 1.9  [[install](https://www.mindspore.cn/install)] (2.0 is recommended for the best performance.)
-- python >= 3.7
-- openmpi 4.0.3 (for distributed training/evaluation)  [[install](https://www.open-mpi.org/software/ompi/v4.0/)]
-
-Install the dependent packages by running:
-
-```shell
-pip install -r requirements.txt
-```
 
 #### Pretrained Models
 
@@ -64,7 +51,7 @@ For convenience, we have prepared two public text-image datasets obeying the abo
 
 To use them, please download `pokemon_blip.zip` and `chinese_art_blip.zip` from the [openi dataset website](https://openi.pcl.ac.cn/jasonhuang/mindone/datasets). Then unzip them on your local directory, e.g. `./datasets/pokemon_blip`.
 
-### Finetune
+## Finetune
 
 We will use the `train_text_to_image.py` script for v-prediciton finetuning.
 
@@ -96,7 +83,7 @@ Below are some arguments that you may want to tune for a better performance on y
 
 For more argument illustration, please run `python train_text_to_image.py -h`.
 
-### Inference
+## Inference
 
 To perform text-to-image generation with the finetuned v-prediction checkpoint, fisrst modify `configs/v2-inference.yaml` as follows to switch from `eps-prediction` to `v-prediction`,
 
@@ -199,18 +186,6 @@ python eval/eval_clip_score.py --image_path {path/to/test_images} --prompt {path
 ```
 
 For details, please refer to the guideline [Diffusion Evaluation](file:///C:/01Code/mindone/examples/stable_diffusion_v2/eval/README.md).
-
-Here are the evaluation results for our implementation, where the batch size is `1` and finetune method is vanilla for all experiments.
-
-
-| Pretrained Model               | Dataset            | objective      | image size | Sampling Algo.                   | FID | CLIP Score |
-| ------------------------------ | ------------------ | -------------- | ---------- | -------------------------------- | --- | ---------- |
-| stable\_diffusion\_2.0\_base   | chinese\_art\_blip | eps-prediction | 512\*512   | DPM Solver (scale: 9, steps: 15) | 265 | 34.9       |
-| stable\_diffusion\_2.0\_base   | pokemon\_blip      | eps-prediction | 512\*512   | DPM Solver (scale: 9, steps: 15) | 116 | 32         |
-| stable\_diffusion\_2.0\_768\_v | chinese\_art\_blip | v-prediction   | 768\*768   | DPM Solver (scale: 9, steps: 15) | 267 | 34.3       |
-| stable\_diffusion\_2.0\_768\_v | pokemon\_blip      | v-prediction   | 768\*768   | DPM Solver (scale: 9, steps: 15) | 120 | 31.9       |
-
-> Note that these numbers can not reflect the generation quality comprehensively!! A visual evaluation is also necessary.
 
 ## Reference
 

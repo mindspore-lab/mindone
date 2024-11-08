@@ -41,7 +41,7 @@ from ...schedulers import (
 from ...utils import logging, scale_lora_layers, unscale_lora_layers
 from ...utils.mindspore_utils import randn_tensor
 from ...video_processor import VideoProcessor
-from ..pipeline_utils import DiffusionPipeline
+from ..pipeline_utils import DiffusionPipeline, StableDiffusionMixin
 from .pipeline_output import AnimateDiffPipelineOutput
 
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
@@ -170,6 +170,7 @@ def retrieve_timesteps(
 
 class AnimateDiffSDXLPipeline(
     DiffusionPipeline,
+    StableDiffusionMixin,
     FromSingleFileMixin,
     StableDiffusionXLLoraLoaderMixin,
     TextualInversionLoaderMixin,
@@ -381,12 +382,10 @@ class AnimateDiffSDXLPipeline(
                     return_tensors="np",
                 )
 
-                text_input_ids = ms.Tensor.from_numpy(text_inputs.input_ids)
-                untruncated_ids = ms.Tensor.from_numpy(
-                    tokenizer(prompt, padding="longest", return_tensors="np").input_ids
-                )
+                text_input_ids = text_inputs.input_ids
+                untruncated_ids = tokenizer(prompt, padding="longest", return_tensors="np").input_ids
 
-                if untruncated_ids.shape[-1] >= text_input_ids.shape[-1] and not ops.equal(
+                if untruncated_ids.shape[-1] >= text_input_ids.shape[-1] and not np.array_equal(
                     text_input_ids, untruncated_ids
                 ):
                     removed_text = tokenizer.batch_decode(untruncated_ids[:, tokenizer.model_max_length - 1 : -1])
@@ -395,7 +394,7 @@ class AnimateDiffSDXLPipeline(
                         f" {tokenizer.model_max_length} tokens: {removed_text}"
                     )
 
-                prompt_embeds = text_encoder(text_input_ids, output_hidden_states=True)
+                prompt_embeds = text_encoder(ms.tensor(text_input_ids), output_hidden_states=True)
 
                 # We are only ALWAYS interested in the pooled output of the final text encoder
                 pooled_prompt_embeds = prompt_embeds[0]
@@ -704,7 +703,7 @@ class AnimateDiffSDXLPipeline(
             latents = randn_tensor(shape, generator=generator, dtype=dtype)
 
         # scale the initial noise by the standard deviation required by the scheduler
-        latents = latents * self.scheduler.init_noise_sigma
+        latents = (latents * self.scheduler.init_noise_sigma).to(dtype)
         return latents
 
     def _get_add_time_ids(

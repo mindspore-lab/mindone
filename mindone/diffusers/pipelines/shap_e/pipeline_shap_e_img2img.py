@@ -36,15 +36,12 @@ EXAMPLE_DOC_STRING = """
     Examples:
         ```py
         >>> from PIL import Image
-        >>> import torch
-        >>> from diffusers import DiffusionPipeline
-        >>> from diffusers.utils import export_to_gif, load_image
-
-        >>> device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        >>> import mindspore as ms
+        >>> from mindone.diffusers import DiffusionPipeline
+        >>> from mindone.diffusers.utils import export_to_gif, load_image
 
         >>> repo = "openai/shap-e-img2img"
-        >>> pipe = DiffusionPipeline.from_pretrained(repo, torch_dtype=torch.float16)
-        >>> pipe = pipe.to(device)
+        >>> pipe = DiffusionPipeline.from_pretrained(repo, mindspore_dtype=ms.float16)
 
         >>> guidance_scale = 3.0
         >>> image_url = "https://hf.co/datasets/diffusers/docs-images/resolve/main/shap-e/corgi.png"
@@ -55,7 +52,7 @@ EXAMPLE_DOC_STRING = """
         ...     guidance_scale=guidance_scale,
         ...     num_inference_steps=64,
         ...     frame_size=256,
-        ... ).images
+        ... )[0]
 
         >>> gif_path = export_to_gif(images[0], "corgi_3d.gif")
         ```

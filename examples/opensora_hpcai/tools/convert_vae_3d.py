@@ -41,7 +41,7 @@ def convert(source_fp, target_fp, from_vae2d=False):
             shape_ms
         ), f"Mismatch param: PT: {name_pt}, {shape_pt} vs MS: {name_ms}, {shape_ms}"
 
-        if "from_vae2d":
+        if from_vae2d:
             name_pt = name_pt.replace("spatial_vae.module.", "")
 
         data = sd_pt[name_pt].cpu().detach().numpy().reshape(shape_ms)

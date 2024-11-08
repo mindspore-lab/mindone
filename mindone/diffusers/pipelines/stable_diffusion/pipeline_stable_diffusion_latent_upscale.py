@@ -30,7 +30,7 @@ from ...models import AutoencoderKL, UNet2DConditionModel
 from ...schedulers import EulerDiscreteScheduler
 from ...utils import deprecate, logging
 from ...utils.mindspore_utils import randn_tensor
-from ..pipeline_utils import DiffusionPipeline, ImagePipelineOutput
+from ..pipeline_utils import DiffusionPipeline, ImagePipelineOutput, StableDiffusionMixin
 
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
 
@@ -62,7 +62,7 @@ def preprocess(image):
     return image
 
 
-class StableDiffusionLatentUpscalePipeline(DiffusionPipeline, FromSingleFileMixin):
+class StableDiffusionLatentUpscalePipeline(DiffusionPipeline, StableDiffusionMixin, FromSingleFileMixin):
     r"""
     Pipeline for upscaling Stable Diffusion output image resolution by a factor of 2.
 
@@ -134,7 +134,9 @@ class StableDiffusionLatentUpscalePipeline(DiffusionPipeline, FromSingleFileMixi
 
         untruncated_ids = self.tokenizer(prompt, padding="longest", return_tensors="np").input_ids
 
-        if untruncated_ids.shape[-1] >= text_input_ids.shape[-1] and not ops.equal(text_input_ids, untruncated_ids):
+        if untruncated_ids.shape[-1] >= text_input_ids.shape[-1] and not np.array_equal(
+            text_input_ids, untruncated_ids
+        ):
             removed_text = self.tokenizer.batch_decode(untruncated_ids[:, self.tokenizer.model_max_length - 1 : -1])
             logger.warning(
                 "The following part of your input was truncated because CLIP can only handle sequences up to"

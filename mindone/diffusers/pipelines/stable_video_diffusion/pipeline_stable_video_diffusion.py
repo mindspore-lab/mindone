@@ -186,7 +186,7 @@ class StableVideoDiffusionPipeline(DiffusionPipeline):
 
         if not isinstance(image, ms.Tensor):
             image = self.video_processor.pil_to_numpy(image)
-            image = self.video_processor.numpy_to_pt(image)
+            image = self.video_processor.numpy_to_ms(image)
 
             # We normalize the image before resizing to match with the original implementation.
             # Then we unnormalize it after resizing.

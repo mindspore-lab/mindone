@@ -31,7 +31,7 @@ from ...models.attention import GatedSelfAttentionDense
 from ...schedulers import KarrasDiffusionSchedulers
 from ...utils import logging, scale_lora_layers, unscale_lora_layers
 from ...utils.mindspore_utils import randn_tensor
-from ..pipeline_utils import DiffusionPipeline
+from ..pipeline_utils import DiffusionPipeline, StableDiffusionMixin
 from ..stable_diffusion import StableDiffusionPipelineOutput
 from ..stable_diffusion.clip_image_project_model import CLIPImageProjection
 from ..stable_diffusion.safety_checker import StableDiffusionSafetyChecker
@@ -138,7 +138,7 @@ EXAMPLE_DOC_STRING = """
 """
 
 
-class StableDiffusionGLIGENTextImagePipeline(DiffusionPipeline):
+class StableDiffusionGLIGENTextImagePipeline(DiffusionPipeline, StableDiffusionMixin):
     r"""
     Pipeline for text-to-image generation using Stable Diffusion with Grounded-Language-to-Image Generation (GLIGEN).
 
@@ -292,7 +292,9 @@ class StableDiffusionGLIGENTextImagePipeline(DiffusionPipeline):
             text_input_ids = text_inputs.input_ids
             untruncated_ids = self.tokenizer(prompt, padding="longest", return_tensors="np").input_ids
 
-            if untruncated_ids.shape[-1] >= text_input_ids.shape[-1] and not ops.equal(text_input_ids, untruncated_ids):
+            if untruncated_ids.shape[-1] >= text_input_ids.shape[-1] and not np.array_equal(
+                text_input_ids, untruncated_ids
+            ):
                 removed_text = self.tokenizer.batch_decode(untruncated_ids[:, self.tokenizer.model_max_length - 1 : -1])
                 logger.warning(
                     "The following part of your input was truncated because CLIP can only handle sequences up to"

@@ -31,7 +31,7 @@ from ...schedulers import DDIMScheduler
 from ...utils import BaseOutput, logging
 from ...utils.mindspore_utils import randn_tensor
 from ...video_processor import VideoProcessor
-from ..pipeline_utils import DiffusionPipeline
+from ..pipeline_utils import DiffusionPipeline, StableDiffusionMixin
 
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
 
@@ -85,7 +85,7 @@ class I2VGenXLPipelineOutput(BaseOutput):
     frames: Union[ms.Tensor, np.ndarray, List[List[PIL.Image.Image]]]
 
 
-class I2VGenXLPipeline(DiffusionPipeline):
+class I2VGenXLPipeline(DiffusionPipeline, StableDiffusionMixin):
     r"""
     Pipeline for image-to-video generation as proposed in [I2VGenXL](https://i2vgen-xl.github.io/).
 
@@ -192,12 +192,12 @@ class I2VGenXLPipeline(DiffusionPipeline):
                 truncation=True,
                 return_tensors="np",
             )
-            text_input_ids = ms.Tensor.from_numpy(text_inputs.input_ids)
-            untruncated_ids = ms.Tensor.from_numpy(
-                self.tokenizer(prompt, padding="longest", return_tensors="np").input_ids
-            )
+            text_input_ids = text_inputs.input_ids
+            untruncated_ids = self.tokenizer(prompt, padding="longest", return_tensors="np").input_ids
 
-            if untruncated_ids.shape[-1] >= text_input_ids.shape[-1] and not ops.equal(text_input_ids, untruncated_ids):
+            if untruncated_ids.shape[-1] >= text_input_ids.shape[-1] and not np.array_equal(
+                text_input_ids, untruncated_ids
+            ):
                 removed_text = self.tokenizer.batch_decode(untruncated_ids[:, self.tokenizer.model_max_length - 1 : -1])
                 logger.warning(
                     "The following part of your input was truncated because CLIP can only handle sequences up to"
@@ -210,11 +210,11 @@ class I2VGenXLPipeline(DiffusionPipeline):
                 attention_mask = None
 
             if clip_skip is None:
-                prompt_embeds = self.text_encoder(text_input_ids, attention_mask=attention_mask)
+                prompt_embeds = self.text_encoder(ms.tensor(text_input_ids), attention_mask=attention_mask)
                 prompt_embeds = prompt_embeds[0]
             else:
                 prompt_embeds = self.text_encoder(
-                    text_input_ids, attention_mask=attention_mask, output_hidden_states=True
+                    ms.tensor(text_input_ids), attention_mask=attention_mask, output_hidden_states=True
                 )
                 # Access the `hidden_states` first, that contains a tuple of
                 # all the hidden states from the encoder layers. Then index into
@@ -478,7 +478,7 @@ class I2VGenXLPipeline(DiffusionPipeline):
             latents = randn_tensor(shape, generator=generator, dtype=dtype)
 
         # scale the initial noise by the standard deviation required by the scheduler
-        latents = latents * self.scheduler.init_noise_sigma
+        latents = (latents * self.scheduler.init_noise_sigma).to(dtype)
         return latents
 
     def __call__(
@@ -723,7 +723,7 @@ class I2VGenXLPipeline(DiffusionPipeline):
 # https://github.com/ali-vilab/i2vgen-xl/blob/main/utils/transforms.py.
 
 
-def _convert_pt_to_pil(image: Union[ms.Tensor, List[ms.Tensor]]):
+def _convert_ms_to_pil(image: Union[ms.Tensor, List[ms.Tensor]]):
     if isinstance(image, list) and isinstance(image[0], ms.Tensor):
         image = ops.cat(image, 0)
 
@@ -731,7 +731,7 @@ def _convert_pt_to_pil(image: Union[ms.Tensor, List[ms.Tensor]]):
         if image.ndim == 3:
             image = image.unsqueeze(0)
 
-        image_numpy = VaeImageProcessor.pt_to_numpy(image)
+        image_numpy = VaeImageProcessor.ms_to_numpy(image)
         image_pil = VaeImageProcessor.numpy_to_pil(image_numpy)
         image = image_pil
 
@@ -742,7 +742,7 @@ def _resize_bilinear(
     image: Union[ms.Tensor, List[ms.Tensor], PIL.Image.Image, List[PIL.Image.Image]], resolution: Tuple[int, int]
 ):
     # First convert the images to PIL in case they are float tensors (only relevant for tests now).
-    image = _convert_pt_to_pil(image)
+    image = _convert_ms_to_pil(image)
 
     if isinstance(image, list):
         image = [u.resize(resolution, PIL.Image.BILINEAR) for u in image]
@@ -755,7 +755,7 @@ def _center_crop_wide(
     image: Union[ms.Tensor, List[ms.Tensor], PIL.Image.Image, List[PIL.Image.Image]], resolution: Tuple[int, int]
 ):
     # First convert the images to PIL in case they are float tensors (only relevant for tests now).
-    image = _convert_pt_to_pil(image)
+    image = _convert_ms_to_pil(image)
 
     if isinstance(image, list):
         scale = min(image[0].size[0] / resolution[0], image[0].size[1] / resolution[1])

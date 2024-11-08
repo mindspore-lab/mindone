@@ -5,7 +5,7 @@ Deliberate is a highly specialized Image generation AI Model of type Safetensors
 
 Take Deliberate_v2 as an example, this doc shows how to infer with the Deliberate model based on Mindone SD 1.5.
 
-### Step 1. Model conversion
+### Model conversion
 
 Download Deliberate_v2.safetensor from the [XpucT/Deliberate]( https://huggingface.co/XpucT/Deliberate/blob/main/Deliberate_v2.safetensors) model card website. [Tools]((tools/model_conversion/README.md)) for SD 1.x or SD 2.x model conversion from torch to MindSpore format are provided. Convert the Deliberate_v2.safetensor by running:
 
@@ -18,7 +18,7 @@ python tools/model_conversion/convert_weights.py \
   --source_version pt
 ```
 
-### Step 2. Inference
+### Inference
 
 To perform image-to-image generation with the converted checkpoints, run the following commands. By default, 8 images (`n_iter * n_samples`) will be sampled for the prompt and wrote to `output_path='output'`.
 

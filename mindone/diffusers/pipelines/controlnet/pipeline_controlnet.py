@@ -31,7 +31,7 @@ from ...models import AutoencoderKL, ControlNetModel, ImageProjection, UNet2DCon
 from ...schedulers import KarrasDiffusionSchedulers
 from ...utils import deprecate, logging, scale_lora_layers, unscale_lora_layers
 from ...utils.mindspore_utils import randn_tensor
-from ..pipeline_utils import DiffusionPipeline
+from ..pipeline_utils import DiffusionPipeline, StableDiffusionMixin
 from ..stable_diffusion.pipeline_output import StableDiffusionPipelineOutput
 from ..stable_diffusion.safety_checker import StableDiffusionSafetyChecker
 from .multicontrolnet import MultiControlNetModel
@@ -139,6 +139,7 @@ def retrieve_timesteps(
 
 class StableDiffusionControlNetPipeline(
     DiffusionPipeline,
+    StableDiffusionMixin,
     TextualInversionLoaderMixin,
     LoraLoaderMixin,
     IPAdapterMixin,
@@ -338,7 +339,9 @@ class StableDiffusionControlNetPipeline(
             text_input_ids = text_inputs.input_ids
             untruncated_ids = self.tokenizer(prompt, padding="longest", return_tensors="np").input_ids
 
-            if untruncated_ids.shape[-1] >= text_input_ids.shape[-1] and not ops.equal(text_input_ids, untruncated_ids):
+            if untruncated_ids.shape[-1] >= text_input_ids.shape[-1] and not np.array_equal(
+                text_input_ids, untruncated_ids
+            ):
                 removed_text = self.tokenizer.batch_decode(untruncated_ids[:, self.tokenizer.model_max_length - 1 : -1])
                 logger.warning(
                     "The following part of your input was truncated because CLIP can only handle sequences up to"
@@ -812,15 +815,15 @@ class StableDiffusionControlNetPipeline(
         See https://github.com/google-research/vdm/blob/dc27b98a554f65cdc654b800da5aa1846545d41b/model_vdm.py#L298
 
         Args:
-            w (`torch.Tensor`):
+            w (`mindspore.Tensor`):
                 Generate embedding vectors with a specified guidance scale to subsequently enrich timestep embeddings.
             embedding_dim (`int`, *optional*, defaults to 512):
                 Dimension of the embeddings to generate.
-            dtype (`torch.dtype`, *optional*, defaults to `torch.float32`):
+            dtype (`mindspore.dtype`, *optional*, defaults to `mindspore.float32`):
                 Data type of the generated embeddings.
 
         Returns:
-            `torch.Tensor`: Embedding vectors with shape `(len(w), embedding_dim)`.
+            `mindspore.Tensor`: Embedding vectors with shape `(len(w), embedding_dim)`.
         """
         assert len(w.shape) == 1
         w = w * 1000.0
@@ -1236,7 +1239,7 @@ class StableDiffusionControlNetPipeline(
                     cross_attention_kwargs=self.cross_attention_kwargs,
                     down_block_additional_residuals=ms.mutable(down_block_res_samples),
                     mid_block_additional_residual=mid_block_res_sample,
-                    added_cond_kwargs=added_cond_kwargs,
+                    added_cond_kwargs=ms.mutable(added_cond_kwargs) if added_cond_kwargs else added_cond_kwargs,
                     return_dict=False,
                 )[0]
 

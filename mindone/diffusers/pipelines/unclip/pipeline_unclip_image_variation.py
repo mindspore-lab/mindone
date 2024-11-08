@@ -112,7 +112,7 @@ class UnCLIPImageVariationPipeline(DiffusionPipeline):
             if latents.shape != shape:
                 raise ValueError(f"Unexpected latents shape, got {latents.shape}, expected {shape}")
 
-        latents = latents * scheduler.init_noise_sigma
+        latents = (latents * scheduler.init_noise_sigma).to(dtype)
         return latents
 
     def _encode_prompt(self, prompt, num_images_per_prompt, do_classifier_free_guidance):

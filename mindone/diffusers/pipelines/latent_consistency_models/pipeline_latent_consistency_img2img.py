@@ -28,12 +28,12 @@ from mindspore import ops
 from mindone.transformers import CLIPTextModel, CLIPVisionModelWithProjection
 
 from ...image_processor import PipelineImageInput, VaeImageProcessor
-from ...loaders import LoraLoaderMixin
-from ...models import AutoencoderKL, UNet2DConditionModel
+from ...loaders import FromSingleFileMixin, IPAdapterMixin, LoraLoaderMixin, TextualInversionLoaderMixin
+from ...models import AutoencoderKL, ImageProjection, UNet2DConditionModel
 from ...schedulers import LCMScheduler
 from ...utils import deprecate, logging, scale_lora_layers, unscale_lora_layers
 from ...utils.mindspore_utils import randn_tensor
-from ..pipeline_utils import DiffusionPipeline
+from ..pipeline_utils import DiffusionPipeline, StableDiffusionMixin
 from ..stable_diffusion import StableDiffusionPipelineOutput, StableDiffusionSafetyChecker
 
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
@@ -127,15 +127,22 @@ EXAMPLE_DOC_STRING = """
         >>> num_inference_steps = 4
         >>> images = pipe(
         ...     prompt=prompt, image=image, num_inference_steps=num_inference_steps, guidance_scale=8.0
-        ... )[0][0]
+        ... )[0]
 
-        >>> images.save("image.png")
+        >>> images[0].save("image.png")
         ```
 
 """
 
 
-class LatentConsistencyModelImg2ImgPipeline(DiffusionPipeline, LoraLoaderMixin):
+class LatentConsistencyModelImg2ImgPipeline(
+    DiffusionPipeline,
+    StableDiffusionMixin,
+    TextualInversionLoaderMixin,
+    IPAdapterMixin,
+    LoraLoaderMixin,
+    FromSingleFileMixin,
+):
     r"""
     Pipeline for image-to-image generation using a latent consistency model.
 
@@ -270,6 +277,9 @@ class LatentConsistencyModelImg2ImgPipeline(DiffusionPipeline, LoraLoaderMixin):
 
         if prompt_embeds is None:
             # textual inversion: process multi-vector tokens if necessary
+            if isinstance(self, TextualInversionLoaderMixin):
+                prompt = self.maybe_convert_prompt(prompt, self.tokenizer)
+
             text_inputs = self.tokenizer(
                 prompt,
                 padding="max_length",
@@ -280,7 +290,9 @@ class LatentConsistencyModelImg2ImgPipeline(DiffusionPipeline, LoraLoaderMixin):
             text_input_ids = text_inputs.input_ids
             untruncated_ids = self.tokenizer(prompt, padding="longest", return_tensors="np").input_ids
 
-            if untruncated_ids.shape[-1] >= text_input_ids.shape[-1] and not ops.equal(text_input_ids, untruncated_ids):
+            if untruncated_ids.shape[-1] >= text_input_ids.shape[-1] and not np.array_equal(
+                text_input_ids, untruncated_ids
+            ):
                 removed_text = self.tokenizer.batch_decode(untruncated_ids[:, self.tokenizer.model_max_length - 1 : -1])
                 logger.warning(
                     "The following part of your input was truncated because CLIP can only handle sequences up to"
@@ -345,6 +357,9 @@ class LatentConsistencyModelImg2ImgPipeline(DiffusionPipeline, LoraLoaderMixin):
                 uncond_tokens = negative_prompt
 
             # textual inversion: process multi-vector tokens if necessary
+            if isinstance(self, TextualInversionLoaderMixin):
+                uncond_tokens = self.maybe_convert_prompt(uncond_tokens, self.tokenizer)
+
             max_length = prompt_embeds.shape[1]
             uncond_input = self.tokenizer(
                 uncond_tokens,
@@ -380,6 +395,80 @@ class LatentConsistencyModelImg2ImgPipeline(DiffusionPipeline, LoraLoaderMixin):
                 unscale_lora_layers(self.text_encoder, lora_scale)
 
         return prompt_embeds, negative_prompt_embeds
+
+    # Copied from diffusers.pipelines.stable_diffusion.pipeline_stable_diffusion.StableDiffusionPipeline.encode_image
+    def encode_image(self, image, num_images_per_prompt, output_hidden_states=None):
+        dtype = next(self.image_encoder.get_parameters()).dtype
+
+        if not isinstance(image, ms.Tensor):
+            image = self.feature_extractor(image, return_tensors="np").pixel_values
+            image = ms.Tensor(image)
+
+        image = image.to(dtype=dtype)
+        if output_hidden_states:
+            image_enc_hidden_states = self.image_encoder(image, output_hidden_states=True)[2][-2]
+            image_enc_hidden_states = image_enc_hidden_states.repeat_interleave(num_images_per_prompt, dim=0)
+            uncond_image_enc_hidden_states = self.image_encoder(ops.zeros_like(image), output_hidden_states=True)[2][-2]
+            uncond_image_enc_hidden_states = uncond_image_enc_hidden_states.repeat_interleave(
+                num_images_per_prompt, dim=0
+            )
+            return image_enc_hidden_states, uncond_image_enc_hidden_states
+        else:
+            image_embeds = self.image_encoder(image)[0]
+            image_embeds = image_embeds.repeat_interleave(num_images_per_prompt, dim=0)
+            uncond_image_embeds = ops.zeros_like(image_embeds)
+
+            return image_embeds, uncond_image_embeds
+
+    # Copied from diffusers.pipelines.stable_diffusion.pipeline_stable_diffusion.StableDiffusionPipeline.prepare_ip_adapter_image_embeds
+    def prepare_ip_adapter_image_embeds(
+        self, ip_adapter_image, ip_adapter_image_embeds, num_images_per_prompt, do_classifier_free_guidance
+    ):
+        if ip_adapter_image_embeds is None:
+            if not isinstance(ip_adapter_image, list):
+                ip_adapter_image = [ip_adapter_image]
+
+            if len(ip_adapter_image) != len(self.unet.encoder_hid_proj.image_projection_layers):
+                raise ValueError(
+                    "`ip_adapter_image` must have same length as the number of IP Adapters. "
+                    f"Got {len(ip_adapter_image)} images and {len(self.unet.encoder_hid_proj.image_projection_layers)} IP Adapters."
+                )
+
+            image_embeds = []
+            for single_ip_adapter_image, image_proj_layer in zip(
+                ip_adapter_image, self.unet.encoder_hid_proj.image_projection_layers
+            ):
+                output_hidden_state = not isinstance(image_proj_layer, ImageProjection)
+                single_image_embeds, single_negative_image_embeds = self.encode_image(
+                    single_ip_adapter_image, 1, output_hidden_state
+                )
+                single_image_embeds = ops.stack([single_image_embeds] * num_images_per_prompt, axis=0)
+                single_negative_image_embeds = ops.stack([single_negative_image_embeds] * num_images_per_prompt, axis=0)
+
+                if do_classifier_free_guidance:
+                    single_image_embeds = ops.cat([single_negative_image_embeds, single_image_embeds])
+
+                image_embeds.append(single_image_embeds)
+        else:
+            repeat_dims = [1]
+            image_embeds = []
+            for single_image_embeds in ip_adapter_image_embeds:
+                if do_classifier_free_guidance:
+                    single_negative_image_embeds, single_image_embeds = single_image_embeds.chunk(2)
+                    single_image_embeds = single_image_embeds.tile(
+                        num_images_per_prompt, *(repeat_dims * len(single_image_embeds.shape[1:]))
+                    )
+                    single_negative_image_embeds = single_negative_image_embeds.tile(
+                        num_images_per_prompt, *(repeat_dims * len(single_negative_image_embeds.shape[1:]))
+                    )
+                    single_image_embeds = ops.cat([single_negative_image_embeds, single_image_embeds])
+                else:
+                    single_image_embeds = single_image_embeds.tile(
+                        num_images_per_prompt, *(repeat_dims * len(single_image_embeds.shape[1:]))
+                    )
+                image_embeds.append(single_image_embeds)
+
+        return image_embeds
 
     # Copied from diffusers.pipelines.stable_diffusion.pipeline_stable_diffusion.StableDiffusionPipeline.run_safety_checker
     def run_safety_checker(self, image, dtype):
@@ -726,6 +815,14 @@ class LatentConsistencyModelImg2ImgPipeline(DiffusionPipeline, LoraLoaderMixin):
         else:
             batch_size = prompt_embeds.shape[0]
 
+        if ip_adapter_image is not None or ip_adapter_image_embeds is not None:
+            image_embeds = self.prepare_ip_adapter_image_embeds(
+                ip_adapter_image,
+                ip_adapter_image_embeds,
+                batch_size * num_images_per_prompt,
+                self.do_classifier_free_guidance,
+            )
+
         # 3. Encode input prompt
         lora_scale = self.cross_attention_kwargs.get("scale", None) if self.cross_attention_kwargs is not None else None
 
@@ -772,7 +869,7 @@ class LatentConsistencyModelImg2ImgPipeline(DiffusionPipeline, LoraLoaderMixin):
         # NOTE: We use the Imagen CFG formulation that StableDiffusionPipeline uses rather than the original LCM paper
         # CFG formulation, so we need to subtract 1 from the input guidance_scale.
         # LCM CFG formulation:  cfg_noise = noise_cond + cfg_scale * (noise_cond - noise_uncond), (cfg_scale > 0.0 using CFG)
-        w = ms.tensor(self.guidance_scale - 1).repeat(bs)
+        w = ms.tensor(self.guidance_scale - 1).tile((bs,))
         w_embedding = self.get_guidance_scale_embedding(w, embedding_dim=self.unet.config.time_cond_proj_dim).to(
             dtype=latents.dtype
         )
@@ -781,7 +878,11 @@ class LatentConsistencyModelImg2ImgPipeline(DiffusionPipeline, LoraLoaderMixin):
         extra_step_kwargs = self.prepare_extra_step_kwargs(generator, None)
 
         # 7.1 Add image embeds for IP-Adapter
-        added_cond_kwargs = None
+        added_cond_kwargs = (
+            {"image_embeds": image_embeds}
+            if ip_adapter_image is not None or ip_adapter_image_embeds is not None
+            else None
+        )
 
         # 8. LCM Multistep Sampling Loop
         num_warmup_steps = len(timesteps) - num_inference_steps * self.scheduler.order
@@ -797,7 +898,7 @@ class LatentConsistencyModelImg2ImgPipeline(DiffusionPipeline, LoraLoaderMixin):
                     timestep_cond=w_embedding,
                     encoder_hidden_states=prompt_embeds,
                     cross_attention_kwargs=self.cross_attention_kwargs,
-                    added_cond_kwargs=added_cond_kwargs,
+                    added_cond_kwargs=ms.mutable(added_cond_kwargs) if added_cond_kwargs else added_cond_kwargs,
                     return_dict=False,
                 )[0]
 

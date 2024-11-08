@@ -32,7 +32,7 @@ from ...models import AutoencoderKL, ControlNetModel, ImageProjection, UNet2DCon
 from ...schedulers import KarrasDiffusionSchedulers
 from ...utils import deprecate, logging, scale_lora_layers, unscale_lora_layers
 from ...utils.mindspore_utils import randn_tensor
-from ..pipeline_utils import DiffusionPipeline
+from ..pipeline_utils import DiffusionPipeline, StableDiffusionMixin
 from ..stable_diffusion import StableDiffusionPipelineOutput
 from ..stable_diffusion.safety_checker import StableDiffusionSafetyChecker
 from .multicontrolnet import MultiControlNetModel
@@ -56,6 +56,8 @@ EXAMPLE_DOC_STRING = """
         ...     "https://huggingface.co/datasets/diffusers/test-arrays/resolve/main/stable_diffusion_inpaint/boy.png"
         ... )
         >>> init_image = init_image.resize((512, 512))
+
+        >>> generator = np.random.Generator(np.random.PCG64(1))
 
         >>> mask_image = load_image(
         ...     "https://huggingface.co/datasets/diffusers/test-arrays/resolve/main/stable_diffusion_inpaint/boy_mask.png"
@@ -119,8 +121,8 @@ def prepare_mask_and_masked_image(image, mask, height, width, return_image=False
     converted to ``ms.Tensor`` with shapes ``batch x channels x height x width`` where ``channels`` is ``3`` for the
     ``image`` and ``1`` for the ``mask``.
 
-    The ``image`` will be converted to ``torch.float32`` and normalized to be in ``[-1, 1]``. The ``mask`` will be
-    binarized (``mask > 0.5``) and cast to ``torch.float32`` too.
+    The ``image`` will be converted to ``mindspore.float32`` and normalized to be in ``[-1, 1]``. The ``mask`` will be
+    binarized (``mask > 0.5``) and cast to ``mindspore.float32`` too.
 
     Args:
         image (Union[np.array, PIL.Image, ms.Tensor]): The image to inpaint.
@@ -237,6 +239,7 @@ def prepare_mask_and_masked_image(image, mask, height, width, return_image=False
 
 class StableDiffusionControlNetInpaintPipeline(
     DiffusionPipeline,
+    StableDiffusionMixin,
     TextualInversionLoaderMixin,
     LoraLoaderMixin,
     IPAdapterMixin,
@@ -450,7 +453,9 @@ class StableDiffusionControlNetInpaintPipeline(
             text_input_ids = text_inputs.input_ids
             untruncated_ids = self.tokenizer(prompt, padding="longest", return_tensors="np").input_ids
 
-            if untruncated_ids.shape[-1] >= text_input_ids.shape[-1] and not ops.equal(text_input_ids, untruncated_ids):
+            if untruncated_ids.shape[-1] >= text_input_ids.shape[-1] and not np.array_equal(
+                text_input_ids, untruncated_ids
+            ):
                 removed_text = self.tokenizer.batch_decode(untruncated_ids[:, self.tokenizer.model_max_length - 1 : -1])
                 logger.warning(
                     "The following part of your input was truncated because CLIP can only handle sequences up to"
@@ -969,10 +974,10 @@ class StableDiffusionControlNetInpaintPipeline(
             # if strength is 1. then initialise the latents to noise, else initial to image + noise
             latents = noise if is_strength_max else self.scheduler.add_noise(image_latents, noise, timestep)
             # if pure noise then scale the initial latents by the  Scheduler's init sigma
-            latents = latents * self.scheduler.init_noise_sigma if is_strength_max else latents
+            latents = (latents * self.scheduler.init_noise_sigma).to(dtype) if is_strength_max else latents
         else:
             noise = latents
-            latents = noise * self.scheduler.init_noise_sigma
+            latents = (noise * self.scheduler.init_noise_sigma).to(dtype)
 
         outputs = (latents,)
 
@@ -1514,7 +1519,7 @@ class StableDiffusionControlNetInpaintPipeline(
                     cross_attention_kwargs=self.cross_attention_kwargs,
                     down_block_additional_residuals=ms.mutable(down_block_res_samples),
                     mid_block_additional_residual=mid_block_res_sample,
-                    added_cond_kwargs=added_cond_kwargs,
+                    added_cond_kwargs=ms.mutable(added_cond_kwargs) if added_cond_kwargs else added_cond_kwargs,
                     return_dict=False,
                 )[0]
 

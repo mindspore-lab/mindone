@@ -6,7 +6,6 @@ from gm.modules.attention import FLASH_IS_AVAILABLE, FlashAttention, LinearAtten
 from gm.modules.transformers import scaled_dot_product_attention
 
 import mindspore as ms
-import mindspore.numpy as mnp
 from mindspore import Tensor, nn, ops
 
 
@@ -49,7 +48,12 @@ class Downsample(nn.Cell):
 
     def construct(self, x):
         if self.with_conv:
-            x = mnp.pad(x, ((0, 0), (0, 0), (0, 1), (0, 1)))
+            b, c, h, w = x.shape[0], x.shape[1], x.shape[2], x.shape[-1]
+            concat_h = ops.ones((b, c, h, 1), x.dtype)
+            concat_w = ops.ones((b, c, 1, w + 1), x.dtype)
+
+            x = ops.concat([x, concat_h], axis=3)
+            x = ops.concat([x, concat_w], axis=2)
             x = self.conv(x)
         else:
             x = ops.avg_pool2d(x, kernel_size=2, stride=2)

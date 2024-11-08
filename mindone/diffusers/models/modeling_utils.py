@@ -234,7 +234,7 @@ class ModelMixin(nn.Cell, PushToHubMixin):
                 process to avoid race conditions.
             save_function (`Callable`):
                 The function to use to save the state dictionary. Useful during distributed training when you need to
-                replace `torch.save` with another method. Can be configured with the environment variable
+                replace `mindspore.save_checkpoint` with another method. Can be configured with the environment variable
                 `DIFFUSERS_SAVE_MODE`.
             safe_serialization (`bool`, *optional*, defaults to `True`):
                 Whether to save the model using `safetensors` or the traditional PyTorch way with `pickle`.
@@ -426,7 +426,7 @@ class ModelMixin(nn.Cell, PushToHubMixin):
         Example:
 
         ```py
-        from diffusers import UNet2DConditionModel
+        from mindone.diffusers import UNet2DConditionModel
 
         unet = UNet2DConditionModel.from_pretrained("runwayml/stable-diffusion-v1-5", subfolder="unet")
         ```
@@ -764,7 +764,7 @@ class ModelMixin(nn.Cell, PushToHubMixin):
         Example:
 
         ```py
-        from diffusers import UNet2DConditionModel
+        from mindone.diffusers import UNet2DConditionModel
 
         model_id = "runwayml/stable-diffusion-v1-5"
         unet = UNet2DConditionModel.from_pretrained(model_id, subfolder="unet")

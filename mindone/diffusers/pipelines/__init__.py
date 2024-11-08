@@ -9,6 +9,11 @@ _import_structure = {
         "AnimateDiffSDXLPipeline",
         "AnimateDiffVideoToVideoPipeline",
     ],
+    "auto_pipeline": [
+        "AutoPipelineForImage2Image",
+        "AutoPipelineForInpainting",
+        "AutoPipelineForText2Image",
+    ],
     "blip_diffusion": ["BlipDiffusionPipeline"],
     "consistency_models": ["ConsistencyModelPipeline"],
     "controlnet": [
@@ -125,11 +130,13 @@ _import_structure = {
     "pipeline_utils": [
         "DiffusionPipeline",
         "ImagePipelineOutput",
+        "StableDiffusionMixin",
     ],
 }
 
 if TYPE_CHECKING:
     from .animatediff import AnimateDiffPipeline, AnimateDiffSDXLPipeline, AnimateDiffVideoToVideoPipeline
+    from .auto_pipeline import AutoPipelineForImage2Image, AutoPipelineForInpainting, AutoPipelineForText2Image
     from .blip_diffusion import BlipDiffusionPipeline
     from .consistency_models import ConsistencyModelPipeline
     from .controlnet import (
@@ -181,7 +188,7 @@ if TYPE_CHECKING:
     from .latent_consistency_models import LatentConsistencyModelImg2ImgPipeline, LatentConsistencyModelPipeline
     from .latent_diffusion import LDMSuperResolutionPipeline, LDMTextToImagePipeline
     from .marigold import MarigoldDepthPipeline, MarigoldNormalsPipeline
-    from .pipeline_utils import DiffusionPipeline, ImagePipelineOutput
+    from .pipeline_utils import DiffusionPipeline, ImagePipelineOutput, StableDiffusionMixin
     from .pixart_alpha import PixArtAlphaPipeline, PixArtSigmaPipeline
     from .shap_e import ShapEImg2ImgPipeline, ShapEPipeline
     from .stable_cascade import StableCascadeCombinedPipeline, StableCascadeDecoderPipeline, StableCascadePriorPipeline

@@ -103,7 +103,7 @@ class KandinskyV22Pipeline(DiffusionPipeline):
             if latents.shape != shape:
                 raise ValueError(f"Unexpected latents shape, got {latents.shape}, expected {shape}")
 
-        latents = latents * scheduler.init_noise_sigma
+        latents = (latents * scheduler.init_noise_sigma).to(dtype)
         return latents
 
     @property
@@ -252,7 +252,7 @@ class KandinskyV22Pipeline(DiffusionPipeline):
                 sample=latent_model_input,
                 timestep=t,
                 encoder_hidden_states=None,
-                added_cond_kwargs=added_cond_kwargs,
+                added_cond_kwargs=ms.mutable(added_cond_kwargs),
                 return_dict=False,
             )[0]
 

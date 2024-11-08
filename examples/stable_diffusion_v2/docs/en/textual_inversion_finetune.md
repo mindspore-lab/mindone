@@ -24,15 +24,9 @@ As shown above, the textual inversion method consists of the following steps:
 ## Preparation
 
 ### Dependency
-Make sure the following frameworks are installed.
 
-- mindspore 2.1.0 (Ascend 910) / mindspore 2.2.1 (Ascend 910*)
+Please refer to the [Installation](../../README.md#installation) section.
 
-Enter the `example/stable_diffusion_v2` folder and run
-
-```bash
-pip install -r requirements.txt
-```
 ### Pretrained Models
 
 Pretrained models will be automatically downloaded when launching the training script. See `_version_cfg` in `train_textual_inversion.py` for more information.

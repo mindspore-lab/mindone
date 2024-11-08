@@ -43,6 +43,7 @@ from .import_utils import (
     _LazyModule,
     is_bs4_available,
     is_ftfy_available,
+    is_invisible_watermark_available,
     is_matplotlib_available,
     is_opencv_available,
     is_peft_version,
@@ -63,7 +64,7 @@ from .peft_utils import (
     set_weights_and_activate_adapters,
     unscale_lora_layers,
 )
-from .pil_utils import PIL_INTERPOLATION, make_image_grid, numpy_to_pil, pt_to_pil
+from .pil_utils import PIL_INTERPOLATION, make_image_grid, ms_to_pil, numpy_to_pil
 from .state_dict_utils import (
     convert_all_state_dict_to_peft,
     convert_state_dict_to_diffusers,

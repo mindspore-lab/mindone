@@ -48,7 +48,7 @@ class MarigoldImageProcessor(ConfigMixin):
         return images
 
     @staticmethod
-    def pt_to_numpy(images: ms.Tensor) -> np.ndarray:
+    def ms_to_numpy(images: ms.Tensor) -> np.ndarray:
         """
         Convert a PyTorch tensor to a NumPy image.
         """
@@ -56,7 +56,7 @@ class MarigoldImageProcessor(ConfigMixin):
         return images
 
     @staticmethod
-    def numpy_to_pt(images: np.ndarray) -> ms.Tensor:
+    def numpy_to_ms(images: np.ndarray) -> ms.Tensor:
         """
         Convert a NumPy image to a PyTorch tensor.
         """
@@ -163,7 +163,7 @@ class MarigoldImageProcessor(ConfigMixin):
             if np.issubdtype(image.dtype, np.unsignedinteger):
                 image_dtype_max = np.iinfo(image.dtype).max
                 image = image.astype(np.float32)  # because torch does not have unsigned dtypes beyond ms.uint8
-            image = MarigoldImageProcessor.numpy_to_pt(image)
+            image = MarigoldImageProcessor.numpy_to_ms(image)
 
         if ops.is_tensor(image) and not ops.is_floating_point(image) and image_dtype_max is None:
             if image.dtype != ms.uint8:
@@ -289,8 +289,8 @@ class MarigoldImageProcessor(ConfigMixin):
             else:
                 return None
 
-            arg_is_pt = ops.is_tensor(image)
-            if arg_is_pt:
+            arg_is_ms = ops.is_tensor(image)
+            if arg_is_ms:
                 image = image.numpy()
 
             if cmap not in matplotlib.colormaps:
@@ -302,7 +302,7 @@ class MarigoldImageProcessor(ConfigMixin):
             out = cmap(image, bytes=bytes)  # [?,4]
             out = out[..., :3]  # [?,3]
 
-            if arg_is_pt:
+            if arg_is_ms:
                 out = ms.Tensor(out)
 
             return out
@@ -420,7 +420,7 @@ class MarigoldImageProcessor(ConfigMixin):
         if isinstance(depth, (np.ndarray, ms.Tensor)):
             depth = MarigoldImageProcessor.expand_tensor_or_array(depth)
             if isinstance(depth, np.ndarray):
-                depth = MarigoldImageProcessor.numpy_to_pt(depth)  # [N,H,W,1] -> [N,1,H,W]
+                depth = MarigoldImageProcessor.numpy_to_ms(depth)  # [N,H,W,1] -> [N,1,H,W]
             if not (depth.ndim == 4 and depth.shape[1] == 1):  # [N,1,H,W]
                 raise ValueError(f"Unexpected input shape={depth.shape}, expecting [N,1,H,W].")
             return [visualize_depth_one(img[0], idx) for idx, img in enumerate(depth)]
@@ -456,7 +456,7 @@ class MarigoldImageProcessor(ConfigMixin):
         if isinstance(depth, (np.ndarray, ms.Tensor)):
             depth = MarigoldImageProcessor.expand_tensor_or_array(depth)
             if isinstance(depth, np.ndarray):
-                depth = MarigoldImageProcessor.numpy_to_pt(depth)  # [N,H,W,1] -> [N,1,H,W]
+                depth = MarigoldImageProcessor.numpy_to_ms(depth)  # [N,H,W,1] -> [N,1,H,W]
             if not (depth.ndim == 4 and depth.shape[1] == 1):
                 raise ValueError(f"Unexpected input shape={depth.shape}, expecting [N,1,H,W].")
             return [export_depth_to_16bit_png_one(img[0], idx) for idx, img in enumerate(depth)]
@@ -517,7 +517,7 @@ class MarigoldImageProcessor(ConfigMixin):
         if isinstance(normals, (np.ndarray, ms.Tensor)):
             normals = MarigoldImageProcessor.expand_tensor_or_array(normals)
             if isinstance(normals, np.ndarray):
-                normals = MarigoldImageProcessor.numpy_to_pt(normals)  # [N,3,H,W]
+                normals = MarigoldImageProcessor.numpy_to_ms(normals)  # [N,3,H,W]
             if not (normals.ndim == 4 and normals.shape[1] == 3):
                 raise ValueError(f"Unexpected input shape={normals.shape}, expecting [N,3,H,W].")
             return [visualize_normals_one(img, idx) for idx, img in enumerate(normals)]
@@ -564,7 +564,7 @@ class MarigoldImageProcessor(ConfigMixin):
         if isinstance(uncertainty, (np.ndarray, ms.Tensor)):
             uncertainty = MarigoldImageProcessor.expand_tensor_or_array(uncertainty)
             if isinstance(uncertainty, np.ndarray):
-                uncertainty = MarigoldImageProcessor.numpy_to_pt(uncertainty)  # [N,1,H,W]
+                uncertainty = MarigoldImageProcessor.numpy_to_ms(uncertainty)  # [N,1,H,W]
             if not (uncertainty.ndim == 4 and uncertainty.shape[1] == 1):
                 raise ValueError(f"Unexpected input shape={uncertainty.shape}, expecting [N,1,H,W].")
             return [visualize_uncertainty_one(img, idx) for idx, img in enumerate(uncertainty)]
