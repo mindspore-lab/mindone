@@ -9,8 +9,9 @@ ONE is short for "ONE for all"
 
 ## Quick tour
 
-To install MindONE, please install [MindSpore](https://www.mindspore.cn/install) (2.3.1 is recommended) then run 
+To install MindONE v0.2.0, please install [MindSpore 2.3.1](https://www.mindspore.cn/install) and run `pip install mindone`
 
+You can also install the `master` branch by
 ```
 git clone https://github.com/mindspore-lab/mindone.git
 cd mindone
