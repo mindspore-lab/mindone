@@ -80,6 +80,13 @@ _import_structure = {
         "MarigoldDepthPipeline",
         "MarigoldNormalsPipeline",
     ],
+    "pag": [
+        "AnimateDiffPAGPipeline",
+        "KolorsPAGPipeline",
+        "HunyuanDiTPAGPipeline",
+        "StableDiffusion3PAGPipeline",
+        "StableDiffusionPAGPipeline",
+    ],
     "pixart_alpha": [
         "PixArtAlphaPipeline",
         "PixArtSigmaPipeline",
@@ -188,6 +195,13 @@ if TYPE_CHECKING:
     from .latent_consistency_models import LatentConsistencyModelImg2ImgPipeline, LatentConsistencyModelPipeline
     from .latent_diffusion import LDMSuperResolutionPipeline, LDMTextToImagePipeline
     from .marigold import MarigoldDepthPipeline, MarigoldNormalsPipeline
+    from .pag import (
+        AnimateDiffPAGPipeline,
+        HunyuanDiTPAGPipeline,
+        KolorsPAGPipeline,
+        StableDiffusion3PAGPipeline,
+        StableDiffusionPAGPipeline,
+    )
     from .pipeline_utils import DiffusionPipeline, ImagePipelineOutput, StableDiffusionMixin
     from .pixart_alpha import PixArtAlphaPipeline, PixArtSigmaPipeline
     from .shap_e import ShapEImg2ImgPipeline, ShapEPipeline
