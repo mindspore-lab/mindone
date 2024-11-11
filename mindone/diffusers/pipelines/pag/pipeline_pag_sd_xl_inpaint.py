@@ -73,7 +73,7 @@ EXAMPLE_DOC_STRING = """
         ...     num_inference_steps=50,
         ...     strength=0.80,
         ...     pag_scale=0.3,
-        ... ).images[0]
+        ... )[0][0]
         ```
 """
 
