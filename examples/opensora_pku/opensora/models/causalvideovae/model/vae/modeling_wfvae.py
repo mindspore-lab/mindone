@@ -61,7 +61,7 @@ class Encoder(VideoBaseAE):
                 pad_mode="pad",
                 has_bias=True,
                 weight_init=HeUniform(negative_slope=math.sqrt(5)),
-                bias_init=Uniform(scale=1 / math.sqrt(base_channels)),
+                bias_init=Uniform(scale=1 / math.sqrt(24 * 3 * 3)),
             ).to_float(dtype),
             *[
                 ResnetBlock2D(
@@ -85,7 +85,7 @@ class Encoder(VideoBaseAE):
                 pad_mode="pad",
                 has_bias=True,
                 weight_init=HeUniform(negative_slope=math.sqrt(5)),
-                bias_init=Uniform(scale=1 / math.sqrt(base_channels * 2)),
+                bias_init=Uniform(scale=1 / math.sqrt((base_channels + energy_flow_hidden_size) * 3 * 3)),
             ).to_float(dtype),
             *[
                 ResnetBlock3D(
@@ -114,7 +114,7 @@ class Encoder(VideoBaseAE):
             pad_mode="pad",
             has_bias=True,
             weight_init=HeUniform(negative_slope=math.sqrt(5)),
-            bias_init=Uniform(scale=1 / math.sqrt(energy_flow_hidden_size)),
+            bias_init=Uniform(scale=1 / math.sqrt(l1_channels * 3 * 3)),
         ).to_float(dtype)
         self.connect_l2 = Conv2d(
             24,
@@ -125,7 +125,7 @@ class Encoder(VideoBaseAE):
             pad_mode="pad",
             has_bias=True,
             weight_init=HeUniform(negative_slope=math.sqrt(5)),
-            bias_init=Uniform(scale=1 / math.sqrt(energy_flow_hidden_size)),
+            bias_init=Uniform(scale=1 / math.sqrt(24 * 3 * 3)),
         ).to_float(dtype)
         # Mid
         mid_layers = [
@@ -300,7 +300,7 @@ class Decoder(VideoBaseAE):
                 pad_mode="pad",
                 has_bias=True,
                 weight_init=HeUniform(negative_slope=math.sqrt(5)),
-                bias_init=Uniform(scale=1 / math.sqrt(l1_channels)),
+                bias_init=Uniform(scale=1 / math.sqrt(base_channels * 3 * 3)),
             ).to_float(dtype),
         )
         self.connect_l2 = nn.SequentialCell(
@@ -323,7 +323,7 @@ class Decoder(VideoBaseAE):
                 pad_mode="pad",
                 has_bias=True,
                 weight_init=HeUniform(negative_slope=math.sqrt(5)),
-                bias_init=Uniform(scale=1 / math.sqrt(24)),
+                bias_init=Uniform(scale=1 / math.sqrt(base_channels * 3 * 3)),
             ).to_float(dtype),
         )
         # Out
@@ -337,7 +337,7 @@ class Decoder(VideoBaseAE):
             pad_mode="pad",
             has_bias=True,
             weight_init=HeUniform(negative_slope=math.sqrt(5)),
-            bias_init=Uniform(scale=1 / math.sqrt(24)),
+            bias_init=Uniform(scale=1 / math.sqrt(base_channels * 3 * 3)),
         ).to_float(dtype)
 
         self.inverse_wavelet_tranform_l1 = resolve_str_to_obj(l1_upsample_wavelet)(dtype=dtype)

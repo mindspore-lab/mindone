@@ -53,7 +53,7 @@ class NLayerDiscriminator3D(nn.Cell):
                 padding=padw,
                 has_bias=True,
                 weight_init=HeUniform(negative_slope=math.sqrt(5)),
-                bias_init=Uniform(scale=1 / math.sqrt(ndf)),
+                bias_init=Uniform(scale=1 / math.sqrt(input_nc * kw * kw * kw)),
             ),
             nn.LeakyReLU(0.2).to_float(self.dtype),
         ]
@@ -72,7 +72,7 @@ class NLayerDiscriminator3D(nn.Cell):
                     pad_mode="pad",
                     has_bias=use_bias,
                     weight_init=HeUniform(negative_slope=math.sqrt(5)),
-                    bias_init=Uniform(scale=1 / math.sqrt(ndf * nf_mult)),
+                    bias_init=Uniform(scale=1 / math.sqrt(ndf * nf_mult_prev * kw * kw * kw)),
                 ),
                 norm_layer(ndf * nf_mult),
                 nn.LeakyReLU(0.2).to_float(self.dtype),
@@ -90,7 +90,7 @@ class NLayerDiscriminator3D(nn.Cell):
                 pad_mode="pad",
                 has_bias=use_bias,
                 weight_init=HeUniform(negative_slope=math.sqrt(5)),
-                bias_init=Uniform(scale=1 / math.sqrt(ndf * nf_mult)),
+                bias_init=Uniform(scale=1 / math.sqrt(ndf * nf_mult_prev * kw * kw * kw)),
             ),
             norm_layer(ndf * nf_mult),
             nn.LeakyReLU(0.2).to_float(self.dtype),
@@ -106,7 +106,7 @@ class NLayerDiscriminator3D(nn.Cell):
                 pad_mode="pad",
                 has_bias=True,
                 weight_init=HeUniform(negative_slope=math.sqrt(5)),
-                bias_init=Uniform(scale=1 / math.sqrt(1)),
+                bias_init=Uniform(scale=1 / math.sqrt(ndf * nf_mult * kw * kw * kw)),
             )
         ]  # output 1 channel prediction map
         self.main = nn.CellList(sequence)
