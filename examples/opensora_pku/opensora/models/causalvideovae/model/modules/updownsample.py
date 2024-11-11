@@ -1,9 +1,11 @@
+import math
 from typing import Tuple, Union
 
 from opensora.npu_config import npu_config
 
 import mindspore as ms
 from mindspore import mint, nn, ops
+from mindspore.common.initializer import HeUniform, Uniform
 
 from .conv import CausalConv3d
 from .ops import cast_tuple, video_to_image
@@ -16,7 +18,15 @@ class Upsample(nn.Cell):
         self.with_conv = with_conv
         if self.with_conv:
             self.conv = nn.Conv2d(
-                in_channels, out_channels, kernel_size=3, stride=1, pad_mode="pad", padding=1, has_bias=True
+                in_channels,
+                out_channels,
+                kernel_size=3,
+                stride=1,
+                pad_mode="pad",
+                padding=1,
+                has_bias=True,
+                weight_init=HeUniform(negative_slope=math.sqrt(5)),
+                bias_init=Uniform(scale=1 / math.sqrt(out_channels)),
             ).to_float(self.dtype)
 
     @video_to_image
@@ -39,11 +49,27 @@ class Downsample(nn.Cell):
             # no asymmetric padding in torch conv, must do it ourselves
             if self.undown:
                 self.conv = nn.Conv2d(
-                    in_channels, out_channels, kernel_size=3, stride=1, padding=1, pad_mode="pad", has_bias=True
+                    in_channels,
+                    out_channels,
+                    kernel_size=3,
+                    stride=1,
+                    padding=1,
+                    pad_mode="pad",
+                    has_bias=True,
+                    weight_init=HeUniform(negative_slope=math.sqrt(5)),
+                    bias_init=Uniform(scale=1 / math.sqrt(out_channels)),
                 ).to_float(self.dtype)
             else:
                 self.conv = nn.Conv2d(
-                    in_channels, out_channels, kernel_size=3, stride=2, padding=0, pad_mode="pad", has_bias=True
+                    in_channels,
+                    out_channels,
+                    kernel_size=3,
+                    stride=2,
+                    padding=0,
+                    pad_mode="pad",
+                    has_bias=True,
+                    weight_init=HeUniform(negative_slope=math.sqrt(5)),
+                    bias_init=Uniform(scale=1 / math.sqrt(out_channels)),
                 ).to_float(self.dtype)
 
     @video_to_image
