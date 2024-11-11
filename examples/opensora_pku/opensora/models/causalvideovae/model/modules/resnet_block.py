@@ -1,5 +1,8 @@
+import math
+
 import mindspore as ms
 from mindspore import nn
+from mindspore.common.initializer import HeUniform, Uniform
 
 try:
     from opensora.npu_config import npu_config
@@ -81,21 +84,52 @@ class ResnetBlock2D(nn.Cell):
 
         self.norm1 = Normalize(in_channels, norm_type=norm_type)
         self.conv1 = nn.Conv2d(
-            in_channels, out_channels, kernel_size=3, stride=1, pad_mode="pad", padding=1, has_bias=True
+            in_channels,
+            out_channels,
+            kernel_size=3,
+            stride=1,
+            pad_mode="pad",
+            padding=1,
+            has_bias=True,
+            weight_init=HeUniform(negative_slope=math.sqrt(5)),
+            bias_init=Uniform(scale=1 / math.sqrt(out_channels)),
         ).to_float(dtype)
         self.norm2 = Normalize(out_channels, norm_type=norm_type)
         self.dropout = nn.Dropout(p=dropout)
         self.conv2 = nn.Conv2d(
-            out_channels, out_channels, kernel_size=3, stride=1, pad_mode="pad", padding=1, has_bias=True
+            out_channels,
+            out_channels,
+            kernel_size=3,
+            stride=1,
+            pad_mode="pad",
+            padding=1,
+            has_bias=True,
+            weight_init=HeUniform(negative_slope=math.sqrt(5)),
+            bias_init=Uniform(scale=1 / math.sqrt(out_channels)),
         ).to_float(dtype)
         if self.in_channels != self.out_channels:
             if self.use_conv_shortcut:
                 self.conv_shortcut = nn.Conv2d(
-                    in_channels, out_channels, kernel_size=3, stride=1, pad_mode="pad", padding=1, has_bias=True
+                    in_channels,
+                    out_channels,
+                    kernel_size=3,
+                    stride=1,
+                    pad_mode="pad",
+                    padding=1,
+                    has_bias=True,
+                    weight_init=HeUniform(negative_slope=math.sqrt(5)),
+                    bias_init=Uniform(scale=1 / math.sqrt(out_channels)),
                 ).to_float(dtype)
             else:
                 self.nin_shortcut = nn.Conv2d(
-                    in_channels, out_channels, kernel_size=1, stride=1, pad_mode="valid", has_bias=True
+                    in_channels,
+                    out_channels,
+                    kernel_size=1,
+                    stride=1,
+                    pad_mode="valid",
+                    has_bias=True,
+                    weight_init=HeUniform(negative_slope=math.sqrt(5)),
+                    bias_init=Uniform(scale=1 / math.sqrt(out_channels)),
                 ).to_float(dtype)
 
     @video_to_image

@@ -1,4 +1,5 @@
 import logging
+import math
 import os
 from typing import List
 
@@ -6,6 +7,7 @@ from opensora.npu_config import npu_config
 
 import mindspore as ms
 from mindspore import mint, nn
+from mindspore.common.initializer import HeUniform, Uniform
 
 from mindone.diffusers import __version__
 from mindone.diffusers.configuration_utils import register_to_config
@@ -58,6 +60,8 @@ class Encoder(VideoBaseAE):
                 padding=1,
                 pad_mode="pad",
                 has_bias=True,
+                weight_init=HeUniform(negative_slope=math.sqrt(5)),
+                bias_init=Uniform(scale=1 / math.sqrt(base_channels)),
             ).to_float(dtype),
             *[
                 ResnetBlock2D(
@@ -80,6 +84,8 @@ class Encoder(VideoBaseAE):
                 padding=1,
                 pad_mode="pad",
                 has_bias=True,
+                weight_init=HeUniform(negative_slope=math.sqrt(5)),
+                bias_init=Uniform(scale=1 / math.sqrt(base_channels * 2)),
             ).to_float(dtype),
             *[
                 ResnetBlock3D(
@@ -107,6 +113,8 @@ class Encoder(VideoBaseAE):
             padding=1,
             pad_mode="pad",
             has_bias=True,
+            weight_init=HeUniform(negative_slope=math.sqrt(5)),
+            bias_init=Uniform(scale=1 / math.sqrt(energy_flow_hidden_size)),
         ).to_float(dtype)
         self.connect_l2 = Conv2d(
             24,
@@ -116,6 +124,8 @@ class Encoder(VideoBaseAE):
             padding=1,
             pad_mode="pad",
             has_bias=True,
+            weight_init=HeUniform(negative_slope=math.sqrt(5)),
+            bias_init=Uniform(scale=1 / math.sqrt(energy_flow_hidden_size)),
         ).to_float(dtype)
         # Mid
         mid_layers = [
@@ -289,6 +299,8 @@ class Decoder(VideoBaseAE):
                 padding=1,
                 pad_mode="pad",
                 has_bias=True,
+                weight_init=HeUniform(negative_slope=math.sqrt(5)),
+                bias_init=Uniform(scale=1 / math.sqrt(l1_channels)),
             ).to_float(dtype),
         )
         self.connect_l2 = nn.SequentialCell(
@@ -310,6 +322,8 @@ class Decoder(VideoBaseAE):
                 padding=1,
                 pad_mode="pad",
                 has_bias=True,
+                weight_init=HeUniform(negative_slope=math.sqrt(5)),
+                bias_init=Uniform(scale=1 / math.sqrt(24)),
             ).to_float(dtype),
         )
         # Out
@@ -322,6 +336,8 @@ class Decoder(VideoBaseAE):
             padding=1,
             pad_mode="pad",
             has_bias=True,
+            weight_init=HeUniform(negative_slope=math.sqrt(5)),
+            bias_init=Uniform(scale=1 / math.sqrt(24)),
         ).to_float(dtype)
 
         self.inverse_wavelet_tranform_l1 = resolve_str_to_obj(l1_upsample_wavelet)(dtype=dtype)
