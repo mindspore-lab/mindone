@@ -62,10 +62,11 @@ class RFLOW:
         else:
             first_half = ceil(self.num_sampling_steps / 2)
             second_half = self.num_sampling_steps - first_half  # in the case of an odd number of sampling steps
-            linear = np.arange(first_half, 0, -1)
-            quadratic = (np.arange(second_half, 0, -1) ** 2) / (second_half**2)
-            quadratic = (self.num_timesteps - first_half) * quadratic + first_half  # scale and shift
-            timesteps = np.concatenate([quadratic, linear])
+            linear = self.num_timesteps - np.arange(first_half)
+            quadratic = (np.arange(1, second_half + 1) ** 2) / ((second_half + 1) ** 2)
+            quadratic = (self.num_timesteps - (first_half - 1)) * quadratic + (first_half - 1)  # scale and shift
+            quadratic = self.num_timesteps - quadratic
+            timesteps = np.concatenate([linear, quadratic])
 
         timesteps = np.tile(timesteps[..., None], (1, x.shape[0]))
         timesteps = Tensor(timesteps, dtype=model.dtype)  # FIXME: avoid calculations on tensors outside `construct`
