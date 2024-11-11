@@ -1,4 +1,7 @@
+import math
 from typing import Tuple, Union
+
+from mindspore.common.initializer import HeUniform, Uniform
 
 try:
     from opensora.npu_config import npu_config
@@ -76,7 +79,15 @@ class CausalConv3d(nn.Cell):
         self.stride = cast_tuple(self.stride, 3)
         if self.padding == 0:
             self.conv = nn.Conv3d(
-                chan_in, chan_out, self.kernel_size, stride=self.stride, pad_mode="valid", has_bias=bias, **kwargs
+                chan_in,
+                chan_out,
+                self.kernel_size,
+                stride=self.stride,
+                pad_mode="valid",
+                has_bias=bias,
+                weight_init=HeUniform(negative_slope=math.sqrt(5)),
+                bias_init=Uniform(scale=1 / math.sqrt(chan_out)),
+                **kwargs,
             )
         else:
             self.padding = list(cast_tuple(self.padding, 6))
@@ -91,6 +102,8 @@ class CausalConv3d(nn.Cell):
                 padding=tuple(self.padding),
                 pad_mode="pad",
                 has_bias=bias,
+                weight_init=HeUniform(negative_slope=math.sqrt(5)),
+                bias_init=Uniform(scale=1 / math.sqrt(chan_out)),
                 **kwargs,
             )
         self.enable_cached = enable_cached
