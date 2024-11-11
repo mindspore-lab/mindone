@@ -26,7 +26,7 @@ class Upsample(nn.Cell):
                 padding=1,
                 has_bias=True,
                 weight_init=HeUniform(negative_slope=math.sqrt(5)),
-                bias_init=Uniform(scale=1 / math.sqrt(out_channels)),
+                bias_init=Uniform(scale=1 / math.sqrt(in_channels * 3 * 3)),
             ).to_float(self.dtype)
 
     @video_to_image
@@ -57,7 +57,7 @@ class Downsample(nn.Cell):
                     pad_mode="pad",
                     has_bias=True,
                     weight_init=HeUniform(negative_slope=math.sqrt(5)),
-                    bias_init=Uniform(scale=1 / math.sqrt(out_channels)),
+                    bias_init=Uniform(scale=1 / math.sqrt(in_channels * 3 * 3)),
                 ).to_float(self.dtype)
             else:
                 self.conv = nn.Conv2d(
@@ -69,7 +69,7 @@ class Downsample(nn.Cell):
                     pad_mode="pad",
                     has_bias=True,
                     weight_init=HeUniform(negative_slope=math.sqrt(5)),
-                    bias_init=Uniform(scale=1 / math.sqrt(out_channels)),
+                    bias_init=Uniform(scale=1 / math.sqrt(in_channels * 3 * 3)),
                 ).to_float(self.dtype)
 
     @video_to_image
