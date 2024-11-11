@@ -795,7 +795,7 @@ class DPMSolverMultistepInverseScheduler(SchedulerMixin, ConfigMixin):
     def step(
         self,
         model_output: ms.Tensor,
-        timestep: int,
+        timestep: Union[int, ms.Tensor],
         sample: ms.Tensor,
         generator=None,
         variance_noise: Optional[ms.Tensor] = None,
