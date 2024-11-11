@@ -11,7 +11,7 @@ from jsonargparse import ActionConfigFile, ArgumentParser
 from jsonargparse.typing import path_type
 
 import mindspore as ms
-from mindspore import Tensor, amp, nn
+from mindspore import amp, nn
 
 # TODO: remove in future when mindone is ready for install
 __dir__ = os.path.dirname(os.path.abspath(__file__))
@@ -19,7 +19,7 @@ mindone_lib_path = os.path.abspath(os.path.join(__dir__, "../../"))
 sys.path.append(mindone_lib_path)
 
 from moviegen.pipelines import InferPipeline
-from moviegen.utils.model_utils import MODEL_DTYPE, init_model
+from moviegen.utils import MODEL_DTYPE, init_model, to_numpy
 
 from mindone.utils import init_train_env, set_logger
 from mindone.visualize.videos import save_videos
@@ -31,12 +31,6 @@ from opensora.models.vae.vae import OpenSoraVAE_V1_2
 logger = logging.getLogger(__name__)
 
 Path_dr = path_type("dr", docstring="path to a directory that exists and is readable")
-
-
-def to_numpy(x: Tensor) -> np.ndarray:
-    if x.dtype == ms.bfloat16:
-        x = x.astype(ms.float32)
-    return x.asnumpy()
 
 
 def prepare_captions(
