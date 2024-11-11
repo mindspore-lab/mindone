@@ -92,7 +92,7 @@ class ResnetBlock2D(nn.Cell):
             padding=1,
             has_bias=True,
             weight_init=HeUniform(negative_slope=math.sqrt(5)),
-            bias_init=Uniform(scale=1 / math.sqrt(out_channels)),
+            bias_init=Uniform(scale=1 / math.sqrt(in_channels * 3 * 3)),
         ).to_float(dtype)
         self.norm2 = Normalize(out_channels, norm_type=norm_type)
         self.dropout = nn.Dropout(p=dropout)
@@ -105,7 +105,7 @@ class ResnetBlock2D(nn.Cell):
             padding=1,
             has_bias=True,
             weight_init=HeUniform(negative_slope=math.sqrt(5)),
-            bias_init=Uniform(scale=1 / math.sqrt(out_channels)),
+            bias_init=Uniform(scale=1 / math.sqrt(out_channels * 3 * 3)),
         ).to_float(dtype)
         if self.in_channels != self.out_channels:
             if self.use_conv_shortcut:
@@ -118,7 +118,7 @@ class ResnetBlock2D(nn.Cell):
                     padding=1,
                     has_bias=True,
                     weight_init=HeUniform(negative_slope=math.sqrt(5)),
-                    bias_init=Uniform(scale=1 / math.sqrt(out_channels)),
+                    bias_init=Uniform(scale=1 / math.sqrt(in_channels * 3 * 3)),
                 ).to_float(dtype)
             else:
                 self.nin_shortcut = nn.Conv2d(
@@ -129,7 +129,7 @@ class ResnetBlock2D(nn.Cell):
                     pad_mode="valid",
                     has_bias=True,
                     weight_init=HeUniform(negative_slope=math.sqrt(5)),
-                    bias_init=Uniform(scale=1 / math.sqrt(out_channels)),
+                    bias_init=Uniform(scale=1 / math.sqrt(in_channels * 3 * 3)),
                 ).to_float(dtype)
 
     @video_to_image

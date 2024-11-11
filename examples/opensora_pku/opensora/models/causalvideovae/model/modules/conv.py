@@ -86,7 +86,9 @@ class CausalConv3d(nn.Cell):
                 pad_mode="valid",
                 has_bias=bias,
                 weight_init=HeUniform(negative_slope=math.sqrt(5)),
-                bias_init=Uniform(scale=1 / math.sqrt(chan_out)),
+                bias_init=Uniform(
+                    scale=1 / math.sqrt(chan_in * self.kernel_size[0] * self.kernel_size[1] * self.kernel_size[2])
+                ),
                 **kwargs,
             )
         else:
@@ -103,7 +105,9 @@ class CausalConv3d(nn.Cell):
                 pad_mode="pad",
                 has_bias=bias,
                 weight_init=HeUniform(negative_slope=math.sqrt(5)),
-                bias_init=Uniform(scale=1 / math.sqrt(chan_out)),
+                bias_init=Uniform(
+                    scale=1 / math.sqrt(chan_in * self.kernel_size[0] * self.kernel_size[1] * self.kernel_size[2])
+                ),
                 **kwargs,
             )
         self.enable_cached = enable_cached
