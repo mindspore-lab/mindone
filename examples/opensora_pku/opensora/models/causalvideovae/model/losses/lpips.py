@@ -138,6 +138,7 @@ class vgg16(nn.Cell):
 
 
 def normalize_tensor(x, eps=1e-10):
+    x = x.to(ms.float32)
     norm_factor = mint.sqrt((x**2).sum(1, keepdims=True))
     return x / (norm_factor + eps)
 

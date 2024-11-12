@@ -113,6 +113,7 @@ class GeneratorWithLoss(nn.Cell):
         if self.perceptual_weight > 0:
             p_loss = self.perceptual_loss(x, recons)
             rec_loss = rec_loss + self.perceptual_weight * p_loss
+        # print(f"rec_loss {rec_loss.sum()/rec_loss.shape[0]}, " + f"p_loss: {p_loss.sum()/p_loss.shape[0]}" if self.perceptual_weight > 0 else "")
 
         nll_loss = rec_loss / mint.exp(self.logvar) + self.logvar
         if weights is not None:
