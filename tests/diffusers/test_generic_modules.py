@@ -16,7 +16,8 @@ import torch
 
 import mindspore as ms
 
-from .modeling_test_utils import compute_diffs, expand_dtype_mode_for_all_case, generalized_parse_args, get_modules
+from ..modeling_test_utils import compute_diffs, expand_dtype_mode_for_all_case, generalized_parse_args, get_modules
+
 from .modules_test_cases import ALL_CASES
 
 THRESHOLD_FP16 = 1e-2

@@ -4,7 +4,7 @@ import torch
 
 import mindspore as ms
 
-from .modeling_test_utils import compute_diffs, generalized_parse_args, get_modules
+from tests.modeling_test_utils import compute_diffs, generalized_parse_args, get_modules
 
 THRESHOLD_FP16 = 1e-2
 THRESHOLD_FP32 = 5e-3
