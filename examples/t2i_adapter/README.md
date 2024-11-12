@@ -26,12 +26,6 @@ There are multiple advantages of this architecture:
 - **Generalizable**: Can be directly used on custom models as long as they are fine-tuned from the same model (e.g., use
   T2I-Adapters trained on SD 1.4 with SD 1.5 or Anything anime model).
 
-## Requirements
-
-| mindspore  | ascend driver | firmware    | cann toolkit/kernel
-| :---      |:---           | :--         |:--
-| 2.1.0     | 23.0.rc2 | 6.4.12.1.241 | 6.3.RC2
-- experiments for ascend 910* with mindspore 2.3.1 graph mode will comming soon
 ## Pretrained Models
 
 <div align="center">
@@ -367,17 +361,18 @@ python adapter_image2image_sd.py \
 ## Training
 
 The following table summarizes T2I-Adapters training details:
-experiments are tested on ascend 910 with mindspore 2.1 graph mode
 
 <div align="center">
 
-| Task         | SD Version | Dataset                                      | cards| Train Time      | Throughput   | Recipe                             |
+| Task         | SD Version | Dataset                                      | Context         | Train Time      | Throughput   | Recipe                             |
 |--------------|:----------:|----------------------------------------------|-----------------|-----------------|--------------|------------------------------------|
-| Segmentation |    2.1     | [COCO-Stuff Train](#segmentation-coco-stuff) | 4 | 10h 35m / epoch | 39.2 img / s | [yaml](configs/sd_v2.1_train.yaml) |
-
+| Segmentation |    2.1     | [COCO-Stuff Train](#segmentation-coco-stuff) | D910Ax4-MS2.1-G | 10h 35m / epoch | 39.2 img / s | [yaml](configs/sd_v2.1_train.yaml) |
 
 </div>
 
+> Context: Training context denoted as {device}x{pieces}-{MS version}{MS mode}, where mindspore mode can be G - graph
+> mode or F - pynative mode with ms function. For example, D910x8-G is for training on 8 pieces of Ascend 910 NPU using
+> graph mode.
 
 ### Data preparation
 

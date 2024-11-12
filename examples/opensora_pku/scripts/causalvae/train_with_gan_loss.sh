@@ -1,11 +1,12 @@
 python opensora/train/train_causalvae.py \
     --exp_name "25x256x256" \
     --train_batch_size 1 \
-    --precision bf16 \
+    --precision fp32 \
     --max_steps 100000 \
     --save_steps 2000 \
     --output_dir results/causalvae \
-    --video_path /remote-home1/dataset/data_split_tt \
+    --video_path datasets/UCF-101 \
+    --data_file_path datasets/ucf101_train.csv \
     --video_num_frames 25 \
     --resolution 256 \
     --sample_rate 2 \
@@ -28,3 +29,4 @@ python opensora/train/train_causalvae.py \
     --loss_type l1 \
     --disc_cls causalvideovae.model.losses.LPIPSWithDiscriminator3D \
     --disc_start 2000 \
+    --use_recompute True \

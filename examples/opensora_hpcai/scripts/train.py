@@ -70,6 +70,7 @@ def init_env(
     dynamic_shape: bool = False,
     enable_sequence_parallelism: bool = False,
     sequence_parallel_shards: int = 1,
+    save_graphs: int = False,
     debug: bool = False,
 ) -> Tuple[int, int]:
     """
@@ -161,6 +162,9 @@ def init_env(
     if dynamic_shape:
         logger.info("Dynamic shape mode enabled, repeat_interleave/split/chunk will be called from mint module")
         set_dynamic_mode(True)
+
+    if save_graphs > 0:
+        ms.set_context(save_graphs=args.save_graphs)
 
     return rank_id, device_num
 
@@ -265,7 +269,7 @@ def initialize_dataset(
                 sample_n_frames=args.num_frames,
                 sample_stride=args.frame_stride,
                 frames_mask_generator=mask_gen,
-                t_compress_func=lambda x: vae.get_latent_size((x, None, None))[0],
+                t_compress_func=(lambda x: vae.get_latent_size((x, None, None))[0]) if vae is not None else None,
                 buckets=buckets,
                 filter_data=args.filter_data,
                 pre_patchify=args.pre_patchify,
@@ -361,7 +365,9 @@ def main(args):
         enable_sequence_parallelism=args.enable_sequence_parallelism,
         sequence_parallel_shards=args.sequence_parallel_shards,
         debug=args.debug,
+        save_graphs=args.save_graphs,
     )
+
     set_logger(name="", output_dir=args.output_path, rank=rank_id, log_level=eval(args.log_level))
 
     # 2. model initiate and weight loading

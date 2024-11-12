@@ -28,6 +28,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
+import csv
 import math
 import os
 import os.path as osp
@@ -62,13 +63,20 @@ class VideoDataset:
         real_video_dir,
         generated_video_dir,
         num_frames,
+        real_data_file_path=None,
         sample_rate=1,
         crop_size=None,
         resolution=128,
         output_columns=["real", "generated"],
     ) -> None:
         super().__init__()
-        self.real_video_files = self.combine_without_prefix(real_video_dir)
+        if real_data_file_path is not None:
+            print(f"Loading videos from data file {real_data_file_path}")
+            self.parse_data_file(real_data_file_path)
+            self.read_from_data_file = True
+        else:
+            self.real_video_files = self.combine_without_prefix(real_video_dir)
+            self.read_from_data_file = False
         self.generated_video_files = self.combine_without_prefix(generated_video_dir)
         assert (
             len(self.real_video_files) == len(self.generated_video_files) and len(self.real_video_files) > 0
@@ -78,6 +86,7 @@ class VideoDataset:
         self.crop_size = crop_size
         self.short_size = resolution
         self.output_columns = output_columns
+        self.real_video_dir = real_video_dir
 
         self.pixel_transforms = create_video_transforms(
             size=self.short_size,
@@ -94,7 +103,12 @@ class VideoDataset:
     def __getitem__(self, index):
         if index >= len(self):
             raise IndexError
-        real_video_file = self.real_video_files[index]
+        if self.read_from_data_file:
+            video_dict = self.real_video_files[index]
+            video_fn = video_dict["video"]
+            real_video_file = os.path.join(self.real_video_dir, video_fn)
+        else:
+            real_video_file = self.real_video_files[index]
         generated_video_file = self.generated_video_files[index]
         if os.path.basename(real_video_file).split(".")[0] != os.path.basename(generated_video_file).split(".")[0]:
             print(
@@ -103,6 +117,14 @@ class VideoDataset:
         real_video_tensor = self._load_video(real_video_file)
         generated_video_tensor = self._load_video(generated_video_file)
         return real_video_tensor.astype(np.float32), generated_video_tensor.astype(np.float32)
+
+    def parse_data_file(self, data_file_path):
+        if data_file_path.endswith(".csv"):
+            with open(data_file_path, "r") as csvfile:
+                self.real_video_files = list(csv.DictReader(csvfile))
+        else:
+            raise ValueError("Only support csv file now!")
+        self.real_video_files = sorted(self.real_video_files, key=lambda x: os.path.basename(x["video"]))
 
     def _load_video(self, video_path):
         num_frames = self.num_frames
@@ -146,11 +168,11 @@ class VideoDataset:
         folder = []
         assert os.path.exists(folder_path), f"Expect that {folder_path} exist!"
         for name in os.listdir(folder_path):
-            if name[0] == prefix:
+            if name[0] == prefix or name.split(".")[1] == "txt":
                 continue
             if osp.isfile(osp.join(folder_path, name)):
                 folder.append(osp.join(folder_path, name))
-        folder.sort()
+        folder = sorted(folder, key=lambda x: os.path.basename(x))
         return folder
 
 
@@ -203,6 +225,7 @@ def main():
     parser = ArgumentParser(formatter_class=ArgumentDefaultsHelpFormatter)
     parser.add_argument("--batch_size", type=int, default=2, help="Batch size to use")
     parser.add_argument("--real_video_dir", type=str, help=("the path of real videos`"))
+    parser.add_argument("--real_data_file_path", type=str, default=None, help=("the path of real videos csv file`"))
     parser.add_argument("--generated_video_dir", type=str, help=("the path of generated videos`"))
     parser.add_argument("--device", type=str, default=None, help="Device to use. Like GPU or Ascend")
     parser.add_argument(
@@ -239,6 +262,7 @@ def main():
         args.real_video_dir,
         args.generated_video_dir,
         num_frames=args.num_frames,
+        real_data_file_path=args.real_data_file_path,
         sample_rate=args.sample_rate,
         crop_size=args.crop_size,
         resolution=args.resolution,

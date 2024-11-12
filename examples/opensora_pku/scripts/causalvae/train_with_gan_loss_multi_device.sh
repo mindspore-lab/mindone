@@ -8,11 +8,12 @@ exp_name="25x256x256"
 msrun --bind_core=True --worker_num=8 --local_worker_num=8 --master_port=9000 --log_dir=$output_dir/$exp_name/parallel_logs opensora/train/train_causalvae.py \
     --exp_name $exp_name \
     --train_batch_size 1 \
-    --precision bf16 \
+    --precision fp32 \
     --max_steps 100000 \
     --save_steps 2000 \
     --output_dir $output_dir \
-    --video_path /remote-home1/dataset/data_split_tt \
+    --video_path datasets/UCF-101 \
+    --data_file_path datasets/ucf101_train.csv \
     --video_num_frames 25 \
     --resolution 256 \
     --sample_rate 2 \
@@ -36,3 +37,4 @@ msrun --bind_core=True --worker_num=8 --local_worker_num=8 --master_port=9000 --
     --loss_type l1 \
     --disc_cls causalvideovae.model.losses.LPIPSWithDiscriminator3D \
     --disc_start 2000 \
+    --use_recompute True \
