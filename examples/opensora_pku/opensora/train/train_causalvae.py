@@ -104,6 +104,7 @@ def main(args):
         perceptual_weight=args.perceptual_weight,
         loss_type=args.loss_type,
         wavelet_weight=args.wavelet_weight,
+        print_losses=args.print_losses,
     )
     disc_start = args.disc_start
 
@@ -627,6 +628,7 @@ def parse_causalvae_train_args(parser):
     parser.add_argument("--logvar_init", type=float, default=0.0, help="")
     parser.add_argument("--wavelet_loss", action="store_true", help="")
     parser.add_argument("--wavelet_weight", type=float, default=0.1, help="")
+    parser.add_argument("--print_losses", action="store_true", help="Whether to print multiple losses during training")
     return parser
 
 

@@ -1,6 +1,7 @@
 import math
 from typing import Tuple, Union
 
+import mindspore as ms
 from mindspore.common.initializer import HeUniform, Uniform
 
 try:
@@ -77,6 +78,7 @@ class CausalConv3d(nn.Cell):
         self.stride = kwargs.pop("stride", 1)
         self.padding = kwargs.pop("padding", 0)
         self.stride = cast_tuple(self.stride, 3)
+        conv_dtype = npu_config.conv_dtype if npu_config is not None else ms.bfloat16
         if self.padding == 0:
             self.conv = nn.Conv3d(
                 chan_in,
@@ -89,6 +91,7 @@ class CausalConv3d(nn.Cell):
                 bias_init=Uniform(
                     scale=1 / math.sqrt(chan_in * self.kernel_size[0] * self.kernel_size[1] * self.kernel_size[2])
                 ),
+                dtype=conv_dtype,
                 **kwargs,
             )
         else:
@@ -108,6 +111,7 @@ class CausalConv3d(nn.Cell):
                 bias_init=Uniform(
                     scale=1 / math.sqrt(chan_in * self.kernel_size[0] * self.kernel_size[1] * self.kernel_size[2])
                 ),
+                dtype=conv_dtype,
                 **kwargs,
             )
         self.enable_cached = enable_cached

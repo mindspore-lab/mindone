@@ -67,7 +67,7 @@ class NPUConfig:
         rank_id, device_num = init_env(
             mode=args.mode,
             device_target=args.device,
-            distributed=args.use_parallel,
+            distributed=getattr(args, "use_parallel", False),
             precision_mode=getattr(args, "precision_mode", None),
             jit_level=getattr(args, "jit_level", None),
             jit_syntax_level=getattr(args, "jit_syntax_level", "strict"),
@@ -131,7 +131,7 @@ class NPUConfig:
         if self.on_npu:
             if out_dtype is None:
                 out_dtype = x.dtype
-            x = operator.to_float(tmp_dtype)(x.to(tmp_dtype))
+            x = operator(x.to(tmp_dtype))
             x = x.to(out_dtype)
             return x
         else:
@@ -278,9 +278,9 @@ class NPUConfig:
         # If we did padding before calculate attention, undo it!
         if head_dim_padding > 0:
             if input_layout == "BNSD":
-                hidden_states = hidden_states_padded[..., :head_dim]
+                hidden_states = hidden_states_padded[:, :, :, :head_dim]
             else:
-                hidden_states = hidden_states_padded.view(Bs, query_tokens, heads, -1)[..., :head_dim]
+                hidden_states = hidden_states_padded.view(Bs, query_tokens, heads, -1)[:, :, :, :head_dim]
                 hidden_states = hidden_states.view(Bs, query_tokens, -1)
         else:
             hidden_states = hidden_states_padded
