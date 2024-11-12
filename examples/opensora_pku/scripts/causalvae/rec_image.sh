@@ -6,3 +6,4 @@ python examples/rec_image.py \
     --device Ascend \
     --short_size 512 \
     --mode 1 \
+    --jit_syntax_level lax \

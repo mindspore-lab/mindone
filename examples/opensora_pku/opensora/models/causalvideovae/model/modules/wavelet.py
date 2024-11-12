@@ -69,35 +69,46 @@ class HaarWaveletTransform3D(nn.Cell):
         x = x.reshape(-1, 1, *x.shape[-3:])
         low_low_low = self.h_conv(x)
         low_low_low = low_low_low.reshape(
-            b, low_low_low.shape[0] // b, *low_low_low.shape[-3:]
+            b, low_low_low.shape[0] // b, low_low_low.shape[-3], low_low_low.shape[-2], low_low_low.shape[-1]
         )  # (b c) 1 t h w -> b c t h w
+
         low_low_high = self.g_conv(x)
         low_low_high = low_low_high.reshape(
-            b, low_low_high.shape[0] // b, *low_low_high.shape[-3:]
+            b, low_low_high.shape[0] // b, low_low_high.shape[-3], low_low_high.shape[-2], low_low_high.shape[-1]
         )  # (b c) 1 t h w -> b c t h w
+
         low_high_low = self.hh_conv(x)
         low_high_low = low_high_low.reshape(
-            b, low_high_low.shape[0] // b, *low_high_low.shape[-3:]
+            b, low_high_low.shape[0] // b, low_high_low.shape[-3], low_high_low.shape[-2], low_high_low.shape[-1]
         )  # (b c) 1 t h w -> b c t h w
+
         low_high_high = self.gh_conv(x)
         low_high_high = low_high_high.reshape(
-            b, low_high_high.shape[0] // b, *low_high_high.shape[-3:]
+            b, low_high_high.shape[0] // b, low_high_high.shape[-3], low_high_high.shape[-2], low_high_high.shape[-1]
         )  # (b c) 1 t h w -> b c t h w
+
         high_low_low = self.h_v_conv(x)
         high_low_low = high_low_low.reshape(
-            b, high_low_low.shape[0] // b, *high_low_low.shape[-3:]
+            b, high_low_low.shape[0] // b, high_low_low.shape[-3], high_low_low.shape[-2], high_low_low.shape[-1]
         )  # (b c) 1 t h w -> b c t h w
+
         high_low_high = self.g_v_conv(x)
         high_low_high = high_low_high.reshape(
-            b, high_low_high.shape[0] // b, *high_low_high.shape[-3:]
+            b, high_low_high.shape[0] // b, high_low_high.shape[-3], high_low_high.shape[-2], high_low_high.shape[-1]
         )  # (b c) 1 t h w -> b c t h w
+
         high_high_low = self.hh_v_conv(x)
         high_high_low = high_high_low.reshape(
-            b, high_high_low.shape[0] // b, *high_high_low.shape[-3:]
+            b, high_high_low.shape[0] // b, high_high_low.shape[-3], high_high_low.shape[-2], high_high_low.shape[-1]
         )  # (b c) 1 t h w -> b c t h w
+
         high_high_high = self.gh_v_conv(x)
         high_high_high = high_high_high.reshape(
-            b, high_high_high.shape[0] // b, *high_high_high.shape[-3:]
+            b,
+            high_high_high.shape[0] // b,
+            high_high_high.shape[-3],
+            high_high_high.shape[-2],
+            high_high_high.shape[-1],
         )  # (b c) 1 t h w -> b c t h w
 
         output = mint.cat(

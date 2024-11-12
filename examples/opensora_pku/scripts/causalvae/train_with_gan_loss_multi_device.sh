@@ -38,4 +38,6 @@ msrun --bind_core=True --worker_num=8 --local_worker_num=8 --master_port=9000 --
     --disc_cls causalvideovae.model.losses.LPIPSWithDiscriminator3D \
     --disc_start 0 \
     --wavelet_loss \
-    --wavelet_weight 0.1
+    --wavelet_weight 0.1 \
+    --mode 1 \
+    --jit_syntax_level lax \

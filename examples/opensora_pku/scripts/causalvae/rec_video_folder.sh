@@ -13,3 +13,5 @@ python examples/rec_video_folder.py \
     --ae_path LanguageBind/Open-Sora-Plan-v1.3.0/vae \
     --enable_tiling \
     --tile_overlap_factor 0.125 \
+    --mode 1 \
+    --jit_syntax_level lax \
