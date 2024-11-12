@@ -11,3 +11,4 @@ python examples/rec_video.py \
     --fps 30 \
     --enable_tiling \
     --mode 1 \
+    --jit_syntax_level lax \

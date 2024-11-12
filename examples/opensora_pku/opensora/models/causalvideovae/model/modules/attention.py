@@ -7,7 +7,7 @@ from .conv import CausalConv3d
 from .normalize import Normalize
 
 try:
-    from opensora.npu_config import npu_config, set_run_dtype
+    from opensora.npu_config import npu_config
 except ImportError:
     npu_config = None
 
@@ -88,19 +88,22 @@ class AttnBlock3DFix(nn.Cell):
             dtype = ms.bfloat16
         else:
             dtype = None
-        with set_run_dtype(q, dtype):
-            query, key, value = npu_config.set_current_run_dtype([q, k, v])
-            hidden_states = npu_config.run_attention(
-                query,
-                key,
-                value,
-                attention_mask=None,
-                input_layout="BSH",
-                head_dim=c // 2,
-                head_num=2,  # FIXME: different from torch. To make head_dim 256 instead of 512
-            )
-
-            attn_output = npu_config.restore_dtype(hidden_states)
+        npu_config.current_run_dtype = dtype
+        npu_config.original_run_dtype = q.dtype
+        # with set_run_dtype(q, dtype): # graph mode does not support it
+        query, key, value = npu_config.set_current_run_dtype([q, k, v])
+        hidden_states = npu_config.run_attention(
+            query,
+            key,
+            value,
+            attention_mask=None,
+            input_layout="BSH",
+            head_dim=c // 2,
+            head_num=2,  # FIXME: different from torch. To make head_dim 256 instead of 512
+        )
+        npu_config.current_run_dtype = None
+        npu_config.original_run_dtype = None
+        attn_output = npu_config.restore_dtype(hidden_states)
 
         attn_output = attn_output.reshape(b, t, h, w, c).permute(0, 4, 1, 2, 3)
         h_ = self.proj_out(attn_output)
