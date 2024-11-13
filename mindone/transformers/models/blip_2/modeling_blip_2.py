@@ -145,7 +145,7 @@ class Blip2VisionEmbeddings(nn.Cell):
         patch_embeds = self.patch_embedding(pixel_values.to(dtype=target_dtype))  # shape = [*, width, grid, grid]
         patch_embeds = ops.flatten(patch_embeds, start_dim=2).swapaxes(1, 2)
         class_embeds = self.class_embedding.broadcast_to((batch_size, 1, -1)).to(target_dtype)
-        embeddings = ops.cat([class_embeds, patch_embeds], axis=1)
+        embeddings = ops.cat([class_embeds.to(patch_embeds.dtype), patch_embeds], axis=1)
         if interpolate_pos_encoding:
             position_embedding = self.interpolate_pos_encoding(embeddings, height, width)
         else:

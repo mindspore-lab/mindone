@@ -4,7 +4,6 @@ import logging
 
 import numpy as np
 import torch
-
 from diffusers.utils import BaseOutput
 from ml_dtypes import bfloat16
 
@@ -27,6 +26,50 @@ TORCH_FP16_BLACKLIST = (
     "KDownsample2D",
     "AutoencoderTiny",
 )
+MS_FP16_WHITELIST = (nn.Conv3d,)
+MS_BF16_BLACKLIST = (nn.Loss,)
+PT_DTYPE_MAPPING = {
+    "fp16": torch.float16,
+    "fp32": torch.float32,
+    "bf16": torch.bfloat16,
+}
+MS_DTYPE_MAPPING = {"fp16": ms.float16, "fp32": ms.float32, "bf16": ms.bfloat16}
+NP_DTYPE_MAPPING = {"fp16": np.float16, "fp32": np.float32, "bf16": bfloat16}
+
+
+class _OutputTo(nn.Cell):
+    """Wrap cell for amp. Cast network output back to dtype."""
+
+    def __init__(self, backbone, dtype=ms.float16):
+        super(_OutputTo, self).__init__(auto_prefix=False)
+        self.backbone = backbone
+        self.dtype = dtype
+        self._get_attr_from_cell(backbone)
+
+    def construct(self, *args, **kwargs):
+        return self.backbone(*args, **kwargs).to(self.dtype)
+
+
+def _ms_mixed_precision(net, dtype):
+    ms_dtype = MS_DTYPE_MAPPING[dtype]
+    net.to_float(ms_dtype)
+    cells = net.name_cells()
+    change = False
+    for name in cells:
+        subcell = cells[name]
+        if subcell == net:
+            continue
+        if ms_dtype == ms.bfloat16 and isinstance(subcell, tuple(MS_BF16_BLACKLIST)):
+            net._cells[name] = _OutputTo(subcell.to_float(ms.float32), ms.bfloat16)
+            change = True
+        if ms_dtype != ms.float16 and isinstance(subcell, tuple(MS_FP16_WHITELIST)):
+            net._cells[name] = _OutputTo(subcell.to_float(ms.float16), ms_dtype)
+            change = True
+        else:
+            _ms_mixed_precision(subcell, dtype)
+    if isinstance(net, nn.SequentialCell) and change:
+        net.cell_list = list(net.cells())
+    return net
 
 
 def set_default_dtype_mode_for_single_case(case):
@@ -110,8 +153,9 @@ def get_modules(pt_module, ms_module, dtype, *args, **kwargs):
         pt_modules_instance = pt_modules_instance.to(torch.float16)
         ms_modules_instance = set_dtype(ms_modules_instance, ms.float16)
     elif dtype == "bf16":
-        pt_modules_instance = pt_modules_instance.to(torch.bfloat16)
-        ms_modules_instance = set_dtype(ms_modules_instance, ms.bfloat16)
+        pt_modules_instance = pt_modules_instance.to(torch.float32)
+        ms_modules_instance = ms_modules_instance.to_float(ms.bfloat16)
+        pt_dtype = "fp32"
     elif dtype == "fp32":
         pt_modules_instance = pt_modules_instance.to(torch.float32)
         ms_modules_instance = set_dtype(ms_modules_instance, ms.float32)
@@ -131,7 +175,10 @@ def get_modules(pt_module, ms_module, dtype, *args, **kwargs):
     pt_modules_instance.eval()
     ms_modules_instance.set_train(False)
 
-    if dtype == "fp32":
+    # Dealing some issues are not supported by certain types on MindSpore
+    _ms_mixed_precision(ms_modules_instance, ms_dtype)
+
+    if pt_dtype == "fp32":
         return pt_modules_instance, ms_modules_instance, pt_dtype, ms_dtype
 
     # Some torch modules do not support fp16 in CPU, converted to fp32 instead.
@@ -154,24 +201,22 @@ def set_dtype(model, dtype):
 
 
 def generalized_parse_args(pt_dtype, ms_dtype, *args, **kwargs):
-    dtype_mappings = {
-        "fp32": np.float32,
-        "fp16": np.float16,
-        "bf16": bfloat16,
-    }
-
     # parse args
     pt_inputs_args = tuple()
     ms_inputs_args = tuple()
     for x in args:
         if isinstance(x, np.ndarray):
             if x.dtype in (np.float16, np.float32, np.float64, bfloat16):
-                px = x.astype(dtype_mappings[pt_dtype])
-                mx = x.astype(dtype_mappings[ms_dtype])
+                px = x.astype(NP_DTYPE_MAPPING[pt_dtype])
+                mx = x.astype(NP_DTYPE_MAPPING[ms_dtype])
             else:
                 px = mx = x
 
-            pt_inputs_args += (torch.from_numpy(px),)
+            pt_inputs_args += (
+                (torch.from_numpy(px.astype(np.float32)).to(torch.bfloat16),)
+                if pt_dtype == "bf16"
+                else (torch.from_numpy(px),)
+            )
             ms_inputs_args += (ms.Tensor.from_numpy(mx),)
         else:
             pt_inputs_args += (x,)
@@ -183,12 +228,16 @@ def generalized_parse_args(pt_dtype, ms_dtype, *args, **kwargs):
     for k, v in kwargs.items():
         if isinstance(v, np.ndarray):
             if v.dtype in (np.float16, np.float32, np.float64, bfloat16):
-                px = v.astype(dtype_mappings[pt_dtype])
-                mx = v.astype(dtype_mappings[ms_dtype])
+                px = v.astype(NP_DTYPE_MAPPING[pt_dtype])
+                mx = v.astype(NP_DTYPE_MAPPING[ms_dtype])
             else:
                 px = mx = v
 
-            pt_inputs_kwargs[k] = torch.from_numpy(px)
+            pt_inputs_kwargs[k] = (
+                torch.from_numpy(px.astype(np.float32)).to(torch.bfloat16)
+                if pt_dtype == "bf16"
+                else torch.from_numpy(px)
+            )
             ms_inputs_kwargs[k] = ms.Tensor.from_numpy(mx)
         else:
             pt_inputs_kwargs[k] = v
