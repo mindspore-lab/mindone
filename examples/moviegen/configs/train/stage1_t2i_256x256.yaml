@@ -6,7 +6,7 @@ env:
   debug: False
 
 model:
-  name: llama-1B
+  name: llama-5B
   pretrained_model_path:
   enable_flash_attention: True
   recompute: True
@@ -27,13 +27,13 @@ dataset:
   output_columns: ["video", "ul2_caption", "byt5_caption"]
 
 dataloader:
-  batch_size: 64
+  batch_size: 70
   shuffle: True
   num_workers_dataset: 4
 
 train:
-  epochs: 1000
-  output_path: output/moviegen_t2i_256x256
+  epochs: 2
+  output_path: output/stage1_t2i_256x256
 
   lr_scheduler:
     class_path: mindspore.nn.WarmUpLR
@@ -48,7 +48,7 @@ train:
     weight_decay: 0.1
 
   loss_scaler:
-    class_path: mindspore.nn.FixedLossScaleUpdateCell   # or DynamicLossScaleUpdateCell
+    class_path: mindspore.nn.FixedLossScaleUpdateCell   # or DynamicLossScaleUpdateCell in FP16
     init_args:
       loss_scale_value: 1
 
@@ -57,7 +57,7 @@ train:
     offloading: True
 
   settings:
-    zero_stage: 2
+    zero_stage: 0
     gradient_accumulation_steps: 1
     clip_grad: True
     clip_norm: 1.0

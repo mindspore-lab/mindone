@@ -20,24 +20,16 @@ class TextProjector(nn.Cell):
         dtype: ms.Type = ms.float32,
     ):
         super().__init__()
-        self.ul2_projector = nn.SequentialCell(
-            [
-                mint.nn.Linear(ul2_in_features, out_features, bias=False, dtype=dtype),
-                layer_norm((out_features,), eps=norm_eps, dtype=dtype),
-            ]
-        )
-        self.metaclip_projector = nn.SequentialCell(
-            [
-                mint.nn.Linear(metaclip_in_features, out_features, bias=False, dtype=dtype),
-                layer_norm((out_features,), eps=norm_eps, dtype=dtype),
-            ]
-        )
-        self.byt5_projector = nn.SequentialCell(
-            [
-                mint.nn.Linear(byt5_in_features, out_features, bias=False, dtype=dtype),
-                layer_norm((out_features,), eps=norm_eps, dtype=dtype),
-            ]
-        )
+        # split layers for easier exclusion from weight decay
+        self.ul2_linear = mint.nn.Linear(ul2_in_features, out_features, bias=False, dtype=dtype)
+        self.ul2_layernorm = layer_norm((out_features,), eps=norm_eps, dtype=dtype)
+
+        self.metaclip_linear = mint.nn.Linear(metaclip_in_features, out_features, bias=False, dtype=dtype)
+        self.metaclip_layernorm = layer_norm((out_features,), eps=norm_eps, dtype=dtype)
+
+        self.byt5_linear = mint.nn.Linear(byt5_in_features, out_features, bias=False, dtype=dtype)
+        self.byt5_layernorm = layer_norm((out_features,), eps=norm_eps, dtype=dtype)
+
         self.initializer_range = initializer_range
 
         # post-init
@@ -57,8 +49,8 @@ class TextProjector(nn.Cell):
         self.apply(_init_weights)
 
     def construct(self, ul2_emb: Tensor, metaclip_emb: Tensor, byt5_emb: Tensor) -> Tensor:
-        ul2_hidden_states = self.ul2_projector(ul2_emb)
-        metaclip_hidden_states = self.metaclip_projector(metaclip_emb)
-        byt5_hidden_states = self.byt5_projector(byt5_emb)
+        ul2_hidden_states = self.ul2_layernorm(self.ul2_linear(ul2_emb))
+        metaclip_hidden_states = self.metaclip_layernorm(self.metaclip_linear(metaclip_emb))
+        byt5_hidden_states = self.byt5_layernorm(self.byt5_linear(byt5_emb))
 
         return mint.cat((ul2_hidden_states, metaclip_hidden_states, byt5_hidden_states), dim=1)

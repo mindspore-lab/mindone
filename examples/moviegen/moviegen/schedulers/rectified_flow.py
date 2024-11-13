@@ -174,4 +174,4 @@ class RFlowLossWrapper(nn.Cell):
         timesteps = timesteps[:, None, None, None, None]
 
         # 3.1.2 First Eqa.
-        return timesteps * x + (1 - (1 - self.eps) * timesteps) * noise
+        return timesteps * x + (1 - (1 - self.eps) * timesteps) * noise # TODO: check for zero SNR

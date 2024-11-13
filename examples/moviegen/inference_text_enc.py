@@ -86,10 +86,11 @@ def main(args):
         args.model_name, mindspore_dtype=MODEL_DTYPE[args.dtype.lower()], local_files_only=True
     ).set_train(False)
 
-    logger.info(f"Number of devices: {device_num} | Rank ID: {rank_id} | Number of captions: {len(captions)}")
-    logger.info(
-        f"Model name: {args.model_name} | Precision: {args.dtype} | Embedded sequence length: {args.model_max_length}"
+    info = (
+        f"Model name: {args.model_name}\nPrecision: {args.dtype}\nEmbedded sequence length: {args.model_max_length}"
+        f"\nNumber of devices: {device_num}\nRank ID: {rank_id}\nNumber of captions: {len(captions)}"
     )
+    logger.info(info)
 
     for i in trange(0, len(captions), args.batch_size):
         batch = captions[i : i + args.batch_size]

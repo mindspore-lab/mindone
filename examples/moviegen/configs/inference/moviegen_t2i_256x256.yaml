@@ -6,7 +6,7 @@ env:
   debug: False
 
 model:
-  name: llama-1B
+  name: llama-5B
   pretrained_model_path:
   enable_flash_attention: True
   dtype: bf16

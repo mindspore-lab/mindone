@@ -108,7 +108,7 @@ class LlamaDecoderLayer(nn.Cell):
         )
         shift_msa, scale_msa, gate_msa, shift_mlp, scale_mlp, gate_mlp = mint.chunk(modulation_parameters, 6, dim=1)
 
-        # Self Attention (Bi-Directional Attention)
+        # Self-Attention (Bi-Directional Attention)
         residual = hidden_states
         hidden_states = self.input_layernorm(hidden_states)
         hidden_states = t2i_modulate(hidden_states, shift_msa, scale_msa)
