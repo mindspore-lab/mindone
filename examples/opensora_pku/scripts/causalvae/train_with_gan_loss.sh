@@ -33,3 +33,4 @@ python opensora/train/train_causalvae.py \
     --wavelet_weight 0.1 \
     --mode 1 \
     --jit_syntax_level lax \
+    --print_losses
