@@ -24,6 +24,7 @@ msrun --bind_core=True --worker_num=8 --local_worker_num=8 --master_port=9000 --
     --optim adamw \
     --betas 0.9 0.999 \
     --clip_grad True \
+    --max_grad_norm 0.1 \
     --weight_decay 0.0 \
     --mode 1 \
     --init_loss_scale 65536 \
