@@ -1,8 +1,5 @@
 # InstantMesh: 3D Mesh Generation from Multiview Images
 
-- [x] Elaborate on the design methodology in the intro on Oct 2
-- [x] Training part
-
 We support [instantmesh](https://github.com/TencentARC/InstantMesh) for the 3D mesh generation using the multiview images extracted from [the sv3d pipeline](https://github.com/mindspore-lab/mindone/pull/574).
 <p align="center" width="100%">
   <img width="746" alt="Capture" src="https://github.com/user-attachments/assets/be5cf033-8f89-4cad-97dc-2bf76c1b7a4d">
@@ -83,10 +80,16 @@ pip install -r requirements.txt
 | 2.3.1	    | 24.1.RC2 |7.3.0.1.231	| 8.0.RC2.beta1 |
 
 ## Pretrained Models
-
-To better accommodate the mindone transformer codebase, we provide an out-of-the-box [checkpoints conversion script](../../tools/convert_instantmesh_ckpt.py) that works seamlessly with the mindspore version of transformers.
+### ViT Pretrained Checkpoint
+To better accommodate the mindone transformer codebase, we provide an out-of-the-box [checkpoints conversion script](./tools/convert_dinovit_bin2st.py) that works seamlessly with the mindspore version of transformers.
 
 The image features are extracted with dino-vit, which depends on HuggingFace's transformer package. We reuse [the MindSpore's implementation](https://github.com/mindspore-lab/mindone/blob/master/mindone/transformers/modeling_utils.py#L499) and the only challenge remains to be that `.bin` checkpoint of [dino-vit](https://huggingface.co/facebook/dino-vitb16/tree/main) is not supported by MindSpore off-the-shelf. The checkpoint script above serves easy conversion purposes and ensures that dino-vit is still based on `MSPreTrainedModel` safe and sound.
+
+### InstantMesh Checkpoint
+To convert checkpoints, we prepare the following snippet.
+```bash
+python tools/convert_pt2ms.py --trgt PATH_TO_CKPT
+```
 
 ## Inference
 
