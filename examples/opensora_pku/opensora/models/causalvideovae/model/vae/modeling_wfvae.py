@@ -6,7 +6,7 @@ from typing import List
 from opensora.npu_config import npu_config
 
 import mindspore as ms
-from mindspore import mint, nn
+from mindspore import mint, nn, ops
 from mindspore.common.initializer import HeUniform, Uniform
 
 from mindone.diffusers import __version__
@@ -443,7 +443,7 @@ class WFVAEModel(VideoBaseAE):
         )
 
         self.exp = mint.exp
-        self.stdnormal = mint.normal
+        self.stdnormal = ops.standard_normal
 
         self.update_parameters_name()  # update parameter names to solve pname mismatch
         if use_recompute:
@@ -577,7 +577,7 @@ class WFVAEModel(VideoBaseAE):
         # sample z from latent distribution
         logvar = mint.clamp(logvar, -30.0, 20.0)
         std = self.exp(0.5 * logvar)
-        z = mean + std * self.stdnormal(size=mean.shape)
+        z = mean + std * self.stdnormal(mean.shape)
 
         return z
 
