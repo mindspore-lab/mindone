@@ -18,7 +18,7 @@ Paper: https://arxiv.org/abs/2405.18750
 
 ## 🏭 Requirements
 
-The scripts have been tested on ascend [910b] under the following requirements:
+The scripts have been tested on Ascend [910B] chips under the following requirements:
 
 | mindspore | ascend driver | firmware | cann toolkit/kernel |
 | --------- | ------------- | -------- | ------------------- |
@@ -53,25 +53,43 @@ The scripts have been tested on ascend [910b] under the following requirements:
 
 ### T2V-Turbo
 
-> To play with our T2V-Turbo (VC2), please follow the steps below:
+#### 1) To play with our T2V-Turbo (VC2), please follow the steps below:
 
-1. Download the `unet_lora.pt` of our T2V-Turbo (VC2) [here](https://huggingface.co/jiachenli-ucsb/T2V-Turbo-VC2/blob/main/unet_lora.pt).
+1. Download the checkpoint of `VideoCrafter2` from [here](https://huggingface.co/VideoCrafter/VideoCrafter2/blob/main/model.ckpt)
+2. Download the `unet_lora.pt` of our T2V-Turbo (VC2) [here](https://huggingface.co/jiachenli-ucsb/T2V-Turbo-VC2/blob/main/unet_lora.pt).
+3. Download the checkpoint of `OpenCLIP` from [here](https://download.mindspore.cn/toolkits/mindone/videocomposer/model_weights/open_clip_vit_h_14-9bb07a10.ckpt) 
+3. Convert the checkpoints to Mindspore Version by running the following commands:
 
-2. Launch the gradio demo with the following command:
-```python
-python app.py \
-  --unet_dir PATH_TO_UNET_LORA.pt \
-  --base_model_dir PATH_TO_VideoCrafter2_MODEL_CKPT \
-  --version v1
+```bash
+# convert VideoCarfter2/model.ckpt
+python tools/convert_weights.py
 ```
 
-> To play with our T2V-Turbo (MS), please follow the steps below:
+4. Generate text-to-video via following command:
+```bash
+python predict.py \
+  --unet_dir PATH_TO_UNET_LORA.pt \
+  --base_model_dir PATH_TO_VideoCrafter2_MODEL_CKPT \
+  --prompt "input prompt for video generation"\
+  --num_inference_steps 4
+```
 
-1. Download the `unet_lora.pt` of our T2V-Turbo (MS) [here](https://huggingface.co/jiachenli-ucsb/T2V-Turbo-MS/blob/main/unet_lora.pt).
+#### 2) To play with our T2V-Turbo (MS), please follow the steps below:
 
-2. Launch the gradio demo with the following command:
-```python
-python app_ms.py --unet_dir PATH_TO_UNET_LORA.pt
+1. Download model weights of `ModelScope` from [here](https://huggingface.co/ali-vilab/text-to-video-ms-1.7b)
+2. Download the `unet_lora.pt` of our T2V-Turbo (MS) [here](https://huggingface.co/jiachenli-ucsb/T2V-Turbo-MS/blob/main/unet_lora.pt).
+3. Convert the `unet_lora.pt` using the following command:
+```bash
+python tools/convert_weights.py
+```
+
+4. Generate text-to-video via following command:
+```bash
+python predict_ms.py \
+  --unet_dir PATH_TO_UNET_LORA.pt \
+  --base_model_dir PATH_TO_VideoCrafter2_MODEL_CKPT \
+  --prompt "input prompt for video generation"\
+  --num_inference_steps 4
 ```
 
 ## 🏋️ Training
@@ -84,14 +102,16 @@ To train T2V-Turbo (VC2), first prepare the data and model as below
 4. Set `--pretrained_model_path`, `--train_shards_path_or_url` and `video_rm_ckpt_dir` accordingly in `train_t2v_turbo_vc2.sh`.
 
 Then run the following command:
-```
-bash train_t2v_turbo_v1.sh
+```bash
+# standalone training
+bash train_t2v_turbo.sh
 ```
 
-## Benchmarking
+## 📋 Benchmarking
 
-Experiments are tested on ascend [910b] with mindpsore [2.3.1].
+Experiments are tested on Ascend [910B] with mindpsore [2.3.1].
 
 ### Inference Performance
+
 
 ### Training Performance
