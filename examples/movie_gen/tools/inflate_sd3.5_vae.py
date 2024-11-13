@@ -1,4 +1,5 @@
 from safetensors import safe_open
+import argparse
 import os
 import numpy as np
 import mindspore as ms
@@ -79,9 +80,26 @@ def convert_vae2d(source_fp, target_fp, target_model='vae2d'):
 
 
 if __name__ == "__main__":
-    ckpt_path = "/Users/Samit/Downloads/sd3.5_vae/diffusion_pytorch_model.safetensors"
-    # get_pname_shape(ckpt_path)
-    # convert_vae2d(ckpt_path, "models/sd3.5_vae.ckpt")
-    convert_vae2d(ckpt_path, "models/tae_vae2d.ckpt", target_model='tae')
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--src",
+        "-s",
+        type=str,
+        help="path to vae torch checkpoint",
+    )
+    parser.add_argument(
+        "--target",
+        "-t",
+        type=str,
+        default='models/tae_vae2d.ckpt',
+        help="Filename to save. Specify folder, e.g., ./models, or file path which ends with .ckpt, e.g., ./models/vae.ckpt",
+    )
+    args = parser.parse_args()
 
+    # ckpt_path = "/Users/Samit/Downloads/sd3.5_vae/diffusion_pytorch_model.safetensors"
+    # get_pname_shape(ckpt_path)
     # plot_ms_vae2d5()
+
+    # convert_vae2d(ckpt_path, "models/sd3.5_vae.ckpt")
+    convert_vae2d(args.src, args.target, target_model='tae')
+
