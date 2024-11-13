@@ -140,36 +140,24 @@ class Conv2_5d(nn.Cell):
         assert dilation==1
         # spatial conv
         self.conv_spat = nn.Conv2d(in_channels, out_channels, kernel_size=kernel_size, stride=stride, pad_mode=pad_mode, padding=padding, has_bias=has_bias)
-        
+
         # temp_pad_mode = 'zero'
         # temp_pad = 'mint_rep'
         temp_pad = 'manual'
 
         # temporal conv
         if kernel_size > 1:
-            # FIXME: debugging to see how symmetric padding influence performance
-            if  temp_pad == 'zero':
-                self.conv_temp = nn.Conv1d(out_channels, out_channels, kernel_size=kernel_size, stride=stride, pad_mode="same", has_bias=has_bias)
-                self.use_pad = False
-                self.pad = nn.Identity()
-            elif temp_pad == 'mint_rep': 
-                assert kernel_size == 3
-                self.conv_temp = nn.Conv1d(out_channels, out_channels, kernel_size=kernel_size, stride=stride, pad_mode="valid", has_bias=has_bias)
-                self.pad = nn.ReplicationPad1d(((kernel_size-1)//2, (kernel_size-1)//2))
-                self.use_pad = True
-            elif temp_pad == 'manual':
-                assert kernel_size == 3, 'symmetric padding currently only support kernel size 3'
-                self.conv_temp = nn.Conv1d(out_channels, out_channels, kernel_size=kernel_size, stride=stride, pad_mode="valid", has_bias=has_bias)
-                self.pad = self.symmetric_pad1d
-                self.use_pad = True
-            elif temp_pad == 'nn_pad':
-                self.pad = nn.Pad(paddings=((0, 0), (0, 0), ((kernel_size-1)//2, (kernel_size-1)//2)), mode='SYMMETRIC')
-                self.use_pad = True
-
+            # symmetric padding + conv1d
+            assert kernel_size == 3, 'symmetric padding currently only support kernel size 3'
+            self.conv_temp = nn.Conv1d(out_channels, out_channels, kernel_size=kernel_size, stride=stride, pad_mode="valid", has_bias=has_bias, bias_init='zeros')
+            self.pad = self.symmetric_pad1d
+            self.use_pad = True
         else:
             self.use_pad = False
-            self.conv_temp = nn.Conv1d(out_channels, out_channels, kernel_size=kernel_size, stride=stride, pad_mode="valid", has_bias=has_bias)
-    
+            self.conv_temp = nn.Conv1d(out_channels, out_channels, kernel_size=kernel_size, stride=stride, pad_mode="valid", has_bias=has_bias, bias_init='zeros')
+
+        self.init_temporal_weight()
+
     @staticmethod
     def symmetric_pad1d(x):
         first_frame = x[:, :, :1]
@@ -210,6 +198,7 @@ class Conv2_5d(nn.Cell):
             # import pdb; pdb.set_trace()
             x = self.pad(x)
 
+        # import pdb; pdb.set_trace()
         x = self.conv_temp(x)
 
         # (b*h*w c t) -> (b t c h w)
@@ -220,6 +209,22 @@ class Conv2_5d(nn.Cell):
         x = ops.transpose(x, (0, 3, 4, 1, 2))
 
         return x
+
+    def init_temporal_weight(self):
+        # temporal conv kernel: (cout, cin, 1, ks)
+        # ks=1 or 3, cin == cout
+        # import pdb; pdb.set_trace()
+        w = self.conv_temp.weight
+        ch = int(w.shape[0])
+        ks = int(w.shape[-1])
+        value = np.zeros(tuple(w.shape))
+
+        # only the middle element of the kernel is 1 so that the output is the same input in initialization
+        for i in range(ch):
+            value[i, i, 0, ks//2] = 1
+        w.set_data(ms.Tensor(value, dtype=ms.float32))
+
+        # bias is initialized to zero in layer def
 
 
 class SpatialUpsample(nn.Cell):
@@ -299,14 +304,27 @@ class TemporalDownsample(nn.Cell):
         )
         # tail padding, pad with last frame
         self.time_pad = self.ks - 1
-        self.init_weight()
+        self.init_weight("mean")
 
-    def init_weight(self):
+    def init_weight(self, method='mean'):
+        if method == 'normal':
+            # default conv init
+            return
+
+        # no way to reserve complete input since stride 2
         w = self.conv.weight
         value = np.zeros(tuple(w.shape))
-        # TODO: ablate with normal init
-        for i in range(self.ch):
-            value[i, i, 0, :] = 1/self.ks  # (cout, cin, 1, ks)
+        if method == 'mean':
+            # initially, it's a mean filter for temporal downsampling
+            for i in range(self.ch):
+                value[i, i, 0, :] = 1/self.ks  # (cout, cin, 1, ks)
+        elif method == 'median':
+            # a median filter for temporal downsampling
+            for i in range(self.ch):
+                value[i, i, 0, self.ks//2] = 1  # (cout, cin, 1, ks)
+        else:
+            raise NotImplementedError
+
         w.set_data(ms.Tensor(value, dtype=ms.float32))
 
 
@@ -341,14 +359,20 @@ class TemporalUpsample(nn.Cell):
         self.ch = in_channels
         self.init_weight()
 
-    def init_weight(self):
+    def init_weight(self, method='median'):
+        if method == 'normal':
+            return
+
+        # init so that the output is the same as vae2d for image input
         w = self.conv.weight
         value = np.zeros(tuple(w.shape))
-        # TODO: ablate with normal init
-        # consider image input, make sure it's the same
-        for i in range(self.ch):
-            value[i, i, 0, 1] = 1 # (cout, cin, 1, ks)
-        w.set_data(ms.Tensor(value, dtype=ms.float32))
+        if method == 'median':
+            # consider image input, make sure it's the same
+            for i in range(self.ch):
+                value[i, i, 0, 1] = 1 # (cout, cin, 1, ks)
+            w.set_data(ms.Tensor(value, dtype=ms.float32))
+        else:
+            raise NotImplementedError
 
     def construct(self, x):
         # x (b c t h w)
@@ -420,6 +444,7 @@ class ResnetBlock(nn.Cell):
             x = self.nin_shortcut(x)
 
         return x + h
+
 
 class SpatialAttnBlock(nn.Cell):
     def __init__(self, in_channels):
@@ -577,11 +602,17 @@ class TemporalAttnBlock(nn.Cell):
 
 def make_attn(in_channels, attn_type="vanilla"):
     # assert attn_type in ["vanilla", "vanilla3D"], f"attn_type {attn_type} not supported"
-    _logger.debug(f"making attention of type '{attn_type}' with {in_channels} in_channels")
+    # _logger.debug(f"making attention of type '{attn_type}' with {in_channels} in_channels")
+    print(f"making attention of type '{attn_type}' with {in_channels} in_channels")
     if attn_type == "vanilla":
         return nn.SequentialCell(
                 SpatialAttnBlock(in_channels),
                 TemporalAttnBlock(in_channels),
+                )
+    elif attn_type == 'spat_only':
+        # to ensure naming consistency
+        return nn.SequentialCell(
+                SpatialAttnBlock(in_channels),
                 )
     else:
         raise NotImplementedError
@@ -604,6 +635,8 @@ class Encoder(nn.Cell):
         double_z=True,
         use_linear_attn=False,
         attn_type="vanilla",
+        temporal_downsample_level=(0, 1, 2),  # same as spatial
+        **kwargs,
     ):
         super().__init__()
         # if use_linear_attn: attn_type = "linear"
@@ -612,6 +645,7 @@ class Encoder(nn.Cell):
         self.num_res_blocks = num_res_blocks
         self.resolution = resolution
         self.in_channels = in_channels
+        self.temporal_downsample_level = temporal_downsample_level
 
         # downsampling
         self.conv_in = Conv2_5d(
@@ -642,14 +676,15 @@ class Encoder(nn.Cell):
             down.block = block
             down.attn = attn
             if i_level != self.num_resolutions - 1:
-                # down.downsample_spat = SpatialDownsample(block_in, resamp_with_conv)
-                # down.downsample_temp = TemporalDownsample(block_in)
-                down.downsample = nn.SequentialCell(
-                        SpatialDownsample(block_in, resamp_with_conv),
-                        TemporalDownsample(block_in),
-                        )
+                down.downsample_spat = SpatialDownsample(block_in, resamp_with_conv)
             else:
-                down.downsample = nn.Identity()
+                down.downsample_spat = nn.Identity()
+
+            if i_level in self.temporal_downsample_level:
+                down.downsample_temp = TemporalDownsample(block_in)
+            else:
+                down.downsample_temp = nn.Identity()
+
             curr_res = curr_res // 2
             down.update_parameters_name(prefix=self.param_prefix + f"down.{i_level}.")
             self.down.append(down)
@@ -696,8 +731,9 @@ class Encoder(nn.Cell):
                 if len(self.down[i_level].attn) > 0:
                     h = self.down[i_level].attn[i_block](h)
                 hs = h
-            if i_level != self.num_resolutions - 1:
-                hs = self.down[i_level].downsample(hs)
+            # if i_level != self.num_resolutions - 1:
+            hs = self.down[i_level].downsample_spat(hs)
+            hs = self.down[i_level].downsample_temp(hs)
 
         # middle
         h = hs
@@ -732,6 +768,7 @@ class Decoder(nn.Cell):
         tanh_out=False,
         use_linear_attn=False,
         attn_type="vanilla",
+        temporal_upsample_level=(1,2,3),  # same as spatial
         **ignorekwargs,
     ):
         super().__init__()
@@ -743,6 +780,7 @@ class Decoder(nn.Cell):
         self.in_channels = in_channels
         self.give_pre_end = give_pre_end
         self.tanh_out = tanh_out
+        self.temporal_upsample_level = temporal_upsample_level
 
         # compute in_ch_mult, block_in and curr_res at lowest res
         # in_ch_mult = (1,) + tuple(ch_mult)
@@ -787,12 +825,15 @@ class Decoder(nn.Cell):
             up.block = block
             up.attn = attn
             if i_level != 0:
-                up.upsample = nn.SequentialCell(
-                        SpatialUpsample(block_in, resamp_with_conv),
-                        TemporalUpsample(block_in),
-                        )
+                up.upsample_spat = SpatialUpsample(block_in, resamp_with_conv)
             else:
-                up.upsample = nn.Identity()
+                up.upsample_spat = nn.Identity()
+
+            if i_level in self.temporal_upsample_level:
+                up.upsample_temp = TemporalUpsample(block_in)
+            else:
+                up.upsample_temp = nn.Identity()
+
             curr_res = curr_res * 2
             up.update_parameters_name(prefix=self.param_prefix + f"up.{i_level}.")
             if len(self.up) != 0:
@@ -828,8 +869,9 @@ class Decoder(nn.Cell):
                 h = self.up[i_level].block[i_block](h)
                 if len(self.up[i_level].attn) > 0:
                     h = self.up[i_level].attn[i_block](h)
-            if i_level != 0:
-                h = self.up[i_level].upsample(h)
+
+            h = self.up[i_level].upsample_spat(h)
+            h = self.up[i_level].upsample_temp(h)
 
         # end
         if self.give_pre_end:

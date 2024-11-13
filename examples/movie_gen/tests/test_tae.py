@@ -1,5 +1,6 @@
 import numpy as np
 import sys
+from PIL import Image
 sys.path.insert(0, '.')
 
 from mg.models.tae.modules import (
@@ -15,9 +16,36 @@ from mg.models.tae.modules import (
     TemporalDownsample,
     TemporalUpsample,
 )
-from mg.models.tae.tae import SDXL_CONFIG, TemporalAutoencoder
+from mg.models.tae.tae import SDXL_CONFIG, TAE_CONFIG, TemporalAutoencoder
+from mg.models.tae.sd3_vae import SD3d5_CONFIG, SD3d5_VAE
 
 import mindspore as ms
+
+
+def get_input_image(img_path="../videocomposer/demo_video/moon_on_water.jpg",
+                    W=128,
+                    H=128):
+    target_size = (H, W)
+
+    # read image using PIL and preprocess
+    image = Image.open(img_path).convert('RGB')
+    image = image.resize(target_size, Image.ANTIALIAS)
+    pixel_values = np.array(image, dtype=np.float32)
+    pixel_values = (pixel_values / 127.5 - 1.0).astype(np.float32)
+
+    pixel_values = pixel_values.transpose(2, 0, 1)
+
+    return pixel_values
+
+def save_output_image(image_array, output_path='tests/tmp_output.png'):
+    image_array = image_array.transpose((1, 2, 0))
+    image_array = ((image_array + 1) * 127.5).astype(np.uint8)
+    image_array = np.clip(image_array, 0, 255)
+
+    image = Image.fromarray(image_array)
+
+    image.save(output_path)
+    print(f'image saved in {output_path}')
 
 
 def test_conv25d():
@@ -183,14 +211,42 @@ def test_tae_decode():
 
 
 def test_tae_rec():
-    in_shape = (B, C, T, H, W) = (1, 3, 16, 64, 64)
+    TAE_CONFIG['attn_type'] = 'spat_only'
+    tae = TemporalAutoencoder(config=TAE_CONFIG)
+    tae.load_pretrained("models/tae_vae2d.ckpt")
+
+    # in_shape = (B, C, T, H, W) = (1, 3, 16, 64, 64)
+    in_shape = (B, C, T, H, W) = (1, 3, 1, 128, 128)
     x = np.random.normal(size=in_shape).astype(np.float32)
+    img = get_input_image(H=H, W=W)
+    x[0, :, 0, :, :] = img
     x = ms.Tensor(x)
 
-    tae = TemporalAutoencoder(config=SDXL_CONFIG)
     y = tae(x)
 
     print(y[0].shape)
+    save_output_image(y[0].numpy()[0, :, 0, :, :], 'tests/tmp_tae_output.png')
+
+def test_sd3d5_vae():
+    vae = SD3d5_VAE(sample_deterministic=True)
+    vae.load_pretrained("models/sd3.5_vae.ckpt")
+
+    in_shape = (BT, C, H, W) = (1, 3, 128, 128)
+    x = np.random.normal(size=in_shape).astype(np.float32)
+    img = get_input_image(H=H, W=W)
+    x[0] = img
+
+    x = ms.Tensor(x)
+
+    outputs = vae(x)
+    recons = outputs[0]
+    print(recons.shape)
+
+    # save to image
+    # TODO: there are some noise here
+    save_output_image(recons.numpy()[0])
+
+    print(recons.sum())
 
 
 if __name__ == "__main__":
@@ -210,3 +266,5 @@ if __name__ == "__main__":
     # test_tae_encode()
     # test_tae_decode()
     test_tae_rec()
+
+    # test_sd3d5_vae()
