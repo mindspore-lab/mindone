@@ -42,7 +42,6 @@ class Conv3d(nn.Cell):
 
     def construct(self, x):
         if x.dtype == ms.float32:
-            x = ops.cast(x, self.dtype)
             return self.conv(x).to(ms.float32)
         else:
             return self.conv(x)

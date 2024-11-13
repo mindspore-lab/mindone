@@ -186,6 +186,7 @@ def main(args):
             config=SD_CONFIG, ckpt_path=args.vae_checkpoint, micro_batch_size=args.vae_micro_batch_size
         )
     elif args.vae_type == "OpenSoraVAE_V1_2":
+        assert os.path.exists(args.vae_checkpoint), f"vae checkopint {args.vae_checkpoint} NOT found"
         vae = OpenSoraVAE_V1_2(
             micro_batch_size=args.vae_micro_batch_size,
             micro_frame_size=args.vae_micro_frame_size,
@@ -476,7 +477,7 @@ def main(args):
                 videos.append(to_numpy(samples)[:, args.condition_frame_length if loop_i > 0 else 0 :])
             batch_time = time.time() - start_time
             logger.info(
-                f"Batch time cost: {batch_time:.3f}s, sampling speed: {args.sampling_steps * ns / batch_time:.2f} step/s"
+                f"Batch time cost: {batch_time:.3f}s, sampling speed: {args.sampling_steps * ns / batch_time:.4f} step/s"
             )
 
         latents = np.concatenate(latents, axis=2)
