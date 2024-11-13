@@ -6,7 +6,7 @@ from .modules import Conv2_5d, Encoder, Decoder
 
 SDXL_CONFIG = {
     "double_z": True,
-    "z_channels": 4,
+    "z_channels": 16,
     "resolution": 256,
     "in_channels": 3,
     "out_ch": 3,
