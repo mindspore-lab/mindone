@@ -151,7 +151,7 @@ def sample(
     version: str = "sv3d_u",
     seed: int = 42,
     decoding_t: int = 7,  # Number of frames decoded at a time! This eats most VRAM. Reduce if necessary.
-    mode: str = 1,
+    mode: int = 1,
     device: str = "Ascend",
     device_id: int = 0,
     output_folder: Optional[str] = None,
