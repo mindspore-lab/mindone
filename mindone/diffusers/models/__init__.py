@@ -36,6 +36,7 @@ _import_structure = {
     "transformers.hunyuan_transformer_2d": ["HunyuanDiT2DModel"],
     "transformers.pixart_transformer_2d": ["PixArtTransformer2DModel"],
     "transformers.prior_transformer": ["PriorTransformer"],
+    "transformers.stable_audio_transformer":["StableAudioDiTModel"],
     "transformers.t5_film_transformer": ["T5FilmDecoder"],
     "transformers.transformer_2d": ["Transformer2DModel"],
     "transformers.transformer_sd3": ["SD3Transformer2DModel"],
