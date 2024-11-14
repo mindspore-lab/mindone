@@ -17,8 +17,7 @@ python opensora/train/train_causalvae.py \
     --optim adamw \
     --betas 0.9 0.999 \
     --clip_grad True \
-    --max_grad_norm 0.1 \
-    --weight_decay 0.0 \
+    --max_grad_norm 1.0 \
     --mode 1 \
     --init_loss_scale 65536 \
     --jit_level "O0" \
