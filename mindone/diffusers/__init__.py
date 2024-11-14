@@ -110,6 +110,7 @@ _import_structure = {
         "PixArtSigmaPipeline",
         "ShapEImg2ImgPipeline",
         "ShapEPipeline",
+        "StableAudioPipeline",
         "StableCascadeCombinedPipeline",
         "StableCascadeDecoderPipeline",
         "StableCascadePriorPipeline",
