@@ -34,7 +34,7 @@ from PIL import Image, ImageSequence
 from omegaconf import OmegaConf
 from mindone.safetensors import save_file, load_file
 from .ldm.util import instantiate_from_config
-from .ldm.vis_util import render
+# from .ldm.vis_util import render
 
 class MV23DPredictor(object):
     def __init__(self, ckpt_path, cfg_path, elevation=15, number_view=60, 
