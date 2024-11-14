@@ -210,10 +210,11 @@ class T2V_dataset:
         video = self.decord_read(video_path, predefine_num_frames=len(frame_indice))  # (T H W C)
 
         h, w = video.shape[1:3]
-        assert h / w <= 17 / 16 and h / w >= 8 / 16, (
-            f"Only videos with a ratio (h/w) less than 17/16 and more than 8/16 are supported. But video ({video_path}) "
-            + f"found ratio is {round(h / w, 2)} with the shape of {video.shape}"
-        )
+        # NOTE: not suitable for 1:1 training in v1.3
+        # assert h / w <= 17 / 16 and h / w >= 8 / 16, (
+        #     f"Only videos with a ratio (h/w) less than 17/16 and more than 8/16 are supported. But video ({video_path}) "
+        #     + f"found ratio is {round(h / w, 2)} with the shape of {video.shape}"
+        # )
         input_videos = {"image": video[0]}
         input_videos.update(dict([(f"image{i}", video[i + 1]) for i in range(len(video) - 1)]))
         output_videos = self.transform(**input_videos)
@@ -319,7 +320,7 @@ class T2V_dataset:
                         continue
                     height, width = i["resolution"]["height"], i["resolution"]["width"]
                     aspect = self.max_height / self.max_width
-                    hw_aspect_thr = 1.5
+                    hw_aspect_thr = 2.0 #NOTE: for 1:1 frame training
                     is_pick = filter_resolution(
                         height,
                         width,

@@ -20,7 +20,7 @@ class DiffusionWithLoss(nn.Cell):
         model (nn.Cell): A noise prediction model to denoise the encoded image latents.
         vae (nn.Cell): Variational Auto-Encoder (VAE) Model to encode and decode images to and from latent representations.
         noise_scheduler: (object): A class for noise scheduler, such as DDPM scheduler
-        text_encoder (nn.Cell): A text encoding model which accepts token ids and returns text embeddings in shape (T, D).
+        text_encoder / text_encoder_2 (nn.Cell): A text encoding model which accepts token ids and returns text embeddings in shape (T, D).
             T is the number of tokens, and D is the embedding dimension.
         train_with_embed (bool): whether to train with embeddings (no need vae and text encoder to extract latent features and text embeddings)
     """
@@ -31,6 +31,7 @@ class DiffusionWithLoss(nn.Cell):
         noise_scheduler,
         vae: nn.Cell = None,
         text_encoder: nn.Cell = None,
+        text_encoder_2: nn.Cell = None, # not to use yet
         text_emb_cached: bool = True,
         video_emb_cached: bool = False,
         use_image_num: int = 0,
@@ -125,7 +126,7 @@ class DiffusionWithLoss(nn.Cell):
         attention_mask: ms.Tensor,
         text_tokens: ms.Tensor,
         encoder_attention_mask: ms.Tensor = None,
-    ):
+    ): # TODO: in the future add 2nd text encoder and tokens
         """
         Video diffusion model forward and loss computation for training
 

@@ -112,7 +112,7 @@ def parse_train_args(parser):
         "--end_learning_rate", default=1e-7, type=float, help="The end learning rate for the optimizer."
     )
     parser.add_argument("--lr_decay_steps", default=0, type=int, help="lr decay steps.")
-    parser.add_argument("--lr_scheduler", default="cosine_decay", type=str, help="scheduler.")
+    parser.add_argument("--lr_scheduler", default="constant", type=str, help="scheduler.")
     parser.add_argument(
         "--scale_lr",
         default=False,
