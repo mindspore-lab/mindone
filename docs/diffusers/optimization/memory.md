@@ -22,7 +22,13 @@ A barrier to using diffusion models is the large amount of memory required. To o
 
 Recent work on optimizing bandwidth in the attention block has generated huge speed-ups and reductions in memory usage. The most recent type of memory-efficient attention is [Flash Attention](https://arxiv.org/abs/2205.14135) (you can check out the original code at [HazyResearch/flash-attention](https://github.com/HazyResearch/flash-attention)).
 
-Now call [`enable_xformers_memory_efficient_attention`](https://mindspore-lab.github.io/mindone/latest/diffusers/api/models/overview/#mindone.diffusers.ModelMixin.disable_xformers_memory_efficient_attention) on the pipeline:
+`AttnProcessors` will automatically invoke flash-attention for scaled dot-product attention calculations when the MindSpore version and hardware support it; otherwise, it will perform the original calculation according to the formula.
+
+!!! tip
+
+    It is important to note that we need to manually set whether to force data type conversion since the flash-attention operator in MindSpore only supports `float16` and `bfloat16` data-types. When the attention interface encounters data of an unsupported data type, if `force_cast_dtype` is not None, the function will forcibly convert the data to `force_cast_dtype` for computation and then restore it to the original data type afterward. If `force_cast_dtype` is None, it will fall back to the original attention calculation using mathematical formulas.
+
+By default, `force_cast_dtype` is set to `mindspore.float16`, call [`set_flash_attention_force_cast_dtype`](../api/pipelines/overview.md#mindone.diffusers.DiffusionPipeline.set_flash_attention_force_cast_dtype) on the pipeline to change it, and you can alse call [`enable_flash_sdp(False)`](../api/pipelines/overview.md#mindone.diffusers.DiffusionPipeline.enable_flash_sdp) to disable flash-attention:
 
 ```python
 from mindone.diffusers import DiffusionPipeline
@@ -34,10 +40,14 @@ pipe = DiffusionPipeline.from_pretrained(
     use_safetensors=True,
 )
 
-pipe.enable_xformers_memory_efficient_attention()
+# Optional: You can set `force_cast_dtype` for flash-attention on model-level or pipeline-level.
+# Default: mindspore.float16
+pipe.set_flash_attention_force_cast_dtype(force_cast_dtype=ms.bfloat16)
+pipe.unet.set_flash_attention_force_cast_dtype(force_cast_dtype=None)
+
+# Optional: You can disable flash-attention on model-level or pipeline-level:
+# pipe.enable_flash_sdp(False)
+# pipe.vae.enable_flash_sdp(True)
 
 sample = pipe("a small cat")
-
-# optional: You can disable it via
-# pipe.disable_xformers_memory_efficient_attention()
 ```

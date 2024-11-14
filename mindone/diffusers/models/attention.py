@@ -18,7 +18,7 @@ from mindspore import nn, ops
 
 from ..utils import logging
 from .activations import GEGLU, GELU, ApproximateGELU, SwiGLU
-from .attention_processor import Attention, JointAttnProcessor
+from .attention_processor import Attention, JointAttnProcessor2_0
 from .embeddings import SinusoidalPositionalEmbedding
 from .normalization import AdaLayerNorm, AdaLayerNormContinuous, AdaLayerNormZero, LayerNorm, RMSNorm
 
@@ -114,7 +114,7 @@ class JointTransformerBlock(nn.Cell):
                 f"Unknown context_norm_type: {context_norm_type}, currently only support `ada_norm_continous`, `ada_norm_zero`"
             )
 
-        processor = JointAttnProcessor()
+        processor = JointAttnProcessor2_0()
 
         self.attn = Attention(
             query_dim=dim,

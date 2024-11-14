@@ -45,6 +45,7 @@ from .import_utils import (
     is_ftfy_available,
     is_invisible_watermark_available,
     is_matplotlib_available,
+    is_mindspore_version,
     is_opencv_available,
     is_peft_version,
     is_scipy_available,

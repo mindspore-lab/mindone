@@ -157,6 +157,56 @@ class ModelMixin(nn.Cell, PushToHubMixin):
         if self._supports_gradient_checkpointing:
             self.apply(partial(self._set_gradient_checkpointing, value=False))
 
+    def enable_flash_sdp(self, enabled: bool):
+        r"""
+        .. warning:: This flag is beta and subject to change.
+
+        Enables or disables flash scaled dot product attention.
+        """
+
+        # Recursively walk through all the children.
+        # Any children which exposes the enable_flash_sdp method
+        # gets the message
+        def fn_recursive_set_mem_eff(module: nn.Cell):
+            if hasattr(module, "enable_flash_sdp"):
+                module.enable_flash_sdp(enabled)
+
+            for child in module.cells():
+                fn_recursive_set_mem_eff(child)
+
+        for module in self.cells():
+            if isinstance(module, nn.Cell):
+                fn_recursive_set_mem_eff(module)
+
+    def set_flash_attention_force_cast_dtype(self, force_cast_dtype: Optional[ms.Type]):
+        r"""
+        Since the flash-attention operator in MindSpore only supports float16 and bfloat16 data types, we need to manually
+        set whether to force data type conversion.
+
+        When the attention interface encounters data of an unsupported data type,
+        if `force_cast_dtype` is not None, the function will forcibly convert the data to `force_cast_dtype` for computation
+        and then restore it to the original data type afterward. If `force_cast_dtype` is None, it will fall back to the
+        original attention calculation using mathematical formulas.
+
+        Parameters:
+            force_cast_dtype (Optional): The data type to which the input data should be forcibly converted. If None, no forced
+            conversion is performed.
+        """
+
+        # Recursively walk through all the children.
+        # Any children which exposes the set_flash_attention_force_cast_dtype method
+        # gets the message
+        def fn_recursive_set_mem_eff(module: nn.Cell):
+            if hasattr(module, "set_flash_attention_force_cast_dtype"):
+                module.set_flash_attention_force_cast_dtype(force_cast_dtype)
+
+            for child in module.cells():
+                fn_recursive_set_mem_eff(child)
+
+        for module in self.cells():
+            if isinstance(module, nn.Cell):
+                fn_recursive_set_mem_eff(module)
+
     def set_use_memory_efficient_attention_xformers(self, valid: bool, attention_op: Optional[Callable] = None) -> None:
         # Recursively walk through all the children.
         # Any children which exposes the set_use_memory_efficient_attention_xformers method

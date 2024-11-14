@@ -39,6 +39,16 @@ logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
 
 STR_OPERATION_TO_FUNC = {">": op.gt, ">=": op.ge, "==": op.eq, "!=": op.ne, "<=": op.le, "<": op.lt}
 
+_mindspore_version = "N/A"
+_mindspore_available = importlib.util.find_spec("mindspore") is not None
+if _mindspore_available:
+    try:
+        _mindspore_version = importlib_metadata.version("mindspore")
+        logger.info(f"MindSpore version {_mindspore_version} available.")
+    except importlib_metadata.PackageNotFoundError:
+        _mindspore_available = False
+
+
 _transformers_available = importlib.util.find_spec("transformers") is not None
 try:
     _transformers_version = importlib_metadata.version("transformers")
@@ -229,6 +239,18 @@ def compare_versions(library_or_version: Union[str, Version], operation: str, re
     if isinstance(library_or_version, str):
         library_or_version = parse(importlib_metadata.version(library_or_version))
     return operation(library_or_version, parse(requirement_version))
+
+
+def is_mindspore_version(operation: str, version: str):
+    """
+    Args:
+    Compares the current MindSpore version to a given reference with an operation.
+        operation (`str`):
+            A string representation of an operator, such as `">"` or `"<="`
+        version (`str`):
+            A string version of MindSpore
+    """
+    return compare_versions(parse(_mindspore_version), operation, version)
 
 
 def is_peft_version(operation: str, version: str):

@@ -21,7 +21,7 @@ from mindspore import nn
 from ...configuration_utils import ConfigMixin, register_to_config
 from ...loaders import FromOriginalModelMixin, PeftAdapterMixin
 from ...models.attention import JointTransformerBlock
-from ...models.attention_processor import Attention, AttentionProcessor, FusedJointAttnProcessor
+from ...models.attention_processor import Attention, AttentionProcessor, FusedJointAttnProcessor2_0
 from ...models.modeling_utils import ModelMixin
 from ...models.normalization import AdaLayerNormContinuous
 from ...utils import logging
@@ -190,7 +190,7 @@ class SD3Transformer2DModel(ModelMixin, ConfigMixin, PeftAdapterMixin, FromOrigi
             if isinstance(module, Attention):
                 module.fuse_projections(fuse=True)
 
-        self.set_attn_processor(FusedJointAttnProcessor())
+        self.set_attn_processor(FusedJointAttnProcessor2_0())
 
     # Copied from diffusers.models.unets.unet_2d_condition.UNet2DConditionModel.unfuse_qkv_projections
     def unfuse_qkv_projections(self):

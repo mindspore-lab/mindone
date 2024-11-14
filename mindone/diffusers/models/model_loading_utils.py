@@ -576,7 +576,7 @@ def get_torch_storage_size(tensor: "ms.Tensor") -> int:
 
 
 @lru_cache()
-def _get_dtype_size(dtype: "ms.Dtype") -> int:
+def _get_dtype_size(dtype: "ms.Type") -> int:
     """
     Taken from https://github.com/huggingface/safetensors/blob/08db34094e9e59e2f9218f2df133b7b4aaff5a99/bindings/python/py_src/safetensors/torch.py#L344
     """
