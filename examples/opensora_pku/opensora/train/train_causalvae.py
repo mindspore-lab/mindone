@@ -11,7 +11,7 @@ import time
 import yaml
 
 import mindspore as ms
-from mindspore import Model
+from mindspore import Model, nn
 from mindspore.train.callback import TimeMonitor
 
 sys.path.append(".")
@@ -36,6 +36,27 @@ from mindone.utils.logger import set_logger
 from mindone.utils.params import count_params
 
 logger = logging.getLogger(__name__)
+
+
+def set_train(modules):
+    for module in modules:
+        if isinstance(module, nn.Cell):
+            module.set_train(True)
+
+
+def set_eval(modules):
+    for module in modules:
+        if isinstance(module, nn.Cell):
+            module.set_train(False)
+
+
+def set_modules_requires_grad(modules, requires_grad):
+    for module in modules:
+        if isinstance(module, nn.Cell):
+            for param in module.get_parameters():
+                param.requires_grad = requires_grad
+        elif isinstance(module, ms.Parameter):
+            module.requires_grad = requires_grad
 
 
 def main(args):
@@ -247,8 +268,10 @@ def main(args):
     update_logvar = False  # in torch, ae_with_loss.logvar  is not updated.
     if update_logvar:
         ae_params_to_update = [ae_with_loss.autoencoder.trainable_params(), ae_with_loss.logvar]
+        ae_modules_to_update = [ae_with_loss.autoencoder, ae_with_loss.logvar]
     else:
         ae_params_to_update = ae_with_loss.autoencoder.trainable_params()
+        ae_modules_to_update = [ae_with_loss.autoencoder]
     optim_ae = create_optimizer(
         ae_params_to_update,
         name=args.optim,
@@ -423,48 +446,67 @@ def main(args):
 
         for epoch in range(start_epoch, args.epochs):
             start_time_e = time.time()
+            set_train(ae_modules_to_update)
             for step, data in enumerate(ds_iter):
                 start_time_s = time.time()
                 x = data["video"]
 
                 global_step = epoch * dataset_size + step
+
+                if global_step % 2 == 1 and global_step >= disc_start:
+                    set_modules_requires_grad(ae_modules_to_update, False)
+                    step_gen = False
+                    step_dis = True
+                else:
+                    set_modules_requires_grad(ae_modules_to_update, True)
+                    step_gen = True
+                    step_dis = False
+                assert step_gen or step_dis, "You should backward either Gen or Dis in a step."
+
                 global_step = ms.Tensor(global_step, dtype=ms.int64)
-
-                # NOTE: inputs must match the order in GeneratorWithLoss.construct
-                loss_ae_t, overflow, scaling_sens = training_step_ae(x, global_step)
-                if isinstance(scaling_sens, ms.Parameter):
-                    scaling_sens = scaling_sens.value()
-
-                if global_step >= disc_start:
-                    loss_disc_t, overflow_d, scaling_sens_d = training_step_disc(x, global_step)
-                    if isinstance(scaling_sens_d, ms.Parameter):
-                        scaling_sens_d = scaling_sens_d.value()
-
                 cur_global_step = epoch * dataset_size + step + 1  # starting from 1 for logging
-                if overflow:
-                    logger.warning(
-                        f"Overflow occurs in step {cur_global_step} in autoencoder"
-                        + (", drop update." if args.drop_overflow_update else ", still update.")
-                    )
-                if global_step >= disc_start and overflow_d:
-                    logger.warning(
-                        f"Overflow occurs in step {cur_global_step} in discriminator"
-                        + (", drop update." if args.drop_overflow_update else ", still update.")
-                    )
+                # Generator Step
+                if step_gen:
+                    # NOTE: inputs must match the order in GeneratorWithLoss.construct
+                    loss_ae_t, overflow, scaling_sens = training_step_ae(x, global_step)
+                    if isinstance(scaling_sens, ms.Parameter):
+                        scaling_sens = scaling_sens.value()
+
+                    if overflow:
+                        logger.warning(
+                            f"Overflow occurs in step {cur_global_step} in autoencoder"
+                            + (", drop update." if args.drop_overflow_update else ", still update.")
+                        )
+                # Discriminator Step
+                if step_dis:
+                    if global_step >= disc_start:
+                        loss_disc_t, overflow_d, scaling_sens_d = training_step_disc(x, global_step)
+                        if isinstance(scaling_sens_d, ms.Parameter):
+                            scaling_sens_d = scaling_sens_d.value()
+                        if overflow_d:
+                            logger.warning(
+                                f"Overflow occurs in step {cur_global_step} in discriminator"
+                                + (", drop update." if args.drop_overflow_update else ", still update.")
+                            )
                 # log
                 step_time = time.time() - start_time_s
                 if step % args.log_interval == 0:
-                    loss_ae = float(loss_ae_t.asnumpy())
-                    logger.info(
-                        f"E: {epoch+1}, S: {step+1}, Loss ae: {loss_ae:.4f}, ae loss scaler {scaling_sens},"
-                        + f" Step time: {step_time*1000:.2f}ms"
-                    )
-                    if global_step >= disc_start:
+                    if step_gen:
+                        loss_ae = float(loss_ae_t.asnumpy())
+                        logger.info(
+                            f"E: {epoch+1}, S: {step+1}, Loss ae: {loss_ae:.4f}, ae loss scaler {scaling_sens},"
+                            + f" Step time: {step_time*1000:.2f}ms"
+                        )
+                        loss_disc = -1  # no discriminator loss, dummy value
+                    if step_dis and global_step >= disc_start:
                         loss_disc = float(loss_disc_t.asnumpy())
-                        logger.info(f"Loss disc: {loss_disc:.4f}, disc loss scaler {scaling_sens_d}")
-                        loss_log_file.write(f"{cur_global_step}\t{loss_ae:.7f}\t{loss_disc:.7f}\t{step_time:.2f}\n")
-                    else:
-                        loss_log_file.write(f"{cur_global_step}\t{loss_ae:.7f}\t{0.0}\t{step_time:.2f}\n")
+                        logger.info(
+                            f"E: {epoch+1}, S: {step+1}, Loss disc: {loss_disc:.4f}, disc loss scaler {scaling_sens_d},"
+                            + f" Step time: {step_time*1000:.2f}ms"
+                        )
+                        loss_ae = -1  # no generator loss, dummy value
+
+                    loss_log_file.write(f"{cur_global_step}\t{loss_ae:.7f}\t{loss_disc:.7f}\t{step_time:.2f}\n")
                     loss_log_file.flush()
 
                 if rank_id == 0 and step_mode:
