@@ -446,7 +446,7 @@ class OpenSoraPipeline(DiffusionPipeline):
         if not isinstance(self.scheduler, FlowMatchEulerDiscreteScheduler):
             # scale the initial noise by the standard deviation required by the scheduler
             latents = latents * self.scheduler.init_noise_sigma
-        return latents.to(dtype)
+        return latents
 
     def prepare_parallel_latent(self, video_states):
         sp_size = hccl_info.world_size
@@ -567,7 +567,7 @@ class OpenSoraPipeline(DiffusionPipeline):
             negative_prompt_attention_mask,
         ) = self.encode_prompt(
             prompt=prompt,
-            dtype=ms.float16, #self.transformer.dtype,
+            dtype=self.transformer.dtype,
             num_samples_per_prompt=num_samples_per_prompt,
             do_classifier_free_guidance=self.do_classifier_free_guidance,
             negative_prompt=negative_prompt,
@@ -587,7 +587,7 @@ class OpenSoraPipeline(DiffusionPipeline):
                 negative_prompt_attention_mask_2,
             ) = self.encode_prompt(
                 prompt=prompt,
-                dtype=ms.float16, #self.transformer.dtype,
+                dtype=self.transformer.dtype,
                 num_samples_per_prompt=num_samples_per_prompt,
                 do_classifier_free_guidance=self.do_classifier_free_guidance,
                 negative_prompt=negative_prompt,
@@ -790,7 +790,7 @@ class OpenSoraPipeline(DiffusionPipeline):
     def decode_latents_per_sample(self, latents):
         print(f'before vae decode {latents.shape}', latents.max().item(), latents.min().item(), latents.mean().item(), latents.std().item())
         video = self.vae.decode(latents).to(ms.float32)  # (b t c h w)
-        print(f'after vae decode {latents.shape}', latents.max().item(), latents.min().item(), latents.mean().item(), latents.std().item())
+        print(f'after vae decode {video.shape}', video.max().item(), video.min().item(), video.mean().item(), video.std().item())
         video = ops.clip_by_value((video / 2.0 + 0.5), clip_value_min=0.0, clip_value_max=1.0).permute(0, 1, 3, 4, 2)
         return video  # b t h w c
 
