@@ -132,6 +132,7 @@ class AdamWeightDecayZeRO1(nn.Optimizer):
         self.moments1 = self._param_init_op(self._parameters, prefix="adam_m", init="zeros", dtype=momentum_dtype)
         self.moments2 = self._param_init_op(self._parameters, prefix="adam_v", init="zeros", dtype=momentum_dtype)
         self.all_gather_ops = self._init_all_gather_ops(self._parameters, group=comm_group)
+        self.comm_group = comm_group
 
         if _is_parallel():
             self.all_reduce_op = ops.AllReduce()
@@ -225,20 +226,20 @@ class AdamWeightDecayZeRO1(nn.Optimizer):
             return grads
 
     @ms.jit
-    def grad_allreduce_and_split(self, mean, degree, shard_id, shard_size, gradients):
-        gradients = ops.HyperMap()(
-            F.partial(allreduce_and_split_op, degree, mean, self.all_reduce_op, shard_id, shard_size),
-            gradients
-        )
-        return gradients
-
-    @ms.jit
     def grad_allreduce_(self, mean, degree, gradients):
         gradients = ops.HyperMap()(
             F.partial(allreduce_op, degree, mean, self.all_reduce_op),
             gradients
         )
         return gradients
+
+    @ms.jit
+    def grad_allreduce_and_split(self, mean, degree, shard_id, shard_size, gradients):
+        part_gradients = ops.HyperMap()(
+            F.partial(allreduce_and_split_op, degree, mean, self.all_reduce_op, shard_id, shard_size),
+            gradients
+        )
+        return part_gradients
 
     @ms.jit
     def construct(self, split_gradients):
@@ -372,16 +373,17 @@ class AdamWeightDecayZeRO2(AdamWeightDecayZeRO1):
 
             if self.shard_size == 1:
                 return self.grad_allreduce_(mean, degree, grads)
-            elif self.group_size == self.shard_size:
-                return self.grad_reducescatter_and_split(mean, degree, shard_id, shard_size, grads)
             else:
-                return self.grad_allreduce_and_split(mean, degree, shard_id, shard_size, grads)
+                if self.group_size == self.shard_size:
+                    return self.grad_reducescatter_and_split(mean, degree, shard_id, shard_size, grads)
+                else:
+                    return self.grad_allreduce_and_split(mean, degree, shard_id, shard_size, grads)
         else:
             return grads
 
     def grad_reducescatter_and_split(self, mean, degree, shard_id, shard_size, gradients):
-        gradients = ops.HyperMap()(
+        part_gradients = ops.HyperMap()(
             F.partial(reducescatter_and_split_op, degree, mean, self.reduce_scatter_op, self.all_reduce_op, shard_size),
             gradients
         )
-        return gradients
+        return part_gradients

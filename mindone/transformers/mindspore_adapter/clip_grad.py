@@ -4,30 +4,24 @@ from mindspore.ops import composite as C
 from mindspore.ops import functional as F
 
 
-_clip_grad = ops.MultitypeFuncGraph('_clip_grad')
+_clip_grad_value = ops.MultitypeFuncGraph('_clip_grad_value')
 
 
-@_clip_grad.register("Number", "Number", "Tensor")
-def __clip_grad(clip_type, clip_value, grad):
+@_clip_grad_value.register("Number", "Number", "Tensor")
+def __clip_grad_value(max_value, grad):
     """
     Clip gradients.
 
     Inputs:
-        clip_type (int): The way to clip, 0 for 'value', 1 for 'norm'.
-        clip_value (float): Specifies how much to clip.
+        max_value (float): Specifies how much to clip.
         grad (tuple[Tensor]): Gradients.
 
     Outputs:
         tuple[Tensor]: clipped gradients.
     """
-    if clip_type not in (0, 1):
-        return grad
-    if clip_type == 0:
-        new_grad = C.clip_by_value(
-            grad, -clip_value, clip_value
-        )
-    else:
-        new_grad = ops.clip_by_norm(grad, clip_value)
+    new_grad = C.clip_by_value(
+        grad, -max_value, max_value
+    )
     return new_grad
 
 
@@ -35,23 +29,11 @@ _apply_global_norm = ops.MultitypeFuncGraph('_apply_global_norm')
 
 
 @_apply_global_norm.register("Number", "Tensor", "Tensor")
-def __apply_global_norm(clip_norm, global_norm, x):
+def __apply_global_norm(clip_coef, x):
     x_dtype = F.dtype(x)
-    x = x * clip_norm / global_norm
+    x = x * clip_coef
     x = F.cast(x, x_dtype)
     return x
-
-
-_l2_norm = ops.MultitypeFuncGraph('_l2_norm')
-
-
-@_l2_norm.register("Tensor")
-def __l2_norm(x):
-    axis = ()
-    for i in range(x.dim()):
-        axis += (i,)
-    norm = ops.LpNorm(axis)(x)
-    return norm
 
 
 _square = ops.MultitypeFuncGraph('_square')
@@ -62,66 +44,65 @@ def __square(x):
     return ops.square(x)
 
 
-class L2Norm(nn.Cell):
-    def __init__(self):
-        super().__init__()
-        self.l2_norm_1 = ops.LpNorm((0,))
-        self.l2_norm_2 = ops.LpNorm((0, 1))
-        self.l2_norm_3 = ops.LpNorm((0, 1, 2))
-        self.l2_norm_4 = ops.LpNorm((0, 1, 2, 3))
-
-    def construct(self, x):
-        if x.ndim == 1:
-            norm = self.l2_norm_1(x)
-        elif x.ndim == 2:
-            norm = self.l2_norm_2(x)
-        elif x.ndim == 3:
-            norm = self.l2_norm_3(x)
-        else:
-            norm = self.l2_norm_4(x)
-        return norm
+_square_sum = ops.MultitypeFuncGraph('_square_sum')
 
 
-class _ClipByGlobalNormFix(nn.Cell):
-    def __init__(self, clip_norm=1.0):
-        super().__init__()
-        self.clip_norm = Tensor([clip_norm], ms.float32)
-        self.hyper_map = ops.HyperMap()
-        self.greater_equal = ops.GreaterEqual()
-        self.l2norm = L2Norm()
+@_square_sum.register("Tensor")
+def __square_sum(x):
+    return ops.square(x.astype(ms.float32)).sum()
 
-    def construct(self, x):
-        norms = self.hyper_map(self.l2norm, x)
-        norms_square = self.hyper_map(ops.square, norms)
-        global_norm = ops.sqrt(ops.addn(norms_square)).astype(ms.float32)
 
-        cond = self.greater_equal(global_norm, self.clip_norm)
-        global_norm = F.select(cond, global_norm, self.clip_norm)
-        clip_x = self.hyper_map(F.partial(_apply_global_norm, self.clip_norm, global_norm), x)
-        return clip_x
+_square_sum_and_all_reduce = ops.MultitypeFuncGraph('_square_sum_and_all_reduce')
+
+
+@_square_sum_and_all_reduce.register("Tensor")
+def __square_sum_and_all_reduce(all_reduce_op, x):
+    square_x_sum = ops.square(x.astype(ms.float32)).sum()
+    square_x_sum = all_reduce_op(square_x_sum)
+    return square_x_sum
+
+
+@_square_sum.register("Tensor")
+def __square_sum(x):
+    return ops.square(x.astype(ms.float32)).sum()
 
 
 hyper_map_op = ops.HyperMap()
 
 
-def _clip_grad_global_fix(clip_norm, grads):
-    # norms = hyper_map_op(_l2_norm, grads)
-    # norms_square = hyper_map_op(_square, norms)
-    # global_norm = ops.sqrt(ops.addn(norms_square)).astype(ms.float32)
+def _clip_grad_l2norm(max_norm, grads):
+    grads_square_sum = hyper_map_op(_square_sum, grads)
+    total_norm = ops.sqrt(ops.addn(grads_square_sum))
 
-    global_norm = ops.ones((), ms.float32)
+    clip_coef = max_norm / (total_norm + 1e-6)
+    clip_coef_clamped = ops.clamp(clip_coef, None, 1.0)
 
-    cond = ops.greater_equal(global_norm, clip_norm)
-    global_norm = F.select(cond, global_norm, clip_norm)
-    clip_grads = hyper_map_op(F.partial(_apply_global_norm, clip_norm, global_norm), grads)
-    return clip_grads
+    clipped_grads = hyper_map_op(F.partial(_apply_global_norm, clip_coef_clamped), grads)
+    return clipped_grads
 
 
-def clip_grad(grads, clip_norm):
-    clip_value = hyper_map_op(F.partial(_clip_grad, 1, clip_norm), grads)
-    return clip_value
+def _clip_grad_l2norm_for_zero(max_norm, all_reduce_op, part_grads):
+
+    grads_square_sum = hyper_map_op(F.partial(_square_sum_and_all_reduce, all_reduce_op), part_grads)
+    total_norm = ops.sqrt(ops.addn(grads_square_sum))
+
+    clip_coef = max_norm / (total_norm + 1e-6)
+    clip_coef = ops.ones((), dtype=ms.float32) * clip_coef  # necessary on MindSpore 2.3.1 to enable `clip_coef` as a Tensor
+
+    clip_coef_clamped = ops.clamp(clip_coef, None, 1.0)
+
+    clipped_part_grads = hyper_map_op(F.partial(_apply_global_norm, clip_coef_clamped), part_grads)
+    return clipped_part_grads
 
 
-def clip_grad_global(grads, clip_norm):
-    clip_value = _clip_grad_global_fix(clip_norm, grads)
-    return clip_value
+def clip_grad_value(grads, max_value):
+    clipped_grads = hyper_map_op(F.partial(_clip_grad_value, max_value), grads)
+    return clipped_grads
+
+
+def clip_grad_norm(grads, max_norm):
+    return _clip_grad_l2norm(max_norm, grads)
+
+
+def clip_grad_norm_for_zero(part_grads, max_norm, all_reduce_op):
+    return _clip_grad_l2norm_for_zero(max_norm, all_reduce_op, part_grads)
