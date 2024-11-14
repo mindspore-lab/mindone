@@ -85,6 +85,7 @@ _import_structure = {
         "PixArtSigmaPipeline",
     ],
     "shap_e": ["ShapEImg2ImgPipeline", "ShapEPipeline"],
+    "stable_audio": ["StableAudioProjectionModel", "StableAudioPipeline"],
     "stable_cascade": [
         "StableCascadeCombinedPipeline",
         "StableCascadeDecoderPipeline",
