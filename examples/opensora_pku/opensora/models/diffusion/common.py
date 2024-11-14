@@ -51,7 +51,6 @@ class PositionGetter3D(object):
         pos = list(itertools.product(z, y, x))
         pos = ms.Tensor(pos)
         if get_sequence_parallel_state():
-            # print('PositionGetter3D', PositionGetter3D)
             pos = pos.reshape(t * h * w, 3).swapaxes(0, 1).reshape(3, -1, 1).broadcast_to((3, -1, b))
         else:
             pos = pos.reshape(t * h * w, 3).swapaxes(0, 1).reshape(3, 1, -1).broadcast_to((3, b, -1))
@@ -121,7 +120,6 @@ class RoPE3D(nn.Cell):
         cos_y, sin_y = self.get_cos_sin(max_poses[1] + 1, self.interpolation_scale_h)
         cos_x, sin_x = self.get_cos_sin(max_poses[2] + 1, self.interpolation_scale_w)
         # split features into three along the feature dimension, and apply rope1d on each half
-        # t, y, x = tokens.chunk(3, dim=-1)
         t, y, x = mint.chunk(tokens, 3, dim=-1)
         t = self.apply_rope1d(t, poses[0], cos_t.to(tokens.dtype), sin_t.to(tokens.dtype))
         y = self.apply_rope1d(y, poses[1], cos_y.to(tokens.dtype), sin_y.to(tokens.dtype))
