@@ -34,6 +34,7 @@ _import_structure = {
         "SD3ControlNetModel",
         "SD3MultiControlNetModel",
         "SD3Transformer2DModel",
+        "StableAudioDiTModel",
         "T2IAdapter",
         "T5FilmDecoder",
         "Transformer2DModel",
