@@ -1,6 +1,7 @@
 import logging
 import os
 import sys
+from math import ceil
 
 from jsonargparse import ActionConfigFile, ArgumentParser
 from jsonargparse.typing import path_type
@@ -21,7 +22,7 @@ from moviegen.utils.model_utils import MODEL_DTYPE, init_model
 
 from mindone.data import create_dataloader
 from mindone.trainers import create_optimizer
-from mindone.trainers.callback import EvalSaveCallback, OverflowMonitor
+from mindone.trainers.callback import EvalSaveCallback, OverflowMonitor, StopAtStepCallback
 from mindone.trainers.zero import prepare_train_network
 from mindone.utils import count_params, init_train_env, set_logger
 
@@ -72,6 +73,7 @@ def main(args):
 
     # 5. build training utils: lr, optim, callbacks, trainer
     # 5.1 LR
+    epochs = ceil(args.train.steps / dataloader.get_dataset_size())
     lr = initializer.train.lr_scheduler
 
     # 5.2 optimizer
@@ -87,7 +89,7 @@ def main(args):
     model = Model(net_with_grads)
 
     # 5.4 callbacks
-    callbacks = [OverflowMonitor()]
+    callbacks = [OverflowMonitor(), StopAtStepCallback(train_steps=args.train.steps)]
     if rank_id == 0:
         callbacks.extend(
             [
@@ -98,6 +100,9 @@ def main(args):
                     rank_id=rank_id,
                     ckpt_save_dir=os.path.join(args.train.output_path, "ckpt"),
                     ema=ema,
+                    step_mode=True,
+                    use_step_unit=True,
+                    train_steps=args.train.steps,
                     **args.train.save,
                 ),
             ]
@@ -124,7 +129,7 @@ def main(args):
                 f"Frames: {args.dataset.sample_n_frames}",
                 f"Weight decay: {args.train.optimizer.weight_decay}",
                 f"Grad accumulation steps: {args.train.settings.gradient_accumulation_steps}",
-                f"Num epochs: {args.train.epochs}",
+                f"Number of training steps: {args.train.steps}",
                 f"Loss scaler: {args.train.loss_scaler.class_path}",
                 f"Init loss scale: {args.train.loss_scaler.init_args.loss_scale_value}",
                 f"Grad clipping: {args.train.settings.clip_grad}",
@@ -139,7 +144,7 @@ def main(args):
 
     # 6. train
     logger.info("Start training...")
-    model.train(args.train.epochs, dataloader, callbacks=callbacks)
+    model.train(epochs, dataloader, callbacks=callbacks)
 
 
 if __name__ == "__main__":
@@ -183,11 +188,22 @@ if __name__ == "__main__":
         type=path_type("dcc"),  # path to a directory that can be created if it does not exist
         help="Output directory to save training results.",
     )
-    parser.add_argument("--train.epochs", default=10, type=int, help="Number of epochs to train. Default: 100.")
+    parser.add_argument("--train.steps", default=100, type=int, help="Number of steps to train. Default: 100.")
     parser.add_class_arguments(
         EvalSaveCallback,
         "train.save",
-        skip={"network", "rank_id", "ckpt_save_dir", "output_dir", "ema", "start_epoch", "model_name"},
+        skip={
+            "network",
+            "rank_id",
+            "ckpt_save_dir",
+            "output_dir",
+            "ema",
+            "start_epoch",
+            "model_name",
+            "step_mode",
+            "use_step_unit",
+            "train_steps",
+        },
         instantiate=False,
     )
     cfg = parser.parse_args()

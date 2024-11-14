@@ -33,7 +33,7 @@ dataloader:
   num_workers_dataset: 4
 
 train:
-  epochs: 1000
+  steps: 20000
   output_path: output/stage2_t2iv_256x256
 
   lr_scheduler:
@@ -65,8 +65,8 @@ train:
 
   save:
     ckpt_save_policy: latest_k
+    ckpt_save_interval: 500
     ckpt_max_keep: 10
-    ckpt_save_interval: 50
     log_interval: 1
     save_ema_only: False
     record_lr: False
