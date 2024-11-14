@@ -17,8 +17,7 @@ sys.path.append("./")
 from opensora.acceleration.parallel_states import get_sequence_parallel_state, hccl_info
 from opensora.dataset import getdataset
 from opensora.dataset.loader import create_dataloader
-from opensora.models import CausalVAEModelWrapper
-from opensora.models.causalvideovae import ae_channel_config, ae_stride_config
+from opensora.models.causalvideovae import ae_channel_config, ae_stride_config, ae_wrapper
 from opensora.models.causalvideovae.model.modules.updownsample import TrilinearInterpolate
 from opensora.models.diffusion import Diffusion_models
 from opensora.models.diffusion.opensora.modules import Attention, LayerNorm
@@ -30,16 +29,20 @@ from opensora.utils.ema import EMA
 from opensora.utils.message_utils import print_banner
 from opensora.utils.ms_utils import init_env
 from opensora.utils.utils import get_precision
+from opensora.models.diffusion.common import PatchEmbed2D
 
 from mindone.diffusers.models.activations import SiLU
-from mindone.diffusers.schedulers import DDPMScheduler as DDPMScheduler_diffusers
+from mindone.diffusers.schedulers import (
+    DDIMScheduler, DDPMScheduler, PNDMScheduler, PNDMScheduler, DPMSolverMultistepScheduler,
+    FlowMatchEulerDiscreteScheduler,#CogVideoXDDIMScheduler, 
+)
 from mindone.trainers.callback import EvalSaveCallback, OverflowMonitor, ProfilerCallbackEpoch, StopAtStepCallback
 from mindone.trainers.checkpoint import resume_train_network
 from mindone.trainers.lr_schedule import create_scheduler
 from mindone.trainers.optim import create_optimizer
 from mindone.trainers.train_step import TrainOneStepWrapper
 from mindone.trainers.zero import prepare_train_network
-from mindone.transformers import MT5EncoderModel
+from mindone.transformers import T5EncoderModel, MT5EncoderModel, CLIPTextModelWithProjection
 from mindone.utils.amp import auto_mixed_precision
 from mindone.utils.config import str2bool
 from mindone.utils.logger import set_logger
@@ -52,6 +55,9 @@ logger = logging.getLogger(__name__)
 class DDPMScheduler(DDPMScheduler_diffusers):
     pass
 
+#################################################################################
+#                                  Training Loop                                #
+#################################################################################
 
 def set_all_reduce_fusion(
     params,
@@ -91,6 +97,9 @@ def main(args):
         comm_fusion=args.comm_fusion,
     )
     set_logger(name="", output_dir=args.output_dir, rank=rank_id, log_level=eval(args.log_level))
+
+    # 2. Init and load models
+    ## Load VAE
     train_with_vae_latent = args.vae_latent_folder is not None and len(args.vae_latent_folder) > 0
     if train_with_vae_latent:
         assert os.path.exists(
@@ -100,16 +109,22 @@ def main(args):
         vae = None
     else:
         print_banner("vae init")
-        vae = CausalVAEModelWrapper(args.ae_path, cache_dir=args.cache_dir, use_safetensors=True)
-
         vae_dtype = get_precision(args.vae_precision)
+        kwarg = {
+            "state_dict": state_dict,
+            "use_safetensors": True,
+            "dtype": vae_dtype,
+        }
+        vae = ae_wrapper[args.ae](args.ae_path, **kwarg)
+        # vae.vae_scale_factor = ae_stride_config[args.ae]
+        
         if vae_dtype == ms.float16:
             custom_fp32_cells = [nn.GroupNorm] if args.vae_keep_gn_fp32 else []
         else:
             custom_fp32_cells = [nn.AvgPool2d, TrilinearInterpolate]
+        logger.info(f"Use amp level O2 for causal 3D VAE with dtype={vae_dtype}, custom_fp32_cells: {custom_fp32_cells}")
         vae = auto_mixed_precision(vae, amp_level="O2", dtype=vae_dtype, custom_fp32_cells=custom_fp32_cells)
-        logger.info(f"Use amp level O2 for causal 3D VAE with dtype={vae_dtype}, custom_fp32_cells {custom_fp32_cells}")
-
+        
         vae.set_train(False)
         for param in vae.get_parameters():  # freeze vae
             param.requires_grad = False
@@ -135,47 +150,32 @@ def main(args):
     assert (
         args.max_height % ae_stride_h == 0
     ), f"Height must be divisible by ae_stride_h, but found Height ({args.max_height}), ae_stride_h ({ae_stride_h})."
+    assert (args.num_frames - 1) % ae_stride_t == 0, f"(Frames - 1) must be divisible by ae_stride_t, but found num_frames ({args.num_frames}), ae_stride_t ({ae_stride_t})."
     assert (
         args.max_width % ae_stride_h == 0
     ), f"Width size must be divisible by ae_stride_h, but found Width ({args.max_width}), ae_stride_h ({ae_stride_h})."
 
     args.stride_t = ae_stride_t * patch_size_t
     args.stride = ae_stride_h * patch_size_h
-    latent_size = (args.max_height // ae_stride_h, args.max_width // ae_stride_w)
-    vae.latent_size = latent_size
+    vae.latent_size = latent_size = (args.max_height // ae_stride_h, args.max_width // ae_stride_w)
+    args.latent_size_t = latent_size_t = (args.num_frames - 1) // ae_stride_t + 1
 
-    if args.num_frames % 2 == 1:
-        args.latent_size_t = latent_size_t = (args.num_frames - 1) // ae_stride_t + 1
-    else:
-        latent_size_t = args.num_frames // ae_stride_t
-    FA_dtype = get_precision(args.precision) if get_precision(args.precision) != ms.float32 else ms.bfloat16
+
+    ## Load diffusion transformer
     print_banner("Transformer model init")
+    FA_dtype = get_precision(args.precision) if get_precision(args.precision) != ms.float32 else ms.bfloat16
     model = Diffusion_models[args.model](
         in_channels=ae_channel_config[args.ae],
         out_channels=ae_channel_config[args.ae],
-        attention_bias=True,
-        sample_size=latent_size,
+        sample_size_h=latent_size,
+        sample_size_w=latent_size,
         sample_size_t=latent_size_t,
-        num_vector_embeds=None,
-        activation_fn="gelu-approximate",
-        num_embeds_ada_norm=1000,
-        use_linear_projection=False,
-        only_cross_attention=False,
-        double_self_attention=False,
-        upcast_attention=False,
-        # norm_type="ada_norm_single",
-        norm_elementwise_affine=False,
-        norm_eps=1e-6,
-        attention_type="default",
-        attention_mode=args.attention_mode,
         interpolation_scale_h=args.interpolation_scale_h,
         interpolation_scale_w=args.interpolation_scale_w,
         interpolation_scale_t=args.interpolation_scale_t,
-        downsampler=args.downsampler,
-        # compress_kv_factor=args.compress_kv_factor,
-        use_rope=args.use_rope,
-        # model_max_length=args.model_max_length,
-        use_stable_fp32=args.enable_stable_fp32,
+        sparse1d=args.sparse1d, 
+        sparse_n=args.sparse_n, 
+        skip_connection=args.skip_connection, 
         use_recompute=args.gradient_checkpointing,
         num_no_recompute=args.num_no_recompute,
         FA_dtype=FA_dtype,
@@ -188,13 +188,12 @@ def main(args):
         model_dtype = get_precision(args.precision)
         if not args.global_bf16:
             if model_dtype == ms.float16:
-                custom_fp32_cells = [LayerNorm, nn.SiLU, SiLU, nn.GELU]
-                if args.attention_mode == "math":
-                    custom_fp32_cells += [Attention]
+                custom_fp32_cells = [LayerNorm, Attention, PatchEmbed2D, nn.SiLU, SiLU, nn.GELU]
             else:
                 custom_fp32_cells = [
                     nn.MaxPool2d,
                     nn.MaxPool3d,
+                    PatchEmbed2D,
                     LayerNorm,
                     nn.SiLU,
                     SiLU,
@@ -222,22 +221,61 @@ def main(args):
         logger.info("Use random initialization for transformer")
     model.set_train(True)
 
+    ## Load text encoder
     if not args.text_embed_cache:
         print_banner("text encoder init")
         text_encoder_dtype = get_precision(args.text_encoder_precision)
-        text_encoder, loading_info = MT5EncoderModel.from_pretrained(
-            args.text_encoder_name,
-            cache_dir=args.cache_dir,
-            output_loading_info=True,
-            mindspore_dtype=text_encoder_dtype,
-            use_safetensors=True,
-        )
-        logger.info(loading_info)
+        if 'mt5' in args.text_encoder_name_1:
+            text_encoder_1, loading_info = MT5EncoderModel.from_pretrained(
+                args.text_encoder_name_1, 
+                cache_dir=args.cache_dir, 
+                output_loading_info=True,
+                mindspore_dtype=text_encoder_dtype,
+                use_safetensors=True
+                )      
+            loading_info.pop("unexpected_keys")  # decoder weights are ignored
+            logger.info(f"Loaded MT5 Encoder: {loading_info}")
+            text_encoder_1 = text_encoder_1.set_train(False)  
+        else:
+            text_encoder_1 = T5EncoderModel.from_pretrained(
+                args.text_encoder_name_1, cache_dir=args.cache_dir, 
+                mindspore_dtype=text_encoder_dtype
+                ).set_train(False)
+        text_encoder_2 = None
+        if args.text_encoder_name_2 is not None:
+            text_encoder_2, loading_info = CLIPTextModelWithProjection.from_pretrained(
+                args.text_encoder_name_2, 
+                cache_dir=args.cache_dir, 
+                mindspore_dtype=text_encoder_dtype,
+                output_loading_info=True,
+                use_safetensors=True,
+                )
+            loading_info.pop("unexpected_keys")  # only load text model, ignore vision model
+            # loading_info.pop("mising_keys") # Note: missed keys when loading open-clip models
+            logger.info(f"Loaded CLIP Encoder: {loading_info}") 
+            text_encoder_2 = text_encoder_2.set_train(False)
     else:
-        text_encoder = None
+        text_encoder_1 = None
+        text_encoder_2 = None
         text_encoder_dtype = None
 
-    noise_scheduler = DDPMScheduler()
+    kwargs = dict(
+        prediction_type=args.prediction_type, 
+        rescale_betas_zero_snr=args.rescale_betas_zero_snr
+    )
+    if args.cogvideox_scheduler:
+        noise_scheduler = CogVideoXDDIMScheduler(**kwargs)
+    elif args.v1_5_scheduler:
+        kwargs['beta_start'] = 0.00085
+        kwargs['beta_end'] = 0.0120
+        kwargs['beta_schedule'] = "scaled_linear"
+        noise_scheduler = DDPMScheduler(**kwargs)
+    elif args.rf_scheduler:
+        noise_scheduler = FlowMatchEulerDiscreteScheduler()
+        noise_scheduler_copy = copy.deepcopy(noise_scheduler)
+    else:
+        noise_scheduler = DDPMScheduler(**kwargs)
+        
     # Get the target for loss depending on the prediction type
     if args.prediction_type is not None:
         # set prediction_type of scheduler if defined
@@ -251,11 +289,12 @@ def main(args):
             logger.info("Training on image datasets only.")
         else:
             logger.info("Training on video datasets only.")
+
     latent_diffusion_with_loss = DiffusionWithLoss(
         model,
         noise_scheduler,
         vae=vae,
-        text_encoder=text_encoder,
+        text_encoder=text_encoder_1,
         text_emb_cached=args.text_embed_cache,
         video_emb_cached=False,
         use_image_num=args.use_image_num,
@@ -264,22 +303,34 @@ def main(args):
         snr_gamma=args.snr_gamma,
     )
     latent_diffusion_eval, metrics, eval_indexes = None, None, None
+
     # 3. create dataset
     # TODO: replace it with new dataset
     assert args.dataset == "t2v", "Support t2v dataset only."
     print_banner("Training dataset Loading...")
+    
     # Setup data:
+    # TODO: to use in v1.3
+    if args.trained_data_global_step is not None:
+        initial_global_step_for_sampler = args.trained_data_global_step
+    else:
+        initial_global_step_for_sampler = 0
+    if args.max_hxw is not None and args.min_hxw is None:
+        args.min_hxw = args.max_hxw // 4
+
     train_dataset = getdataset(args, dataset_file=args.data)
     sampler = (
         LengthGroupedBatchSampler(
             args.train_batch_size,
             world_size=device_num if not get_sequence_parallel_state() else (device_num // hccl_info.world_size),
             lengths=train_dataset.lengths,
-            group_frame=args.group_frame,
-            group_resolution=args.group_resolution,
+            group_frame=args.group_frame, #v1.2
+            group_resolution=args.group_resolution, #v1.2
+            initial_global_step_for_sampler = initial_global_step_for_sampler, #TODO: use in v1.3
+            group_data=args.group_data #TODO: use in v1.3
         )
-        if (args.group_frame or args.group_resolution)
-        else None
+        if (args.group_frame or args.group_resolution) #v1.2
+        else None #v1.2
     )
     collate_fn = Collate(
         args.train_batch_size,
@@ -365,7 +416,7 @@ def main(args):
             model,
             noise_scheduler,
             vae=vae,
-            text_encoder=text_encoder,
+            text_encoder=text_encoder_1,
             text_emb_cached=args.text_embed_cache,
             video_emb_cached=False,
             use_image_num=args.use_image_num,
@@ -623,12 +674,14 @@ def main(args):
             callback.append(rec_cb)
         if args.profile:
             callback.append(ProfilerCallbackEpoch(2, 2, "./profile_data"))
+
     # Train!
     assert (
         args.train_sp_batch_size == 1
     ), "Do not support train_sp_batch_size other than 1. Please set `--train_sp_batch_size 1`"
     total_batch_size = args.train_batch_size * device_num * args.gradient_accumulation_steps
     total_batch_size = total_batch_size // args.sp_size * args.train_sp_batch_size
+
     # 5. log and save config
     if rank_id == 0:
         if vae is not None:
@@ -708,6 +761,77 @@ def main(args):
 
 
 def parse_t2v_train_args(parser):
+    ######## TODO: NEW in v1.3 , but may not use ###
+    # dataset & dataloader
+    parser.add_argument("--max_hxw", type=int, default=None)
+    parser.add_argument("--min_hxw", type=int, default=None)
+    parser.add_argument("--ood_img_ratio", type=float, default=0.0)
+    parser.add_argument("--group_data", action="store_true")
+    parser.add_argument("--hw_stride", type=int, default=32)
+    parser.add_argument("--force_resolution", action="store_true")
+    parser.add_argument("--trained_data_global_step", type=int, default=None)
+    parser.add_argument("--use_decord", action="store_true")
+
+    # text encoder & vae & diffusion model
+    parser.add_argument('--vae_fp32', action='store_true')
+    parser.add_argument('--extra_save_mem', action='store_true')
+    parser.add_argument("--text_encoder_name_1", type=str, default='DeepFloyd/t5-v1_1-xxl')
+    parser.add_argument("--text_encoder_name_2", type=str, default=None)
+    parser.add_argument('--sparse1d', action='store_true')
+    parser.add_argument('--sparse_n', type=int, default=2)
+    parser.add_argument('--skip_connection', action='store_true')
+    parser.add_argument('--cogvideox_scheduler', action='store_true')
+    parser.add_argument('--v1_5_scheduler', action='store_true')
+    parser.add_argument('--rf_scheduler', action='store_true')
+    parser.add_argument("--weighting_scheme", type=str, default="logit_normal", choices=["sigma_sqrt", "logit_normal", "mode", "cosmap"])
+    parser.add_argument("--logit_mean", type=float, default=0.0, help="mean to use when using the `'logit_normal'` weighting scheme.")
+    parser.add_argument("--logit_std", type=float, default=1.0, help="std to use when using the `'logit_normal'` weighting scheme.")
+    parser.add_argument("--mode_scale", type=float, default=1.29, help="Scale of mode weighting scheme. Only effective when using the `'mode'` as the `weighting_scheme`.")
+
+    # diffusion setting
+    parser.add_argument("--offload_ema", action="store_true", help="Offload EMA model to CPU during training step.")
+    parser.add_argument("--foreach_ema", action="store_true", help="Use faster foreach implementation of EMAModel.")
+    parser.add_argument('--rescale_betas_zero_snr', action='store_true')
+
+    # validation & logs
+    parser.add_argument("--enable_profiling", action="store_true")
+    parser.add_argument("--num_sampling_steps", type=int, default=20)
+    parser.add_argument('--guidance_scale', type=float, default=4.5)
+    parser.add_argument("--checkpoints_total_limit", type=int, default=None, help=("Max number of checkpoints to store."))
+
+    # optimizer & scheduler
+    parser.add_argument("--optimizer", type=str, default="adamW", help='The optimizer type to use. Choose between ["AdamW", "prodigy"]')
+    parser.add_argument("--learning_rate", type=float, default=1e-4, help="Initial learning rate (after the potential warmup period) to use.")
+    parser.add_argument("--use_8bit_adam", action="store_true", help="Whether or not to use 8-bit Adam from bitsandbytes. Ignored if optimizer is not set to AdamW")
+    parser.add_argument("--adam_beta1", type=float, default=0.9, help="The beta1 parameter for the Adam and Prodigy optimizers.")
+    parser.add_argument("--adam_beta2", type=float, default=0.999, help="The beta2 parameter for the Adam and Prodigy optimizers.")
+    parser.add_argument("--prodigy_decouple", type=bool, default=True, help="Use AdamW style decoupled weight decay")
+    parser.add_argument("--adam_weight_decay", type=float, default=1e-02, help="Weight decay to use for unet params")
+    parser.add_argument("--adam_weight_decay_text_encoder", type=float, default=None, help="Weight decay to use for text_encoder")
+    parser.add_argument("--adam_epsilon", type=float, default=1e-15, help="Epsilon value for the Adam optimizer and Prodigy optimizers.")
+    parser.add_argument("--prodigy_use_bias_correction", type=bool, default=True, help="Turn on Adam's bias correction. True by default. Ignored if optimizer is adamW")
+    parser.add_argument("--prodigy_safeguard_warmup", type=bool, default=True, help="Remove lr from the denominator of D estimate to avoid issues during warm-up stage. True by default. Ignored if optimizer is adamW")
+    parser.add_argument("--prodigy_beta3", type=float, default=None,
+                        help="coefficients for computing the Prodidy stepsize using running averages. If set to None, "
+                             "uses the value of square root of beta2. Ignored if optimizer is adamW",
+                        )
+    parser.add_argument("--allow_tf32", action="store_true",
+                        help=(
+                            "Whether or not to allow TF32 on Ampere GPUs. Can be used to speed up training. For more information, see"
+                            " https://pytorch.org/docs/stable/notes/cuda.html#tensorfloat-32-tf32-on-ampere-devices"
+                        ),
+                        )
+    parser.add_argument("--mixed_precision", type=str, default=None, choices=["no", "fp16", "bf16"],
+                        help=(
+                            "Whether to use mixed precision. Choose between fp16 and bf16 (bfloat16). Bf16 requires PyTorch >="
+                            " 1.10.and an Nvidia Ampere GPU.  Default to the value of accelerate config of the current system or the"
+                            " flag passed with the `accelerate.launch` command. Use this argument to override the accelerate config."
+                        ),
+                        )
+
+    parser.add_argument("--local_rank", type=int, default=-1, help="For distributed training: local_rank")
+    ########################
+
     parser.add_argument("--output_dir", default="outputs/", help="The directory where training results are saved.")
     parser.add_argument("--dataset", type=str, default="t2v")
     parser.add_argument(
@@ -736,7 +860,7 @@ def parse_t2v_train_args(parser):
         help="Whether to use T5 embedding cache. Must be provided in image/video_data.",
     )
     parser.add_argument("--vae_latent_folder", default=None, type=str, help="root dir for the vae latent data")
-    parser.add_argument("--model", type=str, choices=list(Diffusion_models.keys()), default="OpenSoraT2V-ROPE-L/122")
+    parser.add_argument("--model", type=str, choices=list(Diffusion_models.keys()), default="OpenSoraT2V_v1_3-2B/122")
     parser.add_argument("--interpolation_scale_h", type=float, default=1.0)
     parser.add_argument("--interpolation_scale_w", type=float, default=1.0)
     parser.add_argument("--interpolation_scale_t", type=float, default=1.0)
@@ -765,8 +889,8 @@ def parse_t2v_train_args(parser):
     parser.add_argument("--enable_tiling", action="store_true")
 
     parser.add_argument("--attention_mode", type=str, choices=["xformers", "math", "flash"], default="xformers")
-    parser.add_argument("--text_encoder_name", type=str, default="DeepFloyd/t5-v1_1-xxl")
-    parser.add_argument("--model_max_length", type=int, default=300)
+    # parser.add_argument("--text_encoder_name", type=str, default="DeepFloyd/t5-v1_1-xxl")
+    parser.add_argument("--model_max_length", type=int, default=512)
     parser.add_argument("--multi_scale", action="store_true")
 
     # parser.add_argument("--enable_tracker", action="store_true")
@@ -781,7 +905,7 @@ def parse_t2v_train_args(parser):
     parser.add_argument(
         "--checkpointing_steps",
         type=int,
-        default=None,
+        default=500,
         help=(
             "Save a checkpoint of the training state every X updates. These checkpoints can be used both as final"
             " checkpoints in case they are better than the last checkpoint, and are also suitable for resuming"

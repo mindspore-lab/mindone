@@ -398,8 +398,10 @@ class LengthGroupedBatchSampler:
         batch_size: int,
         world_size: int,
         lengths: Optional[List[int]] = None,
+        initial_global_step_for_sampler: int = 0,
         group_frame=False,
         group_resolution=False,
+        group_data = False,
         generator=None,
     ):
         if lengths is None:
@@ -411,6 +413,7 @@ class LengthGroupedBatchSampler:
         self.lengths = lengths
         self.group_frame = group_frame
         self.group_resolution = group_resolution
+        self.group_data = group_data
         self.generator = generator
         self.remainder = len(self) * self.megabatch_size != len(self.lengths)
 

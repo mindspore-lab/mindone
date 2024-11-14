@@ -44,7 +44,10 @@ def getdataset(args, dataset_file):
         additional_targets=targets,
     )
 
-    tokenizer = AutoTokenizer.from_pretrained(args.text_encoder_name, cache_dir=args.cache_dir)
+    tokenizer = AutoTokenizer.from_pretrained(args.text_encoder_name_1, cache_dir=args.cache_dir)
+    if args.text_encoder_name_2 is not None:
+        tokenizer_2 = AutoTokenizer.from_pretrained(args.text_encoder_name_2, cache_dir=args.cache_dir)
+
     if args.dataset == "t2v":
         return T2V_dataset(
             dataset_file,
@@ -59,7 +62,7 @@ def getdataset(args, dataset_file):
             max_width=args.max_width,
             drop_short_ratio=args.drop_short_ratio,
             dataloader_num_workers=args.dataloader_num_workers,
-            text_encoder_name=args.text_encoder_name,
+            text_encoder_name=args.text_encoder_name_1, # TODO: update with 2nd text encoder
             return_text_emb=args.text_embed_cache,
             transform=transform,
             temporal_sample=temporal_sample,
