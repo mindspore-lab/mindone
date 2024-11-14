@@ -304,7 +304,7 @@ class OpenSoraT2V_v1_3(ModelMixin, ConfigMixin):
         height, width = hidden_states.shape[-2] // self.config.patch_size, hidden_states.shape[-1] // self.config.patch_size
 
         hidden_states, encoder_hidden_states, timestep, embedded_timestep = self._operate_on_patched_inputs(
-            hidden_states, encoder_hidden_states, timestep, batch_size, frame, dtype=self.dtype
+            hidden_states, encoder_hidden_states, timestep, batch_size, frame
         )
 
         if get_sequence_parallel_state():
@@ -367,12 +367,12 @@ class OpenSoraT2V_v1_3(ModelMixin, ConfigMixin):
 
         return output
 
-    def _operate_on_patched_inputs(self, hidden_states, encoder_hidden_states, timestep, batch_size, frame, dtype):
-        hidden_states = self.pos_embed(hidden_states.to(dtype)) # (b, t*h*w, d)
+    def _operate_on_patched_inputs(self, hidden_states, encoder_hidden_states, timestep, batch_size, frame):
+        hidden_states = self.pos_embed(hidden_states.to(self.dtype)) # (b, t*h*w, d)
     
         added_cond_kwargs = {"resolution": None, "aspect_ratio": None}
         timestep, embedded_timestep = self.adaln_single(
-            timestep, added_cond_kwargs, batch_size=batch_size, hidden_dtype=dtype
+            timestep, added_cond_kwargs, batch_size=batch_size, hidden_dtype=self.dtype
         )  # b 6d, b d
 
         encoder_hidden_states = self.caption_projection(encoder_hidden_states)  # b, 1, l, d
