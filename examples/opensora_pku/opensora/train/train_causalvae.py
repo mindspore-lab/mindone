@@ -254,7 +254,7 @@ def main(args):
         name=args.optim,
         betas=args.betas,
         group_strategy=args.group_strategy,
-        weight_decay=args.weight_decay,
+        weight_decay=args.gen_wd,
         lr=lr,
     )
     loss_scaler_ae = create_loss_scaler(args)
@@ -267,7 +267,7 @@ def main(args):
             name=args.optim,
             lr=lr,  # since lr is a shared list
             group_strategy=args.group_strategy,
-            weight_decay=args.weight_decay,
+            weight_decay=args.disc_wd,
         )
         loss_scaler_disc = create_loss_scaler(args)
         scaling_sens_d = loss_scaler_disc.loss_scale_value
@@ -347,7 +347,8 @@ def main(args):
                 f"Rescale size: {args.resolution}",
                 f"Crop size: {args.resolution}",
                 f"Number of frames: {args.video_num_frames}",
-                f"Weight decay: {args.weight_decay}",
+                f"Weight decay: generator {args.gen_wd}"
+                + (f", discriminator {args.disc_wd}" if args.use_discriminator else ""),
                 f"Grad accumulation steps: {args.gradient_accumulation_steps}",
                 f"Num of training steps: {total_train_steps}",
                 f"Loss scaler: {args.loss_scaler_type}",
@@ -629,6 +630,8 @@ def parse_causalvae_train_args(parser):
     parser.add_argument("--wavelet_loss", action="store_true", help="")
     parser.add_argument("--wavelet_weight", type=float, default=0.1, help="")
     parser.add_argument("--print_losses", action="store_true", help="Whether to print multiple losses during training")
+    parser.add_argument("--gen_wd", type=float, default=1e-4, help="weight decay for generator")
+    parser.add_argument("--disc_wd", type=float, default=0.01, help="weight decay for discriminator")
     return parser
 
 
