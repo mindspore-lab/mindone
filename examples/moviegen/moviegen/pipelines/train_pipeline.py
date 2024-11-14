@@ -59,6 +59,10 @@ class DiffusionWithLoss(nn.Cell):
             video_emb = mint.permute(video_emb, (0, 2, 1, 3, 4))  # FIXME
         return video_emb
 
+    def set_train(self, mode=True):
+        # Set the diffusion model only to train or eval mode
+        self.network.set_train(mode)
+
     def construct(self, video_tokens: Tensor, ul2_tokens: Tensor, byt5_tokens: Tensor) -> Tensor:
         latent_embedding = self.get_latents(video_tokens)
         ul2_emb = self.get_condition_embeddings(ul2_tokens)

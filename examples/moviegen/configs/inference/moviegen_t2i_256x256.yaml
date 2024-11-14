@@ -27,7 +27,7 @@ text_emb:
 batch_size: 10
 
 # Saving options
-output_path: samples
+output_path: ../../samples  # the path is relative to this config
 append_timestamp: True
 save_format: png
 save_latent: False

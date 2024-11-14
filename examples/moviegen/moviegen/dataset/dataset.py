@@ -234,35 +234,18 @@ class ImageVideoDataset(BaseDataset):
         tokenizer: Optional[Callable[[str], np.ndarray]] = None,
     ) -> List[dict]:
         transforms = []
-        vae_downsample_rate = self._vae_downsample_rate
-
         if not self._vae_latent_folder:
-            vae_downsample_rate = 1
             transforms.append(
                 {
                     "operations": [
                         ResizeCrop(target_size, interpolation=interpolation),
                         lambda x: x.astype(np.float32) / 127.5 - 1,
+                        lambda x: x[None, ...] if x.ndim == 3 else x,  # if image
                         lambda x: np.transpose(x, (0, 3, 1, 2)),
                     ],
                     "input_columns": ["video"],
                 }
             )
-        # the followings are not transformation for video frames, can be excluded
-        transforms.append(
-            {
-                "operations": [
-                    lambda video: (
-                        video,  # need to return the video itself to preserve the column
-                        np.array(video.shape[-2] * vae_downsample_rate, dtype=np.float32),
-                        np.array(video.shape[-1] * vae_downsample_rate, dtype=np.float32),
-                        np.array(video.shape[-2] / video.shape[-1], dtype=np.float32),
-                    )
-                ],
-                "input_columns": ["video"],
-                "output_columns": ["video", "height", "width", "ar"],
-            }
-        )
 
         if "caption" in self.output_columns and not self._text_emb_folder:
             if tokenizer is None:

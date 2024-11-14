@@ -33,7 +33,7 @@ dataloader:
 
 train:
   steps: 20000
-  output_path: output/stage1_t2i_256x256
+  output_path: ../../output/stage1_t2i_256x256  # the path is relative to this config
 
   lr_scheduler:
     class_path: mindspore.nn.WarmUpLR
@@ -64,8 +64,27 @@ train:
 
   save:
     ckpt_save_policy: latest_k
-    ckpt_save_interval: 500
+    ckpt_save_interval: &save_interval 500
     ckpt_max_keep: 10
     log_interval: 1
     save_ema_only: False
     record_lr: False
+
+valid:
+  sampling_steps: 10
+  frequency: *save_interval
+
+  dataset:
+    csv_path: CSV_PATH
+    video_folder: VIDEO_FOLDER
+    text_emb_folder:
+      ul2: UL2_FOLDER
+      byt5: BYT5_FOLDER
+    target_size: [ 256, 256 ]
+    apply_transforms_dataset: True
+    output_columns: [ "video", "ul2_caption", "byt5_caption" ]
+
+  dataloader:
+    batch_size: 50
+    shuffle: False
+    num_workers_dataset: 4

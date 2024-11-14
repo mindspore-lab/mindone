@@ -16,9 +16,8 @@ sys.path.append(mindone_lib_path)
 
 from moviegen.dataset import ImageVideoDataset
 from moviegen.pipelines import DiffusionWithLoss
-from moviegen.schedulers import RFlowLossWrapper
-from moviegen.utils import EMA
-from moviegen.utils.model_utils import MODEL_DTYPE, init_model
+from moviegen.schedulers import RFlowEvalLoss, RFlowLossWrapper
+from moviegen.utils import EMA, MODEL_DTYPE, PerfRecorderCallback, ValidationCallback, init_model
 
 from mindone.data import create_dataloader
 from mindone.trainers import create_optimizer
@@ -35,7 +34,7 @@ logger = logging.getLogger(__name__)
 
 def main(args):
     # 1. init env
-    args.train.output_path = os.path.join(__dir__, args.train.output_path.relative)
+    args.train.output_path = args.train.output_path.absolute
     os.makedirs(args.train.output_path, exist_ok=True)
     device_id, rank_id, device_num = init_train_env(**args.env)
     set_logger("", output_dir=args.train.output_path, rank=rank_id)
@@ -71,6 +70,18 @@ def main(args):
         dataset, transforms=transforms, device_num=device_num, rank_id=rank_id, **args.dataloader
     )
 
+    eval_diffusion_with_loss, val_dataloader = None, None
+    if args.valid.dataset is not None:
+        val_dataset = ImageVideoDataset(**args.valid.dataset.init_args)
+        transforms = None
+        if not args.valid.dataset.init_args.apply_transforms_dataset:
+            transforms = val_dataset.train_transforms(args.valid.dataset.init_args.target_size)
+        val_dataloader = create_dataloader(
+            val_dataset, transforms=transforms, device_num=device_num, rank_id=rank_id, **args.valid.dataloader
+        )
+        eval_rflow_loss = RFlowEvalLoss(rflow_loss_wrapper, num_sampling_steps=args.valid.sampling_steps)
+        eval_diffusion_with_loss = DiffusionWithLoss(eval_rflow_loss, vae)
+
     # 5. build training utils: lr, optim, callbacks, trainer
     # 5.1 LR
     epochs = ceil(args.train.steps / dataloader.get_dataset_size())
@@ -89,7 +100,7 @@ def main(args):
     model = Model(net_with_grads)
 
     # 5.4 callbacks
-    callbacks = [OverflowMonitor(), StopAtStepCallback(train_steps=args.train.steps)]
+    callbacks = [OverflowMonitor()]
     if rank_id == 0:
         callbacks.extend(
             [
@@ -107,6 +118,26 @@ def main(args):
                 ),
             ]
         )
+
+    if val_dataloader is not None:
+        callbacks.append(
+            ValidationCallback(
+                network=eval_diffusion_with_loss,
+                dataset=val_dataloader,
+                rank_id=rank_id,
+                valid_frequency=args.valid.frequency,
+                ema=ema,
+            )
+        )
+    callbacks.extend(
+        [
+            PerfRecorderCallback(args.train.output_path, file_name="result_val.log", metric_names=["eval_loss"]),
+            StopAtStepCallback(train_steps=args.train.steps),
+        ]
+    )
+
+    # 5.5 print out key info and save config
+    if rank_id == 0:
         num_params_vae, num_params_trainable_vae = count_params(vae)
         num_params_network, num_params_trainable_network = count_params(network)
         num_params = num_params_vae + num_params_network
@@ -115,14 +146,16 @@ def main(args):
         key_info += "\n".join(
             [
                 f"MindSpore mode[GRAPH(0)/PYNATIVE(1)]: {args.env.mode}",
+                f"Debug mode: {args.env.debug}",
                 f"JIT level: {args.env.jit_level}",
                 f"Distributed mode: {args.env.distributed}",
                 f"Data path: {args.dataset.csv_path}",
                 f"Number of samples: {len(dataset)}",
-                f"Num params: {num_params:,} (network: {num_params_network:,}, vae: {num_params_vae:,})",
-                f"Num trainable params: {num_params_trainable:,}",
+                f"Model name: {args.model.name}",
                 f"Model dtype: {args.model.dtype}",
                 f"VAE dtype: {args.vae.dtype}",
+                f"Num params: {num_params:,} (network: {num_params_network:,}, vae: {num_params_vae:,})",
+                f"Num trainable params: {num_params_trainable:,}",
                 f"Learning rate: {args.train.lr_scheduler.init_args.learning_rate:.0e}",
                 f"Batch size: {args.dataloader.batch_size}",
                 f"Image size: {args.dataset.target_size}",
@@ -206,5 +239,24 @@ if __name__ == "__main__":
         },
         instantiate=False,
     )
+
+    # validation
+    val_group = parser.add_argument_group("Validation")
+    val_group.add_argument(
+        "valid.sampling_steps", type=int, default=10, help="Number of sampling steps for validation."
+    )
+    val_group.add_argument("valid.frequency", type=int, default=1, help="Frequency of validation in steps.")
+    val_group.add_subclass_arguments(
+        ImageVideoDataset,
+        "valid.dataset",
+        skip={"frames_mask_generator", "t_compress_func"},
+        instantiate=False,
+        required=False,
+    )
+    val_group.add_function_arguments(
+        create_dataloader, "valid.dataloader", skip={"dataset", "transforms", "device_num", "rank_id"}
+    )
+    parser.link_arguments("env.debug", "valid.dataloader.debug", apply_on="parse")
+
     cfg = parser.parse_args()
     main(cfg)

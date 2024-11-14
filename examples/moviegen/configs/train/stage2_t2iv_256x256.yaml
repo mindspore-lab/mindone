@@ -34,7 +34,7 @@ dataloader:
 
 train:
   steps: 20000
-  output_path: output/stage2_t2iv_256x256
+  output_path: ../../output/stage2_t2iv_256x256  # the path is relative to this config
 
   lr_scheduler:
     class_path: mindspore.nn.WarmUpLR

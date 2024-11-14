@@ -15,7 +15,7 @@ from ..parallel import get_model_parallel_group
 
 logger = logging.getLogger(__name__)
 
-__all__ = ["RFLOW", "RFlowLossWrapper"]
+__all__ = ["RFLOW", "RFlowLossWrapper", "RFlowEvalLoss"]
 
 
 class LogisticNormal(nn.Cell):
@@ -174,4 +174,21 @@ class RFlowLossWrapper(nn.Cell):
         timesteps = timesteps[:, None, None, None, None]
 
         # 3.1.2 First Eqa.
-        return timesteps * x + (1 - (1 - self.eps) * timesteps) * noise # TODO: check for zero SNR
+        return timesteps * x + (1 - (1 - self.eps) * timesteps) * noise  # TODO: check for zero SNR
+
+
+class RFlowEvalLoss(nn.Cell):
+    def __init__(self, network: RFlowLossWrapper, num_sampling_steps: int = 10):
+        super().__init__()
+        self.network = network
+        self.timesteps = Tensor(
+            np.linspace(0, network.num_timesteps, num_sampling_steps + 2)[1:-1].reshape(-1, 1), dtype=ms.float32
+        )
+
+    def construct(self, x: Tensor, ul2_emb: Tensor, metaclip_emb: Tensor, byt5_emb: Tensor, **kwargs) -> Tensor:
+        loss = Tensor(0, dtype=ms.float32)
+        timesteps = mint.tile(self.timesteps, (1, x.shape[0]))
+        for t in timesteps:
+            loss += self.network(x, ul2_emb, metaclip_emb, byt5_emb, t)
+
+        return loss / len(self.timesteps)
