@@ -111,18 +111,26 @@ class GeneratorWithLoss(nn.Cell):
 
         # 2.1 reconstruction loss in pixels
         rec_loss = self.loss_func(x, recons)
-
+        if self.print_losses:
+            print(f"rec_loss {(rec_loss.sum()/rec_loss.shape[0]).asnumpy()}, ")
+            # debug
+            # if (rec_loss.sum()/rec_loss.shape[0]).asnumpy() <0:
+            #    print("negative loss!")
+            #    print(f"x min {x.min()}, max {x.max()}, mean {x.mean()}")
+            #    print(f"recons min {recons.min()}, max {recons.max()}, mean {recons.mean()}")
         # 2.2 perceptual loss
         if self.perceptual_weight > 0:
             p_loss = self.perceptual_loss(x, recons)
             rec_loss = rec_loss + self.perceptual_weight * p_loss
-        if self.print_losses:
-            print(
-                f"rec_loss {(rec_loss.sum()/rec_loss.shape[0]).asnumpy()}, "
-                + f"p_loss: {(p_loss.sum()/p_loss.shape[0]).asnumpy()}"
-                if self.perceptual_weight > 0
-                else ""
-            )
+            if self.print_losses:
+                print(
+                    f"new rec_loss {(rec_loss.sum()/rec_loss.shape[0]).asnumpy()}, "
+                    + f"p_loss: {(p_loss.sum()/p_loss.shape[0]).asnumpy()}"
+                )
+                # if (p_loss.sum()/p_loss.shape[0]).asnumpy()< 0:
+                #    print("negative loss!")
+                #    print(f"x min {x.min()}, max {x.max()}, mean {x.mean()}")
+                #    print(f"recons min {recons.min()}, max {recons.max()}, mean {recons.mean()}")
 
         nll_loss = rec_loss / mint.exp(self.logvar) + self.logvar
         if weights is not None:
