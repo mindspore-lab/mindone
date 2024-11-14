@@ -51,13 +51,10 @@ from mindone.utils.params import count_params
 logger = logging.getLogger(__name__)
 
 
-@ms.jit_class
-class DDPMScheduler(DDPMScheduler_diffusers):
-    pass
+# @ms.jit_class
+# class DDPMScheduler(DDPMScheduler_diffusers):
+#     pass
 
-#################################################################################
-#                                  Training Loop                                #
-#################################################################################
 
 def set_all_reduce_fusion(
     params,
@@ -75,6 +72,10 @@ def set_all_reduce_fusion(
         logger.info(f"Distribute config set: dall_params_num: {all_params_num}, set all_reduce_fusion: {split_list}")
         ms.set_auto_parallel_context(all_reduce_fusion_config=split_list)
 
+
+#################################################################################
+#                                  Training Loop                                #
+#################################################################################
 
 def main(args):
     # 1. init
@@ -111,7 +112,7 @@ def main(args):
         print_banner("vae init")
         vae_dtype = get_precision(args.vae_precision)
         kwarg = {
-            "state_dict": state_dict,
+            "state_dict": None,
             "use_safetensors": True,
             "dtype": vae_dtype,
         }

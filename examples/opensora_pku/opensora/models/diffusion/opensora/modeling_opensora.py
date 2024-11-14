@@ -21,6 +21,8 @@ from opensora.models.diffusion.opensora.modules import BasicTransformerBlock, La
 from opensora.models.diffusion.common import PatchEmbed2D
 from opensora.npu_config import npu_config
 
+logger = logging.getLogger(__name__)
+
 class OpenSoraT2V_v1_3(ModelMixin, ConfigMixin):
     _supports_gradient_checkpointing = True
 
@@ -416,7 +418,7 @@ class OpenSoraT2V_v1_3(ModelMixin, ConfigMixin):
                 attention_mask, encoder_attention_mask = sparse_mask[1][block.attn1.processor.sparse_group]
 
             # if self.training and self.gradient_checkpointing:  #TODO: training
-            if self.use_recompute and ms.get_context("mode") == ms.PYNATIVE:
+            if self.use_recompute and ms.get_context("mode") == ms.PYNATIVE_MODE:
                 block_args = {
                     "hidden_states": hidden_states,
                     "attention_mask": attention_mask,
