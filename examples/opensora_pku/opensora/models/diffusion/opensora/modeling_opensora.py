@@ -66,6 +66,19 @@ class OpenSoraT2V_v1_3(ModelMixin, ConfigMixin):
         self.FA_dtype = FA_dtype #NEW
         self._init_patched_inputs()
 
+        if self.use_recompute:
+            num_no_recompute = self.config.num_no_recompute
+            num_blocks = len(self.transformer_blocks)
+            assert num_no_recompute >= 0, "Expect to have num_no_recompute as a positive integer."
+            assert (
+                num_no_recompute <= num_blocks
+            ), "Expect to have num_no_recompute as an integer no greater than the number of blocks,"
+            f"but got {num_no_recompute} and {num_blocks}."
+            logger.info(f"Excluding {num_no_recompute} blocks from the recomputation list.")
+            for bidx, block in enumerate(self.transformer_blocks):
+                if bidx < num_blocks - num_no_recompute:
+                    self.recompute(block)
+
     def _init_patched_inputs(self):
 
         self.config.sample_size = (self.config.sample_size_h, self.config.sample_size_w)
@@ -119,6 +132,14 @@ class OpenSoraT2V_v1_3(ModelMixin, ConfigMixin):
             stride=(self.config.patch_size_t, self.config.patch_size, self.config.patch_size),
             pad_mode="pad"
         )
+
+    def recompute(self, b):
+        if not b._has_config_recompute:
+            b.recompute(parallel_optimizer_comm_recompute=True)
+        if isinstance(b, nn.CellList):
+            self.recompute(b[-1])
+        elif ms.get_context("mode") == ms.GRAPH_MODE:
+            b.add_flags(output_no_recompute=True)
 
     # rewrite class method to allow the state dict as input
     @classmethod
@@ -248,6 +269,65 @@ class OpenSoraT2V_v1_3(ModelMixin, ConfigMixin):
 
         return model
 
+
+    @classmethod
+    def load_from_checkpoint(cls, model, ckpt_path):
+        if os.path.isdir(ckpt_path) or ckpt_path.endswith(".safetensors"):
+            return cls.load_from_safetensors(model, ckpt_path)
+        elif ckpt_path.endswith(".ckpt"):
+            return cls.load_from_ms_checkpoint(ckpt_path)
+        else:
+            raise ValueError("Only support safetensors pretrained ckpt or MindSpore pretrained ckpt!")
+
+    @classmethod
+    def load_from_safetensors(cls, model, ckpt_path):
+        if os.path.isdir(ckpt_path):
+            ckpts = glob.glob(os.path.join(ckpt_path, "*.safetensors"))
+            n_ckpt = len(ckpts)
+            assert (
+                n_ckpt == 1
+            ), f"Expect to find only one safetenesors file under {ckpt_path}, but found {n_ckpt} .safetensors files."
+            model_file = ckpts[0]
+            pretrained_model_name_or_path = ckpt_path
+        elif ckpt_path.endswith(".safetensors"):
+            model_file = ckpt_path
+            pretrained_model_name_or_path = os.path.dirname(ckpt_path)
+        state_dict = load_state_dict(model_file, variant=None)
+        model._convert_deprecated_attention_blocks(state_dict)
+
+        model, missing_keys, unexpected_keys, mismatched_keys, error_msgs = cls._load_pretrained_model(
+            model,
+            state_dict,
+            model_file,
+            pretrained_model_name_or_path,
+            ignore_mismatched_sizes=False,
+        )
+        loading_info = {
+            "missing_keys": missing_keys,
+            "unexpected_keys": unexpected_keys,
+            "mismatched_keys": mismatched_keys,
+            "error_msgs": error_msgs,
+        }
+        logger.info(loading_info)
+        return model
+
+    @classmethod
+    def load_from_ms_checkpoint(self, model, ckpt_path):
+        sd = ms.load_checkpoint(ckpt_path)
+        # filter 'network.' prefix
+        rm_prefix = ["network."]
+        all_pnames = list(sd.keys())
+        for pname in all_pnames:
+            for pre in rm_prefix:
+                if pname.startswith(pre):
+                    new_pname = pname.replace(pre, "")
+                    sd[new_pname] = sd.pop(pname)
+
+        m, u = ms.load_param_into_net(model, sd)
+        print("net param not load: ", m, len(m))
+        print("ckpt param not load: ", u, len(u))
+        return model
+
     def _set_gradient_checkpointing(self, module, value=False):
         if hasattr(module, "gradient_checkpointing"):
             module.gradient_checkpointing = value
@@ -336,17 +416,29 @@ class OpenSoraT2V_v1_3(ModelMixin, ConfigMixin):
                 attention_mask, encoder_attention_mask = sparse_mask[1][block.attn1.processor.sparse_group]
 
             # if self.training and self.gradient_checkpointing:  #TODO: training
-
-            hidden_states = block(
-                    hidden_states,
-                    attention_mask=attention_mask,
-                    encoder_hidden_states=encoder_hidden_states,
-                    encoder_attention_mask=encoder_attention_mask,
-                    timestep=timestep,
-                    frame=frame, 
-                    height=height, 
-                    width=width, 
-                ) # BSH
+            if self.use_recompute and ms.get_context("mode") == ms.PYNATIVE:
+                block_args = {
+                    "hidden_states": hidden_states,
+                    "attention_mask": attention_mask,
+                    "encoder_hidden_states": encoder_hidden_states,
+                    "encoder_attention_mask": encoder_attention_mask,
+                    "timestep": timestep,
+                    "frame": frame, 
+                    "height": height, 
+                    "width": width, 
+                }
+                hidden_states = ms.recompute(block, **block_args) #BSH
+            else:
+                hidden_states = block(
+                        hidden_states,
+                        attention_mask=attention_mask,
+                        encoder_hidden_states=encoder_hidden_states,
+                        encoder_attention_mask=encoder_attention_mask,
+                        timestep=timestep,
+                        frame=frame, 
+                        height=height, 
+                        width=width, 
+                    ) # BSH
 
 
         if get_sequence_parallel_state():
