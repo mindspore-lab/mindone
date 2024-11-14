@@ -76,7 +76,7 @@ Flux can generate high-quality images with FP16 but produces different outputs c
 FP16 inference code:
 ```python
 import mindspore
-from diffusers import FluxPipeline
+from mindone.diffusers import FluxPipeline
 
 pipe = FluxPipeline.from_pretrained("black-forest-labs/FLUX.1-schnell", mindspore_dtype=mindspore.bfloat16) # can replace schnell with dev
 # to run on low vram devices

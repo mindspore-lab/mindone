@@ -126,7 +126,7 @@ To use with Stable Diffusion 3:
 
 ```python
 import mindspore
-from diffusers import StableDiffusion3Pipeline, AutoencoderTiny
+from mindone.diffusers import StableDiffusion3Pipeline, AutoencoderTiny
 
 pipe = StableDiffusion3Pipeline.from_pretrained(
     "stabilityai/stable-diffusion-3-medium-diffusers", mindspore_dtype=mindspore.float16

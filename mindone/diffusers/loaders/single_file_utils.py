@@ -1504,7 +1504,7 @@ def _legacy_load_scheduler(
         deprecation_message = (
             "Please pass an instance of a Scheduler object directly to the `scheduler` argument in `from_single_file`\n\n"
             "Example:\n\n"
-            "from diffusers import StableDiffusionPipeline, DDIMScheduler\n\n"
+            "from mindone.diffusers import StableDiffusionPipeline, DDIMScheduler\n\n"
             "scheduler = DDIMScheduler()\n"
             "pipe = StableDiffusionPipeline.from_single_file(<checkpoint path>, scheduler=scheduler)\n"
         )
@@ -1515,7 +1515,7 @@ def _legacy_load_scheduler(
             "Please configure an instance of a Scheduler with the appropriate `prediction_type` and "
             "pass the object directly to the `scheduler` argument in `from_single_file`.\n\n"
             "Example:\n\n"
-            "from diffusers import StableDiffusionPipeline, DDIMScheduler\n\n"
+            "from mindone.diffusers import StableDiffusionPipeline, DDIMScheduler\n\n"
             'scheduler = DDIMScheduler(prediction_type="v_prediction")\n'
             "pipe = StableDiffusionPipeline.from_single_file(<checkpoint path>, scheduler=scheduler)\n"
         )
