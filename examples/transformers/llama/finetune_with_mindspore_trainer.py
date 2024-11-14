@@ -20,19 +20,19 @@
 """
 
 
+from dataclasses import dataclass, field
+
 import evaluate
 import numpy as np
-import mindspore as ms
-
 from datasets import load_dataset
 from transformers import AutoTokenizer, HfArgumentParser
-from dataclasses import dataclass, field
-from typing import Optional
 
+import mindspore as ms
+
+from mindone.transformers.mindspore_adapter import MindSporeArguments, init_environment
 from mindone.transformers.models.llama import LlamaForSequenceClassification
 from mindone.transformers.trainer import Trainer
 from mindone.transformers.training_args import TrainingArguments
-from mindone.transformers.mindspore_adapter import MindSporeArguments, init_environment
 
 
 @dataclass
@@ -46,10 +46,7 @@ class MyArguments(MindSporeArguments, TrainingArguments):
 
 
 def main():
-
-    parser = HfArgumentParser(
-        MyArguments
-    )
+    parser = HfArgumentParser(MyArguments)
     args = parser.parse_args_into_dataclasses()[0]
 
     init_environment(args)
@@ -66,7 +63,7 @@ def main():
             examples["text"],
             padding="max_length",
             truncation=True,
-            max_length=512,        # Note: pad is need for training batch size is gather than 1.
+            max_length=512,  # Note: pad is need for training batch size is gather than 1.
         )
 
     tokenized_datasets = dataset.map(tokenize_function, batched=True)
@@ -77,7 +74,7 @@ def main():
         args.model_path,
         num_labels=5,
         use_flash_attention_2=args.enable_flash_attention,
-        mindspore_dtype=ms.bfloat16 if args.bf16 else (ms.float16 if args.fp16 else None)
+        mindspore_dtype=ms.bfloat16 if args.bf16 else (ms.float16 if args.fp16 else None),
     )
 
     if args.do_eval:
@@ -87,6 +84,7 @@ def main():
             logits, labels = eval_pred
             predictions = np.argmax(logits, axis=-1)
             return metric.compute(predictions=predictions, references=labels)
+
     else:
         compute_metrics = None
 
@@ -101,5 +99,5 @@ def main():
     trainer.train()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

@@ -1,9 +1,7 @@
-import mindspore as ms
 import numpy as np
-from mindspore import Tensor, Parameter, ParallelMode
 
-from transformers.utils.import_utils import _is_package_available
-
+import mindspore as ms
+from mindspore import ParallelMode
 
 _DTYPE_2_STRING = {
     ms.float16: "float16",
@@ -15,7 +13,7 @@ _DTYPE_2_STRING = {
     ms.int16: "int16",
     ms.int32: "int32",
     ms.int64: "int64",
-    ms.bool_:  "bool",
+    ms.bool_: "bool",
 }
 
 

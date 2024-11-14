@@ -1,13 +1,14 @@
-from typing import Optional, Dict, List
+from typing import Dict
+
 import mindspore as ms
-from mindspore import nn, ops, Tensor, Parameter, context, ParallelMode
+from mindspore import ParallelMode, Tensor, context, nn, ops
+from mindspore.boost.grad_accumulation import gradient_clear_op as _grad_clear_op
 from mindspore.ops import composite as C
 from mindspore.ops import operations as P
-from mindspore.boost.grad_accumulation import gradient_clear_op as _grad_clear_op
-
 
 try:
     from .adamw_zero import AdamWeightDecayZeRO1, AdamWeightDecayZeRO2
+
     is_adamw_zero_available = True
 except ImportError:
     is_adamw_zero_available = False
@@ -24,9 +25,11 @@ def cumulative_grad_process(cumulative_grad, grad):
 
 
 def _is_pynative_parallel():
-    parallel_mode = context.get_auto_parallel_context('parallel_mode')
-    return context.get_context('mode') == context.PYNATIVE_MODE and parallel_mode in (
-        context.ParallelMode.SEMI_AUTO_PARALLEL, context.ParallelMode.AUTO_PARALLEL)
+    parallel_mode = context.get_auto_parallel_context("parallel_mode")
+    return context.get_context("mode") == context.PYNATIVE_MODE and parallel_mode in (
+        context.ParallelMode.SEMI_AUTO_PARALLEL,
+        context.ParallelMode.AUTO_PARALLEL,
+    )
 
 
 def create_loss_scaler(ms_loss_scaler="static", scale_value=1024, scale_factor=2, scale_window=1000):
@@ -49,9 +52,10 @@ def create_loss_scaler(ms_loss_scaler="static", scale_value=1024, scale_factor=2
 
 
 def _is_parallel():
-    is_parallel = context.get_auto_parallel_context("parallel_mode") in (
-        ParallelMode.DATA_PARALLEL, ParallelMode.HYBRID_PARALLEL
-    ) or _is_pynative_parallel()
+    is_parallel = (
+        context.get_auto_parallel_context("parallel_mode") in (ParallelMode.DATA_PARALLEL, ParallelMode.HYBRID_PARALLEL)
+        or _is_pynative_parallel()
+    )
     return is_parallel
 
 
@@ -116,7 +120,6 @@ class TrainOneStepWrapper(nn.Cell):
         assert gradient_accumulation_steps >= 1
         self.accum_steps = gradient_accumulation_steps
         if gradient_accumulation_steps > 1:
-
             self.hyper_map = ops.HyperMap()
             self.cur_accum_step = ms.Parameter(ms.Tensor(0, dtype=ms.int32), name="accum_step", requires_grad=False)
 
@@ -169,19 +172,24 @@ class TrainOneStepWrapper(nn.Cell):
         self.drop_overflow_step = Tensor(drop_overflow_step, ms.bool_)
 
         # clip grad
-        assert clip_value > 0.0 and isinstance(clip_value, float), f"clip_value must be float > 0., but got {clip_value}"
+        assert clip_value > 0.0 and isinstance(
+            clip_value, float
+        ), f"clip_value must be float > 0., but got {clip_value}"
         self.clip_value = clip_value
         self.is_clip_norm = False
         if clip_grad.lower() in ("norm", "l2norm", "l2_norm", "global", "global_norm", "total", "total_norm"):
             self.is_clip_norm = True
             if self.is_zero:
                 from mindone.transformers.mindspore_adapter.clip_grad import clip_grad_norm_for_zero
+
                 clip_grad_fn = clip_grad_norm_for_zero
             else:
                 from mindone.transformers.mindspore_adapter.clip_grad import clip_grad_norm
+
                 clip_grad_fn = clip_grad_norm
         elif clip_grad.lower() in ("local", "value"):
             from mindone.transformers.mindspore_adapter.clip_grad import clip_grad_value
+
             clip_grad_fn = clip_grad_value
         elif clip_grad.lower() == "none":
             clip_grad_fn = None
@@ -190,7 +198,6 @@ class TrainOneStepWrapper(nn.Cell):
         self.clip_grad_fn = clip_grad_fn
 
     def do_optim(self, loss, grads):
-
         if self.accum_steps == 1:
             if self.clip_grad_fn is not None:
                 if self.is_zero and self.is_clip_norm:
@@ -201,14 +208,14 @@ class TrainOneStepWrapper(nn.Cell):
             if self.ema is not None:
                 self.ema.ema_update()
         else:
-            loss = ops.depend(
-                loss, self.hyper_map(_grad_accum_op, self.accumulated_grads, grads)
-            )
+            loss = ops.depend(loss, self.hyper_map(_grad_accum_op, self.accumulated_grads, grads))
             loss = ops.depend(loss, ops.assign_add(self.cur_accum_step, ms.Tensor(1, ms.int32)))
             if self.cur_accum_step % self.accum_steps == 0:
                 if self.clip_grad_fn is not None:
                     if self.is_zero and self.is_clip_norm:
-                        clipped_grads = self.clip_grad_fn(self.accumulated_grads, self.clip_value, self.reduce_op_for_clip_grad)
+                        clipped_grads = self.clip_grad_fn(
+                            self.accumulated_grads, self.clip_value, self.reduce_op_for_clip_grad
+                        )
                     else:
                         clipped_grads = self.clip_grad_fn(self.accumulated_grads, self.clip_value)
 
@@ -222,7 +229,9 @@ class TrainOneStepWrapper(nn.Cell):
                     self.ema.ema_update()
             else:
                 # update the optimizer global step and learning rate, do not update the parameter
-                loss = ops.depend(loss, ops.assign_add(self.optimizer.global_step, self.optimizer.global_step_increase_tensor))
+                loss = ops.depend(
+                    loss, ops.assign_add(self.optimizer.global_step, self.optimizer.global_step_increase_tensor)
+                )
 
             # unscaling loss for grad accum
             loss = loss * self.accum_steps
@@ -240,8 +249,9 @@ class TrainOneStepWrapper(nn.Cell):
         unscaled_grads = self.scaler.unscale(grads)
 
         finite = self.all_finite(unscaled_grads)
-        finite = ops.equal(self.all_finite_reducer(finite.to(ms.int32)),
-                           self.all_finite_reducer(ops.ones((), ms.int32))).to(ms.bool_)
+        finite = ops.equal(
+            self.all_finite_reducer(finite.to(ms.int32)), self.all_finite_reducer(ops.ones((), ms.int32))
+        ).to(ms.bool_)
         finite = ops.depend(finite, self.scaler.adjust(finite)).to(ms.bool_)
 
         if not self.drop_overflow_step:

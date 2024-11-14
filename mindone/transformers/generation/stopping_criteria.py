@@ -1,18 +1,14 @@
 import time
-import warnings
 from abc import ABC
 from collections import OrderedDict
-from copy import deepcopy
-from typing import Dict, List, Optional, Tuple, Union
+from typing import List, Optional, Union
 
 import numpy as np
+from transformers.utils import add_start_docstrings, logging
 
 import mindspore as ms
 import mindspore.numpy as mnp
 from mindspore import ops
-
-from transformers.utils import add_start_docstrings, logging
-
 
 logger = logging.get_logger(__name__)
 # We maintain a module-level cache of the embedding vectors for the stop string criterion
@@ -72,7 +68,9 @@ class MaxLengthCriteria(StoppingCriteria):
         self.max_position_embeddings = max_position_embeddings
 
     @add_start_docstrings(STOPPING_CRITERIA_INPUTS_DOCSTRING)
-    def __call__(self, input_ids: Union[ms.Tensor, np.ndarray], scores: Union[ms.Tensor, np.ndarray], **kwargs) -> Union[ms.Tensor, np.ndarray]:
+    def __call__(
+        self, input_ids: Union[ms.Tensor, np.ndarray], scores: Union[ms.Tensor, np.ndarray], **kwargs
+    ) -> Union[ms.Tensor, np.ndarray]:
         cur_len = input_ids.shape[-1]
         is_done = cur_len >= self.max_length
         if self.max_position_embeddings is not None and not is_done and cur_len >= self.max_position_embeddings:
@@ -108,7 +106,9 @@ class MaxTimeCriteria(StoppingCriteria):
         self.initial_timestamp = time.time() if initial_timestamp is None else initial_timestamp
 
     @add_start_docstrings(STOPPING_CRITERIA_INPUTS_DOCSTRING)
-    def __call__(self, input_ids: Union[ms.Tensor, np.ndarray], scores: Union[ms.Tensor, np.ndarray], **kwargs) -> Union[ms.Tensor, np.ndarray]:
+    def __call__(
+        self, input_ids: Union[ms.Tensor, np.ndarray], scores: Union[ms.Tensor, np.ndarray], **kwargs
+    ) -> Union[ms.Tensor, np.ndarray]:
         is_done = time.time() - self.initial_timestamp > self.max_time
 
         if isinstance(input_ids, ms.Tensor):
@@ -130,7 +130,6 @@ class EosTokenCriteria(StoppingCriteria):
     """
 
     def __init__(self, eos_token_id: Union[int, List[int], ms.Tensor]):
-
         # to list
         if not isinstance(eos_token_id, ms.Tensor):
             if isinstance(eos_token_id, int):
@@ -143,7 +142,9 @@ class EosTokenCriteria(StoppingCriteria):
         self.eos_token_id = eos_token_id
 
     @add_start_docstrings(STOPPING_CRITERIA_INPUTS_DOCSTRING)
-    def __call__(self, input_ids: Union[ms.Tensor, np.ndarray], scores: Union[ms.Tensor, np.ndarray], **kwargs) -> Union[ms.Tensor, np.ndarray]:
+    def __call__(
+        self, input_ids: Union[ms.Tensor, np.ndarray], scores: Union[ms.Tensor, np.ndarray], **kwargs
+    ) -> Union[ms.Tensor, np.ndarray]:
         if isinstance(input_ids, ms.Tensor):
             is_done = mnp.isin(input_ids[:, -1], self.eos_token_id)
         elif isinstance(input_ids, np.ndarray):
@@ -156,7 +157,9 @@ class EosTokenCriteria(StoppingCriteria):
 
 class StoppingCriteriaList(list):
     @add_start_docstrings(STOPPING_CRITERIA_INPUTS_DOCSTRING)
-    def __call__(self, input_ids: Union[ms.Tensor, np.ndarray], scores: Union[ms.Tensor, np.ndarray], **kwargs) -> Union[ms.Tensor, np.ndarray]:
+    def __call__(
+        self, input_ids: Union[ms.Tensor, np.ndarray], scores: Union[ms.Tensor, np.ndarray], **kwargs
+    ) -> Union[ms.Tensor, np.ndarray]:
         if isinstance(input_ids, ms.Tensor):
             is_done = ops.full((input_ids.shape[0],), False, dtype=ms.bool_)
             for criteria in self:

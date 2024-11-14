@@ -1,30 +1,20 @@
-import contextlib
-import io
 import json
 import math
 import os
 import warnings
-from dataclasses import asdict, dataclass, field, fields
-from datetime import timedelta
+from dataclasses import dataclass, field
 from enum import Enum
-from pathlib import Path
-from typing import Any, Dict, List, Optional, Union
+from typing import List, Optional, Union
+
+from transformers import is_safetensors_available, logging
+from transformers.trainer_utils import EvaluationStrategy, HubStrategy, IntervalStrategy, SchedulerType
+from transformers.utils.generic import ExplicitEnum, cached_property
 
 import mindspore as ms
-from mindspore.communication.management import get_rank, get_group_size
+from mindspore.communication.management import get_group_size, get_rank
 
-from .trainer_utils import (
-    IntervalStrategy,
-    EvaluationStrategy,
-    SchedulerType,
-    HubStrategy
-)
 from .debug_utils import DebugOption
 from .mindspore_adapter.utils import _is_parallel
-from .utils.generic import ExplicitEnum, cached_property
-
-from transformers import logging, is_safetensors_available
-
 
 logger = logging.get_logger(__name__)
 log_levels = logging.get_log_levels_dict().copy()
@@ -87,7 +77,8 @@ def _convert_str_dict(passed_value: dict):
     return passed_value
 
 
-# TODO: `TrainingArguments` users rely on it being fully mutable. In the future see if we can narrow this to a few keys: https://github.com/huggingface/transformers/pull/25903
+# TODO: `TrainingArguments` users rely on it being fully mutable. In the future see if we can narrow this to a
+#  few keys: https://github.com/huggingface/transformers/pull/25903
 @dataclass
 class TrainingArguments:
     """
@@ -647,9 +638,7 @@ class TrainingArguments:
     )
     save_safetensors: Optional[bool] = field(
         default=True,
-        metadata={
-            "help": "Use safetensors saving and loading for state dicts."
-        },
+        metadata={"help": "Use safetensors saving and loading for state dicts."},
     )
     save_on_each_node: bool = field(
         default=False,
@@ -674,7 +663,8 @@ class TrainingArguments:
     restore_callback_states_from_checkpoint: bool = field(
         default=False,
         metadata={
-            "help": "Whether to restore the callback states from the checkpoint. If `True`, will override callbacks passed to the `Trainer` if they exist in the checkpoint."
+            "help": "Whether to restore the callback states from the checkpoint. If `True`, will override callbacks "
+            "passed to the `Trainer` if they exist in the checkpoint."
         },
     )
     use_cpu: bool = field(
@@ -685,9 +675,7 @@ class TrainingArguments:
     )
     seed: int = field(default=42, metadata={"help": "Random seed that will be set at the beginning of training."})
     data_seed: Optional[int] = field(default=None, metadata={"help": "Random seed to be used with data samplers."})
-    jit_mode: bool = field(
-        default=False, metadata={"help": "Whether or not to use MindSpore jit trace"}
-    )
+    jit_mode: bool = field(default=False, metadata={"help": "Whether or not to use MindSpore jit trace"})
     bf16: bool = field(
         default=False,
         metadata={
@@ -836,11 +824,7 @@ class TrainingArguments:
     optim_args: Optional[str] = field(default=None, metadata={"help": "Optional arguments to supply to optimizer."})
     zero_stage: Optional[int] = field(
         default=None,
-        metadata={
-            "help": (
-                "Enable ZeRO optimizer parallelism, select from [1, 2]"
-            )
-        },
+        metadata={"help": ("Enable ZeRO optimizer parallelism, select from [1, 2]")},
     )
     adafactor: bool = field(default=False, metadata={"help": "Whether or not to replace AdamW by Adafactor."})
     group_by_length: bool = field(
@@ -887,7 +871,9 @@ class TrainingArguments:
     dataloader_persistent_workers: bool = field(
         default=False,
         metadata={
-            "help": "If True, the data loader will not shut down the worker processes after a dataset has been consumed once. This allows to maintain the workers Dataset instances alive. Can potentially speed up training, but will increase RAM usage."
+            "help": "If True, the data loader will not shut down the worker processes after a dataset has been consumed once. "
+            "This allows to maintain the workers Dataset instances alive. Can potentially speed up training, "
+            "but will increase RAM usage."
         },
     )
     skip_memory_metrics: bool = field(
@@ -918,14 +904,13 @@ class TrainingArguments:
     )
     gradient_checkpointing: bool = field(
         default=False,
-        metadata={
-            "help": "If True, use gradient checkpointing to save memory at the expense of slower backward pass."
-        },
+        metadata={"help": "If True, use gradient checkpointing to save memory at the expense of slower backward pass."},
     )
     gradient_checkpointing_kwargs: Optional[Union[dict, str]] = field(
         default=None,
         metadata={
-            "help": "Gradient checkpointing key word arguments such as `use_reentrant`. Will be passed to `mindspore.nn.cell.recompute` through `model.gradient_checkpointing_enable`."
+            "help": "Gradient checkpointing key word arguments such as `use_reentrant`. Will be passed to "
+            "`mindspore.nn.cell.recompute` through `model.gradient_checkpointing_enable`."
         },
     )
     include_inputs_for_metrics: bool = field(
@@ -934,7 +919,8 @@ class TrainingArguments:
     eval_do_concat_batches: bool = field(
         default=True,
         metadata={
-            "help": "Whether to recursively concat inputs/losses/labels/predictions across batches. If `False`, will instead store them as lists, with each batch kept separate."
+            "help": "Whether to recursively concat inputs/losses/labels/predictions across batches. If `False`, "
+            "will instead store them as lists, with each batch kept separate."
         },
     )
     # Deprecated arguments
@@ -1004,14 +990,18 @@ class TrainingArguments:
     include_num_input_tokens_seen: Optional[bool] = field(
         default=False,
         metadata={
-            "help": "If set to `True`, will track the number of input tokens seen throughout training. (May be slower in distributed training)"
+            "help": "If set to `True`, will track the number of input tokens seen throughout training. "
+            "(May be slower in distributed training)"
         },
     )
 
     neftune_noise_alpha: Optional[float] = field(
         default=None,
         metadata={
-            "help": "Activates neftune noise embeddings into the model. NEFTune has been proven to drastically improve model performances for instrcution fine-tuning. Check out the original paper here: https://arxiv.org/abs/2310.05914 and the original code here: https://github.com/neelsjain/NEFTune. Only supported for `PreTrainedModel` and `PeftModel` classes."
+            "help": "Activates neftune noise embeddings into the model. NEFTune has been proven to drastically "
+            "improve model performances for instrcution fine-tuning. Check out the original paper here: "
+            "https://arxiv.org/abs/2310.05914 and the original code here: https://github.com/neelsjain/NEFTune. "
+            "Only supported for `PreTrainedModel` and `PeftModel` classes."
         },
     )
 
@@ -1036,12 +1026,12 @@ class TrainingArguments:
 
     def __post_init__(self):
         # Parse in args that could be `dict` sent in from the CLI as a string
-        for field in _VALID_DICT_FIELDS:
-            if not hasattr(self, field):
-                logger.warning(f"cambrian.transformers not support args: {field}, skip.")
+        for _field in _VALID_DICT_FIELDS:
+            if not hasattr(self, _field):
+                logger.warning(f"cambrian.transformers not support args: {_field}, skip.")
                 continue
 
-            passed_value = getattr(self, field)
+            passed_value = getattr(self, _field)
 
             # We only want to do this if the str starts with a bracket to indiciate a `dict`
             # else its likely a filename if supported
@@ -1049,7 +1039,7 @@ class TrainingArguments:
                 loaded_dict = json.loads(passed_value)
                 # Convert str values to types if applicable
                 loaded_dict = _convert_str_dict(loaded_dict)
-                setattr(self, field, loaded_dict)
+                setattr(self, _field, loaded_dict)
 
         # expand paths, if not os.makedirs("~/bar") will make directory
         # in the current directory instead of the actual home
@@ -1185,19 +1175,14 @@ class TrainingArguments:
         if self.zero_stage is not None:
             if self.zero_stage not in [1, 2]:
                 raise NotImplementedError
-            zero_stage_2_optim = {
-                1: OptimizerNames.ADAMW_ZERO1_MINDSPORE,
-                2: OptimizerNames.ADAMW_ZERO2_MINDSPORE
-            }
+            zero_stage_2_optim = {1: OptimizerNames.ADAMW_ZERO1_MINDSPORE, 2: OptimizerNames.ADAMW_ZERO2_MINDSPORE}
             if self.optim in [
                 OptimizerNames.ADAMW_MINDSPORE,
                 OptimizerNames.ADAMW_ZERO1_MINDSPORE,
-                OptimizerNames.ADAMW_ZERO2_MINDSPORE
+                OptimizerNames.ADAMW_ZERO2_MINDSPORE,
             ]:
                 optim = zero_stage_2_optim[self.zero_stage]
-                warnings.warn(
-                    f"`--zero_stage` is {self.zero_stage}, replace {self.optim} with {optim}."
-                )
+                warnings.warn(f"`--zero_stage` is {self.zero_stage}, replace {self.optim} with {optim}.")
                 self.optim = optim
 
         if self.framework == "mindspore" and self.tf32 is not None:
@@ -1374,9 +1359,7 @@ class TrainingArguments:
         """
         Get number of steps used for a linear warmup.
         """
-        warmup_steps = (
-            self.warmup_steps if self.warmup_steps > 0 else math.ceil(num_training_steps * self.warmup_ratio)
-        )
+        warmup_steps = self.warmup_steps if self.warmup_steps > 0 else math.ceil(num_training_steps * self.warmup_ratio)
         return warmup_steps
 
 

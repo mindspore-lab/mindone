@@ -1,18 +1,12 @@
-import copy
-import importlib.metadata
-import json
-import os
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
-
-import mindspore as ms
-from mindspore import nn, ops
-
 from transformers.configuration_utils import PretrainedConfig
 from transformers.utils import logging
 
+import mindspore as ms
+from mindspore import ops
 
 logger = logging.get_logger(__name__)
 
@@ -20,9 +14,7 @@ logger = logging.get_logger(__name__)
 def init_static_cache(config: PretrainedConfig, max_batch_size: int, max_cache_len: int, dtype=None):
     max_cache_len = config.max_position_embeddings if max_cache_len is None else max_cache_len
     # Some model define a custom `head_dim` != config.hidden_size // config.num_attention_heads
-    head_dim = (
-        config.head_dim if hasattr(config, "head_dim") else config.hidden_size // config.num_attention_heads
-    )
+    head_dim = config.head_dim if hasattr(config, "head_dim") else config.hidden_size // config.num_attention_heads
 
     dtype = dtype if dtype is not None else ms.float32
     num_key_value_heads = (
@@ -41,13 +33,12 @@ def init_static_cache(config: PretrainedConfig, max_batch_size: int, max_cache_l
     return key_value_cache
 
 
-
 # Notes: Only return the updated value, do not modifying the original `past_key_value` in-place !
 def update(
-        past_key_value: Tuple[ms.Tensor, ms.Tensor],
-        key_states: ms.Tensor,
-        value_states: ms.Tensor,
-        cache_position: Optional[ms.Tensor] = None,
+    past_key_value: Tuple[ms.Tensor, ms.Tensor],
+    key_states: ms.Tensor,
+    value_states: ms.Tensor,
+    cache_position: Optional[ms.Tensor] = None,
 ) -> Tuple[ms.Tensor, ms.Tensor]:
     """
     Notes: Only return the updated value, do not modifying the original `past_key_value` in-place !
@@ -107,8 +98,8 @@ def reset(past_key_values):
     """Resets the cache values while preserving the objects"""
     for layer_idx in range(len(past_key_values)):
         # In-place ops prevent breaking the static address
-        past_key_values[layer_idx][0] = ops.zeros_like(past_key_values[layer_idx][0])   # key
-        past_key_values[layer_idx][1] = ops.zeros_like(past_key_values[layer_idx][1])   # value
+        past_key_values[layer_idx][0] = ops.zeros_like(past_key_values[layer_idx][0])  # key
+        past_key_values[layer_idx][1] = ops.zeros_like(past_key_values[layer_idx][1])  # value
 
     return past_key_values
 
@@ -218,8 +209,16 @@ class StaticCache(Cache):
         for _layer_index in range(config.num_hidden_layers):
             # Note: `mark_static_address` is used to tag the cache as an fixed data pointer, preventing cuda graph
             # breaks when updating the cache.
-            new_layer_key_cache = ms.Parameter(ms.Tensor(np.zeros(cache_shape), dtype=self.dtype), name=f"key_cache_{_layer_index}", requires_grad=False)
-            new_layer_value_cache = ms.Parameter(ms.Tensor(np.zeros(cache_shape), dtype=self.dtype), name=f"value_cache_{_layer_index}", requires_grad=False)
+            new_layer_key_cache = ms.Parameter(
+                ms.Tensor(np.zeros(cache_shape), dtype=self.dtype),
+                name=f"key_cache_{_layer_index}",
+                requires_grad=False,
+            )
+            new_layer_value_cache = ms.Parameter(
+                ms.Tensor(np.zeros(cache_shape), dtype=self.dtype),
+                name=f"value_cache_{_layer_index}",
+                requires_grad=False,
+            )
             key_cache.append(new_layer_key_cache)
             value_cache.append(new_layer_value_cache)
 
@@ -278,5 +277,5 @@ class StaticCache(Cache):
         """Resets the cache values while preserving the objects"""
         for layer_idx in range(len(self.key_cache)):
             # In-place ops prevent breaking the static address
-            ops.assign(self.key_cache[layer_idx], ms.Tensor(0.))
-            ops.assign(self.value_cache[layer_idx], ms.Tensor(0.))
+            ops.assign(self.key_cache[layer_idx], ms.Tensor(0.0))
+            ops.assign(self.value_cache[layer_idx], ms.Tensor(0.0))

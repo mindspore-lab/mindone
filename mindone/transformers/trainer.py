@@ -1,87 +1,65 @@
-import contextlib
-import copy
 import functools
-import glob
-import importlib.metadata
 import inspect
 import math
 import os
-import random
 import re
 import shutil
 import sys
-import tempfile
 import time
 import warnings
-
-import mindspore.dataset
-import numpy as np
 from collections.abc import Mapping
-from packaging import version
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Callable, Iterable, Dict, List, Optional, Tuple, Union, NamedTuple
+from typing import TYPE_CHECKING, Any, Callable, Dict, Iterable, List, NamedTuple, Optional, Tuple, Union
+
+import numpy as np
 from ezcolorlog import root_logger as logger
-
-import mindspore as ms
-from mindspore import nn, ops, Tensor
-from mindspore.communication.management import get_group_size
-
+from packaging import version
 from transformers import PreTrainedTokenizerBase
-from transformers.utils import logging, SAFE_WEIGHTS_NAME, WEIGHTS_NAME
+from transformers.feature_extraction_sequence_utils import SequenceFeatureExtractor
 from transformers.integrations import get_reporting_integration_callbacks
 from transformers.models.auto.modeling_auto import MODEL_FOR_CAUSAL_LM_MAPPING_NAMES
-
-from ..safetensors.mindspore import save_file
-from .mindspore_adapter.utils import _is_parallel
-from .mindspore_adapter import (
-    auto_mixed_precision,
-    Sampler,
-    RandomSampler
+from transformers.trainer_callback import (
+    CallbackHandler,
+    DefaultFlowCallback,
+    ExportableState,
+    PrinterCallback,
+    ProgressCallback,
+    TrainerCallback,
+    TrainerControl,
+    TrainerState,
 )
-
-from .modeling_utils import MSPreTrainedModel as PreTrainedModel
-from .trainer_ms_utils import (
-    get_model_param_count,
-    _get_learning_rate,
-    TrainOneStepWrapper,
-    LengthGroupedSampler
-)
-from .training_args import TrainingArguments, OptimizerNames
-from .trainer_utils import (
+from transformers.trainer_utils import (
     EvalPrediction,
     RemoveColumnsCollator,
-    enable_full_determinism,
-    set_seed,
+    get_last_checkpoint,
     has_length,
     number_of_arguments,
     speed_metrics,
-    get_last_checkpoint
 )
-from .trainer_callback import (
-    TrainerState,
-    TrainerCallback,
-    CallbackHandler,
-    DefaultFlowCallback,
-    ProgressCallback,
-    PrinterCallback,
-    TrainerControl,
-    ExportableState
-)
-from .data.data_collator import (
-    DataCollator,
-    DataCollatorWithPadding,
-    default_data_collator
-)
-from .optimization import get_scheduler
-from .feature_extraction_sequence_utils import SequenceFeatureExtractor
-from .trainer_ms_utils import LabelSmoother, get_parameter_names
-from .utils import find_labels, can_return_loss, is_datasets_available
-from .mindspore_utils import ALL_LAYERNORM_LAYERS
+from transformers.utils import SAFE_WEIGHTS_NAME, WEIGHTS_NAME, is_datasets_available, logging
+
+import mindspore as ms
+from mindspore import Tensor, nn, ops
+from mindspore.communication.management import get_group_size
+
+from ..safetensors.mindspore import save_file
+from .data.data_collator import DataCollator, DataCollatorWithPadding, default_data_collator
 from .debug_utils import DebugOption
+from .mindspore_adapter import RandomSampler, Sampler, TrainOneStepWrapper, auto_mixed_precision
+from .mindspore_adapter.utils import _is_parallel
+from .mindspore_utils import ALL_LAYERNORM_LAYERS
+from .modeling_utils import MSPreTrainedModel as PreTrainedModel
+from .optimization import get_scheduler
+from .trainer_ms_utils import LabelSmoother, LengthGroupedSampler, get_model_param_count, get_parameter_names
+from .trainer_utils import enable_full_determinism, set_seed
+from .training_args import OptimizerNames, TrainingArguments
+from .utils import can_return_loss, find_labels
 
+if TYPE_CHECKING:
+    import optuna
 
-if is_datasets_available():
-    import datasets
+    if is_datasets_available():
+        import datasets
 
 
 DEFAULT_CALLBACKS = [DefaultFlowCallback]
@@ -111,22 +89,21 @@ SCALER_NAME = "scaler.ckpt"
 
 
 class Trainer:
-
     from .trainer_ms_utils import save_state
 
     def __init__(
-            self,
-            model: Union[PreTrainedModel, nn.Cell] = None,
-            args: TrainingArguments = None,
-            data_collator: Optional[DataCollator] = None,
-            train_dataset: Optional[Iterable] = None,
-            eval_dataset: Optional[Iterable] = None,
-            tokenizer: Optional[PreTrainedTokenizerBase] = None,
-            model_init: Optional[Callable[[], PreTrainedModel]] = None,
-            compute_metrics: Optional[Callable[[EvalPrediction], Dict]] = None,
-            callbacks: Optional[List[TrainerCallback]] = None,
-            optimizers: Tuple[nn.Optimizer, nn.learning_rate_schedule.LearningRateSchedule] = (None, None),
-            preprocess_logits_for_metrics: Optional[Callable[[Tensor, Tensor], Tensor]] = None,
+        self,
+        model: Union[PreTrainedModel, nn.Cell] = None,
+        args: TrainingArguments = None,
+        data_collator: Optional[DataCollator] = None,
+        train_dataset: Optional[Iterable] = None,
+        eval_dataset: Optional[Iterable] = None,
+        tokenizer: Optional[PreTrainedTokenizerBase] = None,
+        model_init: Optional[Callable[[], PreTrainedModel]] = None,
+        compute_metrics: Optional[Callable[[EvalPrediction], Dict]] = None,
+        callbacks: Optional[List[TrainerCallback]] = None,
+        optimizers: Tuple[nn.Optimizer, nn.learning_rate_schedule.LearningRateSchedule] = (None, None),
+        preprocess_logits_for_metrics: Optional[Callable[[Tensor, Tensor], Tensor]] = None,
     ):
         if args is None:
             output_dir = "tmp_trainer"
@@ -181,7 +158,7 @@ class Trainer:
             model, "_hf_peft_config_loaded", False
         )
         _quantization_method_supports_training = (
-                getattr(model, "hf_quantizer", None) is not None and model.hf_quantizer.is_trainable
+            getattr(model, "hf_quantizer", None) is not None and model.hf_quantizer.is_trainable
         )
         if _is_quantized_and_base_model or _quantization_method_supports_training:
             raise NotImplementedError
@@ -189,7 +166,8 @@ class Trainer:
         # Filter out quantized + compiled models
         if _is_quantized_and_base_model and hasattr(model, "_orig_mod"):
             raise ValueError(
-                "You cannot fine-tune quantized model with `ms.jit()` or `ms.GRAPH_MODE` make sure to pass a non-compiled model when fine-tuning a quantized model with PEFT"
+                "You cannot fine-tune quantized model with `ms.jit()` or `ms.GRAPH_MODE` make sure to pass a "
+                "non-compiled model when fine-tuning a quantized model with PEFT"
             )
 
         # At this stage the model is already loaded
@@ -209,7 +187,7 @@ class Trainer:
         default_collator = (
             DataCollatorWithPadding(tokenizer)
             if tokenizer is not None and isinstance(tokenizer, (PreTrainedTokenizerBase, SequenceFeatureExtractor))
-            else lambda features, batch_info: default_data_collator(features, return_tensors='np')
+            else lambda features, batch_info: default_data_collator(features, return_tensors="np")
         )
         self.data_collator = data_collator if data_collator is not None else default_collator
         self.train_dataset = train_dataset
@@ -258,10 +236,7 @@ class Trainer:
                 "The number of steps needs to be known in advance for the learning rate scheduler."
             )
 
-        if (
-                train_dataset is not None
-                and args.group_by_length
-        ):
+        if train_dataset is not None and args.group_by_length:
             raise NotImplementedError
 
         self._signature_columns = None
@@ -439,7 +414,9 @@ class Trainer:
                 },
                 {
                     "params": [
-                        p for n, p in opt_model.parameters_and_names() if (n not in decay_parameters and p.requires_grad)
+                        p
+                        for n, p in opt_model.parameters_and_names()
+                        if (n not in decay_parameters and p.requires_grad)
                     ],
                     "weight_decay": 0.0,
                 },
@@ -476,7 +453,7 @@ class Trainer:
 
     @staticmethod
     def get_optimizer_cls_and_kwargs(
-            args: TrainingArguments, model: Optional[PreTrainedModel] = None
+        args: TrainingArguments, model: Optional[PreTrainedModel] = None
     ) -> Tuple[Any, Any]:
         """
         Returns the optimizer class and optimizer parameters based on the training arguments.
@@ -506,13 +483,16 @@ class Trainer:
             optimizer_kwargs.update({"scale_parameter": False, "relative_step": False})
         elif args.optim == OptimizerNames.ADAMW_MINDSPORE:
             from .mindspore_adapter.adamw import AdamWeightDecay
+
             optimizer_cls = AdamWeightDecay
             optimizer_kwargs.update(adam_kwargs)
             optimizer_kwargs.update({"enable_fuse": getattr(args, "adamw_enable_fuse", True)})
         elif args.optim in (OptimizerNames.ADAMW_ZERO1_MINDSPORE, OptimizerNames.ADAMW_ZERO2_MINDSPORE):
             from .mindspore_adapter.adamw_zero import AdamWeightDecayZeRO1, AdamWeightDecayZeRO2
-            optimizer_cls = \
+
+            optimizer_cls = (
                 AdamWeightDecayZeRO1 if args.optim == OptimizerNames.ADAMW_ZERO1_MINDSPORE else AdamWeightDecayZeRO2
+            )
             optimizer_kwargs.update(adam_kwargs)
             optimizer_kwargs.update({"enable_fuse": getattr(args, "adamw_enable_fuse", True)})
             optimizer_kwargs.update({"shard_size": getattr(args, "adamw_zero_shard_size", None)})
@@ -566,11 +546,14 @@ class Trainer:
         train_dataset = self.train_dataset
         data_collator = self.data_collator
         if is_datasets_available() and isinstance(train_dataset, datasets.Dataset):
+
             class MSDataset:
                 def __init__(self, dataset: datasets.Dataset):
                     self.dataset = dataset
+
                 def __getitem__(self, item):
                     return self.dataset[int(item)]
+
                 def __len__(self):
                     return len(self.dataset)
 
@@ -595,28 +578,28 @@ class Trainer:
             "python_multiprocessing": False,
             "num_shards": getattr(self.args, "rank_size", 1),
             "shard_id": getattr(self.args, "rank", 0),
-            "column_names": "item"
+            "column_names": "item",
         }
 
         ds_batch_params = {
             "num_parallel_workers": self.args.dataloader_num_workers,  # num workers
-            "batch_size": self.args.per_device_train_batch_size,       # per device batch size
-            "per_batch_map": data_collator,                            # collate function
-            "drop_remainder": self.args.dataloader_drop_last,          # drop last
+            "batch_size": self.args.per_device_train_batch_size,  # per device batch size
+            "per_batch_map": data_collator,  # collate function
+            "drop_remainder": self.args.dataloader_drop_last,  # drop last
         }
-        ds_repeat_params = {
-            "count": 1  # self.args.num_train_epochs            # num_train_epochs, loop at train func
-        }
+        ds_repeat_params = {"count": 1}  # self.args.num_train_epochs            # num_train_epochs, loop at train func
 
         loader = ms.dataset.GeneratorDataset(train_dataset, **ds_init_params)
         loader = loader.batch(**ds_batch_params)
         loader = loader.repeat(**ds_repeat_params)
 
-        logger.info(f"create dataloader success, \n"
-                    f"\tshard_id/num_shards: {ds_init_params['shard_id']}/{ds_init_params['num_shards']}\n"
-                    f"\tnum_parallel_workers: {ds_init_params['num_parallel_workers']}\n"
-                    f"\tpython_multiprocessing: {ds_init_params['python_multiprocessing']}\n"
-                    f"\tper_batch_size: {ds_batch_params['batch_size']}")
+        logger.info(
+            f"create dataloader success, \n"
+            f"\tshard_id/num_shards: {ds_init_params['shard_id']}/{ds_init_params['num_shards']}\n"
+            f"\tnum_parallel_workers: {ds_init_params['num_parallel_workers']}\n"
+            f"\tpython_multiprocessing: {ds_init_params['python_multiprocessing']}\n"
+            f"\tper_batch_size: {ds_batch_params['batch_size']}"
+        )
 
         return loader
 
@@ -735,6 +718,7 @@ class Trainer:
 
             model_ = LabelSmootherModel(model, self.label_smoother, input_labels_index)
         else:
+
             class ReturnLoss(nn.Cell):
                 def __init__(self, model):
                     super(ReturnLoss, self).__init__(auto_prefix=False)
@@ -758,7 +742,7 @@ class Trainer:
             scaler_config={"scale_value": 1024},
             gradient_accumulation_steps=self.args.gradient_accumulation_steps,
             clip_grad="global_norm",
-            clip_value=self.args.max_grad_norm
+            clip_value=self.args.max_grad_norm,
         )
 
         return model, train_model
@@ -814,12 +798,12 @@ class Trainer:
         self._train_batch_size = self.args.train_batch_size
 
         # Model re-init
-        model_reloaded = False
+        # model_reloaded = False
         if self.model_init is not None:
             # Seed must be set before instantiating the model when using model_init.
             enable_full_determinism(self.args.seed) if self.args.full_determinism else set_seed(self.args.seed)
             self.model = self.call_model_init(trial)
-            model_reloaded = True
+            # model_reloaded = True
             # Reinitializes optimizer and scheduler
             self.optimizer, self.lr_scheduler = None, None
 
@@ -838,7 +822,9 @@ class Trainer:
                 if state.train_batch_size is not None:
                     self._train_batch_size = state.train_batch_size
 
-        inner_training_loop = functools.partial(self._inner_training_loop, batch_size=self._train_batch_size)  # TODO: level 3, Add find_executable_batch_size function
+        inner_training_loop = functools.partial(
+            self._inner_training_loop, batch_size=self._train_batch_size
+        )  # TODO: level 3, Add find_executable_batch_size function
         if args.push_to_hub:
             raise NotImplementedError
         else:
@@ -907,9 +893,7 @@ class Trainer:
 
         if DebugOption.UNDERFLOW_OVERFLOW in self.args.debug:
             if self.args.n_gpu > 1:
-                raise ValueError(
-                    "Currently --debug underflow_overflow is not supported under DP."
-                )
+                raise ValueError("Currently --debug underflow_overflow is not supported under DP.")
             else:
                 raise NotImplementedError
 
@@ -1092,10 +1076,7 @@ class Trainer:
                 # TODO: log by callback_fn
                 logger.info(f"Epoch: {epoch}, Step: {step}, tr_loss: {tr_loss_step}, overflow: {overflow}")
 
-                if (
-                    args.logging_nan_inf_filter
-                    and (np.isnan(tr_loss_step) or np.isinf(tr_loss_step))
-                ):
+                if args.logging_nan_inf_filter and (np.isnan(tr_loss_step) or np.isinf(tr_loss_step)):
                     # if loss is nan or inf simply add the average of previous logged losses
                     tr_loss += tr_loss / (1 + self.state.global_step - self._globalstep_last_logged)
                     logger.warning("tr_loss exist nan/inf, replace to average of previous")
@@ -1199,7 +1180,6 @@ class Trainer:
         return TrainOutput(self.state.global_step, train_loss, metrics)
 
     def _load_from_checkpoint(self, resume_from_checkpoint, model=None):
-
         if model is None:
             model = self.model
 
@@ -1214,7 +1194,9 @@ class Trainer:
             if len(u) > 0:
                 logger.info(f"WARNING: unexpected keys num: {len(u)}, names (top 100): {u[:10]}")
 
-            logger.info(f"load checkpoint from `{resume_from_checkpoint}` success, time cost: {time.time() - s_time:.2f}s")
+            logger.info(
+                f"load checkpoint from `{resume_from_checkpoint}` success, time cost: {time.time() - s_time:.2f}s"
+            )
         else:
             logger.warning(f"resume_from_checkpoint is not file: `{resume_from_checkpoint}`")
 
@@ -1230,7 +1212,7 @@ class Trainer:
 
         if os.path.isfile(OPTIMIZER_PATH):
             optimizer_state = ms.load_checkpoint(OPTIMIZER_PATH)
-            optimizer_state = optimizer_state['optimizer_state']
+            optimizer_state = optimizer_state["optimizer_state"]
             ms.load_param_into_net(self.optimizer, optimizer_state)
             logger.info(f"Optimizer state successfully loaded from {OPTIMIZER_PATH}")
         else:
@@ -1264,7 +1246,6 @@ class Trainer:
 
     def _maybe_log_save_evaluate(self, tr_loss, grad_norm, model, trial, epoch, ignore_keys_for_eval):
         if self.control.should_log and self.state.global_step > self._globalstep_last_logged:
-
             logs: Dict[str, float] = {}
 
             # FIXME: consider parallel reduce
@@ -1432,10 +1413,11 @@ class Trainer:
         model_to_inspect = self.model
         signature = inspect.signature(model_to_inspect.construct)
         for n, p in signature.parameters.items():
-            assert p.kind in (inspect.Parameter.POSITIONAL_OR_KEYWORD,
-                              inspect.Parameter.POSITIONAL_ONLY,
-                              inspect.Parameter.VAR_POSITIONAL), \
-                f"construct func input not position args, check in `class {model_to_inspect.__class__.__name__}`"
+            assert p.kind in (
+                inspect.Parameter.POSITIONAL_OR_KEYWORD,
+                inspect.Parameter.POSITIONAL_ONLY,
+                inspect.Parameter.VAR_POSITIONAL,
+            ), f"construct func input not position args, check in `class {model_to_inspect.__class__.__name__}`"
         _signature_columns = list(signature.parameters.keys())
         _signature_columns = _signature_columns[1:] if _signature_columns[0] == self else _signature_columns
 
@@ -1456,7 +1438,9 @@ class Trainer:
             else:
                 tuple_inputs += (v,)
         if len(dict_inputs) > 0:
-            logger.warning(f"input args {dict_inputs.keys()} not found in {self.model.__class__.__name__}, ignore them.")
+            logger.warning(
+                f"input args {dict_inputs.keys()} not found in {self.model.__class__.__name__}, ignore them."
+            )
 
         # 3. to tensor
         inputs = ()
@@ -1464,8 +1448,7 @@ class Trainer:
             if data is not None:
                 if hasattr(self.args, "input_dtype") and data.dtype in (np.float16, np.float32, np.float64):
                     data = ms.Tensor(data, dtype=self.args.input_dtype)
-                elif data.dtype in (np.uint8, np.uint16, np.uint32, np.uint64,
-                                    np.int8, np.int16, np.int32, np.int64):
+                elif data.dtype in (np.uint8, np.uint16, np.uint32, np.uint64, np.int8, np.int16, np.int32, np.int64):
                     data = ms.Tensor(data, dtype=ms.int32)
                 else:
                     data = ms.Tensor(data)
@@ -1587,15 +1570,11 @@ class Trainer:
             logger.info("Trainer.model is not a `PreTrainedModel`, only saving its state dict.")
 
             if self.args.save_safetensors:
-                save_file(
-                    state_dict, os.path.join(output_dir, SAFE_WEIGHTS_NAME), metadata={"format": "ms"}
-                )
+                save_file(state_dict, os.path.join(output_dir, SAFE_WEIGHTS_NAME), metadata={"format": "ms"})
             else:
                 ms.save_checkpoint(state_dict, os.path.join(output_dir, WEIGHTS_NAME))
         else:
-            self.model.save_pretrained(
-                output_dir, state_dict=state_dict, safe_serialization=self.args.save_safetensors
-            )
+            self.model.save_pretrained(output_dir, state_dict=state_dict, safe_serialization=self.args.save_safetensors)
 
         if self.tokenizer is not None:
             self.tokenizer.save_pretrained(output_dir)

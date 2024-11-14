@@ -1,8 +1,7 @@
 import numpy as np
-from typing import Optional, List
 
 import mindspore as ms
-from mindspore import nn, ops, Tensor
+from mindspore import nn, ops
 from mindspore.ops.operations.nn_ops import FlashAttentionScore as _FlashAttention
 
 DTYPE_FP16_MIN = float(np.finfo(np.float16).min)
@@ -15,7 +14,6 @@ def scaled_dot_product_attention(query, key, value, attn_mask=None, dtype=None):
         query, key, value = query.astype(dtype), key.astype(dtype), value.astype(dtype)
 
     if attn_mask is not None:
-
         if attn_mask.dtype == ms.bool_:
             attn_mask = attn_mask.to(ms.float32)
             attn_mask = attn_mask.masked_fill((1 - attn_mask).to(ms.bool_), DTYPE_FP16_MIN)
@@ -36,7 +34,6 @@ def scaled_dot_product_attention(query, key, value, attn_mask=None, dtype=None):
 
 
 class FlashAttention2(nn.Cell):
-
     def __init__(
         self,
         head_dim: int,
@@ -52,7 +49,7 @@ class FlashAttention2(nn.Cell):
         self.head_dim = head_dim
 
         self.flash_attention = _FlashAttention(
-            scale_value=head_dim ** -0.5,
+            scale_value=head_dim**-0.5,
             head_num=head_num,
             input_layout=input_layout,
             keep_prob=1 - attention_dropout,

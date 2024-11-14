@@ -1,15 +1,13 @@
 import numpy as np
 
 import mindspore as ms
-from mindspore import ParameterTuple, Parameter, Tensor, nn, ops, context
+from mindspore import Parameter, ParameterTuple, Tensor, context, nn, ops
 from mindspore.common.initializer import initializer
 from mindspore.communication.management import GlobalComm, get_group_size, get_rank
 from mindspore.ops import functional as F
-from mindspore.ops import operations as P
 
-from .utils import _is_parallel
 from .adamw import adamw_opt, fused_adam_weight_decay
-
+from .utils import _is_parallel
 
 split_params = ops.MultitypeFuncGraph("split_params")
 update_params_with_all_gather = ops.MultitypeFuncGraph("update_params_with_all_gather")
@@ -62,7 +60,6 @@ def _tensors_allreduce_and_split(degree, mean, all_reduce_op, shard_id, shard_si
 
 @reducescatter_and_split_op.register("Number", "Bool", "Function", "Function", "Number", "Tensor")
 def _tensors_reducescatter_and_split(degree, mean, reduce_scatter_op, all_reduce_op, shard_size, grad):
-
     if grad.shape[0] % shard_size == 0:
         # allreduce and split on world size
         grad = reduce_scatter_op(grad)
@@ -78,9 +75,16 @@ def _tensors_reducescatter_and_split(degree, mean, reduce_scatter_op, all_reduce
 
 class AdamWeightDecayZeRO1(nn.Optimizer):
     def __init__(
-            self,
-            params, learning_rate=1e-3, beta1=0.9, beta2=0.999, eps=1e-6, weight_decay=0.0, shard_size=None,
-            enable_fuse=True, momentum_dtype=ms.float32
+        self,
+        params,
+        learning_rate=1e-3,
+        beta1=0.9,
+        beta2=0.999,
+        eps=1e-6,
+        weight_decay=0.0,
+        shard_size=None,
+        enable_fuse=True,
+        momentum_dtype=ms.float32,
     ):
         super(AdamWeightDecayZeRO1, self).__init__(learning_rate, params, weight_decay)
 
@@ -95,7 +99,10 @@ class AdamWeightDecayZeRO1(nn.Optimizer):
             g_id = 0
             self.shard_id = self.rank
             self.shard_size = shard_size if _is_parallel() else 1
-            print(f"[WARNING] {self.__class__.__name__} shard_size is 1, will not shard optimizer parameter, recommended to use the `mindspore.nn.AdamWeightDecay`")
+            print(
+                f"[WARNING] {self.__class__.__name__} shard_size is 1, will not shard optimizer parameter, "
+                f"recommended to use the `mindspore.nn.AdamWeightDecay`"
+            )
 
         elif shard_size is None:
             comm_group = GlobalComm.WORLD_COMM_GROUP
@@ -138,7 +145,7 @@ class AdamWeightDecayZeRO1(nn.Optimizer):
             self.all_reduce_op = ops.AllReduce()
             self.mean = context.get_auto_parallel_context("gradients_mean")
             self.degree = context.get_auto_parallel_context("device_num")
-            self.degree = 1. / self.degree
+            self.degree = 1.0 / self.degree
 
         total_num = len(self.all_gather_ops)
         split_num = sum([1 for _op in self.all_gather_ops if isinstance(_op, ops.AllGather)])
@@ -153,12 +160,18 @@ class AdamWeightDecayZeRO1(nn.Optimizer):
             self.fused_opt = ops.AdamWeightDecay()
 
             if self.shard_size > 1:
-                self._split_parameters = self._param_init_op(self._parameters, prefix="adam_split_p", init="same", dtype=momentum_dtype)
+                self._split_parameters = self._param_init_op(
+                    self._parameters, prefix="adam_split_p", init="same", dtype=momentum_dtype
+                )
 
             if momentum_dtype == ms.float16:
-                print(f"[ERROR] {self.__class__.__name__}, momentum dtype fp16, may cause `sdma error` on MindSpore 2.3.0")
+                print(
+                    f"[ERROR] {self.__class__.__name__}, momentum dtype fp16, may cause `sdma error` on MindSpore 2.3.0"
+                )
         else:
-            print(f"[WARNING] {self.__class__.__name__}, custom optimizer, may cause `memory leakage` on MindSpore 2.3.0")
+            print(
+                f"[WARNING] {self.__class__.__name__}, custom optimizer, may cause `memory leakage` on MindSpore 2.3.0"
+            )
 
     def _init_all_gather_ops(self, params, group):
         op_list = []
@@ -186,7 +199,11 @@ class AdamWeightDecayZeRO1(nn.Optimizer):
                 s = tuple(s)
                 if init == "same":
                     new_np = p.asnumpy()
-                    split_shape = (self.shard_size, -1, *new_np.shape[1:])  # e.g. (6, 1000) -> (2, 3, 1000) -> (3, 1000)
+                    split_shape = (
+                        self.shard_size,
+                        -1,
+                        *new_np.shape[1:],
+                    )  # e.g. (6, 1000) -> (2, 3, 1000) -> (3, 1000)
                     new_np = np.reshape(new_np, split_shape)[self.shard_id]
                     new = Parameter(Tensor(new_np, dtype=dtype), name=prefix + "." + p.name)
                 else:
@@ -214,7 +231,6 @@ class AdamWeightDecayZeRO1(nn.Optimizer):
 
     @ms.jit
     def grad_reduce(self, grads):
-
         if self.is_parallel:
             mean, degree, shard_id, shard_size = self.mean, self.degree, self.shard_id, self.shard_size
 
@@ -227,17 +243,13 @@ class AdamWeightDecayZeRO1(nn.Optimizer):
 
     @ms.jit
     def grad_allreduce_(self, mean, degree, gradients):
-        gradients = ops.HyperMap()(
-            F.partial(allreduce_op, degree, mean, self.all_reduce_op),
-            gradients
-        )
+        gradients = ops.HyperMap()(F.partial(allreduce_op, degree, mean, self.all_reduce_op), gradients)
         return gradients
 
     @ms.jit
     def grad_allreduce_and_split(self, mean, degree, shard_id, shard_size, gradients):
         part_gradients = ops.HyperMap()(
-            F.partial(allreduce_and_split_op, degree, mean, self.all_reduce_op, shard_id, shard_size),
-            gradients
+            F.partial(allreduce_and_split_op, degree, mean, self.all_reduce_op, shard_id, shard_size), gradients
         )
         return part_gradients
 
@@ -310,23 +322,42 @@ class AdamWeightDecayZeRO1(nn.Optimizer):
             if self.is_group_lr:
                 success = self.hyper_map(
                     F.partial(fused_adam_weight_decay, self.fused_opt, self.beta1, self.beta2, self.eps),
-                    lr, weight_decay, self._split_parameters, self.moments1,
-                    self.moments2, gradients, self.decay_flags, self.optim_filter)
+                    lr,
+                    weight_decay,
+                    self._split_parameters,
+                    self.moments1,
+                    self.moments2,
+                    gradients,
+                    self.decay_flags,
+                    self.optim_filter,
+                )
             else:
                 success = self.hyper_map(
                     F.partial(fused_adam_weight_decay, self.fused_opt, self.beta1, self.beta2, self.eps, lr),
-                    weight_decay, self._split_parameters, self.moments1, self.moments2,
-                    gradients, self.decay_flags, self.optim_filter)
+                    weight_decay,
+                    self._split_parameters,
+                    self.moments1,
+                    self.moments2,
+                    gradients,
+                    self.decay_flags,
+                    self.optim_filter,
+                )
         else:
             success = self.hyper_map(
-                F.partial(fused_adam_weight_decay, self.fused_opt, self.beta1, self.beta2, self.eps, lr,
-                          weight_decay),
-                self._split_parameters, self.moments1, self.moments2,
-                gradients, self.decay_flags, self.optim_filter)
+                F.partial(fused_adam_weight_decay, self.fused_opt, self.beta1, self.beta2, self.eps, lr, weight_decay),
+                self._split_parameters,
+                self.moments1,
+                self.moments2,
+                gradients,
+                self.decay_flags,
+                self.optim_filter,
+            )
 
         success = ops.depend(
-            self.hyper_map(update_params_with_all_gather, self._parameters, self._split_parameters, self.all_gather_ops),
-            success
+            self.hyper_map(
+                update_params_with_all_gather, self._parameters, self._split_parameters, self.all_gather_ops
+            ),
+            success,
         )
 
         return success
@@ -343,31 +374,46 @@ class AdamWeightDecayZeRO1(nn.Optimizer):
             if self.is_group_lr:
                 success = self.hyper_map(
                     F.partial(fused_adam_weight_decay, self.fused_opt, self.beta1, self.beta2, self.eps),
-                    lr, weight_decay, self._parameters, self.moments1,
-                    self.moments2, gradients, self.decay_flags, self.optim_filter)
+                    lr,
+                    weight_decay,
+                    self._parameters,
+                    self.moments1,
+                    self.moments2,
+                    gradients,
+                    self.decay_flags,
+                    self.optim_filter,
+                )
             else:
                 success = self.hyper_map(
                     F.partial(fused_adam_weight_decay, self.fused_opt, self.beta1, self.beta2, self.eps, lr),
-                    weight_decay, self._parameters, self.moments1, self.moments2,
-                    gradients, self.decay_flags, self.optim_filter)
+                    weight_decay,
+                    self._parameters,
+                    self.moments1,
+                    self.moments2,
+                    gradients,
+                    self.decay_flags,
+                    self.optim_filter,
+                )
         else:
             success = self.hyper_map(
-                F.partial(fused_adam_weight_decay, self.fused_opt, self.beta1, self.beta2, self.eps, lr,
-                          weight_decay),
-                self._parameters, self.moments1, self.moments2,
-                gradients, self.decay_flags, self.optim_filter)
+                F.partial(fused_adam_weight_decay, self.fused_opt, self.beta1, self.beta2, self.eps, lr, weight_decay),
+                self._parameters,
+                self.moments1,
+                self.moments2,
+                gradients,
+                self.decay_flags,
+                self.optim_filter,
+            )
 
         return success
 
 
 class AdamWeightDecayZeRO2(AdamWeightDecayZeRO1):
-
     def __init__(self, *args, **kwargs):
         super(AdamWeightDecayZeRO2, self).__init__(*args, **kwargs)
         self.reduce_scatter_op = ops.ReduceScatter() if _is_parallel() else nn.Identity()
 
     def grad_reduce(self, grads):
-
         if self.is_parallel:
             mean, degree, shard_id, shard_size = self.mean, self.degree, self.shard_id, self.shard_size
 
@@ -384,6 +430,6 @@ class AdamWeightDecayZeRO2(AdamWeightDecayZeRO1):
     def grad_reducescatter_and_split(self, mean, degree, shard_id, shard_size, gradients):
         part_gradients = ops.HyperMap()(
             F.partial(reducescatter_and_split_op, degree, mean, self.reduce_scatter_op, self.all_reduce_op, shard_size),
-            gradients
+            gradients,
         )
         return part_gradients

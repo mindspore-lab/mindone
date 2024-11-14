@@ -1,9 +1,10 @@
+from typing import Generic, Iterator, Optional, Sized, TypeVar, Union
+
 import numpy as np
+
 import mindspore as ms
-from typing import Iterator, Iterable, Optional, Sequence, Tuple, List, TypeVar, Generic, Sized, Union
 
-
-T_co = TypeVar('T_co', covariant=True)
+T_co = TypeVar("T_co", covariant=True)
 
 
 class Sampler(Generic[T_co]):
@@ -81,20 +82,21 @@ class RandomSampler(Sampler[int]):
     data_source: Sized
     replacement: bool
 
-    def __init__(self, data_source: Sized, replacement: bool = False,
-                 num_samples: Optional[int] = None, generator=None) -> None:
+    def __init__(
+        self, data_source: Sized, replacement: bool = False, num_samples: Optional[int] = None, generator=None
+    ) -> None:
         self.data_source = data_source
         self.replacement = replacement
         self._num_samples = num_samples
         self.generator = generator
 
         if not isinstance(self.replacement, bool):
-            raise TypeError("replacement should be a boolean value, but got "
-                            "replacement={}".format(self.replacement))
+            raise TypeError("replacement should be a boolean value, but got " "replacement={}".format(self.replacement))
 
         if not isinstance(self.num_samples, int) or self.num_samples <= 0:
-            raise ValueError("num_samples should be a positive integer "
-                             "value, but got num_samples={}".format(self.num_samples))
+            raise ValueError(
+                "num_samples should be a positive integer " "value, but got num_samples={}".format(self.num_samples)
+            )
 
     @property
     def num_samples(self) -> int:
@@ -113,7 +115,7 @@ class RandomSampler(Sampler[int]):
         else:
             for _ in range(self.num_samples // n):
                 yield from np.random.permutation(n).tolist()
-            yield from np.random.permutation(n).tolist()[:self.num_samples % n]
+            yield from np.random.permutation(n).tolist()[: self.num_samples % n]
 
     def __len__(self) -> int:
         return self.num_samples
@@ -160,8 +162,7 @@ class TensorDataset(Dataset):
 
     def __getitem__(self, index):
         return tuple(
-            tensor[index] if isinstance(tensor, ms.Tensor) else ms.Tensor(tensor[index])
-            for tensor in self.tensors
+            tensor[index] if isinstance(tensor, ms.Tensor) else ms.Tensor(tensor[index]) for tensor in self.tensors
         )
 
     def __len__(self):

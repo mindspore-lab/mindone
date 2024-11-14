@@ -1,4 +1,4 @@
-from .utils.generic import ExplicitEnum
+from transformers.utils.generic import ExplicitEnum
 
 
 class DebugOption(ExplicitEnum):

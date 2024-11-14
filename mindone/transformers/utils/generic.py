@@ -1,11 +1,5 @@
 import inspect
 
-from transformers.utils.generic import (
-    ExplicitEnum,
-    PaddingStrategy,
-    cached_property
-)
-
 
 def can_return_loss(model_class):
     """

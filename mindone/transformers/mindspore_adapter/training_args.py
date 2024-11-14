@@ -3,29 +3,18 @@ from dataclasses import dataclass, field
 from typing import Optional
 
 import mindspore as ms
-from mindspore.communication.management import init, get_rank, get_group_size
+from mindspore.communication.management import get_group_size, get_rank, init
 
 
 @dataclass
 class MindSporeArguments:
     # for mindspore
 
-    mode: int = field(
-        default=ms.GRAPH_MODE,
-        metadata = {"help": "Graph/Pynative"}
-    )
+    mode: int = field(default=ms.GRAPH_MODE, metadata={"help": "Graph/Pynative"})
 
-    jit_level: Optional[str] = field(
-        default="O0",
-        metadata={
-            "help": ("jit level")
-        }
-    )
+    jit_level: Optional[str] = field(default="O0", metadata={"help": ("jit level")})
 
-    device_target: str = field(
-        default="Ascend",
-        metadata = {"help": "Ascend/GPU/CPU"}
-    )
+    device_target: str = field(default="Ascend", metadata={"help": "Ascend/GPU/CPU"})
 
     is_distribute: Optional[bool] = field(
         default=False,
@@ -39,14 +28,8 @@ class MindSporeArguments:
             ),
         },
     )
-    rank: int = field(
-        default=0,
-        metadata={"help": "rank id"}
-    )
-    rank_size: int = field(
-        default=1,
-        metadata={"help": "device num"}
-    )
+    rank: int = field(default=0, metadata={"help": "rank id"})
+    rank_size: int = field(default=1, metadata={"help": "device num"})
 
     enable_flash_attention: Optional[bool] = field(
         default=False,
@@ -59,37 +42,23 @@ class MindSporeArguments:
 
     adamw_enable_fuse: Optional[bool] = field(
         default=True,
-        metadata={
-            "help": (
-                "enable fuse op"
-            )
-        },
+        metadata={"help": ("enable fuse op")},
     )
     adamw_zero_shard_size: Optional[int] = field(
         default=None,
-        metadata={
-            "help": (
-                "setting zero parallelism shard size"
-            )
-        },
+        metadata={"help": ("setting zero parallelism shard size")},
     )
     max_device_memory: Optional[str] = field(
         default=None,
-        metadata={
-            "help": ("max device memory")
-        },
+        metadata={"help": ("max device memory")},
     )
 
     precision_mode: Optional[str] = field(
-        default="must_keep_origin_dtype",
-        metadata={
-            "help": ("global precision_mode")
-        }
+        default="must_keep_origin_dtype", metadata={"help": ("global precision_mode")}
     )
 
 
 def init_environment(training_args: MindSporeArguments):
-
     # FIXME, stream synchronize bug when jit_level is `O0` on MindSpore 2.3.0
     if training_args.mode == 0:
         if os.environ.get("MS_DEV_RUNTIME_CONF") is None:
@@ -123,7 +92,9 @@ def init_environment(training_args: MindSporeArguments):
         ms.set_context(max_device_memory=training_args.max_device_memory)
 
     if training_args.precision_mode is not None:
-        ms.set_context(ascend_config={"precision_mode": training_args.precision_mode},)
+        ms.set_context(
+            ascend_config={"precision_mode": training_args.precision_mode},
+        )
 
     if training_args.is_distribute:
         init()

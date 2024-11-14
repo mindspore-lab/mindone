@@ -5,7 +5,6 @@ from mindspore import Parameter, ParameterTuple, Tensor, nn, ops
 from mindspore.ops import functional as F
 from mindspore.ops import operations as P
 
-
 update_params = ops.MultitypeFuncGraph("update_params")
 adamw_opt = ops.MultitypeFuncGraph("adamw_opt")
 fused_adam_weight_decay = ops.MultitypeFuncGraph("fused_adam_weight_decay")
@@ -44,10 +43,12 @@ def _adamw_opt(beta1, beta2, eps, lr, weight_decay, param, m, v, gradient, decay
     return op_cast(next_param, F.dtype(param))
 
 
-@fused_adam_weight_decay.register("Function", "Tensor", "Tensor", "Tensor", "Tensor", "Tensor", "Tensor", "Tensor",
-                                   "Tensor", "Tensor", "Bool", "Bool")
-def _run_fused_adam_weight_decay_opt(opt, beta1, beta2, eps, lr, weight_decay, param, moment1, moment2, gradient,
-                                     decay_flags, optim_filter):
+@fused_adam_weight_decay.register(
+    "Function", "Tensor", "Tensor", "Tensor", "Tensor", "Tensor", "Tensor", "Tensor", "Tensor", "Tensor", "Bool", "Bool"
+)
+def _run_fused_adam_weight_decay_opt(
+    opt, beta1, beta2, eps, lr, weight_decay, param, moment1, moment2, gradient, decay_flags, optim_filter
+):
     """Apply FusedAdamWeightDecay optimizer to the weight parameter using Tensor."""
 
     beta1 = ops.cast(beta1, ms.float32)
@@ -74,7 +75,9 @@ def update_params(param, update):
 
 
 class AdamWeightDecay(nn.Optimizer):
-    def __init__(self, params, learning_rate=1e-3, beta1=0.9, beta2=0.999, eps=1e-6, weight_decay=0.0, enable_fuse=False):
+    def __init__(
+        self, params, learning_rate=1e-3, beta1=0.9, beta2=0.999, eps=1e-6, weight_decay=0.0, enable_fuse=False
+    ):
         super(AdamWeightDecay, self).__init__(learning_rate, params, weight_decay)
 
         print(
@@ -104,7 +107,9 @@ class AdamWeightDecay(nn.Optimizer):
             if param_dtype == ms.float16:
                 print(f"[ERROR] {self.__class__.__name__}, param dtype fp16, may cause `sdma error` on MindSpore 2.3.0")
         else:
-            print(f"[WARNING] {self.__class__.__name__}, custom optimizer, may cause `memory leakage` on MindSpore 2.3.0")
+            print(
+                f"[WARNING] {self.__class__.__name__}, custom optimizer, may cause `memory leakage` on MindSpore 2.3.0"
+            )
 
     def _param_init_op(self, params, prefix, init="zeros"):
         news = []
@@ -126,22 +131,40 @@ class AdamWeightDecay(nn.Optimizer):
                 if self.is_group_lr:
                     success = self.hyper_map(
                         F.partial(fused_adam_weight_decay, self.fused_opt, self.beta1, self.beta2, self.eps),
-                        lr, weight_decay, self._parameters, self.moments1,
-                        self.moments2, gradients, self.decay_flags, self.optim_filter)
+                        lr,
+                        weight_decay,
+                        self._parameters,
+                        self.moments1,
+                        self.moments2,
+                        gradients,
+                        self.decay_flags,
+                        self.optim_filter,
+                    )
                 else:
                     success = self.hyper_map(
                         F.partial(fused_adam_weight_decay, self.fused_opt, self.beta1, self.beta2, self.eps, lr),
-                        weight_decay, self._parameters, self.moments1, self.moments2,
-                        gradients, self.decay_flags, self.optim_filter)
+                        weight_decay,
+                        self._parameters,
+                        self.moments1,
+                        self.moments2,
+                        gradients,
+                        self.decay_flags,
+                        self.optim_filter,
+                    )
             else:
                 success = self.hyper_map(
-                    F.partial(fused_adam_weight_decay, self.fused_opt, self.beta1, self.beta2, self.eps, lr,
-                              weight_decay),
-                    self._parameters, self.moments1, self.moments2,
-                    gradients, self.decay_flags, self.optim_filter)
+                    F.partial(
+                        fused_adam_weight_decay, self.fused_opt, self.beta1, self.beta2, self.eps, lr, weight_decay
+                    ),
+                    self._parameters,
+                    self.moments1,
+                    self.moments2,
+                    gradients,
+                    self.decay_flags,
+                    self.optim_filter,
+                )
 
         else:
-
             if self.is_group:
                 if self.is_group_lr:
                     optim_result = self.hyper_map_reverse(

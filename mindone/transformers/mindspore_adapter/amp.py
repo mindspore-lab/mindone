@@ -1,6 +1,6 @@
 import mindspore as ms
 from mindspore import nn
-from mindspore.train.amp import AMP_BLACK_LIST, AMP_WHITE_LIST, _auto_black_list
+from mindspore.train.amp import AMP_BLACK_LIST, _auto_black_list
 
 
 def auto_mixed_precision(network, amp_level="O0", dtype=ms.float16):
@@ -35,7 +35,8 @@ def auto_mixed_precision(network, amp_level="O0", dtype=ms.float16):
     elif amp_level == "O2":
         _auto_black_list(
             network,
-            AMP_BLACK_LIST + [
+            AMP_BLACK_LIST
+            + [
                 nn.GroupNorm,
                 nn.SiLU,
                 nn.GELU,
@@ -59,7 +60,6 @@ def auto_mixed_precision(network, amp_level="O0", dtype=ms.float16):
 
 
 def auto_convert_module_dtype(model: nn.Cell, dtype=ms.float16, keep_norm_fp32=True):
-
     dtype2str_map = {ms.float16: "fp16", ms.bfloat16: "bf16", ms.float32: "fp32"}
 
     if dtype not in (ms.float16, ms.bfloat16, ms.float32):
@@ -70,7 +70,6 @@ def auto_convert_module_dtype(model: nn.Cell, dtype=ms.float16, keep_norm_fp32=T
 
         k_num, c_num = 0, 0
         for _, p in model.parameters_and_names():
-
             # filter norm parameters
             if keep_norm_fp32 and ("norm" in p.name):
                 k_num += 1

@@ -1,18 +1,14 @@
-import os
 import argparse
-import evaluate
+
 import numpy as np
+from datasets import load_dataset
+from transformers import AutoTokenizer
+
 import mindspore as ms
 from mindspore import nn
-from typing import Dict
-from datasets import load_dataset
-from transformers import AutoTokenizer, HfArgumentParser
-from dataclasses import dataclass, field
 
-from mindone.transformers.models.bert import BertForSequenceClassification
-from mindone.transformers.trainer import Trainer
-from mindone.transformers.training_args import TrainingArguments
 from mindone.transformers.mindspore_adapter import HF2MSDataset, TrainOneStepWrapper
+from mindone.transformers.models.bert import BertForSequenceClassification
 
 
 def main():
@@ -47,7 +43,9 @@ def main():
     def ms_data_collator(features, batch_info):
         batch = {}
         for k, v in features[0].items():
-            batch[k] = np.stack([f[k] for f in features]) if isinstance(v, np.ndarray) else np.array([f[k] for f in features])
+            batch[k] = (
+                np.stack([f[k] for f in features]) if isinstance(v, np.ndarray) else np.array([f[k] for f in features])
+            )
         return batch
 
     batch_size, num_epochs = 8, 3
@@ -55,7 +53,6 @@ def main():
     train_dataloader = train_dataloader.batch(batch_size=batch_size, per_batch_map=ms_data_collator)
     train_dataloader = train_dataloader.repeat(1)
     train_dataloader = train_dataloader.create_dict_iterator(num_epochs=num_epochs, output_numpy=True)
-
 
     # 2. create train network
     model = BertForSequenceClassification.from_pretrained(args.model_path, num_labels=5)
@@ -73,7 +70,6 @@ def main():
 
     train_model = TrainOneStepWrapper(ReturnLoss(model), optimizer)
 
-
     # 3. training
     train_model.set_train()
     for step, batch in enumerate(train_dataloader):
@@ -87,7 +83,7 @@ def main():
             None,
             None,
             None,
-            ms.tensor(batch["labels"], ms.int32)
+            ms.tensor(batch["labels"], ms.int32),
         )
 
         loss, _, overflow = train_model(*tuple_inputs)
@@ -95,5 +91,5 @@ def main():
         print(f"step: {step}, loss: {loss}")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

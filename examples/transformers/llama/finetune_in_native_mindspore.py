@@ -18,32 +18,37 @@
 """
 
 
-import os
-import ast
 import argparse
-import evaluate
+import ast
+from typing import Dict
+
 import numpy as np
+from datasets import load_dataset
+from transformers import AutoTokenizer
+
 import mindspore as ms
 from mindspore import nn
-from typing import Dict
-from datasets import load_dataset
-from transformers import AutoTokenizer, HfArgumentParser
-from dataclasses import dataclass, field
 
-from mindone.transformers.models.llama import LlamaForSequenceClassification
-from mindone.transformers.trainer import Trainer
-from mindone.transformers.training_args import TrainingArguments
 from mindone.transformers.mindspore_adapter import HF2MSDataset, TrainOneStepWrapper, auto_mixed_precision
+from mindone.transformers.models.llama import LlamaForSequenceClassification
 
 
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--model_path", type=str, default="meta-llama/Meta-Llama-3-8B", help="pretrained model name")
     parser.add_argument("--dataset_path", type=str, default="Yelp/yelp_review_full", help="dataset path.")
-    parser.add_argument("--zero_stage", type=int, default=0, choices=[0, 1, 2], help="stage of ZeRO optimizer parallelism")
-    parser.add_argument("--fp16", action="store_true", default=False, help="whether or not to enable mix precision with float16")
-    parser.add_argument("--bf16", action="store_true", default=False, help="whether or not to enable mix precision with bfloat16")
-    parser.add_argument("--is_distribute", type=ast.literal_eval, default=False, help="whether or not to run distribute")
+    parser.add_argument(
+        "--zero_stage", type=int, default=0, choices=[0, 1, 2], help="stage of ZeRO optimizer parallelism"
+    )
+    parser.add_argument(
+        "--fp16", action="store_true", default=False, help="whether or not to enable mix precision with float16"
+    )
+    parser.add_argument(
+        "--bf16", action="store_true", default=False, help="whether or not to enable mix precision with bfloat16"
+    )
+    parser.add_argument(
+        "--is_distribute", type=ast.literal_eval, default=False, help="whether or not to run distribute"
+    )
     parser.add_argument("--rank", type=int, default=0, help="id of card")
     parser.add_argument("--rank_size", type=int, default=1, help="num of cards")
     args = parser.parse_args()
@@ -52,7 +57,8 @@ def main():
     # 0. set mindspore context
     ms.set_context(mode=ms.GRAPH_MODE, jit_config={"jit_level": "O0"})
     if args.is_distribute:
-        from mindspore.communication import init, get_rank, get_group_size
+        from mindspore.communication import get_group_size, get_rank, init
+
         init()
         args.rank = get_rank()
         args.rank_size = get_group_size()
@@ -62,7 +68,6 @@ def main():
             gradients_mean=True,
             device_num=get_group_size(),
         )
-
 
     # 1. create dataset
     dataset = load_dataset(args.dataset_path)
@@ -98,22 +103,18 @@ def main():
 
     batch_size, num_epochs = 1, 3
     train_dataloader = ms.dataset.GeneratorDataset(
-        HF2MSDataset(small_train_dataset),
-        column_names="item",
-        shard_id=args.rank,
-        num_shards=args.rank_size
+        HF2MSDataset(small_train_dataset), column_names="item", shard_id=args.rank, num_shards=args.rank_size
     )
     train_dataloader = train_dataloader.batch(batch_size=batch_size, per_batch_map=ms_data_collator)
     train_dataloader = train_dataloader.repeat(1)
     train_dataloader = train_dataloader.create_dict_iterator(num_epochs=num_epochs, output_numpy=True)
-
 
     # 2. create train network and mix precision
     model = LlamaForSequenceClassification.from_pretrained(
         args.model_path,
         num_labels=5,
         use_flash_attention_2=True,
-        mindspore_dtype=ms.bfloat16 if args.bf16 else (ms.float16 if args.fp16 else None)
+        mindspore_dtype=ms.bfloat16 if args.bf16 else (ms.float16 if args.fp16 else None),
     )
     model.gradient_checkpointing_enable()
 
@@ -127,9 +128,11 @@ def main():
         optimizer = nn.AdamWeightDecay(model.trainable_params(), learning_rate=5e-6)
     elif args.zero_stage == 1:
         from mindone.transformers.mindspore_adapter import AdamWeightDecayZeRO1
+
         optimizer = AdamWeightDecayZeRO1(model.trainable_params(), learning_rate=5e-6)
     elif args.zero_stage == 2:
         from mindone.transformers.mindspore_adapter import AdamWeightDecayZeRO2
+
         optimizer = AdamWeightDecayZeRO2(model.trainable_params(), learning_rate=5e-6)
     else:
         raise ValueError
@@ -146,7 +149,6 @@ def main():
 
     train_model = TrainOneStepWrapper(ReturnLoss(model), optimizer)
 
-
     # 3. training
     train_model.set_train()
     for step, batch in enumerate(train_dataloader):
@@ -159,7 +161,7 @@ def main():
             None,
             None,
             None,
-            ms.tensor(batch["labels"], ms.int32)
+            ms.tensor(batch["labels"], ms.int32),
         )
 
         loss, _, overflow = train_model(*tuple_inputs)
@@ -167,5 +169,5 @@ def main():
         print(f"step: {step}, loss: {loss}")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

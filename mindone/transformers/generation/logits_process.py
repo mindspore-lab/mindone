@@ -1,15 +1,13 @@
 import inspect
-import math
-import warnings
-from typing import Callable, Iterable, List, Optional, Tuple, Union, Dict
+from typing import Callable, List, Union
+
 import numpy as np
+from transformers.utils import add_start_docstrings
+from transformers.utils.logging import get_logger
 
 import mindspore as ms
 import mindspore.numpy as mnp
 from mindspore import ops
-
-from transformers.utils import add_start_docstrings
-from transformers.utils.logging import get_logger
 
 from mindone.transformers.mindspore_adapter.utils import dtype_to_min
 
@@ -32,11 +30,14 @@ LOGITS_PROCESSOR_INPUTS_DOCSTRING = r"""
 
 """
 
+
 class LogitsProcessor:
     """Abstract base class for all logit processors that can be applied during generation."""
 
     @add_start_docstrings(LOGITS_PROCESSOR_INPUTS_DOCSTRING)
-    def __call__(self, input_ids: Union[ms.Tensor, np.ndarray], scores: Union[ms.Tensor, np.ndarray]) -> Union[ms.Tensor, np.ndarray]:
+    def __call__(
+        self, input_ids: Union[ms.Tensor, np.ndarray], scores: Union[ms.Tensor, np.ndarray]
+    ) -> Union[ms.Tensor, np.ndarray]:
         raise NotImplementedError(
             f"{self.__class__} is an abstract class. Only classes inheriting this class can be called."
         )
@@ -46,7 +47,9 @@ class LogitsWarper:
     """Abstract base class for all logit warpers that can be applied during generation with multinomial sampling."""
 
     @add_start_docstrings(LOGITS_PROCESSOR_INPUTS_DOCSTRING)
-    def __call__(self, input_ids: Union[ms.Tensor, np.ndarray], scores: Union[ms.Tensor, np.ndarray]) -> Union[ms.Tensor, np.ndarray]:
+    def __call__(
+        self, input_ids: Union[ms.Tensor, np.ndarray], scores: Union[ms.Tensor, np.ndarray]
+    ) -> Union[ms.Tensor, np.ndarray]:
         raise NotImplementedError(
             f"{self.__class__} is an abstract class. Only classes inheriting this class can be called."
         )
@@ -59,7 +62,9 @@ class LogitsProcessorList(list):
     inputs.
     """
 
-    def __call__(self, input_ids: Union[ms.Tensor, np.ndarray], scores: Union[ms.Tensor, np.ndarray], **kwargs) -> Union[ms.Tensor, np.ndarray]:
+    def __call__(
+        self, input_ids: Union[ms.Tensor, np.ndarray], scores: Union[ms.Tensor, np.ndarray], **kwargs
+    ) -> Union[ms.Tensor, np.ndarray]:
         r"""
         Args:
             input_ids (`Union[ms.Tensor, np.ndarray]` of shape `(batch_size, sequence_length)`):
@@ -119,7 +124,9 @@ class MinLengthLogitsProcessor(LogitsProcessor):
         self.eos_token_id = eos_token_id
 
     @add_start_docstrings(LOGITS_PROCESSOR_INPUTS_DOCSTRING)
-    def __call__(self, input_ids: Union[ms.Tensor, np.ndarray], scores: Union[ms.Tensor, np.ndarray]) -> Union[ms.Tensor, np.ndarray]:
+    def __call__(
+        self, input_ids: Union[ms.Tensor, np.ndarray], scores: Union[ms.Tensor, np.ndarray]
+    ) -> Union[ms.Tensor, np.ndarray]:
         if isinstance(scores, ms.Tensor):
             vocab_tensor = ops.arange(0, scores.shape[-1])
             eos_token_mask = mnp.isin(vocab_tensor, self.eos_token_id)
@@ -154,11 +161,7 @@ class MinNewTokensLengthLogitsProcessor(LogitsProcessor):
     """
 
     def __init__(
-        self,
-        prompt_length_to_skip: int,
-        min_new_tokens: int,
-        eos_token_id: Union[int, List[int], ms.Tensor],
-        **ignore
+        self, prompt_length_to_skip: int, min_new_tokens: int, eos_token_id: Union[int, List[int], ms.Tensor], **ignore
     ):
         for arg_name, arg_value in [
             ("prompt_length_to_skip", prompt_length_to_skip),
@@ -181,8 +184,9 @@ class MinNewTokensLengthLogitsProcessor(LogitsProcessor):
         self.eos_token_id = eos_token_id
 
     @add_start_docstrings(LOGITS_PROCESSOR_INPUTS_DOCSTRING)
-    def __call__(self, input_ids: Union[ms.Tensor, np.ndarray], scores: Union[ms.Tensor, np.ndarray]) -> Union[ms.Tensor, np.ndarray]:
-
+    def __call__(
+        self, input_ids: Union[ms.Tensor, np.ndarray], scores: Union[ms.Tensor, np.ndarray]
+    ) -> Union[ms.Tensor, np.ndarray]:
         if isinstance(scores, ms.Tensor):
             new_tokens_length = input_ids.shape[-1] - self.prompt_length_to_skip
             scores_processed = scores[:]
@@ -236,7 +240,9 @@ class TemperatureLogitsWarper(LogitsProcessor):
         self.temperature = temperature
 
     @add_start_docstrings(LOGITS_PROCESSOR_INPUTS_DOCSTRING)
-    def __call__(self, input_ids: Union[ms.Tensor, np.ndarray], scores: Union[ms.Tensor, np.ndarray]) -> Union[ms.Tensor, np.ndarray]:
+    def __call__(
+        self, input_ids: Union[ms.Tensor, np.ndarray], scores: Union[ms.Tensor, np.ndarray]
+    ) -> Union[ms.Tensor, np.ndarray]:
         scores_processed = scores / self.temperature
         return scores_processed
 
@@ -294,10 +300,11 @@ class TopPLogitsWarper(LogitsWarper):
         self.min_tokens_to_keep = min_tokens_to_keep
 
     @add_start_docstrings(LOGITS_PROCESSOR_INPUTS_DOCSTRING)
-    def __call__(self, input_ids: Union[ms.Tensor, np.ndarray], scores: Union[ms.Tensor, np.ndarray]) -> Union[ms.Tensor, np.ndarray]:
+    def __call__(
+        self, input_ids: Union[ms.Tensor, np.ndarray], scores: Union[ms.Tensor, np.ndarray]
+    ) -> Union[ms.Tensor, np.ndarray]:
         if isinstance(scores, ms.Tensor):
-            filter_value = self.filter_value \
-                if self.filter_value is not None else dtype_to_min(scores.dtype)
+            filter_value = self.filter_value if self.filter_value is not None else dtype_to_min(scores.dtype)
 
             sorted_logits, sorted_indices = ops.sort(scores, descending=False)
             cumulative_probs = sorted_logits.softmax(axis=-1).cumsum(axis=-1)
@@ -311,7 +318,8 @@ class TopPLogitsWarper(LogitsWarper):
             # indices_to_remove = sorted_indices_to_remove.scatter(1, sorted_indices, sorted_indices_to_remove)
             sorted_indices_to_remove = sorted_indices_to_remove.astype(ms.int32)
             indices_to_remove = ops.tensor_scatter_elements(
-                sorted_indices_to_remove, indices=sorted_indices, updates=sorted_indices_to_remove, axis=1)
+                sorted_indices_to_remove, indices=sorted_indices, updates=sorted_indices_to_remove, axis=1
+            )
 
             scores_processed = scores.masked_fill(indices_to_remove.astype(ms.bool_), filter_value)
         elif isinstance(scores, np.ndarray):
@@ -344,7 +352,9 @@ class TopKLogitsWarper(LogitsProcessor):
         self.filter_value = filter_value
 
     @add_start_docstrings(LOGITS_PROCESSOR_INPUTS_DOCSTRING)
-    def __call__(self, input_ids: Union[ms.Tensor, np.ndarray], scores: Union[ms.Tensor, np.ndarray]) -> Union[ms.Tensor, np.ndarray]:
+    def __call__(
+        self, input_ids: Union[ms.Tensor, np.ndarray], scores: Union[ms.Tensor, np.ndarray]
+    ) -> Union[ms.Tensor, np.ndarray]:
         if isinstance(scores, ms.Tensor):
             top_k = min(self.top_k, scores.shape[-1])  # Safety check
             # Remove all tokens with a probability less than the last token of the top-k
@@ -355,6 +365,7 @@ class TopKLogitsWarper(LogitsProcessor):
         else:
             raise NotImplementedError
         return scores_processed
+
 
 class PrefixConstrainedLogitsProcessor(LogitsProcessor):
     r"""
@@ -374,8 +385,9 @@ class PrefixConstrainedLogitsProcessor(LogitsProcessor):
         self._num_beams = num_beams
 
     @add_start_docstrings(LOGITS_PROCESSOR_INPUTS_DOCSTRING)
-    def __call__(self, input_ids: Union[ms.Tensor, np.ndarray], scores: Union[ms.Tensor, np.ndarray]) -> Union[ms.Tensor, np.ndarray]:
-
+    def __call__(
+        self, input_ids: Union[ms.Tensor, np.ndarray], scores: Union[ms.Tensor, np.ndarray]
+    ) -> Union[ms.Tensor, np.ndarray]:
         if isinstance(input_ids, ms.Tensor):
             assert isinstance(scores, ms.Tensor)
             mask = ops.full_like(scores, -INF)
@@ -420,8 +432,9 @@ class LogitNormalization(LogitsProcessor):
     """
 
     @add_start_docstrings(LOGITS_PROCESSOR_INPUTS_DOCSTRING)
-    def __call__(self, input_ids: Union[ms.Tensor, np.ndarray], scores: Union[ms.Tensor, np.ndarray]) -> Union[ms.Tensor, np.ndarray]:
-
+    def __call__(
+        self, input_ids: Union[ms.Tensor, np.ndarray], scores: Union[ms.Tensor, np.ndarray]
+    ) -> Union[ms.Tensor, np.ndarray]:
         if isinstance(scores, ms.Tensor):
             scores_processed = ops.log_softmax(scores.to(ms.float32), axis=-1).to(scores.dtype)
         elif isinstance(scores, np.ndarray):

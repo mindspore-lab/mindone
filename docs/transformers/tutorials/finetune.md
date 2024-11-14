@@ -224,7 +224,7 @@ To keep track of your training progress, use the tqdm library to add a progress 
 >>> train_model.train()
 >>> for step, batch in enumerate(train_dataloader):
 ...     batch = batch["item"]
-... 
+...
 ...     tuple_inputs = (
 ...         ms.Tensor(batch["input_ids"], ms.int32),
 ...         ms.Tensor(batch["attention_mask"], ms.bool_),
@@ -234,9 +234,9 @@ To keep track of your training progress, use the tqdm library to add a progress 
 ...         None,
 ...         ms.tensor(batch["labels"], ms.int32)
 ...     )
-... 
+...
 ...     loss, _, overflow = train_model(*tuple_inputs)
-... 
+...
 ...     progress_bar.update(1)
 ```
 

@@ -1,15 +1,10 @@
-import random
-import warnings
-import numpy as np
 from collections.abc import Mapping
 from dataclasses import dataclass
-from random import randint
-from typing import Any, Callable, Dict, List, NewType, Optional, Tuple, Union
+from typing import Any, Callable, Dict, List, NewType, Optional, Union
 
-from ..utils.generic import PaddingStrategy
-
+import numpy as np
 from transformers import PreTrainedTokenizerBase
-
+from transformers.utils.generic import PaddingStrategy
 
 InputDataClass = NewType("InputDataClass", Any)
 

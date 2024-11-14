@@ -1,9 +1,8 @@
 import math
-from typing import Union, Optional
-from mindspore.nn import Optimizer
 from functools import partial
+from typing import Optional, Union
 
-from .trainer_utils import SchedulerType
+from transformers.trainer_utils import SchedulerType
 
 
 def get_constant_schedule(base_lr):

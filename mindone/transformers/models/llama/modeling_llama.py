@@ -17,31 +17,24 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-import math
+from typing import Optional, Tuple, Union
+
 import numpy as np
-from typing import List, Optional, Tuple, Union
+from transformers import LlamaConfig
+from transformers.utils import add_start_docstrings, add_start_docstrings_to_model_forward, logging
 
 import mindspore as ms
-from mindspore import nn, ops, Tensor, Parameter
+from mindspore import Parameter, Tensor, nn, ops
 from mindspore.common import initializer as init
 
-from transformers import LlamaConfig, GenerationConfig
-from transformers.utils import (
-    add_start_docstrings,
-    add_start_docstrings_to_model_forward,
-    logging,
-    replace_return_docstrings,
-)
-
 from ...activations import ACT2FN
-from ...modeling_utils import MSPreTrainedModel as PreTrainedModel
+from ...cache_utils import get_max_length, get_seq_length, update
+from ...mindspore_adapter import recompute_except_output
+from ...mindspore_adapter.attention import FlashAttention2
 from ...mindspore_utils import ALL_LAYERNORM_LAYERS
 from ...modeling_attn_mask_utils import _MIN_FP16
-from ...mindspore_adapter.attention import FlashAttention2
-from ...cache_utils import update, get_max_length, get_seq_length
-from ...mindspore_adapter import recompute_except_output
 from ...modeling_outputs import BaseModelOutputWithPast, CausalLMOutputWithPast, SequenceClassifierOutputWithPast
-
+from ...modeling_utils import MSPreTrainedModel as PreTrainedModel
 
 logger = logging.get_logger(__name__)
 
@@ -55,7 +48,7 @@ class LlamaRMSNorm(nn.Cell):
         LlamaRMSNorm is equivalent to T5LayerNorm
         """
         super().__init__()
-        self.weight = Parameter(Tensor(np.ones(hidden_size), ms.float32), name='weight')
+        self.weight = Parameter(Tensor(np.ones(hidden_size), ms.float32), name="weight")
         self.variance_epsilon = eps
 
     def construct(self, hidden_states):
@@ -116,11 +109,9 @@ class LlamaDynamicNTKScalingRotaryEmbedding(LlamaRotaryEmbedding):
         seq_len = ops.max(position_ids)[0] + 1
         if seq_len > self.max_position_embeddings:
             base = self.base * (
-                    (self.scaling_factor * seq_len / self.max_position_embeddings) - (self.scaling_factor - 1)
+                (self.scaling_factor * seq_len / self.max_position_embeddings) - (self.scaling_factor - 1)
             ) ** (self.dim / (self.dim - 2))
-            inv_freq = 1.0 / (
-                    base ** (ops.arange(0, self.dim, 2, dtype=ms.float32) / self.dim)
-            )
+            inv_freq = 1.0 / (base ** (ops.arange(0, self.dim, 2, dtype=ms.float32) / self.dim))
             x = ops.depend(x, ops.assign(self.inv_freq, inv_freq))
 
         cos, sin = super().construct(x, position_ids)
@@ -130,7 +121,7 @@ class LlamaDynamicNTKScalingRotaryEmbedding(LlamaRotaryEmbedding):
 def rotate_half(x):
     """Rotates half the hidden dims of the input."""
     x1 = x[..., : x.shape[-1] // 2]
-    x2 = x[..., x.shape[-1] // 2:]
+    x2 = x[..., x.shape[-1] // 2 :]
     return ops.cat((-x2, x1), axis=-1)
 
 
@@ -174,7 +165,7 @@ class LlamaMLP(nn.Cell):
 
         # setting config var to self attribute
         _name_list = [
-            'pretraining_tp',
+            "pretraining_tp",
         ]
         for name in _name_list:
             setattr(self, name, getattr(config, name))
@@ -186,15 +177,11 @@ class LlamaMLP(nn.Cell):
             up_proj_slices = self.up_proj.weight.split(slice, axis=0)
             down_proj_slices = self.down_proj.weight.split(slice, axis=1)
 
-            gate_proj = ops.cat(
-                [ops.dense(x, gate_proj_slices[i]) for i in range(self.pretraining_tp)], axis=-1
-            )
+            gate_proj = ops.cat([ops.dense(x, gate_proj_slices[i]) for i in range(self.pretraining_tp)], axis=-1)
             up_proj = ops.cat([ops.dense(x, up_proj_slices[i]) for i in range(self.pretraining_tp)], axis=-1)
 
             intermediate_states = (self.act_fn(gate_proj) * up_proj).split(slice, axis=2)
-            down_proj = [
-                ops.dense(intermediate_states[i], down_proj_slices[i]) for i in range(self.pretraining_tp)
-            ]
+            down_proj = [ops.dense(intermediate_states[i], down_proj_slices[i]) for i in range(self.pretraining_tp)]
             down_proj = sum(down_proj)
         else:
             down_proj = self.down_proj(self.act_fn(self.gate_proj(x)) * self.up_proj(x))
@@ -245,15 +232,17 @@ class LlamaAttention(nn.Cell):
             )
 
         self.q_proj = nn.Dense(self.hidden_size, self.num_heads * self.head_dim, has_bias=config.attention_bias)
-        self.k_proj = nn.Dense(self.hidden_size, self.num_key_value_heads * self.head_dim,
-                               has_bias=config.attention_bias)
-        self.v_proj = nn.Dense(self.hidden_size, self.num_key_value_heads * self.head_dim,
-                               has_bias=config.attention_bias)
+        self.k_proj = nn.Dense(
+            self.hidden_size, self.num_key_value_heads * self.head_dim, has_bias=config.attention_bias
+        )
+        self.v_proj = nn.Dense(
+            self.hidden_size, self.num_key_value_heads * self.head_dim, has_bias=config.attention_bias
+        )
         self.o_proj = nn.Dense(self.hidden_size, self.hidden_size, has_bias=config.attention_bias)
         self._init_rope()
 
         _name_list = [
-            'pretraining_tp',
+            "pretraining_tp",
         ]
         for name in _name_list:
             setattr(self, name, getattr(config, name))
@@ -286,23 +275,21 @@ class LlamaAttention(nn.Cell):
                 raise ValueError(f"Unknown RoPE scaling type {scaling_type}")
 
     def construct(
-            self,
-            hidden_states: ms.Tensor,
-            attention_mask: Optional[ms.Tensor] = None,
-            position_ids: Optional[ms.Tensor] = None,
-            past_key_value: Optional[ms.Tensor] = None,
-            output_attentions: bool = False,
-            use_cache: bool = False,
-            cache_position: Optional[ms.Tensor] = None,
-            **kwargs,
+        self,
+        hidden_states: ms.Tensor,
+        attention_mask: Optional[ms.Tensor] = None,
+        position_ids: Optional[ms.Tensor] = None,
+        past_key_value: Optional[ms.Tensor] = None,
+        output_attentions: bool = False,
+        use_cache: bool = False,
+        cache_position: Optional[ms.Tensor] = None,
+        **kwargs,
     ):
         bsz, q_len, _ = hidden_states.shape
 
         if self.pretraining_tp > 1:
             key_value_slicing = (self.num_key_value_heads * self.head_dim) // self.pretraining_tp
-            query_slices = self.q_proj.weight.split(
-                (self.num_heads * self.head_dim) // self.pretraining_tp, axis=0
-            )
+            query_slices = self.q_proj.weight.split((self.num_heads * self.head_dim) // self.pretraining_tp, axis=0)
             key_slices = self.k_proj.weight.split(key_value_slicing, axis=0)
             value_slices = self.v_proj.weight.split(key_value_slicing, axis=0)
 
@@ -334,7 +321,7 @@ class LlamaAttention(nn.Cell):
         key_states = repeat_kv(key_states, self.num_key_value_groups)
         value_states = repeat_kv(value_states, self.num_key_value_groups)
 
-        attn_weights = ops.matmul(query_states, key_states.swapdims(2, 3)) / (self.head_dim ** 0.5)
+        attn_weights = ops.matmul(query_states, key_states.swapdims(2, 3)) / (self.head_dim**0.5)
 
         attn_weights = ops.cast(attn_weights, ms.float32)
         if attention_mask is not None:  # no matter the length, we just slice it
@@ -376,15 +363,10 @@ class LlamaFlashAttention2(LlamaAttention):
         super().__init__(config, layer_idx)
 
         self.flash_attention = FlashAttention2(
-            self.head_dim,
-            self.num_heads,
-            self.attention_dropout,
-            input_layout="BNSD",
-            dtype=ms.float16
+            self.head_dim, self.num_heads, self.attention_dropout, input_layout="BNSD", dtype=ms.float16
         )
 
     def convert_mask_to_fa_format(self, attention_mask):
-
         if attention_mask is not None:
             if attention_mask.dtype == ms.bool_:
                 # flip mask, since ms FA treats 1 as discard, 0 as retain.
@@ -401,15 +383,15 @@ class LlamaFlashAttention2(LlamaAttention):
         return attention_mask
 
     def construct(
-            self,
-            hidden_states: ms.Tensor,
-            attention_mask: Optional[ms.Tensor] = None,
-            position_ids: Optional[ms.Tensor] = None,
-            past_key_value: Optional[Tuple[ms.Tensor, ms.Tensor]] = None,
-            output_attentions: bool = False,
-            use_cache: bool = False,
-            cache_position: Optional[ms.Tensor] = None,
-            **kwargs,
+        self,
+        hidden_states: ms.Tensor,
+        attention_mask: Optional[ms.Tensor] = None,
+        position_ids: Optional[ms.Tensor] = None,
+        past_key_value: Optional[Tuple[ms.Tensor, ms.Tensor]] = None,
+        output_attentions: bool = False,
+        use_cache: bool = False,
+        cache_position: Optional[ms.Tensor] = None,
+        **kwargs,
     ):
         # assert output_attentions == False
 
@@ -417,9 +399,7 @@ class LlamaFlashAttention2(LlamaAttention):
 
         if self.pretraining_tp > 1:
             key_value_slicing = (self.num_key_value_heads * self.head_dim) // self.pretraining_tp
-            query_slices = self.q_proj.weight.split(
-                (self.num_heads * self.head_dim) // self.pretraining_tp, axis=0
-            )
+            query_slices = self.q_proj.weight.split((self.num_heads * self.head_dim) // self.pretraining_tp, axis=0)
             key_slices = self.k_proj.weight.split(key_value_slicing, axis=0)
             value_slices = self.v_proj.weight.split(key_value_slicing, axis=0)
 
@@ -505,15 +485,15 @@ class LlamaDecoderLayer(nn.Cell):
         self.output_identity = nn.Identity()
 
     def construct(
-            self,
-            hidden_states: ms.Tensor,
-            attention_mask: Optional[ms.Tensor] = None,
-            position_ids: Optional[ms.Tensor] = None,
-            past_key_value: Optional[Tuple[Tuple[ms.Tensor, ms.Tensor]]] = None,
-            output_attentions: Optional[bool] = False,
-            use_cache: Optional[bool] = False,
-            cache_position: Optional[ms.Tensor] = None,
-            **kwargs,
+        self,
+        hidden_states: ms.Tensor,
+        attention_mask: Optional[ms.Tensor] = None,
+        position_ids: Optional[ms.Tensor] = None,
+        past_key_value: Optional[Tuple[Tuple[ms.Tensor, ms.Tensor]]] = None,
+        output_attentions: Optional[bool] = False,
+        use_cache: Optional[bool] = False,
+        cache_position: Optional[ms.Tensor] = None,
+        **kwargs,
     ) -> Tuple[ms.Tensor, Optional[Tuple[ms.Tensor, ms.Tensor]]]:
         """
         Args:
@@ -573,7 +553,8 @@ LLAMA_START_DOCSTRING = r"""
     library implements for all its model (such as downloading or saving, resizing the input embeddings, pruning heads
     etc.)
 
-    This model is also a MindSpore [mindspore.nn.Cell](https://www.mindspore.cn/docs/zh-CN/r2.3.1/api_python/nn/mindspore.nn.Cell.html?highlight=cell#mindspore.nn.Cell) subclass.
+    This model is also a MindSpore [mindspore.nn.Cell](https://www.mindspore.cn/docs/zh-CN/r2.3.1/api_python/nn/mind
+    spore.nn.Cell.html?highlight=cell#mindspore.nn.Cell) subclass.
     Use it as a regular MindSpore Cell and refer to the MindSpore documentation for all matter related to general usage
     and behavior.
 
@@ -603,16 +584,18 @@ class LlamaPreTrainedModel(PreTrainedModel):
         std = self.config.initializer_range
         if isinstance(cell, nn.Dense):
             cell.weight.set_data(
-                init.initializer(init.Normal(mean=0., sigma=std), cell.weight.shape, cell.weight.dtype)
+                init.initializer(init.Normal(mean=0.0, sigma=std), cell.weight.shape, cell.weight.dtype)
             )
             if cell.bias is not None:
                 cell.bias.set_data(init.initializer(init.Zero(), cell.bias.shape, cell.bias.dtype))
         elif isinstance(cell, nn.Embedding):
             cell.embedding_table.set_data(
-                init.initializer(init.Normal(mean=0., sigma=std), cell.embedding_table.shape, cell.embedding_table.dtype)
+                init.initializer(
+                    init.Normal(mean=0.0, sigma=std), cell.embedding_table.shape, cell.embedding_table.dtype
+                )
             )
             if cell.padding_idx is not None:
-                cell.embedding_table.data[cell.padding_idx] = 0.
+                cell.embedding_table.data[cell.padding_idx] = 0.0
 
 
 LLAMA_INPUTS_DOCSTRING = r"""
@@ -713,8 +696,13 @@ class LlamaModel(LlamaPreTrainedModel):
 
         # set congig var to self attribute
         _name_list = [
-            'output_attentions', 'output_hidden_states', 'use_return_dict', 'use_cache',
-            '_attn_implementation', 'pretraining_tp', 'vocab_size'
+            "output_attentions",
+            "output_hidden_states",
+            "use_return_dict",
+            "use_cache",
+            "_attn_implementation",
+            "pretraining_tp",
+            "vocab_size",
         ]
         for name in _name_list:
             setattr(self, name, getattr(config, name))
@@ -756,23 +744,20 @@ class LlamaModel(LlamaPreTrainedModel):
 
     @add_start_docstrings_to_model_forward(LLAMA_INPUTS_DOCSTRING)
     def construct(
-            self,
-            input_ids: ms.Tensor = None,
-            attention_mask: Optional[ms.Tensor] = None,
-            position_ids: Optional[ms.Tensor] = None,
-            past_key_values: Optional[ms.Tensor] = None,
-            inputs_embeds: Optional[ms.Tensor] = None,
-            use_cache: Optional[bool] = None,
-            output_attentions: Optional[bool] = None,
-            output_hidden_states: Optional[bool] = None,
-            return_dict: Optional[bool] = False,
-            cache_position: Optional[ms.Tensor] = None,
+        self,
+        input_ids: ms.Tensor = None,
+        attention_mask: Optional[ms.Tensor] = None,
+        position_ids: Optional[ms.Tensor] = None,
+        past_key_values: Optional[ms.Tensor] = None,
+        inputs_embeds: Optional[ms.Tensor] = None,
+        use_cache: Optional[bool] = None,
+        output_attentions: Optional[bool] = None,
+        output_hidden_states: Optional[bool] = None,
+        return_dict: Optional[bool] = False,
+        cache_position: Optional[ms.Tensor] = None,
     ) -> Union[Tuple, BaseModelOutputWithPast]:
-
         output_attentions = output_attentions if output_attentions is not None else self.output_attentions
-        output_hidden_states = (
-            output_hidden_states if output_hidden_states is not None else self.output_hidden_states
-        )
+        output_hidden_states = output_hidden_states if output_hidden_states is not None else self.output_hidden_states
         use_cache = use_cache if use_cache is not None else self.use_cache
         return_dict = return_dict if return_dict is not None else self.use_return_dict
 
@@ -788,15 +773,11 @@ class LlamaModel(LlamaPreTrainedModel):
 
         if cache_position is None:
             past_seen_tokens = get_seq_length(past_key_values) if past_key_values is not None else 0
-            cache_position = ops.arange(
-                past_seen_tokens, past_seen_tokens + inputs_embeds.shape[1]
-            )
+            cache_position = ops.arange(past_seen_tokens, past_seen_tokens + inputs_embeds.shape[1])
         if position_ids is None:
             position_ids = cache_position.unsqueeze(0)
 
-        causal_mask = self._update_causal_mask(
-            attention_mask, inputs_embeds, cache_position, past_key_values
-        )
+        causal_mask = self._update_causal_mask(attention_mask, inputs_embeds, cache_position, past_key_values)
 
         # embed positions
         hidden_states = inputs_embeds
@@ -844,14 +825,13 @@ class LlamaModel(LlamaPreTrainedModel):
         )
 
     def _update_causal_mask(
-            self,
-            attention_mask: ms.Tensor,
-            input_tensor: ms.Tensor,
-            cache_position: ms.Tensor,
-            past_key_values: Tuple[Tuple[ms.Tensor, ms.Tensor]],
-            output_attentions: bool = False,
+        self,
+        attention_mask: ms.Tensor,
+        input_tensor: ms.Tensor,
+        cache_position: ms.Tensor,
+        past_key_values: Tuple[Tuple[ms.Tensor, ms.Tensor]],
+        output_attentions: bool = False,
     ):
-
         # if self._attn_implementation == "flash_attention_2":
         #     return attention_mask
 
@@ -886,7 +866,7 @@ class LlamaModel(LlamaPreTrainedModel):
             if attention_mask is not None:
                 mask_length = attention_mask.shape[-1]
                 padding_mask = causal_mask[:, :, :, :mask_length] + attention_mask[:, None, None, :]
-                padding_mask = (padding_mask == 0)
+                padding_mask = padding_mask == 0
                 causal_mask[:, :, :, :mask_length] = causal_mask[:, :, :, :mask_length].masked_fill(
                     padding_mask, _MIN_FP16
                 )
@@ -904,7 +884,7 @@ class LlamaForCausalLM(LlamaPreTrainedModel):
         self.lm_head = nn.Dense(config.hidden_size, config.vocab_size, has_bias=False)
         self.cross_entropy_loss = nn.CrossEntropyLoss()
 
-        _name_list = ['output_attentions', 'output_hidden_states', 'use_return_dict', 'pretraining_tp', 'vocab_size']
+        _name_list = ["output_attentions", "output_hidden_states", "use_return_dict", "pretraining_tp", "vocab_size"]
         for name in _name_list:
             setattr(self, name, getattr(config, name))
 
@@ -934,18 +914,18 @@ class LlamaForCausalLM(LlamaPreTrainedModel):
 
     @add_start_docstrings_to_model_forward(LLAMA_INPUTS_DOCSTRING)
     def construct(
-            self,
-            input_ids: ms.Tensor = None,
-            attention_mask: Optional[ms.Tensor] = None,
-            position_ids: Optional[ms.Tensor] = None,
-            past_key_values: Optional[Tuple[Tuple[ms.Tensor, ms.Tensor]]] = None,
-            inputs_embeds: Optional[ms.Tensor] = None,
-            labels: Optional[ms.Tensor] = None,
-            use_cache: Optional[bool] = None,
-            output_attentions: Optional[bool] = None,
-            output_hidden_states: Optional[bool] = None,
-            return_dict: Optional[bool] = False,
-            cache_position: Optional[ms.Tensor] = None,
+        self,
+        input_ids: ms.Tensor = None,
+        attention_mask: Optional[ms.Tensor] = None,
+        position_ids: Optional[ms.Tensor] = None,
+        past_key_values: Optional[Tuple[Tuple[ms.Tensor, ms.Tensor]]] = None,
+        inputs_embeds: Optional[ms.Tensor] = None,
+        labels: Optional[ms.Tensor] = None,
+        use_cache: Optional[bool] = None,
+        output_attentions: Optional[bool] = None,
+        output_hidden_states: Optional[bool] = None,
+        return_dict: Optional[bool] = False,
+        cache_position: Optional[ms.Tensor] = None,
     ) -> Union[Tuple, CausalLMOutputWithPast]:
         r"""
         Args:
@@ -974,9 +954,7 @@ class LlamaForCausalLM(LlamaPreTrainedModel):
         ```"""
 
         output_attentions = output_attentions if output_attentions is not None else self.output_attentions
-        output_hidden_states = (
-            output_hidden_states if output_hidden_states is not None else self.output_hidden_states
-        )
+        output_hidden_states = output_hidden_states if output_hidden_states is not None else self.output_hidden_states
         return_dict = return_dict if return_dict is not None else self.use_return_dict
 
         # decoder outputs consists of (dec_features, layer_state, dec_hidden, dec_attn)
@@ -1026,24 +1004,20 @@ class LlamaForCausalLM(LlamaPreTrainedModel):
         )
 
     def prepare_inputs_for_generation(
-            self,
-            input_ids,
-            past_key_values=None,
-            attention_mask=None,
-            inputs_embeds=None,
-            cache_position=None,
-            use_cache=False,
-            **kwargs,
+        self,
+        input_ids,
+        past_key_values=None,
+        attention_mask=None,
+        inputs_embeds=None,
+        cache_position=None,
+        use_cache=False,
+        **kwargs,
     ):
         past_length = 0
         if past_key_values is not None:
             # Past key values are always initialized with a `Cache` object -> no need for if-else anymore
             past_length = cache_position[0] if cache_position is not None else get_seq_length(past_key_values)
-            max_cache_length = (
-                get_max_length(past_key_values)
-                if get_max_length(past_key_values) is not None
-                else None
-            )
+            max_cache_length = get_max_length(past_key_values) if get_max_length(past_key_values) is not None else None
             cache_length = past_length if max_cache_length is None else ops.minimum(max_cache_length, past_length)
 
             # Keep only the unprocessed tokens:
@@ -1051,18 +1025,18 @@ class LlamaForCausalLM(LlamaPreTrainedModel):
             # some of the inputs are exclusively passed as part of the cache (e.g. when passing input_embeds as input)
 
             if attention_mask is not None and int(attention_mask.sum(-1).max()) > input_ids.shape[1]:
-                input_ids = input_ids[:, -(int(attention_mask.sum(-1).max()) - int(past_length)):]
+                input_ids = input_ids[:, -(int(attention_mask.sum(-1).max()) - int(past_length)) :]
             # 2 - If the past_length is smaller than input_ids', then input_ids holds all input tokens. We can discard
             # input_ids based on the past_length.
             elif past_length < input_ids.shape[1]:
-                input_ids = input_ids[:, int(past_length):]
+                input_ids = input_ids[:, int(past_length) :]
             # 3 - Otherwise (past_length >= input_ids.shape[1]), let's assume input_ids only has unprocessed tokens.
 
             # If we are about to go beyond the maximum cache length, we need to crop the input attention mask.
             if (
-                    max_cache_length is not None
-                    and attention_mask is not None
-                    and cache_length + input_ids.shape[1] > max_cache_length
+                max_cache_length is not None
+                and attention_mask is not None
+                and cache_length + input_ids.shape[1] > max_cache_length
             ):
                 attention_mask = attention_mask[:, -max_cache_length:]
 
@@ -1073,7 +1047,7 @@ class LlamaForCausalLM(LlamaPreTrainedModel):
             position_ids = position_ids.masked_fill(attention_mask == 0, 1)
             if past_key_values and past_length > 0:
                 cur_len = attention_mask.sum(-1).max()
-                position_ids = position_ids[:, cur_len-input_ids.shape[1]:cur_len]
+                position_ids = position_ids[:, cur_len - input_ids.shape[1] : cur_len]
 
         # if `inputs_embeds` are passed, we only want to use them in the 1st generation step
         if inputs_embeds is not None and past_length == 0:
@@ -1098,7 +1072,7 @@ class LlamaForCausalLM(LlamaPreTrainedModel):
             if input_length < cache_position.shape[0]:
                 assert cache_position.shape[0] == attention_mask.shape[-1]
                 cur_len = int(attention_mask.sum(-1).max())
-                cache_position = cache_position[cur_len-input_length:cur_len]
+                cache_position = cache_position[cur_len - input_length : cur_len]
             else:
                 cache_position = cache_position[-input_length:]
 
@@ -1148,12 +1122,12 @@ class LlamaForSequenceClassification(LlamaPreTrainedModel):
             "regression": 0,
             "single_label_classification": 1,
             "multi_label_classification": 2,
-            None: None
+            None: None,
         }
         self.problem_type = problem_type_map[config.problem_type]
         self.pad_token_id = config.pad_token_id
 
-        _name_list = ['output_attentions', 'output_hidden_states', 'use_return_dict', 'pretraining_tp', 'vocab_size']
+        _name_list = ["output_attentions", "output_hidden_states", "use_return_dict", "pretraining_tp", "vocab_size"]
         for name in _name_list:
             setattr(self, name, getattr(config, name))
 
@@ -1225,22 +1199,24 @@ class LlamaForSequenceClassification(LlamaPreTrainedModel):
         if labels is not None:
             if self.problem_type is None:
                 if self.num_labels == 1:
-                    problem_type = 0  #"regression"
+                    problem_type = 0  # "regression"
                 elif self.num_labels > 1 and (labels.dtype in (ms.int32, ms.int64)):
-                    problem_type = 1  #"single_label_classification"
+                    problem_type = 1  # "single_label_classification"
                 else:
-                    problem_type = 2  #"multi_label_classification"
+                    problem_type = 2  # "multi_label_classification"
             else:
                 problem_type = self.problem_type
 
-            if problem_type == 0:  #"regression"
+            if problem_type == 0:  # "regression"
                 if self.num_labels == 1:
                     loss = self.loss_fct_regression(pooled_logits.squeeze(), labels.squeeze())
                 else:
                     loss = self.loss_fct_regression(pooled_logits, labels)
-            elif problem_type == 1:  #"single_label_classification"
-                loss = self.loss_fct_single_label_classification(pooled_logits.view(-1, self.num_labels), labels.view(-1).int())
-            elif problem_type == 2:  #"multi_label_classification"
+            elif problem_type == 1:  # "single_label_classification"
+                loss = self.loss_fct_single_label_classification(
+                    pooled_logits.view(-1, self.num_labels), labels.view(-1).int()
+                )
+            elif problem_type == 2:  # "multi_label_classification"
                 loss = self.loss_fct_multi_label_classification(pooled_logits, labels)
 
         if not return_dict:

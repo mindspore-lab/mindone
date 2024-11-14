@@ -2,9 +2,9 @@
 
 <br>
 
-> State-of-the-art transformers models to perform tasks on different modalities such as text, vision, 
-> and audio in MindSpore. We've tried to provide a similar interface and usage with the 
-> [huggingface/transformers](https://github.com/huggingface/transformers). Only necessary changes are made to 
+> State-of-the-art transformers models to perform tasks on different modalities such as text, vision,
+> and audio in MindSpore. We've tried to provide a similar interface and usage with the
+> [huggingface/transformers](https://github.com/huggingface/transformers). Only necessary changes are made to
 > the [huggingface/transformers](https://github.com/huggingface/transformers) to make it seamless for users from torch.
 
 🤗 **Development Principles**
@@ -12,11 +12,11 @@
 - Only necessary changes are made to the [huggingface/transformers](https://github.com/huggingface/transformers)
 - Configuration, Tokenizer, etc. will utilize the original Transformers.
 
-🤗 **Currently**, 
-we provides pretrained models, generation api, trainer, etc. 
-to be enables researchers or developers in the field of AIGC and MLLMs to utilize Transformers on MindSpore. 
+🤗 **Currently**,
+we provides pretrained models, generation api, trainer, etc.
+to be enables researchers or developers in the field of AIGC and MLLMs to utilize Transformers on MindSpore.
 
-🤗 **Comming Soon**, 
+🤗 **Comming Soon**,
 latest state-of-the-art models, auto class, pipeline, agent, distributed and so on.
 
 

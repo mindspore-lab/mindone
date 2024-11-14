@@ -1,15 +1,14 @@
 import os
-import numpy as np
-from typing import Optional, List, Dict, Iterable
 from dataclasses import dataclass
+from typing import Iterable, List, Optional
 
-import mindspore as ms
-from mindspore import nn, ops, Tensor
-
+import numpy as np
 from transformers import BatchEncoding, logging
 
-from .mindspore_adapter import TrainOneStepWrapper, Sampler
+import mindspore as ms
+from mindspore import Tensor, nn, ops
 
+from .mindspore_adapter import Sampler
 
 logger = logging.get_logger(__name__)
 
@@ -179,7 +178,6 @@ def get_parameter_names(model: nn.Cell, forbidden_layer_types):
 
 
 def _get_learning_rate(object, global_step):
-
     if isinstance(object, nn.Optimizer):
         optimizer = object
         if optimizer.dynamic_lr:

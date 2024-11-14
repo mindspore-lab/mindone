@@ -1,19 +1,19 @@
-import os
-import ast
 import argparse
+import ast
+import os
 import time
-import mindspore as ms
 
 from transformers import AutoTokenizer
 
-from mindone.transformers.models.llama import LlamaForCausalLM
+import mindspore as ms
+
 from mindone.transformers.mindspore_adapter import auto_mixed_precision
+from mindone.transformers.models.llama import LlamaForCausalLM
 
 
 def run_llama3_generate(args):
-
-    print(f"=====> test_llama3_generate:")
-    print(f"=====> Building model...")
+    print("=====> test_llama3_generate:")
+    print("=====> Building model...")
 
     s_time = time.time()
 
@@ -22,7 +22,7 @@ def run_llama3_generate(args):
 
     model = auto_mixed_precision(model, amp_level="O2", dtype=ms.float16)
 
-    print(f"=====> Building model done.")
+    print("=====> Building model done.")
 
     while True:
         prompt = input("Enter your prompt [e.g. `What's your name?`] or enter [`q`] to exit: ")
@@ -31,7 +31,9 @@ def run_llama3_generate(args):
             print("Generate task done, see you next time!")
             break
 
-        prompt = [prompt,]
+        prompt = [
+            prompt,
+        ]
         input_ids = ms.Tensor(tokenizer(prompt).input_ids, ms.int32)
 
         input_kwargs = {}
@@ -40,12 +42,7 @@ def run_llama3_generate(args):
         else:
             input_kwargs["input_ids"] = input_ids
 
-        output_ids = model.generate(
-            **input_kwargs,
-            use_cache=args.use_cache,
-            max_new_tokens=30,
-            do_sample=False
-        )
+        output_ids = model.generate(**input_kwargs, use_cache=args.use_cache, max_new_tokens=30, do_sample=False)
         output_ids = output_ids.asnumpy()
 
         outputs = tokenizer.batch_decode(output_ids, skip_special_tokens=True)[0].strip()
@@ -56,8 +53,7 @@ def run_llama3_generate(args):
         print("=" * 100)
 
 
-if __name__ == '__main__':
-
+if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="test")
     parser.add_argument("--ms_mode", type=int, default=0, help="0 is Graph, 1 is Pynative")
     parser.add_argument("--jit_level", type=str, default="O0")
@@ -68,7 +64,6 @@ if __name__ == '__main__':
     args, _ = parser.parse_known_args()
 
     if args.ms_mode == ms.GRAPH_MODE:
-
         if os.environ.get("MS_DEV_RUNTIME_CONF") is None:
             os.environ["MS_DEV_RUNTIME_CONF"] = "synchronize:True"
             print("WARNING: os environment MS_DEV_RUNTIME_CONF synchronize has not been set, force setting it now.")
@@ -87,7 +82,7 @@ if __name__ == '__main__':
             device_target="Ascend",
             jit_config={"jit_level": args.jit_level},
             max_device_memory="59GB",
-            deterministic="ON"
+            deterministic="ON",
         )
 
     elif args.ms_mode == ms.PYNATIVE_MODE:
@@ -96,7 +91,7 @@ if __name__ == '__main__':
             device_target="Ascend",
             pynative_synchronize=True,
             max_device_memory="59GB",
-            deterministic="ON"
+            deterministic="ON",
         )
 
     else:

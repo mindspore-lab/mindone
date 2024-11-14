@@ -1,14 +1,7 @@
-
 __version__ = "4.42.4"
 
 
 from .modeling_utils import MSPreTrainedModel
-from .models.llama import (
-    LlamaForCausalLM,
-    LlamaForSequenceClassification,
-    LlamaModel,
-    LlamaPreTrainedModel
-)
 from .models.bert import (
     BertForMaskedLM,
     BertForMultipleChoice,
@@ -47,6 +40,7 @@ from .models.gemma import (
     GemmaModel,
     GemmaPreTrainedModel,
 )
+from .models.llama import LlamaForCausalLM, LlamaForSequenceClassification, LlamaModel, LlamaPreTrainedModel
 from .models.mt5 import (
     MT5_PRETRAINED_MODEL_ARCHIVE_LIST,
     MT5EncoderModel,

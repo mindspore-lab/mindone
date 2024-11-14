@@ -1,42 +1,40 @@
 import copy
-import time
 import inspect
+import time
 import warnings
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Tuple, Union
+from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
-import numpy as np
+from transformers import PreTrainedTokenizerBase, logging
+from transformers.generation.configuration_utils import GenerationConfig, GenerationMode
+from transformers.generation.utils import BaseStreamer, GenerateNonBeamOutput
+from transformers.tokenization_utils import ExtensionsTrie
+from transformers.utils.generic import ModelOutput
 
 import mindspore as ms
 import mindspore.numpy as mnp
-from mindspore import nn, ops, Tensor, Parameter
+from mindspore import ops
 
-from transformers import logging, PreTrainedTokenizerBase
-from transformers.tokenization_utils import ExtensionsTrie
-from transformers.utils.generic import ModelOutput
-from transformers.generation.utils import GenerateNonBeamOutput
-from transformers.generation.configuration_utils import GenerationConfig, GenerationMode
-
+from mindone.transformers.cache_utils import Cache, get_seq_length, init_static_cache, reset
 from mindone.transformers.generation.logits_process import (
+    LogitNormalization,
     LogitsProcessorList,
-    TemperatureLogitsWarper,
-    TopPLogitsWarper,
-    TopKLogitsWarper,
     MinLengthLogitsProcessor,
     MinNewTokensLengthLogitsProcessor,
     PrefixConstrainedLogitsProcessor,
-    LogitNormalization
+    TemperatureLogitsWarper,
+    TopKLogitsWarper,
+    TopPLogitsWarper,
 )
 from mindone.transformers.generation.stopping_criteria import (
-    StoppingCriteria,
+    EosTokenCriteria,
     MaxLengthCriteria,
     MaxTimeCriteria,
+    StoppingCriteria,
     StoppingCriteriaList,
-    EosTokenCriteria
 )
 from mindone.transformers.modeling_outputs import CausalLMOutputWithPast
-from mindone.transformers.cache_utils import init_static_cache, get_seq_length, reset, Cache
-
+from mindone.transformers.modeling_utils import MSPreTrainedModel as PreTrainedModel
 
 logger = logging.get_logger(__name__)
 
@@ -138,7 +136,6 @@ class GenerateEncoderDecoderOutput(ModelOutput):
 
 
 class GenerationMixin:
-
     def prepare_inputs_for_generation(self, *args, **kwargs):
         raise NotImplementedError(
             "A model class needs to define a `prepare_inputs_for_generation` method in order to use `.generate()`."
@@ -357,7 +354,7 @@ class GenerationMixin:
         model_input_name: str,
         model_kwargs: Dict[str, ms.Tensor],
         decoder_start_token_id: ms.Tensor,
-        **ignore_kwargs
+        **ignore_kwargs,
     ) -> Tuple[ms.Tensor, Dict[str, ms.Tensor]]:
         """Prepares `decoder_input_ids` for generation with encoder-decoder models"""
         # 1. Check whether the user has defined `decoder_input_ids` manually. To facilitate in terms of input naming,
@@ -377,9 +374,7 @@ class GenerationMixin:
                 )
             decoder_start_token_id = decoder_start_token_id.view(-1, 1)
         else:
-            decoder_start_token_id = (
-                ops.ones((batch_size, 1), dtype=ms.int32) * decoder_start_token_id
-            )
+            decoder_start_token_id = ops.ones((batch_size, 1), dtype=ms.int32) * decoder_start_token_id
 
         # 3. Encoder-decoder models expect the `decoder_input_ids` to start with a special token. Let's ensure that.
         # no user input -> use decoder_start_token_id as decoder_input_ids
@@ -430,7 +425,7 @@ class GenerationMixin:
 
             cache_position = ops.arange(past_length, cur_len, dtype=ms.int32)
             if (cur_len - past_length) < max_len:
-                cache_position = ops.cat([cache_position, ops.zeros(max_len-(cur_len-past_length), ms.int32)])
+                cache_position = ops.cat([cache_position, ops.zeros(max_len - (cur_len - past_length), ms.int32)])
         else:
             if "inputs_embeds" in model_kwargs:
                 cur_len = model_kwargs["inputs_embeds"].shape[1]
@@ -442,7 +437,9 @@ class GenerationMixin:
         model_kwargs["cache_position"] = cache_position
         return model_kwargs
 
-    def _get_cache(self, cache_implementation: str, max_batch_size: int, max_cache_len: int) -> Tuple[Tuple[ms.Tensor, ms.Tensor]]:
+    def _get_cache(
+        self, cache_implementation: str, max_batch_size: int, max_cache_len: int
+    ) -> Tuple[Tuple[ms.Tensor, ms.Tensor]]:
         """
         Sets a cache for `generate`, that will persist across calls. A new cache will only be initialized a
         new `generate` call requires a larger cache.
@@ -488,10 +485,7 @@ class GenerationMixin:
         return self._supports_cache_class and "jamba" not in self.__class__.__name__.lower()
 
     def _prepare_special_tokens(
-        self,
-        generation_config: GenerationConfig,
-        kwargs_has_attention_mask: Optional[bool] = None,
-        **ignore_kwargs
+        self, generation_config: GenerationConfig, kwargs_has_attention_mask: Optional[bool] = None, **ignore_kwargs
     ):
         """
         Prepares the special tokens for generation, overwriting the generation config with their processed versions
@@ -509,15 +503,9 @@ class GenerationMixin:
                 return token
             return ms.Tensor(token, dtype=ms.int32)
 
-        bos_token_id = _tensor_or_none(
-            generation_config.bos_token_id, self.generation_config.bos_token_id
-        )
-        eos_token_id = _tensor_or_none(
-            generation_config.eos_token_id, self.generation_config.eos_token_id
-        )
-        pad_token_id = _tensor_or_none(
-            generation_config.pad_token_id, self.generation_config.pad_token_id
-        )
+        bos_token_id = _tensor_or_none(generation_config.bos_token_id, self.generation_config.bos_token_id)
+        eos_token_id = _tensor_or_none(generation_config.eos_token_id, self.generation_config.eos_token_id)
+        pad_token_id = _tensor_or_none(generation_config.pad_token_id, self.generation_config.pad_token_id)
         decoder_start_token_id = _tensor_or_none(
             generation_config.decoder_start_token_id, self.generation_config.decoder_start_token_id
         )
@@ -738,8 +726,10 @@ class GenerationMixin:
             generation_config.max_length = generation_config.max_new_tokens + input_ids_length
 
             if generation_config.max_length < inputs_tensor.shape[1]:
-                raise ValueError(f"max_new_tokens `{generation_config.max_new_tokens}` is smaller than "
-                                 f"input length `{inputs_tensor.shape[1]}`.")
+                raise ValueError(
+                    f"max_new_tokens `{generation_config.max_new_tokens}` is smaller than "
+                    f"input length `{inputs_tensor.shape[1]}`."
+                )
 
         # if both `inputs_embeds` and `input_ids` are passed, we do not correct the length
         # otherwise we need total length [inputs-embeds-len + new-tokens-len] to not go beyond indicated `max_length``
@@ -770,9 +760,7 @@ class GenerationMixin:
 
         return generation_config
 
-    def heal_tokens(
-        self, input_ids: ms.Tensor, tokenizer: Optional["PreTrainedTokenizerBase"] = None
-    ) -> ms.Tensor:
+    def heal_tokens(self, input_ids: ms.Tensor, tokenizer: Optional["PreTrainedTokenizerBase"] = None) -> ms.Tensor:
         r"""
         Generates sequences of token ids for models with a language modeling head.
         Parameters:
@@ -835,14 +823,13 @@ class GenerationMixin:
         return input_ids
 
     def _update_model_kwargs_for_generation(
-            self,
-            outputs: ModelOutput,
-            model_kwargs: Dict[str, Any],
-            is_encoder_decoder: bool = False,
-            standardize_cache_format: bool = False,
-            num_new_tokens: int = 1,
+        self,
+        outputs: ModelOutput,
+        model_kwargs: Dict[str, Any],
+        is_encoder_decoder: bool = False,
+        standardize_cache_format: bool = False,
+        num_new_tokens: int = 1,
     ) -> Dict[str, Any]:
-
         # update past_key_values keeping its naming used in model code
         cache_name, cache = self._extract_past_from_model_output(
             outputs, standardize_cache_format=standardize_cache_format
@@ -879,21 +866,28 @@ class GenerationMixin:
             if "decoder_attention_mask" in model_kwargs:
                 decoder_attention_mask = model_kwargs["decoder_attention_mask"]
                 model_kwargs["decoder_attention_mask"] = ops.cat(
-                    [decoder_attention_mask,
-                     ops.ones((decoder_attention_mask.shape[0], 1), dtype=decoder_attention_mask.dtype)],
+                    [
+                        decoder_attention_mask,
+                        ops.ones((decoder_attention_mask.shape[0], 1), dtype=decoder_attention_mask.dtype),
+                    ],
                     axis=-1,
                 )
 
         if (
-                model_kwargs.get("use_cache", True)
-                and "cache_position" in model_kwargs
-                and model_kwargs["cache_position"] is not None
+            model_kwargs.get("use_cache", True)
+            and "cache_position" in model_kwargs
+            and model_kwargs["cache_position"] is not None
         ):
-            if model_kwargs.get("attention_mask", None) is not None and model_kwargs["attention_mask"].shape[-1] == model_kwargs["cache_position"].shape[0]:
+            if (
+                model_kwargs.get("attention_mask", None) is not None
+                and model_kwargs["attention_mask"].shape[-1] == model_kwargs["cache_position"].shape[0]
+            ):
                 # `cache_position` obtain effective length after 1st step
                 cur_idx = int(model_kwargs["attention_mask"].sum(-1).max()) - 1
                 past_idx = cur_idx - 1
-                model_kwargs["cache_position"] = model_kwargs["cache_position"][past_idx:past_idx+1] + num_new_tokens
+                model_kwargs["cache_position"] = (
+                    model_kwargs["cache_position"][past_idx : past_idx + 1] + num_new_tokens
+                )
             else:
                 model_kwargs["cache_position"] = model_kwargs["cache_position"][-1:] + num_new_tokens
 
@@ -1122,7 +1116,9 @@ class GenerationMixin:
                     and isinstance(dict_to_expand[key], ms.Tensor)
                 ):
                     if dict_to_expand[key].dtype == ms.bool_:
-                        dict_to_expand[key] = dict_to_expand[key].to(ms.int32).repeat_interleave(expand_size, dim=0).to(ms.bool_)
+                        dict_to_expand[key] = (
+                            dict_to_expand[key].to(ms.int32).repeat_interleave(expand_size, dim=0).to(ms.bool_)
+                        )
                     else:
                         dict_to_expand[key] = dict_to_expand[key].repeat_interleave(expand_size, dim=0)
             return dict_to_expand
@@ -1148,7 +1144,6 @@ class GenerationMixin:
         position_ids: ms.Tensor = None,
         attention_mask: ms.Tensor = None,
     ):
-
         # init empty array
         bs, max_length = len(input_ids), generation_config.max_length
         emb_length = inputs_embeds.shape[-1] if inputs_embeds is not None else 0
@@ -1159,11 +1154,12 @@ class GenerationMixin:
         padded_position_ids = ops.zeros((bs, max_length), ms.int32)
         padded_attention_mask = ops.zeros((bs, max_length), ms.bool_)
 
-        padded_inputs_embeds = ops.zeros((bs, max_length, emb_length), inputs_embeds.dtype) if inputs_embeds is not None else None
+        padded_inputs_embeds = (
+            ops.zeros((bs, max_length, emb_length), inputs_embeds.dtype) if inputs_embeds is not None else None
+        )
 
         _labels = labels
         _position_ids = position_ids
-        _attention_mask = attention_mask
 
         if attention_mask is None:
             if inputs_embeds is not None:
@@ -1177,13 +1173,20 @@ class GenerationMixin:
         if position_ids is None:
             position_ids = ops.arange(0, cur_len, dtype=ms.int32)
         if labels is None:
-            labels = ops.full((bs, cur_len,), ignore_label_index, dtype=ms.int32)
+            labels = ops.full(
+                (
+                    bs,
+                    cur_len,
+                ),
+                ignore_label_index,
+                dtype=ms.int32,
+            )
 
         for batch_idx, cur_attention_mask in enumerate(attention_mask):
             cur_len = cur_attention_mask.sum()
 
             padded_attention_mask[batch_idx, :cur_len] = attention_mask[batch_idx][:]
-            padded_input_ids[batch_idx, :min(cur_len, input_ids[batch_idx].shape[0])] = input_ids[batch_idx][:]
+            padded_input_ids[batch_idx, : min(cur_len, input_ids[batch_idx].shape[0])] = input_ids[batch_idx][:]
             padded_labels[batch_idx, :cur_len] = labels[batch_idx][:]
             padded_position_ids[batch_idx, :cur_len] = ops.arange(0, cur_len, dtype=position_ids.dtype)
 
@@ -1303,7 +1306,7 @@ class GenerationMixin:
         self._validate_assistant(assistant_model)
 
         # 2. Set generation parameters if not already defined
-        synced_gpus = False   # Set to `True` when zero3
+        synced_gpus = False  # Set to `True` when zero3
 
         logits_processor = logits_processor if logits_processor is not None else LogitsProcessorList()
         stopping_criteria = stopping_criteria if stopping_criteria is not None else StoppingCriteriaList()
@@ -1418,18 +1421,23 @@ class GenerationMixin:
             raise NotImplementedError
 
         # Use static tuple cache by default.
-        elif generation_config.cache_implementation is None and not self._supports_default_dynamic_cache() \
-                and model_kwargs.get("use_cache", False):
-
+        elif (
+            generation_config.cache_implementation is None
+            and not self._supports_default_dynamic_cache()
+            and model_kwargs.get("use_cache", False)
+        ):
             past = model_kwargs.get("past_key_values", None)
-            max_batch_size, max_cache_len, cache_dtype = \
-                getattr(generation_config, "num_beams", 1) * batch_size, generation_config.max_length, self.dtype
+            max_batch_size, max_cache_len, cache_dtype = (
+                getattr(generation_config, "num_beams", 1) * batch_size,
+                generation_config.max_length,
+                self.dtype,
+            )
             need_new_cache = (
-                    past is None
-                    or (not isinstance(past, tuple))
-                    or (not isinstance(past[0][0], ms.Tensor))
-                    or past[0][0].shape[0] != max_batch_size
-                    or past[0][0].shape[2] < max_cache_len
+                past is None
+                or (not isinstance(past, tuple))
+                or (not isinstance(past[0][0], ms.Tensor))
+                or past[0][0].shape[0] != max_batch_size
+                or past[0][0].shape[2] < max_cache_len
             )
 
             if need_new_cache:
@@ -1476,11 +1484,7 @@ class GenerationMixin:
             raise NotImplementedError
         elif generation_mode in (GenerationMode.SAMPLE, GenerationMode.GREEDY_SEARCH):
             # 11. prepare logits warper
-            prepared_logits_warper = (
-                self._get_logits_warper(generation_config)
-                if generation_config.do_sample
-                else None
-            )
+            prepared_logits_warper = self._get_logits_warper(generation_config) if generation_config.do_sample else None
 
             # 12. expand input_ids with `num_return_sequences` additional sequences per batch
             input_ids, model_kwargs = self._expand_inputs_for_generation(
@@ -1503,7 +1507,7 @@ class GenerationMixin:
             )
 
             # 14. unlike the original transformers, need delete the length of the input
-            result = result[:, inputs_tensor.shape[1]:]
+            result = result[:, inputs_tensor.shape[1] :]
 
         elif generation_mode in (GenerationMode.BEAM_SAMPLE, GenerationMode.BEAM_SEARCH):
             raise NotImplementedError
@@ -1619,15 +1623,20 @@ class GenerationMixin:
             )
 
         # Padding inputs to avoid dynamic shape on MindSpore 2.3.1
-        padded_input_ids, padded_inputs_embeds, padded_labels, padded_position_ids, padded_attention_mask = \
-            self._padding_inputs(
-                generation_config,
-                input_ids,
-                model_kwargs.get("inputs_embeds", None),
-                model_kwargs.get("labels", None),
-                model_kwargs.get("position_ids", None),
-                model_kwargs.get("attention_mask", None),
-            )
+        (
+            padded_input_ids,
+            padded_inputs_embeds,
+            padded_labels,
+            padded_position_ids,
+            padded_attention_mask,
+        ) = self._padding_inputs(
+            generation_config,
+            input_ids,
+            model_kwargs.get("inputs_embeds", None),
+            model_kwargs.get("labels", None),
+            model_kwargs.get("position_ids", None),
+            model_kwargs.get("attention_mask", None),
+        )
         input_ids = padded_input_ids
         model_kwargs["attention_mask"] = padded_attention_mask
         if model_kwargs.get("inputs_embeds", None) is not None:
@@ -1661,7 +1670,10 @@ class GenerationMixin:
             if synced_gpus and this_peer_finished:
                 continue  # don't waste resources running the code we don't need
 
-            print(f"======> sampling, step: {step}, sample outputs shape: {[o.shape for o in outputs if isinstance(o, ms.Tensor)]}, time cost: {time.time() - s_time:.3f}s")
+            print(
+                f"======> sampling, step: {step}, sample outputs shape: "
+                f"{[o.shape for o in outputs if isinstance(o, ms.Tensor)]}, time cost: {time.time() - s_time:.3f}s"
+            )
             s_time = time.time()
             step += 1
 
@@ -1677,13 +1689,13 @@ class GenerationMixin:
                 cur_idx = int(attention_mask.sum(-1).max()) - 1
 
                 if outputs.logits.shape[1] == attention_mask.shape[-1]:
-                    next_token_logits = outputs.logits[:, cur_idx, :]   # (bs, seq, dim)
+                    next_token_logits = outputs.logits[:, cur_idx, :]  # (bs, seq, dim)
                 else:
                     next_token_logits = outputs.logits[:, -1, :]
 
                 # `input_ids` obtain effective length after 1st step
                 if input_ids.shape[1] == attention_mask.shape[1]:
-                    input_ids = input_ids[:, :cur_idx+1]
+                    input_ids = input_ids[:, : cur_idx + 1]
 
             else:
                 next_token_logits = outputs.logits[:, -1, :]
@@ -1708,9 +1720,7 @@ class GenerationMixin:
 
                 if output_hidden_states:
                     decoder_hidden_states += (
-                        (outputs.decoder_hidden_states,)
-                        if self.config.is_encoder_decoder
-                        else (outputs.hidden_states,)
+                        (outputs.decoder_hidden_states,) if self.config.is_encoder_decoder else (outputs.hidden_states,)
                     )
 
             # token selection
@@ -1736,7 +1746,7 @@ class GenerationMixin:
                 is_encoder_decoder=self.config.is_encoder_decoder,
             )
 
-            unfinished_sequences = unfinished_sequences & ~Tensor(stopping_criteria(input_ids, scores), ms.bool_)
+            unfinished_sequences = unfinished_sequences & ~ms.Tensor(stopping_criteria(input_ids, scores), ms.bool_)
             this_peer_finished = unfinished_sequences.max() == 0
 
         if streamer is not None:

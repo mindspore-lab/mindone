@@ -13,8 +13,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-import importlib.metadata
-import importlib.util
 import copy
 import gc
 import json
@@ -27,6 +25,7 @@ from typing import Callable, Dict, Optional, Tuple, Union
 
 from transformers.configuration_utils import PretrainedConfig
 from transformers.dynamic_module_utils import custom_object_save
+from transformers.generation.utils import GenerationConfig
 from transformers.safetensors_conversion import auto_conversion
 from transformers.utils import (
     ADAPTER_SAFE_WEIGHTS_NAME,
@@ -52,17 +51,15 @@ from transformers.utils import (
     logging,
 )
 from transformers.utils.hub import convert_file_size_to_int, get_checkpoint_shard_files
-from transformers.generation.utils import GenerationConfig
 
 import mindspore as ms
 from mindspore import Tensor, nn, ops
 
-from .integrations import PeftAdapterMixin
-from .modeling_attn_mask_utils import dtype_to_min
 from .generation.utils import GenerationMixin
-from .utils.import_utils import is_flash_attn_2_available, is_sdpa_available
+from .integrations import PeftAdapterMixin
 from .mindspore_adapter import dtype_to_str
-
+from .modeling_attn_mask_utils import dtype_to_min
+from .utils.import_utils import is_flash_attn_2_available, is_sdpa_available
 
 if is_safetensors_available():
     from safetensors import safe_open
@@ -630,10 +627,10 @@ class MSPreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMix
 
     @classmethod
     def _autoset_attn_implementation(
-            cls,
-            config,
-            use_flash_attention_2: bool = False,
-            mindspore_dtype = None,
+        cls,
+        config,
+        use_flash_attention_2: bool = False,
+        mindspore_dtype=None,
     ):
         """
         Automatically checks and dispatches to a default attention implementation. In order of priority:
@@ -649,24 +646,31 @@ class MSPreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMix
         if hasattr(config, "_attn_implementation_internal") and config._attn_implementation_internal is not None:
             if config._attn_implementation != "flash_attention_2" and use_flash_attention_2:
                 raise ValueError(
-                    f'Both attn_implementation="{config._attn_implementation}" and `use_flash_attention_2=True` were used when loading the model, which are not compatible.'
+                    f'Both attn_implementation="{config._attn_implementation}" and `use_flash_attention_2=True` were '
+                    f"used when loading the model, which are not compatible."
                     ' We recommend to just use `attn_implementation="flash_attention_2"` when loading the model.'
                 )
 
             if config._attn_implementation not in ["eager", "sdpa", "flash_attention_2"]:
-                message = f'Specified `attn_implementation="{config._attn_implementation}"` is not supported. The only possible arguments are `attn_implementation="eager"` (manual attention implementation)'
+                message = (
+                    f'Specified `attn_implementation="{config._attn_implementation}"` is not supported. '
+                    f'The only possible arguments are `attn_implementation="eager"`'
+                    f" (manual attention implementation)"
+                )
                 if cls._supports_flash_attn_2:
                     message += ', `"attn_implementation=flash_attention_2"` (implementation using flash attention 2)'
                 if cls._supports_sdpa:
                     message += ', `"attn_implementation=sdpa"` (implementation using scaled_dot_product_attention)'
                 raise ValueError(message + ".")
 
-            # If a config is passed with a preset attn_implementation, we skip the automatic dispatch and use the user-provided config, with hard checks that the requested attention implementation is available.
+            # If a config is passed with a preset attn_implementation, we skip the automatic dispatch and use the
+            # user-provided config, with hard checks that the requested attention implementation is available.
             requested_attn_implementation = config._attn_implementation_internal
 
         if use_flash_attention_2:
             logger.warning_once(
-                'The model was loaded with use_flash_attention_2=True, which is deprecated and may be removed in a future release. Please use `attn_implementation="flash_attention_2"` instead.'
+                "The model was loaded with use_flash_attention_2=True, which is deprecated and may be removed in a "
+                'future release. Please use `attn_implementation="flash_attention_2"` instead.'
             )
             config._attn_implementation = "flash_attention_2"
 
@@ -703,15 +707,16 @@ class MSPreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMix
 
     @classmethod
     def _check_and_enable_flash_attn_2(
-            cls,
-            config,
-            mindspore_dtype=None,
-            hard_check_only: bool = False,
+        cls,
+        config,
+        mindspore_dtype=None,
+        hard_check_only: bool = False,
     ) -> PretrainedConfig:
         """
         Checks the availability of Flash Attention 2 and compatibility with the current model.
 
-        If all checks pass and `hard_check_only` is False, the method will set the config attribute `attn_implementation` to "flash_attention_2" so that the model can initialize the correct attention module.
+        If all checks pass and `hard_check_only` is False, the method will set the config attribute
+        `attn_implementation` to "flash_attention_2" so that the model can initialize the correct attention module.
         """
         if not cls._supports_flash_attn_2:
             raise ValueError(
@@ -730,8 +735,10 @@ class MSPreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMix
         elif mindspore_dtype is not None and mindspore_dtype not in [ms.float16, ms.bfloat16]:
             logger.warning_once(
                 "Flash Attention 2.0 only supports ms.float16 and ms.bfloat16 dtypes, but"
-                f" the current dype in {cls.__name__} is {mindspore_dtype}. You should run training or inference using Automatic Mixed-Precision via the `network=auto_mix_precision(network, ...)` decorator,"
-                ' or load the model with the `mindspore_dtype` argument. Example: `model = AutoModel.from_pretrained("openai/whisper-tiny", attn_implementation="flash_attention_2", mindspore_dtype=ms.float16)`'
+                f" the current dype in {cls.__name__} is {mindspore_dtype}. You should run training or inference using "
+                f"Automatic Mixed-Precision via the `network=auto_mix_precision(network, ...)` decorator,"
+                " or load the model with the `mindspore_dtype` argument. Example: `model = "
+                'AutoModel.from_pretrained("openai/whisper-tiny", attn_implementation="flash_attention_2", mindspore_dtype=ms.float16)`'
             )
 
         if not hard_check_only:
@@ -743,19 +750,20 @@ class MSPreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMix
         """
         Checks the availability of SDPA for a given model.
 
-        If all checks pass and `hard_check_only` is False, the method will set the config attribute `_attn_implementation` to "flash_attention_2" so that the model can initialize the correct attention module.
+        If all checks pass and `hard_check_only` is False, the method will set the config attribute `_attn_implementation`
+        to "flash_attention_2" so that the model can initialize the correct attention module.
         """
         if hard_check_only:
             if not cls._supports_sdpa:
                 raise ValueError(
                     f"{cls.__name__} does not support an attention implementation through `scaled_dot_product_attention` yet."
-                    " Please request the support for this architecture: https://github.com/huggingface/transformers/issues/28005. If you believe"
-                    ' this error is a bug, please open an issue in Transformers GitHub repository and load your model with the argument `attn_implementation="eager"` meanwhile. Example: `model = AutoModel.from_pretrained("openai/whisper-tiny", attn_implementation="eager")`'
+                    " Please request the support for this architecture: https://github.com/huggingface/transformers/issues/28005. "
+                    "If you believe this error is a bug, please open an issue in Transformers GitHub repository and "
+                    'load your model with the argument `attn_implementation="eager"` meanwhile. Example: '
+                    '`model = AutoModel.from_pretrained("openai/whisper-tiny", attn_implementation="eager")`'
                 )
             if not is_sdpa_available():
-                raise ImportError(
-                    "SDPA requirements in Transformers are not met."
-                )
+                raise ImportError("SDPA requirements in Transformers are not met.")
 
         if not is_sdpa_available() or not cls._supports_sdpa:
             return config
@@ -900,7 +908,8 @@ class MSPreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMix
         if pad_to_multiple_of is not None:
             if not isinstance(pad_to_multiple_of, int):
                 raise ValueError(
-                    f"Asking to pad the embedding matrix to a multiple of `{pad_to_multiple_of}`, which is not and integer. Please make sure to pass an integer"
+                    f"Asking to pad the embedding matrix to a multiple of `{pad_to_multiple_of}`, "
+                    f"which is not and integer. Please make sure to pass an integer"
                 )
             if new_num_tokens is None:
                 new_num_tokens = old_embeddings.embedding_table.shape[0]
@@ -1187,7 +1196,8 @@ class MSPreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMix
 
                 if save_peft_format:
                     logger.info(
-                        "To match the expected format of the PEFT library, all keys of the state dict of adapters will be pre-pended with `base_model.model`."
+                        "To match the expected format of the PEFT library, all keys of the state dict of adapters will "
+                        "be pre-pended with `base_model.model`."
                     )
                     peft_state_dict = {}
                     for key, value in state_dict.items():
@@ -1198,7 +1208,8 @@ class MSPreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMix
 
                 if len(active_adapter) > 1:
                     raise ValueError(
-                        "Multiple active adapters detected, saving multiple active adapters is not supported yet. You can save adapters separately one by one "
+                        "Multiple active adapters detected, saving multiple active adapters is not supported yet. "
+                        "You can save adapters separately one by one "
                         "by iteratively calling `model.set_adapter(adapter_name)` then `model.save_pretrained(...)`"
                     )
                 active_adapter = active_adapter[0]
@@ -1486,7 +1497,6 @@ class MSPreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMix
         use_flash_attention_2 = kwargs.pop("use_flash_attention_2", False)
         adapter_kwargs = kwargs.pop("adapter_kwargs", {})
         adapter_name = kwargs.pop("adapter_name", "default")
-
 
         if use_auth_token is not None:
             warnings.warn(
@@ -1913,7 +1923,9 @@ class MSPreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMix
         if mindspore_dtype is not None:
             model = model.to(mindspore_dtype)
 
-            logger.info(f"convert model:{model.__class__.__name__} parameters to mindspore_dtype {dtype_to_str(mindspore_dtype)}")
+            logger.info(
+                f"convert model:{model.__class__.__name__} parameters to mindspore_dtype {dtype_to_str(mindspore_dtype)}"
+            )
 
         # make sure we use the model's config since the __init__ call might have copied it
         config = model.config
@@ -2008,9 +2020,7 @@ class MSPreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMix
     ):
         # Mapping loaded_keys from pt to ms
         pt2ms_mappings = _get_pt2ms_mappings(model)
-        loaded_keys = [
-            _get_pt2ms_mapped_kv(pt2ms_mappings, s, None, "")[0] for s in loaded_keys
-        ]
+        loaded_keys = [_get_pt2ms_mapped_kv(pt2ms_mappings, s, None, "")[0] for s in loaded_keys]
         # Retrieve missing & unexpected_keys
         model_state_dict = {k: v for k, v in model.parameters_and_names()}
         expected_keys = list(model_state_dict.keys())
