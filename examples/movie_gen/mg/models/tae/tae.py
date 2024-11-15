@@ -89,6 +89,9 @@ class TemporalAutoencoder(nn.Cell):
             # self.recompute(self.post_quant_conv)
             self.recompute(self.decoder)
 
+        if pretrained is not None:
+            self.load_pretrained(pretrained)
+
 
     def recompute(self, b):
         if not b._has_config_recompute:
@@ -161,7 +164,15 @@ class TemporalAutoencoder(nn.Cell):
             raise NotImplementedError
         else:
             param_dict = ms.load_checkpoint(ckpt_path)
+
+            # remove the added prefix in the trained checkpoint
+            pnames = list(param_dict.keys())
+            for pn in pnames:
+                new_pn = pn.replace("autoencoder.", "").replace("_backbone.", "")
+                param_dict[new_pn] = param_dict.pop(pn)
+
             param_not_load, ckpt_not_load = ms.load_param_into_net(self, param_dict, strict_load=True)
+
             if param_not_load or ckpt_not_load:
                 print(f"{param_not_load} in network is not loaded")
                 print(f"{ckpt_not_load} in checkpoint is not loaded!")

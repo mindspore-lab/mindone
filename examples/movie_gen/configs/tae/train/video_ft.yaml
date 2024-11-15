@@ -1,9 +1,8 @@
 # model
-freeze_vae_2d: False
-pretrained_model_path: ""
+pretrained_model_path: "models/tae_vae2d.ckpt"
 
 # loss
-perceptual_loss_weight: 0.1
+perceptual_loss_weight: 1.0
 kl_loss_weight: 1.e-6
 use_outlier_penalty_loss: True
 mixed_strategy: "mixed_video_image"
@@ -35,7 +34,8 @@ use_recompute: True
 
 epochs: 400
 ckpt_save_interval: 100
-init_loss_scale: 1.
+init_loss_scale: 1024.
+loss_scaler_type: dynamic
 
 scheduler: "constant"
 use_ema: False

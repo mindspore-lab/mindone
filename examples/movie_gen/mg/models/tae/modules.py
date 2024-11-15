@@ -156,7 +156,7 @@ class Conv2_5d(nn.Cell):
             self.use_pad = False
             self.conv_temp = nn.Conv1d(out_channels, out_channels, kernel_size=kernel_size, stride=stride, pad_mode="valid", has_bias=has_bias, bias_init='zeros')
 
-        self.init_temporal_weight()
+        self.init_temporal_weight('median')
 
     @staticmethod
     def symmetric_pad1d(x):
@@ -174,6 +174,7 @@ class Conv2_5d(nn.Cell):
         Returns:
             (b c t h w)
         '''
+
 
         B, Ci, T, Hi, Wi = x.shape
         # (b c t h w) -> (b t c h w)
@@ -210,21 +211,26 @@ class Conv2_5d(nn.Cell):
 
         return x
 
-    def init_temporal_weight(self):
-        # temporal conv kernel: (cout, cin, 1, ks)
-        # ks=1 or 3, cin == cout
-        # import pdb; pdb.set_trace()
-        w = self.conv_temp.weight
-        ch = int(w.shape[0])
-        ks = int(w.shape[-1])
-        value = np.zeros(tuple(w.shape))
+    def init_temporal_weight(self, method='median'):
+        if method == 'normal':
+            return
 
-        # only the middle element of the kernel is 1 so that the output is the same input in initialization
-        for i in range(ch):
-            value[i, i, 0, ks//2] = 1
-        w.set_data(ms.Tensor(value, dtype=ms.float32))
+        elif method == 'median':
+            # temporal conv kernel: (cout, cin, 1, ks)
+            # ks=1 or 3, cin == cout
+            w = self.conv_temp.weight
+            ch = int(w.shape[0])
+            ks = int(w.shape[-1])
+            value = np.zeros(tuple(w.shape))
 
-        # bias is initialized to zero in layer def
+            # only the middle element of the kernel is 1 so that the output is the same input in initialization
+            for i in range(ch):
+                value[i, i, 0, ks//2] = 1
+            w.set_data(ms.Tensor(value, dtype=ms.float32))
+
+            # bias is initialized to zero in layer def
+        else:
+            raise NotImplementedError
 
 
 class SpatialUpsample(nn.Cell):
@@ -304,13 +310,13 @@ class TemporalDownsample(nn.Cell):
         )
         # tail padding, pad with last frame
         self.time_pad = self.ks - 1
-        self.init_weight("mean")
+        self.init_weight("median")
 
     def init_weight(self, method='mean'):
         if method == 'normal':
             # default conv init
             return
-
+    
         # no way to reserve complete input since stride 2
         w = self.conv.weight
         value = np.zeros(tuple(w.shape))
@@ -357,7 +363,7 @@ class TemporalUpsample(nn.Cell):
         self.conv = nn.Conv1d(in_channels, in_channels, kernel_size=3, stride=1, pad_mode="same", has_bias=True, bias_init='zeros')
         # TODO: init conv weight so that it pass in image mode
         self.ch = in_channels
-        self.init_weight()
+        self.init_weight('median')
 
     def init_weight(self, method='median'):
         if method == 'normal':
