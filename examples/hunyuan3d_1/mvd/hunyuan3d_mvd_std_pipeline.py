@@ -33,7 +33,6 @@ import numpy as np
 from PIL import Image
 
 from mindone.diffusers.image_processor import VaeImageProcessor
-from mindone.diffusers.utils.import_utils import is_xformers_available
 from mindone.diffusers.schedulers import KarrasDiffusionSchedulers
 from mindone.diffusers.utils.mindspore_utils import randn_tensor
 from mindone.diffusers.models.attention_processor import (
@@ -47,9 +46,9 @@ from mindone.diffusers import (
     DDPMScheduler,
     DiffusionPipeline, 
     EulerAncestralDiscreteScheduler, 
-    UNet2DConditionModel, 
-    ImagePipelineOutput
+    UNet2DConditionModel,
 )
+from mindone.diffusers.pipelines.pipeline_utils import ImagePipelineOutput
 from mindone.transformers import ( 
     CLIPTextModel, 
     CLIPVisionModelWithProjection, 
@@ -118,12 +117,13 @@ class RefOnlyNoisedUNet(nn.Cell):
             # if is_xformers_available():  default_attn_proc = XFormersAttnProcessor()
             # else:                          
             default_attn_proc = AttnProcessor()
-            if check_valid_flash_attention():
-                default_attn_proc.set_use_memory_efficient_attention_xformers(True)
             unet_attn_procs[name] = ReferenceOnlyAttnProc(
                 default_attn_proc, enabled=name.endswith("attn1.processor"), name=name
             )
         unet.set_attn_processor(unet_attn_procs)
+
+        if check_valid_flash_attention():
+            self.set_use_memory_efficient_attention_xformers(True)
 
     def __getattr__(self, name: str):
         try:

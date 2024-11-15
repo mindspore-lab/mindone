@@ -61,7 +61,7 @@ class MV23DPredictor(object):
         config = OmegaConf.load(cfg_path)
         model = instantiate_from_config(config.model)
 
-        weights = load_file("./weights/svrm/svrm.safetensors")
+        weights = load_file(ckpt_path)
         model.load_state_dict(weights)
 
         # model.device("Ascend")

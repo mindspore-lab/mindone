@@ -55,6 +55,9 @@ def get_args():
         "--text2image_path", default="weights/hunyuanDiT", type=str
     )
     parser.add_argument(
+        "--mvd_ckt_path", default="weights/hunyuan3D", type=str
+    )
+    parser.add_argument(
         "--save_folder", default="./outputs/test/", type=str
     )
     parser.add_argument(
@@ -104,7 +107,7 @@ if __name__ == "__main__":
     rembg_model = Removebg()
     image_to_views_model = Image2Views(
         use_lite=args.use_lite,
-        save_memory=args.save_memory
+        ckpt_path=args.mvd_ckt_path
     )
     
     views_to_mesh_model = Views2Mesh(

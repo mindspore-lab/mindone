@@ -25,23 +25,27 @@ import os , sys
 sys.path.insert(0, f"{os.path.dirname(os.path.dirname(os.path.abspath(__file__)))}")
 
 import mindspore as ms
-from mindspore import nn, ops, mint
+from mindspore import ops
 from mindone.diffusers import HunyuanDiTPipeline, AutoPipelineForText2Image
+import numpy as np
 
-from infer.utils import seed_everything, timing_decorator, auto_amp_inference
+from infer.utils import seed_everything, timing_decorator
 from infer.utils import get_parameter_number, set_parameter_grad_false
 
-
 class Text2Image():
-    def __init__(self, pretrain="weights/hunyuanDiT"):
+    def __init__(self, pretrain="Tencent-Hunyuan/HunyuanDiT-Diffusers"):
 
-        # self.save_memory = save_memory
-        self.pipe = AutoPipelineForText2Image.from_pretrained(
+        # self.pipe = AutoPipelineForText2Image.from_pretrained(
+        #     pretrain, 
+        #     mindspore_dtype = ms.float16, 
+        #     enable_pag = True, 
+        #     pag_applied_layers = ["blocks.(16|17|18|19)"]
+        # ) # TODO: do not support HunyuanDiTPAGPipeline yet
+
+        self.pipe = HunyuanDiTPipeline.from_pretrained(
             pretrain, 
-            mindspore_dtype = ms.float16, 
-            enable_pag = True, 
-            pag_applied_layers = ["blocks.(16|17|18|19)"]
-        )
+            mindspore_dtype = ms.float32
+        ) # Note: CumProd does not support float16 
         set_parameter_grad_false(self.pipe.transformer)
         print('text2image transformer model', get_parameter_number(self.pipe.transformer))
 
@@ -67,12 +71,18 @@ class Text2Image():
         '''
         print("prompt is:", prompt)
         prompt = prompt + ",白色背景,3D风格,最佳质量"
-        seed_everything(seed)
-        generator = np.random.Generator()
-        if seed is not None: generator = generator.manual_seed(int(seed))
+        if args.seed is not None:
+            seed_everything(seed)
+            generator = np.random.Generator(np.random.PCG64(seed=args.seed))
+        else:
+            generator = np.random.Generator(np.random.PCG64(0)) 
+        # rgb = ops.stop_gradient(
+        #     self.pipe(prompt=prompt, negative_prompt=self.neg_txt, num_inference_steps=steps, 
+        #         pag_scale=1.3, width=1024, height=1024, generator=generator, return_dict=False)
+        # )[0][0] # TODO: do not support HunyuanDiTPAGPipeline yet
         rgb = ops.stop_gradient(
             self.pipe(prompt=prompt, negative_prompt=self.neg_txt, num_inference_steps=steps, 
-                pag_scale=1.3, width=1024, height=1024, generator=generator, return_dict=False)
+                width=1024, height=1024, generator=generator, return_dict=False)
         )[0][0]
        
         return rgb
@@ -82,7 +92,7 @@ if __name__ == "__main__":
     
     def get_args():
         parser = argparse.ArgumentParser()
-        parser.add_argument("--text2image_path", default="weights/hunyuanDiT", type=str)
+        parser.add_argument("--text2image_path", default="Tencent-Hunyuan/HunyuanDiT-Diffusers", type=str)
         parser.add_argument("--text_prompt", default="", type=str)
         parser.add_argument("--output_img_path", default="./outputs/test/img.jpg", type=str)
         parser.add_argument("--device", default="Ascend", type=str)

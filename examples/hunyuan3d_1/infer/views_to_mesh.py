@@ -29,10 +29,9 @@ import time
 import random
 import numpy as np
 from PIL import Image
-from einops import rearrange
 from PIL import Image, ImageSequence
 
-from infer.utils import seed_everything, timing_decorator, auto_amp_inference
+from infer.utils import seed_everything, timing_decorator
 from infer.utils import get_parameter_number, set_parameter_grad_false, str_to_bool
 from svrm.predictor import MV23DPredictor
 
@@ -49,7 +48,7 @@ class Views2Mesh():
         self.mv23d_predictor = MV23DPredictor(mv23d_ckt_path, mv23d_cfg_path)  
         self.mv23d_predictor.model.set_train(False)
         self.order = [0, 1, 2, 3, 4, 5] if use_lite else [0, 2, 4, 5, 3, 1]
-        self.save_memory = save_memory
+        # self.save_memory = save_memory
         set_parameter_grad_false(self.mv23d_predictor.model)
         print('view2mesh model', get_parameter_number(self.mv23d_predictor.model))
 

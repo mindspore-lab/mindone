@@ -26,14 +26,13 @@ import os, sys
 sys.path.insert(0, f"{os.path.dirname(os.path.dirname(os.path.abspath(__file__)))}")
 
 import time
-import mindspore as mvd_std
+import mindspore as ms
 from mindspore import nn, mint, ops
 import random
 import numpy as np
 from PIL import Image
-from PIL import Image, ImageSequence
 
-from infer.utils import seed_everything, timing_decorator #, auto_amp_inference
+from infer.utils import seed_everything, timing_decorator 
 from infer.utils import get_parameter_number, set_parameter_grad_false, str_to_bool
 from mvd.hunyuan3d_mvd_std_pipeline import HunYuan3D_MVD_Std_Pipeline
 from mvd.hunyuan3d_mvd_lite_pipeline import Hunyuan3d_MVD_Lite_Pipeline
@@ -49,25 +48,25 @@ def save_gif(pils, save_path, df=False):
 
 class Image2Views():
     def __init__(self, 
-            use_lite=False, save_memory=False,
-            std_pretrain='./weights/mvd_std', lite_pretrain='./weights/mvd_lite'
+            use_lite=False, ckpt_path='./weights/mvd_std'
+            # std_pretrain='./weights/mvd_std', lite_pretrain='./weights/mvd_lite'
         ):
         if use_lite:
-            print("loading", lite_pretrain)
+            print("loading", ckpt_path)
             self.pipe = Hunyuan3d_MVD_Lite_Pipeline.from_pretrained(
-                lite_pretrain,
+                ckpt_path,
                 mindspore_dtype = ms.float16,
                 use_safetensors = True,
             )
         else:
-            print("loadding", std_pretrain)
+            print("loadding", ckpt_path)
             self.pipe = HunYuan3D_MVD_Std_Pipeline.from_pretrained(
-                std_pretrain,
+                ckpt_path,
                 mindspore_dtype = ms.float16,
                 use_safetensors = True,
             )
         self.order = [0, 1, 2, 3, 4, 5] if use_lite else [0, 2, 4, 5, 3, 1]
-        self.save_memory = save_memory
+        # self.save_memory = save_memory
         set_parameter_grad_false(self.pipe.unet)
         print('image2views unet model', get_parameter_number(self.pipe.unet))
 
@@ -81,8 +80,7 @@ class Image2Views():
         
     def call(self, pil_img, seed=0, steps=50, guidance_scale=2.0):
         seed_everything(seed)
-        generator = np.random.Generator()
-        if seed is not None: generator = generator.manual_seed(int(seed))
+        generator = np.random.Generator(np.random.PCG64(seed=int(seed)))
         res_img = ops.stop_gradient(
                     self.pipe(pil_img, 
                             num_inference_steps=steps,
@@ -98,7 +96,7 @@ class Image2Views():
         m = 2
         h = nh // n
         w = mw // m
-        show_image = show_image.reshape(n, h, m, w, c).permute(0,2,1,3,4).reshape(-1, h, w, c)
+        show_image = show_image.reshape(n, h, m, w, c).transpose(0,2,1,3,4).reshape(-1, h, w, c)
 
         pils = [res_img[1]]+[Image.fromarray(show_image[idx]) for idx in self.order] 
         
@@ -113,6 +111,7 @@ if __name__ == "__main__":
         parser.add_argument("--rgba_path", type=str, required=True)
         parser.add_argument("--output_views_path", type=str, required=True)
         parser.add_argument("--output_cond_path", type=str, required=True)
+        parser.add_argument("--mvd_ckt_path", type=str, required=True)
         parser.add_argument("--seed", default=0, type=int)
         parser.add_argument("--steps", default=50, type=int)
         parser.add_argument("--device", default="cuda:0", type=str)
@@ -127,7 +126,7 @@ if __name__ == "__main__":
 
     assert rgba_pil.mode == "RGBA", "rgba_pil must be RGBA mode"
 
-    model = Image2Views(device=args.device, use_lite=args.use_lite)
+    model = Image2Views(use_lite=args.use_lite, ckpt_path=args.mvd_ckt_path)
 
     (views_pil, cond), _ = model(rgba_pil, seed=args.seed, steps=args.steps)
 

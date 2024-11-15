@@ -118,8 +118,6 @@ class RefOnlyNoisedUNet(nn.Cell):
 
         unet_lora_attn_procs = dict()
         default_attn_proc = AttnProcessor()
-        if check_valid_flash_attention():
-            default_attn_proc.set_use_memory_efficient_attention_xformers(True)
         for name, _ in unet.attn_processors.items():
             unet_lora_attn_procs[name] = ReferenceOnlyAttnProc(default_attn_proc, # do not support AttnProcessor2_0() yet 
                                                            enabled=name.endswith("attn1.processor"), 
@@ -194,6 +192,9 @@ class Hunyuan3d_MVD_Lite_Pipeline(DiffusionPipeline, TextualInversionLoaderMixin
         self.register_to_config(ramping_coefficients=ramping_coefficients)
         self.vae_scale_factor = 2 ** (len(self.vae.config.block_out_channels) - 1)
         self.image_processor = VaeImageProcessor(vae_scale_factor=self.vae_scale_factor)
+        
+        if check_valid_flash_attention():
+            self.set_use_memory_efficient_attention_xformers(True)
 
     def prepare_extra_step_kwargs(self, generator, eta):
         extra_step_kwargs = {}
@@ -299,7 +300,9 @@ class Hunyuan3d_MVD_Lite_Pipeline(DiffusionPipeline, TextualInversionLoaderMixin
 
     # @torch.no_grad()
     def encode_condition_image(self, image: ms.Tensor): 
-        return self.vae.encode(image).latent_dist.sample()
+        image_latents = self.vae.encode(image)[0]
+        image_latents = self.vae.diag_gauss_dist.sample(image_latents)
+        return image_latents
 
     # @torch.no_grad()
     def __call__(self, image=None, 
@@ -315,24 +318,25 @@ class Hunyuan3d_MVD_Lite_Pipeline(DiffusionPipeline, TextualInversionLoaderMixin
         do_classifier_free_guidance = True
         guidance_rescale = 0.
         if isinstance(self.unet, UNet2DConditionModel): 
-            self.unet = RefOnlyNoisedUNet(self.unet, None, self.scheduler).eval()
+            self.unet = RefOnlyNoisedUNet(self.unet, None, self.scheduler).get_train(False)
 
         cond_image = recenter_img(image)
         cond_image = to_rgb_image(image)
         image = cond_image
         image_1 = self.feature_extractor_vae(images=image, return_tensors="np").pixel_values
         image_2 = self.feature_extractor_clip(images=image, return_tensors="np").pixel_values
-        image_1 = image_1.to(dtype=self.vae.dtype)
-        image_2 = image_2.to(dtype=self.vae.dtype)
+        image_1 = ms.Tensor(image_1).to(dtype=self.vae.dtype)
+        image_2 = ms.Tensor(image_2).to(dtype=self.vae.dtype)
 
         cond_lat = self.encode_condition_image(image_1)
         negative_lat = self.encode_condition_image(mint.zeros_like(image_1))
         cond_lat = mint.cat([negative_lat, cond_lat])
         cross_attention_kwargs = dict(cond_lat=cond_lat)
 
-        global_embeds = self.vision_encoder(image_2, output_hidden_states=False).image_embeds.unsqueeze(-2)
+        global_embeds = self.vision_encoder(image_2, output_hidden_states=False)[0].unsqueeze(-2) # image_embeds
         encoder_hidden_states = self._encode_prompt('', num_images_per_prompt, False)
-        # ramp = global_embeds.new_tensor(self.config.ramping_coefficients).unsqueeze(-1) #TODO
+
+        # ramp = global_embeds.new_tensor(self.config.ramping_coefficients).unsqueeze(-1) 
         ramp = ms.Tensor(self.config.ramping_coefficients, dtype=global_embeds.dtype).unsqueeze(-1)
         prompt_embeds = mint.cat([encoder_hidden_states, encoder_hidden_states + global_embeds * ramp])
 
@@ -388,7 +392,7 @@ class Hunyuan3d_MVD_Lite_Pipeline(DiffusionPipeline, TextualInversionLoaderMixin
                 if i==len(timesteps)-1 or ((i+1)>num_warmup_steps and (i+1)%self.scheduler.order==0): 
                     progress_bar.update()
 
-        latents = unscale_latents(latents)
+        latents = unscale_latents(latents).to(self.vae.dtype)
         image = unscale_image(self.vae.decode(latents / self.vae.config.scaling_factor, return_dict=False)[0])
         image = self.image_processor.postprocess(image, output_type='pil')[0]
         image = [image, cond_image]
