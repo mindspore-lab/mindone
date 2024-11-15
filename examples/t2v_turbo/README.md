@@ -18,7 +18,7 @@ Paper: https://arxiv.org/abs/2405.18750
 
 ## 🏭 Requirements
 
-The scripts have been tested on Ascend [910B] chips under the following requirements:
+The scripts have been tested on Ascend 910B chips under the following requirements:
 
 | mindspore | ascend driver | firmware | cann toolkit/kernel |
 | --------- | ------------- | -------- | ------------------- |
@@ -58,19 +58,22 @@ The scripts have been tested on Ascend [910B] chips under the following requirem
 1. Download the checkpoint of `VideoCrafter2` from [here](https://huggingface.co/VideoCrafter/VideoCrafter2/blob/main/model.ckpt)
 2. Download the `unet_lora.pt` of our T2V-Turbo (VC2) [here](https://huggingface.co/jiachenli-ucsb/T2V-Turbo-VC2/blob/main/unet_lora.pt).
 3. Download the checkpoint of `OpenCLIP` from [here](https://download.mindspore.cn/toolkits/mindone/videocomposer/model_weights/open_clip_vit_h_14-9bb07a10.ckpt) 
-3. Convert the checkpoints to Mindspore Version by running the following commands:
+4. Convert the checkpoints to Mindspore Version by running the following commands:
 
 ```bash
-# convert VideoCarfter2/model.ckpt
-python tools/convert_weights.py
+# convert VideoCarfter2 Model
+python tools/convert_weights.py --source PATH-TO-VideoCrafter2-model.ckpt --target PATH-TO-VideoCrafter2-model-ms.ckpt --type ckpt
+
+# convert unet_lora.pt
+python tools/convert_weights.py --source PATH-TO-unet_lora.pt --target PATH-TO-unet_lora.ckpt --type lora
 ```
 
 4. Generate text-to-video via following command:
 ```bash
 python predict.py \
   --unet_dir PATH_TO_UNET_LORA.pt \
-  --base_model_dir PATH_TO_VideoCrafter2_MODEL_CKPT \
-  --prompt "input prompt for video generation"\
+  --base_model_dir PATH-TO-VideoCrafter2-model-ms.ckpt \
+  --prompt "input prompt for video generation" \
   --num_inference_steps 4
 ```
 
@@ -80,14 +83,15 @@ python predict.py \
 2. Download the `unet_lora.pt` of our T2V-Turbo (MS) [here](https://huggingface.co/jiachenli-ucsb/T2V-Turbo-MS/blob/main/unet_lora.pt).
 3. Convert the `unet_lora.pt` using the following command:
 ```bash
-python tools/convert_weights.py
+# convert unet_lora.pt
+python tools/convert_weights.py --source PATH-TO-unet_lora.pt --target PATH-TO-unet_lora.ckpt --type lora
 ```
 
 4. Generate text-to-video via following command:
 ```bash
 python predict_ms.py \
   --unet_dir PATH_TO_UNET_LORA.pt \
-  --base_model_dir PATH_TO_VideoCrafter2_MODEL_CKPT \
+  --base_model_dir PATH_TO_ModelScope_MODEL_FOLDER \
   --prompt "input prompt for video generation"\
   --num_inference_steps 4
 ```
@@ -99,7 +103,21 @@ To train T2V-Turbo (VC2), first prepare the data and model as below
 1. Download the model checkpoint of VideoCrafter2 [here](https://huggingface.co/VideoCrafter/VideoCrafter2/blob/main/model.ckpt).
 2. Prepare the [WebVid-10M](https://github.com/m-bain/webvid) data. Save in the `webdataset` format.
 3. Download the [InternVid2 S2 Model](https://huggingface.co/OpenGVLab/InternVideo2-CLIP-1B-224p-f8) 
-4. Set `--pretrained_model_path`, `--train_shards_path_or_url` and `video_rm_ckpt_dir` accordingly in `train_t2v_turbo_vc2.sh`.
+4. Download the [HPSv2.1](https://huggingface.co/xswu/HPSv2/blob/main/HPS_v2.1_compressed.pt)
+5. Convert the checkpoints to Mindspore Version by running the following commands:
+
+```bash
+# convert VideoCarfter2 Model
+python tools/convert_weights.py --source PATH-TO-VideoCrafter2-model.ckpt --target PATH-TO-VideoCrafter2-model-ms.ckpt --type ckpt
+
+# convert InternVid2-S2 Model
+python tools/convert_weights.py --source PATH-TO-InternVid2-S2 --target PATH-TO-unet_lora.ckpt --type internvid
+
+# convert HPSv2.1 Model
+python tools/convert_weights.py --source PATH-TO-HPSv2.1.pt --target PATH-TO-unet_lora.ckpt --type hps
+```
+
+6. Set `--pretrained_model_path`, `--train_shards_path_or_url` and `video_rm_ckpt_dir` accordingly in `train_t2v_turbo_vc2.sh`.
 
 Then run the following command:
 ```bash
@@ -109,9 +127,17 @@ bash train_t2v_turbo.sh
 
 ## 📋 Benchmarking
 
-Experiments are tested on Ascend [910B] with mindpsore [2.3.1].
+Experiments are tested on Ascend 910B with mindpsore 2.3.1 pynative mode.
 
 ### Inference Performance
 
+| model name | method | cards | batch size | resolution | scheduler | steps | jit level | s/step | img/s |
+| ---------- | ------ | ----- | ---------- | ---------- | --------- | ----- | --------- | ------ | ----- |
+| T2V-Turbo (VC2) | LORA | 1 | 1 | 320x512 | ddim | 4 | O1 | | |
+| T2V-Turbo (MS)  | LORA | 1 | 1 | 256x256 | ddim | 4 | O1 | | |
 
 ### Training Performance
+
+| model name | method | cards | batch size | resolution | precision | jit level | s/step | img/s |
+| ---------- | ------ | ----- | ---------- | ---------- | --------- | --------- | ------ | ----- |
+| T2V-Turbo (VC2) | LORA | 1 | 1 | 320x512 | fp16 | O1 | | |
