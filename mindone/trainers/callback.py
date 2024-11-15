@@ -351,6 +351,8 @@ class ProfilerCallback(ms.Callback):
         self.exit_after_analyze = exit_after_analyze
         rank_id = get_real_rank()
         out_dir = os.path.join(out_dir, f"rank_{rank_id}")
+        # If value of profile_framework is not None, a subdirectory named host_info will be generated under the
+        # specified profiler directory to store the collected memory and time files on the Host side.
         self.profiler = ms.Profiler(start_profile=False, output_path=out_dir, profile_framework='all', data_simplication=False)
 
     def on_train_step_begin(self, run_context):
