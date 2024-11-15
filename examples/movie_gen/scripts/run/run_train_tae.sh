@@ -1,4 +1,4 @@
-export ASCEND_RT_VISIBLE_DEVICES=7
+# export ASCEND_RT_VISIBLE_DEVICES=7
 # improve data loading performance for distributed training: 1
 export MS_ENABLE_NUMA=0
 # plot memory usage, feature/model: 1
