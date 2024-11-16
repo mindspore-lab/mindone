@@ -168,7 +168,7 @@ def main(args):
         csv_path=args.csv_path,
         data_folder=args.video_folder,
         size=image_size,
-        crop_size=image_size,
+        crop_size=args.crop_size,
         sample_n_frames=args.num_frames,
         sample_stride=args.frame_stride,
         video_column=args.video_column,

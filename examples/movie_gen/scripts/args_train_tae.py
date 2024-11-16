@@ -133,9 +133,6 @@ def parse_train_args(parser):
     parser.add_argument("--decay_steps", default=0, type=int, help="lr decay steps.")
     parser.add_argument("--scheduler", default="cosine_decay", type=str, help="scheduler.")
     parser.add_argument("--pre_patchify", default=False, type=str2bool, help="Training with patchified latent.")
-    parser.add_argument(
-        "--max_image_size", default=512, type=int, help="Max image size for patchified latent training."
-    )
 
     # dataloader params
     parser.add_argument("--dataset_sink_mode", default=False, type=str2bool, help="sink mode")
@@ -212,7 +209,8 @@ def parse_train_args(parser):
     parser.add_argument(
         "--sd_scale_factor", type=float, default=0.18215, help="VAE scale factor of Stable Diffusion model."
     )
-    parser.add_argument("--image_size", default=256, type=int, nargs="+", help="the image size used to initiate model")
+    parser.add_argument("--image_size", default=256, type=int, nargs="+", help="image size for resizing the input image")
+    parser.add_argument("--crop_size", default=256, type=int, help="crop size after resize")
     parser.add_argument("--num_frames", default=16, type=int, help="the num of frames used to initiate model")
     parser.add_argument("--frame_stride", default=3, type=int, help="frame sampling stride")
     parser.add_argument("--mask_ratios", type=dict, help="Masking ratios")
