@@ -1,4 +1,5 @@
 """Utility of downloading"""
+
 import bz2
 import gzip
 import hashlib
@@ -10,6 +11,8 @@ import urllib
 import urllib.error
 import urllib.request
 import zipfile
+import subprocess
+import time
 from copy import deepcopy
 from typing import Optional
 
@@ -30,6 +33,14 @@ def get_default_download_root():
 def set_default_download_root(path):
     global _DEFAULT_DOWNLOAD_ROOT
     _DEFAULT_DOWNLOAD_ROOT = path
+
+
+def download_weights(url, dest):
+    start = time.time()
+    print("downloading url: ", url)
+    print("downloading to: ", dest)
+    subprocess.check_call(["pget", "-x", url, dest], close_fds=False)
+    print("downloading took: ", time.time() - start)
 
 
 class DownLoad:

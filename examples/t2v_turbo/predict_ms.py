@@ -4,12 +4,8 @@
 import os, sys
 import argparse
 import datetime
-import subprocess
-import time
 import logging
 import numpy as np
-
-from omegaconf import OmegaConf
 
 import mindspore as ms
 from mindspore import mint
@@ -40,14 +36,6 @@ from pipeline.t2v_turbo_ms_pipeline import T2VTurboMSPipeline
 logger = logging.getLogger(__name__)
 
 
-def download_weights(url, dest):
-    start = time.time()
-    print("downloading url: ", url)
-    print("downloading to: ", dest)
-    subprocess.check_call(["pget", "-x", url, dest], close_fds=False)
-    print("downloading took: ", time.time() - start)
-
-
 def main(args):
     if args.append_timestr:
         time_str = datetime.datetime.now().strftime("%Y-%m-%dT%H-%M-%S")
@@ -68,7 +56,7 @@ def main(args):
     rank_id, device_num = init_env(
         args.mode,
         args.seed,
-        args.use_parallel,
+        distributed=False,
         device_target=args.device_target,
         jit_level=args.jit_level,
         global_bf16=args.global_bf16,
@@ -168,7 +156,7 @@ def main(args):
     video = video.permute(0, 2, 3, 1).asnumpy()
 
     # 5. save result
-    out_path = "./results/out.mp4"
+    out_path = os.path.join(save_dir, "out.mp4")
     save_videos(video, out_path, fps=args.fps / args.frame_interval)
 
     logger.info(f"Video saved in {out_path}")
@@ -283,9 +271,6 @@ def parse_args():
         type=int,
         default=0,
         help="Running in GRAPH_MODE(0) or PYNATIVE_MODE(1) (default=0)",
-    )
-    parser.add_argument(
-        "--use_parallel", default=False, type=str2bool, help="use parallel"
     )
     parser.add_argument(
         "--debug", type=str2bool, default=False, help="Execute inference in debug mode."

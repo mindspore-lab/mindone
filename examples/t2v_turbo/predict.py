@@ -4,8 +4,6 @@
 import os, sys
 import argparse
 import datetime
-import subprocess
-import time
 import logging
 import numpy as np
 
@@ -28,7 +26,9 @@ from utils.lora import collapse_lora, monkeypatch_remove_lora
 from utils.common_utils import load_model_checkpoint
 from utils.utils import instantiate_from_config
 from utils.env import init_env
+from utils.download import download_weights
 from utils.lora_handler import LoraHandler
+from tools.convert_weights import convert_weights, convert_t2v_vc2, convert_lora
 from scheduler.t2v_turbo_scheduler import T2VTurboScheduler
 from pipeline.t2v_turbo_vc2_pipeline import T2VTurboVC2Pipeline
 
@@ -37,15 +37,9 @@ from gm.modules.embedders.open_clip.tokenizer import tokenize
 
 logger = logging.getLogger(__name__)
 MODEL_URL = "https://weights.replicate.delivery/default/Ji4chenLi/t2v-turbo.tar"
-MODEL_CACHE = "checkpoints/t2v-vc2/"
-
-
-def download_weights(url, dest):
-    start = time.time()
-    print("downloading url: ", url)
-    print("downloading to: ", dest)
-    subprocess.check_call(["pget", "-x", url, dest], close_fds=False)
-    print("downloading took: ", time.time() - start)
+UNET_URL = "https://huggingface.co/VideoCrafter/VideoCrafter2/blob/main/model.ckpt"
+VC2_URL = "https://huggingface.co/jiachenli-ucsb/T2V-Turbo-VC2/blob/main/unet_lora.pt"
+MODEL_CACHE = "model_cache/t2v-vc2/"
 
 
 def main(args):
@@ -68,7 +62,7 @@ def main(args):
     rank_id, device_num = init_env(
         args.mode,
         args.seed,
-        args.use_parallel,
+        distributed=False,
         device_target=args.device_target,
         jit_level=args.jit_level,
         global_bf16=args.global_bf16,
@@ -76,23 +70,43 @@ def main(args):
     )
 
     # 2. model initiate and weight loading
-
-    # if not os.path.exists(MODEL_CACHE):
-    #     download_weights(MODEL_URL, MODEL_CACHE)
-
-    base_model_dir = os.path.join(MODEL_CACHE, "t2v_VC2.ckpt")
-    unet_dir = os.path.join(MODEL_CACHE, "unet_lora_vc2.pt")
+    if os.path.exists(args.base_model_dir) and os.path.exists(args.unet_dir):
+        unet_dir = args.unet_dir
+        t2v_dir = args.base_model_dir
+    elif not os.path.exists(args.unet_dir) and os.path.exists(args.base_model_dir):
+        print(f"unet_dir: {args.unet_dir} does not exist, downloading ...")
+        download_weights(UNET_URL, MODEL_CACHE)
+        convert_lora(
+            src_path=os.path.join(MODEL_CACHE, "unet_lora.pt"), target_path=os.path.join(MODEL_CACHE, "unet_lora.ckpt")
+        )
+        unet_dir = os.path.join(MODEL_CACHE, "unet_lora.ckpt")
+        t2v_dir = args.base_model_dir
+    elif not os.path.exists(args.base_model_dir) and os.path.exists(args.unet_dir):
+        print(f"base_model_dir: {args.base_model_dir} does not exist, downloading ...")
+        download_weights(VC2_URL, MODEL_CACHE)
+        convert_t2v_vc2(
+            src_path=os.path.join(MODEL_CACHE, "model.ckpt"),
+            target_path=os.path.join(MODEL_CACHE, "VideoCrafter2_model_ms.ckpt"),
+        )
+        unet_dir = args.unet_dir
+        t2v_dir = os.path.join(MODEL_CACHE, "VideoCrafter2_model_ms.ckpt")
+    else:
+        print(f"checkpoints does not exist, downloading ...")
+        download_weights(MODEL_URL, MODEL_CACHE)
+        convert_weights(MODEL_CACHE)
+        unet_dir = os.path.join(MODEL_CACHE, "unet_lora.ckpt")
+        t2v_dir = os.path.join(MODEL_CACHE, "VideoCrafter2_model_ms.ckpt")
 
     config = OmegaConf.load(args.config)
     model_config = config.pop("model", OmegaConf.create())
 
     clip_dir = model_config["params"]["cond_stage_config"]["params"].get("pretrained_ckpt_path", None)
     if clip_dir:
-        clip_dir = os.path.join(base_model_dir, clip_dir)
+        clip_dir = os.path.join(MODEL_CACHE, clip_dir)
         model_config["params"]["cond_stage_config"]["params"]["pretrained_ckpt_path"] = clip_dir
 
     pretrained_t2v = instantiate_from_config(model_config)
-    pretrained_t2v = load_model_checkpoint(pretrained_t2v, base_model_dir)
+    pretrained_t2v = load_model_checkpoint(pretrained_t2v, t2v_dir)
 
     unet_config = model_config["params"]["unet_config"]
     unet_config["params"]["time_cond_proj_dim"] = 256
@@ -179,7 +193,7 @@ def main(args):
     video = video.permute(0, 2, 3, 1).asnumpy()
 
     # 5. save result
-    out_path = "./results/out.mp4"
+    out_path = os.path.join(save_dir, "out.mp4")
     save_videos(video, out_path, fps=args.fps / args.frame_interval)
 
     logger.info(f"Video saved in {out_path}")
@@ -193,6 +207,18 @@ def parse_args():
         default="configs/inference_t2v_512_v2.0.yaml",
         type=str,
         help="path to load a config yaml file that describes the setting which will override the default arguments",
+    )
+    parser.add_argument(
+        "--unet_dir",
+        type=str,
+        default="model_cache/t2v-vc2/unet_lora.ckpt",
+        help="Directory of the UNet model",
+    )
+    parser.add_argument(
+        "--base_model_dir",
+        type=str,
+        default="model_cache/t2v-vc2/VideoCrafter2_model_ms.ckpt",
+        help="Directory of the VideoCrafter2 checkpoint.",
     )
     parser.add_argument(
         "--dtype",
@@ -242,9 +268,7 @@ def parse_args():
         type=int,
         help="How many channels to use for classifier-free diffusion. If None, use half of the latent channels",
     )
-    parser.add_argument(
-        "--num_inference_steps", type=int, default=4, help="Number of denoising steps"
-    )
+    parser.add_argument("--num_inference_steps", type=int, default=4, help="Number of denoising steps")
     parser.add_argument(
         "--frame_interval",
         default=1,
@@ -280,21 +304,14 @@ def parse_args():
     )
 
     # MS new args
-    parser.add_argument(
-        "--device_target", type=str, default="Ascend", help="Ascend or GPU"
-    )
+    parser.add_argument("--device_target", type=str, default="Ascend", help="Ascend or GPU")
     parser.add_argument(
         "--mode",
         type=int,
         default=0,
         help="Running in GRAPH_MODE(0) or PYNATIVE_MODE(1) (default=0)",
     )
-    parser.add_argument(
-        "--use_parallel", default=False, type=str2bool, help="use parallel"
-    )
-    parser.add_argument(
-        "--debug", type=str2bool, default=False, help="Execute inference in debug mode."
-    )
+    parser.add_argument("--debug", type=str2bool, default=False, help="Execute inference in debug mode.")
     parser.add_argument("--seed", type=int, default=4, help="Inference seed")
 
     args = parser.parse_args()

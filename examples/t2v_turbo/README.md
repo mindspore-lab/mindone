@@ -43,45 +43,65 @@ The scripts have been tested on Ascend 910B chips under the following requiremen
 
 |Model|Resolution|Checkpoints|
 |:---------|:---------|:--------|
-|T2V-Turbo (VC2)|320x512|[model.ckpt] [unet_lora.pt] |
-|T2V-Turbo (MS)|256x256|[model.ckpt] [unet_lora.ckpt]|
+|T2V-Turbo (VC2)|320x512|[![HuggingFace](https://img.shields.io/badge/%F0%9F%A4%97%20Hugging%20Face-Model-blue)](https://huggingface.co/jiachenli-ucsb/T2V-Turbo-VC2/blob/main/unet_lora.pt) |
+|T2V-Turbo (MS)|256x256|[![HuggingFace](https://img.shields.io/badge/%F0%9F%A4%97%20Hugging%20Face-Model-blue)](https://huggingface.co/jiachenli-ucsb/T2V-Turbo-MS/blob/main/unet_lora.pt) |
+
+> **_NOTE:_**  The LORA weights here are originally in PyTorch format, please follow the instructions in [Inference](#-inference) to convert the weights in Mindspore format.
 
 
 ## 🚀 Inference
 
+### 1) To play with our **T2V-Turbo (VC2)**, please follow the steps below:
 
+#### Option 1: Automatically preprare the weights by running the `predict.py` script
 
-### T2V-Turbo
+By running the following command:
 
-#### 1) To play with our T2V-Turbo (VC2), please follow the steps below:
-
-1. Download the checkpoint of `VideoCrafter2` from [here](https://huggingface.co/VideoCrafter/VideoCrafter2/blob/main/model.ckpt)
-2. Download the `unet_lora.pt` of our T2V-Turbo (VC2) [here](https://huggingface.co/jiachenli-ucsb/T2V-Turbo-VC2/blob/main/unet_lora.pt).
-3. Download the checkpoint of `OpenCLIP` from [here](https://download.mindspore.cn/toolkits/mindone/videocomposer/model_weights/open_clip_vit_h_14-9bb07a10.ckpt) 
-4. Convert the checkpoints to Mindspore Version by running the following commands:
-
-```bash
-# convert VideoCarfter2 Model
-python tools/convert_weights.py --source PATH-TO-VideoCrafter2-model.ckpt --target PATH-TO-VideoCrafter2-model-ms.ckpt --type ckpt
-
-# convert unet_lora.pt
-python tools/convert_weights.py --source PATH-TO-unet_lora.pt --target PATH-TO-unet_lora.ckpt --type lora
-```
-
-4. Generate text-to-video via following command:
 ```bash
 python predict.py \
-  --unet_dir PATH_TO_UNET_LORA.pt \
-  --base_model_dir PATH-TO-VideoCrafter2-model-ms.ckpt \
   --prompt "input prompt for video generation" \
   --num_inference_steps 4
 ```
 
-#### 2) To play with our T2V-Turbo (MS), please follow the steps below:
+The model weights will automatically downloaded and converted in mindspore format and saved to `./model_cache/t2v-vc2/` folder in the following structure:
+
+```bash
+├─model_cache
+│  ├─t2v-vc2
+│  │  ├─VideoCrafter2_model_ms.ckpt
+│  │  ├─unet_lora.ckpt
+```
+
+#### Option 2: Manually download and convert the weights
+
+1. Download the checkpoint of `VideoCrafter2` from [here](https://huggingface.co/VideoCrafter/VideoCrafter2/blob/main/model.ckpt)
+2. Download the `unet_lora.pt` of our T2V-Turbo (VC2) [here](https://huggingface.co/jiachenli-ucsb/T2V-Turbo-VC2/blob/main/unet_lora.pt).
+3. Download the checkpoint of `OpenCLIP` from [here](https://download.mindspore.cn/toolkits/mindone/videocomposer/model_weights/open_clip_vit_h_14-9bb07a10.ckpt) 
+4. **Convert** the checkpoints to Mindspore Version by running the following commands:
+
+```bash
+# convert VideoCarfter2 Model
+python tools/convert_weights.py --source PATH-TO-VideoCrafter2-model.ckpt --target PATH-TO-VideoCrafter2-MODEL.ckpt --type vc2
+
+# convert unet_lora.pt
+python tools/convert_weights.py --source PATH-TO-unet_lora.pt --target PATH_TO_UNET_LORA.ckpt --type lora
+```
+
+5. Generate text-to-video via following command:
+```bash
+python predict.py \
+  --unet_dir PATH_TO_UNET_LORA.ckpt \
+  --base_model_dir PATH-TO-VideoCrafter2-MODEL.ckpt \
+  --prompt "input prompt for video generation" \
+  --num_inference_steps 4
+```
+
+### 2) To play with our T2V-Turbo (MS), please follow the steps below:
 
 1. Download model weights of `ModelScope` from [here](https://huggingface.co/ali-vilab/text-to-video-ms-1.7b)
 2. Download the `unet_lora.pt` of our T2V-Turbo (MS) [here](https://huggingface.co/jiachenli-ucsb/T2V-Turbo-MS/blob/main/unet_lora.pt).
-3. Convert the `unet_lora.pt` using the following command:
+3. **Convert** the `unet_lora.pt` using the following command:
+
 ```bash
 # convert unet_lora.pt
 python tools/convert_weights.py --source PATH-TO-unet_lora.pt --target PATH-TO-unet_lora.ckpt --type lora
@@ -90,7 +110,7 @@ python tools/convert_weights.py --source PATH-TO-unet_lora.pt --target PATH-TO-u
 4. Generate text-to-video via following command:
 ```bash
 python predict_ms.py \
-  --unet_dir PATH_TO_UNET_LORA.pt \
+  --unet_dir PATH_TO_UNET_LORA.ckpt \
   --base_model_dir PATH_TO_ModelScope_MODEL_FOLDER \
   --prompt "input prompt for video generation"\
   --num_inference_steps 4
@@ -104,7 +124,7 @@ To train T2V-Turbo (VC2), first prepare the data and model as below
 2. Prepare the [WebVid-10M](https://github.com/m-bain/webvid) data. Save in the `webdataset` format.
 3. Download the [InternVid2 S2 Model](https://huggingface.co/OpenGVLab/InternVideo2-CLIP-1B-224p-f8) 
 4. Download the [HPSv2.1](https://huggingface.co/xswu/HPSv2/blob/main/HPS_v2.1_compressed.pt)
-5. Convert the checkpoints to Mindspore Version by running the following commands:
+5. **Convert** the checkpoints to Mindspore Version by running the following commands:
 
 ```bash
 # convert VideoCarfter2 Model

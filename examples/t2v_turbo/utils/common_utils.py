@@ -10,6 +10,7 @@ from collections import OrderedDict
 
 from mindone.diffusers.models.attention_processor import AttnProcessor
 from lvdm.modules.attention import BasicTransformerBlock
+
 # import wandb
 
 
@@ -77,9 +78,7 @@ def append_dims(x, target_dims):
     """Appends dimensions to the end of a tensor until it has target_dims dimensions."""
     dims_to_append = target_dims - x.ndim
     if dims_to_append < 0:
-        raise ValueError(
-            f"input has {x.ndim} dims but target_dims is {target_dims}, which is less"
-        )
+        raise ValueError(f"input has {x.ndim} dims but target_dims is {target_dims}, which is less")
     for i in range(dims_to_append):
         x = ops.expand_dims(x, -1)
     return x
@@ -94,9 +93,7 @@ def scalings_for_boundary_conditions(timestep, sigma_data=0.5, timestep_scaling=
 
 
 # Compare LCMScheduler.step, Step 4
-def get_predicted_original_sample(
-    model_output, timesteps, sample, prediction_type, alphas, sigmas
-):
+def get_predicted_original_sample(model_output, timesteps, sample, prediction_type, alphas, sigmas):
     alphas = extract_into_tensor(alphas, timesteps, sample.shape)
     sigmas = extract_into_tensor(sigmas, timesteps, sample.shape)
     if prediction_type == "epsilon":
@@ -115,9 +112,7 @@ def get_predicted_original_sample(
 
 
 # Based on step 4 in DDIMScheduler.step
-def get_predicted_noise(
-    model_output, timesteps, sample, prediction_type, alphas, sigmas
-):
+def get_predicted_noise(model_output, timesteps, sample, prediction_type, alphas, sigmas):
     alphas = extract_into_tensor(alphas, timesteps, sample.shape)
     sigmas = extract_into_tensor(sigmas, timesteps, sample.shape)
     if prediction_type == "epsilon":
@@ -164,9 +159,7 @@ def create_optimizer_params(model_list, lr):
         model, condition, extra_params, is_lora, negation = optim.values()
         # Check if we are doing LoRA training.
         if is_lora and condition and isinstance(model, list):
-            params = create_optim_params(
-                params=model, extra_params=extra_params
-            )
+            params = create_optim_params(params=model, extra_params=extra_params)
             optimizer_params.append(params)
             continue
 
@@ -190,9 +183,7 @@ def create_optimizer_params(model_list, lr):
     return optimizer_params
 
 
-def handle_trainable_modules(
-    model, trainable_modules=None, is_enabled=True, negation=None
-):
+def handle_trainable_modules(model, trainable_modules=None, is_enabled=True, negation=None):
     acc = []
     unfrozen_params = 0
 
@@ -286,15 +277,12 @@ def tuple_type(s):
 
 
 def load_model_checkpoint(model, ckpt):
-    def load_checkpoint(model, ckpt, full_strict):
-        state_dict = ms.load_checkpoint(ckpt)
-        param_not_load, _ = ms.load_param_into_net(model, state_dict, strict_load=full_strict)
-        if param_not_load:
-            print("param_not_load: ", param_not_load)
-        del state_dict
-        gc.collect()
-        return model
+    state_dict = ms.load_checkpoint(ckpt)
+    param_not_load, _ = ms.load_param_into_net(model, state_dict, strict_load=False)
+    if param_not_load:
+        print("param_not_load: ", param_not_load)
+    del state_dict
+    gc.collect()
 
-    load_checkpoint(model, ckpt, full_strict=False)
     print(">>> model checkpoint loaded.")
     return model
