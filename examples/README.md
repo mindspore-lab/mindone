@@ -1,4 +1,4 @@
-### multi modal understanding and generation model examples supported by mindone
+### multi-modal understanding and generation model examples supported by mindone
 | project  |  introduction | original repo
 | :---   |  :--  | :-
 | [mindone.diffusers](https://github.com/mindspore-lab/mindone/blob/master/examples/diffusers) | run hf diffusers on mindspore | https://github.com/huggingface/diffusers |

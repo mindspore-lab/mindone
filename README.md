@@ -1,6 +1,6 @@
 # MindONE
 
-This repository contains SoTA algorithms, models, and interesting projects in the area of multimodal understanding and content generation
+This repository contains SoTA algorithms, models, and interesting projects in the area of multimodal understanding and content generation.
 
 ONE is short for "ONE for all"
 
@@ -11,7 +11,7 @@ ONE is short for "ONE for all"
 
 To install MindONE v0.2.0, please install [MindSpore 2.3.1](https://www.mindspore.cn/install) and run `pip install mindone`
 
-Alternatively, to install the latest version from the `master` branch, please run
+Alternatively, to install the latest version from the `master` branch, please run.
 ```
 git clone https://github.com/mindspore-lab/mindone.git
 cd mindone
@@ -50,17 +50,17 @@ image.save("sd3.png")
 | [pllava](https://github.com/mindspore-lab/mindone/blob/master/examples/pllava)      | working on it |
 | [hpcai open sora](https://github.com/mindspore-lab/mindone/blob/master/examples/opensora_hpcai)      | support v1.0/1.1/1.2 large scale training with dp/sp/zero |
 | [open sora plan](https://github.com/mindspore-lab/mindone/blob/master/examples/opensora_pku) | support v1.0/1.1/1.2 large scale training with dp/sp/zero |
-| [stable diffusion](https://github.com/mindspore-lab/mindone/blob/master/examples/stable_diffusion_v2) | support sd 1.5/2.0/2.1, vanilla fine tune, lora, dreambooth, text inversion|
-| [stable diffusion xl](https://github.com/mindspore-lab/mindone/blob/master/examples/stable_diffusion_xl)  |support sai style(stability AI) vanilla fine tune, lora, dreambooth |
-| [dit](https://github.com/mindspore-lab/mindone/blob/master/examples/dit)     | support text to image fine tune |
-| [latte](https://github.com/mindspore-lab/mindone/blob/master/examples/latte)     | support uncondition text to image fine tune |
+| [stable diffusion](https://github.com/mindspore-lab/mindone/blob/master/examples/stable_diffusion_v2) | support sd 1.5/2.0/2.1, vanilla fine-tune, lora, dreambooth, text inversion|
+| [stable diffusion xl](https://github.com/mindspore-lab/mindone/blob/master/examples/stable_diffusion_xl)  |support sai style(stability AI) vanilla fine-tune, lora, dreambooth |
+| [dit](https://github.com/mindspore-lab/mindone/blob/master/examples/dit)     | support text to image fine-tune |
+| [latte](https://github.com/mindspore-lab/mindone/blob/master/examples/latte)     | support unconditional text to image fine-tune |
 | [animate diff](https://github.com/mindspore-lab/mindone/blob/master/examples/animatediff) | support motion module and lora training |
 | [video composer](https://github.com/mindspore-lab/mindone/tree/master/examples/videocomposer)     | support conditional video generation with motion transfer and etc.|
 | [ip adapter](https://github.com/mindspore-lab/mindone/blob/master/examples/ip_adapter)     | refactoring  |
 | [t2i-adapter](https://github.com/mindspore-lab/mindone/blob/master/examples/t2i_adapter)     | refactoring |
 | [dynamicrafter](https://github.com/mindspore-lab/mindone/blob/master/examples/dynamicrafter)     | support image to video generation |
-| [hunyuan_dit](https://github.com/mindspore-lab/mindone/blob/master/examples/hunyuan_dit)     | support text to image fine tune |
-| [pixart_sigma](https://github.com/mindspore-lab/mindone/blob/master/examples/pixart_sigma)     | suuport text to image fine tune at different aspect ratio |
+| [hunyuan_dit](https://github.com/mindspore-lab/mindone/blob/master/examples/hunyuan_dit)     | support text to image fine-tune |
+| [pixart_sigma](https://github.com/mindspore-lab/mindone/blob/master/examples/pixart_sigma)     | support text to image fine-tune at different aspect ratio |
 
 ###  run hf diffusers on mindspore
 mindone diffusers is under active development, most tasks were tested with mindspore 2.3.1 and ascend 910 hardware.
