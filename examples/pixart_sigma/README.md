@@ -11,7 +11,6 @@ This repo contains Mindspore model definitions, pre-trained weights and inferenc
     - [Launch Demo: coming soon]
 - Guidance
     - [Feature extraction: coming soon]
-    - [One step Generation (DMD): coming soon]
     - [LoRA & DoRA: coming soon]
 - Benchmark
     - [Training](#training)
