@@ -318,7 +318,8 @@ class Hunyuan3d_MVD_Lite_Pipeline(DiffusionPipeline, TextualInversionLoaderMixin
         do_classifier_free_guidance = True
         guidance_rescale = 0.
         if isinstance(self.unet, UNet2DConditionModel): 
-            self.unet = RefOnlyNoisedUNet(self.unet, None, self.scheduler).get_train(False)
+            self.unet = RefOnlyNoisedUNet(self.unet, None, self.scheduler).set_train(False)
+            self.unet.to_float(self.dtype)
 
         cond_image = recenter_img(image)
         cond_image = to_rgb_image(image)

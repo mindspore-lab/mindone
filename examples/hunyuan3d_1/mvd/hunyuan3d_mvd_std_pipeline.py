@@ -122,9 +122,6 @@ class RefOnlyNoisedUNet(nn.Cell):
             )
         unet.set_attn_processor(unet_attn_procs)
 
-        if check_valid_flash_attention():
-            self.set_use_memory_efficient_attention_xformers(True)
-
     def __getattr__(self, name: str):
         try:
             return super().__getattr__(name)
@@ -214,13 +211,18 @@ class HunYuan3D_MVD_Std_Pipeline(DiffusionPipeline):
         self.watermark = None 
         self.prepare_init = False
 
+        if check_valid_flash_attention():
+            self.set_use_memory_efficient_attention_xformers(True)
+
     def prepare(self):
         assert isinstance(self.unet, UNet2DConditionModel), "unet should be UNet2DConditionModel"
-        self.unet = RefOnlyNoisedUNet(self.unet, self.scheduler).eval()
+        self.unet = RefOnlyNoisedUNet(self.unet, self.scheduler).set_train(False)
+        elf.unet = self.unet.to_float(self.dtype)
         self.prepare_init = True
 
     def encode_image(self, image: ms.Tensor, scale_factor: bool = False):
-        latent = self.vae.encode(image).latent_dist.sample()
+        image_latents = self.vae.encode(image)[0]
+        latent = self.vae.diag_gauss_dist.sample(image_latents)
         return (latent * self.vae.config.scaling_factor) if scale_factor else latent
 
     # Copied from mindone.diffusers.pipelines.stable_diffusion.pipeline_stable_diffusion.StableDiffusionPipeline.prepare_latents
@@ -253,7 +255,7 @@ class HunYuan3D_MVD_Std_Pipeline(DiffusionPipeline):
         passed_add_embed_dim = (
             self.unet.config.addition_time_embed_dim * len(add_time_ids) + text_encoder_projection_dim
         )
-        expected_add_embed_dim = self.unet.add_embedding.linear_1.in_features
+        expected_add_embed_dim = self.unet.add_embedding.linear_1.in_channels
 
         if expected_add_embed_dim != passed_add_embed_dim:
             raise ValueError(
@@ -356,8 +358,8 @@ class HunYuan3D_MVD_Std_Pipeline(DiffusionPipeline):
         # hw: preprocess
         cond_image = recenter_img(image)
         cond_image = to_rgb_image(image)
-        image_vae = self.feature_extractor_vae(images=cond_image, return_tensors="np").pixel_values.to(**here)
-        image_clip = self.vision_processor(images=cond_image, return_tensors="np").pixel_values.to(**here)
+        image_vae = ms.Tensor(self.feature_extractor_vae(images=cond_image, return_tensors="np").pixel_values).to(**here)
+        image_clip = ms.Tensor(self.vision_processor(images=cond_image, return_tensors="np").pixel_values).to(**here)
 
         # hw: get cond_lat from cond_img using vae
         cond_lat = self.encode_image(image_vae, scale_factor=False)
@@ -365,8 +367,8 @@ class HunYuan3D_MVD_Std_Pipeline(DiffusionPipeline):
         cond_lat = mint.cat([negative_lat, cond_lat])
 
         # hw: get visual global embedding using clip
-        global_embeds_1 = self.vision_encoder(image_clip, output_hidden_states=False).image_embeds.unsqueeze(-2)
-        global_embeds_2 = self.vision_encoder_2(image_clip, output_hidden_states=False).image_embeds.unsqueeze(-2)
+        global_embeds_1 = self.vision_encoder(image_clip, output_hidden_states=False)[0].unsqueeze(-2)
+        global_embeds_2 = self.vision_encoder_2(image_clip, output_hidden_states=False)[0].unsqueeze(-2)
         global_embeds = mint.cat([global_embeds_1, global_embeds_2], dim=-1)
         
         # ramp = global_embeds.new_tensor(self.config.ramping_coefficients).unsqueeze(-1)
@@ -448,7 +450,7 @@ class HunYuan3D_MVD_Std_Pipeline(DiffusionPipeline):
             image = self.vae.decode(latents / self.vae.config.scaling_factor, return_dict=False)[0]
             image = unscale_image(unscale_image_2(image)).clamp(0, 1)
             image = [
-                Image.fromarray((image[0]*255+0.5).clamp_(0, 255).permute(1, 2, 0).cpu().numpy().astype("uint8")),
+                Image.fromarray((image[0]*255+0.5).clamp(0, 255).permute(1, 2, 0).asnumpy().astype("uint8")),
                 # self.image_processor.postprocess(image, output_type=output_type)[0],
                 cond_image.resize((512, 512))
             ]
@@ -459,13 +461,26 @@ class HunYuan3D_MVD_Std_Pipeline(DiffusionPipeline):
     def save_pretrained(self, save_directory):
         # uc_text_emb.pt and uc_text_emb_2.pt are inferenced and saved in advance
         super().save_pretrained(save_directory)
-        ms.save_checkpoint(self.uc_text_emb, os.path.join(save_directory, "uc_text_emb.ckpt"))
-        ms.save_checkpoint(self.uc_text_emb_2, os.path.join(save_directory, "uc_text_emb_2.ckpt"))
+        np.save(os.path.join(save_directory, "uc_text_emb.npy"), self.uc_text_emb)
+        np.save(os.path.join(save_directory, "uc_text_emb_2.npy"), self.uc_text_emb_2)
 
     @classmethod
     def from_pretrained(cls, pretrained_model_name_or_path, *model_args, **kwargs):
         # uc_text_emb.pt and uc_text_emb_2.pt are inferenced and saved in advance
         pipeline = super().from_pretrained(pretrained_model_name_or_path, *model_args, **kwargs)
-        pipeline.uc_text_emb = ms.load_checkpoint(os.path.join(pretrained_model_name_or_path, "uc_text_emb.pt"))
-        pipeline.uc_text_emb_2 = ms.load_checkpoint(os.path.join(pretrained_model_name_or_path, "uc_text_emb_2.pt"))
+        if os.path.exists(os.path.join(pretrained_model_name_or_path, "uc_text_emb.npy")):
+            pipeline.uc_text_emb = ms.Tensor(np.load(os.path.join(pretrained_model_name_or_path, "uc_text_emb.pt")))
+            pipeline.uc_text_emb_2 = ms.ms.Tensor(np.load(os.path.join(pretrained_model_name_or_path, "uc_text_emb_2.pt")))
+        else:
+            print("**** Fail to find numpy array *.npy, try to load torch tensor *.pt ****")
+            import torch #pip install torch
+            np_uc_text_emb = torch.load(os.path.join(pretrained_model_name_or_path, "uc_text_emb.pt")).cpu().numpy()
+            np_uc_text_emb_2 = torch.load(os.path.join(pretrained_model_name_or_path, "uc_text_emb_2.pt")).cpu().numpy()
+
+            pipeline.uc_text_emb = ms.Tensor(np_uc_text_emb)
+            pipeline.uc_text_emb_2 = ms.Tensor(np_uc_text_emb_2)
+            # save as np array
+            np.save(os.path.join(pretrained_model_name_or_path, "uc_text_emb.npy"), np_uc_text_emb)
+            np.save(os.path.join(pretrained_model_name_or_path, "uc_text_emb_2.npy"), np_uc_text_emb_2)
+
         return pipeline
