@@ -26,7 +26,7 @@ from utils.lora import collapse_lora, monkeypatch_remove_lora
 from utils.common_utils import load_model_checkpoint
 from utils.utils import instantiate_from_config
 from utils.env import init_env
-from utils.download import download_weights
+from utils.download import DownLoad
 from utils.lora_handler import LoraHandler
 from tools.convert_weights import convert_weights, convert_t2v_vc2, convert_lora
 from scheduler.t2v_turbo_scheduler import T2VTurboScheduler
@@ -75,7 +75,7 @@ def main(args):
         t2v_dir = args.base_model_dir
     elif not os.path.exists(args.unet_dir) and os.path.exists(args.base_model_dir):
         print(f"unet_dir: {args.unet_dir} does not exist, downloading ...")
-        download_weights(UNET_URL, MODEL_CACHE)
+        DownLoad().download_url(UNET_URL, path=MODEL_CACHE)
         convert_lora(
             src_path=os.path.join(MODEL_CACHE, "unet_lora.pt"), target_path=os.path.join(MODEL_CACHE, "unet_lora.ckpt")
         )
@@ -83,7 +83,7 @@ def main(args):
         t2v_dir = args.base_model_dir
     elif not os.path.exists(args.base_model_dir) and os.path.exists(args.unet_dir):
         print(f"base_model_dir: {args.base_model_dir} does not exist, downloading ...")
-        download_weights(VC2_URL, MODEL_CACHE)
+        DownLoad().download_url(VC2_URL, path=MODEL_CACHE)
         convert_t2v_vc2(
             src_path=os.path.join(MODEL_CACHE, "model.ckpt"),
             target_path=os.path.join(MODEL_CACHE, "VideoCrafter2_model_ms.ckpt"),
@@ -92,7 +92,7 @@ def main(args):
         t2v_dir = os.path.join(MODEL_CACHE, "VideoCrafter2_model_ms.ckpt")
     else:
         print(f"checkpoints does not exist, downloading ...")
-        download_weights(MODEL_URL, MODEL_CACHE)
+        DownLoad().download_and_extract_archive(url=MODEL_URL, download_path=MODEL_CACHE)
         convert_weights(MODEL_CACHE)
         unet_dir = os.path.join(MODEL_CACHE, "unet_lora.ckpt")
         t2v_dir = os.path.join(MODEL_CACHE, "VideoCrafter2_model_ms.ckpt")

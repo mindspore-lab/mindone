@@ -39,10 +39,11 @@ def load_clip_model(arch, pretrained_ckpt_path, dtype):
     if arch.lower() != "open_clip_vit_h_14":
         raise ValueError(f"currently not support {arch.lower()}")
     if not os.path.exists(pretrained_ckpt_path):
-        download_checkpoint(_CKPT_URL[arch.lower()], "model_weights/")
+        download_checkpoint(_CKPT_URL[arch.lower()], "model_cache/")
+        pretrained_ckpt_path = "model_cache/" + _CKPT_URL[arch.lower()].split("/")[-1]
     if not os.path.exists(pretrained_ckpt_path):
         raise ValueError(
-            f"Maybe download failed. Please download it manually from {_CKPT_URL[arch.lower()]} and place it under `model_weights/`"
+            f"Maybe download failed. Please download it manually from {_CKPT_URL[arch.lower()]} and place it under `model_cache/`"
         )
 
     config = parse(config_path, pretrained_ckpt_path)

@@ -60,10 +60,10 @@ def param_convert(ms_params, pt_params, ckpt_path, extra_dict=None):
 
         # 如找到参数对应且shape一致，加入到参数列表
         if pt_param in pt_params and pt_params[pt_param].shape == ms_param.data.shape:
-            ms_value = pt_params[pt_param]
+            ms_value = pt_params[pt_param].cpu().detach().numpy()
             new_params_list.append({"name": ms_param.name, "data": ms.Tensor(ms_value, ms.float32)})
         elif pt_param in pt_params and "weight" in ms_param.name:
-            ms_value = pt_params[pt_param]
+            ms_value = pt_params[pt_param].cpu().detach().numpy()
             new_params_list.append({"name": ms_param.name, "data": ms.Tensor(ms_value, ms.float32).unsqueeze(2)})
         else:
             print(ms_param.name, "not match in pt_params")
@@ -84,13 +84,18 @@ def convert_t2v_vc2(src_path, target_path):
 
     ms_params = pretrained_t2v.get_parameters()
 
-    state_dict = load_torch_ckpt(src_path)["state_dict"]
+    state_dict = load_torch_ckpt(src_path)
     param_convert(ms_params, state_dict, target_path, extra_dict)
 
 
 def convert_lora(src_path, target_path):
     lora_weights = load_torch_ckpt(src_path)
-    weights = {k: ms.Tensor(v.cpu().detach().numpy()) for k, v in lora_weights.items()}
+    if isinstance(lora_weights, dict):
+        weights = {k: ms.Tensor(v.cpu().detach().numpy()) for k, v in lora_weights.items()}
+    elif isinstance(lora_weights, list):
+        weights = [ms.Tensor(v.cpu().detach().numpy()) for v in lora_weights]
+    else:
+        raise Exception("Unknown LORA weights format!")
 
     with open(target_path, "wb") as f:
         pickle.dump(weights, f)
@@ -139,7 +144,7 @@ def convert_internvid2(src_path, target_path):
     model = InternVideo2_Stage2(config=config, tokenizer=None, is_pretrain=False)
     ms_params = model.get_parameters()
 
-    state_dict = load_torch_ckpt(src_path)["state_dict"]
+    state_dict = load_torch_ckpt(src_path)
     _param_convert(ms_params, state_dict, target_path)
 
 
@@ -157,7 +162,7 @@ def convert_hpsv2(src_path, target_path):
     model = CLIPModel(config)
     ms_params = model.get_parameters()
 
-    state_dict = load_torch_ckpt(src_path)["state_dict"]
+    state_dict = load_torch_ckpt(src_path)
     param_convert(ms_params, state_dict, target_path, extra_dict)
 
 

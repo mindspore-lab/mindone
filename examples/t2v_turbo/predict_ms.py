@@ -8,7 +8,7 @@ import logging
 import numpy as np
 
 import mindspore as ms
-from mindspore import mint
+from mindspore import mint, nn
 
 __dir__ = os.path.dirname(os.path.abspath(__file__))
 mindone_lib_path = os.path.abspath(os.path.join(__dir__, "../../"))
@@ -105,24 +105,24 @@ def main(args):
     unet.set_train(False)
 
     # 2.1 amp
-    # if args.dtype not in ["fp32", "bf16"]:
-    #     amp_level = "O2"
-    #     if not args.global_bf16:
-    #         unet = auto_mixed_precision(
-    #             unet,
-    #             amp_level=amp_level,
-    #             dtype=dtype_map[args.dtype],
-    #             custom_fp32_cells=[nn.GroupNorm] if args.keep_gn_fp32 else [],
-    #         )
-    #         vae = auto_mixed_precision(
-    #             vae,
-    #             amp_level=amp_level,
-    #             dtype=dtype_map[args.dtype],
-    #             custom_fp32_cells=[nn.GroupNorm] if args.keep_gn_fp32 else [],
-    #         )
-    #     logger.info(f"Set mixed precision to O2 with dtype={args.dtype}")
-    # else:
-    #     amp_level = "O0"
+    if args.dtype not in ["fp32", "bf16"]:
+        amp_level = "O2"
+        if not args.global_bf16:
+            unet = auto_mixed_precision(
+                unet,
+                amp_level=amp_level,
+                dtype=dtype_map[args.dtype],
+                custom_fp32_cells=[nn.GroupNorm] if args.keep_gn_fp32 else [],
+            )
+            vae = auto_mixed_precision(
+                vae,
+                amp_level=amp_level,
+                dtype=dtype_map[args.dtype],
+                custom_fp32_cells=[nn.GroupNorm] if args.keep_gn_fp32 else [],
+            )
+        logger.info(f"Set mixed precision to O2 with dtype={args.dtype}")
+    else:
+        amp_level = "O0"
 
     # 2.2 pipeline
     noise_scheduler = T2VTurboScheduler()
