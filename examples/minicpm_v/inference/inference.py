@@ -1,18 +1,21 @@
-import mindspore as ms
-
 from PIL import Image
 from transformers import AutoTokenizer
+
+import mindspore as ms
+
 from mindone.transformers import MiniCPMV_v2_6
 
-model = MiniCPMV_v2_6.from_pretrained('openbmb/MiniCPM-V-2_6', trust_remote_code=True, attn_implementation='eager', mindspore_dtype=ms.float32)
+model = MiniCPMV_v2_6.from_pretrained(
+    "openbmb/MiniCPM-V-2_6", trust_remote_code=True, attn_implementation="eager", mindspore_dtype=ms.float32
+)
 
-tokenizer = AutoTokenizer.from_pretrained('openbmb/MiniCPM-V-2_6', trust_remote_code=True)
+tokenizer = AutoTokenizer.from_pretrained("openbmb/MiniCPM-V-2_6", trust_remote_code=True)
 
-image = Image.open('airplane.jepg').convert('RGB')
+image = Image.open("airplane.jepg").convert("RGB")
 
 # First Round Chat
 question = "Tell me the model of this aircraft"
-msgs = [{"role": 'user', 'content': [image, question]}]
+msgs = [{"role": "user", "content": [image, question]}]
 answer = model.chat(image=image, msgs=msgs, tokenizer=tokenizer)
 print(answer)
 

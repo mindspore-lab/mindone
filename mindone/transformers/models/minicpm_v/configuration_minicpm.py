@@ -45,7 +45,6 @@ class MiniCPMVSliceConfig(PretrainedConfig):
         return cls.from_dict(config_dict, **kwargs)
 
 
-
 class MiniCPMVConfig(Qwen2Config):
     model_type = "minicpmv"
     keys_to_ignore_at_inference = ["past_key_values"]
@@ -58,7 +57,7 @@ class MiniCPMVConfig(Qwen2Config):
         "num_attention_heads": 16,
         "num_hidden_layers": 27,
         "patch_size": 14,
-        "attn_implementation": "flash_attention"
+        "attn_implementation": "flash_attention",
     }
 
     def __init__(

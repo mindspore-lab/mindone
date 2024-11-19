@@ -26,8 +26,6 @@ from typing import Any, Dict, Optional, Tuple, Union
 
 import numpy as np
 
-FEATURE_EXTRACTOR_NAME = "preprocessor_config.json"
-from .utils.generic import TensorType
 from transformers.utils import (
     cached_file,
     download_url,
@@ -41,10 +39,9 @@ from transformers.utils import (
 import mindspore
 from mindspore import ops
 
-# if is_mindspore_available():
-#     import mindspore
-#     from mindspore import ops
+from .utils.generic import TensorType
 
+FEATURE_EXTRACTOR_NAME = "preprocessor_config.json"
 
 logger = logging.get_logger(__name__)
 
@@ -124,6 +121,7 @@ class BatchFeature(UserDict):
 
             is_tensor = ops.is_tensor
         else:
+
             def as_tensor(value, dtype=None):
                 if isinstance(value, (list, tuple)) and isinstance(value[0], (list, tuple, np.ndarray)):
                     value_lens = [len(val) for val in value]
@@ -159,7 +157,9 @@ class BatchFeature(UserDict):
                     self[key] = tensor
             except Exception as exc:  # noqa E722
                 if key == "overflowing_values":
-                    raise ValueError("Unable to create tensor returning overflowing values of different lengths. ") from exc
+                    raise ValueError(
+                        "Unable to create tensor returning overflowing values of different lengths. "
+                    ) from exc
                 raise ValueError(
                     "Unable to create tensor, you should probably activate padding "
                     "with 'padding=True' to have batched tensors with the same length."
@@ -205,7 +205,7 @@ class BatchFeature(UserDict):
         return self
 
 
-class FeatureExtractionMixin():
+class FeatureExtractionMixin:
     """
     This is a feature extraction mixin used to provide saving/loading functionality for sequential and image feature
     extractors.
@@ -383,7 +383,6 @@ class FeatureExtractionMixin():
         self.to_json_file(output_feature_extractor_file)
         logger.info(f"Feature extractor saved in {output_feature_extractor_file}")
 
-
         return [output_feature_extractor_file]
 
     @classmethod
@@ -408,7 +407,7 @@ class FeatureExtractionMixin():
         local_files_only = kwargs.pop("local_files_only", False)
         from_pipeline = kwargs.pop("_from_pipeline", None)
         from_auto_class = kwargs.pop("_from_auto", False)
-        revision = kwargs.pop('revision', 'main')
+        revision = kwargs.pop("revision", "main")
 
         user_agent = {"file_type": "feature extractor", "from_auto_class": from_auto_class}
         if from_pipeline is not None:
@@ -473,7 +472,6 @@ class FeatureExtractionMixin():
             logger.info(
                 f"loading configuration file {feature_extractor_file} from cache at {resolved_feature_extractor_file}"
             )
-
 
         return feature_extractor_dict, kwargs
 

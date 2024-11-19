@@ -36,10 +36,12 @@ AUTO_TO_BASE_CLASS_MAPPING = {
     "AutoImageProcessor": "ImageProcessingMixin",
 }
 
+
 class ProcessorMixin:
     """
     This is a mixin used to provide saving/loading functionality for all processor classes.
     """
+
     attributes = ["feature_extractor", "tokenizer"]
     # Names need to be attr_class for attr in attributes
     feature_extractor_class = None
@@ -89,6 +91,7 @@ class ProcessorMixin:
                 proper_class = tuple(getattr(transformers_module, n) for n in class_name if n is not None)
             elif class_name == "MiniCPMVImageProcessor":
                 from mindone.transformers import MiniCPMVImageProcessor
+
                 proper_class = MiniCPMVImageProcessor
             else:
                 proper_class = getattr(transformers_module, class_name)
@@ -157,14 +160,14 @@ class ProcessorMixin:
 
     @classmethod
     def from_pretrained(
-            cls,
-            pretrained_model_name_or_path: Union[str, os.PathLike],
-            cache_dir: Optional[Union[str, os.PathLike]] = None,
-            force_download: bool = False,
-            local_files_only: bool = False,
-            token: Optional[Union[str, bool]] = None,
-            revision: str = "main",
-            **kwargs,
+        cls,
+        pretrained_model_name_or_path: Union[str, os.PathLike],
+        cache_dir: Optional[Union[str, os.PathLike]] = None,
+        force_download: bool = False,
+        local_files_only: bool = False,
+        token: Optional[Union[str, bool]] = None,
+        revision: str = "main",
+        **kwargs,
     ):
         r"""
         Instantiate a processor associated with a pretrained model.
@@ -269,6 +272,7 @@ class ProcessorMixin:
                     attribute_class = classes[0]
             elif class_name == "MiniCPMVImageProcessor":
                 from mindone.transformers import MiniCPMVImageProcessor
+
                 attribute_class = MiniCPMVImageProcessor
             else:
                 attribute_class = getattr(transformers_module, class_name)

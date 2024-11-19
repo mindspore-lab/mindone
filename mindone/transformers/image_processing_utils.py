@@ -24,16 +24,17 @@ from typing import Any, Dict, Iterable, List, Optional, Tuple, Union
 import numpy as np
 import requests
 
-FEATURE_EXTRACTOR_NAME = "preprocessor_config.json"
-IMAGE_PROCESSOR_NAME = FEATURE_EXTRACTOR_NAME
+from transformers.utils import cached_file, download_url, is_offline_mode, is_remote_url, is_vision_available, logging
 
 from .feature_extraction_utils import BatchFeature as BaseBatchFeature
 from .image_transforms import center_crop, normalize, rescale
 from .image_utils import ChannelDimension
-from transformers.utils import cached_file, download_url, is_offline_mode, is_remote_url, is_vision_available, logging
 
 if is_vision_available():
     from PIL import Image
+
+FEATURE_EXTRACTOR_NAME = "preprocessor_config.json"
+IMAGE_PROCESSOR_NAME = FEATURE_EXTRACTOR_NAME
 
 logger = logging.get_logger(__name__)
 
@@ -53,12 +54,15 @@ class BatchFeature(BaseBatchFeature):
             You can give a tensor_type here to convert the lists of integers in PyTorch/TensorFlow/Numpy Tensors at
             initialization.
     """
+
+
 # TODO: (Amy) - factor out the common parts of this and the feature extractor
 class ImageProcessingMixin:
     """
     This is an image processor mixin used to provide saving/loading functionality for sequential and image feature
     extractors.
     """
+
     _auto_class = None
 
     def __init__(self, **kwargs):
@@ -490,6 +494,7 @@ class ImageProcessingMixin:
             auto_class = auto_class.__name__
 
         import mindnlp.transformers.models.auto as auto_module
+
         if not hasattr(auto_module, auto_class):
             raise ValueError(f"{auto_class} is not a valid auto class.")
 
@@ -537,6 +542,7 @@ class BaseImageProcessor(ImageProcessingMixin):
         normalize(self, image, mean, std, data_format=None, input_data_format=None, **kwargs) -> np.ndarray: Normalize an image using mean and standard deviation.
         center_crop(self, image, size, data_format=None, input_data_format=None, **kwargs) -> np.ndarray: Center crop an image to a specified size.
     """
+
     def __call__(self, images, **kwargs) -> BatchFeature:
         """Preprocess an image or a batch of images."""
         return self.preprocess(images, **kwargs)
@@ -825,6 +831,7 @@ def get_size_dict(
             f"{param_name} must have one of the following set of keys: {VALID_SIZE_DICT_KEYS}, got {size_dict.keys()}"
         )
     return size_dict
+
 
 def select_best_resolution(original_size: tuple, possible_resolutions: list) -> tuple:
     """

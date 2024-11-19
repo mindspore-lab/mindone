@@ -1,6 +1,6 @@
 import inspect
-
 from enum import Enum
+
 
 def can_return_loss(model_class):
     """
@@ -33,6 +33,7 @@ def find_labels(model_class):
     else:
         return [p for p in signature.parameters if "label" in p]
 
+
 class ExplicitEnum(str, Enum):
     """
     Enum with more explicit error message for missing values.
@@ -43,6 +44,7 @@ class ExplicitEnum(str, Enum):
         raise ValueError(
             f"{value} is not a valid {cls.__name__}, please select one of {list(cls._value2member_map_.keys())}"
         )
+
 
 class TensorType(ExplicitEnum):
     """

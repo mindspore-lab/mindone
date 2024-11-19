@@ -2,7 +2,6 @@ import warnings
 from typing import Iterable, List, Optional, Tuple, Union
 
 import numpy as np
-
 import PIL
 
 import mindspore
@@ -15,6 +14,7 @@ from .image_utils import (
     get_image_size,
     infer_channel_dimension_format,
 )
+
 
 def to_channel_dimension_format(
     image: np.ndarray,
@@ -53,6 +53,7 @@ def to_channel_dimension_format(
         raise ValueError("Unsupported channel dimension format: {}".format(channel_dim))
 
     return image
+
 
 def _rescale_for_pil_conversion(image):
     """
@@ -127,6 +128,7 @@ def to_pil_image(
 
     image = image.astype(np.uint8)
     return PIL.Image.fromarray(image)
+
 
 def center_crop(
     image: np.ndarray,
@@ -225,6 +227,7 @@ def center_crop(
 
     return new_image
 
+
 def normalize(
     image: np.ndarray,
     mean: Union[float, Iterable[float]],
@@ -283,6 +286,7 @@ def normalize(
 
     image = to_channel_dimension_format(image, data_format, input_data_format) if data_format is not None else image
     return image
+
 
 def rescale(
     image: np.ndarray,

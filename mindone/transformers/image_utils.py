@@ -9,13 +9,21 @@ from packaging import version
 
 from .utils.generic import ExplicitEnum
 
+
 class ChannelDimension(ExplicitEnum):
     FIRST = "channels_first"
     LAST = "channels_last"
 
+
 ImageInput = Union[
-    "PIL.Image.Image", np.ndarray, "mindspore.Tensor", List["PIL.Image.Image"], List[np.ndarray], List["mindspore.Tensor"]
+    "PIL.Image.Image",
+    np.ndarray,
+    "mindspore.Tensor",
+    List["PIL.Image.Image"],
+    List[np.ndarray],
+    List["mindspore.Tensor"],
 ]  # noqa
+
 
 def get_channel_dimension_axis(
     image: np.ndarray, input_data_format: Optional[Union[ChannelDimension, str]] = None
@@ -40,6 +48,7 @@ def get_channel_dimension_axis(
         return image.ndim - 1
     raise ValueError(f"Unsupported data format: {input_data_format}")
 
+
 def get_image_size(image: np.ndarray, channel_dim: ChannelDimension = None) -> Tuple[int, int]:
     """
     Returns the (height, width) dimensions of the image.
@@ -62,6 +71,7 @@ def get_image_size(image: np.ndarray, channel_dim: ChannelDimension = None) -> T
         return image.shape[-3], image.shape[-2]
     else:
         raise ValueError(f"Unsupported data format: {channel_dim}")
+
 
 def infer_channel_dimension_format(
     image: np.ndarray, num_channels: Optional[Union[int, Tuple[int, ...]]] = None

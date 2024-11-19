@@ -21,7 +21,6 @@ _import_structure = {
 }
 
 
-
 _import_structure["tokenization_qwen2_fast"] = ["Qwen2TokenizerFast"]
 
 _import_structure["modeling_qwen2"] = [
