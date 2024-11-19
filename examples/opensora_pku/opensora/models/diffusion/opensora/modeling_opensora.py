@@ -5,6 +5,9 @@ import os
 from typing import Any, Dict, Optional
 
 from opensora.acceleration.parallel_states import get_sequence_parallel_state, hccl_info
+from opensora.models.diffusion.common import PatchEmbed2D
+from opensora.models.diffusion.opensora.modules import Attention, BasicTransformerBlock, LayerNorm
+from opensora.npu_config import npu_config
 from opensora.utils.utils import to_2tuple
 
 import mindspore as ms
@@ -17,11 +20,8 @@ from mindone.diffusers.models.modeling_utils import ModelMixin, load_state_dict
 from mindone.diffusers.models.normalization import AdaLayerNormSingle
 from mindone.diffusers.utils import SAFETENSORS_WEIGHTS_NAME, WEIGHTS_NAME, _add_variant, _get_model_file
 
-from opensora.models.diffusion.opensora.modules import BasicTransformerBlock, LayerNorm, Attention
-from opensora.models.diffusion.common import PatchEmbed2D
-from opensora.npu_config import npu_config
-
 logger = logging.getLogger(__name__)
+
 
 class OpenSoraT2V_v1_3(ModelMixin, ConfigMixin):
     _supports_gradient_checkpointing = True
@@ -54,18 +54,17 @@ class OpenSoraT2V_v1_3(ModelMixin, ConfigMixin):
         interpolation_scale_t: float = 1.0,
         sparse1d: bool = False,
         sparse_n: int = 2,
-        
-        use_recompute=False, #NEW
-        FA_dtype=ms.bfloat16, #NEW
-        num_no_recompute: int = 0, #NEW
+        use_recompute=False,  # NEW
+        FA_dtype=ms.bfloat16,  # NEW
+        num_no_recompute: int = 0,  # NEW
     ):
         super().__init__()
         # Set some common variables used across the board.
         self.out_channels = in_channels if out_channels is None else out_channels
-        self.config.hidden_size = self.config.num_attention_heads * self.config.attention_head_dim #24*96=2304
-        self.gradient_checkpointing = use_recompute #NEW
-        self.use_recompute = use_recompute #NEW
-        self.FA_dtype = FA_dtype #NEW
+        self.config.hidden_size = self.config.num_attention_heads * self.config.attention_head_dim  # 24*96=2304
+        self.gradient_checkpointing = use_recompute  # NEW
+        self.use_recompute = use_recompute  # NEW
+        self.FA_dtype = FA_dtype  # NEW
         self._init_patched_inputs()
 
         if self.use_recompute:
@@ -82,22 +81,21 @@ class OpenSoraT2V_v1_3(ModelMixin, ConfigMixin):
                     self.recompute(block)
 
     def _init_patched_inputs(self):
-
         self.config.sample_size = (self.config.sample_size_h, self.config.sample_size_w)
         interpolation_scale_thw = (
-            self.config.interpolation_scale_t, 
-            self.config.interpolation_scale_h, 
-            self.config.interpolation_scale_w
-            )
-        
+            self.config.interpolation_scale_t,
+            self.config.interpolation_scale_h,
+            self.config.interpolation_scale_w,
+        )
+
         self.caption_projection = PixArtAlphaTextProjection(
             in_features=self.config.caption_channels, hidden_size=self.config.hidden_size
         )
-        
+
         self.pos_embed = PatchEmbed2D(
-            patch_size=self.config.patch_size, #2
-            in_channels=self.config.in_channels, #8
-            embed_dim=self.config.hidden_size, #2304
+            patch_size=self.config.patch_size,  # 2
+            in_channels=self.config.in_channels,  # 8
+            embed_dim=self.config.hidden_size,  # 2304
         )
         self.transformer_blocks = nn.CellList(
             [
@@ -114,11 +112,11 @@ class OpenSoraT2V_v1_3(ModelMixin, ConfigMixin):
                     upcast_attention=self.config.upcast_attention,
                     norm_elementwise_affine=self.config.norm_elementwise_affine,
                     norm_eps=self.config.norm_eps,
-                    interpolation_scale_thw=interpolation_scale_thw, 
-                    sparse1d=self.config.sparse1d if i > 1 and i < 30 else False, 
-                    sparse_n=self.config.sparse_n, 
-                    sparse_group=i % 2 == 1, 
-                    FA_dtype=self.FA_dtype
+                    interpolation_scale_thw=interpolation_scale_thw,
+                    sparse1d=self.config.sparse1d if i > 1 and i < 30 else False,
+                    sparse_n=self.config.sparse_n,
+                    sparse_group=i % 2 == 1,
+                    FA_dtype=self.FA_dtype,
                 )
                 for i in range(self.config.num_layers)
             ]
@@ -126,13 +124,14 @@ class OpenSoraT2V_v1_3(ModelMixin, ConfigMixin):
         self.norm_out = LayerNorm(self.config.hidden_size, elementwise_affine=False, eps=1e-6)
         self.scale_shift_table = ms.Parameter(ops.randn((2, self.config.hidden_size)) / self.config.hidden_size**0.5)
         self.proj_out = nn.Dense(
-            self.config.hidden_size, self.config.patch_size_t * self.config.patch_size * self.config.patch_size * self.out_channels
+            self.config.hidden_size,
+            self.config.patch_size_t * self.config.patch_size * self.config.patch_size * self.out_channels,
         )
         self.adaln_single = AdaLayerNormSingle(self.config.hidden_size)
         self.max_pool3d = nn.MaxPool3d(
-            kernel_size=(self.config.patch_size_t, self.config.patch_size, self.config.patch_size), 
+            kernel_size=(self.config.patch_size_t, self.config.patch_size, self.config.patch_size),
             stride=(self.config.patch_size_t, self.config.patch_size, self.config.patch_size),
-            pad_mode="pad"
+            pad_mode="pad",
         )
 
     def recompute(self, b):
@@ -271,7 +270,6 @@ class OpenSoraT2V_v1_3(ModelMixin, ConfigMixin):
 
         return model
 
-
     @classmethod
     def load_from_checkpoint(cls, model, ckpt_path):
         if os.path.isdir(ckpt_path) or ckpt_path.endswith(".safetensors"):
@@ -333,11 +331,11 @@ class OpenSoraT2V_v1_3(ModelMixin, ConfigMixin):
     def _set_gradient_checkpointing(self, module, value=False):
         if hasattr(module, "gradient_checkpointing"):
             module.gradient_checkpointing = value
-    
+
     def get_attention_mask(self, attention_mask):
         if attention_mask is not None:
             if not npu_config.enable_FA:
-                attention_mask = attention_mask.to(ms.bool_) # use bool for sdpa
+                attention_mask = attention_mask.to(ms.bool_)  # use bool for sdpa
         return attention_mask
 
     def construct(
@@ -348,7 +346,7 @@ class OpenSoraT2V_v1_3(ModelMixin, ConfigMixin):
         attention_mask: Optional[ms.Tensor] = None,
         encoder_attention_mask: Optional[ms.Tensor] = None,
         return_dict: bool = True,
-        **kwargs, 
+        **kwargs,
     ):
         batch_size, c, frame, h, w = hidden_states.shape
         # ensure attention_mask is a bias, and give it a singleton query_tokens dimension.
@@ -372,18 +370,22 @@ class OpenSoraT2V_v1_3(ModelMixin, ConfigMixin):
             attention_mask = self.max_pool3d(attention_mask)
             # b 1 t h w -> (b 1) 1 (t h w)
             attention_mask = attention_mask.reshape(batch_size, 1, -1)
-            
-            attention_mask = self.get_attention_mask(attention_mask) # if use bool mask 
+
+            attention_mask = self.get_attention_mask(attention_mask)  # if use bool mask
 
         # convert encoder_attention_mask to a bias the same way we do for attention_mask
-        if encoder_attention_mask is not None and encoder_attention_mask.ndim == 3: 
+        if encoder_attention_mask is not None and encoder_attention_mask.ndim == 3:
             # b, 1, l
-            encoder_attention_mask = self.get_attention_mask(encoder_attention_mask) # if use bool mask
-
+            encoder_attention_mask = self.get_attention_mask(encoder_attention_mask)  # if use bool mask
 
         # 1. Input
-        frame = ((frame - 1) // self.config.patch_size_t + 1) if frame % 2 == 1 else frame // self.config.patch_size_t  # patchfy
-        height, width = hidden_states.shape[-2] // self.config.patch_size, hidden_states.shape[-1] // self.config.patch_size
+        frame = (
+            ((frame - 1) // self.config.patch_size_t + 1) if frame % 2 == 1 else frame // self.config.patch_size_t
+        )  # patchfy
+        height, width = (
+            hidden_states.shape[-2] // self.config.patch_size,
+            hidden_states.shape[-1] // self.config.patch_size,
+        )
 
         hidden_states, encoder_hidden_states, timestep, embedded_timestep = self._operate_on_patched_inputs(
             hidden_states, encoder_hidden_states, timestep, batch_size, frame
@@ -396,7 +398,7 @@ class OpenSoraT2V_v1_3(ModelMixin, ConfigMixin):
             # b s h -> s b h
             hidden_states = hidden_states.swapaxes(0, 1).contiguous()
             # b s h -> s b h
-            encoder_hidden_states = encoder_hidden_states.swapaxes(0,1).contiguous()
+            encoder_hidden_states = encoder_hidden_states.swapaxes(0, 1).contiguous()
             timestep = timestep.view(batch_size, 6, -1).swapaxes(0, 1).contiguous()
 
         sparse_mask = {}
@@ -408,40 +410,29 @@ class OpenSoraT2V_v1_3(ModelMixin, ConfigMixin):
         # else:
         head_num = None
         for sparse_n in [1, 4]:
-            sparse_mask[sparse_n] = Attention.prepare_sparse_mask(attention_mask, encoder_attention_mask, sparse_n, head_num)
-        
+            sparse_mask[sparse_n] = Attention.prepare_sparse_mask(
+                attention_mask, encoder_attention_mask, sparse_n, head_num
+            )
+
         # 2. Blocks
         for i, block in enumerate(self.transformer_blocks):
             if i > 1 and i < 30:
-                attention_mask, encoder_attention_mask = sparse_mask[block.attn1.processor.sparse_n][block.attn1.processor.sparse_group]
+                attention_mask, encoder_attention_mask = sparse_mask[block.attn1.processor.sparse_n][
+                    block.attn1.processor.sparse_group
+                ]
             else:
                 attention_mask, encoder_attention_mask = sparse_mask[1][block.attn1.processor.sparse_group]
 
-            # if self.training and self.gradient_checkpointing:  #TODO: training
-            if self.use_recompute and ms.get_context("mode") == ms.PYNATIVE_MODE:
-                block_args = {
-                    "hidden_states": hidden_states,
-                    "attention_mask": attention_mask,
-                    "encoder_hidden_states": encoder_hidden_states,
-                    "encoder_attention_mask": encoder_attention_mask,
-                    "timestep": timestep,
-                    "frame": frame, 
-                    "height": height, 
-                    "width": width, 
-                }
-                hidden_states = ms.recompute(block, **block_args) #BSH
-            else:
-                hidden_states = block(
-                        hidden_states,
-                        attention_mask=attention_mask,
-                        encoder_hidden_states=encoder_hidden_states,
-                        encoder_attention_mask=encoder_attention_mask,
-                        timestep=timestep,
-                        frame=frame, 
-                        height=height, 
-                        width=width, 
-                    ) # BSH
-
+            hidden_states = block(
+                hidden_states,
+                attention_mask=attention_mask,
+                encoder_hidden_states=encoder_hidden_states,
+                encoder_attention_mask=encoder_attention_mask,
+                timestep=timestep,
+                frame=frame,
+                height=height,
+                width=width,
+            )  # BSH
 
         if get_sequence_parallel_state():
             # To (b, t*h*w, h) or (b, t//sp*h*w, h)
@@ -453,35 +444,33 @@ class OpenSoraT2V_v1_3(ModelMixin, ConfigMixin):
             hidden_states=hidden_states,
             timestep=timestep,
             embedded_timestep=embedded_timestep,
-            num_frames=frame, 
+            num_frames=frame,
             height=height,
             width=width,
         )  # b c t h w
 
-
         return output
 
     def _operate_on_patched_inputs(self, hidden_states, encoder_hidden_states, timestep, batch_size, frame):
-        hidden_states = self.pos_embed(hidden_states.to(self.dtype)) # (b, t*h*w, d)
-    
+        hidden_states = self.pos_embed(hidden_states.to(self.dtype))  # (b, t*h*w, d)
+
         added_cond_kwargs = {"resolution": None, "aspect_ratio": None}
         timestep, embedded_timestep = self.adaln_single(
             timestep, added_cond_kwargs, batch_size=batch_size, hidden_dtype=self.dtype
         )  # b 6d, b d
 
         encoder_hidden_states = self.caption_projection(encoder_hidden_states)  # b, 1, l, d
-        assert encoder_hidden_states.shape[1] == 1, f'encoder_hidden_states.shape is {encoder_hidden_states}'
+        assert encoder_hidden_states.shape[1] == 1, f"encoder_hidden_states.shape is {encoder_hidden_states}"
         # b 1 l d -> (b 1) l d
-        encoder_hidden_states = encoder_hidden_states.reshape(-1, encoder_hidden_states.shape[-2], encoder_hidden_states.shape[-1])
+        encoder_hidden_states = encoder_hidden_states.reshape(
+            -1, encoder_hidden_states.shape[-2], encoder_hidden_states.shape[-1]
+        )
 
         return hidden_states, encoder_hidden_states, timestep, embedded_timestep
 
-    
-    def _get_output_for_patched_inputs(
-        self, hidden_states, timestep, embedded_timestep, num_frames, height, width
-    ):  
+    def _get_output_for_patched_inputs(self, hidden_states, timestep, embedded_timestep, num_frames, height, width):
         shift, scale = (self.scale_shift_table[None] + embedded_timestep[:, None]).chunk(2, axis=1)
-        hidden_states = self.norm_out(hidden_states) #BSH -> BSH
+        hidden_states = self.norm_out(hidden_states)  # BSH -> BSH
         hidden_states = hidden_states.squeeze(1) if hidden_states.shape[1] == 1 else hidden_states
 
         # Modulation
@@ -491,22 +480,41 @@ class OpenSoraT2V_v1_3(ModelMixin, ConfigMixin):
 
         # unpatchify
         hidden_states = hidden_states.reshape(
-            -1, num_frames, height, width, self.config.patch_size_t, self.config.patch_size, self.config.patch_size, self.out_channels
+            -1,
+            num_frames,
+            height,
+            width,
+            self.config.patch_size_t,
+            self.config.patch_size,
+            self.config.patch_size,
+            self.out_channels,
         )
         # nthwopqc -> nctohpwq
         hidden_states = hidden_states.permute(0, 7, 1, 4, 2, 5, 3, 6)
         output = hidden_states.reshape(
-            -1, self.out_channels, 
-                   num_frames * self.config.patch_size_t, height * self.config.patch_size, width * self.config.patch_size
+            -1,
+            self.out_channels,
+            num_frames * self.config.patch_size_t,
+            height * self.config.patch_size,
+            width * self.config.patch_size,
         )
         return output
 
+
 def OpenSoraT2V_v1_3_2B_122(**kwargs):
-    kwargs.pop('skip_connection', None)
+    kwargs.pop("skip_connection", None)
     return OpenSoraT2V_v1_3(
-        num_layers=32, attention_head_dim=96, num_attention_heads=24, patch_size_t=1, patch_size=2,
-        caption_channels=4096, cross_attention_dim=2304, activation_fn="gelu-approximate", **kwargs
-        )
+        num_layers=32,
+        attention_head_dim=96,
+        num_attention_heads=24,
+        patch_size_t=1,
+        patch_size=2,
+        caption_channels=4096,
+        cross_attention_dim=2304,
+        activation_fn="gelu-approximate",
+        **kwargs,
+    )
+
 
 OpenSora_v1_3_models = {
     "OpenSoraT2V_v1_3-2B/122": OpenSoraT2V_v1_3_2B_122,  # 2.7B
@@ -516,24 +524,26 @@ OpenSora_v1_3_models_class = {
     "OpenSoraT2V_v1_3-2B/122": OpenSoraT2V_v1_3,
 }
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     from opensora.models.causalvideovae import ae_stride_config
 
-    args = type('args', (), 
-    {
-        'ae': "WFVAEModel_D8_4x8x8", 
-        'model_max_length': 300, 
-        'max_height': 256,
-        'max_width': 512,
-        'num_frames': 33,
-        'compress_kv_factor': 1, 
-        'interpolation_scale_t': 1,
-        'interpolation_scale_h': 1,
-        'interpolation_scale_w': 1,
-        "sparse1d": True, 
-        "sparse_n": 4, 
-        "rank": 64, 
-    }
+    args = type(
+        "args",
+        (),
+        {
+            "ae": "WFVAEModel_D8_4x8x8",
+            "model_max_length": 300,
+            "max_height": 256,
+            "max_width": 512,
+            "num_frames": 33,
+            "compress_kv_factor": 1,
+            "interpolation_scale_t": 1,
+            "interpolation_scale_h": 1,
+            "interpolation_scale_w": 1,
+            "sparse1d": True,
+            "sparse_n": 4,
+            "rank": 64,
+        },
     )
     b = 2
     c = 8
@@ -544,11 +554,11 @@ if __name__ == '__main__':
     num_frames = (args.num_frames - 1) // ae_stride_t + 1
 
     model = OpenSoraT2V_v1_3_2B_122(
-        in_channels=c, 
-        out_channels=c, 
-        sample_size_h=latent_size, 
-        sample_size_w=latent_size, 
-        sample_size_t=num_frames, 
+        in_channels=c,
+        out_channels=c,
+        sample_size_h=latent_size,
+        sample_size_w=latent_size,
+        sample_size_t=num_frames,
         # activation_fn="gelu-approximate",
         attention_bias=True,
         double_self_attention=False,
@@ -556,16 +566,17 @@ if __name__ == '__main__':
         norm_eps=1e-06,
         only_cross_attention=False,
         upcast_attention=False,
-        interpolation_scale_t=args.interpolation_scale_t, 
-        interpolation_scale_h=args.interpolation_scale_h, 
-        interpolation_scale_w=args.interpolation_scale_w, 
-        sparse1d=args.sparse1d, 
-        sparse_n=args.sparse_n
+        interpolation_scale_t=args.interpolation_scale_t,
+        interpolation_scale_h=args.interpolation_scale_h,
+        interpolation_scale_w=args.interpolation_scale_w,
+        sparse1d=args.sparse1d,
+        sparse_n=args.sparse_n,
     )
-    
+
     try:
-        path = "/home_host/susan/workspace/checkpoints/Open-Sora-Plan-v1.3.0/any93x640x640/diffusion_pytorch_model.safetensors"
+        path = "checkpoints/Open-Sora-Plan-v1.3.0/any93x640x640/diffusion_pytorch_model.safetensors"
         from safetensors.torch import load_file as safe_load
+
         ckpt = safe_load(path, device="cpu")
         msg = model.load_state_dict(ckpt, strict=True)
         print(msg)
@@ -576,9 +587,15 @@ if __name__ == '__main__':
     # print(model)
     # print(f"{sum(p.numel() for p in model.parameters() if p.requires_grad) / 1e9} B")
     # import sys;sys.exit()
-    x = ops.randn(b, c,  1+(args.num_frames-1)//ae_stride_t, args.max_height//ae_stride_h, args.max_width//ae_stride_w)
+    x = ops.randn(
+        b, c, 1 + (args.num_frames - 1) // ae_stride_t, args.max_height // ae_stride_h, args.max_width // ae_stride_w
+    )
     cond = ops.randn(b, 1, args.model_max_length, cond_c)
-    attn_mask = ops.randint(0, 2, (b, 1+(args.num_frames-1)//ae_stride_t, args.max_height//ae_stride_h, args.max_width//ae_stride_w))  # B L or B 1+num_images L
+    attn_mask = ops.randint(
+        0,
+        2,
+        (b, 1 + (args.num_frames - 1) // ae_stride_t, args.max_height // ae_stride_h, args.max_width // ae_stride_w),
+    )  # B L or B 1+num_images L
     cond_mask = ops.randint(0, 2, (b, 1, args.model_max_length))  # B L or B 1+num_images L
     timestep = ops.randint(0, 1000, (b,))
     model_kwargs = dict(
