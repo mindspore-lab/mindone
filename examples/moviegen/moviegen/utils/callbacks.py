@@ -1,17 +1,21 @@
 import logging
 import os
 import time
-from typing import List, Optional
+from typing import List, Literal, Optional
 
 import numpy as np
+import pandas as pd
 
-from mindspore import Callback, RunContext, nn, ops
+from mindspore import Callback, Parameter, ReduceLROnPlateau, RunContext, Tensor
+from mindspore import dtype as mstype
+from mindspore import mint, nn, ops
 from mindspore.communication import GlobalComm
 from mindspore.dataset import GeneratorDataset
+from mindspore.ops import functional as F
 
 from mindone.trainers.ema import EMA
 
-__all__ = ["ValidationCallback", "PerfRecorderCallback"]
+__all__ = ["ValidationCallback", "PerfRecorderCallback", "ReduceLROnPlateauByStep"]
 
 _logger = logging.getLogger(__name__)
 
@@ -41,6 +45,7 @@ class ValidationCallback(Callback):
         network: nn.Cell,
         dataset: GeneratorDataset,
         rank_id: int = 0,
+        alpha_smooth: float = 0.01,
         valid_frequency: int = 100,
         ema: Optional[EMA] = None,
     ):
@@ -48,9 +53,11 @@ class ValidationCallback(Callback):
         self.network = network
         self.dataset = dataset
         self.rank_id = rank_id
+        self.alpha_smooth = alpha_smooth
         self.valid_frequency = valid_frequency
         self.ema = ema
         self.reduce = ops.AllReduce() if GlobalComm.INITED else None
+        self.data = pd.Series(dtype=np.float32)
 
     def on_train_step_end(self, run_context: RunContext):
         cb_params = run_context.original_args()
@@ -70,7 +77,10 @@ class ValidationCallback(Callback):
                 loss = self.reduce(loss)
             loss = loss.item()
 
-            cb_params.eval_results = {"eval_loss": loss}
+            self.data = pd.concat([self.data, pd.Series(loss)], ignore_index=True)
+            loss_smoothed = self.data.ewm(alpha=self.alpha_smooth).mean().iloc[-1]
+
+            cb_params.eval_results = {"eval_loss": loss, "eval_loss_smoothed": loss_smoothed}
             _logger.info(f"Step: {cur_step}, Validation Loss: {loss}.")
 
             self.network.set_train(True)
@@ -120,3 +130,68 @@ class PerfRecorderCallback(Callback):
             fp.write(
                 self._sep.join([f"{cur_step:<7}", f"{loss.item():<10.6f}", f"{step_time:<13.3f}"]) + metrics + "\n"
             )
+
+
+class ReduceLROnPlateauByStep(ReduceLROnPlateau):
+    """
+    Extends ReduceLROnPlateau to reduce the learning rate at the end of a step and incorporates loss smoothing.
+    """
+
+    def __init__(
+        self,
+        optimizer,
+        monitor: str = "eval_loss_smoothed",
+        factor: float = 0.1,
+        patience: int = 10,
+        mode: Literal["auto", "min", "max"] = "auto",
+        min_delta: float = 1e-4,
+        cooldown: int = 0,
+        min_lr: float = 0.0,
+    ):
+        super().__init__(monitor, factor, patience, mode=mode, min_delta=min_delta, cooldown=cooldown, min_lr=min_lr)
+        self.optimizer = optimizer
+        self.min_lr = Tensor(self.min_lr, dtype=mstype.float32)
+
+    def on_train_step_end(self, run_context):
+        """
+        monitors the training process and if no improvement is seen for a 'patience' number
+        of epochs, the learning rate is reduced.
+
+        Copy of the original `on_train_step_end()` with changes to add loss alpha smoothing.
+
+        Args:
+            run_context (RunContext): Context information of the model. For more details,
+                    please refer to :class:`mindspore.train.RunContext`.
+        """
+        cb_params = run_context.original_args()
+        cur_step = cb_params.cur_step_num
+        lrs = self.optimizer.learning_rate.learning_rate
+        if not isinstance(lrs, Parameter):
+            raise ValueError("ReduceLROnPlateau does not support dynamic learning rate and group learning rate now.")
+
+        current_monitor_value = cb_params.get("eval_results")
+        if current_monitor_value:
+            current_monitor_value = current_monitor_value[self.monitor]
+
+            if self.cooldown_counter > 0:
+                self.cooldown_counter -= 1
+                self.wait = 0
+
+            if self.is_improvement(current_monitor_value, self.best):
+                self.best = current_monitor_value
+                self.wait = 0
+            elif self.cooldown_counter <= 0:
+                self.wait += 1
+                if self.wait >= self.patience:
+                    if lrs[cur_step] > self.min_lr:  # FIXME: doesn't hold for future LRs
+                        new_lr = lrs * self.factor
+                        min_lr = mint.tile(self.min_lr, lrs.shape)
+                        new_lr = mint.where(new_lr < min_lr, min_lr, new_lr)
+                        F.assign(self.optimizer.learning_rate.learning_rate, new_lr)
+                        _logger.info(f"Step {cur_step}: reducing learning rate to {new_lr[cur_step]}.")
+                    self.cooldown_counter = self.cooldown
+                    self.wait = 0
+
+    def on_train_epoch_end(self, run_context):
+        # Use `on_train_step_end` instead
+        pass

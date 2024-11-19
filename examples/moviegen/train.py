@@ -6,7 +6,7 @@ from math import ceil
 from jsonargparse import ActionConfigFile, ArgumentParser
 from jsonargparse.typing import path_type
 
-from mindspore import Model, amp, nn
+from mindspore import Model, amp, nn, set_seed
 from mindspore.train.callback import TimeMonitor
 
 # TODO: remove in future when mindone is ready for install
@@ -17,10 +17,11 @@ sys.path.append(mindone_lib_path)
 from moviegen.dataset import ImageVideoDataset
 from moviegen.pipelines import DiffusionWithLoss
 from moviegen.schedulers import RFlowEvalLoss, RFlowLossWrapper
-from moviegen.utils import EMA, MODEL_DTYPE, PerfRecorderCallback, ValidationCallback, init_model
+from moviegen.utils import EMA, MODEL_DTYPE, init_model
+from moviegen.utils.callbacks import PerfRecorderCallback, ReduceLROnPlateauByStep, ValidationCallback
 
 from mindone.data import create_dataloader
-from mindone.trainers import create_optimizer
+from mindone.trainers import create_optimizer, create_scheduler
 from mindone.trainers.callback import EvalSaveCallback, OverflowMonitor, StopAtStepCallback
 from mindone.trainers.zero import prepare_train_network
 from mindone.utils import count_params, init_train_env, set_logger
@@ -37,6 +38,7 @@ def main(args):
     args.train.output_path = args.train.output_path.absolute
     os.makedirs(args.train.output_path, exist_ok=True)
     device_id, rank_id, device_num = init_train_env(**args.env)
+    set_seed(args.env.seed + rank_id)  # TODO: do it better
     set_logger("", output_dir=args.train.output_path, rank=rank_id)
 
     # instantiate classes only after initializing training environment
@@ -85,7 +87,7 @@ def main(args):
     # 5. build training utils: lr, optim, callbacks, trainer
     # 5.1 LR
     epochs = ceil(args.train.steps / dataloader.get_dataset_size())
-    lr = initializer.train.lr_scheduler
+    lr = create_scheduler(steps_per_epoch=0, **args.train.lr_scheduler)
 
     # 5.2 optimizer
     optimizer = create_optimizer(latent_diffusion_with_loss.trainable_params(), lr=lr, **args.train.optimizer)
@@ -120,14 +122,17 @@ def main(args):
         )
 
     if val_dataloader is not None:
-        callbacks.append(
-            ValidationCallback(
-                network=eval_diffusion_with_loss,
-                dataset=val_dataloader,
-                rank_id=rank_id,
-                valid_frequency=args.valid.frequency,
-                ema=ema,
-            )
+        callbacks.extend(
+            [
+                ValidationCallback(
+                    network=eval_diffusion_with_loss,
+                    dataset=val_dataloader,
+                    rank_id=rank_id,
+                    valid_frequency=args.valid.frequency,
+                    ema=ema,
+                ),
+                ReduceLROnPlateauByStep(optimizer, **args.train.lr_reduce_on_plateau),
+            ]
         )
     callbacks.extend(
         [
@@ -156,7 +161,7 @@ def main(args):
                 f"VAE dtype: {args.vae.dtype}",
                 f"Num params: {num_params:,} (network: {num_params_network:,}, vae: {num_params_vae:,})",
                 f"Num trainable params: {num_params_trainable:,}",
-                f"Learning rate: {args.train.lr_scheduler.init_args.learning_rate:.0e}",
+                f"Learning rate: {args.train.lr_scheduler.lr:.0e}",
                 f"Batch size: {args.dataloader.batch_size}",
                 f"Image size: {args.dataset.target_size}",
                 f"Frames: {args.dataset.sample_n_frames}",
@@ -201,8 +206,9 @@ if __name__ == "__main__":
         create_dataloader, "dataloader", skip={"dataset", "transforms", "device_num", "rank_id"}
     )
     parser.link_arguments("env.debug", "dataloader.debug", apply_on="parse")
-    parser.add_subclass_arguments(
-        nn.learning_rate_schedule.LearningRateSchedule, "train.lr_scheduler", fail_untyped=False
+    parser.add_function_arguments(create_scheduler, "train.lr_scheduler", skip={"steps_per_epoch", "num_epochs"})
+    parser.add_class_arguments(
+        ReduceLROnPlateauByStep, "train.lr_reduce_on_plateau", skip={"optimizer"}, instantiate=False
     )
     parser.add_function_arguments(create_optimizer, "train.optimizer", skip={"params", "lr"})
     parser.add_subclass_arguments(
@@ -222,6 +228,7 @@ if __name__ == "__main__":
         help="Output directory to save training results.",
     )
     parser.add_argument("--train.steps", default=100, type=int, help="Number of steps to train. Default: 100.")
+    parser.link_arguments("train.steps", "train.lr_scheduler.total_steps", apply_on="parse")
     parser.add_class_arguments(
         EvalSaveCallback,
         "train.save",

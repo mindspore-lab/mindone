@@ -1,11 +1,12 @@
 import numpy as np
 
-import mindspore as ms
+from mindspore import Tensor
+from mindspore import dtype as mstype
 
 __all__ = ["to_numpy"]
 
 
-def to_numpy(x: ms.Tensor) -> np.ndarray:
-    if x.dtype == ms.bfloat16:
-        x = x.astype(ms.float32)
+def to_numpy(x: Tensor) -> np.ndarray:
+    if x.dtype == mstype.bfloat16:
+        x = x.astype(mstype.float32)
     return x.asnumpy()
