@@ -103,6 +103,21 @@ def main(args):
 
     # 5.4 callbacks
     callbacks = [OverflowMonitor()]
+    if val_dataloader is not None:
+        callbacks.extend(
+            [
+                ValidationCallback(
+                    network=eval_diffusion_with_loss,
+                    dataset=val_dataloader,
+                    rank_id=rank_id,
+                    alpha_smooth=0.01,  # FIXME
+                    valid_frequency=args.valid.frequency,
+                    ema=ema,
+                ),
+                ReduceLROnPlateauByStep(optimizer, **args.train.lr_reduce_on_plateau),
+            ]
+        )
+
     if rank_id == 0:
         callbacks.extend(
             [
@@ -121,19 +136,6 @@ def main(args):
             ]
         )
 
-    if val_dataloader is not None:
-        callbacks.extend(
-            [
-                ValidationCallback(
-                    network=eval_diffusion_with_loss,
-                    dataset=val_dataloader,
-                    rank_id=rank_id,
-                    valid_frequency=args.valid.frequency,
-                    ema=ema,
-                ),
-                ReduceLROnPlateauByStep(optimizer, **args.train.lr_reduce_on_plateau),
-            ]
-        )
     callbacks.extend(
         [
             PerfRecorderCallback(args.train.output_path, file_name="result_val.log", metric_names=["eval_loss"]),

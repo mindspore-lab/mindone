@@ -32,7 +32,7 @@ dataloader:
   num_workers_dataset: 4
 
 train:
-  steps: 20000
+  steps: 30000
   output_path: ../../output/stage1_t2i_256x256  # the path is relative to this config
 
   lr_scheduler:
@@ -42,7 +42,7 @@ train:
 
   lr_reduce_on_plateau:
     factor: 0.5
-    patience: 10  # in the number of validation steps, i.e., valid.frequency * patience steps
+    patience: 50  # in the number of validation steps, i.e., valid.frequency * patience steps
     mode: min
     min_delta: 0.01
     min_lr: 1.0e-6
@@ -69,8 +69,8 @@ train:
     clip_norm: 1.0
 
   save:
-    ckpt_save_policy: latest_k
-    ckpt_save_interval: &save_interval 500
+    ckpt_save_policy: top_k
+    ckpt_save_interval: &save_interval 100
     ckpt_max_keep: 10
     log_interval: 1
     save_ema_only: False
@@ -78,7 +78,7 @@ train:
 
 valid:
   sampling_steps: 10
-  frequency: *save_interval
+  frequency: *save_interval  # train.save.ckpt_save_interval should be divisible by the frequency
 
   dataset:
     csv_path: CSV_PATH

@@ -158,19 +158,22 @@ class EvalSaveCallback(Callback):
                 )
 
                 append_dict = {"lora_rank": self.lora_rank} if self.use_lora else None
-                if self.ema is not None:
-                    if not self.save_ema_only:
-                        self.ckpt_manager.save(
-                            self.net_to_save,
-                            None,
-                            ckpt_name=ckpt_name.replace(".ckpt", "_nonema.ckpt"),
-                            append_dict=append_dict,
-                        )
-                    # swap ema weight and network weight
-                    self.ema.swap_before_eval()
+                perf = cb_params.get("eval_results")
+                if perf:
+                    perf = perf["eval_loss_smoothed"]
+                    if self.ema is not None:
+                        if not self.save_ema_only:
+                            self.ckpt_manager.save(
+                                self.net_to_save,
+                                perf,
+                                ckpt_name=ckpt_name.replace(".ckpt", "_nonema.ckpt"),
+                                append_dict=append_dict,
+                            )
+                        # swap ema weight and network weight
+                        self.ema.swap_before_eval()
 
-                # save history checkpoints
-                self.ckpt_manager.save(self.net_to_save, None, ckpt_name=ckpt_name, append_dict=append_dict)
+                    # save history checkpoints
+                    self.ckpt_manager.save(self.net_to_save, perf, ckpt_name=ckpt_name, append_dict=append_dict)
 
                 if self.save_training_resume:
                     # TODO: resume training for step.
