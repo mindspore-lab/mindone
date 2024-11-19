@@ -25,7 +25,6 @@ from collections import UserDict
 from typing import Any, Dict, Optional, Tuple, Union
 
 import numpy as np
-
 from transformers.utils import (
     cached_file,
     download_url,

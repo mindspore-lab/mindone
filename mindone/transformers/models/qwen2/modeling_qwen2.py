@@ -19,14 +19,13 @@
 # limitations under the License.
 """Mindspore Qwen2 model."""
 
-import math
 from typing import List, Optional, Tuple, Union
 
 import numpy as np
 from transformers import logging
 
 import mindspore as ms
-from mindspore import Parameter, Tensor, nn, ops
+from mindspore import Parameter, nn, ops
 from mindspore.nn import BCEWithLogitsLoss, CrossEntropyLoss, MSELoss
 
 from ...activations import ACT2FN

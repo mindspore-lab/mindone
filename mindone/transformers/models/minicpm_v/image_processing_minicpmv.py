@@ -9,18 +9,15 @@ from PIL import Image
 from transformers.image_transforms import to_channel_dimension_format
 from transformers.image_utils import (
     ChannelDimension,
-    ImageInput,
     infer_channel_dimension_format,
-    is_batched,
     is_torch_tensor,
-    make_list_of_images,
     to_numpy_array,
     valid_images,
 )
 from transformers.utils import TensorType, is_torch_device, is_torch_dtype, requires_backends
 
 import mindspore as ms
-from mindspore import Parameter, Tensor, nn, ops
+from mindspore import ops
 
 from ...image_processing_utils import BaseImageProcessor, BatchFeature
 

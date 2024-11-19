@@ -23,7 +23,6 @@ from typing import Any, Dict, Iterable, List, Optional, Tuple, Union
 
 import numpy as np
 import requests
-
 from transformers.utils import cached_file, download_url, is_offline_mode, is_remote_url, is_vision_available, logging
 
 from .feature_extraction_utils import BatchFeature as BaseBatchFeature

@@ -22,14 +22,13 @@ import warnings
 from dataclasses import dataclass
 from typing import Optional, Tuple, Union
 
-import numpy as np
 from transformers.configuration_utils import PretrainedConfig
 from transformers.utils import logging
 
 import mindspore as ms
 
 # import torch.utils.checkpoint
-from mindspore import Parameter, Tensor, nn, ops
+from mindspore import nn, ops
 from mindspore.ops.operations.nn_ops import FlashAttentionScore as FlashAttention
 
 from ...activations import ACT2FN

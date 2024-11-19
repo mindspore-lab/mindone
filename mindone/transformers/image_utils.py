@@ -1,11 +1,6 @@
-import base64
-import os
-from io import BytesIO
-from typing import TYPE_CHECKING, Dict, Iterable, List, Optional, Tuple, Union
+from typing import List, Optional, Tuple, Union
 
 import numpy as np
-import requests
-from packaging import version
 
 from .utils.generic import ExplicitEnum
 
