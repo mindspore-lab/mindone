@@ -382,6 +382,30 @@ class TemporalUpsample(nn.Cell):
 
     def construct(self, x):
         # x (b c t h w)
+        B, C, T0, H, W = x.shape
+        x = ops.reshape(x, (B, C, T0, H*W))
+        
+        # NOTE: bf16 only support 4D interpolate
+        # x = ops.interpolate(x, scale_factor=(2.0, 1.0), mode="nearest")
+        out_shape = (T0 * 2, H * W)
+        x = ops.ResizeNearestNeighbor(out_shape)(x)
+
+        # x (b c t hw) -> (bhw c t)
+        T = T0 * 2
+        x = ops.transpose(x, (0, 3, 1, 2))
+        x = ops.reshape(x, (B*H*W, C, T))
+
+        x = self.conv(x)
+
+        # x (bhw c t) -> (b c t h w)
+        x = ops.reshape(x, (B, H, W, C, T))
+        x = ops.transpose(x, (0, 3, 4, 1, 2))
+
+        return x
+
+    '''
+    def construct(self, x):
+        # x (b c t h w)
         x = ops.interpolate(x, scale_factor=(2.0, 1.0, 1.0), mode="nearest")
 
         # x (b c t h w) -> (bhw c t)
@@ -396,6 +420,7 @@ class TemporalUpsample(nn.Cell):
         x = ops.transpose(x, (0, 3, 4, 1, 2))
 
         return x
+    '''
 
 
 # used in vae
