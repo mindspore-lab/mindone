@@ -16,8 +16,8 @@
 
 from typing import Optional, Tuple
 
-from mindnlp.transformers.tokenization_utils import AddedToken
-from mindnlp.transformers.tokenization_utils_fast import PreTrainedTokenizerFast
+from transformers.tokenization_utils import AddedToken
+from transformers.tokenization_utils_fast import PreTrainedTokenizerFast
 from transformers.utils import logging
 
 from .tokenization_qwen2 import Qwen2Tokenizer

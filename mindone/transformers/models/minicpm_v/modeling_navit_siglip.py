@@ -20,15 +20,16 @@ import math
 import os
 import warnings
 from dataclasses import dataclass
-from typing import Optional, Tuple, Union
+from typing import Any, Optional, Tuple, Union
 
+import numpy as np
 from transformers.configuration_utils import PretrainedConfig
 from transformers.utils import logging
 
 import mindspore as ms
 
 # import torch.utils.checkpoint
-from mindspore import nn, ops
+from mindspore import Parameter, Tensor, nn, ops
 from mindspore.ops.operations.nn_ops import FlashAttentionScore as FlashAttention
 
 from ...activations import ACT2FN
@@ -36,11 +37,12 @@ from ...modeling_attn_mask_utils import _prepare_4d_attention_mask
 from ...modeling_outputs import BaseModelOutput, BaseModelOutputWithPooling, ModelOutput
 from ...modeling_utils import MSPreTrainedModel
 
+from ...mindspore_adapter import recompute_except_output
+
 # from torch.nn.init import _calculate_fan_in_and_fan_out
 
 
 logger = logging.get_logger(__name__)
-
 
 class SiglipVisionConfig(PretrainedConfig):
     r"""
@@ -229,16 +231,13 @@ def trunc_normal_tf_(
     _trunc_normal_(tensor, 0, 1.0, a, b)
     tensor.mul_(std).add_(mean)
 
-
 def _calculate_fan_in_and_fan_out(arr):
     # 计算fan_in和fan_out。fan_in是 `arr` 中输入单元的数量，fan_out是 `arr` 中输出单元的数量。
     shape = arr.shape
     dimensions = len(shape)
     if dimensions < 2:
-        raise ValueError(
-            "'fan_in' and 'fan_out' can not be computed for arr with fewer than"
-            " 2 dimensions, but got dimensions {}.".format(dimensions)
-        )
+        raise ValueError("'fan_in' and 'fan_out' can not be computed for arr with fewer than"
+                         " 2 dimensions, but got dimensions {}.".format(dimensions))
     if dimensions == 2:  # Linear
         fan_in = shape[1]
         fan_out = shape[0]
@@ -251,7 +250,6 @@ def _calculate_fan_in_and_fan_out(arr):
         fan_in = num_input_fmaps * receptive_field_size
         fan_out = num_output_fmaps * receptive_field_size
     return fan_in, fan_out
-
 
 def variance_scaling_(tensor, scale=1.0, mode="fan_in", distribution="normal"):
     fan_in, fan_out = _calculate_fan_in_and_fan_out(tensor)
@@ -337,9 +335,7 @@ class SiglipVisionEmbeddings(nn.Cell):
         self.num_positions = self.num_patches
         self.position_embedding = nn.Embedding(self.num_positions, self.embed_dim)
 
-    def construct(
-        self, pixel_values: ms.Tensor, patch_attention_mask: ms.Tensor, tgt_sizes: Optional[ms.Tensor] = None
-    ) -> ms.Tensor:
+    def construct(self, pixel_values: ms.Tensor, patch_attention_mask: ms.Tensor, tgt_sizes: Optional[ms.Tensor]=None) -> ms.Tensor:
         batch_size = pixel_values.shape[0]
 
         patch_embeds = self.patch_embedding(pixel_values)
@@ -394,7 +390,7 @@ class SiglipAttention(nn.Cell):
                 f"embed_dim must be divisible by num_heads (got `embed_dim`: {self.embed_dim} and `num_heads`:"
                 f" {self.num_heads})."
             )
-        self.scale = self.head_dim**-0.5
+        self.scale = self.head_dim ** -0.5
         self.dropout = config.attention_dropout
 
         self.k_proj = nn.Dense(self.embed_dim, self.embed_dim)
@@ -422,8 +418,8 @@ class SiglipAttention(nn.Cell):
 
         k_v_seq_len = key_states.shape[-2]
 
-        query_states = ops.mul(query_states, self.scale**0.5)
-        key_states = ops.mul(key_states, self.scale**0.5)
+        query_states = ops.mul(query_states, self.scale ** 0.5)
+        key_states = ops.mul(key_states, self.scale ** 0.5)
 
         attn_weights = ops.matmul(query_states, key_states.swapaxes(2, 3))
 
@@ -627,7 +623,9 @@ class SiglipFlashAttention2(SiglipAttention):
             indices_q = indices_k
         elif query_length == 1:
             max_seqlen_in_batch_q = 1
-            cu_seqlens_q = ops.arange(batch_size + 1, dtype=ms.int32)  # There is a memcpy here, that is very bad.
+            cu_seqlens_q = ops.arange(
+                batch_size + 1, dtype=ms.int32
+            )  # There is a memcpy here, that is very bad.
             indices_q = cu_seqlens_q[:-1]
             query_layer = query_layer.squeeze(1)
         else:
@@ -644,21 +642,22 @@ class SiglipFlashAttention2(SiglipAttention):
             (max_seqlen_in_batch_q, max_seqlen_in_batch_k),
         )
 
-
 class SiglipFlashAttention(SiglipAttention):
     """
     Llama flash attention module. This module inherits from `LlamaAttention` as the weights of the module stays
     untouched. The only required change would be on the forward pass where it needs to correctly call the public API of
     flash attention and deal with padding tokens in case the input contains any of them.
     """
-
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.is_causal = False  # Hack to make sure we don't use a causal mask
 
         dropout_rate = self.dropout if self.training else 0.0
         self.flash_attention = FlashAttention(
-            scale_value=self.head_dim**-0.5, head_num=self.head_dim, input_layout="BSH", keep_prob=1 - dropout_rate
+            scale_value=self.head_dim**-0.5,
+            head_num=self.head_dim,
+            input_layout="BSH",
+            keep_prob=1-dropout_rate
         )
 
     def construct(
@@ -732,7 +731,9 @@ class SiglipFlashAttention(SiglipAttention):
             value_states = value_states.to(target_dtype)
 
         # implement flash attention
-        attn_output = self.flash_attention(query_states, key_states, value_states, None, None, None, attention_mask)[3]
+        attn_output = self.flash_attention(
+            query_states, key_states, value_states, None, None, None, attention_mask
+        )[3]
 
         # attn_output = attn_output.reshape(bsz, q_len, self.embed_dim)
         attn_output = self.out_proj(attn_output)
@@ -741,7 +742,6 @@ class SiglipFlashAttention(SiglipAttention):
             attn_weights = None
 
         return attn_output, attn_weights
-
 
 # Copied from transformers.models.clip.modeling_clip.CLIPMLP with CLIP->Siglip
 class SiglipMLP(nn.Cell):
@@ -766,10 +766,14 @@ class SiglipEncoderLayer(nn.Cell):
         self.embed_dim = config.hidden_size
         self._use_flash_attention_2 = config._attn_implementation == "flash_attention_2"
         self._use_flash_attention = config._attn_implementation == "flash_attention"
-        self.self_attn = SiglipAttention(config) if not self._use_flash_attention else SiglipFlashAttention(config)
-        self.layer_norm1 = nn.LayerNorm(self.embed_dim, epsilon=config.layer_norm_eps)
+        self.self_attn = (
+            SiglipAttention(config)
+            if not self._use_flash_attention
+            else SiglipFlashAttention(config)
+        )
+        self.layer_norm1 = nn.LayerNorm((self.embed_dim,), epsilon=config.layer_norm_eps)
         self.mlp = SiglipMLP(config)
-        self.layer_norm2 = nn.LayerNorm(self.embed_dim, epsilon=config.layer_norm_eps)
+        self.layer_norm2 = nn.LayerNorm((self.embed_dim,), epsilon=config.layer_norm_eps)
 
         # add recompute
         # self.self_attn.recompute()
@@ -906,6 +910,9 @@ class SiglipEncoder(nn.Cell):
         # recompute
         for layer in self.layers:
             layer.recompute()
+        # for layer in self.layers:
+        #     for name, cell in layer.name_cells().items():
+        #         recompute_except_output(cell)
 
     # Ignore copy
     def construct(
@@ -973,8 +980,9 @@ class SiglipEncoder(nn.Cell):
 
         if not return_dict:
             return tuple(v for v in [hidden_states, encoder_states, all_attentions] if v is not None)
-        return BaseModelOutput(last_hidden_state=hidden_states, hidden_states=encoder_states, attentions=all_attentions)
-
+        return BaseModelOutput(
+            last_hidden_state=hidden_states, hidden_states=encoder_states, attentions=all_attentions
+        )
 
 class SiglipVisionTransformer(SiglipPreTrainedModel):
     config_class = SiglipVisionConfig
@@ -988,7 +996,7 @@ class SiglipVisionTransformer(SiglipPreTrainedModel):
 
         self.embeddings = SiglipVisionEmbeddings(config)
         self.encoder = SiglipEncoder(config)
-        self.post_layernorm = nn.LayerNorm(embed_dim, epsilon=config.layer_norm_eps)
+        self.post_layernorm = nn.LayerNorm((embed_dim,), epsilon=config.layer_norm_eps)
         self._use_flash_attention_2 = config._attn_implementation == "flash_attention_2"
         self._use_flash_attention = config._attn_implementation == "flash_attention"
 
@@ -998,8 +1006,10 @@ class SiglipVisionTransformer(SiglipPreTrainedModel):
         # recompute
         # self.encoder.recompute()
 
+
     def get_input_embeddings(self) -> nn.Cell:
         return self.embeddings.patch_embedding
+
 
     def construct(
         self,
@@ -1030,16 +1040,14 @@ class SiglipVisionTransformer(SiglipPreTrainedModel):
                 dtype=ms.bool_,
             )
 
-        hidden_states = self.embeddings(
-            pixel_values=pixel_values, patch_attention_mask=patch_attention_mask, tgt_sizes=tgt_sizes
-        )
+        hidden_states = self.embeddings(pixel_values=pixel_values, patch_attention_mask=patch_attention_mask, tgt_sizes=tgt_sizes)
 
         patch_attention_mask = patch_attention_mask.view(batch_size, -1)
         # The call to `_upad_input` in `_flash_attention_forward` is expensive
         # So when the `patch_attention_mask` is full of 1s (i.e. attending to the whole sequence),
         # avoiding passing the attention_mask, which is equivalent to attending to the full sequence
         if not ops.any(~patch_attention_mask):
-            attention_mask = None
+            attention_mask=None
         else:
             attention_mask = (
                 _prepare_4d_attention_mask(patch_attention_mask, hidden_states.dtype)

@@ -2,22 +2,23 @@ import json
 import math
 from copy import deepcopy
 from threading import Thread
+from typing import List, Optional
 
-from PIL import Image
 from transformers import TextIteratorStreamer
+from PIL import Image
 
 import mindspore as ms
-from mindspore import Parameter, Tensor, _no_grad, nn, ops
+from mindspore import Parameter, Tensor, nn, ops
 
 from ..qwen2 import Qwen2ForCausalLM, Qwen2PreTrainedModel
 from .configuration_minicpm import MiniCPMVConfig
-from .image_processing_minicpmv import MiniCPMVImageProcessor
 from .modeling_navit_siglip import SiglipVisionTransformer
 from .processing_minicpmv import MiniCPMVProcessor
+from .image_processing_minicpmv import MiniCPMVImageProcessor
 from .resampler import Resampler
-
 # from .tokenization_minicpmv_fast import MiniCPMVTokenizerFast
 
+from mindspore import _no_grad
 
 class MiniCPMVPreTrainedModel(Qwen2PreTrainedModel):
     config_class = MiniCPMVConfig
@@ -33,21 +34,21 @@ class MiniCPMV_v2_6(MiniCPMVPreTrainedModel):
         self.resampler = self.init_resampler(self.embed_dim, self.vision_dim)
         self.processor = None
 
-        self.terminators = ["<|im_end|>", "<|endoftext|>"]
+        self.terminators = ['<|im_end|>', '<|endoftext|>']
 
     def init_vision_module(self):
         # same as HuggingFaceM4/siglip-so400m-14-980-flash-attn2-navit add tgt_sizes
-        if self.config._attn_implementation == "flash_attention_2":
-            self.config.vision_config._attn_implementation = "flash_attention_2"
+        if self.config._attn_implementation == 'flash_attention_2':
+            self.config.vision_config._attn_implementation = 'flash_attention_2'
         else:
             # not suport sdpa
-            self.config.vision_config._attn_implementation = "eager"
+            self.config.vision_config._attn_implementation = 'eager'
         model = SiglipVisionTransformer(self.config.vision_config)
         if self.config.drop_vision_last_layer:
             model.encoder.layers = model.encoder.layers[:-1]
 
-        setattr(model, "embed_dim", model.embeddings.embed_dim)
-        setattr(model, "patch_size", model.embeddings.patch_size)
+        setattr(model, 'embed_dim', model.embeddings.embed_dim)
+        setattr(model, 'patch_size', model.embeddings.patch_size)
 
         return model
 
@@ -57,7 +58,7 @@ class MiniCPMV_v2_6(MiniCPMVPreTrainedModel):
             embed_dim=embed_dim,
             num_heads=embed_dim // 128,
             kv_dim=vision_dim,
-            adaptive=True,
+            adaptive=True
         )
 
     def get_input_embeddings(self):
@@ -79,11 +80,11 @@ class MiniCPMV_v2_6(MiniCPMVPreTrainedModel):
         return self.llm
 
     def get_vllm_embedding(self, data):
-        if "vision_hidden_states" not in data:
+        if 'vision_hidden_states' not in data:
             dtype = self.llm.model.embed_tokens.embedding_table.dtype
             device = None
-            tgt_sizes = data["tgt_sizes"]
-            pixel_values_list = data["pixel_values"]
+            tgt_sizes = data['tgt_sizes']
+            pixel_values_list = data['pixel_values']
             vision_hidden_states = []
             all_pixel_values = []
             img_cnt = []
@@ -106,16 +107,7 @@ class MiniCPMV_v2_6(MiniCPMVPreTrainedModel):
                 max_length_w = max([i.shape[1] for i in all_pixel_values])
                 for i in range(len(all_pixel_values)):
                     if all_pixel_values[i].shape[0] < max_length_h or all_pixel_values[i].shape[1] < max_length_w:
-                        all_pixel_values[i] = ops.pad(
-                            all_pixel_values[i],
-                            (
-                                0,
-                                max_length_w - all_pixel_values[i].shape[1],
-                                0,
-                                max_length_h - all_pixel_values[i].shape[0],
-                            ),
-                            value=0.0,
-                        )
+                        all_pixel_values[i] = ops.pad(all_pixel_values[i], (0, max_length_w - all_pixel_values[i].shape[1], 0, max_length_h - all_pixel_values[i].shape[0]), value=0.0)
                 all_pixel_values = ops.stack(all_pixel_values)
 
                 B, L, _ = all_pixel_values.shape
@@ -123,7 +115,7 @@ class MiniCPMV_v2_6(MiniCPMVPreTrainedModel):
 
                 patch_attn_mask = ops.zeros(Tensor((B, 1, int(max_patches))), dtype=ms.bool_)
                 for i in range(B):
-                    patch_attn_mask[i, 0, : tgt_sizes[i][0] * tgt_sizes[i][1]] = True
+                    patch_attn_mask[i, 0, :tgt_sizes[i][0] * tgt_sizes[i][1]] = True
 
                 vision_batch_size = self.config.vision_batch_size
                 all_pixel_values = all_pixel_values.astype(dtype)
@@ -132,33 +124,28 @@ class MiniCPMV_v2_6(MiniCPMVPreTrainedModel):
                     for i in range(0, B, vision_batch_size):
                         start_idx = i
                         end_idx = i + vision_batch_size
-                        tmp_hs = self.vpm(
-                            all_pixel_values[start_idx:end_idx],
-                            patch_attention_mask=patch_attn_mask[start_idx:end_idx],
-                            tgt_sizes=tgt_sizes[start_idx:end_idx],
-                        ).last_hidden_state
+                        tmp_hs = self.vpm(all_pixel_values[start_idx:end_idx], patch_attention_mask=patch_attn_mask[start_idx:end_idx], tgt_sizes=tgt_sizes[start_idx:end_idx]).last_hidden_state
                         hs.append(tmp_hs)
                     vision_embedding = ops.cat(hs, axis=0)
                 else:
-                    vision_embedding = self.vpm(
-                        all_pixel_values, patch_attention_mask=patch_attn_mask, tgt_sizes=tgt_sizes
-                    ).last_hidden_state
+                    vision_embedding = self.vpm(all_pixel_values, patch_attention_mask=patch_attn_mask, tgt_sizes=tgt_sizes).last_hidden_state
                 vision_embedding = self.resampler(vision_embedding, tgt_sizes)
 
                 start = 0
                 for pixel_values in pixel_values_list:
                     img_cnt = len(pixel_values)
                     if img_cnt > 0:
-                        vision_hidden_states.append(vision_embedding[start : start + img_cnt])
+                        vision_hidden_states.append(vision_embedding[start: start + img_cnt])
                         start += img_cnt
                     else:
                         vision_hidden_states.append([])
-            else:  # no image
+            else: # no image
                 if self.training:
-                    dummy_image = ops.zeros((1, 3, 224, 224), dtype=dtype)
-                    tgt_sizes = ms.Tensor(
-                        [[(224 // self.config.patch_size), math.ceil(224 / self.config.patch_size)]]
-                    ).astype(ms.int32)
+                    dummy_image = ops.zeros(
+                        (1, 3, 224, 224),
+                        dtype=dtype
+                    )
+                    tgt_sizes = ms.Tensor([[(224 // self.config.patch_size), math.ceil(224 / self.config.patch_size)]]).astype(ms.int32)
                     dummy_feature = self.resampler(self.vpm(dummy_image).last_hidden_state, tgt_sizes)
                 else:
                     dummy_feature = []
@@ -166,16 +153,15 @@ class MiniCPMV_v2_6(MiniCPMVPreTrainedModel):
                     vision_hidden_states.append(dummy_feature)
 
         else:
-            vision_hidden_states = data["vision_hidden_states"]
+            vision_hidden_states = data['vision_hidden_states']
 
-        if hasattr(self.llm.config, "scale_emb"):
-            vllm_embedding = self.llm.model.embed_tokens(data["input_ids"]) * self.llm.config.scale_emb
+        if hasattr(self.llm.config, 'scale_emb'):
+            vllm_embedding = self.llm.model.embed_tokens(data['input_ids']) * self.llm.config.scale_emb
         else:
-            vllm_embedding = self.llm.model.embed_tokens(data["input_ids"])
+            vllm_embedding = self.llm.model.embed_tokens(data['input_ids'])
 
-        vision_hidden_states = [
-            i.astype(vllm_embedding.dtype) if isinstance(i, ms.Tensor) else i for i in vision_hidden_states
-        ]
+        vision_hidden_states = [i.astype(vllm_embedding.dtype) if isinstance(
+            i, ms.Tensor) else i for i in vision_hidden_states]
 
         # bs = len(data['input_ids'])
         # for i in range(bs):
@@ -202,7 +188,13 @@ class MiniCPMV_v2_6(MiniCPMVPreTrainedModel):
             position_ids = position_ids.long()
 
         with _no_grad():
-            return self.llm(input_ids=None, position_ids=position_ids, inputs_embeds=vllm_embedding, **kwargs)
+            return self.llm(
+                input_ids=None,
+                position_ids=position_ids,
+                inputs_embeds=vllm_embedding,
+                labels=data["labels"],
+                **kwargs
+            )
 
     def _decode(self, inputs_embeds, tokenizer, attention_mask, decode_text=False, **kwargs):
         terminators = [tokenizer.convert_tokens_to_ids(i) for i in self.terminators]
@@ -211,7 +203,7 @@ class MiniCPMV_v2_6(MiniCPMVPreTrainedModel):
             pad_token_id=0,
             eos_token_id=terminators,
             attention_mask=attention_mask,
-            **kwargs,
+            **kwargs
         )
         if decode_text:
             return self._decode_text(output, tokenizer)
@@ -221,10 +213,10 @@ class MiniCPMV_v2_6(MiniCPMVPreTrainedModel):
         terminators = [tokenizer.convert_tokens_to_ids(i) for i in self.terminators]
         streamer = TextIteratorStreamer(tokenizer=tokenizer)
         generation_kwargs = {
-            "inputs_embeds": inputs_embeds,
-            "pad_token_id": 0,
-            "eos_token_id": terminators,
-            "streamer": streamer,
+            'inputs_embeds': inputs_embeds,
+            'pad_token_id': 0,
+            'eos_token_id': terminators,
+            'streamer': streamer
         }
         generation_kwargs.update(kwargs)
 
@@ -257,7 +249,7 @@ class MiniCPMV_v2_6(MiniCPMVPreTrainedModel):
         return_vision_hidden_states=False,
         stream=False,
         decode_text=False,
-        **kwargs,
+        **kwargs
     ):
         assert input_ids is not None
         assert len(input_ids) == len(pixel_values)
@@ -269,7 +261,7 @@ class MiniCPMV_v2_6(MiniCPMVPreTrainedModel):
 
         if vision_hidden_states is None:
             model_inputs["pixel_values"] = pixel_values
-            model_inputs["tgt_sizes"] = tgt_sizes
+            model_inputs['tgt_sizes'] = tgt_sizes
         else:
             model_inputs["vision_hidden_states"] = vision_hidden_states
 
@@ -282,9 +274,7 @@ class MiniCPMV_v2_6(MiniCPMVPreTrainedModel):
             if stream:
                 result = self._decode_stream(model_inputs["inputs_embeds"], tokenizer, **kwargs)
             else:
-                result = self._decode(
-                    model_inputs["inputs_embeds"], tokenizer, attention_mask, decode_text=decode_text, **kwargs
-                )
+                result = self._decode(model_inputs["inputs_embeds"], tokenizer, attention_mask, decode_text=decode_text, **kwargs)
 
         if return_vision_hidden_states:
             return result, vision_hidden_states
@@ -302,11 +292,11 @@ class MiniCPMV_v2_6(MiniCPMVPreTrainedModel):
         min_new_tokens=0,
         sampling=True,
         max_inp_length=8192,
-        system_prompt="",
+        system_prompt='',
         stream=False,
         max_slice_nums=None,
         use_image_id=None,
-        **kwargs,
+        **kwargs
     ):
         if isinstance(msgs[0], list):
             batched = True
@@ -329,21 +319,11 @@ class MiniCPMV_v2_6(MiniCPMVPreTrainedModel):
                 self.processor = MiniCPMVProcessor.from_pretrained(self.config._name_or_path, trust_remote_code=True)
             processor = self.processor
 
-        assert (
-            self.config.query_num == processor.image_processor.image_feature_size
-        ), "These two values should be the same. Check `config.json` and `preprocessor_config.json`."
-        assert (
-            self.config.patch_size == processor.image_processor.patch_size
-        ), "These two values should be the same. Check `config.json` and `preprocessor_config.json`."
-        assert (
-            self.config.use_image_id == processor.image_processor.use_image_id
-        ), "These two values should be the same. Check `config.json` and `preprocessor_config.json`."
-        assert (
-            self.config.slice_config.max_slice_nums == processor.image_processor.max_slice_nums
-        ), "These two values should be the same. Check `config.json` and `preprocessor_config.json`."
-        assert (
-            self.config.slice_mode == processor.image_processor.slice_mode
-        ), "These two values should be the same. Check `config.json` and `preprocessor_config.json`."
+        assert self.config.query_num == processor.image_processor.image_feature_size, "These two values should be the same. Check `config.json` and `preprocessor_config.json`."
+        assert self.config.patch_size == processor.image_processor.patch_size, "These two values should be the same. Check `config.json` and `preprocessor_config.json`."
+        assert self.config.use_image_id == processor.image_processor.use_image_id, "These two values should be the same. Check `config.json` and `preprocessor_config.json`."
+        assert self.config.slice_config.max_slice_nums == processor.image_processor.max_slice_nums, "These two values should be the same. Check `config.json` and `preprocessor_config.json`."
+        assert self.config.slice_mode == processor.image_processor.slice_mode, "These two values should be the same. Check `config.json` and `preprocessor_config.json`."
 
         prompts_lists = []
         input_images_lists = []
@@ -377,12 +357,10 @@ class MiniCPMV_v2_6(MiniCPMVPreTrainedModel):
                 msg["content"] = "\n".join(cur_msgs)
 
             if system_prompt:
-                sys_msg = {"role": "system", "content": system_prompt}
+                sys_msg = {'role': 'system', 'content': system_prompt}
                 copy_msgs = [sys_msg] + copy_msgs
 
-            prompts_lists.append(
-                processor.tokenizer.apply_chat_template(copy_msgs, tokenize=False, add_generation_prompt=True)
-            )
+            prompts_lists.append(processor.tokenizer.apply_chat_template(copy_msgs, tokenize=False, add_generation_prompt=True))
             input_images_lists.append(images)
 
         inputs = processor(
@@ -392,7 +370,7 @@ class MiniCPMV_v2_6(MiniCPMVPreTrainedModel):
             use_image_id=use_image_id,
             return_tensors="ms",
             max_length=max_inp_length,
-            image_processor=image_processor,
+            image_processor=image_processor
         )
 
         if sampling:
@@ -401,7 +379,7 @@ class MiniCPMV_v2_6(MiniCPMVPreTrainedModel):
                 "top_k": 100,
                 "temperature": 0.7,
                 "do_sample": True,
-                "repetition_penalty": 1.05,
+                "repetition_penalty": 1.05
             }
         else:
             generation_config = {
@@ -410,9 +388,11 @@ class MiniCPMV_v2_6(MiniCPMVPreTrainedModel):
             }
 
         if min_new_tokens > 0:
-            generation_config["min_new_tokens"] = min_new_tokens
+            generation_config['min_new_tokens'] = min_new_tokens
 
-        generation_config.update((k, kwargs[k]) for k in generation_config.keys() & kwargs.keys())
+        generation_config.update(
+            (k, kwargs[k]) for k in generation_config.keys() & kwargs.keys()
+        )
 
         inputs.pop("image_sizes")
         # with torch.inference_mode():
@@ -423,17 +403,15 @@ class MiniCPMV_v2_6(MiniCPMVPreTrainedModel):
             vision_hidden_states=vision_hidden_states,
             stream=stream,
             decode_text=True,
-            **generation_config,
+            **generation_config
         )
 
         if stream:
-
             def stream_gen():
                 for text in res:
                     for term in self.terminators:
-                        text = text.replace(term, "")
+                        text = text.replace(term, '')
                     yield text
-
             return stream_gen()
 
         else:

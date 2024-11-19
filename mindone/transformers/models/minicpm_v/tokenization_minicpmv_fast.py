@@ -1,4 +1,4 @@
-from mindnlp.transformers import AutoTokenizer
+from transformers import AutoTokenizer
 
 from ..qwen2 import Qwen2TokenizerFast
 
@@ -57,7 +57,7 @@ class MiniCPMVTokenizerFast(Qwen2TokenizerFast):
 
     @property
     def newline_id(self):
-        return self.convert_tokens_to_ids("\n")
+        return self.convert_tokens_to_ids('\n')
 
     @staticmethod
     def escape(text: str) -> str:
@@ -66,6 +66,5 @@ class MiniCPMVTokenizerFast(Qwen2TokenizerFast):
     @staticmethod
     def unescape(text: str) -> str:
         return text
-
 
 AutoTokenizer.register("MiniCPMVTokenizerFast", MiniCPMVTokenizerFast)
