@@ -27,6 +27,8 @@ class ImageVideoDataset(BaseDataset):
         csv_path: str,
         video_folder: str,
         text_emb_folder: Optional[Union[str, Dict[str, str]]] = None,
+        empty_text_emb: Optional[Union[str, Dict[str, str]]] = None,
+        text_drop_prob: float = 0.2,
         vae_latent_folder: Optional[str] = None,
         vae_downsample_rate: float = 8.0,
         vae_scale_factor: float = 0.18215,
@@ -49,7 +51,17 @@ class ImageVideoDataset(BaseDataset):
         self._frames = sample_n_frames
         self._stride = sample_stride
         self._min_length = (self._frames - 1) * self._stride + 1
+
         self._text_emb_folder = text_emb_folder
+        self._empty_text_emb = empty_text_emb if text_drop_prob > 0 else None
+        if self._empty_text_emb:
+            if isinstance(self._empty_text_emb, str):
+                assert os.path.exists(self._empty_text_emb), f"Empty text embedding not found: {self._empty_text_emb}"
+            else:
+                for path in self._empty_text_emb.values():
+                    assert os.path.exists(path), f"Empty text embedding not found: {path}"
+        self._text_drop_prob = text_drop_prob
+
         self._vae_latent_folder = vae_latent_folder
         self._vae_downsample_rate = vae_downsample_rate
         self._vae_scale_factor = vae_scale_factor
@@ -139,6 +151,9 @@ class ImageVideoDataset(BaseDataset):
         num_frames = self._frames
 
         if self._text_emb_folder:
+            if self._empty_text_emb and random.random() <= self._text_drop_prob:
+                data["text_emb"] = self._empty_text_emb
+
             if isinstance(data["text_emb"], str):
                 with np.load(data["text_emb"]) as td:
                     data.update({"caption": td["text_emb"], "mask": td["mask"]})
