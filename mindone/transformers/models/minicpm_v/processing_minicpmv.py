@@ -20,15 +20,16 @@ import re
 from typing import Any, Dict, List, Optional, Union
 
 import numpy as np
-from transformers.utils import TensorType
 from transformers.image_utils import ImageInput
 from transformers.tokenization_utils_base import PreTokenizedInput, TextInput
+from transformers.utils import TensorType
 
 import mindspore as ms
 from mindspore import Parameter, Tensor, nn, ops
 
 from ...processing_utils import ProcessorMixin
 from .image_processing_minicpmv import MiniCPMVBatchFeature, MiniCPMVImageProcessor
+
 
 class MiniCPMVProcessor(ProcessorMixin):
     r"""
@@ -61,12 +62,21 @@ class MiniCPMVProcessor(ProcessorMixin):
         use_image_id: bool = None,
         return_tensors: Optional[Union[str, TensorType]] = TensorType.PYTORCH,
         image_processor=None,
-        **kwargs
+        **kwargs,
     ) -> MiniCPMVBatchFeature:
-
         if images is not None:
-            image_inputs = image_processor.preprocess(images=images, do_pad=do_pad, max_slice_nums=max_slice_nums, return_tensors=return_tensors)
-        return self._convert_images_texts_to_inputs(image_inputs, text, max_slice_nums=max_slice_nums, use_image_id=use_image_id, max_length=max_length, image_processor=image_processor, **kwargs)
+            image_inputs = image_processor.preprocess(
+                images=images, do_pad=do_pad, max_slice_nums=max_slice_nums, return_tensors=return_tensors
+            )
+        return self._convert_images_texts_to_inputs(
+            image_inputs,
+            text,
+            max_slice_nums=max_slice_nums,
+            use_image_id=use_image_id,
+            max_length=max_length,
+            image_processor=image_processor,
+            **kwargs,
+        )
 
     # Copied from transformers.models.clip.processing_clip.CLIPProcessor.batch_decode with CLIP->Llama
     def batch_decode(self, *args, **kwargs):
@@ -96,13 +106,13 @@ class MiniCPMVProcessor(ProcessorMixin):
         result = result[result != 0]
         if result[0] == self.tokenizer.bos_id:
             result = result[1:]
-        if result[-1] == self.tokenizer.eos_id or (hasattr(self.tokenizer, "eot_id") and result[-1] == self.tokenizer.eot_id):
+        if result[-1] == self.tokenizer.eos_id or (
+            hasattr(self.tokenizer, "eot_id") and result[-1] == self.tokenizer.eot_id
+        ):
             result = result[:-1]
         return self.tokenizer.decode(result, *args[1:], **kwargs).strip()
 
-    def _convert(
-        self, input_str, max_inp_length: Optional[int] = None
-    ):
+    def _convert(self, input_str, max_inp_length: Optional[int] = None):
         if self.version > 2.5 or not getattr(self.tokenizer, "add_bos_token", False):
             input_ids = self.tokenizer.encode(input_str)
         else:
@@ -140,19 +150,21 @@ class MiniCPMVProcessor(ProcessorMixin):
         return input_ids, image_bounds
 
     def _convert_images_texts_to_inputs(
-            self,
-            images,
-            texts: Union[str, List[str]],
-            truncation=None,
-            max_length=None,
-            max_slice_nums=None,
-            use_image_id=None,
-            return_tensors=None,
-            image_processor=None,
-            **kwargs
-        ):
+        self,
+        images,
+        texts: Union[str, List[str]],
+        truncation=None,
+        max_length=None,
+        max_slice_nums=None,
+        use_image_id=None,
+        return_tensors=None,
+        image_processor=None,
+        **kwargs,
+    ):
         if images is None or not len(images):
-            model_inputs = self.tokenizer(texts, return_tensors=return_tensors, truncation=truncation, max_length=max_length, **kwargs)
+            model_inputs = self.tokenizer(
+                texts, return_tensors=return_tensors, truncation=truncation, max_length=max_length, **kwargs
+            )
             return MiniCPMVBatchFeature(data={**model_inputs})
 
         pattern = "(<image>./</image>)"
@@ -168,33 +180,32 @@ class MiniCPMVProcessor(ProcessorMixin):
             text_chunks = text.split(pattern)
             final_text = ""
             for i in range(len(image_tags)):
-                final_text = final_text + text_chunks[i] + \
-                    image_processor.get_slice_image_placeholder(
-                        image_sizes[index][i],
-                        i,
-                        max_slice_nums,
-                        use_image_id
+                final_text = (
+                    final_text
+                    + text_chunks[i]
+                    + image_processor.get_slice_image_placeholder(
+                        image_sizes[index][i], i, max_slice_nums, use_image_id
                     )
+                )
             final_text += text_chunks[-1]
             input_ids, image_bounds = self._convert(final_text, max_length)
             input_ids_list.append(input_ids)
             image_bounds_list.append(image_bounds)
-        padded_input_ids, padding_lengths = self.pad(
-            input_ids_list,
-            padding_side="left"
-        )
+        padded_input_ids, padding_lengths = self.pad(input_ids_list, padding_side="left")
         for i, length in enumerate(padding_lengths):
             image_bounds_list[i] = image_bounds_list[i] + length
         attention_mask = padded_input_ids.ne(0)
 
-        return MiniCPMVBatchFeature(data={
-            "input_ids": padded_input_ids,
-            "attention_mask": attention_mask,
-            "pixel_values": images,
-            "image_sizes": image_sizes,
-            "image_bound": image_bounds_list,
-            "tgt_sizes": tgt_sizes
-        })
+        return MiniCPMVBatchFeature(
+            data={
+                "input_ids": padded_input_ids,
+                "attention_mask": attention_mask,
+                "pixel_values": images,
+                "image_sizes": image_sizes,
+                "image_bound": image_bounds_list,
+                "tgt_sizes": tgt_sizes,
+            }
+        )
 
     @property
     # Copied from transformers.models.clip.processing_clip.CLIPProcessor.model_input_names
@@ -202,7 +213,6 @@ class MiniCPMVProcessor(ProcessorMixin):
         tokenizer_input_names = self.tokenizer.model_input_names
         image_processor_input_names = MiniCPMVImageProcessor.model_input_names
         return list(dict.fromkeys(tokenizer_input_names + image_processor_input_names))
-
 
     def pad(self, inputs, max_length=None, padding_value=0, padding_side="left"):
         items = []
@@ -232,10 +242,7 @@ class MiniCPMVProcessor(ProcessorMixin):
                 return ops.stack([item for item in items], axis=0), [0] * batch_size
             tensor = ops.zeros((batch_size, max_length), dtype=dtype) + padding_value
         else:
-            tensor = (
-                ops.zeros((batch_size, max_length, shape[-1]), dtype=dtype)
-                + padding_value
-            )
+            tensor = ops.zeros((batch_size, max_length, shape[-1]), dtype=dtype) + padding_value
 
         padding_length = []
         for i, item in enumerate(items):

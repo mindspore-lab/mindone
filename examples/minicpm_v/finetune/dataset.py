@@ -31,6 +31,7 @@ logger = logging.getLogger(__name__)
 
 llama3_chat_template = "{% set loop_messages = messages %}{% for message in loop_messages %}{% set content = '<|start_header_id|>' + message['role'] + '<|end_header_id|>\n\n'+ message['content'] | trim + '<|eot_id|>' %}{% if loop.index0 == 0 %}{% set content = bos_token + content %}{% endif %}{{ content }}{% endfor %}"
 
+
 class SupervisedDataset:
     """Dataset for supervised fine-tuning."""
 
@@ -53,7 +54,7 @@ class SupervisedDataset:
         self.slice_config = slice_config
         self.llm_type = llm_type
         self.patch_size = patch_size
-        self.query_nums=query_nums
+        self.query_nums = query_nums
         self.batch_vision = batch_vision
         self.max_length = max_length
         # self.dataset_column_names = ["input_ids", "position_ids", "labels", "attention_mask", "pixel_values", "tgt_sizes", "image_bound"]
@@ -66,10 +67,13 @@ class SupervisedDataset:
     def __getitem__(self, idx, retry_count=3):
         try:
             if isinstance(self.raw_data[idx]["image"], str):
-                images_dict = { "<image>" : Image.open(self.raw_data[idx]["image"]).convert("RGB") }
+                images_dict = {"<image>": Image.open(self.raw_data[idx]["image"]).convert("RGB")}
             elif isinstance(self.raw_data[idx]["image"], Dict):
                 ### for multi-images input, the template for every image is <image_xx>, such as <image_00>, <image_01>
-                images_dict = {img_name : Image.open(img_path).convert("RGB") for img_name, img_path in self.raw_data[idx]["image"].items()}
+                images_dict = {
+                    img_name: Image.open(img_path).convert("RGB")
+                    for img_name, img_path in self.raw_data[idx]["image"].items()
+                }
 
             ret = preprocess(
                 images_dict,
@@ -81,7 +85,7 @@ class SupervisedDataset:
                 llm_type=self.llm_type,
                 patch_size=self.patch_size,
                 batch_vision=self.batch_vision,
-                max_length=self.max_length
+                max_length=self.max_length,
             )
             ret = dict(
                 input_ids=ret["input_ids"],
@@ -93,7 +97,7 @@ class SupervisedDataset:
                 image_bound=ret["image_bound"],
             )
 
-            ret = data_collator(ret, max_length = self.max_length)
+            ret = data_collator(ret, max_length=self.max_length)
 
         except (EOFError, ValueError, OSError) as e:
             # Log and handle EOFError and other file-related errors
@@ -113,6 +117,7 @@ class SupervisedDataset:
         #     # return self.__getitem__(random.randint(0, len(self)))
         # return (ret["input_ids"], ret["position_ids"], ret["labels"], np.ones_like(ret["input_ids"], dtype=np.bool_), ret["pixel_values"], ret["tgt_sizes"], ret["image_bound"])
         return ret
+
 
 def data_collator(examples, padding_value=0, max_length=2048):
     def trim_and_pad(seq, batch_first, padding_value):
@@ -172,24 +177,20 @@ def conversation_to_ids(conversation, tokenizer, llm_type=None, new_schema=False
                    {'role': 'assistant', 'content': 'This is a cat.'}]
     """
     if llm_type == "llama3":
-        input_ids, context, raw_msg = conversation_to_ids_llama3(
-            conversation, tokenizer
-        )
+        input_ids, context, raw_msg = conversation_to_ids_llama3(conversation, tokenizer)
     elif llm_type == "qwen2":
-        input_ids, context, raw_msg = conversation_to_ids_qwen2(
-            conversation, tokenizer
-        )
+        input_ids, context, raw_msg = conversation_to_ids_qwen2(conversation, tokenizer)
     else:
-        input_ids, context, raw_msg = conversation_to_ids_minicpm(
-            conversation, tokenizer
-        )
+        input_ids, context, raw_msg = conversation_to_ids_minicpm(conversation, tokenizer)
 
     ids = np.hstack(input_ids, dtype=np.int32)
     context = np.hstack(context, dtype=np.int8)
     if input_ids.shape[-1] > max_length:
         ids = ids[:max_length]
         context = context[:max_length]
-        logger.warning(f"The input length ({input_ids.shape[-1]}) exceeds the model's maximum length ({max_length}), so it has been truncated")
+        logger.warning(
+            f"The input length ({input_ids.shape[-1]}) exceeds the model's maximum length ({max_length}), so it has been truncated"
+        )
 
     if np.all(context):
         logger.error("No tokens available to compute loss.")
@@ -235,7 +236,7 @@ def conversation_to_ids(conversation, tokenizer, llm_type=None, new_schema=False
         "target": target,
         "image_bound": image_bound,
         "raw_msg": raw_msg,
-        "position_ids": position_ids
+        "position_ids": position_ids,
     }
 
 
@@ -276,24 +277,23 @@ def conversation_to_ids_llama3(conversation, tokenizer):
     input_ids = []
     context = []
     raw_msg = tokenizer.apply_chat_template(
-        conversation, tokenize=False, add_generation_prompt=False, chat_template=llama3_chat_template,
+        conversation,
+        tokenize=False,
+        add_generation_prompt=False,
+        chat_template=llama3_chat_template,
     )
     input_ids = tokenizer.apply_chat_template(
-        conversation, tokenize=True, add_generation_prompt=False, chat_template=llama3_chat_template,
+        conversation,
+        tokenize=True,
+        add_generation_prompt=False,
+        chat_template=llama3_chat_template,
     )
     input_ids = np.array(input_ids)
 
-    start_header_idxs = np.where(
-        input_ids == tokenizer.convert_tokens_to_ids("<|start_header_id|>")
-    )[0]
-    assistant_idxs = np.where(
-        input_ids == tokenizer.convert_tokens_to_ids("assistant")
-    )[0]
-    end_header_idxs = np.where(
-        input_ids == tokenizer.convert_tokens_to_ids("<|end_header_id|>")
-    )[0]
-    eot_idxs = np.where(
-        input_ids == tokenizer.convert_tokens_to_ids("<|eot_id|>"))[0]
+    start_header_idxs = np.where(input_ids == tokenizer.convert_tokens_to_ids("<|start_header_id|>"))[0]
+    assistant_idxs = np.where(input_ids == tokenizer.convert_tokens_to_ids("assistant"))[0]
+    end_header_idxs = np.where(input_ids == tokenizer.convert_tokens_to_ids("<|end_header_id|>"))[0]
+    eot_idxs = np.where(input_ids == tokenizer.convert_tokens_to_ids("<|eot_id|>"))[0]
 
     context = np.ones_like(input_ids, dtype=np.int8)
 
@@ -302,7 +302,7 @@ def conversation_to_ids_llama3(conversation, tokenizer):
             st = assistant_idx + 3  # assistant<|end_header_id|>\n\n
             for eot_idx in eot_idxs:
                 if eot_idx > st:
-                    context[st: eot_idx + 1] = 0
+                    context[st : eot_idx + 1] = 0
                     break
 
     input_ids = np.hstack(input_ids)
@@ -323,35 +323,37 @@ def conversation_to_ids_qwen2(conversation, tokenizer):
             prefix = "user"
         else:
             prefix = "assistant"
-        chat.append({"role":prefix, "content":message})
+        chat.append({"role": prefix, "content": message})
         raw_msg += prefix + message
-    assert set([i['role'] for i in chat]) & set(['assistant'])
+    assert set([i["role"] for i in chat]) & set(["assistant"])
 
     ret = tokenizer.apply_chat_template(chat, tokenize=False, add_generation_prompt=False)
     input_ids = tokenizer.apply_chat_template(chat, tokenize=True, add_generation_prompt=False)
     input_ids = np.array(input_ids)
 
-    start_idxs = np.where(input_ids == tokenizer.convert_tokens_to_ids('<|im_start|>'))[0]
-    assistant_idxs = np.where(input_ids == tokenizer.convert_tokens_to_ids('assistant'))[0]
-    end_idxs = np.where(input_ids == tokenizer.convert_tokens_to_ids('<|im_end|>'))[0]
+    start_idxs = np.where(input_ids == tokenizer.convert_tokens_to_ids("<|im_start|>"))[0]
+    assistant_idxs = np.where(input_ids == tokenizer.convert_tokens_to_ids("assistant"))[0]
+    end_idxs = np.where(input_ids == tokenizer.convert_tokens_to_ids("<|im_end|>"))[0]
 
     context = np.ones_like(input_ids, dtype=np.int8)
 
     for assistant_idx in assistant_idxs:
-        if assistant_idx-1 in set(start_idxs):
+        if assistant_idx - 1 in set(start_idxs):
             st = assistant_idx + 1
             for end_idx in end_idxs:
                 if end_idx > st:
-                    context[st: end_idx + 1] = 0
+                    context[st : end_idx + 1] = 0
                     break
 
     input_ids = np.hstack(input_ids)
     context = np.hstack(context)
     return input_ids, context, raw_msg
 
+
 def trans_fn(x):
     x = np.asarray(x).transpose((2, 0, 1))
-    return (x-0.5*255)/(0.5*255)
+    return (x - 0.5 * 255) / (0.5 * 255)
+
 
 def preprocess(
     images_dict,
@@ -377,12 +379,10 @@ def preprocess(
         assert "patch_size" in slice_config
         assert "max_slice_nums" in slice_config
         assert "scale_resolution" in slice_config
-    default_image_placeholder = (
-        tokenizer.im_start + tokenizer.unk_token * query_nums + tokenizer.im_end
-    )
+    default_image_placeholder = tokenizer.im_start + tokenizer.unk_token * query_nums + tokenizer.im_end
     new_schema = False
     use_image_id = False
-    if llm_type=='qwen2':
+    if llm_type == "qwen2":
         new_schema = True
         use_image_id = True
     image_placeholder_dict = {}
@@ -403,15 +403,16 @@ def preprocess(
                     for j in range(len(patches[0])):
                         images.append(patches[i][j])
                 if use_image_id:
-                    image_placeholder = f'{tokenizer.im_id_start}{image_id_cnt}{tokenizer.im_id_end}' + image_placeholder
+                    image_placeholder = (
+                        f"{tokenizer.im_id_start}{image_id_cnt}{tokenizer.im_id_end}" + image_placeholder
+                    )
                     image_id_cnt += 1
-                image_placeholder += get_grid_placeholder(
-                    tokenizer, best_grid, query_nums, new_schema = new_schema)
+                image_placeholder += get_grid_placeholder(tokenizer, best_grid, query_nums, new_schema=new_schema)
             image_placeholder_dict[img_name] = image_placeholder
         else:
             images.append(image)
             if use_image_id:
-                image_placeholder = f'{tokenizer.im_id_start}{image_id_cnt}{tokenizer.im_id_end}' + image_placeholder
+                image_placeholder = f"{tokenizer.im_id_start}{image_id_cnt}{tokenizer.im_id_end}" + image_placeholder
                 image_id_cnt += 1
             else:
                 image_placeholder = default_image_placeholder
@@ -421,20 +422,16 @@ def preprocess(
 
     if len(images_dict) == 1 and "<image>" in images_dict:
         if "<image>" in conversations[0]["content"]:
-            conversations[0]["content"] = conversations[0]["content"].replace(
-                "<image>", image_placeholder
-            )
+            conversations[0]["content"] = conversations[0]["content"].replace("<image>", image_placeholder)
         else:
-            conversations[0]["content"] = (
-                image_placeholder + "\n" + conversations[0]["content"]
-            )
+            conversations[0]["content"] = image_placeholder + "\n" + conversations[0]["content"]
         input_dict = conversation_to_ids(conversations, tokenizer, llm_type, new_schema, max_length)
     else:
-        pattern = r'<image_\d+>'
+        pattern = r"<image_\d+>"
         new_conversations = []
         for conversation in conversations:
-            content = conversation['content']
-            parts = re.split(f'({pattern})', content)
+            content = conversation["content"]
+            parts = re.split(f"({pattern})", content)
             for i, part in enumerate(parts):
                 if not part.strip():
                     continue
@@ -443,7 +440,7 @@ def preprocess(
                         parts[i] = image_placeholder_dict[part]
                     else:
                         raise Exception(f"not found {part} in image dict")
-            conversation['content'] = '\n'.join(parts)
+            conversation["content"] = "\n".join(parts)
             new_conversations.append(conversation)
         conversations = new_conversations
 
@@ -470,14 +467,11 @@ def preprocess(
     return input_dict
 
 
-def slice_image(
-    image, max_slice_nums=9, scale_resolution=448, patch_size=14, never_split=False
-):
+def slice_image(image, max_slice_nums=9, scale_resolution=448, patch_size=14, never_split=False):
     original_size = image.size
     original_width, original_height = original_size
     log_ratio = math.log(original_width / original_height)
-    ratio = original_width * original_height / \
-        (scale_resolution * scale_resolution)
+    ratio = original_width * original_height / (scale_resolution * scale_resolution)
     multiple = min(math.ceil(ratio), max_slice_nums)
 
     source_image = None
@@ -486,9 +480,7 @@ def slice_image(
 
     if multiple <= 1 or never_split:
         # dont need to slice, upsample
-        best_size = find_best_resize(
-            original_size, scale_resolution, patch_size, allow_upscale=True
-        )
+        best_size = find_best_resize(original_size, scale_resolution, patch_size, allow_upscale=True)
         source_image = image.resize(best_size, Image.Resampling.BICUBIC)
     else:
         candidate_split_grids_nums = []
@@ -498,8 +490,7 @@ def slice_image(
             candidate_split_grids_nums.append(i)
 
         # source image, down-sampling and ensure divided by patch_size
-        best_resize = find_best_resize(
-            original_size, scale_resolution, patch_size)
+        best_resize = find_best_resize(original_size, scale_resolution, patch_size)
         source_image = image.copy().resize(best_resize, Image.Resampling.BICUBIC)
         candidate_grids = []
 
@@ -519,9 +510,7 @@ def slice_image(
                 best_grid = grid
                 min_error = error
 
-        refine_size = get_refine_size(
-            original_size, best_grid, scale_resolution, patch_size, allow_upscale=True
-        )
+        refine_size = get_refine_size(original_size, best_grid, scale_resolution, patch_size, allow_upscale=True)
 
         refine_image = image.resize(refine_size, Image.Resampling.BICUBIC)
         patches = split_to_patches(refine_image, best_grid)
@@ -544,9 +533,7 @@ def find_best_resize(original_size, scale_resolution, patch_size, allow_upscale=
     return (best_width, best_height)
 
 
-def get_refine_size(
-    original_size, grid, scale_resolution, patch_size, allow_upscale=False
-):
+def get_refine_size(original_size, grid, scale_resolution, patch_size, allow_upscale=False):
     width, height = original_size
     grid_x, grid_y = grid
 
@@ -587,13 +574,9 @@ def split_to_patches(image, grid):
 
 def get_grid_placeholder(tokenizer, grid, query_num, new_schema=False):
     if new_schema:
-        image_placeholder = (
-            tokenizer.slice_start + tokenizer.unk_token * query_num + tokenizer.slice_end
-        )
+        image_placeholder = tokenizer.slice_start + tokenizer.unk_token * query_num + tokenizer.slice_end
     else:
-        image_placeholder = (
-            tokenizer.im_start + tokenizer.unk_token * query_num + tokenizer.im_end
-        )
+        image_placeholder = tokenizer.im_start + tokenizer.unk_token * query_num + tokenizer.im_end
 
     cols = grid[0]
     rows = grid[1]
@@ -604,10 +587,9 @@ def get_grid_placeholder(tokenizer, grid, query_num, new_schema=False):
             lines.append(image_placeholder)
         slices.append("".join(lines))
     if new_schema:
-        slice_placeholder = '\n'.join(slices)
+        slice_placeholder = "\n".join(slices)
     else:
-        slice_placeholder = tokenizer.slice_start + \
-        "\n".join(slices) + tokenizer.slice_end
+        slice_placeholder = tokenizer.slice_start + "\n".join(slices) + tokenizer.slice_end
     return slice_placeholder
 
 
@@ -639,9 +621,8 @@ def reshape_by_patch(image_tensor, patch_size):
 
     patches = image_tensor.reshape(c, v_block_num, patch_size, h_block_num, patch_size)
     patches = np.transpose(patches, (0, 2, 4, 1, 3))
-    patches = patches.reshape(c*patch_size*patch_size, -1)
+    patches = patches.reshape(c * patch_size * patch_size, -1)
 
     patches = patches.reshape(image_tensor.shape[0], patch_size, patch_size, -1)
-    patches = patches.transpose((0, 1, 3, 2)).reshape(
-        image_tensor.shape[0], patch_size, -1)
+    patches = patches.transpose((0, 1, 3, 2)).reshape(image_tensor.shape[0], patch_size, -1)
     return patches

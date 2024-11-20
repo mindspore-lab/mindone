@@ -23,7 +23,9 @@ from mindspore.train.amp import AMP_BLACK_LIST, _auto_black_list
 
 rank, rank_size = 0, 1
 
-ms.set_context(mode=ms.context.PYNATIVE_MODE, pynative_synchronize=True, mempool_block_size="59GB", max_device_memory="59GB")
+ms.set_context(
+    mode=ms.context.PYNATIVE_MODE, pynative_synchronize=True, mempool_block_size="59GB", max_device_memory="59GB"
+)
 
 import transformers
 from transformers import HfArgumentParser
@@ -36,12 +38,12 @@ mindone_lib_path = os.path.abspath(os.path.abspath("../../../"))
 sys.path.insert(0, mindone_lib_path)
 
 from dataset import SupervisedDataset
-from mindone.transformers.trainer import Trainer
 from transformers import AutoTokenizer
-from mindone.transformers.training_args import TrainingArguments
 
-from mindone.transformers.models.minicpm_v2_6 import MiniCPMV_v2_6
 from mindone.transformers.mindspore_adapter import MindSporeArguments
+from mindone.transformers.models.minicpm_v2_6 import MiniCPMV_v2_6
+from mindone.transformers.trainer import Trainer
+from mindone.transformers.training_args import TrainingArguments
 
 # from transformers.integrations import deepspeed
 
@@ -51,6 +53,7 @@ from mindone.transformers.mindspore_adapter import MindSporeArguments
 # ms.set_context(mode=ms.context.PYNATIVE_MODE, pynative_synchronize=True)
 # ms.set_context(mode=ms.context.PYNATIVE_MODE)
 
+
 @dataclass
 class ModelArguments:
     model_name_or_path: Optional[str] = field(default="openbmb/MiniCPM-V-2")
@@ -58,12 +61,9 @@ class ModelArguments:
 
 @dataclass
 class DataArguments:
-    data_path: str = field(
-        default=None, metadata={"help": "Path to the training data."}
-    )
-    eval_data_path: str = field(
-        default=None, metadata={"help": "Path to the evaluation data."}
-    )
+    data_path: str = field(default=None, metadata={"help": "Path to the training data."})
+    eval_data_path: str = field(default=None, metadata={"help": "Path to the evaluation data."})
+
 
 # @dataclass
 # class TrainingArguments(TrainingArguments):
@@ -98,6 +98,7 @@ class LoraArguments:
     lora_layers_to_transform: Optional[List[int]] = None
     lora_layers_pattern: Optional[str] = None
 
+
 @dataclass
 class MyArguments(MindSporeArguments, TrainingArguments):
     enable_flash_attention: bool = field(default=False)
@@ -107,9 +108,7 @@ class MyArguments(MindSporeArguments, TrainingArguments):
     optim: str = field(default="adamw_mindspore")
     model_max_length: int = field(
         default=2048,
-        metadata={
-            "help": "Maximum sequence length. Sequences will be right padded (and possibly truncated)."
-        },
+        metadata={"help": "Maximum sequence length. Sequences will be right padded (and possibly truncated)."},
     )
     tune_vision: Optional[bool] = field(default=True)
     tune_llm: Optional[bool] = field(default=True)
@@ -119,7 +118,10 @@ class MyArguments(MindSporeArguments, TrainingArguments):
     distributed: Optional[bool] = field(default=False)
     amp_level: Optional[str] = field(default="O0")
 
+
 local_rank = None
+
+
 def rank0_print(*args):
     if local_rank == 0:
         print(*args)
@@ -128,7 +130,10 @@ def rank0_print(*args):
 def safe_save_model_for_hf_trainer(trainer, output_dir: str, bias="none"):
     """Collects the state dict and dump to disk."""
     if trainer.args.should_save and trainer.args.local_rank == 0:
-        trainer.save_model(output_dir,)
+        trainer.save_model(
+            output_dir,
+        )
+
 
 # class ModifiedMapFunction(BaseMapFuction):
 #     def __call__(self, input_ids, position_ids, labels, attention_mask):
@@ -227,16 +232,16 @@ def make_supervised_data_module(
 #             ]
 #         )
 
+
 def build_transform():
-    IMAGENET_INCEPTION_MEAN = (0.5, 0.5, 0.5) # timm.data.IMAGENET_INCEPTION_MEAN
+    IMAGENET_INCEPTION_MEAN = (0.5, 0.5, 0.5)  # timm.data.IMAGENET_INCEPTION_MEAN
     IMAGENET_INCEPTION_STD = (0.5, 0.5, 0.5)  # timm.data.IMAGENET_INCEPTION_STD
     return transforms.Compose(
-            [
-                vision.Normalize(
-                    mean=IMAGENET_INCEPTION_MEAN, std=IMAGENET_INCEPTION_STD, is_hwc=False
-                ),
-            ]
-        )
+        [
+            vision.Normalize(mean=IMAGENET_INCEPTION_MEAN, std=IMAGENET_INCEPTION_STD, is_hwc=False),
+        ]
+    )
+
 
 def get_parameter_number(model):
     trainable_params, all_param = 0, 0
@@ -253,7 +258,7 @@ def get_parameter_number(model):
         num_params = np.prod(param.shape)
         trainable_params += num_params
 
-    return {'Trainable params': trainable_params}
+    return {"Trainable params": trainable_params}
 
 
 local_rank = 0
@@ -261,9 +266,7 @@ local_rank = 0
 
 def train():
     global local_rank
-    parser = HfArgumentParser(
-        (ModelArguments, DataArguments, MyArguments, LoraArguments)
-    )
+    parser = HfArgumentParser((ModelArguments, DataArguments, MyArguments, LoraArguments))
 
     (
         model_args,
@@ -275,11 +278,7 @@ def train():
     # if getattr(training_args, "deepspeed", None) :
     #     training_args.distributed_state.distributed_type = DistributedType.DEEPSPEED
 
-    compute_dtype = (
-        ms.float16
-        if training_args.fp16
-        else (ms.bfloat16 if training_args.bf16 else ms.float32)
-    )
+    compute_dtype = ms.float16 if training_args.fp16 else (ms.bfloat16 if training_args.bf16 else ms.float32)
 
     # if training_args.distributed:
     #     init()
@@ -297,9 +296,7 @@ def train():
     if lora_args.q_lora:
         device_map = {"": int(os.environ.get("LOCAL_RANK") or 0)} if ddp else None
         if len(training_args.fsdp) > 0:
-            logging.warning(
-                "FSDP or ZeRO3 are not incompatible with QLoRA."
-            )
+            logging.warning("FSDP or ZeRO3 are not incompatible with QLoRA.")
 
     model = MiniCPMV_v2_6.from_pretrained(
         model_args.model_name_or_path,
@@ -324,9 +321,7 @@ def train():
     # else:
     #     grad_reducer = None
 
-    tokenizer = AutoTokenizer.from_pretrained(
-        model_args.model_name_or_path, trust_remote_code=True
-    )
+    tokenizer = AutoTokenizer.from_pretrained(model_args.model_name_or_path, trust_remote_code=True)
 
     if not training_args.tune_vision:
         # model.vpm.set_train(False)
@@ -344,9 +339,9 @@ def train():
         rank0_print("Currently using LoRA for fine-tuning the MiniCPM-V model.")
         for name, param in model.llm.named_parameters():
             param.requires_grad = False
-        modules_to_save = ['embed_tokens','resampler']
+        modules_to_save = ["embed_tokens", "resampler"]
         if training_args.tune_vision:
-            modules_to_save.append('vpm')
+            modules_to_save.append("vpm")
         lora_config = LoraConfig(
             r=lora_args.lora_r,
             lora_alpha=lora_args.lora_alpha,
@@ -356,9 +351,11 @@ def train():
             layers_to_transform=lora_args.lora_layers_to_transform,
             modules_to_save=modules_to_save,
         )
-        if not hasattr(model, 'get_input_embeddings'):
+        if not hasattr(model, "get_input_embeddings"):
+
             def get_input_embeddings(self):
                 return self.llm.get_input_embeddings()
+
             model.get_input_embeddings = MethodType(get_input_embeddings, model)
         if lora_args.q_lora:
             model = prepare_model_for_kbit_training(
@@ -372,8 +369,7 @@ def train():
 
     llm_type = training_args.llm_type
 
-    rank0_print(f'llm_type={llm_type}')
-
+    rank0_print(f"llm_type={llm_type}")
 
     # Load data
     if hasattr(model.config, "slice_config"):
@@ -402,7 +398,7 @@ def train():
         max_length=training_args.model_max_length,
     )
 
-    training_args.gradient_checkpointing_kwargs={"use_reentrant":False}
+    training_args.gradient_checkpointing_kwargs = {"use_reentrant": False}
     trainer = Trainer(
         model=model,
         tokenizer=tokenizer,
@@ -413,10 +409,7 @@ def train():
     trainer.train()
     # trainer.save_state()
 
-    safe_save_model_for_hf_trainer(
-        trainer=trainer,
-        output_dir=training_args.output_dir,
-        bias=lora_args.lora_bias)
+    safe_save_model_for_hf_trainer(trainer=trainer, output_dir=training_args.output_dir, bias=lora_args.lora_bias)
 
 
 if __name__ == "__main__":
