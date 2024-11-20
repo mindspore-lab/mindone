@@ -109,7 +109,6 @@ def main(args):
                 ValidationCallback(
                     network=eval_diffusion_with_loss,
                     dataset=val_dataloader,
-                    rank_id=rank_id,
                     alpha_smooth=0.01,  # FIXME
                     valid_frequency=args.valid.frequency,
                     ema=ema,
@@ -133,15 +132,13 @@ def main(args):
                     train_steps=args.train.steps,
                     **args.train.save,
                 ),
+                PerfRecorderCallback(
+                    args.train.output_path, file_name="result_val.log", metric_names=["eval_loss", "eval_loss_smoothed"]
+                ),
             ]
         )
 
-    callbacks.extend(
-        [
-            PerfRecorderCallback(args.train.output_path, file_name="result_val.log", metric_names=["eval_loss"]),
-            StopAtStepCallback(train_steps=args.train.steps),
-        ]
-    )
+    callbacks.append(StopAtStepCallback(train_steps=args.train.steps))
 
     # 5.5 print out key info and save config
     if rank_id == 0:

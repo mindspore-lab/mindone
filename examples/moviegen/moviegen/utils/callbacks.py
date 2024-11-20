@@ -9,7 +9,7 @@ import pandas as pd
 from mindspore import Callback, Parameter, ReduceLROnPlateau, RunContext, Tensor
 from mindspore import dtype as mstype
 from mindspore import mint, nn, ops
-from mindspore.communication import GlobalComm
+from mindspore.communication import GlobalComm, get_group_size
 from mindspore.dataset import GeneratorDataset
 from mindspore.ops import functional as F
 
@@ -27,7 +27,7 @@ class ValidationCallback(Callback):
     Args:
         network (nn.Cell): The neural network model to be validated.
         dataset (GeneratorDataset): The dataset to use for validation.
-        rank_id (int): The rank ID of the current process. Defaults to 0.
+        alpha_smooth (float, optional): The smoothing factor for the loss. Defaults to 0.01.
         valid_frequency (int, optional): The frequency of validation in terms of training steps.
                                          Defaults to 100.
         ema (Optional[EMA], optional): An Exponential Moving Average object for the model weights.
@@ -44,7 +44,6 @@ class ValidationCallback(Callback):
         self,
         network: nn.Cell,
         dataset: GeneratorDataset,
-        rank_id: int = 0,
         alpha_smooth: float = 0.01,
         valid_frequency: int = 100,
         ema: Optional[EMA] = None,
@@ -52,11 +51,13 @@ class ValidationCallback(Callback):
         super().__init__()
         self.network = network
         self.dataset = dataset
-        self.rank_id = rank_id
         self.alpha_smooth = alpha_smooth
         self.valid_frequency = valid_frequency
         self.ema = ema
-        self.reduce = ops.AllReduce() if GlobalComm.INITED else None
+        self.reduce, self.rank_size = None, 1
+        if GlobalComm.INITED:
+            self.reduce = ops.AllReduce(op=ops.ReduceOp.SUM)
+            self.rank_size = get_group_size()
         self.data = pd.Series(dtype=np.float32)
 
     def on_train_step_end(self, run_context: RunContext):
@@ -75,7 +76,7 @@ class ValidationCallback(Callback):
             loss = loss / self.dataset.get_dataset_size()
             if self.reduce is not None:
                 loss = self.reduce(loss)
-            loss = loss.item()
+            loss = loss.item() / self.rank_size
 
             self.data = pd.concat([self.data, pd.Series(loss)], ignore_index=True)
             loss_smoothed = self.data.ewm(alpha=self.alpha_smooth).mean().iloc[-1]
