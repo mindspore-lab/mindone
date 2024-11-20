@@ -14,7 +14,7 @@
 from typing import Optional, Tuple
 
 import mindspore as ms
-from mindspore import nn, ops
+from mindspore import nn, ops, mint
 
 from ...configuration_utils import ConfigMixin, register_to_config
 from ..attention_processor import Attention
@@ -409,7 +409,7 @@ class NewGELUActivation(nn.Cell):
 
     def construct(self, input: ms.Tensor) -> ms.Tensor:
         # Magic number 0.797885 comes from math.sqrt(2.0 / math.pi) as float32
-        return 0.5 * input * (1.0 + ops.tanh(0.797885 * (input + 0.044715 * ops.pow(input, 3.0))))
+        return mint.nn.functional.gelu(input)
 
 
 class T5FiLMLayer(nn.Cell):
