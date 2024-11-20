@@ -1,12 +1,8 @@
 import os
 import yaml
 
-
 import mindspore as ms
 from mindspore import nn, ops, mint
-
-# from torch.utils.checkpoint import checkpoint
-# import kornia
 
 from transformers import T5Tokenizer
 from mindone.transformers import T5EncoderModel, CLIPTextModel

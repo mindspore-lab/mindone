@@ -28,12 +28,16 @@ from utils.lora import collapse_lora, monkeypatch_remove_lora
 from utils.lora_handler import LoraHandler
 from utils.common_utils import set_torch_2_attn
 from utils.env import init_env
+from utils.download import DownLoad
+from tools.convert_weights import convert_lora
 from model_scope.unet_3d_condition import UNet3DConditionModel
 from scheduler.t2v_turbo_scheduler import T2VTurboScheduler
 from pipeline.t2v_turbo_ms_pipeline import T2VTurboMSPipeline
 
 
 logger = logging.getLogger(__name__)
+LORA_URL = "https://huggingface.co/jiachenli-ucsb/T2V-Turbo-MS/blob/main/unet_lora.pt"
+MODEL_CACHE = "model_cache/t2v-ms/"
 
 
 def main(args):
@@ -61,26 +65,27 @@ def main(args):
         jit_level=args.jit_level,
         global_bf16=args.global_bf16,
         debug=args.debug,
+        dtype=dtype,
     )
 
     # 2. model initiate and weight loading
+    unet_dir = args.unet_dir
+    if not os.path.exists(args.unet_dir):
+        print(f"unet_dir: {args.unet_dir} does not exist, downloading ...")
+        DownLoad().download_url(LORA_URL, path=MODEL_CACHE)
+        convert_lora(
+            src_path=os.path.join(MODEL_CACHE, "unet_lora.pt"), target_path=os.path.join(MODEL_CACHE, "unet_lora.ckpt")
+        )
+        unet_dir = os.path.join(MODEL_CACHE, "unet_lora.ckpt")
 
     pretrained_model_path = "ali-vilab/text-to-video-ms-1.7b"
-    tokenizer = CLIPTokenizer.from_pretrained(
-        pretrained_model_path, subfolder="tokenizer"
-    )
-    text_encoder = CLIPTextModel.from_pretrained(
-        pretrained_model_path, subfolder="text_encoder"
-    )
+    tokenizer = CLIPTokenizer.from_pretrained(pretrained_model_path, subfolder="tokenizer")
+    text_encoder = CLIPTextModel.from_pretrained(pretrained_model_path, subfolder="text_encoder")
     vae = AutoencoderKL.from_pretrained(pretrained_model_path, subfolder="vae")
-    teacher_unet = UNet3DConditionModel.from_pretrained(
-        pretrained_model_path, subfolder="unet", dtype=dtype
-    )
+    teacher_unet = UNet3DConditionModel.from_pretrained(pretrained_model_path, subfolder="unet", dtype=dtype)
 
     time_cond_proj_dim = 256
-    unet = UNet3DConditionModel.from_config(
-        teacher_unet.config, time_cond_proj_dim=time_cond_proj_dim, dtype=dtype
-    )
+    unet = UNet3DConditionModel.from_config(teacher_unet.config, time_cond_proj_dim=time_cond_proj_dim, dtype=dtype)
     # load teacher_unet weights into unet
     ms.load_param_into_net(unet, teacher_unet.parameters_dict(), False)
     del teacher_unet
@@ -96,7 +101,7 @@ def main(args):
         use_unet_lora,
         unet,
         lora_manager.unet_replace_modules,
-        lora_path=args.unet_dir,
+        lora_path=unet_dir,
         dropout=0.1,
         r=32,
     )
@@ -225,9 +230,7 @@ def parse_args():
         type=int,
         help="How many channels to use for classifier-free diffusion. If None, use half of the latent channels",
     )
-    parser.add_argument(
-        "--num_inference_steps", type=int, default=4, help="Number of denoising steps"
-    )
+    parser.add_argument("--num_inference_steps", type=int, default=4, help="Number of denoising steps")
     parser.add_argument(
         "--frame_interval",
         default=1,
@@ -263,18 +266,14 @@ def parse_args():
     )
 
     # MS new args
-    parser.add_argument(
-        "--device_target", type=str, default="Ascend", help="Ascend or GPU"
-    )
+    parser.add_argument("--device_target", type=str, default="Ascend", help="Ascend or GPU")
     parser.add_argument(
         "--mode",
         type=int,
         default=0,
         help="Running in GRAPH_MODE(0) or PYNATIVE_MODE(1) (default=0)",
     )
-    parser.add_argument(
-        "--debug", type=str2bool, default=False, help="Execute inference in debug mode."
-    )
+    parser.add_argument("--debug", type=str2bool, default=False, help="Execute inference in debug mode.")
     parser.add_argument("--seed", type=int, default=4, help="Inference seed")
 
     args = parser.parse_args()
