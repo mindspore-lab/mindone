@@ -134,6 +134,10 @@ class OpenSoraT2V_v1_3(ModelMixin, ConfigMixin):
             pad_mode="pad",
         )
 
+        # save as attributes used in construct
+        self.patch_size_t = self.config.patch_size_t
+        self.patch_size = self.config.patch_size
+
     def recompute(self, b):
         if not b._has_config_recompute:
             b.recompute(parallel_optimizer_comm_recompute=True)
@@ -379,12 +383,10 @@ class OpenSoraT2V_v1_3(ModelMixin, ConfigMixin):
             encoder_attention_mask = self.get_attention_mask(encoder_attention_mask)  # if use bool mask
 
         # 1. Input
-        frame = (
-            ((frame - 1) // self.config.patch_size_t + 1) if frame % 2 == 1 else frame // self.config.patch_size_t
-        )  # patchfy
+        frame = ((frame - 1) // self.patch_size_t + 1) if frame % 2 == 1 else frame // self.patch_size_t  # patchfy
         height, width = (
-            hidden_states.shape[-2] // self.config.patch_size,
-            hidden_states.shape[-1] // self.config.patch_size,
+            hidden_states.shape[-2] // self.patch_size,
+            hidden_states.shape[-1] // self.patch_size,
         )
 
         hidden_states, encoder_hidden_states, timestep, embedded_timestep = self._operate_on_patched_inputs(
