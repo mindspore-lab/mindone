@@ -18,7 +18,7 @@ from opensora.models.diffusion.opensora.modeling_opensora import OpenSoraT2V_v1_
 from opensora.models.diffusion.opensora.modules import Attention, LayerNorm
 from opensora.sample.pipeline_opensora import OpenSoraPipeline
 from opensora.utils.message_utils import print_banner
-from opensora.utils.utils import _check_cfgs_in_parser, get_precision
+from opensora.utils.utils import _check_cfgs_in_parser, get_precision, remove_invalid_characters
 from PIL import Image
 from tqdm import tqdm
 from transformers import AutoTokenizer
@@ -379,7 +379,9 @@ def run_model_and_save_samples(
     csv_file = {"path": [], "cap": []}
     for i in range(n):
         for i_video in range(args.num_videos_per_prompt):
-            csv_file["path"].append(f"{i_video}-{args.text_prompt[i].strip()[:100]}.{ext}")
+            csv_file["path"].append(
+                remove_invalid_characters(f"{i_video}-{args.text_prompt[i].strip()[:100]}.{ext}")
+            )  # a valid file name
             csv_file["cap"].append(args.text_prompt[i])
     temp_dataset_csv = os.path.join(save_dir, "dataset.csv")
     pd.DataFrame.from_dict(csv_file).to_csv(temp_dataset_csv, index=False, columns=csv_file.keys())
