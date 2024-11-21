@@ -180,7 +180,7 @@ class CLIPVisionEmbeddings(nn.Cell):
         patch_embeds = patch_embeds.flatten(start_dim=2).swapaxes(1, 2)
 
         class_embeds = self.class_embedding.reshape((1, 1, -1)).tile((batch_size, 1, 1))
-        embeddings = ops.cat([class_embeds.to(patch_embeds.dtype), patch_embeds], axis=1)
+        embeddings = ops.cat([class_embeds, patch_embeds], axis=1)
         embeddings = embeddings + self.position_embedding(self.position_ids)
         return embeddings
 

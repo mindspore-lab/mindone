@@ -52,7 +52,6 @@ class _OutputTo(nn.Cell):
 
 def _ms_mixed_precision(net, dtype):
     ms_dtype = MS_DTYPE_MAPPING[dtype]
-    net.to_float(ms_dtype)
     cells = net.name_cells()
     change = False
     for name in cells:
@@ -60,9 +59,11 @@ def _ms_mixed_precision(net, dtype):
         if subcell == net:
             continue
         if ms_dtype == ms.bfloat16 and isinstance(subcell, tuple(MS_BF16_BLACKLIST)):
+            set_dtype(subcell, ms.float32)
             net._cells[name] = _OutputTo(subcell.to_float(ms.float32), ms.bfloat16)
             change = True
         if ms_dtype != ms.float16 and isinstance(subcell, tuple(MS_FP16_WHITELIST)):
+            set_dtype(subcell, ms.float16)
             net._cells[name] = _OutputTo(subcell.to_float(ms.float16), ms_dtype)
             change = True
         else:
@@ -154,7 +155,7 @@ def get_modules(pt_module, ms_module, dtype, *args, **kwargs):
         ms_modules_instance = set_dtype(ms_modules_instance, ms.float16)
     elif dtype == "bf16":
         pt_modules_instance = pt_modules_instance.to(torch.float32)
-        ms_modules_instance = ms_modules_instance.to_float(ms.bfloat16)
+        ms_modules_instance = set_dtype(ms_modules_instance, ms.bfloat16)
         pt_dtype = "fp32"
     elif dtype == "fp32":
         pt_modules_instance = pt_modules_instance.to(torch.float32)
