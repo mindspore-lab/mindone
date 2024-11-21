@@ -2,105 +2,97 @@ import argparse
 import glob
 import logging
 import os
-import sys
 import time
 
 import numpy as np
 import pandas as pd
 import yaml
+from opensora.acceleration.parallel_states import get_sequence_parallel_state, hccl_info
+from opensora.dataset.text_dataset import create_dataloader
+from opensora.models.causalvideovae import ae_stride_config, ae_wrapper
+
+# from opensora.sample.caption_refiner import OpenSoraCaptionRefiner
+from opensora.models.causalvideovae.model.modules.updownsample import TrilinearInterpolate
+from opensora.models.diffusion.common import PatchEmbed2D
+from opensora.models.diffusion.opensora.modeling_opensora import OpenSoraT2V_v1_3
+from opensora.models.diffusion.opensora.modules import Attention, LayerNorm
+from opensora.sample.pipeline_opensora import OpenSoraPipeline
+from opensora.utils.message_utils import print_banner
+from opensora.utils.utils import _check_cfgs_in_parser, get_precision
 from PIL import Image
 from tqdm import tqdm
+from transformers import AutoTokenizer
 
 import mindspore as ms
 from mindspore import nn
 
-
+from mindone.diffusers import DPMSolverSinglestepScheduler  # CogVideoXDDIMScheduler,
 from mindone.diffusers import (
-    DDIMScheduler, DDPMScheduler, PNDMScheduler,
-    EulerDiscreteScheduler, DPMSolverMultistepScheduler,
-    HeunDiscreteScheduler, EulerAncestralDiscreteScheduler,
-    DEISMultistepScheduler, KDPM2AncestralDiscreteScheduler, 
-    DPMSolverSinglestepScheduler, #CogVideoXDDIMScheduler, 
-    FlowMatchEulerDiscreteScheduler
-    )
-
-from opensora.acceleration.parallel_states import get_sequence_parallel_state, hccl_info
-from opensora.dataset.text_dataset import create_dataloader
-from opensora.utils.message_utils import print_banner
-from opensora.utils.ms_utils import init_env
-from opensora.utils.utils import _check_cfgs_in_parser, get_precision
-from opensora.models.causalvideovae import ae_stride_config, ae_wrapper
-# from opensora.sample.caption_refiner import OpenSoraCaptionRefiner
-from opensora.models.causalvideovae.model.modules.updownsample import TrilinearInterpolate
-from examples.opensora_pku.opensora.models.diffusion.opensora.modeling_opensora import OpenSoraT2V_v1_3
-from examples.opensora_pku.opensora.models.diffusion.opensora.modules import Attention, LayerNorm
-from opensora.sample.pipeline_opensora import OpenSoraPipeline
-from opensora.models.diffusion.common import PatchEmbed2D
-
+    DDIMScheduler,
+    DDPMScheduler,
+    DEISMultistepScheduler,
+    DPMSolverMultistepScheduler,
+    EulerAncestralDiscreteScheduler,
+    EulerDiscreteScheduler,
+    FlowMatchEulerDiscreteScheduler,
+    HeunDiscreteScheduler,
+    KDPM2AncestralDiscreteScheduler,
+    PNDMScheduler,
+)
 from mindone.diffusers.models.embeddings import PixArtAlphaCombinedTimestepSizeEmbeddings
-from mindone.diffusers import (
-    DDIMScheduler, DDPMScheduler, PNDMScheduler,
-    EulerDiscreteScheduler, DPMSolverMultistepScheduler,
-    HeunDiscreteScheduler, EulerAncestralDiscreteScheduler,
-    DEISMultistepScheduler, KDPM2AncestralDiscreteScheduler, 
-    DPMSolverSinglestepScheduler, #CogVideoXDDIMScheduler, 
-    FlowMatchEulerDiscreteScheduler
-    )
-from mindone.transformers import T5EncoderModel, MT5EncoderModel, CLIPTextModelWithProjection
-from transformers import AutoTokenizer, MT5Tokenizer
-
+from mindone.diffusers.training_utils import set_seed
+from mindone.transformers import CLIPTextModelWithProjection, MT5EncoderModel, T5EncoderModel
 from mindone.utils.amp import auto_mixed_precision
 from mindone.utils.config import str2bool
 from mindone.utils.params import count_params
 from mindone.visualize.videos import save_videos
-from mindone.diffusers.training_utils import set_seed
 
 logger = logging.getLogger(__name__)
 
+
 def get_scheduler(args):
     kwargs = dict(
-        prediction_type=args.prediction_type, 
-        rescale_betas_zero_snr=args.rescale_betas_zero_snr, 
-        timestep_spacing="trailing" if args.rescale_betas_zero_snr else 'leading', 
+        prediction_type=args.prediction_type,
+        rescale_betas_zero_snr=args.rescale_betas_zero_snr,
+        timestep_spacing="trailing" if args.rescale_betas_zero_snr else "leading",
     )
     if args.v1_5_scheduler:
-        kwargs['beta_start'] = 0.00085
-        kwargs['beta_end'] = 0.0120
-        kwargs['beta_schedule'] = "scaled_linear"
-    if args.sample_method == 'DDIM':  
+        kwargs["beta_start"] = 0.00085
+        kwargs["beta_end"] = 0.0120
+        kwargs["beta_schedule"] = "scaled_linear"
+    if args.sample_method == "DDIM":
         scheduler_cls = DDIMScheduler
-        kwargs['clip_sample'] = False
-    elif args.sample_method == 'EulerDiscrete':
+        kwargs["clip_sample"] = False
+    elif args.sample_method == "EulerDiscrete":
         scheduler_cls = EulerDiscreteScheduler
-    elif args.sample_method == 'DDPM':  
+    elif args.sample_method == "DDPM":
         scheduler_cls = DDPMScheduler
-        kwargs['clip_sample'] = False
-    elif args.sample_method == 'DPMSolverMultistep':
+        kwargs["clip_sample"] = False
+    elif args.sample_method == "DPMSolverMultistep":
         scheduler_cls = DPMSolverMultistepScheduler
-    elif args.sample_method == 'DPMSolverSinglestep':
+    elif args.sample_method == "DPMSolverSinglestep":
         scheduler_cls = DPMSolverSinglestepScheduler
-    elif args.sample_method == 'PNDM':
+    elif args.sample_method == "PNDM":
         scheduler_cls = PNDMScheduler
-        kwargs.pop('rescale_betas_zero_snr', None)
-    elif args.sample_method == 'HeunDiscrete':  ########
+        kwargs.pop("rescale_betas_zero_snr", None)
+    elif args.sample_method == "HeunDiscrete":
         scheduler_cls = HeunDiscreteScheduler
-    elif args.sample_method == 'EulerAncestralDiscrete':
+    elif args.sample_method == "EulerAncestralDiscrete":
         scheduler_cls = EulerAncestralDiscreteScheduler
-    elif args.sample_method == 'DEISMultistep':
+    elif args.sample_method == "DEISMultistep":
         scheduler_cls = DEISMultistepScheduler
-        kwargs.pop('rescale_betas_zero_snr', None)
-    elif args.sample_method == 'KDPM2AncestralDiscrete':  #########
+        kwargs.pop("rescale_betas_zero_snr", None)
+    elif args.sample_method == "KDPM2AncestralDiscrete":
         scheduler_cls = KDPM2AncestralDiscreteScheduler
     # elif args.sample_method == 'CogVideoX':
     #     scheduler_cls = CogVideoXDDIMScheduler
-    elif args.sample_method == 'FlowMatchEulerDiscrete':
+    elif args.sample_method == "FlowMatchEulerDiscrete":
         scheduler_cls = FlowMatchEulerDiscreteScheduler
         kwargs = {}
     else:
-        raise NameError(f'Unsupport sample_method {args.sample_method}')
+        raise NameError(f"Unsupport sample_method {args.sample_method}")
     scheduler = scheduler_cls(**kwargs)
     return scheduler
-
 
 
 def prepare_pipeline(args):
@@ -127,60 +119,55 @@ def prepare_pipeline(args):
         vae.vae.enable_tiling()
         vae.vae.tile_overlap_factor = args.tile_overlap_factor
 
-    ## use amp level O2 for causal 3D VAE with bfloat16 or float16
+    # use amp level O2 for causal 3D VAE with bfloat16 or float16
     if vae_dtype == ms.float16:
         custom_fp32_cells = [nn.GroupNorm] if args.vae_keep_gn_fp32 else []
     else:
         custom_fp32_cells = [nn.AvgPool2d, TrilinearInterpolate]
     logger.info(f"Use amp level O2 for causal 3D VAE with dtype={vae_dtype}, custom_fp32_cells: {custom_fp32_cells}")
     vae = auto_mixed_precision(vae, amp_level="O2", dtype=vae_dtype, custom_fp32_cells=custom_fp32_cells)
-    
+
     vae.set_train(False)
     for param in vae.get_parameters():  # freeze vae
-        param.requires_grad = False    
-    
+        param.requires_grad = False
+
     if args.decode_latents:
         print("To decode latents directly, skipped loading text endoers and transformer")
         return vae
-    
+
     # Build text encoders
     print_banner("text encoder init")
     text_encoder_dtype = get_precision(args.text_encoder_precision)
-    if 'mt5' in args.text_encoder_name_1:
+    if "mt5" in args.text_encoder_name_1:
         text_encoder_1, loading_info = MT5EncoderModel.from_pretrained(
-            args.text_encoder_name_1, 
-            cache_dir=args.cache_dir, 
+            args.text_encoder_name_1,
+            cache_dir=args.cache_dir,
             output_loading_info=True,
             mindspore_dtype=text_encoder_dtype,
-            use_safetensors=True
-            )      
+            use_safetensors=True,
+        )
         # loading_info.pop("unexpected_keys")  # decoder weights are ignored
         # logger.info(f"Loaded MT5 Encoder: {loading_info}")
-        text_encoder_1 = text_encoder_1.set_train(False)  
+        text_encoder_1 = text_encoder_1.set_train(False)
     else:
         text_encoder_1 = T5EncoderModel.from_pretrained(
-            args.text_encoder_name_1, cache_dir=args.cache_dir, 
-            mindspore_dtype=text_encoder_dtype
-            ).set_train(False)
-    tokenizer_1 = AutoTokenizer.from_pretrained(
-        args.text_encoder_name_1, cache_dir=args.cache_dir
-        )
+            args.text_encoder_name_1, cache_dir=args.cache_dir, mindspore_dtype=text_encoder_dtype
+        ).set_train(False)
+    tokenizer_1 = AutoTokenizer.from_pretrained(args.text_encoder_name_1, cache_dir=args.cache_dir)
 
     if args.text_encoder_name_2 is not None:
         text_encoder_2, loading_info = CLIPTextModelWithProjection.from_pretrained(
-            args.text_encoder_name_2, 
-            cache_dir=args.cache_dir, 
+            args.text_encoder_name_2,
+            cache_dir=args.cache_dir,
             mindspore_dtype=text_encoder_dtype,
             output_loading_info=True,
             use_safetensors=True,
-            )
+        )
         # loading_info.pop("unexpected_keys")  # only load text model, ignore vision model
         # loading_info.pop("mising_keys") # Note: missed keys when loading open-clip models
-        # logger.info(f"Loaded CLIP Encoder: {loading_info}") 
+        # logger.info(f"Loaded CLIP Encoder: {loading_info}")
         text_encoder_2 = text_encoder_2.set_train(False)
-        tokenizer_2 = AutoTokenizer.from_pretrained(
-            args.text_encoder_name_2, cache_dir=args.cache_dir
-            )
+        tokenizer_2 = AutoTokenizer.from_pretrained(args.text_encoder_name_2, cache_dir=args.cache_dir)
     else:
         text_encoder_2, tokenizer_2 = None, None
 
@@ -198,7 +185,7 @@ def prepare_pipeline(args):
     else:
         state_dict = None
     model_version = args.model_path.split("/")[-1]
-    if (args.version != 'v1_3') and (model_version.split("x")[0][:3] != "any"):
+    if (args.version != "v1_3") and (model_version.split("x")[0][:3] != "any"):
         if int(model_version.split("x")[0]) != args.num_frames:
             logger.warning(
                 f"Detect that the loaded model version is {model_version}, but found a mismatched number of frames {model_version.split('x')[0]}"
@@ -207,16 +194,20 @@ def prepare_pipeline(args):
             logger.warning(
                 f"Detect that the loaded model version is {model_version}, but found a mismatched resolution {args.height}x{args.width}"
             )
-    elif (args.version == 'v1_3') and (model_version.split("x")[0] == "any93x640x640"): # TODO: currently only release one model
+    elif (args.version == "v1_3") and (
+        model_version.split("x")[0] == "any93x640x640"
+    ):  # TODO: currently only release one model
         if (args.height % 32 != 0) or (args.width % 32 != 0):
             logger.warning(
-                f"Detect that the loaded model version is {model_version}, but found a mismatched resolution {args.height}x{args.width}. The resolution of the inference should be a multiple of 32."
+                f"Detect that the loaded model version is {model_version}, but found a mismatched resolution {args.height}x{args.width}. \
+                    The resolution of the inference should be a multiple of 32."
             )
         if (args.num_frames - 1) % 4 != 0:
             logger.warning(
-                    f"Detect that the loaded model version is {model_version}, but found a mismatched number of frames {args.num_frames}. Frames needs to be 4n+1, e.g. 93, 77, 61, 45, 29, 1 (image)"
-                )
-    if args.version == 'v1_3':
+                f"Detect that the loaded model version is {model_version}, but found a mismatched number of frames {args.num_frames}. \
+                    Frames needs to be 4n+1, e.g. 93, 77, 61, 45, 29, 1 (image)"
+            )
+    if args.version == "v1_3":
         # TODO
         # if args.model_type == 'inpaint' or args.model_type == 'i2v':
         #     transformer_model = OpenSoraInpaint_v1_3.from_pretrained(
@@ -224,48 +215,54 @@ def prepare_pipeline(args):
         #         device_map=None, mindspore_dtype=weight_dtype
         #         ).set_train(False)
         # else:
-        
+
         transformer_model, logging_info = OpenSoraT2V_v1_3.from_pretrained(
-            args.model_path, 
+            args.model_path,
             state_dict=state_dict,
             cache_dir=args.cache_dir,
-            FA_dtype = FA_dtype,
-            output_loading_info=True, 
-            )
+            FA_dtype=FA_dtype,
+            output_loading_info=True,
+        )
         logger.info(logging_info)
-    elif args.version == 'v1_5':
-        if args.model_type == 'inpaint' or args.model_type == 'i2v':
-            raise NotImplementedError('Inpainting model is not available in v1_5')
+    elif args.version == "v1_5":
+        if args.model_type == "inpaint" or args.model_type == "i2v":
+            raise NotImplementedError("Inpainting model is not available in v1_5")
         else:
             from opensora.models.diffusion.opensora_v1_5.modeling_opensora import OpenSoraT2V_v1_5
+
+            weight_dtype = ms.float32
             transformer_model = OpenSoraT2V_v1_5.from_pretrained(
-                args.model_path, cache_dir=args.cache_dir, 
-                # device_map=None, 
-                mindspore_dtype=weight_dtype
-                )
-    
+                args.model_path,
+                cache_dir=args.cache_dir,
+                # device_map=None,
+                mindspore_dtype=weight_dtype,
+            )
+
     # Mixed precision
     dtype = get_precision(args.precision)
     if args.precision in ["fp16", "bf16"]:
         if not args.global_bf16:
-            amp_level = args.amp_level
             if dtype == ms.float16:
-                custom_fp32_cells=[LayerNorm, Attention, PatchEmbed2D, nn.SiLU, nn.GELU, PixArtAlphaCombinedTimestepSizeEmbeddings]
+                custom_fp32_cells = [
+                    LayerNorm,
+                    Attention,
+                    PatchEmbed2D,
+                    nn.SiLU,
+                    nn.GELU,
+                    PixArtAlphaCombinedTimestepSizeEmbeddings,
+                ]
             else:
-                custom_fp32_cells= [
+                custom_fp32_cells = [
                     nn.MaxPool2d,
-                    nn.MaxPool3d, # do not support bf16
-                    PatchEmbed2D, # low accuracy if using bf16
+                    nn.MaxPool3d,  # do not support bf16
+                    PatchEmbed2D,  # low accuracy if using bf16
                     LayerNorm,
                     nn.SiLU,
                     nn.GELU,
                     PixArtAlphaCombinedTimestepSizeEmbeddings,
                 ]
             transformer_model = auto_mixed_precision(
-                transformer_model,
-                amp_level=args.amp_level,
-                dtype=dtype,
-                custom_fp32_cells=custom_fp32_cells
+                transformer_model, amp_level=args.amp_level, dtype=dtype, custom_fp32_cells=custom_fp32_cells
             )
             logger.info(
                 f"Set mixed precision to {args.amp_level} with dtype={args.precision}, custom fp32_cells {custom_fp32_cells}"
@@ -274,7 +271,7 @@ def prepare_pipeline(args):
             logger.info(f"Using global bf16. Force model dtype from {dtype} to ms.bfloat16")
             dtype = ms.bfloat16
     elif args.precision == "fp32":
-        amp_level = "O0"
+        pass
     else:
         raise ValueError(f"Unsupported precision {args.precision}")
     transformer_model = transformer_model.set_train(False)
@@ -283,7 +280,7 @@ def prepare_pipeline(args):
 
     # Build scheduler
     scheduler = get_scheduler(args)
-    
+
     # Build inference pipeline
     # pipeline_class = OpenSoraInpaintPipeline if args.model_type == 'inpaint' or args.model_type == 'i2v' else OpenSoraPipeline
     pipeline_class = OpenSoraPipeline
@@ -293,13 +290,13 @@ def prepare_pipeline(args):
         text_encoder=text_encoder_1,
         tokenizer=tokenizer_1,
         scheduler=scheduler,
-        transformer=transformer_model, 
+        transformer=transformer_model,
         text_encoder_2=text_encoder_2,
         tokenizer_2=tokenizer_2,
     )
 
-    if args.save_memory: #TODO: Susan comment: I am not sure yet
-        print('enable_model_cpu_offload AND enable_sequential_cpu_offload AND enable_tiling')
+    if args.save_memory:  # TODO: Susan comment: I am not sure yet
+        print("enable_model_cpu_offload AND enable_sequential_cpu_offload AND enable_tiling")
         pipeline.enable_model_cpu_offload()
         pipeline.enable_sequential_cpu_offload()
         if not args.enable_tiling:
@@ -335,7 +332,8 @@ def prepare_pipeline(args):
 
     return pipeline
 
-## See npu_config.py set_npu_env()
+
+# See npu_config.py set_npu_env()
 # def init_npu_env(args):
 #     local_rank = int(os.getenv('RANK', 0))
 #     world_size = int(os.getenv('WORLD_SIZE', 1))
@@ -343,7 +341,7 @@ def prepare_pipeline(args):
 #     args.world_size = world_size
 #     torch_npu.npu.set_device(local_rank)
 #     dist.init_process_group(
-#         backend='hccl', init_method='env://', 
+#         backend='hccl', init_method='env://',
 #         world_size=world_size, rank=local_rank
 #         )
 #     if args.sp:
@@ -351,7 +349,9 @@ def prepare_pipeline(args):
 #     return args
 
 
-def run_model_and_save_samples(args, pipeline, rank_id, device_num, save_dir, caption_refiner_model=None, enhance_video_model=None):
+def run_model_and_save_samples(
+    args, pipeline, rank_id, device_num, save_dir, caption_refiner_model=None, enhance_video_model=None
+):
     if args.seed is not None:
         set_seed(args.seed, rank=rank_id)
 
@@ -431,7 +431,7 @@ def run_model_and_save_samples(args, pipeline, rank_id, device_num, save_dir, ca
                 save_fp = os.path.join(save_dir, file_paths[i_sample]).replace(".npy", f".{args.video_extension}")
                 save_video_data = decode_data[i_sample : i_sample + 1]
                 save_videos(save_video_data, save_fp, loop=0, fps=args.fps)  # (b t h w c)
-        
+
         # Delete files that are no longer needed
         if os.path.exists(temp_dataset_csv):
             os.remove(temp_dataset_csv)
@@ -440,7 +440,7 @@ def run_model_and_save_samples(args, pipeline, rank_id, device_num, save_dir, ca
             npy_files = glob.glob(os.path.join(save_dir, "*.npy"))
             for fp in npy_files:
                 os.remove(fp)
-    
+
     # TODO
     # if args.model_type == 'inpaint' or args.model_type == 'i2v':
     #     if not isinstance(args.conditional_pixel_values_path, list):
@@ -454,7 +454,7 @@ def run_model_and_save_samples(args, pipeline, rank_id, device_num, save_dir, ca
     high quality, high aesthetic, {}
     """
     negative_prompt = """
-    nsfw, lowres, bad anatomy, bad hands, text, error, missing fingers, extra digit, fewer digits, cropped, worst quality, 
+    nsfw, lowres, bad anatomy, bad hands, text, error, missing fingers, extra digit, fewer digits, cropped, worst quality,
     low quality, normal quality, jpeg artifacts, signature, watermark, username, blurry.
     """
     # positive_prompt = (
@@ -467,18 +467,18 @@ def run_model_and_save_samples(args, pipeline, rank_id, device_num, save_dir, ca
     # )
 
     def generate(step, data, ext, conditional_pixel_values_path=None, mask_type=None):
-        
-         
+        prompt = [x for x in data["caption"]]
         if args.caption_refiner is not None:
-            if args.model_type != 'inpaint' and args.model_type != 'i2v':
+            if args.model_type != "inpaint" and args.model_type != "i2v":
                 refine_prompt = caption_refiner_model.get_refiner_output(prompt)
-                print(f'\nOrigin prompt: {prompt}\n->\nRefine prompt: {refine_prompt}')
+                print(f"\nOrigin prompt: {prompt}\n->\nRefine prompt: {refine_prompt}")
                 prompt = refine_prompt
             else:
-                # Due to the current use of LLM as the caption refiner, additional content that is not present in the control image will be added. Therefore, caption refiner is not used in this mode.
-                print('Caption refiner is not available for inpainting model, use the original prompt...')
+                # Due to the current use of LLM as the caption refiner, additional content that is not present in the
+                # control image will be added. Therefore, caption refiner is not used in this mode.
+                print("Caption refiner is not available for inpainting model, use the original prompt...")
                 time.sleep(3)
-        # TODO 
+        # TODO
         # input_prompt = positive_prompt.format(prompt)
         # if args.model_type == 'inpaint' or args.model_type == 'i2v':
         #     print(f'\nConditional pixel values path: {conditional_pixel_values_path}')
@@ -487,8 +487,8 @@ def run_model_and_save_samples(args, pipeline, rank_id, device_num, save_dir, ca
         #         mask_type=mask_type,
         #         crop_for_hw=args.crop_for_hw,
         #         max_hxw=args.max_hxw,
-        #         prompt=input_prompt, 
-        #         negative_prompt=negative_prompt, 
+        #         prompt=input_prompt,
+        #         negative_prompt=negative_prompt,
         #         num_frames=args.num_frames,
         #         height=args.height,
         #         width=args.width,
@@ -498,15 +498,13 @@ def run_model_and_save_samples(args, pipeline, rank_id, device_num, save_dir, ca
         #         max_sequence_length=args.max_sequence_length,
         #     ).videos
         # else:
-        prompt = [x for x in data["caption"]]
         file_paths = data["file_path"]
-        input_prompt = positive_prompt.format(prompt[0]) # remove "[]"
-        saved_prompt1_dict = None
-   
+        input_prompt = positive_prompt.format(prompt[0])  # remove "[]"
+
         videos = (
             pipeline(
-                input_prompt, 
-                negative_prompt=negative_prompt, 
+                input_prompt,
+                negative_prompt=negative_prompt,
                 num_frames=args.num_frames,
                 height=args.height,
                 width=args.width,
@@ -561,8 +559,7 @@ def run_model_and_save_samples(args, pipeline, rank_id, device_num, save_dir, ca
     # else:
     for step, data in tqdm(enumerate(ds_iter), total=dataset_size):
         generate(step, data, ext)
-    
-    
+
     # Delete files that are no longer needed
     if os.path.exists(temp_dataset_csv):
         os.remove(temp_dataset_csv)
@@ -570,25 +567,38 @@ def run_model_and_save_samples(args, pipeline, rank_id, device_num, save_dir, ca
 
 def get_args():
     parser = argparse.ArgumentParser()
-    
-    parser.add_argument("--version", type=str, default='v1_3', choices=['v1_3', 'v1_5'])
+
+    parser.add_argument("--version", type=str, default="v1_3", choices=["v1_3", "v1_5"])
     parser.add_argument("--caption_refiner", type=str, default=None, help="caption refiner model path")
     parser.add_argument("--enhance_video", type=str, default=None)
-    parser.add_argument("--text_encoder_name_1", type=str, default='DeepFloyd/t5-v1_1-xxl', help="google/mt5-xxl, DeepFloyd/t5-v1_1-xxl")
-    parser.add_argument("--text_encoder_name_2", type=str, default=None, help=" openai/clip-vit-large-patch14, (laion/CLIP-ViT-bigG-14-laion2B-39B-b160k)")
+    parser.add_argument(
+        "--text_encoder_name_1", type=str, default="DeepFloyd/t5-v1_1-xxl", help="google/mt5-xxl, DeepFloyd/t5-v1_1-xxl"
+    )
+    parser.add_argument(
+        "--text_encoder_name_2",
+        type=str,
+        default=None,
+        help=" openai/clip-vit-large-patch14, (laion/CLIP-ViT-bigG-14-laion2B-39B-b160k)",
+    )
     parser.add_argument("--num_samples_per_prompt", type=int, default=1)
-    parser.add_argument('--refine_caption', action='store_true')
+    parser.add_argument("--refine_caption", action="store_true")
     # parser.add_argument('--compile', action='store_true')
-    parser.add_argument("--prediction_type", type=str, default='epsilon', help="The prediction_type that shall be used for training. Choose between 'epsilon' or 'v_prediction' or leave `None`. If left to `None` the default prediction type of the scheduler: `noise_scheduler.config.prediciton_type` is chosen.")
-    parser.add_argument('--rescale_betas_zero_snr', action='store_true')
-    # parser.add_argument('--local_rank', type=int, default=-1)    
-    # parser.add_argument('--world_size', type=int, default=1)    
+    parser.add_argument(
+        "--prediction_type",
+        type=str,
+        default="epsilon",
+        help="The prediction_type that shall be used for training. Choose between 'epsilon' or 'v_prediction' or leave `None`. \
+            If left to `None` the default prediction type of the scheduler: `noise_scheduler.config.prediciton_type` is chosen.",
+    )
+    parser.add_argument("--rescale_betas_zero_snr", action="store_true")
+    # parser.add_argument('--local_rank', type=int, default=-1)
+    # parser.add_argument('--world_size', type=int, default=1)
     # parser.add_argument('--sp', action='store_true')
-    parser.add_argument('--v1_5_scheduler', action='store_true')
-    parser.add_argument('--conditional_pixel_values_path', type=str, default=None)
-    parser.add_argument('--mask_type', type=str, default=None)
-    parser.add_argument('--crop_for_hw', action='store_true')
-    parser.add_argument('--max_hxw', type=int, default=236544) #236544=512x462????
+    parser.add_argument("--v1_5_scheduler", action="store_true")
+    parser.add_argument("--conditional_pixel_values_path", type=str, default=None)
+    parser.add_argument("--mask_type", type=str, default=None)
+    parser.add_argument("--crop_for_hw", action="store_true")
+    parser.add_argument("--max_hxw", type=int, default=236544)  # 236544=512x462????
 
     parser.add_argument(
         "--config",
@@ -703,7 +713,9 @@ def get_args():
     parser.add_argument(
         "--video_extension", default="mp4", choices=["gif", "mp4"], help="The file extension to save videos"
     )
-    parser.add_argument("--model_type", type=str, default="dit", choices=["dit", "udit", "latte", 't2v', 'inpaint', 'i2v'])
+    parser.add_argument(
+        "--model_type", type=str, default="dit", choices=["dit", "udit", "latte", "t2v", "inpaint", "i2v"]
+    )
     parser.add_argument("--cache_dir", type=str, default="./")
     parser.add_argument("--profile", default=False, type=str2bool, help="Profile or not")
 
