@@ -3,6 +3,7 @@ from fractions import Fraction
 from typing import Union
 
 import av
+import cv2
 import imageio
 import numpy as np
 
@@ -20,6 +21,13 @@ def create_video_from_rgb_numpy_arrays(image_arrays, output_file, fps: Union[int
 
     Credit to Perlexity
     """
+    try:
+        save_video_file_using_av(image_arrays, output_file, fps)
+    except Exception:
+        save_video_file_using_cv2(image_arrays, output_file, fps)
+
+
+def save_video_file_using_av(image_arrays, output_file, fps):
     # Get the dimensions of the first image
     height, width, _ = image_arrays[0].shape
 
@@ -46,6 +54,21 @@ def create_video_from_rgb_numpy_arrays(image_arrays, output_file, fps: Union[int
 
     # Close the container
     container.close()
+
+
+def save_video_file_using_cv2(image_arrays, output_file, fps):
+    # Get the dimensions of the first image
+    height, width, _ = image_arrays[0].shape
+    # Define the codec and create a VideoWriter object
+    fourcc = cv2.VideoWriter_fourcc(*"mp4v")  # Codec for MP4
+    video_writer = cv2.VideoWriter(output_file, fourcc, fps, (width, height))
+
+    # Write each frame to the video
+    for img in image_arrays:
+        video_writer.write(img)
+
+    # Release the VideoWriter
+    video_writer.release()
 
 
 def create_video_from_numpy_frames(frames: np.ndarray, path: str, fps: Union[int, float] = 8, fmt="gif", loop=0):

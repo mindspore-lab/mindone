@@ -314,6 +314,14 @@ def prepare_pipeline(args):
         [
             f"MindSpore mode[GRAPH(0)/PYNATIVE(1)]: {args.mode}",
             f"Jit level: {args.jit_level}",
+            f"Distributed mode: {args.use_parallel}"
+            + (
+                f"\nParallel mode: {args.parallel_mode}"
+                + (f"{args.zero_stage}" if args.parallel_mode == "zero" else "")
+                if args.use_parallel
+                else ""
+            )
+            + (f"\nsp_size: {args.sp_size}" if args.sp_size != 1 else ""),
             f"Num of samples: {len(args.text_prompt)}",
             f"Num params: {num_params:,} (latte: {num_params_latte:,}, vae: {num_params_vae:,})",
             f"Num trainable params: {num_params_trainable:,}",
