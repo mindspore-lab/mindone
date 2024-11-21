@@ -155,7 +155,6 @@ class CausalConv3d(nn.Cell):
             x = ops.concat((first_frame_pad, x), axis=2)
 
         if x.dtype == ms.float32:
-            x = ops.cast(x, self.dtype)
             return self.conv(x).to(ms.float32)
         else:
             return self.conv(x)

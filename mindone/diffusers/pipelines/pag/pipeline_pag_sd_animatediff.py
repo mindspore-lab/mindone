@@ -496,12 +496,6 @@ class AnimateDiffPAGPipeline(
     def prepare_latents(
         self, batch_size, num_channels_latents, num_frames, height, width, dtype, generator, latents=None
     ):
-        # If FreeNoise is enabled, generate latents as described in Equation (7) of [FreeNoise](https://arxiv.org/abs/2310.15169)
-        if self.free_noise_enabled:
-            latents = self._prepare_latents_free_noise(
-                batch_size, num_channels_latents, num_frames, height, width, dtype, generator, latents
-            )
-
         if isinstance(generator, list) and len(generator) != batch_size:
             raise ValueError(
                 f"You have passed a list of generators of length {len(generator)}, but requested an effective batch"

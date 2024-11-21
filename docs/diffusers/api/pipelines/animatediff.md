@@ -26,7 +26,7 @@ The abstract of the paper is the following:
 |------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|---|
 | [AnimateDiffPipeline](https://github.com/mindspore-lab/mindone/blob/master/mindone/diffusers/pipelines/animatediff/pipeline_animatediff.py)                                        | *Text-to-Video Generation with AnimateDiff* |
 | [AnimateDiffSDXLPipeline](https://github.com/mindspore-lab/mindone/blob/master/mindone/diffusers/pipelines/animatediff/pipeline_animatediff_sdxl.py)                               | *Video-to-Video Generation with AnimateDiff* |
-| [AnimateDiffVideoToVideoPipeline](https://github.com/mindspore-lab/mindone/blob/master/mindone/diffusers/pipelines/animatediff/pipeline_animatediff_video2video.py)                | *Video-to-Video Generation with AnimateDiff* |
+[AnimateDiffVideoToVideoPipeline](https://github.com/mindspore-lab/mindone/blob/master/mindone/diffusers/pipelines/animatediff/pipeline_animatediff_video2video.py)                | *Video-to-Video Generation with AnimateDiff* |
 
 ## Available checkpoints
 

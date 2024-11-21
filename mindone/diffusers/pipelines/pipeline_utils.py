@@ -364,9 +364,7 @@ class DiffusionPipeline(ConfigMixin, PushToHubMixin):
             cache_dir (`Union[str, os.PathLike]`, *optional*):
                 Path to a directory where a downloaded pretrained model configuration is cached if the standard cache
                 is not used.
-            resume_download:
-                Deprecated and ignored. All downloads are now resumed by default when possible. Will be removed in v1
-                of Diffusers.
+
             proxies (`Dict[str, str]`, *optional*):
                 A dictionary of proxy servers to use by protocol or endpoint, for example, `{'http': 'foo.bar:3128',
                 'http://hostname': 'foo.bar:4012'}`. The proxies are used on each request.
@@ -434,7 +432,6 @@ class DiffusionPipeline(ConfigMixin, PushToHubMixin):
         ```
         """
         cache_dir = kwargs.pop("cache_dir", None)
-        resume_download = kwargs.pop("resume_download", None)
         force_download = kwargs.pop("force_download", False)
         proxies = kwargs.pop("proxies", None)
         local_files_only = kwargs.pop("local_files_only", None)
@@ -459,7 +456,6 @@ class DiffusionPipeline(ConfigMixin, PushToHubMixin):
             cached_folder = cls.download(
                 pretrained_model_name_or_path,
                 cache_dir=cache_dir,
-                resume_download=resume_download,
                 force_download=force_download,
                 proxies=proxies,
                 local_files_only=local_files_only,
@@ -599,7 +595,6 @@ class DiffusionPipeline(ConfigMixin, PushToHubMixin):
             connected_pipes = {prefix: getattr(modelcard.data, prefix, [None])[0] for prefix in CONNECTED_PIPES_KEYS}
             load_kwargs = {
                 "cache_dir": cache_dir,
-                "resume_download": resume_download,
                 "force_download": force_download,
                 "proxies": proxies,
                 "local_files_only": local_files_only,
@@ -757,9 +752,7 @@ class DiffusionPipeline(ConfigMixin, PushToHubMixin):
             force_download (`bool`, *optional*, defaults to `False`):
                 Whether or not to force the (re-)download of the model weights and configuration files, overriding the
                 cached versions if they exist.
-            resume_download:
-                Deprecated and ignored. All downloads are now resumed by default when possible. Will be removed in v1
-                of Diffusers.
+
             proxies (`Dict[str, str]`, *optional*):
                 A dictionary of proxy servers to use by protocol or endpoint, for example, `{'http': 'foo.bar:3128',
                 'http://hostname': 'foo.bar:4012'}`. The proxies are used on each request.
@@ -812,7 +805,6 @@ class DiffusionPipeline(ConfigMixin, PushToHubMixin):
 
         """
         cache_dir = kwargs.pop("cache_dir", None)
-        resume_download = kwargs.pop("resume_download", None)
         force_download = kwargs.pop("force_download", False)
         proxies = kwargs.pop("proxies", None)
         local_files_only = kwargs.pop("local_files_only", None)
@@ -851,7 +843,6 @@ class DiffusionPipeline(ConfigMixin, PushToHubMixin):
                 revision=revision,
                 proxies=proxies,
                 force_download=force_download,
-                resume_download=resume_download,
                 token=token,
             )
 
@@ -1039,7 +1030,6 @@ class DiffusionPipeline(ConfigMixin, PushToHubMixin):
             cached_folder = snapshot_download(
                 pretrained_model_name,
                 cache_dir=cache_dir,
-                resume_download=resume_download,
                 proxies=proxies,
                 local_files_only=local_files_only,
                 token=token,
@@ -1062,7 +1052,6 @@ class DiffusionPipeline(ConfigMixin, PushToHubMixin):
                 for connected_pipe_repo_id in connected_pipes:
                     download_kwargs = {
                         "cache_dir": cache_dir,
-                        "resume_download": resume_download,
                         "force_download": force_download,
                         "proxies": proxies,
                         "local_files_only": local_files_only,
@@ -1222,6 +1211,62 @@ class DiffusionPipeline(ConfigMixin, PushToHubMixin):
         def fn_recursive_set_mem_eff(module: nn.Cell):
             if hasattr(module, "set_use_memory_efficient_attention_xformers"):
                 module.set_use_memory_efficient_attention_xformers(valid, attention_op)
+
+            for child in module.cells():
+                fn_recursive_set_mem_eff(child)
+
+        module_names, _ = self._get_signature_keys(self)
+        modules = [getattr(self, n, None) for n in module_names]
+        modules = [m for m in modules if isinstance(m, nn.Cell)]
+
+        for module in modules:
+            fn_recursive_set_mem_eff(module)
+
+    def enable_flash_sdp(self, enabled: bool):
+        r"""
+        .. warning:: This flag is beta and subject to change.
+
+        Enables or disables flash scaled dot product attention.
+        """
+
+        # Recursively walk through all the children.
+        # Any children which exposes the enable_flash_sdp method
+        # gets the message
+        def fn_recursive_set_mem_eff(module: nn.Cell):
+            if hasattr(module, "enable_flash_sdp"):
+                module.enable_flash_sdp(enabled)
+
+            for child in module.cells():
+                fn_recursive_set_mem_eff(child)
+
+        module_names, _ = self._get_signature_keys(self)
+        modules = [getattr(self, n, None) for n in module_names]
+        modules = [m for m in modules if isinstance(m, nn.Cell)]
+
+        for module in modules:
+            fn_recursive_set_mem_eff(module)
+
+    def set_flash_attention_force_cast_dtype(self, force_cast_dtype: Optional[ms.Type]):
+        r"""
+        Since the flash-attention operator in MindSpore only supports float16 and bfloat16 data types, we need to manually
+        set whether to force data type conversion.
+
+        When the attention interface encounters data of an unsupported data type,
+        if `force_cast_dtype` is not None, the function will forcibly convert the data to `force_cast_dtype` for computation
+        and then restore it to the original data type afterward. If `force_cast_dtype` is None, it will fall back to the
+        original attention calculation using mathematical formulas.
+
+        Parameters:
+            force_cast_dtype (Optional): The data type to which the input data should be forcibly converted. If None, no forced
+            conversion is performed.
+        """
+
+        # Recursively walk through all the children.
+        # Any children which exposes the set_flash_attention_force_cast_dtype method
+        # gets the message
+        def fn_recursive_set_mem_eff(module: nn.Cell):
+            if hasattr(module, "set_flash_attention_force_cast_dtype"):
+                module.set_flash_attention_force_cast_dtype(force_cast_dtype)
 
             for child in module.cells():
                 fn_recursive_set_mem_eff(child)

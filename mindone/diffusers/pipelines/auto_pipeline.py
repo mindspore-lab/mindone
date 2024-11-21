@@ -28,6 +28,7 @@ from .controlnet import (
     StableDiffusionXLControlNetPipeline,
 )
 from .deepfloyd_if import IFImg2ImgPipeline, IFInpaintingPipeline, IFPipeline
+from .flux import FluxPipeline
 from .hunyuandit import HunyuanDiTPipeline
 from .kandinsky import (
     KandinskyCombinedPipeline,
@@ -61,7 +62,11 @@ from .pag import (
 from .pixart_alpha import PixArtAlphaPipeline, PixArtSigmaPipeline
 from .stable_cascade import StableCascadeCombinedPipeline, StableCascadeDecoderPipeline
 from .stable_diffusion import StableDiffusionImg2ImgPipeline, StableDiffusionInpaintPipeline, StableDiffusionPipeline
-from .stable_diffusion_3 import StableDiffusion3Img2ImgPipeline, StableDiffusion3Pipeline
+from .stable_diffusion_3 import (
+    StableDiffusion3Img2ImgPipeline,
+    StableDiffusion3InpaintPipeline,
+    StableDiffusion3Pipeline,
+)
 from .stable_diffusion_xl import (
     StableDiffusionXLImg2ImgPipeline,
     StableDiffusionXLInpaintPipeline,
@@ -93,6 +98,7 @@ AUTO_TEXT2IMAGE_PIPELINES_MAPPING = OrderedDict(
         ("stable-diffusion-xl-pag", StableDiffusionXLPAGPipeline),
         ("stable-diffusion-xl-controlnet-pag", StableDiffusionXLControlNetPAGPipeline),
         ("pixart-sigma-pag", PixArtSigmaPAGPipeline),
+        ("flux", FluxPipeline),
     ]
 )
 
@@ -116,6 +122,7 @@ AUTO_INPAINT_PIPELINES_MAPPING = OrderedDict(
     [
         ("stable-diffusion", StableDiffusionInpaintPipeline),
         ("stable-diffusion-xl", StableDiffusionXLInpaintPipeline),
+        ("stable-diffusion-3", StableDiffusion3InpaintPipeline),
         ("if", IFInpaintingPipeline),
         ("kandinsky", KandinskyInpaintCombinedPipeline),
         ("kandinsky22", KandinskyV22InpaintCombinedPipeline),
@@ -147,12 +154,12 @@ _AUTO_INPAINT_DECODER_PIPELINES_MAPPING = OrderedDict(
 )
 
 if is_sentencepiece_available():
-    from .kolors import KolorsPipeline
+    from .kolors import KolorsImg2ImgPipeline, KolorsPipeline
     from .pag import KolorsPAGPipeline
 
     AUTO_TEXT2IMAGE_PIPELINES_MAPPING["kolors"] = KolorsPipeline
     AUTO_TEXT2IMAGE_PIPELINES_MAPPING["kolors-pag"] = KolorsPAGPipeline
-    AUTO_IMAGE2IMAGE_PIPELINES_MAPPING["kolors"] = KolorsPipeline
+    AUTO_IMAGE2IMAGE_PIPELINES_MAPPING["kolors"] = KolorsImg2ImgPipeline
 
 SUPPORTED_TASKS_MAPPINGS = [
     AUTO_TEXT2IMAGE_PIPELINES_MAPPING,
@@ -261,9 +268,7 @@ class AutoPipelineForText2Image(ConfigMixin):
             cache_dir (`Union[str, os.PathLike]`, *optional*):
                 Path to a directory where a downloaded pretrained model configuration is cached if the standard cache
                 is not used.
-            resume_download:
-                Deprecated and ignored. All downloads are now resumed by default when possible. Will be removed in v1
-                of Diffusers.
+
             proxies (`Dict[str, str]`, *optional*):
                 A dictionary of proxy servers to use by protocol or endpoint, for example, `{'http': 'foo.bar:3128',
                 'http://hostname': 'foo.bar:4012'}`. The proxies are used on each request.
@@ -319,7 +324,6 @@ class AutoPipelineForText2Image(ConfigMixin):
         """
         cache_dir = kwargs.pop("cache_dir", None)
         force_download = kwargs.pop("force_download", False)
-        resume_download = kwargs.pop("resume_download", None)
         proxies = kwargs.pop("proxies", None)
         token = kwargs.pop("token", None)
         local_files_only = kwargs.pop("local_files_only", False)
@@ -328,7 +332,6 @@ class AutoPipelineForText2Image(ConfigMixin):
         load_config_kwargs = {
             "cache_dir": cache_dir,
             "force_download": force_download,
-            "resume_download": resume_download,
             "proxies": proxies,
             "token": token,
             "local_files_only": local_files_only,
@@ -390,14 +393,12 @@ class AutoPipelineForText2Image(ConfigMixin):
                 to_replace = "PAGPipeline" if "PAG" in text_2_image_cls.__name__ else "Pipeline"
                 text_2_image_cls = _get_task_class(
                     AUTO_TEXT2IMAGE_PIPELINES_MAPPING,
-                    text_2_image_cls.__name__.replace("ControlNet", "").replace(
-                        to_replace, "ControlNetPipeline" + to_replace
-                    ),
+                    text_2_image_cls.__name__.replace("ControlNet", "").replace(to_replace, "ControlNet" + to_replace),
                 )
             else:
                 text_2_image_cls = _get_task_class(
                     AUTO_TEXT2IMAGE_PIPELINES_MAPPING,
-                    text_2_image_cls.__name__.replace("ControlNetPipeline", "Pipeline"),
+                    text_2_image_cls.__name__.replace("ControlNet", ""),
                 )
 
         if "enable_pag" in kwargs:
@@ -535,9 +536,7 @@ class AutoPipelineForImage2Image(ConfigMixin):
             cache_dir (`Union[str, os.PathLike]`, *optional*):
                 Path to a directory where a downloaded pretrained model configuration is cached if the standard cache
                 is not used.
-            resume_download:
-                Deprecated and ignored. All downloads are now resumed by default when possible. Will be removed in v1
-                of Diffusers.
+
             proxies (`Dict[str, str]`, *optional*):
                 A dictionary of proxy servers to use by protocol or endpoint, for example, `{'http': 'foo.bar:3128',
                 'http://hostname': 'foo.bar:4012'}`. The proxies are used on each request.
@@ -593,7 +592,6 @@ class AutoPipelineForImage2Image(ConfigMixin):
         """
         cache_dir = kwargs.pop("cache_dir", None)
         force_download = kwargs.pop("force_download", False)
-        resume_download = kwargs.pop("resume_download", None)
         proxies = kwargs.pop("proxies", None)
         token = kwargs.pop("token", None)
         local_files_only = kwargs.pop("local_files_only", False)
@@ -602,7 +600,6 @@ class AutoPipelineForImage2Image(ConfigMixin):
         load_config_kwargs = {
             "cache_dir": cache_dir,
             "force_download": force_download,
-            "resume_download": resume_download,
             "proxies": proxies,
             "token": token,
             "local_files_only": local_files_only,
@@ -612,12 +609,17 @@ class AutoPipelineForImage2Image(ConfigMixin):
         config = cls.load_config(pretrained_model_or_path, **load_config_kwargs)
         orig_class_name = config["_class_name"]
 
+        # the `orig_class_name` can be:
+        # `- *Pipeline` (for regular text-to-image checkpoint)
+        # `- *Img2ImgPipeline` (for refiner checkpoint)
+        to_replace = "Img2ImgPipeline" if "Img2Img" in config["_class_name"] else "Pipeline"
+
         if "controlnet" in kwargs:
-            orig_class_name = config["_class_name"].replace("Pipeline", "ControlNetPipeline")
+            orig_class_name = orig_class_name.replace(to_replace, "ControlNet" + to_replace)
         if "enable_pag" in kwargs:
             enable_pag = kwargs.pop("enable_pag")
             if enable_pag:
-                orig_class_name = orig_class_name.replace("Pipeline", "PAGPipeline")
+                orig_class_name = orig_class_name.replace(to_replace, "PAG" + to_replace)
 
         image_2_image_cls = _get_task_class(AUTO_IMAGE2IMAGE_PIPELINES_MAPPING, orig_class_name)
 
@@ -673,7 +675,7 @@ class AutoPipelineForImage2Image(ConfigMixin):
             else:
                 image_2_image_cls = _get_task_class(
                     AUTO_IMAGE2IMAGE_PIPELINES_MAPPING,
-                    image_2_image_cls.__name__.replace("ControlNetImg2ImgPipeline", "Img2ImgPipeline"),
+                    image_2_image_cls.__name__.replace("ControlNet", ""),
                 )
 
         if "enable_pag" in kwargs:
@@ -810,9 +812,7 @@ class AutoPipelineForInpainting(ConfigMixin):
             cache_dir (`Union[str, os.PathLike]`, *optional*):
                 Path to a directory where a downloaded pretrained model configuration is cached if the standard cache
                 is not used.
-            resume_download:
-                Deprecated and ignored. All downloads are now resumed by default when possible. Will be removed in v1
-                of Diffusers.
+
             proxies (`Dict[str, str]`, *optional*):
                 A dictionary of proxy servers to use by protocol or endpoint, for example, `{'http': 'foo.bar:3128',
                 'http://hostname': 'foo.bar:4012'}`. The proxies are used on each request.
@@ -868,7 +868,6 @@ class AutoPipelineForInpainting(ConfigMixin):
         """
         cache_dir = kwargs.pop("cache_dir", None)
         force_download = kwargs.pop("force_download", False)
-        resume_download = kwargs.pop("resume_download", None)
         proxies = kwargs.pop("proxies", None)
         token = kwargs.pop("token", None)
         local_files_only = kwargs.pop("local_files_only", False)
@@ -877,7 +876,6 @@ class AutoPipelineForInpainting(ConfigMixin):
         load_config_kwargs = {
             "cache_dir": cache_dir,
             "force_download": force_download,
-            "resume_download": resume_download,
             "proxies": proxies,
             "token": token,
             "local_files_only": local_files_only,
@@ -887,13 +885,17 @@ class AutoPipelineForInpainting(ConfigMixin):
         config = cls.load_config(pretrained_model_or_path, **load_config_kwargs)
         orig_class_name = config["_class_name"]
 
+        # The `orig_class_name`` can be:
+        # `- *InpaintPipeline` (for inpaint-specific checkpoint)
+        #  - or *Pipeline (for regular text-to-image checkpoint)
+        to_replace = "InpaintPipeline" if "Inpaint" in config["_class_name"] else "Pipeline"
+
         if "controlnet" in kwargs:
-            orig_class_name = config["_class_name"].replace("Pipeline", "ControlNetPipeline")
+            orig_class_name = orig_class_name.replace(to_replace, "ControlNet" + to_replace)
         if "enable_pag" in kwargs:
             enable_pag = kwargs.pop("enable_pag")
             if enable_pag:
-                orig_class_name = config["_class_name"].replace("Pipeline", "PAGPipeline")
-
+                orig_class_name = orig_class_name.replace(to_replace, "PAG" + to_replace)
         inpainting_cls = _get_task_class(AUTO_INPAINT_PIPELINES_MAPPING, orig_class_name)
 
         kwargs = {**load_config_kwargs, **kwargs}
