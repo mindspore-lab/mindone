@@ -45,7 +45,7 @@ def get_network_config(model_parallelism=False, fused_tensor_parallel=False):
     return config
 
 
-def run_network(mode: int = 0, fused_tensor_parallel: bool = False, dtype: ms.Type = ms.float32):
+def run_network(mode: int = 0, dtype: ms.Type = ms.float32):
     ms.set_context(mode=mode)
     init()
 
@@ -56,6 +56,14 @@ def run_network(mode: int = 0, fused_tensor_parallel: bool = False, dtype: ms.Ty
     # prepare group
     create_parallel_group(model_parallel_shards=get_group_size())
 
+    print("Non-fused tensor parallel:", flush=True)
+    run_parallel_network(data, fused_tensor_parallel=False)
+
+    print("Fused tensor parallel:", flush=True)
+    run_parallel_network(data, fused_tensor_parallel=True)
+
+
+def run_parallel_network(data: Tuple[Tensor, ...], fused_tensor_parallel: bool = False, dtype: ms.Type = ms.float32):
     # non parallel network
     set_random_seed(1024)
     non_parallel_network_cfg = get_network_config(model_parallelism=False, fused_tensor_parallel=fused_tensor_parallel)
@@ -102,8 +110,4 @@ if __name__ == "__main__":
         "--mode", default=0, type=int, choices=[0, 1], help="Mode to test. (0: Graph Mode; 1: Pynative mode)"
     )
     args = parser.parse_args()
-    print("Non-fused tensor parallel:", flush=True)
-    run_network(mode=args.mode, fused_tensor_parallel=False)
-
-    print("Fused tensor parallel:", flush=True)
-    run_network(mode=args.mode, fused_tensor_parallel=True)
+    run_network(mode=args.mode)
