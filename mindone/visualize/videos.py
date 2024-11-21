@@ -24,7 +24,14 @@ def create_video_from_rgb_numpy_arrays(image_arrays, output_file, fps: Union[int
 
     # Create the output container and video stream
     container = av.open(output_file, mode="w")
-    stream = container.add_stream("libx264", rate=f"{fps:.4f}")  # BUG: OverflowError: value too large to convert to int
+    try:
+        stream = container.add_stream(
+            "libx264", rate=f"{fps:.4f}"
+        )  # BUG: OverflowError: value too large to convert to int
+    except Exception:
+        stream = container.add_stream(
+            "libx264", rate=int(fps)
+        )  # if av version is higher, e.g., 13.1.0, string rate will leads to an error. Use integer instead
     stream.width = width
     stream.height = height
     stream.pix_fmt = "yuv420p"
