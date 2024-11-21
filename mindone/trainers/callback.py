@@ -4,16 +4,16 @@ import time
 from typing import List
 
 import mindspore as ms
+from mindspore.communication import get_rank
 from mindspore.train.callback._callback import Callback, _handle_loss
 
 from .checkpoint import CheckpointManager
 from .recorder import PerfRecorder
-from mindspore.communication import get_rank
-
 
 _logger = logging.getLogger("")
 
 __all__ = ["OverflowMonitor", "EvalSaveCallback", "ProfilerCallback", "StopAtStepCallback"]
+
 
 def get_real_rank():
     """get rank id"""
@@ -21,6 +21,7 @@ def get_real_rank():
         return get_rank()
     except RuntimeError:
         return int(os.getenv("RANK_ID", "0"))
+
 
 class OverflowMonitor(ms.Callback):
     def on_train_step_end(self, run_context):
@@ -353,7 +354,9 @@ class ProfilerCallback(ms.Callback):
         out_dir = os.path.join(out_dir, f"rank_{rank_id}")
         # If value of profile_framework is not None, a subdirectory named host_info will be generated under the
         # specified profiler directory to store the collected memory and time files on the Host side.
-        self.profiler = ms.Profiler(start_profile=False, output_path=out_dir, profile_framework='all', data_simplication=False)
+        self.profiler = ms.Profiler(
+            start_profile=False, output_path=out_dir, profile_framework="all", data_simplication=False
+        )
 
     def on_train_step_begin(self, run_context):
         cb_params = run_context.original_args()
