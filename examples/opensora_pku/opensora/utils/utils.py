@@ -255,3 +255,10 @@ def _check_cfgs_in_parser(cfgs: dict, parser: argparse.ArgumentParser):
     for k in cfgs.keys():
         if k not in actions_dest and k not in defaults_key:
             raise KeyError(f"{k} does not exist in ArgumentParser!")
+
+
+def remove_invalid_characters(file_name):
+    file_name = file_name.replace(" ", "-")
+    valid_pattern = r"[^a-zA-Z0-9_.-]"
+    cleaned_file_name = re.sub(valid_pattern, "-", file_name)
+    return cleaned_file_name
