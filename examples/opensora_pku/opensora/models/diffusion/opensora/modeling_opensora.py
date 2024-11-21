@@ -1,17 +1,15 @@
 import glob
-import json
 import logging
 import os
-from typing import Any, Dict, Optional
+from typing import Optional
 
-from opensora.acceleration.parallel_states import get_sequence_parallel_state, hccl_info
+from opensora.acceleration.parallel_states import get_sequence_parallel_state
 from opensora.models.diffusion.common import PatchEmbed2D
 from opensora.models.diffusion.opensora.modules import Attention, BasicTransformerBlock, LayerNorm
 from opensora.npu_config import npu_config
-from opensora.utils.utils import to_2tuple
 
 import mindspore as ms
-from mindspore import mint, nn, ops
+from mindspore import nn, ops
 
 from mindone.diffusers import __version__
 from mindone.diffusers.configuration_utils import ConfigMixin, register_to_config
@@ -349,8 +347,6 @@ class OpenSoraT2V_v1_3(ModelMixin, ConfigMixin):
         encoder_hidden_states: Optional[ms.Tensor] = None,
         attention_mask: Optional[ms.Tensor] = None,
         encoder_attention_mask: Optional[ms.Tensor] = None,
-        return_dict: bool = True,
-        **kwargs,
     ):
         batch_size, c, frame, h, w = hidden_states.shape
         # ensure attention_mask is a bias, and give it a singleton query_tokens dimension.

@@ -791,21 +791,21 @@ class OpenSoraPipeline(DiffusionPipeline):
     #     return video
 
     def decode_latents_per_sample(self, latents):
-        print(
-            f"before vae decode {latents.shape}",
-            latents.max().item(),
-            latents.min().item(),
-            latents.mean().item(),
-            latents.std().item(),
-        )
+        # print(
+        #     f"before vae decode {latents.shape}",
+        #     latents.max().item(),
+        #     latents.min().item(),
+        #     latents.mean().item(),
+        #     latents.std().item(),
+        # )
         video = self.vae.decode(latents).to(ms.float32)  # (b t c h w)
-        print(
-            f"after vae decode {video.shape}",
-            video.max().item(),
-            video.min().item(),
-            video.mean().item(),
-            video.std().item(),
-        )
+        # print(
+        #     f"after vae decode {video.shape}",
+        #     video.max().item(),
+        #     video.min().item(),
+        #     video.mean().item(),
+        #     video.std().item(),
+        # )
         video = ops.clip_by_value((video / 2.0 + 0.5), clip_value_min=0.0, clip_value_max=1.0).permute(0, 1, 3, 4, 2)
         return video  # b t h w c
 
