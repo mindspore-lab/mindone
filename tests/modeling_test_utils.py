@@ -150,6 +150,16 @@ def get_modules(pt_module, ms_module, dtype, *args, **kwargs):
     pt_modules_instance = pt_module_cls(*args, **kwargs)
     ms_modules_instance = ms_module_cls(*args, **kwargs)
 
+    missing_keys, unexpected_keys = ms.load_param_into_net(
+        ms_modules_instance, convert_state_dict(ms_modules_instance, pt_modules_instance.state_dict()), strict_load=True
+    )
+    if missing_keys or unexpected_keys:
+        logger.warning(
+            f"When load state_dict of '{pt_module}' to encounterpart mindspore model:\n"
+            f"Missing keys: {missing_keys}\n"
+            f"Unexpected keys: {unexpected_keys}\n"
+        )
+
     if dtype == "fp16":
         pt_modules_instance = pt_modules_instance.to(torch.float16)
         ms_modules_instance = set_dtype(ms_modules_instance, ms.float16)
@@ -162,16 +172,6 @@ def get_modules(pt_module, ms_module, dtype, *args, **kwargs):
         ms_modules_instance = set_dtype(ms_modules_instance, ms.float32)
     else:
         raise NotImplementedError(f"Dtype {dtype} for model is not implemented")
-
-    missing_keys, unexpected_keys = ms.load_param_into_net(
-        ms_modules_instance, convert_state_dict(ms_modules_instance, pt_modules_instance.state_dict()), strict_load=True
-    )
-    if missing_keys or unexpected_keys:
-        logger.warning(
-            f"When load state_dict of '{pt_module}' to encounterpart mindspore model:\n"
-            f"Missing keys: {missing_keys}\n"
-            f"Unexpected keys: {unexpected_keys}\n"
-        )
 
     pt_modules_instance.eval()
     ms_modules_instance.set_train(False)
