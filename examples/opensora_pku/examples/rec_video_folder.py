@@ -13,7 +13,6 @@ sys.path.insert(0, mindone_lib_path)
 
 from mindone.utils.config import str2bool
 from mindone.utils.logger import set_logger
-from mindone.visualize.videos import save_videos
 
 sys.path.append(".")
 from opensora.acceleration.parallel_states import get_sequence_parallel_state, hccl_info
@@ -21,6 +20,7 @@ from opensora.models.causalvideovae import ae_wrapper
 from opensora.models.causalvideovae.model.dataset_videobase import VideoDataset, create_dataloader
 from opensora.npu_config import npu_config
 from opensora.utils.utils import get_precision
+from opensora.utils.video_utils import save_videos
 
 logger = logging.getLogger(__name__)
 

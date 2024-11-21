@@ -10,8 +10,7 @@ from opensora.models.causalvideovae.model import ModelRegistry
 from opensora.models.causalvideovae.model.dataset_videobase import VideoDataset, create_dataloader
 from opensora.utils.ms_utils import init_env
 from opensora.utils.utils import get_precision
-
-from mindone.visualize.videos import save_videos
+from opensora.utils.video_utils import save_videos
 
 
 def main(args: argparse.Namespace):

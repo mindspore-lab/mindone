@@ -19,6 +19,7 @@ from opensora.models.diffusion.opensora.modules import Attention, LayerNorm
 from opensora.sample.pipeline_opensora import OpenSoraPipeline
 from opensora.utils.message_utils import print_banner
 from opensora.utils.utils import _check_cfgs_in_parser, get_precision, remove_invalid_characters
+from opensora.utils.video_utils import save_videos
 from PIL import Image
 from tqdm import tqdm
 from transformers import AutoTokenizer
@@ -45,7 +46,6 @@ from mindone.transformers import CLIPTextModelWithProjection, MT5EncoderModel, T
 from mindone.utils.amp import auto_mixed_precision
 from mindone.utils.config import str2bool
 from mindone.utils.params import count_params
-from mindone.visualize.videos import save_videos
 
 logger = logging.getLogger(__name__)
 
