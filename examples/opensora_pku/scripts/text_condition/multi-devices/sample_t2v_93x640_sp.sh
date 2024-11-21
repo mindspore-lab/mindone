@@ -11,7 +11,7 @@ msrun --bind_core=True --worker_num=8 --local_worker_num=8 --master_port=9000 --
     --text_prompt examples/sora.txt \
     --ae WFVAEModel_D8_4x8x8  \
     --ae_path LanguageBind/Open-Sora-Plan-v1.3.0/vae \
-    --save_img_path "./sample_videos/sora_93x640_mt5" \
+    --save_img_path "./sample_videos/sora_93x640_mt5_sp" \
     --fps 18 \
     --guidance_scale 7.5 \
     --num_sampling_steps 100 \
