@@ -1,7 +1,5 @@
 """Train step wrapper supporting setting drop overflow update, ema etc"""
-from typing import Optional
-
-from typing import Callable, Tuple
+from typing import Callable, Optional, Tuple
 
 from packaging import version
 
@@ -101,6 +99,7 @@ class TrainOneStepWrapper(nn.TrainOneStepWithLossScaleCell):
         clip_norm=1.0,
         verbose=False,
         zero_helper=None,
+        need_reduce: Optional[Tuple[bool]] = None,
     ):
         super().__init__(network, optimizer, scale_sense)
         self.ema = ema
@@ -127,7 +126,7 @@ class TrainOneStepWrapper(nn.TrainOneStepWithLossScaleCell):
         self.partial = ops.Partial()
 
         self.grad_reducer = GradReducer()
-        self.need_reduce = tuple([2048 in x.shape for x in self.weights])
+        self.need_reduce = need_reduce
 
         # zero init
         self.zero_helper = zero_helper

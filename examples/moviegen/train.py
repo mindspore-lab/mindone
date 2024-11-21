@@ -1,5 +1,6 @@
 import logging
 import os
+import re
 import sys
 from math import ceil
 
@@ -105,7 +106,12 @@ def main(args):
     ema = EMA(latent_diffusion_with_loss.network, **args.train.ema.init_args) if args.train.ema else None
     loss_scaler = initializer.train.loss_scaler
     net_with_grads = prepare_train_network(
-        latent_diffusion_with_loss, optimizer=optimizer, scale_sense=loss_scaler, ema=ema, **args.train.settings
+        latent_diffusion_with_loss,
+        optimizer=optimizer,
+        scale_sense=loss_scaler,
+        ema=ema,
+        need_reduce=tuple(bool(re.search(r"layers\.(\d+)\.mlp", param.name)) for param in optimizer.parameters),
+        **args.train.settings,
     )
 
     model = Model(net_with_grads)
@@ -227,7 +233,7 @@ if __name__ == "__main__":
         help="mindspore.nn.FixedLossScaleUpdateCell or mindspore.nn.DynamicLossScaleUpdateCell",
     )
     parser.add_function_arguments(
-        prepare_train_network, "train.settings", skip={"network", "optimizer", "scale_sense", "ema"}
+        prepare_train_network, "train.settings", skip={"network", "optimizer", "scale_sense", "ema", "need_reduce"}
     )
     parser.add_subclass_arguments(EMA, "train.ema", skip={"network"}, required=False, instantiate=False)
     parser.add_argument(

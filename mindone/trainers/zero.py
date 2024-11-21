@@ -1,7 +1,7 @@
 import json
 import logging
 import os
-from typing import Literal
+from typing import Literal, Optional, Tuple
 
 import mindspore as ms
 from mindspore import nn, ops
@@ -561,6 +561,7 @@ def prepare_train_network(
     dp_group: str = None,
     comm_fusion: dict = None,
     parallel_modules=None,
+    need_reduce: Optional[Tuple[bool, ...]] = None,
 ):
     """
     Prepare network and optimizer for distributed training.
@@ -599,6 +600,7 @@ def prepare_train_network(
             clip_grad=clip_grad,
             clip_norm=clip_norm,
             verbose=verbose,
+            need_reduce=need_reduce,
         )
         return train_network
 
@@ -628,6 +630,7 @@ def prepare_train_network(
         clip_norm=clip_norm,
         verbose=verbose,
         zero_helper=zero_helper,
+        need_reduce=need_reduce,
     )
     return train_network
 
