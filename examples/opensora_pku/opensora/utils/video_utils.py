@@ -1,8 +1,7 @@
 import os
-from fractions import Fraction
 from typing import Union
 
-import av
+import cv2
 import imageio
 import numpy as np
 
@@ -11,7 +10,7 @@ __all__ = ["save_videos", "create_video_from_numpy_frames"]
 
 def create_video_from_rgb_numpy_arrays(image_arrays, output_file, fps: Union[int, float] = 30):
     """
-    Creates an MP4 video file from a series of RGB NumPy array images.
+    Creates an MP4 video file from a series of RGB NumPy array images using opencv.
 
     Parameters:
     image_arrays (list): A list of RGB NumPy array images.
@@ -22,30 +21,16 @@ def create_video_from_rgb_numpy_arrays(image_arrays, output_file, fps: Union[int
     """
     # Get the dimensions of the first image
     height, width, _ = image_arrays[0].shape
+    # Define the codec and create a VideoWriter object
+    fourcc = cv2.VideoWriter_fourcc(*"mp4v")  # Codec for MP4
+    video_writer = cv2.VideoWriter(output_file, fourcc, fps, (width, height))
 
-    # Create the output container and video stream
-    container = av.open(output_file, mode="w")
-    stream = container.add_stream(
-        "libx264", rate=Fraction(f"{fps:.4f}")
-    )  # BUG: OverflowError: value too large to convert to int
-    stream.width = width
-    stream.height = height
-    stream.pix_fmt = "yuv420p"
+    # Write each frame to the video
+    for img in image_arrays:
+        video_writer.write(img)
 
-    # stream.time_base = av.Rational(1, fps)
-
-    # Write the frames to the video stream
-    for image in image_arrays:
-        frame = av.VideoFrame.from_ndarray(image, format="rgb24")
-        for packet in stream.encode(frame):
-            container.mux(packet)
-
-    # Flush any remaining frames
-    for packet in stream.encode(None):
-        container.mux(packet)
-
-    # Close the container
-    container.close()
+    # Release the VideoWriter
+    video_writer.release()
 
 
 def create_video_from_numpy_frames(frames: np.ndarray, path: str, fps: Union[int, float] = 8, fmt="gif", loop=0):
