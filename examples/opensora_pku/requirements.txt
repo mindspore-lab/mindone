@@ -9,13 +9,12 @@ imagesize
 toolz
 tqdm
 mindcv
-decord
 safetensors
 omegaconf
 pyyaml
 sentencepiece
 mindnlp==0.4.0
 transformers>=4.46.0
-pyav
 bs4
 huggingface_hub>=0.22.2
+decord
