@@ -2,8 +2,8 @@ import math
 import logging
 
 import mindspore as ms
-from mindspore import ops, nn, mint
-from mindspore import Parameter, Tensor
+from mindspore import ops, nn, mint, recompute
+from mindspore import Tensor
 from mindspore.common.initializer import (
     TruncatedNormal,
     Constant,
@@ -325,6 +325,7 @@ class Block(nn.Cell):
                               force_fp32=(not layerscale_no_force_fp32)) if init_values else nn.Identity()
         self.drop_path2 = DropPath(drop_path) if drop_path > 0. else nn.Identity()
         
+        self.with_cp = with_cp
         self.use_fused_rmsnorm = use_fused_rmsnorm
     
     def construct(self, x, residual=None):
@@ -643,7 +644,10 @@ class PretrainInternVideo2(nn.Cell):
             if isinstance(x, tuple) and len(x) == 2:
                 x, residual = x
             # print(f"\033[31m这是{idx}, {x.shape}\033[0m")
-            x = blk(x, residual=residual)
+            if blk.with_cp:
+                x = recompute(blk, x, residual=residual)
+            else:
+                x = blk(x, residual=residual)
             # return intermediate features
             if idx in self.return_index:
                 if isinstance(x, tuple) and len(x) == 2:

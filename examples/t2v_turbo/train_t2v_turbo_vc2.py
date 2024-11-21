@@ -340,7 +340,6 @@ def main(args):
         uncond_prompt_embeds=uncond_prompt_embeds,
         reward_fn=reward_fn,
         video_rm_fn=video_rm_fn,
-        use_recompute=args.use_recompute,
     ).set_train()
 
     # Optimizer creation

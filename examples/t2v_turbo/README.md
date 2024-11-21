@@ -22,21 +22,14 @@ The scripts have been tested on Ascend 910B chips under the following requiremen
 
 | mindspore | ascend driver | firmware | cann toolkit/kernel |
 | --------- | ------------- | -------- | ------------------- |
-| [2.3.1](https://www.mindspore.cn/)  | 24.1.RC2 |7.3.0.1.231 |	[`CANN 8.0.RC2.beta1`](https://www.hiascend.com/software/cann) |
+| 2.4.0  | 24.1.RC3 | 7.5.0.1.129 | CANN 8.0.RC3.beta1 |
+| 2.3.1  | 24.1.RC2 | 7.3.0.1.231 |	CANN 8.0.RC2.beta1 |
 
-#### Installation Tutorials:
+#### Installation Tutorials
 
-1. Install Mindspore==2.3.1 according to the [official tutorials](https://www.mindspore.cn/install)
-2. Ascend users please install the corresponding *CANN 8.0.RC2.beta1* in [community edition](https://www.hiascend.com/developer/download/community/result?module=cann&cann=8.0.RC2.beta1) as well as the relevant driver and firmware packages in [firmware and driver](https://www.hiascend.com/hardware/firmware-drivers/community), as stated in the [official document](https://www.mindspore.cn/install/#%E5%AE%89%E8%A3%85%E6%98%87%E8%85%BEai%E5%A4%84%E7%90%86%E5%99%A8%E9%85%8D%E5%A5%97%E8%BD%AF%E4%BB%B6%E5%8C%85).
+1. Install Mindspore>=2.3.1 according to the [official tutorials](https://www.mindspore.cn/install)
+2. Ascend users please install the corresponding *CANN* in [community edition](https://www.hiascend.com/developer/download/community/result?module=cann&cann=8.0.RC3.beta1) as well as the relevant driver and firmware packages in [firmware and driver](https://www.hiascend.com/hardware/firmware-drivers/community), as stated in the [official document](https://www.mindspore.cn/install/#%E5%AE%89%E8%A3%85%E6%98%87%E8%85%BEai%E5%A4%84%E7%90%86%E5%99%A8%E9%85%8D%E5%A5%97%E8%BD%AF%E4%BB%B6%E5%8C%85).
 3. Install the pacakges listed in requirements.txt with `pip install -r requirements.txt`
-
-
-## Fast and High-Quality Text-to-video Generation 🚀
-
-
-### 4-Step Results of T2V-Turbo
-
-### 8-Step Results of T2V-Turbo
 
 
 ## 🎯 Model Checkpoints
@@ -63,20 +56,21 @@ python predict.py \
   --num_inference_steps 4
 ```
 
-The model weights will automatically downloaded and converted in mindspore format and saved to `./model_cache/t2v-vc2/` folder in the following structure:
+The model weights will automatically downloaded and converted in mindspore format and saved to `./model_cache/` folder in the following structure:
 
 ```bash
 ├─model_cache
 │  ├─t2v-vc2
 │  │  ├─VideoCrafter2_model_ms.ckpt
 │  │  ├─unet_lora.ckpt
+│  ├─open_clip_vit_h_14-9bb07a10.ckpt
 ```
 
-#### Option 2: Manually download and convert the weights
+#### Option 2: Manually download and convert the weights, set the paths with argments
 
 1. Download the checkpoint of `VideoCrafter2` from [here](https://huggingface.co/VideoCrafter/VideoCrafter2/blob/main/model.ckpt)
 2. Download the `unet_lora.pt` of our T2V-Turbo (VC2) [here](https://huggingface.co/jiachenli-ucsb/T2V-Turbo-VC2/blob/main/unet_lora.pt).
-3. Download the checkpoint of `OpenCLIP` from [here](https://download.mindspore.cn/toolkits/mindone/videocomposer/model_weights/open_clip_vit_h_14-9bb07a10.ckpt) 
+3. Download the checkpoint of `OpenCLIP` from [here](https://download.mindspore.cn/toolkits/mindone/videocomposer/model_weights/open_clip_vit_h_14-9bb07a10.ckpt) and place it under the folder of `./model_cache/`
 4. **Convert** the checkpoints to Mindspore Version by running the following commands:
 
 ```bash
@@ -137,27 +131,44 @@ python tools/convert_weights.py --source PATH-TO-InternVid2-S2 --target PATH-TO-
 python tools/convert_weights.py --source PATH-TO-HPSv2.1.pt --target PATH-TO-unet_lora.ckpt --type hps
 ```
 
-6. Set `--pretrained_model_path`, `--train_shards_path_or_url` and `video_rm_ckpt_dir` accordingly in `train_t2v_turbo_vc2.sh`.
+6. Set `--pretrained_model_path`, `--data_path`, `--csv_path` and `--image_rm_ckpt_dir`, `--video_rm_ckpt_dir` accordingly in `scripts/train_t2v_turbo_vc2.sh`.
 
 Then run the following command:
 ```bash
 # standalone training
-bash train_t2v_turbo.sh
+bash scripts/train_t2v_turbo_vc2.sh
+
+# parallel
+bash scripts/train_t2v_turbo_vc2_parallel.sh
 ```
+
+### Three-stage training
+
+Set the path of model and data as shown above in the `scripts/train_t2v_turbo_vc2_stages.sh`
+The training process is as follow:
+
+```bash
+# standalone
+bash scripts/train_t2v_turbo_vc2_stages.sh
+
+# standalone
+bash scripts/train_t2v_turbo_vc2_stages_parallel.sh
+```
+
 
 ## 📋 Benchmarking
 
-Experiments are tested on Ascend 910B with mindpsore 2.3.1 pynative mode.
+Experiments are tested on Ascend 910B with mindpsore 2.4.0 under pynative mode.
 
 ### Inference Performance
 
-| model name | method | cards | batch size | resolution | scheduler | steps | jit level | s/step | img/s |
-| ---------- | ------ | ----- | ---------- | ---------- | --------- | ----- | --------- | ------ | ----- |
-| T2V-Turbo (VC2) | LORA | 1 | 1 | 320x512 | ddim | 4 | O1 | | |
-| T2V-Turbo (MS)  | LORA | 1 | 1 | 256x256 | ddim | 4 | O1 | | |
+| model name | method | cards | batch size | resolution | precision | scheduler | steps | jit level | s/step | video/s | recipe |
+| :--------: | :----: | :---: | :--------: | :--------: | :-------: | :-------: | :---: | :-------: | :----: | :-----: | :----: |
+| T2V-Turbo (VC2) | LORA | 1 | 1 | 16x320x512 | fp16 | ddim | 4 | O1 | | | [yaml](./configs/inference_t2v_512_v2.0.yaml) |
+| T2V-Turbo (MS)  | LORA | 1 | 1 | 16x256x256 | fp16 | ddim | 4 | O1 | | | [yaml](./configs/inference_t2v_512_v2.0.yaml) |
 
 ### Training Performance
 
-| model name | method | cards | batch size | resolution | precision | jit level | s/step | img/s |
-| ---------- | ------ | ----- | ---------- | ---------- | --------- | --------- | ------ | ----- |
-| T2V-Turbo (VC2) | LORA | 1 | 1 | 320x512 | fp16 | O1 | | |
+| model name | method | cards | batch size | resolution | precision | jit level | s/step | video/s |
+| :--------: | :----: | :---: | :--------: | :--------: | :-------: | :-------: | :----: | :-----: |
+| T2V-Turbo (VC2) | LORA | 1 | 1 | 8x320x512 | fp16 | O1 | | |

@@ -185,7 +185,7 @@ class InternVideo2_Stage2(nn.Cell):
     def dtype(self):
         return self.vision_encoder.patch_embed.proj.weight.dtype
 
-    def encode_vision(self, image: ms.Tensor, test: bool = False, use_recompute: bool = False):
+    def encode_vision(self, image: ms.Tensor, test: bool = False):
         """encode image / videos as features.
 
         Args:
@@ -208,14 +208,9 @@ class InternVideo2_Stage2(nn.Cell):
         # whether save temporal dimension
         # keep_temporal=self.config.model.vision_encoder.keep_temporal
         if test:
-            if use_recompute:
-                vision_embeds, pooled_vision_embeds, _, _ = ms.recompute(self.vision_encoder(
-                    image, None, use_image)
-                )
-            else:
-                vision_embeds, pooled_vision_embeds, _, _ = self.vision_encoder(
-                    image, None, use_image
-                )
+            vision_embeds, pooled_vision_embeds, _, _ = self.vision_encoder(
+                image, None, use_image
+            )
             return vision_embeds, pooled_vision_embeds
         else:
             mask, targets_clip_middle_vis, targets_clip_final_vis = self.encode_teacher(

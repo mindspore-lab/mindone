@@ -2,7 +2,7 @@ from functools import partial
 # from einops import rearrange, repeat
 import numpy as np
 import mindspore as ms
-from mindspore import nn, ops, mint
+from mindspore import nn, ops, mint, recompute
 
 try:
     import xformers
@@ -12,7 +12,6 @@ try:
 except:
     XFORMERS_IS_AVAILBLE = False
 from lvdm.common import (
-    checkpoint,
     exists,
     default,
     GroupNormExtend,
@@ -389,7 +388,10 @@ class SpatialTransformer(nn.Cell):
         if self.use_linear:
             x = self.proj_in(x)
         for i, block in enumerate(self.transformer_blocks):
-            x = block(x, context=context)
+            if block.checkpoint:
+                x = recompute(block, x, context=context)
+            else:
+                x = block(x, context=context)
         if self.use_linear:
             x = self.proj_out(x)
         
@@ -506,7 +508,10 @@ class TemporalTransformer(nn.Cell):
         if self.only_self_att:
             ## note: if no context is given, cross-attention defaults to self-attention
             for i, block in enumerate(self.transformer_blocks):
-                x = block(x, mask=mask)
+                if block.checkpoint:
+                    x = recompute(block, x, mask=mask)
+                else:
+                    x = block(x, mask=mask)
             # x = rearrange(x, "(b hw) t c -> b hw t c", b=b).contiguous()
             x = x.reshape(b, -1, x.shape[1], x.shape[2])
         else:
@@ -527,7 +532,10 @@ class TemporalTransformer(nn.Cell):
                     #     context[j], "t l con -> (t r) l con", r=(h * w) // t, t=t
                     # ).contiguous()
                     ## note: causal mask will not applied in cross-attention case
-                    x[j] = block(x[j], context=context_j)
+                    if block.checkpoint:
+                        x[j] = recompute(block, x[j], context=context_j)
+                    else:
+                        x[j] = block(x[j], context=context_j)
 
         if self.use_linear:
             x = self.proj_out(x)

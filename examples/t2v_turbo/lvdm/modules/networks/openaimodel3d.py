@@ -3,13 +3,10 @@ from abc import abstractmethod
 
 import mindspore as ms
 from mindspore import nn, ops, mint, recompute
-from mindspore.common.initializer import (
-    Zero,
-    initializer,
-)
+from mindspore.common.initializer import Zero, initializer
 
 from lvdm.models.utils_diffusion import timestep_embedding
-from lvdm.common import checkpoint, GroupNormExtend
+from lvdm.common import GroupNormExtend
 from lvdm.basics import zero_module, conv_nd, linear, avg_pool_nd, normalization, rearrange_in_gn5d_bs, rearrange_out_gn5d
 from lvdm.modules.attention import SpatialTransformer, TemporalTransformer
 
@@ -62,15 +59,15 @@ class TimestepEmbedSequentialRecompute(nn.SequentialCell, TimestepBlock):
             if isinstance(layer, TimestepBlock):
                 x = recompute(layer, x, emb, batch_size)
             elif isinstance(layer, SpatialTransformer):
-                x = recompute(layer, x, context)
+                x = layer(x, context)
             elif isinstance(layer, TemporalTransformer):
                 # x = rearrange(x, "(b f) c h w -> b c f h w", b=batch_size)
                 x = rearrange_in_gn5d_bs(x, batch_size)
-                x = recompute(layer, x, context)
+                x = layer(x, context)
                 # x = rearrange(x, "b c f h w -> (b f) c h w")
                 x = rearrange_out_gn5d(x)
             else:
-                x = recompute(layer, x)
+                x = layer(x)
         return x
 
 

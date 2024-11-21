@@ -55,7 +55,6 @@ class LCDWithLoss(nn.Cell):
         uncond_prompt_embeds,
         reward_fn,
         video_rm_fn,
-        use_recompute=False,
     ):
         super().__init__()
 
@@ -77,8 +76,6 @@ class LCDWithLoss(nn.Cell):
 
         self.reward_fn = reward_fn
         self.video_rm_fn = video_rm_fn
-
-        self.use_recompute = use_recompute
     
     def compute_embeddings(self, text_tokens):
         prompt_embeds = self.text_encoder(text_tokens)
@@ -124,7 +121,7 @@ class LCDWithLoss(nn.Cell):
         selected_latents = selected_latents.reshape(
             num_images, *selected_latents.shape[2:]
         )
-        decoded_imgs = self.vae.decode(selected_latents, use_recompute=self.use_recompute)
+        decoded_imgs = self.vae.decode(selected_latents)
         decoded_imgs = (decoded_imgs / 2 + 0.5).clamp(0, 1)
         expert_rewards = self.reward_fn(decoded_imgs, text)
         reward_loss = -expert_rewards.mean() * self.args.reward_scale
@@ -148,7 +145,7 @@ class LCDWithLoss(nn.Cell):
         selected_latents = selected_latents.reshape(
             num_images, *selected_latents.shape[2:]
         )
-        decoded_imgs = self.vae.decode(selected_latents, use_recompute=self.use_recompute)
+        decoded_imgs = self.vae.decode(selected_latents)
         decoded_imgs = (decoded_imgs / 2 + 0.5).clamp(0, 1)
         decoded_imgs = decoded_imgs.reshape(
             self.args.train_batch_size,
@@ -361,7 +358,6 @@ class LCDWithStageLoss(nn.Cell):
         uncond_prompt_embeds,
         reward_fn,
         video_rm_fn,
-        use_recompute=False,
     ):
         super().__init__()
 
@@ -383,8 +379,6 @@ class LCDWithStageLoss(nn.Cell):
 
         self.reward_fn = reward_fn
         self.video_rm_fn = video_rm_fn
-
-        self.use_recompute = use_recompute
     
     def compute_embeddings(self, text_tokens):
         prompt_embeds = self.text_encoder(text_tokens)
@@ -430,7 +424,7 @@ class LCDWithStageLoss(nn.Cell):
         selected_latents = selected_latents.reshape(
             num_images, *selected_latents.shape[2:]
         )
-        decoded_imgs = self.vae.decode(selected_latents, use_recompute=self.use_recompute)
+        decoded_imgs = self.vae.decode(selected_latents)
         decoded_imgs = (decoded_imgs / 2 + 0.5).clamp(0, 1)
         expert_rewards = self.reward_fn(decoded_imgs, text)
         reward_loss = -expert_rewards.mean() * self.args.reward_scale
@@ -454,7 +448,7 @@ class LCDWithStageLoss(nn.Cell):
         selected_latents = selected_latents.reshape(
             num_images, *selected_latents.shape[2:]
         )
-        decoded_imgs = self.vae.decode(selected_latents, use_recompute=self.use_recompute)
+        decoded_imgs = self.vae.decode(selected_latents)
         decoded_imgs = (decoded_imgs / 2 + 0.5).clamp(0, 1)
         decoded_imgs = decoded_imgs.reshape(
             self.args.train_batch_size,
