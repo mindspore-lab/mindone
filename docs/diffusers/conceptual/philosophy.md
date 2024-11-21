@@ -26,6 +26,7 @@ We aim at building a library that stands the test of time and therefore take API
 ## Simple over easy
 
 **Explicit is better than implicit** and **simple is better than complex**. This design philosophy is reflected in multiple parts of the library:
+
 - We follow MindSpore's API with methods like [`DiffusionPipeline.to`](https://github.com/mindspore-lab/mindone/blob/master/mindone/diffusers/pipelines/pipeline_utils.py#L261) to let the user handle precision.
 - Raising concise error messages is preferred to silently correct erroneous input. Diffusers aims at teaching the user, rather than making the library as easy to use as possible.
 - Complex model vs. scheduler logic is exposed instead of magically handled inside. Schedulers/Samplers are separated from diffusion models with minimal dependencies on each other. This forces the user to write the unrolled denoising loop. However, the separation allows for easier debugging and gives the user more control over adapting the denoising process or switching out diffusion models or schedulers.
@@ -38,6 +39,7 @@ For large parts of the library, Diffusers adopts an important design principle o
 In short, just like Transformers does for modeling files, Diffusers prefers to keep an extremely low level of abstraction and very self-contained code for pipelines and schedulers.
 Functions, long code blocks, and even classes can be copied across multiple files which at first can look like a bad, sloppy design choice that makes the library unmaintainable.
 **However**, this design has proven to be extremely successful for Transformers and makes a lot of sense for community-driven, open-source machine learning libraries because:
+
 - Machine Learning is an extremely fast-moving field in which paradigms, model architectures, and algorithms are changing rapidly, which therefore makes it very difficult to define long-lasting code abstractions.
 - Machine Learning practitioners like to be able to quickly tweak existing code for ideation and research and therefore prefer self-contained code over one that contains many abstractions.
 - Open-source libraries rely on community contributions and therefore must build a library that is easy to contribute to. The more abstract the code, the more dependencies, the harder to read, and the harder to contribute to. Contributors simply stop contributing to very abstract libraries out of fear of breaking vital functionality. If contributing to a library cannot break other fundamental code, not only is it more inviting for potential new contributors, but it is also easier to review and contribute to multiple parts in parallel.
@@ -61,7 +63,8 @@ Let's walk through more in-detail design decisions for each class.
 Pipelines are designed to be easy to use (therefore do not follow [*Simple over easy*](#simple-over-easy) 100%), are not feature complete, and should loosely be seen as examples of how to use [models](#models) and [schedulers](#schedulers) for inference.
 
 The following design principles are followed:
-- Pipelines follow the single-file policy. All pipelines can be found in individual directories under src/diffusers/pipelines. One pipeline folder corresponds to one diffusion paper/project/release. Multiple pipeline files can be gathered in one pipeline folder, as it’s done for [`mindone/diffusers/pipelines/stable-diffusion`](https://github.com/mindspore-lab/mindone/tree/master/mindone/diffusers/pipelines/stable_diffusion). If pipelines share similar functionality, one can make use of the [#Copied from mechanism](https://github.com/mindspore-lab/mindone/blob/master/mindone/diffusers/pipelines/stable_diffusion_xl/pipeline_stable_diffusion_xl_img2img.py#L730).
+
+- Pipelines follow the single-file policy. All pipelines can be found in individual directories under src/diffusers/pipelines. One pipeline folder corresponds to one diffusion paper/project/release. Multiple pipeline files can be gathered in one pipeline folder, as it’s done for [`mindone/diffusers/pipelines/stable-diffusion`](https://github.com/mindspore-lab/mindone/tree/master/mindone/diffusers/pipelines/stable_diffusion). If pipelines share similar functionality, one can make use of the [# Copied from mechanism](https://github.com/mindspore-lab/mindone/blob/master/mindone/diffusers/pipelines/stable_diffusion_xl/pipeline_stable_diffusion_xl_img2img.py#L730).
 - Pipelines all inherit from [`DiffusionPipeline`](https://mindspore-lab.github.io/mindone/latest/diffusers/api/pipelines/overview/#mindone.diffusers.DiffusionPipeline).
 - Every pipeline consists of different model and scheduler components, that are documented in the [`model_index.json` file](https://huggingface.co/stable-diffusion-v1-5/stable-diffusion-v1-5/blob/main/model_index.json), are accessible under the same name as attributes of the pipeline and can be shared between pipelines with [`DiffusionPipeline.components`](https://github.com/mindspore-lab/mindone/blob/master/mindone/diffusers/pipelines/pipeline_utils.py#L1048) function.
 - Every pipeline should be loadable via the [`from_pretrained`](https://mindspore-lab.github.io/mindone/latest/diffusers/api/pipelines/overview/#mindone.diffusers.DiffusionPipeline.from_pretrained)(https://github.com/mindspore-lab/mindone/blob/master/mindone/diffusers/pipelines/pipeline_utils.py#L308) function.
@@ -78,8 +81,9 @@ The following design principles are followed:
 Models are designed as configurable toolboxes that are natural extensions of [MindSpore's Cell class](https://www.mindspore.cn/docs/en/master/api_python/nn/mindspore.nn.Cell.html). They only partly follow the **single-file policy**.
 
 The following design principles are followed:
+
 - Models correspond to **a type of model architecture**. *E.g.* the [`UNet2DConditionModel`](https://mindspore-lab.github.io/mindone/latest/diffusers/api/models/unet2d-cond/#mindone.diffusers.UNet2DConditionModel) class is used for all UNet variations that expect 2D image inputs and are conditioned on some context.
-- All models can be found in [`mindone/diffusers/models`](https://github.com/mindspore-lab/mindone/tree/master/mindone/diffusers/models) and every model architecture shall be defined in its file, e.g. [`unet_2d_condition.py`](https://github.com/mindspore-lab/mindone/tree/master/mindone/diffusers/models/unets/unet_2d_condition.py), [`transformer_2d.py`](https://github.com/mindspore-lab/mindone/tree/master/mindone/diffusers/models/transformers/transformer_2d.py), etc...
+- All models can be found in [`mindone/diffusers/models`](https://github.com/mindspore-lab/mindone/tree/master/mindone/diffusers/models) and every model architecture shall be defined in its file, e.g. [`unets/unet_2d_condition.py`](https://github.com/mindspore-lab/mindone/tree/master/mindone/diffusers/models/unets/unet_2d_condition.py), [`transformers/transformer_2d.py`](https://github.com/mindspore-lab/mindone/tree/master/mindone/diffusers/models/transformers/transformer_2d.py), etc...
 - Models **do not** follow the single-file policy and should make use of smaller model building blocks, such as [`attention.py`](https://github.com/mindspore-lab/mindone/tree/master/mindone/diffusers/models/attention.py), [`resnet.py`](https://github.com/mindspore-lab/mindone/tree/master/mindone/diffusers/models/resnet.py), [`embeddings.py`](https://github.com/mindspore-lab/mindone/tree/master/mindone/diffusers/models/embeddings.py), etc... **Note**: This is in stark contrast to Transformers' modeling files and shows that models do not really follow the single-file policy.
 - Models intend to expose complexity, just like MindSpore's `Cell` class, and give clear error messages.
 - Models all inherit from `ModelMixin` and `ConfigMixin`.
@@ -95,10 +99,11 @@ readable long-term, such as [UNet blocks](https://github.com/mindspore-lab/mindo
 Schedulers are responsible to guide the denoising process for inference as well as to define a noise schedule for training. They are designed as individual classes with loadable configuration files and strongly follow the **single-file policy**.
 
 The following design principles are followed:
+
 - All schedulers are found in [`mindone/diffusers/schedulers`](https://github.com/mindspore-lab/mindone/tree/master/mindone/diffusers/schedulers).
 - Schedulers are **not** allowed to import from large utils files and shall be kept very self-contained.
 - One scheduler Python file corresponds to one scheduler algorithm (as might be defined in a paper).
-- If schedulers share similar functionalities, we can make use of the `#Copied from` mechanism.
+- If schedulers share similar functionalities, we can make use of the `# Copied from` mechanism.
 - Schedulers all inherit from `SchedulerMixin` and `ConfigMixin`.
 - Schedulers can be easily swapped out with the [`ConfigMixin.from_config`](https://mindspore-lab.github.io/mindone/latest/diffusers/api/configuration/#mindone.diffusers.configuration_utils.ConfigMixin.from_config) method as explained in detail [here](../using-diffusers/schedulers.md).
 - Every scheduler has to have a `set_num_inference_steps`, and a `step` function. `set_num_inference_steps(...)` has to be called before every denoising process, *i.e.* before `step(...)` is called.

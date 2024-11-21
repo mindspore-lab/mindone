@@ -62,7 +62,7 @@ This guide will show you how to use LCMs and LCM-LoRAs for fast inference on tas
 
 === "LCM-LoRA"
 
-    To use LCM-LoRAs, you need to replace the scheduler with the [`LCMScheduler`](https://mindspore-lab.github.io/mindone/latest/diffusers/api/schedulers/lcm/#mindone.diffusers.LCMScheduler) and load the LCM-LoRA weights with the [`load_lora_weights`](https://mindspore-lab.github.io/mindone/latest/diffusers/api/loaders/lora/#mindone.diffusers.loaders.lora.LoraLoaderMixin.load_lora_weights) method. Then you can use the pipeline as usual, and pass a text prompt to generate an image in just 4 steps.
+    To use LCM-LoRAs, you need to replace the scheduler with the [`LCMScheduler`](https://mindspore-lab.github.io/mindone/latest/diffusers/api/schedulers/lcm/#mindone.diffusers.LCMScheduler) and load the LCM-LoRA weights with the [`load_lora_weights`](https://mindspore-lab.github.io/mindone/latest/diffusers/api/loaders/lora/#mindone.diffusers.loaders.lora_pipeline.StableDiffusionLoraLoaderMixin.load_lora_weights) method. Then you can use the pipeline as usual, and pass a text prompt to generate an image in just 4 steps.
 
     A couple of notes to keep in mind when using LCM-LoRAs are:
 
@@ -151,7 +151,7 @@ This guide will show you how to use LCMs and LCM-LoRAs for fast inference on tas
 
 === "LCM-LoRA"
 
-    To use LCM-LoRAs for image-to-image, you need to replace the scheduler with the [`LCMScheduler`](https://mindspore-lab.github.io/mindone/latest/diffusers/api/schedulers/lcm/#mindone.diffusers.LCMScheduler) and load the LCM-LoRA weights with the [`load_lora_weights`](https://mindspore-lab.github.io/mindone/latest/diffusers/api/loaders/lora/#mindone.diffusers.loaders.lora.LoraLoaderMixin.load_lora_weights) method. Then you can use the pipeline as usual, and pass a text prompt and initial image to generate an image in just 4 steps.
+    To use LCM-LoRAs for image-to-image, you need to replace the scheduler with the [`LCMScheduler`](https://mindspore-lab.github.io/mindone/latest/diffusers/api/schedulers/lcm/#mindone.diffusers.LCMScheduler) and load the LCM-LoRA weights with the [`load_lora_weights`](https://mindspore-lab.github.io/mindone/latest/diffusers/api/loaders/lora/#mindone.diffusers.loaders.lora_pipeline.StableDiffusionLoraLoaderMixin.load_lora_weights) method. Then you can use the pipeline as usual, and pass a text prompt and initial image to generate an image in just 4 steps.
 
     !!! tip
 
@@ -201,7 +201,7 @@ This guide will show you how to use LCMs and LCM-LoRAs for fast inference on tas
 
 ## Inpainting
 
-To use LCM-LoRAs for inpainting, you need to replace the scheduler with the [`LCMScheduler`](https://mindspore-lab.github.io/mindone/latest/diffusers/api/schedulers/lcm/#mindone.diffusers.LCMScheduler) and load the LCM-LoRA weights with the [`load_lora_weights`](https://mindspore-lab.github.io/mindone/latest/diffusers/api/loaders/lora/#mindone.diffusers.loaders.lora.LoraLoaderMixin.load_lora_weights) method. Then you can use the pipeline as usual, and pass a text prompt, initial image, and mask image to generate an image in just 4 steps.
+To use LCM-LoRAs for inpainting, you need to replace the scheduler with the [`LCMScheduler`](https://mindspore-lab.github.io/mindone/latest/diffusers/api/schedulers/lcm/#mindone.diffusers.LCMScheduler) and load the LCM-LoRA weights with the [`load_lora_weights`](https://mindspore-lab.github.io/mindone/latest/diffusers/api/loaders/lora/#mindone.diffusers.loaders.lora_pipeline.StableDiffusionLoraLoaderMixin.load_lora_weights) method. Then you can use the pipeline as usual, and pass a text prompt, initial image, and mask image to generate an image in just 4 steps.
 
 ```py
 import mindspore as ms
@@ -256,7 +256,7 @@ LCMs are compatible with adapters like LoRA, ControlNet, T2I-Adapter, and Animat
 
 === "LCM"
 
-    Load the LCM checkpoint for your supported model into [`UNet2DConditionModel`](https://mindspore-lab.github.io/mindone/latest/diffusers/api/models/unet2d-cond/#mindone.diffusers.UNet2DConditionModel) and replace the scheduler with the [`LCMScheduler`](https://mindspore-lab.github.io/mindone/latest/diffusers/api/schedulers/lcm/#mindone.diffusers.LCMScheduler). Then you can use the [`load_lora_weights`](https://mindspore-lab.github.io/mindone/latest/diffusers/api/loaders/lora/#mindone.diffusers.loaders.lora.LoraLoaderMixin.load_lora_weights) method to load the LoRA weights into the LCM and generate a styled image in a few steps.
+    Load the LCM checkpoint for your supported model into [`UNet2DConditionModel`](https://mindspore-lab.github.io/mindone/latest/diffusers/api/models/unet2d-cond/#mindone.diffusers.UNet2DConditionModel) and replace the scheduler with the [`LCMScheduler`](https://mindspore-lab.github.io/mindone/latest/diffusers/api/schedulers/lcm/#mindone.diffusers.LCMScheduler). Then you can use the [`load_lora_weights`](https://mindspore-lab.github.io/mindone/latest/diffusers/api/loaders/lora/#mindone.diffusers.loaders.lora_pipeline.StableDiffusionLoraLoaderMixin.load_lora_weights) method to load the LoRA weights into the LCM and generate a styled image in a few steps.
 
     ```python
     from mindone.diffusers import StableDiffusionXLPipeline, UNet2DConditionModel, LCMScheduler
@@ -288,7 +288,7 @@ LCMs are compatible with adapters like LoRA, ControlNet, T2I-Adapter, and Animat
 
 === "LCM-LoRA"
 
-    Replace the scheduler with the [`LCMScheduler`](https://mindspore-lab.github.io/mindone/latest/diffusers/api/schedulers/lcm/#mindone.diffusers.LCMScheduler). Then you can use the [`load_lora_weights`](https://mindspore-lab.github.io/mindone/latest/diffusers/api/loaders/lora/#mindone.diffusers.loaders.lora.LoraLoaderMixin.load_lora_weights) method to load the LCM-LoRA weights and the style LoRA you want to use. Combine both LoRA adapters with the [`set_adapters`](https://mindspore-lab.github.io/mindone/latest/diffusers/api/loaders/unet/#mindone.diffusers.loaders.unet.UNet2DConditionLoadersMixin.set_adapters) method and generate a styled image in a few steps.
+    Replace the scheduler with the [`LCMScheduler`](https://mindspore-lab.github.io/mindone/latest/diffusers/api/schedulers/lcm/#mindone.diffusers.LCMScheduler). Then you can use the [`load_lora_weights`](https://mindspore-lab.github.io/mindone/latest/diffusers/api/loaders/lora/#mindone.diffusers.loaders.lora_pipeline.StableDiffusionLoraLoaderMixin.load_lora_weights) method to load the LCM-LoRA weights and the style LoRA you want to use. Combine both LoRA adapters with the [`set_adapters`](https://mindspore-lab.github.io/mindone/latest/diffusers/api/loaders/unet/#mindone.diffusers.loaders.unet.UNet2DConditionLoadersMixin.set_adapters) method and generate a styled image in a few steps.
 
     ```py
     import mindspore as ms
@@ -379,7 +379,7 @@ You can find additional ControlNet models trained on other inputs in [lllyasviel
 
 === "LCM-LoRA"
 
-    Load a ControlNet model trained on canny images and pass it to the [`ControlNetModel`](https://mindspore-lab.github.io/mindone/latest/diffusers/api/models/controlnet/#mindone.diffusers.ControlNetModel). Then you can load a Stable Diffusion v1.5 model into [`StableDiffusionControlNetPipeline`](https://mindspore-lab.github.io/mindone/latest/diffusers/api/pipelines/controlnet#mindone.diffusers.StableDiffusionControlNetPipeline) and replace the scheduler with the [`LCMScheduler`](https://mindspore-lab.github.io/mindone/latest/diffusers/api/schedulers/lcm/#mindone.diffusers.LCMScheduler). Use the [`load_lora_weights`](https://mindspore-lab.github.io/mindone/latest/diffusers/api/loaders/lora/#mindone.diffusers.loaders.lora.LoraLoaderMixin.load_lora_weights) method to load the LCM-LoRA weights, and pass the canny image to the pipeline and generate an image.
+    Load a ControlNet model trained on canny images and pass it to the [`ControlNetModel`](https://mindspore-lab.github.io/mindone/latest/diffusers/api/models/controlnet/#mindone.diffusers.ControlNetModel). Then you can load a Stable Diffusion v1.5 model into [`StableDiffusionControlNetPipeline`](https://mindspore-lab.github.io/mindone/latest/diffusers/api/pipelines/controlnet#mindone.diffusers.StableDiffusionControlNetPipeline) and replace the scheduler with the [`LCMScheduler`](https://mindspore-lab.github.io/mindone/latest/diffusers/api/schedulers/lcm/#mindone.diffusers.LCMScheduler). Use the [`load_lora_weights`](https://mindspore-lab.github.io/mindone/latest/diffusers/api/loaders/lora/#mindone.diffusers.loaders.lora_pipeline.StableDiffusionLoraLoaderMixin.load_lora_weights) method to load the LCM-LoRA weights, and pass the canny image to the pipeline and generate an image.
 
     !!! tip
 
@@ -509,7 +509,7 @@ You can find additional T2I-Adapter checkpoints trained on other inputs in [Tenc
 
 === "LCM-LoRA"
 
-    Load a T2IAdapter trained on canny images and pass it to the [`StableDiffusionXLAdapterPipeline`](https://mindspore-lab.github.io/mindone/latest/diffusers/api/pipelines/stable_diffusion/adapter/#mindone.diffusers.StableDiffusionXLAdapterPipeline). Replace the scheduler with the [`LCMScheduler`](https://mindspore-lab.github.io/mindone/latest/diffusers/api/schedulers/lcm/#mindone.diffusers.LCMScheduler), and use the [`load_lora_weights`](https://mindspore-lab.github.io/mindone/latest/diffusers/api/loaders/lora/#mindone.diffusers.loaders.lora.LoraLoaderMixin.load_lora_weights) method to load the LCM-LoRA weights. Pass the canny image to the pipeline and generate an image.
+    Load a T2IAdapter trained on canny images and pass it to the [`StableDiffusionXLAdapterPipeline`](https://mindspore-lab.github.io/mindone/latest/diffusers/api/pipelines/stable_diffusion/adapter/#mindone.diffusers.StableDiffusionXLAdapterPipeline). Replace the scheduler with the [`LCMScheduler`](https://mindspore-lab.github.io/mindone/latest/diffusers/api/schedulers/lcm/#mindone.diffusers.LCMScheduler), and use the [`load_lora_weights`](https://mindspore-lab.github.io/mindone/latest/diffusers/api/loaders/lora/#mindone.diffusers.loaders.lora_pipeline.StableDiffusionLoraLoaderMixin.load_lora_weights) method to load the LCM-LoRA weights. Pass the canny image to the pipeline and generate an image.
 
     ```py
     import mindspore as ms

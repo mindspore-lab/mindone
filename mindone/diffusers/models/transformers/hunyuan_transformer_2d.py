@@ -20,20 +20,13 @@ from ...configuration_utils import ConfigMixin, register_to_config
 from ...utils import logging
 from ..activations import SiLU
 from ..attention import FeedForward
-from ..attention_processor import Attention, AttentionProcessor, HunyuanAttnProcessor
+from ..attention_processor import Attention, AttentionProcessor, HunyuanAttnProcessor2_0
 from ..embeddings import HunyuanCombinedTimestepTextSizeStyleEmbedding, PatchEmbed, PixArtAlphaTextProjection
 from ..modeling_outputs import Transformer2DModelOutput
 from ..modeling_utils import ModelMixin
-from ..normalization import AdaLayerNormContinuous, LayerNorm
+from ..normalization import AdaLayerNormContinuous, FP32LayerNorm
 
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
-
-
-class FP32LayerNorm(LayerNorm):
-    def construct(self, inputs: ms.Tensor) -> ms.Tensor:
-        origin_dtype = inputs.dtype
-        x, _, _ = self.layer_norm(inputs.float(), self.weight.float(), self.bias.float())
-        return x.to(origin_dtype)
 
 
 class AdaLayerNormShift(nn.Cell):
@@ -119,7 +112,7 @@ class HunyuanDiTBlock(nn.Cell):
             qk_norm="layer_norm" if qk_norm else None,
             eps=1e-6,
             bias=True,
-            processor=HunyuanAttnProcessor(),
+            processor=HunyuanAttnProcessor2_0(),
         )
 
         # 2. Cross-Attn
@@ -133,7 +126,7 @@ class HunyuanDiTBlock(nn.Cell):
             qk_norm="layer_norm" if qk_norm else None,
             eps=1e-6,
             bias=True,
-            processor=HunyuanAttnProcessor(),
+            processor=HunyuanAttnProcessor2_0(),
         )
         # 3. Feed-forward
         self.norm3 = FP32LayerNorm(dim, norm_eps, norm_elementwise_affine)
@@ -242,6 +235,8 @@ class HunyuanDiT2DModel(ModelMixin, ConfigMixin):
             The length of the clip text embedding.
         text_len_t5 (`int`, *optional*):
             The length of the T5 text embedding.
+        use_style_cond_and_image_meta_size (`bool`,  *optional*):
+            Whether or not to use style condition and image meta size. True for version <=1.1, False for version >= 1.2
     """
 
     @register_to_config
@@ -263,6 +258,7 @@ class HunyuanDiT2DModel(ModelMixin, ConfigMixin):
         pooled_projection_dim: int = 1024,
         text_len: int = 77,
         text_len_t5: int = 256,
+        use_style_cond_and_image_meta_size: bool = True,
     ):
         super().__init__()
         self.out_channels = in_channels * 2 if learn_sigma else in_channels
@@ -295,6 +291,7 @@ class HunyuanDiT2DModel(ModelMixin, ConfigMixin):
             pooled_projection_dim=pooled_projection_dim,
             seq_len=text_len_t5,
             cross_attention_dim=cross_attention_dim_t5,
+            use_style_cond_and_image_meta_size=use_style_cond_and_image_meta_size,
         )
 
         # HunyuanDiT Blocks
@@ -380,7 +377,7 @@ class HunyuanDiT2DModel(ModelMixin, ConfigMixin):
         """
         Disables custom attention processors and sets the default attention implementation.
         """
-        self.set_attn_processor(HunyuanAttnProcessor())
+        self.set_attn_processor(HunyuanAttnProcessor2_0())
 
     def construct(
         self,
@@ -393,6 +390,7 @@ class HunyuanDiT2DModel(ModelMixin, ConfigMixin):
         image_meta_size=None,
         style=None,
         image_rotary_emb=None,
+        controlnet_block_samples=None,
         return_dict=False,
     ):
         """
@@ -447,7 +445,13 @@ class HunyuanDiT2DModel(ModelMixin, ConfigMixin):
         skips = []
         for layer, block in enumerate(self.blocks):
             if layer > self.config["num_layers"] // 2:
-                skip = skips.pop()
+                if controlnet_block_samples is not None:
+                    skip = skips[-1] + controlnet_block_samples[-1]
+                    controlnet_block_samples = controlnet_block_samples[:-1]
+                else:
+                    skip = skips[-1]
+                skips = skips[:-1]
+
                 hidden_states = block(
                     hidden_states,
                     temb=temb,
@@ -465,6 +469,9 @@ class HunyuanDiT2DModel(ModelMixin, ConfigMixin):
 
             if layer < (self.config["num_layers"] // 2 - 1):
                 skips.append(hidden_states)
+
+        if controlnet_block_samples is not None and len(controlnet_block_samples) != 0:
+            raise ValueError("The number of controls is not equal to the number of skip connections.")
 
         # final layer
         hidden_states = self.norm_out(hidden_states, temb.to(ms.float32))

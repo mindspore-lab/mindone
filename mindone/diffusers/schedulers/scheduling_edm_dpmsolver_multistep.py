@@ -136,7 +136,7 @@ class EDMDPMSolverMultistepScheduler(SchedulerMixin, ConfigMixin):
 
         self.timesteps = self.precondition_noise(sigmas)
 
-        self.sigmas = self.sigmas = ops.cat([sigmas, ops.zeros(1, dtype=sigmas.dtype)])
+        self.sigmas = ops.cat([sigmas, ops.zeros(1, dtype=sigmas.dtype)])
 
         # setable values
         self.num_inference_steps = None

@@ -23,6 +23,9 @@ The [`from_single_file`](single_file.md#mindone.diffusers.loaders.single_file.Fr
 
 ## Supported pipelines
 
+- [`CogVideoXPipeline`](../pipelines/cogvideox.md)
+- [`CogVideoXImageToVideoPipeline`](../pipelines/cogvideox.md)
+- [`CogVideoXVideoToVideoPipeline`](../pipelines/cogvideox.md)
 - [`StableDiffusionPipeline`](../pipelines/stable_diffusion/text2img.md)
 - [`StableDiffusionImg2ImgPipeline`](../pipelines/stable_diffusion/text2img.md)
 - [`StableDiffusionInpaintPipeline`](../pipelines/stable_diffusion/text2img.md)
@@ -44,9 +47,11 @@ The [`from_single_file`](single_file.md#mindone.diffusers.loaders.single_file.Fr
 ## Supported models
 
 - [`UNet2DConditionModel`](../models/unet2d-cond.md)
-- [`StableCascadeUNet`]()
+- [`StableCascadeUNet`](../models/stable_cascade_unet.md)
 - [`AutoencoderKL`](../models/autoencoderkl.md)
+- [`AutoencoderKLCogVideoX`](../models/autoencoderkl_cogvideox.md)
 - [`ControlNetModel`](../models/controlnet.md)
 - [`SD3Transformer2DModel`](../models/sd3_transformer2d.md)
+- [`FluxTransformer2DModel`](../models/flux_transformer.md)
 
 ::: mindone.diffusers.loaders.single_file.FromSingleFileMixin

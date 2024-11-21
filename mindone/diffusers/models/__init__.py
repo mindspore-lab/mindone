@@ -20,6 +20,7 @@ _import_structure = {
     "adapter": ["MultiAdapter", "T2IAdapter"],
     "autoencoders.autoencoder_asym_kl": ["AsymmetricAutoencoderKL"],
     "autoencoders.autoencoder_kl": ["AutoencoderKL"],
+    "autoencoders.autoencoder_kl_cogvideox": ["AutoencoderKLCogVideoX"],
     "autoencoders.autoencoder_kl_temporal_decoder": ["AutoencoderKLTemporalDecoder"],
     "autoencoders.autoencoder_tiny": ["AutoencoderTiny"],
     "autoencoders.consistency_decoder_vae": ["ConsistencyDecoderVAE"],
@@ -30,6 +31,7 @@ _import_structure = {
     "dual_transformer_2d": ["DualTransformer2DModel"],
     "embeddings": ["ImageProjection"],
     "modeling_utils": ["ModelMixin"],
+    "transformers.cogvideox_transformer_3d": ["CogVideoXTransformer3DModel"],
     "transformers.dit_transformer_2d": ["DiTTransformer2DModel"],
     "transformers.dual_transformer_2d": ["DualTransformer2DModel"],
     "transformers.hunyuan_transformer_2d": ["HunyuanDiT2DModel"],
@@ -37,6 +39,7 @@ _import_structure = {
     "transformers.prior_transformer": ["PriorTransformer"],
     "transformers.t5_film_transformer": ["T5FilmDecoder"],
     "transformers.transformer_2d": ["Transformer2DModel"],
+    "transformers.transformer_flux": ["FluxTransformer2DModel"],
     "transformers.transformer_sd3": ["SD3Transformer2DModel"],
     "transformers.transformer_temporal": ["TransformerTemporalModel"],
     "unets.unet_1d": ["UNet1DModel"],
@@ -56,6 +59,7 @@ if TYPE_CHECKING:
     from .autoencoders import (
         AsymmetricAutoencoderKL,
         AutoencoderKL,
+        AutoencoderKLCogVideoX,
         AutoencoderKLTemporalDecoder,
         AutoencoderTiny,
         ConsistencyDecoderVAE,
@@ -67,8 +71,10 @@ if TYPE_CHECKING:
     from .embeddings import ImageProjection
     from .modeling_utils import ModelMixin
     from .transformers import (
+        CogVideoXTransformer3DModel,
         DiTTransformer2DModel,
         DualTransformer2DModel,
+        FluxTransformer2DModel,
         HunyuanDiT2DModel,
         PixArtTransformer2DModel,
         PriorTransformer,
