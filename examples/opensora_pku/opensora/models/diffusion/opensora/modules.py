@@ -2,7 +2,6 @@ import logging
 import numbers
 from typing import Optional, Tuple
 
-import numpy as np
 from opensora.acceleration.communications import AllToAll_SBH
 from opensora.acceleration.parallel_states import get_sequence_parallel_state, hccl_info
 from opensora.npu_config import npu_config
@@ -13,7 +12,7 @@ from mindspore.common.initializer import initializer
 
 from mindone.diffusers.models.attention import FeedForward
 from mindone.diffusers.models.attention_processor import Attention as Attention_
-from mindone.utils.version_control import check_valid_flash_attention, choose_flash_attention_dtype
+from mindone.utils.version_control import check_valid_flash_attention
 
 from ..common import PositionGetter3D, RoPE3D
 
@@ -269,7 +268,7 @@ class OpenSoraAttnProcessor2_0:
         height: int = 16,
         width: int = 16,
     ) -> ms.Tensor:
-        residual = hidden_states
+        # residual = hidden_states
 
         if get_sequence_parallel_state():
             sequence_length, batch_size, _ = (
@@ -378,6 +377,7 @@ class OpenSoraAttnProcessor2_0:
 
 
 class BasicTransformerBlock(nn.Cell):
+    @ms.lazy_inline(policy="front")
     def __init__(
         self,
         dim: int,
@@ -466,13 +466,13 @@ class BasicTransformerBlock(nn.Cell):
     def construct(
         self,
         hidden_states: ms.Tensor,
-        attention_mask: Optional[ms.Tensor] = None,
-        encoder_hidden_states: Optional[ms.Tensor] = None,
-        encoder_attention_mask: Optional[ms.Tensor] = None,
-        timestep: Optional[ms.Tensor] = None,
-        frame: int = None,
-        height: int = None,
-        width: int = None,
+        attention_mask: Optional[ms.Tensor],
+        encoder_hidden_states: Optional[ms.Tensor],
+        encoder_attention_mask: Optional[ms.Tensor],
+        timestep: Optional[ms.Tensor],
+        frame: int,
+        height: int,
+        width: int,
     ) -> ms.Tensor:
         # 0. Self-Attention
         if get_sequence_parallel_state():
