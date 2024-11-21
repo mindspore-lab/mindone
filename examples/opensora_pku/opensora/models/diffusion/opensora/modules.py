@@ -268,8 +268,6 @@ class OpenSoraAttnProcessor2_0:
         frame: int = 8,
         height: int = 16,
         width: int = 16,
-        *args,
-        **kwargs,
     ) -> ms.Tensor:
         residual = hidden_states
 
