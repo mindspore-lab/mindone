@@ -79,7 +79,7 @@ EXAMPLE_DOC_STRING = """
         ...     generator=generator,
         ...     image=canny_image,
         ...     pag_scale=10,
-        ... ).images[0]
+        ... )[0][0]
         ```
 """
 
@@ -1211,7 +1211,7 @@ class StableDiffusionControlNetPAGPipeline(
                     cross_attention_kwargs=self.cross_attention_kwargs,
                     down_block_additional_residuals=ms.mutable(down_block_res_samples),
                     mid_block_additional_residual=mid_block_res_sample,
-                    added_cond_kwargs=ms.mutable(added_cond_kwargs),
+                    added_cond_kwargs=ms.mutable(added_cond_kwargs) if added_cond_kwargs else None,
                     return_dict=False,
                 )[0]
 

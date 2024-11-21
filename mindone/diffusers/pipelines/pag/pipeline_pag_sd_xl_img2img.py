@@ -55,15 +55,14 @@ EXAMPLE_DOC_STRING = """
 
         >>> pipe = AutoPipelineForImage2Image.from_pretrained(
         ...     "stabilityai/stable-diffusion-xl-refiner-1.0",
-        ...     mindspore_dtype=.float16,
+        ...     mindspore_dtype=ms.float16,
         ...     enable_pag=True,
         ... )
-        >>> pipe = pipe.to("cuda")
         >>> url = "https://huggingface.co/datasets/patrickvonplaten/images/resolve/main/aa_xl/000000009.png"
 
         >>> init_image = load_image(url).convert("RGB")
         >>> prompt = "a photo of an astronaut riding a horse on mars"
-        >>> image = pipe(prompt, image=init_image, pag_scale=0.3).images[0]
+        >>> image = pipe(prompt, image=init_image, pag_scale=0.3)[0][0]
         ```
 """
 
@@ -1358,7 +1357,7 @@ class StableDiffusionXLPAGImg2ImgPipeline(
                     encoder_hidden_states=prompt_embeds,
                     timestep_cond=timestep_cond,
                     cross_attention_kwargs=self.cross_attention_kwargs,
-                    added_cond_kwargs=ms.mutable(added_cond_kwargs),
+                    added_cond_kwargs=ms.mutable(added_cond_kwargs) if added_cond_kwargs else None,
                     return_dict=False,
                 )[0]
 

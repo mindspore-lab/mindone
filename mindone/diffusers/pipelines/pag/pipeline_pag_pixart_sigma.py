@@ -47,7 +47,7 @@ if is_ftfy_available():
 EXAMPLE_DOC_STRING = """
     Examples:
         ```py
-        >>> import mindspore
+        >>> import mindspore as ms
         >>> from mindone.diffusers import AutoPipelineForText2Image
 
         >>> pipe = AutoPipelineForText2Image.from_pretrained(
@@ -58,7 +58,7 @@ EXAMPLE_DOC_STRING = """
         ... )
 
         >>> prompt = "A small cactus with a happy face in the Sahara desert"
-        >>> image = pipe(prompt, pag_scale=4.0, guidance_scale=1.0).[0][0]
+        >>> image = pipe(prompt, pag_scale=4.0, guidance_scale=1.0)[0][0]
         ```
 """
 
@@ -548,6 +548,7 @@ class PixArtSigmaPAGPipeline(DiffusionPipeline, PAGMixin):
 
         # scale the initial noise by the standard deviation required by the scheduler
         latents = latents * self.scheduler.init_noise_sigma
+        latents = latents.to(dtype=dtype)
         return latents
 
     def __call__(
@@ -791,7 +792,7 @@ class PixArtSigmaPAGPipeline(DiffusionPipeline, PAGMixin):
                     encoder_hidden_states=prompt_embeds,
                     encoder_attention_mask=prompt_attention_mask,
                     timestep=current_timestep,
-                    added_cond_kwargs=ms.mutable(added_cond_kwargs),
+                    added_cond_kwargs=added_cond_kwargs,  # no ms.mutable here because values in added_cond_kwargs are defined hard `None`s
                     return_dict=False,
                 )[0]
 
