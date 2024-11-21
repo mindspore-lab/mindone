@@ -14,7 +14,8 @@ python train.py \
   --env.jit_level O1 \
   --env.max_device_memory 59GB \
   --env.distributed True \
-  --train.settings.zero_stage 2 \
+  --model.model_parallelism True \
+  --train.model_parallel.model_parallel_shards 8 \
   --dataset.csv_path CSV_PATH \
   --dataset.video_folder VIDEO_FOLDER \
   --dataset.text_emb_folder.ul2 UL2_FOLDER \

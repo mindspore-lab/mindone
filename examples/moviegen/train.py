@@ -15,6 +15,7 @@ mindone_lib_path = os.path.abspath(os.path.join(__dir__, "../../"))
 sys.path.append(mindone_lib_path)
 
 from moviegen.dataset import ImageVideoDataset
+from moviegen.parallel import create_parallel_group
 from moviegen.pipelines import DiffusionWithLoss
 from moviegen.schedulers import RFlowEvalLoss, RFlowLossWrapper
 from moviegen.utils import EMA, MODEL_DTYPE, init_model
@@ -38,7 +39,15 @@ def main(args):
     args.train.output_path = args.train.output_path.absolute
     os.makedirs(args.train.output_path, exist_ok=True)
     device_id, rank_id, device_num = init_train_env(**args.env)
-    set_seed(args.env.seed + rank_id)  # TODO: do it better
+
+    # 1.1 init model parallel
+    shard_rank_id = rank_id
+    if (shards := args.train.model_parallel.model_parallel_shards) > 1:
+        create_parallel_group(**args.train.model_parallel)
+        device_num = device_num // shards
+        shard_rank_id = rank_id // shards
+
+    set_seed(args.env.seed + shard_rank_id)  # TODO: do it better
     set_logger("", output_dir=args.train.output_path, rank=rank_id)
 
     # instantiate classes only after initializing training environment
@@ -69,7 +78,7 @@ def main(args):
         dataset.train_transforms(args.dataset.target_size) if not args.dataset.apply_transforms_dataset else None
     )
     dataloader = create_dataloader(
-        dataset, transforms=transforms, device_num=device_num, rank_id=rank_id, **args.dataloader
+        dataset, transforms=transforms, device_num=device_num, rank_id=shard_rank_id, **args.dataloader
     )
 
     eval_diffusion_with_loss, val_dataloader = None, None
@@ -79,7 +88,7 @@ def main(args):
         if not args.valid.dataset.init_args.apply_transforms_dataset:
             transforms = val_dataset.train_transforms(args.valid.dataset.init_args.target_size)
         val_dataloader = create_dataloader(
-            val_dataset, transforms=transforms, device_num=device_num, rank_id=rank_id, **args.valid.dataloader
+            val_dataset, transforms=transforms, device_num=device_num, rank_id=shard_rank_id, **args.valid.dataloader
         )
         eval_rflow_loss = RFlowEvalLoss(rflow_loss_wrapper, num_sampling_steps=args.valid.sampling_steps)
         eval_diffusion_with_loss = DiffusionWithLoss(eval_rflow_loss, vae)
@@ -205,6 +214,7 @@ if __name__ == "__main__":
         create_dataloader, "dataloader", skip={"dataset", "transforms", "device_num", "rank_id"}
     )
     parser.link_arguments("env.debug", "dataloader.debug", apply_on="parse")
+    parser.add_function_arguments(create_parallel_group, "train.model_parallel")
     parser.add_function_arguments(create_scheduler, "train.lr_scheduler", skip={"steps_per_epoch", "num_epochs"})
     parser.add_class_arguments(
         ReduceLROnPlateauByStep, "train.lr_reduce_on_plateau", skip={"optimizer"}, instantiate=False

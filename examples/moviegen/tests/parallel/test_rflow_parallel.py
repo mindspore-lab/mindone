@@ -5,16 +5,16 @@ from moviegen.parallel import create_parallel_group
 from moviegen.schedulers import RFlowLossWrapper
 
 import mindspore as ms
-import mindspore.nn as nn
-import mindspore.ops as ops
-from mindspore import Tensor
+from mindspore import Tensor, nn, ops
 from mindspore.communication import get_group_size, init
 
 from mindone.utils.seed import set_random_seed
 
 
 class SimpleNet(nn.Cell):
-    def construct(self, x: Tensor, timestamp: Tensor, text_embedding: Tensor):
+    def construct(
+        self, x: Tensor, timestamp: Tensor, ul2_emb: Tensor, metaclip_emb: Tensor, byt5_emb: Tensor
+    ) -> Tensor:
         return x.to(ms.float32)
 
     @property
@@ -22,10 +22,12 @@ class SimpleNet(nn.Cell):
         return ms.float32
 
 
-def get_sample_data(dtype: ms.Type = ms.float32) -> Tuple[Tensor, Tensor]:
+def get_sample_data(dtype: ms.Type = ms.float32) -> Tuple[Tensor, ...]:
     latent_embedding = ops.rand([1, 16, 8, 24, 44], dtype=dtype)
-    text_embedding = ops.rand([1, 64, 4096], dtype=dtype)
-    return latent_embedding, text_embedding
+    ul2_emb = ops.rand([1, 64, 4096], dtype=dtype)
+    metaclip_emb = ops.rand([1, 64, 1280], dtype=dtype)
+    byt5_emb = ops.rand([1, 64, 1472], dtype=dtype)
+    return latent_embedding, ul2_emb, metaclip_emb, byt5_emb
 
 
 def run_network(mode: int = 0):
