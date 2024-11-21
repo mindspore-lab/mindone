@@ -340,6 +340,7 @@ class OpenSoraT2V_v1_3(ModelMixin, ConfigMixin):
                 attention_mask = attention_mask.to(ms.bool_)  # use bool for sdpa
         return attention_mask
 
+    @ms.jit  # use graph mode
     def construct(
         self,
         hidden_states: ms.Tensor,
