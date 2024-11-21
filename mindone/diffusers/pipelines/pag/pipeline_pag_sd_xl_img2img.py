@@ -1358,7 +1358,7 @@ class StableDiffusionXLPAGImg2ImgPipeline(
                     encoder_hidden_states=prompt_embeds,
                     timestep_cond=timestep_cond,
                     cross_attention_kwargs=self.cross_attention_kwargs,
-                    added_cond_kwargs=added_cond_kwargs,
+                    added_cond_kwargs=ms.mutable(added_cond_kwargs),
                     return_dict=False,
                 )[0]
 

@@ -791,7 +791,7 @@ class PixArtSigmaPAGPipeline(DiffusionPipeline, PAGMixin):
                     encoder_hidden_states=prompt_embeds,
                     encoder_attention_mask=prompt_attention_mask,
                     timestep=current_timestep,
-                    added_cond_kwargs=added_cond_kwargs,
+                    added_cond_kwargs=ms.mutable(added_cond_kwargs),
                     return_dict=False,
                 )[0]
 
