@@ -18,7 +18,7 @@
       
       
       <link rel="icon" href="../../../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.5.44">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.5.45">
     
     
       
@@ -2741,11 +2741,53 @@
   
   
     <li class="md-nav__item">
+      <a href="../../api/models/autoencoderkl_cogvideox/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    AutoencoderKLCogVideoX
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../api/models/asymmetricautoencoderkl/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
     AsymmetricAutoEncoderKL
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/models/stable_cascade_unet/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    StableCascadeUNet
   </span>
   
 
@@ -2872,6 +2914,48 @@
   
   <span class="md-ellipsis">
     HunyuanDiT2DModel
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/models/flux_transformer/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    FluxTransformer2DModel
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/models/cogvideox_transformer3d/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    CogVideoXTransformer3DModel
   </span>
   
 
@@ -3104,6 +3188,27 @@
   
   
     <li class="md-nav__item">
+      <a href="../../api/pipelines/cogvideox/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    CogVideoX
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../api/pipelines/consistency_models/" class="md-nav__link">
         
   
@@ -3319,6 +3424,27 @@
   
   <span class="md-ellipsis">
     DiT
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/pipelines/flux/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Flux
   </span>
   
 
@@ -3620,10 +3746,10 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_10_4_28" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_10_4_30" >
         
           
-          <label class="md-nav__link" for="__nav_2_10_4_28" id="__nav_2_10_4_28_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_2_10_4_30" id="__nav_2_10_4_30_label" tabindex="0">
             
   
   <span class="md-ellipsis">
@@ -3634,8 +3760,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="4" aria-labelledby="__nav_2_10_4_28_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_2_10_4_28">
+        <nav class="md-nav" data-md-level="4" aria-labelledby="__nav_2_10_4_30_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_10_4_30">
             <span class="md-nav__icon md-icon"></span>
             Stable Diffusion
           </label>
@@ -5178,7 +5304,12 @@ specific language governing permissions and limitations under the License.
 </div>
 <h2 id="memory-efficient-attention">Memory-efficient attention<a class="headerlink" href="#memory-efficient-attention" title="Permanent link">&para;</a></h2>
 <p>Recent work on optimizing bandwidth in the attention block has generated huge speed-ups and reductions in memory usage. The most recent type of memory-efficient attention is <a href="https://arxiv.org/abs/2205.14135">Flash Attention</a> (you can check out the original code at <a href="https://github.com/HazyResearch/flash-attention">HazyResearch/flash-attention</a>).</p>
-<p>Now call <a href="https://mindspore-lab.github.io/mindone/latest/diffusers/api/models/overview/#mindone.diffusers.ModelMixin.disable_xformers_memory_efficient_attention"><code>enable_xformers_memory_efficient_attention</code></a> on the pipeline:</p>
+<p><code>AttnProcessors</code> will automatically invoke flash-attention for scaled dot-product attention calculations when the MindSpore version and hardware support it; otherwise, it will perform the original calculation according to the formula.</p>
+<div class="admonition tip">
+<p class="admonition-title">Tip</p>
+<p>It is important to note that we need to manually set whether to force data type conversion since the flash-attention operator in MindSpore only supports <code>float16</code> and <code>bfloat16</code> data-types. When the attention interface encounters data of an unsupported data type, if <code>force_cast_dtype</code> is not None, the function will forcibly convert the data to <code>force_cast_dtype</code> for computation and then restore it to the original data type afterward. If <code>force_cast_dtype</code> is None, it will fall back to the original attention calculation using mathematical formulas.</p>
+</div>
+<p>By default, <code>force_cast_dtype</code> is set to <code>mindspore.float16</code>, call <a href="../../api/pipelines/overview/#mindone.diffusers.DiffusionPipeline.set_flash_attention_force_cast_dtype"><code>set_flash_attention_force_cast_dtype</code></a> on the pipeline to change it, and you can alse call <a href="../../api/pipelines/overview/#mindone.diffusers.DiffusionPipeline.enable_flash_sdp"><code>enable_flash_sdp(False)</code></a> to disable flash-attention:</p>
 <div class="highlight"><pre><span></span><code><span class="kn">from</span> <span class="nn">mindone.diffusers</span> <span class="kn">import</span> <span class="n">DiffusionPipeline</span>
 <span class="kn">import</span> <span class="nn">mindspore</span> <span class="k">as</span> <span class="nn">ms</span>
 
@@ -5188,12 +5319,16 @@ specific language governing permissions and limitations under the License.
     <span class="n">use_safetensors</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
 <span class="p">)</span>
 
-<span class="n">pipe</span><span class="o">.</span><span class="n">enable_xformers_memory_efficient_attention</span><span class="p">()</span>
+<span class="c1"># Optional: You can set `force_cast_dtype` for flash-attention on model-level or pipeline-level.</span>
+<span class="c1"># Default: mindspore.float16</span>
+<span class="n">pipe</span><span class="o">.</span><span class="n">set_flash_attention_force_cast_dtype</span><span class="p">(</span><span class="n">force_cast_dtype</span><span class="o">=</span><span class="n">ms</span><span class="o">.</span><span class="n">bfloat16</span><span class="p">)</span>
+<span class="n">pipe</span><span class="o">.</span><span class="n">unet</span><span class="o">.</span><span class="n">set_flash_attention_force_cast_dtype</span><span class="p">(</span><span class="n">force_cast_dtype</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span>
+
+<span class="c1"># Optional: You can disable flash-attention on model-level or pipeline-level:</span>
+<span class="c1"># pipe.enable_flash_sdp(False)</span>
+<span class="c1"># pipe.vae.enable_flash_sdp(True)</span>
 
 <span class="n">sample</span> <span class="o">=</span> <span class="n">pipe</span><span class="p">(</span><span class="s2">&quot;a small cat&quot;</span><span class="p">)</span>
-
-<span class="c1"># optional: You can disable it via</span>
-<span class="c1"># pipe.disable_xformers_memory_efficient_attention()</span>
 </code></pre></div>
 
 
@@ -5217,7 +5352,7 @@ specific language governing permissions and limitations under the License.
     <span class="md-icon" title="Last update">
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M21 13.1c-.1 0-.3.1-.4.2l-1 1 2.1 2.1 1-1c.2-.2.2-.6 0-.8l-1.3-1.3c-.1-.1-.2-.2-.4-.2m-1.9 1.8-6.1 6V23h2.1l6.1-6.1zM12.5 7v5.2l4 2.4-1 1L11 13V7zM11 21.9c-5.1-.5-9-4.8-9-9.9C2 6.5 6.5 2 12 2c5.3 0 9.6 4.1 10 9.3-.3-.1-.6-.2-1-.2s-.7.1-1 .2C19.6 7.2 16.2 4 12 4c-4.4 0-8 3.6-8 8 0 4.1 3.1 7.5 7.1 7.9l-.1.2z"/></svg>
     </span>
-    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-date">November 1, 2024</span>
+    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-date">November 21, 2024</span>
   </span>
 
     
@@ -5237,12 +5372,13 @@ specific language governing permissions and limitations under the License.
   <span class="md-source-file__fact">
     <span class="md-icon" title="Contributors">
       
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 4a4 4 0 0 1 4 4 4 4 0 0 1-4 4 4 4 0 0 1-4-4 4 4 0 0 1 4-4m0 10c4.42 0 8 1.79 8 4v2H4v-2c0-2.21 3.58-4 8-4"/></svg>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 5.5A3.5 3.5 0 0 1 15.5 9a3.5 3.5 0 0 1-3.5 3.5A3.5 3.5 0 0 1 8.5 9 3.5 3.5 0 0 1 12 5.5M5 8c.56 0 1.08.15 1.53.42-.15 1.43.27 2.85 1.13 3.96C7.16 13.34 6.16 14 5 14a3 3 0 0 1-3-3 3 3 0 0 1 3-3m14 0a3 3 0 0 1 3 3 3 3 0 0 1-3 3c-1.16 0-2.16-.66-2.66-1.62a5.54 5.54 0 0 0 1.13-3.96c.45-.27.97-.42 1.53-.42M5.5 18.25c0-2.07 2.91-3.75 6.5-3.75s6.5 1.68 6.5 3.75V20h-13zM0 20v-1.5c0-1.39 1.89-2.56 4.45-2.9-.59.68-.95 1.62-.95 2.65V20zm24 0h-3.5v-1.75c0-1.03-.36-1.97-.95-2.65 2.56.34 4.45 1.51 4.45 2.9z"/></svg>
       
     </span>
     <nav>
       
-        <a href="mailto:53842165+the-truthh@users.noreply.github.com">The-truthh</a>
+        <a href="mailto:53842165+the-truthh@users.noreply.github.com">The-truthh</a>, 
+        <a href="mailto:townwish2023@outlook.com">townwish4git</a>
     </nav>
   </span>
 

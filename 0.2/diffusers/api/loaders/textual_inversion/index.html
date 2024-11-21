@@ -18,7 +18,7 @@
       
       
       <link rel="icon" href="../../../../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.5.44">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.5.45">
     
     
       
@@ -2776,11 +2776,53 @@
   
   
     <li class="md-nav__item">
+      <a href="../../models/autoencoderkl_cogvideox/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    AutoencoderKLCogVideoX
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../models/asymmetricautoencoderkl/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
     AsymmetricAutoEncoderKL
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../models/stable_cascade_unet/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    StableCascadeUNet
   </span>
   
 
@@ -2907,6 +2949,48 @@
   
   <span class="md-ellipsis">
     HunyuanDiT2DModel
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../models/flux_transformer/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    FluxTransformer2DModel
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../models/cogvideox_transformer3d/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    CogVideoXTransformer3DModel
   </span>
   
 
@@ -3139,6 +3223,27 @@
   
   
     <li class="md-nav__item">
+      <a href="../../pipelines/cogvideox/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    CogVideoX
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../pipelines/consistency_models/" class="md-nav__link">
         
   
@@ -3354,6 +3459,27 @@
   
   <span class="md-ellipsis">
     DiT
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../pipelines/flux/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Flux
   </span>
   
 
@@ -3655,10 +3781,10 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_10_4_28" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_10_4_30" >
         
           
-          <label class="md-nav__link" for="__nav_2_10_4_28" id="__nav_2_10_4_28_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_2_10_4_30" id="__nav_2_10_4_30_label" tabindex="0">
             
   
   <span class="md-ellipsis">
@@ -3669,8 +3795,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="4" aria-labelledby="__nav_2_10_4_28_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_2_10_4_28">
+        <nav class="md-nav" data-md-level="4" aria-labelledby="__nav_2_10_4_30_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_10_4_30">
             <span class="md-nav__icon md-icon"></span>
             Stable Diffusion
           </label>
@@ -5265,7 +5391,10 @@ specific language governing permissions and limitations under the License.
 
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/loaders/textual_inversion.py</code></summary>
-                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">108</span>
+                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">105</span>
+<span class="normal">106</span>
+<span class="normal">107</span>
+<span class="normal">108</span>
 <span class="normal">109</span>
 <span class="normal">110</span>
 <span class="normal">111</span>
@@ -5685,12 +5814,7 @@ specific language governing permissions and limitations under the License.
 <span class="normal">525</span>
 <span class="normal">526</span>
 <span class="normal">527</span>
-<span class="normal">528</span>
-<span class="normal">529</span>
-<span class="normal">530</span>
-<span class="normal">531</span>
-<span class="normal">532</span>
-<span class="normal">533</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span> <span class="nc">TextualInversionLoaderMixin</span><span class="p">:</span>
+<span class="normal">528</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span> <span class="nc">TextualInversionLoaderMixin</span><span class="p">:</span>
 <span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Load Textual Inversion tokens and embeddings to the tokenizer and text encoder.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
@@ -5892,9 +6016,7 @@ specific language governing permissions and limitations under the License.
 <span class="sd">            force_download (`bool`, *optional*, defaults to `False`):</span>
 <span class="sd">                Whether or not to force the (re-)download of the model weights and configuration files, overriding the</span>
 <span class="sd">                cached versions if they exist.</span>
-<span class="sd">            resume_download:</span>
-<span class="sd">                Deprecated and ignored. All downloads are now resumed by default when possible. Will be removed in v1</span>
-<span class="sd">                of Diffusers.</span>
+
 <span class="sd">            proxies (`Dict[str, str]`, *optional*):</span>
 <span class="sd">                A dictionary of proxy servers to use by protocol or endpoint, for example, `{&#39;http&#39;: &#39;foo.bar:3128&#39;,</span>
 <span class="sd">                &#39;http://hostname&#39;: &#39;foo.bar:4012&#39;}`. The proxies are used on each request.</span>
@@ -6278,17 +6400,6 @@ cached versions if they exist.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>resume_download</code></td>
-            <td class="doc-param-details">
-              <div class="doc-md-description">
-                <p>Deprecated and ignored. All downloads are now resumed by default when possible. Will be removed in v1
-of Diffusers.</p>
-              </div>
-              <p>
-              </p>
-            </td>
-          </tr>
-          <tr class="doc-section-item">
             <td><code>proxies</code></td>
             <td class="doc-param-details">
               <div class="doc-md-description">
@@ -6401,7 +6512,10 @@ information.</p>
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/loaders/textual_inversion.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">265</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">262</span>
+<span class="normal">263</span>
+<span class="normal">264</span>
+<span class="normal">265</span>
 <span class="normal">266</span>
 <span class="normal">267</span>
 <span class="normal">268</span>
@@ -6542,12 +6656,7 @@ information.</p>
 <span class="normal">403</span>
 <span class="normal">404</span>
 <span class="normal">405</span>
-<span class="normal">406</span>
-<span class="normal">407</span>
-<span class="normal">408</span>
-<span class="normal">409</span>
-<span class="normal">410</span>
-<span class="normal">411</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@validate_hf_hub_args</span>
+<span class="normal">406</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@validate_hf_hub_args</span>
 <span class="k">def</span> <span class="nf">load_textual_inversion</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">pretrained_model_name_or_path</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span>
@@ -6592,9 +6701,7 @@ information.</p>
 <span class="sd">        force_download (`bool`, *optional*, defaults to `False`):</span>
 <span class="sd">            Whether or not to force the (re-)download of the model weights and configuration files, overriding the</span>
 <span class="sd">            cached versions if they exist.</span>
-<span class="sd">        resume_download:</span>
-<span class="sd">            Deprecated and ignored. All downloads are now resumed by default when possible. Will be removed in v1</span>
-<span class="sd">            of Diffusers.</span>
+
 <span class="sd">        proxies (`Dict[str, str]`, *optional*):</span>
 <span class="sd">            A dictionary of proxy servers to use by protocol or endpoint, for example, `{&#39;http&#39;: &#39;foo.bar:3128&#39;,</span>
 <span class="sd">            &#39;http://hostname&#39;: &#39;foo.bar:4012&#39;}`. The proxies are used on each request.</span>
@@ -6778,7 +6885,10 @@ inversion token or if the textual inversion token is a single vector, the input 
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/loaders/textual_inversion.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">113</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">110</span>
+<span class="normal">111</span>
+<span class="normal">112</span>
+<span class="normal">113</span>
 <span class="normal">114</span>
 <span class="normal">115</span>
 <span class="normal">116</span>
@@ -6800,10 +6910,7 @@ inversion token or if the textual inversion token is a single vector, the input 
 <span class="normal">132</span>
 <span class="normal">133</span>
 <span class="normal">134</span>
-<span class="normal">135</span>
-<span class="normal">136</span>
-<span class="normal">137</span>
-<span class="normal">138</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">maybe_convert_prompt</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">prompt</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]],</span> <span class="n">tokenizer</span><span class="p">:</span> <span class="s2">&quot;PreTrainedTokenizer&quot;</span><span class="p">):</span>  <span class="c1"># noqa: F821</span>
+<span class="normal">135</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">maybe_convert_prompt</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">prompt</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]],</span> <span class="n">tokenizer</span><span class="p">:</span> <span class="s2">&quot;PreTrainedTokenizer&quot;</span><span class="p">):</span>  <span class="c1"># noqa: F821</span>
 <span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Processes prompts that include a special token corresponding to a multi-vector textual inversion embedding to</span>
 <span class="sd">    be replaced with multiple special tokens each corresponding to one of the vectors. If the prompt has no textual</span>
@@ -6902,7 +7009,12 @@ inversion token or if the textual inversion token is a single vector, the input 
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/loaders/textual_inversion.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">413</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">408</span>
+<span class="normal">409</span>
+<span class="normal">410</span>
+<span class="normal">411</span>
+<span class="normal">412</span>
+<span class="normal">413</span>
 <span class="normal">414</span>
 <span class="normal">415</span>
 <span class="normal">416</span>
@@ -7017,12 +7129,7 @@ inversion token or if the textual inversion token is a single vector, the input 
 <span class="normal">525</span>
 <span class="normal">526</span>
 <span class="normal">527</span>
-<span class="normal">528</span>
-<span class="normal">529</span>
-<span class="normal">530</span>
-<span class="normal">531</span>
-<span class="normal">532</span>
-<span class="normal">533</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">unload_textual_inversion</span><span class="p">(</span>
+<span class="normal">528</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">unload_textual_inversion</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">tokens</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="n">tokenizer</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="s2">&quot;PreTrainedTokenizer&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>

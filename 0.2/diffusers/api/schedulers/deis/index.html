@@ -18,7 +18,7 @@
       
       
       <link rel="icon" href="../../../../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.5.44">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.5.45">
     
     
       
@@ -2692,11 +2692,53 @@
   
   
     <li class="md-nav__item">
+      <a href="../../models/autoencoderkl_cogvideox/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    AutoencoderKLCogVideoX
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../models/asymmetricautoencoderkl/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
     AsymmetricAutoEncoderKL
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../models/stable_cascade_unet/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    StableCascadeUNet
   </span>
   
 
@@ -2823,6 +2865,48 @@
   
   <span class="md-ellipsis">
     HunyuanDiT2DModel
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../models/flux_transformer/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    FluxTransformer2DModel
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../models/cogvideox_transformer3d/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    CogVideoXTransformer3DModel
   </span>
   
 
@@ -3055,6 +3139,27 @@
   
   
     <li class="md-nav__item">
+      <a href="../../pipelines/cogvideox/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    CogVideoX
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../pipelines/consistency_models/" class="md-nav__link">
         
   
@@ -3270,6 +3375,27 @@
   
   <span class="md-ellipsis">
     DiT
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../pipelines/flux/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Flux
   </span>
   
 
@@ -3571,10 +3697,10 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_10_4_28" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_10_4_30" >
         
           
-          <label class="md-nav__link" for="__nav_2_10_4_28" id="__nav_2_10_4_28_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_2_10_4_30" id="__nav_2_10_4_30_label" tabindex="0">
             
   
   <span class="md-ellipsis">
@@ -3585,8 +3711,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="4" aria-labelledby="__nav_2_10_4_28_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_2_10_4_28">
+        <nav class="md-nav" data-md-level="4" aria-labelledby="__nav_2_10_4_30_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_10_4_30">
             <span class="md-nav__icon md-icon"></span>
             Stable Diffusion
           </label>
@@ -7025,7 +7151,7 @@ Sample Steps are Flawed</a> for more information.</p>
     <span class="k">def</span> <span class="nf">step</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span>
         <span class="n">model_output</span><span class="p">:</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span>
-        <span class="n">timestep</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+        <span class="n">timestep</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">],</span>
         <span class="n">sample</span><span class="p">:</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span>
         <span class="n">return_dict</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Union</span><span class="p">[</span><span class="n">SchedulerOutput</span><span class="p">,</span> <span class="n">Tuple</span><span class="p">]:</span>
@@ -7036,7 +7162,7 @@ Sample Steps are Flawed</a> for more information.</p>
 <span class="sd">        Args:</span>
 <span class="sd">            model_output (`ms.Tensor`):</span>
 <span class="sd">                The direct output from learned diffusion model.</span>
-<span class="sd">            timestep (`float`):</span>
+<span class="sd">            timestep (`int`):</span>
 <span class="sd">                The current discrete timestep in the diffusion chain.</span>
 <span class="sd">            sample (`ms.Tensor`):</span>
 <span class="sd">                A current instance of a sample created by the diffusion process.</span>
@@ -8512,7 +8638,7 @@ the multistep DEIS.</p>
               <p>
                   <span class="doc-param-annotation">
                     <b>TYPE:</b>
-                      <code>`float`</code>
+                      <code>`int`</code>
                   </span>
               </p>
             </td>
@@ -8646,7 +8772,7 @@ tuple is returned where the first element is the sample tensor.</p>
 <span class="normal">742</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">step</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">model_output</span><span class="p">:</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span>
-    <span class="n">timestep</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+    <span class="n">timestep</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">],</span>
     <span class="n">sample</span><span class="p">:</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span>
     <span class="n">return_dict</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Union</span><span class="p">[</span><span class="n">SchedulerOutput</span><span class="p">,</span> <span class="n">Tuple</span><span class="p">]:</span>
@@ -8657,7 +8783,7 @@ tuple is returned where the first element is the sample tensor.</p>
 <span class="sd">    Args:</span>
 <span class="sd">        model_output (`ms.Tensor`):</span>
 <span class="sd">            The direct output from learned diffusion model.</span>
-<span class="sd">        timestep (`float`):</span>
+<span class="sd">        timestep (`int`):</span>
 <span class="sd">            The current discrete timestep in the diffusion chain.</span>
 <span class="sd">        sample (`ms.Tensor`):</span>
 <span class="sd">            A current instance of a sample created by the diffusion process.</span>

@@ -18,7 +18,7 @@
       
       
       <link rel="icon" href="../../../../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.5.44">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.5.45">
     
     
       
@@ -2794,11 +2794,53 @@
   
   
     <li class="md-nav__item">
+      <a href="../autoencoderkl_cogvideox/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    AutoencoderKLCogVideoX
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../asymmetricautoencoderkl/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
     AsymmetricAutoEncoderKL
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../stable_cascade_unet/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    StableCascadeUNet
   </span>
   
 
@@ -2925,6 +2967,48 @@
   
   <span class="md-ellipsis">
     HunyuanDiT2DModel
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../flux_transformer/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    FluxTransformer2DModel
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../cogvideox_transformer3d/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    CogVideoXTransformer3DModel
   </span>
   
 
@@ -3157,6 +3241,27 @@
   
   
     <li class="md-nav__item">
+      <a href="../../pipelines/cogvideox/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    CogVideoX
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../pipelines/consistency_models/" class="md-nav__link">
         
   
@@ -3372,6 +3477,27 @@
   
   <span class="md-ellipsis">
     DiT
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../pipelines/flux/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Flux
   </span>
   
 
@@ -3673,10 +3799,10 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_10_4_28" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_10_4_30" >
         
           
-          <label class="md-nav__link" for="__nav_2_10_4_28" id="__nav_2_10_4_28_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_2_10_4_30" id="__nav_2_10_4_30_label" tabindex="0">
             
   
   <span class="md-ellipsis">
@@ -3687,8 +3813,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="4" aria-labelledby="__nav_2_10_4_28_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_2_10_4_28">
+        <nav class="md-nav" data-md-level="4" aria-labelledby="__nav_2_10_4_30_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_10_4_30">
             <span class="md-nav__icon md-icon"></span>
             Stable Diffusion
           </label>
@@ -7184,7 +7310,17 @@ otherwise.</p>
 <span class="normal">1190</span>
 <span class="normal">1191</span>
 <span class="normal">1192</span>
-<span class="normal">1193</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span> <span class="nc">UNet2DConditionModel</span><span class="p">(</span>
+<span class="normal">1193</span>
+<span class="normal">1194</span>
+<span class="normal">1195</span>
+<span class="normal">1196</span>
+<span class="normal">1197</span>
+<span class="normal">1198</span>
+<span class="normal">1199</span>
+<span class="normal">1200</span>
+<span class="normal">1201</span>
+<span class="normal">1202</span>
+<span class="normal">1203</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span> <span class="nc">UNet2DConditionModel</span><span class="p">(</span>
     <span class="n">ModelMixin</span><span class="p">,</span> <span class="n">ConfigMixin</span><span class="p">,</span> <span class="n">FromOriginalModelMixin</span><span class="p">,</span> <span class="n">UNet2DConditionLoadersMixin</span><span class="p">,</span> <span class="n">PeftAdapterMixin</span>
 <span class="p">):</span>
 <span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
@@ -7403,6 +7539,10 @@ otherwise.</p>
             <span class="n">encoder_hid_dim_type</span><span class="p">,</span>
             <span class="n">cross_attention_dim</span><span class="o">=</span><span class="n">cross_attention_dim</span><span class="p">,</span>
             <span class="n">encoder_hid_dim</span><span class="o">=</span><span class="n">encoder_hid_dim</span><span class="p">,</span>
+        <span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">has_text_encoder_hid_proj</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="kc">False</span>  <span class="c1"># Used in `process_encoder_hidden_states`, Kolors Unet already has a `encoder_hid_proj`</span>
         <span class="p">)</span>
 
         <span class="c1"># class embedding</span>
@@ -8026,6 +8166,12 @@ otherwise.</p>
                 <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
                     <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="vm">__class__</span><span class="si">}</span><span class="s2"> has the config param `encoder_hid_dim_type` set to &#39;ip_image_proj&#39; which requires the keyword argument `image_embeds` to be passed in  `added_conditions`&quot;</span>  <span class="c1"># noqa: E501</span>
                 <span class="p">)</span>
+
+            <span class="k">if</span> <span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">has_text_encoder_hid_proj</span>
+            <span class="p">):</span>  <span class="c1"># abandon `hasattr` as it is not supported by static graph before MindSpore 2.3</span>
+                <span class="n">encoder_hidden_states</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">text_encoder_hid_proj</span><span class="p">(</span><span class="n">encoder_hidden_states</span><span class="p">)</span>
+
             <span class="n">image_embeds</span> <span class="o">=</span> <span class="n">added_cond_kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;image_embeds&quot;</span><span class="p">)</span>
             <span class="n">image_embeds</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">encoder_hid_proj</span><span class="p">(</span><span class="n">image_embeds</span><span class="p">)</span>
             <span class="n">encoder_hidden_states</span> <span class="o">=</span> <span class="p">(</span><span class="n">encoder_hidden_states</span><span class="p">,</span> <span class="n">image_embeds</span><span class="p">)</span>
@@ -8679,17 +8825,7 @@ otherwise a <code>tuple</code> is returned where the first element is the sample
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/models/unets/unet_2d_condition.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"> 905</span>
-<span class="normal"> 906</span>
-<span class="normal"> 907</span>
-<span class="normal"> 908</span>
-<span class="normal"> 909</span>
-<span class="normal"> 910</span>
-<span class="normal"> 911</span>
-<span class="normal"> 912</span>
-<span class="normal"> 913</span>
-<span class="normal"> 914</span>
-<span class="normal"> 915</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"> 915</span>
 <span class="normal"> 916</span>
 <span class="normal"> 917</span>
 <span class="normal"> 918</span>
@@ -8967,7 +9103,17 @@ otherwise a <code>tuple</code> is returned where the first element is the sample
 <span class="normal">1190</span>
 <span class="normal">1191</span>
 <span class="normal">1192</span>
-<span class="normal">1193</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">construct</span><span class="p">(</span>
+<span class="normal">1193</span>
+<span class="normal">1194</span>
+<span class="normal">1195</span>
+<span class="normal">1196</span>
+<span class="normal">1197</span>
+<span class="normal">1198</span>
+<span class="normal">1199</span>
+<span class="normal">1200</span>
+<span class="normal">1201</span>
+<span class="normal">1202</span>
+<span class="normal">1203</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">construct</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">sample</span><span class="p">:</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span>
     <span class="n">timestep</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="nb">float</span><span class="p">,</span> <span class="nb">int</span><span class="p">],</span>
@@ -9306,11 +9452,7 @@ processor. This is strongly recommended when setting trainable attention process
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/models/unets/unet_2d_condition.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">727</span>
-<span class="normal">728</span>
-<span class="normal">729</span>
-<span class="normal">730</span>
-<span class="normal">731</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">731</span>
 <span class="normal">732</span>
 <span class="normal">733</span>
 <span class="normal">734</span>
@@ -9338,7 +9480,11 @@ processor. This is strongly recommended when setting trainable attention process
 <span class="normal">756</span>
 <span class="normal">757</span>
 <span class="normal">758</span>
-<span class="normal">759</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">set_attn_processor</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">processor</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">AttentionProcessor</span><span class="p">,</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">AttentionProcessor</span><span class="p">]]):</span>
+<span class="normal">759</span>
+<span class="normal">760</span>
+<span class="normal">761</span>
+<span class="normal">762</span>
+<span class="normal">763</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">set_attn_processor</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">processor</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">AttentionProcessor</span><span class="p">,</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">AttentionProcessor</span><span class="p">]]):</span>
 <span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Sets the attention processor to use to compute attention.</span>
 
@@ -9392,18 +9538,18 @@ processor. This is strongly recommended when setting trainable attention process
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/models/unets/unet_2d_condition.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">761</span>
-<span class="normal">762</span>
-<span class="normal">763</span>
-<span class="normal">764</span>
-<span class="normal">765</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">765</span>
 <span class="normal">766</span>
 <span class="normal">767</span>
 <span class="normal">768</span>
 <span class="normal">769</span>
 <span class="normal">770</span>
 <span class="normal">771</span>
-<span class="normal">772</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">set_default_attn_processor</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="normal">772</span>
+<span class="normal">773</span>
+<span class="normal">774</span>
+<span class="normal">775</span>
+<span class="normal">776</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">set_default_attn_processor</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Disables custom attention processors and sets the default attention implementation.</span>
 <span class="sd">    &quot;&quot;&quot;</span>

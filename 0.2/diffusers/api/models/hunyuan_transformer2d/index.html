@@ -14,11 +14,11 @@
         <link rel="prev" href="../dit_transformer2d/">
       
       
-        <link rel="next" href="../transformer_temporal/">
+        <link rel="next" href="../flux_transformer/">
       
       
       <link rel="icon" href="../../../../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.5.44">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.5.45">
     
     
       
@@ -2694,11 +2694,53 @@
   
   
     <li class="md-nav__item">
+      <a href="../autoencoderkl_cogvideox/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    AutoencoderKLCogVideoX
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../asymmetricautoencoderkl/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
     AsymmetricAutoEncoderKL
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../stable_cascade_unet/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    StableCascadeUNet
   </span>
   
 
@@ -2941,6 +2983,48 @@
   
   
     <li class="md-nav__item">
+      <a href="../flux_transformer/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    FluxTransformer2DModel
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../cogvideox_transformer3d/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    CogVideoXTransformer3DModel
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../transformer_temporal/" class="md-nav__link">
         
   
@@ -3141,6 +3225,27 @@
   
   <span class="md-ellipsis">
     BLIP-Diffusion
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../pipelines/cogvideox/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    CogVideoX
   </span>
   
 
@@ -3372,6 +3477,27 @@
   
   <span class="md-ellipsis">
     DiT
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../pipelines/flux/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Flux
   </span>
   
 
@@ -3673,10 +3799,10 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_10_4_28" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_10_4_30" >
         
           
-          <label class="md-nav__link" for="__nav_2_10_4_28" id="__nav_2_10_4_28_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_2_10_4_30" id="__nav_2_10_4_30_label" tabindex="0">
             
   
   <span class="md-ellipsis">
@@ -3687,8 +3813,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="4" aria-labelledby="__nav_2_10_4_28_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_2_10_4_28">
+        <nav class="md-nav" data-md-level="4" aria-labelledby="__nav_2_10_4_30_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_10_4_30">
             <span class="md-nav__icon md-icon"></span>
             Stable Diffusion
           </label>
@@ -5590,12 +5716,37 @@ position embeddings.</p>
               </p>
             </td>
           </tr>
+          <tr class="doc-section-item">
+            <td><code>use_style_cond_and_image_meta_size</code></td>
+            <td class="doc-param-details">
+              <div class="doc-md-description">
+                <p>Whether or not to use style condition and image meta size. True for version &lt;=1.1, False for version &gt;= 1.2</p>
+              </div>
+              <p>
+                  <span class="doc-param-annotation">
+                    <b>TYPE:</b>
+                      <code>`bool`,  *optional*</code>
+                  </span>
+                  <span class="doc-param-default">
+                    <b>DEFAULT:</b>
+                      <code>True</code>
+                  </span>
+              </p>
+            </td>
+          </tr>
       </tbody>
     </table>
 
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/models/transformers/hunyuan_transformer_2d.py</code></summary>
-                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">205</span>
+                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">198</span>
+<span class="normal">199</span>
+<span class="normal">200</span>
+<span class="normal">201</span>
+<span class="normal">202</span>
+<span class="normal">203</span>
+<span class="normal">204</span>
+<span class="normal">205</span>
 <span class="normal">206</span>
 <span class="normal">207</span>
 <span class="normal">208</span>
@@ -5921,7 +6072,14 @@ position embeddings.</p>
 <span class="normal">528</span>
 <span class="normal">529</span>
 <span class="normal">530</span>
-<span class="normal">531</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span> <span class="nc">HunyuanDiT2DModel</span><span class="p">(</span><span class="n">ModelMixin</span><span class="p">,</span> <span class="n">ConfigMixin</span><span class="p">):</span>
+<span class="normal">531</span>
+<span class="normal">532</span>
+<span class="normal">533</span>
+<span class="normal">534</span>
+<span class="normal">535</span>
+<span class="normal">536</span>
+<span class="normal">537</span>
+<span class="normal">538</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span> <span class="nc">HunyuanDiT2DModel</span><span class="p">(</span><span class="n">ModelMixin</span><span class="p">,</span> <span class="n">ConfigMixin</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    HunYuanDiT: Diffusion model with a Transformer backbone.</span>
 
@@ -5961,6 +6119,8 @@ position embeddings.</p>
 <span class="sd">            The length of the clip text embedding.</span>
 <span class="sd">        text_len_t5 (`int`, *optional*):</span>
 <span class="sd">            The length of the T5 text embedding.</span>
+<span class="sd">        use_style_cond_and_image_meta_size (`bool`,  *optional*):</span>
+<span class="sd">            Whether or not to use style condition and image meta size. True for version &lt;=1.1, False for version &gt;= 1.2</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
     <span class="nd">@register_to_config</span>
@@ -5982,6 +6142,7 @@ position embeddings.</p>
         <span class="n">pooled_projection_dim</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1024</span><span class="p">,</span>
         <span class="n">text_len</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">77</span><span class="p">,</span>
         <span class="n">text_len_t5</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">256</span><span class="p">,</span>
+        <span class="n">use_style_cond_and_image_meta_size</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
     <span class="p">):</span>
         <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">out_channels</span> <span class="o">=</span> <span class="n">in_channels</span> <span class="o">*</span> <span class="mi">2</span> <span class="k">if</span> <span class="n">learn_sigma</span> <span class="k">else</span> <span class="n">in_channels</span>
@@ -6014,6 +6175,7 @@ position embeddings.</p>
             <span class="n">pooled_projection_dim</span><span class="o">=</span><span class="n">pooled_projection_dim</span><span class="p">,</span>
             <span class="n">seq_len</span><span class="o">=</span><span class="n">text_len_t5</span><span class="p">,</span>
             <span class="n">cross_attention_dim</span><span class="o">=</span><span class="n">cross_attention_dim_t5</span><span class="p">,</span>
+            <span class="n">use_style_cond_and_image_meta_size</span><span class="o">=</span><span class="n">use_style_cond_and_image_meta_size</span><span class="p">,</span>
         <span class="p">)</span>
 
         <span class="c1"># HunyuanDiT Blocks</span>
@@ -6099,7 +6261,7 @@ position embeddings.</p>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Disables custom attention processors and sets the default attention implementation.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">set_attn_processor</span><span class="p">(</span><span class="n">HunyuanAttnProcessor</span><span class="p">())</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">set_attn_processor</span><span class="p">(</span><span class="n">HunyuanAttnProcessor2_0</span><span class="p">())</span>
 
     <span class="k">def</span> <span class="nf">construct</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span>
@@ -6112,6 +6274,7 @@ position embeddings.</p>
         <span class="n">image_meta_size</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
         <span class="n">style</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
         <span class="n">image_rotary_emb</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+        <span class="n">controlnet_block_samples</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
         <span class="n">return_dict</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
     <span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
@@ -6166,7 +6329,13 @@ position embeddings.</p>
         <span class="n">skips</span> <span class="o">=</span> <span class="p">[]</span>
         <span class="k">for</span> <span class="n">layer</span><span class="p">,</span> <span class="n">block</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">blocks</span><span class="p">):</span>
             <span class="k">if</span> <span class="n">layer</span> <span class="o">&gt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="p">[</span><span class="s2">&quot;num_layers&quot;</span><span class="p">]</span> <span class="o">//</span> <span class="mi">2</span><span class="p">:</span>
-                <span class="n">skip</span> <span class="o">=</span> <span class="n">skips</span><span class="o">.</span><span class="n">pop</span><span class="p">()</span>
+                <span class="k">if</span> <span class="n">controlnet_block_samples</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                    <span class="n">skip</span> <span class="o">=</span> <span class="n">skips</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">+</span> <span class="n">controlnet_block_samples</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+                    <span class="n">controlnet_block_samples</span> <span class="o">=</span> <span class="n">controlnet_block_samples</span><span class="p">[:</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">skip</span> <span class="o">=</span> <span class="n">skips</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+                <span class="n">skips</span> <span class="o">=</span> <span class="n">skips</span><span class="p">[:</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+
                 <span class="n">hidden_states</span> <span class="o">=</span> <span class="n">block</span><span class="p">(</span>
                     <span class="n">hidden_states</span><span class="p">,</span>
                     <span class="n">temb</span><span class="o">=</span><span class="n">temb</span><span class="p">,</span>
@@ -6184,6 +6353,9 @@ position embeddings.</p>
 
             <span class="k">if</span> <span class="n">layer</span> <span class="o">&lt;</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="p">[</span><span class="s2">&quot;num_layers&quot;</span><span class="p">]</span> <span class="o">//</span> <span class="mi">2</span> <span class="o">-</span> <span class="mi">1</span><span class="p">):</span>
                 <span class="n">skips</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">hidden_states</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">controlnet_block_samples</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="n">controlnet_block_samples</span><span class="p">)</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;The number of controls is not equal to the number of skip connections.&quot;</span><span class="p">)</span>
 
         <span class="c1"># final layer</span>
         <span class="n">hidden_states</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">norm_out</span><span class="p">(</span><span class="n">hidden_states</span><span class="p">,</span> <span class="n">temb</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">ms</span><span class="o">.</span><span class="n">float32</span><span class="p">))</span>
@@ -6323,7 +6495,7 @@ position embeddings.</p>
 
 
 <h3 id="mindone.diffusers.HunyuanDiT2DModel.construct" class="doc doc-heading">
-            <code class="highlight language-python"><span class="n">mindone</span><span class="o">.</span><span class="n">diffusers</span><span class="o">.</span><span class="n">HunyuanDiT2DModel</span><span class="o">.</span><span class="n">construct</span><span class="p">(</span><span class="n">hidden_states</span><span class="p">,</span> <span class="n">timestep</span><span class="p">,</span> <span class="n">encoder_hidden_states</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">text_embedding_mask</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">encoder_hidden_states_t5</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">text_embedding_mask_t5</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">image_meta_size</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">style</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">image_rotary_emb</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">return_dict</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span></code>
+            <code class="highlight language-python"><span class="n">mindone</span><span class="o">.</span><span class="n">diffusers</span><span class="o">.</span><span class="n">HunyuanDiT2DModel</span><span class="o">.</span><span class="n">construct</span><span class="p">(</span><span class="n">hidden_states</span><span class="p">,</span> <span class="n">timestep</span><span class="p">,</span> <span class="n">encoder_hidden_states</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">text_embedding_mask</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">encoder_hidden_states_t5</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">text_embedding_mask_t5</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">image_meta_size</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">style</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">image_rotary_emb</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">controlnet_block_samples</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">return_dict</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span></code>
 
 <a href="#mindone.diffusers.HunyuanDiT2DModel.construct" class="headerlink" title="Permanent link">&para;</a></h3>
 
@@ -6356,7 +6528,10 @@ return_dict: bool
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/models/transformers/hunyuan_transformer_2d.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">385</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">382</span>
+<span class="normal">383</span>
+<span class="normal">384</span>
+<span class="normal">385</span>
 <span class="normal">386</span>
 <span class="normal">387</span>
 <span class="normal">388</span>
@@ -6460,7 +6635,14 @@ return_dict: bool
 <span class="normal">486</span>
 <span class="normal">487</span>
 <span class="normal">488</span>
-<span class="normal">489</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">construct</span><span class="p">(</span>
+<span class="normal">489</span>
+<span class="normal">490</span>
+<span class="normal">491</span>
+<span class="normal">492</span>
+<span class="normal">493</span>
+<span class="normal">494</span>
+<span class="normal">495</span>
+<span class="normal">496</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">construct</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">hidden_states</span><span class="p">,</span>
     <span class="n">timestep</span><span class="p">,</span>
@@ -6471,6 +6653,7 @@ return_dict: bool
     <span class="n">image_meta_size</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
     <span class="n">style</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
     <span class="n">image_rotary_emb</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+    <span class="n">controlnet_block_samples</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
     <span class="n">return_dict</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
 <span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
@@ -6525,7 +6708,13 @@ return_dict: bool
     <span class="n">skips</span> <span class="o">=</span> <span class="p">[]</span>
     <span class="k">for</span> <span class="n">layer</span><span class="p">,</span> <span class="n">block</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">blocks</span><span class="p">):</span>
         <span class="k">if</span> <span class="n">layer</span> <span class="o">&gt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="p">[</span><span class="s2">&quot;num_layers&quot;</span><span class="p">]</span> <span class="o">//</span> <span class="mi">2</span><span class="p">:</span>
-            <span class="n">skip</span> <span class="o">=</span> <span class="n">skips</span><span class="o">.</span><span class="n">pop</span><span class="p">()</span>
+            <span class="k">if</span> <span class="n">controlnet_block_samples</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">skip</span> <span class="o">=</span> <span class="n">skips</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">+</span> <span class="n">controlnet_block_samples</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+                <span class="n">controlnet_block_samples</span> <span class="o">=</span> <span class="n">controlnet_block_samples</span><span class="p">[:</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">skip</span> <span class="o">=</span> <span class="n">skips</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+            <span class="n">skips</span> <span class="o">=</span> <span class="n">skips</span><span class="p">[:</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+
             <span class="n">hidden_states</span> <span class="o">=</span> <span class="n">block</span><span class="p">(</span>
                 <span class="n">hidden_states</span><span class="p">,</span>
                 <span class="n">temb</span><span class="o">=</span><span class="n">temb</span><span class="p">,</span>
@@ -6543,6 +6732,9 @@ return_dict: bool
 
         <span class="k">if</span> <span class="n">layer</span> <span class="o">&lt;</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="p">[</span><span class="s2">&quot;num_layers&quot;</span><span class="p">]</span> <span class="o">//</span> <span class="mi">2</span> <span class="o">-</span> <span class="mi">1</span><span class="p">):</span>
             <span class="n">skips</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">hidden_states</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">controlnet_block_samples</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="n">controlnet_block_samples</span><span class="p">)</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;The number of controls is not equal to the number of skip connections.&quot;</span><span class="p">)</span>
 
     <span class="c1"># final layer</span>
     <span class="n">hidden_states</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">norm_out</span><span class="p">(</span><span class="n">hidden_states</span><span class="p">,</span> <span class="n">temb</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">ms</span><span class="o">.</span><span class="n">float32</span><span class="p">))</span>
@@ -6637,14 +6829,7 @@ or dim=1 (sequence length).</p>
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/models/transformers/hunyuan_transformer_2d.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">492</span>
-<span class="normal">493</span>
-<span class="normal">494</span>
-<span class="normal">495</span>
-<span class="normal">496</span>
-<span class="normal">497</span>
-<span class="normal">498</span>
-<span class="normal">499</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">499</span>
 <span class="normal">500</span>
 <span class="normal">501</span>
 <span class="normal">502</span>
@@ -6664,7 +6849,14 @@ or dim=1 (sequence length).</p>
 <span class="normal">516</span>
 <span class="normal">517</span>
 <span class="normal">518</span>
-<span class="normal">519</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">enable_forward_chunking</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">chunk_size</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">dim</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="normal">519</span>
+<span class="normal">520</span>
+<span class="normal">521</span>
+<span class="normal">522</span>
+<span class="normal">523</span>
+<span class="normal">524</span>
+<span class="normal">525</span>
+<span class="normal">526</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">enable_forward_chunking</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">chunk_size</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">dim</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Sets the attention processor to use [feed forward</span>
 <span class="sd">    chunking](https://huggingface.co/blog/reformer#2-chunked-feed-forward-layers).</span>
@@ -6742,7 +6934,10 @@ processor. This is strongly recommended when setting trainable attention process
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/models/transformers/hunyuan_transformer_2d.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">345</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">342</span>
+<span class="normal">343</span>
+<span class="normal">344</span>
+<span class="normal">345</span>
 <span class="normal">346</span>
 <span class="normal">347</span>
 <span class="normal">348</span>
@@ -6771,10 +6966,7 @@ processor. This is strongly recommended when setting trainable attention process
 <span class="normal">371</span>
 <span class="normal">372</span>
 <span class="normal">373</span>
-<span class="normal">374</span>
-<span class="normal">375</span>
-<span class="normal">376</span>
-<span class="normal">377</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">set_attn_processor</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">processor</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">AttentionProcessor</span><span class="p">,</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">AttentionProcessor</span><span class="p">]]):</span>
+<span class="normal">374</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">set_attn_processor</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">processor</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">AttentionProcessor</span><span class="p">,</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">AttentionProcessor</span><span class="p">]]):</span>
 <span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Sets the attention processor to use to compute attention.</span>
 
@@ -6828,15 +7020,15 @@ processor. This is strongly recommended when setting trainable attention process
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/models/transformers/hunyuan_transformer_2d.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">379</span>
-<span class="normal">380</span>
-<span class="normal">381</span>
-<span class="normal">382</span>
-<span class="normal">383</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">set_default_attn_processor</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">376</span>
+<span class="normal">377</span>
+<span class="normal">378</span>
+<span class="normal">379</span>
+<span class="normal">380</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">set_default_attn_processor</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Disables custom attention processors and sets the default attention implementation.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
-    <span class="bp">self</span><span class="o">.</span><span class="n">set_attn_processor</span><span class="p">(</span><span class="n">HunyuanAttnProcessor</span><span class="p">())</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">set_attn_processor</span><span class="p">(</span><span class="n">HunyuanAttnProcessor2_0</span><span class="p">())</span>
 </code></pre></div></td></tr></table></div>
             </details>
     </div>
@@ -6951,13 +7143,13 @@ processor. This is strongly recommended when setting trainable attention process
         
         
           
-          <a href="../transformer_temporal/" class="md-footer__link md-footer__link--next" aria-label="Next: TransformerTemporalModel">
+          <a href="../flux_transformer/" class="md-footer__link md-footer__link--next" aria-label="Next: FluxTransformer2DModel">
             <div class="md-footer__title">
               <span class="md-footer__direction">
                 Next
               </span>
               <div class="md-ellipsis">
-                TransformerTemporalModel
+                FluxTransformer2DModel
               </div>
             </div>
             <div class="md-footer__button md-icon">

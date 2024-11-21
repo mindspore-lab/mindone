@@ -18,7 +18,7 @@
       
       
       <link rel="icon" href="../../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.5.44">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.5.45">
     
     
       
@@ -2777,11 +2777,53 @@
   
   
     <li class="md-nav__item">
+      <a href="../api/models/autoencoderkl_cogvideox/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    AutoencoderKLCogVideoX
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../api/models/asymmetricautoencoderkl/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
     AsymmetricAutoEncoderKL
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/models/stable_cascade_unet/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    StableCascadeUNet
   </span>
   
 
@@ -2908,6 +2950,48 @@
   
   <span class="md-ellipsis">
     HunyuanDiT2DModel
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/models/flux_transformer/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    FluxTransformer2DModel
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/models/cogvideox_transformer3d/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    CogVideoXTransformer3DModel
   </span>
   
 
@@ -3140,6 +3224,27 @@
   
   
     <li class="md-nav__item">
+      <a href="../api/pipelines/cogvideox/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    CogVideoX
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../api/pipelines/consistency_models/" class="md-nav__link">
         
   
@@ -3355,6 +3460,27 @@
   
   <span class="md-ellipsis">
     DiT
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/pipelines/flux/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Flux
   </span>
   
 
@@ -3656,10 +3782,10 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_10_4_28" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_10_4_30" >
         
           
-          <label class="md-nav__link" for="__nav_2_10_4_28" id="__nav_2_10_4_28_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_2_10_4_30" id="__nav_2_10_4_30_label" tabindex="0">
             
   
   <span class="md-ellipsis">
@@ -3670,8 +3796,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="4" aria-labelledby="__nav_2_10_4_28_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_2_10_4_28">
+        <nav class="md-nav" data-md-level="4" aria-labelledby="__nav_2_10_4_30_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_10_4_30">
             <span class="md-nav__icon md-icon"></span>
             Stable Diffusion
           </label>
@@ -5243,7 +5369,8 @@ specific language governing permissions and limitations under the License.
 -->
 
 <h1 id="installation">Installation<a class="headerlink" href="#installation" title="Permanent link">&para;</a></h1>
-<p>🤗 Diffusers is tested on Python 3.8+, MindSpore 2.3+. Follow the installation instructions below for the deep learning library you are using:</p>
+<p>🤗 Diffusers uses the <code>pyproject.toml</code> file for building and packaging, as introduced in <a href="https://peps.python.org/pep-0517/">PEP 517</a>. View this <a href="https://github.com/mindspore-lab/mindone/blob/master/pyproject.toml">configuration file</a> file for more details on the specific build configuration of this project.</p>
+<p>🤗 Diffusers is tested on Python 3.8+, MindSpore 2.3.1. Follow the installation instructions below for the deep learning library you are using:</p>
 <ul>
 <li><a href="https://www.mindspore.cn/install">MindSpore</a> installation instructions</li>
 </ul>
@@ -5260,6 +5387,12 @@ A virtual environment makes it easier to manage different projects and avoid com
 <p>You should also install 🤗 Transformers because 🤗 Diffusers relies on its models:</p>
 <div class="highlight"><pre><span></span><code>pip<span class="w"> </span>install<span class="w"> </span>mindone<span class="w"> </span>transformers
 </code></pre></div>
+<div class="admonition tip">
+<p class="admonition-title">Tip</p>
+<p>We define both required and optional dependencies in the <code>pyproject.toml</code> file. If you need to install optional dependencies, you can specify them. For example, if you want to install the 'training' optional dependency, you would run:</p>
+<div class="highlight"><pre><span></span><code>pip<span class="w"> </span>install<span class="w"> </span>mindone<span class="o">[</span>training<span class="o">]</span>
+</code></pre></div>
+</div>
 <h2 id="install-from-source">Install from source<a class="headerlink" href="#install-from-source" title="Permanent link">&para;</a></h2>
 <p>Before installing 🤗 Diffusers from source, make sure you have MindSpore installed.</p>
 <p>Then install 🤗 Diffusers from source:</p>
@@ -5281,6 +5414,16 @@ If you run into a problem, please open an <a href="https://github.com/mindspore-
 <div class="highlight"><pre><span></span><code>git<span class="w"> </span>clone<span class="w"> </span>https://github.com/mindspore-lab/mindone.git
 <span class="nb">cd</span><span class="w"> </span>mindone
 </code></pre></div>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>⚠️ <a href="https://peps.python.org/pep-0660/">PEP 660 – Editable installs for pyproject.toml based builds</a> defines how to build projects that only use <code>pyproject.toml</code>. Build tools must implement PEP 660 for editable installs to work. You need a front-end (such as <a href="https://pip.pypa.io/en/stable/news/#v21-3">pip ≥ 21.3</a>) and a backend. The statuses of some popular backends are:</p>
+<ul>
+<li><a href="https://github.com/pypa/setuptools/blob/v64.0.0/CHANGES.rst#breaking-changes">Setuptools implements PEP 660 as of version 64.</a></li>
+<li><a href="https://flit.readthedocs.io/en/latest/history.html?highlight=660#version-3-4">Flit implements PEP 660 as of version 3.4.</a></li>
+<li><a href="https://github.com/python-poetry/poetry-core/releases/tag/1.0.8">Poetry implements PEP 660 as of version 1.0.8.</a></li>
+</ul>
+<p>(from: <a href="https://stackoverflow.com/a/69711730">https://stackoverflow.com/a/69711730</a>)</p>
+</div>
 <div class="highlight"><pre><span></span><code>pip<span class="w"> </span>install<span class="w"> </span>-e<span class="w"> </span>.
 </code></pre></div>
 <p>These commands will link the folder you cloned the repository to and your Python library paths.
@@ -5338,7 +5481,7 @@ You can disable telemetry collection by setting the <code>DISABLE_TELEMETRY</cod
     <span class="md-icon" title="Last update">
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M21 13.1c-.1 0-.3.1-.4.2l-1 1 2.1 2.1 1-1c.2-.2.2-.6 0-.8l-1.3-1.3c-.1-.1-.2-.2-.4-.2m-1.9 1.8-6.1 6V23h2.1l6.1-6.1zM12.5 7v5.2l4 2.4-1 1L11 13V7zM11 21.9c-5.1-.5-9-4.8-9-9.9C2 6.5 6.5 2 12 2c5.3 0 9.6 4.1 10 9.3-.3-.1-.6-.2-1-.2s-.7.1-1 .2C19.6 7.2 16.2 4 12 4c-4.4 0-8 3.6-8 8 0 4.1 3.1 7.5 7.1 7.9l-.1.2z"/></svg>
     </span>
-    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-date">November 1, 2024</span>
+    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-date">November 21, 2024</span>
   </span>
 
     

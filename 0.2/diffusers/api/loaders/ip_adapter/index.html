@@ -18,7 +18,7 @@
       
       
       <link rel="icon" href="../../../../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.5.44">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.5.45">
     
     
       
@@ -2800,11 +2800,53 @@
   
   
     <li class="md-nav__item">
+      <a href="../../models/autoencoderkl_cogvideox/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    AutoencoderKLCogVideoX
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../models/asymmetricautoencoderkl/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
     AsymmetricAutoEncoderKL
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../models/stable_cascade_unet/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    StableCascadeUNet
   </span>
   
 
@@ -2931,6 +2973,48 @@
   
   <span class="md-ellipsis">
     HunyuanDiT2DModel
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../models/flux_transformer/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    FluxTransformer2DModel
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../models/cogvideox_transformer3d/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    CogVideoXTransformer3DModel
   </span>
   
 
@@ -3163,6 +3247,27 @@
   
   
     <li class="md-nav__item">
+      <a href="../../pipelines/cogvideox/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    CogVideoX
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../pipelines/consistency_models/" class="md-nav__link">
         
   
@@ -3378,6 +3483,27 @@
   
   <span class="md-ellipsis">
     DiT
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../pipelines/flux/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Flux
   </span>
   
 
@@ -3679,10 +3805,10 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_10_4_28" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_10_4_30" >
         
           
-          <label class="md-nav__link" for="__nav_2_10_4_28" id="__nav_2_10_4_28_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_2_10_4_30" id="__nav_2_10_4_30_label" tabindex="0">
             
   
   <span class="md-ellipsis">
@@ -3693,8 +3819,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="4" aria-labelledby="__nav_2_10_4_28_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_2_10_4_28">
+        <nav class="md-nav" data-md-level="4" aria-labelledby="__nav_2_10_4_30_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_10_4_30">
             <span class="md-nav__icon md-icon"></span>
             Stable Diffusion
           </label>
@@ -5565,7 +5691,12 @@ specific language governing permissions and limitations under the License.
 <span class="normal">283</span>
 <span class="normal">284</span>
 <span class="normal">285</span>
-<span class="normal">286</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span> <span class="nc">IPAdapterMixin</span><span class="p">:</span>
+<span class="normal">286</span>
+<span class="normal">287</span>
+<span class="normal">288</span>
+<span class="normal">289</span>
+<span class="normal">290</span>
+<span class="normal">291</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span> <span class="nc">IPAdapterMixin</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Mixin for handling IP Adapters.&quot;&quot;&quot;</span>
 
     <span class="nd">@validate_hf_hub_args</span>
@@ -5606,9 +5737,7 @@ specific language governing permissions and limitations under the License.
 <span class="sd">            force_download (`bool`, *optional*, defaults to `False`):</span>
 <span class="sd">                Whether or not to force the (re-)download of the model weights and configuration files, overriding the</span>
 <span class="sd">                cached versions if they exist.</span>
-<span class="sd">            resume_download:</span>
-<span class="sd">                Deprecated and ignored. All downloads are now resumed by default when possible. Will be removed in v1</span>
-<span class="sd">                of Diffusers.</span>
+
 <span class="sd">            proxies (`Dict[str, str]`, *optional*):</span>
 <span class="sd">                A dictionary of proxy servers to use by protocol or endpoint, for example, `{&#39;http&#39;: &#39;foo.bar:3128&#39;,</span>
 <span class="sd">                &#39;http://hostname&#39;: &#39;foo.bar:4012&#39;}`. The proxies are used on each request.</span>
@@ -5646,7 +5775,6 @@ specific language governing permissions and limitations under the License.
         <span class="c1"># Load the main state dict first.</span>
         <span class="n">cache_dir</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s2">&quot;cache_dir&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
         <span class="n">force_download</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s2">&quot;force_download&quot;</span><span class="p">,</span> <span class="kc">False</span><span class="p">)</span>
-        <span class="n">resume_download</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s2">&quot;resume_download&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
         <span class="n">proxies</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s2">&quot;proxies&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
         <span class="n">local_files_only</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s2">&quot;local_files_only&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
         <span class="n">token</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s2">&quot;token&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
@@ -5662,7 +5790,6 @@ specific language governing permissions and limitations under the License.
                     <span class="n">weights_name</span><span class="o">=</span><span class="n">weight_name</span><span class="p">,</span>
                     <span class="n">cache_dir</span><span class="o">=</span><span class="n">cache_dir</span><span class="p">,</span>
                     <span class="n">force_download</span><span class="o">=</span><span class="n">force_download</span><span class="p">,</span>
-                    <span class="n">resume_download</span><span class="o">=</span><span class="n">resume_download</span><span class="p">,</span>
                     <span class="n">proxies</span><span class="o">=</span><span class="n">proxies</span><span class="p">,</span>
                     <span class="n">local_files_only</span><span class="o">=</span><span class="n">local_files_only</span><span class="p">,</span>
                     <span class="n">token</span><span class="o">=</span><span class="n">token</span><span class="p">,</span>
@@ -5702,6 +5829,8 @@ specific language governing permissions and limitations under the License.
                         <span class="n">image_encoder</span> <span class="o">=</span> <span class="n">CLIPVisionModelWithProjection</span><span class="o">.</span><span class="n">from_pretrained</span><span class="p">(</span>
                             <span class="n">pretrained_model_name_or_path_or_dict</span><span class="p">,</span>
                             <span class="n">subfolder</span><span class="o">=</span><span class="n">image_encoder_subfolder</span><span class="p">,</span>
+                            <span class="n">cache_dir</span><span class="o">=</span><span class="n">cache_dir</span><span class="p">,</span>
+                            <span class="n">local_files_only</span><span class="o">=</span><span class="n">local_files_only</span><span class="p">,</span>
                         <span class="p">)</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span>
                         <span class="bp">self</span><span class="o">.</span><span class="n">register_modules</span><span class="p">(</span><span class="n">image_encoder</span><span class="o">=</span><span class="n">image_encoder</span><span class="p">)</span>
                     <span class="k">else</span><span class="p">:</span>
@@ -5717,7 +5846,8 @@ specific language governing permissions and limitations under the License.
 
             <span class="c1"># create feature extractor if it has not been registered to the pipeline yet</span>
             <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s2">&quot;feature_extractor&quot;</span><span class="p">)</span> <span class="ow">and</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s2">&quot;feature_extractor&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-                <span class="n">feature_extractor</span> <span class="o">=</span> <span class="n">CLIPImageProcessor</span><span class="p">()</span>
+                <span class="n">clip_image_size</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">image_encoder</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">image_size</span>
+                <span class="n">feature_extractor</span> <span class="o">=</span> <span class="n">CLIPImageProcessor</span><span class="p">(</span><span class="n">size</span><span class="o">=</span><span class="n">clip_image_size</span><span class="p">,</span> <span class="n">crop_size</span><span class="o">=</span><span class="n">clip_image_size</span><span class="p">)</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">register_modules</span><span class="p">(</span><span class="n">feature_extractor</span><span class="o">=</span><span class="n">feature_extractor</span><span class="p">)</span>
 
         <span class="c1"># load ip-adapter into unet</span>
@@ -5811,7 +5941,13 @@ specific language governing permissions and limitations under the License.
 
         <span class="c1"># remove hidden encoder</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">unet</span><span class="o">.</span><span class="n">encoder_hid_proj</span> <span class="o">=</span> <span class="kc">None</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">encoder_hid_dim_type</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">unet</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">encoder_hid_dim_type</span> <span class="o">=</span> <span class="kc">None</span>
+
+        <span class="c1"># Kolors: restore `encoder_hid_proj` with `text_encoder_hid_proj`</span>
+        <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">unet</span><span class="p">,</span> <span class="s2">&quot;text_encoder_hid_proj&quot;</span><span class="p">)</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">unet</span><span class="o">.</span><span class="n">text_encoder_hid_proj</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">unet</span><span class="o">.</span><span class="n">encoder_hid_proj</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">unet</span><span class="o">.</span><span class="n">text_encoder_hid_proj</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">unet</span><span class="o">.</span><span class="n">text_encoder_hid_proj</span> <span class="o">=</span> <span class="kc">None</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">unet</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">encoder_hid_dim_type</span> <span class="o">=</span> <span class="s2">&quot;text_proj&quot;</span>
 
         <span class="c1"># restore original Unet attention processors layers</span>
         <span class="n">attn_procs</span> <span class="o">=</span> <span class="p">{}</span>
@@ -5955,17 +6091,6 @@ cached versions if they exist.</p>
                     <b>TYPE:</b>
                       <code>`bool`, *optional*, defaults to `False`</code>
                   </span>
-              </p>
-            </td>
-          </tr>
-          <tr class="doc-section-item">
-            <td><code>resume_download</code></td>
-            <td class="doc-param-details">
-              <div class="doc-md-description">
-                <p>Deprecated and ignored. All downloads are now resumed by default when possible. Will be removed in v1
-of Diffusers.</p>
-              </div>
-              <p>
               </p>
             </td>
           </tr>
@@ -6196,8 +6321,7 @@ allowed by Git.</p>
 <span class="normal">195</span>
 <span class="normal">196</span>
 <span class="normal">197</span>
-<span class="normal">198</span>
-<span class="normal">199</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@validate_hf_hub_args</span>
+<span class="normal">198</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@validate_hf_hub_args</span>
 <span class="k">def</span> <span class="nf">load_ip_adapter</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">pretrained_model_name_or_path_or_dict</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">mindspore</span><span class="o">.</span><span class="n">Tensor</span><span class="p">]],</span>
@@ -6235,9 +6359,7 @@ allowed by Git.</p>
 <span class="sd">        force_download (`bool`, *optional*, defaults to `False`):</span>
 <span class="sd">            Whether or not to force the (re-)download of the model weights and configuration files, overriding the</span>
 <span class="sd">            cached versions if they exist.</span>
-<span class="sd">        resume_download:</span>
-<span class="sd">            Deprecated and ignored. All downloads are now resumed by default when possible. Will be removed in v1</span>
-<span class="sd">            of Diffusers.</span>
+
 <span class="sd">        proxies (`Dict[str, str]`, *optional*):</span>
 <span class="sd">            A dictionary of proxy servers to use by protocol or endpoint, for example, `{&#39;http&#39;: &#39;foo.bar:3128&#39;,</span>
 <span class="sd">            &#39;http://hostname&#39;: &#39;foo.bar:4012&#39;}`. The proxies are used on each request.</span>
@@ -6275,7 +6397,6 @@ allowed by Git.</p>
     <span class="c1"># Load the main state dict first.</span>
     <span class="n">cache_dir</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s2">&quot;cache_dir&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
     <span class="n">force_download</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s2">&quot;force_download&quot;</span><span class="p">,</span> <span class="kc">False</span><span class="p">)</span>
-    <span class="n">resume_download</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s2">&quot;resume_download&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
     <span class="n">proxies</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s2">&quot;proxies&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
     <span class="n">local_files_only</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s2">&quot;local_files_only&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
     <span class="n">token</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s2">&quot;token&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
@@ -6291,7 +6412,6 @@ allowed by Git.</p>
                 <span class="n">weights_name</span><span class="o">=</span><span class="n">weight_name</span><span class="p">,</span>
                 <span class="n">cache_dir</span><span class="o">=</span><span class="n">cache_dir</span><span class="p">,</span>
                 <span class="n">force_download</span><span class="o">=</span><span class="n">force_download</span><span class="p">,</span>
-                <span class="n">resume_download</span><span class="o">=</span><span class="n">resume_download</span><span class="p">,</span>
                 <span class="n">proxies</span><span class="o">=</span><span class="n">proxies</span><span class="p">,</span>
                 <span class="n">local_files_only</span><span class="o">=</span><span class="n">local_files_only</span><span class="p">,</span>
                 <span class="n">token</span><span class="o">=</span><span class="n">token</span><span class="p">,</span>
@@ -6331,6 +6451,8 @@ allowed by Git.</p>
                     <span class="n">image_encoder</span> <span class="o">=</span> <span class="n">CLIPVisionModelWithProjection</span><span class="o">.</span><span class="n">from_pretrained</span><span class="p">(</span>
                         <span class="n">pretrained_model_name_or_path_or_dict</span><span class="p">,</span>
                         <span class="n">subfolder</span><span class="o">=</span><span class="n">image_encoder_subfolder</span><span class="p">,</span>
+                        <span class="n">cache_dir</span><span class="o">=</span><span class="n">cache_dir</span><span class="p">,</span>
+                        <span class="n">local_files_only</span><span class="o">=</span><span class="n">local_files_only</span><span class="p">,</span>
                     <span class="p">)</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span>
                     <span class="bp">self</span><span class="o">.</span><span class="n">register_modules</span><span class="p">(</span><span class="n">image_encoder</span><span class="o">=</span><span class="n">image_encoder</span><span class="p">)</span>
                 <span class="k">else</span><span class="p">:</span>
@@ -6346,7 +6468,8 @@ allowed by Git.</p>
 
         <span class="c1"># create feature extractor if it has not been registered to the pipeline yet</span>
         <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s2">&quot;feature_extractor&quot;</span><span class="p">)</span> <span class="ow">and</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s2">&quot;feature_extractor&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="n">feature_extractor</span> <span class="o">=</span> <span class="n">CLIPImageProcessor</span><span class="p">()</span>
+            <span class="n">clip_image_size</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">image_encoder</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">image_size</span>
+            <span class="n">feature_extractor</span> <span class="o">=</span> <span class="n">CLIPImageProcessor</span><span class="p">(</span><span class="n">size</span><span class="o">=</span><span class="n">clip_image_size</span><span class="p">,</span> <span class="n">crop_size</span><span class="o">=</span><span class="n">clip_image_size</span><span class="p">)</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">register_modules</span><span class="p">(</span><span class="n">feature_extractor</span><span class="o">=</span><span class="n">feature_extractor</span><span class="p">)</span>
 
     <span class="c1"># load ip-adapter into unet</span>
@@ -6405,7 +6528,8 @@ granular control over each IP-Adapter behavior. A config can be a float or a dic
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/loaders/ip_adapter.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">201</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">200</span>
+<span class="normal">201</span>
 <span class="normal">202</span>
 <span class="normal">203</span>
 <span class="normal">204</span>
@@ -6454,8 +6578,7 @@ granular control over each IP-Adapter behavior. A config can be a float or a dic
 <span class="normal">247</span>
 <span class="normal">248</span>
 <span class="normal">249</span>
-<span class="normal">250</span>
-<span class="normal">251</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">set_ip_adapter_scale</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">scale</span><span class="p">):</span>
+<span class="normal">250</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">set_ip_adapter_scale</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">scale</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Set IP-Adapter scales per-transformer block. Input `scale` could be a single config or a list of configs for</span>
 <span class="sd">    granular control over each IP-Adapter behavior. A config can be a float or a dictionary.</span>
@@ -6532,7 +6655,8 @@ granular control over each IP-Adapter behavior. A config can be a float or a dic
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/loaders/ip_adapter.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">253</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">252</span>
+<span class="normal">253</span>
 <span class="normal">254</span>
 <span class="normal">255</span>
 <span class="normal">256</span>
@@ -6565,7 +6689,12 @@ granular control over each IP-Adapter behavior. A config can be a float or a dic
 <span class="normal">283</span>
 <span class="normal">284</span>
 <span class="normal">285</span>
-<span class="normal">286</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">unload_ip_adapter</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="normal">286</span>
+<span class="normal">287</span>
+<span class="normal">288</span>
+<span class="normal">289</span>
+<span class="normal">290</span>
+<span class="normal">291</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">unload_ip_adapter</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Unloads the IP Adapter weights</span>
 
@@ -6591,7 +6720,13 @@ granular control over each IP-Adapter behavior. A config can be a float or a dic
 
     <span class="c1"># remove hidden encoder</span>
     <span class="bp">self</span><span class="o">.</span><span class="n">unet</span><span class="o">.</span><span class="n">encoder_hid_proj</span> <span class="o">=</span> <span class="kc">None</span>
-    <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">encoder_hid_dim_type</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">unet</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">encoder_hid_dim_type</span> <span class="o">=</span> <span class="kc">None</span>
+
+    <span class="c1"># Kolors: restore `encoder_hid_proj` with `text_encoder_hid_proj`</span>
+    <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">unet</span><span class="p">,</span> <span class="s2">&quot;text_encoder_hid_proj&quot;</span><span class="p">)</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">unet</span><span class="o">.</span><span class="n">text_encoder_hid_proj</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">unet</span><span class="o">.</span><span class="n">encoder_hid_proj</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">unet</span><span class="o">.</span><span class="n">text_encoder_hid_proj</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">unet</span><span class="o">.</span><span class="n">text_encoder_hid_proj</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">unet</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">encoder_hid_dim_type</span> <span class="o">=</span> <span class="s2">&quot;text_proj&quot;</span>
 
     <span class="c1"># restore original Unet attention processors layers</span>
     <span class="n">attn_procs</span> <span class="o">=</span> <span class="p">{}</span>
@@ -6753,7 +6888,8 @@ granular control over each IP-Adapter behavior. A config can be a float or a dic
 
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/image_processor.py</code></summary>
-                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">687</span>
+                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">686</span>
+<span class="normal">687</span>
 <span class="normal">688</span>
 <span class="normal">689</span>
 <span class="normal">690</span>
@@ -6843,8 +6979,7 @@ granular control over each IP-Adapter behavior. A config can be a float or a dic
 <span class="normal">774</span>
 <span class="normal">775</span>
 <span class="normal">776</span>
-<span class="normal">777</span>
-<span class="normal">778</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span> <span class="nc">IPAdapterMaskProcessor</span><span class="p">(</span><span class="n">VaeImageProcessor</span><span class="p">):</span>
+<span class="normal">777</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span> <span class="nc">IPAdapterMaskProcessor</span><span class="p">(</span><span class="n">VaeImageProcessor</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Image processor for IP Adapter image masks.</span>
 
@@ -7061,7 +7196,8 @@ The downsampled mask tensor.</p>
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/image_processor.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">728</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">727</span>
+<span class="normal">728</span>
 <span class="normal">729</span>
 <span class="normal">730</span>
 <span class="normal">731</span>
@@ -7110,8 +7246,7 @@ The downsampled mask tensor.</p>
 <span class="normal">774</span>
 <span class="normal">775</span>
 <span class="normal">776</span>
-<span class="normal">777</span>
-<span class="normal">778</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@staticmethod</span>
+<span class="normal">777</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@staticmethod</span>
 <span class="k">def</span> <span class="nf">downsample</span><span class="p">(</span><span class="n">mask</span><span class="p">:</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">batch_size</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">num_queries</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">value_embed_dim</span><span class="p">:</span> <span class="nb">int</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Downsamples the provided mask tensor to match the expected dimensions for scaled dot-product attention. If the</span>

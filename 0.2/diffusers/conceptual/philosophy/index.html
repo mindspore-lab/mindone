@@ -18,7 +18,7 @@
       
       
       <link rel="icon" href="../../../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.5.44">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.5.45">
     
     
       
@@ -2801,11 +2801,53 @@
   
   
     <li class="md-nav__item">
+      <a href="../../api/models/autoencoderkl_cogvideox/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    AutoencoderKLCogVideoX
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../api/models/asymmetricautoencoderkl/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
     AsymmetricAutoEncoderKL
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/models/stable_cascade_unet/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    StableCascadeUNet
   </span>
   
 
@@ -2932,6 +2974,48 @@
   
   <span class="md-ellipsis">
     HunyuanDiT2DModel
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/models/flux_transformer/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    FluxTransformer2DModel
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/models/cogvideox_transformer3d/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    CogVideoXTransformer3DModel
   </span>
   
 
@@ -3164,6 +3248,27 @@
   
   
     <li class="md-nav__item">
+      <a href="../../api/pipelines/cogvideox/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    CogVideoX
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../api/pipelines/consistency_models/" class="md-nav__link">
         
   
@@ -3379,6 +3484,27 @@
   
   <span class="md-ellipsis">
     DiT
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/pipelines/flux/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Flux
   </span>
   
 
@@ -3680,10 +3806,10 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_10_4_28" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_10_4_30" >
         
           
-          <label class="md-nav__link" for="__nav_2_10_4_28" id="__nav_2_10_4_28_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_2_10_4_30" id="__nav_2_10_4_30_label" tabindex="0">
             
   
   <span class="md-ellipsis">
@@ -3694,8 +3820,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="4" aria-labelledby="__nav_2_10_4_28_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_2_10_4_28">
+        <nav class="md-nav" data-md-level="4" aria-labelledby="__nav_2_10_4_30_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_10_4_30">
             <span class="md-nav__icon md-icon"></span>
             Stable Diffusion
           </label>
@@ -5301,20 +5427,24 @@ Its purpose is to serve as a <strong>modular toolbox</strong> for both inference
 <li>Diffusers prefers simple, self-explainable code over condensed, magic code. This means that short-hand code syntaxes such as lambda functions, and advanced MindSpore operators are often not desired.</li>
 </ul>
 <h2 id="simple-over-easy">Simple over easy<a class="headerlink" href="#simple-over-easy" title="Permanent link">&para;</a></h2>
-<p><strong>Explicit is better than implicit</strong> and <strong>simple is better than complex</strong>. This design philosophy is reflected in multiple parts of the library:
-- We follow MindSpore's API with methods like <a href="https://github.com/mindspore-lab/mindone/blob/master/mindone/diffusers/pipelines/pipeline_utils.py#L261"><code>DiffusionPipeline.to</code></a> to let the user handle precision.
-- Raising concise error messages is preferred to silently correct erroneous input. Diffusers aims at teaching the user, rather than making the library as easy to use as possible.
-- Complex model vs. scheduler logic is exposed instead of magically handled inside. Schedulers/Samplers are separated from diffusion models with minimal dependencies on each other. This forces the user to write the unrolled denoising loop. However, the separation allows for easier debugging and gives the user more control over adapting the denoising process or switching out diffusion models or schedulers.
-- Separately trained components of the diffusion pipeline, <em>e.g.</em> the text encoder, the unet, and the variational autoencoder, each have their own model class. This forces the user to handle the interaction between the different model components, and the serialization format separates the model components into different files. However, this allows for easier debugging and customization. DreamBooth or Textual Inversion training
-is very simple thanks to Diffusers' ability to separate single components of the diffusion pipeline.</p>
+<p><strong>Explicit is better than implicit</strong> and <strong>simple is better than complex</strong>. This design philosophy is reflected in multiple parts of the library:</p>
+<ul>
+<li>We follow MindSpore's API with methods like <a href="https://github.com/mindspore-lab/mindone/blob/master/mindone/diffusers/pipelines/pipeline_utils.py#L261"><code>DiffusionPipeline.to</code></a> to let the user handle precision.</li>
+<li>Raising concise error messages is preferred to silently correct erroneous input. Diffusers aims at teaching the user, rather than making the library as easy to use as possible.</li>
+<li>Complex model vs. scheduler logic is exposed instead of magically handled inside. Schedulers/Samplers are separated from diffusion models with minimal dependencies on each other. This forces the user to write the unrolled denoising loop. However, the separation allows for easier debugging and gives the user more control over adapting the denoising process or switching out diffusion models or schedulers.</li>
+<li>Separately trained components of the diffusion pipeline, <em>e.g.</em> the text encoder, the unet, and the variational autoencoder, each have their own model class. This forces the user to handle the interaction between the different model components, and the serialization format separates the model components into different files. However, this allows for easier debugging and customization. DreamBooth or Textual Inversion training
+is very simple thanks to Diffusers' ability to separate single components of the diffusion pipeline.</li>
+</ul>
 <h2 id="tweakable-contributor-friendly-over-abstraction">Tweakable, contributor-friendly over abstraction<a class="headerlink" href="#tweakable-contributor-friendly-over-abstraction" title="Permanent link">&para;</a></h2>
 <p>For large parts of the library, Diffusers adopts an important design principle of the <a href="https://github.com/huggingface/transformers">Transformers library</a>, which is to prefer copy-pasted code over hasty abstractions. This design principle is very opinionated and stands in stark contrast to popular design principles such as <a href="https://en.wikipedia.org/wiki/Don%27t_repeat_yourself">Don't repeat yourself (DRY)</a>.
 In short, just like Transformers does for modeling files, Diffusers prefers to keep an extremely low level of abstraction and very self-contained code for pipelines and schedulers.
 Functions, long code blocks, and even classes can be copied across multiple files which at first can look like a bad, sloppy design choice that makes the library unmaintainable.
-<strong>However</strong>, this design has proven to be extremely successful for Transformers and makes a lot of sense for community-driven, open-source machine learning libraries because:
-- Machine Learning is an extremely fast-moving field in which paradigms, model architectures, and algorithms are changing rapidly, which therefore makes it very difficult to define long-lasting code abstractions.
-- Machine Learning practitioners like to be able to quickly tweak existing code for ideation and research and therefore prefer self-contained code over one that contains many abstractions.
-- Open-source libraries rely on community contributions and therefore must build a library that is easy to contribute to. The more abstract the code, the more dependencies, the harder to read, and the harder to contribute to. Contributors simply stop contributing to very abstract libraries out of fear of breaking vital functionality. If contributing to a library cannot break other fundamental code, not only is it more inviting for potential new contributors, but it is also easier to review and contribute to multiple parts in parallel.</p>
+<strong>However</strong>, this design has proven to be extremely successful for Transformers and makes a lot of sense for community-driven, open-source machine learning libraries because:</p>
+<ul>
+<li>Machine Learning is an extremely fast-moving field in which paradigms, model architectures, and algorithms are changing rapidly, which therefore makes it very difficult to define long-lasting code abstractions.</li>
+<li>Machine Learning practitioners like to be able to quickly tweak existing code for ideation and research and therefore prefer self-contained code over one that contains many abstractions.</li>
+<li>Open-source libraries rely on community contributions and therefore must build a library that is easy to contribute to. The more abstract the code, the more dependencies, the harder to read, and the harder to contribute to. Contributors simply stop contributing to very abstract libraries out of fear of breaking vital functionality. If contributing to a library cannot break other fundamental code, not only is it more inviting for potential new contributors, but it is also easier to review and contribute to multiple parts in parallel.</li>
+</ul>
 <p>At Hugging Face, we call this design the <strong>single-file policy</strong> which means that almost all of the code of a certain class should be written in a single, self-contained file. To read more about the philosophy, you can have a look
 at <a href="https://huggingface.co/blog/transformers-design-philosophy">this blog post</a>.</p>
 <p>In Diffusers, we follow this philosophy for both pipelines and schedulers, but only partly for diffusion models. The reason we don't follow this design fully for diffusion models is because almost all diffusion pipelines, such
@@ -5326,46 +5456,52 @@ We try to apply these design principles consistently across the library. Neverth
 Let's walk through more in-detail design decisions for each class.</p>
 <h3 id="pipelines">Pipelines<a class="headerlink" href="#pipelines" title="Permanent link">&para;</a></h3>
 <p>Pipelines are designed to be easy to use (therefore do not follow <a href="#simple-over-easy"><em>Simple over easy</em></a> 100%), are not feature complete, and should loosely be seen as examples of how to use <a href="#models">models</a> and <a href="#schedulers">schedulers</a> for inference.</p>
-<p>The following design principles are followed:
-- Pipelines follow the single-file policy. All pipelines can be found in individual directories under src/diffusers/pipelines. One pipeline folder corresponds to one diffusion paper/project/release. Multiple pipeline files can be gathered in one pipeline folder, as it’s done for <a href="https://github.com/mindspore-lab/mindone/tree/master/mindone/diffusers/pipelines/stable_diffusion"><code>mindone/diffusers/pipelines/stable-diffusion</code></a>. If pipelines share similar functionality, one can make use of the <a href="https://github.com/mindspore-lab/mindone/blob/master/mindone/diffusers/pipelines/stable_diffusion_xl/pipeline_stable_diffusion_xl_img2img.py#L730">#Copied from mechanism</a>.
-- Pipelines all inherit from <a href="https://mindspore-lab.github.io/mindone/latest/diffusers/api/pipelines/overview/#mindone.diffusers.DiffusionPipeline"><code>DiffusionPipeline</code></a>.
-- Every pipeline consists of different model and scheduler components, that are documented in the <a href="https://huggingface.co/stable-diffusion-v1-5/stable-diffusion-v1-5/blob/main/model_index.json"><code>model_index.json</code> file</a>, are accessible under the same name as attributes of the pipeline and can be shared between pipelines with <a href="https://github.com/mindspore-lab/mindone/blob/master/mindone/diffusers/pipelines/pipeline_utils.py#L1048"><code>DiffusionPipeline.components</code></a> function.
-- Every pipeline should be loadable via the <a href="https://mindspore-lab.github.io/mindone/latest/diffusers/api/pipelines/overview/#mindone.diffusers.DiffusionPipeline.from_pretrained"><code>from_pretrained</code></a>(https://github.com/mindspore-lab/mindone/blob/master/mindone/diffusers/pipelines/pipeline_utils.py#L308) function.
-- Pipelines should be used <strong>only</strong> for inference.
-- Pipelines should be very readable, self-explanatory, and easy to tweak.
-- Pipelines should be designed to build on top of each other and be easy to integrate into higher-level APIs.
-- Pipelines are <strong>not</strong> intended to be feature-complete user interfaces. For feature-complete user interfaces one should rather have a look at <a href="https://github.com/invoke-ai/InvokeAI">InvokeAI</a>, <a href="https://github.com/abhishekkrthakur/diffuzers">Diffuzers</a>, and <a href="https://github.com/Sanster/lama-cleaner">lama-cleaner</a>.
-- Every pipeline should have one and only one way to run it via a <code>__call__</code> method. The naming of the <code>__call__</code> arguments should be shared across all pipelines.
-- Pipelines should be named after the task they are intended to solve.
-- In almost all cases, novel diffusion pipelines shall be implemented in a new pipeline folder/file.</p>
+<p>The following design principles are followed:</p>
+<ul>
+<li>Pipelines follow the single-file policy. All pipelines can be found in individual directories under src/diffusers/pipelines. One pipeline folder corresponds to one diffusion paper/project/release. Multiple pipeline files can be gathered in one pipeline folder, as it’s done for <a href="https://github.com/mindspore-lab/mindone/tree/master/mindone/diffusers/pipelines/stable_diffusion"><code>mindone/diffusers/pipelines/stable-diffusion</code></a>. If pipelines share similar functionality, one can make use of the <a href="https://github.com/mindspore-lab/mindone/blob/master/mindone/diffusers/pipelines/stable_diffusion_xl/pipeline_stable_diffusion_xl_img2img.py#L730"># Copied from mechanism</a>.</li>
+<li>Pipelines all inherit from <a href="https://mindspore-lab.github.io/mindone/latest/diffusers/api/pipelines/overview/#mindone.diffusers.DiffusionPipeline"><code>DiffusionPipeline</code></a>.</li>
+<li>Every pipeline consists of different model and scheduler components, that are documented in the <a href="https://huggingface.co/stable-diffusion-v1-5/stable-diffusion-v1-5/blob/main/model_index.json"><code>model_index.json</code> file</a>, are accessible under the same name as attributes of the pipeline and can be shared between pipelines with <a href="https://github.com/mindspore-lab/mindone/blob/master/mindone/diffusers/pipelines/pipeline_utils.py#L1048"><code>DiffusionPipeline.components</code></a> function.</li>
+<li>Every pipeline should be loadable via the <a href="https://mindspore-lab.github.io/mindone/latest/diffusers/api/pipelines/overview/#mindone.diffusers.DiffusionPipeline.from_pretrained"><code>from_pretrained</code></a>(https://github.com/mindspore-lab/mindone/blob/master/mindone/diffusers/pipelines/pipeline_utils.py#L308) function.</li>
+<li>Pipelines should be used <strong>only</strong> for inference.</li>
+<li>Pipelines should be very readable, self-explanatory, and easy to tweak.</li>
+<li>Pipelines should be designed to build on top of each other and be easy to integrate into higher-level APIs.</li>
+<li>Pipelines are <strong>not</strong> intended to be feature-complete user interfaces. For feature-complete user interfaces one should rather have a look at <a href="https://github.com/invoke-ai/InvokeAI">InvokeAI</a>, <a href="https://github.com/abhishekkrthakur/diffuzers">Diffuzers</a>, and <a href="https://github.com/Sanster/lama-cleaner">lama-cleaner</a>.</li>
+<li>Every pipeline should have one and only one way to run it via a <code>__call__</code> method. The naming of the <code>__call__</code> arguments should be shared across all pipelines.</li>
+<li>Pipelines should be named after the task they are intended to solve.</li>
+<li>In almost all cases, novel diffusion pipelines shall be implemented in a new pipeline folder/file.</li>
+</ul>
 <h3 id="models">Models<a class="headerlink" href="#models" title="Permanent link">&para;</a></h3>
 <p>Models are designed as configurable toolboxes that are natural extensions of <a href="https://www.mindspore.cn/docs/en/master/api_python/nn/mindspore.nn.Cell.html">MindSpore's Cell class</a>. They only partly follow the <strong>single-file policy</strong>.</p>
-<p>The following design principles are followed:
-- Models correspond to <strong>a type of model architecture</strong>. <em>E.g.</em> the <a href="https://mindspore-lab.github.io/mindone/latest/diffusers/api/models/unet2d-cond/#mindone.diffusers.UNet2DConditionModel"><code>UNet2DConditionModel</code></a> class is used for all UNet variations that expect 2D image inputs and are conditioned on some context.
-- All models can be found in <a href="https://github.com/mindspore-lab/mindone/tree/master/mindone/diffusers/models"><code>mindone/diffusers/models</code></a> and every model architecture shall be defined in its file, e.g. <a href="https://github.com/mindspore-lab/mindone/tree/master/mindone/diffusers/models/unets/unet_2d_condition.py"><code>unet_2d_condition.py</code></a>, <a href="https://github.com/mindspore-lab/mindone/tree/master/mindone/diffusers/models/transformers/transformer_2d.py"><code>transformer_2d.py</code></a>, etc...
-- Models <strong>do not</strong> follow the single-file policy and should make use of smaller model building blocks, such as <a href="https://github.com/mindspore-lab/mindone/tree/master/mindone/diffusers/models/attention.py"><code>attention.py</code></a>, <a href="https://github.com/mindspore-lab/mindone/tree/master/mindone/diffusers/models/resnet.py"><code>resnet.py</code></a>, <a href="https://github.com/mindspore-lab/mindone/tree/master/mindone/diffusers/models/embeddings.py"><code>embeddings.py</code></a>, etc... <strong>Note</strong>: This is in stark contrast to Transformers' modeling files and shows that models do not really follow the single-file policy.
-- Models intend to expose complexity, just like MindSpore's <code>Cell</code> class, and give clear error messages.
-- Models all inherit from <code>ModelMixin</code> and <code>ConfigMixin</code>.
-- Models can be optimized for performance when it doesn’t demand major code changes, keeps backward compatibility, and gives significant memory or compute gain.
-- Models should by default have the highest precision and lowest performance setting.
-- To integrate new model checkpoints whose general architecture can be classified as an architecture that already exists in Diffusers, the existing model architecture shall be adapted to make it work with the new checkpoint. One should only create a new file if the model architecture is fundamentally different.
-- Models should be designed to be easily extendable to future changes. This can be achieved by limiting public function arguments, configuration arguments, and "foreseeing" future changes, <em>e.g.</em> it is usually better to add <code>string</code> "...type" arguments that can easily be extended to new future types instead of boolean <code>is_..._type</code> arguments. Only the minimum amount of changes shall be made to existing architectures to make a new model checkpoint work.
-- The model design is a difficult trade-off between keeping code readable and concise and supporting many model checkpoints. For most parts of the modeling code, classes shall be adapted for new model checkpoints, while there are some exceptions where it is preferred to add new classes to make sure the code is kept concise and
-readable long-term, such as <a href="https://github.com/mindspore-lab/mindone/tree/master/mindone/diffusers/models/unets/unet_2d_blocks.py">UNet blocks</a> and <a href="https://github.com/mindspore-lab/mindone/tree/master/mindone/diffusers/models/attention_processor.py">Attention processors</a>.</p>
+<p>The following design principles are followed:</p>
+<ul>
+<li>Models correspond to <strong>a type of model architecture</strong>. <em>E.g.</em> the <a href="https://mindspore-lab.github.io/mindone/latest/diffusers/api/models/unet2d-cond/#mindone.diffusers.UNet2DConditionModel"><code>UNet2DConditionModel</code></a> class is used for all UNet variations that expect 2D image inputs and are conditioned on some context.</li>
+<li>All models can be found in <a href="https://github.com/mindspore-lab/mindone/tree/master/mindone/diffusers/models"><code>mindone/diffusers/models</code></a> and every model architecture shall be defined in its file, e.g. <a href="https://github.com/mindspore-lab/mindone/tree/master/mindone/diffusers/models/unets/unet_2d_condition.py"><code>unets/unet_2d_condition.py</code></a>, <a href="https://github.com/mindspore-lab/mindone/tree/master/mindone/diffusers/models/transformers/transformer_2d.py"><code>transformers/transformer_2d.py</code></a>, etc...</li>
+<li>Models <strong>do not</strong> follow the single-file policy and should make use of smaller model building blocks, such as <a href="https://github.com/mindspore-lab/mindone/tree/master/mindone/diffusers/models/attention.py"><code>attention.py</code></a>, <a href="https://github.com/mindspore-lab/mindone/tree/master/mindone/diffusers/models/resnet.py"><code>resnet.py</code></a>, <a href="https://github.com/mindspore-lab/mindone/tree/master/mindone/diffusers/models/embeddings.py"><code>embeddings.py</code></a>, etc... <strong>Note</strong>: This is in stark contrast to Transformers' modeling files and shows that models do not really follow the single-file policy.</li>
+<li>Models intend to expose complexity, just like MindSpore's <code>Cell</code> class, and give clear error messages.</li>
+<li>Models all inherit from <code>ModelMixin</code> and <code>ConfigMixin</code>.</li>
+<li>Models can be optimized for performance when it doesn’t demand major code changes, keeps backward compatibility, and gives significant memory or compute gain.</li>
+<li>Models should by default have the highest precision and lowest performance setting.</li>
+<li>To integrate new model checkpoints whose general architecture can be classified as an architecture that already exists in Diffusers, the existing model architecture shall be adapted to make it work with the new checkpoint. One should only create a new file if the model architecture is fundamentally different.</li>
+<li>Models should be designed to be easily extendable to future changes. This can be achieved by limiting public function arguments, configuration arguments, and "foreseeing" future changes, <em>e.g.</em> it is usually better to add <code>string</code> "...type" arguments that can easily be extended to new future types instead of boolean <code>is_..._type</code> arguments. Only the minimum amount of changes shall be made to existing architectures to make a new model checkpoint work.</li>
+<li>The model design is a difficult trade-off between keeping code readable and concise and supporting many model checkpoints. For most parts of the modeling code, classes shall be adapted for new model checkpoints, while there are some exceptions where it is preferred to add new classes to make sure the code is kept concise and
+readable long-term, such as <a href="https://github.com/mindspore-lab/mindone/tree/master/mindone/diffusers/models/unets/unet_2d_blocks.py">UNet blocks</a> and <a href="https://github.com/mindspore-lab/mindone/tree/master/mindone/diffusers/models/attention_processor.py">Attention processors</a>.</li>
+</ul>
 <h3 id="schedulers">Schedulers<a class="headerlink" href="#schedulers" title="Permanent link">&para;</a></h3>
 <p>Schedulers are responsible to guide the denoising process for inference as well as to define a noise schedule for training. They are designed as individual classes with loadable configuration files and strongly follow the <strong>single-file policy</strong>.</p>
-<p>The following design principles are followed:
-- All schedulers are found in <a href="https://github.com/mindspore-lab/mindone/tree/master/mindone/diffusers/schedulers"><code>mindone/diffusers/schedulers</code></a>.
-- Schedulers are <strong>not</strong> allowed to import from large utils files and shall be kept very self-contained.
-- One scheduler Python file corresponds to one scheduler algorithm (as might be defined in a paper).
-- If schedulers share similar functionalities, we can make use of the <code>#Copied from</code> mechanism.
-- Schedulers all inherit from <code>SchedulerMixin</code> and <code>ConfigMixin</code>.
-- Schedulers can be easily swapped out with the <a href="https://mindspore-lab.github.io/mindone/latest/diffusers/api/configuration/#mindone.diffusers.configuration_utils.ConfigMixin.from_config"><code>ConfigMixin.from_config</code></a> method as explained in detail <a href="../../using-diffusers/schedulers/">here</a>.
-- Every scheduler has to have a <code>set_num_inference_steps</code>, and a <code>step</code> function. <code>set_num_inference_steps(...)</code> has to be called before every denoising process, <em>i.e.</em> before <code>step(...)</code> is called.
-- Every scheduler exposes the timesteps to be "looped over" via a <code>timesteps</code> attribute, which is an array of timesteps the model will be called upon.
-- The <code>step(...)</code> function takes a predicted model output and the "current" sample (x_t) and returns the "previous", slightly more denoised sample (x_t-1).
-- Given the complexity of diffusion schedulers, the <code>step</code> function does not expose all the complexity and can be a bit of a "black box".
-- In almost all cases, novel schedulers shall be implemented in a new scheduling file.</p>
+<p>The following design principles are followed:</p>
+<ul>
+<li>All schedulers are found in <a href="https://github.com/mindspore-lab/mindone/tree/master/mindone/diffusers/schedulers"><code>mindone/diffusers/schedulers</code></a>.</li>
+<li>Schedulers are <strong>not</strong> allowed to import from large utils files and shall be kept very self-contained.</li>
+<li>One scheduler Python file corresponds to one scheduler algorithm (as might be defined in a paper).</li>
+<li>If schedulers share similar functionalities, we can make use of the <code># Copied from</code> mechanism.</li>
+<li>Schedulers all inherit from <code>SchedulerMixin</code> and <code>ConfigMixin</code>.</li>
+<li>Schedulers can be easily swapped out with the <a href="https://mindspore-lab.github.io/mindone/latest/diffusers/api/configuration/#mindone.diffusers.configuration_utils.ConfigMixin.from_config"><code>ConfigMixin.from_config</code></a> method as explained in detail <a href="../../using-diffusers/schedulers/">here</a>.</li>
+<li>Every scheduler has to have a <code>set_num_inference_steps</code>, and a <code>step</code> function. <code>set_num_inference_steps(...)</code> has to be called before every denoising process, <em>i.e.</em> before <code>step(...)</code> is called.</li>
+<li>Every scheduler exposes the timesteps to be "looped over" via a <code>timesteps</code> attribute, which is an array of timesteps the model will be called upon.</li>
+<li>The <code>step(...)</code> function takes a predicted model output and the "current" sample (x_t) and returns the "previous", slightly more denoised sample (x_t-1).</li>
+<li>Given the complexity of diffusion schedulers, the <code>step</code> function does not expose all the complexity and can be a bit of a "black box".</li>
+<li>In almost all cases, novel schedulers shall be implemented in a new scheduling file.</li>
+</ul>
 
 
 
@@ -5388,7 +5524,7 @@ readable long-term, such as <a href="https://github.com/mindspore-lab/mindone/tr
     <span class="md-icon" title="Last update">
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M21 13.1c-.1 0-.3.1-.4.2l-1 1 2.1 2.1 1-1c.2-.2.2-.6 0-.8l-1.3-1.3c-.1-.1-.2-.2-.4-.2m-1.9 1.8-6.1 6V23h2.1l6.1-6.1zM12.5 7v5.2l4 2.4-1 1L11 13V7zM11 21.9c-5.1-.5-9-4.8-9-9.9C2 6.5 6.5 2 12 2c5.3 0 9.6 4.1 10 9.3-.3-.1-.6-.2-1-.2s-.7.1-1 .2C19.6 7.2 16.2 4 12 4c-4.4 0-8 3.6-8 8 0 4.1 3.1 7.5 7.1 7.9l-.1.2z"/></svg>
     </span>
-    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-date">November 1, 2024</span>
+    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-date">November 21, 2024</span>
   </span>
 
     
@@ -5408,12 +5544,13 @@ readable long-term, such as <a href="https://github.com/mindspore-lab/mindone/tr
   <span class="md-source-file__fact">
     <span class="md-icon" title="Contributors">
       
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 4a4 4 0 0 1 4 4 4 4 0 0 1-4 4 4 4 0 0 1-4-4 4 4 0 0 1 4-4m0 10c4.42 0 8 1.79 8 4v2H4v-2c0-2.21 3.58-4 8-4"/></svg>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 5.5A3.5 3.5 0 0 1 15.5 9a3.5 3.5 0 0 1-3.5 3.5A3.5 3.5 0 0 1 8.5 9 3.5 3.5 0 0 1 12 5.5M5 8c.56 0 1.08.15 1.53.42-.15 1.43.27 2.85 1.13 3.96C7.16 13.34 6.16 14 5 14a3 3 0 0 1-3-3 3 3 0 0 1 3-3m14 0a3 3 0 0 1 3 3 3 3 0 0 1-3 3c-1.16 0-2.16-.66-2.66-1.62a5.54 5.54 0 0 0 1.13-3.96c.45-.27.97-.42 1.53-.42M5.5 18.25c0-2.07 2.91-3.75 6.5-3.75s6.5 1.68 6.5 3.75V20h-13zM0 20v-1.5c0-1.39 1.89-2.56 4.45-2.9-.59.68-.95 1.62-.95 2.65V20zm24 0h-3.5v-1.75c0-1.03-.36-1.97-.95-2.65 2.56.34 4.45 1.51 4.45 2.9z"/></svg>
       
     </span>
     <nav>
       
-        <a href="mailto:53842165+the-truthh@users.noreply.github.com">The-truthh</a>
+        <a href="mailto:53842165+the-truthh@users.noreply.github.com">The-truthh</a>, 
+        <a href="mailto:townwish2023@outlook.com">townwish4git</a>
     </nav>
   </span>
 

@@ -18,7 +18,7 @@
       
       
       <link rel="icon" href="../../../../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.5.44">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.5.45">
     
     
       
@@ -2767,11 +2767,53 @@
   
   
     <li class="md-nav__item">
+      <a href="../autoencoderkl_cogvideox/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    AutoencoderKLCogVideoX
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../asymmetricautoencoderkl/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
     AsymmetricAutoEncoderKL
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../stable_cascade_unet/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    StableCascadeUNet
   </span>
   
 
@@ -2898,6 +2940,48 @@
   
   <span class="md-ellipsis">
     HunyuanDiT2DModel
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../flux_transformer/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    FluxTransformer2DModel
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../cogvideox_transformer3d/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    CogVideoXTransformer3DModel
   </span>
   
 
@@ -3130,6 +3214,27 @@
   
   
     <li class="md-nav__item">
+      <a href="../../pipelines/cogvideox/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    CogVideoX
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../pipelines/consistency_models/" class="md-nav__link">
         
   
@@ -3345,6 +3450,27 @@
   
   <span class="md-ellipsis">
     DiT
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../pipelines/flux/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Flux
   </span>
   
 
@@ -3646,10 +3772,10 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_10_4_28" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_10_4_30" >
         
           
-          <label class="md-nav__link" for="__nav_2_10_4_28" id="__nav_2_10_4_28_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_2_10_4_30" id="__nav_2_10_4_30_label" tabindex="0">
             
   
   <span class="md-ellipsis">
@@ -3660,8 +3786,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="4" aria-labelledby="__nav_2_10_4_28_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_2_10_4_28">
+        <nav class="md-nav" data-md-level="4" aria-labelledby="__nav_2_10_4_30_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_10_4_30">
             <span class="md-nav__icon md-icon"></span>
             Stable Diffusion
           </label>
@@ -5777,12 +5903,12 @@ Synthesis with Latent Diffusion Models</a> paper.</p>
 <span class="sd">        Args:</span>
 <span class="sd">            sample (`ms.Tensor`): Input sample.</span>
 <span class="sd">            return_dict (`bool`, *optional*, defaults to `True`):</span>
-<span class="sd">                Whether or not to return a [`models.vq_model.VQEncoderOutput`] instead of a plain tuple.</span>
+<span class="sd">                Whether or not to return a [`models.autoencoders.vq_model.VQEncoderOutput`] instead of a plain tuple.</span>
 
 <span class="sd">        Returns:</span>
-<span class="sd">            [`~models.vq_model.VQEncoderOutput`] or `tuple`:</span>
-<span class="sd">                If return_dict is True, a [`~models.vq_model.VQEncoderOutput`] is returned, otherwise a plain `tuple`</span>
-<span class="sd">                is returned.</span>
+<span class="sd">            [`~models.autoencoders.vq_model.VQEncoderOutput`] or `tuple`:</span>
+<span class="sd">                If return_dict is True, a [`~models.autoencoders.vq_model.VQEncoderOutput`] is returned, otherwise a</span>
+<span class="sd">                plain `tuple` is returned.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
 
         <span class="n">h</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="n">sample</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
@@ -5847,7 +5973,7 @@ Synthesis with Latent Diffusion Models</a> paper.</p>
             <td><code>return_dict</code></td>
             <td class="doc-param-details">
               <div class="doc-md-description">
-                <p>Whether or not to return a [<code>models.vq_model.VQEncoderOutput</code>] instead of a plain tuple.</p>
+                <p>Whether or not to return a [<code>models.autoencoders.vq_model.VQEncoderOutput</code>] instead of a plain tuple.</p>
               </div>
               <p>
                   <span class="doc-param-annotation">
@@ -5881,9 +6007,9 @@ Synthesis with Latent Diffusion Models</a> paper.</p>
             </td>
             <td class="doc-returns-details">
               <div class="doc-md-description">
-                <p>[<code>~models.vq_model.VQEncoderOutput</code>] or <code>tuple</code>:
-If return_dict is True, a [<code>~models.vq_model.VQEncoderOutput</code>] is returned, otherwise a plain <code>tuple</code>
-is returned.</p>
+                <p>[<code>~models.autoencoders.vq_model.VQEncoderOutput</code>] or <code>tuple</code>:
+If return_dict is True, a [<code>~models.autoencoders.vq_model.VQEncoderOutput</code>] is returned, otherwise a
+plain <code>tuple</code> is returned.</p>
               </div>
             </td>
           </tr>
@@ -5920,12 +6046,12 @@ is returned.</p>
 <span class="sd">    Args:</span>
 <span class="sd">        sample (`ms.Tensor`): Input sample.</span>
 <span class="sd">        return_dict (`bool`, *optional*, defaults to `True`):</span>
-<span class="sd">            Whether or not to return a [`models.vq_model.VQEncoderOutput`] instead of a plain tuple.</span>
+<span class="sd">            Whether or not to return a [`models.autoencoders.vq_model.VQEncoderOutput`] instead of a plain tuple.</span>
 
 <span class="sd">    Returns:</span>
-<span class="sd">        [`~models.vq_model.VQEncoderOutput`] or `tuple`:</span>
-<span class="sd">            If return_dict is True, a [`~models.vq_model.VQEncoderOutput`] is returned, otherwise a plain `tuple`</span>
-<span class="sd">            is returned.</span>
+<span class="sd">        [`~models.autoencoders.vq_model.VQEncoderOutput`] or `tuple`:</span>
+<span class="sd">            If return_dict is True, a [`~models.autoencoders.vq_model.VQEncoderOutput`] is returned, otherwise a</span>
+<span class="sd">            plain `tuple` is returned.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
     <span class="n">h</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="n">sample</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
@@ -5969,9 +6095,13 @@ is returned.</p>
                 <summary>Source code in <code>mindone/diffusers/models/vq_model.py</code></summary>
                 <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">18</span>
 <span class="normal">19</span>
-<span class="normal">20</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span> <span class="nc">VQEncoderOutput</span><span class="p">(</span><span class="n">VQEncoderOutput</span><span class="p">):</span>
-    <span class="n">deprecation_message</span> <span class="o">=</span> <span class="s2">&quot;Importing `VQEncoderOutput` from `diffusers.models.vq_model` is deprecated and this will be removed in a future version. Please use `from diffusers.models.autoencoders.vq_model import VQEncoderOutput`, instead.&quot;</span>  <span class="c1"># noqa: E501</span>
-    <span class="n">deprecate</span><span class="p">(</span><span class="s2">&quot;VQEncoderOutput&quot;</span><span class="p">,</span> <span class="s2">&quot;0.31&quot;</span><span class="p">,</span> <span class="n">deprecation_message</span><span class="p">)</span>
+<span class="normal">20</span>
+<span class="normal">21</span>
+<span class="normal">22</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span> <span class="nc">VQEncoderOutput</span><span class="p">(</span><span class="n">VQEncoderOutput</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="n">deprecation_message</span> <span class="o">=</span> <span class="s2">&quot;Importing `VQEncoderOutput` from `diffusers.models.vq_model` is deprecated and this will be removed in a future version. Please use `from mindone.diffusers.models.autoencoders.vq_model import VQEncoderOutput`, instead.&quot;</span>  <span class="c1"># noqa: E501</span>
+        <span class="n">deprecate</span><span class="p">(</span><span class="s2">&quot;VQEncoderOutput&quot;</span><span class="p">,</span> <span class="s2">&quot;0.31&quot;</span><span class="p">,</span> <span class="n">deprecation_message</span><span class="p">)</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
 </code></pre></div></td></tr></table></div>
               </details>
 

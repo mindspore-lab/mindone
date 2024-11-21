@@ -18,7 +18,7 @@
       
       
       <link rel="icon" href="../../../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.5.44">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.5.45">
     
     
       
@@ -2750,11 +2750,53 @@
   
   
     <li class="md-nav__item">
+      <a href="../../api/models/autoencoderkl_cogvideox/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    AutoencoderKLCogVideoX
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../api/models/asymmetricautoencoderkl/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
     AsymmetricAutoEncoderKL
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/models/stable_cascade_unet/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    StableCascadeUNet
   </span>
   
 
@@ -2881,6 +2923,48 @@
   
   <span class="md-ellipsis">
     HunyuanDiT2DModel
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/models/flux_transformer/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    FluxTransformer2DModel
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/models/cogvideox_transformer3d/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    CogVideoXTransformer3DModel
   </span>
   
 
@@ -3113,6 +3197,27 @@
   
   
     <li class="md-nav__item">
+      <a href="../../api/pipelines/cogvideox/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    CogVideoX
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../api/pipelines/consistency_models/" class="md-nav__link">
         
   
@@ -3328,6 +3433,27 @@
   
   <span class="md-ellipsis">
     DiT
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/pipelines/flux/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Flux
   </span>
   
 
@@ -3629,10 +3755,10 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_10_4_28" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_10_4_30" >
         
           
-          <label class="md-nav__link" for="__nav_2_10_4_28" id="__nav_2_10_4_28_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_2_10_4_30" id="__nav_2_10_4_30_label" tabindex="0">
             
   
   <span class="md-ellipsis">
@@ -3643,8 +3769,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="4" aria-labelledby="__nav_2_10_4_28_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_2_10_4_28">
+        <nav class="md-nav" data-md-level="4" aria-labelledby="__nav_2_10_4_30_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_10_4_30">
             <span class="md-nav__icon md-icon"></span>
             Stable Diffusion
           </label>
@@ -5190,8 +5316,8 @@ specific language governing permissions and limitations under the License.
 
 <h1 id="merge-loras">Merge LoRAs<a class="headerlink" href="#merge-loras" title="Permanent link">&para;</a></h1>
 <p>It can be fun and creative to use multiple <a href="(https://huggingface.co/docs/peft/conceptual_guides/adapter#low-rank-adaptation-lora)">LoRAs</a> together to generate something entirely new and unique. This works by merging multiple LoRA weights together to produce images that are a blend of different styles. Diffusers provides a few methods to merge LoRAs depending on <em>how</em> you want to merge their weights, which can affect image quality.</p>
-<p>This guide will show you how to merge LoRAs using the <a href="https://mindspore-lab.github.io/mindone/latest/diffusers/api/loaders/unet/#mindone.diffusers.loaders.unet.UNet2DConditionLoadersMixin.set_adapters"><code>set_adapters</code></a> and [<code>~peft.LoraModel.add_weighted_adapter</code>] methods. To improve inference speed and reduce memory-usage of merged LoRAs, you'll also see how to use the <a href="https://mindspore-lab.github.io/mindone/latest/diffusers/api/loaders/lora/#mindone.diffusers.loaders.lora.LoraLoaderMixin.fuse_lora"><code>fuse_lora</code></a> method to fuse the LoRA weights with the original weights of the underlying model.</p>
-<p>For this guide, load a Stable Diffusion XL (SDXL) checkpoint and the <a href="https://huggingface.co/KappaNeuro/studio-ghibli-style">KappaNeuro/studio-ghibli-style</a> and <a href="https://huggingface.co/Norod78/sdxl-chalkboarddrawing-lora">Norod78/sdxl-chalkboarddrawing-lora</a> LoRAs with the <a href="https://mindspore-lab.github.io/mindone/latest/diffusers/api/loaders/lora/#mindone.diffusers.loaders.lora.LoraLoaderMixin.load_lora_weights"><code>load_lora_weights</code></a> method. You'll need to assign each LoRA an <code>adapter_name</code> to combine them later.</p>
+<p>This guide will show you how to merge LoRAs using the <a href="https://mindspore-lab.github.io/mindone/latest/diffusers/api/loaders/unet/#mindone.diffusers.loaders.unet.UNet2DConditionLoadersMixin.set_adapters"><code>set_adapters</code></a> and [<code>~peft.LoraModel.add_weighted_adapter</code>] methods. To improve inference speed and reduce memory-usage of merged LoRAs, you'll also see how to use the <a href="https://mindspore-lab.github.io/mindone/latest/diffusers/api/loaders/lora/#mindone.diffusers.loaders.lora_pipeline.StableDiffusionLoraLoaderMixin.fuse_lora"><code>fuse_lora</code></a> method to fuse the LoRA weights with the original weights of the underlying model.</p>
+<p>For this guide, load a Stable Diffusion XL (SDXL) checkpoint and the <a href="https://huggingface.co/KappaNeuro/studio-ghibli-style">KappaNeuro/studio-ghibli-style</a> and <a href="https://huggingface.co/Norod78/sdxl-chalkboarddrawing-lora">Norod78/sdxl-chalkboarddrawing-lora</a> LoRAs with the <a href="https://mindspore-lab.github.io/mindone/latest/diffusers/api/loaders/lora/#mindone.diffusers.loaders.lora_pipeline.StableDiffusionLoraLoaderMixin.load_lora_weights"><code>load_lora_weights</code></a> method. You'll need to assign each LoRA an <code>adapter_name</code> to combine them later.</p>
 <div class="highlight"><pre><span></span><code><span class="kn">from</span> <span class="nn">mindone.diffusers</span> <span class="kn">import</span> <span class="n">DiffusionPipeline</span>
 <span class="kn">import</span> <span class="nn">mindspore</span> <span class="k">as</span> <span class="nn">ms</span>
 <span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
@@ -5214,8 +5340,8 @@ specific language governing permissions and limitations under the License.
 </div>
 
 <h2 id="fuse_lora">fuse_lora<a class="headerlink" href="#fuse_lora" title="Permanent link">&para;</a></h2>
-<p><a href="https://mindspore-lab.github.io/mindone/latest/diffusers/api/loaders/unet/#mindone.diffusers.loaders.unet.UNet2DConditionLoadersMixin.set_adapters"><code>set_adapters</code></a> method require loading the base model and the LoRA adapters separately which incurs some overhead. The <a href="https://mindspore-lab.github.io/mindone/latest/diffusers/api/loaders/lora/#mindone.diffusers.loaders.lora.LoraLoaderMixin.fuse_lora"><code>fuse_lora</code></a> method allows you to fuse the LoRA weights directly with the original weights of the underlying model. This way, you're only loading the model once which can increase inference and lower memory-usage.</p>
-<p>You can use PEFT to easily fuse/unfuse multiple adapters directly into the model weights (both UNet and text encoder) using the <a href="https://mindspore-lab.github.io/mindone/latest/diffusers/api/loaders/lora/#mindone.diffusers.loaders.lora.LoraLoaderMixin.fuse_lora"><code>fuse_lora</code></a> method, which can lead to a speed-up in inference and lower VRAM usage.</p>
+<p><a href="https://mindspore-lab.github.io/mindone/latest/diffusers/api/loaders/unet/#mindone.diffusers.loaders.unet.UNet2DConditionLoadersMixin.set_adapters"><code>set_adapters</code></a> method require loading the base model and the LoRA adapters separately which incurs some overhead. The <a href="https://mindspore-lab.github.io/mindone/latest/diffusers/api/loaders/lora/#mindone.diffusers.loaders.lora_pipeline.StableDiffusionLoraLoaderMixin.fuse_lora"><code>fuse_lora</code></a> method allows you to fuse the LoRA weights directly with the original weights of the underlying model. This way, you're only loading the model once which can increase inference and lower memory-usage.</p>
+<p>You can use PEFT to easily fuse/unfuse multiple adapters directly into the model weights (both UNet and text encoder) using the <a href="https://mindspore-lab.github.io/mindone/latest/diffusers/api/loaders/lora/#mindone.diffusers.loaders.lora_pipeline.StableDiffusionLoraLoaderMixin.fuse_lora"><code>fuse_lora</code></a> method, which can lead to a speed-up in inference and lower VRAM usage.</p>
 <p>For example, if you have a base model and adapters loaded and set as active with the following adapter weights:</p>
 <div class="highlight"><pre><span></span><code><span class="kn">from</span> <span class="nn">mindone.diffusers</span> <span class="kn">import</span> <span class="n">DiffusionPipeline</span>
 <span class="kn">import</span> <span class="nn">mindspore</span> <span class="k">as</span> <span class="nn">ms</span>
@@ -5226,10 +5352,10 @@ specific language governing permissions and limitations under the License.
 
 <span class="n">pipeline</span><span class="o">.</span><span class="n">set_adapters</span><span class="p">([</span><span class="s2">&quot;ikea&quot;</span><span class="p">,</span> <span class="s2">&quot;feng&quot;</span><span class="p">],</span> <span class="n">adapter_weights</span><span class="o">=</span><span class="p">[</span><span class="mf">0.7</span><span class="p">,</span> <span class="mf">0.8</span><span class="p">])</span>
 </code></pre></div>
-<p>Fuse these LoRAs into the UNet with the <a href="https://mindspore-lab.github.io/mindone/latest/diffusers/api/loaders/lora/#mindone.diffusers.loaders.lora.LoraLoaderMixin.fuse_lora"><code>fuse_lora</code></a> method. The <code>lora_scale</code> parameter controls how much to scale the output by with the LoRA weights. It is important to make the <code>lora_scale</code> adjustments in the <a href="https://mindspore-lab.github.io/mindone/latest/diffusers/api/loaders/lora/#mindone.diffusers.loaders.lora.LoraLoaderMixin.fuse_lora"><code>fuse_lora</code></a> method because it won’t work if you try to pass <code>scale</code> to the <code>cross_attention_kwargs</code> in the pipeline.</p>
+<p>Fuse these LoRAs into the UNet with the <a href="https://mindspore-lab.github.io/mindone/latest/diffusers/api/loaders/lora/#mindone.diffusers.loaders.lora_pipeline.StableDiffusionLoraLoaderMixin.fuse_lora"><code>fuse_lora</code></a> method. The <code>lora_scale</code> parameter controls how much to scale the output by with the LoRA weights. It is important to make the <code>lora_scale</code> adjustments in the <a href="https://mindspore-lab.github.io/mindone/latest/diffusers/api/loaders/lora/#mindone.diffusers.loaders.lora_pipeline.StableDiffusionLoraLoaderMixin.fuse_lora"><code>fuse_lora</code></a> method because it won’t work if you try to pass <code>scale</code> to the <code>cross_attention_kwargs</code> in the pipeline.</p>
 <div class="highlight"><pre><span></span><code><span class="n">pipeline</span><span class="o">.</span><span class="n">fuse_lora</span><span class="p">(</span><span class="n">adapter_names</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;ikea&quot;</span><span class="p">,</span> <span class="s2">&quot;feng&quot;</span><span class="p">],</span> <span class="n">lora_scale</span><span class="o">=</span><span class="mf">1.0</span><span class="p">)</span>
 </code></pre></div>
-<p>Then you should use <a href="https://mindspore-lab.github.io/mindone/latest/diffusers/api/loaders/lora/#mindone.diffusers.loaders.lora.LoraLoaderMixin.unload_lora_weights"><code>unload_lora_weights</code></a> to unload the LoRA weights since they've already been fused with the underlying base model. Finally, call <a href="https://mindspore-lab.github.io/mindone/latest/diffusers/api/pipelines/overview/#mindone.diffusers.DiffusionPipeline.save_pretrained"><code>save_pretrained</code></a> to save the fused pipeline locally or you could call <a href="https://mindspore-lab.github.io/mindone/latest/diffusers/api/pipelines/overview/#mindone.diffusers.DiffusionPipeline.push_to_hub"><code>push_to_hub</code></a> to push the fused pipeline to the Hub.</p>
+<p>Then you should use <a href="https://mindspore-lab.github.io/mindone/latest/diffusers/api/loaders/lora/#mindone.diffusers.loaders.lora_pipeline.StableDiffusionLoraLoaderMixin.unload_lora_weights"><code>unload_lora_weights</code></a> to unload the LoRA weights since they've already been fused with the underlying base model. Finally, call <a href="https://mindspore-lab.github.io/mindone/latest/diffusers/api/pipelines/overview/#mindone.diffusers.DiffusionPipeline.save_pretrained"><code>save_pretrained</code></a> to save the fused pipeline locally or you could call <a href="https://mindspore-lab.github.io/mindone/latest/diffusers/api/pipelines/overview/#mindone.diffusers.DiffusionPipeline.push_to_hub"><code>push_to_hub</code></a> to push the fused pipeline to the Hub.</p>
 <div class="highlight"><pre><span></span><code><span class="n">pipeline</span><span class="o">.</span><span class="n">unload_lora_weights</span><span class="p">()</span>
 <span class="c1"># save locally</span>
 <span class="n">pipeline</span><span class="o">.</span><span class="n">save_pretrained</span><span class="p">(</span><span class="s2">&quot;path/to/fused-pipeline&quot;</span><span class="p">)</span>
@@ -5244,7 +5370,7 @@ specific language governing permissions and limitations under the License.
 <span class="n">image</span> <span class="o">=</span> <span class="n">pipeline</span><span class="p">(</span><span class="s2">&quot;A bowl of ramen shaped like a cute kawaii bear, by Feng Zikai&quot;</span><span class="p">,</span> <span class="n">generator</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">Generator</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">PCG64</span><span class="p">(</span><span class="mi">0</span><span class="p">)))[</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
 <span class="n">image</span>
 </code></pre></div>
-<p>You can call <a href="https://mindspore-lab.github.io/mindone/latest/diffusers/api/loaders/lora/#mindone.diffusers.loaders.lora.LoraLoaderMixin.unfuse_lora"><code>unfuse_lora</code></a> to restore the original model's weights (for example, if you want to use a different <code>lora_scale</code> value). However, this only works if you've only fused one LoRA adapter to the original model. If you've fused multiple LoRAs, you'll need to reload the model.</p>
+<p>You can call <a href="https://mindspore-lab.github.io/mindone/latest/diffusers/api/loaders/lora/#mindone.diffusers.loaders.lora_pipeline.StableDiffusionLoraLoaderMixin.unfuse_lora"><code>unfuse_lora</code></a> to restore the original model's weights (for example, if you want to use a different <code>lora_scale</code> value). However, this only works if you've only fused one LoRA adapter to the original model. If you've fused multiple LoRAs, you'll need to reload the model.</p>
 <div class="highlight"><pre><span></span><code><span class="n">pipeline</span><span class="o">.</span><span class="n">unfuse_lora</span><span class="p">()</span>
 </code></pre></div>
 
@@ -5269,7 +5395,7 @@ specific language governing permissions and limitations under the License.
     <span class="md-icon" title="Last update">
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M21 13.1c-.1 0-.3.1-.4.2l-1 1 2.1 2.1 1-1c.2-.2.2-.6 0-.8l-1.3-1.3c-.1-.1-.2-.2-.4-.2m-1.9 1.8-6.1 6V23h2.1l6.1-6.1zM12.5 7v5.2l4 2.4-1 1L11 13V7zM11 21.9c-5.1-.5-9-4.8-9-9.9C2 6.5 6.5 2 12 2c5.3 0 9.6 4.1 10 9.3-.3-.1-.6-.2-1-.2s-.7.1-1 .2C19.6 7.2 16.2 4 12 4c-4.4 0-8 3.6-8 8 0 4.1 3.1 7.5 7.1 7.9l-.1.2z"/></svg>
     </span>
-    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-date">November 1, 2024</span>
+    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-date">November 21, 2024</span>
   </span>
 
     
@@ -5289,12 +5415,13 @@ specific language governing permissions and limitations under the License.
   <span class="md-source-file__fact">
     <span class="md-icon" title="Contributors">
       
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 4a4 4 0 0 1 4 4 4 4 0 0 1-4 4 4 4 0 0 1-4-4 4 4 0 0 1 4-4m0 10c4.42 0 8 1.79 8 4v2H4v-2c0-2.21 3.58-4 8-4"/></svg>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 5.5A3.5 3.5 0 0 1 15.5 9a3.5 3.5 0 0 1-3.5 3.5A3.5 3.5 0 0 1 8.5 9 3.5 3.5 0 0 1 12 5.5M5 8c.56 0 1.08.15 1.53.42-.15 1.43.27 2.85 1.13 3.96C7.16 13.34 6.16 14 5 14a3 3 0 0 1-3-3 3 3 0 0 1 3-3m14 0a3 3 0 0 1 3 3 3 3 0 0 1-3 3c-1.16 0-2.16-.66-2.66-1.62a5.54 5.54 0 0 0 1.13-3.96c.45-.27.97-.42 1.53-.42M5.5 18.25c0-2.07 2.91-3.75 6.5-3.75s6.5 1.68 6.5 3.75V20h-13zM0 20v-1.5c0-1.39 1.89-2.56 4.45-2.9-.59.68-.95 1.62-.95 2.65V20zm24 0h-3.5v-1.75c0-1.03-.36-1.97-.95-2.65 2.56.34 4.45 1.51 4.45 2.9z"/></svg>
       
     </span>
     <nav>
       
-        <a href="mailto:53842165+the-truthh@users.noreply.github.com">The-truthh</a>
+        <a href="mailto:53842165+the-truthh@users.noreply.github.com">The-truthh</a>, 
+        <a href="mailto:townwish2023@outlook.com">townwish4git</a>
     </nav>
   </span>
 

@@ -18,7 +18,7 @@
       
       
       <link rel="icon" href="../../../../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.5.44">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.5.45">
     
     
       
@@ -2694,11 +2694,53 @@
   
   
     <li class="md-nav__item">
+      <a href="../autoencoderkl_cogvideox/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    AutoencoderKLCogVideoX
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../asymmetricautoencoderkl/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
     AsymmetricAutoEncoderKL
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../stable_cascade_unet/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    StableCascadeUNet
   </span>
   
 
@@ -2825,6 +2867,48 @@
   
   <span class="md-ellipsis">
     HunyuanDiT2DModel
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../flux_transformer/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    FluxTransformer2DModel
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../cogvideox_transformer3d/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    CogVideoXTransformer3DModel
   </span>
   
 
@@ -3175,6 +3259,27 @@
   
   
     <li class="md-nav__item">
+      <a href="../../pipelines/cogvideox/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    CogVideoX
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../pipelines/consistency_models/" class="md-nav__link">
         
   
@@ -3390,6 +3495,27 @@
   
   <span class="md-ellipsis">
     DiT
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../pipelines/flux/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Flux
   </span>
   
 
@@ -3691,10 +3817,10 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_10_4_28" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_10_4_30" >
         
           
-          <label class="md-nav__link" for="__nav_2_10_4_28" id="__nav_2_10_4_28_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_2_10_4_30" id="__nav_2_10_4_30_label" tabindex="0">
             
   
   <span class="md-ellipsis">
@@ -3705,8 +3831,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="4" aria-labelledby="__nav_2_10_4_28_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_2_10_4_28">
+        <nav class="md-nav" data-md-level="4" aria-labelledby="__nav_2_10_4_30_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_10_4_30">
             <span class="md-nav__icon md-icon"></span>
             Stable Diffusion
           </label>
@@ -6584,8 +6710,7 @@ class conditioning with <code>class_embed_type</code> equal to <code>None</code>
 <span class="normal">825</span>
 <span class="normal">826</span>
 <span class="normal">827</span>
-<span class="normal">828</span>
-<span class="normal">829</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span> <span class="nc">ControlNetModel</span><span class="p">(</span><span class="n">ModelMixin</span><span class="p">,</span> <span class="n">ConfigMixin</span><span class="p">,</span> <span class="n">FromOriginalModelMixin</span><span class="p">):</span>
+<span class="normal">828</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span> <span class="nc">ControlNetModel</span><span class="p">(</span><span class="n">ModelMixin</span><span class="p">,</span> <span class="n">ConfigMixin</span><span class="p">,</span> <span class="n">FromOriginalModelMixin</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    A ControlNet model.</span>
 
@@ -7263,7 +7388,6 @@ class conditioning with <code>class_embed_type</code> equal to <code>None</code>
                 <span class="n">sample</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">mid_block</span><span class="p">(</span><span class="n">sample</span><span class="p">,</span> <span class="n">emb</span><span class="p">)</span>
 
         <span class="c1"># 5. Control net blocks</span>
-
         <span class="n">controlnet_down_block_res_samples</span> <span class="o">=</span> <span class="p">()</span>
 
         <span class="k">for</span> <span class="n">down_block_res_sample</span><span class="p">,</span> <span class="n">controlnet_block</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">down_block_res_samples</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">controlnet_down_blocks</span><span class="p">):</span>
@@ -7838,8 +7962,7 @@ returned where the first element is the sample tensor.</p>
 <span class="normal">825</span>
 <span class="normal">826</span>
 <span class="normal">827</span>
-<span class="normal">828</span>
-<span class="normal">829</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">construct</span><span class="p">(</span>
+<span class="normal">828</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">construct</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">sample</span><span class="p">:</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span>
     <span class="n">timestep</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="nb">float</span><span class="p">,</span> <span class="nb">int</span><span class="p">],</span>
@@ -8015,7 +8138,6 @@ returned where the first element is the sample tensor.</p>
             <span class="n">sample</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">mid_block</span><span class="p">(</span><span class="n">sample</span><span class="p">,</span> <span class="n">emb</span><span class="p">)</span>
 
     <span class="c1"># 5. Control net blocks</span>
-
     <span class="n">controlnet_down_block_res_samples</span> <span class="o">=</span> <span class="p">()</span>
 
     <span class="k">for</span> <span class="n">down_block_res_sample</span><span class="p">,</span> <span class="n">controlnet_block</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">down_block_res_samples</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">controlnet_down_blocks</span><span class="p">):</span>
@@ -8451,7 +8573,7 @@ used to condition the original UNet's downsampling activations.</p>
             <td><code>mid_down_block_re_sample</code></td>
             <td class="doc-param-details">
               <div class="doc-md-description">
-                <p>The activation of the midde block (the lowest sample resolution). Each tensor should be of shape
+                <p>The activation of the middle block (the lowest sample resolution). Each tensor should be of shape
 <code>(batch_size, channel * lowest_resolution, height // lowest_resolution, width // lowest_resolution)</code>.
 Output can be used to condition the original UNet's middle block activation.</p>
               </div>
@@ -8496,7 +8618,7 @@ Output can be used to condition the original UNet's middle block activation.</p>
 <span class="sd">            be of shape `(batch_size, channel * resolution, height //resolution, width // resolution)`. Output can be</span>
 <span class="sd">            used to condition the original UNet&#39;s downsampling activations.</span>
 <span class="sd">        mid_down_block_re_sample (`ms.Tensor`):</span>
-<span class="sd">            The activation of the midde block (the lowest sample resolution). Each tensor should be of shape</span>
+<span class="sd">            The activation of the middle block (the lowest sample resolution). Each tensor should be of shape</span>
 <span class="sd">            `(batch_size, channel * lowest_resolution, height // lowest_resolution, width // lowest_resolution)`.</span>
 <span class="sd">            Output can be used to condition the original UNet&#39;s middle block activation.</span>
 <span class="sd">    &quot;&quot;&quot;</span>

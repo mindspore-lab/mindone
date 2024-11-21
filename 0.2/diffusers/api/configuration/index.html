@@ -18,7 +18,7 @@
       
       
       <link rel="icon" href="../../../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.5.44">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.5.45">
     
     
       
@@ -2794,11 +2794,53 @@
   
   
     <li class="md-nav__item">
+      <a href="../models/autoencoderkl_cogvideox/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    AutoencoderKLCogVideoX
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../models/asymmetricautoencoderkl/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
     AsymmetricAutoEncoderKL
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../models/stable_cascade_unet/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    StableCascadeUNet
   </span>
   
 
@@ -2925,6 +2967,48 @@
   
   <span class="md-ellipsis">
     HunyuanDiT2DModel
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../models/flux_transformer/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    FluxTransformer2DModel
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../models/cogvideox_transformer3d/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    CogVideoXTransformer3DModel
   </span>
   
 
@@ -3157,6 +3241,27 @@
   
   
     <li class="md-nav__item">
+      <a href="../pipelines/cogvideox/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    CogVideoX
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../pipelines/consistency_models/" class="md-nav__link">
         
   
@@ -3372,6 +3477,27 @@
   
   <span class="md-ellipsis">
     DiT
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../pipelines/flux/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Flux
   </span>
   
 
@@ -3673,10 +3799,10 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_10_4_28" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_10_4_30" >
         
           
-          <label class="md-nav__link" for="__nav_2_10_4_28" id="__nav_2_10_4_28_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_2_10_4_30" id="__nav_2_10_4_30_label" tabindex="0">
             
   
   <span class="md-ellipsis">
@@ -3687,8 +3813,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="4" aria-labelledby="__nav_2_10_4_28_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_2_10_4_28">
+        <nav class="md-nav" data-md-level="4" aria-labelledby="__nav_2_10_4_30_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_10_4_30">
             <span class="md-nav__icon md-icon"></span>
             Stable Diffusion
           </label>
@@ -5834,12 +5960,7 @@ saving classes that inherit from [<code>ConfigMixin</code>].</p>
 <span class="normal">598</span>
 <span class="normal">599</span>
 <span class="normal">600</span>
-<span class="normal">601</span>
-<span class="normal">602</span>
-<span class="normal">603</span>
-<span class="normal">604</span>
-<span class="normal">605</span>
-<span class="normal">606</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span> <span class="nc">ConfigMixin</span><span class="p">:</span>
+<span class="normal">601</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span> <span class="nc">ConfigMixin</span><span class="p">:</span>
 <span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Base class for all configuration classes. All configuration parameters are stored under `self.config`. Also</span>
 <span class="sd">    provides the [`~ConfigMixin.from_config`] and [`~ConfigMixin.save_config`] methods for loading, downloading, and</span>
@@ -6065,9 +6186,6 @@ saving classes that inherit from [<code>ConfigMixin</code>].</p>
 <span class="sd">            force_download (`bool`, *optional*, defaults to `False`):</span>
 <span class="sd">                Whether or not to force the (re-)download of the model weights and configuration files, overriding the</span>
 <span class="sd">                cached versions if they exist.</span>
-<span class="sd">            resume_download:</span>
-<span class="sd">                Deprecated and ignored. All downloads are now resumed by default when possible. Will be removed in v1</span>
-<span class="sd">                of Diffusers.</span>
 <span class="sd">            proxies (`Dict[str, str]`, *optional*):</span>
 <span class="sd">                A dictionary of proxy servers to use by protocol or endpoint, for example, `{&#39;http&#39;: &#39;foo.bar:3128&#39;,</span>
 <span class="sd">                &#39;http://hostname&#39;: &#39;foo.bar:4012&#39;}`. The proxies are used on each request.</span>
@@ -6098,7 +6216,6 @@ saving classes that inherit from [<code>ConfigMixin</code>].</p>
         <span class="n">local_dir</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s2">&quot;local_dir&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
         <span class="n">local_dir_use_symlinks</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s2">&quot;local_dir_use_symlinks&quot;</span><span class="p">,</span> <span class="s2">&quot;auto&quot;</span><span class="p">)</span>
         <span class="n">force_download</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s2">&quot;force_download&quot;</span><span class="p">,</span> <span class="kc">False</span><span class="p">)</span>
-        <span class="n">resume_download</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s2">&quot;resume_download&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
         <span class="n">proxies</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s2">&quot;proxies&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
         <span class="n">token</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s2">&quot;token&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
         <span class="n">local_files_only</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s2">&quot;local_files_only&quot;</span><span class="p">,</span> <span class="kc">False</span><span class="p">)</span>
@@ -6141,7 +6258,6 @@ saving classes that inherit from [<code>ConfigMixin</code>].</p>
                     <span class="n">cache_dir</span><span class="o">=</span><span class="n">cache_dir</span><span class="p">,</span>
                     <span class="n">force_download</span><span class="o">=</span><span class="n">force_download</span><span class="p">,</span>
                     <span class="n">proxies</span><span class="o">=</span><span class="n">proxies</span><span class="p">,</span>
-                    <span class="n">resume_download</span><span class="o">=</span><span class="n">resume_download</span><span class="p">,</span>
                     <span class="n">local_files_only</span><span class="o">=</span><span class="n">local_files_only</span><span class="p">,</span>
                     <span class="n">token</span><span class="o">=</span><span class="n">token</span><span class="p">,</span>
                     <span class="n">user_agent</span><span class="o">=</span><span class="n">user_agent</span><span class="p">,</span>
@@ -6342,8 +6458,8 @@ saving classes that inherit from [<code>ConfigMixin</code>].</p>
         <span class="k">def</span> <span class="nf">to_json_saveable</span><span class="p">(</span><span class="n">value</span><span class="p">):</span>
             <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">):</span>
                 <span class="n">value</span> <span class="o">=</span> <span class="n">value</span><span class="o">.</span><span class="n">tolist</span><span class="p">()</span>
-            <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="n">PosixPath</span><span class="p">):</span>
-                <span class="n">value</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+            <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="n">Path</span><span class="p">):</span>
+                <span class="n">value</span> <span class="o">=</span> <span class="n">value</span><span class="o">.</span><span class="n">as_posix</span><span class="p">()</span>
             <span class="k">return</span> <span class="n">value</span>
 
         <span class="n">config_dict</span> <span class="o">=</span> <span class="p">{</span><span class="n">k</span><span class="p">:</span> <span class="n">to_json_saveable</span><span class="p">(</span><span class="n">v</span><span class="p">)</span> <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">config_dict</span><span class="o">.</span><span class="n">items</span><span class="p">()}</span>
@@ -6450,17 +6566,6 @@ cached versions if they exist.</p>
                     <b>TYPE:</b>
                       <code>`bool`, *optional*, defaults to `False`</code>
                   </span>
-              </p>
-            </td>
-          </tr>
-          <tr class="doc-section-item">
-            <td><code>resume_download</code></td>
-            <td class="doc-param-details">
-              <div class="doc-md-description">
-                <p>Deprecated and ignored. All downloads are now resumed by default when possible. Will be removed in v1
-of Diffusers.</p>
-              </div>
-              <p>
               </p>
             </td>
           </tr>
@@ -6781,12 +6886,7 @@ A dictionary of all the parameters stored in a JSON configuration file.</p>
 <span class="normal">442</span>
 <span class="normal">443</span>
 <span class="normal">444</span>
-<span class="normal">445</span>
-<span class="normal">446</span>
-<span class="normal">447</span>
-<span class="normal">448</span>
-<span class="normal">449</span>
-<span class="normal">450</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@classmethod</span>
+<span class="normal">445</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@classmethod</span>
 <span class="nd">@validate_hf_hub_args</span>
 <span class="k">def</span> <span class="nf">load_config</span><span class="p">(</span>
     <span class="bp">cls</span><span class="p">,</span>
@@ -6813,9 +6913,6 @@ A dictionary of all the parameters stored in a JSON configuration file.</p>
 <span class="sd">        force_download (`bool`, *optional*, defaults to `False`):</span>
 <span class="sd">            Whether or not to force the (re-)download of the model weights and configuration files, overriding the</span>
 <span class="sd">            cached versions if they exist.</span>
-<span class="sd">        resume_download:</span>
-<span class="sd">            Deprecated and ignored. All downloads are now resumed by default when possible. Will be removed in v1</span>
-<span class="sd">            of Diffusers.</span>
 <span class="sd">        proxies (`Dict[str, str]`, *optional*):</span>
 <span class="sd">            A dictionary of proxy servers to use by protocol or endpoint, for example, `{&#39;http&#39;: &#39;foo.bar:3128&#39;,</span>
 <span class="sd">            &#39;http://hostname&#39;: &#39;foo.bar:4012&#39;}`. The proxies are used on each request.</span>
@@ -6846,7 +6943,6 @@ A dictionary of all the parameters stored in a JSON configuration file.</p>
     <span class="n">local_dir</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s2">&quot;local_dir&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
     <span class="n">local_dir_use_symlinks</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s2">&quot;local_dir_use_symlinks&quot;</span><span class="p">,</span> <span class="s2">&quot;auto&quot;</span><span class="p">)</span>
     <span class="n">force_download</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s2">&quot;force_download&quot;</span><span class="p">,</span> <span class="kc">False</span><span class="p">)</span>
-    <span class="n">resume_download</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s2">&quot;resume_download&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
     <span class="n">proxies</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s2">&quot;proxies&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
     <span class="n">token</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s2">&quot;token&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
     <span class="n">local_files_only</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s2">&quot;local_files_only&quot;</span><span class="p">,</span> <span class="kc">False</span><span class="p">)</span>
@@ -6889,7 +6985,6 @@ A dictionary of all the parameters stored in a JSON configuration file.</p>
                 <span class="n">cache_dir</span><span class="o">=</span><span class="n">cache_dir</span><span class="p">,</span>
                 <span class="n">force_download</span><span class="o">=</span><span class="n">force_download</span><span class="p">,</span>
                 <span class="n">proxies</span><span class="o">=</span><span class="n">proxies</span><span class="p">,</span>
-                <span class="n">resume_download</span><span class="o">=</span><span class="n">resume_download</span><span class="p">,</span>
                 <span class="n">local_files_only</span><span class="o">=</span><span class="n">local_files_only</span><span class="p">,</span>
                 <span class="n">token</span><span class="o">=</span><span class="n">token</span><span class="p">,</span>
                 <span class="n">user_agent</span><span class="o">=</span><span class="n">user_agent</span><span class="p">,</span>
@@ -7473,16 +7568,16 @@ namespace).</p>
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/configuration_utils.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">597</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">592</span>
+<span class="normal">593</span>
+<span class="normal">594</span>
+<span class="normal">595</span>
+<span class="normal">596</span>
+<span class="normal">597</span>
 <span class="normal">598</span>
 <span class="normal">599</span>
 <span class="normal">600</span>
-<span class="normal">601</span>
-<span class="normal">602</span>
-<span class="normal">603</span>
-<span class="normal">604</span>
-<span class="normal">605</span>
-<span class="normal">606</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">to_json_file</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">json_file_path</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">os</span><span class="o">.</span><span class="n">PathLike</span><span class="p">]):</span>
+<span class="normal">601</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">to_json_file</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">json_file_path</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">os</span><span class="o">.</span><span class="n">PathLike</span><span class="p">]):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Save the configuration instance&#39;s parameters to a JSON file.</span>
 
@@ -7538,7 +7633,12 @@ String containing all the attributes that make up the configuration instance in 
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/configuration_utils.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">571</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">566</span>
+<span class="normal">567</span>
+<span class="normal">568</span>
+<span class="normal">569</span>
+<span class="normal">570</span>
+<span class="normal">571</span>
 <span class="normal">572</span>
 <span class="normal">573</span>
 <span class="normal">574</span>
@@ -7557,12 +7657,7 @@ String containing all the attributes that make up the configuration instance in 
 <span class="normal">587</span>
 <span class="normal">588</span>
 <span class="normal">589</span>
-<span class="normal">590</span>
-<span class="normal">591</span>
-<span class="normal">592</span>
-<span class="normal">593</span>
-<span class="normal">594</span>
-<span class="normal">595</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">to_json_string</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="normal">590</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">to_json_string</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Serializes the configuration instance to a JSON string.</span>
 
@@ -7577,8 +7672,8 @@ String containing all the attributes that make up the configuration instance in 
     <span class="k">def</span> <span class="nf">to_json_saveable</span><span class="p">(</span><span class="n">value</span><span class="p">):</span>
         <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">):</span>
             <span class="n">value</span> <span class="o">=</span> <span class="n">value</span><span class="o">.</span><span class="n">tolist</span><span class="p">()</span>
-        <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="n">PosixPath</span><span class="p">):</span>
-            <span class="n">value</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="n">Path</span><span class="p">):</span>
+            <span class="n">value</span> <span class="o">=</span> <span class="n">value</span><span class="o">.</span><span class="n">as_posix</span><span class="p">()</span>
         <span class="k">return</span> <span class="n">value</span>
 
     <span class="n">config_dict</span> <span class="o">=</span> <span class="p">{</span><span class="n">k</span><span class="p">:</span> <span class="n">to_json_saveable</span><span class="p">(</span><span class="n">v</span><span class="p">)</span> <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">config_dict</span><span class="o">.</span><span class="n">items</span><span class="p">()}</span>

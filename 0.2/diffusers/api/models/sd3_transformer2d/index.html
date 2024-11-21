@@ -18,7 +18,7 @@
       
       
       <link rel="icon" href="../../../../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.5.44">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.5.45">
     
     
       
@@ -2694,11 +2694,53 @@
   
   
     <li class="md-nav__item">
+      <a href="../autoencoderkl_cogvideox/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    AutoencoderKLCogVideoX
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../asymmetricautoencoderkl/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
     AsymmetricAutoEncoderKL
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../stable_cascade_unet/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    StableCascadeUNet
   </span>
   
 
@@ -2825,6 +2867,48 @@
   
   <span class="md-ellipsis">
     HunyuanDiT2DModel
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../flux_transformer/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    FluxTransformer2DModel
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../cogvideox_transformer3d/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    CogVideoXTransformer3DModel
   </span>
   
 
@@ -3157,6 +3241,27 @@
   
   
     <li class="md-nav__item">
+      <a href="../../pipelines/cogvideox/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    CogVideoX
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../pipelines/consistency_models/" class="md-nav__link">
         
   
@@ -3372,6 +3477,27 @@
   
   <span class="md-ellipsis">
     DiT
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../pipelines/flux/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Flux
   </span>
   
 
@@ -3673,10 +3799,10 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_10_4_28" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_10_4_30" >
         
           
-          <label class="md-nav__link" for="__nav_2_10_4_28" id="__nav_2_10_4_28_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_2_10_4_30" id="__nav_2_10_4_30_label" tabindex="0">
             
   
   <span class="md-ellipsis">
@@ -3687,8 +3813,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="4" aria-labelledby="__nav_2_10_4_28_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_2_10_4_28">
+        <nav class="md-nav" data-md-level="4" aria-labelledby="__nav_2_10_4_30_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_10_4_30">
             <span class="md-nav__icon md-icon"></span>
             Stable Diffusion
           </label>
@@ -5829,7 +5955,7 @@ it is used to learn a number of position embeddings.</p>
                 <span class="n">JointTransformerBlock</span><span class="p">(</span>
                     <span class="n">dim</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">inner_dim</span><span class="p">,</span>
                     <span class="n">num_attention_heads</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">num_attention_heads</span><span class="p">,</span>
-                    <span class="n">attention_head_dim</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">inner_dim</span><span class="p">,</span>
+                    <span class="n">attention_head_dim</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">attention_head_dim</span><span class="p">,</span>
                     <span class="n">context_pre_only</span><span class="o">=</span><span class="n">i</span> <span class="o">==</span> <span class="n">num_layers</span> <span class="o">-</span> <span class="mi">1</span><span class="p">,</span>
                 <span class="p">)</span>
                 <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">num_layers</span><span class="p">)</span>
@@ -5925,7 +6051,7 @@ it is used to learn a number of position embeddings.</p>
             <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">module</span><span class="p">,</span> <span class="n">Attention</span><span class="p">):</span>
                 <span class="n">module</span><span class="o">.</span><span class="n">fuse_projections</span><span class="p">(</span><span class="n">fuse</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 
-        <span class="bp">self</span><span class="o">.</span><span class="n">set_attn_processor</span><span class="p">(</span><span class="n">FusedJointAttnProcessor</span><span class="p">())</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">set_attn_processor</span><span class="p">(</span><span class="n">FusedJointAttnProcessor2_0</span><span class="p">())</span>
 
     <span class="c1"># Copied from diffusers.models.unets.unet_2d_condition.UNet2DConditionModel.unfuse_qkv_projections</span>
     <span class="k">def</span> <span class="nf">unfuse_qkv_projections</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
@@ -6556,7 +6682,7 @@ are fused. For cross-attention modules, key and value projection matrices are fu
         <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">module</span><span class="p">,</span> <span class="n">Attention</span><span class="p">):</span>
             <span class="n">module</span><span class="o">.</span><span class="n">fuse_projections</span><span class="p">(</span><span class="n">fuse</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 
-    <span class="bp">self</span><span class="o">.</span><span class="n">set_attn_processor</span><span class="p">(</span><span class="n">FusedJointAttnProcessor</span><span class="p">())</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">set_attn_processor</span><span class="p">(</span><span class="n">FusedJointAttnProcessor2_0</span><span class="p">())</span>
 </code></pre></div></td></tr></table></div>
             </details>
     </div>
