@@ -347,6 +347,7 @@ class OpenSoraT2V_v1_3(ModelMixin, ConfigMixin):
         encoder_hidden_states: Optional[ms.Tensor] = None,
         attention_mask: Optional[ms.Tensor] = None,
         encoder_attention_mask: Optional[ms.Tensor] = None,
+        **kwargs,
     ):
         batch_size, c, frame, h, w = hidden_states.shape
         # ensure attention_mask is a bias, and give it a singleton query_tokens dimension.
