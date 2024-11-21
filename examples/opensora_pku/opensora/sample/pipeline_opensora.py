@@ -1,45 +1,37 @@
-import html
 import inspect
 import logging
-import math
-import re
-import urllib.parse as ul
-from typing import Callable, List, Optional, Tuple, Union, Dict
+from typing import Callable, List, Optional, Union
 
 from opensora.acceleration.communications import AllGather
 from opensora.acceleration.parallel_states import get_sequence_parallel_state, hccl_info
+from transformers import CLIPTokenizer, MT5Tokenizer
 
 import mindspore as ms
 from mindspore import mint, ops
 
-from mindone.diffusers.pipelines.pipeline_utils import DiffusionPipeline, ImagePipelineOutput
-from mindone.diffusers.utils import BACKENDS_MAPPING, deprecate, is_bs4_available, is_ftfy_available, BaseOutput
-from mindone.diffusers import AutoencoderKL
-from mindone.diffusers import DDPMScheduler, FlowMatchEulerDiscreteScheduler
+from mindone.diffusers import AutoencoderKL, DDPMScheduler, FlowMatchEulerDiscreteScheduler
+from mindone.diffusers.pipelines.pipeline_utils import DiffusionPipeline
+from mindone.diffusers.utils import BaseOutput
 from mindone.diffusers.utils.mindspore_utils import randn_tensor
+from mindone.transformers import CLIPTextModelWithProjection, T5EncoderModel
+
 # from diffusers.callbacks import MultiPipelineCallbacks, PipelineCallback #TODO:TBD
 
-from mindone.transformers import CLIPTextModelWithProjection, T5EncoderModel
-from transformers import CLIPTokenizer, CLIPImageProcessor, MT5Tokenizer
 
 logger = logging.getLogger(__name__)
 
-if is_bs4_available():
-    from bs4 import BeautifulSoup
 
-if is_ftfy_available():
-    import ftfy
-    
 from dataclasses import dataclass
+
 import numpy as np
 import PIL
-
-from examples.opensora_pku.opensora.models.diffusion.opensora.modeling_opensora import OpenSoraT2V_v1_3
+from opensora.models.diffusion.opensora.modeling_opensora import OpenSoraT2V_v1_3
 
 
 @dataclass
 class OpenSoraPipelineOutput(BaseOutput):
     videos: Union[List[ms.Tensor], List[PIL.Image.Image], np.ndarray]
+
 
 # Copied from diffusers.pipelines.stable_diffusion.pipeline_stable_diffusion.rescale_noise_cfg
 def rescale_noise_cfg(noise_cfg, noise_pred_text, guidance_rescale=0.0):
@@ -54,6 +46,7 @@ def rescale_noise_cfg(noise_cfg, noise_pred_text, guidance_rescale=0.0):
     # mix with the original results from guidance by factor guidance_rescale to avoid "plain looking" images
     noise_cfg = guidance_rescale * noise_pred_rescaled + (1 - guidance_rescale) * noise_cfg
     return noise_cfg
+
 
 # Copied from diffusers.pipelines.stable_diffusion.pipeline_stable_diffusion.retrieve_timesteps
 def retrieve_timesteps(
@@ -113,7 +106,6 @@ def retrieve_timesteps(
 
 
 class OpenSoraPipeline(DiffusionPipeline):
-
     model_cpu_offload_seq = "text_encoder->text_encoder_2->transformer->vae"
     _optional_components = [
         "text_encoder_2",
@@ -152,7 +144,6 @@ class OpenSoraPipeline(DiffusionPipeline):
         )
         self.all_gather = None if not get_sequence_parallel_state() else AllGather()
 
-
     @ms.jit  # FIXME: on ms2.3, in pynative mode, text encoder's output has nan problem.
     def text_encoding_func(self, text_encoder, input_ids, attention_mask):
         return ops.stop_gradient(text_encoder(input_ids, attention_mask=attention_mask))
@@ -160,7 +151,7 @@ class OpenSoraPipeline(DiffusionPipeline):
     def encode_prompt(
         self,
         prompt: str,
-        dtype = None,
+        dtype=None,
         num_samples_per_prompt: int = 1,
         do_classifier_free_guidance: bool = True,
         negative_prompt: Optional[str] = None,
@@ -244,9 +235,9 @@ class OpenSoraPipeline(DiffusionPipeline):
             text_input_ids = ms.Tensor(text_inputs.input_ids)
             untruncated_ids = ms.Tensor(tokenizer(prompt, padding="longest", return_tensors=None).input_ids)
 
-            if (
-                untruncated_ids.shape[-1] > text_input_ids.shape[-1] or 
-                (untruncated_ids.shape[-1] == text_input_ids.shape[-1] and not ops.equal(text_input_ids, untruncated_ids).all())
+            if untruncated_ids.shape[-1] > text_input_ids.shape[-1] or (
+                untruncated_ids.shape[-1] == text_input_ids.shape[-1]
+                and not ops.equal(text_input_ids, untruncated_ids).all()
             ):
                 removed_text = tokenizer.batch_decode(untruncated_ids[:, tokenizer.model_max_length - 1 : -1])
                 logger.warning(
@@ -266,7 +257,6 @@ class OpenSoraPipeline(DiffusionPipeline):
             prompt_attention_mask = ops.ones_like(prompt_embeds)
 
         prompt_embeds = prompt_embeds.to(dtype=dtype)
-
 
         bs_embed, seq_len, _ = prompt_embeds.shape
         # duplicate text embeddings for each generation per prompt, using mps friendly method
@@ -305,8 +295,14 @@ class OpenSoraPipeline(DiffusionPipeline):
 
             uncond_text_inputs = ms.Tensor(uncond_input.input_ids)
             negative_prompt_attention_mask = ms.Tensor(uncond_input.attention_mask)
-            negative_prompt_embeds = self.text_encoding_func(text_encoder, uncond_text_inputs, attention_mask=negative_prompt_attention_mask)
-            negative_prompt_embeds = negative_prompt_embeds[0] if isinstance(negative_prompt_embeds, (list, tuple)) else negative_prompt_embeds
+            negative_prompt_embeds = self.text_encoding_func(
+                text_encoder, uncond_text_inputs, attention_mask=negative_prompt_attention_mask
+            )
+            negative_prompt_embeds = (
+                negative_prompt_embeds[0]
+                if isinstance(negative_prompt_embeds, (list, tuple))
+                else negative_prompt_embeds
+            )
 
             if text_encoder_index == 1:
                 negative_prompt_embeds = negative_prompt_embeds.unsqueeze(1)  # b d -> b 1 d for clip
@@ -318,7 +314,7 @@ class OpenSoraPipeline(DiffusionPipeline):
 
             negative_prompt_embeds = negative_prompt_embeds.to(dtype=dtype)
 
-            negative_prompt_embeds = negative_prompt_embeds.repeat(num_samples_per_prompt, axis = 1)
+            negative_prompt_embeds = negative_prompt_embeds.repeat(num_samples_per_prompt, axis=1)
             negative_prompt_embeds = negative_prompt_embeds.view((batch_size * num_samples_per_prompt, seq_len, -1))
         else:
             negative_prompt_embeds = None
@@ -370,7 +366,8 @@ class OpenSoraPipeline(DiffusionPipeline):
             k in self._callback_tensor_inputs for k in callback_on_step_end_tensor_inputs
         ):
             raise ValueError(
-                f"`callback_on_step_end_tensor_inputs` has to be in {self._callback_tensor_inputs}, but found {[k for k in callback_on_step_end_tensor_inputs if k not in self._callback_tensor_inputs]}"
+                f"`callback_on_step_end_tensor_inputs` has to be in {self._callback_tensor_inputs}, "
+                + f"but found {[k for k in callback_on_step_end_tensor_inputs if k not in self._callback_tensor_inputs]}"
             )
 
         if prompt is not None and prompt_embeds is not None:
@@ -424,11 +421,13 @@ class OpenSoraPipeline(DiffusionPipeline):
                 )
 
     # Copied from diffusers.pipelines.stable_diffusion.pipeline_stable_diffusion.StableDiffusionPipeline.prepare_latents
-    def prepare_latents(self, batch_size, num_channels_latents, num_frames, height, width, dtype, generator, latents=None):
+    def prepare_latents(
+        self, batch_size, num_channels_latents, num_frames, height, width, dtype, generator, latents=None
+    ):
         shape = (
             batch_size,
             num_channels_latents,
-            (int(num_frames) - 1) // self.vae.vae_scale_factor[0] + 1, 
+            (int(num_frames) - 1) // self.vae.vae_scale_factor[0] + 1,
             int(height) // self.vae.vae_scale_factor[1],
             int(width) // self.vae.vae_scale_factor[2],
         )
@@ -456,7 +455,9 @@ class OpenSoraPipeline(DiffusionPipeline):
         if padding_needed > 0:
             logger.debug("Doing video padding")
             # B, C, T, H, W -> B, C, T', H, W
-            video_states = mint.nn.functional.pad(video_states, (0, 0, 0, 0, 0, padding_needed), mode="constant", value=0)
+            video_states = mint.nn.functional.pad(
+                video_states, (0, 0, 0, 0, 0, padding_needed), mode="constant", value=0
+            )
 
             b, _, f, h, w = video_states.shape
             temp_attention_mask = mint.ones((b, f), ms.int32)
@@ -465,7 +466,7 @@ class OpenSoraPipeline(DiffusionPipeline):
         assert video_states.shape[2] % sp_size == 0
         video_states = ops.chunk(video_states, sp_size, 2)[index]
         return video_states, temp_attention_mask
-        
+
     @property
     def guidance_scale(self):
         return self._guidance_scale
@@ -510,28 +511,28 @@ class OpenSoraPipeline(DiffusionPipeline):
         negative_prompt_attention_mask_2: Optional[ms.Tensor] = None,
         output_type: Optional[str] = "pil",
         return_dict: bool = True,
-        callback_on_step_end: Optional[Callable[[int, int, ms.Tensor], None]] = None, #  Optional[Union[Callable[[int, int, Dict], None], PipelineCallback, MultiPipelineCallbacks]]
+        callback_on_step_end: Optional[
+            Callable[[int, int, ms.Tensor], None]
+        ] = None,  # Optional[Union[Callable[[int, int, Dict], None], PipelineCallback, MultiPipelineCallbacks]]
         callback_on_step_end_tensor_inputs: List[str] = ["latents"],
         guidance_rescale: float = 0.0,
         max_sequence_length: int = 512,
     ):
-        
-        # TODO 
-        if hasattr(callback_on_step_end, 'tensor_inputs'):
+        # TODO
+        if hasattr(callback_on_step_end, "tensor_inputs"):
             callback_on_step_end_tensor_inputs = callback_on_step_end.tensor_inputs
         # if isinstance(callback_on_step_end, (PipelineCallback, MultiPipelineCallbacks)):
-        #     callback_on_step_end_tensor_inputs = callback_on_step_end.tensor_inputs
+        # callback_on_step_end_tensor_inputs = callback_on_step_end.tensor_inputs
 
         # 0. default height and width
         num_frames = num_frames or (self.transformer.config.sample_size_t - 1) * self.vae.vae_scale_factor[0] + 1
         height = height or self.transformer.config.sample_size[0] * self.vae.vae_scale_factor[1]
         width = width or self.transformer.config.sample_size[1] * self.vae.vae_scale_factor[2]
 
-
         # 1. Check inputs. Raise error if not correct
         self.check_inputs(
             prompt,
-            num_frames, 
+            num_frames,
             height,
             width,
             negative_prompt,
@@ -557,7 +558,6 @@ class OpenSoraPipeline(DiffusionPipeline):
         else:
             batch_size = prompt_embeds.shape[0]
 
-
         # 3. Encode input prompt
 
         (
@@ -578,7 +578,7 @@ class OpenSoraPipeline(DiffusionPipeline):
             max_sequence_length=max_sequence_length,
             text_encoder_index=0,
         )
-            
+
         if self.tokenizer_2 is not None:
             (
                 prompt_embeds_2,
@@ -622,7 +622,7 @@ class OpenSoraPipeline(DiffusionPipeline):
         latents = self.prepare_latents(
             batch_size * num_samples_per_prompt,
             num_channels_latents,
-            (num_frames + world_size - 1) // world_size if get_sequence_parallel_state() else num_frames, 
+            (num_frames + world_size - 1) // world_size if get_sequence_parallel_state() else num_frames,
             height,
             width,
             prompt_embeds.dtype,
@@ -675,7 +675,7 @@ class OpenSoraPipeline(DiffusionPipeline):
             for i, t in enumerate(timesteps):
                 if self.interrupt:
                     continue
-                
+
                 # expand the latents if we are doing classifier free guidance
                 latent_model_input = ops.cat([latents] * 2) if self.do_classifier_free_guidance else latents
                 if not isinstance(self.scheduler, FlowMatchEulerDiscreteScheduler):
@@ -697,8 +697,8 @@ class OpenSoraPipeline(DiffusionPipeline):
                     prompt_attention_mask = prompt_attention_mask.unsqueeze(1)  # b l -> b 1 l
                 if prompt_embeds_2 is not None and prompt_embeds_2.ndim == 2:
                     prompt_embeds = prompt_embeds.unsqueeze(1)  # b d -> b 1 d #OFFICIAL VER. DONT KNOW WHY
-                    # prompt_embeds_2 = prompt_embeds_2.unsqueeze(1)  # 
-                
+                    # prompt_embeds_2 = prompt_embeds_2.unsqueeze(1)  #
+
                 attention_mask = ops.ones_like(latent_model_input)[:, 0]
                 if temp_attention_mask is not None:
                     # temp_attention_mask shape (bs, t), 1 means to keep, 0 means to discard
@@ -710,28 +710,32 @@ class OpenSoraPipeline(DiffusionPipeline):
 
                 # ==================make sp=====================================
                 if get_sequence_parallel_state():
-                    attention_mask = attention_mask.repeat(world_size, axis = 1)
+                    attention_mask = attention_mask.repeat(world_size, axis=1)
                 # ==================make sp=====================================
 
                 noise_pred = ops.stop_gradient(
-                        self.transformer(
-                        latent_model_input, # (b c t h w)
-                        attention_mask=attention_mask, 
+                    self.transformer(
+                        latent_model_input,  # (b c t h w)
+                        attention_mask=attention_mask,
                         encoder_hidden_states=prompt_embeds,
                         encoder_attention_mask=prompt_attention_mask,
                         timestep=current_timestep,
-                        pooled_projections=prompt_embeds_2, # UNUSED!!!!
+                        pooled_projections=prompt_embeds_2,  # UNUSED!!!!
                         return_dict=False,
                     )
-                ) # b,c,t,h,w 
-                assert not ops.any(ops.isnan(noise_pred.float())) 
+                )  # b,c,t,h,w
+                assert not ops.any(ops.isnan(noise_pred.float()))
 
                 # perform guidance
                 if self.do_classifier_free_guidance:
                     noise_pred_uncond, noise_pred_text = noise_pred.chunk(2)
                     noise_pred = noise_pred_uncond + guidance_scale * (noise_pred_text - noise_pred_uncond)
 
-                if self.do_classifier_free_guidance and guidance_rescale > 0.0 and not isinstance(self.scheduler, FlowMatchEulerDiscreteScheduler):
+                if (
+                    self.do_classifier_free_guidance
+                    and guidance_rescale > 0.0
+                    and not isinstance(self.scheduler, FlowMatchEulerDiscreteScheduler)
+                ):
                     # Based on 3.4. in https://arxiv.org/pdf/2305.08891.pdf
                     noise_pred = rescale_noise_cfg(noise_pred, noise_pred_text, guidance_rescale=guidance_rescale)
 
@@ -761,7 +765,7 @@ class OpenSoraPipeline(DiffusionPipeline):
             # full_shape = [latents_shape[0] * world_size] + latents_shape[1:]  # # b*sp c t//sp h w
             # all_latents = ops.zeros(full_shape, dtype=latents.dtype)
             all_latents = self.all_gather(latents)
-            latents_list = mint.chunk(all_latents, world_size, axis = 0)
+            latents_list = mint.chunk(all_latents, world_size, axis=0)
             latents = ops.cat(latents_list, axis=2)
         # ==================make sp=====================================
 
@@ -775,10 +779,9 @@ class OpenSoraPipeline(DiffusionPipeline):
         # self.maybe_free_model_hooks()
 
         if not return_dict:
-            return (videos, )
+            return (videos,)
 
         return OpenSoraPipelineOutput(videos=videos)
-
 
     # def decode_latents(self, latents):
     #     print(f'before vae decode {latents.shape}', ops.max(latents).item(), ops.min(latents).item(), ops.mean(latents).item(), ops.std(latents).item())
@@ -788,9 +791,21 @@ class OpenSoraPipeline(DiffusionPipeline):
     #     return video
 
     def decode_latents_per_sample(self, latents):
-        print(f'before vae decode {latents.shape}', latents.max().item(), latents.min().item(), latents.mean().item(), latents.std().item())
+        print(
+            f"before vae decode {latents.shape}",
+            latents.max().item(),
+            latents.min().item(),
+            latents.mean().item(),
+            latents.std().item(),
+        )
         video = self.vae.decode(latents).to(ms.float32)  # (b t c h w)
-        print(f'after vae decode {video.shape}', video.max().item(), video.min().item(), video.mean().item(), video.std().item())
+        print(
+            f"after vae decode {video.shape}",
+            video.max().item(),
+            video.min().item(),
+            video.mean().item(),
+            video.std().item(),
+        )
         video = ops.clip_by_value((video / 2.0 + 0.5), clip_value_min=0.0, clip_value_max=1.0).permute(0, 1, 3, 4, 2)
         return video  # b t h w c
 
