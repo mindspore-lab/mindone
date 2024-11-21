@@ -45,6 +45,7 @@ class NPUConfig:
 
         self.replaced_type = ms.float32
         self.conv_dtype = ms.bfloat16  # FIXME: torch uses float16
+        self.norm_dtype = ms.bfloat16  # use bf16 for group_norm, layer_norm and batch_norm. Set to fp32 when training
         if self.enable_FA and self.enable_FP32:
             self.inf_float = -10000.0
         else:
@@ -138,13 +139,13 @@ class NPUConfig:
             return operator(x)
 
     def run_group_norm(self, operator, x):
-        return self._run(operator, x, ms.float32)
+        return self._run(operator, x, self.norm_dtype)
 
     def run_layer_norm(self, operator, x):
-        return self._run(operator, x, ms.float32)
+        return self._run(operator, x, self.norm_dtype)
 
     def run_batch_norm(self, operator, x):
-        return self._run(operator, x, ms.float32)
+        return self._run(operator, x, self.norm_dtype)
 
     def run_conv3d(self, operator, x, out_dtype):
         return self._run(operator, x, self.conv_dtype, out_dtype)
