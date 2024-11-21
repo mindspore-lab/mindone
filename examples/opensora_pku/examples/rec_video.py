@@ -13,7 +13,6 @@ import mindspore as ms
 mindone_lib_path = os.path.abspath("../../")
 sys.path.insert(0, mindone_lib_path)
 from mindone.utils.logger import set_logger
-from mindone.visualize.videos import save_videos
 
 sys.path.append(".")
 from functools import partial
@@ -24,6 +23,7 @@ from opensora.dataset.transform import center_crop_th_tw
 from opensora.models.causalvideovae import ae_wrapper
 from opensora.npu_config import npu_config
 from opensora.utils.utils import get_precision
+from opensora.utils.video_utils import save_videos
 
 logger = logging.getLogger(__name__)
 
