@@ -126,7 +126,6 @@ def _fetch_index_file(
     cache_dir,
     variant,
     force_download,
-    resume_download,
     proxies,
     local_files_only,
     token,
@@ -151,12 +150,11 @@ def _fetch_index_file(
                 weights_name=index_file_in_repo,
                 cache_dir=cache_dir,
                 force_download=force_download,
-                resume_download=resume_download,
                 proxies=proxies,
                 local_files_only=local_files_only,
                 token=token,
                 revision=revision,
-                subfolder=subfolder,
+                subfolder=None,
                 user_agent=user_agent,
                 commit_hash=commit_hash,
             )
@@ -578,7 +576,7 @@ def get_torch_storage_size(tensor: "ms.Tensor") -> int:
 
 
 @lru_cache()
-def _get_dtype_size(dtype: "ms.Dtype") -> int:
+def _get_dtype_size(dtype: "ms.Type") -> int:
     """
     Taken from https://github.com/huggingface/safetensors/blob/08db34094e9e59e2f9218f2df133b7b4aaff5a99/bindings/python/py_src/safetensors/torch.py#L344
     """
