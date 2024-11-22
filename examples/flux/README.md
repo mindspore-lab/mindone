@@ -71,7 +71,6 @@ Options:
 
 [Here](cli.py#L123) for more arguments usages.
 
-
 ## Limitations
 
 ### NSFW Classifier
@@ -80,8 +79,29 @@ As original Flux repo using `transformers.pipeline` to invoke the NSFW classifie
 ### `ModulationOut`
 Since MindSpore's static graph syntax does not support returning instances of the `ModulationOut` class as return values of forward method, as seen in the original Flux implementation, we have replaced the `ModulationOut` class with tuples.
 
-## TODO: Diffusers integration
 
-`FLUX.1 [schnell]` and `FLUX.1 [dev]` will be integrated with the [mindone.diffusers](https://github.com/mindspore-lab/mindone/tree/master/mindone/diffusers) library in mindone.diffusers v0.30 update.
+## 🧨Diffusers integration
 
-Coming soon...
+`FLUX.1 [schnell]` and `FLUX.1 [dev]` are integrated with the [mindone.diffusers](https://github.com/mindspore-lab/mindone/tree/master/mindone/diffusers). To use it with mindone.diffusers, you can use `FluxPipeline` to run the model
+
+```python
+import mindspore
+import numpy as np
+from mindone.diffusers import FluxPipeline
+
+model_id = "black-forest-labs/FLUX.1-schnell"  # you can also use `black-forest-labs/FLUX.1-dev`
+
+pipe = FluxPipeline.from_pretrained("black-forest-labs/FLUX.1-schnell", mindspore_dtype=mindspore.bfloat16)
+
+prompt = "A cat holding a sign that says hello world"
+seed = 42
+image = pipe(
+    prompt,
+    output_type="pil",
+    num_inference_steps=4,  # use a larger number if you are using [dev]
+    generator=np.random.Generator(np.random.PCG64(seed))
+)[0][0]
+image.save("flux-schnell.png")
+```
+
+To learn more check out the [mindone.diffusers](https://mindspore-lab.github.io/mindone/latest/diffusers/api/pipelines/flux/) documentation.
