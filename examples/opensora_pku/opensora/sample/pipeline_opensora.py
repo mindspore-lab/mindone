@@ -638,11 +638,11 @@ class OpenSoraPipeline(DiffusionPipeline):
 
         # 7 create image_rotary_emb, style embedding & time ids
         if self.do_classifier_free_guidance:
-            prompt_embeds = ops.cat([negative_prompt_embeds, prompt_embeds], axis=0)
-            prompt_attention_mask = ops.cat([negative_prompt_attention_mask, prompt_attention_mask], axis=0)
+            prompt_embeds = mint.cat([negative_prompt_embeds, prompt_embeds], dim=0)
+            prompt_attention_mask = mint.cat([negative_prompt_attention_mask, prompt_attention_mask], dim=0)
             if self.tokenizer_2 is not None:
-                prompt_embeds_2 = ops.cat([negative_prompt_embeds_2, prompt_embeds_2], axis=0)
-                prompt_attention_mask_2 = ops.cat([negative_prompt_attention_mask_2, prompt_attention_mask_2], axis=0)
+                prompt_embeds_2 = mint.cat([negative_prompt_embeds_2, prompt_embeds_2], dim=0)
+                prompt_attention_mask_2 = mint.cat([negative_prompt_attention_mask_2, prompt_attention_mask_2], dim=0)
 
         # ==================make sp=====================================
         if get_sequence_parallel_state():
@@ -656,7 +656,7 @@ class OpenSoraPipeline(DiffusionPipeline):
 
             latents, temp_attention_mask = self.prepare_parallel_latent(latents)
             temp_attention_mask = (
-                ops.cat([temp_attention_mask] * 2)
+                mint.cat([temp_attention_mask] * 2)
                 if (self.do_classifier_free_guidance and temp_attention_mask is not None)
                 else temp_attention_mask
             )
@@ -677,7 +677,7 @@ class OpenSoraPipeline(DiffusionPipeline):
                     continue
 
                 # expand the latents if we are doing classifier free guidance
-                latent_model_input = ops.cat([latents] * 2) if self.do_classifier_free_guidance else latents
+                latent_model_input = mint.cat([latents] * 2) if self.do_classifier_free_guidance else latents
                 if not isinstance(self.scheduler, FlowMatchEulerDiscreteScheduler):
                     latent_model_input = self.scheduler.scale_model_input(latent_model_input, t)
 
@@ -766,7 +766,7 @@ class OpenSoraPipeline(DiffusionPipeline):
             # all_latents = ops.zeros(full_shape, dtype=latents.dtype)
             all_latents = self.all_gather(latents)
             latents_list = mint.chunk(all_latents, world_size, axis=0)
-            latents = ops.cat(latents_list, axis=2)
+            latents = mint.cat(latents_list, dim=2)
         # ==================make sp=====================================
 
         if not output_type == "latents":
@@ -815,5 +815,5 @@ class OpenSoraPipeline(DiffusionPipeline):
         bs = latents.shape[0]
         for i in range(bs):
             out.append(per_sample_func(latents[i : i + 1]))
-        out = ops.cat(out, axis=0)
+        out = mint.cat(out, dim=0)
         return out  # b t h w c
