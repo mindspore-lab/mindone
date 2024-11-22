@@ -180,6 +180,12 @@ def parse_train_args(parser):
         help="whether keep GroupNorm in fp32.",
     )
     parser.add_argument(
+        "--vae_keep_updown_fp32",
+        default=True,
+        type=str2bool,
+        help="whether keep spatial/temporal upsample and downsample in fp32.",
+    )
+    parser.add_argument(
         "--global_bf16",
         default=False,
         type=str2bool,

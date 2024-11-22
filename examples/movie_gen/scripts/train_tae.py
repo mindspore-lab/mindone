@@ -209,7 +209,7 @@ def main(args):
             ae,
             args.amp_level,
             dtype,
-            custom_fp32_cells= [SpatialDownsample, SpatialUpsample, TemporalDownsample, TemporalUpsample] + \
+            custom_fp32_cells= [SpatialDownsample, SpatialUpsample, TemporalDownsample, TemporalUpsample] if args.vae_keep_updown_fp32 else [] + \
             ([nn.GroupNorm] if args.vae_keep_gn_fp32 else []),
             # custom_fp32_cells=[nn.GroupNorm, SpatialUpsample] if args.vae_keep_gn_fp32 else [SpatialUpsample],
         )

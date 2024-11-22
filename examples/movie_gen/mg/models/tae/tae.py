@@ -168,7 +168,6 @@ class TemporalAutoencoder(nn.Cell):
 
         z_out, mean, logvar = self.encode(x[:, :, :tf])
 
-        print('D--: use encode tile ', tf)
         # import pdb; pdb.set_trace()
         # for i in range(tf - of, x.shape[2], tf):
         for i in range(tf, x.shape[2], tf):
@@ -191,10 +190,6 @@ class TemporalAutoencoder(nn.Cell):
         # ms graph mode requires an init x_out
         x_out = self.decode(z[:, :, :tl])
         
-        print('D--: use decode tile ', tl, ol)
-        # import pdb; pdb.set_trace()
-        # FIXME: the end idx is not right
-        # for i in range(stride, z.shape[2], stride):
         visited = tl 
         i = stride  # start position
         while visited < in_len:
@@ -275,7 +270,7 @@ class TemporalAutoencoder(nn.Cell):
             recons = self.decode(z)
 
         if self.discard_spurious_frames and (recons.shape[-3] != x.shape[-3]):
-            print("WARNING: discard suprious frames, ", recons.shape[-3], x.shape[-3])
+            # print("WARNING: discard suprious frames, ", recons.shape[-3], x.shape[-3])
             recons = recons[:, :, :x.shape[-3], :, :]
 
         return recons, z, posterior_mean, posterior_logvar
