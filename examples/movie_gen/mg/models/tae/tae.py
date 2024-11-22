@@ -87,7 +87,7 @@ class TemporalAutoencoder(nn.Cell):
 
         self.sample_deterministic = sample_deterministic
         self.discard_spurious_frames = True
-        
+
         # tile
         self.encode_tile = encode_tile
         self.time_compress  = 2**len(config['temporal_downsample_level']) # 8
@@ -100,7 +100,7 @@ class TemporalAutoencoder(nn.Cell):
 
         self.decode_tile = decode_tile
         self.decode_overlap = decode_overlap
-        
+
         # recompute
         if use_recompute:
             self.recompute(self.encoder)
@@ -155,13 +155,13 @@ class TemporalAutoencoder(nn.Cell):
         if self.sample_deterministic:
             return posterior_mean
         z = self.sample(posterior_mean, posterior_logvar)
-        
+
         return z, posterior_mean, posterior_logvar
 
     def decode(self, z: ms.Tensor, target_num_frames: int=None) -> ms.Tensor:
         r"""
         Decode a batch of latents to videos
-         
+
         Args:
             x (Tensor): input latent tensor of shape (b z t' h' w')
             target_num_frames (int): target number of frames for output, if None, all the decoded frames will be reserved. Otherwise, the previous this number of frames will be reserved.
@@ -199,14 +199,14 @@ class TemporalAutoencoder(nn.Cell):
         for i in range(tf, x.shape[2], tf):
             z_cur, mean, logvar = self.encode(x[:, :, i : i + tf])
             z_out = ops.cat((z_out, z_cur), axis=2)
-        
+
         # TODO: merge mean, logvar for different slices for training tae with tile
         return z_out, mean, logvar
 
     def decode_with_tile(self, z: ms.Tensor, target_num_frames: int=None) -> ms.Tensor:
         r"""
         Decode a batch of latents to videos with tiling
-         
+
         Args:
             x (Tensor): input latent tensor of shape (b z t' h' w')
             target_num_frames (int): target number of frames for output, if None, all the decoded frames will be reserved. Otherwise, the previous this number of frames will be reserved.
@@ -222,11 +222,11 @@ class TemporalAutoencoder(nn.Cell):
         num_slices = (in_len - tl) // stride + 1
         if (in_len - tl) % stride != 0 and (in_len - tl) + stride < in_len:
            num_slices += 1
-        
+
         # ms graph mode requires an init x_out
         x_out = self.decode(z[:, :, :tl])
-        
-        visited = tl 
+
+        visited = tl
         i = stride  # start position
         while visited < in_len:
             x_cur = self.decode(z[:, :, i : i + tl])
@@ -249,7 +249,7 @@ class TemporalAutoencoder(nn.Cell):
         Blend decoded latent slices, used with decode_with_tile
 
         Args:
-            x: (b c t h w) is the concatenation of the decoded slices,  
+            x: (b c t h w) is the concatenation of the decoded slices,
             slice_len: slice length; for decoding, it's the latent tile size mulitplied by temporal upsampling ratio. default is 4*8 for moviegen tae.
             overlap_len: overlap between slices. for decoding, default is 2*8 for movie gen tae
 
@@ -263,28 +263,27 @@ class TemporalAutoencoder(nn.Cell):
         num_slices = math.ceil(in_len / slice_len)
         stride = slice_len - overlap_len
 
-        out_len = ((num_slices-1) * slice_len) - (num_slices - 2) * overlap_len 
+        out_len = ((num_slices-1) * slice_len) - (num_slices - 2) * overlap_len
         last_slice_len = in_len - (num_slices -1 ) * slice_len
         out_len += last_slice_len - overlap_len
 
         out_tensor = ops.zeros((B, C, out_len, H, W), ms.float32)
         out_cnt = ops.zeros((B, C, out_len, H, W), ms.float32)
-        
-        import pdb; pdb.set_trace()
+
         for i in range(num_slices):
             # get the slice form the concatnated latent
             cur_slice = x[:, :, i*slice_len:(i+1)*slice_len]
             cur_len = cur_slice.shape[2]
-            
+
             # put the slice into the right position of output tensor
-            start = i * stride 
+            start = i * stride
             out_tensor[:, :, start:start+cur_len] += cur_slice
             out_cnt[:, :, start:start+cur_len] += 1
 
         out_tensor = out_tensor / out_cnt
 
         return out_tensor
-        
+
 
     def construct(self, x: ms.Tensor) -> ms.Tensor:
         r"""
@@ -294,7 +293,7 @@ class TemporalAutoencoder(nn.Cell):
             x: a batch of videos of shape (b c t h w)
 
         Returns:
-            recons (Tensor): the reconstructed videos of shape (b c t h w) 
+            recons (Tensor): the reconstructed videos of shape (b c t h w)
             z (Tensor): the latent tensor, shape (b z t' h' w')
             posterior_mean (Tensor): mean of latent distribution
             posterior_logvar (Tensor): logvar of latent distribution
