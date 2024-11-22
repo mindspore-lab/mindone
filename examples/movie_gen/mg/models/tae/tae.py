@@ -1,6 +1,8 @@
 import mindspore as ms
+import math
 from mindspore import nn, ops
 from .modules import Conv2_5d, Encoder, Decoder
+
 
 # TODO: set z_channels to 16
 
@@ -57,6 +59,11 @@ class TemporalAutoencoder(nn.Cell):
         pretrained: str = None,
         use_recompute: bool=False,
         sample_deterministic: bool=False,
+        use_tile: bool=False,
+        encode_tile: int=32,
+        encode_overlap: int=0,
+        decode_tile: int=32,
+        decode_overlap: int=16,
     ):
         super().__init__()
 
@@ -82,9 +89,25 @@ class TemporalAutoencoder(nn.Cell):
 
         self.sample_deterministic = sample_deterministic
         self.discard_spurious_frames = True
+        
+        # tile
+        self.encode_tile = encode_tile
+        self.time_compress  = 2**len(config['temporal_downsample_level']) # 8
+        self.encode_overlap = encode_overlap
+        self.use_tile = use_tile
+        if use_tile:
+            assert (self.encode_tile % self.time_compress == 0) and (self.encode_tile > 0), f'num tile frames should be divisable by {self.time_compress} and non-zero'
+            assert self.encode_overlap % self.time_compress == 0, f'overlap frames should be divisable by {self.time_compress}'
+            # TODO: support encode overlap
+            assert self.encode_overlap == 0, 'not supported'
+
+        self.decode_tile = decode_tile
+        self.decode_overlap = decode_overlap
+
 
         if use_recompute:
-            # self.recompute(self.encoder)
+            # TODO: uncomment if OOM
+            self.recompute(self.encoder)
             # self.recompute(self.quant_conv)
             # self.recompute(self.post_quant_conv)
             self.recompute(self.decoder)
@@ -127,14 +150,112 @@ class TemporalAutoencoder(nn.Cell):
         if self.sample_deterministic:
             return posterior_mean
         z = self.sample(posterior_mean, posterior_logvar)
-
-        return z
+        
+        # TODO: align interface
+        return z, posterior_mean, posterior_logvar
 
     def decode(self, z: ms.Tensor) -> ms.Tensor:
         if self.use_post_quant_conv:
             z = self.post_quant_conv(z)
         dec = self.decoder(z)
+
+        # TODO: consider decoding latent without knowing encode input frame length
         return dec
+
+    def encode_with_tile(self, x: ms.Tensor) -> ms.Tensor:
+        tf = self.encode_tile
+        # of = self.encode_overlap 
+
+        z_out, mean, logvar = self.encode(x[:, :, :tf])
+
+        print('D--: use encode tile ', tf)
+        # import pdb; pdb.set_trace()
+        # for i in range(tf - of, x.shape[2], tf):
+        for i in range(tf, x.shape[2], tf):
+            z_cur, mean, logvar = self.encode(x[:, :, i : i + tf])
+            z_out = ops.cat((z_out, z_cur), axis=2)
+        
+        # TODO: merge mean, logvar for different slices?
+        return z_out, mean, logvar
+
+    def decode_with_tile(self, z: ms.Tensor) -> ms.Tensor:
+        # 
+        tl = self.decode_tile // self.time_compress  # tile len
+        ol = self.decode_overlap // self.time_compress  # overlap len
+        stride = tl - ol
+        in_len = z.shape[2]
+        num_slices = (in_len - tl) // stride + 1
+        if (in_len - tl) % stride != 0 and (in_len - tl) + stride < in_len:
+           num_slices += 1
+        
+        # ms graph mode requires an init x_out
+        x_out = self.decode(z[:, :, :tl])
+        
+        print('D--: use decode tile ', tl, ol)
+        # import pdb; pdb.set_trace()
+        # FIXME: the end idx is not right
+        # for i in range(stride, z.shape[2], stride):
+        visited = tl 
+        i = stride  # start position
+        while visited < in_len:
+            x_cur = self.decode(z[:, :, i : i + tl])
+            x_out = ops.cat((x_out, x_cur), axis=2)
+
+            visited = i + tl
+            i += stride
+
+        # linear blend the overlapp part
+        if self.decode_overlap > 0:
+            x_out = self.blend_slices(x_out, self.decode_tile, self.decode_overlap)
+
+        return x_out
+
+    def blend_slices(self, x: ms.Tensor, slice_len=32, overlap_len=16, use_numpy=False):
+        """
+        Use with decode_with_tile
+
+        Args:
+            x: (b c t h w) is the concatenation of the decoded slices,  
+            slice_len: slice length; for decoding, it's the latent tile size mulitplied by temporal upsampling ratio. default is 4*8 for moviegen tae.
+            overlap_len: overlap between slices. for decoding, default is 2*8 for movie gen tae
+
+            Note that the length of the last slice can be shorter than slice_len.
+
+        Returns:
+            numpy if use_numpy is True, otherwise return ms.Tensor
+        """
+        B, C, in_len, H, W = x.shape
+        num_slices = math.ceil(in_len / slice_len)
+        stride = slice_len - overlap_len
+
+        out_len = ((num_slices-1) * slice_len) - (num_slices - 2) * overlap_len 
+        last_slice_len = in_len - (num_slices -1 ) * slice_len
+        out_len += last_slice_len - overlap_len
+        ''' 
+        if use_numpy:
+            x = x.asnumpy() 
+            out_tensor = np.zeros((B, C, out_len, H, W), np.float32)
+            out_cnt = np.zeros((B, C, out_len, H, W), np.float32)
+        '''
+        # TODO: can it work in graph mode?
+        out_tensor = ops.zeros((B, C, out_len, H, W), ms.float32)
+        out_cnt = ops.zeros((B, C, out_len, H, W), ms.float32)
+
+        # import pdb; pdb.set_trace()
+        for i in range(num_slices):
+            # get the slice form the concatnated latent
+            cur_slice = x[:, :, i*slice_len:(i+1)*slice_len]
+            cur_len = cur_slice.shape[2]
+            
+            # put the slice into the right position of output tensor
+            start = i * stride 
+            out_tensor[:, :, start:start+cur_len] += cur_slice
+            out_cnt[:, :, start:start+cur_len] += 1
+
+        out_tensor = out_tensor / out_cnt
+
+        return out_tensor
+        
 
     def construct(self, x: ms.Tensor) -> ms.Tensor:
         """
@@ -142,12 +263,19 @@ class TemporalAutoencoder(nn.Cell):
 
         x: (b c t h w)
         """
+        if self.use_tile:
+            z, posterior_mean, posterior_logvar = self.encode_with_tile(x)
+        else:
+            posterior_mean, posterior_logvar = self._encode(x)
+            z = self.sample(posterior_mean, posterior_logvar)
 
-        posterior_mean, posterior_logvar = self._encode(x)
-        z = self.sample(posterior_mean, posterior_logvar)
-        recons = self.decode(z)
+        if self.use_tile:
+            recons = self.decode_with_tile(z)
+        else:
+            recons = self.decode(z)
 
         if self.discard_spurious_frames and (recons.shape[-3] != x.shape[-3]):
+            print("WARNING: discard suprious frames, ", recons.shape[-3], x.shape[-3])
             recons = recons[:, :, :x.shape[-3], :, :]
 
         return recons, z, posterior_mean, posterior_logvar

@@ -11,7 +11,7 @@ export MS_DEV_ENABLE_KERNEL_PACKET=on
 # log level
 export GLOG_v=2
 
-output_dir=outputs/train_tae_1p_sd3.5vaeInit_noOpl
+output_dir=outputs/debug_train_tae_1p_sd3.5vaeInit_noOpl
 
 python scripts/train_tae.py \
 --mode=0 \

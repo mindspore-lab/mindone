@@ -52,7 +52,7 @@ class GeneratorWithLoss(nn.Cell):
         return kl_loss
 
     def vae_loss_fn(
-        self, x, recons, mean, logvar, nll_weights=None, no_perceptual=False, no_kl=False, pixelwise_mean=False
+        self, x, recons, mean, logvar, nll_weights=None, no_perceptual=False, no_kl=False, pixelwise_mean=False,
     ):
         """
         return:
@@ -60,10 +60,10 @@ class GeneratorWithLoss(nn.Cell):
             weighted_nll_loss:  weighted mean of nll_loss
             weighted_kl_loss: KL divergence on posterior
         """
-        bs = x.shape[0]
         # (b c t h w) -> (b*t c h w)
         x = _rearrange_in(x)
         recons = _rearrange_in(recons)
+        bs = x.shape[0]
 
         # reconstruction loss in pixels
         # FIXME: debugging: use pixelwise mean to reduce loss scale

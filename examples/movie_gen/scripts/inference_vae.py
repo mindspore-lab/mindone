@@ -101,6 +101,7 @@ def main(args):
     # build model
     model = TemporalAutoencoder(
         pretrained=args.ckpt_path,
+        use_tile=args.enable_tile,
         )
 
     model.set_train(False)
@@ -285,6 +286,7 @@ def parse_args():
     parser.add_argument("--save_vis", default=True, type=str2bool, help="whether save reconstructed images")
     parser.add_argument("--use_temporal_vae", default=True, type=str2bool, help="if False, just use spatial vae")
     parser.add_argument("--encode_only", default=False, type=str2bool, help="only encode to save z or distribution")
+    parser.add_argument("--enable_tile", default=False, type=str2bool, help="enable temporal tiling with linear blending for decoder")
     parser.add_argument("--video_column", default="video", type=str, help="name of column for videos saved in csv file")
     parser.add_argument(
         "--mixed_strategy",

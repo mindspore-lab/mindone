@@ -22,6 +22,7 @@ from args_train_tae import parse_args
 from mg.datasets.tae_dataset import create_dataloader
 from mg.models.tae.losses import GeneratorWithLoss
 from mg.models.tae.tae import TemporalAutoencoder
+from mg.models.tae.modules import  SpatialUpsample, SpatialDownsample, TemporalUpsample, TemporalDownsample 
 
 from mindone.trainers.callback import EvalSaveCallback, OverflowMonitor, ProfilerCallback
 from mindone.trainers.checkpoint import CheckpointManager, resume_train_network
@@ -203,11 +204,14 @@ def main(args):
     # TODO: set softmax, sigmoid computed in FP32. manually set inside network since they are ops, instead of layers whose precision will be set by AMP level.
     if args.dtype in ["fp16", "bf16"]:
         dtype = {"fp16": ms.float16, "bf16": ms.bfloat16}[args.dtype]
+        # TODO: check ResizeNearest bf16 support for ms>2.3.1
         ae = auto_mixed_precision(
             ae,
             args.amp_level,
             dtype,
-            custom_fp32_cells=[nn.GroupNorm] if args.vae_keep_gn_fp32 else [],
+            custom_fp32_cells= [SpatialDownsample, SpatialUpsample, TemporalDownsample, TemporalUpsample] + \
+            ([nn.GroupNorm] if args.vae_keep_gn_fp32 else []),
+            # custom_fp32_cells=[nn.GroupNorm, SpatialUpsample] if args.vae_keep_gn_fp32 else [SpatialUpsample],
         )
 
     # 4. build net with loss
