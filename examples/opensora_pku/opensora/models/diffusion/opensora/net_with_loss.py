@@ -4,7 +4,7 @@ from opensora.acceleration.communications import prepare_parallel_data
 from opensora.acceleration.parallel_states import get_sequence_parallel_state, hccl_info
 
 import mindspore as ms
-from mindspore import nn, ops
+from mindspore import mint, nn, ops
 
 from mindone.diffusers.training_utils import compute_snr
 
@@ -31,7 +31,7 @@ class DiffusionWithLoss(nn.Cell):
         noise_scheduler,
         vae: nn.Cell = None,
         text_encoder: nn.Cell = None,
-        text_encoder_2: nn.Cell = None, # not to use yet
+        text_encoder_2: nn.Cell = None,  # not to use yet
         text_emb_cached: bool = True,
         video_emb_cached: bool = False,
         use_image_num: int = 0,
@@ -115,7 +115,7 @@ class DiffusionWithLoss(nn.Cell):
                 # (b*f, c, 1, h, w) -> (b*f, c, h, w) -> (b, f, c, h, w) -> (b, c, f, h, w)
                 _, c, _, h, w = images.shape
                 images = images.squeeze(2).reshape(B, self.use_image_num, c, h, w).permute(0, 2, 1, 3, 4)
-                z = ops.cat([videos, images], axis=2)  # b c 16+4, h, w
+                z = mint.cat([videos, images], dim=2)  # b c 16+4, h, w
         else:
             raise ValueError("Incorrect Dimensions of x")
         return z
@@ -126,7 +126,7 @@ class DiffusionWithLoss(nn.Cell):
         attention_mask: ms.Tensor,
         text_tokens: ms.Tensor,
         encoder_attention_mask: ms.Tensor = None,
-    ): # TODO: in the future add 2nd text encoder and tokens
+    ):  # TODO: in the future add 2nd text encoder and tokens
         """
         Video diffusion model forward and loss computation for training
 

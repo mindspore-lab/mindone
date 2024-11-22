@@ -77,6 +77,7 @@ def main(args):
     if args.num_frames == 1 or args.use_image_num != 0:
         args.sp_size = 1
     rank_id, device_num = npu_config.set_npu_env(args, strategy_ckpt_save_file=save_src_strategy)
+    npu_config.print_ops_dtype_info()
     set_logger(name="", output_dir=args.output_dir, rank=rank_id, log_level=eval(args.log_level))
 
     # 2. Init and load models

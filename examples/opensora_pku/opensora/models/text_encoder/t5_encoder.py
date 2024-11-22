@@ -1,12 +1,12 @@
 import copy
 import logging
 
+import mint
 import numpy as np
 from transformers.models.t5.configuration_t5 import T5Config
 
 import mindspore as ms
 import mindspore.nn as nn
-import mindspore.ops as ops
 
 from mindone.transformers.activations import ACT2FN
 from mindone.transformers.modeling_utils import MSPreTrainedModel as PreTrainedModel
@@ -235,7 +235,7 @@ class T5Attention(nn.Cell):
                 if key_value_states is None:
                     # self-attn
                     # (batch_size, n_heads, key_length, dim_per_head)
-                    hidden_states = ops.cat([past_key_value, hidden_states], axis=2)
+                    hidden_states = mint.cat([past_key_value, hidden_states], dim=2)
                 elif past_key_value.shape[2] != key_value_states.shape[1]:
                     # checking that the `sequence_length` of the `past_key_value` is the same as
                     # the provided `key_value_states` to support prefix tuning
