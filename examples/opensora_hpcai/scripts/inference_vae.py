@@ -13,8 +13,8 @@ import numpy as np
 
 from mindspore import nn, ops
 
-# mindone_dir = '/home/mindocr/yx/mindone'
-mindone_dir = "/home_host/yx/mindone"
+__dir__ = os.path.dirname(os.path.abspath(__file__))
+mindone_dir = os.path.abspath(os.path.join(__dir__, "../../../"))
 sys.path.insert(0, mindone_dir)
 
 # from ae.models.lpips import LPIPS

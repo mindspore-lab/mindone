@@ -248,14 +248,27 @@ def test_sd3d5_vae():
 
     print(recons.sum())
 
+def test_blend():
+    ms.set_context(mode=1)
+    tae = TemporalAutoencoder(config=TAE_CONFIG, use_tile=True,
+        encode_tile=32, decode_tile=32, decode_overlap=16)
+
+    in_shape = (B, C, T, H, W) = (1, 1, 12, 1, 1)
+    x = np.random.normal(size=in_shape).astype(np.float32)
+    x = ms.Tensor(x)
+
+    out = tae.blend_slices(x, slice_len=4, overlap_len=2)
+
+    print(out.shape)
+
 
 def test_tae_tile():
     tae = TemporalAutoencoder(config=TAE_CONFIG, use_tile=True,
         encode_tile=32, decode_tile=32, decode_overlap=16)
 
     # in_shape = (B, C, T, H, W) = (1, 3, 16, 64, 64)
-    # in_shape = (B, C, T, H, W) = (1, 3, 96, 32, 32)
-    in_shape = (B, C, T, H, W) = (1, 3, 64+16, 64, 64)
+    in_shape = (B, C, T, H, W) = (1, 3, 96, 32, 32)
+    # in_shape = (B, C, T, H, W) = (1, 3, 64+16, 64, 64)
 
     x = np.random.normal(size=in_shape).astype(np.float32)
     x = ms.Tensor(x)
@@ -265,6 +278,7 @@ def test_tae_tile():
     print(y[0].shape)
 
     # check correctness of blend
+    
 
 
 
@@ -285,6 +299,7 @@ if __name__ == "__main__":
     # test_tae_encode()
     # test_tae_decode()
     # test_tae_rec()
-    test_tae_tile()
+    # test_tae_tile()
+    test_blend()
 
     # test_sd3d5_vae()
