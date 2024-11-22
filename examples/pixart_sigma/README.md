@@ -186,10 +186,10 @@ Experiments are tested on ascend 910* with mindspore 2.3.1 graph mode
 
 | model name   | cards |  batch size | resolution   | jit level |  graph compile | s/step |  recipe                                                                  |
 |:------------:|:-----:|:-----------:|:------------:|:----------:|:---------:|:---------:|:------------------------------------------------------------------------|
-| PixArt-Sigma | 1     | 1           | 256 x 256    | O1        | < 3 mins      | 0.055    | [pixart-sigma-256x256.yaml](configs/inference/pixart-sigma-256x256.yaml) |
-| PixArt-Sigma | 1     | 1           | 512 x 512    | O1        | < 3 mins      | 0.063    | [pixart-sigma-512-MS.yaml](configs/inference/pixart-sigma-512-MS.yaml)   |
-| PixArt-Sigma | 1     | 1           | 1024 x 1024  | O1        | < 3 mins      | 0.202    | [pixart-sigma-1024-MS.yaml](configs/inference/pixart-sigma-1024-MS.yaml) |
-| PixArt-Sigma | 1     | 1           | 2048 x 2048  | O1        | < 3 mins      | 1.754    | [pixart-sigma-2K-MS.yaml](configs/inference/pixart-sigma-2K-MS.yaml)     |
+| PixArt-Sigma | 1     | 1           | 256 x 256    | O1        | < 3 mins      | 0.055    | [yaml](configs/inference/pixart-sigma-256x256.yaml) |
+| PixArt-Sigma | 1     | 1           | 512 x 512    | O1        | < 3 mins      | 0.063    | [yaml](configs/inference/pixart-sigma-512-MS.yaml)   |
+| PixArt-Sigma | 1     | 1           | 1024 x 1024  | O1        | < 3 mins      | 0.202    | [yaml](configs/inference/pixart-sigma-1024-MS.yaml) |
+| PixArt-Sigma | 1     | 1           | 2048 x 2048  | O1        | < 3 mins      | 1.754    | [yaml](configs/inference/pixart-sigma-2K-MS.yaml)     |
 
 # References
 
