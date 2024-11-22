@@ -127,9 +127,15 @@ class GemmaModelTester:
 
 
 model_tester = GemmaModelTester()
-config, input_ids, token_type_ids, input_mask, sequence_labels, token_labels, choice_labels = (
-    model_tester.prepare_config_and_inputs()
-)
+(
+    config,
+    input_ids,
+    token_type_ids,
+    input_mask,
+    sequence_labels,
+    token_labels,
+    choice_labels,
+) = model_tester.prepare_config_and_inputs()
 
 
 GEMMA_CASES = [

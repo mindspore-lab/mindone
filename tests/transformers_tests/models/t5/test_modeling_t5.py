@@ -143,9 +143,14 @@ class T5ModelTester:
 
 
 model_tester = T5ModelTester()
-config, input_ids, decoder_input_ids, attention_mask, decoder_attention_mask, lm_labels = (
-    model_tester.prepare_config_and_inputs()
-)
+(
+    config,
+    input_ids,
+    decoder_input_ids,
+    attention_mask,
+    decoder_attention_mask,
+    lm_labels,
+) = model_tester.prepare_config_and_inputs()
 
 
 T5_CASES = [
