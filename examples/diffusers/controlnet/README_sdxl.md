@@ -60,8 +60,6 @@ To better track our training experiments, we're using the following flags in the
 
 * `validation_image`, `validation_prompt`, and `validation_steps` to allow the script to do a few validation inference runs. This allows us to qualitatively check if the training is progressing as expected.
 
-Our experiments were conducted on a single 40GB A100 GPU.
-
 ### Inference
 
 Once training is done, we can perform inference like so:
