@@ -158,12 +158,13 @@ class TemporalAutoencoder(nn.Cell):
         
         return z, posterior_mean, posterior_logvar
 
-    def decode(self, z: ms.Tensor) -> ms.Tensor:
+    def decode(self, z: ms.Tensor, target_num_frames: int=None) -> ms.Tensor:
         r"""
         Decode a batch of latents to videos
          
         Args:
             x (Tensor): input latent tensor of shape (b z t' h' w')
+            target_num_frames (int): target number of frames for output, if None, all the decoded frames will be reserved. Otherwise, the previous this number of frames will be reserved.
 
         Returns:
             z (Tensor): the decoded videos of shape (b c t h w)
@@ -172,6 +173,9 @@ class TemporalAutoencoder(nn.Cell):
         if self.use_post_quant_conv:
             z = self.post_quant_conv(z)
         dec = self.decoder(z)
+
+        if target_num_frames is not None:
+            dec = dec[:, :, :target_num_frames]
 
         return dec
 
@@ -199,12 +203,13 @@ class TemporalAutoencoder(nn.Cell):
         # TODO: merge mean, logvar for different slices for training tae with tile
         return z_out, mean, logvar
 
-    def decode_with_tile(self, z: ms.Tensor) -> ms.Tensor:
+    def decode_with_tile(self, z: ms.Tensor, target_num_frames: int=None) -> ms.Tensor:
         r"""
         Decode a batch of latents to videos with tiling
          
         Args:
             x (Tensor): input latent tensor of shape (b z t' h' w')
+            target_num_frames (int): target number of frames for output, if None, all the decoded frames will be reserved. Otherwise, the previous this number of frames will be reserved.
 
         Returns:
             z (Tensor): the decoded videos of shape (b c t h w)
@@ -233,6 +238,9 @@ class TemporalAutoencoder(nn.Cell):
         # linear blend the overlapp part
         if self.decode_overlap > 0:
             x_out = self.blend_slices(x_out, self.decode_tile, self.decode_overlap)
+
+        if target_num_frames is not None:
+            x_out = x_out[:, :, :target_num_frames]
 
         return x_out
 
@@ -304,7 +312,6 @@ class TemporalAutoencoder(nn.Cell):
             recons = self.decode(z)
 
         if self.discard_spurious_frames and (recons.shape[-3] != x.shape[-3]):
-            # print("WARNING: discard suprious frames, ", recons.shape[-3], x.shape[-3])
             recons = recons[:, :, :x.shape[-3], :, :]
 
         return recons, z, posterior_mean, posterior_logvar
