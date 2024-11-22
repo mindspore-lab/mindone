@@ -23,12 +23,12 @@ from opensora.models.diffusion import Diffusion_models
 from opensora.models.diffusion.common import PatchEmbed2D
 from opensora.models.diffusion.opensora.modules import Attention, LayerNorm
 from opensora.models.diffusion.opensora.net_with_loss import DiffusionWithLoss, DiffusionWithLossEval
+from opensora.npu_config import npu_config
 from opensora.train.commons import create_loss_scaler, parse_args
 from opensora.utils.callbacks import EMAEvalSwapCallback, PerfRecorderCallback
 from opensora.utils.dataset_utils import Collate, LengthGroupedBatchSampler
 from opensora.utils.ema import EMA
 from opensora.utils.message_utils import print_banner
-from opensora.utils.ms_utils import init_env
 from opensora.utils.utils import get_precision
 
 from mindone.diffusers.models.activations import SiLU
@@ -74,23 +74,9 @@ def set_all_reduce_fusion(
 def main(args):
     # 1. init
     save_src_strategy = args.use_parallel and args.parallel_mode != "data"
-    rank_id, device_num = init_env(
-        args.mode,
-        seed=args.seed,
-        distributed=args.use_parallel,
-        device_target=args.device,
-        max_device_memory=args.max_device_memory,
-        parallel_mode=args.parallel_mode,
-        mempool_block_size=args.mempool_block_size,
-        global_bf16=args.global_bf16,
-        strategy_ckpt_save_file=os.path.join(args.output_dir, "src_strategy.ckpt") if save_src_strategy else "",
-        optimizer_weight_shard_size=args.optimizer_weight_shard_size,
-        sp_size=args.sp_size if args.num_frames != 1 and args.use_image_num == 0 else 1,
-        jit_level=args.jit_level,
-        enable_parallel_fusion=args.enable_parallel_fusion,
-        jit_syntax_level=args.jit_syntax_level,
-        comm_fusion=args.comm_fusion,
-    )
+    if args.num_frames == 1 or args.use_image_num != 0:
+        args.sp_size = 1
+    rank_id, device_num = npu_config.set_npu_env(args, strategy_ckpt_save_file=save_src_strategy)
     set_logger(name="", output_dir=args.output_dir, rank=rank_id, log_level=eval(args.log_level))
 
     # 2. Init and load models

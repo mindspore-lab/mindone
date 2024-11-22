@@ -70,16 +70,26 @@ class NPUConfig:
         headers = ["Conv3D dtype", "FA dtype", "Norm dtype", "Interpolate, AvgPool"]
         values = [[str(self.conv_dtype), str(self.FA_dtype), str(self.norm_dtype), str(self.replaced_type)]]
         df = pd.DataFrame(values, columns=headers)
+        print("VAE operators data types:")
         print(df)
 
-    def set_npu_env(self, args):
+    def set_npu_env(self, args, strategy_ckpt_save_file=""):
         rank_id, device_num = init_env(
             mode=args.mode,
-            device_target=args.device,
+            seed=getattr(args, "seed", 42),
             distributed=getattr(args, "use_parallel", False),
-            precision_mode=getattr(args, "precision_mode", None),
+            device_target=getattr(args, "device", "Ascend"),
+            max_device_memory=getattr(args, "max_device_memory", None),
+            parallel_mode=getattr(args, "parallel_mode", "data"),
+            mempool_block_size=getattr(args, "mempool_block_size", "9GB"),
+            global_bf16=getattr(args, "global_bf16", False),
+            strategy_ckpt_save_file=strategy_ckpt_save_file,
+            optimizer_weight_shard_size=getattr(args, "optimizer_weight_shard_size", 8),
+            sp_size=getattr(args, "sp_size", 1),
             jit_level=getattr(args, "jit_level", None),
+            enable_parallel_fusion=getattr(args, "enable_parallel_fusion", False),
             jit_syntax_level=getattr(args, "jit_syntax_level", "strict"),
+            comm_fusion=getattr(args, "comm_fusion", False),
         )
         self.rank = rank_id
         self.bind_thread_to_cpu()
