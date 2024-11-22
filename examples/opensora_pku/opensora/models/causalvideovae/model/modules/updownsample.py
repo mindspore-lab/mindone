@@ -11,6 +11,11 @@ from .conv import CausalConv3d
 from .ops import cast_tuple, video_to_image
 
 
+class ResizeNearestNeighbor(nn.Cell):
+    def construct(self, x, size, scale_factor=None):
+        return ops.interpolate(x, size=size, scale_factor=scale_factor, mode="nearest")
+
+
 class Upsample(nn.Cell):
     def __init__(self, in_channels, out_channels, with_conv=True, dtype=ms.float32):
         super().__init__()
@@ -28,12 +33,13 @@ class Upsample(nn.Cell):
                 weight_init=HeUniform(negative_slope=math.sqrt(5)),
                 bias_init=Uniform(scale=1 / math.sqrt(in_channels * 3 * 3)),
             ).to_float(self.dtype)
+        self.resize = ResizeNearestNeighbor()
 
     @video_to_image
     def construct(self, x):
         in_shape = x.shape[-2:]
         out_shape = tuple(2 * x for x in in_shape)
-        x = ops.ResizeNearestNeighbor(out_shape)(x)
+        x = npu_config.run_interpolate(self.resize, x, size=out_shape)
         if self.with_conv:
             x = self.conv(x)
         return x
@@ -298,8 +304,8 @@ class TimeUpsampleRes2x(nn.Cell):
 
 
 class TrilinearInterpolate(nn.Cell):
-    def construct(self, x, scale_factor):
-        return ops.interpolate(x, scale_factor=scale_factor, mode="trilinear")
+    def construct(self, x, scale_factor, size=None):
+        return ops.interpolate(x, scale_factor=scale_factor, size=size, mode="trilinear")
 
 
 class Spatial2xTime2x3DUpsample(nn.Cell):

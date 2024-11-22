@@ -168,14 +168,14 @@ class NPUConfig:
             x = operator(x, kernel_size=kernel_size, stride=stride)
         return x
 
-    def run_interpolate(self, operator, x, scale_factor=None):
+    def run_interpolate(self, operator, x, size=None, scale_factor=None):
         if self.on_npu:
             x_dtype = x.dtype
             x = x.to(self.replaced_type)
-            x = operator(x, scale_factor=scale_factor)
+            x = operator(x, size=size, scale_factor=scale_factor)
             x = x.to(x_dtype)
         else:
-            x = operator(x, scale_factor=scale_factor)
+            x = operator(x, size=size, scale_factor=scale_factor)
         return x
 
     def run_attention(self, query, key, value, attention_mask, input_layout, head_dim, head_num):
