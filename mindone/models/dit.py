@@ -1,9 +1,8 @@
 import math
-import numbers
 from typing import Optional, Tuple, Type, Union
 
 import mindspore as ms
-from mindspore import Parameter, Tensor, nn, ops
+from mindspore import Parameter, Tensor, mint, nn, ops
 from mindspore.common.initializer import XavierUniform, Zero, initializer
 
 from mindone.models.modules.flash_attention import FLASH_IS_AVAILABLE, MSFlashAttention
@@ -29,34 +28,12 @@ __all__ = [
 ]
 
 
-class LayerNorm(nn.Cell):
-    def __init__(self, normalized_shape, eps=1e-5, elementwise_affine: bool = True, dtype=ms.float32):
-        super().__init__()
-        if isinstance(normalized_shape, numbers.Integral):
-            normalized_shape = (normalized_shape,)
-        self.normalized_shape = tuple(normalized_shape)
-        self.eps = eps
-        self.elementwise_affine = elementwise_affine
-        if self.elementwise_affine:
-            self.gamma = Parameter(initializer("ones", normalized_shape, dtype=dtype))
-            self.beta = Parameter(initializer("zeros", normalized_shape, dtype=dtype))
-        else:
-            self.gamma = ops.ones(normalized_shape, dtype=dtype)
-            self.beta = ops.zeros(normalized_shape, dtype=dtype)
-        self.layer_norm = ops.LayerNorm(-1, -1, epsilon=eps)
-
-    def construct(self, x: Tensor):
-        oridtype = x.dtype
-        x, _, _ = self.layer_norm(x.to(ms.float32), self.gamma.to(ms.float32), self.beta.to(ms.float32))
-        return x.to(oridtype)
-
-
-class GELU(nn.GELU):
+class GELU(mint.nn.GELU):
     def __init__(self, approximate: str = "none"):
         if approximate == "none":
             super().__init__(False)
         elif approximate == "tanh":
-            super().__init__(True)
+            super().__init__()
         else:
             raise ValueError(f"approximate must be one of ['none', 'tanh'], but got {approximate}.")
 
@@ -90,9 +67,7 @@ class PatchEmbed(nn.Cell):
             self.patches_resolution: Optional[Tuple] = None
             self.num_patches: Optional[int] = None
         self.embed_dim = embed_dim
-        self.proj = nn.Conv2d(
-            in_chans, embed_dim, kernel_size=patch_size, stride=patch_size, pad_mode="pad", has_bias=bias
-        )
+        self.proj = mint.nn.Conv2d(in_chans, embed_dim, kernel_size=patch_size, stride=patch_size, bias=bias)
 
     def construct(self, x: Tensor) -> Tensor:
         b, c, h, w = x.shape
@@ -102,8 +77,8 @@ class PatchEmbed(nn.Cell):
                 self.image_size[1],
             ), f"Input height and width ({h},{w}) doesn't match model ({self.image_size[0]},{self.image_size[1]})."
         x = self.proj(x)
-        x = ops.reshape(x, (b, self.embed_dim, -1))
-        x = ops.transpose(x, (0, 2, 1))  # B Ph*Pw C
+        x = mint.reshape(x, (b, self.embed_dim, -1))
+        x = mint.permute(x, (0, 2, 1))  # B Ph*Pw C
         return x
 
 
@@ -136,7 +111,7 @@ class LinearPatchEmbed(nn.Cell):
             self.patches_resolution: Optional[Tuple] = None
             self.num_patches: Optional[int] = None
         self.embed_dim = embed_dim
-        self.proj = nn.Dense(patch_size * patch_size * in_chans, embed_dim, has_bias=bias)
+        self.proj = mint.nn.Linear(patch_size * patch_size * in_chans, embed_dim, bias=bias)
 
     def construct(self, x: Tensor) -> Tensor:
         b, c, h, w = x.shape
@@ -160,16 +135,16 @@ class Mlp(nn.Cell):
         in_features: int,
         hidden_features: Optional[int] = None,
         out_features: Optional[int] = None,
-        act_layer: Type[nn.Cell] = nn.GELU,
+        act_layer: Type[nn.Cell] = mint.nn.GELU,
         drop: float = 0.0,
     ) -> None:
         super().__init__()
         out_features = out_features or in_features
         hidden_features = hidden_features or in_features
-        self.fc1 = nn.Dense(in_channels=in_features, out_channels=hidden_features, has_bias=True)
+        self.fc1 = mint.nn.Linear(in_features=in_features, out_features=hidden_features, bias=True)
         self.act = act_layer()
-        self.fc2 = nn.Dense(in_channels=hidden_features, out_channels=out_features, has_bias=True)
-        self.drop = nn.Dropout(p=drop)
+        self.fc2 = mint.nn.Linear(in_features=hidden_features, out_features=out_features, bias=True)
+        self.drop = mint.nn.Dropout(p=drop)
 
     def construct(self, x: Tensor) -> Tensor:
         x = self.fc1(x)
@@ -183,10 +158,8 @@ class Mlp(nn.Cell):
 class Attention(nn.Cell):
     def __init__(self, dim_head, attn_drop=0.0, upcast_softmax=True):
         super().__init__()
-        self.softmax = ops.Softmax(axis=-1)
-        self.transpose = ops.Transpose()
         self.scale = dim_head**-0.5
-        self.attn_drop = nn.Dropout(p=attn_drop)
+        self.attn_drop = mint.nn.Dropout(p=attn_drop)
         self.upcast_softmax = upcast_softmax
 
     def construct(self, q, k, v, mask=None):
@@ -195,17 +168,17 @@ class Attention(nn.Cell):
         k v: (b*h n_k d), h - num_head, n_k - seq_len of k;
         mask: (b*h n_q n_k), -inf means to discard, 0 means to keep.
         """
-        sim = ops.matmul(q, self.transpose(k, (0, 2, 1))) * self.scale
+        sim = mint.matmul(q, mint.permute(k, (0, 2, 1))) * self.scale
         if self.upcast_softmax:
             sim = sim.astype(ms.float32)
         if exists(mask):
             sim += mask
 
         # use fp32 for exponential inside
-        attn = self.softmax(sim).astype(v.dtype)
+        attn = mint.nn.functional.softmax(sim, dim=-1).astype(v.dtype)
         attn = self.attn_drop(attn)
 
-        out = ops.matmul(attn, v)
+        out = mint.matmul(attn, v)
 
         return out
 
@@ -238,11 +211,11 @@ class SelfAttention(nn.Cell):
         head_dim = dim // num_heads
         self.scale = head_dim**-0.5
 
-        self.qkv = nn.Dense(dim, dim * 3, has_bias=qkv_bias, weight_init=XavierUniform(), bias_init=Zero()).to_float(
+        self.qkv = mint.nn.Linear(dim, dim * 3, bias=qkv_bias, weight_init=XavierUniform(), bias_init=Zero()).to_float(
             self.dtype
         )
-        self.proj = nn.Dense(dim, dim, weight_init=XavierUniform(), bias_init=Zero()).to_float(self.dtype)
-        self.proj_drop = nn.Dropout(p=proj_drop)
+        self.proj = mint.nn.Linear(dim, dim, weight_init=XavierUniform(), bias_init=Zero()).to_float(self.dtype)
+        self.proj_drop = mint.nn.Dropout(p=proj_drop)
 
         self.attention = Attention(head_dim, attn_drop=attn_drop)
 
@@ -263,9 +236,9 @@ class SelfAttention(nn.Cell):
         b, n, d = x.shape
         d = d // h
 
-        x = ops.reshape(x, (b, n, h, d))
-        x = ops.transpose(x, (0, 2, 1, 3))
-        x = ops.reshape(x, (b * h, n, d))
+        x = mint.reshape(x, (b, n, h, d))
+        x = mint.permute(x, (0, 2, 1, 3))
+        x = mint.reshape(x, (b * h, n, d))
         return x
 
     @staticmethod
@@ -274,9 +247,9 @@ class SelfAttention(nn.Cell):
         b, n, d = x.shape
         b = b // h
 
-        x = ops.reshape(x, (b, h, n, d))
-        x = ops.transpose(x, (0, 2, 1, 3))
-        x = ops.reshape(x, (b, n, h * d))
+        x = mint.reshape(x, (b, h, n, d))
+        x = mint.permute(x, (0, 2, 1, 3))
+        x = mint.reshape(x, (b, n, h * d))
         return x
 
     def construct(self, x, mask=None):
@@ -299,11 +272,11 @@ class SelfAttention(nn.Cell):
         if mask is not None:
             if mask.ndim == 2:
                 # mask shape is (batch_size, key_len)
-                mask = ops.expand_dims(mask, axis=1).repeat(q_n, axis=1)  # (b, k_n) -> (b, 1, k_n) -> (b, q_n, k_n)
-                mask = ops.select(
+                mask = mint.unsqueeze(mask, dim=1).repeat(q_n, axis=1)  # (b, k_n) -> (b, 1, k_n) -> (b, q_n, k_n)
+                mask = mint.select(
                     ~mask,
-                    ops.ones((q_b, q_n, k_n), self.dtype) * (-ms.numpy.inf),
-                    ops.zeros((q_b, q_n, k_n), self.dtype),
+                    mint.ones((q_b, q_n, k_n), self.dtype) * (-ms.numpy.inf),
+                    mint.zeros((q_b, q_n, k_n), self.dtype),
                 )
             elif mask.ndim == 3:
                 # mask shape is (batch_size, query_len, key_len), the query_len maybe one
@@ -324,7 +297,7 @@ class SelfAttention(nn.Cell):
             k = k.view(k_b, k_n, h, -1).transpose(0, 2, 1, 3)
             v = v.view(v_b, v_n, h, -1).transpose(0, 2, 1, 3)
             if mask is not None and mask.ndim == 3:
-                mask = ops.expand_dims(mask, axis=1)  # (q_b, 1, q_n, k_n), FA needs 4-dim mask
+                mask = mint.unsqueeze(mask, dim=1)  # (q_b, 1, q_n, k_n), FA needs 4-dim mask
             out = self.flash_attention(q, k, v, mask)
             b, h, n, d = out.shape
             # reshape FA output to original attn input format, (b h n d) -> (b n h*d)
@@ -356,9 +329,9 @@ class TimestepEmbedder(nn.Cell):
     def __init__(self, hidden_size, frequency_embedding_size=256):
         super().__init__()
         self.mlp = nn.SequentialCell(
-            nn.Dense(frequency_embedding_size, hidden_size, has_bias=True),
-            nn.SiLU(),
-            nn.Dense(hidden_size, hidden_size, has_bias=True),
+            mint.nn.Linear(frequency_embedding_size, hidden_size, bias=True),
+            mint.nn.SiLU(),
+            mint.nn.Linear(hidden_size, hidden_size, bias=True),
         )
         self.frequency_embedding_size = frequency_embedding_size
 
@@ -374,11 +347,11 @@ class TimestepEmbedder(nn.Cell):
         """
         # https://github.com/openai/glide-text2im/blob/main/glide_text2im/nn.py
         half = dim // 2
-        freqs = ops.exp(-math.log(max_period) * ops.arange(start=0, end=half, dtype=ms.float32) / half)
+        freqs = mint.exp(-math.log(max_period) * mint.arange(start=0, end=half, dtype=ms.float32) / half)
         args = t[:, None].float() * freqs[None]
-        embedding = ops.cat([ops.cos(args), ops.sin(args)], axis=-1)
+        embedding = mint.cat([mint.cos(args), mint.sin(args)], dim=-1)
         if dim % 2:
-            embedding = ops.cat([embedding, ops.zeros_like(embedding[:, :1])], axis=-1)
+            embedding = mint.cat([embedding, mint.zeros_like(embedding[:, :1])], dim=-1)
         return embedding
 
     def construct(self, t):
@@ -395,7 +368,7 @@ class LabelEmbedder(nn.Cell):
     def __init__(self, num_classes, hidden_size, dropout_prob):
         super().__init__()
         use_cfg_embedding = dropout_prob > 0
-        self.embedding_table = nn.Embedding(num_classes + use_cfg_embedding, hidden_size)
+        self.embedding_table = mint.nn.Embedding(num_classes + use_cfg_embedding, hidden_size)
         self.num_classes = num_classes
         self.dropout_prob = dropout_prob
 
@@ -407,7 +380,7 @@ class LabelEmbedder(nn.Cell):
             drop_ids = ops.rand(labels.shape[0]) < self.dropout_prob
         else:
             drop_ids = force_drop_ids == 1
-        labels = ops.where(drop_ids, self.num_classes, labels)
+        labels = mint.where(drop_ids, self.num_classes, labels)
         return labels
 
     def construct(self, labels, train, force_drop_ids=None):
@@ -430,13 +403,15 @@ class DiTBlock(nn.Cell):
 
     def __init__(self, hidden_size, num_heads, mlp_ratio=4.0, **block_kwargs):
         super().__init__()
-        self.norm1 = LayerNorm(hidden_size, elementwise_affine=False, eps=1e-6)
+        self.norm1 = mint.nn.LayerNorm(hidden_size, elementwise_affine=False, eps=1e-6)
         self.attn = SelfAttention(hidden_size, num_heads=num_heads, qkv_bias=True, **block_kwargs)
-        self.norm2 = LayerNorm(hidden_size, elementwise_affine=False, eps=1e-6)
+        self.norm2 = mint.nn.LayerNorm(hidden_size, elementwise_affine=False, eps=1e-6)
         mlp_hidden_dim = int(hidden_size * mlp_ratio)
         approx_gelu = lambda: GELU(approximate="tanh")
         self.mlp = Mlp(in_features=hidden_size, hidden_features=mlp_hidden_dim, act_layer=approx_gelu, drop=0)
-        self.adaLN_modulation = nn.SequentialCell(nn.SiLU(), nn.Dense(hidden_size, 6 * hidden_size, has_bias=True))
+        self.adaLN_modulation = nn.SequentialCell(
+            mint.nn.SiLU(), mint.nn.Linear(hidden_size, 6 * hidden_size, bias=True)
+        )
 
     def construct(self, x, c):
         shift_msa, scale_msa, gate_msa, shift_mlp, scale_mlp, gate_mlp = self.adaLN_modulation(c).chunk(6, axis=1)
@@ -452,9 +427,11 @@ class FinalLayer(nn.Cell):
 
     def __init__(self, hidden_size, patch_size, out_channels):
         super().__init__()
-        self.norm_final = LayerNorm(hidden_size, elementwise_affine=False, eps=1e-6)
-        self.linear = nn.Dense(hidden_size, patch_size * patch_size * out_channels, has_bias=True)
-        self.adaLN_modulation = nn.SequentialCell(nn.SiLU(), nn.Dense(hidden_size, 2 * hidden_size, has_bias=True))
+        self.norm_final = mint.nn.LayerNorm(hidden_size, elementwise_affine=False, eps=1e-6)
+        self.linear = mint.nn.Linear(hidden_size, patch_size * patch_size * out_channels, bias=True)
+        self.adaLN_modulation = nn.SequentialCell(
+            mint.nn.SiLU(), mint.nn.Linear(hidden_size, 2 * hidden_size, bias=True)
+        )
 
     def construct(self, x, c):
         shift, scale = self.adaLN_modulation(c).chunk(2, axis=1)
@@ -512,7 +489,7 @@ class DiT(nn.Cell):
         self.y_embedder = LabelEmbedder(num_classes, hidden_size, class_dropout_prob)
         num_patches = self.x_embedder.num_patches
         # Will use fixed sin-cos embedding:
-        self.pos_embed = Parameter(ops.zeros((1, num_patches, hidden_size)), requires_grad=False)
+        self.pos_embed = Parameter(mint.zeros((1, num_patches, hidden_size)), requires_grad=False)
 
         self.blocks = nn.CellList(
             [DiTBlock(hidden_size, num_heads, mlp_ratio=mlp_ratio, **block_kwargs) for _ in range(depth)]
@@ -535,7 +512,7 @@ class DiT(nn.Cell):
     def initialize_weights(self):
         # Initialize transformer layers:
         def _basic_init(module):
-            if isinstance(module, nn.Dense):
+            if isinstance(module, mint.nn.Linear):
                 xavier_uniform_(module.weight)
                 if module.bias is not None:
                     constant_(module.bias, 0)
@@ -554,7 +531,7 @@ class DiT(nn.Cell):
         constant_(self.x_embedder.proj.bias, 0)
 
         # Initialize label embedding table:
-        normal_(self.y_embedder.embedding_table.embedding_table, std=0.02)
+        normal_(self.y_embedder.embedding_table.weight, std=0.02)
 
         # Initialize timestep embedding MLP:
         normal_(self.t_embedder.mlp[0].weight, std=0.02)
@@ -582,7 +559,7 @@ class DiT(nn.Cell):
         assert h * w == x.shape[1]
 
         x = x.reshape((x.shape[0], h, w, p, p, c))
-        x = ops.transpose(x, (0, 5, 1, 3, 2, 4))
+        x = mint.permute(x, (0, 5, 1, 3, 2, 4))
         imgs = x.reshape((x.shape[0], c, h * p, h * p))
         return imgs
 
@@ -610,13 +587,13 @@ class DiT(nn.Cell):
         """
         # https://github.com/openai/glide-text2im/blob/main/notebooks/text2im.ipynb
         half = x[: len(x) // 2]
-        combined = ops.cat([half, half], axis=0)
+        combined = mint.cat([half, half], dim=0)
         model_out = self.construct(combined, t, y)
         eps, rest = model_out[:, : self.in_channels], model_out[:, self.in_channels :]
-        cond_eps, uncond_eps = ops.split(eps, len(eps) // 2, axis=0)
+        cond_eps, uncond_eps = mint.split(eps, len(eps) // 2, dim=0)
         half_eps = uncond_eps + cfg_scale * (cond_eps - uncond_eps)
-        eps = ops.cat([half_eps, half_eps], axis=0)
-        return ops.cat([eps, rest], axis=1)
+        eps = mint.cat([half_eps, half_eps], dim=0)
+        return mint.cat([eps, rest], dim=1)
 
 
 #################################################################################
@@ -691,4 +668,4 @@ DiT_models = {
 if __name__ == "__main__":
     ms.set_context(mode=ms.GRAPH_MODE)
     model = DiT_S_2(input_size=32, block_kwargs={"enable_flash_attention": True})
-    print(model(ops.randn(2, 4, 32, 32), ops.randint(0, 50, (2,)), ops.arange(2)))
+    print(model(ops.randn(2, 4, 32, 32), ops.randint(0, 50, (2,)), mint.arange(2)))

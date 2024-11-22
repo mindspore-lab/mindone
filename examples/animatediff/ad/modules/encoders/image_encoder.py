@@ -6,6 +6,7 @@ import mindspore.nn as nn
 import mindspore.ops as ops
 from mindspore import Parameter, Tensor
 from mindspore import dtype as mstype
+from mindspore import mint
 
 from ._common import LayerNorm, QuickGELU
 
@@ -18,19 +19,19 @@ class Bottleneck(nn.Cell):
         self.dtype = dtype
 
         # all conv layers have stride 1. an avgpool is performed after the second convolution when stride > 1
-        self.conv1 = nn.Conv2d(inplanes, planes, 1, has_bias=False).to_float(self.dtype)
-        self.bn1 = nn.BatchNorm2d(planes).to_float(self.dtype)
-        self.relu1 = nn.ReLU()
+        self.conv1 = mint.nn.Conv2d(inplanes, planes, 1, bias=False).to_float(self.dtype)
+        self.bn1 = mint.nn.BatchNorm2d(planes).to_float(self.dtype)
+        self.relu1 = mint.nn.ReLU()
 
-        self.conv2 = nn.Conv2d(planes, planes, 3, padding=1, pad_mode="pad", has_bias=False).to_float(self.dtype)
-        self.bn2 = nn.BatchNorm2d(planes).to_float(self.dtype)
-        self.relu2 = nn.ReLU()
+        self.conv2 = mint.nn.Conv2d(planes, planes, 3, padding=1, bias=False).to_float(self.dtype)
+        self.bn2 = mint.nn.BatchNorm2d(planes).to_float(self.dtype)
+        self.relu2 = mint.nn.ReLU()
 
-        self.avgpool = nn.AvgPool2d(stride) if stride > 1 else nn.Identity()
+        self.avgpool = mint.nn.AvgPool2d(stride) if stride > 1 else mint.nn.Identity()
 
-        self.conv3 = nn.Conv2d(planes, planes * self.expansion, 1, has_bias=False).to_float(self.dtype)
-        self.bn3 = nn.BatchNorm2d(planes * self.expansion).to_float(self.dtype)
-        self.relu3 = nn.ReLU()
+        self.conv3 = mint.nn.Conv2d(planes, planes * self.expansion, 1, bias=False).to_float(self.dtype)
+        self.bn3 = mint.nn.BatchNorm2d(planes * self.expansion).to_float(self.dtype)
+        self.relu3 = mint.nn.ReLU()
 
         self.downsample = None
         self.stride = stride
@@ -40,14 +41,14 @@ class Bottleneck(nn.Cell):
             self.downsample = nn.SequentialCell(
                 OrderedDict(
                     [
-                        ("-1", nn.AvgPool2d(stride)),
+                        ("-1", mint.nn.AvgPool2d(stride)),
                         (
                             "0",
-                            nn.Conv2d(inplanes, planes * self.expansion, 1, stride=1, has_bias=False).to_float(
+                            mint.nn.Conv2d(inplanes, planes * self.expansion, 1, stride=1, bias=False).to_float(
                                 self.dtype
                             ),
                         ),
-                        ("1", nn.BatchNorm2d(planes * self.expansion).to_float(self.dtype)),
+                        ("1", mint.nn.BatchNorm2d(planes * self.expansion).to_float(self.dtype)),
                     ]
                 )
             )
@@ -77,16 +78,16 @@ class AttentionPool2d(nn.Cell):
         self.positional_embedding = Parameter(
             ms.numpy.randn(spacial_dim**2 + 1, embed_dim, dtype=self.dtype) / embed_dim**0.5
         )
-        self.k_proj = nn.Dense(embed_dim, embed_dim).to_float(dtype)
-        self.q_proj = nn.Dense(embed_dim, embed_dim).to_float(dtype)
-        self.v_proj = nn.Dense(embed_dim, embed_dim).to_float(dtype)
-        self.c_proj = nn.Dense(embed_dim, output_dim or embed_dim).to_float(dtype)
+        self.k_proj = mint.nn.Linear(embed_dim, embed_dim).to_float(dtype)
+        self.q_proj = mint.nn.Linear(embed_dim, embed_dim).to_float(dtype)
+        self.v_proj = mint.nn.Linear(embed_dim, embed_dim).to_float(dtype)
+        self.c_proj = mint.nn.Linear(embed_dim, output_dim or embed_dim).to_float(dtype)
         self.num_heads = num_heads
 
     def construct(self, x: Tensor):
         x = x.flatten(start_dim=2)
-        x = ops.transpose(x, (2, 0, 1))  # NCHW -> (HW)NC
-        x = ops.concat([x.mean(axis=0, keep_dims=True), x], axis=0)  # (HW+1)NC
+        x = mint.permute(x, (2, 0, 1))  # NCHW -> (HW)NC
+        x = mint.concat([x.mean(axis=0, keep_dims=True), x], dim=0)  # (HW+1)NC
         x = x + self.positional_embedding[:, None, :]  # (HW+1)NC
         x, _ = ops.nn_func.multi_head_attention_forward(
             query=x[:1],
@@ -98,7 +99,7 @@ class AttentionPool2d(nn.Cell):
             k_proj_weight=self.k_proj.weight,
             v_proj_weight=self.v_proj.weight,
             in_proj_weight=None,
-            in_proj_bias=ops.concat([self.q_proj.bias, self.k_proj.bias, self.v_proj.bias]),
+            in_proj_bias=mint.concat([self.q_proj.bias, self.k_proj.bias, self.v_proj.bias]),
             bias_k=None,
             bias_v=None,
             add_zero_attn=False,
@@ -127,22 +128,16 @@ class ModifiedResNet(nn.Cell):
         self.input_resolution = input_resolution
 
         # the 3-layer stem
-        self.conv1 = nn.Conv2d(
-            3, width // 2, kernel_size=3, stride=2, pad_mode="pad", padding=1, has_bias=False
-        ).to_float(self.dtype)
-        self.bn1 = nn.BatchNorm2d(width // 2).to_float(self.dtype)
-        self.relu1 = nn.ReLU()
-        self.conv2 = nn.Conv2d(
-            width // 2, width // 2, kernel_size=3, pad_mode="pad", padding=1, has_bias=False
-        ).to_float(self.dtype)
-        self.bn2 = nn.BatchNorm2d().to_float(self.dtype)
-        self.relu2 = nn.ReLU()
-        self.conv3 = nn.Conv2d(width // 2, width, kernel_size=3, pad_mode="pad", padding=1, has_bias=False).to_float(
-            self.dtype
-        )
-        self.bn3 = nn.BatchNorm2d(width).to_float(self.dtype)
-        self.relu3 = nn.ReLU()
-        self.avgpool = nn.AvgPool2d(2)
+        self.conv1 = mint.nn.Conv2d(3, width // 2, kernel_size=3, stride=2, padding=1, bias=False).to_float(self.dtype)
+        self.bn1 = mint.nn.BatchNorm2d(width // 2).to_float(self.dtype)
+        self.relu1 = mint.nn.ReLU()
+        self.conv2 = mint.nn.Conv2d(width // 2, width // 2, kernel_size=3, padding=1, bias=False).to_float(self.dtype)
+        self.bn2 = mint.nn.BatchNorm2d().to_float(self.dtype)
+        self.relu2 = mint.nn.ReLU()
+        self.conv3 = mint.nn.Conv2d(width // 2, width, kernel_size=3, padding=1, bias=False).to_float(self.dtype)
+        self.bn3 = mint.nn.BatchNorm2d(width).to_float(self.dtype)
+        self.relu3 = mint.nn.ReLU()
+        self.avgpool = mint.nn.AvgPool2d(2)
 
         # residual layers
         self._inplanes = width  # this is a *mutable* variable used during construction
@@ -189,8 +184,8 @@ class MultiheadAttention(nn.Cell):
         self.head_dim = d_model // n_head
 
         self.scaling = self.head_dim**-0.5
-        self.in_proj = nn.Dense(d_model, 3 * d_model).to_float(dtype)
-        self.out_proj = nn.Dense(d_model, d_model).to_float(dtype)
+        self.in_proj = mint.nn.Linear(d_model, 3 * d_model).to_float(dtype)
+        self.out_proj = mint.nn.Linear(d_model, d_model).to_float(dtype)
 
     def construct(self, query: ms.Tensor, attn_mask: Optional[ms.Tensor] = None):
         r"""Construct
@@ -204,28 +199,28 @@ class MultiheadAttention(nn.Cell):
         """
         len_tgt, batch_size, width = query.shape
         qkv = self.in_proj(query)
-        qkv = ops.reshape(qkv, (len_tgt, batch_size, 3, width)).transpose((2, 0, 1, 3))
+        qkv = mint.reshape(qkv, (len_tgt, batch_size, 3, width)).transpose((2, 0, 1, 3))
 
         att_q = qkv[0:1]
-        att_q = ops.Squeeze(0)(att_q)
+        att_q = mint.squeeze(att_q, dim=0)
         att_q = att_q * self.scaling
         att_q = att_q.view(len_tgt, batch_size * self.num_heads, self.head_dim).transpose((1, 0, 2))
 
         att_k = qkv[1:2]
-        att_k = ops.Squeeze(0)(att_k)
+        att_k = mint.squeeze(att_k, dim=0)
         att_k = att_k.view(-1, batch_size * self.num_heads, self.head_dim).transpose((1, 0, 2))
 
         att_v = qkv[2:3]
-        att_v = ops.Squeeze(0)(att_v)
+        att_v = mint.squeeze(att_v, dim=0)
         att_v = att_v.view(-1, batch_size * self.num_heads, self.head_dim).transpose((1, 0, 2))
 
         if attn_mask is not None:
-            attn_output_weights = attn_mask + ops.matmul(att_q, att_k.transpose((0, 2, 1)))
+            attn_output_weights = attn_mask + mint.matmul(att_q, att_k.transpose((0, 2, 1)))
         else:
-            attn_output_weights = ops.matmul(att_q, att_k.transpose((0, 2, 1)))
-        attn_output_weights = ops.softmax(attn_output_weights, axis=-1)
-        attn_output = ops.matmul(attn_output_weights, att_v)
-        attn_output = ops.transpose(attn_output, (1, 0, 2))
+            attn_output_weights = mint.matmul(att_q, att_k.transpose((0, 2, 1)))
+        attn_output_weights = mint.nn.functional.softmax(attn_output_weights, dim=-1)
+        attn_output = mint.matmul(attn_output_weights, att_v)
+        attn_output = mint.permute(attn_output, (1, 0, 2))
         attn_output = attn_output.view(len_tgt, batch_size, width)
         attn_output = self.out_proj(attn_output)
         return attn_output
@@ -245,17 +240,20 @@ class ResidualAttentionBlock(nn.Cell):
 
         self.dtype = dtype
         self.attn = MultiheadAttention(d_model, n_head, dtype)
-        self.ln_1 = LayerNorm((d_model,), epsilon=epsilon)
+        self.ln_1 = LayerNorm((d_model,), eps=epsilon)
         self.mlp = nn.SequentialCell(
             OrderedDict(
                 [
-                    ("c_fc", nn.Dense(d_model, d_model * 4).to_float(self.dtype)),
-                    ("gelu", QuickGELU().to_float(self.dtype) if use_quick_gelu else nn.GELU().to_float(self.dtype)),
-                    ("c_proj", nn.Dense(d_model * 4, d_model).to_float(self.dtype)),
+                    ("c_fc", mint.nn.Linear(d_model, d_model * 4).to_float(self.dtype)),
+                    (
+                        "gelu",
+                        QuickGELU().to_float(self.dtype) if use_quick_gelu else mint.nn.GELU().to_float(self.dtype),
+                    ),
+                    ("c_proj", mint.nn.Linear(d_model * 4, d_model).to_float(self.dtype)),
                 ]
             )
         )
-        self.ln_2 = LayerNorm((d_model,), epsilon=epsilon)
+        self.ln_2 = LayerNorm((d_model,), eps=epsilon)
         self.attn_mask = attn_mask
 
     def attention(self, x: Tensor):
@@ -312,8 +310,8 @@ class VisionTransformer(nn.Cell):
         self.dtype = dtype
         self.input_resolution = input_resolution
         self.output_dim = output_dim
-        self.conv1 = nn.Conv2d(
-            in_channels=3, out_channels=width, kernel_size=patch_size, stride=patch_size, pad_mode="pad", has_bias=False
+        self.conv1 = mint.nn.Conv2d(
+            in_channels=3, out_channels=width, kernel_size=patch_size, stride=patch_size, bias=False
         ).to_float(self.dtype)
 
         scale = width**-0.5
@@ -321,21 +319,21 @@ class VisionTransformer(nn.Cell):
         self.positional_embedding = Parameter(
             scale * ms.numpy.randn((input_resolution // patch_size) ** 2 + 1, width, dtype=self.dtype)
         )
-        self.ln_pre = LayerNorm((width,), epsilon=epsilon)
+        self.ln_pre = LayerNorm((width,), eps=epsilon)
 
         self.transformer = Transformer(
             width, layers, heads, epsilon=epsilon, use_quick_gelu=use_quick_gelu, dtype=self.dtype
         )
 
-        self.ln_post = LayerNorm((width,), epsilon=epsilon)
+        self.ln_post = LayerNorm((width,), eps=epsilon)
         self.proj = Parameter(scale * ms.numpy.randn(width, output_dim, dtype=self.dtype))
 
     def construct(self, x: Tensor):
         x = self.conv1(x)  # shape = [*, width, grid, grid]
         x = x.reshape(x.shape[0], x.shape[1], -1)  # shape = [*, width, grid ** 2]
         x = x.permute(0, 2, 1)  # shape = [*, grid ** 2, width]
-        x = ops.concat(
-            [self.class_embedding + ops.zeros((x.shape[0], 1, x.shape[-1]), dtype=self.dtype), x], axis=1
+        x = mint.concat(
+            [self.class_embedding + mint.zeros((x.shape[0], 1, x.shape[-1]), dtype=self.dtype), x], dim=1
         )  # shape = [*, grid ** 2 + 1, width]
         x = x + self.positional_embedding
         x = self.ln_pre(x)

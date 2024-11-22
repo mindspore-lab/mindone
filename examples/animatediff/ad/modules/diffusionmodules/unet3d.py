@@ -16,7 +16,7 @@ import logging
 
 import mindspore as ms
 import mindspore.nn as nn
-import mindspore.ops as ops
+from mindspore import mint
 
 from mindone.utils.amp import auto_mixed_precision
 
@@ -34,8 +34,8 @@ def rearrange_in(x):
     temporal 5d to spatial 4d
     """
     # b c f h w -> b f c h w -> (b f) c h w
-    x = ops.transpose(x, (0, 2, 1, 3, 4))
-    x = ops.reshape(x, (-1, x.shape[2], x.shape[3], x.shape[4]))
+    x = mint.permute(x, (0, 2, 1, 3, 4))
+    x = mint.reshape(x, (-1, x.shape[2], x.shape[3], x.shape[4]))
     return x
 
 
@@ -46,8 +46,8 @@ def rearrange_out(x, f):
     f: num frames
     """
     # (b f) c h w -> b f c h w -> b c f h w
-    x = ops.reshape(x, (x.shape[0] // f, f, x.shape[1], x.shape[2], x.shape[3]))
-    x = ops.transpose(x, (0, 2, 1, 3, 4))
+    x = mint.reshape(x, (x.shape[0] // f, f, x.shape[1], x.shape[2], x.shape[3]))
+    x = mint.permute(x, (0, 2, 1, 3, 4))
     return x
 
 
@@ -183,19 +183,19 @@ class UNet3DModel(nn.Cell):
         time_embed_dim = model_channels * 4
         self.time_embed = nn.SequentialCell(
             linear(model_channels, time_embed_dim, dtype=self.dtype),
-            nn.SiLU().to_float(self.dtype),
+            mint.nn.SiLU().to_float(self.dtype),
             linear(time_embed_dim, time_embed_dim, dtype=self.dtype),
         )
 
         if self.num_classes is not None:
             if isinstance(self.num_classes, int):
-                self.label_emb = nn.Embedding(num_classes, time_embed_dim).to_float(self.dtype)
+                self.label_emb = mint.nn.Embedding(num_classes, time_embed_dim).to_float(self.dtype)
             elif self.num_classes == "sequential":
                 assert adm_in_channels is not None
                 self.label_emb = nn.SequentialCell(
                     nn.SequentialCell(
                         linear(adm_in_channels, time_embed_dim, dtype=self.dtype),
-                        nn.SiLU().to_float(self.dtype),
+                        mint.nn.SiLU().to_float(self.dtype),
                         linear(time_embed_dim, time_embed_dim, dtype=self.dtype),
                     )
                 )
@@ -482,15 +482,13 @@ class UNet3DModel(nn.Cell):
 
         self.out = nn.SequentialCell(
             # normalization(ch),
-            nn.SiLU().to_float(self.dtype),
+            mint.nn.SiLU().to_float(self.dtype),
             zero_module(
                 conv_nd(dims, model_channels, out_channels, 3, padding=1, has_bias=True, pad_mode="pad").to_float(
                     self.dtype
                 )
             ),
         )
-
-        self.cat = ops.Concat(axis=1)
 
         # TODO: optimize where to recompute & fix bug on cell list.
         if use_recompute:
@@ -569,7 +567,7 @@ class UNet3DModel(nn.Cell):
             emb = emb + self.label_emb(y)
 
         if append_to_context is not None:
-            context = ops.cat([context, append_to_context], axis=1)
+            context = mint.cat([context, append_to_context], dim=1)
 
         # 0. rearrange inputs to (b*f, ...) for pseudo 3d until we meet temporal transformer (i.e. motion module)
         B, C, F, H, W = x.shape
@@ -611,7 +609,7 @@ class UNet3DModel(nn.Cell):
         # 3. up blocks
         hs_index = -1
         for celllist in self.output_blocks:
-            h = self.cat((h, hs[hs_index]))
+            h = mint.concat((h, hs[hs_index]), dim=1)
             for cell in celllist:
                 # h = cell(h, emb, context)
                 if isinstance(cell, VanillaTemporalModule) or (isinstance(cell, ResBlock) and self.norm_in_5d):

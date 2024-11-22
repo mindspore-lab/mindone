@@ -3,7 +3,7 @@ import logging
 from typing import List, Optional
 
 import mindspore as ms
-from mindspore import nn, ops
+from mindspore import mint, nn
 
 from mindone.utils.version_control import check_valid_flash_attention, choose_flash_attention_dtype
 
@@ -97,12 +97,12 @@ class MSFlashAttention(nn.Cell):
         if self.need_pad:
             if self.input_layout == "BNSD":
                 B, N, S, D = x.shape
-                pad = ops.zeros((B, N, S, self.d_pad), x.dtype)
+                pad = mint.zeros(size=(B, N, S, self.d_pad), dtype=x.dtype)
             else:
                 B, S = x.shape[:2]
                 x = x.reshape(B, S, -1, self.head_dim)
-                pad = ops.zeros((B, S, x.shape[2], self.d_pad), x.dtype)
-            x = ops.concat((x, pad), axis=-1)
+                pad = mint.zeros(size=(B, S, x.shape[2], self.d_pad), dtype=x.dtype)
+            x = mint.concat((x, pad), dim=-1)
         if self.input_layout == "BSH":
             B, S = x.shape[:2]
             x = x.reshape(B, S, -1)
@@ -121,7 +121,7 @@ class MSFlashAttention(nn.Cell):
             B, N, S1, D = q.shape
             S2 = k.shape[2]
             if mask is None:
-                mask = ops.zeros((B, S1, S2), self.fa_mask_dtype)
+                mask = mint.zeros(size=(B, S1, S2), dtype=self.fa_mask_dtype)
             out = self.flash_attention(
                 q.to(self.dtype),
                 k.to(self.dtype),

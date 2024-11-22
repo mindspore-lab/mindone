@@ -4,7 +4,26 @@ from diffusion import SpacedDiffusion
 from diffusion.diffusion_utils import _extract_into_tensor, discretized_gaussian_log_likelihood, mean_flat, normal_kl
 
 import mindspore as ms
-from mindspore import nn, ops
+from mindspore import _no_grad, jit_class, mint, nn, ops
+
+
+@jit_class
+class no_grad(_no_grad):
+    """
+    A context manager that suppresses gradient memory allocation in PyNative mode.
+    """
+
+    def __init__(self):
+        super().__init__()
+        self._pynative = ms.get_context("mode") == ms.PYNATIVE_MODE
+
+    def __enter__(self):
+        if self._pynative:
+            super().__enter__()
+
+    def __exit__(self, *args):
+        if self._pynative:
+            super().__exit__(*args)
 
 
 class NetworkWithLoss(nn.Cell):
@@ -74,13 +93,14 @@ class NetworkWithLoss(nn.Cell):
             - inputs should matches dataloder output order
             - assume input/output shape: (b c h w)
         """
-        # 1. get image/video latents z using vae
-        x = self.get_latents(x)
-        # 2. get conditions
-        if self.condition == "text":
-            text_embed = self.get_condition_embeddings(text_tokens)
-        else:
-            text_embed = None
+        with no_grad():
+            # 1. get image/video latents z using vae
+            x = self.get_latents(x)
+            # 2. get conditions
+            if self.condition == "text":
+                text_embed = self.get_condition_embeddings(text_tokens)
+            else:
+                text_embed = None
 
         if self.condition == "class":
             y = labels
@@ -96,7 +116,7 @@ class NetworkWithLoss(nn.Cell):
     def _cal_vb(self, model_output, model_var_values, x, x_t, t):
         true_mean, _, true_log_variance_clipped = self.diffusion.q_posterior_mean_variance(x_start=x, x_t=x_t, t=t)
         min_log = _extract_into_tensor(self.diffusion.posterior_log_variance_clipped, t, x_t.shape)
-        max_log = _extract_into_tensor(ops.log(self.diffusion.betas), t, x_t.shape)
+        max_log = _extract_into_tensor(mint.log(self.diffusion.betas), t, x_t.shape)
         # The model_var_values is [-1, 1] for [min_var, max_var].
         frac = (model_var_values + 1) / 2
         model_log_variance = frac * max_log + (1 - frac) * min_log
@@ -107,7 +127,7 @@ class NetworkWithLoss(nn.Cell):
         decoder_nll = -discretized_gaussian_log_likelihood(x, means=model_mean, log_scales=0.5 * model_log_variance)
         decoder_nll = mean_flat(decoder_nll) / ms.numpy.log(2.0)
         # At the first timestep return the decoder NLL, otherwise return KL(q(x_{t-1}|x_t,x_0) || p(x_{t-1}|x_t))
-        vb = ops.where((t == 0), decoder_nll, kl)
+        vb = mint.where((t == 0), decoder_nll, kl)
         return vb
 
     def compute_loss(self, x, y, text_embed):
@@ -118,7 +138,7 @@ class NetworkWithLoss(nn.Cell):
 
         B, C = x_t.shape[:2]
         assert model_output.shape == (B, C * 2) + x_t.shape[2:]
-        model_output, model_var_values = ops.split(model_output, C, axis=1)
+        model_output, model_var_values = mint.split(model_output, C, dim=1)
 
         # Learn the variance using the variational bound, but don't let it affect our mean prediction.
         vb = self._cal_vb(ops.stop_gradient(model_output), model_var_values, x, x_t, t)
