@@ -3,8 +3,6 @@ import os
 import time
 from typing import List
 
-import numpy as np
-
 import mindspore as ms
 from mindspore.communication import get_rank
 from mindspore.train.callback._callback import Callback, _handle_loss
@@ -30,10 +28,8 @@ class OverflowMonitor(ms.Callback):
         cb_params = run_context.original_args()
         cur_epoch_num = cb_params.get("cur_epoch_num", 1)
         cur_step_in_epoch = (cb_params.cur_step_num - 1) % cb_params.batch_num + 1
-        if isinstance(cb_params.net_outputs, int):
-            overflow = cb_params.net_outputs
-        else:
-            overflow = cb_params.net_outputs[1]
+
+        overflow = cb_params.net_outputs[1]
         if overflow:
             _logger.warning(f"overflow detected in epoch {cur_epoch_num} step {cur_step_in_epoch}")
         return super().step_end(run_context)
@@ -212,9 +208,6 @@ class EvalSaveCallback(Callback):
                     [cur_step, loss, cur_lr, train_time] if self.record_lr else [cur_step, loss, train_time]
                 )
                 self.rec.add(*step_pref_value)
-
-                if isinstance(loss, int):
-                    loss = ms.Tensor(np.array([loss]), dtype=ms.int32)
 
                 if self.record_lr:
                     _logger.info(

@@ -46,8 +46,6 @@ class PerfRecorder(object):
                 line += f"{m}"
             elif m is None:
                 line += "NA"
-            elif isinstance(m, int):
-                line += f"{m:d}"
             else:
                 line += f"{m:.10}"
 
