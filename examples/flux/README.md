@@ -3,15 +3,14 @@ introduced by Black Forest Labs: https://blackforestlabs.ai
 
 adapted for MindSpore by @townwish
 
-
-
 This example contains minimal inference code to run text-to-image and image-to-image with Black Forest Labs' Flux latent rectified flow transformers.
 
+Our development and verification are based on:
+| mindspore  | ascend driver  |  firmware   | cann toolkit/kernel |
+|:----------:|:--------------:|:-----------:|:------------------:|
+|   2.3.1    |    24.1.RC2    | 7.3.0.1.231 |   8.0.RC2.beta1    |
 
 ## Local installation
-
-> [!NOTE]
-> Our development and verification are based on the **MindSpore 2.3.1** version and the **CANN 7.3.0.1.231** version.
 
 Install MindONE and dependencies for Flux.
 
