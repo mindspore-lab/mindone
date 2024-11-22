@@ -114,6 +114,7 @@ def transform_to_rgb(x, rescale_to_uint8=True):
 
 def main(args):
     npu_config.set_npu_env(args)
+    npu_config.print_ops_dtype_info()
     dtype = get_precision(args.precision)
     set_logger(name="", output_dir=args.output_path, rank=0)
     if args.ms_checkpoint is not None and os.path.exists(args.ms_checkpoint):

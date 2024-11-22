@@ -46,6 +46,7 @@ def main(args):
     num_workers = args.num_workers
     assert args.dataset_name == "video", "Only support video reconstruction!"
     rank_id, device_num = npu_config.set_npu_env(args)
+    npu_config.print_ops_dtype_info()
     dtype = get_precision(args.precision)
 
     if not os.path.exists(args.generated_video_dir):

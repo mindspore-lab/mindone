@@ -65,6 +65,7 @@ def main(args):
     image_path = args.image_path
     short_size = args.short_size
     npu_config.set_npu_env(args)
+    npu_config.print_ops_dtype_info()
 
     set_logger(name="", output_dir=args.output_path, rank=0)
     dtype = get_precision(args.precision)
