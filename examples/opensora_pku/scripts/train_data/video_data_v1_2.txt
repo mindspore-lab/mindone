@@ -1,1 +1,1 @@
-/home_host/susan/workspace/datasets/Open-Sora-Plan-v1.2.0,/home_host/susan/workspace/datasets/Open-Sora-Plan-v1.2.0/mixkit_emb-len=512,/home_host/susan/workspace/datasets/Open-Sora-Plan-v1.2.0/v1.1.0_HQ_part1_Traffic_train.json
+datasets/Open-Sora-Plan-v1.2.0,datasets/Open-Sora-Plan-v1.2.0/mixkit_emb-len=512,datasets/Open-Sora-Plan-v1.2.0/v1.1.0_HQ_part1_Traffic_train.json
