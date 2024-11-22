@@ -62,6 +62,8 @@ def set_modules_requires_grad(modules, requires_grad):
 def main(args):
     # 1. init
     rank_id, device_num = npu_config.set_npu_env(args)
+    npu_config.norm_dtype = ms.float32  # to train causal vae, set norm dtype to fp32
+    npu_config.print_ops_dtype_info()
     dtype = get_precision(args.precision)
 
     if args.exp_name is not None and len(args.exp_name) > 0:

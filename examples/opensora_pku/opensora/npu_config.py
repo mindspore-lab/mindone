@@ -5,6 +5,7 @@ import os
 import subprocess
 from contextlib import contextmanager
 
+import pandas as pd
 from opensora.utils.ms_utils import init_env
 
 import mindspore as ms
@@ -63,6 +64,13 @@ class NPUConfig:
         self.flash_attn_valid_head_dims = [64, 80, 96, 120, 128, 256]
         self.FA_dtype = ms.bfloat16
         assert self.FA_dtype in [ms.float16, ms.bfloat16], f"Unsupported flash-attention dtype: {self.FA_dtype}"
+
+    def print_ops_dtype_info(self):
+        # print data types for some key operators
+        headers = ["Conv3D dtype", "FA dtype", "Norm dtype", "Interpolate, AvgPool"]
+        values = [[str(self.conv_dtype), str(self.FA_dtype), str(self.norm_dtype), str(self.replaced_type)]]
+        df = pd.DataFrame(values, columns=headers)
+        print(df)
 
     def set_npu_env(self, args):
         rank_id, device_num = init_env(
@@ -158,16 +166,6 @@ class NPUConfig:
             x = x.to(x_dtype)
         else:
             x = operator(x, kernel_size=kernel_size, stride=stride)
-        return x
-
-    def run_pad_2d(self, operator, x, pad, mode="constant"):
-        if self.on_npu:
-            x_dtype = x.dtype
-            x = x.to(self.replaced_type)
-            x = operator(x, pad, mode)
-            x = x.to(x_dtype)
-        else:
-            x = operator(x, pad, mode)
         return x
 
     def run_interpolate(self, operator, x, scale_factor=None):
