@@ -13,26 +13,30 @@ class PatchEmbed2D(nn.Cell):
 
     def __init__(
         self,
-        patch_size=16, #2
-        in_channels=3, #8
-        embed_dim=768, # 24*96=2304
+        patch_size=16,  # 2
+        in_channels=3,  # 8
+        embed_dim=768,  # 24*96=2304
         bias=True,
     ):
         super().__init__()
         self.proj = nn.Conv2d(
-            in_channels, embed_dim, 
-            kernel_size=(patch_size, patch_size), stride=(patch_size, patch_size),  has_bias=bias, pad_mode="pad"
+            in_channels,
+            embed_dim,
+            kernel_size=(patch_size, patch_size),
+            stride=(patch_size, patch_size),
+            has_bias=bias,
+            pad_mode="pad",
         )
 
     def construct(self, latent):
-        b, c, t, h, w = latent.shape # b, c=in_channels, t, h, w
+        b, c, t, h, w = latent.shape  # b, c=in_channels, t, h, w
         # b c t h w -> (b t) c h w
-        latent = latent.swapaxes(1, 2).reshape(b*t, c, h, w) # b*t, c, h, w
+        latent = latent.swapaxes(1, 2).reshape(b * t, c, h, w)  # b*t, c, h, w
         latent = self.proj(latent)  # b*t, embed_dim, h, w
         # (b t) c h w -> b (t h w) c
         _, c, h, w = latent.shape
-        latent = latent.reshape(b, -1, c, h, w).permute(0, 1, 3, 4, 2).reshape(b, -1, c) # b, t*h*w, embed_dim
-        
+        latent = latent.reshape(b, -1, c, h, w).permute(0, 1, 3, 4, 2).reshape(b, -1, c)  # b, t*h*w, embed_dim
+
         return latent
 
 
@@ -81,7 +85,7 @@ class RoPE3D(nn.Cell):
     def get_cos_sin(self, seq_len, interpolation_scale=1):
         t = ops.arange(seq_len, dtype=self.inv_freq.dtype) / interpolation_scale
         freqs = ops.outer(t, self.inv_freq).to(self.inv_freq.dtype)
-        freqs = ops.cat((freqs, freqs), axis=-1)
+        freqs = mint.cat((freqs, freqs), dim=-1)
         cos = freqs.cos()  # (Seq, Dim)
         sin = freqs.sin()
         return cos, sin
@@ -89,7 +93,7 @@ class RoPE3D(nn.Cell):
     @staticmethod
     def rotate_half(x):
         x1, x2 = x[..., : x.shape[-1] // 2], x[..., x.shape[-1] // 2 :]
-        return ops.cat((-x2, x1), axis=-1)
+        return mint.cat((-x2, x1), dim=-1)
 
     def apply_rope1d(self, tokens, pos1d, cos, sin):
         assert pos1d.ndim == 2
@@ -124,5 +128,5 @@ class RoPE3D(nn.Cell):
         t = self.apply_rope1d(t, poses[0], cos_t.to(tokens.dtype), sin_t.to(tokens.dtype))
         y = self.apply_rope1d(y, poses[1], cos_y.to(tokens.dtype), sin_y.to(tokens.dtype))
         x = self.apply_rope1d(x, poses[2], cos_x.to(tokens.dtype), sin_x.to(tokens.dtype))
-        tokens = ops.cat((t, y, x), axis=-1)
+        tokens = mint.cat((t, y, x), dim=-1)
         return tokens
