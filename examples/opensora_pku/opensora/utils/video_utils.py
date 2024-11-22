@@ -27,7 +27,8 @@ def create_video_from_rgb_numpy_arrays(image_arrays, output_file, fps: Union[int
 
     # Write each frame to the video
     for img in image_arrays:
-        video_writer.write(img)
+        img_bgr = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
+        video_writer.write(img_bgr)
 
     # Release the VideoWriter
     video_writer.release()
