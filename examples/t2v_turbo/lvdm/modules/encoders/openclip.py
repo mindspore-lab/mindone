@@ -1,13 +1,13 @@
+import os
 from typing import Optional
 
-import os
-
-from transformers import CLIPImageProcessor, CLIPTokenizer, CLIPConfig
-from mindone.transformers import CLIPModel
+from transformers import CLIPConfig, CLIPImageProcessor, CLIPTokenizer
 from utils.download import download_checkpoint
 
 import mindspore as ms
-from mindspore import nn, mint
+from mindspore import mint, nn
+
+from mindone.transformers import CLIPModel
 
 __all__ = [
     "FrozenOpenCLIPEmbedder",

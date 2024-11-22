@@ -1,7 +1,9 @@
-import os
 import argparse
-from mindone.utils.config import str2bool
+import os
+
 from utils.common_utils import tuple_type
+
+from mindone.utils.config import str2bool
 
 
 def parse_args():
@@ -25,25 +27,16 @@ def parse_args():
         default="PATH_TO_encoder_model.ckpt",
         help="Path to the pretrained t2v encoder model.",
     )
-    parser.add_argument(
-        "--pretrained_lora_path",
-        type=str,
-        default=None,
-        help="Path to pretrained lora weights."
-    )
+    parser.add_argument("--pretrained_lora_path", type=str, default=None, help="Path to pretrained lora weights.")
     # ----------MS environment args----------
-    parser.add_argument(
-        "--device_target", type=str, default="Ascend", help="Ascend or GPU"
-    )
+    parser.add_argument("--device_target", type=str, default="Ascend", help="Ascend or GPU")
     parser.add_argument(
         "--mode",
         type=int,
         default=0,
         help="Running in GRAPH_MODE(0) or PYNATIVE_MODE(1) (default=0)",
     )
-    parser.add_argument(
-        "--use_parallel", default=False, type=str2bool, help="use parallel"
-    )
+    parser.add_argument("--use_parallel", default=False, type=str2bool, help="use parallel")
     parser.add_argument(
         "--parallel_mode",
         default="data",
@@ -57,9 +50,7 @@ def parse_args():
         default=8,
         help="Set the size of the communication domain split by the optimizer weight. ",
     )
-    parser.add_argument(
-        "--debug", type=str2bool, default=False, help="Execute inference in debug mode."
-    )
+    parser.add_argument("--debug", type=str2bool, default=False, help="Execute inference in debug mode.")
     parser.add_argument(
         "--jit_level",
         default="O0",
@@ -85,9 +76,7 @@ def parse_args():
         default=None,
         help="The directory where the downloaded models and datasets will be stored.",
     )
-    parser.add_argument(
-        "--seed", type=int, default=453645634, help="A seed for reproducible training."
-    )
+    parser.add_argument("--seed", type=int, default=453645634, help="A seed for reproducible training.")
     # ----Logging----
     parser.add_argument(
         "--logging_dir",
@@ -257,18 +246,14 @@ def parse_args():
         default=0.999,
         help="The beta2 parameter for the Adam optimizer.",
     )
-    parser.add_argument(
-        "--adam_weight_decay", type=float, default=0.0, help="Weight decay to use."
-    )
+    parser.add_argument("--adam_weight_decay", type=float, default=0.0, help="Weight decay to use.")
     parser.add_argument(
         "--adam_epsilon",
         type=float,
         default=1e-08,
         help="Epsilon value for the Adam optimizer",
     )
-    parser.add_argument(
-        "--max_grad_norm", default=1.0, type=float, help="Max gradient norm."
-    )
+    parser.add_argument("--max_grad_norm", default=1.0, type=float, help="Max gradient norm.")
     parser.add_argument("--clip_grad", default=False, type=str2bool, help="whether apply gradient clipping")
     # ----Diffusion Training Arguments----
     parser.add_argument(
@@ -508,4 +493,3 @@ def parse_args():
         raise ValueError("`--proportion_empty_prompts` must be in the range [0, 1].")
 
     return args
-

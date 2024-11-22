@@ -1,11 +1,8 @@
-from mindspore import nn
 from types import SimpleNamespace
 
-from .lora import (
-    extract_lora_ups_down,
-    inject_trainable_lora_extended,
-    monkeypatch_or_replace_lora_extended,
-)
+from mindspore import nn
+
+from .lora import extract_lora_ups_down, inject_trainable_lora_extended, monkeypatch_or_replace_lora_extended
 
 CLONE_OF_SIMO_KEYS = ["model", "loras", "target_replace_module", "r"]
 
@@ -81,9 +78,7 @@ class LoraHandler(object):
 
         assert "LoRA Version does not exist."
 
-    def get_lora_func_args(
-        self, lora_path, use_lora, model, replace_modules, r, dropout, lora_bias
-    ):
+    def get_lora_func_args(self, lora_path, use_lora, model, replace_modules, r, dropout, lora_bias):
         return_dict = lora_args.copy()
 
         return_dict = filter_dict(return_dict, keys=CLONE_OF_SIMO_KEYS)
@@ -115,23 +110,15 @@ class LoraHandler(object):
         injector_args = lora_loader_args
 
         params, negation = self.lora_injector(**injector_args)
-        for _up, _down in extract_lora_ups_down(
-            model, target_replace_module=REPLACE_MODULES
-        ):
-
+        for _up, _down in extract_lora_ups_down(model, target_replace_module=REPLACE_MODULES):
             if all(x is not None for x in [_up, _down]):
-                print(
-                    f"Lora successfully injected into {model.__class__.__name__}."
-                )
+                print(f"Lora successfully injected into {model.__class__.__name__}.")
 
             break
 
         return params, negation
 
-    def add_lora_to_model(
-        self, use_lora, model, replace_modules, dropout=0.0, lora_path=None, r=16
-    ):
-
+    def add_lora_to_model(self, use_lora, model, replace_modules, dropout=0.0, lora_path=None, r=16):
         params = None
         negation = None
 

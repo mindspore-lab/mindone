@@ -1,19 +1,21 @@
-import os
+import functools
 import logging
+import os
 from collections import OrderedDict
-from .simple_tokenizer import SimpleTokenizer as _Tokenizer
 
 import numpy as np
+import torch.utils.checkpoint as checkpoint
+
 import mindspore as ms
 from mindspore import nn, ops
-import torch.utils.checkpoint as checkpoint
-import functools
+
+from .simple_tokenizer import SimpleTokenizer as _Tokenizer
 
 logger = logging.getLogger(__name__)
 
 
 # On P1, model extracted from https://huggingface.co/laion/CLIP-ViT-L-14-DataComp.XL-s13B-b90K
-MODEL_PATH = 'https://huggingface.co/laion'
+MODEL_PATH = "https://huggingface.co/laion"
 _MODELS = {
     "ViT-L/14": os.path.join(MODEL_PATH, "CLIP-ViT-L-14-DataComp.XL-s13B-b90K", "vit_l14_text.pth"),
     "ViT-B/16": os.path.join(MODEL_PATH, "CLIP-ViT-B-16-DataComp.XL-s13B-b90K", "vit_b16_text.pth"),
@@ -40,11 +42,15 @@ class ResidualAttentionBlock(nn.Cell):
 
         self.attn = nn.MultiheadAttention(d_model, n_head)
         self.ln_1 = LayerNorm(d_model)
-        self.mlp = nn.SequentialCell(OrderedDict([
-            ("c_fc", nn.Dense(d_model, d_model * 4)),
-            ("gelu", QuickGELU()),
-            ("c_proj", nn.Dense(d_model * 4, d_model))
-        ]))
+        self.mlp = nn.SequentialCell(
+            OrderedDict(
+                [
+                    ("c_fc", nn.Dense(d_model, d_model * 4)),
+                    ("gelu", QuickGELU()),
+                    ("c_proj", nn.Dense(d_model * 4, d_model)),
+                ]
+            )
+        )
         self.ln_2 = LayerNorm(d_model)
         self.attn_mask = attn_mask
 
@@ -59,8 +65,7 @@ class ResidualAttentionBlock(nn.Cell):
 
 
 class Transformer(nn.Cell):
-    def __init__(self, width: int, layers: int, heads: int, attn_mask: ms.Tensor = None,
-                 checkpoint_num: int = 0):
+    def __init__(self, width: int, layers: int, heads: int, attn_mask: ms.Tensor = None, checkpoint_num: int = 0):
         super().__init__()
         self.width = width
         self.layers = layers
@@ -78,15 +83,15 @@ class Transformer(nn.Cell):
 
 class CLIP_TEXT(nn.Cell):
     def __init__(
-            self,
-            embed_dim: int,
-            context_length: int,
-            vocab_size: int,
-            transformer_width: int,
-            transformer_heads: int,
-            transformer_layers: int,
-            checkpoint_num: int,
-        ):
+        self,
+        embed_dim: int,
+        context_length: int,
+        vocab_size: int,
+        transformer_width: int,
+        transformer_heads: int,
+        transformer_layers: int,
+        checkpoint_num: int,
+    ):
         super().__init__()
 
         self.context_length = context_length
@@ -106,9 +111,9 @@ class CLIP_TEXT(nn.Cell):
         self.ln_final = LayerNorm(transformer_width)
 
         self.text_projection = ms.Parameter(ops.empty(transformer_width, embed_dim))
-    
+
     def no_weight_decay(self):
-        return {'token_embedding', 'positional_embedding'}
+        return {"token_embedding", "positional_embedding"}
 
     @functools.lru_cache(maxsize=None)
     def build_attention_mask(self):
@@ -150,7 +155,7 @@ class CLIP_TEXT(nn.Cell):
                     tokens[-1] = eot_token
                 else:
                     raise RuntimeError(f"Input {texts[i]} is too long for context length {context_length}")
-            result[i, :len(tokens)] = ms.Tensor(tokens)
+            result[i, : len(tokens)] = ms.Tensor(tokens)
 
         return result
 
@@ -274,17 +279,10 @@ def clip_text_l14_336(
     transformer_layers=12,
 ):
     raise NotImplementedError
-    model = CLIP_TEXT(
-        embed_dim,
-        context_length,
-        vocab_size,
-        transformer_width,
-        transformer_heads,
-        transformer_layers
-    )
+    model = CLIP_TEXT(embed_dim, context_length, vocab_size, transformer_width, transformer_heads, transformer_layers)
     pretrained = _MODELS["ViT-L/14_336"]
     logger.info(f"Load pretrained weights from {pretrained}")
-    state_dict = torch.load(pretrained, map_location='cpu')
+    state_dict = torch.load(pretrained, map_location="cpu")
     model.load_state_dict(state_dict, strict=False)
     return model.eval()
 

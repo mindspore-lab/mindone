@@ -1,17 +1,16 @@
 import os
+
 import yaml
-
-import mindspore as ms
-from mindspore import nn, ops, mint
-
-from transformers import T5Tokenizer
-from mindone.transformers import T5EncoderModel, CLIPTextModel
-
 from lvdm.common import autocast
 from lvdm.modules.encoders.clip import CLIPImageProcessor, CLIPModel, CLIPTokenizer, parse, support_list
-from utils.utils import count_params
+from transformers import T5Tokenizer
 from utils.download import download_checkpoint
+from utils.utils import count_params
 
+import mindspore as ms
+from mindspore import mint, nn, ops
+
+from mindone.transformers import CLIPTextModel, T5EncoderModel
 
 _CKPT_URL = {
     "open_clip_vit_h_14": "https://download.mindspore.cn/toolkits/mindone/videocomposer/model_weights/open_clip_vit_h_14-9bb07a10.ckpt"
@@ -62,7 +61,6 @@ class AbstractEncoder(nn.Cell):
 
 
 class IdentityEncoder(AbstractEncoder):
-
     def encode(self, x):
         return x
 
@@ -88,9 +86,7 @@ class ClassEmbedder(nn.Cell):
         return c
 
     def get_unconditional_conditioning(self, bs, device="cuda"):
-        uc_class = (
-            self.n_classes - 1
-        )  # 1000 classes --> 0 ... 999, one extra class for ucg (class 1000)
+        uc_class = self.n_classes - 1  # 1000 classes --> 0 ... 999, one extra class for ucg (class 1000)
         uc = mint.ones((bs,)) * uc_class
         uc = {self.key: uc}
         return uc
@@ -186,9 +182,7 @@ class FrozenCLIPEmbedder(AbstractEncoder):
             return_tensors="pt",
         )
         tokens = batch_encoding["input_ids"]
-        outputs = self.transformer(
-            input_ids=tokens, output_hidden_states=self.layer == "hidden"
-        )
+        outputs = self.transformer(input_ids=tokens, output_hidden_states=self.layer == "hidden")
         if self.layer == "last":
             z = outputs.last_hidden_state
         elif self.layer == "pooled":
@@ -215,7 +209,6 @@ class ClipImageEmbedder(nn.Cell):
         # self.model, _ = load_clip(name=model, jit=jit)
         model = load_clip_model(model, pretrained_ckpt_path, str(self.dtype).lower())
 
-
         self.antialias = antialias
 
         self.mean = ms.Tensor([0.48145466, 0.4578275, 0.40821073])
@@ -239,12 +232,7 @@ class ClipImageEmbedder(nn.Cell):
         out = self.model.encode_image(self.preprocess(x))
         out = out.to(x.dtype)
         if self.ucg_rate > 0.0 and not no_dropout:
-            out = (
-                ops.bernoulli(
-                    (1.0 - self.ucg_rate) * mint.ones(out.shape[0])
-                )[:, None]
-                * out
-            )
+            out = ops.bernoulli((1.0 - self.ucg_rate) * mint.ones(out.shape[0]))[:, None] * out
         return out
 
 
@@ -383,12 +371,7 @@ class FrozenOpenCLIPImageEmbedder(AbstractEncoder):
     def construct(self, image, no_dropout=False):
         z = self.encode_with_vision_transformer(image)
         if self.ucg_rate > 0.0 and not no_dropout:
-            z = (
-                ops.bernoulli(
-                    (1.0 - self.ucg_rate) * mint.ones(z.shape[0])
-                )[:, None]
-                * z
-            )
+            z = ops.bernoulli((1.0 - self.ucg_rate) * mint.ones(z.shape[0]))[:, None] * z
         return z
 
     def encode_with_vision_transformer(self, img):
@@ -484,10 +467,7 @@ class FrozenOpenCLIPImageEmbedderV2(AbstractEncoder):
         # class embeddings and positional embeddings
         x = mint.cat(
             [
-                self.model.visual.class_embedding.to(x.dtype)
-                + mint.zeros(
-                    x.shape[0], 1, x.shape[-1], dtype=x.dtype
-                ),
+                self.model.visual.class_embedding.to(x.dtype) + mint.zeros(x.shape[0], 1, x.shape[-1], dtype=x.dtype),
                 x,
             ],
             dim=1,
@@ -514,9 +494,7 @@ class FrozenCLIPT5Encoder(AbstractEncoder):
         t5_max_length=77,
     ):
         super().__init__()
-        self.clip_encoder = FrozenCLIPEmbedder(
-            clip_version, max_length=clip_max_length
-        )
+        self.clip_encoder = FrozenCLIPEmbedder(clip_version, max_length=clip_max_length)
         self.t5_encoder = FrozenT5Embedder(t5_version, max_length=t5_max_length)
         print(
             f"{self.clip_encoder.__class__.__name__} has {count_params(self.clip_encoder) * 1.e-6:.2f} M parameters, "

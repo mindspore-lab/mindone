@@ -8,9 +8,9 @@ from typing import Optional
 import numpy as np
 
 import mindspore as ms
-from mindspore import nn, ops, mint
 from mindspore import Parameter, Tensor
 from mindspore import dtype as mstype
+from mindspore import mint, nn, ops
 from mindspore.common.initializer import Normal
 from mindspore.ops import operations as P
 

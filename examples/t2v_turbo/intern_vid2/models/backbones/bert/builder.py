@@ -1,10 +1,14 @@
-from .xbert import BertConfig, BertForMaskedLM, BertLMHeadModel, BertModel
-import mindspore as ms
-import numpy as np
+import logging
+
 # from mindnlp.transformers import BertConfig, BertForMaskedLM, BertLMHeadModel, BertModel
 from typing import Tuple
 
-import logging
+import numpy as np
+
+import mindspore as ms
+
+from .xbert import BertConfig, BertForMaskedLM, BertLMHeadModel, BertModel
+
 logger = logging.getLogger(__name__)
 
 
@@ -24,7 +28,7 @@ def build_bert(model_config, pretrain, checkpoint, encoder_width=None, dtype=ms.
         bert_config.encoder_width = model_config.vision_encoder.d_model
     else:
         bert_config.encoder_width = encoder_width
-        
+
     bert_config.gradient_checkpointing = checkpoint
     bert_config.fusion_layer = model_config.text_encoder.fusion_layer
 
@@ -36,15 +40,15 @@ def build_bert(model_config, pretrain, checkpoint, encoder_width=None, dtype=ms.
             text_encoder, loading_info = BertForMaskedLM.from_pretrained(
                 model_config.text_encoder.pretrained,
                 config=bert_config,
-                output_loading_info=True, 
-                local_files_only=True
+                output_loading_info=True,
+                local_files_only=True,
             )
         except:
             text_encoder, loading_info = BertForMaskedLM.from_pretrained(
                 model_config.text_encoder.pretrained,
                 config=bert_config,
-                output_loading_info=True, 
-                local_files_only=False
+                output_loading_info=True,
+                local_files_only=False,
             )
     else:
         try:
@@ -85,18 +89,14 @@ def build_bert_decoder(model_config, checkpoint, only_fusion_layer=True):
     bert_config.fusion_layer = 0
 
     if only_fusion_layer:
-        bert_config.num_hidden_layers = (
-            bert_config.num_hidden_layers - model_config.text_encoder.fusion_layer
-        )
+        bert_config.num_hidden_layers = bert_config.num_hidden_layers - model_config.text_encoder.fusion_layer
 
     text_decoder, loading_info = BertLMHeadModel.from_pretrained(
-        model_config.text_encoder.pretrained,
-        config=bert_config,
-        output_loading_info=True,
-        local_files_only=True
+        model_config.text_encoder.pretrained, config=bert_config, output_loading_info=True, local_files_only=True
     )
 
     return text_decoder
+
 
 def build_lm_bert_decoder(model_config, checkpoint):
     """build text decoder the same as the multimodal encoder.
@@ -113,12 +113,9 @@ def build_lm_bert_decoder(model_config, checkpoint):
     bert_config.encoder_width = model_config.vision_encoder.d_model
     bert_config.gradient_checkpointing = checkpoint
     bert_config.fusion_layer = model_config.text_encoder.fusion_layer
-    
+
     text_decoder, loading_info = BertLMHeadModel.from_pretrained(
-        model_config.text_encoder.pretrained,
-        config=bert_config,
-        output_loading_info=True,
-        local_files_only=True
+        model_config.text_encoder.pretrained, config=bert_config, output_loading_info=True, local_files_only=True
     )
 
     return text_decoder

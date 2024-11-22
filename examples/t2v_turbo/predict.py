@@ -1,36 +1,37 @@
 # Prediction interface for Cog ⚙️
 # https://cog.run/python
 
-import os, sys
 import argparse
 import datetime
 import logging
-import numpy as np
+import os
+import sys
 
+import numpy as np
 from omegaconf import OmegaConf
 
 import mindspore as ms
-from mindspore import nn, mint
+from mindspore import mint, nn
 
 __dir__ = os.path.dirname(os.path.abspath(__file__))
 mindone_lib_path = os.path.abspath(os.path.join(__dir__, "../../"))
 sys.path.insert(0, mindone_lib_path)
 sys.path.insert(0, os.path.abspath(os.path.join(__dir__, "..")))
 
+from pipeline.t2v_turbo_vc2_pipeline import T2VTurboVC2Pipeline
+from scheduler.t2v_turbo_scheduler import T2VTurboScheduler
+from tools.convert_weights import convert_lora, convert_t2v_vc2, convert_weights
+from utils.common_utils import load_model_checkpoint
+from utils.download import DownLoad
+from utils.env import init_env
+from utils.lora import collapse_lora, monkeypatch_remove_lora
+from utils.lora_handler import LoraHandler
+from utils.utils import instantiate_from_config
+
+from mindone.utils.amp import auto_mixed_precision
+from mindone.utils.config import str2bool
 from mindone.utils.logger import set_logger
 from mindone.visualize.videos import save_videos
-from mindone.utils.config import str2bool
-from mindone.utils.amp import auto_mixed_precision
-
-from utils.lora import collapse_lora, monkeypatch_remove_lora
-from utils.common_utils import load_model_checkpoint
-from utils.utils import instantiate_from_config
-from utils.env import init_env
-from utils.download import DownLoad
-from utils.lora_handler import LoraHandler
-from tools.convert_weights import convert_weights, convert_t2v_vc2, convert_lora
-from scheduler.t2v_turbo_scheduler import T2VTurboScheduler
-from pipeline.t2v_turbo_vc2_pipeline import T2VTurboVC2Pipeline
 
 sys.path.append("../stable_diffusion_xl")
 from gm.modules.embedders.open_clip.tokenizer import tokenize

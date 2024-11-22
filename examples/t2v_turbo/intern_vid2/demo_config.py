@@ -14,7 +14,6 @@ from importlib import import_module
 
 import yaml
 
-
 __all__ = ["Config", "pretty_text"]
 
 
@@ -228,9 +227,7 @@ class Config(object):
         # define arg parser.
         parser = argparse.ArgumentParser()
         # parser.add_argument("--cfg", help="load configs from yaml file", default="", type=str)
-        parser.add_argument(
-            "config_file", help="the configuration file to load. support: .yaml, .json, .py"
-        )
+        parser.add_argument("config_file", help="the configuration file to load. support: .yaml, .json, .py")
         parser.add_argument(
             "opts",
             default=None,
@@ -267,11 +264,7 @@ class Config(object):
         if filepath.endswith(".py"):
             sys.path.insert(0, osp.dirname(filepath))
             mod = import_module(osp.splitext(osp.basename(filepath))[0])
-            cfg_dict = {
-                name: value
-                for name, value in mod.__dict__.items()
-                if not name.startswith("__")
-            }
+            cfg_dict = {name: value for name, value in mod.__dict__.items() if not name.startswith("__")}
 
         elif filepath.endswith((".yml", ".yaml")):
             cfg_dict = yaml.load(open(filepath, "r"), Loader=yaml.Loader)
@@ -287,9 +280,7 @@ class Config(object):
         if BASE_KEY in cfg_dict:  # load configs in `BASE_KEY`
             cfg_dir = osp.dirname(filepath)
             base_filename = cfg_dict.pop(BASE_KEY)
-            base_filename = (
-                base_filename if isinstance(base_filename, list) else [base_filename]
-            )
+            base_filename = base_filename if isinstance(base_filename, list) else [base_filename]
 
             cfg_dict_list = list()
             for f in base_filename:

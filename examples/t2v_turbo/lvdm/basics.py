@@ -7,9 +7,10 @@
 #
 # thanks!
 
+from utils.utils import instantiate_from_config
+
 import mindspore as ms
 from mindspore import nn, ops
-from utils.utils import instantiate_from_config
 
 
 def disabled_train(self, mode=True):
@@ -121,7 +122,6 @@ def rearrange_out_gn5d(x):
 
 
 class HybridConditioner(nn.Cell):
-
     def __init__(self, c_concat_config, c_crossattn_config):
         super().__init__()
         self.concat_conditioner = instantiate_from_config(c_concat_config)

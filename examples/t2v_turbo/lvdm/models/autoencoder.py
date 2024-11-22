@@ -1,12 +1,13 @@
 import os
 from contextlib import contextmanager
-import mindspore as ms
-from mindspore import nn, ops, mint
-import numpy as np
 
-from lvdm.modules.networks.ae_modules import Encoder, Decoder
+import numpy as np
 from lvdm.distributions import DiagonalGaussianDistribution
+from lvdm.modules.networks.ae_modules import Decoder, Encoder
 from utils.utils import instantiate_from_config
+
+import mindspore as ms
+from mindspore import mint, nn, ops
 
 
 class AutoencoderKL(nn.Cell):
@@ -54,10 +55,7 @@ class AutoencoderKL(nn.Cell):
         self.test = True
         save_dir = os.path.join(self.logdir, "test")
         if "ckpt" in self.test_args:
-            ckpt_name = (
-                os.path.basename(self.test_args.ckpt).split(".ckpt")[0]
-                + f"_epoch{self._cur_epoch}"
-            )
+            ckpt_name = os.path.basename(self.test_args.ckpt).split(".ckpt")[0] + f"_epoch{self._cur_epoch}"
             self.root = os.path.join(save_dir, ckpt_name)
         else:
             self.root = save_dir
@@ -99,7 +97,6 @@ class AutoencoderKL(nn.Cell):
         print(f"Restored from {path}")
 
     def encode(self, x, **kwargs):
-
         h = self.encoder(x)
         moments = self.quant_conv(h)
         posterior = DiagonalGaussianDistribution(moments)
@@ -154,9 +151,7 @@ class AutoencoderKL(nn.Cell):
                 on_step=True,
                 on_epoch=True,
             )
-            self.log_dict(
-                log_dict_ae, prog_bar=False, logger=True, on_step=True, on_epoch=False
-            )
+            self.log_dict(log_dict_ae, prog_bar=False, logger=True, on_step=True, on_epoch=False)
             return aeloss
 
         if optimizer_idx == 1:
@@ -179,9 +174,7 @@ class AutoencoderKL(nn.Cell):
                 on_step=True,
                 on_epoch=True,
             )
-            self.log_dict(
-                log_dict_disc, prog_bar=False, logger=True, on_step=True, on_epoch=False
-            )
+            self.log_dict(log_dict_disc, prog_bar=False, logger=True, on_step=True, on_epoch=False)
             return discloss
 
     def validation_step(self, batch, batch_idx):
@@ -222,9 +215,7 @@ class AutoencoderKL(nn.Cell):
             lr=lr,
             betas=(0.5, 0.9),
         )
-        opt_disc = nn.optim.Adam(
-            self.loss.discriminator.get_parameters(), lr=lr, betas=(0.5, 0.9)
-        )
+        opt_disc = nn.optim.Adam(self.loss.discriminator.get_parameters(), lr=lr, betas=(0.5, 0.9))
         return [opt_ae, opt_disc], []
 
     def get_last_layer(self):

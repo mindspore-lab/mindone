@@ -1,7 +1,7 @@
 import numpy as np
-import mindspore as ms
-
 from utils.common_utils import extract_into_tensor
+
+import mindspore as ms
 
 
 class DDIMSolver:
@@ -18,9 +18,7 @@ class DDIMSolver:
     ):
         # DDIM sampling parameters
         step_ratio = timesteps // ddim_timesteps
-        self.ddim_timesteps = (
-            np.arange(1, ddim_timesteps + 1) * step_ratio
-        ).round().astype(np.int64) - 1
+        self.ddim_timesteps = (np.arange(1, ddim_timesteps + 1) * step_ratio).round().astype(np.int64) - 1
         self.ddim_alpha_cumprods = alpha_cumprods[self.ddim_timesteps]
         self.ddim_alpha_cumprods_prev = np.asarray(
             [alpha_cumprods[0]] + alpha_cumprods[self.ddim_timesteps[:-1]].tolist()
@@ -38,9 +36,7 @@ class DDIMSolver:
             scale_arr2 = np.full(timesteps, scale_b)
             scale_arr = np.concatenate((scale_arr1, scale_arr2))
             self.ddim_scale_arr = scale_arr[self.ddim_timesteps]
-            self.ddim_scale_arr_prev = np.asarray(
-                [scale_arr[0]] + scale_arr[self.ddim_timesteps[:-1]].tolist()
-            )
+            self.ddim_scale_arr_prev = np.asarray([scale_arr[0]] + scale_arr[self.ddim_timesteps[:-1]].tolist())
             self.ddim_scale_arr = ms.Tensor.from_numpy(self.ddim_scale_arr)
             self.ddim_scale_arr_prev = ms.Tensor.from_numpy(self.ddim_scale_arr_prev)
 
@@ -51,24 +47,15 @@ class DDIMSolver:
             )
 
     def ddim_step(self, pred_x0, pred_noise, timestep_index):
-        alpha_cumprod_prev = extract_into_tensor(
-            self.ddim_alpha_cumprods_prev, timestep_index, pred_x0.shape
-        )
+        alpha_cumprod_prev = extract_into_tensor(self.ddim_alpha_cumprods_prev, timestep_index, pred_x0.shape)
         dir_xt = (1.0 - alpha_cumprod_prev).sqrt() * pred_noise
         if self.use_scale:
-            scale_t = extract_into_tensor(
-                self.ddim_scale_arr, timestep_index, pred_x0.shape
-            )
-            scale_t_prev = extract_into_tensor(
-                self.ddim_scale_arr_prev, timestep_index, pred_x0.shape
-            )
-            sigma_t = extract_into_tensor(
-                self.ddim_sigmas, timestep_index, pred_x0.shape
-            )
+            scale_t = extract_into_tensor(self.ddim_scale_arr, timestep_index, pred_x0.shape)
+            scale_t_prev = extract_into_tensor(self.ddim_scale_arr_prev, timestep_index, pred_x0.shape)
+            sigma_t = extract_into_tensor(self.ddim_sigmas, timestep_index, pred_x0.shape)
             noise = sigma_t * ms.ops.randn_like(pred_x0)
             coef = scale_t_prev / scale_t
             x_prev = alpha_cumprod_prev.sqrt() * coef * pred_x0 + dir_xt + noise
         else:
             x_prev = alpha_cumprod_prev.sqrt() * pred_x0 + dir_xt
         return x_prev
-

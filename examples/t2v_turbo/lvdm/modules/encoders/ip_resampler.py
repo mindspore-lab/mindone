@@ -1,7 +1,8 @@
 # modified from https://github.com/mlfoundations/open_flamingo/blob/main/open_flamingo/src/helpers.py
 import math
+
 import mindspore as ms
-from mindspore import nn, ops, mint
+from mindspore import mint, nn, ops
 
 
 class ImageProjModel(nn.Cell):
@@ -16,9 +17,7 @@ class ImageProjModel(nn.Cell):
         super().__init__()
         self.cross_attention_dim = cross_attention_dim
         self.clip_extra_context_tokens = clip_extra_context_tokens
-        self.proj = nn.Dense(
-            clip_embeddings_dim, self.clip_extra_context_tokens * cross_attention_dim
-        )
+        self.proj = nn.Dense(clip_embeddings_dim, self.clip_extra_context_tokens * cross_attention_dim)
         self.norm = nn.LayerNorm(cross_attention_dim)
 
     def construct(self, image_embeds):
@@ -91,9 +90,7 @@ class PerceiverAttention(nn.Cell):
 
         # attention
         scale = 1 / math.sqrt(math.sqrt(self.dim_head))
-        weight = (q * scale) @ (k * scale).transpose(
-            -2, -1
-        )  # More stable with f16 than dividing afterwards
+        weight = (q * scale) @ (k * scale).transpose(-2, -1)  # More stable with f16 than dividing afterwards
         weight = mint.nn.functional.softmax(weight.float(), dim=-1).to(weight.dtype)
         out = weight @ v
 
@@ -135,7 +132,6 @@ class Resampler(nn.Cell):
             )
 
     def construct(self, x):
-
         latents = self.latents.repeat(x.shape[0], 1, 1)
 
         x = self.proj_in(x)

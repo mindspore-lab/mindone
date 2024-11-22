@@ -3,9 +3,9 @@ from typing import Optional
 import mindspore as ms
 from mindspore import nn
 
-from mindone.diffusers.models.normalization import GroupNorm, get_activation
 from mindone.diffusers.models.activations import SiLU
-from mindone.diffusers.models.resnet import ResnetBlock2D, AlphaBlender
+from mindone.diffusers.models.normalization import GroupNorm, get_activation
+from mindone.diffusers.models.resnet import AlphaBlender, ResnetBlock2D
 
 
 class TemporalConvLayer(nn.Cell):
@@ -37,19 +37,25 @@ class TemporalConvLayer(nn.Cell):
         self.conv1 = nn.SequentialCell(
             GroupNorm(norm_num_groups, in_dim),
             SiLU(),
-            nn.Conv3d(in_dim, out_dim, (3, 1, 1), padding=(1, 1, 0, 0, 0, 0), pad_mode="pad", has_bias=True, dtype=dtype).to_float(dtype),
+            nn.Conv3d(
+                in_dim, out_dim, (3, 1, 1), padding=(1, 1, 0, 0, 0, 0), pad_mode="pad", has_bias=True, dtype=dtype
+            ).to_float(dtype),
         )
         self.conv2 = nn.SequentialCell(
             GroupNorm(norm_num_groups, out_dim),
             SiLU(),
             nn.Dropout(p=dropout),
-            nn.Conv3d(out_dim, in_dim, (3, 1, 1), padding=(1, 1, 0, 0, 0, 0), pad_mode="pad", has_bias=True, dtype=dtype).to_float(dtype),
+            nn.Conv3d(
+                out_dim, in_dim, (3, 1, 1), padding=(1, 1, 0, 0, 0, 0), pad_mode="pad", has_bias=True, dtype=dtype
+            ).to_float(dtype),
         )
         self.conv3 = nn.SequentialCell(
             GroupNorm(norm_num_groups, out_dim),
             SiLU(),
             nn.Dropout(p=dropout),
-            nn.Conv3d(out_dim, in_dim, (3, 1, 1), padding=(1, 1, 0, 0, 0, 0), pad_mode="pad", has_bias=True, dtype=dtype).to_float(dtype),
+            nn.Conv3d(
+                out_dim, in_dim, (3, 1, 1), padding=(1, 1, 0, 0, 0, 0), pad_mode="pad", has_bias=True, dtype=dtype
+            ).to_float(dtype),
         )
         self.conv4 = nn.SequentialCell(
             GroupNorm(norm_num_groups, out_dim),
@@ -65,7 +71,9 @@ class TemporalConvLayer(nn.Cell):
                 weight_init="zeros",
                 bias_init="zeros",
                 dtype=dtype,
-            ).to_float(dtype),  # zero out the last layer params,so the conv block is identity
+            ).to_float(
+                dtype
+            ),  # zero out the last layer params,so the conv block is identity
         )
 
     def construct(self, hidden_states: ms.Tensor, num_frames: int = 1) -> ms.Tensor:

@@ -1,5 +1,6 @@
 from intern_vid2.configs.data import *
 from intern_vid2.configs.model import *
+
 # ========================= data ==========================
 # NOTE The train_file will not be used during the evaluation
 
@@ -39,23 +40,23 @@ model = dict(
     vision_encoder=dict(
         # backbone
         name="pretrain_internvideo2_1b_patch14_224",
-        img_size=224, 
+        img_size=224,
         num_frames="${num_frames}",
         tubelet_size=1,
-        patch_size=14, 
+        patch_size=14,
         d_model=1408,
         clip_embed_dim=768,
         clip_teacher_embed_dim=3200,
         clip_teacher_final_dim=768,
-        clip_norm_type='l2',
+        clip_norm_type="l2",
         clip_return_layer=6,
         clip_student_return_interval=1,
-        pretrained='checkpoints/InternVideo2-stage2_1b-224p-f4.ckpt',
+        pretrained="checkpoints/InternVideo2-stage2_1b-224p-f4.ckpt",
         use_checkpoint=True,
         checkpoint_num=40,
-        use_flash_attn=use_half_precision,
-        use_fused_rmsnorm=use_half_precision,
-        use_fused_mlp=use_half_precision,
+        use_flash_attn=False,
+        use_fused_rmsnorm=False,
+        use_fused_mlp=False,
         # clip teacher
         clip_teacher=None,
         clip_input_resolution=224,
@@ -67,13 +68,13 @@ model = dict(
         image_mask_ratio=0.5,
         sep_image_video_pos_embed=True,
         keep_temporal=False,
-        only_mask=True
+        only_mask=True,
     ),
     text_encoder="${TextEncoders[${text_enc}]}",
     multimodal=dict(enable=True),
     embed_dim=512,
     temp=0.07,
-    find_unused_parameters=False
+    find_unused_parameters=False,
 )
 
 evaluate = True
@@ -85,7 +86,7 @@ evaluation = dict(
     eval_offload=True,  # offload gpu tensors to cpu to save memory.
 )
 
-gradient_checkpointing = True # for text encoder
+gradient_checkpointing = True  # for text encoder
 use_flash_sdp = False
 use_mem_efficient_sdp = False and not use_flash_sdp
 compile_model = False

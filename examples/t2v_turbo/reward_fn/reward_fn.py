@@ -1,16 +1,17 @@
-import os, sys
+import os
+import sys
 import warnings
-from typing import Any, Dict, Optional, Sequence, Tuple, Union, List
-from dataclasses import dataclass, asdict
+from dataclasses import asdict, dataclass
 from random import randrange
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 import numpy as np
-import mindspore as ms
-from mindspore import ops, nn
-from mindspore.dataset import transforms, vision
-
 from lvdm.modules.encoders.clip import CLIPModel, parse, support_list
 from utils.utils import freeze_params
+
+import mindspore as ms
+from mindspore import nn, ops
+from mindspore.dataset import transforms, vision
 
 sys.path.append("../stable_diffusion_xl")
 from gm.modules.embedders.open_clip.tokenizer import tokenize
@@ -26,15 +27,11 @@ CLIP_STD = (0.26862954, 0.26130258, 0.27577711)
 OPENAI_DATASET_MEAN = (0.48145466, 0.4578275, 0.40821073)
 OPENAI_DATASET_STD = (0.26862954, 0.26130258, 0.27577711)
 
-CLIP_NORMALIZE = vision.Normalize(
-    mean=CLIP_MEAN, std=CLIP_STD
-)
+CLIP_NORMALIZE = vision.Normalize(mean=CLIP_MEAN, std=CLIP_STD)
 
 ViCLIP_MEAN = [0.485, 0.456, 0.406]
 ViCLIP_STD = [0.229, 0.224, 0.225]
-ViCLIP_NORMALIZE = vision.Normalize(
-    mean=ViCLIP_MEAN, std=ViCLIP_STD
-)
+ViCLIP_NORMALIZE = vision.Normalize(mean=ViCLIP_MEAN, std=ViCLIP_STD)
 
 
 def load_clip_model(arch, pretrained_ckpt_path, dtype):
@@ -107,34 +104,14 @@ def get_pick_score_fn(precision="fp32"):
 
 
 def get_hpsv2_fn(precision="no", rm_ckpt_dir="HPS_v2_compressed.ckpt"):
-    precision = "fp32" if precision == "no" else precision
     assert precision in ["bf16", "fp16", "fp32"]
+    dtype = {"bf16": "bfloat16", "fp16": "float16", "no": "float32"}[precision]
 
     model = load_clip_model(
         "open_clip_vit_h_14",
         pretrained_ckpt_path=rm_ckpt_dir,
-        dtype="float16",
+        dtype=dtype,
     )
-
-    # model, _, preprocess_val = create_model_and_transforms(
-    #     "ViT-H-14",
-    #     "checkpoints/HPS_v2.1_compressed.pt",
-    #     precision=precision,
-    #     device="cpu",
-    #     jit=False,
-    #     force_quick_gelu=False,
-    #     force_custom_text=False,
-    #     force_patch_dropout=False, 
-    #     force_image_size=None,
-    #     pretrained_image=False,
-    #     image_mean=None,
-    #     image_std=None,
-    #     light_augmentation=True,
-    #     aug_cfg={},
-    #     output_dict=True,
-    #     with_score_predictor=False,
-    #     with_region_predictor=False,
-    # )
 
     preprocess_val = image_transform(
         model.config.vision_config.image_size,
@@ -148,9 +125,7 @@ def get_hpsv2_fn(precision="no", rm_ckpt_dir="HPS_v2_compressed.ckpt"):
     freeze_params(model)
 
     # gets vae decode as input
-    def score_fn(
-        image_inputs: ms.Tensor, text_inputs: ms.Tensor, return_logits=False
-    ):
+    def score_fn(image_inputs: ms.Tensor, text_inputs: ms.Tensor, return_logits=False):
         # Process pixels and multicrop
         for t in preprocess_val.transforms[2:]:
             image_inputs = ops.stack([t(img) for img in image_inputs])
@@ -189,9 +164,7 @@ def get_img_reward_fn(precision="fp32"):
     )
 
     # gets vae decode as input
-    def score_fn(
-        image_inputs: ms.Tensor, text_inputs: List[str], return_logits=False
-    ):
+    def score_fn(image_inputs: ms.Tensor, text_inputs: List[str], return_logits=False):
         del return_logits
         if precision == "fp16":
             model.to_float(ms.float16)
@@ -204,25 +177,22 @@ def get_img_reward_fn(precision="fp32"):
             max_length=35,
             return_tensors="pt",
         )
-        rewards = model.score_gard(
-            text_input.input_ids, text_input.attention_mask, image
-        )
+        rewards = model.score_gard(text_input.input_ids, text_input.attention_mask, image)
         return -ops.relu(-rewards + 2).squeeze(-1)
 
     return score_fn
 
 
 class ResizeCropMinSize(nn.Cell):
-
     def __init__(self, min_size, interpolation=vision.Inter.BICUBIC, fill=0):
         super().__init__()
         if not isinstance(min_size, int):
             raise TypeError(f"Size should be int. Got {type(min_size)}")
         self.min_size = min_size
         self.interpolation = interpolation
-        self.fill = fill 
+        self.fill = fill
         # self.random_crop = vision.RandomCrop((min_size, min_size))
-    
+
     def random_crop(self, img: ms.Tensor, crop_size):
         height, width = img.shape[-2:]
 
@@ -232,7 +202,7 @@ class ResizeCropMinSize(nn.Cell):
         random_h = randrange(0, h_max // 2 + 1) * 2
         random_w = randrange(0, w_max // 2 + 1) * 2
 
-        new_img = img[:, :, random_h:random_h + crop_size[0], random_w:random_w + crop_size[1]]
+        new_img = img[:, :, random_h : random_h + crop_size[0], random_w : random_w + crop_size[1]]
 
         return new_img
 
@@ -261,14 +231,13 @@ class AugmentationCfg:
 
 
 class ResizeMaxSize(nn.Cell):
-
-    def __init__(self, max_size, interpolation=vision.Inter.BICUBIC, fn='max', fill=0):
+    def __init__(self, max_size, interpolation=vision.Inter.BICUBIC, fn="max", fill=0):
         super().__init__()
         if not isinstance(max_size, int):
             raise TypeError(f"Size should be int. Got {type(max_size)}")
         self.max_size = max_size
         self.interpolation = interpolation
-        self.fn = min if fn == 'min' else min
+        self.fn = min if fn == "min" else min
         self.fill = fill
 
     def construct(self, img):
@@ -282,7 +251,9 @@ class ResizeMaxSize(nn.Cell):
             img = ops.ResizeBicubic()(img.unsqueeze(0), new_size).squeeze(0)
             pad_h = self.max_size - new_size[0]
             pad_w = self.max_size - new_size[1]
-            img = ops.pad(img, padding=[pad_w//2, pad_w-pad_w//2, pad_h//2, pad_h - pad_h//2], value=self.fill)
+            img = ops.pad(
+                img, padding=[pad_w // 2, pad_w - pad_w // 2, pad_h // 2, pad_h - pad_h // 2], value=self.fill
+            )
         return img
 
 
@@ -305,10 +276,10 @@ class MaskAwareNormalize(nn.Cell):
 
 
 def _convert_to_rgb_or_rgba(image):
-    if image.mode == 'RGBA':
+    if image.mode == "RGBA":
         return image
     else:
-        return image.convert('RGB')
+        return image.convert("RGB")
 
 
 def image_transform(
@@ -339,40 +310,45 @@ def image_transform(
     normalize = MaskAwareNormalize(mean=mean, std=std)
     if is_train:
         aug_cfg_dict = {k: v for k, v in asdict(aug_cfg).items() if v is not None}
-        use_timm = aug_cfg_dict.pop('use_timm', False)
+        use_timm = aug_cfg_dict.pop("use_timm", False)
         if use_timm:
             assert False, "not tested for augmentation with mask"
             from timm.data import create_transform  # timm can still be optional
+
             if isinstance(image_size, (tuple, list)):
                 assert len(image_size) >= 2
                 input_size = (3,) + image_size[-2:]
             else:
                 input_size = (3, image_size, image_size)
             # by default, timm aug randomly alternates bicubic & bilinear for better robustness at inference time
-            aug_cfg_dict.setdefault('interpolation', 'random')
-            aug_cfg_dict.setdefault('color_jitter', None)  # disable by default
+            aug_cfg_dict.setdefault("interpolation", "random")
+            aug_cfg_dict.setdefault("color_jitter", None)  # disable by default
             train_transform = create_transform(
                 input_size=input_size,
                 is_training=True,
-                hflip=0.,
+                hflip=0.0,
                 mean=mean,
                 std=std,
-                re_mode='pixel',
+                re_mode="pixel",
                 **aug_cfg_dict,
             )
         else:
-            train_transform = transforms.Compose([
-                _convert_to_rgb_or_rgba,
-                vision.ToTensor(),
-                vision.RandomResizedCrop(
-                    image_size,
-                    scale=aug_cfg_dict.pop('scale'),
-                    interpolation=vision.Inter.BICUBIC,
-                ),
-                normalize,
-            ])
+            train_transform = transforms.Compose(
+                [
+                    _convert_to_rgb_or_rgba,
+                    vision.ToTensor(),
+                    vision.RandomResizedCrop(
+                        image_size,
+                        scale=aug_cfg_dict.pop("scale"),
+                        interpolation=vision.Inter.BICUBIC,
+                    ),
+                    normalize,
+                ]
+            )
             if aug_cfg_dict:
-                warnings.warn(f'Unused augmentation cfg items, specify `use_timm` to use ({list(aug_cfg_dict.keys())}).')
+                warnings.warn(
+                    f"Unused augmentation cfg items, specify `use_timm` to use ({list(aug_cfg_dict.keys())})."
+                )
         return train_transform
     else:
         transformations = [
@@ -380,17 +356,19 @@ def image_transform(
             vision.ToTensor(),
         ]
         if resize_longest_max:
-            transformations.extend([
-                ResizeMaxSize(image_size, fill=fill_color)
-            ])
+            transformations.extend([ResizeMaxSize(image_size, fill=fill_color)])
         else:
-            transformations.extend([
-                vision.Resize(image_size, interpolation=vision.Inter.BICUBIC),
-                vision.CenterCrop(image_size),
-            ])
-        transformations.extend([
-            normalize,
-        ])
+            transformations.extend(
+                [
+                    vision.Resize(image_size, interpolation=vision.Inter.BICUBIC),
+                    vision.CenterCrop(image_size),
+                ]
+            )
+        transformations.extend(
+            [
+                normalize,
+            ]
+        )
         return transforms.Compose(transformations)
 
 

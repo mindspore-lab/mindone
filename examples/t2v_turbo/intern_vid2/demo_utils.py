@@ -1,21 +1,17 @@
-import numpy as np
-import cv2
-import os
-import io
 import gc
+import io
+import os
+
+import cv2
+import numpy as np
+from intern_vid2.models.backbones.bert.builder import build_bert
+from intern_vid2.models.backbones.bert.tokenization_bert import BertTokenizer
+from intern_vid2.models.backbones.internvideo2 import pretrain_internvideo2_1b_patch14_224
+from intern_vid2.models.backbones.internvideo2.pos_embed import interpolate_pos_embed_internvideo2_new
+from intern_vid2.models.criterions import get_sim
 
 import mindspore as ms
-from mindspore import nn, mint
-
-from intern_vid2.models.backbones.internvideo2 import (
-    pretrain_internvideo2_1b_patch14_224,
-)
-from intern_vid2.models.backbones.bert.builder import build_bert
-from intern_vid2.models.criterions import get_sim
-from intern_vid2.models.backbones.internvideo2.pos_embed import (
-    interpolate_pos_embed_internvideo2_new,
-)
-from intern_vid2.models.backbones.bert.tokenization_bert import BertTokenizer
+from mindspore import mint, nn
 
 
 def _frame_from_video(video):
@@ -35,9 +31,7 @@ def normalize(data):
     return (data / 255.0 - v_mean) / v_std
 
 
-def frames2tensor(
-    vid_list, fnum=8, target_size=(224, 224)
-):
+def frames2tensor(vid_list, fnum=8, target_size=(224, 224)):
     assert len(vid_list) >= fnum
     step = len(vid_list) // fnum
     vid_list = vid_list[::step][:fnum]
@@ -60,17 +54,12 @@ def get_vid_feat(frames, vlm):
     return vlm.get_vid_features(frames)
 
 
-def retrieve_text(
-    frames, texts, model, topk: int = 5, config: dict = {}
-):
-
+def retrieve_text(frames, texts, model, topk: int = 5, config: dict = {}):
     vlm = model
 
     fn = config.get("num_frames", 8)
     size_t = config.get("size_t", 224)
-    frames_tensor = frames2tensor(
-        frames, fnum=fn, target_size=(size_t, size_t)
-    )
+    frames_tensor = frames2tensor(frames, fnum=fn, target_size=(size_t, size_t))
     vid_feat = vlm.get_vid_feat(frames_tensor)
 
     text_feat_d = {}
@@ -88,7 +77,10 @@ def setup_internvideo2(config: dict, dtype=ms.float32):
     if "bert" in config.model.text_encoder.name:
         tokenizer = BertTokenizer.from_pretrained(config.model.text_encoder.pretrained)
         model = InternVideo2_Stage2(
-            config=config, tokenizer=tokenizer, is_pretrain=False, dtype=dtype,
+            config=config,
+            tokenizer=tokenizer,
+            is_pretrain=False,
+            dtype=dtype,
         )
     else:
         model = InternVideo2_Stage2(config=config, is_pretrain=False, dtype=dtype)
@@ -100,11 +92,7 @@ def setup_internvideo2(config: dict, dtype=ms.float32):
 
     model_without_ddp = model
 
-    if (
-        config.pretrained_path.strip()
-        and (os.path.isfile(config.pretrained_path))
-        or "s3://" in config.pretrained_path
-    ):
+    if config.pretrained_path.strip() and (os.path.isfile(config.pretrained_path)) or "s3://" in config.pretrained_path:
         state_dict = ms.load_checkpoint(config.pretrained_path)
 
         text_encoder_state_dict = {}
@@ -112,7 +100,7 @@ def setup_internvideo2(config: dict, dtype=ms.float32):
         text_proj_state_dict = {}
         for k, v in state_dict.items():
             if k.startswith("text_encoder.bert"):
-                text_encoder_state_dict["text_encoder." + k[len("text_encoder.bert."):]] = v
+                text_encoder_state_dict["text_encoder." + k[len("text_encoder.bert.") :]] = v
             elif k.startswith("vision_proj."):
                 vision_proj_state_dict[k] = v
             elif k.startswith("text_proj."):
@@ -202,20 +190,14 @@ class InternVideo2_Stage2(nn.Cell):
 
         T = image.shape[1]
         use_image = True if T == 1 else False
-        image = image.permute(0, 2, 1, 3, 4).to(
-            self.dtype
-        )  # [B,T,C,H,W] -> [B,C,T,H,W]
+        image = image.permute(0, 2, 1, 3, 4).to(self.dtype)  # [B,T,C,H,W] -> [B,C,T,H,W]
         # whether save temporal dimension
         # keep_temporal=self.config.model.vision_encoder.keep_temporal
         if test:
-            vision_embeds, pooled_vision_embeds, _, _ = self.vision_encoder(
-                image, None, use_image
-            )
+            vision_embeds, pooled_vision_embeds, _, _ = self.vision_encoder(image, None, use_image)
             return vision_embeds, pooled_vision_embeds
         else:
-            mask, targets_clip_middle_vis, targets_clip_final_vis = self.encode_teacher(
-                image
-            )
+            mask, targets_clip_middle_vis, targets_clip_final_vis = self.encode_teacher(image)
             # if mask is not None and (self.video_mask_type != 'tube' or self.image_mask_type != 'tube'):
             #     keep_temporal = False
             # print(f"\033[31mmask is {type(mask)}\033[0m")
@@ -359,9 +341,7 @@ class InternVideo2_Stage2(nn.Cell):
             tfeat /= tfeat.norm(dim=-1, keepdim=True)
         return tfeat
 
-    def predict_label(
-        self, vid_feat: ms.Tensor, txt_feat: ms.Tensor, top: int = 5
-    ):
+    def predict_label(self, vid_feat: ms.Tensor, txt_feat: ms.Tensor, top: int = 5):
         label_probs = (100.0 * vid_feat @ txt_feat.T).softmax(dim=-1)
         top_probs, top_labels = label_probs.float().topk(top, dim=-1)
         return top_probs, top_labels

@@ -1,31 +1,36 @@
 """ Scheduler Factory
 Hacked together by / Copyright 2020 Ross Wightman
 """
-from torch.optim import Optimizer
 import math
+
+from torch.optim import Optimizer
 from torch.optim.lr_scheduler import LambdaLR
 
 
 def create_scheduler(args, optimizer):
     lr_scheduler = None
-    if args.sched == 'cosine':
+    if args.sched == "cosine":
         lr_scheduler = get_cosine_schedule_with_warmup(
             optimizer,
             num_warmup_steps=args.num_warmup_steps,
             num_training_steps=args.num_training_steps,
             num_cycles=0.5,
             min_lr_multi=args.min_lr_multi,
-            last_epoch=args.get('last_epoch', -1)
+            last_epoch=args.get("last_epoch", -1),
         )
     else:
         raise NotImplementedError(args.sched)
-    
+
     return lr_scheduler
 
 
 def get_cosine_schedule_with_warmup(
-        optimizer: Optimizer, num_warmup_steps: int, num_training_steps: int,
-        num_cycles: float = 0.5, min_lr_multi: float = 0., last_epoch: int = -1
+    optimizer: Optimizer,
+    num_warmup_steps: int,
+    num_training_steps: int,
+    num_cycles: float = 0.5,
+    min_lr_multi: float = 0.0,
+    last_epoch: int = -1,
 ):
     """
     Modified from https://github.com/huggingface/transformers/blob/v4.15.0/src/transformers/optimization.py

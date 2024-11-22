@@ -1,5 +1,7 @@
 import math
+
 import numpy as np
+
 import mindspore as ms
 from mindspore import mint
 
@@ -15,17 +17,11 @@ def timestep_embedding(timesteps, dim, max_period=10000, repeat_only=False, dtyp
     """
     if not repeat_only:
         half = dim // 2
-        freqs = mint.exp(
-            -mint.log(ms.Tensor(max_period, dtype))
-            * mint.arange(start=0, end=half, dtype=dtype)
-            / half
-        )
+        freqs = mint.exp(-mint.log(ms.Tensor(max_period, dtype)) * mint.arange(start=0, end=half, dtype=dtype) / half)
         args = timesteps[:, None].float() * freqs[None]
         embedding = mint.cat([mint.cos(args), mint.sin(args)], dim=-1)
         if dim % 2:
-            embedding = mint.cat(
-                [embedding, mint.zeros_like(embedding[:, :1])], dim=-1
-            )
+            embedding = mint.cat([embedding, mint.zeros_like(embedding[:, :1])], dim=-1)
     else:
         timesteps = timesteps.unsqueeze(1)
         embedding = timesteps.repeat_interleave(dim, 1)

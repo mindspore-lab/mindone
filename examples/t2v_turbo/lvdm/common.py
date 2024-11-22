@@ -1,8 +1,10 @@
 import math
-import numpy as np
 from inspect import isfunction
+
+import numpy as np
+
 import mindspore as ms
-from mindspore import nn, ops, mint
+from mindspore import mint, nn, ops
 
 
 class GroupNormExtend(nn.GroupNorm):

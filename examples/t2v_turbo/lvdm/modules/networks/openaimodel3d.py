@@ -1,14 +1,22 @@
-from functools import partial
 from abc import abstractmethod
+from functools import partial
+
+from lvdm.basics import (
+    avg_pool_nd,
+    conv_nd,
+    linear,
+    normalization,
+    rearrange_in_gn5d_bs,
+    rearrange_out_gn5d,
+    zero_module,
+)
+from lvdm.common import GroupNormExtend
+from lvdm.models.utils_diffusion import timestep_embedding
+from lvdm.modules.attention import SpatialTransformer, TemporalTransformer
 
 import mindspore as ms
-from mindspore import nn, ops, mint, recompute
+from mindspore import mint, nn, ops, recompute
 from mindspore.common.initializer import Zero, initializer
-
-from lvdm.models.utils_diffusion import timestep_embedding
-from lvdm.common import GroupNormExtend
-from lvdm.basics import zero_module, conv_nd, linear, avg_pool_nd, normalization, rearrange_in_gn5d_bs, rearrange_out_gn5d
-from lvdm.modules.attention import SpatialTransformer, TemporalTransformer
 
 
 class TimestepBlock(nn.Cell):
@@ -95,7 +103,7 @@ class Downsample(nn.Cell):
                 3,
                 stride=stride,
                 padding=padding,
-                pad_mode="pad" if padding>0 else "same",
+                pad_mode="pad" if padding > 0 else "same",
                 has_bias=True,
                 dtype=dtype,
             )
@@ -126,19 +134,22 @@ class Upsample(nn.Cell):
         if use_conv:
             pad_mode = "pad" if padding > 0 else "same"
             self.conv = conv_nd(
-                dims, self.channels, self.out_channels, 3, padding=padding, pad_mode=pad_mode, has_bias=True, dtype=dtype
+                dims,
+                self.channels,
+                self.out_channels,
+                3,
+                padding=padding,
+                pad_mode=pad_mode,
+                has_bias=True,
+                dtype=dtype,
             )
 
     def construct(self, x):
         assert x.shape[1] == self.channels
         if self.dims == 3:
-            x = ops.ResizeNearestNeighbor(
-                (x.shape[2], x.shape[3] * 2, x.shape[4] * 2)
-            )(x)
+            x = ops.ResizeNearestNeighbor((x.shape[2], x.shape[3] * 2, x.shape[4] * 2))(x)
         elif self.dims == 2:
-            x = ops.ResizeNearestNeighbor(
-                (x.shape[2] * 2, x.shape[3] * 2)
-            )(x)
+            x = ops.ResizeNearestNeighbor((x.shape[2] * 2, x.shape[3] * 2))(x)
         else:
             x = ops.interpolate(x, scale_factor=2.0, mode="nearest")
         if self.use_conv:
@@ -230,11 +241,7 @@ class ResBlock(TimestepBlock):
 
         if self.use_temporal_conv:
             self.temopral_conv = TemporalConvBlock(
-                self.out_channels,
-                self.out_channels,
-                dropout=0.1,
-                spatial_aware=tempspatial_aware,
-                dtype=dtype
+                self.out_channels, self.out_channels, dropout=0.1, spatial_aware=tempspatial_aware, dtype=dtype
             )
 
     def construct(self, x, emb, batch_size=None):
@@ -254,7 +261,7 @@ class ResBlock(TimestepBlock):
             h = self.in_layers(x)
         emb_out = self.emb_layers(emb).astype(h.dtype)
         while len(emb_out.shape) < len(h.shape):
-            emb_out = ops.expand_dims(emb_out, -1) # FIXME
+            emb_out = ops.expand_dims(emb_out, -1)  # FIXME
             # emb_out = emb_out[..., None]
         if self.use_scale_shift_norm:
             out_norm, out_rest = self.out_layers[0], self.out_layers[1:]
@@ -280,9 +287,7 @@ class TemporalConvBlock(nn.Cell):
     Adapted from modelscope: https://github.com/modelscope/modelscope/blob/master/modelscope/models/multi_modal/video_synthesis/unet_sd.py
     """
 
-    def __init__(
-        self, in_channels, out_channels=None, dropout=0.0, spatial_aware=False, dtype=ms.float32
-    ):
+    def __init__(self, in_channels, out_channels=None, dropout=0.0, spatial_aware=False, dtype=ms.float32):
         super(TemporalConvBlock, self).__init__()
         if out_channels is None:
             out_channels = in_channels
@@ -295,25 +300,57 @@ class TemporalConvBlock(nn.Cell):
         self.conv1 = nn.SequentialCell(
             GroupNormExtend(32, in_channels),
             nn.SiLU(),
-            nn.Conv3d(in_channels, out_channels, kernel_shape, padding=padding_shape, pad_mode="pad", has_bias=True, dtype=dtype).to_float(dtype),
+            nn.Conv3d(
+                in_channels,
+                out_channels,
+                kernel_shape,
+                padding=padding_shape,
+                pad_mode="pad",
+                has_bias=True,
+                dtype=dtype,
+            ).to_float(dtype),
         )
         self.conv2 = nn.SequentialCell(
             GroupNormExtend(32, out_channels),
             nn.SiLU(),
             nn.Dropout(p=dropout),
-            nn.Conv3d(out_channels, in_channels, kernel_shape, padding=padding_shape, pad_mode="pad", has_bias=True, dtype=dtype).to_float(dtype),
+            nn.Conv3d(
+                out_channels,
+                in_channels,
+                kernel_shape,
+                padding=padding_shape,
+                pad_mode="pad",
+                has_bias=True,
+                dtype=dtype,
+            ).to_float(dtype),
         )
         self.conv3 = nn.SequentialCell(
             GroupNormExtend(32, out_channels),
             nn.SiLU(),
             nn.Dropout(p=dropout),
-            nn.Conv3d(out_channels, in_channels, (3, 1, 1), padding=(1, 1, 0, 0, 0, 0), pad_mode="pad", has_bias=True, dtype=dtype).to_float(dtype),
+            nn.Conv3d(
+                out_channels,
+                in_channels,
+                (3, 1, 1),
+                padding=(1, 1, 0, 0, 0, 0),
+                pad_mode="pad",
+                has_bias=True,
+                dtype=dtype,
+            ).to_float(dtype),
         )
         self.conv4 = nn.SequentialCell(
             GroupNormExtend(32, out_channels),
             nn.SiLU(),
             nn.Dropout(p=dropout),
-            nn.Conv3d(out_channels, in_channels, (3, 1, 1), padding=(1, 1, 0, 0, 0, 0), pad_mode="pad", has_bias=True, dtype=dtype).to_float(dtype),
+            nn.Conv3d(
+                out_channels,
+                in_channels,
+                (3, 1, 1),
+                padding=(1, 1, 0, 0, 0, 0),
+                pad_mode="pad",
+                has_bias=True,
+                dtype=dtype,
+            ).to_float(dtype),
         )
 
         # zero out the last layer params,so the conv block is identity
@@ -396,13 +433,9 @@ class UNetModel(nn.Cell):
     ):
         super(UNetModel, self).__init__()
         if num_heads == -1:
-            assert (
-                num_head_channels != -1
-            ), "Either num_heads or num_head_channels has to be set"
+            assert num_head_channels != -1, "Either num_heads or num_head_channels has to be set"
         if num_head_channels == -1:
-            assert (
-                num_heads != -1
-            ), "Either num_heads or num_head_channels has to be set"
+            assert num_heads != -1, "Either num_heads or num_head_channels has to be set"
 
         self.in_channels = in_channels
         self.model_channels = model_channels
@@ -438,16 +471,16 @@ class UNetModel(nn.Cell):
                 linear(time_embed_dim, time_embed_dim),
             ).to_float(self.dtype)
         if time_cond_proj_dim is not None:
-            self.time_cond_proj = nn.Dense(
-                time_cond_proj_dim, model_channels, has_bias=False
-            ).to_float(self.dtype)
+            self.time_cond_proj = nn.Dense(time_cond_proj_dim, model_channels, has_bias=False).to_float(self.dtype)
         else:
             self.time_cond_proj = None
 
         input_blocks = nn.CellList(
             [
                 tseq_class(
-                    conv_nd(dims, in_channels, model_channels, 3, padding=1, pad_mode="pad", has_bias=True, dtype=self.dtype)
+                    conv_nd(
+                        dims, in_channels, model_channels, 3, padding=1, pad_mode="pad", has_bias=True, dtype=self.dtype
+                    )
                 ).to_float(self.dtype)
             ]
         )
@@ -483,7 +516,7 @@ class UNetModel(nn.Cell):
                         use_scale_shift_norm=use_scale_shift_norm,
                         tempspatial_aware=tempspatial_aware,
                         use_temporal_conv=temporal_conv,
-                        dtype=self.dtype
+                        dtype=self.dtype,
                     )
                 ]
                 ch = mult * model_channels
@@ -540,9 +573,7 @@ class UNetModel(nn.Cell):
                             dtype=self.dtype,
                         )
                         if resblock_updown
-                        else Downsample(
-                            ch, conv_resample, dims=dims, out_channels=out_ch, dtype=self.dtype
-                        )
+                        else Downsample(ch, conv_resample, dims=dims, out_channels=out_ch, dtype=self.dtype)
                     )
                 )
                 ch = out_ch
@@ -675,7 +706,7 @@ class UNetModel(nn.Cell):
                             use_checkpoint=use_checkpoint,
                             use_scale_shift_norm=use_scale_shift_norm,
                             up=True,
-                            dtype=self.dtype
+                            dtype=self.dtype,
                         )
                         if resblock_updown
                         else Upsample(ch, conv_resample, dims=dims, out_channels=out_ch, dtype=self.dtype)
@@ -691,19 +722,14 @@ class UNetModel(nn.Cell):
         self.out = nn.SequentialCell(
             normalization(ch),
             nn.SiLU(),
-            zero_module(conv_nd(dims, model_channels, out_channels, 3, padding=1, pad_mode="pad", has_bias=True, dtype=self.dtype)),
+            zero_module(
+                conv_nd(
+                    dims, model_channels, out_channels, 3, padding=1, pad_mode="pad", has_bias=True, dtype=self.dtype
+                )
+            ),
         ).to_float(self.dtype)
 
-    def construct(
-        self,
-        x,
-        timesteps,
-        context,
-        features_adapter=None,
-        fps=16,
-        timestep_cond=None,
-        **kwargs
-    ):
+    def construct(self, x, timesteps, context, features_adapter=None, fps=16, timestep_cond=None, **kwargs):
         t_emb = timestep_embedding(timesteps, self.model_channels, repeat_only=False, dtype=self.dtype)
         if timestep_cond is not None:
             t_emb = t_emb + self.time_cond_proj(timestep_cond)

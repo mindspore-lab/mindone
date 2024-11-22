@@ -1,10 +1,12 @@
 import importlib
 import os
-import numpy as np
-import cv2
 from typing import List
+
+import cv2
+import numpy as np
+
 import mindspore as ms
-from mindspore import nn, mint
+from mindspore import mint, nn
 
 
 def _get_subcell(mod: nn.Cell, target: str) -> "nn.Cell":
@@ -72,10 +74,7 @@ def get_obj_from_str(string, reload=False):
 
 
 def load_npz_from_dir(data_dir):
-    data = [
-        np.load(os.path.join(data_dir, data_name))["arr_0"]
-        for data_name in os.listdir(data_dir)
-    ]
+    data = [np.load(os.path.join(data_dir, data_name))["arr_0"] for data_name in os.listdir(data_dir)]
     data = np.concatenate(data, axis=0)
     return data
 
@@ -114,13 +113,10 @@ def save_videos(batch_tensors, savedir, filenames, fps=16):
         video = mint.clamp(video.float(), -1.0, 1.0)
         video = video.permute(2, 0, 1, 3, 4)  # t,n,c,h,w
         frame_grids = [
-            torchvision.utils.make_grid(framesheet, nrow=int(n_samples))
-            for framesheet in video
+            torchvision.utils.make_grid(framesheet, nrow=int(n_samples)) for framesheet in video
         ]  # [3, 1*h, n*w]
         grid = mint.stack(frame_grids, dim=0)  # stack in temporal dim [t, 3, n*h, w]
         grid = (grid + 1.0) / 2.0
         grid = (grid * 255).to(ms.uint8).permute(0, 2, 3, 1)
         savepath = os.path.join(savedir, f"{filenames[idx]}.mp4")
-        torchvision.io.write_video(
-            savepath, grid, fps=fps, video_codec="h264", options={"crf": "10"}
-        )
+        torchvision.io.write_video(savepath, grid, fps=fps, video_codec="h264", options={"crf": "10"})

@@ -20,8 +20,9 @@ from dataclasses import dataclass
 from typing import List, Optional, Tuple, Union
 
 import numpy as np
+
 import mindspore as ms
-from mindspore import nn, ops, mint
+from mindspore import mint, nn, ops
 
 from mindone.diffusers import ConfigMixin, SchedulerMixin
 from mindone.diffusers.configuration_utils import register_to_config
@@ -203,9 +204,7 @@ class T2VTurboScheduler(SchedulerMixin, ConfigMixin):
         if trained_betas is not None:
             self.betas = torch.tensor(trained_betas, dtype=torch.float32)
         elif beta_schedule == "linear":
-            self.betas = torch.linspace(
-                linear_start, linear_end, num_train_timesteps, dtype=torch.float32
-            )
+            self.betas = torch.linspace(linear_start, linear_end, num_train_timesteps, dtype=torch.float32)
         elif beta_schedule == "scaled_linear":
             # this schedule is very specific to the latent diffusion model.
             self.betas = (
@@ -220,9 +219,7 @@ class T2VTurboScheduler(SchedulerMixin, ConfigMixin):
             # Glide cosine schedule
             self.betas = betas_for_alpha_bar(num_train_timesteps)
         else:
-            raise NotImplementedError(
-                f"{beta_schedule} does is not implemented for {self.__class__}"
-            )
+            raise NotImplementedError(f"{beta_schedule} does is not implemented for {self.__class__}")
 
         # Rescale for zero SNR
         if rescale_betas_zero_snr:
@@ -235,22 +232,16 @@ class T2VTurboScheduler(SchedulerMixin, ConfigMixin):
         # For the final step, there is no previous alphas_cumprod because we are already at 0
         # `set_alpha_to_one` decides whether we set this parameter simply to one or
         # whether we use the final alpha of the "non-previous" one.
-        self.final_alpha_cumprod = (
-            ms.Tensor(1.0) if set_alpha_to_one else self.alphas_cumprod[0]
-        )
+        self.final_alpha_cumprod = ms.Tensor(1.0) if set_alpha_to_one else self.alphas_cumprod[0]
 
         # standard deviation of the initial noise distribution
         self.init_noise_sigma = 1.0
 
         # setable values
         self.num_inference_steps = None
-        self.timesteps = ms.Tensor.from_numpy(
-            np.arange(0, num_train_timesteps)[::-1].copy().astype(np.int64)
-        )
+        self.timesteps = ms.Tensor.from_numpy(np.arange(0, num_train_timesteps)[::-1].copy().astype(np.int64))
 
-    def scale_model_input(
-        self, sample: ms.Tensor, timestep: Optional[int] = None
-    ) -> ms.Tensor:
+    def scale_model_input(self, sample: ms.Tensor, timestep: Optional[int] = None) -> ms.Tensor:
         """
         Ensures interchangeability with schedulers that need to scale the denoising model input depending on the
         current timestep.
@@ -267,17 +258,11 @@ class T2VTurboScheduler(SchedulerMixin, ConfigMixin):
 
     def _get_variance(self, timestep, prev_timestep):
         alpha_prod_t = self.alphas_cumprod[timestep]
-        alpha_prod_t_prev = (
-            self.alphas_cumprod[prev_timestep]
-            if prev_timestep >= 0
-            else self.final_alpha_cumprod
-        )
+        alpha_prod_t_prev = self.alphas_cumprod[prev_timestep] if prev_timestep >= 0 else self.final_alpha_cumprod
         beta_prod_t = 1 - alpha_prod_t
         beta_prod_t_prev = 1 - alpha_prod_t_prev
 
-        variance = (beta_prod_t_prev / beta_prod_t) * (
-            1 - alpha_prod_t / alpha_prod_t_prev
-        )
+        variance = (beta_prod_t_prev / beta_prod_t) * (1 - alpha_prod_t / alpha_prod_t_prev)
 
         return variance
 
@@ -295,9 +280,7 @@ class T2VTurboScheduler(SchedulerMixin, ConfigMixin):
         batch_size, channels, height, width = sample.shape
 
         if dtype not in (ms.float32, ms.float64):
-            sample = (
-                sample.float()
-            )  # upcast for quantile calculation, and clamp not implemented for cpu half
+            sample = sample.float()  # upcast for quantile calculation, and clamp not implemented for cpu half
 
         # Flatten sample for doing quantile calculation along each image
         sample = sample.reshape(batch_size, channels * height * width)
@@ -310,9 +293,7 @@ class T2VTurboScheduler(SchedulerMixin, ConfigMixin):
         )  # When clamped to min=1, equivalent to standard clipping to [-1, 1]
 
         s = s.unsqueeze(1)  # (batch_size, 1) because clamp will broadcast along dim=0
-        sample = (
-            mint.clamp(sample, -s, s) / s
-        )  # "we threshold xt0 to the range [-s, s] and then divide by s"
+        sample = mint.clamp(sample, -s, s) / s  # "we threshold xt0 to the range [-s, s] and then divide by s"
 
         sample = sample.reshape(batch_size, channels, height, width)
         sample = sample.to(dtype)
@@ -342,13 +323,9 @@ class T2VTurboScheduler(SchedulerMixin, ConfigMixin):
 
         # LCM Timesteps Setting:  # Linear Spacing
         c = self.config.num_train_timesteps // lcm_origin_steps
-        lcm_origin_timesteps = (
-            np.asarray(list(range(1, lcm_origin_steps + 1))) * c - 1
-        )  # LCM Training  Steps Schedule
+        lcm_origin_timesteps = np.asarray(list(range(1, lcm_origin_steps + 1))) * c - 1  # LCM Training  Steps Schedule
         skipping_step = len(lcm_origin_timesteps) // num_inference_steps
-        timesteps = lcm_origin_timesteps[::-skipping_step][
-            :num_inference_steps
-        ]  # LCM Inference Steps Schedule
+        timesteps = lcm_origin_timesteps[::-skipping_step][:num_inference_steps]  # LCM Inference Steps Schedule
 
         self.timesteps = ms.Tensor.from_numpy(timesteps.copy())
 
@@ -417,11 +394,7 @@ class T2VTurboScheduler(SchedulerMixin, ConfigMixin):
 
         # 2. compute alphas, betas
         alpha_prod_t = self.alphas_cumprod[timestep]
-        alpha_prod_t_prev = (
-            self.alphas_cumprod[prev_timestep]
-            if prev_timestep >= 0
-            else self.final_alpha_cumprod
-        )
+        alpha_prod_t_prev = self.alphas_cumprod[prev_timestep] if prev_timestep >= 0 else self.final_alpha_cumprod
 
         beta_prod_t = 1 - alpha_prod_t
         beta_prod_t_prev = 1 - alpha_prod_t_prev
@@ -448,9 +421,7 @@ class T2VTurboScheduler(SchedulerMixin, ConfigMixin):
         # Noise is not used for one-step sampling.
         if len(self.timesteps) > 1:
             noise = ops.randn(model_output.shape)
-            prev_sample = (
-                alpha_prod_t_prev.sqrt() * denoised + beta_prod_t_prev.sqrt() * noise
-            )
+            prev_sample = alpha_prod_t_prev.sqrt() * denoised + beta_prod_t_prev.sqrt() * noise
         else:
             prev_sample = denoised
 
@@ -479,9 +450,7 @@ class T2VTurboScheduler(SchedulerMixin, ConfigMixin):
         while len(sqrt_one_minus_alpha_prod.shape) < len(original_samples.shape):
             sqrt_one_minus_alpha_prod = sqrt_one_minus_alpha_prod.unsqueeze(-1)
 
-        noisy_samples = (
-            sqrt_alpha_prod * original_samples + sqrt_one_minus_alpha_prod * noise
-        )
+        noisy_samples = sqrt_alpha_prod * original_samples + sqrt_one_minus_alpha_prod * noise
         return noisy_samples
 
     # Copied from diffusers.schedulers.scheduling_ddpm.DDPMScheduler.get_velocity
@@ -492,9 +461,7 @@ class T2VTurboScheduler(SchedulerMixin, ConfigMixin):
         timesteps: ms.Tensor,
     ) -> ms.Tensor:
         # Make sure alphas_cumprod and timestep have same device and dtype as sample
-        alphas_cumprod = self.alphas_cumprod.to(
-            dtype=sample.dtype
-        )
+        alphas_cumprod = self.alphas_cumprod.to(dtype=sample.dtype)
 
         sqrt_alpha_prod = alphas_cumprod[timesteps] ** 0.5
         sqrt_alpha_prod = sqrt_alpha_prod.flatten()

@@ -6,26 +6,27 @@ https://github.com/CompVis/taming-transformers
 -- merci
 """
 
-from functools import partial
+import logging
 from contextlib import contextmanager
+from functools import partial
+
 import numpy as np
 from tqdm import tqdm
-import logging
 
 mainlogger = logging.getLogger("mainlogger")
 
-import mindspore as ms
-from mindspore import nn, ops, mint
+from lvdm.basics import disabled_train
+from lvdm.common import default, exists, extract_into_tensor, noise_like
+from lvdm.distributions import DiagonalGaussianDistribution
+from lvdm.ema import LitEma
+from lvdm.models.utils_diffusion import make_beta_schedule
+from lvdm.modules.encoders.ip_resampler import ImageProjModel, Resampler
 
 # from torchvision.utils import make_grid
 from utils.utils import instantiate_from_config
-from lvdm.ema import LitEma
-from lvdm.distributions import DiagonalGaussianDistribution
-from lvdm.models.utils_diffusion import make_beta_schedule
-from lvdm.modules.encoders.ip_resampler import ImageProjModel, Resampler
-from lvdm.basics import disabled_train
-from lvdm.common import extract_into_tensor, noise_like, exists, default
 
+import mindspore as ms
+from mindspore import mint, nn, ops
 
 __conditioning_keys__ = {"concat": "c_concat", "crossattn": "c_crossattn", "adm": "y"}
 
@@ -69,9 +70,7 @@ class DDPM(nn.Cell):
             "x0",
         ], 'currently only supporting "eps" and "x0"'
         self.parameterization = parameterization
-        mainlogger.info(
-            f"{self.__class__.__name__}: Running in {self.parameterization}-prediction mode"
-        )
+        mainlogger.info(f"{self.__class__.__name__}: Running in {self.parameterization}-prediction mode")
         self.cond_stage_model = None
         self.clip_denoised = clip_denoised
         self.log_every_t = log_every_t
@@ -100,9 +99,7 @@ class DDPM(nn.Cell):
         if monitor is not None:
             self.monitor = monitor
         if ckpt_path is not None:
-            self.init_from_ckpt(
-                ckpt_path, ignore_keys=ignore_keys, only_model=load_only_unet
-            )
+            self.init_from_ckpt(ckpt_path, ignore_keys=ignore_keys, only_model=load_only_unet)
 
         self.register_schedule(
             given_betas=given_betas,
@@ -150,9 +147,7 @@ class DDPM(nn.Cell):
         self.num_timesteps = int(timesteps)
         self.linear_start = linear_start
         self.linear_end = linear_end
-        assert (
-            alphas_cumprod.shape[0] == self.num_timesteps
-        ), "alphas have to be defined for each timestep"
+        assert alphas_cumprod.shape[0] == self.num_timesteps, "alphas have to be defined for each timestep"
 
         to_ms = partial(ms.Tensor, dtype=self.dtype)
 
@@ -168,9 +163,9 @@ class DDPM(nn.Cell):
         self.sqrt_recipm1_alphas_cumprod = to_ms(np.sqrt(1.0 / alphas_cumprod - 1))
 
         # calculations for posterior q(x_{t-1} | x_t, x_0)
-        posterior_variance = (1 - self.v_posterior) * betas * (
-            1.0 - alphas_cumprod_prev
-        ) / (1.0 - alphas_cumprod) + self.v_posterior * betas
+        posterior_variance = (1 - self.v_posterior) * betas * (1.0 - alphas_cumprod_prev) / (
+            1.0 - alphas_cumprod
+        ) + self.v_posterior * betas
         # above: equal to 1. / (1. / (1. - alpha_cumprod_tm1) + alpha_t / beta_t)
         self.posterior_variance = to_ms(posterior_variance)
         # below: log calculation clipped because the posterior variance is 0 at the beginning of the diffusion chain
@@ -179,18 +174,9 @@ class DDPM(nn.Cell):
         self.posterior_mean_coef2 = to_ms((1.0 - alphas_cumprod_prev) * np.sqrt(alphas) / (1.0 - alphas_cumprod))
 
         if self.parameterization == "eps":
-            lvlb_weights = self.betas**2 / (
-                2
-                * self.posterior_variance
-                * to_ms(alphas)
-                * (1 - self.alphas_cumprod)
-            )
+            lvlb_weights = self.betas**2 / (2 * self.posterior_variance * to_ms(alphas) * (1 - self.alphas_cumprod))
         elif self.parameterization == "x0":
-            lvlb_weights = (
-                0.5
-                * np.sqrt(ms.Tensor(alphas_cumprod))
-                / (2.0 * 1 - ms.Tensor(alphas_cumprod))
-            )
+            lvlb_weights = 0.5 * np.sqrt(ms.Tensor(alphas_cumprod)) / (2.0 * 1 - ms.Tensor(alphas_cumprod))
         else:
             raise NotImplementedError("mu not supported")
         # TODO how to choose this term
@@ -226,13 +212,9 @@ class DDPM(nn.Cell):
                     mainlogger.info("Deleting key {} from state_dict.".format(k))
                     del sd[k]
         missing, unexpected = (
-            ms.load_param_into_net(self, sd)
-            if not only_model
-            else ms.load_param_into_net(self.model, sd)
+            ms.load_param_into_net(self, sd) if not only_model else ms.load_param_into_net(self.model, sd)
         )
-        mainlogger.info(
-            f"Restored from {path} with {len(missing)} missing and {len(unexpected)} unexpected keys"
-        )
+        mainlogger.info(f"Restored from {path} with {len(missing)} missing and {len(unexpected)} unexpected keys")
         if len(missing) > 0:
             mainlogger.info(f"Missing Keys: {missing}")
         if len(unexpected) > 0:
@@ -247,16 +229,13 @@ class DDPM(nn.Cell):
         """
         mean = extract_into_tensor(self.sqrt_alphas_cumprod, t, x_start.shape) * x_start
         variance = extract_into_tensor(1.0 - self.alphas_cumprod, t, x_start.shape)
-        log_variance = extract_into_tensor(
-            self.log_one_minus_alphas_cumprod, t, x_start.shape
-        )
+        log_variance = extract_into_tensor(self.log_one_minus_alphas_cumprod, t, x_start.shape)
         return mean, variance, log_variance
 
     def predict_start_from_noise(self, x_t, t, noise):
         return (
             extract_into_tensor(self.sqrt_recip_alphas_cumprod, t, x_t.shape) * x_t
-            - extract_into_tensor(self.sqrt_recipm1_alphas_cumprod, t, x_t.shape)
-            * noise
+            - extract_into_tensor(self.sqrt_recipm1_alphas_cumprod, t, x_t.shape) * noise
         )
 
     def q_posterior(self, x_start, x_t, t):
@@ -265,9 +244,7 @@ class DDPM(nn.Cell):
             + extract_into_tensor(self.posterior_mean_coef2, t, x_t.shape) * x_t
         )
         posterior_variance = extract_into_tensor(self.posterior_variance, t, x_t.shape)
-        posterior_log_variance_clipped = extract_into_tensor(
-            self.posterior_log_variance_clipped, t, x_t.shape
-        )
+        posterior_log_variance_clipped = extract_into_tensor(self.posterior_log_variance_clipped, t, x_t.shape)
         return posterior_mean, posterior_variance, posterior_log_variance_clipped
 
     def p_mean_variance(self, x, t, clip_denoised: bool):
@@ -279,16 +256,12 @@ class DDPM(nn.Cell):
         if clip_denoised:
             x_recon.clamp_(-1.0, 1.0)
 
-        model_mean, posterior_variance, posterior_log_variance = self.q_posterior(
-            x_start=x_recon, x_t=x, t=t
-        )
+        model_mean, posterior_variance, posterior_log_variance = self.q_posterior(x_start=x_recon, x_t=x, t=t)
         return model_mean, posterior_variance, posterior_log_variance
 
     def p_sample(self, x, t, clip_denoised=True, repeat_noise=False):
         b, *_, device = *x.shape, x.device
-        model_mean, _, model_log_variance = self.p_mean_variance(
-            x=x, t=t, clip_denoised=clip_denoised
-        )
+        model_mean, _, model_log_variance = self.p_mean_variance(x=x, t=t, clip_denoised=clip_denoised)
         noise = noise_like(x.shape, repeat_noise)
         # no noise when t == 0
         nonzero_mask = (1 - (t == 0).float()).reshape(b, *((1,) * (len(x.shape) - 1)))
@@ -329,8 +302,7 @@ class DDPM(nn.Cell):
             extract_into_tensor(self.sqrt_alphas_cumprod, t, x_start.shape)
             * x_start
             * extract_into_tensor(self.scale_arr, t, x_start.shape)
-            + extract_into_tensor(self.sqrt_one_minus_alphas_cumprod, t, x_start.shape)
-            * noise
+            + extract_into_tensor(self.sqrt_one_minus_alphas_cumprod, t, x_start.shape) * noise
         )
 
     def get_input(self, batch, k):
@@ -373,9 +345,7 @@ class DDPM(nn.Cell):
         if sample:
             # get denoise row
             with self.ema_scope("Plotting"):
-                samples, denoise_row = self.sample(
-                    batch_size=N, return_intermediates=True
-                )
+                samples, denoise_row = self.sample(batch_size=N, return_intermediates=True)
 
             log["samples"] = samples
             log["denoise_row"] = self._get_rows_from_list(denoise_row)
@@ -476,9 +446,7 @@ class LatentDiffusion(DDPM):
             fill_value=self.num_timesteps - 1,
             dtype=ms.int32,
         )
-        ids = ops.round(
-            mint.linspace(0, self.num_timesteps - 1, self.num_timesteps_cond)
-        ).long()
+        ids = ops.round(mint.linspace(0, self.num_timesteps - 1, self.num_timesteps_cond)).long()
         self.cond_ids[: self.num_timesteps_cond] = ids
 
     def q_sample(self, x_start, t, noise=None):
@@ -488,19 +456,12 @@ class LatentDiffusion(DDPM):
                 extract_into_tensor(self.sqrt_alphas_cumprod, t, x_start.shape)
                 * x_start
                 * extract_into_tensor(self.scale_arr, t, x_start.shape)
-                + extract_into_tensor(
-                    self.sqrt_one_minus_alphas_cumprod, t, x_start.shape
-                )
-                * noise
+                + extract_into_tensor(self.sqrt_one_minus_alphas_cumprod, t, x_start.shape) * noise
             )
         else:
             return (
-                extract_into_tensor(self.sqrt_alphas_cumprod, t, x_start.shape)
-                * x_start
-                + extract_into_tensor(
-                    self.sqrt_one_minus_alphas_cumprod, t, x_start.shape
-                )
-                * noise
+                extract_into_tensor(self.sqrt_alphas_cumprod, t, x_start.shape) * x_start
+                + extract_into_tensor(self.sqrt_one_minus_alphas_cumprod, t, x_start.shape) * noise
             )
 
     def _freeze_model(self):
@@ -529,9 +490,7 @@ class LatentDiffusion(DDPM):
 
     def get_learned_conditioning(self, c):
         if self.cond_stage_forward is None:
-            if hasattr(self.cond_stage_model, "encode") and callable(
-                self.cond_stage_model.encode
-            ):
+            if hasattr(self.cond_stage_model, "encode") and callable(self.cond_stage_model.encode):
                 c = self.cond_stage_model.encode(c)
                 if isinstance(c, DiagonalGaussianDistribution):
                     c = c.mode()
@@ -548,9 +507,7 @@ class LatentDiffusion(DDPM):
         elif isinstance(encoder_posterior, ms.Tensor):
             z = encoder_posterior
         else:
-            raise NotImplementedError(
-                f"encoder_posterior of type '{type(encoder_posterior)}' not yet implemented"
-            )
+            raise NotImplementedError(f"encoder_posterior of type '{type(encoder_posterior)}' not yet implemented")
         return self.scale_factor * z
 
     def encode_first_stage(self, x):
@@ -573,13 +530,10 @@ class LatentDiffusion(DDPM):
         return results
 
     def encode_first_stage_2DAE(self, x):
-
         b, _, t, _, _ = x.shape
         results = mint.cat(
             [
-                self.get_first_stage_encoding(self.first_stage_model.encode(x[:, :, i]))
-                .detach()
-                .unsqueeze(2)
+                self.get_first_stage_encoding(self.first_stage_model.encode(x[:, :, i])).detach().unsqueeze(2)
                 for i in range(t)
             ],
             dim=2,
@@ -602,7 +556,7 @@ class LatentDiffusion(DDPM):
 
         if reshape_back:
             _, c, h, w = results.shape
-            results = results.reshape(b, c, t, h, w) 
+            results = results.reshape(b, c, t, h, w)
             # results = rearrange(results, "(b t) c h w -> b c t h w", b=b, t=t)
         return results
 
@@ -616,9 +570,7 @@ class LatentDiffusion(DDPM):
         else:
             if not isinstance(cond, list):
                 cond = [cond]
-            key = (
-                "c_concat" if self.model.conditioning_key == "concat" else "c_crossattn"
-            )
+            key = "c_concat" if self.model.conditioning_key == "concat" else "c_crossattn"
             cond = {key: cond}
 
         x_recon = self.model(x_noisy, t, **cond, **kwargs)
@@ -654,14 +606,10 @@ class LatentDiffusion(DDPM):
         return denoise_grid
 
     def decode_first_stage_2DAE(self, z, **kwargs):
-
         b, _, t, _, _ = z.shape
         z = 1.0 / self.scale_factor * z
         results = mint.cat(
-            [
-                self.first_stage_model.decode(z[:, :, i], **kwargs).unsqueeze(2)
-                for i in range(t)
-            ],
+            [self.first_stage_model.decode(z[:, :, i], **kwargs).unsqueeze(2) for i in range(t)],
             dim=2,
         )
 
@@ -683,9 +631,7 @@ class LatentDiffusion(DDPM):
 
         if score_corrector is not None:
             assert self.parameterization == "eps"
-            model_out = score_corrector.modify_score(
-                self, model_out, x, t, c, **corrector_kwargs
-            )
+            model_out = score_corrector.modify_score(self, model_out, x, t, c, **corrector_kwargs)
 
         if self.parameterization == "eps":
             x_recon = self.predict_start_from_noise(x, t=t, noise=model_out)
@@ -697,9 +643,7 @@ class LatentDiffusion(DDPM):
         if clip_denoised:
             x_recon.clamp_(-1.0, 1.0)
 
-        model_mean, posterior_variance, posterior_log_variance = self.q_posterior(
-            x_start=x_recon, x_t=x, t=t
-        )
+        model_mean, posterior_variance, posterior_log_variance = self.q_posterior(x_start=x_recon, x_t=x, t=t)
 
         if return_x0:
             return model_mean, posterior_variance, posterior_log_variance, x_recon
@@ -766,7 +710,6 @@ class LatentDiffusion(DDPM):
         log_every_t=None,
         **kwargs,
     ):
-
         if not log_every_t:
             log_every_t = self.log_every_t
         b = shape[0]
@@ -799,9 +742,7 @@ class LatentDiffusion(DDPM):
                 tc = self.cond_ids[ts]
                 cond = self.q_sample(x_start=cond, t=tc, noise=mint.randn_like(cond))
 
-            img = self.p_sample(
-                img, cond, ts, clip_denoised=self.clip_denoised, **kwargs
-            )
+            img = self.p_sample(img, cond, ts, clip_denoised=self.clip_denoised, **kwargs)
             if mask is not None:
                 img_orig = self.q_sample(x0, ts)
                 img = img_orig * mask + (1.0 - mask) * img
@@ -819,9 +760,7 @@ class LatentDiffusion(DDPM):
 
 
 class LatentVisualDiffusion(LatentDiffusion):
-    def __init__(
-        self, cond_img_config, finegrained=False, random_cond=False, *args, **kwargs
-    ):
+    def __init__(self, cond_img_config, finegrained=False, random_cond=False, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.random_cond = random_cond
         self.instantiate_img_embedder(cond_img_config, freeze=True)
@@ -842,9 +781,7 @@ class LatentVisualDiffusion(LatentDiffusion):
             for param in self.embedder.get_parameters():
                 param.requires_grad = False
 
-    def init_projector(
-        self, use_finegrained, num_tokens, input_dim, cross_attention_dim, dim
-    ):
+    def init_projector(self, use_finegrained, num_tokens, input_dim, cross_attention_dim, dim):
         if not use_finegrained:
             image_proj_model = ImageProjModel(
                 clip_extra_context_tokens=num_tokens,
@@ -939,9 +876,7 @@ class DiffusionWrapper(nn.Cell):
             else:
                 xc = x
             out = self.diffusion_model(xc, t, context=cc, y=s, mask=mask)
-        elif (
-            self.conditioning_key == "hybrid-time-adm"
-        ):  # adm means y, e.g., class index
+        elif self.conditioning_key == "hybrid-time-adm":  # adm means y, e.g., class index
             # assert s is not None
             assert c_adm is not None
             xc = mint.cat([x] + c_concat, dim=1)

@@ -1,12 +1,13 @@
-import os, sys
 import argparse
-import torch
+import os
 import pickle
+import sys
+
+import torch
 from omegaconf import OmegaConf
 
 import mindspore as ms
 from mindspore import context
-
 
 context.set_context(mode=1, device_target="CPU")
 __dir__ = os.path.dirname(os.path.abspath(__file__))
@@ -52,7 +53,6 @@ def param_convert(ms_params, pt_params, ckpt_path, extra_dict=None):
 
     new_params_list = []
     for ms_param in ms_params:
-
         param_name = ms_param.name
         for k, v in bn_ms2pt.items():
             param_name = param_name.replace(k, v)
@@ -102,7 +102,6 @@ def convert_lora(src_path, target_path):
 
 
 def convert_internvid2(src_path, target_path):
-
     from intern_vid2.demo_config import Config, eval_dict_leaf
     from intern_vid2.demo_utils import InternVideo2_Stage2
 
@@ -115,7 +114,6 @@ def convert_internvid2(src_path, target_path):
 
         new_params_list = []
         for ms_param in ms_params:
-
             param_name = ms_param.name
             for k, v in bn_ms2pt.items():
                 if "norm" in param_name:
@@ -195,7 +193,9 @@ if __name__ == "__main__":
         "--target",
         help="output file path. If it is None, then the converted file will be saved in the input directory.",
     )
-    parser.add_argument("-t", "--type", choices=["vc2", "lora", "hps", "internvid"], required=True, help="checkpoint/weights type.")
+    parser.add_argument(
+        "-t", "--type", choices=["vc2", "lora", "hps", "internvid"], required=True, help="checkpoint/weights type."
+    )
 
     args = parser.parse_args()
 

@@ -1,10 +1,10 @@
 import logging
 
-import torch
-from torch import nn
 import numpy as np
-from PIL import Image
+import torch
 import torchvision.transforms as transforms
+from PIL import Image
+from torch import nn
 from torchvision.transforms import InterpolationMode
 
 from .backbones.internvideo2 import InternVideo2, LLaMA, Tokenizer
@@ -29,20 +29,20 @@ class InternVideo2_CLIP(nn.Module):
         # adopt 1 / 100. as in ViCLIP
         self.temp = nn.parameter.Parameter(torch.ones([]) * config.model.temp)
         self.temp_min = config.model.temp_min
-        
+
         # freeze model
         if self.config.model.freeze_vision:
             for name, p in self.vision_encoder.named_parameters():
-                if self.config.model.open_vision_clip_projector and name.startswith('clip_projector'):
+                if self.config.model.open_vision_clip_projector and name.startswith("clip_projector"):
                     logger.info(f"Unfreeze {name}")
                 else:
                     logger.info(f"Freeze {name}")
                     p.requires_grad = False
         if self.config.model.freeze_text:
             for name, p in self.text_encoder.named_parameters():
-                if self.config.model.open_text_projection and name.startswith('text_projection'):
+                if self.config.model.open_text_projection and name.startswith("text_projection"):
                     logger.info(f"Unfreeze {name}")
-                elif self.config.model.open_text_lora and 'lora' in name:
+                elif self.config.model.open_text_lora and "lora" in name:
                     logger.info(f"Unfreeze {name}")
                 else:
                     logger.info(f"Freeze {name}")
@@ -59,28 +59,23 @@ class InternVideo2_CLIP(nn.Module):
                 transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225)),
             ]
         )
-        
+
         # load pretrained models
         self.load_checkpoint(
-            config.model.vision_ckpt_path, config.model.text_ckpt_path, 
-            config.model.get("extra_ckpt_path", None)
+            config.model.vision_ckpt_path, config.model.text_ckpt_path, config.model.get("extra_ckpt_path", None)
         )
-        
+
         # criterions
         self.clip_loss = VTC_VTM_Loss(False)
 
     def no_weight_decay(self):
         ret = {"temp"}
-        ret.update(
-            {"vision_encoder." + k for k in self.vision_encoder.no_weight_decay()}
-        )
+        ret.update({"vision_encoder." + k for k in self.vision_encoder.no_weight_decay()})
         # no weight decay for LLM if training
-        ret.update(
-            {"text_encoder." + k for k, _ in self.text_encoder.named_parameters()}
-        )
+        ret.update({"text_encoder." + k for k, _ in self.text_encoder.named_parameters()})
 
         return ret
-    
+
     @torch.no_grad()
     def clip_contrastive_temperature(self):
         """Seems only used during pre-training"""
@@ -102,9 +97,7 @@ class InternVideo2_CLIP(nn.Module):
         text_embeds = self.encode_text(text)
 
         # VTC loss
-        loss_vtc = self.clip_loss.vtc_loss(
-            vision_embeds, text_embeds, idx, self.temp, all_gather=True
-        )
+        loss_vtc = self.clip_loss.vtc_loss(vision_embeds, text_embeds, idx, self.temp, all_gather=True)
 
         return dict(
             loss_vtc=loss_vtc,
@@ -123,7 +116,7 @@ class InternVideo2_CLIP(nn.Module):
         """
         T = image.shape[1]
         use_image = True if T == 1 else False
-        image = image.permute(0, 2, 1, 3, 4) # [B,T,C,H,W] -> [B,C,T,H,W]
+        image = image.permute(0, 2, 1, 3, 4)  # [B,T,C,H,W] -> [B,C,T,H,W]
 
         vision_embeds = self.vision_encoder(image, use_image=use_image)
         return vision_embeds
@@ -197,20 +190,23 @@ class InternVideo2_CLIP(nn.Module):
 
         # load vision_encoder
         logger.info(f"Load vision_encoder checkpoint from {vision_ckpt_path}")
-        vision_ckpt = torch.load(vision_ckpt_path, map_location='cpu')
-        if 'module' in vision_ckpt.keys():
-            vision_ckpt = vision_ckpt['module']
-        elif 'model' in vision_ckpt.keys():
-            vision_ckpt = vision_ckpt['model']
-        if self.config.model.get('load_vision_ckpt_from_internvideo2_stage2', False):
+        vision_ckpt = torch.load(vision_ckpt_path, map_location="cpu")
+        if "module" in vision_ckpt.keys():
+            vision_ckpt = vision_ckpt["module"]
+        elif "model" in vision_ckpt.keys():
+            vision_ckpt = vision_ckpt["model"]
+        if self.config.model.get("load_vision_ckpt_from_internvideo2_stage2", False):
             from .backbones.internvideo2.pos_embed import interpolate_pos_embed
-            orig_t_size = self.config.model.get('vision_ckpt_t_size', 4)
-            interpolate_pos_embed(vision_ckpt, self.vision_encoder, orig_t_size=orig_t_size) # 4 for InternVideo2 stage2
+
+            orig_t_size = self.config.model.get("vision_ckpt_t_size", 4)
+            interpolate_pos_embed(
+                vision_ckpt, self.vision_encoder, orig_t_size=orig_t_size
+            )  # 4 for InternVideo2 stage2
             for k, v in vision_ckpt.items():
-                if k.startswith('vision_encoder.'):
-                    if 'clip_decoder' in k or 'final_clip_decoder' in k:
+                if k.startswith("vision_encoder."):
+                    if "clip_decoder" in k or "final_clip_decoder" in k:
                         continue
-                    elif 'clip_pos_embed' in k or 'clip_img_pos_embed' in k or 'img_pos_embed' in k :
+                    elif "clip_pos_embed" in k or "clip_img_pos_embed" in k or "img_pos_embed" in k:
                         continue
                     else:
                         new_ckpt[k] = v
@@ -218,21 +214,21 @@ class InternVideo2_CLIP(nn.Module):
                     continue
         else:
             for k, v in vision_ckpt.items():
-                if k.startswith('clip_decoder.') or k.startswith('mae_decoder.') or k.startswith('final_clip_decoder.'):
+                if k.startswith("clip_decoder.") or k.startswith("mae_decoder.") or k.startswith("final_clip_decoder."):
                     continue
-                elif k in ['clip_pos_embed', 'mae_pos_embed']:
+                elif k in ["clip_pos_embed", "mae_pos_embed"]:
                     continue
                 else:
-                    new_k = 'vision_encoder.' + k
+                    new_k = "vision_encoder." + k
                     new_ckpt[new_k] = v
 
         # load text_encoder
         logger.info(f"Load text_encoder checkpoint from {text_ckpt_path}")
-        test_ckpt = torch.load(text_ckpt_path, map_location='cpu')
-        if 'module' in test_ckpt.keys():
-            test_ckpt = test_ckpt['module']
+        test_ckpt = torch.load(text_ckpt_path, map_location="cpu")
+        if "module" in test_ckpt.keys():
+            test_ckpt = test_ckpt["module"]
         for k, v in test_ckpt.items():
-            if k.startswith('transformer.') or k == 'text_projection':
+            if k.startswith("transformer.") or k == "text_projection":
                 new_k = "text_encoder." + k
             else:
                 continue
@@ -242,11 +238,11 @@ class InternVideo2_CLIP(nn.Module):
         # often when post-pretrain after previous pretraining, thus the keys are same
         if extra_ckpt_path is not None:
             logger.info(f"Load extra checkpoint from {extra_ckpt_path}")
-            extra_ckpt = torch.load(extra_ckpt_path, map_location='cpu')
-            if 'module' in extra_ckpt.keys():
-                extra_ckpt = extra_ckpt['module']
+            extra_ckpt = torch.load(extra_ckpt_path, map_location="cpu")
+            if "module" in extra_ckpt.keys():
+                extra_ckpt = extra_ckpt["module"]
             for k, v in extra_ckpt.items():
                 new_ckpt[k] = v
-        
+
         msg = self.load_state_dict(new_ckpt, strict=False)
         logger.info(msg)

@@ -25,7 +25,7 @@ TextEncoders["med_bert"] = dict(
 
 TextEncoders["med_bert_large"] = dict(
     name="med_bert_large",
-    pretrained="bert-base-uncased", # not a bug, it just follows BLIP.
+    pretrained="bert-base-uncased",  # not a bug, it just follows BLIP.
     config="configs/med_large_config.json",
-    d_model=768
+    d_model=768,
 )

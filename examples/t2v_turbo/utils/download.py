@@ -6,13 +6,13 @@ import hashlib
 import logging
 import os
 import ssl
+import subprocess
 import tarfile
+import time
 import urllib
 import urllib.error
 import urllib.request
 import zipfile
-import subprocess
-import time
 from copy import deepcopy
 from typing import Optional
 

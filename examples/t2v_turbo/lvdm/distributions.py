@@ -1,6 +1,7 @@
 import numpy as np
+
 import mindspore as ms
-from mindspore import nn, ops, mint
+from mindspore import mint, nn, ops
 
 
 class AbstractDistribution:
@@ -39,7 +40,7 @@ class DiagonalGaussianDistribution(object):
         noise = ops.randn(self.noise_shape)
         x = self.mean + self.std * noise
         return x
-    
+
     def sample_with_noise(self, noise):
         x = self.mean + self.std * noise
         return x
@@ -92,15 +93,6 @@ def normal_kl(mean1, logvar1, mean2, logvar2):
 
     # Force variances to be Tensors. Broadcasting helps convert scalars to
     # Tensors, but it does not work for torch.exp().
-    logvar1, logvar2 = [
-        x if isinstance(x, ms.Tensor) else ms.Tensor(x)
-        for x in (logvar1, logvar2)
-    ]
+    logvar1, logvar2 = [x if isinstance(x, ms.Tensor) else ms.Tensor(x) for x in (logvar1, logvar2)]
 
-    return 0.5 * (
-        -1.0
-        + logvar2
-        - logvar1
-        + mint.exp(logvar1 - logvar2)
-        + ((mean1 - mean2) ** 2) * mint.exp(-logvar2)
-    )
+    return 0.5 * (-1.0 + logvar2 - logvar1 + mint.exp(logvar1 - logvar2) + ((mean1 - mean2) ** 2) * mint.exp(-logvar2))

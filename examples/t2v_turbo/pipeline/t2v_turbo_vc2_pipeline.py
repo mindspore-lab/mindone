@@ -1,16 +1,15 @@
-
 import logging
-from typing import List, Optional, Union, Dict, Any
+from typing import Any, Dict, List, Optional, Union
 
 import numpy as np
-import mindspore as ms
-from mindspore import ops, mint
-
-from mindone.diffusers import DiffusionPipeline
-from mindone.diffusers.utils.mindspore_utils import randn_tensor
 from lvdm.models.ddpm3d import LatentDiffusion
 from scheduler.t2v_turbo_scheduler import T2VTurboScheduler
 
+import mindspore as ms
+from mindspore import mint, ops
+
+from mindone.diffusers import DiffusionPipeline
+from mindone.diffusers.utils.mindspore_utils import randn_tensor
 
 logger = logging.getLogger(__name__)
 
@@ -55,15 +54,12 @@ class T2VTurboVC2Pipeline(DiffusionPipeline):
                 provided, text embeddings will be generated from `prompt` input argument.
         """
         if prompt_embeds is None:
-
             prompt_embeds = self.text_encoder(prompt)
 
         bs_embed, seq_len, _ = prompt_embeds.shape
         # duplicate text embeddings for each generation per prompt, using mps friendly method
         prompt_embeds = prompt_embeds.repeat(num_videos_per_prompt, 1)
-        prompt_embeds = prompt_embeds.view(
-            bs_embed * num_videos_per_prompt, seq_len, -1
-        )
+        prompt_embeds = prompt_embeds.view(bs_embed * num_videos_per_prompt, seq_len, -1)
 
         # Don't need to get uncond prompt embedding because of LCM Guided Distillation
         return prompt_embeds
@@ -87,9 +83,7 @@ class T2VTurboVC2Pipeline(DiffusionPipeline):
             width // self.vae_scale_factor,
         )
         if latents is None:
-            latents = randn_tensor(
-                shape, generator=generator, dtype=dtype
-            )
+            latents = randn_tensor(shape, generator=generator, dtype=dtype)
 
         # scale the initial noise by the standard deviation required by the scheduler
         latents = latents * self.scheduler.init_noise_sigma
@@ -183,7 +177,6 @@ class T2VTurboVC2Pipeline(DiffusionPipeline):
         # 7. LCM MultiStep Sampling Loop:
         with self.progress_bar(total=num_inference_steps) as progress_bar:
             for i, t in enumerate(timesteps):
-
                 ts = ops.full((bs,), t, dtype=ms.int32)
 
                 # model prediction (v-prediction, eps, x)
@@ -195,9 +188,7 @@ class T2VTurboVC2Pipeline(DiffusionPipeline):
                     timestep_cond=w_embedding.to(self.dtype),
                 )
                 # compute the previous noisy sample x_t -> x_t-1
-                latents, denoised = self.scheduler.step(
-                    model_pred, i, t, latents, return_dict=False
-                )
+                latents, denoised = self.scheduler.step(model_pred, i, t, latents, return_dict=False)
 
                 # # call the callback, if provided
                 # if i == len(timesteps) - 1:

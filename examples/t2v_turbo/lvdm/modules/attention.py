@@ -1,8 +1,10 @@
 from functools import partial
+
 # from einops import rearrange, repeat
 import numpy as np
+
 import mindspore as ms
-from mindspore import nn, ops, mint, recompute
+from mindspore import mint, nn, ops, recompute
 
 try:
     import xformers
@@ -11,15 +13,8 @@ try:
     XFORMERS_IS_AVAILBLE = True
 except:
     XFORMERS_IS_AVAILBLE = False
-from lvdm.common import (
-    exists,
-    default,
-    GroupNormExtend,
-    LayerNorm,
-)
-from lvdm.basics import (
-    zero_module,
-)
+from lvdm.basics import zero_module
+from lvdm.common import GroupNormExtend, LayerNorm, default, exists
 
 
 class RelativePosition(nn.Cell):
@@ -29,9 +24,7 @@ class RelativePosition(nn.Cell):
         super().__init__()
         self.num_units = num_units
         self.max_relative_position = max_relative_position
-        self.embeddings_table = ms.Parameter(
-            ms.Tensor(max_relative_position * 2 + 1, num_units)
-        )
+        self.embeddings_table = ms.Parameter(ms.Tensor(max_relative_position * 2 + 1, num_units))
         nn.init.xavier_uniform_(self.embeddings_table)
 
     def construct(self, length_q, length_k):
@@ -39,9 +32,7 @@ class RelativePosition(nn.Cell):
         range_vec_q = mint.arange(length_q, device=device)
         range_vec_k = mint.arange(length_k, device=device)
         distance_mat = range_vec_k[None, :] - range_vec_q[:, None]
-        distance_mat_clipped = mint.clamp(
-            distance_mat, -self.max_relative_position, self.max_relative_position
-        )
+        distance_mat_clipped = mint.clamp(distance_mat, -self.max_relative_position, self.max_relative_position)
         final_mat = distance_mat_clipped + self.max_relative_position
         final_mat = final_mat.long()
         embeddings = self.embeddings_table[final_mat]
@@ -49,7 +40,6 @@ class RelativePosition(nn.Cell):
 
 
 class CrossAttention(nn.Cell):
-
     def __init__(
         self,
         query_dim,
@@ -72,9 +62,7 @@ class CrossAttention(nn.Cell):
         self.to_q = nn.Dense(query_dim, inner_dim, has_bias=False).to_float(dtype)
         self.to_k = nn.Dense(context_dim, inner_dim, has_bias=False).to_float(dtype)
         self.to_v = nn.Dense(context_dim, inner_dim, has_bias=False).to_float(dtype)
-        self.to_out = nn.SequentialCell(
-            nn.Dense(inner_dim, query_dim).to_float(dtype), nn.Dropout(p=dropout)
-        )
+        self.to_out = nn.SequentialCell(nn.Dense(inner_dim, query_dim).to_float(dtype), nn.Dropout(p=dropout))
 
         self.image_cross_attention_scale = 1.0
         self.text_context_len = 77
@@ -89,12 +77,8 @@ class CrossAttention(nn.Cell):
         self.relative_position = relative_position
         if self.relative_position:
             assert temporal_length is not None
-            self.relative_position_k = RelativePosition(
-                num_units=dim_head, max_relative_position=temporal_length
-            )
-            self.relative_position_v = RelativePosition(
-                num_units=dim_head, max_relative_position=temporal_length
-            )
+            self.relative_position_k = RelativePosition(num_units=dim_head, max_relative_position=temporal_length)
+            self.relative_position_v = RelativePosition(num_units=dim_head, max_relative_position=temporal_length)
         else:
             ## only used for spatial attention, while NOT for temporal attention
             if XFORMERS_IS_AVAILBLE and temporal_length is None:
@@ -175,7 +159,7 @@ class CrossAttention(nn.Cell):
         if self.relative_position:
             v2 = self.relative_position_v(len_q, len_v)
             # out2 = einsum("b t s, t s d -> b t d", sim, v2)  # TODO check
-            out2 = mint.matmul(sim, v2) # TODO check
+            out2 = mint.matmul(sim, v2)  # TODO check
             out += out2
 
         # out = rearrange(out, "(b h) n d -> b n (h d)", h=h)
@@ -239,9 +223,7 @@ class CrossAttention(nn.Cell):
                 .contiguous(),
                 (k_ip, v_ip),
             )
-            out_ip = xformers.ops.memory_efficient_attention(
-                q, k_ip, v_ip, attn_bias=None, op=None
-            )
+            out_ip = xformers.ops.memory_efficient_attention(q, k_ip, v_ip, attn_bias=None, op=None)
             out_ip = (
                 out_ip.unsqueeze(0)
                 .reshape(b, self.heads, out.shape[1], self.dim_head)
@@ -263,7 +245,6 @@ class CrossAttention(nn.Cell):
 
 
 class BasicTransformerBlock(nn.Cell):
-
     def __init__(
         self,
         dim,
@@ -341,13 +322,9 @@ class SpatialTransformer(nn.Cell):
         super().__init__()
         self.in_channels = in_channels
         inner_dim = n_heads * d_head
-        self.norm = GroupNormExtend(
-            num_groups=32, num_channels=in_channels, eps=1e-6, affine=True
-        )
+        self.norm = GroupNormExtend(num_groups=32, num_channels=in_channels, eps=1e-6, affine=True)
         if not use_linear:
-            self.proj_in = nn.Conv2d(
-                in_channels, inner_dim, kernel_size=1, stride=1, padding=0, has_bias=True
-            )
+            self.proj_in = nn.Conv2d(in_channels, inner_dim, kernel_size=1, stride=1, padding=0, has_bias=True)
         else:
             self.proj_in = nn.Dense(in_channels, inner_dim)
 
@@ -394,7 +371,7 @@ class SpatialTransformer(nn.Cell):
                 x = block(x, context=context)
         if self.use_linear:
             x = self.proj_out(x)
-        
+
         # x = rearrange(x, "b (h w) c -> b c h w", h=h, w=w).contiguous()
         x = ops.reshape(x, (b, h, w, c))  # (b, h, w, c)
         x = ops.transpose(x, (0, 3, 1, 2))  # (b, c, h, w)
@@ -433,24 +410,16 @@ class TemporalTransformer(nn.Cell):
         self.causal_attention = causal_attention
         self.in_channels = in_channels
         inner_dim = n_heads * d_head
-        self.norm = GroupNormExtend(
-            num_groups=32, num_channels=in_channels, eps=1e-6, affine=True
-        )
-        self.proj_in = nn.Conv1d(
-            in_channels, inner_dim, kernel_size=1, stride=1, padding=0, has_bias=True
-        )
+        self.norm = GroupNormExtend(num_groups=32, num_channels=in_channels, eps=1e-6, affine=True)
+        self.proj_in = nn.Conv1d(in_channels, inner_dim, kernel_size=1, stride=1, padding=0, has_bias=True)
         if not use_linear:
-            self.proj_in = nn.Conv1d(
-                in_channels, inner_dim, kernel_size=1, stride=1, padding=0, has_bias=True
-            )
+            self.proj_in = nn.Conv1d(in_channels, inner_dim, kernel_size=1, stride=1, padding=0, has_bias=True)
         else:
             self.proj_in = nn.Dense(in_channels, inner_dim)
 
         if relative_position:
             assert temporal_length is not None
-            attention_cls = partial(
-                CrossAttention, relative_position=True, temporal_length=temporal_length
-            )
+            attention_cls = partial(CrossAttention, relative_position=True, temporal_length=temporal_length)
         else:
             attention_cls = None
         if self.causal_attention:
@@ -503,7 +472,7 @@ class TemporalTransformer(nn.Cell):
         if self.causal_attention:
             mask = self.mask
             # mask = repeat(mask, "l i j -> (l bhw) i j", bhw=b * h * w)
-            mask = mask.repeat_interleave(b*h*w, 0)
+            mask = mask.repeat_interleave(b * h * w, 0)
 
         if self.only_self_att:
             ## note: if no context is given, cross-attention defaults to self-attention
@@ -518,7 +487,7 @@ class TemporalTransformer(nn.Cell):
             # x = rearrange(x, "(b hw) t c -> b hw t c", b=b).contiguous()
             x = ops.reshape(x, (b, x.shape[0] // b, x.shape[1], x.shape[2]))
             x = ops.transpose(x, (0, 1, 3, 2))
-            
+
             # context = rearrange(context, "(b t) l con -> b t l con", t=t).contiguous()
             _, l, con = context.shape
             context = context.reshape(b, t, l, con)
@@ -569,15 +538,9 @@ class FeedForward(nn.Cell):
         super().__init__()
         inner_dim = int(dim * mult)
         dim_out = default(dim_out, dim)
-        project_in = (
-            nn.SequentialCell(nn.Dense(dim, inner_dim), nn.GELU())
-            if not glu
-            else GEGLU(dim, inner_dim)
-        )
+        project_in = nn.SequentialCell(nn.Dense(dim, inner_dim), nn.GELU()) if not glu else GEGLU(dim, inner_dim)
 
-        self.net = nn.SequentialCell(
-            project_in, nn.Dropout(p=dropout), nn.Dense(inner_dim, dim_out)
-        )
+        self.net = nn.SequentialCell(project_in, nn.Dropout(p=dropout), nn.Dense(inner_dim, dim_out))
 
     def construct(self, x):
         return self.net(x)
@@ -604,15 +567,11 @@ class LinearAttention(nn.Cell):
     def construct(self, x):
         b, c, h, w = x.shape
         qkv = self.to_qkv(x)
-        q, k, v = rearrange(
-            qkv, "b (qkv heads c) h w -> qkv b heads c (h w)", heads=self.heads, qkv=3
-        )
+        q, k, v = rearrange(qkv, "b (qkv heads c) h w -> qkv b heads c (h w)", heads=self.heads, qkv=3)
         k = k.softmax(axis=-1)
         context = torch.einsum("bhdn,bhen->bhde", k, v)
         out = torch.einsum("bhde,bhdn->bhen", context, q)
-        out = rearrange(
-            out, "b heads c (h w) -> b (heads c) h w", heads=self.heads, h=h, w=w
-        )
+        out = rearrange(out, "b heads c (h w) -> b (heads c) h w", heads=self.heads, h=h, w=w)
         return self.to_out(out)
 
 
@@ -621,21 +580,11 @@ class SpatialSelfAttention(nn.Cell):
         super().__init__()
         self.in_channels = in_channels
 
-        self.norm = GroupNormExtend(
-            num_groups=32, num_channels=in_channels, eps=1e-6, affine=True
-        )
-        self.q = nn.Conv2d(
-            in_channels, in_channels, kernel_size=1, stride=1, padding=0
-        )
-        self.k = nn.Conv2d(
-            in_channels, in_channels, kernel_size=1, stride=1, padding=0
-        )
-        self.v = nn.Conv2d(
-            in_channels, in_channels, kernel_size=1, stride=1, padding=0
-        )
-        self.proj_out = nn.Conv2d(
-            in_channels, in_channels, kernel_size=1, stride=1, padding=0
-        )
+        self.norm = GroupNormExtend(num_groups=32, num_channels=in_channels, eps=1e-6, affine=True)
+        self.q = nn.Conv2d(in_channels, in_channels, kernel_size=1, stride=1, padding=0)
+        self.k = nn.Conv2d(in_channels, in_channels, kernel_size=1, stride=1, padding=0)
+        self.v = nn.Conv2d(in_channels, in_channels, kernel_size=1, stride=1, padding=0)
+        self.proj_out = nn.Conv2d(in_channels, in_channels, kernel_size=1, stride=1, padding=0)
 
     def construct(self, x):
         h_ = x
@@ -651,7 +600,7 @@ class SpatialSelfAttention(nn.Cell):
         # k = rearrange(k, "b c h w -> b c (h w)")
         k = k.reshape(b, c, -1)
         # w_ = ops.einsum("bij,bjk->bik", q, k)
-        w_ = mint.matmul(q, k) # TODO: check!
+        w_ = mint.matmul(q, k)  # TODO: check!
 
         w_ = w_ * (int(c) ** (-0.5))
         w_ = mint.nn.functional.softmax(w_, dim=2)
@@ -663,7 +612,7 @@ class SpatialSelfAttention(nn.Cell):
         # w_ = rearrange(w_, "b i j -> b j i")
         w_ = w_.permute(0, 2, 1)
         # h_ = ops.einsum("bij,bjk->bik", v, w_)
-        h_ = mint.matmul(v, w_) # TODO: check!!
+        h_ = mint.matmul(v, w_)  # TODO: check!!
         # h_ = rearrange(h_, "b c (h w) -> b c h w", h=h)
         h_ = h_.reshape(h_.shape[0], h_.shape[1], -1)
         h_ = self.proj_out(h_)

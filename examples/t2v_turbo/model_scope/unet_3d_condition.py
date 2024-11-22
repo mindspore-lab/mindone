@@ -21,13 +21,14 @@ from mindspore import nn, ops
 
 from mindone.diffusers.configuration_utils import ConfigMixin, register_to_config
 from mindone.diffusers.loaders import UNet2DConditionLoadersMixin
-from mindone.diffusers.utils import BaseOutput, logging
+from mindone.diffusers.models import TransformerTemporalModel
 from mindone.diffusers.models.activations import get_activation
 from mindone.diffusers.models.attention_processor import CROSS_ATTENTION_PROCESSORS, AttentionProcessor, AttnProcessor
 from mindone.diffusers.models.embeddings import TimestepEmbedding, Timesteps
 from mindone.diffusers.models.modeling_utils import ModelMixin
 from mindone.diffusers.models.normalization import GroupNorm
-from mindone.diffusers.models import TransformerTemporalModel
+from mindone.diffusers.utils import BaseOutput, logging
+
 from .unet_3d_blocks import (
     CrossAttnDownBlock3D,
     CrossAttnUpBlock3D,

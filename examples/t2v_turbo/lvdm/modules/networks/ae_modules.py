@@ -1,13 +1,14 @@
 # pytorch_diffusion + derived encoder decoder
 import math
-import numpy as np
-import mindspore as ms
-from mindspore import nn, ops, mint
 
-from utils.utils import instantiate_from_config
+import numpy as np
 from lvdm.common import GroupNormExtend
 from lvdm.distributions import DiagonalGaussianDistribution
 from lvdm.modules.attention import LinearAttention
+from utils.utils import instantiate_from_config
+
+import mindspore as ms
+from mindspore import mint, nn, ops
 
 
 def nonlinearity(x):
@@ -16,9 +17,7 @@ def nonlinearity(x):
 
 
 def Normalize(in_channels, num_groups=32):
-    return GroupNormExtend(
-        num_groups=num_groups, num_channels=in_channels, eps=1e-6, affine=True
-    )
+    return GroupNormExtend(num_groups=num_groups, num_channels=in_channels, eps=1e-6, affine=True)
 
 
 class LinAttnBlock(LinearAttention):
@@ -34,18 +33,10 @@ class AttnBlock(nn.Cell):
         self.in_channels = in_channels
 
         self.norm = Normalize(in_channels)
-        self.q = nn.Conv2d(
-            in_channels, in_channels, kernel_size=1, stride=1, padding=0, has_bias=True
-        )
-        self.k = nn.Conv2d(
-            in_channels, in_channels, kernel_size=1, stride=1, padding=0, has_bias=True
-        )
-        self.v = nn.Conv2d(
-            in_channels, in_channels, kernel_size=1, stride=1, padding=0, has_bias=True
-        )
-        self.proj_out = nn.Conv2d(
-            in_channels, in_channels, kernel_size=1, stride=1, padding=0, has_bias=True
-        )
+        self.q = nn.Conv2d(in_channels, in_channels, kernel_size=1, stride=1, padding=0, has_bias=True)
+        self.k = nn.Conv2d(in_channels, in_channels, kernel_size=1, stride=1, padding=0, has_bias=True)
+        self.v = nn.Conv2d(in_channels, in_channels, kernel_size=1, stride=1, padding=0, has_bias=True)
+        self.proj_out = nn.Conv2d(in_channels, in_channels, kernel_size=1, stride=1, padding=0, has_bias=True)
 
     def construct(self, x):
         h_ = x
@@ -323,9 +314,7 @@ class Model(nn.Cell):
 
         # end
         self.norm_out = Normalize(block_in)
-        self.conv_out = nn.Conv2d(
-            block_in, out_ch, kernel_size=3, stride=1, padding=1, pad_mode="pad", has_bias=True
-        )
+        self.conv_out = nn.Conv2d(block_in, out_ch, kernel_size=3, stride=1, padding=1, pad_mode="pad", has_bias=True)
 
     def construct(self, x, t=None, context=None):
         # assert x.shape[2] == x.shape[3] == self.resolution
@@ -362,9 +351,7 @@ class Model(nn.Cell):
         # upsampling
         for i_level in reversed(range(self.num_resolutions)):
             for i_block in range(self.num_res_blocks + 1):
-                h = self.up[i_level].block[i_block](
-                    mint.cat([h, hs.pop()], dim=1), temb
-                )
+                h = self.up[i_level].block[i_block](mint.cat([h, hs.pop()], dim=1), temb)
                 if len(self.up[i_level].attn) > 0:
                     h = self.up[i_level].attn[i_block](h)
             if i_level != 0:
@@ -544,11 +531,7 @@ class Decoder(nn.Cell):
         block_in = ch * ch_mult[self.num_resolutions - 1]
         curr_res = resolution // 2 ** (self.num_resolutions - 1)
         self.z_shape = (1, z_channels, curr_res, curr_res)
-        print(
-            "AE working on z of shape {} = {} dimensions.".format(
-                self.z_shape, np.prod(self.z_shape)
-            )
-        )
+        print("AE working on z of shape {} = {} dimensions.".format(self.z_shape, np.prod(self.z_shape)))
 
         # z to block_in
         self.conv_in = nn.Conv2d(
@@ -599,9 +582,7 @@ class Decoder(nn.Cell):
 
         # end
         self.norm_out = Normalize(block_in)
-        self.conv_out = nn.Conv2d(
-            block_in, out_ch, kernel_size=3, stride=1, padding=1, pad_mode="pad", has_bias=True
-        )
+        self.conv_out = nn.Conv2d(block_in, out_ch, kernel_size=3, stride=1, padding=1, pad_mode="pad", has_bias=True)
 
     def construct(self, z):
         # assert z.shape[1:] == self.z_shape[1:]
@@ -932,28 +913,21 @@ class Resize(nn.Cell):
         self.with_conv = learned
         self.mode = mode
         if self.with_conv:
-            print(
-                f"Note: {self.__class__.__name} uses learned downsampling and will ignore the fixed {mode} mode"
-            )
+            print(f"Note: {self.__class__.__name} uses learned downsampling and will ignore the fixed {mode} mode")
             raise NotImplementedError()
             assert in_channels is not None
             # no asymmetric padding in torch conv, must do it ourselves
-            self.conv = nn.Conv2d(
-                in_channels, in_channels, kernel_size=4, stride=2, padding=1, pad_mode="pad"
-            )
+            self.conv = nn.Conv2d(in_channels, in_channels, kernel_size=4, stride=2, padding=1, pad_mode="pad")
 
     def construct(self, x, scale_factor=1.0):
         if scale_factor == 1.0:
             return x
         else:
-            x = ops.interpolate(
-                x, mode=self.mode, align_corners=False, scale_factor=scale_factor
-            )
+            x = ops.interpolate(x, mode=self.mode, align_corners=False, scale_factor=scale_factor)
         return x
 
 
 class FirstStagePostProcessor(nn.Cell):
-
     def __init__(
         self,
         ch_mult: list,
@@ -966,14 +940,10 @@ class FirstStagePostProcessor(nn.Cell):
     ):
         super().__init__()
         if pretrained_config is None:
-            assert (
-                pretrained_model is not None
-            ), 'Either "pretrained_model" or "pretrained_config" must not be None'
+            assert pretrained_model is not None, 'Either "pretrained_model" or "pretrained_config" must not be None'
             self.pretrained_model = pretrained_model
         else:
-            assert (
-                pretrained_config is not None
-            ), 'Either "pretrained_model" or "pretrained_config" must not be None'
+            assert pretrained_config is not None, 'Either "pretrained_model" or "pretrained_config" must not be None'
             self.instantiate_pretrained(pretrained_config)
 
         self.do_reshape = reshape
@@ -990,11 +960,7 @@ class FirstStagePostProcessor(nn.Cell):
         downs = []
         ch_in = n_channels
         for m in ch_mult:
-            blocks.append(
-                ResnetBlock(
-                    in_channels=ch_in, out_channels=m * n_channels, dropout=dropout
-                )
-            )
+            blocks.append(ResnetBlock(in_channels=ch_in, out_channels=m * n_channels, dropout=dropout))
             ch_in = m * n_channels
             downs.append(Downsample(ch_in, with_conv=False))
 

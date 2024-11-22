@@ -1,14 +1,17 @@
 """ Optimizer Factory w/ Custom Weight Decay
 Hacked together by / Copyright 2020 Ross Wightman
 """
+import logging
 import re
+
 import torch
 from torch import optim as optim
 from utils.distributed import is_main_process
-import logging
+
 logger = logging.getLogger(__name__)
 try:
-    from apex.optimizers import FusedNovoGrad, FusedAdam, FusedLAMB, FusedSGD
+    from apex.optimizers import FusedAdam, FusedLAMB, FusedNovoGrad, FusedSGD
+
     has_apex = True
 except ImportError:
     has_apex = False
@@ -51,9 +54,7 @@ def add_different_lr(named_param_tuples_or_model, diff_lr_names, diff_lr, defaul
                 use_diff_lr = True
                 break
 
-        named_param_tuples_with_lr.append(
-            [name, p, wd, diff_lr if use_diff_lr else default_lr]
-        )
+        named_param_tuples_with_lr.append([name, p, wd, diff_lr if use_diff_lr else default_lr])
 
     if is_main_process():
         for name, _, wd, diff_lr in named_param_tuples_with_lr:
@@ -75,11 +76,7 @@ def create_optimizer_params_group(named_param_tuples_with_lr):
     optimizer_params_group = []
     for wd, lr_groups in group.items():
         for lr, p in lr_groups.items():
-            optimizer_params_group.append(dict(
-                params=p,
-                weight_decay=wd,
-                lr=lr
-            ))
+            optimizer_params_group.append(dict(params=p, weight_decay=wd, lr=lr))
             logger.info(f"optimizer -- lr={lr} wd={wd} len(p)={len(p)}")
     return optimizer_params_group
 
@@ -96,45 +93,43 @@ def create_optimizer(args, model, filter_bias_and_bn=True, return_group=False):
         diff_lr = None
 
     no_decay = {}
-    if hasattr(model, 'no_weight_decay'):
+    if hasattr(model, "no_weight_decay"):
         no_decay = model.no_weight_decay()
 
     if isinstance(model, torch.nn.parallel.DistributedDataParallel):
-        if hasattr(model.module, 'no_weight_decay'):
+        if hasattr(model.module, "no_weight_decay"):
             no_decay = model.module.no_weight_decay()
             no_decay = {"module." + k for k in no_decay}
 
-    named_param_tuples = add_weight_decay(
-        model, weight_decay, no_decay, filter_bias_and_bn)
-    named_param_tuples = add_different_lr(
-        named_param_tuples, diff_lr_module_names, diff_lr, args.lr)
+    named_param_tuples = add_weight_decay(model, weight_decay, no_decay, filter_bias_and_bn)
+    named_param_tuples = add_different_lr(named_param_tuples, diff_lr_module_names, diff_lr, args.lr)
     parameters = create_optimizer_params_group(named_param_tuples)
 
     if return_group:
         return parameters
 
-    if 'fused' in opt_lower:
-        assert has_apex and torch.cuda.is_available(), 'APEX and CUDA required for fused optimizers'
+    if "fused" in opt_lower:
+        assert has_apex and torch.cuda.is_available(), "APEX and CUDA required for fused optimizers"
 
     opt_args = dict(lr=args.lr, weight_decay=weight_decay)
-    if hasattr(args, 'opt_eps') and args.opt_eps is not None:
-        opt_args['eps'] = args.opt_eps
-    if hasattr(args, 'opt_betas') and args.opt_betas is not None:
-        opt_args['betas'] = args.opt_betas
-    if hasattr(args, 'opt_args') and args.opt_args is not None:
+    if hasattr(args, "opt_eps") and args.opt_eps is not None:
+        opt_args["eps"] = args.opt_eps
+    if hasattr(args, "opt_betas") and args.opt_betas is not None:
+        opt_args["betas"] = args.opt_betas
+    if hasattr(args, "opt_args") and args.opt_args is not None:
         opt_args.update(args.opt_args)
 
-    opt_split = opt_lower.split('_')
+    opt_split = opt_lower.split("_")
     opt_lower = opt_split[-1]
-    if opt_lower == 'sgd' or opt_lower == 'nesterov':
-        opt_args.pop('eps', None)
+    if opt_lower == "sgd" or opt_lower == "nesterov":
+        opt_args.pop("eps", None)
         optimizer = optim.SGD(parameters, momentum=args.momentum, nesterov=True, **opt_args)
-    elif opt_lower == 'momentum':
-        opt_args.pop('eps', None)
+    elif opt_lower == "momentum":
+        opt_args.pop("eps", None)
         optimizer = optim.SGD(parameters, momentum=args.momentum, nesterov=False, **opt_args)
-    elif opt_lower == 'adam':
+    elif opt_lower == "adam":
         optimizer = optim.Adam(parameters, **opt_args)
-    elif opt_lower == 'adamw':
+    elif opt_lower == "adamw":
         optimizer = optim.AdamW(parameters, **opt_args)
     else:
         assert False and "Invalid optimizer"

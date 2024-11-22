@@ -1,10 +1,12 @@
 # Prediction interface for Cog ⚙️
 # https://cog.run/python
 
-import os, sys
 import argparse
 import datetime
 import logging
+import os
+import sys
+
 import numpy as np
 
 import mindspore as ms
@@ -15,25 +17,23 @@ mindone_lib_path = os.path.abspath(os.path.join(__dir__, "../../"))
 sys.path.insert(0, mindone_lib_path)
 sys.path.insert(0, os.path.abspath(os.path.join(__dir__, "..")))
 
-from mindone.utils.logger import set_logger
-from mindone.visualize.videos import save_videos
-from mindone.utils.config import str2bool
-from mindone.utils.amp import auto_mixed_precision
-
+from model_scope.unet_3d_condition import UNet3DConditionModel
+from pipeline.t2v_turbo_ms_pipeline import T2VTurboMSPipeline
+from scheduler.t2v_turbo_scheduler import T2VTurboScheduler
+from tools.convert_weights import convert_lora
 from transformers import CLIPTokenizer
-from mindone.transformers import CLIPTextModel
-from mindone.diffusers import AutoencoderKL
-
+from utils.common_utils import set_torch_2_attn
+from utils.download import DownLoad
+from utils.env import init_env
 from utils.lora import collapse_lora, monkeypatch_remove_lora
 from utils.lora_handler import LoraHandler
-from utils.common_utils import set_torch_2_attn
-from utils.env import init_env
-from utils.download import DownLoad
-from tools.convert_weights import convert_lora
-from model_scope.unet_3d_condition import UNet3DConditionModel
-from scheduler.t2v_turbo_scheduler import T2VTurboScheduler
-from pipeline.t2v_turbo_ms_pipeline import T2VTurboMSPipeline
 
+from mindone.diffusers import AutoencoderKL
+from mindone.transformers import CLIPTextModel
+from mindone.utils.amp import auto_mixed_precision
+from mindone.utils.config import str2bool
+from mindone.utils.logger import set_logger
+from mindone.visualize.videos import save_videos
 
 logger = logging.getLogger(__name__)
 LORA_URL = "https://huggingface.co/jiachenli-ucsb/T2V-Turbo-MS/blob/main/unet_lora.pt"

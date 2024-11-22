@@ -15,17 +15,19 @@
 from typing import Any, Dict, Optional, Tuple, Union
 
 import mindspore as ms
-from mindspore import nn, mint
+from mindspore import mint, nn
 
-from mindone.diffusers.utils import logging
 from mindone.diffusers.models.attention import Attention
 from mindone.diffusers.models.resnet import Downsample2D, ResnetBlock2D, Upsample2D
 from mindone.diffusers.models.transformers.dual_transformer_2d import DualTransformer2DModel
 from mindone.diffusers.models.transformers.transformer_2d import Transformer2DModel
-from mindone.diffusers.models.transformers.transformer_temporal import TransformerSpatioTemporalModel, TransformerTemporalModel
+from mindone.diffusers.models.transformers.transformer_temporal import (
+    TransformerSpatioTemporalModel,
+    TransformerTemporalModel,
+)
+from mindone.diffusers.utils import logging
 
-from .resnet import TemporalConvLayer, SpatioTemporalResBlock
-
+from .resnet import SpatioTemporalResBlock, TemporalConvLayer
 
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
 

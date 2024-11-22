@@ -1,10 +1,10 @@
+import json
 import logging
 import os
 import sys
-import json
-import torch.distributed as dist
 from os.path import dirname, join
 
+import torch.distributed as dist
 from utils.config import Config
 from utils.distributed import init_distributed_mode, is_main_process
 from utils.logger import setup_logger
@@ -56,9 +56,7 @@ def setup_deepspeed_zero_config(stage):
             "reduce_scatter": True,
             "reduce_bucket_size": 5e8,
             "allgather_bucket_size": 5e8,
-            "offload_optimizer": {
-                "device": "cpu"
-            },
+            "offload_optimizer": {"device": "cpu"},
         }
     if stage == 3:
         return {
@@ -70,23 +68,20 @@ def setup_deepspeed_zero_config(stage):
             "stage3_param_persistence_threshold": 1e5,
             "reduce_bucket_size": 1e7,
             "sub_group_size": 1e9,
-            "offload_optimizer": {
-                "device": "cpu"
-            },
-            "offload_param": {
-                "device": "cpu"
-            }
+            "offload_optimizer": {"device": "cpu"},
+            "offload_param": {"device": "cpu"},
         }
-    
+
     raise ValueError("Wrong stage for deepspeed {}".format(stage.stage))
+
 
 def setup_deepspeed_config(config):
     config.deepspeed_config = os.path.join(config.output_dir, "deepspeed_config.json")
     opts = config.optimizer
-    logger.info(f'Write deepspeed config to {config.deepspeed_config}')
+    logger.info(f"Write deepspeed config to {config.deepspeed_config}")
     if not is_main_process():
         return config
-    
+
     os.makedirs(config.output_dir, exist_ok=True)
 
     with open(config.deepspeed_config, mode="w") as writer:
@@ -105,18 +100,16 @@ def setup_deepspeed_config(config):
                         opts.opt_betas[0],
                         opts.opt_betas[1],
                     ],
-                    "eps": 1e-8
-                }
-            }
+                    "eps": 1e-8,
+                },
+            },
         }
         if config.deepspeed.stage != 0:
             ds_config["zero_optimization"] = setup_deepspeed_zero_config(config.deepspeed.stage)
 
         if config.use_half_precision:
-            if config.get('use_bf16', False):
-                ds_config["bf16"] = {
-                "enabled": True
-                }
+            if config.get("use_bf16", False):
+                ds_config["bf16"] = {"enabled": True}
             else:
                 ds_config["fp16"] = {
                     "enabled": True,
@@ -126,18 +119,18 @@ def setup_deepspeed_config(config):
                     "loss_scale_window": 1000,
                     "hysteresis": 2,
                     "consecutive_hysteresis": False,
-                    "min_loss_scale": 1
-                } 
+                    "min_loss_scale": 1,
+                }
         else:
             assert config.deepspeed.stage == 0, "You must use fp16 or bf16 when using ZERO!!!"
-            
+
         # if config.get("max_grad_norm", -1) > 0:
         #     ds_config.update({"gradient_clipping", config.max_grad_norm})
         if opts.get("max_grad_norm", -1) > 0:
             ds_config["gradient_clipping"] = opts.max_grad_norm
 
         writer.write(json.dumps(ds_config, indent=2))
-    
+
     return config
 
 
@@ -158,13 +151,13 @@ def setup_main():
     #     print(f"\033[31m NODE NAME: {os.environ['SLURMD_NODENAME']} is not OK \033[0m")
     #     logger.info(f"NODE NAME: {os.environ['SLURMD_NODENAME']} is not OK")
     #     raise ValueError
-    
+
     if is_main_process():
         setup_output_dir(config.output_dir, excludes=["code"])
         setup_logger(output=config.output_dir, color=True, name="vindlu")
         logger.info(f"config: {Config.pretty_text(config)}")
         Config.dump(config, os.path.join(config.output_dir, "config.json"))
-    
+
     dist.barrier()
 
     return config

@@ -13,64 +13,49 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 
-from copy import deepcopy
-import gc
-import time
 import logging
 import math
 import os
 import sys
-import random
-import yaml
+import time
 from pathlib import Path
-from tqdm.auto import tqdm
+
 import numpy as np
 from omegaconf import OmegaConf
+
 import mindspore as ms
-from mindspore import ops, nn, Model
-from mindspore.amp import StaticLossScaler
+from mindspore import nn, ops
 from mindspore.nn.wrap.loss_scale import DynamicLossScaleUpdateCell
-from mindspore.train.callback import TimeMonitor
 
 __dir__ = os.path.dirname(os.path.abspath(__file__))
 mindone_lib_path = os.path.abspath(os.path.join(__dir__, "../../"))
 sys.path.insert(0, mindone_lib_path)
 sys.path.insert(0, os.path.abspath(os.path.join(__dir__, "..")))
 
-from mindone.diffusers.models.autoencoders.vae import DiagonalGaussianDistribution
-from mindone.diffusers.training_utils import set_seed
-from mindone.diffusers.utils import convert_unet_state_dict_to_peft
-from mindone.diffusers.loaders import LoraLoaderMixin
-from mindone.diffusers._peft.utils import set_peft_model_state_dict
-from mindone.diffusers._peft.tuners.tuners_utils import BaseTunerLayer
-
-from mindone.utils.logger import set_logger
-from mindone.utils.config import str2bool
-from mindone.utils.amp import auto_mixed_precision
-
-from mindone.trainers.recorder import PerfRecorder
-from mindone.trainers.train_step import TrainOneStepWrapper
-from mindone.trainers.optim import create_optimizer
-from mindone.trainers.ema import EMA
-from mindone.trainers.lr_schedule import create_scheduler
-from mindone.trainers.callback import EvalSaveCallback, OverflowMonitor, ProfilerCallback
-from mindone.trainers.checkpoint import CheckpointManager
-
-from examples.t2v_turbo.configs.train_args import parse_args
 from data.dataset import create_dataloader
+from ode_solver import DDIMSolver
+from pipeline.lcd_with_loss import LCDWithLoss
+from reward_fn import get_reward_fn
+from scheduler.t2v_turbo_scheduler import T2VTurboScheduler
+from utils.common_utils import load_model_checkpoint
 from utils.env import init_env
 from utils.lora import save_lora_weight
 from utils.lora_handler import LoraHandler
-from utils.utils import instantiate_from_config, freeze_params
-from ode_solver import DDIMSolver
-from reward_fn import get_reward_fn
-from scheduler.t2v_turbo_scheduler import T2VTurboScheduler
-from pipeline.lcd_with_loss import LCDWithLoss
-from utils.common_utils import load_model_checkpoint
+from utils.utils import freeze_params, instantiate_from_config
+
+from examples.t2v_turbo.configs.train_args import parse_args
+from mindone.diffusers.models.autoencoders.vae import DiagonalGaussianDistribution
+from mindone.diffusers.training_utils import set_seed
+from mindone.trainers.checkpoint import CheckpointManager
+from mindone.trainers.ema import EMA
+from mindone.trainers.lr_schedule import create_scheduler
+from mindone.trainers.optim import create_optimizer
+from mindone.trainers.recorder import PerfRecorder
+from mindone.trainers.train_step import TrainOneStepWrapper
+from mindone.utils.logger import set_logger
 
 sys.path.append("./mindone/examples/stable_diffusion_xl")
 from gm.modules.embedders.open_clip.tokenizer import tokenize
-
 
 logger = logging.getLogger(__name__)
 
@@ -78,11 +63,6 @@ logger = logging.getLogger(__name__)
 def _to_abspath(rp):
     __dir__ = os.path.dirname(os.path.abspath(__file__))
     return os.path.join(__dir__, rp)
-
-
-def compute_embeddings(prompt_batch, text_encoder, is_train=True):
-    prompt_embeds = encode_prompt(prompt_batch, text_encoder, is_train)
-    return {"prompt_embeds": prompt_embeds}
 
 
 def main(args):
@@ -223,8 +203,8 @@ def main(args):
         " doing mixed precision training, copy of the weights should still be float32."
     )
 
-    # if unet.dtype != ms.float32:
-    #     raise ValueError(f"Controlnet loaded as datatype {unet.dtype}. {low_precision_error_string}")
+    if unet.dtype != ms.float32:
+        raise ValueError(f"Controlnet loaded as datatype {unet.dtype}. {low_precision_error_string}")
 
     # 9. Handle mixed precision and device placement
     # For mixed precision training we cast all non-trainable weigths to half-precision
@@ -378,7 +358,6 @@ def main(args):
         ema=ema,
     )
 
-    args.num_train_epochs = 20  # FIXME!
     start_epoch = 0
 
     # 16. Train!
@@ -412,7 +391,6 @@ def main(args):
     ds_iter = train_dataloader.create_tuple_iterator(num_epochs=args.num_train_epochs - start_epoch)
 
     for epoch in range(start_epoch + 1, args.num_train_epochs + 1):
-        start_time_e = time.time()
         for step, data in enumerate(ds_iter, 1):
             start_time_s = time.time()
             loss, overflow, scaling_sens = net_with_grads(*data)
@@ -440,11 +418,7 @@ def main(args):
             if ema is not None:
                 ema.swap_before_eval()
 
-            save_lora_weight(
-                lcd_with_loss.unet,
-                ckpt_folder + "/" + ckpt_name,
-                lora_manager.unet_replace_modules
-            )
+            save_lora_weight(lcd_with_loss.unet, ckpt_folder + "/" + ckpt_name, lora_manager.unet_replace_modules)
             # ckpt_manager.save(lcd_with_loss.unet, None, ckpt_name=ckpt_name, append_dict=None)
             if ema is not None:
                 ema.swap_after_eval()
