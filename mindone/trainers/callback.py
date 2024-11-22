@@ -9,7 +9,7 @@ from mindspore.train.callback._callback import Callback, _handle_loss
 from .checkpoint import CheckpointManager
 from .recorder import PerfRecorder
 
-_logger = logging.getLogger(__name__)
+_logger = logging.getLogger("")
 
 __all__ = ["OverflowMonitor", "EvalSaveCallback", "ProfilerCallback", "StopAtStepCallback"]
 
@@ -136,9 +136,10 @@ class EvalSaveCallback(Callback):
     def on_train_step_end(self, run_context):
         cb_params = run_context.original_args()
         loss = _handle_loss(cb_params.net_outputs)
-        # cur_step = cb_params.cur_step_num + self.start_epoch * cb_params.batch_num
         opt = self._get_optimizer_from_cbp(cb_params)
         cur_step = int(opt.global_step.asnumpy().item())
+        if cur_step <= 0:
+            cur_step = cb_params.cur_step_num + self.start_epoch * cb_params.batch_num
 
         step_num = (cb_params.batch_num * cb_params.epoch_num) if self.train_steps < 0 else self.train_steps
 

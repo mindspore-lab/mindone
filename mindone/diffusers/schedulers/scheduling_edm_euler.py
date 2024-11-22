@@ -208,13 +208,13 @@ class EDMEulerScheduler(SchedulerMixin, ConfigMixin):
         """
         self.num_inference_steps = num_inference_steps
 
-        ramp = np.linspace(0, 1, self.num_inference_steps)
+        ramp = ms.tensor(np.linspace(0, 1, self.num_inference_steps))
         if self.config.sigma_schedule == "karras":
             sigmas = self._compute_karras_sigmas(ramp)
         elif self.config.sigma_schedule == "exponential":
             sigmas = self._compute_exponential_sigmas(ramp)
 
-        sigmas = ms.tensor(sigmas, dtype=ms.float32)
+        sigmas = sigmas.to(ms.float32)
         self.timesteps = self.precondition_noise(sigmas)
 
         self.sigmas = ops.cat([sigmas, ops.zeros(1)])
@@ -241,7 +241,7 @@ class EDMEulerScheduler(SchedulerMixin, ConfigMixin):
         """
         sigma_min = sigma_min or self.config.sigma_min
         sigma_max = sigma_max or self.config.sigma_max
-        sigmas = ms.tensor(np.linspace(math.log(sigma_min), math.log(sigma_max), len(ramp)).exp().flip(0))
+        sigmas = ms.tensor(np.linspace(math.log(sigma_min), math.log(sigma_max), len(ramp)).exp().flip((0,)))
         return sigmas
 
     # Copied from diffusers.schedulers.scheduling_euler_discrete.EulerDiscreteScheduler.index_for_timestep

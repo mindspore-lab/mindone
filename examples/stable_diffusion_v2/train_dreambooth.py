@@ -51,12 +51,11 @@ def init_env(args):
             )
     if args.use_parallel:
         init()
-        device_id = int(os.getenv("DEVICE_ID"))
         device_num = get_group_size()
         ParallelConfig.dp = device_num
         rank_id = get_rank()
         args.rank = rank_id
-        logger.debug("Device_id: {}, rank_id: {}, device_num: {}".format(device_id, rank_id, device_num))
+        logger.debug("rank_id: {}, device_num: {}".format(rank_id, device_num))
         context.reset_auto_parallel_context()
         context.set_auto_parallel_context(
             parallel_mode=context.ParallelMode.DATA_PARALLEL,
@@ -66,18 +65,16 @@ def init_env(args):
         )
     else:
         device_num = 1
-        device_id = int(os.getenv("DEVICE_ID", 0))
         rank_id = 0
         args.rank = rank_id
 
     context.set_context(
         mode=args.mode,
         device_target="Ascend",
-        device_id=device_id,
         pynative_synchronize=False,  # for debug in pynative mode
     )
 
-    return rank_id, device_id, device_num
+    return rank_id, device_num
 
 
 def _check_cfgs_in_parser(cfgs: dict, parser: argparse.ArgumentParser):
@@ -371,7 +368,7 @@ def generate_class_images(args):
 
 def main(args):
     # init
-    rank_id, device_id, device_num = init_env(args)
+    rank_id, device_num = init_env(args)
     set_logger(name="", output_dir=args.output_path, rank=rank_id, log_level=eval(args.log_level))
     # Generate class images if prior preservation is enabled.
     if args.with_prior_preservation:

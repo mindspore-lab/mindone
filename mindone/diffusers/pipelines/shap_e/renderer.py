@@ -516,8 +516,8 @@ class MeshDecoder(nn.Cell):
 
     def __init__(self):
         super().__init__()
-        self.cases = ops.zeros((256, 5, 3), dtype=ms.int64)
-        self.masks = ops.zeros((256, 5), dtype=ms.bool_)
+        self.cases = ms.Parameter(ops.zeros((256, 5, 3), dtype=ms.int64), name="cases")
+        self.masks = ms.Parameter(ops.zeros((256, 5), dtype=ms.bool_), name="masks")
 
     def construct(self, field: ms.Tensor, min_point: ms.Tensor, size: ms.Tensor):
         """
@@ -532,8 +532,12 @@ class MeshDecoder(nn.Cell):
         """
         assert len(field.shape) == 3, "input must be a 3D scalar field"
 
-        cases = self.cases
-        masks = self.masks
+        # In PyTorch, cases and masks are registered buffers which could be loaded by ckpt
+        # and their data-type would NOT be changed when pipeline is loaded with `torch_dtype=tgt_dtype`.
+        # In MindSpore we define them as Parameter which could be loaded while their dtype would
+        # be CHANGED. Therefore we cast them to original data-type manually.
+        cases = self.cases.long()
+        masks = self.masks.bool()
 
         grid_size = field.shape
         grid_size_tensor = ms.Tensor(grid_size).to(size.dtype)
@@ -541,15 +545,15 @@ class MeshDecoder(nn.Cell):
         # Create bitmasks between 0 and 255 (inclusive) indicating the state
         # of the eight corners of each cube.
         bitmasks = (field > 0).to(ms.uint8)
-        bitmasks = bitmasks[:-1, :, :] | (bitmasks[1:, :, :] << 1)
-        bitmasks = bitmasks[:, :-1, :] | (bitmasks[:, 1:, :] << 2)
-        bitmasks = bitmasks[:, :, :-1] | (bitmasks[:, :, 1:] << 4)
+        bitmasks = bitmasks[:-1, :, :] | (bitmasks[1:, :, :] * 2**1)
+        bitmasks = bitmasks[:, :-1, :] | (bitmasks[:, 1:, :] * 2**2)
+        bitmasks = bitmasks[:, :, :-1] | (bitmasks[:, :, 1:] * 2**4)
 
         # Compute corner coordinates across the entire grid.
         corner_coords = ops.zeros(grid_size + (3,), dtype=field.dtype)
-        corner_coords[range(grid_size[0]), :, :, 0] = ops.arange(grid_size[0], dtype=field.dtype)[:, None, None]
-        corner_coords[:, range(grid_size[1]), :, 1] = ops.arange(grid_size[1], dtype=field.dtype)[:, None]
-        corner_coords[:, :, range(grid_size[2]), 2] = ops.arange(grid_size[2], dtype=field.dtype)
+        corner_coords[:, :, :, 0] += ops.arange(grid_size[0], dtype=field.dtype)[:, None, None]
+        corner_coords[:, :, :, 1] += ops.arange(grid_size[1], dtype=field.dtype)[None, :, None]
+        corner_coords[:, :, :, 2] += ops.arange(grid_size[2], dtype=field.dtype)[None, None, :]
 
         # Compute all vertices across all edges in the grid, even though we will
         # throw some out later. We have (X-1)*Y*Z + X*(Y-1)*Z + X*Y*(Z-1) vertices.
@@ -566,9 +570,9 @@ class MeshDecoder(nn.Cell):
 
         # Create a flat array of [X, Y, Z] indices for each cube.
         cube_indices = ops.zeros((grid_size[0] - 1, grid_size[1] - 1, grid_size[2] - 1, 3), dtype=ms.int64)
-        cube_indices[range(grid_size[0] - 1), :, :, 0] = ops.arange(grid_size[0] - 1)[:, None, None]
-        cube_indices[:, range(grid_size[1] - 1), :, 1] = ops.arange(grid_size[1] - 1)[:, None]
-        cube_indices[:, :, range(grid_size[2] - 1), 2] = ops.arange(grid_size[2] - 1)
+        cube_indices[:, :, :, 0] += ops.arange(grid_size[0] - 1)[:, None, None]
+        cube_indices[:, :, :, 1] += ops.arange(grid_size[1] - 1)[None, :, None]
+        cube_indices[:, :, :, 2] += ops.arange(grid_size[2] - 1)[None, None, :]
         flat_cube_indices = cube_indices.reshape(-1, 3)
 
         # Create a flat array mapping each cube to 12 global edge indices.
@@ -577,7 +581,7 @@ class MeshDecoder(nn.Cell):
         # Apply the LUT to figure out the triangles.
         flat_bitmasks = bitmasks.reshape(-1).long()  # must cast to long for indexing to believe this not a mask
         local_tris = cases[flat_bitmasks]
-        local_masks = masks[flat_bitmasks]
+        local_masks = masks.long()[flat_bitmasks].bool()  # bool tensor couldn't sliced like this
         # Compute the global edge indices for the triangles.
         global_tris = ops.gather_elements(edge_indices, 1, local_tris.reshape(local_tris.shape[0], -1)).reshape(
             local_tris.shape
@@ -1002,10 +1006,12 @@ class ShapERenderer(ModelMixin, ConfigMixin):
         # create grid 128 x 128 x 128
         # - force a negative border around the SDFs to close off all the models.
         full_grid = ops.zeros(
-            1,
-            grid_size + 2,
-            grid_size + 2,
-            grid_size + 2,
+            size=(
+                1,
+                grid_size + 2,
+                grid_size + 2,
+                grid_size + 2,
+            ),
             dtype=fields.dtype,
         )
         full_grid = full_grid.fill(-1.0)

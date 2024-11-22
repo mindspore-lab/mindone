@@ -29,6 +29,8 @@ dependencies = [
     "tqdm",
     "pyyaml",
     "omegaconf",
+    "opencv-python",
+    "sentencepiece",
     "numpy<2.0",
     "huggingface-hub>=0.20.2",
     "safetensors>=0.3.1",

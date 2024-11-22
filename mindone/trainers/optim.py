@@ -11,6 +11,7 @@ from mindspore.nn.optim import Adam, AdamWeightDecay, Momentum, Optimizer
 
 from .adamw_mf import AdamW as AdamW_MF
 from .adamw_zero1 import AdamWeightDecayZeRO1
+from .came import CAME
 
 _logger = logging.getLogger(__name__)
 
@@ -21,7 +22,7 @@ def create_optimizer(
     lr: Union[float, List[float]],
     betas: Optional[List[float]] = None,
     weight_decay: float = 1e-6,
-    eps: float = 1e-6,
+    eps: Union[float, List[float]] = 1e-6,
     group_strategy: Optional[str] = None,
 ) -> Optimizer:
     """
@@ -84,12 +85,14 @@ def create_optimizer(
         optim_cls = AdamWeightDecayZeRO1
     elif name.lower() in ["sgd", "momentum"]:
         optim_cls = Momentum
+    elif name.lower() == "came":
+        optim_cls = CAME
     else:
         raise ValueError("invalid optimizer")
 
     if name.lower() in ["sgd", "momentum"]:
         optimizer = optim_cls(group_params, learning_rate=lr, momentum=0.9)
-    elif name.lower() == "adamw_mf":
+    elif name.lower() in ["adamw_mf", "came"]:
         optimizer = optim_cls(group_params, learning_rate=lr, betas=betas, eps=eps)
     else:
         optimizer = optim_cls(group_params, learning_rate=lr, beta1=betas[0], beta2=betas[1], eps=eps)

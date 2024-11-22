@@ -10,7 +10,6 @@ from typing import Any, Callable, List, Optional, Tuple
 
 import cv2
 import numpy as np
-from decord import VideoReader
 from tqdm import tqdm
 
 import mindspore as ms
@@ -104,7 +103,10 @@ class VideoDatasetRefactored(BaseDataset):
         self._vae_downsample_rate = vae_downsample_rate
         self._vae_scale_factor = vae_scale_factor
         self._fmask_gen = frames_mask_generator
-        self._t_compress_func = t_compress_func or (lambda x: x)
+        if t_compress_func is None:
+            self._t_compress_func = lambda x: x
+        else:
+            self._t_compress_func = t_compress_func
         self._pre_patchify = pre_patchify
         self._buckets = buckets
 
@@ -142,7 +144,7 @@ class VideoDatasetRefactored(BaseDataset):
         # decord has better performance and may incur memory leak for high-resolution videos
         self.video_backend = video_backend
 
-        self.apply_train_transforms = apply_train_transforms
+        self.apply_train_transforms = apply_train_transforms and (vae_latent_folder is None)
         if self.apply_train_transforms:
             self.pixel_transforms = create_train_transforms(target_size, buckets=buckets)
             if "bucket_id" in self.output_columns:
@@ -250,8 +252,15 @@ class VideoDatasetRefactored(BaseDataset):
             vae_latent = latent_mean + latent_std * np.random.standard_normal(latent_mean.shape)
             video = (vae_latent * self._vae_scale_factor).astype(np.float32)
 
+            data["height"] = np.array(video.shape[-2] * self._vae_downsample_rate, dtype=np.float32)
+            data["width"] = np.array(video.shape[-1] * self._vae_downsample_rate, dtype=np.float32)
+            # NOTE: here ar = h / w, aligned to torch, while the common practice is w / h
+            data["ar"] = np.array(video.shape[-2] / video.shape[-1], dtype=np.float32)
+
         else:
             if self.video_backend == "decord":
+                from decord import VideoReader
+
                 reader = VideoReader(video_path)
                 min_length = self._min_length
                 video_length = len(reader)
@@ -545,6 +554,7 @@ def create_dataloader(
             dataloader = dataloader.batch(
                 batch_size,
                 drop_remainder=drop_remainder,
+                num_parallel_workers=num_parallel_workers,
             )
 
     return dataloader

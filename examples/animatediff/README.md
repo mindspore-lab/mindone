@@ -4,24 +4,26 @@ This repository is the MindSpore implementation of [AnimateDiff](https://arxiv.o
 
 ## Features
 
-- [x] Text-to-video generation with AnimdateDiff v2, supporting 16 frames @512x512 resolution on Ascend 910B, 16 frames @256x256 resolution on GPU 3090
+- [x] Text-to-video generation with AnimdateDiff v2, supporting 16 frames @512x512 resolution on Ascend 910*
 - [x] MotionLoRA inference
 - [x] Motion Module Training
 - [X] Motion LoRA Training
 - [X] AnimateDiff v3 Inference
-- [ ] AnimateDiff v3 Training
-- [ ] SDXL support
 
 ## Requirements
 
-```
+| mindspore  | ascend driver  |  firmware   |cann toolkit/kernel |
+|:----------:|:--------------:|:-----------:|:------------------:|
+|   2.3.1    |    24.1.RC2    | 7.3.0.1.231 |   8.0.RC2.beta1    |
+|   2.2.10   |     23.0.3     | 7.1.0.5.220 |    7.0.0.beta1     |
+
+To install other dependent packages:
+```bash
 pip install -r requirements.txt
 ```
 
 In case `decord` package is not available, try `pip install eva-decord`.
 For EulerOS, instructions on ffmpeg and decord installation are as follows.
-
-<details onclose>
 
 ```
 1. install ffmpeg 4, referring to https://ffmpeg.org/releases
@@ -43,57 +45,9 @@ For EulerOS, instructions on ffmpeg and decord installation are as follows.
     python3 setup.py install --user
 ```
 
-</details>
-
 ## Prepare Model Weights
 
-<details onclose>
-
-First, download the torch pretrained weights referring to [torch animatediff checkpoints](https://github.com/guoyww/AnimateDiff/blob/main/__assets__/docs/animatediff.md#download-base-t2i--motion-module-checkpoints).
-
-- Convert SD dreambooth model
-
-To download ToonYou-Beta3 dreambooth model, please refer to this [civitai website](https://civitai.com/models/30240?modelVersionId=78775), or use the following command:
-```
-wget https://civitai.com/api/download/models/78755 -P models/torch_ckpts/ --content-disposition --no-check-certificate
-```
-After downloading this dreambooth checkpoint under `animatediff/models/torch_ckpts/`, convert the dreambooth checkpoint using:
-```
-cd ../examples/stable_diffusion_v2
-python tools/model_conversion/convert_weights.py  --source ../animatediff/models/torch_ckpts/toonyou_beta3.safetensors   --target models/toonyou_beta3.ckpt  --model sdv1  --source_version pt
-```
-
-In addition, please download [RealisticVision V5.1](https://civitai.com/models/4201?modelVersionId=130072) dreambooth checkpoint and convert it similarly.
-
-- Convert Motion Module
-```
-cd ../examples/animatediff/tools
-python motion_module_convert.py --src ../torch_ckpts/mm_sd_v15_v2.ckpt --tar ../models/motion_module
-```
-
-If converting the animatediff v3 motion module checkpoint,
-```
-cd ../examples/animatediff/tools
-python motion_module_convert.py -v v3 --src ../torch_ckpts/v3_sd15_mm.ckpt  --tar ../models/motion_module
-```
-
-- Convert Motion LoRA
-```
-cd ../examples/animatediff/tools
-python motion_lora_convert.py --src ../torch_ckpts/.ckpt --tar ../models/motion_lora
-```
-
-- Convert Domain Adapter LoRA
-```
-cd ../examples/animatediff/tools
-python domain_adapter_lora_convert.py --src ../torch_ckpts/v3_sd15_adapter.ckpt --tar ../models/domain_adapter_lora
-```
-
-- Convert SparseCtrl Encoder
-```
-cd ../examples/animatediff/tools
-python sparsectrl_encoder_convert.py --src ../torch_ckpts/v3_sd15_sparsectrl_{}.ckpt --tar ../models/sparsectrl_encoder
-```
+Please download the following weights from to [huggingface](https://huggingface.co/guoyww/animatediff/tree/main/).
 
 The full tree of expected checkpoints is shown below:
 ```
@@ -116,11 +70,16 @@ models
     └── sd_v1.5-d0ab7146.ckpt
 ```
 
-</details>
+Then, put all the weights under `animatediff/models/torch_ckpts/` and convert them by running the following command.
 
-## Inference (AnimateDiff v3 and SparseCtrl)
+```shell
+sh scripts/convert_weights.sh
+```
 
-- Running On Ascend 910\*:
+## Inference
+
+### Inference (AnimateDiff v3 and SparseCtrl)
+
 ```
 # download demo images
 bash scripts/download_demo_images.sh
@@ -168,22 +127,14 @@ Results:
     </tr>
 </table>
 
-- Running on GPU:
+### Inference (AnimateDiff v2)
 
-Please append `--device_target GPU` to the end of the commands above.
+#### Text-to-Video
 
-If you use the checkpoint converted from torch for inference, please also append `--vae_fp16=False` to the command above.
-
-## Inference (AnimateDiff v2)
-
-### Text-to-Video
-
-- Running On Ascend 910\*:
+The script uses DDIM sampling by default:
 ```
 python text_to_video.py --config configs/prompts/v2/1-ToonYou.yaml --L 16 --H 512 --W 512
 ```
-
-By default, DDIM sampling is used, and the sampling speed is 1.07s/iter.
 
 Results:
 
@@ -193,21 +144,12 @@ Results:
 <img src=https://github.com/SamitHuang/mindone/assets/8156835/fb9e2069-041a-4e81-b88e-ccdcfa8afd32 width="25%" />
 </p>
 
+#### Motion LoRA
 
-- Running on GPU:
-```
-python text_to_video.py --config configs/prompts/v2/1-ToonYou.yaml --L 16 --H 256 --W 256 --device_target GPU
-```
-
-If you use the checkpoint converted from torch for inference, please also append `--vae_fp16=False` to the command above.
-
-### Motion LoRA
-- Running On Ascend 910\*:
+The script uses DDIM sampling by default:
 ```
 python text_to_video.py --config configs/prompts/v2/1-ToonYou-MotionLoRA.yaml --L 16 --H 512 --W 512
 ```
-
-By default, DDIM sampling is used, and the sampling speed is 1.07s/iter.
 
 Results using Zoom-In motion lora:
 
@@ -217,34 +159,35 @@ Results using Zoom-In motion lora:
 <img src=https://github.com/SamitHuang/mindone/assets/8156835/d4d947a3-4d10-4c7e-b134-a725269037c3 width="25%" />
 </p>
 
-
-- Running on GPU:
-```
-python text_to_video.py --config configs/prompts/v2/1-ToonYou-MotionLoRA.yaml --L 16 --H 256 --W 256 --device_target GPU
-```
-
-## Training
+## Training (AnimateDiff v2)
 
 ### Image Finetuning
 
 ```
 python train.py --config configs/training/image_finetune.yaml
 ```
-> For 910B, please set `export MS_ASCEND_CHECK_OVERFLOW_MODE="INFNAN_MODE"` before running training.
+> Please set `export MS_ASCEND_CHECK_OVERFLOW_MODE="INFNAN_MODE"` before running train script if using mindspore 2.2.10.
 
+Infer with the trained model by running:
+
+```
+python text_to_video.py --config configs/prompts/v2/base_video.yaml \
+    --pretrained_model_path {path to saved checkpoint} \
+    --prompt  {text prompt}  \
+```
 
 ### Motion Module Training
 
 ```
 python train.py --config configs/training/mmv2_train.yaml
 ```
-> For 910B, please set `export MS_ASCEND_CHECK_OVERFLOW_MODE="INFNAN_MODE"` before running training.
+> Please set `export MS_ASCEND_CHECK_OVERFLOW_MODE="INFNAN_MODE"` before running train script if using mindspore 2.2.10.
 
 You may change the arguments including data path, output directory, lr, etc in the yaml config file. You can also change by command line arguments referring to `args_train.py` or `python train.py --help`
 
-- Evaluation
+Min-SNR weighting can improve diffusion training convergence. Enable it by appending `--snr_gamma=5.0` to the training command.
 
-To infer with the trained model, run
+Infer with the trained model by running:
 
 ```
 python text_to_video.py --config configs/prompts/v2/base_video.yaml \
@@ -273,21 +216,15 @@ Here are some generation results after MM training on 512x512 resolution and 16-
 </table>
 
 
-#### Min-SNR Weighting
-
-Min-SNR weighting can be used to improve diffusion training convergence. You can enable it by appending `--snr_gamma=5.0` to the training command.
-
 ### Motion LoRA Training
 
 ```
 python train.py --config configs/training/mmv2_lora.yaml
 ```
-> For 910B, please set `export MS_ASCEND_CHECK_OVERFLOW_MODE="INFNAN_MODE"` before running training.
 
+> Please set `export MS_ASCEND_CHECK_OVERFLOW_MODE="INFNAN_MODE"` before running train script if using mindspore 2.2.10.
 
-- Evaluation
-
-To infer with the trained model, run
+Infer with the trained model by running:
 
 ```
 python text_to_video.py --config configs/prompts/v2/base_video.yaml \
@@ -313,36 +250,44 @@ Here are some generation results after lora fine-tuning on 512x512 resolution an
 </table>
 
 
-### Training on GPU
+## Performance (AnimateDiff v2)
 
-Please add `--device_target GPU` in the above training commands and adjust `image_size`/`num_frames`/`train_batch_size` to fit your device memory. Below is an example for 3090.
-
-```
-# reduce num frames and batch size to avoid OOM in 3090
-python train.py --config configs/training/mmv2_train.yaml --data_path ../videocomposer/datasets/webvid5 --image_size 256 --num_frames=4 --device_target GPU --train_batch_size=1
-```
-
-## Performance
+Experiments are tested on ascend 910* graph mode with a single card.
 
 ### Inference
 
-| Model      |     Context |  Scheduler   | Steps              |  Resolution   |      Frame |  Speed (step/s)     | Time(s/video)     |
-|:---------------|:-----------|:------------:|:------------------:|:----------------:|:----------------:|:----------------:|:----------------:|
-| AnimateDiff v2    |     D910*x1-MS2.2.10    |  DDIM       |   30       |    512x512         |       16          |      1.2      |       25       |
-> Context: {Ascend chip}-{number of NPUs}-{mindspore version}.
+- mindspore 2.3.1
 
+|   model name   | mindspore | scheduler | steps | resolution | frame | speed (step/s) | time(s/video) |
+|:--------------:|:---------:|:---------:|:-----:|:----------:|:-----:|:--------------:|:-------------:|
+| AnimateDiff v2 |   2.3.1   |   DDIM    |  30   |  512x512   |  16   |      0.6       |      18       |
+
+- mindspore 2.2.10
+
+|   model name   | mindspore | scheduler | steps | resolution | frame | speed (step/s) | time(s/video) |
+|:--------------:|:---------:|:---------:|:-----:|:----------:|:-----:|:--------------:|:-------------:|
+| AnimateDiff v2 |  2.2.10   |   DDIM    |  30   |  512x512   |  16   |      1.2       |      25       |
 
 ### Training
 
+- mindspore 2.3.1
 
-| Model          |   Context   |  Task         | Local BS x Grad. Accu.  |   Resolution  | Frame      |   Step T. (s/step)  |
-|:---------------|:---------------|:--------------|:-----------------------:|:----------:|:------------:|:----------------:|
-| AnimateDiff v2    |    D910*x1-MS2.2.10       |   MM training  |      1x1             |    512x512  |  16 |  1.29     |
-| AnimateDiff v2    |    D910*x1-MS2.2.10       |   Motion Lora |      1x1             |    512x512  |  16 |  1.26       |
-| AnimateDiff v2    |    D910*x1-MS2.2.10       |   MM training w/ Embed. cached |      1x1             |    512x512  |  16 |  0.75     |
-| AnimateDiff v2    |    D910*x1-MS2.2.10       |   Motion Lora w/ Embed. cached |      1x1           |    512x512  |  16 |  0.71       |
-> Context: {Ascend chip}-{number of NPUs}-{mindspore version}.
->
-> MM training: Motion Module training
->
+|             task             | image size | frames  | batch size | flash attention | jit level | step time(s) | train. imgs/s |
+|:----------------------------:|:----------:|:-------:|:----------:|:---------------:|:---------:|:------------:|:-------------:|
+|         MM training          |    512     |   16    |     1      |       ON        |    O0     |    1.320     |     0.75      |
+|         Motion Lora          |    512     |   16    |     1      |       ON        |    O0     |    1.566     |     0.638     |
+| MM training w/ Embed. cached |    512     |   16    |     1      |       ON        |    O0     |    1.004     |     0.996     |
+| Motion Lora w/ Embed. cached |    512     |   16    |     1      |       ON        |    O0     |    1.009     |     0.991     |
+
+- mindspore 2.2.10
+
+|             task             | image size | frames  | batch size | flash attention | jit level | step time(s) | train. imgs/s |
+|:----------------------------:|:----------:|:-------:|:----------:|:---------------:|:---------:|:------------:|:-------------:|
+|         MM training          |    512     |   16    |     1      |       OFF       |    NA     |     1.29     |     0.775     |
+|         Motion Lora          |    512     |   16    |     1      |       OFF       |    NA     |     1.26     |     0.794     |
+| MM training w/ Embed. cached |    512     |   16    |     1      |       ON        |    NA     |     0.75     |     1.333     |
+| Motion Lora w/ Embed. cached |    512     |   16    |     1      |       ON        |    NA     |     0.71     |     1.408     |
+
+> MM training: Motion Module training.
+
 > Embed. cached: The video embedding (VAE-encoder outputs) and text embedding are pre-computed and stored before diffusion training.

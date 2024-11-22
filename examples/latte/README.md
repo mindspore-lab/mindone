@@ -32,6 +32,12 @@ This tutorial includes:
 
 ### 2.1 Environment Setup
 
+#### Requirements
+
+| mindspore | ascend driver | firmware     | cann toolkit/kernel
+|:----------|:---           | :--          |:--
+| 2.3.1     | 24.1.RC2      | 7.3.0.1.231  | 8.0.RC2.beta1
+
 ```
 pip install -r requirements.txt
 ```
@@ -50,7 +56,7 @@ Instruction on ffmpeg and decord install on EulerOS:
 2. install decord, referring to https://github.com/dmlc/decord?tab=readme-ov-file#install-from-source
     git clone --recursive https://github.com/dmlc/decord
     cd decord
-    rm build && mkdir build && cd build
+    if [ -d build ];then rm build;fi && mkdir build && cd build
     cmake .. -DUSE_CUDA=0 -DCMAKE_BUILD_TYPE=Release
     make -j 64
     make install
@@ -79,6 +85,12 @@ For example, to run inference of `skytimelapse.ckpt` model with the `256x256` im
 python sample.py -c configs/inference/sky.yaml
 ```
 
+Experiments are tested on ascend 910* with mindspore 2.3.1 graph mode:
+
+| model name | cards | image size | method | steps | jit level | ckpt loading time | compile time | total sample time |
+| :--------: | :---: | :--------: | :----: | :---: | :-------: | :---------------: | :----------: | :---------------: |
+|   latte    |   1   |  256x256   |  ddpm  |  250  |    O2     |      19.72s       |   101.26s    |      537.31s      |
+
 Some of the generated results are shown here:
 <table class="center">
     <tr style="line-height: 0">
@@ -87,9 +99,9 @@ Some of the generated results are shown here:
     <td width=33% style="border: none; text-align: center">Example 3</td>
     </tr>
     <tr>
-    <td width=33% style="border: none"><img src="https://raw.githubusercontent.com/wtomin/mindone-assets/main/latte/sky/generated-0.gif" style="width:100%"></td>
-    <td width=33% style="border: none"><img src="https://raw.githubusercontent.com/wtomin/mindone-assets/main/latte/sky/generated-1.gif" style="width:100%"></td>
-    <td width=33% style="border: none"><img src="https://raw.githubusercontent.com/wtomin/mindone-assets/main/latte/sky/generated-2.gif" style="width:100%"></td>
+    <td width=33% style="border: none"><img src="https://raw.githubusercontent.com/jianyunchao/mindone-assets/v0.2.0/latte/sky/generated-0.gif" style="width:100%"></td>
+    <td width=33% style="border: none"><img src="https://raw.githubusercontent.com/jianyunchao/mindone-assets/v0.2.0/latte/sky/generated-1.gif" style="width:100%"></td>
+    <td width=33% style="border: none"><img src="https://raw.githubusercontent.com/jianyunchao/mindone-assets/v0.2.0/latte/sky/generated-2.gif" style="width:100%"></td>
     </tr>
 </table>
 <p align="center">
@@ -192,9 +204,20 @@ In case of OOM, please set `enable_flash_attention: True` in the `configs/traini
 
 ### 4.3 Distributed Training
 
+For `mindspore>=2.3.0`, it is recommended to use msrun to launch distributed training with ImageNet dataset format using the following command:
+
+```
+msrun --worker_num=4 \
+    --local_worker_num=4 \
+    --bind_core=True \
+    --log_dir=msrun_log \
+    python train.py \
+    -c path/to/configuration/file \
+    --use_parallel True
+```
+
 Taking the 4-card distributed training as an example, you can start the distributed training using:
 ```bash
-export MS_ASCEND_CHECK_OVERFLOW_MODE="INFNAN_MODE"
 mpirun -n 4 python train.py \
     -c path/to/configuration/file \
     --use_parallel True
@@ -211,14 +234,17 @@ The first number `0` indicates the start index of the training devices, and the 
 
 ## 5. Evaluation
 
-The training speed of the experiments with `256x256` image size is summarized in the following table:
+Experiments are tested on ascend 910* with mindspore 2.3.1 graph mode:
 
-| Cards | Recompute | Dataset Sink mode | Embedding Cache|Train. imgs/s |
-| ---   | ---       | ---               | ---          |   ---          |
-| 1     | OFF       | ON                | OFF          | 62.3           |
-| 1     | ON        | ON                | ON           | 93.6           |
-| 4     | ON        | ON                | ON           | 368.3          |
-
+| model name | cards | image size | graph compile | batch size | num frames | recompute | dataset sink mode | embedding cache | jit level | per step time | train. imgs/s |
+| :--------: | :---: | :--------: | :-----------: | :--------: | :--------: | :-------: | :---------------: | :-------------: | :-------: | :-----------: | :-----------: |
+|   latte    |   1   |  256x256   |   6~8 mins    |     5      |     16     |    OFF    |        ON         |       OFF       |    O2     |     1.03s     |     77.67     |
+|   latte    |   1   |  256x256   |   6~8 mins    |     1      |    128     |    ON     |        ON         |       ON        |    O2     |     1.21s     |    105.78     |
+|   latte    |   4   |  256x256   |   6~8 mins    |     1      |    128     |    ON     |        ON         |       ON        |    O2     |     1.32s     |    387.87     |
+|   latte    |   8   |  256x256   |   6~8 mins    |     1      |    128     |    ON     |        ON         |       ON        |    O2     |     1.31s     |    781.67     |
+> context: {Ascend chip}{mindspore version}.
+>
+> train. imgs/s: images per second during training. img/s = cards * batch_size * num_frames / per_step_time
 
 # References
 
