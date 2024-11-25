@@ -86,7 +86,7 @@ class StableAudioNumberConditioner(nn.Cell):
         internal_dim: Optional[int] = 256,
     ):
         super().__init__()
-        self.time_positional_embedding = nn.Sequential(
+        self.time_positional_embedding = nn.SequentialCell(
             StableAudioPositionalEmbedding(internal_dim),
             nn.Linear(in_features=internal_dim + 1, out_features=number_embedding_dim),
         )
