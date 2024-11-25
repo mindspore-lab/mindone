@@ -3,7 +3,6 @@ import logging
 import os
 from collections import OrderedDict
 
-import torch.utils.checkpoint as checkpoint
 from einops import rearrange
 from timm.models.layers import DropPath
 from timm.models.registry import register_model
@@ -49,12 +48,12 @@ _MODELS = {
 }
 
 
-class QuickGELU(nn.Module):
-    def forward(self, x):
-        return x * torch.sigmoid(1.702 * x)
+class QuickGELU(nn.Cell):
+    def construct(self, x):
+        return x * ops.sigmoid(1.702 * x)
 
 
-class ResidualAttentionBlock(nn.Module):
+class ResidualAttentionBlock(nn.Cell):
     def __init__(self, d_model, n_head, drop_path=0.0, attn_mask=None, dropout=0.0):
         super().__init__()
 
@@ -78,34 +77,34 @@ class ResidualAttentionBlock(nn.Module):
         self.attn_mask = attn_mask
 
     def attention(self, x):
-        self.attn_mask = self.attn_mask.to(dtype=x.dtype, device=x.device) if self.attn_mask is not None else None
+        self.attn_mask = self.attn_mask.to(dtype=x.dtype) if self.attn_mask is not None else None
         return self.attn(x, x, x, need_weights=False, attn_mask=self.attn_mask)[0]
 
-    def forward(self, x):
+    def construct(self, x):
         x = x + self.drop_path1(self.attention(self.ln_1(x)))
         x = x + self.drop_path2(self.mlp(self.ln_2(x)))
         return x
 
 
-class Transformer(nn.Module):
+class Transformer(nn.Cell):
     def __init__(self, width, layers, heads, drop_path=0.0, checkpoint_num=0, dropout=0.0):
         super().__init__()
-        dpr = [x.item() for x in torch.linspace(0, drop_path, layers)]
-        self.resblocks = nn.ModuleList()
+        dpr = [x.item() for x in ops.linspace(0, drop_path, layers)]
+        self.resblocks = nn.CellList()
         for idx in range(layers):
             self.resblocks.append(ResidualAttentionBlock(width, heads, drop_path=dpr[idx], dropout=dropout))
         self.checkpoint_num = checkpoint_num
 
-    def forward(self, x):
+    def construct(self, x):
         for idx, blk in enumerate(self.resblocks):
             if idx < self.checkpoint_num:
-                x = checkpoint.checkpoint(blk, x)
+                x = ms.recompute(blk, x)
             else:
                 x = blk(x)
         return x
 
 
-class VisionTransformer(nn.Module):
+class VisionTransformer(nn.Cell):
     def __init__(
         self,
         input_resolution,
@@ -133,11 +132,11 @@ class VisionTransformer(nn.Module):
         )
 
         scale = width**-0.5
-        self.class_embedding = nn.Parameter(scale * torch.randn(width))
-        self.positional_embedding = nn.Parameter(scale * torch.randn((input_resolution // patch_size) ** 2 + 1, width))
+        self.class_embedding = ms.Parameter(scale * ops.randn(width))
+        self.positional_embedding = ms.Parameter(scale * ops.randn((input_resolution // patch_size) ** 2 + 1, width))
         self.ln_pre = nn.LayerNorm(width)
         if temp_embed:
-            self.temporal_positional_embedding = nn.Parameter(torch.zeros(1, num_frames, width))
+            self.temporal_positional_embedding = ms.Parameter(ops.zeros(1, num_frames, width))
 
         self.transformer = Transformer(
             width, layers, heads, drop_path=drop_path, checkpoint_num=checkpoint_num, dropout=dropout
@@ -145,7 +144,7 @@ class VisionTransformer(nn.Module):
 
         self.ln_post = nn.LayerNorm(width)
         if output_dim is not None:
-            self.proj = nn.Parameter(torch.empty(width, output_dim))
+            self.proj = nn.Parameter(ops.empty(width, output_dim))
         else:
             self.proj = None
 
@@ -154,7 +153,6 @@ class VisionTransformer(nn.Module):
     def get_num_layers(self):
         return len(self.transformer.resblocks)
 
-    @torch.jit.ignore
     def no_weight_decay(self):
         return {"positional_embedding", "class_embedding", "temporal_positional_embedding"}
 
@@ -163,24 +161,24 @@ class VisionTransformer(nn.Module):
 
         # This is different from text as we are masking a fix number of tokens
         Lm = int(masking_prob * L)
-        masked_indices = torch.zeros(B, L)
-        indices = torch.argsort(torch.rand_like(masked_indices), dim=-1)[:, :Lm]
-        batch_indices = torch.arange(masked_indices.shape[0]).unsqueeze(-1).expand_as(indices)
+        masked_indices = ops.zeros(B, L)
+        indices = ops.argsort(ops.rand_like(masked_indices), dim=-1)[:, :Lm]
+        batch_indices = ops.arange(masked_indices.shape[0]).unsqueeze(-1).expand_as(indices)
         masked_indices[batch_indices, indices] = 1
 
         masked_indices = masked_indices.bool()
 
         return inputs[~masked_indices].reshape(B, -1, inputs.shape[-1])
 
-    def forward(self, x, masking_prob=0.0):
+    def construct(self, x, masking_prob=0.0):
         x = self.conv1(x)  # shape = [*, width, grid, grid]
         B, C, T, H, W = x.shape
         x = x.permute(0, 2, 3, 4, 1).reshape(B * T, H * W, C)
 
-        x = torch.cat(
+        x = ops.cat(
             [
                 self.class_embedding.to(x.dtype)
-                + torch.zeros(x.shape[0], 1, x.shape[-1], dtype=x.dtype, device=x.device),
+                + ops.zeros(x.shape[0], 1, x.shape[-1], dtype=x.dtype, device=x.device),
                 x,
             ],
             dim=1,
@@ -202,7 +200,7 @@ class VisionTransformer(nn.Module):
         if masking_prob > 0.0:
             x = self.mask_tokens(x, masking_prob)
 
-        x = torch.cat((cls_tokens, x), dim=1)
+        x = ops.cat((cls_tokens, x), dim=1)
 
         x = self.ln_pre(x)
 
@@ -222,7 +220,7 @@ class VisionTransformer(nn.Module):
 def inflate_weight(weight_2d, time_dim, center=True):
     logger.info(f"Init center: {center}")
     if center:
-        weight_3d = torch.zeros(*weight_2d.shape)
+        weight_3d = ops.zeros(*weight_2d.shape)
         weight_3d = weight_3d.unsqueeze(2).repeat(1, 1, time_dim, 1, 1)
         middle_idx = time_dim // 2
         weight_3d[:, :, middle_idx, :, :] = weight_2d
@@ -253,11 +251,11 @@ def load_state_dict(model, state_dict, input_resolution=224, patch_size=16, cent
         extra_tokens = pos_embed_checkpoint[:1]
         pos_tokens = pos_embed_checkpoint[1:]
         pos_tokens = pos_tokens.reshape(-1, orig_size, orig_size, embedding_size).permute(0, 3, 1, 2)
-        pos_tokens = torch.nn.functional.interpolate(
+        pos_tokens = ops.interpolate(
             pos_tokens, size=(new_size, new_size), mode="bicubic", align_corners=False
         )
         pos_tokens = pos_tokens.permute(0, 2, 3, 1).flatten(0, 2)
-        new_pos_embed = torch.cat((extra_tokens, pos_tokens), dim=0)
+        new_pos_embed = ops.cat((extra_tokens, pos_tokens), dim=0)
         state_dict["positional_embedding"] = new_pos_embed
 
     message = model.load_state_dict(state_dict, strict=False)
@@ -296,7 +294,7 @@ def clip_joint_b16(
             model_name = "ViT-B/16"
 
         logger.info("load pretrained weights")
-        state_dict = torch.load(_MODELS[model_name], map_location="cpu")
+        state_dict = ms.load_checkpoint(_MODELS[model_name])
         load_state_dict(model, state_dict, input_resolution=input_resolution, patch_size=16, center=center)
     return model.eval()
 
@@ -332,7 +330,7 @@ def clip_joint_l14(
         else:
             model_name = "ViT-L/14"
         logger.info("load pretrained weights")
-        state_dict = torch.load(_MODELS[model_name], map_location="cpu")
+        state_dict = ms.load_checkpoint(_MODELS[model_name])
         load_state_dict(model, state_dict, input_resolution=input_resolution, patch_size=14, center=center)
     return model.eval()
 
@@ -393,16 +391,13 @@ if __name__ == "__main__":
 
     seed = 4217
     np.random.seed(seed)
-    torch.manual_seed(seed)
-    torch.cuda.manual_seed(seed)
-    torch.cuda.manual_seed_all(seed)
     num_frames = 8
 
     # model = clip_joint_b16(pretrained=True, kernel_size=1, num_frames=8, num_classes=400, drop_path=0.1)
     # logger.info(model)
     model = clip_joint_l14(pretrained=False)
 
-    flops = FlopCountAnalysis(model, torch.rand(1, 3, num_frames, 224, 224))
+    flops = FlopCountAnalysis(model, ops.rand(1, 3, num_frames, 224, 224))
     s = time.time()
     logger.info(flop_count_table(flops, max_depth=1))
     logger.info(time.time() - s)

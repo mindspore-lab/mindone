@@ -2,11 +2,9 @@ import logging
 import math
 import os
 
-import torch
-from einops import rearrange
-from torch import nn
+import mindspore as ms
+from mindpspore import nn, ops
 
-# from .criterions import VTC_VTM_Loss
 from .simple_tokenizer import SimpleTokenizer as _Tokenizer
 from .viclip_text import clip_text_b16, clip_text_l14
 from .viclip_vision import clip_joint_b16, clip_joint_l14
@@ -14,7 +12,7 @@ from .viclip_vision import clip_joint_b16, clip_joint_l14
 logger = logging.getLogger(__name__)
 
 
-class ViCLIP(nn.Module):
+class ViCLIP(nn.Cell):
     """docstring for ViCLIP"""
 
     def __init__(
@@ -67,12 +65,12 @@ class ViCLIP(nn.Module):
         self.vision_encoder = self.build_vision_encoder()
         self.text_encoder = self.build_text_encoder()
 
-        self.temp = nn.parameter.Parameter(torch.ones([]) * 1 / 100.0)
+        self.temp = ms.Parameter(ops.ones([]) * 1 / 100.0)
         self.temp_min = 1 / 100.0
 
         if pretrain:
             logger.info(f"Load pretrained weights from {pretrain}")
-            state_dict = torch.load(pretrain, map_location="cpu")["model"]
+            state_dict = ms.load_checkpoint(pretrain)
             self.load_state_dict(state_dict)
 
         # Freeze weights
@@ -81,7 +79,7 @@ class ViCLIP(nn.Module):
 
     def freeze_text(self):
         """freeze text encoder"""
-        for p in self.text_encoder.parameters():
+        for p in self.text_encoder.get_parameters():
             p.requires_grad = False
 
     def no_weight_decay(self):
@@ -91,7 +89,7 @@ class ViCLIP(nn.Module):
 
         return ret
 
-    def forward(self, image, text, raw_text, idx, log_generation=None, return_sims=False):
+    def construct(self, image, text, raw_text, idx, log_generation=None, return_sims=False):
         """forward and calculate loss.
 
         Args:
@@ -107,7 +105,7 @@ class ViCLIP(nn.Module):
         vision_embeds = self.encode_vision(image)
         text_embeds = self.encode_text(raw_text)
         if return_sims:
-            sims = torch.nn.functional.normalize(vision_embeds, dim=-1) @ torch.nn.functional.normalize(
+            sims = ops.normalize(vision_embeds, dim=-1) @ ops.normalize(
                 text_embeds, dim=-1
             ).transpose(0, 1)
             return sims
@@ -160,14 +158,14 @@ class ViCLIP(nn.Module):
         text_embeds = self.text_encoder(text)
         return text_embeds
 
-    @torch.no_grad()
     def clip_contrastive_temperature(self, min_val=0.001, max_val=0.5):
         """Seems only used during pre-training"""
-        self.temp.clamp_(min=self.temp_min)
+        with ms.no_grad():
+            self.temp.clamp_(min=self.temp_min)
 
     def build_vision_encoder(self):
         """build vision encoder
-        Returns: (vision_encoder, vision_layernorm). Each is a `nn.Module`.
+        Returns: (vision_encoder, vision_layernorm). Each is a `nn.Cell`.
 
         """
         encoder_name = self.vision_encoder_name
@@ -198,7 +196,7 @@ class ViCLIP(nn.Module):
 
     def build_text_encoder(self):
         """build text_encoder and possiblly video-to-text multimodal fusion encoder.
-        Returns: nn.Module. The text encoder
+        Returns: nn.Cell. The text encoder
 
         """
         encoder_name = self.text_encoder_name
@@ -231,7 +229,7 @@ class ViCLIP(nn.Module):
         if input_text in text_feature_dict:
             return text_feature_dict[input_text]
         text_template = f"{input_text}"
-        with torch.no_grad():
+        with ms.no_grad():
             # text_token = tokenizer.encode(text_template).cuda()
             text_features = self.encode_text(text_template).float()
             text_features /= text_features.norm(dim=-1, keepdim=True)
@@ -239,7 +237,7 @@ class ViCLIP(nn.Module):
         return text_features
 
     def get_vid_features(self, input_frames):
-        with torch.no_grad():
+        with ms.no_grad():
             clip_feat = self.encode_vision(input_frames, test=True).float()
             clip_feat /= clip_feat.norm(dim=-1, keepdim=True)
         return clip_feat

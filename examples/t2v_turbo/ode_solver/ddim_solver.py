@@ -23,7 +23,7 @@ class DDIMSolver:
         self.ddim_alpha_cumprods_prev = np.asarray(
             [alpha_cumprods[0]] + alpha_cumprods[self.ddim_timesteps[:-1]].tolist()
         )
-        # convert to torch tensors
+        # convert to Mindspore tensors
         self.ddim_timesteps = ms.Tensor.from_numpy(self.ddim_timesteps)
         self.ddim_alpha_cumprods = ms.Tensor.from_numpy(self.ddim_alpha_cumprods)
         self.ddim_alpha_cumprods_prev = ms.Tensor.from_numpy(self.ddim_alpha_cumprods_prev)

@@ -1,11 +1,9 @@
-import os
 import sys
 import warnings
 from dataclasses import asdict, dataclass
 from random import randrange
 from typing import Any, Dict, List, Optional, Tuple, Union
 
-import numpy as np
 from lvdm.modules.encoders.clip import CLIPModel, parse, support_list
 from utils.utils import freeze_params
 

@@ -1,12 +1,8 @@
 import json
-import math
 import os
 import pickle
 from itertools import groupby
-from typing import Callable, Dict, List, Optional, Set, Tuple, Type, Union
-
-import numpy as np
-import PIL
+from typing import Dict, List, Optional, Set, Tuple, Type, Union
 
 import mindspore as ms
 import mindspore.common.initializer as init

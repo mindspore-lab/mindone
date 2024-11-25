@@ -1,6 +1,5 @@
 import ast
 import gc
-from collections import OrderedDict
 
 import numpy as np
 from lvdm.modules.attention import BasicTransformerBlock

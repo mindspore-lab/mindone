@@ -1,6 +1,5 @@
 import logging
 
-# from mindnlp.transformers import BertConfig, BertForMaskedLM, BertLMHeadModel, BertModel
 from typing import Tuple
 
 import numpy as np

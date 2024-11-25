@@ -1,7 +1,6 @@
 import logging
 
 import mindspore as ms
-from mindspore import mint
 from mindspore.communication.management import get_group_size, get_rank, init
 
 from mindone.utils.seed import set_random_seed

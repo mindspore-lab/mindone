@@ -1,5 +1,5 @@
 import mindspore as ms
-from mindspore import nn, ops
+from mindspore import nn
 
 
 class LitEma(nn.Cell):

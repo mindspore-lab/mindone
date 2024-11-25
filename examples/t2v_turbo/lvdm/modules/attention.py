@@ -1,6 +1,5 @@
 from functools import partial
 
-# from einops import rearrange, repeat
 import numpy as np
 
 import mindspore as ms

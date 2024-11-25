@@ -6,23 +6,12 @@ import mindspore as ms
 from mindspore import Tensor, mint, nn, ops, recompute
 from mindspore.common.initializer import Constant, TruncatedNormal, initializer
 
-# from .flash_attention_class import FlashAttention
 from mindone.models.modules.flash_attention import MSFlashAttention as FlashAttention
 
 from .helpers import to_2tuple
 from .pos_embed import get_3d_sincos_pos_embed, interpolate_pos_embed_internvideo2
 
 logger = logging.getLogger(__name__)
-
-# try:
-#     from flash_attn.modules.mlp import FusedMLP
-# except:
-#     logger.warn(f'FusedMLP of flash_attn is not installed!!!')
-
-# try:
-#     from flash_attn.ops.rms_norm import DropoutAddRMSNorm
-# except:
-#     logger.warn(f'DropoutAddRMSNorm of flash_attn is not installed!!!')
 
 
 def trunc_normal_(tensor: ms.Parameter, mean: float = 0.0, std: float = 1.0, a: float = -2.0, b: float = 2.0):

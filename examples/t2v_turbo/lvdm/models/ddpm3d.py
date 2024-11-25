@@ -22,7 +22,6 @@ from lvdm.ema import LitEma
 from lvdm.models.utils_diffusion import make_beta_schedule
 from lvdm.modules.encoders.ip_resampler import ImageProjModel, Resampler
 
-# from torchvision.utils import make_grid
 from utils.utils import instantiate_from_config
 
 import mindspore as ms
@@ -193,13 +192,6 @@ class DDPM(nn.Cell):
                 mainlogger.info(f"{context}: Switched to EMA weights")
 
         yield None
-        # try:
-        #     yield None
-        # finally:
-        #     if self.use_ema:
-        #         self.model_ema.restore(self.model.get_parameters())
-        #         if context is not None:
-        #             mainlogger.info(f"{context}: Restored training weights")
 
     def init_from_ckpt(self, path, ignore_keys=list(), only_model=False):
         sd = ms.load_checkpoint(path, map_location="cpu")
@@ -309,53 +301,6 @@ class DDPM(nn.Cell):
         x = batch[k]
         x = x.float()
         return x
-
-    def _get_rows_from_list(self, samples):
-        n_imgs_per_row = len(samples)
-        # denoise_grid = rearrange(samples, "n b c h w -> b n c h w")
-        # denoise_grid = rearrange(denoise_grid, "b n c h w -> (b n) c h w")
-        denoise_grid = mint.permute(samples, (1, 0, 2, 3, 4))
-        b, n, c, h, w = denoise_grid.shape
-        denoise_grid = denoise_grid.reshape(-1, c, h, w)
-        denoise_grid = make_grid(denoise_grid, nrow=n_imgs_per_row)
-        return denoise_grid
-
-    def log_images(self, batch, N=8, n_row=2, sample=True, return_keys=None, **kwargs):
-        log = dict()
-        x = self.get_input(batch, self.first_stage_key)
-        N = min(x.shape[0], N)
-        n_row = min(x.shape[0], n_row)
-        x = x[:N]
-        log["inputs"] = x
-
-        # get diffusion row
-        diffusion_row = list()
-        x_start = x[:n_row]
-
-        for t in range(self.num_timesteps):
-            if t % self.log_every_t == 0 or t == self.num_timesteps - 1:
-                t = ms.Tensor([t] * n_row)
-                t = t.long()
-                noise = mint.randn_like(x_start)
-                x_noisy = self.q_sample(x_start=x_start, t=t, noise=noise)
-                diffusion_row.append(x_noisy)
-
-        log["diffusion_row"] = self._get_rows_from_list(diffusion_row)
-
-        if sample:
-            # get denoise row
-            with self.ema_scope("Plotting"):
-                samples, denoise_row = self.sample(batch_size=N, return_intermediates=True)
-
-            log["samples"] = samples
-            log["denoise_row"] = self._get_rows_from_list(denoise_row)
-
-        if return_keys:
-            if np.intersect1d(list(log.keys()), return_keys).shape[0] == 0:
-                return log
-            else:
-                return {key: log[key] for key in return_keys}
-        return log
 
 
 class LatentDiffusion(DDPM):
@@ -579,31 +524,6 @@ class LatentDiffusion(DDPM):
             return x_recon[0]
         else:
             return x_recon
-
-    def _get_denoise_row_from_list(self, samples, desc=""):
-        denoise_row = []
-        for zd in tqdm(samples, desc=desc):
-            denoise_row.append(self.decode_first_stage(zd.to(self.device)))
-        n_log_timesteps = len(denoise_row)
-
-        denoise_row = mint.stack(denoise_row)  # n_log_timesteps, b, C, H, W
-
-        if denoise_row.dim() == 5:
-            # img, num_imgs= n_log_timesteps * bs, grid_size=[bs,n_log_timesteps]
-            denoise_grid = rearrange(denoise_row, "n b c h w -> b n c h w")
-            denoise_grid = rearrange(denoise_grid, "b n c h w -> (b n) c h w")
-            denoise_grid = make_grid(denoise_grid, nrow=n_log_timesteps)
-        elif denoise_row.dim() == 6:
-            # video, grid_size=[n_log_timesteps*bs, t]
-            video_length = denoise_row.shape[3]
-            denoise_grid = rearrange(denoise_row, "n b c t h w -> b n c t h w")
-            denoise_grid = rearrange(denoise_grid, "b n c t h w -> (b n) c t h w")
-            denoise_grid = rearrange(denoise_grid, "n c t h w -> (n t) c h w")
-            denoise_grid = make_grid(denoise_grid, nrow=video_length)
-        else:
-            raise ValueError
-
-        return denoise_grid
 
     def decode_first_stage_2DAE(self, z, **kwargs):
         b, _, t, _, _ = z.shape

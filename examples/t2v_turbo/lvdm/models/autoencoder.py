@@ -1,7 +1,5 @@
 import os
-from contextlib import contextmanager
 
-import numpy as np
 from lvdm.distributions import DiagonalGaussianDistribution
 from lvdm.modules.networks.ae_modules import Decoder, Encoder
 from utils.utils import instantiate_from_config

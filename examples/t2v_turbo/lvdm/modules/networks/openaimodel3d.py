@@ -1,5 +1,4 @@
 from abc import abstractmethod
-from functools import partial
 
 from lvdm.basics import (
     avg_pool_nd,

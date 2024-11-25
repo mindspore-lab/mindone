@@ -1,8 +1,7 @@
 import os
 
-import yaml
 from lvdm.common import autocast
-from lvdm.modules.encoders.clip import CLIPImageProcessor, CLIPModel, CLIPTokenizer, parse, support_list
+from lvdm.modules.encoders.clip import CLIPModel, CLIPTokenizer, parse, support_list
 from transformers import T5Tokenizer
 from utils.download import download_checkpoint
 from utils.utils import count_params

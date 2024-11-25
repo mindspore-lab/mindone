@@ -1,6 +1,5 @@
 import logging
 
-import numpy as np
 from utils.common_utils import (
     append_dims,
     get_predicted_noise,

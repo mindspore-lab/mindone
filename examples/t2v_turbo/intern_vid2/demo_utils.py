@@ -241,7 +241,7 @@ class InternVideo2_Stage2(nn.Cell):
 
     def build_vision_encoder(self, dtype):
         """build vision encoder
-        Returns: (vision_encoder, clip_teacher). Each is a `nn.Module`.
+        Returns: (vision_encoder, clip_teacher). Each is a `nn.Cell`.
 
         """
         encoder_name = self.config.model.vision_encoder.name
@@ -272,7 +272,7 @@ class InternVideo2_Stage2(nn.Cell):
 
     def build_text_encoder(self, dtype):
         """build text_encoder and possiblly video-to-text multimodal fusion encoder.
-        Returns: nn.Module. The text encoder
+        Returns: nn.Cell. The text encoder
 
         """
         encoder_name = self.config.model.text_encoder.name
