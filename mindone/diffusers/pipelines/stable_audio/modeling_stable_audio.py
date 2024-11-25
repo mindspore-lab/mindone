@@ -88,7 +88,7 @@ class StableAudioNumberConditioner(nn.Cell):
         super().__init__()
         self.time_positional_embedding = nn.SequentialCell(
             StableAudioPositionalEmbedding(internal_dim),
-            nn.Linear(in_features=internal_dim + 1, out_features=number_embedding_dim),
+            nn.Dense(in_features=internal_dim + 1, out_features=number_embedding_dim),
         )
 
         self.number_embedding_dim = number_embedding_dim
@@ -132,7 +132,7 @@ class StableAudioProjectionModel(ModelMixin, ConfigMixin):
     def __init__(self, text_encoder_dim, conditioning_dim, min_value, max_value):
         super().__init__()
         self.text_projection = (
-            nn.Identity() if conditioning_dim == text_encoder_dim else nn.Linear(text_encoder_dim, conditioning_dim)
+            nn.Identity() if conditioning_dim == text_encoder_dim else nn.Dense(text_encoder_dim, conditioning_dim)
         )
         self.start_number_conditioner = StableAudioNumberConditioner(conditioning_dim, min_value, max_value)
         self.end_number_conditioner = StableAudioNumberConditioner(conditioning_dim, min_value, max_value)
