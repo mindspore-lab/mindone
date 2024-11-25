@@ -270,7 +270,7 @@ class OobleckEncoder(nn.Cell):
         channel_multiples = [1] + channel_multiples
 
         # Create first convolution
-        self.conv1 = WeightNorm(nn.Conv1d(audio_channels, encoder_hidden_size, kernel_size=7, padding=3))
+        self.conv1 = WeightNorm(nn.Conv1d(audio_channels, encoder_hidden_size, kernel_size=7, pad_mode='pad', padding=3))
 
         self.block = []
         # Create EncoderBlocks that double channels as they downsample by `stride`
