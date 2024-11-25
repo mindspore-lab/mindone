@@ -54,6 +54,7 @@ class SD3ControlNetModel(ModelMixin, ConfigMixin, PeftAdapterMixin):
         pooled_projection_dim: int = 2048,
         out_channels: int = 16,
         pos_embed_max_size: int = 96,
+        extra_conditioning_channels: int = 0,
     ):
         super().__init__()
         default_out_channels = in_channels
@@ -103,7 +104,7 @@ class SD3ControlNetModel(ModelMixin, ConfigMixin, PeftAdapterMixin):
             height=sample_size,
             width=sample_size,
             patch_size=patch_size,
-            in_channels=in_channels,
+            in_channels=in_channels + extra_conditioning_channels,
             embed_dim=self.inner_dim,
             pos_embed_type=None,
             zero_module=True,
@@ -206,9 +207,12 @@ class SD3ControlNetModel(ModelMixin, ConfigMixin, PeftAdapterMixin):
             module.gradient_checkpointing = value
 
     @classmethod
-    def from_transformer(cls, transformer, num_layers=12, load_weights_from_transformer=True):
+    def from_transformer(
+        cls, transformer, num_layers=12, num_extra_conditioning_channels=1, load_weights_from_transformer=True
+    ):
         config = transformer.config
         config["num_layers"] = num_layers or config.num_layers
+        config["extra_conditioning_channels"] = num_extra_conditioning_channels
         controlnet = cls(**config)
 
         if load_weights_from_transformer:
