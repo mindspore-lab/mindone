@@ -14,7 +14,9 @@ omegaconf
 pyyaml
 sentencepiece
 mindnlp==0.4.0
-transformers>=4.46.0
 bs4
 huggingface_hub>=0.22.2
 decord
+pillow
+tokenizers
+transformers
