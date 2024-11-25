@@ -26,7 +26,8 @@ class InferPipeline:
         model: nn.Cell,
         tae: nn.Cell,
         latent_size: Tuple[int, int, int] = (1, 64, 64),
-        scale_factor: float = 1.0,
+        scale_factor: float = 1.5305,
+        shift_factor: float = 0.0609,
         guidance_scale: float = 1.0,
         num_sampling_steps: int = 50,
         sample_method: Literal["linear", "linear-quadratic"] = "linear",
@@ -37,7 +38,8 @@ class InferPipeline:
         self.tae = tae
         self.latent_size = latent_size
         self.micro_batch_size = micro_batch_size
-        self.scale_factor = scale_factor
+        self.scale_factor = scale_factor if tae is None else tae.scale_factor
+        self.shift_factor = shift_factor if tae is None else tae.shift_factor
         self.guidance_rescale = guidance_scale
         self.use_cfg = guidance_scale > 1.0
         self.rflow = RFLOW(num_sampling_steps, sample_method=sample_method)
@@ -50,6 +52,7 @@ class InferPipeline:
             y: (b f H W 3), batch of images, normalized to [0, 1]
         """
         x = mint.permute(x, (0, 2, 1, 3, 4))  # FIXME: remove this redundancy
+        x = x / self.scale_factor + self.shift_factor
         y = self.tae.decode(x, target_num_frames=num_frames)  # FIXME: extract scale_factor from TAE and use it here
         y = ops.clip_by_value((y + 1.0) / 2.0, clip_value_min=0.0, clip_value_max=1.0)
         # (b 3 t h w) -> (b t h w 3)

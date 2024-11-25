@@ -77,7 +77,7 @@ train:
     clip_norm: 1.0
 
   save:
-    ckpt_save_policy: top_k
+    ckpt_save_policy: latest_k
     ckpt_save_interval: &save_interval 100
     ckpt_max_keep: 10
     log_interval: 1

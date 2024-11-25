@@ -13,9 +13,10 @@ class DiffusionWithLoss(nn.Cell):
     def __init__(
         self,
         network: RFlowLossWrapper,
-        vae: Optional[nn.Cell] = None,
+        tae: Optional[nn.Cell] = None,
         text_encoder: Optional[nn.Cell] = None,
-        scale_factor: float = 0.13025,
+        scale_factor: float = 1.5305,
+        shift_factor: float = 0.0609,
         text_emb_cached: bool = True,
         video_emb_cached: bool = False,
     ):
@@ -23,18 +24,19 @@ class DiffusionWithLoss(nn.Cell):
 
         if not text_emb_cached and text_encoder is None:
             raise ValueError("`text_encoder` must be provided when `text_emb_cached=False`.")
-        if not video_emb_cached and vae is None:
-            raise ValueError("`vae` must be provided when `video_emb_cached=False`.")
+        if not video_emb_cached and tae is None:
+            raise ValueError("`TAE` must be provided when `video_emb_cached=False`.")
 
         self.network = network
-        self.vae = vae
+        self.tae = tae
         self.text_encoder = text_encoder
-        self.scale_factor = scale_factor
+        self.scale_factor = scale_factor if tae is None else tae.scale_factor
+        self.shift_factor = shift_factor if tae is None else tae.shift_factor
         self.text_emb_cached = text_emb_cached
         self.video_emb_cached = video_emb_cached
 
-        if self.vae is not None:
-            for param in self.vae.trainable_params():
+        if self.tae is not None:
+            for param in self.tae.trainable_params():
                 param.requires_grad = False
 
         if self.text_encoder is not None:
@@ -54,8 +56,8 @@ class DiffusionWithLoss(nn.Cell):
         with no_grad():
             # (b c f h w) shape is expected. FIXME: remove this redundancy
             video_tokens = mint.permute(video_tokens, (0, 2, 1, 3, 4))
-            # FIXME: extract scale_factor from VAE and use it here
-            video_emb = ops.stop_gradient(self.vae.encode(video_tokens)[0]).to(ms.float32)
+            video_emb = ops.stop_gradient(self.tae.encode(video_tokens)[0]).to(ms.float32)
+            video_emb = (video_emb - self.shift_factor) * self.scale_factor
             video_emb = mint.permute(video_emb, (0, 2, 1, 3, 4))  # FIXME
         return video_emb
 

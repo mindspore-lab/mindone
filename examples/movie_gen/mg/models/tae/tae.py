@@ -66,6 +66,8 @@ class TemporalAutoencoder(nn.Cell):
     ):
         super().__init__()
         self.out_channels = config["z_channels"]
+        self.scale_factor = config["scaling_factor"]
+        self.shift_factor = config["shift_factor"]
 
         # encoder
         self.encoder = Encoder(**config)

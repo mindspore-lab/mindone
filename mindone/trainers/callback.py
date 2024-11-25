@@ -1,7 +1,7 @@
 import logging
 import os
 import time
-from typing import List
+from typing import List, Optional
 
 import mindspore as ms
 from mindspore.train.callback._callback import Callback, _handle_loss
@@ -35,7 +35,8 @@ class EvalSaveCallback(Callback):
         output_dir=None,
         ema=None,
         save_ema_only=True,
-        ckpt_save_policy="lastest_k",
+        ckpt_save_policy="latest_k",
+        monitor_metric: Optional[str] = None,
         ckpt_max_keep=10,
         step_mode=False,
         ckpt_save_interval=1,
@@ -85,6 +86,7 @@ class EvalSaveCallback(Callback):
 
         if self.is_main_device:
             self.ckpt_save_policy = ckpt_save_policy
+            self.monitor_metric = monitor_metric
             self.ckpt_manager = CheckpointManager(
                 ckpt_save_dir,
                 ckpt_save_policy,
@@ -159,8 +161,9 @@ class EvalSaveCallback(Callback):
 
                 append_dict = {"lora_rank": self.lora_rank} if self.use_lora else None
                 perf = cb_params.get("eval_results")
-                if perf:
-                    perf = perf["eval_loss_smoothed"]
+                if perf or self.ckpt_save_policy != "top_k":
+                    if perf:
+                        perf = perf[self.monitor_metric]
                     if self.ema is not None:
                         if not self.save_ema_only:
                             self.ckpt_manager.save(

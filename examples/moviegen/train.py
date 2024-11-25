@@ -63,7 +63,7 @@ def initialize_dataset(
             bucket_boundaries,
             bucket_batch_sizes,
             element_length_function=hash_func,
-            drop_remainder=dataloader_args.drop_remainder,
+            drop_remainder=dataloader_args["drop_remainder"],
         )
     return dataloader, len(dataset)
 
@@ -144,7 +144,7 @@ def main(args):
 
     # TODO: validation graph?
     # if bucketing is used in Graph mode, activate dynamic inputs
-    if mode == GRAPH_MODE and isinstance(args.dataset.batch_size, dict):
+    if mode == GRAPH_MODE and isinstance(args.dataloader.batch_size, dict):
         bs = Symbol(unique=True)
         video = Tensor(shape=[bs, None, 3, None, None], dtype=mstype.float32)
         # FIXME: fix sequence length
