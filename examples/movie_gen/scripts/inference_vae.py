@@ -13,11 +13,12 @@ import numpy as np
 
 from mindspore import nn, ops
 
+
 __dir__ = os.path.dirname(os.path.abspath(__file__))
 mindone_dir = os.path.abspath(os.path.join(__dir__, "../../../"))
 sys.path.insert(0, mindone_dir)
 
-# from ae.models.lpips import LPIPS
+
 from omegaconf import OmegaConf
 from PIL import Image
 from skimage.metrics import peak_signal_noise_ratio as calc_psnr
@@ -31,8 +32,9 @@ mindone_lib_path = os.path.abspath(os.path.join(__dir__, "../../../"))
 sys.path.insert(0, mindone_lib_path)
 sys.path.insert(0, os.path.abspath(os.path.join(__dir__, "..")))
 
-from opensora.datasets.vae_dataset import create_dataloader
-from opensora.models.vae.vae import SD_CONFIG, SDXL_CONFIG, OpenSoraVAE_V1_2, VideoAutoencoderKL
+from mg.datasets.tae_dataset import create_dataloader
+from mg.models.tae.tae import TemporalAutoencoder
+from mg.models.tae.lpips import LPIPS
 
 from mindone.utils.amp import auto_mixed_precision
 from mindone.utils.config import instantiate_from_config, str2bool
@@ -78,27 +80,36 @@ def visualize_video(recons, x=None, save_fn="tmp_vae3d_recons", fps=15):
         imageio.mimsave(save_fp, out, duration=1 / fps, loop=0)
 
 
+def rearrange_in(x):
+    b, c, t, h, w = x.shape
+    x = ops.transpose(x, (0, 2, 3, 4, 1))
+    x = ops.reshape(x, (b * t, h, w, c))
+    return x
+
+def rearrange_out(x, t):
+    bt, c, h, w = x.shape
+    b = bt // t
+    x = ops.reshape(x, (b, t, h, w, c))
+    x = ops.transpose(x, (0, 4, 1, 2, 3))
+    return x
+
+
 def main(args):
     ascend_config = {"precision_mode": "must_keep_origin_dtype"}
     ms.set_context(mode=args.mode, ascend_config=ascend_config)
     set_logger(name="", output_dir=args.output_path, rank=0)
 
     # build model
-    if args.use_temporal_vae:
-        model = OpenSoraVAE_V1_2(
-            micro_batch_size=4,
-            micro_frame_size=17,
-            ckpt_path=args.ckpt_path,
-            freeze_vae_2d=True,
+    model = TemporalAutoencoder(
+        pretrained=args.ckpt_path,
+        use_tile=args.enable_tile,
         )
-    else:
-        model = VideoAutoencoderKL(config=SDXL_CONFIG, ckpt_path=args.ckpt_path, micro_batch_size=4)
 
     model.set_train(False)
     logger.info(f"Loaded checkpoint from  {args.ckpt_path}")
 
-    # if args.eval_loss:
-    #    lpips_loss_fn = LPIPS()
+    if args.eval_loss:
+       lpips_loss_fn = LPIPS()
 
     if args.dtype != "fp32":
         amp_level = "O2"
@@ -155,13 +166,12 @@ def main(args):
     for step, data in tqdm(enumerate(ds_iter)):
         x = data["video"]
         start_time = time.time()
-
-        z = model.encode(x)
-        if not args.encode_only:
-            if args.use_temporal_vae:
-                recons = model.decode(z, num_frames=args.num_frames)
-            else:
-                recons = model.decode(z)
+        
+        if args.encode_only:
+            z = model.encode(x)
+        else:
+            # recons = model.decode(z)
+            recons, z, posterior_mean, posterior_logvar = model(x)
 
         # adapt to bf16
         recons = recons.to(ms.float32)
@@ -195,9 +205,14 @@ def main(args):
 
             if args.eval_loss:
                 recon_loss = np.abs((x - recons).asnumpy())
-                lpips_loss = lpips_loss_fn(x, recons).asnumpy()
+               
+                t = x.shape[2]
+                x = rearrange_in(x)
+                # lpips_loss = lpips_loss_fn(x, recons).asnumpy()
+
                 mean_recon += recon_loss.mean()
-                mean_lpips += lpips_loss.mean()
+                # mean_lpips += lpips_loss.mean()
+                logger.info(f"mean recon loss: {mean_recon/num_batches:.4f}")
 
             if args.save_vis:
                 save_fn = os.path.join(
@@ -223,9 +238,9 @@ def main(args):
 
         if args.eval_loss:
             mean_recon /= num_batches
-            mean_lpips /= num_batches
+            # mean_lpips /= num_batches
             logger.info(f"mean recon loss: {mean_recon:.4f}")
-            logger.info(f"mean lpips loss: {mean_lpips:.4f}")
+            # logger.info(f"mean lpips loss: {mean_lpips:.4f}")
 
 
 def parse_args():
@@ -271,6 +286,7 @@ def parse_args():
     parser.add_argument("--save_vis", default=True, type=str2bool, help="whether save reconstructed images")
     parser.add_argument("--use_temporal_vae", default=True, type=str2bool, help="if False, just use spatial vae")
     parser.add_argument("--encode_only", default=False, type=str2bool, help="only encode to save z or distribution")
+    parser.add_argument("--enable_tile", default=False, type=str2bool, help="enable temporal tiling with linear blending for decoder")
     parser.add_argument("--video_column", default="video", type=str, help="name of column for videos saved in csv file")
     parser.add_argument(
         "--mixed_strategy",
