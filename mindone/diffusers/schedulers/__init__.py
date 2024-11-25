@@ -48,6 +48,7 @@ _import_structure = {
     "scheduling_unipc_multistep": ["UniPCMultistepScheduler"],
     "scheduling_vq_diffusion": ["VQDiffusionScheduler"],
     "scheduling_utils": ["AysSchedules", "KarrasDiffusionSchedulers", "SchedulerMixin"],
+    "scheduling_cosine_dpmsolver_multistep" : ["CosineDPMSolverMultistepScheduler"],
 }
 
 if TYPE_CHECKING:
@@ -83,6 +84,7 @@ if TYPE_CHECKING:
     from .scheduling_unipc_multistep import UniPCMultistepScheduler
     from .scheduling_utils import AysSchedules, KarrasDiffusionSchedulers, SchedulerMixin
     from .scheduling_vq_diffusion import VQDiffusionScheduler
+    from .scheduling_cosine_dpmsolver_multistep import CosineDPMSolverMultistepScheduler
 
 else:
     import sys
