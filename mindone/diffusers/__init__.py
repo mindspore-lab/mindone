@@ -180,6 +180,7 @@ _import_structure = {
         "UniPCMultistepScheduler",
         "VQDiffusionScheduler",
         "SchedulerMixin",
+        "CosineDPMSolverMultistepScheduler",
     ],
     "utils": [
         "is_invisible_watermark_available",
@@ -355,6 +356,7 @@ if TYPE_CHECKING:
         UnCLIPScheduler,
         UniPCMultistepScheduler,
         VQDiffusionScheduler,
+        CosineDPMSolverMultistepScheduler,
     )
     from .utils import logging
 
