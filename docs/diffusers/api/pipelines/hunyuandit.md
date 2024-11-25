@@ -1,4 +1,4 @@
-<!--Copyright 2024 The HuggingFace Team. All rights reserved.
+<!--Copyright 2024 The HuggingFace Team and Tencent Hunyuan Team. All rights reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
 the License. You may obtain a copy of the License at
@@ -31,6 +31,10 @@ HunyuanDiT has the following components:
 !!! tip
 
     Make sure to check out the Schedulers [guide](../../using-diffusers/schedulers.md) to learn how to explore the tradeoff between scheduler speed and quality, and see the [reuse components across pipelines](../../using-diffusers/loading.md) section to learn how to efficiently load the same components into multiple pipelines.
+
+!!! tip
+
+    You can further improve generation quality by passing the generated image from [`HungyuanDiTPipeline`](#mindone.diffusers.HunyuanDiTPipeline) to the [SDXL refiner](../../using-diffusers/sdxl.md#base-to-refiner-model) model.
 
 ## Optimization
 

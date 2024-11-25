@@ -200,7 +200,7 @@ class VaeImageProcessor(ConfigMixin):
     def normalize(images: Union[np.ndarray, ms.Tensor]) -> Union[np.ndarray, ms.Tensor]:
         r"""
         Normalize an image array to [-1,1].
-        
+
         Args:
             images (`np.ndarray` or `ms.Tensor`):
                 The image array to normalize.
@@ -214,7 +214,7 @@ class VaeImageProcessor(ConfigMixin):
     def denormalize(images: Union[np.ndarray, ms.Tensor]) -> Union[np.ndarray, ms.Tensor]:
         r"""
         Denormalize an image array to [0,1].
-        
+
         Args:
             images (`np.ndarray` or `ms.Tensor`):
                 The image array to denormalize.
@@ -228,7 +228,7 @@ class VaeImageProcessor(ConfigMixin):
     def convert_to_rgb(image: PIL.Image.Image) -> PIL.Image.Image:
         r"""
         Converts a PIL image to RGB format.
-        
+
         Args:
             image (`PIL.Image.Image`):
                 The PIL image to convert to RGB.
@@ -260,7 +260,7 @@ class VaeImageProcessor(ConfigMixin):
     def blur(image: PIL.Image.Image, blur_factor: int = 4) -> PIL.Image.Image:
         r"""
         Applies Gaussian blur to an image.
-        
+
         Args:
             image (`PIL.Image.Image`):
                 The PIL image to convert to grayscale.
@@ -379,7 +379,7 @@ class VaeImageProcessor(ConfigMixin):
                 The width to resize the image to.
             height (`int`):
                 The height to resize the image to.
-        
+
         Returns:
             `PIL.Image.Image`:
                 The resized and filled image.
@@ -431,7 +431,7 @@ class VaeImageProcessor(ConfigMixin):
                 The width to resize the image to.
             height (`int`):
                 The height to resize the image to.
-        
+
         Returns:
             `PIL.Image.Image`:
                 The resized and cropped image.
@@ -538,7 +538,7 @@ class VaeImageProcessor(ConfigMixin):
                 The height of the preprocessed image. If `None`, the height of the `image` input will be used.
             width (`Optional[int]`, *optional*, defaults to `None`):
                 The width of the preprocessed image. If `None`, the width of the `image` input will be used.
-        
+
         Returns:
             `Tuple[int, int]`:
                 A tuple containing the height and width, both resized to the nearest integer multiple of
@@ -597,7 +597,7 @@ class VaeImageProcessor(ConfigMixin):
                 supported for PIL image input.
             crops_coords (`List[Tuple[int, int, int, int]]`, *optional*, defaults to `None`):
                 The crop coordinates for each image in the batch. If `None`, will not crop the image.
-        
+
         Returns:
             `ms.Tensor`:
                 The preprocessed image.
@@ -690,7 +690,6 @@ class VaeImageProcessor(ConfigMixin):
                 FutureWarning,
             )
             do_normalize = False
-
         if do_normalize:
             image = self.normalize(image)
 
@@ -773,7 +772,7 @@ class VaeImageProcessor(ConfigMixin):
                 The image to overlay onto the original.
             crop_coords (`Tuple[int, int, int, int]`, *optional*):
                 Coordinates to crop the image. If provided, the image will be cropped accordingly.
-        
+
         Returns:
             `PIL.Image.Image`:
                 The final image with the overlay applied.
@@ -948,7 +947,7 @@ class PixArtImageProcessor(VaeImageProcessor):
             height (`int`): The height of the image.
             width (`int`): The width of the image.
             ratios (`dict`): A dictionary where keys are aspect ratios and values are tuples of (height, width).
-        
+
         Returns:
             `Tuple[int, int]`: The closest binned height and width.
         """

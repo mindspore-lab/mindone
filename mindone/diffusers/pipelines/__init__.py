@@ -15,6 +15,11 @@ _import_structure = {
         "AutoPipelineForText2Image",
     ],
     "blip_diffusion": ["BlipDiffusionPipeline"],
+    "cogvideo": [
+        "CogVideoXPipeline",
+        "CogVideoXImageToVideoPipeline",
+        "CogVideoXVideoToVideoPipeline",
+    ],
     "consistency_models": ["ConsistencyModelPipeline"],
     "controlnet": [
         "BlipDiffusionControlNetPipeline",
@@ -44,6 +49,7 @@ _import_structure = {
         "IFSuperResolutionPipeline",
     ],
     "dit": ["DiTPipeline"],
+    "flux": ["FluxPipeline"],
     "hunyuandit": ["HunyuanDiTPipeline"],
     "i2vgen_xl": ["I2VGenXLPipeline"],
     "latent_diffusion": ["LDMSuperResolutionPipeline", "LDMTextToImagePipeline"],
@@ -104,6 +110,7 @@ _import_structure = {
     "stable_diffusion_3": [
         "StableDiffusion3Pipeline",
         "StableDiffusion3Img2ImgPipeline",
+        "StableDiffusion3InpaintPipeline",
     ],
     "stable_diffusion_gligen": [
         "StableDiffusionGLIGENPipeline",
@@ -138,6 +145,7 @@ if TYPE_CHECKING:
     from .animatediff import AnimateDiffPipeline, AnimateDiffSDXLPipeline, AnimateDiffVideoToVideoPipeline
     from .auto_pipeline import AutoPipelineForImage2Image, AutoPipelineForInpainting, AutoPipelineForText2Image
     from .blip_diffusion import BlipDiffusionPipeline
+    from .cogvideo import CogVideoXImageToVideoPipeline, CogVideoXPipeline, CogVideoXVideoToVideoPipeline
     from .consistency_models import ConsistencyModelPipeline
     from .controlnet import (
         BlipDiffusionControlNetPipeline,
@@ -161,6 +169,7 @@ if TYPE_CHECKING:
         IFSuperResolutionPipeline,
     )
     from .dit import DiTPipeline
+    from .flux import FluxPipeline
     from .hunyuandit import HunyuanDiTPipeline
     from .i2vgen_xl import I2VGenXLPipeline
     from .kandinsky import (
@@ -203,7 +212,11 @@ if TYPE_CHECKING:
         StableDiffusionPipeline,
         StableDiffusionUpscalePipeline,
     )
-    from .stable_diffusion_3 import StableDiffusion3Img2ImgPipeline, StableDiffusion3Pipeline
+    from .stable_diffusion_3 import (
+        StableDiffusion3Img2ImgPipeline,
+        StableDiffusion3InpaintPipeline,
+        StableDiffusion3Pipeline,
+    )
     from .stable_diffusion_diffedit import StableDiffusionDiffEditPipeline
     from .stable_diffusion_gligen import StableDiffusionGLIGENPipeline, StableDiffusionGLIGENTextImagePipeline
     from .stable_diffusion_xl import (

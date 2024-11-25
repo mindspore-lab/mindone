@@ -110,7 +110,7 @@ import mindspore as ms
 pipeline = StableDiffusionXLPipeline.from_pretrained("stabilityai/stable-diffusion-xl-base-1.0", mindspore_dtype=ms.float16)
 ```
 
-Then use the [`load_lora_weights`](https://mindspore-lab.github.io/mindone/latest/diffusers/api/loaders/lora/#mindone.diffusers.loaders.lora.LoraLoaderMixin.load_lora_weights) method to load the [ostris/super-cereal-sdxl-lora](https://huggingface.co/ostris/super-cereal-sdxl-lora) weights and specify the weights filename from the repository:
+Then use the [`load_lora_weights`](https://mindspore-lab.github.io/mindone/latest/diffusers/api/loaders/lora/#mindone.diffusers.loaders.lora_pipeline.StableDiffusionLoraLoaderMixin.load_lora_weights) method to load the [ostris/super-cereal-sdxl-lora](https://huggingface.co/ostris/super-cereal-sdxl-lora) weights and specify the weights filename from the repository:
 
 ```py
 pipeline.load_lora_weights("ostris/super-cereal-sdxl-lora", weight_name="cereal_box_sdxl_v1.safetensors")
@@ -123,7 +123,7 @@ image
     <img src="https://github.com/user-attachments/assets/e003982b-b9bc-4ad4-9bd5-b73fe00881e4" />
 </div>
 
-The [`load_lora_weights`](https://mindspore-lab.github.io/mindone/latest/diffusers/api/loaders/lora/#mindone.diffusers.loaders.lora.LoraLoaderMixin.load_lora_weights) method loads LoRA weights into both the UNet and text encoder. It is the preferred way for loading LoRAs because it can handle cases where:
+The [`load_lora_weights`](https://mindspore-lab.github.io/mindone/latest/diffusers/api/loaders/lora/#mindone.diffusers.loaders.lora_pipeline.StableDiffusionLoraLoaderMixin.load_lora_weights) method loads LoRA weights into both the UNet and text encoder. It is the preferred way for loading LoRAs because it can handle cases where:
 
 - the LoRA weights don't have separate identifiers for the UNet and text encoder
 - the LoRA weights have separate identifiers for the UNet and text encoder
@@ -147,7 +147,7 @@ image
     <img src="https://github.com/user-attachments/assets/5ff1f072-dac4-4b4e-9af2-b526ef02fc43" />
 </div>
 
-To unload the LoRA weights, use the [`unload_lora_weights`](https://mindspore-lab.github.io/mindone/latest/diffusers/api/loaders/lora/#mindone.diffusers.loaders.lora.LoraLoaderMixin.unload_lora_weights) method to discard the LoRA weights and restore the model to its original weights:
+To unload the LoRA weights, use the [`unload_lora_weights`](https://mindspore-lab.github.io/mindone/latest/diffusers/api/loaders/lora/#mindone.diffusers.loaders.lora_pipeline.StableDiffusionLoraLoaderMixin.unload_lora_weights) method to discard the LoRA weights and restore the model to its original weights:
 
 ```py
 pipeline.unload_lora_weights()
@@ -155,9 +155,9 @@ pipeline.unload_lora_weights()
 
 ### Adjust LoRA weight scale
 
-For both [`load_lora_weights`](https://mindspore-lab.github.io/mindone/latest/diffusers/api/loaders/lora/#mindone.diffusers.loaders.lora.LoraLoaderMixin.load_lora_weights) and [`load_attn_procs`](https://mindspore-lab.github.io/mindone/latest/diffusers/api/loaders/unet/#mindone.diffusers.loaders.unet.UNet2DConditionLoadersMixin.load_attn_procs), you can pass the `cross_attention_kwargs={"scale": 0.5}` parameter to adjust how much of the LoRA weights to use. A value of `0` is the same as only using the base model weights, and a value of `1` is equivalent to using the fully finetuned LoRA.
+For both [`load_lora_weights`](https://mindspore-lab.github.io/mindone/latest/diffusers/api/loaders/lora/#mindone.diffusers.loaders.lora_pipeline.StableDiffusionLoraLoaderMixin.load_lora_weights) and [`load_attn_procs`](https://mindspore-lab.github.io/mindone/latest/diffusers/api/loaders/unet/#mindone.diffusers.loaders.unet.UNet2DConditionLoadersMixin.load_attn_procs), you can pass the `cross_attention_kwargs={"scale": 0.5}` parameter to adjust how much of the LoRA weights to use. A value of `0` is the same as only using the base model weights, and a value of `1` is equivalent to using the fully finetuned LoRA.
 
-For more granular control on the amount of LoRA weights used per layer, you can use [`set_adapters`](https://mindspore-lab.github.io/mindone/latest/diffusers/api/loaders/lora/#mindone.diffusers.loaders.lora.LoraLoaderMixin.set_adapters) and pass a dictionary specifying by how much to scale the weights in each layer by.
+For more granular control on the amount of LoRA weights used per layer, you can use [`set_adapters`](https://mindspore-lab.github.io/mindone/latest/diffusers/api/loaders/lora/#mindone.diffusers.loaders.lora_pipeline.StableDiffusionLoraLoaderMixin.set_adapters) and pass a dictionary specifying by how much to scale the weights in each layer by.
 ```python
 pipe = ... # create pipeline
 pipe.load_lora_weights(..., adapter_name="my_adapter")
@@ -180,7 +180,7 @@ This also works with multiple adapters - see [this guide](https://mindspore-lab.
 
 !!! warning
 
-    Currently, [`set_adapters`](https://mindspore-lab.github.io/mindone/latest/diffusers/api/loaders/lora/#mindone.diffusers.loaders.lora.LoraLoaderMixin.set_adapters) only supports scaling attention weights. If a LoRA has other parts (e.g., resnets or down-/upsamplers), they will keep a scale of 1.0.
+    Currently, [`set_adapters`](https://mindspore-lab.github.io/mindone/latest/diffusers/api/loaders/lora/#mindone.diffusers.loaders.lora_pipeline.StableDiffusionLoraLoaderMixin.set_adapters) only supports scaling attention weights. If a LoRA has other parts (e.g., resnets or down-/upsamplers), they will keep a scale of 1.0.
 
 ### Kohya and TheLastBen
 
@@ -194,7 +194,7 @@ Other popular LoRA trainers from the community include those by [Kohya](https://
     !wget https://civitai.com/api/download/models/168776 -O blueprintify-sd-xl-10.safetensors
     ```
 
-    Load the LoRA checkpoint with the [`load_lora_weights`](https://mindspore-lab.github.io/mindone/latest/diffusers/api/loaders/lora/#mindone.diffusers.loaders.lora.LoraLoaderMixin.load_lora_weights) method, and specify the filename in the `weight_name` parameter:
+    Load the LoRA checkpoint with the [`load_lora_weights`](https://mindspore-lab.github.io/mindone/latest/diffusers/api/loaders/lora/#mindone.diffusers.loaders.lora_pipeline.StableDiffusionLoraLoaderMixin.load_lora_weights) method, and specify the filename in the `weight_name` parameter:
 
     ```py
     from mindone.diffusers import StableDiffusionXLPipeline
@@ -218,7 +218,7 @@ Other popular LoRA trainers from the community include those by [Kohya](https://
         Some limitations of using Kohya LoRAs with 🤗 Diffusers include:
 
         - Images may not look like those generated by UIs - like ComfyUI - for multiple reasons, which are explained [here](https://github.com/huggingface/diffusers/pull/4287/#issuecomment-1655110736).
-        - [LyCORIS checkpoints](https://github.com/KohakuBlueleaf/LyCORIS) aren't fully supported. The [`load_lora_weights`](https://mindspore-lab.github.io/mindone/latest/diffusers/api/loaders/lora/#mindone.diffusers.loaders.lora.LoraLoaderMixin.load_lora_weights) method loads LyCORIS checkpoints with LoRA and LoCon modules, but Hada and LoKR are not supported.
+        - [LyCORIS checkpoints](https://github.com/KohakuBlueleaf/LyCORIS) aren't fully supported. The [`load_lora_weights`](https://mindspore-lab.github.io/mindone/latest/diffusers/api/loaders/lora/#mindone.diffusers.loaders.lora_pipeline.StableDiffusionLoraLoaderMixin.load_lora_weights) method loads LyCORIS checkpoints with LoRA and LoCon modules, but Hada and LoKR are not supported.
 
 === "TheLastBen"
 

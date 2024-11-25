@@ -71,9 +71,7 @@ class IPAdapterMixin:
             force_download (`bool`, *optional*, defaults to `False`):
                 Whether or not to force the (re-)download of the model weights and configuration files, overriding the
                 cached versions if they exist.
-            resume_download:
-                Deprecated and ignored. All downloads are now resumed by default when possible. Will be removed in v1
-                of Diffusers.
+
             proxies (`Dict[str, str]`, *optional*):
                 A dictionary of proxy servers to use by protocol or endpoint, for example, `{'http': 'foo.bar:3128',
                 'http://hostname': 'foo.bar:4012'}`. The proxies are used on each request.
@@ -111,7 +109,6 @@ class IPAdapterMixin:
         # Load the main state dict first.
         cache_dir = kwargs.pop("cache_dir", None)
         force_download = kwargs.pop("force_download", False)
-        resume_download = kwargs.pop("resume_download", None)
         proxies = kwargs.pop("proxies", None)
         local_files_only = kwargs.pop("local_files_only", None)
         token = kwargs.pop("token", None)
@@ -127,7 +124,6 @@ class IPAdapterMixin:
                     weights_name=weight_name,
                     cache_dir=cache_dir,
                     force_download=force_download,
-                    resume_download=resume_download,
                     proxies=proxies,
                     local_files_only=local_files_only,
                     token=token,
@@ -283,7 +279,13 @@ class IPAdapterMixin:
 
         # remove hidden encoder
         self.unet.encoder_hid_proj = None
-        self.config.encoder_hid_dim_type = None
+        self.unet.config.encoder_hid_dim_type = None
+
+        # Kolors: restore `encoder_hid_proj` with `text_encoder_hid_proj`
+        if hasattr(self.unet, "text_encoder_hid_proj") and self.unet.text_encoder_hid_proj is not None:
+            self.unet.encoder_hid_proj = self.unet.text_encoder_hid_proj
+            self.unet.text_encoder_hid_proj = None
+            self.unet.config.encoder_hid_dim_type = "text_proj"
 
         # restore original Unet attention processors layers
         attn_procs = {}

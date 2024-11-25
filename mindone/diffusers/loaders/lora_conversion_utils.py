@@ -360,7 +360,7 @@ def _convert_kohya_flux_lora_to_diffusers(state_dict):
 
         ait_sd[ait_key + ".lora_A.weight"] = down_weight * scale_down
         ait_sd[ait_key + ".lora_B.weight"] = sds_sd.pop(sds_key + ".lora_up.weight") * scale_up
-    
+
     def _convert_to_ai_toolkit_cat(sds_sd, ait_sd, sds_key, ait_keys, dims=None):
         if sds_key + ".lora_down.weight" not in sds_sd:
             return
@@ -417,14 +417,16 @@ def _convert_kohya_flux_lora_to_diffusers(state_dict):
             ait_sd.update({k: v for k, v in zip(ait_up_keys, ops.split(up_weight, dims, axis=0))})  # noqa: C416
         else:
             # down_weight is chunked to each split
-            ait_sd.update({k: v for k, v in zip(ait_down_keys, ops.chunk(down_weight, num_splits, axis=0))})  # noqa: C416
+            ait_sd.update(
+                {k: v for k, v in zip(ait_down_keys, ops.chunk(down_weight, num_splits, axis=0))}
+            )  # noqa: C416
 
             # up_weight is sparse: only non-zero values are copied to each split
             i = 0
             for j in range(len(dims)):
                 ait_sd[ait_up_keys[j]] = up_weight[i : i + dims[j], j * ait_rank : (j + 1) * ait_rank]
                 i += dims[j]
-    
+
     def _convert_sd_scripts_to_ai_toolkit(sds_sd):
         ait_sd = {}
         for i in range(19):
