@@ -98,7 +98,7 @@ class StableAudioDiTBlock(nn.Cell):
         super().__init__()
         # Define 3 blocks. Each block has its own normalization layer.
         # 1. Self-Attn
-        self.norm1 = nn.LayerNorm(dim, elementwise_affine=True, eps=norm_eps)
+        self.norm1 = nn.LayerNorm((dim,), epsilon=norm_eps)
         self.attn1 = Attention(
             query_dim=dim,
             heads=num_attention_heads,
@@ -111,7 +111,7 @@ class StableAudioDiTBlock(nn.Cell):
         )
 
         # 2. Cross-Attn
-        self.norm2 = nn.LayerNorm(dim, norm_eps, True)
+        self.norm2 = nn.LayerNorm((dim,), norm_eps, True)
 
         self.attn2 = Attention(
             query_dim=dim,
@@ -127,7 +127,7 @@ class StableAudioDiTBlock(nn.Cell):
         )  # is self-attn if encoder_hidden_states is none
 
         # 3. Feed-forward
-        self.norm3 = nn.LayerNorm(dim, norm_eps, True)
+        self.norm3 = nn.LayerNorm((dim,), norm_eps, True)
         self.ff = FeedForward(
             dim,
             dropout=dropout,
@@ -237,19 +237,19 @@ class StableAudioDiTModel(ModelMixin, ConfigMixin):
             set_W_to_weight=False,
         )
 
-        self.timestep_proj = nn.Sequential(
+        self.timestep_proj = nn.SequentialCell(
             nn.Dense(time_proj_dim, self.inner_dim, has_bias=True),
             nn.SiLU(),
             nn.Dense(self.inner_dim, self.inner_dim, has_bias=True),
         )
 
-        self.global_proj = nn.Sequential(
+        self.global_proj = nn.SequentialCell(
             nn.Dense(global_states_input_dim, self.inner_dim, has_bias=False),
             nn.SiLU(),
             nn.Dense(self.inner_dim, self.inner_dim, has_bias=False),
         )
 
-        self.cross_attention_proj = nn.Sequential(
+        self.cross_attention_proj = nn.SequentialCell(
             nn.Dense(cross_attention_input_dim, cross_attention_dim, has_bias=False),
             nn.SiLU(),
             nn.Dense(cross_attention_dim, cross_attention_dim, has_bias=False),

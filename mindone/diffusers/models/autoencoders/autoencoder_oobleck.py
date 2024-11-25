@@ -112,9 +112,9 @@ class OobleckResidualUnit(nn.Cell):
         pad = ((7 - 1) * dilation) // 2
 
         self.snake1 = Snake1d(dimension)
-        self.conv1 = weight_norm(nn.Conv1d(dimension, dimension, kernel_size=7, dilation=dilation, padding=pad))
+        self.conv1 = WeightNorm(nn.Conv1d(dimension, dimension, kernel_size=7, dilation=dilation, padding=pad))
         self.snake2 = Snake1d(dimension)
-        self.conv2 = weight_norm(nn.Conv1d(dimension, dimension, kernel_size=1))
+        self.conv2 = WeightNorm(nn.Conv1d(dimension, dimension, kernel_size=1))
 
     def construct(self, hidden_state):
         """
@@ -149,7 +149,7 @@ class OobleckEncoderBlock(nn.Cell):
         self.res_unit2 = OobleckResidualUnit(input_dim, dilation=3)
         self.res_unit3 = OobleckResidualUnit(input_dim, dilation=9)
         self.snake1 = Snake1d(input_dim)
-        self.conv1 = weight_norm(
+        self.conv1 = WeightNorm(
             nn.Conv1d(input_dim, output_dim, kernel_size=2 * stride, stride=stride, padding=math.ceil(stride / 2))
         )
 
@@ -169,7 +169,7 @@ class OobleckDecoderBlock(nn.Cell):
         super().__init__()
 
         self.snake1 = Snake1d(input_dim)
-        self.conv_t1 = weight_norm(
+        self.conv_t1 = WeightNorm(
             nn.ConvTranspose1d(
                 input_dim,
                 output_dim,
@@ -270,7 +270,7 @@ class OobleckEncoder(nn.Cell):
         channel_multiples = [1] + channel_multiples
 
         # Create first convolution
-        self.conv1 = weight_norm(nn.Conv1d(audio_channels, encoder_hidden_size, kernel_size=7, padding=3))
+        self.conv1 = WeightNorm(nn.Conv1d(audio_channels, encoder_hidden_size, kernel_size=7, pad_mode='pad', padding=3))
 
         self.block = []
         # Create EncoderBlocks that double channels as they downsample by `stride`
@@ -286,7 +286,7 @@ class OobleckEncoder(nn.Cell):
         self.block = nn.CellList(self.block)
         d_model = encoder_hidden_size * channel_multiples[-1]
         self.snake1 = Snake1d(d_model)
-        self.conv2 = weight_norm(nn.Conv1d(d_model, encoder_hidden_size, kernel_size=3, padding=1))
+        self.conv2 = WeightNorm(nn.Conv1d(d_model, encoder_hidden_size, kernel_size=3, padding=1))
 
     def construct(self, hidden_state):
         hidden_state = self.conv1(hidden_state)
@@ -310,7 +310,7 @@ class OobleckDecoder(nn.Cell):
         channel_multiples = [1] + channel_multiples
 
         # Add first conv layer
-        self.conv1 = weight_norm(nn.Conv1d(input_channels, channels * channel_multiples[-1], kernel_size=7, padding=3))
+        self.conv1 = WeightNorm(nn.Conv1d(input_channels, channels * channel_multiples[-1], kernel_size=7, padding=3))
 
         # Add upsampling + MRF blocks
         block = []
@@ -326,7 +326,7 @@ class OobleckDecoder(nn.Cell):
         self.block = nn.CellList(block)
         output_dim = channels
         self.snake1 = Snake1d(output_dim)
-        self.conv2 = weight_norm(nn.Conv1d(channels, audio_channels, kernel_size=7, padding=3, bias=False))
+        self.conv2 = WeightNorm(nn.Conv1d(channels, audio_channels, kernel_size=7, padding=3, bias=False))
 
     def construct(self, hidden_state):
         hidden_state = self.conv1(hidden_state)
