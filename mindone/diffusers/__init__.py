@@ -18,6 +18,7 @@ _import_structure = {
         "AsymmetricAutoencoderKL",
         "AutoencoderKL",
         "AutoencoderKLTemporalDecoder",
+        "AutoencoderOobleck",
         "AutoencoderTiny",
         "ConsistencyDecoderVAE",
         "ControlNetModel",
