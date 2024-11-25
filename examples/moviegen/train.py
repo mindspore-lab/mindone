@@ -28,9 +28,10 @@ from mindone.trainers.callback import EvalSaveCallback, OverflowMonitor, StopAtS
 from mindone.trainers.zero import prepare_train_network
 from mindone.utils import count_params, init_train_env, set_logger
 
-# TODO: remove when VAE is added to the project
-sys.path.append(os.path.join(__dir__, "../opensora_hpcai/"))
-from opensora.models.vae.vae import OpenSoraVAE_V1_2
+# TODO: remove when TAE is added to the project
+sys.path.append(os.path.join(__dir__, "../movie_gen/"))
+from mg.models.tae.modules import SpatialDownsample, SpatialUpsample, TemporalDownsample, TemporalUpsample
+from mg.models.tae.tae import TemporalAutoencoder
 
 logger = logging.getLogger(__name__)
 
@@ -55,23 +56,28 @@ def main(args):
     initializer = parser.instantiate_classes(cfg)
 
     # 2. model initialize and weight loading
-    # 2.1 VAE
-    logger.info("vae init")
+    # 2.1 TAE
+    logger.info("TAE init")
     # TODO: add support of training with latents
-    vae_args = args.vae.as_dict()
-    vae_dtype = vae_args.pop("dtype")
-    vae = OpenSoraVAE_V1_2(**vae_args).set_train(False)
-    if vae_dtype != "fp32":
+    tae_args = args.tae.as_dict()
+    tae_dtype = tae_args.pop("dtype")
+    tae = TemporalAutoencoder(**tae_args).set_train(False)
+    if tae_dtype != "fp32":
         # FIXME: remove AMP and add custom dtype conversion support for better compatibility with PyNative
-        amp.custom_mixed_precision(vae, black_list=amp.get_black_list() + [nn.GroupNorm], dtype=MODEL_DTYPE[vae_dtype])
+        amp.custom_mixed_precision(
+            tae,
+            black_list=amp.get_black_list()
+            + [SpatialDownsample, SpatialUpsample, TemporalDownsample, TemporalUpsample, nn.GroupNorm],
+            dtype=MODEL_DTYPE[tae_dtype],
+        )
 
     # 2.2 Llama 3
-    network = init_model(in_channels=vae.out_channels, **args.model)
+    network = init_model(in_channels=tae.out_channels, **args.model)
     # 2.3 LossWrapper
     rflow_loss_wrapper = RFlowLossWrapper(network)
 
     # 3. build training network
-    latent_diffusion_with_loss = DiffusionWithLoss(rflow_loss_wrapper, vae)
+    latent_diffusion_with_loss = DiffusionWithLoss(rflow_loss_wrapper, tae)
 
     # 4. build dataset
     dataset = ImageVideoDataset(**args.dataset)
@@ -92,7 +98,7 @@ def main(args):
             val_dataset, transforms=transforms, device_num=device_num, rank_id=shard_rank_id, **args.valid.dataloader
         )
         eval_rflow_loss = RFlowEvalLoss(rflow_loss_wrapper, num_sampling_steps=args.valid.sampling_steps)
-        eval_diffusion_with_loss = DiffusionWithLoss(eval_rflow_loss, vae)
+        eval_diffusion_with_loss = DiffusionWithLoss(eval_rflow_loss, tae)
 
     # 5. build training utils: lr, optim, callbacks, trainer
     # 5.1 LR
@@ -157,10 +163,10 @@ def main(args):
 
     # 5.5 print out key info and save config
     if rank_id == 0:
-        num_params_vae, num_params_trainable_vae = count_params(vae)
+        num_params_tae, num_params_trainable_tae = count_params(tae)
         num_params_network, num_params_trainable_network = count_params(network)
-        num_params = num_params_vae + num_params_network
-        num_params_trainable = num_params_trainable_vae + num_params_trainable_network
+        num_params = num_params_tae + num_params_network
+        num_params_trainable = num_params_trainable_tae + num_params_trainable_network
         key_info = "Key Settings:\n" + "=" * 50 + "\n"
         key_info += "\n".join(
             [
@@ -172,8 +178,8 @@ def main(args):
                 f"Number of samples: {len(dataset)}",
                 f"Model name: {args.model.name}",
                 f"Model dtype: {args.model.dtype}",
-                f"VAE dtype: {args.vae.dtype}",
-                f"Num params: {num_params:,} (network: {num_params_network:,}, vae: {num_params_vae:,})",
+                f"TAE dtype: {args.tae.dtype}",
+                f"Num params: {num_params:,} (network: {num_params_network:,}, tae: {num_params_tae:,})",
                 f"Num trainable params: {num_params_trainable:,}",
                 f"Learning rate: {args.train.lr_scheduler.lr:.0e}",
                 f"Batch size: {args.dataloader.batch_size}",
@@ -209,9 +215,9 @@ if __name__ == "__main__":
     )
     parser.add_function_arguments(init_train_env, "env")
     parser.add_function_arguments(init_model, "model", skip={"in_channels"})
-    parser.add_function_arguments(OpenSoraVAE_V1_2, "vae", fail_untyped=False)
+    parser.add_class_arguments(TemporalAutoencoder, "tae", instantiate=False)
     parser.add_argument(
-        "--vae.dtype", default="fp32", type=str, choices=["fp32", "fp16", "bf16"], help="VAE model precision."
+        "--tae.dtype", default="fp32", type=str, choices=["fp32", "fp16", "bf16"], help="TAE model precision."
     )
     parser.add_class_arguments(
         ImageVideoDataset, "dataset", skip={"frames_mask_generator", "t_compress_func"}, instantiate=False

@@ -12,9 +12,10 @@ model:
   recompute: True
   dtype: bf16
 
-vae:
-  ckpt_path: models/OpenSora-VAE-v1.2/model.ckpt
-  dtype: fp16
+tae:
+  pretrained: ""
+  use_tile: True
+  dtype: bf16
 
 dataset:
   csv_path: CSV_PATH

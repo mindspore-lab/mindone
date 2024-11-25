@@ -55,7 +55,7 @@ class DiffusionWithLoss(nn.Cell):
             # (b c f h w) shape is expected. FIXME: remove this redundancy
             video_tokens = mint.permute(video_tokens, (0, 2, 1, 3, 4))
             # FIXME: extract scale_factor from VAE and use it here
-            video_emb = ops.stop_gradient(self.vae.encode(video_tokens)).to(ms.float32)
+            video_emb = ops.stop_gradient(self.vae.encode(video_tokens)[0]).to(ms.float32)
             video_emb = mint.permute(video_emb, (0, 2, 1, 3, 4))  # FIXME
         return video_emb
 

@@ -11,9 +11,10 @@ model:
   enable_flash_attention: True
   dtype: bf16
 
-vae:
-  ckpt_path: models/OpenSora-VAE-v1.2/model.ckpt
-  dtype: fp16
+tae:
+  pretrained: ""
+  use_tile: True
+  dtype: bf16
 
 # Inference parameters
 num_sampling_steps: 50
