@@ -49,6 +49,7 @@ def t2i_modulate(x: Tensor, shift: Tensor, scale: Tensor) -> Tensor:
 
 
 class LlamaDecoderLayer(nn.Cell):
+    @ms.lazy_inline(policy="front")
     def __init__(
         self,
         hidden_size: int = 4096,

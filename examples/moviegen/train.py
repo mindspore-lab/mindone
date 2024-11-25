@@ -2,12 +2,15 @@ import logging
 import os
 import re
 import sys
-from math import ceil
+from typing import Tuple, Union
 
 from jsonargparse import ActionConfigFile, ArgumentParser
 from jsonargparse.typing import path_type
 
-from mindspore import Model, amp, nn, set_seed
+from mindspore import GRAPH_MODE, Model, Symbol, Tensor, amp
+from mindspore import dtype as mstype
+from mindspore import get_context, nn, set_seed
+from mindspore.dataset import BatchDataset, BucketBatchByLengthDataset
 from mindspore.train.callback import TimeMonitor
 
 # TODO: remove in future when mindone is ready for install
@@ -15,7 +18,7 @@ __dir__ = os.path.dirname(os.path.abspath(__file__))
 mindone_lib_path = os.path.abspath(os.path.join(__dir__, "../../"))
 sys.path.append(mindone_lib_path)
 
-from moviegen.dataset import ImageVideoDataset
+from moviegen.dataset import ImageVideoDataset, bucket_split_function
 from moviegen.parallel import create_parallel_group
 from moviegen.pipelines import DiffusionWithLoss
 from moviegen.schedulers import RFlowEvalLoss, RFlowLossWrapper
@@ -36,11 +39,41 @@ from mg.models.tae.tae import TemporalAutoencoder
 logger = logging.getLogger(__name__)
 
 
+def initialize_dataset(
+    dataset_args, dataloader_args, device_num: int, shard_rank_id: int
+) -> Tuple[Union[BatchDataset, BucketBatchByLengthDataset], int]:
+    dataset = ImageVideoDataset(**dataset_args)
+    transforms = (
+        dataset.train_transforms(dataset_args.target_size) if not dataset_args.apply_transforms_dataset else None
+    )
+    dataloader_args = dataloader_args.as_dict()
+    batch_size = dataloader_args.pop("batch_size")
+    dataloader = create_dataloader(
+        dataset,
+        batch_size=batch_size if isinstance(batch_size, int) else 0,  # Turn off batching if using buckets
+        transforms=transforms,
+        device_num=device_num,
+        rank_id=shard_rank_id,
+        **dataloader_args,
+    )
+    if isinstance(batch_size, dict):  # if buckets are used
+        hash_func, bucket_boundaries, bucket_batch_sizes = bucket_split_function(**batch_size)
+        dataloader = dataloader.bucket_batch_by_length(
+            ["video"],
+            bucket_boundaries,
+            bucket_batch_sizes,
+            element_length_function=hash_func,
+            drop_remainder=dataloader_args.drop_remainder,
+        )
+    return dataloader, len(dataset)
+
+
 def main(args):
     # 1. init env
     args.train.output_path = args.train.output_path.absolute
     os.makedirs(args.train.output_path, exist_ok=True)
     device_id, rank_id, device_num = init_train_env(**args.env)
+    mode = get_context("mode")  # `init_train_env()` may change the mode during debugging
 
     # 1.1 init model parallel
     shard_rank_id = rank_id
@@ -79,30 +112,19 @@ def main(args):
     # 3. build training network
     latent_diffusion_with_loss = DiffusionWithLoss(rflow_loss_wrapper, tae)
 
-    # 4. build dataset
-    dataset = ImageVideoDataset(**args.dataset)
-    transforms = (
-        dataset.train_transforms(args.dataset.target_size) if not args.dataset.apply_transforms_dataset else None
-    )
-    dataloader = create_dataloader(
-        dataset, transforms=transforms, device_num=device_num, rank_id=shard_rank_id, **args.dataloader
-    )
+    # 4. build train & val datasets
+    dataloader, dataset_len = initialize_dataset(args.dataset, args.dataloader, device_num, shard_rank_id)
 
     eval_diffusion_with_loss, val_dataloader = None, None
     if args.valid.dataset is not None:
-        val_dataset = ImageVideoDataset(**args.valid.dataset.init_args)
-        transforms = None
-        if not args.valid.dataset.init_args.apply_transforms_dataset:
-            transforms = val_dataset.train_transforms(args.valid.dataset.init_args.target_size)
-        val_dataloader = create_dataloader(
-            val_dataset, transforms=transforms, device_num=device_num, rank_id=shard_rank_id, **args.valid.dataloader
+        val_dataloader, _ = initialize_dataset(
+            args.valid.dataset.init_args, args.valid.dataloader, device_num, shard_rank_id
         )
         eval_rflow_loss = RFlowEvalLoss(rflow_loss_wrapper, num_sampling_steps=args.valid.sampling_steps)
         eval_diffusion_with_loss = DiffusionWithLoss(eval_rflow_loss, tae)
 
     # 5. build training utils: lr, optim, callbacks, trainer
     # 5.1 LR
-    epochs = ceil(args.train.steps / dataloader.get_dataset_size())
     lr = create_scheduler(steps_per_epoch=0, **args.train.lr_scheduler)
 
     # 5.2 optimizer
@@ -119,6 +141,17 @@ def main(args):
         need_reduce=tuple(bool(re.search(r"layers\.(\d+)\.mlp", param.name)) for param in optimizer.parameters),
         **args.train.settings,
     )
+
+    # TODO: validation graph?
+    # if bucketing is used in Graph mode, activate dynamic inputs
+    if mode == GRAPH_MODE and isinstance(args.dataset.batch_size, dict):
+        bs = Symbol(unique=True)
+        video = Tensor(shape=[bs, None, 3, None, None], dtype=mstype.float32)
+        # FIXME: fix sequence length
+        ul2_emb = Tensor(shape=[bs, 300, 4096], dtype=mstype.float32)
+        byt5_emb = Tensor(shape=[bs, 100, 1472], dtype=mstype.float32)
+        net_with_grads.set_inputs(video, ul2_emb, byt5_emb)
+        logger.info("Dynamic inputs are initialized for bucket config training in Graph mode.")
 
     model = Model(net_with_grads)
 
@@ -170,12 +203,12 @@ def main(args):
         key_info = "Key Settings:\n" + "=" * 50 + "\n"
         key_info += "\n".join(
             [
-                f"MindSpore mode[GRAPH(0)/PYNATIVE(1)]: {args.env.mode}",
+                f"MindSpore mode[GRAPH(0)/PYNATIVE(1)]: {mode}",
                 f"Debug mode: {args.env.debug}",
                 f"JIT level: {args.env.jit_level}",
                 f"Distributed mode: {args.env.distributed}",
                 f"Data path: {args.dataset.csv_path}",
-                f"Number of samples: {len(dataset)}",
+                f"Number of samples: {dataset_len}",
                 f"Model name: {args.model.name}",
                 f"Model dtype: {args.model.dtype}",
                 f"TAE dtype: {args.tae.dtype}",
@@ -202,7 +235,8 @@ def main(args):
 
     # 6. train
     logger.info("Start training...")
-    model.train(epochs, dataloader, callbacks=callbacks)
+    # train() uses epochs, so the training will be terminated by the StopAtStepCallback
+    model.train(args.train.steps, dataloader, callbacks=callbacks)
 
 
 if __name__ == "__main__":

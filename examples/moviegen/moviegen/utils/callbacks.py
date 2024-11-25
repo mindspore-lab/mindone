@@ -1,7 +1,7 @@
 import logging
 import os
 import time
-from typing import List, Literal, Optional
+from typing import List, Literal, Optional, Union
 
 import numpy as np
 import pandas as pd
@@ -10,7 +10,7 @@ from mindspore import Callback, Parameter, ReduceLROnPlateau, RunContext, Tensor
 from mindspore import dtype as mstype
 from mindspore import mint, nn, ops
 from mindspore.communication import GlobalComm, get_group_size
-from mindspore.dataset import GeneratorDataset
+from mindspore.dataset import BatchDataset, BucketBatchByLengthDataset, GeneratorDataset
 from mindspore.ops import functional as F
 
 from mindone.trainers.ema import EMA
@@ -26,7 +26,7 @@ class ValidationCallback(Callback):
 
     Args:
         network (nn.Cell): The neural network model to be validated.
-        dataset (GeneratorDataset): The dataset to use for validation.
+        dataset (BatchDataset, BucketBatchByLengthDataset, GeneratorDataset): The dataset to use for validation.
         alpha_smooth (float, optional): The smoothing factor for the loss. Defaults to 0.01.
         valid_frequency (int, optional): The frequency of validation in terms of training steps.
                                          Defaults to 100.
@@ -43,7 +43,7 @@ class ValidationCallback(Callback):
     def __init__(
         self,
         network: nn.Cell,
-        dataset: GeneratorDataset,
+        dataset: Union[BatchDataset, BucketBatchByLengthDataset, GeneratorDataset],
         alpha_smooth: float = 0.01,
         valid_frequency: int = 100,
         ema: Optional[EMA] = None,
