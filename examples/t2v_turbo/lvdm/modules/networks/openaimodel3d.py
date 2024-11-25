@@ -741,11 +741,11 @@ class UNetModel(nn.Cell):
             emb += self.fps_embedding(fps_emb)
 
         b, _, t, _, _ = x.shape
-        ## repeat t times for context [(b t) 77 768] & time embedding
+        # repeat t times for context [(b t) 77 768] & time embedding
         context = context.repeat_interleave(repeats=t, dim=0)
         emb = emb.repeat_interleave(repeats=t, dim=0)
 
-        ## always in shape (b t) c h w, except for temporal layer
+        # always in shape (b t) c h w, except for temporal layer
         # x = rearrange(x, "b c t h w -> (b t) c h w")
         x = rearrange_out_gn5d(x)
 
@@ -756,7 +756,7 @@ class UNetModel(nn.Cell):
             h = module(h, emb=emb, context=context, batch_size=b)
             if id == 0 and self.addition_attention:
                 h = self.init_attn(h, emb=emb, context=context, batch_size=b)
-            ## plug-in adapter features
+            # plug-in adapter features
             if ((id + 1) % 3 == 0) and features_adapter is not None:
                 h = h + features_adapter[adapter_idx]
                 adapter_idx += 1

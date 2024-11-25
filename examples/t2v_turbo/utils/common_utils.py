@@ -9,8 +9,6 @@ from mindspore import mint, nn, ops
 
 from mindone.diffusers.models.attention_processor import AttnProcessor
 
-# import wandb
-
 
 def extract_into_tensor(a, t, x_shape):
     b, *_ = t.shape
@@ -149,8 +147,6 @@ def create_optim_params(name="param", params=None, lr=5e-6, extra_params=None):
 
 
 def create_optimizer_params(model_list, lr):
-    import itertools
-
     optimizer_params = []
 
     for optim in model_list:
@@ -249,20 +245,8 @@ def log_validation_video(pipeline, args, trackers, save_fps):
         videos = (videos * 255).to(ms.uint8).permute(0, 2, 1, 3, 4).cpu().numpy()
         video_logs.append({"validation_prompt": prompt, "videos": videos})
 
-    for tracker in trackers:
-        if tracker.name == "wandb":
-            formatted_videos = []
-            for log in video_logs:
-                videos = log["videos"]
-                validation_prompt = log["validation_prompt"]
-                for video in videos:
-                    video = wandb.Video(video, caption=validation_prompt, fps=save_fps)
-                    formatted_videos.append(video)
-
-            tracker.log({f"validation": formatted_videos})
-
-        del pipeline
-        gc.collect()
+    del pipeline
+    gc.collect()
 
 
 def tuple_type(s):

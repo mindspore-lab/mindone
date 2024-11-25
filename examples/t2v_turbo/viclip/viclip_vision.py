@@ -10,8 +10,6 @@ from timm.models.registry import register_model
 import mindspore as ms
 from mindspore import nn, ops
 
-# from models.utils import load_temp_embed_with_mismatch
-
 logger = logging.getLogger(__name__)
 
 
@@ -32,7 +30,7 @@ def load_temp_embed_with_mismatch(temp_embed_old, temp_embed_new, add_zero=True)
         if add_zero:
             temp_embed_new[:, :num_frms_old] = temp_embed_old  # untrained embeddings are zeros.
         else:
-            temp_embed_new = interpolate_temporal_pos_embed(temp_embed_old, num_frms_new)
+            temp_embed_new = interpolate_pos_embed_vit(temp_embed_old, num_frms_new)
     elif num_frms_new < num_frms_old:
         temp_embed_new = temp_embed_old[:, :num_frms_new]
     else:  # =
@@ -251,9 +249,7 @@ def load_state_dict(model, state_dict, input_resolution=224, patch_size=16, cent
         extra_tokens = pos_embed_checkpoint[:1]
         pos_tokens = pos_embed_checkpoint[1:]
         pos_tokens = pos_tokens.reshape(-1, orig_size, orig_size, embedding_size).permute(0, 3, 1, 2)
-        pos_tokens = ops.interpolate(
-            pos_tokens, size=(new_size, new_size), mode="bicubic", align_corners=False
-        )
+        pos_tokens = ops.interpolate(pos_tokens, size=(new_size, new_size), mode="bicubic", align_corners=False)
         pos_tokens = pos_tokens.permute(0, 2, 3, 1).flatten(0, 2)
         new_pos_embed = ops.cat((extra_tokens, pos_tokens), dim=0)
         state_dict["positional_embedding"] = new_pos_embed
@@ -338,22 +334,6 @@ def clip_joint_l14(
 @register_model
 def clip_joint_l14_336(pretrained=True, input_resolution=336, kernel_size=1, center=True, num_frames=8, drop_path=0.0):
     raise NotImplementedError
-    model = VisionTransformer(
-        input_resolution=input_resolution,
-        patch_size=14,
-        width=1024,
-        layers=24,
-        heads=16,
-        output_dim=768,
-        kernel_size=kernel_size,
-        num_frames=num_frames,
-        drop_path=drop_path,
-    )
-    if pretrained:
-        logger.info("load pretrained weights")
-        state_dict = torch.load(_MODELS["ViT-L/14_336"], map_location="cpu")
-        load_state_dict(model, state_dict, input_resolution=input_resolution, patch_size=14, center=center)
-    return model.eval()
 
 
 def interpolate_pos_embed_vit(state_dict, new_model):
@@ -401,4 +381,3 @@ if __name__ == "__main__":
     s = time.time()
     logger.info(flop_count_table(flops, max_depth=1))
     logger.info(time.time() - s)
-    # logger.info(model(torch.rand(1, 3, num_frames, 224, 224)).shape)

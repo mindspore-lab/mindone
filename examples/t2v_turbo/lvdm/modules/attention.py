@@ -79,7 +79,7 @@ class CrossAttention(nn.Cell):
             self.relative_position_k = RelativePosition(num_units=dim_head, max_relative_position=temporal_length)
             self.relative_position_v = RelativePosition(num_units=dim_head, max_relative_position=temporal_length)
         else:
-            ## only used for spatial attention, while NOT for temporal attention
+            # only used for spatial attention, while NOT for temporal attention
             if XFORMERS_IS_AVAILBLE and temporal_length is None:
                 self.forward = self.efficient_forward
 
@@ -112,7 +112,7 @@ class CrossAttention(nn.Cell):
 
         k_ip, v_ip, out_ip = None, None, None
 
-        ## considering image token additionally
+        # considering image token additionally
         if context is not None and self.img_cross_attention:
             context, context_img = (
                 context[:, : self.text_context_len, :],
@@ -144,7 +144,7 @@ class CrossAttention(nn.Cell):
             sim += sim2
 
         if exists(mask):
-            ## feasible for causal attention mask only
+            # feasible for causal attention mask only
             max_neg_value = -np.finfo(sim.dtype).max
             # mask = repeat(mask, "b i j -> (b h) i j", h=h)
             mask = mask.repeat_interleave(h, 0)
@@ -164,7 +164,7 @@ class CrossAttention(nn.Cell):
         # out = rearrange(out, "(b h) n d -> b n (h d)", h=h)
         out = self._rearrange_out(out, h)
 
-        ## considering image token additionally
+        # considering image token additionally
         if context is not None and self.img_cross_attention:
             # k_ip, v_ip = map(
             #     lambda t: rearrange(t, "b n (h d) -> (b h) n d", h=h), (k_ip, v_ip)
@@ -186,7 +186,7 @@ class CrossAttention(nn.Cell):
         q = self.to_q(x)
         context = default(context, x)
 
-        ## considering image token additionally
+        # considering image token additionally
         if context is not None and self.img_cross_attention:
             context, context_img = (
                 context[:, : self.text_context_len, :],
@@ -212,7 +212,7 @@ class CrossAttention(nn.Cell):
         # actually compute the attention, what we cannot get enough of
         out = xformers.ops.memory_efficient_attention(q, k, v, attn_bias=None, op=None)
 
-        ## considering image token additionally
+        # considering image token additionally
         if context is not None and self.img_cross_attention:
             k_ip, v_ip = map(
                 lambda t: t.unsqueeze(3)
@@ -474,7 +474,7 @@ class TemporalTransformer(nn.Cell):
             mask = mask.repeat_interleave(b * h * w, 0)
 
         if self.only_self_att:
-            ## note: if no context is given, cross-attention defaults to self-attention
+            # note: if no context is given, cross-attention defaults to self-attention
             for i, block in enumerate(self.transformer_blocks):
                 if block.checkpoint:
                     x = recompute(block, x, mask=mask)
@@ -494,12 +494,12 @@ class TemporalTransformer(nn.Cell):
             for i, block in enumerate(self.transformer_blocks):
                 # calculate each batch one by one (since number in shape could not greater then 65,535 for some package)
                 for j in range(b):
-                    rep = (h * w) // context_j.shape[0]
-                    context_j = context_j.repeat_interleave(rep, 0)
+                    rep = (h * w) // context[j].shape[0]
+                    context_j = context[j].repeat_interleave(rep, 0)
                     # context_j = repeat(
                     #     context[j], "t l con -> (t r) l con", r=(h * w) // t, t=t
                     # ).contiguous()
-                    ## note: causal mask will not applied in cross-attention case
+                    # note: causal mask will not applied in cross-attention case
                     if block.checkpoint:
                         x[j] = recompute(block, x[j], context=context_j)
                     else:
@@ -552,26 +552,6 @@ class LinearAttention(nn.Cell):
         hidden_dim = dim_head * heads
         self.to_qkv = nn.Conv2d(dim, hidden_dim * 3, 1, has_bias=False)
         self.to_out = nn.Conv2d(hidden_dim, dim, 1)
-
-    def _rearrange_in(self, x, heads):
-        # b (qkv heads c) h w -> qkv b heads c (h w)
-        b, _, h, w = x.shape
-        d = d // h
-
-        x = ops.reshape(x, (b, n, h, d))
-        x = ops.transpose(x, (0, 2, 1, 3))
-        x = ops.reshape(x, (b * h, n, d))
-        return x
-
-    def construct(self, x):
-        b, c, h, w = x.shape
-        qkv = self.to_qkv(x)
-        q, k, v = rearrange(qkv, "b (qkv heads c) h w -> qkv b heads c (h w)", heads=self.heads, qkv=3)
-        k = k.softmax(axis=-1)
-        context = torch.einsum("bhdn,bhen->bhde", k, v)
-        out = torch.einsum("bhde,bhdn->bhen", context, q)
-        out = rearrange(out, "b heads c (h w) -> b (heads c) h w", heads=self.heads, h=h, w=w)
-        return self.to_out(out)
 
 
 class SpatialSelfAttention(nn.Cell):

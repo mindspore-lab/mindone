@@ -1,9 +1,5 @@
 import logging
 
-from typing import Tuple
-
-import numpy as np
-
 import mindspore as ms
 
 from .xbert import BertConfig, BertForMaskedLM, BertLMHeadModel, BertModel
@@ -42,7 +38,7 @@ def build_bert(model_config, pretrain, checkpoint, encoder_width=None, dtype=ms.
                 output_loading_info=True,
                 local_files_only=True,
             )
-        except:
+        except Exception:
             text_encoder, loading_info = BertForMaskedLM.from_pretrained(
                 model_config.text_encoder.pretrained,
                 config=bert_config,
@@ -58,7 +54,7 @@ def build_bert(model_config, pretrain, checkpoint, encoder_width=None, dtype=ms.
                 output_loading_info=True,
                 local_files_only=True,
             )
-        except:
+        except Exception:
             text_encoder, loading_info = BertModel.from_pretrained(
                 model_config.text_encoder.pretrained,
                 config=bert_config,

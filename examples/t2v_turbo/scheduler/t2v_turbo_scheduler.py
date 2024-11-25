@@ -22,7 +22,7 @@ from typing import List, Optional, Tuple, Union
 import numpy as np
 
 import mindspore as ms
-from mindspore import mint, nn, ops
+from mindspore import mint, ops
 
 from mindone.diffusers import ConfigMixin, SchedulerMixin
 from mindone.diffusers.configuration_utils import register_to_config
@@ -98,10 +98,10 @@ def rescale_zero_terminal_snr(betas):
     """
     Rescales betas to have zero terminal SNR Based on https://arxiv.org/pdf/2305.08891.pdf (Algorithm 1)
     Args:
-        betas (`torch.FloatTensor`):
+        betas (`mindspore.Tensor`):
             the betas that the scheduler is being initialized with.
     Returns:
-        `torch.FloatTensor`: rescaled betas with zero terminal SNR
+        `mindspore.Tensor`: rescaled betas with zero terminal SNR
     """
     # Convert betas to alphas_bar_sqrt
     alphas = 1.0 - betas
@@ -202,9 +202,9 @@ class T2VTurboScheduler(SchedulerMixin, ConfigMixin):
         assert beta_schedule == "scaled_linear"
         assert trained_betas is None
         if trained_betas is not None:
-            self.betas = torch.tensor(trained_betas, dtype=torch.float32)
+            self.betas = ms.Tensor(trained_betas, dtype=ms.float32)
         elif beta_schedule == "linear":
-            self.betas = torch.linspace(linear_start, linear_end, num_train_timesteps, dtype=torch.float32)
+            self.betas = ops.linspace(linear_start, linear_end, num_train_timesteps, dtype=ms.float32)
         elif beta_schedule == "scaled_linear":
             # this schedule is very specific to the latent diffusion model.
             self.betas = (
@@ -246,12 +246,12 @@ class T2VTurboScheduler(SchedulerMixin, ConfigMixin):
         Ensures interchangeability with schedulers that need to scale the denoising model input depending on the
         current timestep.
         Args:
-            sample (`torch.FloatTensor`):
+            sample (`mindspore.Tensor`):
                 The input sample.
             timestep (`int`, *optional*):
                 The current timestep in the diffusion chain.
         Returns:
-            `torch.FloatTensor`:
+            `mindspore.Tensor`:
                 A scaled input sample.
         """
         return sample
@@ -355,11 +355,11 @@ class T2VTurboScheduler(SchedulerMixin, ConfigMixin):
         Predict the sample from the previous timestep by reversing the SDE. This function propagates the diffusion
         process from the learned model outputs (most often the predicted noise).
         Args:
-            model_output (`torch.FloatTensor`):
+            model_output (`mindspore.Tensor`):
                 The direct output from learned diffusion model.
             timestep (`float`):
                 The current discrete timestep in the diffusion chain.
-            sample (`torch.FloatTensor`):
+            sample (`mindspore.Tensor`):
                 A current instance of a sample created by the diffusion process.
             eta (`float`):
                 The weight of noise for added noise in diffusion step.
@@ -368,9 +368,9 @@ class T2VTurboScheduler(SchedulerMixin, ConfigMixin):
                 because predicted original sample is clipped to [-1, 1] when `self.config.clip_sample` is `True`. If no
                 clipping has happened, "corrected" `model_output` would coincide with the one provided as input and
                 `use_clipped_model_output` has no effect.
-            generator (`torch.Generator`, *optional*):
+            generator (`mindspore.Generator`, *optional*):
                 A random number generator.
-            variance_noise (`torch.FloatTensor`):
+            variance_noise (`mindspore.Tensor`):
                 Alternative to generating noise with `generator` by directly providing the noise for the variance
                 itself. Useful for methods such as [`CycleDiffusion`].
             return_dict (`bool`, *optional*, defaults to `True`):

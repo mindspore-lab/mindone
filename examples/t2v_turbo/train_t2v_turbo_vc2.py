@@ -37,16 +37,15 @@ from ode_solver import DDIMSolver
 from pipeline.lcd_with_loss import LCDWithLoss
 from reward_fn import get_reward_fn
 from scheduler.t2v_turbo_scheduler import T2VTurboScheduler
+from utils.checkpoint import CheckpointManager
 from utils.common_utils import load_model_checkpoint
 from utils.env import init_env
-from utils.lora import save_lora_weight
 from utils.lora_handler import LoraHandler
 from utils.utils import freeze_params, instantiate_from_config
 
 from examples.t2v_turbo.configs.train_args import parse_args
 from mindone.diffusers.models.autoencoders.vae import DiagonalGaussianDistribution
 from mindone.diffusers.training_utils import set_seed
-from mindone.trainers.checkpoint import CheckpointManager
 from mindone.trainers.ema import EMA
 from mindone.trainers.lr_schedule import create_scheduler
 from mindone.trainers.optim import create_optimizer
@@ -373,7 +372,7 @@ def main(args):
 
     if rank_id == 0:
         ckpt_folder = args.output_dir + "/ckpt"
-        ckpt_manager = CheckpointManager(ckpt_folder, "latest_k", k=5)
+        ckpt_manager = CheckpointManager(ckpt_folder, "latest_k", k=5, lora_manager=lora_manager)
         if not os.path.exists(args.output_dir):
             os.makedirs(args.output_dir)
             os.makedirs(ckpt_folder)
@@ -418,8 +417,7 @@ def main(args):
             if ema is not None:
                 ema.swap_before_eval()
 
-            save_lora_weight(lcd_with_loss.unet, ckpt_folder + "/" + ckpt_name, lora_manager.unet_replace_modules)
-            # ckpt_manager.save(lcd_with_loss.unet, None, ckpt_name=ckpt_name, append_dict=None)
+            ckpt_manager.save(lcd_with_loss.unet, None, ckpt_name=ckpt_name, lora_manager=lora_manager)
             if ema is not None:
                 ema.swap_after_eval()
 

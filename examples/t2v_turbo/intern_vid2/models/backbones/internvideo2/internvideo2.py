@@ -360,6 +360,7 @@ class Block(nn.Cell):
         self.norm2 = norm_layer((dim,))
         mlp_hidden_dim = int(dim * mlp_ratio)
         if use_fused_mlp:
+            raise Exception("Sorry, FusedMLP is not supported yet.")
             self.mlp = FusedMLP(in_features=dim, hidden_features=mlp_hidden_dim, heuristic=fused_mlp_heuristic)
         else:
             self.mlp = Mlp(in_features=dim, hidden_features=mlp_hidden_dim, act_layer=act_layer, drop=drop)
@@ -502,6 +503,7 @@ class PretrainInternVideo2(nn.Cell):
         logger.info(f"Strudent Return Index: {self.return_index}")
 
         if use_fused_rmsnorm:
+            raise Exception("Sorry, DropoutAddRMSNorm is not supported yet.")
             norm_layer_for_blocks = partial(DropoutAddRMSNorm, eps=1e-6, prenorm=True)
         else:
             norm_layer_for_blocks = partial(RMSNorm, eps=1e-6)
@@ -882,8 +884,6 @@ def pretrain_internvideo2_6b_patch14_224(config):
 
 
 if __name__ == "__main__":
-    import time
-
     import numpy as np
 
     seed = 4217

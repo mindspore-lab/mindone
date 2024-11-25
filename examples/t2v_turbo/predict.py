@@ -53,7 +53,6 @@ def main(args):
     set_logger(name="", output_dir=save_dir)
 
     dtype_map = {"fp32": ms.float32, "fp16": ms.float16, "bf16": ms.bfloat16}
-    dtype = dtype_map[args.dtype]
 
     latent_dir = os.path.join(args.output_path, "denoised_latents")
     if args.save_latent:
@@ -92,7 +91,7 @@ def main(args):
         unet_dir = args.unet_dir
         t2v_dir = os.path.join(MODEL_CACHE, "VideoCrafter2_model_ms.ckpt")
     else:
-        print(f"checkpoints does not exist, downloading ...")
+        print("checkpoints does not exist, downloading ...")
         DownLoad().download_and_extract_archive(url=MODEL_URL, download_path=MODEL_CACHE)
         convert_weights(MODEL_CACHE)
         unet_dir = os.path.join(MODEL_CACHE, "unet_lora.ckpt")

@@ -330,7 +330,7 @@ def inject_trainable_lora(
     require_grad_params = []
     names = []
 
-    if loras != None:
+    if loras is not None:
         loras = load_lora_from_pkl(loras, to_param=True)
 
     for _module, fullname, name, _child_module in _find_modules(model, target_replace_module, search_class=[nn.Dense]):
@@ -358,7 +358,7 @@ def inject_trainable_lora(
         require_grad_params.append(_module._cells[name].lora_up.get_parameters())
         require_grad_params.append(_module._cells[name].lora_down.get_parameters())
 
-        if loras != None:
+        if loras is not None:
             _module._cells[name].lora_up.weight = loras.pop(0)
             _module._cells[name].lora_down.weight = loras.pop(0)
 
@@ -384,7 +384,7 @@ def inject_trainable_lora_extended(
 
     # target_replace_module = [getattr(model, m) for m in target_replace_module]
 
-    if loras != None:
+    if loras is not None:
         loras = load_lora_from_pkl(loras)
 
     for _module, fullname, name, _child_module in _find_modules(
@@ -461,7 +461,7 @@ def inject_trainable_lora_extended(
         require_grad_params.append(_module._cells[name].lora_up.get_parameters())
         require_grad_params.append(_module._cells[name].lora_down.get_parameters())
 
-        if loras != None:
+        if loras is not None:
             param = loras.pop(0)
             _module._cells[name].lora_up.weight.set_data(param)
 
@@ -486,7 +486,6 @@ def inject_inferable_lora(
     is_extended=False,
     r=16,
 ):
-    from mindone.diffusers import UNet3DConditionModel
     from mindone.transformers import CLIPTextModel
 
     def is_text_model(f):
@@ -1084,7 +1083,6 @@ def apply_learned_embed_in_clip(
         embeds = learned_embeds[token]
 
         # cast to dtype of text_encoder
-        dtype = text_encoder.get_input_embeddings().weight.dtype
         num_added_tokens = tokenizer.add_tokens(token)
 
         i = 1

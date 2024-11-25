@@ -1,8 +1,6 @@
 import argparse
 import os
 
-from utils.common_utils import tuple_type
-
 from mindone.utils.config import str2bool
 
 

@@ -3,8 +3,6 @@ import logging
 import os
 from collections import OrderedDict
 
-import torch.utils.checkpoint as checkpoint
-
 import mindspore as ms
 from mindspore import nn, ops
 
@@ -75,7 +73,7 @@ class Transformer(nn.Cell):
     def construct(self, x: ms.Tensor):
         if self.checkpoint_num > 0:
             segments = min(self.checkpoint_num, len(self.resblocks))
-            return checkpoint.checkpoint_sequential(self.resblocks, segments, x)
+            return ms.recompute(self.resblocks, segments, x)
         else:
             return self.resblocks(x)
 
@@ -137,7 +135,6 @@ class CLIP_TEXT(nn.Cell):
         Returns
         -------
         A two-dimensional tensor containing the resulting tokens, shape = [number of input strings, context_length].
-        We return LongTensor when torch version is <1.8.0, since older index_select requires indices to be long.
         """
         if isinstance(texts, str):
             texts = [texts]
@@ -194,11 +191,7 @@ def clip_text_b16(
         transformer_layers,
         checkpoint_num,
     )
-    # pretrained = _MODELS["ViT-B/16"]
-    # logger.info(f"Load pretrained weights from {pretrained}")
-    # state_dict = torch.load(pretrained, map_location='cpu')
-    # model.load_state_dict(state_dict, strict=False)
-    # return model.eval()
+
     if pretrained:
         if isinstance(pretrained, str) and pretrained != "bert-base-uncased":
             pretrained = _MODELS[pretrained]
@@ -278,12 +271,6 @@ def clip_text_l14_336(
     transformer_layers=12,
 ):
     raise NotImplementedError
-    model = CLIP_TEXT(embed_dim, context_length, vocab_size, transformer_width, transformer_heads, transformer_layers)
-    pretrained = _MODELS["ViT-L/14_336"]
-    logger.info(f"Load pretrained weights from {pretrained}")
-    state_dict = torch.load(pretrained, map_location="cpu")
-    model.load_state_dict(state_dict, strict=False)
-    return model.eval()
 
 
 def build_clip(config):

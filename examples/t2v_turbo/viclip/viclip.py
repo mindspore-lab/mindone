@@ -1,9 +1,9 @@
 import logging
-import math
 import os
 
-import mindspore as ms
 from mindpspore import nn, ops
+
+import mindspore as ms
 
 from .simple_tokenizer import SimpleTokenizer as _Tokenizer
 from .viclip_text import clip_text_b16, clip_text_l14
@@ -56,7 +56,7 @@ class ViCLIP(nn.Cell):
         else:
             raise NotImplementedError(f"Size {size} not implemented")
 
-        self.text_encoder_pretrained = False  #'bert-base-uncased'
+        self.text_encoder_pretrained = False  # 'bert-base-uncased'
         self.text_encoder_d_model = 768
 
         self.text_encoder_vocab_size = 49408
@@ -105,14 +105,12 @@ class ViCLIP(nn.Cell):
         vision_embeds = self.encode_vision(image)
         text_embeds = self.encode_text(raw_text)
         if return_sims:
-            sims = ops.normalize(vision_embeds, dim=-1) @ ops.normalize(
-                text_embeds, dim=-1
-            ).transpose(0, 1)
+            sims = ops.normalize(vision_embeds, dim=-1) @ ops.normalize(text_embeds, dim=-1).transpose(0, 1)
             return sims
 
         # calculate loss
 
-        ## VTC loss
+        # VTC loss
         loss_vtc = self.clip_loss.vtc_loss(vision_embeds, text_embeds, idx, self.temp, all_gather=True)
 
         return dict(

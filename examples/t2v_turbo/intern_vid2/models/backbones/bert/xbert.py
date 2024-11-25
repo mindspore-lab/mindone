@@ -16,7 +16,6 @@
 """ BERT model. """
 
 import inspect
-import math
 import os
 import sys
 import warnings
@@ -745,7 +744,7 @@ class BertEncoder(nn.Cell):
 
                     return custom_forward
 
-                layer_outputs = torch.utils.checkpoint.checkpoint(
+                layer_outputs = ms.recompute(
                     create_custom_forward(layer_module),
                     hidden_states,
                     attention_mask,

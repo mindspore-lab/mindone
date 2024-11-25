@@ -55,52 +55,6 @@ def normalize(tensor, mean, std):
     return tensor
 
 
-def get_pick_score_fn(precision="fp32"):
-    """
-    Loss function for PICK SCORE
-    """
-    print("Loading PICK SCORE model")
-
-    model = AutoModel.from_pretrained("yuvalkirstain/PickScore_v1").eval()
-    processor = AutoProcessor.from_pretrained("laion/CLIP-ViT-H-14-laion2B-s32B-b79K")
-    freeze_params(model)
-    if precision == "fp16":
-        model.to_float(ms.float16)
-
-    def score_fn(image_inputs: ms.Tensor, text_inputs: str, return_logits=False):
-        image_transforms = transforms.Compose(
-            [
-                CLIP_RESIZE,
-                CENTER_CROP,
-                CLIP_NORMALIZE,
-            ]
-        )
-        pixel_values = image_transforms(image_inputs)
-
-        # embed
-        image_embs = model.get_image_features(pixel_values=pixel_values)
-        image_embs = image_embs / ops.norm(image_embs, dim=-1, keepdim=True)
-
-        with ms._no_grad():
-            preprocessed = processor(
-                text=text_inputs,
-                padding=True,
-                truncation=True,
-                max_length=77,
-                return_tensors="pt",
-            )
-            text_embs = model.get_text_features(**preprocessed)
-            text_embs = text_embs / ops.norm(text_embs, dim=-1, keepdim=True)
-
-        # Get predicted scores from model(s)
-        score = (text_embs * image_embs).sum(-1)
-        if return_logits:
-            score = score * model.logit_scale.exp()
-        return score
-
-    return score_fn
-
-
 def get_hpsv2_fn(precision="no", rm_ckpt_dir="HPS_v2_compressed.ckpt"):
     assert precision in ["bf16", "fp16", "fp32"]
     dtype = {"bf16": "bfloat16", "fp16": "float16", "no": "float32"}[precision]
@@ -461,9 +415,7 @@ def get_intern_vid2_score_fn(rm_ckpt_dir: str, precision="amp", n_frames=8):
 
 
 def get_reward_fn(reward_fn_name: str, **kwargs):
-    if reward_fn_name == "pick":
-        return get_pick_score_fn(**kwargs)
-    elif reward_fn_name == "hpsv2":
+    if reward_fn_name == "hpsv2":
         return get_hpsv2_fn(**kwargs)
     elif reward_fn_name == "img_reward":
         return get_img_reward_fn(**kwargs)

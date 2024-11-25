@@ -198,6 +198,7 @@ class ClipImageEmbedder(nn.Cell):
     def __init__(
         self,
         model,
+        pretrained_ckpt_path="open_clip_vit_h_14-9bb07a10.ckpt",
         jit=False,
         antialias=True,
         ucg_rate=0.0,
@@ -310,7 +311,7 @@ class FrozenOpenCLIPEmbedder(AbstractEncoder):
         return self(text)
 
 
-class FrozenOpenCLIPImageEmbedder(AbstractEncoder):
+class FrozenOpenCLIPImageEmbedder(ClipImageEmbedder):
     """
     Uses the OpenCLIP vision transformer encoder for images
     """
@@ -347,20 +348,6 @@ class FrozenOpenCLIPImageEmbedder(AbstractEncoder):
         self.std = ms.Tensor([0.26862954, 0.26130258, 0.27577711])
         self.ucg_rate = ucg_rate
 
-    def preprocess(self, x):
-        # normalize to [0,1]
-        x = kornia.geometry.resize(
-            x,
-            (224, 224),
-            interpolation="bicubic",
-            align_corners=True,
-            antialias=self.antialias,
-        )
-        x = (x + 1.0) / 2.0
-        # renormalize according to clip
-        x = kornia.enhance.normalize(x, self.mean, self.std)
-        return x
-
     def freeze(self):
         self.model.set_train(False)
         for param in self.parameters():
@@ -382,7 +369,7 @@ class FrozenOpenCLIPImageEmbedder(AbstractEncoder):
         return self(text)
 
 
-class FrozenOpenCLIPImageEmbedderV2(AbstractEncoder):
+class FrozenOpenCLIPImageEmbedderV2(ClipImageEmbedder):
     """
     Uses the OpenCLIP vision transformer encoder for images
     """
@@ -411,20 +398,6 @@ class FrozenOpenCLIPImageEmbedderV2(AbstractEncoder):
         self.antialias = antialias
         self.mean = ms.Tensor([0.48145466, 0.4578275, 0.40821073])
         self.std = ms.Tensor([0.26862954, 0.26130258, 0.27577711])
-
-    def preprocess(self, x):
-        # normalize to [0,1]
-        x = kornia.geometry.resize(
-            x,
-            (224, 224),
-            interpolation="bicubic",
-            align_corners=True,
-            antialias=self.antialias,
-        )
-        x = (x + 1.0) / 2.0
-        # renormalize according to clip
-        x = kornia.enhance.normalize(x, self.mean, self.std)
-        return x
 
     def freeze(self):
         self.model.set_train(False)

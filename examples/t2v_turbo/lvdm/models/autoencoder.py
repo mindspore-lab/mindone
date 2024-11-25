@@ -83,7 +83,7 @@ class AutoencoderKL(nn.Cell):
         try:
             self._cur_epoch = sd["epoch"]
             sd = sd["state_dict"]
-        except:
+        except Exception:
             self._cur_epoch = "null"
         keys = list(sd.keys())
         for k in keys:

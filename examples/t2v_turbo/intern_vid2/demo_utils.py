@@ -1,5 +1,4 @@
 import gc
-import io
 import os
 
 import cv2
@@ -8,20 +7,9 @@ from intern_vid2.models.backbones.bert.builder import build_bert
 from intern_vid2.models.backbones.bert.tokenization_bert import BertTokenizer
 from intern_vid2.models.backbones.internvideo2 import pretrain_internvideo2_1b_patch14_224
 from intern_vid2.models.backbones.internvideo2.pos_embed import interpolate_pos_embed_internvideo2_new
-from intern_vid2.models.criterions import get_sim
 
 import mindspore as ms
 from mindspore import mint, nn
-
-
-def _frame_from_video(video):
-    while video.isOpened():
-        success, frame = video.read()
-        if success:
-            yield frame
-        else:
-            break
-
 
 v_mean = np.array([0.485, 0.456, 0.406]).reshape(1, 1, 3)
 v_std = np.array([0.229, 0.224, 0.225]).reshape(1, 1, 3)

@@ -1,7 +1,7 @@
 import numpy as np
 
 import mindspore as ms
-from mindspore import mint, nn, ops
+from mindspore import mint, ops
 
 
 class AbstractDistribution:

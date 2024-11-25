@@ -6,7 +6,7 @@ import cv2
 import numpy as np
 
 import mindspore as ms
-from mindspore import mint, nn
+from mindspore import nn
 
 
 def _get_subcell(mod: nn.Cell, target: str) -> "nn.Cell":
@@ -96,27 +96,3 @@ def resize_numpy_image(image, max_resolution=512 * 512, resize_short_edge=None):
     w = int(np.round(w * k / 64)) * 64
     image = cv2.resize(image, (w, h), interpolation=cv2.INTER_LANCZOS4)
     return image
-
-
-def setup_dist(args):
-    if dist.is_initialized():
-        return
-    torch.cuda.set_device(args.local_rank)
-    torch.distributed.init_process_group("nccl", init_method="env://")
-
-
-def save_videos(batch_tensors, savedir, filenames, fps=16):
-    # b,samples,c,t,h,w
-    n_samples = batch_tensors.shape[1]
-    for idx, vid_tensor in enumerate(batch_tensors):
-        video = vid_tensor.detach().cpu()
-        video = mint.clamp(video.float(), -1.0, 1.0)
-        video = video.permute(2, 0, 1, 3, 4)  # t,n,c,h,w
-        frame_grids = [
-            torchvision.utils.make_grid(framesheet, nrow=int(n_samples)) for framesheet in video
-        ]  # [3, 1*h, n*w]
-        grid = mint.stack(frame_grids, dim=0)  # stack in temporal dim [t, 3, n*h, w]
-        grid = (grid + 1.0) / 2.0
-        grid = (grid * 255).to(ms.uint8).permute(0, 2, 3, 1)
-        savepath = os.path.join(savedir, f"{filenames[idx]}.mp4")
-        torchvision.io.write_video(savepath, grid, fps=fps, video_codec="h264", options={"crf": "10"})

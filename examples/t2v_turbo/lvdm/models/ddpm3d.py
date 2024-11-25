@@ -21,7 +21,6 @@ from lvdm.distributions import DiagonalGaussianDistribution
 from lvdm.ema import LitEma
 from lvdm.models.utils_diffusion import make_beta_schedule
 from lvdm.modules.encoders.ip_resampler import ImageProjModel, Resampler
-
 from utils.utils import instantiate_from_config
 
 import mindspore as ms
@@ -252,7 +251,7 @@ class DDPM(nn.Cell):
         return model_mean, posterior_variance, posterior_log_variance
 
     def p_sample(self, x, t, clip_denoised=True, repeat_noise=False):
-        b, *_, device = *x.shape, x.device
+        b = x.shape[0]
         model_mean, _, model_log_variance = self.p_mean_variance(x=x, t=t, clip_denoised=clip_denoised)
         noise = noise_like(x.shape, repeat_noise)
         # no noise when t == 0
@@ -260,9 +259,8 @@ class DDPM(nn.Cell):
         return model_mean + nonzero_mask * (0.5 * model_log_variance).exp() * noise
 
     def p_sample_loop(self, shape, return_intermediates=False):
-        device = self.betas.device
         b = shape[0]
-        img = ops.randn(shape, device=device)
+        img = ops.randn(shape)
         intermediates = [img]
         for i in tqdm(
             reversed(range(0, self.num_timesteps)),
@@ -271,7 +269,7 @@ class DDPM(nn.Cell):
         ):
             img = self.p_sample(
                 img,
-                ops.full((b,), i, device=device, dtype=ms.int32),
+                ops.full((b,), i, dtype=ms.int32),
                 clip_denoised=self.clip_denoised,
             )
             if i % self.log_every_t == 0 or i == self.num_timesteps - 1:
@@ -354,7 +352,6 @@ class LatentDiffusion(DDPM):
             scale_arr1 = np.linspace(scale_a, scale_b, mid_step)
             scale_arr2 = np.full(scale_step, scale_b)
             scale_arr = np.concatenate((scale_arr1, scale_arr2))
-            scale_arr_prev = np.append(scale_a, scale_arr[:-1])
             to_ms = partial(ms.Tensor, dtype=self.dtype)
             self.scale_arr = to_ms(scale_arr)
 
@@ -584,7 +581,7 @@ class LatentDiffusion(DDPM):
         corrector_kwargs=None,
         **kwargs,
     ):
-        b, *_, device = *x.shape, x.device
+        b = x.shape[0]
         outputs = self.p_mean_variance(
             x=x,
             c=c,
@@ -721,9 +718,9 @@ class LatentVisualDiffusion(LatentDiffusion):
             )
         return image_proj_model
 
-    ## Never delete this func: it is used in log_images() and inference stage
+    # Never delete this func: it is used in log_images() and inference stage
     def get_image_embeds(self, batch_imgs):
-        ## img: b c h w
+        # img: b c h w
         img_token = self.embedder(batch_imgs)
         img_emb = self.image_proj_model(img_token)
         return img_emb
@@ -756,7 +753,7 @@ class DiffusionWrapper(nn.Cell):
             cc = mint.cat(c_crossattn, 1)
             out = self.diffusion_model(x, t, context=cc, **kwargs)
         elif self.conditioning_key == "hybrid":
-            ## it is just right [b,c,t,h,w]: concatenate in channel dim
+            # it is just right [b,c,t,h,w]: concatenate in channel dim
             xc = mint.cat([x] + c_concat, dim=1)
             cc = mint.cat(c_crossattn, 1)
             out = self.diffusion_model(xc, t, context=cc)

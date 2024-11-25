@@ -20,13 +20,6 @@ def Normalize(in_channels, num_groups=32):
     return GroupNormExtend(num_groups=num_groups, num_channels=in_channels, eps=1e-6, affine=True)
 
 
-class LinAttnBlock(LinearAttention):
-    """to match AttnBlock usage"""
-
-    def __init__(self, in_channels):
-        super().__init__(dim=in_channels, heads=1, dim_head=in_channels)
-
-
 class AttnBlock(nn.Cell):
     def __init__(self, in_channels):
         super().__init__()
@@ -64,17 +57,6 @@ class AttnBlock(nn.Cell):
         h_ = self.proj_out(h_)
 
         return x + h_
-
-
-def make_attn(in_channels, attn_type="vanilla"):
-    assert attn_type in ["vanilla", "linear", "none"], f"attn_type {attn_type} unknown"
-    # print(f"making attention of type '{attn_type}' with {in_channels} in_channels")
-    if attn_type == "vanilla":
-        return AttnBlock(in_channels)
-    elif attn_type == "none":
-        return nn.Identity(in_channels)
-    else:
-        return LinAttnBlock(in_channels)
 
 
 class Downsample(nn.Cell):
@@ -195,176 +177,6 @@ class ResnetBlock(nn.Cell):
                 x = self.nin_shortcut(x)
 
         return x + h
-
-
-class Model(nn.Cell):
-    def __init__(
-        self,
-        *,
-        ch,
-        out_ch,
-        ch_mult=(1, 2, 4, 8),
-        num_res_blocks,
-        attn_resolutions,
-        dropout=0.0,
-        resamp_with_conv=True,
-        in_channels,
-        resolution,
-        use_timestep=True,
-        use_linear_attn=False,
-        attn_type="vanilla",
-    ):
-        super().__init__()
-        if use_linear_attn:
-            attn_type = "linear"
-        self.ch = ch
-        self.temb_ch = self.ch * 4
-        self.num_resolutions = len(ch_mult)
-        self.num_res_blocks = num_res_blocks
-        self.resolution = resolution
-        self.in_channels = in_channels
-
-        self.use_timestep = use_timestep
-        if self.use_timestep:
-            # timestep embedding
-            self.temb = nn.CellList(
-                [
-                    nn.Dense(self.ch, self.temb_ch),
-                    nn.Dense(self.temb_ch, self.temb_ch),
-                ]
-            )
-
-        # downsampling
-        self.conv_in = nn.Conv2d(
-            in_channels, self.ch, kernel_size=3, stride=1, padding=1, pad_mode="pad", has_bias=True
-        )
-
-        curr_res = resolution
-        in_ch_mult = (1,) + tuple(ch_mult)
-        self.down = nn.CellList()
-        for i_level in range(self.num_resolutions):
-            block = nn.CellList()
-            attn = nn.CellList()
-            block_in = ch * in_ch_mult[i_level]
-            block_out = ch * ch_mult[i_level]
-            for i_block in range(self.num_res_blocks):
-                block.append(
-                    ResnetBlock(
-                        in_channels=block_in,
-                        out_channels=block_out,
-                        temb_channels=self.temb_ch,
-                        dropout=dropout,
-                    )
-                )
-                block_in = block_out
-                if curr_res in attn_resolutions:
-                    attn.append(make_attn(block_in, attn_type=attn_type))
-            down = nn.Cell()
-            down.block = block
-            down.attn = attn
-            if i_level != self.num_resolutions - 1:
-                down.downsample = Downsample(block_in, resamp_with_conv)
-                curr_res = curr_res // 2
-            self.down.append(down)
-
-        # middle
-        self.mid = nn.Cell()
-        self.mid.block_1 = ResnetBlock(
-            in_channels=block_in,
-            out_channels=block_in,
-            temb_channels=self.temb_ch,
-            dropout=dropout,
-        )
-        self.mid.attn_1 = make_attn(block_in, attn_type=attn_type)
-        self.mid.block_2 = ResnetBlock(
-            in_channels=block_in,
-            out_channels=block_in,
-            temb_channels=self.temb_ch,
-            dropout=dropout,
-        )
-
-        # upsampling
-        self.up = nn.CellList()
-        for i_level in reversed(range(self.num_resolutions)):
-            block = nn.CellList()
-            attn = nn.CellList()
-            block_out = ch * ch_mult[i_level]
-            skip_in = ch * ch_mult[i_level]
-            for i_block in range(self.num_res_blocks + 1):
-                if i_block == self.num_res_blocks:
-                    skip_in = ch * in_ch_mult[i_level]
-                block.append(
-                    ResnetBlock(
-                        in_channels=block_in + skip_in,
-                        out_channels=block_out,
-                        temb_channels=self.temb_ch,
-                        dropout=dropout,
-                    )
-                )
-                block_in = block_out
-                if curr_res in attn_resolutions:
-                    attn.append(make_attn(block_in, attn_type=attn_type))
-            up = nn.Cell()
-            up.block = block
-            up.attn = attn
-            if i_level != 0:
-                up.upsample = Upsample(block_in, resamp_with_conv)
-                curr_res = curr_res * 2
-            self.up.insert(0, up)  # prepend to get consistent order
-
-        # end
-        self.norm_out = Normalize(block_in)
-        self.conv_out = nn.Conv2d(block_in, out_ch, kernel_size=3, stride=1, padding=1, pad_mode="pad", has_bias=True)
-
-    def construct(self, x, t=None, context=None):
-        # assert x.shape[2] == x.shape[3] == self.resolution
-        if context is not None:
-            # assume aligned context, cat along channel axis
-            x = mint.cat((x, context), dim=1)
-        if self.use_timestep:
-            # timestep embedding
-            assert t is not None
-            temb = get_timestep_embedding(t, self.ch)
-            temb = self.temb[0](temb)
-            temb = nonlinearity(temb)
-            temb = self.temb[1](temb)
-        else:
-            temb = None
-
-        # downsampling
-        hs = [self.conv_in(x)]
-        for i_level in range(self.num_resolutions):
-            for i_block in range(self.num_res_blocks):
-                h = self.down[i_level].block[i_block](hs[-1], temb)
-                if len(self.down[i_level].attn) > 0:
-                    h = self.down[i_level].attn[i_block](h)
-                hs.append(h)
-            if i_level != self.num_resolutions - 1:
-                hs.append(self.down[i_level].downsample(hs[-1]))
-
-        # middle
-        h = hs[-1]
-        h = self.mid.block_1(h, temb)
-        h = self.mid.attn_1(h)
-        h = self.mid.block_2(h, temb)
-
-        # upsampling
-        for i_level in reversed(range(self.num_resolutions)):
-            for i_block in range(self.num_res_blocks + 1):
-                h = self.up[i_level].block[i_block](mint.cat([h, hs.pop()], dim=1), temb)
-                if len(self.up[i_level].attn) > 0:
-                    h = self.up[i_level].attn[i_block](h)
-            if i_level != 0:
-                h = self.up[i_level].upsample(h)
-
-        # end
-        h = self.norm_out(h)
-        h = nonlinearity(h)
-        h = self.conv_out(h)
-        return h
-
-    def get_last_layer(self):
-        return self.conv_out.weight
 
 
 class Encoder(nn.Cell):
@@ -526,8 +338,6 @@ class Decoder(nn.Cell):
         self.give_pre_end = give_pre_end
         self.tanh_out = tanh_out
 
-        # compute in_ch_mult, block_in and curr_res at lowest res
-        in_ch_mult = (1,) + tuple(ch_mult)
         block_in = ch * ch_mult[self.num_resolutions - 1]
         curr_res = resolution // 2 ** (self.num_resolutions - 1)
         self.z_shape = (1, z_channels, curr_res, curr_res)

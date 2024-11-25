@@ -45,7 +45,6 @@ def load_torch_ckpt(ckpt_path):
 
 
 def param_convert(ms_params, pt_params, ckpt_path, extra_dict=None):
-    # 参数名映射字典
     bn_ms2pt = {"gamma": "weight", "beta": "bias", "moving_mean": "running_mean", "moving_variance": "running_var"}
 
     if extra_dict:
@@ -58,7 +57,6 @@ def param_convert(ms_params, pt_params, ckpt_path, extra_dict=None):
             param_name = param_name.replace(k, v)
         pt_param = param_name
 
-        # 如找到参数对应且shape一致，加入到参数列表
         if pt_param in pt_params and pt_params[pt_param].shape == ms_param.data.shape:
             ms_value = pt_params[pt_param].cpu().detach().numpy()
             new_params_list.append({"name": ms_param.name, "data": ms.Tensor(ms_value, ms.float32)})
@@ -106,7 +104,6 @@ def convert_internvid2(src_path, target_path):
     from intern_vid2.demo_utils import InternVideo2_Stage2
 
     def _param_convert(ms_params, pt_params, ckpt_path, extra_dict=None):
-        # 参数名映射字典
         bn_ms2pt = {"gamma": "weight", "beta": "bias", "moving_mean": "running_mean", "moving_variance": "running_var"}
 
         if extra_dict:
@@ -120,7 +117,6 @@ def convert_internvid2(src_path, target_path):
                     param_name = param_name.replace(k, v)
             pt_param = param_name
 
-            # 如找到参数对应且shape一致，加入到参数列表
             if pt_param in pt_params and pt_params[pt_param].shape == ms_param.data.shape:
                 ms_value = pt_params[pt_param]
                 new_params_list.append({"name": ms_param.name, "data": ms.Tensor(ms_value, ms.float32)})
@@ -173,12 +169,12 @@ def convert_weights(model_folder):
     out_vc2 = os.path.join(model_folder, "VideoCrafter2_model_ms.ckpt")
     out_lora = os.path.join(model_folder, "unet_lora.ckpt")
 
-    ## convert videocrafter2
+    # convert videocrafter2
     print(f"converting the weights of {fn_vc2} ...")
     convert_t2v_vc2(fn_vc2, out_vc2)
     print(f"converted to {out_vc2}.")
 
-    ## convert lora
+    # convert lora
     print(f"converting the weights of {fn_lora} ...")
     convert_lora(fn_lora, out_lora)
     print("converted to {out_lora}.")

@@ -28,7 +28,7 @@ class DDIMSolver:
         self.ddim_alpha_cumprods = ms.Tensor.from_numpy(self.ddim_alpha_cumprods)
         self.ddim_alpha_cumprods_prev = ms.Tensor.from_numpy(self.ddim_alpha_cumprods_prev)
 
-        ## From VideoCrafter 2
+        # From VideoCrafter 2
         self.use_scale = use_scale
         if use_scale:
             scale_arr1 = np.linspace(scale_a, scale_b, mid_step)

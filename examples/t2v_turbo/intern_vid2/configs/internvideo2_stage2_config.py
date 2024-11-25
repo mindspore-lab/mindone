@@ -1,4 +1,3 @@
-from intern_vid2.configs.data import *
 from intern_vid2.configs.model import *
 
 # ========================= data ==========================
@@ -107,7 +106,6 @@ save_latest = False
 auto_resume = True
 jump_evaluate = False
 pretrained_path = "PATH/InternVideo2-stage2_1b-224p-f4.pt"
-# pretrained_path = ""
 
 deepspeed = dict(
     enable=True,
