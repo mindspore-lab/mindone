@@ -44,7 +44,7 @@ def is_valid_image(image):
 def is_valid_image_imagelist(images):
     # check if the image input is one of the supported formats for image and image list:
     # it can be either one of below 3
-    # (1) a 4d pytorch tensor or numpy array,
+    # (1) a 4d mindspore tensor or numpy array,
     # (2) a valid image: PIL.Image.Image, 2-d np.ndarray or torch.Tensor (grayscale image), 3-d np.ndarray or torch.Tensor
     # (3) a list of valid image
     if isinstance(images, (np.ndarray, ms.Tensor)) and images.ndim == 4:
@@ -129,9 +129,9 @@ class VaeImageProcessor(ConfigMixin):
         return images
 
     @staticmethod
-    def numpy_to_pt(images: np.ndarray) -> ms.Tensor:
+    def numpy_to_ms(images: np.ndarray) -> ms.Tensor:
         """
-        Convert a NumPy image to a PyTorch tensor.
+        Convert a NumPy image to a MindSpore tensor.
         """
         if images.ndim == 3:
             images = images[..., None]
@@ -140,9 +140,9 @@ class VaeImageProcessor(ConfigMixin):
         return images
 
     @staticmethod
-    def pt_to_numpy(images: ms.Tensor) -> np.ndarray:
+    def ms_to_numpy(images: ms.Tensor) -> np.ndarray:
         """
-        Convert a PyTorch tensor to a NumPy image.
+        Convert a MindSpore tensor to a NumPy image.
         """
         images = images.permute(0, 2, 3, 1).float().numpy()
         return images
@@ -361,7 +361,7 @@ class VaeImageProcessor(ConfigMixin):
 
         Args:
             image (`PIL.Image.Image`, `np.ndarray` or `ms.Tensor`):
-                The image input, can be a PIL image, numpy array or pytorch tensor.
+                The image input, can be a PIL image, numpy array or mindspore tensor.
             height (`int`):
                 The height to resize to.
             width (`int`):
@@ -397,12 +397,12 @@ class VaeImageProcessor(ConfigMixin):
                 size=(height, width),
             )
         elif isinstance(image, np.ndarray):
-            image = self.numpy_to_pt(image)
+            image = self.numpy_to_ms(image)
             image = ops.interpolate(
                 image,
                 size=(height, width),
             )
-            image = self.pt_to_numpy(image)
+            image = self.ms_to_numpy(image)
         return image
 
     def binarize(self, image: PIL.Image.Image) -> PIL.Image.Image:
@@ -434,8 +434,8 @@ class VaeImageProcessor(ConfigMixin):
 
         Args:
             image(`PIL.Image.Image`, `np.ndarray` or `ms.Tensor`):
-                The image input, can be a PIL image, numpy array or pytorch tensor. if it is a numpy array, should have
-                shape `[batch, height, width]` or `[batch, height, width, channel]` if it is a pytorch tensor, should
+                The image input, can be a PIL image, numpy array or mindspore tensor. if it is a numpy array, should have
+                shape `[batch, height, width]` or `[batch, height, width, channel]` if it is a mindspore tensor, should
                 have shape `[batch, channel, height, width]`.
             height (`int`, *optional*, defaults to `None`):
                 The height in preprocessed image. If `None`, will use the height of `image` input.
@@ -478,7 +478,7 @@ class VaeImageProcessor(ConfigMixin):
 
         Args:
             image (`pipeline_image_input`):
-                The image input, accepted formats are PIL images, NumPy arrays, PyTorch tensors; Also accept list of
+                The image input, accepted formats are PIL images, NumPy arrays, MindSpore tensors; Also accept list of
                 supported formats.
             height (`int`, *optional*, defaults to `None`):
                 The height in preprocessed image. If `None`, will use the `get_default_height_width()` to get default
@@ -498,10 +498,10 @@ class VaeImageProcessor(ConfigMixin):
         """
         supported_formats = (PIL.Image.Image, np.ndarray, ms.Tensor)
 
-        # Expand the missing dimension for 3-dimensional pytorch tensor or numpy array that represents grayscale image
+        # Expand the missing dimension for 3-dimensional mindspore tensor or numpy array that represents grayscale image
         if self.config.do_convert_grayscale and isinstance(image, (ms.Tensor, np.ndarray)) and image.ndim == 3:
             if isinstance(image, ms.Tensor):
-                # if image is a pytorch tensor could have 2 possible shapes:
+                # if image is a mindspore tensor could have 2 possible shapes:
                 #    1. batch x height x width: we should insert the channel dimension at position 1
                 #    2. channnel x height x width: we should insert batch dimension at position 0,
                 #       however, since both channel and batch dimension has same size 1, it is same to insert at position 1
@@ -549,12 +549,12 @@ class VaeImageProcessor(ConfigMixin):
             elif self.config.do_convert_grayscale:
                 image = [self.convert_to_grayscale(i) for i in image]
             image = self.pil_to_numpy(image)  # to np
-            image = self.numpy_to_pt(image)  # to pt
+            image = self.numpy_to_ms(image)  # to ms
 
         elif isinstance(image[0], np.ndarray):
             image = np.concatenate(image, axis=0) if image[0].ndim == 4 else np.stack(image, axis=0)
 
-            image = self.numpy_to_pt(image)
+            image = self.numpy_to_ms(image)
 
             height, width = self.get_default_height_width(image, height, width)
             if self.config.do_resize:
@@ -568,7 +568,7 @@ class VaeImageProcessor(ConfigMixin):
 
             channel = image.shape[1]
             # don't need any preprocess if the image is latents
-            if channel == 4:
+            if channel == self.vae_latent_channels:
                 return image
 
             height, width = self.get_default_height_width(image, height, width)
@@ -580,11 +580,10 @@ class VaeImageProcessor(ConfigMixin):
         if do_normalize and image.min() < 0:
             warnings.warn(
                 "Passing `image` as torch tensor with value range in [-1,1] is deprecated. The expected value range for image tensor is [0,1] "
-                f"when passing as pytorch tensor or numpy Array. You passed `image` with value range [{image.min()},{image.max()}]",
+                f"when passing as mindspore tensor or numpy Array. You passed `image` with value range [{image.min()},{image.max()}]",
                 FutureWarning,
             )
             do_normalize = False
-
         if do_normalize:
             image = self.normalize(image)
 
@@ -604,7 +603,7 @@ class VaeImageProcessor(ConfigMixin):
 
         Args:
             image (`ms.Tensor`):
-                The image input, should be a pytorch tensor with shape `B x C x H x W`.
+                The image input, should be a mindspore tensor with shape `B x C x H x W`.
             output_type (`str`, *optional*, defaults to `pil`):
                 The output type of the image, can be one of `pil`, `np`, `pt`, `latent`.
             do_denormalize (`List[bool]`, *optional*, defaults to `None`):
@@ -617,12 +616,12 @@ class VaeImageProcessor(ConfigMixin):
         """
         if not isinstance(image, ms.Tensor):
             raise ValueError(
-                f"Input for postprocessing is in incorrect format: {type(image)}. We only support pytorch tensor"
+                f"Input for postprocessing is in incorrect format: {type(image)}. We only support mindspore tensor"
             )
-        if output_type not in ["latent", "pt", "np", "pil"]:
+        if output_type not in ["latent", "ms", "np", "pil"]:
             deprecation_message = (
                 f"the output_type {output_type} is outdated and has been set to `np`. Please make sure to set it to one of these instead: "
-                "`pil`, `np`, `pt`, `latent`"
+                "`pil`, `np`, `ms`, `latent`"
             )
             deprecate("Unsupported output_type", "1.0.0", deprecation_message, standard_warn=False)
             output_type = "np"
@@ -637,10 +636,10 @@ class VaeImageProcessor(ConfigMixin):
             [self.denormalize(image[i]) if do_denormalize[i] else image[i] for i in range(image.shape[0])]
         )
 
-        if output_type == "pt":
+        if output_type == "ms":
             return image
 
-        image = self.pt_to_numpy(image)
+        image = self.ms_to_numpy(image)
 
         if output_type == "np":
             return image

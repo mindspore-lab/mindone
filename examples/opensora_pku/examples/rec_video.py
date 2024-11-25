@@ -131,7 +131,7 @@ def main(args):
         state_dict = ms.load_checkpoint(args.ms_checkpoint)
         # rm 'network.' prefix
         state_dict = dict(
-            [k.replace("network.", "") if k.startswith("network.") else k, v] for k, v in state_dict.items()
+            [k.replace("autoencoder.", "") if k.startswith("autoencoder.") else k, v] for k, v in state_dict.items()
         )
     else:
         state_dict = None
@@ -162,12 +162,11 @@ def main(args):
             f"Set mixed precision to {amp_level} with dtype={args.precision}, custom fp32_cells {custom_fp32_cells}"
         )
     elif args.precision == "fp32":
-        amp_level = "O0"
+        dtype = get_precision(args.precision)
     else:
         raise ValueError(f"Unsupported precision {args.precision}")
 
     x_vae = preprocess(read_video(args.video_path, args.num_frames, args.sample_rate), args.height, args.width)
-    dtype = get_precision(args.precision)
     x_vae = ms.Tensor(x_vae, dtype).unsqueeze(0)  # b c t h w
     latents = vae.encode(x_vae)
     latents = latents.to(dtype)

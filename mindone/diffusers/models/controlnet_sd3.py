@@ -80,7 +80,7 @@ class SD3ControlNetModel(ModelMixin, ConfigMixin, PeftAdapterMixin):
                 JointTransformerBlock(
                     dim=self.inner_dim,
                     num_attention_heads=num_attention_heads,
-                    attention_head_dim=self.inner_dim,
+                    attention_head_dim=self.config.attention_head_dim,
                     context_pre_only=False,
                 )
                 for i in range(num_layers)
@@ -206,7 +206,7 @@ class SD3ControlNetModel(ModelMixin, ConfigMixin, PeftAdapterMixin):
             module.gradient_checkpointing = value
 
     @classmethod
-    def from_transformer(cls, transformer, num_layers=None, load_weights_from_transformer=True):
+    def from_transformer(cls, transformer, num_layers=12, load_weights_from_transformer=True):
         config = transformer.config
         config["num_layers"] = num_layers or config.num_layers
         controlnet = cls(**config)
@@ -272,8 +272,6 @@ class SD3ControlNetModel(ModelMixin, ConfigMixin, PeftAdapterMixin):
                 f"`unscale_lora_layers(model, lora_scale)` after model forwarding. "
                 f"For example, it can be done in a pipeline call like `StableDiffusionPipeline.__call__`."
             )
-
-        height, width = hidden_states.shape[-2:]
 
         hidden_states = self.pos_embed(hidden_states)  # takes care of adding positional embeddings too.
         temb = self.time_text_embed(timestep, pooled_projections)
