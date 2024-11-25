@@ -98,7 +98,7 @@ class StableAudioDiTBlock(nn.Cell):
         super().__init__()
         # Define 3 blocks. Each block has its own normalization layer.
         # 1. Self-Attn
-        self.norm1 = nn.LayerNorm(dim, elementwise_affine=True, eps=norm_eps)
+        self.norm1 = nn.LayerNorm(dim, eps=norm_eps)
         self.attn1 = Attention(
             query_dim=dim,
             heads=num_attention_heads,
