@@ -272,7 +272,6 @@ class OobleckEncoder(nn.Cell):
 
         # Create first convolution
         self.conv1 = WeightNorm(nn.Conv1d(audio_channels, encoder_hidden_size, kernel_size=7, pad_mode='pad', padding=3))
-
         self.block = []
         # Create EncoderBlocks that double channels as they downsample by `stride`
         for stride_index, stride in enumerate(strides):
@@ -312,7 +311,6 @@ class OobleckDecoder(nn.Cell):
 
         # Add first conv layer
         self.conv1 = WeightNorm(nn.Conv1d(input_channels, channels * channel_multiples[-1], pad_mode="pad", kernel_size=7, padding=3))
-
         # Add upsampling + MRF blocks
         block = []
         for stride_index, stride in enumerate(strides):
