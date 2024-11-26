@@ -436,7 +436,7 @@ class StableAudioPipeline(DiffusionPipeline):
 
             # check num_channels
             if initial_audio_waveforms.shape[1] == 1 and audio_channels == 2:
-                initial_audio_waveforms = initial_audio_waveforms.repeat(1, 2, 1)
+                initial_audio_waveforms = initial_audio_waveforms.tile((1, 2, 1))
             elif initial_audio_waveforms.shape[1] == 2 and audio_channels == 1:
                 initial_audio_waveforms = initial_audio_waveforms.mean(1, keepdim=True)
 
@@ -460,7 +460,7 @@ class StableAudioPipeline(DiffusionPipeline):
             audio[:, :, : min(audio_length, audio_vae_length)] = initial_audio_waveforms[:, :, :audio_vae_length]
 
             encoded_audio = self.vae.encode(audio).latent_dist.sample(generator)
-            encoded_audio = encoded_audio.repeat((num_waveforms_per_prompt, 1, 1))
+            encoded_audio = encoded_audio.tile((num_waveforms_per_prompt, 1, 1))
             latents = encoded_audio + latents
         return latents
 
@@ -641,12 +641,12 @@ class StableAudioPipeline(DiffusionPipeline):
 
         bs_embed, seq_len, hidden_size = text_audio_duration_embeds.shape
         # duplicate audio_duration_embeds and text_audio_duration_embeds for each generation per prompt, using mps friendly method
-        text_audio_duration_embeds = text_audio_duration_embeds.repeat(1, num_waveforms_per_prompt, 1)
+        text_audio_duration_embeds = text_audio_duration_embeds.tile((1, num_waveforms_per_prompt, 1))
         text_audio_duration_embeds = text_audio_duration_embeds.view(
             bs_embed * num_waveforms_per_prompt, seq_len, hidden_size
         )
 
-        audio_duration_embeds = audio_duration_embeds.repeat(1, num_waveforms_per_prompt, 1)
+        audio_duration_embeds = audio_duration_embeds.tile((1, num_waveforms_per_prompt, 1))
         audio_duration_embeds = audio_duration_embeds.view(
             bs_embed * num_waveforms_per_prompt, -1, audio_duration_embeds.shape[-1]
         )
