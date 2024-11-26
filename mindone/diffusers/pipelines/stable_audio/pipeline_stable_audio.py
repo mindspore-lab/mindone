@@ -156,11 +156,11 @@ class StableAudioPipeline(DiffusionPipeline):
                 padding="max_length",
                 max_length=self.tokenizer.model_max_length,
                 truncation=True,
-                return_tensors="pt",
+                return_tensors="np",
             )
             text_input_ids = text_inputs.input_ids
             attention_mask = text_inputs.attention_mask
-            untruncated_ids = self.tokenizer(prompt, padding="longest", return_tensors="pt").input_ids
+            untruncated_ids = self.tokenizer(prompt, padding="longest", return_tensors="np").input_ids
 
             if untruncated_ids.shape[-1] >= text_input_ids.shape[-1] and not ops.equal(
                 text_input_ids, untruncated_ids
@@ -208,7 +208,7 @@ class StableAudioPipeline(DiffusionPipeline):
                 padding="max_length",
                 max_length=self.tokenizer.model_max_length,
                 truncation=True,
-                return_tensors="pt",
+                return_tensors="np",
             )
 
             uncond_input_ids = uncond_input.input_ids
