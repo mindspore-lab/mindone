@@ -1,8 +1,8 @@
 {
   "_class_name": "WFVAEModel",
-  "_diffusers_version": "0.30.2",
+  "_diffusers_version": "0.28.0",
   "base_channels": 128,
-  "connect_res_layer_num": 1,
+  "connect_res_layer_num": 2,
   "decoder_energy_flow_hidden_size": 128,
   "decoder_num_resblocks": 2,
   "dropout": 0.0,
