@@ -173,13 +173,13 @@ class StableAudioPipeline(DiffusionPipeline):
                     f"only handle sequences up to {self.tokenizer.model_max_length} tokens: {removed_text}"
                 )
 
-            text_input_ids = text_input_ids
-            attention_mask = attention_mask
+            text_input_ids = ms.Tensor.from_numpy(text_input_ids)
+            attention_mask = ms.Tensor.from_numpy(attention_mask)
 
             # 2. Text encoder forward
             #self.text_encoder.eval()
             prompt_embeds = self.text_encoder(
-                ms.Tensor.from_numpy(text_input_ids),
+                text_input_ids,
                 attention_mask=attention_mask,
             )
             prompt_embeds = prompt_embeds[0]
@@ -211,13 +211,13 @@ class StableAudioPipeline(DiffusionPipeline):
                 return_tensors="np",
             )
 
-            uncond_input_ids = uncond_input.input_ids
-            negative_attention_mask = uncond_input.attention_mask
+            uncond_input_ids = ms.Tensor.from_numpy(uncond_input.input_ids)
+            negative_attention_mask = ms.Tensor.from_numpy(uncond_input.attention_mask)
 
             # 2. Text encoder forward
             # self.text_encoder.eval()
             negative_prompt_embeds = self.text_encoder(
-                ms.Tensor.from_numpy(uncond_input_ids),
+                uncond_input_ids,
                 attention_mask=negative_attention_mask,
             )
             negative_prompt_embeds = negative_prompt_embeds[0]
