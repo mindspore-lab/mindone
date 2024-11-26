@@ -112,7 +112,7 @@ class OobleckResidualUnit(nn.Cell):
         pad = ((7 - 1) * dilation) // 2
 
         self.snake1 = Snake1d(dimension)
-        self.conv1 = WeightNorm(nn.Conv1d(dimension, dimension, kernel_size=7, dilation=dilation, padding=pad))
+        self.conv1 = WeightNorm(nn.Conv1d(dimension, dimension, kernel_size=7, pad_mode="pad", dilation=dilation, padding=pad))
         self.snake2 = Snake1d(dimension)
         self.conv2 = WeightNorm(nn.Conv1d(dimension, dimension, kernel_size=1))
 
