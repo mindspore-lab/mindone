@@ -287,9 +287,7 @@ class OobleckEncoder(nn.Cell):
         self.block = nn.CellList(self.block)
         d_model = encoder_hidden_size * channel_multiples[-1]
         self.snake1 = Snake1d(d_model)
-
         self.conv2 = WeightNorm(nn.Conv1d(d_model, encoder_hidden_size, pad_mode="pad", kernel_size=3, padding=1))
-
 
     def construct(self, hidden_state):
         hidden_state = self.conv1(hidden_state)
@@ -314,7 +312,6 @@ class OobleckDecoder(nn.Cell):
 
         # Add first conv layer
         self.conv1 = WeightNorm(nn.Conv1d(input_channels, channels * channel_multiples[-1], pad_mode="pad", kernel_size=7, padding=3))
-
 
         # Add upsampling + MRF blocks
         block = []
