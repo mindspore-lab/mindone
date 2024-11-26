@@ -177,9 +177,9 @@ class StableAudioPipeline(DiffusionPipeline):
             attention_mask = attention_mask
 
             # 2. Text encoder forward
-            self.text_encoder.eval()
+            #self.text_encoder.eval()
             prompt_embeds = self.text_encoder(
-                text_input_ids,
+                ms.Tensor.from_numpy(text_input_ids),
                 attention_mask=attention_mask,
             )
             prompt_embeds = prompt_embeds[0]
@@ -215,9 +215,9 @@ class StableAudioPipeline(DiffusionPipeline):
             negative_attention_mask = uncond_input.attention_mask
 
             # 2. Text encoder forward
-            self.text_encoder.eval()
+            # self.text_encoder.eval()
             negative_prompt_embeds = self.text_encoder(
-                uncond_input_ids,
+                ms.Tensor.from_numpy(uncond_input_ids),
                 attention_mask=negative_attention_mask,
             )
             negative_prompt_embeds = negative_prompt_embeds[0]
