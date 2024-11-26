@@ -425,8 +425,7 @@ class StableAudioDiTModel(ModelMixin, ConfigMixin):
 
         # (batch_size, sequence_length, dim) -> (batch_size, dim, sequence_length)
         # remove prepend length that has been added by global hidden states
-
-        hidden_states = hidden_states.transpose(0 ,2 ,1)[:, :, 1:]
+        hidden_states = hidden_states.transpose(0, 2, 1)[:, :, 1:]
         hidden_states = self.postprocess_conv(hidden_states) + hidden_states
 
         if not return_dict:
