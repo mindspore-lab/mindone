@@ -1,4 +1,5 @@
 import functools
+from typing import Tuple, Union
 
 import mindspore as ms
 from mindspore import nn, ops
@@ -11,6 +12,39 @@ def weights_init(m):
     elif classname.find("BatchNorm") != -1:
         nn.init.normal_(m.weight.data, 1.0, 0.02)
         nn.init.constant_(m.bias.data, 0)
+
+
+class Conv3d(nn.Cell):
+    def __init__(
+        self,
+        input_nc,
+        ndf,
+        kernel_size: Union[int, Tuple[int, int, int]],
+        stride: Union[int, Tuple[int, int, int]] = 1,
+        pad_mode: str = "pad",
+        padding: int = 0,
+        has_bias: bool = True,
+        dtype=ms.bfloat16,
+        **kwargs,
+    ):
+        super().__init__()
+        self.conv = nn.Conv3d(
+            input_nc,
+            ndf,
+            kernel_size=kernel_size,
+            stride=stride,
+            pad_mode=pad_mode,
+            padding=padding,
+            has_bias=has_bias,
+            **kwargs,
+        ).to_float(dtype)
+        self.dtype = dtype
+
+    def construct(self, x):
+        if x.dtype == ms.float32:
+            return self.conv(x).to(ms.float32)
+        else:
+            return self.conv(x)
 
 
 class NLayerDiscriminator(nn.Cell):
@@ -125,7 +159,7 @@ class NLayerDiscriminator3D(nn.Cell):
         kw = 3
         padw = 1
         sequence = [
-            nn.Conv3d(input_nc, ndf, kernel_size=kw, stride=2, pad_mode="pad", padding=padw, has_bias=True),
+            Conv3d(input_nc, ndf, kernel_size=kw, stride=2, pad_mode="pad", padding=padw, has_bias=True),
             nn.LeakyReLU(0.2),
         ]
         nf_mult = 1
@@ -134,7 +168,7 @@ class NLayerDiscriminator3D(nn.Cell):
             nf_mult_prev = nf_mult
             nf_mult = min(2**n, 8)
             sequence += [
-                nn.Conv3d(
+                Conv3d(
                     ndf * nf_mult_prev,
                     ndf * nf_mult,
                     kernel_size=(kw, kw, kw),
@@ -150,7 +184,7 @@ class NLayerDiscriminator3D(nn.Cell):
         nf_mult_prev = nf_mult
         nf_mult = min(2**n_layers, 8)
         sequence += [
-            nn.Conv3d(
+            Conv3d(
                 ndf * nf_mult_prev,
                 ndf * nf_mult,
                 kernel_size=(kw, kw, kw),
@@ -164,7 +198,7 @@ class NLayerDiscriminator3D(nn.Cell):
         ]
 
         sequence += [
-            nn.Conv3d(ndf * nf_mult, 1, kernel_size=kw, stride=1, padding=padw, pad_mode="pad", has_bias=True)
+            Conv3d(ndf * nf_mult, 1, kernel_size=kw, stride=1, padding=padw, pad_mode="pad", has_bias=True)
         ]  # output 1 channel prediction map
         self.main = nn.SequentialCell(*sequence)
 

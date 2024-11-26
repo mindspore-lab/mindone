@@ -29,7 +29,7 @@ logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
 
 class Transformer2DModelOutput(Transformer2DModelOutput):
     def __init__(self, *args, **kwargs):
-        deprecation_message = "Importing `Transformer2DModelOutput` from `diffusers.models.transformer_2d` is deprecated and this will be removed in a future version. Please use `from diffusers.models.modeling_outputs import Transformer2DModelOutput`, instead."  # noqa: E501
+        deprecation_message = "Importing `Transformer2DModelOutput` from `diffusers.models.transformer_2d` is deprecated and this will be removed in a future version. Please use `from mindone.diffusers.models.modeling_outputs import Transformer2DModelOutput`, instead."  # noqa: E501
         deprecate("Transformer2DModelOutput", "1.0.0", deprecation_message)
         super().__init__(*args, **kwargs)
 

@@ -16,7 +16,7 @@ import torch
 
 import mindspore as ms
 
-from .modeling_test_utils import compute_diffs, generalized_parse_args, get_modules
+from .modeling_test_utils import compute_diffs, expand_dtype_mode_for_all_case, generalized_parse_args, get_modules
 from .modules_test_cases import ALL_CASES
 
 THRESHOLD_FP16 = 1e-2
@@ -26,18 +26,20 @@ THRESHOLD_FP32 = 5e-3
 PT_DTYPE_MAPPING = {
     "fp16": torch.float16,
     "fp32": torch.float32,
+    "bf16": torch.bfloat16,
 }
 
 
 MS_DTYPE_MAPPING = {
     "fp16": ms.float16,
     "fp32": ms.float32,
+    "bf16": ms.bfloat16,
 }
 
 
 @pytest.mark.parametrize(
     "name,pt_module,ms_module,init_args,init_kwargs,inputs_args,inputs_kwargs,dtype,mode",
-    [case + context for case in ALL_CASES for context in [["fp16", 0], ["fp16", 1], ["fp32", 0], ["fp32", 1]]],
+    expand_dtype_mode_for_all_case(ALL_CASES),
 )
 def test_named_modules(
     name,
@@ -75,4 +77,6 @@ def test_named_modules(
     diffs = compute_diffs(pt_outputs, ms_outputs)
 
     THRESHOLD = THRESHOLD_FP32 if dtype == "fp32" else THRESHOLD_FP16
-    assert (np.array(diffs) < THRESHOLD).all(), f"Outputs({np.array(diffs).tolist()}) has diff bigger than {THRESHOLD}"
+    assert (
+        np.array(diffs) < THRESHOLD
+    ).all(), f"[{name}] Outputs({np.array(diffs).tolist()}) has diff bigger than {THRESHOLD}"

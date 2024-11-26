@@ -1130,7 +1130,7 @@ class BaseDataset:
                             img = img[:, p : p + self.width]
                         # note: we add the resize operation for small image here
                         # instead of directly raise "image size is small" error as kohya org repo does.
-                    elif im_h == self.height and im_w != self.width:
+                    elif im_h == self.height or im_w != self.width:
                         img = cv2.resize(img, (self.height, self.width))
                         logger.info(
                             f"image size is small / 画像サイズが小さいようです: {image_info.absolute_path}, \
