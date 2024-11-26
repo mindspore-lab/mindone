@@ -175,6 +175,7 @@ class OobleckDecoderBlock(nn.Cell):
                 output_dim,
                 kernel_size=2 * stride,
                 stride=stride,
+                pad_mode="pad",
                 padding=math.ceil(stride / 2),
             )
         )
