@@ -112,7 +112,6 @@ class CosineDPMSolverMultistepScheduler(SchedulerMixin, ConfigMixin):
         self.lower_order_nums = 0
         self._step_index = None
         self._begin_index = None
-        self.sigmas = self.sigmas.to("cpu")  # to avoid too much CPU/GPU communication
 
     @property
     def init_noise_sigma(self):
@@ -236,7 +235,7 @@ class CosineDPMSolverMultistepScheduler(SchedulerMixin, ConfigMixin):
         # add an index counter for schedulers that allow duplicated timesteps
         self._step_index = None
         self._begin_index = None
-        self.sigmas = self.sigmas.to("cpu")  # to avoid too much CPU/GPU communication
+        #self.sigmas = self.sigmas  # to avoid too much CPU/GPU communication
 
         # if a noise sampler is used, reinitialise it
         self.noise_sampler = None
