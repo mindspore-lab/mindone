@@ -104,7 +104,7 @@ class StableAudioNumberConditioner(nn.Cell):
         normalized_floats = (floats - self.min_value) / (self.max_value - self.min_value)
 
         # Cast floats to same type as embedder
-        embedder_dtype = next(self.time_positional_embedding.parameters()).dtype
+        embedder_dtype = next(self.time_positional_embedding.get_parameters()).dtype
         normalized_floats = normalized_floats.to(embedder_dtype)
 
         embedding = self.time_positional_embedding(normalized_floats)
