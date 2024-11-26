@@ -83,8 +83,8 @@ class Snake1d(nn.Cell):
 
     def __init__(self, hidden_dim, logscale=True):
         super().__init__()
-        self.alpha = nn.Parameter(ops.zeros(1, hidden_dim, 1))
-        self.beta = nn.Parameter(ops.zeros(1, hidden_dim, 1))
+        self.alpha = Parameter(ops.zeros(1, hidden_dim, 1))
+        self.beta = Parameter(ops.zeros(1, hidden_dim, 1))
 
         self.alpha.requires_grad = True
         self.beta.requires_grad = True
