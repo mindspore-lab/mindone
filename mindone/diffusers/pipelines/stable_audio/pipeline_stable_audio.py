@@ -156,11 +156,11 @@ class StableAudioPipeline(DiffusionPipeline):
                 padding="max_length",
                 max_length=self.tokenizer.model_max_length,
                 truncation=True,
-                return_tensors="pt",
+                return_tensors="np",
             )
             text_input_ids = text_inputs.input_ids
             attention_mask = text_inputs.attention_mask
-            untruncated_ids = self.tokenizer(prompt, padding="longest", return_tensors="pt").input_ids
+            untruncated_ids = self.tokenizer(prompt, padding="longest", return_tensors="np").input_ids
 
             if untruncated_ids.shape[-1] >= text_input_ids.shape[-1] and not ops.equal(
                 text_input_ids, untruncated_ids
@@ -177,9 +177,9 @@ class StableAudioPipeline(DiffusionPipeline):
             attention_mask = attention_mask
 
             # 2. Text encoder forward
-            self.text_encoder.eval()
+            #self.text_encoder.eval()
             prompt_embeds = self.text_encoder(
-                text_input_ids,
+                ms.Tensor.from_numpy(text_input_ids),
                 attention_mask=attention_mask,
             )
             prompt_embeds = prompt_embeds[0]
@@ -208,16 +208,16 @@ class StableAudioPipeline(DiffusionPipeline):
                 padding="max_length",
                 max_length=self.tokenizer.model_max_length,
                 truncation=True,
-                return_tensors="pt",
+                return_tensors="np",
             )
 
             uncond_input_ids = uncond_input.input_ids
             negative_attention_mask = uncond_input.attention_mask
 
             # 2. Text encoder forward
-            self.text_encoder.eval()
+            # self.text_encoder.eval()
             negative_prompt_embeds = self.text_encoder(
-                uncond_input_ids,
+                ms.Tensor.from_numpy(uncond_input_ids),
                 attention_mask=negative_attention_mask,
             )
             negative_prompt_embeds = negative_prompt_embeds[0]

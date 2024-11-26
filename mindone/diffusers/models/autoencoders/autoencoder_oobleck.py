@@ -85,7 +85,6 @@ class Snake1d(nn.Cell):
         super().__init__()
         self.alpha = Parameter(ops.zeros((1, hidden_dim, 1)))
         self.beta = Parameter(ops.zeros((1, hidden_dim, 1)))
-
         self.alpha.requires_grad = True
         self.beta.requires_grad = True
         self.logscale = logscale
