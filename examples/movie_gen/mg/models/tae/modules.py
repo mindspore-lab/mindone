@@ -358,9 +358,16 @@ class TemporalDownsample(nn.Cell):
 
 
 class TemporalUpsample(nn.Cell):
-    def __init__(self, in_channels):
+    def __init__(self, in_channels, manual_pad=True):
         super().__init__()
-        self.conv = nn.Conv1d(in_channels, in_channels, kernel_size=3, stride=1, pad_mode="same", has_bias=True, bias_init='zeros')
+        # to support danamic shape in graph mode
+        self.manual_pad = manual_pad
+        if not self.manual_pad:
+            self.conv = nn.Conv1d(in_channels, in_channels, kernel_size=3, stride=1, pad_mode="same", has_bias=True, bias_init='zeros')
+        else:
+            self.conv = nn.Conv1d(in_channels, in_channels, kernel_size=3, stride=1, pad_mode="valid", has_bias=True, bias_init='zeros')
+
+            
         # TODO: init conv weight so that it pass in image mode
         self.ch = in_channels
         self.init_weight('median')
@@ -394,6 +401,12 @@ class TemporalUpsample(nn.Cell):
         T = T0 * 2
         x = ops.transpose(x, (0, 3, 1, 2))
         x = ops.reshape(x, (B*H*W, C, T))
+        
+        if self.manual_pad:
+            # work with pad_mode = valid, kernel_size=1
+            pad_t_l = ops.zeros((B*H*W, C, 1), x.dtype)
+            pad_t_r = ops.zeros((B*H*W, C, 1), x.dtype)
+            x = ops.cat([pad_t_l, x, pad_t_r], 2)
 
         x = self.conv(x)
 
