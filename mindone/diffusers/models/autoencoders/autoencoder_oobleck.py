@@ -170,7 +170,7 @@ class OobleckDecoderBlock(nn.Cell):
 
         self.snake1 = Snake1d(input_dim)
         self.conv_t1 = WeightNorm(
-            nn.ConvTranspose1d(
+            nn.Conv1dTranspose(
                 input_dim,
                 output_dim,
                 kernel_size=2 * stride,
