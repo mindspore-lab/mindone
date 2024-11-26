@@ -138,7 +138,6 @@ class StableAudioPipeline(DiffusionPipeline):
     def encode_prompt(
         self,
         prompt,
-        device,
         do_classifier_free_guidance,
         negative_prompt=None,
         prompt_embeds: Optional[ms.Tensor] = None,
@@ -177,8 +176,8 @@ class StableAudioPipeline(DiffusionPipeline):
                     f"only handle sequences up to {self.tokenizer.model_max_length} tokens: {removed_text}"
                 )
 
-            text_input_ids = text_input_ids.to(device)
-            attention_mask = attention_mask.to(device)
+            text_input_ids = text_input_ids
+            attention_mask = attention_mask
 
             # 2. Text encoder forward
             self.text_encoder.eval()
@@ -215,8 +214,8 @@ class StableAudioPipeline(DiffusionPipeline):
                 return_tensors="pt",
             )
 
-            uncond_input_ids = uncond_input.input_ids.to(device)
-            negative_attention_mask = uncond_input.attention_mask.to(device)
+            uncond_input_ids = uncond_input.input_ids
+            negative_attention_mask = uncond_input.attention_mask
 
             # 2. Text encoder forward
             self.text_encoder.eval()
@@ -259,7 +258,6 @@ class StableAudioPipeline(DiffusionPipeline):
         self,
         audio_start_in_s,
         audio_end_in_s,
-        device,
         do_classifier_free_guidance,
         batch_size,
     ):
@@ -273,10 +271,10 @@ class StableAudioPipeline(DiffusionPipeline):
 
         # Cast the inputs to floats
         audio_start_in_s = [float(x) for x in audio_start_in_s]
-        audio_start_in_s = ms.Tensor(audio_start_in_s).to(device)
+        audio_start_in_s = ms.Tensor(audio_start_in_s)
 
         audio_end_in_s = [float(x) for x in audio_end_in_s]
-        audio_end_in_s = ms.Tensor(audio_end_in_s).to(device)
+        audio_end_in_s = ms.Tensor(audio_end_in_s)
 
         projection_output = self.projection_model(
             start_seconds=audio_start_in_s,
@@ -405,7 +403,6 @@ class StableAudioPipeline(DiffusionPipeline):
         num_channels_vae,
         sample_size,
         dtype,
-        device,
         generator,
         latents=None,
         initial_audio_waveforms=None,
@@ -420,9 +417,9 @@ class StableAudioPipeline(DiffusionPipeline):
             )
 
         if latents is None:
-            latents = randn_tensor(shape, generator=generator, device=device, dtype=dtype)
+            latents = randn_tensor(shape, generator=generator, dtype=dtype)
         else:
-            latents = latents.to(device)
+            latents = latents
 
         # scale the initial noise by the standard deviation required by the scheduler
         latents = latents * self.scheduler.init_noise_sigma
@@ -603,7 +600,6 @@ class StableAudioPipeline(DiffusionPipeline):
         else:
             batch_size = prompt_embeds.shape[0]
 
-        device = self._execution_device
         # here `guidance_scale` is defined analog to the guidance weight `w` of equation (2)
         # of the Imagen paper: https://arxiv.org/pdf/2205.11487.pdf . `guidance_scale = 1`
         # corresponds to doing no classifier free guidance.
@@ -612,7 +608,6 @@ class StableAudioPipeline(DiffusionPipeline):
         # 3. Encode input prompt
         prompt_embeds = self.encode_prompt(
             prompt,
-            device,
             do_classifier_free_guidance,
             negative_prompt,
             prompt_embeds,
@@ -625,7 +620,6 @@ class StableAudioPipeline(DiffusionPipeline):
         seconds_start_hidden_states, seconds_end_hidden_states = self.encode_duration(
             audio_start_in_s,
             audio_end_in_s,
-            device,
             do_classifier_free_guidance and (negative_prompt is not None or negative_prompt_embeds is not None),
             batch_size,
         )
@@ -641,7 +635,7 @@ class StableAudioPipeline(DiffusionPipeline):
         # to concatenate it to the embeddings
         if do_classifier_free_guidance and negative_prompt_embeds is None and negative_prompt is None:
             negative_text_audio_duration_embeds = ops.zeros_like(
-                text_audio_duration_embeds, device=text_audio_duration_embeds.device
+                text_audio_duration_embeds
             )
             text_audio_duration_embeds = ops.cat(
                 [negative_text_audio_duration_embeds, text_audio_duration_embeds], dim=0
@@ -661,7 +655,7 @@ class StableAudioPipeline(DiffusionPipeline):
         )
 
         # 4. Prepare timesteps
-        self.scheduler.set_timesteps(num_inference_steps, device=device)
+        self.scheduler.set_timesteps(num_inference_steps)
         timesteps = self.scheduler.timesteps
 
         # 5. Prepare latent variables
@@ -671,7 +665,6 @@ class StableAudioPipeline(DiffusionPipeline):
             num_channels_vae,
             waveform_length,
             text_audio_duration_embeds.dtype,
-            device,
             generator,
             latents,
             initial_audio_waveforms,
