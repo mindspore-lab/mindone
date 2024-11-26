@@ -283,8 +283,8 @@ class StableAudioPipeline(DiffusionPipeline):
         # For classifier free guidance, we need to do two forward passes.
         # Here we repeat the audio hidden states to avoid doing two forward passes
         if do_classifier_free_guidance:
-            seconds_start_hidden_states = ops.cat([seconds_start_hidden_states, seconds_start_hidden_states], dim=0)
-            seconds_end_hidden_states = ops.cat([seconds_end_hidden_states, seconds_end_hidden_states], dim=0)
+            seconds_start_hidden_states = ops.cat([seconds_start_hidden_states, seconds_start_hidden_states], axis=0)
+            seconds_end_hidden_states = ops.cat([seconds_end_hidden_states, seconds_end_hidden_states], axis=0)
 
         return seconds_start_hidden_states, seconds_end_hidden_states
 
@@ -623,10 +623,10 @@ class StableAudioPipeline(DiffusionPipeline):
 
         # Create text_audio_duration_embeds and audio_duration_embeds
         text_audio_duration_embeds = ops.cat(
-            [prompt_embeds, seconds_start_hidden_states, seconds_end_hidden_states], dim=1
+            [prompt_embeds, seconds_start_hidden_states, seconds_end_hidden_states], axis=1
         )
 
-        audio_duration_embeds = ops.cat([seconds_start_hidden_states, seconds_end_hidden_states], dim=2)
+        audio_duration_embeds = ops.cat([seconds_start_hidden_states, seconds_end_hidden_states], axis=2)
 
         # In case of classifier free guidance without negative prompt, we need to create unconditional embeddings and
         # to concatenate it to the embeddings
@@ -635,9 +635,9 @@ class StableAudioPipeline(DiffusionPipeline):
                 text_audio_duration_embeds
             )
             text_audio_duration_embeds = ops.cat(
-                [negative_text_audio_duration_embeds, text_audio_duration_embeds], dim=0
+                [negative_text_audio_duration_embeds, text_audio_duration_embeds], axis=0
             )
-            audio_duration_embeds = ops.cat([audio_duration_embeds, audio_duration_embeds], dim=0)
+            audio_duration_embeds = ops.cat([audio_duration_embeds, audio_duration_embeds], axis=0)
 
         bs_embed, seq_len, hidden_size = text_audio_duration_embeds.shape
         # duplicate audio_duration_embeds and text_audio_duration_embeds for each generation per prompt, using mps friendly method
