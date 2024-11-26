@@ -104,7 +104,7 @@ class CosineDPMSolverMultistepScheduler(SchedulerMixin, ConfigMixin):
 
         self.timesteps = self.precondition_noise(sigmas)
 
-        self.sigmas = ops.cat([sigmas, ops.zeros(1)])
+        self.sigmas = ops.cat([sigmas, ops.zeros(1, ms.float64)])
 
         # setable values
         self.num_inference_steps = None
@@ -112,7 +112,6 @@ class CosineDPMSolverMultistepScheduler(SchedulerMixin, ConfigMixin):
         self.lower_order_nums = 0
         self._step_index = None
         self._begin_index = None
-        self.sigmas = self.sigmas.to("cpu")  # to avoid too much CPU/GPU communication
 
     @property
     def init_noise_sigma(self):
@@ -236,7 +235,7 @@ class CosineDPMSolverMultistepScheduler(SchedulerMixin, ConfigMixin):
         # add an index counter for schedulers that allow duplicated timesteps
         self._step_index = None
         self._begin_index = None
-        self.sigmas = self.sigmas.to("cpu")  # to avoid too much CPU/GPU communication
+        #self.sigmas = self.sigmas  # to avoid too much CPU/GPU communication
 
         # if a noise sampler is used, reinitialise it
         self.noise_sampler = None
@@ -261,7 +260,8 @@ class CosineDPMSolverMultistepScheduler(SchedulerMixin, ConfigMixin):
         """
         sigma_min = sigma_min or self.config.sigma_min
         sigma_max = sigma_max or self.config.sigma_max
-        sigmas = ops.flip(ms.Tensor(np.linspace(math.log(sigma_min), math.log(sigma_max), len(ramp))).exp(), 0)
+        sigmas = ops.flip(ms.Tensor(np.linspace(math.log(sigma_min), math.log(sigma_max), len(ramp))).exp(), (0,))
+
         return sigmas
 
     # Copied from diffusers.schedulers.scheduling_euler_discrete.EulerDiscreteScheduler._sigma_to_t
