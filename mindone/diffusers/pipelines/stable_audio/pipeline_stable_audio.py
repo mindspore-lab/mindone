@@ -18,12 +18,9 @@ from typing import Callable, List, Optional, Union
 import numpy as np
 import mindspore as ms
 from mindspore import ops, nn
-from mindone.transformers import T5EncoderModel
-from transformers import (
-    T5Tokenizer,
-    T5TokenizerFast,
-)
+from transformers import T5Tokenizer, T5TokenizerFast
 
+from ....transformers import T5EncoderModel
 from ...models import AutoencoderOobleck, StableAudioDiTModel
 from ...models.embeddings import get_1d_rotary_pos_embed
 from ...schedulers import EDMDPMSolverMultistepScheduler
