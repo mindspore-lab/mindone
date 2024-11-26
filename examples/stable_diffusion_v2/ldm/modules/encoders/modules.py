@@ -10,6 +10,7 @@ import mindspore as ms
 import mindspore.nn as nn
 import mindspore.ops as ops
 import mindspore.mint as mint
+from mindspore.mint.nn import functional as F
 from mindspore import Tensor
 from mindspore.common.initializer import TruncatedNormal, initializer
 
@@ -253,7 +254,7 @@ class CLIPImageEmbedder(nn.Cell):
         self.std = ms.Tensor([0.26862954, 0.26130258, 0.27577711], dtype=self.dtype)
 
     def preprocess(self, x: Tensor) -> Tensor:
-        x = ops.interpolate(x, (224, 224), mode="bicubic", align_corners=True)
+        x = F.interpolate(x, (224, 224), mode="bicubic", align_corners=True)
         # normalize to [0,1]
         x = (x + 1.0) / 2.0
         # re-normalize according to clip
