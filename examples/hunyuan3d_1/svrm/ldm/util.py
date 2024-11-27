@@ -9,9 +9,57 @@ from PIL import Image, ImageDraw, ImageFont
 import matplotlib.pyplot as plt
 import mindspore as ms
 from mindspore import nn, ops, mint
-from mindspore.nn import optim #import Adam, AdamWeightDecay, Momentum, Optimizer
+from mindspore.nn.optim import Adam, AdamWeightDecay, Momentum, Optimizer
 
+_MIN_FP16 = ms.tensor(np.finfo(np.float16).min, dtype=ms.float16)
+_MIN_FP32 = ms.tensor(np.finfo(np.float32).min, dtype=ms.float32)
+_MIN_FP64 = ms.tensor(np.finfo(np.float64).min, dtype=ms.float64)
+_MIN_BF16 = ms.tensor(float.fromhex("-0x1.fe00000000000p+127"), dtype=ms.bfloat16)
+_MAX_FP16 = ms.tensor(np.finfo(np.float16).max, dtype=ms.float16)
+_MAX_FP32 = ms.tensor(np.finfo(np.float32).max, dtype=ms.float32)
+_MAX_FP64 = ms.tensor(np.finfo(np.float64).max, dtype=ms.float64)
+_MAX_BF16 = ms.tensor(float.fromhex("0x1.fe00000000000p+127"), dtype=ms.bfloat16)
+def dtype_to_min(dtype):
+    if dtype == ms.float16:
+        return _MIN_FP16
+    if dtype == ms.float32:
+        return _MIN_FP32
+    if dtype == ms.float64:
+        return _MIN_FP64
+    if dtype == ms.bfloat16:
+        return _MIN_BF16
+    else:
+        raise ValueError(f"Only support get minimum value of (float16, ), but got {dtype}")
+def dtype_to_max(dtype):
+    if dtype == ms.float16:
+        return _MAX_FP16
+    if dtype == ms.float32:
+        return _MAX_FP32
+    if dtype == ms.float64:
+        return _MAX_FP64
+    if dtype == ms.bfloat16:
+        return _MAX_BF16
+    else:
+        raise ValueError(f"Only support get maximum value of (float16, ), but got {dtype}")
+        
+@jit_class
+class no_grad(_no_grad):
+    """
+    A context manager that suppresses gradient memory allocation in PyNative mode.
+    """
 
+    def __init__(self):
+        super().__init__()
+        self._pynative = ms.get_context("mode") == ms.PYNATIVE_MODE
+
+    def __enter__(self):
+        if self._pynative:
+            super().__enter__()
+
+    def __exit__(self, *args):
+        if self._pynative:
+            super().__exit__(*args)
+            
 def pil_rectangle_crop(im):
     width, height = im.size   # Get dimensions
     
@@ -142,6 +190,7 @@ def get_obj_from_str(string, reload=False):
         importlib.reload(module_imp)
     return getattr(importlib.import_module(module, package=None), cls)
 
+''' no use
 #TODO
 class AdamWwithEMAandWings(optim.Optimizer):
     # credit to https://gist.github.com/crowsonkb/65f7265353f403714fce3b2595e0b298
@@ -161,18 +210,27 @@ class AdamWwithEMAandWings(optim.Optimizer):
             raise ValueError("Invalid weight_decay value: {}".format(weight_decay))
         if not 0.0 <= ema_decay <= 1.0:
             raise ValueError("Invalid ema_decay value: {}".format(ema_decay))
-        defaults = dict(lr=lr, betas=betas, eps=eps,
-                        weight_decay=weight_decay, amsgrad=amsgrad, ema_decay=ema_decay,
-                        ema_power=ema_power, param_names=param_names)
-        super().__init__(params, defaults)
+        # defaults = dict(learning_rate=lr, betas=betas, eps=eps,
+        #                 weight_decay=weight_decay, amsgrad=amsgrad, ema_decay=ema_decay,
+        #                 ema_power=ema_power, param_names=param_names)
+        # super().__init__(params, defaults)
+        super().__init__(learning_rate=lr, parameters=params, weight_decay=weight_decay)
+
+        self.beta1 = Tensor(np.array([betas[0]]).astype(np.float32))
+        self.beta2 = Tensor(np.array([betas[1]]).astype(np.float32))
+        self.eps = Tensor(np.array([eps]).astype(np.float32))
+        self.ema_decay = Tensor(np.array([ema_decay]).astype(np.float32))
+        # self.exp_avg = self.clone_state(prefix="adam_m", init="zeros")
+        # self.exp_avg_sq = self.clone_state(prefix="adam_v", init="zeros")
 
     def __setstate__(self, state):
         super().__setstate__(state)
-        for group in self.param_groups:
+        for group in self.group_params:
+        # for group in self.param_groups:
             group.setdefault('amsgrad', False)
 
     # @torch.no_grad()
-    def step(self, closure=None):
+    def construct(self, closure=None):
         """Performs a single optimization step.
         Args:
             closure (callable, optional): A closure that reevaluates the model
@@ -180,10 +238,9 @@ class AdamWwithEMAandWings(optim.Optimizer):
         """
         loss = None
         if closure is not None:
-            # with torch.enable_grad():
             loss = closure()
 
-        for group in self.param_groups:
+        for group in self.group_params:
             params_with_grad = []
             grads = []
             exp_avgs = []
@@ -232,7 +289,7 @@ class AdamWwithEMAandWings(optim.Optimizer):
                 # record the step after step update
                 state_steps.append(state['step'])
 
-            optim._functional.adamw(params_with_grad,
+            AdamWeightDecay(params_with_grad,
                     grads,
                     exp_avgs,
                     exp_avg_sqs,
@@ -251,3 +308,5 @@ class AdamWwithEMAandWings(optim.Optimizer):
                 ema_param.mul_(cur_ema_decay).add_(param.float(), alpha=1 - cur_ema_decay)
 
         return loss
+
+'''
