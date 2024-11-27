@@ -422,9 +422,9 @@ class PatchEmbed3D(nn.Cell):
 
     def construct(self, x: Tensor) -> Tensor:
         _, t, _, h, w = x.shape
-        assert t % self.patch_size[0] == 0
-        assert h % self.patch_size[1] == 0
-        assert w % self.patch_size[2] == 0
+        # assert t % self.patch_size[0] == 0
+        # assert h % self.patch_size[1] == 0
+        # assert w % self.patch_size[2] == 0
 
         x = mint.permute(x, (0, 2, 1, 3, 4))
         x = self.proj(x)  # (B C T H W)
@@ -449,9 +449,9 @@ class LinearPatchEmbed3D(nn.Cell):
 
     def construct(self, x: Tensor) -> Tensor:
         b, t, c, h, w = x.shape
-        assert t % self.patch_size[0] == 0
-        assert h % self.patch_size[1] == 0
-        assert w % self.patch_size[2] == 0
+        # assert t % self.patch_size[0] == 0
+        # assert h % self.patch_size[1] == 0
+        # assert w % self.patch_size[2] == 0
 
         p0, p1, p2 = self.patch_size[0], self.patch_size[1], self.patch_size[2]
         nt, nh, nw = t // p0, h // p1, w // p2

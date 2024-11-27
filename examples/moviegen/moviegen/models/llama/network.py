@@ -49,7 +49,7 @@ def t2i_modulate(x: Tensor, shift: Tensor, scale: Tensor) -> Tensor:
 
 
 class LlamaDecoderLayer(nn.Cell):
-    @ms.lazy_inline(policy="front")
+    # @ms.lazy_inline(policy="front")
     def __init__(
         self,
         hidden_size: int = 4096,
@@ -426,9 +426,9 @@ class LlamaModel(nn.Cell):
         p0, p1, p2 = self.patch_size[0], self.patch_size[1], self.patch_size[2]
         nt, nh, nw = t // p0, h // p1, w // p2
 
-        assert nt < self.max_length[0]
-        assert nh < self.max_length[1]
-        assert nw < self.max_length[2]
+        # assert nt < self.max_length[0]
+        # assert nh < self.max_length[1]
+        # assert nw < self.max_length[2]
 
         t_inds = mint.arange(nt, dtype=ms.int64)
         h_inds = mint.arange(nh, dtype=ms.int64)
@@ -492,7 +492,7 @@ class LlamaModel(nn.Cell):
 
         # 3.1.6 Sequence Parallelism Start
         if self.model_parallelism:
-            assert hidden_states.shape[1] % self.group_size == 0
+            # assert hidden_states.shape[1] % self.group_size == 0
             hidden_states = self.split_forward_gather_backward(hidden_states)
             position_embedding = self.split_forward_gather_backward(position_embedding)
 

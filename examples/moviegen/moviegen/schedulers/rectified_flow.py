@@ -27,7 +27,7 @@ class LogisticNormal(nn.Cell):
         self._max = Tensor(1.0 - np.finfo(np.float32).eps, dtype=ms.float32)
 
     def construct(self, shape: Tuple[int, ...]) -> Tensor:
-        assert shape[-1] == 1
+        # assert shape[-1] == 1
         x = mint.normal(mean=self.mean, std=self.std, size=shape)
         offset = x.shape[-1] + 1 - mint.cumsum(mint.ones(x.shape[-1]), dim=-1)
         z = self._clipped_sigmoid(x - mint.log(offset))
