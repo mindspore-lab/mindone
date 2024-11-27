@@ -32,7 +32,7 @@ import numpy as np
 from tqdm import tqdm
 from PIL import Image, ImageSequence
 from omegaconf import OmegaConf
-from mindone.safetensors import save_file, load_file
+from mindone.safetensors.mindspore import save_file, load_file
 from .ldm.util import instantiate_from_config
 # from .ldm.vis_util import render
 
@@ -43,6 +43,7 @@ class MV23DPredictor(object):
         self.number_view = number_view
         self.render_size = render_size
 
+        # horizontal spherical rotation
         self.elevation_list = [0, 0, 0, 0, 0, 0, 0]
         self.azimuth_list = [0, 60, 120, 180, 240, 300, 0]
 
@@ -59,30 +60,56 @@ class MV23DPredictor(object):
 
     def init_model(self, ckpt_path, cfg_path):
         config = OmegaConf.load(cfg_path)
-        model = instantiate_from_config(config.model)
+        model = instantiate_from_config(config.model) # SVRMModel
 
-        weights = load_file(ckpt_path)
-        model.load_state_dict(weights)
+        if ckpt_path.endswith(".ckpt"): # if converted savetensors to ms.ckpt
+            state_dict = ms.load_checkpoint()
+        elif ckpt_path.endswith(".safetensors"):
+            state_dict = load_file(ckpt_path)
+        else:
+            raise AssertionError(f"Cannot recognize checkpoint file {ckpt_path}, only support MS *.ckpt and *.safetensors")
 
-        # model.device("Ascend")
+        # check loading keys:
+        model_state_dict = {k:v for k, v in model.parameters_and_names()}
+        loaded_keys = list(state_dict.keys())
+        expexted_keys = list(model_state_dict.keys())
+        original_loaded_keys = loaded_keys
+        missing_keys = list(set(expexted_keys) - set(loaded_keys))
+        unexpected_keys = list(set(loaded_keys) - set(expexted_keys))      
+        mismatched_keys = []
+        for checkpoint_key in original_loaded_keys:
+            if (checkpoint_key in model_state_dict and checkpoint_key in state_dict 
+                and state_dict[checkpoint_key].shape != model_state_dict[checkpoint_key]
+            ):
+                mismatched_keys.append(
+                    (checkpoint_key, state_dict[checkpoint_key].shape, model_state_dict[checkpoint_key].shape)
+                )
+
+        print(f"Loading SVRMModel...\n missing_keys: {missing_keys}, unexpected_keys: {unexpected_keys}, mismatched_keys: {mismatched_keys}")  
+
+        model = ms.load_param_into_net(model, state_dict, strict_load=True)
+
         model = model.set_train(False)
         model.render.half() 
         print(f'Load model successfully')
+
         return model
 
     def create_camera_to_world_matrix(self, elevation, azimuth, cam_dis=1.5):
         # elevation azimuth are radians
         # Convert elevation and azimuth angles to Cartesian coordinates on a unit sphere
+        # Right-angled Cartesian coordinate system: right x, forward y , up z
         x = np.cos(elevation) * np.cos(azimuth)
         y = np.cos(elevation) * np.sin(azimuth)
         z = np.sin(elevation)
 
         # Calculate camera position, target, and up vectors
         camera_pos = np.array([x, y, z]) * cam_dis
-        target = np.array([0, 0, 0])
+        target = np.array([0, 0, 0]) # object at world origin
         up = np.array([0, 0, 1])
 
         # Construct view matrix
+        # TODO to confirm Camera coordinate... Unity cam coord??: right x, up y???, forward z(look at obj)
         forward = target - camera_pos
         forward /= np.linalg.norm(forward)
         right = np.cross(forward, up)
@@ -112,27 +139,27 @@ class MV23DPredictor(object):
             input_view_cam_pos = self.create_camera_to_world_matrix(np.radians(elevation), np.radians(azimuth))
             input_view_cam_intrinsic = np.array([35. / 32, 35. /32, 0.5, 0.5])
             input_view_cam = Tensor.from_numpy(
-                np.concatenate([input_view_cam_pos.reshape(-1), input_view_cam_intrinsic], 0)
+                np.concatenate([input_view_cam_pos.reshape(-1), input_view_cam_intrinsic], 0) # 4*4+4=20
             ).float()
             input_cam_list.append(input_view_cam)
 
-        pixels_input = mint.stack(input_image_list, dim=0)
+        pixels_input = mint.stack(input_image_list, dim=0) # [B,C,H,W]
         input_images = self.final_input_view_transform(pixels_input)
-        input_cams = mint.stack(input_cam_list, dim=0)
+        input_cams = mint.stack(input_cam_list, dim=0) # [N, 20]
         return input_images, input_cams
 
     def load_data(self, intput_imgs):
         assert (6+1) == len(intput_imgs)
         
         input_images, input_cams = self.load_images_and_cameras(intput_imgs, self.elevation_list, self.azimuth_list)
-        input_cams[-1, :] = 0 # for user input view
+        input_cams[-1, :] = 0 # for user input cond view
         
         data = {}
-        data["input_view"] = input_images.unsqueeze(0).to(self.device)    # 1 4 3 512 512
-        data["input_view_cam"] = input_cams.unsqueeze(0).to(self.device)  # 1 4 20
+        data["input_view"] = input_images.unsqueeze(0)    # 1 7 3 512 512
+        data["input_view_cam"] = input_cams.unsqueeze(0)  # 1 7 20
         return data
 
-    # @torch.no_grad()
+    # @no_grad()
     def predict(
         self, 
         intput_imgs, 
@@ -144,7 +171,7 @@ class MV23DPredictor(object):
         os.makedirs(save_dir, exist_ok=True)
         print(save_dir)
         
-        # with torch.cuda.amp.autocast(): # TODO: mix previcion
+        # with torch.cuda.amp.autocast(): # TODO: mix precision
         self.model.export_mesh_with_uv(
             data = self.load_data(intput_imgs),
             out_dir = save_dir,
