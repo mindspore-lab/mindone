@@ -385,7 +385,7 @@ class MiDaS(nn.Cell):
         pos_embedding = ops.concat(
             [
                 self.pos_embedding[:, :1],
-                ops.ResizeBilinearV2(align_corners = False)(
+                ops.ResizeBilinearV2(align_corners=False)(
                     self.pos_embedding[:, 1:].reshape(1, grid, grid, -1).permute(0, 3, 1, 2), (hp, wp)
                 )
                 .permute(0, 2, 3, 1)

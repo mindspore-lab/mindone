@@ -23,6 +23,4 @@ export MS_COMPILER_CACHE_PATH=${output_path:?}/${task_name:?}_cache
 nohup python -u train.py  \
      -c $yaml_file  \
      --output_dir $output_path/$task_name \
-     --ms_mode 0 \ 
-     --jit_level O2 \
     > $output_path/$task_name/train.log 2>&1 &

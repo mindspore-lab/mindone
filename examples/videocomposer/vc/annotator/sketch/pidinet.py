@@ -3,6 +3,7 @@ r"""Modified from ``https://github.com/zhuoinoulu/pidinet''.
         T.ToTensor(),
         T.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])]).
 """
+
 import math
 import os
 from functools import partial
@@ -416,7 +417,7 @@ class PiDiNet(nn.Cell):
         e4 = self.conv_reduces[3](x_fuses[3])
         e4 = ops.ResizeBilinearV2()(e4, (H, W))
 
-        merge_output = ops.cat((e1, e2, e3, e4), axis = 1)
+        merge_output = ops.cat((e1, e2, e3, e4), axis=1)
         output = self.classifier(merge_output)
 
         return ops.sigmoid(output)
