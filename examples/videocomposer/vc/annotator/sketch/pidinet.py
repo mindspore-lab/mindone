@@ -405,23 +405,21 @@ class PiDiNet(nn.Cell):
             x_fuses = [x1, x2, x3, x4]
 
         e1 = self.conv_reduces[0](x_fuses[0])
-        e1 = ops.ResizeBilinear((H, W))(e1)
+        e1 = ops.ResizeBilinearV2()(e1, (H, W))
 
         e2 = self.conv_reduces[1](x_fuses[1])
-        e2 = ops.ResizeBilinear((H, W))(e2)
+        e2 = ops.ResizeBilinearV2()(e2, (H, W))
 
         e3 = self.conv_reduces[2](x_fuses[2])
-        e3 = ops.ResizeBilinear((H, W))(e3)
+        e3 = ops.ResizeBilinearV2()(e3, (H, W))
 
         e4 = self.conv_reduces[3](x_fuses[3])
-        e4 = ops.ResizeBilinear((H, W))(e4)
+        e4 = ops.ResizeBilinearV2()(e4, (H, W))
 
-        outputs = [e1, e2, e3, e4]
-        output = self.classifier(ops.concat(outputs, axis=1))
+        merge_output = ops.cat((e1, e2, e3, e4), axis = 1)
+        output = self.classifier(merge_output)
 
-        outputs.append(output)
-        outputs = [ops.sigmoid(r) for r in outputs]
-        return outputs[-1]
+        return ops.sigmoid(output)
 
 
 def pidinet_bsd(pretrained=False, vanilla_cnn=True, ckpt_path=None):
