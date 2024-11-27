@@ -114,9 +114,10 @@ class RefOnlyNoisedUNet(nn.Cell):
         unet_attn_procs = dict()
         for name, _ in unet.attn_processors.items():
             # if torch.__version__ >= '2.0': default_attn_proc = AttnProcessor2_0()
-            # if is_xformers_available():  default_attn_proc = XFormersAttnProcessor()
-            # else:                          
-            default_attn_proc = AttnProcessor()
+            if check_valid_flash_attention():
+                default_attn_proc = XFormersAttnProcessor()
+            else:                          
+                default_attn_proc = AttnProcessor()
             unet_attn_procs[name] = ReferenceOnlyAttnProc(
                 default_attn_proc, enabled=name.endswith("attn1.processor"), name=name
             )
@@ -217,7 +218,7 @@ class HunYuan3D_MVD_Std_Pipeline(DiffusionPipeline):
     def prepare(self):
         assert isinstance(self.unet, UNet2DConditionModel), "unet should be UNet2DConditionModel"
         self.unet = RefOnlyNoisedUNet(self.unet, self.scheduler).set_train(False)
-        elf.unet = self.unet.to_float(self.dtype)
+        self.unet = self.unet.to_float(self.dtype)
         self.prepare_init = True
 
     def encode_image(self, image: ms.Tensor, scale_factor: bool = False):

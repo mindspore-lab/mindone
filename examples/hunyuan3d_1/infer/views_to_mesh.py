@@ -38,12 +38,12 @@ from svrm.predictor import MV23DPredictor
 
 class Views2Mesh():
     def __init__(self, mv23d_cfg_path, mv23d_ckt_path, 
-                 use_lite=False, save_memory=False):
+                 use_lite=False):
         '''
             mv23d_cfg_path: config yaml file 
             mv23d_ckt_path: path to ckpt
             use_lite: lite version
-            save_memory: cpu auto
+            save_memory: cpu auto #TODO: TBD save_memory: use CPU
         '''
         self.mv23d_predictor = MV23DPredictor(mv23d_ckt_path, mv23d_cfg_path)  
         self.mv23d_predictor.model.set_train(False)
@@ -52,7 +52,7 @@ class Views2Mesh():
         set_parameter_grad_false(self.mv23d_predictor.model)
         print('view2mesh model', get_parameter_number(self.mv23d_predictor.model))
 
-    # @torch.no_grad()
+    # @no_grad()
     # @auto_amp_inference #TODO
     @timing_decorator("views to mesh")
     def __call__(self, *args, **kwargs):
@@ -82,7 +82,7 @@ class Views2Mesh():
             # show_image = rearrange(np.asarray(views_pil, dtype=np.uint8), '(n h) (m w) c -> (n m) h w c', n=3, m=2)
             show_image = np.asarray(views_pil, dtype=np.uint8)
             # '(n h) (m w) c -> (n m) h w c', n=3, m=2
-            nh, mw, c = show_image.shape
+            nh, mw, c = show_image.shape # default 3x2 images
             assert (nh % 3 == 0) and (mw % 2 == 0)
             n = 3
             m = 2
@@ -132,6 +132,7 @@ if __name__ == "__main__":
         return parser.parse_args()
         
     args = get_args()
+    ms.set_context(device_target=args.device) #mode=1
     args.use_lite = str_to_bool(args.use_lite)
     args.do_texture_mapping = str_to_bool(args.do_texture_mapping)
 
