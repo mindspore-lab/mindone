@@ -32,6 +32,59 @@ The scripts have been tested on Ascend 910B chips under the following requiremen
 3. Install the pacakges listed in requirements.txt with `pip install -r requirements.txt`
 
 
+## Fast and High-Quality Text-to-video Generation 🚀
+
+### 4-Step Results of T2V-Turbo
+<table class="center">
+  <td><img src=assets/demo_videos/v1/4steps/0273.gif width="320"></td></td>
+  <td><img src=assets/demo_videos/v1/4steps/0054.gif width="320"></td></td>
+  <td><img src=assets/demo_videos/v1/4steps/0262.gif width="320"></td></td></td>
+  <tr>
+  <td style="text-align:center;" width="320">With the style of low-poly game art, A majestic, white horse gallops gracefully across a moonlit beach.</td>
+  <td style="text-align:center;" width="320">medium shot of Christine, a beautiful 25-year-old brunette resembling Selena Gomez, anxiously looking up as she walks down a New York street, cinematic style</td>
+  <td style="text-align:center;" width="320">a cartoon pig playing his guitar, Andrew Warhol style</td>
+  <tr>
+</table >
+
+<table class="center">
+  <td><img src=assets/demo_videos/v1/4steps/0023.gif width="320"></td></td>
+  <td><img src=assets/demo_videos/v1/4steps/0021.gif width="320"></td></td>
+  <td><img src=assets/demo_videos/v1/4steps/0064.gif width="320"></td></td>
+
+  <tr>
+  <td style="text-align:center;" width="320">a dog wearing vr goggles on a boat</td>
+  <td style="text-align:center;" width="320">Pikachu snowboarding</td>
+  <td style="text-align:center;" width="320">a girl floating underwater </td>
+  <tr>
+</table >
+
+
+### 8-Step Results of T2V-Turbo
+
+<table class="center">
+  <td><img src=assets/demo_videos/v1/8steps/0026.gif width="320"></td></td>
+  <td><img src=assets/demo_videos/v1/8steps/0062.gif width="320"></td></td>
+  <td><img src=assets/demo_videos/v1/8steps/0065.gif width="320"></td></td></td>
+  <tr>
+  <td style="text-align:center;" width="320">Mickey Mouse is dancing on white background</td>
+  <td style="text-align:center;" width="320">light wind, feathers moving, she moves her gaze, 4k</td>
+  <td style="text-align:center;" width="320">fashion portrait shoot of a girl in colorful glasses, a breeze moves her hair </td>
+  <tr>
+</table >
+
+<table class="center">
+  <td><img src=assets/demo_videos/v1/8steps/0348.gif width="320"></td></td>
+  <td><img src=assets/demo_videos/v1/8steps/0266.gif width="320"></td></td>
+  <td><img src=assets/demo_videos/v1/8steps/0278.gif width="320"></td></td>
+
+  <tr>
+  <td style="text-align:center;" width="320">With the style of abstract cubism, The flowers swayed in the gentle breeze, releasing their sweet fragrance.</td>
+  <td style="text-align:center;" width="320">impressionist style, a yellow rubber duck floating on the wave on the sunset</td>
+  <td style="text-align:center;" width="320">A Egyptian tomp hieroglyphics painting ofA regal lion, decked out in a jeweled crown, surveys his kingdom.</td>
+  <tr>
+</table >
+
+
 ## 🎯 Model Checkpoints
 
 |Model|Resolution|Checkpoints|
@@ -39,7 +92,7 @@ The scripts have been tested on Ascend 910B chips under the following requiremen
 |T2V-Turbo (VC2)|320x512|[![HuggingFace](https://img.shields.io/badge/%F0%9F%A4%97%20Hugging%20Face-Model-blue)](https://huggingface.co/jiachenli-ucsb/T2V-Turbo-VC2/blob/main/unet_lora.pt) |
 |T2V-Turbo (MS)|256x256|[![HuggingFace](https://img.shields.io/badge/%F0%9F%A4%97%20Hugging%20Face-Model-blue)](https://huggingface.co/jiachenli-ucsb/T2V-Turbo-MS/blob/main/unet_lora.pt) |
 
-> **_NOTE:_**  The LORA weights here are originally in PyTorch format, please follow the instructions in [Inference](#-inference) to convert the weights in Mindspore format.
+> **_NOTE:_**  The LoRA weights here are originally in PyTorch format, please follow the instructions in [Inference](#-inference) to convert the weights in Mindspore format.
 
 
 ## 🚀 Inference
@@ -162,13 +215,15 @@ Experiments are tested on Ascend 910B with mindpsore 2.4.0 under pynative mode.
 
 ### Inference Performance
 
-| model name | method | cards | batch size | resolution | precision | scheduler | steps | jit level | s/step | video/s | recipe |
-| :--------: | :----: | :---: | :--------: | :--------: | :-------: | :-------: | :---: | :-------: | :----: | :-----: | :----: |
-| T2V-Turbo (VC2) | LORA | 1 | 1 | 16x320x512 | fp16 | ddim | 4 | O1 | | | [yaml](./configs/inference_t2v_512_v2.0.yaml) |
-| T2V-Turbo (MS)  | LORA | 1 | 1 | 16x256x256 | fp16 | ddim | 4 | O1 | | | [yaml](./configs/inference_t2v_512_v2.0.yaml) |
+| model name | method | cards | batch size | resolution | mode | precision | scheduler | steps | jit level | s/step | video/s | recipe |
+| :--------: | :----: | :---: | :--------: | :--------: | :--: | :-------: | :-------: | :---: | :-------: | :----: | :-----: | :----: |
+| T2V-Turbo (VC2) | LoRA | 1 | 1 | 16x320x512 | PyNative | fp16 | ddim | 4 | O0 | 4.47 | 0.06 | [yaml](./configs/inference_t2v_512_v2.0.yaml) |
+| T2V-Turbo (MS)  | LoRA | 1 | 1 | 16x256x256 | PyNative | fp16 | ddim | 4 | O0 | 3.66 | 0.07 | [json](https://huggingface.co/ali-vilab/text-to-video-ms-1.7b/blob/main/model_index.json) |
 
 ### Training Performance
 
-| model name | method | cards | batch size | resolution | precision | jit level | s/step | video/s |
-| :--------: | :----: | :---: | :--------: | :--------: | :-------: | :-------: | :----: | :-----: |
-| T2V-Turbo (VC2) | LORA | 1 | 1 | 8x320x512 | fp16 | O1 | | |
+| model name | method | cards | batch size | resolution | recompute | mode | stage | precision | jit level | s/step | frame/s | video/s |
+| :--------: | :----: | :---: | :--------: | :--------: | :-------: | :--: | :---: | :-------: | :-------: | :----: | :-----: | :-----: |
+| T2V-Turbo (VC2) | LoRA | 1 | 1 | 8x320x512 | ON | PyNative | stage-1 | fp16 | O0 | 6.83 | 1.17 | 0.15 |
+| T2V-Turbo (VC2) | LoRA | 1 | 1 | 8x320x512 | ON | PyNative | stage-2 | fp16 | O0 | 8.46 | 0.95 | 0.12 |
+| T2V-Turbo (VC2) | LoRA | 1 | 1 | 8x320x512 | ON | PyNative | stage-3 | fp16 | O0 | 9.32 | 1.17 | 0.11 |

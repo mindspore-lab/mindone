@@ -140,7 +140,9 @@ class T2VTurboVC2Pipeline(DiffusionPipeline):
         else:
             batch_size = prompt_embeds.shape[0]
 
-        # do_classifier_free_guidance = guidance_scale > 0.0  # In LCM Implementation:  cfg_noise = noise_cond + cfg_scale * (noise_cond - noise_uncond) , (cfg_scale > 0.0 using CFG)
+        # do_classifier_free_guidance = guidance_scale > 0.0
+        # # In LCM Implementation:  cfg_noise = noise_cond + cfg_scale * (noise_cond - noise_uncond)
+        # (cfg_scale > 0.0 using CFG)
 
         # 3. Encode input prompt
         prompt_embeds = self._encode_prompt(

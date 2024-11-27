@@ -10,7 +10,7 @@ try:
     import xformers.ops
 
     XFORMERS_IS_AVAILBLE = True
-except:
+except Exception:
     XFORMERS_IS_AVAILBLE = False
 from lvdm.basics import zero_module
 from lvdm.common import GroupNormExtend, LayerNorm, default, exists

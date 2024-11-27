@@ -59,6 +59,17 @@ class AttnBlock(nn.Cell):
         return x + h_
 
 
+def make_attn(in_channels, attn_type="vanilla"):
+    assert attn_type in ["vanilla", "linear", "none"], f"attn_type {attn_type} unknown"
+    # print(f"making attention of type '{attn_type}' with {in_channels} in_channels")
+    if attn_type == "vanilla":
+        return AttnBlock(in_channels)
+    elif attn_type == "none":
+        return nn.Identity(in_channels)
+    else:
+        raise Exception("Linear Attention not supported yet!")
+
+
 class Downsample(nn.Cell):
     def __init__(self, in_channels, with_conv):
         super().__init__()

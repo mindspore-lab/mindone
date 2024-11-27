@@ -1,4 +1,4 @@
-from intern_vid2.configs.model import *
+from intern_vid2.configs.model import VisionEncoders
 
 # ========================= data ==========================
 # NOTE The train_file will not be used during the evaluation
@@ -34,6 +34,7 @@ inputs = dict(
 
 # ========================= model ==========================
 text_enc = "bert_large"
+text_encoder = VisionEncoders[text_enc]
 model = dict(
     model_cls="InternVideo2_Stage2",
     vision_encoder=dict(
@@ -69,7 +70,7 @@ model = dict(
         keep_temporal=False,
         only_mask=True,
     ),
-    text_encoder="${TextEncoders[${text_enc}]}",
+    text_encoder="${text_encoder}",
     multimodal=dict(enable=True),
     embed_dim=512,
     temp=0.07,

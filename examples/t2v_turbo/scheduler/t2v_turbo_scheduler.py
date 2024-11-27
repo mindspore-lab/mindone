@@ -329,7 +329,7 @@ class T2VTurboScheduler(SchedulerMixin, ConfigMixin):
 
         self.timesteps = ms.Tensor.from_numpy(timesteps.copy())
 
-        ## From VideoCrafter 2
+        # From VideoCrafter 2
 
     def get_scalings_for_boundary_condition_discrete(self, t):
         self.sigma_data = 0.5  # Default: 0.5

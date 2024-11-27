@@ -405,7 +405,7 @@ class FrozenOpenCLIPImageEmbedderV2(ClipImageEmbedder):
             param.requires_grad = False
 
     def construct(self, image, no_dropout=False):
-        ## image: b c h w
+        # image: b c h w
         z = self.encode_with_vision_transformer(image)
         return z
 

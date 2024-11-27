@@ -3,12 +3,9 @@ from __future__ import annotations
 import argparse
 import ast
 import json
-import os
 import os.path as osp
 import re
-import shutil
 import sys
-import tempfile
 from copy import deepcopy
 from importlib import import_module
 
@@ -405,6 +402,6 @@ def eval_string(string, d):
 
     try:
         v = ast.literal_eval(string)
-    except:
+    except Exception:
         v = string
     return v
