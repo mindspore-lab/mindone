@@ -33,19 +33,28 @@ from tqdm import tqdm
 import mindspore as ms
 from mindspore import nn, mint, ops
 try:
-    import trimesh
-    # import mcubes
-    import xatlas
-    import open3d as o3d
+    import trimesh # 3D repr
+    import mcubes
+    import xatlas # texture operation
 except:
     raise "failed to import 3d libraries "
 
+# load open3d, for mesh refinement
+try:
+    import open3d as o3d
+except:
+    try:
+        import open3d-cpu as o3d
+    except:
+        raise "failed to import open3d library"
+
 from ..modules.rendering_neus.mesh import Mesh
-from ..modules.rendering_neus.rasterize import NVDiffRasterizerContext
+# from ..modules.rendering_neus.rasterize import NVDiffRasterizerContext
 
 from ..utils.ops import scale_tensor
 from ..util import count_params, instantiate_from_config
-from ..vis_util import render
+# from ..vis_util import render
+from ..util import no_grad
 
 
 def unwrap_uv(v_pos, t_pos_idx):
@@ -60,8 +69,8 @@ def unwrap_uv(v_pos, t_pos_idx):
 
 def uv_padding(image, hole_mask, uv_padding_size = 2):
     return cv2.inpaint(
-        (image.detach().cpu().numpy() * 255).astype(np.uint8),
-        (hole_mask.detach().cpu().numpy() * 255).astype(np.uint8),
+        (image.asnumpy() * 255).astype(np.uint8),
+        (hole_mask.asnumpy() * 255).astype(np.uint8),
         uv_padding_size,
         cv2.INPAINT_TELEA
     )
@@ -89,30 +98,27 @@ def refine_mesh(vtx_refine, faces_refine):
     return vtx_refine, faces_refine, mesh
 
 
-class SVRMModel(torch.nn.Module):
+class SVRMModel(nn.Cell):
     def __init__(
         self,
         img_encoder_config,
         img_to_triplane_config,
         render_config,
-        device = "cuda:0",
         **kwargs
     ):
         super(SVRMModel, self).__init__()
-        self.img_encoder = instantiate_from_config(img_encoder_config).half()
-        self.img_to_triplane_decoder = instantiate_from_config(img_to_triplane_config).half()
-        self.render = instantiate_from_config(render_config).half()
-        self.device = device
+        self.img_encoder = instantiate_from_config(img_encoder_config).half() # FrozenDinoV2ImageEmbedder
+        self.img_to_triplane_decoder = instantiate_from_config(img_to_triplane_config).half() # ImgToTriplaneModel
+        self.render = instantiate_from_config(render_config).half() # TriplaneSynthesizer
         count_params(self, verbose=True)
         
 
-    @torch.no_grad()
+    # @torch.no_grad()
     def export_mesh_with_uv(
         self, 
         data, 
         mesh_size: int = 384, 
-        ctx = None, 
-        context_type = 'cuda', 
+        ctx = None,  
         texture_res = 1024,
         target_face_count = 10000,
         do_texture_mapping = True,
@@ -130,37 +136,39 @@ class SVRMModel(torch.nn.Module):
 
         st = time.time()
         
-        here = {'device': self.device, 'dtype': torch.float16}
+        here = {'dtype': ms.float16}
         input_view_image = data["input_view"].to(**here)    # [b, m, c, h, w]
         input_view_cam = data["input_view_cam"].to(**here)  # [b, m, 20]
 
         batch_size, input_view_num, *_ = input_view_image.shape
         assert batch_size == 1, "batch size should be 1"
 
-        input_view_image = rearrange(input_view_image, 'b m c h w -> (b m) c h w')
-        input_view_cam = rearrange(input_view_cam, 'b m d -> (b m) d')
+        # -- encoder image
+        _, _, c, h, w = input_view_image.shape
+        input_view_image = input_view_image.reshape(-1, c, h, w) # 'b m c h w -> (b m) c h w'
+        input_view_cam = input_view_cam.reshape(-1, input_view_cam.shape[-1]) # 'b m d -> (b m) d'
         input_view_feat = self.img_encoder(input_view_image, input_view_cam)
-        input_view_feat = rearrange(input_view_feat, '(b m) l d -> b (l m) d', m=input_view_num)
+        # '(b m) l d -> b (l m) d'
+        _, l, d = input_view_feat.shape
+        input_view_feat = input_view_feat.reshape(-1, input_view_num, l, d).permute((0, 2, 1, 3)).reshape(-1, l*input_view_num, d)
 
         # -- decoder
-        torch.cuda.empty_cache()
         triplane_gen = self.img_to_triplane_decoder(input_view_feat)  # [b, 3, tri_dim, h, w]
         del input_view_feat
-        torch.cuda.empty_cache()
 
         # --- triplane nerf render
 
         cur_triplane = triplane_gen[0:1]
         
-        aabb = torch.tensor([[-0.6, -0.6, -0.6], [0.6, 0.6, 0.6]]).unsqueeze(0).to(**here)
+        aabb = ms.Tensor([[-0.6, -0.6, -0.6], [0.6, 0.6, 0.6]]).unsqueeze(0).to(**here)
         grid_out = self.render.forward_grid(planes=cur_triplane, grid_size=mesh_size, aabb=aabb)
 
         print(f"=====> Triplane forward time: {time.time() - st}")
         st = time.time()
         
-        vtx, faces = mcubes.marching_cubes(0. - grid_out['sdf'].squeeze(0).squeeze(-1).cpu().float().numpy(), 0)
+        vtx, faces = mcubes.marching_cubes(0. - grid_out['sdf'].squeeze(0).squeeze(-1).float().asnumpy(), 0)
         
-        bbox = aabb[0].cpu().numpy()
+        bbox = aabb[0].asnumpy()
         vtx = vtx / (mesh_size - 1)  
         vtx = vtx * (bbox[1] - bbox[0]) + bbox[0]
 
@@ -179,15 +187,15 @@ class SVRMModel(torch.nn.Module):
             mesh = mesh.simplify_quadric_decimation(target_face_count, boundary_weight=1.0)
 
             mesh = Mesh(
-                v_pos = torch.from_numpy(np.asarray(mesh.vertices)).to(self.device),
-                t_pos_idx = torch.from_numpy(np.asarray(mesh.triangles)).to(self.device),
-                v_rgb = torch.from_numpy(np.asarray(mesh.vertex_colors)).to(self.device)
+                v_pos = Tensor.from_numpy(np.asarray(mesh.vertices)),
+                t_pos_idx = Tensor.from_numpy(np.asarray(mesh.triangles)),
+                v_rgb = Tensor.from_numpy(np.asarray(mesh.vertex_colors))
             )
-            vtx_refine = mesh.v_pos.cpu().numpy()
-            faces_refine = mesh.t_pos_idx.cpu().numpy()
+            vtx_refine = mesh.v_pos.asnumpy()
+            faces_refine = mesh.t_pos_idx.asnumpy()
 
-        vtx_colors = self.render.forward_points(cur_triplane, torch.tensor(vtx_refine).unsqueeze(0).to(**here))
-        vtx_colors = vtx_colors['rgb'].float().squeeze(0).cpu().numpy()
+        vtx_colors = self.render.forward_points(cur_triplane, Tensor(vtx_refine).unsqueeze(0).to(**here))
+        vtx_colors = vtx_colors['rgb'].float().squeeze(0).asnumpy()
 
         color_ratio = 0.8 # increase brightness
         with open(obj_vertext_path, 'w') as fid:
@@ -211,8 +219,11 @@ class SVRMModel(torch.nn.Module):
             
 
         ##########  export texture  ########
-        
-        
+        # TODO: skip texture exporting for now
+        # reference: pymeshlab: https://blog.csdn.net/weixin_42605076/article/details/138429184
+        # https://docs.nerf.studio/quickstart/export_geometry.html
+        # https://nvlabs.github.io/nvdiffrast/#rasterization
+        '''
         st = time.time()
         
         # uv unwrap 
@@ -232,13 +243,13 @@ class SVRMModel(torch.nn.Module):
             ], dim=-1), 
             t_tex_idx,  
             (texture_res, texture_res)
-        )[0]
+        )[0] # [H, W, 4]
         hole_mask = ~(rast[:, :, 3] > 0)
 
         # Interpolate world space position
         gb_pos = ctx.interpolate_one(vtx_refine, rast[None, ...], faces_refine)[0][0]
         
-        with torch.no_grad():
+        with no_grad():
             gb_mask_pos_scale = scale_tensor(gb_pos.unsqueeze(0).view(1, -1, 3), (-1, 1), (-1, 1))
             
             tex_map = self.render.forward_points(cur_triplane, gb_mask_pos_scale)['rgb']
@@ -277,4 +288,4 @@ class SVRMModel(torch.nn.Module):
         mesh = trimesh.load_mesh(obj_path)
         mesh.export(glb_path, file_type='glb')
         print(f"=====> generate mesh with texture shading time: {time.time() - st}")
-  
+        '''
