@@ -204,7 +204,8 @@ def parse_train_args(parser):
         help="whether to compute the validation set loss during training",
     )
     parser.add_argument("--val_interval", default=1, type=int, help="Validation frequency in epochs")
-    parser.add_argument("--profile", default=False, type=str2bool, help="Profile or not")
+    parser.add_argument("--profile", default=False, type=str2bool, help="Profile time analysis or not")
+    parser.add_argument("--profile_memory", default=False, type=str2bool, help="Profile memory analysis or not")
     parser.add_argument(
         "--log_level",
         type=str,
