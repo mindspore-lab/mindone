@@ -89,6 +89,7 @@ def main(args):
     latent_size = tae.get_latent_size((num_frames, img_h, img_w))
 
     # 2.2 Llama 3
+    logger.info("Transformer init")
     model = init_model(in_channels=tae.out_channels, **args.model).set_train(False)
 
     # 2.3 text embeddings

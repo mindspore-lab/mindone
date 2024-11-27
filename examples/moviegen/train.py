@@ -104,6 +104,7 @@ def main(args):
         )
 
     # 2.2 Llama 3
+    logger.info("Transformer init")
     network = init_model(in_channels=tae.out_channels, **args.model)
     # 2.3 LossWrapper
     rflow_loss_wrapper = RFlowLossWrapper(network)

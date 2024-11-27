@@ -24,6 +24,7 @@ def load_ckpt_params(model: nn.Cell, ckpt: Union[str, Dict]) -> nn.Cell:
     if isinstance(ckpt, str):
         logger.info(f"Loading {ckpt} params into network...")
         param_dict = ms.load_checkpoint(ckpt)
+        param_dict = {k.replace("network.model.", ""): v for k, v in param_dict.items()}
     else:
         param_dict = ckpt
 
