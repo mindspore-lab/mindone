@@ -138,6 +138,7 @@ class ResBlock(nn.Cell):
         self.updown = up or down
         self.dtype = dtype
         self.identity = Identity()
+        self.split = ops.Split(1, 2)
 
         self.in_layers_norm = normalization(channels)
         self.in_layers_silu = mint.nn.SiLU().to_float(ms.float32) if upcast_sigmoid else mint.nn.SiLU()
@@ -203,7 +204,7 @@ class ResBlock(nn.Cell):
             emb_out = ops.expand_dims(emb_out, -1)
 
         if self.use_scale_shift_norm:
-            scale, shift = mint.split(emb_out, 2, 1)
+            scale, shift = self.split(emb_out)
             h = self.out_layers_norm(h) * (1 + scale) + shift
             h = self.out_layers_silu(h)
             h = self.out_layers_drop(h)

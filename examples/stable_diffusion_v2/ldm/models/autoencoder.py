@@ -53,6 +53,7 @@ class AutoencoderKL(nn.Cell):
         if ckpt_path is not None:
             self.init_from_ckpt(ckpt_path, ignore_keys=ignore_keys)
 
+        self.split = ops.Split(axis=1, output_num=2)
         self.stdnormal = ops.StandardNormal()
 
     def init_from_ckpt(self, path, ignore_keys=list()):
@@ -74,7 +75,7 @@ class AutoencoderKL(nn.Cell):
     def encode(self, x):
         h = self.encoder(x)
         moments = self.quant_conv(h)
-        mean, logvar = mint.split(moments, 2, dim=1)
+        mean, logvar = self.split(moments)
         logvar = ops.clip_by_value(logvar, -30.0, 20.0)
         std = mint.exp(0.5 * logvar)
         x = mean + std * self.stdnormal(mean.shape)
@@ -84,7 +85,7 @@ class AutoencoderKL(nn.Cell):
         """For latent caching usage"""
         h = self.encoder(x)
         moments = self.quant_conv(h)
-        mean, logvar = mint.split(moments, 2, dim=1)
+        mean, logvar = self.split(moments)
         logvar = ops.clip_by_value(logvar, -30.0, 20.0)
         std = mint.exp(0.5 * logvar)
         return mint.concat([mean, std], dim=1)

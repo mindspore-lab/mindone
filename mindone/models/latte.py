@@ -2,7 +2,7 @@ import logging
 import os
 
 import mindspore as ms
-from mindspore import Tensor, nn, ops
+from mindspore import Tensor, nn, ops, mint
 from mindspore.common.initializer import XavierUniform, initializer
 
 from .dit import DiTBlock, FinalLayer, LabelEmbedder, LinearPatchEmbed, PatchEmbed, TimestepEmbedder
@@ -81,8 +81,8 @@ class Latte(nn.Cell):
             )
         num_patches = self.x_embedder.num_patches
         # Will use fixed sin-cos embedding:
-        self.pos_embed = ms.Parameter(ops.zeros((1, num_patches, hidden_size), dtype=ms.float32), requires_grad=False)
-        self.temp_embed = ms.Parameter(ops.zeros((1, num_frames, hidden_size), dtype=ms.float32), requires_grad=False)
+        self.pos_embed = ms.Parameter(mint.zeros((1, num_patches, hidden_size), dtype=ms.float32), requires_grad=False)
+        self.temp_embed = ms.Parameter(mint.zeros((1, num_frames, hidden_size), dtype=ms.float32), requires_grad=False)
 
         self.blocks = nn.CellList(
             [DiTBlock(hidden_size, num_heads, mlp_ratio=mlp_ratio, **block_kwargs) for _ in range(depth)]
@@ -246,13 +246,13 @@ class Latte(nn.Cell):
         """
         # https://github.com/openai/glide-text2im/blob/main/notebooks/text2im.ipynb
         half = x[: len(x) // 2]
-        combined = ops.cat([half, half], axis=0)
+        combined = mint.cat([half, half], dim=0)
         model_out = self.construct(combined, t, y=y, text_embed=text_embed)
         eps, rest = model_out[:, :, : self.in_channels], model_out[:, :, self.in_channels :]
-        cond_eps, uncond_eps = ops.split(eps, len(eps) // 2, axis=0)
+        cond_eps, uncond_eps = mint.split(eps, len(eps) // 2, dim=0)
         half_eps = uncond_eps + cfg_scale * (cond_eps - uncond_eps)
-        eps = ops.cat([half_eps, half_eps], axis=0)
-        return ops.cat([eps, rest], axis=2)
+        eps = mint.cat([half_eps, half_eps], dim=0)
+        return mint.cat([eps, rest], dim=2)
 
     def load_params_from_ckpt(self, ckpt):
         # load param from a ckpt file path or a parameter dictionary

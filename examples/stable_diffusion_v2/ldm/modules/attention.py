@@ -50,11 +50,12 @@ class GEGLU(nn.Cell):
     def __init__(self, dim_in, dim_out, dtype=ms.float32):
         super().__init__()
         self.proj = mint.nn.Linear(dim_in, dim_out * 2).to_float(dtype)
+        self.split = ops.Split(-1, 2)
         self.gelu = mint.nn.GeLU()
         # self.gelu = nn.GELU(approximate=False)
 
     def construct(self, x):
-        x, gate = mint.split(self.proj(x), 2, -1)
+        x, gate = self.split(self.proj(x))
 
         return x * self.gelu(gate)
 
