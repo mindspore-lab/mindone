@@ -111,7 +111,7 @@ class StableAudioDiTBlock(nn.Cell):
         )
 
         # 2. Cross-Attn
-        self.norm2 = nn.LayerNorm((dim,), norm_eps, True)
+        self.norm2 = nn.LayerNorm((dim,), epsilon=norm_eps)
 
         self.attn2 = Attention(
             query_dim=dim,
@@ -127,7 +127,7 @@ class StableAudioDiTBlock(nn.Cell):
         )  # is self-attn if encoder_hidden_states is none
 
         # 3. Feed-forward
-        self.norm3 = nn.LayerNorm((dim,), norm_eps, True)
+        self.norm3 = nn.LayerNorm((dim,), epsilon=norm_eps)
         self.ff = FeedForward(
             dim,
             dropout=dropout,
