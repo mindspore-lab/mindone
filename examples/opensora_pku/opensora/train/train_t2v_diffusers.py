@@ -18,7 +18,6 @@ from opensora.acceleration.parallel_states import get_sequence_parallel_state, h
 from opensora.dataset import getdataset
 from opensora.dataset.loader import create_dataloader
 from opensora.models.causalvideovae import ae_channel_config, ae_stride_config, ae_wrapper
-from opensora.models.causalvideovae.model.modules.updownsample import TrilinearInterpolate
 from opensora.models.diffusion import Diffusion_models
 from opensora.models.diffusion.common import PatchEmbed2D
 from opensora.models.diffusion.opensora.modules import Attention, LayerNorm
@@ -98,16 +97,6 @@ def main(args):
             "dtype": vae_dtype,
         }
         vae = ae_wrapper[args.ae](args.ae_path, **kwarg)
-        # vae.vae_scale_factor = ae_stride_config[args.ae]
-
-        if vae_dtype == ms.float16:
-            custom_fp32_cells = [nn.GroupNorm] if args.vae_keep_gn_fp32 else []
-        else:
-            custom_fp32_cells = [nn.AvgPool2d, TrilinearInterpolate]
-        logger.info(
-            f"Use amp level O2 for causal 3D VAE with dtype={vae_dtype}, custom_fp32_cells: {custom_fp32_cells}"
-        )
-        vae = auto_mixed_precision(vae, amp_level="O2", dtype=vae_dtype, custom_fp32_cells=custom_fp32_cells)
 
         vae.set_train(False)
         for param in vae.get_parameters():  # freeze vae
