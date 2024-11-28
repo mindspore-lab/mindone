@@ -6,13 +6,15 @@ This repository contains SoTA image and video autoencoders and their training an
 - VAE (Image Variational AutoEncoder)
     - [x] KL-reg with GAN loss (SD VAE)
     - [x] VQ-reg with GAN loss (VQ-GAN)
-- Causal 3D Autoencoder (Video AutoEncoder)
-    - [ ] VQ-reg with GAN loss (MagViT)
-    - [ ] KL-reg with GAN loss
 
-## Installation
 
-```
+## Requirements
+
+| mindspore | ascend driver | firmware    | cann toolkit/kernel |
+|:---------:|:-------------:|:-----------:|:-------------------:|
+| 2.3.1     | 24.1.RC2      | 7.3.0.1.231 | 8.0.RC2.beta1       |
+
+```shell
 pip install -r requirements.txt
 ```
 
@@ -41,7 +43,6 @@ Note that you can either set arguments by editing the yaml file, or parsing by C
 
 - `model_config`: path to a yaml config file defining the autoencoder architecture and loss. Default: "configs/autoencoder_kl_f8.yaml"
 - `use_discriminator`: If True (please also set `mode:1` for VAE-vq), GAN adversarial training will be applied after `disc_start` steps (defined in model config). Default: False
-- `device_target`: To run on GPUs, please set it to "GPU". Default: "Ascend"
 
 <!--
 Note that `calculate_adaptive_weight` is not used currently compared to torch GAN.
@@ -62,17 +63,15 @@ After running it will save the reconstruction results in `samples/vae_recons` an
 
 For detailed arguments, please run `python infer.py -h`.
 
-### Results on CelebA-HQ
+### Performance
 
-We split the CelebA-HQ dataset into 24,000 images for training and 6,000 images for testing. The training performance and evaluation results on the test set are reported as follows.
+We split the CelebA-HQ dataset into 24,000 images for training and 6,000 images for testing. Experiments are tested on ascend 910* with mindspore 2.3.1 graph mode.
 
 
-| Model          |   Context   | epoch| Precision         | Local BS x Grad. Accu.  |   Resolution  |  Train T. (ms/step)  |  Train FPS  |   PSNR↑    | SSIM↑  |
-|:---------------|:---------------|:---|:-------------|:-----------------------:|:----------:|:------------:|:----------------:|:----------------:|:----------------:|
-| VAE-kl-f8-ema |    D910*x1-MS2.3.1 |   51   |     FP32   |      12x1   |    256x256  |    582      |  20.62   |   32.48    |  0.91    |
-| VAE-kl-f8    |    G3090x1-MS2.3.0    |  23    |     FP32   |      4x1   |    256x256  |   800      |   5    |    32.37   |  0.90    |
-| VAE-vq-f8    |    D910*x1-MS2.3.1 |   51   |     FP32   |       8x1   |    256x256  |    400     |  20   |   29.57    |  0.87    |
-> Context: {G:GPU, D:Ascend}{chip type}-{number of NPUs}-{mindspore version}.
+| model name  | cards|  batch size | resolution | precision |discriminator |jit_level  | graph compile  |  s/step  |  img/s  |   PSNR↑    | SSIM↑  |
+|:-----------|:-----|:-------------|:----------|:----------|:---|------:|:----------:|:------------:|:----------------:|:----------------:|:----------------:|
+| VAE-kl    |  1   |        12    | 256x256 |     fp32   |  OFF  |02   |     3 min  |    0.58      |  20.69   |   32.48    |  0.91    |
+| VAE-vq    |  1   |        8    | 256x256  |     fp32   |  OFF  |02   |     3 min  |    0.41     |  19.51   |   29.57    |  0.87    |
 
 
 Here are some reconstruction results (left is ground-truth, right is the reconstructed)
@@ -83,8 +82,3 @@ Here are some reconstruction results (left is ground-truth, right is the reconst
 <img src=https://github.com/SamitHuang/mindone/assets/8156835/595eb459-96e1-442d-9152-39e0d431ff04 width="30%" />
 <img src=https://github.com/SamitHuang/mindone/assets/8156835/aecc813a-71e2-4a30-971a-061f82b63e7c width="30%" />
 </p>
-
-
-## Causal 3D AutoEncoder
-
-Coming soon...
