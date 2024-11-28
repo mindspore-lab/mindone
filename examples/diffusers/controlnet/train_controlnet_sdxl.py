@@ -1105,11 +1105,12 @@ class TrainStepForControlNet(TrainStep):
         self.noise_scheduler_num_train_timesteps = noise_scheduler.config.num_train_timesteps
         self.noise_scheduler_prediction_type = noise_scheduler.config.prediction_type
         self.weight_dtype = weight_dtype
+        self.vae_dtype = self.vae.dtype
         self.args = AttrJitWrapper(**vars(args))
 
     def forward(self, pixel_values, conditioning_pixel_values, prompt_ids, add_text_embeds, add_time_ids):
         # Convert images to latent space
-        latents = self.vae.diag_gauss_dist.sample(self.vae.encode(pixel_values)[0])
+        latents = self.vae.diag_gauss_dist.sample(self.vae.encode(pixel_values.to(self.vae_dtype))[0])
         latents = latents * self.vae_scaling_factor
         latents = latents.to(self.weight_dtype)
 

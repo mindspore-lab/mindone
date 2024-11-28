@@ -192,6 +192,37 @@ class AdaLayerNormZeroSingle(nn.Cell):
         return x, gate_msa
 
 
+class LuminaRMSNormZero(nn.Cell):
+    """
+    Norm layer adaptive RMS normalization zero.
+
+    Parameters:
+        embedding_dim (`int`): The size of each embedding vector.
+    """
+
+    def __init__(self, embedding_dim: int, norm_eps: float, norm_elementwise_affine: bool):
+        super().__init__()
+        self.silu = nn.SiLU()
+        self.linear = nn.Dense(
+            min(embedding_dim, 1024),
+            4 * embedding_dim,
+            has_bias=True,
+        )
+        self.norm = RMSNorm(embedding_dim, eps=norm_eps, elementwise_affine=norm_elementwise_affine)
+
+    def construct(
+        self,
+        x: ms.Tensor,
+        emb: Optional[ms.Tensor] = None,
+    ) -> Tuple[ms.Tensor, ms.Tensor, ms.Tensor, ms.Tensor]:
+        # emb = self.emb(timestep, encoder_hidden_states, encoder_mask)
+        emb = self.linear(self.silu(emb))
+        scale_msa, gate_msa, scale_mlp, gate_mlp = emb.chunk(4, axis=1)
+        x = self.norm(x) * (1 + scale_msa[:, None])
+
+        return x, gate_msa, scale_mlp, gate_mlp
+
+
 class AdaLayerNormSingle(nn.Cell):
     r"""
     Norm layer adaptive layer norm single (adaLN-single).
@@ -293,6 +324,54 @@ class AdaLayerNormContinuous(nn.Cell):
         emb = self.linear(self.silu(conditioning_embedding).to(x.dtype))
         scale, shift = ops.chunk(emb, 2, axis=1)
         x = self.norm(x) * (1 + scale)[:, None, :] + shift[:, None, :]
+        return x
+
+
+class LuminaLayerNormContinuous(nn.Cell):
+    def __init__(
+        self,
+        embedding_dim: int,
+        conditioning_embedding_dim: int,
+        # NOTE: It is a bit weird that the norm layer can be configured to have scale and shift parameters
+        # because the output is immediately scaled and shifted by the projected conditioning embeddings.
+        # Note that AdaLayerNorm does not let the norm layer have scale and shift parameters.
+        # However, this is how it was implemented in the original code, and it's rather likely you should
+        # set `elementwise_affine` to False.
+        elementwise_affine=True,
+        eps=1e-5,
+        bias=True,
+        norm_type="layer_norm",
+        out_dim: Optional[int] = None,
+    ):
+        super().__init__()
+        # AdaLN
+        self.silu = nn.SiLU()
+        self.linear_1 = nn.Dense(conditioning_embedding_dim, embedding_dim, has_bias=bias)
+        if norm_type == "layer_norm":
+            self.norm = LayerNorm(embedding_dim, eps, elementwise_affine, bias)
+        else:
+            raise ValueError(f"unknown norm_type {norm_type}")
+        # linear_2
+        if out_dim is not None:
+            self.linear_2 = nn.Dense(
+                embedding_dim,
+                out_dim,
+                has_bias=bias,
+            )
+
+    def construct(
+        self,
+        x: ms.Tensor,
+        conditioning_embedding: ms.Tensor,
+    ) -> ms.Tensor:
+        # convert back to the original dtype in case `conditioning_embedding`` is upcasted to float32 (needed for hunyuanDiT)
+        emb = self.linear_1(self.silu(conditioning_embedding).to(x.dtype))
+        scale = emb
+        x = self.norm(x) * (1 + scale)[:, None, :]
+
+        if self.linear_2 is not None:
+            x = self.linear_2(x)
+
         return x
 
 
@@ -502,7 +581,10 @@ class GroupNorm(nn.Cell):
             self.bias = None
 
     def construct(self, x: Tensor):
-        x = group_norm(x, self.num_groups, self.weight.to(x.dtype), self.bias.to(x.dtype), self.eps)
+        if self.affine:
+            x = group_norm(x, self.num_groups, self.weight.to(x.dtype), self.bias.to(x.dtype), self.eps)
+        else:
+            x = group_norm(x, self.num_groups, self.weight, self.bias, self.eps)
         return x
 
 

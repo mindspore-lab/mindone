@@ -294,6 +294,49 @@ class PatchEmbed(nn.Cell):
         return (latent + pos_embed).to(latent.dtype)
 
 
+class LuminaPatchEmbed(nn.Cell):
+    """2D Image to Patch Embedding with support for Lumina-T2X"""
+
+    def __init__(self, patch_size=2, in_channels=4, embed_dim=768, bias=True):
+        super().__init__()
+        self.patch_size = patch_size
+        self.proj = nn.Dense(
+            in_channels=patch_size * patch_size * in_channels,
+            out_channels=embed_dim,
+            has_bias=bias,
+        )
+
+    def construct(self, x, freqs_cis):
+        """
+        Patchifies and embeds the input tensor(s).
+        Args:
+            x (List[ms.Tensor] | ms.Tensor): The input tensor(s) to be patchified and embedded.
+        Returns:
+            Tuple[ms.Tensor, ms.Tensor, List[Tuple[int, int]], ms.Tensor]: A tuple containing the patchified
+            and embedded tensor(s), the mask indicating the valid patches, the original image size(s), and the
+            frequency tensor(s).
+        """
+        patch_height = patch_width = self.patch_size
+        batch_size, channel, height, width = x.shape
+        height_tokens, width_tokens = height // patch_height, width // patch_width
+
+        x = x.view(batch_size, channel, height_tokens, patch_height, width_tokens, patch_width).permute(
+            0, 2, 4, 1, 3, 5
+        )
+        x = x.flatten(start_dim=3)
+        x = self.proj(x)
+        x = x.flatten(start_dim=1, end_dim=2)
+
+        mask = ops.ones((x.shape[0], x.shape[1]), dtype=ms.int32)
+
+        return (
+            x,
+            mask,
+            [(height, width)] * batch_size,
+            freqs_cis[:height_tokens, :width_tokens].flatten(start_dim=0, end_dim=1).unsqueeze(0),
+        )
+
+
 class CogVideoXPatchEmbed(nn.Cell):
     def __init__(
         self,
@@ -521,6 +564,22 @@ def get_2d_rotary_pos_embed_from_grid(embed_dim, grid, use_real=False):
     else:
         emb = ops.cat([emb_h, emb_w], axis=1)  # (H*W, D/2)
         return emb
+
+
+def get_2d_rotary_pos_embed_lumina(embed_dim, len_h, len_w, linear_factor=1.0, ntk_factor=1.0):
+    assert embed_dim % 4 == 0
+
+    emb_h = get_1d_rotary_pos_embed(
+        embed_dim // 2, len_h, linear_factor=linear_factor, ntk_factor=ntk_factor
+    )  # (H, D/4)
+    emb_w = get_1d_rotary_pos_embed(
+        embed_dim // 2, len_w, linear_factor=linear_factor, ntk_factor=ntk_factor
+    )  # (W, D/4)
+    emb_h = emb_h.view(len_h, 1, embed_dim // 4, 1).tile((1, len_w, 1, 1))  # (H, W, D/4, 1)
+    emb_w = emb_w.view(1, len_w, embed_dim // 4, 1).tile((len_h, 1, 1, 1))  # (H, W, D/4, 1)
+
+    emb = ops.cat([emb_h, emb_w], axis=-1).flatten(start_dim=2)  # (H, W, D/2)
+    return emb
 
 
 def get_1d_rotary_pos_embed(
@@ -1104,6 +1163,42 @@ class HunyuanCombinedTimestepTextSizeStyleEmbedding(nn.Cell):
             extra_cond = ops.cat([pooled_projections], axis=1)
 
         conditioning = timesteps_emb + self.extra_embedder(extra_cond)  # [B, D]
+
+        return conditioning
+
+
+class LuminaCombinedTimestepCaptionEmbedding(nn.Cell):
+    def __init__(self, hidden_size=4096, cross_attention_dim=2048, frequency_embedding_size=256):
+        super().__init__()
+        from .normalization import LayerNorm
+
+        self.time_proj = Timesteps(
+            num_channels=frequency_embedding_size, flip_sin_to_cos=True, downscale_freq_shift=0.0
+        )
+
+        self.timestep_embedder = TimestepEmbedding(in_channels=frequency_embedding_size, time_embed_dim=hidden_size)
+
+        self.caption_embedder = nn.SequentialCell(
+            LayerNorm(cross_attention_dim),
+            nn.Dense(
+                cross_attention_dim,
+                hidden_size,
+                has_bias=True,
+            ),
+        )
+
+    def construct(self, timestep, caption_feat, caption_mask):
+        # timestep embedding:
+        time_freq = self.time_proj(timestep)
+        time_embed = self.timestep_embedder(time_freq.to(dtype=self.timestep_embedder.linear_1.weight.dtype))
+
+        # caption condition embedding:
+        caption_mask_float = caption_mask.float().unsqueeze(-1)
+        caption_feats_pool = (caption_feat * caption_mask_float).sum(axis=1) / caption_mask_float.sum(axis=1)
+        caption_feats_pool = caption_feats_pool.to(caption_feat.dtype)
+        caption_embed = self.caption_embedder(caption_feats_pool)
+
+        conditioning = time_embed + caption_embed
 
         return conditioning
 
