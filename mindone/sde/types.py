@@ -28,5 +28,3 @@ Module = mindspore.nn.Cell
 Modules = Sequence[Module]
 ModuleOrModules = Union[Module, Modules]
 
-Size = mindspore.Size
-Sizes = Sequence[Size]
