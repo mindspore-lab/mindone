@@ -71,7 +71,6 @@ class BatchedBrownianTree:
                 t1=t1,
                 size=w0.shape,
                 dtype=w0.dtype,
-                device=w0.device,
                 entropy=s,
                 tol=1e-6,
                 pool_size=24,
@@ -269,8 +268,8 @@ class DPMSolverSDEScheduler(SchedulerMixin, ConfigMixin):
     # Copied from diffusers.schedulers.scheduling_euler_discrete.EulerDiscreteScheduler._init_step_index
     def _init_step_index(self, timestep):
         if self.begin_index is None:
-            if isinstance(timestep, ms.Tensor):
-                timestep = timestep.to(self.timesteps.device)
+            # if isinstance(timestep, ms.Tensor):
+            #     timestep = timestep.to(self.timesteps.device)
             self._step_index = self.index_for_timestep(timestep)
         else:
             self._step_index = self._begin_index
