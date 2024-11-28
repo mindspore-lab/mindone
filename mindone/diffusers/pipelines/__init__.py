@@ -30,6 +30,7 @@ _import_structure = {
         "StableDiffusionXLControlNetInpaintPipeline",
         "StableDiffusionXLControlNetPipeline",
     ],
+    "controlnet_hunyuandit": ["HunyuanDiTControlNetPipeline"],
     "controlnet_xs": [
         "StableDiffusionControlNetXSPipeline",
         "StableDiffusionXLControlNetXSPipeline",
@@ -78,13 +79,32 @@ _import_structure = {
         "Kandinsky3Img2ImgPipeline",
         "Kandinsky3Pipeline",
     ],
+    "kolors": [
+        "KolorsPipeline",
+        "KolorsImg2ImgPipeline",
+    ],
     "latent_consistency_models": [
         "LatentConsistencyModelImg2ImgPipeline",
         "LatentConsistencyModelPipeline",
     ],
+    "latte": ["LattePipeline"],
+    "lumina": ["LuminaText2ImgPipeline"],
     "marigold": [
         "MarigoldDepthPipeline",
         "MarigoldNormalsPipeline",
+    ],
+    "pag": [
+        "AnimateDiffPAGPipeline",
+        "KolorsPAGPipeline",
+        "HunyuanDiTPAGPipeline",
+        "StableDiffusion3PAGPipeline",
+        "StableDiffusionPAGPipeline",
+        "StableDiffusionControlNetPAGPipeline",
+        "StableDiffusionXLPAGPipeline",
+        "StableDiffusionXLPAGInpaintPipeline",
+        "StableDiffusionXLControlNetPAGPipeline",
+        "StableDiffusionXLPAGImg2ImgPipeline",
+        "PixArtSigmaPAGPipeline",
     ],
     "pixart_alpha": [
         "PixArtAlphaPipeline",
@@ -156,6 +176,7 @@ if TYPE_CHECKING:
         StableDiffusionXLControlNetInpaintPipeline,
         StableDiffusionXLControlNetPipeline,
     )
+    from .controlnet_hunyuandit import HunyuanDiTControlNetPipeline
     from .controlnet_sd3 import StableDiffusion3ControlNetPipeline
     from .controlnet_xs import StableDiffusionControlNetXSPipeline, StableDiffusionXLControlNetXSPipeline
     from .ddim import DDIMPipeline
@@ -194,9 +215,25 @@ if TYPE_CHECKING:
         KandinskyV22PriorPipeline,
     )
     from .kandinsky3 import Kandinsky3Img2ImgPipeline, Kandinsky3Pipeline
+    from .kolors import KolorsImg2ImgPipeline, KolorsPipeline
     from .latent_consistency_models import LatentConsistencyModelImg2ImgPipeline, LatentConsistencyModelPipeline
     from .latent_diffusion import LDMSuperResolutionPipeline, LDMTextToImagePipeline
+    from .latte import LattePipeline
+    from .lumina import LuminaText2ImgPipeline
     from .marigold import MarigoldDepthPipeline, MarigoldNormalsPipeline
+    from .pag import (
+        AnimateDiffPAGPipeline,
+        HunyuanDiTPAGPipeline,
+        KolorsPAGPipeline,
+        PixArtSigmaPAGPipeline,
+        StableDiffusion3PAGPipeline,
+        StableDiffusionControlNetPAGPipeline,
+        StableDiffusionPAGPipeline,
+        StableDiffusionXLControlNetPAGPipeline,
+        StableDiffusionXLPAGImg2ImgPipeline,
+        StableDiffusionXLPAGInpaintPipeline,
+        StableDiffusionXLPAGPipeline,
+    )
     from .pipeline_utils import DiffusionPipeline, ImagePipelineOutput, StableDiffusionMixin
     from .pixart_alpha import PixArtAlphaPipeline, PixArtSigmaPipeline
     from .shap_e import ShapEImg2ImgPipeline, ShapEPipeline

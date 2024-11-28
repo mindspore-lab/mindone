@@ -782,6 +782,77 @@ FLUX_TRANSFORMER2D_CASES = [
 ]
 
 
+LATTE_TRANSORMER3D_CASES = [
+    [
+        "LatteTransformer3DModel",
+        "diffusers.models.transformers.latte_transformer_3d.LatteTransformer3DModel",
+        "mindone.diffusers.models.transformers.latte_transformer_3d.LatteTransformer3DModel",
+        (),
+        {
+            "sample_size": 8,
+            "num_layers": 1,
+            "patch_size": 2,
+            "attention_head_dim": 4,
+            "num_attention_heads": 2,
+            "caption_channels": 8,
+            "in_channels": 4,
+            "cross_attention_dim": 8,
+            "out_channels": 8,
+            "attention_bias": True,
+            "activation_fn": "gelu-approximate",
+            "num_embeds_ada_norm": 1000,
+            "norm_type": "ada_norm_single",
+            "norm_elementwise_affine": False,
+            "norm_eps": 1e-6,
+        },
+        (),
+        {
+            "hidden_states": np.random.randn(2, 4, 1, 8, 8),
+            "encoder_hidden_states": np.random.randn(2, 8, 8),
+            "timestep": np.random.randint(0, 1000, size=(2,)),
+            "enable_temporal_attentions": True,
+        },
+    ]
+]
+
+
+LUMINA_NEXTDIT2D_CASES = [
+    [
+        "LuminaNextDiT2DModel",
+        "diffusers.models.transformers.lumina_nextdit2d.LuminaNextDiT2DModel",
+        "mindone.diffusers.models.transformers.lumina_nextdit2d.LuminaNextDiT2DModel",
+        (),
+        {
+            "sample_size": 16,
+            "patch_size": 2,
+            "in_channels": 4,
+            "hidden_size": 24,
+            "num_layers": 2,
+            "num_attention_heads": 3,
+            "num_kv_heads": 1,
+            "multiple_of": 16,
+            "ffn_dim_multiplier": None,
+            "norm_eps": 1e-5,
+            "learn_sigma": False,
+            "qk_norm": True,
+            "cross_attention_dim": 32,
+            "scaling_factor": 1.0,
+        },
+        (),
+        {
+            "hidden_states": np.random.randn(2, 4, 16, 16),
+            "encoder_hidden_states": np.random.randn(2, 16, 32),
+            "timestep": np.random.rand(
+                2,
+            ),
+            "encoder_mask": np.random.randn(2, 16),
+            "image_rotary_emb": np.random.randn(384, 384, 4),
+            "cross_attention_kwargs": {},
+        },
+    ]
+]
+
+
 TRANSFORMERS_CASES = (
     DIT_TRANSFORMER2D_CASES
     + PIXART_TRANSFORMER2D_CASES
@@ -789,6 +860,8 @@ TRANSFORMERS_CASES = (
     + SD3_TRANSFORMER2D_CASES
     + TRANSFORMER2D_CASES
     + FLUX_TRANSFORMER2D_CASES
+    + LATTE_TRANSORMER3D_CASES
+    + LUMINA_NEXTDIT2D_CASES
 )
 
 
