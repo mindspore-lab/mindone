@@ -107,11 +107,11 @@ class BrownianTreeNoiseSampler:
 
     def __init__(self, x, sigma_min, sigma_max, seed=None, transform=lambda x: x):
         self.transform = transform
-        t0, t1 = self.transform(ms.from_numpy(sigma_min)), self.transform(ms.from_numpy(sigma_max))
+        t0, t1 = self.transform(ms.Tensor.from_numpy(sigma_min)), self.transform(ms.Tensor.from_numpy(sigma_max))
         self.tree = BatchedBrownianTree(x, t0, t1, seed)
 
     def __call__(self, sigma, sigma_next):
-        t0, t1 = self.transform(ms.from_numpy(sigma)), self.transform(ms.from_numpy(sigma_next))
+        t0, t1 = self.transform(ms.Tensor.from_numpy(sigma)), self.transform(ms.Tensor.from_numpy(sigma_next))
         return self.tree(t0, t1) / (t1 - t0).abs().sqrt()
 
 
@@ -388,11 +388,11 @@ class DPMSolverSDEScheduler(SchedulerMixin, ConfigMixin):
         second_order_timesteps = self._second_order_timesteps(sigmas, log_sigmas)
 
         sigmas = np.concatenate([sigmas, [0.0]]).astype(np.float32)
-        sigmas = ms.from_numpy(sigmas)
+        sigmas = ms.Tensor.from_numpy(sigmas)
         self.sigmas = ops.cat([sigmas[:1], sigmas[1:-1].repeat_interleave(2), sigmas[-1:]])
 
-        timesteps = ms.from_numpy(timesteps)
-        second_order_timesteps = ms.from_numpy(second_order_timesteps)
+        timesteps = ms.Tensor.from_numpy(timesteps)
+        second_order_timesteps = ms.Tensor.from_numpy(second_order_timesteps)
         timesteps = ops.cat([timesteps[:1], timesteps[1:].repeat_interleave(2)])
         timesteps[1::2] = second_order_timesteps
 
