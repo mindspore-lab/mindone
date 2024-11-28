@@ -24,12 +24,7 @@ To make sure you can successfully run the latest versions of the example scripts
 ```bash
 git clone https://github.com/mindspore-lab/mindone
 cd mindone
-pip install -e .
-```
-
-Then cd in the `examples/dreambooth` folder and run
-```bash
-pip install -r requirements_sd3.txt
+pip install -e ".[training]"
 ```
 
 

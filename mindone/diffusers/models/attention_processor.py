@@ -730,6 +730,9 @@ class Attention(nn.Cell):
         # In MindSpore, False indicates retention and True indicates discard, in PyTorch it is the opposite
         if attn_mask is not None:
             attn_mask = ops.logical_not(attn_mask) if attn_mask.dtype == ms.bool_ else attn_mask.bool()
+            attn_mask = ops.broadcast_to(
+                attn_mask, (attn_mask.shape[0], attn_mask.shape[1], query.shape[-2], key.shape[-2])
+            )[:, :1, :, :]
 
         return ops.operations.nn_ops.FlashAttentionScore(
             head_num=head_num, keep_prob=keep_prob, scale_value=scale or self.scale, input_layout=input_layout
@@ -2116,7 +2119,7 @@ class IPAdapterAttnProcessor(nn.Cell):
             [nn.Dense(cross_attention_dim, hidden_size, has_bias=False) for _ in range(len(num_tokens))]
         )
 
-    def __call__(
+    def construct(
         self,
         attn: Attention,
         hidden_states: ms.Tensor,
@@ -2138,6 +2141,8 @@ class IPAdapterAttnProcessor(nn.Cell):
                     encoder_hidden_states[:, :end_pos, :],
                     [encoder_hidden_states[:, end_pos:, :]],
                 )
+        else:
+            ip_hidden_states = None
 
         if attn.spatial_norm is not None:
             hidden_states = attn.spatial_norm(hidden_states, temb)
@@ -2147,6 +2152,8 @@ class IPAdapterAttnProcessor(nn.Cell):
         if input_ndim == 4:
             batch_size, channel, height, width = hidden_states.shape
             hidden_states = hidden_states.view(batch_size, channel, height * width).swapaxes(1, 2)
+        else:
+            batch_size, channel, height, width = None, None, None, None
 
         batch_size, sequence_length, _ = (
             hidden_states.shape if encoder_hidden_states is None else encoder_hidden_states.shape

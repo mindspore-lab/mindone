@@ -192,6 +192,7 @@ _import_structure = {
         "DPMSolverMultistepScheduler",
         "DPMSolverMultistepInverseScheduler",
         "DPMSolverSinglestepScheduler",
+        "EDMDPMSolverMultistepScheduler",
         "EDMEulerScheduler",
         "EulerAncestralDiscreteScheduler",
         "EulerDiscreteScheduler",
