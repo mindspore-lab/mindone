@@ -29,7 +29,7 @@ _r12 = 1 / 12
 
 
 def _randn(size, dtype, seed):
-    generator = np.Generator().manual_seed(int(seed))
+    generator = np.random.Generator(np.random.PCG64(seed))
     return ops.randn(size, dtype=dtype, generator=generator)
 
 
