@@ -6492,7 +6492,8 @@ sigma is the same as the last sigma in the training schedule. If <code>zero</cod
 <span class="normal">700</span>
 <span class="normal">701</span>
 <span class="normal">702</span>
-<span class="normal">703</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span> <span class="nc">EDMDPMSolverMultistepScheduler</span><span class="p">(</span><span class="n">SchedulerMixin</span><span class="p">,</span> <span class="n">ConfigMixin</span><span class="p">):</span>
+<span class="normal">703</span>
+<span class="normal">704</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span> <span class="nc">EDMDPMSolverMultistepScheduler</span><span class="p">(</span><span class="n">SchedulerMixin</span><span class="p">,</span> <span class="n">ConfigMixin</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Implements DPMSolverMultistepScheduler in EDM formulation as presented in Karras et al. 2022 [1].</span>
 <span class="sd">    `EDMDPMSolverMultistepScheduler` is a fast dedicated high-order solver for diffusion ODEs.</span>
@@ -6609,6 +6610,7 @@ sigma is the same as the last sigma in the training schedule. If <code>zero</cod
         <span class="bp">self</span><span class="o">.</span><span class="n">lower_order_nums</span> <span class="o">=</span> <span class="mi">0</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_step_index</span> <span class="o">=</span> <span class="kc">None</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_begin_index</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">sigma_data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">sigma_data</span>
 
     <span class="nd">@property</span>
     <span class="k">def</span> <span class="nf">init_noise_sigma</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
@@ -6642,7 +6644,7 @@ sigma is the same as the last sigma in the training schedule. If <code>zero</cod
 
     <span class="c1"># Copied from diffusers.schedulers.scheduling_edm_euler.EDMEulerScheduler.precondition_inputs</span>
     <span class="k">def</span> <span class="nf">precondition_inputs</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">sample</span><span class="p">,</span> <span class="n">sigma</span><span class="p">):</span>
-        <span class="n">c_in</span> <span class="o">=</span> <span class="mi">1</span> <span class="o">/</span> <span class="p">((</span><span class="n">sigma</span><span class="o">**</span><span class="mi">2</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">sigma_data</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span> <span class="o">**</span> <span class="mf">0.5</span><span class="p">)</span>
+        <span class="n">c_in</span> <span class="o">=</span> <span class="mi">1</span> <span class="o">/</span> <span class="p">((</span><span class="n">sigma</span><span class="o">**</span><span class="mi">2</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">sigma_data</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span> <span class="o">**</span> <span class="mf">0.5</span><span class="p">)</span>
         <span class="n">scaled_sample</span> <span class="o">=</span> <span class="p">(</span><span class="n">sample</span> <span class="o">*</span> <span class="n">c_in</span><span class="p">)</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">sample</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">scaled_sample</span>
 
@@ -6657,7 +6659,7 @@ sigma is the same as the last sigma in the training schedule. If <code>zero</cod
 
     <span class="c1"># Copied from diffusers.schedulers.scheduling_edm_euler.EDMEulerScheduler.precondition_outputs</span>
     <span class="k">def</span> <span class="nf">precondition_outputs</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">sample</span><span class="p">,</span> <span class="n">model_output</span><span class="p">,</span> <span class="n">sigma</span><span class="p">):</span>
-        <span class="n">sigma_data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">sigma_data</span>
+        <span class="n">sigma_data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">sigma_data</span>
         <span class="n">c_skip</span> <span class="o">=</span> <span class="n">sigma_data</span><span class="o">**</span><span class="mi">2</span> <span class="o">/</span> <span class="p">(</span><span class="n">sigma</span><span class="o">**</span><span class="mi">2</span> <span class="o">+</span> <span class="n">sigma_data</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span>
 
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">prediction_type</span> <span class="o">==</span> <span class="s2">&quot;epsilon&quot;</span><span class="p">:</span>
@@ -7313,8 +7315,7 @@ The converted model output.</p>
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/schedulers/scheduling_edm_dpmsolver_multistep.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">362</span>
-<span class="normal">363</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">363</span>
 <span class="normal">364</span>
 <span class="normal">365</span>
 <span class="normal">366</span>
@@ -7346,7 +7347,8 @@ The converted model output.</p>
 <span class="normal">392</span>
 <span class="normal">393</span>
 <span class="normal">394</span>
-<span class="normal">395</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">convert_model_output</span><span class="p">(</span>
+<span class="normal">395</span>
+<span class="normal">396</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">convert_model_output</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">model_output</span><span class="p">:</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span>
     <span class="n">sample</span><span class="p">:</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
@@ -7470,8 +7472,7 @@ The sample tensor at the previous timestep.</p>
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/schedulers/scheduling_edm_dpmsolver_multistep.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">397</span>
-<span class="normal">398</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">398</span>
 <span class="normal">399</span>
 <span class="normal">400</span>
 <span class="normal">401</span>
@@ -7507,7 +7508,8 @@ The sample tensor at the previous timestep.</p>
 <span class="normal">431</span>
 <span class="normal">432</span>
 <span class="normal">433</span>
-<span class="normal">434</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">dpm_solver_first_order_update</span><span class="p">(</span>
+<span class="normal">434</span>
+<span class="normal">435</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">dpm_solver_first_order_update</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">model_output</span><span class="p">:</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span>
     <span class="n">sample</span><span class="p">:</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
@@ -7635,8 +7637,7 @@ The sample tensor at the previous timestep.</p>
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/schedulers/scheduling_edm_dpmsolver_multistep.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">436</span>
-<span class="normal">437</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">437</span>
 <span class="normal">438</span>
 <span class="normal">439</span>
 <span class="normal">440</span>
@@ -7705,7 +7706,8 @@ The sample tensor at the previous timestep.</p>
 <span class="normal">503</span>
 <span class="normal">504</span>
 <span class="normal">505</span>
-<span class="normal">506</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">multistep_dpm_solver_second_order_update</span><span class="p">(</span>
+<span class="normal">506</span>
+<span class="normal">507</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">multistep_dpm_solver_second_order_update</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">model_output_list</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">],</span>
     <span class="n">sample</span><span class="p">:</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
@@ -7866,8 +7868,7 @@ The sample tensor at the previous timestep.</p>
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/schedulers/scheduling_edm_dpmsolver_multistep.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">508</span>
-<span class="normal">509</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">509</span>
 <span class="normal">510</span>
 <span class="normal">511</span>
 <span class="normal">512</span>
@@ -7919,7 +7920,8 @@ The sample tensor at the previous timestep.</p>
 <span class="normal">558</span>
 <span class="normal">559</span>
 <span class="normal">560</span>
-<span class="normal">561</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">multistep_dpm_solver_third_order_update</span><span class="p">(</span>
+<span class="normal">561</span>
+<span class="normal">562</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">multistep_dpm_solver_third_order_update</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">model_output_list</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">],</span>
     <span class="n">sample</span><span class="p">:</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
@@ -8060,8 +8062,7 @@ A scaled input sample.</p>
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/schedulers/scheduling_edm_dpmsolver_multistep.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">210</span>
-<span class="normal">211</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">211</span>
 <span class="normal">212</span>
 <span class="normal">213</span>
 <span class="normal">214</span>
@@ -8082,7 +8083,8 @@ A scaled input sample.</p>
 <span class="normal">229</span>
 <span class="normal">230</span>
 <span class="normal">231</span>
-<span class="normal">232</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">scale_model_input</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">sample</span><span class="p">:</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">timestep</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
+<span class="normal">232</span>
+<span class="normal">233</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">scale_model_input</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">sample</span><span class="p">:</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">timestep</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Ensures interchangeability with schedulers that need to scale the denoising model input depending on the</span>
 <span class="sd">    current timestep. Scales the denoising model input by `(sigma**2 + 1) ** 0.5` to match the Euler algorithm.</span>
@@ -8156,15 +8158,15 @@ A scaled input sample.</p>
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/schedulers/scheduling_edm_dpmsolver_multistep.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">168</span>
-<span class="normal">169</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">169</span>
 <span class="normal">170</span>
 <span class="normal">171</span>
 <span class="normal">172</span>
 <span class="normal">173</span>
 <span class="normal">174</span>
 <span class="normal">175</span>
-<span class="normal">176</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">set_begin_index</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">begin_index</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span><span class="p">):</span>
+<span class="normal">176</span>
+<span class="normal">177</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">set_begin_index</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">begin_index</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Sets the begin index for the scheduler. This function should be run from pipeline before the inference.</span>
 
@@ -8224,8 +8226,7 @@ A scaled input sample.</p>
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/schedulers/scheduling_edm_dpmsolver_multistep.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">234</span>
-<span class="normal">235</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">235</span>
 <span class="normal">236</span>
 <span class="normal">237</span>
 <span class="normal">238</span>
@@ -8262,7 +8263,8 @@ A scaled input sample.</p>
 <span class="normal">269</span>
 <span class="normal">270</span>
 <span class="normal">271</span>
-<span class="normal">272</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">set_timesteps</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">num_inference_steps</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="kc">None</span><span class="p">):</span>
+<span class="normal">272</span>
+<span class="normal">273</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">set_timesteps</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">num_inference_steps</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="kc">None</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Sets the discrete timesteps used for the diffusion chain (to be run before inference).</span>
 
@@ -8439,8 +8441,7 @@ tuple is returned where the first element is the sample tensor.</p>
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/schedulers/scheduling_edm_dpmsolver_multistep.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">596</span>
-<span class="normal">597</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">597</span>
 <span class="normal">598</span>
 <span class="normal">599</span>
 <span class="normal">600</span>
@@ -8513,7 +8514,8 @@ tuple is returned where the first element is the sample tensor.</p>
 <span class="normal">667</span>
 <span class="normal">668</span>
 <span class="normal">669</span>
-<span class="normal">670</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">step</span><span class="p">(</span>
+<span class="normal">670</span>
+<span class="normal">671</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">step</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">model_output</span><span class="p">:</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span>
     <span class="n">timestep</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
