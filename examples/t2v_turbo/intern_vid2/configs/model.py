@@ -1,6 +1,3 @@
-VisionEncoders = dict()
-
-
 TextEncoders = dict()
 TextEncoders["bert"] = dict(
     name="bert_base",

@@ -178,10 +178,10 @@ To train T2V-Turbo (VC2), first prepare the data and model as below
 python tools/convert_weights.py --source PATH-TO-VideoCrafter2-model.ckpt --target PATH-TO-VideoCrafter2-model-ms.ckpt --type vc2
 
 # convert InternVid2-S2 Model
-python tools/convert_weights.py --source PATH-TO-InternVid2-S2 --target PATH-TO-unet_lora.ckpt --type internvid
+python tools/convert_weights.py --source PATH-TO-InternVid2-S2.pt --target PATH-TO-InternVid2-S2.ckpt --type internvid
 
 # convert HPSv2.1 Model
-python tools/convert_weights.py --source PATH-TO-HPSv2.1.pt --target PATH-TO-unet_lora.ckpt --type hps
+python tools/convert_weights.py --source PATH-TO-HPSv2.1.pt --target PATH-TO-HPSv2.1.ckpt --type hps
 ```
 
 6. Set `--pretrained_model_path`, `--data_path`, `--csv_path` and `--image_rm_ckpt_dir`, `--video_rm_ckpt_dir` accordingly in `scripts/train_t2v_turbo_vc2.sh`.

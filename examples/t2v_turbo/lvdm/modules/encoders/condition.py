@@ -1,6 +1,5 @@
 import os
 
-from lvdm.common import autocast
 from lvdm.modules.encoders.clip import CLIPModel, CLIPTokenizer, parse, support_list
 from transformers import T5Tokenizer
 from utils.download import download_checkpoint
@@ -353,7 +352,6 @@ class FrozenOpenCLIPImageEmbedder(ClipImageEmbedder):
         for param in self.parameters():
             param.requires_grad = False
 
-    @autocast
     def construct(self, image, no_dropout=False):
         z = self.encode_with_vision_transformer(image)
         if self.ucg_rate > 0.0 and not no_dropout:

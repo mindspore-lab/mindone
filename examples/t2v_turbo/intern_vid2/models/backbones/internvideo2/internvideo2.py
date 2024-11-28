@@ -2,6 +2,8 @@ import logging
 import math
 from functools import partial
 
+import numpy as np
+
 import mindspore as ms
 from mindspore import Tensor, mint, nn, ops, recompute
 from mindspore.common.initializer import Constant, TruncatedNormal, initializer

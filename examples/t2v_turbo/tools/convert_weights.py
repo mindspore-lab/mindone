@@ -190,7 +190,7 @@ if __name__ == "__main__":
         help="output file path. If it is None, then the converted file will be saved in the input directory.",
     )
     parser.add_argument(
-        "-t", "--type", choices=["vc2", "lora", "hps", "internvid"], required=True, help="checkpoint/weights type."
+        "-c", "--type", choices=["vc2", "lora", "hps", "internvid"], required=True, help="checkpoint/weights type."
     )
 
     args = parser.parse_args()

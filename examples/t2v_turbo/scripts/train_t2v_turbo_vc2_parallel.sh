@@ -38,7 +38,7 @@ msrun --bind_core=True --master_port=8090 --worker_num=8 --local_worker_num=8 --
     --train_batch_size 1 \
     --num_train_epochs 20 \
     --gradient_accumulation_steps 8 \
-    --use_recompute False \
+    --use_recompute True \
     --reward_fn_name hpsv2 \
     --reward_scale 1.0 \
     --image_rm_ckpt_dir $image_rm_path \

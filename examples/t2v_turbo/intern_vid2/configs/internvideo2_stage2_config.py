@@ -1,4 +1,4 @@
-from intern_vid2.configs.model import VisionEncoders
+from intern_vid2.configs.model import TextEncoders
 
 # ========================= data ==========================
 # NOTE The train_file will not be used during the evaluation
@@ -34,7 +34,7 @@ inputs = dict(
 
 # ========================= model ==========================
 text_enc = "bert_large"
-text_encoder = VisionEncoders[text_enc]
+text_encoder = TextEncoders[text_enc]
 model = dict(
     model_cls="InternVideo2_Stage2",
     vision_encoder=dict(
