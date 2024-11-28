@@ -468,7 +468,10 @@ class GroupNorm(nn.Cell):
             self.bias = None
 
     def construct(self, x: Tensor):
-        x = group_norm(x, self.num_groups, self.weight.to(x.dtype), self.bias.to(x.dtype), self.eps)
+        if self.affine:
+            x = group_norm(x, self.num_groups, self.weight.to(x.dtype), self.bias.to(x.dtype), self.eps)
+        else:
+            x = group_norm(x, self.num_groups, self.weight, self.bias, self.eps)
         return x
 
 
