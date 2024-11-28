@@ -1,5 +1,5 @@
 import numpy as np
-from moviegen.schedulers import RFlowLossWrapper
+from mg.schedulers import RFlowLossWrapper
 
 import mindspore as ms
 import mindspore.nn as nn

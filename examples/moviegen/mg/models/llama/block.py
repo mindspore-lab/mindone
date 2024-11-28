@@ -2,7 +2,7 @@ import logging
 from typing import Optional, Sequence, Tuple, Union
 
 import numpy as np
-from moviegen.parallel import (
+from mg.parallel import (
     ColumnParallelLinear,
     FusedColumnParallelLinear,
     FusedRowParallelLinear,

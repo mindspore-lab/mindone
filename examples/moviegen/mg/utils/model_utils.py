@@ -2,7 +2,7 @@ import logging
 from typing import Dict, Literal, Optional, Union
 
 from jsonargparse.typing import Path_fr
-from moviegen import LlamaModel, llama3_1B, llama3_5B, llama3_30B
+from mg import LlamaModel, llama3_1B, llama3_5B, llama3_30B
 
 import mindspore as ms
 from mindspore import _no_grad, jit_class, nn

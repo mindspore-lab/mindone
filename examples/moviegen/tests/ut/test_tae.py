@@ -1,14 +1,13 @@
 import numpy as np
 import sys
 from PIL import Image
-sys.path.insert(0, '.')
+sys.path.insert(0, '..')
 
 from mg.models.tae.modules import (
     Conv2_5d,
     Decoder,
     Encoder,
     ResnetBlock,
-    SpatialAttnBlock,
     SpatialAttnBlockV2,
     SpatialDownsample,
     SpatialUpsample,
@@ -17,7 +16,7 @@ from mg.models.tae.modules import (
     TemporalUpsample,
 )
 from mg.models.tae.tae import SDXL_CONFIG, TAE_CONFIG, TemporalAutoencoder
-from mg.models.tae.sd3_vae import SD3d5_CONFIG, SD3d5_VAE
+from mg.models.tae.sd3_vae import SD3d5_VAE
 
 import mindspore as ms
 

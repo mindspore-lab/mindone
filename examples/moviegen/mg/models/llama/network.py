@@ -3,8 +3,8 @@ from __future__ import annotations
 from typing import Literal, Optional, Tuple, Union
 
 import numpy as np
-from moviegen.parallel import GatherForwardSplitBackward, SplitForwardGatherBackward
-from moviegen.parallel.parallel_states import get_model_parallel_group
+from mg.parallel import GatherForwardSplitBackward, SplitForwardGatherBackward
+from mg.parallel.parallel_states import get_model_parallel_group
 
 import mindspore as ms
 import mindspore.mint as mint

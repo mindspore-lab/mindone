@@ -13,7 +13,7 @@ export GLOG_v=2
 
 output_dir=outputs/debug_train_tae_1p_sd3.5vaeInit_noOpl
 
-python scripts/train_tae.py \
+python train_tae.py \
 --mode=0 \
 --jit_level O0 \
 --amp_level O0 \

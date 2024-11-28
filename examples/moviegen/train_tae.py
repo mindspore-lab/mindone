@@ -19,10 +19,10 @@ sys.path.insert(0, mindone_lib_path)
 sys.path.insert(0, os.path.abspath(os.path.join(__dir__, "..")))
 
 from args_train_tae import parse_args
-from mg.datasets.tae_dataset import create_dataloader
+from mg.dataset.tae_dataset import create_dataloader
 from mg.models.tae.losses import GeneratorWithLoss
 from mg.models.tae.tae import TemporalAutoencoder
-from mg.models.tae.modules import  SpatialUpsample, SpatialDownsample, TemporalUpsample, TemporalDownsample 
+from mg.models.tae.modules import  SpatialUpsample, SpatialDownsample, TemporalUpsample, TemporalDownsample
 
 from mindone.trainers.callback import EvalSaveCallback, OverflowMonitor, ProfilerCallback
 from mindone.trainers.checkpoint import CheckpointManager, resume_train_network

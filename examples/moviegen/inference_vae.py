@@ -18,8 +18,6 @@ __dir__ = os.path.dirname(os.path.abspath(__file__))
 mindone_dir = os.path.abspath(os.path.join(__dir__, "../../../"))
 sys.path.insert(0, mindone_dir)
 
-
-from omegaconf import OmegaConf
 from PIL import Image
 from skimage.metrics import peak_signal_noise_ratio as calc_psnr
 from skimage.metrics import structural_similarity as calc_ssim
@@ -32,12 +30,12 @@ mindone_lib_path = os.path.abspath(os.path.join(__dir__, "../../../"))
 sys.path.insert(0, mindone_lib_path)
 sys.path.insert(0, os.path.abspath(os.path.join(__dir__, "..")))
 
-from mg.datasets.tae_dataset import create_dataloader
+from mg.dataset.tae_dataset import create_dataloader
 from mg.models.tae.tae import TemporalAutoencoder
 from mg.models.tae.lpips import LPIPS
 
 from mindone.utils.amp import auto_mixed_precision
-from mindone.utils.config import instantiate_from_config, str2bool
+from mindone.utils.config import str2bool
 from mindone.utils.logger import set_logger
 
 logger = logging.getLogger(__name__)

@@ -1,8 +1,8 @@
 import argparse
 from typing import Tuple
 
-from moviegen.parallel import create_parallel_group
-from moviegen.schedulers import RFlowLossWrapper
+from mg.parallel import create_parallel_group
+from mg.schedulers import RFlowLossWrapper
 
 import mindspore as ms
 from mindspore import Tensor, nn, ops

@@ -2,8 +2,8 @@ import argparse
 from typing import Tuple
 
 import numpy as np
-from moviegen.models.llama.network import LlamaModel
-from moviegen.parallel import create_parallel_group
+from mg.models.llama.network import LlamaModel
+from mg.parallel import create_parallel_group
 from utils import gather_or_reduce_parallel_gradient
 
 import mindspore as ms

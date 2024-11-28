@@ -1,6 +1,5 @@
 from safetensors import safe_open
 import argparse
-import os
 import numpy as np
 import mindspore as ms
 

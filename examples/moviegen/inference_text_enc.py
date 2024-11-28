@@ -19,7 +19,7 @@ __dir__ = os.path.dirname(os.path.abspath(__file__))
 mindone_lib_path = os.path.abspath(os.path.join(__dir__, "../../"))
 sys.path.append(mindone_lib_path)
 
-from moviegen.utils import MODEL_DTYPE, to_numpy
+from mg.utils import MODEL_DTYPE, to_numpy
 
 from mindone.transformers.models.t5.modeling_t5 import T5EncoderModel
 from mindone.utils import init_train_env, set_logger

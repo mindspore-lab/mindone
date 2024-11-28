@@ -10,30 +10,26 @@ from mindspore import GRAPH_MODE, Model, Symbol, Tensor, amp
 from mindspore import dtype as mstype
 from mindspore import get_context, nn, set_seed
 from mindspore.dataset import BatchDataset, BucketBatchByLengthDataset
-from mindspore.train.callback import TimeMonitor
 
 # TODO: remove in future when mindone is ready for install
 __dir__ = os.path.dirname(os.path.abspath(__file__))
 mindone_lib_path = os.path.abspath(os.path.join(__dir__, "../../"))
 sys.path.append(mindone_lib_path)
 
-from moviegen.dataset import ImageVideoDataset, bucket_split_function
-from moviegen.parallel import create_parallel_group
-from moviegen.pipelines import DiffusionWithLoss
-from moviegen.schedulers import RFlowEvalLoss, RFlowLossWrapper
-from moviegen.utils import EMA, MODEL_DTYPE, init_model
-from moviegen.utils.callbacks import PerfRecorderCallback, ReduceLROnPlateauByStep, ValidationCallback
+from mg.dataset import ImageVideoDataset, bucket_split_function
+from mg.models.tae import TemporalAutoencoder
+from mg.models.tae.modules import SpatialDownsample, SpatialUpsample, TemporalDownsample, TemporalUpsample
+from mg.parallel import create_parallel_group
+from mg.pipelines import DiffusionWithLoss
+from mg.schedulers import RFlowEvalLoss, RFlowLossWrapper
+from mg.utils import EMA, MODEL_DTYPE, init_model
+from mg.utils.callbacks import PerfRecorderCallback, ReduceLROnPlateauByStep, ValidationCallback
 
 from mindone.data import create_dataloader
 from mindone.trainers import create_optimizer, create_scheduler
 from mindone.trainers.callback import EvalSaveCallback, OverflowMonitor, StopAtStepCallback
 from mindone.trainers.zero import prepare_train_network
 from mindone.utils import count_params, init_train_env, set_logger
-
-# TODO: remove when TAE is added to the project
-sys.path.append(os.path.join(__dir__, "../movie_gen/"))
-from mg.models.tae.modules import SpatialDownsample, SpatialUpsample, TemporalDownsample, TemporalUpsample
-from mg.models.tae.tae import TemporalAutoencoder
 
 logger = logging.getLogger(__name__)
 
@@ -169,7 +165,6 @@ def main(args):
     if rank_id == 0:
         callbacks.extend(
             [
-                TimeMonitor(args.train.save.log_interval),
                 EvalSaveCallback(
                     network=latent_diffusion_with_loss.network,
                     model_name=args.model.name,

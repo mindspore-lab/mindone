@@ -18,16 +18,13 @@ __dir__ = os.path.dirname(os.path.abspath(__file__))
 mindone_lib_path = os.path.abspath(os.path.join(__dir__, "../../"))
 sys.path.append(mindone_lib_path)
 
-from moviegen.pipelines import InferPipeline
-from moviegen.utils import MODEL_DTYPE, init_model, to_numpy
+from mg.models.tae import TemporalAutoencoder
+from mg.models.tae.modules import SpatialDownsample, SpatialUpsample, TemporalDownsample, TemporalUpsample
+from mg.pipelines import InferPipeline
+from mg.utils import MODEL_DTYPE, init_model, to_numpy
 
 from mindone.utils import init_train_env, set_logger
 from mindone.visualize.videos import save_videos
-
-# TODO: remove when TAE is added to the project
-sys.path.append(os.path.join(__dir__, "../movie_gen/"))
-from mg.models.tae.modules import SpatialDownsample, SpatialUpsample, TemporalDownsample, TemporalUpsample
-from mg.models.tae.tae import TemporalAutoencoder
 
 logger = logging.getLogger(__name__)
 
