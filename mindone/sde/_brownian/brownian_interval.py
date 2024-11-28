@@ -48,8 +48,8 @@ def _check_tensor_info(*tensors, size, dtype):
     """Check if sizes, dtypes, and devices of input tensors all match prescribed values."""
     tensors = list(filter(ms.is_tensor, tensors))
 
-    if dtype is None and len(tensors) == 0:
-        dtype = ms.get_default_dtype()
+    # if dtype is None and len(tensors) == 0:
+    #     dtype = ms.get_default_dtype()
 
     sizes = [] if size is None else [size]
     sizes += [t.shape for t in tensors]
@@ -389,7 +389,7 @@ class BrownianInterval(brownian_base.BaseBrownian, _Interval):
                  t0: Optional[Scalar] = 0.,
                  t1: Optional[Scalar] = 1.,
                  size: Optional[Tuple[int, ...]] = None,
-                 dtype: Optional[ms.dtype] = None,
+                 dtype: Optional[ms.Type] = None,
                  entropy: Optional[int] = None,
                  dt: Optional[Scalar] = None,
                  tol: Scalar = 0.,
