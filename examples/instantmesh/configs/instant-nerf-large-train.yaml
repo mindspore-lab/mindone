@@ -5,8 +5,8 @@ model:
   weight_decay: 0.01
   target: model_stage1.InstantMeshStage1WithLoss
   params:
-    input_size: 320
-    render_size: 192
+    input_size: 320     # enlarged from the raw img input for the pretrained vit img processing
+    render_size: 192    # rendered res
     lrm_generator_config:
       openlrm_ckpt: 'YOUR_PATH/openlrm.ckpt'
       target: models.lrm.InstantNeRF
@@ -23,7 +23,7 @@ model:
         rendering_samples_per_ray: 64  # for the vanilla ckpt is 128, if loaded pretrained make sure it's 128
         use_recompute: true
 
-eval_render_size: 96  # larger may lead to oom in eval.py
+eval_render_size: 192
 
 data:
   batch_size: 1

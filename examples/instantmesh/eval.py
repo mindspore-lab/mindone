@@ -104,6 +104,8 @@ def evaluate(args, epoch_num: Optional[str]):
         render_images = mint.permute(render_images, dims=(0, 2, 3, 1, 4)).flatten(start_dim=-2)
         validation_step_outputs.append(render_images)
 
+    if len(batches_time) > 1:
+        del batches_time[0]  # for measuring speed, eliminate the very first batch that is particularly slow
     mean_time = sum(batches_time) / len(batches_time)
     logger.info("Mean Batch time: %.3fs.", mean_time)
     # save mviews outputs

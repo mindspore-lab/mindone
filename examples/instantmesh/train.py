@@ -1,7 +1,3 @@
-""" InstantMesh Stage-1 Training Script """
-
-# TODO training: oct 2: 1. turn off ema; 2. align cosdecay wrestart
-
 import argparse
 import datetime
 

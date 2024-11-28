@@ -82,6 +82,9 @@ pip install -r requirements.txt
 ## Pretrained Models
 ### ViT Pretrained Checkpoint
 To better accommodate the mindone transformer codebase, we provide an out-of-the-box [checkpoints conversion script](./tools/convert_dinovit_bin2st.py) that works seamlessly with the mindspore version of transformers.
+```bash
+python convert_dinovit_bin2st.py facebook/dino-vitb16  # this will convert to .safetensor from the .bin under the same path, i.e., YOUR_HF_PATH
+```
 
 The image features are extracted with dino-vit, which depends on HuggingFace's transformer package. We reuse [the MindSpore's implementation](https://github.com/mindspore-lab/mindone/blob/master/mindone/transformers/modeling_utils.py#L499) and the only challenge remains to be that `.bin` checkpoint of [dino-vit](https://huggingface.co/facebook/dino-vitb16/tree/main) is not supported by MindSpore off-the-shelf. The checkpoint script above serves easy conversion purposes and ensures that dino-vit is still based on `MSPreTrainedModel` safe and sound.
 
@@ -109,7 +112,26 @@ One needs to patch `mindcv.models.vgg` in L62 to enable conv kernel bias to alig
 ```
 
 ### Data Curation
-We used Blender to render multiview frames for a 3D object in `.obj` for training.
+Following the original paper, we used Blender to render multiview frames for a 3D object in `.obj` for training. Typically for overfitting, three 3D objects from the objaverse dataset are used. We rendered 5 arbitral views for each object with the corresponding camera parameters extracted.
+
+### Data Usage for Training
+Following the paper, during training, 3 images are processed with the ViT Image Processor and serving as the model input. Together with another 2 images (in total 5), they are randomly zoomed in and cropped into a fixed size as the ground truth. This can be regarded as a data augmentation during training. The camera parameters for each random transform will be used as the input to the model to infer images and alphas for each view's supervision.
+
+## Performance
+Notice that there is no diffusion model in InstantMesh, therefore the reported training `step/s` here is for each batch iteration.
+
+### Training
+| model name   | stage | precision| batch size |cards | image size  | step/s | frames/s | recompute |
+|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
+|InstantMesh |1 |fp32 | 1 | 1 | 192X192 | 0.11 | 0.55 | ON |
+
+### Inference
+
+| model name| stage | resolution   | batch size | frames/s |  
+|:---------------:|:-------:|:--------------:|:------------:|:----------------:|
+| InstantMesh |1 |192x192|1|9.51|
+| InstantMesh |1 |96x96|1|8.79|
+
 
 ## Acknowledgements
 
