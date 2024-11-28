@@ -168,7 +168,7 @@ python predict_ms.py \
 ### T2V-Turbo
 To train T2V-Turbo (VC2), first prepare the data and model as below
 1. Download the model checkpoint of VideoCrafter2 [here](https://huggingface.co/VideoCrafter/VideoCrafter2/blob/main/model.ckpt).
-2. Prepare the [WebVid-10M](https://github.com/m-bain/webvid) data. Save in the `webdataset` format.
+2. Prepare the [WebVid-10M](https://github.com/m-bain/webvid) data.
 3. Download the [InternVid2 S2 Model](https://huggingface.co/OpenGVLab/InternVideo2-CLIP-1B-224p-f8)
 4. Download the [HPSv2.1](https://huggingface.co/xswu/HPSv2/blob/main/HPS_v2.1_compressed.pt)
 5. **Convert** the checkpoints to Mindspore Version by running the following commands:

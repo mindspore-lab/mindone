@@ -1,6 +1,3 @@
-# Prediction interface for Cog ⚙️
-# https://cog.run/python
-
 import argparse
 import datetime
 import logging
