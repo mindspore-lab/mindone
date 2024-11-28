@@ -776,7 +776,7 @@ FLUX_TRANSFORMER2D_CASES = [
             "timestep": np.array([1, 1]),
             "return_dict": False,
         },
-        ("bf16"),  # only bf16 supported
+        ("bf16",),  # only bf16 supported
         (0, 1),
     ],
 ]

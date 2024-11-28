@@ -16,25 +16,18 @@ import torch
 
 import mindspore as ms
 
-from .modeling_test_utils import compute_diffs, expand_dtype_mode_for_all_case, generalized_parse_args, get_modules
+from ...modeling_test_utils import (
+    MS_DTYPE_MAPPING,
+    PT_DTYPE_MAPPING,
+    compute_diffs,
+    expand_dtype_mode_for_all_case,
+    generalized_parse_args,
+    get_modules,
+)
 from .modules_test_cases import ALL_CASES
 
 THRESHOLD_FP16 = 1e-2
 THRESHOLD_FP32 = 5e-3
-
-
-PT_DTYPE_MAPPING = {
-    "fp16": torch.float16,
-    "fp32": torch.float32,
-    "bf16": torch.bfloat16,
-}
-
-
-MS_DTYPE_MAPPING = {
-    "fp16": ms.float16,
-    "fp32": ms.float32,
-    "bf16": ms.bfloat16,
-}
 
 
 @pytest.mark.parametrize(
