@@ -1,9 +1,0 @@
-{
-    "text_encoder_name": "google/flan-t5-large",
-    "scheduler_name": "stabilityai/stable-diffusion-2-1",
-    "unet_model_name": null,
-    "unet_model_config_path": "configs/diffusion_model_config.json",
-    "vae_model_config_path": "configs/vae_config.json",
-    "stft_model_config_path": "configs/stft_config.json",
-    "snr_gamma": 5.0
-}

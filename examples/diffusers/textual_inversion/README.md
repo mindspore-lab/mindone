@@ -72,8 +72,6 @@ python textual_inversion.py \
   --output_dir="textual_inversion_cat"
 ```
 
-A full training run takes ~1 hour on one V100 GPU.
-
 **Note**: As described in [the official paper](https://arxiv.org/abs/2208.01618)
 only one embedding vector is used for the placeholder token, *e.g.* `"<cat-toy>"`.
 However, one can also add multiple embedding vectors for the placeholder token

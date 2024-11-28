@@ -170,22 +170,20 @@ python sample_controlnet.py --infer-mode fa --no-enhance --load-key distill --in
 ```
 
 
-## Benchmark
-
-### Performance
+## Performance
 
 Experiments are tested on ascend 910* with mindspore 2.3.1 graph mode.
 
 ### Training
-| model name   |jit level| precision|batch size |cards | image size  | speed (step/s) |
-|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
-|HunyuanDiT-v1.2|O1|fp16|1|1|1024x1024|0.62|
-|HunyuanDiT-v1.2|O1|fp32|1|1|1024x1024|0.45|
+| model name    |cards|batch size |  resolution |precision|jit level |step/s |
+|:---:          |:---:|:---:      |  :---:      |:---:|:---:|:---:|
+|HunyuanDiT-v1.2|1    |1          |  1024x1024  |fp16|O1|0.62|
+|HunyuanDiT-v1.2|1    |1          |  1024x1024  |fp32|O1|0.45|
 
 ### Inference
 
-| model name| scheduler | steps | resolution   | batch Size | speed (step/s) |  
-|:---------------:|:-----------:|:-------:|:--------------:|:------------:|:----------------:|
-|HunyuanDiT-v1.0|ddpm|20|1024x1024|1|2.90|
-|HunyuanDiT-v1.1|ddpm|20|1024x1024|1|2.91|
-|HunyuanDiT-v1.2|ddpm|20|1024x1024|1|2.89|
+| model name    | cards    | batch size | resolution   | scheduler |    steps |  jit level|step/s |  
+|:-------:      |:--------:|:-------:   |:-----------: |:--------------:|:------------:|:-------:|:---------:|
+|HunyuanDiT-v1.0|1         |1           |1024x1024     |ddpm            |100|O0|2.90|
+|HunyuanDiT-v1.1|1         |1           |1024x1024     |ddpm            |100|O0|2.91|
+|HunyuanDiT-v1.2|1         |1           |1024x1024     |ddpm            |100|O0|2.89|

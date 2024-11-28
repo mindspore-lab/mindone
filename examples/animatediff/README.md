@@ -252,41 +252,41 @@ Here are some generation results after lora fine-tuning on 512x512 resolution an
 
 ## Performance (AnimateDiff v2)
 
-Experiments are tested on ascend 910* graph mode with a single card.
+Experiments are tested on ascend 910* graph mode.
 
 ### Inference
 
 - mindspore 2.3.1
 
-|   model name   | mindspore | scheduler | steps | resolution | frame | speed (step/s) | time(s/video) |
-|:--------------:|:---------:|:---------:|:-----:|:----------:|:-----:|:--------------:|:-------------:|
-| AnimateDiff v2 |   2.3.1   |   DDIM    |  30   |  512x512   |  16   |      0.6       |      18       |
+|   model name   |cards| resolution  | scheduler | steps |     s/step     |    s/video    |
+|:--------------:|:--:|:----------: |:---------:|:-----:|:--------------:|:-------------:|
+| AnimateDiff v2 |1|  512x512x16 |   DDIM    |  30   |      0.60      |      18.00    |
 
 - mindspore 2.2.10
 
-|   model name   | mindspore | scheduler | steps | resolution | frame | speed (step/s) | time(s/video) |
-|:--------------:|:---------:|:---------:|:-----:|:----------:|:-----:|:--------------:|:-------------:|
-| AnimateDiff v2 |  2.2.10   |   DDIM    |  30   |  512x512   |  16   |      1.2       |      25       |
+|   model name   | cards | resolution  | scheduler | steps |   s/step      |    s/video    |
+|:--------------:| :--: |:---------:|:-----:|:----------: |:--------------:|:-------------:|
+| AnimateDiff v2 | 1 |  512x512x16 |   DDIM    |  30   |      1.20      |      25.00     |
 
 ### Training
 
 - mindspore 2.3.1
 
-|             task             | image size | frames  | batch size | flash attention | jit level | step time(s) | train. imgs/s |
-|:----------------------------:|:----------:|:-------:|:----------:|:---------------:|:---------:|:------------:|:-------------:|
-|         MM training          |    512     |   16    |     1      |       ON        |    O0     |    1.320     |     0.75      |
-|         Motion Lora          |    512     |   16    |     1      |       ON        |    O0     |    1.566     |     0.638     |
-| MM training w/ Embed. cached |    512     |   16    |     1      |       ON        |    O0     |    1.004     |     0.996     |
-| Motion Lora w/ Embed. cached |    512     |   16    |     1      |       ON        |    O0     |    1.009     |     0.991     |
+|             method             |cards|  batch size| resolution    | flash attn | jit level |    s/step    |    img/s    |
+|:----------------------------:|:---:|:----------:|:----------:  |:---------------:|:---------:|:------------:|:-------------:|
+|         MM training          |  1   |     1     |    16x512x512 |       ON        |    O0     |    1.320     |     0.75      |
+|         Motion Lora          |  1   |     1     |    16x512x512 |       ON        |    O0     |    1.566     |     0.64     |
+| MM training w/ Embed. cached |  1   |     1     |    16x512x512 |       ON        |    O0     |    1.004     |     0.99     |
+| Motion Lora w/ Embed. cached |  1   |     1     |    16x512x512 |       ON        |    O0     |    1.009     |     0.99     |
 
 - mindspore 2.2.10
 
-|             task             | image size | frames  | batch size | flash attention | jit level | step time(s) | train. imgs/s |
-|:----------------------------:|:----------:|:-------:|:----------:|:---------------:|:---------:|:------------:|:-------------:|
-|         MM training          |    512     |   16    |     1      |       OFF       |    NA     |     1.29     |     0.775     |
-|         Motion Lora          |    512     |   16    |     1      |       OFF       |    NA     |     1.26     |     0.794     |
-| MM training w/ Embed. cached |    512     |   16    |     1      |       ON        |    NA     |     0.75     |     1.333     |
-| Motion Lora w/ Embed. cached |    512     |   16    |     1      |       ON        |    NA     |     0.71     |     1.408     |
+|             method             |cards| batch size | resolution       | flash attn | jit level | s/step | img/s |
+|:----------------------------:|:---:|:----------:|:----------:      |:---------------:|:---------:|:------------:|:-------------:|
+|         MM training          |  1   |     1     |    16x512x512     |       OFF       |    N/A     |     1.29     |     0.78     |
+|         Motion Lora          |  1   |     1     |    16x512x512     |       OFF       |    N/A     |     1.26     |     0.79     |
+| MM training w/ Embed. cached |  1   |     1     |    16x512x512     |       ON        |    N/A     |     0.75     |     1.33     |
+| Motion Lora w/ Embed. cached |  1   |     1     |    16x512x512     |       ON        |    N/A     |     0.71     |     1.49     |
 
 > MM training: Motion Module training.
 

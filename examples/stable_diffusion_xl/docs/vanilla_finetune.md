@@ -78,10 +78,11 @@ msrun --worker_num=8 \
 
 Experiments are tested on ascend 910* with mindspore 2.3.1 graph mode.
 
-| model name | cards | resolution | graph compile |  batch size  | amp fp16 |  flash attn  | sink |jit level| s/step |  img/s  |
-| :--------: | :---: | :--------: | :-----------: | :--: | :------: | :--: | :--: | :-------: | :---: | :---: |
-| SDXL-Base  | 1  | 1024x1024  |  20~25 mins   | 1  |    OFF   | OFF  | OFF  |O2|   0.72   | 1.38  |
-| SDXL-Base  | 8  | 1024x1024  |  30~35 mins   | 1  |    ON    | OFF  | OFF  |O2|   0.88   | 9.09  |
-| SDXL-Base  | 8  | 1024x1024  |  30~35 mins   | 1  |    ON    |  ON  |  ON  |O2|   0.53   | 15.09 |
-| SDXL-Base  | 8  | 1024x1024  |  30~35 mins   | 2  |    ON    |  ON  |  ON  |O2|   0.71   | 22.54 |
-| SDXL-Base  | 8  | 1024x1024  |  30~38 mins   | 4  |    ON    |  ON  |  ON  |O2|   1.07   | 29.91 |
+| model name | cards |  batch size  |resolution| precision |  flash attn  | sink |jit level| graph compile | s/step |  img/s  |
+| :--------: | :---: |:-----------: | :------:|  :--: | :------: | :--: | :--: | :-------: | :---: | :---: |
+| SDXL-Base  | 1     |1             | 1024x1024  |     fp32   | OFF  | OFF  |O2|    20~25 mins   | 0.72   | 1.38  |
+| SDXL-Base  | 8     |1             | 1024x1024  |     fp16    | OFF  | OFF  |O2|   30~35 mins   |  0.88   | 9.09  |
+| SDXL-Base  | 8     |1             | 1024x1024  |    fp16    |  ON  |  ON  |O2|    30~35 mins   | 0.53   | 15.09 |
+| SDXL-Base  | 8     |2             | 1024x1024  |     fp16   |  ON  |  ON  |O2|    30~35 mins   | 0.71   | 22.54 |
+| SDXL-Base  | 8     |4             | 1024x1024  |     fp16   |  ON  |  ON  |O2|    30~38 mins   | 1.07   | 29.91 |
+> precision here means the amp, which is controled by the arg `--param_fp16` of the script.

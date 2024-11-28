@@ -11,7 +11,6 @@ This repo contains Mindspore model definitions, pre-trained weights and inferenc
     - [Launch Demo: coming soon]
 - Guidance
     - [Feature extraction: coming soon]
-    - [One step Generation (DMD): coming soon]
     - [LoRA & DoRA: coming soon]
 - Benchmark
     - [Training](#training)
@@ -21,19 +20,17 @@ This repo contains Mindspore model definitions, pre-trained weights and inferenc
 - 2024-09-05
     - Support fine-tuning and inference for Pixart-Sigma models.
 
-## Dependencies and Installation
-
-- CANN: 8.0.RC2 or later
-- Python: 3.9 or later
-- Mindspore: 2.3.1
-
-Then, run `pip install -r requirements.txt` to install the necessary packages.
-
 ## Requirements
 
 | mindspore | ascend driver | firmware    | cann toolkit/kernel |
-|-----------|---------------|-------------|---------------------|
+|:-----------:|:---------------:|:-------------:|:---------------------:|
 | 2.3.1     | 24.1.RC2      | 7.3.0.1.231 | 8.0.RC2.beta1       |
+
+
+Python: 3.9 or later.
+
+Then run `pip install -r requirements.txt` to install the necessary packages.
+
 
 ## Getting Start
 
@@ -169,32 +166,30 @@ Below is the FID score curve
 Followed by some generated images using the testing prompts.
 <p align="center"><img width="1024" src="https://github.com/user-attachments/assets/b9ba152d-bbf0-46c2-af10-ba8066b92486"/></p>
 
-## Benchmark
+## Performance
 
 ### Training Performance
 
-Experiments are tested on ascend [910*] with mindspore [2.3.1] graph mode
+Experiments are tested on ascend 910* with mindspore 2.3.1 graph mode
 
-| model name   | cards | image size   | graph compile | batch size | recompute | data sink | jit level | step time | train. imgs/s | config                                                               |
-|--------------|-------|--------------|---------------|------------|-----------|-----------|-----------|-----------|---------------|----------------------------------------------------------------------|
-| PixArt-Sigma | 4     | 256x256      | 3~5 mins      | 64         | ON        | OFF       | O1        | 2.907s    | 88.1          | [pixart-sigma-256x256.yaml](configs/train/pixart-sigma-256x256.yaml) |
-| PixArt-Sigma | 4     | 512 (multi)  | 3~5 mins      | 32         | ON        | OFF       | O1        | 3.817s    | 33.5          | [pixart-sigma-512-MS.yaml](configs/train/pixart-sigma-512-MS.yaml)   |
-| PixArt-Sigma | 4     | 1024 (multi) | 3~5 mins      | 12         | ON        | OFF       | O1        | 7.042s    | 6.8           | [pixart-sigma-1024-MS.yaml](configs/train/pixart-sigma-1024-MS.yaml) |
-| PixArt-Sigma | 4     | 2048 (multi) | 3~5 mins      | 1          | ON        | OFF       | O1        | 8.772s    | 0.5           | [pixart-sigma-2K-MS.yaml](configs/train/pixart-sigma-2K-MS.yaml)     |
+| model name   | cards | batch size | resolution   | recompute | sink | jit level |graph compile | s/step | img/s | config                                                               |
+|:------------:|:-----:|:----------:|:------------:|:----------:|:---------:|:---------:|:---------:|:---------:|:-------------:|:--------------------------------------------------------------------|
+| PixArt-Sigma | 4     | 64         | 256x256      | ON        | OFF       | O1        |3~5 mins      |  2.907s    | 88.1          | [pixart-sigma-256x256.yaml](configs/train/pixart-sigma-256x256.yaml) |
+| PixArt-Sigma | 4     | 32         | 512 (multi)  | ON        | OFF       | O1 |3~5 mins       | 3.817s    | 33.5          | [pixart-sigma-512-MS.yaml](configs/train/pixart-sigma-512-MS.yaml)   |
+| PixArt-Sigma | 4     | 12         | 1024 (multi) | ON        | OFF       | O1  |3~5 mins      | 7.042s    | 6.8           | [pixart-sigma-1024-MS.yaml](configs/train/pixart-sigma-1024-MS.yaml) |
+| PixArt-Sigma | 4     | 1          | 2048 (multi) | ON        | OFF       | O1  |3~5 mins      | 8.772s    | 0.5           | [pixart-sigma-2K-MS.yaml](configs/train/pixart-sigma-2K-MS.yaml)     |
 
-> step time: training time measured in the number of seconds for each training step.\
-> train. imgs/s: images per second during training. train. imgs/s = cards * batch_size / step time
+> s/step: training time measured in the number of seconds for each training step.\
+> imgs/s: images per second during training. imgs/s = cards * batch_size / step time
 
 ### Inference Performance
 
-| model name   | cards | image size   | graph compile | batch size | jit level | step time |  config                                                                  |
-|--------------|-------|--------------|---------------|------------|-----------|-----------|--------------------------------------------------------------------------|
-| PixArt-Sigma | 1     | 256 x 256    | < 3 mins      | 1          | O1        | 0.055s    | [pixart-sigma-256x256.yaml](configs/inference/pixart-sigma-256x256.yaml) |
-| PixArt-Sigma | 1     | 512 x 512    | < 3 mins      | 1          | O1        | 0.063s    | [pixart-sigma-512-MS.yaml](configs/inference/pixart-sigma-512-MS.yaml)   |
-| PixArt-Sigma | 1     | 1024 x 1024  | < 3 mins      | 1          | O1        | 0.202s    | [pixart-sigma-1024-MS.yaml](configs/inference/pixart-sigma-1024-MS.yaml) |
-| PixArt-Sigma | 1     | 2048 x 2048  | < 3 mins      | 1          | O1        | 1.754s    | [pixart-sigma-2K-MS.yaml](configs/inference/pixart-sigma-2K-MS.yaml)     |
-
-> step time: inference time measured in the number of seconds for each sampling step.
+| model name   | cards |  batch size | resolution   | jit level |  graph compile | s/step |  recipe                                                                  |
+|:------------:|:-----:|:-----------:|:------------:|:----------:|:---------:|:---------:|:------------------------------------------------------------------------|
+| PixArt-Sigma | 1     | 1           | 256 x 256    | O1        | < 3 mins      | 0.055    | [yaml](configs/inference/pixart-sigma-256x256.yaml) |
+| PixArt-Sigma | 1     | 1           | 512 x 512    | O1        | < 3 mins      | 0.063    | [yaml](configs/inference/pixart-sigma-512-MS.yaml)   |
+| PixArt-Sigma | 1     | 1           | 1024 x 1024  | O1        | < 3 mins      | 0.202    | [yaml](configs/inference/pixart-sigma-1024-MS.yaml) |
+| PixArt-Sigma | 1     | 1           | 2048 x 2048  | O1        | < 3 mins      | 1.754    | [yaml](configs/inference/pixart-sigma-2K-MS.yaml)     |
 
 # References
 

@@ -85,9 +85,9 @@ python sample.py -c configs/inference/sky.yaml
 
 实验在MindSpore 2.3.1（图模式）的Ascend 910*上进行验证：
 
-| model name | cards | image size | method | steps | jit level | ckpt loading time | compile time | total sample time |
-| :--------: | :---: | :--------: | :----: | :---: | :-------: | :---------------: | :----------: | :---------------: |
-|   latte    |   1   |  256x256   |  ddpm  |  250  |    O2     |      19.72s       |   101.26s    |      537.31s      |
+| model name | cards | resolution | scheduler | steps | jit level | graph compile | s/video |
+| :--------: | :---: | :--------: | :----: | :---: | :-------: | :----------: | :---------------: |
+|   latte    |   1   |  256x256   |  ddpm  |  250  |    O2     |   101.26s    |      537.31s      |
 
 这里展示了一些生成结果的例子：
 <table class="center">
@@ -129,8 +129,6 @@ sky_train/
 ```bash
 python train.py -c configs/training/sky_video.yaml
 ```
-
-要在 GPU 设备上开始训练，只需在上述命令后添加 `--device_target GPU`。
 
 默认训练配置是从零开始训练 Latte 模型。批量大小是 $5$，训练周期数是 $3000$，这大约对应于 900k 步。学习率是恒定值 $1e^{-4}$。模型在混合精度模式下训练。默认的 AMP 级别是 `O2`。更多细节请参见 `configs/training/sky_video.yaml`。
 
@@ -233,13 +231,12 @@ bash scripts/run_distributed_sky_numpy_video.sh path/to/rank/table 0 4
 
 实验在MindSpore 2.3.1（图模式）的Ascend 910*上进行验证：
 
-| model name | cards | image size | graph compile | batch size | num frames | recompute | dataset sink mode | embedding cache | jit level | per step time | train. imgs/s |
-| :--------: | :---: | :--------: | :-----------: | :--------: | :--------: | :-------: | :---------------: | :-------------: | :-------: | :-----------: | :-----------: |
-|   latte    |   1   |  256x256   |   6~8 mins    |     5      |     16     |    OFF    |        ON         |       OFF       |    O2     |     1.03s     |     77.67     |
-|   latte    |   1   |  256x256   |   6~8 mins    |     1      |    128     |    ON     |        ON         |       ON        |    O2     |     1.21s     |    105.78     |
-|   latte    |   4   |  256x256   |   6~8 mins    |     1      |    128     |    ON     |        ON         |       ON        |    O2     |     1.32s     |    387.87     |
-|   latte    |   8   |  256x256   |   6~8 mins    |     1      |    128     |    ON     |        ON         |       ON        |    O2     |     1.31s     |    781.67     |
->环境：{Ascend芯片}-{MindSpore版本}。
+| model name | cards |batch size | resolution    | recompute | sink | cache | jit level | graph compile | s/step | img/s |
+| :--------: | :---: | :--------:| :--------:     | :--------: | :-------: | :---------------: | :-------------: | :-------: | :-----------: | :-----------: |
+|   latte    |   1   |5          |  16x256x256      |    OFF    |        ON         |       OFF       |    O2     |6~8mins|             1.03     |     77.67     |
+|   latte    |   1   |1          |  128x256x256     |    ON     |        ON         |       ON        |    O2     |6~8mins|             1.21     |    105.78     |
+|   latte    |   4   |1          |  128x256x256     |    ON     |        ON         |       ON        |    O2     |6~8mins|             1.32     |    387.87     |
+|   latte    |   8   |1          |  128x256x256     |    ON     |        ON         |       ON        |    O2     |6~8mins|             1.31     |    781.67     |
 >训练图像/秒：训练过程中每秒处理的图片数量。训练图像/秒 = 卡数 * 批量大小 * 帧数 / 每步时间。
 
 # 参考

@@ -95,11 +95,11 @@ sh scripts/run/run_infer.sh [RESUOUTION] [CKPT_PATH]
 
 Experiments are tested on ascend 910* with mindspore 2.3.1 graph mode.
 
-| model name      |  cards | batch size | resolution(HxW) | frames | graph compile | jit_level | precision |  scheduler   | step      | s/step     | s/video |
-|:---------------:|:-----------:|:------------:|:------------:|:------------:|:------------:|:------------:|:------------------:|:----------------:|:----------------:|:----------------:|:----------------:|
-| dynamicrafter |  1 | 1 | 576x1024 | 16 | 1~2 mins | O1 | FP16 | DDIM | 50 |  1.42 | 71 |
-| dynamicrafter | 1  | 1 | 320x512 | 16 | 1~2 mins | O1 | FP16 | DDIM  | 50 |  0.42  | 21 |
-| dynamicrafter | 1  | 1 | 256x256 | 16 | 1~2 mins | O1 | FP16 | DDIM  | 50 |  0.26 | 13 |
+| model name    |  cards           | batch size      | resolution   |  scheduler   | steps      | precision |  jit level | graph compile |s/step     | s/video |
+|:-------------:|:------------:    |:------------:   |:------------:|:------------:|:------------:|:------------------:|:----------------:|:----------------:|:----------------:|:----------------:|
+| dynamicrafter |  1               | 1               | 16x576x1024  | DDIM | 50 | fp16 | O1 | 1~2 mins |  1.42 | 71 |
+| dynamicrafter | 1                | 1               | 16x320x512   | DDIM | 50 | fp16 | O1 |1~2 mins |  0.42  | 21 |
+| dynamicrafter | 1                | 1               | 16x256x256   | DDIM | 50 | fp16 | O1 |1~2 mins |  0.26 | 13 |
 
 
 ## References
