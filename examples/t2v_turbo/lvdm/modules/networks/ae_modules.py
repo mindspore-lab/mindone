@@ -20,6 +20,13 @@ def Normalize(in_channels, num_groups=32):
     return GroupNormExtend(num_groups=num_groups, num_channels=in_channels, eps=1e-6, affine=True)
 
 
+class LinAttnBlock(LinearAttention):
+    """to match AttnBlock usage"""
+
+    def __init__(self, in_channels):
+        super().__init__(dim=in_channels, heads=1, dim_head=in_channels)
+
+
 class AttnBlock(nn.Cell):
     def __init__(self, in_channels):
         super().__init__()
@@ -67,7 +74,7 @@ def make_attn(in_channels, attn_type="vanilla"):
     elif attn_type == "none":
         return nn.Identity(in_channels)
     else:
-        raise Exception("Linear Attention not supported yet!")
+        return LinAttnBlock(in_channels)
 
 
 class Downsample(nn.Cell):
