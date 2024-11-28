@@ -38,7 +38,7 @@ def _is_scalar(x):
 
 
 def _assert_floating_tensor(name, tensor):
-    if not ms.is_tensor(tensor):
+    if not ops.is_tensor(tensor):
         raise ValueError(f"{name}={tensor} should be a Tensor.")
     if not tensor.is_floating_point():
         raise ValueError(f"{name}={tensor} should be floating point.")
@@ -46,7 +46,7 @@ def _assert_floating_tensor(name, tensor):
 
 def _check_tensor_info(*tensors, size, dtype):
     """Check if sizes, dtypes, and devices of input tensors all match prescribed values."""
-    tensors = list(filter(ms.is_tensor, tensors))
+    tensors = list(filter(ops.is_tensor, tensors))
 
     # if dtype is None and len(tensors) == 0:
     #     dtype = ms.get_default_dtype()
