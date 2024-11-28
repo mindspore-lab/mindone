@@ -5374,10 +5374,7 @@ specific language governing permissions and limitations under the License.
 
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/models/attention_processor.py</code></summary>
-                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">739</span>
-<span class="normal">740</span>
-<span class="normal">741</span>
-<span class="normal">742</span>
+                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">742</span>
 <span class="normal">743</span>
 <span class="normal">744</span>
 <span class="normal">745</span>
@@ -5440,7 +5437,10 @@ specific language governing permissions and limitations under the License.
 <span class="normal">802</span>
 <span class="normal">803</span>
 <span class="normal">804</span>
-<span class="normal">805</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@ms</span><span class="o">.</span><span class="n">jit_class</span>
+<span class="normal">805</span>
+<span class="normal">806</span>
+<span class="normal">807</span>
+<span class="normal">808</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@ms</span><span class="o">.</span><span class="n">jit_class</span>
 <span class="k">class</span> <span class="nc">AttnProcessor</span><span class="p">:</span>
 <span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Default processor for performing attention-related computations.</span>
@@ -5549,10 +5549,7 @@ encoder.</p>
 
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/models/attention_processor.py</code></summary>
-                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">913</span>
-<span class="normal">914</span>
-<span class="normal">915</span>
-<span class="normal">916</span>
+                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">916</span>
 <span class="normal">917</span>
 <span class="normal">918</span>
 <span class="normal">919</span>
@@ -5608,7 +5605,10 @@ encoder.</p>
 <span class="normal">969</span>
 <span class="normal">970</span>
 <span class="normal">971</span>
-<span class="normal">972</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@ms</span><span class="o">.</span><span class="n">jit_class</span>
+<span class="normal">972</span>
+<span class="normal">973</span>
+<span class="normal">974</span>
+<span class="normal">975</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@ms</span><span class="o">.</span><span class="n">jit_class</span>
 <span class="k">class</span> <span class="nc">AttnAddedKVProcessor</span><span class="p">:</span>
 <span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Processor for performing attention-related computations with extra learnable key and value matrices for the text</span>
@@ -5831,10 +5831,7 @@ encoder.</p>
 
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/models/attention_processor.py</code></summary>
-                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">808</span>
-<span class="normal">809</span>
-<span class="normal">810</span>
-<span class="normal">811</span>
+                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">811</span>
 <span class="normal">812</span>
 <span class="normal">813</span>
 <span class="normal">814</span>
@@ -5933,7 +5930,10 @@ encoder.</p>
 <span class="normal">907</span>
 <span class="normal">908</span>
 <span class="normal">909</span>
-<span class="normal">910</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span> <span class="nc">CustomDiffusionAttnProcessor</span><span class="p">(</span><span class="n">nn</span><span class="o">.</span><span class="n">Cell</span><span class="p">):</span>
+<span class="normal">910</span>
+<span class="normal">911</span>
+<span class="normal">912</span>
+<span class="normal">913</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span> <span class="nc">CustomDiffusionAttnProcessor</span><span class="p">(</span><span class="n">nn</span><span class="o">.</span><span class="n">Cell</span><span class="p">):</span>
 <span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Processor for implementing attention for the Custom Diffusion method.</span>
 
@@ -6110,10 +6110,7 @@ operator.</p>
 
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/models/attention_processor.py</code></summary>
-                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1433</span>
-<span class="normal">1434</span>
-<span class="normal">1435</span>
-<span class="normal">1436</span>
+                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1436</span>
 <span class="normal">1437</span>
 <span class="normal">1438</span>
 <span class="normal">1439</span>
@@ -6223,7 +6220,10 @@ operator.</p>
 <span class="normal">1543</span>
 <span class="normal">1544</span>
 <span class="normal">1545</span>
-<span class="normal">1546</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@ms</span><span class="o">.</span><span class="n">jit_class</span>
+<span class="normal">1546</span>
+<span class="normal">1547</span>
+<span class="normal">1548</span>
+<span class="normal">1549</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@ms</span><span class="o">.</span><span class="n">jit_class</span>
 <span class="k">class</span> <span class="nc">XFormersAttnProcessor</span><span class="p">:</span>
 <span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Processor for implementing memory efficient attention using xFormers-like interface.</span>

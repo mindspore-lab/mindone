@@ -6850,7 +6850,8 @@ A smaller number will vary the image less but run faster.</p>
 <span class="normal">755</span>
 <span class="normal">756</span>
 <span class="normal">757</span>
-<span class="normal">758</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span> <span class="nc">IFPipeline</span><span class="p">(</span><span class="n">DiffusionPipeline</span><span class="p">,</span> <span class="n">LoraLoaderMixin</span><span class="p">):</span>
+<span class="normal">758</span>
+<span class="normal">759</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span> <span class="nc">IFPipeline</span><span class="p">(</span><span class="n">DiffusionPipeline</span><span class="p">,</span> <span class="n">LoraLoaderMixin</span><span class="p">):</span>
     <span class="n">tokenizer</span><span class="p">:</span> <span class="n">T5Tokenizer</span>
     <span class="n">text_encoder</span><span class="p">:</span> <span class="n">T5EncoderModel</span>
 
@@ -7531,6 +7532,7 @@ A smaller number will vary the image less but run faster.</p>
 
             <span class="c1"># 9. Run safety checker</span>
             <span class="n">image</span><span class="p">,</span> <span class="n">nsfw_detected</span><span class="p">,</span> <span class="n">watermark_detected</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">run_safety_checker</span><span class="p">(</span><span class="n">image</span><span class="p">,</span> <span class="n">prompt_embeds</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span>
+            <span class="n">image</span> <span class="o">=</span> <span class="n">image</span><span class="o">.</span><span class="n">numpy</span><span class="p">()</span>
 
         <span class="k">if</span> <span class="ow">not</span> <span class="n">return_dict</span><span class="p">:</span>
             <span class="k">return</span> <span class="p">(</span><span class="n">image</span><span class="p">,</span> <span class="n">nsfw_detected</span><span class="p">,</span> <span class="n">watermark_detected</span><span class="p">)</span>
@@ -8218,7 +8220,8 @@ prompt.</p>
 <span class="normal">755</span>
 <span class="normal">756</span>
 <span class="normal">757</span>
-<span class="normal">758</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="fm">__call__</span><span class="p">(</span>
+<span class="normal">758</span>
+<span class="normal">759</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="fm">__call__</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">prompt</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="n">num_inference_steps</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">100</span><span class="p">,</span>
@@ -8451,6 +8454,7 @@ prompt.</p>
 
         <span class="c1"># 9. Run safety checker</span>
         <span class="n">image</span><span class="p">,</span> <span class="n">nsfw_detected</span><span class="p">,</span> <span class="n">watermark_detected</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">run_safety_checker</span><span class="p">(</span><span class="n">image</span><span class="p">,</span> <span class="n">prompt_embeds</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span>
+        <span class="n">image</span> <span class="o">=</span> <span class="n">image</span><span class="o">.</span><span class="n">numpy</span><span class="p">()</span>
 
     <span class="k">if</span> <span class="ow">not</span> <span class="n">return_dict</span><span class="p">:</span>
         <span class="k">return</span> <span class="p">(</span><span class="n">image</span><span class="p">,</span> <span class="n">nsfw_detected</span><span class="p">,</span> <span class="n">watermark_detected</span><span class="p">)</span>
@@ -9737,7 +9741,8 @@ argument.</p>
 <span class="normal">867</span>
 <span class="normal">868</span>
 <span class="normal">869</span>
-<span class="normal">870</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span> <span class="nc">IFSuperResolutionPipeline</span><span class="p">(</span><span class="n">DiffusionPipeline</span><span class="p">,</span> <span class="n">LoraLoaderMixin</span><span class="p">):</span>
+<span class="normal">870</span>
+<span class="normal">871</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span> <span class="nc">IFSuperResolutionPipeline</span><span class="p">(</span><span class="n">DiffusionPipeline</span><span class="p">,</span> <span class="n">LoraLoaderMixin</span><span class="p">):</span>
     <span class="n">tokenizer</span><span class="p">:</span> <span class="n">T5Tokenizer</span>
     <span class="n">text_encoder</span><span class="p">:</span> <span class="n">T5EncoderModel</span>
 
@@ -10531,6 +10536,7 @@ argument.</p>
 
             <span class="c1"># 10. Run safety checker</span>
             <span class="n">image</span><span class="p">,</span> <span class="n">nsfw_detected</span><span class="p">,</span> <span class="n">watermark_detected</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">run_safety_checker</span><span class="p">(</span><span class="n">image</span><span class="p">,</span> <span class="n">prompt_embeds</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span>
+            <span class="n">image</span> <span class="o">=</span> <span class="n">image</span><span class="o">.</span><span class="n">numpy</span><span class="p">()</span>
 
         <span class="k">if</span> <span class="ow">not</span> <span class="n">return_dict</span><span class="p">:</span>
             <span class="k">return</span> <span class="p">(</span><span class="n">image</span><span class="p">,</span> <span class="n">nsfw_detected</span><span class="p">,</span> <span class="n">watermark_detected</span><span class="p">)</span>
@@ -11286,7 +11292,8 @@ prompt.</p>
 <span class="normal">867</span>
 <span class="normal">868</span>
 <span class="normal">869</span>
-<span class="normal">870</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="fm">__call__</span><span class="p">(</span>
+<span class="normal">870</span>
+<span class="normal">871</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="fm">__call__</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">prompt</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="n">height</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
@@ -11551,6 +11558,7 @@ prompt.</p>
 
         <span class="c1"># 10. Run safety checker</span>
         <span class="n">image</span><span class="p">,</span> <span class="n">nsfw_detected</span><span class="p">,</span> <span class="n">watermark_detected</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">run_safety_checker</span><span class="p">(</span><span class="n">image</span><span class="p">,</span> <span class="n">prompt_embeds</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span>
+        <span class="n">image</span> <span class="o">=</span> <span class="n">image</span><span class="o">.</span><span class="n">numpy</span><span class="p">()</span>
 
     <span class="k">if</span> <span class="ow">not</span> <span class="n">return_dict</span><span class="p">:</span>
         <span class="k">return</span> <span class="p">(</span><span class="n">image</span><span class="p">,</span> <span class="n">nsfw_detected</span><span class="p">,</span> <span class="n">watermark_detected</span><span class="p">)</span>
@@ -12820,7 +12828,8 @@ argument.</p>
 <span class="normal">890</span>
 <span class="normal">891</span>
 <span class="normal">892</span>
-<span class="normal">893</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span> <span class="nc">IFImg2ImgPipeline</span><span class="p">(</span><span class="n">DiffusionPipeline</span><span class="p">,</span> <span class="n">LoraLoaderMixin</span><span class="p">):</span>
+<span class="normal">893</span>
+<span class="normal">894</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span> <span class="nc">IFImg2ImgPipeline</span><span class="p">(</span><span class="n">DiffusionPipeline</span><span class="p">,</span> <span class="n">LoraLoaderMixin</span><span class="p">):</span>
     <span class="n">tokenizer</span><span class="p">:</span> <span class="n">T5Tokenizer</span>
     <span class="n">text_encoder</span><span class="p">:</span> <span class="n">T5EncoderModel</span>
 
@@ -13597,6 +13606,7 @@ argument.</p>
 
             <span class="c1"># 9. Run safety checker</span>
             <span class="n">image</span><span class="p">,</span> <span class="n">nsfw_detected</span><span class="p">,</span> <span class="n">watermark_detected</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">run_safety_checker</span><span class="p">(</span><span class="n">image</span><span class="p">,</span> <span class="n">prompt_embeds</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span>
+            <span class="n">image</span> <span class="o">=</span> <span class="n">image</span><span class="o">.</span><span class="n">numpy</span><span class="p">()</span>
 
         <span class="k">if</span> <span class="ow">not</span> <span class="n">return_dict</span><span class="p">:</span>
             <span class="k">return</span> <span class="p">(</span><span class="n">image</span><span class="p">,</span> <span class="n">nsfw_detected</span><span class="p">,</span> <span class="n">watermark_detected</span><span class="p">)</span>
@@ -14297,7 +14307,8 @@ prompt.</p>
 <span class="normal">890</span>
 <span class="normal">891</span>
 <span class="normal">892</span>
-<span class="normal">893</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="fm">__call__</span><span class="p">(</span>
+<span class="normal">893</span>
+<span class="normal">894</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="fm">__call__</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">prompt</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="n">image</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span>
@@ -14538,6 +14549,7 @@ prompt.</p>
 
         <span class="c1"># 9. Run safety checker</span>
         <span class="n">image</span><span class="p">,</span> <span class="n">nsfw_detected</span><span class="p">,</span> <span class="n">watermark_detected</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">run_safety_checker</span><span class="p">(</span><span class="n">image</span><span class="p">,</span> <span class="n">prompt_embeds</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span>
+        <span class="n">image</span> <span class="o">=</span> <span class="n">image</span><span class="o">.</span><span class="n">numpy</span><span class="p">()</span>
 
     <span class="k">if</span> <span class="ow">not</span> <span class="n">return_dict</span><span class="p">:</span>
         <span class="k">return</span> <span class="p">(</span><span class="n">image</span><span class="p">,</span> <span class="n">nsfw_detected</span><span class="p">,</span> <span class="n">watermark_detected</span><span class="p">)</span>
@@ -15923,7 +15935,8 @@ argument.</p>
 <span class="normal">1008</span>
 <span class="normal">1009</span>
 <span class="normal">1010</span>
-<span class="normal">1011</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span> <span class="nc">IFImg2ImgSuperResolutionPipeline</span><span class="p">(</span><span class="n">DiffusionPipeline</span><span class="p">,</span> <span class="n">LoraLoaderMixin</span><span class="p">):</span>
+<span class="normal">1011</span>
+<span class="normal">1012</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span> <span class="nc">IFImg2ImgSuperResolutionPipeline</span><span class="p">(</span><span class="n">DiffusionPipeline</span><span class="p">,</span> <span class="n">LoraLoaderMixin</span><span class="p">):</span>
     <span class="n">tokenizer</span><span class="p">:</span> <span class="n">T5Tokenizer</span>
     <span class="n">text_encoder</span><span class="p">:</span> <span class="n">T5EncoderModel</span>
 
@@ -16816,6 +16829,7 @@ argument.</p>
 
             <span class="c1"># 11. Run safety checker</span>
             <span class="n">image</span><span class="p">,</span> <span class="n">nsfw_detected</span><span class="p">,</span> <span class="n">watermark_detected</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">run_safety_checker</span><span class="p">(</span><span class="n">image</span><span class="p">,</span> <span class="n">prompt_embeds</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span>
+            <span class="n">image</span> <span class="o">=</span> <span class="n">image</span><span class="o">.</span><span class="n">numpy</span><span class="p">()</span>
 
         <span class="k">if</span> <span class="ow">not</span> <span class="n">return_dict</span><span class="p">:</span>
             <span class="k">return</span> <span class="p">(</span><span class="n">image</span><span class="p">,</span> <span class="n">nsfw_detected</span><span class="p">,</span> <span class="n">watermark_detected</span><span class="p">)</span>
@@ -17585,7 +17599,8 @@ prompt.</p>
 <span class="normal">1008</span>
 <span class="normal">1009</span>
 <span class="normal">1010</span>
-<span class="normal">1011</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="fm">__call__</span><span class="p">(</span>
+<span class="normal">1011</span>
+<span class="normal">1012</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="fm">__call__</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">image</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">PIL</span><span class="o">.</span><span class="n">Image</span><span class="o">.</span><span class="n">Image</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">],</span>
     <span class="n">original_image</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span>
@@ -17863,6 +17878,7 @@ prompt.</p>
 
         <span class="c1"># 11. Run safety checker</span>
         <span class="n">image</span><span class="p">,</span> <span class="n">nsfw_detected</span><span class="p">,</span> <span class="n">watermark_detected</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">run_safety_checker</span><span class="p">(</span><span class="n">image</span><span class="p">,</span> <span class="n">prompt_embeds</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span>
+        <span class="n">image</span> <span class="o">=</span> <span class="n">image</span><span class="o">.</span><span class="n">numpy</span><span class="p">()</span>
 
     <span class="k">if</span> <span class="ow">not</span> <span class="n">return_dict</span><span class="p">:</span>
         <span class="k">return</span> <span class="p">(</span><span class="n">image</span><span class="p">,</span> <span class="n">nsfw_detected</span><span class="p">,</span> <span class="n">watermark_detected</span><span class="p">)</span>
@@ -19251,7 +19267,8 @@ argument.</p>
 <span class="normal">1012</span>
 <span class="normal">1013</span>
 <span class="normal">1014</span>
-<span class="normal">1015</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span> <span class="nc">IFInpaintingPipeline</span><span class="p">(</span><span class="n">DiffusionPipeline</span><span class="p">,</span> <span class="n">LoraLoaderMixin</span><span class="p">):</span>
+<span class="normal">1015</span>
+<span class="normal">1016</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span> <span class="nc">IFInpaintingPipeline</span><span class="p">(</span><span class="n">DiffusionPipeline</span><span class="p">,</span> <span class="n">LoraLoaderMixin</span><span class="p">):</span>
     <span class="n">tokenizer</span><span class="p">:</span> <span class="n">T5Tokenizer</span>
     <span class="n">text_encoder</span><span class="p">:</span> <span class="n">T5EncoderModel</span>
 
@@ -20147,6 +20164,7 @@ argument.</p>
 
             <span class="c1"># 9. Run safety checker</span>
             <span class="n">image</span><span class="p">,</span> <span class="n">nsfw_detected</span><span class="p">,</span> <span class="n">watermark_detected</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">run_safety_checker</span><span class="p">(</span><span class="n">image</span><span class="p">,</span> <span class="n">prompt_embeds</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span>
+            <span class="n">image</span> <span class="o">=</span> <span class="n">image</span><span class="o">.</span><span class="n">numpy</span><span class="p">()</span>
 
         <span class="k">if</span> <span class="ow">not</span> <span class="n">return_dict</span><span class="p">:</span>
             <span class="k">return</span> <span class="p">(</span><span class="n">image</span><span class="p">,</span> <span class="n">nsfw_detected</span><span class="p">,</span> <span class="n">watermark_detected</span><span class="p">)</span>
@@ -20896,7 +20914,8 @@ prompt.</p>
 <span class="normal">1012</span>
 <span class="normal">1013</span>
 <span class="normal">1014</span>
-<span class="normal">1015</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="fm">__call__</span><span class="p">(</span>
+<span class="normal">1015</span>
+<span class="normal">1016</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="fm">__call__</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">prompt</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="n">image</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span>
@@ -21165,6 +21184,7 @@ prompt.</p>
 
         <span class="c1"># 9. Run safety checker</span>
         <span class="n">image</span><span class="p">,</span> <span class="n">nsfw_detected</span><span class="p">,</span> <span class="n">watermark_detected</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">run_safety_checker</span><span class="p">(</span><span class="n">image</span><span class="p">,</span> <span class="n">prompt_embeds</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span>
+        <span class="n">image</span> <span class="o">=</span> <span class="n">image</span><span class="o">.</span><span class="n">numpy</span><span class="p">()</span>
 
     <span class="k">if</span> <span class="ow">not</span> <span class="n">return_dict</span><span class="p">:</span>
         <span class="k">return</span> <span class="p">(</span><span class="n">image</span><span class="p">,</span> <span class="n">nsfw_detected</span><span class="p">,</span> <span class="n">watermark_detected</span><span class="p">)</span>
@@ -22662,7 +22682,8 @@ argument.</p>
 <span class="normal">1122</span>
 <span class="normal">1123</span>
 <span class="normal">1124</span>
-<span class="normal">1125</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span> <span class="nc">IFInpaintingSuperResolutionPipeline</span><span class="p">(</span><span class="n">DiffusionPipeline</span><span class="p">,</span> <span class="n">LoraLoaderMixin</span><span class="p">):</span>
+<span class="normal">1125</span>
+<span class="normal">1126</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span> <span class="nc">IFInpaintingSuperResolutionPipeline</span><span class="p">(</span><span class="n">DiffusionPipeline</span><span class="p">,</span> <span class="n">LoraLoaderMixin</span><span class="p">):</span>
     <span class="n">tokenizer</span><span class="p">:</span> <span class="n">T5Tokenizer</span>
     <span class="n">text_encoder</span><span class="p">:</span> <span class="n">T5EncoderModel</span>
 
@@ -23667,6 +23688,7 @@ argument.</p>
 
             <span class="c1"># 11. Run safety checker</span>
             <span class="n">image</span><span class="p">,</span> <span class="n">nsfw_detected</span><span class="p">,</span> <span class="n">watermark_detected</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">run_safety_checker</span><span class="p">(</span><span class="n">image</span><span class="p">,</span> <span class="n">prompt_embeds</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span>
+            <span class="n">image</span> <span class="o">=</span> <span class="n">image</span><span class="o">.</span><span class="n">numpy</span><span class="p">()</span>
 
         <span class="k">if</span> <span class="ow">not</span> <span class="n">return_dict</span><span class="p">:</span>
             <span class="k">return</span> <span class="p">(</span><span class="n">image</span><span class="p">,</span> <span class="n">nsfw_detected</span><span class="p">,</span> <span class="n">watermark_detected</span><span class="p">)</span>
@@ -24481,7 +24503,8 @@ prompt.</p>
 <span class="normal">1122</span>
 <span class="normal">1123</span>
 <span class="normal">1124</span>
-<span class="normal">1125</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="fm">__call__</span><span class="p">(</span>
+<span class="normal">1125</span>
+<span class="normal">1126</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="fm">__call__</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">image</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">PIL</span><span class="o">.</span><span class="n">Image</span><span class="o">.</span><span class="n">Image</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">],</span>
     <span class="n">original_image</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span>
@@ -24783,6 +24806,7 @@ prompt.</p>
 
         <span class="c1"># 11. Run safety checker</span>
         <span class="n">image</span><span class="p">,</span> <span class="n">nsfw_detected</span><span class="p">,</span> <span class="n">watermark_detected</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">run_safety_checker</span><span class="p">(</span><span class="n">image</span><span class="p">,</span> <span class="n">prompt_embeds</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span>
+        <span class="n">image</span> <span class="o">=</span> <span class="n">image</span><span class="o">.</span><span class="n">numpy</span><span class="p">()</span>
 
     <span class="k">if</span> <span class="ow">not</span> <span class="n">return_dict</span><span class="p">:</span>
         <span class="k">return</span> <span class="p">(</span><span class="n">image</span><span class="p">,</span> <span class="n">nsfw_detected</span><span class="p">,</span> <span class="n">watermark_detected</span><span class="p">)</span>

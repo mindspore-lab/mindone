@@ -5561,8 +5561,7 @@ additional conditioning.</p>
 
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/pipelines/controlnet_sd3/pipeline_stable_diffusion_3_controlnet.py</code></summary>
-                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">101</span>
-<span class="normal">102</span>
+                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">102</span>
 <span class="normal">103</span>
 <span class="normal">104</span>
 <span class="normal">105</span>
@@ -6450,8 +6449,7 @@ additional conditioning.</p>
 <span class="normal">987</span>
 <span class="normal">988</span>
 <span class="normal">989</span>
-<span class="normal">990</span>
-<span class="normal">991</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span> <span class="nc">StableDiffusion3ControlNetPipeline</span><span class="p">(</span><span class="n">DiffusionPipeline</span><span class="p">,</span> <span class="n">FromSingleFileMixin</span><span class="p">):</span>
+<span class="normal">990</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span> <span class="nc">StableDiffusion3ControlNetPipeline</span><span class="p">(</span><span class="n">DiffusionPipeline</span><span class="p">,</span> <span class="n">FromSingleFileMixin</span><span class="p">):</span>
 <span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Args:</span>
 <span class="sd">        transformer ([`SD3Transformer2DModel`]):</span>
@@ -6733,9 +6731,7 @@ additional conditioning.</p>
                 <span class="n">num_images_per_prompt</span><span class="o">=</span><span class="n">num_images_per_prompt</span><span class="p">,</span>
             <span class="p">)</span>
 
-            <span class="n">clip_prompt_embeds</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">pad</span><span class="p">(</span>
-                <span class="n">clip_prompt_embeds</span><span class="p">,</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">t5_prompt_embed</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">-</span> <span class="n">clip_prompt_embeds</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span>
-            <span class="p">)</span>
+            <span class="n">clip_prompt_embeds</span> <span class="o">=</span> <span class="n">pad</span><span class="p">(</span><span class="n">clip_prompt_embeds</span><span class="p">,</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">t5_prompt_embed</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">-</span> <span class="n">clip_prompt_embeds</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]))</span>
 
             <span class="n">prompt_embeds</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">clip_prompt_embeds</span><span class="p">,</span> <span class="n">t5_prompt_embed</span><span class="p">],</span> <span class="n">axis</span><span class="o">=-</span><span class="mi">2</span><span class="p">)</span>
             <span class="n">pooled_prompt_embeds</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">pooled_prompt_embed</span><span class="p">,</span> <span class="n">pooled_prompt_2_embed</span><span class="p">],</span> <span class="n">axis</span><span class="o">=-</span><span class="mi">1</span><span class="p">)</span>
@@ -6785,7 +6781,7 @@ additional conditioning.</p>
                 <span class="n">num_images_per_prompt</span><span class="o">=</span><span class="n">num_images_per_prompt</span><span class="p">,</span>
             <span class="p">)</span>
 
-            <span class="n">negative_clip_prompt_embeds</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">pad</span><span class="p">(</span>
+            <span class="n">negative_clip_prompt_embeds</span> <span class="o">=</span> <span class="n">pad</span><span class="p">(</span>
                 <span class="n">negative_clip_prompt_embeds</span><span class="p">,</span>
                 <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">t5_negative_prompt_embed</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">-</span> <span class="n">negative_clip_prompt_embeds</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]),</span>
             <span class="p">)</span>
@@ -7969,7 +7965,8 @@ will be passed as <code>callback_kwargs</code> argument. You will only be able t
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/pipelines/controlnet_sd3/pipeline_stable_diffusion_3_controlnet.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">624</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">623</span>
+<span class="normal">624</span>
 <span class="normal">625</span>
 <span class="normal">626</span>
 <span class="normal">627</span>
@@ -8335,8 +8332,7 @@ will be passed as <code>callback_kwargs</code> argument. You will only be able t
 <span class="normal">987</span>
 <span class="normal">988</span>
 <span class="normal">989</span>
-<span class="normal">990</span>
-<span class="normal">991</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="fm">__call__</span><span class="p">(</span>
+<span class="normal">990</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="fm">__call__</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">prompt</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="n">prompt_2</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
@@ -8971,8 +8967,7 @@ the output of the pre-final layer will be used for computing the prompt embeddin
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/pipelines/controlnet_sd3/pipeline_stable_diffusion_3_controlnet.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">292</span>
-<span class="normal">293</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">293</span>
 <span class="normal">294</span>
 <span class="normal">295</span>
 <span class="normal">296</span>
@@ -9123,8 +9118,7 @@ the output of the pre-final layer will be used for computing the prompt embeddin
 <span class="normal">441</span>
 <span class="normal">442</span>
 <span class="normal">443</span>
-<span class="normal">444</span>
-<span class="normal">445</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">encode_prompt</span><span class="p">(</span>
+<span class="normal">444</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">encode_prompt</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">prompt</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]],</span>
     <span class="n">prompt_2</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]],</span>
@@ -9215,9 +9209,7 @@ the output of the pre-final layer will be used for computing the prompt embeddin
             <span class="n">num_images_per_prompt</span><span class="o">=</span><span class="n">num_images_per_prompt</span><span class="p">,</span>
         <span class="p">)</span>
 
-        <span class="n">clip_prompt_embeds</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">pad</span><span class="p">(</span>
-            <span class="n">clip_prompt_embeds</span><span class="p">,</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">t5_prompt_embed</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">-</span> <span class="n">clip_prompt_embeds</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span>
-        <span class="p">)</span>
+        <span class="n">clip_prompt_embeds</span> <span class="o">=</span> <span class="n">pad</span><span class="p">(</span><span class="n">clip_prompt_embeds</span><span class="p">,</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">t5_prompt_embed</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">-</span> <span class="n">clip_prompt_embeds</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]))</span>
 
         <span class="n">prompt_embeds</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">clip_prompt_embeds</span><span class="p">,</span> <span class="n">t5_prompt_embed</span><span class="p">],</span> <span class="n">axis</span><span class="o">=-</span><span class="mi">2</span><span class="p">)</span>
         <span class="n">pooled_prompt_embeds</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">pooled_prompt_embed</span><span class="p">,</span> <span class="n">pooled_prompt_2_embed</span><span class="p">],</span> <span class="n">axis</span><span class="o">=-</span><span class="mi">1</span><span class="p">)</span>
@@ -9267,7 +9259,7 @@ the output of the pre-final layer will be used for computing the prompt embeddin
             <span class="n">num_images_per_prompt</span><span class="o">=</span><span class="n">num_images_per_prompt</span><span class="p">,</span>
         <span class="p">)</span>
 
-        <span class="n">negative_clip_prompt_embeds</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">pad</span><span class="p">(</span>
+        <span class="n">negative_clip_prompt_embeds</span> <span class="o">=</span> <span class="n">pad</span><span class="p">(</span>
             <span class="n">negative_clip_prompt_embeds</span><span class="p">,</span>
             <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">t5_negative_prompt_embed</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">-</span> <span class="n">negative_clip_prompt_embeds</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]),</span>
         <span class="p">)</span>
