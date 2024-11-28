@@ -117,6 +117,10 @@
          <lastmod>2024-11-28</lastmod>
     </url>
     <url>
+         <loc>https://mindspore-lab.github.io/mindone/0.2/diffusers/api/models/controlnet_hunyuandit/</loc>
+         <lastmod>2024-11-28</lastmod>
+    </url>
+    <url>
          <loc>https://mindspore-lab.github.io/mindone/0.2/diffusers/api/models/controlnet_sd3/</loc>
          <lastmod>2024-11-28</lastmod>
     </url>
@@ -130,6 +134,14 @@
     </url>
     <url>
          <loc>https://mindspore-lab.github.io/mindone/0.2/diffusers/api/models/hunyuan_transformer2d/</loc>
+         <lastmod>2024-11-28</lastmod>
+    </url>
+    <url>
+         <loc>https://mindspore-lab.github.io/mindone/0.2/diffusers/api/models/latte_transformer3d/</loc>
+         <lastmod>2024-11-28</lastmod>
+    </url>
+    <url>
+         <loc>https://mindspore-lab.github.io/mindone/0.2/diffusers/api/models/lumina_nextdit2d/</loc>
          <lastmod>2024-11-28</lastmod>
     </url>
     <url>
@@ -209,6 +221,10 @@
          <lastmod>2024-11-28</lastmod>
     </url>
     <url>
+         <loc>https://mindspore-lab.github.io/mindone/0.2/diffusers/api/pipelines/controlnet_hunyuandit/</loc>
+         <lastmod>2024-11-28</lastmod>
+    </url>
+    <url>
          <loc>https://mindspore-lab.github.io/mindone/0.2/diffusers/api/pipelines/controlnet_sd3/</loc>
          <lastmod>2024-11-28</lastmod>
     </url>
@@ -273,11 +289,23 @@
          <lastmod>2024-11-28</lastmod>
     </url>
     <url>
+         <loc>https://mindspore-lab.github.io/mindone/0.2/diffusers/api/pipelines/kolors/</loc>
+         <lastmod>2024-11-28</lastmod>
+    </url>
+    <url>
          <loc>https://mindspore-lab.github.io/mindone/0.2/diffusers/api/pipelines/latent_consistency_models/</loc>
          <lastmod>2024-11-28</lastmod>
     </url>
     <url>
          <loc>https://mindspore-lab.github.io/mindone/0.2/diffusers/api/pipelines/latent_diffusion/</loc>
+         <lastmod>2024-11-28</lastmod>
+    </url>
+    <url>
+         <loc>https://mindspore-lab.github.io/mindone/0.2/diffusers/api/pipelines/latte/</loc>
+         <lastmod>2024-11-28</lastmod>
+    </url>
+    <url>
+         <loc>https://mindspore-lab.github.io/mindone/0.2/diffusers/api/pipelines/lumina/</loc>
          <lastmod>2024-11-28</lastmod>
     </url>
     <url>
@@ -426,6 +454,10 @@
     </url>
     <url>
          <loc>https://mindspore-lab.github.io/mindone/0.2/diffusers/api/schedulers/flow_match_euler_discrete/</loc>
+         <lastmod>2024-11-28</lastmod>
+    </url>
+    <url>
+         <loc>https://mindspore-lab.github.io/mindone/0.2/diffusers/api/schedulers/flow_match_heun_discrete/</loc>
          <lastmod>2024-11-28</lastmod>
     </url>
     <url>
