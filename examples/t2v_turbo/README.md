@@ -7,7 +7,8 @@ Jiachen Li, Weixi Feng, Tsu-Jui Fu, Xinyi Wang, Sugato Basu, Wenhu Chen, William
 
 Paper: https://arxiv.org/abs/2405.18750
 
-![T2V-Turbo](assets/teasers/v1-pipeline.jpg)
+![v1-pipeline](https://github.com/user-attachments/assets/14a954bc-a038-46bc-9b96-3b8d8ef55144)
+
 
 
 ## 📌 Features
@@ -36,9 +37,12 @@ The scripts have been tested on Ascend 910B chips under the following requiremen
 
 ### 4-Step Results of T2V-Turbo
 <table class="center">
-  <td><img src=assets/demo_videos/4steps/horse.gif width="320"></td></td>
-  <td><img src=assets/demo_videos/4steps/girl.gif width="320"></td></td>
-  <td><img src=assets/demo_videos/4steps/pig.gif width="320"></td></td></td>
+  <td><img src="https://github.com/user-attachments/assets/3e238b7b-e5f5-4c4d-8359-4a9595327206"
+width="320"></td></td>
+  <td><img src="https://github.com/user-attachments/assets/ca3153ba-eac2-4a32-a964-9385f06a105d"
+ width="320"></td></td>
+  <td><img src="https://github.com/user-attachments/assets/39e6c13b-be66-4a4d-a6cd-1f3535d7a1b0"
+ width="320"></td></td></td>
   <tr>
   <td style="text-align:center;" width="320">With the style of low-poly game art, A majestic, white horse gallops gracefully across a moonlit beach.</td>
   <td style="text-align:center;" width="320">medium shot of Christine, a beautiful 25-year-old brunette resembling Selena Gomez, anxiously looking up as she walks down a New York street, cinematic style</td>
@@ -47,9 +51,12 @@ The scripts have been tested on Ascend 910B chips under the following requiremen
 </table >
 
 <table class="center">
-  <td><img src=assets/demo_videos/4steps/dog.gif width="320"></td></td>
-  <td><img src=assets/demo_videos/4steps/pikachu.gif width="320"></td></td>
-  <td><img src=assets/demo_videos/4steps/water.gif width="320"></td></td>
+  <td><img src="https://github.com/user-attachments/assets/1ab395db-e4bf-4a75-8cbe-02147f1395a0"
+ width="320"></td></td>
+  <td><img src="https://github.com/user-attachments/assets/a4f8f483-ae02-47a4-a1ba-dfd3cc7cad68"
+ width="320"></td></td>
+  <td><img src="https://github.com/user-attachments/assets/051c2b8c-0956-4dd2-b4bf-1c9cba836584"
+ width="320"></td></td>
 
   <tr>
   <td style="text-align:center;" width="320">a dog wearing vr goggles on a boat</td>
@@ -62,9 +69,12 @@ The scripts have been tested on Ascend 910B chips under the following requiremen
 ### 8-Step Results of T2V-Turbo
 
 <table class="center">
-  <td><img src=assets/demo_videos/8steps/mickey.gif width="320"></td></td>
-  <td><img src=assets/demo_videos/8steps/girl.gif width="320"></td></td>
-  <td><img src=assets/demo_videos/8steps/fashion.gif width="320"></td></td></td>
+  <td><img src="https://github.com/user-attachments/assets/51b975c5-abca-4364-905a-4dd688f074bc"
+ width="320"></td></td>
+  <td><img src="https://github.com/user-attachments/assets/df1199bd-7837-4709-9494-972dd18838dc"
+ width="320"></td></td>
+  <td><img src="https://github.com/user-attachments/assets/e51148a8-e9f8-486c-a854-783c8ea19fc3"
+ width="320"></td></td></td>
   <tr>
   <td style="text-align:center;" width="320">Mickey Mouse is dancing on white background</td>
   <td style="text-align:center;" width="320">light wind, feathers moving, she moves her gaze, 4k</td>
@@ -73,9 +83,12 @@ The scripts have been tested on Ascend 910B chips under the following requiremen
 </table >
 
 <table class="center">
-  <td><img src=assets/demo_videos/8steps/flower.gif width="320"></td></td>
-  <td><img src=assets/demo_videos/8steps/duck.gif width="320"></td></td>
-  <td><img src=assets/demo_videos/8steps/lion.gif width="320"></td></td>
+  <td><img src="https://github.com/user-attachments/assets/5371810f-4262-4c89-9eba-880ce798b366"
+ width="320"></td></td>
+  <td><img src="https://github.com/user-attachments/assets/46580b4c-3ae9-473a-98da-3aff934da016"
+ width="320"></td></td>
+  <td><img src="https://github.com/user-attachments/assets/6f98b93a-61c8-4c59-aac0-14b15568a315"
+ width="320"></td></td>
 
   <tr>
   <td style="text-align:center;" width="320">With the style of abstract cubism, The flowers swayed in the gentle breeze, releasing their sweet fragrance.</td>
