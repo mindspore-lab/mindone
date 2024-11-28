@@ -509,7 +509,7 @@ class CosineDPMSolverMultistepScheduler(SchedulerMixin, ConfigMixin):
             #         [g.initial_seed() for g in generator] if isinstance(generator, list) else generator.initial_seed()
             #     )
             self.noise_sampler = BrownianTreeNoiseSampler(
-                model_output, sigma_min=self.config.sigma_min, sigma_max=self.config.sigma_max, seed=seed
+                model_output, sigma_min=self.config.sigma_min, sigma_max=self.config.sigma_max
             )
         noise = self.noise_sampler(self.sigmas[self.step_index], self.sigmas[self.step_index + 1])
 
