@@ -52,7 +52,15 @@ class GeneratorWithLoss(nn.Cell):
         return kl_loss
 
     def vae_loss_fn(
-        self, x, recons, mean, logvar, nll_weights=None, no_perceptual=False, no_kl=False, pixelwise_mean=False,
+        self,
+        x,
+        recons,
+        mean,
+        logvar,
+        nll_weights=None,
+        no_perceptual=False,
+        no_kl=False,
+        pixelwise_mean=False,
     ):
         """
         return:
@@ -110,8 +118,6 @@ class GeneratorWithLoss(nn.Cell):
             posterior_mean.to(ms.float32),
             posterior_logvar.to(ms.float32),
         )
-
-        frames = x.shape[2]
 
         # Loss compute
         # video frames x reconstruction loss

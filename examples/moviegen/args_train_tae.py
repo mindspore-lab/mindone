@@ -215,7 +215,9 @@ def parse_train_args(parser):
     parser.add_argument(
         "--sd_scale_factor", type=float, default=0.18215, help="VAE scale factor of Stable Diffusion model."
     )
-    parser.add_argument("--image_size", default=256, type=int, nargs="+", help="image size for resizing the input image")
+    parser.add_argument(
+        "--image_size", default=256, type=int, nargs="+", help="image size for resizing the input image"
+    )
     parser.add_argument("--crop_size", default=256, type=int, help="crop size after resize")
     parser.add_argument("--num_frames", default=16, type=int, help="the num of frames used to initiate model")
     parser.add_argument("--frame_stride", default=3, type=int, help="frame sampling stride")

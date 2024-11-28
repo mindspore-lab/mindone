@@ -1,6 +1,8 @@
-from safetensors import safe_open
 import argparse
+
 import numpy as np
+from safetensors import safe_open
+
 import mindspore as ms
 
 
@@ -10,24 +12,28 @@ def get_shape_from_str(shape):
 
     return shape
 
+
 def get_pname_shape(ckpt_path):
-    with safe_open(ckpt_path, framework="pt", device='cpu') as fp:
+    with safe_open(ckpt_path, framework="pt", device="cpu") as fp:
         for key in fp.keys():
             val = fp.get_tensor(key)
             shape = tuple(val.shape)
             dtype = val.dtype
             print(f"{key}#{shape}#{dtype}")
 
+
 def load_torch_ckpt(ckpt_path):
     pt_state_dict = {}
-    with safe_open(ckpt_path, framework="pt", device='cpu') as fp:
+    with safe_open(ckpt_path, framework="pt", device="cpu") as fp:
         for key in fp.keys():
             pt_state_dict[key] = fp.get_tensor(key)
             # print(key)
     return pt_state_dict
 
+
 def plot_ms_vae2d5():
     from mg.models.tae.tae import SD3d5_CONFIG, TemporalAutoencoder
+
     tae = TemporalAutoencoder(config=SD3d5_CONFIG)
 
     sd = tae.parameters_dict()
@@ -37,10 +43,10 @@ def plot_ms_vae2d5():
         print(f"{pname}#{shape}")
 
 
-def convert_vae2d(source_fp, target_fp, target_model='vae2d'):
+def convert_vae2d(source_fp, target_fp, target_model="vae2d"):
     # read param mapping files
-    ms_pnames_file = "tools/ms_pnames_sd3.5_vae.txt" if target_model == 'vae2d' else "tools/ms_pnames_tae_vae.txt"
-    print('target ms pnames is annotated in ', ms_pnames_file)
+    ms_pnames_file = "tools/ms_pnames_sd3.5_vae.txt" if target_model == "vae2d" else "tools/ms_pnames_tae_vae.txt"
+    print("target ms pnames is annotated in ", ms_pnames_file)
     with open(ms_pnames_file) as file_ms:
         lines_ms = list(file_ms.readlines())
     with open("tools/pt_pnames_sd3.5_vae.txt") as file_pt:
@@ -90,7 +96,7 @@ if __name__ == "__main__":
         "--target",
         "-t",
         type=str,
-        default='models/tae_vae2d.ckpt',
+        default="models/tae_vae2d.ckpt",
         help="Filename to save. Specify folder, e.g., ./models, or file path which ends with .ckpt, e.g., ./models/vae.ckpt",
     )
     args = parser.parse_args()
@@ -100,5 +106,4 @@ if __name__ == "__main__":
     # plot_ms_vae2d5()
 
     # convert_vae2d(ckpt_path, "models/sd3.5_vae.ckpt")
-    convert_vae2d(args.src, args.target, target_model='tae')
-
+    convert_vae2d(args.src, args.target, target_model="tae")

@@ -16,7 +16,7 @@ We use SD3.5 VAE to initialize the spatial layers of TAE, since both have a late
 2. Convert VAE checkpoint for TAE loading
 
 ```shell
-python inflate_vae_to_tae.py --src /path/to/sd3.5_vae/diffusion_pytorch_model.safetensors --target models/tae_vae2d.ckpt 
+python inflate_vae_to_tae.py --src /path/to/sd3.5_vae/diffusion_pytorch_model.safetensors --target models/tae_vae2d.ckpt
 ```
 
 
@@ -33,7 +33,7 @@ python scripts/train_tae.py \
 
 ```
 
-OPL - outlier penality loss is found to be not beneficial in our experiment (PSNR decreased). Thus we set it to False by default. 
+OPL - outlier penality loss is found to be not beneficial in our experiment (PSNR decreased). Thus we set it to False by default.
 
 Change mixed_256x256x16.yaml to mixed_256x256x32.yaml for training on 32 frames.
 
@@ -63,7 +63,7 @@ python scripts/inference_vae.py \
 --enable_tile=False \
 ```
 
-#### Encoding video 
+#### Encoding video
 
 ```python
 from mg.models.tae.tae import TemporalAutoencoder, TAE_CONFIG
@@ -79,7 +79,7 @@ z, _, _ = tae.encode(x)
 
 
 # you may scale z by:
-# z = TAE_CONFIG['scaling_factor'] * z + TAE_CONFIG['shift_factor'] 
+# z = TAE_CONFIG['scaling_factor'] * z + TAE_CONFIG['shift_factor']
 
 
 ```
@@ -91,12 +91,11 @@ For detailed arguments, please refer to the docstring in [tae.py](mg/models/tae/
 ```python
 
 # if z is scaled, you should unscale at first:
-# z = (z - TAE_CONFIG['shift_factor']) / TAE_CONFIG['scaling_factor'] 
+# z = (z - TAE_CONFIG['shift_factor']) / TAE_CONFIG['scaling_factor']
 
 # z - a batch of video latent, shape (b c t h w)
 x = tae.decode(z)
 
-# for image decoding, set num_target_frames to discard the spurious frames 
+# for image decoding, set num_target_frames to discard the spurious frames
 x = tae.decode(z, num_target_frames=1)
 ```
-

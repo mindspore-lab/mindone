@@ -21,8 +21,8 @@ sys.path.insert(0, os.path.abspath(os.path.join(__dir__, "..")))
 from args_train_tae import parse_args
 from mg.dataset.tae_dataset import create_dataloader
 from mg.models.tae.losses import GeneratorWithLoss
+from mg.models.tae.modules import SpatialDownsample, SpatialUpsample, TemporalDownsample, TemporalUpsample
 from mg.models.tae.tae import TemporalAutoencoder
-from mg.models.tae.modules import  SpatialUpsample, SpatialDownsample, TemporalUpsample, TemporalDownsample
 
 from mindone.trainers.callback import EvalSaveCallback, OverflowMonitor, ProfilerCallback
 from mindone.trainers.checkpoint import CheckpointManager, resume_train_network
@@ -134,9 +134,9 @@ def init_env(
         # only effective in GE mode, i.e. jit_level: O2
         ms.set_context(ascend_config={"precision_mode": "allow_mix_precision_bf16"})
 
-    if dynamic_shape:
-        print("Dynamic shape mode enabled, repeat_interleave/split/chunk will be called from mint module")
-        set_dynamic_mode(True)
+    # if dynamic_shape:
+    #     print("Dynamic shape mode enabled, repeat_interleave/split/chunk will be called from mint module")
+    #     set_dynamic_mode(True)
 
     return rank_id, device_num
 
@@ -195,7 +195,7 @@ def main(args):
     ae = TemporalAutoencoder(
         pretrained=args.pretrained_model_path,
         use_recompute=args.use_recompute,
-        )
+    )
 
     if args.use_discriminator:
         logging.error("Discriminator is not used or supported in OpenSora v1.2")
@@ -209,8 +209,9 @@ def main(args):
             ae,
             args.amp_level,
             dtype,
-            custom_fp32_cells= [SpatialDownsample, SpatialUpsample, TemporalDownsample, TemporalUpsample] if args.vae_keep_updown_fp32 else [] + \
-            ([nn.GroupNorm] if args.vae_keep_gn_fp32 else []),
+            custom_fp32_cells=[SpatialDownsample, SpatialUpsample, TemporalDownsample, TemporalUpsample]
+            if args.vae_keep_updown_fp32
+            else [] + ([nn.GroupNorm] if args.vae_keep_gn_fp32 else []),
             # custom_fp32_cells=[nn.GroupNorm, SpatialUpsample] if args.vae_keep_gn_fp32 else [SpatialUpsample],
         )
 

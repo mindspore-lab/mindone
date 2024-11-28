@@ -1,6 +1,7 @@
 import mindspore as ms
 from mindspore import nn, ops
-from .modules_2d import Encoder, Decoder
+
+from .modules_2d import Decoder, Encoder
 
 # TODO: set z_channels to 16
 SD3d5_CONFIG = {
@@ -17,7 +18,7 @@ SD3d5_CONFIG = {
     "scaling_factor": 1.5305,
     "shift_factor": 0.0609,
     "use_post_quant_conv": False,
-    "use_quant_conv": False
+    "use_quant_conv": False,
 }
 
 
@@ -34,8 +35,8 @@ class SD3d5_VAE(nn.Cell):
         self,
         config: dict = SD3d5_CONFIG,
         pretrained: str = None,
-        use_recompute: bool=False,
-        sample_deterministic: bool=False,
+        use_recompute: bool = False,
+        sample_deterministic: bool = False,
     ):
         super().__init__()
 
@@ -43,14 +44,14 @@ class SD3d5_VAE(nn.Cell):
         self.encoder = Encoder(**config)
 
         # quant and post quant
-        embed_dim = config['z_channels']
-        if config['use_quant_conv']:
+        embed_dim = config["z_channels"]
+        if config["use_quant_conv"]:
             self.quant_conv = nn.Conv2d(2 * embed_dim, 2 * embed_dim, 1, pad_mode="valid", has_bias=True)
-        if config['use_post_quant_conv']:
+        if config["use_post_quant_conv"]:
             self.post_quant_conv = nn.Conv2d(embed_dim, embed_dim, 1, pad_mode="valid", has_bias=True)
 
-        self.use_quant_conv = config['use_quant_conv']
-        self.use_post_quant_conv = config['use_post_quant_conv']
+        self.use_quant_conv = config["use_quant_conv"]
+        self.use_post_quant_conv = config["use_post_quant_conv"]
 
         # decoder
         self.decoder = Decoder(**config)
@@ -67,7 +68,6 @@ class SD3d5_VAE(nn.Cell):
             # self.recompute(self.post_quant_conv)
             self.recompute(self.decoder)
 
-
     def recompute(self, b):
         if not b._has_config_recompute:
             b.recompute()
@@ -75,7 +75,6 @@ class SD3d5_VAE(nn.Cell):
             self.recompute(b[-1])
         else:
             b.add_flags(output_no_recompute=True)
-
 
     def _encode(self, x):
         # return latent distribution, N(mean, logvar)
@@ -124,10 +123,11 @@ class SD3d5_VAE(nn.Cell):
 
         return recons, z, posterior_mean, posterior_logvar
 
-    def load_pretrained(self, ckpt_path:str):
-        if ckpt_path.endswith('safetensors'):
+    def load_pretrained(self, ckpt_path: str):
+        if ckpt_path.endswith("safetensors"):
             # load vae parameters from safetensors into my mindspore model
             import safetensors
+
             ckpt = safetensors.safe_open(ckpt_path, framework="pt")
             state_dict = {}
             for key in ckpt.keys():
@@ -138,6 +138,4 @@ class SD3d5_VAE(nn.Cell):
             param_not_load, ckpt_not_load = ms.load_param_into_net(self, param_dict, strict_load=True)
             if param_not_load or ckpt_not_load:
                 print(f"{param_not_load} in network is not loaded or {ckpt_not_load} in checkpoint is not loaded!")
-        print('vae checkpoint loaded')
-
-
+        print("vae checkpoint loaded")

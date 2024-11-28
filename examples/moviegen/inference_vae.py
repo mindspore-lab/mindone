@@ -13,7 +13,6 @@ import numpy as np
 
 from mindspore import nn, ops
 
-
 __dir__ = os.path.dirname(os.path.abspath(__file__))
 mindone_dir = os.path.abspath(os.path.join(__dir__, "../../../"))
 sys.path.insert(0, mindone_dir)
@@ -31,8 +30,8 @@ sys.path.insert(0, mindone_lib_path)
 sys.path.insert(0, os.path.abspath(os.path.join(__dir__, "..")))
 
 from mg.dataset.tae_dataset import create_dataloader
-from mg.models.tae.tae import TemporalAutoencoder
 from mg.models.tae.lpips import LPIPS
+from mg.models.tae.tae import TemporalAutoencoder
 
 from mindone.utils.amp import auto_mixed_precision
 from mindone.utils.config import str2bool
@@ -84,6 +83,7 @@ def rearrange_in(x):
     x = ops.reshape(x, (b * t, h, w, c))
     return x
 
+
 def rearrange_out(x, t):
     bt, c, h, w = x.shape
     b = bt // t
@@ -101,13 +101,13 @@ def main(args):
     model = TemporalAutoencoder(
         pretrained=args.ckpt_path,
         use_tile=args.enable_tile,
-        )
+    )
 
     model.set_train(False)
     logger.info(f"Loaded checkpoint from  {args.ckpt_path}")
 
     if args.eval_loss:
-       lpips_loss_fn = LPIPS()
+        lpips_loss_fn = LPIPS()
 
     if args.dtype != "fp32":
         amp_level = "O2"
@@ -164,7 +164,7 @@ def main(args):
     for step, data in tqdm(enumerate(ds_iter)):
         x = data["video"]
         start_time = time.time()
-        
+
         if args.encode_only:
             z = model.encode(x)
         else:
@@ -203,7 +203,7 @@ def main(args):
 
             if args.eval_loss:
                 recon_loss = np.abs((x - recons).asnumpy())
-               
+
                 t = x.shape[2]
                 x = rearrange_in(x)
                 # lpips_loss = lpips_loss_fn(x, recons).asnumpy()
@@ -284,7 +284,9 @@ def parse_args():
     parser.add_argument("--save_vis", default=True, type=str2bool, help="whether save reconstructed images")
     parser.add_argument("--use_temporal_vae", default=True, type=str2bool, help="if False, just use spatial vae")
     parser.add_argument("--encode_only", default=False, type=str2bool, help="only encode to save z or distribution")
-    parser.add_argument("--enable_tile", default=False, type=str2bool, help="enable temporal tiling with linear blending for decoder")
+    parser.add_argument(
+        "--enable_tile", default=False, type=str2bool, help="enable temporal tiling with linear blending for decoder"
+    )
     parser.add_argument("--video_column", default="video", type=str, help="name of column for videos saved in csv file")
     parser.add_argument(
         "--mixed_strategy",
