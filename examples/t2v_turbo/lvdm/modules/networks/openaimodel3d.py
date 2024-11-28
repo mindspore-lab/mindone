@@ -260,7 +260,7 @@ class ResBlock(TimestepBlock):
             h = self.in_layers(x)
         emb_out = self.emb_layers(emb).astype(h.dtype)
         while len(emb_out.shape) < len(h.shape):
-            emb_out = ops.expand_dims(emb_out, -1)  # FIXME
+            emb_out = ops.expand_dims(emb_out, -1)
             # emb_out = emb_out[..., None]
         if self.use_scale_shift_norm:
             out_norm, out_rest = self.out_layers[0], self.out_layers[1:]
