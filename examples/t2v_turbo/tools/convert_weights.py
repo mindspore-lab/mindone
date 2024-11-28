@@ -100,46 +100,55 @@ def convert_lora(src_path, target_path):
 
 
 def convert_internvid2(src_path, target_path):
-    from intern_vid2.demo_config import Config, eval_dict_leaf
-    from intern_vid2.demo_utils import InternVideo2_Stage2
+    def _param_convert(pt_params, ckpt_path, extra_dict=None):
+        # List of keys to ignore
+        ignore_keys = [
+            "temp",
+            "text_encoder.bert.embeddings.position_ids",
+            "text_encoder.cls.predictions.bias",
+            "text_encoder.cls.predictions.transform.dense.weight",
+            "text_encoder.cls.predictions.transform.dense.bias",
+            "text_encoder.cls.predictions.transform.LayerNorm.weight",
+            "text_encoder.cls.predictions.transform.LayerNorm.bias",
+            "text_encoder.cls.predictions.decoder.weight",
+            "text_encoder.cls.predictions.decoder.bias",
+            "itm_head.weight",
+            "itm_head.bias",
+        ]
 
-    def _param_convert(ms_params, pt_params, ckpt_path, extra_dict=None):
-        bn_ms2pt = {"gamma": "weight", "beta": "bias", "moving_mean": "running_mean", "moving_variance": "running_var"}
+        # Required keys for processing
+        required_keys = ["vision_encoder", "clip", "norm"]
 
+        # Filter out keys to ignore
+        filtered_params = {k: v for k, v in pt_params.items() if k not in ignore_keys}
+
+        # Mapping for parameter names
+        pt2ms = {"weight": "gamma", "bias": "beta"}
+
+        # Update mapping with extra dictionary, if provided
         if extra_dict:
-            bn_ms2pt.update(extra_dict)
+            pt2ms.update(extra_dict)
 
         new_params_list = []
-        for ms_param in ms_params:
-            param_name = ms_param.name
-            for k, v in bn_ms2pt.items():
-                if "norm" in param_name:
-                    param_name = param_name.replace(k, v)
-            pt_param = param_name
 
-            if pt_param in pt_params and pt_params[pt_param].shape == ms_param.data.shape:
-                ms_value = pt_params[pt_param]
-                new_params_list.append({"name": ms_param.name, "data": ms.Tensor(ms_value, ms.float32)})
-            elif pt_param in pt_params and "weight" in ms_param.name:
-                ms_value = pt_params[pt_param]
-                new_params_list.append({"name": ms_param.name, "data": ms.Tensor(ms_value, ms.float32).unsqueeze(2)})
-            else:
-                print(ms_param.name, "not match in pt_params")
+        for pt_param, value in filtered_params.items():
+            # Convert value to the desired format
+            ms_value = value.float().cpu().detach().numpy()
+            new_param_name = pt_param
+
+            # Check if required keys are present in the parameter name
+            if all(key in pt_param for key in required_keys):
+                # Replace 'weight' with 'gamma' and 'bias' with 'beta'
+                for k, v in pt2ms.items():
+                    new_param_name = new_param_name.replace(k, v)
+
+            # Append the new parameter to the list
+            new_params_list.append({"name": new_param_name, "data": ms.Tensor(ms_value, ms.float32)})
 
         ms.save_checkpoint(new_params_list, ckpt_path)
 
-    n_frames = 4
-    config = Config.from_file("intern_vid2/configs/internvideo2_stage2_config.py")
-    config = eval_dict_leaf(config)
-    config["inputs"]["video_input"]["num_frames"] = n_frames
-    config["inputs"]["video_input"]["num_frames_test"] = n_frames
-    config["model"]["vision_encoder"]["num_frames"] = n_frames
-
-    model = InternVideo2_Stage2(config=config, tokenizer=None, is_pretrain=False)
-    ms_params = model.get_parameters()
-
-    state_dict = load_torch_ckpt(src_path)
-    _param_convert(ms_params, state_dict, target_path)
+    state_dict = load_torch_ckpt(src_path)["module"]
+    _param_convert(state_dict, target_path)
 
 
 def convert_hpsv2(src_path, target_path):

@@ -886,8 +886,6 @@ def pretrain_internvideo2_6b_patch14_224(config):
 
 
 if __name__ == "__main__":
-    import numpy as np
-
     seed = 4217
     np.random.seed(seed)
     num_frames = 8
