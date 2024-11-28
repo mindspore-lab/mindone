@@ -23,7 +23,7 @@ import mindspore as ms
 from mindspore import ops
 
 from ..configuration_utils import ConfigMixin, register_to_config
-#from .scheduling_dpmsolver_sde import BrownianTreeNoiseSampler
+from .scheduling_dpmsolver_sde import BrownianTreeNoiseSampler
 from .scheduling_utils import SchedulerMixin, SchedulerOutput
 
 
@@ -503,11 +503,11 @@ class CosineDPMSolverMultistepScheduler(SchedulerMixin, ConfigMixin):
         self.model_outputs[-1] = model_output
 
         if self.noise_sampler is None:
-            seed = None
-            if generator is not None:
-                seed = (
-                    [g.initial_seed() for g in generator] if isinstance(generator, list) else generator.initial_seed()
-                )
+            # seed = None
+            # if generator is not None:
+            #     seed = (
+            #         [g.initial_seed() for g in generator] if isinstance(generator, list) else generator.initial_seed()
+            #     )
             self.noise_sampler = BrownianTreeNoiseSampler(
                 model_output, sigma_min=self.config.sigma_min, sigma_max=self.config.sigma_max, seed=seed
             )
