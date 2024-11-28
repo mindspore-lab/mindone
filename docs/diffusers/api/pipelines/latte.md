@@ -26,11 +26,9 @@ The abstract from the paper is:
 
 This pipeline was contributed by [maxin-cn](https://github.com/maxin-cn). The original codebase can be found [here](https://github.com/Vchitect/Latte). The original weights can be found under [hf.co/maxin-cn](https://huggingface.co/maxin-cn).
 
-<Tip>
+!!! tip
 
-Make sure to check out the Schedulers [guide](../../using-diffusers/schedulers.md) to learn how to explore the tradeoff between scheduler speed and quality, and see the [reuse components across pipelines](../../using-diffusers/loading.md#reuse-a-pipeline) section to learn how to efficiently load the same components into multiple pipelines.
-
-</Tip>
+    Make sure to check out the Schedulers [guide](../../using-diffusers/schedulers.md) to learn how to explore the tradeoff between scheduler speed and quality, and see the [reuse components across pipelines](../../using-diffusers/loading.md#reuse-a-pipeline) section to learn how to efficiently load the same components into multiple pipelines.
 
 ### Inference
 
@@ -44,7 +42,5 @@ pipeline = LattePipeline.from_pretrained(
 
 video = pipeline(prompt="A dog wearing sunglasses floating in space, surreal, nebulae in background")[0][0]
 ```
-
-## LattePipeline
 
 ::: mindone.diffusers.LattePipeline

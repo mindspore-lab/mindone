@@ -14,6 +14,4 @@ specific language governing permissions and limitations under the License.
 
 A Next Version of Diffusion Transformer model for 2D data from [Lumina-T2X](https://github.com/Alpha-VLLM/Lumina-T2X).
 
-## LuminaNextDiT2DModel
-
 ::: mindone.diffusers.LuminaNextDiT2DModel
