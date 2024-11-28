@@ -12,6 +12,18 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+
+class ContainerMeta(type):
+    def all(cls):
+        return sorted(getattr(cls, x) for x in dir(cls) if not x.startswith('__'))
+
+    def __str__(cls):
+        return str(cls.all())
+
+    def __contains__(cls, item):
+        return item in cls.all()
+
+
 class LEVY_AREA_APPROXIMATIONS(metaclass=ContainerMeta):  # noqa
     none = 'none'  # Don't compute any Levy area approximation
     space_time = 'space-time'  # Only compute an (exact) space-time Levy area
