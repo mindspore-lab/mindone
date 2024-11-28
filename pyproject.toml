@@ -54,7 +54,9 @@ training = [
     "datasets",
     "protobuf",
     "tensorboard",
-    "tensorboardX"
+    "tensorboardX",
+    "ftfy",
+    "Jinja2"
 ]
 tests = [
     "pytest",

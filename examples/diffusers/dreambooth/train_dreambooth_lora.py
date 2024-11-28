@@ -84,7 +84,7 @@ def log_validation(
     else:
         for image in args.validation_images:
             image = Image.open(image)
-            image = pipeline(**pipeline_args, image=image, generator=generator).images[0]
+            image = pipeline(**pipeline_args, image=image, generator=generator)[0][0]
             images.append(image)
 
     phase_name = "test" if is_final_validation else "validation"
@@ -551,7 +551,7 @@ class DreamBoothDataset(object):
         example["instance_images"] = self.image_transforms(instance_image)[0]
 
         if self.encoder_hidden_states is not None:
-            example["instance_prompt_ids"] = self.encoder_hidden_states
+            example["instance_prompt_ids"] = self.encoder_hidden_states.asnumpy()
         else:
             text_inputs = tokenize_prompt(
                 self.tokenizer, self.instance_prompt, tokenizer_max_length=self.tokenizer_max_length
@@ -775,7 +775,8 @@ def main():
         args.pretrained_model_name_or_path, subfolder="unet", revision=args.revision, variant=args.variant
     )
     # set sample_size of unet
-    unet.register_to_config(sample_size=args.resolution // (2 ** (len(vae.config.block_out_channels) - 1)))
+    if vae is not None:
+        unet.register_to_config(sample_size=args.resolution // (2 ** (len(vae.config.block_out_channels) - 1)))
 
     # We only train the additional adapter LoRA layers
     def freeze_params(m: nn.Cell):
@@ -1261,7 +1262,8 @@ class TrainStepForDB(TrainStep):
         self.unet = unet
         self.unet_in_channels = unet.config.in_channels
         self.vae = vae
-        self.vae_scaling_factor = vae.config.scaling_factor
+        if self.vae is not None:
+            self.vae_scaling_factor = vae.config.scaling_factor
         self.text_encoder = text_encoder
         self.noise_scheduler = noise_scheduler
         self.noise_scheduler_num_train_timesteps = noise_scheduler.config.num_train_timesteps
@@ -1269,7 +1271,7 @@ class TrainStepForDB(TrainStep):
         self.weight_dtype = weight_dtype
         self.args = AttrJitWrapper(**vars(args))
 
-    def forward(self, pixel_values, input_ids, attention_mask):
+    def forward(self, pixel_values, input_ids, attention_mask=None):
         pixel_values = pixel_values.to(dtype=self.weight_dtype)
 
         if self.vae is not None:
