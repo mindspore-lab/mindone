@@ -232,7 +232,7 @@ class NPUConfig:
         if input_layout not in ["BSH", "BNSD"]:
             raise ValueError(f"input_layout must be in ['BSH', 'BNSD'], but get {input_layout}.")
         Bs, query_tokens, inner_dim = query.shape
-        assert query_tokens % 16 == 0, f"Sequence length of query must be divisible by 16, but got {query_tokens}."
+        # assert query_tokens % 16 == 0, f"Sequence length of query must be divisible by 16, but got {query_tokens}."
         key_tokens = key.shape[1]
         heads = head_num
         query = query.view(Bs, query_tokens, heads, -1)
