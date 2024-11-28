@@ -33,11 +33,6 @@ class BaseBrownian(metaclass=abc.ABCMeta):
 
     @property
     @abc.abstractmethod
-    def device(self):
-        raise NotImplementedError
-
-    @property
-    @abc.abstractmethod
     def shape(self):
         raise NotImplementedError
 
