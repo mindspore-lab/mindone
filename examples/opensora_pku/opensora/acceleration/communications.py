@@ -68,7 +68,7 @@ def prepare_parallel_data(
     sp_size = hccl_info.world_size
     index = hccl_info.rank % sp_size
     frame = hidden_states.shape[2]
-    assert frame % sp_size == 0, "frame should be a multiple of sp_size"
+    assert frame % sp_size == 0, f"frame {frame} should be a multiple of sp_size {sp_size}"
     # b 1 (n x) h -> b n x h
     b, one_, nx, h = encoder_hidden_states.shape
     encoder_hidden_states = encoder_hidden_states.view((b, sp_size, nx // sp_size, h))
