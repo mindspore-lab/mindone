@@ -57,7 +57,7 @@ class BatchedBrownianTree:
         t0, t1, self.sign = self.sort(t0, t1)
         w0 = kwargs.get("w0", ops.zeros_like(x))
         if seed is None:
-            seed = ops.randint(0, 2**63 - 1, []).item()
+            seed = ops.randint((0, 2**63 - 1, [])).item()
         self.batched = True
         try:
             assert len(seed) == x.shape[0]
