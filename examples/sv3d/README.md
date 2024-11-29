@@ -31,12 +31,12 @@ More demos can be found here. Input images are from [the Unique 3D repo](https:/
 
 </details>
 
-## Environments
+## Requirements
 1. To kickstart:
 ```bash
 pip install -r requirements.txt
 ```
-2. Inference is tested on the machine with the following specs using 1x NPU:
+2. Both training and inference are tested on the machine with the following specs using 1x NPU:
     | mindspore |	ascend driver | firmware	| cann toolkit/kernel |
     | :--- | :--- | :--- | :--- |
     | 2.3.1	    | 24.1.RC2 |7.3.0.1.231	| 8.0.RC2.beta1 |
@@ -55,13 +55,6 @@ python simple_video_sample.py \
     --ckpt PATH_TO_CKPT \
     --image PATH_TO_INPUT_IMAGE
 ```
-**Performance**
-* Measured on an NPU-910B card
-
-| model name    | cards    | batch size | resolution   | scheduler |    steps |  jit level|step/s |  
-|:-------:      |:--------:|:-------:   |:-----------: |:--------------:|:------------:|:-------:|:---------:|
-|SV3D |1         |1           | 576x576    | EulerEDM  |50 |O0|8.09|
-
 
 ## Training
 1. Prepare the SVD checkpoints as mentioned in the paper. SV3D needs to be finetuned from SVD to cut down training time. See [here](../svd/readme.md)
@@ -125,15 +118,24 @@ python train.py \
 **Precision**
 | ckpt type  | psnr   | ssim  | lpips  |
 | :---       | :---   | :---  | :---   |
-| vanilla    | 12.74  | 0.79  | 0.089  |
-| overfitted | 12.80  | 0.78  | 0.087  |
+| Vanilla    | 12.74  | 0.79  | 0.089  |
+| Overfitted | 12.80  | 0.78  | 0.087  |
 
-**Perfromance**
-* Measured on an NPU-910B card
+## Perfromance
 
-| model name | cards    | image size    | graph compile  | batch size    | recompute | data sink | jit level | step time |step/s | img/s |
+Experiments are tested on ascend 910* with mindspore 2.3.1 graph mode.
+
+### Training
+| model name | cards    | image size    | graph compile  | batch size    | recompute | data sink | jit level | step time |steps/s | frame/s |
 | :---       | :---     | :---          | :---           | :---          | :---      | :---      | :---      | :---      | :---          | :---          |
-| sv3d       | 1        | 576x576   	| 3~5 mins       | 5 frames	     | ON        |  OFF	     | O0        | 2.29s     | 0.44          | 2.18 |
+| SV3D       | 1        | 576x576   	| 3~5 mins       | 5 frames	     | ON        |  OFF	     | O0        | 2.29s     | 0.44          | 2.18 |
+
+### Inference
+
+| model name    | cards    | batch size | resolution   | scheduler |    steps |  jit level|steps /s |  
+|:-------:      |:--------:|:-------:   |:-----------: |:--------------:|:------------:|:-------:|:---------:|
+|SV3D |1         |1           | 576x576    | EulerEDM  |50 |O0|8.09|
+
 
 ## Acknowledgements
 
