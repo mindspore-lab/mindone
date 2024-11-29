@@ -8,6 +8,7 @@ _import_structure = {
         "AnimateDiffPipeline",
         "AnimateDiffSDXLPipeline",
         "AnimateDiffVideoToVideoPipeline",
+        "AnimateDiffVideoToVideoControlNetPipeline",
     ],
     "auto_pipeline": [
         "AutoPipelineForImage2Image",
@@ -165,7 +166,12 @@ _import_structure = {
 }
 
 if TYPE_CHECKING:
-    from .animatediff import AnimateDiffPipeline, AnimateDiffSDXLPipeline, AnimateDiffVideoToVideoPipeline
+    from .animatediff import (
+        AnimateDiffPipeline,
+        AnimateDiffSDXLPipeline,
+        AnimateDiffVideoToVideoControlNetPipeline,
+        AnimateDiffVideoToVideoPipeline,
+    )
     from .auto_pipeline import AutoPipelineForImage2Image, AutoPipelineForInpainting, AutoPipelineForText2Image
     from .blip_diffusion import BlipDiffusionPipeline
     from .cogvideo import CogVideoXImageToVideoPipeline, CogVideoXPipeline, CogVideoXVideoToVideoPipeline
