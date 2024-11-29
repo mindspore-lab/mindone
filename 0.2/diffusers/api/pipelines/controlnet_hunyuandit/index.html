@@ -3313,15 +3313,6 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#hunyuanditcontrolnetpipeline" class="md-nav__link">
-    <span class="md-ellipsis">
-      HunyuanDiTControlNetPipeline
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
   <a href="#mindone.diffusers.HunyuanDiTControlNetPipeline" class="md-nav__link">
     <span class="md-ellipsis">
       HunyuanDiTControlNetPipeline
@@ -3832,6 +3823,27 @@
   
   
     <li class="md-nav__item">
+      <a href="../pag/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    PAG
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../pixart/" class="md-nav__link">
         
   
@@ -3928,10 +3940,10 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_10_4_34" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_10_4_35" >
         
           
-          <label class="md-nav__link" for="__nav_2_10_4_34" id="__nav_2_10_4_34_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_2_10_4_35" id="__nav_2_10_4_35_label" tabindex="0">
             
   
   <span class="md-ellipsis">
@@ -3942,8 +3954,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="4" aria-labelledby="__nav_2_10_4_34_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_2_10_4_34">
+        <nav class="md-nav" data-md-level="4" aria-labelledby="__nav_2_10_4_35_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_10_4_35">
             <span class="md-nav__icon md-icon"></span>
             Stable Diffusion
           </label>
@@ -5448,15 +5460,6 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#hunyuanditcontrolnetpipeline" class="md-nav__link">
-    <span class="md-ellipsis">
-      HunyuanDiTControlNetPipeline
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
   <a href="#mindone.diffusers.HunyuanDiTControlNetPipeline" class="md-nav__link">
     <span class="md-ellipsis">
       HunyuanDiTControlNetPipeline
@@ -5539,10 +5542,10 @@ specific language governing permissions and limitations under the License.
 <p>The abstract from the paper is:</p>
 <p><em>We present ControlNet, a neural network architecture to add spatial conditioning controls to large, pretrained text-to-image diffusion models. ControlNet locks the production-ready large diffusion models, and reuses their deep and robust encoding layers pretrained with billions of images as a strong backbone to learn a diverse set of conditional controls. The neural architecture is connected with "zero convolutions" (zero-initialized convolution layers) that progressively grow the parameters from zero and ensure that no harmful noise could affect the finetuning. We test various conditioning controls, eg, edges, depth, segmentation, human pose, etc, with Stable Diffusion, using single or multiple conditions, with or without prompts. We show that the training of ControlNets is robust with small (&lt;50k) and large (&gt;1m) datasets. Extensive results show that ControlNet may facilitate wider applications to control image diffusion models.</em></p>
 <p>This code is implemented by Tencent Hunyuan Team. You can find pre-trained checkpoints for Hunyuan-DiT ControlNets on <a href="https://huggingface.co/Tencent-Hunyuan">Tencent Hunyuan</a>.</p>
-<p><Tip></p>
-<p>Make sure to check out the Schedulers <a href="../../using-diffusers/schedulers">guide</a> to learn how to explore the tradeoff between scheduler speed and quality, and see the <a href="../../using-diffusers/loading#reuse-components-across-pipelines">reuse components across pipelines</a> section to learn how to efficiently load the same components into multiple pipelines.</p>
-<p></Tip></p>
-<h2 id="hunyuanditcontrolnetpipeline">HunyuanDiTControlNetPipeline<a class="headerlink" href="#hunyuanditcontrolnetpipeline" title="Permanent link">&para;</a></h2>
+<div class="admonition tip">
+<p class="admonition-title">Tip</p>
+<p>Make sure to check out the Schedulers <a href="../../../using-diffusers/schedulers/">guide</a> to learn how to explore the tradeoff between scheduler speed and quality, and see the <a href="../../using-diffusers/loading#reuse-components-across-pipelines">reuse components across pipelines</a> section to learn how to efficiently load the same components into multiple pipelines.</p>
+</div>
 
 
 <div class="doc doc-object doc-class">
@@ -9406,7 +9409,7 @@ argument.</p>
     <span class="md-icon" title="Last update">
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M21 13.1c-.1 0-.3.1-.4.2l-1 1 2.1 2.1 1-1c.2-.2.2-.6 0-.8l-1.3-1.3c-.1-.1-.2-.2-.4-.2m-1.9 1.8-6.1 6V23h2.1l6.1-6.1zM12.5 7v5.2l4 2.4-1 1L11 13V7zM11 21.9c-5.1-.5-9-4.8-9-9.9C2 6.5 6.5 2 12 2c5.3 0 9.6 4.1 10 9.3-.3-.1-.6-.2-1-.2s-.7.1-1 .2C19.6 7.2 16.2 4 12 4c-4.4 0-8 3.6-8 8 0 4.1 3.1 7.5 7.1 7.9l-.1.2z"/></svg>
     </span>
-    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-date">November 28, 2024</span>
+    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-date">November 29, 2024</span>
   </span>
 
     
@@ -9426,12 +9429,13 @@ argument.</p>
   <span class="md-source-file__fact">
     <span class="md-icon" title="Contributors">
       
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 4a4 4 0 0 1 4 4 4 4 0 0 1-4 4 4 4 0 0 1-4-4 4 4 0 0 1 4-4m0 10c4.42 0 8 1.79 8 4v2H4v-2c0-2.21 3.58-4 8-4"/></svg>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 5.5A3.5 3.5 0 0 1 15.5 9a3.5 3.5 0 0 1-3.5 3.5A3.5 3.5 0 0 1 8.5 9 3.5 3.5 0 0 1 12 5.5M5 8c.56 0 1.08.15 1.53.42-.15 1.43.27 2.85 1.13 3.96C7.16 13.34 6.16 14 5 14a3 3 0 0 1-3-3 3 3 0 0 1 3-3m14 0a3 3 0 0 1 3 3 3 3 0 0 1-3 3c-1.16 0-2.16-.66-2.66-1.62a5.54 5.54 0 0 0 1.13-3.96c.45-.27.97-.42 1.53-.42M5.5 18.25c0-2.07 2.91-3.75 6.5-3.75s6.5 1.68 6.5 3.75V20h-13zM0 20v-1.5c0-1.39 1.89-2.56 4.45-2.9-.59.68-.95 1.62-.95 2.65V20zm24 0h-3.5v-1.75c0-1.03-.36-1.97-.95-2.65 2.56.34 4.45 1.51 4.45 2.9z"/></svg>
       
     </span>
     <nav>
       
-        <a href="mailto:73014084+cui-yshoho@users.noreply.github.com">Cui-yshoho</a>
+        <a href="mailto:73014084+cui-yshoho@users.noreply.github.com">Cui-yshoho</a>, 
+        <a href="mailto:53842165+the-truthh@users.noreply.github.com">The-truthh</a>
     </nav>
   </span>
 
