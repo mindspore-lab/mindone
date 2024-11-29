@@ -55,9 +55,15 @@ def normalize(tensor, mean, std):
     return tensor
 
 
-def get_hpsv2_fn(precision="no", rm_ckpt_dir="HPS_v2_compressed.ckpt"):
-    assert precision in ["bf16", "fp16", "fp32"]
-    dtype = {"bf16": "bfloat16", "fp16": "float16", "no": "float32"}[precision]
+def get_hpsv2_fn(precision="fp32", rm_ckpt_dir="HPS_v2_compressed.ckpt"):
+    # Assert that precision is one of the allowed values
+    assert precision in ["no", "bf16", "fp16", "fp32"], f"Invalid precision: {precision}"
+
+    # Mapping of precision to data type
+    dtype_mapping = {"bf16": "bfloat16", "fp16": "float16", "fp32": "float32", "no": "float32"}
+
+    # Get the corresponding data type
+    dtype = dtype_mapping[precision]
 
     model = load_clip_model(
         "open_clip_vit_h_14",

@@ -154,18 +154,31 @@ def convert_internvid2(src_path, target_path):
 def convert_hpsv2(src_path, target_path):
     from lvdm.modules.encoders.clip import CLIPModel, parse, support_list
 
+    def _param_convert(pt_params, ckpt_path):
+        new_params_list = []
+
+        for pt_param, value in pt_params.items():
+            # Convert value to the desired format
+            ms_value = value.float().cpu().detach().numpy()
+            # Append the new parameter to the list
+            new_params_list.append({"name": pt_param, "data": ms.Tensor(ms_value, ms.float32)})
+
+        ms.save_checkpoint(new_params_list, ckpt_path)
+
     extra_dict = {
         "attn.in_proj.weight": "attn.in_proj_weight",
         "attn.in_proj.bias": "attn.in_proj_bias",
         "token_embedding.embedding_table": "token_embedding.weight",
     }
 
+    state_dict = load_torch_ckpt(src_path)
+    _param_convert(state_dict, target_path)
+
     config_path = support_list["open_clip_vit_h_14"]
-    config = parse(config_path, src_path)
+    config = parse(config_path, target_path)
     model = CLIPModel(config)
     ms_params = model.get_parameters()
 
-    state_dict = load_torch_ckpt(src_path)
     param_convert(ms_params, state_dict, target_path, extra_dict)
 
 
