@@ -12,7 +12,7 @@ from utils.model_utils import _check_cfgs_in_parser, count_params, load_dit_ckpt
 from utils.plot import image_grid
 
 import mindspore as ms
-from mindspore import Tensor, ops
+from mindspore import Tensor, mint
 
 # TODO: remove in future when mindone is ready for install
 __dir__ = os.path.dirname(os.path.abspath(__file__))
@@ -135,7 +135,7 @@ def parse_args():
     parser.add_argument("--imagegrid", default=False, type=str2bool, help="Save the image in image-grids format.")
     parser.add_argument(
         "--jit_level",
-        default="O2",
+        default="O0",
         type=str,
         choices=["O0", "O1", "O2"],
         help="Used to control the compilation optimization level. Supports [“O0”, “O1”, “O2”]."
@@ -214,9 +214,9 @@ if __name__ == "__main__":
     class_labels = [207, 360, 387, 974, 88, 979, 417, 279]
     # Create sampling noise:
     n = len(class_labels)
-    z = ops.randn((n, 4, latent_size, latent_size), dtype=ms.float32)
+    z = mint.randn(n, 4, latent_size, latent_size, dtype=ms.float32)
     y = Tensor(class_labels)
-    y_null = ops.ones_like(y) * 1000
+    y_null = mint.ones_like(y) * 1000
 
     # 3. build inference pipeline
     pipeline = DiTInferPipeline(

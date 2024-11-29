@@ -2,6 +2,7 @@ import logging
 import os
 
 import mindspore as ms
+from mindspore import mint
 
 from mindone.utils.config import instantiate_from_config
 from mindone.utils.params import load_param_into_net_with_filter
@@ -61,7 +62,7 @@ def merge_lora_to_unet(unet, lora_ckpt_path, alpha=1.0):
             up_weight = lora_pdict[lora_up_pname]
 
             dense_weight = unet_pdict[attn_pname].value()
-            merged_weight = dense_weight + alpha * ms.ops.matmul(up_weight, down_weight)
+            merged_weight = dense_weight + alpha * mint.matmul(up_weight, down_weight)
 
             unet_pdict[attn_pname].set_data(merged_weight)
 
@@ -98,7 +99,7 @@ def merge_motion_lora_to_mm_pdict(mm_param_dict, lora_ckpt_path, alpha=1.0):
             up_weight = lora_pdict[lora_up_pname]
 
             dense_weight = mm_param_dict[attn_pname].value()
-            merged_weight = dense_weight + alpha * ms.ops.matmul(up_weight, down_weight)
+            merged_weight = dense_weight + alpha * mint.matmul(up_weight, down_weight)
 
             mm_param_dict[attn_pname].set_data(merged_weight)
 

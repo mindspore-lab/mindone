@@ -20,7 +20,6 @@ from ldm.util import is_old_ms_version
 import mindspore as ms
 import mindspore.nn as nn
 from mindspore import ops, mint
-from mindspore.mint.nn import functional as F
 
 _logger = logging.getLogger(__name__)
 
@@ -51,7 +50,7 @@ class Upsample(nn.Cell):
     def construct(self, x):
         in_shape = x.shape[-2:]
         out_shape = tuple(2 * x for x in in_shape)
-        x = F.interpolate(x, size=out_shape, mode="nearest")
+        x = mint.nn.functional.interpolate(x, size=out_shape, mode="nearest")
 
         if self.with_conv:
             x = self.conv(x)
@@ -72,7 +71,7 @@ class Downsample(nn.Cell):
     def construct(self, x):
         if self.with_conv:
             pad = (0, 1, 0, 1)
-            x = F.pad(x, pad, mode="constant", value=0)
+            x = mint.nn.functional.pad(x, pad, mode="constant", value=0)
             x = self.conv(x)
         else:
             x = ops.AvgPool(kernel_size=2, stride=2)(x)
@@ -181,7 +180,7 @@ class AttnBlock(nn.Cell):
         w_ = mint.bmm(q, k)  # b,hw,hw    w[b,i,j]=sum_c q[b,i,c]k[b,c,j]
 
         w_ = w_ * (int(c) ** (-0.5))
-        w_ = mint.nn.Softmax(dim=2)(w_)
+        w_ = mint.nn.functional.softmax(w_, dim=2)
 
         # attend to values
         v = mint.reshape(v, (b, c, h * w))

@@ -81,8 +81,8 @@ class Latte(nn.Cell):
             )
         num_patches = self.x_embedder.num_patches
         # Will use fixed sin-cos embedding:
-        self.pos_embed = ms.Parameter(mint.zeros((1, num_patches, hidden_size), dtype=ms.float32), requires_grad=False)
-        self.temp_embed = ms.Parameter(mint.zeros((1, num_frames, hidden_size), dtype=ms.float32), requires_grad=False)
+        self.pos_embed = ms.Parameter(mint.zeros(size=(1, num_patches, hidden_size), dtype=ms.float32), requires_grad=False)
+        self.temp_embed = ms.Parameter(mint.zeros(size=(1, num_frames, hidden_size), dtype=ms.float32), requires_grad=False)
 
         self.blocks = nn.CellList(
             [DiTBlock(hidden_size, num_heads, mlp_ratio=mlp_ratio, **block_kwargs) for _ in range(depth)]

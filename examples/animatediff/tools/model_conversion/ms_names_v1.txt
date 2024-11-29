@@ -1,283 +1,151 @@
-cond_stage_model.transformer.embedding_table#(49408, 1024)#Float16
-cond_stage_model.transformer.ln_final.beta#(1024,)#Float32
-cond_stage_model.transformer.ln_final.gamma#(1024,)#Float32
-cond_stage_model.transformer.positional_embedding#(77, 1024)#Float16
-cond_stage_model.transformer.transformer_layer.resblocks.0.attn.attn.in_proj.bias#(3072,)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.0.attn.attn.in_proj.weight#(3072, 1024)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.0.attn.attn.out_proj.bias#(1024,)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.0.attn.attn.out_proj.weight#(1024, 1024)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.0.c_fc.bias#(4096,)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.0.c_fc.weight#(4096, 1024)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.0.c_proj.bias#(1024,)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.0.c_proj.weight#(1024, 4096)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.0.ln_1.beta#(1024,)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.0.ln_1.gamma#(1024,)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.0.ln_2.beta#(1024,)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.0.ln_2.gamma#(1024,)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.1.attn.attn.in_proj.bias#(3072,)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.1.attn.attn.in_proj.weight#(3072, 1024)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.1.attn.attn.out_proj.bias#(1024,)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.1.attn.attn.out_proj.weight#(1024, 1024)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.1.c_fc.bias#(4096,)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.1.c_fc.weight#(4096, 1024)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.1.c_proj.bias#(1024,)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.1.c_proj.weight#(1024, 4096)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.1.ln_1.beta#(1024,)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.1.ln_1.gamma#(1024,)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.1.ln_2.beta#(1024,)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.1.ln_2.gamma#(1024,)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.10.attn.attn.in_proj.bias#(3072,)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.10.attn.attn.in_proj.weight#(3072, 1024)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.10.attn.attn.out_proj.bias#(1024,)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.10.attn.attn.out_proj.weight#(1024, 1024)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.10.c_fc.bias#(4096,)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.10.c_fc.weight#(4096, 1024)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.10.c_proj.bias#(1024,)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.10.c_proj.weight#(1024, 4096)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.10.ln_1.beta#(1024,)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.10.ln_1.gamma#(1024,)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.10.ln_2.beta#(1024,)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.10.ln_2.gamma#(1024,)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.11.attn.attn.in_proj.bias#(3072,)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.11.attn.attn.in_proj.weight#(3072, 1024)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.11.attn.attn.out_proj.bias#(1024,)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.11.attn.attn.out_proj.weight#(1024, 1024)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.11.c_fc.bias#(4096,)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.11.c_fc.weight#(4096, 1024)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.11.c_proj.bias#(1024,)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.11.c_proj.weight#(1024, 4096)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.11.ln_1.beta#(1024,)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.11.ln_1.gamma#(1024,)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.11.ln_2.beta#(1024,)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.11.ln_2.gamma#(1024,)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.12.attn.attn.in_proj.bias#(3072,)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.12.attn.attn.in_proj.weight#(3072, 1024)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.12.attn.attn.out_proj.bias#(1024,)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.12.attn.attn.out_proj.weight#(1024, 1024)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.12.c_fc.bias#(4096,)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.12.c_fc.weight#(4096, 1024)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.12.c_proj.bias#(1024,)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.12.c_proj.weight#(1024, 4096)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.12.ln_1.beta#(1024,)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.12.ln_1.gamma#(1024,)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.12.ln_2.beta#(1024,)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.12.ln_2.gamma#(1024,)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.13.attn.attn.in_proj.bias#(3072,)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.13.attn.attn.in_proj.weight#(3072, 1024)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.13.attn.attn.out_proj.bias#(1024,)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.13.attn.attn.out_proj.weight#(1024, 1024)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.13.c_fc.bias#(4096,)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.13.c_fc.weight#(4096, 1024)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.13.c_proj.bias#(1024,)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.13.c_proj.weight#(1024, 4096)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.13.ln_1.beta#(1024,)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.13.ln_1.gamma#(1024,)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.13.ln_2.beta#(1024,)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.13.ln_2.gamma#(1024,)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.14.attn.attn.in_proj.bias#(3072,)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.14.attn.attn.in_proj.weight#(3072, 1024)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.14.attn.attn.out_proj.bias#(1024,)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.14.attn.attn.out_proj.weight#(1024, 1024)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.14.c_fc.bias#(4096,)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.14.c_fc.weight#(4096, 1024)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.14.c_proj.bias#(1024,)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.14.c_proj.weight#(1024, 4096)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.14.ln_1.beta#(1024,)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.14.ln_1.gamma#(1024,)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.14.ln_2.beta#(1024,)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.14.ln_2.gamma#(1024,)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.15.attn.attn.in_proj.bias#(3072,)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.15.attn.attn.in_proj.weight#(3072, 1024)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.15.attn.attn.out_proj.bias#(1024,)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.15.attn.attn.out_proj.weight#(1024, 1024)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.15.c_fc.bias#(4096,)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.15.c_fc.weight#(4096, 1024)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.15.c_proj.bias#(1024,)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.15.c_proj.weight#(1024, 4096)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.15.ln_1.beta#(1024,)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.15.ln_1.gamma#(1024,)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.15.ln_2.beta#(1024,)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.15.ln_2.gamma#(1024,)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.16.attn.attn.in_proj.bias#(3072,)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.16.attn.attn.in_proj.weight#(3072, 1024)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.16.attn.attn.out_proj.bias#(1024,)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.16.attn.attn.out_proj.weight#(1024, 1024)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.16.c_fc.bias#(4096,)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.16.c_fc.weight#(4096, 1024)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.16.c_proj.bias#(1024,)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.16.c_proj.weight#(1024, 4096)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.16.ln_1.beta#(1024,)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.16.ln_1.gamma#(1024,)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.16.ln_2.beta#(1024,)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.16.ln_2.gamma#(1024,)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.17.attn.attn.in_proj.bias#(3072,)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.17.attn.attn.in_proj.weight#(3072, 1024)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.17.attn.attn.out_proj.bias#(1024,)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.17.attn.attn.out_proj.weight#(1024, 1024)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.17.c_fc.bias#(4096,)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.17.c_fc.weight#(4096, 1024)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.17.c_proj.bias#(1024,)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.17.c_proj.weight#(1024, 4096)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.17.ln_1.beta#(1024,)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.17.ln_1.gamma#(1024,)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.17.ln_2.beta#(1024,)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.17.ln_2.gamma#(1024,)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.18.attn.attn.in_proj.bias#(3072,)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.18.attn.attn.in_proj.weight#(3072, 1024)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.18.attn.attn.out_proj.bias#(1024,)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.18.attn.attn.out_proj.weight#(1024, 1024)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.18.c_fc.bias#(4096,)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.18.c_fc.weight#(4096, 1024)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.18.c_proj.bias#(1024,)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.18.c_proj.weight#(1024, 4096)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.18.ln_1.beta#(1024,)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.18.ln_1.gamma#(1024,)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.18.ln_2.beta#(1024,)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.18.ln_2.gamma#(1024,)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.19.attn.attn.in_proj.bias#(3072,)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.19.attn.attn.in_proj.weight#(3072, 1024)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.19.attn.attn.out_proj.bias#(1024,)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.19.attn.attn.out_proj.weight#(1024, 1024)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.19.c_fc.bias#(4096,)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.19.c_fc.weight#(4096, 1024)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.19.c_proj.bias#(1024,)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.19.c_proj.weight#(1024, 4096)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.19.ln_1.beta#(1024,)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.19.ln_1.gamma#(1024,)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.19.ln_2.beta#(1024,)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.19.ln_2.gamma#(1024,)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.2.attn.attn.in_proj.bias#(3072,)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.2.attn.attn.in_proj.weight#(3072, 1024)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.2.attn.attn.out_proj.bias#(1024,)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.2.attn.attn.out_proj.weight#(1024, 1024)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.2.c_fc.bias#(4096,)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.2.c_fc.weight#(4096, 1024)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.2.c_proj.bias#(1024,)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.2.c_proj.weight#(1024, 4096)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.2.ln_1.beta#(1024,)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.2.ln_1.gamma#(1024,)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.2.ln_2.beta#(1024,)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.2.ln_2.gamma#(1024,)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.20.attn.attn.in_proj.bias#(3072,)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.20.attn.attn.in_proj.weight#(3072, 1024)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.20.attn.attn.out_proj.bias#(1024,)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.20.attn.attn.out_proj.weight#(1024, 1024)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.20.c_fc.bias#(4096,)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.20.c_fc.weight#(4096, 1024)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.20.c_proj.bias#(1024,)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.20.c_proj.weight#(1024, 4096)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.20.ln_1.beta#(1024,)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.20.ln_1.gamma#(1024,)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.20.ln_2.beta#(1024,)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.20.ln_2.gamma#(1024,)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.21.attn.attn.in_proj.bias#(3072,)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.21.attn.attn.in_proj.weight#(3072, 1024)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.21.attn.attn.out_proj.bias#(1024,)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.21.attn.attn.out_proj.weight#(1024, 1024)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.21.c_fc.bias#(4096,)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.21.c_fc.weight#(4096, 1024)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.21.c_proj.bias#(1024,)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.21.c_proj.weight#(1024, 4096)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.21.ln_1.beta#(1024,)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.21.ln_1.gamma#(1024,)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.21.ln_2.beta#(1024,)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.21.ln_2.gamma#(1024,)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.22.attn.attn.in_proj.bias#(3072,)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.22.attn.attn.in_proj.weight#(3072, 1024)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.22.attn.attn.out_proj.bias#(1024,)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.22.attn.attn.out_proj.weight#(1024, 1024)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.22.c_fc.bias#(4096,)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.22.c_fc.weight#(4096, 1024)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.22.c_proj.bias#(1024,)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.22.c_proj.weight#(1024, 4096)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.22.ln_1.beta#(1024,)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.22.ln_1.gamma#(1024,)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.22.ln_2.beta#(1024,)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.22.ln_2.gamma#(1024,)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.3.attn.attn.in_proj.bias#(3072,)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.3.attn.attn.in_proj.weight#(3072, 1024)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.3.attn.attn.out_proj.bias#(1024,)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.3.attn.attn.out_proj.weight#(1024, 1024)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.3.c_fc.bias#(4096,)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.3.c_fc.weight#(4096, 1024)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.3.c_proj.bias#(1024,)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.3.c_proj.weight#(1024, 4096)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.3.ln_1.beta#(1024,)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.3.ln_1.gamma#(1024,)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.3.ln_2.beta#(1024,)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.3.ln_2.gamma#(1024,)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.4.attn.attn.in_proj.bias#(3072,)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.4.attn.attn.in_proj.weight#(3072, 1024)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.4.attn.attn.out_proj.bias#(1024,)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.4.attn.attn.out_proj.weight#(1024, 1024)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.4.c_fc.bias#(4096,)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.4.c_fc.weight#(4096, 1024)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.4.c_proj.bias#(1024,)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.4.c_proj.weight#(1024, 4096)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.4.ln_1.beta#(1024,)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.4.ln_1.gamma#(1024,)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.4.ln_2.beta#(1024,)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.4.ln_2.gamma#(1024,)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.5.attn.attn.in_proj.bias#(3072,)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.5.attn.attn.in_proj.weight#(3072, 1024)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.5.attn.attn.out_proj.bias#(1024,)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.5.attn.attn.out_proj.weight#(1024, 1024)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.5.c_fc.bias#(4096,)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.5.c_fc.weight#(4096, 1024)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.5.c_proj.bias#(1024,)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.5.c_proj.weight#(1024, 4096)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.5.ln_1.beta#(1024,)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.5.ln_1.gamma#(1024,)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.5.ln_2.beta#(1024,)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.5.ln_2.gamma#(1024,)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.6.attn.attn.in_proj.bias#(3072,)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.6.attn.attn.in_proj.weight#(3072, 1024)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.6.attn.attn.out_proj.bias#(1024,)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.6.attn.attn.out_proj.weight#(1024, 1024)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.6.c_fc.bias#(4096,)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.6.c_fc.weight#(4096, 1024)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.6.c_proj.bias#(1024,)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.6.c_proj.weight#(1024, 4096)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.6.ln_1.beta#(1024,)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.6.ln_1.gamma#(1024,)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.6.ln_2.beta#(1024,)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.6.ln_2.gamma#(1024,)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.7.attn.attn.in_proj.bias#(3072,)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.7.attn.attn.in_proj.weight#(3072, 1024)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.7.attn.attn.out_proj.bias#(1024,)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.7.attn.attn.out_proj.weight#(1024, 1024)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.7.c_fc.bias#(4096,)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.7.c_fc.weight#(4096, 1024)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.7.c_proj.bias#(1024,)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.7.c_proj.weight#(1024, 4096)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.7.ln_1.beta#(1024,)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.7.ln_1.gamma#(1024,)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.7.ln_2.beta#(1024,)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.7.ln_2.gamma#(1024,)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.8.attn.attn.in_proj.bias#(3072,)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.8.attn.attn.in_proj.weight#(3072, 1024)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.8.attn.attn.out_proj.bias#(1024,)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.8.attn.attn.out_proj.weight#(1024, 1024)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.8.c_fc.bias#(4096,)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.8.c_fc.weight#(4096, 1024)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.8.c_proj.bias#(1024,)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.8.c_proj.weight#(1024, 4096)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.8.ln_1.beta#(1024,)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.8.ln_1.gamma#(1024,)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.8.ln_2.beta#(1024,)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.8.ln_2.gamma#(1024,)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.9.attn.attn.in_proj.bias#(3072,)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.9.attn.attn.in_proj.weight#(3072, 1024)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.9.attn.attn.out_proj.bias#(1024,)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.9.attn.attn.out_proj.weight#(1024, 1024)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.9.c_fc.bias#(4096,)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.9.c_fc.weight#(4096, 1024)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.9.c_proj.bias#(1024,)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.9.c_proj.weight#(1024, 4096)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.9.ln_1.beta#(1024,)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.9.ln_1.gamma#(1024,)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.9.ln_2.beta#(1024,)#Float32
-cond_stage_model.transformer.transformer_layer.resblocks.9.ln_2.gamma#(1024,)#Float32
+cond_stage_model.transformer.positional_embedding#(77, 768)#Float16
+cond_stage_model.transformer.embedding_table#(49408, 768)#Float16
+cond_stage_model.transformer.ln_final.bias#(768,)#Float32
+cond_stage_model.transformer.ln_final.weight#(768,)#Float32
+cond_stage_model.transformer.transformer_layer.resblocks.0.c_fc.bias#(3072,)#Float32
+cond_stage_model.transformer.transformer_layer.resblocks.0.c_fc.weight#(3072, 768)#Float32
+cond_stage_model.transformer.transformer_layer.resblocks.0.c_proj.bias#(768,)#Float32
+cond_stage_model.transformer.transformer_layer.resblocks.0.c_proj.weight#(768, 3072)#Float32
+cond_stage_model.transformer.transformer_layer.resblocks.0.ln_1.bias#(768,)#Float32
+cond_stage_model.transformer.transformer_layer.resblocks.0.ln_1.weight#(768,)#Float32
+cond_stage_model.transformer.transformer_layer.resblocks.0.ln_2.bias#(768,)#Float32
+cond_stage_model.transformer.transformer_layer.resblocks.0.ln_2.weight#(768,)#Float32
+cond_stage_model.transformer.transformer_layer.resblocks.0.attn.attn.in_proj.bias#(2304,)#Float32
+cond_stage_model.transformer.transformer_layer.resblocks.0.attn.attn.in_proj.weight#(2304, 768)#Float32
+cond_stage_model.transformer.transformer_layer.resblocks.0.attn.attn.out_proj.bias#(768,)#Float32
+cond_stage_model.transformer.transformer_layer.resblocks.0.attn.attn.out_proj.weight#(768, 768)#Float32
+cond_stage_model.transformer.transformer_layer.resblocks.1.c_fc.bias#(3072,)#Float32
+cond_stage_model.transformer.transformer_layer.resblocks.1.c_fc.weight#(3072, 768)#Float32
+cond_stage_model.transformer.transformer_layer.resblocks.1.c_proj.bias#(768,)#Float32
+cond_stage_model.transformer.transformer_layer.resblocks.1.c_proj.weight#(768, 3072)#Float32
+cond_stage_model.transformer.transformer_layer.resblocks.1.ln_1.bias#(768,)#Float32
+cond_stage_model.transformer.transformer_layer.resblocks.1.ln_1.weight#(768,)#Float32
+cond_stage_model.transformer.transformer_layer.resblocks.1.ln_2.bias#(768,)#Float32
+cond_stage_model.transformer.transformer_layer.resblocks.1.ln_2.weight#(768,)#Float32
+cond_stage_model.transformer.transformer_layer.resblocks.1.attn.attn.in_proj.bias#(2304,)#Float32
+cond_stage_model.transformer.transformer_layer.resblocks.1.attn.attn.in_proj.weight#(2304, 768)#Float32
+cond_stage_model.transformer.transformer_layer.resblocks.1.attn.attn.out_proj.bias#(768,)#Float32
+cond_stage_model.transformer.transformer_layer.resblocks.1.attn.attn.out_proj.weight#(768, 768)#Float32
+cond_stage_model.transformer.transformer_layer.resblocks.10.c_fc.bias#(3072,)#Float32
+cond_stage_model.transformer.transformer_layer.resblocks.10.c_fc.weight#(3072, 768)#Float32
+cond_stage_model.transformer.transformer_layer.resblocks.10.c_proj.bias#(768,)#Float32
+cond_stage_model.transformer.transformer_layer.resblocks.10.c_proj.weight#(768, 3072)#Float32
+cond_stage_model.transformer.transformer_layer.resblocks.10.ln_1.bias#(768,)#Float32
+cond_stage_model.transformer.transformer_layer.resblocks.10.ln_1.weight#(768,)#Float32
+cond_stage_model.transformer.transformer_layer.resblocks.10.ln_2.bias#(768,)#Float32
+cond_stage_model.transformer.transformer_layer.resblocks.10.ln_2.weight#(768,)#Float32
+cond_stage_model.transformer.transformer_layer.resblocks.10.attn.attn.in_proj.bias#(2304,)#Float32
+cond_stage_model.transformer.transformer_layer.resblocks.10.attn.attn.in_proj.weight#(2304, 768)#Float32
+cond_stage_model.transformer.transformer_layer.resblocks.10.attn.attn.out_proj.bias#(768,)#Float32
+cond_stage_model.transformer.transformer_layer.resblocks.10.attn.attn.out_proj.weight#(768, 768)#Float32
+cond_stage_model.transformer.transformer_layer.resblocks.11.c_fc.bias#(3072,)#Float32
+cond_stage_model.transformer.transformer_layer.resblocks.11.c_fc.weight#(3072, 768)#Float32
+cond_stage_model.transformer.transformer_layer.resblocks.11.c_proj.bias#(768,)#Float32
+cond_stage_model.transformer.transformer_layer.resblocks.11.c_proj.weight#(768, 3072)#Float32
+cond_stage_model.transformer.transformer_layer.resblocks.11.ln_1.bias#(768,)#Float32
+cond_stage_model.transformer.transformer_layer.resblocks.11.ln_1.weight#(768,)#Float32
+cond_stage_model.transformer.transformer_layer.resblocks.11.ln_2.bias#(768,)#Float32
+cond_stage_model.transformer.transformer_layer.resblocks.11.ln_2.weight#(768,)#Float32
+cond_stage_model.transformer.transformer_layer.resblocks.11.attn.attn.in_proj.bias#(2304,)#Float32
+cond_stage_model.transformer.transformer_layer.resblocks.11.attn.attn.in_proj.weight#(2304, 768)#Float32
+cond_stage_model.transformer.transformer_layer.resblocks.11.attn.attn.out_proj.bias#(768,)#Float32
+cond_stage_model.transformer.transformer_layer.resblocks.11.attn.attn.out_proj.weight#(768, 768)#Float32
+cond_stage_model.transformer.transformer_layer.resblocks.2.c_fc.bias#(3072,)#Float32
+cond_stage_model.transformer.transformer_layer.resblocks.2.c_fc.weight#(3072, 768)#Float32
+cond_stage_model.transformer.transformer_layer.resblocks.2.c_proj.bias#(768,)#Float32
+cond_stage_model.transformer.transformer_layer.resblocks.2.c_proj.weight#(768, 3072)#Float32
+cond_stage_model.transformer.transformer_layer.resblocks.2.ln_1.bias#(768,)#Float32
+cond_stage_model.transformer.transformer_layer.resblocks.2.ln_1.weight#(768,)#Float32
+cond_stage_model.transformer.transformer_layer.resblocks.2.ln_2.bias#(768,)#Float32
+cond_stage_model.transformer.transformer_layer.resblocks.2.ln_2.weight#(768,)#Float32
+cond_stage_model.transformer.transformer_layer.resblocks.2.attn.attn.in_proj.bias#(2304,)#Float32
+cond_stage_model.transformer.transformer_layer.resblocks.2.attn.attn.in_proj.weight#(2304, 768)#Float32
+cond_stage_model.transformer.transformer_layer.resblocks.2.attn.attn.out_proj.bias#(768,)#Float32
+cond_stage_model.transformer.transformer_layer.resblocks.2.attn.attn.out_proj.weight#(768, 768)#Float32
+cond_stage_model.transformer.transformer_layer.resblocks.3.c_fc.bias#(3072,)#Float32
+cond_stage_model.transformer.transformer_layer.resblocks.3.c_fc.weight#(3072, 768)#Float32
+cond_stage_model.transformer.transformer_layer.resblocks.3.c_proj.bias#(768,)#Float32
+cond_stage_model.transformer.transformer_layer.resblocks.3.c_proj.weight#(768, 3072)#Float32
+cond_stage_model.transformer.transformer_layer.resblocks.3.ln_1.bias#(768,)#Float32
+cond_stage_model.transformer.transformer_layer.resblocks.3.ln_1.weight#(768,)#Float32
+cond_stage_model.transformer.transformer_layer.resblocks.3.ln_2.bias#(768,)#Float32
+cond_stage_model.transformer.transformer_layer.resblocks.3.ln_2.weight#(768,)#Float32
+cond_stage_model.transformer.transformer_layer.resblocks.3.attn.attn.in_proj.bias#(2304,)#Float32
+cond_stage_model.transformer.transformer_layer.resblocks.3.attn.attn.in_proj.weight#(2304, 768)#Float32
+cond_stage_model.transformer.transformer_layer.resblocks.3.attn.attn.out_proj.bias#(768,)#Float32
+cond_stage_model.transformer.transformer_layer.resblocks.3.attn.attn.out_proj.weight#(768, 768)#Float32
+cond_stage_model.transformer.transformer_layer.resblocks.4.c_fc.bias#(3072,)#Float32
+cond_stage_model.transformer.transformer_layer.resblocks.4.c_fc.weight#(3072, 768)#Float32
+cond_stage_model.transformer.transformer_layer.resblocks.4.c_proj.bias#(768,)#Float32
+cond_stage_model.transformer.transformer_layer.resblocks.4.c_proj.weight#(768, 3072)#Float32
+cond_stage_model.transformer.transformer_layer.resblocks.4.ln_1.bias#(768,)#Float32
+cond_stage_model.transformer.transformer_layer.resblocks.4.ln_1.weight#(768,)#Float32
+cond_stage_model.transformer.transformer_layer.resblocks.4.ln_2.bias#(768,)#Float32
+cond_stage_model.transformer.transformer_layer.resblocks.4.ln_2.weight#(768,)#Float32
+cond_stage_model.transformer.transformer_layer.resblocks.4.attn.attn.in_proj.bias#(2304,)#Float32
+cond_stage_model.transformer.transformer_layer.resblocks.4.attn.attn.in_proj.weight#(2304, 768)#Float32
+cond_stage_model.transformer.transformer_layer.resblocks.4.attn.attn.out_proj.bias#(768,)#Float32
+cond_stage_model.transformer.transformer_layer.resblocks.4.attn.attn.out_proj.weight#(768, 768)#Float32
+cond_stage_model.transformer.transformer_layer.resblocks.5.c_fc.bias#(3072,)#Float32
+cond_stage_model.transformer.transformer_layer.resblocks.5.c_fc.weight#(3072, 768)#Float32
+cond_stage_model.transformer.transformer_layer.resblocks.5.c_proj.bias#(768,)#Float32
+cond_stage_model.transformer.transformer_layer.resblocks.5.c_proj.weight#(768, 3072)#Float32
+cond_stage_model.transformer.transformer_layer.resblocks.5.ln_1.bias#(768,)#Float32
+cond_stage_model.transformer.transformer_layer.resblocks.5.ln_1.weight#(768,)#Float32
+cond_stage_model.transformer.transformer_layer.resblocks.5.ln_2.bias#(768,)#Float32
+cond_stage_model.transformer.transformer_layer.resblocks.5.ln_2.weight#(768,)#Float32
+cond_stage_model.transformer.transformer_layer.resblocks.5.attn.attn.in_proj.bias#(2304,)#Float32
+cond_stage_model.transformer.transformer_layer.resblocks.5.attn.attn.in_proj.weight#(2304, 768)#Float32
+cond_stage_model.transformer.transformer_layer.resblocks.5.attn.attn.out_proj.bias#(768,)#Float32
+cond_stage_model.transformer.transformer_layer.resblocks.5.attn.attn.out_proj.weight#(768, 768)#Float32
+cond_stage_model.transformer.transformer_layer.resblocks.6.c_fc.bias#(3072,)#Float32
+cond_stage_model.transformer.transformer_layer.resblocks.6.c_fc.weight#(3072, 768)#Float32
+cond_stage_model.transformer.transformer_layer.resblocks.6.c_proj.bias#(768,)#Float32
+cond_stage_model.transformer.transformer_layer.resblocks.6.c_proj.weight#(768, 3072)#Float32
+cond_stage_model.transformer.transformer_layer.resblocks.6.ln_1.bias#(768,)#Float32
+cond_stage_model.transformer.transformer_layer.resblocks.6.ln_1.weight#(768,)#Float32
+cond_stage_model.transformer.transformer_layer.resblocks.6.ln_2.bias#(768,)#Float32
+cond_stage_model.transformer.transformer_layer.resblocks.6.ln_2.weight#(768,)#Float32
+cond_stage_model.transformer.transformer_layer.resblocks.6.attn.attn.in_proj.bias#(2304,)#Float32
+cond_stage_model.transformer.transformer_layer.resblocks.6.attn.attn.in_proj.weight#(2304, 768)#Float32
+cond_stage_model.transformer.transformer_layer.resblocks.6.attn.attn.out_proj.bias#(768,)#Float32
+cond_stage_model.transformer.transformer_layer.resblocks.6.attn.attn.out_proj.weight#(768, 768)#Float32
+cond_stage_model.transformer.transformer_layer.resblocks.7.c_fc.bias#(3072,)#Float32
+cond_stage_model.transformer.transformer_layer.resblocks.7.c_fc.weight#(3072, 768)#Float32
+cond_stage_model.transformer.transformer_layer.resblocks.7.c_proj.bias#(768,)#Float32
+cond_stage_model.transformer.transformer_layer.resblocks.7.c_proj.weight#(768, 3072)#Float32
+cond_stage_model.transformer.transformer_layer.resblocks.7.ln_1.bias#(768,)#Float32
+cond_stage_model.transformer.transformer_layer.resblocks.7.ln_1.weight#(768,)#Float32
+cond_stage_model.transformer.transformer_layer.resblocks.7.ln_2.bias#(768,)#Float32
+cond_stage_model.transformer.transformer_layer.resblocks.7.ln_2.weight#(768,)#Float32
+cond_stage_model.transformer.transformer_layer.resblocks.7.attn.attn.in_proj.bias#(2304,)#Float32
+cond_stage_model.transformer.transformer_layer.resblocks.7.attn.attn.in_proj.weight#(2304, 768)#Float32
+cond_stage_model.transformer.transformer_layer.resblocks.7.attn.attn.out_proj.bias#(768,)#Float32
+cond_stage_model.transformer.transformer_layer.resblocks.7.attn.attn.out_proj.weight#(768, 768)#Float32
+cond_stage_model.transformer.transformer_layer.resblocks.8.c_fc.bias#(3072,)#Float32
+cond_stage_model.transformer.transformer_layer.resblocks.8.c_fc.weight#(3072, 768)#Float32
+cond_stage_model.transformer.transformer_layer.resblocks.8.c_proj.bias#(768,)#Float32
+cond_stage_model.transformer.transformer_layer.resblocks.8.c_proj.weight#(768, 3072)#Float32
+cond_stage_model.transformer.transformer_layer.resblocks.8.ln_1.bias#(768,)#Float32
+cond_stage_model.transformer.transformer_layer.resblocks.8.ln_1.weight#(768,)#Float32
+cond_stage_model.transformer.transformer_layer.resblocks.8.ln_2.bias#(768,)#Float32
+cond_stage_model.transformer.transformer_layer.resblocks.8.ln_2.weight#(768,)#Float32
+cond_stage_model.transformer.transformer_layer.resblocks.8.attn.attn.in_proj.bias#(2304,)#Float32
+cond_stage_model.transformer.transformer_layer.resblocks.8.attn.attn.in_proj.weight#(2304, 768)#Float32
+cond_stage_model.transformer.transformer_layer.resblocks.8.attn.attn.out_proj.bias#(768,)#Float32
+cond_stage_model.transformer.transformer_layer.resblocks.8.attn.attn.out_proj.weight#(768, 768)#Float32
+cond_stage_model.transformer.transformer_layer.resblocks.9.c_fc.bias#(3072,)#Float32
+cond_stage_model.transformer.transformer_layer.resblocks.9.c_fc.weight#(3072, 768)#Float32
+cond_stage_model.transformer.transformer_layer.resblocks.9.c_proj.bias#(768,)#Float32
+cond_stage_model.transformer.transformer_layer.resblocks.9.c_proj.weight#(768, 3072)#Float32
+cond_stage_model.transformer.transformer_layer.resblocks.9.ln_1.bias#(768,)#Float32
+cond_stage_model.transformer.transformer_layer.resblocks.9.ln_1.weight#(768,)#Float32
+cond_stage_model.transformer.transformer_layer.resblocks.9.ln_2.bias#(768,)#Float32
+cond_stage_model.transformer.transformer_layer.resblocks.9.ln_2.weight#(768,)#Float32
+cond_stage_model.transformer.transformer_layer.resblocks.9.attn.attn.in_proj.bias#(2304,)#Float32
+cond_stage_model.transformer.transformer_layer.resblocks.9.attn.attn.in_proj.weight#(2304, 768)#Float32
+cond_stage_model.transformer.transformer_layer.resblocks.9.attn.attn.out_proj.bias#(768,)#Float32
+cond_stage_model.transformer.transformer_layer.resblocks.9.attn.attn.out_proj.weight#(768, 768)#Float32
 first_stage_model.decoder.conv_in.bias#(512,)#Float32
 first_stage_model.decoder.conv_in.weight#(512, 4, 3, 3)#Float32
 first_stage_model.decoder.conv_out.bias#(3,)#Float32
@@ -530,408 +398,408 @@ model.diffusion_model.input_blocks.0.0.conv.bias#(320,)#Float32
 model.diffusion_model.input_blocks.0.0.conv.weight#(320, 4, 3, 3)#Float32
 model.diffusion_model.input_blocks.1.0.emb_layers.1.bias#(320,)#Float32
 model.diffusion_model.input_blocks.1.0.emb_layers.1.weight#(320, 1280)#Float32
-model.diffusion_model.input_blocks.1.0.in_layers_norm.beta#(320,)#Float32
-model.diffusion_model.input_blocks.1.0.in_layers_norm.gamma#(320,)#Float32
+model.diffusion_model.input_blocks.1.0.in_layers_norm.bias#(320,)#Float32
+model.diffusion_model.input_blocks.1.0.in_layers_norm.weight#(320,)#Float32
 model.diffusion_model.input_blocks.1.0.in_layers_conv.conv.bias#(320,)#Float32
 model.diffusion_model.input_blocks.1.0.in_layers_conv.conv.weight#(320, 320, 3, 3)#Float32
-model.diffusion_model.input_blocks.1.0.out_layers_norm.beta#(320,)#Float32
-model.diffusion_model.input_blocks.1.0.out_layers_norm.gamma#(320,)#Float32
+model.diffusion_model.input_blocks.1.0.out_layers_norm.bias#(320,)#Float32
+model.diffusion_model.input_blocks.1.0.out_layers_norm.weight#(320,)#Float32
 model.diffusion_model.input_blocks.1.0.out_layers_conv.conv.bias#(320,)#Float32
 model.diffusion_model.input_blocks.1.0.out_layers_conv.conv.weight#(320, 320, 3, 3)#Float32
-model.diffusion_model.input_blocks.1.1.norm.beta#(320,)#Float32
-model.diffusion_model.input_blocks.1.1.norm.gamma#(320,)#Float32
+model.diffusion_model.input_blocks.1.1.norm.bias#(320,)#Float32
+model.diffusion_model.input_blocks.1.1.norm.weight#(320,)#Float32
 model.diffusion_model.input_blocks.1.1.proj_in.bias#(320,)#Float32
-model.diffusion_model.input_blocks.1.1.proj_in.weight#(320, 320)#Float32
+model.diffusion_model.input_blocks.1.1.proj_in.weight#(320, 320, 1, 1)#Float32
 model.diffusion_model.input_blocks.1.1.proj_out.bias#(320,)#Float32
-model.diffusion_model.input_blocks.1.1.proj_out.weight#(320, 320)#Float32
+model.diffusion_model.input_blocks.1.1.proj_out.weight#(320, 320, 1, 1)#Float32
 model.diffusion_model.input_blocks.1.1.transformer_blocks.0.attn1.to_k.weight#(320, 320)#Float32
 model.diffusion_model.input_blocks.1.1.transformer_blocks.0.attn1.to_out.0.bias#(320,)#Float32
 model.diffusion_model.input_blocks.1.1.transformer_blocks.0.attn1.to_out.0.weight#(320, 320)#Float32
 model.diffusion_model.input_blocks.1.1.transformer_blocks.0.attn1.to_q.weight#(320, 320)#Float32
 model.diffusion_model.input_blocks.1.1.transformer_blocks.0.attn1.to_v.weight#(320, 320)#Float32
-model.diffusion_model.input_blocks.1.1.transformer_blocks.0.attn2.to_k.weight#(320, 1024)#Float32
+model.diffusion_model.input_blocks.1.1.transformer_blocks.0.attn2.to_k.weight#(320, 768)#Float32
 model.diffusion_model.input_blocks.1.1.transformer_blocks.0.attn2.to_out.0.bias#(320,)#Float32
 model.diffusion_model.input_blocks.1.1.transformer_blocks.0.attn2.to_out.0.weight#(320, 320)#Float32
 model.diffusion_model.input_blocks.1.1.transformer_blocks.0.attn2.to_q.weight#(320, 320)#Float32
-model.diffusion_model.input_blocks.1.1.transformer_blocks.0.attn2.to_v.weight#(320, 1024)#Float32
+model.diffusion_model.input_blocks.1.1.transformer_blocks.0.attn2.to_v.weight#(320, 768)#Float32
 model.diffusion_model.input_blocks.1.1.transformer_blocks.0.ff.net.0.proj.bias#(2560,)#Float32
 model.diffusion_model.input_blocks.1.1.transformer_blocks.0.ff.net.0.proj.weight#(2560, 320)#Float32
 model.diffusion_model.input_blocks.1.1.transformer_blocks.0.ff.net.2.bias#(320,)#Float32
 model.diffusion_model.input_blocks.1.1.transformer_blocks.0.ff.net.2.weight#(320, 1280)#Float32
-model.diffusion_model.input_blocks.1.1.transformer_blocks.0.norm1.beta#(320,)#Float32
-model.diffusion_model.input_blocks.1.1.transformer_blocks.0.norm1.gamma#(320,)#Float32
-model.diffusion_model.input_blocks.1.1.transformer_blocks.0.norm2.beta#(320,)#Float32
-model.diffusion_model.input_blocks.1.1.transformer_blocks.0.norm2.gamma#(320,)#Float32
-model.diffusion_model.input_blocks.1.1.transformer_blocks.0.norm3.beta#(320,)#Float32
-model.diffusion_model.input_blocks.1.1.transformer_blocks.0.norm3.gamma#(320,)#Float32
+model.diffusion_model.input_blocks.1.1.transformer_blocks.0.norm1.bias#(320,)#Float32
+model.diffusion_model.input_blocks.1.1.transformer_blocks.0.norm1.weight#(320,)#Float32
+model.diffusion_model.input_blocks.1.1.transformer_blocks.0.norm2.bias#(320,)#Float32
+model.diffusion_model.input_blocks.1.1.transformer_blocks.0.norm2.weight#(320,)#Float32
+model.diffusion_model.input_blocks.1.1.transformer_blocks.0.norm3.bias#(320,)#Float32
+model.diffusion_model.input_blocks.1.1.transformer_blocks.0.norm3.weight#(320,)#Float32
 model.diffusion_model.input_blocks.10.0.emb_layers.1.bias#(1280,)#Float32
 model.diffusion_model.input_blocks.10.0.emb_layers.1.weight#(1280, 1280)#Float32
-model.diffusion_model.input_blocks.10.0.in_layers_norm.beta#(1280,)#Float32
-model.diffusion_model.input_blocks.10.0.in_layers_norm.gamma#(1280,)#Float32
+model.diffusion_model.input_blocks.10.0.in_layers_norm.bias#(1280,)#Float32
+model.diffusion_model.input_blocks.10.0.in_layers_norm.weight#(1280,)#Float32
 model.diffusion_model.input_blocks.10.0.in_layers_conv.conv.bias#(1280,)#Float32
 model.diffusion_model.input_blocks.10.0.in_layers_conv.conv.weight#(1280, 1280, 3, 3)#Float32
-model.diffusion_model.input_blocks.10.0.out_layers_norm.beta#(1280,)#Float32
-model.diffusion_model.input_blocks.10.0.out_layers_norm.gamma#(1280,)#Float32
+model.diffusion_model.input_blocks.10.0.out_layers_norm.bias#(1280,)#Float32
+model.diffusion_model.input_blocks.10.0.out_layers_norm.weight#(1280,)#Float32
 model.diffusion_model.input_blocks.10.0.out_layers_conv.conv.bias#(1280,)#Float32
 model.diffusion_model.input_blocks.10.0.out_layers_conv.conv.weight#(1280, 1280, 3, 3)#Float32
 model.diffusion_model.input_blocks.11.0.emb_layers.1.bias#(1280,)#Float32
 model.diffusion_model.input_blocks.11.0.emb_layers.1.weight#(1280, 1280)#Float32
-model.diffusion_model.input_blocks.11.0.in_layers_norm.beta#(1280,)#Float32
-model.diffusion_model.input_blocks.11.0.in_layers_norm.gamma#(1280,)#Float32
+model.diffusion_model.input_blocks.11.0.in_layers_norm.bias#(1280,)#Float32
+model.diffusion_model.input_blocks.11.0.in_layers_norm.weight#(1280,)#Float32
 model.diffusion_model.input_blocks.11.0.in_layers_conv.conv.bias#(1280,)#Float32
 model.diffusion_model.input_blocks.11.0.in_layers_conv.conv.weight#(1280, 1280, 3, 3)#Float32
-model.diffusion_model.input_blocks.11.0.out_layers_norm.beta#(1280,)#Float32
-model.diffusion_model.input_blocks.11.0.out_layers_norm.gamma#(1280,)#Float32
+model.diffusion_model.input_blocks.11.0.out_layers_norm.bias#(1280,)#Float32
+model.diffusion_model.input_blocks.11.0.out_layers_norm.weight#(1280,)#Float32
 model.diffusion_model.input_blocks.11.0.out_layers_conv.conv.bias#(1280,)#Float32
 model.diffusion_model.input_blocks.11.0.out_layers_conv.conv.weight#(1280, 1280, 3, 3)#Float32
 model.diffusion_model.input_blocks.2.0.emb_layers.1.bias#(320,)#Float32
 model.diffusion_model.input_blocks.2.0.emb_layers.1.weight#(320, 1280)#Float32
-model.diffusion_model.input_blocks.2.0.in_layers_norm.beta#(320,)#Float32
-model.diffusion_model.input_blocks.2.0.in_layers_norm.gamma#(320,)#Float32
+model.diffusion_model.input_blocks.2.0.in_layers_norm.bias#(320,)#Float32
+model.diffusion_model.input_blocks.2.0.in_layers_norm.weight#(320,)#Float32
 model.diffusion_model.input_blocks.2.0.in_layers_conv.conv.bias#(320,)#Float32
 model.diffusion_model.input_blocks.2.0.in_layers_conv.conv.weight#(320, 320, 3, 3)#Float32
-model.diffusion_model.input_blocks.2.0.out_layers_norm.beta#(320,)#Float32
-model.diffusion_model.input_blocks.2.0.out_layers_norm.gamma#(320,)#Float32
+model.diffusion_model.input_blocks.2.0.out_layers_norm.bias#(320,)#Float32
+model.diffusion_model.input_blocks.2.0.out_layers_norm.weight#(320,)#Float32
 model.diffusion_model.input_blocks.2.0.out_layers_conv.conv.bias#(320,)#Float32
 model.diffusion_model.input_blocks.2.0.out_layers_conv.conv.weight#(320, 320, 3, 3)#Float32
-model.diffusion_model.input_blocks.2.1.norm.beta#(320,)#Float32
-model.diffusion_model.input_blocks.2.1.norm.gamma#(320,)#Float32
+model.diffusion_model.input_blocks.2.1.norm.bias#(320,)#Float32
+model.diffusion_model.input_blocks.2.1.norm.weight#(320,)#Float32
 model.diffusion_model.input_blocks.2.1.proj_in.bias#(320,)#Float32
-model.diffusion_model.input_blocks.2.1.proj_in.weight#(320, 320)#Float32
+model.diffusion_model.input_blocks.2.1.proj_in.weight#(320, 320, 1, 1)#Float32
 model.diffusion_model.input_blocks.2.1.proj_out.bias#(320,)#Float32
-model.diffusion_model.input_blocks.2.1.proj_out.weight#(320, 320)#Float32
+model.diffusion_model.input_blocks.2.1.proj_out.weight#(320, 320, 1, 1)#Float32
 model.diffusion_model.input_blocks.2.1.transformer_blocks.0.attn1.to_k.weight#(320, 320)#Float32
 model.diffusion_model.input_blocks.2.1.transformer_blocks.0.attn1.to_out.0.bias#(320,)#Float32
 model.diffusion_model.input_blocks.2.1.transformer_blocks.0.attn1.to_out.0.weight#(320, 320)#Float32
 model.diffusion_model.input_blocks.2.1.transformer_blocks.0.attn1.to_q.weight#(320, 320)#Float32
 model.diffusion_model.input_blocks.2.1.transformer_blocks.0.attn1.to_v.weight#(320, 320)#Float32
-model.diffusion_model.input_blocks.2.1.transformer_blocks.0.attn2.to_k.weight#(320, 1024)#Float32
+model.diffusion_model.input_blocks.2.1.transformer_blocks.0.attn2.to_k.weight#(320, 768)#Float32
 model.diffusion_model.input_blocks.2.1.transformer_blocks.0.attn2.to_out.0.bias#(320,)#Float32
 model.diffusion_model.input_blocks.2.1.transformer_blocks.0.attn2.to_out.0.weight#(320, 320)#Float32
 model.diffusion_model.input_blocks.2.1.transformer_blocks.0.attn2.to_q.weight#(320, 320)#Float32
-model.diffusion_model.input_blocks.2.1.transformer_blocks.0.attn2.to_v.weight#(320, 1024)#Float32
+model.diffusion_model.input_blocks.2.1.transformer_blocks.0.attn2.to_v.weight#(320, 768)#Float32
 model.diffusion_model.input_blocks.2.1.transformer_blocks.0.ff.net.0.proj.bias#(2560,)#Float32
 model.diffusion_model.input_blocks.2.1.transformer_blocks.0.ff.net.0.proj.weight#(2560, 320)#Float32
 model.diffusion_model.input_blocks.2.1.transformer_blocks.0.ff.net.2.bias#(320,)#Float32
 model.diffusion_model.input_blocks.2.1.transformer_blocks.0.ff.net.2.weight#(320, 1280)#Float32
-model.diffusion_model.input_blocks.2.1.transformer_blocks.0.norm1.beta#(320,)#Float32
-model.diffusion_model.input_blocks.2.1.transformer_blocks.0.norm1.gamma#(320,)#Float32
-model.diffusion_model.input_blocks.2.1.transformer_blocks.0.norm2.beta#(320,)#Float32
-model.diffusion_model.input_blocks.2.1.transformer_blocks.0.norm2.gamma#(320,)#Float32
-model.diffusion_model.input_blocks.2.1.transformer_blocks.0.norm3.beta#(320,)#Float32
-model.diffusion_model.input_blocks.2.1.transformer_blocks.0.norm3.gamma#(320,)#Float32
+model.diffusion_model.input_blocks.2.1.transformer_blocks.0.norm1.bias#(320,)#Float32
+model.diffusion_model.input_blocks.2.1.transformer_blocks.0.norm1.weight#(320,)#Float32
+model.diffusion_model.input_blocks.2.1.transformer_blocks.0.norm2.bias#(320,)#Float32
+model.diffusion_model.input_blocks.2.1.transformer_blocks.0.norm2.weight#(320,)#Float32
+model.diffusion_model.input_blocks.2.1.transformer_blocks.0.norm3.bias#(320,)#Float32
+model.diffusion_model.input_blocks.2.1.transformer_blocks.0.norm3.weight#(320,)#Float32
 model.diffusion_model.input_blocks.3.0.op.conv.bias#(320,)#Float32
 model.diffusion_model.input_blocks.3.0.op.conv.weight#(320, 320, 3, 3)#Float32
 model.diffusion_model.input_blocks.4.0.emb_layers.1.bias#(640,)#Float32
 model.diffusion_model.input_blocks.4.0.emb_layers.1.weight#(640, 1280)#Float32
-model.diffusion_model.input_blocks.4.0.in_layers_norm.beta#(320,)#Float32
-model.diffusion_model.input_blocks.4.0.in_layers_norm.gamma#(320,)#Float32
+model.diffusion_model.input_blocks.4.0.in_layers_norm.bias#(320,)#Float32
+model.diffusion_model.input_blocks.4.0.in_layers_norm.weight#(320,)#Float32
 model.diffusion_model.input_blocks.4.0.in_layers_conv.conv.bias#(640,)#Float32
 model.diffusion_model.input_blocks.4.0.in_layers_conv.conv.weight#(640, 320, 3, 3)#Float32
-model.diffusion_model.input_blocks.4.0.out_layers_norm.beta#(640,)#Float32
-model.diffusion_model.input_blocks.4.0.out_layers_norm.gamma#(640,)#Float32
+model.diffusion_model.input_blocks.4.0.out_layers_norm.bias#(640,)#Float32
+model.diffusion_model.input_blocks.4.0.out_layers_norm.weight#(640,)#Float32
 model.diffusion_model.input_blocks.4.0.out_layers_conv.conv.bias#(640,)#Float32
 model.diffusion_model.input_blocks.4.0.out_layers_conv.conv.weight#(640, 640, 3, 3)#Float32
 model.diffusion_model.input_blocks.4.0.skip_connection.conv.bias#(640,)#Float32
 model.diffusion_model.input_blocks.4.0.skip_connection.conv.weight#(640, 320, 1, 1)#Float32
-model.diffusion_model.input_blocks.4.1.norm.beta#(640,)#Float32
-model.diffusion_model.input_blocks.4.1.norm.gamma#(640,)#Float32
+model.diffusion_model.input_blocks.4.1.norm.bias#(640,)#Float32
+model.diffusion_model.input_blocks.4.1.norm.weight#(640,)#Float32
 model.diffusion_model.input_blocks.4.1.proj_in.bias#(640,)#Float32
-model.diffusion_model.input_blocks.4.1.proj_in.weight#(640, 640)#Float32
+model.diffusion_model.input_blocks.4.1.proj_in.weight#(640, 640, 1, 1)#Float32
 model.diffusion_model.input_blocks.4.1.proj_out.bias#(640,)#Float32
-model.diffusion_model.input_blocks.4.1.proj_out.weight#(640, 640)#Float32
+model.diffusion_model.input_blocks.4.1.proj_out.weight#(640, 640, 1, 1)#Float32
 model.diffusion_model.input_blocks.4.1.transformer_blocks.0.attn1.to_k.weight#(640, 640)#Float32
 model.diffusion_model.input_blocks.4.1.transformer_blocks.0.attn1.to_out.0.bias#(640,)#Float32
 model.diffusion_model.input_blocks.4.1.transformer_blocks.0.attn1.to_out.0.weight#(640, 640)#Float32
 model.diffusion_model.input_blocks.4.1.transformer_blocks.0.attn1.to_q.weight#(640, 640)#Float32
 model.diffusion_model.input_blocks.4.1.transformer_blocks.0.attn1.to_v.weight#(640, 640)#Float32
-model.diffusion_model.input_blocks.4.1.transformer_blocks.0.attn2.to_k.weight#(640, 1024)#Float32
+model.diffusion_model.input_blocks.4.1.transformer_blocks.0.attn2.to_k.weight#(640, 768)#Float32
 model.diffusion_model.input_blocks.4.1.transformer_blocks.0.attn2.to_out.0.bias#(640,)#Float32
 model.diffusion_model.input_blocks.4.1.transformer_blocks.0.attn2.to_out.0.weight#(640, 640)#Float32
 model.diffusion_model.input_blocks.4.1.transformer_blocks.0.attn2.to_q.weight#(640, 640)#Float32
-model.diffusion_model.input_blocks.4.1.transformer_blocks.0.attn2.to_v.weight#(640, 1024)#Float32
+model.diffusion_model.input_blocks.4.1.transformer_blocks.0.attn2.to_v.weight#(640, 768)#Float32
 model.diffusion_model.input_blocks.4.1.transformer_blocks.0.ff.net.0.proj.bias#(5120,)#Float32
 model.diffusion_model.input_blocks.4.1.transformer_blocks.0.ff.net.0.proj.weight#(5120, 640)#Float32
 model.diffusion_model.input_blocks.4.1.transformer_blocks.0.ff.net.2.bias#(640,)#Float32
 model.diffusion_model.input_blocks.4.1.transformer_blocks.0.ff.net.2.weight#(640, 2560)#Float32
-model.diffusion_model.input_blocks.4.1.transformer_blocks.0.norm1.beta#(640,)#Float32
-model.diffusion_model.input_blocks.4.1.transformer_blocks.0.norm1.gamma#(640,)#Float32
-model.diffusion_model.input_blocks.4.1.transformer_blocks.0.norm2.beta#(640,)#Float32
-model.diffusion_model.input_blocks.4.1.transformer_blocks.0.norm2.gamma#(640,)#Float32
-model.diffusion_model.input_blocks.4.1.transformer_blocks.0.norm3.beta#(640,)#Float32
-model.diffusion_model.input_blocks.4.1.transformer_blocks.0.norm3.gamma#(640,)#Float32
+model.diffusion_model.input_blocks.4.1.transformer_blocks.0.norm1.bias#(640,)#Float32
+model.diffusion_model.input_blocks.4.1.transformer_blocks.0.norm1.weight#(640,)#Float32
+model.diffusion_model.input_blocks.4.1.transformer_blocks.0.norm2.bias#(640,)#Float32
+model.diffusion_model.input_blocks.4.1.transformer_blocks.0.norm2.weight#(640,)#Float32
+model.diffusion_model.input_blocks.4.1.transformer_blocks.0.norm3.bias#(640,)#Float32
+model.diffusion_model.input_blocks.4.1.transformer_blocks.0.norm3.weight#(640,)#Float32
 model.diffusion_model.input_blocks.5.0.emb_layers.1.bias#(640,)#Float32
 model.diffusion_model.input_blocks.5.0.emb_layers.1.weight#(640, 1280)#Float32
-model.diffusion_model.input_blocks.5.0.in_layers_norm.beta#(640,)#Float32
-model.diffusion_model.input_blocks.5.0.in_layers_norm.gamma#(640,)#Float32
+model.diffusion_model.input_blocks.5.0.in_layers_norm.bias#(640,)#Float32
+model.diffusion_model.input_blocks.5.0.in_layers_norm.weight#(640,)#Float32
 model.diffusion_model.input_blocks.5.0.in_layers_conv.conv.bias#(640,)#Float32
 model.diffusion_model.input_blocks.5.0.in_layers_conv.conv.weight#(640, 640, 3, 3)#Float32
-model.diffusion_model.input_blocks.5.0.out_layers_norm.beta#(640,)#Float32
-model.diffusion_model.input_blocks.5.0.out_layers_norm.gamma#(640,)#Float32
+model.diffusion_model.input_blocks.5.0.out_layers_norm.bias#(640,)#Float32
+model.diffusion_model.input_blocks.5.0.out_layers_norm.weight#(640,)#Float32
 model.diffusion_model.input_blocks.5.0.out_layers_conv.conv.bias#(640,)#Float32
 model.diffusion_model.input_blocks.5.0.out_layers_conv.conv.weight#(640, 640, 3, 3)#Float32
-model.diffusion_model.input_blocks.5.1.norm.beta#(640,)#Float32
-model.diffusion_model.input_blocks.5.1.norm.gamma#(640,)#Float32
+model.diffusion_model.input_blocks.5.1.norm.bias#(640,)#Float32
+model.diffusion_model.input_blocks.5.1.norm.weight#(640,)#Float32
 model.diffusion_model.input_blocks.5.1.proj_in.bias#(640,)#Float32
-model.diffusion_model.input_blocks.5.1.proj_in.weight#(640, 640)#Float32
+model.diffusion_model.input_blocks.5.1.proj_in.weight#(640, 640, 1, 1)#Float32
 model.diffusion_model.input_blocks.5.1.proj_out.bias#(640,)#Float32
-model.diffusion_model.input_blocks.5.1.proj_out.weight#(640, 640)#Float32
+model.diffusion_model.input_blocks.5.1.proj_out.weight#(640, 640, 1, 1)#Float32
 model.diffusion_model.input_blocks.5.1.transformer_blocks.0.attn1.to_k.weight#(640, 640)#Float32
 model.diffusion_model.input_blocks.5.1.transformer_blocks.0.attn1.to_out.0.bias#(640,)#Float32
 model.diffusion_model.input_blocks.5.1.transformer_blocks.0.attn1.to_out.0.weight#(640, 640)#Float32
 model.diffusion_model.input_blocks.5.1.transformer_blocks.0.attn1.to_q.weight#(640, 640)#Float32
 model.diffusion_model.input_blocks.5.1.transformer_blocks.0.attn1.to_v.weight#(640, 640)#Float32
-model.diffusion_model.input_blocks.5.1.transformer_blocks.0.attn2.to_k.weight#(640, 1024)#Float32
+model.diffusion_model.input_blocks.5.1.transformer_blocks.0.attn2.to_k.weight#(640, 768)#Float32
 model.diffusion_model.input_blocks.5.1.transformer_blocks.0.attn2.to_out.0.bias#(640,)#Float32
 model.diffusion_model.input_blocks.5.1.transformer_blocks.0.attn2.to_out.0.weight#(640, 640)#Float32
 model.diffusion_model.input_blocks.5.1.transformer_blocks.0.attn2.to_q.weight#(640, 640)#Float32
-model.diffusion_model.input_blocks.5.1.transformer_blocks.0.attn2.to_v.weight#(640, 1024)#Float32
+model.diffusion_model.input_blocks.5.1.transformer_blocks.0.attn2.to_v.weight#(640, 768)#Float32
 model.diffusion_model.input_blocks.5.1.transformer_blocks.0.ff.net.0.proj.bias#(5120,)#Float32
 model.diffusion_model.input_blocks.5.1.transformer_blocks.0.ff.net.0.proj.weight#(5120, 640)#Float32
 model.diffusion_model.input_blocks.5.1.transformer_blocks.0.ff.net.2.bias#(640,)#Float32
 model.diffusion_model.input_blocks.5.1.transformer_blocks.0.ff.net.2.weight#(640, 2560)#Float32
-model.diffusion_model.input_blocks.5.1.transformer_blocks.0.norm1.beta#(640,)#Float32
-model.diffusion_model.input_blocks.5.1.transformer_blocks.0.norm1.gamma#(640,)#Float32
-model.diffusion_model.input_blocks.5.1.transformer_blocks.0.norm2.beta#(640,)#Float32
-model.diffusion_model.input_blocks.5.1.transformer_blocks.0.norm2.gamma#(640,)#Float32
-model.diffusion_model.input_blocks.5.1.transformer_blocks.0.norm3.beta#(640,)#Float32
-model.diffusion_model.input_blocks.5.1.transformer_blocks.0.norm3.gamma#(640,)#Float32
+model.diffusion_model.input_blocks.5.1.transformer_blocks.0.norm1.bias#(640,)#Float32
+model.diffusion_model.input_blocks.5.1.transformer_blocks.0.norm1.weight#(640,)#Float32
+model.diffusion_model.input_blocks.5.1.transformer_blocks.0.norm2.bias#(640,)#Float32
+model.diffusion_model.input_blocks.5.1.transformer_blocks.0.norm2.weight#(640,)#Float32
+model.diffusion_model.input_blocks.5.1.transformer_blocks.0.norm3.bias#(640,)#Float32
+model.diffusion_model.input_blocks.5.1.transformer_blocks.0.norm3.weight#(640,)#Float32
 model.diffusion_model.input_blocks.6.0.op.conv.bias#(640,)#Float32
 model.diffusion_model.input_blocks.6.0.op.conv.weight#(640, 640, 3, 3)#Float32
 model.diffusion_model.input_blocks.7.0.emb_layers.1.bias#(1280,)#Float32
 model.diffusion_model.input_blocks.7.0.emb_layers.1.weight#(1280, 1280)#Float32
-model.diffusion_model.input_blocks.7.0.in_layers_norm.beta#(640,)#Float32
-model.diffusion_model.input_blocks.7.0.in_layers_norm.gamma#(640,)#Float32
+model.diffusion_model.input_blocks.7.0.in_layers_norm.bias#(640,)#Float32
+model.diffusion_model.input_blocks.7.0.in_layers_norm.weight#(640,)#Float32
 model.diffusion_model.input_blocks.7.0.in_layers_conv.conv.bias#(1280,)#Float32
 model.diffusion_model.input_blocks.7.0.in_layers_conv.conv.weight#(1280, 640, 3, 3)#Float32
-model.diffusion_model.input_blocks.7.0.out_layers_norm.beta#(1280,)#Float32
-model.diffusion_model.input_blocks.7.0.out_layers_norm.gamma#(1280,)#Float32
+model.diffusion_model.input_blocks.7.0.out_layers_norm.bias#(1280,)#Float32
+model.diffusion_model.input_blocks.7.0.out_layers_norm.weight#(1280,)#Float32
 model.diffusion_model.input_blocks.7.0.out_layers_conv.conv.bias#(1280,)#Float32
 model.diffusion_model.input_blocks.7.0.out_layers_conv.conv.weight#(1280, 1280, 3, 3)#Float32
 model.diffusion_model.input_blocks.7.0.skip_connection.conv.bias#(1280,)#Float32
 model.diffusion_model.input_blocks.7.0.skip_connection.conv.weight#(1280, 640, 1, 1)#Float32
-model.diffusion_model.input_blocks.7.1.norm.beta#(1280,)#Float32
-model.diffusion_model.input_blocks.7.1.norm.gamma#(1280,)#Float32
+model.diffusion_model.input_blocks.7.1.norm.bias#(1280,)#Float32
+model.diffusion_model.input_blocks.7.1.norm.weight#(1280,)#Float32
 model.diffusion_model.input_blocks.7.1.proj_in.bias#(1280,)#Float32
-model.diffusion_model.input_blocks.7.1.proj_in.weight#(1280, 1280)#Float32
+model.diffusion_model.input_blocks.7.1.proj_in.weight#(1280, 1280, 1, 1)#Float32
 model.diffusion_model.input_blocks.7.1.proj_out.bias#(1280,)#Float32
-model.diffusion_model.input_blocks.7.1.proj_out.weight#(1280, 1280)#Float32
+model.diffusion_model.input_blocks.7.1.proj_out.weight#(1280, 1280, 1, 1)#Float32
 model.diffusion_model.input_blocks.7.1.transformer_blocks.0.attn1.to_k.weight#(1280, 1280)#Float32
 model.diffusion_model.input_blocks.7.1.transformer_blocks.0.attn1.to_out.0.bias#(1280,)#Float32
 model.diffusion_model.input_blocks.7.1.transformer_blocks.0.attn1.to_out.0.weight#(1280, 1280)#Float32
 model.diffusion_model.input_blocks.7.1.transformer_blocks.0.attn1.to_q.weight#(1280, 1280)#Float32
 model.diffusion_model.input_blocks.7.1.transformer_blocks.0.attn1.to_v.weight#(1280, 1280)#Float32
-model.diffusion_model.input_blocks.7.1.transformer_blocks.0.attn2.to_k.weight#(1280, 1024)#Float32
+model.diffusion_model.input_blocks.7.1.transformer_blocks.0.attn2.to_k.weight#(1280, 768)#Float32
 model.diffusion_model.input_blocks.7.1.transformer_blocks.0.attn2.to_out.0.bias#(1280,)#Float32
 model.diffusion_model.input_blocks.7.1.transformer_blocks.0.attn2.to_out.0.weight#(1280, 1280)#Float32
 model.diffusion_model.input_blocks.7.1.transformer_blocks.0.attn2.to_q.weight#(1280, 1280)#Float32
-model.diffusion_model.input_blocks.7.1.transformer_blocks.0.attn2.to_v.weight#(1280, 1024)#Float32
+model.diffusion_model.input_blocks.7.1.transformer_blocks.0.attn2.to_v.weight#(1280, 768)#Float32
 model.diffusion_model.input_blocks.7.1.transformer_blocks.0.ff.net.0.proj.bias#(10240,)#Float32
 model.diffusion_model.input_blocks.7.1.transformer_blocks.0.ff.net.0.proj.weight#(10240, 1280)#Float32
 model.diffusion_model.input_blocks.7.1.transformer_blocks.0.ff.net.2.bias#(1280,)#Float32
 model.diffusion_model.input_blocks.7.1.transformer_blocks.0.ff.net.2.weight#(1280, 5120)#Float32
-model.diffusion_model.input_blocks.7.1.transformer_blocks.0.norm1.beta#(1280,)#Float32
-model.diffusion_model.input_blocks.7.1.transformer_blocks.0.norm1.gamma#(1280,)#Float32
-model.diffusion_model.input_blocks.7.1.transformer_blocks.0.norm2.beta#(1280,)#Float32
-model.diffusion_model.input_blocks.7.1.transformer_blocks.0.norm2.gamma#(1280,)#Float32
-model.diffusion_model.input_blocks.7.1.transformer_blocks.0.norm3.beta#(1280,)#Float32
-model.diffusion_model.input_blocks.7.1.transformer_blocks.0.norm3.gamma#(1280,)#Float32
+model.diffusion_model.input_blocks.7.1.transformer_blocks.0.norm1.bias#(1280,)#Float32
+model.diffusion_model.input_blocks.7.1.transformer_blocks.0.norm1.weight#(1280,)#Float32
+model.diffusion_model.input_blocks.7.1.transformer_blocks.0.norm2.bias#(1280,)#Float32
+model.diffusion_model.input_blocks.7.1.transformer_blocks.0.norm2.weight#(1280,)#Float32
+model.diffusion_model.input_blocks.7.1.transformer_blocks.0.norm3.bias#(1280,)#Float32
+model.diffusion_model.input_blocks.7.1.transformer_blocks.0.norm3.weight#(1280,)#Float32
 model.diffusion_model.input_blocks.8.0.emb_layers.1.bias#(1280,)#Float32
 model.diffusion_model.input_blocks.8.0.emb_layers.1.weight#(1280, 1280)#Float32
-model.diffusion_model.input_blocks.8.0.in_layers_norm.beta#(1280,)#Float32
-model.diffusion_model.input_blocks.8.0.in_layers_norm.gamma#(1280,)#Float32
+model.diffusion_model.input_blocks.8.0.in_layers_norm.bias#(1280,)#Float32
+model.diffusion_model.input_blocks.8.0.in_layers_norm.weight#(1280,)#Float32
 model.diffusion_model.input_blocks.8.0.in_layers_conv.conv.bias#(1280,)#Float32
 model.diffusion_model.input_blocks.8.0.in_layers_conv.conv.weight#(1280, 1280, 3, 3)#Float32
-model.diffusion_model.input_blocks.8.0.out_layers_norm.beta#(1280,)#Float32
-model.diffusion_model.input_blocks.8.0.out_layers_norm.gamma#(1280,)#Float32
+model.diffusion_model.input_blocks.8.0.out_layers_norm.bias#(1280,)#Float32
+model.diffusion_model.input_blocks.8.0.out_layers_norm.weight#(1280,)#Float32
 model.diffusion_model.input_blocks.8.0.out_layers_conv.conv.bias#(1280,)#Float32
 model.diffusion_model.input_blocks.8.0.out_layers_conv.conv.weight#(1280, 1280, 3, 3)#Float32
-model.diffusion_model.input_blocks.8.1.norm.beta#(1280,)#Float32
-model.diffusion_model.input_blocks.8.1.norm.gamma#(1280,)#Float32
+model.diffusion_model.input_blocks.8.1.norm.bias#(1280,)#Float32
+model.diffusion_model.input_blocks.8.1.norm.weight#(1280,)#Float32
 model.diffusion_model.input_blocks.8.1.proj_in.bias#(1280,)#Float32
-model.diffusion_model.input_blocks.8.1.proj_in.weight#(1280, 1280)#Float32
+model.diffusion_model.input_blocks.8.1.proj_in.weight#(1280, 1280, 1, 1)#Float32
 model.diffusion_model.input_blocks.8.1.proj_out.bias#(1280,)#Float32
-model.diffusion_model.input_blocks.8.1.proj_out.weight#(1280, 1280)#Float32
+model.diffusion_model.input_blocks.8.1.proj_out.weight#(1280, 1280, 1, 1)#Float32
 model.diffusion_model.input_blocks.8.1.transformer_blocks.0.attn1.to_k.weight#(1280, 1280)#Float32
 model.diffusion_model.input_blocks.8.1.transformer_blocks.0.attn1.to_out.0.bias#(1280,)#Float32
 model.diffusion_model.input_blocks.8.1.transformer_blocks.0.attn1.to_out.0.weight#(1280, 1280)#Float32
 model.diffusion_model.input_blocks.8.1.transformer_blocks.0.attn1.to_q.weight#(1280, 1280)#Float32
 model.diffusion_model.input_blocks.8.1.transformer_blocks.0.attn1.to_v.weight#(1280, 1280)#Float32
-model.diffusion_model.input_blocks.8.1.transformer_blocks.0.attn2.to_k.weight#(1280, 1024)#Float32
+model.diffusion_model.input_blocks.8.1.transformer_blocks.0.attn2.to_k.weight#(1280, 768)#Float32
 model.diffusion_model.input_blocks.8.1.transformer_blocks.0.attn2.to_out.0.bias#(1280,)#Float32
 model.diffusion_model.input_blocks.8.1.transformer_blocks.0.attn2.to_out.0.weight#(1280, 1280)#Float32
 model.diffusion_model.input_blocks.8.1.transformer_blocks.0.attn2.to_q.weight#(1280, 1280)#Float32
-model.diffusion_model.input_blocks.8.1.transformer_blocks.0.attn2.to_v.weight#(1280, 1024)#Float32
+model.diffusion_model.input_blocks.8.1.transformer_blocks.0.attn2.to_v.weight#(1280, 768)#Float32
 model.diffusion_model.input_blocks.8.1.transformer_blocks.0.ff.net.0.proj.bias#(10240,)#Float32
 model.diffusion_model.input_blocks.8.1.transformer_blocks.0.ff.net.0.proj.weight#(10240, 1280)#Float32
 model.diffusion_model.input_blocks.8.1.transformer_blocks.0.ff.net.2.bias#(1280,)#Float32
 model.diffusion_model.input_blocks.8.1.transformer_blocks.0.ff.net.2.weight#(1280, 5120)#Float32
-model.diffusion_model.input_blocks.8.1.transformer_blocks.0.norm1.beta#(1280,)#Float32
-model.diffusion_model.input_blocks.8.1.transformer_blocks.0.norm1.gamma#(1280,)#Float32
-model.diffusion_model.input_blocks.8.1.transformer_blocks.0.norm2.beta#(1280,)#Float32
-model.diffusion_model.input_blocks.8.1.transformer_blocks.0.norm2.gamma#(1280,)#Float32
-model.diffusion_model.input_blocks.8.1.transformer_blocks.0.norm3.beta#(1280,)#Float32
-model.diffusion_model.input_blocks.8.1.transformer_blocks.0.norm3.gamma#(1280,)#Float32
+model.diffusion_model.input_blocks.8.1.transformer_blocks.0.norm1.bias#(1280,)#Float32
+model.diffusion_model.input_blocks.8.1.transformer_blocks.0.norm1.weight#(1280,)#Float32
+model.diffusion_model.input_blocks.8.1.transformer_blocks.0.norm2.bias#(1280,)#Float32
+model.diffusion_model.input_blocks.8.1.transformer_blocks.0.norm2.weight#(1280,)#Float32
+model.diffusion_model.input_blocks.8.1.transformer_blocks.0.norm3.bias#(1280,)#Float32
+model.diffusion_model.input_blocks.8.1.transformer_blocks.0.norm3.weight#(1280,)#Float32
 model.diffusion_model.input_blocks.9.0.op.conv.bias#(1280,)#Float32
 model.diffusion_model.input_blocks.9.0.op.conv.weight#(1280, 1280, 3, 3)#Float32
 model.diffusion_model.middle_block.0.emb_layers.1.bias#(1280,)#Float32
 model.diffusion_model.middle_block.0.emb_layers.1.weight#(1280, 1280)#Float32
-model.diffusion_model.middle_block.0.in_layers_norm.beta#(1280,)#Float32
-model.diffusion_model.middle_block.0.in_layers_norm.gamma#(1280,)#Float32
+model.diffusion_model.middle_block.0.in_layers_norm.bias#(1280,)#Float32
+model.diffusion_model.middle_block.0.in_layers_norm.weight#(1280,)#Float32
 model.diffusion_model.middle_block.0.in_layers_conv.conv.bias#(1280,)#Float32
 model.diffusion_model.middle_block.0.in_layers_conv.conv.weight#(1280, 1280, 3, 3)#Float32
-model.diffusion_model.middle_block.0.out_layers_norm.beta#(1280,)#Float32
-model.diffusion_model.middle_block.0.out_layers_norm.gamma#(1280,)#Float32
+model.diffusion_model.middle_block.0.out_layers_norm.bias#(1280,)#Float32
+model.diffusion_model.middle_block.0.out_layers_norm.weight#(1280,)#Float32
 model.diffusion_model.middle_block.0.out_layers_conv.conv.bias#(1280,)#Float32
 model.diffusion_model.middle_block.0.out_layers_conv.conv.weight#(1280, 1280, 3, 3)#Float32
-model.diffusion_model.middle_block.1.norm.beta#(1280,)#Float32
-model.diffusion_model.middle_block.1.norm.gamma#(1280,)#Float32
+model.diffusion_model.middle_block.1.norm.bias#(1280,)#Float32
+model.diffusion_model.middle_block.1.norm.weight#(1280,)#Float32
 model.diffusion_model.middle_block.1.proj_in.bias#(1280,)#Float32
-model.diffusion_model.middle_block.1.proj_in.weight#(1280, 1280)#Float32
+model.diffusion_model.middle_block.1.proj_in.weight#(1280, 1280, 1, 1)#Float32
 model.diffusion_model.middle_block.1.proj_out.bias#(1280,)#Float32
-model.diffusion_model.middle_block.1.proj_out.weight#(1280, 1280)#Float32
+model.diffusion_model.middle_block.1.proj_out.weight#(1280, 1280, 1, 1)#Float32
 model.diffusion_model.middle_block.1.transformer_blocks.0.attn1.to_k.weight#(1280, 1280)#Float32
 model.diffusion_model.middle_block.1.transformer_blocks.0.attn1.to_out.0.bias#(1280,)#Float32
 model.diffusion_model.middle_block.1.transformer_blocks.0.attn1.to_out.0.weight#(1280, 1280)#Float32
 model.diffusion_model.middle_block.1.transformer_blocks.0.attn1.to_q.weight#(1280, 1280)#Float32
 model.diffusion_model.middle_block.1.transformer_blocks.0.attn1.to_v.weight#(1280, 1280)#Float32
-model.diffusion_model.middle_block.1.transformer_blocks.0.attn2.to_k.weight#(1280, 1024)#Float32
+model.diffusion_model.middle_block.1.transformer_blocks.0.attn2.to_k.weight#(1280, 768)#Float32
 model.diffusion_model.middle_block.1.transformer_blocks.0.attn2.to_out.0.bias#(1280,)#Float32
 model.diffusion_model.middle_block.1.transformer_blocks.0.attn2.to_out.0.weight#(1280, 1280)#Float32
 model.diffusion_model.middle_block.1.transformer_blocks.0.attn2.to_q.weight#(1280, 1280)#Float32
-model.diffusion_model.middle_block.1.transformer_blocks.0.attn2.to_v.weight#(1280, 1024)#Float32
+model.diffusion_model.middle_block.1.transformer_blocks.0.attn2.to_v.weight#(1280, 768)#Float32
 model.diffusion_model.middle_block.1.transformer_blocks.0.ff.net.0.proj.bias#(10240,)#Float32
 model.diffusion_model.middle_block.1.transformer_blocks.0.ff.net.0.proj.weight#(10240, 1280)#Float32
 model.diffusion_model.middle_block.1.transformer_blocks.0.ff.net.2.bias#(1280,)#Float32
 model.diffusion_model.middle_block.1.transformer_blocks.0.ff.net.2.weight#(1280, 5120)#Float32
-model.diffusion_model.middle_block.1.transformer_blocks.0.norm1.beta#(1280,)#Float32
-model.diffusion_model.middle_block.1.transformer_blocks.0.norm1.gamma#(1280,)#Float32
-model.diffusion_model.middle_block.1.transformer_blocks.0.norm2.beta#(1280,)#Float32
-model.diffusion_model.middle_block.1.transformer_blocks.0.norm2.gamma#(1280,)#Float32
-model.diffusion_model.middle_block.1.transformer_blocks.0.norm3.beta#(1280,)#Float32
-model.diffusion_model.middle_block.1.transformer_blocks.0.norm3.gamma#(1280,)#Float32
+model.diffusion_model.middle_block.1.transformer_blocks.0.norm1.bias#(1280,)#Float32
+model.diffusion_model.middle_block.1.transformer_blocks.0.norm1.weight#(1280,)#Float32
+model.diffusion_model.middle_block.1.transformer_blocks.0.norm2.bias#(1280,)#Float32
+model.diffusion_model.middle_block.1.transformer_blocks.0.norm2.weight#(1280,)#Float32
+model.diffusion_model.middle_block.1.transformer_blocks.0.norm3.bias#(1280,)#Float32
+model.diffusion_model.middle_block.1.transformer_blocks.0.norm3.weight#(1280,)#Float32
 model.diffusion_model.middle_block.2.emb_layers.1.bias#(1280,)#Float32
 model.diffusion_model.middle_block.2.emb_layers.1.weight#(1280, 1280)#Float32
-model.diffusion_model.middle_block.2.in_layers_norm.beta#(1280,)#Float32
-model.diffusion_model.middle_block.2.in_layers_norm.gamma#(1280,)#Float32
+model.diffusion_model.middle_block.2.in_layers_norm.bias#(1280,)#Float32
+model.diffusion_model.middle_block.2.in_layers_norm.weight#(1280,)#Float32
 model.diffusion_model.middle_block.2.in_layers_conv.conv.bias#(1280,)#Float32
 model.diffusion_model.middle_block.2.in_layers_conv.conv.weight#(1280, 1280, 3, 3)#Float32
-model.diffusion_model.middle_block.2.out_layers_norm.beta#(1280,)#Float32
-model.diffusion_model.middle_block.2.out_layers_norm.gamma#(1280,)#Float32
+model.diffusion_model.middle_block.2.out_layers_norm.bias#(1280,)#Float32
+model.diffusion_model.middle_block.2.out_layers_norm.weight#(1280,)#Float32
 model.diffusion_model.middle_block.2.out_layers_conv.conv.bias#(1280,)#Float32
 model.diffusion_model.middle_block.2.out_layers_conv.conv.weight#(1280, 1280, 3, 3)#Float32
-model.diffusion_model.out.0.beta#(320,)#Float32
-model.diffusion_model.out.0.gamma#(320,)#Float32
+model.diffusion_model.out.0.bias#(320,)#Float32
+model.diffusion_model.out.0.weight#(320,)#Float32
 model.diffusion_model.out.2.conv.bias#(4,)#Float32
 model.diffusion_model.out.2.conv.weight#(4, 320, 3, 3)#Float32
 model.diffusion_model.output_blocks.0.0.emb_layers.1.bias#(1280,)#Float32
 model.diffusion_model.output_blocks.0.0.emb_layers.1.weight#(1280, 1280)#Float32
-model.diffusion_model.output_blocks.0.0.in_layers_norm.beta#(2560,)#Float32
-model.diffusion_model.output_blocks.0.0.in_layers_norm.gamma#(2560,)#Float32
+model.diffusion_model.output_blocks.0.0.in_layers_norm.bias#(2560,)#Float32
+model.diffusion_model.output_blocks.0.0.in_layers_norm.weight#(2560,)#Float32
 model.diffusion_model.output_blocks.0.0.in_layers_conv.conv.bias#(1280,)#Float32
 model.diffusion_model.output_blocks.0.0.in_layers_conv.conv.weight#(1280, 2560, 3, 3)#Float32
-model.diffusion_model.output_blocks.0.0.out_layers_norm.beta#(1280,)#Float32
-model.diffusion_model.output_blocks.0.0.out_layers_norm.gamma#(1280,)#Float32
+model.diffusion_model.output_blocks.0.0.out_layers_norm.bias#(1280,)#Float32
+model.diffusion_model.output_blocks.0.0.out_layers_norm.weight#(1280,)#Float32
 model.diffusion_model.output_blocks.0.0.out_layers_conv.conv.bias#(1280,)#Float32
 model.diffusion_model.output_blocks.0.0.out_layers_conv.conv.weight#(1280, 1280, 3, 3)#Float32
 model.diffusion_model.output_blocks.0.0.skip_connection.conv.bias#(1280,)#Float32
 model.diffusion_model.output_blocks.0.0.skip_connection.conv.weight#(1280, 2560, 1, 1)#Float32
 model.diffusion_model.output_blocks.1.0.emb_layers.1.bias#(1280,)#Float32
 model.diffusion_model.output_blocks.1.0.emb_layers.1.weight#(1280, 1280)#Float32
-model.diffusion_model.output_blocks.1.0.in_layers_norm.beta#(2560,)#Float32
-model.diffusion_model.output_blocks.1.0.in_layers_norm.gamma#(2560,)#Float32
+model.diffusion_model.output_blocks.1.0.in_layers_norm.bias#(2560,)#Float32
+model.diffusion_model.output_blocks.1.0.in_layers_norm.weight#(2560,)#Float32
 model.diffusion_model.output_blocks.1.0.in_layers_conv.conv.bias#(1280,)#Float32
 model.diffusion_model.output_blocks.1.0.in_layers_conv.conv.weight#(1280, 2560, 3, 3)#Float32
-model.diffusion_model.output_blocks.1.0.out_layers_norm.beta#(1280,)#Float32
-model.diffusion_model.output_blocks.1.0.out_layers_norm.gamma#(1280,)#Float32
+model.diffusion_model.output_blocks.1.0.out_layers_norm.bias#(1280,)#Float32
+model.diffusion_model.output_blocks.1.0.out_layers_norm.weight#(1280,)#Float32
 model.diffusion_model.output_blocks.1.0.out_layers_conv.conv.bias#(1280,)#Float32
 model.diffusion_model.output_blocks.1.0.out_layers_conv.conv.weight#(1280, 1280, 3, 3)#Float32
 model.diffusion_model.output_blocks.1.0.skip_connection.conv.bias#(1280,)#Float32
 model.diffusion_model.output_blocks.1.0.skip_connection.conv.weight#(1280, 2560, 1, 1)#Float32
 model.diffusion_model.output_blocks.10.0.emb_layers.1.bias#(320,)#Float32
 model.diffusion_model.output_blocks.10.0.emb_layers.1.weight#(320, 1280)#Float32
-model.diffusion_model.output_blocks.10.0.in_layers_norm.beta#(640,)#Float32
-model.diffusion_model.output_blocks.10.0.in_layers_norm.gamma#(640,)#Float32
+model.diffusion_model.output_blocks.10.0.in_layers_norm.bias#(640,)#Float32
+model.diffusion_model.output_blocks.10.0.in_layers_norm.weight#(640,)#Float32
 model.diffusion_model.output_blocks.10.0.in_layers_conv.conv.bias#(320,)#Float32
 model.diffusion_model.output_blocks.10.0.in_layers_conv.conv.weight#(320, 640, 3, 3)#Float32
-model.diffusion_model.output_blocks.10.0.out_layers_norm.beta#(320,)#Float32
-model.diffusion_model.output_blocks.10.0.out_layers_norm.gamma#(320,)#Float32
+model.diffusion_model.output_blocks.10.0.out_layers_norm.bias#(320,)#Float32
+model.diffusion_model.output_blocks.10.0.out_layers_norm.weight#(320,)#Float32
 model.diffusion_model.output_blocks.10.0.out_layers_conv.conv.bias#(320,)#Float32
 model.diffusion_model.output_blocks.10.0.out_layers_conv.conv.weight#(320, 320, 3, 3)#Float32
 model.diffusion_model.output_blocks.10.0.skip_connection.conv.bias#(320,)#Float32
 model.diffusion_model.output_blocks.10.0.skip_connection.conv.weight#(320, 640, 1, 1)#Float32
-model.diffusion_model.output_blocks.10.1.norm.beta#(320,)#Float32
-model.diffusion_model.output_blocks.10.1.norm.gamma#(320,)#Float32
+model.diffusion_model.output_blocks.10.1.norm.bias#(320,)#Float32
+model.diffusion_model.output_blocks.10.1.norm.weight#(320,)#Float32
 model.diffusion_model.output_blocks.10.1.proj_in.bias#(320,)#Float32
-model.diffusion_model.output_blocks.10.1.proj_in.weight#(320, 320)#Float32
+model.diffusion_model.output_blocks.10.1.proj_in.weight#(320, 320, 1, 1)#Float32
 model.diffusion_model.output_blocks.10.1.proj_out.bias#(320,)#Float32
-model.diffusion_model.output_blocks.10.1.proj_out.weight#(320, 320)#Float32
+model.diffusion_model.output_blocks.10.1.proj_out.weight#(320, 320, 1, 1)#Float32
 model.diffusion_model.output_blocks.10.1.transformer_blocks.0.attn1.to_k.weight#(320, 320)#Float32
 model.diffusion_model.output_blocks.10.1.transformer_blocks.0.attn1.to_out.0.bias#(320,)#Float32
 model.diffusion_model.output_blocks.10.1.transformer_blocks.0.attn1.to_out.0.weight#(320, 320)#Float32
 model.diffusion_model.output_blocks.10.1.transformer_blocks.0.attn1.to_q.weight#(320, 320)#Float32
 model.diffusion_model.output_blocks.10.1.transformer_blocks.0.attn1.to_v.weight#(320, 320)#Float32
-model.diffusion_model.output_blocks.10.1.transformer_blocks.0.attn2.to_k.weight#(320, 1024)#Float32
+model.diffusion_model.output_blocks.10.1.transformer_blocks.0.attn2.to_k.weight#(320, 768)#Float32
 model.diffusion_model.output_blocks.10.1.transformer_blocks.0.attn2.to_out.0.bias#(320,)#Float32
 model.diffusion_model.output_blocks.10.1.transformer_blocks.0.attn2.to_out.0.weight#(320, 320)#Float32
 model.diffusion_model.output_blocks.10.1.transformer_blocks.0.attn2.to_q.weight#(320, 320)#Float32
-model.diffusion_model.output_blocks.10.1.transformer_blocks.0.attn2.to_v.weight#(320, 1024)#Float32
+model.diffusion_model.output_blocks.10.1.transformer_blocks.0.attn2.to_v.weight#(320, 768)#Float32
 model.diffusion_model.output_blocks.10.1.transformer_blocks.0.ff.net.0.proj.bias#(2560,)#Float32
 model.diffusion_model.output_blocks.10.1.transformer_blocks.0.ff.net.0.proj.weight#(2560, 320)#Float32
 model.diffusion_model.output_blocks.10.1.transformer_blocks.0.ff.net.2.bias#(320,)#Float32
 model.diffusion_model.output_blocks.10.1.transformer_blocks.0.ff.net.2.weight#(320, 1280)#Float32
-model.diffusion_model.output_blocks.10.1.transformer_blocks.0.norm1.beta#(320,)#Float32
-model.diffusion_model.output_blocks.10.1.transformer_blocks.0.norm1.gamma#(320,)#Float32
-model.diffusion_model.output_blocks.10.1.transformer_blocks.0.norm2.beta#(320,)#Float32
-model.diffusion_model.output_blocks.10.1.transformer_blocks.0.norm2.gamma#(320,)#Float32
-model.diffusion_model.output_blocks.10.1.transformer_blocks.0.norm3.beta#(320,)#Float32
-model.diffusion_model.output_blocks.10.1.transformer_blocks.0.norm3.gamma#(320,)#Float32
+model.diffusion_model.output_blocks.10.1.transformer_blocks.0.norm1.bias#(320,)#Float32
+model.diffusion_model.output_blocks.10.1.transformer_blocks.0.norm1.weight#(320,)#Float32
+model.diffusion_model.output_blocks.10.1.transformer_blocks.0.norm2.bias#(320,)#Float32
+model.diffusion_model.output_blocks.10.1.transformer_blocks.0.norm2.weight#(320,)#Float32
+model.diffusion_model.output_blocks.10.1.transformer_blocks.0.norm3.bias#(320,)#Float32
+model.diffusion_model.output_blocks.10.1.transformer_blocks.0.norm3.weight#(320,)#Float32
 model.diffusion_model.output_blocks.11.0.emb_layers.1.bias#(320,)#Float32
 model.diffusion_model.output_blocks.11.0.emb_layers.1.weight#(320, 1280)#Float32
-model.diffusion_model.output_blocks.11.0.in_layers_norm.beta#(640,)#Float32
-model.diffusion_model.output_blocks.11.0.in_layers_norm.gamma#(640,)#Float32
+model.diffusion_model.output_blocks.11.0.in_layers_norm.bias#(640,)#Float32
+model.diffusion_model.output_blocks.11.0.in_layers_norm.weight#(640,)#Float32
 model.diffusion_model.output_blocks.11.0.in_layers_conv.conv.bias#(320,)#Float32
 model.diffusion_model.output_blocks.11.0.in_layers_conv.conv.weight#(320, 640, 3, 3)#Float32
-model.diffusion_model.output_blocks.11.0.out_layers_norm.beta#(320,)#Float32
-model.diffusion_model.output_blocks.11.0.out_layers_norm.gamma#(320,)#Float32
+model.diffusion_model.output_blocks.11.0.out_layers_norm.bias#(320,)#Float32
+model.diffusion_model.output_blocks.11.0.out_layers_norm.weight#(320,)#Float32
 model.diffusion_model.output_blocks.11.0.out_layers_conv.conv.bias#(320,)#Float32
 model.diffusion_model.output_blocks.11.0.out_layers_conv.conv.weight#(320, 320, 3, 3)#Float32
 model.diffusion_model.output_blocks.11.0.skip_connection.conv.bias#(320,)#Float32
 model.diffusion_model.output_blocks.11.0.skip_connection.conv.weight#(320, 640, 1, 1)#Float32
-model.diffusion_model.output_blocks.11.1.norm.beta#(320,)#Float32
-model.diffusion_model.output_blocks.11.1.norm.gamma#(320,)#Float32
+model.diffusion_model.output_blocks.11.1.norm.bias#(320,)#Float32
+model.diffusion_model.output_blocks.11.1.norm.weight#(320,)#Float32
 model.diffusion_model.output_blocks.11.1.proj_in.bias#(320,)#Float32
-model.diffusion_model.output_blocks.11.1.proj_in.weight#(320, 320)#Float32
+model.diffusion_model.output_blocks.11.1.proj_in.weight#(320, 320, 1, 1)#Float32
 model.diffusion_model.output_blocks.11.1.proj_out.bias#(320,)#Float32
-model.diffusion_model.output_blocks.11.1.proj_out.weight#(320, 320)#Float32
+model.diffusion_model.output_blocks.11.1.proj_out.weight#(320, 320, 1, 1)#Float32
 model.diffusion_model.output_blocks.11.1.transformer_blocks.0.attn1.to_k.weight#(320, 320)#Float32
 model.diffusion_model.output_blocks.11.1.transformer_blocks.0.attn1.to_out.0.bias#(320,)#Float32
 model.diffusion_model.output_blocks.11.1.transformer_blocks.0.attn1.to_out.0.weight#(320, 320)#Float32
 model.diffusion_model.output_blocks.11.1.transformer_blocks.0.attn1.to_q.weight#(320, 320)#Float32
 model.diffusion_model.output_blocks.11.1.transformer_blocks.0.attn1.to_v.weight#(320, 320)#Float32
-model.diffusion_model.output_blocks.11.1.transformer_blocks.0.attn2.to_k.weight#(320, 1024)#Float32
+model.diffusion_model.output_blocks.11.1.transformer_blocks.0.attn2.to_k.weight#(320, 768)#Float32
 model.diffusion_model.output_blocks.11.1.transformer_blocks.0.attn2.to_out.0.bias#(320,)#Float32
 model.diffusion_model.output_blocks.11.1.transformer_blocks.0.attn2.to_out.0.weight#(320, 320)#Float32
 model.diffusion_model.output_blocks.11.1.transformer_blocks.0.attn2.to_q.weight#(320, 320)#Float32
-model.diffusion_model.output_blocks.11.1.transformer_blocks.0.attn2.to_v.weight#(320, 1024)#Float32
+model.diffusion_model.output_blocks.11.1.transformer_blocks.0.attn2.to_v.weight#(320, 768)#Float32
 model.diffusion_model.output_blocks.11.1.transformer_blocks.0.ff.net.0.proj.bias#(2560,)#Float32
 model.diffusion_model.output_blocks.11.1.transformer_blocks.0.ff.net.0.proj.weight#(2560, 320)#Float32
 model.diffusion_model.output_blocks.11.1.transformer_blocks.0.ff.net.2.bias#(320,)#Float32
 model.diffusion_model.output_blocks.11.1.transformer_blocks.0.ff.net.2.weight#(320, 1280)#Float32
-model.diffusion_model.output_blocks.11.1.transformer_blocks.0.norm1.beta#(320,)#Float32
-model.diffusion_model.output_blocks.11.1.transformer_blocks.0.norm1.gamma#(320,)#Float32
-model.diffusion_model.output_blocks.11.1.transformer_blocks.0.norm2.beta#(320,)#Float32
-model.diffusion_model.output_blocks.11.1.transformer_blocks.0.norm2.gamma#(320,)#Float32
-model.diffusion_model.output_blocks.11.1.transformer_blocks.0.norm3.beta#(320,)#Float32
-model.diffusion_model.output_blocks.11.1.transformer_blocks.0.norm3.gamma#(320,)#Float32
+model.diffusion_model.output_blocks.11.1.transformer_blocks.0.norm1.bias#(320,)#Float32
+model.diffusion_model.output_blocks.11.1.transformer_blocks.0.norm1.weight#(320,)#Float32
+model.diffusion_model.output_blocks.11.1.transformer_blocks.0.norm2.bias#(320,)#Float32
+model.diffusion_model.output_blocks.11.1.transformer_blocks.0.norm2.weight#(320,)#Float32
+model.diffusion_model.output_blocks.11.1.transformer_blocks.0.norm3.bias#(320,)#Float32
+model.diffusion_model.output_blocks.11.1.transformer_blocks.0.norm3.weight#(320,)#Float32
 model.diffusion_model.output_blocks.2.0.emb_layers.1.bias#(1280,)#Float32
 model.diffusion_model.output_blocks.2.0.emb_layers.1.weight#(1280, 1280)#Float32
-model.diffusion_model.output_blocks.2.0.in_layers_norm.beta#(2560,)#Float32
-model.diffusion_model.output_blocks.2.0.in_layers_norm.gamma#(2560,)#Float32
+model.diffusion_model.output_blocks.2.0.in_layers_norm.bias#(2560,)#Float32
+model.diffusion_model.output_blocks.2.0.in_layers_norm.weight#(2560,)#Float32
 model.diffusion_model.output_blocks.2.0.in_layers_conv.conv.bias#(1280,)#Float32
 model.diffusion_model.output_blocks.2.0.in_layers_conv.conv.weight#(1280, 2560, 3, 3)#Float32
-model.diffusion_model.output_blocks.2.0.out_layers_norm.beta#(1280,)#Float32
-model.diffusion_model.output_blocks.2.0.out_layers_norm.gamma#(1280,)#Float32
+model.diffusion_model.output_blocks.2.0.out_layers_norm.bias#(1280,)#Float32
+model.diffusion_model.output_blocks.2.0.out_layers_norm.weight#(1280,)#Float32
 model.diffusion_model.output_blocks.2.0.out_layers_conv.conv.bias#(1280,)#Float32
 model.diffusion_model.output_blocks.2.0.out_layers_conv.conv.weight#(1280, 1280, 3, 3)#Float32
 model.diffusion_model.output_blocks.2.0.skip_connection.conv.bias#(1280,)#Float32
@@ -940,274 +808,274 @@ model.diffusion_model.output_blocks.2.1.conv.conv.bias#(1280,)#Float32
 model.diffusion_model.output_blocks.2.1.conv.conv.weight#(1280, 1280, 3, 3)#Float32
 model.diffusion_model.output_blocks.3.0.emb_layers.1.bias#(1280,)#Float32
 model.diffusion_model.output_blocks.3.0.emb_layers.1.weight#(1280, 1280)#Float32
-model.diffusion_model.output_blocks.3.0.in_layers_norm.beta#(2560,)#Float32
-model.diffusion_model.output_blocks.3.0.in_layers_norm.gamma#(2560,)#Float32
+model.diffusion_model.output_blocks.3.0.in_layers_norm.bias#(2560,)#Float32
+model.diffusion_model.output_blocks.3.0.in_layers_norm.weight#(2560,)#Float32
 model.diffusion_model.output_blocks.3.0.in_layers_conv.conv.bias#(1280,)#Float32
 model.diffusion_model.output_blocks.3.0.in_layers_conv.conv.weight#(1280, 2560, 3, 3)#Float32
-model.diffusion_model.output_blocks.3.0.out_layers_norm.beta#(1280,)#Float32
-model.diffusion_model.output_blocks.3.0.out_layers_norm.gamma#(1280,)#Float32
+model.diffusion_model.output_blocks.3.0.out_layers_norm.bias#(1280,)#Float32
+model.diffusion_model.output_blocks.3.0.out_layers_norm.weight#(1280,)#Float32
 model.diffusion_model.output_blocks.3.0.out_layers_conv.conv.bias#(1280,)#Float32
 model.diffusion_model.output_blocks.3.0.out_layers_conv.conv.weight#(1280, 1280, 3, 3)#Float32
 model.diffusion_model.output_blocks.3.0.skip_connection.conv.bias#(1280,)#Float32
 model.diffusion_model.output_blocks.3.0.skip_connection.conv.weight#(1280, 2560, 1, 1)#Float32
-model.diffusion_model.output_blocks.3.1.norm.beta#(1280,)#Float32
-model.diffusion_model.output_blocks.3.1.norm.gamma#(1280,)#Float32
+model.diffusion_model.output_blocks.3.1.norm.bias#(1280,)#Float32
+model.diffusion_model.output_blocks.3.1.norm.weight#(1280,)#Float32
 model.diffusion_model.output_blocks.3.1.proj_in.bias#(1280,)#Float32
-model.diffusion_model.output_blocks.3.1.proj_in.weight#(1280, 1280)#Float32
+model.diffusion_model.output_blocks.3.1.proj_in.weight#(1280, 1280, 1, 1)#Float32
 model.diffusion_model.output_blocks.3.1.proj_out.bias#(1280,)#Float32
-model.diffusion_model.output_blocks.3.1.proj_out.weight#(1280, 1280)#Float32
+model.diffusion_model.output_blocks.3.1.proj_out.weight#(1280, 1280, 1, 1)#Float32
 model.diffusion_model.output_blocks.3.1.transformer_blocks.0.attn1.to_k.weight#(1280, 1280)#Float32
 model.diffusion_model.output_blocks.3.1.transformer_blocks.0.attn1.to_out.0.bias#(1280,)#Float32
 model.diffusion_model.output_blocks.3.1.transformer_blocks.0.attn1.to_out.0.weight#(1280, 1280)#Float32
 model.diffusion_model.output_blocks.3.1.transformer_blocks.0.attn1.to_q.weight#(1280, 1280)#Float32
 model.diffusion_model.output_blocks.3.1.transformer_blocks.0.attn1.to_v.weight#(1280, 1280)#Float32
-model.diffusion_model.output_blocks.3.1.transformer_blocks.0.attn2.to_k.weight#(1280, 1024)#Float32
+model.diffusion_model.output_blocks.3.1.transformer_blocks.0.attn2.to_k.weight#(1280, 768)#Float32
 model.diffusion_model.output_blocks.3.1.transformer_blocks.0.attn2.to_out.0.bias#(1280,)#Float32
 model.diffusion_model.output_blocks.3.1.transformer_blocks.0.attn2.to_out.0.weight#(1280, 1280)#Float32
 model.diffusion_model.output_blocks.3.1.transformer_blocks.0.attn2.to_q.weight#(1280, 1280)#Float32
-model.diffusion_model.output_blocks.3.1.transformer_blocks.0.attn2.to_v.weight#(1280, 1024)#Float32
+model.diffusion_model.output_blocks.3.1.transformer_blocks.0.attn2.to_v.weight#(1280, 768)#Float32
 model.diffusion_model.output_blocks.3.1.transformer_blocks.0.ff.net.0.proj.bias#(10240,)#Float32
 model.diffusion_model.output_blocks.3.1.transformer_blocks.0.ff.net.0.proj.weight#(10240, 1280)#Float32
 model.diffusion_model.output_blocks.3.1.transformer_blocks.0.ff.net.2.bias#(1280,)#Float32
 model.diffusion_model.output_blocks.3.1.transformer_blocks.0.ff.net.2.weight#(1280, 5120)#Float32
-model.diffusion_model.output_blocks.3.1.transformer_blocks.0.norm1.beta#(1280,)#Float32
-model.diffusion_model.output_blocks.3.1.transformer_blocks.0.norm1.gamma#(1280,)#Float32
-model.diffusion_model.output_blocks.3.1.transformer_blocks.0.norm2.beta#(1280,)#Float32
-model.diffusion_model.output_blocks.3.1.transformer_blocks.0.norm2.gamma#(1280,)#Float32
-model.diffusion_model.output_blocks.3.1.transformer_blocks.0.norm3.beta#(1280,)#Float32
-model.diffusion_model.output_blocks.3.1.transformer_blocks.0.norm3.gamma#(1280,)#Float32
+model.diffusion_model.output_blocks.3.1.transformer_blocks.0.norm1.bias#(1280,)#Float32
+model.diffusion_model.output_blocks.3.1.transformer_blocks.0.norm1.weight#(1280,)#Float32
+model.diffusion_model.output_blocks.3.1.transformer_blocks.0.norm2.bias#(1280,)#Float32
+model.diffusion_model.output_blocks.3.1.transformer_blocks.0.norm2.weight#(1280,)#Float32
+model.diffusion_model.output_blocks.3.1.transformer_blocks.0.norm3.bias#(1280,)#Float32
+model.diffusion_model.output_blocks.3.1.transformer_blocks.0.norm3.weight#(1280,)#Float32
 model.diffusion_model.output_blocks.4.0.emb_layers.1.bias#(1280,)#Float32
 model.diffusion_model.output_blocks.4.0.emb_layers.1.weight#(1280, 1280)#Float32
-model.diffusion_model.output_blocks.4.0.in_layers_norm.beta#(2560,)#Float32
-model.diffusion_model.output_blocks.4.0.in_layers_norm.gamma#(2560,)#Float32
+model.diffusion_model.output_blocks.4.0.in_layers_norm.bias#(2560,)#Float32
+model.diffusion_model.output_blocks.4.0.in_layers_norm.weight#(2560,)#Float32
 model.diffusion_model.output_blocks.4.0.in_layers_conv.conv.bias#(1280,)#Float32
 model.diffusion_model.output_blocks.4.0.in_layers_conv.conv.weight#(1280, 2560, 3, 3)#Float32
-model.diffusion_model.output_blocks.4.0.out_layers_norm.beta#(1280,)#Float32
-model.diffusion_model.output_blocks.4.0.out_layers_norm.gamma#(1280,)#Float32
+model.diffusion_model.output_blocks.4.0.out_layers_norm.bias#(1280,)#Float32
+model.diffusion_model.output_blocks.4.0.out_layers_norm.weight#(1280,)#Float32
 model.diffusion_model.output_blocks.4.0.out_layers_conv.conv.bias#(1280,)#Float32
 model.diffusion_model.output_blocks.4.0.out_layers_conv.conv.weight#(1280, 1280, 3, 3)#Float32
 model.diffusion_model.output_blocks.4.0.skip_connection.conv.bias#(1280,)#Float32
 model.diffusion_model.output_blocks.4.0.skip_connection.conv.weight#(1280, 2560, 1, 1)#Float32
-model.diffusion_model.output_blocks.4.1.norm.beta#(1280,)#Float32
-model.diffusion_model.output_blocks.4.1.norm.gamma#(1280,)#Float32
+model.diffusion_model.output_blocks.4.1.norm.bias#(1280,)#Float32
+model.diffusion_model.output_blocks.4.1.norm.weight#(1280,)#Float32
 model.diffusion_model.output_blocks.4.1.proj_in.bias#(1280,)#Float32
-model.diffusion_model.output_blocks.4.1.proj_in.weight#(1280, 1280)#Float32
+model.diffusion_model.output_blocks.4.1.proj_in.weight#(1280, 1280, 1, 1)#Float32
 model.diffusion_model.output_blocks.4.1.proj_out.bias#(1280,)#Float32
-model.diffusion_model.output_blocks.4.1.proj_out.weight#(1280, 1280)#Float32
+model.diffusion_model.output_blocks.4.1.proj_out.weight#(1280, 1280, 1, 1)#Float32
 model.diffusion_model.output_blocks.4.1.transformer_blocks.0.attn1.to_k.weight#(1280, 1280)#Float32
 model.diffusion_model.output_blocks.4.1.transformer_blocks.0.attn1.to_out.0.bias#(1280,)#Float32
 model.diffusion_model.output_blocks.4.1.transformer_blocks.0.attn1.to_out.0.weight#(1280, 1280)#Float32
 model.diffusion_model.output_blocks.4.1.transformer_blocks.0.attn1.to_q.weight#(1280, 1280)#Float32
 model.diffusion_model.output_blocks.4.1.transformer_blocks.0.attn1.to_v.weight#(1280, 1280)#Float32
-model.diffusion_model.output_blocks.4.1.transformer_blocks.0.attn2.to_k.weight#(1280, 1024)#Float32
+model.diffusion_model.output_blocks.4.1.transformer_blocks.0.attn2.to_k.weight#(1280, 768)#Float32
 model.diffusion_model.output_blocks.4.1.transformer_blocks.0.attn2.to_out.0.bias#(1280,)#Float32
 model.diffusion_model.output_blocks.4.1.transformer_blocks.0.attn2.to_out.0.weight#(1280, 1280)#Float32
 model.diffusion_model.output_blocks.4.1.transformer_blocks.0.attn2.to_q.weight#(1280, 1280)#Float32
-model.diffusion_model.output_blocks.4.1.transformer_blocks.0.attn2.to_v.weight#(1280, 1024)#Float32
+model.diffusion_model.output_blocks.4.1.transformer_blocks.0.attn2.to_v.weight#(1280, 768)#Float32
 model.diffusion_model.output_blocks.4.1.transformer_blocks.0.ff.net.0.proj.bias#(10240,)#Float32
 model.diffusion_model.output_blocks.4.1.transformer_blocks.0.ff.net.0.proj.weight#(10240, 1280)#Float32
 model.diffusion_model.output_blocks.4.1.transformer_blocks.0.ff.net.2.bias#(1280,)#Float32
 model.diffusion_model.output_blocks.4.1.transformer_blocks.0.ff.net.2.weight#(1280, 5120)#Float32
-model.diffusion_model.output_blocks.4.1.transformer_blocks.0.norm1.beta#(1280,)#Float32
-model.diffusion_model.output_blocks.4.1.transformer_blocks.0.norm1.gamma#(1280,)#Float32
-model.diffusion_model.output_blocks.4.1.transformer_blocks.0.norm2.beta#(1280,)#Float32
-model.diffusion_model.output_blocks.4.1.transformer_blocks.0.norm2.gamma#(1280,)#Float32
-model.diffusion_model.output_blocks.4.1.transformer_blocks.0.norm3.beta#(1280,)#Float32
-model.diffusion_model.output_blocks.4.1.transformer_blocks.0.norm3.gamma#(1280,)#Float32
+model.diffusion_model.output_blocks.4.1.transformer_blocks.0.norm1.bias#(1280,)#Float32
+model.diffusion_model.output_blocks.4.1.transformer_blocks.0.norm1.weight#(1280,)#Float32
+model.diffusion_model.output_blocks.4.1.transformer_blocks.0.norm2.bias#(1280,)#Float32
+model.diffusion_model.output_blocks.4.1.transformer_blocks.0.norm2.weight#(1280,)#Float32
+model.diffusion_model.output_blocks.4.1.transformer_blocks.0.norm3.bias#(1280,)#Float32
+model.diffusion_model.output_blocks.4.1.transformer_blocks.0.norm3.weight#(1280,)#Float32
 model.diffusion_model.output_blocks.5.0.emb_layers.1.bias#(1280,)#Float32
 model.diffusion_model.output_blocks.5.0.emb_layers.1.weight#(1280, 1280)#Float32
-model.diffusion_model.output_blocks.5.0.in_layers_norm.beta#(1920,)#Float32
-model.diffusion_model.output_blocks.5.0.in_layers_norm.gamma#(1920,)#Float32
+model.diffusion_model.output_blocks.5.0.in_layers_norm.bias#(1920,)#Float32
+model.diffusion_model.output_blocks.5.0.in_layers_norm.weight#(1920,)#Float32
 model.diffusion_model.output_blocks.5.0.in_layers_conv.conv.bias#(1280,)#Float32
 model.diffusion_model.output_blocks.5.0.in_layers_conv.conv.weight#(1280, 1920, 3, 3)#Float32
-model.diffusion_model.output_blocks.5.0.out_layers_norm.beta#(1280,)#Float32
-model.diffusion_model.output_blocks.5.0.out_layers_norm.gamma#(1280,)#Float32
+model.diffusion_model.output_blocks.5.0.out_layers_norm.bias#(1280,)#Float32
+model.diffusion_model.output_blocks.5.0.out_layers_norm.weight#(1280,)#Float32
 model.diffusion_model.output_blocks.5.0.out_layers_conv.conv.bias#(1280,)#Float32
 model.diffusion_model.output_blocks.5.0.out_layers_conv.conv.weight#(1280, 1280, 3, 3)#Float32
 model.diffusion_model.output_blocks.5.0.skip_connection.conv.bias#(1280,)#Float32
 model.diffusion_model.output_blocks.5.0.skip_connection.conv.weight#(1280, 1920, 1, 1)#Float32
-model.diffusion_model.output_blocks.5.1.norm.beta#(1280,)#Float32
-model.diffusion_model.output_blocks.5.1.norm.gamma#(1280,)#Float32
+model.diffusion_model.output_blocks.5.1.norm.bias#(1280,)#Float32
+model.diffusion_model.output_blocks.5.1.norm.weight#(1280,)#Float32
 model.diffusion_model.output_blocks.5.1.proj_in.bias#(1280,)#Float32
-model.diffusion_model.output_blocks.5.1.proj_in.weight#(1280, 1280)#Float32
+model.diffusion_model.output_blocks.5.1.proj_in.weight#(1280, 1280, 1, 1)#Float32
 model.diffusion_model.output_blocks.5.1.proj_out.bias#(1280,)#Float32
-model.diffusion_model.output_blocks.5.1.proj_out.weight#(1280, 1280)#Float32
+model.diffusion_model.output_blocks.5.1.proj_out.weight#(1280, 1280, 1, 1)#Float32
 model.diffusion_model.output_blocks.5.1.transformer_blocks.0.attn1.to_k.weight#(1280, 1280)#Float32
 model.diffusion_model.output_blocks.5.1.transformer_blocks.0.attn1.to_out.0.bias#(1280,)#Float32
 model.diffusion_model.output_blocks.5.1.transformer_blocks.0.attn1.to_out.0.weight#(1280, 1280)#Float32
 model.diffusion_model.output_blocks.5.1.transformer_blocks.0.attn1.to_q.weight#(1280, 1280)#Float32
 model.diffusion_model.output_blocks.5.1.transformer_blocks.0.attn1.to_v.weight#(1280, 1280)#Float32
-model.diffusion_model.output_blocks.5.1.transformer_blocks.0.attn2.to_k.weight#(1280, 1024)#Float32
+model.diffusion_model.output_blocks.5.1.transformer_blocks.0.attn2.to_k.weight#(1280, 768)#Float32
 model.diffusion_model.output_blocks.5.1.transformer_blocks.0.attn2.to_out.0.bias#(1280,)#Float32
 model.diffusion_model.output_blocks.5.1.transformer_blocks.0.attn2.to_out.0.weight#(1280, 1280)#Float32
 model.diffusion_model.output_blocks.5.1.transformer_blocks.0.attn2.to_q.weight#(1280, 1280)#Float32
-model.diffusion_model.output_blocks.5.1.transformer_blocks.0.attn2.to_v.weight#(1280, 1024)#Float32
+model.diffusion_model.output_blocks.5.1.transformer_blocks.0.attn2.to_v.weight#(1280, 768)#Float32
 model.diffusion_model.output_blocks.5.1.transformer_blocks.0.ff.net.0.proj.bias#(10240,)#Float32
 model.diffusion_model.output_blocks.5.1.transformer_blocks.0.ff.net.0.proj.weight#(10240, 1280)#Float32
 model.diffusion_model.output_blocks.5.1.transformer_blocks.0.ff.net.2.bias#(1280,)#Float32
 model.diffusion_model.output_blocks.5.1.transformer_blocks.0.ff.net.2.weight#(1280, 5120)#Float32
-model.diffusion_model.output_blocks.5.1.transformer_blocks.0.norm1.beta#(1280,)#Float32
-model.diffusion_model.output_blocks.5.1.transformer_blocks.0.norm1.gamma#(1280,)#Float32
-model.diffusion_model.output_blocks.5.1.transformer_blocks.0.norm2.beta#(1280,)#Float32
-model.diffusion_model.output_blocks.5.1.transformer_blocks.0.norm2.gamma#(1280,)#Float32
-model.diffusion_model.output_blocks.5.1.transformer_blocks.0.norm3.beta#(1280,)#Float32
-model.diffusion_model.output_blocks.5.1.transformer_blocks.0.norm3.gamma#(1280,)#Float32
+model.diffusion_model.output_blocks.5.1.transformer_blocks.0.norm1.bias#(1280,)#Float32
+model.diffusion_model.output_blocks.5.1.transformer_blocks.0.norm1.weight#(1280,)#Float32
+model.diffusion_model.output_blocks.5.1.transformer_blocks.0.norm2.bias#(1280,)#Float32
+model.diffusion_model.output_blocks.5.1.transformer_blocks.0.norm2.weight#(1280,)#Float32
+model.diffusion_model.output_blocks.5.1.transformer_blocks.0.norm3.bias#(1280,)#Float32
+model.diffusion_model.output_blocks.5.1.transformer_blocks.0.norm3.weight#(1280,)#Float32
 model.diffusion_model.output_blocks.5.2.conv.conv.bias#(1280,)#Float32
 model.diffusion_model.output_blocks.5.2.conv.conv.weight#(1280, 1280, 3, 3)#Float32
 model.diffusion_model.output_blocks.6.0.emb_layers.1.bias#(640,)#Float32
 model.diffusion_model.output_blocks.6.0.emb_layers.1.weight#(640, 1280)#Float32
-model.diffusion_model.output_blocks.6.0.in_layers_norm.beta#(1920,)#Float32
-model.diffusion_model.output_blocks.6.0.in_layers_norm.gamma#(1920,)#Float32
+model.diffusion_model.output_blocks.6.0.in_layers_norm.bias#(1920,)#Float32
+model.diffusion_model.output_blocks.6.0.in_layers_norm.weight#(1920,)#Float32
 model.diffusion_model.output_blocks.6.0.in_layers_conv.conv.bias#(640,)#Float32
 model.diffusion_model.output_blocks.6.0.in_layers_conv.conv.weight#(640, 1920, 3, 3)#Float32
-model.diffusion_model.output_blocks.6.0.out_layers_norm.beta#(640,)#Float32
-model.diffusion_model.output_blocks.6.0.out_layers_norm.gamma#(640,)#Float32
+model.diffusion_model.output_blocks.6.0.out_layers_norm.bias#(640,)#Float32
+model.diffusion_model.output_blocks.6.0.out_layers_norm.weight#(640,)#Float32
 model.diffusion_model.output_blocks.6.0.out_layers_conv.conv.bias#(640,)#Float32
 model.diffusion_model.output_blocks.6.0.out_layers_conv.conv.weight#(640, 640, 3, 3)#Float32
 model.diffusion_model.output_blocks.6.0.skip_connection.conv.bias#(640,)#Float32
 model.diffusion_model.output_blocks.6.0.skip_connection.conv.weight#(640, 1920, 1, 1)#Float32
-model.diffusion_model.output_blocks.6.1.norm.beta#(640,)#Float32
-model.diffusion_model.output_blocks.6.1.norm.gamma#(640,)#Float32
+model.diffusion_model.output_blocks.6.1.norm.bias#(640,)#Float32
+model.diffusion_model.output_blocks.6.1.norm.weight#(640,)#Float32
 model.diffusion_model.output_blocks.6.1.proj_in.bias#(640,)#Float32
-model.diffusion_model.output_blocks.6.1.proj_in.weight#(640, 640)#Float32
+model.diffusion_model.output_blocks.6.1.proj_in.weight#(640, 640, 1, 1)#Float32
 model.diffusion_model.output_blocks.6.1.proj_out.bias#(640,)#Float32
-model.diffusion_model.output_blocks.6.1.proj_out.weight#(640, 640)#Float32
+model.diffusion_model.output_blocks.6.1.proj_out.weight#(640, 640, 1, 1)#Float32
 model.diffusion_model.output_blocks.6.1.transformer_blocks.0.attn1.to_k.weight#(640, 640)#Float32
 model.diffusion_model.output_blocks.6.1.transformer_blocks.0.attn1.to_out.0.bias#(640,)#Float32
 model.diffusion_model.output_blocks.6.1.transformer_blocks.0.attn1.to_out.0.weight#(640, 640)#Float32
 model.diffusion_model.output_blocks.6.1.transformer_blocks.0.attn1.to_q.weight#(640, 640)#Float32
 model.diffusion_model.output_blocks.6.1.transformer_blocks.0.attn1.to_v.weight#(640, 640)#Float32
-model.diffusion_model.output_blocks.6.1.transformer_blocks.0.attn2.to_k.weight#(640, 1024)#Float32
+model.diffusion_model.output_blocks.6.1.transformer_blocks.0.attn2.to_k.weight#(640, 768)#Float32
 model.diffusion_model.output_blocks.6.1.transformer_blocks.0.attn2.to_out.0.bias#(640,)#Float32
 model.diffusion_model.output_blocks.6.1.transformer_blocks.0.attn2.to_out.0.weight#(640, 640)#Float32
 model.diffusion_model.output_blocks.6.1.transformer_blocks.0.attn2.to_q.weight#(640, 640)#Float32
-model.diffusion_model.output_blocks.6.1.transformer_blocks.0.attn2.to_v.weight#(640, 1024)#Float32
+model.diffusion_model.output_blocks.6.1.transformer_blocks.0.attn2.to_v.weight#(640, 768)#Float32
 model.diffusion_model.output_blocks.6.1.transformer_blocks.0.ff.net.0.proj.bias#(5120,)#Float32
 model.diffusion_model.output_blocks.6.1.transformer_blocks.0.ff.net.0.proj.weight#(5120, 640)#Float32
 model.diffusion_model.output_blocks.6.1.transformer_blocks.0.ff.net.2.bias#(640,)#Float32
 model.diffusion_model.output_blocks.6.1.transformer_blocks.0.ff.net.2.weight#(640, 2560)#Float32
-model.diffusion_model.output_blocks.6.1.transformer_blocks.0.norm1.beta#(640,)#Float32
-model.diffusion_model.output_blocks.6.1.transformer_blocks.0.norm1.gamma#(640,)#Float32
-model.diffusion_model.output_blocks.6.1.transformer_blocks.0.norm2.beta#(640,)#Float32
-model.diffusion_model.output_blocks.6.1.transformer_blocks.0.norm2.gamma#(640,)#Float32
-model.diffusion_model.output_blocks.6.1.transformer_blocks.0.norm3.beta#(640,)#Float32
-model.diffusion_model.output_blocks.6.1.transformer_blocks.0.norm3.gamma#(640,)#Float32
+model.diffusion_model.output_blocks.6.1.transformer_blocks.0.norm1.bias#(640,)#Float32
+model.diffusion_model.output_blocks.6.1.transformer_blocks.0.norm1.weight#(640,)#Float32
+model.diffusion_model.output_blocks.6.1.transformer_blocks.0.norm2.bias#(640,)#Float32
+model.diffusion_model.output_blocks.6.1.transformer_blocks.0.norm2.weight#(640,)#Float32
+model.diffusion_model.output_blocks.6.1.transformer_blocks.0.norm3.bias#(640,)#Float32
+model.diffusion_model.output_blocks.6.1.transformer_blocks.0.norm3.weight#(640,)#Float32
 model.diffusion_model.output_blocks.7.0.emb_layers.1.bias#(640,)#Float32
 model.diffusion_model.output_blocks.7.0.emb_layers.1.weight#(640, 1280)#Float32
-model.diffusion_model.output_blocks.7.0.in_layers_norm.beta#(1280,)#Float32
-model.diffusion_model.output_blocks.7.0.in_layers_norm.gamma#(1280,)#Float32
+model.diffusion_model.output_blocks.7.0.in_layers_norm.bias#(1280,)#Float32
+model.diffusion_model.output_blocks.7.0.in_layers_norm.weight#(1280,)#Float32
 model.diffusion_model.output_blocks.7.0.in_layers_conv.conv.bias#(640,)#Float32
 model.diffusion_model.output_blocks.7.0.in_layers_conv.conv.weight#(640, 1280, 3, 3)#Float32
-model.diffusion_model.output_blocks.7.0.out_layers_norm.beta#(640,)#Float32
-model.diffusion_model.output_blocks.7.0.out_layers_norm.gamma#(640,)#Float32
+model.diffusion_model.output_blocks.7.0.out_layers_norm.bias#(640,)#Float32
+model.diffusion_model.output_blocks.7.0.out_layers_norm.weight#(640,)#Float32
 model.diffusion_model.output_blocks.7.0.out_layers_conv.conv.bias#(640,)#Float32
 model.diffusion_model.output_blocks.7.0.out_layers_conv.conv.weight#(640, 640, 3, 3)#Float32
 model.diffusion_model.output_blocks.7.0.skip_connection.conv.bias#(640,)#Float32
 model.diffusion_model.output_blocks.7.0.skip_connection.conv.weight#(640, 1280, 1, 1)#Float32
-model.diffusion_model.output_blocks.7.1.norm.beta#(640,)#Float32
-model.diffusion_model.output_blocks.7.1.norm.gamma#(640,)#Float32
+model.diffusion_model.output_blocks.7.1.norm.bias#(640,)#Float32
+model.diffusion_model.output_blocks.7.1.norm.weight#(640,)#Float32
 model.diffusion_model.output_blocks.7.1.proj_in.bias#(640,)#Float32
-model.diffusion_model.output_blocks.7.1.proj_in.weight#(640, 640)#Float32
+model.diffusion_model.output_blocks.7.1.proj_in.weight#(640, 640, 1, 1)#Float32
 model.diffusion_model.output_blocks.7.1.proj_out.bias#(640,)#Float32
-model.diffusion_model.output_blocks.7.1.proj_out.weight#(640, 640)#Float32
+model.diffusion_model.output_blocks.7.1.proj_out.weight#(640, 640, 1, 1)#Float32
 model.diffusion_model.output_blocks.7.1.transformer_blocks.0.attn1.to_k.weight#(640, 640)#Float32
 model.diffusion_model.output_blocks.7.1.transformer_blocks.0.attn1.to_out.0.bias#(640,)#Float32
 model.diffusion_model.output_blocks.7.1.transformer_blocks.0.attn1.to_out.0.weight#(640, 640)#Float32
 model.diffusion_model.output_blocks.7.1.transformer_blocks.0.attn1.to_q.weight#(640, 640)#Float32
 model.diffusion_model.output_blocks.7.1.transformer_blocks.0.attn1.to_v.weight#(640, 640)#Float32
-model.diffusion_model.output_blocks.7.1.transformer_blocks.0.attn2.to_k.weight#(640, 1024)#Float32
+model.diffusion_model.output_blocks.7.1.transformer_blocks.0.attn2.to_k.weight#(640, 768)#Float32
 model.diffusion_model.output_blocks.7.1.transformer_blocks.0.attn2.to_out.0.bias#(640,)#Float32
 model.diffusion_model.output_blocks.7.1.transformer_blocks.0.attn2.to_out.0.weight#(640, 640)#Float32
 model.diffusion_model.output_blocks.7.1.transformer_blocks.0.attn2.to_q.weight#(640, 640)#Float32
-model.diffusion_model.output_blocks.7.1.transformer_blocks.0.attn2.to_v.weight#(640, 1024)#Float32
+model.diffusion_model.output_blocks.7.1.transformer_blocks.0.attn2.to_v.weight#(640, 768)#Float32
 model.diffusion_model.output_blocks.7.1.transformer_blocks.0.ff.net.0.proj.bias#(5120,)#Float32
 model.diffusion_model.output_blocks.7.1.transformer_blocks.0.ff.net.0.proj.weight#(5120, 640)#Float32
 model.diffusion_model.output_blocks.7.1.transformer_blocks.0.ff.net.2.bias#(640,)#Float32
 model.diffusion_model.output_blocks.7.1.transformer_blocks.0.ff.net.2.weight#(640, 2560)#Float32
-model.diffusion_model.output_blocks.7.1.transformer_blocks.0.norm1.beta#(640,)#Float32
-model.diffusion_model.output_blocks.7.1.transformer_blocks.0.norm1.gamma#(640,)#Float32
-model.diffusion_model.output_blocks.7.1.transformer_blocks.0.norm2.beta#(640,)#Float32
-model.diffusion_model.output_blocks.7.1.transformer_blocks.0.norm2.gamma#(640,)#Float32
-model.diffusion_model.output_blocks.7.1.transformer_blocks.0.norm3.beta#(640,)#Float32
-model.diffusion_model.output_blocks.7.1.transformer_blocks.0.norm3.gamma#(640,)#Float32
+model.diffusion_model.output_blocks.7.1.transformer_blocks.0.norm1.bias#(640,)#Float32
+model.diffusion_model.output_blocks.7.1.transformer_blocks.0.norm1.weight#(640,)#Float32
+model.diffusion_model.output_blocks.7.1.transformer_blocks.0.norm2.bias#(640,)#Float32
+model.diffusion_model.output_blocks.7.1.transformer_blocks.0.norm2.weight#(640,)#Float32
+model.diffusion_model.output_blocks.7.1.transformer_blocks.0.norm3.bias#(640,)#Float32
+model.diffusion_model.output_blocks.7.1.transformer_blocks.0.norm3.weight#(640,)#Float32
 model.diffusion_model.output_blocks.8.0.emb_layers.1.bias#(640,)#Float32
 model.diffusion_model.output_blocks.8.0.emb_layers.1.weight#(640, 1280)#Float32
-model.diffusion_model.output_blocks.8.0.in_layers_norm.beta#(960,)#Float32
-model.diffusion_model.output_blocks.8.0.in_layers_norm.gamma#(960,)#Float32
+model.diffusion_model.output_blocks.8.0.in_layers_norm.bias#(960,)#Float32
+model.diffusion_model.output_blocks.8.0.in_layers_norm.weight#(960,)#Float32
 model.diffusion_model.output_blocks.8.0.in_layers_conv.conv.bias#(640,)#Float32
 model.diffusion_model.output_blocks.8.0.in_layers_conv.conv.weight#(640, 960, 3, 3)#Float32
-model.diffusion_model.output_blocks.8.0.out_layers_norm.beta#(640,)#Float32
-model.diffusion_model.output_blocks.8.0.out_layers_norm.gamma#(640,)#Float32
+model.diffusion_model.output_blocks.8.0.out_layers_norm.bias#(640,)#Float32
+model.diffusion_model.output_blocks.8.0.out_layers_norm.weight#(640,)#Float32
 model.diffusion_model.output_blocks.8.0.out_layers_conv.conv.bias#(640,)#Float32
 model.diffusion_model.output_blocks.8.0.out_layers_conv.conv.weight#(640, 640, 3, 3)#Float32
 model.diffusion_model.output_blocks.8.0.skip_connection.conv.bias#(640,)#Float32
 model.diffusion_model.output_blocks.8.0.skip_connection.conv.weight#(640, 960, 1, 1)#Float32
-model.diffusion_model.output_blocks.8.1.norm.beta#(640,)#Float32
-model.diffusion_model.output_blocks.8.1.norm.gamma#(640,)#Float32
+model.diffusion_model.output_blocks.8.1.norm.bias#(640,)#Float32
+model.diffusion_model.output_blocks.8.1.norm.weight#(640,)#Float32
 model.diffusion_model.output_blocks.8.1.proj_in.bias#(640,)#Float32
-model.diffusion_model.output_blocks.8.1.proj_in.weight#(640, 640)#Float32
+model.diffusion_model.output_blocks.8.1.proj_in.weight#(640, 640, 1, 1)#Float32
 model.diffusion_model.output_blocks.8.1.proj_out.bias#(640,)#Float32
-model.diffusion_model.output_blocks.8.1.proj_out.weight#(640, 640)#Float32
+model.diffusion_model.output_blocks.8.1.proj_out.weight#(640, 640, 1, 1)#Float32
 model.diffusion_model.output_blocks.8.1.transformer_blocks.0.attn1.to_k.weight#(640, 640)#Float32
 model.diffusion_model.output_blocks.8.1.transformer_blocks.0.attn1.to_out.0.bias#(640,)#Float32
 model.diffusion_model.output_blocks.8.1.transformer_blocks.0.attn1.to_out.0.weight#(640, 640)#Float32
 model.diffusion_model.output_blocks.8.1.transformer_blocks.0.attn1.to_q.weight#(640, 640)#Float32
 model.diffusion_model.output_blocks.8.1.transformer_blocks.0.attn1.to_v.weight#(640, 640)#Float32
-model.diffusion_model.output_blocks.8.1.transformer_blocks.0.attn2.to_k.weight#(640, 1024)#Float32
+model.diffusion_model.output_blocks.8.1.transformer_blocks.0.attn2.to_k.weight#(640, 768)#Float32
 model.diffusion_model.output_blocks.8.1.transformer_blocks.0.attn2.to_out.0.bias#(640,)#Float32
 model.diffusion_model.output_blocks.8.1.transformer_blocks.0.attn2.to_out.0.weight#(640, 640)#Float32
 model.diffusion_model.output_blocks.8.1.transformer_blocks.0.attn2.to_q.weight#(640, 640)#Float32
-model.diffusion_model.output_blocks.8.1.transformer_blocks.0.attn2.to_v.weight#(640, 1024)#Float32
+model.diffusion_model.output_blocks.8.1.transformer_blocks.0.attn2.to_v.weight#(640, 768)#Float32
 model.diffusion_model.output_blocks.8.1.transformer_blocks.0.ff.net.0.proj.bias#(5120,)#Float32
 model.diffusion_model.output_blocks.8.1.transformer_blocks.0.ff.net.0.proj.weight#(5120, 640)#Float32
 model.diffusion_model.output_blocks.8.1.transformer_blocks.0.ff.net.2.bias#(640,)#Float32
 model.diffusion_model.output_blocks.8.1.transformer_blocks.0.ff.net.2.weight#(640, 2560)#Float32
-model.diffusion_model.output_blocks.8.1.transformer_blocks.0.norm1.beta#(640,)#Float32
-model.diffusion_model.output_blocks.8.1.transformer_blocks.0.norm1.gamma#(640,)#Float32
-model.diffusion_model.output_blocks.8.1.transformer_blocks.0.norm2.beta#(640,)#Float32
-model.diffusion_model.output_blocks.8.1.transformer_blocks.0.norm2.gamma#(640,)#Float32
-model.diffusion_model.output_blocks.8.1.transformer_blocks.0.norm3.beta#(640,)#Float32
-model.diffusion_model.output_blocks.8.1.transformer_blocks.0.norm3.gamma#(640,)#Float32
+model.diffusion_model.output_blocks.8.1.transformer_blocks.0.norm1.bias#(640,)#Float32
+model.diffusion_model.output_blocks.8.1.transformer_blocks.0.norm1.weight#(640,)#Float32
+model.diffusion_model.output_blocks.8.1.transformer_blocks.0.norm2.bias#(640,)#Float32
+model.diffusion_model.output_blocks.8.1.transformer_blocks.0.norm2.weight#(640,)#Float32
+model.diffusion_model.output_blocks.8.1.transformer_blocks.0.norm3.bias#(640,)#Float32
+model.diffusion_model.output_blocks.8.1.transformer_blocks.0.norm3.weight#(640,)#Float32
 model.diffusion_model.output_blocks.8.2.conv.conv.bias#(640,)#Float32
 model.diffusion_model.output_blocks.8.2.conv.conv.weight#(640, 640, 3, 3)#Float32
 model.diffusion_model.output_blocks.9.0.emb_layers.1.bias#(320,)#Float32
 model.diffusion_model.output_blocks.9.0.emb_layers.1.weight#(320, 1280)#Float32
-model.diffusion_model.output_blocks.9.0.in_layers_norm.beta#(960,)#Float32
-model.diffusion_model.output_blocks.9.0.in_layers_norm.gamma#(960,)#Float32
+model.diffusion_model.output_blocks.9.0.in_layers_norm.bias#(960,)#Float32
+model.diffusion_model.output_blocks.9.0.in_layers_norm.weight#(960,)#Float32
 model.diffusion_model.output_blocks.9.0.in_layers_conv.conv.bias#(320,)#Float32
 model.diffusion_model.output_blocks.9.0.in_layers_conv.conv.weight#(320, 960, 3, 3)#Float32
-model.diffusion_model.output_blocks.9.0.out_layers_norm.beta#(320,)#Float32
-model.diffusion_model.output_blocks.9.0.out_layers_norm.gamma#(320,)#Float32
+model.diffusion_model.output_blocks.9.0.out_layers_norm.bias#(320,)#Float32
+model.diffusion_model.output_blocks.9.0.out_layers_norm.weight#(320,)#Float32
 model.diffusion_model.output_blocks.9.0.out_layers_conv.conv.bias#(320,)#Float32
 model.diffusion_model.output_blocks.9.0.out_layers_conv.conv.weight#(320, 320, 3, 3)#Float32
 model.diffusion_model.output_blocks.9.0.skip_connection.conv.bias#(320,)#Float32
 model.diffusion_model.output_blocks.9.0.skip_connection.conv.weight#(320, 960, 1, 1)#Float32
-model.diffusion_model.output_blocks.9.1.norm.beta#(320,)#Float32
-model.diffusion_model.output_blocks.9.1.norm.gamma#(320,)#Float32
+model.diffusion_model.output_blocks.9.1.norm.bias#(320,)#Float32
+model.diffusion_model.output_blocks.9.1.norm.weight#(320,)#Float32
 model.diffusion_model.output_blocks.9.1.proj_in.bias#(320,)#Float32
-model.diffusion_model.output_blocks.9.1.proj_in.weight#(320, 320)#Float32
+model.diffusion_model.output_blocks.9.1.proj_in.weight#(320, 320, 1, 1)#Float32
 model.diffusion_model.output_blocks.9.1.proj_out.bias#(320,)#Float32
-model.diffusion_model.output_blocks.9.1.proj_out.weight#(320, 320)#Float32
+model.diffusion_model.output_blocks.9.1.proj_out.weight#(320, 320, 1, 1)#Float32
 model.diffusion_model.output_blocks.9.1.transformer_blocks.0.attn1.to_k.weight#(320, 320)#Float32
 model.diffusion_model.output_blocks.9.1.transformer_blocks.0.attn1.to_out.0.bias#(320,)#Float32
 model.diffusion_model.output_blocks.9.1.transformer_blocks.0.attn1.to_out.0.weight#(320, 320)#Float32
 model.diffusion_model.output_blocks.9.1.transformer_blocks.0.attn1.to_q.weight#(320, 320)#Float32
 model.diffusion_model.output_blocks.9.1.transformer_blocks.0.attn1.to_v.weight#(320, 320)#Float32
-model.diffusion_model.output_blocks.9.1.transformer_blocks.0.attn2.to_k.weight#(320, 1024)#Float32
+model.diffusion_model.output_blocks.9.1.transformer_blocks.0.attn2.to_k.weight#(320, 768)#Float32
 model.diffusion_model.output_blocks.9.1.transformer_blocks.0.attn2.to_out.0.bias#(320,)#Float32
 model.diffusion_model.output_blocks.9.1.transformer_blocks.0.attn2.to_out.0.weight#(320, 320)#Float32
 model.diffusion_model.output_blocks.9.1.transformer_blocks.0.attn2.to_q.weight#(320, 320)#Float32
-model.diffusion_model.output_blocks.9.1.transformer_blocks.0.attn2.to_v.weight#(320, 1024)#Float32
+model.diffusion_model.output_blocks.9.1.transformer_blocks.0.attn2.to_v.weight#(320, 768)#Float32
 model.diffusion_model.output_blocks.9.1.transformer_blocks.0.ff.net.0.proj.bias#(2560,)#Float32
 model.diffusion_model.output_blocks.9.1.transformer_blocks.0.ff.net.0.proj.weight#(2560, 320)#Float32
 model.diffusion_model.output_blocks.9.1.transformer_blocks.0.ff.net.2.bias#(320,)#Float32
 model.diffusion_model.output_blocks.9.1.transformer_blocks.0.ff.net.2.weight#(320, 1280)#Float32
-model.diffusion_model.output_blocks.9.1.transformer_blocks.0.norm1.beta#(320,)#Float32
-model.diffusion_model.output_blocks.9.1.transformer_blocks.0.norm1.gamma#(320,)#Float32
-model.diffusion_model.output_blocks.9.1.transformer_blocks.0.norm2.beta#(320,)#Float32
-model.diffusion_model.output_blocks.9.1.transformer_blocks.0.norm2.gamma#(320,)#Float32
-model.diffusion_model.output_blocks.9.1.transformer_blocks.0.norm3.beta#(320,)#Float32
-model.diffusion_model.output_blocks.9.1.transformer_blocks.0.norm3.gamma#(320,)#Float32
+model.diffusion_model.output_blocks.9.1.transformer_blocks.0.norm1.bias#(320,)#Float32
+model.diffusion_model.output_blocks.9.1.transformer_blocks.0.norm1.weight#(320,)#Float32
+model.diffusion_model.output_blocks.9.1.transformer_blocks.0.norm2.bias#(320,)#Float32
+model.diffusion_model.output_blocks.9.1.transformer_blocks.0.norm2.weight#(320,)#Float32
+model.diffusion_model.output_blocks.9.1.transformer_blocks.0.norm3.bias#(320,)#Float32
+model.diffusion_model.output_blocks.9.1.transformer_blocks.0.norm3.weight#(320,)#Float32
 model.diffusion_model.time_embed.0.bias#(1280,)#Float32
 model.diffusion_model.time_embed.0.weight#(1280, 320)#Float32
 model.diffusion_model.time_embed.2.bias#(1280,)#Float32

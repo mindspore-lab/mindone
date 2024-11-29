@@ -75,7 +75,7 @@ def main(args):
         max_device_memory=args.max_device_memory,
         ascend_config=None if args.precision_mode is None else {"precision_mode": args.precision_mode},
     )
-    if args.ms_mode == ms.GRAPH_MODE:
+    if args.mode == ms.GRAPH_MODE:
         try:
             if args.jit_level in ["O0", "O1", "O2"]:
                 ms.set_context(jit_config={"jit_level": args.jit_level})

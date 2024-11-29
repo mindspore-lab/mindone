@@ -34,19 +34,12 @@ def load_torch_ckpt(ckpt_path):
     return torch_params
 
 
-def convert_pt_name_to_ms(content: str) -> str:
-    # DiT embedding table name conversion
-    content = content.replace("y_embedder.embedding_table.weight", "y_embedder.embedding_table.embedding_table")
-    return content
-
-
 def torch_to_ms_weight(source_fp, target_fp):
     source_data = load_torch_ckpt(source_fp)
     target_data = []
     for _name_pt in source_data:
-        _name_ms = convert_pt_name_to_ms(_name_pt)
         _source_data = source_data[_name_pt].cpu().detach().numpy()
-        target_data.append({"name": _name_ms, "data": ms.Tensor(_source_data)})
+        target_data.append({"name": _name_pt, "data": ms.Tensor(_source_data)})
     ms.save_checkpoint(target_data, target_fp)
 
 

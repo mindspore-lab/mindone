@@ -333,7 +333,7 @@ def merge_lora_to_model_weights(model: nn.Cell, lora_ckpt_path: str, alpha: floa
             up_weight = lora_pdict[lora_up_pname]
 
             dense_weight = model_pdict[attn_pname].value()
-            merged_weight = dense_weight + alpha * ms.ops.matmul(up_weight, down_weight)
+            merged_weight = dense_weight + alpha * mint.matmul(up_weight, down_weight)
 
             model_pdict[attn_pname].set_data(merged_weight)
 
