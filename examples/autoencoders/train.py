@@ -34,9 +34,6 @@ from mindone.utils.env import init_train_env
 from mindone.utils.logger import set_logger
 from mindone.utils.params import count_params
 
-os.environ["HCCL_CONNECT_TIMEOUT"] = "6000"
-os.environ["MS_ASCEND_CHECK_OVERFLOW_MODE"] = "INFNAN_MODE"
-
 logger = logging.getLogger(__name__)
 
 
