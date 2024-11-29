@@ -123,7 +123,7 @@ Experiments are tested on ascend 910* with mindspore 2.3.1 graph mode.
 Notice that there is no diffusion model in InstantMesh, therefore the reported training `step/s` here is for each batch iteration.
 
 ### Training
-| model name   | stage | precision| batch size |cards | image size | recompute | step/s | frames/s |
+| model name   | stage | precision| batch size |cards | image size | recompute | steps/s | frames/s |
 |:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
 |InstantMesh |1 |fp32 | 1 | 1 | 192X192 | ON | 0.11 | 0.55 |
 
