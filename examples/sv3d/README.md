@@ -133,7 +133,7 @@ Experiments are tested on ascend 910* with mindspore 2.3.1 graph mode.
 
 ### Inference
 
-| model name    | cards    | batch size | resolution   | scheduler |    steps |  jit level|steps /s |  
+| model name    | cards    | batch size | resolution   | scheduler |    steps |  jit level|steps/s |  
 |:-------:      |:--------:|:-------:   |:-----------: |:--------------:|:------------:|:-------:|:---------:|
 |SV3D |1         |1           | 576x576    | EulerEDM  |50 |O0|8.09|
 
