@@ -44,11 +44,9 @@ image.save("kolors_sample.png")
 
 Kolors needs a different IP Adapter to work, and it uses [Openai-CLIP-336](https://huggingface.co/openai/clip-vit-large-patch14-336) as an image encoder.
 
-<Tip>
+!!! tip
 
-While Kolors is integrated in Diffusers, you need to load the image encoder from a revision to use the safetensor files. You can still use the main branch of the original repository if you're comfortable loading pickle checkpoints.
-
-</Tip>
+    While Kolors is integrated in Diffusers, you need to load the image encoder from a revision to use the safetensor files. You can still use the main branch of the original repository if you're comfortable loading pickle checkpoints.
 
 ```python
 import mindspore as ms
@@ -89,8 +87,6 @@ image = pipe(
 
 image.save("kolors_ipa_sample.png")
 ```
-
-## KolorsPipeline
 
 ::: mindone.diffusers.KolorsPipeline
 
