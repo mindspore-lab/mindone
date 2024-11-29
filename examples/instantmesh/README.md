@@ -76,7 +76,7 @@ pip install -r requirements.txt
 2. Both training and inference are tested on the machine with the following specs using 1x NPU:
 
 | mindspore |	ascend driver | firmware	| cann toolkit/kernel |
-| :--- | :--- | :--- | :--- |
+| :---:     | :---:    | :---:      | :---: |
 | 2.3.1	    | 24.1.RC2 |7.3.0.1.231	| 8.0.RC2.beta1 |
 
 ## Pretrained Models
