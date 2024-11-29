@@ -531,7 +531,7 @@ class StableDiffusionXLControlNetPAGImg2ImgPipeline(
 
             if len(ip_adapter_image) != len(self.unet.encoder_hid_proj.image_projection_layers):
                 raise ValueError(
-                    f"`ip_adapter_image` must have same length as the number of IP Adapters. Got {len(ip_adapter_image)} images and {len(self.unet.encoder_hid_proj.image_projection_layers)} IP Adapters."
+                    f"`ip_adapter_image` must have same length as the number of IP Adapters. Got {len(ip_adapter_image)} images and {len(self.unet.encoder_hid_proj.image_projection_layers)} IP Adapters."  # noqa E501
                 )
 
             for single_ip_adapter_image, image_proj_layer in zip(
@@ -623,7 +623,7 @@ class StableDiffusionXLControlNetPAGImg2ImgPipeline(
             k in self._callback_tensor_inputs for k in callback_on_step_end_tensor_inputs
         ):
             raise ValueError(
-                f"`callback_on_step_end_tensor_inputs` has to be in {self._callback_tensor_inputs}, but found {[k for k in callback_on_step_end_tensor_inputs if k not in self._callback_tensor_inputs]}"
+                f"`callback_on_step_end_tensor_inputs` has to be in {self._callback_tensor_inputs}, but found {[k for k in callback_on_step_end_tensor_inputs if k not in self._callback_tensor_inputs]}"  # noqa E501
             )
 
         if prompt is not None and prompt_embeds is not None:
@@ -666,12 +666,12 @@ class StableDiffusionXLControlNetPAGImg2ImgPipeline(
 
         if prompt_embeds is not None and pooled_prompt_embeds is None:
             raise ValueError(
-                "If `prompt_embeds` are provided, `pooled_prompt_embeds` also have to be passed. Make sure to generate `pooled_prompt_embeds` from the same text encoder that was used to generate `prompt_embeds`."
+                "If `prompt_embeds` are provided, `pooled_prompt_embeds` also have to be passed. Make sure to generate `pooled_prompt_embeds` from the same text encoder that was used to generate `prompt_embeds`."  # noqa E501
             )
 
         if negative_prompt_embeds is not None and negative_pooled_prompt_embeds is None:
             raise ValueError(
-                "If `negative_prompt_embeds` are provided, `negative_pooled_prompt_embeds` also have to be passed. Make sure to generate `negative_pooled_prompt_embeds` from the same text encoder that was used to generate `negative_prompt_embeds`."
+                "If `negative_prompt_embeds` are provided, `negative_pooled_prompt_embeds` also have to be passed. Make sure to generate `negative_pooled_prompt_embeds` from the same text encoder that was used to generate `negative_prompt_embeds`."  # noqa E501
             )
 
         # `prompt` needs more sophisticated handling when there are multiple
@@ -698,7 +698,7 @@ class StableDiffusionXLControlNetPAGImg2ImgPipeline(
                 raise ValueError("A single batch of multiple conditionings are supported at the moment.")
             elif len(image) != len(self.controlnet.nets):
                 raise ValueError(
-                    f"For multiple controlnets: `image` must have the same length as the number of controlnets, but got {len(image)} images and {len(self.controlnet.nets)} ControlNets."
+                    f"For multiple controlnets: `image` must have the same length as the number of controlnets, but got {len(image)} images and {len(self.controlnet.nets)} ControlNets."  # noqa E501
                 )
 
             for image_ in image:
@@ -734,13 +734,13 @@ class StableDiffusionXLControlNetPAGImg2ImgPipeline(
 
         if len(control_guidance_start) != len(control_guidance_end):
             raise ValueError(
-                f"`control_guidance_start` has {len(control_guidance_start)} elements, but `control_guidance_end` has {len(control_guidance_end)} elements. Make sure to provide the same number of elements to each list."
+                f"`control_guidance_start` has {len(control_guidance_start)} elements, but `control_guidance_end` has {len(control_guidance_end)} elements. Make sure to provide the same number of elements to each list."  # noqa E501
             )
 
         if isinstance(self.controlnet, MultiControlNetModel):
             if len(control_guidance_start) != len(self.controlnet.nets):
                 raise ValueError(
-                    f"`control_guidance_start`: {control_guidance_start} has {len(control_guidance_start)} elements but there are {len(self.controlnet.nets)} controlnets available. Make sure to provide {len(self.controlnet.nets)}."
+                    f"`control_guidance_start`: {control_guidance_start} has {len(control_guidance_start)} elements but there are {len(self.controlnet.nets)} controlnets available. Make sure to provide {len(self.controlnet.nets)}."  # noqa E501
                 )
 
         for start, end in zip(control_guidance_start, control_guidance_end):
@@ -786,7 +786,7 @@ class StableDiffusionXLControlNetPAGImg2ImgPipeline(
             and not image_is_np_list
         ):
             raise TypeError(
-                f"image must be passed and be one of PIL image, numpy array, mindspore tensor, list of PIL images, list of numpy arrays or list of mindspore tensors, but is {type(image)}"
+                f"image must be passed and be one of PIL image, numpy array, mindspore tensor, list of PIL images, list of numpy arrays or list of mindspore tensors, but is {type(image)}"  # noqa E501
             )
 
         if image_is_pil:
@@ -803,7 +803,7 @@ class StableDiffusionXLControlNetPAGImg2ImgPipeline(
 
         if image_batch_size != 1 and image_batch_size != prompt_batch_size:
             raise ValueError(
-                f"If image batch size is not 1, image batch size must be same as prompt batch size. image batch size: {image_batch_size}, prompt batch size: {prompt_batch_size}"
+                f"If image batch size is not 1, image batch size must be same as prompt batch size. image batch size: {image_batch_size}, prompt batch size: {prompt_batch_size}"  # noqa E501
             )
 
     # Copied from diffusers.pipelines.controlnet.pipeline_controlnet_sd_xl.StableDiffusionXLControlNetPipeline.prepare_image
@@ -963,18 +963,18 @@ class StableDiffusionXLControlNetPAGImg2ImgPipeline(
             and (expected_add_embed_dim - passed_add_embed_dim) == self.unet.config.addition_time_embed_dim
         ):
             raise ValueError(
-                f"Model expects an added time embedding vector of length {expected_add_embed_dim}, but a vector of {passed_add_embed_dim} was created. Please make sure to enable `requires_aesthetics_score` with `pipe.register_to_config(requires_aesthetics_score=True)` to make sure `aesthetic_score` {aesthetic_score} and `negative_aesthetic_score` {negative_aesthetic_score} is correctly used by the model."
+                f"Model expects an added time embedding vector of length {expected_add_embed_dim}, but a vector of {passed_add_embed_dim} was created. Please make sure to enable `requires_aesthetics_score` with `pipe.register_to_config(requires_aesthetics_score=True)` to make sure `aesthetic_score` {aesthetic_score} and `negative_aesthetic_score` {negative_aesthetic_score} is correctly used by the model."  # noqa E501
             )
         elif (
             expected_add_embed_dim < passed_add_embed_dim
             and (passed_add_embed_dim - expected_add_embed_dim) == self.unet.config.addition_time_embed_dim
         ):
             raise ValueError(
-                f"Model expects an added time embedding vector of length {expected_add_embed_dim}, but a vector of {passed_add_embed_dim} was created. Please make sure to disable `requires_aesthetics_score` with `pipe.register_to_config(requires_aesthetics_score=False)` to make sure `target_size` {target_size} is correctly used by the model."
+                f"Model expects an added time embedding vector of length {expected_add_embed_dim}, but a vector of {passed_add_embed_dim} was created. Please make sure to disable `requires_aesthetics_score` with `pipe.register_to_config(requires_aesthetics_score=False)` to make sure `target_size` {target_size} is correctly used by the model."  # noqa E501
             )
         elif expected_add_embed_dim != passed_add_embed_dim:
             raise ValueError(
-                f"Model expects an added time embedding vector of length {expected_add_embed_dim}, but a vector of {passed_add_embed_dim} was created. The model has an incorrect config. Please check `unet.config.time_embedding_type` and `text_encoder_2.config.projection_dim`."
+                f"Model expects an added time embedding vector of length {expected_add_embed_dim}, but a vector of {passed_add_embed_dim} was created. The model has an incorrect config. Please check `unet.config.time_embedding_type` and `text_encoder_2.config.projection_dim`."  # noqa E501
             )
 
         add_time_ids = ms.tensor([add_time_ids], dtype=dtype)

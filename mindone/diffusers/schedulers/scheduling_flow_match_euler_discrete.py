@@ -282,29 +282,10 @@ class FlowMatchEulerDiscreteScheduler(SchedulerMixin, ConfigMixin):
         sample = sample.to(ms.float32)
 
         sigma = self.sigmas[self.step_index]
+        sigma_next = self.sigmas[self.step_index + 1]
 
-        gamma = min(s_churn / (len(self.sigmas) - 1), 2**0.5 - 1) if s_tmin <= sigma <= s_tmax else 0.0
+        prev_sample = sample + (sigma_next - sigma) * model_output
 
-        sigma_hat = sigma * (gamma + 1)
-
-        if gamma > 0:
-            noise = randn_tensor(model_output.shape, dtype=model_output.dtype, generator=generator)
-            eps = noise * s_noise
-            sample = sample + eps * (sigma_hat**2 - sigma**2) ** 0.5
-
-        # 1. compute predicted original sample (x_0) from sigma-scaled predicted noise
-        # NOTE: "original_sample" should not be an expected prediction_type but is left in for
-        # backwards compatibility
-
-        # if self.config.prediction_type == "vector_field":
-
-        denoised = sample - model_output * sigma
-        # 2. Convert to an ODE derivative
-        derivative = (sample - denoised) / sigma_hat
-
-        dt = self.sigmas[self.step_index + 1] - sigma_hat
-
-        prev_sample = sample + derivative * dt
         # Cast sample back to model compatible dtype
         prev_sample = prev_sample.to(model_output.dtype)
 

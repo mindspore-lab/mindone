@@ -446,7 +446,7 @@ class StableDiffusionControlNetPAGInpaintPipeline(
 
             if len(ip_adapter_image) != len(self.unet.encoder_hid_proj.image_projection_layers):
                 raise ValueError(
-                    f"`ip_adapter_image` must have same length as the number of IP Adapters. Got {len(ip_adapter_image)} images and {len(self.unet.encoder_hid_proj.image_projection_layers)} IP Adapters."
+                    f"`ip_adapter_image` must have same length as the number of IP Adapters. Got {len(ip_adapter_image)} images and {len(self.unet.encoder_hid_proj.image_projection_layers)} IP Adapters."  # noqa E501
                 )
 
             for single_ip_adapter_image, image_proj_layer in zip(
@@ -549,7 +549,7 @@ class StableDiffusionControlNetPAGInpaintPipeline(
             k in self._callback_tensor_inputs for k in callback_on_step_end_tensor_inputs
         ):
             raise ValueError(
-                f"`callback_on_step_end_tensor_inputs` has to be in {self._callback_tensor_inputs}, but found {[k for k in callback_on_step_end_tensor_inputs if k not in self._callback_tensor_inputs]}"
+                f"`callback_on_step_end_tensor_inputs` has to be in {self._callback_tensor_inputs}, but found {[k for k in callback_on_step_end_tensor_inputs if k not in self._callback_tensor_inputs]}"  # noqa E501
             )
 
         if prompt is not None and prompt_embeds is not None:
@@ -615,7 +615,7 @@ class StableDiffusionControlNetPAGInpaintPipeline(
                 raise ValueError("A single batch of multiple conditionings are supported at the moment.")
             elif len(image) != len(self.controlnet.nets):
                 raise ValueError(
-                    f"For multiple controlnets: `image` must have the same length as the number of controlnets, but got {len(image)} images and {len(self.controlnet.nets)} ControlNets."
+                    f"For multiple controlnets: `image` must have the same length as the number of controlnets, but got {len(image)} images and {len(self.controlnet.nets)} ControlNets."  # noqa E501
                 )
 
             for image_ in image:
@@ -645,13 +645,13 @@ class StableDiffusionControlNetPAGInpaintPipeline(
 
         if len(control_guidance_start) != len(control_guidance_end):
             raise ValueError(
-                f"`control_guidance_start` has {len(control_guidance_start)} elements, but `control_guidance_end` has {len(control_guidance_end)} elements. Make sure to provide the same number of elements to each list."
+                f"`control_guidance_start` has {len(control_guidance_start)} elements, but `control_guidance_end` has {len(control_guidance_end)} elements. Make sure to provide the same number of elements to each list."  # noqa E501
             )
 
         if isinstance(self.controlnet, MultiControlNetModel):
             if len(control_guidance_start) != len(self.controlnet.nets):
                 raise ValueError(
-                    f"`control_guidance_start`: {control_guidance_start} has {len(control_guidance_start)} elements but there are {len(self.controlnet.nets)} controlnets available. Make sure to provide {len(self.controlnet.nets)}."
+                    f"`control_guidance_start`: {control_guidance_start} has {len(control_guidance_start)} elements but there are {len(self.controlnet.nets)} controlnets available. Make sure to provide {len(self.controlnet.nets)}."  # noqa E501
                 )
 
         for start, end in zip(control_guidance_start, control_guidance_end):
@@ -697,7 +697,7 @@ class StableDiffusionControlNetPAGInpaintPipeline(
             and not image_is_np_list
         ):
             raise TypeError(
-                f"image must be passed and be one of PIL image, numpy array, mindspore tensor, list of PIL images, list of numpy arrays or list of mindspore tensors, but is {type(image)}"
+                f"image must be passed and be one of PIL image, numpy array, mindspore tensor, list of PIL images, list of numpy arrays or list of mindspore tensors, but is {type(image)}"  # noqa E501
             )
 
         if image_is_pil:
@@ -714,7 +714,7 @@ class StableDiffusionControlNetPAGInpaintPipeline(
 
         if image_batch_size != 1 and image_batch_size != prompt_batch_size:
             raise ValueError(
-                f"If image batch size is not 1, image batch size must be same as prompt batch size. image batch size: {image_batch_size}, prompt batch size: {prompt_batch_size}"
+                f"If image batch size is not 1, image batch size must be same as prompt batch size. image batch size: {image_batch_size}, prompt batch size: {prompt_batch_size}"  # noqa E501
             )
 
     # Copied from diffusers.pipelines.controlnet.pipeline_controlnet_inpaint.StableDiffusionControlNetInpaintPipeline.prepare_control_image

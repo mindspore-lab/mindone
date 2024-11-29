@@ -38,6 +38,7 @@ _import_structure = {
     ],
     "controlnet_sd3": [
         "StableDiffusion3ControlNetPipeline",
+        "StableDiffusion3ControlNetInpaintingPipeline",
     ],
     "dance_diffusion": ["DanceDiffusionPipeline"],
     "ddim": ["DDIMPipeline"],
@@ -186,7 +187,7 @@ if TYPE_CHECKING:
         StableDiffusionXLControlNetPipeline,
     )
     from .controlnet_hunyuandit import HunyuanDiTControlNetPipeline
-    from .controlnet_sd3 import StableDiffusion3ControlNetPipeline
+    from .controlnet_sd3 import StableDiffusion3ControlNetInpaintingPipeline, StableDiffusion3ControlNetPipeline
     from .controlnet_xs import StableDiffusionControlNetXSPipeline, StableDiffusionXLControlNetXSPipeline
     from .ddim import DDIMPipeline
     from .ddpm import DDPMPipeline

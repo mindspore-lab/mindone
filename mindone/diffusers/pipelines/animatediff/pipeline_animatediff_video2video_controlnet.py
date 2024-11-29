@@ -16,10 +16,12 @@ import inspect
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 import numpy as np
+from transformers import CLIPImageProcessor, CLIPTokenizer
+
 import mindspore as ms
 from mindspore import ops
+
 from mindone.transformers import CLIPTextModel, CLIPVisionModelWithProjection
-from transformers import CLIPImageProcessor, CLIPTokenizer
 
 from ...image_processor import PipelineImageInput
 from ...loaders import IPAdapterMixin, StableDiffusionLoraLoaderMixin, TextualInversionLoaderMixin
@@ -37,11 +39,11 @@ from ...utils import logging, scale_lora_layers, unscale_lora_layers
 from ...utils.mindspore_utils import randn_tensor
 from ...video_processor import VideoProcessor
 from ..controlnet.multicontrolnet import MultiControlNetModel
+
 # from ..free_init_utils import FreeInitMixin
 # from ..free_noise_utils import AnimateDiffFreeNoiseMixin
 from ..pipeline_utils import DiffusionPipeline, StableDiffusionMixin
 from .pipeline_output import AnimateDiffPipelineOutput
-
 
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
 
@@ -50,6 +52,7 @@ EXAMPLE_DOC_STRING = """
         ```py
         >>> import mindspore as ms
         >>> from PIL import Image
+        >>> import numpy as np
         >>> from tqdm.auto import tqdm
 
         >>> from mindone.diffusers import AnimateDiffVideoToVideoControlNetPipeline
@@ -338,9 +341,7 @@ class AnimateDiffVideoToVideoControlNetPipeline(
             if untruncated_ids.shape[-1] >= text_input_ids.shape[-1] and not np.array_equal(
                 text_input_ids, untruncated_ids
             ):
-                removed_text = self.tokenizer.batch_decode(
-                    untruncated_ids[:, self.tokenizer.model_max_length - 1 : -1]
-                )
+                removed_text = self.tokenizer.batch_decode(untruncated_ids[:, self.tokenizer.model_max_length - 1 : -1])
                 logger.warning(
                     "The following part of your input was truncated because CLIP can only handle sequences up to"
                     f" {self.tokenizer.model_max_length} tokens: {removed_text}"
@@ -455,9 +456,7 @@ class AnimateDiffVideoToVideoControlNetPipeline(
         if output_hidden_states:
             image_enc_hidden_states = self.image_encoder(image, output_hidden_states=True)[2][-2]
             image_enc_hidden_states = image_enc_hidden_states.repeat_interleave(num_images_per_prompt, dim=0)
-            uncond_image_enc_hidden_states = self.image_encoder(
-                ops.zeros_like(image), output_hidden_states=True
-            )[2][-2]
+            uncond_image_enc_hidden_states = self.image_encoder(ops.zeros_like(image), output_hidden_states=True)[2][-2]
             uncond_image_enc_hidden_states = uncond_image_enc_hidden_states.repeat_interleave(
                 num_images_per_prompt, dim=0
             )
@@ -482,7 +481,7 @@ class AnimateDiffVideoToVideoControlNetPipeline(
 
             if len(ip_adapter_image) != len(self.unet.encoder_hid_proj.image_projection_layers):
                 raise ValueError(
-                    f"`ip_adapter_image` must have same length as the number of IP Adapters. Got {len(ip_adapter_image)} images and {len(self.unet.encoder_hid_proj.image_projection_layers)} IP Adapters."
+                    f"`ip_adapter_image` must have same length as the number of IP Adapters. Got {len(ip_adapter_image)} images and {len(self.unet.encoder_hid_proj.image_projection_layers)} IP Adapters."  # noqa E501
                 )
 
             for single_ip_adapter_image, image_proj_layer in zip(
@@ -589,7 +588,7 @@ class AnimateDiffVideoToVideoControlNetPipeline(
             k in self._callback_tensor_inputs for k in callback_on_step_end_tensor_inputs
         ):
             raise ValueError(
-                f"`callback_on_step_end_tensor_inputs` has to be in {self._callback_tensor_inputs}, but found {[k for k in callback_on_step_end_tensor_inputs if k not in self._callback_tensor_inputs]}"
+                f"`callback_on_step_end_tensor_inputs` has to be in {self._callback_tensor_inputs}, but found {[k for k in callback_on_step_end_tensor_inputs if k not in self._callback_tensor_inputs]}"  # noqa E501
             )
 
         if prompt is not None and prompt_embeds is not None:
@@ -644,19 +643,15 @@ class AnimateDiffVideoToVideoControlNetPipeline(
                 )
         num_frames = len(video) if latents is None else latents.shape[2]
 
-        if (
-            isinstance(self.controlnet, ControlNetModel)
-            or isinstance(self.controlnet._orig_mod, ControlNetModel)
-        ):
+        if isinstance(self.controlnet, ControlNetModel) or isinstance(self.controlnet._orig_mod, ControlNetModel):
             if not isinstance(conditioning_frames, list):
                 raise TypeError(
                     f"For single controlnet, `image` must be of type `list` but got {type(conditioning_frames)}"
                 )
             if len(conditioning_frames) != num_frames:
                 raise ValueError(f"Excepted image to have length {num_frames} but got {len(conditioning_frames)=}")
-        elif (
-            isinstance(self.controlnet, MultiControlNetModel)
-            or isinstance(self.controlnet._orig_mod, MultiControlNetModel)
+        elif isinstance(self.controlnet, MultiControlNetModel) or isinstance(
+            self.controlnet._orig_mod, MultiControlNetModel
         ):
             if not isinstance(conditioning_frames, list) or not isinstance(conditioning_frames[0], list):
                 raise TypeError(
@@ -672,15 +667,11 @@ class AnimateDiffVideoToVideoControlNetPipeline(
             assert False
 
         # Check `controlnet_conditioning_scale`
-        if (
-            isinstance(self.controlnet, ControlNetModel)
-            or isinstance(self.controlnet._orig_mod, ControlNetModel)
-        ):
+        if isinstance(self.controlnet, ControlNetModel) or isinstance(self.controlnet._orig_mod, ControlNetModel):
             if not isinstance(controlnet_conditioning_scale, float):
                 raise TypeError("For single controlnet: `controlnet_conditioning_scale` must be type `float`.")
-        elif (
-            isinstance(self.controlnet, MultiControlNetModel)
-            or isinstance(self.controlnet._orig_mod, MultiControlNetModel)
+        elif isinstance(self.controlnet, MultiControlNetModel) or isinstance(
+            self.controlnet._orig_mod, MultiControlNetModel
         ):
             if isinstance(controlnet_conditioning_scale, list):
                 if any(isinstance(i, list) for i in controlnet_conditioning_scale):
@@ -703,13 +694,13 @@ class AnimateDiffVideoToVideoControlNetPipeline(
 
         if len(control_guidance_start) != len(control_guidance_end):
             raise ValueError(
-                f"`control_guidance_start` has {len(control_guidance_start)} elements, but `control_guidance_end` has {len(control_guidance_end)} elements. Make sure to provide the same number of elements to each list."
+                f"`control_guidance_start` has {len(control_guidance_start)} elements, but `control_guidance_end` has {len(control_guidance_end)} elements. Make sure to provide the same number of elements to each list."  # noqa E501
             )
 
         if isinstance(self.controlnet, MultiControlNetModel):
             if len(control_guidance_start) != len(self.controlnet.nets):
                 raise ValueError(
-                    f"`control_guidance_start`: {control_guidance_start} has {len(control_guidance_start)} elements but there are {len(self.controlnet.nets)} controlnets available. Make sure to provide {len(self.controlnet.nets)}."
+                    f"`control_guidance_start`: {control_guidance_start} has {len(control_guidance_start)} elements but there are {len(self.controlnet.nets)} controlnets available. Make sure to provide {len(self.controlnet.nets)}."  # noqa E501
                 )
 
         for start, end in zip(control_guidance_start, control_guidance_end):
@@ -776,8 +767,7 @@ class AnimateDiffVideoToVideoControlNetPipeline(
                     )
 
                 init_latents = [
-                    self.encode_video(video[i], generator[i], decode_chunk_size).unsqueeze(0)
-                    for i in range(batch_size)
+                    self.encode_video(video[i], generator[i], decode_chunk_size).unsqueeze(0) for i in range(batch_size)
                 ]
             else:
                 init_latents = [self.encode_video(vid, generator, decode_chunk_size).unsqueeze(0) for vid in video]
@@ -832,9 +822,7 @@ class AnimateDiffVideoToVideoControlNetPipeline(
         do_classifier_free_guidance=False,
         guess_mode=False,
     ):
-        video = self.control_video_processor.preprocess_video(video, height=height, width=width).to(
-            dtype=ms.float32
-        )
+        video = self.control_video_processor.preprocess_video(video, height=height, width=width).to(dtype=ms.float32)
         video = video.permute(0, 2, 1, 3, 4).flatten(start_dim=0, end_dim=1)
         video_batch_size = video.shape[0]
 
@@ -1070,9 +1058,7 @@ class AnimateDiffVideoToVideoControlNetPipeline(
 
         # 3. Prepare timesteps
         if not enforce_inference_steps:
-            timesteps, num_inference_steps = retrieve_timesteps(
-                self.scheduler, num_inference_steps, timesteps, sigmas
-            )
+            timesteps, num_inference_steps = retrieve_timesteps(self.scheduler, num_inference_steps, timesteps, sigmas)
             timesteps, num_inference_steps = self.get_timesteps(num_inference_steps, timesteps, strength)
             latent_timestep = timesteps[:1].tile((batch_size * num_videos_per_prompt,))
         else:
