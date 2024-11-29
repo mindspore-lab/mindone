@@ -128,7 +128,7 @@ Experiments are tested on ascend 910* with mindspore 2.3.1 graph mode.
 
 ### Training
 | model name | cards    | image size    | graph compile  | batch size    | recompute | data sink | jit level | step time |steps/s | frame/s |
-| :---       | :---     | :---          | :---           | :---          | :---      | :---      | :---      | :---      | :---          | :---          |
+| :---:      | :---:    | :---:         | :---:          | :---:         | :---:     | :---:     | :---:     | :---:     | :---:         | :---:|
 | SV3D       | 1        | 576x576   	| 3~5 mins       | 5 frames	     | ON        |  OFF	     | O0        | 2.29s     | 0.44          | 2.18 |
 
 ### Inference
