@@ -24,7 +24,6 @@ sys.path.insert(0, os.path.abspath(os.path.join(__dir__, "../..")))  # for sgm
 
 from model_stage1 import InstantMeshStage1WithLoss
 from omegaconf import OmegaConf
-from utils.ms_callback_util import SaveCkptCallback
 
 from mindone.data import create_dataloader
 from mindone.trainers.callback import EvalSaveCallback, OverflowMonitor, ProfilerCallbackEpoch
@@ -373,14 +372,6 @@ def main(args):
     callback = [
         TimeMonitor(),
         OverflowMonitor(),
-        SaveCkptCallback(
-            rank_id=rank_id,
-            output_dir=os.path.join(args.output_path, "ckpt"),
-            ckpt_max_keep=args.ckpt_max_keep,
-            ckpt_save_interval=args.ckpt_save_interval,
-            save_ema=args.use_ema,
-            ckpt_save_policy="top_k",
-        ),
     ]
 
     if rank_id == 0:
@@ -389,7 +380,7 @@ def main(args):
             rank_id=rank_id,
             ckpt_save_dir=ckpt_dir,
             ema=ema,
-            ckpt_save_policy="latest_k",
+            ckpt_save_policy="top_k",
             ckpt_max_keep=args.ckpt_max_keep,
             step_mode=step_mode,
             use_step_unit=(args.ckpt_save_steps != -1),

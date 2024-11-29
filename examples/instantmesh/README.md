@@ -65,7 +65,7 @@ Using the multiview images input from 3D mesh extracted from [the sv3d pipeline]
 
 The illustrations here are better viewed in viewers than with HTML support (e.g., the vscode built-in viewer).
 
-## Environment Requirements
+## Requirements
 
 1. To kickstart:
 
@@ -73,7 +73,7 @@ The illustrations here are better viewed in viewers than with HTML support (e.g.
 pip install -r requirements.txt
 ```
 
-2. Inference is tested on the machine with the following specs using 1x NPU:
+2. Both training and inference are tested on the machine with the following specs using 1x NPU:
 
 | mindspore |	ascend driver | firmware	| cann toolkit/kernel |
 | :--- | :--- | :--- | :--- |
@@ -118,12 +118,14 @@ Following the original paper, we used Blender to render multiview frames for a 3
 Following the paper, during training, 3 images are processed with the ViT Image Processor and serving as the model input. Together with another 2 images (in total 5), they are randomly zoomed in and cropped into a fixed size as the ground truth. This can be regarded as a data augmentation during training. The camera parameters for each random transform will be used as the input to the model to infer images and alphas for each view's supervision.
 
 ## Performance
+Experiments are tested on ascend 910* with mindspore 2.3.1 graph mode.
+
 Notice that there is no diffusion model in InstantMesh, therefore the reported training `step/s` here is for each batch iteration.
 
 ### Training
-| model name   | stage | precision| batch size |cards | image size  | step/s | frames/s | recompute |
+| model name   | stage | precision| batch size |cards | image size | recompute | step/s | frames/s |
 |:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
-|InstantMesh |1 |fp32 | 1 | 1 | 192X192 | 0.11 | 0.55 | ON |
+|InstantMesh |1 |fp32 | 1 | 1 | 192X192 | ON | 0.11 | 0.55 |
 
 ### Inference
 
