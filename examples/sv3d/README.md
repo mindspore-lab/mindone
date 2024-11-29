@@ -37,9 +37,10 @@ More demos can be found here. Input images are from [the Unique 3D repo](https:/
 pip install -r requirements.txt
 ```
 2. Both training and inference are tested on the machine with the following specs using 1x NPU:
-    | mindspore |	ascend driver | firmware	| cann toolkit/kernel |
-    | :--- | :--- | :--- | :--- |
-    | 2.3.1	    | 24.1.RC2 |7.3.0.1.231	| 8.0.RC2.beta1 |
+
+| mindspore |	ascend driver | firmware	| cann toolkit/kernel |
+| :--- | :--- | :--- | :--- |
+| 2.3.1	    | 24.1.RC2 |7.3.0.1.231	| 8.0.RC2.beta1 |
 
 ## Pretrained Models
 You can easily convert [the SV3D ckpt](https://huggingface.co/stabilityai/sv3d/blob/main/sv3d_u.safetensors) with [our mindone script under svd](https://github.com/mindspore-lab/mindone/blob/master/examples/svd/svd_tools/convert.py).
