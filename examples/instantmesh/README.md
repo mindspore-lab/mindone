@@ -118,7 +118,7 @@ Following the original paper, we used Blender to render multiview frames for a 3
 Following the paper, during training, 3 images are processed with the ViT Image Processor and serving as the model input. Together with another 2 images (in total 5), they are randomly zoomed in and cropped into a fixed size as the ground truth. This can be regarded as a data augmentation during training. The camera parameters for each random transform will be used as the input to the model to infer images and alphas for each view's supervision.
 
 ## Performance
-Experiments are tested on ascend 910* with mindspore 2.3.1 graph mode.
+Experiments are tested on ascend 910* with mindspore 2.3.1 pynative mode.
 
 Notice that there is no diffusion model in InstantMesh, therefore the reported training `step/s` here is for each batch iteration.
 
