@@ -19,28 +19,25 @@ from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 import numpy as np
 import PIL.Image
+from transformers import CLIPImageProcessor, CLIPTokenizer
+
 import mindspore as ms
 from mindspore import ops
+
 from mindone.transformers import CLIPTextModel, CLIPVisionModelWithProjection
-from transformers import CLIPImageProcessor, CLIPTokenizer
 
 from ...callbacks import MultiPipelineCallbacks, PipelineCallback
 from ...image_processor import PipelineImageInput, VaeImageProcessor
 from ...loaders import FromSingleFileMixin, IPAdapterMixin, StableDiffusionLoraLoaderMixin, TextualInversionLoaderMixin
 from ...models import AutoencoderKL, ControlNetModel, ImageProjection, UNet2DConditionModel
 from ...schedulers import KarrasDiffusionSchedulers
-from ...utils import (
-    logging,
-    scale_lora_layers,
-    unscale_lora_layers,
-)
+from ...utils import logging, scale_lora_layers, unscale_lora_layers
 from ...utils.mindspore_utils import randn_tensor
 from ..controlnet.multicontrolnet import MultiControlNetModel
 from ..pipeline_utils import DiffusionPipeline, StableDiffusionMixin
 from ..stable_diffusion import StableDiffusionPipelineOutput
 from ..stable_diffusion.safety_checker import StableDiffusionSafetyChecker
 from .pag_utils import PAGMixin
-
 
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
 
@@ -309,9 +306,7 @@ class StableDiffusionControlNetPAGInpaintPipeline(
             if untruncated_ids.shape[-1] >= text_input_ids.shape[-1] and not np.array_equal(
                 text_input_ids, untruncated_ids
             ):
-                removed_text = self.tokenizer.batch_decode(
-                    untruncated_ids[:, self.tokenizer.model_max_length - 1 : -1]
-                )
+                removed_text = self.tokenizer.batch_decode(untruncated_ids[:, self.tokenizer.model_max_length - 1 : -1])
                 logger.warning(
                     "The following part of your input was truncated because CLIP can only handle sequences up to"
                     f" {self.tokenizer.model_max_length} tokens: {removed_text}"
@@ -426,9 +421,7 @@ class StableDiffusionControlNetPAGInpaintPipeline(
         if output_hidden_states:
             image_enc_hidden_states = self.image_encoder(image, output_hidden_states=True)[2][-2]
             image_enc_hidden_states = image_enc_hidden_states.repeat_interleave(num_images_per_prompt, dim=0)
-            uncond_image_enc_hidden_states = self.image_encoder(
-                ops.zeros_like(image), output_hidden_states=True
-            )[2][-2]
+            uncond_image_enc_hidden_states = self.image_encoder(ops.zeros_like(image), output_hidden_states=True)[2][-2]
             uncond_image_enc_hidden_states = uncond_image_enc_hidden_states.repeat_interleave(
                 num_images_per_prompt, dim=0
             )
@@ -608,14 +601,10 @@ class StableDiffusionControlNetPAGInpaintPipeline(
                 )
 
         # Check `image`
-        if (
-            isinstance(self.controlnet, ControlNetModel)
-            or isinstance(self.controlnet._orig_mod, ControlNetModel)
-        ):
+        if isinstance(self.controlnet, ControlNetModel) or isinstance(self.controlnet._orig_mod, ControlNetModel):
             self.check_image(image, prompt, prompt_embeds)
-        elif (
-            isinstance(self.controlnet, MultiControlNetModel)
-            or isinstance(self.controlnet._orig_mod, MultiControlNetModel)
+        elif isinstance(self.controlnet, MultiControlNetModel) or isinstance(
+            self.controlnet._orig_mod, MultiControlNetModel
         ):
             if not isinstance(image, list):
                 raise TypeError("For multiple controlnets: `image` must be type `list`")
@@ -635,15 +624,11 @@ class StableDiffusionControlNetPAGInpaintPipeline(
             assert False
 
         # Check `controlnet_conditioning_scale`
-        if (
-            isinstance(self.controlnet, ControlNetModel)
-            or isinstance(self.controlnet._orig_mod, ControlNetModel)
-        ):
+        if isinstance(self.controlnet, ControlNetModel) or isinstance(self.controlnet._orig_mod, ControlNetModel):
             if not isinstance(controlnet_conditioning_scale, float):
                 raise TypeError("For single controlnet: `controlnet_conditioning_scale` must be type `float`.")
-        elif (
-            isinstance(self.controlnet, MultiControlNetModel)
-            or isinstance(self.controlnet._orig_mod, MultiControlNetModel)
+        elif isinstance(self.controlnet, MultiControlNetModel) or isinstance(
+            self.controlnet._orig_mod, MultiControlNetModel
         ):
             if isinstance(controlnet_conditioning_scale, list):
                 if any(isinstance(i, list) for i in controlnet_conditioning_scale):
@@ -836,9 +821,7 @@ class StableDiffusionControlNetPAGInpaintPipeline(
         # resize the mask to latents shape as we concatenate the mask to the latents
         # we do that before converting to dtype to avoid breaking in case we're using cpu_offload
         # and half precision
-        mask = ops.interpolate(
-            mask, size=(height // self.vae_scale_factor, width // self.vae_scale_factor)
-        )
+        mask = ops.interpolate(mask, size=(height // self.vae_scale_factor, width // self.vae_scale_factor))
         mask = mask.to(dtype=dtype)
 
         masked_image = masked_image.to(dtype=dtype)
@@ -1250,9 +1233,7 @@ class StableDiffusionControlNetPAGInpaintPipeline(
 
         # 5. Prepare timesteps
         self.scheduler.set_timesteps(num_inference_steps)
-        timesteps, num_inference_steps = self.get_timesteps(
-            num_inference_steps=num_inference_steps, strength=strength
-        )
+        timesteps, num_inference_steps = self.get_timesteps(num_inference_steps=num_inference_steps, strength=strength)
         # at which timestep to set the initial noise (n.b. 50% if strength is 0.5)
         latent_timestep = timesteps[:1].tile((batch_size * num_images_per_prompt))
         # create a boolean to check if the strength is set to 1. if so then initialise the latents with pure noise
@@ -1480,9 +1461,7 @@ class StableDiffusionControlNetPAGInpaintPipeline(
         # manually for max memory savings
 
         if not output_type == "latent":
-            image = self.vae.decode(latents / self.vae.config.scaling_factor, return_dict=False, generator=generator)[
-                0
-            ]
+            image = self.vae.decode(latents / self.vae.config.scaling_factor, return_dict=False, generator=generator)[0]
             image, has_nsfw_concept = self.run_safety_checker(image, prompt_embeds.dtype)
         else:
             image = latents

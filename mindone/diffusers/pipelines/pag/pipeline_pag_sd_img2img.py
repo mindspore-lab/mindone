@@ -15,13 +15,15 @@
 import inspect
 from typing import Any, Callable, Dict, List, Optional, Union
 
-import PIL.Image
 import numpy as np
+import PIL.Image
+from packaging import version
+from transformers import CLIPImageProcessor, CLIPTokenizer
+
 import mindspore as ms
 from mindspore import ops
-from packaging import version
+
 from mindone.transformers import CLIPTextModel, CLIPVisionModelWithProjection
-from transformers import CLIPImageProcessor, CLIPTokenizer
 
 from ...callbacks import MultiPipelineCallbacks, PipelineCallback
 from ...configuration_utils import FrozenDict
@@ -29,18 +31,12 @@ from ...image_processor import PipelineImageInput, VaeImageProcessor
 from ...loaders import FromSingleFileMixin, IPAdapterMixin, StableDiffusionLoraLoaderMixin, TextualInversionLoaderMixin
 from ...models import AutoencoderKL, ImageProjection, UNet2DConditionModel
 from ...schedulers import KarrasDiffusionSchedulers
-from ...utils import (
-    deprecate,
-    logging,
-    scale_lora_layers,
-    unscale_lora_layers,
-)
+from ...utils import deprecate, logging, scale_lora_layers, unscale_lora_layers
 from ...utils.mindspore_utils import randn_tensor
 from ..pipeline_utils import DiffusionPipeline, StableDiffusionMixin
 from ..stable_diffusion.pipeline_output import StableDiffusionPipelineOutput
 from ..stable_diffusion.safety_checker import StableDiffusionSafetyChecker
 from .pag_utils import PAGMixin
-
 
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
 
@@ -351,9 +347,7 @@ class StableDiffusionPAGImg2ImgPipeline(
             if untruncated_ids.shape[-1] >= text_input_ids.shape[-1] and not np.array_equal(
                 text_input_ids, untruncated_ids
             ):
-                removed_text = self.tokenizer.batch_decode(
-                    untruncated_ids[:, self.tokenizer.model_max_length - 1 : -1]
-                )
+                removed_text = self.tokenizer.batch_decode(untruncated_ids[:, self.tokenizer.model_max_length - 1 : -1])
                 logger.warning(
                     "The following part of your input was truncated because CLIP can only handle sequences up to"
                     f" {self.tokenizer.model_max_length} tokens: {removed_text}"
@@ -468,9 +462,7 @@ class StableDiffusionPAGImg2ImgPipeline(
         if output_hidden_states:
             image_enc_hidden_states = self.image_encoder(image, output_hidden_states=True)[2][-2]
             image_enc_hidden_states = image_enc_hidden_states.repeat_interleave(num_images_per_prompt, dim=0)
-            uncond_image_enc_hidden_states = self.image_encoder(
-                ops.zeros_like(image), output_hidden_states=True
-            )[2][-2]
+            uncond_image_enc_hidden_states = self.image_encoder(ops.zeros_like(image), output_hidden_states=True)[2][-2]
             uncond_image_enc_hidden_states = uncond_image_enc_hidden_states.repeat_interleave(
                 num_images_per_prompt, dim=0
             )
@@ -636,9 +628,7 @@ class StableDiffusionPAGImg2ImgPipeline(
     # Copied from diffusers.pipelines.stable_diffusion.pipeline_stable_diffusion_img2img.StableDiffusionImg2ImgPipeline.prepare_latents
     def prepare_latents(self, image, timestep, batch_size, num_images_per_prompt, dtype, generator=None):
         if not isinstance(image, (ms.Tensor, PIL.Image.Image, list)):
-            raise ValueError(
-                f"`image` has to be of type `ms.Tensor`, `PIL.Image.Image` or list but is {type(image)}"
-            )
+            raise ValueError(f"`image` has to be of type `ms.Tensor`, `PIL.Image.Image` or list but is {type(image)}")
 
         image = image.to(dtype=dtype)
 
@@ -957,9 +947,7 @@ class StableDiffusionPAGImg2ImgPipeline(
         image = self.image_processor.preprocess(image)
 
         # 5. set timesteps
-        timesteps, num_inference_steps = retrieve_timesteps(
-            self.scheduler, num_inference_steps, timesteps, sigmas
-        )
+        timesteps, num_inference_steps = retrieve_timesteps(self.scheduler, num_inference_steps, timesteps, sigmas)
         timesteps, num_inference_steps = self.get_timesteps(num_inference_steps, strength)
         latent_timestep = timesteps[:1].tile((batch_size * num_images_per_prompt,))
 
@@ -1047,9 +1035,7 @@ class StableDiffusionPAGImg2ImgPipeline(
                     negative_prompt_embeds = callback_outputs.pop("negative_prompt_embeds", negative_prompt_embeds)
 
         if not output_type == "latent":
-            image = self.vae.decode(latents / self.vae.config.scaling_factor, return_dict=False, generator=generator)[
-                0
-            ]
+            image = self.vae.decode(latents / self.vae.config.scaling_factor, return_dict=False, generator=generator)[0]
             image, has_nsfw_concept = self.run_safety_checker(image, prompt_embeds.dtype)
         else:
             image = latents

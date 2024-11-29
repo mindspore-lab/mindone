@@ -18,16 +18,13 @@ from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 import numpy as np
 import PIL.Image
-import mindspore as ms
-from mindspore import ops
-from mindone.transformers import (
-    CLIPTextModel,
-    CLIPTextModelWithProjection,
-    CLIPVisionModelWithProjection,
-)
+from diffusers.utils.import_utils import is_invisible_watermark_available
 from transformers import CLIPImageProcessor, CLIPTokenizer
 
-from diffusers.utils.import_utils import is_invisible_watermark_available
+import mindspore as ms
+from mindspore import ops
+
+from mindone.transformers import CLIPTextModel, CLIPTextModelWithProjection, CLIPVisionModelWithProjection
 
 from ...callbacks import MultiPipelineCallbacks, PipelineCallback
 from ...image_processor import PipelineImageInput, VaeImageProcessor
@@ -38,27 +35,18 @@ from ...loaders import (
     TextualInversionLoaderMixin,
 )
 from ...models import AutoencoderKL, ControlNetModel, ImageProjection, UNet2DConditionModel
-from ...models.attention_processor import (
-    AttnProcessor2_0,
-    XFormersAttnProcessor,
-)
+from ...models.attention_processor import AttnProcessor2_0, XFormersAttnProcessor
 from ...schedulers import KarrasDiffusionSchedulers
-from ...utils import (
-    logging,
-    scale_lora_layers,
-    unscale_lora_layers,
-)
+from ...utils import logging, scale_lora_layers, unscale_lora_layers
 from ...utils.mindspore_utils import randn_tensor
 from ..pipeline_utils import DiffusionPipeline, StableDiffusionMixin
 from ..stable_diffusion_xl.pipeline_output import StableDiffusionXLPipelineOutput
 from .pag_utils import PAGMixin
 
-
 if is_invisible_watermark_available():
     from ..stable_diffusion_xl.watermark import StableDiffusionXLWatermarker
 
 from ..controlnet.multicontrolnet import MultiControlNetModel
-
 
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
 
@@ -148,7 +136,7 @@ def retrieve_latents(
     #     return encoder_output.latents
     else:
         return encoder_output
-        
+
 
 class StableDiffusionXLControlNetPAGImg2ImgPipeline(
     DiffusionPipeline,
@@ -518,9 +506,7 @@ class StableDiffusionXLControlNetPAGImg2ImgPipeline(
         if output_hidden_states:
             image_enc_hidden_states = self.image_encoder(image, output_hidden_states=True)[2][-2]
             image_enc_hidden_states = image_enc_hidden_states.repeat_interleave(num_images_per_prompt, dim=0)
-            uncond_image_enc_hidden_states = self.image_encoder(
-                ops.zeros_like(image), output_hidden_states=True
-            )[2][-2]
+            uncond_image_enc_hidden_states = self.image_encoder(ops.zeros_like(image), output_hidden_states=True)[2][-2]
             uncond_image_enc_hidden_states = uncond_image_enc_hidden_states.repeat_interleave(
                 num_images_per_prompt, dim=0
             )
@@ -698,14 +684,10 @@ class StableDiffusionXLControlNetPAGImg2ImgPipeline(
                 )
 
         # Check `image`
-        if (
-            isinstance(self.controlnet, ControlNetModel)
-            or isinstance(self.controlnet._orig_mod, ControlNetModel)
-        ):
+        if isinstance(self.controlnet, ControlNetModel) or isinstance(self.controlnet._orig_mod, ControlNetModel):
             self.check_image(image, prompt, prompt_embeds)
-        elif (
-            isinstance(self.controlnet, MultiControlNetModel)
-            or isinstance(self.controlnet._orig_mod, MultiControlNetModel)
+        elif isinstance(self.controlnet, MultiControlNetModel) or isinstance(
+            self.controlnet._orig_mod, MultiControlNetModel
         ):
             if not isinstance(image, list):
                 raise TypeError("For multiple controlnets: `image` must be type `list`")
@@ -725,15 +707,11 @@ class StableDiffusionXLControlNetPAGImg2ImgPipeline(
             assert False
 
         # Check `controlnet_conditioning_scale`
-        if (
-            isinstance(self.controlnet, ControlNetModel)
-            or isinstance(self.controlnet._orig_mod, ControlNetModel)
-        ):
+        if isinstance(self.controlnet, ControlNetModel) or isinstance(self.controlnet._orig_mod, ControlNetModel):
             if not isinstance(controlnet_conditioning_scale, float):
                 raise TypeError("For single controlnet: `controlnet_conditioning_scale` must be type `float`.")
-        elif (
-            isinstance(self.controlnet, MultiControlNetModel)
-            or isinstance(self.controlnet._orig_mod, MultiControlNetModel)
+        elif isinstance(self.controlnet, MultiControlNetModel) or isinstance(
+            self.controlnet._orig_mod, MultiControlNetModel
         ):
             if isinstance(controlnet_conditioning_scale, list):
                 if any(isinstance(i, list) for i in controlnet_conditioning_scale):
@@ -875,9 +853,7 @@ class StableDiffusionXLControlNetPAGImg2ImgPipeline(
         self, image, timestep, batch_size, num_images_per_prompt, dtype, generator=None, add_noise=True
     ):
         if not isinstance(image, (ms.Tensor, PIL.Image.Image, list)):
-            raise ValueError(
-                f"`image` has to be of type `ms.Tensor`, `PIL.Image.Image` or list but is {type(image)}"
-            )
+            raise ValueError(f"`image` has to be of type `ms.Tensor`, `PIL.Image.Image` or list but is {type(image)}")
 
         latents_mean = latents_std = None
         if hasattr(self.vae.config, "latents_mean") and self.vae.config.latents_mean is not None:
@@ -1601,12 +1577,8 @@ class StableDiffusionXLControlNetPAGImg2ImgPipeline(
             has_latents_mean = hasattr(self.vae.config, "latents_mean") and self.vae.config.latents_mean is not None
             has_latents_std = hasattr(self.vae.config, "latents_std") and self.vae.config.latents_std is not None
             if has_latents_mean and has_latents_std:
-                latents_mean = (
-                    ms.tensor(self.vae.config.latents_mean).view(1, 4, 1, 1).to(latents.dtype)
-                )
-                latents_std = (
-                    ms.tensor(self.vae.config.latents_std).view(1, 4, 1, 1).to(latents.dtype)
-                )
+                latents_mean = ms.tensor(self.vae.config.latents_mean).view(1, 4, 1, 1).to(latents.dtype)
+                latents_std = ms.tensor(self.vae.config.latents_std).view(1, 4, 1, 1).to(latents.dtype)
                 latents = latents * latents_std / self.vae.config.scaling_factor + latents_mean
             else:
                 latents = latents / self.vae.config.scaling_factor
