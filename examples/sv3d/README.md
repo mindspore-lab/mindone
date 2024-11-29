@@ -17,7 +17,7 @@ src="https://github.com/mindspore-lab/mindone/assets/13991298/ac3d6558-e8d6-4636
 
 More demos can be found here. Input images are from [the Unique 3D repo](https://github.com/AiuniAI/Unique3D/tree/main/app/examples).
 <details>
-<summary>More Demos
+<summary>More Inference Demos
 </summary>
 
 | Input                                                                                                                | Output                     |
@@ -44,6 +44,9 @@ pip install -r requirements.txt
 ## Pretrained Models
 You can easily convert [the SV3D ckpt](https://huggingface.co/stabilityai/sv3d/blob/main/sv3d_u.safetensors) with [our mindone script under svd](https://github.com/mindspore-lab/mindone/blob/master/examples/svd/svd_tools/convert.py).
 
+## Data Curation
+We used Blender to render multiview frames for a 3D object in `.obj` for training. Typically for overfitting, one 3D object from the objaverse dataset is used. We rendered 5 orbital views for the object with the corresponding camera parameters extracted, and the diffusion model is trained on these 5 frames.
+
 ## Inference
 
 ```shell
@@ -52,10 +55,17 @@ python simple_video_sample.py \
     --ckpt PATH_TO_CKPT \
     --image PATH_TO_INPUT_IMAGE
 ```
+**Performance**
+* Measured on an NPU-910B card
+
+| model name    | cards    | batch size | resolution   | scheduler |    steps |  jit level|step/s |  
+|:-------:      |:--------:|:-------:   |:-----------: |:--------------:|:------------:|:-------:|:---------:|
+|SV3D |1         |1           | 576x576    | EulerEDM  |50 |O0|8.09|
+
 
 ## Training
-1. Prepare the SVD checkpoints as mentioned in the paper. SV3D needs to be finetuned from SVD to cut down training time.
-2. Prepare Objaverse overfitting dataset, can refer to our implementation in another 3D project [here](instantmeshpr).
+1. Prepare the SVD checkpoints as mentioned in the paper. SV3D needs to be finetuned from SVD to cut down training time. See [here](../svd/readme.md)
+2. Prepare Objaverse overfitting dataset, can refer to our implementation in another 3D project of ours [here](../instantmesh/readme.md).
 3. The SVD VAE setup is different from the vanilla SV3D structure. To adapt, comment out the VAE setup in the original cfg file, and uncomment those for training. We found that the original cfg setup for SV3D cannot diverge with SVD checkpoints loaded during SV3D training. By modifying the cfgs, the correct VAE can be obtained and overfitting training converges within hours.
 ```diff
 - encoder_config: # vanilla sv3d ckpt
@@ -112,10 +122,18 @@ python train.py \
     --train_cfg configs/sv3d_u_train.yaml
 ```
 
-The training on an NPU-910B can achieve the following performance.
-| model name | cards    | image size    | graph compile  | batch size    | recompute | data sink | jit level | step time | train. imgs/s |
-| :---       | :---     | :---          | :---           | :---          | :---      | :---      | :---      | :---      | :---          |
-| sv3d       | 1        | 576x576   	| 3~5 mins       | 5 frames	     | ON        |  OFF	     | O0        | 2.29s     | 2.18          |
+**Precision**
+| ckpt type  | psnr   | ssim  | lpips  |
+| :---       | :---   | :---  | :---   |
+| vanilla    | 12.74  | 0.79  | 0.089  |
+| overfitted | 12.80  | 0.78  | 0.087  |
+
+**Perfromance**
+* Measured on an NPU-910B card
+
+| model name | cards    | image size    | graph compile  | batch size    | recompute | data sink | jit level | step time |step/s | img/s |
+| :---       | :---     | :---          | :---           | :---          | :---      | :---      | :---      | :---      | :---          | :---          |
+| sv3d       | 1        | 576x576   	| 3~5 mins       | 5 frames	     | ON        |  OFF	     | O0        | 2.29s     | 0.44          | 2.18 |
 
 ## Acknowledgements
 
