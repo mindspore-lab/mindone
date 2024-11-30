@@ -98,17 +98,7 @@ def prepare_pipeline(args):
     # VAE model initiate and weight loading
     print_banner("vae init")
     vae_dtype = get_precision(args.vae_precision)
-    if args.ms_checkpoint is not None and os.path.exists(args.ms_checkpoint):
-        logger.info(f"Run inference with MindSpore checkpoint {args.ms_checkpoint}")
-        state_dict = ms.load_checkpoint(args.ms_checkpoint)
-        # rm 'network.' prefix
-        state_dict = dict(
-            [k.replace("network.", "") if k.startswith("network.") else k, v] for k, v in state_dict.items()
-        )
-    else:
-        state_dict = None
     kwarg = {
-        "state_dict": state_dict,
         "use_safetensors": True,
         "dtype": vae_dtype,
     }
