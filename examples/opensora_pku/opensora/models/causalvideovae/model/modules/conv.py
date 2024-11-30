@@ -1,4 +1,5 @@
 import math
+from collections import deque
 from typing import Tuple, Union
 
 import mindspore as ms
@@ -115,7 +116,9 @@ class CausalConv3d(nn.Cell):
                 **kwargs,
             )
         self.enable_cached = enable_cached
-        self.causal_cached = None
+        self.is_first_chunk = True
+
+        self.causal_cached = deque()
         self.cache_offset = 0
 
     def construct(self, x):
@@ -123,25 +126,28 @@ class CausalConv3d(nn.Cell):
         # x: (bs, Cin, T, H, W )
         # first_frame_pad = ops.repeat_interleave(first_frame, (self.time_kernel_size - 1), axis=2)
         if self.time_kernel_size - 1 > 0:
-            if self.causal_cached is None:
+            if self.is_first_chunk:
                 first_frame = x[:, :, :1, :, :]
                 first_frame_pad = mint.cat([first_frame] * (self.time_kernel_size - 1), dim=2)
                 # first_frame_pad = x[:, :, :1, :, :].repeat((1, 1, self.time_kernel_size - 1, 1, 1))
             else:
-                first_frame_pad = self.causal_cached
+                first_frame_pad = self.causal_cached.popleft()
 
             x = mint.cat((first_frame_pad, x), dim=2)
 
         if self.enable_cached and self.time_kernel_size != 1:
             if (self.time_kernel_size - 1) // self.stride[0] != 0:
                 if self.cache_offset == 0:
-                    self.causal_cached = x[:, :, -(self.time_kernel_size - 1) // self.stride[0] :]
+                    causal_cached = x[:, :, -(self.time_kernel_size - 1) // self.stride[0] :]
                 else:
-                    self.causal_cached = x[:, :, : -self.cache_offset][
+                    causal_cached = x[:, :, : -self.cache_offset][
                         :, :, -(self.time_kernel_size - 1) // self.stride[0] :
                     ]
             else:
-                self.causal_cached = x[:, :, 0:0, :, :]
+                causal_cached = x[:, :, 0:0, :, :]
+            self.causal_cached.append(causal_cached.copy())
+        elif self.enable_cached:
+            self.causal_cached.append(x[:, :, 0:0, :, :].copy())
 
         if npu_config is not None and npu_config.on_npu:
             return npu_config.run_conv3d(self.conv, x, x_dtype)
