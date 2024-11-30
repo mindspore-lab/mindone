@@ -150,6 +150,7 @@ Videos are downsampled to `.gif` for display. Click for original videos. Prompts
 * [Training](#training)
 * [Evaluation](#evaluation)
 * [VAE Training & Evaluation](#vae-training--evaluation)
+* [Long sequence training and inference (sequence parallel)](#long-sequence-training-and-inference-sequence-parallel)
 * [Contribution](#contribution)
 * [Acknowledgement](#acknowledgement)
 
@@ -792,6 +793,7 @@ Here are some generation results after fine-tuning STDiT on a subset of WebVid d
 #### Quality Evaluation
 For quality evaluation, please refer to the original HPC-AI Tech [evaluation doc](https://github.com/hpcaitech/Open-Sora/blob/main/eval/README.md) for video generation quality evaluation.
 
+</details>
 
 ## VAE Training & Evaluation
 
@@ -867,6 +869,32 @@ All experiments are tested on ascend 910* with mindspore 2.3.1 graph mode.
 
 Note that we train with mixed video ang image strategy i.e. `--mixed_strategy=mixed_video_image` for stage 3 instead of random number of frames (`mixed_video_random`). Random frame training will be supported in the future.
 
+
+## Long sequence training and inference (sequence parallel)
+
+### Training
+
+We support training with the OpenSora v1.2 model using SP (Sequence Parallel), handling up to 408 frames (~16 seconds) on 4 NPU* cards. Additionally, we have optimized the training speed by implementing micro-batch parallelism in the VAE’s spatial and temporal domains, achieving approximately a 20% speed boost. We evaluate the training performance using the MixKit dataset, which includes high-resolution videos (1080P, duration 12s to 100s). The training performance results are reported below.
+
+All experiments are tested on ascend 910* with mindspore 2.3.1 graph mode.
+| model name   | cards  | batch size | resolution  | sink | precision   | jit level | graph compile |  s/step | recipe |
+| :--:         | :--:   | :--:       | :--:       | :--:       | :--:      | :--:      |:--:          | :--:       | :--:   |
+| STDiT3-XL/2  |  4     | 1          | 408x720x1280| OFF     |   bf16    | O1        |    17 mins   | 47.26   | [script](scripts/run/run_train_os1.2_stage2_sp.sh)
+
+
+> To prevent the system from running out of memory, ensure you launch the training job on a server with sufficient memory. For 4P training, at least 800GB of memory is required.
+
+
+### Inference
+
+We evaluate the inference performance of text-to-video generation by measuring the average sampling time per step and the total sampling time of a video.
+
+All experiments are tested on ascend 910* with mindspore 2.3.1 graph mode.
+
+
+| model name      |  cards | batch size | resolution |  precision | scheduler   |  steps   |  jit level |   graph compile | s/step     | s/video | recipe |
+| :--:         | :--:   | :--:       | :--:       | :--:       | :--:       | :--:       | :--:       | :--:      |:--:    | :--:   |:--:   |
+| STDiT3-XL/2  |  2     | 1          | 408x720x1280   |  bf16    |   RFlow   |   30   |   O0  | 1~2 mins |  27.03    |    811.00      |  [script](scripts/run/run_infer_sequence_parallel.sh) |
 
 
 ## Contribution
