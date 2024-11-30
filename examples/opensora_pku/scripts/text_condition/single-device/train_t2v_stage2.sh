@@ -37,7 +37,6 @@ python opensora/train/train_t2v_diffusers.py \
     --use_ema False \
     --ema_start_step 0 \
     --enable_tiling \
-    --tile_overlap_factor 0.125 \
     --clip_grad True \
     --max_grad_norm 1.0 \
     --noise_offset 0.02 \
