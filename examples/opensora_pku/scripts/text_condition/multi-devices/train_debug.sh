@@ -38,7 +38,6 @@ msrun --bind_core=True --worker_num=4 --local_worker_num=4 --master_port=6000 --
     --use_ema False \
     --ema_start_step 0 \
     --enable_tiling \
-    --tile_overlap_factor 0.125 \
     --clip_grad True \
     --max_grad_norm 1.0 \
     --noise_offset 0.02 \
