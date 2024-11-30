@@ -7,7 +7,7 @@ python opensora/train/train_t2v_diffusers.py \
     --text_encoder_name_1 google/mt5-xxl \
     --cache_dir "./" \
     --dataset t2v \
-    --data "scripts/train_data/image_data_v1_2.txt" \
+    --data "scripts/train_data/merge_data_human_image.txt" \
     --ae WFVAEModel_D8_4x8x8  \
     --ae_path LanguageBind/Open-Sora-Plan-v1.3.0/vae \
     --sample_rate 1 \
