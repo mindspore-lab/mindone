@@ -514,13 +514,22 @@ def main(args):
                 if rank_id == 0 and step_mode:
                     cur_epoch = epoch + 1
                     if (cur_global_step % ckpt_save_interval == 0) or (cur_global_step == total_train_steps):
+                        ae_with_loss.set_train(False)
+                        disc_with_loss.set_train(False)
                         ckpt_name = (
                             f"vae_3d-e{cur_epoch}.ckpt" if not use_step_unit else f"vae_3d-s{cur_global_step}.ckpt"
                         )
+                        if not args.save_ema_only and ema is not None:
+                            ckpt_manager.save(
+                                ae_with_loss.autoencoder,
+                                None,
+                                ckpt_name=ckpt_name.replace(".ckpt", "_nonema.ckpt"),
+                                append_dict=None,
+                            )
+
                         if ema is not None:
                             ema.swap_before_eval()
-                        ae_with_loss.set_train(False)
-                        disc_with_loss.set_train(False)
+
                         ckpt_manager.save(ae_with_loss.autoencoder, None, ckpt_name=ckpt_name, append_dict=None)
                         if args.save_training_resume:
                             ms.save_checkpoint(
@@ -557,11 +566,18 @@ def main(args):
 
             if rank_id == 0 and not step_mode:
                 if (cur_epoch % ckpt_save_interval == 0) or (cur_epoch == args.epochs):
-                    ckpt_name = f"vae_3d-e{cur_epoch}.ckpt" if not use_step_unit else f"vae_3d-s{cur_global_step}.ckpt"
-                    if ema is not None:
-                        ema.swap_before_eval()
                     ae_with_loss.set_train(False)
                     disc_with_loss.set_train(False)
+                    ckpt_name = f"vae_3d-e{cur_epoch}.ckpt" if not use_step_unit else f"vae_3d-s{cur_global_step}.ckpt"
+                    if not args.save_ema_only and ema is not None:
+                        ckpt_manager.save(
+                            ae_with_loss.autoencoder,
+                            None,
+                            ckpt_name=ckpt_name.replace(".ckpt", "_nonema.ckpt"),
+                            append_dict=None,
+                        )
+                    if ema is not None:
+                        ema.swap_before_eval()
                     ckpt_manager.save(ae_with_loss.autoencoder, None, ckpt_name=ckpt_name, append_dict=None)
                     if args.save_training_resume:
                         ms.save_checkpoint(
