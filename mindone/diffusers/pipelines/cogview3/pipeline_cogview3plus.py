@@ -15,11 +15,14 @@
 
 import inspect
 from typing import Callable, Dict, List, Optional, Tuple, Union
+
 import numpy as np
+from transformers import T5Tokenizer
+
 import mindspore as ms
 from mindspore import ops
+
 from mindone.transformers import T5EncoderModel
-from transformers import T5Tokenizer
 
 from ...callbacks import MultiPipelineCallbacks, PipelineCallback
 from ...image_processor import VaeImageProcessor
@@ -29,7 +32,6 @@ from ...schedulers import CogVideoXDDIMScheduler, CogVideoXDPMScheduler
 from ...utils import logging
 from ...utils.mindspore_utils import randn_tensor
 from .pipeline_output import CogView3PipelineOutput
-
 
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
 
@@ -181,7 +183,9 @@ class CogView3PlusPipeline(DiffusionPipeline):
         text_input_ids = text_inputs.input_ids
         untruncated_ids = self.tokenizer(prompt, padding="longest", return_tensors="np").input_ids
 
-        if untruncated_ids.shape[-1] >= text_input_ids.shape[-1] and not np.array_equal(text_input_ids, untruncated_ids):
+        if untruncated_ids.shape[-1] >= text_input_ids.shape[-1] and not np.array_equal(
+            text_input_ids, untruncated_ids
+        ):
             removed_text = self.tokenizer.batch_decode(untruncated_ids[:, max_sequence_length - 1 : -1])
             logger.warning(
                 "The following part of your input was truncated because `max_sequence_length` is set to "
@@ -335,7 +339,7 @@ class CogView3PlusPipeline(DiffusionPipeline):
             k in self._callback_tensor_inputs for k in callback_on_step_end_tensor_inputs
         ):
             raise ValueError(
-                f"`callback_on_step_end_tensor_inputs` has to be in {self._callback_tensor_inputs}, but found {[k for k in callback_on_step_end_tensor_inputs if k not in self._callback_tensor_inputs]}"
+                f"`callback_on_step_end_tensor_inputs` has to be in {self._callback_tensor_inputs}, but found {[k for k in callback_on_step_end_tensor_inputs if k not in self._callback_tensor_inputs]}"  # noqa E501
             )
         if prompt is not None and prompt_embeds is not None:
             raise ValueError(
@@ -640,9 +644,7 @@ class CogView3PlusPipeline(DiffusionPipeline):
                     progress_bar.update()
 
         if not output_type == "latent":
-            image = self.vae.decode(latents / self.vae.config.scaling_factor, return_dict=False, generator=generator)[
-                0
-            ]
+            image = self.vae.decode(latents / self.vae.config.scaling_factor, return_dict=False, generator=generator)[0]
         else:
             image = latents
 
