@@ -44,7 +44,7 @@ EXAMPLE_DOC_STRING = """
         ```py
         >>> import numpy as np
         >>> import mindspore as ms
-        >>> from mindone.diffusers.utils import load_image, check_min_version
+        >>> from mindone.diffusers.utils import load_image
         >>> from mindone.diffusers.pipelines import StableDiffusion3ControlNetInpaintingPipeline
         >>> from mindone.diffusers.models.controlnet_sd3 import SD3ControlNetModel
 
@@ -334,9 +334,9 @@ class StableDiffusion3ControlNetInpaintingPipeline(DiffusionPipeline, SD3LoraLoa
         pooled_prompt_embeds = prompt_embeds[0]
 
         if clip_skip is None:
-            prompt_embeds = prompt_embeds[0][-2]
+            prompt_embeds = prompt_embeds[2][-2]
         else:
-            prompt_embeds = prompt_embeds[0][-(clip_skip + 2)]
+            prompt_embeds = prompt_embeds[2][-(clip_skip + 2)]
 
         prompt_embeds = prompt_embeds.to(dtype=self.text_encoder.dtype)
 
@@ -1029,7 +1029,7 @@ class StableDiffusion3ControlNetInpaintingPipeline(DiffusionPipeline, SD3LoraLoa
                 # expand the latents if we are doing classifier free guidance
                 latent_model_input = ops.cat([latents] * 2) if self.do_classifier_free_guidance else latents
                 # broadcast to batch dimension in a way that's compatible with ONNX/Core ML
-                timestep = t.expand(latent_model_input.shape[0])
+                timestep = t.broadcast_to((latent_model_input.shape[0],))
 
                 if isinstance(controlnet_keep[i], list):
                     cond_scale = [c * s for c, s in zip(controlnet_conditioning_scale, controlnet_keep[i])]
@@ -1056,7 +1056,7 @@ class StableDiffusion3ControlNetInpaintingPipeline(DiffusionPipeline, SD3LoraLoa
                     timestep=timestep,
                     encoder_hidden_states=prompt_embeds,
                     pooled_projections=pooled_prompt_embeds,
-                    block_controlnet_hidden_states=control_block_samples,
+                    block_controlnet_hidden_states=ms.mutable(control_block_samples),
                     joint_attention_kwargs=self.joint_attention_kwargs,
                     return_dict=False,
                 )[0]

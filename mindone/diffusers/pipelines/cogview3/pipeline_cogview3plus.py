@@ -42,7 +42,7 @@ EXAMPLE_DOC_STRING = """
         >>> import mindspore as ms
         >>> from mindone.diffusers import CogView3PlusPipeline
 
-        >>> pipe = CogView3PlusPipeline.from_pretrained("THUDM/CogView3Plus-3B", mindspore_dtype=ms.bfloat16)
+        >>> pipe = CogView3PlusPipeline.from_pretrained("THUDM/CogView3-Plus-3B", mindspore_dtype=ms.bfloat16)
 
         >>> prompt = "A photo of an astronaut riding a horse on mars"
         >>> image = pipe(prompt)[0][0]
@@ -254,7 +254,7 @@ class CogView3PlusPipeline(DiffusionPipeline):
             )
 
         if do_classifier_free_guidance and negative_prompt is None:
-            negative_prompt_embeds = prompt_embeds.new_zeros(prompt_embeds.shape)
+            negative_prompt_embeds = prompt_embeds.new_zeros(prompt_embeds.shape, dtype=prompt_embeds.dtype)
 
         if do_classifier_free_guidance and negative_prompt_embeds is None:
             negative_prompt = batch_size * [negative_prompt] if isinstance(negative_prompt, str) else negative_prompt

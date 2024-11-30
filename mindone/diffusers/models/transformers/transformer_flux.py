@@ -213,6 +213,7 @@ class FluxTransformer2DModel(ModelMixin, ConfigMixin, PeftAdapterMixin, FromOrig
     """
 
     _supports_gradient_checkpointing = True
+    _no_split_modules = ["FluxTransformerBlock", "FluxSingleTransformerBlock"]
 
     @register_to_config
     def __init__(
@@ -226,7 +227,7 @@ class FluxTransformer2DModel(ModelMixin, ConfigMixin, PeftAdapterMixin, FromOrig
         joint_attention_dim: int = 4096,
         pooled_projection_dim: int = 768,
         guidance_embeds: bool = False,
-        axes_dims_rope: Tuple[int] = [16, 56, 56],
+        axes_dims_rope: Tuple[int] = (16, 56, 56),
     ):
         super().__init__()
         self.out_channels = in_channels
@@ -464,7 +465,7 @@ class FluxTransformer2DModel(ModelMixin, ConfigMixin, PeftAdapterMixin, FromOrig
             )
             img_ids = img_ids[0]
 
-        ids = ops.cat((txt_ids, img_ids), axis=1)
+        ids = ops.cat((txt_ids, img_ids), axis=0)
         image_rotary_emb = self.pos_embed(ids)
 
         for index_block, block in enumerate(self.transformer_blocks):
@@ -477,8 +478,9 @@ class FluxTransformer2DModel(ModelMixin, ConfigMixin, PeftAdapterMixin, FromOrig
             )
             # controlnet residual
             if controlnet_block_samples is not None:
-                interval_control = len(self.transformer_blocks) / len(controlnet_block_samples)
-                interval_control = ops.ceil(ms.tensor(interval_control)).item()  # not supporting numpy
+                interval_control = (len(self.transformer_blocks) + len(controlnet_block_samples) - 1) // len(
+                    controlnet_block_samples
+                )  # not supporting numpy
                 # For Xlabs ControlNet.
                 if controlnet_blocks_repeat:
                     hidden_states = (
@@ -499,8 +501,11 @@ class FluxTransformer2DModel(ModelMixin, ConfigMixin, PeftAdapterMixin, FromOrig
 
             # controlnet residual
             if controlnet_single_block_samples is not None:
-                interval_control = len(self.single_transformer_blocks) / len(controlnet_single_block_samples)
-                interval_control = ops.ceil(ms.tensor(interval_control)).item()  # not supporting numpy
+                interval_control = (
+                    len(self.single_transformer_blocks) + len(controlnet_single_block_samples) - 1
+                ) // len(
+                    controlnet_single_block_samples
+                )  # not supporting numpy
                 hidden_states[:, encoder_hidden_states.shape[1] :, ...] = (
                     hidden_states[:, encoder_hidden_states.shape[1] :, ...]
                     + controlnet_single_block_samples[index_block // interval_control]

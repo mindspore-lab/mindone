@@ -86,6 +86,7 @@ EXAMPLE_DOC_STRING = """
         >>> from controlnet_aux.processor import OpenposeDetector
 
         >>> open_pose = OpenposeDetector.from_pretrained("lllyasviel/Annotators")
+        >>> conditioning_frames = []
         >>> for frame in tqdm(video):
         ...     conditioning_frames.append(open_pose(frame))
 
@@ -1214,7 +1215,7 @@ class AnimateDiffVideoToVideoControlNetPipeline(
                         controlnet_cond_scale = controlnet_cond_scale[0]
                     cond_scale = controlnet_cond_scale * controlnet_keep[i]
 
-                control_model_input = ops.transpose(control_model_input, (1, 2))
+                control_model_input = ops.swapaxes(control_model_input, 1, 2)
                 control_model_input = control_model_input.reshape(
                     (-1, control_model_input.shape[2], control_model_input.shape[3], control_model_input.shape[4])
                 )
@@ -1223,7 +1224,7 @@ class AnimateDiffVideoToVideoControlNetPipeline(
                     control_model_input,
                     t,
                     encoder_hidden_states=controlnet_prompt_embeds,
-                    controlnet_cond=ms.mutable(conditioning_frames),
+                    controlnet_cond=conditioning_frames,
                     conditioning_scale=cond_scale,
                     guess_mode=guess_mode,
                     return_dict=False,
@@ -1236,7 +1237,7 @@ class AnimateDiffVideoToVideoControlNetPipeline(
                     encoder_hidden_states=prompt_embeds,
                     cross_attention_kwargs=self.cross_attention_kwargs,
                     added_cond_kwargs=ms.mutable(added_cond_kwargs) if added_cond_kwargs else added_cond_kwargs,
-                    down_block_additional_residuals=down_block_res_samples,
+                    down_block_additional_residuals=ms.mutable(down_block_res_samples),
                     mid_block_additional_residual=mid_block_res_sample,
                 )[0]
 

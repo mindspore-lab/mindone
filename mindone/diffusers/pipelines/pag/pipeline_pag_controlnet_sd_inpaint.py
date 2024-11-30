@@ -57,8 +57,6 @@ EXAMPLE_DOC_STRING = """
         ... )
         >>> init_image = init_image.resize((512, 512))
 
-        >>> generator = np.random.Generator(np.random.PCG64(1))
-
         >>> mask_image = load_image(
         ...     "https://huggingface.co/datasets/diffusers/test-arrays/resolve/main/stable_diffusion_inpaint/boy_mask.png"
         ... )
@@ -80,7 +78,7 @@ EXAMPLE_DOC_STRING = """
         ...     "lllyasviel/control_v11p_sd15_inpaint", mindspore_dtype=ms.float16
         ... )
         >>> pipe = AutoPipelineForInpainting.from_pretrained(
-        ...     "runwayml/stable-diffusion-v1-5", controlnet=controlnet, mindspore_dtype=ms.float16, enable_pag=True
+        ...     "stable-diffusion-v1-5/stable-diffusion-v1-5", controlnet=controlnet, mindspore_dtype=ms.float16, enable_pag=True
         ... )
 
         >>> pipe.scheduler = DDIMScheduler.from_config(pipe.scheduler.config)
@@ -89,7 +87,6 @@ EXAMPLE_DOC_STRING = """
         >>> image = pipe(
         ...     "a handsome man with ray-ban sunglasses",
         ...     num_inference_steps=20,
-        ...     generator=generator,
         ...     eta=1.0,
         ...     image=init_image,
         ...     mask_image=mask_image,
@@ -1235,7 +1232,7 @@ class StableDiffusionControlNetPAGInpaintPipeline(
         self.scheduler.set_timesteps(num_inference_steps)
         timesteps, num_inference_steps = self.get_timesteps(num_inference_steps=num_inference_steps, strength=strength)
         # at which timestep to set the initial noise (n.b. 50% if strength is 0.5)
-        latent_timestep = timesteps[:1].tile((batch_size * num_images_per_prompt))
+        latent_timestep = timesteps[:1].tile((batch_size * num_images_per_prompt,))
         # create a boolean to check if the strength is set to 1. if so then initialise the latents with pure noise
         is_strength_max = strength == 1.0
         self._num_timesteps = len(timesteps)
@@ -1348,7 +1345,7 @@ class StableDiffusionControlNetPAGInpaintPipeline(
         # 7.5 Optionally get Guidance Scale Embedding
         timestep_cond = None
         if self.unet.config.time_cond_proj_dim is not None:
-            guidance_scale_tensor = ms.tensor(self.guidance_scale - 1).tile((batch_size * num_images_per_prompt))
+            guidance_scale_tensor = ms.tensor(self.guidance_scale - 1).tile((batch_size * num_images_per_prompt,))
             timestep_cond = self.get_guidance_scale_embedding(
                 guidance_scale_tensor, embedding_dim=self.unet.config.time_cond_proj_dim
             ).to(dtype=latents.dtype)
@@ -1410,7 +1407,7 @@ class StableDiffusionControlNetPAGInpaintPipeline(
                     encoder_hidden_states=prompt_embeds,
                     timestep_cond=timestep_cond,
                     cross_attention_kwargs=self.cross_attention_kwargs,
-                    down_block_additional_residuals=down_block_res_samples,
+                    down_block_additional_residuals=ms.mutable(down_block_res_samples),
                     mid_block_additional_residual=mid_block_res_sample,
                     added_cond_kwargs=ms.mutable(added_cond_kwargs) if added_cond_kwargs else added_cond_kwargs,
                     return_dict=False,
@@ -1438,7 +1435,7 @@ class StableDiffusionControlNetPAGInpaintPipeline(
                     if i < len(timesteps) - 1:
                         noise_timestep = timesteps[i + 1]
                         init_latents_proper = self.scheduler.add_noise(
-                            init_latents_proper, noise, ms.tensor([noise_timestep])
+                            init_latents_proper, noise, ms.tensor([noise_timestep.item()])
                         )
 
                     latents = (1 - init_mask) * init_latents_proper + init_mask * latents

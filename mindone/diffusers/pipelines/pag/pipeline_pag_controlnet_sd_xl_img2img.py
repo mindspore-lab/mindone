@@ -18,12 +18,12 @@ from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 import numpy as np
 import PIL.Image
-from diffusers.utils.import_utils import is_invisible_watermark_available
 from transformers import CLIPImageProcessor, CLIPTokenizer
 
 import mindspore as ms
 from mindspore import ops
 
+from mindone.diffusers.utils.import_utils import is_invisible_watermark_available
 from mindone.transformers import CLIPTextModel, CLIPTextModelWithProjection, CLIPVisionModelWithProjection
 
 from ...callbacks import MultiPipelineCallbacks, PipelineCallback
@@ -55,6 +55,7 @@ EXAMPLE_DOC_STRING = """
     Examples:
         ```py
         >>> import mindspore as ms
+        >>> import torch
         >>> import numpy as np
         >>> from PIL import Image
 
@@ -63,7 +64,7 @@ EXAMPLE_DOC_STRING = """
         >>> from mindone.diffusers.utils import load_image
 
 
-        >>> depth_estimator = DPTForDepthEstimation.from_pretrained("Intel/dpt-hybrid-midas").to("cuda")
+        >>> depth_estimator = DPTForDepthEstimation.from_pretrained("Intel/dpt-hybrid-midas")
         >>> feature_extractor = DPTFeatureExtractor.from_pretrained("Intel/dpt-hybrid-midas")
         >>> controlnet = ControlNetModel.from_pretrained(
         ...     "diffusers/controlnet-depth-sdxl-1.0-small",
@@ -83,11 +84,11 @@ EXAMPLE_DOC_STRING = """
         ... )
 
         >>> def get_depth_map(image):
-        ...     image = feature_extractor(images=image, return_tensors="pt").pixel_values.to("cuda")
-        ...     with torch.no_grad(), torch.autocast("cuda"):
+        ...     image = feature_extractor(images=image, return_tensors="pt").pixel_values
+        ...     with torch.no_grad():
         ...         depth_map = depth_estimator(image).predicted_depth
 
-        ...     depth_map = torch.nn.fuctional.interpolate(
+        ...     depth_map = torch.nn.functional.interpolate(
         ...         depth_map.unsqueeze(1),
         ...         size=(1024, 1024),
         ...         mode="bicubic",
@@ -97,7 +98,7 @@ EXAMPLE_DOC_STRING = """
         ...     depth_max = torch.amax(depth_map, dim=[1, 2, 3], keepdim=True)
         ...     depth_map = (depth_map - depth_min) / (depth_max - depth_min)
         ...     image = torch.cat([depth_map] * 3, dim=1)
-        ...     image = image.permute(0, 2, 3, 1).cpu().numpy()[0]
+        ...     image = image.permute(0, 2, 3, 1).numpy()[0]
         ...     image = Image.fromarray((image * 255.0).clip(0, 255).astype(np.uint8))
         ...     return image
 
@@ -474,7 +475,7 @@ class StableDiffusionXLControlNetPAGImg2ImgPipeline(
             negative_prompt_embeds = negative_prompt_embeds.tile((1, num_images_per_prompt, 1))
             negative_prompt_embeds = negative_prompt_embeds.view(batch_size * num_images_per_prompt, seq_len, -1)
 
-        pooled_prompt_embeds = pooled_prompt_embeds.tile(1, num_images_per_prompt).view(
+        pooled_prompt_embeds = pooled_prompt_embeds.tile((1, num_images_per_prompt)).view(
             bs_embed * num_images_per_prompt, -1
         )
         if do_classifier_free_guidance:
@@ -1523,7 +1524,7 @@ class StableDiffusionXLControlNetPAGImg2ImgPipeline(
                     t,
                     encoder_hidden_states=prompt_embeds,
                     cross_attention_kwargs=self.cross_attention_kwargs,
-                    down_block_additional_residuals=down_block_res_samples,
+                    down_block_additional_residuals=ms.mutable(down_block_res_samples),
                     mid_block_additional_residual=mid_block_res_sample,
                     added_cond_kwargs=ms.mutable(added_cond_kwargs),
                     return_dict=False,

@@ -352,11 +352,11 @@ class CogView3PlusTransformer2DModel(ModelMixin, ConfigMixin):
         width = width // patch_size
 
         hidden_states = hidden_states.reshape(
-            shape=(hidden_states.shape[0], height, width, self.out_channels, patch_size, patch_size)
+            hidden_states.shape[0], height, width, self.out_channels, patch_size, patch_size
         )
         hidden_states = hidden_states.permute(0, 3, 1, 4, 2, 5)  # torch.einsum("nhwcpq->nchpwq", hidden_states)
         output = hidden_states.reshape(
-            shape=(hidden_states.shape[0], self.out_channels, height * patch_size, width * patch_size)
+            hidden_states.shape[0], self.out_channels, height * patch_size, width * patch_size
         )
 
         if not return_dict:

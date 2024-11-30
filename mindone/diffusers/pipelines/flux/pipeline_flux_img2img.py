@@ -370,7 +370,7 @@ class FluxImg2ImgPipeline(DiffusionPipeline, FluxLoraLoaderMixin):
                 unscale_lora_layers(self.text_encoder_2, lora_scale)
 
         dtype = self.text_encoder.dtype if self.text_encoder is not None else self.transformer.dtype
-        text_ids = ops.zeros(prompt_embeds.shape[1], 3).to(dtype=dtype)
+        text_ids = ops.zeros((prompt_embeds.shape[1], 3)).to(dtype=dtype)
 
         return prompt_embeds, pooled_prompt_embeds, text_ids
 
@@ -456,7 +456,7 @@ class FluxImg2ImgPipeline(DiffusionPipeline, FluxLoraLoaderMixin):
     @staticmethod
     # Copied from diffusers.pipelines.flux.pipeline_flux.FluxPipeline._prepare_latent_image_ids
     def _prepare_latent_image_ids(batch_size, height, width, dtype):
-        latent_image_ids = ops.zeros(height // 2, width // 2, 3)
+        latent_image_ids = ops.zeros((height // 2, width // 2, 3))
         latent_image_ids[..., 1] = latent_image_ids[..., 1] + ops.arange(height // 2)[:, None]
         latent_image_ids[..., 2] = latent_image_ids[..., 2] + ops.arange(width // 2)[None, :]
 

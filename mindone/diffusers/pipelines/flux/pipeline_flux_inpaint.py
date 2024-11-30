@@ -375,7 +375,7 @@ class FluxInpaintPipeline(DiffusionPipeline, FluxLoraLoaderMixin):
                 unscale_lora_layers(self.text_encoder_2, lora_scale)
 
         dtype = self.text_encoder.dtype if self.text_encoder is not None else self.transformer.dtype
-        text_ids = ops.zeros(prompt_embeds.shape[1], 3).to(dtype=dtype)
+        text_ids = ops.zeros((prompt_embeds.shape[1], 3)).to(dtype=dtype)
 
         return prompt_embeds, pooled_prompt_embeds, text_ids
 
@@ -478,7 +478,7 @@ class FluxInpaintPipeline(DiffusionPipeline, FluxLoraLoaderMixin):
     @staticmethod
     # Copied from diffusers.pipelines.flux.pipeline_flux.FluxPipeline._prepare_latent_image_ids
     def _prepare_latent_image_ids(batch_size, height, width, dtype):
-        latent_image_ids = ops.zeros(height // 2, width // 2, 3)
+        latent_image_ids = ops.zeros((height // 2, width // 2, 3))
         latent_image_ids[..., 1] = latent_image_ids[..., 1] + ops.arange(height // 2)[:, None]
         latent_image_ids[..., 2] = latent_image_ids[..., 2] + ops.arange(width // 2)[None, :]
 
@@ -915,7 +915,7 @@ class FluxInpaintPipeline(DiffusionPipeline, FluxLoraLoaderMixin):
                     continue
 
                 # broadcast to batch dimension in a way that's compatible with ONNX/Core ML
-                timestep = t.expand(latents.shape[0]).to(latents.dtype)
+                timestep = t.broadcast_to((latents.shape[0],)).to(latents.dtype)
                 noise_pred = self.transformer(
                     hidden_states=latents,
                     timestep=timestep / 1000,
@@ -938,7 +938,7 @@ class FluxInpaintPipeline(DiffusionPipeline, FluxLoraLoaderMixin):
                 if i < len(timesteps) - 1:
                     noise_timestep = timesteps[i + 1]
                     init_latents_proper = self.scheduler.scale_noise(
-                        init_latents_proper, ms.tensor([noise_timestep]), noise
+                        init_latents_proper, ms.tensor([noise_timestep.item()]), noise
                     )
 
                 latents = (1 - init_mask) * init_latents_proper + init_mask * latents
