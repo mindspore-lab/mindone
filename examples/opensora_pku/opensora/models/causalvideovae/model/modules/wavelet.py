@@ -148,7 +148,7 @@ class InverseHaarWaveletTransform3D(nn.Cell):
         self.hh_v = Tensor([[[1, 1], [-1, -1]], [[-1, -1], [1, 1]]], dtype=dtype).view(1, 1, 2, 2, 2) * 0.3536
         self.gh_v = Tensor([[[1, -1], [-1, 1]], [[-1, 1], [1, -1]]], dtype=dtype).view(1, 1, 2, 2, 2) * 0.3536
         self.enable_cached = enable_cached
-        self.causal_cached = None
+        self.is_first_chunk = True
         self.conv_transpose3d = ops.Conv3DTranspose(1, 1, kernel_size=2, stride=2)
 
     def construct(self, coeffs):
@@ -185,7 +185,7 @@ class InverseHaarWaveletTransform3D(nn.Cell):
         high_low_high = self.conv_transpose3d(high_low_high, self.g_v)
         high_high_low = self.conv_transpose3d(high_high_low, self.hh_v)
         high_high_high = self.conv_transpose3d(high_high_high, self.gh_v)
-        if self.enable_cached and self.causal_cached:
+        if self.enable_cached and not self.is_first_chunk:
             reconstructed = (
                 low_low_low
                 + low_low_high
@@ -207,7 +207,7 @@ class InverseHaarWaveletTransform3D(nn.Cell):
                 + high_high_low[:, :, 1:]
                 + high_high_high[:, :, 1:]
             )
-            self.causal_cached = True
+
         reconstructed = reconstructed.reshape(b, -1, *reconstructed.shape[-3:])
 
         return reconstructed.to(input_dtype)
