@@ -198,6 +198,12 @@ def parse_train_args(parser):
         help="whether save ckpt by steps. If False, save ckpt by epochs.",
     )
     parser.add_argument(
+        "--save_ema_only",
+        default=False,
+        type=str2bool,
+        help="whether save ema ckpt only. If False, and when ema during training is enabled, it will save both ema and non-ema.ckpt",
+    )
+    parser.add_argument(
         "--validate",
         default=False,
         type=str2bool,

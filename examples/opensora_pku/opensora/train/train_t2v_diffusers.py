@@ -642,7 +642,7 @@ def main(args):
             ckpt_save_dir=ckpt_save_dir,
             output_dir=output_dir,
             ema=ema,
-            save_ema_only=False,
+            save_ema_only=args.save_ema_only,
             ckpt_save_policy="latest_k",
             ckpt_max_keep=ckpt_max_keep,
             step_mode=step_mode,
