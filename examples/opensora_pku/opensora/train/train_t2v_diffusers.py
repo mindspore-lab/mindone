@@ -28,7 +28,7 @@ from opensora.utils.callbacks import EMAEvalSwapCallback, PerfRecorderCallback
 from opensora.utils.dataset_utils import Collate, LengthGroupedBatchSampler
 from opensora.utils.ema import EMA
 from opensora.utils.message_utils import print_banner
-from opensora.utils.utils import get_precision
+from opensora.utils.utils import get_precision, save_diffusers_json
 
 from mindone.diffusers.models.activations import SiLU
 from mindone.diffusers.schedulers import FlowMatchEulerDiscreteScheduler  # CogVideoXDDIMScheduler,
@@ -161,7 +161,8 @@ def main(args):
         num_no_recompute=args.num_no_recompute,
         FA_dtype=FA_dtype,
     )
-
+    json_name = os.path.join(args.output_dir, "config.json")
+    save_diffusers_json(model.config, json_name)
     # mixed precision
     if args.precision == "fp32":
         model_dtype = get_precision(args.precision)
