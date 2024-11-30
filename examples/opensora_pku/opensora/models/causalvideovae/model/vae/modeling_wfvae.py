@@ -1,6 +1,7 @@
 import logging
 import math
 import os
+from collections import deque
 from typing import List
 
 from opensora.npu_config import npu_config
@@ -16,7 +17,6 @@ from mindone.diffusers.utils import SAFETENSORS_WEIGHTS_NAME, WEIGHTS_NAME, _add
 
 from ..modeling_videobase import VideoBaseAE
 from ..modules import (
-    AttnBlock3DFix,
     CausalConv3d,
     Conv2d,
     HaarWaveletTransform3D,
@@ -41,6 +41,7 @@ class Encoder(VideoBaseAE):
         num_resblocks: int = 2,
         energy_flow_hidden_size: int = 64,
         dropout: float = 0.0,
+        attention_type: str = "AttnBlock3DFix",
         use_attention: bool = True,
         norm_type: str = "groupnorm",
         l1_dowmsample_block: str = "Downsample",
@@ -145,19 +146,23 @@ class Encoder(VideoBaseAE):
             ),
         ]
         if use_attention:
-            mid_layers.insert(1, AttnBlock3DFix(in_channels=base_channels * 4, norm_type=norm_type, dtype=dtype))
+            mid_layers.insert(
+                1, resolve_str_to_obj(attention_type)(in_channels=base_channels * 4, norm_type=norm_type, dtype=dtype)
+            )
         self.mid = nn.SequentialCell(*mid_layers)
         self.norm_out = Normalize(base_channels * 4, norm_type=norm_type)
         self.conv_out = CausalConv3d(base_channels * 4, latent_dim * 2, kernel_size=3, stride=1, padding=1)
 
-        self.wavelet_tranform_l1 = resolve_str_to_obj(l1_downsample_wavelet)(dtype=dtype)
-        self.wavelet_tranform_l2 = resolve_str_to_obj(l2_downsample_wavelet)(dtype=dtype)
+        self.wavelet_transform_in = HaarWaveletTransform3D()
+        self.wavelet_transform_l1 = resolve_str_to_obj(l1_downsample_wavelet)()
+        self.wavelet_transform_l2 = resolve_str_to_obj(l2_downsample_wavelet)()
 
-    def construct(self, coeffs):
+    def construct(self, x):
+        coeffs = self.wavelet_transform_in(x)
         l1_coeffs = coeffs[:, :3]
-        l1_coeffs = self.wavelet_tranform_l1(l1_coeffs)
+        l1_coeffs = self.wavelet_transform_l1(l1_coeffs)
         l1 = self.connect_l1(l1_coeffs)
-        l2_coeffs = self.wavelet_tranform_l2(l1_coeffs[:, :3])
+        l2_coeffs = self.wavelet_transform_l2(l1_coeffs[:, :3])
         l2 = self.connect_l2(l2_coeffs)
 
         h = self.down1(coeffs)
@@ -173,7 +178,7 @@ class Encoder(VideoBaseAE):
 
         h = nonlinearity(h)
         h = self.conv_out(h)
-        return h
+        return h, (l1_coeffs, l2_coeffs)
 
 
 class Decoder(VideoBaseAE):
@@ -185,6 +190,7 @@ class Decoder(VideoBaseAE):
         num_resblocks: int = 2,
         dropout: float = 0.0,
         energy_flow_hidden_size: int = 128,
+        attention_type: str = "AttnBlock3DFix",
         use_attention: bool = True,
         norm_type: str = "groupnorm",
         t_interpolation: str = "nearest",
@@ -217,7 +223,9 @@ class Decoder(VideoBaseAE):
             ),
         ]
         if use_attention:
-            mid_layers.insert(1, AttnBlock3DFix(in_channels=base_channels * 4, norm_type=norm_type, dtype=dtype))
+            mid_layers.insert(
+                1, resolve_str_to_obj(attention_type)(in_channels=base_channels * 4, norm_type=norm_type, dtype=dtype)
+            )
         self.mid = nn.SequentialCell(*mid_layers)
         self.up2 = nn.SequentialCell(
             *[
@@ -283,8 +291,8 @@ class Decoder(VideoBaseAE):
         self.connect_l1 = nn.SequentialCell(
             *[
                 ResnetBlock3D(
-                    in_channels=base_channels,
-                    out_channels=base_channels,
+                    in_channels=energy_flow_hidden_size,
+                    out_channels=energy_flow_hidden_size,
                     dropout=dropout,
                     norm_type=norm_type,
                     dtype=dtype,
@@ -292,7 +300,7 @@ class Decoder(VideoBaseAE):
                 for _ in range(connect_res_layer_num)
             ],
             Conv2d(
-                base_channels,
+                energy_flow_hidden_size,
                 l1_channels,
                 kernel_size=3,
                 stride=1,
@@ -300,14 +308,14 @@ class Decoder(VideoBaseAE):
                 pad_mode="pad",
                 has_bias=True,
                 weight_init=HeUniform(negative_slope=math.sqrt(5)),
-                bias_init=Uniform(scale=1 / math.sqrt(base_channels * 3 * 3)),
+                bias_init=Uniform(scale=1 / math.sqrt(energy_flow_hidden_size * 3 * 3)),
             ).to_float(dtype),
         )
         self.connect_l2 = nn.SequentialCell(
             *[
                 ResnetBlock3D(
-                    in_channels=base_channels,
-                    out_channels=base_channels,
+                    in_channels=energy_flow_hidden_size,
+                    out_channels=energy_flow_hidden_size,
                     dropout=dropout,
                     norm_type=norm_type,
                     dtype=dtype,
@@ -315,7 +323,7 @@ class Decoder(VideoBaseAE):
                 for _ in range(connect_res_layer_num)
             ],
             Conv2d(
-                base_channels,
+                energy_flow_hidden_size,
                 24,
                 kernel_size=3,
                 stride=1,
@@ -323,7 +331,7 @@ class Decoder(VideoBaseAE):
                 pad_mode="pad",
                 has_bias=True,
                 weight_init=HeUniform(negative_slope=math.sqrt(5)),
-                bias_init=Uniform(scale=1 / math.sqrt(base_channels * 3 * 3)),
+                bias_init=Uniform(scale=1 / math.sqrt(energy_flow_hidden_size * 3 * 3)),
             ).to_float(dtype),
         )
         # Out
@@ -340,21 +348,22 @@ class Decoder(VideoBaseAE):
             bias_init=Uniform(scale=1 / math.sqrt(base_channels * 3 * 3)),
         ).to_float(dtype)
 
-        self.inverse_wavelet_tranform_l1 = resolve_str_to_obj(l1_upsample_wavelet)(dtype=dtype)
-        self.inverse_wavelet_tranform_l2 = resolve_str_to_obj(l2_upsample_wavelet)(dtype=dtype)
+        self.inverse_wavelet_transform_out = InverseHaarWaveletTransform3D()
+        self.inverse_wavelet_transform_l1 = resolve_str_to_obj(l1_upsample_wavelet)()
+        self.inverse_wavelet_transform_l2 = resolve_str_to_obj(l2_upsample_wavelet)()
 
     def construct(self, z):
         h = self.conv_in(z)
         h = self.mid(h)
         l2_coeffs = self.connect_l2(h[:, -self.energy_flow_hidden_size :])
-        l2 = self.inverse_wavelet_tranform_l2(l2_coeffs)
+        l2 = self.inverse_wavelet_transform_l2(l2_coeffs)
 
         h = self.up2(h[:, : -self.energy_flow_hidden_size])
 
         l1_coeffs = h[:, -self.energy_flow_hidden_size :]
         l1_coeffs = self.connect_l1(l1_coeffs)
         l1_coeffs[:, :3] = l1_coeffs[:, :3] + l2
-        l1 = self.inverse_wavelet_tranform_l1(l1_coeffs)
+        l1 = self.inverse_wavelet_transform_l1(l1_coeffs)
 
         h = self.up1(h[:, : -self.energy_flow_hidden_size])
 
@@ -363,7 +372,8 @@ class Decoder(VideoBaseAE):
         h = nonlinearity(h)
         h = self.conv_out(h)
         h[:, :3] = h[:, :3] + l1
-        return h
+        dec = self.inverse_wavelet_transform_out(h)
+        return dec, (l1_coeffs, l2_coeffs)
 
 
 @ModelRegistry.register("WFVAE")
@@ -377,6 +387,7 @@ class WFVAEModel(VideoBaseAE):
         encoder_energy_flow_hidden_size: int = 64,
         decoder_num_resblocks: int = 2,
         decoder_energy_flow_hidden_size: int = 128,
+        attention_type: str = "AttnBlock3DFix",
         use_attention: bool = True,
         dropout: float = 0.0,
         norm_type: str = "groupnorm",
@@ -400,9 +411,10 @@ class WFVAEModel(VideoBaseAE):
         self.use_tiling = False
 
         # Hardcode for now
-        self.t_chunk_enc = 16
+        self.t_chunk_enc = 8
+        self.t_chunk_dec = 2
         self.t_upsample_times = 4 // 2
-        self.t_chunk_dec = 4
+
         self.use_quant_layer = False
         self.encoder = Encoder(
             latent_dim=latent_dim,
@@ -416,6 +428,7 @@ class WFVAEModel(VideoBaseAE):
             l1_downsample_wavelet=l1_downsample_wavelet,
             l2_dowmsample_block=l2_dowmsample_block,
             l2_downsample_wavelet=l2_downsample_wavelet,
+            attention_type=attention_type,
             dtype=dtype,
         )
         self.decoder = Decoder(
@@ -432,6 +445,7 @@ class WFVAEModel(VideoBaseAE):
             l1_upsample_wavelet=l1_upsample_wavelet,
             l2_upsample_block=l2_upsample_block,
             l2_upsample_wavelet=l2_upsample_wavelet,
+            attention_type=attention_type,
             dtype=dtype,
         )
 
@@ -474,7 +488,7 @@ class WFVAEModel(VideoBaseAE):
     def _empty_causal_cached(self, parent):
         for name, module in parent.cells_and_names():
             if hasattr(module, "causal_cached"):
-                module.causal_cached = None
+                module.causal_cached = deque()
 
     def _set_causal_cached(self, enable_cached=True):
         for name, module in self.cells_and_names():
@@ -486,6 +500,11 @@ class WFVAEModel(VideoBaseAE):
             for submodule in module.cells():
                 if hasattr(submodule, "cache_offset"):
                     submodule.cache_offset = cache_offset
+
+    def _set_first_chunk(self, is_first_chunk=True):
+        for _, module in self.cells_and_names():
+            if hasattr(module, "is_first_chunk"):
+                module.is_first_chunk = is_first_chunk
 
     def build_chunk_start_end(self, t, decoder_mode=False):
         start_end = [[0, 1]]
@@ -510,13 +529,13 @@ class WFVAEModel(VideoBaseAE):
 
     def _encode(self, x):
         self._empty_causal_cached(self.encoder)
-
-        coeffs = HaarWaveletTransform3D()(x)
+        self._set_first_chunk(True)
 
         if self.use_tiling:
-            h = self.tile_encode(coeffs)
+            h = self.tile_encode(x)
+            # l1, l2 = None, None
         else:
-            h = self.encoder(coeffs)
+            h, _ = self.encoder(x)
             if self.use_quant_layer:
                 h = self.quant_conv(h)
         posterior_mean, posterior_logvar = mint.split(h, [h.shape[1] // 2, h.shape[1] // 2], dim=1)
@@ -527,26 +546,28 @@ class WFVAEModel(VideoBaseAE):
 
         start_end = self.build_chunk_start_end(t)
         result = []
-        for start, end in start_end:
+        for idx, (start, end) in enumerate(start_end):
+            self._set_first_chunk(idx == 0)
             chunk = x[:, :, start:end, :, :]
-            chunk = self.encoder(chunk)
+            chunk = self.encoder(chunk)[0]
             if self.use_quant_layer:
-                chunk = self.encoder(chunk)
+                chunk = self.quant_conv(chunk)
             result.append(chunk)
 
         return mint.cat(result, dim=2)
 
     def decode(self, z):
         self._empty_causal_cached(self.decoder)
+        self._set_first_chunk(True)
 
         if self.use_tiling:
             dec = self.tile_decode(z)
+            # l1, l2 = None, None
         else:
             if self.use_quant_layer:
                 z = self.post_quant_conv(z)
-            dec = self.decoder(z)
+            dec, _ = self.decoder(z)
 
-        dec = InverseHaarWaveletTransform3D()(dec)
         return dec
 
     def tile_decode(self, x):
@@ -555,7 +576,9 @@ class WFVAEModel(VideoBaseAE):
         start_end = self.build_chunk_start_end(t, decoder_mode=True)
 
         result = []
-        for start, end in start_end:
+        for idx, (start, end) in enumerate(start_end):
+            self._set_first_chunk(idx == 0)
+
             if end + 1 < t:
                 chunk = x[:, :, start : end + 1, :, :]
             else:
@@ -563,10 +586,10 @@ class WFVAEModel(VideoBaseAE):
 
             if self.use_quant_layer:
                 chunk = self.post_quant_conv(chunk)
-            chunk = self.decoder(chunk)
+            chunk = self.decoder(chunk)[0]
 
             if end + 1 < t:
-                chunk = chunk[:, :, :-2]
+                chunk = chunk[:, :, :-4]
                 result.append(chunk)
             else:
                 result.append(chunk)

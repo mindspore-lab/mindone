@@ -1,4 +1,5 @@
 import math
+from collections import deque
 from typing import Tuple, Union
 
 from opensora.npu_config import npu_config
@@ -324,19 +325,19 @@ class Spatial2xTime2x3DUpsample(nn.Cell):
         self.conv = CausalConv3d(in_channels, out_channels, kernel_size=3, padding=1)
         self.interpolate = TrilinearInterpolate()
         self.enable_cached = enable_cached
-        self.causal_cached = None
+        self.causal_cached = deque()
 
     def construct(self, x):
-        if x.shape[2] > 1 or self.causal_cached is not None:
-            if self.enable_cached and self.causal_cached is not None:
-                x = mint.cat([self.causal_cached, x], dim=2)
-                self.causal_cached = x[:, :, -2:-1]
+        if x.shape[2] > 1 or len(self.causal_cached) > 0:
+            if self.enable_cached and len(self.causal_cached) > 0:
+                x = mint.cat([self.causal_cached.popleft(), x], dim=2)
+                self.causal_cached.append(x[:, :, -2:-1].copy())
                 x = npu_config.run_interpolate(self.interpolate, x, scale_factor=(2.0, 1.0, 1.0))
                 x = x[:, :, 2:]
                 x = npu_config.run_interpolate(self.interpolate, x, scale_factor=(1.0, 2.0, 2.0))
             else:
                 if self.enable_cached:
-                    self.causal_cached = x[:, :, -1:]
+                    self.causal_cached.append(x[:, :, -1:].copy())
                 x, x_ = x[:, :, :1], x[:, :, 1:]
                 x_ = npu_config.run_interpolate(self.interpolate, x_, scale_factor=(2.0, 1.0, 1.0))
                 x_ = npu_config.run_interpolate(self.interpolate, x_, scale_factor=(1.0, 2.0, 2.0))
@@ -344,7 +345,7 @@ class Spatial2xTime2x3DUpsample(nn.Cell):
                 x = mint.cat([x, x_], dim=2)
         else:
             if self.enable_cached:
-                self.causal_cached = x[:, :, -1:]
+                self.causal_cached.append(x[:, :, -1:].copy())
             x = npu_config.run_interpolate(self.interpolate, x, scale_factor=(1.0, 2.0, 2.0))
         return self.conv(x)
 
