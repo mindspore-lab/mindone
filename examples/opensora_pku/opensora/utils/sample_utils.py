@@ -12,7 +12,6 @@ from opensora.dataset.text_dataset import create_dataloader
 from opensora.models.causalvideovae import ae_stride_config, ae_wrapper
 
 # from opensora.sample.caption_refiner import OpenSoraCaptionRefiner
-from opensora.models.causalvideovae.model.modules.updownsample import TrilinearInterpolate
 from opensora.models.diffusion.common import PatchEmbed2D
 from opensora.models.diffusion.opensora.modeling_opensora import OpenSoraT2V_v1_3
 from opensora.models.diffusion.opensora.modules import Attention, LayerNorm
@@ -118,14 +117,6 @@ def prepare_pipeline(args):
     if args.enable_tiling:
         vae.vae.enable_tiling()
         vae.vae.tile_overlap_factor = args.tile_overlap_factor
-
-    # use amp level O2 for causal 3D VAE with bfloat16 or float16
-    if vae_dtype == ms.float16:
-        custom_fp32_cells = [nn.GroupNorm] if args.vae_keep_gn_fp32 else []
-    else:
-        custom_fp32_cells = [nn.AvgPool2d, TrilinearInterpolate]
-    logger.info(f"Use amp level O2 for causal 3D VAE with dtype={vae_dtype}, custom_fp32_cells: {custom_fp32_cells}")
-    vae = auto_mixed_precision(vae, amp_level="O2", dtype=vae_dtype, custom_fp32_cells=custom_fp32_cells)
 
     vae.set_train(False)
     for param in vae.get_parameters():  # freeze vae
