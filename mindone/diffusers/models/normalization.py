@@ -375,6 +375,51 @@ class LuminaLayerNormContinuous(nn.Cell):
         return x
 
 
+class CogView3PlusAdaLayerNormZeroTextImage(nn.Cell):
+    r"""
+    Norm layer adaptive layer norm zero (adaLN-Zero).
+
+    Parameters:
+        embedding_dim (`int`): The size of each embedding vector.
+        num_embeddings (`int`): The size of the embeddings dictionary.
+    """
+
+    def __init__(self, embedding_dim: int, dim: int):
+        super().__init__()
+
+        self.silu = nn.SiLU()
+        self.linear = nn.Dense(embedding_dim, 12 * dim, has_bias=True)
+        self.norm_x = LayerNorm(dim, elementwise_affine=False, eps=1e-5)
+        self.norm_c = LayerNorm(dim, elementwise_affine=False, eps=1e-5)
+
+    def construct(
+        self,
+        x: ms.Tensor,
+        context: ms.Tensor,
+        emb: Optional[ms.Tensor] = None,
+    ) -> Tuple[ms.Tensor, ms.Tensor, ms.Tensor, ms.Tensor, ms.Tensor]:
+        emb = self.linear(self.silu(emb))
+        (
+            shift_msa,
+            scale_msa,
+            gate_msa,
+            shift_mlp,
+            scale_mlp,
+            gate_mlp,
+            c_shift_msa,
+            c_scale_msa,
+            c_gate_msa,
+            c_shift_mlp,
+            c_scale_mlp,
+            c_gate_mlp,
+        ) = emb.chunk(12, axis=1)
+        normed_x = self.norm_x(x)
+        normed_context = self.norm_c(context)
+        x = normed_x * (1 + scale_msa[:, None]) + shift_msa[:, None]
+        context = normed_context * (1 + c_scale_msa[:, None]) + c_shift_msa[:, None]
+        return x, gate_msa, shift_mlp, scale_mlp, gate_mlp, context, c_gate_msa, c_shift_mlp, c_scale_mlp, c_gate_mlp
+
+
 class CogVideoXLayerNormZero(nn.Cell):
     def __init__(
         self,

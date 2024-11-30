@@ -22,6 +22,7 @@ _import_structure = {
         "CogVideoXVideoToVideoPipeline",
     ],
     "consistency_models": ["ConsistencyModelPipeline"],
+    "cogview3": ["CogView3PlusPipeline"],
     "controlnet": [
         "BlipDiffusionControlNetPipeline",
         "StableDiffusionControlNetImg2ImgPipeline",
@@ -183,6 +184,7 @@ if TYPE_CHECKING:
     from .auto_pipeline import AutoPipelineForImage2Image, AutoPipelineForInpainting, AutoPipelineForText2Image
     from .blip_diffusion import BlipDiffusionPipeline
     from .cogvideo import CogVideoXImageToVideoPipeline, CogVideoXPipeline, CogVideoXVideoToVideoPipeline
+    from .cogview3 import CogView3PlusPipeline
     from .consistency_models import ConsistencyModelPipeline
     from .controlnet import (
         BlipDiffusionControlNetPipeline,

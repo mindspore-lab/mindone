@@ -43,6 +43,7 @@ _import_structure = {
     "transformers.prior_transformer": ["PriorTransformer"],
     "transformers.t5_film_transformer": ["T5FilmDecoder"],
     "transformers.transformer_2d": ["Transformer2DModel"],
+    "transformers.transformer_cogview3plus": ["CogView3PlusTransformer2DModel"],
     "transformers.transformer_flux": ["FluxTransformer2DModel"],
     "transformers.transformer_sd3": ["SD3Transformer2DModel"],
     "transformers.transformer_temporal": ["TransformerTemporalModel"],
@@ -78,6 +79,7 @@ if TYPE_CHECKING:
     from .modeling_utils import ModelMixin
     from .transformers import (
         CogVideoXTransformer3DModel,
+        CogView3PlusTransformer2DModel,
         DiTTransformer2DModel,
         DualTransformer2DModel,
         FluxTransformer2DModel,
