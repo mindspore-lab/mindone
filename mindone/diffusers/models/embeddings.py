@@ -692,6 +692,30 @@ def apply_rotary_emb(
         return x_out.type_as(x)
 
 
+class FluxPosEmbed(nn.Cell):
+    # modified from https://github.com/black-forest-labs/flux/blob/c00d7c60b085fce8058b9df845e036090873f2ce/src/flux/modules/layers.py#L11
+    def __init__(self, theta: int, axes_dim: List[int]):
+        super().__init__()
+        self.theta = theta
+        self.axes_dim = axes_dim
+
+    def construct(self, ids: ms.Tensor) -> ms.Tensor:
+        n_axes = ids.shape[-1]
+        cos_out = []
+        sin_out = []
+        pos = ids.float()
+        freqs_dtype = ms.float64
+        for i in range(n_axes):
+            cos, sin = get_1d_rotary_pos_embed(
+                self.axes_dim[i], pos[:, i], repeat_interleave_real=True, use_real=True, freqs_dtype=freqs_dtype
+            )
+            cos_out.append(cos)
+            sin_out.append(sin)
+        freqs_cos = ops.cat(cos_out, axis=-1)
+        freqs_sin = ops.cat(sin_out, axis=-1)
+        return freqs_cos, freqs_sin
+
+
 class TimestepEmbedding(nn.Cell):
     def __init__(
         self,

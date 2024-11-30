@@ -52,7 +52,14 @@ _import_structure = {
         "IFSuperResolutionPipeline",
     ],
     "dit": ["DiTPipeline"],
-    "flux": ["FluxPipeline"],
+    "flux": [
+        "FluxControlNetPipeline",
+        "FluxControlNetImg2ImgPipeline",
+        "FluxControlNetInpaintPipeline",
+        "FluxImg2ImgPipeline",
+        "FluxInpaintPipeline",
+        "FluxPipeline",
+    ],
     "hunyuandit": ["HunyuanDiTPipeline"],
     "i2vgen_xl": ["I2VGenXLPipeline"],
     "latent_diffusion": ["LDMSuperResolutionPipeline", "LDMTextToImagePipeline"],
@@ -200,7 +207,14 @@ if TYPE_CHECKING:
         IFSuperResolutionPipeline,
     )
     from .dit import DiTPipeline
-    from .flux import FluxPipeline
+    from .flux import (
+        FluxControlNetImg2ImgPipeline,
+        FluxControlNetInpaintPipeline,
+        FluxControlNetPipeline,
+        FluxImg2ImgPipeline,
+        FluxInpaintPipeline,
+        FluxPipeline,
+    )
     from .hunyuandit import HunyuanDiTPipeline
     from .i2vgen_xl import I2VGenXLPipeline
     from .kandinsky import (
