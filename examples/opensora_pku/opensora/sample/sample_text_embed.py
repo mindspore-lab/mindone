@@ -17,8 +17,8 @@ sys.path.insert(0, mindone_lib_path)
 sys.path.append(os.path.abspath("./"))
 from opensora.dataset.text_dataset import create_dataloader
 from opensora.dataset.transform import t5_text_preprocessing as text_preprocessing
+from opensora.npu_config import npu_config
 from opensora.utils.message_utils import print_banner
-from opensora.utils.ms_utils import init_env
 from opensora.utils.utils import get_precision
 from transformers import AutoTokenizer
 
@@ -47,15 +47,7 @@ def read_captions_from_txt(path):
 
 def main(args):
     set_logger(name="", output_dir="logs/infer_mt5")
-
-    rank_id, device_num = init_env(
-        mode=args.mode,
-        seed=args.seed,
-        distributed=args.use_parallel,
-        device_target=args.device_target,
-        jit_level=args.jit_level,
-        jit_syntax_level=args.jit_syntax_level,
-    )
+    rank_id, device_num = npu_config.set_npu_env(args)
     print(f"rank_id {rank_id}, device_num {device_num}")
 
     # build dataloader for large amount of captions

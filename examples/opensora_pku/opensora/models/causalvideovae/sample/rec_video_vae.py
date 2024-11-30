@@ -8,25 +8,14 @@ sys.path.append(".")
 from opensora.acceleration.parallel_states import get_sequence_parallel_state, hccl_info
 from opensora.models.causalvideovae.model import ModelRegistry
 from opensora.models.causalvideovae.model.dataset_videobase import VideoDataset, create_dataloader
-from opensora.utils.ms_utils import init_env
+from opensora.npu_config import npu_config
 from opensora.utils.utils import get_precision
 from opensora.utils.video_utils import save_videos
 
 
 def main(args: argparse.Namespace):
-    rank_id, device_num = init_env(
-        args.mode,
-        seed=args.seed,
-        distributed=args.use_parallel,
-        device_target=args.device,
-        max_device_memory=args.max_device_memory,
-        parallel_mode=args.parallel_mode,
-        precision_mode=args.precision_mode,
-        sp_size=args.sp_size,
-        jit_level=args.jit_level,
-        jit_syntax_level=args.jit_syntax_level,
-    )
-
+    rank_id, device_num = npu_config.set_npu_env(args)
+    npu_config.print_ops_dtype_info()
     real_video_dir = args.real_video_dir
     generated_video_dir = args.generated_video_dir
     sample_rate = args.sample_rate
