@@ -22,7 +22,7 @@ python opensora/train/train_causalvae.py \
     --init_loss_scale 65536 \
     --jit_level "O0" \
     --use_discriminator True \
-    --use_ema True\
+    --use_ema False \
     --ema_decay 0.999 \
     --perceptual_weight 1.0 \
     --loss_type l1 \

@@ -34,7 +34,7 @@ python opensora/train/train_t2v_diffusers.py \
     --cfg 0.1 \
     --snr_gamma 5.0 \
     --rescale_betas_zero_snr \
-    --use_ema True\
+    --use_ema False \
     --ema_start_step 0 \
     --enable_tiling \
     --tile_overlap_factor 0.125 \

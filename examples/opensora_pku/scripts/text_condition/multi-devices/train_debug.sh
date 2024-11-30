@@ -35,7 +35,7 @@ msrun --bind_core=True --worker_num=4 --local_worker_num=4 --master_port=6000 --
     --use_image_num 0 \
     --cfg 0.1 \
     --snr_gamma 5.0 \
-    --use_ema True\
+    --use_ema False \
     --ema_start_step 0 \
     --enable_tiling \
     --tile_overlap_factor 0.125 \

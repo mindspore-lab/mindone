@@ -30,7 +30,7 @@ msrun --bind_core=True --worker_num=8 --local_worker_num=8 --master_port=9000 --
     --jit_level "O0" \
     --use_discriminator True \
     --use_parallel True \
-    --use_ema True\
+    --use_ema False \
     --ema_decay 0.999 \
     --perceptual_weight 1.0 \
     --loss_type l1 \
