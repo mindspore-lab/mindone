@@ -212,7 +212,7 @@ python opensora/sample/sample.py \
     --mode 1
 ```
 You can change the `num_frames`, `height` and `width`.
-Note that DiT model is trained arbitrarily on stride=32. 
+Note that DiT model is trained arbitrarily on stride=32.
 So keep the resolution of the inference a multiple of 32. `num_frames` needs to be 4n+1, e.g. 93, 77, 61, 45, 29, 1.
 
 <!-- In case of oom on your device, you can try to append `--save_memory` to the command above, which enables a more radical tiling strategy for causal vae. -->
@@ -345,7 +345,6 @@ python examples/rec_video_folder.py \
     --num_workers 8 \
     --ae_path LanguageBind/Open-Sora-Plan-v1.2.0/vae \
     --enable_tiling \
-    --tile_overlap_factor 0.125 \
     --save_memory \
     --ms_checkpoint /path/to/ms/checkpoint \
 ```
