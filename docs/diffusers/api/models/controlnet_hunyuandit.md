@@ -32,6 +32,4 @@ import mindspore as ms
 controlnet = HunyuanDiT2DControlNetModel.from_pretrained("Tencent-Hunyuan/HunyuanDiT-v1.1-ControlNet-Diffusers-Pose", mindspore_dtype=ms.float16)
 ```
 
-## HunyuanDiT2DControlNetModel
-
 ::: mindone.diffusers.HunyuanDiT2DControlNetModel
