@@ -1,12 +1,9 @@
 opencv-python
 scikit-image
-einops
 ftfy
-regex
 albumentations
 pandas
 imagesize
-toolz
 pillow==9.1.1
 tqdm
 decord
@@ -18,3 +15,4 @@ sentencepiece
 transformers
 av
 mindcv==0.3.0
+bs4
