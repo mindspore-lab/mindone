@@ -1,5 +1,5 @@
 """
-OpenSora v1.3 STDiT architecture, using DSP parallism (https://arxiv.org/abs/2403.10266)
+OpenSora v1.2 STDiT architecture, using DSP parallism (https://arxiv.org/abs/2403.10266)
 Reference: https://github.com/NUS-HPC-AI-Lab/VideoSys/blob/master/videosys/models/transformers/open_sora_transformer_3d.py
 """
 
@@ -113,9 +113,10 @@ class STDiT3DSPBlock(nn.Cell):
         )
 
         # modulate (attention)
-        x_m = t2i_modulate(self.norm1(x), shift_msa, scale_msa)
+        norm1 = self.norm1(x)
+        x_m = t2i_modulate(norm1, shift_msa, scale_msa)
         # frames mask branch
-        x_m_zero = t2i_modulate(self.norm1(x), shift_msa_zero, scale_msa_zero)
+        x_m_zero = t2i_modulate(norm1, shift_msa_zero, scale_msa_zero)
         x_m = t_mask_select(frames_mask, x_m, x_m_zero, T, S)
 
         # attention
@@ -149,9 +150,10 @@ class STDiT3DSPBlock(nn.Cell):
         x = x + self.cross_attn(x, y, mask)
 
         # modulate (MLP)
-        x_m = t2i_modulate(self.norm2(x), shift_mlp, scale_mlp)
+        norm2 = self.norm2(x)
+        x_m = t2i_modulate(norm2, shift_mlp, scale_mlp)
         # frames mask branch
-        x_m_zero = t2i_modulate(self.norm2(x), shift_mlp_zero, scale_mlp_zero)
+        x_m_zero = t2i_modulate(norm2, shift_mlp_zero, scale_mlp_zero)
         x_m = t_mask_select(frames_mask, x_m, x_m_zero, T, S)
 
         # MLP
