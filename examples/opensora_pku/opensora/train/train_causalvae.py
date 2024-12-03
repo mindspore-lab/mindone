@@ -7,8 +7,8 @@ import os
 import shutil
 import sys
 import time
+from copy import deepcopy
 
-import deepcopy
 import yaml
 
 import mindspore as ms

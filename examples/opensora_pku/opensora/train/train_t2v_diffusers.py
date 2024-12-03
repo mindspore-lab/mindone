@@ -2,8 +2,8 @@ import logging
 import math
 import os
 import sys
+from copy import deepcopy
 
-import deepcopy
 import yaml
 
 import mindspore as ms
