@@ -76,6 +76,7 @@ def main(args):
         state_dict = dict(
             [k.replace("autoencoder.", "") if k.startswith("autoencoder.") else k, v] for k, v in state_dict.items()
         )
+        state_dict = dict([k.replace("_backbone.", "") if "_backbone." in k else k, v] for k, v in state_dict.items())
     else:
         state_dict = None
     vae = None
