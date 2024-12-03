@@ -1,8 +1,10 @@
-pycubes
+pyMCubes
 trimesh
-imageio
-loguru
+imageio[ffmpeg]
 einops
+rembg
+ftfy
+pandas
 huggingface_hub
 omegaconf
 mindcv==0.3.0

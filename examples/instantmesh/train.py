@@ -1,7 +1,5 @@
 import argparse
 import datetime
-
-# from loguru import logger
 import logging
 import math
 import os
@@ -20,7 +18,6 @@ import sys
 
 __dir__ = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.abspath(os.path.join(__dir__, "../../../..")))  # for mindone
-sys.path.insert(0, os.path.abspath(os.path.join(__dir__, "../..")))  # for sgm
 
 from model_stage1 import InstantMeshStage1WithLoss
 from omegaconf import OmegaConf
