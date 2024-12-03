@@ -53,7 +53,7 @@ class InferPipeline:
         """
         x = mint.permute(x, (0, 2, 1, 3, 4))  # FIXME: remove this redundancy
         x = x / self.scale_factor + self.shift_factor
-        y = self.tae.decode(x, target_num_frames=num_frames)  # FIXME: extract scale_factor from TAE and use it here
+        y = self.tae.decode(x, target_num_frames=num_frames)
         y = ops.clip_by_value((y + 1.0) / 2.0, clip_value_min=0.0, clip_value_max=1.0)
         # (b 3 t h w) -> (b t h w 3)
         y = mint.permute(y, (0, 2, 3, 4, 1))

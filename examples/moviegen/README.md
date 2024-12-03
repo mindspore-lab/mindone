@@ -163,14 +163,14 @@ python inference.py \
 #### Video Reconstruction
 
 ```shell
-python inference_vae.py \
---ckpt_path /path/to/tae.ckpt \
+python eval_tae.py \
+--pretrained /path/to/tae.ckpt \
 --batch_size 2 \
---num_frames 16  \
---image_size 256 \
+--sample_n_frames 16  \
+--size 256 \
 --csv_path ../opensora_hpcai/datasets/mixkit-100videos/video_caption_test.csv  \
---video_folder ../opensora_hpcai/datasets/mixkit-100videos/mixkit \
---enable_tile False \
+--folder ../opensora_hpcai/datasets/mixkit-100videos/mixkit \
+--use_tile False
 ```
 
 #### Encoding video

@@ -6,10 +6,10 @@ from typing import Tuple, Union
 from jsonargparse import ActionConfigFile, ArgumentParser
 from jsonargparse.typing import path_type
 
+import mindspore.dataset as ds
 from mindspore import GRAPH_MODE, Model, Symbol, Tensor, amp
 from mindspore import dtype as mstype
-from mindspore import get_context, nn, set_seed
-from mindspore.dataset import BatchDataset, BucketBatchByLengthDataset
+from mindspore import get_context, nn, set_context, set_seed
 
 # TODO: remove in future when mindone is ready for install
 __dir__ = os.path.dirname(os.path.abspath(__file__))
@@ -18,7 +18,6 @@ sys.path.append(mindone_lib_path)
 
 from mg.dataset import ImageVideoDataset, bucket_split_function
 from mg.models.tae import TemporalAutoencoder
-from mg.models.tae.modules import SpatialDownsample, SpatialUpsample, TemporalDownsample, TemporalUpsample
 from mg.parallel import create_parallel_group
 from mg.pipelines import DiffusionWithLoss
 from mg.schedulers import RFlowEvalLoss, RFlowLossWrapper
@@ -36,7 +35,7 @@ logger = logging.getLogger(__name__)
 
 def initialize_dataset(
     dataset_args, dataloader_args, device_num: int, shard_rank_id: int
-) -> Tuple[Union[BatchDataset, BucketBatchByLengthDataset], int]:
+) -> Tuple[Union[ds.BatchDataset, ds.BucketBatchByLengthDataset], int]:
     dataset = ImageVideoDataset(**dataset_args)
     transforms = (
         dataset.train_transforms(dataset_args.target_size) if not dataset_args.apply_transforms_dataset else None
@@ -70,6 +69,10 @@ def main(args):
     device_id, rank_id, device_num = init_train_env(**args.env)
     mode = get_context("mode")  # `init_train_env()` may change the mode during debugging
 
+    # if bucketing is used in Graph mode, activate dynamic mode
+    if mode == GRAPH_MODE and isinstance(args.dataloader.batch_size, dict):
+        set_context(graph_kernel_flags="--disable_packet_ops=Reshape")
+
     # 1.1 init model parallel
     shard_rank_id = rank_id
     if (shards := args.train.model_parallel.model_parallel_shards) > 1:
@@ -77,7 +80,10 @@ def main(args):
         device_num = device_num // shards
         shard_rank_id = rank_id // shards
 
-    set_seed(args.env.seed + shard_rank_id)  # TODO: do it better
+    # FIXME: Improve seed setting
+    set_seed(args.env.seed + shard_rank_id)  # set different seeds per NPU for sampling different timesteps
+    ds.set_seed(args.env.seed)  # keep MS.dataset's seed consistent as datasets first shuffled and then distributed
+
     set_logger("", output_dir=args.train.output_path, rank=rank_id)
 
     # instantiate classes only after initializing training environment
@@ -94,8 +100,7 @@ def main(args):
         # FIXME: remove AMP and add custom dtype conversion support for better compatibility with PyNative
         amp.custom_mixed_precision(
             tae,
-            black_list=amp.get_black_list()
-            + [SpatialDownsample, SpatialUpsample, TemporalDownsample, TemporalUpsample, nn.GroupNorm],
+            black_list=amp.get_black_list() + [nn.GroupNorm, nn.AvgPool2d, nn.Upsample],
             dtype=MODEL_DTYPE[tae_dtype],
         )
 
@@ -174,6 +179,7 @@ def main(args):
                     step_mode=True,
                     use_step_unit=True,
                     train_steps=args.train.steps,
+                    resume_prefix_blacklist=("tae.", "swap."),
                     **args.train.save,
                 ),
                 PerfRecorderCallback(
@@ -247,7 +253,7 @@ if __name__ == "__main__":
         ImageVideoDataset, "dataset", skip={"frames_mask_generator", "t_compress_func"}, instantiate=False
     )
     parser.add_function_arguments(
-        create_dataloader, "dataloader", skip={"dataset", "transforms", "device_num", "rank_id"}
+        create_dataloader, "dataloader", skip={"dataset", "transforms", "batch_transforms", "device_num", "rank_id"}
     )
     parser.link_arguments("env.debug", "dataloader.debug", apply_on="parse")
     parser.add_function_arguments(create_parallel_group, "train.model_parallel")
@@ -288,6 +294,7 @@ if __name__ == "__main__":
             "step_mode",
             "use_step_unit",
             "train_steps",
+            "resume_prefix_blacklist",
         },
         instantiate=False,
     )

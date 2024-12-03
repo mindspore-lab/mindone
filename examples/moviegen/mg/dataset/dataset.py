@@ -104,7 +104,7 @@ class ImageVideoDataset(BaseDataset):
                 return None
             return sample_
 
-        with open(csv_path, "r") as csv_file:
+        with open(csv_path, "r", encoding="utf-8") as csv_file:
             try:
                 data = []
                 for item in csv.DictReader(csv_file):
@@ -118,7 +118,7 @@ class ImageVideoDataset(BaseDataset):
                                 for name, path in text_emb_folder.items()
                             }
                     if vae_latent_folder:
-                        sample["vae_latent"] = os.path.join(vae_latent_folder, Path(item["video"]).with_suffix(".npz"))
+                        sample["vae_latent"] = os.path.join(vae_latent_folder, Path(item["video"]).with_suffix(".npy"))
                     data.append(sample)
             except KeyError as e:
                 _logger.error(f"CSV file requires `video` (file paths) column, but got {list(item.keys())}")

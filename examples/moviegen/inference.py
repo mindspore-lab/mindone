@@ -19,12 +19,11 @@ mindone_lib_path = os.path.abspath(os.path.join(__dir__, "../../"))
 sys.path.append(mindone_lib_path)
 
 from mg.models.tae import TemporalAutoencoder
-from mg.models.tae.modules import SpatialDownsample, SpatialUpsample, TemporalDownsample, TemporalUpsample
 from mg.pipelines import InferPipeline
 from mg.utils import MODEL_DTYPE, init_model, to_numpy
 
 from mindone.utils import init_train_env, set_logger
-from mindone.visualize.videos import save_videos
+from mindone.visualize import save_videos
 
 logger = logging.getLogger(__name__)
 
@@ -76,8 +75,7 @@ def main(args):
         # FIXME: remove AMP and add custom dtype conversion support for better compatibility with PyNative
         amp.custom_mixed_precision(
             tae,
-            black_list=amp.get_black_list()
-            + [SpatialDownsample, SpatialUpsample, TemporalDownsample, TemporalUpsample, nn.GroupNorm],
+            black_list=amp.get_black_list() + [nn.GroupNorm, nn.AvgPool2d, nn.Upsample],
             dtype=MODEL_DTYPE[tae_dtype],
         )
 
@@ -172,14 +170,14 @@ if __name__ == "__main__":
     parser.add_function_arguments(init_train_env, "env")
     parser.add_function_arguments(init_model, "model", skip={"in_channels"})
     tae_group = parser.add_argument_group("TAE parameters")
-    parser.add_class_arguments(TemporalAutoencoder, "tae", instantiate=False)
-    parser.add_argument(
+    tae_group.add_class_arguments(TemporalAutoencoder, "tae", instantiate=False)
+    tae_group.add_argument(
         "--tae.dtype", default="fp32", type=str, choices=["fp32", "fp16", "bf16"], help="TAE model precision."
     )
     infer_group = parser.add_argument_group("Inference parameters")
     infer_group.add_class_arguments(InferPipeline, skip={"model", "tae", "latent_size"}, instantiate=False)
     infer_group.add_argument("--image_size", type=int, nargs="+", help="Output video size")
-    infer_group.add_argument("--num_frames", type=int, default=17, help="number of frames")
+    infer_group.add_argument("--num_frames", type=int, default=16, help="number of frames")
     infer_group.add_argument("--fps", type=int, default=16, help="FPS in the saved video")
     infer_group.add_function_arguments(prepare_captions, "text_emb", skip={"rank_id", "device_num"})
     infer_group.add_argument("--batch_size", type=int, default=1)

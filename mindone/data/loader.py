@@ -11,6 +11,7 @@ def create_dataloader(
     dataset: BaseDataset,
     batch_size: int = 1,
     transforms: Optional[Union[List[dict], dict]] = None,
+    batch_transforms: Optional[Union[List[dict], dict]] = None,
     project_columns: Optional[List[str]] = None,
     shuffle: bool = False,
     num_workers: int = 4,
@@ -38,6 +39,8 @@ def create_dataloader(
                         "input_columns": [List of columns to apply transforms to],  # Optional
                         "output_columns": [List of output columns]                  # Optional, only used if different from the `input columns`
                     }
+        batch_transforms: Optional transformations to apply to the dataset. Identical to `transforms` but applied to
+                          batches.
         project_columns: Optional list of output columns names from transformations.
                          These names can be used for column selection or sorting in a specific order.
         shuffle: Whether to randomly sample data. Default is False.
@@ -49,8 +52,9 @@ def create_dataloader(
         python_multiprocessing: Whether to use Python multiprocessing for data transformations. This option could be
                                 beneficial if the Python operation is computational heavy. Default is True.
         prefetch_size: The number of samples to prefetch (per device). Default is 16.
-        max_rowsize: Maximum size of row in MB that is used for shared memory allocation to copy data between processes.
-                     This is only used if `python_multiprocessing` is set to `True`. Default is 64.
+        max_rowsize: (MindSpore 2.2 and lower only) Maximum size of row in MB that is used for shared memory allocation
+                     to copy data between processes. This is only used if `python_multiprocessing` is set to `True`.
+                     Default is 64.
         device_num: The number of devices to distribute the dataset across. Default is 1.
         rank_id: The rank ID of the current device. Default is 0.
         debug: Whether to enable debug mode. Default is False.
@@ -82,7 +86,7 @@ def create_dataloader(
     )
 
     if transforms is not None:
-        if not isinstance(transforms, list):
+        if isinstance(transforms, dict):
             transforms = [transforms]
 
         for transform in transforms:
@@ -109,5 +113,16 @@ def create_dataloader(
             dataloader = dataloader.batch(
                 batch_size, drop_remainder=drop_remainder, num_parallel_workers=num_workers_batch
             )
+            if batch_transforms is not None:
+                if isinstance(batch_transforms, dict):
+                    batch_transforms = [batch_transforms]
+
+                for batch_transform in batch_transforms:
+                    dataloader = dataloader.map(
+                        **batch_transform,
+                        python_multiprocessing=python_multiprocessing,
+                        num_parallel_workers=num_workers,
+                        max_rowsize=max_rowsize if MS_VERSION < "2.3" else -1,
+                    )
 
     return dataloader

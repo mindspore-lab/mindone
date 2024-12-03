@@ -1,7 +1,7 @@
 import logging
 import os
 import time
-from typing import List, Optional
+from typing import List, Optional, Tuple, Union
 
 import mindspore as ms
 from mindspore.train.callback._callback import Callback, _handle_loss
@@ -49,7 +49,7 @@ class EvalSaveCallback(Callback):
         model_name="sd",
         save_trainable_only: bool = False,
         param_save_filter: List[str] = None,
-        resume_prefix_blacklist: List[str] = None,
+        resume_prefix_blacklist: Optional[Union[str, Tuple[str, ...]]] = None,
         integrated_save=False,
         save_training_resume=True,
         train_steps=-1,
@@ -59,7 +59,8 @@ class EvalSaveCallback(Callback):
             step_mode: if True, ckpt_save_interval is counted in steps. otherwise, in epochs.
             param_save_filter: indicates what parameters to save in checkpoint. If None, save all parameters in network. \
                 Otherwise, only params that contain one of the keyword in param_save_filter list will be saved.
-            resume_prefix_blacklist: exclude parameters with one of these prefixes to be saved in resume checkpoint. e.g. ['swap.', 'vae.'].
+            resume_prefix_blacklist: exclude parameters with one of these prefixes to be saved in resume checkpoint,
+                                     e.g. ('swap.', 'vae.').
         """
         self.rank_id = rank_id
         self.is_main_device = rank_id in [0, None]
@@ -123,17 +124,11 @@ class EvalSaveCallback(Callback):
         self.use_step_unit = use_step_unit
         self.train_steps = train_steps
         self.save_training_resume = save_training_resume
-        if resume_prefix_blacklist is not None:
-
-            def choice_func(x):
-                for prefix in resume_prefix_blacklist:
-                    if x.startswith("vae."):
-                        return False
-                return True
-
-            self.choice_func = choice_func
-        else:
-            self.choice_func = None
+        self.choice_func = None
+        if resume_prefix_blacklist:
+            if isinstance(resume_prefix_blacklist, str):
+                resume_prefix_blacklist = (resume_prefix_blacklist,)
+            self.choice_func = lambda x: x.startswith(resume_prefix_blacklist)
 
     def on_train_step_end(self, run_context):
         cb_params = run_context.original_args()
