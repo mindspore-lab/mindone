@@ -15,4 +15,4 @@ sentencepiece
 transformers
 av
 mindcv==0.3.0
-bs4
+beautifulsoup4
