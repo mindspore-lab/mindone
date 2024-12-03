@@ -93,8 +93,8 @@ def main(args):
         ae = model_cls.from_config(args.model_config, dtype=dtype, use_recompute=args.use_recompute)
     json_name = os.path.join(args.output_dir, "config.json")
     config = deepcopy(ae.config)
-    if hasattr(config, "recompute"):
-        del config.recompute
+    if hasattr(config, "use_recompute"):
+        del config.use_recompute
     save_diffusers_json(config, json_name)
     if args.load_from_checkpoint is not None:
         ae.init_from_ckpt(args.load_from_checkpoint)
