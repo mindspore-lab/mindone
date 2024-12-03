@@ -9,8 +9,7 @@ import numpy as np
 from mindspore.dataset.vision import CenterCrop, Resize
 
 sys.path.append("../../")  # FIXME: remove in future when mindone is ready for install
-from mindone.data import BaseDataset
-from mindone.data.video_reader import VideoReader
+from mindone.data import BaseDataset, VideoReader
 
 _logger = logging.getLogger(__name__)
 
@@ -30,9 +29,7 @@ class VideoDataset(BaseDataset):
             file.readline()  # skip the header
             for line in file:
                 line = line.strip().split(",", maxsplit=2)
-                data.append(
-                    {"path": os.path.join(data_dir, line[0]), "length": int(line[1]), "motion_bucket_id": line[2]}
-                )
+                data.append({"path": os.path.join(data_dir, line[0]), "length": int(line[1]), "caption": line[2]})
         return data
 
     def _filter_videos(self):
@@ -54,7 +51,7 @@ class VideoDataset(BaseDataset):
 
         noise_strength = np.random.lognormal(-3.0, 0.5**2)
 
-        return data["frames"], data["fps"] - 1, data["motion_bucket_id"], noise_strength
+        return data["frames"], data["fps"] - 1, 127, noise_strength
 
     def __len__(self):
         return len(self._data)
