@@ -163,7 +163,7 @@ def main(args):
         FA_dtype=FA_dtype,
     )
     json_name = os.path.join(args.output_dir, "config.json")
-    config = deepcopy.copy(model.config)
+    config = deepcopy(model.config)
     if hasattr(config, "recompute"):
         del config.recompute
     save_diffusers_json(config, json_name)
