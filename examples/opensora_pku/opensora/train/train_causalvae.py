@@ -8,6 +8,7 @@ import shutil
 import sys
 import time
 
+import deepcopy
 import yaml
 
 import mindspore as ms
@@ -91,7 +92,10 @@ def main(args):
             logger.warning(f"Model will be initialized from config file {args.model_config}.")
         ae = model_cls.from_config(args.model_config, dtype=dtype, use_recompute=args.use_recompute)
     json_name = os.path.join(args.output_dir, "config.json")
-    save_diffusers_json(ae.config, json_name)
+    config = deepcopy.copy(ae.config)
+    if hasattr(config, "recompute"):
+        del config.recompute
+    save_diffusers_json(config, json_name)
     if args.load_from_checkpoint is not None:
         ae.init_from_ckpt(args.load_from_checkpoint)
     # discriminator (D)

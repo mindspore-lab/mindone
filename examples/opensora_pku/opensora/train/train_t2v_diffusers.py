@@ -3,6 +3,7 @@ import math
 import os
 import sys
 
+import deepcopy
 import yaml
 
 import mindspore as ms
@@ -162,7 +163,10 @@ def main(args):
         FA_dtype=FA_dtype,
     )
     json_name = os.path.join(args.output_dir, "config.json")
-    save_diffusers_json(model.config, json_name)
+    config = deepcopy.copy(model.config)
+    if hasattr(config, "recompute"):
+        del config.recompute
+    save_diffusers_json(config, json_name)
     # mixed precision
     if args.precision == "fp32":
         model_dtype = get_precision(args.precision)
