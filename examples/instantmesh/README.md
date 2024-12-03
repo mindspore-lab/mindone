@@ -111,6 +111,13 @@ One needs to patch `mindcv.models.vgg` in L62 to enable conv kernel bias to alig
 + conv2d = nn.Conv2d(in_channels, v, kernel_size=3, pad_mode="pad", padding=1, has_bias=True)
 ```
 
+## Visualization
+| input frame-cam pairs sample (x6) |	rendered novel views |
+| :---:     | :---:    |
+| ![000](https://github.com/user-attachments/assets/d22bc263-3de0-4917-9d1b-4452d38d748f)   | ![val_e2517_2](https://github.com/user-attachments/assets/8027803a-3024-41a7-956d-fde2af2bc4a9) |
+| ![000](https://github.com/user-attachments/assets/6bf098ed-bb6f-4e26-8291-6dbe189980fe)   | ![val_e2517_1](https://github.com/user-attachments/assets/ee28b51f-b9d4-49aa-9b43-3bedee2fc9cf) |
+| ![000](https://github.com/user-attachments/assets/57076fdf-e347-4ebd-8c78-10d93eb45444)   | ![val_e2517_0](https://github.com/user-attachments/assets/99baed9b-b5fb-4498-86d7-931cb1be090c) |
+
 ### Data Curation
 Following the original paper, we used Blender to render multiview frames for a 3D object in `.obj` for training. Typically for overfitting, three 3D objects from the objaverse dataset are used. We rendered 5 arbitral views for each object with the corresponding camera parameters extracted.
 
