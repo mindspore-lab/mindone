@@ -1595,14 +1595,6 @@ class TrainStepForFluxDevDB(TrainStep):
 
         # Sample a random timestep for each image
         # for weighting schemes where we sample timesteps non-uniformly
-        # TODO test
-        # u = compute_density_for_timestep_sampling(
-        #     weighting_scheme=self.args.weighting_scheme,
-        #     batch_size=bsz,
-        #     logit_mean=self.args.logit_mean,
-        #     logit_std=self.args.logit_std,
-        #     mode_scale=self.args.mode_scale,
-        # )
         if self.args.weighting_scheme == "logit_normal":
             # See 3.1 in the SD3 paper ($rf/lognorm(0.00,1.00)$).
             u = ops.normal(mean=self.args.logit_mean, stddev=self.args.logit_std, shape=(bsz,))
@@ -1632,7 +1624,7 @@ class TrainStepForFluxDevDB(TrainStep):
         # handle guidance
         if self.transformer_config_guidance_embeds:
             guidance = ms.tensor([self.args.guidance_scale])
-            guidance = guidance.broadcast_to(model_input.shape[0])
+            guidance = guidance.broadcast_to((model_input.shape[0],))
         else:
             guidance = None
 
