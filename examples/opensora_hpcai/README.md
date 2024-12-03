@@ -902,8 +902,7 @@ All experiments are tested on ascend 910* with mindspore 2.3.1 graph mode.
 <details>
 <summary>View more</summary>
 
-> [!WARNING]
-> This feature is experimental. There may be potential bugs. The official version is under development.
+> ⚠️**WARNING:** This feature is experimental. The official version is under development.
 
 We provide support for training Open-Sora 1.1 using the FiT-Like pipeline as an alternative solution for handling multi-resolution videos, in contrast to the bucketing strategy.
 
