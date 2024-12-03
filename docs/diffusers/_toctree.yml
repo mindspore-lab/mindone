@@ -274,6 +274,8 @@
         title: Lumina-T2X
       - local: api/pipelines/marigold
         title: Marigold
+      - local: api/pipelines/pag
+        title: PAG
       - local: api/pipelines/pixart
         title: PixArt-α
       - local: api/pipelines/pixart_sigma

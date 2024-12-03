@@ -27,43 +27,28 @@ PAG can be used by specifying the `pag_applied_layers` as a parameter when insta
 - Partial identifier as a RegEx: `down_blocks.2`, or `attn1`
 - List of identifiers (can be combo of strings and ReGex): `["blocks.1", "blocks.(14|20)", r"down_blocks\.(2,3)"]`
 
-<Tip warning={true}>
+!!! warning
 
-Since RegEx is supported as a way for matching layer identifiers, it is crucial to use it correctly otherwise there might be unexpected behaviour. The recommended way to use PAG is by specifying layers as `blocks.{layer_index}` and `blocks.({layer_index_1|layer_index_2|...})`. Using it in any other way, while doable, may bypass our basic validation checks and give you unexpected results.
+    Since RegEx is supported as a way for matching layer identifiers, it is crucial to use it correctly otherwise there might be unexpected behaviour. The recommended way to use PAG is by specifying layers as `blocks.{layer_index}` and `blocks.({layer_index_1|layer_index_2|...})`. Using it in any other way, while doable, may bypass our basic validation checks and give you unexpected results.
 
-</Tip>
+::: mindone.diffusers.AnimateDiffPAGPipeline
 
-## AnimateDiffPAGPipeline
-::: AnimateDiffPAGPipeline
+::: mindone.diffusers.HunyuanDiTPAGPipeline
 
-## HunyuanDiTPAGPipeline
-::: HunyuanDiTPAGPipeline
+::: mindone.diffusers.KolorsPAGPipeline
 
-## KolorsPAGPipeline
-::: KolorsPAGPipeline
+::: mindone.diffusers.StableDiffusionPAGPipeline
 
-## StableDiffusionPAGPipeline
-::: StableDiffusionPAGPipeline
+::: mindone.diffusers.StableDiffusionControlNetPAGPipeline
 
-## StableDiffusionControlNetPAGPipeline
-::: StableDiffusionControlNetPAGPipeline
+::: mindone.diffusers.StableDiffusionXLPAGPipeline
 
-## StableDiffusionXLPAGPipeline
-::: StableDiffusionXLPAGPipeline
+::: mindone.diffusers.StableDiffusionXLPAGImg2ImgPipeline
 
-## StableDiffusionXLPAGImg2ImgPipeline
-::: StableDiffusionXLPAGImg2ImgPipeline
+::: mindone.diffusers.StableDiffusionXLPAGInpaintPipeline
 
-## StableDiffusionXLPAGInpaintPipeline
-::: StableDiffusionXLPAGInpaintPipeline
+::: mindone.diffusers.StableDiffusionXLControlNetPAGPipeline
 
-## StableDiffusionXLControlNetPAGPipeline
-::: StableDiffusionXLControlNetPAGPipeline
+::: mindone.diffusers.StableDiffusion3PAGPipeline
 
-
-## StableDiffusion3PAGPipeline
-::: StableDiffusion3PAGPipeline
-
-
-## PixArtSigmaPAGPipeline
-::: PixArtSigmaPAGPipeline
+::: mindone.diffusers.PixArtSigmaPAGPipeline
