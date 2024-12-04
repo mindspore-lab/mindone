@@ -184,7 +184,6 @@ class Collate:
         assert len(batch_input_size) == self.batch_size
         # if self.group_frame or self.group_resolution or self.batch_size == 1:  #
         if self.group_frame or self.group_resolution or self.batch_size == 1000:  #
-
             len_each_batch = batch_input_size
             idx_length_dict = dict([*zip(list(range(self.batch_size)), len_each_batch)])
             count_dict = Counter(len_each_batch)

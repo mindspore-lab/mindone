@@ -365,17 +365,10 @@ class T2V_dataset:
                     cnt_too_short += 1
                     continue
                 # frame_indices = frame_indices[:end_frame_idx]
-                if len(frame_indices)<end_frame_idx:
-                    frame_indices+=[frame_indices[-1]]*(end_frame_idx-len(frame_indices))
+                if len(frame_indices) < end_frame_idx:
+                    frame_indices += [frame_indices[-1]] * (end_frame_idx - len(frame_indices))
                 else:
                     frame_indices = frame_indices[:end_frame_idx]
-
-
-
-
-
-
-
 
                 i["sample_frame_index"] = frame_indices.tolist()
                 new_cap_list.append(i)
