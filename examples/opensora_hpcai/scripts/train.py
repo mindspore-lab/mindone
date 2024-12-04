@@ -289,15 +289,6 @@ def initialize_dataset(
 
         num_src_samples = sum([len(ds) for ds in datasets])
 
-        if args.enable_sequence_parallelism:
-            if args.num_workers_dataset != 1:
-                pass
-                # FIXME: 0904 master fixed the seed issue for multiple workers. May remove the commented sentence later.
-                # logger.warning(
-                #     "To make sure the data is consistent across ranks for sequence parallel, the `num_workers_dataset` is set to be `1`."
-                # )
-                # args.num_workers_dataset = 1
-
         dataloaders = [
             create_dataloader(
                 dataset,
@@ -495,6 +486,28 @@ def main(args):
             raise ValueError(msg)
         else:
             logger.warning(msg)
+
+    # sequence parallel check
+    if args.enable_sequence_parallelism:
+        if args.num_frames % args.vae_micro_batch_size != 0 or args.num_frames % args.vae_micro_frame_size != 0:
+            raise ValueError(
+                f"number of frames `{args.num_frames}` must be divisible by "
+                f"VAE micro batch size `{args.vae_micro_batch_size}` and VAE micro frame size `{args.vae_micro_frame_size}`."
+            )
+
+        if (
+            latte_model.num_heads % args.sequence_parallel_shards != 0
+            or latte_model.num_heads < args.sequence_parallel_shards
+        ):
+            raise ValueError(
+                f"number of heads `{latte_model.num_heads}` must be divisble and less than the sequence_parallel_shards `{args.sequence_parallel_shards}`."
+            )
+
+        if args.num_frames % args.sequence_parallel_shards != 0:
+            logger.warning(
+                f"To avoid extra computation cost, number of frames `{args.num_frames}` "
+                f"should be divisible by the number of SP shards `{args.sequence_parallel_shards}`."
+            )
 
     # 2.3 ldm with loss
     logger.info(f"Train with vae latent cache: {train_with_vae_latent}")
