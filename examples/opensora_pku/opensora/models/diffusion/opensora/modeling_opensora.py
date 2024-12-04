@@ -135,6 +135,8 @@ class OpenSoraT2V_v1_3(ModelMixin, ConfigMixin):
         # save as attributes used in construct
         self.patch_size_t = self.config.patch_size_t
         self.patch_size = self.config.patch_size
+        self.sparse1d = self.config.sparse1d
+        self.sparse_n = self.config.sparse_n
 
     def recompute(self, b):
         if not b._has_config_recompute:
@@ -400,7 +402,6 @@ class OpenSoraT2V_v1_3(ModelMixin, ConfigMixin):
             encoder_hidden_states = encoder_hidden_states.swapaxes(0, 1).contiguous()
             timestep = timestep.view(batch_size, 6, -1).swapaxes(0, 1).contiguous()
 
-        sparse_mask = {}
         # if npu_config is None:
         #     if get_sequence_parallel_state():
         #         head_num = self.config.num_attention_heads // hccl_info.world_size
@@ -408,19 +409,22 @@ class OpenSoraT2V_v1_3(ModelMixin, ConfigMixin):
         #         head_num = self.config.num_attention_heads
         # else:
         head_num = None
-        for sparse_n in [1, 4]:
-            sparse_mask[sparse_n] = Attention.prepare_sparse_mask(
-                attention_mask, encoder_attention_mask, sparse_n, head_num
-            )
+        sparse_mask = {}
+        if self.sparse1d:
+            for sparse_n in [1, 4]:
+                sparse_mask[sparse_n] = Attention.prepare_sparse_mask(
+                    attention_mask, encoder_attention_mask, sparse_n, head_num
+                )
 
         # 2. Blocks
         for i, block in enumerate(self.transformer_blocks):
-            if i > 1 and i < 30:
-                attention_mask, encoder_attention_mask = sparse_mask[block.attn1.processor.sparse_n][
-                    block.attn1.processor.sparse_group
-                ]
-            else:
-                attention_mask, encoder_attention_mask = sparse_mask[1][block.attn1.processor.sparse_group]
+            if self.sparse1d:
+                if i > 1 and i < 30:
+                    attention_mask, encoder_attention_mask = sparse_mask[block.attn1.processor.sparse_n][
+                        block.attn1.processor.sparse_group
+                    ]
+                else:
+                    attention_mask, encoder_attention_mask = sparse_mask[1][block.attn1.processor.sparse_group]
 
             hidden_states = block(
                 hidden_states,
