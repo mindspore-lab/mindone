@@ -88,7 +88,8 @@ python train_dreambooth_lora_flux.py \
   --max_train_steps=500 \
   --validation_prompt="A photo of sks dog in a bucket" \
   --validation_epochs=25 \
-  --seed="0"
+  --seed="0" \
+  --upcast_before_saving
 ```
 
 ### Text Encoder Training
@@ -124,7 +125,8 @@ python train_dreambooth_lora_flux.py \
   --lr_warmup_steps=0 \
   --max_train_steps=500 \
   --validation_prompt="A photo of sks dog in a bucket" \
-  --seed="0"
+  --seed="0" \
+  --upcast_before_saving
 ```
 
 ## Memory Optimizations
