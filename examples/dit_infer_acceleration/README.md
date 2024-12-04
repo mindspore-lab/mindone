@@ -6,10 +6,17 @@
 * 30% speedup with less than 1% accuracy loss using DiTCache and PromptGate
 * Easy integration into DiT
 
+## Performance
+Stable Diffusion 3(SD3) uses the prompt "A cat holding a sign that says hello world" to run on Ascend 910B* at *graph mode*, and the performance data is as follows, which is spending time per image(s/img).
+
+|Base model|DiTCache|DiTCache+PromptGate|DiTCache+PromptGate+ToDo|
+|:--:|:--:|:--:|:--:|
+|5.905|4.483|4.043|3.621|
+
 
 ## Introduce
 
->We examined the accelerating effects of multiple algorithms on DiT models.Taking Stable Diffusion 3 (SD3) as an example, We achieve a maximum of 🚀1.5x training-free acceleration. Combining DiTCache and PromptGate results in 1.3x acceleration with negligible precision loss, such that the FID increases from 21.62 to 21.97 and Clip-score remains unchanged. Adding ToDo to the package yields a total of 1.5 acceleration but also noticeable loss in accuracy.
+>We examined the accelerating effects of multiple algorithms on DiT models.Taking Stable Diffusion 3 (SD3) as an example, We achieve a maximum of 🚀1.5x training-free acceleration. Combining DiTCache and PromptGate results in 1.3x acceleration with negligible precision loss, such that the FID increases from 21.62 to 21.97 and Clip-score remains unchanged. Adding ToDo to the package yields a total of 1.5 acceleration but the visual sense of the image may be slightly degraded.
 
 ## Algorithm Support
 
