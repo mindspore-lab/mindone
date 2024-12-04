@@ -43,7 +43,6 @@ class LPIPS(nn.Cell):
         self.lins = nn.CellList(self.lins)
 
     def load_from_pretrained(self, ckpt_path):
-        # TODO: just load ms ckpt
         if not os.path.exists(ckpt_path):
             raise ValueError(
                 f"{ckpt_path} not exists. Please download it from https: //download-mindspore.osinfra.cn/toolkits/mindone/autoencoders/lpips_vgg-426bf45c.ckpt"

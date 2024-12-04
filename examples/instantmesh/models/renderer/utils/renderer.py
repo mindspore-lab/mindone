@@ -4,13 +4,11 @@ ray, and computes pixel colors using the volume rendering equation.
 import logging
 from typing import Dict, Optional
 
-import math_utils
-
 import mindspore as ms
 import mindspore.nn as nn
 from mindspore import _no_grad, mint, ops
 
-# comment below for debugging insitu
+from .math_utils import get_ray_limits_box, linspace
 from .ray_marcher import MipRayMarcher2
 
 logger = logging.getLogger(__name__)
@@ -198,7 +196,7 @@ class ImportanceRenderer(nn.Cell):
             depths_coarse = 1.0 / (1.0 / ray_start * (1.0 - depths_coarse) + 1.0 / ray_end * depths_coarse)
         else:
             # print(f'shape: ray start: {ray_start.shape}, ray end: {ray_end.shape}')
-            depths_coarse = math_utils.linspace(ray_start, ray_end, self.depth_resolution).permute(1, 2, 0, 3)
+            depths_coarse = linspace(ray_start, ray_end, self.depth_resolution).permute(1, 2, 0, 3)
             depth_delta = (ray_end - ray_start) / (self.depth_resolution - 1)
             depths_coarse += mint.rand_like(depths_coarse) * depth_delta[..., None]
 
@@ -278,7 +276,7 @@ class ImportanceRenderer(nn.Cell):
         ray_origins: ms.Tensor,
         ray_directions: ms.Tensor,
     ):
-        ray_start, ray_end = math_utils.get_ray_limits_box(ray_origins, ray_directions)
+        ray_start, ray_end = get_ray_limits_box(ray_origins, ray_directions)
         is_ray_valid = ray_end > ray_start
 
         # FIXME below take item may degrade the shape, potentially into unknown errors...

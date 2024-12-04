@@ -9,6 +9,7 @@ from mindspore import mint
 
 __dir__ = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.abspath(os.path.join(__dir__, "../..")))  # for loading mindone
+import logging
 from typing import Optional
 
 from omegaconf import OmegaConf
@@ -18,6 +19,8 @@ from utils.eval_util import init_inference_env, make_grid_ms, save_image_ms, str
 from mindone.utils.config import instantiate_from_config
 from mindone.utils.logger import set_logger
 from mindone.utils.seed import set_random_seed
+
+logger = logging.getLogger(__name__)
 
 
 def evaluate(args, epoch_num: Optional[str]):
@@ -122,7 +125,7 @@ def parse_args():
     parser.add_argument("--itmh_ckpt", default="CKPT_PATH")
     parser.add_argument(
         "--debug",
-        default=False,  # also setting debug as true will set pynative sync as true as well
+        action="store_true",
         help="When debugging, set it true, to avoid saving too many ckpts and burn out the storage.",
     )
     parser.add_argument(

@@ -108,7 +108,7 @@ def parse_train_args(parser):
     parser.add_argument("--loss_scale_factor", default=2, type=float, help="loss scale factor")
     parser.add_argument("--scale_window", default=1000, type=float, help="scale window")
     parser.add_argument("--ckpt_max_keep", default=5, type=int, help="Maximum number of checkpoints to keep")
-    parser.add_argument("--output_path", default="output/", type=str, help="output directory to save training results")
+    parser.add_argument("--output_path", default="outputs/", type=str, help="output directory to save training results")
     parser.add_argument(
         "--log_level",
         type=str,

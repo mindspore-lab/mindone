@@ -39,7 +39,6 @@ class InstantNeRF(nn.Cell):
         # modules
         self.encoder = DinoWrapper(
             model_name=encoder_model_name,
-            freeze=encoder_freeze,
             use_recompute=use_recompute,  # enable the finest recompute
         )
 
@@ -57,7 +56,6 @@ class InstantNeRF(nn.Cell):
             use_recompute=use_recompute,  # enable the finest recompute
         )
 
-        # TODO support the random crop before training get started and pass as args here, good for training performance
         self.synthesizer = TriplaneSynthesizer(
             triplane_dim=triplane_dim,
             samples_per_ray=rendering_samples_per_ray,

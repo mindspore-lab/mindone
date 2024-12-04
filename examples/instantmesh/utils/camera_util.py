@@ -93,7 +93,7 @@ def FOV_to_intrinsics(fov):
     Assumes principal point is at image center.
     """
     focal_length = 0.5 / np.tan(np.deg2rad(fov) * 0.5)
-    intrinsics = Tensor([[focal_length, 0, 0.5], [0, focal_length, 0.5], [0, 0, 1]])
+    intrinsics = np.array([[focal_length, 0, 0.5], [0, focal_length, 0.5], [0, 0, 1]])
     return intrinsics
 
 
