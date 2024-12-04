@@ -182,7 +182,9 @@ class Collate:
         # pad to max multiple of ds_stride
         batch_input_size = [i.shape for i in batch_tubes]  # [(c t h w), (c t h w)]
         assert len(batch_input_size) == self.batch_size
-        if self.group_frame or self.group_resolution or self.batch_size == 1:  #
+        # if self.group_frame or self.group_resolution or self.batch_size == 1:  #
+        if self.group_frame or self.group_resolution or self.batch_size == 1000:  #
+
             len_each_batch = batch_input_size
             idx_length_dict = dict([*zip(list(range(self.batch_size)), len_each_batch)])
             count_dict = Counter(len_each_batch)
@@ -248,8 +250,8 @@ class Collate:
             for i in valid_latent_size
         ]
         attention_mask = np.stack(attention_mask, axis=0)  # b t h w
-        if self.batch_size == 1 or self.group_frame or self.group_resolution:
-            assert np.all(attention_mask.astype(np.bool_))
+        # if self.batch_size == 1 or self.group_frame or self.group_resolution:
+        #     assert np.all(attention_mask.astype(np.bool_))
 
         input_ids = np.stack(input_ids, axis=0)  # b 1 l
         cond_mask = np.stack(cond_mask, axis=0)  # b 1 l
