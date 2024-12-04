@@ -15,13 +15,9 @@ To make sure you can successfully run the latest versions of the example scripts
 ```bash
 git clone https://github.com/mindspore-lab/mindone
 cd mindone
-pip install -e .
+pip install -e ".[training]"
 ```
 
-Then cd in the `examples/controlnet` folder and run
-```bash
-pip install -r requirements_sdxl.txt
-```
 
 ## Circle filling dataset
 

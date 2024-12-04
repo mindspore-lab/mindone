@@ -35,6 +35,7 @@ _import_structure = {
     "scheduling_euler_ancestral_discrete": ["EulerAncestralDiscreteScheduler"],
     "scheduling_euler_discrete": ["EulerDiscreteScheduler"],
     "scheduling_flow_match_euler_discrete": ["FlowMatchEulerDiscreteScheduler"],
+    "scheduling_flow_match_heun_discrete": ["FlowMatchHeunDiscreteScheduler"],
     "scheduling_heun_discrete": ["HeunDiscreteScheduler"],
     "scheduling_ipndm": ["IPNDMScheduler"],
     "scheduling_k_dpm_2_ancestral_discrete": ["KDPM2AncestralDiscreteScheduler"],
@@ -72,6 +73,7 @@ if TYPE_CHECKING:
     from .scheduling_euler_ancestral_discrete import EulerAncestralDiscreteScheduler
     from .scheduling_euler_discrete import EulerDiscreteScheduler
     from .scheduling_flow_match_euler_discrete import FlowMatchEulerDiscreteScheduler
+    from .scheduling_flow_match_heun_discrete import FlowMatchHeunDiscreteScheduler
     from .scheduling_heun_discrete import HeunDiscreteScheduler
     from .scheduling_ipndm import IPNDMScheduler
     from .scheduling_k_dpm_2_ancestral_discrete import KDPM2AncestralDiscreteScheduler

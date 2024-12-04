@@ -1496,6 +1496,9 @@ class StableDiffusionXLControlNetPipeline(
             else:
                 latents = latents / self.vae.config.scaling_factor
 
+            if self.vae.dtype != latents.dtype:
+                latents.to(self.vae.dtype)
+
             image = self.vae.decode(latents, return_dict=False)[0]
 
             # cast back to fp16 if needed
