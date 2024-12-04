@@ -117,7 +117,8 @@ def convert_internvid2(src_path, target_path):
         ]
 
         # Required keys for processing
-        required_keys = ["vision_encoder", "clip", "norm"]
+        required_keys_vision = ["vision_encoder", "clip", "norm"]
+        required_keys_text = ["text_encoder", "LayerNorm"]
 
         # Filter out keys to ignore
         filtered_params = {k: v for k, v in pt_params.items() if k not in ignore_keys}
@@ -137,10 +138,12 @@ def convert_internvid2(src_path, target_path):
             new_param_name = pt_param
 
             # Check if required keys are present in the parameter name
-            if all(key in pt_param for key in required_keys):
+            if all(key in pt_param for key in required_keys_vision) or all(key in pt_param for key in required_keys_text):
                 # Replace 'weight' with 'gamma' and 'bias' with 'beta'
                 for k, v in pt2ms.items():
                     new_param_name = new_param_name.replace(k, v)
+            elif "embeddings.weight" in pt_param:
+                new_param_name = new_param_name.replace("weight", "embedding_table")
 
             # Append the new parameter to the list
             new_params_list.append({"name": new_param_name, "data": ms.Tensor(ms_value, ms.float32)})

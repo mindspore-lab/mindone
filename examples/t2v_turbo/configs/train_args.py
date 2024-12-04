@@ -311,7 +311,7 @@ def parse_args():
         "--loss_type",
         type=str,
         default="huber",
-        choices=["l2", "huber"],
+        choices=["l2", "huber", "none"],
         help="The type of loss to use for the LCD loss.",
     )
     parser.add_argument(

@@ -117,7 +117,8 @@ width="320"></td></td>
 By running the following command:
 
 ```bash
-python predict.py \
+python predict_t2v.py \
+  --teacher vc2 \
   --prompt "input prompt for video generation" \
   --num_inference_steps 4
 ```
@@ -149,7 +150,8 @@ python tools/convert_weights.py --source PATH-TO-unet_lora.pt --target PATH_TO_U
 
 5. Generate text-to-video via following command:
 ```bash
-python predict.py \
+python predict_t2v.py \
+  --teacher vc2 \
   --unet_dir PATH_TO_UNET_LORA.ckpt \
   --base_model_dir PATH-TO-VideoCrafter2-MODEL.ckpt \
   --prompt "input prompt for video generation" \
@@ -169,7 +171,8 @@ python tools/convert_weights.py --source PATH-TO-unet_lora.pt --target PATH-TO-u
 
 4. Generate text-to-video via following command:
 ```bash
-python predict_ms.py \
+python predict_t2v.py \
+  --teacher ms \
   --unet_dir PATH_TO_UNET_LORA.ckpt \
   --base_model_dir PATH_TO_ModelScope_MODEL_FOLDER \
   --prompt "input prompt for video generation"\

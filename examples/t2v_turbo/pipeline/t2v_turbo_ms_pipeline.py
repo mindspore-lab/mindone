@@ -135,6 +135,7 @@ class T2VTurboMSPipeline(DiffusionPipeline):
         lcm_origin_steps: int = 50,
         prompt_embeds: Optional[ms.Tensor] = None,
         output_type: Optional[str] = "pil",
+        **kwargs,
     ):
         # 2. Define call parameters
         if prompt is not None and isinstance(prompt, str):

@@ -417,7 +417,7 @@ def main(args):
             if ema is not None:
                 ema.swap_before_eval()
 
-            ckpt_manager.save(lcd_with_loss.unet, None, ckpt_name=ckpt_name, lora_manager=lora_manager)
+            ckpt_manager.save(lcd_with_loss.unet, None, ckpt_name=ckpt_name)
             if ema is not None:
                 ema.swap_after_eval()
 

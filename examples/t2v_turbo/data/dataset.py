@@ -113,7 +113,7 @@ class TextVideoDataset:
         with open(csv_path, "r") as csvfile:
             self.dataset = list(csv.DictReader(csvfile))
 
-        if n_samples:
+        if n_samples and n_samples < len(self.dataset):
             self.dataset = np.random.choice(self.dataset, n_samples, replace=False)
 
         self.length = len(self.dataset)
@@ -217,6 +217,7 @@ class TextVideoDataset:
             w_ = pixel_values.shape[2]
             assert h_ >= self.sample_size[0], f"size not large enough, h: {h_}"
             assert w_ >= self.sample_size[1], f"size not large enough, w: {w_}"
+            assert w_ >= h_, "weight is smaller than height, skip"
             if (self.prev_ok_sample is None) or (self.require_update_prev):
                 self.prev_ok_sample = copy.deepcopy((pixel_values, caption))
                 self.require_update_prev = False
