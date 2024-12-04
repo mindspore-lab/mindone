@@ -149,6 +149,8 @@ class GeneratorWithLoss(nn.Cell):
             wl_loss_l2 = mint.sum(l1(wavelet_coeffs[0], wavelet_coeffs[1])) / bs
             wl_loss_l3 = mint.sum(l1(wavelet_coeffs[2], wavelet_coeffs[3])) / bs
             wl_loss = wl_loss_l2 + wl_loss_l3
+            if self.print_losses:
+                print(f"wl_loss {wl_loss.asnumpy()}")
         else:
             wl_loss = 0
         loss = mean_weighted_nll_loss + self.kl_weight * kl_loss + self.wavelet_weight * wl_loss
