@@ -1,3 +1,5 @@
+from opensora.utils.ms_utils import no_grad
+
 import mindspore as ms
 from mindspore import mint, nn, ops
 
@@ -271,7 +273,8 @@ class DiscriminatorWithLoss(nn.Cell):
         """
 
         # 1. AE forward, get posterior (mean, logvar) and recons
-        recons, mean, logvar = ops.stop_gradient(self.autoencoder(x))
+        with no_grad():
+            recons = ops.stop_gradient(self.autoencoder(x)[0])
 
         if x.ndim >= 5 and not self.use_3d_disc:
             # use 2D discriminator

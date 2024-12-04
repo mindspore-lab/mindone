@@ -2,34 +2,16 @@ import logging
 
 from opensora.acceleration.communications import prepare_parallel_data
 from opensora.acceleration.parallel_states import get_sequence_parallel_state, hccl_info
+from opensora.utils.ms_utils import no_grad
 
 import mindspore as ms
-from mindspore import _no_grad, mint, nn, ops
+from mindspore import mint, nn, ops
 
 from mindone.diffusers.training_utils import compute_snr
 
 __all__ = ["DiffusionWithLoss"]
 
 logger = logging.getLogger(__name__)
-
-
-@ms.jit_class
-class no_grad(_no_grad):
-    """
-    A context manager that suppresses gradient memory allocation in PyNative mode.
-    """
-
-    def __init__(self):
-        super().__init__()
-        self._pynative = ms.get_context("mode") == ms.PYNATIVE_MODE
-
-    def __enter__(self):
-        if self._pynative:
-            super().__enter__()
-
-    def __exit__(self, *args):
-        if self._pynative:
-            super().__exit__(*args)
 
 
 class DiffusionWithLoss(nn.Cell):
