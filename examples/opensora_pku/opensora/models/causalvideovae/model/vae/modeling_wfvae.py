@@ -519,7 +519,7 @@ class WFVAEModel(VideoBaseAE):
         return start_end
 
     def encode(self, x, sample_posterior=True):
-        posterior_mean, posterior_logvar = self._encode(x)
+        posterior_mean, posterior_logvar, _ = self._encode(x)
         if sample_posterior:
             z = self.sample(posterior_mean, posterior_logvar)
         else:
@@ -533,13 +533,13 @@ class WFVAEModel(VideoBaseAE):
 
         if self.use_tiling:
             h = self.tile_encode(x)
-            # l1, l2 = None, None
+            w_coeffs = None
         else:
-            h, _ = self.encoder(x)
+            h, w_coeffs = self.encoder(x)
             if self.use_quant_layer:
                 h = self.quant_conv(h)
         posterior_mean, posterior_logvar = mint.split(h, [h.shape[1] // 2, h.shape[1] // 2], dim=1)
-        return posterior_mean, posterior_logvar
+        return posterior_mean, posterior_logvar, w_coeffs
 
     def tile_encode(self, x):
         b, c, t, h, w = x.shape
@@ -557,6 +557,11 @@ class WFVAEModel(VideoBaseAE):
         return mint.cat(result, dim=2)
 
     def decode(self, z):
+        dec, _ = self._decode(z)
+
+        return dec
+
+    def _decode(self, z):
         self._empty_causal_cached(self.decoder)
         self._set_first_chunk(True)
 
@@ -566,9 +571,9 @@ class WFVAEModel(VideoBaseAE):
         else:
             if self.use_quant_layer:
                 z = self.post_quant_conv(z)
-            dec, _ = self.decoder(z)
+            dec, w_coeffs = self.decoder(z)
 
-        return dec
+        return dec, w_coeffs
 
     def tile_decode(self, x):
         b, c, t, h, w = x.shape
@@ -606,15 +611,22 @@ class WFVAEModel(VideoBaseAE):
 
     def construct(self, input, sample_posterior=True):
         # overall pass, mostly for training
-        posterior_mean, posterior_logvar = self._encode(input)
+        posterior_mean, posterior_logvar, encoder_w_coeffs = self._encode(input)
         if sample_posterior:
             z = self.sample(posterior_mean, posterior_logvar)
         else:
             z = posterior_mean
 
-        recons = self.decode(z)
+        recons, decoder_w_coeffs = self._decode(z)
+        if encoder_w_coeffs is not None and decoder_w_coeffs is not None:
+            assert len(encoder_w_coeffs) == 2 and len(decoder_w_coeffs) == 2
+            e_l1, e_l2 = encoder_w_coeffs
+            d_l1, d_l2 = decoder_w_coeffs
+            w_coeffs = [e_l1, d_l1, e_l2, d_l2]
+        else:
+            w_coeffs = None
 
-        return recons, posterior_mean, posterior_logvar
+        return recons, posterior_mean, posterior_logvar, w_coeffs
 
     def get_last_layer(self):
         if hasattr(self.decoder.conv_out, "conv"):
