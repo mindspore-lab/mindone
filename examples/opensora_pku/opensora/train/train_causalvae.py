@@ -118,8 +118,9 @@ def main(args):
 
     # 3. build net with loss (core)
     # G with loss
-    if args.wavelet_loss:
-        logger.warning("wavelet_loss is not implemented, and will be ignored.")
+    if args.wavelet_weight != 0 and ae.use_tiling:
+        logger.warning("Wavelet loss and use_tiling cannot be enabled in the same time! wavelet_weight is set to zero.")
+        args.wavelet_weight = 0.0
     ae_with_loss = GeneratorWithLoss(
         ae,
         discriminator=disc,
