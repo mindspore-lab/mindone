@@ -450,8 +450,12 @@ class AttnProcessor2_0:
         key = attn.to_k(encoder_hidden_states)
         value = attn.to_v(encoder_hidden_states)
 
-        inner_dim = key.shape[-1]
+        inner_dim = key.shape[-1]  # cross_attention_dim
         head_dim = inner_dim // attn.heads
+        if inner_dim % attn.heads != 0:
+            logger.warning(
+                "Expect the feature dim of key tensor is a multiple of `num_heads` {attn.heads}, but got {inner_dim}."
+            )
         if get_sequence_parallel_state():
             query = query.view(-1, attn.heads, head_dim)  # [s // sp, b, h * d] -> [s // sp * b, h, d]
             key = key.view(-1, attn.heads, head_dim)
@@ -461,6 +465,10 @@ class AttnProcessor2_0:
             h_size = attn.heads * head_dim
             sp_size = hccl_info.world_size
             h_size_sp = h_size // sp_size
+            if h_size % sp_size != 0:
+                logger.warning(
+                    "Expect the feature dim of key tensor is a multiple of `sp_size` {sp_size}, but got {h_size}."
+                )
             # apply all_to_all to gather sequence and split attention heads [s // sp * b, h, d] -> [s * b, h // sp, d]
             query = self.alltoall_sbh_q(query).view(-1, batch_size, h_size_sp)
             key = self.alltoall_sbh_k(key).view(-1, batch_size, h_size_sp)
