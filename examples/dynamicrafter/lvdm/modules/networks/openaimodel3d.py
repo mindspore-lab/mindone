@@ -15,8 +15,7 @@ from lvdm.modules.networks.util import (
 )
 
 import mindspore as ms
-import mindspore.mint as mint
-import mindspore.nn as nn
+from mindspore import mint, nn
 from mindspore.common.initializer import initializer
 
 from mindone.utils.version_control import is_old_ms_version

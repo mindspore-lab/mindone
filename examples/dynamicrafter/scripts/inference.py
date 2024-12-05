@@ -8,7 +8,7 @@ from omegaconf import OmegaConf
 from tqdm import tqdm
 
 import mindspore as ms
-import mindspore.mint as mint
+from mindspore import mint
 from mindspore.communication.management import get_group_size, get_rank, init
 
 sys.path.append("../stable_diffusion_v2/")

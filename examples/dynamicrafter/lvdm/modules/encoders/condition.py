@@ -5,7 +5,7 @@ sys.path.append("../stable_diffusion_xl")
 from gm.modules.embedders.modules import FrozenOpenCLIPEmbedder2 as FrozenOpenCLIPEmbedder2_SDXL
 from gm.modules.embedders.modules import FrozenOpenCLIPImageEmbedder as FrozenOpenCLIPImageEmbedder_SDXL
 
-import mindspore.mint as mint
+from mindspore import mint
 
 __all__ = ["FrozenOpenCLIPEmbedder", "FrozenOpenCLIPImageEmbedderV2"]
 

@@ -6,7 +6,7 @@ from PIL import Image
 
 import mindspore as ms
 import mindspore.dataset.transforms as transforms
-import mindspore.mint as mint
+from mindspore import mint
 from mindspore.dataset.vision import CenterCrop, Normalize, Resize, ToTensor
 
 from mindone.visualize.videos import save_videos

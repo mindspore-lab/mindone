@@ -3,7 +3,7 @@
 # and https://github.com/tencent-ailab/IP-Adapter/blob/main/ip_adapter/resampler.py
 import math
 
-from mindspore import Parameter, mint, nn, ops
+from mindspore import Parameter, mint, nn
 
 
 def FeedForward(dim, mult=4):
@@ -97,7 +97,7 @@ class Resampler(nn.Cell):
             num_queries = num_queries * video_length
 
         # self.latents = Parameter(mint.randn(1, num_queries, dim) / dim**0.5)
-        self.latents = Parameter(ops.randn(1, num_queries, dim) / dim**0.5)
+        self.latents = Parameter(mint.randn(1, num_queries, dim) / dim**0.5)
         self.proj_in = mint.nn.Linear(embedding_dim, dim)
         self.proj_out = mint.nn.Linear(dim, output_dim)
         self.norm_out = mint.nn.LayerNorm([output_dim], eps=1e-05)

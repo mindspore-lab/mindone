@@ -114,6 +114,8 @@ sh scripts/run/run_infer.sh [RESUOUTION] [CKPT_PATH]
 
 ### Performance
 
+We evaluate the inference performance of image-to-video generation by measuring the average sampling time per step and the total sampling time of a video.
+
 Experiments are tested on ascend 910* with mindspore 2.3.1 graph mode.
 
 | model name    |  cards           | batch size      | resolution   |  scheduler   | steps      | precision |  jit level | graph compile |s/step     | s/video |

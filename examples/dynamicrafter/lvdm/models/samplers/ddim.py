@@ -3,7 +3,7 @@ from lvdm.modules.networks.util import make_ddim_sampling_parameters, make_ddim_
 from tqdm import tqdm
 
 import mindspore as ms
-import mindspore.mint as mint
+from mindspore import mint
 
 from mindone.utils.misc import extract_into_tensor
 
