@@ -23,6 +23,10 @@
 # by Tencent in accordance with TENCENT HUNYUAN COMMUNITY LICENSE AGREEMENT.
 import os , sys
 sys.path.insert(0, f"{os.path.dirname(os.path.dirname(os.path.abspath(__file__)))}")
+# TODO: debug use delete later
+mindone_lib_path = os.path.abspath("../../")
+sys.path.insert(0, mindone_lib_path)
+sys.path.append("./")
 
 import mindspore as ms
 from mindspore import ops
@@ -40,7 +44,7 @@ class Text2Image():
         #     mindspore_dtype = ms.float16, 
         #     enable_pag = True, 
         #     pag_applied_layers = ["blocks.(16|17|18|19)"]
-        # ) # TODO: do not support HunyuanDiTPAGPipeline yet
+        # ) # TODO: do not support HunyuanDiTPAGPipeline in MindONE yet
 
         self.pipe = HunyuanDiTPipeline.from_pretrained(
             pretrain, 
@@ -71,9 +75,9 @@ class Text2Image():
         '''
         print("prompt is:", prompt)
         prompt = prompt + ",白色背景,3D风格,最佳质量"
-        if args.seed is not None:
+        if seed is not None:
             seed_everything(seed)
-            generator = np.random.Generator(np.random.PCG64(seed=args.seed))
+            generator = np.random.Generator(np.random.PCG64(seed=seed))
         else:
             generator = np.random.Generator(np.random.PCG64(0)) 
         # rgb = ops.stop_gradient(
