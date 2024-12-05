@@ -31,7 +31,7 @@ gradient_accumulation_steps: 1
 weight_decay: 0.01
 epochs: 360
 
-use_ema: True
+use_ema: False
 clip_grad: True
 ckpt_max_keep: 3
 init_loss_scale: 65536
