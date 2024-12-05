@@ -261,6 +261,9 @@ class NPUConfig:
         if attention_mask is not None:
             # flip mask, since ms FA treats 1 as discard, 0 as retain.
             attention_mask = ~attention_mask if attention_mask.dtype == ms.bool_ else 1 - attention_mask
+            assert (
+                attention_mask.ndim == 4
+            ), f"Expect attention mask has four dimensions, but got {attention_mask.shape}"
             # (b, 1, 1, k_n) - > (b, 1, q_n, k_n), manual broadcast
             if attention_mask.shape[-2] == 1:
                 attention_mask = mint.tile(attention_mask.bool(), (1, 1, query_tokens, 1))
@@ -334,10 +337,20 @@ class NPUConfig:
             attn_bias.masked_fill(~temp_mask, npu_config.inf_float)
             attn_bias.to(query.dtype)
 
-        if attention_mask is not None:
+        elif attention_mask is not None:
+            # check attention_mask shape (bs, head_num, query_len, token_length)
             assert (
-                not self.enable_FA
-            ) and attention_mask.dtype != ms.bool, "attention_mask must not be bool type when use this function"
+                attention_mask.ndim == 4
+            ), f"Expect attention mask has four dimensions, but got {attention_mask.shape}"
+            if attention_mask.shape[1] == 1:
+                attention_mask = attention_mask.repeat_interleave(head_num, 1)
+            else:
+                assert (
+                    attention_mask.shape[1] == head_num
+                ), f"Expect attention_mask to be like (bs, 1, query_len, key_len), but got {attention_mask.shape}"
+            # fill in with -inf
+            attn_bias = mint.zeros(attention_mask.shape).masked_fill(attention_mask.to(ms.bool_), npu_config.inf_float)
+            attn_bias.to(query.dtype)
 
         attn_weight += attn_bias
         attn_weight = mint.nn.functional.softmax(attn_weight, dim=-1)
