@@ -84,6 +84,27 @@ python convert_weight.py \
 ```
 
 ### Run inference
+Set the CLIP ckpt path in inference yaml config files as follow:
+```yaml
+...
+    cond_stage_config:
+      target: lvdm.modules.encoders.condition.FrozenOpenCLIPEmbedder
+      params:
+        arch: "ViT-H-14"
+        freeze: true
+        layer: "penultimate"
+        pretrained: path/to/CLIP-ViT-H-14-laion2B-s32B-b79K/open_clip_ms_model.ckpt
+
+    img_cond_stage_config:
+      target: lvdm.modules.encoders.condition.FrozenOpenCLIPImageEmbedderV2
+      params:
+        arch: "ViT-H-14"
+        freeze: true
+        version: path/to/CLIP-ViT-H-14-laion2B-s32B-b79K/open_clip_ms_model.ckpt
+...
+```
+
+Launch inference:
 
 ```shell
 sh scripts/run/run_infer.sh [RESUOUTION] [CKPT_PATH]

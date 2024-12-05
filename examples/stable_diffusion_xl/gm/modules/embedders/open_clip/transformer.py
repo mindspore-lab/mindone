@@ -8,7 +8,7 @@ import numpy as np
 from gm.modules.util import linear, normalize
 
 import mindspore as ms
-from mindspore import Parameter, Tensor, nn, ops
+from mindspore import Parameter, Tensor, mint, nn, ops
 from mindspore.common import initializer as init
 
 
@@ -471,7 +471,7 @@ class TextTransformer(nn.Cell):
         cls_mask = ops.pad(cls_mask, (1, 0, cls_mask.shape[2], 0), value=1.0)
         additive_mask = ops.zeros(cls_mask.shape, dtype)
         additive_mask = ops.masked_fill(additive_mask, ops.logical_not(cls_mask), -1e5)
-        additive_mask = ops.repeat_interleave(additive_mask, self.heads, 0)
+        additive_mask = mint.repeat_interleave(additive_mask, self.heads, 0)
         return additive_mask
 
     def _repeat(self, t, N: int):
@@ -486,7 +486,7 @@ class TextTransformer(nn.Cell):
 
         if self.cls_emb is not None:
             seq_len += 1
-            x = ops.concat((x, self._repeat(self.cls_emb, x.shape[0]).astype(x.dtype)), axis=1)
+            x = mint.cat((x, self._repeat(self.cls_emb, x.shape[0]).astype(x.dtype)), dim=1)
             cls_mask = self.build_cls_mask(text, x.dtype)
             attn_mask = attn_mask[None, :seq_len, :seq_len] + cls_mask[:, :seq_len, :seq_len]
 
@@ -503,7 +503,7 @@ class TextTransformer(nn.Cell):
             pooled = self.ln_final(pooled)
         else:
             x = self.ln_final(x)
-            pooled = x[ops.arange(x.shape[0]), text.argmax(axis=-1)]
+            pooled = x[mint.arange(x.shape[0]), text.argmax(axis=-1)]
             # tokens = x
 
         if self.text_projection is not None:
