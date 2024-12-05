@@ -567,7 +567,7 @@ class WFVAEModel(VideoBaseAE):
 
         if self.use_tiling:
             dec = self.tile_decode(z)
-            # l1, l2 = None, None
+            w_coeffs = None
         else:
             if self.use_quant_layer:
                 z = self.post_quant_conv(z)
