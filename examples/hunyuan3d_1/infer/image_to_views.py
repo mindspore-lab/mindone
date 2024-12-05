@@ -24,6 +24,10 @@
 
 import os, sys
 sys.path.insert(0, f"{os.path.dirname(os.path.dirname(os.path.abspath(__file__)))}")
+# TODO: debug use delete later
+mindone_lib_path = os.path.abspath("../../")
+sys.path.insert(0, mindone_lib_path)
+sys.path.append("./")
 
 import time
 import mindspore as ms
@@ -52,21 +56,20 @@ class Image2Views():
             # std_pretrain='./weights/mvd_std', lite_pretrain='./weights/mvd_lite'
         ):
         if use_lite:
-            print("loading", ckpt_path)
+            print("Loading", ckpt_path)
             self.pipe = Hunyuan3d_MVD_Lite_Pipeline.from_pretrained(
                 ckpt_path,
                 mindspore_dtype = ms.float16,
                 use_safetensors = True,
             )
         else:
-            print("loadding", ckpt_path)
+            print("Loading", ckpt_path)
             self.pipe = HunYuan3D_MVD_Std_Pipeline.from_pretrained(
                 ckpt_path,
                 mindspore_dtype = ms.float16,
                 use_safetensors = True,
             )
         self.order = [0, 1, 2, 3, 4, 5] if use_lite else [0, 2, 4, 5, 3, 1]
-        # self.save_memory = save_memory
         set_parameter_grad_false(self.pipe.unet)
         print('image2views unet model', get_parameter_number(self.pipe.unet))
 
@@ -85,7 +88,7 @@ class Image2Views():
                     self.pipe(pil_img, 
                             num_inference_steps=steps,
                             guidance_scale=guidance_scale, 
-                            generat=generator).images
+                            generator=generator).images
         )
         # show_image = rearrange(np.asarray(res_img[0], dtype=np.uint8), '(n h) (m w) c -> (n m) h w c', n=3, m=2)
         show_image = np.asarray(res_img[0], dtype=np.uint8)
@@ -117,6 +120,10 @@ if __name__ == "__main__":
         parser.add_argument("--device", default="cuda:0", type=str)
         parser.add_argument("--use_lite", default='false', type=str)
         return parser.parse_args()
+    
+    # debug use:
+    # ms.set_context(mode=1)
+    # ms.set_context(mode=0)
         
     args = get_args()
 

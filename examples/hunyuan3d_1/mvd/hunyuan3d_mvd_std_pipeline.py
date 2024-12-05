@@ -62,6 +62,7 @@ from transformers import (
 from .utils import to_rgb_image, white_out_background, recenter_img
 from mindone.utils.version_control import check_valid_flash_attention
 
+# Not yet officially implemented or released
 EXAMPLE_DOC_STRING = """
     Examples:
         ```py
@@ -140,7 +141,7 @@ class RefOnlyNoisedUNet(nn.Cell):
         mid_block_res_sample: Optional[Tuple[ms.Tensor]] = None,
         added_cond_kwargs: Optional[Dict[str, ms.Tensor]] = None,
         return_dict: bool = True,
-        **kwargs
+        timestep_cond = None,
     ):
 
         dtype = self.unet.dtype
@@ -162,7 +163,7 @@ class RefOnlyNoisedUNet(nn.Cell):
             cross_attention_kwargs = dict(mode="w", ref_dict=ref_dict),
             added_cond_kwargs = added_cond_kwargs,
             return_dict = return_dict,
-            **kwargs
+            timestep_cond = timestep_cond
         )
 
         res = self.unet(
@@ -179,7 +180,7 @@ class RefOnlyNoisedUNet(nn.Cell):
                 if mid_block_res_sample is not None else None),
             added_cond_kwargs = added_cond_kwargs,
             return_dict = return_dict,
-            **kwargs
+            timestep_cond = timestep_cond
         )
         return res
         
@@ -309,7 +310,6 @@ class HunYuan3D_MVD_Std_Pipeline(DiffusionPipeline):
         cross_attention_kwargs: Optional[Dict[str, Any]] = None,
         latent: ms.Tensor = None,
         guidance_curve = None,
-        **kwargs
     ):
         if not self.prepare_init:
             self.prepare()
@@ -410,15 +410,16 @@ class HunYuan3D_MVD_Std_Pipeline(DiffusionPipeline):
                 # predict the noise residual
                 added_cond_kwargs = {"text_embeds": add_text_embeds, "time_ids": add_time_ids}
                     
-                noise_pred = self.unet(
-                    latent_model_input,
-                    t,
-                    encoder_hidden_states=prompt_embeds,
-                    timestep_cond=timestep_cond,
-                    cross_attention_kwargs=dict(cond_lat=cond_lat),
-                    added_cond_kwargs=added_cond_kwargs,
-                    return_dict=False,
-                )[0]
+                noise_pred = ops.stop_gradient(
+                    self.unet(
+                        latent_model_input,
+                        t,
+                        encoder_hidden_states=prompt_embeds,
+                        cross_attention_kwargs=dict(cond_lat=cond_lat),
+                        added_cond_kwargs=added_cond_kwargs,
+                        return_dict=False,
+                        timestep_cond=timestep_cond,
+                ))[0]
 
                 # perform guidance
                 
@@ -470,8 +471,8 @@ class HunYuan3D_MVD_Std_Pipeline(DiffusionPipeline):
         # uc_text_emb.pt and uc_text_emb_2.pt are inferenced and saved in advance
         pipeline = super().from_pretrained(pretrained_model_name_or_path, *model_args, **kwargs)
         if os.path.exists(os.path.join(pretrained_model_name_or_path, "uc_text_emb.npy")):
-            pipeline.uc_text_emb = ms.Tensor(np.load(os.path.join(pretrained_model_name_or_path, "uc_text_emb.pt")))
-            pipeline.uc_text_emb_2 = ms.ms.Tensor(np.load(os.path.join(pretrained_model_name_or_path, "uc_text_emb_2.pt")))
+            pipeline.uc_text_emb = ms.Tensor(np.load(os.path.join(pretrained_model_name_or_path, "uc_text_emb.npy")))
+            pipeline.uc_text_emb_2 = ms.Tensor(np.load(os.path.join(pretrained_model_name_or_path, "uc_text_emb_2.npy")))
         else:
             print("**** Fail to find numpy array *.npy, try to load torch tensor *.pt ****")
             import torch #pip install torch

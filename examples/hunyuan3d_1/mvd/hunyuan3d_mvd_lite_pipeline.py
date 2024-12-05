@@ -62,7 +62,7 @@ from mindone.diffusers.models.attention_processor import (
 from .utils import to_rgb_image, white_out_background, recenter_img
 from mindone.utils.version_control import check_valid_flash_attention
 
-
+# Not yet officially implemented or released
 EXAMPLE_DOC_STRING = """
     Examples:
         ```py
@@ -130,10 +130,11 @@ class RefOnlyNoisedUNet(nn.Cell):
         except AttributeError:
             return getattr(self.unet, name)
 
-    def construct(self, sample, timestep, encoder_hidden_states, *args, cross_attention_kwargs, **kwargs):
+    # @ms.jit FAILED
+    def construct(self, sample, timestep, encoder_hidden_states, cross_attention_kwargs, return_dict: bool, guidance_rescale=2.0):
         cond_lat = cross_attention_kwargs['cond_lat']
         noise = ops.randn_like(cond_lat)
-        if self.training:
+        if self.training and (self.train_sched is not None):
             noisy_cond_lat = self.train_sched.add_noise(cond_lat, noise, timestep)
             noisy_cond_lat = self.train_sched.scale_model_input(noisy_cond_lat, timestep)
         else:
@@ -143,16 +144,18 @@ class RefOnlyNoisedUNet(nn.Cell):
         ref_dict = {}
         self.unet(noisy_cond_lat, 
                   timestep, 
-                  encoder_hidden_states, 
-                  *args, 
+                  encoder_hidden_states,  
                   cross_attention_kwargs=dict(mode="w", ref_dict=ref_dict), 
-                  **kwargs)
+                  return_dict=return_dict,
+                  guidance_rescale=guidance_rescale,
+                  )
         return  self.unet(sample, 
                           timestep, 
                           encoder_hidden_states, 
-                          *args, 
                           cross_attention_kwargs=dict(mode="r", ref_dict=ref_dict), 
-                          **kwargs)
+                          return_dict=return_dict,
+                          guidance_rescale=guidance_rescale,
+                        )
 
 
 class Hunyuan3d_MVD_Lite_Pipeline(DiffusionPipeline, TextualInversionLoaderMixin, LoraLoaderMixin, FromSingleFileMixin):
@@ -305,13 +308,15 @@ class Hunyuan3d_MVD_Lite_Pipeline(DiffusionPipeline, TextualInversionLoaderMixin
         return image_latents
 
     # @torch.no_grad()
+    # @ms.jit run out of time
     def __call__(self, image=None, 
                  width=640, 
                  height=960, 
                  num_inference_steps=75, 
                  return_dict=True, 
-                 generator=None, 
-                 **kwargs):
+                 generator=None,
+                 guidance_rescale=2.0 
+                ):
         batch_size = 1
         num_images_per_prompt = 1
         output_type = 'pil'
@@ -374,12 +379,16 @@ class Hunyuan3d_MVD_Lite_Pipeline(DiffusionPipeline, TextualInversionLoaderMixin
                 latent_model_input = mint.cat([latents] * 2) if do_classifier_free_guidance else latents
                 latent_model_input = self.scheduler.scale_model_input(latent_model_input, t)
 
-                noise_pred = self.unet(latent_model_input, t,
+                noise_pred = ops.stop_gradient(
+                    self.unet(latent_model_input, t,
                                 encoder_hidden_states=prompt_embeds, 
                                 cross_attention_kwargs=cross_attention_kwargs, 
-                                return_dict=False)[0]
+                                return_dict=False,
+                                guidance_rescale=guidance_rescale)
+                )[0]
 
                 adaptive_guidance_scale = (2 + 16 * (t / 1000) ** 5) / 3
+                noise_pred_text = None
                 if do_classifier_free_guidance:
                     noise_pred_uncond, noise_pred_text = noise_pred.chunk(2)
                     noise_pred = noise_pred_uncond + \
