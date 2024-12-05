@@ -99,7 +99,6 @@ class Attention(Attention_):
             True: (attention_mask_sparse_1d_group, encoder_attention_mask_sparse_1d_group),
         }
 
-    # NO USE YET
     def prepare_attention_mask(
         self, attention_mask: ms.Tensor, target_length: int, batch_size: int, out_dim: int = 3
     ) -> ms.Tensor:
@@ -278,6 +277,10 @@ class OpenSoraAttnProcessor2_0:
             batch_size, sequence_length, _ = (
                 hidden_states.shape if encoder_hidden_states is None else encoder_hidden_states.shape
             )  # BSH
+
+        # attention_mask shape
+        if attention_mask.ndim == 3:
+            attention_mask = attn.prepare_attention_mask(attention_mask, sequence_length, batch_size, out_dim=4)
 
         # print(f"hidden_states.shape {hidden_states.shape}") #BSH
         query = attn.to_q(hidden_states)
