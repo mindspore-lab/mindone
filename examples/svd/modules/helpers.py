@@ -10,7 +10,7 @@ from omegaconf import DictConfig
 import mindspore as ms
 from mindspore import nn
 
-from mindone.util import auto_mixed_precision
+from mindone.utils.amp import auto_mixed_precision
 
 
 def create_model(

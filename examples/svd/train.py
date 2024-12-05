@@ -41,7 +41,7 @@ class SetTrainCallback(Callback):
 def main(args, initializer):
     # step 1: initialize environment
     device_id, rank_id, device_num = init_train_env(**args.environment)
-    if args.mode == ms.GRAPH_MODE:
+    if args.environment.mode == ms.GRAPH_MODE:
         ms.set_context(jit_config={"jit_level": args.jit_level})
     output_dir = Path(args.train.output_dir) / datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
     output_dir.mkdir(parents=True, exist_ok=True)

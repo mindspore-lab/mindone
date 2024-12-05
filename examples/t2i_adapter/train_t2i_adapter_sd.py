@@ -4,13 +4,13 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
-import mindpsore as ms
 from adapters import get_adapter
 from data.dataset_with_cond import CondDataset
 from jsonargparse import ActionConfigFile, ArgumentParser
 from omegaconf import OmegaConf
 from pipelines.sd_pipeline import SDAdapterPipeline
 
+import mindspore as ms
 from mindspore import Model, nn
 from mindspore.train.callback import LossMonitor, TimeMonitor
 
@@ -32,7 +32,7 @@ def main(args, initializer):
     # step 1: initialize environment
     logger = logging.getLogger(__name__)
     device_id, rank_id, device_num = init_train_env(**args.environment)
-    if args.mode == ms.GRAPH_MODE:
+    if args.environment.mode == ms.GRAPH_MODE:
         ms.set_context(jit_config={"jit_level": args.jit_level})
     output_dir = Path(args.train.output_dir) / args.adapter.condition / datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
     output_dir.mkdir(parents=True, exist_ok=True)
