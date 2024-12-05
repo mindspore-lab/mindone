@@ -26,7 +26,7 @@ from args_train import parse_args
 from opensora.acceleration.parallel_states import create_parallel_group
 from opensora.datasets.aspect import ASPECT_RATIOS, get_image_size
 from opensora.models.layers.operation_selector import set_dynamic_mode
-from opensora.models.stdit import STDiT2_XL_2, STDiT3_XL_2, STDiT_XL_2
+from opensora.models.stdit import STDiT2_XL_2, STDiT3_XL_2, STDiT3_XL_2_DSP, STDiT_XL_2
 from opensora.models.vae.vae import SD_CONFIG, OpenSoraVAE_V1_2, VideoAutoencoderKL
 from opensora.pipelines import (
     DiffusionWithLoss,
@@ -290,15 +290,6 @@ def initialize_dataset(
 
         num_src_samples = sum([len(ds) for ds in datasets])
 
-        if args.enable_sequence_parallelism:
-            if args.num_workers_dataset != 1:
-                pass
-                # FIXME: 0904 master fixed the seed issue for multiple workers. May remove the commented sentence later.
-                # logger.warning(
-                #     "To make sure the data is consistent across ranks for sequence parallel, the `num_workers_dataset` is set to be `1`."
-                # )
-                # args.num_workers_dataset = 1
-
         dataloaders = [
             create_dataloader(
                 dataset,
@@ -461,7 +452,10 @@ def main(args):
         model_name = "STDiT3"
         model_extra_args["qk_norm"] = True
         model_extra_args["freeze_y_embedder"] = args.freeze_y_embedder
-        latte_model = STDiT3_XL_2(**model_extra_args)
+        if args.dsp:
+            latte_model = STDiT3_XL_2_DSP(**model_extra_args)
+        else:
+            latte_model = STDiT3_XL_2(**model_extra_args)
     else:
         raise ValueError(f"Unknown model version: {args.model_version}")
     logger.info(f"{model_name} input size: {latent_size if args.bucket_config is None else 'Variable'}")
@@ -493,6 +487,28 @@ def main(args):
             raise ValueError(msg)
         else:
             logger.warning(msg)
+
+    # sequence parallel check
+    if args.enable_sequence_parallelism:
+        if args.num_frames % args.vae_micro_batch_size != 0 or args.num_frames % args.vae_micro_frame_size != 0:
+            raise ValueError(
+                f"number of frames `{args.num_frames}` must be divisible by "
+                f"VAE micro batch size `{args.vae_micro_batch_size}` and VAE micro frame size `{args.vae_micro_frame_size}`."
+            )
+
+        if (
+            latte_model.num_heads % args.sequence_parallel_shards != 0
+            or latte_model.num_heads < args.sequence_parallel_shards
+        ):
+            raise ValueError(
+                f"number of heads `{latte_model.num_heads}` must be divisble and less than the sequence_parallel_shards `{args.sequence_parallel_shards}`."
+            )
+
+        if args.num_frames % args.sequence_parallel_shards != 0:
+            logger.warning(
+                f"To avoid extra computation cost, number of frames `{args.num_frames}` "
+                f"should be divisible by the number of SP shards `{args.sequence_parallel_shards}`."
+            )
 
     # 2.3 ldm with loss
     logger.info(f"Train with vae latent cache: {train_with_vae_latent}")
