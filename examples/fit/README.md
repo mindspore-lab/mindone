@@ -67,12 +67,13 @@ where `PATH_TO_YOUR_LATENT_DATASET` is the path of directory storing the latent 
 
 To run inference of `FiT-XL/2` model with the `256x256` image size on Ascend devices, you can use:
 ```bash
-python sample.py --imagegrid True --fit_checkpoint path_to_your_train_checkpoint.ckpt
-
+python sample.py --imagegrid True --fit_checkpoint PATH_TO_YOUR_CKPT
 ```
+where `PATH_TO_YOUR_CKPT` is the path of your trained checkpoint.
+
 You can also adjust the image size by adding the flag `--image_height` and `--image_width`. For example, you can run
 ```bash
-python sample.py --imagegrid True --image_height 320 --image_width 160 --fit_checkpoint path_to_your_train_checkpoint.ckpt
+python sample.py --imagegrid True --image_height 320 --image_width 160 --fit_checkpoint PATH_TO_YOUR_CKPT
 ```
 to generate image with 160x320 size.
 
