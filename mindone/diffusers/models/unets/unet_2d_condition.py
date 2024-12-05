@@ -22,7 +22,13 @@ from ...loaders import PeftAdapterMixin, UNet2DConditionLoadersMixin
 from ...loaders.single_file_model import FromOriginalModelMixin
 from ...utils import BaseOutput, logging
 from ..activations import get_activation
-from ..attention_processor import CROSS_ATTENTION_PROCESSORS, AttentionProcessor, AttnProcessor
+from ..attention_processor import (
+    ADDED_KV_ATTENTION_PROCESSORS,
+    CROSS_ATTENTION_PROCESSORS,
+    AttentionProcessor,
+    AttnAddedKVProcessor,
+    AttnProcessor,
+)
 from ..embeddings import (
     GaussianFourierProjection,
     GLIGENTextBoundingboxProjection,
@@ -766,7 +772,9 @@ class UNet2DConditionModel(
         """
         Disables custom attention processors and sets the default attention implementation.
         """
-        if all(proc.__class__ in CROSS_ATTENTION_PROCESSORS for proc in self.attn_processors.values()):
+        if all(proc.__class__ in ADDED_KV_ATTENTION_PROCESSORS for proc in self.attn_processors.values()):
+            processor = AttnAddedKVProcessor()
+        elif all(proc.__class__ in CROSS_ATTENTION_PROCESSORS for proc in self.attn_processors.values()):
             processor = AttnProcessor()
         else:
             raise ValueError(
