@@ -34,6 +34,7 @@ from PIL import Image
 import argparse
 
 from infer import Text2Image, Removebg, Image2Views, Views2Mesh, GifRenderer
+import mindspore as ms
 
 
 warnings.simplefilter('ignore', category=UserWarning)
@@ -44,6 +45,9 @@ def get_args():
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--use_lite", default=False, action="store_true"
+    )
+    parser.add_argument(
+        "--mvd_ckt_path", default="weights/mvd_pretrain", type=str
     )
     parser.add_argument(
         "--mv23d_cfg_path", default="./svrm/configs/svrm.yaml", type=str
@@ -70,6 +74,9 @@ def get_args():
         "--device", default="Ascend", type=str
     )
     parser.add_argument(
+        "--mode", default=1, type=int, help="0 for GRAPH_MODE, 1 for PYNATIVE_MODE"
+    )
+    parser.add_argument(
         "--t2i_seed", default=0, type=int
     )
     parser.add_argument(
@@ -85,9 +92,9 @@ def get_args():
         "--max_faces_num", default=80000, type=int, 
         help="max num of face, suggest 80000 for effect, 10000 for speed"
     )
-    parser.add_argument(
-        "--save_memory", default=False, action="store_true"
-    )
+    # parser.add_argument(
+    #     "--save_memory", default=False, action="store_true"
+    # ) # do not involve
     parser.add_argument(
         "--do_texture_mapping", default=False, action="store_true"
     )
@@ -103,7 +110,15 @@ if __name__ == "__main__":
     assert not (args.text_prompt and args.image_prompt), "Text and image can only be given to one"
     assert args.text_prompt or args.image_prompt,        "Text and image can only be given to one"
 
+    if args.mode == 1:
+        ms.set_context(mode=ms.PYNATIVE_MODE, device_target=args.device) # pynative_synchronize=True
+        print("Using PYNATIVE_MODE")
+    else: # do not fully support yet
+        ms.set_context(mode=ms.GRAPH_MODE, device_target=args.device) 
+        print("Using GRAPH_MODE")
+
     # init model
+    print("Initializing all models...")
     rembg_model = Removebg()
     image_to_views_model = Image2Views(
         use_lite=args.use_lite,
@@ -123,36 +138,44 @@ if __name__ == "__main__":
             save_memory = args.save_memory
         )
     if args.do_render:
-        gif_renderer = GifRenderer() # TODO
+        gif_renderer = GifRenderer() 
 
+    print("Initialized all models.")
     # ---- ----- ---- ---- ---- ----
 
     os.makedirs(args.save_folder, exist_ok=True)
 
     # stage 1, text to image
     if args.text_prompt:
+        print("START - Text to Image")
         res_rgb_pil = text_to_image_model(
             args.text_prompt, 
             seed=args.t2i_seed,  
             steps=args.t2i_steps
         )
         res_rgb_pil.save(os.path.join(args.save_folder, "img.jpg"))
+        print("END - Text to Image")
     elif args.image_prompt:
         res_rgb_pil = Image.open(args.image_prompt)
 
     # stage 2, remove back ground
+    print("START - Remove Image Background")
     res_rgba_pil = rembg_model(res_rgb_pil)
     res_rgb_pil.save(os.path.join(args.save_folder, "img_nobg.png"))
+    print("END - Remove Image Background")
 
     # stage 3, image to views
+    print("START - Image to Views")
     (views_grid_pil, cond_img), view_pil_list = image_to_views_model(
         res_rgba_pil,
         seed = args.gen_seed,
         steps = args.gen_steps
     )
     views_grid_pil.save(os.path.join(args.save_folder, "views.jpg"))
+    print("END - Image to Views")
 
     # stage 4, views to mesh
+    print("START - Views to Mesh")
     views_to_mesh_model(
         views_grid_pil, 
         cond_img, 
@@ -161,10 +184,13 @@ if __name__ == "__main__":
         save_folder = args.save_folder,
         do_texture_mapping = args.do_texture_mapping
     )
+    print("END - Views to Mesh")
 
-    #  stage 5, render gif TODO
+    #  stage 5, render gif 
     if args.do_render:
+        print("START - GIF Rendering")
         gif_renderer(
             os.path.join(args.save_folder, 'mesh.obj'),
             gif_dst_path = os.path.join(args.save_folder, 'output.gif'),
         )
+        print("END - GIF Rendering")

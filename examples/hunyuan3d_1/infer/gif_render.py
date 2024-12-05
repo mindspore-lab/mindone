@@ -28,11 +28,11 @@ import os, sys
 sys.path.insert(0, f"{os.path.dirname(os.path.dirname(os.path.abspath(__file__)))}")
 
 from svrm.ldm.vis_util import render
-from infer.utils import seed_everything, timing_decorator
+from infer.utils import timing_decorator
 
 class GifRenderer():
     '''
-        render frame(s) of mesh using trimesh / open3d 
+        render frame(s) of mesh in CPU using trimesh 
     '''
     def __init__(self):
         pass
