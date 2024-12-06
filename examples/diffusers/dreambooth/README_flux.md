@@ -27,11 +27,11 @@ To make sure you can successfully run the latest versions of the example scripts
 
 ```bash
 git clone https://github.com/mindspore-lab/mindone
-cd diffusers
+cd mindone
 pip install -e .[training]
 ```
 
-Then cd in the `examples/dreambooth` folder.
+Then cd in the `examples/diffusers/dreambooth` folder.
 
 
 ### Dog toy example
