@@ -222,12 +222,14 @@ class KandinskyV22PriorEmb2EmbPipeline(DiffusionPipeline):
             truncation=True,
             return_tensors="np",
         )
-        text_input_ids = ms.tensor(text_inputs.input_ids)
+        text_input_ids = text_inputs.input_ids
         text_mask = ms.tensor(text_inputs.attention_mask)
 
-        untruncated_ids = ms.tensor(self.tokenizer(prompt, padding="longest", return_tensors="np").input_ids)
+        untruncated_ids = self.tokenizer(prompt, padding="longest", return_tensors="np").input_ids
 
-        if untruncated_ids.shape[-1] >= text_input_ids.shape[-1] and not text_input_ids.shape == untruncated_ids.shape:
+        if untruncated_ids.shape[-1] >= text_input_ids.shape[-1] and not np.array_equal(
+            text_input_ids, untruncated_ids
+        ):
             removed_text = self.tokenizer.batch_decode(untruncated_ids[:, self.tokenizer.model_max_length - 1 : -1])
             logger.warning(
                 "The following part of your input was truncated because CLIP can only handle sequences up to"
@@ -235,7 +237,7 @@ class KandinskyV22PriorEmb2EmbPipeline(DiffusionPipeline):
             )
             text_input_ids = text_input_ids[:, : self.tokenizer.model_max_length]
 
-        text_encoder_output = self.text_encoder(text_input_ids)
+        text_encoder_output = self.text_encoder(ms.tensor(text_input_ids))
 
         prompt_embeds = text_encoder_output[0]
         text_encoder_hidden_states = text_encoder_output[1]

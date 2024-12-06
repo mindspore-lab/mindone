@@ -150,7 +150,7 @@ def get_activation_fn(activation):
 class Encoder(nn.Cell):
     """Encoder Blocks."""
 
-    # @ms.lazy_inline()
+    @ms.lazy_inline()
     def __init__(
         self,
         in_out_channels=4,
@@ -261,7 +261,7 @@ class Encoder(nn.Cell):
 class Decoder(nn.Cell):
     """Decoder Blocks."""
 
-    # @ms.lazy_inline()
+    @ms.lazy_inline()
     def __init__(
         self,
         in_out_channels=4,

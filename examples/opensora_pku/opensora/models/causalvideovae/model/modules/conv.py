@@ -77,7 +77,7 @@ class CausalConv3d(nn.Cell):
         chan_out,
         kernel_size: Union[int, Tuple[int, int, int]],
         padding: int = 0,
-        dtype=ms.float32,
+        dtype=ms.bfloat16,
         **kwargs,
     ):
         super().__init__()
@@ -143,6 +143,7 @@ class CausalConv3d(nn.Cell):
                 bias_init="zeros",
                 **kwargs,
             ).to_float(dtype)
+        self.dtype = dtype
 
     def construct(self, x):
         # x: (bs, Cin, T, H, W )
@@ -153,4 +154,7 @@ class CausalConv3d(nn.Cell):
             # first_frame_pad = mint.repeat_interleave([first_frame], self.time_kernel_size - 1, 2)
             x = ops.concat((first_frame_pad, x), axis=2)
 
-        return self.conv(x)
+        if x.dtype == ms.float32:
+            return self.conv(x).to(ms.float32)
+        else:
+            return self.conv(x)

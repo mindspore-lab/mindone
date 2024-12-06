@@ -117,7 +117,7 @@ class DPTViTHybridEmbeddings(nn.Cell):
         # TODO: AutoBackbone of transformers need to be implemented
         backbone_config = getattr(config, "backbone_config", None)
         if backbone_config.model_type == "bit":
-            self.backbone = BitBackbone(backbone_config)
+            self.backbone = BitBackbone(backbone_config).set_train(False)
         else:
             raise NotImplementedError(f"Backbone is not supported except bit, but got {backbone_config.model_type}")
         feature_dim = self.backbone.channels[-1]
@@ -1101,7 +1101,7 @@ class DPTForDepthEstimation(DPTPreTrainedModel):
         self.backbone = None
         if config.is_hybrid is False and (config.backbone_config is not None or config.backbone is not None):
             backbone_config = getattr(config, "backbone_config", None)
-            self.backbone = BitBackbone(backbone_config)
+            self.backbone = BitBackbone(backbone_config).set_train(False)
         else:
             self.dpt = DPTModel(config, add_pooling_layer=False)
 

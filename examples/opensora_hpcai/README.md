@@ -21,6 +21,13 @@ This repository is built on the models and code released by HPC-AI Tech. We are 
 | **[2024.03.04]** HPC-AI Tech Open-Sora provides training with 46% cost reduction [[blog]](https://hpc-ai.com/blog/open-sora)                                                                                                                                                                                                                                                                                                                                | ✅ Parallel training on Ascend devices                                                          |
 
 
+## Requirements
+
+| mindspore | ascend driver | firmware | cann tookit/kernel |
+| :---:     |   :---:       | :---:    | :---:              |
+| 2.3.1     |  23.0.3     |7.1.0.9.220    |   8.0.RC2.beta1   |
+
+
 
 ## 🎥 Demo
 
@@ -126,12 +133,6 @@ Videos are downsampled to `.gif` for display. Click for original videos. Prompts
 
 </details>
 
-### TODO
-* [ ] Optimizer-parallel and sequence-parallel training **[WIP]**
-* [ ] Scaling model parameters and dataset size.
-
-Your contributions are welcome.
-
 <details>
 <summary>View more</summary>
 
@@ -149,6 +150,7 @@ Your contributions are welcome.
 * [Training](#training)
 * [Evaluation](#evaluation)
 * [VAE Training & Evaluation](#vae-training--evaluation)
+* [Long sequence training and inference (sequence parallel)](#long-sequence-training-and-inference-sequence-parallel)
 * [Contribution](#contribution)
 * [Acknowledgement](#acknowledgement)
 
@@ -159,19 +161,9 @@ Other useful documents and links are listed below.
 
 ## Installation
 
-1. Install MindSpore according to the [official instructions](https://www.mindspore.cn/install).
-    For Ascend devices, please install [CANN8.0.RC2.beta1](https://www.hiascend.com/developer/download/community/result?module=cann&cann=8.0.RC2.beta1) and install [MindSpore 2.3.1](https://www.mindspore.cn/install).
-    > To reduce compilation time and training time, you may install MindSpore2.4-20240904 from [here](https://repo.mindspore.cn/mindspore/mindspore/version/202409/20240904/master_20240904010023_67b5df247045f509c4ca2169bac6a551291a3111_newest/unified/aarch64/)
+1. Please install MindSpore 2.3.1 according to the [MindSpore official website](https://www.mindspore.cn/install/) and install [CANN 8.0.RC2.beta1](https://www.hiascend.com/developer/download/community/result?module=cann&cann=8.0.RC2.beta1) as recommended by the official installation website.
 
-    You may check your versions by running the following commands. The default installation path of CANN is usually  `/usr/local/Ascend/ascend-toolkit` unless you specify a custom one.
-
-    ```bash
-    cat /usr/local/Ascend/ascend-toolkit/latest/version.cfg  
-
-    python -c "import mindspore;mindspore.set_context(device_target='Ascend');mindspore.run_check()"
-    ```
-
-3. Install requirements
+2. Install requirements
 ```bash
 pip install -r requirements.txt
 ```
@@ -313,7 +305,7 @@ In the `sample_iv2v.yaml`, provide such information as `loop`, `condition_frame_
 and `reference_path`.
 See [here](docs/quick_start.md#imagevideo-to-video-opensora-v11-and-above) for more details.
 
-> For inference with sequence parallelism using multiple NPUs in Open-Sora 1.2, please use `msrun` and append `--use_parallel True` and `--enable_sequence_parallelism True` to the inference script, referring to `scripts/run/run_infer_sequence_parallel.sh`.
+> For inference with sequence parallelism using multiple NPUs in Open-Sora 1.2, please use `msrun` and append `--use_parallel True` and `--enable_sequence_parallelism True` to the inference script, referring to `scripts/run/run_infer_sequence_parallel.sh`. To further accelerate the inference speed, you can use [DSP](https://arxiv.org/abs/2403.10266) by appending `--dsp True`, referring to `scripts/run/run_infer_sequence_parallel_dsp.sh`.
 
 #### Text-to-Video Generation
 
@@ -323,6 +315,21 @@ when using `sample_iv2v.yaml`.
 ```shell
 python scripts/inference.py --config configs/opensora-v1-1/inference/sample_t2v.yaml --ckpt_path /path/to/your/opensora-v1-1.ckpt
 ```
+
+#### Inference Performance
+
+We evaluate the inference performance of text-to-video generation by measuring the average sampling time per step and the total sampling time of a video.
+
+All experiments are tested on ascend 910* with mindspore 2.3.1 graph mode.
+
+
+| model name      |  cards | batch size | resolution |  jit level | precision |  scheduler   | step      | graph compile | s/step     | s/video | recipe |
+| :--:         | :--:   | :--:       | :--:       | :--:       | :--:       | :--:       | :--:       | :--:      |:--:    | :--:   |:--:   |
+| STDiT2-XL/2  |  1     | 1          | 16x640x360   | O0       | bf16       |  DDPM     |   100   |  1~2 mins |  1.56    |    156.00      |  [yaml](configs/opensora-v1-1/inference/sample_t2v.yaml) |
+| STDiT3-XL/2  |  1     | 1          | 51x720x1280   | O0      | bf16       |  RFlow    |   30    |  1~2 mins  |  5.88      |  176.40   | [yaml](configs/opensora-v1-2/inference/sample_t2v.yaml) |
+| STDiT3-XL/2  |  1     | 1          | 102x720x1280  | O0      | bf16       |  RFlow    |   30    |  1~2 min   | 13.71      |  411.30  | [yaml](configs/opensora-v1-2/inference/sample_t2v.yaml) |
+
+
 
 ### Open-Sora 1.0 Command Line Inference
 
@@ -347,8 +354,23 @@ We also provide a three-stage sampling script `run_sole_3stages.sh` to reduce me
 
 For more usage on the inference script, please run `python scripts/inference.py -h`
 
+#### Inference Performance
+
+We evaluate the inference performance of text-to-video generation by measuring the average sampling time per step and the total sampling time of a video.
+
+All experiments are tested on ascend 910* with mindspore 2.3.1 graph mode.
+
+| model name      |  cards | batch size | resolution |  jit level | precision |  scheduler   | step      | graph compile | s/step     | s/video | recipe |
+| :--:         | :--:   | :--:       | :--:       | :--:       | :--:       | :--:       | :--:       | :--:      |:--:    | :--:   |:--:   |
+| STDiT-XL/2 | 1 | 4 | 16x256x256 |  O0 | fp32 | DDPM | 100 |  2~3 mins | 0.39 | 39.22 | [yaml](configs/opensora/inference/stdit_256x256x16.yaml) |
+| STDiT-XL/2 | 1 | 1 | 16x512x512 | O0 | fp32 | DDPM | 100 | 2~3 mins |  1.85 | 185.00 | [yaml](configs/opensora/inference/stdit_512x512x16.yaml) |
+| STDiT-XL/2 | 1 | 1 | 64x512x512 |  O0 | bf16 | DDPM | 100 | 2~3 mins | 2.78 | 278.45 | [yaml](configs/opensora/inference/stdit_512x512x64.yaml) |
+
 </details>
 
+<br>
+
+> ⚠️ Note: When running parallel inference scripts under `scripts/run/` on ModelArts, please `unset RANK_TABLE_FILE` before the inference starts.
 
 ## Data Processing
 
@@ -479,10 +501,10 @@ video_embed_folder
 
 ### Open-Sora 1.2
 
-Stand-alone training for Stage 2 of OpenSora v1.2:
+Once you prepare the data in a csv file, you may run the following commands to launch training on a single card.
 
 ```shell
-# kernel fusion for dynamic training
+# standalone training for stage 2
 export MS_DEV_ENABLE_KERNEL_PACKET=on
 
 python scripts/train.py --config configs/opensora-v1-2 /train/train_stage2.yaml \
@@ -496,7 +518,7 @@ python scripts/train.py --config configs/opensora-v1-2 /train/train_stage2.yaml 
 For parallel training, use `msrun` and along with `--use_parallel=True`:
 
 ```shell
-# kernel fusion for dynamic training
+# distributed training for stage 2
 export MS_DEV_ENABLE_KERNEL_PACKET=on
 
 msrun --worker_num=8 --local_worker_num=8 --log_dir=$output_dir  \
@@ -542,9 +564,10 @@ The instruction for launching the dynamic training task is smilar to the previou
 <details>
 <summary>Instructions</summary>
 
-Stand-alone training for Stage 1 of OpenSora v1.1:
+Once you prepare the data in a csv file, you may run the following commands to launch training on a single card.
 
 ```shell
+# standalone training for stage 1
 python scripts/train.py --config configs/opensora-v1-1/train/train_stage1.yaml \
     --csv_path /path/to/video_caption.csv \
     --video_folder /path/to/video_folder \
@@ -558,6 +581,7 @@ You can find more in [T5 text embeddings](#cache-text-embeddings) and [VAE Video
 For parallel training, use `msrun` and along with `--use_parallel=True`:
 
 ```shell
+# distributed training for stage 1
 msrun --master_port=8200 --worker_num=8 --local_worker_num=8 --log_dir=$output_dir  \
     python scripts/train.py --config configs/opensora-v1-1/train/train_stage1.yaml \
     --csv_path /path/to/video_caption.csv \
@@ -635,18 +659,17 @@ Here ✅ means that the data is seen during training, and 🆗 means although no
 
 #### Training Performance
 
-We evaluate the training performance of Open-Sora v1.2 on the MixKit dataset with high-resolution videos (1080P, duration 12s to 100s). The results are as follows.
+We evaluate the training performance of Open-Sora v1.2 on the MixKit dataset with high-resolution videos (1080P, duration 12s to 100s).
 
-| Model       | Context      | jit_level | Precision | BS | NPUs | Size (TxHxW) | Train T. (s/step) |  config |
-|:------------|:-------------|:--------|:---------:|:--:|:----:|:----------------------:|:-----------------:|:-----------------:|
-| STDiT3-XL/2 | D910\*-[C18](https://repo.mindspore.cn/ascend/ascend910/20240705/)-[MS2.3](https://www.mindspore.cn/install) |    O1  |    BF16   |  1 |  8   |       51x720x1280      |        **14.60**       | [yaml](configs/opensora-v1-2/train/train_720x1280x51.yaml)   |
-| STDiT3-XL/2 | D910\*-[C18](https://repo.mindspore.cn/ascend/ascend910/20240705/)-[MS2.3.1(0726)](https://repo.mindspore.cn/mindspore/mindspore/version/202407/20240726/master_20240726220021_4c913fb116c83b9ad28666538483264da8aebe8c_newest/unified/)  |    O1  |    BF16   |  1 |  8   |       Stage 2 Dyn.     |        **33.10**       | [yaml](configs/opensora-v1-2/train/train_stage2.yaml)   |
-| STDiT3-XL/2 | D910\*-[C18](https://repo.mindspore.cn/ascend/ascend910/20240705/)-[MS2.3.1(0726)](https://repo.mindspore.cn/mindspore/mindspore/version/202407/20240726/master_20240726220021_4c913fb116c83b9ad28666538483264da8aebe8c_newest/unified/)  |    O1  |    BF16   |  1 |  8   |       Stage 3 Dyn.     |        **34**       | [yaml](configs/opensora-v1-2/train/train_stage3.yaml)   |
+All experiments are tested on ascend 910* with mindspore 2.3.1 graph mode.
+| model name   | cards  | batch size | resolution | precision  | sink      | jit level | graph compile |  s/step | recipe |
+| :--:         | :--:   | :--:       | :--:       | :--:       | :--:      | :--:      |:--:          | :--:       | :--:   |
+| STDiT3-XL/2  |  8     | 1          | 51x720x1280| bf16       | ON      | O1        |    12 mins   | 14.23   | [yaml](configs/opensora-v1-2/train/train_720x1280x51.yaml)
+| STDiT3-XL/2  |  8     | dynamic    | stage 1 | bf16       |   OFF    | O1        |      22 mins   | 13.17   | [yaml](configs/opensora-v1-2/train/train_stage1_ms.yaml)
+| STDiT3-XL/2  |  8     | dynamic    | stage 2 | bf16       |   OFF    | O1        |     22 mins     | 31.04   | [yaml](configs/opensora-v1-2/train/train_stage2_ms.yaml)
+| STDiT3-XL/2  |  8     | dynamic    | stage 3 | bf16       |   OFF    | O1        |     22 mins     | 31.17   | [yaml](configs/opensora-v1-2/train/train_stage3_ms.yaml)
 
-
-> Context: {G:GPU, D:Ascend}{chip type}-{CANN version}-{mindspore version}; "Dyn." is short for dynamic shape.
-
-Note that the step time of dynamic training can be influenced by the resolution and duration distribution of the source videos. Training performance is under optimization.
+Note that the step time of dynamic training can be influenced by the resolution and duration distribution of the source videos.
 
 To reproduce the above performance, you may refer to `scripts/run/run_train_os1.2_720x1280x51.sh` and  `scripts/run/run_train_os1.2_stage2.sh`.
 
@@ -672,22 +695,6 @@ Below are some generation results after fine-tuning STDiT3 with **Stage 2** buck
 </table>
 
 
-#### Training & Inference Performance (Sequence Parallel)
-
-We support training with the OpenSora v1.2 model using SP (Sequence Parallel), handling up to 408 frames (~16 seconds) on 4 NPU* cards. Additionally, we have optimized the training speed by implementing micro-batch parallelism in the VAE’s spatial and temporal domains, achieving approximately a 20% speed boost. We evaluate the training performance using the MixKit dataset, which includes high-resolution videos (1080P, duration 12s to 100s). The training performance results are reported below.
-
-| Model       | Context                          | Method | jit_level | Precision | BS | NPUs | Size (TxHxW)  | Train T. (s/step) | script |
-|:-----------:|:--------------------------------:|:------:|:---------:|:---------:|:--:|:----:|:-------------:|:-----------------:|:------:|
-| STDiT2-XL/2 | D910\*-C19(0904)-MS_master(0904) |  SP    | O1        |    BF16   |  1 |  4   | 408x720x1280  | 44.5              | [script](scripts/run/run_train_os1.2_stage2_sp.sh)  |
-
-> To prevent the system from running out of memory, ensure you launch the training job on a server with sufficient memory. For 4P training, at least 800GB of memory is required.\
-
-And we can run inference on up to 408 frames using two NPU* cards. The inference performance is reported below.
-
-| Model       | Context                          | Method | jit_level | Precision | BS | NPUs | Size (TxHxW)  | Sampling T. (s/step) | script |
-|:-----------:|:--------------------------------:|:------:|:---------:|:---------:|:--:|:----:|:-------------:|:--------------------:|:------:|
-| STDiT2-XL/2 | D910\*-C19(0904)-MS_master(0904) |  SP    | O0        |    BF16   |  1 |  2   | 408x720x1280  | 30.9                 | [script](scripts/run/run_infer_sequence_parallel.sh)     |
-
 ### Open-Sora 1.1
 
 <details>
@@ -695,21 +702,20 @@ And we can run inference on up to 408 frames using two NPU* cards. The inference
 
 #### Training Performance
 
-We evaluated the training performance on MindSpore and Ascend NPUs. The results are as follows.
+We evaluate the training performance of Open-Sora v1.1 on a subset of the MixKit dataset.
 
-| Model       | Context      | jit_level | Precision | BS | NPUs | Size (TxHxW) | Train T. (s/step) |
-|:------------|:-------------|:--------|:---------:|:--:|:----:|:----------------------:|:-----------------:|
-| STDiT2-XL/2 | D910\*-[C18](https://repo.mindspore.cn/ascend/ascend910/20240517/)-[MS2.3_master(0615)](https://repo.mindspore.cn/mindspore/mindspore/version/202406/20240615/master_20240615020018_43ccb91e45899b64fe31d304497ab17e3ada3cea_newest/unified/)  |    O1  |    BF16   |  1 |  8   |       16x512x512       |        2.00       |
-| STDiT2-XL/2 | D910\*-[C18](https://repo.mindspore.cn/ascend/ascend910/20240517/)-[MS2.3_master(0615)](https://repo.mindspore.cn/mindspore/mindspore/version/202406/20240615/master_20240615020018_43ccb91e45899b64fe31d304497ab17e3ada3cea_newest/unified/)  |    O1  |    BF16   |  1 |  8   |       64x512x512       |        8.30       |
-| STDiT2-XL/2 | D910\*-[C18](https://repo.mindspore.cn/ascend/ascend910/20240517/)-[MS2.3_master(0615)](https://repo.mindspore.cn/mindspore/mindspore/version/202406/20240615/master_20240615020018_43ccb91e45899b64fe31d304497ab17e3ada3cea_newest/unified/) |    O1  |    BF16   |  1 |  8   |       24x576x1024      |        8.22       |
-| STDiT2-XL/2 | D910\*-[C18](https://repo.mindspore.cn/ascend/ascend910/20240705/)-[MS2.3](https://www.mindspore.cn/install) |    O1  |    BF16   |  1 |  8   |       24x576x1024      |        **7.82**       |
-| STDiT2-XL/2 | D910\*-[C18](https://repo.mindspore.cn/ascend/ascend910/20240517/)-[MS2.3_master(0615)](https://repo.mindspore.cn/mindspore/mindspore/version/202406/20240615/master_20240615020018_43ccb91e45899b64fe31d304497ab17e3ada3cea_newest/unified/) |    O1  |    BF16   |  1 |  8   |       64x576x1024      |        21.15      |
-| STDiT2-XL/2 | D910\*-[C18](https://repo.mindspore.cn/ascend/ascend910/20240517/)-[MS2.3_master(0615)](https://repo.mindspore.cn/mindspore/mindspore/version/202406/20240615/master_20240615020018_43ccb91e45899b64fe31d304497ab17e3ada3cea_newest/unified/) |    O1  |    BF16   |  1 |  8   |       24x1024x1024     |        16.98      |
-> Context: {G:GPU, D:Ascend}{chip type}-{CANN version}-{mindspore version}
+All experiments are tested on ascend 910* with mindspore 2.3.1 graph mode.
 
->Note that the above performance uses both t5 cached embedding data and vae cached latent data.
+| model name   | cards  | batch size | resolution   | vae cache  | precision  | sink       | jit level    | graph compile | s/step    | recipe |
+| :--:         | :--:   | :--:       | :--:         | :--:       | :--:       | :--:       | :--:         | :--:          | :--:      | :--:   |
+| STDiT3-XL/2  |  8     | 1          | 16x512x512   | OFF        | bf16       | OFF        | O1           |  13 mins      | 2.28      | [yaml](configs/opensora-v1-1/train/stdit2_512x512x64.yaml) |
+| STDiT3-XL/2  |  8     | 1          | 64x512x512   | OFF        | bf16       | OFF        | O1           |  13 mins      | 8.57      | [yaml](configs/opensora-v1-1/train/stdit2_512x512x64.yaml) |
+| STDiT3-XL/2  |  8     | 1          | 24x576x1024  | OFF        | bf16       | OFF        | O1           |  13 mins      | 8.55      | [yaml](configs/opensora-v1-1/train/stdit2_576x1024x24.yaml) |
+| STDiT3-XL/2  |  8     | 1          | 64x576x1024  | ON         | bf16       | OFF        | O1           |  13 mins      | 18.94     | [yaml](configs/opensora-v1-1/train/stdit2_576x1024x24.yaml) |
 
-** Tips ** for performance optimization: to speed up training, you can set `dataset_sink_mode` as True and reduce `num_recompute_blocks` from 28 to a number that doesn't lead to out-of-memory.
+> vae cache: whether vae embedding is pre-computed and cached before training.
+
+Note that T5 text embedding is pre-computed before training.
 
 Here are some generation results after fine-tuning STDiT2 on a mixkit subset.
 
@@ -732,27 +738,22 @@ Here are some generation results after fine-tuning STDiT2 on a mixkit subset.
 </tr>
 </table>
 
+
 </details>
 
 ### Open-Sora 1.0
 <details>
 <summary>View more</summary>
+
 #### Training Performance
 
-We evaluated the training performance on MindSpore and Ascend NPUs. The results are as follows.
+All experiments are tested on ascend 910* with mindspore 2.3.1 graph mode.
+| model name   | cards  | batch size | resolution   | stage | precision | sink |  jit level   | graph compile | s/step | recipe |
+| :--:         | :--:   | :--:       | :--:         | :--:  | :--:      |:--:  | :--:         | :--:          |:--:    |:--:    |
+| STDiT-XL/2  |  8     | 3          | 16x256x256   | 1     | fp16      |  ON  | O1           | 5~6 mins      |  1.53  | [yaml](configs/opensora/train/stdit_256x256x16_ms.yaml) |
+| STDiT-XL/2  |  8     | 1          | 16x512x512   | 2     | fp16      |  ON  | O1           | 5~6 mins      |  2.47  | [yaml](configs/opensora/train/stdit_512x512x16.yaml) |
+| STDiT-XL/2  |  8     | 1          | 64x512x512   | 3     | bf16      |  ON  | O1           | 5~6 mins      |  8.52  | [yaml](configs/opensora/train/stdit_512x512x64_ms.yaml) |
 
-| Model      | Context      | Precision | BS | NPUs | Size (TxHxW)  | Train T. (s/step) |
-|:-----------|:-------------|:----------|:--:|:----:|:-----------:|:-----------------:|
-| STDiT-XL/2 | D910\*-MS2.3 | FP16      | 2  |  8   | 16x256x256  |       1.10        |
-| STDiT-XL/2 | D910\*-MS2.3 | FP16      | 1  |  8   | 16x512x512  |       1.67        |
-| STDiT-XL/2 | D910\*-MS2.3 | FP16      | 1  |  8   | 64x512x512  |       5.72        |
-| STDiT-XL/2 | D910\*-MS2.3 | BF16      | 1  |  8   | 64x512x512  |       6.80        |
-| STDiT-XL/2 | D910\*-MS2.3 | FP16      | 1  |  8   | 300x512x512 |        37         |
-> Context: {G:GPU, D:Ascend}{chip type}-{mindspore version}.
-
-Note that training on 300 frames at 512x512 resolution is achieved by optimization+data parallelism with t5 cached embeddings.
-
-** Tips ** for performance optimization: to speed up training, you can set `dataset_sink_mode` as True and reduce `num_recompute_blocks` from 28 to a number that doesn't lead to out-of-memory.
 
 #### Loss Curves
 
@@ -792,6 +793,7 @@ Here are some generation results after fine-tuning STDiT on a subset of WebVid d
 #### Quality Evaluation
 For quality evaluation, please refer to the original HPC-AI Tech [evaluation doc](https://github.com/hpcaitech/Open-Sora/blob/main/eval/README.md) for video generation quality evaluation.
 
+</details>
 
 ## VAE Training & Evaluation
 
@@ -857,20 +859,51 @@ You can change the `csv_path` and `video_folder` to evaluate on your own data.
 
 Here, we report the training performance and evaluation results on the UCF-101 dataset.
 
-| Model       | Context      | jit_level | Precision | BS | NPUs | Resolution(framesxHxW) | Train T. (s/step) |    PSNR   |   SSIM  |
-|:------------|:-------------|:--------|:---------:|:--:|:----:|:----------------------:|:-----------------:|:-----------------:|:-----------------:|
-| VAE-3D | D910\*-[MS2.3.1](https://www.mindspore.cn/install) |    O0  |    BF16   |  1 |  8   |       stage1-17x256x256       |       0.21         |    n.a.      |    n.a.    |
-| VAE-3D | D910\*-[MS2.3.1](https://www.mindspore.cn/install) |    O2  |    BF16   |  1 |  1   |       stage2-17x256x256      |        0.41         |    n.a.      |    n.a.    |
-| VAE-3D | D910\*-[CANN C18(0705)](https://repo.mindspore.cn/ascend/ascend910/20240705/)-[MS2.3](https://www.mindspore.cn/install) |    O1  |    BF16   |  1 |  8   |       stage3-17x256x256      |       0.93        |    29.29      |    0.88    |
-> Context: {G:GPU, D:Ascend}{chip type}-{mindspore version}.
+
+All experiments are tested on ascend 910* with mindspore 2.3.1 graph mode.
+
+| model name   | cards  | batch size | resolution   |  precision  |  jit level    | graph compile | s/step    | PSNR   | SSIM  | recipe |
+| :--:         | :--:   | :--:       | :--:         | :--:       | :--:         | :--:          | :--:      | :--:   | :--:      | :--:      |
+| VAE-3D  |  8     | 1          | 17x256x256   | bf16       |  O1           |  5 mins      | 1.09     |  29.02   | 0.87  | [yaml](configs/vae/train/stage3.yaml) |
+
 
 Note that we train with mixed video ang image strategy i.e. `--mixed_strategy=mixed_video_image` for stage 3 instead of random number of frames (`mixed_video_random`). Random frame training will be supported in the future.
+
+
+## Long sequence training and inference (sequence parallel)
+
+### Training
+
+We support training with the OpenSora v1.2 model using SP (Sequence Parallel) and [DSP](https://arxiv.org/abs/2403.10266) (Dynamic Sequence Parallel), handling up to 408 frames (~16 seconds) on 4 NPU* cards. Additionally, we have optimized the training speed by implementing micro-batch parallelism in the VAE’s spatial and temporal domains, achieving approximately a 20% speed boost. We evaluate the training performance using the MixKit dataset, which includes high-resolution videos (1080P, duration 12s to 100s). The training performance results are reported below.
+
+All experiments are tested on ascend 910* with mindspore 2.4.0 graph mode.
+| model name   | cards  | batch size | resolution  | sink | precision   | jit level | graph compile |  s/step | recipe |
+| :--:         | :--:   | :--:       | :--:       | :--:       | :--:      | :--:      |:--:          | :--:       | :--:   |
+| STDiT3-XL/2  |  4     | 1          | 408x720x1280| OFF     |   bf16    | O1        |    12 mins   | 48.30   | [script](scripts/run/run_train_os1.2_stage2_sp.sh)
+| STDiT3-XL/2  |  4     | 1          | 408x720x1280| OFF     |   bf16    | O1        |    12 mins   | 47.00   | [script](scripts/run/run_train_os1.2_stage2_dsp.sh)
+
+> To prevent the system from running out of memory, ensure you launch the training job on a server with sufficient memory. For 4P training, at least 400GB of memory is required.
+
+
+### Inference
+
+We evaluate the inference performance of text-to-video generation by measuring the average sampling time per step and the total sampling time of a video.
+
+All experiments are tested on ascend 910* with mindspore 2.4.0 graph mode.
+
+
+| model name      |  cards | batch size | resolution |  precision | scheduler   |  steps   |  jit level |   graph compile | s/step     | s/video | recipe |
+| :--:         | :--:   | :--:       | :--:       | :--:       | :--:       | :--:       | :--:       | :--:      |:--:    | :--:   |:--:   |
+| STDiT3-XL/2  |  2     | 1          | 408x720x1280   |  bf16    |   RFlow   |   30   |   O0  | 1~2 mins |  26.03    |    780.00      |  [script](scripts/run/run_infer_sequence_parallel.sh) |
+| STDiT3-XL/2  |  2     | 1          | 408x720x1280   |  bf16    |   RFlow   |   30   |   O0  | 1~2 mins |  22.03    |    660.00      |  [script](scripts/run/run_infer_sequence_parallel.sh) |
 
 
 ## Training and Inference Using the FiT-Like Pipeline
 
 <details>
 <summary>View more</summary>
+
+> ⚠️**WARNING:** This feature is experimental. The official version is under development.
 
 We provide support for training Open-Sora 1.1 using the FiT-Like pipeline as an alternative solution for handling multi-resolution videos, in contrast to the bucketing strategy.
 
@@ -960,5 +993,6 @@ If you wish to contribute to this project, you can refer to the [Contribution Gu
 * [CLIP](https://github.com/openai/CLIP): A powerful text-image embedding model.
 * [T5](https://github.com/google-research/text-to-text-transfer-transformer): A powerful text encoder.
 * [LLaVA](https://github.com/haotian-liu/LLaVA): A powerful image captioning model based on [Mistral-7B](https://huggingface.co/mistralai/Mistral-7B-v0.1) and [Yi-34B](https://huggingface.co/01-ai/Yi-34B).
+* [DSP](https://github.com/NUS-HPC-AI-Lab/VideoSys): Dynamic Sequence Parallel introduced by NUS HPC AI Lab.
 
 We are grateful for their exceptional work and generous contribution to open source.

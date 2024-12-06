@@ -43,7 +43,7 @@ EXAMPLE_DOC_STRING = """
     Examples:
         ```py
         >>> from mindone.diffusers import IFPipeline, IFSuperResolutionPipeline, DiffusionPipeline
-        >>> from mindone.diffusers.utils import pt_to_pil
+        >>> from mindone.diffusers.utils import ms_to_pil
         >>> import mindspore
 
         >>> pipe = IFPipeline.from_pretrained("DeepFloyd/IF-I-XL-v1.0", use_safetensors=True, mindspore_dtype=mindspore.float16)
@@ -51,10 +51,10 @@ EXAMPLE_DOC_STRING = """
         >>> prompt = 'a photo of a kangaroo wearing an orange hoodie and blue sunglasses standing in front of the eiffel tower holding a sign that says "very deep learning"'  # noqa E501
         >>> prompt_embeds, negative_embeds = pipe.encode_prompt(prompt)
 
-        >>> image = pipe(prompt_embeds=prompt_embeds, negative_prompt_embeds=negative_embeds, output_type="pt")[0]
+        >>> image = pipe(prompt_embeds=prompt_embeds, negative_prompt_embeds=negative_embeds, output_type="ms")[0]
 
         >>> # save intermediate image
-        >>> pil_image = pt_to_pil(image)
+        >>> pil_image = ms_to_pil(image)
         >>> pil_image[0].save("./if_stage_I.png")
 
         >>> super_res_1_pipe = IFSuperResolutionPipeline.from_pretrained(
@@ -350,12 +350,12 @@ class IFSuperResolutionPipeline(DiffusionPipeline, LoraLoaderMixin):
                 add_special_tokens=True,
                 return_tensors="np",
             )
-            text_input_ids = ms.Tensor.from_numpy(text_inputs.input_ids)
-            untruncated_ids = ms.Tensor.from_numpy(
-                self.tokenizer(prompt, padding="longest", return_tensors="np").input_ids
-            )
+            text_input_ids = text_inputs.input_ids
+            untruncated_ids = self.tokenizer(prompt, padding="longest", return_tensors="np").input_ids
 
-            if untruncated_ids.shape[-1] >= text_input_ids.shape[-1] and not ops.equal(text_input_ids, untruncated_ids):
+            if untruncated_ids.shape[-1] >= text_input_ids.shape[-1] and not np.array_equal(
+                text_input_ids, untruncated_ids
+            ):
                 removed_text = self.tokenizer.batch_decode(untruncated_ids[:, max_length - 1 : -1])
                 logger.warning(
                     "The following part of your input was truncated because CLIP can only handle sequences up to"
@@ -365,7 +365,7 @@ class IFSuperResolutionPipeline(DiffusionPipeline, LoraLoaderMixin):
             attention_mask = ms.Tensor.from_numpy(text_inputs.attention_mask)
 
             prompt_embeds = self.text_encoder(
-                text_input_ids,
+                ms.tensor(text_input_ids),
                 attention_mask=attention_mask,
             )
             prompt_embeds = prompt_embeds[0]
@@ -853,7 +853,7 @@ class IFSuperResolutionPipeline(DiffusionPipeline, LoraLoaderMixin):
             # 12. Apply watermark
             if self.watermarker is not None:
                 self.watermarker.apply_watermark(image, self.unet.config.sample_size)
-        elif output_type == "pt":
+        elif output_type == "ms":
             nsfw_detected = None
             watermark_detected = None
         else:
@@ -863,6 +863,7 @@ class IFSuperResolutionPipeline(DiffusionPipeline, LoraLoaderMixin):
 
             # 10. Run safety checker
             image, nsfw_detected, watermark_detected = self.run_safety_checker(image, prompt_embeds.dtype)
+            image = image.numpy()
 
         if not return_dict:
             return (image, nsfw_detected, watermark_detected)
