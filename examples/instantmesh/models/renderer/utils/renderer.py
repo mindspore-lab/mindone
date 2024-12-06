@@ -229,6 +229,7 @@ class ImportanceRenderer(nn.Cell):
             u = u.broadcast_to((N_rays, self.N_importance))
         else:
             u = mint.rand(N_rays, self.N_importance)
+        u = u.contiguous()
 
         inds = mint.searchsorted(cdf, u, right=True)
         below = mint.clamp(inds - 1, min=0)

@@ -130,13 +130,11 @@ class TriplaneTransformer(nn.Cell):
 
         # separate each plane and apply deconv
         x = x.view(N, 3, H, W, -1)
-        # x = mint.einsum('nihwd->indhw', x)  # [3, N, D, H, W]
-        # x = mint.reshape(x, (3, N, -1, H, W))
-        x = mint.permute(x, (1, 0, 4, 2, 3))
-        x = x.view(3 * N, -1, H, W)  # [3*N, D, H, W]
+        x = mint.permute(x, (1, 0, 4, 2, 3))  # [3, N, D, H, W]
+        x = x.contiguous().view(3 * N, -1, H, W)  # [3*N, D, H, W]
         x = self.deconv(x)  # [3*N, D', H', W']
         x = x.view(3, N, *x.shape[-3:])  # [3, N, D', H', W']
-        # x = mint.einsum('indhw->nidhw', x)  # [N, 3, D', H', W']
-        x = mint.permute(x, (1, 0, 2, 3, 4))
+        x = mint.permute(x, (1, 0, 2, 3, 4))  # [N, 3, D', H', W']
+        x = x.contiguous()
 
         return x

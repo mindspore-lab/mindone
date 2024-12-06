@@ -17,7 +17,7 @@ logger = logging.getLogger("")
 import sys
 
 __dir__ = os.path.dirname(os.path.abspath(__file__))
-sys.path.insert(0, os.path.abspath(os.path.join(__dir__, "../../../..")))  # for mindone
+sys.path.insert(0, os.path.abspath(os.path.join(__dir__, "../..")))  # for mindone
 
 from model_stage1 import InstantMeshStage1WithLoss
 from omegaconf import OmegaConf
@@ -60,7 +60,7 @@ def parse_args(**parser_kwargs):
     )
     parser.add_argument(
         "--debug",
-        default=False,  # also setting debug as true will set pynative sync as true as well
+        action="store_true",
         help="When debugging, set it true. Dumping files will overlap to avoid trashing your storage.",
     )
     args = parser.parse_args()
@@ -139,7 +139,7 @@ def parse_train_args(parser):
     )
     parser.add_argument("--step_mode", default=False, help="whether save ckpt by steps. If False, save ckpt by epochs.")
     # optimizer param
-    parser.add_argument("--use_ema", default=True, help="whether use EMA")
+    parser.add_argument("--use_ema", default=False, help="whether use EMA")
     parser.add_argument("--drop_overflow_update", default=True, type=str2bool, help="drop overflow update")
     parser.add_argument("--gradient_accumulation_steps", default=1, type=int, help="gradient accumulation steps")
     parser.add_argument("--clip_grad", default=True, type=str2bool, help="whether apply gradient clipping")
@@ -150,9 +150,11 @@ def parse_train_args(parser):
         help="max gradient norm for clipping, effective when `clip_grad` enabled.",
     )
     parser.add_argument("--start_learning_rate", default=4e-4, type=float, help="The initial learning rate for Adam.")
-    parser.add_argument("--end_learning_rate", default=1e-7, type=float, help="The end learning rate for Adam.")
-    parser.add_argument("--decay_steps", default=0, type=int, help="lr decay steps.")
-    parser.add_argument("--scheduler", default="cosine_decay", type=str, help="scheduler.")
+    parser.add_argument("--end_learning_rate", default=4e-5, type=float, help="The end learning rate for Adam.")
+    parser.add_argument(
+        "--decay_steps", default=9e3, type=int, help="lr decay steps."
+    )  # with dataset_size==3, it's 3k epochs
+    parser.add_argument("--scheduler", default="cosine_annealing_warm_restarts_lr", type=str, help="scheduler.")
     parser.add_argument("--optim", default="adamw", type=str, help="optimizer")
     parser.add_argument(
         "--betas",
@@ -162,18 +164,18 @@ def parse_train_args(parser):
         help="Specify the [beta1, beta2] parameter for the AdamW optimizer.",
     )
     parser.add_argument(
-        "--optim_eps", type=float, default=1e-6, help="Specify the eps parameter for the AdamW optimizer."
+        "--optim_eps", type=float, default=1e-8, help="Specify the eps parameter for the AdamW optimizer."
     )
     parser.add_argument(
         "--group_strategy",
         type=str,
-        default="norm_and_bias",
+        default="not_grouping",
         help="Grouping strategy for weight decay. If `norm_and_bias`, weight decay filter list is [beta, gamma, bias]. \
                                 If None, filter list is [layernorm, bias]. Default: norm_and_bias",
     )
     parser.add_argument("--weight_decay", default=0.01, type=float, help="Weight decay.")
     parser.add_argument("--seed", default=42, type=int, help="data path")
-    parser.add_argument("--warmup_steps", default=1000, type=int, help="warmup steps")
+    parser.add_argument("--warmup_steps", default=0, type=int, help="warmup steps")
     # dataloader param
     parser.add_argument("--dataset_sink_mode", default=False, help="sink mode")
     parser.add_argument("--sink_size", default=-1, type=int, help="dataset sink size. If -1, sink size = dataset size.")
@@ -286,8 +288,6 @@ def main(args):
             )
             args.decay_steps = 1
 
-    # TODO is the warmup + cosinedecay scheduler already the same as mindspore.experimental.optim.lr_scheduler?
-    #   do we need to make a warm restart for the lr schedulaer to be 100% aligned with the vanilla version ()?
     lr = create_scheduler(
         steps_per_epoch=dataset_size,
         name=args.scheduler,
@@ -295,7 +295,7 @@ def main(args):
         end_lr=args.end_learning_rate,
         warmup_steps=args.warmup_steps,
         decay_steps=args.decay_steps,
-        total_steps=total_train_steps,
+        num_epochs=args.epochs,
     )
 
     # 4.1 build optimizer
@@ -385,7 +385,8 @@ def main(args):
             log_interval=args.log_interval,
             start_epoch=start_epoch,
             model_name="instantmesh_stage1",
-            record_lr=False,
+            record_lr=True,
+            prefer_low_perf=True,  # prefer low loss, this for top_k recording
         )
         callback.append(save_cb)
 

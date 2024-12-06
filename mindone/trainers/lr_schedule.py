@@ -101,7 +101,12 @@ def create_scheduler(
         main_lr_scheduler = [lr for _ in range(main_steps)]
     elif name == "cosine_annealing_warm_restarts_lr":
         main_lr_scheduler = cosine_annealing_warm_restarts_lr(
-            te=3000, tm=1, eta_min=lr / 10, eta_max=lr, steps_per_epoch=steps_per_epoch, epochs=main_steps
+            te=decay_steps // steps_per_epoch,
+            tm=1,
+            eta_min=end_lr,
+            eta_max=lr,
+            steps_per_epoch=steps_per_epoch,
+            epochs=num_epochs,
         )
     else:
         raise ValueError(f"Invalid scheduler: {name}")

@@ -16,7 +16,7 @@ class SaveCkptCallback(Callback):
     def __init__(
         self,
         rank_id: Optional[int] = None,
-        output_dir: str = "./output",
+        output_dir: str = "./outputs",
         ckpt_max_keep: int = 5,
         ckpt_save_interval: int = 1,
         save_ema: bool = False,

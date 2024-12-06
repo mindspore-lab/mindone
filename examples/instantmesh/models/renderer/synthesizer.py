@@ -53,7 +53,7 @@ class OSGDecoder(nn.Cell):
         x = sampled_features
 
         N, M, C = x.shape
-        x = x.view(N * M, C)
+        x = x.contiguous().view(N * M, C)
 
         x = self.net(x)
         x = x.view(N, M, -1)

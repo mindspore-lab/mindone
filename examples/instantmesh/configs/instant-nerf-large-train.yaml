@@ -41,7 +41,7 @@ data:
       render_size: 192
       total_view_n: 16
       fov: 50
-      camera_rotation: true
+      camera_rotation: false
   val:
     target: data.objaverse.ValidationDataset
     params:

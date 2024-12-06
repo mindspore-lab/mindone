@@ -62,6 +62,7 @@ class EvalSaveCallback(Callback):
         integrated_save=False,
         save_training_resume=True,
         train_steps=-1,
+        prefer_low_perf=False,
     ):
         """
         Args:
@@ -100,6 +101,7 @@ class EvalSaveCallback(Callback):
                 ckpt_save_policy,
                 k=ckpt_max_keep,
                 integrated_save=integrated_save,
+                prefer_low_perf=prefer_low_perf,
             )
             if self.start_epoch == 0:
                 if self.record_lr:

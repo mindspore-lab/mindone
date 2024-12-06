@@ -14,7 +14,6 @@ mindone_lib_path = os.path.abspath(
 )  # TODO: remove in future when mindone is ready for install
 sys.path.insert(0, mindone_lib_path)
 sys.path.insert(0, os.path.abspath(os.path.join(__dir__, "..")))  # for loading utils
-print(sys.path)
 
 from transformers import ViTImageProcessor
 from utils.camera_util import FOV_to_intrinsics, center_looking_at_camera_pose, get_circular_camera_poses
