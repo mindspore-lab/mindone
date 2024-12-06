@@ -63,6 +63,7 @@ class OpenSoraT2V_v1_3(ModelMixin, ConfigMixin):
         self.gradient_checkpointing = use_recompute  # NEW
         self.use_recompute = use_recompute  # NEW
         self.FA_dtype = FA_dtype  # NEW
+        self.sparse_n = sparse_n  # NEW
         self._init_patched_inputs()
 
         if self.use_recompute:
@@ -411,7 +412,7 @@ class OpenSoraT2V_v1_3(ModelMixin, ConfigMixin):
         head_num = None
         sparse_mask = {}
         if self.sparse1d:
-            for sparse_n in [1, 4]:
+            for sparse_n in [1, self.sparse_n]:
                 sparse_mask[sparse_n] = Attention.prepare_sparse_mask(
                     attention_mask, encoder_attention_mask, sparse_n, head_num
                 )
