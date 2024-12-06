@@ -26,7 +26,7 @@ from args_train import parse_args
 from opensora.acceleration.parallel_states import create_parallel_group
 from opensora.datasets.aspect import ASPECT_RATIOS, get_image_size
 from opensora.models.layers.operation_selector import set_dynamic_mode
-from opensora.models.stdit import STDiT2_XL_2, STDiT3_XL_2, STDiT_XL_2
+from opensora.models.stdit import STDiT2_XL_2, STDiT3_XL_2, STDiT3_XL_2_DSP, STDiT_XL_2
 from opensora.models.vae.vae import SD_CONFIG, OpenSoraVAE_V1_2, VideoAutoencoderKL
 from opensora.pipelines import (
     DiffusionWithLoss,
@@ -192,6 +192,7 @@ def initialize_dataset(
     video_folder,
     text_embed_folder,
     vae_latent_folder,
+    train_with_vae_latent,
     batch_size,
     img_h,
     img_w,
@@ -211,7 +212,7 @@ def initialize_dataset(
             text_emb_folder=text_embed_folder,
             return_text_emb=True,
             vae_latent_folder=vae_latent_folder,
-            return_vae_latent=args.train_with_vae_latent,
+            return_vae_latent=train_with_vae_latent,
             vae_scale_factor=args.sd_scale_factor,
             sample_size=img_w,  # img_w == img_h
             sample_stride=args.frame_stride,
@@ -288,15 +289,6 @@ def initialize_dataset(
         ]
 
         num_src_samples = sum([len(ds) for ds in datasets])
-
-        if args.enable_sequence_parallelism:
-            if args.num_workers_dataset != 1:
-                pass
-                # FIXME: 0904 master fixed the seed issue for multiple workers. May remove the commented sentence later.
-                # logger.warning(
-                #     "To make sure the data is consistent across ranks for sequence parallel, the `num_workers_dataset` is set to be `1`."
-                # )
-                # args.num_workers_dataset = 1
 
         dataloaders = [
             create_dataloader(
@@ -460,7 +452,10 @@ def main(args):
         model_name = "STDiT3"
         model_extra_args["qk_norm"] = True
         model_extra_args["freeze_y_embedder"] = args.freeze_y_embedder
-        latte_model = STDiT3_XL_2(**model_extra_args)
+        if args.dsp:
+            latte_model = STDiT3_XL_2_DSP(**model_extra_args)
+        else:
+            latte_model = STDiT3_XL_2(**model_extra_args)
     else:
         raise ValueError(f"Unknown model version: {args.model_version}")
     logger.info(f"{model_name} input size: {latent_size if args.bucket_config is None else 'Variable'}")
@@ -492,6 +487,28 @@ def main(args):
             raise ValueError(msg)
         else:
             logger.warning(msg)
+
+    # sequence parallel check
+    if args.enable_sequence_parallelism:
+        if args.num_frames % args.vae_micro_batch_size != 0 or args.num_frames % args.vae_micro_frame_size != 0:
+            raise ValueError(
+                f"number of frames `{args.num_frames}` must be divisible by "
+                f"VAE micro batch size `{args.vae_micro_batch_size}` and VAE micro frame size `{args.vae_micro_frame_size}`."
+            )
+
+        if (
+            latte_model.num_heads % args.sequence_parallel_shards != 0
+            or latte_model.num_heads < args.sequence_parallel_shards
+        ):
+            raise ValueError(
+                f"number of heads `{latte_model.num_heads}` must be divisble and less than the sequence_parallel_shards `{args.sequence_parallel_shards}`."
+            )
+
+        if args.num_frames % args.sequence_parallel_shards != 0:
+            logger.warning(
+                f"To avoid extra computation cost, number of frames `{args.num_frames}` "
+                f"should be divisible by the number of SP shards `{args.sequence_parallel_shards}`."
+            )
 
     # 2.3 ldm with loss
     logger.info(f"Train with vae latent cache: {train_with_vae_latent}")
@@ -561,6 +578,7 @@ def main(args):
         args.video_folder,
         args.text_embed_folder,
         args.vae_latent_folder,
+        train_with_vae_latent,
         args.batch_size,
         img_h,
         img_w,
@@ -592,6 +610,7 @@ def main(args):
             args.val_video_folder,
             args.val_text_embed_folder,
             args.val_vae_latent_folder,
+            train_with_vae_latent,
             args.val_batch_size,
             img_h,
             img_w,
