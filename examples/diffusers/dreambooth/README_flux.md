@@ -26,7 +26,7 @@ Before running the scripts, make sure to install the library's training dependen
 To make sure you can successfully run the latest versions of the example scripts, we highly recommend **installing from source** and keeping the install up to date as we update the example scripts frequently and install some example-specific requirements. To do this, execute the following steps in a new virtual environment:
 
 ```bash
-git clone https://github.com/huggingface/diffusers
+git clone https://github.com/mindspore-lab/mindone
 cd diffusers
 pip install -e .[training]
 ```
@@ -88,8 +88,7 @@ python train_dreambooth_lora_flux.py \
   --max_train_steps=500 \
   --validation_prompt="A photo of sks dog in a bucket" \
   --validation_epochs=25 \
-  --seed="0" \
-  --upcast_before_saving
+  --seed="0"
 ```
 
 ### Text Encoder Training
@@ -125,8 +124,7 @@ python train_dreambooth_lora_flux.py \
   --lr_warmup_steps=0 \
   --max_train_steps=500 \
   --validation_prompt="A photo of sks dog in a bucket" \
-  --seed="0" \
-  --upcast_before_saving
+  --seed="0"
 ```
 
 ## Memory Optimizations
