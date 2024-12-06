@@ -1,4 +1,14 @@
+import random
+
 import numpy as np
+
+import mindspore as ms
+
+
+def seed_everything(seed):
+    random.seed(seed)
+    np.random.seed(seed)
+    ms.set_seed(seed)
 
 
 def pad_to_fit(h, w):

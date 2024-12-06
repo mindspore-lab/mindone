@@ -1,3 +1,4 @@
+import sys
 from abc import abstractmethod
 from functools import partial
 from typing import Any, Callable, List, Optional, Tuple, Union
@@ -6,6 +7,8 @@ import mindspore as ms
 import mindspore.nn as nn
 import mindspore.ops as ops
 from mindspore import Tensor, mint
+
+sys.path.append("../../")
 
 from mindone.models.modules.flash_attention import MSFlashAttention
 

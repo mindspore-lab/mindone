@@ -10,7 +10,7 @@ from easydict import EasyDict
 from huggingface_hub import hf_hub_download
 from inference_utils import *
 from tqdm import tqdm
-from video_to_video.utils.seed import setup_seed
+from video_to_video.utils.utils import seed_everything
 from video_to_video.video_to_video_model import VideoToVideo
 
 import mindspore as ms
@@ -123,7 +123,7 @@ class VEnhancer:
         pre_data["t_hint"] = noise_aug
 
         total_noise_levels = 900
-        setup_seed(666)
+        seed_everything(666)
 
         output = self.model.test(
             pre_data,

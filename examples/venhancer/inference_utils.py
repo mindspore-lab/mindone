@@ -1,3 +1,4 @@
+import logging
 import os
 import subprocess
 import tempfile
@@ -6,12 +7,11 @@ from typing import Mapping
 import cv2
 import numpy as np
 from PIL import Image
-from video_to_video.utils.logger import get_logger
 
 import mindspore as ms
 from mindspore import Tensor, mint, ops
 
-logger = get_logger()
+logger = logging.getLogger(__name__)
 
 
 def tensor2vid(video, mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5]):

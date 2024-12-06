@@ -1,12 +1,12 @@
 import logging
 from typing import Any, Dict
 
-import modules.unet_v2v as unet_v2v
-from diffusion.diffusion_sdedit import GaussianDiffusion
-from diffusion.schedules_sdedit import noise_schedule
-from modules.embedder import FrozenOpenCLIPEmbedder
-from utils.config import cfg
-from utils.util import *
+import video_to_video.modules.unet_v2v as unet_v2v
+from video_to_video.diffusion.diffusion_sdedit import GaussianDiffusion
+from video_to_video.diffusion.schedules_sdedit import noise_schedule
+from video_to_video.modules.embedder import FrozenOpenCLIPEmbedder
+from video_to_video.utils.config import cfg
+from video_to_video.utils.util import *
 
 import mindspore as ms
 from mindspore import Tensor, mint, ops
@@ -16,6 +16,7 @@ from mindone.utils.amp import auto_mixed_precision
 from mindone.utils.logger import set_logger
 
 logger = logging.getLogger(__name__)
+
 
 class VideoToVideo:
     def __init__(self, opt):
@@ -29,17 +30,16 @@ class VideoToVideo:
 
         cfg.model_path = opt.model_path
         print(f"Start to load model path {cfg.model_path}")
-        load_dict = ms.load_checkpoint(cfg.model_path, )
+        load_dict = ms.load_checkpoint(
+            cfg.model_path,
+        )
         param_not_load, _ = ms.load_param_into_net(generator, load_dict)
         print(f"Net params not loaded:{param_not_load}")
         if cfg.precision in ["fp16", "bf16"]:
             dtype = get_precision(cfg.precision)
             generator = auto_mixed_precision(generator, amp_level="O2", dtype=dtype)
-            logger.info(
-                f"Use amp level O2 for generator with dtype={dtype}}"
-            )
+            logger.info(f"Use amp level O2 for generator with dtype={dtype}")
         self.generator = generator
-
 
         sigmas = noise_schedule(
             schedule="logsnr_cosine_interp", n=1000, zero_terminal_snr=True, scale_min=2.0, scale_max=4.0
@@ -103,7 +103,6 @@ class VideoToVideo:
 
         y = self.clip_encoder(y)
 
-
         t_hint = Tensor(noise_aug - 1, dtype=ms.int32)
         video_in_low_fps = video_data_feature[:, :, :: interp_f_num + 1].clone()
         noised_hint = self.diffusion.diffuse(video_in_low_fps, t_hint)
@@ -141,7 +140,6 @@ class VideoToVideo:
 
         w1, w2, h1, h2 = padding
         gen_video = gen_video[:, :, :, h1 : h + h1, w1 : w + w1]
-
 
         return gen_video
 
