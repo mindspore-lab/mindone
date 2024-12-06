@@ -110,7 +110,7 @@ One needs to patch `mindcv.models.vgg` in L62 to enable conv kernel bias to alig
 - conv2d = nn.Conv2d(in_channels, v, kernel_size=3, pad_mode="pad", padding=1)
 + conv2d = nn.Conv2d(in_channels, v, kernel_size=3, pad_mode="pad", padding=1, has_bias=True)
 ```
-
++
 ### Data Curation
 Following the original paper, we used Blender to render multiview frames for a 3D object in `.obj` for training. Typically for overfitting, three 3D objects from the objaverse dataset are used. We rendered 5 arbitral views for each object with the corresponding camera parameters extracted.
 
@@ -133,7 +133,7 @@ Notice that there is no diffusion model in InstantMesh, therefore the reported t
 ### Training
 | model name   | stage | precision| batch size |cards | image size | recompute | steps/s | frames/s |
 |:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
-|InstantMesh |1 |fp32 | 1 | 1 | 192X192 | ON | 0.11 | 0.55 |
+|InstantMesh |1 |fp32 | 1 | 1 | 192X192 | ON | 0.17 | 0.85 |
 
 ### Inference
 
