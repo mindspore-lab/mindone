@@ -200,7 +200,7 @@ def main(args):
         args.epochs = 3
 
     # init
-    _, rank_id, device_num = init_env(
+    rank_id, device_num = init_env(
         args.mode,
         seed=args.seed,
         distributed=args.use_parallel,

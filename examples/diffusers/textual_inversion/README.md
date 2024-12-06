@@ -16,13 +16,9 @@ To make sure you can successfully run the latest versions of the example scripts
 ```bash
 git clone https://github.com/mindspore-lab/mindone
 cd mindone
-pip install .
+pip install -e ".[training]"
 ```
 
-Then cd in the example folder and run:
-```bash
-pip install -r requirements.txt
-```
 
 ### Cat toy example
 
@@ -71,8 +67,6 @@ python textual_inversion.py \
   --lr_warmup_steps=0 \
   --output_dir="textual_inversion_cat"
 ```
-
-A full training run takes ~1 hour on one V100 GPU.
 
 **Note**: As described in [the official paper](https://arxiv.org/abs/2208.01618)
 only one embedding vector is used for the placeholder token, *e.g.* `"<cat-toy>"`.

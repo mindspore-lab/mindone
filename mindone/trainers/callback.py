@@ -4,14 +4,23 @@ import time
 from typing import List
 
 import mindspore as ms
+from mindspore.communication import get_rank
 from mindspore.train.callback._callback import Callback, _handle_loss
 
 from .checkpoint import CheckpointManager
 from .recorder import PerfRecorder
 
-_logger = logging.getLogger(__name__)
+_logger = logging.getLogger("")
 
 __all__ = ["OverflowMonitor", "EvalSaveCallback", "ProfilerCallback", "StopAtStepCallback"]
+
+
+def get_real_rank():
+    """get rank id"""
+    try:
+        return get_rank()
+    except RuntimeError:
+        return int(os.getenv("RANK_ID", "0"))
 
 
 class OverflowMonitor(ms.Callback):
@@ -19,6 +28,7 @@ class OverflowMonitor(ms.Callback):
         cb_params = run_context.original_args()
         cur_epoch_num = cb_params.get("cur_epoch_num", 1)
         cur_step_in_epoch = (cb_params.cur_step_num - 1) % cb_params.batch_num + 1
+
         overflow = cb_params.net_outputs[1]
         if overflow:
             _logger.warning(f"overflow detected in epoch {cur_epoch_num} step {cur_step_in_epoch}")
@@ -136,9 +146,10 @@ class EvalSaveCallback(Callback):
     def on_train_step_end(self, run_context):
         cb_params = run_context.original_args()
         loss = _handle_loss(cb_params.net_outputs)
-        # cur_step = cb_params.cur_step_num + self.start_epoch * cb_params.batch_num
         opt = self._get_optimizer_from_cbp(cb_params)
         cur_step = int(opt.global_step.asnumpy().item())
+        if cur_step <= 0:
+            cur_step = cb_params.cur_step_num + self.start_epoch * cb_params.batch_num
 
         step_num = (cb_params.batch_num * cb_params.epoch_num) if self.train_steps < 0 else self.train_steps
 
@@ -340,7 +351,13 @@ class ProfilerCallback(ms.Callback):
         self.start_step = start_step
         self.end_step = end_step
         self.exit_after_analyze = exit_after_analyze
-        self.profiler = ms.Profiler(start_profile=False, output_path=out_dir)
+        rank_id = get_real_rank()
+        out_dir = os.path.join(out_dir, f"rank_{rank_id}")
+        # If value of profile_framework is not None, a subdirectory named host_info will be generated under the
+        # specified profiler directory to store the collected memory and time files on the Host side.
+        self.profiler = ms.Profiler(
+            start_profile=False, output_path=out_dir, profile_framework="all", data_simplication=False
+        )
 
     def on_train_step_begin(self, run_context):
         cb_params = run_context.original_args()

@@ -32,6 +32,12 @@ This tutorial includes:
 
 ### 2.1 Environment Setup
 
+#### Requirements
+
+| mindspore | ascend driver | firmware     | cann toolkit/kernel
+|:---------:|:---:           | :--:          |:--:|
+| 2.3.1     | 24.1.RC2      | 7.3.0.1.231  | 8.0.RC2.beta1
+
 ```
 pip install -r requirements.txt
 ```
@@ -50,7 +56,7 @@ Instruction on ffmpeg and decord install on EulerOS:
 2. install decord, referring to https://github.com/dmlc/decord?tab=readme-ov-file#install-from-source
     git clone --recursive https://github.com/dmlc/decord
     cd decord
-    rm build && mkdir build && cd build
+    if [ -d build ];then rm build;fi && mkdir build && cd build
     cmake .. -DUSE_CUDA=0 -DCMAKE_BUILD_TYPE=Release
     make -j 64
     make install
@@ -79,6 +85,12 @@ For example, to run inference of `skytimelapse.ckpt` model with the `256x256` im
 python sample.py -c configs/inference/sky.yaml
 ```
 
+Experiments are tested on ascend 910* with mindspore 2.3.1 graph mode:
+
+| model name | cards | resolution | scheduler | steps | jit level | graph compile | s/video |
+| :--------: | :---: | :--------: | :----: | :---: | :-------: | :----------: | :---------------: |
+|   latte    |   1   |  256x256   |  ddpm  |  250  |    O2     |   101.26s    |      537.31s      |
+
 Some of the generated results are shown here:
 <table class="center">
     <tr style="line-height: 0">
@@ -87,9 +99,9 @@ Some of the generated results are shown here:
     <td width=33% style="border: none; text-align: center">Example 3</td>
     </tr>
     <tr>
-    <td width=33% style="border: none"><img src="https://raw.githubusercontent.com/wtomin/mindone-assets/main/latte/sky/generated-0.gif" style="width:100%"></td>
-    <td width=33% style="border: none"><img src="https://raw.githubusercontent.com/wtomin/mindone-assets/main/latte/sky/generated-1.gif" style="width:100%"></td>
-    <td width=33% style="border: none"><img src="https://raw.githubusercontent.com/wtomin/mindone-assets/main/latte/sky/generated-2.gif" style="width:100%"></td>
+    <td width=33% style="border: none"><img src="https://raw.githubusercontent.com/jianyunchao/mindone-assets/v0.2.0/latte/sky/generated-0.gif" style="width:100%"></td>
+    <td width=33% style="border: none"><img src="https://raw.githubusercontent.com/jianyunchao/mindone-assets/v0.2.0/latte/sky/generated-1.gif" style="width:100%"></td>
+    <td width=33% style="border: none"><img src="https://raw.githubusercontent.com/jianyunchao/mindone-assets/v0.2.0/latte/sky/generated-2.gif" style="width:100%"></td>
     </tr>
 </table>
 <p align="center">
@@ -119,8 +131,6 @@ Then, you can start standalone training on Ascend devices using:
 ```bash
 python train.py -c configs/training/sky_video.yaml
 ```
-To start training on GPU devices, simply append `--device_target GPU` to the command above.
-
 The default training configuration is to train Latte model from scratch. The batch size is $5$, and the number of epochs is $3000$, which corresponds to around 900k steps. The learning rate is a constant value $1e^{-4}$. The model is trained under mixed precision mode. The default AMP level is `O2`. See more details in `configs/training/sky_video.yaml`.
 
 To accelerate the training speed, we use `dataset_sink_mode: True` in the configuration file by default. You can also set `enable_flash_attention: True` to further accelerate the training speed.
@@ -192,9 +202,20 @@ In case of OOM, please set `enable_flash_attention: True` in the `configs/traini
 
 ### 4.3 Distributed Training
 
+For `mindspore>=2.3.0`, it is recommended to use msrun to launch distributed training with ImageNet dataset format using the following command:
+
+```
+msrun --worker_num=4 \
+    --local_worker_num=4 \
+    --bind_core=True \
+    --log_dir=msrun_log \
+    python train.py \
+    -c path/to/configuration/file \
+    --use_parallel True
+```
+
 Taking the 4-card distributed training as an example, you can start the distributed training using:
 ```bash
-export MS_ASCEND_CHECK_OVERFLOW_MODE="INFNAN_MODE"
 mpirun -n 4 python train.py \
     -c path/to/configuration/file \
     --use_parallel True
@@ -209,16 +230,18 @@ bash scripts/run_distributed_sky_numpy_video.sh path/to/rank/table 0 4
 The first number `0` indicates the start index of the training devices, and the second number `4` indicates the total number of distributed processes you want to launch.
 
 
-## 5. Evaluation
+## 5. Performance
 
-The training speed of the experiments with `256x256` image size is summarized in the following table:
+Experiments are tested on ascend 910* with mindspore 2.3.1 graph mode:
 
-| Cards | Recompute | Dataset Sink mode | Embedding Cache|Train. imgs/s |
-| ---   | ---       | ---               | ---          |   ---          |
-| 1     | OFF       | ON                | OFF          | 62.3           |
-| 1     | ON        | ON                | ON           | 93.6           |
-| 4     | ON        | ON                | ON           | 368.3          |
-
+| model name | cards |batch size | resolution    | recompute | sink | cache | jit level | graph compile | s/step | img/s |
+| :--------: | :---: | :--------:| :--------:     | :--------: | :-------: | :---------------: | :-------------: | :-------: | :-----------: | :-----------: |
+|   latte    |   1   |5          |  16x256x256      |    OFF    |        ON         |       OFF       |    O2     |6~8mins|             1.03     |     77.67     |
+|   latte    |   1   |1          |  128x256x256     |    ON     |        ON         |       ON        |    O2     |6~8mins|             1.21     |    105.78     |
+|   latte    |   4   |1          |  128x256x256     |    ON     |        ON         |       ON        |    O2     |6~8mins|             1.32     |    387.87     |
+|   latte    |   8   |1          |  128x256x256     |    ON     |        ON         |       ON        |    O2     |6~8mins|             1.31     |    781.67     |
+>
+> img/s: images per second during training. img/s = cards * batch_size * num_frames / per_step_time
 
 # References
 

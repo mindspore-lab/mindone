@@ -92,8 +92,8 @@ class I2VGenXLTransformerTemporalEncoder(nn.Cell):
 
 class I2VGenXLUNet(ModelMixin, ConfigMixin, UNet2DConditionLoadersMixin):
     r"""
-    I2VGenXL UNet. It is a conditional 3D UNet model that takes a noisy sample, conditional state, and a timestep
-    and returns a sample-shaped output.
+    I2VGenXL UNet. It is a conditional 3D UNet model that takes a noisy sample, conditional state, and a timestep and
+    returns a sample-shaped output.
 
     This model inherits from [`ModelMixin`]. Check the superclass documentation for it's generic methods implemented
     for all models (such as downloading or saving).
@@ -403,10 +403,10 @@ class I2VGenXLUNet(ModelMixin, ConfigMixin, UNet2DConditionLoadersMixin):
             if hasattr(module, "set_chunk_feed_forward"):
                 module.set_chunk_feed_forward(chunk_size=chunk_size, dim=dim)
 
-            for child in module.name_cells().items():
+            for child in module.name_cells().values():
                 fn_recursive_feed_forward(child, chunk_size, dim)
 
-        for module in self.name_cells().items():
+        for module in self.name_cells().values():
             fn_recursive_feed_forward(module, chunk_size, dim)
 
     # Copied from diffusers.models.unets.unet_3d_condition.UNet3DConditionModel.disable_forward_chunking
@@ -415,10 +415,10 @@ class I2VGenXLUNet(ModelMixin, ConfigMixin, UNet2DConditionLoadersMixin):
             if hasattr(module, "set_chunk_feed_forward"):
                 module.set_chunk_feed_forward(chunk_size=chunk_size, dim=dim)
 
-            for child in module.name_cells().items():
+            for child in module.name_cells().values():
                 fn_recursive_feed_forward(child, chunk_size, dim)
 
-        for module in self.name_cells().items():
+        for module in self.name_cells().values():
             fn_recursive_feed_forward(module, None, 0)
 
     # Copied from diffusers.models.unets.unet_2d_condition.UNet2DConditionModel.set_default_attn_processor
@@ -461,7 +461,8 @@ class I2VGenXLUNet(ModelMixin, ConfigMixin, UNet2DConditionLoadersMixin):
             timestep (`ms.Tensor` or `float` or `int`): The number of timesteps to denoise an input.
             fps (`ms.Tensor`): Frames per second for the video being generated. Used as a "micro-condition".
             image_latents (`ms.Tensor`): Image encodings from the VAE.
-            image_embeddings (`ms.Tensor`): Projection embeddings of the conditioning image computed with a vision encoder.
+            image_embeddings (`ms.Tensor`):
+                Projection embeddings of the conditioning image computed with a vision encoder.
             encoder_hidden_states (`ms.Tensor`):
                 The encoder hidden states with shape `(batch, sequence_length, feature_dim)`.
             cross_attention_kwargs (`dict`, *optional*):
@@ -469,13 +470,13 @@ class I2VGenXLUNet(ModelMixin, ConfigMixin, UNet2DConditionLoadersMixin):
                 `self.processor` in
                 [diffusers.models.attention_processor](https://github.com/huggingface/diffusers/blob/main/src/diffusers/models/attention_processor.py).
             return_dict (`bool`, *optional*, defaults to `False`):
-                Whether or not to return a [`~models.unet_3d_condition.UNet3DConditionOutput`] instead of a plain
+                Whether or not to return a [`~models.unets.unet_3d_condition.UNet3DConditionOutput`] instead of a plain
                 tuple.
 
         Returns:
-            [`~models.unet_3d_condition.UNet3DConditionOutput`] or `tuple`:
-                If `return_dict` is True, an [`~models.unet_3d_condition.UNet3DConditionOutput`] is returned, otherwise
-                a `tuple` is returned where the first element is the sample tensor.
+            [`~models.unets.unet_3d_condition.UNet3DConditionOutput`] or `tuple`:
+                If `return_dict` is True, an [`~models.unets.unet_3d_condition.UNet3DConditionOutput`] is returned,
+                otherwise a `tuple` is returned where the first element is the sample tensor.
         """
         batch_size, channels, num_frames, height, width = sample.shape
 

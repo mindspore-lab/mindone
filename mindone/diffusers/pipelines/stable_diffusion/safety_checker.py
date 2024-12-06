@@ -30,6 +30,7 @@ def cosine_distance(image_embeds, text_embeds):
 
 class StableDiffusionSafetyChecker(MSPreTrainedModel):
     config_class = CLIPConfig
+    main_input_name = "clip_input"
 
     _keys_to_ignore_on_load_unexpected = ["vision_model.vision_model.embeddings.position_ids"]
     _no_split_modules = ["CLIPEncoderLayer"]

@@ -256,7 +256,7 @@ def _make_causal_mask(input_ids_shape, dtype, past_key_values_length: int = 0):
     bsz, tgt_len = input_ids_shape
     mask = ops.full((tgt_len, tgt_len), MIN_VALUE, dtype=ms.float32)
     mask_cond = ops.arange(mask.shape[-1])
-    mask = ops.masked_fill(mask, mask_cond < (mask_cond + 1).view(mask.shape[-1], 1), 0)
+    mask = ops.masked_fill(mask, mask_cond < (mask_cond + 1).view(mask.shape[-1], 1), 0.0)
     mask = mask.astype(dtype)
 
     if past_key_values_length > 0:

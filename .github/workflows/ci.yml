@@ -34,6 +34,6 @@ jobs:
       - name: Test Diffusers with pytest
         run: |
           pip install "torch==2.2.1+cpu" -f https://download.pytorch.org/whl/torch_stable.html
-          pip install "diffusers==0.27.0"
-          pytest tests/diffusers/test_schedulers_graph.py
-          pytest tests/diffusers/test_schedulers.py
+          pip install "diffusers==0.30.3"
+          pytest tests/diffusers_tests/test_schedulers_graph.py
+          pytest tests/diffusers_tests/test_schedulers.py

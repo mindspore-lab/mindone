@@ -33,7 +33,6 @@ TEXT_INVERSION_NAME_SAFE = "learned_embeds.safetensors"
 def load_textual_inversion_state_dicts(pretrained_model_name_or_paths, **kwargs):
     cache_dir = kwargs.pop("cache_dir", None)
     force_download = kwargs.pop("force_download", False)
-    resume_download = kwargs.pop("resume_download", False)
     proxies = kwargs.pop("proxies", None)
     local_files_only = kwargs.pop("local_files_only", None)
     token = kwargs.pop("token", None)
@@ -67,7 +66,6 @@ def load_textual_inversion_state_dicts(pretrained_model_name_or_paths, **kwargs)
                         weights_name=weight_name or TEXT_INVERSION_NAME_SAFE,
                         cache_dir=cache_dir,
                         force_download=force_download,
-                        resume_download=resume_download,
                         proxies=proxies,
                         local_files_only=local_files_only,
                         token=token,
@@ -88,7 +86,6 @@ def load_textual_inversion_state_dicts(pretrained_model_name_or_paths, **kwargs)
                     weights_name=weight_name or TEXT_INVERSION_NAME,
                     cache_dir=cache_dir,
                     force_download=force_download,
-                    resume_download=resume_download,
                     proxies=proxies,
                     local_files_only=local_files_only,
                     token=token,
@@ -285,8 +282,7 @@ class TextualInversionLoaderMixin:
                     - A path to a *directory* (for example `./my_text_inversion_directory/`) containing the textual
                       inversion weights.
                     - A path to a *file* (for example `./my_text_inversions.pt`) containing textual inversion weights.
-                    - A [torch state
-                      dict](https://pytorch.org/tutorials/beginner/saving_loading_models.html#what-is-a-state-dict).
+                    - A mindspore state dict.
 
             token (`str` or `List[str]`, *optional*):
                 Override the token to use for the textual inversion weights. If `pretrained_model_name_or_path` is a
@@ -308,9 +304,7 @@ class TextualInversionLoaderMixin:
             force_download (`bool`, *optional*, defaults to `False`):
                 Whether or not to force the (re-)download of the model weights and configuration files, overriding the
                 cached versions if they exist.
-            resume_download (`bool`, *optional*, defaults to `False`):
-                Whether or not to resume downloading the model weights and configuration files. If set to `False`, any
-                incompletely downloaded files are deleted.
+
             proxies (`Dict[str, str]`, *optional*):
                 A dictionary of proxy servers to use by protocol or endpoint, for example, `{'http': 'foo.bar:3128',
                 'http://hostname': 'foo.bar:4012'}`. The proxies are used on each request.
@@ -422,8 +416,8 @@ class TextualInversionLoaderMixin:
 
         Example:
         ```py
-        from diffusers import AutoPipelineForText2Image
-        import torch
+        from mindone.diffusers import AutoPipelineForText2Image
+        import mindspore as ms
 
         pipeline = AutoPipelineForText2Image.from_pretrained("runwayml/stable-diffusion-v1-5")
 
@@ -443,20 +437,35 @@ class TextualInversionLoaderMixin:
 
         # Example 3: unload from SDXL
         pipeline = AutoPipelineForText2Image.from_pretrained("stabilityai/stable-diffusion-xl-base-1.0")
-        embedding_path = hf_hub_download(repo_id="linoyts/web_y2k", filename="web_y2k_emb.safetensors", repo_type="model")
+        embedding_path = hf_hub_download(
+            repo_id="linoyts/web_y2k", filename="web_y2k_emb.safetensors", repo_type="model"
+        )
 
         # load embeddings to the text encoders
         state_dict = load_file(embedding_path)
 
         # load embeddings of text_encoder 1 (CLIP ViT-L/14)
-        pipeline.load_textual_inversion(state_dict["clip_l"], token=["<s0>", "<s1>"], text_encoder=pipeline.text_encoder, tokenizer=pipeline.tokenizer)
+        pipeline.load_textual_inversion(
+            state_dict["clip_l"],
+            token=["<s0>", "<s1>"],
+            text_encoder=pipeline.text_encoder,
+            tokenizer=pipeline.tokenizer,
+        )
         # load embeddings of text_encoder 2 (CLIP ViT-G/14)
-        pipeline.load_textual_inversion(state_dict["clip_g"], token=["<s0>", "<s1>"], text_encoder=pipeline.text_encoder_2, tokenizer=pipeline.tokenizer_2)
+        pipeline.load_textual_inversion(
+            state_dict["clip_g"],
+            token=["<s0>", "<s1>"],
+            text_encoder=pipeline.text_encoder_2,
+            tokenizer=pipeline.tokenizer_2,
+        )
 
         # Unload explicitly from both text encoders abd tokenizers
-        pipeline.unload_textual_inversion(tokens=["<s0>", "<s1>"], text_encoder=pipeline.text_encoder, tokenizer=pipeline.tokenizer)
-        pipeline.unload_textual_inversion(tokens=["<s0>", "<s1>"], text_encoder=pipeline.text_encoder_2, tokenizer=pipeline.tokenizer_2)
-
+        pipeline.unload_textual_inversion(
+            tokens=["<s0>", "<s1>"], text_encoder=pipeline.text_encoder, tokenizer=pipeline.tokenizer
+        )
+        pipeline.unload_textual_inversion(
+            tokens=["<s0>", "<s1>"], text_encoder=pipeline.text_encoder_2, tokenizer=pipeline.tokenizer_2
+        )
         ```
         """
 
