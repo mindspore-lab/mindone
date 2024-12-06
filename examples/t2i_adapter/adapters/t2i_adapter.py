@@ -60,7 +60,7 @@ def get_adapter(
         param_dict = load_checkpoint(checkpoint)
         pnames = list(param_dict.keys())
         for pn in pnames:
-            new_pn = pn.replcae("body.1", "body.0.1").replcae("body.2", "body.0.2").replcae("body.3", "body.0.3")
+            new_pn = pn.replace("body.1", "body.0.1").replace("body.2", "body.0.2").replace("body.3", "body.0.3")
             param_dict[new_pn] = param_dict.pop(pn)
 
         param_not_load, _ = load_param_into_net(adapter, param_dict)

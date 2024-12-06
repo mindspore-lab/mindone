@@ -65,7 +65,7 @@ def main(args):
     )
 
     adapters = [
-        get_adapter("sd", a_cond, ckpt, use_fp16=True)
+        get_adapter("sd", a_cond, ckpt, use_fp16=False)
         for a_cond, ckpt in zip(args.adapter_condition, args.adapter_ckpt_path)
     ]
     adapters = CombinedAdapter(adapters, cond_weights, output_fp16=model.dtype == ms.float16)
@@ -119,7 +119,7 @@ def main(args):
         if condition == "sketch":
             flags.append(0)
         else:
-            flags.append(0)
+            flags.append(-1)
     conds, img_shape = read_images(cond_paths, min(args.H, args.W), flags=flags)
     args.H, args.W = img_shape
     adapter_features, context = adapters(conds)

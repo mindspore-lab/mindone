@@ -23,6 +23,7 @@ def image2tensor(image: np.ndarray) -> Tensor:
 def read_images(cond_paths: List[str], size: int, flags=[-1]) -> Tuple[List[Tensor], Tuple[int, int]]:
     conds = []
     image_shape = None
+    assert len(cond_paths) == len(flags)
     for i, path in enumerate(cond_paths):
         cond = cv2.imread(path, flags[i])
         cond = resize_image(cond, size)

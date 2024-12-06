@@ -160,7 +160,7 @@ python adapter_image2image_sdxl.py \
 --SDXL.checkpoints=models/sd_xl_base_1.0_ms.ckpt \
 --adapter.condition=lineart \
 --adapter.ckpt_path=models/adapter_xl_lineart-6110edd0.ckpt \
---adapter.cond_weight=0.8 \
+--adapter.cond_weight=1.0 \
 --adapter.image=samples/lineart/figs_SDXLV1.0_cond_lin.png \
 --prompt="Ice dragon roar, 4k photo" \
 --negative_prompt="anime, cartoon, graphic, text, painting, crayon, graphite, abstract, glitch, deformed, mutated, ugly, disfigured" \
@@ -372,7 +372,7 @@ Experiments are tested on ascend 910* with mindspore 2.3.1 graph mode.
 | model name    |  cards           | batch size      | resolution   |  scheduler   | steps      | precision |  jit level | graph compile |s/step  | img/s |
 |:---------------:|:------------:  |:------------:   |:------------:|:------------:|:---------:|:----------:|:---------:|:-------------:|:-----:|:-------:|
 | canny_adapter_sd1.5 |  1           |      4          | 768x512      |    DDIM      |     50    |     fp16  |       O0  |       1~2 mins |  0.33 |   12.12   |
-| canny_adapter_sdxl |  1           |      4          | 1216x1024      | EulerAncestral   |    40    |     fp16  |       O0  |       1~2 mins |  1.38 |   2.90   |
+| canny_adapter_sdxl |  1           |      4          | 1216x1024      | EulerAncestral   |    30    |     fp16  |       O0  |       1~2 mins |  0.77 |   5.19   |
 | lineart_adapter_sdxl |  1           |      4          | 1024x1856      | EulerAncestral   |    30    |     fp16  |       O0  |       1~2 mins |  1.21 |   3.31   |
 | color_adapter_sd1.5 |  1           |      4          | 512x512      | DDIM   |    50    |     fp16  |       O0  |       1~2 mins |  0.17 |   23.53   |
 | depth_adapter_sd1.5 |  1           |      4          | 704x512      | DDIM   |    50    |     fp16  |       O0  |       1~2 mins |  0.28 |   14.29   |

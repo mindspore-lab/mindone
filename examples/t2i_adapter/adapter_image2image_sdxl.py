@@ -114,7 +114,8 @@ def main(args):
     c, f = version_dict["C"], version_dict["f"]
 
     # infer
-    conds, img_shape = read_images(cond_paths, min(h, w))
+    flags = [-1 for _ in range(len(args.adapter.condition))]
+    conds, img_shape = read_images(cond_paths, min(h, w), flags=flags)
     adapter_features, _ = adapters(conds)
 
     value_dict = prepare_infer_dict(
@@ -123,7 +124,7 @@ def main(args):
 
     base_count = 0
     for i, (prompt, negative_prompt) in enumerate(zip(prompts, negative_prompts)):
-        for n in args.n_iter:
+        for n in range(args.n_iter):
             value_dict["prompt"] = prompt
             value_dict["negative_prompt"] = negative_prompt
 
