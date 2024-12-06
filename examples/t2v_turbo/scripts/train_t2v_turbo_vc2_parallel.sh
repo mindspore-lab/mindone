@@ -48,7 +48,6 @@ msrun --bind_core=True --master_port=8090 --worker_num=8 --local_worker_num=8 --
     --no_scale_pred_x0 \
     --csv_path $CSV_PATH \
     --data_path $DATA_PATH \
-    --max_train_samples 1000 \
     --dataloader_num_workers 1 \
     --mode 1 \
     --cast_teacher_unet \

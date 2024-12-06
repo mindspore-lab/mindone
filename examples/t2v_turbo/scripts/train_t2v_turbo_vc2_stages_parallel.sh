@@ -42,7 +42,7 @@ msrun --bind_core=True --master_port=8090 --worker_num=8 --local_worker_num=8 --
     --gradient_accumulation_steps 16 \
     --use_recompute True \
     --reward_fn_name hpsv2 \
-    --reward_scale 0.0 \
+    --reward_scale 1.0 \
     --image_rm_ckpt_dir $image_rm_path \
     --video_rm_name vi_clip2 \
     --video_reward_scale 0.0 \
@@ -50,7 +50,6 @@ msrun --bind_core=True --master_port=8090 --worker_num=8 --local_worker_num=8 --
     --no_scale_pred_x0 \
     --csv_path $CSV_PATH \
     --data_path $DATA_PATH \
-    --max_train_samples 1000 \
     --dataloader_num_workers 1 \
     --mode 1 \
     --cast_teacher_unet \
@@ -82,46 +81,6 @@ msrun --bind_core=True --master_port=8090 --worker_num=8 --local_worker_num=8 --
     --gradient_accumulation_steps 16 \
     --use_recompute True \
     --reward_fn_name hpsv2 \
-    --reward_scale 1.0 \
-    --image_rm_ckpt_dir $image_rm_path \
-    --video_rm_name vi_clip2 \
-    --video_reward_scale 0.0 \
-    --video_rm_ckpt_dir $video_rm_path \
-    --no_scale_pred_x0 \
-    --csv_path $CSV_PATH \
-    --data_path $DATA_PATH \
-    --max_train_samples 1000 \
-    --dataloader_num_workers 1 \
-    --mode 1 \
-    --cast_teacher_unet \
-    --lora_rank 64 \
-    --jit_level O0 \
-    --mixed_precision fp16 \
-    --n_frames 8 \
-    --debug False \
-    --reward_batch_size 5 \
-    --video_rm_batch_size 8 \
-    --learning_rate 1.0e-5 \
-    --lr_warmup_steps 500 \
-    --loss_type none \
-    --output_dir $output_dir \
-
-
-# stage 3: train with video-text reward
-output_dir=outputs/t2v-train-s3/
-lora_path=outputs/t2v-train-s2/ckpt/t2v-turbo-e20.ckpt
-
-msrun --bind_core=True --master_port=8090 --worker_num=8 --local_worker_num=8 --log_dir=$output_dir  \
-  python train_t2v_turbo_vc2.py \
-    --use_parallel True \
-    --pretrained_model_path $t2v_model_path \
-    --pretrained_enc_path $t2v_encoder_path \
-    --pretrained_lora_path $lora_path \
-    --train_batch_size 1 \
-    --num_train_epochs 20 \
-    --gradient_accumulation_steps 16 \
-    --use_recompute True \
-    --reward_fn_name hpsv2 \
     --reward_scale 0.0 \
     --image_rm_ckpt_dir $image_rm_path \
     --video_rm_name vi_clip2 \
@@ -130,7 +89,6 @@ msrun --bind_core=True --master_port=8090 --worker_num=8 --local_worker_num=8 --
     --no_scale_pred_x0 \
     --csv_path $CSV_PATH \
     --data_path $DATA_PATH \
-    --max_train_samples 1000 \
     --dataloader_num_workers 1 \
     --mode 1 \
     --cast_teacher_unet \
@@ -143,5 +101,5 @@ msrun --bind_core=True --master_port=8090 --worker_num=8 --local_worker_num=8 --
     --video_rm_batch_size 8 \
     --learning_rate 1.0e-5 \
     --lr_warmup_steps 500 \
-    --loss_type none \
-    --output_dir $OUTPUT_DIR \
+    --loss_type huber \
+    --output_dir $output_dir \

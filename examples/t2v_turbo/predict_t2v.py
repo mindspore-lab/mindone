@@ -3,12 +3,13 @@ import datetime
 import logging
 import os
 import sys
+
 import numpy as np
 from omegaconf import OmegaConf
+from transformers import CLIPTokenizer
 
 import mindspore as ms
 from mindspore import nn, ops
-from transformers import CLIPTokenizer
 
 # Set up the directory paths
 __dir__ = os.path.dirname(os.path.abspath(__file__))
@@ -16,18 +17,17 @@ mindone_lib_path = os.path.abspath(os.path.join(__dir__, "../../"))
 sys.path.insert(0, mindone_lib_path)
 sys.path.insert(0, os.path.abspath(os.path.join(__dir__, "..")))
 
-from pipeline.t2v_turbo_vc2_pipeline import T2VTurboVC2Pipeline
-from pipeline.t2v_turbo_ms_pipeline import T2VTurboMSPipeline
 from model_scope.unet_3d_condition import UNet3DConditionModel
+from pipeline.t2v_turbo_ms_pipeline import T2VTurboMSPipeline
+from pipeline.t2v_turbo_vc2_pipeline import T2VTurboVC2Pipeline
 from scheduler.t2v_turbo_scheduler import T2VTurboScheduler
 from tools.convert_weights import convert_lora, convert_t2v_vc2
-from utils.common_utils import load_model_checkpoint
+from utils.common_utils import load_model_checkpoint, set_torch_2_attn
 from utils.download import DownLoad
 from utils.env import init_env
 from utils.lora import collapse_lora, monkeypatch_remove_lora
 from utils.lora_handler import LoraHandler
 from utils.utils import instantiate_from_config
-from utils.common_utils import set_torch_2_attn
 
 from mindone.diffusers import AutoencoderKL
 from mindone.transformers import CLIPTextModel
@@ -87,7 +87,7 @@ def download_vc2(args):
 def download_ms(args):
     """Download MS model and LoRA weights."""
     unet_dir = args.unet_dir
-    if not os.path.exists(unet_dir):
+    if not os.path.isdir(unet_dir):
         logger.info(f"Downloading UNet model to {unet_dir}...")
         DownLoad().download_url(LORA_URL_MS, path=MODEL_CACHE_MS)
         convert_lora(

@@ -138,7 +138,9 @@ def convert_internvid2(src_path, target_path):
             new_param_name = pt_param
 
             # Check if required keys are present in the parameter name
-            if all(key in pt_param for key in required_keys_vision) or all(key in pt_param for key in required_keys_text):
+            if all(key in pt_param for key in required_keys_vision) or all(
+                key in pt_param for key in required_keys_text
+            ):
                 # Replace 'weight' with 'gamma' and 'bias' with 'beta'
                 for k, v in pt2ms.items():
                     new_param_name = new_param_name.replace(k, v)

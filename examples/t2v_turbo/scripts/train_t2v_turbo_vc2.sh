@@ -28,7 +28,6 @@ python train_t2v_turbo_vc2.py \
   --no_scale_pred_x0 \
   --csv_path $CSV_PATH \
   --data_path $DATA_PATH \
-  --max_train_samples 1000 \
   --dataloader_num_workers 1 \
   --mode 1 \
   --cast_teacher_unet \

@@ -211,9 +211,13 @@ bash scripts/train_t2v_turbo_vc2.sh
 bash scripts/train_t2v_turbo_vc2_parallel.sh
 ```
 
-### Three-stage training
+### Two-stage training
 
-If your device is unable to perform full-scale training iterations. We provide a three-stage training script that sequentially divides different training losses into stages to achieve results comparable to the original training process.
+Since Mindspore is still in the rapid development stage and does not yet fully support the parallel method used in the source code, we adopted staged training as an alternative method. We provide a two-stage training script that sequentially divides different training losses into multiple stages to achieve results comparable to the original training process.
+
+We divide the entire training into two stages:
+- stage-1: training using distillation loss and image text reward loss
+- stage-2: training using distillation loss and video text reward loss
 
 Set the path of model and data as shown above in the `scripts/train_t2v_turbo_vc2_stages.sh`. You can run training using the following command:
 
@@ -239,8 +243,9 @@ Experiments are tested on Ascend 910B with mindpsore 2.4.0 under pynative mode.
 
 ### Training Performance
 
+We finetuned the t2v-turbo(vc2) model using a small Mixkit dataset in two-stage training and achieved the following performance:
+
 | model name | method | cards | batch size | resolution | recompute | mode | stage | precision | jit level | s/step | frame/s | video/s |
 | :--------: | :----: | :---: | :--------: | :--------: | :-------: | :--: | :---: | :-------: | :-------: | :----: | :-----: | :-----: |
-| T2V-Turbo (VC2) | LoRA | 1 | 1 | 8x320x512 | ON | PyNative | stage-1 | fp16 | O0 | 6.83 | 1.17 | 0.15 |
-| T2V-Turbo (VC2) | LoRA | 1 | 1 | 8x320x512 | ON | PyNative | stage-2 | fp16 | O0 | 8.46 | 0.95 | 0.12 |
-| T2V-Turbo (VC2) | LoRA | 1 | 1 | 8x320x512 | ON | PyNative | stage-3 | fp16 | O0 | 9.32 | 1.17 | 0.11 |
+| T2V-Turbo (VC2) | LoRA | 1 | 1 | 8x320x512 | ON | PyNative | stage-1 | fp16 | O0 | 8.81 | 0.91 | 0.11 |
+| T2V-Turbo (VC2) | LoRA | 1 | 1 | 8x320x512 | ON | PyNative | stage-2 | fp16 | O0 | 9.00 | 0.89 | 0.11 |

@@ -1,18 +1,3 @@
-#!/usr/bin/env python
-# coding=utf-8
-# Copyright 2023 The Huawei Inc. team. All rights reserved.
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-
 import logging
 import math
 import os
@@ -73,7 +58,7 @@ def main(args):
         args.mode,
         args.seed,
         args.use_parallel,
-        parallel_mode=args.parallel_mode,
+        parallel_mode="data",
         device_target=args.device_target,
         jit_level=args.jit_level,
         global_bf16=args.global_bf16,
@@ -99,7 +84,7 @@ def main(args):
     if args.output_dir is not None:
         os.makedirs(args.output_dir, exist_ok=True)
 
-    # 5. Load teacher Model
+    # Load teacher Model
     config = OmegaConf.load(args.pretrained_model_cfg)
     model_config = config.pop("model", OmegaConf.create())
     model_config["params"]["cond_stage_config"]["params"]["pretrained_ckpt_path"] = args.pretrained_enc_path
@@ -115,12 +100,12 @@ def main(args):
     text_encoder = pretrained_t2v.cond_stage_model
     teacher_unet = pretrained_t2v.model.diffusion_model
 
-    # 6. Freeze teacher vae, text_encoder, and teacher_unet
+    # Freeze teacher vae, text_encoder, and teacher_unet
     freeze_params(vae)
     freeze_params(text_encoder)
     freeze_params(teacher_unet)
 
-    # 7. Create online student U-Net. This will be updated by the optimizer (e.g. via backpropagation.)
+    # Create online student U-Net. This will be updated by the optimizer (e.g. via backpropagation.)
     # Add `time_cond_proj_dim` to the student U-Net if `teacher_unet.config.time_cond_proj_dim` is None
     time_cond_proj_dim = (
         teacher_unet.time_cond_proj_dim if teacher_unet.time_cond_proj_dim is not None else args.unet_time_cond_proj_dim
@@ -170,7 +155,7 @@ def main(args):
     else:
         video_rm_fn = None
 
-    # 1. Create the noise scheduler and the desired noise schedule.
+    # Create the noise scheduler and the desired noise schedule.
     noise_scheduler = T2VTurboScheduler(
         linear_start=model_config["params"]["linear_start"],
         linear_end=model_config["params"]["linear_end"],
@@ -205,7 +190,7 @@ def main(args):
     if unet.dtype != ms.float32:
         raise ValueError(f"Controlnet loaded as datatype {unet.dtype}. {low_precision_error_string}")
 
-    # 9. Handle mixed precision and device placement
+    # Handle mixed precision and device placement
     # For mixed precision training we cast all non-trainable weigths to half-precision
     # as these weights are only used for inference, keeping weights in full precision is not required.
     weight_dtype = ms.float32
@@ -235,7 +220,7 @@ def main(args):
             f"All params: {all_params:<16,d} || Trainable ratio: {trainable_params / all_params:.8%}"
         )
 
-    # 13. Dataset creation and data processing
+    # Dataset creation and data processing
     # Here, we compute not just the text embeddings but also the additional embeddings
     # needed for the SD XL UNet to operate.
 
@@ -289,7 +274,7 @@ def main(args):
         num_epochs=args.num_train_epochs,
     )
 
-    # 15. Prepare for training
+    # Prepare for training
     # We need to recalculate our total training steps as the size of the training dataloader may have changed.
     num_update_steps_per_epoch = math.ceil(train_dataloader.num_batches / args.gradient_accumulation_steps)
     if overrode_max_train_steps:
@@ -372,7 +357,9 @@ def main(args):
 
     if rank_id == 0:
         ckpt_folder = args.output_dir + "/ckpt"
-        ckpt_manager = CheckpointManager(ckpt_folder, "latest_k", k=5, lora_manager=lora_manager)
+        ckpt_manager = CheckpointManager(
+            ckpt_folder, "latest_k", k=args.checkpoints_total_limit, lora_manager=lora_manager
+        )
         if not os.path.exists(args.output_dir):
             os.makedirs(args.output_dir)
             os.makedirs(ckpt_folder)
