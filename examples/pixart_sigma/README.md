@@ -7,7 +7,7 @@ This repo contains Mindspore model definitions, pre-trained weights and inferenc
 - Main
     - [Training](#vanilla-finetune)
     - [Inference](#getting-start)
-    - [Use diffusers: coming soon]
+    - [Use diffusers](#integration-in-diffusers)
     - [Launch Demo: coming soon]
 - Guidance
     - [Feature extraction: coming soon]
@@ -190,6 +190,35 @@ Experiments are tested on ascend 910* with mindspore 2.3.1 graph mode
 | PixArt-Sigma | 1     | 1           | 512 x 512    | O1        | < 3 mins      | 0.063    | [yaml](configs/inference/pixart-sigma-512-MS.yaml)   |
 | PixArt-Sigma | 1     | 1           | 1024 x 1024  | O1        | < 3 mins      | 0.202    | [yaml](configs/inference/pixart-sigma-1024-MS.yaml) |
 | PixArt-Sigma | 1     | 1           | 2048 x 2048  | O1        | < 3 mins      | 1.754    | [yaml](configs/inference/pixart-sigma-2K-MS.yaml)     |
+
+### Integration in diffusers
+```python
+from mindone.diffusers import DiffusionPipeline, Transformer2DModel, PixArtSigmaPipeline
+import mindspore as ms 
+
+transformer = Transformer2DModel.from_pretrained(
+    "PixArt-alpha/PixArt-Sigma-XL-2-1024-MS", 
+    subfolder='transformer', 
+    mindspore_dtype=ms.float16,
+    use_safetensors=True,
+)
+pipe = PixArtSigmaPipeline.from_pretrained(
+    "PixArt-alpha/pixart_sigma_sdxlvae_T5_diffusers",
+    transformer=transformer,
+    mindspore_dtype=ms.float16,
+    use_safetensors=True,
+)
+prompt =["Whimsical forest fairy resting on a mossy toadstool, surrounded by glowing fireflies.",
+        "Brass and gear-laden mechanical owl soaring gracefully through a cloudy, steampunk-inspired cityscape.",
+        "Abandoned, weathered spaceship drifting silently through a field of sparkling asteroids.",
+        "Warm light spilling out from the windows of a cozy cottage nestled in a snowy, pine-filled forest.",
+        "Majestic, dragon-like creature gliding over a rugged, fantastical mountain range, casting a dramatic shadow below."]
+image = pipe(prompt)[0]
+for i in range(5):
+    image[i].save("./prompt{}.png".format(i))
+```
+Generated image from the code.
+<p align="center"><img width="1024" src="https://github.com/itruonghai/mindone-asset/blob/main/pixart-sigma.png?raw=true"/></p>
 
 # References
 
