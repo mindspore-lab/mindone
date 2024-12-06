@@ -101,7 +101,6 @@ class TrainOneStepWrapper(nn.TrainOneStepWithLossScaleCell):
     def construct(self, *inputs):
         # compute loss
         weights = self.weights
-
         loss = self.network(*inputs)  # mini-batch loss
         scaling_sens = self.scale_sense
 
