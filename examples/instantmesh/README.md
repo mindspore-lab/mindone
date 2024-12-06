@@ -118,7 +118,7 @@ Following the original paper, we used Blender to render multiview frames for a 3
 Following the paper, during training, 3 images are processed with the ViT Image Processor and serving as the model input. Together with another 2 images (in total 5), they are randomly zoomed in and cropped into a fixed size as the ground truth. This can be regarded as a data augmentation during training. The camera parameters for each random transform will be used as the input to the model to infer images and alphas for each view's supervision.
 
 ### Visualization
-| input frame-cam pairs sample (x6) |	rendered novel views |
+| input frame-cam pairs sample (x6) |	rendered novel views (each with a 60-deg. gap) |
 | :---:     | :---:    |
 | ![000](https://github.com/user-attachments/assets/d22bc263-3de0-4917-9d1b-4452d38d748f)   | ![val_e2517_2](https://github.com/user-attachments/assets/7f982cea-137a-4737-8cfb-5d9197a02d09) |
 | ![000](https://github.com/user-attachments/assets/6bf098ed-bb6f-4e26-8291-6dbe189980fe)   | ![val_e2517_1](https://github.com/user-attachments/assets/a2e9480f-2c24-461e-85fe-711f5f45dc50) |
