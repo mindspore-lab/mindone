@@ -120,12 +120,13 @@ Following the paper, during training, 3 images are processed with the ViT Image 
 ### Visualization
 | input frame-cam pairs sample (x6) |	rendered novel views |
 | :---:     | :---:    |
-| ![000](https://github.com/user-attachments/assets/d22bc263-3de0-4917-9d1b-4452d38d748f)   | ![val_e2517_2](https://github.com/user-attachments/assets/8027803a-3024-41a7-956d-fde2af2bc4a9) |
-| ![000](https://github.com/user-attachments/assets/6bf098ed-bb6f-4e26-8291-6dbe189980fe)   | ![val_e2517_1](https://github.com/user-attachments/assets/ee28b51f-b9d4-49aa-9b43-3bedee2fc9cf) |
-| ![000](https://github.com/user-attachments/assets/57076fdf-e347-4ebd-8c78-10d93eb45444)   | ![val_e2517_0](https://github.com/user-attachments/assets/99baed9b-b5fb-4498-86d7-931cb1be090c) |
+| ![000](https://github.com/user-attachments/assets/d22bc263-3de0-4917-9d1b-4452d38d748f)   | ![val_e2517_2](https://github.com/user-attachments/assets/7f982cea-137a-4737-8cfb-5d9197a02d09) |
+| ![000](https://github.com/user-attachments/assets/6bf098ed-bb6f-4e26-8291-6dbe189980fe)   | ![val_e2517_1](https://github.com/user-attachments/assets/a2e9480f-2c24-461e-85fe-711f5f45dc50) |
+| ![000](https://github.com/user-attachments/assets/57076fdf-e347-4ebd-8c78-10d93eb45444)   | ![val_e2517_0](https://github.com/user-attachments/assets/2124ba37-6e58-45ae-8278-0ae3952157d0) |
+
 
 ## Performance
-Experiments are tested on ascend 910* with mindspore 2.3.1 pynative mode.
+Experiments are tested on ascend 910* with mindspore 2.4.0 pynative mode.
 
 Notice that there is no diffusion model in InstantMesh, therefore the reported training `step/s` here is for each batch iteration.
 
