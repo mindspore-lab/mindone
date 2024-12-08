@@ -121,7 +121,7 @@ def parse_args():
     )
     parser.add_argument(
         "--enable_flash_attention",
-        default=None,
+        default=False,
         type=str2bool,
         help="whether to enable flash attention.",
     )
@@ -161,8 +161,19 @@ def parse_args():
         " `class` means using class labels as conditions."
         "DiT only supports `class`condition",
     )
-    parser.add_argument("--num_parallel_workers", default=12, type=int, help="num workers for data loading")
+    parser.add_argument("--num_parallel_workers", default=4, type=int, help="num workers for data loading")
     parser.add_argument("--log_interval", type=int, default=1, help="log interval")
+
+    parser.add_argument(
+        "--jit_level",
+        default="O0",
+        type=str,
+        choices=["O0", "O1", "O2"],
+        help="Used to control the compilation optimization level. Supports [“O0”, “O1”, “O2”]."
+        "O0: Except for optimizations that may affect functionality, all other optimizations are turned off, adopt KernelByKernel execution mode."
+        "O1: Using commonly used optimizations and automatic operator fusion optimizations, adopt KernelByKernel execution mode."
+        "O2: Ultimate performance optimization, adopt Sink execution mode.",
+    )
 
     parser.add_argument("--imagenet_format", type=str2bool, help="Training with ImageNet dataset format")
 
