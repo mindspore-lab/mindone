@@ -14,7 +14,9 @@
 
 import math
 from collections import OrderedDict
+from functools import partial
 
+import mindspore as ms
 from mindspore import Tensor, nn, ops
 
 
@@ -47,7 +49,7 @@ class GELUActivation(nn.Cell):
     """
     Original Implementation of the GELU activation function in Google BERT repo when initially created. For
     information: OpenAI GPT's GELU is slightly different (and gives slightly different results): 0.5 * x * (1 +
-    torch.tanh(math.sqrt(2 / math.pi) * (x + 0.044715 * torch.pow(x, 3)))) This is now written in C in nn.functional
+    ops.tanh(math.sqrt(2 / math.pi) * (x + 0.044715 * ops.pow(x, 3)))) This is now written in C in nn.functional
     Also see the Gaussian Error Linear Units paper: https://arxiv.org/abs/1606.08415
     """
 
@@ -79,8 +81,12 @@ class QuickGELUActivation(nn.Cell):
     Applies GELU approximation that is fast but somewhat inaccurate. See: https://github.com/hendrycks/GELUs
     """
 
-    def construct(self, input: Tensor) -> Tensor:
-        return input * ops.sigmoid(1.702 * input)
+    def __init__(self):
+        super(QuickGELUActivation, self).__init__()
+        self.sigmoid = nn.Sigmoid()
+
+    def construct(self, input):
+        return input * self.sigmoid(1.702 * input)
 
 
 class ClippedGELUActivation(nn.Cell):
@@ -93,7 +99,7 @@ class ClippedGELUActivation(nn.Cell):
     initially created.
 
     For information: OpenAI GPT's gelu is slightly different (and gives slightly different results): 0.5 * x * (1 +
-    torch.tanh(math.sqrt(2 / math.pi) * (x + 0.044715 * torch.pow(x, 3)))). See https://arxiv.org/abs/1606.08415
+    ops.tanh(math.sqrt(2 / math.pi) * (x + 0.044715 * ops.pow(x, 3)))). See https://arxiv.org/abs/1606.08415
     """
 
     def __init__(self, min: float, max: float):
@@ -125,17 +131,17 @@ class AccurateGELUActivation(nn.Cell):
         return 0.5 * input * (1 + ops.tanh(self.precomputed_constant * (input + 0.044715 * ops.pow(input, 3))))
 
 
-class SiLUActivation(nn.Cell):
-    """
-    See Gaussian Error Linear Units (Hendrycks et al., https://arxiv.org/abs/1606.08415) where the SiLU (Sigmoid Linear
-    Unit) was originally introduced and coined, and see Sigmoid-Weighted Linear Units for Neural Network Function
-    Approximation in Reinforcement Learning (Elfwing et al., https://arxiv.org/abs/1702.03118) and Swish: a Self-Gated
-    Activation Function (Ramachandran et al., https://arxiv.org/abs/1710.05941v1) where the SiLU was experimented with
-    later.
-    """
+class SiLUActivationFP32(nn.Cell):
+    def __init__(self):
+        super(SiLUActivationFP32, self).__init__()
+        self.sigmoid = nn.Sigmoid()
 
-    def construct(self, input: Tensor) -> Tensor:
-        return ops.silu(input)
+    def construct(self, x):
+        _dtype = x.dtype
+        x = x.to(ms.float32)
+        out = x * self.sigmoid(x)
+        out = out.to(_dtype)
+        return out
 
 
 class MishActivation(nn.Cell):
@@ -189,7 +195,7 @@ class ClassInstantier(OrderedDict):
 
 
 ACT2CLS = {
-    "gelu": GELUActivation,
+    "gelu": partial(nn.GELU, approximate=False),
     "gelu_10": (ClippedGELUActivation, {"min": -10, "max": 10}),
     "gelu_fast": FastGELUActivation,
     "gelu_new": NewGELUActivation,
@@ -204,8 +210,8 @@ ACT2CLS = {
     "relu2": ReLUSquaredActivation,
     "relu6": nn.ReLU6,
     "sigmoid": nn.Sigmoid,
-    "silu": SiLUActivation,
-    "swish": SiLUActivation,
+    "silu": SiLUActivationFP32,
+    "swish": SiLUActivationFP32,
     "tanh": nn.Tanh,
 }
 ACT2FN = ClassInstantier(ACT2CLS)
