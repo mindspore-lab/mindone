@@ -19,7 +19,7 @@ from mindspore import nn, ops
 from ...configuration_utils import ConfigMixin, register_to_config
 from ...utils import logging
 from ..attention import BasicTransformerBlock
-from ..attention_processor import CROSS_ATTENTION_PROCESSORS, AttentionProcessor, AttnProcessor
+from ..attention_processor import AttentionProcessor, AttnProcessor
 from ..embeddings import PatchEmbed, PixArtAlphaTextProjection
 from ..modeling_outputs import Transformer2DModelOutput
 from ..modeling_utils import ModelMixin
@@ -247,15 +247,10 @@ class PixArtTransformer2DModel(ModelMixin, ConfigMixin):
     def set_default_attn_processor(self):
         """
         Disables custom attention processors and sets the default attention implementation.
-        """
-        if all(proc.__class__ in CROSS_ATTENTION_PROCESSORS for proc in self.attn_processors.values()):
-            processor = AttnProcessor()
-        else:
-            raise ValueError(
-                f"Cannot call `set_default_attn_processor` when attention processors are of type {next(iter(self.attn_processors.values()))}"
-            )
 
-        self.set_attn_processor(processor)
+        Safe to just use `AttnProcessor()` as PixArt doesn't have any exotic attention processors in default model.
+        """
+        self.set_attn_processor(AttnProcessor())
 
     def construct(
         self,

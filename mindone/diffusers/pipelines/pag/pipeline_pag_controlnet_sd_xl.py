@@ -107,7 +107,7 @@ def retrieve_timesteps(
     sigmas: Optional[List[float]] = None,
     **kwargs,
 ):
-    """
+    r"""
     Calls the scheduler's `set_timesteps` method and retrieves timesteps from the scheduler after the call. Handles
     custom timesteps. Any kwargs will be supplied to `scheduler.set_timesteps`.
 
@@ -1270,7 +1270,7 @@ class StableDiffusionXLControlNetPAGPipeline(
             latents,
         )
 
-        # 6.5 Optionally get Guidance Scale Embedding
+        # 6.1 Optionally get Guidance Scale Embedding
         timestep_cond = None
         if self.unet.config.time_cond_proj_dim is not None:
             guidance_scale_tensor = ms.Tensor(self.guidance_scale - 1).tile((batch_size * num_images_per_prompt,))
