@@ -1,0 +1,21 @@
+model_config: "configs/autoencoder_vq_f8.yaml"
+mode: 0
+
+data_path: "/datasets/celeba_hq_256/train/"
+size: 256
+crop_size: 256
+flip: True
+
+output_path: "outputs/vae_vq_celeba"
+
+use_discriminator: False
+batch_size: 8
+
+epochs: 60
+ckpt_save_interval: 1
+
+dtype: "fp32"
+init_loss_scale: 65536.
+
+scheduler: "constant"
+use_ema: False
