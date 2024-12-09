@@ -91,27 +91,40 @@ def main(args):
 
     # 2. model initialize and weight loading
     # 2.1 TAE
-    logger.info("TAE init")
-    # TODO: add support of training with latents
-    tae_args = args.tae.as_dict()
-    tae_dtype = tae_args.pop("dtype")
-    tae = TemporalAutoencoder(**tae_args).set_train(False)
-    if tae_dtype != "fp32":
-        # FIXME: remove AMP and add custom dtype conversion support for better compatibility with PyNative
-        amp.custom_mixed_precision(
-            tae,
-            black_list=amp.get_black_list() + [nn.GroupNorm, nn.AvgPool2d, nn.Upsample],
-            dtype=MODEL_DTYPE[tae_dtype],
-        )
+    if not args.dataset.tae_latent_folder or (
+        args.valid.dataset and not args.valid.dataset.init_args.tae_latent_folder
+    ):
+        logger.info("TAE init")
+        tae_args = args.tae.as_dict()
+        tae_dtype = tae_args.pop("dtype")
+        tae = TemporalAutoencoder(**tae_args).set_train(False)
+        if tae_dtype != "fp32":
+            # FIXME: remove AMP and add custom dtype conversion support for better compatibility with PyNative
+            amp.custom_mixed_precision(
+                tae,
+                black_list=amp.get_black_list() + [nn.GroupNorm, nn.AvgPool2d, nn.Upsample],
+                dtype=MODEL_DTYPE[tae_dtype],
+            )
+        if args.model.in_channels != tae.out_channels:
+            logger.warning(
+                f"The number of model input channels ({args.model.in_channels}) doesn't match the number of TAE output"
+                f" channels ({tae.out_channels}). Setting it to {tae.out_channels}."
+            )
+            args.model.in_channels = tae.out_channels
+    else:
+        logger.info("TAE latent folder found. Skipping TAE initialization.")
+        tae = None
 
     # 2.2 Llama 3
     logger.info("Transformer init")
-    network = init_model(in_channels=tae.out_channels, **args.model)
+    network = init_model(**args.model)
     # 2.3 LossWrapper
     rflow_loss_wrapper = RFlowLossWrapper(network)
 
     # 3. build training network
-    latent_diffusion_with_loss = DiffusionWithLoss(rflow_loss_wrapper, tae)
+    latent_diffusion_with_loss = DiffusionWithLoss(
+        rflow_loss_wrapper, tae, video_emb_cached=bool(args.dataset.tae_latent_folder)
+    )
 
     # 4. build train & val datasets
     dataloader, dataset_len = initialize_dataset(args.dataset, args.dataloader, device_num, shard_rank_id)
@@ -122,7 +135,9 @@ def main(args):
             args.valid.dataset.init_args, args.valid.dataloader, device_num, shard_rank_id
         )
         eval_rflow_loss = RFlowEvalLoss(rflow_loss_wrapper, num_sampling_steps=args.valid.sampling_steps)
-        eval_diffusion_with_loss = DiffusionWithLoss(eval_rflow_loss, tae)
+        eval_diffusion_with_loss = DiffusionWithLoss(
+            eval_rflow_loss, tae, video_emb_cached=bool(args.valid.dataset.init_args.tae_latent_folder)
+        )
 
     # 5. build training utils: lr, optim, callbacks, trainer
     # 5.1 LR
@@ -142,7 +157,7 @@ def main(args):
     # if bucketing is used in Graph mode, activate dynamic inputs
     if mode == GRAPH_MODE and isinstance(args.dataloader.batch_size, dict):
         bs = Symbol(unique=True)
-        video = Tensor(shape=[bs, None, 3, None, None], dtype=mstype.float32)
+        video = Tensor(shape=[bs, None, args.model.in_channels, None, None], dtype=mstype.float32)
         # FIXME: fix sequence length
         ul2_emb = Tensor(shape=[bs, 300, 4096], dtype=mstype.float32)
         byt5_emb = Tensor(shape=[bs, 100, 1472], dtype=mstype.float32)
@@ -192,7 +207,7 @@ def main(args):
 
     # 5.5 print out key info and save config
     if rank_id == 0:
-        num_params_tae, num_params_trainable_tae = count_params(tae)
+        num_params_tae, num_params_trainable_tae = count_params(tae) if tae is not None else (0, 0)
         num_params_network, num_params_trainable_network = count_params(network)
         num_params = num_params_tae + num_params_network
         num_params_trainable = num_params_trainable_tae + num_params_trainable_network
@@ -244,7 +259,7 @@ if __name__ == "__main__":
         help="Path to load a config yaml file that describes the setting which will override the default arguments.",
     )
     parser.add_function_arguments(init_train_env, "env")
-    parser.add_function_arguments(init_model, "model", skip={"in_channels"})
+    parser.add_function_arguments(init_model, "model")
     parser.add_class_arguments(TemporalAutoencoder, "tae", instantiate=False)
     parser.add_argument(
         "--tae.dtype", default="fp32", type=str, choices=["fp32", "fp16", "bf16"], help="TAE model precision."

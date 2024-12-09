@@ -29,9 +29,9 @@ class ImageVideoDataset(BaseDataset):
         text_emb_folder: Optional[Union[str, Dict[str, str]]] = None,
         empty_text_emb: Optional[Union[str, Dict[str, str]]] = None,
         text_drop_prob: float = 0.2,
-        vae_latent_folder: Optional[str] = None,
-        vae_downsample_rate: float = 8.0,
-        vae_scale_factor: float = 0.18215,
+        tae_latent_folder: Optional[str] = None,
+        tae_scale_factor: float = 1.5305,
+        tae_shift_factor: float = 0.0609,
         target_size: Optional[Tuple[int, int]] = None,
         sample_n_frames: int = 17,
         sample_stride: int = 1,
@@ -47,7 +47,7 @@ class ImageVideoDataset(BaseDataset):
                 "Text embedding during training is not supported, please provide `text_emb_folder`."
             )
 
-        self._data = self._read_data(video_folder, csv_path, text_emb_folder, vae_latent_folder, filter_data)
+        self._data = self._read_data(video_folder, csv_path, text_emb_folder, tae_latent_folder, filter_data)
         self._frames = sample_n_frames
         self._stride = sample_stride
         self._min_length = (self._frames - 1) * self._stride + 1
@@ -62,9 +62,9 @@ class ImageVideoDataset(BaseDataset):
                     assert os.path.exists(path), f"Empty text embedding not found: {path}"
         self._text_drop_prob = text_drop_prob
 
-        self._vae_latent_folder = vae_latent_folder
-        self._vae_downsample_rate = vae_downsample_rate
-        self._vae_scale_factor = vae_scale_factor
+        self._tae_latent_folder = tae_latent_folder
+        self._tae_scale_factor = tae_scale_factor
+        self._tae_shift_factor = tae_shift_factor
         self._fmask_gen = frames_mask_generator
         self._t_compress_func = t_compress_func or (lambda x: x)
 
@@ -83,7 +83,7 @@ class ImageVideoDataset(BaseDataset):
         data_dir: str,
         csv_path: str,
         text_emb_folder: Optional[Union[str, Dict[str, str]]] = None,
-        vae_latent_folder: Optional[str] = None,
+        tae_latent_folder: Optional[str] = None,
         filter_data: bool = False,
     ) -> List[dict]:
         def _filter_data(sample_):
@@ -99,8 +99,8 @@ class ImageVideoDataset(BaseDataset):
                         if not os.path.isfile(sample_["text_emb"][name]):
                             _logger.warning(f"Text embedding not found: {sample_['text_emb'][name]}")
                             return None
-            if "vae_latent" in sample_ and not os.path.isfile(sample_["vae_latent"]):
-                _logger.warning(f"Text embedding not found: {sample_['vae_latent']}")
+            if "tae_latent" in sample_ and not os.path.isfile(sample_["tae_latent"]):
+                _logger.warning(f"Text embedding not found: {sample_['tae_latent']}")
                 return None
             return sample_
 
@@ -117,8 +117,8 @@ class ImageVideoDataset(BaseDataset):
                                 name: os.path.join(path, Path(item["video"]).with_suffix(".npz"))
                                 for name, path in text_emb_folder.items()
                             }
-                    if vae_latent_folder:
-                        sample["vae_latent"] = os.path.join(vae_latent_folder, Path(item["video"]).with_suffix(".npy"))
+                    if tae_latent_folder:
+                        sample["tae_latent"] = os.path.join(tae_latent_folder, Path(item["video"]).with_suffix(".npz"))
                     data.append(sample)
             except KeyError as e:
                 _logger.error(f"CSV file requires `video` (file paths) column, but got {list(item.keys())}")
@@ -162,27 +162,19 @@ class ImageVideoDataset(BaseDataset):
                     with np.load(path) as td:
                         data.update({enc_name + "_caption": td["text_emb"], enc_name + "_mask": td["mask"]})
 
-        if self._vae_latent_folder:
-            # TODO: add support for images
-            vae_latent_data = np.load(data["vae_latent"])
-            latent_mean, latent_std = vae_latent_data["latent_mean"], vae_latent_data["latent_std"]
-            if len(latent_mean) < self._min_length:
+        if self._tae_latent_folder:
+            tae_latent_data = np.load(data["tae_latent"])
+            latent_mean, latent_std = tae_latent_data["latent_mean"], tae_latent_data["latent_std"]
+            if len(latent_mean) < self._min_length:     # TODO: add support for images and buckets
                 raise ValueError(f"Video is too short: {data['video']}")
-
-            if "fps" not in data:
-                if "fps" in vae_latent_data:
-                    data["fps"] = vae_latent_data["fps"]
-                else:
-                    with VideoReader(data["video"]) as reader:
-                        data["fps"] = reader.fps
-            data["fps"] = np.array(data["fps"] / self._stride, dtype=np.float32)
 
             start_pos = random.randint(0, len(latent_mean) - self._min_length)
             batch_index = np.linspace(start_pos, start_pos + self._min_length - 1, num_frames, dtype=int)
 
             latent_mean, latent_std = latent_mean[batch_index], latent_std[batch_index]
-            vae_latent = latent_mean + latent_std * np.random.standard_normal(latent_mean.shape)
-            data["video"] = vae_latent * self._vae_scale_factor
+            tae_latent = np.random.normal(latent_mean, latent_std).astype(np.float32)
+            tae_latent = (tae_latent - self._tae_shift_factor) * self._tae_scale_factor
+            data["video"] = np.transpose(tae_latent, (1, 0, 2, 3))  # FIXME: remove unnecessary transpose
 
         else:
             if data["video"].lower().endswith(IMAGE_EXT):
@@ -204,7 +196,7 @@ class ImageVideoDataset(BaseDataset):
         data["num_frames"] = np.array(num_frames, dtype=np.float32)
 
         if self._fmask_gen is not None:
-            # return frames mask with respect to the VAE's latent temporal compression
+            # return frames mask with respect to the TAE's latent temporal compression
             data["frames_mask"] = self._fmask_gen(self._t_compress_func(num_frames))
 
         if self._transforms:
@@ -249,7 +241,7 @@ class ImageVideoDataset(BaseDataset):
         tokenizer: Optional[Callable[[str], np.ndarray]] = None,
     ) -> List[dict]:
         transforms = []
-        if not self._vae_latent_folder:
+        if not self._tae_latent_folder:
             transforms.append(
                 {
                     "operations": [

@@ -59,7 +59,7 @@ class no_grad(_no_grad):
 
 def init_model(
     name: Literal["llama-1B", "llama-5B", "llama-30B"],
-    in_channels: int = 4,
+    in_channels: int = 16,
     pretrained_model_path: Optional[Path_fr] = None,
     enable_flash_attention: bool = True,
     model_parallelism: bool = False,

@@ -73,13 +73,15 @@ def main(args):
     logger.info(key_info)
 
     for samples in tqdm(dataloader.create_tuple_iterator(num_epochs=1), total=dataloader.get_dataset_size()):
-        z, _, _ = tae.encode(samples[0])
-        z = to_numpy(z)
-        for latent, path in zip(z, samples[1].tolist()):
+        _, mean, logvar = tae.encode(samples[0])
+        mean, logvar = to_numpy(mean), to_numpy(logvar)
+        std = np.exp(0.5 * np.clip(logvar, -30.0, 20.0))
+
+        for m, s, path in zip(mean, std, samples[1].tolist()):
             out_path = save_dir / path
             out_path.parent.mkdir(parents=True, exist_ok=True)
-            np.save(out_path.with_suffix(".npy"), latent)
-    logger.info(f"Completed, Denoised latents saved in {save_dir}")
+            np.savez(out_path.with_suffix(".npz"), latent_mean=m, latent_std=s)
+    logger.info(f"Completed. Latents saved in {save_dir}")
 
 
 if __name__ == "__main__":

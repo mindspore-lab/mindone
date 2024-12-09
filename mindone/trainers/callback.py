@@ -128,7 +128,7 @@ class EvalSaveCallback(Callback):
         if resume_prefix_blacklist:
             if isinstance(resume_prefix_blacklist, str):
                 resume_prefix_blacklist = (resume_prefix_blacklist,)
-            self.choice_func = lambda x: x.startswith(resume_prefix_blacklist)
+            self.choice_func = lambda x: not x.startswith(resume_prefix_blacklist)
 
     def on_train_step_end(self, run_context):
         cb_params = run_context.original_args()
