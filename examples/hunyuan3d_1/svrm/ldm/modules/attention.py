@@ -1,9 +1,10 @@
 # ref to `stable_diffusion_v2/ldm/modules/attention.py`
 
+import numbers
 from inspect import isfunction
 import math
 import mindspore as ms
-from mindspore import nn, mint, ops 
+from mindspore import nn, mint, ops, Parameter
 from mindone.utils.version_control import (
     # MS_VERSION,
     check_valid_flash_attention,
@@ -15,7 +16,7 @@ import numpy as np
 from mindone.models.modules.flash_attention import FLASH_IS_AVAILABLE, MSFlashAttention
 XFORMERS_IS_AVAILBLE = FLASH_IS_AVAILABLE
 from mindspore.common.initializer import initializer, XavierUniform
-from .util import dtype_to_max
+from ..util import dtype_to_max
 
 def exists(val):
     return val is not None
@@ -233,7 +234,7 @@ class SpatialSelfAttention(nn.Cell):
         return x+h_
 
 
-class CrossAttention(nn.Module):
+class CrossAttention(nn.Cell):
     def __init__(self, query_dim, context_dim=None, heads=8, dim_head=64, dropout=0.):
         super().__init__()
         inner_dim = dim_head * heads
@@ -249,7 +250,7 @@ class CrossAttention(nn.Module):
             nn.Dropout(p = dropout)
         )
 
-    def forward(self, x, context=None, mask=None):
+    def construct(self, x, context=None, mask=None):
         h = self.heads
         q = self.to_q(x)
         context = default(context, x)
@@ -276,10 +277,10 @@ class CrossAttention(nn.Module):
 
 
 class FlashAttention(nn.Cell):
-    def __init__(self, query_dim, context_dim=None, heads=8, dim_head=64, dropout=0., dtype = ms.bfloat16):
+    def __init__(self, query_dim, context_dim=None, heads=16, dim_head=64, dropout=0., dtype = ms.bfloat16):
         super().__init__()
-        print(f"Setting up {self.__class__.__name__}. Query dim is {query_dim}, context_dim is {context_dim} and using "
-              f"{heads} heads.")
+        # print(f"Setting up {self.__class__.__name__}. Query dim is {query_dim}, context_dim is {context_dim} and using "
+        #       f"{heads} heads.")
         inner_dim = dim_head * heads
         context_dim = default(context_dim, query_dim)
         # self.dtype = dtype
@@ -309,12 +310,14 @@ class FlashAttention(nn.Cell):
         q = self.to_q(x)
         k = self.to_k(context)
         v = self.to_v(context)
-        # q, k, v = map(lambda t: rearrange(t, 'b n (h d) -> b n h d', h=h), (q, k, v)) # q is [b, 3079, 16, 64]
-        q = q.reshape(q.shape[0], q.shape[1], h, -1)
-        k = k.reshape(k.shape[0], k.shape[1], h, -1)
-        v = v.reshape(v.shape[0], v.shape[1], h, -1)
+        # q, k, v = map(lambda t: rearrange(t, 'b n (h d) -> b n h d', h=h), (q, k, v)) # q is [b, n, 16, 64]
+        q = q.reshape(q.shape[0], q.shape[1], h, -1).swapaxes(1, 2)
+        k = k.reshape(k.shape[0], k.shape[1], h, -1).swapaxes(1, 2)
+        v = v.reshape(v.shape[0], v.shape[1], h, -1).swapaxes(1, 2)
+        # 'b n h d' -> (b, num_head, n, d) == BNSD
         # out = flash_attn_func(q, k, v, dropout_p=self.dropout, softmax_scale=None, causal=False, window_size=(-1, -1)) # out is same shape to q
         out = self.flash_attention(q, k, v) # out is same shape to q
+        out = out.swapaxes(1, 2) # b h n d -> b n h d
         # 'b n h d -> b n (h d)', h=h
         out = out.reshape(out.shape[0], out.shape[1], -1)
         return self.to_out(out.float())
@@ -369,7 +372,7 @@ class FlashAttention(nn.Cell):
 #         )
 #         return self.to_out(out)
 
-class BasicTransformerBlock(nn.Module):
+class BasicTransformerBlock(nn.Cell):
     def __init__(self, dim, n_heads, d_head, dropout=0., context_dim=None, gated_ff=True, checkpoint=True,
                  disable_self_attn=False):
         super().__init__()
@@ -396,14 +399,15 @@ class BasicTransformerBlock(nn.Module):
 
 ATTENTION_MODES = {
     "softmax": CrossAttention,  # vanilla attention
-    # "softmax-xformers": MemoryEfficientCrossAttention,  #TODO
     "softmax-flash": FlashAttention
 }
 
 def modulate(x, shift, scale):
     return x * (1 + scale.unsqueeze(1)) + shift.unsqueeze(1)
 
-
+# Difference from ms.nn.LayerNorm
+#   1. change parameter names from gamma/beta to weight/bias, to fit names used in torch version
+#   2. add elementwise_affine flag
 class Fp32LayerNorm(nn.Cell):
     def __init__(self, normalized_shape, eps=1e-5, elementwise_affine: bool = True, dtype=ms.float32):
         super().__init__()
@@ -412,16 +416,16 @@ class Fp32LayerNorm(nn.Cell):
         self.normalized_shape = tuple(normalized_shape)
         self.eps = eps
         self.elementwise_affine = elementwise_affine
-        if self.elementwise_affine:
-            self.gamma = Parameter(initializer("ones", normalized_shape, dtype=dtype))
-            self.beta = Parameter(initializer("zeros", normalized_shape, dtype=dtype))
+        if self.elementwise_affine: # learnable parameters are used
+            self.weight = Parameter(initializer("ones", normalized_shape, dtype=dtype))
+            self.bias = Parameter(initializer("zeros", normalized_shape, dtype=dtype))
         else:
-            self.gamma = ops.ones(normalized_shape, dtype=dtype)
-            self.beta = ops.zeros(normalized_shape, dtype=dtype)
+            self.weight = ops.ones(normalized_shape, dtype=dtype)
+            self.bias = ops.zeros(normalized_shape, dtype=dtype)
         self.layer_norm = ops.LayerNorm(-1, -1, epsilon=eps)
 
     def construct(self, x: ms.Tensor):
-        x, _, _ = self.layer_norm(x, self.gamma, self.beta)
+        x, _, _ = self.layer_norm(x, self.weight, self.bias) # GRAPH mode only support positional arguments
         return x
 
 
@@ -505,13 +509,13 @@ class ImgToTriplaneTransformer(nn.Cell):
                 if module.bias is not None:                    
                     bias_weight = initializer("zeros", module.bias.shape)
                     module.bias.set_data(bias_weight)
-            elif isinstance(module, Fp32LayerNorm):
+            elif isinstance(module, Fp32LayerNorm): # renamed original LayerNorm gamma/beta to weight/bias
                 if module.bias is not None:       
-                    bias_weight = initializer("zeros", module.bias.shape)
-                    module.bias.set_data(bias_weight)
+                    beta_weight = initializer("zeros", module.bias.shape)
+                    module.bias.set_data(beta_weight)
                 if module.weight is not None:      
-                    weight = initializer("ones", module.bias.shape)
-                    module.weight.set_data(weight)
+                    gamma_weight = initializer("ones", module.bias.shape)
+                    module.weight.set_data(gamma_weight)
         self.apply(_basic_init)
 
     def construct(self, x, context=None, cam_emb=None):

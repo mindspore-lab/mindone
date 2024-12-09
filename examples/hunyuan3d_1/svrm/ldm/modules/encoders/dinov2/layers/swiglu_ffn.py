@@ -33,23 +33,7 @@ class SwiGLUFFN(nn.Cell):
         return self.w3(hidden)
 
 
-# XFORMERS_ENABLED = os.environ.get("XFORMERS_DISABLED") is None
 SwiGLU = SwiGLUFFN
-XFORMERS_ENABLED = False
-# try:
-#     if XFORMERS_ENABLED:
-#         from xformers.ops import SwiGLU
-
-#         XFORMERS_AVAILABLE = True
-#         warnings.warn("xFormers is available (SwiGLU)")
-#     else:
-#         warnings.warn("xFormers is disabled (SwiGLU)")
-#         raise ImportError
-# except ImportError:
-#     SwiGLU = SwiGLUFFN
-#     XFORMERS_AVAILABLE = False
-
-#     warnings.warn("xFormers is not available (SwiGLU)")
 
 # https://github.com/facebookresearch/xformers/blob/6e10bd21ac6fc878657b24684723ccd05e41d385/xformers/ops/swiglu_op.py#L433
 class SwiGLUFFNFused(SwiGLU): 
@@ -58,7 +42,7 @@ class SwiGLUFFNFused(SwiGLU):
         in_features: int,
         hidden_features: Optional[int] = None,
         out_features: Optional[int] = None,
-        act_layer: Callable[..., nn.Module] = None,
+        act_layer: Callable[..., nn.Cell] = None,
         drop: float = 0.0,
         bias: bool = True,
     ) -> None:

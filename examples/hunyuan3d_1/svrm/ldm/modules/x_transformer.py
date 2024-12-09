@@ -174,7 +174,7 @@ class GRUGating(nn.Cell):
     def construct(self, x, residual):
         gated_output = self.gru(
             x.reshape(-1, x.shape[-1]), #'b n d -> (b n) d'
-            residule.reshape(-1, x.shape[-1]) # 'b n d -> (b n) d'
+            residual.reshape(-1, x.shape[-1]) # 'b n d -> (b n) d'
         )
 
         return gated_output.reshape_as(x)

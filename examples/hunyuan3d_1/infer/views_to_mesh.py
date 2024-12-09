@@ -24,6 +24,10 @@
 
 import os, sys
 sys.path.insert(0, f"{os.path.dirname(os.path.dirname(os.path.abspath(__file__)))}")
+# TODO: debug use delete later
+mindone_lib_path = os.path.abspath("../../")
+sys.path.insert(0, mindone_lib_path)
+sys.path.append("./")
 
 import time
 import random
@@ -34,6 +38,8 @@ from PIL import Image, ImageSequence
 from infer.utils import seed_everything, timing_decorator
 from infer.utils import get_parameter_number, set_parameter_grad_false, str_to_bool
 from svrm.predictor import MV23DPredictor
+import mindspore as ms
+from mindspore import ops
 
 
 class Views2Mesh():
@@ -53,7 +59,7 @@ class Views2Mesh():
         print('view2mesh model', get_parameter_number(self.mv23d_predictor.model))
 
     # @no_grad()
-    # @auto_amp_inference #TODO
+    # @auto_amp_inference 
     @timing_decorator("views to mesh")
     def __call__(self, *args, **kwargs):
         res = self.call(*args, **kwargs)
@@ -88,7 +94,7 @@ class Views2Mesh():
             m = 2
             h = nh // n
             w = mw // m
-            show_image = show_image.reshape(n, h, m, w, c).permute(0,2,1,3,4).reshape(-1, h, w, c)
+            show_image = show_image.reshape(n, h, m, w, c).transpose(0,2,1,3,4).reshape(-1, h, w, c)
             
             views = [Image.fromarray(show_image[idx]) for idx in self.order] 
             image_list = [cond_pil]+ views
@@ -130,6 +136,10 @@ if __name__ == "__main__":
         parser.add_argument("--do_texture_mapping", default='false', type=str)
         
         return parser.parse_args()
+    
+    # debug use:
+    # ms.set_context(mode=1)
+    # ms.set_context(mode=0)
         
     args = get_args()
     ms.set_context(device_target=args.device) #mode=1

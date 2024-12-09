@@ -8,7 +8,7 @@
 from typing import Union
 
 import mindspore as ms
-from mindspore import Tensor, nn
+from mindspore import Tensor, nn, mint
 
 
 class LayerScale(nn.Cell):

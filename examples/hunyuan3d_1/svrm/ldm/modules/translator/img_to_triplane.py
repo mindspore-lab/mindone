@@ -1,8 +1,9 @@
 import math
 import mindspore as ms
-from mindspore import nn
+from mindspore import nn, mint
 from ..attention import ImgToTriplaneTransformer
 import math
+from typing import Optional
 
 
 class ImgToTriplaneModel(nn.Cell):
@@ -73,13 +74,13 @@ class ImgToTriplaneModel(nn.Cell):
             for i in range(upsample_time):
                 if i == 0:
                     upsampler = nn.Conv2dTranspose(in_channels=pos_emb_dim, out_channels=triplane_dim,
-                                            kernel_size=2, stride=2,
-                                            pad_mode="pad", padding=0, output_padding=0)
+                                            kernel_size=2, stride=2, has_bias=True,
+                                            pad_mode="valid", padding=0, output_padding=0)
                     upsamplers.append(upsampler)
                 else:
                     upsampler = nn.Conv2dTranspose(in_channels=triplane_dim, out_channels=triplane_dim,
-                                            kernel_size=2, stride=2,
-                                            pad_mode="pad", padding=0, output_padding=0)
+                                            kernel_size=2, stride=2, has_bias=True,
+                                            pad_mode="valid", padding=0, output_padding=0)
                     upsamplers.append(upsampler)
             if upsamplers:
                 self.upsampler = nn.SequentialCell(*upsamplers)
@@ -90,7 +91,10 @@ class ImgToTriplaneModel(nn.Cell):
             self.upsample_ratio = 4
             self.upsampler = nn.Dense(in_channels=pos_emb_dim, out_channels=triplane_dim*(self.upsample_ratio**2))
         
-
+    def to(self, dtype: Optional[ms.Type] = None):
+        for p in self.get_parameters():
+            p.set_dtype(dtype)
+        return self
 
     def construct(self, x, cam_cond=None, **kwargs):
         """
@@ -113,18 +117,18 @@ class ImgToTriplaneModel(nn.Cell):
             h = h.permute((0, 3, 1, 2)).contiguous() # 'b h w c -> b c h w'
             h = self.upsampler(h)
             d = 3
-            _, c, h, w = h.shape
-            h = h.reshape(-1, 3, c, h, w) # '(b d) c h w-> b d c h w', d=3
+            _, c, height, w = h.shape
+            h = h.reshape(-1, 3, c, height, w) # '(b d) c h w-> b d c h w', d=3
             h = h.to(x.dtype)
             return h 
         else:
-            h = self.upsampler(h) #[b, h, w, triplane_dim*4]
+            h = self.upsampler(h) #[b, h, w, triplane_dim*4] (3, 64, 64, 1024)
             b, height, width, _ = h.shape
             h = h.view((b, height, width, self.triplane_dim, self.upsample_ratio, self.upsample_ratio)) #[b, h, w, triplane_dim, 2, 2]
             h = h.permute((0,3,1,4,2,5)).contiguous() #[b, triplane_dim, h, 2, w, 2]
             h = h.view((b, self.triplane_dim, height*self.upsample_ratio, width*self.upsample_ratio))
             d = 3
-            _, c, h, w = h.shape
-            h = h.reshape(-1, 3, c, h, w) # '(b d) c h w-> b d c h w', d=3
+            _, c, height, w = h.shape
+            h = h.reshape(-1, 3, c, height, w) # '(b d) c h w-> b d c h w', d=3
             h = h.to(x.dtype)
             return h 

@@ -31,7 +31,7 @@ import itertools
 import shutil
 from tqdm import tqdm
 import mindspore as ms
-from mindspore import nn, mint, ops
+from mindspore import nn, mint, ops, Tensor
 try:
     import trimesh # 3D repr
     import mcubes
@@ -43,10 +43,7 @@ except:
 try:
     import open3d as o3d
 except:
-    try:
-        import open3d-cpu as o3d
-    except:
-        raise "failed to import open3d library"
+    raise "failed to import open3d library"
 
 from ..modules.rendering_neus.mesh import Mesh
 # from ..modules.rendering_neus.rasterize import NVDiffRasterizerContext
@@ -55,6 +52,8 @@ from ..utils.ops import scale_tensor
 from ..util import count_params, instantiate_from_config
 # from ..vis_util import render
 from ..util import no_grad
+from typing import Dict, Optional
+import inspect
 
 
 def unwrap_uv(v_pos, t_pos_idx):
@@ -104,16 +103,57 @@ class SVRMModel(nn.Cell):
         img_encoder_config,
         img_to_triplane_config,
         render_config,
+        dtype: Optional[ms.Type] = None,
         **kwargs
     ):
         super(SVRMModel, self).__init__()
-        self.img_encoder = instantiate_from_config(img_encoder_config).half() # FrozenDinoV2ImageEmbedder
-        self.img_to_triplane_decoder = instantiate_from_config(img_to_triplane_config).half() # ImgToTriplaneModel
-        self.render = instantiate_from_config(render_config).half() # TriplaneSynthesizer
-        count_params(self, verbose=True)
-        
+        self._dtype = ms.float16 if dtype is None else dtype # inference use float16
+        self.img_encoder = instantiate_from_config(img_encoder_config).to_float(self._dtype) # FrozenDinoV2ImageEmbedder -> vision_transformer.py -> vit_base -> DinoVisionTransformer
+        self.img_encoder.to(self._dtype) # weight dtype is fp16
+        self.img_to_triplane_decoder = instantiate_from_config(img_to_triplane_config).to_float(self._dtype) # ImgToTriplaneModel
+        self.img_encoder.to(self._dtype) # weight dtype is fp16
+        self.render = instantiate_from_config(render_config) # TriplaneSynthesizer: inv requires float32
+        self.img_encoder.to(self._dtype) # weight dtype is fp16
+        count_params(self, verbose=True)   
 
-    # @torch.no_grad()
+    @property
+    def dtype(self) -> ms.Type:
+        r"""
+        Returns:
+            `mindspore.dtype`: The mindspore dtype on which the pipeline is located.
+        """
+        if self._dtype is not None:
+            return self._dtype
+
+        module_names, _ = self._get_signature_keys(self)
+        modules = [getattr(self, n, None) for n in module_names]
+        modules = [m for m in modules if isinstance(m, nn.Cell)]
+
+        for module in modules:
+            self._dtype = module.weight.dtype
+            return self._dtype
+        self._dtype = ms.float32
+        return self._dtype
+
+    def to(self, dtype):
+        module_names, _ = self._get_signature_keys(self)
+        modules = [getattr(self, n, None) for n in module_names]
+        modules = [m for m in modules if isinstance(m, nn.Cell)]
+        for module in modules:
+            module.to_float(dtype)
+            module.to(dtype) # parameters
+        return self
+    
+    @classmethod
+    def _get_signature_keys(cls, obj):
+        parameters = inspect.signature(obj.__init__).parameters
+        required_parameters = {k: v for k, v in parameters.items() if v.default == inspect._empty}
+        optional_parameters = set({k for k, v in parameters.items() if v.default != inspect._empty})
+        expected_modules = set(required_parameters.keys()) - {"self"}
+
+        return expected_modules, optional_parameters
+
+    @no_grad()
     def export_mesh_with_uv(
         self, 
         data, 
@@ -145,16 +185,22 @@ class SVRMModel(nn.Cell):
 
         # -- encoder image
         _, _, c, h, w = input_view_image.shape
-        input_view_image = input_view_image.reshape(-1, c, h, w) # 'b m c h w -> (b m) c h w'
-        input_view_cam = input_view_cam.reshape(-1, input_view_cam.shape[-1]) # 'b m d -> (b m) d'
-        input_view_feat = self.img_encoder(input_view_image, input_view_cam)
+        input_view_image = input_view_image.reshape(-1, c, h, w) # 'b m c h w -> (b m) c h w' (1*7, 3, 504, 504)
+        input_view_cam = input_view_cam.reshape(-1, input_view_cam.shape[-1]) # 'b m d -> (b m) d' (1*7, 20)
+        input_view_feat = self.img_encoder(input_view_image, input_view_cam) # (7, 1297, 768)
         # '(b m) l d -> b (l m) d'
         _, l, d = input_view_feat.shape
         input_view_feat = input_view_feat.reshape(-1, input_view_num, l, d).permute((0, 2, 1, 3)).reshape(-1, l*input_view_num, d)
+        
+        print(f"=====> Triplane encoder time: {time.time() - st}")
+        st = time.time()
 
         # -- decoder
         triplane_gen = self.img_to_triplane_decoder(input_view_feat)  # [b, 3, tri_dim, h, w]
         del input_view_feat
+        
+        print(f"=====> Triplane decoder time: {time.time() - st}")
+        st = time.time()
 
         # --- triplane nerf render
 
@@ -163,7 +209,8 @@ class SVRMModel(nn.Cell):
         aabb = ms.Tensor([[-0.6, -0.6, -0.6], [0.6, 0.6, 0.6]]).unsqueeze(0).to(**here)
         grid_out = self.render.forward_grid(planes=cur_triplane, grid_size=mesh_size, aabb=aabb)
 
-        print(f"=====> Triplane forward time: {time.time() - st}")
+        # print(f"=====> Triplane forward time: {time.time() - st}")
+        print(f"=====> Triplane render forward_grid time: {time.time() - st}")
         st = time.time()
         
         vtx, faces = mcubes.marching_cubes(0. - grid_out['sdf'].squeeze(0).squeeze(-1).float().asnumpy(), 0)
@@ -193,9 +240,16 @@ class SVRMModel(nn.Cell):
             )
             vtx_refine = mesh.v_pos.asnumpy()
             faces_refine = mesh.t_pos_idx.asnumpy()
+        
+        print(f"=====> refine mesh time: {time.time() - st}")
+        st = time.time()
 
         vtx_colors = self.render.forward_points(cur_triplane, Tensor(vtx_refine).unsqueeze(0).to(**here))
         vtx_colors = vtx_colors['rgb'].float().squeeze(0).asnumpy()
+
+        
+        print(f"=====> generate mesh with vertex shading (Triplane forward_point) time: {time.time() - st}")
+        st = time.time()
 
         color_ratio = 0.8 # increase brightness
         with open(obj_vertext_path, 'w') as fid:
@@ -208,13 +262,16 @@ class SVRMModel(nn.Cell):
                 f1 = f + 1
                 fid.write('f %d %d %d\n' % (f1[0], f1[1], f1[2]))
                 
-        mesh = trimesh.load_mesh(obj_vertext_path)
+        
         print(f"=====> generate mesh with vertex shading time: {time.time() - st}")
         st = time.time()
 
         if not do_texture_mapping:
+            mesh = trimesh.load_mesh(obj_vertext_path)
             shutil.copy(obj_vertext_path, obj_path)
-            mesh.export(glb_path, file_type='glb')
+            mesh.export(glb_path, file_type='glb')    
+            print(f"=====> save glb mesh with no texture time: {time.time() - st}")
+        
             return None
             
 

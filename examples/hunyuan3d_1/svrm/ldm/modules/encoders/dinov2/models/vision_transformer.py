@@ -25,9 +25,10 @@ logger = logging.getLogger("dinov2")
 def named_apply(fn: Callable, module: nn.Cell, name="", depth_first=True, include_root=False) -> nn.Cell:
     if not depth_first and include_root:
         fn(module=module, name=name)
-    for child_name, child_module in module.named_children():
-        child_name = ".".join((name, child_name)) if name else child_name
-        named_apply(fn=fn, module=child_module, name=child_name, depth_first=depth_first, include_root=True)
+    # for child_name, child_module in module.named_children(): # nn.Cell has no named_children
+    for cell_name, cell in module.name_cells().items():
+        cell_name = ".".join((name, cell_name)) if name else cell_name
+        named_apply(fn=fn, module=cell, name=cell_name, depth_first=depth_first, include_root=True)
     if depth_first and include_root:
         fn(module=module, name=name)
     return module
@@ -176,17 +177,17 @@ class DinoVisionTransformer(nn.Cell):
 
         self.init_weights()
 
-    def init_weights(self): # TODO: susan: check if init with bias
+    def init_weights(self): 
         # trunc_normal_(self.pos_embed, std=0.02)
-        weight = initializer(TruncatedNormal(sigma=0.02, mean=0.0, a=-2.0, b=2.0), self.pos_embed.weight.shape) 
-        self.pos_embed.weight.set_data(weight)
+        weight = initializer(TruncatedNormal(sigma=0.02, mean=0.0, a=-2.0, b=2.0), self.pos_embed.shape) 
+        self.pos_embed.set_data(weight)
         # nn.init.normal_(self.cls_token, std=1e-6)
-        weight = initializer(Normal(sigma=1e-6, mean=0.0), self.cls_token.weight.shape) 
-        self.cls_token.weight.set_data(weight)
+        weight = initializer(Normal(sigma=1e-6, mean=0.0), self.cls_token.shape) 
+        self.cls_token.set_data(weight)
 
         if self.register_tokens is not None:
-            weight = initializer(Normal(sigma=1e-6, mean=0.0), self.register_tokens.weight.shape) 
-            self.register_tokens.weight.set_data(weight)
+            weight = initializer(Normal(sigma=1e-6, mean=0.0), self.register_tokens.shape) 
+            self.register_tokens.set_data(weight)
            
         named_apply(init_weights_vit_timm, self)
 
@@ -382,12 +383,6 @@ class DinoVisionTransformer(nn.Cell):
 
 def init_weights_vit_timm(module: nn.Cell, name: str = ""):
     """ViT weight initialization, original timm impl (for reproducibility)"""
-    
-    weight = initializer(TruncatedNormal(sigma=0.02, mean=0.0, a=-2.0, b=2.0), self.pos_embed.weight.shape) 
-    self.pos_embed.weight.set_data(weight)
-    # nn.init.normal_(self.cls_token, std=1e-6)
-    weight = initializer(Normal(sigma=1e-6, mean=0.0), self.cls_token.weight.shape) 
-    self.cls_token.weight.set_data(weight)
 
     if isinstance(module, nn.Dense):
         weight = initializer(TruncatedNormal(sigma=0.02, mean=0.0, a=-2.0, b=2.0), module.weight.shape) 

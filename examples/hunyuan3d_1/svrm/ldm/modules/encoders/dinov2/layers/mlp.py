@@ -28,7 +28,7 @@ class Mlp(nn.Cell):
         out_features = out_features or in_features
         hidden_features = hidden_features or in_features
         self.fc1 = nn.Dense(in_features, hidden_features, has_bias=bias)
-        self.act = act_layer(approximate=False)
+        self.act = act_layer(approximate=False) if isinstance(act_layer, nn.GELU) else act_layer()
         self.fc2 = nn.Dense(hidden_features, out_features, has_bias=bias)
         self.drop = nn.Dropout(p = drop)
 

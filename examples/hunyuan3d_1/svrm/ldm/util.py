@@ -8,7 +8,7 @@ import numpy as np
 from PIL import Image, ImageDraw, ImageFont
 import matplotlib.pyplot as plt
 import mindspore as ms
-from mindspore import nn, ops, mint
+from mindspore import nn, ops, mint, _no_grad
 from mindspore.nn.optim import Adam, AdamWeightDecay, Momentum, Optimizer
 
 _MIN_FP16 = ms.tensor(np.finfo(np.float16).min, dtype=ms.float16)
@@ -42,7 +42,7 @@ def dtype_to_max(dtype):
     else:
         raise ValueError(f"Only support get maximum value of (float16, ), but got {dtype}")
         
-@jit_class
+@ms.jit_class
 class no_grad(_no_grad):
     """
     A context manager that suppresses gradient memory allocation in PyNative mode.

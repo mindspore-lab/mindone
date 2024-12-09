@@ -6,7 +6,6 @@
 from enum import Enum
 from typing import Union
 
-import torch
 from .utils import _DINOV2_BASE_URL, _make_dinov2_model_name
 
 
@@ -52,6 +51,7 @@ def _make_dinov2_model(
     model = vits.__dict__[arch_name](**vit_kwargs)
 
     if pretrained:
+        import torch
         model_full_name = _make_dinov2_model_name(arch_name, patch_size, num_register_tokens)
         url = _DINOV2_BASE_URL + f"/{model_base_name}/{model_full_name}_pretrain.pth"
         state_dict = torch.hub.load_state_dict_from_url(url, map_location="cpu")

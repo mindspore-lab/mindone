@@ -11,7 +11,7 @@ import mindspore as ms
 from mindspore import nn, ops, mint
 from mindspore.common.initializer import initializer, TruncatedNormal
 
-class DINOHead(nn.Cell):
+class DINOHead(nn.Cell): # NOTE: no use yet
     def __init__(
         self,
         in_dim,

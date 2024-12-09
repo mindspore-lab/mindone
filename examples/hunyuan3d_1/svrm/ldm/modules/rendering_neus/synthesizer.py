@@ -13,7 +13,8 @@ from mindspore.common.initializer import initializer, Zero
 
 from .utils.renderer import ImportanceRenderer, sample_from_planes
 from .utils.ray_sampler import RaySampler
-from ...utils.ops import get_rank
+# from ...utils.ops import get_rank
+from typing import Optional
 
 
 class OSGDecoder(nn.Cell):
@@ -31,7 +32,8 @@ class OSGDecoder(nn.Cell):
                  sdf_bias='sphere',
                  sdf_bias_params=0.5,
                  output_normal=True,
-                 normal_type='finite_difference'):
+                 normal_type='finite_difference',
+                 dtype=ms.float16):
         super().__init__()
         self.sdf_bias = sdf_bias
         self.sdf_bias_params = sdf_bias_params
@@ -45,7 +47,7 @@ class OSGDecoder(nn.Cell):
                 activation(),
             ] for _ in range(num_layers - 2)]),
             nn.Dense(hidden_dim, 1 + 3),
-        )
+        ).to_float(dtype)
         # init all bias to zero
         for m in self.cells():
             if isinstance(m, nn.Dense):
@@ -98,7 +100,7 @@ class OSGDecoder(nn.Cell):
         sdf_grad = (sdf_offset[..., 0::1, 0] - sdf) / eps
         
         # normal = F.normalize(sdf_grad, dim=-1).to(sdf.dtype)
-        normal = (sdf_grad / ops.norm(sdf_grad, dim=-1)).to(sdf.dtype)
+        normal = (sdf_grad / ops.norm(sdf_grad, dim=-1, keepdim=True)).to(sdf.dtype)
         return {'rgb': rgb, 'sdf': sdf, 'normal': normal, 'sdf_grad': sdf_grad}
     
     def forward_sdf(self, plane_axes, planes, points_offset, options):
@@ -176,6 +178,11 @@ class TriplaneSynthesizer(nn.Cell):
         else:
             raise NotImplementedError
 
+    def to(self, dtype: Optional[ms.Type] = None):
+        for p in self.get_parameters():
+            p.set_dtype(dtype)
+        return self
+
     def construct(self, planes, ray_origins, ray_directions, render_size, bgcolor=None):
         # planes: (N, 3, D', H', W')
         # render_size: int
@@ -226,8 +233,9 @@ class TriplaneSynthesizer(nn.Cell):
             aabb = ms.Tensor([
                 [self.rendering_kwargs['sampler_bbox_min']] * 3,
                 [self.rendering_kwargs['sampler_bbox_max']] * 3,
-            ], dtype=planes.dtype).unsqueeze(0).tile((planes.shape[0], 1, 1))
+            ]).unsqueeze(0).tile((planes.shape[0], 1, 1))
         assert planes.shape[0] == aabb.shape[0], "Batch size mismatch for planes and aabb"
+        aabb = aabb.float() # convert to float32 since ops.linspace only support float32/float64
         N = planes.shape[0]
 
         # create grid points for triplane query
@@ -239,7 +247,7 @@ class TriplaneSynthesizer(nn.Cell):
                 ops.linspace(aabb[i, 0, 2], aabb[i, 1, 2], grid_size),
                 indexing='ij',
             ), dim=-1).reshape(-1, 3))
-        cube_grid = mint.stack(grid_points, dim=0)
+        cube_grid = mint.stack(grid_points, dim=0).to(planes.dtype)
 
         features = self.forward_points(planes, cube_grid)
 

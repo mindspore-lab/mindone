@@ -54,8 +54,11 @@ class MV23DPredictor(object):
         self.input_view_transform = transforms.Compose([
             vision.Resize(504, interpolation=vision.Inter.BICUBIC),
             vision.ToTensor(),
-        ])
-        self.final_input_view_transform = vision.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225), is_hwc=False)
+            vision.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225), is_hwc=False)
+        ]) # output numpy
+        # vision.ToTensor()
+        # input is an image of PIL type or a Numpy array in [0, 255] in the format of <H, W, C>, 
+        # output is a Numpy array in the range of [0.0, 1.0] with the format of <C, H, W>
         # vision.ToTensor change the format from HWC to CHW, so normalize have to specify `is_hwc=False`
 
     def init_model(self, ckpt_path, cfg_path):
@@ -63,7 +66,7 @@ class MV23DPredictor(object):
         model = instantiate_from_config(config.model) # SVRMModel
 
         if ckpt_path.endswith(".ckpt"): # if converted savetensors to ms.ckpt
-            state_dict = ms.load_checkpoint()
+            state_dict = ms.load_checkpoint(ckpt_path)
         elif ckpt_path.endswith(".safetensors"):
             state_dict = load_file(ckpt_path)
         else:
@@ -79,18 +82,24 @@ class MV23DPredictor(object):
         mismatched_keys = []
         for checkpoint_key in original_loaded_keys:
             if (checkpoint_key in model_state_dict and checkpoint_key in state_dict 
-                and state_dict[checkpoint_key].shape != model_state_dict[checkpoint_key]
+                and state_dict[checkpoint_key].shape != model_state_dict[checkpoint_key].shape
             ):
                 mismatched_keys.append(
                     (checkpoint_key, state_dict[checkpoint_key].shape, model_state_dict[checkpoint_key].shape)
                 )
 
-        print(f"Loading SVRMModel...\n missing_keys: {missing_keys}, unexpected_keys: {unexpected_keys}, mismatched_keys: {mismatched_keys}")  
+        print(f"Loading SVRMModel...\nmissing_keys: {missing_keys}, \nunexpected_keys: {unexpected_keys}, \nmismatched_keys: {mismatched_keys}")  
 
-        model = ms.load_param_into_net(model, state_dict, strict_load=True)
+        print(f"state_dict.dtype {state_dict[loaded_keys[0]].dtype}") #float16
+        print(f"model.dtype {model.dtype}") 
+        if state_dict[loaded_keys[0]].dtype != model.dtype:
+            model = model.to(state_dict[loaded_keys[0]].dtype)
+        print(f"Use {model.dtype} for inference.")
+        param_not_load, ckpt_not_load = ms.load_param_into_net(model, state_dict, strict_load=True)
+        print(f"Loaded checkpoint: param_not_load {param_not_load}, ckpt_not_load {ckpt_not_load}")
 
         model = model.set_train(False)
-        model.render.half() 
+        # model.render.to_float(ms.float16) # some op requires fp32 
         print(f'Load model successfully')
 
         return model
@@ -133,29 +142,28 @@ class MV23DPredictor(object):
         input_image_list = []
         input_cam_list = []
         for input_view_image, elevation, azimuth in zip(input_imgs, elevation_list, azimuth_list):
-            input_view_image = self.input_view_transform(input_view_image)  
-            input_image_list.append(input_view_image)
+            input_view_image = self.input_view_transform(input_view_image)  # tuple(CHW)
+            input_image_list.append(ms.Tensor(input_view_image))
 
             input_view_cam_pos = self.create_camera_to_world_matrix(np.radians(elevation), np.radians(azimuth))
             input_view_cam_intrinsic = np.array([35. / 32, 35. /32, 0.5, 0.5])
-            input_view_cam = Tensor.from_numpy(
+            input_view_cam = ms.Tensor(
                 np.concatenate([input_view_cam_pos.reshape(-1), input_view_cam_intrinsic], 0) # 4*4+4=20
             ).float()
             input_cam_list.append(input_view_cam)
 
-        pixels_input = mint.stack(input_image_list, dim=0) # [B,C,H,W]
-        input_images = self.final_input_view_transform(pixels_input)
+        input_images = mint.stack(input_image_list, dim=0) # [B,C,H,W]
         input_cams = mint.stack(input_cam_list, dim=0) # [N, 20]
         return input_images, input_cams
 
-    def load_data(self, intput_imgs):
-        assert (6+1) == len(intput_imgs)
+    def load_data(self, input_imgs):
+        assert (6+1) == len(input_imgs)
         
-        input_images, input_cams = self.load_images_and_cameras(intput_imgs, self.elevation_list, self.azimuth_list)
+        input_images, input_cams = self.load_images_and_cameras(input_imgs, self.elevation_list, self.azimuth_list)
         input_cams[-1, :] = 0 # for user input cond view
         
         data = {}
-        data["input_view"] = input_images.unsqueeze(0)    # 1 7 3 512 512
+        data["input_view"] = input_images.unsqueeze(0)    # 1 7 3 504 504
         data["input_view_cam"] = input_cams.unsqueeze(0)  # 1 7 20
         return data
 

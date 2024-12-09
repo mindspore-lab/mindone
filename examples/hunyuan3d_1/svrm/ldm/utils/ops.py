@@ -1,4 +1,5 @@
-# TODO
+# TODO: this is not yet fully migrated
+
 import os
 import math
 import numpy as np
@@ -6,13 +7,15 @@ from collections import defaultdict
 
 import mindspore as ms
 from mindspore import nn, ops, mint
-# from torch.autograd import Function
-# from torch.cuda.amp import custom_bwd, custom_fwd
-from igl import fast_winding_number_for_meshes, point_mesh_squared_distance, read_obj
+import warnings
+try:
+    from igl import fast_winding_number_for_meshes, point_mesh_squared_distance, read_obj
+except:
+    warnings.warn("Please install libigl, bypass this time.")
 
 from .typing import *
 
-
+# TODO
 # def get_rank():
 #     # SLURM_PROCID can be set even if SLURM is not managing the multiprocessing,
 #     # therefore LOCAL_RANK needs to be checked first

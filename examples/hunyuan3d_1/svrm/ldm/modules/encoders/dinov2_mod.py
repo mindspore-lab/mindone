@@ -12,8 +12,9 @@ import math
 import logging
 from typing import Sequence, Tuple, Union, Callable
 from collections import OrderedDict
+from typing import Optional
 
-import mindspore
+import mindspore as ms
 from mindspore import nn, ops, mint
 from mindone.transformers import MSPreTrainedModel
 
@@ -44,6 +45,10 @@ class FrozenDinoV2ImageEmbedder(nn.Cell):
         else:
             print('None pretrained model for dinov2 encoder ...')
 
+    def to(self, dtype: Optional[ms.Type] = None):
+        for p in self.get_parameters():
+            p.set_dtype(dtype)
+        return self
 
     def load_pretrained(self, ckpt_path):
         print('Loading dinov2 encoder ...')
@@ -51,7 +56,7 @@ class FrozenDinoV2ImageEmbedder(nn.Cell):
         self.model, loading_info = MSPreTrainedModel.from_pretrained(
             self.model, 
             ckpt_path, 
-            output_loading_info=Ture,
+            output_loading_info=True,
             mindspore_dtype = ms.float16
             )
         print(loading_info)

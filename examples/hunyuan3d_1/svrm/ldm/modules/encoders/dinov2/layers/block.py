@@ -82,7 +82,7 @@ class BlockMod(nn.Cell):
         self.mlp = ffn_layer(
             in_features=dim,
             hidden_features=mlp_hidden_dim,
-            act_layer=act_layer(approximate=False),
+            act_layer=act_layer,
             drop=drop,
             bias=ffn_bias,
         )
