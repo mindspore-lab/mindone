@@ -22,7 +22,7 @@ def create_parallel_group(sequence_parallel_shards: int) -> None:
     device_num = get_group_size()
     if device_num % sequence_parallel_shards != 0:
         raise ValueError(
-            f"Total number of devices ({device_num}) must be devisible by the number of sequence parallel shards ({sequence_parallel_shards})."
+            f"Total number of devices `{device_num}` must be divisible by the number of sequence parallel shards `{sequence_parallel_shards}`."
         )
 
     rank_id = get_rank()

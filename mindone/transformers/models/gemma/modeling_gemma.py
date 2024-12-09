@@ -1051,7 +1051,6 @@ class GemmaForSequenceClassification(GemmaPreTrainedModel):
                 # if no pad token found, use modulo instead of reverse indexing for ONNX compatibility
                 sequence_lengths = ops.eq(input_ids, self.config.pad_token_id).int().argmax(-1) - 1
                 sequence_lengths = sequence_lengths % input_ids.shape[-1]
-                sequence_lengths = sequence_lengths.to(logits.device)
             else:
                 sequence_lengths = -1
 
@@ -1059,7 +1058,6 @@ class GemmaForSequenceClassification(GemmaPreTrainedModel):
 
         loss = None
         if labels is not None:
-            labels = labels.to(logits.device)
             if self.config.problem_type is None:
                 if self.num_labels == 1:
                     self.config.problem_type = "regression"

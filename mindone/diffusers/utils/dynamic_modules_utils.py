@@ -330,9 +330,9 @@ def get_cached_module_file(
         # The only reason we do the copy is to avoid putting too many folders in sys.path.
         shutil.copy(resolved_module_file, submodule_path / module_file)
         for module_needed in modules_needed:
-            if len(module_needed.split(".")) == 2:
+            if len(module_needed.split(".")) >= 2:
                 module_needed = "/".join(module_needed.split("."))
-                module_folder = module_needed.split("/")[0]
+                module_folder = module_needed.rsplit("/", 1)[0]
                 if not os.path.exists(submodule_path / module_folder):
                     os.makedirs(submodule_path / module_folder)
             module_needed = f"{module_needed}.py"
