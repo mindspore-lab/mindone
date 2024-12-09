@@ -16,7 +16,7 @@ root_dir: "./datasets"
 # accelerate or memory reduction
 dataset_sink_mode: False # to show every-step loss
 num_parallel_workers: 2 # num workers used in generator datasets
-use_recompute: True #False # to avoid OOM
+use_recompute: True # to avoid OOM
 
 optim: "adamw_fp32"
 betas: [0.9, 0.999]

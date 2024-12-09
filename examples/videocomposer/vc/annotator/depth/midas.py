@@ -202,7 +202,7 @@ class FusionBlock(nn.Cell):
             x = self.layer2(xs[0] + self.layer1(xs[1]))
         size = x.shape[2:]
         size = [s * 2 for s in size]
-        x = ops.ResizeBilinear(size, align_corners=True)(x)
+        x = ops.ResizeBilinearV2(align_corners=True)(x, size)
         x = self.conv_out(x)
         return x
 
@@ -385,8 +385,8 @@ class MiDaS(nn.Cell):
         pos_embedding = ops.concat(
             [
                 self.pos_embedding[:, :1],
-                ops.ResizeBilinear((hp, wp))(
-                    self.pos_embedding[:, 1:].reshape(1, grid, grid, -1).permute(0, 3, 1, 2),
+                ops.ResizeBilinearV2(align_corners=False)(
+                    self.pos_embedding[:, 1:].reshape(1, grid, grid, -1).permute(0, 3, 1, 2), (hp, wp)
                 )
                 .permute(0, 2, 3, 1)
                 .reshape(1, hp * wp, -1),
@@ -431,7 +431,7 @@ class MiDaS(nn.Cell):
         x = self.head[0](x1)
         size = x.shape[2:]
         size = [s * 2 for s in size]
-        x = ops.ResizeBilinear(size, align_corners=True)(x)
+        x = ops.ResizeBilinearV2(align_corners=True)(x, size)
         x = self.head[2](x)
         x = self.head[3](x)
         x = self.head[4](x)

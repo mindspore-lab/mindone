@@ -3,7 +3,7 @@ easydict==1.10
 ftfy==6.1.1
 imageio==2.31.1
 matplotlib
-mindspore==2.0.0
+mindspore==2.3.1
 motion-vector-extractor
 numpy
 pandas
