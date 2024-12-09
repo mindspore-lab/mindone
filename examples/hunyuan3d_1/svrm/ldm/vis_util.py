@@ -3,6 +3,7 @@
 # render and save images/gif using trimesh in CPU
 # pip install pyglet
 # Only support local rendering with GUI (or if remote to server by ssh -X sucessfully)
+# reference: https://github.com/mikedh/trimesh/blob/main/examples/offscreen_render.py
 # Usage:
 # python infer/git_render.py --mesh_path mesh.obj --output_gif_path output.gif
 #

@@ -11,7 +11,7 @@ import warnings
 try:
     from igl import fast_winding_number_for_meshes, point_mesh_squared_distance, read_obj
 except:
-    warnings.warn("Please install libigl, bypass this time.")
+    warnings.warn("Please install libigl for training, bypass this time.")
 
 from .typing import *
 
