@@ -193,6 +193,8 @@
         title: DiTTransformer2DModel
       - local: api/models/hunyuan_transformer2d
         title: HunyuanDiT2DModel
+      - local: api/models/aura_flow_transformer2d
+        title: AuraFlowTransformer2DModel
       - local: api/models/flux_transformer
         title: FluxTransformer2DModel
       - local: api/models/cogvideox_transformer3d
@@ -213,6 +215,8 @@
         title: HunyuanDiT2DControlNetModel
       - local: api/models/controlnet_sd3
         title: SD3ControlNetModel
+      - local: api/models/controlnet_sparsectrl
+        title: SparseControlNetModel
     title: Models
   - isExpanded: False
     sections:
@@ -220,6 +224,8 @@
         title: Overview
       - local: api/pipelines/animatediff
         title: AnimateDiff
+      - local: api/pipelines/aura_flow
+        title: AuraFlow
       - local: api/pipelines/blip_diffusion
         title: BLIP-Diffusion
       - local: api/pipelines/cogvideox
