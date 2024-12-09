@@ -18,7 +18,7 @@ Expects cam2world matrices that use the OpenCV camera coordinate system conventi
 """
 
 import mindspore as ms
-from mindspore import nn
+from mindspore import nn, ops, mint
 
 class RaySampler(nn.Cell):
     def __init__(self):

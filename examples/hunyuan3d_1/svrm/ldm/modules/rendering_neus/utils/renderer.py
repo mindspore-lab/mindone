@@ -18,28 +18,12 @@ ray, and computes pixel colors using the volume rendering equation.
 """
 
 import mindspore as ms
-from mindspore import nn, mint, ops, _no_grad
+from mindspore import nn, mint, ops
 
 from .ray_marcher import MipRayMarcher2
 from . import math_utils
+from ..utils import no_grad
 
-@jit_class
-class no_grad(_no_grad):
-    """
-    A context manager that suppresses gradient memory allocation in PyNative mode.
-    """
-
-    def __init__(self):
-        super().__init__()
-        self._pynative = ms.get_context("mode") == ms.PYNATIVE_MODE
-
-    def __enter__(self):
-        if self._pynative:
-            super().__enter__()
-
-    def __exit__(self, *args):
-        if self._pynative:
-            super().__exit__(*args)
 
 def generate_planes():
     """
@@ -68,12 +52,14 @@ def project_onto_planes(planes, coordinates):
     # Takes coordinates of shape N, M, 3
     # returns projections of shape N*n_planes, M, 2
     """
+    if planes.dtype != ms.float32:
+        planes = planes.float()
     N, M, C = coordinates.shape
     n_planes, _, _ = planes.shape
     coordinates = coordinates.unsqueeze(1).broadcast_to((-1, n_planes, -1, -1)).reshape(N*n_planes, M, 3)
-    inv_planes = mint.linalg.inv(planes).unsqueeze(0).broadcast_to((N, -1, -1, -1)).reshape(N*n_planes, 3, 3)
-    projections = mint.bmm(coordinates, inv_planes)
-    return projections[..., :2]
+    inv_planes = mint.linalg.inv(planes).unsqueeze(0).broadcast_to((N, -1, -1, -1)).reshape(N*n_planes, 3, 3) # MatrixInverseExt only supports float32, planes should be float32
+    projections = mint.bmm(coordinates.to(planes.dtype), inv_planes)
+    return projections[..., :2].to(coordinates.dtype)
 
 def sample_from_planes(plane_axes, plane_features, coordinates, mode='bilinear', padding_mode='zeros', box_warp=None):
     assert padding_mode == 'zeros'
@@ -116,7 +102,7 @@ class ImportanceRenderer(nn.Cell):
         self.activation_factory = self._build_activation_factory()
         self.ray_marcher = MipRayMarcher2(self.activation_factory)
         self.plane_axes = generate_planes()
-        self.max_pool1d = nn.MaxPool1d(kernel_size=2, stride=1, padding=1)
+        self.max_pool1d = nn.MaxPool1d(kernel_size=2, stride=1, padding=1, pad_mode="pad")
 
     def _build_activation_factory(self):
         def activation_factory(options: dict):
@@ -224,7 +210,7 @@ class ImportanceRenderer(nn.Cell):
         return rgb_final, depth_final, weights.sum(2), sdf_grad, normal_final
 
     def run_model(self, planes, decoder, sample_coordinates, sample_directions, options):
-
+        plane_axes = self.plane_axes
         out = decoder(sample_directions, sample_coordinates, plane_axes, planes, options)
         # if options.get('density_noise', 0) > 0:
         #     out['sigma'] += torch.randn_like(out['sigma']) * options['density_noise']
