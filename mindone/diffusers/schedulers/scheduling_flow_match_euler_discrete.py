@@ -153,7 +153,7 @@ class FlowMatchEulerDiscreteScheduler(SchedulerMixin, ConfigMixin):
         sigma = sigmas[step_indices].flatten()
         # while len(sigma.shape) < len(sample.shape):
         #     sigma = sigma.unsqueeze(-1)
-        sigma = ops.reshape(sigma, (schedule_timesteps.shape[0],) + (1,) * (len(broadcast_shape) - 1))
+        sigma = ops.reshape(sigma, (timestep.shape[0],) + (1,) * (len(broadcast_shape) - 1))
 
         sample = sigma * noise + (1.0 - sigma) * sample
 
