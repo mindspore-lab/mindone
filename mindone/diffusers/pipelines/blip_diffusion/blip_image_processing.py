@@ -307,7 +307,7 @@ class BlipImageProcessor(BaseImageProcessor):
         if output_type == "ms":
             return sample
 
-        # Equivalent to diffusers.VaeImageProcessor.pt_to_numpy
+        # Equivalent to diffusers.VaeImageProcessor.ms_to_numpy
         sample = sample.permute(0, 2, 3, 1).asnumpy()
         if output_type == "np":
             return sample

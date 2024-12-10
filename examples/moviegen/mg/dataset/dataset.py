@@ -165,7 +165,7 @@ class ImageVideoDataset(BaseDataset):
         if self._tae_latent_folder:
             tae_latent_data = np.load(data["tae_latent"])
             latent_mean, latent_std = tae_latent_data["latent_mean"], tae_latent_data["latent_std"]
-            if len(latent_mean) < self._min_length:     # TODO: add support for images and buckets
+            if len(latent_mean) < self._min_length:  # TODO: add support for images and buckets
                 raise ValueError(f"Video is too short: {data['video']}")
 
             start_pos = random.randint(0, len(latent_mean) - self._min_length)

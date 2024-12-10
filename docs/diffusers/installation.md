@@ -12,7 +12,9 @@ specific language governing permissions and limitations under the License.
 
 # Installation
 
-🤗 Diffusers is tested on Python 3.8+, MindSpore 2.3+. Follow the installation instructions below for the deep learning library you are using:
+🤗 Diffusers uses the `pyproject.toml` file for building and packaging, as introduced in [PEP 517](https://peps.python.org/pep-0517/). View this [configuration file](https://github.com/mindspore-lab/mindone/blob/master/pyproject.toml) file for more details on the specific build configuration of this project.
+
+🤗 Diffusers is tested on Python 3.8+, MindSpore 2.3.1. Follow the installation instructions below for the deep learning library you are using:
 
 - [MindSpore](https://www.mindspore.cn/install) installation instructions
 
@@ -39,6 +41,14 @@ You should also install 🤗 Transformers because 🤗 Diffusers relies on its m
 ```bash
 pip install mindone transformers
 ```
+
+!!! tip
+
+    We define both required and optional dependencies in the `pyproject.toml` file. If you need to install optional dependencies, you can specify them. For example, if you want to install the 'training' optional dependency, you would run:
+
+    ```bash
+    pip install mindone[training]
+    ```
 
 ## Install from source
 
@@ -71,6 +81,16 @@ git clone https://github.com/mindspore-lab/mindone.git
 cd mindone
 ```
 
+!!! warning
+
+    ⚠️ [PEP 660 – Editable installs for pyproject.toml based builds](https://peps.python.org/pep-0660/) defines how to build projects that only use `pyproject.toml`. Build tools must implement PEP 660 for editable installs to work. You need a front-end (such as [pip ≥ 21.3](https://pip.pypa.io/en/stable/news/#v21-3)) and a backend. The statuses of some popular backends are:
+
+    - [Setuptools implements PEP 660 as of version 64.](https://github.com/pypa/setuptools/blob/v64.0.0/CHANGES.rst#breaking-changes)
+    - [Flit implements PEP 660 as of version 3.4.](https://flit.readthedocs.io/en/latest/history.html?highlight=660#version-3-4)
+    - [Poetry implements PEP 660 as of version 1.0.8.](https://github.com/python-poetry/poetry-core/releases/tag/1.0.8)
+
+    (from: [https://stackoverflow.com/a/69711730](https://stackoverflow.com/a/69711730))
+
 ```bash
 pip install -e .
 ```
@@ -95,7 +115,7 @@ Your Python environment will find the `main` version of 🤗 Diffusers on the ne
 
 ## Cache
 
-Model weights and files are downloaded from the Hub to a cache which is usually your home directory. You can change the cache location by specifying the `HF_HOME` or `HUGGINFACE_HUB_CACHE` environment variables or configuring the `cache_dir` parameter in methods like [`~DiffusionPipeline.from_pretrained`].
+Model weights and files are downloaded from the Hub to a cache which is usually your home directory. You can change the cache location by specifying the `HF_HOME` or `HUGGINFACE_HUB_CACHE` environment variables or configuring the `cache_dir` parameter in methods like [`from_pretrained`](https://mindspore-lab.github.io/mindone/latest/diffusers/api/pipelines/overview/#mindone.diffusers.DiffusionPipeline.from_pretrained).
 
 Cached files allow you to run 🤗 Diffusers offline. To prevent 🤗 Diffusers from connecting to the internet, set the `HF_HUB_OFFLINE` environment variable to `True` and 🤗 Diffusers will only load previously downloaded files in the cache.
 
@@ -107,7 +127,7 @@ For more details about managing and cleaning the cache, take a look at the [cach
 
 ## Telemetry logging
 
-Our library gathers telemetry information during [`~DiffusionPipeline.from_pretrained`] requests.
+Our library gathers telemetry information during [`from_pretrained`](https://mindspore-lab.github.io/mindone/latest/diffusers/api/pipelines/overview/#mindone.diffusers.DiffusionPipeline.from_pretrained) requests.
 The data gathered includes the version of 🤗 Diffusers and PyTorch/Flax, the requested model or pipeline class,
 and the path to a pretrained checkpoint if it is hosted on the Hugging Face Hub.
 This usage data helps us debug issues and prioritize new features.

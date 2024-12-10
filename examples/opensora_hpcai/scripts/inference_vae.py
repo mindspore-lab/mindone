@@ -11,12 +11,6 @@ import time
 import imageio
 import numpy as np
 
-from mindspore import nn, ops
-
-__dir__ = os.path.dirname(os.path.abspath(__file__))
-mindone_dir = os.path.abspath(os.path.join(__dir__, "../../../"))
-sys.path.insert(0, mindone_dir)
-
 # from ae.models.lpips import LPIPS
 from omegaconf import OmegaConf
 from PIL import Image
@@ -25,6 +19,7 @@ from skimage.metrics import structural_similarity as calc_ssim
 from tqdm import tqdm
 
 import mindspore as ms
+from mindspore import nn, ops
 
 __dir__ = os.path.dirname(os.path.abspath(__file__))
 mindone_lib_path = os.path.abspath(os.path.join(__dir__, "../../../"))

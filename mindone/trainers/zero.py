@@ -585,23 +585,6 @@ def prepare_train_network(
         parallel_modules (`dict`, *optional*): A dict of Cells could split parameters in zero3, default is None.
             If None, use `PARALLEL_MODULES` from `mindone.models.modules.parallel`.
     """
-    is_parallel = _get_parallel_mode() == ParallelMode.DATA_PARALLEL
-    if not is_parallel and zero_stage == 0:
-        _logger.info("No need prepare train_network with zero.")
-        train_network = TrainOneStepWrapper(
-            network,
-            optimizer,
-            scale_sense=scale_sense,
-            ema=ema,
-            updates=updates,
-            drop_overflow_update=drop_overflow_update,
-            gradient_accumulation_steps=gradient_accumulation_steps,
-            clip_grad=clip_grad,
-            clip_norm=clip_norm,
-            verbose=verbose,
-        )
-        return train_network
-
     if zero_stage not in [0, 1, 2, 3]:
         raise ValueError("Not support zero_stage {zero_stage}")
     if op_group is None:
@@ -610,14 +593,20 @@ def prepare_train_network(
     if op_group != GlobalComm.WORLD_COMM_GROUP and dp_group is None:
         raise ValueError("op_group {op_group} and dp_group {dp_group} not full network hccl group coverage")
 
-    new_network = prepare_network(network, zero_stage, op_group, parallel_modules=parallel_modules)
-    zero_helper = ZeroHelper(optimizer, zero_stage, op_group, dp_group, optimizer_offload, comm_fusion)
+    is_parallel = _get_parallel_mode() == ParallelMode.DATA_PARALLEL
+    if not is_parallel and zero_stage == 0:
+        _logger.info("No need prepare train_network with zero.")
+        zero_helper = None
+    else:
+        network = prepare_network(network, zero_stage, op_group, parallel_modules=parallel_modules)
+        zero_helper = ZeroHelper(optimizer, zero_stage, op_group, dp_group, optimizer_offload, comm_fusion)
+
     if ema is not None:
         ema = prepare_ema(ema, zero_stage, op_group)
     if isinstance(scale_sense, float):
         scale_sense = ms.Tensor(scale_sense, ms.float32)
     train_network = TrainOneStepWrapper(
-        new_network,
+        network,
         optimizer,
         scale_sense=scale_sense,
         ema=ema,

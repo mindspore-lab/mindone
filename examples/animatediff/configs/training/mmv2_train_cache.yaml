@@ -32,5 +32,5 @@ use_ema: False
 clip_grad: True
 
 # training process
-ckpt_save_interval: 2000
+ckpt_save_epochs: 2000
 save_mm_only: True

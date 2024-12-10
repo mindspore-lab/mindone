@@ -44,10 +44,11 @@ We provide image to video generation with three resolutions: 576x1024, 320x512, 
 | <p align="center"><img width="200" src="https://github.com/user-attachments/assets/90ea568f-3980-4d5b-9ea8-43d3dc0bccec"/><br/>"a campfire on the beach and the ocean waves in the background"</p> | <video width="300" src="https://github.com/user-attachments/assets/e9c108a5-1f38-4486-ad8b-bfcd8b8eed96"/> |
 | <p align="center"><img width="200" src="https://github.com/user-attachments/assets/a6d7951d-7d3f-4ddd-9225-6b71fe79ef7d"/><br/>"girl with fires and smoke on his head"</p> | <video width="300" src="https://github.com/user-attachments/assets/c3cb4ef9-681a-404c-a7cb-babf0a74acc3"/> |
 
-## 2. Dependency
+## 2. Requirements
 
-- [MindSpore 2.3](https://www.mindspore.cn/install)
-- [CANN C18(0705)](https://repo.mindspore.cn/ascend/ascend910/20240705/)
+| mindspore | ascend driver | firmware    | cann toolkit/kernel |
+|:---------:|:-------------:|:-----------:|:-------------------:|
+| 2.3.1     | 24.1.RC2      | 7.3.0.1.231 | 8.0.RC2.beta1       |
 
 ```shell
 pip install -r requirements.txt
@@ -62,12 +63,12 @@ Download the prompts from [here](https://download-mindspore.osinfra.cn/toolkits/
 
 We provide weight conversion script `tools/convert_weight.py` to convert the original Pytorch model weights to MindSpore model weights. Pytorch model weights can be accessed via links below.
 
-|Model|Resolution(HxW)|Pytorch Checkpoint|
-|:---------|:---------|:--------|
-|DC1024|576x1024|[Hugging Face](https://huggingface.co/Doubiiu/DynamiCrafter_1024/blob/main/model.ckpt)|
-|DC512|320x512|[Hugging Face](https://huggingface.co/Doubiiu/DynamiCrafter_512/blob/main/model.ckpt)|
-|DC256|256x256|[Hugging Face](https://huggingface.co/Doubiiu/DynamiCrafter/blob/main/model.ckpt)|
-|CLIP-ViT-H-14-laion2B-s32B-b79K |/|[Hugging Face](https://huggingface.co/laion/CLIP-ViT-H-14-laion2B-s32B-b79K/tree/main)|
+|model name|resolution(HxW)|pytorch checkpoint|
+|:---------:|:---------:|:--------:|
+|dynamicrafter|576x1024|[download link](https://huggingface.co/Doubiiu/DynamiCrafter_1024/blob/main/model.ckpt)|
+|dynamicrafter|320x512|[download link](https://huggingface.co/Doubiiu/DynamiCrafter_512/blob/main/model.ckpt)|
+|dynamicrafter|256x256|[download link](https://huggingface.co/Doubiiu/DynamiCrafter/blob/main/model.ckpt)|
+|CLIP-ViT-H-14-laion2B-s32B-b79K |/|[download link](https://huggingface.co/laion/CLIP-ViT-H-14-laion2B-s32B-b79K/tree/main)|
 
 
 The text files in `tools/` mark the model parameters mapping between Pytorch and MindSpore version. Set `--model_name` as one of ["256", "512", "1024", "clip"] according to the model you want to convert, and then run the following command to convert weight (e.g. 576x1024).
@@ -90,19 +91,15 @@ sh scripts/run/run_infer.sh [RESUOUTION] [CKPT_PATH]
 
 > [RESLLUTION] can be 256, 512 or 1024.
 
-Inference speed on Ascend 910* NPU:
+### Performance
 
-| Model      |     Context | jit_level | Precision |  Scheduler   | Steps              |  Resolution <br> (framesxHxW)   |      Batch Size  |  NPUs |  Speed <br> (step/s)     | Time <br>  (s/video)     |
-|---------------|:-----------|:------------:|:------------:|:------------:|:------------------:|:----------------:|:----------------:|:----------------:|:----------------:|:----------------:|
-| DC1024 | D910*-[MS 2.3](https://www.mindspore.cn/install)-[CANN C18(0705)](https://repo.mindspore.cn/ascend/ascend910/20240705/)  | O1 | FP16 | DDIM | 50 |  16x576x1024 | 1 | 1 |  0.70 | 71 |
-| DC512 | D910*-[MS 2.3](https://www.mindspore.cn/install)-[CANN C18(0705)](https://repo.mindspore.cn/ascend/ascend910/20240705/)  | O1 | FP16 | DDIM  | 50 |  16x320x512  | 1 | 1 | 2.38  | 21 |
-| DC256 | D910*-[MS 2.3](https://www.mindspore.cn/install)-[CANN C18(0705)](https://repo.mindspore.cn/ascend/ascend910/20240705/)  | O1 | FP16 | DDIM  | 50 |  16x256x256  | 1 | 1 |  3.85 | 13 |
+Experiments are tested on ascend 910* with mindspore 2.3.1 graph mode.
 
-> Context: {Ascend chip}-{mindspore version}-{cann version}.
->
-> Speed (step/s): sampling speed measured in the number of sampling steps per second.
->
-> Time (s/video): the time cost here only contains the ddim sampling process, vae encoding and decoding are not included.
+| model name    |  cards           | batch size      | resolution   |  scheduler   | steps      | precision |  jit level | graph compile |s/step     | s/video |
+|:-------------:|:------------:    |:------------:   |:------------:|:------------:|:------------:|:------------------:|:----------------:|:----------------:|:----------------:|:----------------:|
+| dynamicrafter |  1               | 1               | 16x576x1024  | DDIM | 50 | fp16 | O1 | 1~2 mins |  1.42 | 71 |
+| dynamicrafter | 1                | 1               | 16x320x512   | DDIM | 50 | fp16 | O1 |1~2 mins |  0.42  | 21 |
+| dynamicrafter | 1                | 1               | 16x256x256   | DDIM | 50 | fp16 | O1 |1~2 mins |  0.26 | 13 |
 
 
 ## References
