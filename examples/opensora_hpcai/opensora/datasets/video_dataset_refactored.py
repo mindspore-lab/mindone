@@ -6,7 +6,7 @@ import random
 import sys
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional, Tuple, Union
+from typing import Any, Callable, List, Optional, Tuple
 
 import cv2
 import numpy as np
@@ -14,11 +14,12 @@ from tqdm import tqdm
 
 import mindspore as ms
 from mindspore.dataset.transforms import Compose
+from mindspore.dataset.vision import CenterCrop, Inter, Normalize
 
 from mindone.data.video_reader import VideoReader as VideoReader_CV2
 
 from .bucket import Bucket
-from .transforms import ResizeCrop
+from .transforms import BucketResizeAndCrop, BucketResizeCrop, Resize, ResizeAndCrop
 
 # FIXME: remove in future when mindone is ready for install
 sys.path.append(os.path.join(os.path.dirname(__file__), "../../../.."))
@@ -29,18 +30,31 @@ from ..models.layers.rotary_embedding import precompute_freqs_cis
 
 _logger = logging.getLogger(__name__)
 
-IMAGE_EXT = (".jpg", ".jpeg", ".png", ".gif", ".webp")
 
-
-def create_infer_transforms(target_size: Tuple[int, int], interpolation=cv2.INTER_LINEAR):
+def create_infer_transforms(target_size: Tuple[int, int], interpolation=Inter.BILINEAR):
     return Compose(
         [
-            ResizeCrop(target_size, interpolation=interpolation),
-            lambda x: x.astype(np.float32) / 127.5 - 1,
+            Resize(target_size, interpolation=interpolation),
+            CenterCrop(target_size),
+            lambda x: (x / 255.0).astype(np.float32),  # ms.ToTensor() doesn't support 4D data
+            Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5]),
             lambda x: x[None, ...] if x.ndim == 3 else x,  # if image
-            lambda x: np.transpose(x, (0, 3, 1, 2)),
+            lambda x: np.transpose(x, (0, 3, 1, 2)),  # ms.HWC2CHW() doesn't support 4D data
         ]
     )
+
+
+def create_train_transforms(target_size, buckets=None):
+    """
+    expect rgb image in range 0-255, shape (h w c)
+    """
+
+    if buckets is None:
+        transforms = ResizeAndCrop(target_size[0], target_size[1])
+    else:
+        transforms = BucketResizeAndCrop(buckets)
+
+    return transforms
 
 
 class VideoDatasetRefactored(BaseDataset):
@@ -48,7 +62,7 @@ class VideoDatasetRefactored(BaseDataset):
         self,
         csv_path: str,
         video_folder: str,
-        text_emb_folder: Optional[Union[str, Dict[str, str]]] = None,
+        text_emb_folder: Optional[str] = None,
         vae_latent_folder: Optional[str] = None,
         vae_downsample_rate: float = 8.0,
         vae_scale_factor: float = 0.18215,
@@ -129,7 +143,7 @@ class VideoDatasetRefactored(BaseDataset):
 
         self.apply_train_transforms = apply_train_transforms
         if self.apply_train_transforms:
-            self.pixel_transforms = ResizeCrop(target_size, interpolation=cv2.INTER_AREA)
+            self.pixel_transforms = create_train_transforms(target_size, buckets=buckets)
             if "bucket_id" in self.output_columns:
                 self.output_columns.remove("bucket_id")
             assert not pre_patchify, "transforms for prepatchify not implemented yet"
@@ -142,7 +156,7 @@ class VideoDatasetRefactored(BaseDataset):
     def _read_data(
         data_dir: str,
         csv_path: str,
-        text_emb_folder: Optional[Union[str, Dict[str, str]]] = None,
+        text_emb_folder: Optional[str] = None,
         vae_latent_folder: Optional[str] = None,
         filter_data: bool = False,
     ) -> List[dict]:
@@ -164,13 +178,7 @@ class VideoDatasetRefactored(BaseDataset):
                 for item in csv.DictReader(csv_file):
                     sample = {**item, "video": os.path.join(data_dir, item["video"])}
                     if text_emb_folder:
-                        if isinstance(text_emb_folder, str):
-                            sample["text_emb"] = os.path.join(text_emb_folder, Path(item["video"]).with_suffix(".npz"))
-                        else:
-                            sample["text_emb"] = {
-                                name: os.path.join(path, Path(item["video"]).with_suffix(".npz"))
-                                for name, path in text_emb_folder.items()
-                            }
+                        sample["text_emb"] = os.path.join(text_emb_folder, Path(item["video"]).with_suffix(".npz"))
                     if vae_latent_folder:
                         sample["vae_latent"] = os.path.join(vae_latent_folder, Path(item["video"]).with_suffix(".npz"))
                     data.append(sample)
@@ -209,15 +217,9 @@ class VideoDatasetRefactored(BaseDataset):
         num_frames = self._frames
 
         if self._text_emb_folder:
-            if isinstance(self._text_emb_folder, str):
-                with np.load(text_emb_path) as td:
-                    data["caption"] = td["text_emb"]
-                    data["mask"] = td["mask"].astype(np.uint8)
-            else:
-                for enc_name, path in text_emb_path.items():
-                    with np.load(path) as td:
-                        data[enc_name + "_caption"] = td["text_emb"]
-                        data[enc_name + "_mask"] = td["mask"].astype(np.uint8)
+            with np.load(text_emb_path) as td:
+                data["caption"] = td["text_emb"]
+                data["mask"] = td["mask"].astype(np.uint8)
 
         if self._vae_latent_folder:
             # pick a resolution randomly if there are multi-resolution latents in vae folder
@@ -286,33 +288,28 @@ class VideoDatasetRefactored(BaseDataset):
                 )  # / self._stride  # FIXME: OS v1.1 incorrect
                 del reader
             elif self.video_backend == "cv2":
-                if video_path.lower().endswith(IMAGE_EXT):
-                    num_frames = 1
-                    data["fps"] = np.array(120, dtype=np.float32)  # FIXME: extract as IMG_FPS
-                    video = cv2.cvtColor(cv2.imread(data["video"]), cv2.COLOR_BGR2RGB)
-                else:
-                    with VideoReader_CV2(video_path) as reader:
-                        min_length = self._min_length
-                        if self._buckets:
-                            data["bucket_id"] = self._buckets.get_bucket_id(
-                                T=len(reader),
-                                H=reader.shape[1],
-                                W=reader.shape[0],
-                                frame_interval=self._stride,
+                with VideoReader_CV2(video_path) as reader:
+                    min_length = self._min_length
+                    if self._buckets:
+                        data["bucket_id"] = self._buckets.get_bucket_id(
+                            T=len(reader),
+                            H=reader.shape[1],
+                            W=reader.shape[0],
+                            frame_interval=self._stride,
+                        )
+                        if data["bucket_id"] is None:
+                            raise ValueError(
+                                f"Couldn't assign a bucket to {data['video']}"
+                                f" (T={len(reader)}, H={reader.shape[1]}, W={reader.shape[0]})."
                             )
-                            if data["bucket_id"] is None:
-                                raise ValueError(
-                                    f"Couldn't assign a bucket to {data['video']}"
-                                    f" (T={len(reader)}, H={reader.shape[1]}, W={reader.shape[0]})."
-                                )
-                            num_frames, *_ = self._buckets.get_thw(data["bucket_id"])
-                            min_length = (num_frames - 1) * self._stride + 1
+                        num_frames, *_ = self._buckets.get_thw(data["bucket_id"])
+                        min_length = (num_frames - 1) * self._stride + 1
 
-                        if len(reader) < min_length:
-                            raise ValueError(f"Video is too short: {video_path}")
-                        start_pos = random.randint(0, len(reader) - min_length)
-                        video = reader.fetch_frames(num=num_frames, start_pos=start_pos, step=self._stride)
-                        data["fps"] = np.array(reader.fps, dtype=np.float32)
+                    if len(reader) < min_length:
+                        raise ValueError(f"Video is too short: {video_path}")
+                    start_pos = random.randint(0, len(reader) - min_length)
+                    video = reader.fetch_frames(num=num_frames, start_pos=start_pos, step=self._stride)
+                    data["fps"] = np.array(reader.fps, dtype=np.float32)
             else:
                 # TODO: add pyav backend and test
                 raise NotImplementedError
@@ -328,9 +325,14 @@ class VideoDatasetRefactored(BaseDataset):
         # apply transforms on video frames here
         if self.apply_train_transforms:
             # variable resize and crop, frame-wise
-            clip = self.pixel_transforms(video)
-            if clip.ndim == 3:
-                clip = np.expand_dims(clip, 0)
+            clip = []
+            for i in range(num_frames):
+                if self._buckets:
+                    resized_img = self.pixel_transforms(video[i], bucket_id=data["bucket_id"])
+                else:
+                    resized_img = self.pixel_transforms(video[i])
+                clip.append(resized_img)
+            clip = np.stack(clip, axis=0)
 
             # transpose and norm, clip-wise
             clip = np.transpose(clip, (0, 3, 1, 2))
@@ -410,7 +412,7 @@ class VideoDatasetRefactored(BaseDataset):
             transforms.extend(
                 [
                     {
-                        "operations": ResizeCrop(interpolation=cv2.INTER_AREA),
+                        "operations": BucketResizeCrop(self._buckets),
                         "input_columns": ["video", "bucket_id"],
                         "output_columns": ["video"],  # drop `bucket_id` column
                     },
@@ -430,7 +432,8 @@ class VideoDatasetRefactored(BaseDataset):
             transforms.append(
                 {
                     "operations": [
-                        ResizeCrop(target_size, interpolation=cv2.INTER_AREA),
+                        Resize(target_size, interpolation=Inter.BILINEAR),
+                        CenterCrop(target_size),
                         lambda x: np.divide(x, 127.5, dtype=np.float32),
                         lambda x: np.subtract(x, 1.0, dtype=np.float32),
                         lambda x: np.transpose(x, (0, 3, 1, 2)),
