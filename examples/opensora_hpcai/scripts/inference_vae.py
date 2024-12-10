@@ -11,8 +11,6 @@ import time
 import imageio
 import numpy as np
 
-from mindspore import nn, ops
-
 # from ae.models.lpips import LPIPS
 from omegaconf import OmegaConf
 from PIL import Image

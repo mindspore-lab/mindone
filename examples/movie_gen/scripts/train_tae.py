@@ -133,7 +133,6 @@ def init_env(
         # only effective in GE mode, i.e. jit_level: O2
         ms.set_context(ascend_config={"precision_mode": "allow_mix_precision_bf16"})
 
-
     return rank_id, device_num
 
 
