@@ -25,7 +25,7 @@ from ...loaders.single_file_model import FromOriginalModelMixin
 from ...utils import logging
 from ..activations import get_activation
 from ..downsampling import CogVideoXDownsample3D
-from ..layers_compat import fp32_interpolate, pad
+from ..layers_compat import pad, upsample_nearest3d_free_interpolate
 from ..modeling_outputs import AutoencoderKLOutput
 from ..modeling_utils import ModelMixin
 from ..normalization import GroupNorm
@@ -181,12 +181,11 @@ class CogVideoXSpatialNorm3D(nn.Cell):
             f_first, f_rest = f[:, :, :1], f[:, :, 1:]
             f_first_size, f_rest_size = f_first.shape[-3:], f_rest.shape[-3:]
             z_first, z_rest = zq[:, :, :1], zq[:, :, 1:]
-            # using fp32_interpolate as bfloat16 is not supported by original interpolate
-            z_first = fp32_interpolate(z_first, size=f_first_size)
-            z_rest = fp32_interpolate(z_rest, size=f_rest_size)
+            z_first = upsample_nearest3d_free_interpolate(z_first, size=f_first_size)
+            z_rest = upsample_nearest3d_free_interpolate(z_rest, size=f_rest_size)
             zq = ops.cat([z_first, z_rest], axis=2)
         else:
-            zq = fp32_interpolate(zq, size=f.shape[-3:])
+            zq = upsample_nearest3d_free_interpolate(zq, size=f.shape[-3:])
 
         conv_y, new_conv_cache["conv_y"] = self.conv_y(zq, conv_cache=conv_cache.get("conv_y"))
         conv_b, new_conv_cache["conv_b"] = self.conv_b(zq, conv_cache=conv_cache.get("conv_b"))
