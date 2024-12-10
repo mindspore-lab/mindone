@@ -5,7 +5,7 @@ from functools import partial
 from inspect import isfunction
 from collections import namedtuple
 from mindspore.common.initializer import initializer, Normal
-from .util import dtype_to_max
+from ..util import dtype_to_max
 
 # constants
 

@@ -142,7 +142,7 @@ class MV23DPredictor(object):
         input_image_list = []
         input_cam_list = []
         for input_view_image, elevation, azimuth in zip(input_imgs, elevation_list, azimuth_list):
-            input_view_image = self.input_view_transform(input_view_image)  # tuple(CHW)
+            input_view_image = self.input_view_transform(input_view_image)[0]  # tuple(CHW)
             input_image_list.append(ms.Tensor(input_view_image))
 
             input_view_cam_pos = self.create_camera_to_world_matrix(np.radians(elevation), np.radians(azimuth))

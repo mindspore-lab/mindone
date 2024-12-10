@@ -131,7 +131,7 @@ class RefOnlyNoisedUNet(nn.Cell):
             return getattr(self.unet, name)
 
     # @ms.jit FAILED
-    def construct(self, sample, timestep, encoder_hidden_states, cross_attention_kwargs, return_dict: bool, guidance_rescale=2.0):
+    def construct(self, sample, timestep, encoder_hidden_states, cross_attention_kwargs, return_dict: bool):
         cond_lat = cross_attention_kwargs['cond_lat']
         noise = ops.randn_like(cond_lat)
         if self.training and (self.train_sched is not None):
@@ -147,14 +147,12 @@ class RefOnlyNoisedUNet(nn.Cell):
                   encoder_hidden_states,  
                   cross_attention_kwargs=dict(mode="w", ref_dict=ref_dict), 
                   return_dict=return_dict,
-                  guidance_rescale=guidance_rescale,
                   )
         return  self.unet(sample, 
                           timestep, 
                           encoder_hidden_states, 
                           cross_attention_kwargs=dict(mode="r", ref_dict=ref_dict), 
                           return_dict=return_dict,
-                          guidance_rescale=guidance_rescale,
                         )
 
 
@@ -315,7 +313,7 @@ class Hunyuan3d_MVD_Lite_Pipeline(DiffusionPipeline, TextualInversionLoaderMixin
                  num_inference_steps=75, 
                  return_dict=True, 
                  generator=None,
-                 guidance_rescale=2.0 
+                 guidance_scale=2.0 # no use
                 ):
         batch_size = 1
         num_images_per_prompt = 1
@@ -383,8 +381,7 @@ class Hunyuan3d_MVD_Lite_Pipeline(DiffusionPipeline, TextualInversionLoaderMixin
                     self.unet(latent_model_input, t,
                                 encoder_hidden_states=prompt_embeds, 
                                 cross_attention_kwargs=cross_attention_kwargs, 
-                                return_dict=False,
-                                guidance_rescale=guidance_rescale)
+                                return_dict=False,)
                 )[0]
 
                 adaptive_guidance_scale = (2 + 16 * (t / 1000) ** 5) / 3

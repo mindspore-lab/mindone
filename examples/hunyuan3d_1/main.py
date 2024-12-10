@@ -59,9 +59,6 @@ def get_args():
         "--text2image_path", default="weights/hunyuanDiT", type=str
     )
     parser.add_argument(
-        "--mvd_ckt_path", default="weights/hunyuan3D", type=str
-    )
-    parser.add_argument(
         "--save_folder", default="./outputs/test/", type=str
     )
     parser.add_argument(
@@ -74,7 +71,7 @@ def get_args():
         "--device", default="Ascend", type=str
     )
     parser.add_argument(
-        "--mode", default=1, type=int, help="0 for GRAPH_MODE, 1 for PYNATIVE_MODE"
+        "--mode", default=1, type=int, help="0 for GRAPH_MODE (not supported), 1 for PYNATIVE_MODE"
     )
     parser.add_argument(
         "--t2i_seed", default=0, type=int
@@ -92,9 +89,6 @@ def get_args():
         "--max_faces_num", default=80000, type=int, 
         help="max num of face, suggest 80000 for effect, 10000 for speed"
     )
-    # parser.add_argument(
-    #     "--save_memory", default=False, action="store_true"
-    # ) # do not involve
     parser.add_argument(
         "--do_texture_mapping", default=False, action="store_true"
     )
@@ -129,13 +123,11 @@ if __name__ == "__main__":
         args.mv23d_cfg_path, 
         args.mv23d_ckt_path, 
         use_lite=args.use_lite,
-        save_memory=args.save_memory
     )
     
     if args.text_prompt:
         text_to_image_model = Text2Image(
             pretrain = args.text2image_path,
-            save_memory = args.save_memory
         )
     if args.do_render:
         gif_renderer = GifRenderer() 
@@ -161,7 +153,7 @@ if __name__ == "__main__":
     # stage 2, remove back ground
     print("START - Remove Image Background")
     res_rgba_pil = rembg_model(res_rgb_pil)
-    res_rgb_pil.save(os.path.join(args.save_folder, "img_nobg.png"))
+    res_rgba_pil.save(os.path.join(args.save_folder, "img_nobg.png"))
     print("END - Remove Image Background")
 
     # stage 3, image to views

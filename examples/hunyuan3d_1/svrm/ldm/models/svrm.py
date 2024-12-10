@@ -111,9 +111,9 @@ class SVRMModel(nn.Cell):
         self.img_encoder = instantiate_from_config(img_encoder_config).to_float(self._dtype) # FrozenDinoV2ImageEmbedder -> vision_transformer.py -> vit_base -> DinoVisionTransformer
         self.img_encoder.to(self._dtype) # weight dtype is fp16
         self.img_to_triplane_decoder = instantiate_from_config(img_to_triplane_config).to_float(self._dtype) # ImgToTriplaneModel
-        self.img_encoder.to(self._dtype) # weight dtype is fp16
+        self.img_to_triplane_decoder.to(self._dtype) # weight dtype is fp16
         self.render = instantiate_from_config(render_config) # TriplaneSynthesizer: inv requires float32
-        self.img_encoder.to(self._dtype) # weight dtype is fp16
+        self.render.to(self._dtype) # weight dtype is fp16
         count_params(self, verbose=True)   
 
     @property
@@ -169,10 +169,11 @@ class SVRMModel(nn.Cell):
         """
         
         obj_vertext_path = os.path.join(out_dir, 'mesh_with_colors.obj')
-        obj_path = os.path.join(out_dir, 'mesh.obj')
-        obj_texture_path = os.path.join(out_dir, 'texture.png')
-        obj_mtl_path = os.path.join(out_dir, 'texture.mtl')
-        glb_path = os.path.join(out_dir, 'mesh.glb')
+        if do_texture_mapping:
+            obj_path = os.path.join(out_dir, 'mesh.obj')
+            obj_texture_path = os.path.join(out_dir, 'texture.png')
+            obj_mtl_path = os.path.join(out_dir, 'texture.mtl')
+            glb_path = os.path.join(out_dir, 'mesh.glb')
 
         st = time.time()
         
@@ -266,12 +267,7 @@ class SVRMModel(nn.Cell):
         print(f"=====> generate mesh with vertex shading time: {time.time() - st}")
         st = time.time()
 
-        if not do_texture_mapping:
-            mesh = trimesh.load_mesh(obj_vertext_path)
-            shutil.copy(obj_vertext_path, obj_path)
-            mesh.export(glb_path, file_type='glb')    
-            print(f"=====> save glb mesh with no texture time: {time.time() - st}")
-        
+        if not do_texture_mapping:        
             return None
             
 
