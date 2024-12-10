@@ -19,6 +19,7 @@ import mindspore as ms
 from mindspore import nn, ops
 
 from ...configuration_utils import ConfigMixin, register_to_config
+from ...loaders import PeftAdapterMixin
 from ...utils import logging
 from ..attention import Attention, FeedForward
 from ..attention_processor import AttentionProcessor, CogVideoXAttnProcessor2_0, FusedCogVideoXAttnProcessor2_0
@@ -149,7 +150,7 @@ class CogVideoXBlock(nn.Cell):
         return hidden_states, encoder_hidden_states
 
 
-class CogVideoXTransformer3DModel(ModelMixin, ConfigMixin):
+class CogVideoXTransformer3DModel(ModelMixin, ConfigMixin, PeftAdapterMixin):
     """
     A Transformer model for video-like data in [CogVideoX](https://github.com/THUDM/CogVideo).
 
