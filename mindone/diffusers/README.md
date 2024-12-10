@@ -29,13 +29,13 @@ limitations under the License.
 > [!WARNING]
 > Due to differences in framework, some APIs will not be identical to [huggingface/diffusers](https://github.com/huggingface/diffusers) in the foreseeable future, see [Limitations](#Limitations) for details.
 
-🤗 Diffusers is the go-to library for state-of-the-art pretrained diffusion models for generating images, audio, and even 3D structures of molecules. Whether you're looking for a simple inference solution or training your own diffusion models, 🤗 Diffusers is a modular toolbox that supports both. Our library is designed with a focus on [usability over performance](https://huggingface.co/docs/diffusers/conceptual/philosophy#usability-over-performance), [simple over easy](https://huggingface.co/docs/diffusers/conceptual/philosophy#simple-over-easy), and [customizability over abstractions](https://huggingface.co/docs/diffusers/conceptual/philosophy#tweakable-contributorfriendly-over-abstraction).
+🤗 Diffusers is the go-to library for state-of-the-art pretrained diffusion models for generating images, audio, and even 3D structures of molecules. Whether you're looking for a simple inference solution or training your own diffusion models, 🤗 Diffusers is a modular toolbox that supports both. Our library is designed with a focus on [usability over performance](https://mindspore-lab.github.io/mindone/latest/diffusers/conceptual/philosophy/#usability-over-performance), [simple over easy](https://mindspore-lab.github.io/mindone/latest/diffusers/conceptual/philosophy/#simple-over-easy), and [customizability over abstractions](https://mindspore-lab.github.io/mindone/latest/diffusers/conceptual/philosophy/#tweakable-contributor-friendly-over-abstraction).
 
 🤗 Diffusers offers three core components:
 
-- State-of-the-art [diffusion pipelines](https://huggingface.co/docs/diffusers/api/pipelines/overview) that can be run in inference with just a few lines of code.
-- Interchangeable noise [schedulers](https://huggingface.co/docs/diffusers/api/schedulers/overview) for different diffusion speeds and output quality.
-- Pretrained [models](https://huggingface.co/docs/diffusers/api/models/overview) that can be used as building blocks, and combined with schedulers, for creating your own end-to-end diffusion systems.
+- State-of-the-art [diffusion pipelines](https://mindspore-lab.github.io/mindone/latest/diffusers/api/pipelines/overview) that can be run in inference with just a few lines of code.
+- Interchangeable noise [schedulers](https://mindspore-lab.github.io/mindone/latest/diffusers/api/schedulers/overview) for different diffusion speeds and output quality.
+- Pretrained [models](https://mindspore-lab.github.io/mindone/latest/diffusers/api/models/overview) that can be used as building blocks, and combined with schedulers, for creating your own end-to-end diffusion systems.
 
 ## Quickstart
 
@@ -83,7 +83,7 @@ image = Image.fromarray((image * 255).round().astype("uint8"))
 image
 ```
 
-Check out the [Quickstart](https://huggingface.co/docs/diffusers/quicktour) to launch your diffusion journey today!
+Check out the [Quickstart](https://mindspore-lab.github.io/mindone/latest/diffusers/quicktour/) to launch your diffusion journey today!
 
 ## Roadmap
 

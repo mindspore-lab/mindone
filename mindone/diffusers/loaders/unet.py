@@ -11,11 +11,10 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-import inspect
 import os
 from functools import partial
 from pathlib import Path
-from typing import Callable, Dict, List, Optional, Union
+from typing import Callable, Dict, Union
 
 from huggingface_hub.utils import validate_hf_hub_args
 
@@ -34,17 +33,13 @@ from ..models.embeddings import (
 from ..utils import (
     _get_model_file,
     convert_unet_state_dict_to_peft,
-    delete_adapter_layers,
     get_adapter_name,
     get_peft_kwargs,
     is_peft_version,
     logging,
-    set_adapter_layers,
-    set_weights_and_activate_adapters,
 )
-from .lora import LORA_WEIGHT_NAME, LORA_WEIGHT_NAME_SAFE, TEXT_ENCODER_NAME, UNET_NAME
+from .lora_pipeline import LORA_WEIGHT_NAME, LORA_WEIGHT_NAME_SAFE, TEXT_ENCODER_NAME, UNET_NAME
 from .single_file_utils import _load_param_into_net
-from .unet_loader_utils import _maybe_expand_lora_scales
 
 logger = logging.get_logger(__name__)
 
@@ -67,7 +62,7 @@ class UNet2DConditionLoadersMixin:
         Load pretrained attention processor layers into [`UNet2DConditionModel`]. Attention processor layers have to be
         defined in
         [`attention_processor.py`](https://github.com/huggingface/diffusers/blob/main/src/diffusers/models/attention_processor.py)
-        and be a `torch.nn.Module` class. Currently supported: LoRA, Custom Diffusion. For LoRA, one must install
+        and be a `mindspore.nn.Cell` class. Currently supported: LoRA, Custom Diffusion. For LoRA, one must install
         `peft`: `pip install -U peft`.
 
         Parameters:
@@ -78,8 +73,7 @@ class UNet2DConditionLoadersMixin:
                       the Hub.
                     - A path to a directory (for example `./my_model_directory`) containing the model weights saved
                       with [`ModelMixin.save_pretrained`].
-                    - A [torch state
-                      dict](https://pytorch.org/tutorials/beginner/saving_loading_models.html#what-is-a-state-dict).
+                    - A mindspore state dict.
 
             cache_dir (`Union[str, os.PathLike]`, *optional*):
                 Path to a directory where a downloaded pretrained model configuration is cached if the standard cache
@@ -87,9 +81,7 @@ class UNet2DConditionLoadersMixin:
             force_download (`bool`, *optional*, defaults to `False`):
                 Whether or not to force the (re-)download of the model weights and configuration files, overriding the
                 cached versions if they exist.
-            resume_download:
-                Deprecated and ignored. All downloads are now resumed by default when possible. Will be removed in v1
-                of Diffusers.
+
             proxies (`Dict[str, str]`, *optional*):
                 A dictionary of proxy servers to use by protocol or endpoint, for example, `{'http': 'foo.bar:3128',
                 'http://hostname': 'foo.bar:4012'}`. The proxies are used on each request.
@@ -117,12 +109,12 @@ class UNet2DConditionLoadersMixin:
         Example:
 
         ```py
-        from diffusers import AutoPipelineForText2Image
-        import torch
+        from mindone.diffusers import AutoPipelineForText2Image
+        import mindspore as ms
 
         pipeline = AutoPipelineForText2Image.from_pretrained(
-            "stabilityai/stable-diffusion-xl-base-1.0", torch_dtype=torch.float16
-        ).to("cuda")
+            "stabilityai/stable-diffusion-xl-base-1.0", mindspore_dtype=ms.float16
+        )
         pipeline.unet.load_attn_procs(
             "jbilcke-hf/sdxl-cinematic-1", weight_name="pytorch_lora_weights.safetensors", adapter_name="cinematic"
         )
@@ -130,7 +122,6 @@ class UNet2DConditionLoadersMixin:
         """
         cache_dir = kwargs.pop("cache_dir", None)
         force_download = kwargs.pop("force_download", False)
-        resume_download = kwargs.pop("resume_download", None)
         proxies = kwargs.pop("proxies", None)
         local_files_only = kwargs.pop("local_files_only", None)
         token = kwargs.pop("token", None)
@@ -170,7 +161,6 @@ class UNet2DConditionLoadersMixin:
                         weights_name=weight_name or LORA_WEIGHT_NAME_SAFE,
                         cache_dir=cache_dir,
                         force_download=force_download,
-                        resume_download=resume_download,
                         proxies=proxies,
                         local_files_only=local_files_only,
                         token=token,
@@ -190,7 +180,6 @@ class UNet2DConditionLoadersMixin:
                     weights_name=weight_name or LORA_WEIGHT_NAME,
                     cache_dir=cache_dir,
                     force_download=force_download,
-                    resume_download=resume_download,
                     proxies=proxies,
                     local_files_only=local_files_only,
                     token=token,
@@ -317,7 +306,7 @@ class UNet2DConditionLoadersMixin:
                 process to avoid race conditions.
             save_function (`Callable`):
                 The function to use to save the state dictionary. Useful during distributed training when you need to
-                replace `torch.save` with another method. Can be configured with the environment variable
+                replace `MindSpore.save_checkpoint` with another method. Can be configured with the environment variable
                 `DIFFUSERS_SAVE_MODE`.
             safe_serialization (`bool`, *optional*, defaults to `True`):
                 Whether to save the model using `safetensors` or with `pickle`.
@@ -372,173 +361,6 @@ class UNet2DConditionLoadersMixin:
         save_path = Path(save_directory, weight_name).as_posix()
         save_function(state_dict, save_path)
         logger.info(f"Model weights saved in {save_path}")
-
-    def fuse_lora(self, lora_scale=1.0, safe_fusing=False, adapter_names=None):
-        self.lora_scale = lora_scale
-        self._safe_fusing = safe_fusing
-        self.apply(partial(self._fuse_lora_apply, adapter_names=adapter_names))
-
-    def _fuse_lora_apply(self, module, adapter_names=None):
-        from mindone.diffusers._peft.tuners.tuners_utils import BaseTunerLayer
-
-        merge_kwargs = {"safe_merge": self._safe_fusing}
-
-        if isinstance(module, BaseTunerLayer):
-            if self.lora_scale != 1.0:
-                module.scale_layer(self.lora_scale)
-
-            # For BC with previous PEFT versions, we need to check the signature
-            # of the `merge` method to see if it supports the `adapter_names` argument.
-            supported_merge_kwargs = list(inspect.signature(module.merge).parameters)
-            if "adapter_names" in supported_merge_kwargs:
-                merge_kwargs["adapter_names"] = adapter_names
-            elif "adapter_names" not in supported_merge_kwargs and adapter_names is not None:
-                raise RuntimeError("The `adapter_names` argument is not supported with `BaseTunerLayer.merge`")
-
-            module.merge(**merge_kwargs)
-
-    def unfuse_lora(self):
-        self.apply(self._unfuse_lora_apply)
-
-    def _unfuse_lora_apply(self, module):
-        from mindone.diffusers._peft.tuners.tuners_utils import BaseTunerLayer
-
-        if isinstance(module, BaseTunerLayer):
-            module.unmerge()
-
-    def unload_lora(self):
-        from ..utils import recurse_remove_peft_layers
-
-        recurse_remove_peft_layers(self)
-        if hasattr(self, "peft_config"):
-            del self.peft_config
-
-    def set_adapters(
-        self,
-        adapter_names: Union[List[str], str],
-        weights: Optional[Union[float, Dict, List[float], List[Dict], List[None]]] = None,
-    ):
-        """
-        Set the currently active adapters for use in the UNet.
-
-        Args:
-            adapter_names (`List[str]` or `str`):
-                The names of the adapters to use.
-            weights (`Union[List[float], float]`, *optional*):
-                The adapter(s) weights to use with the UNet. If `None`, the weights are set to `1.0` for all the
-                adapters.
-
-        Example:
-
-        ```py
-        from diffusers import AutoPipelineForText2Image
-        import torch
-
-        pipeline = AutoPipelineForText2Image.from_pretrained(
-            "stabilityai/stable-diffusion-xl-base-1.0", torch_dtype=torch.float16
-        ).to("cuda")
-        pipeline.load_lora_weights(
-            "jbilcke-hf/sdxl-cinematic-1", weight_name="pytorch_lora_weights.safetensors", adapter_name="cinematic"
-        )
-        pipeline.load_lora_weights("nerijs/pixel-art-xl", weight_name="pixel-art-xl.safetensors", adapter_name="pixel")
-        pipeline.set_adapters(["cinematic", "pixel"], adapter_weights=[0.5, 0.5])
-        ```
-        """
-        adapter_names = [adapter_names] if isinstance(adapter_names, str) else adapter_names
-
-        # Expand weights into a list, one entry per adapter
-        # examples for e.g. 2 adapters:  [{...}, 7] -> [7,7] ; None -> [None, None]
-        if not isinstance(weights, list):
-            weights = [weights] * len(adapter_names)
-
-        if len(adapter_names) != len(weights):
-            raise ValueError(
-                f"Length of adapter names {len(adapter_names)} is not equal to the length of their weights {len(weights)}."
-            )
-
-        # Set None values to default of 1.0
-        # e.g. [{...}, 7] -> [{...}, 7] ; [None, None] -> [1.0, 1.0]
-        weights = [w if w is not None else 1.0 for w in weights]
-
-        # e.g. [{...}, 7] -> [{expanded dict...}, 7]
-        weights = _maybe_expand_lora_scales(self, weights)
-
-        set_weights_and_activate_adapters(self, adapter_names, weights)
-
-    def disable_lora(self):
-        """
-        Disable the UNet's active LoRA layers.
-
-        Example:
-
-        ```py
-        from diffusers import AutoPipelineForText2Image
-        import torch
-
-        pipeline = AutoPipelineForText2Image.from_pretrained(
-            "stabilityai/stable-diffusion-xl-base-1.0", torch_dtype=torch.float16
-        ).to("cuda")
-        pipeline.load_lora_weights(
-            "jbilcke-hf/sdxl-cinematic-1", weight_name="pytorch_lora_weights.safetensors", adapter_name="cinematic"
-        )
-        pipeline.disable_lora()
-        ```
-        """
-        set_adapter_layers(self, enabled=False)
-
-    def enable_lora(self):
-        """
-        Enable the UNet's active LoRA layers.
-
-        Example:
-
-        ```py
-        from diffusers import AutoPipelineForText2Image
-        import torch
-
-        pipeline = AutoPipelineForText2Image.from_pretrained(
-            "stabilityai/stable-diffusion-xl-base-1.0", torch_dtype=torch.float16
-        ).to("cuda")
-        pipeline.load_lora_weights(
-            "jbilcke-hf/sdxl-cinematic-1", weight_name="pytorch_lora_weights.safetensors", adapter_name="cinematic"
-        )
-        pipeline.enable_lora()
-        ```
-        """
-        set_adapter_layers(self, enabled=True)
-
-    def delete_adapters(self, adapter_names: Union[List[str], str]):
-        """
-        Delete an adapter's LoRA layers from the UNet.
-
-        Args:
-            adapter_names (`Union[List[str], str]`):
-                The names (single string or list of strings) of the adapter to delete.
-
-        Example:
-
-        ```py
-        from diffusers import AutoPipelineForText2Image
-        import torch
-
-        pipeline = AutoPipelineForText2Image.from_pretrained(
-            "stabilityai/stable-diffusion-xl-base-1.0", torch_dtype=torch.float16
-        ).to("cuda")
-        pipeline.load_lora_weights(
-            "jbilcke-hf/sdxl-cinematic-1", weight_name="pytorch_lora_weights.safetensors", adapter_names="cinematic"
-        )
-        pipeline.delete_adapters("cinematic")
-        ```
-        """
-        if isinstance(adapter_names, str):
-            adapter_names = [adapter_names]
-
-        for adapter_name in adapter_names:
-            delete_adapter_layers(self, adapter_name)
-
-            # Pop also the corresponding adapter from the config
-            if hasattr(self, "peft_config"):
-                self.peft_config.pop(adapter_name, None)
 
     def _convert_ip_adapter_image_proj_to_diffusers(self, state_dict):
         updated_state_dict = {}
@@ -737,7 +559,7 @@ class UNet2DConditionLoadersMixin:
         return image_projection
 
     def _convert_ip_adapter_attn_to_diffusers(self, state_dicts):
-        from ..models.attention_processor import AttnProcessor, IPAdapterAttnProcessor
+        from ..models.attention_processor import IPAdapterAttnProcessor
 
         # set ip-adapter cross-attention processors & load state_dict
         attn_procs = {}
@@ -755,7 +577,7 @@ class UNet2DConditionLoadersMixin:
                 hidden_size = self.config.block_out_channels[block_id]
 
             if cross_attention_dim is None or "motion_modules" in name:
-                attn_processor_class = AttnProcessor
+                attn_processor_class = self.attn_processors[name].__class__
                 attn_procs[name] = attn_processor_class()
 
             else:
@@ -798,6 +620,16 @@ class UNet2DConditionLoadersMixin:
     def _load_ip_adapter_weights(self, state_dicts):
         if not isinstance(state_dicts, list):
             state_dicts = [state_dicts]
+
+        # Kolors Unet already has a `encoder_hid_proj`
+        if (
+            self.encoder_hid_proj is not None
+            and self.config.encoder_hid_dim_type == "text_proj"
+            and not hasattr(self, "text_encoder_hid_proj")
+        ):
+            self.has_text_encoder_hid_proj = True
+            self.text_encoder_hid_proj = self.encoder_hid_proj
+
         # Set encoder_hid_proj after loading ip_adapter weights,
         # because `IPAdapterPlusImageProjection` also has `attn_processors`.
         self.encoder_hid_proj = None

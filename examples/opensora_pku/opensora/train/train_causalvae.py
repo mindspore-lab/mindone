@@ -59,7 +59,7 @@ def main(args):
     # Load Config
     assert os.path.exists(args.model_config), f"{args.model_config} does not exist!"
     model_config = json.load(open(args.model_config, "r"))
-    ae = CausalVAEModel.from_config(model_config)
+    ae = CausalVAEModel.from_config(model_config, use_recompute=args.use_recompute)
     if args.load_from_checkpoint is not None:
         ae.init_from_ckpt(args.load_from_checkpoint)
     # discriminator (D)
@@ -278,6 +278,7 @@ def main(args):
             weight_decay=args.weight_decay,
         )
         loss_scaler_disc = create_loss_scaler(args)
+        scaling_sens_d = loss_scaler_disc.loss_scale_value
 
     assert args.ema_start_step == 0, "Now only support to update EMA from the first step"
     ema = EMA(ae_with_loss.autoencoder, ema_decay=args.ema_decay, offloading=args.ema_offload) if args.use_ema else None
@@ -345,6 +346,7 @@ def main(args):
                 f"MindSpore mode[GRAPH(0)/PYNATIVE(1)]: {args.mode}",
                 f"Jit level: {args.jit_level}",
                 f"Distributed mode: {args.use_parallel}",
+                f"Recompute: {args.use_recompute}",
                 f"amp level: {amp_level}",
                 f"dtype: {args.precision}",
                 f"Use discriminator: {args.use_discriminator}",
@@ -443,19 +445,27 @@ def main(args):
 
                 cur_global_step = epoch * dataset_size + step + 1  # starting from 1 for logging
                 if overflow:
-                    logger.warning(f"Overflow occurs in step {cur_global_step}")
+                    logger.warning(
+                        f"Overflow occurs in step {cur_global_step} in autoencoder"
+                        + (", drop update." if args.drop_overflow_update else ", still update.")
+                    )
+                if global_step >= disc_start and overflow_d:
+                    logger.warning(
+                        f"Overflow occurs in step {cur_global_step} in discriminator"
+                        + (", drop update." if args.drop_overflow_update else ", still update.")
+                    )
 
                 # log
                 step_time = time.time() - start_time_s
                 if step % args.log_interval == 0:
                     loss_ae = float(loss_ae_t.asnumpy())
                     logger.info(
-                        f"E: {epoch+1}, S: {step+1}, Loss ae: {loss_ae:.4f}, ae loss scaler {loss_scaler_ae.loss_scale_value},"
+                        f"E: {epoch+1}, S: {step+1}, Loss ae: {loss_ae:.4f}, ae loss scaler {scaling_sens},"
                         + f" Step time: {step_time*1000:.2f}ms"
                     )
                     if global_step >= disc_start:
                         loss_disc = float(loss_disc_t.asnumpy())
-                        logger.info(f"Loss disc: {loss_disc:.4f}, disc loss scaler {loss_scaler_disc.loss_scale_value}")
+                        logger.info(f"Loss disc: {loss_disc:.4f}, disc loss scaler {scaling_sens_d}")
                         loss_log_file.write(f"{cur_global_step}\t{loss_ae:.7f}\t{loss_disc:.7f}\t{step_time:.2f}\n")
                     else:
                         loss_log_file.write(f"{cur_global_step}\t{loss_ae:.7f}\t{0.0}\t{step_time:.2f}\n")
@@ -478,7 +488,7 @@ def main(args):
                                 os.path.join(ckpt_dir, "train_resume.ckpt"),
                                 append_dict={
                                     "epoch_num": cur_epoch - 1,
-                                    "loss_scale": loss_scaler_ae.loss_scale_value,
+                                    "loss_scale": scaling_sens,
                                 },
                             )
                             ms.save_checkpoint(
@@ -486,7 +496,7 @@ def main(args):
                                 os.path.join(ckpt_dir, "train_resume_disc.ckpt"),
                                 append_dict={
                                     "epoch_num": cur_epoch - 1,
-                                    "loss_scale": loss_scaler_disc.loss_scale_value,
+                                    "loss_scale": scaling_sens_d,
                                 },
                             )
                         if ema is not None:
@@ -519,7 +529,7 @@ def main(args):
                             os.path.join(ckpt_dir, "train_resume.ckpt"),
                             append_dict={
                                 "epoch_num": cur_epoch - 1,
-                                "loss_scale": loss_scaler_ae.loss_scale_value,
+                                "loss_scale": scaling_sens,
                             },
                         )
                         ms.save_checkpoint(
@@ -527,7 +537,7 @@ def main(args):
                             os.path.join(ckpt_dir, "train_resume_disc.ckpt"),
                             append_dict={
                                 "epoch_num": cur_epoch - 1,
-                                "loss_scale": loss_scaler_disc.loss_scale_value,
+                                "loss_scale": scaling_sens_d,
                             },
                         )
                     if ema is not None:

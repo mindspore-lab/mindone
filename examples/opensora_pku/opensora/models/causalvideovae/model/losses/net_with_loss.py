@@ -74,8 +74,6 @@ class GeneratorWithLoss(nn.Cell):
         return kl_loss
 
     def loss_function(self, x, recons, mean, logvar, global_step: ms.Tensor = -1, weights: ms.Tensor = None, cond=None):
-        bs = x.shape[0]
-
         # For videos, treat them as independent frame images
         # TODO: regularize on temporal consistency
         t = x.shape[2]
@@ -94,15 +92,15 @@ class GeneratorWithLoss(nn.Cell):
         nll_loss = rec_loss / ops.exp(self.logvar) + self.logvar
         if weights is not None:
             weighted_nll_loss = weights * nll_loss
-            mean_weighted_nll_loss = weighted_nll_loss.sum() / bs
+            mean_weighted_nll_loss = weighted_nll_loss.sum() / weighted_nll_loss.shape[0]
             # mean_nll_loss = nll_loss.sum() / bs
         else:
-            mean_weighted_nll_loss = nll_loss.sum() / bs
+            mean_weighted_nll_loss = nll_loss.sum() / nll_loss.shape[0]
             # mean_nll_loss = mean_weighted_nll_loss
 
         # 2.3 kl loss
         kl_loss = self.kl(mean, logvar)
-        kl_loss = kl_loss.sum() / bs
+        kl_loss = kl_loss.sum() / kl_loss.shape[0]
 
         loss = mean_weighted_nll_loss + self.kl_weight * kl_loss
 

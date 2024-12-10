@@ -137,11 +137,6 @@ def init_env(
     if dynamic_shape:
         print("Dynamic shape mode enabled, repeat_interleave/split/chunk will be called from mint module")
         set_dynamic_mode(True)
-        if mode == 0:
-            # FIXME: this is a temp fix for dynamic shape training in graph mode. may remove in future version.
-            # can append adamw fusion flag if use nn.AdamW optimzation for acceleration
-            ms.set_context(graph_kernel_flags="--disable_packet_ops=Reshape")
-            print("D--: disable reshape packet")
 
     return rank_id, device_num
 

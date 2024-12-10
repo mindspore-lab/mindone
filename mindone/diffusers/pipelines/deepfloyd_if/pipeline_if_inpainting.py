@@ -61,7 +61,7 @@ EXAMPLE_DOC_STRING = """
     Examples:
         ```py
         >>> from mindone.diffusers import IFInpaintingPipeline, IFInpaintingSuperResolutionPipeline, DiffusionPipeline
-        >>> from mindone.diffusers.utils import pt_to_pil
+        >>> from mindone.diffusers.utils import ms_to_pil
         >>> import mindspore
         >>> from PIL import Image
         >>> import requests
@@ -89,11 +89,11 @@ EXAMPLE_DOC_STRING = """
         ...     mask_image=mask_image,
         ...     prompt_embeds=prompt_embeds,
         ...     negative_prompt_embeds=negative_embeds,
-        ...     output_type="pt",
+        ...     output_type="ms",
         ... )[0]
 
         >>> # save intermediate image
-        >>> pil_image = pt_to_pil(image)
+        >>> pil_image = ms_to_pil(image)
         >>> pil_image[0].save("./if_stage_I.png")
 
         >>> super_res_1_pipe = IFInpaintingSuperResolutionPipeline.from_pretrained(
@@ -245,12 +245,12 @@ class IFInpaintingPipeline(DiffusionPipeline, LoraLoaderMixin):
                 add_special_tokens=True,
                 return_tensors="np",
             )
-            text_input_ids = ms.Tensor.from_numpy(text_inputs.input_ids)
-            untruncated_ids = ms.Tensor.from_numpy(
-                self.tokenizer(prompt, padding="longest", return_tensors="np").input_ids
-            )
+            text_input_ids = text_inputs.input_ids
+            untruncated_ids = self.tokenizer(prompt, padding="longest", return_tensors="np").input_ids
 
-            if untruncated_ids.shape[-1] >= text_input_ids.shape[-1] and not ops.equal(text_input_ids, untruncated_ids):
+            if untruncated_ids.shape[-1] >= text_input_ids.shape[-1] and not np.array_equal(
+                text_input_ids, untruncated_ids
+            ):
                 removed_text = self.tokenizer.batch_decode(untruncated_ids[:, max_length - 1 : -1])
                 logger.warning(
                     "The following part of your input was truncated because CLIP can only handle sequences up to"
@@ -260,7 +260,7 @@ class IFInpaintingPipeline(DiffusionPipeline, LoraLoaderMixin):
             attention_mask = ms.Tensor.from_numpy(text_inputs.attention_mask)
 
             prompt_embeds = self.text_encoder(
-                text_input_ids,
+                ms.tensor(text_input_ids),
                 attention_mask=attention_mask,
             )
             prompt_embeds = prompt_embeds[0]
@@ -622,7 +622,7 @@ class IFInpaintingPipeline(DiffusionPipeline, LoraLoaderMixin):
         if not isinstance(image, list):
             image = [image]
 
-        def numpy_to_pt(images):
+        def numpy_to_ms(images):
             if images.ndim == 3:
                 images = images[..., None]
 
@@ -643,11 +643,11 @@ class IFInpaintingPipeline(DiffusionPipeline, LoraLoaderMixin):
             image = new_image
 
             image = np.stack(image, axis=0)  # to np
-            image = numpy_to_pt(image)  # to pt
+            image = numpy_to_ms(image)  # to pt
 
         elif isinstance(image[0], np.ndarray):
             image = np.concatenate(image, axis=0) if image[0].ndim == 4 else np.stack(image, axis=0)
-            image = numpy_to_pt(image)
+            image = numpy_to_ms(image)
 
         elif isinstance(image[0], ms.Tensor):
             image = ops.cat(image, axis=0) if image[0].ndim == 4 else ops.stack(image, axis=0)
@@ -998,7 +998,7 @@ class IFInpaintingPipeline(DiffusionPipeline, LoraLoaderMixin):
             # 11. Apply watermark
             if self.watermarker is not None:
                 self.watermarker.apply_watermark(image, self.unet.config.sample_size)
-        elif output_type == "pt":
+        elif output_type == "ms":
             nsfw_detected = None
             watermark_detected = None
         else:
@@ -1008,6 +1008,7 @@ class IFInpaintingPipeline(DiffusionPipeline, LoraLoaderMixin):
 
             # 9. Run safety checker
             image, nsfw_detected, watermark_detected = self.run_safety_checker(image, prompt_embeds.dtype)
+            image = image.numpy()
 
         if not return_dict:
             return (image, nsfw_detected, watermark_detected)
