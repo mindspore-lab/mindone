@@ -1,6 +1,4 @@
 import copy
-import itertools
-import re
 import os
 import json
 from enum import auto, Enum
@@ -12,7 +10,6 @@ import cv2
 import imageio
 import numpy as np
 import mindspore as ms
-import mindnlp
 import mindnlp.core.ops as ops
 import mindspore.dataset.vision as vision
 import mindspore.dataset.transforms as transforms

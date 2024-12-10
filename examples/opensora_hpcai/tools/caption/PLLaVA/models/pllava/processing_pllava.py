@@ -1,29 +1,13 @@
-# coding=utf-8
-# Copyright 2023 The HuggingFace Inc. team.
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
 """
 Processor class for Llava.
 """
 
-
-import itertools
 from typing import List, Optional, Union
 import PIL.Image
 import numpy as np
 
-from mindnlp.transformers.feature_extraction_utils import BatchFeature
-from mindnlp.transformers.image_utils import (
+from transformers.feature_extraction_utils import BatchFeature
+from transformers.image_utils import (
     ImageInput,
     make_list_of_images,
     valid_images,
@@ -31,16 +15,16 @@ from mindnlp.transformers.image_utils import (
     to_numpy_array,
     get_image_size,
     ChannelDimension,
-    PILImageResampling,
 )
-from mindnlp.transformers.processing_utils import ProcessorMixin
-from mindnlp.transformers.image_transforms import resize, pad, PaddingMode, to_channel_dimension_format, get_resize_output_image_size
-from mindnlp.transformers.tokenization_utils_base import PaddingStrategy, PreTokenizedInput, TextInput, TruncationStrategy
+from transformers.image_utils import PILImageResampling
+from transformers.processing_utils import ProcessorMixin
+from transformers.image_transforms import resize, get_resize_output_image_size
+from transformers.tokenization_utils_base import PaddingStrategy, PreTokenizedInput, TextInput, TruncationStrategy
 
 
 class PllavaProcessor(ProcessorMixin):
     r"""
-    Constructs a Llava processor which wraps a Llava image processor and a Llava tokenizer into a single processor.
+    Constructs a PLlava processor which wraps a PLlava image processor and a PLlava tokenizer into a single processor.
 
     [`LlavaProcessor`] offers all the functionalities of [`CLIPImageProcessor`] and [`LlamaTokenizerFast`]. See the
     [`~LlavaProcessor.__call__`] and [`~LlavaProcessor.decode`] for more information.
@@ -177,7 +161,7 @@ class PllavaProcessor(ProcessorMixin):
         padding: Union[bool, str, PaddingStrategy] = False,
         truncation: Union[bool, str, TruncationStrategy] = None,
         max_length=None,
-        return_tensors: Optional[str] = "ms",
+        return_tensors: Optional[str] = "np",
     ) -> BatchFeature:
         """
         Main method to prepare for the model one or several sequences(s) and image(s). This method forwards the `text`
@@ -210,11 +194,7 @@ class PllavaProcessor(ProcessorMixin):
                 Activates truncation to cut input sequences longer than `max_length` to `max_length`.
             return_tensors (`str` or [`~utils.TensorType`], *optional*):
                 If set, will return tensors of a particular framework. Acceptable values are:
-
-                - `'tf'`: Return TensorFlow `tf.constant` objects.
-                - `'pt'`: Return PyTorch `torch.Tensor` objects.
                 - `'np'`: Return NumPy `np.ndarray` objects.
-                - `'jax'`: Return JAX `jnp.ndarray` objects.
 
         Returns:
             [`BatchFeature`]: A [`BatchFeature`] with the following fields:
@@ -242,7 +222,7 @@ class PllavaProcessor(ProcessorMixin):
                 if not valid_images(images):
                     raise ValueError(
                         "Invalid image type. Must be of type PIL.Image.Image, numpy.ndarray, "
-                        "ms.Tensor, tf.Tensor or jax.ndarray."
+                        " tf.Tensor or jax.ndarray."
                     )                
 
                 center_pad = center_pad if center_pad is not None else self.center_pad
