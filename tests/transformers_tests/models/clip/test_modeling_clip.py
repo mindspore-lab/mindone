@@ -295,6 +295,10 @@ def test_named_modules(
     dtype,
     mode,
 ):
+    # FIXME: restore bf16 test cases after the model.to bug is fixed
+    if dtype == "bf16":
+        pytest.skip("Skipping bf16 cases after `model.to` bug is fixed.")
+
     ms.set_context(mode=mode)
 
     (
