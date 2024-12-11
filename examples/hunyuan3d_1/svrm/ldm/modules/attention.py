@@ -260,8 +260,7 @@ class FlashAttention(nn.Cell):
             nn.Dense(inner_dim, query_dim),
             nn.Dropout(p = dropout)
         )
-
-        self.flash_attention = MSFlashAttention(head_dim=dim_head, head_num=heads, input_layout="BNSD")
+    
         self.flash_attention = MSFlashAttention(
                 head_dim=dim_head,
                 head_num=heads,
