@@ -71,6 +71,10 @@ character-level text understanding for the backbone:
 
 # Installation
 
+| MindSpore | Ascend Driver |  Firmware   | CANN toolkit/kernel |
+|:---------:|:-------------:|:-----------:|:-------------------:|
+|   2.3.1   |   24.1.RC2    | 7.3.0.1.231 |    8.0.RC2.beta1    |
+
 1. Install MindSpore according to the [official instructions](https://www.mindspore.cn/install).
    For Ascend devices, please install
    [CANN8.0.RC2.beta1](https://www.hiascend.com/developer/download/community/result?module=cann&cann=8.0.RC2.beta1)
@@ -85,11 +89,11 @@ character-level text understanding for the backbone:
 <details>
 <summary><b>TAE</b></summary>
 
-We use SD3.5 VAE to initialize the spatial layers of TAE since both have a latent channel of 16.
+We use SD3.5 VAE to initialize the spatial layers of TAE since both have the same number of latent channels, i.e., 16.
 
-1. Download SD3.5 VAE from https://huggingface.co/stabilityai/stable-diffusion-3.5-large/tree/main/vae
+1. Download SD3.5 VAE from [huggingface](https://huggingface.co/stabilityai/stable-diffusion-3.5-large/tree/main/vae)
 
-2. Convert VAE checkpoint for TAE loading
+2. Inflate VAE checkpoint for TAE initialization by
     ```shell
     python inflate_vae_to_tae.py --src /path/to/sd3.5_vae/diffusion_pytorch_model.safetensors --target models/tae_vae2d.ckpt
     ```
@@ -113,7 +117,7 @@ If you face an SSL certificate verification error, you can add `--disable_ssl_ve
 
 # Generating Text Embeddings
 
-Due to the large memory footprint of the text encoders, the inference and training pipelines do not support generating
+Due to the large memory footprint of the text encoders, the inference and training pipelines don't support generating
 text embeddings online. Therefore, you need to prepare them in advance by running the following command:
 
 ```shell
@@ -160,20 +164,7 @@ python inference.py \
 
 ## TAE
 
-#### Video Reconstruction
-
-```shell
-python eval_tae.py \
---pretrained /path/to/tae.ckpt \
---batch_size 2 \
---sample_n_frames 16  \
---size 256 \
---csv_path ../opensora_hpcai/datasets/mixkit-100videos/video_caption_test.csv  \
---folder ../opensora_hpcai/datasets/mixkit-100videos/mixkit \
---use_tile False
-```
-
-#### Encoding video
+### Encoding video
 
 ```python
 from mg.models.tae import TemporalAutoencoder
@@ -193,7 +184,7 @@ z = (z - tae.shift_factor) * tae.scale_factor
 
 For detailed arguments, please refer to the docstring in [tae.py](mg/models/tae/tae.py)
 
-#### Decoding video latent
+### Decoding video latent
 
 ```python
 # if z is scaled, you should unscale at first:
@@ -251,29 +242,68 @@ Validation can be enabled by either setting parameters in the `valid` field of t
 
 ## TAE
 
-```shell
-output_dir=outputs/train_tae_256x256x16
+### Prepare datasets
 
-python train_tae.py \
---config configs/tae/train/mixed_256x256x16.yaml \
---output_path $output_dir \
---csv_path ../opensora_hpcai/datasets/mixkit-100videos/video_caption_train.csv  \
---video_folder ../opensora_hpcai/datasets/mixkit-100videos/mixkit \
+We need to prepare a csv annotation file listing the path to each input video related to the root folder, indicated by
+the `video_folder` argument. An example is
+
+```
+video
+dance/vid001.mp4
+dance/vid002.mp4
+dance/vid003.mp4
+...
 ```
 
-OPL - outlier penalty loss is found to be not beneficial in our experiment (PSNR decreased).
-Thus, we set it to False by default.
+Taking UCF-101, for example, please download the [UCF-101](https://www.crcv.ucf.edu/data/UCF101.php) dataset and extract
+it to `datasets/UCF-101` folder.
 
-Change mixed_256x256x16.yaml to mixed_256x256x32.yaml for training on 32 frames.
+### Training
+
+TAE is trained to optimize the reconstruction loss, perceptual loss, and the outlier penalty loss (OPL) proposed in the
+MovieGen paper.
+
+To launch training, please run
+
+```shell
+python train_tae.py \
+--config configs/tae/train/mixed_256x256x32.yaml \
+--output_path /path/to/save_ckpt_and_log \
+--csv_path /path/to/video_train.csv  \
+--folder /path/to/video_root_folder  \
+```
+
+Different from the paper, we found that OPL loss doesn't benefit the training outcome in our ablation study (reducing in
+lower PSNR decreased). Thus, we disable OPL loss by default. You may enable it by appending
+`--use_outlier_penalty_loss True`
+
+For more details on the arguments, please run `python scripts/train_tae.py --help`
+
+### Evaluation
+
+To run video reconstruction with the trained TAE model and evaluate the PSNR and SSIM on the test set, please run
+
+```shell
+python eval_tae.py \
+--ckpt_path /path/to/tae.ckpt \
+--batch_size 2 \
+--num_frames 32  \
+--image_size 256 \
+--csv_path  /path/to/video_test.csv  \
+--folder /path/to/video_root_folder  \
+```
+
+The reconstructed videos will be saved in `samples/recons`.
 
 ### Performance
 
-Train on 80 samples of mixkit-100 (train set), test on the other 20 samples (test set)
+Here, we report the training performance and evaluation results on the UCF-101 dataset.
 
-| Resolution | NPUs | Precision | Time (s/step) | PSNR (test set) |
-|------------|------|-----------|---------------|-----------------|
-| 256x256x16 | 1    | FP32      | 1.99          | 28.5            |
-| 256x256x32 | 1    | BF16      | 2.49          | 28.3            |
+Experiments are tested on ascend 910* with mindspore 2.3.1 graph mode.
+
+| model name | cards | batch size | resolution | precision | jit level | graph compile | s/step | PSNR  | SSIM |                      recipe                       |
+|:----------:|:-----:|:----------:|:----------:|:---------:|:---------:|:-------------:|:------:|:-----:|:----:|:-------------------------------------------------:|
+|    TAE     |   1   |     1      | 256x256x32 |   bf16    |    O0     |     2 min     |  2.18  | 31.35 | 0.92 | [config](configs/tae/train/mixed_256x256x32.yaml) |
 
 # Evaluation
 

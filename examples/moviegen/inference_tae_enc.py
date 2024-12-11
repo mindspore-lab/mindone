@@ -56,6 +56,7 @@ def main(args):
             black_list=amp.get_black_list() + [nn.GroupNorm, nn.AvgPool2d, nn.Upsample],
             dtype=MODEL_DTYPE[tae_dtype],
         )
+    # TODO: add dynamic shape support
 
     # 4. print key info
     key_info = "Key Settings:\n" + "=" * 50 + "\n"

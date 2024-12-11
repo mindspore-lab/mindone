@@ -4,6 +4,7 @@ import numpy as np
 from safetensors import safe_open
 
 import mindspore as ms
+from mg.models.tae.sd3_vae import SD3d5_CONFIG,SD3d5_VAE
 
 
 def get_shape_from_str(shape):
@@ -32,9 +33,7 @@ def load_torch_ckpt(ckpt_path):
 
 
 def plot_ms_vae2d5():
-    from mg.models.tae.tae import SD3d5_CONFIG, TemporalAutoencoder
-
-    tae = TemporalAutoencoder(config=SD3d5_CONFIG)
+    tae = SD3d5_VAE(config=SD3d5_CONFIG)
 
     sd = tae.parameters_dict()
     pnames = list(sd.keys())

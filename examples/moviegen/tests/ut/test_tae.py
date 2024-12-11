@@ -134,7 +134,7 @@ def test_spatial_upsample():
 
 def test_temporal_downsample():
     # in_shape = (B, C, T, H, W) = (1, 64, 1, 32, 32)
-    in_shape = (B, C, T, H, W) = (1, 64, 1, 32, 32)
+    in_shape = (B, C, T, H, W) = (1, 16, 5, 32, 32)
     x = np.random.normal(size=in_shape).astype(np.float32)
     td = TemporalDownsample(C)
 
@@ -278,7 +278,7 @@ def test_tae_tile():
 
 
 if __name__ == "__main__":
-    ms.set_context(mode=0)
+    ms.set_context(mode=1)
 
     # test_conv25d()
     # test_resnetblock()
@@ -295,6 +295,6 @@ if __name__ == "__main__":
     # test_tae_decode()
     # test_tae_rec()
     # test_tae_tile()
-    test_blend()
+    # test_blend()
 
-    # test_sd3d5_vae()
+    test_sd3d5_vae()

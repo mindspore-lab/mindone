@@ -25,6 +25,16 @@ def nonlinearity(x):
     return x * (ops.sigmoid(x))
 
 
+def symmetric_pad1d(x):
+    # x: (B C T), work with kernel size = 1
+    first_frame = x[:, :, :1]
+    last_frame = x[:, :, -1:]
+    # last_frame_pad = ops.cat([last_frame] * self.time_pad, axis=2)
+    x = ops.concat((first_frame, x, last_frame), axis=2)
+
+    return x
+
+
 class GroupNorm5d(nn.GroupNorm):
     def construct(self, x):
         # x (b c t h w)
@@ -158,10 +168,6 @@ class Conv2_5d(nn.Cell):
             has_bias=has_bias,
         )
 
-        # temp_pad_mode = 'zero'
-        # temp_pad = 'mint_rep'
-        # temp_pad = "manual"
-
         # temporal conv
         if kernel_size > 1:
             # symmetric padding + conv1d
@@ -175,7 +181,7 @@ class Conv2_5d(nn.Cell):
                 has_bias=has_bias,
                 bias_init="zeros",
             )
-            self.pad = self.symmetric_pad1d
+            self.pad = symmetric_pad1d
             self.use_pad = True
         else:
             self.use_pad = False
@@ -189,16 +195,7 @@ class Conv2_5d(nn.Cell):
                 bias_init="zeros",
             )
 
-        self.init_temporal_weight("median")
-
-    @staticmethod
-    def symmetric_pad1d(x):
-        first_frame = x[:, :, :1]
-        last_frame = x[:, :, -1:]
-        # last_frame_pad = ops.cat([last_frame] * self.time_pad, axis=2)
-        x = ops.concat((first_frame, x, last_frame), axis=2)
-
-        return x
+        self.init_temporal_weight("centric")
 
     def construct(self, x):
         """
@@ -243,11 +240,11 @@ class Conv2_5d(nn.Cell):
 
         return x
 
-    def init_temporal_weight(self, method="median"):
+    def init_temporal_weight(self, method="centric"):
         if method == "normal":
             return
 
-        elif method == "median":
+        elif method == "centric":
             # temporal conv kernel: (cout, cin, 1, ks)
             # ks=1 or 3, cin == cout
             w = self.conv_temp.weight
@@ -347,9 +344,9 @@ class TemporalDownsample(nn.Cell):
             has_bias=True,
             bias_init="zeros",
         )
-        # tail padding, pad with last frame
+        # tail padding, pad with
         self.time_pad = self.ks - 1
-        self.init_weight("median")
+        self.init_weight("centric")
 
     def init_weight(self, method="mean"):
         if method == "normal":
@@ -363,8 +360,8 @@ class TemporalDownsample(nn.Cell):
             # initially, it's a mean filter for temporal downsampling
             for i in range(self.ch):
                 value[i, i, 0, :] = 1 / self.ks  # (cout, cin, 1, ks)
-        elif method == "median":
-            # a median filter for temporal downsampling
+        elif method == "centric":
+            # a centric filter for temporal downsampling
             for i in range(self.ch):
                 value[i, i, 0, self.ks // 2] = 1  # (cout, cin, 1, ks)
         else:
@@ -380,10 +377,8 @@ class TemporalDownsample(nn.Cell):
         x = ops.transpose(x, (0, 3, 4, 1, 2))
         x = ops.reshape(x, (B * H * W, C, T))
 
-        # tail padding
-        last_frame = x[:, :, -1:]
-        last_frame_pad = ops.cat([last_frame] * self.time_pad, axis=2)
-        x = ops.concat((x, last_frame_pad), axis=2)
+        # symmetric padding
+        x = symmetric_pad1d(x)
 
         x = self.conv(x)
 
@@ -398,8 +393,8 @@ class TemporalDownsample(nn.Cell):
 class TemporalUpsample(nn.Cell):
     def __init__(self, in_channels, manual_pad=True):
         super().__init__()
-        # to support danamic shape in graph mode
         self.manual_pad = manual_pad
+        # to support danamic shape in graph mode
         if not self.manual_pad:
             self.conv = nn.Conv1d(
                 in_channels, in_channels, kernel_size=3, stride=1, pad_mode="same", has_bias=True, bias_init="zeros"
@@ -411,16 +406,16 @@ class TemporalUpsample(nn.Cell):
 
         # TODO: init conv weight so that it pass in image mode
         self.ch = in_channels
-        self.init_weight("median")
+        self.init_weight("centric")
 
-    def init_weight(self, method="median"):
+    def init_weight(self, method="centric"):
         if method == "normal":
             return
 
         # init so that the output is the same as vae2d for image input
         w = self.conv.weight
         value = np.zeros(tuple(w.shape))
-        if method == "median":
+        if method == "centric":
             # consider image input, make sure it's the same
             for i in range(self.ch):
                 value[i, i, 0, 1] = 1  # (cout, cin, 1, ks)
@@ -456,25 +451,6 @@ class TemporalUpsample(nn.Cell):
         x = ops.transpose(x, (0, 3, 4, 1, 2))
 
         return x
-
-    """
-    def construct(self, x):
-        # x (b c t h w)
-        x = ops.interpolate(x, scale_factor=(2.0, 1.0, 1.0), mode="nearest")
-
-        # x (b c t h w) -> (bhw c t)
-        B, C, T, H, W = x.shape
-        x = ops.transpose(x, (0, 3, 4, 1, 2))
-        x = ops.reshape(x, (B*H*W, C, T))
-
-        x = self.conv(x)
-
-        # x (bhw c t) -> (b c t h w)
-        x = ops.reshape(x, (B, H, W, C, T))
-        x = ops.transpose(x, (0, 3, 4, 1, 2))
-
-        return x
-    """
 
 
 # used in vae
@@ -717,7 +693,7 @@ def make_attn(in_channels, attn_type="vanilla"):
 
 # used in vae
 class Encoder(nn.Cell):
-    # @lazy_inline()
+    # @ms.lazy_inline()
     def __init__(
         self,
         ch=128,
