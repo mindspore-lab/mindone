@@ -3,6 +3,7 @@ import collections
 import html
 import json
 import logging
+import random
 import re
 import urllib.parse as ul
 from multiprocessing import Pool
@@ -46,6 +47,43 @@ def to_2tuple(x):
     if isinstance(x, collections.abc.Iterable):
         return x
     return (x, x)
+
+
+def explicit_uniform_sampling(T, n, rank, bsz):
+    """
+    Explicit Uniform Sampling with integer timesteps and MindSpore.
+
+    Args:
+        T (int): Maximum timestep value.
+        n (int): Number of ranks (data parallel processes).
+        rank (int): The rank of the current process (from 0 to n-1).
+        bsz (int): Batch size, number of timesteps to return.
+
+    Returns:
+        ms.Tensor: A tensor of shape (bsz,) containing uniformly sampled integer timesteps
+                      within the rank's interval.
+    """
+    interval_size = T / n  # Integer division to ensure boundaries are integers
+    lower_bound = interval_size * rank - 0.5
+    upper_bound = interval_size * (rank + 1) - 0.5
+    sampled_timesteps = [round(random.uniform(lower_bound, upper_bound)) for _ in range(bsz)]
+
+    # Uniformly sample within the rank's interval, returning integers
+    sampled_timesteps = ms.Tensor([round(random.uniform(lower_bound, upper_bound)) for _ in range(bsz)], dtype=ms.int32)
+    # sampled_timesteps = sampled_timesteps.long()
+    return sampled_timesteps
+
+
+def get_sigmas(noise_scheduler, timesteps, n_dim=4, dtype=ms.float32):
+    sigmas = noise_scheduler.sigmas.to(dtype=dtype)
+    schedule_timesteps = noise_scheduler.timesteps
+
+    step_indices = [(schedule_timesteps == t).nonzero() for t in timesteps]
+
+    sigma = sigmas[step_indices].flatten()
+    while len(sigma.shape) < n_dim:
+        sigma = sigma.unsqueeze(-1)
+    return sigma
 
 
 def get_experiment_dir(root_dir, args):

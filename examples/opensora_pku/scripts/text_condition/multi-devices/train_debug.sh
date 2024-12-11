@@ -41,7 +41,6 @@ msrun --bind_core=True --worker_num=4 --local_worker_num=4 --master_port=6000 --
     --clip_grad True \
     --max_grad_norm 1.0 \
     --noise_offset 0.02 \
-    --enable_stable_fp32 True\
     --ema_decay 0.999 \
     --speed_factor 1.0 \
     --drop_short_ratio 1.0 \
