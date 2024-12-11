@@ -11,7 +11,13 @@ import time
 import imageio
 import numpy as np
 
-# from ae.models.lpips import LPIPS
+from mindspore import nn, ops
+
+__dir__ = os.path.dirname(os.path.abspath(__file__))
+mindone_dir = os.path.abspath(os.path.join(__dir__, "../../../"))
+sys.path.insert(0, mindone_dir)
+
+
 from omegaconf import OmegaConf
 from PIL import Image
 from skimage.metrics import peak_signal_noise_ratio as calc_psnr
@@ -19,15 +25,15 @@ from skimage.metrics import structural_similarity as calc_ssim
 from tqdm import tqdm
 
 import mindspore as ms
-from mindspore import nn, ops
 
 __dir__ = os.path.dirname(os.path.abspath(__file__))
 mindone_lib_path = os.path.abspath(os.path.join(__dir__, "../../../"))
 sys.path.insert(0, mindone_lib_path)
 sys.path.insert(0, os.path.abspath(os.path.join(__dir__, "..")))
 
-from opensora.datasets.vae_dataset import create_dataloader
-from opensora.models.vae.vae import SD_CONFIG, SDXL_CONFIG, OpenSoraVAE_V1_2, VideoAutoencoderKL
+from mg.datasets.tae_dataset import create_dataloader
+from mg.models.tae.lpips import LPIPS
+from mg.models.tae.tae import TemporalAutoencoder
 
 from mindone.utils.amp import auto_mixed_precision
 from mindone.utils.config import instantiate_from_config, str2bool
@@ -73,27 +79,38 @@ def visualize_video(recons, x=None, save_fn="tmp_vae3d_recons", fps=15):
         imageio.mimsave(save_fp, out, duration=1 / fps, loop=0)
 
 
+def rearrange_in(x):
+    b, c, t, h, w = x.shape
+    x = ops.transpose(x, (0, 2, 3, 4, 1))
+    x = ops.reshape(x, (b * t, h, w, c))
+    return x
+
+
+def rearrange_out(x, t):
+    bt, c, h, w = x.shape
+    b = bt // t
+    x = ops.reshape(x, (b, t, h, w, c))
+    x = ops.transpose(x, (0, 4, 1, 2, 3))
+    return x
+
+
 def main(args):
     ascend_config = {"precision_mode": "must_keep_origin_dtype"}
     ms.set_context(mode=args.mode, ascend_config=ascend_config)
+    ms.set_context(jit_config={"jit_level": args.jit_level})
     set_logger(name="", output_dir=args.output_path, rank=0)
 
     # build model
-    if args.use_temporal_vae:
-        model = OpenSoraVAE_V1_2(
-            micro_batch_size=4,
-            micro_frame_size=17,
-            ckpt_path=args.ckpt_path,
-            freeze_vae_2d=True,
-        )
-    else:
-        model = VideoAutoencoderKL(config=SDXL_CONFIG, ckpt_path=args.ckpt_path, micro_batch_size=4)
+    model = TemporalAutoencoder(
+        pretrained=args.ckpt_path,
+        use_tile=args.enable_tile,
+    )
 
     model.set_train(False)
     logger.info(f"Loaded checkpoint from  {args.ckpt_path}")
 
-    # if args.eval_loss:
-    #    lpips_loss_fn = LPIPS()
+    if args.eval_loss:
+        lpips_loss_fn = LPIPS()
 
     if args.dtype != "fp32":
         amp_level = "O2"
@@ -140,6 +157,10 @@ def main(args):
 
     ds_iter = dataset.create_dict_iterator(1)
 
+    if args.dynamic_shape:
+        videos = ms.Tensor(shape=[None, 3, None, 256, 256], dtype=ms.float32)
+        model.set_inputs(videos)
+
     logger.info("Inferene begins")
     mean_infer_time = 0
     mean_psnr = 0
@@ -151,12 +172,17 @@ def main(args):
         x = data["video"]
         start_time = time.time()
 
-        z = model.encode(x)
-        if not args.encode_only:
-            if args.use_temporal_vae:
-                recons = model.decode(z, num_frames=args.num_frames)
-            else:
-                recons = model.decode(z)
+        # debug
+        # if args.dynamic_shape:
+        #    if step % 2 == 0:
+        #        x = x[:, :, : x.shape[2]//2]
+        #    print('x shape: ', x.shape)
+
+        if args.encode_only:
+            z = model.encode(x)
+        else:
+            # recons = model.decode(z)
+            recons, z, posterior_mean, posterior_logvar = model(x)
 
         # adapt to bf16
         recons = recons.to(ms.float32)
@@ -190,9 +216,14 @@ def main(args):
 
             if args.eval_loss:
                 recon_loss = np.abs((x - recons).asnumpy())
-                lpips_loss = lpips_loss_fn(x, recons).asnumpy()
+
+                t = x.shape[2]
+                x = rearrange_in(x)
+                # lpips_loss = lpips_loss_fn(x, recons).asnumpy()
+
                 mean_recon += recon_loss.mean()
-                mean_lpips += lpips_loss.mean()
+                # mean_lpips += lpips_loss.mean()
+                logger.info(f"mean recon loss: {mean_recon/num_batches:.4f}")
 
             if args.save_vis:
                 save_fn = os.path.join(
@@ -218,9 +249,9 @@ def main(args):
 
         if args.eval_loss:
             mean_recon /= num_batches
-            mean_lpips /= num_batches
+            # mean_lpips /= num_batches
             logger.info(f"mean recon loss: {mean_recon:.4f}")
-            logger.info(f"mean lpips loss: {mean_lpips:.4f}")
+            # logger.info(f"mean lpips loss: {mean_lpips:.4f}")
 
 
 def parse_args():
@@ -266,6 +297,9 @@ def parse_args():
     parser.add_argument("--save_vis", default=True, type=str2bool, help="whether save reconstructed images")
     parser.add_argument("--use_temporal_vae", default=True, type=str2bool, help="if False, just use spatial vae")
     parser.add_argument("--encode_only", default=False, type=str2bool, help="only encode to save z or distribution")
+    parser.add_argument(
+        "--enable_tile", default=False, type=str2bool, help="enable temporal tiling with linear blending for decoder"
+    )
     parser.add_argument("--video_column", default="video", type=str, help="name of column for videos saved in csv file")
     parser.add_argument(
         "--mixed_strategy",
@@ -283,8 +317,13 @@ def parse_args():
         type=str2bool,
         help="If True, save z distribution, mean and logvar. Otherwise, save z after sampling.",
     )
+    parser.add_argument(
+        "--dynamic_shape", default=False, type=str2bool, help="whether input shape to the network is dynamic"
+    )
+
     # ms related
     parser.add_argument("--mode", default=0, type=int, help="Specify the mode: 0 for graph mode, 1 for pynative mode")
+    parser.add_argument("--jit_level", default="O0", type=str, help="O0 kbk, O1 dvm, O2 ge")
     parser.add_argument(
         "--dtype",
         default="fp32",
