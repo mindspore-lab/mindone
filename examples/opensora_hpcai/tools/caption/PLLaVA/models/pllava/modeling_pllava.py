@@ -1,4 +1,4 @@
-""" MindSpore Llava model."""
+""" MindSpore PLLaVA model."""
 from dataclasses import dataclass
 from typing import List, Optional, Tuple, Union
 from functools import reduce
