@@ -40,7 +40,6 @@ python opensora/train/train_t2v_diffusers.py \
     --clip_grad True \
     --max_grad_norm 1.0 \
     --noise_offset 0.02 \
-    --enable_stable_fp32 True\
     --ema_decay 0.999 \
     --speed_factor 1.0 \
     --drop_short_ratio 0.0 \
