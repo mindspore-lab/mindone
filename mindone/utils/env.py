@@ -70,11 +70,11 @@ def init_train_env(
             ms.set_context(jit_config={"jit_level": jit_level})
 
     if distributed:
-        device_id, kwargs = None, {}  # if no rank table
-        if os.getenv("DEVICE_ID"):
-            device_id = int(os.getenv("DEVICE_ID"))
-            kwargs = {"device_id": int(os.getenv("DEVICE_ID"))}
-        ms.set_context(mode=mode, device_target=device_target, ascend_config=ascend_config or {}, **kwargs)
+        ms.set_context(mode=mode, device_target=device_target, ascend_config=ascend_config or {})
+        device_id = os.getenv("DEVICE_ID", None)
+        if device_id:
+            ms.set_context(device_id=int(device_id))
+
         init()
         device_num = get_group_size()
         rank_id = get_rank()
