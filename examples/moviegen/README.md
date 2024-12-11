@@ -251,12 +251,12 @@ python inference_tae_enc.py \
 
 ### Performance
 
-| Model |      Context      | Jit level |   Stage   | Precision |          Resolution          | TAE Cache |       Batch size        | NPUs | Time (s/step) |                              Config                               |
-|:-----:|:-----------------:|:---------:|:---------:|:---------:|:----------------------------:|:---------:|:-----------------------:|:----:|:-------------:|:-----------------------------------------------------------------:|
-|  5B   | D910*-C18-MS2.3.1 |    O1     |  1 (T2I)  |   BF16    |        256x455 (16:9)        |    No     |           20            |  4   |     4.47      | [stage1_t2i_256x256.yaml](configs/train/stage1_t2i_256x256.yaml)  |
-|  5B   | D910*-C18-MS2.3.1 |    O0     | 2 (T2I/V) |   BF16    | 256x455 (16:9)<br/>32 frames |    No     | Image: 10<br/>Video: 5  |  8   |     5.26      | [stage1_t2i_256x256.yaml](configs/train/stage2_t2iv_256x256.yaml) |
-|  1B   | D910*-C18-MS2.3.1 |    O1     |  1 (T2I)  |   BF16    |        256x455 (16:9)        |    Yes    |           10            |  8   |     0.53      | [stage1_t2i_256x256.yaml](configs/train/stage1_t2i_256x256.yaml)  |
-|  1B   | D910*-C18-MS2.3.1 |    O0     | 2 (T2I/V) |   BF16    | 256x455 (16:9)<br/>32 frames |    Yes    | Image: 10<br/>Video: 10 |  8   |     2.08      | [stage1_t2i_256x256.yaml](configs/train/stage2_t2iv_256x256.yaml) |
+| Model |      Context      | Jit level |   Stage   | Precision |          Resolution          | TAE Cache |       Batch size        | NPUs | Time (s/step) |                               Config                               |
+|:-----:|:-----------------:|:---------:|:---------:|:---------:|:----------------------------:|:---------:|:-----------------------:|:----:|:-------------:|:------------------------------------------------------------------:|
+|  5B   | D910*-C18-MS2.3.1 |    O1     |  1 (T2I)  |   BF16    |        256x455 (16:9)        |    No     |           20            |  4   |     4.47      |  [stage1_t2i_256x256.yaml](configs/train/stage1_t2i_256x256.yaml)  |
+|  5B   | D910*-C18-MS2.3.1 |    O0     | 2 (T2I/V) |   BF16    | 256x455 (16:9)<br/>32 frames |    No     | Image: 10<br/>Video: 5  |  8   |     5.26      | [stage1_t2iv_256x256.yaml](configs/train/stage2_t2iv_256x256.yaml) |
+|  1B   | D910*-C18-MS2.3.1 |    O1     |  1 (T2I)  |   BF16    |        256x455 (16:9)        |    Yes    |           10            |  8   |     0.53      |  [stage1_t2i_256x256.yaml](configs/train/stage1_t2i_256x256.yaml)  |
+|  1B   | D910*-C18-MS2.3.1 |    O0     | 2 (T2I/V) |   BF16    | 256x455 (16:9)<br/>32 frames |    Yes    | Image: 10<br/>Video: 10 |  8   |     2.08      | [stage1_t2iv_256x256.yaml](configs/train/stage2_t2iv_256x256.yaml) |
 
 ### Validation During Training
 
