@@ -8,10 +8,8 @@ from tqdm import tqdm
 import mindspore as ms
 import mindspore.mint.nn.functional as F
 from mindspore import Tensor, mint, nn, ops
-from mindspore.communication import get_rank
 
 from ..models import LlamaModel
-from ..parallel import get_model_parallel_group
 
 logger = logging.getLogger(__name__)
 
@@ -111,12 +109,7 @@ class RFlowLossWrapper(nn.Cell):
         self.model = model
         self.criteria = nn.MSELoss()
 
-        self.mp_group = get_model_parallel_group()
-        if self.mp_group is not None:
-            logging.info(
-                f"Broadcasting all random variables from rank (0) to current rank ({get_rank(self.mp_group)}) in group `{self.mp_group}`."
-            )
-            self.broadcast = ops.Broadcast(0, group=self.mp_group)
+        self.mp_group = None
 
     def _discrete_sample(self, size: int) -> Tensor:
         return ops.randint(0, self.num_timesteps, (size,), dtype=ms.int64)

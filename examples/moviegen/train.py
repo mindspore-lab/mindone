@@ -18,7 +18,6 @@ sys.path.append(mindone_lib_path)
 
 from mg.dataset import ImageVideoDataset, bucket_split_function
 from mg.models.tae import TemporalAutoencoder
-from mg.parallel import create_parallel_group
 from mg.pipelines import DiffusionWithLoss
 from mg.schedulers import RFlowEvalLoss, RFlowLossWrapper
 from mg.utils import EMA, MODEL_DTYPE, init_model
@@ -75,10 +74,10 @@ def main(args):
 
     # 1.1 init model parallel
     shard_rank_id = rank_id
-    if (shards := args.train.model_parallel.model_parallel_shards) > 1:
-        create_parallel_group(**args.train.model_parallel)
-        device_num = device_num // shards
-        shard_rank_id = rank_id // shards
+    # if (shards := args.train.model_parallel.model_parallel_shards) > 1:
+    #     create_parallel_group(**args.train.model_parallel)
+    #     device_num = device_num // shards
+    #     shard_rank_id = rank_id // shards
 
     # FIXME: Improve seed setting
     set_seed(args.env.seed + shard_rank_id)  # set different seeds per NPU for sampling different timesteps
@@ -112,7 +111,7 @@ def main(args):
             )
             args.model.in_channels = tae.out_channels
     else:
-        logger.info("TAE latent folder found. Skipping TAE initialization.")
+        logger.info("TAE latent folder provided. Skipping TAE initialization.")
         tae = None
 
     # 2.2 Llama 3
@@ -271,7 +270,6 @@ if __name__ == "__main__":
         create_dataloader, "dataloader", skip={"dataset", "transforms", "batch_transforms", "device_num", "rank_id"}
     )
     parser.link_arguments("env.debug", "dataloader.debug", apply_on="parse")
-    parser.add_function_arguments(create_parallel_group, "train.model_parallel")
     parser.add_function_arguments(create_scheduler, "train.lr_scheduler", skip={"steps_per_epoch", "num_epochs"})
     parser.add_class_arguments(
         ReduceLROnPlateauByStep, "train.lr_reduce_on_plateau", skip={"optimizer"}, instantiate=False

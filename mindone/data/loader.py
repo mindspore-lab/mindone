@@ -20,7 +20,7 @@ def create_dataloader(
     drop_remainder: bool = True,
     python_multiprocessing: bool = True,
     prefetch_size: int = 16,
-    max_rowsize: int = 64,
+    max_rowsize: Optional[int] = None,
     device_num: int = 1,
     rank_id: int = 0,
     debug: bool = False,
@@ -52,9 +52,14 @@ def create_dataloader(
         python_multiprocessing: Whether to use Python multiprocessing for data transformations. This option could be
                                 beneficial if the Python operation is computational heavy. Default is True.
         prefetch_size: The number of samples to prefetch (per device). Default is 16.
-        max_rowsize: (MindSpore 2.2 and lower only) Maximum size of row in MB that is used for shared memory allocation
-                     to copy data between processes. This is only used if `python_multiprocessing` is set to `True`.
-                     Default is 64.
+        max_rowsize: Maximum size of row in MB for shared memory allocation to copy data among processes.
+                     This is only used if `python_multiprocessing` is set to `True`.
+                     Values:
+                        - `None` (default):
+                            - For MindSpore 2.3 and above: Uses -1 (dynamic allocation).
+                            - For MindSpore 2.2 and below: Uses 64MB.
+                        - `-1`: (MindSpore 2.3+ only) Allocates memory dynamically.
+                        - Positive integer: Sets a specific maximum row size in MB.
         device_num: The number of devices to distribute the dataset across. Default is 1.
         rank_id: The rank ID of the current device. Default is 0.
         debug: Whether to enable debug mode. Default is False.
@@ -85,6 +90,12 @@ def create_dataloader(
         shuffle=shuffle,
     )
 
+    if max_rowsize is None:
+        # MS 2.3 and above: allocate memory dynamically
+        max_rowsize = -1 if MS_VERSION >= "2.3" else 64
+    if MS_VERSION < "2.3" and max_rowsize <= 0:
+        raise ValueError(f"`max_rowsize` must be a positive integer, got {max_rowsize}")
+
     if transforms is not None:
         if isinstance(transforms, dict):
             transforms = [transforms]
@@ -94,7 +105,7 @@ def create_dataloader(
                 **transform,
                 python_multiprocessing=python_multiprocessing,
                 num_parallel_workers=num_workers,
-                max_rowsize=max_rowsize if MS_VERSION < "2.3" else -1,  # MS 2.3 and above: allocate memory dynamically
+                max_rowsize=max_rowsize,
             )
 
     if project_columns:
@@ -122,7 +133,7 @@ def create_dataloader(
                         **batch_transform,
                         python_multiprocessing=python_multiprocessing,
                         num_parallel_workers=num_workers,
-                        max_rowsize=max_rowsize if MS_VERSION < "2.3" else -1,
+                        max_rowsize=max_rowsize,
                     )
 
     return dataloader

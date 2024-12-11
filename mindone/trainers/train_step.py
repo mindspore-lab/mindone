@@ -101,7 +101,7 @@ class TrainOneStepWrapper(nn.TrainOneStepWithLossScaleCell):
             if gradient_accumulation_steps > 1:
                 self.accumulated_grads = optimizer.parameters.clone(prefix="grad_accumulated_", init="zeros")
 
-    def set_train(self, mode=True):
+    def set_train(self, mode: bool = True):
         # Delegate the setting of training mode behavior to the network.
         self.network.set_train(mode)
 
