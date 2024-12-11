@@ -157,7 +157,6 @@ class Mesh:
         )
         v_nrm = v_nrm / ops.norm(v_nrm, dim=1) # F.normalize(v_nrm, dim=1) #TODO: test accuracy
 
-        # if torch.is_anomaly_enabled():
         assert mint.all(mint.isfinite(v_nrm))
 
         return v_nrm
@@ -203,7 +202,6 @@ class Mesh:
         # tangents = F.normalize(tangents, dim=1)
         # tangents = F.normalize(tangents - dot(tangents, self.v_nrm) * self.v_nrm)
 
-        # if torch.is_anomaly_enabled():
         assert mint.all(mint.isfinite(tangents))
 
         return tangents

@@ -30,7 +30,6 @@ class CenterPadding(nn.Cell):
         pad_size_right = pad_size - pad_size_left
         return pad_size_left, pad_size_right
 
-    # @torch.inference_mode()
     def construct(self, x):
         pads = list(itertools.chain.from_iterable(self._get_pad(m) for m in x.shape[:1:-1]))
         output = ops.pad(x, pads)

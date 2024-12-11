@@ -24,10 +24,6 @@
 
 import os, sys
 sys.path.insert(0, f"{os.path.dirname(os.path.dirname(os.path.abspath(__file__)))}")
-# TODO: debug use delete later
-mindone_lib_path = os.path.abspath("../../")
-sys.path.insert(0, mindone_lib_path)
-sys.path.append("./")
 
 import time
 import mindspore as ms
@@ -118,18 +114,11 @@ if __name__ == "__main__":
         parser.add_argument("--seed", default=0, type=int)
         parser.add_argument("--steps", default=50, type=int)
         parser.add_argument("--device", default="Ascend", type=str)
-        parser.add_argument("--mode", default=1, type=int, help="0 for GRAPH_MODE, 1 for PYNATIVE_MODE")
         parser.add_argument("--use_lite", default='false', type=str)
         return parser.parse_args()
         
     args = get_args()
-    
-    if args.mode == 1:
-        ms.set_context(mode=ms.PYNATIVE_MODE, device_target=args.device) # pynative_synchronize=True
-        print("Using PYNATIVE_MODE")
-    else: #NOTE: Don't know why slower
-        ms.set_context(mode=ms.GRAPH_MODE, device_target=args.device) 
-        print("Using GRAPH_MODE")
+    ms.set_context(device_target=args.device, mode=1)
 
     args.use_lite = str_to_bool(args.use_lite)
 

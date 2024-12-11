@@ -6,15 +6,12 @@ import math
 import mindspore as ms
 from mindspore import nn, mint, ops, Parameter
 from mindone.utils.version_control import (
-    # MS_VERSION,
     check_valid_flash_attention,
-    # choose_flash_attention_dtype,
     is_old_ms_version,
 )
 import numpy as np
 
 from mindone.models.modules.flash_attention import FLASH_IS_AVAILABLE, MSFlashAttention
-XFORMERS_IS_AVAILBLE = FLASH_IS_AVAILABLE
 from mindspore.common.initializer import initializer, XavierUniform
 from ..util import dtype_to_max
 
@@ -62,37 +59,6 @@ def checkpoint(func, inputs, params, flag):
     #     return func(*inputs)
     return func(*inputs)
 
-# TODO:
-# class CheckpointFunction(torch.autograd.Function):
-#     @staticmethod
-#     def forward(ctx, run_function, length, *args):
-#         ctx.run_function = run_function
-#         ctx.input_tensors = list(args[:length])
-#         ctx.input_params = list(args[length:])
-
-#         with torch.no_grad():
-#             output_tensors = ctx.run_function(*ctx.input_tensors)
-#         return output_tensors
-
-#     @staticmethod
-#     def backward(ctx, *output_grads):
-#         ctx.input_tensors = [x.detach().requires_grad_(True) for x in ctx.input_tensors]
-#         with torch.enable_grad():
-#             # Fixes a bug where the first op in run_function modifies the
-#             # Tensor storage in place, which is not allowed for detach()'d
-#             # Tensors.
-#             shallow_copies = [x.view_as(x) for x in ctx.input_tensors]
-#             output_tensors = ctx.run_function(*shallow_copies)
-#         input_grads = torch.autograd.grad(
-#             output_tensors,
-#             ctx.input_tensors + ctx.input_params,
-#             output_grads,
-#             allow_unused=True,
-#         )
-#         del ctx.input_tensors
-#         del ctx.input_params
-#         del output_tensors
-#         return (None, None) + input_grads
 
 
 # feedforward
@@ -322,56 +288,6 @@ class FlashAttention(nn.Cell):
         out = out.reshape(out.shape[0], out.shape[1], -1)
         return self.to_out(out.float())
 
-# class MemoryEfficientCrossAttention(nn.Cell):
-#     # https://github.com/MatthieuTPHR/diffusers/blob/d80b531ff8060ec1ea982b65a1b8df70f73aa67c/src/diffusers/models/attention.py#L223
-#     def __init__(self, query_dim, context_dim=None, heads=8, dim_head=64, dropout=0.0):
-#         super().__init__()
-#         print(f"Setting up {self.__class__.__name__}. Query dim is {query_dim}, context_dim is {context_dim} and using "
-#               f"{heads} heads.")
-#         inner_dim = dim_head * heads
-#         context_dim = default(context_dim, query_dim)
-
-#         self.heads = heads
-#         self.dim_head = dim_head
-
-#         self.to_q = nn.Dense(query_dim, inner_dim, has_bias=False)
-#         self.to_k = nn.Dense(context_dim, inner_dim, has_bias=False)
-#         self.to_v = nn.Dense(context_dim, inner_dim, has_bias=False)
-#         self.to_out = nn.SequentialCell(
-#             nn.Dense(inner_dim, query_dim),
-#             nn.Dropout(p=dropout),
-#         )
-#         self.attention_op: Optional[Any] = None
-
-#     def construct(self, x, context=None, mask=None):
-#         q = self.to_q(x)
-#         context = default(context, x)
-#         k = self.to_k(context)
-#         v = self.to_v(context)
-
-#         b, _, _ = q.shape
-#         q, k, v = map(
-#             lambda t: t.unsqueeze(3)
-#             .reshape(b, t.shape[1], self.heads, self.dim_head)
-#             .permute((0, 2, 1, 3))
-#             .reshape(b * self.heads, t.shape[1], self.dim_head)
-#             .contiguous(),
-#             (q, k, v),
-#         )
-
-#         # actually compute the attention, what we cannot get enough of
-#         out = xformers.ops.memory_efficient_attention(q, k, v, attn_bias=None, op=self.attention_op)
-
-#         if exists(mask):
-#             raise NotImplementedError
-#         out = (
-#             out.unsqueeze(0)
-#             .reshape(b, self.heads, out.shape[1], self.dim_head)
-#             .permute(0, 2, 1, 3)
-#             .reshape(b, out.shape[1], self.heads * self.dim_head)
-#         )
-#         return self.to_out(out)
-
 class BasicTransformerBlock(nn.Cell):
     def __init__(self, dim, n_heads, d_head, dropout=0., context_dim=None, gated_ff=True, checkpoint=True,
                  disable_self_attn=False):
@@ -450,7 +366,6 @@ class BasicTransformerBlockLRM(nn.Cell):
                  checkpoint=True):
         super().__init__()
 
-        # attn_mode = "softmax-xformers" if XFORMERS_IS_AVAILBLE else "softmax"
         attn_mode = "softmax-flash" if FLASH_IS_AVAILABLE else "softmax"
         assert attn_mode in ATTENTION_MODES
         attn_cls = ATTENTION_MODES[attn_mode]

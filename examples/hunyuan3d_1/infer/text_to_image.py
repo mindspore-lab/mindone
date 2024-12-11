@@ -23,10 +23,6 @@
 # by Tencent in accordance with TENCENT HUNYUAN COMMUNITY LICENSE AGREEMENT.
 import os , sys
 sys.path.insert(0, f"{os.path.dirname(os.path.dirname(os.path.abspath(__file__)))}")
-# TODO: debug use delete later
-mindone_lib_path = os.path.abspath("../../")
-sys.path.insert(0, mindone_lib_path)
-sys.path.append("./")
 
 import mindspore as ms
 from mindspore import ops
@@ -104,6 +100,7 @@ if __name__ == "__main__":
         parser.add_argument("--steps", default=25, type=int)
         return parser.parse_args()
     args = get_args()
+    ms.set_context(device_target=args.device, mode=1)
     
     text2image_model = Text2Image()
     rgb_img = text2image_model(args.text_prompt, seed=args.seed, steps=args.steps)

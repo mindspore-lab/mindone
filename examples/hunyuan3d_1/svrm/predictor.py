@@ -167,7 +167,6 @@ class MV23DPredictor(object):
         data["input_view_cam"] = input_cams.unsqueeze(0)  # 1 7 20
         return data
 
-    # @no_grad()
     def predict(
         self, 
         intput_imgs, 
@@ -179,7 +178,6 @@ class MV23DPredictor(object):
         os.makedirs(save_dir, exist_ok=True)
         print(save_dir)
         
-        # with torch.cuda.amp.autocast(): # TODO: mix precision
         self.model.export_mesh_with_uv(
             data = self.load_data(intput_imgs),
             out_dir = save_dir,

@@ -14,12 +14,10 @@ import warnings
 from mindspore import nn, Tensor
 
 from mindone.utils.version_control import (
-    # MS_VERSION,
     check_valid_flash_attention,
-    # choose_flash_attention_dtype,
     is_old_ms_version,
 )
-# TODO: add flashattn
+
 from mindone.models.modules.flash_attention import FLASH_IS_AVAILABLE, MSFlashAttention
 XFORMERS_ENABLED = False
 
@@ -67,7 +65,8 @@ class Attention(nn.Cell):
         x = self.proj_drop(x)
         return x
 
-#TODO
+# TODO: training may use
+# in inference, do not use attn_bias=cam_emb yet
 class MemEffAttention(Attention):
     def construct(self, x: Tensor, attn_bias=None) -> Tensor:
         # if not XFORMERS_ENABLED:

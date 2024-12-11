@@ -4,9 +4,6 @@
 # found in the LICENSE file in the root directory of this source tree.
 
 
-# from torch.nn.init import trunc_normal_
-# from torch.nn.utils import weight_norm
-
 import mindspore as ms
 from mindspore import nn, ops, mint
 from mindspore.common.initializer import initializer, TruncatedNormal
