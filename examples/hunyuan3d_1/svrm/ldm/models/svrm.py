@@ -168,7 +168,7 @@ class SVRMModel(nn.Cell):
         color_type: 0 for ray texture, 1 for vertices texture
         """
         
-        obj_vertext_path = os.path.join(out_dir, 'mesh_with_colors.obj')
+        obj_vertext_path = os.path.join(out_dir, 'mesh_vertex_colors.obj')
         if do_texture_mapping:
             obj_path = os.path.join(out_dir, 'mesh.obj')
             obj_texture_path = os.path.join(out_dir, 'texture.png')
