@@ -98,6 +98,9 @@ def main(args):
         vae = None
     else:
         print_banner("vae init")
+        if args.vae_fp32:
+            logger.info("Force VAE running in FP32")
+            args.vae_precision = "fp32"
         vae_dtype = get_precision(args.vae_precision)
         kwarg = {
             "state_dict": None,
@@ -256,14 +259,8 @@ def main(args):
         noise_scheduler = DDPMScheduler(**kwargs)
     elif args.rf_scheduler:
         noise_scheduler = FlowMatchEulerDiscreteScheduler()
-        # noise_scheduler_copy = copy.deepcopy(noise_scheduler)
     else:
         noise_scheduler = DDPMScheduler(**kwargs)
-
-    # Get the target for loss depending on the prediction type
-    if args.prediction_type is not None:
-        # set prediction_type of scheduler if defined
-        noise_scheduler.register_to_config(prediction_type=args.prediction_type)
 
     assert args.use_image_num >= 0, f"Expect to have use_image_num>=0, but got {args.use_image_num}"
     if args.use_image_num > 0:
@@ -285,6 +282,9 @@ def main(args):
         dtype=model_dtype,
         noise_offset=args.noise_offset,
         snr_gamma=args.snr_gamma,
+        rf_scheduler=args.rf_scheduler,
+        rank_id=rank_id,
+        device_num=device_num,
     )
     latent_diffusion_eval, metrics, eval_indexes = None, None, None
 
@@ -805,80 +805,6 @@ def parse_t2v_train_args(parser):
     parser.add_argument("--enable_profiling", action="store_true")
     parser.add_argument("--num_sampling_steps", type=int, default=20)
     parser.add_argument("--guidance_scale", type=float, default=4.5)
-    parser.add_argument(
-        "--checkpoints_total_limit", type=int, default=None, help=("Max number of checkpoints to store.")
-    )
-
-    # optimizer & scheduler
-    parser.add_argument(
-        "--optimizer", type=str, default="adamW", help='The optimizer type to use. Choose between ["AdamW", "prodigy"]'
-    )
-    parser.add_argument(
-        "--learning_rate",
-        type=float,
-        default=1e-4,
-        help="Initial learning rate (after the potential warmup period) to use.",
-    )
-    parser.add_argument(
-        "--use_8bit_adam",
-        action="store_true",
-        help="Whether or not to use 8-bit Adam from bitsandbytes. Ignored if optimizer is not set to AdamW",
-    )
-    parser.add_argument(
-        "--adam_beta1", type=float, default=0.9, help="The beta1 parameter for the Adam and Prodigy optimizers."
-    )
-    parser.add_argument(
-        "--adam_beta2", type=float, default=0.999, help="The beta2 parameter for the Adam and Prodigy optimizers."
-    )
-    parser.add_argument("--prodigy_decouple", type=bool, default=True, help="Use AdamW style decoupled weight decay")
-    parser.add_argument("--adam_weight_decay", type=float, default=1e-02, help="Weight decay to use for unet params")
-    parser.add_argument(
-        "--adam_weight_decay_text_encoder", type=float, default=None, help="Weight decay to use for text_encoder"
-    )
-    parser.add_argument(
-        "--adam_epsilon", type=float, default=1e-15, help="Epsilon value for the Adam optimizer and Prodigy optimizers."
-    )
-    parser.add_argument(
-        "--prodigy_use_bias_correction",
-        type=bool,
-        default=True,
-        help="Turn on Adam's bias correction. True by default. Ignored if optimizer is adamW",
-    )
-    parser.add_argument(
-        "--prodigy_safeguard_warmup",
-        type=bool,
-        default=True,
-        help="Remove lr from the denominator of D estimate to avoid issues during warm-up stage. True by default. Ignored if optimizer is adamW",
-    )
-    parser.add_argument(
-        "--prodigy_beta3",
-        type=float,
-        default=None,
-        help="coefficients for computing the Prodidy stepsize using running averages. If set to None, "
-        "uses the value of square root of beta2. Ignored if optimizer is adamW",
-    )
-    parser.add_argument(
-        "--allow_tf32",
-        action="store_true",
-        help=(
-            "Whether or not to allow TF32 on Ampere GPUs. Can be used to speed up training. For more information, see"
-            " https://pytorch.org/docs/stable/notes/cuda.html#tensorfloat-32-tf32-on-ampere-devices"
-        ),
-    )
-    parser.add_argument(
-        "--mixed_precision",
-        type=str,
-        default=None,
-        choices=["no", "fp16", "bf16"],
-        help=(
-            "Whether to use mixed precision. Choose between fp16 and bf16 (bfloat16). Bf16 requires PyTorch >="
-            " 1.10.and an Nvidia Ampere GPU.  Default to the value of accelerate config of the current system or the"
-            " flag passed with the `accelerate.launch` command. Use this argument to override the accelerate config."
-        ),
-    )
-
-    parser.add_argument("--local_rank", type=int, default=-1, help="For distributed training: local_rank")
-    ########################
 
     parser.add_argument("--output_dir", default="outputs/", help="The directory where training results are saved.")
     parser.add_argument("--dataset", type=str, default="t2v")
@@ -927,12 +853,6 @@ def parse_t2v_train_args(parser):
     parser.add_argument("--use_rope", action="store_true")
     parser.add_argument("--pretrained", type=str, default=None)
 
-    parser.add_argument(
-        "--enable_stable_fp32",
-        default=True,
-        type=str2bool,
-        help="Whether to some cells, e.g., LayerNorm, silu, into fp32",
-    )
     parser.add_argument("--tile_overlap_factor", type=float, default=0.25)
     parser.add_argument("--enable_tiling", action="store_true")
 
@@ -941,7 +861,6 @@ def parse_t2v_train_args(parser):
     parser.add_argument("--model_max_length", type=int, default=512)
     parser.add_argument("--multi_scale", action="store_true")
 
-    # parser.add_argument("--enable_tracker", action="store_true")
     parser.add_argument("--use_image_num", type=int, default=0)
     parser.add_argument("--use_img_from_vid", action="store_true")
     parser.add_argument(
