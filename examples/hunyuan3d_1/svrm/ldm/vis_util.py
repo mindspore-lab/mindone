@@ -55,7 +55,8 @@ def render(
     xaxis, yaxis, zaxis = [1,0,0], [0,1,0], [0,0,1] # y-up direction
     scene.camera.fov = (49.1, 49.1)
     for i, (alpha, beta) in enumerate(zip(elev, azim)):
-        if i < 0: #skip some frames if needed 
+        file_name = os.path.join(os.path.dirname(gif_dst_path), "frame_%04d.png"%i)
+        if i < 0 or os.path.exists(file_name): #skip some frames if needed 
             continue
 
         # prepare transformation matrix
@@ -67,7 +68,6 @@ def render(
         transform_M = scene.camera.look_at(mesh.vertices, rotation=R, distance=1.5)
         scene.camera_transform = transform_M
 
-        file_name = os.path.join(os.path.dirname(gif_dst_path), "frame_%04d.png"%i)
         while True: # TODO: may fail after some renderings, need to be resolved
             try:
                 png = scene.save_image(resolution=[resolution, resolution]) # png in bytes
