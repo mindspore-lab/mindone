@@ -9,13 +9,14 @@ Meta researchers found that scaling the training data, compute, and model parame
 Transformer-based ([LLaMa3](https://arxiv.org/abs/2407.21783)) model trained with
 [Flow Matching](https://arxiv.org/abs/2210.02747) yields high quality generative models for video or audio.
 
-## Features:
+### Features
 
 1. :white_check_mark: Text-to-Video synthesis
 2. \[Coming soon] Video personalization
 3. \[Coming soon] Video editing
 
-### TODO
+<details>
+<summary>TODO</summary>
 
 - [ ] Fix EMA.
 - [ ] Use ByT5 for encoding visual text only (i.e., text within quotes).
@@ -24,16 +25,18 @@ Transformer-based ([LLaMa3](https://arxiv.org/abs/2407.21783)) model trained wit
 - [ ] Fix Model Parallel training.
 - [ ] Add FPS conditioning.
 
-# Demo
+</details>
+
+## Demo
 
 Coming soon.
 
-# Architecture
+## Architecture
 
 <details>
 <summary><b>Architecture details</b></summary>
 
-## Transformer Backbone
+### Transformer Backbone
 
 The Movie Gen family of models contains the following variations: 1B, 5B, and 30B parameters.
 It uses the [LLaMa3](https://arxiv.org/abs/2407.21783) backbone architecture for the joint image-video generation model,
@@ -49,11 +52,11 @@ There are three changes to the LLaMa3 Transformer block for the use case of vide
    ([DiT](https://arxiv.org/abs/2212.09748)).
 3. Use full bidirectional attention instead of causal attention used in language modeling.
 
-## TAE
+### TAE
 
 [//]: # (TODO)
 
-## Text Encoders
+### Text Encoders
 
 Movie Gen uses a combination of [UL2](https://arxiv.org/abs/2205.05131), [ByT5](https://arxiv.org/abs/2105.13626), and
 Long-prompt [MetaCLIP](https://arxiv.org/abs/2309.16671) as text encoders to provide both semantic-level and
@@ -69,7 +72,7 @@ character-level text understanding for the backbone:
 
 </details>
 
-# Installation
+## Installation
 
 | MindSpore | Ascend Driver |  Firmware   | CANN toolkit/kernel |
 |:---------:|:-------------:|:-----------:|:-------------------:|
@@ -84,7 +87,7 @@ character-level text understanding for the backbone:
     pip install -r requirements.txt
     ```
 
-# Model Weights
+## Model Weights
 
 <details>
 <summary><b>TAE</b></summary>
@@ -115,7 +118,7 @@ If you face an SSL certificate verification error, you can add `--disable_ssl_ve
 
 </details>
 
-# Generating Text Embeddings
+## Generating Text Embeddings
 
 Due to the large memory footprint of the text encoders, the inference and training pipelines don't support generating
 text embeddings online. Therefore, you need to prepare them in advance by running the following command:
@@ -128,25 +131,28 @@ python inference_text_enc.py \
 --model_max_length 512
 ```
 
-> [!TIP]
+> [!NOTE]
 > We use the sequence length of 512 tokens for UL2, 256 for MetaCLIP, and 100 for ByT5.
 
-# Inference
+## Inference
 
-## Text-to-Video
+For more detailed instructions, please run `python inference.py --help`.
+
+### Text-to-Image
 
 ```shell
 python inference.py \
 --config configs/inference/moviegen_t2i_256x256.yaml \
---model.name llama-5B
+--model.name llama-5B \
 --model.pretrained_model_path /path/to/llama-5B.ckpt \
 --text_emb.ul2_dir /path/to/ul2_embeddings \
 --text_emb.metaclip_dir /path/to/metaclip_embeddings \
 --text_emb.byt5_dir /path/to/byt5_embeddings \
---image_size 256 455
+--image_size 256 455 \
+--batch_size 2
 ```
 
-## Text-to-Image
+### Text-to-Video
 
 ```shell
 python inference.py \
@@ -162,9 +168,9 @@ python inference.py \
 --save_format mp4
 ```
 
-## TAE
+### TAE
 
-### Encoding video
+#### Encoding Video
 
 ```python
 from mg.models.tae import TemporalAutoencoder
@@ -184,7 +190,7 @@ z = (z - tae.shift_factor) * tae.scale_factor
 
 For detailed arguments, please refer to the docstring in [tae.py](mg/models/tae/tae.py)
 
-### Decoding video latent
+#### Decoding Video Latent
 
 ```python
 # if z is scaled, you should unscale at first:
@@ -197,7 +203,7 @@ x = tae.decode(z)
 x = tae.decode(z, num_target_frames=1)
 ```
 
-# Training
+## Training
 
 Movie Gen is trained jointly on images and videos in 4 stages:
 
@@ -210,20 +216,47 @@ Images are treated as single frame videos, enabling the use of the same model to
 Compared to video data, paired image-text datasets are easier to scale with diverse concepts and styles,
 and thus joint modeling of image and video leads to better generalization.
 
-## Movie Gen
-
-To train Movie Gen, run the following command:
+To train Movie Gen, run the following commands:
 
 ```shell
 scripts/stage1_train.sh # for stage 1 training
 scripts/stage2_train.sh # for stage 2 training
 ```
 
+### Dataset Preparation
+
+Paths to videos and their corresponding captions should be stored in a CSV file with two columns: `video` and `caption`.
+For example:
+
+```text
+video,caption
+video_folder/part01/vid001.mp4,a cartoon character is walking through
+video_folder/part01/vid002.mp4,a red and white ball with an angry look on its face
+```
+
+### Cache Video Embedding (Optional)
+
+If you have sufficient storage budget, you can cache the video embeddings to speed up training by using the following
+command:
+
+```shell
+python inference_tae_enc.py \
+--tae.pretrained=/path/to/tae.ckpt \
+--tae.dtype=bf16 \
+--data.folder=/path/to/folder/with/videos/ \
+--output_path=/path/to/output/directory/ \
+--data.size=256 \
+--data.crop_size=[256,455]
+```
+
 ### Performance
 
-| Model | Context           | Jit level | Stage   | Precision | Resolution     | Batch size | NPUs | Time (s/step) | Config                                                             |
-|-------|-------------------|-----------|---------|-----------|----------------|------------|------|---------------|--------------------------------------------------------------------|
-| 5B    | D910*-C18-MS2.3.1 | O1        | 1 (T2I) | BF16      | 256x455 (16:9) | 20         | 4    | 4.47          | [stage1_t2i_256x256.yaml](./configs/train/stage1_t2i_256x256.yaml) |
+| Model |      Context      | Jit level |   Stage   | Precision |          Resolution          | TAE Cache |       Batch size        | NPUs | Time (s/step) |                              Config                               |
+|:-----:|:-----------------:|:---------:|:---------:|:---------:|:----------------------------:|:---------:|:-----------------------:|:----:|:-------------:|:-----------------------------------------------------------------:|
+|  5B   | D910*-C18-MS2.3.1 |    O1     |  1 (T2I)  |   BF16    |        256x455 (16:9)        |    No     |           20            |  4   |     4.47      | [stage1_t2i_256x256.yaml](configs/train/stage1_t2i_256x256.yaml)  |
+|  5B   | D910*-C18-MS2.3.1 |    O0     | 2 (T2I/V) |   BF16    | 256x455 (16:9)<br/>32 frames |    No     | Image: 10<br/>Video: 5  |  8   |     5.26      | [stage1_t2i_256x256.yaml](configs/train/stage2_t2iv_256x256.yaml) |
+|  1B   | D910*-C18-MS2.3.1 |    O1     |  1 (T2I)  |   BF16    |        256x455 (16:9)        |    Yes    |           10            |  8   |     0.53      | [stage1_t2i_256x256.yaml](configs/train/stage1_t2i_256x256.yaml)  |
+|  1B   | D910*-C18-MS2.3.1 |    O0     | 2 (T2I/V) |   BF16    | 256x455 (16:9)<br/>32 frames |    Yes    | Image: 10<br/>Video: 10 |  8   |     2.08      | [stage1_t2i_256x256.yaml](configs/train/stage2_t2iv_256x256.yaml) |
 
 ### Validation During Training
 
@@ -240,9 +273,13 @@ Validation can be enabled by either setting parameters in the `valid` field of t
 --valid.dataset.text_emb_folder.byt5 /path/to/byt5_embeddings
 ```
 
-## TAE
+## Evaluation
 
-### Prepare datasets
+Coming soon.
+
+## TAE Training & Evaluation
+
+### Dataset Preparation
 
 We need to prepare a csv annotation file listing the path to each input video related to the root folder, indicated by
 the `video_folder` argument. An example is
@@ -304,7 +341,3 @@ Experiments are tested on ascend 910* with mindspore 2.3.1 graph mode.
 | model name | cards | batch size | resolution | precision | jit level | graph compile | s/step | PSNR  | SSIM |                      recipe                       |
 |:----------:|:-----:|:----------:|:----------:|:---------:|:---------:|:-------------:|:------:|:-----:|:----:|:-------------------------------------------------:|
 |    TAE     |   1   |     1      | 256x256x32 |   bf16    |    O0     |     2 min     |  2.18  | 31.35 | 0.92 | [config](configs/tae/train/mixed_256x256x32.yaml) |
-
-# Evaluation
-
-Coming soon.
