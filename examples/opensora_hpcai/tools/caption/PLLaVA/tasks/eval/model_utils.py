@@ -1,8 +1,6 @@
 import mindspore as ms
-from .configuration_pllava import PllavaConfig
-from .modeling_pllava import PllavaForConditionalGeneration
-from .processing_pllava import PllavaProcessor
-
+from models.pllava import PllavaProcessor, PllavaForConditionalGeneration, PllavaConfig
+from models.pipeline import TextGenerator
 
 def load_pllava(repo_id, num_frames, pooling_shape=(16,12,12)):
     kwargs = {
@@ -36,7 +34,8 @@ def pllava_answer(model, processor, img_list, prompt,
     inputs = {k: ms.Tensor(v) for k, v in inputs.items()}
 
     model.set_train(False)
-    output_token = model.generate(**inputs, media_type='video',
+    pipeline = TextGenerator(model, max_new_tokens = max_new_tokens, use_kv_cache=True)
+    output_token = pipeline.generate(**inputs, media_type='video',
                                   do_sample=do_sample, max_new_tokens=max_new_tokens, num_beams=num_beams,
                                   min_length=min_length, top_p=top_p, repetition_penalty=repetition_penalty,
                                   length_penalty=length_penalty, temperature=temperature)

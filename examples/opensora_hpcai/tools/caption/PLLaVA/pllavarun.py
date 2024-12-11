@@ -23,9 +23,6 @@ def main():
     model, processor = load_pllava(
         args.pretrained_model_name_or_path,
         args.num_frames,
-        use_lora=args.use_lora,
-        weight_dir=args.weight_dir,
-        lora_alpha=args.lora_alpha
     )
 
     frames = load_video(args.video, args.num_frames)  # returns a list of PIL images
