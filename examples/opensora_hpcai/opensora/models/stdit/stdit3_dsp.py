@@ -1,15 +1,16 @@
 """
-OpenSora v1.2 STDiT architecture
+OpenSora v1.2 STDiT architecture, using DSP parallism (https://arxiv.org/abs/2403.10266)
+Reference: https://github.com/NUS-HPC-AI-Lab/VideoSys/blob/master/videosys/models/transformers/open_sora_transformer_3d.py
 """
 
 import logging
 import os
 import re
-from typing import Optional, Tuple
+from typing import Optional, Tuple, Union
 
 import numpy as np
 from mindcv.models.layers import DropPath
-from opensora.acceleration.communications import GatherFowardSplitBackward, SplitFowardGatherBackward
+from opensora.acceleration.communications import AlltoAll, GatherFowardSplitBackward, SplitFowardGatherBackward
 from opensora.acceleration.parallel_states import get_sequence_parallel_group
 from opensora.models.layers.blocks import (
     CaptionEmbedder,
@@ -21,8 +22,6 @@ from opensora.models.layers.blocks import (
     PatchEmbed3D,
     PositionEmbedding2D,
     SelfAttention,
-    SeqParallelMultiHeadCrossAttention,
-    SeqParallelSelfAttention,
     SizeEmbedder,
     T2IFinalLayer,
     TimestepEmbedder,
@@ -42,8 +41,7 @@ from mindone.models.utils import constant_, normal_, xavier_uniform_
 logger = logging.getLogger(__name__)
 
 
-class STDiT3Block(nn.Cell):
-    # to reduce compilation time
+class STDiT3DSPBlock(nn.Cell):
     @ms.lazy_inline(policy="front")
     def __init__(
         self,
@@ -61,14 +59,11 @@ class STDiT3Block(nn.Cell):
         super().__init__()
         self.temporal = temporal
         self.hidden_size = hidden_size
+        self.enable_sequence_parallelism = enable_sequence_parallelism
 
         assert not enable_layernorm_kernel, "Not implemented"
-        if enable_sequence_parallelism and not temporal:
-            attn_cls = SeqParallelSelfAttention
-            mha_cls = SeqParallelMultiHeadCrossAttention
-        else:
-            attn_cls = SelfAttention
-            mha_cls = MultiHeadCrossAttention
+        attn_cls = SelfAttention
+        mha_cls = MultiHeadCrossAttention
 
         self.norm1 = LayerNorm(hidden_size, elementwise_affine=False, eps=1e-6)
         self.attn = attn_cls(
@@ -88,6 +83,11 @@ class STDiT3Block(nn.Cell):
         self.scale_shift_table = Parameter(np.random.randn(6, hidden_size).astype(np.float32) / hidden_size**0.5)
         self.chunk = get_chunk_op()
 
+        if self.enable_sequence_parallelism:
+            sp_group = get_sequence_parallel_group()
+            self.all2all_to_spatial_shard = AlltoAll(2, 1, group=sp_group)
+            self.all2all_to_temporal_shard = AlltoAll(1, 2, group=sp_group)
+
     def construct(
         self,
         x: Tensor,
@@ -98,6 +98,8 @@ class STDiT3Block(nn.Cell):
         t0: Optional[Tensor] = None,  # t with timestamp=0
         T: Optional[int] = None,  # number of frames
         S: Optional[int] = None,  # number of pixel patches
+        spatial_pad: Union[int, Tensor] = 0,
+        temporal_pad: Union[int, Tensor] = 0,
     ) -> Tensor:
         # prepare modulate parameters
         B, N, C = x.shape
@@ -119,9 +121,17 @@ class STDiT3Block(nn.Cell):
 
         # attention
         if self.temporal:
+            if self.enable_sequence_parallelism:
+                x_m, S, T = self.dynamic_switch(
+                    x_m, S, T, to_spatial_shard=True, spatial_pad=spatial_pad, temporal_pad=temporal_pad
+                )
             x_m = x_m.reshape(B, T, S, C).swapaxes(1, 2).reshape(B * S, T, C)  # B (T S) C -> (B S) T C
             x_m = self.attn(x_m)
             x_m = x_m.reshape(B, S, T, C).swapaxes(1, 2).reshape(B, T * S, C)  # (B S) T C -> B (T S) C
+            if self.enable_sequence_parallelism:
+                x_m, S, T = self.dynamic_switch(
+                    x_m, S, T, to_spatial_shard=False, spatial_pad=spatial_pad, temporal_pad=temporal_pad
+                )
         else:
             x_m = x_m.reshape(B * T, S, C)  # B (T S) C -> (B T) S C
             x_m = self.attn(x_m)
@@ -160,8 +170,27 @@ class STDiT3Block(nn.Cell):
 
         return x
 
+    def dynamic_switch(
+        self,
+        x: Tensor,
+        s: int,
+        t: int,
+        to_spatial_shard: bool,
+        spatial_pad: Union[int, Tensor],
+        temporal_pad: Union[int, Tensor],
+    ) -> Tuple[Tensor, int, int]:
+        b, _, d = x.shape
+        x = ops.reshape(x, (b, t, s, d))
+        if to_spatial_shard:
+            x = self.all2all_to_spatial_shard(x, spatial_pad, temporal_pad)
+        else:
+            x = self.all2all_to_temporal_shard(x, temporal_pad, spatial_pad)
+        new_s, new_t = x.shape[2], x.shape[1]
+        x = ops.reshape(x, (b, -1, d))
+        return x, new_s, new_t
 
-class STDiT3(nn.Cell):
+
+class STDiT3_DSP(nn.Cell):
     def __init__(
         self,
         input_size=(None, None, None),
@@ -241,7 +270,7 @@ class STDiT3(nn.Cell):
         drop_path = np.linspace(0, self.drop_path, depth)
         self.spatial_blocks = nn.CellList(
             [
-                STDiT3Block(
+                STDiT3DSPBlock(
                     hidden_size=hidden_size,
                     num_heads=num_heads,
                     mlp_ratio=mlp_ratio,
@@ -259,7 +288,7 @@ class STDiT3(nn.Cell):
         drop_path = np.linspace(0, self.drop_path, depth)
         self.temporal_blocks = nn.CellList(
             [
-                STDiT3Block(
+                STDiT3DSPBlock(
                     hidden_size=hidden_size,
                     num_heads=num_heads,
                     mlp_ratio=mlp_ratio,
@@ -301,10 +330,10 @@ class STDiT3(nn.Cell):
 
         if self.enable_sequence_parallelism:
             sp_group = get_sequence_parallel_group()
-            logger.info(f"Initialize STDIT-v3 model with sequence parallel group `{sp_group}`.")
+            logger.info(f"Initialize STDIT-v3 model with dynamic sequence parallel group `{sp_group}`.")
             self.sp_size = get_group_size(sp_group)
-            self.split_forward_gather_backward = SplitFowardGatherBackward(dim=2, grad_scale="down", group=sp_group)
-            self.gather_forward_split_backward = GatherFowardSplitBackward(dim=2, grad_scale="up", group=sp_group)
+            self.split_forward_gather_backward = SplitFowardGatherBackward(dim=1, grad_scale="down", group=sp_group)
+            self.gather_forward_split_backward = GatherFowardSplitBackward(dim=1, grad_scale="up", group=sp_group)
 
         self.is_dynamic_shape = check_dynamic_mode()
         self.chunk = get_chunk_op()
@@ -352,6 +381,10 @@ class STDiT3(nn.Cell):
         W = W // self.patch_size[2]
         return T, H, W
 
+    def get_pad_num(self, dim_size: int) -> int:
+        pad = (self.sp_size - (dim_size % self.sp_size)) % self.sp_size
+        return pad
+
     def construct(
         self,
         x: Tensor,
@@ -369,23 +402,6 @@ class STDiT3(nn.Cell):
         # === get pos embed ===
         _, _, Tx, Hx, Wx = x.shape
         T, H, W = self.get_dynamic_size(x)
-
-        # adjust for sequence parallelism
-        # we need to ensure H * W is divisible by sequence parallel size
-        # for simplicity, we can adjust the height to make it divisible
-        if self.enable_sequence_parallelism:
-            if H % self.sp_size != 0:
-                h_pad_size = self.sp_size - H % self.sp_size
-            else:
-                h_pad_size = 0
-
-            if h_pad_size > 0:
-                hx_pad_size = h_pad_size * self.patch_size[1]
-
-                # pad x along the H dimension
-                H += h_pad_size
-                x = mint.nn.functional.pad(x, (0, 0, 0, hx_pad_size))
-
         S = H * W
         if self.is_dynamic_shape:
             # tricky adaptation for dynamic shape in graph mode. Though it also works for static shape, it degrades performance by 50 ms per step.
@@ -431,16 +447,26 @@ class STDiT3(nn.Cell):
         x = x.reshape(B, T, S, x.shape[-1])  # B (T S) C -> B T S C
         x = x + pos_emb.to(x.dtype)
 
+        # shard over the sequence dim if sp is enabled
+        temporal_pad, spatial_pad = None, None
         if self.enable_sequence_parallelism:
+            temporal_pad = self.get_pad_num(T)
+            spatial_pad = self.get_pad_num(S)
+
+            if temporal_pad > 0:
+                x = mint.nn.functional.pad(x, (0, 0, 0, 0, 0, temporal_pad))
+                frames_mask = mint.nn.functional.pad(frames_mask, (0, temporal_pad))
+
             x = self.split_forward_gather_backward(x)
-            S = S // self.sp_size
+            T = x.shape[1]
+            frames_mask = ops.stop_gradient(self.split_forward_gather_backward(frames_mask))
 
         x = x.reshape(B, T * S, x.shape[-1])  # B T S C -> B (T S) C
 
         # === blocks ===
         for spatial_block, temporal_block in zip(self.spatial_blocks, self.temporal_blocks):
-            x = spatial_block(x, y, t_mlp, mask, frames_mask, t0_mlp, T, S)
-            x = temporal_block(x, y, t_mlp, mask, frames_mask, t0_mlp, T, S)
+            x = spatial_block(x, y, t_mlp, mask, frames_mask, t0_mlp, T, S, spatial_pad, temporal_pad)
+            x = temporal_block(x, y, t_mlp, mask, frames_mask, t0_mlp, T, S, spatial_pad, temporal_pad)
 
         # === final layer ===
         x = self.final_layer(x, t, frames_mask, t0, T, S)
@@ -448,8 +474,11 @@ class STDiT3(nn.Cell):
         if self.enable_sequence_parallelism:
             x = x.reshape(B, T, S, -1)
             x = self.gather_forward_split_backward(x)
-            S = S * self.sp_size
-            x = x.reshape(B, (T * S), -1)
+
+            if temporal_pad > 0:
+                x = x.narrow(1, 0, x.shape[1] - temporal_pad)
+
+            T, S = x.shape[1], x.shape[2]
 
         x = self.unpatchify(x, T, H, W, Tx, Hx, Wx)
 
@@ -523,17 +552,17 @@ class STDiT3(nn.Cell):
             print("ckpt param not load: ", u, len(u))
 
 
-def STDiT3_XL_2(from_pretrained=None, **kwargs):
+def STDiT3_XL_2_DSP(from_pretrained=None, **kwargs):
     # DEBUG only
-    # model = STDiT3(depth=1, hidden_size=1152, patch_size=(1, 2, 2), num_heads=16, **kwargs)
-    model = STDiT3(depth=28, hidden_size=1152, patch_size=(1, 2, 2), num_heads=16, **kwargs)
+    # model = STDiT3_DSP(depth=1, hidden_size=1152, patch_size=(1, 2, 2), num_heads=16, **kwargs)
+    model = STDiT3_DSP(depth=28, hidden_size=1152, patch_size=(1, 2, 2), num_heads=16, **kwargs)
     if from_pretrained is not None:
         load_checkpoint(from_pretrained, model)
     return model
 
 
-def STDiT3_3B_2(from_pretrained=None, **kwargs):
-    model = STDiT3(depth=28, hidden_size=1872, patch_size=(1, 2, 2), num_heads=26, **kwargs)
+def STDiT3_3B_2_DSP(from_pretrained=None, **kwargs):
+    model = STDiT3_DSP(depth=28, hidden_size=1872, patch_size=(1, 2, 2), num_heads=26, **kwargs)
     if from_pretrained is not None:
         load_checkpoint(from_pretrained, model)
     return model

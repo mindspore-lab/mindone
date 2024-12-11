@@ -305,7 +305,7 @@ In the `sample_iv2v.yaml`, provide such information as `loop`, `condition_frame_
 and `reference_path`.
 See [here](docs/quick_start.md#imagevideo-to-video-opensora-v11-and-above) for more details.
 
-> For inference with sequence parallelism using multiple NPUs in Open-Sora 1.2, please use `msrun` and append `--use_parallel True` and `--enable_sequence_parallelism True` to the inference script, referring to `scripts/run/run_infer_sequence_parallel.sh`.
+> For inference with sequence parallelism using multiple NPUs in Open-Sora 1.2, please use `msrun` and append `--use_parallel True` and `--enable_sequence_parallelism True` to the inference script, referring to `scripts/run/run_infer_sequence_parallel.sh`. To further accelerate the inference speed, you can use [DSP](https://arxiv.org/abs/2403.10266) by appending `--dsp True`, referring to `scripts/run/run_infer_sequence_parallel_dsp.sh`.
 
 #### Text-to-Video Generation
 
@@ -874,27 +874,28 @@ Note that we train with mixed video ang image strategy i.e. `--mixed_strategy=mi
 
 ### Training
 
-We support training with the OpenSora v1.2 model using SP (Sequence Parallel), handling up to 408 frames (~16 seconds) on 4 NPU* cards. Additionally, we have optimized the training speed by implementing micro-batch parallelism in the VAE’s spatial and temporal domains, achieving approximately a 20% speed boost. We evaluate the training performance using the MixKit dataset, which includes high-resolution videos (1080P, duration 12s to 100s). The training performance results are reported below.
+We support training with the OpenSora v1.2 model using SP (Sequence Parallel) and [DSP](https://arxiv.org/abs/2403.10266) (Dynamic Sequence Parallel), handling up to 408 frames (~16 seconds) on 4 NPU* cards. Additionally, we have optimized the training speed by implementing micro-batch parallelism in the VAE’s spatial and temporal domains, achieving approximately a 20% speed boost. We evaluate the training performance using the MixKit dataset, which includes high-resolution videos (1080P, duration 12s to 100s). The training performance results are reported below.
 
-All experiments are tested on ascend 910* with mindspore 2.3.1 graph mode.
+All experiments are tested on ascend 910* with mindspore 2.4.0 graph mode.
 | model name   | cards  | batch size | resolution  | sink | precision   | jit level | graph compile |  s/step | recipe |
 | :--:         | :--:   | :--:       | :--:       | :--:       | :--:      | :--:      |:--:          | :--:       | :--:   |
-| STDiT3-XL/2  |  4     | 1          | 408x720x1280| OFF     |   bf16    | O1        |    17 mins   | 47.26   | [script](scripts/run/run_train_os1.2_stage2_sp.sh)
+| STDiT3-XL/2  |  4     | 1          | 408x720x1280| OFF     |   bf16    | O1        |    12 mins   | 48.30   | [script](scripts/run/run_train_os1.2_stage2_sp.sh)
+| STDiT3-XL/2  |  4     | 1          | 408x720x1280| OFF     |   bf16    | O1        |    12 mins   | 47.00   | [script](scripts/run/run_train_os1.2_stage2_dsp.sh)
 
-
-> To prevent the system from running out of memory, ensure you launch the training job on a server with sufficient memory. For 4P training, at least 800GB of memory is required.
+> To prevent the system from running out of memory, ensure you launch the training job on a server with sufficient memory. For 4P training, at least 400GB of memory is required.
 
 
 ### Inference
 
 We evaluate the inference performance of text-to-video generation by measuring the average sampling time per step and the total sampling time of a video.
 
-All experiments are tested on ascend 910* with mindspore 2.3.1 graph mode.
+All experiments are tested on ascend 910* with mindspore 2.4.0 graph mode.
 
 
 | model name      |  cards | batch size | resolution |  precision | scheduler   |  steps   |  jit level |   graph compile | s/step     | s/video | recipe |
 | :--:         | :--:   | :--:       | :--:       | :--:       | :--:       | :--:       | :--:       | :--:      |:--:    | :--:   |:--:   |
-| STDiT3-XL/2  |  2     | 1          | 408x720x1280   |  bf16    |   RFlow   |   30   |   O0  | 1~2 mins |  27.03    |    811.00      |  [script](scripts/run/run_infer_sequence_parallel.sh) |
+| STDiT3-XL/2  |  2     | 1          | 408x720x1280   |  bf16    |   RFlow   |   30   |   O0  | 1~2 mins |  26.03    |    780.00      |  [script](scripts/run/run_infer_sequence_parallel.sh) |
+| STDiT3-XL/2  |  2     | 1          | 408x720x1280   |  bf16    |   RFlow   |   30   |   O0  | 1~2 mins |  22.03    |    660.00      |  [script](scripts/run/run_infer_sequence_parallel.sh) |
 
 
 ## Training and Inference Using the FiT-Like Pipeline
@@ -992,5 +993,6 @@ If you wish to contribute to this project, you can refer to the [Contribution Gu
 * [CLIP](https://github.com/openai/CLIP): A powerful text-image embedding model.
 * [T5](https://github.com/google-research/text-to-text-transfer-transformer): A powerful text encoder.
 * [LLaVA](https://github.com/haotian-liu/LLaVA): A powerful image captioning model based on [Mistral-7B](https://huggingface.co/mistralai/Mistral-7B-v0.1) and [Yi-34B](https://huggingface.co/01-ai/Yi-34B).
+* [DSP](https://github.com/NUS-HPC-AI-Lab/VideoSys): Dynamic Sequence Parallel introduced by NUS HPC AI Lab.
 
 We are grateful for their exceptional work and generous contribution to open source.
