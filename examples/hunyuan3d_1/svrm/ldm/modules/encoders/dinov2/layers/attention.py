@@ -11,7 +11,8 @@ import logging
 import os
 import warnings
 
-from mindspore import nn, Tensor
+import mindspore as ms
+from mindspore import nn, Tensor, ops
 
 from mindone.utils.version_control import (
     check_valid_flash_attention,
@@ -32,6 +33,7 @@ class Attention(nn.Cell):
         proj_bias: bool = True,
         attn_drop: float = 0.0,
         proj_drop: float = 0.0,
+        FA_dtype = ms.bfloat16
     ) -> None:
         super().__init__()
         self.num_heads = num_heads
@@ -45,11 +47,11 @@ class Attention(nn.Cell):
 
         if XFORMERS_ENABLED:
             self.flash_attention = MSFlashAttention(
-                head_dim=self.head_dim,
+                head_dim=head_dim,
                 head_num=self.num_heads,
-                attention_dropout=self.attn_drop,
+                attention_dropout=attn_drop,
                 input_layout="BNSD",
-                dtype=dtype,
+                dtype=FA_dtype,
             )
             
 
