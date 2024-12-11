@@ -468,8 +468,8 @@ class TextTransformer(nn.Cell):
 
     def build_cls_mask(self, text, dtype):
         cls_mask = (text != self.pad_id).unsqueeze(1)
-        cls_mask = ops.pad(cls_mask, (1, 0, cls_mask.shape[2], 0), value=1.0)
-        additive_mask = ops.zeros(cls_mask.shape, dtype)
+        cls_mask = mint.nn.functional.pad(cls_mask, (1, 0, cls_mask.shape[2], 0), value=1.0)
+        additive_mask = mint.zeros(cls_mask.shape, dtype)
         additive_mask = ops.masked_fill(additive_mask, ops.logical_not(cls_mask), -1e5)
         additive_mask = mint.repeat_interleave(additive_mask, self.heads, 0)
         return additive_mask
