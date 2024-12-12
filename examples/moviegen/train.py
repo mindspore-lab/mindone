@@ -1,7 +1,7 @@
 import logging
 import os
 import sys
-from typing import Tuple, Union
+from typing import Dict, Tuple, Union
 
 from jsonargparse import ActionConfigFile, ArgumentParser
 from jsonargparse.typing import path_type
@@ -63,7 +63,7 @@ def initialize_dataset(
 
 def main(args):
     # 1. init env
-    args.train.output_path = args.train.output_path.absolute
+    args.train.output_path = os.path.abspath(args.train.output_path)
     os.makedirs(args.train.output_path, exist_ok=True)
     device_id, rank_id, device_num = init_train_env(**args.env)
     mode = get_context("mode")  # `init_train_env()` may change the mode during debugging
@@ -267,7 +267,12 @@ if __name__ == "__main__":
         ImageVideoDataset, "dataset", skip={"frames_mask_generator", "t_compress_func"}, instantiate=False
     )
     parser.add_function_arguments(
-        create_dataloader, "dataloader", skip={"dataset", "transforms", "batch_transforms", "device_num", "rank_id"}
+        create_dataloader,
+        "dataloader",
+        skip={"dataset", "batch_size", "transforms", "batch_transforms", "device_num", "rank_id"},
+    )
+    parser.add_argument(  # FIXME: support bucketing
+        "--dataloader.batch_size", default=1, type=Union[int, Dict[str, int]], help="Number of samples per batch"
     )
     parser.link_arguments("env.debug", "dataloader.debug", apply_on="parse")
     parser.add_function_arguments(create_scheduler, "train.lr_scheduler", skip={"steps_per_epoch", "num_epochs"})

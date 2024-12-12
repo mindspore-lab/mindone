@@ -70,7 +70,7 @@ def prepare_captions(
 
 
 def main(args):
-    save_dir = args.output_path.absolute
+    save_dir = os.path.abspath(args.output_path)
     os.makedirs(save_dir, exist_ok=True)
     set_logger(name="", output_dir=save_dir)
 

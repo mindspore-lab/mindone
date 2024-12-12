@@ -48,7 +48,7 @@ def prepare_captions(
 
 def main(args):
     # TODO: CFG error
-    save_dir = args.output_path.absolute
+    save_dir = os.path.abspath(args.output_path)
     if args.append_timestamp:
         time_str = datetime.datetime.now().strftime("%Y-%m-%dT%H-%M-%S")
         save_dir = os.path.join(save_dir, time_str)
