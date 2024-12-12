@@ -8,14 +8,14 @@ from collections import defaultdict
 import mindspore as ms
 from mindspore import nn, ops, mint
 import warnings
-try:
-    from igl import fast_winding_number_for_meshes, point_mesh_squared_distance, read_obj
-except:
-    warnings.warn("Please install libigl for training, bypass this time.")
+# try:
+#     from igl import fast_winding_number_for_meshes, point_mesh_squared_distance, read_obj
+# except:
+#     warnings.warn("Please install libigl for training, bypass this time.")
 
 from .typing import *
 
-# TODO
+# TODO: training
 # def get_rank():
 #     # SLURM_PROCID can be set even if SLURM is not managing the multiprocessing,
 #     # therefore LOCAL_RANK needs to be checked first

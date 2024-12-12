@@ -213,7 +213,8 @@ def drop_add_residual_stochastic_depth(
 #     return outputs
 
 # TODO: used some xformeres.ops e.g., fmha
-# class NestedTensorBlockMod(BlockMod):
+# NEVER run in inference
+# class NestedTensorBlockMod(BlockMod): 
 #     def forward_nested(self, x_list: List[Tensor], cam_emb_list: List[Tensor]) -> List[Tensor]:
 #         """
 #         x_list contains a list of tensors to nest together and run
