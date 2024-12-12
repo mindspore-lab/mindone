@@ -1,4 +1,3 @@
-import sys
 import warnings
 from dataclasses import asdict, dataclass
 from random import randrange

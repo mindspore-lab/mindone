@@ -7,7 +7,6 @@
 #
 # thanks!
 
-import mindspore as ms
 from mindspore import nn, ops
 
 
