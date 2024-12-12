@@ -537,6 +537,7 @@ def main(args):
         loss_scaler.loss_scale_value = loss_scale
         loss_scaler.cur_iter = cur_iter
         loss_scaler.last_overflow_iter = last_overflow_iter
+        logger.info(f"Resume training from {resume_ckpt}")
 
     # trainer (standalone and distributed)
     ema = (
@@ -705,12 +706,8 @@ def main(args):
                 f"Num trainable params: {num_params_trainable}",
                 f"Transformer model dtype: {model_dtype}",
                 f"Transformer AMP level: {args.amp_level}" if not args.global_bf16 else "Global BF16: True",
-                f"VAE dtype: {vae_dtype} (amp level O2)"
-                + (
-                    f"\nText encoder dtype: {text_encoder_dtype} (amp level O2)"
-                    if text_encoder_dtype is not None
-                    else ""
-                ),
+                f"VAE dtype: {vae_dtype}"
+                + (f"\nText encoder dtype: {text_encoder_dtype}" if text_encoder_dtype is not None else ""),
                 f"Learning rate: {learning_rate}",
                 f"Instantaneous batch size per device: {args.train_batch_size}",
                 f"Total train batch size (w. parallel, distributed & accumulation): {total_batch_size}",
