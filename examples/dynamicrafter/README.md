@@ -116,13 +116,13 @@ sh scripts/run/run_infer.sh [RESUOUTION] [CKPT_PATH]
 
 We evaluate the inference performance of image-to-video generation by measuring the average sampling time per step and the total sampling time of a video.
 
-Experiments are tested on ascend 910* with mindspore 2.3.1 graph mode.
+Experiments are tested on ascend 910* with [mindspore 2.4.0 1119](https://repo.mindspore.cn/mindspore/mindspore/version/202411/20241119/master_20241119010040_b355f51f1710bb48d01d675c61b8305f14a9dcd4_newest/unified/aarch64/) graph mode.
 
 | model name    |  cards           | batch size      | resolution   |  scheduler   | steps      | precision |  jit level | graph compile |s/step     | s/video |
 |:-------------:|:------------:    |:------------:   |:------------:|:------------:|:------------:|:------------------:|:----------------:|:----------------:|:----------------:|:----------------:|
-| dynamicrafter |  1               | 1               | 16x576x1024  | DDIM | 50 | fp16 | O1 | 1~2 mins |  1.42 | 71 |
-| dynamicrafter | 1                | 1               | 16x320x512   | DDIM | 50 | fp16 | O1 |1~2 mins |  0.42  | 21 |
-| dynamicrafter | 1                | 1               | 16x256x256   | DDIM | 50 | fp16 | O1 |1~2 mins |  0.26 | 13 |
+| dynamicrafter |  1               | 1               | 16x576x1024  | DDIM | 50 | fp16 | O0 | 1~2 mins |  1.56 | 78 |
+| dynamicrafter | 1                | 1               | 16x320x512   | DDIM | 50 | fp16 | O0 |1~2 mins |  0.44  | 22 |
+| dynamicrafter | 1                | 1               | 16x256x256   | DDIM | 50 | fp16 | O0 |1~2 mins |  0.28 | 14 |
 
 
 ## References
