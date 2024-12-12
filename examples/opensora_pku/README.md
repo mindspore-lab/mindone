@@ -516,15 +516,15 @@ The major differences between the single-node training script and the multi-node
 ```bash
 MS_WORKER_NUM=16                      # the total number of workers in all nodes
 LOCAL_WORKER_NUM=8                    # the number of workers in the current node
-NODE_RANK=0                           # the ID of the current node, change it to 1 in another node
-MASTER_NODE_ADDRESS="7.242.107.148"   # the address of the master node. Use the same master address in two nodes
+NODE_RANK=$1                          # the ID of the current node, pass it via `bash xxx.sh 0` or `bash xxx.sh 1`
+MASTER_NODE_ADDRESS="x.xxx.xxx.xxx"   # the address of the master node. Use the same master address in two nodes
 ```
-`MS_WORKER_NUM` means the total number of workers in the two nodes, which is 16. `LOCAL_WORKER_NUM` is the number of workers in the current node, which is 8, since we have 8 NPUs in each node. `NODE_RANK` is the ID of each node. By default, we use `NODE_RANK=0` for the master node, and `NODE_RANK=1` for the other node. Finally, `MASTER_NODE_ADDRESS` is the address of the master node and please edit it to your master **server address**.
+`MS_WORKER_NUM` means the total number of workers in the two nodes, which is 16. `LOCAL_WORKER_NUM` is the number of workers in the current node, which is 8, since we have 8 NPUs in each node. `NODE_RANK` is the rank ID of each node. By default, the master node's rank id is 0, and the other node's rank id is 1. You can set the node rank id by using `bash xxx.sh 0` or `bash xxx.sh 1`. Finally, `MASTER_NODE_ADDRESS` is the address of the master node and please edit it to your master **server address**.
 
 Suppose we have two nodes: node_0 and node_1. Each node has 8 NPUs. Please follow the steps below to launch a two-node training of stage 3 using `train_video3d_nx480p_zero2_multi_node.sh`:
 > 1. Prepare the datasets and edit the `merge_data.txt` on the two nodes following the instructions of [Sec. Preparation](./README.md#preparation-1).
-> 2. Change the `NODE_RANK` of `train_video3d_nx480p_zero2_multi_node.sh`: the training script of node_0 should have `NODE_RANK=0`, and the training script of node_1 should have `NODE_RANK=1`. This the **only difference** between the training scripts on the two nodes.
-> 3. Launch the two training scripts on node_0 and node_1 sequentially.
+> 2. Edit the `MASTER_NODE_ADDRESS` in `train_video3d_nx480p_zero2_multi_node.sh` on both node_0 and node_1. `MASTER_NODE_ADDRESS` should be the server address of node_0. You should use the same master address in two nodes.
+> 3. In the master node, run `bash train_video3d_nx480p_zero2_multi_node.sh 0`, and in the other node, run `bash train_video3d_nx480p_zero2_multi_node.sh 1`. This the **only difference** between the training scripts on the two nodes.
 
 #### Tips on Finetuning
 

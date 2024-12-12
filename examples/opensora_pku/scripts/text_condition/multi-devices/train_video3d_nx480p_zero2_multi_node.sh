@@ -3,8 +3,9 @@ NUM_FRAME=29
 
 MS_WORKER_NUM=16                      # the total number of workers in all nodes
 LOCAL_WORKER_NUM=8                    # the number of workers in the current node
-NODE_RANK=0                           # the ID of the current node, change it to 1 in another node
-MASTER_NODE_ADDRESS="7.242.107.148"   # the address of the master node. Use the same master address in two nodes
+NODE_RANK=$1                          # the ID of the current node, pass it via `bash xxx.sh 0` or `bash xxx.sh 1`
+MASTER_NODE_ADDRESS="x.xxx.xxx.xxx"   # the address of the master node. Use the same master address in two nodes
+echo "Running on node rank $NODE_RANK"
 msrun --bind_core=True --node_rank=$NODE_RANK --worker_num=$MS_WORKER_NUM --local_worker_num=$LOCAL_WORKER_NUM --master_addr=$MASTER_NODE_ADDRESS --master_port=9000 --log_dir="node-${NODE_RANK}-t2v-video3d-${NUM_FRAME}x480p_zero2/parallel_logs" \
   opensora/train/train_t2v_diffusers.py \
     --model OpenSoraT2V-ROPE-L/122 \
