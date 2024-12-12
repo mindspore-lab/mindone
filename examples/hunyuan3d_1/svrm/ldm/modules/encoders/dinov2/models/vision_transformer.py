@@ -7,17 +7,17 @@
 #   https://github.com/facebookresearch/dino/blob/main/vision_transformer.py
 #   https://github.com/rwightman/pytorch-image-models/tree/master/timm/models/vision_transformer.py
 
-from functools import partial
-import math
 import logging
-from typing import Sequence, Tuple, Union, Callable
+import math
+from functools import partial
+from typing import Callable, Sequence, Tuple, Union
 
 import mindspore as ms
-from mindspore import nn, ops, mint
-from mindspore.common.initializer import initializer, TruncatedNormal, Normal
+from mindspore import mint, nn, ops
+from mindspore.common.initializer import Normal, TruncatedNormal, initializer
 
-from ..layers import Mlp, PatchEmbed, SwiGLUFFNFused, MemEffAttention, BlockMod #NestedTensorBlockMod as BlockMod
 from ....attention import AdaNorm
+from ..layers import BlockMod, MemEffAttention, Mlp, PatchEmbed, SwiGLUFFNFused  # NestedTensorBlockMod as BlockMod
 
 logger = logging.getLogger("dinov2")
 
@@ -66,7 +66,7 @@ class DinoVisionTransformer(nn.Cell):
         interpolate_antialias=False,
         interpolate_offset=0.1,
         pos_emb_dim=768,
-        cam_cond_dim=20
+        cam_cond_dim=20,
     ):
         """
         Args:
@@ -103,12 +103,11 @@ class DinoVisionTransformer(nn.Cell):
         self.interpolate_antialias = interpolate_antialias
         self.interpolate_offset = interpolate_offset
 
-
         norm_layer = AdaNorm
         self.cam_embed = nn.SequentialCell(
             nn.Dense(cam_cond_dim, pos_emb_dim, has_bias=True),
             nn.SiLU(),
-            nn.Dense(pos_emb_dim, pos_emb_dim, has_bias=True)
+            nn.Dense(pos_emb_dim, pos_emb_dim, has_bias=True),
         )
 
         self.patch_embed = embed_layer(img_size=img_size, patch_size=patch_size, in_chans=in_chans, embed_dim=embed_dim)
@@ -177,18 +176,18 @@ class DinoVisionTransformer(nn.Cell):
 
         self.init_weights()
 
-    def init_weights(self): 
+    def init_weights(self):
         # trunc_normal_(self.pos_embed, std=0.02)
-        weight = initializer(TruncatedNormal(sigma=0.02, mean=0.0, a=-2.0, b=2.0), self.pos_embed.shape) 
+        weight = initializer(TruncatedNormal(sigma=0.02, mean=0.0, a=-2.0, b=2.0), self.pos_embed.shape)
         self.pos_embed.set_data(weight)
         # nn.init.normal_(self.cls_token, std=1e-6)
-        weight = initializer(Normal(sigma=1e-6, mean=0.0), self.cls_token.shape) 
+        weight = initializer(Normal(sigma=1e-6, mean=0.0), self.cls_token.shape)
         self.cls_token.set_data(weight)
 
         if self.register_tokens is not None:
-            weight = initializer(Normal(sigma=1e-6, mean=0.0), self.register_tokens.shape) 
+            weight = initializer(Normal(sigma=1e-6, mean=0.0), self.register_tokens.shape)
             self.register_tokens.set_data(weight)
-           
+
         named_apply(init_weights_vit_timm, self)
 
     def interpolate_pos_encoding(self, x, w, h):
@@ -211,10 +210,10 @@ class DinoVisionTransformer(nn.Cell):
         sx, sy = float(w0) / sqrt_N, float(h0) / sqrt_N
         patch_pos_embed = ops.interpolate(
             patch_pos_embed.reshape(1, int(sqrt_N), int(sqrt_N), dim).permute((0, 3, 1, 2)),
-            scale_factor=(sx, sy), # ms does not support bicubic by directly passing this parameter yet,
-            mode="bicubic", 
+            scale_factor=(sx, sy),  # ms does not support bicubic by directly passing this parameter yet,
+            mode="bicubic",
             # antialias=self.interpolate_antialias, # not support
-            align_corners=False, # bicubic different from torch w/ align_corners=false
+            align_corners=False,  # bicubic different from torch w/ align_corners=false
             recompute_scale_factor=True,  # need to set this True
         )
 
@@ -263,7 +262,7 @@ class DinoVisionTransformer(nn.Cell):
                 }
             )
         return output
-    
+
     def forward_features_list_with_camera(self, x_list, cam_cond_list, masks_list):
         x = [self.prepare_tokens_with_masks(x, masks) for x, masks in zip(x_list, masks_list)]
         cam_emb = [self.cam_embed(cam_cond) for cam_cond in cam_cond_list]
@@ -303,7 +302,7 @@ class DinoVisionTransformer(nn.Cell):
             "x_prenorm": x,
             "masks": masks,
         }
-    
+
     def forward_features_with_camera(self, x, cam_cond, masks=None):
         if isinstance(x, list):
             return self.forward_features_list(x, cam_cond, masks)
@@ -361,7 +360,7 @@ class DinoVisionTransformer(nn.Cell):
         if norm:
             outputs = [self.norm(out) for out in outputs]
         class_tokens = [out[:, 0] for out in outputs]
-        outputs = [out[:, 1 + self.num_register_tokens:] for out in outputs]
+        outputs = [out[:, 1 + self.num_register_tokens :] for out in outputs]
         if reshape:
             B, _, w, h = x.shape
             outputs = [
@@ -373,7 +372,6 @@ class DinoVisionTransformer(nn.Cell):
         return tuple(outputs)
 
     def forward(self, *args, is_training=False, **kwargs):
-
         ret = self.forward_features_with_camera(*args, **kwargs)
 
         if is_training:
@@ -381,15 +379,16 @@ class DinoVisionTransformer(nn.Cell):
         else:
             return self.head(ret["x_norm_clstoken"])
 
+
 def init_weights_vit_timm(module: nn.Cell, name: str = ""):
     """ViT weight initialization, original timm impl (for reproducibility)"""
 
     if isinstance(module, nn.Dense):
-        weight = initializer(TruncatedNormal(sigma=0.02, mean=0.0, a=-2.0, b=2.0), module.weight.shape) 
+        weight = initializer(TruncatedNormal(sigma=0.02, mean=0.0, a=-2.0, b=2.0), module.weight.shape)
         module.weight.set_data(weight)
         if module.bias is not None:
             bias_weight = initializer("zeros", module.bias.shape)
-            module.bias.set_data(bias_weight)            
+            module.bias.set_data(bias_weight)
     elif isinstance(module, AdaNorm):
         weight = initializer("zeros", module.adaLN_modulation[-1].weight.shape)
         bias_weight = initializer("zeros", module.adaLN_modulation[-1].bias.shape)
@@ -398,10 +397,10 @@ def init_weights_vit_timm(module: nn.Cell, name: str = ""):
     elif isinstance(module, nn.LayerNorm):
         if module.bias is not None:
             bias_weight = initializer("zeros", module.bias.shape)
-            module.bias.set_data(bias_weight) 
+            module.bias.set_data(bias_weight)
         if module.weight is not None:
             weight = initializer("ones", module.weight.shape)
-            module.weight.set_data(weight) 
+            module.weight.set_data(weight)
 
 
 def vit_small(patch_size=16, num_register_tokens=0, **kwargs):

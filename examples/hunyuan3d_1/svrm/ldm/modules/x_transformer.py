@@ -1,25 +1,21 @@
 """shout-out to https://github.com/lucidrains/x-transformers/tree/main/x_transformers"""
-import mindspore as ms
-from mindspore import nn, ops, mint
+from collections import namedtuple
 from functools import partial
 from inspect import isfunction
-from collections import namedtuple
-from mindspore.common.initializer import initializer, Normal
+
+import mindspore as ms
+from mindspore import mint, nn, ops
+from mindspore.common.initializer import Normal, initializer
+
 from ..util import dtype_to_max
 
 # constants
 
 DEFAULT_DIM_HEAD = 64
 
-Intermediates = namedtuple('Intermediates', [
-    'pre_softmax_attn',
-    'post_softmax_attn'
-])
+Intermediates = namedtuple("Intermediates", ["pre_softmax_attn", "post_softmax_attn"])
 
-LayerIntermediates = namedtuple('Intermediates', [
-    'hiddens',
-    'attn_intermediates'
-])
+LayerIntermediates = namedtuple("Intermediates", ["hiddens", "attn_intermediates"])
 
 
 class AbsolutePositionalEmbedding(nn.Cell):
@@ -40,17 +36,18 @@ class AbsolutePositionalEmbedding(nn.Cell):
 class FixedPositionalEmbedding(nn.Cell):
     def __init__(self, dim):
         super().__init__()
-        inv_freq = 1. / (10000 ** (mint.arange(0, dim, 2).float() / dim))
+        inv_freq = 1.0 / (10000 ** (mint.arange(0, dim, 2).float() / dim))
         self.inv_freq = inv_freq
 
     def construct(self, x, seq_dim=1, offset=0):
         t = mint.arange(x.shape[seq_dim], device=x.device).type_as(self.inv_freq) + offset
-        sinusoid_inp = ops.einsum('i , j -> i j', t, self.inv_freq)
+        sinusoid_inp = ops.einsum("i , j -> i j", t, self.inv_freq)
         emb = mint.cat((sinusoid_inp.sin(), sinusoid_inp.cos()), dim=-1)
         return emb[None, :, :]
 
 
 # helpers
+
 
 def exists(val):
     return val is not None
@@ -65,26 +62,30 @@ def default(val, d):
 def always(val):
     def inner(*args, **kwargs):
         return val
+
     return inner
 
 
 def not_equals(val):
     def inner(x):
         return x != val
+
     return inner
 
 
 def equals(val):
     def inner(x):
         return x == val
+
     return inner
 
 
 def max_neg_value(tensor):
-    return - dtype_to_max(tensor.dtype)
+    return -dtype_to_max(tensor.dtype)
 
 
 # keyword argument helpers
+
 
 def pick_and_pop(keys, d):
     values = list(map(lambda key: d.pop(key), keys))
@@ -110,7 +111,7 @@ def group_by_key_prefix(prefix, d):
 
 def groupby_prefix_and_trim(prefix, d):
     kwargs_with_prefix, kwargs = group_dict_by_key(partial(string_begins_with, prefix), d)
-    kwargs_without_prefix = dict(map(lambda x: (x[0][len(prefix):], x[1]), tuple(kwargs_with_prefix.items())))
+    kwargs_without_prefix = dict(map(lambda x: (x[0][len(prefix) :], x[1]), tuple(kwargs_with_prefix.items())))
     return kwargs_without_prefix, kwargs
 
 
@@ -140,7 +141,7 @@ class Rezero(nn.Cell):
 class ScaleNorm(nn.Cell):
     def __init__(self, dim, eps=1e-5):
         super().__init__()
-        self.scale = dim ** -0.5
+        self.scale = dim**-0.5
         self.eps = eps
         self.g = nn.Parameter(mint.ones(1))
 
@@ -152,7 +153,7 @@ class ScaleNorm(nn.Cell):
 class RMSNorm(nn.Cell):
     def __init__(self, dim, eps=1e-8):
         super().__init__()
-        self.scale = dim ** -0.5
+        self.scale = dim**-0.5
         self.eps = eps
         self.g = ms.Parameter(mint.ones(dim))
 
@@ -173,14 +174,14 @@ class GRUGating(nn.Cell):
 
     def construct(self, x, residual):
         gated_output = self.gru(
-            x.reshape(-1, x.shape[-1]), #'b n d -> (b n) d'
-            residual.reshape(-1, x.shape[-1]) # 'b n d -> (b n) d'
+            x.reshape(-1, x.shape[-1]), residual.reshape(-1, x.shape[-1])  #'b n d -> (b n) d'  # 'b n d -> (b n) d'
         )
 
         return gated_output.reshape_as(x)
 
 
 # feedforward
+
 
 class GEGLU(nn.Cell):
     def __init__(self, dim_in, dim_out):
@@ -193,20 +194,17 @@ class GEGLU(nn.Cell):
 
 
 class FeedForward(nn.Cell):
-    def __init__(self, dim, dim_out=None, mult=4, glu=False, dropout=0.):
+    def __init__(self, dim, dim_out=None, mult=4, glu=False, dropout=0.0):
         super().__init__()
         inner_dim = int(dim * mult)
         dim_out = default(dim_out, dim)
-        project_in = nn.SequentialCell(
-            nn.Dense(dim, inner_dim),
-            nn.GELU(approximate=False)
-        ) if not glu else GEGLU(dim, inner_dim)
-
-        self.net = nn.SequentialCell(
-            project_in,
-            nn.Dropout(p=dropout),
-            nn.Dense(inner_dim, dim_out)
+        project_in = (
+            nn.SequentialCell(nn.Dense(dim, inner_dim), nn.GELU(approximate=False))
+            if not glu
+            else GEGLU(dim, inner_dim)
         )
+
+        self.net = nn.SequentialCell(project_in, nn.Dropout(p=dropout), nn.Dense(inner_dim, dim_out))
 
     def construct(self, x):
         return self.net(x)
@@ -215,23 +213,23 @@ class FeedForward(nn.Cell):
 # attention.
 class Attention(nn.Cell):
     def __init__(
-            self,
-            dim,
-            dim_head=DEFAULT_DIM_HEAD,
-            heads=8,
-            causal=False,
-            mask=None,
-            talking_heads=False,
-            sparse_topk=None,
-            use_entmax15=False,
-            num_mem_kv=0,
-            dropout=0.,
-            on_attn=False
+        self,
+        dim,
+        dim_head=DEFAULT_DIM_HEAD,
+        heads=8,
+        causal=False,
+        mask=None,
+        talking_heads=False,
+        sparse_topk=None,
+        use_entmax15=False,
+        num_mem_kv=0,
+        dropout=0.0,
+        on_attn=False,
     ):
         super().__init__()
         if use_entmax15:
             raise NotImplementedError("Check out entmax activation instead of softmax activation!")
-        self.scale = dim_head ** -0.5
+        self.scale = dim_head**-0.5
         self.heads = heads
         self.causal = causal
         self.mask = mask
@@ -253,7 +251,7 @@ class Attention(nn.Cell):
         self.sparse_topk = sparse_topk
 
         # entmax
-        #self.attn_fn = entmax15 if use_entmax15 else F.softmax
+        # self.attn_fn = entmax15 if use_entmax15 else F.softmax
         self.attn_fn = mint.nn.functional.softmax
 
         # add memory key / values
@@ -267,15 +265,7 @@ class Attention(nn.Cell):
         self.to_out = nn.SequentialCell(nn.Dense(inner_dim, dim * 2), nn.GLU()) if on_attn else nn.Dense(inner_dim, dim)
 
     def construct(
-            self,
-            x,
-            context=None,
-            mask=None,
-            context_mask=None,
-            rel_pos=None,
-            sinusoidal_emb=None,
-            prev_attn=None,
-            mem=None
+        self, x, context=None, mask=None, context_mask=None, rel_pos=None, sinusoidal_emb=None, prev_attn=None, mem=None
     ):
         b, n, _, h, talking_heads = *x.shape, self.heads, self.talking_heads
         kv_input = default(context, x)
@@ -308,21 +298,23 @@ class Attention(nn.Cell):
             q_mask = default(mask, lambda: mint.ones((b, n)).bool())
             k_mask = q_mask if not exists(context) else context_mask
             k_mask = default(k_mask, lambda: mint.ones((b, k.shape[-2])).bool())
-            q_mask = q_mask[:, None, :, None] # 'b i -> b () i ()'
-            k_mask = k_mask[:, None, None, :] #'b j -> b () () j'
+            q_mask = q_mask[:, None, :, None]  # 'b i -> b () i ()'
+            k_mask = k_mask[:, None, None, :]  #'b j -> b () () j'
             input_mask = q_mask * k_mask
 
         if self.num_mem_kv > 0:
             # TODO: susan comment: to double check, not sure it is repeat or repeat_interleave
             # mem_k, mem_v = map(lambda t: repeat(t, 'h n d -> b h n d', b=b), (self.mem_k, self.mem_v))
-            mem_k = mem_k[None, ...].tile((b,1,1,1))    
-            mem_v = mem_v[None, ...].tile((b,1,1,1))  
+            mem_k = mem_k[None, ...].tile((b, 1, 1, 1))
+            mem_v = mem_v[None, ...].tile((b, 1, 1, 1))
             k = mint.cat((mem_k, k), dim=-2)
             v = mint.cat((mem_v, v), dim=-2)
             if exists(input_mask):
-                input_mask = mint.nn.functional.pad(input_mask, (self.num_mem_kv, 0), value=1.0) # why set value=True???
+                input_mask = mint.nn.functional.pad(
+                    input_mask, (self.num_mem_kv, 0), value=1.0
+                )  # why set value=True???
 
-        dots = ops.einsum('b h i d, b h j d -> b h i j', q, k) * self.scale
+        dots = ops.einsum("b h i d, b h j d -> b h i j", q, k) * self.scale
         mask_value = max_neg_value(dots)
 
         if exists(prev_attn):
@@ -331,7 +323,7 @@ class Attention(nn.Cell):
         pre_softmax_attn = dots
 
         if talking_heads:
-            dots = ops.einsum('b h i j, h k -> b k i j', dots, self.pre_softmax_proj).contiguous()
+            dots = ops.einsum("b h i j, h k -> b k i j", dots, self.pre_softmax_proj).contiguous()
 
         if exists(rel_pos):
             dots = rel_pos(dots)
@@ -345,7 +337,7 @@ class Attention(nn.Cell):
             r = mint.arange(i)
             # 'i -> () () i ()' < 'j -> () () () j' ????
             mask = r[None, None, :, None] < r[None, None, None, :]
-            mask = mint.nn.functional.pad(mask, (j - i, 0), value=0) #False
+            mask = mint.nn.functional.pad(mask, (j - i, 0), value=0)  # False
             dots = dots.masked_fill(mask, mask_value)
             del mask
 
@@ -362,49 +354,46 @@ class Attention(nn.Cell):
         attn = self.dropout(attn)
 
         if talking_heads:
-            attn = ops.einsum('b h i j, h k -> b k i j', attn, self.post_softmax_proj).contiguous()
+            attn = ops.einsum("b h i j, h k -> b k i j", attn, self.post_softmax_proj).contiguous()
 
-        out = ops.einsum('b h i j, b h j d -> b h i d', attn, v)
-        out = out.reshape(out.shape[0], out.shape[1], -1) # 'b h n d -> b n (h d)'
+        out = ops.einsum("b h i j, b h j d -> b h i d", attn, v)
+        out = out.reshape(out.shape[0], out.shape[1], -1)  # 'b h n d -> b n (h d)'
 
-        intermediates = Intermediates(
-            pre_softmax_attn=pre_softmax_attn,
-            post_softmax_attn=post_softmax_attn
-        )
+        intermediates = Intermediates(pre_softmax_attn=pre_softmax_attn, post_softmax_attn=post_softmax_attn)
 
         return self.to_out(out), intermediates
 
 
 class AttentionLayers(nn.Cell):
     def __init__(
-            self,
-            dim,
-            depth,
-            heads=8,
-            causal=False,
-            cross_attend=False,
-            only_cross=False,
-            use_scalenorm=False,
-            use_rmsnorm=False,
-            use_rezero=False,
-            rel_pos_num_buckets=32,
-            rel_pos_max_distance=128,
-            position_infused_attn=False,
-            custom_layers=None,
-            sandwich_coef=None,
-            par_ratio=None,
-            residual_attn=False,
-            cross_residual_attn=False,
-            macaron=False,
-            pre_norm=True,
-            gate_residual=False,
-            **kwargs
+        self,
+        dim,
+        depth,
+        heads=8,
+        causal=False,
+        cross_attend=False,
+        only_cross=False,
+        use_scalenorm=False,
+        use_rmsnorm=False,
+        use_rezero=False,
+        rel_pos_num_buckets=32,
+        rel_pos_max_distance=128,
+        position_infused_attn=False,
+        custom_layers=None,
+        sandwich_coef=None,
+        par_ratio=None,
+        residual_attn=False,
+        cross_residual_attn=False,
+        macaron=False,
+        pre_norm=True,
+        gate_residual=False,
+        **kwargs,
     ):
         super().__init__()
-        ff_kwargs, kwargs = groupby_prefix_and_trim('ff_', kwargs)
-        attn_kwargs, _ = groupby_prefix_and_trim('attn_', kwargs)
+        ff_kwargs, kwargs = groupby_prefix_and_trim("ff_", kwargs)
+        attn_kwargs, _ = groupby_prefix_and_trim("attn_", kwargs)
 
-        dim_head = attn_kwargs.get('dim_head', DEFAULT_DIM_HEAD)
+        dim_head = attn_kwargs.get("dim_head", DEFAULT_DIM_HEAD)
 
         self.dim = dim
         self.depth = depth
@@ -414,7 +403,9 @@ class AttentionLayers(nn.Cell):
         self.pia_pos_emb = FixedPositionalEmbedding(dim) if position_infused_attn else None
         self.rotary_pos_emb = always(None)
 
-        assert rel_pos_num_buckets <= rel_pos_max_distance, 'number of relative position buckets must be less than the relative position max distance'
+        assert (
+            rel_pos_num_buckets <= rel_pos_max_distance
+        ), "number of relative position buckets must be less than the relative position max distance"
         self.rel_pos = None
 
         self.pre_norm = pre_norm
@@ -430,47 +421,47 @@ class AttentionLayers(nn.Cell):
         branch_fn = Rezero if use_rezero else None
 
         if cross_attend and not only_cross:
-            default_block = ('a', 'c', 'f')
+            default_block = ("a", "c", "f")
         elif cross_attend and only_cross:
-            default_block = ('c', 'f')
+            default_block = ("c", "f")
         else:
-            default_block = ('a', 'f')
+            default_block = ("a", "f")
 
         if macaron:
-            default_block = ('f',) + default_block
+            default_block = ("f",) + default_block
 
         if exists(custom_layers):
             layer_types = custom_layers
         elif exists(par_ratio):
             par_depth = depth * len(default_block)
-            assert 1 < par_ratio <= par_depth, 'par ratio out of range'
-            default_block = tuple(filter(not_equals('f'), default_block))
+            assert 1 < par_ratio <= par_depth, "par ratio out of range"
+            default_block = tuple(filter(not_equals("f"), default_block))
             par_attn = par_depth // par_ratio
             depth_cut = par_depth * 2 // 3  # 2 / 3 attention layer cutoff suggested by PAR paper
             par_width = (depth_cut + depth_cut // par_attn) // par_attn
-            assert len(default_block) <= par_width, 'default block is too large for par_ratio'
-            par_block = default_block + ('f',) * (par_width - len(default_block))
+            assert len(default_block) <= par_width, "default block is too large for par_ratio"
+            par_block = default_block + ("f",) * (par_width - len(default_block))
             par_head = par_block * par_attn
-            layer_types = par_head + ('f',) * (par_depth - len(par_head))
+            layer_types = par_head + ("f",) * (par_depth - len(par_head))
         elif exists(sandwich_coef):
-            assert sandwich_coef > 0 and sandwich_coef <= depth, 'sandwich coefficient should be less than the depth'
-            layer_types = ('a',) * sandwich_coef + default_block * (depth - sandwich_coef) + ('f',) * sandwich_coef
+            assert sandwich_coef > 0 and sandwich_coef <= depth, "sandwich coefficient should be less than the depth"
+            layer_types = ("a",) * sandwich_coef + default_block * (depth - sandwich_coef) + ("f",) * sandwich_coef
         else:
             layer_types = default_block * depth
 
         self.layer_types = layer_types
-        self.num_attn_layers = len(list(filter(equals('a'), layer_types)))
+        self.num_attn_layers = len(list(filter(equals("a"), layer_types)))
 
         for layer_type in self.layer_types:
-            if layer_type == 'a':
-                layer = Attention(dim, heads=heads, causal=causal, **attn_kwargs) # TODO: susan comment: no causal!!!
-            elif layer_type == 'c':
+            if layer_type == "a":
+                layer = Attention(dim, heads=heads, causal=causal, **attn_kwargs)  # TODO: susan comment: no causal!!!
+            elif layer_type == "c":
                 layer = Attention(dim, heads=heads, **attn_kwargs)
-            elif layer_type == 'f':
+            elif layer_type == "f":
                 layer = FeedForward(dim, **ff_kwargs)
                 layer = layer if not macaron else Scale(0.5, layer)
             else:
-                raise Exception(f'invalid layer type {layer_type}')
+                raise Exception(f"invalid layer type {layer_type}")
 
             if isinstance(layer, Attention) and exists(branch_fn):
                 layer = branch_fn(layer)
@@ -480,21 +471,9 @@ class AttentionLayers(nn.Cell):
             else:
                 residual_fn = Residual()
 
-            self.layers.append(nn.CellList([
-                norm_fn(),
-                layer,
-                residual_fn
-            ]))
+            self.layers.append(nn.CellList([norm_fn(), layer, residual_fn]))
 
-    def construct(
-            self,
-            x,
-            context=None,
-            mask=None,
-            context_mask=None,
-            mems=None,
-            return_hiddens=False
-    ):
+    def construct(self, x, context=None, mask=None, context_mask=None, mems=None, return_hiddens=False):
         hiddens = []
         intermediates = []
         prev_attn = None
@@ -505,7 +484,7 @@ class AttentionLayers(nn.Cell):
         for ind, (layer_type, (norm, block, residual_fn)) in enumerate(zip(self.layer_types, self.layers)):
             is_last = ind == (len(self.layers) - 1)
 
-            if layer_type == 'a':
+            if layer_type == "a":
                 hiddens.append(x)
                 layer_mem = mems.pop(0)
 
@@ -514,32 +493,35 @@ class AttentionLayers(nn.Cell):
             if self.pre_norm:
                 x = norm(x)
 
-            if layer_type == 'a':
-                out, inter = block(x, mask=mask, sinusoidal_emb=self.pia_pos_emb, rel_pos=self.rel_pos,
-                                   prev_attn=prev_attn, mem=layer_mem)
-            elif layer_type == 'c':
+            if layer_type == "a":
+                out, inter = block(
+                    x,
+                    mask=mask,
+                    sinusoidal_emb=self.pia_pos_emb,
+                    rel_pos=self.rel_pos,
+                    prev_attn=prev_attn,
+                    mem=layer_mem,
+                )
+            elif layer_type == "c":
                 out, inter = block(x, context=context, mask=mask, context_mask=context_mask, prev_attn=prev_cross_attn)
-            elif layer_type == 'f':
+            elif layer_type == "f":
                 out = block(x)
 
             x = residual_fn(out, residual)
 
-            if layer_type in ('a', 'c'):
+            if layer_type in ("a", "c"):
                 intermediates.append(inter)
 
-            if layer_type == 'a' and self.residual_attn:
+            if layer_type == "a" and self.residual_attn:
                 prev_attn = inter.pre_softmax_attn
-            elif layer_type == 'c' and self.cross_residual_attn:
+            elif layer_type == "c" and self.cross_residual_attn:
                 prev_cross_attn = inter.pre_softmax_attn
 
             if not self.pre_norm and not is_last:
                 x = norm(x)
 
         if return_hiddens:
-            intermediates = LayerIntermediates(
-                hiddens=hiddens,
-                attn_intermediates=intermediates
-            )
+            intermediates = LayerIntermediates(hiddens=hiddens, attn_intermediates=intermediates)
 
             return x, intermediates
 
@@ -548,27 +530,26 @@ class AttentionLayers(nn.Cell):
 
 class Encoder(AttentionLayers):
     def __init__(self, **kwargs):
-        assert 'causal' not in kwargs, 'cannot set causality on encoder'
+        assert "causal" not in kwargs, "cannot set causality on encoder"
         super().__init__(causal=False, **kwargs)
-
 
 
 class TransformerWrapper(nn.Cell):
     def __init__(
-            self,
-            *,
-            num_tokens,
-            max_seq_len,
-            attn_layers,
-            emb_dim=None,
-            max_mem_len=0.,
-            emb_dropout=0.,
-            num_memory_tokens=None,
-            tie_embedding=False,
-            use_pos_emb=True
+        self,
+        *,
+        num_tokens,
+        max_seq_len,
+        attn_layers,
+        emb_dim=None,
+        max_mem_len=0.0,
+        emb_dropout=0.0,
+        num_memory_tokens=None,
+        tie_embedding=False,
+        use_pos_emb=True,
     ):
         super().__init__()
-        assert isinstance(attn_layers, AttentionLayers), 'attention layers must be one of Encoder or Decoder'
+        assert isinstance(attn_layers, AttentionLayers), "attention layers must be one of Encoder or Decoder"
 
         dim = attn_layers.dim
         emb_dim = default(emb_dim, dim)
@@ -578,8 +559,11 @@ class TransformerWrapper(nn.Cell):
         self.num_tokens = num_tokens
 
         self.token_emb = nn.Embedding(num_tokens, emb_dim)
-        self.pos_emb = AbsolutePositionalEmbedding(emb_dim, max_seq_len) if (
-                    use_pos_emb and not attn_layers.has_pos_emb) else always(0)
+        self.pos_emb = (
+            AbsolutePositionalEmbedding(emb_dim, max_seq_len)
+            if (use_pos_emb and not attn_layers.has_pos_emb)
+            else always(0)
+        )
         self.emb_dropout = nn.Dropout(p=emb_dropout)
 
         self.project_emb = nn.Dense(emb_dim, dim) if emb_dim != dim else nn.Identity()
@@ -597,7 +581,7 @@ class TransformerWrapper(nn.Cell):
             self.memory_tokens = ms.Parameter(ops.randn((num_memory_tokens, dim)))
 
             # let funnel encoder know number of memory tokens, if specified
-            if hasattr(attn_layers, 'num_memory_tokens'):
+            if hasattr(attn_layers, "num_memory_tokens"):
                 attn_layers.num_memory_tokens = num_memory_tokens
 
     def init_(self):
@@ -605,14 +589,7 @@ class TransformerWrapper(nn.Cell):
         self.token_emb.weight.set_data(weight)
 
     def construct(
-            self,
-            x,
-            return_embeddings=False,
-            mask=None,
-            return_mems=False,
-            return_attn=False,
-            mems=None,
-            **kwargs
+        self, x, return_embeddings=False, mask=None, return_mems=False, return_attn=False, mems=None, **kwargs
     ):
         b, n, num_mem = *x.shape, self.num_memory_tokens
         x = self.token_emb(x)
@@ -628,7 +605,7 @@ class TransformerWrapper(nn.Cell):
 
             # auto-handle masking after appending memory tokens
             if exists(mask):
-                mask = mint.nn.functional.pad(mask, (num_mem, 0), value=1.)
+                mask = mint.nn.functional.pad(mask, (num_mem, 0), value=1.0)
 
         x, intermediates = self.attn_layers(x, mask=mask, mems=mems, return_hiddens=True, **kwargs)
         x = self.norm(x)
@@ -640,7 +617,7 @@ class TransformerWrapper(nn.Cell):
         if return_mems:
             hiddens = intermediates.hiddens
             new_mems = list(map(lambda pair: mint.cat(pair, dim=-2), zip(mems, hiddens))) if exists(mems) else hiddens
-            new_mems = list(map(lambda t: t[..., -self.max_mem_len:, :], new_mems))
+            new_mems = list(map(lambda t: t[..., -self.max_mem_len :, :], new_mems))
             return out, new_mems
 
         if return_attn:
@@ -648,4 +625,3 @@ class TransformerWrapper(nn.Cell):
             return out, attn_maps
 
         return out
-

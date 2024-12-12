@@ -7,31 +7,30 @@
 #   https://github.com/facebookresearch/dino/blob/master/vision_transformer.py
 #   https://github.com/rwightman/pytorch-image-models/tree/master/timm/layers/patch_embed.py
 
-import os
 import logging
+import os
 import warnings
-from typing import Callable, List, Any, Tuple, Dict
+from typing import Any, Callable, Dict, List, Tuple
 
 import mindspore as ms
-from mindspore import nn, Tensor, ops, mint
+from mindspore import Tensor, mint, nn, ops
 
+from ....attention import AdaNorm
 from .attention import Attention, MemEffAttention
 from .drop_path import DropPath
 from .layer_scale import LayerScale
 from .mlp import Mlp
 
-from ....attention import AdaNorm
-
-
 logger = logging.getLogger("dinov2")
 
-XFORMERS_ENABLED=False
+XFORMERS_ENABLED = False
 
 
 class BlockMod(nn.Cell):
-    '''
-        using Modified Block, see below
-    '''
+    """
+    using Modified Block, see below
+    """
+
     def __init__(
         self,
         dim: int,
@@ -111,7 +110,7 @@ def drop_add_residual_stochastic_depth(
     sample_drop_ratio: float = 0.0,
 ) -> Tensor:
     # drop_add_residual_stochastic_depth_list
-    
+
     # 1) extract subset using permutation
     b, n, d = x.shape
     sample_subset_size = max(int(b * (1 - sample_drop_ratio)), 1)
@@ -128,9 +127,9 @@ def drop_add_residual_stochastic_depth(
 
     # 3) add the residual
     alpha = residual_scale_factor
-    x_plus_residual = ops.index_add(x_flat, axis=0, indices=brange, y=residual.to(dtype=x.dtype) * alpha )
+    x_plus_residual = ops.index_add(x_flat, axis=0, indices=brange, y=residual.to(dtype=x.dtype) * alpha)
     # Note:
-    # augment order is different 
+    # augment order is different
     # MS: ops.index_add(x, indices, y, axis, use_lock=True, check_index_bound=True)
     # x_plus_residual = torch.index_add(x_flat, 0, brange, residual.to(dtype=x.dtype), alpha=residual_scale_factor)
     # Pytorch: torch.index_add(input, dim, index, source, *, alpha=1, out=None)
@@ -214,7 +213,7 @@ def drop_add_residual_stochastic_depth(
 
 # TODO: used some xformeres.ops e.g., fmha
 # NEVER run in inference
-# class NestedTensorBlockMod(BlockMod): 
+# class NestedTensorBlockMod(BlockMod):
 #     def forward_nested(self, x_list: List[Tensor], cam_emb_list: List[Tensor]) -> List[Tensor]:
 #         """
 #         x_list contains a list of tensors to nest together and run

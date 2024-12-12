@@ -4,10 +4,10 @@
 # found in the LICENSE file in the root directory of this source tree.
 
 import os
-from typing import Callable, Optional
 import warnings
+from typing import Callable, Optional
 
-from mindspore import Tensor, nn, mint
+from mindspore import Tensor, mint, nn
 
 
 class SwiGLUFFN(nn.Cell):
@@ -35,8 +35,9 @@ class SwiGLUFFN(nn.Cell):
 
 SwiGLU = SwiGLUFFN
 
+
 # https://github.com/facebookresearch/xformers/blob/6e10bd21ac6fc878657b24684723ccd05e41d385/xformers/ops/swiglu_op.py#L433
-class SwiGLUFFNFused(SwiGLU): 
+class SwiGLUFFNFused(SwiGLU):
     def __init__(
         self,
         in_features: int,

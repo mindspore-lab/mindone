@@ -1,4 +1,4 @@
-# !/usr/bin/bash 
+# !/usr/bin/bash
 # ------------------------------------
 #      stage     | Minimum Memory Support
 # ------------------------------------
@@ -10,12 +10,12 @@
 # views_to_mesh  | ~10G (90000 faces)
 # ------------------------------------
 
-# Usage: 
+# Usage:
 # bash scripts/image_to_3d_lite_separately.sh ./demos/example_000.png ./outputs/test
 # # need Memory > 10G
 
 rgb_path=$1
-save_folder=$2 
+save_folder=$2
 
 # model name and paths
 lite_pretrain=./weights/mvd_lite

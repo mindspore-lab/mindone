@@ -9,4 +9,4 @@ python main.py \
     --mv23d_ckt_path $mv23d_ckt_path \
     --text_prompt "一个广式茶杯" \
     --save_folder ./outputs/test/ \
-    --max_faces_num 90000 
+    --max_faces_num 90000

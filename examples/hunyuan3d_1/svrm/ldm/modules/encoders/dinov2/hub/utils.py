@@ -6,8 +6,7 @@
 import itertools
 import math
 
-from mindspore import nn, ops, mint
-
+from mindspore import mint, nn, ops
 
 _DINOV2_BASE_URL = "https://dl.fbaipublicfiles.com/dinov2"
 

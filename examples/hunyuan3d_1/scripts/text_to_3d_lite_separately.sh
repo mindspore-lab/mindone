@@ -1,4 +1,4 @@
-# !/usr/bin/bash 
+# !/usr/bin/bash
 # ------------------------------------
 #      stage     | Minimum Memory Support
 # ------------------------------------
@@ -10,12 +10,12 @@
 # views_to_mesh  | ~10G (90000 faces)
 # ------------------------------------
 
-# Usage: 
+# Usage:
 # bash scripts/text_to_3d_lite_separately.sh "a lovely rabbit" ./outputs/test
 # # need Memory > 14G
 
 text_prompt=$1
-save_folder=$2 
+save_folder=$2
 
 # model name and paths
 text2image_path=Tencent-Hunyuan/HunyuanDiT-Diffusers #local: weights/hunyuanDiT hugggingface: Tencent-Hunyuan/HunyuanDiT-Diffusers
@@ -35,7 +35,7 @@ python infer/text_to_image.py \
     --text_prompt "$text_prompt" \
     --output_img_path $save_folder/img.jpg \
     --seed 0 \
-    --steps 25 
+    --steps 25
 && \
 python infer/removebg.py \
     --rgb_path $save_folder/img.jpg \

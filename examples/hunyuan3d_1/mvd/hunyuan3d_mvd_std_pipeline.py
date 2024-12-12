@@ -1,66 +1,58 @@
-# Open Source Model Licensed under the Apache License Version 2.0 
+# Open Source Model Licensed under the Apache License Version 2.0
 # and Other Licenses of the Third-Party Components therein:
-# The below Model in this distribution may have been modified by THL A29 Limited 
+# The below Model in this distribution may have been modified by THL A29 Limited
 # ("Tencent Modifications"). All Tencent Modifications are Copyright (C) 2024 THL A29 Limited.
 
-# Copyright (C) 2024 THL A29 Limited, a Tencent company.  All rights reserved. 
-# The below software and/or models in this distribution may have been 
-# modified by THL A29 Limited ("Tencent Modifications"). 
+# Copyright (C) 2024 THL A29 Limited, a Tencent company.  All rights reserved.
+# The below software and/or models in this distribution may have been
+# modified by THL A29 Limited ("Tencent Modifications").
 # All Tencent Modifications are Copyright (C) THL A29 Limited.
 
-# Hunyuan 3D is licensed under the TENCENT HUNYUAN NON-COMMERCIAL LICENSE AGREEMENT 
-# except for the third-party components listed below. 
-# Hunyuan 3D does not impose any additional limitations beyond what is outlined 
-# in the repsective licenses of these third-party components. 
-# Users must comply with all terms and conditions of original licenses of these third-party 
-# components and must ensure that the usage of the third party components adheres to 
-# all relevant laws and regulations. 
+# Hunyuan 3D is licensed under the TENCENT HUNYUAN NON-COMMERCIAL LICENSE AGREEMENT
+# except for the third-party components listed below.
+# Hunyuan 3D does not impose any additional limitations beyond what is outlined
+# in the repsective licenses of these third-party components.
+# Users must comply with all terms and conditions of original licenses of these third-party
+# components and must ensure that the usage of the third party components adheres to
+# all relevant laws and regulations.
 
-# For avoidance of doubts, Hunyuan 3D means the large language models and 
-# their software and algorithms, including trained model weights, parameters (including 
-# optimizer states), machine-learning model code, inference-enabling code, training-enabling code, 
-# fine-tuning enabling code and other elements of the foregoing made publicly available 
+# For avoidance of doubts, Hunyuan 3D means the large language models and
+# their software and algorithms, including trained model weights, parameters (including
+# optimizer states), machine-learning model code, inference-enabling code, training-enabling code,
+# fine-tuning enabling code and other elements of the foregoing made publicly available
 # by Tencent in accordance with TENCENT HUNYUAN COMMUNITY LICENSE AGREEMENT.
 
 import inspect
-from typing import Any, Dict, Optional
+import os
 from typing import Any, Dict, List, Optional, Tuple, Union
 
-import os
-import mindspore as ms
-from mindspore import mint, ops, nn
 import numpy as np
 from PIL import Image
+from transformers import CLIPImageProcessor, CLIPTokenizer
 
-from mindone.diffusers.image_processor import VaeImageProcessor
-from mindone.diffusers.schedulers import KarrasDiffusionSchedulers
-from mindone.diffusers.utils.mindspore_utils import randn_tensor
-from mindone.diffusers.models.attention_processor import (
-    Attention, 
-    AttnProcessor, 
-    XFormersAttnProcessor, 
-    # AttnProcessor2_0
-)
+import mindspore as ms
+from mindspore import mint, nn, ops
+
 from mindone.diffusers import (
-    AutoencoderKL, 
+    AutoencoderKL,
     DDPMScheduler,
-    DiffusionPipeline, 
-    EulerAncestralDiscreteScheduler, 
+    DiffusionPipeline,
+    EulerAncestralDiscreteScheduler,
     UNet2DConditionModel,
 )
+from mindone.diffusers.image_processor import VaeImageProcessor
+from mindone.diffusers.models.attention_processor import (  # AttnProcessor2_0
+    Attention,
+    AttnProcessor,
+    XFormersAttnProcessor,
+)
 from mindone.diffusers.pipelines.pipeline_utils import ImagePipelineOutput
-from mindone.transformers import ( 
-    CLIPTextModel, 
-    CLIPVisionModelWithProjection, 
-    CLIPTextModelWithProjection
-)
-from transformers import (
-    CLIPImageProcessor, 
-    CLIPTokenizer,
-)
-
-from .utils import to_rgb_image, white_out_background, recenter_img
+from mindone.diffusers.schedulers import KarrasDiffusionSchedulers
+from mindone.diffusers.utils.mindspore_utils import randn_tensor
+from mindone.transformers import CLIPTextModel, CLIPTextModelWithProjection, CLIPVisionModelWithProjection
 from mindone.utils.version_control import check_valid_flash_attention
+
+from .utils import recenter_img, to_rgb_image, white_out_background
 
 # Not yet officially implemented or released
 EXAMPLE_DOC_STRING = """
@@ -79,15 +71,28 @@ EXAMPLE_DOC_STRING = """
 """
 
 
-
-def scale_latents(latents):   return (latents - 0.22) * 0.75
-def unscale_latents(latents): return (latents / 0.75) + 0.22
-def scale_image(image):       return (image - 0.5) / 0.5
-def scale_image_2(image):     return (image * 0.5) / 0.8
-def unscale_image(image):     return (image * 0.5) + 0.5
-def unscale_image_2(image):   return (image * 0.8) / 0.5
+def scale_latents(latents):
+    return (latents - 0.22) * 0.75
 
 
+def unscale_latents(latents):
+    return (latents / 0.75) + 0.22
+
+
+def scale_image(image):
+    return (image - 0.5) / 0.5
+
+
+def scale_image_2(image):
+    return (image * 0.5) / 0.8
+
+
+def unscale_image(image):
+    return (image * 0.5) + 0.5
+
+
+def unscale_image_2(image):
+    return (image * 0.8) / 0.5
 
 
 class ReferenceOnlyAttnProc(nn.Cell):
@@ -100,9 +105,12 @@ class ReferenceOnlyAttnProc(nn.Cell):
     def __call__(self, attn, hidden_states, encoder_hidden_states=None, attention_mask=None, mode="w", ref_dict=None):
         encoder_hidden_states = hidden_states if encoder_hidden_states is None else encoder_hidden_states
         if self.enabled:
-            if   mode == 'w': ref_dict[self.name]   = encoder_hidden_states
-            elif mode == 'r': encoder_hidden_states = mint.cat([encoder_hidden_states, ref_dict.pop(self.name)], dim=1)
-            else:             raise Exception(f"mode should not be {mode}")
+            if mode == "w":
+                ref_dict[self.name] = encoder_hidden_states
+            elif mode == "r":
+                encoder_hidden_states = mint.cat([encoder_hidden_states, ref_dict.pop(self.name)], dim=1)
+            else:
+                raise Exception(f"mode should not be {mode}")
         return self.chained_proc(attn, hidden_states, encoder_hidden_states, attention_mask)
 
 
@@ -117,7 +125,7 @@ class RefOnlyNoisedUNet(nn.Cell):
             # if torch.__version__ >= '2.0': default_attn_proc = AttnProcessor2_0()
             if check_valid_flash_attention():
                 default_attn_proc = XFormersAttnProcessor()
-            else:                          
+            else:
                 default_attn_proc = AttnProcessor()
             unet_attn_procs[name] = ReferenceOnlyAttnProc(
                 default_attn_proc, enabled=name.endswith("attn1.processor"), name=name
@@ -141,49 +149,47 @@ class RefOnlyNoisedUNet(nn.Cell):
         mid_block_res_sample: Optional[Tuple[ms.Tensor]] = None,
         added_cond_kwargs: Optional[Dict[str, ms.Tensor]] = None,
         return_dict: bool = True,
-        timestep_cond = None,
+        timestep_cond=None,
     ):
-
         dtype = self.unet.dtype
 
         # cond_lat add same level noise
-        cond_lat = cross_attention_kwargs['cond_lat']
+        cond_lat = cross_attention_kwargs["cond_lat"]
         noise = ops.randn_like(cond_lat)
 
         noisy_cond_lat = self.scheduler.add_noise(cond_lat, noise, timestep.reshape(-1))
         noisy_cond_lat = self.scheduler.scale_model_input(noisy_cond_lat, timestep.reshape(-1))
 
         ref_dict = {}
-        
+
         _ = self.unet(
-            noisy_cond_lat, 
-            timestep, 
-            encoder_hidden_states = encoder_hidden_states, 
-            class_labels = class_labels,
-            cross_attention_kwargs = dict(mode="w", ref_dict=ref_dict),
-            added_cond_kwargs = added_cond_kwargs,
-            return_dict = return_dict,
-            timestep_cond = timestep_cond
+            noisy_cond_lat,
+            timestep,
+            encoder_hidden_states=encoder_hidden_states,
+            class_labels=class_labels,
+            cross_attention_kwargs=dict(mode="w", ref_dict=ref_dict),
+            added_cond_kwargs=added_cond_kwargs,
+            return_dict=return_dict,
+            timestep_cond=timestep_cond,
         )
 
         res = self.unet(
-            sample, 
-            timestep, 
-            encoder_hidden_states, 
+            sample,
+            timestep,
+            encoder_hidden_states,
             class_labels=class_labels,
-            cross_attention_kwargs = dict(mode="r", ref_dict=ref_dict),
-            down_block_additional_residuals = [
-                sample.to(dtype=dtype) for sample in down_block_res_samples
-            ] if down_block_res_samples is not None else None,
-            mid_block_additional_residual = (
-                mid_block_res_sample.to(dtype=dtype) 
-                if mid_block_res_sample is not None else None),
-            added_cond_kwargs = added_cond_kwargs,
-            return_dict = return_dict,
-            timestep_cond = timestep_cond
+            cross_attention_kwargs=dict(mode="r", ref_dict=ref_dict),
+            down_block_additional_residuals=[sample.to(dtype=dtype) for sample in down_block_res_samples]
+            if down_block_res_samples is not None
+            else None,
+            mid_block_additional_residual=(
+                mid_block_res_sample.to(dtype=dtype) if mid_block_res_sample is not None else None
+            ),
+            added_cond_kwargs=added_cond_kwargs,
+            return_dict=return_dict,
+            timestep_cond=timestep_cond,
         )
         return res
-        
 
 
 class HunYuan3D_MVD_Std_Pipeline(DiffusionPipeline):
@@ -198,19 +204,25 @@ class HunYuan3D_MVD_Std_Pipeline(DiffusionPipeline):
         vision_encoder_2: CLIPVisionModelWithProjection,
         ramping_coefficients: Optional[list] = None,
         add_watermarker: Optional[bool] = None,
-        safety_checker = None,
+        safety_checker=None,
     ):
         DiffusionPipeline.__init__(self)
 
         self.register_modules(
-            vae=vae, unet=unet, scheduler=scheduler, safety_checker=None, feature_extractor_vae=feature_extractor_vae,
-            vision_processor=vision_processor, vision_encoder=vision_encoder, vision_encoder_2=vision_encoder_2, 
+            vae=vae,
+            unet=unet,
+            scheduler=scheduler,
+            safety_checker=None,
+            feature_extractor_vae=feature_extractor_vae,
+            vision_processor=vision_processor,
+            vision_encoder=vision_encoder,
+            vision_encoder_2=vision_encoder_2,
         )
-        self.register_to_config( ramping_coefficients = ramping_coefficients)
+        self.register_to_config(ramping_coefficients=ramping_coefficients)
         self.vae_scale_factor = 2 ** (len(self.vae.config.block_out_channels) - 1)
         self.image_processor = VaeImageProcessor(vae_scale_factor=self.vae_scale_factor)
-        self.default_sample_size = self.unet.config.sample_size 
-        self.watermark = None 
+        self.default_sample_size = self.unet.config.sample_size
+        self.watermark = None
         self.prepare_init = False
 
         if check_valid_flash_attention():
@@ -242,8 +254,7 @@ class HunYuan3D_MVD_Std_Pipeline(DiffusionPipeline):
             )
 
         if latents is None:
-            latents = randn_tensor(shape, generator=generator, dtype=dtype) 
- 
+            latents = randn_tensor(shape, generator=generator, dtype=dtype)
 
         # scale the initial noise by the standard deviation required by the scheduler
         latents = latents * self.scheduler.init_noise_sigma
@@ -261,8 +272,8 @@ class HunYuan3D_MVD_Std_Pipeline(DiffusionPipeline):
 
         if expected_add_embed_dim != passed_add_embed_dim:
             raise ValueError(
-                f"Model expects an added time embedding vector of length {expected_add_embed_dim}, " \
-                f"but a vector of {passed_add_embed_dim} was created. The model has an incorrect config." \
+                f"Model expects an added time embedding vector of length {expected_add_embed_dim}, "
+                f"but a vector of {passed_add_embed_dim} was created. The model has an incorrect config."
                 f" Please check `unet.config.time_embedding_type` and `text_encoder_2.config.projection_dim`."
             )
 
@@ -277,11 +288,13 @@ class HunYuan3D_MVD_Std_Pipeline(DiffusionPipeline):
 
         accepts_eta = "eta" in set(inspect.signature(self.scheduler.step).parameters.keys())
         extra_step_kwargs = {}
-        if accepts_eta:  extra_step_kwargs["eta"] = eta
+        if accepts_eta:
+            extra_step_kwargs["eta"] = eta
 
         # check if the scheduler accepts generator
         accepts_generator = "generator" in set(inspect.signature(self.scheduler.step).parameters.keys())
-        if accepts_generator: extra_step_kwargs["generator"] = generator
+        if accepts_generator:
+            extra_step_kwargs["generator"] = generator
         return extra_step_kwargs
 
     @property
@@ -295,12 +308,12 @@ class HunYuan3D_MVD_Std_Pipeline(DiffusionPipeline):
     @property
     def do_classifier_free_guidance(self):
         return self._guidance_scale > 1 and self.unet.config.time_cond_proj_dim is None
-        
+
     # @torch.no_grad()
     def __call__(
         self,
         image: Image.Image = None,
-        guidance_scale = 2.0,
+        guidance_scale=2.0,
         output_type: Optional[str] = "pil",
         num_inference_steps: int = 50,
         return_dict: bool = True,
@@ -309,16 +322,16 @@ class HunYuan3D_MVD_Std_Pipeline(DiffusionPipeline):
         crops_coords_top_left: Tuple[int, int] = (0, 0),
         cross_attention_kwargs: Optional[Dict[str, Any]] = None,
         latent: ms.Tensor = None,
-        guidance_curve = None,
+        guidance_curve=None,
     ):
         if not self.prepare_init:
             self.prepare()
 
         here = dict(dtype=self.vae.dtype)
-            
+
         batch_size = 1
         num_images_per_prompt = 1
-        width, height = 512 * 2,  512 * 3
+        width, height = 512 * 2, 512 * 3
         target_size = original_size = (height, width)
 
         self._guidance_scale = guidance_scale
@@ -328,7 +341,7 @@ class HunYuan3D_MVD_Std_Pipeline(DiffusionPipeline):
         # Prepare timesteps
         self.scheduler.set_timesteps(num_inference_steps)
         timesteps = self.scheduler.timesteps
-        
+
         # Prepare latent variables
         num_channels_latents = self.unet.config.in_channels
         latents = self.prepare_latents(
@@ -340,13 +353,12 @@ class HunYuan3D_MVD_Std_Pipeline(DiffusionPipeline):
             generator,
             latents=latent,
         )
-        
+
         # Prepare extra step kwargs. TODO: Logic should ideally just be moved out of the pipeline
         extra_step_kwargs = self.prepare_extra_step_kwargs(generator, eta)
 
-
         # Prepare added time ids & embeddings
-        text_encoder_projection_dim = 1280     
+        text_encoder_projection_dim = 1280
         add_time_ids = self._get_add_time_ids(
             original_size,
             crops_coords_top_left,
@@ -359,27 +371,29 @@ class HunYuan3D_MVD_Std_Pipeline(DiffusionPipeline):
         # hw: preprocess
         cond_image = recenter_img(image)
         cond_image = to_rgb_image(image)
-        image_vae = ms.Tensor(self.feature_extractor_vae(images=cond_image, return_tensors="np").pixel_values).to(**here)
+        image_vae = ms.Tensor(self.feature_extractor_vae(images=cond_image, return_tensors="np").pixel_values).to(
+            **here
+        )
         image_clip = ms.Tensor(self.vision_processor(images=cond_image, return_tensors="np").pixel_values).to(**here)
 
         # hw: get cond_lat from cond_img using vae
         cond_lat = self.encode_image(image_vae, scale_factor=False)
-        negative_lat = self.encode_image(mint.zeros_like(image_vae), scale_factor=False) 
+        negative_lat = self.encode_image(mint.zeros_like(image_vae), scale_factor=False)
         cond_lat = mint.cat([negative_lat, cond_lat])
 
         # hw: get visual global embedding using clip
         global_embeds_1 = self.vision_encoder(image_clip, output_hidden_states=False)[0].unsqueeze(-2)
         global_embeds_2 = self.vision_encoder_2(image_clip, output_hidden_states=False)[0].unsqueeze(-2)
         global_embeds = mint.cat([global_embeds_1, global_embeds_2], dim=-1)
-        
+
         # ramp = global_embeds.new_tensor(self.config.ramping_coefficients).unsqueeze(-1)
         ramp = ms.Tensor(self.config.ramping_coefficients, dtype=global_embeds.dtype).unsqueeze(-1)
         prompt_embeds = self.uc_text_emb.to(**here)
-        pooled_prompt_embeds =  self.uc_text_emb_2.to(**here)
-        
+        pooled_prompt_embeds = self.uc_text_emb_2.to(**here)
+
         prompt_embeds = prompt_embeds + global_embeds * ramp
         add_text_embeds = pooled_prompt_embeds
-        
+
         if self.do_classifier_free_guidance:
             negative_prompt_embeds = mint.zeros_like(prompt_embeds)
             negative_pooled_prompt_embeds = mint.zeros_like(pooled_prompt_embeds)
@@ -396,20 +410,20 @@ class HunYuan3D_MVD_Std_Pipeline(DiffusionPipeline):
 
         if guidance_curve is None:
             guidance_curve = lambda t: guidance_scale
-        
+
         with self.progress_bar(total=num_inference_steps) as progress_bar:
             for i, t in enumerate(timesteps):
                 if self.interrupt:
                     continue
-                    
-                 # expand the latents if we are doing classifier free guidance
+
+                # expand the latents if we are doing classifier free guidance
                 latent_model_input = mint.cat([latents] * 2) if self.do_classifier_free_guidance else latents
 
                 latent_model_input = self.scheduler.scale_model_input(latent_model_input, t)
 
                 # predict the noise residual
                 added_cond_kwargs = {"text_embeds": add_text_embeds, "time_ids": add_time_ids}
-                    
+
                 noise_pred = ops.stop_gradient(
                     self.unet(
                         latent_model_input,
@@ -419,19 +433,20 @@ class HunYuan3D_MVD_Std_Pipeline(DiffusionPipeline):
                         added_cond_kwargs=added_cond_kwargs,
                         return_dict=False,
                         timestep_cond=timestep_cond,
-                ))[0]
+                    )
+                )[0]
 
                 # perform guidance
-                
+
                 # cur_guidance_scale = self.guidance_scale
                 cur_guidance_scale = guidance_curve(t)  # 1.5 + 2.5 * ((t/1000)**2)
-                
+
                 if self.do_classifier_free_guidance:
                     noise_pred_uncond, noise_pred_text = noise_pred.chunk(2)
                     noise_pred = noise_pred_uncond + cur_guidance_scale * (noise_pred_text - noise_pred_uncond)
 
                     # cur_guidance_scale_topleft = (cur_guidance_scale - 1.0) * 4 + 1.0
-                    # noise_pred_top_left = noise_pred_uncond + 
+                    # noise_pred_top_left = noise_pred_uncond +
                     #    cur_guidance_scale_topleft * (noise_pred_text - noise_pred_uncond)
                     # _, _, h, w = noise_pred.shape
                     # noise_pred[:, :, :h//3, :w//2] = noise_pred_top_left[:, :, :h//3, :w//2]
@@ -443,21 +458,22 @@ class HunYuan3D_MVD_Std_Pipeline(DiffusionPipeline):
                 # call the callback, if provided
                 if i == len(timesteps) - 1 or ((i + 1) > num_warmup_steps and (i + 1) % self.scheduler.order == 0):
                     progress_bar.update()
-        
+
         latents = unscale_latents(latents)
 
-        if output_type=="latent":
+        if output_type == "latent":
             image = latents
         else:
             image = self.vae.decode(latents / self.vae.config.scaling_factor, return_dict=False)[0]
             image = unscale_image(unscale_image_2(image)).clamp(0, 1)
             image = [
-                Image.fromarray((image[0]*255+0.5).clamp(0, 255).permute(1, 2, 0).asnumpy().astype("uint8")),
+                Image.fromarray((image[0] * 255 + 0.5).clamp(0, 255).permute(1, 2, 0).asnumpy().astype("uint8")),
                 # self.image_processor.postprocess(image, output_type=output_type)[0],
-                cond_image.resize((512, 512))
+                cond_image.resize((512, 512)),
             ]
 
-        if not return_dict: return (image,)
+        if not return_dict:
+            return (image,)
         return ImagePipelineOutput(images=image)
 
     def save_pretrained(self, save_directory):
@@ -472,10 +488,13 @@ class HunYuan3D_MVD_Std_Pipeline(DiffusionPipeline):
         pipeline = super().from_pretrained(pretrained_model_name_or_path, *model_args, **kwargs)
         if os.path.exists(os.path.join(pretrained_model_name_or_path, "uc_text_emb.npy")):
             pipeline.uc_text_emb = ms.Tensor(np.load(os.path.join(pretrained_model_name_or_path, "uc_text_emb.npy")))
-            pipeline.uc_text_emb_2 = ms.Tensor(np.load(os.path.join(pretrained_model_name_or_path, "uc_text_emb_2.npy")))
+            pipeline.uc_text_emb_2 = ms.Tensor(
+                np.load(os.path.join(pretrained_model_name_or_path, "uc_text_emb_2.npy"))
+            )
         else:
             print("**** Fail to find numpy array *.npy, try to load torch tensor *.pt ****")
-            import torch #pip install torch
+            import torch  # pip install torch
+
             np_uc_text_emb = torch.load(os.path.join(pretrained_model_name_or_path, "uc_text_emb.pt")).cpu().numpy()
             np_uc_text_emb_2 = torch.load(os.path.join(pretrained_model_name_or_path, "uc_text_emb_2.pt")).cpu().numpy()
 

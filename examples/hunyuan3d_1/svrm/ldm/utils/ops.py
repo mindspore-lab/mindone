@@ -1,19 +1,22 @@
 # TODO: this is not yet fully migrated
 
-import os
 import math
-import numpy as np
+import os
+import warnings
 from collections import defaultdict
 
+import numpy as np
+
 import mindspore as ms
-from mindspore import nn, ops, mint
-import warnings
+from mindspore import mint, nn, ops
+
+from .typing import *
+
 # try:
 #     from igl import fast_winding_number_for_meshes, point_mesh_squared_distance, read_obj
 # except:
 #     warnings.warn("Please install libigl for training, bypass this time.")
 
-from .typing import *
 
 # TODO: training
 # def get_rank():
@@ -26,6 +29,7 @@ from .typing import *
 #             return int(rank)
 #     return 0
 
+
 def dot(x, y):
     return mint.sum(x * y, dim=-1, keepdim=True)
 
@@ -37,9 +41,7 @@ def reflect(x, n):
 ValidScale = Union[Tuple[float, float], Num[Tensor, "2 D"]]
 
 
-def scale_tensor(
-    dat: Num[Tensor, "... D"], inp_scale: ValidScale, tgt_scale: ValidScale
-):
+def scale_tensor(dat: Num[Tensor, "... D"], inp_scale: ValidScale, tgt_scale: ValidScale):
     if inp_scale is None:
         inp_scale = (0, 1)
     if tgt_scale is None:
@@ -49,6 +51,7 @@ def scale_tensor(
     dat = (dat - inp_scale[0]) / (inp_scale[1] - inp_scale[0])
     dat = dat * (tgt_scale[1] - tgt_scale[0]) + tgt_scale[0]
     return dat
+
 
 # TODO: replace it....
 # class _TruncExp(Function):  # pylint: disable=abstract-method
@@ -113,7 +116,7 @@ def get_activation(name) -> Callable:
     elif name == "tanh":
         return lambda x: ops.tanh(x)
     elif name == "shifted_softplus":
-        return lambda x: mint.nn.functional.softplus(x - 1.0) 
+        return lambda x: mint.nn.functional.softplus(x - 1.0)
     elif name == "scale_-11_01":
         return lambda x: x * 0.5 + 0.5
     else:
@@ -131,34 +134,21 @@ def chunk_batch(func: Callable, chunk_size: int, triplane=None, *args, **kwargs)
         if isinstance(arg, ms.Tensor):
             B = arg.shape[0]
             break
-    assert (
-        B is not None
-    ), "No tensor found in args or kwargs, cannot determine batch size."
+    assert B is not None, "No tensor found in args or kwargs, cannot determine batch size."
     out = defaultdict(list)
     out_type = None
     # max(1, B) to support B == 0
     for i in range(0, max(1, B), chunk_size):
         if triplane is not None:
-            out_chunk = func(triplane=triplane,
-                *[
-                    arg[i : i + chunk_size] if isinstance(arg, ms.Tensor) else arg
-                    for arg in args
-                ],
-                **{
-                    k: arg[i : i + chunk_size] if isinstance(arg, ms.Tensor) else arg
-                    for k, arg in kwargs.items()
-                },
+            out_chunk = func(
+                triplane=triplane,
+                *[arg[i : i + chunk_size] if isinstance(arg, ms.Tensor) else arg for arg in args],
+                **{k: arg[i : i + chunk_size] if isinstance(arg, ms.Tensor) else arg for k, arg in kwargs.items()},
             )
         else:
             out_chunk = func(
-                *[
-                    arg[i : i + chunk_size] if isinstance(arg, ms.Tensor) else arg
-                    for arg in args
-                ],
-                **{
-                    k: arg[i : i + chunk_size] if isinstance(arg, ms.Tensor) else arg
-                    for k, arg in kwargs.items()
-                },
+                *[arg[i : i + chunk_size] if isinstance(arg, ms.Tensor) else arg for arg in args],
+                **{k: arg[i : i + chunk_size] if isinstance(arg, ms.Tensor) else arg for k, arg in kwargs.items()},
             )
         if out_chunk is None:
             continue
@@ -171,9 +161,7 @@ def chunk_batch(func: Callable, chunk_size: int, triplane=None, *args, **kwargs)
         elif isinstance(out_chunk, dict):
             pass
         else:
-            print(
-                f"Return value of func must be in type [ms.Tensor, list, tuple, dict], get {type(out_chunk)}."
-            )
+            print(f"Return value of func must be in type [ms.Tensor, list, tuple, dict], get {type(out_chunk)}.")
             exit(1)
         for k, v in out_chunk.items():
             # v = v if torch.is_grad_enabled() else v.detach()
@@ -235,9 +223,7 @@ def get_ray_directions(
         indexing="xy",
     )
 
-    directions: Float[Tensor, "H W 3"] = mint.stack(
-        [(i - cx) / fx, -(j - cy) / fy, -ops.ones_like(i)], -1
-    )
+    directions: Float[Tensor, "H W 3"] = mint.stack([(i - cx) / fx, -(j - cy) / fy, -ops.ones_like(i)], -1)
 
     return directions
 
@@ -260,20 +246,14 @@ def get_rays(
     elif directions.ndim == 3:  # (H, W, 3)
         assert c2w.ndim in [2, 3]
         if c2w.ndim == 2:  # (4, 4)
-            rays_d = (directions[:, :, None, :] * c2w[None, None, :3, :3]).sum(
-                -1
-            )  # (H, W, 3)
+            rays_d = (directions[:, :, None, :] * c2w[None, None, :3, :3]).sum(-1)  # (H, W, 3)
             rays_o = c2w[None, None, :3, 3].broadcast_to((rays_d.shape))
         elif c2w.ndim == 3:  # (B, 4, 4)
-            rays_d = (directions[None, :, :, None, :] * c2w[:, None, None, :3, :3]).sum(
-                -1
-            )  # (B, H, W, 3)
+            rays_d = (directions[None, :, :, None, :] * c2w[:, None, None, :3, :3]).sum(-1)  # (B, H, W, 3)
             rays_o = c2w[:, None, None, :3, 3].broadcast_to((rays_d.shape))
     elif directions.ndim == 4:  # (B, H, W, 3)
         assert c2w.ndim == 3  # (B, 4, 4)
-        rays_d = (directions[:, :, :, None, :] * c2w[:, None, None, :3, :3]).sum(
-            -1
-        )  # (B, H, W, 3)
+        rays_d = (directions[:, :, :, None, :] * c2w[:, None, None, :3, :3]).sum(-1)  # (B, H, W, 3)
         rays_o = c2w[:, None, None, :3, 3].broadcast_to((rays_d.shape))
 
     # add camera noise to avoid grid-like artifect
@@ -298,7 +278,7 @@ def get_projection_matrix(
     proj_mtx[:, 0, 0] = 1.0 / (ops.tan(fovy / 2.0) * aspect_wh)
     proj_mtx[:, 1, 1] = -1.0 / ops.tan(
         fovy / 2.0
-    )  # add a negative sign here as the y axis is flipped in nvdiffrast output 
+    )  # add a negative sign here as the y axis is flipped in nvdiffrast output
     ###TODO: susan: please note they used nvdiffrast coord, we might flip it back if use other rasterizer
 
     proj_mtx[:, 2, 2] = -(far + near) / (far - near)
@@ -307,9 +287,7 @@ def get_projection_matrix(
     return proj_mtx
 
 
-def get_mvp_matrix(
-    c2w: Float[Tensor, "B 4 4"], proj_mtx: Float[Tensor, "B 4 4"]
-) -> Float[Tensor, "B 4 4"]:
+def get_mvp_matrix(c2w: Float[Tensor, "B 4 4"], proj_mtx: Float[Tensor, "B 4 4"]) -> Float[Tensor, "B 4 4"]:
     # calculate w2c from c2w: R' = Rt, t' = -Rt * t
     # mathematically equivalent to (c2w)^-1
     w2c: Float[Tensor, "B 4 4"] = ops.zeros((c2w.shape[0], 4, 4)).to(c2w.dtype)
@@ -321,9 +299,7 @@ def get_mvp_matrix(
     return mvp_mtx
 
 
-def get_full_projection_matrix(
-    c2w: Float[Tensor, "B 4 4"], proj_mtx: Float[Tensor, "B 4 4"]
-) -> Float[Tensor, "B 4 4"]:
+def get_full_projection_matrix(c2w: Float[Tensor, "B 4 4"], proj_mtx: Float[Tensor, "B 4 4"]) -> Float[Tensor, "B 4 4"]:
     return (c2w.unsqueeze(0).bmm(proj_mtx.unsqueeze(0))).squeeze(0)
 
 
@@ -371,13 +347,8 @@ def get_cam_info_gaussian(c2w, fovx, fovy, znear, zfar):
     world_view_transform = ops.inverse(c2w)
 
     world_view_transform = world_view_transform.swapaxes(0, 1).float()
-    projection_matrix = (
-        get_projection_matrix_gaussian(znear=znear, zfar=zfar, fovX=fovx, fovY=fovy)
-        .swapaxes(0, 1)
-    )
-    full_proj_transform = (
-        world_view_transform.unsqueeze(0).bmm(projection_matrix.unsqueeze(0))
-    ).squeeze(0)
+    projection_matrix = get_projection_matrix_gaussian(znear=znear, zfar=zfar, fovX=fovx, fovY=fovy).swapaxes(0, 1)
+    full_proj_transform = (world_view_transform.unsqueeze(0).bmm(projection_matrix.unsqueeze(0))).squeeze(0)
     camera_center = world_view_transform.inverse()[3, :3]
 
     return world_view_transform, full_proj_transform, camera_center
@@ -387,21 +358,17 @@ def binary_cross_entropy(input, target):
     """
     F.binary_cross_entropy is not numerically stable in mixed-precision training.
     """
-    return -(target * ops.log(input) + (1 - target) * ops.log(1 - input)).mean() 
-    #ops.log supports only fp16/fp32
+    return -(target * ops.log(input) + (1 - target) * ops.log(1 - input)).mean()
+    # ops.log supports only fp16/fp32
 
 
-def tet_sdf_diff(
-    vert_sdf: Float[Tensor, "Nv 1"], tet_edges: Integer[Tensor, "Ne 2"]
-) -> Float[Tensor, ""]:
+def tet_sdf_diff(vert_sdf: Float[Tensor, "Nv 1"], tet_edges: Integer[Tensor, "Ne 2"]) -> Float[Tensor, ""]:
     sdf_f1x6x2 = vert_sdf[:, 0][tet_edges.reshape(-1)].reshape(-1, 2)
     mask = ops.sign(sdf_f1x6x2[..., 0]) != ops.sign(sdf_f1x6x2[..., 1])
     sdf_f1x6x2 = sdf_f1x6x2[mask]
     sdf_diff = mint.nn.functional.binary_cross_entropy_with_logits(
         sdf_f1x6x2[..., 0], (sdf_f1x6x2[..., 1] > 0).float()
-    ) + mint.nn.functional.binary_cross_entropy_with_logits(
-        sdf_f1x6x2[..., 1], (sdf_f1x6x2[..., 0] > 0).float()
-    )
+    ) + mint.nn.functional.binary_cross_entropy_with_logits(sdf_f1x6x2[..., 1], (sdf_f1x6x2[..., 0] > 0).float())
     return sdf_diff
 
 
@@ -426,9 +393,7 @@ class MeshOBJ:
         e1 = vf[:, 1, :] - vf[:, 0, :]
         e2 = vf[:, 2, :] - vf[:, 0, :]
         self.face_normals = np.cross(e1, e2)
-        self.face_normals = (
-            self.face_normals / np.linalg.norm(self.face_normals, axis=-1)[:, None]
-        )
+        self.face_normals = self.face_normals / np.linalg.norm(self.face_normals, axis=-1)[:, None]
         self.face_normals_tensor = ms.Tenosr(self.face_normals)
 
     def normalize_mesh(self, target_scale=0.5):
@@ -446,17 +411,13 @@ class MeshOBJ:
     def winding_number(self, query: ms.Tensor):
         shp = query.shape
         query_np = query.reshape(-1, 3).asnumpy()
-        target_alphas = fast_winding_number_for_meshes(
-            self.v.astype(np.float32), self.f, query_np
-        )
+        target_alphas = fast_winding_number_for_meshes(self.v.astype(np.float32), self.f, query_np)
         return ms.Tenosr(target_alphas).reshape(shp[:-1])
 
     def gaussian_weighted_distance(self, query: ms.Tensor, sigma):
         shp = query.shape
         query_np = query.reshape(-1, 3).asnumpy()
-        distances, _, _ = point_mesh_squared_distance(
-            query_np, self.v.astype(np.float32), self.f
-        )
+        distances, _, _ = point_mesh_squared_distance(query_np, self.v.astype(np.float32), self.f)
         distances = ms.Tenosr(distances).reshape(shp[:-1])
         weight = ops.exp(-(distances / (2 * sigma**2)))
         return weight
@@ -482,23 +443,17 @@ class ShapeLoss(nn.Cell):
         self.shape_path = guide_shape
         v, _, _, f, _, _ = read_obj(self.shape_path, float)
         mesh = MeshOBJ(v, f)
-        matrix_rot = np.array([[1, 0, 0], [0, 0, -1], [0, 1, 0]]) @ np.array(
-            [[0, 0, 1], [0, 1, 0], [-1, 0, 0]]
-        )
+        matrix_rot = np.array([[1, 0, 0], [0, 0, -1], [0, 1, 0]]) @ np.array([[0, 0, 1], [0, 1, 0], [-1, 0, 0]])
         self.sketchshape = mesh.normalize_mesh(self.mesh_scale)
         self.sketchshape = MeshOBJ(
-            np.ascontiguousarray(
-                (matrix_rot @ self.sketchshape.v.transpose(1, 0)).transpose(1, 0)
-            ),
+            np.ascontiguousarray((matrix_rot @ self.sketchshape.v.transpose(1, 0)).transpose(1, 0)),
             f,
         )
 
     def construct(self, xyzs, sigmas):
         mesh_occ = self.sketchshape.winding_number(xyzs)
         if self.proximal_surface > 0:
-            weight = 1 - self.sketchshape.gaussian_weighted_distance(
-                xyzs, self.proximal_surface
-            )
+            weight = 1 - self.sketchshape.gaussian_weighted_distance(xyzs, self.proximal_surface)
         else:
             weight = None
         indicator = (mesh_occ > 0.5).float()
@@ -523,10 +478,7 @@ def perpendicular_component(x: Float[Tensor, "B C H W"], y: Float[Tensor, "B C H
     eps = ops.ones_like(x[:, 0, 0, 0]) * 1e-6
     return (
         x
-        - (
-            ops.mul(x, y).sum(axis=[1, 2, 3])
-            / ops.maximum(ops.mul(y, y).sum(axis=[1, 2, 3]), eps)
-        ).view((-1, 1, 1, 1))
+        - (ops.mul(x, y).sum(axis=[1, 2, 3]) / ops.maximum(ops.mul(y, y).sum(axis=[1, 2, 3]), eps)).view((-1, 1, 1, 1))
         * y
     )
 
@@ -538,4 +490,3 @@ def validate_empty_rays(ray_indices, t_start, t_end):
         t_start = ms.Tensor([0]).to(ray_indices.dtype)
         t_end = ms.Tensor([0]).to(ray_indices.dtype)
     return ray_indices, t_start, t_end
-

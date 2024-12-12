@@ -17,13 +17,9 @@ To make sure you can successfully run the latest versions of the example scripts
 ```bash
 git clone https://github.com/mindspore-lab/mindone
 cd mindone
-pip install -e .
+pip install -e ".[training]"
 ```
 
-Then cd in the `examples/diffusers/text_to_image` folder and run
-```bash
-pip install -r requirements_sdxl.txt
-```
 
 ### Training
 
@@ -81,14 +77,8 @@ In a nutshell, LoRA allows adapting pretrained models by adding pairs of rank-de
 [cloneofsimo](https://github.com/cloneofsimo) was the first to try out LoRA training for Stable Diffusion in the popular [lora](https://github.com/cloneofsimo/lora) GitHub repository.
 
 With LoRA, it's possible to fine-tune Stable Diffusion on a custom image-caption pair dataset
-on consumer GPUs like Tesla T4, Tesla V100.
+on consumer NPUs.
 
-> [!WARNING]
-> If you're using mindspore 2.2.x, you have to set the `MS_DEV_TRAVERSE_SUBSTITUTIONS_MODE` environment variables to `1` before running the training commands,
-> otherwise you'll get a segmentation fault (core dumped).
-> ```bash
-> export MS_DEV_TRAVERSE_SUBSTITUTIONS_MODE=1
-> ```
 
 ### Training
 

@@ -5,10 +5,11 @@
 
 
 import mindspore as ms
-from mindspore import nn, ops, mint
-from mindspore.common.initializer import initializer, TruncatedNormal
+from mindspore import mint, nn, ops
+from mindspore.common.initializer import TruncatedNormal, initializer
 
-class DINOHead(nn.Cell): # NOTE: no use yet
+
+class DINOHead(nn.Cell):  # NOTE: no use yet
     def __init__(
         self,
         in_dim,
@@ -28,7 +29,7 @@ class DINOHead(nn.Cell): # NOTE: no use yet
 
     def _init_weights(self, m):
         if isinstance(m, nn.Dense):
-            weight = initializer(TruncatedNormal(sigma=0.02, mean=0.0, a=-2.0, b=2.0), m.weight.shape) 
+            weight = initializer(TruncatedNormal(sigma=0.02, mean=0.0, a=-2.0, b=2.0), m.weight.shape)
             m.weight.set_data(weight)
             if isinstance(m, nn.Linear) and m.bias is not None:
                 bias_weight = initializer("zeros", m.bias.shape)
@@ -37,7 +38,7 @@ class DINOHead(nn.Cell): # NOTE: no use yet
     def construct(self, x):
         x = self.mlp(x)
         eps = 1e-6 if x.dtype == ms.float16 else 1e-12
-        x =  x / (x.norm(eps, dim=-1) + eps) 
+        x = x / (x.norm(eps, dim=-1) + eps)
         x = self.last_layer(x)
         return x
 

@@ -1,10 +1,12 @@
 from __future__ import annotations
 
 import numpy as np
+
 import mindspore as ms
-from mindspore import ops, mint, nn, Tensor, _no_grad
+from mindspore import Tensor, _no_grad, mint, nn, ops
 
 from ...utils.typing import *
+
 
 def dot(x, y):
     return mint.sum(x * y, -1, keepdim=True)
@@ -49,26 +51,18 @@ class Mesh:
         # split the mesh into connected components
         components = mesh.split(only_watertight=False)
         # log the number of faces in each component
-        print(
-            "Mesh has {} components, with faces: {}".format(
-                len(components), [c.faces.shape[0] for c in components]
-            )
-        )
+        print("Mesh has {} components, with faces: {}".format(len(components), [c.faces.shape[0] for c in components]))
 
         n_faces_threshold: int
         if isinstance(outlier_n_faces_threshold, float):
             # set the threshold to the number of faces in the largest component multiplied by outlier_n_faces_threshold
-            n_faces_threshold = int(
-                max([c.faces.shape[0] for c in components]) * outlier_n_faces_threshold
-            )
+            n_faces_threshold = int(max([c.faces.shape[0] for c in components]) * outlier_n_faces_threshold)
         else:
             # set the threshold directly to outlier_n_faces_threshold
             n_faces_threshold = outlier_n_faces_threshold
 
         # log the threshold
-        print(
-            "Removing components with less than {} faces".format(n_faces_threshold)
-        )
+        print("Removing components with less than {} faces".format(n_faces_threshold))
 
         # remove the components with less than n_face_threshold faces
         components = [c for c in components if c.faces.shape[0] >= n_faces_threshold]
@@ -152,10 +146,8 @@ class Mesh:
         v_nrm = mint.scatter_add(v_nrm, 0, i2[:, None].tile((1, 3)), face_normals)
 
         # Normalize, replace zero (degenerated) normals with some default value
-        v_nrm = mint.where(
-            dot(v_nrm, v_nrm) > 1e-20, v_nrm, Tensor([0.0, 0.0, 1.0]).to(v_nrm.dtype)
-        )
-        v_nrm = v_nrm / ops.norm(v_nrm, dim=1) # F.normalize(v_nrm, dim=1) #TODO: test accuracy
+        v_nrm = mint.where(dot(v_nrm, v_nrm) > 1e-20, v_nrm, Tensor([0.0, 0.0, 1.0]).to(v_nrm.dtype))
+        v_nrm = v_nrm / ops.norm(v_nrm, dim=1)  # F.normalize(v_nrm, dim=1) #TODO: test accuracy
 
         assert mint.all(mint.isfinite(v_nrm))
 
@@ -184,9 +176,7 @@ class Mesh:
         denom = uve1[..., 0:1] * uve2[..., 1:2] - uve1[..., 1:2] * uve2[..., 0:1]
 
         # Avoid division by zero for degenerated texture coordinates
-        tang = nom / mint.where(
-            denom > 0.0, mint.clamp(denom, min=1e-6), mint.clamp(denom, max=-1e-6)
-        )
+        tang = nom / mint.where(denom > 0.0, mint.clamp(denom, min=1e-6), mint.clamp(denom, max=-1e-6))
 
         # Update all 3 vertices
         for i in range(0, 3):
@@ -206,9 +196,7 @@ class Mesh:
 
         return tangents
 
-    def _unwrap_uv(
-        self, xatlas_chart_options: dict = {}, xatlas_pack_options: dict = {}
-    ):
+    def _unwrap_uv(self, xatlas_chart_options: dict = {}, xatlas_pack_options: dict = {}):
         print("Using xatlas to perform UV unwrapping, may take a while ...")
 
         import xatlas
@@ -226,25 +214,13 @@ class Mesh:
             setattr(po, k, v)
         atlas.generate(co, po)
         vmapping, indices, uvs = atlas.get_mesh(0)
-        vmapping = (
-            ms.Tensor(
-                vmapping.astype(np.uint64, casting="same_kind").view(np.int64)
-            ).long()
-        )
+        vmapping = ms.Tensor(vmapping.astype(np.uint64, casting="same_kind").view(np.int64)).long()
         uvs = ms.Tensor(uvs).float()
-        indices = (
-            ms.Tensor(
-                indices.astype(np.uint64, casting="same_kind").view(np.int64)
-            ).long()
-        )
+        indices = ms.Tensor(indices.astype(np.uint64, casting="same_kind").view(np.int64)).long()
         return uvs, indices
 
-    def unwrap_uv(
-        self, xatlas_chart_options: dict = {}, xatlas_pack_options: dict = {}
-    ):
-        self._v_tex, self._t_tex_idx = self._unwrap_uv(
-            xatlas_chart_options, xatlas_pack_options
-        )
+    def unwrap_uv(self, xatlas_chart_options: dict = {}, xatlas_pack_options: dict = {}):
+        self._v_tex, self._t_tex_idx = self._unwrap_uv(xatlas_chart_options, xatlas_pack_options)
 
     def set_vertex_color(self, v_rgb):
         assert v_rgb.shape[0] == self.v_pos.shape[0]
@@ -266,9 +242,7 @@ class Mesh:
 
     def normal_consistency(self) -> Float[Tensor, ""]:
         edge_nrm: Float[Tensor, "Ne 2 3"] = self.v_nrm[self.edges]
-        nc = (
-            1.0 - ops.cosine_similarity(edge_nrm[:, 0], edge_nrm[:, 1], dim=-1)
-        ).mean()
+        nc = (1.0 - ops.cosine_similarity(edge_nrm[:, 0], edge_nrm[:, 1], dim=-1)).mean()
         return nc
 
     def _laplacian_uniform(self):
@@ -282,10 +256,7 @@ class Mesh:
         # Neighbor indices
         ii = faces[:, [1, 2, 0]].flatten(start_dim=0)
         jj = faces[:, [2, 0, 1]].flatten(start_dim=0)
-        adj = mint.unique(
-            mint.stack([mint.cat([ii, jj]), mint.cat([jj, ii])], dim=0),
-            dim=1
-        )
+        adj = mint.unique(mint.stack([mint.cat([ii, jj]), mint.cat([jj, ii])], dim=0), dim=1)
         adj_values = mint.ones(adj.shape[1]).to(verts.dtype)
 
         # Diagonal indices
@@ -298,13 +269,10 @@ class Mesh:
         # The coalesce operation sums the duplicate indices, resulting in the
         # correct diagonal
         return ms.COOTensor(idx, values, (V, V)).coalesce()
-        
 
     def laplacian(self) -> Float[Tensor, ""]:
-        L = ops.stop_gradient(
-                self._laplacian_uniform()
-            )
-        loss = L.to_csr.mm(self.v_pos) # COOTensor has no mm operator
+        L = ops.stop_gradient(self._laplacian_uniform())
+        loss = L.to_csr.mm(self.v_pos)  # COOTensor has no mm operator
         loss = loss.norm(dim=1)
         loss = loss.mean()
         return loss

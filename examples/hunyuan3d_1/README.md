@@ -1,7 +1,18 @@
-# Tencent Hunyuan3D-1.0 (MindSpore Version)
+# Tencent Hunyuan3D-1.0
+> [Tencent Hunyuan3D-1.0: A Unified Framework for Text-to-3D and Image-to-3D Generation](https://arxiv.org/abs/2411.02293)
+## **Abstract**
+<p align="center">
+  <img src="./assets/teaser.png"  height=450>
+</p>
+
+While 3D generative models have greatly improved artists' workflows, the existing diffusion models for 3D generation suffer from slow generation and poor generalization. To address this issue, we propose a two-stage approach named Hunyuan3D-1.0 including a lite version and a standard version, that both support text- and image-conditioned generation.
+
+In the first stage, we employ a multi-view diffusion model that efficiently generates multi-view RGB in approximately 4 seconds. These multi-view images capture rich details of the 3D asset from different viewpoints, relaxing the tasks from single-view to multi-view reconstruction. In the second stage, we introduce a feed-forward reconstruction model that rapidly and faithfully reconstructs the 3D asset given the generated multi-view images in approximately 7 seconds. The reconstruction network learns to handle noises and in-consistency introduced by the multi-view diffusion and leverages the available information from the condition image to efficiently recover the 3D structure.
+
+Our framework involves the text-to-image model, i.e., Hunyuan-DiT, making it a unified framework to support both text- and image-conditioned 3D generation. Our standard version has 3x more parameters than our lite and other existing model. Our Hunyuan3D-1.0 achieves an impressive balance between speed and quality, significantly reducing generation time while maintaining the quality and diversity of the produced assets.
 
 ## Updates
-|Data| Features|
+|Date| Features|
 |---|---|
 |12 December 2024| Support inference: text-to-mesh and image-to-mesh. <br> Individual modules include: <br> - (optional) text-to-image <br> - image background removal <br> - image-to-multiviews <br> - multiviews-to-mesh <br> -  (optional) mesh rendering (display device required)
 
@@ -11,7 +22,7 @@
 bash env_install.sh
 ```
 
-Code was validated in:
+Environment:
 |mindspore |	Ascend driver | firmware | CANN tookit/kernel|
 |--- | --- | --- | --- |
 |2.3.1 | 24.1RC2 | 7.3.0.1.231 | 8.0.RC2.beta1|
@@ -43,13 +54,13 @@ huggingface-cli download Tencent-Hunyuan/HunyuanDiT-v1.1-Diffusers-Distilled --l
 Refer to more details in [https://github.com/Tencent/Hunyuan3D-1](https://github.com/Tencent/Hunyuan3D-1/tree/main?tab=readme-ov-file#download-pretrained-models).
 
 
-### Inference 
+### Inference
 For text to 3d generation, we supports bilingual Chinese and English, you can use the following command to inference.
 ```python
 python3 main.py \
     --text_prompt "a lovely rabbit" \
     --save_folder ./outputs/test/ \
-    --max_faces_num 90000 
+    --max_faces_num 90000
 ```
 
 For image to 3d generation, you can use the following command to inference.
@@ -57,9 +68,9 @@ For image to 3d generation, you can use the following command to inference.
 python3 main.py \
     --image_prompt "/path/to/your/image" \
     --save_folder ./outputs/test/ \
-    --max_faces_num 90000 
+    --max_faces_num 90000
 ```
-You can also try prepared scripts with different configurations `scripts/text_to_3d_XX.sh` and  `scripts/image_to_3d_XX.sh` 
+You can also try prepared scripts with different configurations `scripts/text_to_3d_XX.sh` and  `scripts/image_to_3d_XX.sh`
 
 We list some more useful configurations for easy usage:
 

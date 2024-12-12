@@ -1,4 +1,4 @@
-# image to 3d 
+# image to 3d
 text2image_path=Tencent-Hunyuan/HunyuanDiT-Diffusers
 std_pretrain=./weights/mvd_std
 mv23d_ckt_path=./weights/svrm/svrm.safetensors
@@ -8,4 +8,4 @@ python main.py \
     --mv23d_ckt_path $mv23d_ckt_path \
     --image_prompt ./demos/example_000.png \
     --save_folder ./outputs/test/ \
-    --max_faces_num 90000 
+    --max_faces_num 90000

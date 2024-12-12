@@ -7,33 +7,39 @@
 
 
 import itertools
-import mindspore as ms
-from mindspore import nn, mint, ops
-from mindspore.common.initializer import initializer, Zero
 
-from .utils.renderer import ImportanceRenderer, sample_from_planes
-from .utils.ray_sampler import RaySampler
 # from ...utils.ops import get_rank
 from typing import Optional
+
+import mindspore as ms
+from mindspore import mint, nn, ops
+from mindspore.common.initializer import Zero, initializer
+
+from .utils.ray_sampler import RaySampler
+from .utils.renderer import ImportanceRenderer, sample_from_planes
 
 
 class OSGDecoder(nn.Cell):
     """
     Triplane decoder that gives RGB and sigma values from sampled features.
     Using ReLU here instead of Softplus in the original implementation.
-    
+
     Reference:
     EG3D: https://github.com/NVlabs/eg3d/blob/main/eg3d/training/triplane.py#L112
     """
-    def __init__(self, n_features: int,
-                 hidden_dim: int = 64, 
-                 num_layers: int = 2, 
-                 activation: nn.Cell = nn.ReLU,
-                 sdf_bias='sphere',
-                 sdf_bias_params=0.5,
-                 output_normal=True,
-                 normal_type='finite_difference',
-                 dtype=ms.float16):
+
+    def __init__(
+        self,
+        n_features: int,
+        hidden_dim: int = 64,
+        num_layers: int = 2,
+        activation: nn.Cell = nn.ReLU,
+        sdf_bias="sphere",
+        sdf_bias_params=0.5,
+        output_normal=True,
+        normal_type="finite_difference",
+        dtype=ms.float16,
+    ):
         super().__init__()
         self.sdf_bias = sdf_bias
         self.sdf_bias_params = sdf_bias_params
@@ -42,10 +48,15 @@ class OSGDecoder(nn.Cell):
         self.net = nn.SequentialCell(
             nn.Dense(3 * n_features, hidden_dim),
             activation(),
-            *itertools.chain(*[[
-                nn.Dense(hidden_dim, hidden_dim),
-                activation(),
-            ] for _ in range(num_layers - 2)]),
+            *itertools.chain(
+                *[
+                    [
+                        nn.Dense(hidden_dim, hidden_dim),
+                        activation(),
+                    ]
+                    for _ in range(num_layers - 2)
+                ]
+            ),
             nn.Dense(hidden_dim, 1 + 3),
         ).to_float(dtype)
         # init all bias to zero
@@ -60,11 +71,12 @@ class OSGDecoder(nn.Cell):
         # torch.set_grad_enabled(True)
         # sample_coordinates.requires_grad_(True)
 
-        sampled_features = sample_from_planes(plane_axes, planes, sample_coordinates, padding_mode='zeros', box_warp=options['box_warp'])
+        sampled_features = sample_from_planes(
+            plane_axes, planes, sample_coordinates, padding_mode="zeros", box_warp=options["box_warp"]
+        )
 
-        
         _N, n_planes, _M, _C = sampled_features.shape
-        sampled_features = sampled_features.permute((0, 2, 1, 3)).reshape(_N, _M, n_planes*_C)
+        sampled_features = sampled_features.permute((0, 2, 1, 3)).reshape(_N, _M, n_planes * _C)
         x = sampled_features
 
         N, M, C = x.shape
@@ -72,8 +84,8 @@ class OSGDecoder(nn.Cell):
 
         x = self.net(x)
         x = x.view(N, M, -1)
-        rgb = mint.sigmoid(x[..., 1:])*(1 + 2*0.001) - 0.001  # Uses sigmoid clamping from MipNeRF
-        
+        rgb = mint.sigmoid(x[..., 1:]) * (1 + 2 * 0.001) - 0.001  # Uses sigmoid clamping from MipNeRF
+
         sdf = x[..., 0:1]
         # import ipdb; ipdb.set_trace()
         # print(f'sample_coordinates shape: {sample_coordinates.shape}')
@@ -81,33 +93,30 @@ class OSGDecoder(nn.Cell):
 
         # calculate normal
         eps = 0.01
-        offsets = ms.Tensor(
-            [[eps, 0.0, 0.0], [0.0, eps, 0.0], [0.0, 0.0, eps]]
-        ).to(sample_coordinates.dtype)
-        points_offset = (
-            sample_coordinates[..., None, :] + offsets # Float[Tensor, "... 3 3"]
-        ).clamp(options['sampler_bbox_min'], options['sampler_bbox_max'])
+        offsets = ms.Tensor([[eps, 0.0, 0.0], [0.0, eps, 0.0], [0.0, 0.0, eps]]).to(sample_coordinates.dtype)
+        points_offset = (sample_coordinates[..., None, :] + offsets).clamp(  # Float[Tensor, "... 3 3"]
+            options["sampler_bbox_min"], options["sampler_bbox_max"]
+        )
 
-        sdf_offset_list = [self.forward_sdf(
-            plane_axes,
-            planes,
-            points_offset[:,:,i,:],
-            options
-        ).unsqueeze(-2) for i in range(points_offset.shape[-2])] # Float[Tensor, "... 3 1"]
+        sdf_offset_list = [
+            self.forward_sdf(plane_axes, planes, points_offset[:, :, i, :], options).unsqueeze(-2)
+            for i in range(points_offset.shape[-2])
+        ]  # Float[Tensor, "... 3 1"]
         # import ipdb; ipdb.set_trace()
-        
+
         sdf_offset = mint.cat(sdf_offset_list, -2)
         sdf_grad = (sdf_offset[..., 0::1, 0] - sdf) / eps
-        
+
         # normal = F.normalize(sdf_grad, dim=-1).to(sdf.dtype)
         normal = (sdf_grad / ops.norm(sdf_grad, dim=-1, keepdim=True)).to(sdf.dtype)
-        return {'rgb': rgb, 'sdf': sdf, 'normal': normal, 'sdf_grad': sdf_grad}
-    
-    def forward_sdf(self, plane_axes, planes, points_offset, options):
+        return {"rgb": rgb, "sdf": sdf, "normal": normal, "sdf_grad": sdf_grad}
 
-        sampled_features = sample_from_planes(plane_axes, planes, points_offset, padding_mode='zeros', box_warp=options['box_warp'])
+    def forward_sdf(self, plane_axes, planes, points_offset, options):
+        sampled_features = sample_from_planes(
+            plane_axes, planes, points_offset, padding_mode="zeros", box_warp=options["box_warp"]
+        )
         _N, n_planes, _M, _C = sampled_features.shape
-        sampled_features = sampled_features.permute((0, 2, 1, 3)).reshape(_N, _M, n_planes*_C)
+        sampled_features = sampled_features.permute((0, 2, 1, 3)).reshape(_N, _M, n_planes * _C)
         x = sampled_features
 
         N, M, C = x.shape
@@ -118,10 +127,8 @@ class OSGDecoder(nn.Cell):
         sdf = x[..., 0:1]
         # sdf = self.get_shifted_sdf(points_offset, sdf)
         return sdf
-    
-    def get_shifted_sdf(
-        self, points, sdf
-    ):
+
+    def get_shifted_sdf(self, points, sdf):
         if self.sdf_bias == "sphere":
             assert isinstance(self.sdf_bias_params, float)
             radius = self.sdf_bias_params
@@ -129,42 +136,41 @@ class OSGDecoder(nn.Cell):
         else:
             raise ValueError(f"Unknown sdf bias {self.cfg.sdf_bias}")
         return sdf + sdf_bias.to(sdf.dtype)
-    
-    
+
+
 class TriplaneSynthesizer(nn.Cell):
     """
     Synthesizer that renders a triplane volume with planes and a camera.
-    
+
     Reference:
     EG3D: https://github.com/NVlabs/eg3d/blob/main/eg3d/training/triplane.py#L19
     """
 
     DEFAULT_RENDERING_KWARGS = {
-        'ray_start': 'auto',
-        'ray_end': 'auto',
-        'box_warp': 1.2,
+        "ray_start": "auto",
+        "ray_end": "auto",
+        "box_warp": 1.2,
         # 'box_warp': 1.,
-        'white_back': True,
-        'disparity_space_sampling': False,
-        'clamp_mode': 'softplus',
+        "white_back": True,
+        "disparity_space_sampling": False,
+        "clamp_mode": "softplus",
         # 'sampler_bbox_min': -1,
         # 'sampler_bbox_max': 1.,
-        'sampler_bbox_min': -0.6,
-        'sampler_bbox_max': 0.6,
+        "sampler_bbox_min": -0.6,
+        "sampler_bbox_max": 0.6,
     }
-    print('DEFAULT_RENDERING_KWARGS')
+    print("DEFAULT_RENDERING_KWARGS")
     print(DEFAULT_RENDERING_KWARGS)
 
-
-    def __init__(self, triplane_dim: int, samples_per_ray: int, osg_decoder='default'):
+    def __init__(self, triplane_dim: int, samples_per_ray: int, osg_decoder="default"):
         super().__init__()
 
         # attributes
         self.triplane_dim = triplane_dim
         self.rendering_kwargs = {
             **self.DEFAULT_RENDERING_KWARGS,
-            'depth_resolution': samples_per_ray,
-            'depth_resolution_importance': 0
+            "depth_resolution": samples_per_ray,
+            "depth_resolution_importance": 0
             # 'depth_resolution': samples_per_ray // 2,
             # 'depth_resolution_importance': samples_per_ray // 2,
         }
@@ -173,7 +179,7 @@ class TriplaneSynthesizer(nn.Cell):
         self.renderer = ImportanceRenderer()
         self.ray_sampler = RaySampler()
         # modules
-        if osg_decoder == 'default':
+        if osg_decoder == "default":
             self.decoder = OSGDecoder(n_features=triplane_dim)
         else:
             raise NotImplementedError
@@ -187,7 +193,6 @@ class TriplaneSynthesizer(nn.Cell):
         # planes: (N, 3, D', H', W')
         # render_size: int
         assert ray_origins.ndim == 3, "ray_origins should be 3-dimensional"
-        
 
         # Perform volume rendering
         rgb_samples, depth_samples, weights_samples, sdf_grad, normal_samples = self.renderer(
@@ -198,7 +203,7 @@ class TriplaneSynthesizer(nn.Cell):
         # zhaohx : add for normals
         # normal_samples = F.normalize(normal_samples, dim=-1)
         normal_samples = normal_samples / ops.norm(normal_samples, dim=-1)
-        normal_samples = (normal_samples + 1.0) / 2.0   # for visualization
+        normal_samples = (normal_samples + 1.0) / 2.0  # for visualization
         normal_samples = ops.lerp(mint.zeros_like(normal_samples), normal_samples, weights_samples)
 
         # Reshape into 'raw' neural-rendered image
@@ -217,11 +222,11 @@ class TriplaneSynthesizer(nn.Cell):
         # }
 
         return {
-            'comp_rgb': rgb_images,
-            'comp_depth': depth_images,
-            'opacity': weight_images,
-            'sdf_grad': sdf_grad,
-            'comp_normal': normal_images
+            "comp_rgb": rgb_images,
+            "comp_depth": depth_images,
+            "opacity": weight_images,
+            "sdf_grad": sdf_grad,
+            "comp_normal": normal_images,
         }
         # 输出normal的话在这个return里加
 
@@ -230,32 +235,40 @@ class TriplaneSynthesizer(nn.Cell):
         # grid_size: int
         # aabb: (N, 2, 3)
         if aabb is None:
-            aabb = ms.Tensor([
-                [self.rendering_kwargs['sampler_bbox_min']] * 3,
-                [self.rendering_kwargs['sampler_bbox_max']] * 3,
-            ]).unsqueeze(0).tile((planes.shape[0], 1, 1))
+            aabb = (
+                ms.Tensor(
+                    [
+                        [self.rendering_kwargs["sampler_bbox_min"]] * 3,
+                        [self.rendering_kwargs["sampler_bbox_max"]] * 3,
+                    ]
+                )
+                .unsqueeze(0)
+                .tile((planes.shape[0], 1, 1))
+            )
         assert planes.shape[0] == aabb.shape[0], "Batch size mismatch for planes and aabb"
-        aabb = aabb.float() # convert to float32 since ops.linspace only support float32/float64
+        aabb = aabb.float()  # convert to float32 since ops.linspace only support float32/float64
         N = planes.shape[0]
 
         # create grid points for triplane query
         grid_points = []
         for i in range(N):
-            grid_points.append(mint.stack(ops.meshgrid(
-                ops.linspace(aabb[i, 0, 0], aabb[i, 1, 0], grid_size),
-                ops.linspace(aabb[i, 0, 1], aabb[i, 1, 1], grid_size),
-                ops.linspace(aabb[i, 0, 2], aabb[i, 1, 2], grid_size),
-                indexing='ij',
-            ), dim=-1).reshape(-1, 3))
+            grid_points.append(
+                mint.stack(
+                    ops.meshgrid(
+                        ops.linspace(aabb[i, 0, 0], aabb[i, 1, 0], grid_size),
+                        ops.linspace(aabb[i, 0, 1], aabb[i, 1, 1], grid_size),
+                        ops.linspace(aabb[i, 0, 2], aabb[i, 1, 2], grid_size),
+                        indexing="ij",
+                    ),
+                    dim=-1,
+                ).reshape(-1, 3)
+            )
         cube_grid = mint.stack(grid_points, dim=0).to(planes.dtype)
 
         features = self.forward_points(planes, cube_grid)
 
         # reshape into grid
-        features = {
-            k: v.reshape(N, grid_size, grid_size, grid_size, -1)
-            for k, v in features.items()
-        }
+        features = {k: v.reshape(N, grid_size, grid_size, grid_size, -1) for k, v in features.items()}
         return features
 
     def forward_points(self, planes, points: ms.Tensor, chunk_size: int = 2**20):
@@ -266,7 +279,7 @@ class TriplaneSynthesizer(nn.Cell):
         # query triplane in chunks
         outs = []
         for i in range(0, points.shape[1], chunk_size):
-            chunk_points = points[:, i:i+chunk_size]
+            chunk_points = points[:, i : i + chunk_size]
 
             # query triplane
             # chunk_out = self.renderer.run_model_activated(
@@ -280,8 +293,5 @@ class TriplaneSynthesizer(nn.Cell):
             outs.append(chunk_out)
 
         # concatenate the outputs
-        point_features = {
-            k: mint.cat([out[k] for out in outs], dim=1)
-            for k in outs[0].keys()
-        }
+        point_features = {k: mint.cat([out[k] for out in outs], dim=1) for k in outs[0].keys()}
         return point_features

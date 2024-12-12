@@ -1,9 +1,10 @@
 import math
-import mindspore as ms
-from mindspore import nn, mint
-from ..attention import ImgToTriplaneTransformer
-import math
 from typing import Optional
+
+import mindspore as ms
+from mindspore import mint, nn
+
+from ..attention import ImgToTriplaneTransformer
 
 
 class ImgToTriplaneModel(nn.Cell):
@@ -53,7 +54,7 @@ class ImgToTriplaneModel(nn.Cell):
         super().__init__()
 
         self.pos_emb_size = pos_emb_size
-        self.pos_emb_dim  = pos_emb_dim
+        self.pos_emb_dim = pos_emb_dim
 
         # init embedding
         self.pos_emb = ms.Parameter(mint.zeros((1, 3 * pos_emb_size * pos_emb_size, pos_emb_dim)))
@@ -61,9 +62,12 @@ class ImgToTriplaneModel(nn.Cell):
 
         # build image to triplane decoder
         self.img_to_triplane_decoder = ImgToTriplaneTransformer(
-            query_dim=pos_emb_dim, n_heads=n_heads,
-            d_head=d_head, depth=depth, context_dim=context_dim,
-            triplane_size=pos_emb_size, 
+            query_dim=pos_emb_dim,
+            n_heads=n_heads,
+            d_head=d_head,
+            depth=depth,
+            context_dim=context_dim,
+            triplane_size=pos_emb_size,
         )
 
         self.is_conv_upsampler = False
@@ -73,24 +77,45 @@ class ImgToTriplaneModel(nn.Cell):
             upsamplers = []
             for i in range(upsample_time):
                 if i == 0:
-                    upsampler = nn.Conv2dTranspose(in_channels=pos_emb_dim, out_channels=triplane_dim,
-                                            kernel_size=2, stride=2, has_bias=True,
-                                            pad_mode="valid", padding=0, output_padding=0)
+                    upsampler = nn.Conv2dTranspose(
+                        in_channels=pos_emb_dim,
+                        out_channels=triplane_dim,
+                        kernel_size=2,
+                        stride=2,
+                        has_bias=True,
+                        pad_mode="valid",
+                        padding=0,
+                        output_padding=0,
+                    )
                     upsamplers.append(upsampler)
                 else:
-                    upsampler = nn.Conv2dTranspose(in_channels=triplane_dim, out_channels=triplane_dim,
-                                            kernel_size=2, stride=2, has_bias=True,
-                                            pad_mode="valid", padding=0, output_padding=0)
+                    upsampler = nn.Conv2dTranspose(
+                        in_channels=triplane_dim,
+                        out_channels=triplane_dim,
+                        kernel_size=2,
+                        stride=2,
+                        has_bias=True,
+                        pad_mode="valid",
+                        padding=0,
+                        output_padding=0,
+                    )
                     upsamplers.append(upsampler)
             if upsamplers:
                 self.upsampler = nn.SequentialCell(*upsamplers)
             else:
-                self.upsampler = nn.Conv2d(in_channels=pos_emb_dim, out_channels=triplane_dim,
-                                            kernel_size=3, stride=1, padding=1,  has_bias=True,  pad_mode='pad')
+                self.upsampler = nn.Conv2d(
+                    in_channels=pos_emb_dim,
+                    out_channels=triplane_dim,
+                    kernel_size=3,
+                    stride=1,
+                    padding=1,
+                    has_bias=True,
+                    pad_mode="pad",
+                )
         else:
             self.upsample_ratio = 4
-            self.upsampler = nn.Dense(in_channels=pos_emb_dim, out_channels=triplane_dim*(self.upsample_ratio**2))
-        
+            self.upsampler = nn.Dense(in_channels=pos_emb_dim, out_channels=triplane_dim * (self.upsample_ratio**2))
+
     def to(self, dtype: Optional[ms.Type] = None):
         for p in self.get_parameters():
             p.set_dtype(dtype)
@@ -114,21 +139,23 @@ class ImgToTriplaneModel(nn.Cell):
 
         h = h.view((B * 3, self.pos_emb_size, self.pos_emb_size, self.pos_emb_dim))
         if self.is_conv_upsampler:
-            h = h.permute((0, 3, 1, 2)).contiguous() # 'b h w c -> b c h w'
+            h = h.permute((0, 3, 1, 2)).contiguous()  # 'b h w c -> b c h w'
             h = self.upsampler(h)
             d = 3
             _, c, height, w = h.shape
-            h = h.reshape(-1, 3, c, height, w) # '(b d) c h w-> b d c h w', d=3
+            h = h.reshape(-1, 3, c, height, w)  # '(b d) c h w-> b d c h w', d=3
             h = h.to(x.dtype)
-            return h 
+            return h
         else:
-            h = self.upsampler(h) #[b, h, w, triplane_dim*4] (3, 64, 64, 1024)
+            h = self.upsampler(h)  # [b, h, w, triplane_dim*4] (3, 64, 64, 1024)
             b, height, width, _ = h.shape
-            h = h.view((b, height, width, self.triplane_dim, self.upsample_ratio, self.upsample_ratio)) #[b, h, w, triplane_dim, 2, 2]
-            h = h.permute((0,3,1,4,2,5)).contiguous() #[b, triplane_dim, h, 2, w, 2]
-            h = h.view((b, self.triplane_dim, height*self.upsample_ratio, width*self.upsample_ratio))
+            h = h.view(
+                (b, height, width, self.triplane_dim, self.upsample_ratio, self.upsample_ratio)
+            )  # [b, h, w, triplane_dim, 2, 2]
+            h = h.permute((0, 3, 1, 4, 2, 5)).contiguous()  # [b, triplane_dim, h, 2, w, 2]
+            h = h.view((b, self.triplane_dim, height * self.upsample_ratio, width * self.upsample_ratio))
             d = 3
             _, c, height, w = h.shape
-            h = h.reshape(-1, 3, c, height, w) # '(b d) c h w-> b d c h w', d=3
+            h = h.reshape(-1, 3, c, height, w)  # '(b d) c h w-> b d c h w', d=3
             h = h.to(x.dtype)
-            return h 
+            return h

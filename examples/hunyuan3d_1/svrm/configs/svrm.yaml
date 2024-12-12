@@ -7,7 +7,7 @@ model:
       target: svrm.ldm.modules.encoders.dinov2_mod.FrozenDinoV2ImageEmbedder
       params:
         version: dinov2_vitb14
-    
+
     img_to_triplane_config:
       target: svrm.ldm.modules.translator.img_to_triplane.ImgToTriplaneModel
       params:
@@ -22,11 +22,9 @@ model:
         use_fp16: true
         use_bf16: false
         upsample_time: 2
-        
+
     render_config:
       target: svrm.ldm.modules.rendering_neus.synthesizer.TriplaneSynthesizer
       params:
         triplane_dim: 120
         samples_per_ray: 128
-
-

@@ -18,7 +18,8 @@ Based off of the implementation in MipNeRF (this one doesn't do any cone tracing
 """
 
 import mindspore as ms
-from mindspore import nn, ops, mint
+from mindspore import mint, nn, ops
+
 
 class LearnedVariance(nn.Cell):
     def __init__(self, init_val):
@@ -68,11 +69,13 @@ class MipRayMarcher2(nn.Cell):
 
         alpha = ((p + 1e-5) / (c + 1e-5)).clip(0.0, 1.0)
         return alpha
-    
-    def run_construct(self, colors, sdfs, depths, normals, ray_directions, rendering_options, bgcolor=None, real_normals=None):
-        # depths: [B N_ray*N_sample 1] 
+
+    def run_construct(
+        self, colors, sdfs, depths, normals, ray_directions, rendering_options, bgcolor=None, real_normals=None
+    ):
+        # depths: [B N_ray*N_sample 1]
         # sdfs: [B, N_ray, N_sample 1]
-        # import ipdb; ipdb.set_trace() 
+        # import ipdb; ipdb.set_trace()
 
         deltas = depths[:, :, 1:] - depths[:, :, :-1]
         colors_mid = (colors[:, :, :-1] + colors[:, :, 1:]) / 2
@@ -93,10 +96,12 @@ class MipRayMarcher2(nn.Cell):
         # import ipdb; ipdb.set_trace()
         dirs = ray_directions.unsqueeze(2).Tensor.broadcast_to((-1, -1, sdfs_mid.shape[-2], -1))
         B, N_ray, N_sample, _ = sdfs_mid.shape
-        alpha = self.get_alpha(sdfs_mid.reshape(-1, 1), normals_mid.reshape(-1, 3), dirs.reshape(-1, 3), deltas.reshape(-1, 1))
+        alpha = self.get_alpha(
+            sdfs_mid.reshape(-1, 1), normals_mid.reshape(-1, 3), dirs.reshape(-1, 3), deltas.reshape(-1, 1)
+        )
         alpha = alpha.reshape(B, N_ray, N_sample, -1)
-        
-        alpha_shifted = mint.cat([mint.ones_like(alpha[:, :, :1]), 1-alpha + 1e-10], -2)
+
+        alpha_shifted = mint.cat([mint.ones_like(alpha[:, :, :1]), 1 - alpha + 1e-10], -2)
         weights = alpha * ops.cumprod(alpha_shifted, -2)[:, :, :-1]
 
         composite_rgb = mint.sum(weights * colors_mid, -2)
@@ -104,15 +109,15 @@ class MipRayMarcher2(nn.Cell):
         composite_depth = mint.sum(weights * depths_mid, -2) / weight_total
 
         # clip the composite to min/max range of depths
-        composite_depth = ops.nan_to_num(composite_depth, float('inf'))
+        composite_depth = ops.nan_to_num(composite_depth, float("inf"))
         composite_depth = mint.clamp(composite_depth, mint.min(depths), mint.max(depths))
 
         # normal :
         composite_normal = mint.sum(weights * real_normals_mid, -2) / weight_total
-        composite_normal = ops.nan_to_num(composite_normal, float('inf'))
+        composite_normal = ops.nan_to_num(composite_normal, float("inf"))
         composite_normal = mint.clamp(composite_normal, mint.min(real_normals), mint.max(real_normals))
 
-        if rendering_options.get('white_back', False):
+        if rendering_options.get("white_back", False):
             # composite_rgb = composite_rgb + 1 - weight_total
             # weight_total[weight_total < 0.5] = 0
             # composite_rgb = composite_rgb * weight_total + 1 - weight_total
@@ -121,7 +126,11 @@ class MipRayMarcher2(nn.Cell):
                 composite_rgb = composite_rgb + 1 - weight_total
                 # composite_rgb = composite_rgb * weight_total + 1 - weight_total
             else:
-                bgcolor = bgcolor.permute((0, 2, 3, 1)).contiguous().view((composite_rgb.shape[0], -1, composite_rgb.shape[-1]))
+                bgcolor = (
+                    bgcolor.permute((0, 2, 3, 1))
+                    .contiguous()
+                    .view((composite_rgb.shape[0], -1, composite_rgb.shape[-1]))
+                )
                 composite_rgb = composite_rgb + (1 - weight_total) * bgcolor
                 # composite_rgb = composite_rgb * weight_total + (1 - weight_total) * bgcolor
             # composite_rgb = composite_rgb
@@ -132,8 +141,11 @@ class MipRayMarcher2(nn.Cell):
 
         return composite_rgb, composite_depth, weights, composite_normal
 
-
-    def construct(self,  colors, sdfs, depths, normals, ray_directions, rendering_options, bgcolor=None, real_normals=None):
-        composite_rgb, composite_depth, weights, composite_normal = self.run_construct(colors, sdfs, depths, normals, ray_directions, rendering_options, bgcolor, real_normals)
+    def construct(
+        self, colors, sdfs, depths, normals, ray_directions, rendering_options, bgcolor=None, real_normals=None
+    ):
+        composite_rgb, composite_depth, weights, composite_normal = self.run_construct(
+            colors, sdfs, depths, normals, ray_directions, rendering_options, bgcolor, real_normals
+        )
 
         return composite_rgb, composite_depth, weights, composite_normal

@@ -35,7 +35,7 @@ This tutorial includes:
 #### Requirements
 
 | mindspore | ascend driver | firmware     | cann toolkit/kernel
-|:----------|:---           | :--          |:--
+|:---------:|:---:           | :--:          |:--:|
 | 2.3.1     | 24.1.RC2      | 7.3.0.1.231  | 8.0.RC2.beta1
 
 ```
@@ -87,9 +87,9 @@ python sample.py -c configs/inference/sky.yaml
 
 Experiments are tested on ascend 910* with mindspore 2.3.1 graph mode:
 
-| model name | cards | image size | method | steps | jit level | ckpt loading time | compile time | total sample time |
-| :--------: | :---: | :--------: | :----: | :---: | :-------: | :---------------: | :----------: | :---------------: |
-|   latte    |   1   |  256x256   |  ddpm  |  250  |    O2     |      19.72s       |   101.26s    |      537.31s      |
+| model name | cards | resolution | scheduler | steps | jit level | graph compile | s/video |
+| :--------: | :---: | :--------: | :----: | :---: | :-------: | :----------: | :---------------: |
+|   latte    |   1   |  256x256   |  ddpm  |  250  |    O2     |   101.26s    |      537.31s      |
 
 Some of the generated results are shown here:
 <table class="center">
@@ -131,8 +131,6 @@ Then, you can start standalone training on Ascend devices using:
 ```bash
 python train.py -c configs/training/sky_video.yaml
 ```
-To start training on GPU devices, simply append `--device_target GPU` to the command above.
-
 The default training configuration is to train Latte model from scratch. The batch size is $5$, and the number of epochs is $3000$, which corresponds to around 900k steps. The learning rate is a constant value $1e^{-4}$. The model is trained under mixed precision mode. The default AMP level is `O2`. See more details in `configs/training/sky_video.yaml`.
 
 To accelerate the training speed, we use `dataset_sink_mode: True` in the configuration file by default. You can also set `enable_flash_attention: True` to further accelerate the training speed.
@@ -232,19 +230,18 @@ bash scripts/run_distributed_sky_numpy_video.sh path/to/rank/table 0 4
 The first number `0` indicates the start index of the training devices, and the second number `4` indicates the total number of distributed processes you want to launch.
 
 
-## 5. Evaluation
+## 5. Performance
 
 Experiments are tested on ascend 910* with mindspore 2.3.1 graph mode:
 
-| model name | cards | image size | graph compile | batch size | num frames | recompute | dataset sink mode | embedding cache | jit level | per step time | train. imgs/s |
-| :--------: | :---: | :--------: | :-----------: | :--------: | :--------: | :-------: | :---------------: | :-------------: | :-------: | :-----------: | :-----------: |
-|   latte    |   1   |  256x256   |   6~8 mins    |     5      |     16     |    OFF    |        ON         |       OFF       |    O2     |     1.03s     |     77.67     |
-|   latte    |   1   |  256x256   |   6~8 mins    |     1      |    128     |    ON     |        ON         |       ON        |    O2     |     1.21s     |    105.78     |
-|   latte    |   4   |  256x256   |   6~8 mins    |     1      |    128     |    ON     |        ON         |       ON        |    O2     |     1.32s     |    387.87     |
-|   latte    |   8   |  256x256   |   6~8 mins    |     1      |    128     |    ON     |        ON         |       ON        |    O2     |     1.31s     |    781.67     |
-> context: {Ascend chip}{mindspore version}.
+| model name | cards |batch size | resolution    | recompute | sink | cache | jit level | graph compile | s/step | img/s |
+| :--------: | :---: | :--------:| :--------:     | :--------: | :-------: | :---------------: | :-------------: | :-------: | :-----------: | :-----------: |
+|   latte    |   1   |5          |  16x256x256      |    OFF    |        ON         |       OFF       |    O2     |6~8mins|             1.03     |     77.67     |
+|   latte    |   1   |1          |  128x256x256     |    ON     |        ON         |       ON        |    O2     |6~8mins|             1.21     |    105.78     |
+|   latte    |   4   |1          |  128x256x256     |    ON     |        ON         |       ON        |    O2     |6~8mins|             1.32     |    387.87     |
+|   latte    |   8   |1          |  128x256x256     |    ON     |        ON         |       ON        |    O2     |6~8mins|             1.31     |    781.67     |
 >
-> train. imgs/s: images per second during training. img/s = cards * batch_size * num_frames / per_step_time
+> img/s: images per second during training. img/s = cards * batch_size * num_frames / per_step_time
 
 # References
 

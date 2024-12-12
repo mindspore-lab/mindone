@@ -11,6 +11,7 @@
 from typing import Callable, Optional
 
 from mindspore import Tensor, nn
+
 from mindone.utils.version_control import is_old_ms_version
 
 
@@ -30,7 +31,7 @@ class Mlp(nn.Cell):
         self.fc1 = nn.Dense(in_features, hidden_features, has_bias=bias)
         self.act = act_layer(approximate=False) if isinstance(act_layer, nn.GELU) else act_layer()
         self.fc2 = nn.Dense(hidden_features, out_features, has_bias=bias)
-        self.drop = nn.Dropout(p = drop)
+        self.drop = nn.Dropout(p=drop)
 
     def construct(self, x: Tensor) -> Tensor:
         x = self.fc1(x)

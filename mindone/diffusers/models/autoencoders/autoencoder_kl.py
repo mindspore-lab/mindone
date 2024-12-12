@@ -84,7 +84,7 @@ class AutoencoderKL(ModelMixin, ConfigMixin, FromOriginalModelMixin):
         latents_std: Optional[Tuple[float]] = None,
         use_quant_conv: bool = True,
         use_post_quant_conv: bool = True,
-        mid_block_add_attention: bool = True
+        mid_block_add_attention: bool = True,
     ):
         super().__init__()
 
@@ -337,7 +337,7 @@ class AutoencoderKL(ModelMixin, ConfigMixin, FromOriginalModelMixin):
 
         Args:
             x (`ms.Tensor`): Input batch of images.
-            return_dict (`bool`, *optional*, defaults to `True`):
+            return_dict (`bool`, *optional*, defaults to `False`):
                 Whether or not to return a [`~models.autoencoder_kl.AutoencoderKLOutput`] instead of a plain tuple.
 
         Returns:
@@ -356,7 +356,8 @@ class AutoencoderKL(ModelMixin, ConfigMixin, FromOriginalModelMixin):
             for j in range(0, x.shape[3], overlap_size):
                 tile = x[:, :, i : i + self.tile_sample_min_size, j : j + self.tile_sample_min_size]
                 tile = self.encoder(tile)
-                tile = self.quant_conv(tile)
+                if self.config["use_quant_conv"]:
+                    tile = self.quant_conv(tile)
                 row.append(tile)
             rows.append(row)
         result_rows = []
@@ -385,7 +386,7 @@ class AutoencoderKL(ModelMixin, ConfigMixin, FromOriginalModelMixin):
 
         Args:
             z (`ms.Tensor`): Input batch of latent vectors.
-            return_dict (`bool`, *optional*, defaults to `True`):
+            return_dict (`bool`, *optional*, defaults to `False`):
                 Whether or not to return a [`~models.vae.DecoderOutput`] instead of a plain tuple.
 
         Returns:
@@ -404,7 +405,8 @@ class AutoencoderKL(ModelMixin, ConfigMixin, FromOriginalModelMixin):
             row = []
             for j in range(0, z.shape[3], overlap_size):
                 tile = z[:, :, i : i + self.tile_latent_min_size, j : j + self.tile_latent_min_size]
-                tile = self.post_quant_conv(tile)
+                if self.config["use_post_quant_conv"]:
+                    tile = self.post_quant_conv(tile)
                 decoded = self.decoder(tile)
                 row.append(decoded)
             rows.append(row)

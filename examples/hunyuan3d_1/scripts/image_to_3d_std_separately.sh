@@ -1,4 +1,4 @@
-# !/usr/bin/bash 
+# !/usr/bin/bash
 # ------------------------------------
 #      stage     | Minimum Memory Support
 # ------------------------------------
@@ -10,12 +10,12 @@
 # views_to_mesh  | ~10G (90000 faces)
 # ------------------------------------
 
-# Usage: 
+# Usage:
 # bash scripts/image_to_3d_std_separately.sh ./demos/example_000.png ./outputs/test
 # # need Memory > 16G
 
 rgb_path=$1
-save_folder=$2 
+save_folder=$2
 
 # init
 use_lite=false

@@ -12,17 +12,15 @@ import os
 import warnings
 
 import mindspore as ms
-from mindspore import nn, Tensor, ops
-
-from mindone.utils.version_control import (
-    check_valid_flash_attention,
-    is_old_ms_version,
-)
+from mindspore import Tensor, nn, ops
 
 from mindone.models.modules.flash_attention import FLASH_IS_AVAILABLE, MSFlashAttention
+from mindone.utils.version_control import check_valid_flash_attention, is_old_ms_version
+
 XFORMERS_ENABLED = FLASH_IS_AVAILABLE
 
 logger = logging.getLogger("dinov2")
+
 
 class Attention(nn.Cell):
     def __init__(
@@ -33,7 +31,7 @@ class Attention(nn.Cell):
         proj_bias: bool = True,
         attn_drop: float = 0.0,
         proj_drop: float = 0.0,
-        FA_dtype = ms.bfloat16
+        FA_dtype=ms.bfloat16,
     ) -> None:
         super().__init__()
         self.num_heads = num_heads
@@ -53,7 +51,6 @@ class Attention(nn.Cell):
                 input_layout="BNSD",
                 dtype=FA_dtype,
             )
-            
 
     def construct(self, x: Tensor) -> Tensor:
         B, N, C = x.shape
@@ -70,6 +67,7 @@ class Attention(nn.Cell):
         x = self.proj_drop(x)
         return x
 
+
 # TODO: training may use attn_bias
 # in inference, do not use attn_bias=cam_emb yet
 class MemEffAttention(Attention):
@@ -81,17 +79,16 @@ class MemEffAttention(Attention):
 
         B, N, C = x.shape
         qkv = self.qkv(x).reshape(B, N, 3, self.num_heads, C // self.num_heads)
-        q, k, v = ops.unbind(qkv, 2) # each 'b n h d'
+        q, k, v = ops.unbind(qkv, 2)  # each 'b n h d'
         q = q.swapaxes(1, 2)
         k = k.swapaxes(1, 2)
         v = v.swapaxes(1, 2)
         # 'b n h d' -> (b, h=num_head, n, d) == BNSD
 
-        x = self.flash_attention(q, k, v) # orginally memory_efficient_attention(q, k ,v, attn_bias=attn_bias)
-        x = x.swapaxes(1, 2) # b h n d -> b n h d
+        x = self.flash_attention(q, k, v)  # orginally memory_efficient_attention(q, k ,v, attn_bias=attn_bias)
+        x = x.swapaxes(1, 2)  # b h n d -> b n h d
         x = x.reshape([B, N, C])
 
         x = self.proj(x)
         x = self.proj_drop(x)
         return x
-    

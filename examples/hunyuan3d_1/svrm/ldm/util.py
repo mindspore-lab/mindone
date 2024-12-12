@@ -1,14 +1,16 @@
 # TODO
-import os
 import importlib
-from inspect import isfunction
-import cv2
+import os
 import time
+from inspect import isfunction
+
+import cv2
+import matplotlib.pyplot as plt
 import numpy as np
 from PIL import Image, ImageDraw, ImageFont
-import matplotlib.pyplot as plt
+
 import mindspore as ms
-from mindspore import nn, ops, mint, _no_grad
+from mindspore import _no_grad, mint, nn, ops
 from mindspore.nn.optim import Adam, AdamWeightDecay, Momentum, Optimizer
 
 _MIN_FP16 = ms.tensor(np.finfo(np.float16).min, dtype=ms.float16)
@@ -19,6 +21,8 @@ _MAX_FP16 = ms.tensor(np.finfo(np.float16).max, dtype=ms.float16)
 _MAX_FP32 = ms.tensor(np.finfo(np.float32).max, dtype=ms.float32)
 _MAX_FP64 = ms.tensor(np.finfo(np.float64).max, dtype=ms.float64)
 _MAX_BF16 = ms.tensor(float.fromhex("0x1.fe00000000000p+127"), dtype=ms.bfloat16)
+
+
 def dtype_to_min(dtype):
     if dtype == ms.float16:
         return _MIN_FP16
@@ -30,6 +34,8 @@ def dtype_to_min(dtype):
         return _MIN_BF16
     else:
         raise ValueError(f"Only support get minimum value of (float16, ), but got {dtype}")
+
+
 def dtype_to_max(dtype):
     if dtype == ms.float16:
         return _MAX_FP16
@@ -41,7 +47,8 @@ def dtype_to_max(dtype):
         return _MAX_BF16
     else:
         raise ValueError(f"Only support get maximum value of (float16, ), but got {dtype}")
-        
+
+
 @ms.jit_class
 class no_grad(_no_grad):
     """
@@ -59,17 +66,17 @@ class no_grad(_no_grad):
     def __exit__(self, *args):
         if self._pynative:
             super().__exit__(*args)
-            
+
+
 def pil_rectangle_crop(im):
-    width, height = im.size   # Get dimensions
-    
+    width, height = im.size  # Get dimensions
+
     if width <= height:
         left = 0
         right = width
-        top = (height - width)/2
-        bottom = (height + width)/2
+        top = (height - width) / 2
+        bottom = (height + width) / 2
     else:
-        
         top = 0
         bottom = height
         left = (width - height) / 2
@@ -88,23 +95,23 @@ def add_margin(pil_img, color, size=256):
 
 
 def load_and_preprocess(interface, input_im):
-    '''
+    """
     :param input_im (PIL Image).
     :return image (H, W, 3) array in [0, 1].
-    '''
+    """
     # See https://github.com/Ir1d/image-background-remove-tool
-    image = input_im.convert('RGB')
+    image = input_im.convert("RGB")
 
     image_without_background = interface([image])[0]
     image_without_background = np.array(image_without_background)
     est_seg = image_without_background > 127
     image = np.array(image)
-    foreground = est_seg[:, : , -1].astype(np.bool_)
-    image[~foreground] = [255., 255., 255.]
+    foreground = est_seg[:, :, -1].astype(np.bool_)
+    image[~foreground] = [255.0, 255.0, 255.0]
     x, y, w, h = cv2.boundingRect(foreground.astype(np.uint8))
-    image = image[y:y+h, x:x+w, :]
+    image = image[y : y + h, x : x + w, :]
     image = Image.fromarray(np.array(image))
-    
+
     # resize image such that long edge is 512
     image.thumbnail([200, 200], Image.Resampling.LANCZOS)
     image = add_margin(image, (255, 255, 255), size=256)
@@ -120,9 +127,9 @@ def log_txt_as_img(wh, xc, size=10):
     for bi in range(b):
         txt = Image.new("RGB", wh, color="white")
         draw = ImageDraw.Draw(txt)
-        font = ImageFont.truetype('data/DejaVuSans.ttf', size=size)
+        font = ImageFont.truetype("data/DejaVuSans.ttf", size=size)
         nc = int(40 * (wh[0] / 256))
-        lines = "\n".join(xc[bi][start:start + nc] for start in range(0, len(xc[bi]), nc))
+        lines = "\n".join(xc[bi][start : start + nc] for start in range(0, len(xc[bi]), nc))
 
         try:
             draw.text((0, 0), lines, fill="black", font=font)
@@ -163,7 +170,7 @@ def mean_flat(tensor):
     https://github.com/openai/guided-diffusion/blob/27c20a8fab9cb472df5d6bdd6c8d11c8f430b924/guided_diffusion/nn.py#L86
     Take the mean over all non-batch dimensions.
     """
-    return mint.mean(tensor, dim = list(range(1, len(tensor.shape))))
+    return mint.mean(tensor, dim=list(range(1, len(tensor.shape))))
 
 
 def count_params(model, verbose=False):
@@ -175,7 +182,7 @@ def count_params(model, verbose=False):
 
 def instantiate_from_config(config):
     if not "target" in config:
-        if config == '__is_first_stage__':
+        if config == "__is_first_stage__":
             return None
         elif config == "__is_unconditional__":
             return None
@@ -189,6 +196,7 @@ def get_obj_from_str(string, reload=False):
         module_imp = importlib.import_module(module)
         importlib.reload(module_imp)
     return getattr(importlib.import_module(module, package=None), cls)
+
 
 ''' no use
 #TODO

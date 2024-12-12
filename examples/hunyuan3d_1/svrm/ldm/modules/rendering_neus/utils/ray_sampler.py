@@ -18,13 +18,19 @@ Expects cam2world matrices that use the OpenCV camera coordinate system conventi
 """
 
 import mindspore as ms
-from mindspore import nn, ops, mint
+from mindspore import mint, nn, ops
+
 
 class RaySampler(nn.Cell):
     def __init__(self):
         super().__init__()
-        self.ray_origins_h, self.ray_directions, self.depths, self.image_coords, self.rendering_options = None, None, None, None, None
-
+        self.ray_origins_h, self.ray_directions, self.depths, self.image_coords, self.rendering_options = (
+            None,
+            None,
+            None,
+            None,
+            None,
+        )
 
     def construct(self, cam2world_matrix, intrinsics, render_size):
         """
@@ -46,29 +52,47 @@ class RaySampler(nn.Cell):
         cy = intrinsics[:, 1, 2]
         sk = intrinsics[:, 0, 1]
 
-        uv = mint.stack(ops.meshgrid(
-            mint.arange(render_size, dtype=ms.float32),
-            mint.arange(render_size, dtype=ms.float32),
-            indexing='ij',
-        ))
+        uv = mint.stack(
+            ops.meshgrid(
+                mint.arange(render_size, dtype=ms.float32),
+                mint.arange(render_size, dtype=ms.float32),
+                indexing="ij",
+            )
+        )
         uv = uv.flip(0).reshape(2, -1).swapaxes(1, 0)
         uv = uv.unsqueeze(0).tile((cam2world_matrix.shape[0], 1, 1))
 
-        x_cam = uv[:, :, 0].view((N, -1)) * (1./render_size) + (0.5/render_size)
-        y_cam = uv[:, :, 1].view((N, -1)) * (1./render_size) + (0.5/render_size)
+        x_cam = uv[:, :, 0].view((N, -1)) * (1.0 / render_size) + (0.5 / render_size)
+        y_cam = uv[:, :, 1].view((N, -1)) * (1.0 / render_size) + (0.5 / render_size)
         z_cam = mint.ones((N, M))
 
-        x_lift = (x_cam - cx.unsqueeze(-1) + cy.unsqueeze(-1)*sk.unsqueeze(-1)/fy.unsqueeze(-1) - sk.unsqueeze(-1)*y_cam/fy.unsqueeze(-1)) / fx.unsqueeze(-1) * z_cam
+        x_lift = (
+            (
+                x_cam
+                - cx.unsqueeze(-1)
+                + cy.unsqueeze(-1) * sk.unsqueeze(-1) / fy.unsqueeze(-1)
+                - sk.unsqueeze(-1) * y_cam / fy.unsqueeze(-1)
+            )
+            / fx.unsqueeze(-1)
+            * z_cam
+        )
         y_lift = (y_cam - cy.unsqueeze(-1)) / fy.unsqueeze(-1) * z_cam
 
         cam_rel_points = mint.stack((x_lift, y_lift, z_cam, mint.ones_like(z_cam)), dim=-1)
 
-        _opencv2blender = ms.Tensor([
-            [1, 0, 0, 0],
-            [0, -1, 0, 0],
-            [0, 0, -1, 0],
-            [0, 0, 0, 1],
-        ], dtype=ms.float32).unsqueeze(0).tile((N, 1, 1))
+        _opencv2blender = (
+            ms.Tensor(
+                [
+                    [1, 0, 0, 0],
+                    [0, -1, 0, 0],
+                    [0, 0, -1, 0],
+                    [0, 0, 0, 1],
+                ],
+                dtype=ms.float32,
+            )
+            .unsqueeze(0)
+            .tile((N, 1, 1))
+        )
 
         cam2world_matrix = mint.bmm(cam2world_matrix, _opencv2blender)
 
