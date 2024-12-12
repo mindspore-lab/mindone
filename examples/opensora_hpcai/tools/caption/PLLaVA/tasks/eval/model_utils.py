@@ -4,7 +4,7 @@ import mindspore as ms
 from models.pllava import PllavaProcessor, PllavaForConditionalGeneration, PllavaConfig
 from models.pipeline import TextGenerator
 
-def load_pllava(repo_id, num_frames, pooling_shape=(16,12,12)):
+def load_pllava(repo_id, num_frames, pooling_shape=(16,12,12), vision_hidden_size = 1024, text_hidden_size = 4096):
     kwargs = {
         'num_frames': num_frames,
     }
@@ -13,6 +13,8 @@ def load_pllava(repo_id, num_frames, pooling_shape=(16,12,12)):
 
     config = PllavaConfig.from_pretrained(
         repo_id,
+        vision_hidden_size = vision_hidden_size,
+        text_hidden_size = text_hidden_size,
         pooling_shape=pooling_shape,
         **kwargs,
     )

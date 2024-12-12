@@ -17,6 +17,7 @@ from .configuration_pllava import PllavaConfig
 
 class PllavaMultiModalProjector(nn.Cell):
     def __init__(self, config: PllavaConfig):
+        super().__init__() #TODO: modify this
         self.use_pooling = config.use_pooling
         self.frame_shape=config.frame_shape
         self.num_frames = config.num_frames

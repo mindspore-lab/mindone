@@ -61,11 +61,15 @@ class PllavaConfig:
         self.text_config = text_config
 
     @classmethod
-    def from_pretrained(cls, pretrained_model_name_or_path, **kwargs):
+    def from_pretrained(cls, pretrained_model_name_or_path, vision_hidden_size = None, text_hidden_size = None, **kwargs):
         # load config.json from directory
         config_path = os.path.join(pretrained_model_name_or_path, "config.json")
         with open(config_path, "r", encoding="utf-8") as f:
             config_dict = json.load(f)
         config_dict.update(kwargs)  # override any arguments
+        if vision_hidden_size is not None:
+            config_dict["vision_config"]["hidden_size"] = vision_hidden_size
+        if text_hidden_size is not None:
+            config_dict["text_config"]["hidden_size"] = text_hidden_size
 
         return cls(**config_dict)
