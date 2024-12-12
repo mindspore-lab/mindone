@@ -7,14 +7,13 @@ This repo contains Mindspore model definitions, pre-trained weights and inferenc
 - Main
     - [Training](#vanilla-finetune)
     - [Inference](#getting-start)
-    - [Use diffusers: coming soon]
-    - [Launch Demo: coming soon]
-- Guidance
-    - [Feature extraction: coming soon]
-    - [LoRA & DoRA: coming soon]
+    - [Launch Demo](#running-the-demo-with-gradio)
+    - [Use diffusers](#integration-in-diffusers)
 - Benchmark
     - [Training](#training)
     - [Inference](#inference)
+- Guidance
+    - [LoRA Finetuning](#)
 
 ## What's New
 - 2024-09-05
@@ -166,6 +165,81 @@ Below is the FID score curve
 Followed by some generated images using the testing prompts.
 <p align="center"><img width="1024" src="https://github.com/user-attachments/assets/b9ba152d-bbf0-46c2-af10-ba8066b92486"/></p>
 
+### Running the Demo with Gradio
+
+**Basic Usage**: Run the demo with the recommended configuration using the following command:
+
+```bash
+python gradio_demo.py \
+    --image_height 1024 \
+    --image_width 1024 \
+    --sample_size 128 \
+    --checkpoint "models/PixArt-Sigma-XL-2-1024-MS.ckpt" \
+    --vae_root "models/vae" \
+    --text_encoder_root "models/text_encoder" \
+    --tokenizer_root "models/tokenizer" \
+    --sd_scale_factor 0.13025 \
+    --enable_flash_attention True \
+    --dtype "fp16"
+```
+
+**Parameter Explanation**
+- `--image_height`: Output image height (1024 recommended)
+- `--image_width`: Output image width (1024 recommended)
+- `--sample_size`: Size of latent samples (128 for 1024px images)
+- `--checkpoint`: Path to the PixArt model checkpoint
+- `--vae_root`: Directory containing VAE model files
+- `--text_encoder_root`: Directory containing text encoder model
+- `--tokenizer_root`: Directory containing tokenizer files
+- `--sd_scale_factor`: VAE scaling factor (0.13025 recommended)
+- `--enable_flash_attention`: Enable flash attention for better performance
+- `--dtype`: Model precision ("fp16" recommended for GPU)
+
+**Using the Web Interface**
+
+After running the command, the demo will launch a web interface accessible at:
+```
+http://localhost:7788
+```
+
+The interface allows you to:
+1. Enter text prompts
+2. Choose sampling method (dpm, ddim, iddpm)
+3. Adjust sampling steps
+4. Modify guidance scale
+5. Set random seed
+6. Generate images
+
+
+### Integration in diffusers
+```python
+from mindone.diffusers import DiffusionPipeline, Transformer2DModel, PixArtSigmaPipeline
+import mindspore as ms
+
+transformer = Transformer2DModel.from_pretrained(
+    "PixArt-alpha/PixArt-Sigma-XL-2-1024-MS",
+    subfolder='transformer',
+    mindspore_dtype=ms.float16,
+    use_safetensors=True,
+)
+pipe = PixArtSigmaPipeline.from_pretrained(
+    "PixArt-alpha/pixart_sigma_sdxlvae_T5_diffusers",
+    transformer=transformer,
+    mindspore_dtype=ms.float16,
+    use_safetensors=True,
+)
+prompt =["Whimsical forest fairy resting on a mossy toadstool, surrounded by glowing fireflies.",
+        "Brass and gear-laden mechanical owl soaring gracefully through a cloudy, steampunk-inspired cityscape.",
+        "Abandoned, weathered spaceship drifting silently through a field of sparkling asteroids.",
+        "Warm light spilling out from the windows of a cozy cottage nestled in a snowy, pine-filled forest.",
+        "Majestic, dragon-like creature gliding over a rugged, fantastical mountain range, casting a dramatic shadow below."]
+image = pipe(prompt)[0]
+for i in range(5):
+    image[i].save("./prompt{}.png".format(i))
+```
+Generated image from the code.
+<p align="center"><img width="1024" src="https://github.com/itruonghai/mindone-asset/blob/main/pixart-sigma.png?raw=true"/></p>
+
 ## Performance
 
 ### Training Performance
@@ -190,6 +264,8 @@ Experiments are tested on ascend 910* with mindspore 2.3.1 graph mode
 | PixArt-Sigma | 1     | 1           | 512 x 512    | O1        | < 3 mins      | 0.063    | [yaml](configs/inference/pixart-sigma-512-MS.yaml)   |
 | PixArt-Sigma | 1     | 1           | 1024 x 1024  | O1        | < 3 mins      | 0.202    | [yaml](configs/inference/pixart-sigma-1024-MS.yaml) |
 | PixArt-Sigma | 1     | 1           | 2048 x 2048  | O1        | < 3 mins      | 1.754    | [yaml](configs/inference/pixart-sigma-2K-MS.yaml)     |
+
+
 
 # References
 
