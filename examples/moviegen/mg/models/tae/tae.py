@@ -2,7 +2,7 @@ import math
 from typing import Optional, Tuple
 
 import mindspore as ms
-from mindspore import nn, ops
+from mindspore import mint, nn, ops
 
 from .modules import Conv2_5d, Decoder, Encoder
 
@@ -87,7 +87,7 @@ class TemporalAutoencoder(nn.Cell):
 
         self.exp = ops.Exp()
         self.stdnormal = ops.StandardNormal()
-        self.split = ms.ops.split
+        self.split = ops.split
 
         self.sample_deterministic = sample_deterministic
         self.discard_spurious_frames = True
@@ -215,10 +215,11 @@ class TemporalAutoencoder(nn.Cell):
         z_out, mean, logvar = self._encode_no_tile(x[:, :, :tf])
 
         for i in range(tf, x.shape[2], tf):
-            z_cur, mean, logvar = self._encode_no_tile(x[:, :, i : i + tf])
-            z_out = ops.cat((z_out, z_cur), axis=2)
+            z_cur, mean_cur, logvar_cur = self._encode_no_tile(x[:, :, i : i + tf])
+            z_out = mint.cat((z_out, z_cur), dim=2)
+            mean = mint.cat((mean, mean_cur), dim=2)
+            logvar = mint.cat((logvar, logvar_cur), dim=2)
 
-        # TODO: merge mean, logvar for different slices for training tae with tile
         return z_out, mean, logvar
 
     def decode_with_tile(self, z: ms.Tensor, target_num_frames: int = None) -> ms.Tensor:
@@ -250,7 +251,7 @@ class TemporalAutoencoder(nn.Cell):
         i = stride  # start position
         while visited < in_len:
             x_cur = self._decode_no_tile(z[:, :, i : i + tl])
-            x_out = ops.cat((x_out, x_cur), axis=2)
+            x_out = mint.cat((x_out, x_cur), dim=2)
 
             visited = i + tl
             i += stride
@@ -287,8 +288,8 @@ class TemporalAutoencoder(nn.Cell):
         last_slice_len = in_len - (num_slices - 1) * slice_len
         out_len += last_slice_len - overlap_len
 
-        out_tensor = ops.zeros((B, C, out_len, H, W), ms.float32)
-        out_cnt = ops.zeros((B, C, out_len, H, W), ms.float32)
+        out_tensor = mint.zeros((B, C, out_len, H, W), dtype=ms.float32)
+        out_cnt = mint.zeros((B, C, out_len, H, W), dtype=ms.float32)
 
         for i in range(num_slices):
             # get the slice form the concatnated latent
