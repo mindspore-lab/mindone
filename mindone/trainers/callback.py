@@ -1,7 +1,7 @@
 import logging
 import os
 import time
-from typing import List
+from typing import List, Optional, Tuple, Union
 
 import mindspore as ms
 from mindspore.communication import get_rank
@@ -45,7 +45,8 @@ class EvalSaveCallback(Callback):
         output_dir=None,
         ema=None,
         save_ema_only=True,
-        ckpt_save_policy="lastest_k",
+        ckpt_save_policy="latest_k",
+        monitor_metric: Optional[str] = None,
         ckpt_max_keep=10,
         step_mode=False,
         ckpt_save_interval=1,
@@ -58,7 +59,7 @@ class EvalSaveCallback(Callback):
         model_name="sd",
         save_trainable_only: bool = False,
         param_save_filter: List[str] = None,
-        resume_prefix_blacklist: List[str] = None,
+        resume_prefix_blacklist: Optional[Union[str, Tuple[str, ...]]] = None,
         integrated_save=False,
         save_training_resume=True,
         train_steps=-1,
@@ -68,7 +69,8 @@ class EvalSaveCallback(Callback):
             step_mode: if True, ckpt_save_interval is counted in steps. otherwise, in epochs.
             param_save_filter: indicates what parameters to save in checkpoint. If None, save all parameters in network. \
                 Otherwise, only params that contain one of the keyword in param_save_filter list will be saved.
-            resume_prefix_blacklist: exclude parameters with one of these prefixes to be saved in resume checkpoint. e.g. ['swap.', 'vae.'].
+            resume_prefix_blacklist: exclude parameters with one of these prefixes to be saved in resume checkpoint,
+                                     e.g. ('swap.', 'vae.').
         """
         self.rank_id = rank_id
         self.is_main_device = rank_id in [0, None]
@@ -95,6 +97,7 @@ class EvalSaveCallback(Callback):
 
         if self.is_main_device:
             self.ckpt_save_policy = ckpt_save_policy
+            self.monitor_metric = monitor_metric
             self.ckpt_manager = CheckpointManager(
                 ckpt_save_dir,
                 ckpt_save_policy,
@@ -131,17 +134,11 @@ class EvalSaveCallback(Callback):
         self.use_step_unit = use_step_unit
         self.train_steps = train_steps
         self.save_training_resume = save_training_resume
-        if resume_prefix_blacklist is not None:
-
-            def choice_func(x):
-                for prefix in resume_prefix_blacklist:
-                    if x.startswith("vae."):
-                        return False
-                return True
-
-            self.choice_func = choice_func
-        else:
-            self.choice_func = None
+        self.choice_func = None
+        if resume_prefix_blacklist:
+            if isinstance(resume_prefix_blacklist, str):
+                resume_prefix_blacklist = (resume_prefix_blacklist,)
+            self.choice_func = lambda x: not x.startswith(resume_prefix_blacklist)
 
     def on_train_step_end(self, run_context):
         cb_params = run_context.original_args()
@@ -168,19 +165,23 @@ class EvalSaveCallback(Callback):
                 )
 
                 append_dict = {"lora_rank": self.lora_rank} if self.use_lora else None
-                if self.ema is not None:
-                    if not self.save_ema_only:
-                        self.ckpt_manager.save(
-                            self.net_to_save,
-                            None,
-                            ckpt_name=ckpt_name.replace(".ckpt", "_nonema.ckpt"),
-                            append_dict=append_dict,
-                        )
-                    # swap ema weight and network weight
-                    self.ema.swap_before_eval()
+                perf = cb_params.get("eval_results")
+                if perf or self.ckpt_save_policy != "top_k":
+                    if perf:
+                        perf = perf[self.monitor_metric]
+                    if self.ema is not None:
+                        if not self.save_ema_only:
+                            self.ckpt_manager.save(
+                                self.net_to_save,
+                                perf,
+                                ckpt_name=ckpt_name.replace(".ckpt", "_nonema.ckpt"),
+                                append_dict=append_dict,
+                            )
+                        # swap ema weight and network weight
+                        self.ema.swap_before_eval()
 
-                # save history checkpoints
-                self.ckpt_manager.save(self.net_to_save, None, ckpt_name=ckpt_name, append_dict=append_dict)
+                    # save history checkpoints
+                    self.ckpt_manager.save(self.net_to_save, perf, ckpt_name=ckpt_name, append_dict=append_dict)
 
                 if self.save_training_resume:
                     # TODO: resume training for step.

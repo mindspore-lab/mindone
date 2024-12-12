@@ -13,7 +13,7 @@ from ..layers.operation_selector import get_split_op
 from .autoencoder_kl import AutoencoderKL as AutoencoderKL_SD
 from .vae_temporal import VAE_Temporal_SD  # noqa: F401
 
-__all__ = ["AutoencoderKL"]
+__all__ = ["AutoencoderKL", "OpenSoraVAE_V1_2"]
 
 
 _logger = logging.getLogger(__name__)

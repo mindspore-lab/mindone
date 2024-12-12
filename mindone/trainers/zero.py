@@ -1,6 +1,7 @@
 import json
 import logging
 import os
+from typing import Literal
 
 import mindspore as ms
 from mindspore import nn, ops
@@ -554,7 +555,7 @@ def prepare_train_network(
     clip_grad: bool = False,
     clip_norm: float = 1.0,
     verbose: bool = False,
-    zero_stage: int = 0,
+    zero_stage: Literal[0, 1, 2, 3] = 0,
     optimizer_offload: bool = False,
     op_group: str = None,
     dp_group: str = None,
