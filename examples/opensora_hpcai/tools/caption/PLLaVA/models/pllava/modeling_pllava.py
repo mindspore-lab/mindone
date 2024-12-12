@@ -1,86 +1,31 @@
 """ MindSpore PLLaVA model."""
-from dataclasses import dataclass
-from typing import List, Optional, Tuple, Union
+from typing import List, Optional, Tuple
 from functools import reduce
 import mindspore as ms
-import mindnlp
-import mindnlp.core.nn as nn
-import mindnlp.core.ops as ops
-from mindnlp.transformers import PreTrainedModel
-from mindnlp.transformers.activations import ACT2FN
-from mindnlp.transformers.cache_utils import Cache
-from mindnlp.transformers.modeling_outputs import ModelOutput
-from mindnlp.transformers.models.auto import AutoModel, AutoModelForCausalLM
-from mindnlp.transformers import logging
+
+import mindspore.nn as nn
+import mindspore.ops as ops
+
+from ..activation import ACT2FN
+from ..cache_utils import Cache
+from ..clip import CLIPVisionModel
+from ..llama import LlamaForCausalLM
+
+from transformers.cache_utils import Cache
+
 from .configuration_pllava import PllavaConfig
 
-logger = logging.get_logger(__name__)
-
-_CONFIG_FOR_DOC = "LlavaConfig"
-
-PLLAVA_PRETRAINED_MODEL_ARCHIVE_LIST = [
-    "",
-    "",
-    "",
-    # See all Llava models at https://huggingface.co/models?filter=llava
-]
-
-
-@dataclass
-# Copied from transformers.models.idefics.modeling_idefics.IdeficsCausalLMOutputWithPast with Idefics->Llava
-class PllavaCausalLMOutputWithPast(ModelOutput):
-    """
-    Base class for Llava causal language model (or autoregressive) outputs.
-
-    Args:
-        loss (`mindspore.Tensor` of shape `(1,)`, *optional*, returned when `labels` is provided):
-            Language modeling loss (for next-token prediction).
-        logits (`mindspore.Tensor` of shape `(batch_size, sequence_length, config.vocab_size)`):
-            Prediction scores of the language modeling head (scores for each vocabulary token before SoftMax).
-        past_key_values (`tuple(tuple(mindspore.Tensor))`, *optional*, returned when `use_cache=True` is passed or when `config.use_cache=True`):
-            Tuple of `tuple(mindspore.Tensor)` of length `config.n_layers`, with each tuple having 2 tensors of shape
-            `(batch_size, num_heads, sequence_length, embed_size_per_head)`)
-
-            Contains pre-computed hidden-states (key and values in the self-attention blocks) that can be used (see
-            `past_key_values` input) to speed up sequential decoding.
-        hidden_states (`tuple(mindspore.Tensor)`, *optional*, returned when `output_hidden_states=True` is passed or when `config.output_hidden_states=True`):
-            Tuple of `torch.FloatTensor` (one for the output of the embeddings, if the model has an embedding layer, +
-            one for the output of each layer) of shape `(batch_size, sequence_length, hidden_size)`.
-
-            Hidden-states of the model at the output of each layer plus the optional initial embedding outputs.
-        attentions (`tuple(mindspore.Tensor)`, *optional*, returned when `output_attentions=True` is passed or when `config.output_attentions=True`):
-            Tuple of `mindspore.Tensor` (one for each layer) of shape `(batch_size, num_heads, sequence_length,
-            sequence_length)`.
-
-            Attentions weights after the attention softmax, used to compute the weighted average in the self-attention
-            heads.
-        image_hidden_states (`tuple(mindspore.Tensor)`, *optional*):
-            Tuple of `mindspore.Tensor` (one for the output of the image embeddings, `(batch_size, num_images,
-            sequence_length, hidden_size)`.
-
-            image_hidden_states of the model produced by the vision encoder, and optionally by the perceiver
-    """
-
-    loss: Optional[ms.Tensor] = None
-    logits: ms.Tensor = None
-    past_key_values: Optional[List[ms.Tensor]] = None
-    hidden_states: Optional[Tuple[ms.Tensor]] = None
-    attentions: Optional[Tuple[ms.Tensor]] = None
-    image_hidden_states: Optional[Tuple[ms.Tensor]] = None
-
-class PllavaMultiModalProjector(nn.Module):
-    supported_highres = ['pad_crop_four', 'slide', ]
+class PllavaMultiModalProjector(nn.Cell):
     def __init__(self, config: PllavaConfig):
-        super().__init__()  
         self.use_pooling = config.use_pooling
         self.frame_shape=config.frame_shape
         self.num_frames = config.num_frames
         self.pooling_shape = config.pooling_shape
         
         self.pooling = ms.nn.AdaptiveAvgPool3d(config.pooling_shape)
-        self.linear_1 = nn.Linear(config.vision_config.hidden_size, config.text_config.hidden_size, bias=True)
+        self.linear_1 = nn.Dense(config.vision_config.hidden_size, config.text_config.hidden_size, has_bias=True)
         self.act = ACT2FN[config.projector_hidden_act]
-        self.linear_2 = nn.Linear(config.text_config.hidden_size, config.text_config.hidden_size, bias=True)
+        self.linear_2 = nn.Linear(config.text_config.hidden_size, config.text_config.hidden_size, has_bias=True)
 
     def convert_Fembeddings2video(self, input, num_videos, frame_shape):
         num_videos_frames, _, embed_dims = input.shape
@@ -90,30 +35,16 @@ class PllavaMultiModalProjector(nn.Module):
         input = ops.reshape(input, (num_videos, embed_dims, num_frames, frame_shape[0], frame_shape[1]))
         return input
 
-    def convert_video2Fembeddings(self, input):
-        num_videos, embed_dims, num_frames, h, w = input.shape
-        input = ops.reshape(input, (num_videos * num_frames, h * w, embed_dims))
-        return input
-
-    def convert_video2MMembeddings(self, input):
-        num_videos, embed_dims, num_frames, h, w = input.shape
-        input = ops.reshape(input, (num_videos, num_frames * h * w, embed_dims))
-        return input
-
-    def forward(self, image_features, media_type, batch_size=None, num_videos=None):
+    def construct(self, image_features, media_type, batch_size=None, num_videos=None):
         frame_shape = self.frame_shape
         num_frames = self.num_frames
-        assert media_type in ( 'video', 'image'), f'only image or video, but got media_type {media_type}'
+        assert media_type in ('video'), f'only video, but got media_type {media_type}'
         hidden_states = image_features
 
-        if media_type == 'image':
-            hidden_states = hidden_states.repeat(num_frames, 1, 1)
-
         total_frames, spatial_seqlen, embed_dims = hidden_states.shape
-        #TODO: temporal code, should ensure num_frames == total frames in data loading later
-        if total_frames < num_frames and self.use_pooling: # 
+        if total_frames < num_frames and self.use_pooling:
             multiplier = int(num_frames/total_frames)+1
-            hidden_states= hidden_states.repeat_interleave(multiplier, dim=0)[:num_frames]
+            hidden_states= hidden_states.repeat_interleave(multiplier, axis=0)[:num_frames]
             total_frames, spatial_seqlen, embed_dims = hidden_states.shape
 
         assert total_frames % num_frames == 0
@@ -128,98 +59,19 @@ class PllavaMultiModalProjector(nn.Module):
         hidden_states = ops.swapaxes(hidden_states, 1, 2)
         return hidden_states
 
-
-
-class PllavaPreTrainedModel(PreTrainedModel):
-    """
-        The bare LLaMA Model outputting raw hidden-states without any specific head on top.
-
-        This model is also a MindSpore nn.Cell subclass. Use it as a regular MindSpore Cell
-        and refer to the MindSpore documentation for all matter related to general usage and behavior.
-
-        Parameters:
-            config (PllavaConfig or LlavaVisionConfig):
-                Model configuration class with all the parameters of the model. Initializing with a config file does not
-                load the weights associated with the model, only the configuration.
-        """
-    config_class = PllavaConfig
-    base_model_prefix = "model"
-    supports_gradient_checkpointing = True
-    _no_split_modules = ["LlavaVisionAttention"]
-    _skip_keys_device_placement = "past_key_values"
-    _supports_flash_attn_2 = True
-
-    def _init_weights(self, module):
-        # important: this ported version of Llava isn't meant for training from scratch - only
-        # inference and fine-tuning - so the proper init weights code has been removed - the original codebase
-        # https://github.com/haotian-liu/LLaVA/tree/main/llava should serve for that purpose
-        std = (
-            self.config.initializer_range
-            if hasattr(self.config, "initializer_range")
-            else self.config.text_config.initializer_range
-        )
-
-        if hasattr(module, "class_embedding"):
-            module.class_embedding.data.normal_(mean=0.0, std=std)
-
-        elif isinstance(module, nn.Embedding):
-            module.weight.data.normal_(mean=0.0, std=std)
-            if module.padding_idx is not None:
-                module.weight.data[module.padding_idx].zero_()
-
-        elif isinstance(module, PllavaMultiModalProjector):
-            # module.register_embed.data.normal_(mean=0.0, std=std)
-            if self.config.register:
-                module.register_embed.data.zero_()
-
-    @property
-    def _supports_sdpa(self):
-        """
-        Retrieve language_model's attribute to check whether the model supports
-        SDPA or not.
-        """
-        return self.language_model._supports_sdpa
-
-class PllavaForConditionalGeneration(PllavaPreTrainedModel):
+class PllavaForConditionalGeneration(nn.Cell):
     def __init__(self, config: PllavaConfig):
         super().__init__(config)
         self.config = config
-        self.vision_tower = AutoModel.from_config(config.vision_config)
+        self.vision_tower = CLIPVisionModel(**config.vision_config)
         self.multi_modal_projector = PllavaMultiModalProjector(config)
         self.vocab_size = config.vocab_size
-        self.language_model = AutoModelForCausalLM.from_config(config.text_config, ms_dtype=config.ms_dtype, attn_implementation="flash_attention_2")
+        self.language_model = LlamaForCausalLM(**config.text_config)
         self.pad_token_id = self.config.pad_token_id if self.config.pad_token_id is not None else self.config.text_config.pad_token_id
         assert self.pad_token_id is not None, 'provide the model with pad_token_id, this would be used to arrange new embedings'
-        self.post_init()
 
     def get_input_embeddings(self):
         return self.language_model.get_input_embeddings()
-
-    def set_input_embeddings(self, value):
-        self.language_model.set_input_embeddings(value)
-
-    def get_output_embeddings(self):
-        return self.language_model.get_output_embeddings()
-
-    def set_output_embeddings(self, new_embeddings):
-        self.language_model.set_output_embeddings(new_embeddings)
-
-    def set_decoder(self, decoder):
-        self.language_model.set_decoder(decoder)
-
-    def get_decoder(self):
-        return self.language_model.get_decoder()
-
-    def tie_weights(self):
-        return self.language_model.tie_weights()
-
-    def resize_token_embeddings(self, new_num_tokens: Optional[int] = None, pad_to_multiple_of=None) -> nn.Embedding:
-        model_embeds = self.language_model.resize_token_embeddings(new_num_tokens, pad_to_multiple_of)
-        # update vocab size
-        self.config.text_config.vocab_size = model_embeds.num_embeddings
-        self.config.vocab_size = model_embeds.num_embeddings
-        self.vocab_size = model_embeds.num_embeddings
-        return model_embeds
 
     def _merge_input_ids_with_image_features(self, image_features, inputs_embeds, input_ids, attention_mask, labels):
         num_images, num_image_patches, embed_dim = image_features.shape
@@ -263,7 +115,7 @@ class PllavaForConditionalGeneration(PllavaPreTrainedModel):
             final_labels[batch_indices, text_to_overwrite] = labels[batch_indices, non_image_indices]
 
         # 5. Fill the embeddings corresponding to the images. Anything that is still zeros needs filling
-        image_to_overwrite = ops.all(final_embedding == 0, dim=-1) # .astype(ms.int32)
+        image_to_overwrite = ops.all(final_embedding == 0, axis=-1) # .astype(ms.int32)
         image_to_overwrite = (image_to_overwrite.int()
                               & (image_to_overwrite.cumsum(-1) - 1 >= nb_image_pad[:, None]).int()).bool()
 
@@ -284,7 +136,7 @@ class PllavaForConditionalGeneration(PllavaPreTrainedModel):
         return final_embedding, final_attention_mask, final_labels, position_ids
 
 
-    def forward(
+    def construct(
         self,
         input_ids: ms.Tensor = None,
         pixel_values: ms.Tensor = None,
@@ -300,30 +152,8 @@ class PllavaForConditionalGeneration(PllavaPreTrainedModel):
         output_attentions: Optional[bool] = None,
         output_hidden_states: Optional[bool] = None,
         return_dict: Optional[bool] = None,
-    ) -> Union[Tuple, PllavaCausalLMOutputWithPast]:
-        r"""
+    ) -> Tuple[ms.Tensor, Optional[ms.Tensor], Optional[ms.Tensor]]:
 
-        Example:
-
-        ```python
-        >>> from PIL import Image
-        >>> import requests
-        >>> from mindnlp.transformers import AutoProcessor, LlavaForConditionalGeneration
-
-        >>> model = LlavaForConditionalGeneration.from_pretrained("llava-hf/llava-1.5-7b-hf")
-        >>> processor = AutoProcessor.from_pretrained("llava-hf/llava-1.5-7b-hf")
-
-        >>> prompt = "<image>\nUSER: What's the content of the image?\nASSISTANT:"
-        >>> url = "https://www.ilankelman.org/stopsigns/australia.jpg"
-        >>> image = Image.open(requests.get(url, stream=True).raw)
-
-        >>> inputs = processor(text=prompt, images=image, return_tensors="ms")
-
-        >>> # Generate
-        >>> generate_ids = model.generate(**inputs, max_length=30)
-        >>> processor.batch_decode(generate_ids, skip_special_tokens=True, clean_up_tokenization_spaces=False)[0]
-        "\nUSER: What's the content of the image?\nASSISTANT: The image features a stop sign on a street corner"
-        ```"""
         output_attentions = output_attentions if output_attentions is not None else self.config.output_attentions
         output_hidden_states = (
             output_hidden_states if output_hidden_states is not None else self.config.output_hidden_states
@@ -346,20 +176,16 @@ class PllavaForConditionalGeneration(PllavaPreTrainedModel):
             # 2. Merge text and images
             if pixel_values is not None and input_ids.shape[1] != 1:
                 image_outputs = self.vision_tower(pixel_values, output_hidden_states=True)
-                # this is not memory efficient at all (output_hidden_states=True) will save all the hidden stated.
                 selected_image_feature = image_outputs.hidden_states[vision_feature_layer] #  ( b, img_seqlen, embed_dim)
                 if vision_feature_select_strategy == "default":
                     selected_image_feature = selected_image_feature[:, 1:]
-                elif vision_feature_select_strategy == "full":
-                    raise ValueError("not implemented")
-                    selected_image_feature = selected_image_feature
                 else:
                     raise ValueError(
                         f"Unexpected select feature strategy: {self.config.vision_feature_select_strategy}"
                     )
 
                 num_videos = pixel_values.shape[0]//self.config.num_frames//batch_size
-                # TODO: division by 0 check
+
                 image_features = self.multi_modal_projector(selected_image_feature,
                                                             media_type,
                                                             batch_size=batch_size,
@@ -368,9 +194,6 @@ class PllavaForConditionalGeneration(PllavaPreTrainedModel):
                 inputs_embeds, attention_mask, labels, position_ids = self._merge_input_ids_with_image_features(
                     image_features, inputs_embeds, input_ids, attention_mask, labels
                 )
-                if labels is None:
-                    # TODO: originally ms.int64 / long
-                    labels = ops.full_like(attention_mask, self.config.ignore_index).to(ms.int32)
             else:
                 # In case input_ids.shape[1] == 1 & pixel_values==None & past_key_values != None, we are in the case of
                 # generation with cache
@@ -401,11 +224,11 @@ class PllavaForConditionalGeneration(PllavaPreTrainedModel):
                     if new_batch_index.size > 0 and new_non_attended_tokens.size > 0:
                         extended_attention_mask[new_batch_index, new_non_attended_tokens] = 0
 
-                    attention_mask = ops.cat((attention_mask, extended_attention_mask), dim=1)
+                    attention_mask = ops.cat((attention_mask, extended_attention_mask), axis=1)
                     position_ids = ops.sum(attention_mask, dim=1).unsqueeze(-1) - 1
 
         self.language_model.set_train(False)
-        outputs = self.language_model(
+        logits, key_cache_list, value_cache_list = self.language_model(
             attention_mask=attention_mask,
             position_ids=position_ids,
             past_key_values=past_key_values,
@@ -416,35 +239,7 @@ class PllavaForConditionalGeneration(PllavaPreTrainedModel):
             return_dict=return_dict,
         )
 
-        logits = outputs[0]
-
-        loss = None
-        if labels is not None:
-            # Shift so that tokens < n predict n
-            if attention_mask is not None:
-                shift_attention_mask = attention_mask[..., 1:]
-                shift_logits = logits[..., :-1, :][shift_attention_mask != 0].contiguous()
-                shift_labels = labels[..., 1:][shift_attention_mask != 0].contiguous()
-            else:
-                shift_logits = logits[..., :-1, :].contiguous()
-                shift_labels = labels[..., 1:].contiguous()
-            # Flatten the tokens
-            loss_fct = nn.CrossEntropyLoss()
-            loss = loss_fct(
-                shift_logits.reshape(-1, shift_logits.shape[-1]), shift_labels.reshape(-1)
-            )
-
-        if not return_dict:
-            output = (logits,) + outputs[1:]
-            return (loss,) + output if loss is not None else output
-
-        return PllavaCausalLMOutputWithPast(
-            loss=loss,
-            logits=logits,
-            past_key_values=outputs.past_key_values,
-            hidden_states=outputs.hidden_states,
-            attentions=outputs.attentions,
-        )
+        return logits, key_cache_list, value_cache_list
 
     def prepare_inputs_for_generation(
         self, input_ids, past_key_values=None, inputs_embeds=None, pixel_values=None,
@@ -501,6 +296,3 @@ class PllavaForConditionalGeneration(PllavaPreTrainedModel):
             }
         )
         return model_inputs
-
-    def _reorder_cache(self, *args, **kwargs):
-        return self.language_model._reorder_cache(*args, **kwargs)

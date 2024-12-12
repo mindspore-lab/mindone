@@ -1,3 +1,5 @@
+import os
+import logging
 import mindspore as ms
 from models.pllava import PllavaProcessor, PllavaForConditionalGeneration, PllavaConfig
 from models.pipeline import TextGenerator
@@ -15,7 +17,10 @@ def load_pllava(repo_id, num_frames, pooling_shape=(16,12,12)):
         **kwargs,
     )
 
-    model = PllavaForConditionalGeneration.from_pretrained(repo_id, config=config, ms_dtype=ms.float32)
+    model = PllavaForConditionalGeneration(config)
+    model_path = os.path.join(repo_id, 'model.ckpt')
+    logging.info(f"Loading model from {model_path}")
+    ms.load_checkpoint(model_path, model, strict_load = True)
 
     try:
         processor = PllavaProcessor.from_pretrained(repo_id)

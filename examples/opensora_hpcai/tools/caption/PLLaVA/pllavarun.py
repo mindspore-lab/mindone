@@ -2,8 +2,8 @@
 from argparse import ArgumentParser
 import mindspore as ms
 import time
-from eval_utils import load_video
-from model_utils import load_pllava, pllava_answer
+from tasks.eval.eval_utils import load_video
+from tasks.eval.model_utils import load_pllava, pllava_answer
 
 ms.set_context(pynative_synchronize=True, jit_config=dict(jit_level="O1"))
 
@@ -11,6 +11,7 @@ def parse_args():
     parser = ArgumentParser()
     parser.add_argument("--pretrained_model_name_or_path", type=str, default='./models/pllava-7b')
     parser.add_argument("--num_frames", type=int, default=4)
+    parser.add_argument("--max_new_tokens", type=int, default=200)
     parser.add_argument("--video", type=str, default="video.mp4", help="Path to the video file")
     parser.add_argument("--question", type=str, default="What is shown in this video?")
     parser.add_argument("--benchmark", action='store_true')
@@ -30,16 +31,16 @@ def main():
 
     output_token, output_text = pllava_answer(
         model, processor, [frames], prompt,
-        do_sample=False, max_new_tokens=200, num_beams=1, min_length=1,
+        do_sample=False, max_new_tokens=args.max_new_tokens, num_beams=1, min_length=1,
         top_p=0.9, repetition_penalty=1.0, length_penalty=1, temperature=1.0
     )
 
     if args.benchmark:
         # run again for benchmark
         start_time = time.time()
-        output_text = pllava_answer(
+        output_token, output_text = pllava_answer(
             model, processor, [frames], prompt,
-            do_sample=False, max_new_tokens=200, num_beams=1, min_length=1,
+            do_sample=False, max_new_tokens=args.max_new_tokens, num_beams=1, min_length=1,
             top_p=0.9, repetition_penalty=1.0, length_penalty=1, temperature=1.0
         )
         end_time = time.time()
