@@ -9,6 +9,7 @@ import sys
 import time
 from copy import deepcopy
 
+import pandas as pd
 import yaml
 
 import mindspore as ms
@@ -121,6 +122,20 @@ def main(args):
     if args.wavelet_weight != 0 and ae.use_tiling:
         logger.warning("Wavelet loss and use_tiling cannot be enabled in the same time! wavelet_weight is set to zero.")
         args.wavelet_weight = 0.0
+    headers = [
+        "perceptual loss weight",
+        "KL div loss weight",
+        "Wavelet Loss weight",
+        "Discriminator loss weight (start)",
+    ]
+    values = [
+        "{:.2f}".format(args.perceptual_weight),
+        "{:.2f}".format(args.kl_weight),
+        "{:.2f}".format(args.wavelet_weight),
+        "{:.2f}({:d})".format(args.disc_weight, args.disc_start),
+    ]
+    df = pd.DataFrame([values], columns=headers)
+    print(df)
     ae_with_loss = GeneratorWithLoss(
         ae,
         discriminator=disc,
@@ -443,9 +458,14 @@ def main(args):
     else:
         if not os.path.exists(f"{args.output_dir}/rank_{rank_id}"):
             os.makedirs(f"{args.output_dir}/rank_{rank_id}")
-        loss_log_file = open(f"{args.output_dir}/rank_{rank_id}/result.log", "w")
-        loss_log_file.write("step\tloss_ae\tloss_disc\ttrain_time(s)\n")
-        loss_log_file.flush()
+        if args.resume_from_checkpoint and os.path.exists(f"{args.output_dir}/rank_{rank_id}/result.log"):
+            # resume the loss log if it exists
+            loss_log_file = open(f"{args.output_dir}/rank_{rank_id}/result.log", "a")
+        else:
+            loss_log_file = open(f"{args.output_dir}/rank_{rank_id}/result.log", "w")
+            loss_log_file.write("step\tloss_ae\tloss_disc\ttrain_time(s)\n")
+            loss_log_file.flush()
+
         if rank_id == 0:
             ckpt_manager = CheckpointManager(ckpt_dir, "latest_k", k=args.ckpt_max_keep)
         # output_numpy=True ?
