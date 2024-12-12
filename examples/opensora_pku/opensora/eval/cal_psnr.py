@@ -24,7 +24,7 @@ def trans(x):
 def calculate_psnr(videos1, videos2):
     # videos [batch_size, timestamps, channel, h, w]
 
-    assert videos1.shape == videos2.shape
+    # assert videos1.shape == videos2.shape
 
     videos1 = trans(videos1)
     videos2 = trans(videos2)
@@ -38,7 +38,8 @@ def calculate_psnr(videos1, videos2):
         video2 = videos2[video_num]
 
         psnr_results_of_a_video = []
-        for clip_timestamp in range(len(video1)):
+        length = min(len(video1), len(video2))
+        for clip_timestamp in range(length):
             # get a img
             # img [timestamps[x], channel, h, w]
             # img [channel, h, w] numpy
