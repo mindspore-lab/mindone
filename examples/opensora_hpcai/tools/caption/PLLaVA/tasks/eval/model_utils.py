@@ -71,7 +71,7 @@ def pllava_answer(model, processor, img_list, prompt,
 
     model.set_train(False)
     pipeline = TextGenerator(model, max_new_tokens = max_new_tokens, use_kv_cache=True)
-    output_token = pipeline.generate(**inputs, media_type='video',
+    output_token = pipeline.generate(**inputs,
                                   do_sample=do_sample, max_new_tokens=max_new_tokens, num_beams=num_beams,
                                   min_length=min_length, top_p=top_p, repetition_penalty=repetition_penalty,
                                   length_penalty=length_penalty, temperature=temperature)

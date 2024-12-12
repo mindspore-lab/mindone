@@ -35,10 +35,9 @@ class PllavaMultiModalProjector(nn.Cell):
         input = ops.reshape(input, (num_videos, embed_dims, num_frames, frame_shape[0], frame_shape[1]))
         return input
 
-    def construct(self, image_features, media_type, batch_size=None, num_videos=None):
+    def construct(self, image_features, batch_size=None, num_videos=None):
         frame_shape = self.frame_shape
         num_frames = self.num_frames
-        assert media_type in ('video'), f'only video, but got media_type {media_type}'
         hidden_states = image_features
 
         total_frames, spatial_seqlen, embed_dims = hidden_states.shape
@@ -131,7 +130,6 @@ class PllavaForConditionalGeneration(nn.Cell):
             input_ids: ms.Tensor = None,
             pixel_values: ms.Tensor = None,
             attention_mask: Optional[ms.Tensor] = None,
-            media_type: Optional[str] = None,
             position_ids: Optional[ms.Tensor] = None,
             past_key_cache_list: Optional[ms.Tensor] = None,
             past_value_cache_list: Optional[ms.Tensor] = None,
@@ -149,10 +147,10 @@ class PllavaForConditionalGeneration(nn.Cell):
         # 2. merge text and images
         if pixel_values is not None and input_ids.shape[1] != 1:
             # Obtain image features from vision_tower
-            image_outputs = self.vision_tower(pixel_values, output_hidden_states=True)
+            _, image_output_hidden_states = self.vision_tower(pixel_values)
             vision_feature_layer = self.config.vision_feature_layer
             vision_feature_select_strategy = self.config.vision_feature_select_strategy
-            selected_image_feature = image_outputs.hidden_states[vision_feature_layer] # (b, img_seqlen, embed_dim)
+            selected_image_feature = image_output_hidden_states.hidden_states[vision_feature_layer] # (b, img_seqlen, embed_dim)
 
             if vision_feature_select_strategy == "default":
                 selected_image_feature = selected_image_feature[:, 1:]
@@ -161,7 +159,7 @@ class PllavaForConditionalGeneration(nn.Cell):
 
             num_videos = pixel_values.shape[0] // self.config.num_frames // batch_size
             image_features = self.multi_modal_projector(
-                selected_image_feature, media_type, batch_size=batch_size, num_videos=num_videos
+                selected_image_feature, batch_size=batch_size, num_videos=num_videos
             )
 
             inputs_embeds, attention_mask, position_ids = self._merge_input_ids_with_image_features(
@@ -217,7 +215,6 @@ class PllavaForConditionalGeneration(nn.Cell):
             past_key_cache_list: Optional[ms.Tensor] = None,
             past_value_cache_list: Optional[ms.Tensor] = None,
             return_key_value_cache: bool = False,
-            image_sizes: Optional[ms.Tensor] = None,
             **kwargs,
     ) -> Dict[str, Optional[ms.Tensor]]:
         if past_key_cache_list is not None and past_value_cache_list is not None:
@@ -241,17 +238,16 @@ class PllavaForConditionalGeneration(nn.Cell):
                 position_ids = position_ids[:, -input_ids.shape[1]:]
 
         if pixel_values is not None:
-            pixel_values = pixel_values.astype(self.language_model.dtype)
+            pixel_values = pixel_values.astype(self.vision_tower.dtype)  # adjust dtype if required
 
         model_inputs = {
             "input_ids": input_ids,
             "position_ids": position_ids,
             "attention_mask": attention_mask,
             "pixel_values": pixel_values,
-            "image_sizes": image_sizes,
             "past_key_cache_list": past_key_cache_list,
             "past_value_cache_list": past_value_cache_list,
             "return_key_value_cache": return_key_value_cache,
         }
-        
+
         return model_inputs

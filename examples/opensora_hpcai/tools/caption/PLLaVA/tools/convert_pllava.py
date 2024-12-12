@@ -49,7 +49,7 @@ def main():
     parser = argparse.ArgumentParser(description="Convert LLaVa checkpoints into Mindspore Format")
     parser.add_argument("src", help="Directory storing the safetensors")
     parser.add_argument(
-        "-o", "--output", default="models/llava_1_6.ckpt", help="Name of the output Mindspore checkpoint"
+        "-o", "--output", help="Name of the output Mindspore checkpoint"
     )
 
     args = parser.parse_args()

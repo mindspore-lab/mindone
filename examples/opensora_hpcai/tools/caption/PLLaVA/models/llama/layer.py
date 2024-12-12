@@ -12,14 +12,14 @@ from ..activation import ACT2FN
 logger = logging.getLogger(__name__)
 
 class LlamaRMSNorm(nn.Cell):
-    def __init__(self, hidden_size: int, eps: float = 1e-6, dtype: ms.dtype = ms.bfloat16) -> None:
+    def __init__(self, hidden_size: int, eps: float = 1e-6, dtype: ms.dtype = ms.float32) -> None:
         super().__init__()
         self.weight = Parameter(ops.ones(hidden_size, dtype=dtype))
         self.variance_epsilon = eps
 
     def construct(self, hidden_states: Tensor) -> Tensor:
         input_dtype = hidden_states.dtype
-        hidden_states = hidden_states.to(ms.bfloat16)
+        hidden_states = hidden_states.to(ms.float32)
         variance = ops.pow(hidden_states, 2)
         variance = ops.mean(variance, axis=-1, keep_dims=True)
         hidden_states = hidden_states * ops.rsqrt(variance + self.variance_epsilon)
@@ -33,15 +33,15 @@ class LlamaRotaryEmbedding(nn.Cell):
         self.dim = dim
         self.max_position_embeddings = max_position_embeddings
         self.base = base
-        self.inv_freq = 1.0 / (self.base ** (ops.arange(0, self.dim, 2, dtype=ms.bfloat16) / self.dim))
+        self.inv_freq = 1.0 / (self.base ** (ops.arange(0, self.dim, 2, dtype=ms.float32) / self.dim))
 
     def construct(self, x: Tensor, position_ids: Tensor) -> Tuple[Tensor, Tensor]:
         # x: [bs, num_attention_heads, seq_len, head_size]
         inv_freq_expanded = ops.broadcast_to(self.inv_freq[None, :, None], (position_ids.shape[0], -1, 1))
-        position_ids_expanded = position_ids[:, None, :].to(ms.bfloat16)
-        # Force float32 since bfloat16 loses precision on long contexts
+        position_ids_expanded = position_ids[:, None, :].to(ms.float32)
+        # Force float32 since float32 loses precision on long contexts
         # See https://github.com/huggingface/transformers/pull/29285
-        freqs = ops.matmul(inv_freq_expanded.to(ms.bfloat16), position_ids_expanded.to(ms.bfloat16))
+        freqs = ops.matmul(inv_freq_expanded.to(ms.float32), position_ids_expanded.to(ms.float32))
         freqs = ops.transpose(freqs, (0, 2, 1))
         emb = ops.concat((freqs, freqs), axis=-1)
         cos = ops.cos(emb)
@@ -72,7 +72,7 @@ class LlamaMLP(nn.Cell):
         intermediate_size: int = 11008,
         hidden_size: int = 4096,
         hidden_act: str = "silu",
-        dtype: ms.dtype = ms.bfloat16,
+        dtype: ms.dtype = ms.float32,
     ) -> None:
         super().__init__()
         self.hidden_size = hidden_size
@@ -105,7 +105,7 @@ class LlamaAttention(nn.Cell):
         max_position_embeddings: int = 32768,
         rope_theta: float = 10000.0,
         attention_dropout: float = 0.0,
-        dtype: ms.dtype = ms.bfloat16,
+        dtype: ms.dtype = ms.float32,
     ) -> None:
         super().__init__()
 
@@ -182,7 +182,7 @@ class LlamaAttention(nn.Cell):
             attn_weights = attn_weights + attention_mask
 
         # upcast attention to fp32
-        attn_weights = ops.softmax(attn_weights.to(ms.bfloat16), axis=-1).to(query_states.dtype)
+        attn_weights = ops.softmax(attn_weights.to(ms.float32), axis=-1).to(query_states.dtype)
         attn_weights = ops.dropout(attn_weights, p=self.attention_dropout, training=self.training)
         attn_output = ops.matmul(attn_weights, value_states)
 
@@ -202,7 +202,7 @@ class LlamaFlashAttention(nn.Cell):
         max_position_embeddings: int = 32768,
         rope_theta: float = 1000000.0,
         attention_dropout: float = 0.0,
-        dtype: ms.dtype = ms.bfloat16,
+        dtype: ms.dtype = ms.float32,
     ) -> None:
         super().__init__()
 
