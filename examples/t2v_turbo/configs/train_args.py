@@ -188,9 +188,6 @@ def add_mixed_precision_arguments(parser):
         "--mixed_precision", type=str, default="fp16", choices=["no", "fp16", "bf16"], help="Use mixed precision."
     )
     mixed_prec_group.add_argument(
-        "--global_bf16", type=str2bool, default=False, help="Override dtype to bf16 if supported."
-    )
-    mixed_prec_group.add_argument(
         "--cast_teacher_unet", action="store_true", help="Cast teacher U-Net to specified precision."
     )
 

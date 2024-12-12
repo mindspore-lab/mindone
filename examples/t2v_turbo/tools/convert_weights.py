@@ -3,20 +3,14 @@ import os
 import pickle
 import sys
 
-import torch
 from omegaconf import OmegaConf
 
 import mindspore as ms
-from mindspore import context
-
-context.set_context(mode=1, device_target="CPU")
-__dir__ = os.path.dirname(os.path.abspath(__file__))
-sys.path.insert(0, os.path.abspath(os.path.join(__dir__, "..")))
-
-from utils.utils import instantiate_from_config
 
 
 def _load_torch_ckpt(ckpt_file):
+    import torch
+
     source_data = torch.load(ckpt_file, map_location="cpu")
     if "state_dict" in source_data:
         source_data = source_data["state_dict"]
@@ -157,8 +151,6 @@ def convert_internvid2(src_path, target_path):
 
 
 def convert_hpsv2(src_path, target_path):
-    from lvdm.modules.encoders.clip import CLIPModel, parse, support_list
-
     def _param_convert(pt_params, ckpt_path):
         new_params_list = []
 
@@ -208,6 +200,18 @@ def convert_weights(model_folder):
 
 
 if __name__ == "__main__":
+    # Set up the directory paths
+    __dir__ = os.path.dirname(os.path.abspath(__file__))
+    mindone_lib_path = os.path.abspath(os.path.join(__dir__, "../../../"))
+    sys.path.insert(0, mindone_lib_path)
+    sys.path.insert(0, os.path.abspath(os.path.join(__dir__, "..")))
+
+    from lvdm.modules.encoders.clip import CLIPModel, parse, support_list
+    from utils.utils import instantiate_from_config
+
+    # Set up Mindspore context
+    ms.context.set_context(mode=1, device_target="CPU")
+
     parser = argparse.ArgumentParser(description="Convert the PixArt-Sigma checkpoint.")
 
     parser.add_argument("-s", "--source", required=True, help="file path of the checkpoint (.pth / .safetensors)")

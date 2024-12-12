@@ -5,14 +5,12 @@ from random import randrange
 from typing import Any, Dict, List, Optional, Tuple, Union
 
 from lvdm.modules.encoders.clip import CLIPModel, parse, support_list
+from lvdm.modules.encoders.openclip_tokenizer import tokenize
 from utils.utils import freeze_params
 
 import mindspore as ms
 from mindspore import nn, ops
 from mindspore.dataset import transforms, vision
-
-sys.path.append("../stable_diffusion_xl")
-from gm.modules.embedders.open_clip.tokenizer import tokenize
 
 # Image processing
 CLIP_RESIZE = vision.Resize((224, 224), interpolation=vision.Inter.BICUBIC)
@@ -374,7 +372,7 @@ def get_intern_vid2_score_fn(rm_ckpt_dir: str, precision="amp", n_frames=8):
     config["model"]["vision_encoder"]["pretrained"] = rm_ckpt_dir
     config["pretrained_path"] = rm_ckpt_dir
 
-    dtype = {"fp16": ms.float16, "fp32": ms.float32, "bf16": ms.bfloat16}[precision]
+    dtype = {"no": ms.float32, "fp16": ms.float16, "fp32": ms.float32, "bf16": ms.bfloat16}[precision]
     vi_clip, tokenizer = setup_internvideo2(config, dtype)
     vi_clip.set_train(False)
     freeze_params(vi_clip)

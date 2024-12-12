@@ -453,7 +453,7 @@ class UNetModel(nn.Cell):
         self.time_cond_proj_dim = time_cond_proj_dim
         self.dtype = {"fp32": ms.float32, "fp16": ms.float16, "bf16": ms.bfloat16}[dtype]
 
-        if use_checkpoint:
+        if use_checkpoint and self.training:
             tseq_class = TimestepEmbedSequentialRecompute
         else:
             tseq_class = TimestepEmbedSequential

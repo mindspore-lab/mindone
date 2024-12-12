@@ -364,7 +364,7 @@ class SpatialTransformer(nn.Cell):
         if self.use_linear:
             x = self.proj_in(x)
         for i, block in enumerate(self.transformer_blocks):
-            if block.checkpoint:
+            if block.checkpoint and self.training:
                 x = recompute(block, x, context=context)
             else:
                 x = block(x, context=context)
@@ -476,7 +476,7 @@ class TemporalTransformer(nn.Cell):
         if self.only_self_att:
             # note: if no context is given, cross-attention defaults to self-attention
             for i, block in enumerate(self.transformer_blocks):
-                if block.checkpoint:
+                if block.checkpoint and self.training:
                     x = recompute(block, x, mask=mask)
                 else:
                     x = block(x, mask=mask)
@@ -500,7 +500,7 @@ class TemporalTransformer(nn.Cell):
                     #     context[j], "t l con -> (t r) l con", r=(h * w) // t, t=t
                     # ).contiguous()
                     # note: causal mask will not applied in cross-attention case
-                    if block.checkpoint:
+                    if block.checkpoint and self.training:
                         x[j] = recompute(block, x[j], context=context_j)
                     else:
                         x[j] = block(x[j], context=context_j)

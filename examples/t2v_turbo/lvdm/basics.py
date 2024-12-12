@@ -7,8 +7,6 @@
 #
 # thanks!
 
-from utils.utils import instantiate_from_config
-
 import mindspore as ms
 from mindspore import nn, ops
 
@@ -42,14 +40,11 @@ def conv_nd(dims, *args, **kwargs):
     Create a 1D, 2D, or 3D convolution module.
     """
     if dims == 1:
-        # dtype = kwargs.pop("dtype")
         return nn.Conv1d(*args, **kwargs)
     elif dims == 2:
-        # dtype = kwargs.pop("dtype")
         return nn.Conv2d(*args, **kwargs)
     elif dims == 3:
-        dtype = kwargs.get("dtype", ms.float32)
-        return nn.Conv3d(*args, **kwargs).to_float(dtype)
+        return nn.Conv3d(*args, **kwargs)
     raise ValueError(f"unsupported dimensions: {dims}")
 
 
@@ -119,15 +114,3 @@ def rearrange_out_gn5d(x):
     x = ops.reshape(x, (-1, c, h, w))
 
     return x
-
-
-class HybridConditioner(nn.Cell):
-    def __init__(self, c_concat_config, c_crossattn_config):
-        super().__init__()
-        self.concat_conditioner = instantiate_from_config(c_concat_config)
-        self.crossattn_conditioner = instantiate_from_config(c_crossattn_config)
-
-    def construct(self, c_concat, c_crossattn):
-        c_concat = self.concat_conditioner(c_concat)
-        c_crossattn = self.crossattn_conditioner(c_crossattn)
-        return {"c_concat": [c_concat], "c_crossattn": [c_crossattn]}

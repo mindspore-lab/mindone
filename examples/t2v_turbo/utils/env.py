@@ -17,7 +17,6 @@ def init_env(
     device_target: str = "Ascend",
     parallel_mode: str = "data",
     jit_level: str = "O0",
-    global_bf16: bool = False,
     strategy_ckpt_save_file: str = "",
     optimizer_weight_shard_size: int = 8,
     debug: bool = False,
@@ -87,27 +86,18 @@ def init_env(
             pynative_synchronize=debug,
         )
 
-    try:
-        if jit_level in ["O0", "O1", "O2"]:
-            ms.set_context(jit_config={"jit_level": jit_level}, jit_syntax_level=ms.LAX)
-        else:
-            logger.warning(
-                f"Unsupport jit_level: {jit_level}. The framework automatically selects the execution method"
-            )
-    except Exception:
-        logger.warning(
-            "The current jit_level is not suitable because current MindSpore version or mode does not match,"
-            "please ensure the MindSpore version >= ms2.3_0615, and use GRAPH_MODE."
-        )
+    if jit_level in ["O0", "O1", "O2"]:
+        ms.set_context(jit_config={"jit_level": jit_level}, jit_syntax_level=ms.LAX)
+    else:
+        logger.warning(f"Unsupport jit_level: {jit_level}. The framework automatically selects the execution method")
 
-    if global_bf16:
+    if dtype == ms.bfloat16:
         ms.set_context(ascend_config={"precision_mode": "allow_mix_precision_bf16"})
         logger.info("Using precision_mode: allow_mix_precision_bf16")
-    elif dtype == ms.bfloat16:
-        ms.set_context(ascend_config={"precision_mode": "allow_fp32_to_bf16"})
-        logger.info("Using precision_mode: allow_fp32_to_bf16")
     elif dtype == ms.float16:
         ms.set_context(ascend_config={"precision_mode": "allow_mix_precision_fp16"})
         logger.info("Using precision_mode: allow_mix_precision_fp16")
+    else:
+        ms.set_context(ascend_config={"precision_mode": "allow_fp32_to_fp16"})
 
     return rank_id, device_num
