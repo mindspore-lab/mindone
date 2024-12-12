@@ -69,7 +69,7 @@ def retrieve_timesteps(
     sigmas: Optional[List[float]] = None,
     **kwargs,
 ):
-    """
+    r"""
     Calls the scheduler's `set_timesteps` method and retrieves timesteps from the scheduler after the call. Handles
     custom timesteps. Any kwargs will be supplied to `scheduler.set_timesteps`.
 
@@ -249,7 +249,7 @@ class StableVideoDiffusionPipeline(DiffusionPipeline):
         fps: int,
         motion_bucket_id: int,
         noise_aug_strength: float,
-        dtype: ms.dtype,
+        dtype: ms.Type,
         batch_size: int,
         num_videos_per_prompt: int,
         do_classifier_free_guidance: bool,
@@ -320,7 +320,7 @@ class StableVideoDiffusionPipeline(DiffusionPipeline):
         num_channels_latents: int,
         height: int,
         width: int,
-        dtype: ms.dtype,
+        dtype: ms.Type,
         generator: np.random.Generator,
         latents: Optional[ms.Tensor] = None,
     ):

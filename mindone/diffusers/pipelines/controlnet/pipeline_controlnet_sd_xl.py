@@ -100,7 +100,7 @@ def retrieve_timesteps(
     sigmas: Optional[List[float]] = None,
     **kwargs,
 ):
-    """
+    r"""
     Calls the scheduler's `set_timesteps` method and retrieves timesteps from the scheduler after the call. Handles
     custom timesteps. Any kwargs will be supplied to `scheduler.set_timesteps`.
 
@@ -925,6 +925,10 @@ class StableDiffusionXLControlNetPipeline(
     def num_timesteps(self):
         return self._num_timesteps
 
+    @property
+    def interrupt(self):
+        return self._interrupt
+
     def __call__(
         self,
         prompt: Union[str, List[str]] = None,
@@ -1178,6 +1182,7 @@ class StableDiffusionXLControlNetPipeline(
         self._clip_skip = clip_skip
         self._cross_attention_kwargs = cross_attention_kwargs
         self._denoising_end = denoising_end
+        self._interrupt = False
 
         # 2. Define call parameters
         if prompt is not None and isinstance(prompt, str):
@@ -1368,6 +1373,9 @@ class StableDiffusionXLControlNetPipeline(
 
         with self.progress_bar(total=num_inference_steps) as progress_bar:
             for i, t in enumerate(timesteps):
+                if self.interrupt:
+                    continue
+
                 # Relevant thread:
                 # https://dev-discuss.pytorch.org/t/cudagraphs-in-pytorch-2-0/1428
                 # expand the latents if we are doing classifier free guidance
