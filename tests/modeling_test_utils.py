@@ -132,7 +132,7 @@ def convert_state_dict(m, state_dict_pt):
     for name_pt, data_pt in state_dict_pt.items():
         name_ms, data_mapping = mappings.get(name_pt, (name_pt, lambda x: x))
         data_ms = ms.Parameter(
-            data_mapping(ms.Tensor.from_numpy(data_pt.float().numpy()).to(dtype_mappings[data_pt.dtype]))
+            data_mapping(ms.Tensor.from_numpy(data_pt.float().numpy()).to(dtype_mappings[data_pt.dtype])), name=name_ms
         )
         if name_ms is not None:
             state_dict_ms[name_ms] = data_ms
