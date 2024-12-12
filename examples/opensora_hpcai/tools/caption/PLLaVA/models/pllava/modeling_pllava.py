@@ -17,16 +17,16 @@ from .configuration_pllava import PllavaConfig
 
 class PllavaMultiModalProjector(nn.Cell):
     def __init__(self, config: PllavaConfig):
-        super().__init__() #TODO: modify this
+        super().__init__()
         self.use_pooling = config.use_pooling
         self.frame_shape=config.frame_shape
         self.num_frames = config.num_frames
         self.pooling_shape = config.pooling_shape
         
         self.pooling = ms.nn.AdaptiveAvgPool3d(config.pooling_shape)
-        self.linear_1 = nn.Dense(config.vision_config.hidden_size, config.text_config.hidden_size, has_bias=True)
+        self.linear_1 = nn.Dense(config.vision_config['hidden_size'], config.text_config['hidden_size'], has_bias=True, dtype=config.dtype)
         self.act = ACT2FN[config.projector_hidden_act]
-        self.linear_2 = nn.Linear(config.text_config.hidden_size, config.text_config.hidden_size, has_bias=True)
+        self.linear_2 = nn.Dense(config.text_config['hidden_size'], config.text_config['hidden_size'], has_bias=True, dtype=config.dtype)
 
     def convert_Fembeddings2video(self, input, num_videos, frame_shape):
         num_videos_frames, _, embed_dims = input.shape
@@ -153,6 +153,7 @@ class PllavaForConditionalGeneration(nn.Cell):
         output_attentions: Optional[bool] = None,
         output_hidden_states: Optional[bool] = None,
         return_dict: Optional[bool] = None,
+        return_key_value_cache:bool = False,
     ) -> Tuple[ms.Tensor, Optional[ms.Tensor], Optional[ms.Tensor]]:
 
         output_attentions = output_attentions if output_attentions is not None else self.config.output_attentions
@@ -238,13 +239,14 @@ class PllavaForConditionalGeneration(nn.Cell):
             output_attentions=output_attentions,
             output_hidden_states=output_hidden_states,
             return_dict=return_dict,
+            return_key_value_cache = return_key_value_cache,
         )
 
         return logits, key_cache_list, value_cache_list
 
     def prepare_inputs_for_generation(
         self, input_ids, past_key_values=None, inputs_embeds=None, pixel_values=None,
-            attention_mask=None, media_type=None, **kwargs
+            attention_mask=None, media_type=None, return_key_value_cache=False, **kwargs
     ):
         if past_key_values is not None:
             if isinstance(past_key_values, Cache):
@@ -294,6 +296,7 @@ class PllavaForConditionalGeneration(nn.Cell):
                 "attention_mask": attention_mask,
                 "pixel_values": pixel_values,
                 "media_type": media_type,
+                "return_key_value_cache": return_key_value_cache,
             }
         )
         return model_inputs

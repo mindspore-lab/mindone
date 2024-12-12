@@ -1,5 +1,6 @@
 import json
 import os
+import mindspore as ms
 
 class PllavaConfig:
     model_type = "llava"
@@ -21,6 +22,8 @@ class PllavaConfig:
         num_frames=1,
         use_pooling=True,
         gradient_checkpointing=False,
+        pad_token_id=0,
+        dtype=ms.bfloat16,
         **kwargs,
     ):
         self.ignore_index = ignore_index
@@ -31,6 +34,8 @@ class PllavaConfig:
         self.vocab_size = vocab_size
         self.use_pooling = use_pooling
         self.gradient_checkpointing = gradient_checkpointing
+        self.pad_token_id = pad_token_id
+        self.dtype = dtype
 
         self.pooling_method = pooling_method
         self.pooling_shape = pooling_shape

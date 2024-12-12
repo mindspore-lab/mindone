@@ -22,7 +22,28 @@ def load_pllava(repo_id, num_frames, pooling_shape=(16,12,12), vision_hidden_siz
     model = PllavaForConditionalGeneration(config)
     model_path = os.path.join(repo_id, 'model.ckpt')
     logging.info(f"Loading model from {model_path}")
-    ms.load_checkpoint(model_path, model, strict_load = True)
+
+    checkpoint_data = ms.load_checkpoint(model_path)
+    ckpt_prefix = "language_model.base_model.model.model"
+    model_prefix = "language_model.model"
+
+    aligned_checkpoint = {}
+    for key, value in checkpoint_data.items():
+        if key.startswith(ckpt_prefix):
+            new_key = key.replace(ckpt_prefix, model_prefix, 1)
+        else:
+            new_key = key
+
+        if "self_attn.q_proj.base_layer.weight" in new_key:
+            new_key = new_key.replace("self_attn.q_proj.base_layer.weight", "self_attn.q_proj.weight")
+        elif "self_attn.v_proj.base_layer.weight" in new_key:
+            new_key = new_key.replace("self_attn.v_proj.base_layer.weight", "self_attn.v_proj.weight")
+        if "self_attn.q_proj.lora_" in new_key or "self_attn.v_proj.lora_" in new_key:
+            continue  # no need for lora
+
+        aligned_checkpoint[new_key] = value
+
+    ms.load_param_into_net(model, aligned_checkpoint, strict_load=True)
 
     try:
         processor = PllavaProcessor.from_pretrained(repo_id)

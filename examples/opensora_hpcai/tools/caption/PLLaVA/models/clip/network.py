@@ -17,7 +17,7 @@ class CLIPEncoderLayer(nn.Cell):
         attention_dropout: float = 0.0,
         layer_norm_eps: float = 1e-5,
         hidden_act: str = "quick_gelu",
-        dtype: ms.dtype = ms.float32,
+        dtype: ms.dtype = ms.bfloat16,
     ) -> None:
         super().__init__()
         self.embed_dim = hidden_size
@@ -58,7 +58,7 @@ class CLIPEncoder(nn.Cell):
         attention_dropout: float = 0.0,
         layer_norm_eps: float = 1e-5,
         hidden_act: str = "quick_gelu",
-        dtype: ms.dtype = ms.float32,
+        dtype: ms.dtype = ms.bfloat16,
     ) -> None:
         super().__init__()
         self.layers = nn.CellList(
@@ -101,7 +101,7 @@ class CLIPVisionTransformer(nn.Cell):
         attention_dropout: float = 0.0,
         layer_norm_eps: float = 1e-5,
         hidden_act: str = "quick_gelu",
-        dtype: ms.dtype = ms.float32,
+        dtype: ms.dtype = ms.bfloat16,
     ) -> None:
         super().__init__()
         embed_dim = hidden_size
@@ -153,7 +153,7 @@ class CLIPVisionModel(nn.Cell):
         attention_dropout: float = 0.0,
         layer_norm_eps: float = 1e-5,
         hidden_act: str = "quick_gelu",
-        dtype: ms.dtype = ms.float32,
+        dtype: ms.dtype = ms.bfloat16,
         **kwargs,
     ) -> None:
         super().__init__()
@@ -196,7 +196,7 @@ class CLIPVisionModelWithProjection(nn.Cell):
         attention_dropout: float = 0.0,
         layer_norm_eps: float = 1e-5,
         hidden_act: str = "quick_gelu",
-        dtype: ms.dtype = ms.float32,
+        dtype: ms.dtype = ms.bfloat16,
         **kwargs,
     ) -> None:
         super().__init__()
