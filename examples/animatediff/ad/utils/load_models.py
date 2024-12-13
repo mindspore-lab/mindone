@@ -159,6 +159,7 @@ def load_motion_modules(
                 new_pname = _clear_insertion_from_training(new_pname)
                 mm_state_dict[new_pname] = mm_state_dict.pop(pname)
 
+    mm_state_dict = convert_weights(mm_state_dict)
     params_not_load, ckpt_not_load = load_param_into_net_with_filter(
         unet,
         mm_state_dict,
@@ -196,6 +197,7 @@ def load_controlnet(sd_model, controlnet_path, verbose=True):
     controlnet_state_dict = (
         controlnet_state_dict["controlnet"] if "controlnet" in controlnet_state_dict else controlnet_state_dict
     )
+    controlnet_state_dict = convert_weights(controlnet_state_dict)
     filter_list = list(controlnet_state_dict.keys())
     param_not_load, ckpt_not_load = load_param_into_net_with_filter(sd_model, controlnet_state_dict, filter=filter_list)
     assert (
@@ -220,6 +222,7 @@ def build_model_from_config(config, ckpt: str, is_training=False, use_motion_mod
             raise TypeError(f"unknown checkpoint type: {checkpoint}")
 
         if param_dict:
+            param_dict = convert_weights(param_dict)
             if ignore_net_param_not_load_warning:
                 filter = param_dict.keys()
             else:
@@ -257,3 +260,13 @@ def build_model_from_config(config, ckpt: str, is_training=False, use_motion_mod
             param.requires_grad = False
 
     return model
+
+def convert_weights(param_dict):
+    new_param = {}
+    for key, value in param_dict.items():
+        if "ln_" in key or "norm" in key:
+            key = key.replace("beta", "bias").replace("gamma", "weight")
+        if "model.diffusion_model.out.0.beta" in key or 'model.diffusion_model.out.0.gamma' in key:
+            key = key.replace("beta", "bias").replace('gamma', 'weight')
+        new_param[key] = value
+    return new_param
