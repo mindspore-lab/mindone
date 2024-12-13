@@ -12,8 +12,7 @@ This repo contains Mindspore model definitions, pre-trained weights and inferenc
 - Benchmark
     - [Training](#training)
     - [Inference](#inference)
-- Guidance
-    - [LoRA Finetuning](#)
+
 
 ## What's New
 - 2024-09-05
@@ -209,7 +208,7 @@ The interface allows you to:
 4. Modify guidance scale
 5. Set random seed
 6. Generate images
-
+<p align="center"><img width="1024" src="https://github.com/itruonghai/mindone-asset/blob/main/gradio_demo.png?raw=true"/></p>
 
 ### Integration in diffusers
 ```python
