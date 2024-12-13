@@ -4,6 +4,7 @@ from ...utils import _LazyModule
 
 _import_structure = {}
 _import_structure["pipeline_pixart_alpha"] = ["PixArtAlphaPipeline"]
+_import_structure["pipeline_pixart_sigma"] = ["PixArtSigmaPipeline"]
 
 if TYPE_CHECKING:
     from .pipeline_pixart_alpha import (
@@ -12,6 +13,7 @@ if TYPE_CHECKING:
         ASPECT_RATIO_1024_BIN,
         PixArtAlphaPipeline,
     )
+    from .pipeline_pixart_sigma import ASPECT_RATIO_2048_BIN, PixArtSigmaPipeline
 
 else:
     import sys

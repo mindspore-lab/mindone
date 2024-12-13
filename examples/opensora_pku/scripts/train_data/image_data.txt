@@ -1,3 +1,0 @@
-datasets/images,datasets/images-t5-emb-len=300,anno_jsons/human_images_162094.json
-datasets/anytext3m,datasets/anytext3m-t5-emb-len=300,anno_jsons/anytext_en_1886137.json
-datasets/sam,datasets/sam-t5-emb-len=300,anno_jsons/sam_image_11185255.json

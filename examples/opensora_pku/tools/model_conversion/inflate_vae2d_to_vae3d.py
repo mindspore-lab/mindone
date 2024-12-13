@@ -7,7 +7,7 @@ import sys
 sys.path.append(".")
 mindone_lib_path = os.path.abspath("../../")
 sys.path.insert(0, mindone_lib_path)
-from opensora.models.ae.videobase.causal_vae.modeling_causalvae import CausalVAEModel
+from opensora.models.causalvideovae.model.causal_vae.modeling_causalvae import CausalVAEModel
 from opensora.utils.ms_utils import init_env
 
 import mindspore as ms

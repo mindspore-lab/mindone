@@ -1,7 +1,7 @@
 export ASCEND_RT_VISIBLE_DEVICES=0,1,2,3,4,5,6,7
 
 output_path=outputs
-task_name=train_xt2img
+task_name=train_txt2img
 data_path=datasets/pokemon_blip/train
 
 

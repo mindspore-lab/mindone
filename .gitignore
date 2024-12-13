@@ -206,6 +206,9 @@ poetry.toml
 # LSP config files
 pyrightconfig.json
 
+# vim cache
+*.swp
+
 ### Custmization ###
 # MindSpore
 kernel_meta*/

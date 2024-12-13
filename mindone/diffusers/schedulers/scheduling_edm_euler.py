@@ -115,6 +115,7 @@ class EDMEulerScheduler(SchedulerMixin, ConfigMixin):
 
         self._step_index = None
         self._begin_index = None
+        self.sigma_data = self.config.sigma_data
 
     @property
     def init_noise_sigma(self):
@@ -147,7 +148,7 @@ class EDMEulerScheduler(SchedulerMixin, ConfigMixin):
         self._begin_index = begin_index
 
     def precondition_inputs(self, sample, sigma):
-        c_in = 1 / ((sigma**2 + self.config.sigma_data**2) ** 0.5)
+        c_in = 1 / ((sigma**2 + self.sigma_data**2) ** 0.5)
         scaled_sample = sample * c_in
         return scaled_sample
 
@@ -160,7 +161,7 @@ class EDMEulerScheduler(SchedulerMixin, ConfigMixin):
         return c_noise
 
     def precondition_outputs(self, sample, model_output, sigma):
-        sigma_data = self.config.sigma_data
+        sigma_data = self.sigma_data
         c_skip = sigma_data**2 / (sigma**2 + sigma_data**2)
 
         if self.config.prediction_type == "epsilon":
@@ -208,13 +209,13 @@ class EDMEulerScheduler(SchedulerMixin, ConfigMixin):
         """
         self.num_inference_steps = num_inference_steps
 
-        ramp = np.linspace(0, 1, self.num_inference_steps)
+        ramp = ms.tensor(np.linspace(0, 1, self.num_inference_steps))
         if self.config.sigma_schedule == "karras":
             sigmas = self._compute_karras_sigmas(ramp)
         elif self.config.sigma_schedule == "exponential":
             sigmas = self._compute_exponential_sigmas(ramp)
 
-        sigmas = ms.tensor(sigmas, dtype=ms.float32)
+        sigmas = sigmas.to(ms.float32)
         self.timesteps = self.precondition_noise(sigmas)
 
         self.sigmas = ops.cat([sigmas, ops.zeros(1)])
@@ -241,7 +242,7 @@ class EDMEulerScheduler(SchedulerMixin, ConfigMixin):
         """
         sigma_min = sigma_min or self.config.sigma_min
         sigma_max = sigma_max or self.config.sigma_max
-        sigmas = ms.tensor(np.linspace(math.log(sigma_min), math.log(sigma_max), len(ramp)).exp().flip(0))
+        sigmas = ms.tensor(np.linspace(math.log(sigma_min), math.log(sigma_max), len(ramp)).exp().flip((0,)))
         return sigmas
 
     # Copied from diffusers.schedulers.scheduling_euler_discrete.EulerDiscreteScheduler.index_for_timestep
