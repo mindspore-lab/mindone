@@ -136,6 +136,9 @@ class PllavaForConditionalGeneration(nn.Cell):
             return_key_value_cache: bool = False,
     ) -> Tuple[ms.Tensor, Optional[ms.Tensor], Optional[ms.Tensor]]:
         if input_ids is not None:
+            # cast to type ms.int32
+            input_ids = input_ids.astype(ms.int32)
+            attention_mask = attention_mask.astype(ms.int32)
             # 1. extract the input embeddings
             no_img_input_ids = ops.where(input_ids != self.config.image_token_index, input_ids, self.pad_token_id)
             inputs_embeds = self.get_input_embeddings()(no_img_input_ids)
@@ -150,7 +153,7 @@ class PllavaForConditionalGeneration(nn.Cell):
             _, image_output_hidden_states = self.vision_tower(pixel_values)
             vision_feature_layer = self.config.vision_feature_layer
             vision_feature_select_strategy = self.config.vision_feature_select_strategy
-            selected_image_feature = image_output_hidden_states.hidden_states[vision_feature_layer] # (b, img_seqlen, embed_dim)
+            selected_image_feature = image_output_hidden_states[vision_feature_layer] # (b, img_seqlen, embed_dim)
 
             if vision_feature_select_strategy == "default":
                 selected_image_feature = selected_image_feature[:, 1:]
@@ -251,3 +254,16 @@ class PllavaForConditionalGeneration(nn.Cell):
         }
 
         return model_inputs
+
+I got value error from this script:
+ValueError: The inputs provided to the model are wrong. The number of image tokens in 0
+while the number of image given to the model is 1. This prevents correct indexing and breaks batch generation.None
+
+I think this is from the line if image_to_overwrite.sum() != reduce(lambda x, y: x*y, image_features.shape[:-1]):
+and I think the correct number of image token is 1 (what do you think?)
+
+Could you:
+(1) first explain to me what does this line do and why can this line check (and can get this message)
+(2) identify where went wrong and how to make this fix
+(3) if where went wrong is not clear from this script, instruct me how to identify the wrong place (i.e. where
+    to print the shape or message, or how to write unit test)

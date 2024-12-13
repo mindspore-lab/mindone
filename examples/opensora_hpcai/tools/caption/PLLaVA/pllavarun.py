@@ -27,7 +27,7 @@ def main():
     )
 
     frames = load_video(args.video, args.num_frames)  # returns a list of PIL images
-    prompt = "<video>\n" + args.question
+    prompt = "<image>\n" + args.question
 
     output_token, output_text = pllava_answer(
         model, processor, [frames], prompt,

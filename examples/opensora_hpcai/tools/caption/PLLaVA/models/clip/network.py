@@ -171,6 +171,7 @@ class CLIPVisionModel(nn.Cell):
             hidden_act=hidden_act,
             dtype=dtype,
         )
+        self.dtype = dtype
 
     def get_input_embeddings(self) -> nn.Cell:
         return self.vision_model.embeddings.patch_embedding
