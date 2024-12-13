@@ -23,7 +23,7 @@ class PllavaConfig:
         use_pooling=True,
         gradient_checkpointing=False,
         pad_token_id=0,
-        dtype=ms.float32,
+        dtype=ms.bfloat16,
         **kwargs,
     ):
         self.ignore_index = ignore_index

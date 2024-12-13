@@ -22,7 +22,7 @@ class PllavaMultiModalProjector(nn.Cell):
         self.num_frames = config.num_frames
         self.pooling_shape = config.pooling_shape
         
-        self.pooling = ms.nn.AdaptiveAvgPool3d(config.pooling_shape)
+        self.pooling = nn.AdaptiveAvgPool3d(config.pooling_shape)
         self.linear_1 = nn.Dense(config.vision_config['hidden_size'], config.text_config['hidden_size'], has_bias=True, dtype=config.dtype)
         self.act = ACT2FN[config.projector_hidden_act]
         self.linear_2 = nn.Dense(config.text_config['hidden_size'], config.text_config['hidden_size'], has_bias=True, dtype=config.dtype)
@@ -52,7 +52,7 @@ class PllavaMultiModalProjector(nn.Cell):
         hidden_states = self.act(hidden_states)
         hidden_states = self.linear_2(hidden_states)
         hidden_states_videos = self.convert_Fembeddings2video(hidden_states, num_videos * batch_size, frame_shape)
-        hidden_states_videos = self.pooling(hidden_states_videos)
+        hidden_states_videos = self.pooling(hidden_states_videos.astype(ms.float32))
         batch_size_num_videos, embed_dims, num_frames, h, w = hidden_states_videos.shape
         hidden_states = ops.reshape(hidden_states_videos, (batch_size_num_videos, embed_dims, num_frames * h * w))
         hidden_states = ops.swapaxes(hidden_states, 1, 2)
@@ -254,16 +254,3 @@ class PllavaForConditionalGeneration(nn.Cell):
         }
 
         return model_inputs
-
-I got value error from this script:
-ValueError: The inputs provided to the model are wrong. The number of image tokens in 0
-while the number of image given to the model is 1. This prevents correct indexing and breaks batch generation.None
-
-I think this is from the line if image_to_overwrite.sum() != reduce(lambda x, y: x*y, image_features.shape[:-1]):
-and I think the correct number of image token is 1 (what do you think?)
-
-Could you:
-(1) first explain to me what does this line do and why can this line check (and can get this message)
-(2) identify where went wrong and how to make this fix
-(3) if where went wrong is not clear from this script, instruct me how to identify the wrong place (i.e. where
-    to print the shape or message, or how to write unit test)
