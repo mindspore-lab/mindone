@@ -17,7 +17,7 @@ from mindspore import mint, nn, ops
 from mindspore.common.initializer import Normal, TruncatedNormal, initializer
 
 from ....attention import AdaNorm
-from ..layers import BlockMod, MemEffAttention, Mlp, PatchEmbed, SwiGLUFFNFused  # NestedTensorBlockMod as BlockMod
+from ..layers import BlockMod, MemEffAttention, Mlp, PatchEmbed, SwiGLUFFNFused  
 
 logger = logging.getLogger("dinov2")
 
@@ -25,7 +25,7 @@ logger = logging.getLogger("dinov2")
 def named_apply(fn: Callable, module: nn.Cell, name="", depth_first=True, include_root=False) -> nn.Cell:
     if not depth_first and include_root:
         fn(module=module, name=name)
-    # for child_name, child_module in module.named_children(): # nn.Cell has no named_children
+
     for cell_name, cell in module.name_cells().items():
         cell_name = ".".join((name, cell_name)) if name else cell_name
         named_apply(fn=fn, module=cell, name=cell_name, depth_first=depth_first, include_root=True)
@@ -212,8 +212,8 @@ class DinoVisionTransformer(nn.Cell):
             patch_pos_embed.reshape(1, int(sqrt_N), int(sqrt_N), dim).permute((0, 3, 1, 2)),
             scale_factor=(sx, sy),  # ms does not support bicubic by directly passing this parameter yet,
             mode="bicubic",
-            # antialias=self.interpolate_antialias, # not support
-            align_corners=False,  # bicubic different from torch w/ align_corners=false
+            # antialias=self.interpolate_antialias, # mindspore not support
+            align_corners=False,  # NOTE: mindspore bicubic different from torch w/ align_corners=false
             recompute_scale_factor=True,  # need to set this True
         )
 
@@ -371,7 +371,7 @@ class DinoVisionTransformer(nn.Cell):
             return tuple(zip(outputs, class_tokens))
         return tuple(outputs)
 
-    def forward(self, *args, is_training=False, **kwargs):
+    def construct(self, *args, is_training=False, **kwargs):
         ret = self.forward_features_with_camera(*args, **kwargs)
 
         if is_training:

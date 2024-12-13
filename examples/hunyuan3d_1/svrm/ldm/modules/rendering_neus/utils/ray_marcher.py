@@ -24,8 +24,7 @@ from mindspore import mint, nn, ops
 class LearnedVariance(nn.Cell):
     def __init__(self, init_val):
         super(LearnedVariance, self).__init__()
-        self._inv_std = ms.Parameter(ms.Tensor(init_val))
-        # self.register_parameter("_inv_std", nn.Parameter(torch.tensor(init_val)))
+        self._inv_std = ms.Parameter(ms.Tensor(init_val)) 
 
     @property
     def inv_std(self):
@@ -91,9 +90,8 @@ class MipRayMarcher2(nn.Cell):
 
         # density_delta = densities_mid * deltas
 
-        # alpha = 1 - torch.exp(-density_delta)
+        # alpha = 1 - ops.exp(-density_delta)
 
-        # import ipdb; ipdb.set_trace()
         dirs = ray_directions.unsqueeze(2).Tensor.broadcast_to((-1, -1, sdfs_mid.shape[-2], -1))
         B, N_ray, N_sample, _ = sdfs_mid.shape
         alpha = self.get_alpha(

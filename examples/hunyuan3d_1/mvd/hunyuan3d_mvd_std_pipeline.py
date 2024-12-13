@@ -54,12 +54,12 @@ from mindone.utils.version_control import check_valid_flash_attention
 
 from .utils import recenter_img, to_rgb_image, white_out_background
 
-# Not yet officially implemented or released
+
 EXAMPLE_DOC_STRING = """
     Examples:
         ```py
         >>> import mindspore as ms
-        >>> from diffusers import Hunyuan3d_MVD_XL_Pipeline
+        >>> from here import Hunyuan3d_MVD_XL_Pipeline
 
         >>> pipe = Hunyuan3d_MVD_XL_Pipeline.from_pretrained(
         ...     "Tencent-Hunyuan-3D/MVD-XL", mindspore_dtype=ms.float16
@@ -122,7 +122,6 @@ class RefOnlyNoisedUNet(nn.Cell):
 
         unet_attn_procs = dict()
         for name, _ in unet.attn_processors.items():
-            # if torch.__version__ >= '2.0': default_attn_proc = AttnProcessor2_0()
             if check_valid_flash_attention():
                 default_attn_proc = XFormersAttnProcessor()
             else:
@@ -309,7 +308,6 @@ class HunYuan3D_MVD_Std_Pipeline(DiffusionPipeline):
     def do_classifier_free_guidance(self):
         return self._guidance_scale > 1 and self.unet.config.time_cond_proj_dim is None
 
-    # @torch.no_grad()
     def __call__(
         self,
         image: Image.Image = None,

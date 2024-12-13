@@ -60,19 +60,6 @@ class FrozenDinoV2ImageEmbedder(nn.Cell):
         print(loading_info)
         logger.info(loading_info)
 
-        # orig_state_dict = torch.load(ckpt_path, map_location='cpu')
-        # try:
-        #     ret = self.model.load_state_dict(orig_state_dict, strict=False)
-        #     print(ret)
-        #     print('Successfully loaded orig torch state dict')
-        # except:
-        #     new_state_dict = OrderedDict()
-        #     for k, v in orig_state_dict['state_dict'].items():
-        #         if 'img_encoder' in k:
-        #             new_state_dict[k.replace('img_encoder.model.', '')] = v
-        #     ret = self.model.load_state_dict(new_state_dict, strict=False)
-        #     print(ret)
-        #     print('Successfully loaded new state dict')
 
     def construct(self, x, *args, **kwargs):
         ret = self.model.forward_features_with_camera(x, *args, **kwargs)

@@ -53,8 +53,6 @@ class Views2Mesh:
         set_parameter_grad_false(self.mv23d_predictor.model)
         print("view2mesh model", get_parameter_number(self.mv23d_predictor.model))
 
-    # @no_grad()
-    # @auto_amp_inference
     @timing_decorator("views to mesh")
     def __call__(self, *args, **kwargs):
         res = self.call(*args, **kwargs)
@@ -140,7 +138,7 @@ if __name__ == "__main__":
     if args.mode == 1:
         ms.set_context(mode=ms.PYNATIVE_MODE, device_target=args.device)
         print("Using PYNATIVE_MODE")
-    else:  # NOTE: Don't know why slower
+    else:  # NOTE: it may be slower
         ms.set_context(mode=ms.GRAPH_MODE, device_target=args.device)
         print("Using GRAPH_MODE")
 

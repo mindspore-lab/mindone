@@ -99,7 +99,7 @@ class RaySampler(nn.Cell):
         world_rel_points = mint.bmm(cam2world_matrix, cam_rel_points.permute((0, 2, 1))).permute((0, 2, 1))[:, :, :3]
 
         ray_dirs = world_rel_points - cam_locs_world[:, None, :]
-        # ray_dirs = torch.nn.functional.normalize(ray_dirs, dim=2)
+       
         ray_dirs = ray_dirs / ops.norm(ray_dirs, dim=2)
 
         ray_origins = cam_locs_world.unsqueeze(1).tile((1, ray_dirs.shape[1], 1))

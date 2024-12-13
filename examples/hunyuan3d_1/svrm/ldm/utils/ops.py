@@ -12,23 +12,6 @@ from mindspore import mint, nn, ops
 
 from .typing import *
 
-# try:
-#     from igl import fast_winding_number_for_meshes, point_mesh_squared_distance, read_obj
-# except:
-#     warnings.warn("Please install libigl for training, bypass this time.")
-
-
-# TODO: training
-# def get_rank():
-#     # SLURM_PROCID can be set even if SLURM is not managing the multiprocessing,
-#     # therefore LOCAL_RANK needs to be checked first
-#     rank_keys = ("RANK", "LOCAL_RANK", "SLURM_PROCID", "JSM_NAMESPACE_RANK")
-#     for key in rank_keys:
-#         rank = os.environ.get(key)
-#         if rank is not None:
-#             return int(rank)
-#     return 0
-
 
 def dot(x, y):
     return mint.sum(x * y, dim=-1, keepdim=True)
@@ -51,44 +34,6 @@ def scale_tensor(dat: Num[Tensor, "... D"], inp_scale: ValidScale, tgt_scale: Va
     dat = (dat - inp_scale[0]) / (inp_scale[1] - inp_scale[0])
     dat = dat * (tgt_scale[1] - tgt_scale[0]) + tgt_scale[0]
     return dat
-
-
-# TODO: replace it....
-# class _TruncExp(Function):  # pylint: disable=abstract-method
-#     # Implementation from torch-ngp:
-#     # https://github.com/ashawkey/torch-ngp/blob/93b08a0d4ec1cc6e69d85df7f0acdfb99603b628/activation.py
-#     @staticmethod
-#     @custom_fwd(cast_inputs=torch.float32)
-#     def forward(ctx, x):  # pylint: disable=arguments-differ
-#         ctx.save_for_backward(x)
-#         return torch.exp(x)
-
-#     @staticmethod
-#     @custom_bwd
-#     def backward(ctx, g):  # pylint: disable=arguments-differ
-#         x = ctx.saved_tensors[0]
-#         return g * torch.exp(torch.clamp(x, max=15))
-
-# TODO: replace it....
-# class SpecifyGradient(Function):
-#     # Implementation from stable-dreamfusion
-#     # https://github.com/ashawkey/stable-dreamfusion
-#     @staticmethod
-#     @custom_fwd
-#     def forward(ctx, input_tensor, gt_grad):
-#         ctx.save_for_backward(gt_grad)
-#         # we return a dummy value 1, which will be scaled by amp's scaler so we get the scale in backward.
-#         return torch.ones([1], device=input_tensor.device, dtype=input_tensor.dtype)
-
-#     @staticmethod
-#     @custom_bwd
-#     def backward(ctx, grad_scale):
-#         (gt_grad,) = ctx.saved_tensors
-#         gt_grad = gt_grad * grad_scale
-#         return gt_grad, None
-
-
-# trunc_exp = _TruncExp.apply
 
 
 def get_activation(name) -> Callable:
@@ -164,7 +109,6 @@ def chunk_batch(func: Callable, chunk_size: int, triplane=None, *args, **kwargs)
             print(f"Return value of func must be in type [ms.Tensor, list, tuple, dict], get {type(out_chunk)}.")
             exit(1)
         for k, v in out_chunk.items():
-            # v = v if torch.is_grad_enabled() else v.detach()
             out[k].append(v)
 
     if out_type is None:
@@ -217,7 +161,7 @@ def get_ray_directions(
         assert principal is not None
         cx, cy = principal
 
-    i, j = torch.meshgrid(
+    i, j = ops.meshgrid(
         ops.arange(W, dtype=ms.float32) + pixel_center,
         ops.arange(H, dtype=ms.float32) + pixel_center,
         indexing="xy",
@@ -305,7 +249,7 @@ def get_full_projection_matrix(c2w: Float[Tensor, "B 4 4"], proj_mtx: Float[Tens
 
 # gaussian splatting functions
 def convert_pose(C2W):
-    flip_yz = torch.eye(4)
+    flip_yz = ops.eye(4)
     flip_yz[1, 1] = -1
     flip_yz[2, 2] = -1
     C2W = ops.matmul(C2W, flip_yz)
@@ -400,7 +344,7 @@ class MeshOBJ:
         verts = self.v
 
         # Compute center of bounding box
-        # center = torch.mean(torch.column_stack([torch.max(verts, dim=0)[0], torch.min(verts, dim=0)[0]]))
+        # center = mint.mean(ops.column_stack([mint.max(verts, dim=0)[0], mint.min(verts, dim=0)[0]]))
         center = verts.mean(axis=0)
         verts = verts - center
         scale = np.max(np.linalg.norm(verts, axis=1))

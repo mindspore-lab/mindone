@@ -53,11 +53,8 @@ from typing import Dict, Optional
 
 from ..modules.rendering_neus.mesh import Mesh
 
-# from ..vis_util import render
 from ..util import count_params, instantiate_from_config, no_grad
 from ..utils.ops import scale_tensor
-
-# from ..modules.rendering_neus.rasterize import NVDiffRasterizerContext
 
 
 def unwrap_uv(v_pos, t_pos_idx):
@@ -215,7 +212,6 @@ class SVRMModel(nn.Cell):
         aabb = ms.Tensor([[-0.6, -0.6, -0.6], [0.6, 0.6, 0.6]]).unsqueeze(0).to(**here)
         grid_out = self.render.forward_grid(planes=cur_triplane, grid_size=mesh_size, aabb=aabb)
 
-        # print(f"=====> Triplane forward time: {time.time() - st}")
         print(f"=====> Triplane render forward_grid time: {time.time() - st}")
         st = time.time()
 
@@ -271,75 +267,3 @@ class SVRMModel(nn.Cell):
 
         if not do_texture_mapping:
             return None
-
-        ##########  export texture  ########
-        # TODO: skip texture exporting for now
-        # reference: pymeshlab: https://blog.csdn.net/weixin_42605076/article/details/138429184
-        # https://docs.nerf.studio/quickstart/export_geometry.html
-        # https://nvlabs.github.io/nvdiffrast/#rasterization
-        """
-        st = time.time()
-
-        # uv unwrap
-        vtx_tex, t_tex_idx = unwrap_uv(vtx_refine, faces_refine)
-        vtx_refine   = torch.from_numpy(vtx_refine).to(self.device)
-        faces_refine = torch.from_numpy(faces_refine).to(self.device)
-        t_tex_idx    = torch.from_numpy(t_tex_idx).to(self.device)
-        uv_clip      = torch.from_numpy(vtx_tex * 2.0 - 1.0).to(self.device)
-
-        # rasterize
-        ctx = NVDiffRasterizerContext(context_type, cur_triplane.device) if ctx is None else ctx
-        rast = ctx.rasterize_one(
-            torch.cat([
-                uv_clip,
-                torch.zeros_like(uv_clip[..., 0:1]),
-                torch.ones_like(uv_clip[..., 0:1])
-            ], dim=-1),
-            t_tex_idx,
-            (texture_res, texture_res)
-        )[0] # [H, W, 4]
-        hole_mask = ~(rast[:, :, 3] > 0)
-
-        # Interpolate world space position
-        gb_pos = ctx.interpolate_one(vtx_refine, rast[None, ...], faces_refine)[0][0]
-
-        with no_grad():
-            gb_mask_pos_scale = scale_tensor(gb_pos.unsqueeze(0).view(1, -1, 3), (-1, 1), (-1, 1))
-
-            tex_map = self.render.forward_points(cur_triplane, gb_mask_pos_scale)['rgb']
-
-            tex_map = tex_map.float().squeeze(0)  # (0, 1)
-            tex_map = tex_map.view((texture_res, texture_res, 3))
-            img = uv_padding(tex_map, hole_mask)
-            img = ((img/255.0) ** color_ratio) * 255  # increase brightness
-            img = img.clip(0, 255).astype(np.uint8)
-
-        verts = vtx_refine.cpu().numpy()[:, [1,2,0]]
-        faces = faces_refine.cpu().numpy()
-
-        with open(obj_mtl_path, 'w') as fid:
-            fid.write('newmtl material_0\n')
-            fid.write("Ka 1.000 1.000 1.000\n")
-            fid.write("Kd 1.000 1.000 1.000\n")
-            fid.write("Ks 0.000 0.000 0.000\n")
-            fid.write("d 1.0\n")
-            fid.write("illum 2\n")
-            fid.write(f'map_Kd texture.png\n')
-
-        with open(obj_path, 'w') as fid:
-            fid.write(f'mtllib texture.mtl\n')
-            for pidx, pp in enumerate(verts):
-                fid.write('v %f %f %f\n' % (pp[0], pp[1], pp[2]))
-            for pidx, pp in enumerate(vtx_tex):
-                fid.write('vt %f %f\n' % (pp[0], 1 - pp[1]))
-            fid.write('usemtl material_0\n')
-            for i, f in enumerate(faces):
-                f1 = f + 1
-                f2 = t_tex_idx[i] + 1
-                fid.write('f %d/%d %d/%d %d/%d\n' % (f1[0], f2[0], f1[1], f2[1], f1[2], f2[2],))
-
-        cv2.imwrite(obj_texture_path, img[..., [2, 1, 0]])
-        mesh = trimesh.load_mesh(obj_path)
-        mesh.export(glb_path, file_type='glb')
-        print(f"=====> generate mesh with texture shading time: {time.time() - st}")
-        """

@@ -68,8 +68,8 @@ class OSGDecoder(nn.Cell):
         # Aggregate features by mean
         # sampled_features = sampled_features.mean(1)
         # Aggregate features by concatenation
-        # torch.set_grad_enabled(True)
-        # sample_coordinates.requires_grad_(True)
+        # self.set_train(True)
+        # sample_coordinates.requires_grad = True
 
         sampled_features = sample_from_planes(
             plane_axes, planes, sample_coordinates, padding_mode="zeros", box_warp=options["box_warp"]
@@ -102,12 +102,10 @@ class OSGDecoder(nn.Cell):
             self.forward_sdf(plane_axes, planes, points_offset[:, :, i, :], options).unsqueeze(-2)
             for i in range(points_offset.shape[-2])
         ]  # Float[Tensor, "... 3 1"]
-        # import ipdb; ipdb.set_trace()
 
         sdf_offset = mint.cat(sdf_offset_list, -2)
         sdf_grad = (sdf_offset[..., 0::1, 0] - sdf) / eps
 
-        # normal = F.normalize(sdf_grad, dim=-1).to(sdf.dtype)
         normal = (sdf_grad / ops.norm(sdf_grad, dim=-1, keepdim=True)).to(sdf.dtype)
         return {"rgb": rgb, "sdf": sdf, "normal": normal, "sdf_grad": sdf_grad}
 

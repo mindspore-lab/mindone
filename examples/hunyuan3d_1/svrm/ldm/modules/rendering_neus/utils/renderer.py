@@ -69,8 +69,6 @@ def sample_from_planes(plane_axes, plane_features, coordinates, mode="bilinear",
     coordinates = (2 / box_warp) * coordinates  # add specific box bounds
 
     projected_coordinates = project_onto_planes(plane_axes, coordinates).unsqueeze(1)
-    # output_features = grid_sample.grid_sample_2d(plane_features, projected_coordinates.float().to(plane_features.device)).permute(0, 3, 2, 1).reshape(N, n_planes, M, C)
-    # TODO: check accuracy
     output_features = (
         mint.nn.functional.grid_sample(
             plane_features.float(),
@@ -254,7 +252,7 @@ class ImportanceRenderer(nn.Cell):
             ####
             # dists = depths_coarse[:, :, 1:, :] - depths_coarse[:, :, :-1, :]
             # inter =  (ray_end - ray_start) / ( rendering_options['depth_resolution'] + rendering_options['depth_resolution_importance'] - 1) # [1, N_ray, 1]
-            # dists = torch.cat([dists, inter.unsqueeze(2), 2])
+            # dists = mint.cat([dists, inter.unsqueeze(2), 2])
             ####
 
             # Aggregate
@@ -262,11 +260,9 @@ class ImportanceRenderer(nn.Cell):
                 all_colors, all_densities, all_depths, rendering_options, bgcolor
             )
         else:
-            # # import pdb; pdb.set_trace()
             # dists = depths_coarse[:, :, 1:, :] - depths_coarse[:, :, :-1, :]
             # inter =  (ray_end - ray_start) / ( rendering_options['depth_resolution'] - 1) # [1, N_ray, 1]
-            # dists = torch.cat([dists, inter.unsqueeze(2)], 2)
-            # # import ipdb; ipdb.set_trace()
+            # dists = mint.cat([dists, inter.unsqueeze(2)], 2)
 
             # rgb_final, depth_final, weights = self.ray_marcher(colors_coarse, sdfs_coarse, depths_coarse, normals_coarse, dists, ray_directions, rendering_options, bgcolor)
             rgb_final, depth_final, weights, normal_final = self.ray_marcher(
@@ -279,7 +275,6 @@ class ImportanceRenderer(nn.Cell):
                 bgcolor,
                 normals_coarse,
             )
-            # import ipdb; ipdb.set_trace()
 
         return rgb_final, depth_final, weights.sum(2), sdf_grad, normal_final
 
@@ -287,7 +282,7 @@ class ImportanceRenderer(nn.Cell):
         plane_axes = self.plane_axes
         out = decoder(sample_directions, sample_coordinates, plane_axes, planes, options)
         # if options.get('density_noise', 0) > 0:
-        #     out['sigma'] += torch.randn_like(out['sigma']) * options['density_noise']
+        #     out['sigma'] += ops.randn_like(out['sigma']) * options['density_noise']
         return out
 
     def run_model_activated(self, planes, decoder, sample_coordinates, sample_directions, options):

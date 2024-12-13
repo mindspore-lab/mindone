@@ -68,8 +68,7 @@ class Attention(nn.Cell):
         return x
 
 
-# TODO: training may use attn_bias
-# in inference, do not use attn_bias=cam_emb yet
+# In inference, do not use attn_bias=cam_emb yet
 class MemEffAttention(Attention):
     def construct(self, x: Tensor, attn_bias=None) -> Tensor:
         if not XFORMERS_ENABLED:

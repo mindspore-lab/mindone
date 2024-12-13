@@ -32,7 +32,6 @@ def render(obj_filename, elev=0, azim=None, resolution=512, gif_dst_path="", n_v
     mesh = trimesh.load(obj_filename)
 
     # get a scene object containing the mesh, this is equivalent to:
-    # scene = trimesh.scene.Scene(mesh)
     scene = mesh.scene()
 
     # render scene as a PNG in bytes

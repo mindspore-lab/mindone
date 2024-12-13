@@ -32,21 +32,15 @@ from infer.utils import get_parameter_number, seed_everything, set_parameter_gra
 import mindspore as ms
 from mindspore import ops
 
-from mindone.diffusers import AutoPipelineForText2Image, HunyuanDiTPipeline
+from mindone.diffusers import HunyuanDiTPipeline
 
 
 class Text2Image:
     def __init__(self, pretrain="Tencent-Hunyuan/HunyuanDiT-Diffusers"):
-        # self.pipe = AutoPipelineForText2Image.from_pretrained(
-        #     pretrain,
-        #     mindspore_dtype = ms.float16,
-        #     enable_pag = True,
-        #     pag_applied_layers = ["blocks.(16|17|18|19)"]
-        # ) # TODO: do not support HunyuanDiTPAGPipeline in MindONE yet
 
         self.pipe = HunyuanDiTPipeline.from_pretrained(
             pretrain, mindspore_dtype=ms.float32
-        )  # Note: CumProd does not support float16
+        )  #NOTE: CumProd does not support float16
         set_parameter_grad_false(self.pipe.transformer)
         print("text2image transformer model", get_parameter_number(self.pipe.transformer))
 
@@ -56,8 +50,6 @@ class Text2Image:
             "毁容,恶心的比例,畸形的肢体,缺失的手臂,缺失的腿,额外的手臂,额外的腿,融合的手指,手指太多,长脖子"
         )
 
-    # @torch.no_grad()
-    # @auto_amp_inference
     @timing_decorator("text to image")
     def __call__(self, *args, **kwargs):
         res = self.call(*args, **kwargs)
@@ -79,10 +71,7 @@ class Text2Image:
             generator = np.random.Generator(np.random.PCG64(seed=seed))
         else:
             generator = np.random.Generator(np.random.PCG64(0))
-        # rgb = ops.stop_gradient(
-        #     self.pipe(prompt=prompt, negative_prompt=self.neg_txt, num_inference_steps=steps,
-        #         pag_scale=1.3, width=1024, height=1024, generator=generator, return_dict=False)
-        # )[0][0] # TODO: do not support HunyuanDiTPAGPipeline yet
+
         rgb = ops.stop_gradient(
             self.pipe(
                 prompt=prompt,

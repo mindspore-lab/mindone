@@ -73,8 +73,6 @@ class Image2Views:
         set_parameter_grad_false(self.pipe.unet)
         print("image2views unet model", get_parameter_number(self.pipe.unet))
 
-    # @torch.no_grad()
-    # @auto_amp_inference
     @timing_decorator("image to views")
     def __call__(self, *args, **kwargs):
         res = self.call(*args, **kwargs)
@@ -87,7 +85,7 @@ class Image2Views:
         res_img = ops.stop_gradient(
             self.pipe(pil_img, num_inference_steps=steps, guidance_scale=guidance_scale, generator=generator).images
         )
-        # show_image = rearrange(np.asarray(res_img[0], dtype=np.uint8), '(n h) (m w) c -> (n m) h w c', n=3, m=2)
+        #  '(n h) (m w) c -> (n m) h w c', n=3, m=2)
         show_image = np.asarray(res_img[0], dtype=np.uint8)
         # '(n h) (m w) c -> (n m) h w c', n=3, m=2
         nh, mw, c = show_image.shape

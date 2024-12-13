@@ -39,7 +39,7 @@ from mindone.diffusers.configuration_utils import FrozenDict
 from mindone.diffusers.image_processor import VaeImageProcessor
 from mindone.diffusers.loaders import FromSingleFileMixin, LoraLoaderMixin, TextualInversionLoaderMixin
 from mindone.diffusers.models import AutoencoderKL, UNet2DConditionModel
-from mindone.diffusers.models.attention_processor import (  # AttnProcessor2_0
+from mindone.diffusers.models.attention_processor import (  
     Attention,
     AttnProcessor,
     XFormersAttnProcessor,
@@ -53,7 +53,7 @@ from mindone.utils.version_control import check_valid_flash_attention
 
 from .utils import recenter_img, to_rgb_image, white_out_background
 
-# Not yet officially implemented or released
+
 EXAMPLE_DOC_STRING = """
     Examples:
         ```py
@@ -116,7 +116,7 @@ class RefOnlyNoisedUNet(nn.Cell):
         default_attn_proc = AttnProcessor()
         for name, _ in unet.attn_processors.items():
             unet_lora_attn_procs[name] = ReferenceOnlyAttnProc(
-                default_attn_proc,  # do not support AttnProcessor2_0() yet
+                default_attn_proc,  
                 enabled=name.endswith("attn1.processor"),
                 name=name,
             )
@@ -214,7 +214,6 @@ class Hunyuan3d_MVD_Lite_Pipeline(DiffusionPipeline, TextualInversionLoaderMixin
         latents = latents * self.scheduler.init_noise_sigma
         return latents
 
-    # @torch.no_grad()
     def _encode_prompt(
         self,
         prompt,
@@ -304,14 +303,12 @@ class Hunyuan3d_MVD_Lite_Pipeline(DiffusionPipeline, TextualInversionLoaderMixin
 
         return prompt_embeds
 
-    # @torch.no_grad()
     def encode_condition_image(self, image: ms.Tensor):
         image_latents = self.vae.encode(image)[0]
         image_latents = self.vae.diag_gauss_dist.sample(image_latents)
         return image_latents
 
-    # @torch.no_grad()
-    # @ms.jit run out of time
+
     def __call__(
         self,
         image=None,
@@ -347,7 +344,6 @@ class Hunyuan3d_MVD_Lite_Pipeline(DiffusionPipeline, TextualInversionLoaderMixin
         global_embeds = self.vision_encoder(image_2, output_hidden_states=False)[0].unsqueeze(-2)  # image_embeds
         encoder_hidden_states = self._encode_prompt("", num_images_per_prompt, False)
 
-        # ramp = global_embeds.new_tensor(self.config.ramping_coefficients).unsqueeze(-1)
         ramp = ms.Tensor(self.config.ramping_coefficients, dtype=global_embeds.dtype).unsqueeze(-1)
         prompt_embeds = mint.cat([encoder_hidden_states, encoder_hidden_states + global_embeds * ramp])
 

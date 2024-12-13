@@ -253,7 +253,6 @@ class FlashAttention(nn.Cell):
         k = k.reshape(k.shape[0], k.shape[1], h, -1).swapaxes(1, 2)
         v = v.reshape(v.shape[0], v.shape[1], h, -1).swapaxes(1, 2)
         # 'b n h d' -> (b, num_head, n, d) == BNSD
-        # out = flash_attn_func(q, k, v, dropout_p=self.dropout, softmax_scale=None, causal=False, window_size=(-1, -1)) # out is same shape to q
         out = self.flash_attention(q, k, v)  # out is same shape to q
         out = out.swapaxes(1, 2)  # b h n d -> b n h d
         # 'b n h d -> b n (h d)', h=h
@@ -302,7 +301,9 @@ class BasicTransformerBlock(nn.Cell):
         return x
 
 
-ATTENTION_MODES = {"softmax": CrossAttention, "softmax-flash": FlashAttention}  # vanilla attention
+ATTENTION_MODES = {
+    "softmax": CrossAttention, # vanilla attention
+    "softmax-flash": FlashAttention}  
 
 
 def modulate(x, shift, scale):

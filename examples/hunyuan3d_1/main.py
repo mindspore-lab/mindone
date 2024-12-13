@@ -24,13 +24,6 @@
 
 import os
 
-# TODO: debug use delete later
-import sys
-
-mindone_lib_path = os.path.abspath("../../")
-sys.path.insert(0, mindone_lib_path)
-sys.path.append("./")
-
 import argparse
 import warnings
 

@@ -288,7 +288,7 @@ class Attention(nn.Cell):
         k = self.to_k(k_input)
         v = self.to_v(v_input)
 
-        # q, k, v = map(lambda t: rearrange(t, 'b n (h d) -> b h n d', h=h), (q, k, v))
+        # 'b n (h d) -> b h n d', h=h
         q = q.reshape(q.shape[0], q.shape[1], h, -1)
         k = k.reshape(k.shape[0], k.shape[1], h, -1)
         v = v.reshape(v.shape[0], v.shape[1], h, -1)
@@ -303,8 +303,7 @@ class Attention(nn.Cell):
             input_mask = q_mask * k_mask
 
         if self.num_mem_kv > 0:
-            # TODO: susan comment: to double check, not sure it is repeat or repeat_interleave
-            # mem_k, mem_v = map(lambda t: repeat(t, 'h n d -> b h n d', b=b), (self.mem_k, self.mem_v))
+            #'h n d -> b h n d', b=b
             mem_k = mem_k[None, ...].tile((b, 1, 1, 1))
             mem_v = mem_v[None, ...].tile((b, 1, 1, 1))
             k = mint.cat((mem_k, k), dim=-2)
@@ -312,7 +311,7 @@ class Attention(nn.Cell):
             if exists(input_mask):
                 input_mask = mint.nn.functional.pad(
                     input_mask, (self.num_mem_kv, 0), value=1.0
-                )  # why set value=True???
+                )  
 
         dots = ops.einsum("b h i d, b h j d -> b h i j", q, k) * self.scale
         mask_value = max_neg_value(dots)
@@ -599,7 +598,6 @@ class TransformerWrapper(nn.Cell):
         x = self.project_emb(x)
 
         if num_mem > 0:
-            # mem = repeat(self.memory_tokens, 'n d -> b n d', b=b)
             mem = self.memory_tokens.unsqeeze(0).tile((b, 1, 1))
             x = mint.cat((mem, x), dim=1)
 

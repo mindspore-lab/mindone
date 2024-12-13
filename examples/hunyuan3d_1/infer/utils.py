@@ -63,26 +63,12 @@ def timing_decorator(category: str):
     return decorator
 
 
-# def auto_amp_inference(func):
-#     '''
-#         with torch.cuda.amp.autocast()"
-#             xxx
-#     '''
-#     @wraps(func)
-#     def wrapper(*args, **kwargs):
-#         with autocast():
-#             output = func(*args, **kwargs)
-#         return output
-#     return wrapper
-
-
 def get_parameter_number(model):
     total_num, trainable_num = count_params(model)
     return {"Total": total_num, "Trainable": trainable_num}
 
 
 def set_parameter_grad_false(model):
-    # model.set_train(False)
     for p in model.get_parameters():
         p.requires_grad = False
 
