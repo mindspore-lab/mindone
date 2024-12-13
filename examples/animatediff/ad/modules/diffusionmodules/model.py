@@ -95,9 +95,9 @@ class ResnetBlock(nn.Cell):
             self.temb_proj = mint.nn.Linear(temb_channels, out_channels, bias_init="normal").to_float(dtype)
         self.norm2 = Normalize(out_channels)
         if is_old_ms_version():
-            self.dropout = mint.nn.Dropout(1.0 - dropout)
+            self.dropout = nn.Dropout(1.0 - dropout)
         else:
-            self.dropout = mint.nn.Dropout(p=dropout)
+            self.dropout = nn.Dropout(p=dropout)
         self.conv2 = mint.nn.Conv2d(
             out_channels, out_channels, kernel_size=3, stride=1, padding=1, bias=True
         ).to_float(dtype)

@@ -87,7 +87,7 @@ class FeedForward(nn.Cell):
         )
         self.net = nn.SequentialCell(
             project_in,
-            mint.nn.Dropout(dropout) if is_old_ms_version() else mint.nn.Dropout(p=1 - dropout),
+            nn.Dropout(dropout) if is_old_ms_version() else nn.Dropout(p=1 - dropout),
             mint.nn.Linear(inner_dim, dim_out).to_float(dtype),
         )
 
@@ -146,7 +146,7 @@ class CrossAttention(nn.Cell):
         self.to_v = mint.nn.Linear(context_dim, inner_dim, bias=False).to_float(dtype)
         self.to_out = nn.SequentialCell(
             mint.nn.Linear(inner_dim, query_dim).to_float(dtype),
-            mint.nn.Dropout(dropout) if is_old_ms_version() else mint.nn.Dropout(p=1 - dropout),
+            nn.Dropout(dropout) if is_old_ms_version() else nn.Dropout(p=1 - dropout),
         )
         self.head_dim = dim_head
         self.attention = Attention(dim_head)

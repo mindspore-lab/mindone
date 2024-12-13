@@ -111,7 +111,7 @@ class FeedForward(nn.Cell):
         # project in
         self.net.append(act_fn)
         # project dropout
-        self.net.append(mint.nn.Dropout(p=dropout))
+        self.net.append(nn.Dropout(p=dropout))
         # project out
         self.net.append(mint.nn.Linear(inner_dim, dim_out).to_float(dtype))
 
@@ -309,7 +309,7 @@ class TemporalTransformerBlock(nn.Cell):
 class PositionalEncoding(ms.nn.Cell):
     def __init__(self, d_model, dropout=0.0, max_len=24):
         super().__init__()
-        self.dropout = mint.nn.Dropout(p=dropout)
+        self.dropout = nn.Dropout(p=dropout)
         position = np.expand_dims(np.arange(max_len), 1)
 
         div_term = np.exp((np.arange(0, d_model, 2) * (-math.log(10000.0) / d_model)).astype(np.float32))
@@ -391,7 +391,7 @@ class VersatileAttention(ms.nn.Cell):
 
         self.to_out = nn.SequentialCell(
             mint.nn.Linear(inner_dim, query_dim).to_float(dtype),
-            mint.nn.Dropout(p=dropout),
+            nn.Dropout(p=dropout),
         )
         self.attention_mode = attention_mode
 

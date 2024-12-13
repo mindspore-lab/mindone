@@ -177,9 +177,9 @@ class ResBlock(nn.Cell):
         self.out_layers_silu = mint.nn.SiLU().to_float(self.dtype)
 
         if is_old_ms_version():
-            self.out_layers_drop = mint.nn.Dropout(keep_prob=self.dropout)
+            self.out_layers_drop = nn.Dropout(keep_prob=self.dropout)
         else:
-            self.out_layers_drop = mint.nn.Dropout(p=1.0 - self.dropout)
+            self.out_layers_drop = nn.Dropout(p=1.0 - self.dropout)
 
         self.out_layers_conv = zero_module(
             conv_nd(dims, self.out_channels, self.out_channels, 3, padding=1, has_bias=True, pad_mode="pad").to_float(
