@@ -52,7 +52,7 @@ class PllavaMultiModalProjector(nn.Cell):
         hidden_states = self.act(hidden_states)
         hidden_states = self.linear_2(hidden_states)
         hidden_states_videos = self.convert_Fembeddings2video(hidden_states, num_videos * batch_size, frame_shape)
-        hidden_states_videos = self.pooling(hidden_states_videos.astype(ms.float32))
+        hidden_states_videos = (self.pooling(hidden_states_videos.astype(ms.float32))).astype(ms.bfloat16)
         batch_size_num_videos, embed_dims, num_frames, h, w = hidden_states_videos.shape
         hidden_states = ops.reshape(hidden_states_videos, (batch_size_num_videos, embed_dims, num_frames * h * w))
         hidden_states = ops.swapaxes(hidden_states, 1, 2)
