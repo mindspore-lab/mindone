@@ -9,16 +9,16 @@ The detailed dataset information can be found below:
 
   | Split            | # Available Videos | Storage Space |
   |------------------|--------------------|---------------|
-  | WebVid-10M train | ?                  | ~ TB          |
-  | WebVid-10M val   | 5,000              | ~9.68 GB      |
-  | WebVid-2M train  | ?                  | ~ TB          |
-  | WebVid-2m val    | 4,999              | ~9.62 GB      |
+  | WebVid-10M train | ~10.7M                  | ~20,742 GB          |
+  | WebVid-10M val   | ~5K              | ~10 GB      |
+  | WebVid-2M train  | ~2.5M                  | ~4,820 GB          |
+  | WebVid-2m val    | ~5K              | ~9.62 GB      |
 
 
 ## Requirements
 
 Ensure that you have the correct version of `video2dataset` installed before proceeding 
-(Version `1.3.0` will lead to error).
+(Version `1.3.0` will lead to an error).
 ```bash
 pip install video2dataset==1.1.0
 ```
