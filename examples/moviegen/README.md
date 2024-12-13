@@ -36,57 +36,19 @@ Transformer-based ([LLaMa3](https://arxiv.org/abs/2407.21783)) model trained wit
 |                                                                                                                                                                                                                                                                                                                                   <video src="https://github.com/user-attachments/assets/726d3f4c-9be6-4359-923a-62adacd51b69" />                                                                                                                                                                                                                                                                                                                                   |                                                                                                                                                                                                                                                                                                                   <video src="https://github.com/user-attachments/assets/aee3cb34-b868-4c52-a6b7-d1dba3293da5" />                                                                                                                                                                                                                                                                                                                    |
 | <details><summary>Caption</summary>The video begins with a solid red background that transitions subtly from a darker shade at the top to a lighter shade at the bottom. Initially, the scene is static with no objects or figures present. As the video progresses, several delicate, translucent rose petals appear against the red backdrop. These petals are in various states of motion; some are suspended in mid-air, while others have fallen and rest on the surface below. The lighting accentuates the soft textures of the petals, creating a contrast with the stark red background. Throughout this transition, there is no clear indication of camera movement, but the positioning of the petals suggests a dynamic entry into the scene.</details> |                                      <details><summary>Caption</summary>The video showcases a majestic snow-capped mountain range against a cloudy sky, with the peaks covered in pristine white snow and jagged rocky outcrops protruding from the slopes. The mountains cast long shadows across the snow-covered terrain below. Initially, the sky is a vivid blue with wispy white clouds, but as the video progresses, the clouds become slightly more dispersed, revealing more of the blue sky. Throughout the video, the overall composition and grandeur of the mountain vistas remain consistent, maintaining the serene and awe-inspiring natural beauty of the landscape.</details>                                      |
 
-## Architecture
+## Requirements
 
-<details>
-<summary><b>Architecture details</b></summary>
-
-### Transformer Backbone
-
-The Movie Gen family of models contains the following variations: 1B, 5B, and 30B parameters.
-It uses the [LLaMa3](https://arxiv.org/abs/2407.21783) backbone architecture for the joint image-video generation model,
-enabling confident scaling of the model size while maintaining efficient training.
-
-There are three changes to the LLaMa3 Transformer block for the use case of video generation using Flow Matching:
-
-1. Add a cross-attention module between the self-attention module and the feed forward network (FFN)
-   to each Transformer block to incorporate text conditioning based on the text prompt embedding **P**.
-   Multiple different text encoders are leveraged due to their complementary strengths
-   (see [Text Encoders](#text-encoders)).
-2. Add adaptive layer norm blocks to incorporate the time-step t to the Transformer, as used in prior work
-   ([DiT](https://arxiv.org/abs/2212.09748)).
-3. Use full bidirectional attention instead of causal attention used in language modeling.
-
-### TAE
-
-[//]: # (TODO)
-
-### Text Encoders
-
-Movie Gen uses a combination of [UL2](https://arxiv.org/abs/2205.05131), [ByT5](https://arxiv.org/abs/2105.13626), and
-Long-prompt [MetaCLIP](https://arxiv.org/abs/2309.16671) as text encoders to provide both semantic-level and
-character-level text understanding for the backbone:
-
-- **UL2** is trained using massive text-only data and potentially provides strong text reasoning abilities in its
-  features.
-- **Long-prompt MetaCLIP** provides text representations that are aligned with visual representations that are
-  beneficial
-  for cross-modal generation.
-- **ByT5** encoder is only used to encode visual text, i.e., the part of the text prompt that explicitly asks for a
-  character string to be generated in the output image / video.
-
-</details>
-
-## Installation
+<div align="center">
 
 | MindSpore | Ascend Driver |  Firmware   | CANN toolkit/kernel |
 |:---------:|:-------------:|:-----------:|:-------------------:|
 |   2.3.1   |   24.1.RC2    | 7.3.0.1.231 |    8.0.RC2.beta1    |
 
-1. Install MindSpore according to the [official instructions](https://www.mindspore.cn/install).
-   For Ascend devices, please install
-   [CANN8.0.RC2.beta1](https://www.hiascend.com/developer/download/community/result?module=cann&cann=8.0.RC2.beta1)
-   and [MindSpore 2.3.1](https://www.mindspore.cn/install).
+</div>
+
+1. Install
+   [CANN 8.0.RC2.beta1](https://www.hiascend.com/developer/download/community/result?module=cann&cann=8.0.RC2.beta1)
+   and MindSpore according to the [official instructions](https://www.mindspore.cn/install).
 2. Install requirements
     ```shell
     pip install -r requirements.txt
@@ -97,14 +59,7 @@ character-level text understanding for the backbone:
 <details>
 <summary><b>TAE</b></summary>
 
-We use SD3.5 VAE to initialize the spatial layers of TAE since both have the same number of latent channels, i.e., 16.
-
-1. Download SD3.5 VAE from [huggingface](https://huggingface.co/stabilityai/stable-diffusion-3.5-large/tree/main/vae)
-
-2. Inflate VAE checkpoint for TAE initialization by
-    ```shell
-    python inflate_vae_to_tae.py --src /path/to/sd3.5_vae/diffusion_pytorch_model.safetensors --target models/tae_vae2d.ckpt
-    ```
+You can download the TAE weights from [here]().
 
 </details>
 
@@ -123,7 +78,9 @@ If you face an SSL certificate verification error, you can add `--disable_ssl_ve
 
 </details>
 
-## Generating Text Embeddings
+## Inference
+
+### Generating Text Embeddings
 
 Due to the large memory footprint of the text encoders, the inference and training pipelines don't support generating
 text embeddings online. Therefore, you need to prepare them in advance by running the following command:
@@ -139,11 +96,9 @@ python inference_text_enc.py \
 > [!NOTE]
 > We use the sequence length of 512 tokens for UL2, 256 for MetaCLIP, and 100 for ByT5.
 
-## Inference
+### Text-to-Image
 
 For more detailed instructions, please run `python inference.py --help`.
-
-### Text-to-Image
 
 ```shell
 python inference.py \
@@ -171,41 +126,6 @@ python inference.py \
 --num_frames 32 \
 --batch_size 2 \
 --save_format mp4
-```
-
-### TAE
-
-#### Encoding Video
-
-```python
-from mg.models.tae import TemporalAutoencoder
-
-# may set use_tile=True to save memory
-tae = TemporalAutoencoder(
-    pretrained='/path/to/tae.ckpt',
-    use_tile=False,
-)
-
-# x - a batch of videos, shape (b c t h w)
-z, _, _ = tae.encode(x)
-
-# you may scale z by:
-z = (z - tae.shift_factor) * tae.scale_factor
-```
-
-For detailed arguments, please refer to the docstring in [tae.py](mg/models/tae/tae.py)
-
-#### Decoding Video Latent
-
-```python
-# if z is scaled, you should unscale at first:
-z = z / tae.scale_factor + tae.shift_factor
-
-# z - a batch of video latent, shape (b c t h w)
-x = tae.decode(z)
-
-# for image decoding, set num_target_frames to discard the spurious frames
-x = tae.decode(z, num_target_frames=1)
 ```
 
 ## Training
@@ -238,6 +158,12 @@ video,caption
 video_folder/part01/vid001.mp4,a cartoon character is walking through
 video_folder/part01/vid002.mp4,a red and white ball with an angry look on its face
 ```
+
+### Generating Text Embeddings
+
+Due to the large memory footprint of the text encoders, the inference and training pipelines don't support generating
+text embeddings online. Please refer to the [Generating Text Embeddings](#generating-text-embeddings) section under the
+Inference section for details.
 
 ### Cache Video Embedding (Optional)
 

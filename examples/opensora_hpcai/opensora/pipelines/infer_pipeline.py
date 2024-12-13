@@ -58,11 +58,12 @@ class InferPipeline:
             self.use_cfg = False
 
         self.text_encoder = text_encoder
+        self.diffusion = create_diffusion(str(num_inference_steps))
 
         if sampling.lower() == "ddim":
-            self.sampling_func = create_diffusion(str(num_inference_steps)).ddim_sample_loop
+            self.sampling_func = self.diffusion.ddim_sample_loop
         elif sampling.lower() == "ddpm":
-            self.sampling_func = create_diffusion(str(num_inference_steps)).p_sample_loop
+            self.sampling_func = self.diffusion.p_sample_loop
         elif sampling.lower() == "rflow":
             self.sampling_func = RFLOW(num_inference_steps, cfg_scale=guidance_rescale, use_timestep_transform=True)
         else:
@@ -127,9 +128,9 @@ class InferPipeline:
         # for token/text drop in caption embedder for condition-free guidance training. The null mask is the same as text mask.
         n = x.shape[0]
         # (n_tokens, dim_emb) -> (b n_tokens dim_emb)
+        null_emb = self.model.y_embedder.y_embedding[None, :, :].repeat(n, axis=0)
 
         if self.use_cfg:
-            null_emb = self.model.y_embedder.y_embedding[None, :, :].repeat(n, axis=0)
             y = ops.cat([text_emb, null_emb], axis=0)
             x_in = ops.concat([x] * 2, axis=0)
             assert y.shape[0] == x_in.shape[0], "shape mismatch!"

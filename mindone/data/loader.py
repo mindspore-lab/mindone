@@ -93,8 +93,6 @@ def create_dataloader(
     if max_rowsize is None:
         # MS 2.3 and above: allocate memory dynamically
         max_rowsize = -1 if MS_VERSION >= "2.3" else 64
-    if MS_VERSION < "2.3" and max_rowsize <= 0:
-        raise ValueError(f"`max_rowsize` must be a positive integer, got {max_rowsize}")
 
     if transforms is not None:
         if isinstance(transforms, dict):
