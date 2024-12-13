@@ -1,6 +1,6 @@
 import logging
 from abc import abstractmethod
-
+import pdb
 from lvdm.modules.attention import SpatialTransformer, TemporalTransformer
 from lvdm.modules.networks.util import (
     Identity,
@@ -17,6 +17,7 @@ from lvdm.modules.networks.util import (
 import mindspore as ms
 import mindspore.nn as nn
 import mindspore.ops as ops
+import mindspore.mint as mint
 from mindspore.common.initializer import initializer
 
 from mindone.utils.version_control import is_old_ms_version
@@ -42,6 +43,7 @@ class TimestepEmbedSequential(nn.SequentialCell, TimestepBlock):
     support it as an extra input.
     """
 
+    # def construct(self, x, emb, context, batch_size):
     def construct(self, x, emb, context=None, batch_size=None):
         for layer in self:
             if isinstance(layer, TimestepBlock):
@@ -440,6 +442,7 @@ class UNetModel(nn.Cell):
         image_cross_attention_scale_learnable=False,
         default_fs=4,
         fs_condition=False,
+        use_recompute=False,
         enable_flash_attention=False,
     ):
         super(UNetModel, self).__init__()
@@ -724,9 +727,33 @@ class UNetModel(nn.Cell):
             zero_module(conv_nd(dims, model_channels, out_channels, 3, padding=1, has_bias=True, pad_mode="pad")),
         )
 
+        if use_recompute:
+            self.recompute_strategy()
+
+
+    def recompute_strategy(self):
+        # embed
+        self.time_embed.recompute()
+
+        # input blocks
+        for block in self.input_blocks:
+            for b in block:
+                b.recompute()
+
+        # middle block
+        for block in self.middle_block:
+            block.recompute()
+
+        # output blocks
+        for block in self.output_blocks:
+            for b in block:
+                b.recompute()
+
+
     def construct(self, x, timesteps, context=None, features_adapter=None, fs=None, **kwargs):
         b, _, t, _, _ = x.shape
-        t_emb = timestep_embedding(timesteps, self.model_channels, repeat_only=False).astype(x.dtype)
+        # t_emb = timestep_embedding(timesteps, self.model_channels, repeat_only=False).astype(x.dtype) # FIXME: need astype(x.ftype)?
+        t_emb = timestep_embedding(timesteps, self.model_channels, repeat_only=False)
         emb = self.time_embed(t_emb)
 
         # repeat t times for context [(b t) 77 768] & time embedding
@@ -734,7 +761,8 @@ class UNetModel(nn.Cell):
         _, l_context, _ = context.shape
         if l_context == 77 + t * 16:  # !!! HARD CODE here
             context_text, context_img = context[:, :77, :], context[:, 77:, :]
-            context_text = context_text.repeat_interleave(repeats=t, dim=0)
+            # context_text = context_text.repeat_interleave(repeats=t, dim=0)
+            context_text = mint.repeat_interleave(context_text, repeats=t, dim=0)
 
             # context_img = rearrange(context_img, 'b (t l) c -> (b t) l c', t=t)
             b, tl, c = context_img.shape
@@ -742,8 +770,10 @@ class UNetModel(nn.Cell):
 
             context = ops.cat([context_text, context_img], axis=1)
         else:
-            context = context.repeat_interleave(repeats=t, dim=0)
-        emb = emb.repeat_interleave(repeats=t, dim=0)
+            # context = context.repeat_interleave(repeats=t, dim=0)
+            context = mint.repeat_interleave(context, repeats=t, dim=0)
+        # emb = emb.repeat_interleave(repeats=t, dim=0)
+        emb = mint.repeat_interleave(emb, repeats=t, dim=0)
 
         # always in shape (b t) c h w, except for temporal layer
         x = rearrange_out_gn5d(x)
@@ -752,10 +782,11 @@ class UNetModel(nn.Cell):
         if self.fs_condition:
             if fs is None:
                 fs = ms.Tensor([self.default_fs] * b, dtype=ms.int64)
-            fs_emb = timestep_embedding(fs, self.model_channels, repeat_only=False).astype(x.dtype)
+            # fs_emb = timestep_embedding(fs, self.model_channels, repeat_only=False).astype(x.dtype) # FIXME: need astype(x.ftype)?
+            fs_emb = timestep_embedding(fs, self.model_channels, repeat_only=False)
 
             fs_embed = self.fps_embedding(fs_emb)
-            fs_embed = fs_embed.repeat_interleave(repeats=t, dim=0)
+            fs_embed = mint.repeat_interleave(fs_embed, repeats=t, dim=0)
             emb = emb + fs_embed
 
         h = x.astype(self.dtype)

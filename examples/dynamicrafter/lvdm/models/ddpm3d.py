@@ -1,7 +1,8 @@
+import random
 import logging
 from functools import partial
 from typing import Union
-
+import pdb
 import numpy as np
 from lvdm.models.utils_diffusion import make_beta_schedule, rescale_zero_terminal_snr
 from lvdm.modules.networks.util import rearrange_in_gn5d_bs, rearrange_out_gn5d
@@ -9,7 +10,8 @@ from lvdm.modules.networks.util import rearrange_in_gn5d_bs, rearrange_out_gn5d
 import mindspore as ms
 from mindspore import Parameter, Tensor
 from mindspore import dtype as mstype
-from mindspore import nn, ops
+from mindspore import nn, ops, mint
+from mindspore import numpy as msnp
 
 from mindone.utils.config import instantiate_from_config
 from mindone.utils.misc import default, exists, extract_into_tensor
@@ -67,6 +69,7 @@ class DDPM(nn.Cell):
         self.cond_stage_model = None
         self.clip_denoised = clip_denoised
         self.log_every_t = log_every_t
+        assert first_stage_key == "video"
         self.first_stage_key = first_stage_key
         self.image_size = image_size  # try conv?
         self.channels = channels
@@ -146,8 +149,50 @@ class DDPM(nn.Cell):
         self.sqrt_alphas_cumprod = self.to_mindspore(np.sqrt(alphas_cumprod))
         self.sqrt_one_minus_alphas_cumprod = self.to_mindspore(np.sqrt(1.0 - alphas_cumprod))
         self.log_one_minus_alphas_cumprod = self.to_mindspore(np.log(1.0 - alphas_cumprod))
-        self.sqrt_recip_alphas_cumprod = self.to_mindspore(np.sqrt(1.0 / alphas_cumprod))
-        self.sqrt_recipm1_alphas_cumprod = self.to_mindspore(np.sqrt(1.0 / alphas_cumprod - 1))
+
+        if self.parameterization != 'velocity':
+            # self.register_buffer('sqrt_recip_alphas_cumprod', to_torch(np.sqrt(1. / alphas_cumprod)))
+            # self.register_buffer('sqrt_recipm1_alphas_cumprod', to_torch(np.sqrt(1. / alphas_cumprod - 1)))
+            self.sqrt_recip_alphas_cumprod = self.to_mindspore(np.sqrt(1.0 / alphas_cumprod))
+            self.sqrt_recipm1_alphas_cumprod = self.to_mindspore(np.sqrt(1.0 / alphas_cumprod - 1))
+        else:
+            # self.register_buffer('sqrt_recip_alphas_cumprod', torch.zeros_like(to_torch(alphas_cumprod)))
+            # self.register_buffer('sqrt_recipm1_alphas_cumprod', torch.zeros_like(to_torch(alphas_cumprod)))
+            self.sqrt_recip_alphas_cumprod = ops.zeros_like(self.to_mindspore(alphas_cumprod))
+            self.sqrt_recipm1_alphas_cumprod = ops.zeros_like(self.to_mindspore(alphas_cumprod))
+
+        # calculations for posterior q(x_{t-1} | x_t, x_0)
+        posterior_variance = (1 - self.v_posterior) * betas * (1. - alphas_cumprod_prev) / (
+                    1. - alphas_cumprod) + self.v_posterior * betas
+        # above: equal to 1. / (1. / (1. - alpha_cumprod_tm1) + alpha_t / beta_t)
+        self.posterior_variance = self.to_mindspore(posterior_variance)
+        # self.register_buffer('posterior_variance', to_torch(posterior_variance))
+
+        # below: log calculation clipped because the posterior variance is 0 at the beginning of the diffusion chain
+        self.posterior_log_variance_clipped = self.to_mindspore(np.log(np.maximum(posterior_variance, 1e-20)))
+        self.posterior_mean_coef1 = self.to_mindspore(betas * np.sqrt(alphas_cumprod_prev) / (1. - alphas_cumprod))
+        self.posterior_mean_coef2 = self.to_mindspore((1. - alphas_cumprod_prev) * np.sqrt(alphas) / (1. - alphas_cumprod))
+
+        # self.register_buffer('posterior_log_variance_clipped', to_torch(np.log(np.maximum(posterior_variance, 1e-20))))
+        # self.register_buffer('posterior_mean_coef1', to_torch(
+        #     betas * np.sqrt(alphas_cumprod_prev) / (1. - alphas_cumprod)))
+        # self.register_buffer('posterior_mean_coef2', to_torch(
+        #     (1. - alphas_cumprod_prev) * np.sqrt(alphas) / (1. - alphas_cumprod)))
+
+        if self.parameterization == "eps":
+            lvlb_weights = self.betas ** 2 / (
+                        2 * self.posterior_variance * self.to_mindspore(alphas) * (1 - self.alphas_cumprod))
+        elif self.parameterization == "x0":
+            lvlb_weights = 0.5 * np.sqrt(Tensor(alphas_cumprod)) / (2. * 1 - Tensor(alphas_cumprod))
+        elif self.parameterization == "velocity":
+            lvlb_weights = ops.ones_like(self.betas ** 2 / (
+                    2 * self.posterior_variance * self.to_mindspore(alphas) * (1 - self.alphas_cumprod)))
+        else:
+            raise NotImplementedError("mu not supported")
+        # TODO how to choose this term
+        lvlb_weights[0] = lvlb_weights[1]
+        self.lvlb_weights = lvlb_weights
+        assert not ops.isnan(self.lvlb_weights).all()
 
     # def q_sample(self, x_start, t, noise):
     def add_noise(self, original_samples: ms.Tensor, noise: ms.Tensor, timestep: ms.Tensor) -> ms.Tensor:
@@ -181,6 +226,27 @@ class DDPM(nn.Cell):
             + extract_into_tensor(self.sqrt_one_minus_alphas_cumprod, t, x_t.shape) * x_t
         )
 
+    def q_sample(self, x_start, t, noise=None):
+        if noise is None:
+            noise = ops.randn_like(x_start)
+        return (
+                extract_into_tensor(self.sqrt_alphas_cumprod, t, x_start.shape) * x_start +
+                extract_into_tensor(self.sqrt_one_minus_alphas_cumprod, t, x_start.shape) * noise
+        )
+
+    # def q_sample(self, x_start, t, noise=None):
+    #     """
+    #     Diffuse the data for a given number of diffusion steps.
+    #     In other words, sample from q(x_t | x_0).
+    #     :param x_start: the initial data batch.
+    #     :param t: the number of diffusion steps (minus 1). Here, 0 means one step.
+    #     :param noise: if specified, the split-out normal noise.
+    #     :return: A noisy version of x_start.
+    #     """
+    #     return (
+    #         _extract_into_tensor(self.sqrt_alphas_cumprod, t, x_start.shape) * x_start
+    #         + _extract_into_tensor(self.sqrt_one_minus_alphas_cumprod, t, x_start.shape) * noise
+    #     )
     def get_v(self, x, noise, t):
         return (
                 extract_into_tensor(self.sqrt_alphas_cumprod, t, x.shape) * noise -
@@ -201,8 +267,18 @@ class DDPM(nn.Cell):
             raise NotImplementedError("unknown loss type '{loss_type}'")
 
         return loss
-
-
+    """
+    def get_input(self, batch, k):
+        x = batch[k]
+        '''
+        if len(x.shape) == 3:
+            x = x[..., None]
+        x = rearrange(x, 'b h w c -> b c h w')
+        '''
+        # x = x.to(memory_format=torch.contiguous_format).float()
+        x = x.astype(ms.float32)
+        return x
+    """
 class LatentDiffusion(DDPM):
     def __init__(
         self,
@@ -255,6 +331,7 @@ class LatentDiffusion(DDPM):
 
         self.concat_mode = concat_mode
         self.cond_stage_trainable = cond_stage_trainable
+        assert cond_stage_key == "caption"
         self.cond_stage_key = cond_stage_key
         self.noise_strength = noise_strength
         self.use_dynamic_rescale = use_dynamic_rescale
@@ -285,6 +362,7 @@ class LatentDiffusion(DDPM):
         assert uncond_type in ["zero_embed", "empty_seq"]
         self.uncond_type = uncond_type
         self.uncond_prob = uncond_prob
+        self.classifier_free_guidance = True if uncond_prob > 0 else False
         self.restarted_from_ckpt = False
         if ckpt_path is not None:
             self.init_from_ckpt(ckpt_path, ignore_keys, only_model=only_model)
@@ -375,22 +453,27 @@ class LatentDiffusion(DDPM):
             reshape_back = True
         else:
             reshape_back = False
+            b, t = None, None  # placeholder for graph mode
+        # pdb.set_trace()
 
         # consume more chip memory but faster
         if not self.perframe_ae:
-            results = ops.stop_gradient(self.scale_factor * self.first_stage_model.encode(x))
+            # results = ops.stop_gradient(self.scale_factor * self.first_stage_model.encode(x))
+            results = self.scale_factor * self.first_stage_model.encode(x)
         else:  # consume less chip memory but slower
             results = []
             for index in range(x.shape[0]):
-                frame_result = ops.stop_gradient(
-                    self.scale_factor * self.first_stage_model.encode(x[index : index + 1, :, :, :])
-                )
+                # pdb.set_trace()
+                frame_result = self.scale_factor * self.first_stage_model.encode(x[index : index + 1, :, :, :])
+                # frame_result = ops.stop_gradient(
+                #     self.scale_factor * self.first_stage_model.encode(x[index : index + 1, :, :, :])
+                # )
                 results.append(frame_result)
             results = ops.cat(results, axis=0)
 
         if reshape_back:
-            x = ops.reshape(x, (b, t, *x.shape[1:]))  # (b t c h w)
-            x = ops.transpose(x, (0, 2, 1, 3, 4))  # (b c t h w)
+            results = ops.reshape(results, (b, t, *results.shape[1:]))  # (b t c h w)
+            results = ops.transpose(results, (0, 2, 1, 3, 4))  # (b c t h w)
 
         return results
 
@@ -403,10 +486,12 @@ class LatentDiffusion(DDPM):
                 is a Tensor, it is the input argument of "c_concat" or `c_crossattn`
                 depends on the predefined `conditioning_key`.
         """
+        # pdb.set_trace()
+
         if isinstance(cond, ms.Tensor):
             key = "c_concat" if self.model.conditioning_key == "concat" else "c_crossattn"
             cond = {key: cond}
-
+        # pdb.set_trace()
         prev_sample = self.model(x_noisy, t, **cond, **kwargs)
 
         if isinstance(prev_sample, tuple):
@@ -451,7 +536,9 @@ class LatentDiffusion(DDPM):
     def get_learned_conditioning(self, c):
         if self.cond_stage_forward is None:
             tokens, _ = self.cond_stage_model.tokenize(c)  # text -> tensor
-            c = self.cond_stage_model.encode(Tensor(tokens))
+            # pdb.set_trace()
+            # c = self.cond_stage_model.encode(Tensor(tokens))  # FIXME: pynative oom here
+            c = self.cond_stage_model(Tensor(tokens))  # FIXME: pynative oom here
         else:
             raise NotImplementedError
             # assert hasattr(self.zcond_stage_model, self.cond_stage_forward)
@@ -469,20 +556,49 @@ class LatentDiffusion(DDPM):
 
         return cond
 
-    def construct(self, x, c, **kwargs):
-        t = ops.randint(0, self.num_timesteps, (x.shape[0],)).long()
+    def construct(self, *batch):
+        # pdb.set_trace()
+        loss, loss_dict = self.shared_step(batch, random_uncond=self.classifier_free_guidance)
+        """
+        ## sync_dist | rank_zero_only 
+        self.log_dict(loss_dict, prog_bar=True, logger=True, on_step=True, on_epoch=True, sync_dist=False)
+        #self.log("epoch/global_step", self.global_step.float(), prog_bar=True, logger=True, on_step=True, on_epoch=False)
+        '''
+        if self.use_scheduler:
+            lr = self.optimizers().param_groups[0]['lr']
+            self.log('lr_abs', lr, prog_bar=True, logger=True, on_step=True, on_epoch=False, rank_zero_only=True)
+        '''
+        if (batch_idx+1) % self.log_every_t == 0:
+            mainlogger.info(f"batch:{batch_idx}|epoch:{self.current_epoch} [globalstep:{self.global_step}]: loss={loss}")
+        """
+        return loss
+
+    def compute_loss(self, x, c, **kwargs):
+        # kwargs["fs"] = fs
+        # t = ops.randint(0, self.num_timesteps, (x.shape[0],)).long()
+        t = ops.randint(0, self.num_timesteps, (x.shape[0],))
         if self.use_dynamic_rescale:
             x = x * extract_into_tensor(self.scale_arr, t, x.shape)
         return self.p_losses(x, c, t, **kwargs)
 
     def p_losses(self, x_start, cond, t, noise=None, **kwargs):
+        noise = msnp.randn(x_start.shape)
+        """
         if self.noise_strength > 0:
             b, c, f, _, _ = x_start.shape
             offset_noise = ops.randn(b, c, f, 1, 1)
             noise = default(noise, lambda: ops.randn_like(x_start) + self.noise_strength * offset_noise)
         else:
             noise = default(noise, lambda: ops.randn_like(x_start))
+        """
         x_noisy = self.q_sample(x_start=x_start, t=t, noise=noise)
+
+        for k, v in cond.items():
+            if isinstance(v, (list, tuple)):  # PYNATIVE: list, GRAPH: tuple
+                assert len(v) == 1 and isinstance(v[0], ms.Tensor)
+                cond[k] = v[0]
+            else:
+                raise ValueError
 
         model_output = self.apply_model(x_noisy, t, cond, **kwargs)
 
@@ -493,7 +609,7 @@ class LatentDiffusion(DDPM):
             target = x_start
         elif self.parameterization == "eps":
             target = noise
-        elif self.parameterization == "v":
+        elif self.parameterization == "velocity":
             target = self.get_v(x_start, noise, t)
         else:
             raise NotImplementedError()
@@ -657,6 +773,97 @@ class LatentVisualDiffusion(LatentDiffusion):
             for param in self.embedder.get_parameters():
                 param.requires_grad = False
 
+    def shared_step(self, batch, random_uncond, **kwargs):
+        # pdb.set_trace()
+        x, c, fs = self.get_batch_input(batch, random_uncond=random_uncond, return_fs=True)
+        kwargs.update({"fs": fs.long()})
+        loss, loss_dict = self.compute_loss(x, c, **kwargs)
+        return loss, loss_dict
+
+    def get_batch_input(self, batch, random_uncond, return_first_stage_outputs=False, return_original_cond=False, return_fs=False, return_cond_frame=False, return_original_input=False, **kwargs):
+        # video, caption, path, fps, frame_stride = batch
+        video, text_emb, fps, frame_stride = batch
+        ## x: b c t h w
+        x = video.astype(ms.float32)
+
+        # pdb.set_trace()
+        ## encode video frames x to z via a 2D encoder        
+        z = self.encode_first_stage(x)  # FIXME: OOM here. stable_diffusion_v2.ldm.models.autoencoder.AutoencoderKL.encode
+        # z = ops.rand([1, 4, 16, 72, 128], dtype=ms.float32)  # 16x576x1024
+        # pdb.set_trace()
+        
+        ## get caption condition
+        # cond_input = caption.tolist()  # Tensor -> List[str]
+        # cond_emb = self.get_learned_conditioning(cond_input)
+        # cond_emb = ops.rand([1, 77, 1024] , dtype=ms.float16)  # FIXME: ms.float32
+
+        # cond_emb = text_emb.astype(ms.float16)
+
+        cond = {}
+        ## to support classifier-free guidance, randomly drop out only text conditioning 5%, only image conditioning 5%, and both 5%.
+        if random_uncond:
+            random_num = ops.rand(x.shape[0])
+        else:
+            random_num = ops.ones(x.shape[0])  ## by doning so, we can get text embedding and complete img emb for inference
+        # prompt_mask = rearrange(random_num < 2 * self.uncond_prob, "n -> n 1 1")
+        prompt_mask = (random_num < 2 * self.uncond_prob)[:, None, None]
+        # input_mask = 1 - rearrange((random_num >= self.uncond_prob).float() * (random_num < 3 * self.uncond_prob).float(), "n -> n 1 1 1")
+        input_mask = 1 - ((random_num >= self.uncond_prob).astype(ms.float32) * (random_num < 3 * self.uncond_prob).astype(ms.float32))[:, None, None, None]
+
+        null_prompt = self.get_learned_conditioning([""])
+        cond_emb = text_emb.astype(null_prompt.dtype)
+        # null_prompt = ops.rand([1, 77, 1024], dtype=ms.float16)  # FIXME: ms.float32
+        prompt_imb = ops.where(prompt_mask, null_prompt, cond_emb)
+
+        ## get conditioning frame
+        cond_frame_index = 0
+        if self.rand_cond_frame:
+            cond_frame_index = random.randint(0, self.model.diffusion_model.temporal_length-1)
+
+        img = x[:,:,cond_frame_index,...]
+        img = input_mask * img
+        ## img: b c h w
+        img_emb = self.embedder(img) ## b l c
+        img_emb = self.image_proj_model(img_emb)
+        img_emb = img_emb.astype(ms.float32)  # FIXME: convert back to fp32?
+
+        if self.model.conditioning_key == 'hybrid':
+            if self.interp_mode:
+                ## starting frame + (L-2 empty frames) + ending frame
+                img_cat_cond = ops.zeros_like(z)
+                img_cat_cond[:,:,0,:,:] = z[:,:,0,:,:]
+                img_cat_cond[:,:,-1,:,:] = z[:,:,-1,:,:]
+            else:
+                ## simply repeat the cond_frame to match the seq_len of z
+                img_cat_cond = z[:,:,cond_frame_index,:,:]
+                img_cat_cond = img_cat_cond.unsqueeze(2)
+                # img_cat_cond = repeat(img_cat_cond, 'b c t h w -> b c (repeat t) h w', repeat=z.shape[2])
+                img_cat_cond = mint.repeat_interleave(img_cat_cond, repeats=z.shape[2], dim=2)
+
+            cond["c_concat"] = [img_cat_cond] # b c t h w
+        cond["c_crossattn"] = [ops.cat([prompt_imb, img_emb], axis=1)] ## concat in the seq_len dim
+
+        out = [z, cond]
+        if return_first_stage_outputs:
+            xrec = self.decode_first_stage(z)
+            out.extend([xrec])
+
+        # if return_original_cond:
+        #     out.append(cond_input)
+        if return_fs:
+            if self.fps_condition_type == 'fs':
+                # fs = super().get_input(batch, 'frame_stride')
+                fs = frame_stride.astype(ms.float32)
+            elif self.fps_condition_type == 'fps':
+                # fs = super().get_input(batch, 'fps')
+                fs = fps.astype(ms.float32)
+            out.append(fs)
+        if return_cond_frame:
+            out.append(x[:,:,cond_frame_index,...].unsqueeze(2))
+        if return_original_input:
+            out.append(x)
+
+        return out
 
 # latent diffusion (unet) forward based on input noised latent and encoded conditions
 class DiffusionWrapper(nn.Cell):
@@ -668,15 +875,27 @@ class DiffusionWrapper(nn.Cell):
         assert self.conditioning_key in [None, "concat", "crossattn", "hybrid", "adm", "crossattn-adm"]
 
     def construct(self, x, t, c_concat=None, c_crossattn=None, c_adm=None, **kwargs):
+        
+        # if isinstance(c_concat, tuple):
+        #     raise ValueError(f"c_concat is tuple")
+        #     # raise ValueError(f"c_concat is tuple. len: {len(c_concat)}, shape: {c_concat[0].shape}, type: {type(c_concat[0])}")
+        # elif isinstance(c_concat, ms.Tensor):
+        #     raise ValueError("c_concat is ms.Tensor")
+        # else:
+        #     raise ValueError
+
         if self.conditioning_key is None:
             out = self.diffusion_model(x, t, **kwargs)
         elif self.conditioning_key == "concat":
-            x_concat = ops.concat((x, c_concat), axis=1)
+            x_concat = ops.concat((x, c_concat), axis=1)  # FIXME
             out = self.diffusion_model(x_concat, t, **kwargs)
         elif self.conditioning_key == "crossattn":  # t2v task
             context = c_crossattn
             out = self.diffusion_model(x, t, context=context, **kwargs)
         elif self.conditioning_key == "hybrid":
+            # # x_concat = ops.concat([x] + [c_concat[0]], axis=1)  # FIXME
+            # x_concat = ops.concat([x] + c_concat, axis=1)  # FIXME
+            # context = ops.concat(c_crossattn, 1)
             x_concat = ops.concat((x, c_concat), axis=1)
             context = c_crossattn
             out = self.diffusion_model(x_concat, t, context=context, **kwargs)

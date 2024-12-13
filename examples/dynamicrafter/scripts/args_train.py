@@ -34,6 +34,7 @@ def parse_args():
     # the following args's defualt value will be overrided if specified in config yaml
     parser.add_argument("--model_config", default="configs/training_1024_v1.0.yaml", type=str, help="model config path")
     parser.add_argument("--data_dir", default="dataset", type=str, help="path to video root folder")
+    parser.add_argument("--text_emb_dir", default="text embedding", type=str, help="path to text embedding root folder")
     
     parser.add_argument(
         "--csv_path",
@@ -46,10 +47,28 @@ def parse_args():
         "--pretrained_model_path", default="", type=str, help="Specify the pretrained model from this checkpoint"
     )
     # ms
+    parser.add_argument("--debug", type=str2bool, default=False, help="Execute in pynative debug mode. (pynative_synchronize=True)")
     parser.add_argument("--device_target", type=str, default="Ascend", help="Ascend or GPU")
     parser.add_argument("--max_device_memory", type=str, default=None, help="e.g. `30GB` for 910a, `59GB` for 910b")
     parser.add_argument("--mode", default=0, type=int, help="Specify the mode: 0 for graph mode, 1 for pynative mode")
     parser.add_argument("--use_parallel", default=False, type=str2bool, help="use parallel")
+    parser.add_argument(
+        "--jit_level",
+        default="O0",
+        type=str,
+        choices=["O0", "O1", "O2"],
+        help="Used to control the compilation optimization level. Supports [“O0”, “O1”, “O2”]."
+        "O0: Except for optimizations that may affect functionality, all other optimizations are turned off, adopt KernelByKernel execution mode."
+        "O1: Using commonly used optimizations and automatic operator fusion optimizations, adopt KernelByKernel execution mode."
+        "O2: Ultimate performance optimization, adopt Sink execution mode.",
+    )
+    parser.add_argument(
+        "--amp_level",
+        default="O0",
+        type=str,
+        help="mindspore amp level, O1: most fp32, only layers in whitelist compute in fp16 (dense, conv, etc); \
+            O2: most fp16, only layers in blacklist compute in fp32 (batch norm etc)",
+    )
     parser.add_argument(
         "--replace_small_images",
         default=True,
@@ -88,7 +107,7 @@ def parse_args():
     parser.add_argument("--weight_decay", default=1e-6, type=float, help="Weight decay.")
     parser.add_argument("--seed", default=3407, type=int, help="data path")
     parser.add_argument("--warmup_steps", default=1000, type=int, help="warmup steps")
-    parser.add_argument("--train_batch_size", default=10, type=int, help="batch size")
+    parser.add_argument("--batch_size", default=1, type=int, help="batch size")
     parser.add_argument(
         "--log_interval",
         default=1,
@@ -185,9 +204,17 @@ def parse_args():
         type=str2bool,
         help="whether use fp16 precision in vae. If None, it will be set by the value in stable diffusion config yaml",
     )
-    parser.add_argument("--image_size", default=256, type=int, help="image size")
+    parser.add_argument(
+        "--amp_dtype",
+        default="fp16",
+        type=str,
+        choices=["bf16", "fp16"],
+        help="what computation data type to use for amp setting. Default is `fp16`, which corresponds to ms.float16",
+    )
+    # parser.add_argument("--image_size", default=256, type=int, help="image size")
+    parser.add_argument("--resolution", required=True, type=int, nargs="+", help="resolution")
     parser.add_argument("--num_frames", default=16, type=int, help="num frames")
-    parser.add_argument("--frame_stride", default=4, type=int, help="frame sampling stride")
+    parser.add_argument("--frame_stride", default=6, type=int, help="frame sampling stride")
     parser.add_argument(
         "--random_drop_text", default=True, type=str2bool, help="set caption to empty string randomly if enabled"
     )
@@ -247,6 +274,7 @@ def parse_args():
     args = parser.parse_args()
     args.model_config = to_abspath(abs_path, args.model_config)
     args.data_dir = to_abspath(abs_path, args.data_dir)
+    args.text_emb_dir = to_abspath(abs_path, args.text_emb_dir)
     args.csv_path = to_abspath(abs_path, args.csv_path)
     args.output_path = to_abspath(abs_path, args.output_path)
     args.pretrained_model_path = to_abspath(abs_path, args.pretrained_model_path)

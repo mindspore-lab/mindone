@@ -1,3 +1,4 @@
+
 import argparse
 import datetime
 import logging
@@ -204,9 +205,15 @@ def main(args):
         debug=args.debug,
     )
 
-    assert os.path.exists(args.prompt_dir), "Prompt file Not Found!"
+    assert os.path.isfile(args.prompt_csv), "Prompt file Not Found!"
     filename_list, data_list, prompt_list = load_data_prompts(
-        args.prompt_dir, video_size=(args.height, args.width), video_frames=args.video_length, interp=args.interp
+        args.prompt_csv, 
+        args.data_dir, 
+        args.img_col, 
+        args.text_col, 
+        video_size=(args.height, args.width), 
+        video_frames=args.video_length, 
+        interp=args.interp
     )
 
     # 2. model initiate and weight loading
@@ -301,7 +308,8 @@ def parse_args():
     parser.add_argument("--savedir", type=str, default=None, help="results saving path")
     parser.add_argument("--ckpt_path", type=str, default=None, help="checkpoint path")
     parser.add_argument("--config", type=str, help="config (yaml) path")
-    parser.add_argument("--prompt_dir", type=str, default=None, help="a data dir containing videos and prompts")
+    parser.add_argument("--prompt_csv", type=str, default=None, help="path of csv file containing image paths and texts")
+    parser.add_argument("--data_dir", type=str, default=None, help="a data dir containing prompts, including images and texts")
     parser.add_argument(
         "--n_samples",
         type=int,
@@ -390,6 +398,8 @@ def parse_args():
     parser.add_argument("--mode", type=int, default=0, help="Running in GRAPH_MODE(0) or PYNATIVE_MODE(1) (default=0)")
     parser.add_argument("--use_parallel", default=False, type=str2bool, help="use parallel")
     parser.add_argument("--debug", type=str2bool, default=False, help="Execute inference in debug mode.")
+    parser.add_argument("--img_col", type=str, default="video", help="column name for the image path in prompt csv")
+    parser.add_argument("--text_col", type=str, default="caption", help="column name for the text in prompt csv")
 
     # currently not support looping video and generative frame interpolation
     parser.add_argument("--loop", action="store_true", default=False, help="generate looping videos or not")

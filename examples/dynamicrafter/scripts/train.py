@@ -34,7 +34,7 @@ from mindone.trainers.lr_schedule import create_scheduler
 from mindone.trainers.optim import create_optimizer
 from mindone.trainers.train_step import TrainOneStepWrapper
 
-# from mindone.utils.amp import auto_mixed_precision
+from mindone.utils.amp import auto_mixed_precision
 from mindone.utils.config import get_obj_from_str
 from mindone.utils.logger import set_logger
 from mindone.utils.params import count_params, load_param_into_net_with_filter
@@ -128,6 +128,8 @@ def init_env(
     distributed: bool = False,
     max_device_memory: str = None,
     device_target: str = "Ascend",
+    jit_level: str = "O0",
+    debug: bool = False,
 ) -> Tuple[int, int, int]:
     """
     Initialize MindSpore environment.
@@ -140,6 +142,10 @@ def init_env(
         A tuple containing the device ID, rank ID and number of devices.
     """
     set_random_seed(seed)
+
+    if debug and mode == ms.GRAPH_MODE:  # force PyNative mode when debugging
+        logger.warning("Debug mode is on, switching execution mode to PyNative.")
+        mode = ms.PYNATIVE_MODE
 
     if max_device_memory is not None:
         ms.set_context(max_device_memory=max_device_memory)
@@ -175,6 +181,15 @@ def init_env(
             device_target=device_target,
             device_id=device_id,
             ascend_config={"precision_mode": "allow_fp32_to_fp16"},  # TODO: tune
+            pynative_synchronize=debug,
+        )
+
+    try:
+        ms.set_context(jit_config={"jit_level": jit_level})
+    except Exception:
+        logger.warning(
+            "The current jit_level is not suitable because current MindSpore version or mode does not match,"
+            "please ensure the MindSpore version >= ms2.3_0615, and use GRAPH_MODE."
         )
 
     return device_id, rank_id, device_num
@@ -219,7 +234,8 @@ def main(args):
     )
     """
     # TODO: debugging
-    # latent_diffusion_with_loss = auto_mixed_precision(latent_diffusion_with_loss, "O2")
+    dtype_map = {"fp16": ms.float16, "bf16": ms.bfloat16}
+    latent_diffusion_with_loss = auto_mixed_precision(latent_diffusion_with_loss, amp_level=args.amp_level, dtype=dtype_map[args.amp_dtype], custom_fp32_cells=[])
     """
     if not args.image_finetune:
         # load mm pretrained weight
@@ -290,15 +306,18 @@ def main(args):
         )
     else:
     """
-    data_config = dict(
+    data_config = dict(   # FIXME: move the hard code args to args_train.py
             csv_path=csv_path,
             data_dir=args.data_dir,
-            column_names=["video", "caption", "path", "fps", "frame_stride"],
+            text_emb_dir=args.text_emb_dir,
+            column_names=["video", "text_emb", "fps", "frame_stride"],
+            # column_names=["video", "caption", "path", "fps", "frame_stride"],
+            # column_names=["video", "caption", "frame_stride"],
             # subsample=None,
-            batch_size=1,
-            video_length=16,
-            resolution=[576, 1024],
-            frame_stride=6,
+            batch_size=args.batch_size,
+            video_length=args.num_frames,
+            resolution=args.resolution,
+            frame_stride=args.frame_stride,
             # frame_stride_min=1,
             spatial_transform="resize_center_crop",
             # crop_resolution=None,
@@ -460,7 +479,7 @@ def main(args):
             model_name="dc",
             use_lora=args.motion_lora_finetune,
             lora_rank=args.motion_lora_rank,
-            param_save_filter=[".temporal_transformer."] if args.save_mm_only else None,
+            param_save_filter=[".temporal_transformer."] if args.save_mm_only else None,  # FIXME
             record_lr=False,  # TODO: check LR retrival for new MS on 910b
         )
         callback.append(save_cb)
@@ -480,12 +499,14 @@ def main(args):
                 f"MindSpore mode[GRAPH(0)/PYNATIVE(1)]: {args.mode}",
                 f"Distributed mode: {args.use_parallel}",
                 f"Data dir: {args.data_dir}",
+                f"Text embedding dir: {args.text_emb_dir}",
                 f"Num params: {num_params:,} (unet: {num_params_unet:,}, text encoder: {num_params_text_encoder:,}, vae: {num_params_vae:,})",
                 f"Num trainable params: {num_trainable_params:,}",
                 f"Precision: {latent_diffusion_with_loss.model.diffusion_model.dtype}",
                 f"Learning rate: {args.start_learning_rate}",
-                f"Batch size: {args.train_batch_size}",
-                f"Image size: {args.image_size}",
+                f"Batch size: {args.batch_size}",
+                # f"Image size: {args.image_size}",
+                f"Resolution: {args.resolution}",
                 f"Frames: {args.num_frames}",
                 f"Weight decay: {args.weight_decay}",
                 f"Grad accumulation steps: {args.gradient_accumulation_steps}",

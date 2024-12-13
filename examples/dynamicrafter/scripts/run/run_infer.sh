@@ -1,9 +1,12 @@
 resolution=$1 # 1024, 512, 256
-ckpt=$2
+num_frames=$2
+ckpt=$3
 
 seed=123
 name=dynamicrafter_${resolution}_seed${seed}
-prompt_dir=prompts/${resolution}/
+# prompt_dir=prompts/${resolution}/
+prompt_csv=/root/lhy/data/mixkit-100videos/video_caption_test.csv
+data_dir=/root/lhy/data/mixkit-100videos_dc_infer
 config=configs/inference_${resolution}_v1.0.yaml
 res_dir="results"
 
@@ -31,7 +34,8 @@ python scripts/inference.py \
     --bs 1 \
     --height $H \
     --width $W \
-    --prompt_dir $prompt_dir \
+    --prompt_csv $prompt_csv \
+    --data_dir $data_dir \
     --config $config \
     --savedir $res_dir/$name \
     --mode 0 \
@@ -41,9 +45,10 @@ python scripts/inference.py \
     --ddim_steps 50 \
     --ddim_eta 1.0 \
     --text_input \
-    --video_length 16 \
+    --video_length $num_frames \
     --frame_stride $FS \
     --ckpt_path $ckpt
+    # --prompt_dir $prompt_dir \
 else
 python scripts/inference.py \
     --device_target Ascend \
@@ -51,7 +56,8 @@ python scripts/inference.py \
     --bs 1 \
     --height $H \
     --width $W \
-    --prompt_dir $prompt_dir \
+    --prompt_csv $prompt_csv \
+    --data_dir $data_dir \
     --config $config \
     --savedir $res_dir/$name \
     --mode 0 \
@@ -61,10 +67,11 @@ python scripts/inference.py \
     --ddim_steps 50 \
     --ddim_eta 1.0 \
     --text_input \
-    --video_length 16 \
+    --video_length $num_frames \
     --frame_stride $FS \
     --ckpt_path $ckpt \
     --timestep_spacing 'uniform_trailing' \
     --guidance_rescale 0.7 \
     --perframe_ae
+    # --prompt_dir $prompt_dir \
 fi

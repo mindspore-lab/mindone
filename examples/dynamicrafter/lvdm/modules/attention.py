@@ -1,6 +1,6 @@
 import logging
 from functools import partial
-
+import pdb
 import numpy as np
 
 import mindspore as ms
@@ -393,7 +393,7 @@ class BasicTransformerBlock(nn.Cell):
         unet_chunk_size=2,
     ):
         super().__init__()
-        attn_cls = CrossAttention if attention_cls is None else attention_cls
+        attn_cls = CrossAttention if attention_cls is None else attention_cls  # always CrossAttention, in TemporalTransformer, it's partial(CrossAttention, temporal_length=temporal_length)
         self.disable_self_attn = disable_self_attn
         self.attn1 = attn_cls(
             query_dim=dim,
@@ -426,7 +426,7 @@ class BasicTransformerBlock(nn.Cell):
         self.norm3 = nn.LayerNorm([dim], epsilon=1e-05).to_float(dtype)
 
     def construct(self, x, context=None):
-        x = self.attn1(self.norm1(x), context=context if self.disable_self_attn else None) + x
+        x = self.attn1(self.norm1(x), context=context if self.disable_self_attn else None) + x  # self.disable_self_attn always False
         x = self.attn2(self.norm2(x), context=context) + x
         x = self.ff(self.norm3(x)) + x
         return x

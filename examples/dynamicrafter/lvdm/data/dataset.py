@@ -1,8 +1,9 @@
 import os
 import random
 import logging
-import csv
+from pathlib import Path
 
+import csv
 import numpy as np
 from decord import VideoReader
 import mindspore as ms
@@ -15,6 +16,7 @@ class WebVid:
     def __init__(self,
                  csv_path,
                  data_dir,
+                 text_emb_dir,
                  subsample=None,
                  video_length=16,
                  resolution=[256, 512],
@@ -30,6 +32,7 @@ class WebVid:
                  ):
         self.csv_path = csv_path
         self.data_dir = data_dir
+        self.text_emb_dir = text_emb_dir
         self.subsample = subsample
         self.video_length = video_length
         self.resolution = [resolution, resolution] if isinstance(resolution, int) else resolution
@@ -72,13 +75,19 @@ class WebVid:
             index = index % len(self.metadata)
             sample = self.metadata[index]
             video_path = os.path.join(self.data_dir, sample["video"])
-            caption = sample['caption']
+            text_emb_path = os.path.join(self.text_emb_dir, Path(sample["video"]).with_suffix(".npz"))
+            # caption = sample['caption']
+
+            # text_emb
+            with np.load(text_emb_path) as f:
+                text_emb = f["text_emb"]
+                # data["mask"] = td["mask"].astype(np.uint8)
 
             try:
                 if self.load_raw_resolution:
                     video_reader = VideoReader(video_path)
                 else:
-                    video_reader = VideoReader(video_path, width=530, height=300)
+                    video_reader = VideoReader(video_path, width=530, height=300)  # FIXME: why hard code here?
                 if len(video_reader) < self.video_length:
                     print(f"video length ({len(video_reader)}) is smaller than target length({self.video_length})")
                     index += 1
@@ -138,7 +147,10 @@ class WebVid:
         if self.fps_max is not None and fps_clip > self.fps_max:
             fps_clip = self.fps_max
 
-        return frames, caption, video_path, fps_clip, frame_stride
+        # return frames, caption, frame_stride
+        # return frames, caption, video_path, fps_clip, frame_stride
+        # return frames, video_path, fps_clip, frame_stride
+        return frames, text_emb, fps_clip, frame_stride
     
     def __len__(self):
         return len(self.metadata)

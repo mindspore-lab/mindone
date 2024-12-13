@@ -1,5 +1,5 @@
 model:
-  # pretrained_checkpoint: checkpoints/dynamicrafter_1024_v1/model.ckpt
+  # pretrained_checkpoint: checkpoints/dynamicrafter_512_v1/model.ckpt
   base_learning_rate: 1.0e-05
   scale_lr: False
   target: lvdm.models.ddpm3d.LatentVisualDiffusion
@@ -16,7 +16,7 @@ model:
     cond_stage_trainable: False
     image_proj_model_trainable: True
     conditioning_key: hybrid
-    image_size: [72, 128]
+    image_size: [40, 64]
     channels: 4
     scale_by_std: False
     scale_factor: 0.18215
@@ -25,7 +25,7 @@ model:
     uncond_type: 'empty_seq'
     rand_cond_frame: true
     use_dynamic_rescale: true
-    base_scale: 0.3
+    base_scale: 0.7
     fps_condition_type: 'fps'
     perframe_ae: True
 
@@ -50,6 +50,7 @@ model:
         transformer_depth: 1
         context_dim: 1024
         use_linear: true
+        # use_checkpoint: True
         temporal_conv: True
         temporal_attention: True
         temporal_selfatt_only: true
@@ -83,6 +84,8 @@ model:
           num_res_blocks: 2
           attn_resolutions: []
           dropout: 0.0
+        # lossconfig:
+        #   target: torch.nn.Identity
 
     cond_stage_config:
       target: lvdm.modules.encoders.condition.FrozenOpenCLIPEmbedder
@@ -113,7 +116,7 @@ model:
 # data:
 #   target: utils_data.DataModuleFromConfig
 #   params:
-#     batch_size: 1
+#     batch_size: 2
 #     num_workers: 12
 #     wrap: false
 #     train:
@@ -124,6 +127,44 @@ model:
 #         video_length: 16
 #         frame_stride: 6
 #         load_raw_resolution: true
-#         resolution: [576, 1024]
+#         resolution: [320, 512]
 #         spatial_transform: resize_center_crop
 #         random_fs: true  ## if true, we uniformly sample fs with max_fs=frame_stride (above)
+
+# lightning:
+#   precision: 16
+#   # strategy: deepspeed_stage_2
+#   trainer:
+#     benchmark: True
+#     accumulate_grad_batches: 2
+#     max_steps: 100000
+#     # logger
+#     log_every_n_steps: 50
+#     # val
+#     val_check_interval: 0.5
+#     gradient_clip_algorithm: 'norm'
+#     gradient_clip_val: 0.5
+#   callbacks:
+#     model_checkpoint:
+#       target: pytorch_lightning.callbacks.ModelCheckpoint
+#       params:
+#         every_n_train_steps: 9000 #1000
+#         filename: "{epoch}-{step}"
+#         save_weights_only: True
+#     metrics_over_trainsteps_checkpoint:
+#       target: pytorch_lightning.callbacks.ModelCheckpoint
+#       params:
+#         filename: '{epoch}-{step}'
+#         save_weights_only: True
+#         every_n_train_steps: 10000 #20000 # 3s/step*2w=
+#     batch_logger:
+#       target: callbacks.ImageLogger
+#       params:
+#         batch_frequency: 500
+#         to_local: False
+#         max_images: 8
+#         log_images_kwargs:
+#           ddim_steps: 50
+#           unconditional_guidance_scale: 7.5
+#           timestep_spacing: uniform_trailing
+#           guidance_rescale: 0.7
