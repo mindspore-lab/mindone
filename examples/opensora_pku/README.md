@@ -2,7 +2,7 @@
 
 Here we provide an efficient MindSpore version of [Open-Sora-Plan](https://github.com/PKU-YuanGroup/Open-Sora-Plan/tree/main) from Peking University. We would like to express our gratitude to their contributions! :+1:
 
-**OpenSora-PKU is still under active development.** Currently, we are in line with **Open-Sora-Plan v1.2.0** ([commit id](https://github.com/PKU-YuanGroup/Open-Sora-Plan/commit/294993ca78bf65dec1c3b6fb25541432c545eda9)).
+**OpenSora-PKU is still under active development.** Currently, we are in line with **Open-Sora-Plan v1.3.0** ([commit id](https://github.com/PKU-YuanGroup/Open-Sora-Plan/commit/9fa322fbbb276e2bbe40b2f439e3d610af3d7690)).
 
 ## 📰 News & States
 
@@ -24,31 +24,6 @@ Here we provide an efficient MindSpore version of [Open-Sora-Plan](https://githu
 | mindspore | ascend driver | firmware | cann tookit/kernel |
 | :---:       |   :---:         | :---:      | :---:                |
 | 2.3.1     |  24.1RC2      |7.3.0.1.231|   8.0.RC2.beta1   |
-
-## 🎥 Demo
-
-The following videos are generated based on MindSpore and Ascend 910*.
-
-<summary>Open-Sora-Plan v1.3.0 Demo</summary>
-
-93×640×640 Text-to-Video Generation.
-
-| 29x720x1280 (1.2s) |
-| --- |
-| <img src="https://github.com/wtomin/mindone-assets/blob/main/opensora_pku/v1.2/29x720p/0-A%20close-up%20of%20a%20woman%E2%80%99s%20face%2C%20illuminated%20by%20the%20soft%20light%20of%20dawn%2C%20her%20expression%20serene%20and%20conte.gif?raw=true" width=720> |
-| A close-up of a woman’s face, illuminated by the soft light of dawn... |
-
-| 29x720x1280 (1.2s) |
-| --- |
-| <img src="https://github.com/wtomin/mindone-assets/blob/main/opensora_pku/v1.2/29x720p/0-A%20young%20man%20at%20his%2020s%20is%20sitting%20on%20a%20piece%20of%20cloud%20in%20the%20sky%2C%20reading%20a%20book..gif?raw=true" width=720>  |
-| 0-A young man at his 20s is sitting on a piece of cloud in the sky, reading a book...  |
-
-| 29x720x1280 (1.2s) |
-| --- |
-| <img src="https://github.com/wtomin/mindone-assets/blob/main/opensora_pku/v1.2/29x720p/0-A%20close-up%20of%20a%20woman%20with%20a%20vintage%20hairstyle%20and%20bright%20red%20lipstick%2C%20gazing%20seductively%20into%20the%20.gif?raw=true" width=720> |
-| 0-A close-up of a woman with a vintage hairstyle and bright red lipstick...  |
-
-Videos are saved to `.gif` for display.
 
 ## 🔆 Features
 

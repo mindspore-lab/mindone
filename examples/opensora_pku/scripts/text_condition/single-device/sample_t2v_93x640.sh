@@ -6,7 +6,7 @@ python opensora/sample/sample.py \
     --model_path LanguageBind/Open-Sora-Plan-v1.3.0/any93x640x640 \
     --version v1_3 \
     --num_frames 93 \
-    --height 640 \
+    --height 352 \
     --width 640 \
     --text_encoder_name_1 google/mt5-xxl \
     --text_prompt examples/sora.txt \
