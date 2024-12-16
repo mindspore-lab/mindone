@@ -1,4 +1,4 @@
-# Stage 3: 93x480x480 (480x480, 640x352, 352x640)
+# Stage 3: 93x640x352 (480x480, 640x352, 352x640)
 NUM_FRAME=93
 WIDTH=640
 HEIGHT=352
@@ -58,5 +58,6 @@ msrun --bind_core=True --worker_num=8 --local_worker_num=8 --master_port=9000 --
     --train_fps 16 \
     --trained_data_global_step 0 \
     --group_data \
+    --pretrained path/to/last/stage/ckpt \
     # --sp_size 8 \
     # --train_sp_batch_size 1 \

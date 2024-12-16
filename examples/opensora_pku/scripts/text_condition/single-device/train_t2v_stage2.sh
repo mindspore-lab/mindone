@@ -1,8 +1,9 @@
-# Stage 2: 93x320x320
+# Stage 2: 93x640x640
 NUM_FRAME=93
-WIDTH=320
-HEIGHT=320
-python opensora/train/train_t2v_diffusers.py \
+WIDTH=640
+HEIGHT=640
+MAX_HxW=409600
+python  opensora/train/train_t2v_diffusers.py \
     --model OpenSoraT2V_v1_3-2B/122 \
     --text_encoder_name_1 google/mt5-xxl \
     --cache_dir "./" \
@@ -14,6 +15,7 @@ python opensora/train/train_t2v_diffusers.py \
     --num_frames ${NUM_FRAME} \
     --max_height ${HEIGHT} \
     --max_width ${WIDTH} \
+    --max_hxw ${MAX_HxW} \
     --interpolation_scale_t 1.0 \
     --interpolation_scale_h 1.0 \
     --interpolation_scale_w 1.0 \
@@ -43,6 +45,9 @@ python opensora/train/train_t2v_diffusers.py \
     --ema_decay 0.999 \
     --speed_factor 1.0 \
     --drop_short_ratio 0.0 \
+    --use_parallel False \
+    --parallel_mode "zero" \
+    --zero_stage 2 \
     --max_device_memory "59GB" \
     --dataset_sink_mode False \
     --prediction_type "v_prediction" \
@@ -52,3 +57,4 @@ python opensora/train/train_t2v_diffusers.py \
     --train_fps 16 \
     --trained_data_global_step 0 \
     --group_data \
+    --pretrained path/to/last/stage/ckpt \
