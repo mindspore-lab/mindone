@@ -67,7 +67,7 @@ class GEGLU(nn.Cell):
     def __init__(self, dim_in, dim_out, dtype=ms.float32):
         super().__init__()
         self.proj = mint.nn.Linear(dim_in, dim_out * 2).to_float(dtype)
-        self.gelu = mint.nn.GELU()
+        self.gelu = nn.GELU()
 
     def construct(self, x):
         x, gate = mint.split(self.proj(x), self.proj(x).shape[-1]//2, dim=-1)
