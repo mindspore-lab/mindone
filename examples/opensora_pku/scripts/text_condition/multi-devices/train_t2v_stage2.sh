@@ -1,7 +1,7 @@
-# Stage 2: 93x320x320
+# Stage 2: 93x640x640
 NUM_FRAME=93
-WIDTH=320
-HEIGHT=320
+WIDTH=640
+HEIGHT=640
 ASCEND_RT_VISIBLE_DEVICES=0,1,2,3,4,5,6,7
 msrun --bind_core=True --worker_num=8 --local_worker_num=8 --master_port=9000 --log_dir="t2v-video-${NUM_FRAME}x${HEIGHT}x${WIDTH}/parallel_logs" \
   opensora/train/train_t2v_diffusers.py \
@@ -61,5 +61,5 @@ msrun --bind_core=True --worker_num=8 --local_worker_num=8 --master_port=9000 --
     --trained_data_global_step 0 \
     --group_data \
     --mode 1 \
-    # --sp_size 8 \
-    # --train_sp_batch_size 1 \
+    --sp_size 8 \
+    --train_sp_batch_size 1 \
