@@ -21,10 +21,20 @@ from tqdm import tqdm
 from utils.model_utils import check_cfgs_in_parser, str2bool
 
 import mindspore as ms
+import mindspore.nn as nn
 
 from mindone.utils.logger import set_logger
 
 logger = logging.getLogger(__name__)
+
+
+class DynNet(nn.Cell):
+    def __init__(self, vae):
+        super().__init__(auto_prefix=False)
+        self.vae = vae
+
+    def construct(self, x):
+        return self.vae.encode_with_moments_output(x)
 
 
 def init_env(args):
@@ -36,6 +46,9 @@ def init_env(args):
         device_target=args.device_target,
         device_id=device_id,
     )
+
+    if args.mode == ms.GRAPH_MODE:
+        ms.set_context(jit_config={"jit_level": args.jit_level})
 
     return device_id
 
@@ -66,8 +79,20 @@ def parse_args():
     parser.add_argument("--data_path", default="dataset", type=str, help="data path")
     parser.add_argument("--imagenet_format", type=str2bool, default=True, help="Training with ImageNet dataset format")
     parser.add_argument("--device_target", type=str, default="Ascend", help="Ascend or GPU")
-    parser.add_argument("--mode", type=int, default=1, help="Running in GRAPH_MODE(0) or PYNATIVE_MODE(1) (default=0)")
-    parser.add_argument("--num_parallel_workers", default=12, type=int, help="num workers for data loading")
+    parser.add_argument("--mode", type=int, default=0, help="Running in GRAPH_MODE(0) or PYNATIVE_MODE(1) (default=0)")
+    parser.add_argument("--num_parallel_workers", default=4, type=int, help="num workers for data loading")
+
+    parser.add_argument(
+        "--jit_level",
+        default="O1",
+        type=str,
+        choices=["O0", "O1", "O2"],
+        help="Used to control the compilation optimization level. Supports [“O0”, “O1”, “O2”]."
+        "O0: Except for optimizations that may affect functionality, all other optimizations are turned off, adopt KernelByKernel execution mode."
+        "O1: Using commonly used optimizations and automatic operator fusion optimizations, adopt KernelByKernel execution mode."
+        "O2: Ultimate performance optimization, adopt Sink execution mode.",
+    )
+
     default_args = parser.parse_args()
     abs_path = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), ""))
     if default_args.config:
@@ -99,9 +124,14 @@ if __name__ == "__main__":
         ckpt_path=args.vae_checkpoint,
         use_fp16=False,  # disable amp for vae
     )
-    vae = vae.set_train(False)
-    for param in vae.get_parameters():  # freeze vae
+    net = DynNet(vae)
+
+    net = net.set_train(False)
+    for param in net.get_parameters():  # freeze vae
         param.requires_grad = False
+
+    if args.mode == ms.GRAPH_MODE:
+        net.set_inputs(ms.Tensor(shape=[1, 3, None, None], dtype=ms.float32))
 
     # 3. build dataloader
     if args.imagenet_format:
@@ -127,7 +157,7 @@ if __name__ == "__main__":
         if os.path.isfile(dest):
             continue
 
-        latent = vae.encode_with_moments_output(img).numpy().astype(np.float16)[0]
+        latent = net(img).numpy().astype(np.float16)[0]
         np.save(dest, latent)
         records.append(dict(img=path, latent=dest))
 
