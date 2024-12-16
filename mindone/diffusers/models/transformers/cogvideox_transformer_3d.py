@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Dict, Optional, Tuple, Union
+from typing import Any, Dict, Optional, Tuple, Union
 
 import mindspore as ms
 from mindspore import nn, ops
@@ -419,8 +419,21 @@ class CogVideoXTransformer3DModel(ModelMixin, ConfigMixin, PeftAdapterMixin):
         timestep: Union[int, float, ms.Tensor],
         timestep_cond: Optional[ms.Tensor] = None,
         image_rotary_emb: Optional[Tuple[ms.Tensor, ms.Tensor]] = None,
+        attention_kwargs: Optional[Dict[str, Any]] = None,
         return_dict: bool = False,
     ):
+        if attention_kwargs is not None and "scale" in attention_kwargs:
+            # weight the lora layers by setting `lora_scale` for each PEFT layer here
+            # and remove `lora_scale` from each PEFT layer at the end.
+            # scale_lora_layers & unscale_lora_layers maybe contains some operation forbidden in graph mode
+            raise RuntimeError(
+                f"You are trying to set scaling of lora layer by passing {attention_kwargs['scale']=}. "
+                f"However it's not allowed in on-the-fly model forwarding. "
+                f"Please manually call `scale_lora_layers(model, lora_scale)` before model forwarding and "
+                f"`unscale_lora_layers(model, lora_scale)` after model forwarding. "
+                f"For example, it can be done in a pipeline call like `StableDiffusionPipeline.__call__`."
+            )
+
         batch_size, num_frames, channels, height, width = hidden_states.shape
 
         # 1. Time embedding
