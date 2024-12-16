@@ -305,7 +305,7 @@ def prepare_pipeline(args):
             )
             + (f"\nsp_size: {args.sp_size}" if args.sp_size != 1 else ""),
             f"Num of samples: {len(args.text_prompt)}",
-            f"Num params: {num_params:,} (latte: {num_params_latte:,}, vae: {num_params_vae:,})",
+            f"Num params: {num_params:,} (dit: {num_params_latte:,}, vae: {num_params_vae:,})",
             f"Num trainable params: {num_params_trainable:,}",
             f"Transformer dtype: {dtype}",
             f"VAE dtype: {vae_dtype}",

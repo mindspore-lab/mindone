@@ -3,11 +3,11 @@
 
 export DEVICE_ID=0
 python opensora/sample/sample.py \
-    --model_path LanguageBind/Open-Sora-Plan-v1.3.0/1x320x320 \
+    --model_path LanguageBind/Open-Sora-Plan-v1.3.0/1x256x256 \
     --version v1_3 \
     --num_frames 1 \
-    --height 320 \
-    --width 320 \
+    --height 256 \
+    --width 256 \
     --text_encoder_name_1 google/mt5-xxl \
     --text_prompt examples/prompt_list_human_images.txt \
     --ae WFVAEModel_D8_4x8x8  \
@@ -16,7 +16,6 @@ python opensora/sample/sample.py \
     --fps 18 \
     --guidance_scale 7.5 \
     --num_sampling_steps 100 \
-    --enable_tiling \
     --max_sequence_length 512 \
     --sample_method EulerAncestralDiscrete \
     --seed 1234 \

@@ -1,7 +1,7 @@
-# Stage 1: 1x320x320
+# Stage 1: 1x256x256
 NUM_FRAME=1
-WIDTH=320
-HEIGHT=320
+WIDTH=256
+HEIGHT=256
 ASCEND_RT_VISIBLE_DEVICES=0,1,2,3,4,5,6,7
 msrun --bind_core=True --worker_num=8 --local_worker_num=8 --master_port=9000 --log_dir="t2v-video-${NUM_FRAME}x${HEIGHT}x${WIDTH}/parallel_logs" \
   opensora/train/train_t2v_diffusers.py \
@@ -39,7 +39,6 @@ msrun --bind_core=True --worker_num=8 --local_worker_num=8 --master_port=9000 --
     --rescale_betas_zero_snr \
     --use_ema False \
     --ema_start_step 0 \
-    --enable_tiling \
     --clip_grad True \
     --max_grad_norm 1.0 \
     --noise_offset 0.02 \
