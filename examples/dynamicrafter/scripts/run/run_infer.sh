@@ -35,7 +35,7 @@ python scripts/inference.py \
     --config $config \
     --savedir $res_dir/$name \
     --mode 0 \
-    --jit_level O0 \
+    --jit_level O1 \
     --n_samples 1 \
     --unconditional_guidance_scale 7.5 \
     --ddim_steps 50 \
@@ -55,7 +55,7 @@ python scripts/inference.py \
     --config $config \
     --savedir $res_dir/$name \
     --mode 0 \
-    --jit_level O0 \
+    --jit_level O1 \
     --n_samples 1 \
     --unconditional_guidance_scale 7.5 \
     --ddim_steps 50 \
