@@ -2,6 +2,7 @@
 NUM_FRAME=93
 WIDTH=640
 HEIGHT=640
+MAX_HxW=409600
 ASCEND_RT_VISIBLE_DEVICES=0,1,2,3,4,5,6,7
 msrun --bind_core=True --worker_num=8 --local_worker_num=8 --master_port=9000 --log_dir="t2v-video-${NUM_FRAME}x${HEIGHT}x${WIDTH}/parallel_logs" \
   opensora/train/train_t2v_diffusers.py \
@@ -16,6 +17,7 @@ msrun --bind_core=True --worker_num=8 --local_worker_num=8 --master_port=9000 --
     --num_frames ${NUM_FRAME} \
     --max_height ${HEIGHT} \
     --max_width ${WIDTH} \
+    --max_hxw ${MAX_HxW} \
     --interpolation_scale_t 1.0 \
     --interpolation_scale_h 1.0 \
     --interpolation_scale_w 1.0 \
