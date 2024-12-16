@@ -6,6 +6,7 @@ import urllib.parse as ul
 import albumentations
 import ftfy
 from bs4 import BeautifulSoup
+import numpy as np
 
 __all__ = ["create_video_transforms", "t5_text_preprocessing"]
 
@@ -90,6 +91,53 @@ def center_crop_th_tw(image, th, tw, top_crop, **kwargs):
     cropped_image = crop(image, i, j, new_h, new_w)
     return cropped_image
 
+def resize(image, h, w, interpolation_mode):
+
+    resize_func = albumentations.Resize(h, w, interpolation = interpolation_mode)
+
+    return resize_func(image=image)["image"]
+
+def get_params(h, w, stride):
+    th, tw = h // stride * stride, w // stride * stride
+    
+    i = (h - th) // 2
+    j = (w - tw) // 2
+
+    return i, j, th, tw
+
+def spatial_stride_crop_video(image, stride, **kwargs):
+    """
+    Args:
+        image (numpy array): Video clip to be cropped. Size is (H, W, C)
+    Returns:
+        numpy array: cropped video clip by stride.
+            size is (OH, OW, C)
+    """
+    h, w = image.shape[:2] 
+    i, j, h, w = get_params(h, w, stride)
+    return crop(image, i, j, h, w)
+
+def maxhxw_resize(image, max_hxw, interpolation_mode, **kwargs):
+        """
+            First use the h*w,
+            then resize to the specified size
+        Args:
+            image (numpy array): Video clip to be cropped. Size is (H, W, C)
+        Returns:
+            numpy array: scale resized video clip.
+        """
+        h, w = image.shape[:2]
+        if h * w > max_hxw:
+            scale_factor = np.sqrt(max_hxw / (h * w))
+            tr_h = int(h * scale_factor)
+            tr_w = int(w * scale_factor)
+        else:
+            tr_h = h
+            tr_w = w
+        if h == tr_h and w == tr_w:
+            return image
+        resize_image = resize(image, tr_h, tr_w, interpolation_mode)
+        return resize_image
 
 # create text transform(preprocess)
 bad_punct_regex = re.compile(
