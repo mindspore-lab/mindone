@@ -5,10 +5,8 @@ python examples/rec_video.py \
     --rec_path rec.mp4 \
     --device Ascend \
     --sample_rate 1 \
-    --num_frames 61 \
+    --num_frames 65 \
     --height 512 \
     --width 512 \
     --fps 30 \
-    --enable_tiling \
-    --mode 1 \
-    --jit_syntax_level lax \
+    --enable_tiling

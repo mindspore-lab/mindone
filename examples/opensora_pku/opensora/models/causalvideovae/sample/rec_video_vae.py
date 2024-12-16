@@ -119,7 +119,7 @@ if __name__ == "__main__":
         action="store_true",
         help="Whether to use a random frame as the starting frame for reconstruction. Default is False for the ease of evaluation.",
     )
-    parser.add_argument("--mode", default=0, type=int, help="Specify the mode: 0 for graph mode, 1 for pynative mode")
+    parser.add_argument("--mode", default=1, type=int, help="Specify the mode: 0 for graph mode, 1 for pynative mode")
     parser.add_argument(
         "--precision",
         default="bf16",

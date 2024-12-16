@@ -1,4 +1,3 @@
-
 export ASCEND_RT_VISIBLE_DEVICES=0,1,2,3,4,5,6,7
 msrun --bind_core=True --worker_num=8 --local_worker_num=8 --master_port=9000 --log_dir="./sample_videos/sora_93x640_mt5_sp/parallel_logs/" \
    opensora/sample/sample.py \
@@ -22,7 +21,6 @@ msrun --bind_core=True --worker_num=8 --local_worker_num=8 --master_port=9000 --
     --num_samples_per_prompt 1 \
     --rescale_betas_zero_snr \
     --prediction_type "v_prediction" \
-    --mode 1 \
     --precision bf16 \
     --use_parallel True \
     --sp_size 8
