@@ -1,0 +1,51 @@
+model:
+  base_learning_rate: 4.0e-04
+  scheduler: cosine_annealing_warm_restarts_lr
+  optimizer: adamw
+  weight_decay: 0.01
+  target: model_stage1.InstantMeshStage1WithLoss
+  params:
+    input_size: 320     # enlarged from the raw img input for the pretrained vit img processing
+    render_size: 192    # rendered res
+    lrm_generator_config:
+      openlrm_ckpt: 'YOUR_PATH/openlrm.ckpt'
+      target: models.lrm.InstantNeRF
+      params:
+        encoder_feat_dim: 768
+        encoder_freeze: false
+        encoder_model_name: 'YOUR_PATH_HF/models--facebook--dino-vitb16/snapshots/f205d5d8e640a89a2b8ef0369670dfc37cc07fc2'  # coz needs to enforce the is_local flag (with pretrained_model_name_or_path as dir), thus here put in the abs path as a workaround
+        transformer_dim: 1024
+        transformer_layers: 16
+        transformer_heads: 16
+        triplane_low_res: 32
+        triplane_high_res: 64
+        triplane_dim: 80
+        rendering_samples_per_ray: 64  # for the vanilla ckpt is 128, if loaded pretrained make sure it's 128
+        use_recompute: true
+
+eval_render_size: 192
+
+data:
+  batch_size: 1
+  num_workers: 4
+  train:
+    target: data.objaverse.ObjaverseDataset
+    params:
+      root_dir: YOUR_PATH_DATA  # for overfitting exp
+      meta_fname: uid_set.pkl
+      input_image_dir: input
+      target_image_dir: input
+      input_view_num: 3
+      target_view_num: 2
+      input_size: 320
+      render_size: 192
+      total_view_n: 16
+      fov: 50
+      camera_rotation: false
+  val:
+    target: data.objaverse.ValidationDataset
+    params:
+      root_dir: YOUR_PATH_DATA/target
+      input_view_num: 6
+      input_image_size: 320
+      fov: 30

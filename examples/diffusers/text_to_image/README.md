@@ -19,13 +19,9 @@ To make sure you can successfully run the latest versions of the example scripts
 ```bash
 git clone https://github.com/mindspore-lab/mindone
 cd mindone
-pip install .
+pip install -e ".[training]"
 ```
 
-Then cd in the example folder `examples/diffusers/text_to_image` and run
-```bash
-pip install -r requirements.txt
-```
 
 ### OnePiece example
 
@@ -143,7 +139,7 @@ In a nutshell, LoRA allows adapting pretrained models by adding pairs of rank-de
 [cloneofsimo](https://github.com/cloneofsimo) was the first to try out LoRA training for Stable Diffusion in the popular [lora](https://github.com/cloneofsimo/lora) GitHub repository.
 
 With LoRA, it's possible to fine-tune Stable Diffusion on a custom image-caption pair dataset
-on consumer GPUs like Tesla T4, Tesla V100.
+on consumer NPUs.
 
 ### Training
 
@@ -172,7 +168,7 @@ python train_text_to_image_lora.py \
 
 The above command will also run inference as fine-tuning progresses and log the results to local files.
 
-**___Note: When using LoRA we can use a much higher learning rate compared to non-LoRA fine-tuning. Here we use *1e-4* instead of the usual *1e-5*. Also, by using LoRA, it's possible to run `train_text_to_image_lora.py` in consumer GPUs like T4 or V100.___**
+**___Note: When using LoRA we can use a much higher learning rate compared to non-LoRA fine-tuning. Here we use *1e-4* instead of the usual *1e-5*.___**
 
 The final LoRA embedding weights have been uploaded to [sayakpaul/sd-model-finetuned-lora-t4](https://huggingface.co/sayakpaul/sd-model-finetuned-lora-t4). **___Note: [The final weights](https://huggingface.co/sayakpaul/sd-model-finetuned-lora-t4/blob/main/pytorch_lora_weights.bin) are only 3 MB in size, which is orders of magnitudes smaller than the original model.___**
 

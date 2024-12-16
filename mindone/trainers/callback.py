@@ -4,6 +4,7 @@ import time
 from typing import List
 
 import mindspore as ms
+from mindspore.communication import get_rank
 from mindspore.train.callback._callback import Callback, _handle_loss
 
 from .checkpoint import CheckpointManager
@@ -14,11 +15,20 @@ _logger = logging.getLogger("")
 __all__ = ["OverflowMonitor", "EvalSaveCallback", "ProfilerCallback", "StopAtStepCallback"]
 
 
+def get_real_rank():
+    """get rank id"""
+    try:
+        return get_rank()
+    except RuntimeError:
+        return int(os.getenv("RANK_ID", "0"))
+
+
 class OverflowMonitor(ms.Callback):
     def on_train_step_end(self, run_context):
         cb_params = run_context.original_args()
         cur_epoch_num = cb_params.get("cur_epoch_num", 1)
         cur_step_in_epoch = (cb_params.cur_step_num - 1) % cb_params.batch_num + 1
+
         overflow = cb_params.net_outputs[1]
         if overflow:
             _logger.warning(f"overflow detected in epoch {cur_epoch_num} step {cur_step_in_epoch}")
@@ -52,6 +62,7 @@ class EvalSaveCallback(Callback):
         integrated_save=False,
         save_training_resume=True,
         train_steps=-1,
+        prefer_low_perf=False,
     ):
         """
         Args:
@@ -90,6 +101,7 @@ class EvalSaveCallback(Callback):
                 ckpt_save_policy,
                 k=ckpt_max_keep,
                 integrated_save=integrated_save,
+                prefer_low_perf=prefer_low_perf,
             )
             if self.start_epoch == 0:
                 if self.record_lr:
@@ -267,7 +279,9 @@ class EvalSaveCallback(Callback):
                     self.ema.swap_before_eval()
 
                 # save history checkpoints
-                self.ckpt_manager.save(self.net_to_save, None, ckpt_name=ckpt_name, append_dict=append_dict)
+                self.ckpt_manager.save(
+                    self.net_to_save, perf=cb_params["net_outputs"], ckpt_name=ckpt_name, append_dict=append_dict
+                )
 
                 if self.save_training_resume:
                     ms.save_checkpoint(
@@ -289,16 +303,16 @@ class EvalSaveCallback(Callback):
     def on_train_end(self, run_context):
         if self.is_main_device:
             if self.ckpt_save_policy == "top_k":
-                log_str = f"Top K checkpoints:\n{self.main_indicator}\tcheckpoint\n"
+                log_str = f"Top K checkpoints: \n{self.main_indicator}\tcheckpoint\n"
                 for p, ckpt_name in self.ckpt_manager.get_ckpt_queue():
-                    log_str += f"{p:.4f}\t{os.path.join(self.ckpt_save_dir, ckpt_name)}\n"
+                    log_str += f"{p: .4f}\t{os.path.join(self.ckpt_save_dir, ckpt_name)}\n"
 
     def on_eval_end(self, run_context):
         if self.is_main_device:
             cb_params = run_context.original_args()
             metrics = cb_params.get("metrics")
             if metrics is not None:
-                metrics = {k: f"{v:.4f}" for k, v in metrics.items()}
+                metrics = {k: f"{v: .4f}" for k, v in metrics.items()}
                 _logger.info(f"Eval result epoch {cb_params.cur_epoch_num}: {metrics}")
 
     def _get_optimizer_from_cbp(self, cb_params):
@@ -341,7 +355,13 @@ class ProfilerCallback(ms.Callback):
         self.start_step = start_step
         self.end_step = end_step
         self.exit_after_analyze = exit_after_analyze
-        self.profiler = ms.Profiler(start_profile=False, output_path=out_dir)
+        rank_id = get_real_rank()
+        out_dir = os.path.join(out_dir, f"rank_{rank_id}")
+        # If value of profile_framework is not None, a subdirectory named host_info will be generated under the
+        # specified profiler directory to store the collected memory and time files on the Host side.
+        self.profiler = ms.Profiler(
+            start_profile=False, output_path=out_dir, profile_framework="all", data_simplication=False
+        )
 
     def on_train_step_begin(self, run_context):
         cb_params = run_context.original_args()

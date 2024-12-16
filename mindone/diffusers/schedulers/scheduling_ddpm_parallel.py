@@ -204,7 +204,7 @@ class DDPMParallelScheduler(SchedulerMixin, ConfigMixin):
         sample_max_value: float = 1.0,
         timestep_spacing: str = "leading",
         steps_offset: int = 0,
-        rescale_betas_zero_snr: int = False,
+        rescale_betas_zero_snr: bool = False,
     ):
         if trained_betas is not None:
             self.betas = ms.tensor(trained_betas, dtype=ms.float32)

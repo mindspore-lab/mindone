@@ -47,7 +47,7 @@ from mindone.diffusers import DiffusionPipeline, DPMSolverMultistepScheduler
 import mindspore as ms
 
 repo_id = "stabilityai/stable-diffusion-2-base"
-pipe = DiffusionPipeline.from_pretrained(repo_id, mindspore_dtype=ms.float16, revision="fp16")
+pipe = DiffusionPipeline.from_pretrained(repo_id, mindspore_dtype=ms.float16, variant="fp16")
 
 pipe.scheduler = DPMSolverMultistepScheduler.from_config(pipe.scheduler.config)
 
@@ -70,7 +70,7 @@ init_image = load_image(img_url).resize((512, 512))
 mask_image = load_image(mask_url).resize((512, 512))
 
 repo_id = "stabilityai/stable-diffusion-2-inpainting"
-pipe = DiffusionPipeline.from_pretrained(repo_id, mindspore_dtype=ms.float16, revision="fp16")
+pipe = DiffusionPipeline.from_pretrained(repo_id, mindspore_dtype=ms.float16, variant="fp16")
 
 pipe.scheduler = DPMSolverMultistepScheduler.from_config(pipe.scheduler.config)
 

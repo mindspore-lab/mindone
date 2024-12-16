@@ -41,7 +41,7 @@ Sample output with I2VGenXL:
 ## Notes
 
 * I2VGenXL always uses a `clip_skip` value of 1. This means it leverages the penultimate layer representations from the text encoder of CLIP.
-* It can generate videos of quality that is often on par with [Stable Video Diffusion](../../using-diffusers/svd) (SVD).
+* It can generate videos of quality that is often on par with [Stable Video Diffusion](../../using-diffusers/svd.md) (SVD).
 * Unlike SVD, it additionally accepts text prompts as inputs.
 * It can generate higher resolution videos.
 * When using the [`DDIMScheduler`](../schedulers/ddim.md#mindone.diffusers.DDIMScheduler) (which is default for this pipeline), less than 50 steps for inference leads to bad results.
