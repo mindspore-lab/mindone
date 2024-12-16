@@ -14,7 +14,6 @@ msrun --bind_core=True --worker_num=8 --local_worker_num=8 --master_port=9000 --
     --fps 18 \
     --guidance_scale 7.5 \
     --num_sampling_steps 100 \
-    --enable_tiling \
     --max_sequence_length 512 \
     --sample_method EulerAncestralDiscrete \
     --seed 1234 \

@@ -17,7 +17,6 @@ python opensora/sample/sample.py \
     --fps 18 \
     --guidance_scale 7.5 \
     --num_sampling_steps 100 \
-    --enable_tiling \
     --max_sequence_length 512 \
     --sample_method EulerAncestralDiscrete \
     --num_samples_per_prompt 1 \

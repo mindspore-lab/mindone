@@ -40,7 +40,6 @@ msrun --bind_core=True --worker_num=8 --local_worker_num=8 --master_port=9000 --
     --rescale_betas_zero_snr \
     --use_ema False \
     --ema_start_step 0 \
-    --enable_tiling \
     --clip_grad True \
     --max_grad_norm 1.0 \
     --noise_offset 0.02 \

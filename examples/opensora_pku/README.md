@@ -169,7 +169,6 @@ python opensora/sample/sample.py \
     --fps 18 \
     --guidance_scale 7.5 \
     --num_sampling_steps 100 \
-    --enable_tiling \
     --max_sequence_length 512 \
     --sample_method EulerAncestralDiscrete \
     --seed 1234 \
@@ -400,7 +399,7 @@ As introduced in the [Open-Sora Plan Arxiv paper](https://arxiv.org/abs/2412.001
 
 | Stage |  Resolution | Num of frames | Datasets | Batch size  | Train Steps | LR |  Attention |
 |:---   |:---         |:---           |:--- |:---         |:---         |:---          |:---                |
-| 1 (T2I)    | 320x320     | 1             | SAM, AnyText, Human Images      |  1024 |   150K (full-attention) + 100K (skiparse attention)     | 2e-5         |  Full 3D -> Skiparse             |
+| 1 (T2I)    | 256x256     | 1             | SAM, AnyText, Human Images      |  1024 |   150K (full-attention) + 100K (skiparse attention)     | 2e-5         |  Full 3D -> Skiparse             |
 | 2  (T2I&T2V)   |  maximumly 93×640×640     | 49            | SAM, Panda70M                   |  1024 |   200K     | 2e-5         | Skiparse           |
 | 3  (T2V)   | 93x352x640   | 49            | filtered Panda70M, high-quality data  | 1024 |   100K~200K     | 1e-5         | Skiparse            |
 
@@ -414,8 +413,8 @@ Here we choose an example of training scripts (`train_t2i_stage1.sh`) and explai
 Here is the major command of the training script:
 ```shell
 NUM_FRAME=1
-WIDTH=320
-HEIGHT=320
+WIDTH=256
+HEIGHT=256
 python opensora/train/train_t2v_diffusers.py \
     --data "scripts/train_data/image_data_v1_2.txt" \
     --num_frames ${NUM_FRAME} \
@@ -465,7 +464,7 @@ We evaluated the training performance on Ascend NPUs. All experiments are runnin
 
 | model name      | cards       |  stage     | batch size (global)   | video size  | Paramllelism |recompute |data sink | jit level| step time | train imgs/s |
 |:----------------|:----------- |:---------:|:-----:|:----------:|:----------:|:----------:|:----------:|:----------:|-------------------:|:----------:|
-| OpenSoraT2V_v1_3-2B/122 |  8   | 1 |  8  |    1x320x320     |         zero2                     | TRUE | FALSE | O0 |   5.1s   |   |
+| OpenSoraT2V_v1_3-2B/122 |  8   | 1 |  8  |    1x256x256     |         zero2                     | TRUE | FALSE | O0 |   5.1s   |   |
 | OpenSoraT2V_v1_3-2B/122 |  8   | 2 |  1  |    up to 93x640x640    |         zero2  + SP(sp_size=8)  |  TRUE | FALSE | O0 |        |  |
 | OpenSoraT2V_v1_3-2B/122 |  8   | 3 |  8  |    93x352x640   |         zero2      |  TRUE | FALSE | O0 |       |  |
 

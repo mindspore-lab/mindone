@@ -1,7 +1,7 @@
-# Stage 1: 1x320x320
+# Stage 1: 1x256x256
 NUM_FRAME=1
-WIDTH=320
-HEIGHT=320
+WIDTH=256
+HEIGHT=256
 python opensora/train/train_t2v_diffusers.py \
     --model OpenSoraT2V_v1_3-2B/122 \
     --text_encoder_name_1 google/mt5-xxl \
@@ -37,7 +37,6 @@ python opensora/train/train_t2v_diffusers.py \
     --rescale_betas_zero_snr \
     --use_ema False \
     --ema_start_step 0 \
-    --enable_tiling \
     --clip_grad True \
     --max_grad_norm 1.0 \
     --noise_offset 0.02 \
