@@ -58,3 +58,4 @@ msrun --bind_core=True --worker_num=8 --local_worker_num=8 --master_port=9000 --
     --train_fps 16 \
     --trained_data_global_step 0 \
     --group_data \
+    --pretrained path/to/last/stage/ckpt \

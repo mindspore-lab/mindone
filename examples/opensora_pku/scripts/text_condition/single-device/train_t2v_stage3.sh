@@ -1,7 +1,7 @@
-# Stage 3: 93x480x480 (480x480, 640x352, 352x640)
+# Stage 3: 93x640x352 (480x480, 640x352, 352x640)
 NUM_FRAME=93
-WIDTH=480
-HEIGHT=480
+WIDTH=640
+HEIGHT=352
 python opensora/train/train_t2v_diffusers.py \
     --model OpenSoraT2V_v1_3-2B/122 \
     --text_encoder_name_1 google/mt5-xxl \
@@ -12,6 +12,7 @@ python opensora/train/train_t2v_diffusers.py \
     --ae_path LanguageBind/Open-Sora-Plan-v1.3.0/vae \
     --sample_rate 1 \
     --num_frames ${NUM_FRAME} \
+    --force_resolution \
     --max_height ${HEIGHT} \
     --max_width ${WIDTH} \
     --interpolation_scale_t 1.0 \
@@ -52,3 +53,4 @@ python opensora/train/train_t2v_diffusers.py \
     --train_fps 16 \
     --trained_data_global_step 0 \
     --group_data \
+    --pretrained path/to/last/stage/ckpt \

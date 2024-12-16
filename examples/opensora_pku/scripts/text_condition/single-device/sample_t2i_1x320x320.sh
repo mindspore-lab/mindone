@@ -12,7 +12,7 @@ python opensora/sample/sample.py \
     --text_prompt examples/prompt_list_human_images.txt \
     --ae WFVAEModel_D8_4x8x8  \
     --ae_path LanguageBind/Open-Sora-Plan-v1.3.0/vae \
-    --save_img_path "./sample_videos/human_images" \
+    --save_img_path "./sample_images/human_images" \
     --fps 18 \
     --guidance_scale 7.5 \
     --num_sampling_steps 100 \
