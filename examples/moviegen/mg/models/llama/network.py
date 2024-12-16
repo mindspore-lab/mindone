@@ -4,11 +4,9 @@ from typing import Literal, Optional, Tuple, Union
 
 import numpy as np
 
-import mindspore as ms
-import mindspore.mint as mint
-import mindspore.nn as nn
-import mindspore.ops as ops
-from mindspore import Parameter, Tensor, load_checkpoint, load_param_into_net
+from mindspore import Parameter, Tensor
+from mindspore import dtype as mstype
+from mindspore import lazy_inline, load_checkpoint, load_param_into_net, mint, nn, ops
 
 from mindone.models.utils import normal_, zeros_
 
@@ -37,7 +35,7 @@ def t2i_modulate(x: Tensor, shift: Tensor, scale: Tensor) -> Tensor:
 
 
 class LlamaDecoderLayer(nn.Cell):
-    # @ms.lazy_inline(policy="front")
+    @lazy_inline(policy="front")
     def __init__(
         self,
         hidden_size: int = 4096,
@@ -49,7 +47,7 @@ class LlamaDecoderLayer(nn.Cell):
         attention_bias: bool = False,
         hidden_act: str = "silu",
         attn_implementation: Literal["eager", "flash_attention"] = "eager",
-        dtype: ms.Type = ms.float32,
+        dtype: mstype = mstype.float32,
     ) -> None:
         super().__init__()
 
@@ -128,7 +126,7 @@ class LlamaFinalLayer(nn.Cell):
         patch_size: Tuple[int, int, int] = (1, 2, 2),
         out_channels: int = 8,
         rms_norm_eps: float = 1e-5,
-        dtype: ms.Type = ms.float32,
+        dtype: mstype = mstype.float32,
     ) -> None:
         super().__init__()
         self.input_layernorm = LlamaRMSNorm(hidden_size, eps=rms_norm_eps, dtype=dtype)
@@ -168,7 +166,7 @@ class LlamaModel(nn.Cell):
         use_linear_patch_embedder: bool = True,
         model_parallelism: bool = False,
         post_init_weight: bool = True,
-        dtype: ms.Type = ms.float32,
+        dtype: mstype.Type = mstype.float32,
     ) -> None:
         super().__init__()
         self.patch_size = patch_size
@@ -281,9 +279,9 @@ class LlamaModel(nn.Cell):
         # assert nh < self.max_length[1]
         # assert nw < self.max_length[2]
 
-        t_inds = mint.arange(nt, dtype=ms.int64)
-        h_inds = mint.arange(nh, dtype=ms.int64)
-        w_inds = mint.arange(nw, dtype=ms.int64)
+        t_inds = mint.arange(nt, dtype=mstype.int64)
+        h_inds = mint.arange(nh, dtype=mstype.int64)
+        w_inds = mint.arange(nw, dtype=mstype.int64)
 
         position_ids = ops.meshgrid(t_inds, h_inds, w_inds, indexing="ij")
         position_ids = ops.stack(position_ids, axis=-1)

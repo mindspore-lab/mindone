@@ -5,9 +5,9 @@ from typing import Literal, Optional, Tuple
 import numpy as np
 from tqdm import tqdm
 
-import mindspore as ms
-import mindspore.mint.nn.functional as F
-from mindspore import Tensor, mint, nn, ops
+from mindspore import Tensor
+from mindspore import dtype as mstype
+from mindspore import mint, nn, ops
 
 from ..models import LlamaModel
 
@@ -17,25 +17,17 @@ __all__ = ["RFLOW", "RFlowLossWrapper", "RFlowEvalLoss"]
 
 
 class LogisticNormal(nn.Cell):
-    def __init__(self, loc: float = 0.0, scale: float = 1.0) -> None:
+    def __init__(self, loc: float = 0.0, scale: float = 1.0):
         super().__init__()
+        self.stdnormal = ops.StandardNormal()
         self.mean = loc
         self.std = scale
-        self._min = Tensor(np.finfo(np.float32).tiny, dtype=ms.float32)
-        self._max = Tensor(1.0 - np.finfo(np.float32).eps, dtype=ms.float32)
+        self._min = Tensor(np.finfo(np.float32).tiny, dtype=mstype.float32)
+        self._max = Tensor(1.0 - np.finfo(np.float32).eps, dtype=mstype.float32)
 
-    def construct(self, shape: Tuple[int, ...]) -> Tensor:
-        # assert shape[-1] == 1
-        x = mint.normal(mean=self.mean, std=self.std, size=shape)
-        offset = x.shape[-1] + 1 - mint.cumsum(mint.ones(x.shape[-1]), dim=-1)
-        z = self._clipped_sigmoid(x - mint.log(offset))
-        z_cumprod = ops.cumprod((1 - z), dim=-1)
-        y = F.pad(z, [0, 1], value=1) * F.pad(z_cumprod, [1, 0], value=1)
-        return y[:, 0]
-
-    def _clipped_sigmoid(self, x: Tensor) -> Tensor:
-        x = mint.clamp(mint.sigmoid(x), min=self._min, max=self._max)
-        return x
+    def construct(self, shape: Tuple[int]) -> Tensor:
+        x = self.mean + self.std * self.stdnormal(shape)
+        return ops.clamp(ops.sigmoid(x), self._min, self._max)
 
 
 class RFLOW:
@@ -112,13 +104,13 @@ class RFlowLossWrapper(nn.Cell):
         self.mp_group = None
 
     def _discrete_sample(self, size: int) -> Tensor:
-        return ops.randint(0, self.num_timesteps, (size,), dtype=ms.int64)
+        return ops.randint(0, self.num_timesteps, (size,), dtype=mstype.int64)
 
     def _uniform_sample(self, size: int) -> Tensor:
-        return mint.rand((size,), dtype=ms.float32) * self.num_timesteps
+        return mint.rand((size,), dtype=mstype.float32) * self.num_timesteps
 
     def _logit_normal_sample(self, size: int) -> Tensor:
-        return self.distribution((size, 1)) * self.num_timesteps
+        return self.distribution((size,)) * self.num_timesteps
 
     def _broadcast(self, x: Tensor) -> Tensor:
         if self.mp_group is None:
@@ -136,12 +128,12 @@ class RFlowLossWrapper(nn.Cell):
         byt5_emb: (N, L3, 1472) ByT5 text embeddings
         timestep: (N,) tensor to indicate a denoising step
         """
-        x = x.to(ms.float32)
+        x = x.to(mstype.float32)
 
         if timestep is None:
             timestep = self._broadcast(self._sample_func(x.shape[0]))
 
-        noise = self._broadcast(mint.normal(size=x.shape))
+        noise = self._broadcast(ops.rand_like(x.shape))
         x_t = self.add_noise(x, noise, timestep)
 
         model_output = self.model(
@@ -150,7 +142,7 @@ class RFlowLossWrapper(nn.Cell):
             ul2_emb.to(self.model.dtype),
             metaclip_emb.to(self.model.dtype),
             byt5_emb.to(self.model.dtype),
-        ).to(ms.float32)
+        ).to(mstype.float32)
         v_t = x - (1 - self.eps) * noise
 
         # 3.1.2 Eqa (2)
@@ -163,7 +155,7 @@ class RFlowLossWrapper(nn.Cell):
         noise: (N, T, C, H, W) tensor of white noise
         timesteps: (N,) tensor of timestamps with range [0, num_timesteps)
         """
-        timesteps = 1 - timesteps.to(ms.float32) / self.num_timesteps
+        timesteps = 1 - timesteps.to(mstype.float32) / self.num_timesteps
         timesteps = timesteps[:, None, None, None, None]
 
         # 3.1.2 First Eqa.
@@ -175,11 +167,11 @@ class RFlowEvalLoss(nn.Cell):
         super().__init__()
         self.network = network
         self.timesteps = Tensor(
-            np.linspace(0, network.num_timesteps, num_sampling_steps + 2)[1:-1].reshape(-1, 1), dtype=ms.float32
+            np.linspace(0, network.num_timesteps, num_sampling_steps + 2)[1:-1].reshape(-1, 1), dtype=mstype.float32
         )
 
     def construct(self, x: Tensor, ul2_emb: Tensor, metaclip_emb: Tensor, byt5_emb: Tensor, **kwargs) -> Tensor:
-        loss = Tensor(0, dtype=ms.float32)
+        loss = Tensor(0, dtype=mstype.float32)
         timesteps = mint.tile(self.timesteps, (1, x.shape[0]))
         for t in timesteps:
             loss += self.network(x, ul2_emb, metaclip_emb, byt5_emb, t)
