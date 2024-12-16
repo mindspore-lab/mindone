@@ -461,13 +461,13 @@ See `train_t2v_stage2.sh` under `scripts/text_condition/mult-devices/` for detai
 
 #### Performance
 
-We evaluated the training performance on Ascend NPUs. The results are as follows.
+We evaluated the training performance on Ascend NPUs. All experiments are running in PYNATIVE mode. The results are as follows.
 
-| model name      | cards       |  stage     |graph compile | batch size (local)   | video size  | Paramllelism |recompute |data sink | jit level| step time | train imgs/s |
-|:----------------|:----------- |:----------|:---------:|:-----:|:----------:|:----------:|:----------:|:----------:|:----------:|-------------------:|:----------:|
-| OpenSoraT2V_v1_3-2B/122 |  8   | 1 | mins     |  8  |    1x320x320     |         zero2                     | TRUE | FALSE | O0 |   5.1s   |   |
-| OpenSoraT2V_v1_3-2B/122 |  8   | 2 | mins     |  1  |    up to 93x640x640    |         zero2  + SP(sp_size=8)  |  TRUE | FALSE | O0 |        |  |
-| OpenSoraT2V_v1_3-2B/122 |  8   | 3 | mins     |  8  |    93x320x320   |         zero2      |  TRUE | FALSE | O0 |       |  |
+| model name      | cards       |  stage     | batch size (global)   | video size  | Paramllelism |recompute |data sink | jit level| step time | train imgs/s |
+|:----------------|:----------- |:---------:|:-----:|:----------:|:----------:|:----------:|:----------:|:----------:|-------------------:|:----------:|
+| OpenSoraT2V_v1_3-2B/122 |  8   | 1 |  8  |    1x320x320     |         zero2                     | TRUE | FALSE | O0 |   5.1s   |   |
+| OpenSoraT2V_v1_3-2B/122 |  8   | 2 |  1  |    up to 93x640x640    |         zero2  + SP(sp_size=8)  |  TRUE | FALSE | O0 |        |  |
+| OpenSoraT2V_v1_3-2B/122 |  8   | 3 |  8  |    93x352x640   |         zero2      |  TRUE | FALSE | O0 |       |  |
 
 > SP: sequence parallelism.
 >
