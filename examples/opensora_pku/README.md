@@ -503,7 +503,7 @@ The edits allow to compute the loss on the validation set specified by `merge_da
 
 #### Sequence Parallelism
 
-We also support training with sequence parallelism and zero2 parallelism together. This is enabled by setting `--sp_size` and `--train_sp_batch_size`.  For example, with `sp_size=8` and `train_sp_batch_size=4`, 2 NPUs are used for a single video sample.
+We also support training with sequence parallelism and zero2 parallelism together. This is enabled by setting `--sp_size`.  For example, with `sp_size=8`, 8 NPUs are used for a single video sample.
 
 See `train_video3d_29x720p_zero2_sp.sh` under `scripts/text_condition/mult-devices/` for detailed usage.
 
