@@ -6,7 +6,7 @@ from PIL import Image
 
 import mindspore as ms
 import mindspore.dataset.transforms as transforms
-import mindspore.ops as ops
+from mindspore import mint
 from mindspore.dataset.vision import CenterCrop, Normalize, Resize, ToTensor
 
 from mindone.visualize.videos import save_videos
@@ -71,14 +71,14 @@ def load_data_prompts(data_dir, video_size=(256, 256), video_frames=16, interp=F
             image_tensor1 = ms.Tensor(transform(image1)[0]).unsqueeze(1)  # [c,1,h,w]
             image2 = Image.open(file_list[2 * idx + 1]).convert("RGB")
             image_tensor2 = ms.Tensor(transform(image2)[0]).unsqueeze(1)  # [c,1,h,w]
-            frame_tensor1 = ops.repeat_interleave(image_tensor1, repeats=video_frames // 2, axis=1)
-            frame_tensor2 = ops.repeat_interleave(image_tensor2, repeats=video_frames // 2, axis=1)
-            frame_tensor = ops.cat([frame_tensor1, frame_tensor2], axis=1)
+            frame_tensor1 = mint.repeat_interleave(image_tensor1, repeats=video_frames // 2, dim=1)
+            frame_tensor2 = mint.repeat_interleave(image_tensor2, repeats=video_frames // 2, dim=1)
+            frame_tensor = mint.cat([frame_tensor1, frame_tensor2], dim=1)
             _, filename = os.path.split(file_list[idx * 2])
         else:
             image = Image.open(file_list[idx]).convert("RGB")
             image_tensor = ms.Tensor(transform(image)[0]).unsqueeze(1)  # [c,1,h,w]
-            frame_tensor = ops.repeat_interleave(image_tensor, repeats=video_frames, axis=1)
+            frame_tensor = mint.repeat_interleave(image_tensor, repeats=video_frames, dim=1)
             _, filename = os.path.split(file_list[idx])
 
         data_list.append(frame_tensor)
@@ -88,7 +88,7 @@ def load_data_prompts(data_dir, video_size=(256, 256), video_frames=16, interp=F
 
 
 def _transform_before_save(video):
-    video = ops.transpose(video, (0, 2, 3, 4, 1))
+    video = mint.permute(video, (0, 2, 3, 4, 1))
     video = video.asnumpy()  # check the dtype
     video = np.clip(video, -1, 1)
     video = (video + 1.0) / 2.0
