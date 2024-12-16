@@ -274,7 +274,7 @@ In order to train vae with LPIPS loss, please also download [lpips_vgg-426bf45c.
 
 **Steps 3: Hyper-parameters Setting**
 
-Please find the hyper-parameters in each stage in the following table:
+As introduced in the [Open-Sora Plan Arxiv paper](https://arxiv.org/abs/2412.00131), the hyper-parameters of each stage is summerized in the following table:
 | Stage |  Resolution | Num of frames | FPS | Batch size  | Train Steps | Discrminator |  $\lambda_{lpips}$ |
 |:---   |:---         |:---           |:--- |:---         |:---         |:---          |:---                |
 | 1     | 256x256     | 25            | Original fps       |   8 |   800K     | TRUE         | -                  |
@@ -317,8 +317,7 @@ Runing this command will generate reconstructed videos under the given `output_g
 
 **Step 1: Downloading Datasets**:
 
-
-The [Open-Sora-Dataset-v1.2.0](https://huggingface.co/datasets/LanguageBind/Open-Sora-Plan-v1.2.0) contains annotation json files, which are listed below:
+Open-Sora-Dataset-v1.3.0 dataset is the same as the dataset used in [Open-Sora-Dataset-v1.2.0](https://huggingface.co/datasets/LanguageBind/Open-Sora-Plan-v1.2.0) which contains annotation json files listed below:
 
 ```text
 Panda70M_HQ1M.json
@@ -329,7 +328,7 @@ v1.1.0_HQ_part2.json
 v1.1.0_HQ_part3.json
 ```
 
-Please check the [readme doc](https://huggingface.co/datasets/LanguageBind/Open-Sora-Plan-v1.2.0) for details of these annotation files. [Open-Sora-Dataset-v1.2.0](https://huggingface.co/datasets/LanguageBind/Open-Sora-Plan-v1.2.0) contains the [Panda70M (training full)](https://drive.google.com/file/d/1DeODUcdJCEfnTjJywM-ObmrlVg-wsvwz/view?usp=sharing), [SAM](https://ai.meta.com/datasets/segment-anything/), and the data from [Open-Sora-Dataset-v1.1.0](https://huggingface.co/datasets/LanguageBind/Open-Sora-Plan-v1.1.0/tree/main). You can take the following instructions only how to download [Open-Sora-Dataset-v1.1.0](https://huggingface.co/datasets/LanguageBind/Open-Sora-Plan-v1.1.0/tree/main).
+Please check the [readme doc](https://huggingface.co/datasets/LanguageBind/Open-Sora-Plan-v1.2.0) for details of these annotation files. [Open-Sora-Dataset-v1.2.0](https://huggingface.co/datasets/LanguageBind/Open-Sora-Plan-v1.2.0) contains the [Panda70M (training full)](https://drive.google.com/file/d/1DeODUcdJCEfnTjJywM-ObmrlVg-wsvwz/view?usp=sharing), [SAM](https://ai.meta.com/datasets/segment-anything/) and the data from [Open-Sora-Dataset-v1.1.0](https://huggingface.co/datasets/LanguageBind/Open-Sora-Plan-v1.1.0/tree/main). You can take the following instructions on how to download [Open-Sora-Dataset-v1.1.0](https://huggingface.co/datasets/LanguageBind/Open-Sora-Plan-v1.1.0/tree/main).
 
 
 <details>
@@ -397,7 +396,7 @@ anno_jsons/
 
 **Step 2: Extracting Embedding Cache**:
 
-Next, please extract the text embeddings and save them in the disk for training acceleration. For each json file, you need to run the following command accordingly and save the t5 embeddings cache in the `output_path`.  
+Next, please extract the text embeddings and save them in the disk for training acceleration. For each json file, you need to run the following command accordingly and save the mt5-xxl embeddings cache in the `output_path`.  
 
 ```bash
 python opensora/sample/sample_text_embed.py \
@@ -417,24 +416,37 @@ annotation json path: e.g., datasets/anno_jsons/Panda70M_HQ1M.json
 ```
 In the dataset file, for example, `scripts/train_data/merge_data.txt`, each line represents one dataset. Each line includes three paths: the images/videos folder, the text embedding cache folder, and the path to the annotation json file. Please revise them accordingly to the paths on your disk.
 
+**Step 4: Hyper-Parameters Setting**
+
+
+As introduced in the [Open-Sora Plan Arxiv paper](https://arxiv.org/abs/2412.00131), the hyper-parameters of each stage is summerized in the following table:
+
+| Stage |  Resolution | Num of frames | Datasets | Batch size  | Train Steps | LR |  Attention |
+|:---   |:---         |:---           |:--- |:---         |:---         |:---          |:---                |
+| 1 (T2I)    | 320x320     | 1             | SAM, AnyText, Human Images      |  1024 |   150K (full-attention) + 100K (skiparse attention)     | 2e-5         |  Full 3D -> Skiparse             |
+| 2  (T2I&T2V)   |  maximumly 93×640×640     | 49            | SAM, Panda70M                   |  1024 |   200K     | 2e-5         | Skiparse           |
+| 3  (T2V)   | 93x352x640   | 49            | filtered Panda70M, high-quality data  | 1024 |   100K~200K     | 1e-5         | Skiparse            |
+
 
 #### Example of Training Scripts
 
 The training scripts are stored under `scripts/text_condition`. The single-device training scripts are under the `single-device` folder for demonstration. We recommend to use the parallel-training scripts under the `multi-devices` folder.
 
-Here we choose an example of training scripts (`train_video3d_nx480p_zero2.sh`) and explain the meanings of some experimental arguments.
+Here we choose an example of training scripts (`train_t2i_stage1.sh`) and explain the meanings of some experimental arguments.
 
 Here is the major command of the training script:
 ```shell
-NUM_FRAME=29
-python  opensora/train/train_t2v_diffusers.py \
-    --data "scripts/train_data/merge_data.txt" \
+NUM_FRAME=1
+WIDTH=320
+HEIGHT=320
+python opensora/train/train_t2v_diffusers.py \
+    --data "scripts/train_data/image_data_v1_2.txt" \
     --num_frames ${NUM_FRAME} \
-    --max_height 480 \
-    --max_width 640 \
-    --attention_mode xformers \
+    --force_resolution \
+    --max_height ${HEIGHT} \
+    --max_width ${WIDTH} \
     --gradient_checkpointing \
-    --pretrained "path/to/ms-or-safetensors-ckpt/from/last/stage" \
+    --pretrained path/to/last/stage/ckpt \
     --parallel_mode "zero" \
     --zero_stage 2 \
     # pass other arguments
@@ -443,13 +455,13 @@ There are some arguments related to the training dataset path:
 - `data`: the text file to the video/image dataset. The text file should contain N lines corresponding to N datasets. Each line should have two or three items. If two items are available, they correspond to the video folder and the annotation json file. If three items are available, they correspond to the video folder, the text embedding cache folder, and the annotation json file.
 - `num_frames`: the number of frames of each video sample.
 - `max_height` and `max_width`: the frame maximum height and width.
-- `attention_mode`: the attention mode, choosing from `math` or `xformers`. Note that we are not using the actual [xformers](https://link.zhihu.com/?target=https%3A//github.com/facebookresearch/xformers) library to accelerate training, but using MindSpore-native `FlashAttentionScore`. The `xformers` is kept for compatibility and maybe discarded in the future.
+- `force_resolution`: whether to train with fixed resolution or dynamic resolution. If `force_resolution` is True, all videos will be cropped and resized to the resolution of `args.max_height x args.max_width`. If `force_resolution` is False, `args.max_hxw` must be provided which determines the maximum token length of each video tensor.
 - `gradient_checkpointing`: it is referred to MindSpore [recomputation](https://www.mindspore.cn/docs/en/r2.3.1/api_python/mindspore/mindspore.recompute.html) feature, which can save memory by recomputing the intermediate activations in the backward pass.
-- `pretrained`: the pretrained checkpoint to be loaded as initial weights before training. If not provided, the OpenSoraT2V will use random initialization. If provided, the path should be either the safetensors checkpoint directiory or path, e.g., "LanguageBind/Open-Sora-Plan-v1.2.0/1x480p" or "LanguageBind/Open-Sora-Plan-v1.2.0/1x480p/diffusion_pytorch_model.safetensors", or MindSpore checkpoint path, e.g., "t2i-image3d-1x480p/ckpt/OpenSoraT2V-ROPE-L-122.ckpt".
+- `pretrained`: the pretrained checkpoint to be loaded as initial weights before training. If not provided, the OpenSoraT2V will use random initialization.
 - `parallel_mode`: the parallelism mode chosen from ["data", "optim", "zero"], which denotes the data parallelism, the optimizer parallelism and the deepspeed zero_x parallelism.
-- `zero_stage`: runs parallelism like deepspeed, supporting zero0, zero1, zero2, and zero3, if parallel_mode is "zero".
+- `zero_stage`: runs parallelism like deepspeed, supporting zero0, zero1, zero2, and zero3, if parallel_mode is "zero". By default, we use `--zero_stage 2` for all training stages.
 
-For the stage 4 (`29x720p`) and stage 5 (`93x720p`) training script, please refer to `train_video3d_29x720p_zero2_sp.sh` and `train_video3d_93x720p_zero2_sp.sh`.
+For the stage 2 and stage 3 training scripts, please refer to `train_t2v_stage2.sh` and `train_t2v_stage3.sh`.
 
 #### Validation During Training
 
@@ -462,27 +474,13 @@ We also support to run validation during training. This is supported by editing 
 + --val_batch_size 1 \
 + --val_interval 1 \
 ```
-The edits allow to compute the loss on the validation set specified by `merge_data_val.txt` for every 1 epoch (defined by `val_interval`). `merge_data_val.txt` has the same format as `merge_data_train.txt`, but specifies a different subset from the train set. The validation loss will be recorded in the `result_val.log` under the output directory. For example training script, please refer to `train_video3d_29x720p_zero2_sp_val.sh` under `scripts/text_conditions/multi-devices/`.
-
+The edits allow to compute the loss on the validation set specified by `merge_data_val.txt` for every 1 epoch (defined by `val_interval`). `merge_data_val.txt` has the same format as `merge_data_train.txt`, but specifies a different subset from the train set. The validation loss will be recorded in the `result_val.log` under the output directory.
 
 #### Sequence Parallelism
 
-We also support training with sequence parallelism and zero2 parallelism together. This is enabled by setting `--sp_size` and `--train_sp_batch_size`.  For example, with `sp_size=8` and `train_sp_batch_size=4`, 2 NPUs are used for a single video sample.
+We also support training with sequence parallelism and zero2 parallelism together. This is enabled by setting `--sp_size`.
 
-See `train_video3d_29x720p_zero2_sp.sh` under `scripts/text_condition/mult-devices/` for detailed usage.
-
-#### Tips on Finetuning
-
-To align with the hyper-parameters, we use the same learning rate (LR) $1e^{-4}$ as [Open-Sora-Plan v1.2.0](https://github.com/PKU-YuanGroup/Open-Sora-Plan/tree/v1.2.0). However, our experience indicates that $1e^{-4}$ might be too large for finetuning the model on a small training set. If you want to finetune Open-Sora-Plan on your custom data with a small size, and notice that the large LR leads to unstable training, we have a few tips for you:
-
-1. You can lower your LR or increase the effective batch size, for example, by increasing `gradient_accumulation_steps` or running multi-machine training.
-2. You can try a different LR scheduler, for example, you can change the current constant LR scheduler to `polynomial decay` by:
-```diff
--  --lr_scheduler="constant" \
-+  --lr_scheduler="polynomial_decay" \
-+  --lr_decay_steps=1000000 \
-```
-The edits will set the polynomial_decay LR scheduler, and decay the start LR to the end LR in 1000000 steps. You can adjust `lr_decay_steps` based on your `max_train_steps`. See other options of LR scheduler in `mindone/trainers/lr_schedule.py`.
+See `train_t2v_stage2.sh` under `scripts/text_condition/mult-devices/` for detailed usage.
 
 #### Performance
 
@@ -490,11 +488,9 @@ We evaluated the training performance on Ascend NPUs. The results are as follows
 
 | model name      | cards       |  stage     |graph compile | batch size (local)   | video size  | Paramllelism |recompute |data sink | jit level| step time | train imgs/s |
 |:----------------|:----------- |:----------|:---------:|:-----:|:----------:|:----------:|:----------:|:----------:|:----------:|-------------------:|:----------:|
-| OpenSoraT2V-ROPE-L-122 |  8   | 2 | 3mins     |  8  |           1x640x480     |         zero2                     | TRUE | TRUE | O0 |    2.35      |  27.3 |
-| OpenSoraT2V-ROPE-L-122 |  8   | 3 |  6mins    |  1  |           29x640x480    |         zero2                      |  TRUE | TRUE | O0 |     3.68     | 63.0 |
-| OpenSoraT2V-ROPE-L-122 |  8   | 4 | 10mins    |  1  |           29x1280x720   |         zero2 + SP(sp_size=8)      |  FALSE | TRUE | O0 |    4.32     | 6.71 |
-| OpenSoraT2V-ROPE-L-122 |  8   | 5 | 15mins    |  1  |           93x1280x720   |         zero2 + SP(sp_size=8)      |  TRUE | TRUE | O0 |    24.4     | 3.81  |
-
+| OpenSoraT2V_v1_3-2B/122 |  8   | 1 | mins     |  8  |    1x320x320     |         zero2                     | TRUE | FALSE | O0 |   5.1s   |   |
+| OpenSoraT2V_v1_3-2B/122 |  8   | 2 | mins     |  1  |    up to 93x640x640    |         zero2  + SP(sp_size=8)  |  TRUE | FALSE | O0 |        |  |
+| OpenSoraT2V_v1_3-2B/122 |  8   | 3 | mins     |  8  |    93x320x320   |         zero2      |  TRUE | FALSE | O0 |       |  |
 
 > SP: sequence parallelism.
 
