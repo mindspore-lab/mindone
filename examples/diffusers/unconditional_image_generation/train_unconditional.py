@@ -393,7 +393,8 @@ def main():
     )
 
     # Prepare everything with our `accelerator`.
-    unet.to_float(weight_dtype)
+    if args.mixed_precision and args.mixed_precision != "no":
+        unet.to_float(weight_dtype)
 
     # We need to initialize the trackers we use, and also store our configuration.
     # The trackers initializes automatically on the main process.
