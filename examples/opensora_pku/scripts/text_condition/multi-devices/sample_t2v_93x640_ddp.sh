@@ -21,6 +21,5 @@ msrun --bind_core=True --worker_num=8 --local_worker_num=8 --master_port=9000 --
     --num_samples_per_prompt 1 \
     --rescale_betas_zero_snr \
     --prediction_type "v_prediction" \
-    --mode 1 \
     --precision bf16 \
     --use_parallel True \

@@ -23,4 +23,3 @@ python opensora/sample/sample.py \
     --num_samples_per_prompt 1 \
     --rescale_betas_zero_snr \
     --prediction_type "v_prediction" \
-    --mode 1
