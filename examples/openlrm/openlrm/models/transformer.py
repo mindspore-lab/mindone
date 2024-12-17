@@ -16,10 +16,10 @@
 from functools import partial
 import mindspore as ms
 from mindspore import nn
-from logging import get_logger
+from logging import getLogger
 
 
-logger = get_logger(__name__)
+logger = getLogger(__name__)
 
 
 class TransformerDecoder(nn.Cell):

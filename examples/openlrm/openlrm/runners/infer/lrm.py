@@ -23,7 +23,7 @@ import numpy as np
 from PIL import Image
 from omegaconf import OmegaConf
 from tqdm.auto import tqdm
-from logging import get_logger
+from logging import getLogger
 
 from .base_inferrer import Inferrer
 from openlrm.datasets.cam_utils import build_camera_principle, build_camera_standard, surrounding_views_linspace, create_intrinsics
@@ -34,7 +34,7 @@ from openlrm.utils.hf_hub import wrap_model_hub
 from openlrm.utils import no_grad
 
 
-logger = get_logger(__name__)
+logger = getLogger(__name__)
 
 
 def parse_configs():

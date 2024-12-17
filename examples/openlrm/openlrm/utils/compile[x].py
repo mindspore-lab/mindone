@@ -13,10 +13,10 @@
 # limitations under the License.
 
 
-from accelerate.logging import get_logger
+from logging import getLogger
 
 
-logger = get_logger(__name__)
+logger = getLogger(__name__)
 
 
 def configure_dynamo(config: dict):

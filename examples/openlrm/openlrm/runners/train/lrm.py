@@ -16,17 +16,17 @@
 import os
 import math
 from tqdm.auto import tqdm
-import torch
-import torch.nn as nn
-from torchvision.utils import make_grid
-from accelerate.logging import get_logger
+# from torchvision.utils import make_grid
+import mindspore as ms
+from mindspore import nn
+from logging import getLogger
 
 from .base_trainer import Trainer
 from openlrm.utils.profiler import DummyProfiler
 from openlrm.runners import REGISTRY_RUNNERS
 
 
-logger = get_logger(__name__)
+logger = getLogger(__name__)
 
 
 @REGISTRY_RUNNERS.register('train.lrm')
@@ -227,7 +227,7 @@ class LRMTrainer(Trainer):
 
                 # track local losses
                 local_step_losses.append(torch.stack([
-                    _loss.detach() if _loss is not None else torch.tensor(float('nan'), device=self.device)
+                    _loss.detach() if _loss is not None else ms.Tensor(float('nan'), device=self.device)
                     for _loss in [loss, loss_pixel, loss_perceptual, loss_tv]
                 ]))
 
@@ -343,8 +343,8 @@ class LRMTrainer(Trainer):
             self.save_checkpoint()
             self.evaluate()
 
-    @torch.no_grad()
-    @torch.compiler.disable
+    # @torch.compiler.disable
+    @no_grad()
     def evaluate(self, epoch: int = None):
         self.model.eval()
 
@@ -362,7 +362,7 @@ class LRMTrainer(Trainer):
             sample_data, sample_outs = data, outs
 
             running_losses.append(torch.stack([
-                _loss if _loss is not None else torch.tensor(float('nan'), device=self.device)
+                _loss if _loss is not None else ms.Tensor(float('nan'), device=self.device)
                 for _loss in [loss, loss_pixel, loss_perceptual, loss_tv]
             ]))
 
@@ -404,19 +404,23 @@ class LRMTrainer(Trainer):
                 gts=sample_data['render_image'][:self.cfg.logger.image_monitor.samples_per_log].cpu(),
             )
 
-    @Trainer.control('on_main_process')
+    # @Trainer.control('on_main_process')
     def log_image_monitor(
         self, epoch: int = None, step: int = None, split: str = None,
-        renders: torch.Tensor = None, gts: torch.Tensor = None,
+        renders: ms.Tensor = None, gts: ms.Tensor = None,
         ):
         M = renders.shape[1]
-        merged = torch.stack([renders, gts], dim=1)[0].view(-1, *renders.shape[2:])
+        merged = mint.stack([renders, gts], dim=1)[0].view(-1, *renders.shape[2:])
         renders, gts = renders.view(-1, *renders.shape[2:]), gts.view(-1, *gts.shape[2:])
-        renders, gts, merged = make_grid(renders, nrow=M), make_grid(gts, nrow=M), make_grid(merged, nrow=M)
+        # renders, gts, merged = make_grid(renders, nrow=M), make_grid(gts, nrow=M), make_grid(merged, nrow=M)
         log_type, log_progress = self._get_str_progress(epoch, step)
         split = f'/{split}' if split else ''
-        self.log_images({
-            f'Images_split{split}/rendered': renders.unsqueeze(0),
-            f'Images_split{split}/gt': gts.unsqueeze(0),
-            f'Images_merged{split}': merged.unsqueeze(0),
-        }, log_progress)
+        # self.log_images({
+        #     f'Images_split{split}/rendered': renders.unsqueeze(0),
+        #     f'Images_split{split}/gt': gts.unsqueeze(0),
+        #     f'Images_merged{split}': merged.unsqueeze(0),
+        # }, log_progress)
+
+        # TODO: save images
+
+

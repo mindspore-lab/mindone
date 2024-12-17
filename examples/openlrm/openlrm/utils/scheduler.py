@@ -15,10 +15,10 @@
 
 import math
 from mindspore.experimental.optim.lr_scheduler import LRScheduler
-from logging import get_logger
+from logging import getLogger
 
 
-logger = get_logger(__name__)
+logger = getLogger(__name__)
 
 
 class CosineWarmupScheduler(LRScheduler):
