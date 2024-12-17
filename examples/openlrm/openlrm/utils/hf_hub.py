@@ -12,10 +12,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import mindspore as ms
 from mindspore import nn
 from mindone.diffusers.configuration_utils import ConfigMixin
 from huggingface_hub import ModelHubMixin
 from huggingface_hub.utils import validate_hf_hub_args
+import inspect
+from typing import Dict, Optional, Union
+from pathlib import Path
 
 
 
@@ -85,7 +89,7 @@ def wrap_model_hub(model_cls: nn.Cell):
 
             
             # Check loading keys:
-            model_state_dict = {k: v for k, v in cls.parameters_and_names()}
+            model_state_dict = {k: v for k, v in model.parameters_and_names()}
             loaded_keys = list(state_dict.keys())
             expexted_keys = list(model_state_dict.keys())
             original_loaded_keys = loaded_keys
@@ -109,19 +113,19 @@ def wrap_model_hub(model_cls: nn.Cell):
             print(f"state_dict.dtype {state_dict[loaded_keys[0]].dtype}")  # float16
             print(f"model.dtype {model.dtype}")
             if state_dict[loaded_keys[0]].dtype != model.dtype:
-                cls = cls.to(state_dict[loaded_keys[0]].dtype)
-            print(f"Use {cls.dtype} for LRMModel.")
+                model = model.to(state_dict[loaded_keys[0]].dtype)
+            print(f"Use {model.dtype} for LRMModel.")
 
             # Instantiate the model
-            param_not_load, ckpt_not_load = ms.load_param_into_net(cls, state_dict, strict_load=strict)
+            param_not_load, ckpt_not_load = ms.load_param_into_net(model, state_dict, strict_load=strict)
             print(f"Loaded checkpoint: param_not_load {param_not_load}, ckpt_not_load {ckpt_not_load}")
 
             
             # Save where the model was instantiated from
-            # cls.register_to_config(_name_or_path=pretrained_model_name_or_path)
+            # model.register_to_config(_name_or_path=pretrained_model_name_or_path)
 
             if mindspore_dtype is not None:
-                cls.to(dtype=mindspore_dtype)
+                model.to(dtype=mindspore_dtype)
 
 
         @classmethod

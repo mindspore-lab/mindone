@@ -16,12 +16,12 @@
 import mindspore as ms
 from mindspore import nn
 from abc import abstractmethod
-from logging import get_logger
+from logging import getLogger
 
 from openlrm.runners.abstract import Runner
 
 
-logger = get_logger(__name__)
+logger = getLogger(__name__)
 
 
 class Inferrer(Runner):

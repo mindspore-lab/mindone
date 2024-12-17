@@ -13,6 +13,7 @@ from mindspore.common.initializer import Zero, initializer
 
 from .utils.renderer import ImportanceRenderer
 from .utils.ray_sampler import RaySampler
+from typing import Optional
 
 
 class ShiftedSoftplus(nn.Cell):

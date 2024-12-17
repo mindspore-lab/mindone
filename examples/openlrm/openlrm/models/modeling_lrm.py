@@ -15,14 +15,14 @@
 
 import mindspore as ms
 from mindspore import nn
-from logging import get_logger
+from logging import getLogger
 
 from .embedder import CameraEmbedder
 from .transformer import TransformerDecoder
 from .rendering.synthesizer import TriplaneSynthesizer
 
 
-logger = get_logger(__name__)
+logger = getLogger(__name__)
 
 
 class ModelLRM(nn.Cell):
@@ -52,13 +52,13 @@ class ModelLRM(nn.Cell):
             raw_dim=12+4, embed_dim=camera_embed_dim,
         )
         # initialize pos_embed with 1/sqrt(dim) * N(0, 1)
-        self.pos_embed = nn.Parameter(torch.randn(1, 3*triplane_low_res**2, transformer_dim) * (1. / transformer_dim) ** 0.5)
+        self.pos_embed = ms.Parameter(ops.randn(1, 3*triplane_low_res**2, transformer_dim) * (1. / transformer_dim) ** 0.5)
         self.transformer = TransformerDecoder(
             block_type='cond_mod',
             num_layers=transformer_layers, num_heads=transformer_heads,
             inner_dim=transformer_dim, cond_dim=encoder_feat_dim, mod_dim=camera_embed_dim,
         )
-        self.upsampler = nn.ConvTranspose2d(transformer_dim, triplane_dim, kernel_size=2, stride=2, padding=0)
+        self.upsampler = nn.Conv2dTranspose(transformer_dim, triplane_dim, kernel_size=2, stride=2, padding=0, pad_mode='valid', has_bias=True)
         self.synthesizer = TriplaneSynthesizer(
             triplane_dim=triplane_dim, samples_per_ray=rendering_samples_per_ray,
         )
@@ -80,7 +80,7 @@ class ModelLRM(nn.Cell):
         assert image_feats.shape[0] == camera_embeddings.shape[0], \
             "Batch size mismatch for image_feats and camera_embeddings!"
         N = image_feats.shape[0]
-        x = self.pos_embed.repeat(N, 1, 1)  # [N, L, D]
+        x = self.pos_embed.tile((N, 1, 1))  # [N, L, D]
         x = self.transformer(
             x,
             cond=image_feats,
@@ -91,16 +91,15 @@ class ModelLRM(nn.Cell):
     def reshape_upsample(self, tokens):
         N = tokens.shape[0]
         H = W = self.triplane_low_res
-        x = tokens.view(N, 3, H, W, -1)
-        x = torch.einsum('nihwd->indhw', x)  # [3, N, D, H, W]
+        x = tokens.view((N, 3, H, W, -1))
+        x = ops.einsum('nihwd->indhw', x)  # [3, N, D, H, W]
         x = x.contiguous().view(3*N, -1, H, W)  # [3*N, D, H, W]
         x = self.upsampler(x)  # [3*N, D', H', W']
-        x = x.view(3, N, *x.shape[-3:])  # [3, N, D', H', W']
-        x = torch.einsum('indhw->nidhw', x)  # [N, 3, D', H', W']
+        x = x.view((3, N, *x.shape[-3:]))  # [3, N, D', H', W']
+        x = ops.einsum('indhw->nidhw', x)  # [N, 3, D', H', W']
         x = x.contiguous()
         return x
 
-    @torch.compile
     def forward_planes(self, image, camera):
         # image: [N, C_img, H_img, W_img]
         # camera: [N, D_cam_raw]
