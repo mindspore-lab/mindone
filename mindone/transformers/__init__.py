@@ -37,6 +37,7 @@ from .models.gemma import (
     GemmaModel,
     GemmaPreTrainedModel,
 )
+from .models.minicpm_v import MiniCPMV_v2_6, MiniCPMVImageProcessor
 from .models.mt5 import (
     MT5_PRETRAINED_MODEL_ARCHIVE_LIST,
     MT5EncoderModel,
