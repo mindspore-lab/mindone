@@ -464,8 +464,8 @@ We evaluated the training performance on Ascend NPUs. All experiments are runnin
 
 | model name      | cards       |  stage     | batch size (global)   | video size  | Paramllelism |recompute |data sink | jit level| step time | train imgs/s |
 |:----------------|:----------- |:---------:|:-----:|:----------:|:----------:|:----------:|:----------:|:----------:|-------------------:|:----------:|
-| OpenSoraT2V_v1_3-2B/122 |  8   | 1 |  8  |    1x256x256     |         zero2                     | TRUE | FALSE | O0 |   5.1s   |   |
-| OpenSoraT2V_v1_3-2B/122 |  8   | 2 |  1  |    up to 93x640x640    |         zero2  + SP(sp_size=8)  |  TRUE | FALSE | O0 |        |  |
+| OpenSoraT2V_v1_3-2B/122 |  8   | 1 |  32  |    1x256x256     |         zero2                     | TRUE | FALSE | O0 |  4.37  | 7.32  |
+| OpenSoraT2V_v1_3-2B/122 |  8   | 2 |  1  |    up to 93x640x640    |         zero2  + SP(sp_size=8)  |  TRUE | FALSE | O0 |   |  |
 | OpenSoraT2V_v1_3-2B/122 |  8   | 3 |  8  |    93x352x640   |         zero2      |  TRUE | FALSE | O0 |       |  |
 
 > SP: sequence parallelism.
