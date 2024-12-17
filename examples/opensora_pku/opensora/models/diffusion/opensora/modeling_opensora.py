@@ -298,6 +298,9 @@ class OpenSoraT2V_v1_3(ModelMixin, ConfigMixin):
             model_file = ckpt_path
             pretrained_model_name_or_path = os.path.dirname(ckpt_path)
         state_dict = load_state_dict(model_file, variant=None)
+        state_dict = dict(
+            [k.replace("_backbone.", "") if "_backbone." in k else k, v] for k, v in state_dict.items()
+        )  # remove _backbone
         model._convert_deprecated_attention_blocks(state_dict)
 
         model, missing_keys, unexpected_keys, mismatched_keys, error_msgs = cls._load_pretrained_model(
@@ -328,6 +331,9 @@ class OpenSoraT2V_v1_3(ModelMixin, ConfigMixin):
                     new_pname = pname.replace(pre, "")
                     sd[new_pname] = sd.pop(pname)
 
+        sd = dict(
+            [k.replace("_backbone.", "") if "_backbone." in k else k, v] for k, v in sd.items()
+        )  # remove _backbone
         m, u = ms.load_param_into_net(model, sd)
         print("net param not load: ", m, len(m))
         print("ckpt param not load: ", u, len(u))
