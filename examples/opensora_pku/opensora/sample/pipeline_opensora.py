@@ -447,25 +447,14 @@ class OpenSoraPipeline(DiffusionPipeline):
             latents = latents * self.scheduler.init_noise_sigma
         return latents
 
-    def prepare_parallel_latent(self, video_states):
+    def prepare_parallel_input(self, input, sp_dim):
         sp_size = hccl_info.world_size
         index = hccl_info.rank % sp_size
-        padding_needed = (sp_size - video_states.shape[2] % sp_size) % sp_size
-        temp_attention_mask = None
-        if padding_needed > 0:
-            logger.debug("Doing video padding")
-            # B, C, T, H, W -> B, C, T', H, W
-            video_states = mint.nn.functional.pad(
-                video_states, (0, 0, 0, 0, 0, padding_needed), mode="constant", value=0
-            )
-
-            b, _, f, h, w = video_states.shape
-            temp_attention_mask = mint.ones((b, f), ms.int32)
-            temp_attention_mask[:, -padding_needed:] = 0
-
-        assert video_states.shape[2] % sp_size == 0
-        video_states = ops.chunk(video_states, sp_size, 2)[index]
-        return video_states, temp_attention_mask
+        assert (
+            input.shape[sp_dim] % sp_size == 0
+        ), f"Expect the parallel input length at dim={sp_dim} is divisble by the sp_size={sp_size}, but got {input.shape[sp_dim]}"
+        input = ops.chunk(input, sp_size, sp_dim)[index]
+        return input
 
     @property
     def guidance_scale(self):
@@ -653,21 +642,10 @@ class OpenSoraPipeline(DiffusionPipeline):
             # prompt_embeds = prompt_embeds.reshape(b, n, x, h).contiguous()
             # rank = hccl_info.rank
             # prompt_embeds = prompt_embeds[:, rank, :, :]
-
-            latents, temp_attention_mask = self.prepare_parallel_latent(latents)
-            temp_attention_mask = (
-                mint.cat([temp_attention_mask] * 2)
-                if (self.do_classifier_free_guidance and temp_attention_mask is not None)
-                else temp_attention_mask
-            )
             # b (n x) h -> b n x h
-            prompt_embeds = prompt_embeds.reshape(
-                prompt_embeds.shape[0], world_size, prompt_embeds.shape[1] // world_size, -1
-            ).contiguous()
-            index = hccl_info.rank % world_size
-            prompt_embeds = prompt_embeds[:, index, :, :]
-        else:
-            temp_attention_mask = None
+            prompt_embeds = self.prepare_parallel_input(prompt_embeds, sp_dim=1)
+            if prompt_embeds_2 is not None:
+                prompt_embeds_2 = self.prepare_parallel_input(prompt_embeds_2, sp_dim=1)
 
         # ==================make sp=====================================
         # 8. Denoising loop
@@ -696,21 +674,14 @@ class OpenSoraPipeline(DiffusionPipeline):
                 if prompt_attention_mask.ndim == 2:
                     prompt_attention_mask = prompt_attention_mask.unsqueeze(1)  # b l -> b 1 l
                 if prompt_embeds_2 is not None and prompt_embeds_2.ndim == 2:
-                    prompt_embeds = prompt_embeds.unsqueeze(1)  # b d -> b 1 d #OFFICIAL VER. DONT KNOW WHY
+                    # prompt_embeds = prompt_embeds.unsqueeze(1)  # b d -> b 1 d #OFFICIAL VER. DONT KNOW WHY
                     # prompt_embeds_2 = prompt_embeds_2.unsqueeze(1)  #
+                    raise NotImplementedError
 
-                attention_mask = ops.ones_like(latent_model_input)[:, 0]
-                if temp_attention_mask is not None:
-                    # temp_attention_mask shape (bs, t), 1 means to keep, 0 means to discard
-                    # TODO: mask temporal padded tokens
-                    attention_mask = (
-                        attention_mask.to(ms.int32) * temp_attention_mask[:, :, None, None].to(ms.int32)
-                    ).to(ms.bool_)
-                # ==================prepare my shape=====================================
-
-                # ==================make sp=====================================
+                attention_mask = ops.ones_like(latent_model_input)[:, 0].to(ms.int32)
                 if get_sequence_parallel_state():
                     attention_mask = attention_mask.repeat(world_size, axis=1)
+                attention_mask = attention_mask.to(ms.bool_)
                 # ==================make sp=====================================
 
                 noise_pred = ops.stop_gradient(
@@ -765,7 +736,7 @@ class OpenSoraPipeline(DiffusionPipeline):
             # full_shape = [latents_shape[0] * world_size] + latents_shape[1:]  # # b*sp c t//sp h w
             # all_latents = ops.zeros(full_shape, dtype=latents.dtype)
             all_latents = self.all_gather(latents)
-            latents_list = mint.chunk(all_latents, world_size, axis=0)
+            latents_list = mint.chunk(all_latents, world_size, 0)
             latents = mint.cat(latents_list, dim=2)
         # ==================make sp=====================================
 
