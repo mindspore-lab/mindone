@@ -1,7 +1,10 @@
+import random
 import sys
 
+import numpy as np
 from modules.encoders.modules import VideoPredictionEmbedderWithEncoder
 
+import mindspore as ms
 from mindspore import amp
 from mindspore.nn import GroupNorm, SiLU, Softmax
 
@@ -27,3 +30,9 @@ def mixed_precision(net):
     for emb in net.conditioner.embedders:
         if not (isinstance(emb, VideoPredictionEmbedderWithEncoder) and emb.disable_encoder_amp):
             _mixed_precision(emb)
+
+
+def seed_everything(seed):
+    random.seed(seed)
+    np.random.seed(seed)
+    ms.set_seed(seed)

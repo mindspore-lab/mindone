@@ -13,16 +13,28 @@ import mindspore as ms
 from mindspore import Tensor, nn, ops
 
 sys.path.append("../../stable_diffusion_xl")  # FIXME: loading modules from the SDXL directory
-from gm.modules.attention import (
+from modules.diffusionmodules.util import AlphaBlender
+
+from examples.stable_diffusion_xl.gm.modules.attention import (
     FLASH_IS_AVAILABLE,
     CrossAttention,
     FeedForward,
     MemoryEfficientCrossAttention,
     SpatialTransformer,
 )
-from gm.modules.diffusionmodules.openaimodel import Downsample, ResBlock, Timestep, TimestepBlock, Upsample
-from gm.modules.diffusionmodules.util import conv_nd, normalization, timestep_embedding, zero_module
-from modules.diffusionmodules.util import AlphaBlender
+from examples.stable_diffusion_xl.gm.modules.diffusionmodules.openaimodel import (
+    Downsample,
+    ResBlock,
+    Timestep,
+    TimestepBlock,
+    Upsample,
+)
+from examples.stable_diffusion_xl.gm.modules.diffusionmodules.util import (
+    conv_nd,
+    normalization,
+    timestep_embedding,
+    zero_module,
+)
 
 
 def _positional_encoding(length: int, dim: int, max_period=10000) -> np.ndarray:

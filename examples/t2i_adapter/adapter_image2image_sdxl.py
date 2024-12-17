@@ -12,6 +12,8 @@ from omegaconf import OmegaConf
 from PIL import Image
 from t2i_utils import read_images
 
+import mindspore as ms
+
 sys.path.append("../../")  # FIXME: remove in future when mindone is ready for install
 from mindone.utils import set_logger
 from mindone.utils.env import init_train_env
@@ -62,7 +64,8 @@ def main(args):
 
     # set ms context
     init_train_env(**args.environment)
-
+    if args.environment.mode == ms.GRAPH_MODE:
+        ms.set_context(jit_config={"jit_level": args.jit_level})
     # initialize SD and adapter models
     args.SDXL.config = OmegaConf.load(args.SDXL.config)  # NOQA
     overwrite = args.SDXL.pop("overwrite", {})
@@ -75,7 +78,7 @@ def main(args):
     model, _ = create_model(**args.SDXL, freeze=True)
 
     adapters = [
-        get_adapter("sdxl", a_cond, ckpt, use_fp16=args.SDXL.amp_level == "O2")
+        get_adapter("sdxl", a_cond, ckpt, use_fp16=False)
         for a_cond, ckpt in zip(args.adapter.condition, args.adapter.ckpt_path)
     ]
     adapters = CombinedAdapter(adapters, cond_weights, output_fp16=args.SDXL.amp_level == "O2")
@@ -111,7 +114,8 @@ def main(args):
     c, f = version_dict["C"], version_dict["f"]
 
     # infer
-    conds, img_shape = read_images(cond_paths, min(h, w))
+    flags = [-1 for _ in range(len(args.adapter.condition))]
+    conds, img_shape = read_images(cond_paths, min(h, w), flags=flags)
     adapter_features, _ = adapters(conds)
 
     value_dict = prepare_infer_dict(
@@ -120,30 +124,31 @@ def main(args):
 
     base_count = 0
     for i, (prompt, negative_prompt) in enumerate(zip(prompts, negative_prompts)):
-        value_dict["prompt"] = prompt
-        value_dict["negative_prompt"] = negative_prompt
+        for n in range(args.n_iter):
+            value_dict["prompt"] = prompt
+            value_dict["negative_prompt"] = negative_prompt
 
-        start_time = time.perf_counter()
-        out = model.do_sample(
-            sampler,
-            value_dict,
-            args.n_samples,
-            *img_shape,
-            c,
-            f,
-            adapter_states=adapter_features,
-            amp_level=args.SDXL.amp_level,
-        )
+            start_time = time.perf_counter()
+            out = model.do_sample(
+                sampler,
+                value_dict,
+                args.n_samples,
+                *img_shape,
+                c,
+                f,
+                adapter_states=tuple(adapter_features) if isinstance(adapter_features, list) else adapter_features,
+                amp_level=args.SDXL.amp_level,
+            )
 
-        for sample in out:
-            sample = 255.0 * sample.transpose(1, 2, 0)
-            Image.fromarray(sample.astype(np.uint8)).save(sample_path / f"{base_count:05}.png")
-            base_count += 1
+            for sample in out:
+                sample = 255.0 * sample.transpose(1, 2, 0)
+                Image.fromarray(sample.astype(np.uint8)).save(sample_path / f"{base_count:05}.png")
+                base_count += 1
 
-        logger.info(
-            f"{args.n_samples * (i + 1)}/{args.n_samples * len(prompts)} images generated, "
-            f"time cost for current trial: {time.perf_counter() - start_time:.3f}s"
-        )
+            logger.info(
+                f"{args.n_samples * (i + 1) * (n + 1)}/{args.n_samples * len(prompts) * args.n_iter} images generated, "
+                f"time cost for current trial: {time.perf_counter() - start_time:.3f}s"
+            )
 
     logger.info(f"Done! All generated images are saved in: {output_path}\nEnjoy.")
 
@@ -154,7 +159,16 @@ if __name__ == "__main__":
     parser.add_function_arguments(
         init_train_env, "environment", skip={"distributed", "enable_modelarts", "num_workers", "json_data_path"}
     )
-
+    parser.add_argument(
+        "--jit_level",
+        default="O0",
+        type=str,
+        choices=["O0", "O1", "O2"],
+        help="Used to control the compilation optimization level. Supports ['O0', 'O1', 'O2']."
+        "O0: Except for optimizations that may affect functionality, all other optimizations are turned off, adopt KernelByKernel execution mode."
+        "O1: Using commonly used optimizations and automatic operator fusion optimizations, adopt KernelByKernel execution mode."
+        "O2: Ultimate performance optimization, adopt Sink execution mode.",
+    )
     # Stable Diffusion
     parser.add_function_arguments(create_model, "SDXL", skip={"config", "freeze", "load_filter"})
     parser.add_argument("--SDXL.config", type=str, default="configs/inference/sd_xl_base.yaml")
@@ -202,6 +216,12 @@ if __name__ == "__main__":
         type=int,
         default=2,
         help="how many samples to produce for each given prompt in an iteration. A.k.a. batch size",
+    )
+    parser.add_argument(
+        "--n_iter",
+        type=int,
+        default=2,
+        help="number of iterations or trials. sample this often, ",
     )
     parser.add_function_arguments(prepare_infer_dict, skip={"resolution"})
 
