@@ -133,7 +133,7 @@ class RFlowLossWrapper(nn.Cell):
         if timestep is None:
             timestep = self._broadcast(self._sample_func(x.shape[0]))
 
-        noise = self._broadcast(ops.rand_like(x.shape))
+        noise = self._broadcast(ops.rand_like(x))
         x_t = self.add_noise(x, noise, timestep)
 
         model_output = self.model(
