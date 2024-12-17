@@ -1,0 +1,11 @@
+omegaconf
+transformers
+safetensors
+imageio[ffmpeg]
+PyMCubes
+trimesh
+megfile
+opencv-python
+rembg
+httpx[socks]
+tensorboard
