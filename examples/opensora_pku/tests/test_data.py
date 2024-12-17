@@ -47,7 +47,7 @@ def load_dataset_and_dataloader(args, device_num=1, rank_id=0):
     assert args.dataset == "t2v", "Support t2v dataset only."
     print_banner("Dataset Loading")
     # Setup data:
-    train_dataset = getdataset(args)
+    train_dataset = getdataset(args, dataset_file=args.data)
     sampler = (
         LengthGroupedBatchSampler(
             args.train_batch_size,
@@ -92,14 +92,69 @@ def load_dataset_and_dataloader(args, device_num=1, rank_id=0):
 
 
 def parse_t2v_train_args(parser):
+    # TODO: NEW in v1.3 , but may not use
+    # dataset & dataloader
+    parser.add_argument("--max_hxw", type=int, default=None)
+    parser.add_argument("--min_hxw", type=int, default=None)
+    parser.add_argument("--ood_img_ratio", type=float, default=0.0)
+    parser.add_argument("--group_data", action="store_true")
+    parser.add_argument("--hw_stride", type=int, default=32)
+    parser.add_argument("--force_resolution", action="store_true")
+    parser.add_argument("--trained_data_global_step", type=int, default=None)
+    parser.add_argument("--use_decord", action="store_true")
+
+    # text encoder & vae & diffusion model
+    parser.add_argument("--vae_fp32", action="store_true")
+    parser.add_argument("--extra_save_mem", action="store_true")
+    parser.add_argument("--text_encoder_name_1", type=str, default="DeepFloyd/t5-v1_1-xxl")
+    parser.add_argument("--text_encoder_name_2", type=str, default=None)
+    parser.add_argument("--sparse1d", action="store_true")
+    parser.add_argument("--sparse_n", type=int, default=2)
+    parser.add_argument("--skip_connection", action="store_true")
+    parser.add_argument("--cogvideox_scheduler", action="store_true")
+    parser.add_argument("--v1_5_scheduler", action="store_true")
+    parser.add_argument("--rf_scheduler", action="store_true")
+    parser.add_argument(
+        "--weighting_scheme", type=str, default="logit_normal", choices=["sigma_sqrt", "logit_normal", "mode", "cosmap"]
+    )
+    parser.add_argument(
+        "--logit_mean", type=float, default=0.0, help="mean to use when using the `'logit_normal'` weighting scheme."
+    )
+    parser.add_argument(
+        "--logit_std", type=float, default=1.0, help="std to use when using the `'logit_normal'` weighting scheme."
+    )
+    parser.add_argument(
+        "--mode_scale",
+        type=float,
+        default=1.29,
+        help="Scale of mode weighting scheme. Only effective when using the `'mode'` as the `weighting_scheme`.",
+    )
+
+    # diffusion setting
+    parser.add_argument("--offload_ema", action="store_true", help="Offload EMA model to CPU during training step.")
+    parser.add_argument("--foreach_ema", action="store_true", help="Use faster foreach implementation of EMAModel.")
+    parser.add_argument("--rescale_betas_zero_snr", action="store_true")
+
+    # validation & logs
+    parser.add_argument("--enable_profiling", action="store_true")
+    parser.add_argument("--num_sampling_steps", type=int, default=20)
+    parser.add_argument("--guidance_scale", type=float, default=4.5)
+
     parser.add_argument("--output_dir", default="outputs/", help="The directory where training results are saved.")
     parser.add_argument("--dataset", type=str, default="t2v")
-    parser.add_argument("--data", type=str, required=True)
+    parser.add_argument(
+        "--data",
+        type=str,
+        required=True,
+        help="The training dataset text file specifying the path of video folder, text embedding cache folder, and the annotation json file",
+    )
+    parser.add_argument(
+        "--val_data",
+        type=str,
+        default=None,
+        help="The validation dataset text file, same format as the training dataset text file.",
+    )
     parser.add_argument("--cache_dir", type=str, default="./cache_dir")
-    parser.add_argument("--model", type=str, choices=list(Diffusion_models.keys()), default="OpenSoraT2V-ROPE-L/122")
-    parser.add_argument("--cfg", type=float, default=0.1)
-    parser.add_argument("--ae", type=str, default="CausalVAEModel_4x8x8")
-    parser.add_argument("--ae_path", type=str, default="LanguageBind/Open-Sora-Plan-v1.1.0")
     parser.add_argument(
         "--filter_nonexistent",
         type=str2bool,
@@ -113,12 +168,13 @@ def parse_t2v_train_args(parser):
         help="Whether to use T5 embedding cache. Must be provided in image/video_data.",
     )
     parser.add_argument("--vae_latent_folder", default=None, type=str, help="root dir for the vae latent data")
-
+    parser.add_argument("--model", type=str, choices=list(Diffusion_models.keys()), default="OpenSoraT2V_v1_3-2B/122")
     parser.add_argument("--interpolation_scale_h", type=float, default=1.0)
     parser.add_argument("--interpolation_scale_w", type=float, default=1.0)
     parser.add_argument("--interpolation_scale_t", type=float, default=1.0)
     parser.add_argument("--downsampler", type=str, default=None)
-
+    parser.add_argument("--ae", type=str, default="WFVAEModel_D8_4x8x8")
+    parser.add_argument("--ae_path", type=str, default="LanguageBind/Open-Sora-Plan-v1.3.0")
     parser.add_argument("--sample_rate", type=int, default=1)
     parser.add_argument("--train_fps", type=int, default=24)
     parser.add_argument("--drop_short_ratio", type=float, default=1.0)
@@ -128,16 +184,17 @@ def parse_t2v_train_args(parser):
     parser.add_argument("--max_width", type=int, default=240)
     parser.add_argument("--group_frame", action="store_true")
     parser.add_argument("--group_resolution", action="store_true")
+    parser.add_argument("--use_rope", action="store_true")
+    parser.add_argument("--pretrained", type=str, default=None)
 
     parser.add_argument("--tile_overlap_factor", type=float, default=0.25)
     parser.add_argument("--enable_tiling", action="store_true")
 
     parser.add_argument("--attention_mode", type=str, choices=["xformers", "math", "flash"], default="xformers")
-    parser.add_argument("--text_encoder_name", type=str, default="DeepFloyd/t5-v1_1-xxl")
-    parser.add_argument("--model_max_length", type=int, default=300)
+    # parser.add_argument("--text_encoder_name", type=str, default="DeepFloyd/t5-v1_1-xxl")
+    parser.add_argument("--model_max_length", type=int, default=512)
     parser.add_argument("--multi_scale", action="store_true")
 
-    # parser.add_argument("--enable_tracker", action="store_true")
     parser.add_argument("--use_image_num", type=int, default=0)
     parser.add_argument("--use_img_from_vid", action="store_true")
     parser.add_argument(
@@ -146,10 +203,72 @@ def parse_t2v_train_args(parser):
         default=None,
         help="Total number of training steps to perform.  If provided, overrides num_train_epochs.",
     )
-
+    parser.add_argument(
+        "--checkpointing_steps",
+        type=int,
+        default=500,
+        help=(
+            "Save a checkpoint of the training state every X updates. These checkpoints can be used both as final"
+            " checkpoints in case they are better than the last checkpoint, and are also suitable for resuming"
+            " training using `--resume_from_checkpoint`."
+        ),
+    )
+    parser.add_argument("--cfg", type=float, default=0.1)
+    parser.add_argument(
+        "--num_no_recompute",
+        type=int,
+        default=0,
+        help="If use_recompute is True, `num_no_recompute` blocks will be removed from the recomputation list."
+        "This is a positive integer which can be tuned based on the memory usage.",
+    )
     parser.add_argument("--dataloader_prefetch_size", type=int, default=None, help="minddata prefetch size setting")
     parser.add_argument("--sp_size", type=int, default=1, help="For sequence parallel")
     parser.add_argument("--train_sp_batch_size", type=int, default=1, help="Batch size for sequence parallel training")
+    parser.add_argument(
+        "--vae_keep_gn_fp32",
+        default=False,
+        type=str2bool,
+        help="whether keep GroupNorm in fp32. Defaults to False in inference, better to set to True when training vae",
+    )
+    parser.add_argument(
+        "--vae_precision",
+        default="fp16",
+        type=str,
+        choices=["bf16", "fp16"],
+        help="what data type to use for vae. Default is `fp16`, which corresponds to ms.float16",
+    )
+    parser.add_argument(
+        "--text_encoder_precision",
+        default="bf16",
+        type=str,
+        choices=["bf16", "fp16"],
+        help="what data type to use for T5 text encoder. Default is `bf16`, which corresponds to ms.bfloat16",
+    )
+    parser.add_argument(
+        "--enable_parallel_fusion", default=True, type=str2bool, help="Whether to parallel fusion for AdamW"
+    )
+    parser.add_argument("--jit_level", default="O0", help="Set jit level: # O0: KBK, O1:DVM, O2: GE")
+    parser.add_argument("--noise_offset", type=float, default=0.02, help="The scale of noise offset.")
+    parser.add_argument(
+        "--snr_gamma",
+        type=float,
+        default=None,
+        help="SNR weighting gamma to be used if rebalancing the loss. Recommended value is 5.0. More details here: \
+            https://arxiv.org/abs/2303.09556.",
+    )
+    parser.add_argument(
+        "--prediction_type",
+        type=str,
+        default=None,
+        help="The prediction_type that shall be used for training. Choose between 'epsilon' or 'v_prediction' or leave `None`. \
+            If left to `None` the default prediction type of the scheduler: `noise_scheduler.config.prediciton_type` is chosen.",
+    )
+    parser.add_argument("--ema_start_step", type=int, default=0)
+    parser.add_argument(
+        "--gradient_checkpointing",
+        action="store_true",
+        help="Whether or not to use gradient checkpointing to save memory at the expense of slower backward pass.",
+    )
 
     return parser
 
