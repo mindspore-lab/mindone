@@ -464,10 +464,11 @@ We evaluated the training performance on Ascend NPUs. All experiments are runnin
 | model name      | cards       |  stage     | batch size (global)   | video size  | Paramllelism |recompute |data sink | jit level| step time | train imgs/s |
 |:----------------|:----------- |:---------:|:-----:|:----------:|:----------:|:----------:|:----------:|:----------:|-------------------:|:----------:|
 | OpenSoraT2V_v1_3-2B/122 |  8   | 1 |  32  |    1x256x256     |         zero2                     | TRUE | FALSE | O0 |  4.37  | 7.32  |
-| OpenSoraT2V_v1_3-2B/122 |  8   | 2 |  1  |    up to 93x640x640    |         zero2  + SP(sp_size=8)  |  TRUE | FALSE | O0 |   |  |
-| OpenSoraT2V_v1_3-2B/122 |  8   | 3 |  8  |    93x352x640   |         zero2      |  TRUE | FALSE | O0 |       |  |
+| OpenSoraT2V_v1_3-2B/122 |  8   | 2 |  1  |    up to 93x640x640    |         zero2  + SP(sp_size=8)  |  TRUE | FALSE | O0 |  22.4s*  | 4.15 |
+| OpenSoraT2V_v1_3-2B/122 |  8   | 3 |  8  |    93x352x640   |         zero2      |  TRUE | FALSE | O0 |  10.71  | 69.47 |
 
 > SP: sequence parallelism.
+> *: dynamic resolution using bucket sampler. The step time may vary across different batches due to the varied resolutions.
 
 ## 👍 Acknowledgement
 * [Latte](https://github.com/Vchitect/Latte): The **main codebase** we built upon and it is an wonderful video generated model.
