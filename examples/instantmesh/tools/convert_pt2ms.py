@@ -1,4 +1,4 @@
-"""convert pt ckpt to model.safetensors"""
+"""convert pt ckpt: model.safetensors to ms ckpt"""
 
 import argparse
 
