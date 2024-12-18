@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from typing import Literal, Optional, Tuple, Union
 
 import numpy as np
@@ -23,6 +24,8 @@ from .block import (
 )
 
 __all__ = ["LlamaModel", "llama3_1B", "llama3_5B", "llama3_30B"]
+
+_logger = logging.getLogger(__name__)
 
 Llama_ATTENTION_CLASSES = {
     "eager": LlamaAttention,
@@ -233,6 +236,7 @@ class LlamaModel(nn.Cell):
             self.init_weights()
 
         if recompute_every_nth_block is not None:
+            _logger.info(f"Recomputing every {recompute_every_nth_block} block.")
             for i, layer in enumerate(self.layers):
                 if i % recompute_every_nth_block == 0:
                     layer.recompute()
