@@ -25,6 +25,32 @@ Here we provide an efficient MindSpore version of [Open-Sora-Plan](https://githu
 | :---:       |   :---:         | :---:      | :---:                |
 | 2.3.1     |  24.1RC2      |7.3.0.1.231|   8.0.RC2.beta1   |
 
+## 🎥 Demo
+
+The following videos are generated based on MindSpore and Ascend 910*.
+
+<summary>Open-Sora-Plan v1.3.0 Demo</summary>
+
+93x352x640 Text-to-Video Generation.
+
+| 93x352x640 (5.8s) |
+| --- |
+| <img src="https://github.com/wtomin/mindone-assets/blob/main/opensora_pku/v1/v1.3/0-A-litter-of-golden-retriever-puppies-playing-in-the-snow.Their-heads-pop-out-of-the-snow--covered-in-0.gif?raw=true" width=640> |
+| A litter of golden retriever puppies playing in the snow... |
+
+| 93x352x640 (5.8s) |
+| --- |
+| <img src="https://github.com/wtomin/mindone-assets/blob/main/opensora_pku/v1/v1.3/0-An-extreme-close-up-of-an-gray-haired-man-with-a-beard-in-his-60s--he-is-deep-in-thought-pondering-t-0.gif?raw=true" width=640>  |
+| An extreme close-up of an gray-haired man with a beard in his 60s...  |
+
+| 93x352x640 (5.8s) |
+| --- |
+| <img src="https://github.com/wtomin/mindone-assets/blob/main/opensora_pku/v1/v1.3/0-Drone-view-of-waves-crashing-against-the-rugged-cliffs-along-Big-Sur-s-garay-point-beach.The-crashin-0.gif?raw=true" width=640> |
+| Drone view of waves crashing against the rugged cliffs along Big Sur's garay point beach...  |
+
+Videos are saved to `.gif` for display.
+
+
 ## 🔆 Features
 
 - 📍 **Open-Sora-Plan v1.3.0** with the following features
@@ -469,6 +495,7 @@ We evaluated the training performance on Ascend NPUs. All experiments are runnin
 | OpenSoraT2V_v1_3-2B/122 |  8   | 3 |  8  |    93x352x640   |         zero2      |  TRUE | FALSE | O0 |  10.71  | 69.47 |
 
 > SP: sequence parallelism.
+
 > *: dynamic resolution using bucket sampler. The step time may vary across different batches due to the varied resolutions.
 
 ## 👍 Acknowledgement
