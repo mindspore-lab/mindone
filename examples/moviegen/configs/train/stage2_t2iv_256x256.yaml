@@ -9,7 +9,7 @@ model:
   name: llama-5B
   pretrained_model_path:
   enable_flash_attention: True
-  recompute: True
+  recompute_every_nth_block: 1
   dtype: bf16
 
 tae:

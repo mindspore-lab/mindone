@@ -63,7 +63,7 @@ def init_model(
     pretrained_model_path: Optional[Path_fr] = None,
     enable_flash_attention: bool = True,
     model_parallelism: bool = False,
-    recompute: bool = False,
+    recompute_every_nth_block: Optional[int] = None,
     dtype: Literal["fp32", "fp16", "bf16"] = "fp32",
 ) -> LlamaModel:
     attn_implementation = "flash_attention" if enable_flash_attention else "eager"
@@ -71,7 +71,7 @@ def init_model(
         in_channels=in_channels,
         attn_implementation=attn_implementation,
         model_parallelism=model_parallelism,
-        gradient_checkpointing=recompute,
+        recompute_every_nth_block=recompute_every_nth_block,
         dtype=MODEL_DTYPE[dtype],
     )
     if pretrained_model_path:

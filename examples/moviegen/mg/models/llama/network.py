@@ -162,7 +162,7 @@ class LlamaModel(nn.Cell):
         patch_size: Tuple[int, int, int] = (1, 2, 2),
         max_length: Tuple[int, int, int] = (128, 64, 64),
         attn_implementation: Literal["eager", "flash_attention"] = "eager",
-        gradient_checkpointing: bool = False,
+        recompute_every_nth_block: Optional[int] = None,
         use_linear_patch_embedder: bool = True,
         model_parallelism: bool = False,
         post_init_weight: bool = True,
@@ -232,10 +232,10 @@ class LlamaModel(nn.Cell):
             self.initializer_range = initializer_range
             self.init_weights()
 
-        # recompute
-        if gradient_checkpointing:
-            for layer in self.layers:  # Explicitly recompute each block for PyNative
-                layer.recompute()
+        if recompute_every_nth_block is not None:
+            for i, layer in enumerate(self.layers):
+                if i % recompute_every_nth_block == 0:
+                    layer.recompute()
 
     @property
     def dtype(self):
