@@ -11,7 +11,7 @@ import numpy as np
 import mindspore as ms
 from mindspore import Tensor
 from mindspore import dtype as mstype
-from mindspore import mint
+from mindspore import ops, mint
 
 from .diffusion_utils import (
     LossType,
@@ -283,7 +283,7 @@ class GaussianDiffusion:
             denoised_fn=denoised_fn,
             model_kwargs=model_kwargs,
         )
-        noise = mint.randn_like(x)
+        noise = ops.randn_like(x)
         nonzero_mask = (t != 0).float().view(-1, *([1] * (len(x.shape) - 1)))  # no noise when t == 0
         if cond_fn is not None:
             out["mean"] = self.condition_mean(cond_fn, out, x, t, model_kwargs=model_kwargs)

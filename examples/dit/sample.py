@@ -12,7 +12,7 @@ from utils.model_utils import _check_cfgs_in_parser, count_params, load_dit_ckpt
 from utils.plot import image_grid
 
 import mindspore as ms
-from mindspore import Tensor, mint
+from mindspore import Tensor, ops, mint
 
 # TODO: remove in future when mindone is ready for install
 __dir__ = os.path.dirname(os.path.abspath(__file__))
@@ -214,9 +214,9 @@ if __name__ == "__main__":
     class_labels = [207, 360, 387, 974, 88, 979, 417, 279]
     # Create sampling noise:
     n = len(class_labels)
-    z = mint.randn(n, 4, latent_size, latent_size, dtype=ms.float32)
+    z = ops.randn((n, 4, latent_size, latent_size), dtype=ms.float32)
     y = Tensor(class_labels)
-    y_null = mint.ones_like(y) * 1000
+    y_null = ops.ones_like(y) * 1000
 
     # 3. build inference pipeline
     pipeline = DiTInferPipeline(
