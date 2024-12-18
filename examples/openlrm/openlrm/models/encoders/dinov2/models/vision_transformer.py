@@ -113,9 +113,9 @@ class DinoVisionTransformer(nn.Cell):
             block_norm_layer = partial(ModLN, mod_dim=modulation_dim)
         else:
             block_norm_layer = nn.LayerNorm
-        block_norm_layer = partial(block_norm_layer, eps=1e-6)
+        block_norm_layer = partial(block_norm_layer, epsilon=1e-6)
         # ********************************************************
-        norm_layer = partial(nn.LayerNorm, eps=1e-6)
+        norm_layer = partial(nn.LayerNorm, epsilon=1e-6)
 
         self.num_features = self.embed_dim = embed_dim  # num_features for consistency with other models
         self.num_tokens = 1
@@ -187,7 +187,7 @@ class DinoVisionTransformer(nn.Cell):
             self.chunked_blocks = False
             self.blocks = nn.CellList(blocks_list)
 
-        self.norm = norm_layer(embed_dim)
+        self.norm = norm_layer((embed_dim,))
         self.head = nn.Identity()
 
         # ********** Modified by Zexin He in 2023-2024 **********
@@ -372,7 +372,7 @@ class DinoVisionTransformer(nn.Cell):
 
 def init_weights_vit_timm(module: nn.Cell, name: str = ""):
     """ViT weight initialization, original timm impl (for reproducibility)"""
-    if isinstance(module, nn.Linear):
+    if isinstance(module, nn.Dense):
         weight = initializer(TruncatedNormal(sigma=0.02, mean=0.0, a=-2.0, b=2.0), module.weight.shape)
         module.weight.set_data(weight)
         if module.bias is not None:

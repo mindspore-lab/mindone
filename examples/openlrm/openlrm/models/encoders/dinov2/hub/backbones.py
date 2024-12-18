@@ -5,7 +5,9 @@
 
 from enum import Enum
 from typing import Union
-
+import mindspore as ms
+from mindone.utils.params import load_param_into_net_with_filter, load_checkpoint_to_net
+from .utils.convert_models import torch_to_ms_weight
 from .utils import _DINOV2_BASE_URL, _make_dinov2_model_name
 
 
@@ -50,22 +52,33 @@ def _make_dinov2_model(
     vit_kwargs.update(**kwargs)
     model = vits.__dict__[arch_name](**vit_kwargs)
 
-    if pretrained: #TODO: not support now. change pth to safetensors
-        import torch
+    if pretrained: 
+        # load mindspore ckpt first
         model_full_name = _make_dinov2_model_name(arch_name, patch_size, num_register_tokens)
-        url = _DINOV2_BASE_URL + f"/{model_base_name}/{model_full_name}_pretrain.pth"
-        state_dict = torch.hub.load_state_dict_from_url(url, map_location="cpu")
-        # ********** Modified by Zexin He in 2023-2024 **********
-        state_dict = {k: v for k, v in state_dict.items() if 'mask_token' not in k}  # DDP concern
-        if vit_kwargs.get("modulation_dim") is not None:
-            state_dict = {
-                k.replace('norm1', 'norm1.norm').replace('norm2', 'norm2.norm'): v
-                for k, v in state_dict.items()
-            }
-            model.load_state_dict(state_dict, strict=False)
-        else:
-            model.load_state_dict(state_dict, strict=True)
-        # ********************************************************
+        ckpt_dir = os.path.join("checkpoints", f"{model_full_name}_pretrain.ckpt")
+        if os.path.isfile(ckpt_dir):
+            load_checkpoint_to_net(
+                model, 
+                ckpt_dir,
+                ignore_net_params_not_loaded=False,
+                ensure_all_ckpt_params_loaded=True)
+        else: # otherwise load torch ckpt, then convert to mindspore ckpt
+            import torch
+            url = _DINOV2_BASE_URL + f"/{model_base_name}/{model_full_name}_pretrain.pth"
+            state_dict = torch.hub.load_state_dict_from_url(url, map_location="cpu")
+            # ********** Modified by Zexin He in 2023-2024 **********
+            state_dict = {k: v for k, v in state_dict.items() if 'mask_token' not in k}  # DDP concern
+            if vit_kwargs.get("modulation_dim") is not None:
+                state_dict = {
+                    k.replace('norm1', 'norm1.norm').replace('norm2', 'norm2.norm'): v
+                    for k, v in state_dict.items()
+                }
+                # ********************************************************
+                load_param_into_net_with_filter(model, state_dict, strict_load=False)
+            else:
+                load_param_into_net_with_filter(model, state_dict, strict_load=True)
+
+            torch_to_ms_weight(source_fp=None, target_fp=ckpt_dir, source_data=state_dict) # convert and save ms ckpt
 
     return model
 

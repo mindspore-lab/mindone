@@ -24,9 +24,9 @@ class ModLN(nn.Cell):
     References:
     DiT: https://github.com/facebookresearch/DiT/blob/main/models.py#L101
     """
-    def __init__(self, inner_dim: int, mod_dim: int, eps: float):
+    def __init__(self, inner_dim: int, mod_dim: int, epsilon: float):
         super().__init__()
-        self.norm = nn.LayerNorm(inner_dim, epsilon=eps)
+        self.norm = nn.LayerNorm(inner_dim, epsilon=epsilon)
         self.mlp = nn.SequentialCell(
             nn.SiLU(),
             nn.Dense(mod_dim, inner_dim * 2),

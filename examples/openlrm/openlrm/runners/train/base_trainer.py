@@ -27,7 +27,7 @@ import safetensors
 from omegaconf import OmegaConf
 from abc import abstractmethod
 from contextlib import contextmanager
-from logging import get_logger
+from logging import getLogger
 # from accelerate.utils import DistributedDataParallelKwargs, ProjectConfiguration, set_seed
 from openlrm.utils import seed_everything
 
@@ -36,7 +36,7 @@ from openlrm.utils.logging import configure_logger
 from openlrm.runners.abstract import Runner
 
 
-logger = get_logger(__name__)
+logger = getLogger(__name__)
 
 
 def parse_configs():
@@ -63,34 +63,7 @@ class Trainer(Runner):
         self.cfg = parse_configs()
         self.timestamp = time.strftime("%Y%m%d-%H%M%S")
 
-        # TODO
-        # self.accelerator = Accelerator(
-        #     mixed_precision=self.cfg.train.mixed_precision,
-        #     gradient_accumulation_steps=self.cfg.train.accum_steps,
-        #     log_with=tuple(self.cfg.logger.trackers),
-        #     project_config=ProjectConfiguration(
-        #         logging_dir=self.cfg.logger.tracker_root,
-        #     ),
-        #     use_seedable_sampler=True,
-        #     kwargs_handlers=[
-        #         DistributedDataParallelKwargs(
-        #             find_unused_parameters=self.cfg.train.find_unused_parameters,
-        #         ),
-        #     ],
-        # )
         seed_everything(self.cfg.experiment.seed)
-        # with self.accelerator.main_process_first():
-        #     configure_logger(
-        #         stream_level=self.cfg.logger.stream_level,
-        #         log_level=self.cfg.logger.log_level,
-        #         file_path=os.path.join(
-        #             self.cfg.logger.log_root,
-        #             self.cfg.experiment.parent, self.cfg.experiment.child,
-        #             f"{self.timestamp}.log",
-        #         ) if self.accelerator.is_main_process else None,
-        #     )
-        # logger.info(self.accelerator.state, main_process_only=False, in_order=True)
-        # configure_dynamo(dict(self.cfg.compile))
 
         # attributes with defaults
         self.model : nn.Cell = None

@@ -11,6 +11,7 @@ import logging
 import os
 import warnings
 
+import mindspore as ms
 from mindspore import Tensor, nn
 
 
@@ -37,9 +38,9 @@ class Attention(nn.Cell):
         head_dim = dim // num_heads
         self.scale = head_dim**-0.5
 
-        self.qkv = nn.Dense(dim, dim * 3, bias=qkv_bias)
+        self.qkv = nn.Dense(dim, dim * 3, has_bias=qkv_bias)
         self.attn_drop = nn.Dropout(p=attn_drop)
-        self.proj = nn.Dense(dim, dim, bias=proj_bias)
+        self.proj = nn.Dense(dim, dim, has_bias=proj_bias)
         self.proj_drop = nn.Dropout(p=proj_drop)
         
         if XFORMERS_ENABLED:

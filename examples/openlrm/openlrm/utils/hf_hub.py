@@ -12,19 +12,25 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import os
 import mindspore as ms
 from mindspore import nn
-from mindone.diffusers.configuration_utils import ConfigMixin
-from huggingface_hub import ModelHubMixin
+from huggingface_hub import ModelHubMixin, constants, hf_hub_download
+from huggingface_hub.errors import EntryNotFoundError
 from huggingface_hub.utils import validate_hf_hub_args
 import inspect
 from typing import Dict, Optional, Union
 from pathlib import Path
-
+from mindone.safetensors.mindspore import load_file
 
 
 def wrap_model_hub(model_cls: nn.Cell):
-    class HfModel(model_cls, ModelHubMixin, ConfigMixin):
+
+    '''
+        1. load config.json to LRMModel
+        2. load model weights to LRMModel
+    '''
+    class HfModel(model_cls, ModelHubMixin):
         def __init__(self, config: dict):
             super().__init__(**config)
             self.config = config

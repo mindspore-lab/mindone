@@ -20,10 +20,10 @@ from transformers import ViTImageProcessor
 from .dino import ViTModel # TODO: add ViTModel/dino to mindone.transformers
 from openlrm.utils import set_parameter_grad_false
 
-from logging import get_logger
+from logging import getLogger
 
 
-logger = get_logger(__name__)
+logger = getLogger(__name__)
 
 
 class DinoWrapper(nn.Cell):
@@ -45,7 +45,7 @@ class DinoWrapper(nn.Cell):
         inputs = self.processor(images=image, return_tensors="np", do_rescale=False, do_resize=False)
         for key, value in inputs.items():
             input[key] = ms.Tensor(value)
-            
+
         # This resampling of positional embedding uses bicubic interpolation
         outputs = self.forward_model(inputs)
         last_hidden_states = outputs.last_hidden_state

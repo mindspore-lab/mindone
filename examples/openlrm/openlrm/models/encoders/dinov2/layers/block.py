@@ -66,7 +66,7 @@ class Block(nn.Cell):
     ) -> None:
         super().__init__()
         # print(f"biases: qkv: {qkv_bias}, proj: {proj_bias}, ffn: {ffn_bias}")
-        self.norm1 = norm_layer(dim)
+        self.norm1 = norm_layer((dim,))
         self.attn = attn_class(
             dim,
             num_heads=num_heads,
@@ -78,7 +78,7 @@ class Block(nn.Cell):
         self.ls1 = LayerScale(dim, init_values=init_values) if init_values else nn.Identity()
         self.drop_path1 = DropPath(drop_path) if drop_path > 0.0 else nn.Identity()
 
-        self.norm2 = norm_layer(dim)
+        self.norm2 = norm_layer((dim,))
         mlp_hidden_dim = int(dim * mlp_ratio)
         self.mlp = ffn_layer(
             in_features=dim,

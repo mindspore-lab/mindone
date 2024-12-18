@@ -1,6 +1,7 @@
 
 from mindcv.utils.download import DownLoad
 
+import os
 import mindspore as ms
 from mindspore import nn
 

@@ -15,10 +15,11 @@
 
 import mindspore as ms
 from mindspore import nn, mint
-from logging import get_logger
+from logging import getLogger
+from typing import Optional
 
 
-logger = get_logger(__name__)
+logger = getLogger(__name__)
 
 
 class Dinov2Wrapper(nn.Cell):
