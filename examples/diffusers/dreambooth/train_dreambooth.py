@@ -647,7 +647,7 @@ def collate_fn(examples, with_prior_preservation=False):
         attention_mask = np.concatenate(attention_mask, axis=0)
         batch["attention_mask"] = attention_mask
 
-    return batch.values()
+    return tuple(batch.values())
 
 
 class PromptDataset(object):
