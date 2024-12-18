@@ -4,7 +4,7 @@ from typing import List
 import numpy as np
 
 import mindspore as ms
-from mindspore import nn, ops
+from mindspore import nn, ops, mint
 
 
 def betas_for_alpha_bar(num_diffusion_timesteps, max_beta=0.999, alpha_transform_type="cosine"):
@@ -59,7 +59,7 @@ def rescale_zero_terminal_snr(betas):
     # Convert alphas_bar_sqrt to betas
     alphas_bar = alphas_bar_sqrt**2  # Revert sqrt
     alphas = alphas_bar[1:] / alphas_bar[:-1]  # Revert cumprod
-    alphas = ops.concat([alphas_bar[0:1], alphas], axis=0)
+    alphas = mint.concat([alphas_bar[0:1], alphas], dim=0)
     betas = 1 - alphas
 
     return betas
@@ -240,7 +240,7 @@ class DDIMScheduler(nn.Cell):
         num_inference_steps = self.num_inference_steps
 
         timestep = timestep.astype(ms.int32)
-        prev_timestep = ops.maximum(timestep - self.num_train_timesteps // num_inference_steps, 0)
+        prev_timestep = mint.maximum(timestep - self.num_train_timesteps // num_inference_steps, 0)
         # 2. compute alphas, betas
         alpha_prod_t = self.alphas_cumprod[timestep]
         alpha_prod_t_prev = self.alphas_cumprod[prev_timestep]
@@ -283,7 +283,7 @@ class DDIMScheduler(nn.Cell):
         if self.eta > 0:
             variance_noise = self.variance_noise
             if variance_noise is None:
-                variance_noise = ops.standard_normal(model_output.shape).astype(model_output.dtype)
+                variance_noise = mint.randn(*model_output.shape).astype(model_output.dtype)
             variance = std_dev_t * variance_noise
             prev_sample = prev_sample + variance
         return prev_sample
