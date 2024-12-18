@@ -13,4 +13,4 @@ xatlas
 ninja
 gradio
 open3d
-# pyglet # if do rendering locally
+# pyglet<2 # if do rendering locally

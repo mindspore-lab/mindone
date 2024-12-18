@@ -15,9 +15,20 @@ In the second stage, a feed-forward reconstruction model (`svrm`) rapidly and fa
 The framework also involves the text-to-image model, i.e., [Hunyuan-DiT](https://github.com/chenyingshu/mindone/tree/master/examples/hunyuan_dit), making it a unified framework to support both text- and image-conditioned 3D generation. The standard version has 3x more parameters than the lite and other existing model. Hunyuan3D-1.0 achieves an impressive balance between speed and quality, significantly reducing generation time while maintaining the quality and diversity of the produced assets.
 
 ## Updates
-|Date| Features|
-|---|---|
-|12 December 2024| Support inference: text-to-mesh and image-to-mesh. <br> Individual modules include: <br> - (optional) text-to-image <br> - image background removal <br> - image-to-multiviews <br> - multiviews-to-mesh <br> -  (optional) mesh rendering (display device required)
+**[12 December 2024]** Support inference: text-to-mesh and image-to-mesh.
+
+**- Features:** 
+- (optional) text-to-image 
+- image background removal 
+- image-to-multiviews
+- multiviews-to-mesh 
+-  (optional) mesh rendering (display device required)
+
+
+**- Comments:**
+Differences from original [Hunyuan3D-1.0](https://github.com/Tencent/Hunyuan3D-1): 
+- do not support texturing/backing. 
+- use trimesh for mesh rendering in CPU, instead of Pytorch3D.
 
 ## Get Started
 ### Requirements
@@ -40,36 +51,33 @@ The models are available at [https://huggingface.co/tencent/Hunyuan3D-1](https:/
 + `Hunyuan3D-1/std`, standard model for multi-view generation.
 + `Hunyuan3D-1/svrm`, sparse-view reconstruction model.
 
-<!-- To download the model, first install the huggingface-cli. (Detailed instructions are available [here](https://huggingface.co/docs/huggingface_hub/guides/cli).)
-
-```shell
-python3 -m pip install "huggingface_hub[cli]"
-```
-
-Then download the model using the following commands:
-
-```shell
-mkdir weights
-huggingface-cli download tencent/Hunyuan3D-1 --local-dir ./weights
-
-mkdir weights/hunyuanDiT
-huggingface-cli download Tencent-Hunyuan/HunyuanDiT-v1.1-Diffusers-Distilled --local-dir ./weights/hunyuanDiT
-``` -->
-
 
 
 #### Inference
-For text to 3d generation, we supports bilingual Chinese and English, you can use the following command to inference.
+For text to 3d generation, it supports bilingual Chinese and English, you can use the following command to inference.
 ```python
-python3 main.py \
+text2image_path=Tencent-Hunyuan/HunyuanDiT-Diffusers
+lite_pretrain=./weights/mvd_lite
+mv23d_ckt_path=./weights/svrm/svrm.safetensors
+python main.py \
+    --text2image_path $text2image_path \
+    --mvd_ckt_path $lite_pretrain \
+    --mv23d_cfg_path ./svrm/configs/svrm.yaml \
+    --mv23d_ckt_path $mv23d_ckt_path \
     --text_prompt "a lovely rabbit" \
     --save_folder ./outputs/test/ \
-    --max_faces_num 90000
+    --max_faces_num 90000 \
+    --use_lite
 ```
 
 For image to 3d generation, you can use the following command to inference.
 ```python
+std_pretrain=./weights/mvd_std
+mv23d_ckt_path=./weights/svrm/svrm.safetensors
 python3 main.py \
+    --mvd_ckt_path $std_pretrain \
+    --mv23d_cfg_path ./svrm/configs/svrm.yaml \
+    --mv23d_ckt_path $mv23d_ckt_path \
     --image_prompt "/path/to/your/image" \
     --save_folder ./outputs/test/ \
     --max_faces_num 90000
@@ -94,7 +102,7 @@ We list some more useful configurations for easy usage:
 # Inference Performance
 Experiments are tested on ascend 910* with mindSpore 2.3.1 pynative mode.
 
-## Image to Views
+## Stage 1: Image to 6 Views
 | model name|precision |  cards| batch size | resolution | jit level| flash attn| scheduler| steps| s/step |img/s|  weight|
 |---|---|---|---|---|---|---|---|---|---|---|---|
 |mvd_lite|fp16| 1 | 1 | 512x512 |O0| ON | euler ancestral discrete | 50 |   1.60| 0.075 | [weight](https://huggingface.co/tencent/Hunyuan3D-1/tree/main/mvd_lite)|
@@ -103,15 +111,29 @@ Experiments are tested on ascend 910* with mindSpore 2.3.1 pynative mode.
 
 \*note: checkpoint weights are originally float16. Flash attention uses bfloat16.
 
-### Image-to-views visual results
+### Text/Image-to-views visual results
+|Input | Lite | Std |
+| --- | --- | --- |
+|<img src="demos/example_003.png" style="width:256px"></img>|<img src="demos/mvd_output_example_003_lite.jpg" style="width:512px"></img>|<img src="demos/mvd_output_example_003_std.jpg" style="width:512px"></img>|
+|<img src="demos/example_004.png" style="width:256px"></img>|<img src="demos/mvd_output_example_004_lite.jpg" style="width:512px"></img>|<img src="demos/mvd_output_example_004_std.jpg" style="width:512px"></img>|
+|`一盆绿色植物生长在红色花盆中，居中，写实`|<img src="demos/mvd_output_text_002_lite.jpg" style="width:512px"></img>|<img src="demos/mvd_output_text_002_std.jpg" style="width:512px"></img>|
+|`a lovely rabbit eating carrots`|<img src="demos/mvd_output_text_004_lite.jpg" style="width:512px"></img>|<img src="demos/mvd_output_text_004_std.jpg" style="width:512px"></img>|
+
 
 <br>
 
-## Views to Mesh
+## Stage 2: Views to Mesh
+
 | model name|precision |  cards| batch size | resolution | jit level| flash attn| steps| s/step |mesh/s| recipe| weight|
 |---|---|---|---|---|---|---|---|---|---|---|---|
 |svrm |fp16| 1 | 1 | 7x512x512 |O0| ON| N/A | 32| 0.031|[svrm.yaml](./svrm/configs/svrm.yaml)| [weight](https://huggingface.co/tencent/Hunyuan3D-1/tree/main/svrm)|
 
 \*note: checkpoint weights are originally float16. Flash attention always uses bfloat16, customized LayerNorm uses float32.
 
-### Image-to-mesh visual results
+### Text/Image-to-mesh visual results
+|Input | Lite | Std |
+| --- | --- | --- |
+|<img src="demos/example_003.png" style="width:256px"></img>|<img src="demos/svrm_output_example_003_lite.gif" style="width:512px"></img>|<img src="demos/svrm_output_example_003_std.gif" style="width:512px"></img>|
+|<img src="demos/example_004.png" style="width:256px"></img>|<img src="demos/svrm_output_example_004_lite.gif" style="width:512px"></img>|<img src="demos/svrm_output_example_004_std.gif" style="width:512px"></img>|
+|`一盆绿色植物生长在红色花盆中，居中，写实`|<img src="demos/svrm_output_text_002_lite.gif" style="width:512px"></img>|<img src="demos/svrm_output_text_002_std.gif" style="width:512px"></img>|
+|`a lovely rabbit eating carrots`|<img src="demos/svrm_output_text_004_lite.gif" style="width:512px"></img>|<img src="demos/svrm_output_text_004_std.gif" style="width:512px"></img>|
