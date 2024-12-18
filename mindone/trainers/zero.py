@@ -561,7 +561,7 @@ def prepare_train_network(
     dp_group: str = None,
     comm_fusion: dict = None,
     parallel_modules=None,
-):
+) -> TrainOneStepWrapper:
     """
     Prepare network and optimizer for distributed training.
 

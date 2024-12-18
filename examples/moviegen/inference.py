@@ -169,7 +169,7 @@ if __name__ == "__main__":
         help="Path to load a config yaml file that describes the setting which will override the default arguments.",
     )
     parser.add_function_arguments(init_train_env, "env")
-    parser.add_function_arguments(init_model, "model", skip={"in_channels"})
+    parser.add_function_arguments(init_model, "model", skip={"in_channels", "resume"})
     tae_group = parser.add_argument_group("TAE parameters")
     tae_group.add_class_arguments(TemporalAutoencoder, "tae", instantiate=False)
     tae_group.add_argument(

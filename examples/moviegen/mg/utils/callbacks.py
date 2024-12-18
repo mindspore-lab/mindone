@@ -101,7 +101,6 @@ class PerfRecorderCallback(Callback):
         file_name: str = "result.log",
         metric_names: List[str] = None,
         separator: str = "\t",
-        resume: bool = False,
     ):
         super().__init__()
         self._sep = separator
@@ -110,10 +109,10 @@ class PerfRecorderCallback(Callback):
         if not os.path.exists(save_dir):
             os.makedirs(save_dir, exist_ok=True)
         self._log_file = os.path.join(save_dir, file_name)
-        if not resume:
-            header = separator.join([f"{'step':<7}", f"{'loss':<10}", "train_time(s)"] + self._metrics)
-            with open(self._log_file, "w", encoding="utf-8") as fp:
-                fp.write(header + "\n")
+
+        header = separator.join([f"{'step':<7}", f"{'loss':<10}", "train_time(s)"] + self._metrics)
+        with open(self._log_file, "w", encoding="utf-8") as fp:
+            fp.write(header + "\n")
 
     def on_train_step_begin(self, run_context: RunContext):
         self._step_time = time.perf_counter()

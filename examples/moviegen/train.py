@@ -20,7 +20,7 @@ from mg.dataset import ImageVideoDataset, bucket_split_function
 from mg.models.tae import TemporalAutoencoder
 from mg.pipelines import DiffusionWithLoss
 from mg.schedulers import RFlowEvalLoss, RFlowLossWrapper
-from mg.utils import EMA, MODEL_DTYPE, init_model
+from mg.utils import EMA, MODEL_DTYPE, init_model, resume_train_net
 from mg.utils.callbacks import PerfRecorderCallback, ReduceLROnPlateauByStep, ValidationCallback
 
 from mindone.data import create_dataloader
@@ -116,7 +116,7 @@ def main(args):
 
     # 2.2 Llama 3
     logger.info("Transformer init")
-    network = init_model(**args.model)
+    network = init_model(resume=args.train.resume_ckpt is not None, **args.model)
     # 2.3 LossWrapper
     rflow_loss_wrapper = RFlowLossWrapper(network)
 
@@ -151,6 +151,10 @@ def main(args):
     net_with_grads = prepare_train_network(
         latent_diffusion_with_loss, optimizer=optimizer, scale_sense=loss_scaler, ema=ema, **args.train.settings
     )
+
+    start_epoch, global_step = 0, 0
+    if args.train.resume_ckpt is not None:
+        start_epoch, global_step = resume_train_net(net_with_grads, resume_ckpt=os.path.abspath(args.train.resume_ckpt))
 
     # TODO: validation graph?
     # if bucketing is used in Graph mode, activate dynamic inputs
@@ -192,8 +196,9 @@ def main(args):
                     ema=ema,
                     step_mode=True,
                     use_step_unit=True,
-                    train_steps=args.train.steps,
+                    start_epoch=start_epoch,
                     resume_prefix_blacklist=("tae.", "swap."),
+                    train_steps=args.train.steps,
                     **args.train.save,
                 ),
                 PerfRecorderCallback(
@@ -202,7 +207,7 @@ def main(args):
             ]
         )
 
-    callbacks.append(StopAtStepCallback(train_steps=args.train.steps))
+    callbacks.append(StopAtStepCallback(train_steps=args.train.steps, global_step=global_step))
 
     # 5.5 print out key info and save config
     if rank_id == 0:
@@ -246,7 +251,7 @@ def main(args):
     # 6. train
     logger.info("Start training...")
     # train() uses epochs, so the training will be terminated by the StopAtStepCallback
-    model.train(args.train.steps, dataloader, callbacks=callbacks)
+    model.train(args.train.steps, dataloader, callbacks=callbacks, initial_epoch=start_epoch)
 
 
 if __name__ == "__main__":
@@ -258,7 +263,7 @@ if __name__ == "__main__":
         help="Path to load a config yaml file that describes the setting which will override the default arguments.",
     )
     parser.add_function_arguments(init_train_env, "env")
-    parser.add_function_arguments(init_model, "model")
+    parser.add_function_arguments(init_model, "model", skip={"resume"})
     parser.add_class_arguments(TemporalAutoencoder, "tae", instantiate=False)
     parser.add_argument(
         "--tae.dtype", default="fp32", type=str, choices=["fp32", "fp16", "bf16"], help="TAE model precision."
@@ -290,6 +295,7 @@ if __name__ == "__main__":
         prepare_train_network, "train.settings", skip={"network", "optimizer", "scale_sense", "ema"}
     )
     parser.add_subclass_arguments(EMA, "train.ema", skip={"network"}, required=False, instantiate=False)
+    parser.add_function_arguments(resume_train_net, "train", skip={"train_net"})
     parser.add_argument(
         "--train.output_path",
         default="output/",
