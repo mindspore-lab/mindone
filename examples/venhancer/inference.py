@@ -1,24 +1,24 @@
-import argparse
-import datetime
 import glob
 import logging
 import os
-import sys
 from argparse import ArgumentParser, Namespace
 
 from easydict import EasyDict
-from huggingface_hub import hf_hub_download
-from inference_utils import *
-from tqdm import tqdm
+from inference_utils import (
+    adjust_resolution,
+    load_prompt_list,
+    load_video,
+    make_mask_cond,
+    preprocess,
+    save_video,
+    tensor2vid,
+)
 from video_to_video.utils.utils import seed_everything
 from video_to_video.video_to_video_model import VideoToVideo
 
 import mindspore as ms
-from mindspore import Tensor, mint, ops
-from mindspore.communication.management import get_group_size, get_rank, init
+from mindspore import Tensor
 
-from mindone.utils.amp import auto_mixed_precision
-from mindone.utils.config import instantiate_from_config, str2bool
 from mindone.utils.logger import set_logger
 from mindone.utils.seed import set_random_seed
 
@@ -26,7 +26,7 @@ logger = logging.getLogger(__name__)
 
 
 def init_env(
-    mode: int = ms.GRAPH_MODE,
+    mode: int = ms.PYNATIVE_MODE,
     seed: int = 42,
     jit_level: str = "O0",
     max_device_memory: str = None,
@@ -67,10 +67,7 @@ class VEnhancer:
         guide_scale=7.5,
         s_cond=8,
     ):
-        if not model_path:
-            self.download_model(version=version)
-        else:
-            self.model_path = model_path
+        self.model_path = model_path
         assert os.path.exists(self.model_path), "Error: checkpoint Not Found!"
         logger.info(f"checkpoint_path: {self.model_path}")
 
@@ -138,19 +135,6 @@ class VEnhancer:
         save_video(output, self.result_dir, f"{save_name}.mp4", fps=target_fps)
         return os.path.join(self.result_dir, save_name)
 
-    def download_model(self, version="v1"):
-        REPO_ID = "jwhejwhe/VEnhancer"
-        filename = "venhancer_paper.pt"
-        if version == "v2":
-            filename = "venhancer_v2.pt"
-        ckpt_dir = "./ckpts/"
-        os.makedirs(ckpt_dir, exist_ok=True)
-        local_file = os.path.join(ckpt_dir, filename)
-        if not os.path.exists(local_file):
-            logger.info(f"Downloading the VEnhancer checkpoint...")
-            hf_hub_download(repo_id=REPO_ID, filename=filename, local_dir=ckpt_dir)
-        self.model_path = local_file
-
 
 def parse_args() -> Namespace:
     parser = ArgumentParser()
@@ -177,21 +161,13 @@ def parse_args() -> Namespace:
 
 
 def main(args):
-    if args.append_timestr:
-        time_str = datetime.datetime.now().strftime("%Y-%m-%dT%H-%M-%S")
-        save_dir = f"{args.savedir}/{time_str}"
-    else:
-        save_dir = f"{args.savedir}"
+    save_dir = f"{args.savedir}"
 
     os.makedirs(save_dir, exist_ok=True)
     set_logger(name="", output_dir=save_dir)
 
     # 1. init env
-    rank_id, device_num = init_env(
-        args.mode,
-        args.seed,
-        args.jit_level,
-    )
+    rank_id, device_num = init_env()
 
     input_path = args.input_path
     prompt = args.prompt

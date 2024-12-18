@@ -28,7 +28,7 @@ def _logsnr_cosine(n, logsnr_min=-15, logsnr_max=15):
     t_min = math.atan(math.exp(-0.5 * logsnr_min))
     t_max = math.atan(math.exp(-0.5 * logsnr_max))
     t = mint.linspace(1, 0, n)
-    logsnrs = -2 * mint.log(mint.tan(t_min + t * (t_max - t_min)))
+    logsnrs = -2 * mint.log(ops.tan(t_min + t * (t_max - t_min)))
     return logsnrs
 
 
@@ -39,7 +39,7 @@ def _logsnr_cosine_shifted(n, logsnr_min=-15, logsnr_max=15, scale=2):
 
 
 def _logsnr_cosine_interp(n, logsnr_min=-15, logsnr_max=15, scale_min=2, scale_max=4):
-    t = torch.linspace(1, 0, n)
+    t = ops.linspace(1, 0, n)
     logsnrs_min = _logsnr_cosine_shifted(n, logsnr_min, logsnr_max, scale_min)
     logsnrs_max = _logsnr_cosine_shifted(n, logsnr_min, logsnr_max, scale_max)
     logsnrs = t * logsnrs_min + (1 - t) * logsnrs_max

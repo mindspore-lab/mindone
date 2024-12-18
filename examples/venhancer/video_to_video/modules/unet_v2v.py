@@ -1,16 +1,15 @@
 import sys
 from abc import abstractmethod
-from functools import partial
-from typing import Any, Callable, List, Optional, Tuple, Union
+from typing import Callable, List, Optional, Tuple, Union
 
 import mindspore as ms
 import mindspore.nn as nn
 import mindspore.ops as ops
 from mindspore import Tensor, mint
+from mindspore.ops.operations.nn_ops import FlashAttentionScore
 
 sys.path.append("../../")
 
-from mindone.models.modules.flash_attention import MSFlashAttention
 
 from ._layers import GELU, GroupNorm, LayerNorm
 
@@ -31,7 +30,7 @@ class DropPath(nn.Cell):
         # params
         x = args[0]
         b = x.shape[0]
-        n = (mint.rand(b) < self.p).sum()
+        n = (ops.rand(b) < self.p).sum()
 
         # non-zero and non-keep mask
         mask = x.new_ones(b, dtype=ms.bool)
@@ -41,10 +40,10 @@ class DropPath(nn.Cell):
             mask[zero] = False
 
         # drop-path index
-        index = mint.where(mask)[0]
+        index = mint.nonzero(mask, as_tuple=True)[0]
         index = index[ops.randperm(len(index))[:n]]
         if zero is not None:
-            index = mint.cat([index, mint.where(zero)[0]], dim=0)
+            index = mint.cat([index, mint.nonzero(zero, as_tuple=True)[0]], dim=0)
 
         # drop-path multiplier
         multiplier = x.new_ones(b)
@@ -117,21 +116,25 @@ class CrossAttention(nn.Cell):
         self.to_v = mint.nn.Linear(context_dim, inner_dim, bias=False)
         self.to_out = nn.SequentialCell(mint.nn.Linear(inner_dim, query_dim), mint.nn.Dropout(p=dropout))
 
-        self.attention = MSFlashAttention(self.dim_head, self.heads)
+        self.attention = FlashAttentionScore(1, scale_value=self.dim_head**-0.5, input_layout="BSH")
 
     def _rearange_in(self, x: Tensor, b: int) -> Tensor:
+        # (b, n, h*d) -> (b*h, n, d)
+        shape = x.shape[1]
         x = x.unsqueeze(3)
-        x = x.reshape(b, x.shape[1], self.heads, self.dim_head)
+        x = x.reshape(b, shape, self.heads, self.dim_head)
         x = x.transpose(0, 2, 1, 3)
-        x = x.reshape(b * self.heads, x.shape[1], self.dim_head)
+        x = x.reshape(b * self.heads, shape, self.dim_head)
         x = x.contiguous()
         return x
 
     def _rearange_out(self, x: Tensor, b: int) -> Tensor:
+        # (b*h, n, d) -> (b, n, h*d)
+        shape = x.shape[1]
         x = x.unsqueeze(0)
-        x = x.reshape(b, self.heads, x.shape[1], self.dim_head)
+        x = x.reshape(b, self.heads, shape, self.dim_head)
         x = x.permute(0, 2, 1, 3)
-        x = x.reshape(b, x.shape[1], self.heads * self.dim_head)
+        x = x.reshape(b, shape, self.heads * self.dim_head)
         return x
 
     def construct(self, x: Tensor, context: Optional[Tensor] = None, mask: Optional[Tensor] = None):
@@ -155,11 +158,11 @@ class CrossAttention(nn.Cell):
             v_list = mint.chunk(v, v.shape[0] // self.max_bs, dim=0)
             out_list = []
             for q_1, k_1, v_1 in zip(q_list, k_list, v_list):
-                out = self.attention(q_1, k_1, v_1)
+                _, _, _, out = self.attention(q_1, k_1, v_1, None, None, None, None)
                 out_list.append(out)
             out = mint.cat(out_list, dim=0)
         else:
-            out = self.attention(q, k, v)
+            _, _, _, out = self.attention(q_1, k_1, v_1, None, None, None, None)
 
         out = self._rearange_out(out)
         return self.to_out(out)
@@ -303,9 +306,9 @@ class BasicTransformerBlock(nn.Cell):
         attn_cls2 = CrossAttention
 
         self.attn2 = attn_cls2(query_dim=dim, context_dim=context_dim, heads=n_heads, dim_head=d_head, dropout=dropout)
-        self.norm1 = LayerNorm(dim)
-        self.norm2 = LayerNorm(dim)
-        self.norm3 = LayerNorm(dim)
+        self.norm1 = LayerNorm(dim, elementwise_affine=True)
+        self.norm2 = LayerNorm(dim, elementwise_affine=True)
+        self.norm3 = LayerNorm(dim, elementwise_affine=True)
 
     def construct(self, x: Tensor, context: Optional[Tensor] = None) -> Tensor:
         x = self.attn1(self.norm1(x), context=context if self.disable_self_attn else None) + x
@@ -392,7 +395,7 @@ class Upsample(nn.Cell):
         if self.dims == 3:
             x = ops.interpolate(x, (x.shape[2], x.shape[3] * 2, x.shape[4] * 2), mode="nearest")
         else:
-            x = ops.interpolate(x, scale_factor=2, mode="nearest")
+            x = ops.interpolate(x, scale_factor=2.0, recompute_scale_factor=True, mode="nearest")
             x = x[..., 1:-1, :]
         if self.use_conv:
             x = self.conv(x)
@@ -493,12 +496,12 @@ class ResBlock(nn.Cell):
 
         if self.use_temporal_conv:
             # (b f) c h w -> b c f h w
-            h = ops.reshape(h, (batch_size, -1, *h.shape[2:]))
+            h = ops.reshape(h, (batch_size, -1, *h.shape[1:]))
             h = ops.transpose(h, (0, 2, 1, 3, 4))
             h = self.temopral_conv(h)
             # b c f h w -> (b f) c h w
             h = ops.transpose(h, (0, 2, 1, 3, 4))
-            h = ops.reshape(h, (-1.0 * h.shape[2:]))
+            h = ops.reshape(h, (-1, *h.shape[2:]))
         return h
 
 
@@ -509,7 +512,7 @@ class Downsample(nn.Cell):
         use_conv: bool,
         dims: int = 2,
         out_channels: Optional[int] = None,
-        padding: Tuple[int, int] = (2, 1),
+        padding: Tuple[int, int] = (2, 2, 1, 1),
     ):
         super().__init__()
         self.channels = channels
@@ -640,15 +643,6 @@ class TemporalTransformer(nn.Cell):
         else:
             self.proj_in = mint.nn.Linear(in_channels, inner_dim).to_float(self.dtype)
 
-        if relative_position:
-            assert temporal_length is not None
-            attention_cls = partial(CrossAttention, relative_position=True, temporal_length=temporal_length)
-        else:
-            attention_cls = partial(CrossAttention, temporal_length=temporal_length)
-        if self.causal_attention:
-            assert temporal_length is not None
-            self.mask = mint.tril(ops.ones([1, temporal_length, temporal_length]))
-
         self.transformer_blocks = nn.CellList(
             [
                 BasicTransformerBlock(
@@ -657,7 +651,6 @@ class TemporalTransformer(nn.Cell):
                     d_head,
                     dropout=dropout,
                     context_dim=context_dim[d],
-                    attention_cls=attention_cls,
                     dtype=self.dtype,
                 )
                 for d in range(depth)
@@ -692,17 +685,6 @@ class TemporalTransformer(nn.Cell):
         x = ops.transpose(x, (0, 2, 1))
         if self.use_linear:
             x = self.proj_in(x)
-
-        # TODO: NotImplemented
-        # temp_mask = None
-        # if self.causal_attention:
-        #     # slice the from mask map
-        #     temp_mask = self.mask[:,:t,:t].to(x.device)
-        # if temp_mask is not None:
-        #     mask = temp_mask.to(x.device)
-        #     mask = repeat(mask, 'l i j -> (l bhw) i j', bhw=b*h*w)
-        # else:
-        #     mask = None
 
         if self.only_self_att:
             # x = ops.transpose(x, (0, 2, 1))
@@ -762,25 +744,25 @@ class TemporalConvBlock_v2(nn.Cell):
         self.conv1 = nn.SequentialCell(
             GroupNorm(32, in_dim),
             nn.SiLU(),
-            nn.Conv3d(in_dim, out_dim, (3, 1, 1), padding=(1, 0, 0), pad_mode="pad", has_bias=True),
+            nn.Conv3d(in_dim, out_dim, (3, 1, 1), padding=(1, 1, 0, 0, 0, 0), pad_mode="pad", has_bias=True),
         )
         self.conv2 = nn.SequentialCell(
             GroupNorm(32, out_dim),
             nn.SiLU(),
             mint.nn.Dropout(p=dropout),
-            nn.Conv3d(out_dim, in_dim, (3, 1, 1), padding=(1, 0, 0), pad_mode="pad", has_bias=True),
+            nn.Conv3d(out_dim, in_dim, (3, 1, 1), padding=(1, 1, 0, 0, 0, 0), pad_mode="pad", has_bias=True),
         )
         self.conv3 = nn.SequentialCell(
             GroupNorm(32, out_dim),
             nn.SiLU(),
             mint.nn.Dropout(p=dropout),
-            nn.Conv3d(out_dim, in_dim, (3, 1, 1), padding=(1, 0, 0), pad_mode="pad", has_bias=True),
+            nn.Conv3d(out_dim, in_dim, (3, 1, 1), padding=(1, 1, 0, 0, 0, 0), pad_mode="pad", has_bias=True),
         )
         self.conv4 = nn.SequentialCell(
             GroupNorm(32, out_dim),
             nn.SiLU(),
             mint.nn.Dropout(p=dropout),
-            nn.Conv3d(out_dim, in_dim, (3, 1, 1), padding=(1, 0, 0), pad_mode="pad", has_bias=True),
+            nn.Conv3d(out_dim, in_dim, (3, 1, 1), padding=(1, 1, 0, 0, 0, 0), pad_mode="pad", has_bias=True),
         )
 
         # zero out the last layer params,so the conv block is identity
@@ -1063,7 +1045,7 @@ class Vid2VidSDUNet(nn.Cell):
         # always in shape (b f) c h w, except for temporal layer
         # b c f h w -> (b f) c h w
         x = ops.transpose(x, (0, 2, 1, 3, 4))
-        x = ops.reshape(x, (-1.0 * x.shape[2:]))
+        x = ops.reshape(x, (-1, *x.shape[2:]))
         # encoder
         xs = []
         for ind, block in enumerate(self.input_blocks):
@@ -1083,7 +1065,7 @@ class Vid2VidSDUNet(nn.Cell):
         x = self.out(x)
 
         # (b f) c h w -> (b c f h w)
-        x = ops.reshape(x, (batch, -1, *x.shape[2:]))
+        x = ops.reshape(x, (batch, -1, *x.shape[1:]))
         x = ops.transpose(x, (0, 2, 1, 3, 4))
 
         return x
@@ -1099,12 +1081,12 @@ class Vid2VidSDUNet(nn.Cell):
             x = module(x, context)
         elif isinstance(module, TemporalTransformer):
             # (b f) c h w -> (b c f h w)
-            x = ops.reshape(x, (self.batch, -1, *x.shape[2:]))
+            x = ops.reshape(x, (self.batch, -1, *x.shape[1:]))
             x = ops.transpose(x, (0, 2, 1, 3, 4))
             x = module(x, context)
             # b c f h w -> (b f) c h w
             x = ops.transpose(x, (0, 2, 1, 3, 4))
-            x = ops.reshape(x, (-1.0 * x.shape[2:]))
+            x = ops.reshape(x, (-1, *x.shape[2:]))
             x = module(x, context)
         elif isinstance(module, CrossAttention):
             x = module(x, context)
@@ -1158,7 +1140,7 @@ class ControlledV2VUNet(Vid2VidSDUNet):
         # always in shape (b f) c h w, except for temporal layer
         # b c f h w -> (b f) c h w
         x = ops.transpose(x, (0, 2, 1, 3, 4))
-        x = ops.reshape(x, (-1.0 * x.shape[2:]))
+        x = ops.reshape(x, (-1, *x.shape[2:]))
         # encoder
         xs = []
         for block in self.input_blocks:
@@ -1184,7 +1166,7 @@ class ControlledV2VUNet(Vid2VidSDUNet):
 
         # reshape back to (b c f h w)
         # (b f) c h w -> (b c f h w)
-        x = ops.reshape(x, (batch, -1, *x.shape[2:]))
+        x = ops.reshape(x, (batch, -1, *x.shape[1:]))
         x = ops.transpose(x, (0, 2, 1, 3, 4))
         return x
 
@@ -1199,12 +1181,12 @@ class ControlledV2VUNet(Vid2VidSDUNet):
             x = module(x, context)
         elif isinstance(module, TemporalTransformer):
             # (b f) c h w -> (b c f h w)
-            x = ops.reshape(x, (self.batch, -1, *x.shape[2:]))
+            x = ops.reshape(x, (self.batch, -1, *x.shape[1:]))
             x = ops.transpose(x, (0, 2, 1, 3, 4))
             x = module(x, context)
             # b c f h w -> (b f) c h w
             x = ops.transpose(x, (0, 2, 1, 3, 4))
-            x = ops.reshape(x, (-1.0 * x.shape[2:]))
+            x = ops.reshape(x, (-1, *x.shape[2:]))
         elif isinstance(module, CrossAttention):
             x = module(x, context)
         elif isinstance(module, BasicTransformerBlock):
@@ -1278,7 +1260,6 @@ class VideoControlNet(nn.CellList):
         disabled_sa = False
         # params
         enc_dims = [dim * u for u in [1] + dim_mult]
-        dec_dims = [dim * u for u in [dim_mult[-1]] + dim_mult[::-1]]
         shortcut_dims = []
         scale = 1.0
 
@@ -1448,24 +1429,24 @@ class VideoControlNet(nn.CellList):
         self.batch = batch
 
         if hint is not None:
-            add = x.new_zeros(batch, self.add_dim, f, h, w)
+            add = x.new_zeros((batch, self.add_dim, f, h, w))
             # b c f h w -> (b f) c h w
             hints = ops.transpose(hint, (0, 2, 1, 3, 4))
-            hints = ops.reshape(hints, (-1.0 * x.shape[2:]))
+            hints = ops.reshape(hints, (-1, *hints.shape[2:]))
             hints = self.input_hint_block(hints)
             # (b f) c h w -> (b c f h w)
-            hints = ops.reshape(hints, (batch, -1, *x.shape[2:]))
+            hints = ops.reshape(hints, (batch, -1, *hints.shape[1:]))
             hints = ops.transpose(hints, (0, 2, 1, 3, 4))
             if mask_cond is not None:
                 for i in range(batch):
                     mask_cond_per_batch = mask_cond[i]
-                    inds = mint.where(mask_cond_per_batch >= 0)[0]
+                    inds = mint.nonzero(mask_cond_per_batch >= 0, as_tuple=True)[0]
                     hint_inds = mask_cond_per_batch[inds]
                     add[i, :, inds] += hints[i, :, hint_inds]
                     # add[i,:,inds] += hints[i]
             # b c f h w -> (b f) c h w
             add = ops.transpose(add, (0, 2, 1, 3, 4))
-            add = ops.reshape(add, (-1.0 * x.shape[2:]))
+            add = ops.reshape(add, (-1, *add.shape[2:]))
 
         e = self.time_embed(sinusoidal_embedding(t, self.dim))
         e = e.repeat_interleave(repeats=f, dim=0)
@@ -1474,13 +1455,13 @@ class VideoControlNet(nn.CellList):
             e_cond = self.hint_time_zero_linear(self.time_embed(sinusoidal_embedding(t_hint, self.dim)))
             if mask_cond is not None:
                 # (b f) d -> (b f d)
-                e = ops.reshape(e, (batch, -1, x.shape[-1]))
+                e = ops.reshape(e, (batch, -1, e.shape[-1]))
                 for i in range(batch):
                     mask_cond_per_batch = mask_cond[i]
-                    inds = mint.where(mask_cond_per_batch >= 0)[0]
+                    inds = mint.nonzero(mask_cond_per_batch >= 0, as_tuple=True)[0]
                     e[i, inds] += e_cond[i]
                 # (b f d) -> (b f) d
-                e = ops.reshape(e, (-1, x.shape[-1]))
+                e = ops.reshape(e, (-1, e.shape[-1]))
             else:
                 e_cond = e_cond.repeat_interleave(repeats=f, dim=0)
                 e += e_cond
@@ -1489,13 +1470,13 @@ class VideoControlNet(nn.CellList):
             e_scale = self.scale_cond(sinusoidal_embedding(s_cond, self.dim))
             if mask_cond is not None:
                 # (b f) d -> (b f d)
-                e = ops.reshape(e, (batch, -1, x.shape[-1]))
+                e = ops.reshape(e, (batch, -1, e.shape[-1]))
                 for i in range(batch):
                     mask_cond_per_batch = mask_cond[i]
-                    inds = mint.where(mask_cond_per_batch >= 0)[0]
+                    inds = mint.nonzero(mask_cond_per_batch >= 0, as_tuple=True)[0]
                     e[i, inds] += e_scale[i]
                     # (b f d) -> (b f) d
-                    e = ops.reshape(e, (-1, x.shape[-1]))
+                    e = ops.reshape(e, (-1, e.shape[-1]))
             else:
                 e_scale = e_scale.repeat_interleave(repeats=f, dim=0)
                 e += e_scale
@@ -1505,7 +1486,7 @@ class VideoControlNet(nn.CellList):
         # always in shape (b f) c h w, except for temporal layer
         # b c f h w -> (b f) c h w
         x = ops.transpose(x, (0, 2, 1, 3, 4))
-        x = ops.reshape(x, (-1.0 * x.shape[2:]))
+        x = ops.reshape(x, (-1, *x.shape[2:]))
 
         # encoder
         xs = []
@@ -1539,12 +1520,12 @@ class VideoControlNet(nn.CellList):
             x = module(x, context)
         elif isinstance(module, TemporalTransformer):
             # (b f) c h w -> (b c f h w)
-            x = ops.reshape(x, (self.batch, -1, *x.shape[2:]))
+            x = ops.reshape(x, (self.batch, -1, *x.shape[1:]))
             x = ops.transpose(x, (0, 2, 1, 3, 4))
             x = module(x, context)
             # b c f h w -> (b f) c h w
             x = ops.transpose(x, (0, 2, 1, 3, 4))
-            x = ops.reshape(x, (-1.0 * x.shape[2:]))
+            x = ops.reshape(x, (-1.0, *x.shape[2:]))
         elif isinstance(module, CrossAttention):
             x = module(x, context)
         elif isinstance(module, BasicTransformerBlock):

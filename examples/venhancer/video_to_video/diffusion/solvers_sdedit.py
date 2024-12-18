@@ -1,8 +1,6 @@
-import numpy as np
 from tqdm.auto import trange
 
-import mindspore as ms
-from mindspore import Tensor, mint, ops
+from mindspore import mint, ops
 
 
 def get_ancestral_step(sigma_from, sigma_to, eta=1.0):
@@ -27,7 +25,7 @@ def sample_heun(noise, model, sigmas, s_churn=0.0, s_tmin=0.0, s_tmax=float("inf
     Implements Algorithm 2 (Heun steps) from Karras et al. (2022).
     """
     x = noise * sigmas[0]
-    for i in trange(len(sigmas) - 1, disable=not show_progress):
+    for i in trange(len(sigmas) - 1, disable=show_progress):
         gamma = 0.0
         if s_tmin <= sigmas[i] <= s_tmax and sigmas[i] < float("inf"):
             gamma = mint.minimum(s_churn / (len(sigmas) - 1), 2**0.5 - 1)

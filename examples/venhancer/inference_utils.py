@@ -2,7 +2,6 @@ import logging
 import os
 import subprocess
 import tempfile
-from typing import Mapping
 
 import cv2
 import numpy as np
@@ -31,9 +30,9 @@ def preprocess(input_frames):
         frame = input_frames[pointer]
         frame = frame[:, :, ::-1]
         frame = Image.fromarray(frame.astype("uint8")).convert("RGB")
-        frame = Tensor(frame)
-        out_frame_list.append(frame)
-    out_frames = mint.stack(out_frame_list, dim=0)
+        frame = ms.dataset.vision.ToTensor()(frame)
+        out_frame_list.append(Tensor(frame))
+    out_frames = ops.stack(out_frame_list, axis=0)
     out_frames.clamp(0, 1)
     mean = Tensor([0.5, 0.5, 0.5], dtype=out_frames.dtype).view(-1)
     std = Tensor([0.5, 0.5, 0.5], dtype=out_frames.dtype).view(-1)
@@ -98,14 +97,14 @@ def load_video(vid_path):
 
 def save_video(video, save_dir, file_name, fps=16.0):
     output_path = os.path.join(save_dir, file_name)
-    images = [(img.numpy()).astype("uint8") for img in video]
+    images = [(img.asnumpy()).astype("uint8") for img in video]
     temp_dir = tempfile.mkdtemp()
     for fid, frame in enumerate(images):
         tpth = os.path.join(temp_dir, "%06d.png" % (fid + 1))
         cv2.imwrite(tpth, frame[:, :, ::-1])
     tmp_path = os.path.join(save_dir, "tmp.mp4")
     cmd = f"ffmpeg -y -f image2 -framerate {fps} -i {temp_dir}/%06d.png \
-     -vcodec libx264 -crf 17 -pix_fmt yuv420p {tmp_path}"
+      -crf 17 -pix_fmt yuv420p {tmp_path}"
     status, output = subprocess.getstatusoutput(cmd)
     if status != 0:
         logger.error(f"Save Video Error with {output}")

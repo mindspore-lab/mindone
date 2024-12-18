@@ -87,8 +87,6 @@ class GroupNorm(nn.GroupNorm):
             self.bias = ops.zeros((num_channels,), dtype=dtype)
 
     def construct(self, x: Tensor):
-        self._check_input_dim(x.shape, self.cls_name)
-        self._check_dtype(x.dtype, [ms.float16, ms.float32], self.cls_name)
         output = mint.nn.functional.group_norm(x, self.num_groups, weight=self.weight, bias=self.bias, eps=self.eps)
         return output
 

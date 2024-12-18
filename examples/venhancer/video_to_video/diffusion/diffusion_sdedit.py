@@ -1,5 +1,3 @@
-import random
-
 import numpy as np
 from video_to_video.utils.utils import blend_time
 
@@ -86,7 +84,8 @@ class GaussianDiffusion:
                 if guide_rescale is not None:
                     assert guide_rescale >= 0 and guide_rescale <= 1
                     ratio = (
-                        y_out.flatten(1).std(axis=1, ddof=True) / (out.flatten(1).std(axis=1, ddof=True) + 1e-12)
+                        ops.std(y_out.flatten(start_dim=1), axis=1, ddof=True)
+                        / (ops.std(out.flatten(start_dim=1), axis=1, ddof=True) + 1e-12)
                     ).view(  # noqa
                         (-1,) + (1,) * (y_out.ndim - 1)
                     )
@@ -134,7 +133,7 @@ class GaussianDiffusion:
         **kwargs,
     ):
         # sanity check
-        assert isinstance(steps, (int, Tensor.long()))
+        assert isinstance(steps, (int, Tensor))
         assert t_max is None or (t_max > 0 and t_max <= self.num_timesteps - 1)
         assert t_min is None or (t_min >= 0 and t_min < self.num_timesteps - 1)
         assert discretization in (None, "leading", "linspace", "trailing")
@@ -147,8 +146,7 @@ class GaussianDiffusion:
         # options
         schedule = "karras" if "karras" in solver else None
         discretization = discretization or "linspace"
-        seed = seed if seed >= 0 else random.randint(0, 2**31)
-        if isinstance(steps, Tensor.long()):
+        if isinstance(steps, Tensor):
             discard_penultimate_step = False
         if discard_penultimate_step is None:
             discard_penultimate_step = (
@@ -259,7 +257,7 @@ class GaussianDiffusion:
         if sigma == float("inf"):
             t = ops.full_like(sigma, len(self.sigmas) - 1)
         else:
-            log_sigmas = mint.sqrt(self.sigmas**2 / (1 - self.sigmas**2)).log().to(sigma)  # noqa
+            log_sigmas = mint.sqrt(self.sigmas**2 / (1 - self.sigmas**2)).log()  # noqa
             log_sigma = sigma.log()
             dists = log_sigma - log_sigmas[:, None]
             low_idx = dists.ge(0).cumsum(axis=0).argmax(axis=0).clamp(max=log_sigmas.shape[0] - 2)
@@ -276,7 +274,7 @@ class GaussianDiffusion:
     def _t_to_sigma(self, t):
         t = t.float()
         low_idx, high_idx, w = t.floor().long(), t.ceil().long(), t.frac()
-        log_sigmas = torch.sqrt(self.sigmas**2 / (1 - self.sigmas**2)).log().to(t)  # noqa
+        log_sigmas = torch.sqrt(self.sigmas**2 / (1 - self.sigmas**2)).log()  # noqa
         log_sigma = (1 - w) * log_sigmas[low_idx] + w * log_sigmas[high_idx]
         log_sigma[ops.isnan(log_sigma) | ops.isinf(log_sigma)] = float("inf")
         return log_sigma.exp()

@@ -6,14 +6,20 @@ from video_to_video.diffusion.diffusion_sdedit import GaussianDiffusion
 from video_to_video.diffusion.schedules_sdedit import noise_schedule
 from video_to_video.modules.embedder import FrozenOpenCLIPEmbedder
 from video_to_video.utils.config import cfg
-from video_to_video.utils.util import *
+from video_to_video.utils.util import (
+    blend_time,
+    gaussian_weights,
+    get_precision,
+    make_chunks,
+    pad_to_fit,
+    sliding_windows_1d,
+)
 
 import mindspore as ms
 from mindspore import Tensor, mint, ops
 
 from mindone.diffusers import AutoencoderKLTemporalDecoder
 from mindone.utils.amp import auto_mixed_precision
-from mindone.utils.logger import set_logger
 
 logger = logging.getLogger(__name__)
 
@@ -21,7 +27,7 @@ logger = logging.getLogger(__name__)
 class VideoToVideo:
     def __init__(self, opt):
         self.opt = opt
-        clip_encoder = FrozenOpenCLIPEmbedder(pretrained="laion2b_s32b_b79k")
+        clip_encoder = FrozenOpenCLIPEmbedder(pretrained="models/open_clip.ckpt")
         self.clip_encoder = clip_encoder
         logger.info(f"Build encoder with {cfg.embedder.type}")
 
@@ -57,7 +63,7 @@ class VideoToVideo:
         self.negative_prompt = cfg.negative_prompt
         self.positive_prompt = cfg.positive_prompt
 
-        negative_y = clip_encoder(self.negative_prompt).detach()
+        negative_y = clip_encoder(self.negative_prompt)
         self.negative_y = negative_y
 
     def test(
@@ -84,18 +90,16 @@ class VideoToVideo:
             if i == key_f_num - 1:
                 aug_video.append(video_data[i : i + 1])
             else:
-                aug_video.append(video_data[i : i + 1].repeat(interp_f_num + 1, 1, 1, 1))
+                aug_video.append(video_data[i : i + 1].tile(interp_f_num + 1, 1, 1, 1))
         video_data = mint.cat(aug_video, dim=0)
 
         logger.info(f"video_data shape: {video_data.shape}")
         frames_num, _, h, w = video_data.shape
 
         padding = pad_to_fit(h, w)
-        video_data = mint.pad(video_data, padding, "constant", 1)
+        video_data = ops.pad(video_data, padding, "constant", 1)
 
         video_data = video_data.unsqueeze(0)
-        bs = 1
-
         mask_cond = mask_cond.unsqueeze(0)
         s_cond = Tensor(s_cond, dtype=ms.int32)
 
@@ -104,7 +108,7 @@ class VideoToVideo:
         y = self.clip_encoder(y)
 
         t_hint = Tensor(noise_aug - 1, dtype=ms.int32)
-        video_in_low_fps = video_data_feature[:, :, :: interp_f_num + 1].clone()
+        video_in_low_fps = video_data_feature[:, :, :: interp_f_num + 1]
         noised_hint = self.diffusion.diffuse(video_in_low_fps, t_hint)
 
         t = Tensor(total_noise_levels - 1, dtype=ms.int32)
@@ -134,9 +138,9 @@ class VideoToVideo:
             chunk_inds=chunk_inds,
         )
 
-        logger.info(f"sampling, finished.")
+        logger.info("sampling, finished.")
         gen_video = self.tiled_chunked_decode(gen_vid)
-        logger.info(f"temporal vae decoding, finished.")
+        logger.info("temporal vae decoding, finished.")
 
         w1, w2, h1, h2 = padding
         gen_video = gen_video[:, :, :, h1 : h + h1, w1 : w + w1]
@@ -144,18 +148,18 @@ class VideoToVideo:
         return gen_video
 
     def temporal_vae_decode(self, z, num_f):
-        return self.vae.decode(z / self.vae.config.scaling_factor, num_frames=num_f).sample
+        return self.vae.decode(z / self.vae.config.scaling_factor, num_frames=num_f)[0]
 
     def vae_encode(self, t, chunk_size=1):
         bs = t.shape[0]
         # b f c h w -> (b f) c h w
-        t = ops.reshape(t, (-1.0 * t.shape[2:]))
+        t = ops.reshape(t, (-1, *t.shape[2:]))
         z_list = []
         for ind in range(0, t.shape[0], chunk_size):
-            z_list.append(self.vae.encode(t[ind : ind + chunk_size]).latent_dist.sample())
+            z_list.append(self.vae.diag_gauss_dist.sample(self.vae.encode(t[ind : ind + chunk_size])[0]))
         z = mint.cat(z_list, dim=0)
         # (b f) c h w -> (b c f h w)
-        z = ops.reshape(z, (bs, -1, *z.shape[2:]))
+        z = ops.reshape(z, (bs, -1, *z.shape[1:]))
         z = ops.transpose(z, (0, 2, 1, 3, 4))
         return z * self.vae.config.scaling_factor
 
@@ -182,7 +186,7 @@ class VideoToVideo:
         overlap_time = int(self.frame_chunk_size * self.tile_overlap_ratio_time)
 
         images = z.new_zeros((batch_size, 3, num_frames, height * 8, width * 8))
-        count = images.clone()
+        count = z.new_zeros((batch_size, 3, num_frames, height * 8, width * 8))
         height_inds = sliding_windows_1d(height, self.tile_z_height, overlap_z_height)
         for start_height, end_height in height_inds:
             width_inds = sliding_windows_1d(width, self.tile_z_width, overlap_z_width)
@@ -197,14 +201,14 @@ class VideoToVideo:
                         start_height:end_height,
                         start_width:end_width,
                     ]
-                    tile_f_num = tile.size(2)
+                    tile_f_num = tile.shape[2]
                     # b c f h w -> (b f) c h w
                     tile = ops.transpose(tile, (0, 2, 1, 3, 4))
-                    tile = ops.reshape(tile, (-1.0 * tile.shape[2:]))
+                    tile = ops.reshape(tile, (-1, *tile.shape[2:]))
                     tile = self.temporal_vae_decode(tile, tile_f_num)
 
                     # (b f) c h w -> (b c f h w)
-                    tile = ops.reshape(tile, (batch_size, -1, *tile.shape[2:]))
+                    tile = ops.reshape(tile, (batch_size, -1, *tile.shape[1:]))
                     tile = ops.transpose(tile, (0, 2, 1, 3, 4))
                     time.append(tile)
                 blended_time = []
@@ -212,7 +216,7 @@ class VideoToVideo:
                     if k > 0:
                         chunk = blend_time(time[k - 1], chunk, overlap_time)
                     if k != len(time) - 1:
-                        chunk_size = chunk.size(2)
+                        chunk_size = chunk.shape[2]
                         blended_time.append(chunk[:, :, : chunk_size - overlap_time])
                     else:
                         blended_time.append(chunk)
@@ -227,6 +231,6 @@ class VideoToVideo:
                 )
                 count[:, :, :, start_height * 8 : end_height * 8, start_width * 8 : end_width * 8] += weights
 
-        images.div_(count)
+        images = mint.div(images, count)
 
         return images
