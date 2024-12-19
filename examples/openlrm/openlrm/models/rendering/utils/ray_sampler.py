@@ -63,7 +63,7 @@ class RaySampler(nn.Cell):
         x_lift = (x_cam - cx.unsqueeze(-1) + cy.unsqueeze(-1)*sk.unsqueeze(-1)/fy.unsqueeze(-1) - sk.unsqueeze(-1)*y_cam/fy.unsqueeze(-1)) / fx.unsqueeze(-1) * z_cam
         y_lift = (y_cam - cy.unsqueeze(-1)) / fy.unsqueeze(-1) * z_cam
 
-        cam_rel_points = mint.stack((x_lift, y_lift, z_cam, mint.ones_like(z_cam)), dim=-1)
+        cam_rel_points = mint.stack((x_lift, y_lift, z_cam, mint.ones_like(z_cam, dtype=ms.float32)), dim=-1)
 
         _opencv2blender = ms.Tensor([
             [1, 0, 0, 0],

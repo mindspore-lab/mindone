@@ -39,7 +39,7 @@ class MipRayMarcher2(nn.Cell):
 
         alpha = 1 - ops.exp(-density_delta)
 
-        alpha_shifted = mint.cat([mint.ones_like(alpha[:, :, :1]), 1-alpha + 1e-10], -2)
+        alpha_shifted = mint.cat([mint.ones_like(alpha[:, :, :1], dtype=ms.float32), 1-alpha + 1e-10], -2)
         weights = alpha * ops.cumprod(alpha_shifted, -2)[:, :, :-1]
 
         composite_rgb = mint.sum(weights * colors_mid, -2)

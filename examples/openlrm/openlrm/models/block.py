@@ -28,11 +28,11 @@ class BasicBlock(nn.Cell):
                  attn_drop: float = 0., attn_bias: bool = False,
                  mlp_ratio: float = 4., mlp_drop: float = 0.):
         super().__init__()
-        self.norm1 = nn.LayerNorm(inner_dim, epsilon=eps)
+        self.norm1 = nn.LayerNorm((inner_dim,), epsilon=eps)
         self.self_attn = nn.MultiheadAttention(
             embed_dim=inner_dim, num_heads=num_heads,
             dropout=attn_drop, has_bias=attn_bias, batch_first=True)
-        self.norm2 = nn.LayerNorm(inner_dim, epsilon=eps)
+        self.norm2 = nn.LayerNorm((inner_dim,), epsilon=eps)
         self.mlp = nn.SequentialCell(
             nn.Dense(inner_dim, int(inner_dim * mlp_ratio)),
             nn.GELU(approximate=False),
@@ -59,15 +59,15 @@ class ConditionBlock(nn.Cell):
                  attn_drop: float = 0., attn_bias: bool = False,
                  mlp_ratio: float = 4., mlp_drop: float = 0.):
         super().__init__()
-        self.norm1 = nn.LayerNorm(inner_dim, epsilon=eps)
+        self.norm1 = nn.LayerNorm((inner_dim,), epsilon=eps)
         self.cross_attn = nn.MultiheadAttention(
             embed_dim=inner_dim, num_heads=num_heads, kdim=cond_dim, vdim=cond_dim,
             dropout=attn_drop, has_bias=attn_bias, batch_first=True)
-        self.norm2 = nn.LayerNorm(inner_dim, epsilon=eps)
+        self.norm2 = nn.LayerNorm((inner_dim,), epsilon=eps)
         self.self_attn = nn.MultiheadAttention(
             embed_dim=inner_dim, num_heads=num_heads,
             dropout=attn_drop, has_bias=attn_bias, batch_first=True)
-        self.norm3 = nn.LayerNorm(inner_dim, epsilon=eps)
+        self.norm3 = nn.LayerNorm((inner_dim,), epsilon=eps)
         self.mlp = nn.SequentialCell(
             nn.Dense(inner_dim, int(inner_dim * mlp_ratio)),
             nn.GELU(approximate=False),

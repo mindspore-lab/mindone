@@ -17,9 +17,9 @@ from mindspore import Tensor, nn, ops
 
 logger = logging.getLogger("dinov2")
 
-from mindone.models.modules.flash_attention import FLASH_IS_AVAILABLE, MSFlashAttention
-from mindone.utils.version_control import check_valid_flash_attention, is_old_ms_version
-XFORMERS_ENABLED = FLASH_IS_AVAILABLE
+# from mindone.models.modules.flash_attention import FLASH_IS_AVAILABLE, MSFlashAttention
+# from mindone.utils.version_control import check_valid_flash_attention, is_old_ms_version
+XFORMERS_ENABLED = False #FLASH_IS_AVAILABLE
 
 
 class Attention(nn.Cell):
@@ -85,11 +85,11 @@ class MemEffAttention(Attention):
         # 'b n h d' -> (b, h=num_head, n, d) == BNSD
 
         if attn_bias is not None: # TODO
-            print(f"TODO: MemEffAttention in Dino has attn_bias!!! {attn_bias}")
-            q_bias, k_bias, v_bias = attn_bias.chunk(3)
-            q = q + q_bias
-            k = k + k_bias
-            v = v + v_bias
+            raise AssertionError(f"Do not support MemEffAttention in Dinov2 with attn_bias {attn_bias} yet!")
+            # q_bias, k_bias, v_bias = attn_bias.chunk(3)
+            # q = q + q_bias
+            # k = k + k_bias
+            # v = v + v_bias
 
         x = self.flash_attention(q, k, v)
         x = x.reshape([B, N, C])

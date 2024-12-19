@@ -204,7 +204,7 @@ class TriplaneSynthesizer(nn.Cell):
                 planes=planes,
                 decoder=self.decoder,
                 sample_coordinates=chunk_points,
-                sample_directions=mint.zeros_like(chunk_points),
+                sample_directions=mint.zeros_like(chunk_points, dtype=ms.float32),
                 options=self.rendering_kwargs,
             )
             outs.append(chunk_out)

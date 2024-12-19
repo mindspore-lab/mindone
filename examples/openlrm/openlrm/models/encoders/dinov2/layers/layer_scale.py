@@ -20,7 +20,7 @@ class LayerScale(nn.Cell):
     ) -> None:
         super().__init__()
         self.inplace = inplace
-        self.gamma = ms.Parameter(init_values * mint.ones(dim))
+        self.gamma = ms.Parameter(init_values * mint.ones((dim,)))
 
     def construct(self, x: Tensor) -> Tensor:
         return x.mul_(self.gamma) if self.inplace else x * self.gamma

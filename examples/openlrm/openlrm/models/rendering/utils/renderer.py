@@ -287,7 +287,7 @@ class ImportanceRenderer(nn.Cell):
         weights = weights + eps # prevent division by zero (don't do inplace op!)
         pdf = weights / mint.sum(weights, -1, keepdim=True) # (N_rays, N_samples_)
         cdf = mint.cumsum(pdf, -1) # (N_rays, N_samples), cumulative distribution function
-        cdf = mint.cat([mint.zeros_like(cdf[: ,:1]), cdf], -1)  # (N_rays, N_samples_+1)
+        cdf = mint.cat([mint.zeros_like(cdf[: ,:1], dtype=ms.float32), cdf], -1)  # (N_rays, N_samples_+1)
                                                                    # padded to 0~1 inclusive
 
         if det:

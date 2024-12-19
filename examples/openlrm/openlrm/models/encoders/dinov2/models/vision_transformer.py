@@ -129,11 +129,11 @@ class DinoVisionTransformer(nn.Cell):
         self.patch_embed = embed_layer(img_size=img_size, patch_size=patch_size, in_chans=in_chans, embed_dim=embed_dim)
         num_patches = self.patch_embed.num_patches
 
-        self.cls_token = ms.Parameter(mint.zeros((1, 1, embed_dim)))
-        self.pos_embed = ms.Parameter(mint.zeros((1, num_patches + self.num_tokens, embed_dim)))
+        self.cls_token = ms.Parameter(mint.zeros((1, 1, embed_dim), dtype=ms.float32))
+        self.pos_embed = ms.Parameter(mint.zeros((1, num_patches + self.num_tokens, embed_dim), dtype=ms.float32))
         assert num_register_tokens >= 0
         self.register_tokens = (
-            ms.Parameter(mint.zeros((1, num_register_tokens, embed_dim))) if num_register_tokens else None
+            ms.Parameter(mint.zeros((1, num_register_tokens, embed_dim), dtype=ms.float32)) if num_register_tokens else None
         )
 
         if drop_path_uniform is True:

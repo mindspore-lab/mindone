@@ -167,8 +167,8 @@ class LRMInferrer(Inferrer):
     def infer_video(self, planes: ms.Tensor, frame_size: int, render_size: int, render_views: int, render_fps: int, dump_video_path: str):
         N = planes.shape[0]
         render_cameras = self._default_render_cameras(n_views=render_views, batch_size=N)
-        render_anchors = mint.zeros((N, render_cameras.shape[1], 2))
-        render_resolutions = mint.ones((N, render_cameras.shape[1], 1)) * render_size
+        render_anchors = mint.zeros((N, render_cameras.shape[1], 2), dtype=ms.float32)
+        render_resolutions = mint.ones((N, render_cameras.shape[1], 1), dtype=ms.float32) * render_size
         render_bg_colors = mint.ones((N, render_cameras.shape[1], 1), dtype=ms.float32) * 1.
 
         frames = []
