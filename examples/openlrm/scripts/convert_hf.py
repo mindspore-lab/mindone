@@ -18,7 +18,6 @@ from omegaconf import OmegaConf
 from megfile import smart_path_join, smart_exists, smart_listdir, smart_makedirs, smart_copy
 from tempfile import TemporaryDirectory
 from mindspore import nn
-# from accelerate import Accelerator
 import safetensors
 
 import sys

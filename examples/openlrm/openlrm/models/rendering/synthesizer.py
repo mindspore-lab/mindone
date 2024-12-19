@@ -8,7 +8,7 @@
 
 import itertools
 import mindspore as ms
-from mindspore import nn
+from mindspore import nn, ops, mint
 from mindspore.common.initializer import Zero, initializer
 
 from .utils.renderer import ImportanceRenderer
@@ -140,7 +140,7 @@ class TriplaneSynthesizer(nn.Cell):
 
         # Perform volume rendering
         rgb_samples, depth_samples, weights_samples = self.renderer(
-            planes.repeat_interleave(M, axis=0), self.decoder, ray_origins, ray_directions, self.rendering_kwargs,
+            ops.repeat_interleave(planes, M, axis=0), self.decoder, ray_origins, ray_directions, self.rendering_kwargs,
             bg_colors=bg_colors.reshape(-1, 1),
         )
 

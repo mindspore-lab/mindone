@@ -12,7 +12,7 @@ import os
 import warnings
 
 import mindspore as ms
-from mindspore import Tensor, nn
+from mindspore import Tensor, nn, ops
 
 
 logger = logging.getLogger("dinov2")
@@ -69,8 +69,8 @@ class Attention(nn.Cell):
 
 # search/xformers/blob/main/xformers/ops/fmha/__init__.py#L194
 class MemEffAttention(Attention):
-    def forward(self, x: Tensor, attn_bias=None) -> Tensor:
-        if not XFORMERS_AVAILABLE:
+    def construct(self, x: Tensor, attn_bias=None) -> Tensor:
+        if not XFORMERS_ENABLED:
             if attn_bias is not None:
                 raise AssertionError("xFormers is required for using nested tensors")
             return super().construct(x)

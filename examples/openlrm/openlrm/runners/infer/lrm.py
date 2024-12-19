@@ -64,8 +64,13 @@ def parse_configs():
     if args.infer is not None:
         cfg_infer = OmegaConf.load(args.infer)
         cfg.merge_with(cfg_infer)
-        cfg.setdefault('video_dump', os.path.join("dumps", cli_cfg.model_name, 'videos'))
-        cfg.setdefault('mesh_dump', os.path.join("dumps", cli_cfg.model_name, 'meshes'))
+        if os.path.isdir(cli_cfg.model_name):
+            model_path_name = cli_cfg.model_name.replace(os.path.dirname(cli_cfg.model_name), "").replace("/", "")
+            cfg.setdefault('video_dump', os.path.join("dumps", model_path_name, 'videos'))
+            cfg.setdefault('mesh_dump', os.path.join("dumps", model_path_name, 'meshes'))
+        else:
+            cfg.setdefault('video_dump', os.path.join("dumps", cli_cfg.model_name, 'videos'))
+            cfg.setdefault('mesh_dump', os.path.join("dumps", cli_cfg.model_name, 'meshes'))
 
     cfg.merge_with(cli_cfg)
 
@@ -144,11 +149,10 @@ class LRMInferrer(Inferrer):
 
     def _default_render_cameras(self, n_views: int, batch_size: int = 1):
         # return: (N, M, D_cam_render)
-        render_camera_extrinsics = surrounding_views_linspace(n_views=n_views, device=device)
+        render_camera_extrinsics = surrounding_views_linspace(n_views=n_views)
         render_camera_intrinsics = create_intrinsics(
             f=0.75,
             c=0.5,
-            device=device,
         ).unsqueeze(0).tile((render_camera_extrinsics.shape[0], 1, 1))
         render_cameras = build_camera_standard(render_camera_extrinsics, render_camera_intrinsics)
         return render_cameras.unsqueeze(0).tile((batch_size, 1, 1))
@@ -230,7 +234,7 @@ class LRMInferrer(Inferrer):
         if image.shape[1] == 4:  # RGBA
             image = image[:, :3, ...] * image[:, 3:, ...] + (1 - image[:, 3:, ...])
         image = ops.interpolate(image, size=(source_size, source_size), mode='bicubic', align_corners=True)
-        image = ops.clamp(image, 0, 1)
+        image = ops.clamp(image, 0., 1.)
 
         with no_grad():
             planes = self.infer_planes(image, source_cam_dist=source_cam_dist)

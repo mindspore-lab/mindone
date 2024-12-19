@@ -208,8 +208,8 @@ class DepthBaseDecodeHead(nn.Cell):
         show_img = np.clip(show_img, 0, 255)
         show_img = show_img.astype(np.uint8)
         show_img = show_img[:, :, ::-1]
-        show_img = show_img.transpose(0, 2, 1)
-        show_img = show_img.transpose(1, 0, 2)
+        show_img = show_img.permute(0, 2, 1)
+        show_img = show_img.permute(1, 0, 2)
 
         depth_pred = depth_pred / mint.max(depth_pred)
         depth_gt = depth_gt / mint.max(depth_gt)

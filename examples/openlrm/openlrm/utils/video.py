@@ -23,7 +23,7 @@ def images_to_video(images, output_path, fps, gradio_codec: bool, verbose=False)
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
     frames = []
     for i in range(images.shape[0]):
-        frame = (images[i].permute(1, 2, 0).cpu().numpy() * 255).astype(np.uint8)
+        frame = (images[i].permute(1, 2, 0).asnumpy() * 255).astype(np.uint8)
         assert frame.shape[0] == images.shape[2] and frame.shape[1] == images.shape[3], \
             f"Frame shape mismatch: {frame.shape} vs {images.shape}"
         assert frame.min() >= 0 and frame.max() <= 255, \

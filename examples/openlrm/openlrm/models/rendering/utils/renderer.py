@@ -55,8 +55,8 @@ def project_onto_planes(planes, coordinates):
         planes = planes.float()
     N, M, C = coordinates.shape
     n_planes, _, _ = planes.shape
-    coordinates = coordinates.unsqueeze(1).broadcast_to((-1, n_planes, -1, -1).reshape(N*n_planes, M, 3))
-    inv_planes = mint.linalg.inv(planes).unsqueeze(0).broadcast_to((N, -1, -1, -1).reshape(N*n_planes, 3, 3))
+    coordinates = coordinates.unsqueeze(1).broadcast_to((-1, n_planes, -1, -1)).reshape(N*n_planes, M, 3)
+    inv_planes = mint.linalg.inv(planes).unsqueeze(0).broadcast_to((N, -1, -1, -1)).reshape(N*n_planes, 3, 3)
     # inv only supports float32
     projections = mint.bmm(coordinates.to(planes.dtype), inv_planes)
     return projections[..., :2].to(coordinates.dtype)
@@ -109,6 +109,7 @@ class ImportanceRenderer(nn.Cell):
         self.ray_marcher = MipRayMarcher2(self.activation_factory)
         self.plane_axes = generate_planes()
         self.max_pool1d = nn.MaxPool1d(kernel_size=2, stride=1, padding=1, pad_mode="pad")
+        self.avg_pool1d = nn.AvgPool1d(kernel_size=2, stride=1)
 
     def _build_activation_factory(self):
         def activation_factory(options: dict):
@@ -134,9 +135,9 @@ class ImportanceRenderer(nn.Cell):
 
         # filter out-of-box samples
         mask_inbox = \
-            (rendering_options['sampler_bbox_min'] <= sample_coordinates) & \
-                (sample_coordinates <= rendering_options['sampler_bbox_max'])
-        mask_inbox = mask_inbox.all(-1)
+            (rendering_options['sampler_bbox_min'] <= sample_coordinates).int() & \
+                (sample_coordinates <= rendering_options['sampler_bbox_max']).int()
+        mask_inbox = mask_inbox.all(-1).to(ms.bool_)
 
         # forward model according to all samples
         _out = self.run_model(planes, decoder, sample_coordinates, sample_directions, rendering_options)
@@ -145,7 +146,7 @@ class ImportanceRenderer(nn.Cell):
         SAFE_GUARD = 8
         DATA_TYPE = _out['sigma'].dtype
         colors_pass = mint.zeros((batch_size, num_rays * samples_per_ray, 3), dtype=DATA_TYPE)
-        densities_pass = mint.nan_to_num(mint.full((batch_size, num_rays * samples_per_ray, 1), -float('inf'), dtype=DATA_TYPE)) / SAFE_GUARD
+        densities_pass = ops.nan_to_num(mint.full((batch_size, num_rays * samples_per_ray, 1), -float('inf'), dtype=DATA_TYPE)) / SAFE_GUARD
         colors_pass[mask_inbox], densities_pass[mask_inbox] = _out['rgb'][mask_inbox], _out['sigma'][mask_inbox]
 
         # reshape back
@@ -239,7 +240,7 @@ class ImportanceRenderer(nn.Cell):
             depths_coarse += mint.rand_like(depths_coarse) * depth_delta
             depths_coarse = 1./(1./ray_start * (1. - depths_coarse) + 1./ray_end * depths_coarse)
         else:
-            if type(ray_start) == ms.Tensor:
+            if isinstance(ray_start, ms.Tensor):
                 depths_coarse = math_utils.linspace(ray_start, ray_end, depth_resolution).permute((1,2,0,3))
                 depth_delta = (ray_end - ray_start) / (depth_resolution - 1)
                 depths_coarse += mint.rand_like(depths_coarse) * depth_delta[..., None]
@@ -261,8 +262,8 @@ class ImportanceRenderer(nn.Cell):
             weights = weights.reshape(batch_size * num_rays, -1) # -1 to account for loss of 1 sample in MipRayMarcher
 
             # smooth weights
-            weights = self.max_pool1d(weights.unsqueeze(1).float())
-            weights = ops.avg_pool1d(weights, 2, 1).squeeze()
+            weights = self.max_pool1d(weights.unsqueeze(1))
+            weights = self.avg_pool1d(weights).squeeze()
             weights = weights + 0.01
 
             z_vals_mid = 0.5 * (z_vals[: ,:-1] + z_vals[: ,1:])
@@ -290,10 +291,10 @@ class ImportanceRenderer(nn.Cell):
                                                                    # padded to 0~1 inclusive
 
         if det:
-            u = ops.linspace(0, 1, N_importance, device=bins.device)
+            u = ops.linspace(0, 1, N_importance)
             u = u.broadcast_to((N_rays, N_importance))
         else:
-            u = mint.rand((N_rays, N_importance))
+            u = mint.rand(N_rays, N_importance)
         u = u.contiguous()
 
         inds = mint.searchsorted(cdf, u, right=True)

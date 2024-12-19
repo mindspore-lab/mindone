@@ -12,9 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-
+import inspect
 import mindspore as ms
-from mindspore import nn
+from mindspore import nn, ops
 from logging import getLogger
 
 from .embedder import CameraEmbedder
@@ -63,6 +63,49 @@ class ModelLRM(nn.Cell):
             triplane_dim=triplane_dim, samples_per_ray=rendering_samples_per_ray,
         )
 
+    @property
+    def dtype(self) -> ms.Type:
+        r"""
+        Returns:
+            `mindspore.dtype`: The mindspore dtype on which the pipeline is located.
+        """
+        if self._dtype is not None:
+            return self._dtype
+
+        module_names, _ = self._get_signature_keys(self)
+        modules = [getattr(self, n, None) for n in module_names]
+        modules = [m for m in modules if isinstance(m, nn.Cell)]
+
+        for module in modules:
+            self._dtype = module.weight.dtype
+            return self._dtype
+        self._dtype = ms.float32
+        return self._dtype
+
+    @classmethod
+    def _get_signature_keys(cls, obj):
+        parameters = inspect.signature(obj.__init__).parameters
+        required_parameters = {k: v for k, v in parameters.items() if v.default == inspect._empty}
+        optional_parameters = set({k for k, v in parameters.items() if v.default != inspect._empty})
+        expected_modules = set(required_parameters.keys()) - {"self"}
+
+        optional_names = list(optional_parameters)
+        for name in optional_names:
+            if name in cls._optional_components:
+                expected_modules.add(name)
+                optional_parameters.remove(name)
+
+        return expected_modules, optional_parameters
+
+    def to(self, dtype):
+        module_names, _ = self._get_signature_keys(self)
+        modules = [getattr(self, n, None) for n in module_names]
+        modules = [m for m in modules if isinstance(m, nn.Cell)]
+        for module in modules:
+            module.to(dtype)
+        return self
+
+
     @staticmethod
     def _encoder_fn(encoder_type: str):
         encoder_type = encoder_type.lower()
@@ -92,11 +135,13 @@ class ModelLRM(nn.Cell):
         N = tokens.shape[0]
         H = W = self.triplane_low_res
         x = tokens.view((N, 3, H, W, -1))
-        x = ops.einsum('nihwd->indhw', x)  # [3, N, D, H, W]
-        x = x.contiguous().view(3*N, -1, H, W)  # [3*N, D, H, W]
+        # x = ops.einsum('nihwd->indhw', x)  
+        x = x.permute(1, 0, 4, 2, 3) # [3, N, D, H, W]
+        x = x.contiguous().view((3*N, -1, H, W))  # [3*N, D, H, W]
         x = self.upsampler(x)  # [3*N, D', H', W']
         x = x.view((3, N, *x.shape[-3:]))  # [3, N, D', H', W']
-        x = ops.einsum('indhw->nidhw', x)  # [N, 3, D', H', W']
+        # x = ops.einsum('indhw->nidhw', x) 
+        x = x.swapaxes(0, 1)  # [N, 3, D', H', W']
         x = x.contiguous()
         return x
 
@@ -123,7 +168,7 @@ class ModelLRM(nn.Cell):
 
         return planes
 
-    def forward(self, image, source_camera, render_cameras, render_anchors, render_resolutions, render_bg_colors, render_region_size: int):
+    def construct(self, image, source_camera, render_cameras, render_anchors, render_resolutions, render_bg_colors, render_region_size: int):
         # image: [N, C_img, H_img, W_img]
         # source_camera: [N, D_cam_raw]
         # render_cameras: [N, M, D_cam_render]

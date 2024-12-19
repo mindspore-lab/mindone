@@ -15,7 +15,7 @@
 
 import math
 import mindspore as ms
-from mindspore import mint
+from mindspore import mint, ops
 
 """
 R: (N, 3, 3)
@@ -172,7 +172,7 @@ def surrounding_views_linspace(n_views: int, radius: float = 2.0, height: float 
     projected_radius = math.sqrt(radius ** 2 - height ** 2)
     x = ops.cos(theta) * projected_radius
     y = ops.sin(theta) * projected_radius
-    z = ops.full((n_views,), height)
+    z = ops.full((n_views,), height, dtype=ms.float32)
 
     camera_positions = mint.stack([x, y, z], dim=1)
     extrinsics = center_looking_at_camera_pose(camera_positions)

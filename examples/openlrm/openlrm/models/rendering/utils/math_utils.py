@@ -78,8 +78,8 @@ def get_ray_limits_box(rays_o: ms.Tensor, rays_d: ms.Tensor, box_side_length):
     is_valid[mint.logical_or(tmin > tymax, tymin > tmax)] = False
 
     # Use the shortest intersection.
-    tmin = mint.max(tmin, tymin)
-    tmax = mint.min(tmax, tymax)
+    tmin = mint.maximum(tmin, tymin)
+    tmax = mint.minimum(tmax, tymax)
 
     # Intersect with XY plane.
     tzmin = (bounds.index_select(0, sign[..., 2])[..., 2] - rays_o[..., 2]) * invdir[..., 2]
@@ -89,8 +89,8 @@ def get_ray_limits_box(rays_o: ms.Tensor, rays_d: ms.Tensor, box_side_length):
     is_valid[mint.logical_or(tmin > tzmax, tzmin > tmax)] = False
 
     # Use the shortest intersection.
-    tmin = mint.max(tmin, tzmin)
-    tmax = mint.min(tmax, tzmax)
+    tmin = mint.maximum(tmin, tzmin)
+    tmax = mint.minimum(tmax, tzmax)
 
     # Mark invalid.
     tmin[mint.logical_not(is_valid)] = -1

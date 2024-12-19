@@ -18,7 +18,6 @@ from mindspore import nn
 from huggingface_hub import ModelHubMixin, constants, hf_hub_download
 from huggingface_hub.errors import EntryNotFoundError
 from huggingface_hub.utils import validate_hf_hub_args
-import inspect
 from typing import Dict, Optional, Union
 from pathlib import Path
 from mindone.safetensors.mindspore import load_file
@@ -50,17 +49,17 @@ def wrap_model_hub(model_cls: nn.Cell):
             strict: bool = True,
             **model_kwargs,
         ):
-            use_safetensors = kwargs.pop("use_safetensors", None)
-            mindspore_dtype = kwargs.pop("mindspore_dtype", None)
+            use_safetensors = model_kwargs.pop("use_safetensors", None)
+            mindspore_dtype = model_kwargs.pop("mindspore_dtype", None)
 
             """Load pretrained weights and return the loaded model."""
             model = cls(**model_kwargs)
-            if model_id.endswith(".ckpt"):  # if convereted to a local ms.ckpt
-                state_dict = ms.load_checkpoint(model_id)
-            elif os.path.isdir(model_id) and use_safetensors: # if single safetensors
+            # if model_id.endswith(".ckpt"):  # if convereted to a local ms.ckpt
+            #     state_dict = ms.load_checkpoint(model_id)
+            if os.path.isdir(model_id) and use_safetensors: # if single safetensors
                 print("Loading weights from local directory")
                 model_file = os.path.join(model_id, constants.SAFETENSORS_SINGLE_FILE) # "model.safetensors"
-                state_dict = load_file(ckpt_path)
+                state_dict = load_file(model_file)
                 
             else:
                 try:
@@ -75,6 +74,7 @@ def wrap_model_hub(model_cls: nn.Cell):
                         token=token,
                         local_files_only=local_files_only,
                     )
+                    state_dict = load_file(model_file)
                 except EntryNotFoundError:
                     model_file = hf_hub_download(
                         repo_id=model_id,
@@ -89,13 +89,18 @@ def wrap_model_hub(model_cls: nn.Cell):
                     )
                         
                     if model_file.endswith(".bin"):
-                        new_model_file = model_file
-                        print("Fail to load {model_file}, convert it to model.safetensors first. Stopped.")
-                        exit()
+                        raise ValueError(f"Fail to load {model_file}, convert it to model.safetensors first. Stopped.")
 
             
             # Check loading keys:
             model_state_dict = {k: v for k, v in model.parameters_and_names()}
+            state_dict_tmp = {}
+            for k, v in state_dict.items():
+                if ('norm' in k) and ('mlp' not in k): # for LayerNorm but not ModLN's mlp
+                    state_dict_tmp[k.replace(".weight", ".gamma").replace(".bias", ".beta")]=v
+                else:
+                    state_dict_tmp[k]=v
+            state_dict = state_dict_tmp
             loaded_keys = list(state_dict.keys())
             expexted_keys = list(model_state_dict.keys())
             original_loaded_keys = loaded_keys
@@ -116,45 +121,20 @@ def wrap_model_hub(model_cls: nn.Cell):
                 f"Loading LRMModel...\nmissing_keys: {missing_keys}, \nunexpected_keys: {unexpected_keys}, \nmismatched_keys: {mismatched_keys}"
             )
 
-            print(f"state_dict.dtype {state_dict[loaded_keys[0]].dtype}")  # float16
-            print(f"model.dtype {model.dtype}")
-            if state_dict[loaded_keys[0]].dtype != model.dtype:
-                model = model.to(state_dict[loaded_keys[0]].dtype)
-            print(f"Use {model.dtype} for LRMModel.")
+            print(f"state_dict.dtype {state_dict[loaded_keys[0]].dtype}")  # float32
+            # print(f"model.dtype {model.dtype}")
+            # if state_dict[loaded_keys[0]].dtype != model.dtype:
+            #     model = model.to(state_dict[loaded_keys[0]].dtype)
 
             # Instantiate the model
             param_not_load, ckpt_not_load = ms.load_param_into_net(model, state_dict, strict_load=strict)
             print(f"Loaded checkpoint: param_not_load {param_not_load}, ckpt_not_load {ckpt_not_load}")
 
-            
-            # Save where the model was instantiated from
-            # model.register_to_config(_name_or_path=pretrained_model_name_or_path)
 
             if mindspore_dtype is not None:
                 model.to(dtype=mindspore_dtype)
-
-
-        @classmethod
-        def _get_signature_keys(cls, obj):
-            parameters = inspect.signature(obj.__init__).parameters
-            required_parameters = {k: v for k, v in parameters.items() if v.default == inspect._empty}
-            optional_parameters = set({k for k, v in parameters.items() if v.default != inspect._empty})
-            expected_modules = set(required_parameters.keys()) - {"self"}
-
-            optional_names = list(optional_parameters)
-            for name in optional_names:
-                if name in cls._optional_components:
-                    expected_modules.add(name)
-                    optional_parameters.remove(name)
-
-            return expected_modules, optional_parameters
-
-        def to(self, dtype):
-            module_names, _ = self._get_signature_keys(self)
-            modules = [getattr(self, n, None) for n in module_names]
-            modules = [m for m in modules if isinstance(m, nn.Cell)]
-            for module in modules:
-                module.to(dtype)
-            return self
+                print(f"Use {mindspore_dtype} for LRMModel.")
+        
+            return model
 
     return HfModel

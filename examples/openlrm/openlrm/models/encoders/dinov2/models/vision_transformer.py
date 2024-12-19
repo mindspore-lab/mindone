@@ -45,7 +45,7 @@ def named_apply(fn: Callable, module: nn.Cell, name="", depth_first=True, includ
 
 
 class BlockChunk(nn.CellList):
-    def forward(self, x):
+    def construct(self, x):
         for b in self:
             x = b(x)
         return x
@@ -239,7 +239,7 @@ class DinoVisionTransformer(nn.Cell):
         assert int(w0) == patch_pos_embed.shape[-2]
         assert int(h0) == patch_pos_embed.shape[-1]
         patch_pos_embed = patch_pos_embed.permute((0, 2, 3, 1)).view((1, -1, dim))
-        return torch.cat((class_pos_embed.unsqueeze(0), patch_pos_embed), dim=1).to(previous_dtype)
+        return mint.cat((class_pos_embed.unsqueeze(0), patch_pos_embed), dim=1).to(previous_dtype)
 
     def prepare_tokens_with_masks(self, x, masks=None):
         B, nc, w, h = x.shape
@@ -362,7 +362,7 @@ class DinoVisionTransformer(nn.Cell):
             return tuple(zip(outputs, class_tokens))
         return tuple(outputs)
 
-    def forward(self, *args, is_training=False, **kwargs):
+    def construct(self, *args, is_training=False, **kwargs):
         ret = self.forward_features(*args, **kwargs)
         if is_training:
             return ret

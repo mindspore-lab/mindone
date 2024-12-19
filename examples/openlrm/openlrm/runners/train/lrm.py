@@ -410,8 +410,8 @@ class LRMTrainer(Trainer):
         renders: ms.Tensor = None, gts: ms.Tensor = None,
         ):
         M = renders.shape[1]
-        merged = mint.stack([renders, gts], dim=1)[0].view(-1, *renders.shape[2:])
-        renders, gts = renders.view(-1, *renders.shape[2:]), gts.view(-1, *gts.shape[2:])
+        merged = mint.stack([renders, gts], dim=1)[0].view((-1, *renders.shape[2:]))
+        renders, gts = renders.view((-1, *renders.shape[2:])), gts.view((-1, *gts.shape[2:]))
         # renders, gts, merged = make_grid(renders, nrow=M), make_grid(gts, nrow=M), make_grid(merged, nrow=M)
         log_type, log_progress = self._get_str_progress(epoch, step)
         split = f'/{split}' if split else ''

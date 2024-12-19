@@ -26,7 +26,7 @@ class ModLN(nn.Cell):
     """
     def __init__(self, inner_dim: int, mod_dim: int, epsilon: float):
         super().__init__()
-        self.norm = nn.LayerNorm(inner_dim, epsilon=epsilon)
+        self.norm = nn.LayerNorm((inner_dim,), epsilon=epsilon)
         self.mlp = nn.SequentialCell(
             nn.SiLU(),
             nn.Dense(mod_dim, inner_dim * 2),

@@ -41,7 +41,7 @@ class TransformerDecoder(nn.Cell):
             )
             for _ in range(num_layers)
         ])
-        self.norm = nn.LayerNorm(inner_dim, epsilon=eps)
+        self.norm = nn.LayerNorm((inner_dim,), epsilon=eps)
 
     @property
     def block_type(self):

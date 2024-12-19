@@ -17,6 +17,7 @@ import mindspore as ms
 from mindspore import nn, mint
 from logging import getLogger
 from typing import Optional
+from openlrm.utils import set_parameter_grad_false
 
 
 logger = getLogger(__name__)

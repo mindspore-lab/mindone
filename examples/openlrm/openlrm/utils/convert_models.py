@@ -56,7 +56,10 @@ def torch_to_ms_weight(source_fp, target_fp, source_data=None):
         _source_data = source_data[_name_pt].cpu().detach().numpy()
         target_data.append({"name": _name_ms, "data": ms.Tensor(_source_data)})
 
+    os.makedirs(os.path.dirname(target_fp), exist_ok=True)
     ms.save_checkpoint(target_data, target_fp)
+
+    return dict(target_data)
 
 
 if __name__ == "__main__":

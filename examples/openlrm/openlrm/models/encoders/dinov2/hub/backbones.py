@@ -3,11 +3,12 @@
 # This source code is licensed under the Apache License, Version 2.0
 # found in the LICENSE file in the root directory of this source tree.
 
+import os
 from enum import Enum
 from typing import Union
 import mindspore as ms
 from mindone.utils.params import load_param_into_net_with_filter, load_checkpoint_to_net
-from .utils.convert_models import torch_to_ms_weight
+from openlrm.utils.convert_models import torch_to_ms_weight
 from .utils import _DINOV2_BASE_URL, _make_dinov2_model_name
 
 
@@ -73,12 +74,10 @@ def _make_dinov2_model(
                     k.replace('norm1', 'norm1.norm').replace('norm2', 'norm2.norm'): v
                     for k, v in state_dict.items()
                 }
-                # ********************************************************
-                load_param_into_net_with_filter(model, state_dict, strict_load=False)
-            else:
-                load_param_into_net_with_filter(model, state_dict, strict_load=True)
-
-            torch_to_ms_weight(source_fp=None, target_fp=ckpt_dir, source_data=state_dict) # convert and save ms ckpt
+            # ********************************************************
+            
+            state_dict_ms = torch_to_ms_weight(source_fp=None, target_fp=ckpt_dir, source_data=state_dict) # convert and save ms ckpt
+            load_param_into_net_with_filter(model, state_dict_ms, strict_load=True)
 
     return model
 

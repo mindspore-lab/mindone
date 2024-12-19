@@ -52,8 +52,8 @@ class RaySampler(nn.Cell):
             mint.arange(region_size, dtype=ms.float32),
             indexing='ij',
         ))
-        uv = uv.flip(0).reshape(2, -1).transpose(1, 0)
-        uv = uv.unsqueeze(0).tile(cam2world_matrix.shape[0], 1, 1)
+        uv = uv.flip(dims=(0,)).reshape(2, -1).swapaxes(1, 0)
+        uv = uv.unsqueeze(0).tile((cam2world_matrix.shape[0], 1, 1))
 
         # anchors are indexed as normal (row, col) but uv is indexed as (x, y)
         x_cam = (uv[:, :, 0].view((N, -1)) + anchors[:, 1].unsqueeze(-1)) * (1./resolutions) + (0.5/resolutions)
@@ -70,14 +70,14 @@ class RaySampler(nn.Cell):
             [0, -1, 0, 0],
             [0, 0, -1, 0],
             [0, 0, 0, 1],
-        ], dtype=ms.float32e).unsqueeze(0).tile((N, 1, 1))
+        ], dtype=ms.float32).unsqueeze(0).tile((N, 1, 1))
 
         cam2world_matrix = mint.bmm(cam2world_matrix, _opencv2blender)
 
         world_rel_points = mint.bmm(cam2world_matrix, cam_rel_points.permute(0, 2, 1)).permute(0, 2, 1)[:, :, :3]
 
         ray_dirs = world_rel_points - cam_locs_world[:, None, :]
-        ray_dirs = ray_dirs / ops.norm(ray_dirs, dim=2)
+        ray_dirs = ray_dirs / ops.norm(ray_dirs, dim=2, keepdim=True)
 
         ray_origins = cam_locs_world.unsqueeze(1).tile((1, ray_dirs.shape[1], 1))
 
