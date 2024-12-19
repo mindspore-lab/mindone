@@ -787,7 +787,7 @@ def main(args):
                 log_interval=args.log_interval,
                 start_epoch=start_epoch,
                 model_name=model_name,
-                resume_prefix_blacklist=["vae.", "swap."],
+                resume_prefix_blacklist=("vae.", "swap."),
                 record_lr=False,
                 train_steps=args.train_steps,
             )
