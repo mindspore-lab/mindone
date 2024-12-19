@@ -1,0 +1,44 @@
+# model
+sample_size: 256
+batch_size: 1
+checkpoint: "models/PixArt-Sigma-XL-2-2K-MS.ckpt"
+vae_root: "models/vae"
+text_encoder_root: "models/text_encoder"
+tokenizer_root: "models/tokenizer"
+sd_scale_factor: 0.13025
+enable_flash_attention: True
+dtype: "fp16"
+
+# training hyper-parameters
+epochs: 100
+scheduler: "constant"
+start_learning_rate: 2.0e-5
+optim: "came"
+came_betas: [0.9, 0.999, 0.9999]
+came_eps: [1.0e-30, 1.0e-16]
+weight_decay: 0.0
+loss_scaler_type: "dynamic"
+init_loss_scale: 65536.0
+gradient_accumulation_steps: 1
+clip_grad: True
+max_grad_norm: 0.01
+ckpt_save_interval: 5
+log_loss_interval: 1
+recompute: True
+multi_scale: True
+class_dropout_prob: 0.1
+real_prompt_ratio: 0.5
+warmup_steps: 1000
+auto_lr: sqrt
+
+# visualization
+visualize: False  # to prevent potential OOM, it is turned off now.
+visualize_interval: 5
+sampling_method: "dpm"
+sampling_steps: 20
+guidance_scale: 4.5
+validation_prompts:
+  - "portrait photo of a girl, photograph, highly detailed face, depth of field"
+  - "Self-portrait oil painting, a beautiful cyborg with golden hair, 8k"
+  - "Astronaut in a jungle, cold color palette, muted colors, detailed, 8k"
+  - "A photo of beautiful mountain with realistic sunset and blue lake, highly detailed, masterpiece"

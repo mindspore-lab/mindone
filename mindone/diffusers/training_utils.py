@@ -1,11 +1,12 @@
 import copy
 import logging
+import math
 import os
 import random
 import time
 from abc import ABCMeta, abstractmethod
 from multiprocessing import Process, Queue
-from typing import Any, Dict, Iterable, List, Optional, Union
+from typing import Any, Dict, Iterable, List, Optional, Tuple, Union
 
 import numpy as np
 from tqdm.auto import tqdm
@@ -17,6 +18,8 @@ from mindspore.communication import get_group_size, get_local_rank, get_rank, in
 
 from mindone.diffusers._peft import set_peft_model_state_dict
 
+from .models import UNet2DConditionModel
+from .schedulers import SchedulerMixin
 from .utils import convert_state_dict_to_diffusers, convert_state_dict_to_peft
 
 logger = logging.getLogger(__name__)
@@ -48,6 +51,58 @@ def compute_snr(noise_scheduler, timesteps):
     return snr
 
 
+def compute_dream_and_update_latents(
+    unet: UNet2DConditionModel,
+    noise_scheduler: SchedulerMixin,
+    timesteps: ms.Tensor,
+    noise: ms.Tensor,
+    noisy_latents: ms.Tensor,
+    target: ms.Tensor,
+    encoder_hidden_states: ms.Tensor,
+    dream_detail_preservation: float = 1.0,
+) -> Tuple[Optional[ms.Tensor], Optional[ms.Tensor]]:
+    """
+    Implements "DREAM (Diffusion Rectification and Estimation-Adaptive Models)" from http://arxiv.org/abs/2312.00210.
+    DREAM helps align training with sampling to help training be more efficient and accurate at the cost of an extra
+    forward step without gradients.
+
+    Args:
+        `unet`: The state unet to use to make a prediction.
+        `noise_scheduler`: The noise scheduler used to add noise for the given timestep.
+        `timesteps`: The timesteps for the noise_scheduler to user.
+        `noise`: A tensor of noise in the shape of noisy_latents.
+        `noisy_latents`: Previously noise latents from the training loop.
+        `target`: The ground-truth tensor to predict after eps is removed.
+        `encoder_hidden_states`: Text embeddings from the text model.
+        `dream_detail_preservation`: A float value that indicates detail preservation level.
+          See reference.
+
+    Returns:
+        `tuple[ms.Tensor, ms.Tensor]`: Adjusted noisy_latents and target.
+    """
+    alphas_cumprod = noise_scheduler.alphas_cumprod[timesteps, None, None, None]
+    sqrt_one_minus_alphas_cumprod = (1.0 - alphas_cumprod) ** 0.5
+
+    # The paper uses lambda = sqrt(1 - alpha) ** p, with p = 1 in their experiments.
+    dream_lambda = sqrt_one_minus_alphas_cumprod**dream_detail_preservation
+
+    pred = unet(noisy_latents, timesteps, encoder_hidden_states)[0]
+
+    _noisy_latents, _target = (None, None)
+    if noise_scheduler.config["prediction_type"] == "epsilon":
+        predicted_noise = pred
+        delta_noise = ops.stop_gradient(noise - predicted_noise)
+        delta_noise = delta_noise * dream_lambda
+        _noisy_latents = noisy_latents.add(sqrt_one_minus_alphas_cumprod * delta_noise)
+        _target = target.add(delta_noise)
+    elif noise_scheduler.config["prediction_type"] == "v_prediction":
+        raise NotImplementedError("DREAM has not been implemented for v-prediction")
+    else:
+        raise ValueError(f"Unknown prediction type {noise_scheduler.config['prediction_type']}")
+
+    return _noisy_latents, _target
+
+
 def cast_training_params(model: Union[nn.Cell, List[nn.Cell]], dtype=ms.float32):
     if not isinstance(model, list):
         model = [model]
@@ -75,6 +130,44 @@ def _set_state_dict_into_text_encoder(lora_state_dict: Dict[str, ms.Tensor], pre
     set_peft_model_state_dict(text_encoder, text_encoder_state_dict, adapter_name="default")
 
 
+def compute_density_for_timestep_sampling(
+    weighting_scheme: str, batch_size: int, logit_mean: float = None, logit_std: float = None, mode_scale: float = None
+):
+    """Compute the density for sampling the timesteps when doing SD3 training.
+
+    Courtesy: This was contributed by Rafie Walker in https://github.com/huggingface/diffusers/pull/8528.
+
+    SD3 paper reference: https://arxiv.org/abs/2403.03206v1.
+    """
+    if weighting_scheme == "logit_normal":
+        # See 3.1 in the SD3 paper ($rf/lognorm(0.00,1.00)$).
+        u = ops.normal(mean=logit_mean, stddev=logit_std, shape=(batch_size,))
+        u = ops.sigmoid(u)
+    elif weighting_scheme == "mode":
+        u = ops.rand(batch_size)
+        u = 1 - u - mode_scale * (ops.cos(math.pi * u / 2) ** 2 - 1 + u)
+    else:
+        u = ops.rand(batch_size)
+    return u
+
+
+def compute_loss_weighting_for_sd3(weighting_scheme: str, sigmas=None):
+    """Computes loss weighting scheme for SD3 training.
+
+    Courtesy: This was contributed by Rafie Walker in https://github.com/huggingface/diffusers/pull/8528.
+
+    SD3 paper reference: https://arxiv.org/abs/2403.03206v1.
+    """
+    if weighting_scheme == "sigma_sqrt":
+        weighting = (sigmas**-2.0).float()
+    elif weighting_scheme == "cosmap":
+        bot = 1 - 2 * sigmas + 2 * sigmas**2
+        weighting = 2 / (math.pi * bot)
+    else:
+        weighting = ops.ones_like(sigmas)
+    return weighting
+
+
 # Adapted from torch-ema https://github.com/fadel/pytorch_ema/blob/master/torch_ema/ema.py#L14
 class EMAModel:
     """
@@ -90,6 +183,7 @@ class EMAModel:
         use_ema_warmup: bool = False,
         inv_gamma: Union[float, int] = 1.0,
         power: Union[float, int] = 2 / 3,
+        foreach: bool = False,
         model_cls: Optional[Any] = None,
         model_config: Dict[str, Any] = None,
     ):
@@ -103,6 +197,7 @@ class EMAModel:
             inv_gamma (float):
                 Inverse multiplicative factor of EMA warmup. Default: 1. Only used if `use_ema_warmup` is True.
             power (float): Exponential factor of EMA warmup. Default: 2/3. Only used if `use_ema_warmup` is True.
+            foreach (bool): Use torch._foreach functions for updating shadow parameters. Should be faster.
 
         @crowsonkb's notes on EMA Warmup:
             If gamma=1 and power=1, implements a simple average. gamma=1, power=2/3 are good values for models you plan
@@ -121,16 +216,17 @@ class EMAModel:
         self.power = power
         self.optimization_step = 0
         self.cur_decay_value = None  # set in `step()`
+        self.foreach = foreach
 
         self.model_cls = model_cls
         self.model_config = model_config
 
     @classmethod
-    def from_pretrained(cls, path, model_cls) -> "EMAModel":
+    def from_pretrained(cls, path, model_cls, foreach=False) -> "EMAModel":
         _, ema_kwargs = model_cls.load_config(path, return_unused_kwargs=True)
         model = model_cls.from_pretrained(path)
 
-        ema_model = cls(model.get_parameters(), model_cls=model_cls, model_config=model.config)
+        ema_model = cls(model.get_parameters(), model_cls=model_cls, model_config=model.config, foreach=foreach)
 
         ema_model.load_state_dict(ema_kwargs)
         return ema_model
@@ -179,12 +275,15 @@ class EMAModel:
         self.cur_decay_value = decay
         one_minus_decay = 1 - decay
 
-        for s_param, param in zip(self.shadow_params, parameters):
-            # TODO: gather parameters if they are sharded.
-            if param.requires_grad:
-                ops.assign_sub(s_param, one_minus_decay * (s_param - param))
-            else:
-                ops.assign(s_param, param)
+        if self.foreach:
+            raise NotImplementedError("Not Implemeneted for `foreach` branch.")
+        else:
+            for s_param, param in zip(self.shadow_params, parameters):
+                # TODO: gather parameters if they are sharded.
+                if param.requires_grad:
+                    ops.assign_sub(s_param, one_minus_decay * (s_param - param))
+                else:
+                    ops.assign(s_param, param)
 
     def copy_to(self, parameters: Iterable[ms.Parameter]) -> None:
         """
@@ -196,8 +295,24 @@ class EMAModel:
                 `ExponentialMovingAverage` was initialized will be used.
         """
         parameters = list(parameters)
-        for s_param, param in zip(self.shadow_params, parameters):
-            ops.assign(param, s_param)
+        if self.foreach:
+            raise NotImplementedError("Not Implemeneted for `foreach` branch.")
+        else:
+            for s_param, param in zip(self.shadow_params, parameters):
+                ops.assign(param, s_param)
+
+    def pin_memory(self) -> None:
+        r"""
+        Move internal buffers of the ExponentialMovingAverage to pinned memory. Useful for non-blocking transfers for
+        offloading EMA params to the host.
+        """
+
+        raise NotImplementedError("Not Implemeneted for `pin_memory`.")
+
+    def to(self, dtype=None, non_blocking=False) -> None:
+        r"""Move internal buffers of the ExponentialMovingAverage to `device`."""
+        # .to() on the tensors handles None correctly
+        raise NotImplementedError("Not Implemeneted for `to`.")
 
     def state_dict(self) -> dict:
         r"""

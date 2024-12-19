@@ -13,14 +13,14 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-""" ConfigMixin base class and utilities."""
+"""ConfigMixin base class and utilities."""
 import functools
 import inspect
 import json
 import os
 import re
 from collections import OrderedDict
-from pathlib import PosixPath
+from pathlib import Path
 from typing import Any, Dict, Tuple, Union
 
 import numpy as np
@@ -306,9 +306,6 @@ class ConfigMixin:
             force_download (`bool`, *optional*, defaults to `False`):
                 Whether or not to force the (re-)download of the model weights and configuration files, overriding the
                 cached versions if they exist.
-            resume_download (`bool`, *optional*, defaults to `False`):
-                Whether or not to resume downloading the model weights and configuration files. If set to `False`, any
-                incompletely downloaded files are deleted.
             proxies (`Dict[str, str]`, *optional*):
                 A dictionary of proxy servers to use by protocol or endpoint, for example, `{'http': 'foo.bar:3128',
                 'http://hostname': 'foo.bar:4012'}`. The proxies are used on each request.
@@ -336,8 +333,9 @@ class ConfigMixin:
 
         """
         cache_dir = kwargs.pop("cache_dir", None)
+        local_dir = kwargs.pop("local_dir", None)
+        local_dir_use_symlinks = kwargs.pop("local_dir_use_symlinks", "auto")
         force_download = kwargs.pop("force_download", False)
-        resume_download = kwargs.pop("resume_download", False)
         proxies = kwargs.pop("proxies", None)
         token = kwargs.pop("token", None)
         local_files_only = kwargs.pop("local_files_only", False)
@@ -360,13 +358,13 @@ class ConfigMixin:
         if os.path.isfile(pretrained_model_name_or_path):
             config_file = pretrained_model_name_or_path
         elif os.path.isdir(pretrained_model_name_or_path):
-            if os.path.isfile(os.path.join(pretrained_model_name_or_path, cls.config_name)):
-                # Load from a PyTorch checkpoint
-                config_file = os.path.join(pretrained_model_name_or_path, cls.config_name)
-            elif subfolder is not None and os.path.isfile(
+            if subfolder is not None and os.path.isfile(
                 os.path.join(pretrained_model_name_or_path, subfolder, cls.config_name)
             ):
                 config_file = os.path.join(pretrained_model_name_or_path, subfolder, cls.config_name)
+            elif os.path.isfile(os.path.join(pretrained_model_name_or_path, cls.config_name)):
+                # Load from a PyTorch checkpoint
+                config_file = os.path.join(pretrained_model_name_or_path, cls.config_name)
             else:
                 raise EnvironmentError(
                     f"Error no file named {cls.config_name} found in directory {pretrained_model_name_or_path}."
@@ -380,12 +378,13 @@ class ConfigMixin:
                     cache_dir=cache_dir,
                     force_download=force_download,
                     proxies=proxies,
-                    resume_download=resume_download,
                     local_files_only=local_files_only,
                     token=token,
                     user_agent=user_agent,
                     subfolder=subfolder,
                     revision=revision,
+                    local_dir=local_dir,
+                    local_dir_use_symlinks=local_dir_use_symlinks,
                 )
             except RepositoryNotFoundError:
                 raise EnvironmentError(
@@ -446,8 +445,8 @@ class ConfigMixin:
         return outputs
 
     @staticmethod
-    def _get_init_keys(cls):
-        return set(dict(inspect.signature(cls.__init__).parameters).keys())
+    def _get_init_keys(input_class):
+        return set(dict(inspect.signature(input_class.__init__).parameters).keys())
 
     @classmethod
     def extract_init_dict(cls, config_dict, **kwargs):
@@ -579,8 +578,8 @@ class ConfigMixin:
         def to_json_saveable(value):
             if isinstance(value, np.ndarray):
                 value = value.tolist()
-            elif isinstance(value, PosixPath):
-                value = str(value)
+            elif isinstance(value, Path):
+                value = value.as_posix()
             return value
 
         config_dict = {k: to_json_saveable(v) for k, v in config_dict.items()}
@@ -650,3 +649,20 @@ def register_to_config(init):
         init(self, *args, **init_kwargs)
 
     return inner_init
+
+
+class LegacyConfigMixin(ConfigMixin):
+    r"""
+    A subclass of `ConfigMixin` to resolve class mapping from legacy classes (like `Transformer2DModel`) to more
+    pipeline-specific classes (like `DiTTransformer2DModel`).
+    """
+
+    @classmethod
+    def from_config(cls, config: Union[FrozenDict, Dict[str, Any]] = None, return_unused_kwargs=False, **kwargs):
+        # To prevent dependency import problem.
+        from .models.model_loading_utils import _fetch_remapped_cls_from_config
+
+        # resolve remapping
+        remapped_class = _fetch_remapped_cls_from_config(config, cls)
+
+        return remapped_class.from_config(config, return_unused_kwargs, **kwargs)

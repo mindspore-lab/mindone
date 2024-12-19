@@ -1,0 +1,15 @@
+python examples/rec_video_folder.py \
+    --batch_size 1 \
+    --real_video_dir ../test_eval/eyes_test \
+    --generated_video_dir ../test_eval/eyes_gen \
+    --device Ascend \
+    --sample_fps 10 \
+    --sample_rate 1 \
+    --num_frames 65 \
+    --height 480 \
+    --width 640 \
+    --num_workers 8 \
+    --ae_path LanguageBind/Open-Sora-Plan-v1.2.0/vae \
+    --enable_tiling \
+    --tile_overlap_factor 0.125 \
+    --save_memory

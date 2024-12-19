@@ -13,6 +13,9 @@ sys.path.append("..")
 if os.environ.get("MS_PYNATIVE_GE") != "1":
     os.environ["MS_PYNATIVE_GE"] = "1"
 
+mindone_lib_path = os.path.abspath(os.path.abspath("../../"))
+sys.path.insert(0, mindone_lib_path)
+
 from cldm.util import get_control
 from gm.helpers import (
     SD_XL_BASE_RATIOS,

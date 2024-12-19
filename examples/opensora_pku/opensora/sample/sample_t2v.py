@@ -20,16 +20,28 @@ sys.path.insert(0, mindone_lib_path)
 sys.path.append(os.path.abspath("./"))
 from opensora.acceleration.parallel_states import get_sequence_parallel_state, hccl_info
 from opensora.dataset.text_dataset import create_dataloader
-from opensora.models.ae import ae_stride_config, getae_wrapper
-from opensora.models.ae.videobase.modules.updownsample import TrilinearInterpolate
-from opensora.models.diffusion.latte.modeling_latte import LatteT2V, LayerNorm
-from opensora.models.diffusion.latte.modules import Attention
-from opensora.models.text_encoder.t5 import T5Embedder
+from opensora.models.causalvideovae import CausalVAEModelWrapper, ae_stride_config
+from opensora.models.causalvideovae.model.modules.updownsample import TrilinearInterpolate
+from opensora.models.diffusion.opensora.modeling_opensora import LayerNorm, OpenSoraT2V
+from opensora.models.diffusion.opensora.modules import Attention
+from opensora.sample.pipeline_opensora import OpenSoraPipeline
+from opensora.utils.message_utils import print_banner
 from opensora.utils.ms_utils import init_env
 from opensora.utils.utils import _check_cfgs_in_parser, get_precision
-from pipeline_videogen import VideoGenPipeline
+from transformers import AutoTokenizer
 
-from mindone.diffusers.schedulers import DDIMScheduler, DDPMScheduler, EulerDiscreteScheduler, PNDMScheduler
+from mindone.diffusers.models.embeddings import PixArtAlphaCombinedTimestepSizeEmbeddings
+from mindone.diffusers.schedulers import (
+    DDIMScheduler,
+    DDPMScheduler,
+    EulerAncestralDiscreteScheduler,
+    EulerDiscreteScheduler,
+    PNDMScheduler,
+)
+from mindone.transformers import MT5EncoderModel
+
+# from mindone.transformers.activations import NewGELUActivation
+# from mindone.transformers.models.mt5.modeling_mt5 import MT5LayerNorm
 from mindone.utils.amp import auto_mixed_precision
 from mindone.utils.config import str2bool
 from mindone.utils.logger import set_logger
@@ -48,31 +60,26 @@ def parse_args():
         type=str,
         help="path to load a config yaml file that describes the setting which will override the default arguments",
     )
-    parser.add_argument("--model_path", type=str, default="LanguageBind/Open-Sora-Plan-v1.1.0")
+    parser.add_argument("--model_path", type=str, default="LanguageBind/Open-Sora-Plan-v1.2.0")
     parser.add_argument(
-        "--pretrained_ckpt",
+        "--ms_checkpoint",
         type=str,
         default=None,
         help="If not provided, will search for ckpt file under `model_path`"
         "If provided, will use this pretrained ckpt path.",
     )
-    parser.add_argument(
-        "--version",
-        type=str,
-        default="65x512x512",
-        help="Model version in ['65x512x512', '221x512x512', '513x512x512'] ",
-    )
     parser.add_argument("--num_frames", type=int, default=1)
     parser.add_argument("--height", type=int, default=512)
     parser.add_argument("--width", type=int, default=512)
     parser.add_argument("--ae", type=str, default="CausalVAEModel_4x8x8")
-
+    parser.add_argument("--ae_path", type=str, default="CausalVAEModel_4x8x8")
     parser.add_argument("--sp_size", type=int, default=1, help="For sequence parallel")
 
     parser.add_argument("--text_encoder_name", type=str, default="DeepFloyd/t5-v1_1-xxl")
     parser.add_argument("--save_img_path", type=str, default="./sample_videos/t2v")
 
     parser.add_argument("--guidance_scale", type=float, default=7.5, help="the scale for classifier-free guidance")
+    parser.add_argument("--max_sequence_length", type=int, default=300, help="the maximum text tokens length")
 
     parser.add_argument("--sample_method", type=str, default="PNDM")
     parser.add_argument("--num_sampling_steps", type=int, default=50, help="Diffusion Sampling Steps")
@@ -84,17 +91,11 @@ def parse_args():
         help="A list of text prompts to be generated with. Also allow input a txt file or csv file.",
     )
     parser.add_argument("--tile_overlap_factor", type=float, default=0.25)
-    parser.add_argument(
-        "--force_images", default=False, type=str2bool, help="Whether to generate images given text prompts"
-    )
-    parser.add_argument("--enable_tiling", action="store_true", help="whether to use vae tiling to save memory")
-    parser.add_argument(
-        "--enable_time_chunk",
-        type=str2bool,
-        default=False,
-        help="Whether to enable vae decoding to process temporal frames as small, overlapped chunks. Defaults to False.",
-    )
 
+    parser.add_argument("--enable_tiling", action="store_true", help="whether to use vae tiling to save memory")
+    parser.add_argument("--model_3d", action="store_true")
+    parser.add_argument("--udit", action="store_true")
+    parser.add_argument("--save_memory", action="store_true")
     parser.add_argument("--batch_size", default=1, type=int, help="batch size for dataloader")
     # MS new args
     parser.add_argument("--device", type=str, default="Ascend", help="Ascend or GPU")
@@ -105,13 +106,11 @@ def parse_args():
         "--parallel_mode", default="data", type=str, choices=["data", "optim"], help="parallel mode: data, optim"
     )
     parser.add_argument("--jit_level", default="O0", help="Set jit level: # O0: KBK, O1:DVM, O2: GE")
-    parser.add_argument("--seed", type=int, default=4, help="Inference seed")
     parser.add_argument(
-        "--enable_flash_attention",
-        default=False,
-        type=str2bool,
-        help="whether to enable flash attention. Default is False",
+        "--jit_syntax_level", default="strict", choices=["strict", "lax"], help="Set jit syntax level: strict or lax"
     )
+    parser.add_argument("--seed", type=int, default=4, help="Inference seed")
+
     parser.add_argument(
         "--precision",
         default="bf16",
@@ -124,7 +123,7 @@ def parse_args():
     )
     parser.add_argument(
         "--vae_precision",
-        default="bf16",
+        default="fp16",
         type=str,
         choices=["bf16", "fp16"],
         help="what data type to use for vae. Default is `bf16`, which corresponds to ms.bfloat16",
@@ -137,7 +136,7 @@ def parse_args():
     )
     parser.add_argument(
         "--text_encoder_precision",
-        default="bf16",
+        default="fp16",
         type=str,
         choices=["bf16", "fp16"],
         help="what data type to use for T5 text encoder. Default is `bf16`, which corresponds to ms.bfloat16",
@@ -164,6 +163,12 @@ def parse_args():
         action="store_true",
         help="whether to load the existing latents saved in npy files and run vae decoding",
     )
+    parser.add_argument(
+        "--video_extension", default="mp4", choices=["gif", "mp4"], help="The file extension to save videos"
+    )
+    parser.add_argument("--model_type", type=str, default="dit", choices=["dit", "udit", "latte"])
+    parser.add_argument("--cache_dir", type=str, default="./")
+    parser.add_argument("--profile", default=False, type=str2bool, help="Profile or not")
     default_args = parser.parse_args()
     abs_path = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), ""))
     if default_args.config:
@@ -195,14 +200,24 @@ if __name__ == "__main__":
         global_bf16=args.global_bf16,
         sp_size=args.sp_size,
         jit_level=args.jit_level,
+        jit_syntax_level=args.jit_syntax_level,
     )
 
     # 2. vae model initiate and weight loading
-    logger.info("vae init")
-    vae = getae_wrapper(args.ae)(args.model_path, subfolder="vae")
+    print_banner("vae init")
+    vae = CausalVAEModelWrapper(args.ae_path, cache_dir=args.cache_dir, use_safetensors=True)
     if args.enable_tiling:
         vae.vae.enable_tiling()
         vae.vae.tile_overlap_factor = args.tile_overlap_factor
+        vae.vae.tile_sample_min_size = 512
+        vae.vae.tile_latent_min_size = 64
+        vae.vae.tile_sample_min_size_t = 29
+        vae.vae.tile_latent_min_size_t = 8
+        if args.save_memory:
+            vae.vae.tile_sample_min_size = 256
+            vae.vae.tile_latent_min_size = 32
+            vae.vae.tile_sample_min_size_t = 29
+            vae.vae.tile_latent_min_size_t = 8
     vae.vae_scale_factor = ae_stride_config[args.ae]
     # use amp level O2 for causal 3D VAE with bfloat16 or float16
     vae_dtype = get_precision(args.vae_precision)
@@ -217,13 +232,11 @@ if __name__ == "__main__":
         param.requires_grad = False
 
     # 3. handle input text prompts
-    if args.force_images:
-        ext = "jpg"
-    else:
-        ext = (
-            "gif" if not (args.save_latents or args.decode_latents) else "npy"
-        )  # save video as gif or save denoised latents as npy files.
-
+    print_banner("text prompts loading")
+    ext = (
+        f"{args.video_extension}" if not (args.save_latents or args.decode_latents) else "npy"
+    )  # save video as gif or save denoised latents as npy files.
+    ext = "jpg" if args.num_frames == 1 else ext
     if not isinstance(args.text_prompt, list):
         args.text_prompt = [args.text_prompt]
     # if input is a text file, where each line is a caption, load it into a list
@@ -288,22 +301,38 @@ if __name__ == "__main__":
                 (decode_data + 1.0) / 2.0, clip_value_min=0.0, clip_value_max=1.0
             ).asnumpy()
             for i_sample in range(args.batch_size):
-                save_fp = os.path.join(save_dir, file_paths[i_sample]).replace(".npy", ".gif")
+                save_fp = os.path.join(save_dir, file_paths[i_sample]).replace(".npy", f".{args.video_extension}")
                 save_video_data = decode_data[i_sample : i_sample + 1]
                 save_videos(save_video_data, save_fp, loop=0, fps=args.fps)  # (b t h w c)
         sys.exit()
 
     # 4. latte model initiate and weight loading
-    logger.info(f"Latte-{args.version} init")
+    print_banner("transformer model init")
     FA_dtype = get_precision(args.precision) if get_precision(args.precision) != ms.float32 else ms.bfloat16
-    transformer_model = LatteT2V.from_pretrained(
-        args.model_path,
-        subfolder=args.version,
-        checkpoint_path=args.pretrained_ckpt,
-        enable_flash_attention=args.enable_flash_attention,
-        FA_dtype=FA_dtype,
+    assert args.model_type == "dit", "Currently only suppport model_type as 'dit'@"
+    if args.ms_checkpoint is not None and os.path.exists(args.ms_checkpoint):
+        logger.info(f"Initiate from MindSpore checkpoint file {args.ms_checkpoint}")
+        state_dict = ms.load_checkpoint(args.ms_checkpoint)
+        # rm 'network.' prefix
+        state_dict = dict(
+            [k.replace("network.", "") if k.startswith("network.") else k, v] for k, v in state_dict.items()
+        )
+    else:
+        state_dict = None
+
+    model_version = args.model_path.split("/")[-1]
+    if int(model_version.split("x")[0]) != args.num_frames:
+        logger.warning(
+            f"Detect that the loaded model version is {model_version}, but found a mismatched number of frames {model_version.split('x')[0]}"
+        )
+    if int(model_version.split("x")[1][:-1]) != args.height:
+        logger.warning(
+            f"Detect that the loaded model version is {model_version}, but found a mismatched resolution {args.height}x{args.width}"
+        )
+    transformer_model, logging_info = OpenSoraT2V.from_pretrained(
+        args.model_path, state_dict=state_dict, cache_dir=args.cache_dir, FA_dtype=FA_dtype, output_loading_info=True
     )
-    transformer_model.force_images = args.force_images
+    logger.info(logging_info)
     # mixed precision
     dtype = get_precision(args.precision)
     if args.precision in ["fp16", "bf16"]:
@@ -313,13 +342,22 @@ if __name__ == "__main__":
                 transformer_model,
                 amp_level=args.amp_level,
                 dtype=dtype,
-                custom_fp32_cells=[LayerNorm, Attention, nn.SiLU, nn.GELU]
+                custom_fp32_cells=[LayerNorm, Attention, nn.SiLU, nn.GELU, PixArtAlphaCombinedTimestepSizeEmbeddings]
                 if dtype == ms.float16
-                else [nn.MaxPool2d, LayerNorm, nn.SiLU, nn.GELU],
+                else [
+                    nn.MaxPool2d,
+                    nn.MaxPool3d,
+                    LayerNorm,
+                    nn.SiLU,
+                    nn.GELU,
+                    PixArtAlphaCombinedTimestepSizeEmbeddings,
+                ],
             )
-            logger.info(f"Set mixed precision to O2 with dtype={args.precision}")
+            logger.info(
+                f"Set mixed precision to {args.amp_level} with dtype={args.precision}, custom fp32_cells {custom_fp32_cells}"
+            )
         else:
-            logger.info(f"Using global bf16 for latte t2v model. Force model dtype from {dtype} to ms.bfloat16")
+            logger.info(f"Using global bf16. Force model dtype from {dtype} to ms.bfloat16")
             dtype = ms.bfloat16
     elif args.precision == "fp32":
         amp_level = "O0"
@@ -330,17 +368,18 @@ if __name__ == "__main__":
     for param in transformer_model.get_parameters():  # freeze transformer_model
         param.requires_grad = False
 
-    logger.info("T5 init")
-    text_encoder = T5Embedder(
-        dir_or_name=args.text_encoder_name,
-        cache_dir="./",
-    )
-    tokenizer = text_encoder.tokenizer
-    # mixed precision
+    print_banner("text encoder init")
     text_encoder_dtype = get_precision(args.text_encoder_precision)
-    text_encoder = auto_mixed_precision(text_encoder, amp_level="O2", dtype=text_encoder_dtype)
-    text_encoder.dtype = text_encoder_dtype
-    logger.info(f"Use amp level O2 for text encoder T5 with dtype={text_encoder_dtype}")
+    text_encoder, loading_info = MT5EncoderModel.from_pretrained(
+        args.text_encoder_name,
+        cache_dir=args.cache_dir,
+        output_loading_info=True,
+        mindspore_dtype=text_encoder_dtype,
+        use_safetensors=True,
+    )
+    loading_info.pop("unexpected_keys")  # decoder weights are ignored
+    logger.info(loading_info)
+    tokenizer = AutoTokenizer.from_pretrained(args.text_encoder_name, cache_dir=args.cache_dir)
 
     # 3. build inference pipeline
     if args.sample_method == "DDIM":
@@ -351,17 +390,17 @@ if __name__ == "__main__":
         scheduler = PNDMScheduler()
     elif args.sample_method == "EulerDiscrete":
         scheduler = EulerDiscreteScheduler()
+    elif args.sample_method == "EulerAncestralDiscrete":
+        scheduler = EulerAncestralDiscreteScheduler()
     else:
         raise ValueError(f"Not supported sampling method {args.sample_method}")
 
-    text_encoder = text_encoder.model
-    pipeline = VideoGenPipeline(
+    pipeline = OpenSoraPipeline(
         vae=vae,
         text_encoder=text_encoder,
         tokenizer=tokenizer,
         scheduler=scheduler,
         transformer=transformer_model,
-        enable_time_chunk=args.enable_time_chunk,
     )
 
     # 4. print key info
@@ -373,6 +412,7 @@ if __name__ == "__main__":
     key_info += "\n".join(
         [
             f"MindSpore mode[GRAPH(0)/PYNATIVE(1)]: {args.mode}",
+            f"Jit level: {args.jit_level}",
             f"Num of samples: {n}",
             f"Num params: {num_params:,} (latte: {num_params_latte:,}, vae: {num_params_vae:,})",
             f"Num trainable params: {num_params_trainable:,}",
@@ -382,32 +422,49 @@ if __name__ == "__main__":
             f"Sampling steps {args.num_sampling_steps}",
             f"Sampling method: {args.sample_method}",
             f"CFG guidance scale: {args.guidance_scale}",
-            f"Enable flash attention: {args.enable_flash_attention} ({FA_dtype})",
+            f"FA dtype: {FA_dtype}",
+            f"Inference shape (num_frames x height x width): {args.num_frames}x{args.height}x{args.width}",
         ]
     )
     key_info += "\n" + "=" * 50
     logger.info(key_info)
     start_time = time.time()
-
+    if args.profile:
+        profiler = ms.Profiler(output_path="./mem_info", profile_memory=True)
+        ms.set_context(memory_optimize_level="O0")
+        ms.set_context(pynative_synchronize=True)
+    else:
+        profiler = None
     # infer
     for step, data in tqdm(enumerate(ds_iter), total=dataset_size):
         prompt = [x for x in data["caption"]]
         file_paths = data["file_path"]
+        positive_prompt = (
+            "(masterpiece), (best quality), (ultra-detailed), {}. emotional, "
+            + "harmonious, vignette, 4k epic detailed, shot on kodak, 35mm photo, sharp focus, high budget, cinemascope, moody, epic, gorgeous"
+        )
+        negative_prompt = (
+            "nsfw, lowres, bad anatomy, bad hands, text, error, missing fingers, "
+            + "extra digit, fewer digits, cropped, worst quality, low quality, normal quality, jpeg artifacts, signature, watermark, username, blurry"
+        )
+
         videos = (
             pipeline(
-                prompt,
+                positive_prompt.format(prompt),
+                negative_prompt=negative_prompt,
                 num_frames=args.num_frames,
                 height=args.height,
                 width=args.width,
                 num_inference_steps=args.num_sampling_steps,
                 guidance_scale=args.guidance_scale,
-                enable_temporal_attentions=not args.force_images,
-                mask_feature=False,
                 output_type="latents" if args.save_latents else "pil",
+                max_sequence_length=args.max_sequence_length,
             )
-            .video.to(ms.float32)
+            .images.to(ms.float32)
             .asnumpy()
         )
+        if step == 0 and profiler is not None:
+            profiler.stop()
 
         if get_sequence_parallel_state() and hccl_info.rank % hccl_info.world_size != 0:
             pass
@@ -419,10 +476,11 @@ if __name__ == "__main__":
                 if args.save_latents:
                     np.save(file_path, videos[i_sample : i_sample + 1])
                 else:
-                    if args.force_images:
+                    if args.num_frames == 1:
+                        ext = "jpg"
                         image = videos[i_sample, 0]  # (b t h w c)  -> (h, w, c)
                         image = (image * 255).round().clip(0, 255).astype(np.uint8)
-                        Image.from_numpy(image).save(file_path)
+                        Image.fromarray(image).save(file_path)
                     else:
                         save_video_data = videos[i_sample : i_sample + 1]  # (b t h w c)
                         save_videos(save_video_data, file_path, loop=0, fps=args.fps)

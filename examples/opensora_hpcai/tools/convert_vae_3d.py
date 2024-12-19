@@ -14,14 +14,14 @@ def get_shape_from_str(shape):
     return shape
 
 
-def convert(source_fp, target_fp, spatial_vae_only=False):
+def convert(source_fp, target_fp, from_vae2d=False):
     # read param mapping files
     with open("tools/ms_pnames_vae1.2.txt") as file_ms:
         lines_ms = list(file_ms.readlines())
     with open("tools/pt_pnames_vae1.2.txt") as file_pt:
         lines_pt = list(file_pt.readlines())
 
-    if spatial_vae_only:
+    if from_vae2d:
         lines_ms = [line for line in lines_ms if line.startswith("spatial_vae")]
         lines_pt = [line for line in lines_pt if line.startswith("spatial_vae")]
 
@@ -41,8 +41,13 @@ def convert(source_fp, target_fp, spatial_vae_only=False):
             shape_ms
         ), f"Mismatch param: PT: {name_pt}, {shape_pt} vs MS: {name_ms}, {shape_ms}"
 
+        if from_vae2d:
+            name_pt = name_pt.replace("spatial_vae.module.", "")
+
         data = sd_pt[name_pt].cpu().detach().numpy().reshape(shape_ms)
-        target_data.append({"name": name_ms, "data": ms.Tensor(data, dtype=ms.float32)})
+
+        data = ms.Tensor(input_data=data.astype(np.float32), dtype=ms.float32)
+        target_data.append({"name": name_ms, "data": data})  # ms.Tensor(data, dtype=ms.float32)})
 
     print("Total params converted: ", len(target_data))
     ms.save_checkpoint(target_data, target_fp)
@@ -63,7 +68,7 @@ if __name__ == "__main__":
         type=str,
         help="Filename to save. Specify folder, e.g., ./models, or file path which ends with .ckpt, e.g., ./models/vae.ckpt",
     )
-    parser.add_argument("--spatial_vae_only", action="store_true", help="only convert spatial vae, default: False")
+    parser.add_argument("--from_vae2d", action="store_true", help="only convert spatial vae, default: False")
 
     args = parser.parse_args()
 
@@ -79,5 +84,5 @@ if __name__ == "__main__":
     if os.path.exists(target_fp):
         print(f"Warnings: {target_fp} will be overwritten!")
 
-    convert(args.src, target_fp, args.spatial_vae_only)
+    convert(args.src, target_fp, args.from_vae2d)
     print(f"Converted weight saved to {target_fp}")
