@@ -175,7 +175,7 @@ class OpenSoraAttnProcessor2_0:
             self.alltoall_sbh_q = AllToAll_SBH(scatter_dim=1, gather_dim=0)
             self.alltoall_sbh_k = AllToAll_SBH(scatter_dim=1, gather_dim=0)
             self.alltoall_sbh_v = AllToAll_SBH(scatter_dim=1, gather_dim=0)
-            self.alltoall_sbh_out = AllToAll_SBH(scatter_dim=0, gather_dim=1)
+            self.alltoall_sbh_out = AllToAll_SBH(scatter_dim=1, gather_dim=0)
         else:
             self.sp_size = 1
             self.alltoall_sbh_q = None
@@ -362,11 +362,11 @@ class OpenSoraAttnProcessor2_0:
             hidden_states = self._reverse_sparse_1d(hidden_states, total_frame, height, width, pad_len)
             hidden_states = hidden_states.swapaxes(0, 1)  # SBH -> BSH
 
-        # [s, b, h // sp * d] -> [s // sp * b, h, d] -> [s // sp, b, h * d]
         if get_sequence_parallel_state():
-            hidden_states = self.alltoall_sbh_out(hidden_states.reshape(-1, FA_head_num, head_dim))
-            hidden_states = hidden_states.view(-1, batch_size, inner_dim)
-
+            # [b, s * sp, h // sp, d] -> [h // sp, s * sp, b , d]
+            hidden_states = hidden_states.view(batch_size, -1, FA_head_num, head_dim).transpose(2, 1, 0, 3)
+            # [h // sp, s * sp, b , d] -> [h, s, b , d] -> [s, b, h, d] -> [s, b, h*d]
+            hidden_states = self.alltoall_sbh_out(hidden_states).transpose(1, 2, 0, 3).view(-1, batch_size, inner_dim)
         hidden_states = hidden_states.to(query.dtype)
 
         # linear proj
