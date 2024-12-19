@@ -75,7 +75,7 @@ python scripts/train_tae.py \
 --video_folder /path/to/video_root_folder  \
 ```
 
-Unlike the paper, we found that OPL loss doesn't benefit the training outcome in our ablation study (reducing in lower PSNR decreased). Thus we disable OPL loss by default. You may enable it by appending `--use_outlier_penalty_loss True`
+Unlike the paper, we found that OPL loss doesn't benefit the training outcome in our ablation study (w/ OPl PSNR is 31.17). Thus we disable OPL loss by default. You may enable it by appending `--use_outlier_penalty_loss True`
 
 For more details on the arguments, please run `python scripts/train_tae.py --help`
 
