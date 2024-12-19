@@ -2,7 +2,7 @@ import logging
 from typing import Dict, Literal, Optional, Tuple, Union
 
 from jsonargparse.typing import Path_fr
-from mg import LlamaModel, llama3_1B, llama3_5B, llama3_30B
+from mg.models import LlamaModel, llama3_1B, llama3_5B, llama3_30B
 
 import mindspore as ms
 from mindspore import _no_grad, jit_class, nn

@@ -29,8 +29,9 @@ class ResizeCrop:
         th, tw = size or self._size
 
         scale = max(th / h, tw / w)
-        if self._po:  # preserve orientation
-            scale = min(scale, max(th / w, tw / h))
+        if self._po and (new_scale := max(th / w, tw / h)) < scale:  # preserve orientation
+            scale = new_scale
+            th, tw = tw, th
 
         if scale != 1:  # resize
             if x.ndim == 3:  # if image
