@@ -3,11 +3,11 @@ import inspect
 import time
 import warnings
 from dataclasses import dataclass
-from typing import Any, Callable, Dict, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Tuple, Union
 
-from transformers import PreTrainedTokenizerBase, logging
+from transformers import logging
 from transformers.generation.configuration_utils import GenerationConfig, GenerationMode
-from transformers.generation.utils import BaseStreamer, GenerateNonBeamOutput
+from transformers.generation.utils import GenerateNonBeamOutput
 from transformers.tokenization_utils import ExtensionsTrie
 from transformers.utils.generic import ModelOutput
 
@@ -34,7 +34,12 @@ from mindone.transformers.generation.stopping_criteria import (
     StoppingCriteriaList,
 )
 from mindone.transformers.modeling_outputs import CausalLMOutputWithPast
-from mindone.transformers.modeling_utils import MSPreTrainedModel as PreTrainedModel
+
+if TYPE_CHECKING:
+    from transformers.generation.streamers import BaseStreamer
+    from transformers.tokenization_utils_base import PreTrainedTokenizerBase
+
+    from mindone.transformers.modeling_utils import MSPreTrainedModel as PreTrainedModel
 
 logger = logging.get_logger(__name__)
 
