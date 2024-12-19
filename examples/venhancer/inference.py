@@ -141,7 +141,6 @@ def parse_args() -> Namespace:
 
     parser.add_argument("--input_path", required=True, type=str, help="input video path")
     parser.add_argument("--save_dir", type=str, default="results", help="save directory")
-    parser.add_argument("--version", type=str, default="v1", choices=["v1", "v2"], help="model version")
     parser.add_argument("--model_path", type=str, default="", help="model path")
 
     parser.add_argument("--prompt", type=str, default="a good video", help="prompt")
@@ -174,7 +173,6 @@ def main(args):
     prompt_path = args.prompt_path
     filename_as_prompt = args.filename_as_prompt
     model_path = args.model_path
-    version = args.version
     save_dir = args.save_dir
 
     noise_aug = args.noise_aug
@@ -188,7 +186,6 @@ def main(args):
 
     venhancer = VEnhancer(
         result_dir=save_dir,
-        version=version,
         model_path=model_path,
         solver_mode=solver_mode,
         steps=steps,
