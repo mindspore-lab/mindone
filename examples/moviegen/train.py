@@ -16,6 +16,7 @@ __dir__ = os.path.dirname(os.path.abspath(__file__))
 mindone_lib_path = os.path.abspath(os.path.join(__dir__, "../../"))
 sys.path.append(mindone_lib_path)
 
+from mg.acceleration import create_parallel_group
 from mg.dataset import ImageVideoDataset, bucket_split_function
 from mg.models.tae import TemporalAutoencoder
 from mg.pipelines import DiffusionWithLoss
@@ -41,6 +42,7 @@ def initialize_dataset(
     )
     dataloader_args = dataloader_args.as_dict()
     batch_size = dataloader_args.pop("batch_size")
+    logger.info(f"Initialize the dataloader with shard id `{shard_rank_id}` with total total shards `{device_num}`.")
     dataloader = create_dataloader(
         dataset,
         batch_size=batch_size if isinstance(batch_size, int) else 0,  # Turn off batching if using buckets
@@ -74,10 +76,10 @@ def main(args):
 
     # 1.1 init model parallel
     shard_rank_id = rank_id
-    # if (shards := args.train.model_parallel.model_parallel_shards) > 1:
-    #     create_parallel_group(**args.train.model_parallel)
-    #     device_num = device_num // shards
-    #     shard_rank_id = rank_id // shards
+    if (shards := args.train.parallel.sequence_parallel_shards) > 1:
+        create_parallel_group(**args.train.parallel)
+        device_num = device_num // shards
+        shard_rank_id = rank_id // shards
 
     # FIXME: Improve seed setting
     set_seed(args.env.seed + shard_rank_id)  # set different seeds per NPU for sampling different timesteps
@@ -280,6 +282,7 @@ if __name__ == "__main__":
         "--dataloader.batch_size", default=1, type=Union[int, Dict[str, int]], help="Number of samples per batch"
     )
     parser.link_arguments("env.debug", "dataloader.debug", apply_on="parse")
+    parser.add_function_arguments(create_parallel_group, "train.parallel")
     parser.add_function_arguments(create_scheduler, "train.lr_scheduler", skip={"steps_per_epoch", "num_epochs"})
     parser.add_class_arguments(
         ReduceLROnPlateauByStep, "train.lr_reduce_on_plateau", skip={"optimizer"}, instantiate=False

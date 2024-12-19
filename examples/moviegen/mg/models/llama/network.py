@@ -7,10 +7,11 @@ import numpy as np
 
 from mindspore import Parameter, Tensor
 from mindspore import dtype as mstype
-from mindspore import lazy_inline, load_checkpoint, load_param_into_net, mint, nn, ops
+from mindspore import lazy_inline, load_checkpoint, mint, nn, ops
 
 from mindone.models.utils import normal_, zeros_
 
+from ...acceleration import GatherFowardSplitBackward, SplitFowardGatherBackward, get_sequence_parallel_group
 from ..text_encoders import TextProjector
 from .activation import ACT2FN
 from .block import (
@@ -38,7 +39,7 @@ def t2i_modulate(x: Tensor, shift: Tensor, scale: Tensor) -> Tensor:
 
 
 class LlamaDecoderLayer(nn.Cell):
-    @lazy_inline(policy="front")
+    @lazy_inline
     def __init__(
         self,
         hidden_size: int = 4096,
@@ -133,8 +134,8 @@ class LlamaFinalLayer(nn.Cell):
     ) -> None:
         super().__init__()
         self.input_layernorm = LlamaRMSNorm(hidden_size, eps=rms_norm_eps, dtype=dtype)
-        self.proj = nn.Dense(
-            hidden_size, patch_size[0] * patch_size[1] * patch_size[2] * out_channels, has_bias=False, dtype=dtype
+        self.proj = mint.nn.Linear(
+            hidden_size, patch_size[0] * patch_size[1] * patch_size[2] * out_channels, bias=False, dtype=dtype
         )
         self.scale_shift_table = Parameter(Tensor(np.random.randn(2, hidden_size) / hidden_size**0.5, dtype=dtype))
 
@@ -167,7 +168,6 @@ class LlamaModel(nn.Cell):
         attn_implementation: Literal["eager", "flash_attention"] = "eager",
         recompute_every_nth_block: Optional[int] = None,
         use_linear_patch_embedder: bool = True,
-        model_parallelism: bool = False,
         post_init_weight: bool = True,
         dtype: mstype.Type = mstype.float32,
     ) -> None:
@@ -180,29 +180,25 @@ class LlamaModel(nn.Cell):
         self.num_key_value_heads = num_key_value_heads
         self.rms_norm_eps = rms_norm_eps
         self.max_length = max_length
-        self.model_parallelism = model_parallelism
         self._dtype = dtype
 
-        if self.model_parallelism:
-            raise NotImplementedError("Model parallelism is not supported yet.")
-        else:
-            self.layers = nn.CellList(
-                [
-                    LlamaDecoderLayer(
-                        hidden_size=self.hidden_size,
-                        intermediate_size=intermediate_size,
-                        num_attention_heads=self.num_attention_heads,
-                        num_key_value_heads=self.num_key_value_heads,
-                        rms_norm_eps=rms_norm_eps,
-                        attention_dropout=attention_dropout,
-                        attention_bias=attention_bias,
-                        hidden_act=hidden_act,
-                        attn_implementation=attn_implementation,
-                        dtype=dtype,
-                    )
-                    for _ in range(num_hidden_layers)
-                ]
-            )
+        self.layers = nn.CellList(
+            [
+                LlamaDecoderLayer(
+                    hidden_size=self.hidden_size,
+                    intermediate_size=intermediate_size,
+                    num_attention_heads=self.num_attention_heads,
+                    num_key_value_heads=self.num_key_value_heads,
+                    rms_norm_eps=rms_norm_eps,
+                    attention_dropout=attention_dropout,
+                    attention_bias=attention_bias,
+                    hidden_act=hidden_act,
+                    attn_implementation=attn_implementation,
+                    dtype=dtype,
+                )
+                for _ in range(num_hidden_layers)
+            ]
+        )
 
         self.final_layer = LlamaFinalLayer(
             hidden_size=self.hidden_size,
@@ -229,6 +225,16 @@ class LlamaModel(nn.Cell):
         self.text_projector = TextProjector(
             out_features=self.hidden_size, layer_norm=LlamaRMSNorm, norm_eps=self.rms_norm_eps, dtype=dtype
         )
+
+        # init sequence parallel
+        sp_group = get_sequence_parallel_group()
+        if sp_group is not None:
+            _logger.info(f"Initialize Llama model with sequence parallel group `{sp_group}`.")
+            self.split_forward_gather_backward = SplitFowardGatherBackward(dim=1, grad_scale="down", group=sp_group)
+            self.gather_forward_split_backward = GatherFowardSplitBackward(dim=1, grad_scale="up", group=sp_group)
+        else:
+            self.split_forward_gather_backward = mint.nn.Identity()
+            self.gather_forward_split_backward = mint.nn.Identity()
 
         # post-init
         if post_init_weight:
@@ -340,11 +346,17 @@ class LlamaModel(nn.Cell):
         # 3.1.4 text embedding
         text_embedding = self.text_projector(ul2_emb, metaclip_emb, byt5_emb)
 
+        # sequence parallel start
+        latent_embedding = self.split_forward_gather_backward(latent_embedding)
+        position_embedding = self.split_forward_gather_backward(position_embedding)
+
         # main blocks
         hidden_states = latent_embedding
-
         for decoder_layer in self.layers:
             hidden_states = decoder_layer(hidden_states, text_embedding, modulation_parameters, position_embedding)
+
+        # sequence parallel end
+        hidden_states = self.gather_forward_split_backward(hidden_states)
 
         # final block
         hidden_states = self.final_layer(hidden_states, timestep_embedding)
@@ -371,18 +383,6 @@ class LlamaModel(nn.Cell):
         model_out = uncond_model_out + cfg_scale * (cond_model_out - uncond_model_out)
         model_out = mint.tile(model_out, (2, 1, 1, 1, 1))
         return model_out
-
-    def load_weight_from_non_parallel_cell(self, target: LlamaModel):
-        param_dict = target.parameters_dict()
-
-        # filter tensor-parallel block
-        names = ["gate_proj", "up_proj", "down_proj"]
-        param_dict = {k: v for k, v in param_dict.items() if not any([name in k for name in names])}
-        load_param_into_net(self, param_dict)
-
-        # load tensor-parallel block
-        for layer, target_layer in zip(self.layers, target.layers):
-            layer.mlp.load_weight_from_non_parallel_cell(target_layer.mlp)
 
 
 def llama3_1B(from_pretrained=None, **kwargs):

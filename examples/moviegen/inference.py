@@ -9,9 +9,11 @@ from typing import List, Tuple
 import numpy as np
 from jsonargparse import ActionConfigFile, ArgumentParser
 from jsonargparse.typing import path_type
+from mg.acceleration import create_parallel_group
 
 import mindspore as ms
 from mindspore import amp, nn
+from mindspore.communication import GlobalComm
 
 # TODO: remove in future when mindone is ready for install
 __dir__ = os.path.dirname(os.path.abspath(__file__))
@@ -61,6 +63,9 @@ def main(args):
 
     # 1. init env
     _, rank_id, device_num = init_train_env(**args.env)  # TODO: rename as train and infer are identical?
+
+    if args.enable_sequence_paralell:
+        create_parallel_group(GlobalComm.WORLD_COMM_GROUP)
 
     # 1.1 read caption embeddings
     ul2_emb, metaclip_emb, byt5_emb = prepare_captions(**args.text_emb, rank_id=rank_id, device_num=device_num)
@@ -144,6 +149,9 @@ def main(args):
             f" sampling speed: {args.num_sampling_steps * (end_i - i) / batch_time:.2f} step/s"
         )
 
+        if args.enable_sequence_paralell and rank_id > 1:
+            continue
+
         # save result
         for j in range(0, end_i - i):
             fn = prompt_prefix[i + j]
@@ -182,6 +190,7 @@ if __name__ == "__main__":
     infer_group.add_argument("--fps", type=int, default=16, help="FPS in the saved video")
     infer_group.add_function_arguments(prepare_captions, "text_emb", skip={"rank_id", "device_num"})
     infer_group.add_argument("--batch_size", type=int, default=1)
+    infer_group.add_argument("--enable_sequence_paralell", type=bool, default=False, help="enable sequence parallel.")
     save_group = parser.add_argument_group("Saving options")
     save_group.add_argument(
         "--save_format",

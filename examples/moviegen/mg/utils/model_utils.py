@@ -64,7 +64,6 @@ def init_model(
     pretrained_model_path: Optional[Path_fr] = None,
     resume: bool = False,
     enable_flash_attention: bool = True,
-    model_parallelism: bool = False,
     recompute_every_nth_block: Optional[int] = None,
     dtype: Literal["fp32", "fp16", "bf16"] = "fp32",
 ) -> LlamaModel:
@@ -72,7 +71,6 @@ def init_model(
     model = MODEL_SPEC[name](
         in_channels=in_channels,
         attn_implementation=attn_implementation,
-        model_parallelism=model_parallelism,
         recompute_every_nth_block=recompute_every_nth_block,
         dtype=MODEL_DTYPE[dtype],
     )
