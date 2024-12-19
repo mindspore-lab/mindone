@@ -18,7 +18,7 @@ def init_train_env(
     device_target: Literal["Ascend", "GPU"] = "Ascend",
     debug: bool = False,
     seed: int = 42,
-    jit_level: str = "O2",
+    jit_level: str = "O0",
     cache_graph: bool = False,
     cache_path: str = "./cache",
     distributed: bool = False,
