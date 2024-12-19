@@ -17,7 +17,7 @@ def tensor2vid(video, mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5]):
     mean = Tensor(mean).reshape(1, -1, 1, 1, 1)
     std = Tensor(std).reshape(1, -1, 1, 1, 1)
     video = video.mul(std).add(mean)
-    video.clamp(0, 1)
+    video = video.clamp(0, 1)
     video = video * 255.0
     # b c f h w -> b f h w c
     images = ops.transpose(video, (0, 2, 3, 4, 1))[0]

@@ -162,9 +162,9 @@ class CrossAttention(nn.Cell):
                 out_list.append(out)
             out = mint.cat(out_list, dim=0)
         else:
-            _, _, _, out = self.attention(q_1, k_1, v_1, None, None, None, None)
+            _, _, _, out = self.attention(q, k, v, None, None, None, None)
 
-        out = self._rearange_out(out)
+        out = self._rearange_out(out, b)
         return self.to_out(out)
 
 
@@ -651,7 +651,6 @@ class TemporalTransformer(nn.Cell):
                     d_head,
                     dropout=dropout,
                     context_dim=context_dim[d],
-                    dtype=self.dtype,
                 )
                 for d in range(depth)
             ]
@@ -1525,7 +1524,7 @@ class VideoControlNet(nn.CellList):
             x = module(x, context)
             # b c f h w -> (b f) c h w
             x = ops.transpose(x, (0, 2, 1, 3, 4))
-            x = ops.reshape(x, (-1.0, *x.shape[2:]))
+            x = ops.reshape(x, (-1, *x.shape[2:]))
         elif isinstance(module, CrossAttention):
             x = module(x, context)
         elif isinstance(module, BasicTransformerBlock):

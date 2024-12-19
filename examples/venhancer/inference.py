@@ -2,6 +2,7 @@ import glob
 import logging
 import os
 from argparse import ArgumentParser, Namespace
+from time import time
 
 from easydict import EasyDict
 from inference_utils import (
@@ -143,6 +144,13 @@ def parse_args() -> Namespace:
     parser.add_argument("--save_dir", type=str, default="results", help="save directory")
     parser.add_argument("--version", type=str, default="v1", choices=["v1", "v2"], help="model version")
     parser.add_argument("--model_path", type=str, default="", help="model path")
+    parser.add_argument(
+        "--precision",
+        default="fp16",
+        type=str,
+        choices=["bf16", "fp16", "fp32"],
+        help="what computation data type to use. Default is `fp16`, which corresponds to ms.float16",
+    )
 
     parser.add_argument("--prompt", type=str, default="a good video", help="prompt")
     parser.add_argument("--prompt_path", type=str, default="", help="prompt path")
@@ -161,7 +169,7 @@ def parse_args() -> Namespace:
 
 
 def main(args):
-    save_dir = f"{args.savedir}"
+    save_dir = f"{args.save_dir}"
 
     os.makedirs(save_dir, exist_ok=True)
     set_logger(name="", output_dir=save_dir)
@@ -219,7 +227,9 @@ def main(args):
             if os.path.isfile(prompt_path):
                 logger.info(f"prompt_path: {prompt_path}")
                 prompt = load_prompt_list(prompt_path)[0]
+        start_time = time()
         venhancer.enhance_a_video(file_path, prompt, up_scale, target_fps, noise_aug)
+        logger.info(f"enhance a video time: {time()-start_time}s")
 
 
 if __name__ == "__main__":

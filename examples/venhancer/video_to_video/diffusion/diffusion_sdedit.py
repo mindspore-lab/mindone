@@ -11,7 +11,7 @@ __all__ = ["GaussianDiffusion"]
 
 
 def _i(tensor, t, x):
-    shape = (x.shape(0),) + (1,) * (x.ndim - 1)
+    shape = (x.shape[0],) + (1,) * (x.ndim - 1)
     return tensor[t].view(shape)
 
 
@@ -274,7 +274,8 @@ class GaussianDiffusion:
     def _t_to_sigma(self, t):
         t = t.float()
         low_idx, high_idx, w = t.floor().long(), t.ceil().long(), t.frac()
-        log_sigmas = torch.sqrt(self.sigmas**2 / (1 - self.sigmas**2)).log()  # noqa
+        log_sigmas = mint.sqrt(self.sigmas**2 / (1 - self.sigmas**2)).log()  # noqa
         log_sigma = (1 - w) * log_sigmas[low_idx] + w * log_sigmas[high_idx]
-        log_sigma[ops.isnan(log_sigma) | ops.isinf(log_sigma)] = float("inf")
+        log_sigma[ops.isnan(log_sigma)] = float("inf")
+        log_sigma[ops.isinf(log_sigma)] = float("inf")
         return log_sigma.exp()

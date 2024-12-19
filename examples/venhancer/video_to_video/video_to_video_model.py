@@ -6,7 +6,7 @@ from video_to_video.diffusion.diffusion_sdedit import GaussianDiffusion
 from video_to_video.diffusion.schedules_sdedit import noise_schedule
 from video_to_video.modules.embedder import FrozenOpenCLIPEmbedder
 from video_to_video.utils.config import cfg
-from video_to_video.utils.util import (
+from video_to_video.utils.utils import (
     blend_time,
     gaussian_weights,
     get_precision,
@@ -41,11 +41,18 @@ class VideoToVideo:
         )
         param_not_load, _ = ms.load_param_into_net(generator, load_dict)
         print(f"Net params not loaded:{param_not_load}")
+        vae = AutoencoderKLTemporalDecoder.from_pretrained(
+            "stabilityai/stable-video-diffusion-img2vid", subfolder="vae", variant="fp16"
+        )
+        vae.set_train(False)
         if cfg.precision in ["fp16", "bf16"]:
             dtype = get_precision(cfg.precision)
             generator = auto_mixed_precision(generator, amp_level="O2", dtype=dtype)
-            logger.info(f"Use amp level O2 for generator with dtype={dtype}")
+            vae = auto_mixed_precision(vae, amp_level="O2", dtype=dtype)
+            logger.info(f"Use amp level O2 for generator and vae with dtype={dtype}")
         self.generator = generator
+
+        self.vae = vae
 
         sigmas = noise_schedule(
             schedule="logsnr_cosine_interp", n=1000, zero_terminal_snr=True, scale_min=2.0, scale_max=4.0
@@ -53,12 +60,6 @@ class VideoToVideo:
         diffusion = GaussianDiffusion(sigmas=sigmas)
         self.diffusion = diffusion
         logger.info("Build diffusion with GaussianDiffusion")
-
-        vae = AutoencoderKLTemporalDecoder.from_pretrained(
-            "stabilityai/stable-video-diffusion-img2vid", subfolder="vae", variant="fp16"
-        )
-        vae.set_train(False)
-        self.vae = vae
 
         self.negative_prompt = cfg.negative_prompt
         self.positive_prompt = cfg.positive_prompt
@@ -90,7 +91,7 @@ class VideoToVideo:
             if i == key_f_num - 1:
                 aug_video.append(video_data[i : i + 1])
             else:
-                aug_video.append(video_data[i : i + 1].tile(interp_f_num + 1, 1, 1, 1))
+                aug_video.append(video_data[i : i + 1].tile((interp_f_num + 1, 1, 1, 1)))
         video_data = mint.cat(aug_video, dim=0)
 
         logger.info(f"video_data shape: {video_data.shape}")
