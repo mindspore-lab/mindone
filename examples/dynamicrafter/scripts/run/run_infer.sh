@@ -4,9 +4,8 @@ ckpt=$3
 
 seed=123
 name=dynamicrafter_${resolution}_seed${seed}
-# prompt_dir=prompts/${resolution}/
-prompt_csv=/root/lhy/data/mixkit-100videos/video_caption_test.csv
-data_dir=/root/lhy/data/mixkit-100videos_dc_infer
+prompt_csv=path/to/video_caption.csv
+data_dir=path/to/video_folder
 config=configs/inference_${resolution}_v1.0.yaml
 res_dir="results"
 
@@ -48,7 +47,6 @@ python scripts/inference.py \
     --video_length $num_frames \
     --frame_stride $FS \
     --ckpt_path $ckpt
-    # --prompt_dir $prompt_dir \
 else
 python scripts/inference.py \
     --device_target Ascend \
@@ -73,5 +71,4 @@ python scripts/inference.py \
     --timestep_spacing 'uniform_trailing' \
     --guidance_rescale 0.7 \
     --perframe_ae
-    # --prompt_dir $prompt_dir \
 fi
