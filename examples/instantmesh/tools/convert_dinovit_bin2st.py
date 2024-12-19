@@ -7,7 +7,6 @@ from typing import Dict, List, Optional, Set, Tuple
 
 import torch
 from huggingface_hub import CommitInfo, CommitOperationAdd, HfApi, hf_hub_download
-from huggingface_hub.file_download import repo_folder_name
 from safetensors.torch import _find_shared_tensors, _is_complete, load_file, save_file
 
 ConversionResult = Tuple[List["CommitOperationAdd"], List[Tuple[str, "Exception"]]]
@@ -184,7 +183,7 @@ def convert(
 
     # with TemporaryDirectory() as d:
     d = os.environ["HF_HOME"]
-    folder = os.path.join(d, "hub", repo_folder_name(repo_id=model_id, repo_type="model"))
+    folder = os.path.join(d, "hub")
     print(f"current folder is {folder}")
     os.makedirs(folder, exist_ok=True)
     library_name = getattr(info, "library_name", None)

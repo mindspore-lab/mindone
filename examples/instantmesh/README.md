@@ -83,7 +83,8 @@ pip install -r requirements.txt
 ### ViT Pretrained Checkpoint
 To better accommodate the mindone transformer codebase, we provide an out-of-the-box [checkpoints conversion script](./tools/convert_dinovit_bin2st.py) that works seamlessly with the mindspore version of transformers.
 ```bash
-python convert_dinovit_bin2st.py facebook/dino-vitb16  # this will convert to .safetensor from the .bin under the same path, i.e., YOUR_HF_PATH
+python convert_dinovit_bin2st.py facebook/dino-vitb16  # this will dowanload dino-vitb16 and convert it to .safetensor from the .bin under the same path, i.e., YOUR_HF_PATH
+huggingface-cli download zxhezexin/openlrm-base-obj-1.0  # do this if your proxy setup does not support hf download automatically, convert srcript takes care of dino already
 ```
 
 The image features are extracted with dino-vit, which depends on HuggingFace's transformer package. We reuse [the MindSpore's implementation](https://github.com/mindspore-lab/mindone/blob/master/mindone/transformers/modeling_utils.py#L499) and the only challenge remains to be that `.bin` checkpoint of [dino-vit](https://huggingface.co/facebook/dino-vitb16/tree/main) is not supported by MindSpore off-the-shelf. The checkpoint script above serves easy conversion purposes and ensures that dino-vit is still based on `MSPreTrainedModel` safe and sound.
@@ -110,7 +111,7 @@ One needs to patch `mindcv.models.vgg` in L62 to enable conv kernel bias to alig
 - conv2d = nn.Conv2d(in_channels, v, kernel_size=3, pad_mode="pad", padding=1)
 + conv2d = nn.Conv2d(in_channels, v, kernel_size=3, pad_mode="pad", padding=1, has_bias=True)
 ```
-+
+
 ### Data Curation
 Following the original paper, we used Blender to render multiview frames for a 3D object in `.obj` for training. Typically for overfitting, three 3D objects from the objaverse dataset are used. We rendered 5 arbitral views for each object with the corresponding camera parameters extracted.
 
@@ -139,8 +140,8 @@ Notice that there is no diffusion model in InstantMesh, therefore the reported t
 
 | model name| stage | resolution   | batch size | frames/s |  
 |:---------------:|:-------:|:--------------:|:------------:|:----------------:|
-| InstantMesh |1 |192x192|1|9.51|
-| InstantMesh |1 |96x96|1|8.79|
+| InstantMesh |1 |192x192|1|2.98|
+| InstantMesh |1 |96x96|1|4.68|
 
 
 ## Acknowledgements
