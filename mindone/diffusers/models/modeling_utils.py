@@ -27,6 +27,7 @@ from huggingface_hub.utils import validate_hf_hub_args
 
 import mindspore as ms
 from mindspore import nn, ops
+from mindspore.nn.utils import no_init_parameters
 
 from mindone.safetensors.mindspore import save_file as safe_save_file
 
@@ -61,9 +62,7 @@ def _get_pt2ms_mappings(m):
     mappings = {}  # pt_param_name: (ms_param_name, pt_param_to_ms_param_func)
     for name, cell in m.cells_and_names():
         if isinstance(cell, (nn.Conv1d, nn.Conv1dTranspose)):
-            mappings[f"{name}.weight"] = f"{name}.weight", lambda x: ms.Parameter(
-                ops.expand_dims(x, axis=-2), name=x.name
-            )
+            mappings[f"{name}.weight"] = f"{name}.weight", lambda x: ops.expand_dims(x, axis=-2)
         elif isinstance(cell, nn.Embedding):
             mappings[f"{name}.weight"] = f"{name}.embedding_table", lambda x: x
         elif isinstance(cell, (nn.BatchNorm2d, nn.LayerNorm, nn.GroupNorm)):
@@ -608,8 +607,15 @@ class ModelMixin(nn.Cell, PushToHubMixin):
                     user_agent=user_agent,
                     commit_hash=commit_hash,
                 )
+            with no_init_parameters():
+                model = cls.from_config(config, **unused_kwargs)
 
-            model = cls.from_config(config, **unused_kwargs)
+            if mindspore_dtype is not None and not isinstance(mindspore_dtype, ms.Type):
+                raise ValueError(
+                    f"{mindspore_dtype} needs to be of type `ms.Type`, e.g. `ms.float16`, but is {type(mindspore_dtype)}."
+                )
+            elif mindspore_dtype is not None:
+                model = model.to(mindspore_dtype)
 
             if is_sharded:
                 load_checkpoint_and_dispatch(
@@ -637,13 +643,7 @@ class ModelMixin(nn.Cell, PushToHubMixin):
                     "error_msgs": error_msgs,
                 }
 
-        if mindspore_dtype is not None and not isinstance(mindspore_dtype, ms.Type):
-            raise ValueError(
-                f"{mindspore_dtype} needs to be of type `ms.Type`, e.g. `ms.float16`, but is {type(mindspore_dtype)}."
-            )
-        elif mindspore_dtype is not None:
-            model = model.to(mindspore_dtype)
-
+        model.init_parameters_data()
         model.register_to_config(_name_or_path=pretrained_model_name_or_path)
 
         # Set model in evaluation mode to deactivate DropOut modules by default
