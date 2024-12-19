@@ -1,12 +1,14 @@
 # Movie Gen Video based on MindSpore
 
-This work is built on the [Movie Gen](https://arxiv.org/abs/2410.13720) from Meta for video generation, personalization, and editing. We aim to provide an effcient implementation based on MindSpore.
+This project is built on the [Movie Gen](https://arxiv.org/abs/2410.13720) paper by Meta for video generation, personalization, and editing. We aim to explore an efficient implementation  based on MindSpore and Ascend NPUs.
 
 ## 📑 Development Plan
 
+This project is in an early stage and under active development. We welcome the open-source community to contribute to this project!
+
 - Temporal Autoencoder (TAE)
   - [x] Inference
-  - [x] Training (UCF-101)
+  - [x] Training
 - MovieGenVideo-5B (T2I/V)
   - [x] Inference
   - [x] Training stage 1: T2I 256px
@@ -14,8 +16,8 @@ This work is built on the [Movie Gen](https://arxiv.org/abs/2410.13720) from Met
   - [ ] Training stage 3: T2I/V 768px 256frames (under verification)
   - [x] Web Demo (Gradio)
 - MovieGenVideo-30B (T2I/V)
-  - [ ] Inference
-  - [ ] Mixed parallelism training
+  - [ ] Inference 
+  - [ ] Mixed parallelism training  (under verification)
 - Personalized-MovieGenVideo (PT2V)
   - [ ] Inference
   - [ ] Training
@@ -73,7 +75,7 @@ python scripts/train_tae.py \
 --video_folder /path/to/video_root_folder  \
 ```
 
-Different from the paper, we found that OPL loss doesn't benefit the training outcome in our ablation study (reducing in lower PSNR decreased). Thus we disable OPL loss by default. You may enable it by appending `--use_outlier_penalty_loss True`
+Unlike the paper, we found that OPL loss doesn't benefit the training outcome in our ablation study (reducing in lower PSNR decreased). Thus we disable OPL loss by default. You may enable it by appending `--use_outlier_penalty_loss True`
 
 For more details on the arguments, please run `python scripts/train_tae.py --help`
 
