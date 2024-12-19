@@ -12,7 +12,8 @@ This repo contains Mindspore model definitions, pre-trained weights and inferenc
 - Benchmark
     - [Training](#training)
     - [Inference](#inference)
-
+- Guidance
+    - [LoRA Finetuning](#lora-finetuning)
 
 ## What's New
 - 2024-09-05
@@ -165,7 +166,10 @@ Followed by some generated images using the testing prompts.
 <p align="center"><img width="1024" src="https://github.com/user-attachments/assets/b9ba152d-bbf0-46c2-af10-ba8066b92486"/></p>
 
 ### Running the Demo with Gradio
-
+First install gradio by
+``` bash
+pip install gradio
+```
 **Basic Usage**: Run the demo with the recommended configuration using the following command:
 
 ```bash
@@ -265,6 +269,63 @@ Experiments are tested on ascend 910* with mindspore 2.3.1 graph mode
 | PixArt-Sigma | 1     | 1           | 2048 x 2048  | O1        | < 3 mins      | 1.754    | [yaml](configs/inference/pixart-sigma-2K-MS.yaml)     |
 
 
+## LoRA Finetuning
+We provide the train and inference of Pixart-Alpha/Pixart-Sigma in ...
+
+### LoRA Training
+You can fine-tune PixArt-alpha or PixArt-Sigma models using LoRA. The base models are available on [Hugging Face](https://huggingface.co/PixArt-alpha).
+
+Below is an example script for training on the Pokemon dataset using PixArt-XL-2-512x512. Note that for PixArt-Sigma, increase the `max-token-length` to 300.
+
+
+```bash
+dataset_id=svjack/pokemon-blip-captions-en-zh
+caption_column=en_text
+model_id=PixArt-alpha/PixArt-XL-2-512x512
+
+python  pixart/lora-finetuning/train_pixart_lora.py \
+    --pretrained_model_name_or_path=$model_id \
+    --dataset_name=$dataset_id \
+    --caption_column=$caption_column \
+    --resolution=512   --random_flip \
+    --train_batch_size=4 \
+    --num_train_epochs=80   --checkpointing_steps=200 \
+    --learning_rate=1e-04   --lr_scheduler="constant" \
+    --lr_warmup_steps=0   --seed=42 \
+    --mixed_precision="fp16" \
+    --output_dir="output/pixart-pokemon-model" \
+    --validation_prompt="cute dragon creature" \
+    --report_to="tensorboard" \
+    --checkpoints_total_limit=10 \
+    --validation_epochs=5 \
+    --max_token_length=120
+```
+
+### Inference
+After training, you can generate images using your fine-tuned model. Here's how to use it:
+```bash
+python pixart/lora-finetuning/inference_pixart_lora.py \
+    --model_id="PixArt-alpha/PixArt-XL-2-512x512" \
+    --lora_path="output/pixart-pokemon-model/lora_checkpoint_path" \
+    --prompt="A grass-type Pokemon in a forest, highly detailed" \
+    --output_path="./generated_pokemon.png"
+```
+The script accepts the following parameters:
+- `--model_id`: Base model ID from Hugging Face or local path (default: "PixArt-alpha/PixArt-XL-2-512x512")
+- `--lora_path`: Path to your trained LoRA weights directory (required)
+- `--prompt`: Text description for the image you want to generate
+- `--output_path`: Where to save the generated image (default: "./pokemon.png")
+
+
+Here is some examples
+<p align="center"><img width="1024" src="https://github.com/itruonghai/mindone-asset/blob/main/pixart_lora.png?raw=true"/></p>
+
+#### LoRA Finetuning Performance (512x512, batch size=4)
+
+| Framework | Hardware | Memory (GB) | Training Speed (s/step) |
+|:--------:|:--------:|:-----------:|:----------------------:|
+| MindSpore | Ascend 910B | 25 | 0.57 |
+| PyTorch | NVIDIA A100 | 47 | 0.66 |
 
 # References
 
