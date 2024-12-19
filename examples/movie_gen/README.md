@@ -1,5 +1,28 @@
 # Movie Gen Video based on MindSpore
 
+This work is built on the [Movie Gen](https://arxiv.org/abs/2410.13720) from Meta for video generation, personalization, and editing. We aim to provide an effcient implementation based on MindSpore.
+
+## 📑 Development Plan
+
+- Temporal Autoencoder (TAE)
+  - [x] Inference
+  - [x] Training (UCF-101)
+- MovieGenVideo-5B (T2I/V)
+  - [x] Inference
+  - [x] Training stage 1: T2I 256px
+  - [x] Training stage 2: T2I/V 256px 256frames
+  - [ ] Training stage 3: T2I/V 768px 256frames (under verification)
+  - [x] Web Demo (Gradio)
+- MovieGenVideo-30B (T2I/V)
+  - [ ] Inference
+  - [ ] Mixed parallelism training
+- Personalized-MovieGenVideo (PT2V)
+  - [ ] Inference
+  - [ ] Training
+- MovieGen-Edit
+  - [ ] Inference
+  - [ ] Training
+
 
 ## Temporal Autoencoder (TAE)
 
