@@ -111,9 +111,9 @@ def _load_state_dict_into_model(model_to_load, state_dict: OrderedDict) -> List[
     local_state = {k: v for k, v in model_to_load.parameters_and_names()}
     for k, v in state_dict.items():
         if k in local_state:
-            v.set_dtype(local_state[k].dtype)
+            state_dict[k] = ms.Parameter(v.to(local_state[k].dtype), name=k)
         else:
-            pass  # unexpect key keeps origin dtype
+            state_dict[k] = ms.Parameter(v, name=k)  # unexpect key keeps origin dtype
     ms.load_param_into_net(model_to_load, state_dict, strict_load=True)
     return error_msgs
 
