@@ -101,6 +101,9 @@ class Config(object):
         parser.add_argument(
             "--ms_mode", type=int, default=0, help="Running in GRAPH_MODE(0) or PYNATIVE_MODE(1) (default=0)"
         )
+        parser.add_argument(
+            "--jit_level", type=str, default="O2", help="Running with Jit_level 'O0', 'O1', 'O2' (default='')"
+        )
         parser.add_argument("--use_parallel", default=False, type=str2bool, help="use parallel")
         parser.add_argument(
             "--dataset_sink_mode",
