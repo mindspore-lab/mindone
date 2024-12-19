@@ -1,6 +1,3 @@
-# Copyright (c) Alibaba, Inc. and its affiliates.
-
-
 from easydict import EasyDict
 
 cfg = EasyDict(__name__="Config: VideoLDM Decoder")

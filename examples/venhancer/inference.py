@@ -61,7 +61,6 @@ class VEnhancer:
     def __init__(
         self,
         result_dir="./results/",
-        version="v1",
         model_path="",
         solver_mode="fast",
         steps=15,
@@ -144,13 +143,6 @@ def parse_args() -> Namespace:
     parser.add_argument("--save_dir", type=str, default="results", help="save directory")
     parser.add_argument("--version", type=str, default="v1", choices=["v1", "v2"], help="model version")
     parser.add_argument("--model_path", type=str, default="", help="model path")
-    parser.add_argument(
-        "--precision",
-        default="fp16",
-        type=str,
-        choices=["bf16", "fp16", "fp32"],
-        help="what computation data type to use. Default is `fp16`, which corresponds to ms.float16",
-    )
 
     parser.add_argument("--prompt", type=str, default="a good video", help="prompt")
     parser.add_argument("--prompt_path", type=str, default="", help="prompt path")

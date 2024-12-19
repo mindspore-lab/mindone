@@ -9,7 +9,6 @@ from video_to_video.utils.config import cfg
 from video_to_video.utils.utils import (
     blend_time,
     gaussian_weights,
-    get_precision,
     make_chunks,
     pad_to_fit,
     sliding_windows_1d,
@@ -45,13 +44,11 @@ class VideoToVideo:
             "stabilityai/stable-video-diffusion-img2vid", subfolder="vae", variant="fp16"
         )
         vae.set_train(False)
-        if cfg.precision in ["fp16", "bf16"]:
-            dtype = get_precision(cfg.precision)
-            generator = auto_mixed_precision(generator, amp_level="O2", dtype=dtype)
-            vae = auto_mixed_precision(vae, amp_level="O2", dtype=dtype)
-            logger.info(f"Use amp level O2 for generator and vae with dtype={dtype}")
-        self.generator = generator
 
+        generator = auto_mixed_precision(generator, amp_level="O2", dtype=ms.float16)
+        vae = auto_mixed_precision(vae, amp_level="O2", dtype=ms.float16)
+        logger.info(f"Use amp level O2 for generator and vae with dtype=fp16")
+        self.generator = generator
         self.vae = vae
 
         sigmas = noise_schedule(

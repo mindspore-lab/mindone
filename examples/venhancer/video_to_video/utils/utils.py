@@ -90,11 +90,3 @@ def blend_time(a, b, blend_extent):
     return b
 
 
-def get_precision(mixed_precision):
-    if mixed_precision == "bf16":
-        dtype = ms.bfloat16
-    elif mixed_precision == "fp16":
-        dtype = ms.float16
-    else:
-        dtype = ms.float32
-    return dtype
