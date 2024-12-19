@@ -347,7 +347,7 @@ def main(cfg):
                 "Model: VideoComposer",
                 f"Conditions for training: {cfg.conditions_for_train}",
                 f"Num params: {param_nums}",
-                f"Num trainable params: {num_trainable_params:,}",
+                f"Num trainable params: {num_trainable_params: , }",
                 f"Optimizer: {cfg.optim}",
                 f"Learning rate: {cfg.learning_rate}",
                 f"Batch size: {cfg.batch_size}",

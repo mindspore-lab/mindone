@@ -1027,7 +1027,7 @@ class UNetSD_temporal(nn.Cell):
             download_checkpoint(_CKPT_URL["UNetSD_temporal"], "model_weights/")
         if not os.path.exists(ckpt_path):
             raise ValueError(
-                f"Checkpoint not exist or download fail. Please download it manually from {_CKPT_URL['UNetSD_temporal']} and place it under `model_weights/`"
+                f"Checkpoint not exist or download fail. Please download it manually from {_CKPT_URL['UNetSD_temporal']} and place it under 'model_weights/'"
             )
 
         state_dict = ms.load_checkpoint(ckpt_path)

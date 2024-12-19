@@ -437,7 +437,7 @@ def pidinet_bsd(pretrained=False, vanilla_cnn=True, ckpt_path=None):
             download_checkpoint(_CKPT_URL["pidinet_bsd"], "model_weights/")
         if not os.path.exists(ckpt_path):
             raise ValueError(
-                f"Maybe download failed. Please download it manually from {_CKPT_URL['pidinet_bsd']} and place it under `model_weights/`"
+                f"Maybe download failed. Please download it manually from {_CKPT_URL['pidinet_bsd']} and place it under 'model_weights/'"
             )
 
         if vanilla_cnn:

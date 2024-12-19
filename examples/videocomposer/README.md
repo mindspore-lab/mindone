@@ -416,12 +416,12 @@ The training performance for exp02-motion transfer with 1 910B card, with differ
 | **Mindspore Version** | **Mode**  | **JIT Level** | **Performance (s/step)** |
 |:----------------------:|:---------:|:-------------:|:-------------------------:|
 | 2.2                   | Graph     | -             | 0.95
-| 2.3.1                 | Graph     | O2            | 0.7       
-| 2.3.1                 | Graph     | O1            | 10     
+| 2.3.1                 | Graph     | O2            | 0.7  
+| 2.3.1                 | Graph     | O1            | 10  
 | 2.3.1                 | Graph     | O0            | 16                     |                   |
 | 2.3.1                 | Pynative     |            | 18                  |
 
-              
+
 
 ### Inference
 
