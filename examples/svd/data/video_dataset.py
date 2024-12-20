@@ -9,8 +9,7 @@ import numpy as np
 from mindspore.dataset.vision import CenterCrop, Resize
 
 sys.path.append("../../")  # FIXME: remove in future when mindone is ready for install
-from mindone.data import BaseDataset
-from mindone.data.video_reader import VideoReader
+from mindone.data import BaseDataset, VideoReader
 
 _logger = logging.getLogger(__name__)
 
