@@ -8,9 +8,16 @@ from transformers import CLIPTextConfig
 
 import mindspore as ms
 
+from mindone.diffusers.utils.testing_utils import (
+    load_downloaded_image_from_hf_hub,
+    load_downloaded_numpy_from_hf_hub,
+    slow,
+)
+
 from ..pipeline_test_utils import (
     THRESHOLD_FP16,
     THRESHOLD_FP32,
+    THRESHOLD_PIXEL,
     PipelineTesterMixin,
     floats_tensor,
     get_module,
@@ -214,4 +221,45 @@ class StableDiffusion3Img2ImgPipelineFastTests(PipelineTesterMixin, unittest.Tes
         ms_image_slice = ms_image[0][0, -3:, -3:, -1]
 
         threshold = THRESHOLD_FP32 if dtype == "float32" else THRESHOLD_FP16
-        assert np.max(np.linalg.norm(pt_image_slice - ms_image_slice) / np.linalg.norm(pt_image_slice)) < threshold
+        assert np.linalg.norm(pt_image_slice - ms_image_slice) / np.linalg.norm(pt_image_slice) < threshold
+
+
+@slow
+@ddt
+class StableDiffusion3Img2ImgPipelineSlowTests(PipelineTesterMixin, unittest.TestCase):
+    pipeline_class = get_module("mindone.diffusers.pipelines.stable_diffusion_3.StableDiffusion3Img2ImgPipeline")
+    repo_id = "stabilityai/stable-diffusion-3-medium-diffusers"
+
+    def get_inputs(self):
+        init_image = load_downloaded_image_from_hf_hub(
+            "diffusers/test-arrays",
+            "sketch-mountains-input.png",
+            subfolder="stable_diffusion_img2img",
+        )
+
+        return {
+            "prompt": "A photo of a cat",
+            "num_inference_steps": 2,
+            "guidance_scale": 5.0,
+            "image": init_image,
+        }
+
+    @data(*test_cases)
+    @unpack
+    def test_sd3_img2img_inference(self, mode, dtype):
+        ms.set_context(mode=mode)
+        ms_dtype = getattr(ms, dtype)
+
+        pipe = self.pipeline_class.from_pretrained(self.repo_id, mindspore_dtype=ms_dtype)
+
+        inputs = self.get_inputs()
+
+        torch.manual_seed(0)
+        image = pipe(**inputs)[0][0]
+
+        expected_image = load_downloaded_numpy_from_hf_hub(
+            "The-truth/mindone-testing-arrays",
+            f"i2i_{dtype}.npy",
+            subfolder="stable_diffusion_3",
+        )
+        assert np.mean(np.abs(np.array(image, dtype=np.float32) - expected_image)) < THRESHOLD_PIXEL

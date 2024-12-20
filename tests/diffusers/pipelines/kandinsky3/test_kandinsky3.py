@@ -21,9 +21,12 @@ from ddt import data, ddt, unpack
 
 import mindspore as ms
 
+from mindone.diffusers.utils.testing_utils import load_downloaded_numpy_from_hf_hub, slow
+
 from ..pipeline_test_utils import (
     THRESHOLD_FP16,
     THRESHOLD_FP32,
+    THRESHOLD_PIXEL,
     PipelineTesterMixin,
     get_module,
     get_pipeline_components,
@@ -163,4 +166,33 @@ class Kandinsky3PipelineFastTests(PipelineTesterMixin, unittest.TestCase):
         ms_image_slice = ms_image[0][0, -3:, -3:, -1]
 
         threshold = THRESHOLD_FP32 if dtype == "float32" else THRESHOLD_FP16
-        assert np.max(np.linalg.norm(pt_image_slice - ms_image_slice) / np.linalg.norm(pt_image_slice)) < threshold
+        assert np.linalg.norm(pt_image_slice - ms_image_slice) / np.linalg.norm(pt_image_slice) < threshold
+
+
+@slow
+@ddt
+class Kandinsky3PipelineIntegrationTests(PipelineTesterMixin, unittest.TestCase):
+    @data(*test_cases)
+    @unpack
+    def test_kandinskyV3(self, mode, dtype):
+        ms.set_context(mode=mode)
+        ms_dtype = getattr(ms, dtype)
+
+        pipe_cls = get_module("mindone.diffusers.pipelines.kandinsky3.Kandinsky3Pipeline")
+        pipe = pipe_cls.from_pretrained("kandinsky-community/kandinsky-3", variant="fp16", mindspore_dtype=ms_dtype)
+        pipe.set_progress_bar_config(disable=None)
+
+        prompt = (
+            "A photograph of the inside of a subway train. There are raccoons sitting on the seats. One of them "
+            "is reading a newspaper. The window shows the city in the background."
+        )
+
+        torch.manual_seed(0)
+        image = pipe(prompt, height=512, width=512, num_inference_steps=5)[0][0]
+
+        expected_image = load_downloaded_numpy_from_hf_hub(
+            "The-truth/mindone-testing-arrays",
+            f"t2i_{dtype}.npy",
+            subfolder="kandinsky3",
+        )
+        assert np.mean(np.abs(np.array(image, dtype=np.float32) - expected_image)) < THRESHOLD_PIXEL
