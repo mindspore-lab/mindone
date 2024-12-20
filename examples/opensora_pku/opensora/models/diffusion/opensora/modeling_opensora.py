@@ -3,7 +3,6 @@ import logging
 import os
 from typing import Optional
 
-from opensora.acceleration.parallel_states import get_sequence_parallel_state
 from opensora.models.diffusion.common import PatchEmbed2D
 from opensora.models.diffusion.opensora.modules import Attention, BasicTransformerBlock, LayerNorm
 from opensora.npu_config import npu_config
@@ -399,28 +398,20 @@ class OpenSoraT2V_v1_3(ModelMixin, ConfigMixin):
             hidden_states, encoder_hidden_states, timestep, batch_size, frame
         )
 
-        if get_sequence_parallel_state():
-            # To
-            # x            (t*h*w b d) or (t//sp*h*w b d)
-            # cond_1       (l b d) or (l//sp b d)
-            # b s h -> s b h
-            hidden_states = hidden_states.swapaxes(0, 1).contiguous()
-            # b s h -> s b h
-            encoder_hidden_states = encoder_hidden_states.swapaxes(0, 1).contiguous()
-            timestep = timestep.view(batch_size, 6, -1).swapaxes(0, 1).contiguous()
+        # To
+        # x            (t*h*w b d) or (t//sp*h*w b d)
+        # cond_1       (l b d) or (l//sp b d)
+        # b s h -> s b h
+        hidden_states = hidden_states.swapaxes(0, 1).contiguous()
+        # b s h -> s b h
+        encoder_hidden_states = encoder_hidden_states.swapaxes(0, 1).contiguous()
+        timestep = timestep.view(batch_size, 6, -1).swapaxes(0, 1).contiguous()
 
-        # if npu_config is None:
-        #     if get_sequence_parallel_state():
-        #         head_num = self.config.num_attention_heads // hccl_info.world_size
-        #     else:
-        #         head_num = self.config.num_attention_heads
-        # else:
-        head_num = None
         sparse_mask = {}
         if self.sparse1d:
             for sparse_n in [1, self.sparse_n]:
                 sparse_mask[sparse_n] = Attention.prepare_sparse_mask(
-                    attention_mask, encoder_attention_mask, sparse_n, head_num
+                    attention_mask, encoder_attention_mask, sparse_n, head_num=None
                 )
 
         # 2. Blocks
@@ -444,10 +435,9 @@ class OpenSoraT2V_v1_3(ModelMixin, ConfigMixin):
                 width=width,
             )  # BSH
 
-        if get_sequence_parallel_state():
-            # To (b, t*h*w, h) or (b, t//sp*h*w, h)
-            # s b h -> b s h
-            hidden_states = hidden_states.swapaxes(0, 1).contiguous()
+        # To (b, t*h*w, h) or (b, t//sp*h*w, h)
+        # s b h -> b s h
+        hidden_states = hidden_states.swapaxes(0, 1).contiguous()
 
         # 3. Output
         output = self._get_output_for_patched_inputs(

@@ -175,7 +175,7 @@ class OpenSoraAttnProcessor2_0:
             self.alltoall_sbh_q = AllToAll_SBH(scatter_dim=1, gather_dim=0)
             self.alltoall_sbh_k = AllToAll_SBH(scatter_dim=1, gather_dim=0)
             self.alltoall_sbh_v = AllToAll_SBH(scatter_dim=1, gather_dim=0)
-            self.alltoall_sbh_out = AllToAll_SBH(scatter_dim=1, gather_dim=0)
+            self.alltoall_sbh_out = AllToAll_SBH(scatter_dim=0, gather_dim=1)
         else:
             self.sp_size = 1
             self.alltoall_sbh_q = None
@@ -268,15 +268,9 @@ class OpenSoraAttnProcessor2_0:
         width: int = 16,
     ) -> ms.Tensor:
         # residual = hidden_states
-
-        if get_sequence_parallel_state():
-            sequence_length, batch_size, _ = (
-                hidden_states.shape if encoder_hidden_states is None else encoder_hidden_states.shape
-            )
-        else:
-            batch_size, sequence_length, _ = (
-                hidden_states.shape if encoder_hidden_states is None else encoder_hidden_states.shape
-            )  # BSH
+        sequence_length, batch_size, _ = (
+            hidden_states.shape if encoder_hidden_states is None else encoder_hidden_states.shape
+        )
 
         # attention_mask shape
         if attention_mask.ndim == 3:
@@ -305,40 +299,21 @@ class OpenSoraAttnProcessor2_0:
             key = self.alltoall_sbh_k(key.view(-1, attn.heads, head_dim))
             value = self.alltoall_sbh_v(value.view(-1, attn.heads, head_dim))
 
-            # print(f'batch: {batch_size}, FA_head_num: {FA_head_num}, head_dim: {head_dim}, total_frame:{total_frame}')
-            query = query.view(-1, batch_size, FA_head_num, head_dim)  # BUG? TODO: to test
-            key = key.view(-1, batch_size, FA_head_num, head_dim)  # BUG ?
+        # print(f'batch: {batch_size}, FA_head_num: {FA_head_num}, head_dim: {head_dim}, total_frame:{total_frame}')
+        query = query.view(-1, batch_size, FA_head_num, head_dim)
+        key = key.view(-1, batch_size, FA_head_num, head_dim)
 
-            # print(f'q {query.shape}, k {key.shape}, v {value.shape}')
-            if not self.is_cross_attn:
-                # require the shape of (ntokens x batch_size x nheads x dim)
-                pos_thw = self.position_getter(batch_size, t=total_frame, h=height, w=width)
-                # print(f'pos_thw {pos_thw}')
-                query = self.rope(query, pos_thw)
-                key = self.rope(key, pos_thw)
+        # print(f'q {query.shape}, k {key.shape}, v {value.shape}')
+        if not self.is_cross_attn:
+            # require the shape of (ntokens x batch_size x nheads x dim) or (batch_size x ntokens x nheads x dim)
+            pos_thw = self.position_getter(batch_size, t=total_frame, h=height, w=width)
+            # print(f'pos_thw {pos_thw}')
+            query = self.rope(query, pos_thw)
+            key = self.rope(key, pos_thw)
 
-            query = query.view(-1, batch_size, FA_head_num * head_dim)
-            key = key.view(-1, batch_size, FA_head_num * head_dim)
-            value = value.view(-1, batch_size, FA_head_num * head_dim)
-        else:
-            # print(f'batch: {batch_size}, FA_head_num: {FA_head_num}, head_dim: {head_dim}, total_frame:{total_frame}')
-            query = query.view(batch_size, -1, FA_head_num, head_dim)
-            key = key.view(batch_size, -1, FA_head_num, head_dim)
-            # (batch_size x ntokens x nheads x dim)
-
-            # print(f'q {query.shape}, k {key.shape}, v {value.shape}')
-            if not self.is_cross_attn:
-                # require the shape of (batch_size x ntokens x nheads x dim)
-                pos_thw = self.position_getter(batch_size, t=total_frame, h=height, w=width)
-                # print(f'pos_thw {pos_thw}')
-                query = self.rope(query, pos_thw)
-                key = self.rope(key, pos_thw)
-
-            query = query.view(batch_size, -1, FA_head_num * head_dim).swapaxes(0, 1)
-            key = key.view(batch_size, -1, FA_head_num * head_dim).swapaxes(0, 1)
-            value = value.swapaxes(0, 1)
-
-        # print(f'q {query.shape}, k {key.shape}, v {value.shape}') #(SBH)
+        query = query.view(-1, batch_size, FA_head_num * head_dim)
+        key = key.view(-1, batch_size, FA_head_num * head_dim)
+        value = value.view(-1, batch_size, FA_head_num * head_dim)
 
         if self.sparse1d:
             query, pad_len = self._sparse_1d(query, total_frame, height, width)
@@ -356,17 +331,15 @@ class OpenSoraAttnProcessor2_0:
         hidden_states = npu_config.run_attention(
             query, key, value, attention_mask, input_layout="BSH", head_dim=head_dim, head_num=FA_head_num
         )
+        hidden_states = hidden_states.swapaxes(0, 1)  # BSH -> SBH
 
         if self.sparse1d:
-            hidden_states = hidden_states.swapaxes(0, 1)  # BSH -> SBH
             hidden_states = self._reverse_sparse_1d(hidden_states, total_frame, height, width, pad_len)
-            hidden_states = hidden_states.swapaxes(0, 1)  # SBH -> BSH
 
+        # [s, b, h // sp * d] -> [s // sp * b, h, d] -> [s // sp, b, h * d]
         if get_sequence_parallel_state():
-            # [b, s * sp, h // sp, d] -> [h // sp, s * sp, b , d]
-            hidden_states = hidden_states.view(batch_size, -1, FA_head_num, head_dim).transpose(2, 1, 0, 3)
-            # [h // sp, s * sp, b , d] -> [h, s, b , d] -> [s, b, h, d] -> [s, b, h*d]
-            hidden_states = self.alltoall_sbh_out(hidden_states).transpose(1, 2, 0, 3).view(-1, batch_size, inner_dim)
+            hidden_states = self.alltoall_sbh_out(hidden_states.reshape(-1, FA_head_num, head_dim))
+            hidden_states = hidden_states.view(-1, batch_size, inner_dim)
         hidden_states = hidden_states.to(query.dtype)
 
         # linear proj
@@ -478,16 +451,10 @@ class BasicTransformerBlock(nn.Cell):
         width: int,
     ) -> ms.Tensor:
         # 0. Self-Attention
-        if get_sequence_parallel_state():
-            batch_size = hidden_states.shape[1]
-            shift_msa, scale_msa, gate_msa, shift_mlp, scale_mlp, gate_mlp = mint.chunk(
-                self.scale_shift_table[:, None] + timestep.reshape(6, batch_size, -1), 6, dim=0
-            )
-        else:
-            batch_size = hidden_states.shape[0]
-            shift_msa, scale_msa, gate_msa, shift_mlp, scale_mlp, gate_mlp = mint.chunk(
-                self.scale_shift_table[None] + timestep.reshape(batch_size, 6, -1), 6, dim=1
-            )
+        batch_size = hidden_states.shape[1]
+        shift_msa, scale_msa, gate_msa, shift_mlp, scale_mlp, gate_mlp = mint.chunk(
+            self.scale_shift_table[:, None] + timestep.reshape(6, batch_size, -1), 6, dim=0
+        )
 
         norm_hidden_states = self.norm1(hidden_states)
 
