@@ -55,7 +55,7 @@ class DepthEstimator:
         images = (images - mean) / std
         # 1.4 format tensor batch [bs, 3, h, w]
         images = np.transpose(images, (0, 3, 1, 2))
-        if self.amp_level != "O0":
+        if self.amp_level == "O0":
             images = Tensor(images, dtype=mstype.float32)
         else:
             images = Tensor(images, dtype=mstype.float16)
