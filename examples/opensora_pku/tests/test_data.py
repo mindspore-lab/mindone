@@ -13,7 +13,7 @@ from opensora.dataset.loader import create_dataloader
 from opensora.models.causalvideovae import ae_stride_config
 from opensora.models.diffusion import Diffusion_models
 from opensora.train.commons import parse_args
-from opensora.utils.dataset_utils import Collate, LengthGroupedBatchSampler
+from opensora.utils.dataset_utils import Collate, LengthGroupedSampler
 from opensora.utils.message_utils import print_banner
 
 from mindone.utils.config import str2bool
@@ -47,31 +47,26 @@ def load_dataset_and_dataloader(args, device_num=1, rank_id=0):
     assert args.dataset == "t2v", "Support t2v dataset only."
     print_banner("Dataset Loading")
     # Setup data:
+    if args.trained_data_global_step is not None:
+        initial_global_step_for_sampler = args.trained_data_global_step
+    else:
+        initial_global_step_for_sampler = 0
+    total_batch_size = args.train_batch_size * device_num * args.gradient_accumulation_steps
+    total_batch_size = total_batch_size // args.sp_size * args.train_sp_batch_size
+    args.total_batch_size = total_batch_size
+    if args.max_hxw is not None and args.min_hxw is None:
+        args.min_hxw = args.max_hxw // 4
+
     train_dataset = getdataset(args, dataset_file=args.data)
-    sampler = (
-        LengthGroupedBatchSampler(
-            args.train_batch_size,
-            world_size=device_num if not get_sequence_parallel_state() else (device_num // hccl_info.world_size),
-            lengths=train_dataset.lengths,
-            group_frame=args.group_frame,
-            group_resolution=args.group_resolution,
-        )
-        if (args.group_frame or args.group_resolution)
-        else None
-    )
-    collate_fn = Collate(
+    sampler = LengthGroupedSampler(
         args.train_batch_size,
-        args.group_frame,
-        args.group_resolution,
-        args.max_height,
-        args.max_width,
-        args.ae_stride,
-        args.ae_stride_t,
-        args.patch_size,
-        args.patch_size_t,
-        args.num_frames,
-        args.use_image_num,
+        world_size=device_num if not get_sequence_parallel_state() else (device_num // hccl_info.world_size),
+        gradient_accumulation_size=args.gradient_accumulation_steps,
+        initial_global_step=initial_global_step_for_sampler,
+        lengths=train_dataset.lengths,
+        group_data=args.group_data,
     )
+    collate_fn = Collate(args)
     dataloader = create_dataloader(
         train_dataset,
         batch_size=args.train_batch_size,
@@ -101,7 +96,12 @@ def parse_t2v_train_args(parser):
     parser.add_argument("--hw_stride", type=int, default=32)
     parser.add_argument("--force_resolution", action="store_true")
     parser.add_argument("--trained_data_global_step", type=int, default=None)
-    parser.add_argument("--use_decord", action="store_true")
+    parser.add_argument(
+        "--use_decord",
+        type=str2bool,
+        default=True,
+        help="whether to use decord to load videos. If not, use opencv to load videos.",
+    )
 
     # text encoder & vae & diffusion model
     parser.add_argument("--vae_fp32", action="store_true")
