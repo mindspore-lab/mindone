@@ -34,7 +34,6 @@ There are multiple advantages of this architecture:
 
 ## Pretrained Models
 
-<div align="center">
 
 | SD Compatibility | Task          | SD Train Version | Dataset                                | Recipe                             | Weights                                                                                                          |
 |:----------------:|---------------|:----------------:|----------------------------------------|------------------------------------|------------------------------------------------------------------------------------------------------------------|
@@ -55,7 +54,6 @@ There are multiple advantages of this architecture:
 |                  | Sketch        |       1.5        | [COCO-Stuff](#segmentation-coco-stuff) |                                    | [Download](https://download.mindspore.cn/toolkits/mindone/t2i-adapters/t2iadapter_sketch_sd15v2-6c537e26.ckpt)   |
 |                  | Style         |       1.4        |                                        |                                    | [Download](https://download.mindspore.cn/toolkits/mindone/t2i-adapters/t2iadapter_style_sd14v1-a620ae97.ckpt)    |
 
-</div>
 
 **Notes**:
 
