@@ -36,7 +36,7 @@ There are multiple advantages of this architecture:
 
 
 | SD Compatibility | Task          | SD Train Version | Dataset                                | Recipe                             | Weights                                                                                                          |
-|:----------------:|---------------|:----------------:|----------------------------------------|------------------------------------|------------------------------------------------------------------------------------------------------------------|
+|:----------------:|:---------------:|:----------------:|:------------------------------------:|:----------------------------------:|:----------------------------------------------------------------------------------------------------------------:|
 |       SDXL       | Canny         |     SDXL 1.0     | LAION-Aesthetics V2 (3M)               |                                    | [Download](https://download.mindspore.cn/toolkits/mindone/t2i-adapters/adapter_xl_canny-aecfc7d6.ckpt)           |
 |                  | Depth (MiDaS) |     SDXL 1.0     | LAION-Aesthetics V2 (3M)               |                                    | [Download](https://download.mindspore.cn/toolkits/mindone/t2i-adapters/adapter_xl_depth-5ce5acf2.ckpt)           |
 |                  | LineArt       |     SDXL 1.0     | LAION-Aesthetics V2 (3M)               |                                    | [Download](https://download.mindspore.cn/toolkits/mindone/t2i-adapters/adapter_xl_lineart-6110edd0.ckpt)         |
@@ -387,8 +387,8 @@ Experiments are tested on ascend 910* with mindspore 2.3.1 graph mode.
 
 
 |     model_name           | cards | batch size  | resolution |   sink | jit_level | graph compile  | s/step | img/s |
-|---------------------------:|-------|-------------|-------------|--------|---------|--------------|---------| ------|
-|segmentation_adapter_sd2.1 |      1  |      8     |   512x512    |   OFF   | O0    |     2 mins   |   0.38   |  21.05|
+|:------------------------:|:----:|:------------:|:----------:|:------:|:---------:|:--------------:|:---------:|:------:|
+|segmentation_adapter_sd2.1|   1  |      8      |   512x512   |   OFF  | O0    |     2 mins   |   0.38   |  21.05|
 
 
 

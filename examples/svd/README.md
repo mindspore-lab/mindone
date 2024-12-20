@@ -23,7 +23,7 @@ src="https://github.com/mindspore-lab/mindone/assets/16683750/e291f64d-fb49-4983
 
 
 | SD Base Version | SVD version | Trained for          | Config                      | Checkpoint                                                                                |
-|-----------------|-------------|----------------------|-----------------------------|-------------------------------------------------------------------------------------------|
+|:-----------------:|:-------------:|:----------------------:|:-----------------------------:|:-------------------------------------------------------------------------------------------:|
 | v2.0 & v2.1     | SVD         | 14 frames generation | [yaml](configs/svd.yaml)    | [Download (9GB)](https://download.mindspore.cn/toolkits/mindone/svd/svd-d19a808f.ckpt)    |
 |                 | SVD-XT      | 25 frames generation | [yaml](configs/svd_xt.yaml) | [Download (9GB)](https://download.mindspore.cn/toolkits/mindone/svd/svd_xt-993f895f.ckpt) |
 
@@ -101,9 +101,8 @@ python train.py --config=configs/svd_train.yaml \
 
 Experiments are tested on ascend 910* with mindspore 2.3.1 graph mode.
 
-
 |  model_name  | cards | batch size  | resolution | grad accu  |sink | jit_level | graph compile | s/step | recipe |
-|-------------:|-------|-------------|-------------|-----------|-----|---------|--------------|---------| ------|
+|:-------------:|:-------:|:-------------:|:-------------:|:-----------:|:-----:|:---------:|:--------------:|:---------:|:------:|
 |     svd     |    1  |      1     |   4x576x1024 |     5    |  OFF | O0    |     6 mins   |   1.18   | [yaml](configs/svd_train.yaml) |
 
 
