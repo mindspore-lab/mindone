@@ -387,13 +387,11 @@ Experiments are tested on ascend 910* with mindspore 2.3.1 graph mode.
 
 Experiments are tested on ascend 910* with mindspore 2.3.1 graph mode.
 
-<div align="center">
 
 |     model_name           | cards | batch size  | resolution |   sink | jit_level | graph compile  | s/step | img/s |
 |---------------------------:|-------|-------------|-------------|--------|---------|--------------|---------| ------|
 |segmentation_adapter_sd2.1 |      1  |      8     |   512x512    |   OFF   | O0    |     2 mins   |   0.38   |  21.05|
 
-</div>
 
 
 ### Data preparation

@@ -21,14 +21,12 @@ src="https://github.com/mindspore-lab/mindone/assets/16683750/e291f64d-fb49-4983
 
 ## Pretrained Models
 
-<div align="center">
 
 | SD Base Version | SVD version | Trained for          | Config                      | Checkpoint                                                                                |
 |-----------------|-------------|----------------------|-----------------------------|-------------------------------------------------------------------------------------------|
 | v2.0 & v2.1     | SVD         | 14 frames generation | [yaml](configs/svd.yaml)    | [Download (9GB)](https://download.mindspore.cn/toolkits/mindone/svd/svd-d19a808f.ckpt)    |
 |                 | SVD-XT      | 25 frames generation | [yaml](configs/svd_xt.yaml) | [Download (9GB)](https://download.mindspore.cn/toolkits/mindone/svd/svd_xt-993f895f.ckpt) |
 
-</div>
 
 The weights above were converted from the PyTorch version. If you want to convert another custom model, you can do so by
 using `svd_tools/convert.py`. For example:
