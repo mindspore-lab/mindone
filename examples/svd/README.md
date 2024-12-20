@@ -101,13 +101,11 @@ python train.py --config=configs/svd_train.yaml \
 
 Experiments are tested on ascend 910* with mindspore 2.3.1 graph mode.
 
-<div align="center">
 
 |  model_name  | cards | batch size  | resolution | grad accu  |sink | jit_level | graph compile | s/step | recipe |
 |-------------:|-------|-------------|-------------|-----------|-----|---------|--------------|---------| ------|
 |     svd     |    1  |      1     |   4x576x1024 |     5    |  OFF | O0    |     6 mins   |   1.18   | [yaml](configs/svd_train.yaml) |
 
-</div>
 
 > [!NOTE]
 > More details on the training arguments can be found in the [training config](configs/svd_train.yaml)
