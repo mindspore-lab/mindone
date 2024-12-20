@@ -1,0 +1,7 @@
+PyYAML
+tqdm
+omegaconf
+mindcv
+opencv-python
+albumentations
+decord
