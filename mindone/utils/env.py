@@ -10,6 +10,8 @@ except ImportError:
 import mindspore as ms
 from mindspore.communication import get_group_size, get_rank, init
 
+from .version_control import MS_VERSION
+
 _logger = logging.getLogger(__name__)
 
 
@@ -18,11 +20,11 @@ def init_train_env(
     device_target: Literal["Ascend", "GPU"] = "Ascend",
     debug: bool = False,
     seed: int = 42,
-    jit_level: str = "O0",
     cache_graph: bool = False,
     cache_path: str = "./cache",
     distributed: bool = False,
     ascend_config: Optional[dict] = None,
+    jit_level: Optional[Literal["O0", "O1", "O2"]] = None,
     enable_modelarts: bool = False,
     max_device_memory: str = None,
 ) -> Tuple[int, int, int]:
@@ -40,6 +42,8 @@ def init_train_env(
         cache_path: The path to save or load the saved computation graph.
         distributed: Whether to enable distributed training. Default is False.
         ascend_config: Parameters specific to the Ascend hardware platform.
+        jit_level: The compilation optimization level. Options: "O0", "O1", "O2".
+                   Default is None and the level selected based on the device.
         enable_modelarts: Whether to enable modelarts (OpenI) support. Default is False.
         max_device_memory (str, default: None): The maximum amount of memory that can be allocated on the Ascend device.
 
@@ -48,31 +52,23 @@ def init_train_env(
     """
     ms.set_seed(seed)
 
-    if mode == ms.GRAPH_MODE:
-        try:
-            if jit_level in ["O0", "O1", "O2"]:
-                ms.set_context(jit_config={"jit_level": jit_level})
-                _logger.info(f"set jit_level: {jit_level}.")
-            else:
-                _logger.warning(
-                    f"Unsupport jit_level: {jit_level}. The framework automatically selects the execution method"
-                )
-        except Exception:
-            _logger.warning(
-                "The current jit_level is not suitable because current MindSpore version does not match,"
-                "please ensure the MindSpore version >= ms2.3.0."
-            )
-
     if debug and mode == ms.GRAPH_MODE:  # force PyNative mode when debugging
         _logger.warning("Debug mode is on, switching execution mode to PyNative.")
         mode = ms.PYNATIVE_MODE
     if max_device_memory is not None:
         ms.set_context(max_device_memory=max_device_memory)
+    if jit_level:
+        if MS_VERSION >= "2.3":
+            ms.set_context(jit_config={"jit_level": jit_level})
+        else:
+            _logger.warning("Compilation optimization (JIT Level) is supported only in MindSpore 2.3 or later.")
+
     if distributed:
         ms.set_context(mode=mode, device_target=device_target, ascend_config=ascend_config or {})
         device_id = os.getenv("DEVICE_ID", None)
         if device_id:
             ms.set_context(device_id=int(device_id))
+
         init()
         device_num = get_group_size()
         rank_id = get_rank()
