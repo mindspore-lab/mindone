@@ -57,17 +57,15 @@ class Attention(nn.Cell):
             else nn.Identity()
         )
 
+    def rearrange_qkv(self, tensor: ms.Tensor):
+        # b n (h d) -> b n h d -> b h n d
+        tensor = ops.reshape(tensor, (tensor.shape[0], tensor.shape[1], self.heads, tensor.shape[2] // self.heads))
+        tensor = ops.transpose(tensor, (0, 2, 1, 3))
+        return tensor
+
     def construct(self, x):
-        h = self.heads
         qkv = self.to_qkv(x).chunk(3, axis=-1)
-
-        def rearrange_qkv(tensor: ms.Tensor):
-            # b n (h d) -> b n h d -> b h n d
-            tensor = ops.reshape(tensor, (tensor.shape[0], tensor.shape[1], h, tensor.shape[2] // h))
-            tensor = ops.transpose(tensor, (0, 2, 1, 3))
-            return tensor
-
-        q, k, v = map(rearrange_qkv, qkv)
+        q, k, v = [self.rearrange_qkv(i) for i in qkv]
         dots = ops.bmm(q, k.transpose(0, 1, 3, 2)) * self.scale
         attn = ops.softmax(dots.to(ms.float32)).to(self.dtype)
         out = ops.bmm(attn, v)
