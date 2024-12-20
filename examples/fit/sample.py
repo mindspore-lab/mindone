@@ -39,9 +39,7 @@ def init_env(args):
     ms.set_context(mode=args.mode)  # needed for MS2.0
     device_id = int(os.getenv("DEVICE_ID", 0))
     ms.set_context(
-        mode=args.mode,
-        device_target=args.device_target,
-        device_id=device_id,
+        mode=args.mode, device_target=args.device_target, device_id=device_id, jit_config={"jit_level": args.jit_level}
     )
 
     return device_id
@@ -114,6 +112,16 @@ def parse_args():
     )
     parser.add_argument("--ddim_sampling", type=str2bool, default=True, help="Whether to use DDIM for sampling")
     parser.add_argument("--imagegrid", default=False, type=str2bool, help="Save the image in image-grids format.")
+    parser.add_argument(
+        "--jit_level",
+        default="O0",
+        type=str,
+        choices=["O0", "O1", "O2"],
+        help="Used to control the compilation optimization level. Supports [“O0”, “O1”, “O2”]."
+        "O0: Except for optimizations that may affect functionality, all other optimizations are turned off, adopt KernelByKernel execution mode."
+        "O1: Using commonly used optimizations and automatic operator fusion optimizations, adopt KernelByKernel execution mode."
+        "O2: Ultimate performance optimization, adopt Sink execution mode.",
+    )
     default_args = parser.parse_args()
     abs_path = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), ""))
     if default_args.config:

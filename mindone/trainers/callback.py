@@ -63,6 +63,7 @@ class EvalSaveCallback(Callback):
         integrated_save=False,
         save_training_resume=True,
         train_steps=-1,
+        prefer_low_perf=False,
     ):
         """
         Args:
@@ -103,6 +104,7 @@ class EvalSaveCallback(Callback):
                 ckpt_save_policy,
                 k=ckpt_max_keep,
                 integrated_save=integrated_save,
+                prefer_low_perf=prefer_low_perf,
             )
             if self.start_epoch == 0:
                 if self.record_lr:
@@ -278,7 +280,9 @@ class EvalSaveCallback(Callback):
                     self.ema.swap_before_eval()
 
                 # save history checkpoints
-                self.ckpt_manager.save(self.net_to_save, None, ckpt_name=ckpt_name, append_dict=append_dict)
+                self.ckpt_manager.save(
+                    self.net_to_save, perf=cb_params["net_outputs"], ckpt_name=ckpt_name, append_dict=append_dict
+                )
 
                 if self.save_training_resume:
                     ms.save_checkpoint(
@@ -300,16 +304,16 @@ class EvalSaveCallback(Callback):
     def on_train_end(self, run_context):
         if self.is_main_device:
             if self.ckpt_save_policy == "top_k":
-                log_str = f"Top K checkpoints:\n{self.main_indicator}\tcheckpoint\n"
+                log_str = f"Top K checkpoints: \n{self.main_indicator}\tcheckpoint\n"
                 for p, ckpt_name in self.ckpt_manager.get_ckpt_queue():
-                    log_str += f"{p:.4f}\t{os.path.join(self.ckpt_save_dir, ckpt_name)}\n"
+                    log_str += f"{p: .4f}\t{os.path.join(self.ckpt_save_dir, ckpt_name)}\n"
 
     def on_eval_end(self, run_context):
         if self.is_main_device:
             cb_params = run_context.original_args()
             metrics = cb_params.get("metrics")
             if metrics is not None:
-                metrics = {k: f"{v:.4f}" for k, v in metrics.items()}
+                metrics = {k: f"{v: .4f}" for k, v in metrics.items()}
                 _logger.info(f"Eval result epoch {cb_params.cur_epoch_num}: {metrics}")
 
     def _get_optimizer_from_cbp(self, cb_params):

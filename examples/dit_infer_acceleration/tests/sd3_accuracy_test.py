@@ -52,7 +52,7 @@ def get_model(args):
     return model_clip, preprocess, tokenizer, device
 
 
-def calculate_clip_score(model_clip, preprocess, tokenizer, device, data_path, threshold):
+def calculate_clip_score(model_clip, preprocess, tokenizer, device, data_path):
     all_scores = 0
     for i, prompt in enumerate(PROMPTS):
         print(f"prompt: [{prompt}]")

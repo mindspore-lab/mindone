@@ -129,10 +129,12 @@ python inference.py \
 ```
 
 ### Gradio Demo
+
 To launch the web demo, follow these steps:
 
 1. Install Gradio:
-```bash
+
+```shell
 pip install gradio
 ```
 
@@ -150,8 +152,8 @@ python gradio_demo.py \
 --num_frames 32  
 --save_format mp4
 ```
-Note: Make sure to replace the `/path/to/` placeholders with your actual model and embedding paths.
 
+Note: Make sure to replace the `/path/to/` placeholders with your actual model and embedding paths.
 
 ## Training
 
