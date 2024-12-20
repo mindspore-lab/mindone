@@ -1,1 +1,1 @@
-datasets/Open-Sora-Plan-v1.2.0,datasets/Open-Sora-Plan-v1.2.0/mixkit_emb-len=512,datasets/Open-Sora-Plan-v1.2.0/v1.1.0_HQ_part1_Traffic_train.json
+datasets/Open-Sora-Plan-v1.3.0/videos_16/,datasets/Open-Sora-Plan-v1.3.0/videos_16_emb-len=512,datasets/Open-Sora-Plan-v1.3.0/opendv_vid16.json
