@@ -13,11 +13,4 @@
 # limitations under the License.
 
 
-from .modeling_lrm import ModelLRM
-from .lrm_with_loss import ModelLRMWithLoss
-
-
-model_dict = {
-    'lrm': ModelLRM,
-    'lrmwithloss': ModelLRMWithLoss
-}
+from .lrm import LRMTrainer

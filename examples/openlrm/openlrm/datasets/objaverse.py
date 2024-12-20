@@ -41,7 +41,7 @@ class ObjaverseDataset(BaseDataset):
         source_image_res: int, 
         normalize_camera: bool,
         normed_dist_to_center: Union[float, str] = None, 
-        num_all_views: int = 32
+        num_all_views: int = 16 #32
     ):
         super().__init__(root_dirs, meta_path)
         self.sample_side_views = sample_side_views
@@ -106,14 +106,18 @@ class ObjaverseDataset(BaseDataset):
 
         # adjust source image resolution
         source_image = ops.interpolate(
-            source_image, size=(self.source_image_res, self.source_image_res), mode='bicubic', align_corners=True).squeeze(0)
-        source_image = mint.clamp(source_image, 0, 1)
+            source_image, 
+            size=(self.source_image_res, self.source_image_res), 
+            mode='bicubic', 
+            align_corners=True
+            ).squeeze(0)
+        source_image = mint.clamp(source_image, 0., 1.)
 
         # adjust render image resolution and sample intended rendering region
         render_image_res = np.random.randint(self.render_image_res_low, self.render_image_res_high + 1)
         render_image = ops.interpolate(
             rgbs, size=(render_image_res, render_image_res), mode='bicubic', align_corners=True)
-        render_image = mint.clamp(render_image, 0, 1)
+        render_image = mint.clamp(render_image, 0., 1.)
         anchors = ops.randint(
             0, render_image_res - self.render_region_size + 1, size=(self.sample_side_views + 1, 2))
         crop_indices = ops.arange(0, self.render_region_size)

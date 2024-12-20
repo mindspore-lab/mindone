@@ -33,6 +33,7 @@ from openlrm.utils.video import images_to_video
 from openlrm.utils.hf_hub import wrap_model_hub
 from openlrm.utils import no_grad
 
+import time
 
 logger = getLogger(__name__)
 
@@ -130,7 +131,7 @@ class LRMInferrer(Inferrer):
     def _build_model(self, cfg):
         from openlrm.models import model_dict
         hf_model_cls = wrap_model_hub(model_dict[self.EXP_TYPE])
-        model = hf_model_cls.from_pretrained(cfg.model_name)
+        model = hf_model_cls.from_pretrained(cfg.model_name, use_safetensors=True)
         return model
 
     def _default_source_camera(self, dist_to_center: float = 2.0, batch_size: int = 1):
@@ -237,16 +238,23 @@ class LRMInferrer(Inferrer):
         image = ops.clamp(image, 0., 1.)
 
         with no_grad():
+            start_time = time.time()
             planes = self.infer_planes(image, source_cam_dist=source_cam_dist)
+            print("Infer Image2Triplane time elapsed: %.4f sec"%(time.time()-start_time))
+           
 
             results = {}
             if export_video:
+                start_time = time.time()
                 frames = self.infer_video(planes, frame_size=frame_size, render_size=render_size, render_views=render_views, render_fps=render_fps, dump_video_path=dump_video_path)
+                print("Render video time elapsed: %.4f sec"%(time.time()-start_time))
                 results.update({
                     'frames': frames,
                 })
             if export_mesh:
+                start_time = time.time()
                 mesh = self.infer_mesh(planes, mesh_size=mesh_size, mesh_thres=mesh_thres, dump_mesh_path=dump_mesh_path)
+                print("Infer and export mesh time elapsed: %.4f sec"%(time.time()-start_time))
                 results.update({
                     'mesh': mesh,
                 })

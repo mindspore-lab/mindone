@@ -33,7 +33,8 @@ class ModelLRM(nn.Cell):
                  transformer_dim: int, transformer_layers: int, transformer_heads: int,
                  triplane_low_res: int, triplane_high_res: int, triplane_dim: int,
                  encoder_freeze: bool = True, encoder_type: str = 'dino',
-                 encoder_model_name: str = 'facebook/dino-vitb16', encoder_feat_dim: int = 768):
+                 encoder_model_name: str = 'facebook/dino-vitb16', encoder_feat_dim: int = 768,
+                 dtype=ms.float32):
         super().__init__()
         
         # attributes
