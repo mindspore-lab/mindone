@@ -3,15 +3,27 @@ import json
 import logging
 import math
 import os
+import pickle
 import random
+import time
 from collections import Counter
+from concurrent.futures import ThreadPoolExecutor
 from os.path import join as opj
 from pathlib import Path
 
+import cv2
+import decord
 import numpy as np
-from opensora.utils.dataset_utils import DecordInit
+from opensora.dataset.transform import (
+    add_aesthetic_notice_image,
+    add_aesthetic_notice_video,
+    calculate_statistics,
+    get_params,
+    maxhwresize,
+)
 from opensora.utils.utils import text_preprocessing
 from PIL import Image
+from tqdm import tqdm
 
 logger = logging.getLogger(__name__)
 
@@ -84,10 +96,40 @@ class DataSetProg(metaclass=SingletonMeta):
 dataset_prog = DataSetProg()
 
 
-def find_closest_y(x, vae_stride_t=4, model_ds_t=4):
-    if x < 29:
+class DecordDecoder(object):
+    def __init__(self, url, num_threads=1):
+        self.num_threads = num_threads
+        self.ctx = decord.cpu(0)
+        self.reader = decord.VideoReader(url, ctx=self.ctx, num_threads=self.num_threads)
+
+    def get_avg_fps(self):
+        return self.reader.get_avg_fps() if self.reader.get_avg_fps() > 0 else 30.0
+
+    def get_num_frames(self):
+        return len(self.reader)
+
+    def get_height(self):
+        return self.reader[0].shape[0] if self.get_num_frames() > 0 else 0
+
+    def get_width(self):
+        return self.reader[0].shape[1] if self.get_num_frames() > 0 else 0
+
+    # output shape [T, H, W, C]
+    def get_batch(self, frame_indices):
+        try:
+            # frame_indices[0] = 1000
+            video_data = self.reader.get_batch(frame_indices).asnumpy()
+            return video_data
+        except Exception as e:
+            print("get_batch execption:", e)
+            return None
+
+
+def find_closest_y(x, vae_stride_t=4, model_ds_t=1):
+    min_num_frames = 29
+    if x < min_num_frames:
         return -1
-    for y in range(x, 12, -1):
+    for y in range(x, min_num_frames - 1, -1):
         if (y - 1) % vae_stride_t == 0 and ((y - 1) // vae_stride_t + 1) % model_ds_t == 0:
             return y
     return -1
@@ -102,79 +144,334 @@ def filter_resolution(h, w, max_h_div_w_ratio=17 / 16, min_h_div_w_ratio=8 / 16)
 class T2V_dataset:
     def __init__(
         self,
-        data,
-        num_frames: int = 29,
-        train_fps: int = 24,
-        use_image_num: int = 0,
-        use_img_from_vid: bool = False,
-        model_max_length: int = 512,
-        cfg: float = 0.1,
-        speed_factor: float = 1.0,
-        max_height: int = 480,
-        max_width: int = 640,
-        drop_short_ratio: float = 1.0,
-        dataloader_num_workers: int = 10,
-        text_encoder_name: str = "google/mt5-xxl",
-        transform=None,
-        temporal_sample=None,
-        tokenizer=None,
-        transform_topcrop=None,
+        args,
+        transform,
+        temporal_sample,
+        tokenizer_1,
+        tokenizer_2,
         filter_nonexistent=True,
         return_text_emb=False,
     ):
-        self.data = data
-        self.num_frames = num_frames
-        self.train_fps = train_fps
-        self.use_image_num = use_image_num
-        self.use_img_from_vid = use_img_from_vid
+        self.data = args.data
+        self.num_frames = args.num_frames
+        self.train_fps = args.train_fps
         self.transform = transform
-        self.transform_topcrop = transform_topcrop
         self.temporal_sample = temporal_sample
-        self.tokenizer = tokenizer
-        self.model_max_length = model_max_length
-        self.cfg = cfg
-        self.speed_factor = speed_factor
-        self.max_height = max_height
-        self.max_width = max_width
-        self.drop_short_ratio = drop_short_ratio
+        self.tokenizer_1 = tokenizer_1
+        self.tokenizer_2 = tokenizer_2
+        self.model_max_length = args.model_max_length
+        self.cfg = args.cfg
+        self.speed_factor = args.speed_factor
+        self.max_height = args.max_height
+        self.max_width = args.max_width
+        self.drop_short_ratio = args.drop_short_ratio
+        self.hw_stride = args.hw_stride
+        self.force_resolution = args.force_resolution
+        self.max_hxw = args.max_hxw
+        self.min_hxw = args.min_hxw
+        self.sp_size = args.sp_size
         assert self.speed_factor >= 1
-        self.v_decoder = DecordInit()
+        self.video_reader = "decord" if args.use_decord else "opencv"
+        self.ae_stride_t = args.ae_stride_t
+        self.total_batch_size = args.total_batch_size
+        self.seed = args.seed
+        self.generator = np.random.default_rng(self.seed)
+        self.hw_aspect_thr = 2.0  # just a threshold
+        self.too_long_factor = 10.0  # set this threshold larger for longer video datasets
         self.filter_nonexistent = filter_nonexistent
         self.return_text_emb = return_text_emb
         if self.return_text_emb and self.cfg > 0:
             logger.warning(f"random text drop ratio {self.cfg} will be ignored when text embeddings are cached.")
         self.duration_threshold = 100.0
 
-        self.support_Chinese = True
-        if not ("mt5" in text_encoder_name):
-            self.support_Chinese = False
-
-        cap_list = self.get_cap_list()
-        if self.filter_nonexistent:
-            cap_list = self.filter_nonexistent_files(cap_list)
-
-        assert len(cap_list) > 0
-        cap_list, self.sample_num_frames = self.define_frame_index(cap_list)
-        self.lengths = self.sample_num_frames
+        self.support_Chinese = False
+        if "mt5" in args.text_encoder_name_1:
+            self.support_Chinese = True
+        if args.text_encoder_name_2 is not None and "mt5" in args.text_encoder_name_2:
+            self.support_Chinese = True
+        s = time.time()
+        cap_list, self.sample_size, self.shape_idx_dict = self.define_frame_index(self.data)
+        e = time.time()
+        print(f"Build data time: {e-s}")
+        self.lengths = self.sample_size
 
         n_elements = len(cap_list)
-        dataset_prog.set_cap_list(dataloader_num_workers, cap_list, n_elements)
+        dataset_prog.set_cap_list(args.dataloader_num_workers, cap_list, n_elements)
+        print(f"Data length: {len(dataset_prog.cap_list)}")
+        self.executor = ThreadPoolExecutor(max_workers=1)
+        self.timeout = 60
 
-        print(f"video length: {len(dataset_prog.cap_list)}", flush=True)
+    def define_frame_index(self, data):
+        shape_idx_dict = {}
+        new_cap_list = []
+        sample_size = []
+        aesthetic_score = []
+        cnt_vid = 0
+        cnt_img = 0
+        cnt_too_long = 0
+        cnt_too_short = 0
+        cnt_no_cap = 0
+        cnt_no_resolution = 0
+        cnt_no_aesthetic = 0
+        cnt_img_res_mismatch_stride = 0
+        cnt_vid_res_mismatch_stride = 0
+        cnt_img_aspect_mismatch = 0
+        cnt_vid_aspect_mismatch = 0
+        cnt_img_res_too_small = 0
+        cnt_vid_res_too_small = 0
+        cnt_vid_after_filter = 0
+        cnt_img_after_filter = 0
+        cnt_no_existent = 0
+        cnt = 0
 
-    def filter_nonexistent_files(self, cap_list):
-        indexes_to_remove = []
-        for i, item in enumerate(cap_list):
-            path = item["path"]
-            if not os.path.exists(path):
-                second_path = path.replace("_resize1080p.mp4", ".mp4")
-                if os.path.exists(second_path):
-                    cap_list[i]["path"] = second_path
+        with open(data, "r") as f:
+            folder_anno = [i.strip().split(",") for i in f.readlines() if len(i.strip()) > 0]
+        assert len(folder_anno) > 0, "input dataset file cannot be empty!"
+        for input_dataset in tqdm(folder_anno):
+            text_embed_folder_1, text_embed_folder_2 = None, None
+            if len(input_dataset) == 2:
+                assert not self.return_text_emb, "Train without text embedding cache!"
+            elif len(input_dataset) == 3:
+                text_embed_folder_1 = input_dataset[1]
+                sub_root, anno = input_dataset[0], input_dataset[-1]
+            elif len(input_dataset) == 4:
+                text_embed_folder_1 = input_dataset[1]
+                text_embed_folder_2 = input_dataset[2]
+                sub_root, anno = input_dataset[0], input_dataset[-1]
+            else:
+                raise ValueError("Not supported input dataset file!")
+
+            print(f"Building {anno}...")
+            if anno.endswith(".json"):
+                with open(anno, "r") as f:
+                    sub_list = json.load(f)
+            elif anno.endswith(".pkl"):
+                with open(anno, "rb") as f:
+                    sub_list = pickle.load(f)
+            for index, i in enumerate(tqdm(sub_list)):
+                cnt += 1
+                path = os.path.join(sub_root, i["path"])
+                if self.filter_nonexistent:
+                    if not os.path.exists(path):
+                        cnt_no_existent += 1
+                        continue
+
+                if self.return_text_emb:
+                    text_embeds_paths = self.get_text_embed_file_path(i)
+                    if text_embed_folder_1 is not None:
+                        i["text_embed_path_1"] = [opj(text_embed_folder_1, tp) for tp in text_embeds_paths]
+                        if any([not os.path.exists(p) for p in i["text_embed_path_1"]]):
+                            cnt_no_existent += 1
+                            continue
+                    if text_embed_folder_2 is not None:
+                        i["text_embed_path_2"] = [opj(text_embed_folder_2, tp) for tp in text_embeds_paths]
+                        if any([not os.path.exists(p) for p in i["text_embed_path_2"]]):
+                            cnt_no_existent += 1
+                            continue
+
+                if path.endswith(".mp4"):
+                    cnt_vid += 1
+                elif path.endswith(".jpg"):
+                    cnt_img += 1
+
+                # ======no aesthetic=====
+                if i.get("aesthetic", None) is None or i.get("aes", None) is None:
+                    cnt_no_aesthetic += 1
                 else:
-                    indexes_to_remove.append(i)
-        cap_list = [item for i, item in enumerate(cap_list) if i not in indexes_to_remove]
-        logger.info(f"Nonexistent files: {len(indexes_to_remove)}")
-        return cap_list
+                    aesthetic_score.append(i.get("aesthetic", None) or i.get("aes", None))
+
+                # ======no caption=====
+                cap = i.get("cap", None)
+                if cap is None:
+                    cnt_no_cap += 1
+                    continue
+
+                # ======resolution mismatch=====
+                i["path"] = path
+                assert (
+                    "resolution" in i
+                ), "Expect that each element in the provided datset should have a item named `resolution`"
+                if i.get("resolution", None) is None:
+                    cnt_no_resolution += 1
+                    continue
+                else:
+                    assert (
+                        "height" in i["resolution"] and "width" in i["resolution"]
+                    ), "Expect that each element has `resolution: \\{'height': int, 'width': int,\\}`"
+                    if i["resolution"].get("height", None) is None or i["resolution"].get("width", None) is None:
+                        cnt_no_resolution += 1
+                        continue
+                    else:
+                        height, width = i["resolution"]["height"], i["resolution"]["width"]
+                        if not self.force_resolution:
+                            if height <= 0 or width <= 0:
+                                cnt_no_resolution += 1
+                                continue
+
+                            tr_h, tr_w = maxhwresize(height, width, self.max_hxw)
+                            _, _, sample_h, sample_w = get_params(tr_h, tr_w, self.hw_stride)
+
+                            if sample_h <= 0 or sample_w <= 0:
+                                if path.endswith(".mp4"):
+                                    cnt_vid_res_mismatch_stride += 1
+                                elif path.endswith(".jpg"):
+                                    cnt_img_res_mismatch_stride += 1
+                                continue
+
+                            # filter min_hxw
+                            if sample_h * sample_w < self.min_hxw:
+                                if path.endswith(".mp4"):
+                                    cnt_vid_res_too_small += 1
+                                elif path.endswith(".jpg"):
+                                    cnt_img_res_too_small += 1
+                                continue
+
+                            # filter aspect
+                            is_pick = filter_resolution(
+                                sample_h,
+                                sample_w,
+                                max_h_div_w_ratio=self.hw_aspect_thr,
+                                min_h_div_w_ratio=1 / self.hw_aspect_thr,
+                            )
+                            if not is_pick:
+                                if path.endswith(".mp4"):
+                                    cnt_vid_aspect_mismatch += 1
+                                elif path.endswith(".jpg"):
+                                    cnt_img_aspect_mismatch += 1
+                                continue
+
+                            i["resolution"].update(dict(sample_height=sample_h, sample_width=sample_w))
+
+                        else:
+                            aspect = self.max_height / self.max_width
+                            is_pick = filter_resolution(
+                                height,
+                                width,
+                                max_h_div_w_ratio=self.hw_aspect_thr * aspect,
+                                min_h_div_w_ratio=1 / self.hw_aspect_thr * aspect,
+                            )
+                            if not is_pick:
+                                if path.endswith(".mp4"):
+                                    cnt_vid_aspect_mismatch += 1
+                                elif path.endswith(".jpg"):
+                                    cnt_img_aspect_mismatch += 1
+                                continue
+                            sample_h, sample_w = self.max_height, self.max_width
+
+                            i["resolution"].update(dict(sample_height=sample_h, sample_width=sample_w))
+
+                if path.endswith(".mp4"):
+                    fps = i.get("fps", 24)
+                    # max 5.0 and min 1.0 are just thresholds to filter some videos which have suitable duration.
+                    assert (
+                        "num_frames" in i
+                    ), "Expect that each element in the provided datset should have a item named `num_frames`"
+                    if i["num_frames"] > self.too_long_factor * (
+                        self.num_frames * fps / self.train_fps * self.speed_factor
+                    ):  # too long video is not suitable for this training stage (self.num_frames)
+                        cnt_too_long += 1
+                        continue
+
+                    # resample in case high fps, such as 50/60/90/144 -> train_fps(e.g, 24)
+                    frame_interval = 1.0 if abs(fps - self.train_fps) < 0.1 else fps / self.train_fps
+                    start_frame_idx = i.get("cut", [0])[0]
+                    i["start_frame_idx"] = start_frame_idx
+                    frame_indices = np.arange(
+                        start_frame_idx, start_frame_idx + i["num_frames"], frame_interval
+                    ).astype(int)
+                    frame_indices = frame_indices[frame_indices < start_frame_idx + i["num_frames"]]
+
+                    # comment out it to enable dynamic frames training
+                    if len(frame_indices) < self.num_frames and self.generator.random() < self.drop_short_ratio:
+                        cnt_too_short += 1
+                        continue
+
+                    #  too long video will be temporal-crop randomly
+                    if len(frame_indices) > self.num_frames:
+                        begin_index, end_index = self.temporal_sample(len(frame_indices))
+                        frame_indices = frame_indices[begin_index:end_index]
+                        # frame_indices = frame_indices[:self.num_frames]  # head crop
+                    # to find a suitable end_frame_idx, to ensure we do not need pad video
+                    end_frame_idx = find_closest_y(
+                        len(frame_indices), vae_stride_t=self.ae_stride_t, model_ds_t=self.sp_size
+                    )
+                    if end_frame_idx == -1:  # too short that can not be encoded exactly by videovae
+                        cnt_too_short += 1
+                        continue
+                    frame_indices = frame_indices[:end_frame_idx]
+
+                    i["sample_frame_index"] = frame_indices.tolist()
+
+                    new_cap_list.append(i)
+                    cnt_vid_after_filter += 1
+
+                elif path.endswith(".jpg"):  # image
+                    cnt_img_after_filter += 1
+                    i["sample_frame_index"] = [0]
+                    new_cap_list.append(i)
+
+                else:
+                    raise NameError(
+                        f"Unknown file extention {path.split('.')[-1]}, only support .mp4 for video and .jpg for image"
+                    )
+
+                pre_define_shape = f"{len(i['sample_frame_index'])}x{sample_h}x{sample_w}"
+                sample_size.append(pre_define_shape)
+                # if shape_idx_dict.get(pre_define_shape, None) is None:
+                #     shape_idx_dict[pre_define_shape] = [index]
+                # else:
+                #     shape_idx_dict[pre_define_shape].append(index)
+        counter = Counter(sample_size)
+        counter_cp = counter
+        if not self.force_resolution and self.max_hxw is not None and self.min_hxw is not None:
+            assert all(
+                [np.prod(np.array(k.split("x")[1:]).astype(np.int32)) <= self.max_hxw for k in counter_cp.keys()]
+            )
+            assert all(
+                [np.prod(np.array(k.split("x")[1:]).astype(np.int32)) >= self.min_hxw for k in counter_cp.keys()]
+            )
+
+        len_before_filter_major = len(sample_size)
+        filter_major_num = 4 * self.total_batch_size
+        new_cap_list, sample_size = zip(
+            *[[i, j] for i, j in zip(new_cap_list, sample_size) if counter[j] >= filter_major_num]
+        )
+        for idx, shape in enumerate(sample_size):
+            if shape_idx_dict.get(shape, None) is None:
+                shape_idx_dict[shape] = [idx]
+            else:
+                shape_idx_dict[shape].append(idx)
+        cnt_filter_minority = len_before_filter_major - len(sample_size)
+        counter = Counter(sample_size)
+
+        print(
+            f"no_cap: {cnt_no_cap}, no_resolution: {cnt_no_resolution}\n"
+            f"too_long: {cnt_too_long}, too_short: {cnt_too_short}\n"
+            f"cnt_img_res_mismatch_stride: {cnt_img_res_mismatch_stride}, cnt_vid_res_mismatch_stride: {cnt_vid_res_mismatch_stride}\n"
+            f"cnt_img_res_too_small: {cnt_img_res_too_small}, cnt_vid_res_too_small: {cnt_vid_res_too_small}\n"
+            f"cnt_img_aspect_mismatch: {cnt_img_aspect_mismatch}, cnt_vid_aspect_mismatch: {cnt_vid_aspect_mismatch}\n"
+            f"cnt_filter_minority: {cnt_filter_minority}\n"
+            f"cnt_no_existent: {cnt_no_existent}\n"
+            if self.filter_nonexistent
+            else ""
+            f"Counter(sample_size): {counter}\n"
+            f"cnt_vid: {cnt_vid}, cnt_vid_after_filter: {cnt_vid_after_filter}, use_ratio: {round(cnt_vid_after_filter/(cnt_vid+1e-6), 5)*100}%\n"
+            f"cnt_img: {cnt_img}, cnt_img_after_filter: {cnt_img_after_filter}, use_ratio: {round(cnt_img_after_filter/(cnt_img+1e-6), 5)*100}%\n"
+            f"before filter: {cnt}, after filter: {len(new_cap_list)}, use_ratio: {round(len(new_cap_list)/cnt, 5)*100}%"
+        )
+        # import ipdb;ipdb.set_trace()
+
+        if len(aesthetic_score) > 0:
+            stats_aesthetic = calculate_statistics(aesthetic_score)
+            print(
+                f"before filter: {cnt}, after filter: {len(new_cap_list)}\n"
+                f"aesthetic_score: {len(aesthetic_score)}, cnt_no_aesthetic: {cnt_no_aesthetic}\n"
+                f"{len([i for i in aesthetic_score if i>=5.75])} > 5.75, 4.5 > {len([i for i in aesthetic_score if i<=4.5])}\n"
+                f"Mean: {stats_aesthetic['mean']}, Var: {stats_aesthetic['variance']}, Std: {stats_aesthetic['std_dev']}\n"
+                f"Min: {stats_aesthetic['min']}, Max: {stats_aesthetic['max']}"
+            )
+
+        return new_cap_list, sample_size, shape_idx_dict
 
     def set_checkpoint(self, n_used_elements):
         for i in range(len(dataset_prog.n_used_elements)):
@@ -185,16 +482,16 @@ class T2V_dataset:
 
     def __getitem__(self, idx):
         try:
-            data = self.get_data(idx)
+            future = self.executor.submit(self.get_data, idx)
+            data = future.result(timeout=self.timeout)
+            # data = self.get_data(idx)
             return data
         except Exception as e:
-            logger.info(f"Error with {e}")
-            # 打印异常堆栈
-            if idx in dataset_prog.cap_list:
-                logger.info(f"Caught an exception! {dataset_prog.cap_list[idx]}")
-            # traceback.print_exc()
-            # traceback.print_stack()
-            return self.__getitem__(random.randint(0, self.__len__() - 1))
+            if len(str(e)) < 2:
+                e = f"TimeoutError, {self.timeout}s timeout occur with {dataset_prog.cap_list[idx]['path']}"
+            print(f"Error with {e}")
+            index_cand = self.shape_idx_dict[self.sample_size[idx]]  # pick same shape
+            return self.__getitem__(random.choice(index_cand))
 
     def get_data(self, idx):
         path = dataset_prog.cap_list[idx]["path"]
@@ -204,202 +501,233 @@ class T2V_dataset:
             return self.get_image(idx)
 
     def get_video(self, idx):
-        video_path = dataset_prog.cap_list[idx]["path"]
+        video_data = dataset_prog.cap_list[idx]
+        video_path = video_data["path"]
         assert os.path.exists(video_path), f"file {video_path} do not exist!"
-        frame_indice = dataset_prog.cap_list[idx]["sample_frame_index"]
-        video = self.decord_read(video_path, predefine_num_frames=len(frame_indice))  # (T H W C)
+        sample_h = video_data["resolution"]["sample_height"]
+        sample_w = video_data["resolution"]["sample_width"]
+        if self.video_reader == "decord":
+            video = self.decord_read(video_data)
+        elif self.video_reader == "opencv":
+            video = self.opencv_read(video_data)
+        else:
+            NotImplementedError(f"Found {self.video_reader}, but support decord or opencv")
 
-        h, w = video.shape[1:3]
-        # NOTE: not suitable for 1:1 training in v1.3
-        # assert h / w <= 17 / 16 and h / w >= 8 / 16, (
-        #     f"Only videos with a ratio (h/w) less than 17/16 and more than 8/16 are supported. But video ({video_path}) "
-        #     + f"found ratio is {round(h / w, 2)} with the shape of {video.shape}"
-        # )
+        h, w = video.shape[1:3]  # (T, H, W, C)
         input_videos = {"image": video[0]}
         input_videos.update(dict([(f"image{i}", video[i + 1]) for i in range(len(video) - 1)]))
         output_videos = self.transform(**input_videos)
         video = np.stack([v for _, v in output_videos.items()], axis=0).transpose(3, 0, 1, 2)  # T H W C -> C T H W
-
+        assert (
+            video.shape[2] == sample_h and video.shape[3] == sample_w
+        ), f"sample_h ({sample_h}), sample_w ({sample_w}), video ({video.shape})"
         # get token ids and attention mask if not self.return_text_emb
         if not self.return_text_emb:
-            text = dataset_prog.cap_list[idx]["cap"]
+            text = video_data["cap"]
             if not isinstance(text, list):
                 text = [text]
             text = [random.choice(text)]
+            if video_data.get("aesthetic", None) is not None or video_data.get("aes", None) is not None:
+                aes = video_data.get("aesthetic", None) or video_data.get("aes", None)
+                text = [add_aesthetic_notice_video(text[0], aes)]
+            text = text_preprocessing(text, support_Chinese=self.support_Chinese)
 
-            text = text_preprocessing(text, support_Chinese=self.support_Chinese) if random.random() > self.cfg else ""
-            text_tokens_and_mask = self.tokenizer(
+            text = text if random.random() > self.cfg else ""
+
+            text_tokens_and_mask_1 = self.tokenizer_1(
                 text,
                 max_length=self.model_max_length,
                 padding="max_length",
                 truncation=True,
                 return_attention_mask=True,
                 add_special_tokens=True,
-                return_tensors="np",
+                return_tensors="pt",
             )
-            input_ids = text_tokens_and_mask["input_ids"]
-            cond_mask = text_tokens_and_mask["attention_mask"]
-            return dict(pixel_values=video, input_ids=input_ids, cond_mask=cond_mask)
+            input_ids_1 = text_tokens_and_mask_1["input_ids"]
+            cond_mask_1 = text_tokens_and_mask_1["attention_mask"]
+
+            input_ids_2, cond_mask_2 = None, None
+            if self.tokenizer_2 is not None:
+                text_tokens_and_mask_2 = self.tokenizer_2(
+                    text,
+                    max_length=self.tokenizer_2.model_max_length,
+                    padding="max_length",
+                    truncation=True,
+                    return_attention_mask=True,
+                    add_special_tokens=True,
+                    return_tensors="pt",
+                )
+                input_ids_2 = text_tokens_and_mask_2["input_ids"]
+                cond_mask_2 = text_tokens_and_mask_2["attention_mask"]
+            return dict(
+                pixel_values=video,
+                input_ids_1=input_ids_1,
+                cond_mask_1=cond_mask_1,
+                input_ids_2=input_ids_2,
+                cond_mask_2=cond_mask_2,
+            )
+
         else:
-            text_embed_paths = dataset_prog.cap_list[idx]["text_embed_path"]
-            text_embed_path = random.choice(text_embed_paths)
-            text_emb, cond_mask = self.parse_text_emb(text_embed_path)
-            return dict(pixel_values=video, input_ids=text_emb, cond_mask=cond_mask)
+            if "text_embed_path_1" in video_data:
+                text_embed_paths = video_data["text_embed_path_1"]
+                text_embed_path = random.choice(text_embed_paths)
+                text_emb_1, cond_mask_1 = self.parse_text_emb(text_embed_path)
+            text_emb_2, cond_mask_2 = None, None
+            if "text_embed_path_2" in video_data:
+                text_embed_paths = video_data["text_embed_path_2"]
+                text_embed_path = random.choice(text_embed_paths)
+                text_emb_2, cond_mask_2 = self.parse_text_emb(text_embed_path)
+            return dict(
+                pixel_values=video,
+                input_ids_1=text_emb_1,
+                cond_mask_1=cond_mask_1,
+                input_ids_2=text_emb_2,
+                cond_mask_2=cond_mask_2,
+            )
 
     def get_image(self, idx):
         image_data = dataset_prog.cap_list[idx]  # [{'path': path, 'cap': cap}, ...]
-
+        sample_h = image_data["resolution"]["sample_height"]
+        sample_w = image_data["resolution"]["sample_width"]
         # import ipdb;ipdb.set_trace()
         image = Image.open(image_data["path"]).convert("RGB")  # [h, w, c]
         image = np.array(image)  # [h, w, c]
 
-        image = (
-            self.transform_topcrop(image=image)["image"]
-            if "human_images" in image_data["path"]
-            else self.transform(image=image)["image"]
-        )
+        image = self.transform(image=image)["image"]
         #  [h, w, c] -> [c h w] -> [C 1 H W]
         image = image.transpose(2, 0, 1)[:, None, ...]
+        assert (
+            image.shape[2] == sample_h and image.shape[3] == sample_w
+        ), f"image_data: {image_data}, but found image {image.shape}"
         # get token ids and attention mask if not self.return_text_emb
         if not self.return_text_emb:
             caps = image_data["cap"] if isinstance(image_data["cap"], list) else [image_data["cap"]]
             caps = [random.choice(caps)]
+            if image_data.get("aesthetic", None) is not None or image_data.get("aes", None) is not None:
+                aes = image_data.get("aesthetic", None) or image_data.get("aes", None)
+                caps = [add_aesthetic_notice_image(caps[0], aes)]
             text = text_preprocessing(caps, support_Chinese=self.support_Chinese)
-            input_ids, cond_mask = [], []
             text = text if random.random() > self.cfg else ""
-            text_tokens_and_mask = self.tokenizer(
+
+            text_tokens_and_mask_1 = self.tokenizer_1(
                 text,
                 max_length=self.model_max_length,
                 padding="max_length",
                 truncation=True,
                 return_attention_mask=True,
                 add_special_tokens=True,
-                return_tensors="np",
+                return_tensors="pt",
             )
-            input_ids = text_tokens_and_mask["input_ids"]  # 1, l
-            cond_mask = text_tokens_and_mask["attention_mask"]  # 1, l
-            return dict(pixel_values=image, input_ids=input_ids, cond_mask=cond_mask)
-        else:
-            text_embed_paths = dataset_prog.cap_list[idx]["text_embed_path"]
-            text_embed_path = random.choice(text_embed_paths)
-            text_emb, cond_mask = self.parse_text_emb(text_embed_path)
-            return dict(pixel_values=image, input_ids=text_emb, cond_mask=cond_mask)
+            input_ids_1 = text_tokens_and_mask_1["input_ids"]  # 1, l
+            cond_mask_1 = text_tokens_and_mask_1["attention_mask"]  # 1, l
 
-    def define_frame_index(self, cap_list):
-        new_cap_list = []
-        sample_num_frames = []
-        cnt_too_long = 0
-        cnt_too_short = 0
-        cnt_no_cap = 0
-        cnt_no_resolution = 0
-        cnt_resolution_mismatch = 0
-        cnt_movie = 0
-        cnt_img = 0
-        for i in cap_list:
-            path = i["path"]
-            cap = i.get("cap", None)
-            # ======no caption=====
-            if cap is None:
-                cnt_no_cap += 1
-                continue
-            if path.endswith(".mp4"):
-                # ======no fps and duration=====
-                duration = i.get("duration", None)
-                fps = i.get("fps", None)
-                if fps is None or duration is None:
-                    continue
-
-                # ======resolution mismatch=====
-                resolution = i.get("resolution", None)
-                if resolution is None:
-                    cnt_no_resolution += 1
-                    continue
-                else:
-                    if resolution.get("height", None) is None or resolution.get("width", None) is None:
-                        cnt_no_resolution += 1
-                        continue
-                    height, width = i["resolution"]["height"], i["resolution"]["width"]
-                    aspect = self.max_height / self.max_width
-                    hw_aspect_thr = 2.0 #NOTE: for 1:1 frame training
-                    is_pick = filter_resolution(
-                        height,
-                        width,
-                        max_h_div_w_ratio=hw_aspect_thr * aspect,
-                        min_h_div_w_ratio=1 / hw_aspect_thr * aspect,
-                    )
-                    if not is_pick:
-                        cnt_resolution_mismatch += 1
-                        continue
-
-                # import ipdb;ipdb.set_trace()
-                i["num_frames"] = int(fps * duration)
-                # max 5.0 and min 1.0 are just thresholds to filter some videos which have suitable duration.
-                if i["num_frames"] > self.duration_threshold * (
-                    self.num_frames * fps / self.train_fps * self.speed_factor
-                ):  # too long video is not suitable for this training stage (self.num_frames)
-                    cnt_too_long += 1
-                    continue
-
-                # resample in case high fps, such as 50/60/90/144 -> train_fps(e.g, 24)
-                frame_interval = fps / self.train_fps
-                start_frame_idx = 0
-                frame_indices = np.arange(start_frame_idx, i["num_frames"], frame_interval).astype(int)
-                frame_indices = frame_indices[frame_indices < i["num_frames"]]
-
-                # comment out it to enable dynamic frames training
-                if len(frame_indices) < self.num_frames and random.random() < self.drop_short_ratio:
-                    cnt_too_short += 1
-                    continue
-
-                #  too long video will be temporal-crop randomly
-                if len(frame_indices) > self.num_frames:
-                    begin_index, end_index = self.temporal_sample(len(frame_indices))
-                    frame_indices = frame_indices[begin_index:end_index]
-                    # frame_indices = frame_indices[:self.num_frames]  # head crop
-                # to find a suitable end_frame_idx, to ensure we do not need pad video
-                end_frame_idx = find_closest_y(len(frame_indices), vae_stride_t=4, model_ds_t=4)
-                if end_frame_idx == -1:  # too short that can not be encoded exactly by videovae
-                    if self.num_frames < 29:
-                        logger.warning(
-                            "The numbder of frames is less than 29, which is too short to be encoded by causal vae."
-                        )
-                    cnt_too_short += 1
-                    continue
-                frame_indices = frame_indices[:end_frame_idx]
-
-                i["sample_frame_index"] = frame_indices.tolist()
-                new_cap_list.append(i)
-                i["sample_num_frames"] = len(i["sample_frame_index"])  # will use in dataloader(group sampler)
-                sample_num_frames.append(i["sample_num_frames"])
-            elif path.endswith(".jpg"):  # image
-                cnt_img += 1
-                new_cap_list.append(i)
-                i["sample_num_frames"] = 1
-                sample_num_frames.append(i["sample_num_frames"])
-            else:
-                raise NameError(
-                    f"Unknown file extention {path.split('.')[-1]}, only support .mp4 for video and .jpg for image"
+            input_ids_2, cond_mask_2 = None, None
+            if self.tokenizer_2 is not None:
+                text_tokens_and_mask_2 = self.tokenizer_2(
+                    text,
+                    max_length=self.tokenizer_2.model_max_length,
+                    padding="max_length",
+                    truncation=True,
+                    return_attention_mask=True,
+                    add_special_tokens=True,
+                    return_tensors="pt",
                 )
-        # import ipdb;ipdb.set_trace()
-        logger.info(
-            f"no_cap: {cnt_no_cap}, too_long: {cnt_too_long}, too_short: {cnt_too_short}, "
-            f"no_resolution: {cnt_no_resolution}, resolution_mismatch: {cnt_resolution_mismatch}, "
-            f"Counter(sample_num_frames): {Counter(sample_num_frames)}, cnt_movie: {cnt_movie}, cnt_img: {cnt_img}, "
-            f"before filter: {len(cap_list)}, after filter: {len(new_cap_list)}"
-        )
-        return new_cap_list, sample_num_frames
+                input_ids_2 = text_tokens_and_mask_2["input_ids"]  # 1, l
+                cond_mask_2 = text_tokens_and_mask_2["attention_mask"]  # 1, l
 
-    def decord_read(self, path, predefine_num_frames):
-        decord_vr = self.v_decoder(path)
-        total_frames = len(decord_vr)
-        fps = decord_vr.get_avg_fps() if decord_vr.get_avg_fps() > 0 else 30.0
-        # import ipdb;ipdb.set_trace()
+            return dict(
+                pixel_values=image,
+                input_ids_1=input_ids_1,
+                cond_mask_1=cond_mask_1,
+                input_ids_2=input_ids_2,
+                cond_mask_2=cond_mask_2,
+            )
+        else:
+            if "text_embed_path_1" in image_data:
+                text_embed_paths = image_data["text_embed_path_1"]
+                text_embed_path = random.choice(text_embed_paths)
+                text_emb_1, cond_mask_1 = self.parse_text_emb(text_embed_path)
+            text_emb_2, cond_mask_2 = None, None
+            if "text_embed_path_2" in image_data:
+                text_embed_paths = image_data["text_embed_path_2"]
+                text_embed_path = random.choice(text_embed_paths)
+                text_emb_2, cond_mask_2 = self.parse_text_emb(text_embed_path)
+            return dict(
+                pixel_values=image,
+                input_ids_1=text_emb_1,
+                cond_mask_1=cond_mask_1,
+                input_ids_2=text_emb_2,
+                cond_mask_2=cond_mask_2,
+            )
+
+    def decord_read(self, video_data):
+        path = video_data["path"]
+        predefine_frame_indice = video_data["sample_frame_index"]
+        start_frame_idx = video_data["start_frame_idx"]
+        clip_total_frames = video_data["num_frames"]
+        fps = video_data["fps"]
+        s_x, e_x, s_y, e_y = video_data.get("crop", [None, None, None, None])
+
+        predefine_num_frames = len(predefine_frame_indice)
+        # decord_vr = decord.VideoReader(path, ctx=decord.cpu(0), num_threads=1)
+        decord_vr = DecordDecoder(path)
+
+        frame_indices = self.get_actual_frame(
+            fps, start_frame_idx, clip_total_frames, path, predefine_num_frames, predefine_frame_indice
+        )
+
+        # video_data = decord_vr.get_batch(frame_indices).asnumpy()
+        # video_data = torch.from_numpy(video_data)
+        video_data = decord_vr.get_batch(frame_indices)
+        if video_data is not None:
+            if s_y is not None:
+                video_data = video_data[
+                    :,
+                    s_y:e_y,
+                    s_x:e_x,
+                    :,
+                ]
+        else:
+            raise ValueError(f"Get video_data {video_data}")
+
+        return video_data
+
+    def opencv_read(self, video_data):
+        path = video_data["path"]
+        predefine_frame_indice = video_data["sample_frame_index"]
+        start_frame_idx = video_data["start_frame_idx"]
+        clip_total_frames = video_data["num_frames"]
+        fps = video_data["fps"]
+        s_x, e_x, s_y, e_y = video_data.get("crop", [None, None, None, None])
+
+        predefine_num_frames = len(predefine_frame_indice)
+        cv2_vr = cv2.VideoCapture(path)
+        if not cv2_vr.isOpened():
+            raise ValueError(f"can not open {path}")
+        frame_indices = self.get_actual_frame(
+            fps, start_frame_idx, clip_total_frames, path, predefine_num_frames, predefine_frame_indice
+        )
+
+        video_data = []
+        for frame_idx in frame_indices:
+            cv2_vr.set(1, frame_idx)
+            _, frame = cv2_vr.read()
+            frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+            video_data.append(frame)  # H, W, C
+        cv2_vr.release()
+        video_data = np.stack(video_data)  # (T, H, W, C)
+        if s_y is not None:
+            video_data = video_data[:, s_y:e_y, s_x:e_x, :]
+        return video_data
+
+    def get_actual_frame(
+        self, fps, start_frame_idx, clip_total_frames, path, predefine_num_frames, predefine_frame_indice
+    ):
         # resample in case high fps, such as 50/60/90/144 -> train_fps(e.g, 24)
         frame_interval = 1.0 if abs(fps - self.train_fps) < 0.1 else fps / self.train_fps
-        start_frame_idx = 0
-        frame_indices = np.arange(start_frame_idx, total_frames, frame_interval).astype(int)
-        frame_indices = frame_indices[frame_indices < total_frames]
-        # import ipdb;ipdb.set_trace()
+        frame_indices = np.arange(start_frame_idx, start_frame_idx + clip_total_frames, frame_interval).astype(int)
+        frame_indices = frame_indices[frame_indices < start_frame_idx + clip_total_frames]
+
         # speed up
         max_speed_factor = len(frame_indices) / self.num_frames
         if self.speed_factor > 1 and max_speed_factor > 1:
@@ -416,22 +744,22 @@ class T2V_dataset:
             # frame_indices = frame_indices[:self.num_frames]  # head crop
 
         # to find a suitable end_frame_idx, to ensure we do not need pad video
-        end_frame_idx = find_closest_y(len(frame_indices), vae_stride_t=4, model_ds_t=4)
+        end_frame_idx = find_closest_y(len(frame_indices), vae_stride_t=self.ae_stride_t, model_ds_t=self.sp_size)
         if end_frame_idx == -1:  # too short that can not be encoded exactly by videovae
             raise IndexError(
-                f"video ({path}) has {total_frames} frames, but need to sample {len(frame_indices)} frames ({frame_indices})"
+                f"video ({path}) has {clip_total_frames} frames, but need to sample {len(frame_indices)} frames ({frame_indices})"
             )
         frame_indices = frame_indices[:end_frame_idx]
         if predefine_num_frames != len(frame_indices):
             raise ValueError(
-                f"predefine_num_frames ({predefine_num_frames}) is not equal with frame_indices ({len(frame_indices)})"
+                f"video ({path}) predefine_num_frames ({predefine_num_frames}) ({predefine_frame_indice}) is \
+                    not equal with frame_indices ({len(frame_indices)}) ({frame_indices})"
             )
         if len(frame_indices) < self.num_frames and self.drop_short_ratio >= 1:
             raise IndexError(
-                f"video ({path}) has {total_frames} frames, but need to sample {len(frame_indices)} frames ({frame_indices})"
+                f"video ({path}) has {clip_total_frames} frames, but need to sample {len(frame_indices)} frames ({frame_indices})"
             )
-        video_data = decord_vr.get_batch(frame_indices).asnumpy()  # (T, H, W, C)
-        return video_data
+        return frame_indices
 
     def get_text_embed_file_path(self, item):
         file_path = item["path"]
@@ -462,33 +790,3 @@ class T2V_dataset:
             mask = mask[None, ...]
 
         return text_emb, mask  # (1, L, D), (1, L)
-
-    def read_jsons(self, data):
-        cap_lists = []
-        with open(data, "r") as f:
-            folder_anno = [i.strip().split(",") for i in f.readlines() if len(i.strip()) > 0]
-        for item in folder_anno:
-            if len(item) == 2:
-                folder, anno = item
-            elif len(item) == 3:
-                folder, text_emb_folder, anno = item
-            else:
-                raise ValueError(f"Expect to have two or three paths, but got {len(item)} input paths")
-            if self.return_text_emb:
-                assert (
-                    len(item) == 3
-                ), "When returning text embeddings, please give three paths: video folder, text_embed folder, annotation file"
-            with open(anno, "r") as f:
-                sub_list = json.load(f)
-            logger.info(f"Building {anno}...")
-            for i in range(len(sub_list)):
-                if self.return_text_emb:
-                    text_embeds_paths = self.get_text_embed_file_path(sub_list[i])
-                    sub_list[i]["text_embed_path"] = [opj(text_emb_folder, tp) for tp in text_embeds_paths]
-                sub_list[i]["path"] = opj(folder, sub_list[i]["path"])
-            cap_lists += sub_list
-        return cap_lists
-
-    def get_cap_list(self):
-        cap_lists = self.read_jsons(self.data)
-        return cap_lists

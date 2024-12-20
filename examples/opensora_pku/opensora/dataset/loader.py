@@ -26,6 +26,7 @@ def create_dataloader(
     enable_modelarts=False,
     collate_fn=None,
     sampler=None,
+    batch_sampler=None,
 ):
     datalen = len(dataset)
 
@@ -46,6 +47,7 @@ def create_dataloader(
         shuffle=shuffle,
         drop_last=drop_last,
         sampler=sampler,
+        batch_sampler=batch_sampler,
     )
     dl = GeneratorDataset(
         loader,
@@ -62,13 +64,24 @@ def create_dataloader(
 
 
 def build_dataloader(
-    dataset, datalens, collate_fn, batch_size, device_num, rank_id=0, sampler=None, shuffle=True, drop_last=True
+    dataset,
+    datalens,
+    collate_fn,
+    batch_size,
+    device_num,
+    rank_id=0,
+    sampler=None,
+    batch_sampler=None,
+    shuffle=True,
+    drop_last=True,
 ):
-    if sampler is None:
-        sampler = BatchSampler(datalens, batch_size=batch_size, device_num=device_num, shuffle=shuffle)
+    if batch_sampler is None:
+        batch_sampler = BatchSampler(datalens, batch_size=batch_size, device_num=device_num, shuffle=shuffle)
     loader = DataLoader(
         dataset,
-        batch_sampler=sampler,
+        batch_size=batch_size,
+        sampler=sampler,
+        batch_sampler=batch_sampler,
         collate_fn=collate_fn,
         device_num=device_num,
         drop_last=drop_last,
@@ -107,14 +120,25 @@ class BatchSampler:
 class DataLoader:
     """DataLoader"""
 
-    def __init__(self, dataset, batch_sampler, collate_fn, device_num=1, drop_last=True, rank_id=0):
+    def __init__(
+        self,
+        dataset,
+        batch_size,
+        sampler=None,
+        batch_sampler=None,
+        collate_fn=None,
+        device_num=1,
+        drop_last=True,
+        rank_id=0,
+    ):
         self.dataset = dataset
+        self.sampler = sampler
         self.batch_sampler = batch_sampler
         self.collat_fn = collate_fn
         self.device_num = device_num
         self.rank_id = rank_id
         self.drop_last = drop_last
-        self.batch_size = len(next(iter(self.batch_sampler)))
+        self.batch_size = batch_size
 
     def __iter__(self):
         self.step_index = 0
