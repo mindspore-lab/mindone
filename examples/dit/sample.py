@@ -12,7 +12,7 @@ from utils.model_utils import _check_cfgs_in_parser, count_params, load_dit_ckpt
 from utils.plot import image_grid
 
 import mindspore as ms
-from mindspore import Tensor, ops
+from mindspore import Tensor, ops, mint
 
 # TODO: remove in future when mindone is ready for install
 __dir__ = os.path.dirname(os.path.abspath(__file__))
@@ -135,7 +135,7 @@ def parse_args():
     parser.add_argument("--imagegrid", default=False, type=str2bool, help="Save the image in image-grids format.")
     parser.add_argument(
         "--jit_level",
-        default="O2",
+        default="O0",
         type=str,
         choices=["O0", "O1", "O2"],
         help="Used to control the compilation optimization level. Supports [“O0”, “O1”, “O2”]."
