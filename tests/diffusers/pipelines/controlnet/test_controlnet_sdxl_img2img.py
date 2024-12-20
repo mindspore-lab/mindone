@@ -19,13 +19,22 @@ import unittest
 import numpy as np
 import torch
 from ddt import data, ddt, unpack
+from PIL import Image
 from transformers import CLIPTextConfig
 
 import mindspore as ms
+from mindspore import ops
+
+from mindone.diffusers.utils.testing_utils import (
+    load_downloaded_image_from_hf_hub,
+    load_downloaded_numpy_from_hf_hub,
+    slow,
+)
 
 from ..pipeline_test_utils import (
     THRESHOLD_FP16,
     THRESHOLD_FP32,
+    THRESHOLD_PIXEL,
     PipelineTesterMixin,
     floats_tensor,
     get_module,
@@ -259,4 +268,82 @@ class ControlNetPipelineSDXLImg2ImgFastTests(PipelineTesterMixin, unittest.TestC
         ms_image_slice = ms_image[0][0, -3:, -3:, -1]
 
         threshold = THRESHOLD_FP32 if dtype == "float32" else THRESHOLD_FP16
-        assert np.max(np.linalg.norm(pt_image_slice - ms_image_slice) / np.linalg.norm(pt_image_slice)) < threshold
+        assert np.linalg.norm(pt_image_slice - ms_image_slice) / np.linalg.norm(pt_image_slice) < threshold
+
+
+@slow
+@ddt
+class ControlNetPipelineSDXLImg2ImgIntegrationTests(PipelineTesterMixin, unittest.TestCase):
+    def get_depth_map(self, image, feature_extractor, depth_estimator):
+        image = ms.Tensor(feature_extractor(images=image, return_tensors="np").pixel_values)
+        depth_estimator.set_train(False)
+        depth_map = depth_estimator(image)[0]
+
+        depth_map = ops.interpolate(
+            depth_map.unsqueeze(1),
+            size=(1024, 1024),
+            mode="bicubic",
+            align_corners=False,
+        )
+        depth_min = ops.amin(depth_map, axis=[1, 2, 3], keepdims=True)
+        depth_max = ops.amax(depth_map, axis=[1, 2, 3], keepdims=True)
+        depth_map = (depth_map - depth_min) / (depth_max - depth_min)
+        image = ops.cat([depth_map] * 3, axis=1)
+        image = image.permute(0, 2, 3, 1).numpy()[0]
+        image = Image.fromarray((image * 255.0).clip(0, 255).astype(np.uint8))
+        return image
+
+    @data(*test_cases)
+    @unpack
+    def test_stable_diffusion_xl_controlnet_img2img(self, mode, dtype):
+        ms.set_context(mode=mode)
+        ms_dtype = getattr(ms, dtype)
+
+        depth_estimator_cls = get_module("mindone.transformers.models.dpt.modeling_dpt.DPTForDepthEstimation")
+        depth_estimator = depth_estimator_cls.from_pretrained("Intel/dpt-hybrid-midas", revision="refs/pr/7")
+        feature_extractor_cls = get_module("transformers.models.dpt.feature_extraction_dpt.DPTFeatureExtractor")
+        feature_extractor = feature_extractor_cls.from_pretrained("Intel/dpt-hybrid-midas", revision="refs/pr/7")
+        controlnet_cls = get_module("mindone.diffusers.models.controlnet.ControlNetModel")
+        controlnet = controlnet_cls.from_pretrained(
+            "diffusers/controlnet-depth-sdxl-1.0-small",
+            variant="fp16",
+            use_safetensors=True,
+            mindspore_dtype=ms_dtype,
+        )
+        vae_cls = get_module("mindone.diffusers.models.autoencoders.autoencoder_kl.AutoencoderKL")
+        vae = vae_cls.from_pretrained("madebyollin/sdxl-vae-fp16-fix", mindspore_dtype=ms_dtype)
+        pipe_cls = get_module("mindone.diffusers.pipelines.controlnet.StableDiffusionXLControlNetImg2ImgPipeline")
+        pipe = pipe_cls.from_pretrained(
+            "stabilityai/stable-diffusion-xl-base-1.0",
+            controlnet=controlnet,
+            vae=vae,
+            variant="fp16",
+            use_safetensors=True,
+            mindspore_dtype=ms_dtype,
+        )
+
+        prompt = "A robot, 4k photo"
+        image = load_downloaded_image_from_hf_hub(
+            "hf-internal-testing/diffusers-images",
+            "cat.png",
+            subfolder="kandinsky",
+        ).resize((1024, 1024))
+        controlnet_conditioning_scale = 0.5  # recommended for good generalization
+        depth_image = self.get_depth_map(image, feature_extractor, depth_estimator)
+
+        torch.manual_seed(0)
+        image = pipe(
+            prompt,
+            image=image,
+            control_image=depth_image,
+            strength=0.99,
+            num_inference_steps=50,
+            controlnet_conditioning_scale=controlnet_conditioning_scale,
+        )[0][0]
+
+        expected_image = load_downloaded_numpy_from_hf_hub(
+            "The-truth/mindone-testing-arrays",
+            f"img2img_sdxl_{dtype}.npy",
+            subfolder="controlnet",
+        )
+        assert np.mean(np.abs(np.array(image, dtype=np.float32) - expected_image)) < THRESHOLD_PIXEL

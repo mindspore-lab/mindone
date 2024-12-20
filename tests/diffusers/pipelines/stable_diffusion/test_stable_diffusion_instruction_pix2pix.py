@@ -24,9 +24,16 @@ from transformers import CLIPTextConfig
 
 import mindspore as ms
 
+from mindone.diffusers.utils.testing_utils import (
+    load_downloaded_image_from_hf_hub,
+    load_downloaded_numpy_from_hf_hub,
+    slow,
+)
+
 from ..pipeline_test_utils import (
     THRESHOLD_FP16,
     THRESHOLD_FP32,
+    THRESHOLD_PIXEL,
     PipelineTesterMixin,
     floats_tensor,
     get_module,
@@ -170,4 +177,45 @@ class StableDiffusionInstructPix2PixPipelineFastTests(PipelineTesterMixin, unitt
         ms_image_slice = ms_image[0][0, -3:, -3:, -1]
 
         threshold = THRESHOLD_FP32 if dtype == "float32" else THRESHOLD_FP16
-        assert np.max(np.linalg.norm(pt_image_slice - ms_image_slice) / np.linalg.norm(pt_image_slice)) < threshold
+        assert np.linalg.norm(pt_image_slice - ms_image_slice) / np.linalg.norm(pt_image_slice) < threshold
+
+
+@slow
+@ddt
+class StableDiffusionInstructPix2PixPipelineSlowTests(PipelineTesterMixin, unittest.TestCase):
+    def get_inputs(self):
+        image = load_downloaded_image_from_hf_hub(
+            "diffusers/test-arrays",
+            "example.jpg",
+            subfolder="stable_diffusion_pix2pix",
+        )
+        inputs = {
+            "prompt": "turn him into a cyborg",
+            "image": image,
+            "num_inference_steps": 3,
+            "guidance_scale": 7.5,
+            "image_guidance_scale": 1.0,
+        }
+        return inputs
+
+    @data(*test_cases)
+    @unpack
+    def test_stable_diffusion_pix2pix_default(self, mode, dtype):
+        ms.set_context(mode=mode)
+        ms_dtype = getattr(ms, dtype)
+
+        pipe_cls = get_module("mindone.diffusers.pipelines.stable_diffusion.StableDiffusionInstructPix2PixPipeline")
+        pipe = pipe_cls.from_pretrained("timbrooks/instruct-pix2pix", safety_checker=None, mindspore_dtype=ms_dtype)
+        pipe.set_progress_bar_config(disable=None)
+
+        inputs = self.get_inputs()
+
+        torch.manual_seed(0)
+        image = pipe(**inputs)[0][0]
+
+        expected_image = load_downloaded_numpy_from_hf_hub(
+            "The-truth/mindone-testing-arrays",
+            f"pix2pix_{dtype}.npy",
+            subfolder="stable_diffusion",
+        )
+        assert np.mean(np.abs(np.array(image, dtype=np.float32) - expected_image)) < THRESHOLD_PIXEL
