@@ -128,6 +128,31 @@ python inference.py \
 --save_format mp4
 ```
 
+### Gradio Demo
+To launch the web demo, follow these steps:
+
+1. Install Gradio:
+```bash
+pip install gradio
+```
+
+2. Run the demo script with the following configuration. The demo provides 80 pre-computed text prompts to choose from:
+
+```shell
+python gradio_demo.py \
+--config configs/inference/moviegen_t2i_256x256.yaml \
+--model.name llama-5B \
+--model.pretrained_model_path /path/to/llama-5B.ckpt \
+--text_emb.ul2_dir /path/to/ul2-embedding.ckpt \
+--text_emb.metaclip_dir /path/to/metaclip-embedding.ckpt \
+--text_emb.byt5_dir /path/to/byt5-embedding.ckpt \
+--image_size 256 455  
+--num_frames 32  
+--save_format mp4
+```
+Note: Make sure to replace the `/path/to/` placeholders with your actual model and embedding paths.
+
+
 ## Training
 
 Movie Gen is trained jointly on images and videos in 4 stages:
