@@ -23,9 +23,16 @@ from transformers import CLIPTextConfig
 
 import mindspore as ms
 
+from mindone.diffusers.utils.testing_utils import (
+    load_downloaded_image_from_hf_hub,
+    load_downloaded_numpy_from_hf_hub,
+    slow,
+)
+
 from ..pipeline_test_utils import (
     THRESHOLD_FP16,
     THRESHOLD_FP32,
+    THRESHOLD_PIXEL,
     PipelineTesterMixin,
     floats_tensor,
     get_module,
@@ -239,4 +246,51 @@ class StableDiffusionXLAdapterPipelineFastTests(PipelineTesterMixin, unittest.Te
         ms_image_slice = ms_image[0][0, -3:, -3:, -1]
 
         threshold = THRESHOLD_FP32 if dtype == "float32" else THRESHOLD_FP16
-        assert np.max(np.linalg.norm(pt_image_slice - ms_image_slice) / np.linalg.norm(pt_image_slice)) < threshold
+        assert np.linalg.norm(pt_image_slice - ms_image_slice) / np.linalg.norm(pt_image_slice) < threshold
+
+
+@slow
+@ddt
+class StableDiffusionXLAdapterPipelineIntegrationTests(PipelineTesterMixin, unittest.TestCase):
+    @data(*test_cases)
+    @unpack
+    def test_stable_diffusion_adapter_default_case(self, mode, dtype):
+        ms.set_context(mode=mode)
+        ms_dtype = getattr(ms, dtype)
+
+        sketch_image = load_downloaded_image_from_hf_hub(
+            "Adapter/t2iadapter",
+            "sketch.png",
+            repo_type="model",
+        ).convert("L")
+
+        model_id = "stabilityai/stable-diffusion-xl-base-1.0"
+        adapter_cls = get_module("mindone.diffusers.models.adapter.T2IAdapter")
+        adapter = adapter_cls.from_pretrained(
+            "Adapter/t2iadapter",
+            subfolder="sketch_sdxl_1.0",
+            mindspore_dtype=ms_dtype,
+            adapter_type="full_adapter_xl",
+        )
+        scheduler_cls = get_module("mindone.diffusers.schedulers.scheduling_ddpm.DDPMScheduler")
+        scheduler = scheduler_cls.from_pretrained(model_id, subfolder="scheduler")
+
+        pipe_cls = get_module("mindone.diffusers.pipelines.t2i_adapter.StableDiffusionXLAdapterPipeline")
+        pipe = pipe_cls.from_pretrained(
+            model_id, adapter=adapter, mindspore_dtype=ms_dtype, variant="fp16", scheduler=scheduler
+        )
+
+        torch.manual_seed(0)
+        image = pipe(
+            prompt="a photo of a dog in real world, high quality",
+            negative_prompt="extra digit, fewer digits, cropped, worst quality, low quality",
+            image=sketch_image,
+            guidance_scale=7.5,
+        )[0][0]
+
+        expected_image = load_downloaded_numpy_from_hf_hub(
+            "The-truth/mindone-testing-arrays",
+            f"adapter_{dtype}.npy",
+            subfolder="stable_diffusion_xl",
+        )
+        assert np.mean(np.abs(np.array(image, dtype=np.float32) - expected_image)) < THRESHOLD_PIXEL

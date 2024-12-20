@@ -24,9 +24,16 @@ from transformers import CLIPTextConfig, DPTConfig
 
 import mindspore as ms
 
+from mindone.diffusers.utils.testing_utils import (
+    load_downloaded_image_from_hf_hub,
+    load_downloaded_numpy_from_hf_hub,
+    slow,
+)
+
 from ..pipeline_test_utils import (
     THRESHOLD_FP16,
     THRESHOLD_FP32,
+    THRESHOLD_PIXEL,
     PipelineTesterMixin,
     floats_tensor,
     get_module,
@@ -221,4 +228,45 @@ class StableDiffusionDepth2ImgPipelineFastTests(PipelineTesterMixin, unittest.Te
         ms_image_slice = ms_image[0][0, -3:, -3:, -1]
 
         threshold = THRESHOLD_FP32 if dtype == "float32" else THRESHOLD_FP16
-        assert np.max(np.linalg.norm(pt_image_slice - ms_image_slice) / np.linalg.norm(pt_image_slice)) < threshold
+        assert np.linalg.norm(pt_image_slice - ms_image_slice) / np.linalg.norm(pt_image_slice) < threshold
+
+
+@slow
+@ddt
+class StableDiffusionDepth2ImgPipelineNightlyTests(PipelineTesterMixin, unittest.TestCase):
+    def get_inputs(self):
+        init_image = load_downloaded_image_from_hf_hub(
+            "hf-internal-testing/diffusers-images",
+            "two_cats.png",
+            subfolder="depth2img",
+        )
+        inputs = {
+            "prompt": "two tigers",
+            "image": init_image,
+            "num_inference_steps": 3,
+            "strength": 0.75,
+            "guidance_scale": 7.5,
+        }
+        return inputs
+
+    @data(*test_cases)
+    @unpack
+    def test_depth2img_pndm(self, mode, dtype):
+        ms.set_context(mode=mode)
+        ms_dtype = getattr(ms, dtype)
+
+        pipe_cls = get_module("mindone.diffusers.pipelines.stable_diffusion.StableDiffusionDepth2ImgPipeline")
+        pipe = pipe_cls.from_pretrained("stabilityai/stable-diffusion-2-depth", mindspore_dtype=ms_dtype)
+        pipe.set_progress_bar_config(disable=None)
+
+        inputs = self.get_inputs()
+
+        torch.manual_seed(0)
+        image = pipe(**inputs)[0][0]
+
+        expected_image = load_downloaded_numpy_from_hf_hub(
+            "The-truth/mindone-testing-arrays",
+            f"depth2img_pndm_{dtype}.npy",
+            subfolder="stable_diffusion_2",
+        )
+        assert np.mean(np.abs(np.array(image, dtype=np.float32) - expected_image)) < THRESHOLD_PIXEL

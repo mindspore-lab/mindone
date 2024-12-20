@@ -21,7 +21,9 @@ from ddt import data, ddt, unpack
 
 import mindspore as ms
 
-from ..pipeline_test_utils import THRESHOLD_FP16, THRESHOLD_FP32, PipelineTesterMixin, get_module
+from mindone.diffusers.utils.testing_utils import load_downloaded_numpy_from_hf_hub, slow
+
+from ..pipeline_test_utils import THRESHOLD_FP16, THRESHOLD_FP32, THRESHOLD_PIXEL, PipelineTesterMixin, get_module
 from . import IFPipelineTesterMixin
 
 test_cases = [
@@ -76,4 +78,32 @@ class IFPipelineFastTests(PipelineTesterMixin, IFPipelineTesterMixin, unittest.T
         ms_image_slice = ms_image[0][0, -3:, -3:, -1]
 
         threshold = THRESHOLD_FP32 if dtype == "float32" else THRESHOLD_FP16
-        assert np.max(np.linalg.norm(pt_image_slice - ms_image_slice) / np.linalg.norm(pt_image_slice)) < threshold
+        assert np.linalg.norm(pt_image_slice - ms_image_slice) / np.linalg.norm(pt_image_slice) < threshold
+
+
+@slow
+@ddt
+class IFPipelineSlowTests(PipelineTesterMixin, unittest.TestCase):
+    @data(*test_cases)
+    @unpack
+    def test_if_text_to_image(self, mode, dtype):
+        ms.set_context(mode=mode)
+        ms_dtype = getattr(ms, dtype)
+
+        pipe_cls = get_module("mindone.diffusers.pipelines.deepfloyd_if.IFPipeline")
+        pipe = pipe_cls.from_pretrained("DeepFloyd/IF-I-XL-v1.0", variant="fp16", mindspore_dtype=ms_dtype)
+
+        torch.manual_seed(0)
+        output = pipe(
+            prompt="anime turtle",
+            num_inference_steps=2,
+        )
+
+        image = output[0][0]
+
+        expected_image = load_downloaded_numpy_from_hf_hub(
+            "The-truth/mindone-testing-arrays",
+            f"t2i_{dtype}.npy",
+            subfolder="deepfloyd_if",
+        )
+        assert np.mean(np.abs(np.array(image, dtype=np.float32) - expected_image)) < THRESHOLD_PIXEL

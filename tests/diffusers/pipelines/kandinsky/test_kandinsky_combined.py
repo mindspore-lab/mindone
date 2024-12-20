@@ -21,7 +21,13 @@ from ddt import data, ddt, unpack
 
 import mindspore as ms
 
-from ..pipeline_test_utils import THRESHOLD_FP16, THRESHOLD_FP32, PipelineTesterMixin, get_module
+from mindone.diffusers.utils.testing_utils import (
+    load_downloaded_image_from_hf_hub,
+    load_downloaded_numpy_from_hf_hub,
+    slow,
+)
+
+from ..pipeline_test_utils import THRESHOLD_FP16, THRESHOLD_FP32, THRESHOLD_PIXEL, PipelineTesterMixin, get_module
 from .test_kandinsky import Dummies
 from .test_kandinsky_img2img import Dummies as Img2ImgDummies
 from .test_kandinsky_inpaint import Dummies as InpaintDummies
@@ -88,7 +94,7 @@ class KandinskyPipelineCombinedFastTests(PipelineTesterMixin, unittest.TestCase)
         ms_image_slice = ms_image[0][0, -3:, -3:, -1]
 
         threshold = THRESHOLD_FP32 if dtype == "float32" else THRESHOLD_FP16
-        assert np.max(np.linalg.norm(pt_image_slice - ms_image_slice) / np.linalg.norm(pt_image_slice)) < threshold
+        assert np.linalg.norm(pt_image_slice - ms_image_slice) / np.linalg.norm(pt_image_slice) < threshold
 
 
 @ddt
@@ -150,7 +156,7 @@ class KandinskyPipelineImg2ImgCombinedFastTests(PipelineTesterMixin, unittest.Te
         ms_image_slice = ms_image[0][0, -3:, -3:, -1]
 
         threshold = THRESHOLD_FP32 if dtype == "float32" else THRESHOLD_FP16
-        assert np.max(np.linalg.norm(pt_image_slice - ms_image_slice) / np.linalg.norm(pt_image_slice)) < threshold
+        assert np.linalg.norm(pt_image_slice - ms_image_slice) / np.linalg.norm(pt_image_slice) < threshold
 
 
 @ddt
@@ -212,4 +218,103 @@ class KandinskyPipelineInpaintCombinedFastTests(PipelineTesterMixin, unittest.Te
         ms_image_slice = ms_image[0][0, -3:, -3:, -1]
 
         threshold = THRESHOLD_FP32 if dtype == "float32" else THRESHOLD_FP16
-        assert np.max(np.linalg.norm(pt_image_slice - ms_image_slice) / np.linalg.norm(pt_image_slice)) < threshold
+        assert np.linalg.norm(pt_image_slice - ms_image_slice) / np.linalg.norm(pt_image_slice) < threshold
+
+
+@slow
+@ddt
+class KandinskyPipelineCombinedIntegrationTests(PipelineTesterMixin, unittest.TestCase):
+    @data(*test_cases)
+    @unpack
+    def test_kandinsky(self, mode, dtype):
+        ms.set_context(mode=mode)
+        ms_dtype = getattr(ms, dtype)
+
+        pipe_cls = get_module("mindone.diffusers.pipelines.kandinsky.KandinskyCombinedPipeline")
+        pipe = pipe_cls.from_pretrained("kandinsky-community/kandinsky-2-1", mindspore_dtype=ms_dtype)
+
+        prompt = "A lion in galaxies, spirals, nebulae, stars, smoke, iridescent, intricate detail, octane render, 8k"
+
+        torch.manual_seed(0)
+        image = pipe(prompt=prompt, num_inference_steps=25)[0][0]
+
+        expected_image = load_downloaded_numpy_from_hf_hub(
+            "The-truth/mindone-testing-arrays",
+            f"combined_t2i_{dtype}.npy",
+            subfolder="kandinsky",
+        )
+        assert np.mean(np.abs(np.array(image, dtype=np.float32) - expected_image)) < THRESHOLD_PIXEL
+
+    @data(*test_cases)
+    @unpack
+    def test_kandinsky_img2img(self, mode, dtype):
+        ms.set_context(mode=mode)
+        ms_dtype = getattr(ms, dtype)
+
+        pipe_cls = get_module("mindone.diffusers.pipelines.kandinsky.KandinskyImg2ImgCombinedPipeline")
+        pipe = pipe_cls.from_pretrained("kandinsky-community/kandinsky-2-1", mindspore_dtype=ms_dtype)
+
+        prompt = "A fantasy landscape, Cinematic lighting"
+        negative_prompt = "low quality, bad quality"
+
+        original_image = load_downloaded_image_from_hf_hub(
+            "The-truth/mindone-testing-arrays",
+            "combined_i2i_input.jpg",
+            subfolder="kandinsky2_2",
+        )
+        original_image.thumbnail((768, 768))
+
+        torch.manual_seed(0)
+        image = pipe(
+            prompt=prompt,
+            negative_prompt=negative_prompt,
+            image=original_image,
+            num_inference_steps=25,
+        )[
+            0
+        ][0]
+
+        expected_image = load_downloaded_numpy_from_hf_hub(
+            "The-truth/mindone-testing-arrays",
+            f"combined_i2i_{dtype}.npy",
+            subfolder="kandinsky",
+        )
+        assert np.mean(np.abs(np.array(image, dtype=np.float32) - expected_image)) < THRESHOLD_PIXEL
+
+    @data(*test_cases)
+    @unpack
+    def test_kandinsky_inpaint(self, mode, dtype):
+        ms.set_context(mode=mode)
+        ms_dtype = getattr(ms, dtype)
+
+        pipe_cls = get_module("mindone.diffusers.pipelines.kandinsky.KandinskyInpaintCombinedPipeline")
+        pipe = pipe_cls.from_pretrained("kandinsky-community/kandinsky-2-1-inpaint", mindspore_dtype=ms_dtype)
+
+        prompt = "A fantasy landscape, Cinematic lighting"
+        negative_prompt = "low quality, bad quality"
+
+        original_image = load_downloaded_image_from_hf_hub(
+            "hf-internal-testing/diffusers-images",
+            "cat.png",
+            subfolder="kandinsky",
+        )
+
+        mask = np.zeros((768, 768), dtype=np.float32)
+        # Let's mask out an area above the cat's head
+        mask[:250, 250:-250] = 1
+
+        torch.manual_seed(0)
+        image = pipe(
+            prompt=prompt,
+            negative_prompt=negative_prompt,
+            image=original_image,
+            mask_image=mask,
+            num_inference_steps=25,
+        )[0][0]
+
+        expected_image = load_downloaded_numpy_from_hf_hub(
+            "The-truth/mindone-testing-arrays",
+            f"combined_inpaint_{dtype}.npy",
+            subfolder="kandinsky",
+        )
+        assert np.mean(np.abs(np.array(image, dtype=np.float32) - expected_image)) < THRESHOLD_PIXEL

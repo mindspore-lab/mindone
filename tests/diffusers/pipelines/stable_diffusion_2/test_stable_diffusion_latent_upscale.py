@@ -23,9 +23,12 @@ from transformers import CLIPTextConfig
 
 import mindspore as ms
 
+from mindone.diffusers.utils.testing_utils import load_downloaded_numpy_from_hf_hub, slow
+
 from ..pipeline_test_utils import (
     THRESHOLD_FP16,
     THRESHOLD_FP32,
+    THRESHOLD_PIXEL,
     PipelineTesterMixin,
     floats_tensor,
     get_module,
@@ -208,4 +211,42 @@ class StableDiffusionLatentUpscalePipelineFastTests(PipelineTesterMixin, unittes
         ms_image_slice = ms_image[0][0, -3:, -3:, -1]
 
         threshold = THRESHOLD_FP32 if dtype == "float32" else THRESHOLD_FP16
-        assert np.max(np.linalg.norm(pt_image_slice - ms_image_slice) / np.linalg.norm(pt_image_slice)) < threshold
+        assert np.linalg.norm(pt_image_slice - ms_image_slice) / np.linalg.norm(pt_image_slice) < threshold
+
+
+@slow
+@ddt
+class StableDiffusionLatentUpscalePipelineIntegrationTests(PipelineTesterMixin, unittest.TestCase):
+    @data(*test_cases)
+    @unpack
+    def test_latent_upscaler(self, mode, dtype):
+        ms.set_context(mode=mode)
+        ms_dtype = getattr(ms, dtype)
+
+        pipe_cls = get_module("mindone.diffusers.pipelines.stable_diffusion.StableDiffusionPipeline")
+        pipe = pipe_cls.from_pretrained("CompVis/stable-diffusion-v1-4", mindspore_dtype=ms_dtype)
+
+        upscaler_cls = get_module("mindone.diffusers.pipelines.stable_diffusion.StableDiffusionLatentUpscalePipeline")
+        upscaler = upscaler_cls.from_pretrained("stabilityai/sd-x2-latent-upscaler", mindspore_dtype=ms_dtype)
+
+        prompt = "a photo of an astronaut high resolution, unreal engine, ultra realistic"
+
+        torch.manual_seed(0)
+        low_res_latents = pipe(prompt, output_type="latent")[0]
+
+        torch.manual_seed(0)
+        image = upscaler(
+            prompt=prompt,
+            image=low_res_latents,
+            num_inference_steps=20,
+            guidance_scale=0,
+        )[
+            0
+        ][0]
+
+        expected_image = load_downloaded_numpy_from_hf_hub(
+            "The-truth/mindone-testing-arrays",
+            f"latent_upscale_{dtype}.npy",
+            subfolder="stable_diffusion_2",
+        )
+        assert np.mean(np.abs(np.array(image, dtype=np.float32) - expected_image)) < THRESHOLD_PIXEL

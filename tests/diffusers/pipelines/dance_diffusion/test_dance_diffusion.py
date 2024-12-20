@@ -21,6 +21,8 @@ from ddt import data, ddt, unpack
 
 import mindspore as ms
 
+from mindone.diffusers.utils.testing_utils import load_downloaded_numpy_from_hf_hub, slow
+
 from ..pipeline_test_utils import (
     THRESHOLD_FP16,
     THRESHOLD_FP32,
@@ -119,4 +121,30 @@ class DanceDiffusionPipelineFastTests(PipelineTesterMixin, unittest.TestCase):
         ms_audio_slice = ms_audio[0][0, -3:, -3:]
 
         threshold = THRESHOLD_FP32 if dtype == "float32" else THRESHOLD_FP16
-        assert np.max(np.linalg.norm(pt_audio_slice - ms_audio_slice) / np.linalg.norm(pt_audio_slice)) < threshold
+        assert np.linalg.norm(pt_audio_slice - ms_audio_slice) / np.linalg.norm(pt_audio_slice) < threshold
+
+
+@slow
+@ddt
+class DanceDiffusionPipelineIntegrationTests(PipelineTesterMixin, unittest.TestCase):
+    @data(*test_cases)
+    @unpack
+    def test_dance_diffusion(self, mode, dtype):
+        ms.set_context(mode=mode)
+        ms_dtype = getattr(ms, dtype)
+
+        pipe_cls = get_module("mindone.diffusers.pipelines.dance_diffusion.DanceDiffusionPipeline")
+        pipe = pipe_cls.from_pretrained("harmonai/maestro-150k", revision="refs/pr/3", mindspore_dtype=ms_dtype)
+        pipe.set_progress_bar_config(disable=None)
+
+        torch.manual_seed(0)
+        audio = pipe(num_inference_steps=100, audio_length_in_s=4.096)[0]
+
+        expected_audio = load_downloaded_numpy_from_hf_hub(
+            "The-truth/mindone-testing-arrays",
+            f"dance_diffusion_{dtype}.npy",
+            subfolder="dance_diffusion",
+        )
+        # The pipeline uses a larger threshold, and accuracy can be ensured at this threshold.
+        threshold = 5e-2 if dtype == "float32" else 3e-1
+        assert np.linalg.norm(expected_audio - audio) / np.linalg.norm(expected_audio) < threshold

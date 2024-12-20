@@ -529,7 +529,7 @@ class I2VGenXLUNet(ModelMixin, ConfigMixin, UNet2DConditionLoadersMixin):
         # AND the image embeddings from the input image. For images, both VAE encodings
         # and the CLIP image embeddings are incorporated.
         # So the final `context_embeddings` becomes the query for cross-attention.
-        context_emb = sample.new_zeros((batch_size, 0, self.config["cross_attention_dim"]))
+        context_emb = sample.new_zeros((batch_size, 0, self.config["cross_attention_dim"]), dtype=sample.dtype)
         context_emb = context_emb.to(sample.dtype)
         context_emb = ops.cat([context_emb, encoder_hidden_states], axis=1)
 

@@ -21,9 +21,12 @@ from ddt import data, ddt, unpack
 
 import mindspore as ms
 
+from mindone.diffusers.utils.testing_utils import load_downloaded_numpy_from_hf_hub, slow
+
 from ..pipeline_test_utils import (
     THRESHOLD_FP16,
     THRESHOLD_FP32,
+    THRESHOLD_PIXEL,
     PipelineTesterMixin,
     get_module,
     get_pipeline_components,
@@ -175,4 +178,34 @@ class HunyuanDiTPipelineFastTests(PipelineTesterMixin, unittest.TestCase):
         ms_image_slice = ms_image[0][0, -3:, -3:, -1]
 
         threshold = THRESHOLD_FP32 if dtype == "float32" else THRESHOLD_FP16
-        assert np.max(np.linalg.norm(pt_image_slice - ms_image_slice) / np.linalg.norm(pt_image_slice)) < threshold
+        assert np.linalg.norm(pt_image_slice - ms_image_slice) / np.linalg.norm(pt_image_slice) < threshold
+
+
+@slow
+@ddt
+class HunyuanDiTPipelineIntegrationTests(PipelineTesterMixin, unittest.TestCase):
+    prompt = "一个宇航员在骑马"
+
+    @data(*test_cases)
+    @unpack
+    def test_hunyuan_dit_1024(self, mode, dtype):
+        # If strict mode is disabled, this pipeline will have precision issue.
+        if mode == ms.GRAPH_MODE:
+            ms.set_context(mode=mode, jit_syntax_level=ms.STRICT)
+        else:
+            ms.set_context(mode=mode)
+        ms_dtype = getattr(ms, dtype)
+
+        pipe_cls = get_module("mindone.diffusers.pipelines.hunyuandit.HunyuanDiTPipeline")
+        pipe = pipe_cls.from_pretrained("Tencent-Hunyuan/HunyuanDiT-Diffusers", mindspore_dtype=ms_dtype)
+        prompt = self.prompt
+
+        torch.manual_seed(0)
+        image = pipe(prompt=prompt, height=1024, width=1024, num_inference_steps=2)[0][0]
+
+        expected_image = load_downloaded_numpy_from_hf_hub(
+            "The-truth/mindone-testing-arrays",
+            f"t2i_1024_{dtype}.npy",
+            subfolder="hunyuan_dit",
+        )
+        assert np.mean(np.abs(np.array(image, dtype=np.float32) - expected_image)) < THRESHOLD_PIXEL
