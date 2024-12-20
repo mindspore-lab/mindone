@@ -93,6 +93,10 @@
          <lastmod>2024-12-20</lastmod>
     </url>
     <url>
+         <loc>https://mindspore-lab.github.io/mindone/0.2/diffusers/api/models/aura_flow_transformer2d/</loc>
+         <lastmod>2024-12-20</lastmod>
+    </url>
+    <url>
          <loc>https://mindspore-lab.github.io/mindone/0.2/diffusers/api/models/autoencoder_tiny/</loc>
          <lastmod>2024-12-20</lastmod>
     </url>
@@ -122,6 +126,10 @@
     </url>
     <url>
          <loc>https://mindspore-lab.github.io/mindone/0.2/diffusers/api/models/controlnet_sd3/</loc>
+         <lastmod>2024-12-20</lastmod>
+    </url>
+    <url>
+         <loc>https://mindspore-lab.github.io/mindone/0.2/diffusers/api/models/controlnet_sparsectrl/</loc>
          <lastmod>2024-12-20</lastmod>
     </url>
     <url>
@@ -202,6 +210,10 @@
     </url>
     <url>
          <loc>https://mindspore-lab.github.io/mindone/0.2/diffusers/api/pipelines/animatediff/</loc>
+         <lastmod>2024-12-20</lastmod>
+    </url>
+    <url>
+         <loc>https://mindspore-lab.github.io/mindone/0.2/diffusers/api/pipelines/aura_flow/</loc>
          <lastmod>2024-12-20</lastmod>
     </url>
     <url>

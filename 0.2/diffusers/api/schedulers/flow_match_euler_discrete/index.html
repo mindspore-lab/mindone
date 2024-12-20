@@ -2881,6 +2881,27 @@
   
   
     <li class="md-nav__item">
+      <a href="../../models/aura_flow_transformer2d/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    AuraFlowTransformer2DModel
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../models/flux_transformer/" class="md-nav__link">
         
   
@@ -3084,6 +3105,27 @@
 
               
             
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../models/controlnet_sparsectrl/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    SparseControlNetModel
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
           </ul>
         </nav>
       
@@ -3165,6 +3207,27 @@
   
   <span class="md-ellipsis">
     AnimateDiff
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../pipelines/aura_flow/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    AuraFlow
   </span>
   
 
@@ -3865,10 +3928,10 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_10_4_35" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_10_4_36" >
         
           
-          <label class="md-nav__link" for="__nav_2_10_4_35" id="__nav_2_10_4_35_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_2_10_4_36" id="__nav_2_10_4_36_label" tabindex="0">
             
   
   <span class="md-ellipsis">
@@ -3879,8 +3942,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="4" aria-labelledby="__nav_2_10_4_35_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_2_10_4_35">
+        <nav class="md-nav" data-md-level="4" aria-labelledby="__nav_2_10_4_36_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_10_4_36">
             <span class="md-nav__icon md-icon"></span>
             Stable Diffusion
           </label>
@@ -6063,7 +6126,7 @@ Sample Steps are Flawed</a> for more information.</p>
         <span class="n">sigma</span> <span class="o">=</span> <span class="n">sigmas</span><span class="p">[</span><span class="n">step_indices</span><span class="p">]</span><span class="o">.</span><span class="n">flatten</span><span class="p">()</span>
         <span class="c1"># while len(sigma.shape) &lt; len(sample.shape):</span>
         <span class="c1">#     sigma = sigma.unsqueeze(-1)</span>
-        <span class="n">sigma</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="n">sigma</span><span class="p">,</span> <span class="p">(</span><span class="n">schedule_timesteps</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">],)</span> <span class="o">+</span> <span class="p">(</span><span class="mi">1</span><span class="p">,)</span> <span class="o">*</span> <span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">broadcast_shape</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span><span class="p">))</span>
+        <span class="n">sigma</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="n">sigma</span><span class="p">,</span> <span class="p">(</span><span class="n">timestep</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">],)</span> <span class="o">+</span> <span class="p">(</span><span class="mi">1</span><span class="p">,)</span> <span class="o">*</span> <span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">broadcast_shape</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span><span class="p">))</span>
 
         <span class="n">sample</span> <span class="o">=</span> <span class="n">sigma</span> <span class="o">*</span> <span class="n">noise</span> <span class="o">+</span> <span class="p">(</span><span class="mf">1.0</span> <span class="o">-</span> <span class="n">sigma</span><span class="p">)</span> <span class="o">*</span> <span class="n">sample</span>
 
@@ -6426,7 +6489,7 @@ A scaled input sample.</p>
     <span class="n">sigma</span> <span class="o">=</span> <span class="n">sigmas</span><span class="p">[</span><span class="n">step_indices</span><span class="p">]</span><span class="o">.</span><span class="n">flatten</span><span class="p">()</span>
     <span class="c1"># while len(sigma.shape) &lt; len(sample.shape):</span>
     <span class="c1">#     sigma = sigma.unsqueeze(-1)</span>
-    <span class="n">sigma</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="n">sigma</span><span class="p">,</span> <span class="p">(</span><span class="n">schedule_timesteps</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">],)</span> <span class="o">+</span> <span class="p">(</span><span class="mi">1</span><span class="p">,)</span> <span class="o">*</span> <span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">broadcast_shape</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span><span class="p">))</span>
+    <span class="n">sigma</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="n">sigma</span><span class="p">,</span> <span class="p">(</span><span class="n">timestep</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">],)</span> <span class="o">+</span> <span class="p">(</span><span class="mi">1</span><span class="p">,)</span> <span class="o">*</span> <span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">broadcast_shape</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span><span class="p">))</span>
 
     <span class="n">sample</span> <span class="o">=</span> <span class="n">sigma</span> <span class="o">*</span> <span class="n">noise</span> <span class="o">+</span> <span class="p">(</span><span class="mf">1.0</span> <span class="o">-</span> <span class="n">sigma</span><span class="p">)</span> <span class="o">*</span> <span class="n">sample</span>
 
