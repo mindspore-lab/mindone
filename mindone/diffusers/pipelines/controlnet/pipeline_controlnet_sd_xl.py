@@ -1503,7 +1503,7 @@ class StableDiffusionXLControlNetPipeline(
 
             # cast back to fp16 if needed
             if needs_upcasting:
-                self.vae = self.vae.to(dtype=ms.float16)
+                self.vae.to(dtype=ms.float16)
         else:
             image = latents
 
