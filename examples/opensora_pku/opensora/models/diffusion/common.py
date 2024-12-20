@@ -1,7 +1,6 @@
 import itertools
 
 import numpy as np
-from opensora.acceleration.parallel_states import get_sequence_parallel_state
 
 import mindspore as ms
 from mindspore import mint, nn, ops
@@ -54,10 +53,7 @@ class PositionGetter3D(object):
         z = list(range(t))
         pos = list(itertools.product(z, y, x))
         pos = ms.Tensor(pos)
-        if get_sequence_parallel_state():
-            pos = pos.reshape(t * h * w, 3).swapaxes(0, 1).reshape(3, -1, 1).broadcast_to((3, -1, b))
-        else:
-            pos = pos.reshape(t * h * w, 3).swapaxes(0, 1).reshape(3, 1, -1).broadcast_to((3, b, -1))
+        pos = pos.reshape(t * h * w, 3).swapaxes(0, 1).reshape(3, -1, 1).broadcast_to((3, -1, b))
         poses = (pos[0], pos[1], pos[2])
         max_poses = (int(poses[0].max()), int(poses[1].max()), int(poses[2].max()))
 
@@ -97,12 +93,6 @@ class RoPE3D(nn.Cell):
 
     def apply_rope1d(self, tokens, pos1d, cos, sin):
         assert pos1d.ndim == 2
-        # if npu_config is None and not get_sequence_parallel_state():
-        #     # for (batch_size x nheads x ntokens x dim)
-        #     cos = torch.nn.functional.embedding(pos1d, cos)[:, None, :, :]
-        #     sin = torch.nn.functional.embedding(pos1d, sin)[:, None, :, :]
-        # else:
-        # for (batch_size x ntokens x nheads x dim)
         cos = cos[pos1d.to(ms.int32)][:, :, None, :]
         sin = sin[pos1d.to(ms.int32)][:, :, None, :]
 

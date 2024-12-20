@@ -120,10 +120,6 @@ class DiffusionWithLoss(nn.Cell):
             self.text_encoder = text_encoder
 
         self.use_image_num = use_image_num
-
-        # FIXME: bug when sp_size=2
-        # self.broadcast_t = None if not get_sequence_parallel_state() \
-        #     else ops.Broadcast(root_rank=int(hccl_info.group_id * hccl_info.world_size), group=hccl_info.group)
         self.reduce_t = None if not get_sequence_parallel_state() else ops.AllReduce(group=hccl_info.group)
         self.sp_size = 1 if not get_sequence_parallel_state() else hccl_info.world_size
         self.all_gather = None if not get_sequence_parallel_state() else ops.AllGather(group=hccl_info.group)
