@@ -112,7 +112,7 @@ class LRMTrainer(Trainer):
 
         lr = create_scheduler(
             steps_per_epoch=dataset_size,
-            name=args.scheduler, # cfg_scheduler.type "cosine_decay"
+            name=args.scheduler, # "cosine_annealing_warm_restarts_lr" cfg.train.scheduler.type
             lr=args.start_learning_rate, #cfg.train.optim.lr,
             end_lr=args.end_learning_rate,
             warmup_steps= args.warmup_steps, #cfg.scheduler.warmup_real_iters,

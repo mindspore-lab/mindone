@@ -53,7 +53,7 @@ train:
         beta2: 0.95
         clip_grad_norm: 1.0
     scheduler:
-        type: cosine_decay
+        type: cosine_annealing_warm_restarts_lr
         warmup_real_iters: 300 #3000
     batch_size: 1 # 16  # REPLACE THIS (PER GPU)
     accum_steps: 1  # REPLACE THIS
