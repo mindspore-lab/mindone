@@ -34,7 +34,7 @@ def nonlinearity(x, upcast=False):
 
 
 def Normalize(in_channels, num_groups=32):
-    return mint.nn.GroupNorm(num_groups=num_groups, num_channels=in_channels, eps=1e-6, affine=True).to_float(ms.float32)
+    return nn.GroupNorm(num_groups=num_groups, num_channels=in_channels, eps=1e-6, affine=True).to_float(ms.float32)
 
 
 class Upsample(nn.Cell):
