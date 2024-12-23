@@ -56,7 +56,7 @@ class ObjaverseDataset(BaseDataset):
     @staticmethod
     def _load_pose(file_path):
         pose = np.load(smart_open(file_path, 'rb'))
-        pose = ms.Tensor(pose).float()
+        pose = ms.Tensor(pose).float() # C2W [R|t]: matrix 3x4
         return pose
 
     @no_proxy
@@ -101,8 +101,8 @@ class ObjaverseDataset(BaseDataset):
             poses = camera_normalization_objaverse(self.normed_dist_to_center, poses)
 
         # build source and target camera features
-        source_camera = build_camera_principle(poses[:1], intrinsics.unsqueeze(0)).squeeze(0)
-        render_camera = build_camera_standard(poses, intrinsics.repeat(poses.shape[0], 1, 1))
+        source_camera = build_camera_principle(poses[:1], intrinsics.unsqueeze(0)).squeeze(0) # [1, 12+4]
+        render_camera = build_camera_standard(poses, intrinsics.repeat(poses.shape[0], 1, 1)) # [N, 16+9]
 
         # adjust source image resolution
         source_image = ops.interpolate(

@@ -117,6 +117,10 @@ def build_camera_standard(RT: ms.Tensor, intrinsics: ms.Tensor):
     """
     RT: (N, 3, 4)
     intrinsics: (N, 3, 2), [[fx, fy], [cx, cy], [width, height]]
+    If convert it to intrinsics K:
+    K = [[fx, 0, cx],
+            [0, fy, cy],
+            [0, 0, 1]]
     """
     E = compose_extrinsic_RT(RT)
     fx, fy, cx, cy = get_normalized_camera_intrinsics(intrinsics)

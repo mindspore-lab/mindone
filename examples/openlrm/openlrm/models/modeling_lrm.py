@@ -136,12 +136,12 @@ class ModelLRM(nn.Cell):
         N = tokens.shape[0]
         H = W = self.triplane_low_res
         x = tokens.view((N, 3, H, W, -1))
-        # x = ops.einsum('nihwd->indhw', x)  
+        # x = ops.einsum('nihwd->indhw', x)  =>
         x = x.permute(1, 0, 4, 2, 3) # [3, N, D, H, W]
         x = x.contiguous().view((3*N, -1, H, W))  # [3*N, D, H, W]
         x = self.upsampler(x)  # [3*N, D', H', W']
         x = x.view((3, N, *x.shape[-3:]))  # [3, N, D', H', W']
-        # x = ops.einsum('indhw->nidhw', x) 
+        # x = ops.einsum('indhw->nidhw', x)  =>
         x = x.swapaxes(0, 1)  # [N, 3, D', H', W']
         x = x.contiguous()
         return x
