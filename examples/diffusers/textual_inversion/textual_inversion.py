@@ -697,7 +697,9 @@ def main():
     # Prepare everything with our `accelerator`.
     text_encoder.to(weight_dtype)
     text_encoder.get_input_embeddings().embedding_table.set_dtype(ms.float32)
-    text_encoder.get_input_embeddings().to_float(weight_dtype)
+    # TODO: We will update the training methods during mixed precision training to ensure the performance and strategies during the training process.
+    if args.mixed_precision and args.mixed_precision != "no":
+        text_encoder.get_input_embeddings().to_float(weight_dtype)
     # In `StableDiffusionPipeline.encode_prompt`, `prompt_embeds` is cast according to `text_encoder.dtype`
     # This unsafe and ugly patch affects all instances of `MSPreTrainedModel`. Improve it in the future!
     from mindone.transformers import MSPreTrainedModel

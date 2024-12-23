@@ -928,15 +928,17 @@ def main():
         weight_dtype = ms.bfloat16
 
     vae.to(dtype=ms.float32)
-    transformer.to_float(weight_dtype)
-    if not args.train_text_encoder:
-        text_encoder_one.to(dtype=weight_dtype)
-        text_encoder_two.to(dtype=weight_dtype)
-        text_encoder_three.to(dtype=weight_dtype)
-    else:
-        text_encoder_one.to_float(weight_dtype)
-        text_encoder_two.to_float(weight_dtype)
-        text_encoder_three.to_float(weight_dtype)
+    # TODO: We will update the training methods during mixed precision training to ensure the performance and strategies during the training process.
+    if args.mixed_precision and args.mixed_precision != "no":
+        transformer.to_float(weight_dtype)
+        if not args.train_text_encoder:
+            text_encoder_one.to(dtype=weight_dtype)
+            text_encoder_two.to(dtype=weight_dtype)
+            text_encoder_three.to(dtype=weight_dtype)
+        else:
+            text_encoder_one.to_float(weight_dtype)
+            text_encoder_two.to_float(weight_dtype)
+            text_encoder_three.to_float(weight_dtype)
 
     if args.gradient_checkpointing:
         transformer.enable_gradient_checkpointing()
