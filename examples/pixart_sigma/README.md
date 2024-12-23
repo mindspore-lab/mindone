@@ -270,7 +270,7 @@ Experiments are tested on ascend 910* with mindspore 2.3.1 graph mode
 
 
 ## LoRA Finetuning
-We provide the train and inference of Pixart-Alpha/Pixart-Sigma in ...
+We provide the train and inference of Pixart-Alpha/Pixart-Sigma in `pixart/lora-finetuning`
 
 ### LoRA Training
 You can fine-tune PixArt-alpha or PixArt-Sigma models using LoRA. The base models are available on [Hugging Face](https://huggingface.co/PixArt-alpha).
@@ -320,12 +320,15 @@ The script accepts the following parameters:
 Here is some examples
 <p align="center"><img width="1024" src="https://github.com/itruonghai/mindone-asset/blob/main/pixart_lora.png?raw=true"/></p>
 
-#### LoRA Finetuning Performance (512x512, batch size=4)
+#### LoRA Finetuning Performance
 
-| Framework | Hardware | Memory (GB) | Training Speed (s/step) |
-|:--------:|:--------:|:-----------:|:----------------------:|
-| MindSpore | Ascend 910B | 25 | 0.57 |
-| PyTorch | NVIDIA A100 | 47 | 0.66 |
+
+
+| model name   | cards |  batch size | resolution   | jit level |  graph compile | s/step |  img/s                                                                  |
+|:------------:|:-----:|:-----------:|:------------:|:----------:|:---------:|:---------:|:------------------------------------------------------------------------|
+| PixArt-Alpha | 1     | 4           | 512 x 512    | O1        | < 3 mins      | 0.055    | 72.72 |
+| PixArt-Sigma | 1     | 4           | 512 x 512    | O1        | < 3 mins      | 0.065    | 61.54 |
+
 
 # References
 

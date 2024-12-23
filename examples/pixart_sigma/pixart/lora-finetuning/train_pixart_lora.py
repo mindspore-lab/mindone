@@ -349,6 +349,7 @@ def parse_args():
             " flag passed with the `accelerate.launch` command. Use this argument to override the accelerate config."
         ),
     )
+    parser.add_argument("--jit_level", default="O1", choices=["O0", "O1"], help="Jit Level")
     parser.add_argument(
         "--report_to",
         type=str,
@@ -422,7 +423,7 @@ DATASET_NAME_MAPPING = {
 
 def main():
     args = parse_args()
-    ms.set_context(mode=ms.GRAPH_MODE, jit_syntax_level=ms.LAX)
+    ms.set_context(mode=ms.GRAPH_MODE, jit_config={"jit_level": args.jit_level}, jit_syntax_level=ms.STRICT)
     init_distributed_device(args)
 
     logging_dir = Path(args.output_dir, args.logging_dir)
