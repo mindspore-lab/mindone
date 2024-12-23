@@ -88,5 +88,3 @@ def blend_time(a, b, blend_extent):
         coef = t / blend_extent
         b[:, :, t, :, :] = a[:, :, -blend_extent + t, :, :] * (1 - coef) + b[:, :, t, :, :] * coef
     return b
-
-

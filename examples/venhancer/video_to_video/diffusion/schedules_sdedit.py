@@ -1,5 +1,3 @@
-# Copyright (c) Alibaba, Inc. and its affiliates.
-
 import math
 
 from mindspore import mint, ops

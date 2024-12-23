@@ -6,13 +6,7 @@ from video_to_video.diffusion.diffusion_sdedit import GaussianDiffusion
 from video_to_video.diffusion.schedules_sdedit import noise_schedule
 from video_to_video.modules.embedder import FrozenOpenCLIPEmbedder
 from video_to_video.utils.config import cfg
-from video_to_video.utils.utils import (
-    blend_time,
-    gaussian_weights,
-    make_chunks,
-    pad_to_fit,
-    sliding_windows_1d,
-)
+from video_to_video.utils.utils import blend_time, gaussian_weights, make_chunks, pad_to_fit, sliding_windows_1d
 
 import mindspore as ms
 from mindspore import Tensor, mint, ops
@@ -47,7 +41,7 @@ class VideoToVideo:
 
         generator = auto_mixed_precision(generator, amp_level="O2", dtype=ms.float16)
         vae = auto_mixed_precision(vae, amp_level="O2", dtype=ms.float16)
-        logger.info(f"Use amp level O2 for generator and vae with dtype=fp16")
+        logger.info("Use amp level O2 for generator and vae with dtype=fp16")
         self.generator = generator
         self.vae = vae
 
