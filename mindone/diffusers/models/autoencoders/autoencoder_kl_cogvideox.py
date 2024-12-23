@@ -94,10 +94,13 @@ class CogVideoXCausalConv3d(nn.Cell):
 
         time_kernel_size, height_kernel_size, width_kernel_size = kernel_size
 
+        # TODO(aryan): configure calculation based on stride and dilation in the future.
+        # Since CogVideoX does not use it, it is currently tailored to "just work" with Mochi
+        time_pad = time_kernel_size - 1
+        height_pad = (height_kernel_size - 1) // 2
+        width_pad = (width_kernel_size - 1) // 2
+
         self.pad_mode = pad_mode
-        time_pad = dilation * (time_kernel_size - 1) + (1 - stride)
-        height_pad = height_kernel_size // 2
-        width_pad = width_kernel_size // 2
 
         self.height_pad = height_pad
         self.width_pad = width_pad
@@ -107,7 +110,7 @@ class CogVideoXCausalConv3d(nn.Cell):
         self.temporal_dim = 2
         self.time_kernel_size = time_kernel_size
 
-        stride = (stride, 1, 1)
+        stride = stride if isinstance(stride, tuple) else (stride, 1, 1)
         dilation = (dilation, 1, 1)
         self.conv = CogVideoXSafeConv3d(
             in_channels=in_channels,
@@ -120,18 +123,24 @@ class CogVideoXCausalConv3d(nn.Cell):
         )
 
     def fake_context_parallel_forward(self, inputs: ms.Tensor, conv_cache: Optional[ms.Tensor] = None) -> ms.Tensor:
-        kernel_size = self.time_kernel_size
-        if kernel_size > 1:
-            cached_inputs = [conv_cache] if conv_cache is not None else [inputs[:, :, :1]] * (kernel_size - 1)
-            inputs = ops.cat(cached_inputs + [inputs], axis=2)
+        if self.pad_mode == "replicate":
+            inputs = pad(inputs, self.time_causal_padding, mode="replicate")
+        else:
+            kernel_size = self.time_kernel_size
+            if kernel_size > 1:
+                cached_inputs = [conv_cache] if conv_cache is not None else [inputs[:, :, :1]] * (kernel_size - 1)
+                inputs = ops.cat(cached_inputs + [inputs], axis=2)
         return inputs
 
     def construct(self, inputs: ms.Tensor, conv_cache: Optional[ms.Tensor] = None) -> ms.Tensor:
         inputs = self.fake_context_parallel_forward(inputs, conv_cache)
-        conv_cache = inputs[:, :, -self.time_kernel_size + 1 :].copy()  # FIXME: eq clone?
 
-        padding_2d = (self.width_pad, self.width_pad, self.height_pad, self.height_pad)
-        inputs = pad(inputs, padding_2d, mode="constant", value=0)
+        if self.pad_mode == "replicate":
+            conv_cache = None
+        else:
+            padding_2d = (self.width_pad, self.width_pad, self.height_pad, self.height_pad)
+            conv_cache = inputs[:, :, -self.time_kernel_size + 1 :].copy()
+            inputs = pad(inputs, padding_2d, mode="constant", value=0)
 
         output = self.conv(inputs)
         return output, conv_cache
@@ -1004,6 +1013,7 @@ class AutoencoderKLCogVideoX(ModelMixin, ConfigMixin, FromOriginalModelMixin):
         force_upcast: float = True,
         use_quant_conv: bool = False,
         use_post_quant_conv: bool = False,
+        invert_scale_latents: bool = False,
     ):
         super().__init__()
 
