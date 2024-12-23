@@ -128,8 +128,8 @@ def pad_to_multiple(number, ds_stride):
 
 
 class Collate:
-    def __init__(self, args):
-        self.batch_size = args.train_batch_size
+    def __init__(self, batch_size, args):
+        self.batch_size = batch_size
         self.group_data = args.group_data
         self.force_resolution = args.force_resolution
 

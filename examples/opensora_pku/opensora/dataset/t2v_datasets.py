@@ -421,6 +421,8 @@ class T2V_dataset:
                 #     shape_idx_dict[pre_define_shape] = [index]
                 # else:
                 #     shape_idx_dict[pre_define_shape].append(index)
+        if len(sample_size) == 0:
+            raise ValueError("sample_size is empty!")
         counter = Counter(sample_size)
         counter_cp = counter
         if not self.force_resolution and self.max_hxw is not None and self.min_hxw is not None:

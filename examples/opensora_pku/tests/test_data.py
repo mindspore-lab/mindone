@@ -66,7 +66,7 @@ def load_dataset_and_dataloader(args, device_num=1, rank_id=0):
         lengths=train_dataset.lengths,
         group_data=args.group_data,
     )
-    collate_fn = Collate(args)
+    collate_fn = Collate(args.train_batch_size, args)
     dataloader = create_dataloader(
         train_dataset,
         batch_size=args.train_batch_size,
