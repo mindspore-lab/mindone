@@ -389,6 +389,7 @@ def get_length_grouped_indices(
     generator=None,
     group_data=False,
     seed=42,
+    return_batch_indices=True,
 ):
     if generator is None:
         generator = np.random.default_rng(seed)  # every rank will generate a fixed order but random index
@@ -458,8 +459,14 @@ def get_length_grouped_indices(
     # print('\nshuffled_megabatches', shuffled_megabatches)
     # import ipdb;ipdb.set_trace()
     # print('\nshuffled_megabatches len', [[i, lengths[i]] for megabatch in shuffled_megabatches for batch in megabatch for i in batch])
-    # return [i for megabatch in shuffled_megabatches for batch in megabatch for i in batch]  # return epoch indices in a list
-    return [batch for megabatch in shuffled_megabatches for batch in megabatch]  # return batch indices (list of lists)
+    if not return_batch_indices:
+        return [
+            i for megabatch in shuffled_megabatches for batch in megabatch for i in batch
+        ]  # return epoch indices in a list
+    else:
+        return [
+            batch for megabatch in shuffled_megabatches for batch in megabatch
+        ]  # return batch indices (list of lists)
 
 
 class LengthGroupedSampler:
@@ -506,6 +513,7 @@ class LengthGroupedSampler:
             self.initial_global_step,
             group_data=self.group_data,
             generator=self.generator,
+            return_batch_indices=False,
         )
 
         return iter(indices)
@@ -521,10 +529,9 @@ class LengthGroupedBatchSampler:
         self,
         batch_size: int,
         world_size: int,
+        gradient_accumulation_size: int,
         lengths: Optional[List[int]] = None,
-        initial_global_step_for_sampler: int = 0,
-        group_frame=False,
-        group_resolution=False,
+        initial_global_step: int = 0,
         group_data=False,
         generator=None,
     ):
@@ -534,9 +541,9 @@ class LengthGroupedBatchSampler:
         self.batch_size = batch_size
         self.world_size = world_size
         self.megabatch_size = self.world_size * self.batch_size
+        self.initial_global_step = initial_global_step
+        self.gradient_accumulation_size = gradient_accumulation_size
         self.lengths = lengths
-        self.group_frame = group_frame
-        self.group_resolution = group_resolution
         self.group_data = group_data
         self.generator = generator
         self.remainder = len(self) * self.megabatch_size != len(self.lengths)
@@ -549,8 +556,10 @@ class LengthGroupedBatchSampler:
             self.lengths,
             self.batch_size,
             self.world_size,
-            group_frame=self.group_frame,
-            group_resolution=self.group_resolution,
+            self.gradient_accumulation_size,
+            self.initial_global_step,
+            group_data=self.group_data,
             generator=self.generator,
+            return_batch_indices=True,
         )
         return iter(indices)

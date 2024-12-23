@@ -14,7 +14,7 @@ from opensora.models.causalvideovae import ae_stride_config
 from opensora.models.diffusion import Diffusion_models
 from opensora.npu_config import npu_config
 from opensora.train.commons import parse_args
-from opensora.utils.dataset_utils import Collate, LengthGroupedSampler
+from opensora.utils.dataset_utils import Collate, LengthGroupedBatchSampler
 from opensora.utils.message_utils import print_banner
 
 from mindone.utils.config import str2bool
@@ -59,7 +59,7 @@ def load_dataset_and_dataloader(args, device_num=1, rank_id=0):
         args.min_hxw = args.max_hxw // 4
 
     train_dataset = getdataset(args, dataset_file=args.data)
-    sampler = LengthGroupedSampler(
+    batch_sampler = LengthGroupedBatchSampler(
         args.train_batch_size,
         world_size=device_num if not get_sequence_parallel_state() else (device_num // hccl_info.world_size),
         gradient_accumulation_size=args.gradient_accumulation_steps,
@@ -71,14 +71,14 @@ def load_dataset_and_dataloader(args, device_num=1, rank_id=0):
     dataloader = create_dataloader(
         train_dataset,
         batch_size=args.train_batch_size,
-        shuffle=sampler is None,
+        shuffle=batch_sampler is None,
         device_num=device_num if not get_sequence_parallel_state() else (device_num // hccl_info.world_size),
         rank_id=rank_id if not get_sequence_parallel_state() else hccl_info.group_id,
         num_parallel_workers=args.dataloader_num_workers,
         max_rowsize=args.max_rowsize,
         prefetch_size=args.dataloader_prefetch_size,
         collate_fn=collate_fn,
-        sampler=sampler,
+        batch_sampler=batch_sampler,
         column_names=["pixel_values", "attention_mask", "text_embed", "encoder_attention_mask"],
         drop_last=True,
     )
@@ -103,14 +103,7 @@ def parse_t2v_train_args(parser):
         default=True,
         help="whether to use decord to load videos. If not, use opencv to load videos.",
     )
-    parser.add_argument("--use_parallel", default=False, type=str2bool, help="use parallel")
-    parser.add_argument(
-        "--parallel_mode",
-        default="data",
-        type=str,
-        choices=["data", "optim", "semi", "zero"],
-        help="parallel mode: data, optim, zero",
-    )
+
     # text encoder & vae & diffusion model
     parser.add_argument("--vae_fp32", action="store_true")
     parser.add_argument("--extra_save_mem", action="store_true")
