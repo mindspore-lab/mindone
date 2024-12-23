@@ -434,7 +434,9 @@ class T2V_dataset:
             )
 
         len_before_filter_major = len(sample_size)
-        filter_major_num = 4 * self.total_batch_size
+        filter_major_num = (
+            self.total_batch_size
+        )  # allow the sample_size with at least `total_batch_size` samples in the dataset
         new_cap_list, sample_size = zip(
             *[[i, j] for i, j in zip(new_cap_list, sample_size) if counter[j] >= filter_major_num]
         )
