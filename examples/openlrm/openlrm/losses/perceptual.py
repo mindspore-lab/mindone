@@ -36,7 +36,7 @@ class LPIPSLoss(nn.Cell):
             import warnings
             with warnings.catch_warnings():
                 warnings.filterwarnings('ignore', category=UserWarning)
-                _model = LPIPS(net=model_name, eval_mode=True, verbose=False)
+                _model = LPIPS()
             
             self.cached_models[model_name] = _model
         return self.cached_models[model_name]

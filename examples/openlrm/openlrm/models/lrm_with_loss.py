@@ -4,16 +4,13 @@ import os
 logger = logging.getLogger("")
 
 import numpy as np
-from einops import rearrange
 from PIL import Image
-# from utils.loss_util import LPIPS
 from openlrm.losses.perceptual import LPIPSLoss
 
 import mindspore as ms
 from mindspore import Tensor, mint, nn
 from mindspore.dataset.vision import ToPIL
 
-from mindone.utils.config import instantiate_from_config
 from . import ModelLRM
 
 

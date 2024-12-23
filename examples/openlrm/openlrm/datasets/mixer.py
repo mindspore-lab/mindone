@@ -34,6 +34,16 @@ class MixerDataset:
             math.ceil(subset_config['sample_rate'] * len(subset_obj))
             for subset_config, subset_obj in zip(subsets, self.subsets)
         ]
+        self.output_columns = [
+            'uid',
+            'source_camera',
+            'render_camera',
+            'source_image',
+            'render_image',
+            'render_anchors',
+            'render_full_resolutions',
+            'render_bg_colors',
+        ]
 
     @staticmethod
     def _dataset_fn(subset_config: dict, split: str):

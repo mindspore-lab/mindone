@@ -28,13 +28,12 @@ from omegaconf import OmegaConf
 from abc import abstractmethod
 from contextlib import contextmanager
 from logging import getLogger
-from openlrm.utils import seed_everything, str2bool
 
 # from openlrm.utils.logging import configure_logger
 from openlrm.runners.abstract import Runner
 
-from mindone.utils import init_train_env, set_logger, count_params
-from mindone.safetensors import load_file
+from mindone.safetensors.mindspore import load_file
+from openlrm.utils import str2bool
 
 logger = getLogger(__name__)
 
@@ -65,7 +64,8 @@ def parse_args(**parser_kwargs):
         action="store_true",
         help="When debugging, set it true. Dumping files will overlap to avoid trashing your storage.",
     )
-    args = parser.parse_args()
+    # args = parser.parse_args()
+    args, unknown = parser.parse_known_args() # may unrecognize runner=train.lrm
     return args
 
 
@@ -210,7 +210,7 @@ class Trainer(Runner):
         
         # read configs 
         self.args = parse_args()
-        self.cfg = OmegaConf.load(config)
+        self.cfg = OmegaConf.load(self.args.config)
 
         # attributes with defaults
         self.model : nn.Cell = None
@@ -360,11 +360,7 @@ class Trainer(Runner):
         pass
 
     @abstractmethod
-    def _build_optimizer(self):
-        pass
-
-    @abstractmethod
-    def _build_scheduler(self):
+    def _build_utils(self):
         pass
 
     @abstractmethod
@@ -372,16 +368,12 @@ class Trainer(Runner):
         pass
 
     @abstractmethod
-    def _build_loss_fn(self):
-        pass
-
-    @abstractmethod
     def train(self):
         pass
 
-    @abstractmethod
-    def evaluate(self):
-        pass
+    # @abstractmethod
+    # def evaluate(self):
+    #     pass
 
     @staticmethod
     def _get_str_progress(epoch: int = None, step: int = None):
@@ -404,7 +396,7 @@ class Trainer(Runner):
             logger.info(f'{log_progress} - {key}{split}/{log_type}: {value}')
 
 
-    def log_images(self, values: dict, step: int | None = None, log_kwargs: dict | None = {}):
+    def log_images(self, values: dict, step = None, log_kwargs = {}):
         pass
         # for tracker in self.accelerator.trackers:
         #     if hasattr(tracker, 'log_images'):

@@ -24,8 +24,8 @@ dataset:
             root_dirs:
                 - /home/susan/workspace/datasets/openlrm
             meta_path:
-                train: meta.json
-                val: meta.json
+                train: /home/susan/workspace/datasets/openlrm/meta.json
+                val: /home/susan/workspace/datasets/openlrm/meta.json
             sample_rate: 1.0
     sample_side_views: 3
     source_image_res: 224

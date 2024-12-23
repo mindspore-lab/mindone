@@ -10,7 +10,6 @@ import logging
 import math
 
 import yaml
-from utils.train_util import str2bool
 
 import mindspore as ms
 from mindspore import Model, nn
@@ -35,10 +34,8 @@ from mindone.trainers.optim import create_optimizer
 from mindone.trainers.train_step import TrainOneStepWrapper
 from mindone.utils.amp import auto_mixed_precision
 from mindone.utils.config import instantiate_from_config
-from mindone.utils.env import init_train_env
-from mindone.utils.logger import set_logger
-from mindone.utils.params import count_params
-from mindone.utils.seed import set_random_seed
+from mindone.utils import init_train_env, set_logger, count_params
+from openlrm.utils import seed_everything
 
 @REGISTRY_RUNNERS.register('train.lrm')
 class LRMTrainer(Trainer):
@@ -48,7 +45,7 @@ class LRMTrainer(Trainer):
         time_str = datetime.datetime.now().strftime("%Y-%m-%dT%H-%M-%S")
         if self.args.resume:
             self.args.output_path = self.args.resume
-        elif not args.debug:
+        elif not self.args.debug:
             self.args.output_path = os.path.join(self.args.output_path, time_str)
         else:
             print("make sure you are debugging now, as no ckpt will be saved.")
@@ -63,9 +60,9 @@ class LRMTrainer(Trainer):
             debug=self.args.debug,
             )
         seed_everything(self.cfg.experiment.seed)
-        set_logger(name="", output_dir=args.output_path, rank=self.rank_id, log_level=eval(args.log_level))
+        set_logger(name="", output_dir=self.args.output_path, rank=self.rank_id, log_level=eval(self.args.log_level))
 
-        self.ckpt_dir = os.path.join(args.output_path, "ckpt")
+        self.ckpt_dir = os.path.join(self.args.output_path, "ckpt")
 
         # 2. build model
         # self.cfg.model.dtype = self.args.dtype
@@ -232,7 +229,7 @@ class LRMTrainer(Trainer):
         # build data loader
         train_loader = create_dataloader(
             train_dataset,
-            batch_size=self.train.batch_size,
+            batch_size=self.cfg.train.batch_size,
             shuffle=True,
             drop_remainder=True,
             device_num=self.device_num,
@@ -244,7 +241,7 @@ class LRMTrainer(Trainer):
         )
         val_loader = create_dataloader(
             val_dataset,
-            batch_size=self.train.batch_size,
+            batch_size=self.cfg.train.batch_size,
             shuffle=False,
             drop_remainder=False,
             device_num=self.device_num,
@@ -476,7 +473,7 @@ class LRMTrainer(Trainer):
 
         net_with_grads = TrainOneStepWrapper(
             self.model_with_loss,
-            optimizer=optimizer,
+            optimizer=self.optimizer,
             scale_sense=self.loss_scaler,
             drop_overflow_update=args.drop_overflow_update,
             gradient_accumulation_steps=args.gradient_accumulation_steps,
@@ -550,7 +547,7 @@ class LRMTrainer(Trainer):
             logger.info("Start training...")
             with open(os.path.join(args.output_path, "args.yaml"), "w") as f:
                 yaml.safe_dump(vars(args), stream=f, default_flow_style=False, sort_keys=False)
-            OmegaConf.save(config, os.path.join(args.output_path, "cfg.yaml"))
+            OmegaConf.save(self.cfg, os.path.join(args.output_path, "cfg.yaml"))
 
         logger.info("using the standard fitting api")
         self.model.fit(
