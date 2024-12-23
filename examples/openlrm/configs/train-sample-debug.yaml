@@ -84,7 +84,3 @@ logger:
         train_global_steps: 100
         samples_per_log: 4
 
-compile:
-    suppress_errors: true
-    print_specializations: true
-    disable: true

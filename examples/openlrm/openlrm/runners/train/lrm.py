@@ -54,7 +54,7 @@ class LRMTrainer(Trainer):
             print("make sure you are debugging now, as no ckpt will be saved.")
 
         # 1. env init
-        did, rank_id, device_num = init_train_env(
+        did, self.rank_id, self.device_num = init_train_env(
             self.args.mode,
             seed=self.args.seed,
             distributed=self.args.use_parallel,
@@ -63,7 +63,7 @@ class LRMTrainer(Trainer):
             debug=self.args.debug,
             )
         seed_everything(self.cfg.experiment.seed)
-        set_logger(name="", output_dir=args.output_path, rank=rank_id, log_level=eval(args.log_level))
+        set_logger(name="", output_dir=args.output_path, rank=self.rank_id, log_level=eval(args.log_level))
 
         self.ckpt_dir = os.path.join(args.output_path, "ckpt")
 
@@ -72,10 +72,14 @@ class LRMTrainer(Trainer):
         self.model_with_loss = self._build_model(self.cfg)
 
         # 3. create dataset
-        self.train_loader, self.val_loader = self._build_dataloader(self.cfg)
+        self.train_loader, self.val_loader = self._build_dataloader(self.args, self.cfg)
 
         # 4. build optimizer, scheduler, trainer, etc 
-        self._build_utils(self.args, self.cfg)
+        self.loss_scaler = None
+        self.optimizer = None
+        self.sink_epochs = None
+        dataset_size = self.train_loader.get_dataset_size()
+        self._build_utils(self.args, self.cfg, dataset_size)
 
         # self.scheduler = self._build_scheduler(self.optimizer, self.cfg)
         # self.pixel_loss_fn, self.perceptual_loss_fn, self.tv_loss_fn = self._build_loss_fn(self.cfg)
@@ -85,19 +89,19 @@ class LRMTrainer(Trainer):
         assert cfg.experiment.type == 'lrm', \
             f"Config type {cfg.experiment.type} does not match with runner {self.__class__.__name__}"
         from openlrm.models import ModelLRMWithLoss
-        lrm_model_with_loss = ModelLRMWithLoss(cfg) #TODO
+        lrm_model_with_loss = ModelLRMWithLoss(cfg) 
 
         # TBD
         if not self.args.global_bf16:
             lrm_model_with_loss = auto_mixed_precision(
                 lrm_model_with_loss,
-                amp_level=args.amp_level,
+                amp_level=self.args.amp_level,
             )
 
         return lrm_model_with_loss
 
     # Build training utils: lr, optim, callbacks, trainer
-    def _build_utils(self, args, cfg):
+    def _build_utils(self, args, cfg, dataset_size):
         total_train_steps = cfg.train.epochs
         # build learning rate scheduler
         if not args.decay_steps:
@@ -130,13 +134,13 @@ class LRMTrainer(Trainer):
         )
 
         if args.loss_scaler_type == "dynamic":  # for the case when there is an overflow during training
-            loss_scaler = DynamicLossScaleUpdateCell(
+            self.loss_scaler = DynamicLossScaleUpdateCell(
                 loss_scale_value=args.init_loss_scale, scale_factor=args.loss_scale_factor, scale_window=args.scale_window
             )
         elif args.loss_scaler_type == "static":
-            loss_scaler = nn.FixedLossScaleUpdateCell(args.init_loss_scale)
+            self.loss_scaler = nn.FixedLossScaleUpdateCell(args.init_loss_scale)
         else:
-            loss_scaler = ms.Tensor([1.0], dtype=ms.float32)
+            self.loss_scaler = ms.Tensor([1.0], dtype=ms.float32)
 
         ############################################
         # TBD
@@ -198,7 +202,7 @@ class LRMTrainer(Trainer):
     #     return scheduler
 
     # Build dataset
-    def _build_dataloader(self, cfg):
+    def _build_dataloader(self, args, cfg):
         # dataset class
         from openlrm.datasets import MixerDataset
 
@@ -231,8 +235,8 @@ class LRMTrainer(Trainer):
             batch_size=self.train.batch_size,
             shuffle=True,
             drop_remainder=True,
-            device_num=device_num,
-            rank_id=rank_id,
+            device_num=self.device_num,
+            rank_id=self.rank_id,
             num_workers=cfg.dataset.num_train_workers,
             python_multiprocessing=args.data_multiprocessing,
             max_rowsize=args.max_rowsize,
@@ -243,8 +247,8 @@ class LRMTrainer(Trainer):
             batch_size=self.train.batch_size,
             shuffle=False,
             drop_remainder=False,
-            device_num=device_num,
-            rank_id=rank_id,
+            device_num=self.device_num,
+            rank_id=self.rank_id,
             num_workers=cfg.dataset.num_val_workers,
             python_multiprocessing=args.data_multiprocessing,
             max_rowsize=args.max_rowsize,
@@ -264,30 +268,30 @@ class LRMTrainer(Trainer):
             steps_per_sink = args.sink_size
         else:
             steps_per_sink = dataset_size
-        sink_epochs = math.ceil(total_train_steps / steps_per_sink)
+        self.sink_epochs = math.ceil(total_train_steps / steps_per_sink)
 
         if args.ckpt_save_steps == -1:
-            ckpt_save_interval = args.ckpt_save_interval
-            step_mode = False
+            self.ckpt_save_interval = args.ckpt_save_interval
+            self.step_mode = False
         else:
-            step_mode = not args.dataset_sink_mode
+            self.step_mode = not args.dataset_sink_mode
             if not args.dataset_sink_mode:
-                ckpt_save_interval = args.ckpt_save_steps
+                self.ckpt_save_interval = args.ckpt_save_steps
             else:
                 # still need to count interval in sink epochs
-                ckpt_save_interval = max(1, args.ckpt_save_steps // steps_per_sink)
+                self.ckpt_save_interval = max(1, args.ckpt_save_steps // steps_per_sink)
                 if args.ckpt_save_steps % steps_per_sink != 0:
                     logger.warning(
                         f"'ckpt_save_steps' must be times of sink size or dataset_size under dataset sink mode."
-                        f"Checkpoint will be saved every {ckpt_save_interval * steps_per_sink} steps."
+                        f"Checkpoint will be saved every {self.ckpt_save_interval * steps_per_sink} steps."
                     )
-        step_mode = step_mode if args.step_mode is None else args.step_mode
+        self.step_mode = self.step_mode if args.step_mode is None else args.step_mode
 
         logger.info(f"train_steps: {total_train_steps}, train_epochs: {args.epochs}, sink_size: {args.sink_size}")
-        logger.info(f"total train steps: {total_train_steps}, sink epochs: {sink_epochs}")
+        logger.info(f"total train steps: {total_train_steps}, sink epochs: {self.sink_epochs}")
         logger.info(
             "ckpt_save_interval: {} {}".format(
-                ckpt_save_interval, "steps" if (not args.dataset_sink_mode and step_mode) else "sink epochs"
+                self.ckpt_save_interval, "steps" if (not args.dataset_sink_mode and self.step_mode) else "sink epochs"
             )
         )
 
@@ -450,11 +454,11 @@ class LRMTrainer(Trainer):
             logger.info(f"Loading latest.ckpt in {args.resume} to resume training")
             resume_ckpt = os.path.join(args.resume, "latest.ckpt")
             start_epoch, loss_scale, cur_iter, last_overflow_iter = resume_train_network(
-                lrm_model, optimizer, resume_ckpt
-            )  # refer to hpcai train script about the input usage of this func
-            loss_scaler.loss_scale_value = loss_scale
-            loss_scaler.cur_iter = cur_iter
-            loss_scaler.last_overflow_iter = last_overflow_iter
+                lrm_model, self.optimizer, resume_ckpt
+            )  
+            self.loss_scaler.loss_scale_value = loss_scale
+            self.loss_scaler.cur_iter = cur_iter
+            self.loss_scaler.last_overflow_iter = last_overflow_iter
         else:
             start_epoch = 0
             # resume_param = ms.load_checkpoint(config.model.params.lrm_generator_config.openlrm_ckpt)
@@ -473,7 +477,7 @@ class LRMTrainer(Trainer):
         net_with_grads = TrainOneStepWrapper(
             self.model_with_loss,
             optimizer=optimizer,
-            scale_sense=loss_scaler,
+            scale_sense=self.loss_scaler,
             drop_overflow_update=args.drop_overflow_update,
             gradient_accumulation_steps=args.gradient_accumulation_steps,
             clip_grad=args.clip_grad,
@@ -482,9 +486,9 @@ class LRMTrainer(Trainer):
         )
 
         if args.global_bf16:
-            model = Model(net_with_grads, amp_level="O0")
+            self.model = Model(net_with_grads, amp_level="O0")
         else:
-            model = Model(net_with_grads)
+            self.model = Model(net_with_grads)
 
         # 4.3 callbacks
         callback = [
@@ -492,17 +496,17 @@ class LRMTrainer(Trainer):
             OverflowMonitor(),
         ]
 
-        if rank_id == 0:
+        if self.rank_id == 0:
             save_cb = EvalSaveCallback(
                 network=self.model_with_loss,
-                rank_id=rank_id,
-                ckpt_save_dir=ckpt_dir,
+                rank_id=self.rank_id,
+                ckpt_save_dir=self.ckpt_dir,
                 ema=ema,
                 ckpt_save_policy="top_k",
                 ckpt_max_keep=args.ckpt_max_keep,
-                step_mode=step_mode,
+                step_mode=self.step_mode,
                 use_step_unit=(args.ckpt_save_steps != -1),
-                ckpt_save_interval=ckpt_save_interval,
+                ckpt_save_interval=self.ckpt_save_interval,
                 log_interval=args.log_interval,
                 start_epoch=start_epoch,
                 model_name="openlrm",
@@ -515,8 +519,8 @@ class LRMTrainer(Trainer):
             callback.append(ProfilerCallbackEpoch(2, 3, "./profile_data"))
 
         # log and save config
-        if rank_id == 0:
-            num_params_lrm, num_params_lrm_trainable = count_params(lrm_model_with_loss)
+        if self.rank_id == 0:
+            num_params_lrm, num_params_lrm_trainable = count_params(self.model_with_loss)
             key_info = "Key Settings:\n" + "=" * 50 + "\n"
             key_info += "\n".join(
                 [
@@ -525,8 +529,8 @@ class LRMTrainer(Trainer):
                     f"\tNum params: {num_params_lrm} (lrm: {num_params_lrm})",
                     f"\tNum trainable params: {num_params_lrm_trainable}",
                     f"\tLearning rate: {args.start_learning_rate}",
-                    f"\tBatch size: {config.data.batch_size}",
-                    f"\tImage size: {img_size}",
+                    f"\tBatch size: {cfg.train.batch_size}",
+                    f"\tImage size: {cfg.dataset.source_image_res}",
                     f"\tWeight decay: {args.weight_decay}",
                     f"\tGrad accumulation steps: {args.gradient_accumulation_steps}",
                     f"\tNum epochs: {args.epochs}",
@@ -537,7 +541,7 @@ class LRMTrainer(Trainer):
                     f"\tGrad clipping: {args.clip_grad}",
                     f"\tMax grad norm: {args.max_grad_norm}",
                     f"\tEMA: {args.use_ema}",
-                    f"\tUse recompute: {config.model.params.lrm_generator_config.params.use_recompute}",
+                    # f"\tUse recompute: {args.use_recompute}", #TBD
                     f"\tDataset sink: {args.dataset_sink_mode}",
                 ]
             )
@@ -550,7 +554,7 @@ class LRMTrainer(Trainer):
 
         logger.info("using the standard fitting api")
         self.model.fit(
-            sink_epochs,
+            self.sink_epochs,
             self.train_loader,
             self.val_loader,
             valid_frequency=cfg.val.global_step_period,

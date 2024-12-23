@@ -22,21 +22,19 @@ import shutil
 import mindspore as ms 
 from mindspore import nn, ops, mint
 from mindspore.experimental.optim.lr_scheduler import LRScheduler
-# from mindspore.dataset import GeneratorDataset
 
 import safetensors
 from omegaconf import OmegaConf
 from abc import abstractmethod
 from contextlib import contextmanager
 from logging import getLogger
-from openlrm.utils import seed_everything
+from openlrm.utils import seed_everything, str2bool
 
 # from openlrm.utils.logging import configure_logger
 from openlrm.runners.abstract import Runner
 
-from mindone.utils.env import init_train_env
-from mindone.utils.logger import set_logger
-from mindone.utils.params import count_params
+from mindone.utils import init_train_env, set_logger, count_params
+from mindone.safetensors import load_file
 
 logger = getLogger(__name__)
 
@@ -291,9 +289,9 @@ class Trainer(Runner):
 
     def load_ckpt_(self, ckpt_dir):
         if ckpt_dir.endswith(".ckpt"):  # ms.ckpt
-            state_dict = ms.load_checkpoint(ckpt_path)
+            state_dict = ms.load_checkpoint(ckpt_dir)
         elif ckpt_dir.endswith(".safetensors"):
-            state_dict = load_file(ckpt_path)
+            state_dict = load_file(ckpt_dir)
         else:
             raise AssertionError(
                 f"Cannot recognize checkpoint file {ckpt_dir}, only support MS *.ckpt and *.safetensors"
