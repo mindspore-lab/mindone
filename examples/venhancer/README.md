@@ -27,19 +27,18 @@ conda install ffmpeg
 The following videos are generated based on MindSpore and Ascend 910*.
 
 <table class="center">
-<tr>
-  <td width=50% style="text-align:center;"><b>Inputs</b></td>
-  <td width=50% style="text-align:center;"><b>+VEnhancer</b></td>
+  <tr>
+    <td colspan="1">Input</td>
+    <td colspan="1">+VEnhancer</td>
   </tr>
-<tr>
-  <td width=50%><video src="https://github.com/user-attachments/assets/7e606b14-391b-4e4e-a151-3c579f3fa57c" autoplay></td>
-  <td width=50%><video src="https://github.com/user-attachments/assets/c802515b-6ce4-4460-a122-41c7019b7ffa" autoplay></td>
-</tr>
-<tr>
-  <td width=50%><video src="https://github.com/user-attachments/assets/706b8f56-8669-45cc-9c74-9b985fc04a0e" autoplay></td>
-  <td width=50%><video src="https://github.com/user-attachments/assets/8c74d5b9-4aab-44b7-a09f-2dab04f7725a" autoplay></td>
-</tr>
-</table>
+  <tr>
+  <td>
+    <img src=assets/input_astronaut.gif width="380">
+  </td>
+  <td>
+    <img src=assets/output_astronaut.gif width="380">
+  </td>
+  </tr>
 
 
 ## Inference
