@@ -1,6 +1,8 @@
 import os
 import sys
 
+import mindspore as ms
+
 # TODO: remove in future when mindone is ready for install
 mindone_lib_path = os.path.abspath("../../")
 sys.path.insert(0, mindone_lib_path)
@@ -10,12 +12,10 @@ import logging
 import time
 
 from opensora.npu_config import npu_config
+from opensora.sample.caption_refiner import OpenSoraCaptionRefiner
 from opensora.utils.sample_utils import get_args, prepare_pipeline, run_model_and_save_samples
 
 from mindone.utils.logger import set_logger
-
-# from opensora.sample.caption_refiner import OpenSoraCaptionRefiner
-
 
 logger = logging.getLogger(__name__)
 
@@ -39,7 +39,7 @@ if __name__ == "__main__":
 
     pipeline = prepare_pipeline(args)  # build I2V/T2V pipeline
 
-    if args.caption_refiner is not None:  # TODO: TO TEST
+    if args.caption_refiner is not None:
         caption_refiner_model = OpenSoraCaptionRefiner(args.caption_refiner, dtype=ms.float16)
     else:
         caption_refiner_model = None

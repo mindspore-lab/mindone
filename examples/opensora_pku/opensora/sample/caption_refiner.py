@@ -29,7 +29,7 @@ class OpenSoraCaptionRefiner:
 
 
 if __name__ == "__main__":
-    pretrained_model_name_or_path = ""
+    pretrained_model_name_or_path = "LanguageBind/Open-Sora-Plan-v1.3.0/prompt_refiner/"
     caption_refiner = OpenSoraCaptionRefiner(pretrained_model_name_or_path, dtype=ms.float16)
     prompt = "a video of a girl playing in the park"
     response = caption_refiner.get_refiner_output(prompt)
