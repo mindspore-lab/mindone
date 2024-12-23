@@ -26,7 +26,7 @@ from opensora.models.diffusion.opensora.net_with_loss import DiffusionWithLoss, 
 from opensora.npu_config import npu_config
 from opensora.train.commons import create_loss_scaler, parse_args
 from opensora.utils.callbacks import EMAEvalSwapCallback, PerfRecorderCallback
-from opensora.utils.dataset_utils import Collate, LengthGroupedBatchSampler
+from opensora.utils.dataset_utils import Collate, LengthGroupedSampler
 from opensora.utils.ema import EMA
 from opensora.utils.message_utils import print_banner
 from opensora.utils.utils import get_precision, save_diffusers_json
@@ -306,7 +306,7 @@ def main(args):
         args.min_hxw = args.max_hxw // 4
 
     train_dataset = getdataset(args, dataset_file=args.data)
-    batch_sampler = LengthGroupedBatchSampler(
+    sampler = LengthGroupedSampler(
         args.train_batch_size,
         world_size=device_num if not get_sequence_parallel_state() else (device_num // hccl_info.world_size),
         gradient_accumulation_size=args.gradient_accumulation_steps,
@@ -318,14 +318,14 @@ def main(args):
     dataloader = create_dataloader(
         train_dataset,
         batch_size=args.train_batch_size,
-        shuffle=batch_sampler is None,
+        shuffle=sampler is None,
         device_num=device_num if not get_sequence_parallel_state() else (device_num // hccl_info.world_size),
         rank_id=rank_id if not get_sequence_parallel_state() else hccl_info.group_id,
         num_parallel_workers=args.dataloader_num_workers,
         max_rowsize=args.max_rowsize,
         prefetch_size=args.dataloader_prefetch_size,
         collate_fn=collate_fn,
-        batch_sampler=batch_sampler,
+        sampler=sampler,
         column_names=["pixel_values", "attention_mask", "text_embed", "encoder_attention_mask"],
     )
     dataloader_size = dataloader.get_dataset_size()
@@ -339,7 +339,7 @@ def main(args):
         assert os.path.exists(args.val_data), f"validation dataset file must exist, but got {args.val_data}"
         print_banner("Validation dataset Loading...")
         val_dataset = getdataset(args, dataset_file=args.val_data)
-        batch_sampler = LengthGroupedBatchSampler(
+        sampler = LengthGroupedSampler(
             args.val_batch_size,
             world_size=device_num if not get_sequence_parallel_state() else (device_num // hccl_info.world_size),
             lengths=val_dataset.lengths,
@@ -352,14 +352,14 @@ def main(args):
         val_dataloader = create_dataloader(
             val_dataset,
             batch_size=args.val_batch_size,
-            shuffle=batch_sampler is None,
+            shuffle=sampler is None,
             device_num=device_num if not get_sequence_parallel_state() else (device_num // hccl_info.world_size),
             rank_id=rank_id if not get_sequence_parallel_state() else hccl_info.group_id,
             num_parallel_workers=args.dataloader_num_workers,
             max_rowsize=args.max_rowsize,
             prefetch_size=args.dataloader_prefetch_size,
             collate_fn=collate_fn,
-            batch_sampler=batch_sampler,
+            sampler=sampler,
             column_names=["pixel_values", "attention_mask", "text_embed", "encoder_attention_mask"],
         )
         val_dataloader_size = val_dataloader.get_dataset_size()

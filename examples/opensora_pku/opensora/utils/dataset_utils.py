@@ -389,7 +389,6 @@ def get_length_grouped_indices(
     generator=None,
     group_data=False,
     seed=42,
-    return_batch_indices=True,
 ):
     if generator is None:
         generator = np.random.default_rng(seed)  # every rank will generate a fixed order but random index
@@ -459,14 +458,9 @@ def get_length_grouped_indices(
     # print('\nshuffled_megabatches', shuffled_megabatches)
     # import ipdb;ipdb.set_trace()
     # print('\nshuffled_megabatches len', [[i, lengths[i]] for megabatch in shuffled_megabatches for batch in megabatch for i in batch])
-    if not return_batch_indices:
-        return [
-            i for megabatch in shuffled_megabatches for batch in megabatch for i in batch
-        ]  # return epoch indices in a list
-    else:
-        return [
-            batch for megabatch in shuffled_megabatches for batch in megabatch
-        ]  # return batch indices (list of lists)
+    return [
+        i for megabatch in shuffled_megabatches for batch in megabatch for i in batch
+    ]  # return epoch indices in a single list
 
 
 class LengthGroupedSampler:
@@ -513,53 +507,6 @@ class LengthGroupedSampler:
             self.initial_global_step,
             group_data=self.group_data,
             generator=self.generator,
-            return_batch_indices=False,
         )
 
-        return iter(indices)
-
-
-class LengthGroupedBatchSampler:
-    r"""
-    Sampler that samples indices in a way that groups together features of the dataset of roughly the same length while
-    keeping a bit of randomness.
-    """
-
-    def __init__(
-        self,
-        batch_size: int,
-        world_size: int,
-        gradient_accumulation_size: int,
-        lengths: Optional[List[int]] = None,
-        initial_global_step: int = 0,
-        group_data=False,
-        generator=None,
-    ):
-        if lengths is None:
-            raise ValueError("Lengths must be provided.")
-
-        self.batch_size = batch_size
-        self.world_size = world_size
-        self.megabatch_size = self.world_size * self.batch_size
-        self.initial_global_step = initial_global_step
-        self.gradient_accumulation_size = gradient_accumulation_size
-        self.lengths = lengths
-        self.group_data = group_data
-        self.generator = generator
-        self.remainder = len(self) * self.megabatch_size != len(self.lengths)
-
-    def __len__(self):
-        return len(list(range(0, len(self.lengths), self.megabatch_size)))
-
-    def __iter__(self):
-        indices = get_length_grouped_indices(
-            self.lengths,
-            self.batch_size,
-            self.world_size,
-            self.gradient_accumulation_size,
-            self.initial_global_step,
-            group_data=self.group_data,
-            generator=self.generator,
-            return_batch_indices=True,
-        )
         return iter(indices)
