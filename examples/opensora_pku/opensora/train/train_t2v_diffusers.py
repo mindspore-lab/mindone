@@ -314,7 +314,7 @@ def main(args):
         lengths=train_dataset.lengths,
         group_data=args.group_data,
     )
-    collate_fn = Collate(args)
+    collate_fn = Collate(args.train_batch_size, args)
     dataloader = create_dataloader(
         train_dataset,
         batch_size=args.train_batch_size,
@@ -348,19 +348,7 @@ def main(args):
             group_data=args.group_data,
         )
 
-        collate_fn = Collate(
-            args.val_batch_size,
-            args.group_frame,
-            args.group_resolution,
-            args.max_height,
-            args.max_width,
-            args.ae_stride,
-            args.ae_stride_t,
-            args.patch_size,
-            args.patch_size_t,
-            args.num_frames,
-            args.use_image_num,
-        )
+        collate_fn = Collate(args.val_batch_size, args)
         val_dataloader = create_dataloader(
             val_dataset,
             batch_size=args.val_batch_size,
