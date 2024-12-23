@@ -1,5 +1,5 @@
 import mindspore as ms
-from mindspore import Parameter, Tensor, nn, ops
+from mindspore import Parameter, Tensor, nn, ops, mint
 from mindspore.ops import composite as C
 from mindspore.ops import functional as F
 
@@ -40,7 +40,7 @@ class EMA(nn.Cell):
     def ema_update(self):
         """Update EMA parameters."""
         self.updates += 1
-        d = self.ema_decay * (1 - F.exp(-self.updates / 2000))
+        d = self.ema_decay * (1 - mint.exp(-self.updates / 2000))
         # update trainable parameters
         success = self.hyper_map(F.partial(_ema_op, d), self.ema_weight, self.net_weight)
         self.updates = F.depend(self.updates, success)
