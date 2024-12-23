@@ -12,6 +12,7 @@ from opensora.dataset import getdataset
 from opensora.dataset.loader import create_dataloader
 from opensora.models.causalvideovae import ae_stride_config
 from opensora.models.diffusion import Diffusion_models
+from opensora.npu_config import npu_config
 from opensora.train.commons import parse_args
 from opensora.utils.dataset_utils import Collate, LengthGroupedSampler
 from opensora.utils.message_utils import print_banner
@@ -102,7 +103,14 @@ def parse_t2v_train_args(parser):
         default=True,
         help="whether to use decord to load videos. If not, use opencv to load videos.",
     )
-
+    parser.add_argument("--use_parallel", default=False, type=str2bool, help="use parallel")
+    parser.add_argument(
+        "--parallel_mode",
+        default="data",
+        type=str,
+        choices=["data", "optim", "semi", "zero"],
+        help="parallel mode: data, optim, zero",
+    )
     # text encoder & vae & diffusion model
     parser.add_argument("--vae_fp32", action="store_true")
     parser.add_argument("--extra_save_mem", action="store_true")
@@ -329,7 +337,11 @@ if __name__ == "__main__":
     args = parse_args(additional_parse_args=parse_t2v_train_args)
     if args.resume_from_checkpoint == "True":
         args.resume_from_checkpoint = True
-    dataset, dataloader = load_dataset_and_dataloader(args)
+    save_src_strategy = args.use_parallel and args.parallel_mode != "data"
+    if args.num_frames == 1 or args.use_image_num != 0:
+        args.sp_size = 1
+    rank_id, device_num = npu_config.set_npu_env(args, strategy_ckpt_save_file=save_src_strategy)
+    dataset, dataloader = load_dataset_and_dataloader(args, device_num=device_num, rank_id=rank_id)
 
     test_dataset(dataset)
     test_dataloder(dataloader)
