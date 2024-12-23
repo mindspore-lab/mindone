@@ -56,7 +56,7 @@ Videos are saved to `.gif` for display.
 - 📍 **Open-Sora-Plan v1.3.0** with the following features
     - ✅ WFVAE inference & multi-stage training.
     - ✅ mT5-xxl TextEncoder model inference.
-    - ✅ Prompt Refiner.
+    - ✅ Prompt Refiner Inference.
     - ✅ Text-to-video generation up to 93 frames and 640x640 resolution.
     - ✅ Multi-stage training using Zero2 and sequence parallelism.
     - ✅ Acceleration methods: flash attention, recompute (graident checkpointing), mixed precision, data parallelism, etc..
@@ -220,6 +220,17 @@ Please edit the `master_port` to a different port number in the range 1024 to 65
 See more examples of multi-device inference scripts under `scripts/text_condifion/multi-devices`.
 
 
+### Prompt Refiner Inference
+
+If you want to run T2V inference with caption refiner, you should attach to following argument to the T2V inference command above:
+```
+  --caption_refiner "LanguageBind/Open-Sora-Plan-v1.3.0/prompt_refiner/"
+```
+
+If you just want to run prompt refinement, please run:
+```bash
+python opensora/sample/caption_refiner.py
+```
 ### Sequence Parallelism
 
 We support running inference with sequence parallelism. Please see the `sample_t2v_93x640_sp.sh` under `scripts/text_condition/multi-devices/`. The script will run a 8-card inference with `sp_size=8`, which means each video tensor is sliced into 8 parts along the sequence dimension. If you want to try `sp_size=4`, you can revise it as below:

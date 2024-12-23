@@ -10,8 +10,6 @@ import yaml
 from opensora.acceleration.parallel_states import get_sequence_parallel_state, hccl_info
 from opensora.dataset.text_dataset import create_dataloader
 from opensora.models.causalvideovae import ae_stride_config, ae_wrapper
-
-# from opensora.sample.caption_refiner import OpenSoraCaptionRefiner
 from opensora.models.diffusion.common import PatchEmbed2D
 from opensora.models.diffusion.opensora.modeling_opensora import OpenSoraT2V_v1_3
 from opensora.models.diffusion.opensora.modules import Attention, LayerNorm
