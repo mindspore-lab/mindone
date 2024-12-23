@@ -14,7 +14,7 @@ from opensora.models.causalvideovae import ae_stride_config
 from opensora.models.diffusion import Diffusion_models
 from opensora.npu_config import npu_config
 from opensora.train.commons import parse_args
-from opensora.utils.dataset_utils import Collate, LengthGroupedBatchSampler
+from opensora.utils.dataset_utils import Collate, LengthGroupedSampler
 from opensora.utils.message_utils import print_banner
 
 from mindone.utils.config import str2bool
@@ -59,7 +59,7 @@ def load_dataset_and_dataloader(args, device_num=1, rank_id=0):
         args.min_hxw = args.max_hxw // 4
 
     train_dataset = getdataset(args, dataset_file=args.data)
-    batch_sampler = LengthGroupedBatchSampler(
+    sampler = LengthGroupedSampler(
         args.train_batch_size,
         world_size=device_num if not get_sequence_parallel_state() else (device_num // hccl_info.world_size),
         gradient_accumulation_size=args.gradient_accumulation_steps,
@@ -71,14 +71,14 @@ def load_dataset_and_dataloader(args, device_num=1, rank_id=0):
     dataloader = create_dataloader(
         train_dataset,
         batch_size=args.train_batch_size,
-        shuffle=batch_sampler is None,
+        shuffle=sampler is None,
         device_num=device_num if not get_sequence_parallel_state() else (device_num // hccl_info.world_size),
         rank_id=rank_id if not get_sequence_parallel_state() else hccl_info.group_id,
         num_parallel_workers=args.dataloader_num_workers,
         max_rowsize=args.max_rowsize,
         prefetch_size=args.dataloader_prefetch_size,
         collate_fn=collate_fn,
-        batch_sampler=batch_sampler,
+        sampler=sampler,
         column_names=["pixel_values", "attention_mask", "text_embed", "encoder_attention_mask"],
         drop_last=True,
     )
