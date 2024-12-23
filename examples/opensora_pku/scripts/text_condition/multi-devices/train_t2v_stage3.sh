@@ -49,7 +49,7 @@ msrun --bind_core=True --worker_num=8 --local_worker_num=8 --master_port=9000 --
     --parallel_mode "zero" \
     --zero_stage 2 \
     --max_device_memory "59GB" \
-    --dataset_sink_mode True\
+    --dataset_sink_mode False \
     --prediction_type "v_prediction" \
     --hw_stride 32 \
     --sparse1d \
