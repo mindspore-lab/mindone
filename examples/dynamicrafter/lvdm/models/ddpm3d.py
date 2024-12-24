@@ -2,7 +2,7 @@ import random
 import logging
 from functools import partial
 from typing import Union
-import pdb
+
 import numpy as np
 from lvdm.models.utils_diffusion import make_beta_schedule, rescale_zero_terminal_snr
 from lvdm.modules.networks.util import rearrange_in_gn5d_bs, rearrange_out_gn5d
@@ -454,7 +454,6 @@ class LatentDiffusion(DDPM):
         else:
             reshape_back = False
             b, t = None, None  # placeholder for graph mode
-        # pdb.set_trace()
 
         # consume more chip memory but faster
         if not self.perframe_ae:
@@ -463,7 +462,6 @@ class LatentDiffusion(DDPM):
         else:  # consume less chip memory but slower
             results = []
             for index in range(x.shape[0]):
-                # pdb.set_trace()
                 frame_result = self.scale_factor * self.first_stage_model.encode(x[index : index + 1, :, :, :])
                 # frame_result = ops.stop_gradient(
                 #     self.scale_factor * self.first_stage_model.encode(x[index : index + 1, :, :, :])
@@ -486,12 +484,10 @@ class LatentDiffusion(DDPM):
                 is a Tensor, it is the input argument of "c_concat" or `c_crossattn`
                 depends on the predefined `conditioning_key`.
         """
-        # pdb.set_trace()
 
         if isinstance(cond, ms.Tensor):
             key = "c_concat" if self.model.conditioning_key == "concat" else "c_crossattn"
             cond = {key: cond}
-        # pdb.set_trace()
         prev_sample = self.model(x_noisy, t, **cond, **kwargs)
 
         if isinstance(prev_sample, tuple):
@@ -536,7 +532,6 @@ class LatentDiffusion(DDPM):
     def get_learned_conditioning(self, c):
         if self.cond_stage_forward is None:
             tokens, _ = self.cond_stage_model.tokenize(c)  # text -> tensor
-            # pdb.set_trace()
             # c = self.cond_stage_model.encode(Tensor(tokens))  # FIXME: pynative oom here
             c = self.cond_stage_model(Tensor(tokens))  # FIXME: pynative oom here
         else:
@@ -557,7 +552,6 @@ class LatentDiffusion(DDPM):
         return cond
 
     def construct(self, *batch):
-        # pdb.set_trace()
         loss, loss_dict = self.shared_step(batch, random_uncond=self.classifier_free_guidance)
         """
         ## sync_dist | rank_zero_only 
@@ -774,7 +768,6 @@ class LatentVisualDiffusion(LatentDiffusion):
                 param.requires_grad = False
 
     def shared_step(self, batch, random_uncond, **kwargs):
-        # pdb.set_trace()
         x, c, fs = self.get_batch_input(batch, random_uncond=random_uncond, return_fs=True)
         kwargs.update({"fs": fs.long()})
         loss, loss_dict = self.compute_loss(x, c, **kwargs)
@@ -786,11 +779,9 @@ class LatentVisualDiffusion(LatentDiffusion):
         ## x: b c t h w
         x = video.astype(ms.float32)
 
-        # pdb.set_trace()
         ## encode video frames x to z via a 2D encoder        
         z = self.encode_first_stage(x)  # FIXME: OOM here. stable_diffusion_v2.ldm.models.autoencoder.AutoencoderKL.encode
         # z = ops.rand([1, 4, 16, 72, 128], dtype=ms.float32)  # 16x576x1024
-        # pdb.set_trace()
         
         ## get caption condition
         # cond_input = caption.tolist()  # Tensor -> List[str]

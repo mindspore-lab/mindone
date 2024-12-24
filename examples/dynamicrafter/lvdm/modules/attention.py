@@ -1,8 +1,7 @@
 import logging
 from functools import partial
-import pdb
-import numpy as np
 
+import numpy as np
 import mindspore as ms
 from mindspore import nn, ops
 from mindspore.common.initializer import XavierUniform, initializer

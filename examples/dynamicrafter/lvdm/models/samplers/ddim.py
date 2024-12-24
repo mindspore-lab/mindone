@@ -251,7 +251,6 @@ class DDIMSampler(object):
             is_video = True
         else:
             is_video = False
-        # import pdb;pdb.set_trace()
 
         for k, v in c.items():
             if isinstance(v, list):
@@ -262,7 +261,7 @@ class DDIMSampler(object):
             if isinstance(v, list):
                 assert len(v) == 1
                 unconditional_conditioning[k] = v[0]
-        # import pdb;pdb.set_trace()
+
         if unconditional_conditioning is None or unconditional_guidance_scale == 1.0:
             model_output = self.model.apply_model(x, t, c, **kwargs)  # unet denoiser
         else:

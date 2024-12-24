@@ -43,6 +43,5 @@ dataset = create_dataloader(data_config, device_num=device_num, rank_id=rank_id)
 dataset_size = dataset.get_dataset_size()
 ds_iter = dataset.create_tuple_iterator(num_epochs=epochs)
 # ds_iter = dataset.create_dict_iterator(num_epochs=epochs)
-# import pdb;pdb.set_trace()    
 for i, data in enumerate(ds_iter):
     print("---: ", i, len(data), data[0].shape, type(data[0]), data[0].dtype)
