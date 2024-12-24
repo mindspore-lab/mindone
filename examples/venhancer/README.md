@@ -27,10 +27,10 @@ conda install ffmpeg
 The following videos are generated based on MindSpore and Ascend 910*.
 
 
-| Input                                                                                     | +VEnhancer                                                                                     |
-|-------------------------------------------------------------------------------------------------|-------------------------------------------------------------------------------------------------|
-| <video src="https://github.com/user-attachments/assets/04e0cb7c-46a4-4369-a6ad-28e4fac7c157" /> | <video src="https://github.com/user-attachments/assets/ea4791ac-868d-430a-826a-e3a2b6edc09b" /> |
 
+| Input | +VEnhancer |
+| :----------: | :-: |
+| <img src="https://github.com/user-attachments/assets/77a8f492-b5d4-4f4c-910f-e89f22a9c41d" width="380">|  <img src="https://github.com/Songyuanwei/mindone/releases/download/untagged-d03637bad55dd54911a9/output_astronaut.gif" width="380"> |
 
 ## Inference
 
@@ -64,7 +64,7 @@ models
 
 ### dataset
 
-You can download prompts and input videos form this [URL](https://github.com/Vchitect/VEnhancer/tree/main/prompts)
+You can download prompts and input videos form this [URL](https://github.com/Vchitect/VEnhancer/tree/main/prompts).
 
 ### Run inference
 
