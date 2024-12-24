@@ -589,7 +589,7 @@ class StableCascadeUNet(ModelMixin, ConfigMixin, FromOriginalModelMixin):
         return_dict=False,
     ):
         if pixels is None:
-            pixels = sample.new_zeros((sample.shape[0], 3, 8, 8))
+            pixels = sample.new_zeros((sample.shape[0], 3, 8, 8), dtype=sample.dtype)
 
         # Process the conditioning embeddings
         timestep_ratio_embed = self.get_timestep_ratio_embedding(timestep_ratio)

@@ -154,4 +154,4 @@ class StableCascadePriorPipelineFastTests(PipelineTesterMixin, unittest.TestCase
         ms_image_slice = ms_image[0][0, 0, 0, -10:]
 
         threshold = THRESHOLD_FP32 if dtype == "float32" else THRESHOLD_FP16
-        assert np.max(np.linalg.norm(pt_image_slice - ms_image_slice) / np.linalg.norm(pt_image_slice)) < threshold
+        assert np.linalg.norm(pt_image_slice - ms_image_slice) / np.linalg.norm(pt_image_slice) < threshold

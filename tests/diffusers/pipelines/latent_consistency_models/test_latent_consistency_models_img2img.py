@@ -8,9 +8,16 @@ from transformers import CLIPTextConfig
 
 import mindspore as ms
 
+from mindone.diffusers.utils.testing_utils import (
+    load_downloaded_image_from_hf_hub,
+    load_downloaded_numpy_from_hf_hub,
+    slow,
+)
+
 from ..pipeline_test_utils import (
     THRESHOLD_FP16,
     THRESHOLD_FP32,
+    THRESHOLD_PIXEL,
     PipelineTesterMixin,
     floats_tensor,
     get_module,
@@ -173,4 +180,50 @@ class LatentConsistencyModelImg2ImgPipelineFastTests(PipelineTesterMixin, unitte
         ms_image_slice = ms_image[0][0, -3:, -3:, -1]
 
         threshold = THRESHOLD_FP32 if dtype == "float32" else THRESHOLD_FP16
-        assert np.max(np.linalg.norm(pt_image_slice - ms_image_slice) / np.linalg.norm(pt_image_slice)) < threshold
+        assert np.linalg.norm(pt_image_slice - ms_image_slice) / np.linalg.norm(pt_image_slice) < threshold
+
+
+@slow
+@ddt
+class LatentConsistencyModelImg2ImgPipelineSlowTests(PipelineTesterMixin, unittest.TestCase):
+    def get_inputs(self):
+        init_image = load_downloaded_image_from_hf_hub(
+            "diffusers/test-arrays",
+            "sketch-mountains-input.png",
+            subfolder="stable_diffusion_img2img",
+        )
+        init_image = init_image.resize((512, 512))
+
+        inputs = {
+            "prompt": "a photograph of an astronaut riding a horse",
+            "num_inference_steps": 3,
+            "guidance_scale": 7.5,
+            "image": init_image,
+        }
+        return inputs
+
+    @data(*test_cases)
+    @unpack
+    def test_lcm_multistep(self, mode, dtype):
+        ms.set_context(mode=mode)
+        ms_dtype = getattr(ms, dtype)
+
+        pipe_cls = get_module(
+            "mindone.diffusers.pipelines.latent_consistency_models.LatentConsistencyModelImg2ImgPipeline"
+        )
+        pipe = pipe_cls.from_pretrained("SimianLuo/LCM_Dreamshaper_v7", safety_checker=None, mindspore_dtype=ms_dtype)
+        scheduler_cls = get_module("mindone.diffusers.schedulers.scheduling_lcm.LCMScheduler")
+        pipe.scheduler = scheduler_cls.from_config(pipe.scheduler.config)
+        pipe.set_progress_bar_config(disable=None)
+
+        inputs = self.get_inputs()
+
+        torch.manual_seed(0)
+        image = pipe(**inputs)[0][0]
+
+        expected_image = load_downloaded_numpy_from_hf_hub(
+            "The-truth/mindone-testing-arrays",
+            f"i2i_lcm_multistep_{dtype}.npy",
+            subfolder="latent_consistency_models",
+        )
+        assert np.mean(np.abs(np.array(image, dtype=np.float32) - expected_image)) < THRESHOLD_PIXEL
