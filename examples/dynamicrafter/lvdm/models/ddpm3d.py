@@ -494,7 +494,6 @@ class LatentDiffusion(DDPM):
             return prev_sample[0]
         else:
             return prev_sample
-        # return prev_sample
 
     def get_latent_z(self, videos):
         b, c, t, h, w = videos.shape

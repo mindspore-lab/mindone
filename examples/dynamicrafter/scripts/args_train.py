@@ -69,12 +69,6 @@ def parse_args():
         help="mindspore amp level, O1: most fp32, only layers in whitelist compute in fp16 (dense, conv, etc); \
             O2: most fp16, only layers in blacklist compute in fp32 (batch norm etc)",
     )
-    parser.add_argument(
-        "--replace_small_images",
-        default=True,
-        type=str2bool,
-        help="replace the small-size images with other training samples",
-    )
     # modelarts
     parser.add_argument("--enable_modelarts", default=False, type=str2bool, help="run codes in ModelArts platform")
     parser.add_argument("--num_workers", default=1, type=int, help="the number of modelarts workers")
@@ -180,25 +174,6 @@ def parse_args():
         help="log level, options: logging.DEBUG, logging.INFO, logging.WARNING, logging.ERROR",
     )
     parser.add_argument(
-        "--save_mm_only",
-        default=False,
-        type=str2bool,
-        help="If True, save motion module params only to reduce checkpoint size. Otherwise, save the whole ldm model (vae, clip, unet, mm) in one checkpoint",
-    )
-    # video
-    # parser.add_argument(
-    #     "--image_finetune",
-    #     default=True,
-    #     type=str2bool,
-    #     help="True for image finetune. False for motion module training.",
-    # )
-    # parser.add_argument(
-    #     "--force_motion_module_amp_O2",
-    #     default=False,
-    #     type=str2bool,
-    #     help="if True, set mixed precision O2 for MM. Otherwise, use manually defined precision according to use_fp16 flag",
-    # )
-    parser.add_argument(
         "--vae_fp16",
         default=None,
         type=str2bool,
@@ -216,22 +191,12 @@ def parse_args():
     parser.add_argument("--num_frames", default=16, type=int, help="num frames")
     parser.add_argument("--frame_stride", default=6, type=int, help="frame sampling stride")
     parser.add_argument(
-        "--random_drop_text", default=True, type=str2bool, help="set caption to empty string randomly if enabled"
-    )
-    parser.add_argument("--random_drop_text_ratio", default=0.1, type=float, help="drop ratio")
-    parser.add_argument(
         "--snr_gamma",
         default=None,
         type=float,
         help="min-SNR weighting used to improve diffusion training convergence."
         "If not None, it will overwrite the value defined in config yaml(stable_diffusion/v1-train_xx.yaml)."
         "If use, 5.0 is a common choice. To disable min-SNR weighting, set it to 0",
-    )
-    parser.add_argument(
-        "--disable_flip",
-        default=True,
-        type=str2bool,
-        help="disable random flip video (to avoid motion direction and text mismatch)",
     )
     parser.add_argument("--num_parallel_workers", default=12, type=int, help="num workers for data loading")
     parser.add_argument(
@@ -240,11 +205,6 @@ def parse_args():
         type=str,
         choices=["video_file", "npz", "mindrecord"],
         help="type of data for training",
-    )
-    parser.add_argument("--motion_lora_finetune", default=False, type=str2bool, help="True if finetune motion lora.")
-    parser.add_argument("--motion_lora_rank", default=64, type=int, help="motion lora rank.")
-    parser.add_argument(
-        "--motion_lora_alpha", default=1.0, type=int, help="alpha: the strength of LoRA, typically in range [0, 1]"
     )
 
     # For embedding cache
@@ -259,9 +219,6 @@ def parse_args():
         choices=["float16", "float32"],
         help="data type when saving embedding cache",
     )
-
-    # dataset
-    parser.add_argument("--cache_folder", default="", type=str, help="directory to save embedding cache")
 
     abs_path = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
     default_args = parser.parse_args()
@@ -278,7 +235,6 @@ def parse_args():
     args.csv_path = to_abspath(abs_path, args.csv_path)
     args.output_path = to_abspath(abs_path, args.output_path)
     args.pretrained_model_path = to_abspath(abs_path, args.pretrained_model_path)
-    args.cache_folder = to_abspath(abs_path, args.cache_folder)
     print(args)
 
     return args

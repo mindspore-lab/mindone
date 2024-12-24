@@ -16,8 +16,6 @@ class TextDataset:
         # tokenizer=None,
         video_column="video",
         caption_column="caption",
-        # random_drop_text=False,
-        # random_drop_text_ratio=0.1,
     ):
         logger.info(f"loading annotations from {csv_path} ...")
         with open(csv_path, "r") as csvfile:
@@ -29,8 +27,6 @@ class TextDataset:
         # self.tokenizer = tokenizer
         self.caption_column = caption_column
         self.video_column = video_column
-        # self.random_drop_text = random_drop_text
-        # self.random_drop_text_ratio = random_drop_text_ratio
 
     def __len__(self):
         return self.length
@@ -39,21 +35,6 @@ class TextDataset:
         row = self.dataset[idx]
         caption = row[self.caption_column]
         file_path = row[self.video_column]
-
-        # if self.random_drop_text:
-        #     if random.random() <= self.random_drop_text_ratio:
-        #         caption = ""
-
-        # if self.tokenizer is not None:
-        #     tokens = self.tokenizer(caption)
-        #     if isinstance(tokens, list):
-        #         tokens = np.array(tokens, dtype=np.int64)
-        #     if len(tokens.shape) == 2:  # in case, the tokenizer output [1, 77]
-        #         tokens = tokens[0]
-        #     text_data = tokens
-        # else:
-        #     text_data = caption
-
         text_data = caption
 
         return file_path, text_data

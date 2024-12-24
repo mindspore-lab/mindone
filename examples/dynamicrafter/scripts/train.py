@@ -236,47 +236,7 @@ def main(args):
     # TODO: debugging
     dtype_map = {"fp16": ms.float16, "bf16": ms.bfloat16}
     latent_diffusion_with_loss = auto_mixed_precision(latent_diffusion_with_loss, amp_level=args.amp_level, dtype=dtype_map[args.amp_dtype], custom_fp32_cells=[])
-    """
-    if not args.image_finetune:
-        # load mm pretrained weight
-        if args.motion_module_path != "":
-            load_motion_modules(latent_diffusion_with_loss, _to_abspath(args.motion_module_path))
 
-        # set motion module amp O2 if required for memory reduction
-        if args.force_motion_module_amp_O2:
-            logger.warning("Force to set motion module in amp level O2")
-            latent_diffusion_with_loss.model.diffusion_model.set_mm_amp_level("O2")
-
-        # inject lora dense layers to motion modules if set
-        if args.motion_lora_finetune:
-            # for param in latent_diffusion_with_loss.get_parameters():
-            #     param.requires_grad = False
-            motion_lora_layers, _ = inject_trainable_lora(
-                latent_diffusion_with_loss,
-                rank=args.motion_lora_rank,
-                use_fp16=True,
-                scale=args.motion_lora_alpha,
-                target_modules=["ad.modules.diffusionmodules.motion_module.VersatileAttention"],
-            )
-            trainable_params = make_only_lora_params_trainable(latent_diffusion_with_loss)
-            logging.info(
-                "Motion lora layers injected. Num lora layers: {}, Num lora params: {}".format(
-                    len(motion_lora_layers), len(trainable_params)
-                )
-            )
-        else:
-            # set only motion module trainable for mm finetuning
-            num_mm_trainable = 0
-            for param in latent_diffusion_with_loss.model.get_parameters():
-                # exclude positional embedding params from training
-                if (".temporal_transformer." in param.name) and (".pe" not in param.name):
-                    param.requires_grad = True
-                    num_mm_trainable += 1
-                else:
-                    param.requires_grad = False
-            logger.info("Num MM trainable params {}".format(num_mm_trainable))
-            # assert num_mm_trainable in [546, 520], "Expect 546 trainable params for MM-v2 or 520 for MM-v1."
-    """
     # count total params and trainable params
     tot_params, trainable_params = count_params(latent_diffusion_with_loss.model)
     logger.info("UNet3D: total param size {:,}, trainable {:,}".format(tot_params, trainable_params))
@@ -284,28 +244,6 @@ def main(args):
 
     # 3. build dataset
     csv_path = args.csv_path if args.csv_path is not None else os.path.join(args.data_dir, "video_caption.csv")
-    """
-    if args.image_finetune:
-        logger.info("Task is image finetune, num_frames and frame_stride is forced to 1")
-        args.num_frames = 1
-        args.frame_stride = 1
-        data_config = dict(
-            video_folder=_to_abspath(args.data_path),
-            csv_path=_to_abspath(csv_path),
-            sample_size=args.image_size,
-            sample_stride=args.frame_stride,
-            sample_n_frames=args.num_frames,
-            batch_size=args.train_batch_size,
-            shuffle=True,
-            num_parallel_workers=args.num_parallel_workers,
-            max_rowsize=32,
-            random_drop_text=args.random_drop_text,
-            random_drop_text_ratio=args.random_drop_text_ratio,
-            train_data_type=args.train_data_type,
-            disable_flip=args.disable_flip,
-        )
-    else:
-    """
     data_config = dict(   # FIXME: move the hard code args to args_train.py
             csv_path=csv_path,
             data_dir=args.data_dir,
@@ -475,11 +413,7 @@ def main(args):
             ckpt_save_interval=ckpt_save_interval,
             log_interval=args.log_interval,
             start_epoch=start_epoch,
-            # model_name="sd" if args.image_finetune else "ad",
             model_name="dc",
-            use_lora=args.motion_lora_finetune,
-            lora_rank=args.motion_lora_rank,
-            param_save_filter=[".temporal_transformer."] if args.save_mm_only else None,  # FIXME
             record_lr=False,  # TODO: check LR retrival for new MS on 910b
         )
         callback.append(save_cb)
@@ -517,7 +451,6 @@ def main(args):
                 f"Max grad norm: {args.max_grad_norm}",
                 f"EMA: {args.use_ema}",
                 f"Enable flash attention: {args.enable_flash_attention}",
-                f"Random drop text: {args.random_drop_text}",
             ]
         )
         key_info += "\n" + "=" * 50
