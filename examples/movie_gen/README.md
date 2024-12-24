@@ -13,11 +13,11 @@ This project is in an early stage and under active development. We welcome the o
   - [x] Inference
   - [x] Training stage 1: T2I 256px
   - [x] Training stage 2: T2I/V 256px 256frames
-  - [ ] Training stage 3: T2I/V 768px 256frames (under verification)
+  - [ ] Training stage 3: T2I/V 768px 256frames (under training)
   - [x] Web Demo (Gradio)
 - MovieGenVideo-30B (T2I/V)
-  - [ ] Inference 
-  - [ ] Mixed parallelism training  (under verification)
+  - [x] Inference
+  - [ ] Mixed parallelism training  (support DP+SP+CP+TP+MP+Zero3, under training)
 - Personalized-MovieGenVideo (PT2V)
   - [ ] Inference
   - [ ] Training

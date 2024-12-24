@@ -18,7 +18,7 @@ In this section, we explore the design and implementation details not illustrate
 
 In TAE, the number of channels of the latent space is 16 (C=16). It can help improve both the reconstruction and the generation performance compared to C=4 used in OpenSora or  SDXL vae.
 
-We choose to use the [VAE]() in Stable Diffusion 3.5 as the image encoder to build TAE for it has the same number of latent channels and can generalize well in image generation. 
+We choose to use the [VAE]() in Stable Diffusion 3.5 as the image encoder to build TAE for it has the same number of latent channels and can generalize well in image generation.
 
 
 #### Conv2.5d implementation
@@ -38,11 +38,11 @@ w.set_data(ms.Tensor(value, dtype=ms.float32))
 #### Temporal Downsampling
 
 
-Paper: "Temporal downsampling is performed via strided convolution with a stride of 2". 
+Paper: "Temporal downsampling is performed via strided convolution with a stride of 2".
 
 Our implementation: the strided convolution is computed using conv1d of kernel size 3, stride 2, and symmetric replicate padding. `centric` initialization (as mentioned in the above conv2.5 section) is used to initialize the conv kernel weight.
 
-To achieve 8x temporal compression, we apply 3 temporal downsampling layers, each placed after the spatial downsampling layer in the first 3 levels. 
+To achieve 8x temporal compression, we apply 3 temporal downsampling layers, each placed after the spatial downsampling layer in the first 3 levels.
 
 #### Temporal Upsampling
 Paper: "upsampling by nearest-neighbor interpolation followed by convolution"
@@ -51,19 +51,19 @@ Our design:
 1. nearest-neighbour interpolation along the temporal dimension  
 2. conv1d: kernel size 3, stride 1, symmetric replicate padding, and `centric` initialization.
 
-To achieve 8x temporal compression, we apply 3 temporal upsampling layers, each placed after the spatial upsampling layer of the last 3 levels. 
+To achieve 8x temporal compression, we apply 3 temporal upsampling layers, each placed after the spatial upsampling layer of the last 3 levels.
 
 
 
 ### Evaluation
 
-We conduct experiments to verify our implementation's effectiveness on the [UCF-101](https://www.crcv.ucf.edu/data/UCF101.php) dataset containing 13,320 videos. We split the videos into training and test sets by 8:2. 
+We conduct experiments to verify our implementation's effectiveness on the [UCF-101](https://www.crcv.ucf.edu/data/UCF101.php) dataset containing 13,320 videos. We split the videos into training and test sets by 8:2.
 
 The training performance on MindSpore 2.3.1 and Ascend 910* and the accuracy on the test set are as follows.
 
 | model name      |  cards | batch size | resolution |  precision |   OPL Loss | s/step     | PSNR | SSIM |
 | :--:         | :---:   | :--:       | :--:        | :--:       | :--:      |:--:    | :--:   |:--:   |
-| TAE  |  1     | 1      | 256x256x32   |  bf16       | OFF |   2.18     | 31.35     |   0.92       | 
+| TAE  |  1     | 1      | 256x256x32   |  bf16       | OFF |   2.18     | 31.35     |   0.92       |
 | TAE  |  1     | 1      | 256x256x32   |  bf16       | ON |   2.18     | 31.17     |   0.92       |
 
 
