@@ -1,9 +1,11 @@
 import math
-from typing import Optional, Tuple
+from typing import Literal, Optional, Tuple
 
-import mindspore as ms
-from mindspore import mint, nn, ops
+from mindspore import Tensor
+from mindspore import dtype as mstype
+from mindspore import load_checkpoint, load_param_into_net, mint, nn, ops
 
+from ...utils.model_utils import MODEL_DTYPE
 from .modules import Conv2_5d, Decoder, Encoder
 
 SDXL_CONFIG = {
@@ -63,11 +65,13 @@ class TemporalAutoencoder(nn.Cell):
         encode_overlap: int = 0,
         decode_tile: int = 32,
         decode_overlap: int = 16,
+        dtype: Literal["fp32", "fp16", "bf16"] = "fp32",
     ):
         super().__init__()
         self.out_channels = config["z_channels"]
         self.scale_factor = config["scaling_factor"]
         self.shift_factor = config["shift_factor"]
+        self._dtype = MODEL_DTYPE[dtype]  # not used yet, just for CLI initialization convenience
 
         # encoder
         self.encoder = Encoder(**config)
@@ -117,6 +121,10 @@ class TemporalAutoencoder(nn.Cell):
         if pretrained:
             self.load_pretrained(pretrained)
 
+    @property
+    def dtype(self):
+        return self._dtype
+
     def recompute(self, b):
         if not b._has_config_recompute:
             b.recompute()
@@ -144,7 +152,7 @@ class TemporalAutoencoder(nn.Cell):
 
         return z
 
-    def encode(self, x: ms.Tensor) -> Tuple[ms.Tensor, ms.Tensor, ms.Tensor]:
+    def encode(self, x: Tensor) -> Tuple[Tensor, Tensor, Tensor]:
         r"""
         Encode a batch of videos into latents
 
@@ -161,7 +169,7 @@ class TemporalAutoencoder(nn.Cell):
         else:
             return self._encode_no_tile(x)
 
-    def _encode_no_tile(self, x: ms.Tensor) -> Tuple[ms.Tensor, ms.Tensor, ms.Tensor]:
+    def _encode_no_tile(self, x: Tensor) -> Tuple[Tensor, Tensor, Tensor]:
         posterior_mean, posterior_logvar = self._encode(x)
         if self.sample_deterministic:
             return posterior_mean
@@ -169,7 +177,7 @@ class TemporalAutoencoder(nn.Cell):
 
         return z, posterior_mean, posterior_logvar
 
-    def decode(self, z: ms.Tensor, target_num_frames: int = None) -> ms.Tensor:
+    def decode(self, z: Tensor, target_num_frames: int = None) -> Tensor:
         r"""
         Decode a batch of latents to videos
 
@@ -187,7 +195,7 @@ class TemporalAutoencoder(nn.Cell):
         else:
             return self._decode_no_tile(z, target_num_frames)
 
-    def _decode_no_tile(self, z: ms.Tensor, target_num_frames: int = None) -> ms.Tensor:
+    def _decode_no_tile(self, z: Tensor, target_num_frames: int = None) -> Tensor:
         if self.use_post_quant_conv:
             z = self.post_quant_conv(z)
         dec = self.decoder(z)
@@ -197,7 +205,7 @@ class TemporalAutoencoder(nn.Cell):
 
         return dec
 
-    def encode_with_tile(self, x: ms.Tensor) -> Tuple[ms.Tensor, ms.Tensor, ms.Tensor]:
+    def encode_with_tile(self, x: Tensor) -> Tuple[Tensor, Tensor, Tensor]:
         r"""
         Encode a batch of videos into latents with tiling
 
@@ -222,7 +230,7 @@ class TemporalAutoencoder(nn.Cell):
 
         return z_out, mean, logvar
 
-    def decode_with_tile(self, z: ms.Tensor, target_num_frames: int = None) -> ms.Tensor:
+    def decode_with_tile(self, z: Tensor, target_num_frames: int = None) -> Tensor:
         r"""
         Decode a batch of latents to videos with tiling
 
@@ -265,7 +273,7 @@ class TemporalAutoencoder(nn.Cell):
 
         return x_out
 
-    def blend_slices(self, x: ms.Tensor, slice_len=32, overlap_len=16):
+    def blend_slices(self, x: Tensor, slice_len=32, overlap_len=16):
         """
         Blend decoded latent slices, used with decode_with_tile
 
@@ -277,7 +285,7 @@ class TemporalAutoencoder(nn.Cell):
             Note that the length of the last slice can be shorter than slice_len.
 
         Returns:
-            ms.Tensor
+            Tensor
         """
 
         B, C, in_len, H, W = x.shape
@@ -288,8 +296,8 @@ class TemporalAutoencoder(nn.Cell):
         last_slice_len = in_len - (num_slices - 1) * slice_len
         out_len += last_slice_len - overlap_len
 
-        out_tensor = mint.zeros((B, C, out_len, H, W), dtype=ms.float32)
-        out_cnt = mint.zeros((B, C, out_len, H, W), dtype=ms.float32)
+        out_tensor = mint.zeros((B, C, out_len, H, W), dtype=mstype.float32)
+        out_cnt = mint.zeros((B, C, out_len, H, W), dtype=mstype.float32)
 
         for i in range(num_slices):
             # get the slice form the concatnated latent
@@ -305,7 +313,7 @@ class TemporalAutoencoder(nn.Cell):
 
         return out_tensor
 
-    def construct(self, x: ms.Tensor) -> Tuple[ms.Tensor, ms.Tensor, ms.Tensor, ms.Tensor]:
+    def construct(self, x: Tensor) -> Tuple[Tensor, Tensor, Tensor, Tensor]:
         r"""
         Video reconstruction
 
@@ -343,7 +351,7 @@ class TemporalAutoencoder(nn.Cell):
                 state_dict[key] = ckpt.get_tensor(key)
             raise NotImplementedError
         else:
-            param_dict = ms.load_checkpoint(ckpt_path)
+            param_dict = load_checkpoint(ckpt_path)
 
             # remove the added prefix in the trained checkpoint
             pnames = list(param_dict.keys())
@@ -351,7 +359,7 @@ class TemporalAutoencoder(nn.Cell):
                 new_pn = pn.replace("autoencoder.", "").replace("_backbone.", "")
                 param_dict[new_pn] = param_dict.pop(pn)
 
-            param_not_load, ckpt_not_load = ms.load_param_into_net(self, param_dict, strict_load=True)
+            param_not_load, ckpt_not_load = load_param_into_net(self, param_dict, strict_load=True)
 
             if param_not_load or ckpt_not_load:
                 print(f"{param_not_load} in network is not loaded")

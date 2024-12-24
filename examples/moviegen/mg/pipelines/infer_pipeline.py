@@ -3,19 +3,21 @@ from typing import Literal, Optional, Tuple, Union
 import numpy as np
 
 import mindspore as ms
-from mindspore import Tensor, mint, nn, ops
+from mindspore import Tensor, mint, ops
 
+from ..models import LlamaModel, TemporalAutoencoder
 from ..schedulers.rectified_flow import RFLOW
 
 __all__ = ["InferPipeline"]
 
 
 class InferPipeline:
-    """An Inference pipeline for diffusion model
+    """An Inference pipeline for Movie Gen.
 
     Args:
-        model (nn.Cell): A noise prediction model to denoise the encoded image latents.
-        tae (nn.Cell): Temporal Auto-Encoder (TAE) Model to encode and decode images or videos to and from latent representations.
+        model (LlamaModel): A noise prediction model to denoise the encoded image latents.
+        tae (TemporalAutoencoder, optional): Temporal Auto-Encoder (TAE) Model to encode and decode images or videos to
+                                             and from latent representations.
         scale_factor (float): scale_factor for TAE.
         guidance_scale (float): A higher guidance scale value for noise rescale.
         num_sampling_steps: (int): The number of denoising steps.
@@ -23,11 +25,9 @@ class InferPipeline:
 
     def __init__(
         self,
-        model: nn.Cell,
-        tae: nn.Cell,
+        model: LlamaModel,
+        tae: Optional[TemporalAutoencoder] = None,
         latent_size: Tuple[int, int, int] = (1, 64, 64),
-        scale_factor: float = 1.5305,
-        shift_factor: float = 0.0609,
         guidance_scale: float = 1.0,
         num_sampling_steps: int = 50,
         sample_method: Literal["linear", "linear-quadratic"] = "linear",
@@ -38,8 +38,6 @@ class InferPipeline:
         self.tae = tae
         self.latent_size = latent_size
         self.micro_batch_size = micro_batch_size
-        self.scale_factor = scale_factor if tae is None else tae.scale_factor
-        self.shift_factor = shift_factor if tae is None else tae.shift_factor
         self.guidance_rescale = guidance_scale
         self.use_cfg = guidance_scale > 1.0
         self.rflow = RFLOW(num_sampling_steps, sample_method=sample_method)
@@ -52,7 +50,7 @@ class InferPipeline:
             y: (b f H W 3), batch of images, normalized to [0, 1]
         """
         x = mint.permute(x, (0, 2, 1, 3, 4))  # FIXME: remove this redundancy
-        x = x / self.scale_factor + self.shift_factor
+        x = x / self.tae.scale_factor + self.tae.shift_factor
         y = self.tae.decode(x, target_num_frames=num_frames)
         y = ops.clip_by_value((y + 1.0) / 2.0, clip_value_min=0.0, clip_value_max=1.0)
         # (b 3 t h w) -> (b t h w 3)
@@ -71,7 +69,7 @@ class InferPipeline:
         """
         z = ms.Tensor(
             np.random.randn(
-                ul2_emb.shape[0], self.latent_size[0], self.tae.out_channels, self.latent_size[1], self.latent_size[2]
+                ul2_emb.shape[0], self.latent_size[0], self.model.in_channels, self.latent_size[1], self.latent_size[2]
             ).astype(np.float32),
             dtype=self.model.dtype,
         )

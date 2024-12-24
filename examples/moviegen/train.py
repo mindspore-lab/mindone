@@ -21,7 +21,7 @@ from mg.models.tae import TemporalAutoencoder
 from mg.parallel import create_parallel_group
 from mg.pipelines import DiffusionWithLoss
 from mg.schedulers import RFlowEvalLoss, RFlowLossWrapper
-from mg.utils import EMA, MODEL_DTYPE, init_model, resume_train_net
+from mg.utils import EMA, init_model, resume_train_net
 from mg.utils.callbacks import PerfRecorderCallback, ReduceLROnPlateauByStep, ValidationCallback
 
 from mindone.data import create_dataloader
@@ -94,16 +94,12 @@ def main(args):
     if not args.dataset.tae_latent_folder or (
         args.valid.dataset and not args.valid.dataset.init_args.tae_latent_folder
     ):
-        logger.info("TAE init")
-        tae_args = args.tae.as_dict()
-        tae_dtype = tae_args.pop("dtype")
-        tae = TemporalAutoencoder(**tae_args).set_train(False)
-        if tae_dtype != "fp32":
+        logger.info("Initializing TAE...")
+        tae = TemporalAutoencoder(**args.tae).set_train(False)
+        if tae.dtype != mstype.float32:
             # FIXME: remove AMP and add custom dtype conversion support for better compatibility with PyNative
             amp.custom_mixed_precision(
-                tae,
-                black_list=amp.get_black_list() + [nn.GroupNorm, nn.AvgPool2d, nn.Upsample],
-                dtype=MODEL_DTYPE[tae_dtype],
+                tae, black_list=amp.get_black_list() + [nn.GroupNorm, nn.AvgPool2d, nn.Upsample], dtype=tae.dtype
             )
         if args.model.in_channels != tae.out_channels:
             logger.warning(
@@ -266,9 +262,6 @@ if __name__ == "__main__":
     parser.add_function_arguments(init_train_env, "env")
     parser.add_function_arguments(init_model, "model", skip={"resume"})
     parser.add_class_arguments(TemporalAutoencoder, "tae", instantiate=False)
-    parser.add_argument(
-        "--tae.dtype", default="fp32", type=str, choices=["fp32", "fp16", "bf16"], help="TAE model precision."
-    )
     parser.add_class_arguments(
         ImageVideoDataset, "dataset", skip={"frames_mask_generator", "t_compress_func"}, instantiate=False
     )

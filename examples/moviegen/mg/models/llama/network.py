@@ -256,8 +256,8 @@ class LlamaFinalLayer(nn.Cell):
     ) -> None:
         super().__init__()
         self.input_layernorm = LlamaRMSNorm(hidden_size, eps=rms_norm_eps, dtype=dtype)
-        self.proj = nn.Dense(
-            hidden_size, patch_size[0] * patch_size[1] * patch_size[2] * out_channels, has_bias=False, dtype=dtype
+        self.proj = mint.nn.Linear(
+            hidden_size, patch_size[0] * patch_size[1] * patch_size[2] * out_channels, bias=False, dtype=dtype
         )
         self.scale_shift_table = Parameter(Tensor(np.random.randn(2, hidden_size) / hidden_size**0.5, dtype=dtype))
 

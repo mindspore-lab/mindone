@@ -3,6 +3,7 @@ from typing import Optional
 import mindspore as ms
 from mindspore import Tensor, mint, nn, ops
 
+from ..models import TemporalAutoencoder
 from ..schedulers import RFlowLossWrapper
 from ..utils.model_utils import no_grad
 
@@ -13,10 +14,8 @@ class DiffusionWithLoss(nn.Cell):
     def __init__(
         self,
         network: RFlowLossWrapper,
-        tae: Optional[nn.Cell] = None,
+        tae: Optional[TemporalAutoencoder] = None,
         text_encoder: Optional[nn.Cell] = None,
-        scale_factor: float = 1.5305,
-        shift_factor: float = 0.0609,
         text_emb_cached: bool = True,
         video_emb_cached: bool = False,
     ):
@@ -30,8 +29,6 @@ class DiffusionWithLoss(nn.Cell):
         self.network = network
         self.tae = tae
         self.text_encoder = text_encoder
-        self.scale_factor = scale_factor if tae is None else tae.scale_factor
-        self.shift_factor = shift_factor if tae is None else tae.shift_factor
         self.text_emb_cached = text_emb_cached
         self.video_emb_cached = video_emb_cached
 
@@ -57,7 +54,7 @@ class DiffusionWithLoss(nn.Cell):
             # (b c f h w) shape is expected. FIXME: remove this redundancy
             video_tokens = mint.permute(video_tokens, (0, 2, 1, 3, 4))
             video_emb = ops.stop_gradient(self.tae.encode(video_tokens)[0]).to(ms.float32)
-            video_emb = (video_emb - self.shift_factor) * self.scale_factor
+            video_emb = (video_emb - self.tae.shift_factor) * self.tae.scale_factor
             video_emb = mint.permute(video_emb, (0, 2, 1, 3, 4))  # FIXME
         return video_emb
 

@@ -102,7 +102,7 @@ For more detailed instructions, please run `python inference.py --help`.
 
 ```shell
 python inference.py \
---config configs/inference/moviegen_t2i_256x256.yaml \
+--config configs/inference/moviegen_t2i_256px.yaml \
 --model.name llama-5B \
 --model.pretrained_model_path /path/to/llama-5B.ckpt \
 --text_emb.ul2_dir /path/to/ul2_embeddings \
@@ -116,7 +116,7 @@ python inference.py \
 
 ```shell
 python inference.py \
---config configs/inference/moviegen_t2i_256x256.yaml \
+--config configs/inference/moviegen_t2i_256px.yaml \
 --model.name llama-5B \
 --model.pretrained_model_path /path/to/llama-5B.ckpt \
 --text_emb.ul2_dir /path/to/ul2_embeddings \
@@ -142,7 +142,7 @@ pip install gradio
 
 ```shell
 python gradio_demo.py \
---config configs/inference/moviegen_t2i_256x256.yaml \
+--config configs/inference/moviegen_t2i_256px.yaml \
 --model.name llama-5B \
 --model.pretrained_model_path /path/to/llama-5B.ckpt \
 --text_emb.ul2_dir /path/to/ul2-embedding.ckpt \
@@ -199,13 +199,13 @@ If you have sufficient storage budget, you can cache the video embeddings to spe
 command:
 
 ```shell
-python inference_tae_enc.py \
+python inference_tae.py \
 --tae.pretrained=/path/to/tae.ckpt \
 --tae.dtype=bf16 \
---data.folder=/path/to/folder/with/videos/ \
+--video_data.folder=/path/to/folder/with/videos/ \
 --output_path=/path/to/output/directory/ \
---data.size=256 \
---data.crop_size=[256,455]
+--video_data.size=256 \
+--video_data.crop_size=[256,455]
 ```
 
 ### Performance

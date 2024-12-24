@@ -11,7 +11,7 @@ from jsonargparse import ActionConfigFile, ArgumentParser
 from jsonargparse.typing import path_type
 from mg.models.tae import TemporalAutoencoder
 from mg.pipelines import InferPipeline
-from mg.utils import MODEL_DTYPE, init_model, to_numpy
+from mg.utils import init_model, to_numpy
 
 import mindspore as ms
 from mindspore import amp, nn
@@ -63,15 +63,10 @@ def init_models(args):
     """Initialize MovieGen models with specified configurations"""
     # Initialize TAE
     logger.info("Initializing TAE...")
-    tae_args = args.tae.as_dict()
-    tae_dtype = tae_args.pop("dtype")
-    tae = TemporalAutoencoder(**tae_args).set_train(False)
-
-    if tae_dtype != "fp32":
+    tae = TemporalAutoencoder(**args.tae).set_train(False)
+    if tae.dtype != ms.float32:
         amp.custom_mixed_precision(
-            tae,
-            black_list=amp.get_black_list() + [nn.GroupNorm, nn.AvgPool2d, nn.Upsample],
-            dtype=MODEL_DTYPE[tae_dtype],
+            tae, black_list=amp.get_black_list() + [nn.GroupNorm, nn.AvgPool2d, nn.Upsample], dtype=tae.dtype
         )
 
     # Initialize Transformer model
@@ -90,7 +85,6 @@ def create_pipeline(model, tae, args):
         model,
         tae,
         latent_size,
-        scale_factor=args.scale_factor,
         guidance_scale=args.guidance_scale,
         num_sampling_steps=args.num_sampling_steps,
         sample_method=args.sample_method,
@@ -195,7 +189,6 @@ if __name__ == "__main__":
     # TAE parameters
     tae_group = parser.add_argument_group("TAE parameters")
     tae_group.add_class_arguments(TemporalAutoencoder, "tae", instantiate=False)
-    tae_group.add_argument("--tae.dtype", default="fp32", type=str, choices=["fp32", "fp16", "bf16"])
 
     # Inference parameters
     infer_group = parser.add_argument_group("Inference parameters")

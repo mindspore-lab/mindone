@@ -20,7 +20,7 @@ sys.path.append(mindone_lib_path)
 
 from mg.models.tae import TemporalAutoencoder
 from mg.pipelines import InferPipeline
-from mg.utils import MODEL_DTYPE, init_model, to_numpy
+from mg.utils import init_model, to_numpy
 
 from mindone.utils import init_train_env, set_logger
 from mindone.visualize import save_videos
@@ -67,25 +67,31 @@ def main(args):
 
     # 2. model initiate and weight loading
     # 2.1 tae
-    logger.info("TAE init")
-    tae_args = args.tae.as_dict()
-    tae_dtype = tae_args.pop("dtype")
-    tae = TemporalAutoencoder(**tae_args).set_train(False)
-    if tae_dtype != "fp32":
-        # FIXME: remove AMP and add custom dtype conversion support for better compatibility with PyNative
-        amp.custom_mixed_precision(
-            tae,
-            black_list=amp.get_black_list() + [nn.GroupNorm, nn.AvgPool2d, nn.Upsample],
-            dtype=MODEL_DTYPE[tae_dtype],
-        )
+    if args.tae is not None:
+        logger.info("Initializing TAE...")
+        tae = TemporalAutoencoder(**args.tae.init_args).set_train(False)
+        if tae.dtype != ms.float32:
+            # FIXME: remove AMP and add custom dtype conversion support for better compatibility with PyNative
+            amp.custom_mixed_precision(
+                tae, black_list=amp.get_black_list() + [nn.GroupNorm, nn.AvgPool2d, nn.Upsample], dtype=tae.dtype
+            )
+        if args.model.in_channels != tae.out_channels:
+            logger.warning(
+                f"The number of model input channels ({args.model.in_channels}) doesn't match the number of TAE output"
+                f" channels ({tae.out_channels}). Setting it to {tae.out_channels}."
+            )
+            args.model.in_channels = tae.out_channels
+    else:
+        logger.info("Skipping TAE initialization.")
+        tae = None
 
     img_h, img_w = args.image_size if isinstance(args.image_size, list) else (args.image_size, args.image_size)
     num_frames = args.num_frames
-    latent_size = tae.get_latent_size((num_frames, img_h, img_w))
+    latent_size = TemporalAutoencoder.get_latent_size((num_frames, img_h, img_w))
 
     # 2.2 Llama 3
     logger.info("Transformer init")
-    model = init_model(in_channels=tae.out_channels, **args.model).set_train(False)
+    model = init_model(**args.model).set_train(False)
 
     # 2.3 text embeddings
     prompt_prefix = [os.path.basename(emb)[:-4] for emb in ul2_emb]
@@ -100,7 +106,6 @@ def main(args):
         model,
         tae,
         latent_size,
-        scale_factor=args.scale_factor,  # FIXME: refactor
         guidance_scale=args.guidance_scale,
         num_sampling_steps=args.num_sampling_steps,
         sample_method=args.sample_method,
@@ -114,7 +119,7 @@ def main(args):
             f"MindSpore mode[GRAPH(0)/PYNATIVE(1)]: {args.env.mode}",
             f"Num of captions: {num_prompts}",
             f"Model dtype: {args.model.dtype}",
-            f"TAE dtype: {tae_dtype}",
+            f"TAE dtype: {args.tae.init_args.dtype if tae is not None else 'N/A'}",
             f"Image size: {(img_h, img_w)}",
             f"Num frames: {num_frames}",
             f"Sampling steps {args.num_sampling_steps}",
@@ -144,7 +149,7 @@ def main(args):
             f" sampling speed: {args.num_sampling_steps * (end_i - i) / batch_time:.2f} step/s"
         )
 
-        # save result
+        # save results
         for j in range(0, end_i - i):
             fn = prompt_prefix[i + j]
             save_fp = f"{save_dir}/{fn}.{args.save_format}"
@@ -156,7 +161,7 @@ def main(args):
                 logger.info(f"Video saved in {save_fp}")
             # save decoded latents
             if args.save_latent:
-                np.save(latent_save_fp, to_numpy(latent[j : j + 1]))
+                np.save(latent_save_fp, to_numpy(latent[j]))
                 logger.info(f"Denoised latents saved in {latent_save_fp}")
 
 
@@ -169,12 +174,9 @@ if __name__ == "__main__":
         help="Path to load a config yaml file that describes the setting which will override the default arguments.",
     )
     parser.add_function_arguments(init_train_env, "env")
-    parser.add_function_arguments(init_model, "model", skip={"in_channels", "resume"})
+    parser.add_function_arguments(init_model, "model", skip={"resume"})
     tae_group = parser.add_argument_group("TAE parameters")
-    tae_group.add_class_arguments(TemporalAutoencoder, "tae", instantiate=False)
-    tae_group.add_argument(
-        "--tae.dtype", default="fp32", type=str, choices=["fp32", "fp16", "bf16"], help="TAE model precision."
-    )
+    tae_group.add_subclass_arguments(TemporalAutoencoder, "tae", instantiate=False, required=False)
     infer_group = parser.add_argument_group("Inference parameters")
     infer_group.add_class_arguments(InferPipeline, skip={"model", "tae", "latent_size"}, instantiate=False)
     infer_group.add_argument("--image_size", type=int, nargs="+", help="Output video size")
