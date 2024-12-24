@@ -205,7 +205,7 @@ class CogVideoXDPMScheduler(SchedulerMixin, ConfigMixin):
             # this schedule is very specific to the latent diffusion model.
             self.betas = ms.Tensor.from_numpy(
                 np.linspace(beta_start**0.5, beta_end**0.5, num_train_timesteps, dtype=np.float64) ** 2
-            )
+            ).float()  # Cast back to float as some operators do not support double (e.g. expm1)
         elif beta_schedule == "squaredcos_cap_v2":
             # Glide cosine schedule
             self.betas = betas_for_alpha_bar(num_train_timesteps)
