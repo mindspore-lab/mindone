@@ -51,14 +51,14 @@ cd tools
 python convert_weight.py \
     --model_name "clip" \
     --src /path/to/pt/open_clip_pytorch_model.bin \
-    --target models/open_clip.ckpt
+    --target ../models/open_clip.ckpt
 ```
 
 **Note** Please covert `CLIP-ViT-H-14-laion2B-s32B-b79K` from pytorch to mindspore, and name it `open_clip.ckpt` and place it as follow,
 ```
 models
    ├── open_clip.ckpt
-   ├── VEnhancer_v2.pt
+   ├── VEnhancer_paper.pt
 ```
 
 ### Run inference
