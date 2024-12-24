@@ -9,6 +9,7 @@ imagesize
 toolz
 tqdm
 mindcv
+mindnlp
 safetensors
 omegaconf
 pyyaml
