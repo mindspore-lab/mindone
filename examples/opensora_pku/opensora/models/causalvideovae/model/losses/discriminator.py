@@ -65,7 +65,7 @@ class NLayerDiscriminator3D(nn.Cell):
             nf_mult_prev = nf_mult
             nf_mult = min(2**n, 8)
             sequence += [
-                Conv3d(
+                nn.Conv3d(
                     ndf * nf_mult_prev,
                     ndf * nf_mult,
                     kernel_size=(kw, kw, kw),
@@ -84,7 +84,7 @@ class NLayerDiscriminator3D(nn.Cell):
         nf_mult_prev = nf_mult
         nf_mult = min(2**n_layers, 8)
         sequence += [
-            Conv3d(
+            nn.Conv3d(
                 ndf * nf_mult_prev,
                 ndf * nf_mult,
                 kernel_size=(kw, kw, kw),
