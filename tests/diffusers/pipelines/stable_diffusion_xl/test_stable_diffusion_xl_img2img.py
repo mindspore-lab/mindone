@@ -23,9 +23,16 @@ from transformers import CLIPTextConfig, CLIPVisionConfig
 
 import mindspore as ms
 
+from mindone.diffusers.utils.testing_utils import (
+    load_downloaded_image_from_hf_hub,
+    load_downloaded_numpy_from_hf_hub,
+    slow,
+)
+
 from ..pipeline_test_utils import (
     THRESHOLD_FP16,
     THRESHOLD_FP32,
+    THRESHOLD_PIXEL,
     PipelineTesterMixin,
     floats_tensor,
     get_module,
@@ -271,4 +278,34 @@ class StableDiffusionXLImg2ImgPipelineFastTests(PipelineTesterMixin, unittest.Te
         ms_image_slice = ms_image[0][0, -3:, -3:, -1]
 
         threshold = THRESHOLD_FP32 if dtype == "float32" else THRESHOLD_FP16
-        assert np.max(np.linalg.norm(pt_image_slice - ms_image_slice) / np.linalg.norm(pt_image_slice)) < threshold
+        assert np.linalg.norm(pt_image_slice - ms_image_slice) / np.linalg.norm(pt_image_slice) < threshold
+
+
+@slow
+@ddt
+class StableDiffusionXLImg2ImgPipelineIntegrationTests(PipelineTesterMixin, unittest.TestCase):
+    @data(*test_cases)
+    @unpack
+    def test_stable_diffusion_xl_img2img_default_case(self, mode, dtype):
+        ms.set_context(mode=mode)
+        ms_dtype = getattr(ms, dtype)
+
+        pipe_cls = get_module("mindone.diffusers.pipelines.stable_diffusion_xl.StableDiffusionXLImg2ImgPipeline")
+        pipe = pipe_cls.from_pretrained("stabilityai/stable-diffusion-xl-refiner-1.0", mindspore_dtype=ms_dtype)
+
+        init_image = load_downloaded_image_from_hf_hub(
+            "patrickvonplaten/images",
+            "000000009.png",
+            subfolder="aa_xl",
+        ).convert("RGB")
+        prompt = "a photo of an astronaut riding a horse on mars"
+
+        torch.manual_seed(0)
+        image = pipe(prompt, image=init_image)[0][0]
+
+        expected_image = load_downloaded_numpy_from_hf_hub(
+            "The-truth/mindone-testing-arrays",
+            f"i2i_{dtype}.npy",
+            subfolder="stable_diffusion_xl",
+        )
+        assert np.mean(np.abs(np.array(image, dtype=np.float32) - expected_image)) < THRESHOLD_PIXEL

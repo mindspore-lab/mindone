@@ -23,9 +23,16 @@ from PIL import Image
 
 import mindspore as ms
 
+from mindone.diffusers.utils.testing_utils import (
+    load_downloaded_image_from_hf_hub,
+    load_downloaded_numpy_from_hf_hub,
+    slow,
+)
+
 from ..pipeline_test_utils import (
     THRESHOLD_FP16,
     THRESHOLD_FP32,
+    THRESHOLD_PIXEL,
     PipelineTesterMixin,
     floats_tensor,
     get_module,
@@ -195,4 +202,58 @@ class KandinskyV22InpaintPipelineFastTests(PipelineTesterMixin, unittest.TestCas
         ms_image_slice = ms_image[0][0, -3:, -3:, -1]
 
         threshold = THRESHOLD_FP32 if dtype == "float32" else THRESHOLD_FP16
-        assert np.max(np.linalg.norm(pt_image_slice - ms_image_slice) / np.linalg.norm(pt_image_slice)) < threshold
+        assert np.linalg.norm(pt_image_slice - ms_image_slice) / np.linalg.norm(pt_image_slice) < threshold
+
+
+@slow
+@ddt
+class KandinskyV22InpaintPipelineIntegrationTests(PipelineTesterMixin, unittest.TestCase):
+    @data(*test_cases)
+    @unpack
+    def test_kandinsky_inpaint(self, mode, dtype):
+        ms.set_context(mode=mode)
+        ms_dtype = getattr(ms, dtype)
+
+        init_image = load_downloaded_image_from_hf_hub(
+            "hf-internal-testing/diffusers-images",
+            "cat.png",
+            subfolder="kandinsky",
+        )
+        mask = np.zeros((768, 768), dtype=np.float32)
+        mask[:250, 250:-250] = 1
+
+        prompt = "a hat"
+
+        pipe_prior_cls = get_module("mindone.diffusers.pipelines.kandinsky2_2.KandinskyV22PriorPipeline")
+        pipe_prior = pipe_prior_cls.from_pretrained("kandinsky-community/kandinsky-2-2-prior", mindspore_dtype=ms_dtype)
+
+        pipeline_cls = get_module("mindone.diffusers.pipelines.kandinsky2_2.KandinskyV22InpaintPipeline")
+        pipeline = pipeline_cls.from_pretrained(
+            "kandinsky-community/kandinsky-2-2-decoder-inpaint", mindspore_dtype=ms_dtype
+        )
+        pipeline.set_progress_bar_config(disable=None)
+
+        torch.manual_seed(0)
+        image_emb, zero_image_emb = pipe_prior(
+            prompt,
+            num_inference_steps=2,
+            negative_prompt="",
+        )
+
+        torch.manual_seed(0)
+        image = pipeline(
+            image=init_image,
+            mask_image=mask,
+            image_embeds=image_emb,
+            negative_image_embeds=zero_image_emb,
+            num_inference_steps=2,
+            height=768,
+            width=768,
+        )[0][0]
+
+        expected_image = load_downloaded_numpy_from_hf_hub(
+            "The-truth/mindone-testing-arrays",
+            f"kandinsky_inpaint_{dtype}.npy",
+            subfolder="kandinsky2_2",
+        )
+        assert np.mean(np.abs(np.array(image, dtype=np.float32) - expected_image)) < THRESHOLD_PIXEL

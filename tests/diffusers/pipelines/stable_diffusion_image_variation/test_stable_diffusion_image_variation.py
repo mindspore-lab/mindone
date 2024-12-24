@@ -24,9 +24,16 @@ from transformers import CLIPVisionConfig
 
 import mindspore as ms
 
+from mindone.diffusers.utils.testing_utils import (
+    load_downloaded_image_from_hf_hub,
+    load_downloaded_numpy_from_hf_hub,
+    slow,
+)
+
 from ..pipeline_test_utils import (
     THRESHOLD_FP16,
     THRESHOLD_FP32,
+    THRESHOLD_PIXEL,
     PipelineTesterMixin,
     floats_tensor,
     get_module,
@@ -166,4 +173,45 @@ class StableDiffusionImageVariationPipelineFastTests(PipelineTesterMixin, unitte
         ms_image_slice = ms_image[0][0, -3:, -3:, -1]
 
         threshold = THRESHOLD_FP32 if dtype == "float32" else THRESHOLD_FP16
-        assert np.max(np.linalg.norm(pt_image_slice - ms_image_slice) / np.linalg.norm(pt_image_slice)) < threshold
+        assert np.linalg.norm(pt_image_slice - ms_image_slice) / np.linalg.norm(pt_image_slice) < threshold
+
+
+@slow
+@ddt
+class StableDiffusionImageVariationPipelineNightlyTests(PipelineTesterMixin, unittest.TestCase):
+    def get_inputs(self):
+        init_image = load_downloaded_image_from_hf_hub(
+            "diffusers/test-arrays",
+            "input_image_vermeer.png",
+            subfolder="stable_diffusion_imgvar",
+        )
+        inputs = {
+            "image": init_image,
+            "num_inference_steps": 50,
+            "guidance_scale": 7.5,
+        }
+        return inputs
+
+    @data(*test_cases)
+    @unpack
+    def test_img_variation_pndm(self, mode, dtype):
+        ms.set_context(mode=mode)
+        ms_dtype = getattr(ms, dtype)
+
+        pipe_cls = get_module("mindone.diffusers.pipelines.stable_diffusion.StableDiffusionImageVariationPipeline")
+        sd_pipe = pipe_cls.from_pretrained(
+            "lambdalabs/sd-image-variations-diffusers", revision="refs/pr/21", mindspore_dtype=ms_dtype
+        )
+        sd_pipe.set_progress_bar_config(disable=None)
+
+        inputs = self.get_inputs()
+
+        torch.manual_seed(0)
+        image = sd_pipe(**inputs)[0][0]
+
+        expected_image = load_downloaded_numpy_from_hf_hub(
+            "The-truth/mindone-testing-arrays",
+            f"img_variation_pndm_{dtype}.npy",
+            subfolder="stable_diffusion_image_variation",
+        )
+        assert np.mean(np.abs(np.array(image, dtype=np.float32) - expected_image)) < THRESHOLD_PIXEL

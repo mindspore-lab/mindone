@@ -24,10 +24,16 @@ from transformers import CLIPTextConfig, CLIPVisionConfig
 import mindspore as ms
 
 from mindone.diffusers import DiffusionPipeline
+from mindone.diffusers.utils.testing_utils import (
+    load_downloaded_image_from_hf_hub,
+    load_downloaded_numpy_from_hf_hub,
+    slow,
+)
 
 from ..pipeline_test_utils import (
     THRESHOLD_FP16,
     THRESHOLD_FP32,
+    THRESHOLD_PIXEL,
     PipelineTesterMixin,
     floats_tensor,
     get_module,
@@ -267,4 +273,37 @@ class UnCLIPImageVariationPipelineFastTests(PipelineTesterMixin, unittest.TestCa
         ms_image_slice = ms_image[0][0, -3:, -3:, -1]
 
         threshold = THRESHOLD_FP32 if dtype == "float32" else THRESHOLD_FP16
-        assert np.max(np.linalg.norm(pt_image_slice - ms_image_slice) / np.linalg.norm(pt_image_slice)) < threshold
+        assert np.linalg.norm(pt_image_slice - ms_image_slice) / np.linalg.norm(pt_image_slice) < threshold
+
+
+@slow
+@ddt
+class UnCLIPImageVariationPipelineIntegrationTests(PipelineTesterMixin, unittest.TestCase):
+    @data(*test_cases)
+    @unpack
+    def test_unclip_image_variation_karlo(self, mode, dtype):
+        ms.set_context(mode=mode)
+        ms_dtype = getattr(ms, dtype)
+
+        input_image = load_downloaded_image_from_hf_hub(
+            "hf-internal-testing/diffusers-images",
+            "cat.png",
+            subfolder="unclip",
+        )
+
+        pipe_cls = get_module("mindone.diffusers.pipelines.unclip.UnCLIPImageVariationPipeline")
+        pipeline = pipe_cls.from_pretrained(
+            "kakaobrain/karlo-v1-alpha-image-variations", revision="refs/pr/2", mindspore_dtype=ms_dtype
+        )
+        pipeline.set_progress_bar_config(disable=None)
+
+        torch.manual_seed(0)
+        output = pipeline(input_image)
+        image = output[0][0]
+
+        expected_image = load_downloaded_numpy_from_hf_hub(
+            "The-truth/mindone-testing-arrays",
+            f"image_variation_karlo_{dtype}.npy",
+            subfolder="unclip",
+        )
+        assert np.mean(np.abs(np.array(image, dtype=np.float32) - expected_image)) < THRESHOLD_PIXEL

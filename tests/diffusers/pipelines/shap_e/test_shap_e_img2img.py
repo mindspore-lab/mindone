@@ -16,15 +16,23 @@ import random
 import unittest
 
 import numpy as np
+import pytest
 import torch
 from ddt import data, ddt, unpack
 from transformers import CLIPVisionConfig
 
 import mindspore as ms
 
+from mindone.diffusers.utils.testing_utils import (
+    load_downloaded_image_from_hf_hub,
+    load_downloaded_numpy_from_hf_hub,
+    slow,
+)
+
 from ..pipeline_test_utils import (
     THRESHOLD_FP16,
     THRESHOLD_FP32,
+    THRESHOLD_PIXEL,
     PipelineTesterMixin,
     floats_tensor,
     get_module,
@@ -195,4 +203,43 @@ class ShapEImg2ImgPipelineFastTests(PipelineTesterMixin, unittest.TestCase):
         ms_image_slice = ms_image[0][0, -3:, -3:].asnumpy()
 
         threshold = THRESHOLD_FP32 if dtype == "float32" else THRESHOLD_FP16
-        assert np.max(np.linalg.norm(pt_image_slice - ms_image_slice) / np.linalg.norm(pt_image_slice)) < threshold
+        assert np.linalg.norm(pt_image_slice - ms_image_slice) / np.linalg.norm(pt_image_slice) < threshold
+
+
+@slow
+@ddt
+class ShapEImg2ImgPipelineIntegrationTests(PipelineTesterMixin, unittest.TestCase):
+    @data(*test_cases)
+    @unpack
+    def test_shap_e_img2img(self, mode, dtype):
+        pytest.skip("Skipping this case since the pretrained model only has .bin file")
+
+        ms.set_context(mode=mode)
+        ms_dtype = getattr(ms, dtype)
+
+        pipe_cls = get_module("mindone.diffusers.pipelines.shap_e.ShapEImg2ImgPipeline")
+        pipe = pipe_cls.from_pretrained("openai/shap-e-img2img", variant="fp16", mindspore_dtype=ms_dtype)
+        pipe.set_progress_bar_config(disable=None)
+
+        input_image = load_downloaded_image_from_hf_hub(
+            "hf-internal-testing/diffusers-images",
+            "corgi.png",
+            subfolder="shap_e",
+        )
+
+        torch.manual_seed(0)
+        image = pipe(
+            input_image,
+            guidance_scale=3.0,
+            num_inference_steps=64,
+            frame_size=64,
+        )[0][
+            0
+        ][1]
+
+        expected_image = load_downloaded_numpy_from_hf_hub(
+            "The-truth/mindone-testing-arrays",
+            f"shap_e_img2img_{dtype}.npy",
+            subfolder="shap_e",
+        )
+        assert np.mean(np.abs(np.array(image, dtype=np.float32) - expected_image)) < THRESHOLD_PIXEL
