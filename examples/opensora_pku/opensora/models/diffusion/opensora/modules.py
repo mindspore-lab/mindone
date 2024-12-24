@@ -59,11 +59,11 @@ class Attention(Attention_):
     def prepare_sparse_mask(attention_mask, encoder_attention_mask, sparse_n, head_num):
         attention_mask = attention_mask.unsqueeze(1)
         encoder_attention_mask = encoder_attention_mask.unsqueeze(1)
-        l = attention_mask.shape[-1]
-        if l % (sparse_n * sparse_n) == 0:
+        length = attention_mask.shape[-1]
+        if length % (sparse_n * sparse_n) == 0:
             pad_len = 0
         else:
-            pad_len = sparse_n * sparse_n - l % (sparse_n * sparse_n)
+            pad_len = sparse_n * sparse_n - length % (sparse_n * sparse_n)
 
         attention_mask_sparse = mint.nn.functional.pad(
             attention_mask, (0, pad_len, 0, 0), mode="constant", value=0
@@ -199,11 +199,11 @@ class OpenSoraAttnProcessor2_0:
             x: shape if sparse_group: (S//sparse_n, sparse_n*B, D), else: (S//sparse_n, sparse_n*B, D)
             pad_len: 0 or padding
         """
-        l = x.shape[0]
-        assert l == frame * height * width
+        length = x.shape[0]
+        assert length == frame * height * width
         pad_len = 0
-        if l % (self.sparse_n * self.sparse_n) != 0:
-            pad_len = self.sparse_n * self.sparse_n - l % (self.sparse_n * self.sparse_n)
+        if length % (self.sparse_n * self.sparse_n) != 0:
+            pad_len = self.sparse_n * self.sparse_n - length % (self.sparse_n * self.sparse_n)
         if pad_len != 0:
             x = mint.nn.functional.pad(x, (0, 0, 0, 0, 0, pad_len), mode="constant", value=0.0)
 
