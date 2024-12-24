@@ -42,7 +42,7 @@ Paper: "Temporal downsampling is performed via strided convolution with a stride
 
 Our implementation: the strided convolution is computed using conv1d of kernel size 3, stride 2, and symmetric replicate padding. `centric` initialization (as mentioned in the above conv2.5 section) is used to initialize the conv kernel weight.
 
-To achieve 8x temporal compression, we apply 3 temporal downsampling layers, positioned after the spatial downsampling layer in the first 3 levels. 
+To achieve 8x temporal compression, we apply 3 temporal downsampling layers, each placed after the spatial downsampling layer in the first 3 levels. 
 
 #### Temporal Upsampling
 Paper: "upsampling by nearest-neighbor interpolation followed by convolution"
@@ -51,7 +51,7 @@ Our design:
 1. nearest-neighbour interpolation along the temporal dimension  
 2. conv1d: kernel size 3, stride 1, symmetric replicate padding, and `centric` initialization.
 
-To achieve 8x temporal compression, we apply 3 temporal upsampling layers, each after the spatial upsampling layer of the last 3 levels. 
+To achieve 8x temporal compression, we apply 3 temporal upsampling layers, each placed after the spatial upsampling layer of the last 3 levels. 
 
 
 
