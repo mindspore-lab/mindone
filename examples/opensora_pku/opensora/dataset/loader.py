@@ -26,6 +26,7 @@ def create_dataloader(
     enable_modelarts=False,
     collate_fn=None,
     sampler=None,
+    batch_sampler=None,
 ):
     datalen = len(dataset)
 
@@ -46,6 +47,7 @@ def create_dataloader(
         shuffle=shuffle,
         drop_last=drop_last,
         sampler=sampler,
+        batch_sampler=batch_sampler,
     )
     dl = GeneratorDataset(
         loader,
@@ -62,13 +64,25 @@ def create_dataloader(
 
 
 def build_dataloader(
-    dataset, datalens, collate_fn, batch_size, device_num, rank_id=0, sampler=None, shuffle=True, drop_last=True
+    dataset,
+    datalens,
+    collate_fn,
+    batch_size,
+    device_num,
+    rank_id=0,
+    sampler=None,
+    batch_sampler=None,
+    shuffle=True,
+    drop_last=True,
 ):
-    if sampler is None:
-        sampler = BatchSampler(datalens, batch_size=batch_size, device_num=device_num, shuffle=shuffle)
+    if batch_sampler is None and sampler is None:
+        # use batch sampler if not specified
+        batch_sampler = BatchSampler(datalens, batch_size=batch_size, device_num=device_num, shuffle=shuffle)
     loader = DataLoader(
         dataset,
-        batch_sampler=sampler,
+        batch_size=batch_size,
+        sampler=sampler,
+        batch_sampler=batch_sampler,
         collate_fn=collate_fn,
         device_num=device_num,
         drop_last=drop_last,
@@ -79,7 +93,7 @@ def build_dataloader(
 
 class BatchSampler:
     """
-    Batch Sampler
+    Batch Sampler that return batches of indices instead of single indices
     """
 
     def __init__(self, lens, batch_size, device_num, shuffle):
@@ -107,42 +121,71 @@ class BatchSampler:
 class DataLoader:
     """DataLoader"""
 
-    def __init__(self, dataset, batch_sampler, collate_fn, device_num=1, drop_last=True, rank_id=0):
+    def __init__(
+        self,
+        dataset,
+        batch_size,
+        sampler=None,
+        batch_sampler=None,
+        collate_fn=None,
+        device_num=1,
+        drop_last=True,
+        rank_id=0,
+    ):
         self.dataset = dataset
+        self.sampler = sampler
         self.batch_sampler = batch_sampler
-        self.collat_fn = collate_fn
+        if self.sampler is not None and self.batch_sampler is not None:
+            raise ValueError("Cannot specify both a sampler and a batch sampler simultaneously!")
+        self.collate_fn = collate_fn
         self.device_num = device_num
         self.rank_id = rank_id
         self.drop_last = drop_last
-        self.batch_size = len(next(iter(self.batch_sampler)))
+        self.batch_size = batch_size
+        self._batch_size = batch_size * device_num
 
     def __iter__(self):
-        self.step_index = 0
-        self.batch_indices = iter(self.batch_sampler)
-
-        return self
+        if self.batch_sampler is not None:
+            # Use batch_sampler to get batches directly
+            return iter(self.batch_sampler)
+        else:
+            # Use sampler to get indices and create batches
+            self.sampler_iter = iter(self.sampler)
+            return self
 
     def __next__(self):
-        indices = next(self.batch_indices)
-        if len(indices) != self.batch_size and self.drop_last:
+        if self.batch_sampler is not None:
+            # Get the next batch directly from the batch sampler
+            batch_indices = next(self.batch_sampler)
+        else:
+            # Get the next indices from the sampler
+            batch_indices = [next(self.sampler_iter) for _ in range(self._batch_size)]
+        if len(batch_indices) != self._batch_size and self.drop_last:
             raise StopIteration()
 
         data = []
-        per_batch = len(indices) // self.device_num
-        index = indices[self.rank_id * per_batch : (self.rank_id + 1) * per_batch]
+        per_batch = len(batch_indices) // self.device_num
+        index = batch_indices[self.rank_id * per_batch : (self.rank_id + 1) * per_batch]
         for idx in index:
             data.append(self.dataset[idx])
-        if self.collat_fn is not None:
-            data = self.collat_fn(data)
+        if self.collate_fn is not None:
+            data = self.collate_fn(data)
         return data
 
     def __len__(self):
-        batch_sampler_len = len(self.batch_sampler)
-        remainder = self.batch_sampler.remainder
-        if remainder and self.drop_last:
-            return batch_sampler_len - 1
+        if self.batch_sampler is not None:
+            batch_sampler_len = len(self.batch_sampler)
+            remainder = self.batch_sampler.remainder
+            if remainder and self.drop_last:
+                return batch_sampler_len - 1
+            else:
+                return batch_sampler_len
         else:
-            return batch_sampler_len
+            remainder = len(self.sampler) % self._batch_size != 0
+            if remainder and not self.drop_last:
+                return len(self.sampler) // self._batch_size + 1
+            else:
+                return len(self.sampler) // self._batch_size
 
 
 class MetaLoader:
