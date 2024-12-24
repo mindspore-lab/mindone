@@ -15,6 +15,7 @@ from opensora.models.causalvideovae.model.modules.wavelet import (
     InverseHaarWaveletTransform2D,
     InverseHaarWaveletTransform3D,
 )
+
 from tests.torch_wavelet import HaarWaveletTransform2D as HaarWaveletTransform2D_torch
 from tests.torch_wavelet import HaarWaveletTransform3D as HaarWaveletTransform3D_torch
 from tests.torch_wavelet import InverseHaarWaveletTransform2D as InverseHaarWaveletTransform2D_torch

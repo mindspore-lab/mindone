@@ -7,6 +7,7 @@ from transformers.models.t5.configuration_t5 import T5Config
 
 import mindspore as ms
 import mindspore.nn as nn
+import mindspore.ops as ops
 
 from mindone.transformers.activations import ACT2FN
 from mindone.transformers.modeling_utils import MSPreTrainedModel as PreTrainedModel
