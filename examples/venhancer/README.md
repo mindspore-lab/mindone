@@ -29,7 +29,7 @@ The following videos are generated based on MindSpore and Ascend 910*.
 
 | Input                                                                                     | +VEnhancer                                                                                     |
 |-------------------------------------------------------------------------------------------------|-------------------------------------------------------------------------------------------------|
-| <video src="https://github.com/user-attachments/assets/04e0cb7c-46a4-4369-a6ad-28e4fac7c157" /> | <video src="https://github.com/user-attachments/assets/b9661720-3d89-41ca-a3a6-fba0ffaa06e1" /> |
+| <video src="https://github.com/user-attachments/assets/04e0cb7c-46a4-4369-a6ad-28e4fac7c157" /> | <video src="https://github.com/user-attachments/assets/ea4791ac-868d-430a-826a-e3a2b6edc09b" /> |
 
 
 ## Inference
