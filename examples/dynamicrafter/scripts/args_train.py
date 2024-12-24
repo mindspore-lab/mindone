@@ -199,25 +199,9 @@ def parse_args():
         "If use, 5.0 is a common choice. To disable min-SNR weighting, set it to 0",
     )
     parser.add_argument("--num_parallel_workers", default=12, type=int, help="num workers for data loading")
-    parser.add_argument(
-        "--train_data_type",
-        default="video_file",
-        type=str,
-        choices=["video_file", "npz", "mindrecord"],
-        help="type of data for training",
-    )
-
-    # For embedding cache
     parser.add_argument("--video_column", default="video", type=str, help="name of column for videos saved in csv file")
     parser.add_argument(
         "--caption_column", default="caption", type=str, help="name of column for captions saved in csv file"
-    )
-    parser.add_argument(
-        "--save_data_type",
-        default="float32",
-        type=str,
-        choices=["float16", "float32"],
-        help="data type when saving embedding cache",
     )
 
     abs_path = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))

@@ -37,9 +37,8 @@ from mindone.trainers.train_step import TrainOneStepWrapper
 from mindone.utils.amp import auto_mixed_precision
 from mindone.utils.config import get_obj_from_str
 from mindone.utils.logger import set_logger
-from mindone.utils.params import count_params, load_param_into_net_with_filter
+from mindone.utils.params import count_params
 from mindone.utils.seed import set_random_seed
-from mindone.utils.version_control import is_old_ms_version
 
 logger = logging.getLogger(__name__)
 
@@ -47,7 +46,6 @@ logger = logging.getLogger(__name__)
 def build_model_from_config(config, unet_config_update=None, vae_use_fp16=None, snr_gamma=None):
     config = OmegaConf.load(config).model
     if unet_config_update is not None:
-        # config["params"]["unet_config"]["params"]["enable_flash_attention"] = enable_flash_attention
         unet_args = config["params"]["unet_config"]["params"]
         for name, value in unet_config_update.items():
             if value is not None:
@@ -67,7 +65,6 @@ def build_model_from_config(config, unet_config_update=None, vae_use_fp16=None, 
             return None
         raise KeyError("Expected key `target` to instantiate.")
     config_params = config.get("params", dict())
-    # config_params['cond_stage_trainable'] = cond_stage_trainable # TODO: easy config
     return get_obj_from_str(config["target"])(**config_params)
 
 
@@ -82,45 +79,6 @@ def load_pretrained_model(ckpt_path, model):
     else:
         logger.warning("Model uses random initialization!")
 
-"""
-def load_pretrained_model(
-    # pretrained_ckpt, net, unet_initialize_random=False, load_unet3d_from_2d=False, unet3d_type="adv2"
-    pretrained_ckpt, net, unet_initialize_random=False,
-):
-    logger.info(f"Loading pretrained model from {pretrained_ckpt}")
-    if os.path.exists(pretrained_ckpt):
-        param_dict = load_checkpoint(pretrained_ckpt)
-
-        # if load_unet3d_from_2d:
-        #     param_dict = update_unet2d_params_for_unet3d(param_dict, unet3d_type=unet3d_type)
-
-        if unet_initialize_random:
-            pnames = list(param_dict.keys())
-            # pop unet params from pretrained weight
-            for pname in pnames:
-                if pname.startswith("model.diffusion_model"):
-                    param_dict.pop(pname)
-            logger.warning("UNet will be initialized randomly")
-
-        if is_old_ms_version():
-            param_not_load = load_param_into_net(net, param_dict, filter=param_dict.keys())
-        else:
-            param_not_load, ckpt_not_load = load_param_into_net_with_filter(net, param_dict, filter=param_dict.keys())
-
-        logger.info(
-            "Net params not load: {}, Total net params not loaded: {}".format(param_not_load, len(param_not_load))
-        )
-        logger.info(
-            "Ckpt params not load: {}, Total ckpt params not loaded: {}".format(ckpt_not_load, len(ckpt_not_load))
-        )
-
-        if not unet_initialize_random:
-            assert (
-                len(ckpt_not_load) == 0
-            ), "All params in ckpt should be loaded to the network. See log for detailed missing params."
-    else:
-        logger.warning(f"Checkpoint file {pretrained_ckpt} dose not exist!!!")
-"""
 
 def init_env(
     mode: int = ms.GRAPH_MODE,
@@ -224,16 +182,6 @@ def main(args):
 
     # 1) load sd pretrained weight
     load_pretrained_model(args.pretrained_model_path, latent_diffusion_with_loss)
-    """
-    load_pretrained_model(
-        _to_abspath(args.pretrained_model_path),
-        latent_diffusion_with_loss,
-        unet_initialize_random=args.unet_initialize_random,
-        # load_unet3d_from_2d=(not args.image_finetune),
-        # unet3d_type="adv1" if "mmv1" in args.model_config else "adv2",  # TODO: better not use filename to judge version
-    )
-    """
-    # TODO: debugging
     dtype_map = {"fp16": ms.float16, "bf16": ms.bfloat16}
     latent_diffusion_with_loss = auto_mixed_precision(latent_diffusion_with_loss, amp_level=args.amp_level, dtype=dtype_map[args.amp_dtype], custom_fp32_cells=[])
 
@@ -244,24 +192,17 @@ def main(args):
 
     # 3. build dataset
     csv_path = args.csv_path if args.csv_path is not None else os.path.join(args.data_dir, "video_caption.csv")
-    data_config = dict(   # FIXME: move the hard code args to args_train.py
+    data_config = dict(
             csv_path=csv_path,
             data_dir=args.data_dir,
             text_emb_dir=args.text_emb_dir,
             column_names=["video", "text_emb", "fps", "frame_stride"],
-            # column_names=["video", "caption", "path", "fps", "frame_stride"],
-            # column_names=["video", "caption", "frame_stride"],
-            # subsample=None,
             batch_size=args.batch_size,
             video_length=args.num_frames,
             resolution=args.resolution,
             frame_stride=args.frame_stride,
-            # frame_stride_min=1,
             spatial_transform="resize_center_crop",
-            # crop_resolution=None,
-            # fps_max=None,
             load_raw_resolution=True,
-            # fixed_fps=None,
             random_fs=True,
             shuffle=True,
             num_parallel_workers=10,
@@ -309,13 +250,6 @@ def main(args):
             ckpt_save_interval, "steps" if (not args.dataset_sink_mode and step_mode) else "sink epochs"
         )
     )
-
-    # if args.dataset_sink_mode:
-    #    if os.environ.get("MS_DATASET_SINK_QUEUE") is None:
-    #        os.environ["MS_DATASET_SINK_QUEUE"] = "10"
-    #        print("WARNING: Set env `MS_DATASET_SINK_QUEUE` to 10.")
-    #    else:
-    #        print("D--: get dataset sink queue: ", os.environ.get("MS_DATASET_SINK_QUEUE") )
 
     # 4. build training utils: lr, optim, callbacks, trainer
     # build learning rate scheduler
@@ -439,7 +373,6 @@ def main(args):
                 f"Precision: {latent_diffusion_with_loss.model.diffusion_model.dtype}",
                 f"Learning rate: {args.start_learning_rate}",
                 f"Batch size: {args.batch_size}",
-                # f"Image size: {args.image_size}",
                 f"Resolution: {args.resolution}",
                 f"Frames: {args.num_frames}",
                 f"Weight decay: {args.weight_decay}",
@@ -464,7 +397,6 @@ def main(args):
             yaml.safe_dump(vars(args), stream=f, default_flow_style=False, sort_keys=False)
 
     # 6. train
-    # TODO: start_epoch already recorded in sink size?
     model.train(
         sink_epochs,
         dataset,

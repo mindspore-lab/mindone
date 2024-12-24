@@ -76,18 +76,16 @@ class WebVid:
             sample = self.metadata[index]
             video_path = os.path.join(self.data_dir, sample["video"])
             text_emb_path = os.path.join(self.text_emb_dir, Path(sample["video"]).with_suffix(".npz"))
-            # caption = sample['caption']
 
             # text_emb
             with np.load(text_emb_path) as f:
                 text_emb = f["text_emb"]
-                # data["mask"] = td["mask"].astype(np.uint8)
 
             try:
                 if self.load_raw_resolution:
                     video_reader = VideoReader(video_path)
                 else:
-                    video_reader = VideoReader(video_path, width=530, height=300)  # FIXME: why hard code here?
+                    video_reader = VideoReader(video_path, width=530, height=300)
                 if len(video_reader) < self.video_length:
                     print(f"video length ({len(video_reader)}) is smaller than target length({self.video_length})")
                     index += 1
@@ -147,9 +145,6 @@ class WebVid:
         if self.fps_max is not None and fps_clip > self.fps_max:
             fps_clip = self.fps_max
 
-        # return frames, caption, frame_stride
-        # return frames, caption, video_path, fps_clip, frame_stride
-        # return frames, video_path, fps_clip, frame_stride
         return frames, text_emb, fps_clip, frame_stride
     
     def __len__(self):

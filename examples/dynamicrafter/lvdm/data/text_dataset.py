@@ -13,7 +13,6 @@ class TextDataset:
     def __init__(
         self,
         csv_path,
-        # tokenizer=None,
         video_column="video",
         caption_column="caption",
     ):
@@ -24,7 +23,6 @@ class TextDataset:
         self.length = len(self.dataset)
         logger.info(f"Num data samples: {self.length}")
 
-        # self.tokenizer = tokenizer
         self.caption_column = caption_column
         self.video_column = video_column
 
@@ -52,11 +50,6 @@ def create_dataloader(
     drop_remainder=True,
     return_dataset=False,
 ):
-    # if ds_name == "text":
-    #     dataset = TextDataset(**ds_config)
-    #     column_names = ["file_path", "caption"]
-    # else:
-    #     raise NotImplementedError
     dataset = TextDataset(**ds_config)
     column_names = ["file_path", "caption"]
 

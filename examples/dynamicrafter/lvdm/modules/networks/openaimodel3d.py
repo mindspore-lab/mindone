@@ -752,7 +752,6 @@ class UNetModel(nn.Cell):
 
     def construct(self, x, timesteps, context=None, features_adapter=None, fs=None, **kwargs):
         b, _, t, _, _ = x.shape
-        # t_emb = timestep_embedding(timesteps, self.model_channels, repeat_only=False).astype(x.dtype) # FIXME: need astype(x.ftype)?
         t_emb = timestep_embedding(timesteps, self.model_channels, repeat_only=False)
         emb = self.time_embed(t_emb)
 
@@ -782,7 +781,6 @@ class UNetModel(nn.Cell):
         if self.fs_condition:
             if fs is None:
                 fs = ms.Tensor([self.default_fs] * b, dtype=ms.int64)
-            # fs_emb = timestep_embedding(fs, self.model_channels, repeat_only=False).astype(x.dtype) # FIXME: need astype(x.ftype)?
             fs_emb = timestep_embedding(fs, self.model_channels, repeat_only=False)
 
             fs_embed = self.fps_embedding(fs_emb)

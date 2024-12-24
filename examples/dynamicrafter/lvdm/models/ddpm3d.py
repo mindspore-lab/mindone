@@ -173,12 +173,6 @@ class DDPM(nn.Cell):
         self.posterior_mean_coef1 = self.to_mindspore(betas * np.sqrt(alphas_cumprod_prev) / (1. - alphas_cumprod))
         self.posterior_mean_coef2 = self.to_mindspore((1. - alphas_cumprod_prev) * np.sqrt(alphas) / (1. - alphas_cumprod))
 
-        # self.register_buffer('posterior_log_variance_clipped', to_torch(np.log(np.maximum(posterior_variance, 1e-20))))
-        # self.register_buffer('posterior_mean_coef1', to_torch(
-        #     betas * np.sqrt(alphas_cumprod_prev) / (1. - alphas_cumprod)))
-        # self.register_buffer('posterior_mean_coef2', to_torch(
-        #     (1. - alphas_cumprod_prev) * np.sqrt(alphas) / (1. - alphas_cumprod)))
-
         if self.parameterization == "eps":
             lvlb_weights = self.betas ** 2 / (
                         2 * self.posterior_variance * self.to_mindspore(alphas) * (1 - self.alphas_cumprod))
@@ -194,7 +188,6 @@ class DDPM(nn.Cell):
         self.lvlb_weights = lvlb_weights
         assert not ops.isnan(self.lvlb_weights).all()
 
-    # def q_sample(self, x_start, t, noise):
     def add_noise(self, original_samples: ms.Tensor, noise: ms.Tensor, timestep: ms.Tensor) -> ms.Tensor:
         """
         return:
@@ -234,19 +227,6 @@ class DDPM(nn.Cell):
                 extract_into_tensor(self.sqrt_one_minus_alphas_cumprod, t, x_start.shape) * noise
         )
 
-    # def q_sample(self, x_start, t, noise=None):
-    #     """
-    #     Diffuse the data for a given number of diffusion steps.
-    #     In other words, sample from q(x_t | x_0).
-    #     :param x_start: the initial data batch.
-    #     :param t: the number of diffusion steps (minus 1). Here, 0 means one step.
-    #     :param noise: if specified, the split-out normal noise.
-    #     :return: A noisy version of x_start.
-    #     """
-    #     return (
-    #         _extract_into_tensor(self.sqrt_alphas_cumprod, t, x_start.shape) * x_start
-    #         + _extract_into_tensor(self.sqrt_one_minus_alphas_cumprod, t, x_start.shape) * noise
-    #     )
     def get_v(self, x, noise, t):
         return (
                 extract_into_tensor(self.sqrt_alphas_cumprod, t, x.shape) * noise -
@@ -267,18 +247,8 @@ class DDPM(nn.Cell):
             raise NotImplementedError("unknown loss type '{loss_type}'")
 
         return loss
-    """
-    def get_input(self, batch, k):
-        x = batch[k]
-        '''
-        if len(x.shape) == 3:
-            x = x[..., None]
-        x = rearrange(x, 'b h w c -> b c h w')
-        '''
-        # x = x.to(memory_format=torch.contiguous_format).float()
-        x = x.astype(ms.float32)
-        return x
-    """
+
+
 class LatentDiffusion(DDPM):
     def __init__(
         self,
@@ -531,8 +501,7 @@ class LatentDiffusion(DDPM):
     def get_learned_conditioning(self, c):
         if self.cond_stage_forward is None:
             tokens, _ = self.cond_stage_model.tokenize(c)  # text -> tensor
-            # c = self.cond_stage_model.encode(Tensor(tokens))  # FIXME: pynative oom here
-            c = self.cond_stage_model(Tensor(tokens))  # FIXME: pynative oom here
+            c = self.cond_stage_model(Tensor(tokens))
         else:
             raise NotImplementedError
             # assert hasattr(self.zcond_stage_model, self.cond_stage_forward)
@@ -552,18 +521,6 @@ class LatentDiffusion(DDPM):
 
     def construct(self, *batch):
         loss, loss_dict = self.shared_step(batch, random_uncond=self.classifier_free_guidance)
-        """
-        ## sync_dist | rank_zero_only 
-        self.log_dict(loss_dict, prog_bar=True, logger=True, on_step=True, on_epoch=True, sync_dist=False)
-        #self.log("epoch/global_step", self.global_step.float(), prog_bar=True, logger=True, on_step=True, on_epoch=False)
-        '''
-        if self.use_scheduler:
-            lr = self.optimizers().param_groups[0]['lr']
-            self.log('lr_abs', lr, prog_bar=True, logger=True, on_step=True, on_epoch=False, rank_zero_only=True)
-        '''
-        if (batch_idx+1) % self.log_every_t == 0:
-            mainlogger.info(f"batch:{batch_idx}|epoch:{self.current_epoch} [globalstep:{self.global_step}]: loss={loss}")
-        """
         return loss
 
     def compute_loss(self, x, c, **kwargs):
@@ -576,14 +533,7 @@ class LatentDiffusion(DDPM):
 
     def p_losses(self, x_start, cond, t, noise=None, **kwargs):
         noise = msnp.randn(x_start.shape)
-        """
-        if self.noise_strength > 0:
-            b, c, f, _, _ = x_start.shape
-            offset_noise = ops.randn(b, c, f, 1, 1)
-            noise = default(noise, lambda: ops.randn_like(x_start) + self.noise_strength * offset_noise)
-        else:
-            noise = default(noise, lambda: ops.randn_like(x_start))
-        """
+
         x_noisy = self.q_sample(x_start=x_start, t=t, noise=noise)
 
         for k, v in cond.items():
@@ -611,7 +561,6 @@ class LatentDiffusion(DDPM):
         loss_dict.update({f'{prefix}/loss_simple': loss_simple.mean()})
 
         logvar_t = self.logvar[t]
-        # logvar_t = self.logvar[t.item()].to(self.device) # device conflict when ddp shared
         loss = loss_simple / ops.exp(logvar_t) + logvar_t
         if self.learn_logvar:
             loss_dict.update({f'{prefix}/loss_gamma': loss.mean()})
@@ -627,93 +576,6 @@ class LatentDiffusion(DDPM):
 
         return loss, loss_dict  
 
-    """
-    def construct(self, x: ms.Tensor, text_tokens: ms.Tensor, control=None, **kwargs):
-        '''
-        Video diffusion model forward and loss computation for training
-
-        Args:
-            x: pixel values of video frames, resized and normalized to shape [bs, F, 3, 256, 256]
-            text: text tokens padded to fixed shape [bs, 77]
-            control: other conditions for future extension
-
-        Returns:
-            loss
-
-        Notes:
-            - inputs should matches dataloder output order
-            - assume unet3d input/output shape: (b c f h w)
-                unet2d input/output shape: (b c h w)
-        '''
-
-        # 1. get image/video latents z using vae
-        z = self.get_latents(x)
-
-        # 2. sample timestep and add noise to latents
-        t = self.uniform_int(
-            (x.shape[0],), Tensor(0, dtype=mstype.int32), Tensor(self.num_timesteps, dtype=mstype.int32)
-        )
-        noise = ops.randn_like(z)
-        noisy_latents, snr = self.add_noise(z, noise, t)
-
-        # 3. get condition embeddings
-        cond = self.get_condition_embeddings(text_tokens, control)
-
-        # 4.  unet forward, predict conditioned on conditions
-        model_output = self.apply_model(
-            noisy_latents,
-            t,
-            cond=cond,
-            **kwargs,
-        )
-
-        # 5. compute loss
-        if self.parameterization == "eps":
-            target = noise
-        else:
-            raise NotImplementedError()
-
-        loss_element = self.compute_loss(model_output, target)
-        loss_sample = self.reduce_loss(loss_element)
-
-        if self.snr_gamma is not None:
-            snr_gamma = ops.ones_like(snr) * self.snr_gamma
-            # TODO: for v-pred, .../ (snr+1)
-            # TODO: for beta zero rescale, consider snr=0
-            # min{snr, gamma} / snr
-            loss_weight = ops.stack((snr, snr_gamma), axis=0).min(axis=0) / snr
-            loss = (loss_weight * loss_sample).mean()
-        else:
-            loss = loss_sample.mean()
-            # loss = self.mse_mean(target, model_output)
-
-        '''
-        # can be used to place more weights to high-score samples
-        logvar_t = self.logvar[t]
-        loss = loss_simple / ops.exp(logvar_t) + logvar_t
-        loss = self.l_simple_weight * loss.mean()
-        '''
-
-        return loss
-
-    def compute_loss(self, pred, target):
-        if self.loss_type == "l1":
-            loss = (target - pred).abs()
-        elif self.loss_type == "l2":
-            loss = self.mse_none(target, pred)
-        else:
-            raise NotImplementedError("unknown loss type '{loss_type}'")
-
-        return loss
-
-    def reduce_loss_2d(self, loss):
-        # model output/loss shape: (b c h w)
-        return loss.mean([1, 2, 3])
-
-    def reduce_loss(self, loss):
-        # model output/loss shape: (b c f h w)
-        return loss.mean([1, 2, 3, 4])
-    """
 
 class LatentDiffusionWithEmbedding(LatentDiffusion):
     def __init__(self, *args, **kwargs):
@@ -779,15 +641,7 @@ class LatentVisualDiffusion(LatentDiffusion):
         x = video.astype(ms.float32)
 
         ## encode video frames x to z via a 2D encoder        
-        z = self.encode_first_stage(x)  # FIXME: OOM here. stable_diffusion_v2.ldm.models.autoencoder.AutoencoderKL.encode
-        # z = ops.rand([1, 4, 16, 72, 128], dtype=ms.float32)  # 16x576x1024
-        
-        ## get caption condition
-        # cond_input = caption.tolist()  # Tensor -> List[str]
-        # cond_emb = self.get_learned_conditioning(cond_input)
-        # cond_emb = ops.rand([1, 77, 1024] , dtype=ms.float16)  # FIXME: ms.float32
-
-        # cond_emb = text_emb.astype(ms.float16)
+        z = self.encode_first_stage(x)
 
         cond = {}
         ## to support classifier-free guidance, randomly drop out only text conditioning 5%, only image conditioning 5%, and both 5%.
@@ -802,7 +656,6 @@ class LatentVisualDiffusion(LatentDiffusion):
 
         null_prompt = self.get_learned_conditioning([""])
         cond_emb = text_emb.astype(null_prompt.dtype)
-        # null_prompt = ops.rand([1, 77, 1024], dtype=ms.float16)  # FIXME: ms.float32
         prompt_imb = ops.where(prompt_mask, null_prompt, cond_emb)
 
         ## get conditioning frame
@@ -815,7 +668,7 @@ class LatentVisualDiffusion(LatentDiffusion):
         ## img: b c h w
         img_emb = self.embedder(img) ## b l c
         img_emb = self.image_proj_model(img_emb)
-        img_emb = img_emb.astype(ms.float32)  # FIXME: convert back to fp32?
+        img_emb = img_emb.astype(ms.float32)
 
         if self.model.conditioning_key == 'hybrid':
             if self.interp_mode:
@@ -838,14 +691,10 @@ class LatentVisualDiffusion(LatentDiffusion):
             xrec = self.decode_first_stage(z)
             out.extend([xrec])
 
-        # if return_original_cond:
-        #     out.append(cond_input)
         if return_fs:
             if self.fps_condition_type == 'fs':
-                # fs = super().get_input(batch, 'frame_stride')
                 fs = frame_stride.astype(ms.float32)
             elif self.fps_condition_type == 'fps':
-                # fs = super().get_input(batch, 'fps')
                 fs = fps.astype(ms.float32)
             out.append(fs)
         if return_cond_frame:
@@ -865,27 +714,15 @@ class DiffusionWrapper(nn.Cell):
         assert self.conditioning_key in [None, "concat", "crossattn", "hybrid", "adm", "crossattn-adm"]
 
     def construct(self, x, t, c_concat=None, c_crossattn=None, c_adm=None, **kwargs):
-        
-        # if isinstance(c_concat, tuple):
-        #     raise ValueError(f"c_concat is tuple")
-        #     # raise ValueError(f"c_concat is tuple. len: {len(c_concat)}, shape: {c_concat[0].shape}, type: {type(c_concat[0])}")
-        # elif isinstance(c_concat, ms.Tensor):
-        #     raise ValueError("c_concat is ms.Tensor")
-        # else:
-        #     raise ValueError
-
         if self.conditioning_key is None:
             out = self.diffusion_model(x, t, **kwargs)
         elif self.conditioning_key == "concat":
-            x_concat = ops.concat((x, c_concat), axis=1)  # FIXME
+            x_concat = ops.concat((x, c_concat), axis=1)
             out = self.diffusion_model(x_concat, t, **kwargs)
         elif self.conditioning_key == "crossattn":  # t2v task
             context = c_crossattn
             out = self.diffusion_model(x, t, context=context, **kwargs)
         elif self.conditioning_key == "hybrid":
-            # # x_concat = ops.concat([x] + [c_concat[0]], axis=1)  # FIXME
-            # x_concat = ops.concat([x] + c_concat, axis=1)  # FIXME
-            # context = ops.concat(c_crossattn, 1)
             x_concat = ops.concat((x, c_concat), axis=1)
             context = c_crossattn
             out = self.diffusion_model(x_concat, t, context=context, **kwargs)

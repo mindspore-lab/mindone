@@ -1,5 +1,4 @@
 model:
-  # pretrained_checkpoint: checkpoints/dynamicrafter_1024_v1/model.ckpt
   base_learning_rate: 1.0e-05
   scale_lr: False
   target: lvdm.models.ddpm3d.LatentVisualDiffusion
@@ -111,21 +110,3 @@ model:
         output_dim: 1024
         ff_mult: 4
         video_length: 16
-
-# data:
-#   target: utils_data.DataModuleFromConfig
-#   params:
-#     batch_size: 1
-#     num_workers: 12
-#     wrap: false
-#     train:
-#       target: lvdm.data.webvid.WebVid
-#       params:
-#         data_dir: <WebVid10M DATA>
-#         csv_path: <.csv FILE>
-#         video_length: 16
-#         frame_stride: 6
-#         load_raw_resolution: true
-#         resolution: [576, 1024]
-#         spatial_transform: resize_center_crop
-#         random_fs: true  ## if true, we uniformly sample fs with max_fs=frame_stride (above)

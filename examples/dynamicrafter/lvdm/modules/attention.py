@@ -187,10 +187,6 @@ class CrossAttention(nn.Cell):
                 input_layout="BSH",
                 dtype=attn_dtype,
             )
-        # else:
-        #     # TODO: test ms.bfloat16 for vanilla attention
-        #     attn_dtype = ms.float32
-        #     self.attention = Attention(self.head_dim, attn_dtype=attn_dtype)
 
     @staticmethod
     def _rearange_in(x, h):
@@ -625,17 +621,6 @@ class TemporalTransformer(nn.Cell):
         x = ops.transpose(x, (0, 2, 1))
         if self.use_linear:
             x = self.proj_in(x)
-
-        # TODO: NotImplemented
-        # temp_mask = None
-        # if self.causal_attention:
-        #     # slice the from mask map
-        #     temp_mask = self.mask[:,:t,:t].to(x.device)
-        # if temp_mask is not None:
-        #     mask = temp_mask.to(x.device)
-        #     mask = repeat(mask, 'l i j -> (l bhw) i j', bhw=b*h*w)
-        # else:
-        #     mask = None
 
         if self.only_self_att:
             # x = ops.transpose(x, (0, 2, 1))

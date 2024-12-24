@@ -19,12 +19,8 @@ mindone_lib_path = os.path.abspath(os.path.join(__dir__, "../../../"))
 sys.path.insert(0, mindone_lib_path)
 sys.path.insert(0, os.path.abspath(os.path.join(__dir__, "..")))
 
-# from opensora.datasets.text_dataset import create_dataloader
-# from opensora.models.text_encoder.t5 import get_text_encoder_and_tokenizer
-# from opensora.utils.cond_data import read_captions_from_csv, read_captions_from_txt
-# from opensora.utils.model_utils import str2bool  # _check_cfgs_in_parser
+from args_train import _check_cfgs_in_parser
 from lvdm.data.text_dataset import create_dataloader
-
 from mindone.utils.amp import auto_mixed_precision
 from mindone.utils.logger import set_logger
 from mindone.utils.misc import to_abspath
@@ -114,13 +110,6 @@ def instantiate_cond_stage(config):
             param.requires_grad = False
     else:
         raise NotImplementedError("cond stage model is not trainable.")
-        # assert cond_stage_config != "__is_first_stage__"
-        # assert cond_stage_config != "__is_unconditional__"
-        # model = instantiate_from_config(cond_stage_config)
-        # cond_stage_model = model
-        # cond_stage_model.set_train(True)
-        # for param in cond_stage_model.get_parameters():
-        #     param.requires_grad = True
     return cond_stage_model
 
 
@@ -135,14 +124,12 @@ def main(args):
     
     ds_config = dict(
         csv_path=args.csv_path,
-        # tokenizer=None,  # tokenizer,
-        video_column="video",
-        caption_column="caption",
+        video_column=args.video_column,
+        caption_column=args.caption_column,
     )
     dataset = create_dataloader(
         ds_config,
         args.batch_size,
-        # ds_name="text",
         num_parallel_workers=12,
         max_rowsize=32,
         shuffle=False,  # be in order
@@ -154,13 +141,8 @@ def main(args):
     logger.info(f"Num batches: {dataset_size}")
 
     # model initiate and weight loading
-    # ckpt_path = args.t5_model_dir
     config = OmegaConf.load(args.config)
     text_encoder = instantiate_cond_stage(config)
-    # text_encoder, tokenizer = get_text_encoder_and_tokenizer("t5", ckpt_path, model_max_length=args.model_max_length)
-    # text_encoder.set_train(False)
-    # for param in text_encoder.get_parameters():  # freeze latte_model
-    #     param.requires_grad = False
 
     dtype_map = {"fp16": ms.float16, "bf16": ms.bfloat16}
     if args.dtype in ["fp16", "bf16"]:
@@ -185,10 +167,6 @@ def main(args):
             text_tokens, _ = text_encoder.tokenize(captions)  # text -> tensor
             text_emb = text_encoder.encode(Tensor(text_tokens))
 
-
-            # text_tokens, mask = text_encoder.get_text_tokens_and_mask(captions, return_tensor=True)
-            # text_emb = text_encoder(text_tokens, mask)
-
             end_time = time.time()
             time_cost = end_time - start_time
 
@@ -201,7 +179,6 @@ def main(args):
 
                 np.savez(
                     npz_fp,
-                    # mask=mask[i].asnumpy().astype(np.uint8),
                     text_emb=text_emb[i].asnumpy().astype(np.float32),
                     # tokens=text_tokens[i].asnumpy(), #.astype(np.int32),
                 )
@@ -218,10 +195,11 @@ def main(args):
 
         # get captions from cfg or prompt_path
         if args.prompt_path is not None:
-            if args.prompt_path.endswith(".csv"):
-                captions = read_captions_from_csv(args.prompt_path)
-            elif args.prompt_path.endswith(".txt"):
-                captions = read_captions_from_txt(args.prompt_path)
+            raise NotImplementedError
+            # if args.prompt_path.endswith(".csv"):
+            #     captions = read_captions_from_csv(args.prompt_path)
+            # elif args.prompt_path.endswith(".txt"):
+            #     captions = read_captions_from_txt(args.prompt_path)
         else:
             captions = args.captions
         logger.info(f"Number of captions: {len(captions)}")
@@ -277,8 +255,8 @@ def parse_args():
         default=None,
         help="output dir to save the embeddings, if None, will treat the parent dir of csv_path as output dir.",
     )
-    parser.add_argument("--caption_column", type=str, default="caption", help="caption column num in csv")
-    # MS new args
+    parser.add_argument("--video_column", default="video", type=str, help="name of column for videos saved in csv file")
+    parser.add_argument("--caption_column", default="caption", type=str, help="name of column for captions saved in csv file")
     parser.add_argument("--device_target", type=str, default="Ascend", help="Ascend or GPU")
     parser.add_argument("--mode", type=int, default=0, help="Running in GRAPH_MODE(0) or PYNATIVE_MODE(1) (default=0)")
     parser.add_argument("--use_parallel", default=False, type=str2bool, help="use parallel")
@@ -331,19 +309,14 @@ def parse_args():
         default_args.config = to_abspath(abs_path, default_args.config)
         with open(default_args.config, "r") as f:
             cfg = yaml.safe_load(f)
-            # _check_cfgs_in_parser(cfg, parser)
-            # parser.set_defaults(
-            #     **dict(
-            #         captions=cfg["captions"],
-            #         t5_model_dir=cfg["t5_model_dir"],
-            #     )
-            # )
+            _check_cfgs_in_parser(cfg, parser)
+            parser.set_defaults(**cfg)
     args = parser.parse_args()
+
     # convert to absolute path, necessary for modelarts
     args.csv_path = to_abspath(abs_path, args.csv_path)
     args.prompt_path = to_abspath(abs_path, args.prompt_path)
     args.output_path = to_abspath(abs_path, args.output_path)
-    # args.t5_model_dir = to_abspath(abs_path, args.t5_model_dir)
     return args
 
 
