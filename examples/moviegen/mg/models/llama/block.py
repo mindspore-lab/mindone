@@ -1,7 +1,13 @@
-import logging
 from typing import Optional, Sequence, Tuple, Union
 
 import numpy as np
+from mg.parallel import (
+    ColumnParallelLinear,
+    FusedColumnParallelLinear,
+    FusedRowParallelLinear,
+    GatherForwardReduceScatterBackward,
+    RowParallelLinear,
+)
 
 import mindspore as ms
 import mindspore.mint as mint
@@ -9,11 +15,10 @@ import mindspore.mint.nn.functional as F
 import mindspore.nn as nn
 import mindspore.ops as ops
 from mindspore import Parameter, Tensor
+from mindspore.communication import GlobalComm
 from mindspore.ops.operations.nn_ops import FlashAttentionScore
 
 from .activation import ACT2FN
-
-logger = logging.getLogger(__name__)
 
 
 class LlamaRMSNorm(nn.Cell):
@@ -49,6 +54,77 @@ class LlamaMLP(nn.Cell):
 
     def construct(self, hidden_state: Tensor) -> Tensor:
         return self.down_proj(self.act_fn(self.gate_proj(hidden_state)) * self.up_proj(hidden_state))
+
+
+class TensorParallelLlamaMLP(nn.Cell):
+    def __init__(
+        self,
+        intermediate_size: int = 8192,
+        hidden_size: int = 3072,
+        hidden_act: str = "silu",
+        group: str = GlobalComm.WORLD_COMM_GROUP,
+        dtype: ms.Type = ms.float32,
+    ) -> None:
+        super().__init__()
+        self.hidden_size = hidden_size
+        self.intermediate_size = intermediate_size
+        self.gate_proj = ColumnParallelLinear(
+            self.hidden_size, self.intermediate_size, bias=False, gather_output=False, group=group, dtype=dtype
+        )
+        self.up_proj = ColumnParallelLinear(
+            self.hidden_size, self.intermediate_size, bias=False, gather_output=False, group=group, dtype=dtype
+        )
+        self.down_proj = RowParallelLinear(
+            self.intermediate_size, self.hidden_size, bias=False, input_is_parallel=True, group=group, dtype=dtype
+        )
+        self.act_fn = ACT2FN[hidden_act]
+
+    def construct(self, hidden_state: Tensor) -> Tensor:
+        return self.down_proj(self.act_fn(self.gate_proj(hidden_state)) * self.up_proj(hidden_state))
+
+    def load_weight_from_non_parallel_cell(self, target: LlamaMLP):
+        self.gate_proj.load_weight_from_non_parallel_cell(target.gate_proj)
+        self.up_proj.load_weight_from_non_parallel_cell(target.up_proj)
+        self.down_proj.load_weight_from_non_parallel_cell(target.down_proj)
+
+
+class FusedTensorParallelLlamaMLP(nn.Cell):
+    def __init__(
+        self,
+        intermediate_size: int = 8192,
+        hidden_size: int = 3072,
+        hidden_act: str = "silu",
+        dim: int = 1,
+        group: str = GlobalComm.WORLD_COMM_GROUP,
+        dtype: ms.Type = ms.float32,
+    ) -> None:
+        super().__init__()
+        self.hidden_size = hidden_size
+        self.intermediate_size = intermediate_size
+        self.gate_proj = FusedColumnParallelLinear(
+            self.hidden_size, self.intermediate_size, bias=False, gather_output=False, dim=dim, group=group, dtype=dtype
+        )
+        self.up_proj = FusedColumnParallelLinear(
+            self.hidden_size, self.intermediate_size, bias=False, gather_output=False, dim=dim, group=group, dtype=dtype
+        )
+        self.down_proj = FusedRowParallelLinear(
+            self.intermediate_size,
+            self.hidden_size,
+            bias=False,
+            input_is_parallel=True,
+            dim=dim,
+            group=group,
+            dtype=dtype,
+        )
+        self.act_fn = ACT2FN[hidden_act]
+
+    def construct(self, hidden_state: Tensor) -> Tensor:
+        return self.down_proj(self.act_fn(self.gate_proj(hidden_state)) * self.up_proj(hidden_state))
+
+    def load_weight_from_non_parallel_cell(self, target: LlamaMLP):
+        self.gate_proj.load_weight_from_non_parallel_cell(target.gate_proj)
+        self.up_proj.load_weight_from_non_parallel_cell(target.up_proj)
+        self.down_proj.load_weight_from_non_parallel_cell(target.down_proj)
 
 
 def repeat_kv(hidden_states: Tensor, n_rep: int) -> Tensor:
@@ -131,6 +207,81 @@ class LlamaAttention(nn.Cell):
         return attn_output
 
 
+class ContextParallelLlamaAttention(nn.Cell):
+    def __init__(
+        self,
+        hidden_size: int = 4096,
+        num_attention_heads: int = 32,
+        num_key_value_heads: int = 8,
+        attention_dropout: float = 0.0,
+        attention_bias: bool = False,
+        group: str = GlobalComm.WORLD_COMM_GROUP,
+        dtype: ms.Type = ms.float32,
+    ) -> None:
+        super().__init__()
+        self.attention_dropout = attention_dropout
+        self.hidden_size = hidden_size
+        self.num_heads = num_attention_heads
+        self.head_dim = self.hidden_size // self.num_heads
+        self.num_key_value_heads = num_key_value_heads
+        self.num_key_value_groups = self.num_heads // self.num_key_value_heads
+
+        if (self.head_dim * self.num_heads) != self.hidden_size:
+            raise ValueError(
+                f"hidden_size must be divisible by num_heads (got `hidden_size`: {self.hidden_size}"
+                f" and `num_heads`: {self.num_heads})."
+            )
+        self.q_proj = mint.nn.Linear(self.hidden_size, self.num_heads * self.head_dim, bias=attention_bias, dtype=dtype)
+        self.k_proj = mint.nn.Linear(
+            self.hidden_size, self.num_key_value_heads * self.head_dim, bias=attention_bias, dtype=dtype
+        )
+        self.v_proj = mint.nn.Linear(
+            self.hidden_size, self.num_key_value_heads * self.head_dim, bias=attention_bias, dtype=dtype
+        )
+        self.o_proj = mint.nn.Linear(self.num_heads * self.head_dim, self.hidden_size, bias=attention_bias, dtype=dtype)
+
+        self.gather_forward_reduce_scatter_backward = GatherForwardReduceScatterBackward(dim=1, group=group)
+
+    def construct(self, hidden_states: Tensor, encoder_hidden_states: Optional[Tensor] = None) -> Tensor:
+        bsz, q_len, _ = hidden_states.shape
+
+        kv_hidden_states = hidden_states if encoder_hidden_states is None else encoder_hidden_states
+
+        query_states = self.q_proj(hidden_states)
+        key_states = self.k_proj(kv_hidden_states)
+        value_states = self.v_proj(kv_hidden_states)
+
+        key_states = self.gather_forward_reduce_scatter_backward(key_states)
+        value_states = self.gather_forward_reduce_scatter_backward(value_states)
+
+        query_states = ops.reshape(query_states, (bsz, -1, self.num_heads, self.head_dim))
+        query_states = mint.permute(query_states, (0, 2, 1, 3))
+
+        key_states = ops.reshape(key_states, (bsz, -1, self.num_key_value_heads, self.head_dim))
+        key_states = mint.permute(key_states, (0, 2, 1, 3))
+
+        value_states = ops.reshape(value_states, (bsz, -1, self.num_key_value_heads, self.head_dim))
+        value_states = mint.permute(value_states, (0, 2, 1, 3))
+
+        key_states = repeat_kv(key_states, self.num_key_value_groups)
+        value_states = repeat_kv(value_states, self.num_key_value_groups)
+
+        key_states = mint.permute(key_states, (0, 1, 3, 2))
+        attn_weights = mint.matmul(query_states, key_states) / mint.sqrt(Tensor(self.head_dim))
+
+        # upcast attention to fp32
+        attn_weights = attn_weights.to(ms.float32)
+        attn_weights = F.softmax(attn_weights, dim=-1).to(query_states.dtype)
+        attn_weights = F.dropout(attn_weights, p=self.attention_dropout, training=self.training)
+        attn_output = mint.matmul(attn_weights, value_states)
+
+        attn_output = mint.permute(attn_output, (0, 2, 1, 3))
+        attn_output = ops.reshape(attn_output, (bsz, q_len, -1))
+        attn_output = self.o_proj(attn_output)
+
+        return attn_output
+
+
 class LlamaFlashAttention(LlamaAttention):
     def __init__(
         self,
@@ -161,6 +312,66 @@ class LlamaFlashAttention(LlamaAttention):
         query_states = self.q_proj(hidden_states)
         key_states = self.k_proj(kv_hidden_states)
         value_states = self.v_proj(kv_hidden_states)
+
+        query_states = ops.reshape(query_states, (bsz, -1, self.num_heads, self.head_dim))
+        query_states = mint.permute(query_states, (0, 2, 1, 3))
+
+        key_states = ops.reshape(key_states, (bsz, -1, self.num_key_value_heads, self.head_dim))
+        key_states = mint.permute(key_states, (0, 2, 1, 3))
+
+        value_states = ops.reshape(value_states, (bsz, -1, self.num_key_value_heads, self.head_dim))
+        value_states = mint.permute(value_states, (0, 2, 1, 3))
+
+        key_states = repeat_kv(key_states, self.num_key_value_groups)
+        value_states = repeat_kv(value_states, self.num_key_value_groups)
+
+        # Reshape to the expected shape and dtype for Flash Attention
+        query_states = mint.permute(query_states, (0, 2, 1, 3))
+        key_states = mint.permute(key_states, (0, 2, 1, 3))
+        value_states = mint.permute(value_states, (0, 2, 1, 3))
+
+        _, _, _, attn_output = self.flash_attention(query_states, key_states, value_states, None, None, None, None)
+        attn_output = ops.reshape(attn_output, (bsz, q_len, -1))
+        attn_output = self.o_proj(attn_output)
+
+        return attn_output
+
+
+class ContextParallelLlamaFlashAttention(ContextParallelLlamaAttention):
+    def __init__(
+        self,
+        hidden_size: int = 4096,
+        num_attention_heads: int = 32,
+        num_key_value_heads: int = 8,
+        attention_dropout: float = 0.0,
+        attention_bias: bool = False,
+        group: str = GlobalComm.WORLD_COMM_GROUP,
+        dtype: ms.Type = ms.float32,
+    ) -> None:
+        super().__init__(
+            hidden_size=hidden_size,
+            num_attention_heads=num_attention_heads,
+            num_key_value_heads=num_key_value_heads,
+            attention_dropout=attention_dropout,
+            attention_bias=attention_bias,
+            group=group,
+            dtype=dtype,
+        )
+        self.flash_attention = FlashAttentionScore(
+            self.num_heads, keep_prob=1 - self.attention_dropout, scale_value=self.head_dim**-0.5, input_layout="BSND"
+        )
+
+    def construct(self, hidden_states: Tensor, encoder_hidden_states: Optional[Tensor] = None) -> Tensor:
+        bsz, q_len, _ = hidden_states.shape
+
+        kv_hidden_states = hidden_states if encoder_hidden_states is None else encoder_hidden_states
+
+        query_states = self.q_proj(hidden_states)
+        key_states = self.k_proj(kv_hidden_states)
+        value_states = self.v_proj(kv_hidden_states)
+
+        key_states = self.gather_forward_reduce_scatter_backward(key_states)
+        value_states = self.gather_forward_reduce_scatter_backward(value_states)
 
         query_states = ops.reshape(query_states, (bsz, -1, self.num_heads, self.head_dim))
         query_states = mint.permute(query_states, (0, 2, 1, 3))

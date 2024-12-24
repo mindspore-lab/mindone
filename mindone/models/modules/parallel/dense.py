@@ -17,7 +17,7 @@ class Dense(nn.Cell):
         net: Union[nn.Dense, mint.nn.Linear],
         zero_stage: Literal[0, 1, 2, 3] = 0,
         op_group: str = GlobalComm.WORLD_COMM_GROUP,
-        cell_type: Optional[mstype] = None,
+        cell_type: Optional[mstype.Type] = None,
     ):
         super().__init__(auto_prefix=False)
         self.net = net
