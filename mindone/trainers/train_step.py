@@ -1,4 +1,5 @@
 """Train step wrapper supporting setting drop overflow update, ema etc"""
+from typing import Optional
 
 from packaging import version
 
@@ -12,6 +13,8 @@ from mindspore.common import dtype as mstype
 from mindspore.ops import composite as C
 from mindspore.ops import functional as F
 from mindspore.ops import operations as P
+
+from .ema import EMA
 
 _grad_scale = C.MultitypeFuncGraph("grad_scale")
 reciprocal = P.Reciprocal()
@@ -55,7 +58,7 @@ class TrainOneStepWrapper(nn.TrainOneStepWithLossScaleCell):
         network,
         optimizer,
         scale_sense=1.0,
-        ema=None,
+        ema: Optional[EMA] = None,
         updates=0,
         drop_overflow_update=True,
         gradient_accumulation_steps=1,
@@ -97,6 +100,10 @@ class TrainOneStepWrapper(nn.TrainOneStepWithLossScaleCell):
             self.zero_helper.split_params()
             if gradient_accumulation_steps > 1:
                 self.accumulated_grads = optimizer.parameters.clone(prefix="grad_accumulated_", init="zeros")
+
+    def set_train(self, mode: bool = True):
+        # Delegate the setting of training mode behavior to the network.
+        self.network.set_train(mode)
 
     def construct(self, *inputs):
         # compute loss
