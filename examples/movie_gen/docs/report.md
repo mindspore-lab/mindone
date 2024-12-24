@@ -8,7 +8,7 @@ In this report, we will focus on MovieGenVideo and explore how to implement it w
 
 At this moment, we support training MovieGenVideo with the following configuration.
 
-|      | image | 256px @256  | 768px @256  |
+|  model scale    | image | 256px @256  | 768px @256  |
 | ---- | ----- | --- | --- | 
 | 1B | ✅     | ✅   | ✅   |
 | 5B | ✅     | ✅   | 🆗   | 
