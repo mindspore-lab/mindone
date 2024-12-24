@@ -1,4 +1,4 @@
-
+# MindSpore Movie Gen Report
 
 ## Temporal Autoencoder (TAE)
 
@@ -57,7 +57,9 @@ To achieve 8x temporal compression, we apply 3 temporal upsampling layers, each 
 
 ### Evaluation
 
-We conduct experiments to verify our implementation's effectiveness on the [UCF-101](https://www.crcv.ucf.edu/data/UCF101.php) dataset containing 13,320 videos. We split the videos into training and test sets by 8:2. Here are the training performance and test accuracy. 
+We conduct experiments to verify our implementation's effectiveness on the [UCF-101](https://www.crcv.ucf.edu/data/UCF101.php) dataset containing 13,320 videos. We split the videos into training and test sets by 8:2. 
+
+The training performance on MindSpore 2.3.1 and Ascend 910* and the accuracy on the test set are as follows.
 
 | model name      |  cards | batch size | resolution |  precision |   OPL Loss | s/step     | PSNR | SSIM |
 | :--:         | :---:   | :--:       | :--:        | :--:       | :--:      |:--:    | :--:   |:--:   |
