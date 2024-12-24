@@ -154,7 +154,6 @@ class OpenSoraT2V_v1_3(ModelMixin, ConfigMixin):
         ignore_mismatched_sizes = kwargs.pop("ignore_mismatched_sizes", False)
         force_download = kwargs.pop("force_download", False)
         from_flax = kwargs.pop("from_flax", False)
-        resume_download = kwargs.pop("resume_download", False)
         proxies = kwargs.pop("proxies", None)
         output_loading_info = kwargs.pop("output_loading_info", False)
         local_files_only = kwargs.pop("local_files_only", None)
@@ -186,7 +185,6 @@ class OpenSoraT2V_v1_3(ModelMixin, ConfigMixin):
             return_unused_kwargs=True,
             return_commit_hash=True,
             force_download=force_download,
-            resume_download=resume_download,
             proxies=proxies,
             local_files_only=local_files_only,
             token=token,
@@ -209,7 +207,6 @@ class OpenSoraT2V_v1_3(ModelMixin, ConfigMixin):
                             weights_name=_add_variant(SAFETENSORS_WEIGHTS_NAME, variant),
                             cache_dir=cache_dir,
                             force_download=force_download,
-                            resume_download=resume_download,
                             proxies=proxies,
                             local_files_only=local_files_only,
                             token=token,
@@ -228,7 +225,6 @@ class OpenSoraT2V_v1_3(ModelMixin, ConfigMixin):
                         weights_name=_add_variant(WEIGHTS_NAME, variant),
                         cache_dir=cache_dir,
                         force_download=force_download,
-                        resume_download=resume_download,
                         proxies=proxies,
                         local_files_only=local_files_only,
                         token=token,
