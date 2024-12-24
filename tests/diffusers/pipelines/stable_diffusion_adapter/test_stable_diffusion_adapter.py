@@ -23,9 +23,16 @@ from transformers import CLIPTextConfig
 
 import mindspore as ms
 
+from mindone.diffusers.utils.testing_utils import (
+    load_downloaded_image_from_hf_hub,
+    load_downloaded_numpy_from_hf_hub,
+    slow,
+)
+
 from ..pipeline_test_utils import (
     THRESHOLD_FP16,
     THRESHOLD_FP32,
+    THRESHOLD_PIXEL,
     PipelineTesterMixin,
     floats_tensor,
     get_module,
@@ -203,7 +210,7 @@ class StableDiffusionFullAdapterPipelineFastTests(PipelineTesterMixin, AdapterTe
         ms_image_slice = ms_image[0][0, -3:, -3:, -1]
 
         threshold = THRESHOLD_FP32 if dtype == "float32" else THRESHOLD_FP16
-        assert np.max(np.linalg.norm(pt_image_slice - ms_image_slice) / np.linalg.norm(pt_image_slice)) < threshold
+        assert np.linalg.norm(pt_image_slice - ms_image_slice) / np.linalg.norm(pt_image_slice) < threshold
 
 
 @ddt
@@ -241,4 +248,44 @@ class StableDiffusionLightAdapterPipelineFastTests(PipelineTesterMixin, AdapterT
         ms_image_slice = ms_image[0][0, -3:, -3:, -1]
 
         threshold = THRESHOLD_FP32 if dtype == "float32" else THRESHOLD_FP16
-        assert np.max(np.linalg.norm(pt_image_slice - ms_image_slice) / np.linalg.norm(pt_image_slice)) < threshold
+        assert np.linalg.norm(pt_image_slice - ms_image_slice) / np.linalg.norm(pt_image_slice) < threshold
+
+
+@slow
+@ddt
+class StableDiffusionAdapterPipelineSlowTests(PipelineTesterMixin, unittest.TestCase):
+    @data(*test_cases)
+    @unpack
+    def test_stable_diffusion_adapter_color(self, mode, dtype):
+        ms.set_context(mode=mode)
+        ms_dtype = getattr(ms, dtype)
+
+        adapter_model = "TencentARC/t2iadapter_color_sd14v1"
+        sd_model = "CompVis/stable-diffusion-v1-4"
+        prompt = "snail"
+        input_channels = 3
+
+        image = load_downloaded_image_from_hf_hub(
+            "hf-internal-testing/diffusers-images",
+            "color.png",
+            subfolder="t2i_adapter",
+        )
+        if input_channels == 1:
+            image = image.convert("L")
+
+        adapter = get_module("mindone.diffusers.models.adapter.T2IAdapter")
+        adapter = adapter.from_pretrained(adapter_model, revision="refs/pr/3", mindspore_dtype=ms_dtype)
+
+        pipe_cls = get_module("mindone.diffusers.pipelines.t2i_adapter.StableDiffusionAdapterPipeline")
+        pipe = pipe_cls.from_pretrained(sd_model, adapter=adapter, safety_checker=None, mindspore_dtype=ms_dtype)
+        pipe.set_progress_bar_config(disable=None)
+
+        torch.manual_seed(0)
+        image = pipe(prompt=prompt, image=image, num_inference_steps=2)[0][0]
+
+        expected_image = load_downloaded_numpy_from_hf_hub(
+            "The-truth/mindone-testing-arrays",
+            f"adapter_color_{dtype}.npy",
+            subfolder="stable_diffusion_adapter",
+        )
+        assert np.mean(np.abs(np.array(image, dtype=np.float32) - expected_image)) < THRESHOLD_PIXEL

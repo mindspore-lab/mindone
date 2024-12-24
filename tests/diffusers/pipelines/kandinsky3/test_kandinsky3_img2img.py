@@ -23,9 +23,16 @@ from PIL import Image
 
 import mindspore as ms
 
+from mindone.diffusers.utils.testing_utils import (
+    load_downloaded_image_from_hf_hub,
+    load_downloaded_numpy_from_hf_hub,
+    slow,
+)
+
 from ..pipeline_test_utils import (
     THRESHOLD_FP16,
     THRESHOLD_FP32,
+    THRESHOLD_PIXEL,
     PipelineTesterMixin,
     floats_tensor,
     get_module,
@@ -171,4 +178,37 @@ class Kandinsky3Img2ImgPipelineFastTests(PipelineTesterMixin, unittest.TestCase)
         ms_image_slice = ms_image[0][0, -3:, -3:, -1]
 
         threshold = THRESHOLD_FP32 if dtype == "float32" else THRESHOLD_FP16
-        assert np.max(np.linalg.norm(pt_image_slice - ms_image_slice) / np.linalg.norm(pt_image_slice)) < threshold
+        assert np.linalg.norm(pt_image_slice - ms_image_slice) / np.linalg.norm(pt_image_slice) < threshold
+
+
+@slow
+@ddt
+class Kandinsky3Img2ImgPipelineIntegrationTests(PipelineTesterMixin, unittest.TestCase):
+    @data(*test_cases)
+    @unpack
+    def test_kandinskyV3_img2img(self, mode, dtype):
+        ms.set_context(mode=mode)
+        ms_dtype = getattr(ms, dtype)
+
+        pipe_cls = get_module("mindone.diffusers.pipelines.kandinsky3.Kandinsky3Img2ImgPipeline")
+        pipe = pipe_cls.from_pretrained("kandinsky-community/kandinsky-3", variant="fp16", mindspore_dtype=ms_dtype)
+        pipe.set_progress_bar_config(disable=None)
+
+        image = load_downloaded_image_from_hf_hub(
+            "hf-internal-testing/diffusers-images",
+            "t2i.png",
+            subfolder="kandinsky3",
+        )
+        w, h = 512, 512
+        image = image.resize((w, h), resample=Image.BICUBIC, reducing_gap=1)
+        prompt = "A painting of the inside of a subway train with tiny raccoons."
+
+        torch.manual_seed(0)
+        image = pipe(prompt, image=image, strength=0.75, num_inference_steps=5)[0][0]
+
+        expected_image = load_downloaded_numpy_from_hf_hub(
+            "The-truth/mindone-testing-arrays",
+            f"i2i_{dtype}.npy",
+            subfolder="kandinsky3",
+        )
+        assert np.mean(np.abs(np.array(image, dtype=np.float32) - expected_image)) < THRESHOLD_PIXEL

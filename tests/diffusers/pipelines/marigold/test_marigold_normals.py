@@ -27,9 +27,16 @@ from transformers import CLIPTextConfig
 
 import mindspore as ms
 
+from mindone.diffusers.utils.testing_utils import (
+    load_downloaded_image_from_hf_hub,
+    load_downloaded_numpy_from_hf_hub,
+    slow,
+)
+
 from ..pipeline_test_utils import (
     THRESHOLD_FP16,
     THRESHOLD_FP32,
+    THRESHOLD_PIXEL,
     PipelineTesterMixin,
     floats_tensor,
     get_module,
@@ -204,11 +211,39 @@ class MarigoldNormalsPipelineFastTests(PipelineTesterMixin, unittest.TestCase):
 
         threshold = THRESHOLD_FP32 if dtype == "float32" else THRESHOLD_FP16
         assert (
-            np.max(np.linalg.norm(pt_prediction_slice - ms_prediction_slice) / np.linalg.norm(pt_prediction_slice))
-            < threshold
+            np.linalg.norm(pt_prediction_slice - ms_prediction_slice) / np.linalg.norm(pt_prediction_slice) < threshold
         )
 
     @data(*test_cases)
     @unpack
     def test_marigold_depth_dummy_defaults(self, mode, dtype):
         self._test_marigold_normals(generator_seed=0, mode=mode, dtype=dtype)
+
+
+@slow
+@ddt
+class MarigoldNormalsPipelineIntegrationTests(PipelineTesterMixin, unittest.TestCase):
+    @data(*test_cases)
+    @unpack
+    def test_marigold_normals(self, mode, dtype):
+        ms.set_context(mode=mode)
+        ms_dtype = getattr(ms, dtype)
+
+        pipe_cls = get_module("mindone.diffusers.pipelines.marigold.MarigoldNormalsPipeline")
+        pipe = pipe_cls.from_pretrained("prs-eth/marigold-normals-lcm-v0-1", variant="fp16", mindspore_dtype=ms_dtype)
+
+        image = load_downloaded_image_from_hf_hub(
+            "The-truth/mindone-testing-arrays",
+            "marigold_input.jpg",
+            subfolder="marigold",
+        )
+        normals = pipe(image)
+
+        image = pipe.image_processor.visualize_normals(normals[0])[0]
+
+        expected_image = load_downloaded_numpy_from_hf_hub(
+            "The-truth/mindone-testing-arrays",
+            f"marigold_normals_{dtype}.npy",
+            subfolder="marigold",
+        )
+        assert np.mean(np.abs(np.array(image, dtype=np.float32) - expected_image)) < THRESHOLD_PIXEL

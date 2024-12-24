@@ -23,10 +23,12 @@ from ddt import data, ddt, unpack
 import mindspore as ms
 
 from mindone.diffusers.pipelines.kandinsky.text_encoder import MCLIPConfig
+from mindone.diffusers.utils.testing_utils import load_downloaded_numpy_from_hf_hub, slow
 
 from ..pipeline_test_utils import (
     THRESHOLD_FP16,
     THRESHOLD_FP32,
+    THRESHOLD_PIXEL,
     PipelineTesterMixin,
     floats_tensor,
     get_module,
@@ -217,4 +219,49 @@ class KandinskyPipelineFastTests(PipelineTesterMixin, unittest.TestCase):
         ms_image_slice = ms_image[0][0, -3:, -3:, -1]
 
         threshold = THRESHOLD_FP32 if dtype == "float32" else THRESHOLD_FP16
-        assert np.max(np.linalg.norm(pt_image_slice - ms_image_slice) / np.linalg.norm(pt_image_slice)) < threshold
+        assert np.linalg.norm(pt_image_slice - ms_image_slice) / np.linalg.norm(pt_image_slice) < threshold
+
+
+@slow
+@ddt
+class KandinskyPipelineIntegrationTests(PipelineTesterMixin, unittest.TestCase):
+    @data(*test_cases)
+    @unpack
+    def test_kandinsky_text2img(self, mode, dtype):
+        ms.set_context(mode=mode)
+        ms_dtype = getattr(ms, dtype)
+
+        pipe_prior_cls = get_module("mindone.diffusers.pipelines.kandinsky.KandinskyPriorPipeline")
+        pipe_prior = pipe_prior_cls.from_pretrained("kandinsky-community/kandinsky-2-1-prior", mindspore_dtype=ms_dtype)
+
+        pipeline_cls = get_module("mindone.diffusers.pipelines.kandinsky.KandinskyPipeline")
+        pipeline = pipeline_cls.from_pretrained("kandinsky-community/kandinsky-2-1", mindspore_dtype=ms_dtype)
+        pipeline.set_progress_bar_config(disable=None)
+
+        prompt = "red cat, 4k photo"
+
+        torch.manual_seed(0)
+        image_emb, zero_image_emb = pipe_prior(
+            prompt,
+            num_inference_steps=5,
+            negative_prompt="",
+        )
+
+        torch.manual_seed(0)
+        output = pipeline(
+            prompt,
+            image_embeds=image_emb,
+            negative_image_embeds=zero_image_emb,
+            height=768,
+            width=768,
+            num_inference_steps=100,
+        )
+
+        image = output[0][0]
+
+        expected_image = load_downloaded_numpy_from_hf_hub(
+            "The-truth/mindone-testing-arrays",
+            f"t2i_{dtype}.npy",
+            subfolder="kandinsky",
+        )
+        assert np.mean(np.abs(np.array(image, dtype=np.float32) - expected_image)) < THRESHOLD_PIXEL
