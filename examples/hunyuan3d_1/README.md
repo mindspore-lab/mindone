@@ -2,8 +2,9 @@
 > [Tencent Hunyuan3D-1.0: A Unified Framework for Text-to-3D and Image-to-3D Generation](https://arxiv.org/abs/2411.02293)
 ## **Introduction**
 <p align="center">
-  <img src="./assets/teaser.png"  height=450>
+  <img src="https://github.com/user-attachments/assets/b8b0a386-c9f1-43ae-8648-83f0d3a4cbb6"  height=450>
 </p>
+
 
 While 3D generative models have greatly improved artists' workflows, the existing diffusion models for 3D generation suffer from slow generation and poor generalization. To address this issue, Hunyuan3D-1.0 a two-stage approach named Hunyuan3D-1.0 including a lite version and a standard version, that both support text- and image-conditioned generation.
 While 3D generative models have greatly improved artists' workflows, the existing diffusion models for 3D generation suffer from slow generation and poor generalization. Hunyuan3D-1.0, a two-stage approach, aims to address this issue. Hunyuan3D-1.0 includes a lite version and a standard version, that both support text- and image-conditioned generation.
@@ -114,10 +115,10 @@ Experiments are tested on ascend 910* with mindSpore 2.3.1 pynative mode.
 ### Text/Image-to-views visual results
 |Input | Lite | Std |
 | --- | --- | --- |
-|<img src="demos/example_003.png" style="width:256px"></img>|<img src="demos/mvd_output_example_003_lite.jpg" style="width:512px"></img>|<img src="demos/mvd_output_example_003_std.jpg" style="width:512px"></img>|
-|<img src="demos/example_004.png" style="width:256px"></img>|<img src="demos/mvd_output_example_004_lite.jpg" style="width:512px"></img>|<img src="demos/mvd_output_example_004_std.jpg" style="width:512px"></img>|
-|`一盆绿色植物生长在红色花盆中，居中，写实`|<img src="demos/mvd_output_text_002_lite.jpg" style="width:512px"></img>|<img src="demos/mvd_output_text_002_std.jpg" style="width:512px"></img>|
-|`a lovely rabbit eating carrots`|<img src="demos/mvd_output_text_004_lite.jpg" style="width:512px"></img>|<img src="demos/mvd_output_text_004_std.jpg" style="width:512px"></img>|
+|<img src="https://github.com/user-attachments/assets/48154bea-8e51-4b81-871a-b1a95c0ad9c0" style="width:256px"></img>|<img src="https://github.com/user-attachments/assets/1b4a3ae9-8e86-4479-a7e2-5553675390a3" style="width:512px"></img>|<img src="https://github.com/user-attachments/assets/5a587637-03b2-4283-94c6-814e62c85404" style="width:512px"></img>|
+|<img src="https://github.com/user-attachments/assets/2dbf10ea-1fd2-48e2-98d1-0f2ef36b367a" style="width:256px"></img>|<img src="https://github.com/user-attachments/assets/37f5fe2d-d1ac-4255-a649-6005acb1ad68" style="width:512px"></img>|<img src="https://github.com/user-attachments/assets/b184ae5d-3e0f-4c86-99bd-c5a933c324ac" style="width:512px"></img>|
+|`一盆绿色植物生长在红色花盆中，居中，写实`|<img src="https://github.com/user-attachments/assets/5b066227-041b-4a13-a63e-6f71d878091b" style="width:512px"></img>|<img src="https://github.com/user-attachments/assets/e03f116e-7454-411e-a979-4626132ea50b" style="width:512px"></img>|
+|`a lovely rabbit eating carrots`|<img src="https://github.com/user-attachments/assets/6d177e05-385f-4617-b9d1-15e7527b06e1" style="width:512px"></img>|<img src="https://github.com/user-attachments/assets/02b47321-f64b-45f9-83cb-db56315f0817" style="width:512px"></img>|
 
 
 <br>
@@ -133,7 +134,7 @@ Experiments are tested on ascend 910* with mindSpore 2.3.1 pynative mode.
 ### Text/Image-to-mesh visual results
 |Input | Lite | Std |
 | --- | --- | --- |
-|<img src="demos/example_003.png" style="width:256px"></img>|<img src="demos/svrm_output_example_003_lite.gif" style="width:512px"></img>|<img src="demos/svrm_output_example_003_std.gif" style="width:512px"></img>|
-|<img src="demos/example_004.png" style="width:256px"></img>|<img src="demos/svrm_output_example_004_lite.gif" style="width:512px"></img>|<img src="demos/svrm_output_example_004_std.gif" style="width:512px"></img>|
-|`一盆绿色植物生长在红色花盆中，居中，写实`|<img src="demos/svrm_output_text_002_lite.gif" style="width:512px"></img>|<img src="demos/svrm_output_text_002_std.gif" style="width:512px"></img>|
-|`a lovely rabbit eating carrots`|<img src="demos/svrm_output_text_004_lite.gif" style="width:512px"></img>|<img src="demos/svrm_output_text_004_std.gif" style="width:512px"></img>|
+|<img src="https://github.com/user-attachments/assets/48154bea-8e51-4b81-871a-b1a95c0ad9c0" style="width:256px"></img>|<img src="https://github.com/user-attachments/assets/f6fafe18-eb46-41c3-a023-9b43b78c5660" style="width:512px"></img>|<img src="https://github.com/user-attachments/assets/a6a339b5-bd8c-464d-bbbd-c363e3b1eaae" style="width:512px"></img>|
+|<img src="https://github.com/user-attachments/assets/2dbf10ea-1fd2-48e2-98d1-0f2ef36b367a" style="width:256px"></img>|<img src="https://github.com/user-attachments/assets/4b27843a-e2a4-4a00-ae09-86813e89e5bf" style="width:512px"></img>|<img src="https://github.com/user-attachments/assets/984a2a23-89dc-48c0-9f69-a0163930afaa" style="width:512px"></img>|
+|`一盆绿色植物生长在红色花盆中，居中，写实`|<img src="https://github.com/user-attachments/assets/b5726838-b627-41f8-a696-be605a581a1e" style="width:512px"></img>|<img src="https://github.com/user-attachments/assets/65c6d5f1-1b17-4560-ae8c-0cd7940f7d0e" style="width:512px"></img>|
+|`a lovely rabbit eating carrots`|<img src="https://github.com/user-attachments/assets/a0fe6493-a7ff-485d-bf41-95de9e6ad2af" style="width:512px"></img>|<img src="https://github.com/user-attachments/assets/c18b7ce1-804c-4ea0-9291-9cc74bad03d4" style="width:512px"></img>|
