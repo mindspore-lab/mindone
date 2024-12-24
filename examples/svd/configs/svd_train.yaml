@@ -8,8 +8,8 @@ environment:
 train:
   epochs: 1000
   temporal_only: True   # train only the temporal layers or the entire UNet
-  pretrained: ./model/svd-d19a808f.ckpt
-  output_dir: output/
+  pretrained: ../model/svd-d19a808f.ckpt
+  output_dir: ../output/
   save_interval: 10
 
   dataset:
