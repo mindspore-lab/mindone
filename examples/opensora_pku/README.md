@@ -151,6 +151,11 @@ python tools/model_conversion/convert_wfvae.py --src LanguageBind/Open-Sora-Plan
 python tools/model_conversion/convert_pytorch_ckpt_to_safetensors.py --src google/mt5-xxl/pytorch_model.bin --target google/mt5-xxl/model.safetensors  --config google/mt5-xxl/config.json
 ```
 
+In addition, please merge the multiple .saftensors files under `any93x640x640/` into a merged checkpoint:
+```shell
+python tools/ckpt/merge_safetensors.py -i LanguageBind/Open-Sora-Plan-v1.3.0/any93x640x640/ -o LanguageBind/Open-Sora-Plan-v1.3.0/diffusion_pytorch_model.safetensors  -f LanguageBind/Open-Sora-Plan-v1.3.0/any93x640x640/diffusion_pytorch_model.safetensors.index.json
+```
+
 Once the checkpoint files have all been prepared, you can refer to the inference guidance below.
 
 ## Inference
