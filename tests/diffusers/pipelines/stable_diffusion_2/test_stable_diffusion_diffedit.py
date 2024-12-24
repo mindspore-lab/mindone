@@ -24,9 +24,16 @@ from transformers import CLIPTextConfig
 
 import mindspore as ms
 
+from mindone.diffusers.utils.testing_utils import (
+    load_downloaded_image_from_hf_hub,
+    load_downloaded_numpy_from_hf_hub,
+    slow,
+)
+
 from ..pipeline_test_utils import (
     THRESHOLD_FP16,
     THRESHOLD_FP32,
+    THRESHOLD_PIXEL,
     PipelineTesterMixin,
     floats_tensor,
     get_module,
@@ -276,4 +283,65 @@ class StableDiffusionDiffEditPipelineFastTests(PipelineTesterMixin, unittest.Tes
         ms_image_slice = ms_image[1][0, -1, -3:, -3:]
 
         threshold = THRESHOLD_FP32 if dtype == "float32" else THRESHOLD_FP16
-        assert np.max(np.linalg.norm(pt_image_slice - ms_image_slice) / np.linalg.norm(pt_image_slice)) < threshold
+        assert np.linalg.norm(pt_image_slice - ms_image_slice) / np.linalg.norm(pt_image_slice) < threshold
+
+
+@slow
+@ddt
+class StableDiffusionDiffEditPipelineNightlyTests(PipelineTesterMixin, unittest.TestCase):
+    @data(*test_cases)
+    @unpack
+    def test_stable_diffusion_diffedit_ddim(self, mode, dtype):
+        ms.set_context(mode=mode)
+        ms_dtype = getattr(ms, dtype)
+
+        pipe_cls = get_module("mindone.diffusers.pipelines.stable_diffusion_diffedit.StableDiffusionDiffEditPipeline")
+        pipe = pipe_cls.from_pretrained(
+            "stabilityai/stable-diffusion-2-1", safety_checker=None, mindspore_dtype=ms_dtype
+        )
+        scheduler = get_module("mindone.diffusers.schedulers.scheduling_ddim.DDIMScheduler")
+        inverse_scheduler = get_module("mindone.diffusers.schedulers.scheduling_ddim_inverse.DDIMInverseScheduler")
+        pipe.scheduler = scheduler.from_config(pipe.scheduler.config)
+        pipe.inverse_scheduler = inverse_scheduler.from_config(pipe.scheduler.config)
+        pipe.set_progress_bar_config(disable=None)
+
+        source_prompt = "a bowl of fruit"
+        target_prompt = "a bowl of pears"
+        raw_image = load_downloaded_image_from_hf_hub(
+            "hf-internal-testing/diffusers-images",
+            "fruit.png",
+            subfolder="diffedit",
+        )
+        raw_image = raw_image.convert("RGB").resize((512, 512))
+
+        torch.manual_seed(0)
+        mask_image = pipe.generate_mask(
+            image=raw_image,
+            source_prompt=source_prompt,
+            target_prompt=target_prompt,
+        )
+
+        torch.manual_seed(0)
+        inv_latents = pipe.invert(
+            prompt=source_prompt,
+            image=raw_image,
+            inpaint_strength=0.7,
+            num_inference_steps=25,
+        )[0]
+
+        torch.manual_seed(0)
+        image = pipe(
+            prompt=target_prompt,
+            mask_image=mask_image,
+            image_latents=inv_latents,
+            negative_prompt=source_prompt,
+            inpaint_strength=0.7,
+            num_inference_steps=25,
+        )[0][0]
+
+        expected_image = load_downloaded_numpy_from_hf_hub(
+            "The-truth/mindone-testing-arrays",
+            f"diffedit_ddim_{dtype}.npy",
+            subfolder="stable_diffusion_2",
+        )
+        assert np.mean(np.abs(np.array(image, dtype=np.float32) - expected_image)) < THRESHOLD_PIXEL

@@ -16,6 +16,7 @@
 import random
 import unittest
 
+import cv2
 import numpy as np
 import torch
 from ddt import data, ddt, unpack
@@ -24,9 +25,16 @@ from transformers import CLIPTextConfig, CLIPVisionConfig
 
 import mindspore as ms
 
+from mindone.diffusers.utils.testing_utils import (
+    load_downloaded_image_from_hf_hub,
+    load_downloaded_numpy_from_hf_hub,
+    slow,
+)
+
 from ..pipeline_test_utils import (
     THRESHOLD_FP16,
     THRESHOLD_FP32,
+    THRESHOLD_PIXEL,
     PipelineTesterMixin,
     floats_tensor,
     get_module,
@@ -283,4 +291,63 @@ class ControlNetPipelineSDXLFastTests(PipelineTesterMixin, unittest.TestCase):
         ms_image_slice = ms_image[0][0, -3:, -3:, -1]
 
         threshold = THRESHOLD_FP32 if dtype == "float32" else THRESHOLD_FP16
-        assert np.max(np.linalg.norm(pt_image_slice - ms_image_slice) / np.linalg.norm(pt_image_slice)) < threshold
+        assert np.linalg.norm(pt_image_slice - ms_image_slice) / np.linalg.norm(pt_image_slice) < threshold
+
+
+@slow
+@ddt
+class ControlNetPipelineSDXLIntegrationTests(PipelineTesterMixin, unittest.TestCase):
+    def make_canny_condition(self, image):
+        image = np.array(image)
+        image = cv2.Canny(image, 100, 200)
+        image = image[:, :, None]
+        image = np.concatenate([image, image, image], axis=2)
+        image = Image.fromarray(image)
+        return image
+
+    @data(*test_cases)
+    @unpack
+    def test_inference(self, mode, dtype):
+        ms.set_context(mode=mode)
+        ms_dtype = getattr(ms, dtype)
+
+        init_image = load_downloaded_image_from_hf_hub(
+            "diffusers/test-arrays",
+            "boy.png",
+            subfolder="stable_diffusion_inpaint",
+        )
+        init_image = init_image.resize((1024, 1024))
+
+        mask_image = load_downloaded_image_from_hf_hub(
+            "diffusers/test-arrays",
+            "boy_mask.png",
+            subfolder="stable_diffusion_inpaint",
+        )
+        mask_image = mask_image.resize((1024, 1024))
+
+        control_image = self.make_canny_condition(init_image)
+
+        controlnet_cls = get_module("mindone.diffusers.models.controlnet.ControlNetModel")
+        controlnet = controlnet_cls.from_pretrained("diffusers/controlnet-canny-sdxl-1.0", mindspore_dtype=ms_dtype)
+        pipe_cls = get_module("mindone.diffusers.pipelines.controlnet.StableDiffusionXLControlNetInpaintPipeline")
+        pipe = pipe_cls.from_pretrained(
+            "stabilityai/stable-diffusion-xl-base-1.0", controlnet=controlnet, mindspore_dtype=ms_dtype
+        )
+
+        # generate image
+        torch.manual_seed(0)
+        image = pipe(
+            "a handsome man with ray-ban sunglasses",
+            num_inference_steps=20,
+            eta=1.0,
+            image=init_image,
+            mask_image=mask_image,
+            control_image=control_image,
+        )[0][0]
+
+        expected_image = load_downloaded_numpy_from_hf_hub(
+            "The-truth/mindone-testing-arrays",
+            f"inpaint_sdxl_{dtype}.npy",
+            subfolder="controlnet",
+        )
+        assert np.mean(np.abs(np.array(image, dtype=np.float32) - expected_image)) < THRESHOLD_PIXEL

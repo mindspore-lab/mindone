@@ -331,6 +331,9 @@ class SD3MultiControlNetModel(ModelMixin):
         joint_attention_kwargs: Optional[Dict[str, Any]] = None,
         return_dict: bool = False,
     ) -> Union[SD3ControlNetOutput, Tuple]:
+        # adapt to graph mode
+        control_block_samples = None
+
         for i, (image, scale, controlnet) in enumerate(zip(controlnet_cond, conditioning_scale, self.nets)):
             block_samples = controlnet(
                 hidden_states=hidden_states,
