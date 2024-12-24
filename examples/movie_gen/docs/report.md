@@ -40,9 +40,9 @@ w.set_data(ms.Tensor(value, dtype=ms.float32))
 
 Paper: "Temporal downsampling is performed via strided convolution with a stride of 2". 
 
-Our implementation: we use conv1d of kernel size 3, stride 2, and perform symmetric replicate padding before conv1d. We choose to use `centric` initialization as mentioned in conv2.5 design.
+Our implementation: the strided convolution is computed using conv1d of kernel size 3, stride 2, and symmetric replicate padding. `centric` initialization (as mentioned in the above conv2.5 section) is used to initialize the conv kernel weight.
 
-To achieve 8x temporal compression, we apply 3 temporal downsampling layers, each after the spatial downsampling layer of the first 3 levels. 
+To achieve 8x temporal compression, we apply 3 temporal downsampling layers, positioned after the spatial downsampling layer in the first 3 levels. 
 
 #### Temporal Upsampling
 Paper: "upsampling by nearest-neighbor interpolation followed by convolution"
