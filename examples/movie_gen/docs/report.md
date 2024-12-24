@@ -75,10 +75,20 @@ optimizer: adamw
 learning rate: 1e-5
 ```
 
-Here is the comparison between the origin videos and the videos reconstructed with the trained TAE model.
+Here is the comparison between the origin videos (left) and the videos reconstructed with the trained TAE model (right).
 
 
+<p float="center">
+<img src=https://github.com/user-attachments/assets/ba3362e4-2210-4811-bedf-f19316f511d3 width="45%" />
+<img src=https://github.com/user-attachments/assets/36257aef-72f0-4f4f-8bd3-dc8fb0a33fd8 width="45%" />
+</p>
 
+We further fine-tune the TAE model on the mixkit dataset, a high-quality video dataset in 1080P resolution. Here are the results.
+
+<p float="center">
+<img src=https://github.com/user-attachments/assets/7978489b-508b-4204-a4d7-d11dda3f905c width="45%" />
+<img src=https://github.com/user-attachments/assets/e87105d9-1ff1-4a4c-bbfb-e07615f0fe6d width="45%" />
+</p>
 
 ## References
 <!--- Guideline: Citation format GB/T 7714 is suggested. -->
