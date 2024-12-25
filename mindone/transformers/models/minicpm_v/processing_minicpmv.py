@@ -17,7 +17,7 @@ Processor class for MiniCPMV.
 """
 
 import re
-from typing import Any, Dict, List, Optional, Union
+from typing import List, Optional, Union
 
 import numpy as np
 from transformers.image_utils import ImageInput
@@ -25,7 +25,7 @@ from transformers.tokenization_utils_base import PreTokenizedInput, TextInput
 from transformers.utils import TensorType
 
 import mindspore as ms
-from mindspore import Parameter, Tensor, nn, ops
+from mindspore import Tensor, ops
 
 from ...processing_utils import ProcessorMixin
 from .image_processing_minicpmv import MiniCPMVBatchFeature, MiniCPMVImageProcessor

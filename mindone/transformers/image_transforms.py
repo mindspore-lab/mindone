@@ -1,19 +1,12 @@
 import warnings
-from typing import Iterable, List, Optional, Tuple, Union
+from typing import Iterable, Optional, Tuple, Union
 
 import numpy as np
 import PIL
 
 import mindspore
-from mindspore import ops
 
-from .image_utils import (
-    ChannelDimension,
-    ImageInput,
-    get_channel_dimension_axis,
-    get_image_size,
-    infer_channel_dimension_format,
-)
+from .image_utils import ChannelDimension, get_channel_dimension_axis, get_image_size, infer_channel_dimension_format
 
 
 def to_channel_dimension_format(

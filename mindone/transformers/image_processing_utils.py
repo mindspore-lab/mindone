@@ -538,7 +538,7 @@ class BaseImageProcessor(ImageProcessingMixin):
         __call__(self, images, **kwargs) -> BatchFeature: Preprocess an image or a batch of images.
         preprocess(self, images, **kwargs) -> BatchFeature: Abstract method to be implemented by concrete image processors.
         rescale(self, image, scale, data_format=None, input_data_format=None, **kwargs) -> np.ndarray: Rescale an image by a scale factor.
-        normalize(self, image, mean, std, data_format=None, input_data_format=None, **kwargs) -> np.ndarray: Normalize an image using mean and standard deviation.
+        normalize(self, image, mean, std, data_format=None, input_data_format=None, **kwargs) -> np.ndarray: Normalize an image.
         center_crop(self, image, size, data_format=None, input_data_format=None, **kwargs) -> np.ndarray: Center crop an image to a specified size.
     """
 

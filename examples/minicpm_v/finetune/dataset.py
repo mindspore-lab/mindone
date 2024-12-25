@@ -1,35 +1,19 @@
 import copy
-import json
 import logging
 import math
-import os
 import random
 import re
-import sys
-from dataclasses import dataclass, field
-from typing import Dict, List, Optional
+from typing import Dict
 
 import numpy as np
-from datasets import load_dataset
 from PIL import Image
-from transformers import AutoTokenizer
-
-import mindspore as ms
-from mindspore import ops
-
-# from torch.nn.utils.rnn import pad_sequence
-from mindspore.dataset import Dataset
-
-mindone_lib_path = os.path.abspath(os.path.abspath("../../../"))
-sys.path.insert(0, mindone_lib_path)
-
-import logging
-
-from mindone.transformers.models.minicpm_v2_6.processing_minicpmv import MiniCPMVProcessor
 
 logger = logging.getLogger(__name__)
 
-llama3_chat_template = "{% set loop_messages = messages %}{% for message in loop_messages %}{% set content = '<|start_header_id|>' + message['role'] + '<|end_header_id|>\n\n'+ message['content'] | trim + '<|eot_id|>' %}{% if loop.index0 == 0 %}{% set content = bos_token + content %}{% endif %}{{ content }}{% endfor %}"
+llama3_chat_template = (
+    "{% set loop_messages = messages %}{% for message in loop_messages %}{% set content = '<|start_header_id|>' + message['role'] + '<|end_header_id|>\n\n'"
+    "+ message['content'] | trim + '<|eot_id|>' %}{% if loop.index0 == 0 %}{% set content = bos_token + content %}{% endif %}{{ content }}{% endfor %}"
+)
 
 
 class SupervisedDataset:
@@ -69,7 +53,7 @@ class SupervisedDataset:
             if isinstance(self.raw_data[idx]["image"], str):
                 images_dict = {"<image>": Image.open(self.raw_data[idx]["image"]).convert("RGB")}
             elif isinstance(self.raw_data[idx]["image"], Dict):
-                ### for multi-images input, the template for every image is <image_xx>, such as <image_00>, <image_01>
+                # for multi-images input, the template for every image is <image_xx>, such as <image_00>, <image_01>
                 images_dict = {
                     img_name: Image.open(img_path).convert("RGB")
                     for img_name, img_path in self.raw_data[idx]["image"].items()
@@ -111,11 +95,6 @@ class SupervisedDataset:
                 # If max retries reached, return a blank or default item
                 logger.warning("Max retries reached. Returning a blank entry.")
                 return None
-
-        # except:
-        #     logger.error(f"data fetch error")
-        #     # return self.__getitem__(random.randint(0, len(self)))
-        # return (ret["input_ids"], ret["position_ids"], ret["labels"], np.ones_like(ret["input_ids"], dtype=np.bool_), ret["pixel_values"], ret["tgt_sizes"], ret["image_bound"])
         return ret
 
 
@@ -327,7 +306,6 @@ def conversation_to_ids_qwen2(conversation, tokenizer):
         raw_msg += prefix + message
     assert set([i["role"] for i in chat]) & set(["assistant"])
 
-    ret = tokenizer.apply_chat_template(chat, tokenize=False, add_generation_prompt=False)
     input_ids = tokenizer.apply_chat_template(chat, tokenize=True, add_generation_prompt=False)
     input_ids = np.array(input_ids)
 

@@ -10,11 +10,7 @@ import mindspore.mint.nn.functional as F
 from mindspore import Parameter, Tensor, nn, ops
 from mindspore.common.initializer import One
 from mindspore.common.initializer import TruncatedNormal as trunc_normal_
-from mindspore.common.initializer import XavierNormal as xavier_normal_
-from mindspore.common.initializer import XavierUniform as xavier_uniform_
-from mindspore.common.initializer import Zero, initializer
-from mindspore.mint.nn.functional import *
-from mindspore.nn.layer.activation import *
+from mindspore.common.initializer import Zero
 
 
 def get_2d_sincos_pos_embed(embed_dim, image_size):
@@ -286,15 +282,15 @@ class MultiheadAttention(nn.MultiheadAttention):
         #     why_not_fast_path = "autocast is enabled"
 
         if not why_not_fast_path:
-            tensor_args = (
-                query,
-                key,
-                value,
-                self.in_proj_weight,
-                self.in_proj_bias,
-                self.out_proj.weight,
-                self.out_proj.bias,
-            )
+            # tensor_args = (
+            #     query,
+            #     key,
+            #     value,
+            #     self.in_proj_weight,
+            #     self.in_proj_bias,
+            #     self.out_proj.weight,
+            #     self.out_proj.bias,
+            # )
             # We have to use list comprehensions below because TorchScript does not support
             # generator expressions.
             # FIXME logic is passed.
@@ -424,7 +420,7 @@ class MultiheadAttention(nn.MultiheadAttention):
         average_attn_weights: bool = True,
         is_causal: bool = False,
     ) -> Tuple[Tensor, Optional[Tensor]]:
-        tens_ops = (query, key, value, in_proj_weight, in_proj_bias, bias_k, bias_v, out_proj_weight, out_proj_bias)
+        # tens_ops = (query, key, value, in_proj_weight, in_proj_bias, bias_k, bias_v, out_proj_weight, out_proj_bias)
         # FIXME: logic passed
         # if has_torch_function(tens_ops):
         #     return handle_torch_function(

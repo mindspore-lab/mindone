@@ -2,13 +2,12 @@ import json
 import math
 from copy import deepcopy
 from threading import Thread
-from typing import List, Optional
 
 from PIL import Image
 from transformers import TextIteratorStreamer
 
 import mindspore as ms
-from mindspore import Parameter, Tensor, _no_grad, nn, ops
+from mindspore import Tensor, ops
 
 from ..qwen2 import Qwen2ForCausalLM, Qwen2PreTrainedModel
 from .configuration_minicpm import MiniCPMVConfig
@@ -16,8 +15,6 @@ from .image_processing_minicpmv import MiniCPMVImageProcessor
 from .modeling_navit_siglip import SiglipVisionTransformer
 from .processing_minicpmv import MiniCPMVProcessor
 from .resampler import Resampler
-
-# from .tokenization_minicpmv_fast import MiniCPMVTokenizerFast
 
 
 class MiniCPMVPreTrainedModel(Qwen2PreTrainedModel):
@@ -82,7 +79,6 @@ class MiniCPMV_v2_6(MiniCPMVPreTrainedModel):
     def get_vllm_embedding(self, data):
         if "vision_hidden_states" not in data:
             dtype = self.llm.model.embed_tokens.embedding_table.dtype
-            device = None
             tgt_sizes = data["tgt_sizes"]
             pixel_values_list = data["pixel_values"]
             vision_hidden_states = []
@@ -202,10 +198,9 @@ class MiniCPMV_v2_6(MiniCPMVPreTrainedModel):
         if position_ids.dtype != ms.int64:
             position_ids = position_ids.long()
 
-        with _no_grad():
-            return self.llm(
-                input_ids=None, position_ids=position_ids, inputs_embeds=vllm_embedding, labels=data["labels"], **kwargs
-            )
+        return self.llm(
+            input_ids=None, position_ids=position_ids, inputs_embeds=vllm_embedding, labels=data["labels"], **kwargs
+        )
 
     def _decode(self, inputs_embeds, tokenizer, attention_mask, decode_text=False, **kwargs):
         terminators = [tokenizer.convert_tokens_to_ids(i) for i in self.terminators]
