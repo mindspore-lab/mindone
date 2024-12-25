@@ -52,7 +52,6 @@ from transformers.utils import (
     PushToHubMixin,
     cached_file,
     copy_func,
-    direct_transformers_import,
     download_url,
     is_offline_mode,
     is_remote_url,
