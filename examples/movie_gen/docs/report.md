@@ -2,16 +2,16 @@
 
 [Movie Gen](https://ai.meta.com/static-resource/movie-gen-research-paper) is a family of foundation models that can natively generate high-fidelity images, videos, and audio. Meta researchers found that scaling the training data, compute, and model parameters of the transformer-based ([LLaMa3](https://arxiv.org/abs/2407.21783)) model trained with [Flow Matching](https://arxiv.org/abs/2210.02747) yields high-quality generative models for video or audio.
 
-Movie Gen supports text-to-video/image generation (MovieGenVideo), video personalization  (PersonalizedMovieGen), and video editing  (MovieGenEdit). 
+Movie Gen supports text-to-video/image generation (MovieGenVideo), video personalization  (PersonalizedMovieGen), and video editing  (MovieGenEdit).
 
 In this report, we will focus on MovieGenVideo and explore how to implement it with MindSpore, enabling model scaling and training efficiency.
 
 At this moment, we support training MovieGenVideo with the following configuration.
 
 |  model scale    | image | 256px @256  | 768px @256  |
-| ---- | ----- | --- | --- | 
+| ---- | ----- | --- | --- |
 | 1B | ✅     | ✅   | ✅   |
-| 5B | ✅     | ✅   | 🆗   | 
+| 5B | ✅     | ✅   | 🆗   |
 | 30B | 🆗      | 🆗    | TODO   |
 
 Here ✅ means that training accuracy has been verified on a small-scale dataset, and 🆗 means training is supported but the accuracy is under verfication.
@@ -162,7 +162,7 @@ Currently, our implementation supports MovieGenVideo training with TP, SP, CP, a
   consuming _tp-size_ fewer activations for row-parallel shards. The cost of performing such a sharding is the addition
   of all-reduce communication overheads in both the forward (row-parallel) and backward (column-parallel) passes.
 
-  Our implementation can be referred to [TP](https://github.com/hadipash/mindone/blob/5aa1e4dc91d71934905319ba984704d4d4a62f8b/examples/moviegen/mg/models/llama/block.py#L59) and 
+  Our implementation can be referred to [TP](https://github.com/hadipash/mindone/blob/5aa1e4dc91d71934905319ba984704d4d4a62f8b/examples/moviegen/mg/models/llama/block.py#L59) and
   [FusedTP](https://github.com/hadipash/mindone/blob/5aa1e4dc91d71934905319ba984704d4d4a62f8b/examples/moviegen/mg/models/llama/block.py#L91)
 - **Sequence-parallelism (SP)**
   builds upon TP to also allow the sharding of the input over the sequence dimension for layers which are replicated and
@@ -178,8 +178,8 @@ Currently, our implementation supports MovieGenVideo training with TP, SP, CP, a
   input source and target sequences are identical, CP allows the attention computation to be performed with only an
   all-gather for the $K$ and $V$ projections (instead of $Q$, $K$, and $V$) in the forward pass, and a reduce-scatter
   for their associated gradients in the backward.
-  
-  Our implementation can be referred to [CP Attention](https://github.com/hadipash/mindone/blob/5aa1e4dc91d71934905319ba984704d4d4a62f8b/examples/moviegen/mg/models/llama/block.py#L210) and 
+
+  Our implementation can be referred to [CP Attention](https://github.com/hadipash/mindone/blob/5aa1e4dc91d71934905319ba984704d4d4a62f8b/examples/moviegen/mg/models/llama/block.py#L210) and
   [CP FlashAttention](https://github.com/hadipash/mindone/blob/5aa1e4dc91d71934905319ba984704d4d4a62f8b/examples/moviegen/mg/models/llama/block.py#L340)
 - **Fully sharded data parallel (FSDP)** shards the model, optimizer, and gradients across all data-parallel NPUs,
   synchronously gathering and scattering parameters and gradients throughout each training step.
