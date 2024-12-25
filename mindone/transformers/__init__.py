@@ -1,4 +1,5 @@
 from .modeling_utils import MSPreTrainedModel
+from .models.auto import AutoModel
 from .models.bert import (
     BertForMaskedLM,
     BertForMultipleChoice,
@@ -60,5 +61,3 @@ from .models.umt5 import (
     UMT5PreTrainedModel,
 )
 from .models.xlm_roberta import XLMRobertaModel, XLMRobertaPreTrainedModel
-
-from .models.auto import AutoModel
