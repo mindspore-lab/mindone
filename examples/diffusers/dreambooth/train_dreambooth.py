@@ -951,11 +951,13 @@ def main():
     )
 
     # Prepare everything with our `accelerator`.
-    if args.train_text_encoder:
-        unet.to_float(weight_dtype)
-        text_encoder.to_float(weight_dtype)
-    else:
-        unet.to_float(weight_dtype)
+    # TODO: We will update the training methods during mixed precision training to ensure the performance and strategies during the training process.
+    if args.mixed_precision and args.mixed_precision != "no":
+        if args.train_text_encoder:
+            unet.to_float(weight_dtype)
+            text_encoder.to_float(weight_dtype)
+        else:
+            unet.to_float(weight_dtype)
 
     # We need to recalculate our total training steps as the size of the training dataloader may have changed.
     num_update_steps_per_epoch = math.ceil(len(train_dataloader) / args.gradient_accumulation_steps)
