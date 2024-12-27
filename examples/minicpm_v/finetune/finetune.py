@@ -20,7 +20,7 @@ from dataset import SupervisedDataset
 from transformers import AutoTokenizer
 
 from mindone.transformers.mindspore_adapter import MindSporeArguments
-from mindone.transformers.models.minicpm_v2_6 import MiniCPMV_v2_6
+from mindone.transformers.models.minicpm_v import MiniCPMV_v2_6
 from mindone.transformers.trainer import Trainer
 from mindone.transformers.training_args import TrainingArguments
 
