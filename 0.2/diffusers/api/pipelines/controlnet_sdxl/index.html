@@ -7150,7 +7150,8 @@ watermarker is used.</p>
 <span class="normal">1517</span>
 <span class="normal">1518</span>
 <span class="normal">1519</span>
-<span class="normal">1520</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span> <span class="nc">StableDiffusionXLControlNetPipeline</span><span class="p">(</span>
+<span class="normal">1520</span>
+<span class="normal">1521</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span> <span class="nc">StableDiffusionXLControlNetPipeline</span><span class="p">(</span>
     <span class="n">DiffusionPipeline</span><span class="p">,</span>
     <span class="n">StableDiffusionMixin</span><span class="p">,</span>
     <span class="n">TextualInversionLoaderMixin</span><span class="p">,</span>
@@ -8498,7 +8499,8 @@ watermarker is used.</p>
                 <span class="n">latents</span> <span class="o">=</span> <span class="n">latents</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">vae</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">scaling_factor</span>
 
             <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">vae</span><span class="o">.</span><span class="n">dtype</span> <span class="o">!=</span> <span class="n">latents</span><span class="o">.</span><span class="n">dtype</span><span class="p">:</span>
-                <span class="n">latents</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">vae</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span>
+                <span class="c1"># convert latents to vae&#39;s type and store it back into latents</span>
+                <span class="n">latents</span> <span class="o">=</span> <span class="n">latents</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">vae</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span>
 
             <span class="n">image</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">vae</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="n">latents</span><span class="p">,</span> <span class="n">return_dict</span><span class="o">=</span><span class="kc">False</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
 
@@ -9926,7 +9928,8 @@ otherwise a <code>tuple</code> is returned containing the output images.</p>
 <span class="normal">1517</span>
 <span class="normal">1518</span>
 <span class="normal">1519</span>
-<span class="normal">1520</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="fm">__call__</span><span class="p">(</span>
+<span class="normal">1520</span>
+<span class="normal">1521</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="fm">__call__</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">prompt</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="n">prompt_2</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
@@ -10498,7 +10501,8 @@ otherwise a <code>tuple</code> is returned containing the output images.</p>
             <span class="n">latents</span> <span class="o">=</span> <span class="n">latents</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">vae</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">scaling_factor</span>
 
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">vae</span><span class="o">.</span><span class="n">dtype</span> <span class="o">!=</span> <span class="n">latents</span><span class="o">.</span><span class="n">dtype</span><span class="p">:</span>
-            <span class="n">latents</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">vae</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span>
+            <span class="c1"># convert latents to vae&#39;s type and store it back into latents</span>
+            <span class="n">latents</span> <span class="o">=</span> <span class="n">latents</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">vae</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span>
 
         <span class="n">image</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">vae</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="n">latents</span><span class="p">,</span> <span class="n">return_dict</span><span class="o">=</span><span class="kc">False</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
 
