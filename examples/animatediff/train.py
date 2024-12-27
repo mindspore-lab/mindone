@@ -27,7 +27,7 @@ sys.path.insert(0, mindone_lib_path)
 from ad.data.dataset import create_dataloader
 
 # from ad.data.dataset import check_sanity
-from ad.utils.load_models import load_motion_modules, update_unet2d_params_for_unet3d
+from ad.utils.load_models import convert_weights, load_motion_modules, update_unet2d_params_for_unet3d
 from args_train import parse_args
 
 from mindone.models.lora import inject_trainable_lora, make_only_lora_params_trainable
@@ -100,6 +100,7 @@ def load_pretrained_model(
                     param_dict.pop(pname)
             logger.warning("UNet will be initialized randomly")
 
+        param_dict = convert_weights(param_dict)
         if is_old_ms_version():
             param_not_load = load_param_into_net(net, param_dict, filter=param_dict.keys())
         else:

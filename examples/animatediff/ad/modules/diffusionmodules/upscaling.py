@@ -5,8 +5,7 @@ from ad.modules.diffusionmodules.util import make_beta_schedule
 
 import mindspore as ms
 import mindspore.nn as nn
-import mindspore.ops as ops
-from mindspore import Tensor
+from mindspore import Tensor, ops
 
 from mindone.utils.misc import extract_into_tensor
 
