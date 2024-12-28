@@ -638,16 +638,11 @@ def collate_fn(examples, with_prior_preservation=False):
     pixel_values = np.stack(pixel_values).astype(np.float32)
     input_ids = np.concatenate(input_ids, axis=0)
 
-    batch = {
-        "pixel_values": pixel_values,
-        "input_ids": input_ids,
-    }
-
     if has_attention_mask:
         attention_mask = np.concatenate(attention_mask, axis=0)
-        batch["attention_mask"] = attention_mask
-
-    return batch.values()
+        return pixel_values, input_ids, attention_mask
+    else:
+        return pixel_values, input_ids
 
 
 class PromptDataset(object):
