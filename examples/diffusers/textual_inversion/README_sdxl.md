@@ -1,12 +1,5 @@
 ## Textual Inversion fine-tuning example for SDXL
 
-> [!WARNING]
-> If you're using mindspore 2.2.x, you have to set the `MS_DEV_TRAVERSE_SUBSTITUTIONS_MODE` environment variables to `1` before running the training commands,
-> otherwise you'll get a segmentation fault (core dumped).
-> ```bash
-> export MS_DEV_TRAVERSE_SUBSTITUTIONS_MODE=1
-> ```
-
 ```bash
 export MODEL_NAME="stabilityai/stable-diffusion-xl-base-1.0"
 export DATA_DIR="./cat"

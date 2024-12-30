@@ -886,6 +886,7 @@ class IFImg2ImgPipeline(DiffusionPipeline, LoraLoaderMixin):
 
             # 9. Run safety checker
             image, nsfw_detected, watermark_detected = self.run_safety_checker(image, prompt_embeds.dtype)
+            image = image.numpy()
 
         if not return_dict:
             return (image, nsfw_detected, watermark_detected)
