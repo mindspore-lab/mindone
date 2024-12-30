@@ -654,6 +654,35 @@ PRIOR_TRANSFORMER_CASES = [
 ]
 
 
+AURAFLOW_TRANSFORMER2D_CASES = [
+    [
+        "AuraFlowTransformer2DModel",
+        "diffusers.models.transformers.auraflow_transformer_2d.AuraFlowTransformer2DModel",
+        "mindone.diffusers.models.transformers.auraflow_transformer_2d.AuraFlowTransformer2DModel",
+        (),
+        {
+            "sample_size": 32,
+            "patch_size": 2,
+            "in_channels": 4,
+            "num_mmdit_layers": 1,
+            "num_single_dit_layers": 1,
+            "attention_head_dim": 8,
+            "num_attention_heads": 4,
+            "caption_projection_dim": 32,
+            "joint_attention_dim": 32,
+            "out_channels": 4,
+            "pos_embed_max_size": 256,
+        },
+        (),
+        {
+            "hidden_states": np.random.randn(2, 4, 32, 32),
+            "encoder_hidden_states": np.random.randn(2, 256, 32),
+            "timestep": np.random.randint(0, 1000, size=(2,)),
+        },
+    ]
+]
+
+
 DIT_TRANSFORMER2D_CASES = [
     [
         "DiTTransformer2DModel",
@@ -854,7 +883,8 @@ LUMINA_NEXTDIT2D_CASES = [
 
 
 TRANSFORMERS_CASES = (
-    DIT_TRANSFORMER2D_CASES
+    AURAFLOW_TRANSFORMER2D_CASES
+    + DIT_TRANSFORMER2D_CASES
     + PIXART_TRANSFORMER2D_CASES
     + PRIOR_TRANSFORMER_CASES
     + SD3_TRANSFORMER2D_CASES

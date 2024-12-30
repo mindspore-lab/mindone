@@ -29,7 +29,6 @@ from ..utils import (
     get_adapter_name,
     get_peft_kwargs,
     is_peft_version,
-    is_transformers_available,
     logging,
     scale_lora_layers,
 )
@@ -236,7 +235,7 @@ class StableDiffusionLoraLoaderMixin(LoraBaseMixin):
         )
         is_dora_scale_present = any("dora_scale" in k for k in state_dict)
         if is_dora_scale_present:
-            warn_msg = "It seems like you are using a DoRA checkpoint that is not compatible in Diffusers at the moment. So, we are going to filter out the keys associated to 'dora_scale` from the state dict. If you think this is a mistake please open an issue https://github.com/huggingface/diffusers/issues/new."
+            warn_msg = "It seems like you are using a DoRA checkpoint that is not compatible in Diffusers at the moment. So, we are going to filter out the keys associated to 'dora_scale` from the state dict. If you think this is a mistake please open an issue https://github.com/huggingface/diffusers/issues/new."  # noqa: E501
             logger.warning(warn_msg)
             state_dict = {k: v for k, v in state_dict.items() if "dora_scale" not in k}
 
@@ -698,7 +697,7 @@ class StableDiffusionXLLoraLoaderMixin(LoraBaseMixin):
         )
         is_dora_scale_present = any("dora_scale" in k for k in state_dict)
         if is_dora_scale_present:
-            warn_msg = "It seems like you are using a DoRA checkpoint that is not compatible in Diffusers at the moment. So, we are going to filter out the keys associated to 'dora_scale` from the state dict. If you think this is a mistake please open an issue https://github.com/huggingface/diffusers/issues/new."
+            warn_msg = "It seems like you are using a DoRA checkpoint that is not compatible in Diffusers at the moment. So, we are going to filter out the keys associated to 'dora_scale` from the state dict. If you think this is a mistake please open an issue https://github.com/huggingface/diffusers/issues/new."  # noqa: E501
             logger.warning(warn_msg)
             state_dict = {k: v for k, v in state_dict.items() if "dora_scale" not in k}
 
@@ -1094,7 +1093,7 @@ class SD3LoraLoaderMixin(LoraBaseMixin):
 
         is_dora_scale_present = any("dora_scale" in k for k in state_dict)
         if is_dora_scale_present:
-            warn_msg = "It seems like you are using a DoRA checkpoint that is not compatible in Diffusers at the moment. So, we are going to filter out the keys associated to 'dora_scale` from the state dict. If you think this is a mistake please open an issue https://github.com/huggingface/diffusers/issues/new."
+            warn_msg = "It seems like you are using a DoRA checkpoint that is not compatible in Diffusers at the moment. So, we are going to filter out the keys associated to 'dora_scale` from the state dict. If you think this is a mistake please open an issue https://github.com/huggingface/diffusers/issues/new."  # noqa: E501
             logger.warning(warn_msg)
             state_dict = {k: v for k, v in state_dict.items() if "dora_scale" not in k}
 
@@ -1590,7 +1589,7 @@ class FluxLoraLoaderMixin(LoraBaseMixin):
         )
         is_dora_scale_present = any("dora_scale" in k for k in state_dict)
         if is_dora_scale_present:
-            warn_msg = "It seems like you are using a DoRA checkpoint that is not compatible in Diffusers at the moment. So, we are going to filter out the keys associated to 'dora_scale` from the state dict. If you think this is a mistake please open an issue https://github.com/huggingface/diffusers/issues/new."
+            warn_msg = "It seems like you are using a DoRA checkpoint that is not compatible in Diffusers at the moment. So, we are going to filter out the keys associated to 'dora_scale` from the state dict. If you think this is a mistake please open an issue https://github.com/huggingface/diffusers/issues/new."  # noqa: E501
             logger.warning(warn_msg)
             state_dict = {k: v for k, v in state_dict.items() if "dora_scale" not in k}
 

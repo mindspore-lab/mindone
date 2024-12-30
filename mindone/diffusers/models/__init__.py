@@ -29,10 +29,12 @@ _import_structure = {
     "controlnet_flux": ["FluxControlNetModel"],
     "controlnet_hunyuan": ["HunyuanDiT2DControlNetModel", "HunyuanDiT2DMultiControlNetModel"],
     "controlnet_sd3": ["SD3ControlNetModel", "SD3MultiControlNetModel"],
+    "controlnet_sparsectrl": ["SparseControlNetModel"],
     "controlnet_xs": ["ControlNetXSAdapter", "UNetControlNetXSModel"],
     "dual_transformer_2d": ["DualTransformer2DModel"],
     "embeddings": ["ImageProjection"],
     "modeling_utils": ["ModelMixin"],
+    "transformers.auraflow_transformer_2d": ["AuraFlowTransformer2DModel"],
     "transformers.cogvideox_transformer_3d": ["CogVideoXTransformer3DModel"],
     "transformers.dit_transformer_2d": ["DiTTransformer2DModel"],
     "transformers.dual_transformer_2d": ["DualTransformer2DModel"],
@@ -74,10 +76,12 @@ if TYPE_CHECKING:
     from .controlnet_flux import FluxControlNetModel
     from .controlnet_hunyuan import HunyuanDiT2DControlNetModel, HunyuanDiT2DMultiControlNetModel
     from .controlnet_sd3 import SD3ControlNetModel, SD3MultiControlNetModel
+    from .controlnet_sparsectrl import SparseControlNetModel
     from .controlnet_xs import ControlNetXSAdapter, UNetControlNetXSModel
     from .embeddings import ImageProjection
     from .modeling_utils import ModelMixin
     from .transformers import (
+        AuraFlowTransformer2DModel,
         CogVideoXTransformer3DModel,
         CogView3PlusTransformer2DModel,
         DiTTransformer2DModel,

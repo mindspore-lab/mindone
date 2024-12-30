@@ -16,6 +16,7 @@ _import_structure = {
     "loaders": ["FromOriginalModelMixin"],
     "models": [
         "AsymmetricAutoencoderKL",
+        "AuraFlowTransformer2DModel",
         "AutoencoderKL",
         "AutoencoderKLCogVideoX",
         "AutoencoderKLTemporalDecoder",
@@ -43,6 +44,7 @@ _import_structure = {
         "SD3ControlNetModel",
         "SD3MultiControlNetModel",
         "SD3Transformer2DModel",
+        "SparseControlNetModel",
         "T2IAdapter",
         "T5FilmDecoder",
         "Transformer2DModel",
@@ -67,11 +69,14 @@ _import_structure = {
         "get_scheduler",
     ],
     "pipelines": [
+        "AnimateDiffControlNetPipeline",
         "AnimateDiffPAGPipeline",
         "AnimateDiffPipeline",
         "AnimateDiffSDXLPipeline",
+        "AnimateDiffSparseControlNetPipeline",
         "AnimateDiffVideoToVideoControlNetPipeline",
         "AnimateDiffVideoToVideoPipeline",
+        "AuraFlowPipeline",
         "AutoPipelineForImage2Image",
         "AutoPipelineForInpainting",
         "AutoPipelineForText2Image",
@@ -236,6 +241,7 @@ if TYPE_CHECKING:
     from .configuration_utils import ConfigMixin
     from .models import (
         AsymmetricAutoencoderKL,
+        AuraFlowTransformer2DModel,
         AutoencoderKL,
         AutoencoderKLCogVideoX,
         AutoencoderKLTemporalDecoder,
@@ -263,6 +269,7 @@ if TYPE_CHECKING:
         SD3ControlNetModel,
         SD3MultiControlNetModel,
         SD3Transformer2DModel,
+        SparseControlNetModel,
         StableCascadeUNet,
         T2IAdapter,
         T5FilmDecoder,
@@ -287,11 +294,14 @@ if TYPE_CHECKING:
         get_scheduler,
     )
     from .pipelines import (
+        AnimateDiffControlNetPipeline,
         AnimateDiffPAGPipeline,
         AnimateDiffPipeline,
         AnimateDiffSDXLPipeline,
+        AnimateDiffSparseControlNetPipeline,
         AnimateDiffVideoToVideoControlNetPipeline,
         AnimateDiffVideoToVideoPipeline,
+        AuraFlowPipeline,
         AutoPipelineForImage2Image,
         AutoPipelineForInpainting,
         AutoPipelineForText2Image,

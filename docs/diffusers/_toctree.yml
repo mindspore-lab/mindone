@@ -240,6 +240,8 @@
         title: Overview
       - local: api/pipelines/animatediff
         title: AnimateDiff
+      - local: api/pipelines/aura_flow
+        title: AuraFlow
       - local: api/pipelines/blip_diffusion
         title: BLIP-Diffusion
       - local: api/pipelines/cogvideox

@@ -6,10 +6,13 @@ from ..utils import _LazyModule
 _import_structure = {
     "animatediff": [
         "AnimateDiffPipeline",
+        "AnimateDiffControlNetPipeline",
         "AnimateDiffSDXLPipeline",
+        "AnimateDiffSparseControlNetPipeline",
         "AnimateDiffVideoToVideoPipeline",
         "AnimateDiffVideoToVideoControlNetPipeline",
     ],
+    "aura_flow": ["AuraFlowPipeline"],
     "auto_pipeline": [
         "AutoPipelineForImage2Image",
         "AutoPipelineForInpainting",
@@ -177,11 +180,14 @@ _import_structure = {
 
 if TYPE_CHECKING:
     from .animatediff import (
+        AnimateDiffControlNetPipeline,
         AnimateDiffPipeline,
         AnimateDiffSDXLPipeline,
+        AnimateDiffSparseControlNetPipeline,
         AnimateDiffVideoToVideoControlNetPipeline,
         AnimateDiffVideoToVideoPipeline,
     )
+    from .aura_flow import AuraFlowPipeline
     from .auto_pipeline import AutoPipelineForImage2Image, AutoPipelineForInpainting, AutoPipelineForText2Image
     from .blip_diffusion import BlipDiffusionPipeline
     from .cogvideo import (

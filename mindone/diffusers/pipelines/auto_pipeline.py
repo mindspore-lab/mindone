@@ -19,6 +19,7 @@ from huggingface_hub.utils import validate_hf_hub_args
 
 from ..configuration_utils import ConfigMixin
 from ..utils import is_sentencepiece_available
+from .aura_flow import AuraFlowPipeline
 from .cogview3 import CogView3PlusPipeline
 from .controlnet import (
     StableDiffusionControlNetImg2ImgPipeline,
@@ -110,6 +111,7 @@ AUTO_TEXT2IMAGE_PIPELINES_MAPPING = OrderedDict(
         ("stable-diffusion-xl-pag", StableDiffusionXLPAGPipeline),
         ("stable-diffusion-xl-controlnet-pag", StableDiffusionXLControlNetPAGPipeline),
         ("pixart-sigma-pag", PixArtSigmaPAGPipeline),
+        ("auraflow", AuraFlowPipeline),
         ("flux", FluxPipeline),
         ("flux-controlnet", FluxControlNetPipeline),
         ("lumina", LuminaText2ImgPipeline),
