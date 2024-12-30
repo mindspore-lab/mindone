@@ -2,7 +2,7 @@ import os
 from typing import Dict, Optional, Union
 
 import numpy as np
-from safetensors import numpy
+from safetensors import numpy, safe_open
 
 import mindspore as ms
 
