@@ -76,63 +76,56 @@ class ObjaverseDataset(BaseDataset):
 
         # load intrinsics
         intrinsics = np.load(smart_open(intrinsics_path, 'rb'))
-        intrinsics = ms.Tensor(intrinsics).float()
+        intrinsics = ms.Tensor(intrinsics, dtype=ms.float32)
 
         # sample views (incl. source view and side views)
         sample_views = np.random.choice(range(self.num_all_views), self.sample_side_views + 1, replace=False)
         poses, rgbs, bg_colors = [], [], []
         source_image = None
-        for view in sample_views:
+        render_image_res = np.random.randint(self.render_image_res_low, self.render_image_res_high + 1)
+        # intended crop region. NOTE: ops.randint will after some interations encounters "RuntimeError: SyncStream failed for op aclnnCast"
+        anchors = ms.numpy.randint(0, render_image_res - self.render_region_size + 1, (self.sample_side_views + 1, 2))
+        for idx, view in enumerate(sample_views):
             pose_path = smart_path_join(pose_dir, f'{view:03d}.npy')
             rgba_path = smart_path_join(rgba_dir, f'{view:03d}.png')
             pose = self._load_pose(pose_path)
             bg_color = random.choice([0.0, 0.5, 1.0])
-            rgb = self._load_rgba_image(rgba_path, bg_color=bg_color)
+            
+            # adjust render image resolution and sample intended rendering region
+            crop_pos = [anchors[idx, 0].item(), anchors[idx, 1].item()]
+            rgb = self._load_rgba_image(rgba_path, bg_color=bg_color, resize=render_image_res, crop_pos=crop_pos, crop_size=self.render_region_size)
+
             poses.append(pose)
             rgbs.append(rgb)
             bg_colors.append(bg_color)
+
             if source_image is None:
-                source_image = self._load_rgba_image(rgba_path, bg_color=1.0)
+                # load source image and adjust resolution
+                source_image = self._load_rgba_image(rgba_path, bg_color=1.0, resize=self.source_image_res, crop_pos=None, crop_size=None)
+
         assert source_image is not None, "Really bad luck!"
         poses = mint.stack(poses, dim=0)
         rgbs = mint.cat(rgbs, dim=0)
+        source_image = source_image.squeeze(0) # [1, C, H, W] -> [C, H, W]
 
         if self.normalize_camera:
             poses = camera_normalization_objaverse(self.normed_dist_to_center, poses)
 
         # build source and target camera features
         source_camera = build_camera_principle(poses[:1], intrinsics.unsqueeze(0)).squeeze(0) # [1, 12+4]
-        render_camera = build_camera_standard(poses, intrinsics.repeat(poses.shape[0], 1, 1)) # [N, 16+9]
+        render_camera = build_camera_standard(poses, intrinsics.tile((poses.shape[0], 1, 1))) # [N, 16+9]
 
-        # adjust source image resolution
-        source_image = ops.interpolate(
-            source_image, 
-            size=(self.source_image_res, self.source_image_res), 
-            mode='bicubic', 
-            align_corners=True
-            ).squeeze(0)
-        source_image = mint.clamp(source_image, 0., 1.)
+        # image value in [0, 1]
+        source_image = mint.clamp(source_image, 0., 1.) # [C, H, W]
+        cropped_render_image = mint.clamp(rgbs, 0., 1.) # [side+1, C, H, W]
+      
 
-        # adjust render image resolution and sample intended rendering region
-        render_image_res = np.random.randint(self.render_image_res_low, self.render_image_res_high + 1)
-        render_image = ops.interpolate(
-            rgbs, size=(render_image_res, render_image_res), mode='bicubic', align_corners=True)
-        render_image = mint.clamp(render_image, 0., 1.)
-        anchors = ops.randint(
-            0, render_image_res - self.render_region_size + 1, size=(self.sample_side_views + 1, 2))
-        crop_indices = ops.arange(0, self.render_region_size)
-        index_i = (anchors[:, 0].unsqueeze(1) + crop_indices).view((-1, self.render_region_size, 1))
-        index_j = (anchors[:, 1].unsqueeze(1) + crop_indices).view((-1, 1, self.render_region_size))
-        batch_indices = ops.arange(self.sample_side_views + 1).view((-1, 1, 1))
-        cropped_render_image = render_image[batch_indices, :, index_i, index_j].permute((0, 3, 1, 2))
-
-        return {
-            'uid': uid,
-            'source_camera': source_camera,
-            'render_camera': render_camera,
-            'source_image': source_image,
-            'render_image': cropped_render_image,
-            'render_anchors': anchors,
-            'render_full_resolutions': ms.Tensor([[render_image_res]], dtype=ms.float32).tile((self.sample_side_views + 1, 1)),
-            'render_bg_colors': ms.Tensor(bg_colors, dtype=ms.float32).unsqueeze(-1),
-        }
+        return (
+            source_camera,
+            render_camera,
+            source_image,
+            cropped_render_image,
+            anchors,
+            ms.Tensor([[render_image_res]], dtype=ms.float32).tile((self.sample_side_views + 1, 1)),
+            ms.Tensor(bg_colors, dtype=ms.float32).unsqueeze(-1),
+        )

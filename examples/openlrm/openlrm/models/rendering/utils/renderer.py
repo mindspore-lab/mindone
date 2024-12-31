@@ -144,9 +144,10 @@ class ImportanceRenderer(nn.Cell):
 
         # set out-of-box samples to zeros(rgb) & -inf(sigma)
         SAFE_GUARD = 8
-        DATA_TYPE = _out['sigma'].dtype
+        DATA_TYPE = _out['sigma'].dtype # float16
         colors_pass = mint.zeros((batch_size, num_rays * samples_per_ray, 3), dtype=DATA_TYPE)
         densities_pass = ops.nan_to_num(mint.full((batch_size, num_rays * samples_per_ray, 1), -float('inf'), dtype=DATA_TYPE)) / SAFE_GUARD
+        densities_pass = densities_pass.to(DATA_TYPE)
         colors_pass[mask_inbox], densities_pass[mask_inbox] = _out['rgb'][mask_inbox], _out['sigma'][mask_inbox]
 
         # reshape back
@@ -199,7 +200,7 @@ class ImportanceRenderer(nn.Cell):
 
         out = decoder(sampled_features, sample_directions)
         if options.get('density_noise', 0) > 0:
-            out['sigma'] += ops.randn_like(out['sigma']) * options['density_noise']
+            out['sigma'] += mint.randn_like(out['sigma']) * options['density_noise']
         return out
 
     def run_model_activated(self, planes, decoder, sample_coordinates, sample_directions, options):
@@ -237,17 +238,17 @@ class ImportanceRenderer(nn.Cell):
                                     depth_resolution,
                                     ).reshape(1, 1, depth_resolution, 1).tile((N, M, 1, 1))
             depth_delta = 1/(depth_resolution - 1)
-            depths_coarse += mint.rand_like(depths_coarse) * depth_delta
+            depths_coarse = depths_coarse + mint.rand_like(depths_coarse) * depth_delta
             depths_coarse = 1./(1./ray_start * (1. - depths_coarse) + 1./ray_end * depths_coarse)
         else:
             if isinstance(ray_start, ms.Tensor):
                 depths_coarse = math_utils.linspace(ray_start, ray_end, depth_resolution).permute((1,2,0,3))
                 depth_delta = (ray_end - ray_start) / (depth_resolution - 1)
-                depths_coarse += mint.rand_like(depths_coarse) * depth_delta[..., None]
+                depths_coarse = depths_coarse + mint.rand_like(depths_coarse) * depth_delta[..., None]
             else:
                 depths_coarse = ops.linspace(ray_start, ray_end, depth_resolution).reshape(1, 1, depth_resolution, 1).tile((N, M, 1, 1))
                 depth_delta = (ray_end - ray_start)/(depth_resolution - 1)
-                depths_coarse += mint.rand_like(depths_coarse) * depth_delta
+                depths_coarse = depths_coarse + mint.rand_like(depths_coarse) * depth_delta
 
         return depths_coarse
 

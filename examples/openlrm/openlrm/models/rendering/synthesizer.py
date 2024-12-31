@@ -35,7 +35,7 @@ class OSGDecoder(nn.Cell):
     def __init__(self, n_features: int,
                  hidden_dim: int = 64, num_layers: int = 4, 
                  activation: nn.Cell = nn.ReLU,
-                 dtype=ms.float16):
+                ):
         super().__init__()
         self.net = nn.SequentialCell(
             nn.Dense(3 * n_features, hidden_dim),
@@ -45,7 +45,7 @@ class OSGDecoder(nn.Cell):
                 activation(),
             ] for _ in range(num_layers - 2)]),
             nn.Dense(hidden_dim, 1 + 3),
-        ).to_float(dtype)
+        )
         # init all bias to zero
         for m in self.cells():
             if isinstance(m, nn.Dense):
@@ -112,7 +112,7 @@ class TriplaneSynthesizer(nn.Cell):
             p.set_dtype(dtype)
         return self
 
-    def construct(self, planes, cameras, anchors, resolutions, bg_colors, region_size: int):
+    def construct(self, planes, cameras, anchors, resolutions, bg_colors, region_size):
         # planes: (N, 3, D', H', W')
         # cameras: (N, M, D_cam)
         # anchors: (N, M, 2)
@@ -139,8 +139,10 @@ class TriplaneSynthesizer(nn.Cell):
         assert ray_origins.ndim == 3, "ray_origins should be 3-dimensional"
 
         # Perform volume rendering
+        planes_s = planes.shape
+        planes_M = ops.repeat_interleave(planes.reshape(N, -1), M, axis=0).reshape(-1, *planes_s[1:])
         rgb_samples, depth_samples, weights_samples = self.renderer(
-            ops.repeat_interleave(planes, M, axis=0), self.decoder, ray_origins, ray_directions, self.rendering_kwargs,
+            planes_M, self.decoder, ray_origins, ray_directions, self.rendering_kwargs,
             bg_colors=bg_colors.reshape(-1, 1),
         )
 

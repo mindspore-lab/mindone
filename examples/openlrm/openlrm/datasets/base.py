@@ -20,12 +20,17 @@ from PIL import Image
 from megfile import smart_open, smart_path_join, smart_exists
 import mindspore as ms
 
+import mindspore.dataset.vision as vision
+from mindspore.dataset.vision import Inter
+
 
 class BaseDataset(ABC):
     def __init__(self, root_dirs: list[str], meta_path: str):
         super().__init__()
         self.root_dirs = root_dirs
         self.uids = self._load_uids(meta_path)
+        # self.uids = self.uids[:1] #TODO: debug use, delete later
+        print(f"uids: {self.uids}")
 
     def __len__(self):
         return len(self.uids)
@@ -35,12 +40,7 @@ class BaseDataset(ABC):
         pass
 
     def __getitem__(self, idx):
-        try:
-            return self.inner_get_item(idx)
-        except Exception as e:
-            print(f"[DEBUG-DATASET] Error when loading {self.uids[idx]}")
-            # return self.__getitem__(idx+1)
-            raise e
+        return self.inner_get_item(idx)
 
     @staticmethod
     def _load_uids(meta_path: str):
@@ -50,13 +50,30 @@ class BaseDataset(ABC):
         return uids
 
     @staticmethod
-    def _load_rgba_image(file_path, bg_color: float = 1.0):
-        ''' Load and blend RGBA image to RGB with certain background, 0-1 scaled '''
+    def _load_rgba_image(file_path, bg_color: float = 1.0, resize = None, crop_pos = None, crop_size = None):
+        ''' Load and blend RGBA image to RGB with certain background, 0-1 scaled 
+            Transform image properly (resize, and crop):
+                - resize: int
+                - crop_pos: [int, int]
+                - crop_size: int
+        '''
+        # read image
         rgba = np.array(Image.open(smart_open(file_path, 'rb')))
+        
+        # image transformation
+        if resize is not None:
+            rgba = vision.Resize([resize, resize], Inter.BICUBIC)(rgba)
+        if (crop_pos is not None) and (crop_size is not None): # rand crop
+            assert (crop_pos[0] + crop_size <= rgba.shape[0]) and (crop_pos[1] + crop_size <= rgba.shape[1])
+            # print(f"crop rgba: {rgba.shape}")
+            rgba = vision.Crop(crop_pos, crop_size)(rgba)
+            # print(f"crop_pos {crop_pos}, crop_size {crop_size} cropped rgba {rgba.shape}")
+
+        # convert to Tensor, in shape [B, C, H, W]
         rgba = ms.Tensor(rgba).float() / 255.0
         rgba = rgba.permute((2, 0, 1)).unsqueeze(0)
         rgb = rgba[:, :3, :, :] * rgba[:, 3:4, :, :] + bg_color * (1 - rgba[:, 3:, :, :])
-        rgba[:, :3, ...] * rgba[:, 3:, ...] + (1 - rgba[:, 3:, ...])
+     
         return rgb
 
     @staticmethod

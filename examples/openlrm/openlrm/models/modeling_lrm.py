@@ -20,6 +20,7 @@ from logging import getLogger
 from .embedder import CameraEmbedder
 from .transformer import TransformerDecoder
 from .rendering.synthesizer import TriplaneSynthesizer
+from openlrm.utils import no_grad
 
 
 logger = getLogger(__name__)
@@ -136,7 +137,7 @@ class ModelLRM(nn.Cell):
         N = tokens.shape[0]
         H = W = self.triplane_low_res
         x = tokens.view((N, 3, H, W, -1))
-        # x = ops.einsum('nihwd->indhw', x)  =>
+        # x = ops.einsum('nihwd->indhw', x)  => # encounter error
         x = x.permute(1, 0, 4, 2, 3) # [3, N, D, H, W]
         x = x.contiguous().view((3*N, -1, H, W))  # [3*N, D, H, W]
         x = self.upsampler(x)  # [3*N, D', H', W']
@@ -152,9 +153,10 @@ class ModelLRM(nn.Cell):
         N = image.shape[0]
 
         # encode image
-        image_feats = self.encoder(image)
-        assert image_feats.shape[-1] == self.encoder_feat_dim, \
-            f"Feature dimension mismatch: {image_feats.shape[-1]} vs {self.encoder_feat_dim}"
+        with no_grad(): # fix encoder
+            image_feats = self.encoder(image)
+            assert image_feats.shape[-1] == self.encoder_feat_dim, \
+                f"Feature dimension mismatch: {image_feats.shape[-1]} vs {self.encoder_feat_dim}"
 
         # embed camera
         camera_embeddings = self.camera_embedder(camera)
@@ -192,5 +194,31 @@ class ModelLRM(nn.Cell):
 
         return {
             'planes': planes,
-            **render_results,
+            **render_results, #'images_rgb', 'images_depth', 'images_weight'
+        }
+    
+    def construct_train(self, image, source_camera, render_cameras, render_anchors, render_resolutions, render_bg_colors, render_region_size: int):
+        # image: [N, C_img, H_img, W_img]
+        # source_camera: [N, D_cam_raw]
+        # render_cameras: [N, M, D_cam_render]
+        # render_anchors: [N, M, 2]
+        # render_resolutions: [N, M, 1]
+        # render_bg_colors: [N, M, 1]
+        # render_region_size: int
+        assert image.shape[0] == source_camera.shape[0], "Batch size mismatch for image and source_camera"
+        assert image.shape[0] == render_cameras.shape[0], "Batch size mismatch for image and render_cameras"
+        assert image.shape[0] == render_anchors.shape[0], "Batch size mismatch for image and render_anchors"
+        assert image.shape[0] == render_bg_colors.shape[0], "Batch size mismatch for image and render_bg_colors"
+        N, M = render_cameras.shape[:2]
+
+        planes = self.forward_planes(image, source_camera)
+
+        # render target views
+        render_results = self.synthesizer(planes, render_cameras, render_anchors, render_resolutions, render_bg_colors, render_region_size)
+        assert render_results['images_rgb'].shape[0] == N, "Batch size mismatch for render_results"
+        assert render_results['images_rgb'].shape[1] == M, "Number of rendered views should be consistent with render_cameras"
+
+        return {
+            planes,
+            render_results['images_rgb']
         }

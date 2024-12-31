@@ -5,7 +5,7 @@ logger = logging.getLogger("")
 
 import numpy as np
 from PIL import Image
-from openlrm.losses.perceptual import LPIPSLoss
+from openlrm.losses import PixelLoss, LPIPSLoss, TVLoss
 
 import mindspore as ms
 from mindspore import Tensor, mint, nn
@@ -15,28 +15,23 @@ from . import ModelLRM
 
 
 class ModelLRMWithLoss(nn.Cell):
-    """The training pipeline for instant mesh model."""
+    """The training pipeline for LRM model."""
 
     def __init__(
         self,
         cfg,
-        # lrm_generator_config=None,
-        # lrm_ckpt_path=None,  # these under two args are for loading ckpts
-        # input_size=256,
-        # render_size=192,
     ):
         super().__init__()
         self.cfg = cfg
         self.lrm_generator = ModelLRM(**cfg.model)
-        self.lrm_generator.set_train(True)
 
         self.input_size = cfg.dataset.source_image_res
         self.render_image_res_low = cfg.dataset.render_image.low
         self.render_image_res_high = cfg.dataset.render_image.high
 
-        self.lpips = LPIPSLoss()
+        # losses
         self.pixel_loss, self.lpips, self.tv_loss = self._build_loss_fn(cfg)
-        self.topil = ToPIL()
+ 
         self.validation_step_outputs = []
 
     def _build_loss_fn(self, cfg):
@@ -68,7 +63,6 @@ class ModelLRMWithLoss(nn.Cell):
 
     def construct(
         self,
-        uid: str,
         source_camera: Tensor,
         render_camera: Tensor,
         source_image: Tensor,
@@ -78,10 +72,13 @@ class ModelLRMWithLoss(nn.Cell):
         render_bg_colors: Tensor
     ) -> Tensor:
         """For training, only return loss."""
-        N, M, C, H, W = render_image.shape
+        # TODO: debug use, delete later
+        # 20241224 comment: loss=0 can run
+        # loss = ms.Tensor(0.)
+        # return loss
 
         # Infer image2triplane + render views
-        outputs = self.lrm_generator(
+        planes, images_rgb = self.lrm_generator.construct_train(
             image=source_image,
             source_camera=source_camera,
             render_cameras=render_camera,
@@ -92,7 +89,7 @@ class ModelLRMWithLoss(nn.Cell):
         )
 
         # compute loss
-        loss = self.compute_loss(outputs, render_image)
+        loss = self.compute_loss(planes, images_rgb, render_image)
 
         return loss
 
@@ -117,30 +114,27 @@ class ModelLRMWithLoss(nn.Cell):
             render_region_size=self.cfg.dataset.render_image.region,
         )
 
-        images_rgb, images_depth, images_weight = self.lrm_generator(
-            images, cameras, render_cameras, render_size, crop_params=None
-        )
         render_images = mint.clamp(outputs["images_rgb"], 0.0, 1.0)
         return render_images
 
-    def compute_loss(self, outputs, render_image):
+    def compute_loss(self, planes, images_rgb, render_image):
         # NOTE: the rgb value range of OpenLRM is [0, 1]
         # loss calculation
-        loss = 0.
+        loss = ms.Tensor(0.)
         loss_pixel = None
         loss_perceptual = None
         loss_tv = None
 
         if self.cfg.train.loss.pixel_weight > 0.:
-            loss_pixel = self.pixel_loss_fn(outputs['images_rgb'], render_image)
+            loss_pixel = self.pixel_loss(images_rgb, render_image)
             loss += loss_pixel * self.cfg.train.loss.pixel_weight
         if self.cfg.train.loss.perceptual_weight > 0.:
-            loss_perceptual = self.perceptual_loss_fn(outputs['images_rgb'], render_image)
+            loss_perceptual = self.lpips(images_rgb, render_image)
             loss += loss_perceptual * self.cfg.train.loss.perceptual_weight
         if self.cfg.train.loss.tv_weight > 0.: 
-            loss_tv = self.tv_loss_fn(outputs['planes'])
+            loss_tv = self.tv_loss(planes)
             loss += loss_tv * self.cfg.train.loss.tv_weight
 
-        logger.info(f"loss pixel: {loss_pixel}, loss lpips: {loss_perceptual}, loss tv: {loss_tv}")
+        logger.info(f"loss: {loss}, loss pixel: {loss_pixel}, loss lpips: {loss_perceptual}, loss tv: {loss_tv}")
 
         return loss #, loss_pixel, loss_perceptual, loss_tv

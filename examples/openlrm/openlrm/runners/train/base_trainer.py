@@ -48,9 +48,9 @@ def parse_args(**parser_kwargs):
         help="resume from checkpoint with path",
     )
     parser.add_argument(
-        "--base",
+        "--config",
         type=str,
-        default="configs/instant-nerf-large-train.yaml",
+        default="configs/train-sample.yaml",
         help="path to base configs",
     )
     parser.add_argument(
@@ -91,7 +91,7 @@ def parse_train_args(parser):
     )
     parser.add_argument(
         "--amp_level",
-        default="O0",  # cannot amp for InstantMesh training, easily grad nan
+        default="O0", 
         type=str,
         help="mindspore amp level, O1: most fp32, only layers in whitelist compute in fp16 (dense, conv, etc); \
                         O2: most fp16, only layers in blacklist compute in fp32 (batch norm etc)",
@@ -117,7 +117,7 @@ def parse_train_args(parser):
         default="logging.INFO",
         help="log level, options: logging.DEBUG, logging.INFO, logging.WARNING, logging.ERROR",
     )
-    parser.add_argument("--num_parallel_workers", default=12, type=int, help="num workers for data loading")
+    parser.add_argument("--num_parallel_workers", default=1, type=int, help="num workers for data loading")
     parser.add_argument(
         "--data_multiprocessing",
         default=False,
@@ -155,7 +155,7 @@ def parse_train_args(parser):
     parser.add_argument("--end_learning_rate", default=4e-5, type=float, help="The end learning rate for Adam.")
     parser.add_argument(
         "--decay_steps", default=9e3, type=int, help="lr decay steps."
-    )  # with dataset_size==3, it's 3k epochs
+    )  
     parser.add_argument("--scheduler", default="cosine_annealing_warm_restarts_lr", type=str, help="scheduler.")
     parser.add_argument("--optim", default="adamw", type=str, help="optimizer")
     parser.add_argument(

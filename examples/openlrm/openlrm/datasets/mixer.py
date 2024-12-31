@@ -35,7 +35,6 @@ class MixerDataset:
             for subset_config, subset_obj in zip(subsets, self.subsets)
         ]
         self.output_columns = [
-            'uid',
             'source_camera',
             'render_camera',
             'source_image',

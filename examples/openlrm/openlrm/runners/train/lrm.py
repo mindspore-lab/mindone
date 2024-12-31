@@ -72,9 +72,6 @@ class LRMTrainer(Trainer):
         self.train_loader, self.val_loader = self._build_dataloader(self.args, self.cfg)
 
         # 4. build optimizer, scheduler, trainer, etc 
-        self.loss_scaler = None
-        self.optimizer = None
-        self.sink_epochs = None
         dataset_size = self.train_loader.get_dataset_size()
         self._build_utils(self.args, self.cfg, dataset_size)
 
@@ -87,6 +84,8 @@ class LRMTrainer(Trainer):
             f"Config type {cfg.experiment.type} does not match with runner {self.__class__.__name__}"
         from openlrm.models import ModelLRMWithLoss
         lrm_model_with_loss = ModelLRMWithLoss(cfg) 
+        lrm_model_with_loss.set_train(True)
+        # lrm_model_eval = ModelLRMWithLossEval(cfg) # TODO
 
         # TBD
         if not self.args.global_bf16:
@@ -123,7 +122,7 @@ class LRMTrainer(Trainer):
         self.optimizer = create_optimizer(
             self.model_with_loss.trainable_params(),
             name=args.optim, # "adamw"
-            betas=(cfg.train.optim.beta1, cfg.train.optim.beta2), #args.betas
+            betas= args.betas, #(cfg.train.optim.beta1, cfg.train.optim.beta2)
             eps=args.optim_eps,
             group_strategy=args.group_strategy,
             weight_decay=args.weight_decay,
@@ -138,65 +137,6 @@ class LRMTrainer(Trainer):
             self.loss_scaler = nn.FixedLossScaleUpdateCell(args.init_loss_scale)
         else:
             self.loss_scaler = ms.Tensor([1.0], dtype=ms.float32)
-
-        ############################################
-        # TBD
-        # decay_params, no_decay_params = [], []
-
-        # add all bias and LayerNorm params to no_decay_params
-        # for name, module in model.name_cells().items():
-        #     if isinstance(module, nn.LayerNorm):
-        #         no_decay_params.extend([p for p in module.get_parameters()])
-        #     elif hasattr(module, 'beta') and module.beta is not None:
-        #         no_decay_params.append(module.beta)
-
-        # add remaining parameters to decay_params
-        # _no_decay_ids = set(map(id, no_decay_params))
-        # decay_params = [p for p in model.get_parameters() if id(p) not in _no_decay_ids]
-
-        # filter out parameters with no grad
-        # decay_params = list(filter(lambda p: p.requires_grad, decay_params))
-        # no_decay_params = list(filter(lambda p: p.requires_grad, no_decay_params))
-
-        # monitor this to make sure we don't miss any parameters
-        # logger.info("======== Weight Decay Parameters ========")
-        # logger.info(f"Total: {len(decay_params)}")
-        # logger.info("======== No Weight Decay Parameters ========")
-        # logger.info(f"Total: {len(no_decay_params)}")
-
-        # Optimizer
-        # opt_groups = [
-        #     {'params': decay_params, 'weight_decay': cfg.train.optim.weight_decay},
-        #     {'params': no_decay_params, 'weight_decay': 0.0},
-        # ]
-        # optimizer = torch.optim.AdamW(
-        #     opt_groups,
-        #     lr=cfg.train.optim.lr,
-        #     betas=(cfg.train.optim.beta1, cfg.train.optim.beta2),
-        # )
-
-        # return optimizer
-
-        # ############################################
-        
-
-    # TBD - customized scheduler
-    # def _build_scheduler(self, optimizer, cfg):
-    #     local_batches_per_epoch = math.floor(len(self.train_loader) / self.accelerator.num_processes)
-    #     total_global_batches = cfg.train.epochs * math.ceil(local_batches_per_epoch / self.cfg.train.accum_steps)
-    #     effective_warmup_iters = cfg.train.scheduler.warmup_real_iters
-    #     logger.debug(f"======== Scheduler effective max iters: {total_global_batches} ========")
-    #     logger.debug(f"======== Scheduler effective warmup iters: {effective_warmup_iters} ========")
-    #     if cfg.train.scheduler.type == 'cosine':
-    #         from openlrm.utils.scheduler import CosineWarmupScheduler
-    #         scheduler = CosineWarmupScheduler(
-    #             optimizer=optimizer,
-    #             warmup_iters=effective_warmup_iters,
-    #             max_iters=total_global_batches,
-    #         )
-    #     else:
-    #         raise NotImplementedError(f"Scheduler type {cfg.train.scheduler.type} not implemented")
-    #     return scheduler
 
     # Build dataset
     def _build_dataloader(self, args, cfg):
@@ -214,17 +154,19 @@ class LRMTrainer(Trainer):
             normalize_camera=cfg.dataset.normalize_camera,
             normed_dist_to_center=cfg.dataset.normed_dist_to_center,
         )
-        val_dataset = MixerDataset(
-            split="val",
-            subsets=cfg.dataset.subsets,
-            sample_side_views=cfg.dataset.sample_side_views,
-            render_image_res_low=cfg.dataset.render_image.low,
-            render_image_res_high=cfg.dataset.render_image.high,
-            render_region_size=cfg.dataset.render_image.region,
-            source_image_res=cfg.dataset.source_image_res,
-            normalize_camera=cfg.dataset.normalize_camera,
-            normed_dist_to_center=cfg.dataset.normed_dist_to_center,
-        )
+        val_dataset = None
+        # TODO
+        # val_dataset = MixerDataset(
+        #     split="val",
+        #     subsets=cfg.dataset.subsets,
+        #     sample_side_views=cfg.dataset.sample_side_views,
+        #     render_image_res_low=cfg.dataset.render_image.low,
+        #     render_image_res_high=cfg.dataset.render_image.high,
+        #     render_region_size=cfg.dataset.render_image.region,
+        #     source_image_res=cfg.dataset.source_image_res,
+        #     normalize_camera=cfg.dataset.normalize_camera,
+        #     normed_dist_to_center=cfg.dataset.normed_dist_to_center,
+        # )
 
         # build data loader
         train_loader = create_dataloader(
@@ -234,23 +176,25 @@ class LRMTrainer(Trainer):
             drop_remainder=True,
             device_num=self.device_num,
             rank_id=self.rank_id,
+            num_workers_dataset=args.num_parallel_workers, # too large may encounter RAM error
             num_workers=cfg.dataset.num_train_workers,
             python_multiprocessing=args.data_multiprocessing,
             max_rowsize=args.max_rowsize,
             debug=False,  # ms240_sept4: THIS CANNOT BE TRUE, OTHERWISE loader error
         )
-        val_loader = create_dataloader(
-            val_dataset,
-            batch_size=self.cfg.train.batch_size,
-            shuffle=False,
-            drop_remainder=False,
-            device_num=self.device_num,
-            rank_id=self.rank_id,
-            num_workers=cfg.dataset.num_val_workers,
-            python_multiprocessing=args.data_multiprocessing,
-            max_rowsize=args.max_rowsize,
-            debug=False,  # ms240_sept4: THIS CANNOT BE TRUE, OTHERWISE loader error
-        )
+        val_loader = None
+        # val_loader = create_dataloader(
+        #     val_dataset,
+        #     batch_size=self.cfg.train.batch_size,
+        #     shuffle=False,
+        #     drop_remainder=False,
+        #     device_num=self.device_num,
+        #     rank_id=self.rank_id,
+        #     num_workers=cfg.dataset.num_val_workers,
+        #     python_multiprocessing=args.data_multiprocessing,
+        #     max_rowsize=args.max_rowsize,
+        #     debug=False,  # ms240_sept4: THIS CANNOT BE TRUE, OTHERWISE loader error
+        # )
 
         # compute total steps and data epochs (in unit of data sink size)
         dataset_size = train_loader.get_dataset_size()
@@ -294,154 +238,10 @@ class LRMTrainer(Trainer):
 
         return train_loader, val_loader
 
-    # def _build_loss_fn(self, cfg):
-    #     from openlrm.losses import PixelLoss, LPIPSLoss, TVLoss
-    #     pixel_loss_fn = PixelLoss()
-    #     perceptual_loss_fn = LPIPSLoss(prefech=True)
-    #     tv_loss_fn = TVLoss()
-    #     return pixel_loss_fn, perceptual_loss_fn, tv_loss_fn
-
     def register_hooks(self):
         pass
     
-    # def forward_loss_local_step(self, data):
-
-    #     source_camera = data['source_camera']
-    #     render_camera = data['render_camera']
-    #     source_image = data['source_image']
-    #     render_image = data['render_image']
-    #     render_anchors = data['render_anchors']
-    #     render_full_resolutions = data['render_full_resolutions']
-    #     render_bg_colors = data['render_bg_colors']
-
-    #     N, M, C, H, W = render_image.shape
-
-    #     # forward
-    #     outputs = self.model(
-    #         image=source_image,
-    #         source_camera=source_camera,
-    #         render_cameras=render_camera,
-    #         render_anchors=render_anchors,
-    #         render_resolutions=render_full_resolutions,
-    #         render_bg_colors=render_bg_colors,
-    #         render_region_size=self.cfg.dataset.render_image.region,
-    #     )
-
-    #     # loss calculation
-    #     loss = 0.
-    #     loss_pixel = None
-    #     loss_perceptual = None
-    #     loss_tv = None
-
-    #     if self.cfg.train.loss.pixel_weight > 0.:
-    #         loss_pixel = self.pixel_loss_fn(outputs['images_rgb'], render_image)
-    #         loss += loss_pixel * self.cfg.train.loss.pixel_weight
-    #     if self.cfg.train.loss.perceptual_weight > 0.:
-    #         loss_perceptual = self.perceptual_loss_fn(outputs['images_rgb'], render_image)
-    #         loss += loss_perceptual * self.cfg.train.loss.perceptual_weight
-    #     if self.cfg.train.loss.tv_weight > 0.: 
-    #         loss_tv = self.tv_loss_fn(outputs['planes'])
-    #         loss += loss_tv * self.cfg.train.loss.tv_weight
-
-    #     return outputs, loss, loss_pixel, loss_perceptual, loss_tv
-
-    # # TODO
-    # def train_epoch(self, pbar: tqdm, loader: torch.utils.data.DataLoader, profiler: torch.profiler.profile):
-    #     self.model.train()
-
-    #     local_step_losses = []
-    #     global_step_losses = []
-
-    #     logger.debug(f"======== Starting epoch {self.current_epoch} ========")
-    #     for data in loader:
-
-    #         logger.debug(f"======== Starting global step {self.global_step} ========")
-    #         with self.accelerator.accumulate(self.model):
-
-    #             # forward to loss
-    #             outs, loss, loss_pixel, loss_perceptual, loss_tv = self.forward_loss_local_step(data)
-                
-    #             # backward
-    #             self.accelerator.backward(loss)
-    #             if self.accelerator.sync_gradients and self.cfg.train.optim.clip_grad_norm > 0.:
-    #                 self.accelerator.clip_grad_norm_(self.model.parameters(), self.cfg.train.optim.clip_grad_norm)
-    #             self.optimizer.step()
-    #             self.optimizer.zero_grad()
-
-    #             # track local losses
-    #             local_step_losses.append(torch.stack([
-    #                 _loss.detach() if _loss is not None else ms.Tensor(float('nan'), device=self.device)
-    #                 for _loss in [loss, loss_pixel, loss_perceptual, loss_tv]
-    #             ]))
-
-    #         # track global step
-    #         if self.accelerator.sync_gradients:
-    #             profiler.step()
-    #             self.scheduler.step()
-    #             logger.debug(f"======== Scheduler step ========")
-    #             self.global_step += 1
-    #             global_step_loss = self.accelerator.gather(torch.stack(local_step_losses)).mean(dim=0).cpu()
-    #             loss, loss_pixel, loss_perceptual, loss_tv = global_step_loss.unbind()
-    #             loss_kwargs = {
-    #                 'loss': loss.item(),
-    #                 'loss_pixel': loss_pixel.item(),
-    #                 'loss_perceptual': loss_perceptual.item(),
-    #                 'loss_tv': loss_tv.item(),
-    #             }
-    #             self.log_scalar_kwargs(
-    #                 step=self.global_step, split='train',
-    #                 **loss_kwargs
-    #             )
-    #             self.log_optimizer(step=self.global_step, attrs=['lr'], group_ids=[0, 1])
-    #             local_step_losses = []
-    #             global_step_losses.append(global_step_loss)
-
-    #             # manage display
-    #             pbar.update(1)
-    #             description = {
-    #                 **loss_kwargs,
-    #                 'lr': self.optimizer.param_groups[0]['lr'],
-    #             }
-    #             description = '[TRAIN STEP]' + \
-    #                 ', '.join(f'{k}={tqdm.format_num(v)}' for k, v in description.items() if not math.isnan(v))
-    #             pbar.set_description(description)
-
-    #             # periodic actions
-    #             if self.global_step % self.cfg.saver.checkpoint_global_steps == 0:
-    #                 self.save_checkpoint()
-    #             if self.global_step % self.cfg.val.global_step_period == 0:
-    #                 self.evaluate()
-    #                 self.model.train()
-    #             if self.global_step % self.cfg.logger.image_monitor.train_global_steps == 0:
-    #                 self.log_image_monitor(
-    #                     step=self.global_step, split='train',
-    #                     renders=outs['images_rgb'].detach()[:self.cfg.logger.image_monitor.samples_per_log].cpu(),
-    #                     gts=data['render_image'][:self.cfg.logger.image_monitor.samples_per_log].cpu(),
-    #                 )
-
-    #             # progress control
-    #             if self.global_step >= self.N_max_global_steps:
-    #                 self.accelerator.set_trigger()
-    #                 break
-
-    #     # track epoch
-    #     self.current_epoch += 1
-    #     epoch_losses = torch.stack(global_step_losses).mean(dim=0)
-    #     epoch_loss, epoch_loss_pixel, epoch_loss_perceptual, epoch_loss_tv = epoch_losses.unbind()
-    #     epoch_loss_dict = {
-    #         'loss': epoch_loss.item(),
-    #         'loss_pixel': epoch_loss_pixel.item(),
-    #         'loss_perceptual': epoch_loss_perceptual.item(),
-    #         'loss_tv': epoch_loss_tv.item(),
-    #     }
-    #     self.log_scalar_kwargs(
-    #         epoch=self.current_epoch, split='train',
-    #         **epoch_loss_dict,
-    #     )
-    #     logger.info(
-    #         f'[TRAIN EPOCH] {self.current_epoch}/{self.cfg.train.epochs}: ' + \
-    #             ', '.join(f'{k}={tqdm.format_num(v)}' for k, v in epoch_loss_dict.items() if not math.isnan(v))
-    #     )
+   
 
     def train(self, args, cfg):
 
@@ -483,7 +283,7 @@ class LRMTrainer(Trainer):
         )
 
         if args.global_bf16:
-            self.model = Model(net_with_grads, amp_level="O0")
+            self.model = Model(net_with_grads, amp_level="O0") #TODO: metrics={}
         else:
             self.model = Model(net_with_grads)
 
@@ -549,7 +349,7 @@ class LRMTrainer(Trainer):
                 yaml.safe_dump(vars(args), stream=f, default_flow_style=False, sort_keys=False)
             OmegaConf.save(self.cfg, os.path.join(args.output_path, "cfg.yaml"))
 
-        logger.info("using the standard fitting api")
+        logger.info("Using the standard fitting api")
         self.model.fit(
             self.sink_epochs,
             self.train_loader,

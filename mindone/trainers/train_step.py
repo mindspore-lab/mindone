@@ -113,7 +113,8 @@ class TrainOneStepWrapper(nn.TrainOneStepWithLossScaleCell):
             else:
                 status = None
 
-        scaling_sens_filled = C.ones_like(loss) * F.cast(scaling_sens, F.dtype(loss))  # loss scale value
+        # scaling_sens_filled = C.ones_like(loss) * F.cast(scaling_sens, F.dtype(loss))  # loss scale value
+        scaling_sens_filled = ops.cast(scaling_sens, loss.dtype)  # loss scale value
 
         # 1. compute gradients (of the up-scaled loss w.r.t. the model weights)
         grads = self.grad(self.network, weights)(*inputs, scaling_sens_filled)

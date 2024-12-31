@@ -64,9 +64,12 @@ def decompose_extrinsic_RT(E: ms.Tensor):
 
 def camera_normalization_objaverse(normed_dist_to_center, poses: ms.Tensor, ret_transform: bool = False):
     assert normed_dist_to_center is not None
-    pivotal_pose = compose_extrinsic_RT(poses[:1])
-    dist_to_center = pivotal_pose[:, :3, 3].norm(dim=-1, keepdim=True).item() \
-        if normed_dist_to_center == 'auto' else normed_dist_to_center
+    pivotal_pose = compose_extrinsic_RT(poses[:1]) # 1x4x4
+    if normed_dist_to_center == 'auto':
+        dist_to_center = pivotal_pose[:, :3, 3] # 1x3
+        dist_to_center = ops.norm(dist_to_center, dim=-1).item()
+    else:
+        dist_to_center = normed_dist_to_center
 
     # compute camera norm (new version)
     canonical_camera_extrinsics = ms.Tensor([[
@@ -80,7 +83,7 @@ def camera_normalization_objaverse(normed_dist_to_center, poses: ms.Tensor, ret_
 
     # normalize all views
     poses = compose_extrinsic_RT(poses)
-    poses = mint.bmm(camera_norm_matrix.repeat(poses.shape[0], 1, 1), poses)
+    poses = mint.bmm(camera_norm_matrix.tile((poses.shape[0], 1, 1)), poses)
     poses = decompose_extrinsic_RT(poses)
 
     if ret_transform:
