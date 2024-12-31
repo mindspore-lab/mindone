@@ -35,7 +35,7 @@ from mindone.trainers.train_step import TrainOneStepWrapper
 from mindone.utils.amp import auto_mixed_precision
 from mindone.utils.config import instantiate_from_config
 from mindone.utils import init_train_env, set_logger, count_params
-from openlrm.utils import seed_everything
+from openlrm.utils import seed_everything, no_grad
 
 @REGISTRY_RUNNERS.register('train.lrm')
 class LRMTrainer(Trainer):
@@ -111,10 +111,10 @@ class LRMTrainer(Trainer):
 
         lr = create_scheduler(
             steps_per_epoch=dataset_size,
-            name=args.scheduler, # "cosine_annealing_warm_restarts_lr" cfg.train.scheduler.type
-            lr=args.start_learning_rate, #cfg.train.optim.lr,
+            name=args.scheduler, # "cosine_annealing_warm_restarts_lr"
+            lr=args.start_learning_rate,
             end_lr=args.end_learning_rate,
-            warmup_steps= args.warmup_steps, #cfg.scheduler.warmup_real_iters,
+            warmup_steps= args.warmup_steps, 
             decay_steps=args.decay_steps,
             num_epochs=args.epochs,
         )
@@ -122,7 +122,7 @@ class LRMTrainer(Trainer):
         self.optimizer = create_optimizer(
             self.model_with_loss.trainable_params(),
             name=args.optim, # "adamw"
-            betas= args.betas, #(cfg.train.optim.beta1, cfg.train.optim.beta2)
+            betas= args.betas, 
             eps=args.optim_eps,
             group_strategy=args.group_strategy,
             weight_decay=args.weight_decay,
@@ -260,7 +260,6 @@ class LRMTrainer(Trainer):
             start_epoch = 0
             # resume_param = ms.load_checkpoint(config.model.params.lrm_generator_config.openlrm_ckpt)
             # ms.load_param_into_net(lrm_model, resume_param)
-            # logger.info("Use random initialization for lrm, NO ckpt loading")  # NOT converge
 
         ema = (
             EMA(
@@ -278,7 +277,7 @@ class LRMTrainer(Trainer):
             drop_overflow_update=args.drop_overflow_update,
             gradient_accumulation_steps=args.gradient_accumulation_steps,
             clip_grad=args.clip_grad,
-            clip_norm=args.max_grad_norm, # cfg.train.optim.clip_grad_norm
+            clip_norm=args.max_grad_norm, 
             ema=ema,
         )
 
@@ -299,7 +298,7 @@ class LRMTrainer(Trainer):
                 rank_id=self.rank_id,
                 ckpt_save_dir=self.ckpt_dir,
                 ema=ema,
-                ckpt_save_policy="top_k",
+                ckpt_save_policy="latest_k", # top_k error: no self.main_indicator
                 ckpt_max_keep=args.ckpt_max_keep,
                 step_mode=self.step_mode,
                 use_step_unit=(args.ckpt_save_steps != -1),

@@ -43,6 +43,7 @@ def parse_configs():
     parser = argparse.ArgumentParser()
     parser.add_argument('--config', type=str)
     parser.add_argument('--infer', type=str)
+    # parser.add_argument('--eval', type=str)
     args, unknown = parser.parse_known_args()
 
     cfg = OmegaConf.create()
@@ -272,9 +273,6 @@ class LRMInferrer(Inferrer):
                     if file.endswith('.png'):
                         image_paths.append(os.path.join(root, file))
             image_paths.sort()
-
-        # alloc to each DDP worker
-        # image_paths = image_paths[self.accelerator.process_index::self.accelerator.num_processes]
 
         for image_path in tqdm(image_paths):
 

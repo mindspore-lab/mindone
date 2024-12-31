@@ -64,8 +64,8 @@ def parse_args(**parser_kwargs):
         action="store_true",
         help="When debugging, set it true. Dumping files will overlap to avoid trashing your storage.",
     )
-    # args = parser.parse_args()
-    args, unknown = parser.parse_known_args() # may unrecognize runner=train.lrm
+    # args = parser.parse_args() # unrecognize runner=train.lrm
+    args, unknown = parser.parse_known_args() 
     return args
 
 
@@ -129,7 +129,7 @@ def parse_train_args(parser):
     )
     parser.add_argument(
         "--epochs",
-        default=7000,
+        default=100,
         type=int,
         help="epochs. If dataset_sink_mode is on, epochs is with respect to dataset sink size. Otherwise, it's w.r.t the dataset size.",
     )
@@ -175,7 +175,7 @@ def parse_train_args(parser):
         help="Grouping strategy for weight decay. If `norm_and_bias`, weight decay filter list is [beta, gamma, bias]. \
                                 If None, filter list is [layernorm, bias]. Default: norm_and_bias",
     )
-    parser.add_argument("--weight_decay", default=0.01, type=float, help="Weight decay.")
+    parser.add_argument("--weight_decay", default=0.05, type=float, help="Weight decay.")
     parser.add_argument("--seed", default=42, type=int, help="data path")
     parser.add_argument("--warmup_steps", default=0, type=int, help="warmup steps")
     # dataloader param
@@ -183,21 +183,6 @@ def parse_train_args(parser):
     parser.add_argument("--sink_size", default=-1, type=int, help="dataset sink size. If -1, sink size = dataset size.")
 
     return parser
-
-# def parse_configs():
-#     # Define argparse arguments
-#     parser = argparse.ArgumentParser()
-#     parser.add_argument('--config', type=str, default='./assets/config.yaml')
-#     args, unknown = parser.parse_known_args()
-
-#     # Load configuration file
-#     cfg = OmegaConf.load(args.config)
-
-#     # Override with command-line arguments
-#     cli_cfg = OmegaConf.from_cli(unknown)
-#     cfg = OmegaConf.merge(cfg, cli_cfg)
-
-    # return cfg
 
 
 class Trainer(Runner):
