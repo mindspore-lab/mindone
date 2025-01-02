@@ -1,9 +1,8 @@
-# export ASCEND_RT_VISIBLE_DEVICES=7
 # improve data loading performance for distributed training: 1
-export MS_ENABLE_NUMA=0
-# plot memory usage, feature/model: 1
-export MS_MEMORY_STATISTIC=0
-export MS_DATASET_SINK_QUEUE=8
+# export MS_ENABLE_NUMA=1
+
+# plot memory usage and compile info
+# export MS_DEV_RUNTIME_CONF="memory_statistics:True,compile_statistics:True"
 
 # operation/graph fusion for dynamic shape
 export MS_DEV_ENABLE_KERNEL_PACKET=on
@@ -11,16 +10,12 @@ export MS_DEV_ENABLE_KERNEL_PACKET=on
 # log level
 export GLOG_v=2
 
-output_dir=outputs/debug_train_tae_1p_sd3.5vaeInit_noOpl
+output_dir=outputs/train_tae
 
 python scripts/train_tae.py \
---mode=0 \
---jit_level O0 \
---amp_level O0 \
+--config configs/tae/train/mixed_256x256x32.yaml \
 --use_outlier_penalty_loss False \
---dtype fp32 \
---config configs/tae/train/video_ft.yaml \
+--csv_path datasets/ucf101_train.csv  \
+--video_folder datasets/UCF-101 \
 --output_path=$output_dir \
---epochs=2000 --ckpt_save_interval=50 \
-
-# --use_parallel=True \
+--epochs=100 --ckpt_save_interval=5 \

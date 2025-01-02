@@ -5,6 +5,7 @@ from packaging import version
 
 import mindspore as ms
 from mindspore import nn, ops
+from mindspore import mint
 
 _logger = logging.getLogger(__name__)
 
@@ -92,49 +93,6 @@ def rearrange_out_temporal(x, H, W):
     # (b h w c t) -> (b t c h w)
     x = ops.transpose(x, (0, 4, 3, 1, 2))
     return x
-
-
-class TemporalConv1d(nn.Cell):
-    r"""
-    Temporal conv1d with symmetrical replicate padding
-    """
-
-    def __init__(
-        self,
-        in_channels,
-        out_channels,
-        kernel_size,
-        stride=1,
-        # pad_mode="SYMMETRIC",
-        # padding=0,
-        # dilation=1,
-        has_bias=True,
-        **kwargs,
-    ):
-        # assert dilation ==1
-        assert stride == 1, "not supported for stride > 1"
-        # TODO; consider stride
-        self.pad = nn.Pad(paddings=((2, (kernel_size - 1) // 2)), mode="SYMMETRIC")
-        self.conv = nn.Conv1d(
-            in_channels, out_channels, kernel_size=kernel_size, stride=stride, pad_mode="valid", has_bias=True
-        )
-
-    def construct(self, x):
-        r"""
-        Inputs:
-            x: (b c t h w)
-        Outputs:
-            (b c t h w)
-        """
-        _, _, _, H, W = x.shape
-        x = rearrange_in_temporal(x)
-
-        x = self.pad(x)
-        x = self.conv(x)
-
-        x = rearrange_out_temporal(x, H, W)
-
-        return x
 
 
 class Conv2_5d(nn.Cell):
@@ -306,7 +264,7 @@ class SpatialDownsample(nn.Cell):
                 in_channels, in_channels, kernel_size=3, stride=2, pad_mode="valid", padding=0, has_bias=True
             )
 
-            self.pad = nn.Pad(paddings=((0, 0), (0, 0), (0, 1), (0, 1)))
+            # self.pad = nn.Pad(paddings=((0, 0), (0, 0), (0, 1), (0, 1)))
 
     def construct(self, x):
         # x (b c t h w)
@@ -316,7 +274,9 @@ class SpatialDownsample(nn.Cell):
         x = ops.reshape(x, (B * T, C, H, W))
 
         if self.with_conv:
-            x = self.pad(x)
+            # x = self.pad(x)
+            pad = (0, 1, 0, 1, 0, 0, 0, 0)
+            x = mint.nn.functional.pad(x, pad)
             x = self.conv(x)
         else:
             x = ops.AvgPool(kernel_size=2, stride=2)(x)
