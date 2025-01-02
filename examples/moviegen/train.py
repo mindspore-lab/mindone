@@ -184,13 +184,13 @@ def main(args):
             ]
         )
 
-    if shard_rank_id == 0:
+    if args.train.settings.zero_stage == 3 or rank_id == 0:
         callbacks.append(
             EvalSaveCallback(
                 network=latent_diffusion_with_loss.network,
                 model_name=args.model.name,
                 rank_id=rank_id,
-                shard_rank_id=shard_rank_id,
+                shard_rank_id=0 if args.train.settings.zero_stage == 3 else None,  # ZeRO-3 shards across all ranks
                 ckpt_save_dir=os.path.join(args.train.output_path, "ckpt"),
                 ema=ema,
                 step_mode=True,

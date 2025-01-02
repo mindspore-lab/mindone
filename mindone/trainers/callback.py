@@ -76,6 +76,7 @@ class EvalSaveCallback(Callback):
                                      e.g. ('swap.', 'vae.').
         """
         self.rank_id = rank_id
+        self.prefix = f"{shard_rank_id}_" if shard_rank_id is not None else ""
         self.is_main_device = rank_id in [0, None] if shard_rank_id is None else shard_rank_id == 0
         self.ema = ema
         if output_dir is not None:
@@ -86,7 +87,7 @@ class EvalSaveCallback(Callback):
             self.ckpt_save_dir = ckpt_save_dir
         self.ckpt_save_interval = ckpt_save_interval
         self.step_mode = step_mode
-        self.model_name = model_name if shard_rank_id is None else f"{shard_rank_id}_{model_name}"
+        self.model_name = self.prefix + model_name
         if not os.path.exists(ckpt_save_dir):
             os.makedirs(ckpt_save_dir)
 
@@ -193,7 +194,7 @@ class EvalSaveCallback(Callback):
                     # TODO: resume training for step.
                     save_checkpoint(
                         cb_params.train_network,
-                        os.path.join(self.ckpt_save_dir, "train_resume.ckpt"),
+                        os.path.join(self.ckpt_save_dir, self.prefix + "train_resume.ckpt"),
                         choice_func=self.choice_func,
                         append_dict={
                             "epoch_num": cur_epoch,
@@ -293,7 +294,7 @@ class EvalSaveCallback(Callback):
                 if self.save_training_resume:
                     save_checkpoint(
                         cb_params.train_network,
-                        os.path.join(self.ckpt_save_dir, "train_resume.ckpt"),
+                        os.path.join(self.ckpt_save_dir, self.prefix + "train_resume.ckpt"),
                         choice_func=self.choice_func,
                         append_dict={
                             "epoch_num": cur_epoch,
