@@ -8,24 +8,23 @@ import mindspore.mint.nn.functional as F
 import mindspore.nn as nn
 import mindspore.ops as ops
 from mindspore import Parameter, Tensor
+from mindspore.communication import get_group_size
 from mindspore.ops.operations.nn_ops import FlashAttentionScore
 
+from ...acceleration import get_sequence_parallel_group
 from .activation import ACT2FN
 
 
 class LlamaRMSNorm(nn.Cell):
-    def __init__(self, hidden_size: Union[int, Sequence[int]], eps: float = 1e-6, dtype: ms.Type = ms.float32) -> None:
+    def __init__(self, hidden_size: Union[int, Sequence[int]], eps: float = 1e-6):
         super().__init__()
-        self.weight = Parameter(Tensor(np.ones(hidden_size), dtype=dtype))
+        self.weight = Parameter(np.ones(hidden_size).astype(np.float32))  # keep normalization at FP32
         self.variance_epsilon = eps
 
     def construct(self, hidden_states: Tensor) -> Tensor:
         input_dtype = hidden_states.dtype
-        hidden_states = hidden_states.to(ms.float32)
-        variance = mint.pow(hidden_states, 2)
-        variance = mint.mean(variance, dim=-1, keepdim=True)
-        hidden_states = hidden_states * mint.rsqrt(variance + self.variance_epsilon)
-        return self.weight * hidden_states.to(input_dtype)
+        hidden_states, _ = ops.rms_norm(hidden_states.to(ms.float32), self.weight, epsilon=self.variance_epsilon)
+        return hidden_states.to(input_dtype)
 
 
 class LlamaMLP(nn.Cell):
@@ -91,6 +90,11 @@ class LlamaAttention(nn.Cell):
         )
         self.o_proj = mint.nn.Linear(self.num_heads * self.head_dim, self.hidden_size, bias=attention_bias, dtype=dtype)
 
+        if sp_group := get_sequence_parallel_group() is not None:
+            self.alltoall = ops.AlltoAll(get_group_size(sp_group), 1, 2, group=sp_group)
+        else:
+            self.alltoall = nn.Identity()
+
     def construct(self, hidden_states: Tensor, encoder_hidden_states: Optional[Tensor] = None) -> Tensor:
         bsz, q_len, _ = hidden_states.shape
 
@@ -102,12 +106,15 @@ class LlamaAttention(nn.Cell):
 
         query_states = ops.reshape(query_states, (bsz, -1, self.num_heads, self.head_dim))
         query_states = mint.permute(query_states, (0, 2, 1, 3))
+        query_states = self.alltoall(query_states)
 
         key_states = ops.reshape(key_states, (bsz, -1, self.num_key_value_heads, self.head_dim))
         key_states = mint.permute(key_states, (0, 2, 1, 3))
+        key_states = self.alltoall(key_states)
 
         value_states = ops.reshape(value_states, (bsz, -1, self.num_key_value_heads, self.head_dim))
         value_states = mint.permute(value_states, (0, 2, 1, 3))
+        value_states = self.alltoall(value_states)
 
         key_states = repeat_kv(key_states, self.num_key_value_groups)
         value_states = repeat_kv(value_states, self.num_key_value_groups)
@@ -122,6 +129,7 @@ class LlamaAttention(nn.Cell):
         attn_output = mint.matmul(attn_weights, value_states)
 
         attn_output = mint.permute(attn_output, (0, 2, 1, 3))
+        attn_output = self.alltoall(attn_output)
         attn_output = ops.reshape(attn_output, (bsz, q_len, -1))
         attn_output = self.o_proj(attn_output)
 
@@ -146,8 +154,9 @@ class LlamaFlashAttention(LlamaAttention):
             attention_bias=attention_bias,
             dtype=dtype,
         )
+        num_heads = self.num_heads // self.sp_group_size if self.sp_group_size is not None else self.num_heads
         self.flash_attention = FlashAttentionScore(
-            self.num_heads, keep_prob=1 - self.attention_dropout, scale_value=self.head_dim**-0.5, input_layout="BSND"
+            num_heads, keep_prob=1 - self.attention_dropout, scale_value=self.head_dim**-0.5, input_layout="BSND"
         )
 
     def construct(self, hidden_states: Tensor, encoder_hidden_states: Optional[Tensor] = None) -> Tensor:
@@ -161,12 +170,15 @@ class LlamaFlashAttention(LlamaAttention):
 
         query_states = ops.reshape(query_states, (bsz, -1, self.num_heads, self.head_dim))
         query_states = mint.permute(query_states, (0, 2, 1, 3))
+        query_states = self.alltoall(query_states)
 
         key_states = ops.reshape(key_states, (bsz, -1, self.num_key_value_heads, self.head_dim))
         key_states = mint.permute(key_states, (0, 2, 1, 3))
+        key_states = self.alltoall(key_states)
 
         value_states = ops.reshape(value_states, (bsz, -1, self.num_key_value_heads, self.head_dim))
         value_states = mint.permute(value_states, (0, 2, 1, 3))
+        value_states = self.alltoall(value_states)
 
         key_states = repeat_kv(key_states, self.num_key_value_groups)
         value_states = repeat_kv(value_states, self.num_key_value_groups)
@@ -177,6 +189,7 @@ class LlamaFlashAttention(LlamaAttention):
         value_states = mint.permute(value_states, (0, 2, 1, 3))
 
         _, _, _, attn_output = self.flash_attention(query_states, key_states, value_states, None, None, None, None)
+        attn_output = self.alltoall(attn_output)
         attn_output = ops.reshape(attn_output, (bsz, q_len, -1))
         attn_output = self.o_proj(attn_output)
 

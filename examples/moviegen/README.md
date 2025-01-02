@@ -217,6 +217,7 @@ Experiments were conducted on Ascend 910* using MindSpore 2.3.1 in Graph mode.
 
 | Model | Cards |   Stage   |       Batch size        |       Resolution        | Jit level | Compile time |        Recompute        | Gradient Acc | TAE Cache | Time (s/step) |                             Config                             |
 |:-----:|:-----:|:---------:|:-----------------------:|:-----------------------:|:---------:|:------------:|:-----------------------:|:------------:|:---------:|:-------------:|:--------------------------------------------------------------:|
+|  30B  |   8   |  2 (T2V)  |        Video: 1         |       256x256x455       |    O1     |      6m      |           ON            |      1       |    Yes    |     4.08      | [stage2_t2iv_256px.yaml](configs/train/stage2_t2iv_256px.yaml) |
 |  5B   |   8   |  1 (T2I)  |           10            |         256x455         |    O1     |    3m 40s    |           ON            |      1       |    Yes    |     1.29      |  [stage1_t2i_256px.yaml](configs/train/stage1_t2i_256px.yaml)  |
 |  5B   |   8   | 2 (T2I/V) |  Image: 1<br/>Video: 1  | 256x455<br/>256 frames  |    O1     |      6m      | ON<br/>(Every 2 blocks) |      5       |    Yes    |     5.09      | [stage2_t2iv_256px.yaml](configs/train/stage2_t2iv_256px.yaml) |
 |  5B   |   8   | 3 (T2I/V) |  Image: 1<br/>Video: 1  | 576x1024<br/>256 frames |    O1     |    7m 30s    |           ON            |      5       |    Yes    |     88.5      | [stage3_t2iv_768px.yaml](configs/train/stage3_t2iv_768px.yaml) |
