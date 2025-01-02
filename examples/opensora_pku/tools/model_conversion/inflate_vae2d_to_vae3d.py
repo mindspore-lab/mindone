@@ -11,6 +11,7 @@ from opensora.models.causalvideovae.model.causal_vae.modeling_causalvae import C
 from opensora.utils.ms_utils import init_env
 
 import mindspore as ms
+from mindspore import mint
 
 
 def inflate(args):
@@ -64,7 +65,7 @@ def inflate(args):
                 print(key_2d, shape_3d, shape_2d)
             if len(shape_3d) > len(shape_2d):
                 w = vae2d_sd[key_2d]
-                new_w = ms.ops.zeros(shape_3d, dtype=w.dtype)
+                new_w = mint.zeros(shape_3d, dtype=w.dtype)
                 # tail initialization
                 new_w[:, :, -1, :, :] = w  # cin, cout, t, h, w
 

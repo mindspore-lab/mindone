@@ -1,5 +1,5 @@
 import mindspore as ms
-from mindspore import nn, ops
+from mindspore import mint, nn, ops
 
 # ----------------------------------------------------------
 # RoPE2D: RoPE implementation in 2D
@@ -26,7 +26,7 @@ except ImportError:
                 t = ops.arange(0, seq_len, dtype=inv_freq.dtype)
                 # freqs = torch.einsum("i,j->ij", t, inv_freq).to(dtype)
                 freqs = ops.outer(t, inv_freq).to(dtype)
-                freqs = ops.cat((freqs, freqs), axis=-1)
+                freqs = mint.cat((freqs, freqs), dim=-1)
                 cos = freqs.cos()  # (Seq, Dim)
                 sin = freqs.sin()
                 self.cache[D, seq_len, dtype] = (cos, sin)
@@ -35,7 +35,7 @@ except ImportError:
         @staticmethod
         def rotate_half(x):
             x1, x2 = x[..., : x.shape[-1] // 2], x[..., x.shape[-1] // 2 :]
-            return ops.cat((-x2, x1), axis=-1)
+            return mint.cat((-x2, x1), dim=-1)
 
         def apply_rope1d(self, tokens, pos1d, cos, sin):
             assert pos1d.ndim == 2
@@ -60,7 +60,7 @@ except ImportError:
             y, x = tokens.chunk(2, axis=-1)
             y = self.apply_rope1d(y, positions[:, :, 0], cos, sin)
             x = self.apply_rope1d(x, positions[:, :, 1], cos, sin)
-            tokens = ops.cat((y, x), axis=-1)
+            tokens = mint.cat((y, x), dim=-1)
             return tokens
 
 
@@ -97,7 +97,7 @@ except ImportError:
                 t = ops.arange(0, seq_len, dtype=inv_freq.dtype)
                 # freqs = torch.einsum("i,j->ij", t, inv_freq).to(dtype)
                 freqs = ops.outer(t, inv_freq).to(dtype)
-                freqs = ops.cat((freqs, freqs), axis=-1)
+                freqs = mint.cat((freqs, freqs), dim=-1)
                 cos = freqs.cos()  # (Seq, Dim)
                 sin = freqs.sin()
                 self.cache[D, seq_len, dtype] = (cos, sin)
@@ -106,7 +106,7 @@ except ImportError:
         @staticmethod
         def rotate_half(x):
             x1, x2 = x[..., : x.shape[-1] // 2], x[..., x.shape[-1] // 2 :]
-            return ops.cat((-x2, x1), axis=-1)
+            return mint.cat((-x2, x1), dim=-1)
 
         def apply_rope1d(self, tokens, pos1d, cos, sin):
             assert pos1d.ndim == 2
