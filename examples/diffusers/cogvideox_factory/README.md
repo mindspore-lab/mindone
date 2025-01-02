@@ -243,9 +243,6 @@ DTYPE=bf16
 
 ### 功能限制
 
-> [!WARNING]
-> 在当前的软件版本下，动态图训练存在缓慢的内存泄漏，较长步数训练情况下会导致显存占用异常进而产生OOM Error。因此当前版本并不推荐动态图训练。
-
 当前训练脚本并不完全支持原仓代码的所有训练参数，详情参见[`args.py`](./training/args.py)中的`check_args()`。
 
 其中一个主要的限制来自于CogVideoX模型中的[3D Causual VAE不支持静态图](https://gist.github.com/townwish4git/b6cd0d213b396eaedfb69b3abcd742da)，这导致我们**不支持静态图模式下VAE参与训练**，因此在静态图模式下必须提前进行数据预处理以获取VAE-latents/text-encoder-embeddings cache。
