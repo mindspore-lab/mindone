@@ -22,9 +22,12 @@ from transformers import CLIPTextConfig
 
 import mindspore as ms
 
+from mindone.diffusers.utils.testing_utils import load_downloaded_numpy_from_hf_hub, slow
+
 from ..pipeline_test_utils import (
     THRESHOLD_FP16,
     THRESHOLD_FP32,
+    THRESHOLD_PIXEL,
     PipelineTesterMixin,
     get_module,
     get_pipeline_components,
@@ -162,4 +165,40 @@ class LDMTextToImagePipelineFastTests(PipelineTesterMixin, unittest.TestCase):
         ms_image_slice = ms_image[0][0, -3:, -3:, -1]
 
         threshold = THRESHOLD_FP32 if dtype == "float32" else THRESHOLD_FP16
-        assert np.max(np.linalg.norm(pt_image_slice - ms_image_slice) / np.linalg.norm(pt_image_slice)) < threshold
+        assert np.linalg.norm(pt_image_slice - ms_image_slice) / np.linalg.norm(pt_image_slice) < threshold
+
+
+@slow
+@ddt
+class LDMTextToImagePipelineNightlyTests(PipelineTesterMixin, unittest.TestCase):
+    def get_inputs(self):
+        inputs = {
+            "prompt": "A painting of a squirrel eating a burger",
+            "num_inference_steps": 50,
+            "guidance_scale": 6.0,
+        }
+        return inputs
+
+    @data(*test_cases)
+    @unpack
+    def test_ldm_default_ddim(self, mode, dtype):
+        ms.set_context(mode=mode)
+        ms_dtype = getattr(ms, dtype)
+
+        pipe_cls = get_module("mindone.diffusers.pipelines.latent_diffusion.LDMTextToImagePipeline")
+        pipe = pipe_cls.from_pretrained(
+            "CompVis/ldm-text2im-large-256", revision="refs/pr/10", mindspore_dtype=ms_dtype
+        )
+        pipe.set_progress_bar_config(disable=None)
+
+        inputs = self.get_inputs()
+
+        torch.manual_seed(0)
+        image = pipe(**inputs)[0][0]
+
+        expected_image = load_downloaded_numpy_from_hf_hub(
+            "The-truth/mindone-testing-arrays",
+            f"ldm_ddim_{dtype}.npy",
+            subfolder="latent_diffusion",
+        )
+        assert np.mean(np.abs(np.array(image, dtype=np.float32) - expected_image)) < THRESHOLD_PIXEL
