@@ -4,8 +4,7 @@ import numpy as np
 from packaging import version
 
 import mindspore as ms
-from mindspore import nn, ops
-from mindspore import mint
+from mindspore import mint, nn, ops
 
 _logger = logging.getLogger(__name__)
 
