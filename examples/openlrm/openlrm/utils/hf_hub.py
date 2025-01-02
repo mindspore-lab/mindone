@@ -51,14 +51,22 @@ def wrap_model_hub(model_cls: nn.Cell):
         ):
             use_safetensors = model_kwargs.pop("use_safetensors", None)
             mindspore_dtype = model_kwargs.pop("mindspore_dtype", None)
+            ckpt_name = model_kwargs.pop("ckpt_name", None) # higher priority
 
             """Load pretrained weights and return the loaded model."""
             model = cls(**model_kwargs)
-            # if model_id.endswith(".ckpt"):  # if convereted to a local ms.ckpt
-            #     state_dict = ms.load_checkpoint(model_id)
-            if os.path.isdir(model_id) and use_safetensors: # if single safetensors
-                print("Loading weights from local directory")
+            if os.path.isdir(model_id) and (
+                os.path.isfile(os.path.join(model_id, "ckpt", "train_resume.ckpt")) or (ckpt_name is not None and (os.path.isfile(os.path.join(model_id, "ckpt", ckpt_name))))
+                ):  # if trained checkpoint, and saved as a local ms.ckpt
+                if ckpt_name is not None:
+                    model_file = os.path.join(model_id, "ckpt", ckpt_name)
+                else:
+                    model_file = os.path.join(model_id, "ckpt", "train_resume.ckpt")
+                print("Loading weights from local pretrained directory: {model_file}")
+                state_dict = ms.load_checkpoint(model_file)
+            elif os.path.isdir(model_id) and use_safetensors: # if single safetensors
                 model_file = os.path.join(model_id, constants.SAFETENSORS_SINGLE_FILE) # "model.safetensors"
+                print("Loading weights from local directory: {model_file}")
                 state_dict = load_file(model_file)
                 
             else:
@@ -97,8 +105,10 @@ def wrap_model_hub(model_cls: nn.Cell):
             state_dict_tmp = {}
             for k, v in state_dict.items():
                 if ('norm' in k) and ('mlp' not in k): # for LayerNorm but not ModLN's mlp
-                    state_dict_tmp[k.replace(".weight", ".gamma").replace(".bias", ".beta")]=v
-                else:
+                    k = k.replace(".weight", ".gamma").replace(".bias", ".beta")
+                if ('lrm_generator.' in k): # training model name
+                    k = k.replace("lrm_generator.", "")
+                if ('adam_' not in k): # not to load optimizer
                     state_dict_tmp[k]=v
             state_dict = state_dict_tmp
             loaded_keys = list(state_dict.keys())

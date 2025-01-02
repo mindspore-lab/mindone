@@ -1,4 +1,4 @@
-# Example usage
+# Example usage to load official HF released checkpoints
 EXPORT_VIDEO=true
 EXPORT_MESH=true
 INFER_CONFIG="./configs/infer-b.yaml"

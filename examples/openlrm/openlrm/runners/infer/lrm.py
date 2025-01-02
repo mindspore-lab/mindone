@@ -43,7 +43,6 @@ def parse_configs():
     parser = argparse.ArgumentParser()
     parser.add_argument('--config', type=str)
     parser.add_argument('--infer', type=str)
-    # parser.add_argument('--eval', type=str)
     args, unknown = parser.parse_known_args()
 
     cfg = OmegaConf.create()
@@ -68,6 +67,8 @@ def parse_configs():
         cfg.merge_with(cfg_infer)
         if os.path.isdir(cli_cfg.model_name):
             model_path_name = cli_cfg.model_name.replace(os.path.dirname(cli_cfg.model_name), "").replace("/", "")
+            if cli_cfg.epoch is not None:
+                model_path_name = model_path_name + "-e" + str(cli_cfg.epoch)
             cfg.setdefault('video_dump', os.path.join("dumps", model_path_name, 'videos'))
             cfg.setdefault('mesh_dump', os.path.join("dumps", model_path_name, 'meshes'))
         else:
@@ -132,7 +133,10 @@ class LRMInferrer(Inferrer):
     def _build_model(self, cfg):
         from openlrm.models import model_dict
         hf_model_cls = wrap_model_hub(model_dict[self.EXP_TYPE])
-        model = hf_model_cls.from_pretrained(cfg.model_name, use_safetensors=True)
+        ckpt_name = None
+        if cfg.model_ckpt is not None:
+            ckpt_name = cfg.model_ckpt
+        model = hf_model_cls.from_pretrained(cfg.model_name, use_safetensors=True, ckpt_name=ckpt_name)
         return model
 
     def _default_source_camera(self, dist_to_center: float = 2.0, batch_size: int = 1):
@@ -208,6 +212,9 @@ class LRMInferrer(Inferrer):
         )
         
         vtx, faces = mcubes.marching_cubes(grid_out['sigma'].squeeze(0).squeeze(-1).float().asnumpy(), mesh_thres)
+        if len(list(vtx)) == 0:
+            print("No vertex/face can be inferred. Failed to generate mesh.")
+            return
         vtx = vtx / (mesh_size - 1) * 2 - 1
 
         vtx_tensor = ms.Tensor(vtx, dtype=ms.float32).unsqueeze(0)
