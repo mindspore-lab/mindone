@@ -1,6 +1,6 @@
 # Movie Gen Video based on MindSpore
 
-This project is built on the [Movie Gen](https://arxiv.org/abs/2410.13720) paper by Meta for video generation, personalization, and editing. We aim to explore an efficient implementation  based on MindSpore and Ascend NPUs.
+This project is built on the [Movie Gen](https://arxiv.org/abs/2410.13720) paper by Meta for video generation, personalization, and editing. We aim to explore an efficient implementation  based on MindSpore and Ascend NPUs. See our [report](docs/report.md) for more details.
 
 ## 📑 Development Plan
 
