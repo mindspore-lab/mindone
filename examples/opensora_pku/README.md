@@ -227,7 +227,7 @@ See more examples of multi-device inference scripts under `scripts/text_condifio
 
 ### Prompt Refiner Inference
 
-If you want to run T2V inference with caption refiner, you should attach to following argument to the T2V inference command above:
+If you want to run T2V inference with caption refiner, you should attach following argument to the T2V inference command above:
 ```
   --caption_refiner "LanguageBind/Open-Sora-Plan-v1.3.0/prompt_refiner/"
 ```
@@ -502,7 +502,7 @@ See `train_t2v_stage2.sh` under `scripts/text_condition/mult-devices/` for detai
 
 #### Performance
 
-We evaluated the training performance on Ascend NPUs. All experiments are running in PYNATIVE mode. The results are as follows.
+We evaluated the training performance on Ascend NPUs. All experiments are running in PYNATIVE mode with MindSpore(2.3.1). The results are as follows.
 
 | model name      | cards       |  stage     | batch size (global)   | video size  | Paramllelism |recompute |data sink | jit level| step time | train imgs/s |
 |:----------------|:----------- |:---------:|:-----:|:----------:|:----------:|:----------:|:----------:|:----------:|-------------------:|:----------:|
@@ -513,6 +513,8 @@ We evaluated the training performance on Ascend NPUs. All experiments are runnin
 > SP: sequence parallelism.
 
 > *: dynamic resolution using bucket sampler. The step time may vary across different batches due to the varied resolutions.
+
+> train imgs/s: it is computed by $num\quad of\quad frames \times global\quad batch\quad size \div per\quad step\quad time$
 
 ## 👍 Acknowledgement
 * [Latte](https://github.com/Vchitect/Latte): The **main codebase** we built upon and it is an wonderful video generated model.
