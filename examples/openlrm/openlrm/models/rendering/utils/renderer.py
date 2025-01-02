@@ -238,17 +238,17 @@ class ImportanceRenderer(nn.Cell):
                                     depth_resolution,
                                     ).reshape(1, 1, depth_resolution, 1).tile((N, M, 1, 1))
             depth_delta = 1/(depth_resolution - 1)
-            depths_coarse = depths_coarse + mint.rand_like(depths_coarse) * depth_delta
+            depths_coarse = depths_coarse + ops.rand_like(depths_coarse) * depth_delta
             depths_coarse = 1./(1./ray_start * (1. - depths_coarse) + 1./ray_end * depths_coarse)
         else:
             if isinstance(ray_start, ms.Tensor):
                 depths_coarse = math_utils.linspace(ray_start, ray_end, depth_resolution).permute((1,2,0,3))
                 depth_delta = (ray_end - ray_start) / (depth_resolution - 1)
-                depths_coarse = depths_coarse + mint.rand_like(depths_coarse) * depth_delta[..., None]
+                depths_coarse = depths_coarse + ops.rand_like(depths_coarse) * depth_delta[..., None]
             else:
                 depths_coarse = ops.linspace(ray_start, ray_end, depth_resolution).reshape(1, 1, depth_resolution, 1).tile((N, M, 1, 1))
                 depth_delta = (ray_end - ray_start)/(depth_resolution - 1)
-                depths_coarse = depths_coarse + mint.rand_like(depths_coarse) * depth_delta
+                depths_coarse = depths_coarse + ops.rand_like(depths_coarse) * depth_delta
 
         return depths_coarse
 

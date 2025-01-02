@@ -35,7 +35,7 @@ dataset:
         region: 64
     normalize_camera: true
     normed_dist_to_center: auto
-    num_train_workers: 4
+    num_train_workers: 8
     num_val_workers: 2
     pin_mem: true
 
@@ -55,7 +55,7 @@ train:
     scheduler:
         # type: cosine_annealing_warm_restarts_lr # args.scheduler
         # warmup_real_iters: 300  # args.warmup_steps
-    batch_size: 1 # 16  # REPLACE THIS (PER GPU)
+    batch_size: 1 # REPLACE THIS 
     accum_steps: 1  # REPLACE THIS
     epochs: 10000 # 60  # REPLACE THIS
     debug_global_steps: null

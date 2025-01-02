@@ -10,6 +10,7 @@ import logging
 import math
 
 import yaml
+import json
 
 import mindspore as ms
 from mindspore import Model, nn
@@ -48,7 +49,8 @@ class LRMTrainer(Trainer):
         elif not self.args.debug:
             self.args.output_path = os.path.join(self.args.output_path, time_str)
         else:
-            print("make sure you are debugging now, as no ckpt will be saved.")
+            print("Make sure you are debugging now, as previous checkpoints will be overwritten and training could be slow.")
+        print(f"Checkpoints and configs will be stored in {self.args.output_path}.")
 
         # 1. env init
         did, self.rank_id, self.device_num = init_train_env(
@@ -59,13 +61,12 @@ class LRMTrainer(Trainer):
             max_device_memory=self.args.max_device_memory,
             debug=self.args.debug,
             )
-        seed_everything(self.cfg.experiment.seed)
+        seed_everything(self.args.seed)
         set_logger(name="", output_dir=self.args.output_path, rank=self.rank_id, log_level=eval(self.args.log_level))
 
         self.ckpt_dir = os.path.join(self.args.output_path, "ckpt")
 
         # 2. build model
-        # self.cfg.model.dtype = self.args.dtype
         self.model_with_loss = self._build_model(self.cfg)
 
         # 3. create dataset
@@ -74,9 +75,6 @@ class LRMTrainer(Trainer):
         # 4. build optimizer, scheduler, trainer, etc 
         dataset_size = self.train_loader.get_dataset_size()
         self._build_utils(self.args, self.cfg, dataset_size)
-
-        # self.scheduler = self._build_scheduler(self.optimizer, self.cfg)
-        # self.pixel_loss_fn, self.perceptual_loss_fn, self.tv_loss_fn = self._build_loss_fn(self.cfg)
 
     # Model initialization
     def _build_model(self, cfg):
@@ -180,7 +178,7 @@ class LRMTrainer(Trainer):
             num_workers=cfg.dataset.num_train_workers,
             python_multiprocessing=args.data_multiprocessing,
             max_rowsize=args.max_rowsize,
-            debug=False,  # ms240_sept4: THIS CANNOT BE TRUE, OTHERWISE loader error
+            debug=True,  # ms213, if False, training would get stuck
         )
         val_loader = None
         # val_loader = create_dataloader(
@@ -248,11 +246,11 @@ class LRMTrainer(Trainer):
         # weight loading: load checkpoint when resume
         lrm_model = self.model_with_loss.lrm_generator
         if args.resume:
-            logger.info(f"Loading latest.ckpt in {args.resume} to resume training")
-            resume_ckpt = os.path.join(args.resume, "latest.ckpt")
+            logger.info(f"Loading train_resume.ckpt in {args.resume} to resume training")
+            resume_ckpt = os.path.join(args.resume, "ckpt", "train_resume.ckpt")
             start_epoch, loss_scale, cur_iter, last_overflow_iter = resume_train_network(
                 lrm_model, self.optimizer, resume_ckpt
-            )  
+            )  # NOTE: if total training steps is different from original resume checkpoint, optimizer has different shape and encounter error.
             self.loss_scaler.loss_scale_value = loss_scale
             self.loss_scaler.cur_iter = cur_iter
             self.loss_scaler.last_overflow_iter = last_overflow_iter
@@ -298,7 +296,7 @@ class LRMTrainer(Trainer):
                 rank_id=self.rank_id,
                 ckpt_save_dir=self.ckpt_dir,
                 ema=ema,
-                ckpt_save_policy="latest_k", # top_k error: no self.main_indicator
+                ckpt_save_policy="top_k", # top_k error after training: no self.main_indicator
                 ckpt_max_keep=args.ckpt_max_keep,
                 step_mode=self.step_mode,
                 use_step_unit=(args.ckpt_save_steps != -1),
@@ -347,6 +345,9 @@ class LRMTrainer(Trainer):
             with open(os.path.join(args.output_path, "args.yaml"), "w") as f:
                 yaml.safe_dump(vars(args), stream=f, default_flow_style=False, sort_keys=False)
             OmegaConf.save(self.cfg, os.path.join(args.output_path, "cfg.yaml"))
+            with open(os.path.join(args.output_path, "config.json"), "w") as f:
+                json.dump(dict(self.cfg.model), f, indent=4)
+                # save in same format as released checkpoints, for later inference
 
         logger.info("Using the standard fitting api")
         self.model.fit(

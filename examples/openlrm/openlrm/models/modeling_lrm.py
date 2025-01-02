@@ -153,10 +153,10 @@ class ModelLRM(nn.Cell):
         N = image.shape[0]
 
         # encode image
-        with no_grad(): # fix encoder
+        with no_grad(): # TODO: now fix encoder, mey try to train encoder later with Modulated Dinov2
             image_feats = self.encoder(image)
-            assert image_feats.shape[-1] == self.encoder_feat_dim, \
-                f"Feature dimension mismatch: {image_feats.shape[-1]} vs {self.encoder_feat_dim}"
+        assert image_feats.shape[-1] == self.encoder_feat_dim, \
+            f"Feature dimension mismatch: {image_feats.shape[-1]} vs {self.encoder_feat_dim}"
 
         # embed camera
         camera_embeddings = self.camera_embedder(camera)
@@ -197,7 +197,7 @@ class ModelLRM(nn.Cell):
             **render_results, #'images_rgb', 'images_depth', 'images_weight'
         }
     
-    def construct_train(self, image, source_camera, render_cameras, render_anchors, render_resolutions, render_bg_colors, render_region_size: int):
+    def construct_train(self, image, source_camera, render_cameras, render_anchors, render_resolutions, render_bg_colors, render_region_size):
         # image: [N, C_img, H_img, W_img]
         # source_camera: [N, D_cam_raw]
         # render_cameras: [N, M, D_cam_render]
@@ -218,7 +218,7 @@ class ModelLRM(nn.Cell):
         assert render_results['images_rgb'].shape[0] == N, "Batch size mismatch for render_results"
         assert render_results['images_rgb'].shape[1] == M, "Number of rendered views should be consistent with render_cameras"
 
-        return {
+        return (
             planes,
             render_results['images_rgb']
-        }
+        )

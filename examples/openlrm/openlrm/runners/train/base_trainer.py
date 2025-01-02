@@ -96,7 +96,7 @@ def parse_train_args(parser):
         help="mindspore amp level, O1: most fp32, only layers in whitelist compute in fp16 (dense, conv, etc); \
                         O2: most fp16, only layers in blacklist compute in fp32 (batch norm etc)",
     )
-    parser.add_argument("--ckpt_save_interval", default=1, type=int, help="save checkpoint every this epochs")
+    parser.add_argument("--ckpt_save_interval", default=1000, type=int, help="save checkpoint every this epochs")
     parser.add_argument(
         "--profile",
         default=False,  # deactivate as profiler says NOT supporting PyNative
@@ -109,7 +109,7 @@ def parse_train_args(parser):
     parser.add_argument("--init_loss_scale", default=65536, type=float, help="loss scale")
     parser.add_argument("--loss_scale_factor", default=2, type=float, help="loss scale factor")
     parser.add_argument("--scale_window", default=1000, type=float, help="scale window")
-    parser.add_argument("--ckpt_max_keep", default=5, type=int, help="Maximum number of checkpoints to keep")
+    parser.add_argument("--ckpt_max_keep", default=100, type=int, help="Maximum number of checkpoints to keep")
     parser.add_argument("--output_path", default="outputs/", type=str, help="output directory to save training results")
     parser.add_argument(
         "--log_level",
@@ -129,7 +129,7 @@ def parse_train_args(parser):
     )
     parser.add_argument(
         "--epochs",
-        default=100,
+        default=100000,
         type=int,
         help="epochs. If dataset_sink_mode is on, epochs is with respect to dataset sink size. Otherwise, it's w.r.t the dataset size.",
     )
@@ -154,8 +154,8 @@ def parse_train_args(parser):
     parser.add_argument("--start_learning_rate", default=4e-4, type=float, help="The initial learning rate for Adam.")
     parser.add_argument("--end_learning_rate", default=4e-5, type=float, help="The end learning rate for Adam.")
     parser.add_argument(
-        "--decay_steps", default=9e3, type=int, help="lr decay steps."
-    )  
+        "--decay_steps", default=5e4, type=int, help="lr decay steps."
+    )  # 5 data * epochs
     parser.add_argument("--scheduler", default="cosine_annealing_warm_restarts_lr", type=str, help="scheduler.")
     parser.add_argument("--optim", default="adamw", type=str, help="optimizer")
     parser.add_argument(
@@ -189,10 +189,6 @@ class Trainer(Runner):
 
     def __init__(self):
         super().__init__()
-        
-        logger.debug("process id:", os.getpid())
-
-        
         # read configs 
         self.args = parse_args()
         self.cfg = OmegaConf.load(self.args.config)
