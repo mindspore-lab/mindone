@@ -41,9 +41,7 @@ def initialize_dataset(
         dataset.train_transforms(dataset_args.target_size) if not dataset_args.apply_transforms_dataset else None
     )
 
-    logger.info(
-        f"Initializing the dataloader: assigning shard ID `{shard_rank_id}` out of `{device_num}` total shards."
-    )
+    logger.info(f"Initializing the dataloader: assigning shard ID {shard_rank_id} out of {device_num} total shards.")
     dataloader_args = dataloader_args.as_dict()
     batch_size = dataloader_args.pop("batch_size")
     dataloader = create_dataloader(
@@ -186,26 +184,29 @@ def main(args):
             ]
         )
 
+    if shard_rank_id == 0:
+        callbacks.append(
+            EvalSaveCallback(
+                network=latent_diffusion_with_loss.network,
+                model_name=args.model.name,
+                rank_id=rank_id,
+                shard_rank_id=shard_rank_id,
+                ckpt_save_dir=os.path.join(args.train.output_path, "ckpt"),
+                ema=ema,
+                step_mode=True,
+                use_step_unit=True,
+                start_epoch=start_epoch,
+                resume_prefix_blacklist=("tae.", "swap."),
+                train_steps=args.train.steps,
+                **args.train.save,
+            )
+        )
+
     if rank_id == 0:
-        callbacks.extend(
-            [
-                EvalSaveCallback(
-                    network=latent_diffusion_with_loss.network,
-                    model_name=args.model.name,
-                    rank_id=rank_id,
-                    ckpt_save_dir=os.path.join(args.train.output_path, "ckpt"),
-                    ema=ema,
-                    step_mode=True,
-                    use_step_unit=True,
-                    start_epoch=start_epoch,
-                    resume_prefix_blacklist=("tae.", "swap."),
-                    train_steps=args.train.steps,
-                    **args.train.save,
-                ),
-                PerfRecorderCallback(
-                    args.train.output_path, file_name="result_val.log", metric_names=["eval_loss", "eval_loss_smoothed"]
-                ),
-            ]
+        callbacks.append(
+            PerfRecorderCallback(
+                args.train.output_path, file_name="result_val.log", metric_names=["eval_loss", "eval_loss_smoothed"]
+            )
         )
 
     callbacks.append(StopAtStepCallback(train_steps=args.train.steps, global_step=global_step))
@@ -309,6 +310,7 @@ if __name__ == "__main__":
         skip={
             "network",
             "rank_id",
+            "shard_rank_id",
             "ckpt_save_dir",
             "output_dir",
             "ema",

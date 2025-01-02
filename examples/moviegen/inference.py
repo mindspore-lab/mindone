@@ -33,7 +33,7 @@ Path_dr = path_type("dr", docstring="path to a directory that exists and is read
 
 
 def prepare_captions(
-    ul2_dir: Path_dr, metaclip_dir: Path_dr, byt5_dir: Path_dr, rank_id: int, device_num: int
+    ul2_dir: Path_dr, metaclip_dir: Path_dr, byt5_dir: Path_dr, rank_id: int, device_num: int, enable_sp: bool = False
 ) -> Tuple[List[str], List[str], List[str]]:
     ul2_emb = sorted(glob.glob(os.path.join(ul2_dir, "*.npz")))
     metaclip_emb = sorted(glob.glob(os.path.join(metaclip_dir, "*.npz")))
@@ -43,9 +43,13 @@ def prepare_captions(
             f"ul2_dir ({len(ul2_emb)}), metaclip_dir ({len(metaclip_emb)}),"
             f" and byt5_dir ({len(byt5_emb)}) must contain the same number of files"
         )
-    ul2_emb = ul2_emb[rank_id::device_num]
-    logger.info(f"Number of captions for rank {rank_id}: {len(ul2_emb)}")
-    return ul2_emb, metaclip_emb[rank_id::device_num], byt5_emb[rank_id::device_num]
+    if enable_sp:
+        logger.info(f"Sequence parallel is enabled, loading all captions to all ranks: {len(ul2_emb)} captions")
+        return ul2_emb, metaclip_emb, byt5_emb
+    else:
+        ul2_emb = ul2_emb[rank_id::device_num]
+        logger.info(f"Number of captions for rank {rank_id}: {len(ul2_emb)}")
+        return ul2_emb, metaclip_emb[rank_id::device_num], byt5_emb[rank_id::device_num]
 
 
 def main(args):
@@ -68,7 +72,9 @@ def main(args):
         set_sequence_parallel_group(GlobalComm.WORLD_COMM_GROUP)
 
     # 1.1 read caption embeddings
-    ul2_emb, metaclip_emb, byt5_emb = prepare_captions(**args.text_emb, rank_id=rank_id, device_num=device_num)
+    ul2_emb, metaclip_emb, byt5_emb = prepare_captions(
+        **args.text_emb, rank_id=rank_id, device_num=device_num, enable_sp=args.enable_sequence_parallel
+    )
 
     # 2. model initiate and weight loading
     # 2.1 tae
@@ -191,7 +197,7 @@ if __name__ == "__main__":
     infer_group.add_argument("--image_size", type=int, nargs="+", help="Output video size")
     infer_group.add_argument("--num_frames", type=int, default=16, help="number of frames")
     infer_group.add_argument("--fps", type=int, default=16, help="FPS in the saved video")
-    infer_group.add_function_arguments(prepare_captions, "text_emb", skip={"rank_id", "device_num"})
+    infer_group.add_function_arguments(prepare_captions, "text_emb", skip={"rank_id", "device_num", "enable_sp"})
     infer_group.add_argument("--batch_size", type=int, default=1)
     infer_group.add_argument("--enable_sequence_parallel", type=bool, default=False, help="enable sequence parallel.")
     save_group = parser.add_argument_group("Saving options")

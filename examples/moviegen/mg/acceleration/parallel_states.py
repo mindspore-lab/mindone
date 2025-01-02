@@ -18,13 +18,13 @@ def get_sequence_parallel_group() -> Optional[str]:
 def create_parallel_group(shards: int) -> None:
     if shards <= 1:
         raise ValueError(
-            f"The number of sequence parallel shards must be larger than 1 to enable sequence parallel, but get `{shards}`."
+            f"The number of sequence parallel shards must be larger than 1 to enable sequence parallel, but got {shards}."
         )
 
     device_num = get_group_size()
     if device_num % shards != 0:
         raise ValueError(
-            f"Total number of devices `{device_num}` must be divisible by the number of sequence parallel shards `{shards}`."
+            f"Total number of devices ({device_num}) must be divisible by the number of sequence parallel shards ({shards})."
         )
 
     rank_id = get_rank()

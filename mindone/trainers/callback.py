@@ -1,13 +1,14 @@
 import logging
 import os
 import time
-from typing import List, Optional, Tuple, Union
+from typing import List, Literal, Optional, Tuple, Union
 
-import mindspore as ms
+from mindspore import Profiler, Tensor, nn, save_checkpoint
 from mindspore.communication import get_rank
 from mindspore.train.callback._callback import Callback, _handle_loss
 
 from .checkpoint import CheckpointManager
+from .ema import EMA
 from .recorder import PerfRecorder
 
 _logger = logging.getLogger("")
@@ -23,7 +24,7 @@ def get_real_rank():
         return int(os.getenv("RANK_ID", "0"))
 
 
-class OverflowMonitor(ms.Callback):
+class OverflowMonitor(Callback):
     def on_train_step_end(self, run_context):
         cb_params = run_context.original_args()
         cur_epoch_num = cb_params.get("cur_epoch_num", 1)
@@ -38,32 +39,33 @@ class OverflowMonitor(ms.Callback):
 class EvalSaveCallback(Callback):
     def __init__(
         self,
-        network,
-        use_lora=False,
-        rank_id=0,
-        ckpt_save_dir="./",
-        output_dir=None,
-        ema=None,
-        save_ema_only=True,
-        ckpt_save_policy="latest_k",
+        network: nn.Cell,
+        use_lora: bool = False,
+        rank_id: int = 0,
+        shard_rank_id: Optional[int] = None,
+        ckpt_save_dir: str = "./",
+        output_dir: str = None,
+        ema: EMA = None,
+        save_ema_only: bool = True,
+        ckpt_save_policy: Literal["top_k", "latest_k", None] = "latest_k",
         monitor_metric: Optional[str] = None,
-        ckpt_max_keep=10,
-        step_mode=False,
-        ckpt_save_interval=1,
-        use_step_unit=False,
-        data_sink_mode=True,
-        lora_rank=None,
-        log_interval=1,
-        start_epoch=0,
-        record_lr=True,
-        model_name="sd",
+        ckpt_max_keep: int = 10,
+        step_mode: bool = False,
+        ckpt_save_interval: int = 1,
+        use_step_unit: bool = False,
+        data_sink_mode: bool = True,
+        lora_rank: Optional[int] = None,
+        log_interval: int = 1,
+        start_epoch: int = 0,
+        record_lr: bool = True,
+        model_name: str = "sd",
         save_trainable_only: bool = False,
         param_save_filter: List[str] = None,
         resume_prefix_blacklist: Optional[Union[str, Tuple[str, ...]]] = None,
-        integrated_save=False,
-        save_training_resume=True,
-        train_steps=-1,
-        prefer_low_perf=False,
+        integrated_save: bool = False,
+        save_training_resume: bool = True,
+        train_steps: int = -1,
+        prefer_low_perf: bool = False,
     ):
         """
         Args:
@@ -74,7 +76,7 @@ class EvalSaveCallback(Callback):
                                      e.g. ('swap.', 'vae.').
         """
         self.rank_id = rank_id
-        self.is_main_device = rank_id in [0, None]
+        self.is_main_device = rank_id in [0, None] if shard_rank_id is None else shard_rank_id == 0
         self.ema = ema
         if output_dir is not None:
             self.output_dir = output_dir
@@ -84,7 +86,7 @@ class EvalSaveCallback(Callback):
             self.ckpt_save_dir = ckpt_save_dir
         self.ckpt_save_interval = ckpt_save_interval
         self.step_mode = step_mode
-        self.model_name = model_name
+        self.model_name = model_name if shard_rank_id is None else f"{shard_rank_id}_{model_name}"
         if not os.path.exists(ckpt_save_dir):
             os.makedirs(ckpt_save_dir)
 
@@ -106,14 +108,16 @@ class EvalSaveCallback(Callback):
                 integrated_save=integrated_save,
                 prefer_low_perf=prefer_low_perf,
             )
-            if self.start_epoch == 0:
-                if self.record_lr:
-                    perf_columns = ["step", "loss", "lr", "train_time(s)"]
+            self.rec = None  # record performance on the rank 0 only
+            if rank_id in [0, None]:
+                if self.start_epoch == 0:
+                    if self.record_lr:
+                        perf_columns = ["step", "loss", "lr", "train_time(s)"]
+                    else:
+                        perf_columns = ["step", "loss", "train_time(s)"]
+                    self.rec = PerfRecorder(self.output_dir, metric_names=perf_columns)
                 else:
-                    perf_columns = ["step", "loss", "train_time(s)"]
-                self.rec = PerfRecorder(self.output_dir, metric_names=perf_columns)
-            else:
-                self.rec = PerfRecorder(self.output_dir, resume=True)
+                    self.rec = PerfRecorder(self.output_dir, resume=True)
 
         self.save_trainable_only = save_trainable_only or use_lora
         if self.save_trainable_only:
@@ -187,7 +191,7 @@ class EvalSaveCallback(Callback):
 
                 if self.save_training_resume:
                     # TODO: resume training for step.
-                    ms.save_checkpoint(
+                    save_checkpoint(
                         cb_params.train_network,
                         os.path.join(self.ckpt_save_dir, "train_resume.ckpt"),
                         choice_func=self.choice_func,
@@ -207,10 +211,12 @@ class EvalSaveCallback(Callback):
                     cur_lr = self._fetch_optimizer_lr(cb_params)  # get lr
 
                 train_time = time.time() - self.step_start_time
-                step_pref_value = (
-                    [cur_step, loss, cur_lr, train_time] if self.record_lr else [cur_step, loss, train_time]
-                )
-                self.rec.add(*step_pref_value)
+
+                if self.rec is not None:
+                    step_pref_value = (
+                        [cur_step, loss, cur_lr, train_time] if self.record_lr else [cur_step, loss, train_time]
+                    )
+                    self.rec.add(*step_pref_value)
 
                 if self.record_lr:
                     _logger.info(
@@ -285,7 +291,7 @@ class EvalSaveCallback(Callback):
                 )
 
                 if self.save_training_resume:
-                    ms.save_checkpoint(
+                    save_checkpoint(
                         cb_params.train_network,
                         os.path.join(self.ckpt_save_dir, "train_resume.ckpt"),
                         choice_func=self.choice_func,
@@ -331,7 +337,7 @@ class EvalSaveCallback(Callback):
         else:
             return cb_params.train_network.scale_sense.asnumpy().item()
 
-    def _fetch_optimizer_lr(self, cb_params) -> ms.Tensor:
+    def _fetch_optimizer_lr(self, cb_params) -> Tensor:
         opt = self._get_optimizer_from_cbp(cb_params)
         lr = opt.learning_rate
         if opt.dynamic_lr:
@@ -339,7 +345,7 @@ class EvalSaveCallback(Callback):
         return lr
 
 
-class StopAtStepCallback(ms.Callback):
+class StopAtStepCallback(Callback):
     # stop the training process when reach train_steps
     def __init__(self, train_steps, global_step=0):
         self.global_step = global_step
@@ -351,7 +357,7 @@ class StopAtStepCallback(ms.Callback):
             run_context.request_stop()
 
 
-class ProfilerCallback(ms.Callback):
+class ProfilerCallback(Callback):
     def __init__(self, start_step=1, end_step=2, exit_after_analyze=True, out_dir="./profiler_data"):
         self.start_step = start_step
         self.end_step = end_step
@@ -360,7 +366,7 @@ class ProfilerCallback(ms.Callback):
         out_dir = os.path.join(out_dir, f"rank_{rank_id}")
         # If value of profile_framework is not None, a subdirectory named host_info will be generated under the
         # specified profiler directory to store the collected memory and time files on the Host side.
-        self.profiler = ms.Profiler(
+        self.profiler = Profiler(
             start_profile=False, output_path=out_dir, profile_framework="all", data_simplication=False
         )
 
@@ -382,12 +388,12 @@ class ProfilerCallback(ms.Callback):
                 run_context.request_stop()
 
 
-class ProfilerCallbackEpoch(ms.Callback):
+class ProfilerCallbackEpoch(Callback):
     def __init__(self, start_epoch, stop_epoch, output_dir="./profiler_data"):
         super().__init__()
         self.start_epoch = start_epoch
         self.stop_epoch = stop_epoch
-        self.profiler = ms.Profiler(start_profile=False, output_path=output_dir)
+        self.profiler = Profiler(start_profile=False, output_path=output_dir)
 
     def on_train_epoch_begin(self, run_context):
         cb_params = run_context.original_args()
