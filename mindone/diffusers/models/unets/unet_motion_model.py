@@ -656,6 +656,7 @@ class CrossAttnUpBlockMotion(nn.Cell):
             hidden_states = ops.cat([hidden_states, res_hidden_states], axis=1)
 
             hidden_states = resnet(input_tensor=hidden_states, temb=temb)
+
             hidden_states = attn(
                 hidden_states=hidden_states,
                 encoder_hidden_states=encoder_hidden_states,
@@ -786,6 +787,7 @@ class UpBlockMotion(nn.Cell):
             hidden_states = ops.cat([hidden_states, res_hidden_states], axis=1)
 
             hidden_states = resnet(input_tensor=hidden_states, temb=temb)
+
             hidden_states = motion_module(hidden_states, num_frames=num_frames)
 
         if self.upsamplers is not None:
