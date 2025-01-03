@@ -39,3 +39,9 @@ official supported mindone.diffusers examples(follow hf diffusers):
  - [**Textual Inversion**](./textual_inversion)
  - [**Dreambooth**](./dreambooth)
  - [**ControlNet**](./controlnet)
+
+third-party supported mindone.diffusers examples:
+- [**CogVideoX**](./cogvideox_factory/) (follow [a-r-r-o-w/finetrainers](https://github.com/a-r-r-o-w/finetrainers/tree/main/training/cogvideox))
+
+> [!TIP]
+> If you are trying to develop your own 🤗diffusers-style training script based on MindONE diffusers, you can refer to this [guide](https://gist.github.com/townwish4git/3a181a1884747dfbbe4b31107ec02166).

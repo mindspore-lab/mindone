@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Optional, Tuple, Union
+from typing import Dict, Optional, Tuple, Union
 
 import numpy as np
 
@@ -25,7 +25,7 @@ from ...loaders.single_file_model import FromOriginalModelMixin
 from ...utils import logging
 from ..activations import get_activation
 from ..downsampling import CogVideoXDownsample3D
-from ..layers_compat import fp32_interpolate, pad
+from ..layers_compat import pad, upsample_nearest3d_free_interpolate
 from ..modeling_outputs import AutoencoderKLOutput
 from ..modeling_utils import ModelMixin
 from ..normalization import GroupNorm
@@ -41,7 +41,9 @@ class CogVideoXSafeConv3d(nn.Conv3d):
     """
 
     def construct(self, input: ms.Tensor) -> ms.Tensor:
-        memory_count = ops.prod(ms.Tensor(input.shape)).item() * 2 / 1024**3
+        memory_count = (
+            (input.shape[0] * input.shape[1] * input.shape[2] * input.shape[3] * input.shape[4]) * 2 / 1024**3
+        )
 
         # Set to 2GB, suitable for CuDNN
         if memory_count > 2:
@@ -92,10 +94,13 @@ class CogVideoXCausalConv3d(nn.Cell):
 
         time_kernel_size, height_kernel_size, width_kernel_size = kernel_size
 
+        # TODO(aryan): configure calculation based on stride and dilation in the future.
+        # Since CogVideoX does not use it, it is currently tailored to "just work" with Mochi
+        time_pad = time_kernel_size - 1
+        height_pad = (height_kernel_size - 1) // 2
+        width_pad = (width_kernel_size - 1) // 2
+
         self.pad_mode = pad_mode
-        time_pad = dilation * (time_kernel_size - 1) + (1 - stride)
-        height_pad = height_kernel_size // 2
-        width_pad = width_kernel_size // 2
 
         self.height_pad = height_pad
         self.width_pad = width_pad
@@ -105,7 +110,7 @@ class CogVideoXCausalConv3d(nn.Cell):
         self.temporal_dim = 2
         self.time_kernel_size = time_kernel_size
 
-        stride = (stride, 1, 1)
+        stride = stride if isinstance(stride, tuple) else (stride, 1, 1)
         dilation = (dilation, 1, 1)
         self.conv = CogVideoXSafeConv3d(
             in_channels=in_channels,
@@ -117,32 +122,28 @@ class CogVideoXCausalConv3d(nn.Cell):
             has_bias=True,
         )
 
-        self.conv_cache = None
-
-    def fake_context_parallel_forward(self, inputs: ms.Tensor) -> ms.Tensor:
-        kernel_size = self.time_kernel_size
-        if kernel_size > 1:
-            cached_inputs = [self.conv_cache] if self.conv_cache is not None else [inputs[:, :, :1]] * (kernel_size - 1)
-            inputs = ops.cat(cached_inputs + [inputs], axis=2)
+    def fake_context_parallel_forward(self, inputs: ms.Tensor, conv_cache: Optional[ms.Tensor] = None) -> ms.Tensor:
+        if self.pad_mode == "replicate":
+            inputs = pad(inputs, self.time_causal_padding, mode="replicate")
+        else:
+            kernel_size = self.time_kernel_size
+            if kernel_size > 1:
+                cached_inputs = [conv_cache] if conv_cache is not None else [inputs[:, :, :1]] * (kernel_size - 1)
+                inputs = ops.cat(cached_inputs + [inputs], axis=2)
         return inputs
 
-    def _clear_fake_context_parallel_cache(self):
-        del self.conv_cache
-        self.conv_cache = None
+    def construct(self, inputs: ms.Tensor, conv_cache: Optional[ms.Tensor] = None) -> ms.Tensor:
+        inputs = self.fake_context_parallel_forward(inputs, conv_cache)
 
-    def construct(self, inputs: ms.Tensor) -> ms.Tensor:
-        inputs = self.fake_context_parallel_forward(inputs)
-
-        self._clear_fake_context_parallel_cache()
-        # Note: we could move these to the cpu for a lower maximum memory usage but its only a few
-        # hundred megabytes and so let's not do it for now
-        self.conv_cache = inputs[:, :, -self.time_kernel_size + 1 :].copy()
-
-        padding_2d = (self.width_pad, self.width_pad, self.height_pad, self.height_pad)
-        inputs = pad(inputs, padding_2d, mode="constant", value=0)
+        if self.pad_mode == "replicate":
+            conv_cache = None
+        else:
+            padding_2d = (self.width_pad, self.width_pad, self.height_pad, self.height_pad)
+            conv_cache = inputs[:, :, -self.time_kernel_size + 1 :].copy()
+            inputs = pad(inputs, padding_2d, mode="constant", value=0)
 
         output = self.conv(inputs)
-        return output
+        return output, conv_cache
 
 
 class CogVideoXSpatialNorm3D(nn.Cell):
@@ -172,21 +173,26 @@ class CogVideoXSpatialNorm3D(nn.Cell):
         self.conv_y = CogVideoXCausalConv3d(zq_channels, f_channels, kernel_size=1, stride=1)
         self.conv_b = CogVideoXCausalConv3d(zq_channels, f_channels, kernel_size=1, stride=1)
 
-    def construct(self, f: ms.Tensor, zq: ms.Tensor) -> ms.Tensor:
+    def construct(self, f: ms.Tensor, zq: ms.Tensor, conv_cache: Optional[Dict[str, ms.Tensor]] = None) -> ms.Tensor:
+        new_conv_cache = {}
+        conv_cache = conv_cache or {}
+
         if f.shape[2] > 1 and f.shape[2] % 2 == 1:
             f_first, f_rest = f[:, :, :1], f[:, :, 1:]
             f_first_size, f_rest_size = f_first.shape[-3:], f_rest.shape[-3:]
             z_first, z_rest = zq[:, :, :1], zq[:, :, 1:]
-            # using fp32_interpolate as bfloat16 is not supported by original interpolate
-            z_first = fp32_interpolate(z_first, size=f_first_size)
-            z_rest = fp32_interpolate(z_rest, size=f_rest_size)
+            z_first = upsample_nearest3d_free_interpolate(z_first, size=f_first_size)
+            z_rest = upsample_nearest3d_free_interpolate(z_rest, size=f_rest_size)
             zq = ops.cat([z_first, z_rest], axis=2)
         else:
-            zq = fp32_interpolate(zq, size=f.shape[-3:])
+            zq = upsample_nearest3d_free_interpolate(zq, size=f.shape[-3:])
+
+        conv_y, new_conv_cache["conv_y"] = self.conv_y(zq, conv_cache=conv_cache.get("conv_y"))
+        conv_b, new_conv_cache["conv_b"] = self.conv_b(zq, conv_cache=conv_cache.get("conv_b"))
 
         norm_f = self.norm_layer(f)
-        new_f = norm_f * self.conv_y(zq) + self.conv_b(zq)
-        return new_f
+        new_f = norm_f * conv_y + conv_b
+        return new_f, new_conv_cache
 
 
 class CogVideoXResnetBlock3D(nn.Cell):
@@ -237,6 +243,7 @@ class CogVideoXResnetBlock3D(nn.Cell):
         self.out_channels = out_channels
         self.nonlinearity = get_activation(non_linearity)()
         self.use_conv_shortcut = conv_shortcut
+        self.spatial_norm_dim = spatial_norm_dim
 
         if spatial_norm_dim is None:
             self.norm1 = GroupNorm(num_channels=in_channels, num_groups=groups, eps=eps)
@@ -286,34 +293,43 @@ class CogVideoXResnetBlock3D(nn.Cell):
         inputs: ms.Tensor,
         temb: Optional[ms.Tensor] = None,
         zq: Optional[ms.Tensor] = None,
+        conv_cache: Optional[Dict[str, ms.Tensor]] = None,
     ) -> ms.Tensor:
+        new_conv_cache = {}
+        conv_cache = conv_cache or {}
+
         hidden_states = inputs
 
         if zq is not None:
-            hidden_states = self.norm1(hidden_states, zq)
+            hidden_states, new_conv_cache["norm1"] = self.norm1(hidden_states, zq, conv_cache=conv_cache.get("norm1"))
         else:
             hidden_states = self.norm1(hidden_states)
 
         hidden_states = self.nonlinearity(hidden_states)
-        hidden_states = self.conv1(hidden_states)
+        hidden_states, new_conv_cache["conv1"] = self.conv1(hidden_states, conv_cache=conv_cache.get("conv1"))
 
         if temb is not None:
             hidden_states = hidden_states + self.temb_proj(self.nonlinearity(temb))[:, :, None, None, None]
 
         if zq is not None:
-            hidden_states = self.norm2(hidden_states, zq)
+            hidden_states, new_conv_cache["norm2"] = self.norm2(hidden_states, zq, conv_cache=conv_cache.get("norm2"))
         else:
             hidden_states = self.norm2(hidden_states)
 
         hidden_states = self.nonlinearity(hidden_states)
         hidden_states = self.dropout(hidden_states)
-        hidden_states = self.conv2(hidden_states)
+        hidden_states, new_conv_cache["conv2"] = self.conv2(hidden_states, conv_cache=conv_cache.get("conv2"))
 
         if self.in_channels != self.out_channels:
-            inputs = self.conv_shortcut(inputs)
+            if self.use_conv_shortcut:
+                inputs, new_conv_cache["conv_shortcut"] = self.conv_shortcut(
+                    inputs, conv_cache=conv_cache.get("conv_shortcut")
+                )
+            else:
+                inputs = self.conv_shortcut(inputs)
 
         hidden_states = hidden_states + inputs
-        return hidden_states
+        return hidden_states, new_conv_cache
 
 
 class CogVideoXDownBlock3D(nn.Cell):
@@ -409,15 +425,25 @@ class CogVideoXDownBlock3D(nn.Cell):
         hidden_states: ms.Tensor,
         temb: Optional[ms.Tensor] = None,
         zq: Optional[ms.Tensor] = None,
+        conv_cache: Optional[Dict[str, ms.Tensor]] = None,
     ) -> ms.Tensor:
-        for resnet in self.resnets:
-            hidden_states = resnet(hidden_states, temb, zq)
+        r"""Forward method of the `CogVideoXDownBlock3D` class."""
+
+        new_conv_cache = {}
+        conv_cache = conv_cache or {}
+
+        for i, resnet in enumerate(self.resnets):
+            conv_cache_key = f"resnet_{i}"
+
+            hidden_states, new_conv_cache[conv_cache_key] = resnet(
+                hidden_states, temb, zq, conv_cache=conv_cache.get(conv_cache_key)
+            )
 
         if self.downsamplers is not None:
             for downsampler in self.downsamplers:
                 hidden_states = downsampler(hidden_states)
 
-        return hidden_states
+        return hidden_states, new_conv_cache
 
 
 class CogVideoXMidBlock3D(nn.Cell):
@@ -495,11 +521,21 @@ class CogVideoXMidBlock3D(nn.Cell):
         hidden_states: ms.Tensor,
         temb: Optional[ms.Tensor] = None,
         zq: Optional[ms.Tensor] = None,
+        conv_cache: Optional[Dict[str, ms.Tensor]] = None,
     ) -> ms.Tensor:
-        for resnet in self.resnets:
-            hidden_states = resnet(hidden_states, temb, zq)
+        r"""Forward method of the `CogVideoXMidBlock3D` class."""
 
-        return hidden_states
+        new_conv_cache = {}
+        conv_cache = conv_cache or {}
+
+        for i, resnet in enumerate(self.resnets):
+            conv_cache_key = f"resnet_{i}"
+
+            hidden_states, new_conv_cache[conv_cache_key] = resnet(
+                hidden_states, temb, zq, conv_cache=conv_cache.get(conv_cache_key)
+            )
+
+        return hidden_states, new_conv_cache
 
 
 class CogVideoXUpBlock3D(nn.Cell):
@@ -593,16 +629,25 @@ class CogVideoXUpBlock3D(nn.Cell):
         hidden_states: ms.Tensor,
         temb: Optional[ms.Tensor] = None,
         zq: Optional[ms.Tensor] = None,
+        conv_cache: Optional[Dict[str, ms.Tensor]] = None,
     ) -> ms.Tensor:
         r"""Forward method of the `CogVideoXUpBlock3D` class."""
-        for resnet in self.resnets:
-            hidden_states = resnet(hidden_states, temb, zq)
+
+        new_conv_cache = {}
+        conv_cache = conv_cache or {}
+
+        for i, resnet in enumerate(self.resnets):
+            conv_cache_key = f"resnet_{i}"
+
+            hidden_states, new_conv_cache[conv_cache_key] = resnet(
+                hidden_states, temb, zq, conv_cache=conv_cache.get(conv_cache_key)
+            )
 
         if self.upsamplers is not None:
             for upsampler in self.upsamplers:
                 hidden_states = upsampler(hidden_states)
 
-        return hidden_states
+        return hidden_states, new_conv_cache
 
 
 class CogVideoXEncoder3D(nn.Cell):
@@ -714,22 +759,38 @@ class CogVideoXEncoder3D(nn.Cell):
             down_block._recompute(value)
         self.mid_block._recompute(value)
 
-    def construct(self, sample: ms.Tensor, temb: Optional[ms.Tensor] = None) -> ms.Tensor:
+    def construct(
+        self,
+        sample: ms.Tensor,
+        temb: Optional[ms.Tensor] = None,
+        conv_cache: Optional[Dict[str, ms.Tensor]] = None,
+    ) -> ms.Tensor:
         r"""The forward method of the `CogVideoXEncoder3D` class."""
-        hidden_states = self.conv_in(sample)
+
+        new_conv_cache = {}
+        conv_cache = conv_cache or {}
+
+        hidden_states, new_conv_cache["conv_in"] = self.conv_in(sample, conv_cache=conv_cache.get("conv_in"))
 
         # 1. Down
-        for down_block in self.down_blocks:
-            hidden_states = down_block(hidden_states, temb, None)
+        for i, down_block in enumerate(self.down_blocks):
+            conv_cache_key = f"down_block_{i}"
+            hidden_states, new_conv_cache[conv_cache_key] = down_block(
+                hidden_states, temb, None, conv_cache=conv_cache.get(conv_cache_key)
+            )
 
         # 2. Mid
-        hidden_states = self.mid_block(hidden_states, temb, None)
+        hidden_states, new_conv_cache["mid_block"] = self.mid_block(
+            hidden_states, temb, None, conv_cache=conv_cache.get("mid_block")
+        )
 
         # 3. Post-process
         hidden_states = self.norm_out(hidden_states)
         hidden_states = self.conv_act(hidden_states)
-        hidden_states = self.conv_out(hidden_states)
-        return hidden_states
+
+        hidden_states, new_conv_cache["conv_out"] = self.conv_out(hidden_states, conv_cache=conv_cache.get("conv_out"))
+
+        return hidden_states, new_conv_cache
 
 
 class CogVideoXDecoder3D(nn.Cell):
@@ -848,22 +909,39 @@ class CogVideoXDecoder3D(nn.Cell):
         for up_block in self.up_blocks:
             up_block._recompute(value)
 
-    def construct(self, sample: ms.Tensor, temb: Optional[ms.Tensor] = None) -> ms.Tensor:
+    def construct(
+        self,
+        sample: ms.Tensor,
+        temb: Optional[ms.Tensor] = None,
+        conv_cache: Optional[Dict[str, ms.Tensor]] = None,
+    ) -> ms.Tensor:
         r"""The forward method of the `CogVideoXDecoder3D` class."""
-        hidden_states = self.conv_in(sample)
+
+        new_conv_cache = {}
+        conv_cache = conv_cache or {}
+
+        hidden_states, new_conv_cache["conv_in"] = self.conv_in(sample, conv_cache=conv_cache.get("conv_in"))
 
         # 1. Mid
-        hidden_states = self.mid_block(hidden_states, temb, sample)
+        hidden_states, new_conv_cache["mid_block"] = self.mid_block(
+            hidden_states, temb, sample, conv_cache=conv_cache.get("mid_block")
+        )
 
         # 2. Up
-        for up_block in self.up_blocks:
-            hidden_states = up_block(hidden_states, temb, sample)
+        for i, up_block in enumerate(self.up_blocks):
+            conv_cache_key = f"up_block_{i}"
+            hidden_states, new_conv_cache[conv_cache_key] = up_block(
+                hidden_states, temb, sample, conv_cache=conv_cache.get(conv_cache_key)
+            )
 
         # 3. Post-process
-        hidden_states = self.norm_out(hidden_states, sample)
+        hidden_states, new_conv_cache["norm_out"] = self.norm_out(
+            hidden_states, sample, conv_cache=conv_cache.get("norm_out")
+        )
         hidden_states = self.conv_act(hidden_states)
-        hidden_states = self.conv_out(hidden_states)
-        return hidden_states
+        hidden_states, new_conv_cache["conv_out"] = self.conv_out(hidden_states, conv_cache=conv_cache.get("conv_out"))
+
+        return hidden_states, new_conv_cache
 
 
 class AutoencoderKLCogVideoX(ModelMixin, ConfigMixin, FromOriginalModelMixin):
@@ -934,6 +1012,7 @@ class AutoencoderKLCogVideoX(ModelMixin, ConfigMixin, FromOriginalModelMixin):
         force_upcast: float = True,
         use_quant_conv: bool = False,
         use_post_quant_conv: bool = False,
+        invert_scale_latents: bool = False,
     ):
         super().__init__()
 
@@ -1007,12 +1086,6 @@ class AutoencoderKLCogVideoX(ModelMixin, ConfigMixin, FromOriginalModelMixin):
         if isinstance(module, (CogVideoXEncoder3D, CogVideoXDecoder3D)):
             module.gradient_checkpointing = value
 
-    def _clear_fake_context_parallel_cache(self):
-        for name, module in self.cells_and_names():
-            if isinstance(module, CogVideoXCausalConv3d):
-                logger.debug(f"Clearing fake Context Parallel cache for layer: {name}")
-                module._clear_fake_context_parallel_cache()
-
     def enable_tiling(
         self,
         tile_sample_min_height: Optional[int] = None,
@@ -1078,21 +1151,22 @@ class AutoencoderKLCogVideoX(ModelMixin, ConfigMixin, FromOriginalModelMixin):
 
         frame_batch_size = self.num_sample_frames_batch_size
         # Note: We expect the number of frames to be either `1` or `frame_batch_size * k` or `frame_batch_size * k + 1` for some k.
-        num_batches = num_frames // frame_batch_size if num_frames > 1 else 1
+        # As the extra single frame is handled inside the loop, it is not required to round up here.
+        num_batches = max(num_frames // frame_batch_size, 1)
+        conv_cache = None
         enc = []
+
         for i in range(num_batches):
             remaining_frames = num_frames % frame_batch_size
             start_frame = frame_batch_size * i + (0 if i == 0 else remaining_frames)
             end_frame = frame_batch_size * (i + 1) + remaining_frames
             x_intermediate = x[:, :, start_frame:end_frame]
-            x_intermediate = self.encoder(x_intermediate)
+            x_intermediate, conv_cache = self.encoder(x_intermediate, conv_cache=conv_cache)
             if self.quant_conv is not None:
                 x_intermediate = self.quant_conv(x_intermediate)
             enc.append(x_intermediate)
 
-        self._clear_fake_context_parallel_cache()
         enc = ops.cat(enc, axis=2)
-
         return enc
 
     def encode(
@@ -1129,8 +1203,10 @@ class AutoencoderKLCogVideoX(ModelMixin, ConfigMixin, FromOriginalModelMixin):
             return self.tiled_decode(z, return_dict=return_dict)
 
         frame_batch_size = self.num_latent_frames_batch_size
-        num_batches = num_frames // frame_batch_size
+        num_batches = max(num_frames // frame_batch_size, 1)
+        conv_cache = None
         dec = []
+
         for i in range(num_batches):
             remaining_frames = num_frames % frame_batch_size
             start_frame = frame_batch_size * i + (0 if i == 0 else remaining_frames)
@@ -1138,10 +1214,9 @@ class AutoencoderKLCogVideoX(ModelMixin, ConfigMixin, FromOriginalModelMixin):
             z_intermediate = z[:, :, start_frame:end_frame]
             if self.post_quant_conv is not None:
                 z_intermediate = self.post_quant_conv(z_intermediate)
-            z_intermediate = self.decoder(z_intermediate)
+            z_intermediate, conv_cache = self.decoder(z_intermediate, conv_cache=conv_cache)
             dec.append(z_intermediate)
 
-        self._clear_fake_context_parallel_cache()
         dec = ops.cat(dec, axis=2)
 
         if not return_dict:
@@ -1164,7 +1239,7 @@ class AutoencoderKLCogVideoX(ModelMixin, ConfigMixin, FromOriginalModelMixin):
                 returned.
         """
         if self.use_slicing and z.shape[0] > 1:
-            decoded_slices = [self._decode(z_slice).sample for z_slice in z.split(1)]
+            decoded_slices = [self._decode(z_slice)[0] for z_slice in z.split(1)]
             decoded = ops.cat(decoded_slices)
         else:
             decoded = self._decode(z)[0]
@@ -1223,8 +1298,11 @@ class AutoencoderKLCogVideoX(ModelMixin, ConfigMixin, FromOriginalModelMixin):
             row = []
             for j in range(0, width, overlap_width):
                 # Note: We expect the number of frames to be either `1` or `frame_batch_size * k` or `frame_batch_size * k + 1` for some k.
-                num_batches = num_frames // frame_batch_size if num_frames > 1 else 1
+                # As the extra single frame is handled inside the loop, it is not required to round up here.
+                num_batches = max(num_frames // frame_batch_size, 1)
+                conv_cache = None
                 time = []
+
                 for k in range(num_batches):
                     remaining_frames = num_frames % frame_batch_size
                     start_frame = frame_batch_size * k + (0 if k == 0 else remaining_frames)
@@ -1236,11 +1314,11 @@ class AutoencoderKLCogVideoX(ModelMixin, ConfigMixin, FromOriginalModelMixin):
                         i : i + self.tile_sample_min_height,
                         j : j + self.tile_sample_min_width,
                     ]
-                    tile = self.encoder(tile)
+                    tile, conv_cache = self.encoder(tile, conv_cache=conv_cache)
                     if self.quant_conv is not None:
                         tile = self.quant_conv(tile)
                     time.append(tile)
-                self._clear_fake_context_parallel_cache()
+
                 row.append(ops.cat(time, axis=2))
             rows.append(row)
 
@@ -1300,8 +1378,10 @@ class AutoencoderKLCogVideoX(ModelMixin, ConfigMixin, FromOriginalModelMixin):
         for i in range(0, height, overlap_height):
             row = []
             for j in range(0, width, overlap_width):
-                num_batches = num_frames // frame_batch_size
+                num_batches = max(num_frames // frame_batch_size, 1)
+                conv_cache = None
                 time = []
+
                 for k in range(num_batches):
                     remaining_frames = num_frames % frame_batch_size
                     start_frame = frame_batch_size * k + (0 if k == 0 else remaining_frames)
@@ -1315,9 +1395,9 @@ class AutoencoderKLCogVideoX(ModelMixin, ConfigMixin, FromOriginalModelMixin):
                     ]
                     if self.post_quant_conv is not None:
                         tile = self.post_quant_conv(tile)
-                    tile = self.decoder(tile)
+                    tile, conv_cache = self.decoder(tile, conv_cache=conv_cache)
                     time.append(tile)
-                self._clear_fake_context_parallel_cache()
+
                 row.append(ops.cat(time, axis=2))
             rows.append(row)
 
