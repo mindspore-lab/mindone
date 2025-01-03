@@ -12,6 +12,7 @@ def load_vae(
     sample_size: tuple = None,
     vae_path: str = None,
     logger=None,
+    state_dict=None,
 ):
     """the fucntion to load the 3D VAE model
 
@@ -21,7 +22,7 @@ def load_vae(
         sample_size (tuple, optional): the tiling size. Defaults to None.
         vae_path (str, optional): the path to vae. Defaults to None.
         logger (_type_, optional): logger. Defaults to None.
-        device (_type_, optional): device to load vae. Defaults to None.
+        state_dict (Dict, optional): existing state dictionary to be loaded.
     """
     if vae_path is None:
         vae_path = VAE_PATH[vae_type]
@@ -33,16 +34,18 @@ def load_vae(
         vae = AutoencoderKLCausal3D.from_config(config, sample_size=sample_size)
     else:
         vae = AutoencoderKLCausal3D.from_config(config)
+    if state_dict is None:
+        vae_ckpt = Path(vae_path) / "model.safetensors"
+        assert vae_ckpt.exists(), f"VAE checkpoint not found: {vae_ckpt}"
 
-    vae_ckpt = Path(vae_path) / "model.safetensors"
-    assert vae_ckpt.exists(), f"VAE checkpoint not found: {vae_ckpt}"
-
-    ckpt = torch.load(vae_ckpt, map_location=vae.device)
-    if "state_dict" in ckpt:
-        ckpt = ckpt["state_dict"]
-    if any(k.startswith("vae.") for k in ckpt.keys()):
-        ckpt = {k.replace("vae.", ""): v for k, v in ckpt.items() if k.startswith("vae.")}
-    vae.load_state_dict(ckpt)
+        ckpt = torch.load(vae_ckpt, map_location=vae.device)
+        if "state_dict" in ckpt:
+            ckpt = ckpt["state_dict"]
+        if any(k.startswith("vae.") for k in ckpt.keys()):
+            ckpt = {k.replace("vae.", ""): v for k, v in ckpt.items() if k.startswith("vae.")}
+        vae.load_state_dict(ckpt)
+    else:
+        vae.load_state_dict(state_dict)
 
     spatial_compression_ratio = vae.config.spatial_compression_ratio
     time_compression_ratio = vae.config.time_compression_ratio
