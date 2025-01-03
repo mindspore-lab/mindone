@@ -42,7 +42,6 @@ class EvalSaveCallback(Callback):
         network: nn.Cell,
         use_lora: bool = False,
         rank_id: int = 0,
-        shard_rank_id: Optional[int] = None,
         ckpt_save_dir: str = "./",
         output_dir: str = None,
         ema: EMA = None,
@@ -76,8 +75,7 @@ class EvalSaveCallback(Callback):
                                      e.g. ('swap.', 'vae.').
         """
         self.rank_id = rank_id
-        self.prefix = f"{shard_rank_id}_" if shard_rank_id is not None else ""
-        self.is_main_device = rank_id in [0, None] if shard_rank_id is None else shard_rank_id == 0
+        self.is_main_device = rank_id in [0, None]
         self.ema = ema
         if output_dir is not None:
             self.output_dir = output_dir
@@ -87,7 +85,7 @@ class EvalSaveCallback(Callback):
             self.ckpt_save_dir = ckpt_save_dir
         self.ckpt_save_interval = ckpt_save_interval
         self.step_mode = step_mode
-        self.model_name = self.prefix + model_name
+        self.model_name = model_name
         if not os.path.exists(ckpt_save_dir):
             os.makedirs(ckpt_save_dir)
 
@@ -109,16 +107,14 @@ class EvalSaveCallback(Callback):
                 integrated_save=integrated_save,
                 prefer_low_perf=prefer_low_perf,
             )
-            self.rec = None  # record performance on the rank 0 only
-            if rank_id in [0, None]:
-                if self.start_epoch == 0:
-                    if self.record_lr:
-                        perf_columns = ["step", "loss", "lr", "train_time(s)"]
-                    else:
-                        perf_columns = ["step", "loss", "train_time(s)"]
-                    self.rec = PerfRecorder(self.output_dir, metric_names=perf_columns)
+            if self.start_epoch == 0:
+                if self.record_lr:
+                    perf_columns = ["step", "loss", "lr", "train_time(s)"]
                 else:
-                    self.rec = PerfRecorder(self.output_dir, resume=True)
+                    perf_columns = ["step", "loss", "train_time(s)"]
+                self.rec = PerfRecorder(self.output_dir, metric_names=perf_columns)
+            else:
+                self.rec = PerfRecorder(self.output_dir, resume=True)
 
         self.save_trainable_only = save_trainable_only or use_lora
         if self.save_trainable_only:
@@ -194,7 +190,7 @@ class EvalSaveCallback(Callback):
                     # TODO: resume training for step.
                     save_checkpoint(
                         cb_params.train_network,
-                        os.path.join(self.ckpt_save_dir, self.prefix + "train_resume.ckpt"),
+                        os.path.join(self.ckpt_save_dir, "train_resume.ckpt"),
                         choice_func=self.choice_func,
                         append_dict={
                             "epoch_num": cur_epoch,
@@ -212,12 +208,10 @@ class EvalSaveCallback(Callback):
                     cur_lr = self._fetch_optimizer_lr(cb_params)  # get lr
 
                 train_time = time.time() - self.step_start_time
-
-                if self.rec is not None:
-                    step_pref_value = (
-                        [cur_step, loss, cur_lr, train_time] if self.record_lr else [cur_step, loss, train_time]
-                    )
-                    self.rec.add(*step_pref_value)
+                step_pref_value = (
+                    [cur_step, loss, cur_lr, train_time] if self.record_lr else [cur_step, loss, train_time]
+                )
+                self.rec.add(*step_pref_value)
 
                 if self.record_lr:
                     _logger.info(
@@ -294,7 +288,7 @@ class EvalSaveCallback(Callback):
                 if self.save_training_resume:
                     save_checkpoint(
                         cb_params.train_network,
-                        os.path.join(self.ckpt_save_dir, self.prefix + "train_resume.ckpt"),
+                        os.path.join(self.ckpt_save_dir, "train_resume.ckpt"),
                         choice_func=self.choice_func,
                         append_dict={
                             "epoch_num": cur_epoch,
