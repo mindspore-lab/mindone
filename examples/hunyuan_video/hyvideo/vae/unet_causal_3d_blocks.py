@@ -12,13 +12,17 @@ from mindone.diffusers.utils import logging
 
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
 
+MIN_VALUE = -1e5
+MAX_VALUE = 1e5
+
 
 def prepare_causal_attention_mask(n_frame: int, n_hw: int, dtype, batch_size: int = None):
     seq_len = n_frame * n_hw
-    mask = mint.full((seq_len, seq_len), float("-inf"), dtype=dtype)
-    for i in range(seq_len):
-        i_frame = i // n_hw
-        mask[i, : (i_frame + 1) * n_hw] = 0
+    mask = ops.full((seq_len, seq_len), MIN_VALUE, dtype=ms.float32)
+    mask_cond = ops.arange(mask.shape[-1])
+    mask = ops.masked_fill(mask, mask_cond < (mask_cond + 1).view(mask.shape[-1], 1), 0)
+    mask = mask.astype(dtype)
+
     if batch_size is not None:
         mask = mask.unsqueeze(0).broadcast_to((batch_size, -1, -1))
     return mask
