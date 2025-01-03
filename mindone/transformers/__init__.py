@@ -1,4 +1,5 @@
 from .modeling_utils import MSPreTrainedModel
+from .models.auto import AutoModel
 from .models.bert import (
     BertForMaskedLM,
     BertForMultipleChoice,
