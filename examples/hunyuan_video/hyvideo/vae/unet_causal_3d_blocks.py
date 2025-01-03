@@ -173,10 +173,12 @@ class UpsampleCausal3D(nn.Cell):
             first_h, other_h = mint.split(hidden_states, (1, T - 1), dim=2)
             if output_size is None:
                 if T > 1:
-                    other_h = ops.interpolate(other_h, scale_factor=self.upsample_factor, mode="nearest")
+                    size = (T * self.upsample_factor[0], H * self.upsample_factor[1], W * self.upsample_factor[2])
+                    other_h = ops.interpolate(other_h, size=size, mode="nearest")
 
                 first_h = first_h.squeeze(2)
-                first_h = ops.interpolate(first_h, scale_factor=self.upsample_factor[1:], mode="nearest")
+                size = (H * self.upsample_factor[1], W * self.upsample_factor[2])
+                first_h = ops.interpolate(first_h, size=size, mode="nearest")
                 first_h = first_h.unsqueeze(2)
             else:
                 raise NotImplementedError
