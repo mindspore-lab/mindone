@@ -72,6 +72,7 @@ class ObjaverseDataset:
         total_view_n=32,
         fov=50,
         camera_rotation=True,
+        camera_scaling=False,
     ):
         self.root_dir = Path(root_dir)
         self.input_image_dir = input_image_dir
@@ -81,6 +82,7 @@ class ObjaverseDataset:
         self.total_view_n = total_view_n
         self.fov = fov
         self.camera_rotation = camera_rotation
+        self.camera_scaling = camera_scaling
         self.output_columns = [
             "images",
             "cameras",
@@ -280,7 +282,7 @@ class ObjaverseDataset:
             c2ws = np.matmul(rot, c2ws)
 
         # random scaling
-        if np.random.rand() < 0.5:
+        if self.camera_scaling and np.random.rand() < 0.5:
             scale = np.random.uniform(0.7, 1.1)
             c2ws[:, :3, 3] *= scale
 
