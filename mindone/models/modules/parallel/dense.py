@@ -1,4 +1,8 @@
-from mindspore import nn, ops
+from typing import Literal, Optional, Union
+
+from mindspore import Tensor
+from mindspore import dtype as mstype
+from mindspore import mint, nn, ops
 from mindspore.communication import get_group_size, get_rank
 from mindspore.communication.management import GlobalComm
 from mindspore.context import ParallelMode
@@ -8,8 +12,14 @@ from .param_wrapper import ZeroParamWrapper
 
 
 class Dense(nn.Cell):
-    def __init__(self, net, zero_stage: int = 0, op_group: str = GlobalComm.WORLD_COMM_GROUP, cell_type=None):
-        super(Dense, self).__init__(auto_prefix=False)
+    def __init__(
+        self,
+        net: Union[nn.Dense, mint.nn.Linear],
+        zero_stage: Literal[0, 1, 2, 3] = 0,
+        op_group: str = GlobalComm.WORLD_COMM_GROUP,
+        cell_type: Optional[mstype.Type] = None,
+    ):
+        super().__init__(auto_prefix=False)
         self.net = net
         self.set_param_wrapper(zero_stage, op_group, cell_type)
 
@@ -43,3 +53,8 @@ class Dense(nn.Cell):
             out_shape = x_shape[:-1] + (x.shape[-1],)
             x = x.reshape(out_shape)
         return x
+
+
+class Linear(Dense):
+    def construct(self, x: Tensor) -> Tensor:
+        return self.net.dense(x, self.param_wrapper_w(self.net.weight), self.param_wrapper_b(self.net.bias))

@@ -155,7 +155,7 @@ if __name__ == "__main__":
     parser.add_function_arguments(
         create_dataloader,
         "train.dataloader",
-        skip={"dataset", "transforms", "device_num", "rank_id", "debug", "enable_modelarts"},
+        skip={"dataset", "transforms", "batch_transforms", "device_num", "rank_id", "debug", "enable_modelarts"},
     )
     parser.add_function_arguments(build_optimizer, "train.optimizer", skip={"model"})
     parser.add_class_arguments(
