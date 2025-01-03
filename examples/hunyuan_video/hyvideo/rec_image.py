@@ -105,7 +105,7 @@ def main(args):
         # vae.tile_overlap_factor = args.tile_overlap_factor
     if args.precision in ["fp16", "bf16"]:
         amp_level = "O2"
-        dtype = PRECISION_TO_TYPE(args.precision)
+        dtype = PRECISION_TO_TYPE[args.precision]
         if dtype == ms.float16:
             custom_fp32_cells = [GroupNorm] if args.vae_keep_gn_fp32 else []
         else:
@@ -116,7 +116,7 @@ def main(args):
             f"Set mixed precision to {amp_level} with dtype={args.precision}, custom fp32_cells {custom_fp32_cells}"
         )
     elif args.precision == "fp32":
-        dtype = PRECISION_TO_TYPE(args.precision)
+        dtype = PRECISION_TO_TYPE[args.precision]
     else:
         raise ValueError(f"Unsupported precision {args.precision}")
     input_x = np.array(Image.open(image_path))  # (h w c)
