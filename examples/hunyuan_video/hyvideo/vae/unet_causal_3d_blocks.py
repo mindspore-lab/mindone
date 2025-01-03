@@ -94,6 +94,11 @@ class LayerNorm(nn.Cell):
         return x
 
 
+class NearestInterpolate(nn.Cell):
+    def construct(self, x, size):
+        return ops.interpolate(x, size=size, mode="nearest")
+
+
 class UpsampleCausal3D(nn.Cell):
     """
     A 3D upsampling layer with an optional convolution.
@@ -145,6 +150,7 @@ class UpsampleCausal3D(nn.Cell):
             self.conv = conv
         else:
             self.Conv2d_0 = conv
+        self.nearest_interpolate = NearestInterpolate()
 
     def construct(
         self,
@@ -177,11 +183,11 @@ class UpsampleCausal3D(nn.Cell):
             if output_size is None:
                 if T > 1:
                     size = (T * self.upsample_factor[0], H * self.upsample_factor[1], W * self.upsample_factor[2])
-                    other_h = ops.interpolate(other_h, size=size, mode="nearest")
+                    other_h = self.nearest_interpolate(other_h, size=size)
 
                 first_h = first_h.squeeze(2)
                 size = (H * self.upsample_factor[1], W * self.upsample_factor[2])
-                first_h = ops.interpolate(first_h, size=size, mode="nearest")
+                first_h = self.nearest_interpolate(first_h, size=size)
                 first_h = first_h.unsqueeze(2)
             else:
                 raise NotImplementedError
