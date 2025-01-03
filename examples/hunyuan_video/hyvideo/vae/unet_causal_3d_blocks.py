@@ -170,7 +170,7 @@ class UpsampleCausal3D(nn.Cell):
         # size and do not make use of `scale_factor=2`
         if self.interpolate:
             B, C, T, H, W = hidden_states.shape
-            first_h, other_h = hidden_states.split((1, T - 1), dim=2)
+            first_h, other_h = mint.split(hidden_states, (1, T - 1), dim=2)
             if output_size is None:
                 if T > 1:
                     other_h = ops.interpolate(other_h, scale_factor=self.upsample_factor, mode="nearest")

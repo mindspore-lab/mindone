@@ -2,7 +2,7 @@ import logging
 from typing import Dict, Tuple, Union
 
 import mindspore as ms
-from mindspore import mint, nn
+from mindspore import mint, nn, ops
 
 from mindone.diffusers.configuration_utils import ConfigMixin, register_to_config
 
@@ -107,6 +107,9 @@ class AutoencoderKLCausal3D(ModelMixin, ConfigMixin, FromOriginalVAEMixin):
         )
         self.tile_latent_min_size = int(sample_size / (2 ** (len(self.config.block_out_channels) - 1)))
         self.tile_overlap_factor = 0.25
+
+        self.exp = ops.Exp()
+        self.stdnormal = ops.StandardNormal()
 
     def _set_gradient_checkpointing(self, module, value=False):
         raise NotImplementedError
