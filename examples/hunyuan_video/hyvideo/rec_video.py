@@ -11,10 +11,9 @@ from PIL import Image
 import mindspore as ms
 from mindspore import nn
 
-from mindone.utils.amp import auto_mixed_precision
-
 mindone_lib_path = os.path.abspath("../../")
 sys.path.insert(0, mindone_lib_path)
+from mindone.utils.amp import auto_mixed_precision
 from mindone.utils.logger import set_logger
 
 sys.path.append(".")
@@ -180,7 +179,8 @@ def main(args):
     x_vae = ms.Tensor(x_vae, dtype).unsqueeze(0)  # b c t h w
     latents = vae.encode(x_vae)
     latents = latents.to(dtype)
-    video_recon = vae.decode(latents)  # b t c h w
+    video_recon = vae.decode(latents)  # b c t h w
+    video_recon = video_recon.permute((0, 2, 1, 3, 4))  # b t c h w
 
     save_fp = os.path.join(args.output_path, args.rec_path)
     if ".avi" in os.path.basename(save_fp):
