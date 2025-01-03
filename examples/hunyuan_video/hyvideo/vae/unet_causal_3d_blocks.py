@@ -59,7 +59,7 @@ class CausalConv3d(nn.Cell):
             chan_in, chan_out, kernel_size, stride=stride, dilation=dilation, has_bias=bias, pad_mode="valid", **kwargs
         ).to_float(dtype)
         self.dtype = dtype
-        assert self.pad_mode == "replicate", "pad mode {self.pad_mode} is not supported other than `replicate`"
+        assert self.pad_mode == "replicate", f"pad mode {self.pad_mode} is not supported other than `replicate`"
         self.pad3d = nn.ReplicationPad3d(tuple(self.time_causal_padding))
 
     def construct(self, x):
