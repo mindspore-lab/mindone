@@ -1,6 +1,6 @@
 from pathlib import Path
 
-import torch
+from mindone.safetensors.mindspore import load_file
 
 from ..constants import PRECISION_TO_TYPE, VAE_PATH
 from .autoencoder_kl_causal_3d import AutoencoderKLCausal3D
@@ -38,7 +38,7 @@ def load_vae(
         vae_ckpt = Path(vae_path) / "model.safetensors"
         assert vae_ckpt.exists(), f"VAE checkpoint not found: {vae_ckpt}"
 
-        ckpt = torch.load(vae_ckpt, map_location=vae.device)
+        ckpt = load_file(vae_ckpt)
         if "state_dict" in ckpt:
             ckpt = ckpt["state_dict"]
         if any(k.startswith("vae.") for k in ckpt.keys()):

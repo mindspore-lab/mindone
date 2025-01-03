@@ -89,5 +89,5 @@ huggingface-cli download openai/clip-vit-large-patch14 --local-dir ./text_encode
 
 To convert the vae checkpoint, please run the following command:
 ```bash
-python tools/conver_pytorch_ckpt_to_safetensors.py --src ckpts/hunyuan-video-t2v-720p/vae/pytorch_model.pt --target ckpts/hunyuan-video-t2v-720p/vae/model.safetensors --config  ckpts/hunyuan-video-t2v-720p/vae/config.json
+python tools/convert_pytorch_ckpt_to_safetensors.py --src ckpts/hunyuan-video-t2v-720p/vae/pytorch_model.pt --target ckpts/hunyuan-video-t2v-720p/vae/model.safetensors --config  ckpts/hunyuan-video-t2v-720p/vae/config.json
 ```

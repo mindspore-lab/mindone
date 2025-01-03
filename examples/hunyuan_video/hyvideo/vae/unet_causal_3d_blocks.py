@@ -311,7 +311,7 @@ class ResnetBlockCausal3D(nn.Cell):
         self.time_embedding_norm = time_embedding_norm
         self.skip_time_act = skip_time_act
 
-        linear_cls = nn.Linear
+        linear_cls = nn.Dense
 
         if groups_out is None:
             groups_out = groups
@@ -344,7 +344,7 @@ class ResnetBlockCausal3D(nn.Cell):
         else:
             self.norm2 = GroupNormExtend(num_groups=groups_out, num_channels=out_channels, eps=eps, affine=True)
 
-        self.dropout = nn.Dropout(dropout)
+        self.dropout = nn.Dropout(p=dropout)
         conv_3d_out_channels = conv_3d_out_channels or out_channels
         self.conv2 = CausalConv3d(out_channels, conv_3d_out_channels, kernel_size=3, stride=1)
 

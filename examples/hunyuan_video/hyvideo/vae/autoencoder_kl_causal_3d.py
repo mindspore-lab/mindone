@@ -1,3 +1,4 @@
+import logging
 from typing import Dict, Tuple, Union
 
 import mindspore as ms
@@ -18,6 +19,8 @@ from mindone.diffusers.models.attention_processor import (
 from mindone.diffusers.models.modeling_utils import ModelMixin
 
 from .vae import DecoderCausal3D, EncoderCausal3D
+
+logger = logging.getLogger(__name__)
 
 
 class AutoencoderKLCausal3D(ModelMixin, ConfigMixin, FromOriginalVAEMixin):
@@ -538,3 +541,12 @@ class AutoencoderKLCausal3D(ModelMixin, ConfigMixin, FromOriginalVAEMixin):
         """
         if self.original_attn_processors is not None:
             self.set_attn_processor(self.original_attn_processors)
+
+    def load_state_dict(self, state_dict):
+        param_not_load, ckpt_not_load = ms.load_param_into_net(self, state_dict)
+        logger.info(
+            "Net params not load: {}, Total net params not loaded: {}".format(param_not_load, len(param_not_load))
+        )
+        logger.info(
+            "Ckpt params not load: {}, Total ckpt params not loaded: {}".format(ckpt_not_load, len(ckpt_not_load))
+        )

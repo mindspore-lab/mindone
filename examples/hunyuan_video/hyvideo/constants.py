@@ -86,6 +86,6 @@ TOKENIZER_PATH = {
 }
 
 TEXT_PROJECTION = {
-    "linear",  # Default, an nn.Linear() layer
+    "linear",  # Default, an nn.Dense() layer
     "single_refiner",  # Single TokenRefiner. Refer to LI-DiT
 }
