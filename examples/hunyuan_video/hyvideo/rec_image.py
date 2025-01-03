@@ -57,7 +57,7 @@ def preprocess(image, height: int = 128, width: int = 128):
 
     image = video_transform(image=image)["image"]  # (h w c)
     # (h w c) -> (c h w) -> (c t h w)
-    image = np.transpose(image, (2, 1, 0))[:, None, :, :]
+    image = np.transpose(image, (2, 0, 1))[:, None, :, :]
     return image
 
 
@@ -125,10 +125,10 @@ def main(args):
     x_vae = ms.Tensor(x_vae, dtype).unsqueeze(0)  # b c t h w
     latents = vae.encode(x_vae)
     latents = latents.to(dtype)
-    image_recon = vae.decode(latents)  # b t c h w
+    image_recon = vae.decode(latents)  # b c t h w
 
     save_fp = os.path.join(args.output_path, args.rec_path)
-    x = image_recon[0, 0, :, :, :]
+    x = image_recon[0, :, 0, :, :]
     x = x.squeeze().asnumpy()
     x = transform_to_rgb(x)
     x = x.transpose(1, 2, 0)
