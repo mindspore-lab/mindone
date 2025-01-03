@@ -1,4 +1,4 @@
-# Movie Gen
+# Movie Gen based on MindSpore
 
 This repository implements the [Movie Gen](https://arxiv.org/abs/2410.13720) model presented by Meta.
 
@@ -9,23 +9,32 @@ Meta researchers found that scaling the training data, compute, and model parame
 Transformer-based ([LLaMa3](https://arxiv.org/abs/2407.21783)) model trained with
 [Flow Matching](https://arxiv.org/abs/2210.02747) yields high quality generative models for video or audio.
 
-### Features
+We aim to explore an efficient implementation based on MindSpore and Ascend NPUs.
+See our [report](docs/report.md) for more details.
 
-1. :white_check_mark: Text-to-Video synthesis
-2. \[Coming soon] Video personalization
-3. \[Coming soon] Video editing
+## 📑 Development Plan
 
-<details>
-<summary>TODO</summary>
+This project is in an early stage and under active development. We welcome the open-source community to contribute to
+this project!
 
-- [ ] Fix EMA.
-- [ ] Use ByT5 for encoding visual text only (i.e., text within quotes).
-- [ ] CFG inference.
-- [ ] Multi-aspect and variable length video training (including PE interpolation).
-- [ ] Fix Model Parallel training.
-- [ ] Add FPS conditioning.
-
-</details>
+- Temporal Autoencoder (TAE)
+    - [x] Inference
+    - [x] Training
+- Movie Gen 5B (T2I/V)
+    - [x] Inference
+    - [x] Training stage 1: T2I 256px
+    - [x] Training stage 2: T2I/V 256px 256frames
+    - [ ] Training stage 3: T2I/V 768px 256frames (under training)
+    - [x] Web Demo (Gradio)
+- Movie Gen 30B (T2I/V)
+    - [x] Inference
+    - [x] Mixed parallelism training (support SP + ZeRO-3, under training)
+- Video Personalization (PT2V)
+    - [ ] Inference
+    - [ ] Training
+- Video Editing
+    - [ ] Inference
+    - [ ] Training
 
 ## Demo
 
@@ -171,9 +180,9 @@ and thus joint modeling of image and video leads to better generalization.
 To train Movie Gen, run the following commands:
 
 ```shell
-scripts/stage1_train.sh # for stage 1 training
-scripts/stage2_train.sh # for stage 2 training
-scripts/stage3_train.sh # for stage 3 training (currently under verification)
+scripts/moviegen/stage1_train.sh  # for stage 1 training
+scripts/moviegen/stage2_train.sh  # for stage 2 training
+scripts/moviegen/stage3_train.sh  # for stage 3 training (currently under verification)
 ```
 
 ### Dataset Preparation
@@ -276,11 +285,10 @@ python train_tae.py \
 --folder /path/to/video_root_folder  \
 ```
 
-Different from the paper, we found that OPL loss doesn't benefit the training outcome in our ablation study (reducing in
-lower PSNR decreased). Thus, we disable OPL loss by default. You may enable it by appending
-`--use_outlier_penalty_loss True`
+Unlike the paper, we found that OPL loss doesn't benefit the training outcome in our ablation study (with OPL, PSNR is
+31.17). Thus, we disable OPL loss by default. You may enable it by appending `--use_outlier_penalty_loss True`.
 
-For more details on the arguments, please run `python scripts/train_tae.py --help`
+For more details on the arguments, please run `python train_tae.py --help`
 
 ### Evaluation
 

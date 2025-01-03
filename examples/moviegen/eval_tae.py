@@ -212,9 +212,6 @@ if __name__ == "__main__":
         init_train_env, skip={"ascend_config", "num_workers", "json_data_path", "enable_modelarts"}
     )
     parser.add_class_arguments(TemporalAutoencoder, instantiate=False)
-    parser.add_argument(
-        "--dtype", default="fp32", type=str, choices=["fp32", "fp16", "bf16"], help="TAE model precision."
-    )
     parser.add_class_arguments(VideoDataset, skip={"output_columns"}, instantiate=False)
     parser.add_function_arguments(
         create_dataloader,

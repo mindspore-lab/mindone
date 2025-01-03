@@ -1016,9 +1016,9 @@ class UNetSD_temporal(nn.Cell):
         # recompute to save NPU mem
         if use_recompute:
             for mblock in self.middle_block:
-                mblock.recompute(parallel_optimizer_comm_recompute=True)
+                mblock.recompute()
             for oblock in self.output_blocks:
-                oblock.recompute(parallel_optimizer_comm_recompute=True)
+                oblock.recompute()
 
     def load_state_dict(self, ckpt_path, prefix_to_remove="unet."):
         # for save_unet_only, the saved params will start with 'unet.'
@@ -1027,7 +1027,7 @@ class UNetSD_temporal(nn.Cell):
             download_checkpoint(_CKPT_URL["UNetSD_temporal"], "model_weights/")
         if not os.path.exists(ckpt_path):
             raise ValueError(
-                f"Checkpoint not exist or download fail. Please download it manually from {_CKPT_URL['UNetSD_temporal']} and place it under `model_weights/`"
+                f"Checkpoint not exist or download fail. Please download it manually from {_CKPT_URL['UNetSD_temporal']} and place it under 'model_weights/'"
             )
 
         state_dict = ms.load_checkpoint(ckpt_path)

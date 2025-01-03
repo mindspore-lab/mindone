@@ -39,5 +39,5 @@ use_ema: False
 
 output_path: "outputs/tae_train"
 
-# ms settting
+# ms setting
 jit_level: O0
