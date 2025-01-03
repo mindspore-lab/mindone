@@ -22,9 +22,8 @@
 # fine-tuning enabling code and other elements of the foregoing made publicly available
 # by Tencent in accordance with TENCENT HUNYUAN COMMUNITY LICENSE AGREEMENT.l
 
-import os
-
 import argparse
+import os
 import warnings
 
 from infer import GifRenderer, Image2Views, Removebg, Text2Image, Views2Mesh

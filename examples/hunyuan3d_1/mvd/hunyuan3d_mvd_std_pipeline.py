@@ -24,36 +24,28 @@
 
 import inspect
 import os
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Dict, Optional, Tuple, Union
 
 import numpy as np
 from PIL import Image
-from transformers import CLIPImageProcessor, CLIPTokenizer
+from transformers import CLIPImageProcessor
 
 import mindspore as ms
 from mindspore import mint, nn, ops
 
-from mindone.diffusers import (
-    AutoencoderKL,
-    DDPMScheduler,
-    DiffusionPipeline,
-    EulerAncestralDiscreteScheduler,
-    UNet2DConditionModel,
-)
+from mindone.diffusers import AutoencoderKL, DiffusionPipeline, UNet2DConditionModel
 from mindone.diffusers.image_processor import VaeImageProcessor
-from mindone.diffusers.models.attention_processor import (  # AttnProcessor2_0
-    Attention,
+from mindone.diffusers.models.attention_processor import (  # AttnProcessor2_0; Attention,
     AttnProcessor,
     XFormersAttnProcessor,
 )
 from mindone.diffusers.pipelines.pipeline_utils import ImagePipelineOutput
 from mindone.diffusers.schedulers import KarrasDiffusionSchedulers
 from mindone.diffusers.utils.mindspore_utils import randn_tensor
-from mindone.transformers import CLIPTextModel, CLIPTextModelWithProjection, CLIPVisionModelWithProjection
+from mindone.transformers import CLIPVisionModelWithProjection
 from mindone.utils.version_control import check_valid_flash_attention
 
-from .utils import recenter_img, to_rgb_image, white_out_background
-
+from .utils import recenter_img, to_rgb_image
 
 EXAMPLE_DOC_STRING = """
     Examples:

@@ -5,7 +5,7 @@
 
 
 import mindspore as ms
-from mindspore import mint, nn, ops
+from mindspore import nn
 from mindspore.common.initializer import TruncatedNormal, initializer
 
 

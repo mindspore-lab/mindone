@@ -37,10 +37,9 @@ from mindone.diffusers import HunyuanDiTPipeline
 
 class Text2Image:
     def __init__(self, pretrain="Tencent-Hunyuan/HunyuanDiT-Diffusers"):
-
         self.pipe = HunyuanDiTPipeline.from_pretrained(
             pretrain, mindspore_dtype=ms.float32
-        )  #NOTE: CumProd does not support float16
+        )  # NOTE: CumProd does not support float16
         set_parameter_grad_false(self.pipe.transformer)
         print("text2image transformer model", get_parameter_number(self.pipe.transformer))
 

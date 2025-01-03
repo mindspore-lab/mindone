@@ -8,13 +8,10 @@
 #   https://github.com/rwightman/pytorch-image-models/tree/master/timm/models/vision_transformer.py
 
 import logging
-import math
-from collections import OrderedDict
-from functools import partial
-from typing import Callable, Optional, Sequence, Tuple, Union
+from typing import Optional
 
 import mindspore as ms
-from mindspore import mint, nn, ops
+from mindspore import mint, nn
 
 from mindone.transformers import MSPreTrainedModel
 
@@ -59,7 +56,6 @@ class FrozenDinoV2ImageEmbedder(nn.Cell):
         )
         print(loading_info)
         logger.info(loading_info)
-
 
     def construct(self, x, *args, **kwargs):
         ret = self.model.forward_features_with_camera(x, *args, **kwargs)

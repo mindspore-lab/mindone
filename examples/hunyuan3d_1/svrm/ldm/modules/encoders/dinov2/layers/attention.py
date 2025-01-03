@@ -8,14 +8,11 @@
 #   https://github.com/rwightman/pytorch-image-models/tree/master/timm/models/vision_transformer.py
 
 import logging
-import os
-import warnings
 
 import mindspore as ms
 from mindspore import Tensor, nn, ops
 
 from mindone.models.modules.flash_attention import FLASH_IS_AVAILABLE, MSFlashAttention
-from mindone.utils.version_control import check_valid_flash_attention, is_old_ms_version
 
 XFORMERS_ENABLED = FLASH_IS_AVAILABLE
 

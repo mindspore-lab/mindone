@@ -1,11 +1,11 @@
 # in addition to mindone
 transformers
-rembg 
-tqdm 
-omegaconf 
-matplotlib 
-opencv-python 
-imageio 
+rembg
+tqdm
+omegaconf
+matplotlib
+opencv-python
+imageio
 jaxtyping
 SentencePiece
 trimesh

@@ -1,6 +1,7 @@
 import math
 
 import numpy as np
+from scipy.spatial.transform import Rotation
 
 
 def compute_extrinsic_matrix(elevation, azimuth, camera_distance):

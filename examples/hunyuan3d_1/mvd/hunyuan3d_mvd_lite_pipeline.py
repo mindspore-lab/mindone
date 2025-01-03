@@ -23,36 +23,24 @@
 # by Tencent in accordance with TENCENT HUNYUAN COMMUNITY LICENSE AGREEMENT.
 
 import inspect
-import math
-import warnings
-from typing import Any, Callable, Dict, List, Optional, Union
+from typing import List, Optional
 
-import numpy
-from PIL import Image
 from transformers import CLIPImageProcessor, CLIPTokenizer
 
 import mindspore as ms
 from mindspore import mint, nn, ops
 
-from mindone.diffusers import DDPMScheduler, EulerAncestralDiscreteScheduler
-from mindone.diffusers.configuration_utils import FrozenDict
 from mindone.diffusers.image_processor import VaeImageProcessor
 from mindone.diffusers.loaders import FromSingleFileMixin, LoraLoaderMixin, TextualInversionLoaderMixin
 from mindone.diffusers.models import AutoencoderKL, UNet2DConditionModel
-from mindone.diffusers.models.attention_processor import (  
-    Attention,
-    AttnProcessor,
-    XFormersAttnProcessor,
-)
+from mindone.diffusers.models.attention_processor import AttnProcessor
 from mindone.diffusers.pipelines.pipeline_utils import DiffusionPipeline, ImagePipelineOutput
-from mindone.diffusers.pipelines.stable_diffusion import StableDiffusionPipelineOutput
 from mindone.diffusers.schedulers import KarrasDiffusionSchedulers
 from mindone.diffusers.utils.mindspore_utils import randn_tensor
 from mindone.transformers import CLIPTextModel, CLIPVisionModelWithProjection
 from mindone.utils.version_control import check_valid_flash_attention
 
-from .utils import recenter_img, to_rgb_image, white_out_background
-
+from .utils import recenter_img, to_rgb_image
 
 EXAMPLE_DOC_STRING = """
     Examples:
@@ -116,7 +104,7 @@ class RefOnlyNoisedUNet(nn.Cell):
         default_attn_proc = AttnProcessor()
         for name, _ in unet.attn_processors.items():
             unet_lora_attn_procs[name] = ReferenceOnlyAttnProc(
-                default_attn_proc,  
+                default_attn_proc,
                 enabled=name.endswith("attn1.processor"),
                 name=name,
             )
@@ -308,7 +296,6 @@ class Hunyuan3d_MVD_Lite_Pipeline(DiffusionPipeline, TextualInversionLoaderMixin
         image_latents = self.vae.diag_gauss_dist.sample(image_latents)
         return image_latents
 
-
     def __call__(
         self,
         image=None,
@@ -321,7 +308,7 @@ class Hunyuan3d_MVD_Lite_Pipeline(DiffusionPipeline, TextualInversionLoaderMixin
     ):
         batch_size = 1
         num_images_per_prompt = 1
-        output_type = "pil"
+        # output_type = "pil"
         do_classifier_free_guidance = True
         guidance_rescale = 0.0
         if isinstance(self.unet, UNet2DConditionModel):

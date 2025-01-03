@@ -2,18 +2,16 @@
 
 import math
 import numbers
-from inspect import isfunction
-
-import numpy as np
 
 import mindspore as ms
 from mindspore import Parameter, mint, nn, ops
-from mindspore.common.initializer import XavierUniform, initializer
+from mindspore.common.initializer import initializer
 
 from mindone.models.modules.flash_attention import FLASH_IS_AVAILABLE, MSFlashAttention
-from mindone.utils.version_control import check_valid_flash_attention, is_old_ms_version
 
 from ..util import dtype_to_max
+
+# from inspect import isfunction
 
 
 def exists(val):
@@ -131,7 +129,7 @@ class LinearAttention(nn.Cell):
 
         # 'b heads c (h w) -> b (heads c) h w', heads=self.heads, h=h, w=w
         b, _, c, _ = out.shape
-        out = out.reshape(b, self.heads, c, h * w).reshape(b, heads * c, h, w)
+        out = out.reshape(b, self.heads, c, h * w).reshape(b, self.heads * c, h, w)
         return self.to_out(out)
 
 
@@ -198,7 +196,10 @@ class CrossAttention(nn.Cell):
         context = default(context, x)
         k = self.to_k(context)
         v = self.to_v(context)
-        q, k, v = map(lambda t: rearrange(t, "b n (h d) -> (b h) n d", h=h), (q, k, v))
+        # q, k, v = map(lambda t: rearrange(t, "b n (h d) -> (b h) n d", h=h), (q, k, v))
+        q = q.reshape(q.shape[0], q.shape[1], h, -1).swapaxes(1, 2)
+        k = k.reshape(k.shape[0], k.shape[1], h, -1).swapaxes(1, 2)
+        v = v.reshape(v.shape[0], v.shape[1], h, -1).swapaxes(1, 2)
         sim = ops.einsum("b i d, b j d -> b i j", q, k) * self.scale
         if exists(mask):
             # 'b ... -> b (...)'
@@ -301,9 +302,7 @@ class BasicTransformerBlock(nn.Cell):
         return x
 
 
-ATTENTION_MODES = {
-    "softmax": CrossAttention, # vanilla attention
-    "softmax-flash": FlashAttention}  
+ATTENTION_MODES = {"softmax": CrossAttention, "softmax-flash": FlashAttention}  # vanilla attention
 
 
 def modulate(x, shift, scale):

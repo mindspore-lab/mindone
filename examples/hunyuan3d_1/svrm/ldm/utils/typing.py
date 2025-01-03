@@ -35,3 +35,33 @@ from typeguard import typechecked as typechecker
 
 # Mindspore Tensor type
 from mindspore import Tensor
+
+# pre-commit fail to detect they are cited in other scripts
+if False:
+    print(
+        Any,
+        Callable,
+        Dict,
+        Iterable,
+        List,
+        Literal,
+        NamedTuple,
+        NewType,
+        Optional,
+        Sized,
+        Tuple,
+        Type,
+        TypeVar,
+        Union,
+        typechecker,
+        Bool,
+        Complex,
+        Float,
+        Inexact,
+        Int,
+        Integer,
+        Num,
+        Shaped,
+        UInt,
+        Tensor,
+    )

@@ -12,8 +12,6 @@ from typing import Callable, Optional
 
 from mindspore import Tensor, nn
 
-from mindone.utils.version_control import is_old_ms_version
-
 
 class Mlp(nn.Cell):
     def __init__(

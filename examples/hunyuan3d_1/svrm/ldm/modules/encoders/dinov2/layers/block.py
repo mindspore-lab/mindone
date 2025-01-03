@@ -8,15 +8,12 @@
 #   https://github.com/rwightman/pytorch-image-models/tree/master/timm/layers/patch_embed.py
 
 import logging
-import os
-import warnings
-from typing import Any, Callable, Dict, List, Tuple
+from typing import Callable
 
-import mindspore as ms
-from mindspore import Tensor, mint, nn, ops
+from mindspore import Tensor, nn, ops
 
 from ....attention import AdaNorm
-from .attention import Attention, MemEffAttention
+from .attention import Attention  # , MemEffAttention
 from .drop_path import DropPath
 from .layer_scale import LayerScale
 from .mlp import Mlp

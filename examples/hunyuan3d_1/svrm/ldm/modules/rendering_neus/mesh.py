@@ -3,9 +3,10 @@ from __future__ import annotations
 import numpy as np
 
 import mindspore as ms
-from mindspore import Tensor, _no_grad, mint, nn, ops
+from mindspore import Tensor, mint, ops
 
-from ...utils.typing import *
+# from ...utils.typing import *
+from ...utils.typing import Any, Dict, Float, Integer, Optional, Union
 
 
 def dot(x, y):
@@ -13,19 +14,19 @@ def dot(x, y):
 
 
 class Mesh:
-    def __init__(
-        self, v_pos: Float[Tensor, "Nv 3"], t_pos_idx: Integer[Tensor, "Nf 3"], v_rgb: Integer[Tensor, "Nf 3"], **kwargs
-    ) -> None:
-        self.v_pos: Float[Tensor, "Nv 3"] = v_pos
-        self.t_pos_idx: Integer[Tensor, "Nf 3"] = t_pos_idx
-        self.v_rgb: Optional[Float[Tensor, "Nv 3"]] = v_rgb
+    def __init__(self, v_pos: Tensor, t_pos_idx: Tensor, v_rgb: Tensor, **kwargs) -> None:
+        # v_pos: Float[Tensor, "Nv 3"], t_pos_idx: Integer[Tensor, "Nf 3"], v_rgb: Integer[Tensor, "Nf 3"]
 
-        self._v_nrm: Optional[Float[Tensor, "Nv 3"]] = None
-        self._v_tng: Optional[Float[Tensor, "Nv 3"]] = None
-        self._v_tex: Optional[Float[Tensor, "Nt 3"]] = None
-        self._t_tex_idx: Optional[Float[Tensor, "Nf 3"]] = None
+        self.v_pos: Tensor = v_pos
+        self.t_pos_idx: Tensor = t_pos_idx
+        self.v_rgb: Optional[Float, Tensor] = v_rgb  # Float[Tensor, "Nv 3"]
+
+        self._v_nrm: Optional[Float, Tensor] = None  # Float[Tensor, "Nv 3"]
+        self._v_tng: Optional[Float, Tensor] = None  # Float[Tensor, "Nv 3"]
+        self._v_tex: Optional[Float, Tensor] = None  # Float[Tensor, "Nt 3"]
+        self._t_tex_idx: Optional[Float, Tensor] = None  # Float[Tensor, "Nf 3"]
         # self._v_rgb: Optional[Float[Tensor, "Nv 3"]] = None
-        self._edges: Optional[Integer[Tensor, "Ne 2"]] = None
+        self._edges: Optional[Integer, Tensor] = None  # Integer[Tensor, "Ne 2"]
         self.extras: Dict[str, Any] = {}
         for k, v in kwargs.items():
             self.add_extra(k, v)
@@ -240,8 +241,8 @@ class Mesh:
         edges = mint.unique(edges, dim=0)
         return edges
 
-    def normal_consistency(self) -> Float[Tensor, ""]:
-        edge_nrm: Float[Tensor, "Ne 2 3"] = self.v_nrm[self.edges]
+    def normal_consistency(self) -> Tensor:
+        edge_nrm = self.v_nrm[self.edges]  # Float[Tensor, "Ne 2 3"]
         nc = (1.0 - ops.cosine_similarity(edge_nrm[:, 0], edge_nrm[:, 1], dim=-1)).mean()
         return nc
 
@@ -251,7 +252,7 @@ class Mesh:
         verts, faces = self.v_pos, self.t_pos_idx
 
         V = verts.shape[0]
-        F = faces.shape[0]
+        # F = faces.shape[0]
 
         # Neighbor indices
         ii = faces[:, [1, 2, 0]].flatten(start_dim=0)
@@ -270,7 +271,7 @@ class Mesh:
         # correct diagonal
         return ms.COOTensor(idx, values, (V, V)).coalesce()
 
-    def laplacian(self) -> Float[Tensor, ""]:
+    def laplacian(self) -> Tensor:
         L = ops.stop_gradient(self._laplacian_uniform())
         loss = L.to_csr.mm(self.v_pos)  # COOTensor has no mm operator
         loss = loss.norm(dim=1)

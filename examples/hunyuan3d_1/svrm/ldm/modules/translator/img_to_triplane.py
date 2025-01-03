@@ -1,4 +1,3 @@
-import math
 from typing import Optional
 
 import mindspore as ms
@@ -141,7 +140,7 @@ class ImgToTriplaneModel(nn.Cell):
         if self.is_conv_upsampler:
             h = h.permute((0, 3, 1, 2)).contiguous()  # 'b h w c -> b c h w'
             h = self.upsampler(h)
-            d = 3
+            # d = 3
             _, c, height, w = h.shape
             h = h.reshape(-1, 3, c, height, w)  # '(b d) c h w-> b d c h w', d=3
             h = h.to(x.dtype)
@@ -154,7 +153,7 @@ class ImgToTriplaneModel(nn.Cell):
             )  # [b, h, w, triplane_dim, 2, 2]
             h = h.permute((0, 3, 1, 4, 2, 5)).contiguous()  # [b, triplane_dim, h, 2, w, 2]
             h = h.view((b, self.triplane_dim, height * self.upsample_ratio, width * self.upsample_ratio))
-            d = 3
+            # d = 3
             _, c, height, w = h.shape
             h = h.reshape(-1, 3, c, height, w)  # '(b d) c h w-> b d c h w', d=3
             h = h.to(x.dtype)

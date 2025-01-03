@@ -27,8 +27,6 @@ import sys
 
 sys.path.insert(0, f"{os.path.dirname(os.path.dirname(os.path.abspath(__file__)))}")
 
-import random
-import time
 
 import numpy as np
 from infer.utils import get_parameter_number, seed_everything, set_parameter_grad_false, str_to_bool, timing_decorator
@@ -37,7 +35,7 @@ from mvd.hunyuan3d_mvd_std_pipeline import HunYuan3D_MVD_Std_Pipeline
 from PIL import Image
 
 import mindspore as ms
-from mindspore import mint, nn, ops
+from mindspore import ops
 
 
 def save_gif(pils, save_path, df=False):

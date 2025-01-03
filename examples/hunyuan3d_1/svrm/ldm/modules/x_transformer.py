@@ -174,7 +174,7 @@ class GRUGating(nn.Cell):
 
     def construct(self, x, residual):
         gated_output = self.gru(
-            x.reshape(-1, x.shape[-1]), residual.reshape(-1, x.shape[-1])  #'b n d -> (b n) d'  # 'b n d -> (b n) d'
+            x.reshape(-1, x.shape[-1]), residual.reshape(-1, x.shape[-1])  # 'b n d -> (b n) d'  # 'b n d -> (b n) d'
         )
 
         return gated_output.reshape_as(x)
@@ -299,19 +299,17 @@ class Attention(nn.Cell):
             k_mask = q_mask if not exists(context) else context_mask
             k_mask = default(k_mask, lambda: mint.ones((b, k.shape[-2])).bool())
             q_mask = q_mask[:, None, :, None]  # 'b i -> b () i ()'
-            k_mask = k_mask[:, None, None, :]  #'b j -> b () () j'
+            k_mask = k_mask[:, None, None, :]  # 'b j -> b () () j'
             input_mask = q_mask * k_mask
 
         if self.num_mem_kv > 0:
-            #'h n d -> b h n d', b=b
-            mem_k = mem_k[None, ...].tile((b, 1, 1, 1))
-            mem_v = mem_v[None, ...].tile((b, 1, 1, 1))
+            # 'h n d -> b h n d', b=b
+            mem_k = self.mem_k[None, ...].tile((b, 1, 1, 1))
+            mem_v = self.mem_v[None, ...].tile((b, 1, 1, 1))
             k = mint.cat((mem_k, k), dim=-2)
             v = mint.cat((mem_v, v), dim=-2)
             if exists(input_mask):
-                input_mask = mint.nn.functional.pad(
-                    input_mask, (self.num_mem_kv, 0), value=1.0
-                )  
+                input_mask = mint.nn.functional.pad(input_mask, (self.num_mem_kv, 0), value=1.0)
 
         dots = ops.einsum("b h i d, b h j d -> b h i j", q, k) * self.scale
         mask_value = max_neg_value(dots)
@@ -392,7 +390,7 @@ class AttentionLayers(nn.Cell):
         ff_kwargs, kwargs = groupby_prefix_and_trim("ff_", kwargs)
         attn_kwargs, _ = groupby_prefix_and_trim("attn_", kwargs)
 
-        dim_head = attn_kwargs.get("dim_head", DEFAULT_DIM_HEAD)
+        # dim_head = attn_kwargs.get("dim_head", DEFAULT_DIM_HEAD)
 
         self.dim = dim
         self.depth = depth
@@ -590,7 +588,7 @@ class TransformerWrapper(nn.Cell):
     def construct(
         self, x, return_embeddings=False, mask=None, return_mems=False, return_attn=False, mems=None, **kwargs
     ):
-        b, n, num_mem = *x.shape, self.num_memory_tokens
+        b, _, num_mem = *x.shape, self.num_memory_tokens
         x = self.token_emb(x)
         x += self.pos_emb(x)
         x = self.emb_dropout(x)

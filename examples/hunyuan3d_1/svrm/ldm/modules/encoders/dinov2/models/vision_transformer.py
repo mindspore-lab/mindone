@@ -17,7 +17,7 @@ from mindspore import mint, nn, ops
 from mindspore.common.initializer import Normal, TruncatedNormal, initializer
 
 from ....attention import AdaNorm
-from ..layers import BlockMod, MemEffAttention, Mlp, PatchEmbed, SwiGLUFFNFused  
+from ..layers import BlockMod, MemEffAttention, Mlp, PatchEmbed, SwiGLUFFNFused
 
 logger = logging.getLogger("dinov2")
 

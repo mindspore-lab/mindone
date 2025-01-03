@@ -22,39 +22,36 @@
 # fine-tuning enabling code and other elements of the foregoing made publicly available
 # by Tencent in accordance with TENCENT HUNYUAN COMMUNITY LICENSE AGREEMENT.
 
-import itertools
-import math
 import os
-import shutil
 import time
 
 import cv2
 import numpy as np
-from tqdm import tqdm
 
 import mindspore as ms
-from mindspore import Tensor, mint, nn, ops
+from mindspore import Tensor, nn
 
 try:
     import mcubes
-    import trimesh  # 3D repr
+
+    # import trimesh  # 3D repr
     import xatlas  # texture operation
-except:
-    raise "failed to import 3d libraries "
+except ImportError:
+    raise ImportError("failed to import 3d libraries")
 
 # load open3d, for mesh refinement
 try:
     import open3d as o3d
-except:
-    raise "failed to import open3d library"
+except ImportError:
+    raise ImportError("failed to import open3d library")
 
 import inspect
-from typing import Dict, Optional
+from typing import Optional
 
 from ..modules.rendering_neus.mesh import Mesh
-
 from ..util import count_params, instantiate_from_config, no_grad
-from ..utils.ops import scale_tensor
+
+# from ..utils.ops import scale_tensor
 
 
 def unwrap_uv(v_pos, t_pos_idx):
@@ -85,7 +82,7 @@ def refine_mesh(vtx_refine, faces_refine):
     mesh = mesh.remove_duplicated_triangles()
     mesh = mesh.remove_duplicated_vertices()
 
-    voxel_size = max(mesh.get_max_bound() - mesh.get_min_bound())
+    # voxel_size = max(mesh.get_max_bound() - mesh.get_min_bound())
 
     mesh = mesh.simplify_vertex_clustering(
         voxel_size=0.007, contraction=o3d.geometry.SimplificationContraction.Average  # 0.005
@@ -170,10 +167,11 @@ class SVRMModel(nn.Cell):
 
         obj_vertext_path = os.path.join(out_dir, "mesh_vertex_colors.obj")
         if do_texture_mapping:
-            obj_path = os.path.join(out_dir, "mesh.obj")
-            obj_texture_path = os.path.join(out_dir, "texture.png")
-            obj_mtl_path = os.path.join(out_dir, "texture.mtl")
-            glb_path = os.path.join(out_dir, "mesh.glb")
+            print("Do not support texture mapping yet")
+            # obj_path = os.path.join(out_dir, "mesh.obj")
+            # obj_texture_path = os.path.join(out_dir, "texture.png")
+            # obj_mtl_path = os.path.join(out_dir, "texture.mtl")
+            # glb_path = os.path.join(out_dir, "mesh.glb")
 
         st = time.time()
 

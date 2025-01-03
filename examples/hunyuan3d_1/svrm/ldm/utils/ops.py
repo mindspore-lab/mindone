@@ -1,8 +1,4 @@
-# TODO: this is not yet fully migrated
-
 import math
-import os
-import warnings
 from collections import defaultdict
 
 import numpy as np
@@ -10,7 +6,14 @@ import numpy as np
 import mindspore as ms
 from mindspore import mint, nn, ops
 
-from .typing import *
+# from .typing import *
+from .typing import Any, Callable, Dict, Num, Optional, Tensor, Tuple, Union
+
+# from igl import fast_winding_number_for_meshes, point_mesh_squared_distance, read_obj
+fast_winding_number_for_meshes = None
+point_mesh_squared_distance = None
+read_obj = None
+# do not use igl yet
 
 
 def dot(x, y):
@@ -21,10 +24,11 @@ def reflect(x, n):
     return 2 * dot(x, n) * n - x
 
 
-ValidScale = Union[Tuple[float, float], Num[Tensor, "2 D"]]
+ValidScale = Union[Tuple[float, float], Optional[Num, Tensor]]  # Num[Tensor, "2 D"]
 
 
-def scale_tensor(dat: Num[Tensor, "... D"], inp_scale: ValidScale, tgt_scale: ValidScale):
+def scale_tensor(dat: Tensor, inp_scale: ValidScale, tgt_scale: ValidScale):
+    # dat: Num[Tensor, "... D"]
     if inp_scale is None:
         inp_scale = (0, 1)
     if tgt_scale is None:
@@ -140,7 +144,7 @@ def get_ray_directions(
     focal: Union[float, Tuple[float, float]],
     principal: Optional[Tuple[float, float]] = None,
     use_pixel_centers: bool = True,
-) -> Float[Tensor, "H W 3"]:
+) -> Tensor:  # Float[Tensor, "H W 3"]
     """
     Get ray directions for all pixels in camera coordinate.
     Reference: https://www.scratchapixel.com/lessons/3d-basic-rendering/
@@ -167,17 +171,18 @@ def get_ray_directions(
         indexing="xy",
     )
 
-    directions: Float[Tensor, "H W 3"] = mint.stack([(i - cx) / fx, -(j - cy) / fy, -ops.ones_like(i)], -1)
+    directions: Tensor = mint.stack([(i - cx) / fx, -(j - cy) / fy, -ops.ones_like(i)], -1)
+    # Float[Tensor, "H W 3"]
 
     return directions
 
 
 def get_rays(
-    directions: Float[Tensor, "... 3"],
-    c2w: Float[Tensor, "... 4 4"],
+    directions: Tensor,  # Float[Tensor, "... 3"],
+    c2w: Tensor,  # Float[Tensor, "... 4 4"],
     keepdim=False,
     noise_scale=0.0,
-) -> Tuple[Float[Tensor, "... 3"], Float[Tensor, "... 3"]]:
+):  # -> Tuple[Float[Tensor, "... 3"], Float[Tensor, "... 3"]]
     # Rotate ray directions from camera coordinate to the world coordinate
     assert directions.shape[-1] == 3
 
@@ -214,16 +219,15 @@ def get_rays(
     return rays_o, rays_d
 
 
-def get_projection_matrix(
-    fovy: Float[Tensor, "B"], aspect_wh: float, near: float, far: float
-) -> Float[Tensor, "B 4 4"]:
+def get_projection_matrix(fovy: Tensor, aspect_wh: float, near: float, far: float) -> Tensor:
+    # fovy: Float[Tensor, "B"], aspect_wh: float, near: float, far: float -> Float[Tensor, "B 4 4"]
     batch_size = fovy.shape[0]
     proj_mtx = ops.zeros((batch_size, 4, 4), dtype=ms.float32)
     proj_mtx[:, 0, 0] = 1.0 / (ops.tan(fovy / 2.0) * aspect_wh)
     proj_mtx[:, 1, 1] = -1.0 / ops.tan(
         fovy / 2.0
     )  # add a negative sign here as the y axis is flipped in nvdiffrast output
-    ###TODO: susan: please note they used nvdiffrast coord, we might flip it back if use other rasterizer
+    # TODO: susan: please note they used nvdiffrast coord, we might flip it back if use other rasterizer
 
     proj_mtx[:, 2, 2] = -(far + near) / (far - near)
     proj_mtx[:, 2, 3] = -2.0 * far * near / (far - near)
@@ -231,10 +235,12 @@ def get_projection_matrix(
     return proj_mtx
 
 
-def get_mvp_matrix(c2w: Float[Tensor, "B 4 4"], proj_mtx: Float[Tensor, "B 4 4"]) -> Float[Tensor, "B 4 4"]:
+def get_mvp_matrix(c2w: Tensor, proj_mtx: Tensor) -> Tensor:
+    # (c2w: Float[Tensor, "B 4 4"], proj_mtx: Float[Tensor, "B 4 4"]) -> Float[Tensor, "B 4 4"]
     # calculate w2c from c2w: R' = Rt, t' = -Rt * t
     # mathematically equivalent to (c2w)^-1
-    w2c: Float[Tensor, "B 4 4"] = ops.zeros((c2w.shape[0], 4, 4)).to(c2w.dtype)
+    # w2c : Float[Tensor, "B 4 4"]
+    w2c = ops.zeros((c2w.shape[0], 4, 4)).to(c2w.dtype)
     w2c[:, :3, :3] = c2w[:, :3, :3].permute(0, 2, 1)
     w2c[:, :3, 3:] = -c2w[:, :3, :3].permute(0, 2, 1) @ c2w[:, :3, 3:]
     w2c[:, 3, 3] = 1.0
@@ -243,7 +249,8 @@ def get_mvp_matrix(c2w: Float[Tensor, "B 4 4"], proj_mtx: Float[Tensor, "B 4 4"]
     return mvp_mtx
 
 
-def get_full_projection_matrix(c2w: Float[Tensor, "B 4 4"], proj_mtx: Float[Tensor, "B 4 4"]) -> Float[Tensor, "B 4 4"]:
+def get_full_projection_matrix(c2w: Tensor, proj_mtx: Tensor) -> Tensor:
+    # c2w: Float[Tensor, "B 4 4"], proj_mtx: Float[Tensor, "B 4 4"]) -> Float[Tensor, "B 4 4"]
     return (c2w.unsqueeze(0).bmm(proj_mtx.unsqueeze(0))).squeeze(0)
 
 
@@ -306,7 +313,8 @@ def binary_cross_entropy(input, target):
     # ops.log supports only fp16/fp32
 
 
-def tet_sdf_diff(vert_sdf: Float[Tensor, "Nv 1"], tet_edges: Integer[Tensor, "Ne 2"]) -> Float[Tensor, ""]:
+def tet_sdf_diff(vert_sdf: Tensor, tet_edges: Tensor) -> Tensor:
+    # vert_sdf: Float[Tensor, "Nv 1"], tet_edges: Integer[Tensor, "Ne 2"]) -> Float[Tensor, ""]
     sdf_f1x6x2 = vert_sdf[:, 0][tet_edges.reshape(-1)].reshape(-1, 2)
     mask = ops.sign(sdf_f1x6x2[..., 0]) != ops.sign(sdf_f1x6x2[..., 1])
     sdf_f1x6x2 = sdf_f1x6x2[mask]
@@ -417,7 +425,8 @@ def shifted_cosine_decay(a, b, c, r):
     return a * ops.cos(b * r + c) + a
 
 
-def perpendicular_component(x: Float[Tensor, "B C H W"], y: Float[Tensor, "B C H W"]):
+def perpendicular_component(x: Tensor, y: Tensor):
+    # x: Float[Tensor, "B C H W"], y: Float[Tensor, "B C H W"]
     # get the component of x that is perpendicular to y
     eps = ops.ones_like(x[:, 0, 0, 0]) * 1e-6
     return (

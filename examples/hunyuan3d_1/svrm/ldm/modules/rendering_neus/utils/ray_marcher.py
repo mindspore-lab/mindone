@@ -24,7 +24,7 @@ from mindspore import mint, nn, ops
 class LearnedVariance(nn.Cell):
     def __init__(self, init_val):
         super(LearnedVariance, self).__init__()
-        self._inv_std = ms.Parameter(ms.Tensor(init_val)) 
+        self._inv_std = ms.Parameter(ms.Tensor(init_val))
 
     @property
     def inv_std(self):

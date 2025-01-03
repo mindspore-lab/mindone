@@ -1,17 +1,12 @@
-# TODO
 import importlib
-import os
-import time
 from inspect import isfunction
 
 import cv2
-import matplotlib.pyplot as plt
 import numpy as np
 from PIL import Image, ImageDraw, ImageFont
 
 import mindspore as ms
-from mindspore import _no_grad, mint, nn, ops
-from mindspore.nn.optim import Adam, AdamWeightDecay, Momentum, Optimizer
+from mindspore import _no_grad, mint
 
 _MIN_FP16 = ms.tensor(np.finfo(np.float16).min, dtype=ms.float16)
 _MIN_FP32 = ms.tensor(np.finfo(np.float32).min, dtype=ms.float32)
@@ -181,7 +176,7 @@ def count_params(model, verbose=False):
 
 
 def instantiate_from_config(config):
-    if not "target" in config:
+    if "target" not in config:
         if config == "__is_first_stage__":
             return None
         elif config == "__is_unconditional__":
@@ -196,4 +191,3 @@ def get_obj_from_str(string, reload=False):
         module_imp = importlib.import_module(module)
         importlib.reload(module_imp)
     return getattr(importlib.import_module(module, package=None), cls)
-

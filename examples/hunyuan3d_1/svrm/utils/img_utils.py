@@ -134,7 +134,7 @@ def compute_img_diff(img1, img2, matches1, matches1_from_2, vis=False):
     bw_edges1 = (img1_edge > 0).astype(bool)
     bw_edges2 = (img2_edge > 0).astype(bool)
     hausdorff_dist = hausdorff_distance(bw_edges1, bw_edges2)
-    if vis == True:
+    if vis is True:
         fig, axs = plt.subplots(1, 4, figsize=(15, 5))
         axs[0].imshow(img1_gray, cmap="gray")
         axs[0].set_title("Img1")
@@ -184,7 +184,7 @@ def predict_match_success_human(info):
     mask_iou = info["mask_iou"]
     gray_diff = info["gray_diff"]
     gray_diff_trunc = info["gray_diff_trunc"]
-    hausdorff_dist = info["hausdorff_dist"]
+    # hausdorff_dist = info["hausdorff_dist"]
 
     if mask_iou > 0.95:
         return True
@@ -210,7 +210,7 @@ def predict_match_success_human(info):
 
 
 def predict_match_success(info, model=None):
-    if model == None:
+    if model is None:
         return predict_match_success_human(info)
     else:
         feat_name = ["match_num", "match_rate", "mask_iou", "gray_diff", "gray_diff_trunc", "hausdorff_dist"]

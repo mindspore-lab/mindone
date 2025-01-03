@@ -245,7 +245,7 @@ class ImportanceRenderer(nn.Cell):
                 decoder=decoder,
                 rendering_options=rendering_options,
             )
-
+            densities_coarse = None  # unused yet
             all_depths, all_colors, all_densities = self.unify_samples(
                 depths_coarse, colors_coarse, densities_coarse, depths_fine, colors_fine, densities_fine
             )
@@ -264,7 +264,6 @@ class ImportanceRenderer(nn.Cell):
             # inter =  (ray_end - ray_start) / ( rendering_options['depth_resolution'] - 1) # [1, N_ray, 1]
             # dists = mint.cat([dists, inter.unsqueeze(2)], 2)
 
-            # rgb_final, depth_final, weights = self.ray_marcher(colors_coarse, sdfs_coarse, depths_coarse, normals_coarse, dists, ray_directions, rendering_options, bgcolor)
             rgb_final, depth_final, weights, normal_final = self.ray_marcher(
                 colors_coarse,
                 sdfs_coarse,

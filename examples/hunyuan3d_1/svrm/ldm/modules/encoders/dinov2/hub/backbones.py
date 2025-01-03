@@ -50,7 +50,7 @@ def _make_dinov2_model(
     vit_kwargs.update(**kwargs)
     model = vits.__dict__[arch_name](**vit_kwargs)
 
-    if pretrained: # NOTE: do not load pretrained Dinov2 in inference
+    if pretrained:  # NOTE: do not load pretrained Dinov2 in inference
         import torch
 
         model_full_name = _make_dinov2_model_name(arch_name, patch_size, num_register_tokens)

@@ -28,16 +28,15 @@ import time
 
 import numpy as np
 from omegaconf import OmegaConf
-from PIL import Image, ImageSequence
-from tqdm import tqdm
 
 import mindspore as ms
-from mindspore import Tensor, mint, nn, ops
+from mindspore import mint
 from mindspore.dataset import transforms, vision
 
-from mindone.safetensors.mindspore import load_file, save_file
+from mindone.safetensors.mindspore import load_file
 
 from .ldm.util import instantiate_from_config
+
 
 class MV23DPredictor(object):
     def __init__(self, ckpt_path, cfg_path, elevation=15, number_view=60, render_size=256) -> None:
@@ -109,8 +108,8 @@ class MV23DPredictor(object):
         print(f"Loaded checkpoint: param_not_load {param_not_load}, ckpt_not_load {ckpt_not_load}")
 
         model = model.set_train(False)
-       
-        print(f"Load model successfully")
+
+        print("Load model successfully")
 
         return model
 

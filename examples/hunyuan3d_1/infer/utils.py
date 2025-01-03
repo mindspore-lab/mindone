@@ -22,12 +22,8 @@
 # fine-tuning enabling code and other elements of the foregoing made publicly available
 # by Tencent in accordance with TENCENT HUNYUAN COMMUNITY LICENSE AGREEMENT.
 
-import os
-import random
 import time
 from functools import wraps
-
-import numpy as np
 
 from mindone.utils.params import count_params
 from mindone.utils.seed import set_random_seed
@@ -79,4 +75,4 @@ def str_to_bool(s):
     elif s.lower() in ["false", "f", "no", "n", "0"]:
         return False
     else:
-        raise f"bool arg must one of ['true', 't', 'yes', 'y', '1', 'false', 'f', 'no', 'n', '0']"
+        raise "bool arg must one of ['true', 't', 'yes', 'y', '1', 'false', 'f', 'no', 'n', '0']"

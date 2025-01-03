@@ -9,7 +9,7 @@
 While 3D generative models have greatly improved artists' workflows, the existing diffusion models for 3D generation suffer from slow generation and poor generalization. To address this issue, Hunyuan3D-1.0 a two-stage approach named Hunyuan3D-1.0 including a lite version and a standard version, that both support text- and image-conditioned generation.
 While 3D generative models have greatly improved artists' workflows, the existing diffusion models for 3D generation suffer from slow generation and poor generalization. Hunyuan3D-1.0, a two-stage approach, aims to address this issue. Hunyuan3D-1.0 includes a lite version and a standard version, that both support text- and image-conditioned generation.
 
-In the first stage, Hunyuan3D-1.0 employs a multi-view diffusion model (`mvd-lite`/`mvd-std`) that efficiently generates multi-view RGB. These multi-view images capture rich details of the 3D asset from different viewpoints, relaxing the tasks from single-view to multi-view reconstruction. 
+In the first stage, Hunyuan3D-1.0 employs a multi-view diffusion model (`mvd-lite`/`mvd-std`) that efficiently generates multi-view RGB. These multi-view images capture rich details of the 3D asset from different viewpoints, relaxing the tasks from single-view to multi-view reconstruction.
 
 In the second stage, a feed-forward reconstruction model (`svrm`) rapidly and faithfully reconstructs the 3D asset given the generated multi-view images. The reconstruction network learns to handle noises and in-consistency introduced by the multi-view diffusion and leverages the available information from the condition image to efficiently recover the 3D structure.
 
@@ -18,17 +18,17 @@ The framework also involves the text-to-image model, i.e., [Hunyuan-DiT](https:/
 ## Updates
 **[12 December 2024]** Support inference: text-to-mesh and image-to-mesh.
 
-**- Features:** 
-- (optional) text-to-image 
-- image background removal 
+**- Features:**
+- (optional) text-to-image
+- image background removal
 - image-to-multiviews
-- multiviews-to-mesh 
+- multiviews-to-mesh
 -  (optional) mesh rendering (display device required)
 
 
 **- Comments:**
-Differences from original [Hunyuan3D-1.0](https://github.com/Tencent/Hunyuan3D-1): 
-- do not support texturing/backing. 
+Differences from original [Hunyuan3D-1.0](https://github.com/Tencent/Hunyuan3D-1):
+- do not support texturing/backing.
 - use trimesh for mesh rendering in CPU, instead of Pytorch3D.
 
 ## Get Started

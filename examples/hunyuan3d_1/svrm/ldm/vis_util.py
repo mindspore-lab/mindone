@@ -9,11 +9,9 @@
 #
 
 import os
-import time
 
 import imageio
 import numpy as np
-import pyglet
 import trimesh
 from PIL import Image
 from trimesh.transformations import concatenate_matrices, rotation_matrix
@@ -66,7 +64,7 @@ def render(obj_filename, elev=0, azim=None, resolution=512, gif_dst_path="", n_v
                     f.close()
                 print("saved %s" % file_name)
                 break
-            except:
+            except ZeroDivisionError:
                 print("unable to save image %s" % file_name)
 
     if gif_dst_path != "":
