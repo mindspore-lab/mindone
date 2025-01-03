@@ -1,9 +1,8 @@
 import numbers
 from typing import Optional, Tuple, Union
 
-import mint.nn.functional as F
-
 import mindspore as ms
+import mindspore.mint.nn.functional as F
 from mindspore import Parameter, mint, nn, ops
 from mindspore.common.initializer import initializer
 

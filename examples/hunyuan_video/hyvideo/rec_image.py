@@ -1,3 +1,11 @@
+"""
+Run causal vae reconstruction on a given image
+Usage example:
+python examples/rec_image.py \
+    --image_path test.jpg \
+    --rec_path rec.jpg \
+    --image_size 512 \
+"""
 import argparse
 import logging
 import os
@@ -19,11 +27,10 @@ sys.path.append(".")
 
 import cv2
 from albumentations import Compose, Lambda, Resize, ToFloat
+from hyvideo.constants import PRECISION_TO_TYPE, PRECISIONS, VAE_PATH
 from hyvideo.utils.ms_utils import init_env
 from hyvideo.vae import load_vae
 from hyvideo.vae.unet_causal_3d_blocks import GroupNormExtend
-
-from .constants import PRECISION_TO_TYPE, PRECISIONS, VAE_PATH
 
 logger = logging.getLogger(__name__)
 
@@ -64,7 +71,7 @@ def transform_to_rgb(x, rescale_to_uint8=True):
 
 def main(args):
     image_path = args.image_path
-    short_size = args.short_size
+    image_size = args.image_size
     init_env(
         mode=args.mode,
         device_target=args.device,
@@ -114,7 +121,7 @@ def main(args):
         raise ValueError(f"Unsupported precision {args.precision}")
     input_x = np.array(Image.open(image_path))  # (h w c)
     assert input_x.shape[2], f"Expect the input image has three channels, but got shape {input_x.shape}"
-    x_vae = preprocess(input_x, short_size, short_size)  # use image as a single-frame video
+    x_vae = preprocess(input_x, image_size, image_size)  # use image as a single-frame video
     x_vae = ms.Tensor(x_vae, dtype).unsqueeze(0)  # b c t h w
     latents = vae.encode(x_vae)
     latents = latents.to(dtype)
@@ -159,9 +166,9 @@ if __name__ == "__main__":
         action="store_true",
         help="Enable tiling for the VAE model to save GPU memory.",
     )
-    parser.set_defaults(vae_tiling=True)
+
     parser.add_argument("--ms_checkpoint", type=str, default=None)
-    parser.add_argument("--short_size", type=int, default=336)
+    parser.add_argument("--image_size", type=int, default=336)
 
     # ms related
     parser.add_argument("--mode", default=0, type=int, help="Specify the mode: 0 for graph mode, 1 for pynative mode")
