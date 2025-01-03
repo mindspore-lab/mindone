@@ -104,6 +104,12 @@ def compute_dream_and_update_latents(
 
 
 def cast_training_params(model: Union[nn.Cell, List[nn.Cell]], dtype=ms.float32):
+    """
+    Casts the training parameters of the model to the specified data type.
+    Args:
+        model: The PyTorch model whose parameters will be cast.
+        dtype: The data type to which the model parameters will be cast.
+    """
     if not isinstance(model, list):
         model = [model]
     for m in model:
@@ -133,7 +139,8 @@ def _set_state_dict_into_text_encoder(lora_state_dict: Dict[str, ms.Tensor], pre
 def compute_density_for_timestep_sampling(
     weighting_scheme: str, batch_size: int, logit_mean: float = None, logit_std: float = None, mode_scale: float = None
 ):
-    """Compute the density for sampling the timesteps when doing SD3 training.
+    """
+    Compute the density for sampling the timesteps when doing SD3 training.
 
     Courtesy: This was contributed by Rafie Walker in https://github.com/huggingface/diffusers/pull/8528.
 
@@ -152,7 +159,8 @@ def compute_density_for_timestep_sampling(
 
 
 def compute_loss_weighting_for_sd3(weighting_scheme: str, sigmas=None):
-    """Computes loss weighting scheme for SD3 training.
+    """
+    Computes loss weighting scheme for SD3 training.
 
     Courtesy: This was contributed by Rafie Walker in https://github.com/huggingface/diffusers/pull/8528.
 
@@ -310,7 +318,9 @@ class EMAModel:
         raise NotImplementedError("Not Implemeneted for `pin_memory`.")
 
     def to(self, dtype=None, non_blocking=False) -> None:
-        r"""Move internal buffers of the ExponentialMovingAverage to `device`."""
+        r"""
+        Move internal buffers of the ExponentialMovingAverage to `device`.
+        """
         # .to() on the tensors handles None correctly
         raise NotImplementedError("Not Implemeneted for `to`.")
 
@@ -335,9 +345,10 @@ class EMAModel:
 
     def load_state_dict(self, state_dict: dict) -> None:
         r"""
-        Args:
         Loads the ExponentialMovingAverage state. This method is used by accelerate during checkpointing to save the
         ema state dict.
+
+        Args:
             state_dict (dict): EMA state. Should be an object returned
                 from a call to :meth:`state_dict`.
         """

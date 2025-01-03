@@ -53,7 +53,7 @@ from .import_utils import (
     is_transformers_available,
     maybe_import_module_in_mindone,
 )
-from .loading_utils import load_image, load_video
+from .loading_utils import get_module_from_name, load_image, load_video
 from .logging import get_logger
 from .outputs import BaseOutput
 from .peft_utils import (
