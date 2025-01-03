@@ -54,7 +54,7 @@ class CausalConv3d(nn.Cell):
             0,
         )  # W, H, T
         self.time_causal_padding = padding
-        bias = kwargs.pop("bias", False)
+        bias = kwargs.pop("bias", True)
         self.conv = nn.Conv3d(
             chan_in, chan_out, kernel_size, stride=stride, dilation=dilation, has_bias=bias, pad_mode="valid", **kwargs
         ).to_float(dtype)
