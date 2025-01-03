@@ -20,9 +20,8 @@ def prepare_causal_attention_mask(n_frame: int, n_hw: int, dtype, batch_size: in
     seq_len = n_frame * n_hw
     mask = ops.full((seq_len, seq_len), MIN_VALUE, dtype=ms.float32)
     mask_cond = ops.arange(mask.shape[-1])
-    mask = ops.masked_fill(mask, mask_cond < (mask_cond + 1).view(mask.shape[-1], 1), 0)
+    mask = ops.masked_fill(mask, mask_cond < (mask_cond + 1).view(mask.shape[-1], 1), 0.0)
     mask = mask.astype(dtype)
-
     if batch_size is not None:
         mask = mask.unsqueeze(0).broadcast_to((batch_size, -1, -1))
     return mask
