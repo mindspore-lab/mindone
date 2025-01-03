@@ -2,7 +2,6 @@ import numbers
 from typing import Optional, Tuple, Union
 
 import mindspore as ms
-import mindspore.mint.nn.functional as F
 from mindspore import Parameter, mint, nn, ops
 from mindspore.common.initializer import initializer
 
@@ -45,23 +44,26 @@ class CausalConv3d(nn.Cell):
         super().__init__()
 
         self.pad_mode = pad_mode
-        padding = (
+        padding = [
             kernel_size // 2,
             kernel_size // 2,
             kernel_size // 2,
             kernel_size // 2,
             kernel_size - 1,
             0,
-        )  # W, H, T
+        ]  # W, H, T
+        padding = padding[::-1]  # reverse the order for nn.ReplicationPad3d
         self.time_causal_padding = padding
         bias = kwargs.pop("bias", True)
         self.conv = nn.Conv3d(
             chan_in, chan_out, kernel_size, stride=stride, dilation=dilation, has_bias=bias, pad_mode="valid", **kwargs
         ).to_float(dtype)
         self.dtype = dtype
+        assert self.pad_mode == "replicate", "pad mode {self.pad_mode} is not supported other than `replicate`"
+        self.pad3d = nn.ReplicationPad3d(self.time_causal_padding)
 
     def construct(self, x):
-        x = F.pad(x, self.time_causal_padding, mode=self.pad_mode)
+        x = self.pad3d(x)
         if x.dtype == ms.float32:
             return self.conv(x).to(ms.float32)
         else:
@@ -338,7 +340,7 @@ class ResnetBlockCausal3D(nn.Cell):
         conv_3d_out_channels = conv_3d_out_channels or out_channels
         self.conv2 = CausalConv3d(out_channels, conv_3d_out_channels, kernel_size=3, stride=1)
 
-        self.nonlinearity = get_activation(non_linearity)
+        self.nonlinearity = get_activation(non_linearity)()
 
         self.upsample = self.downsample = None
         if self.up:

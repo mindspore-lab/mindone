@@ -109,7 +109,7 @@ def main(args):
         if dtype == ms.float16:
             custom_fp32_cells = [GroupNorm] if args.vae_keep_gn_fp32 else []
         else:
-            custom_fp32_cells = [nn.AvgPool2d]
+            custom_fp32_cells = [nn.ReplicationPad3d]
 
         vae = auto_mixed_precision(vae, amp_level, dtype, custom_fp32_cells=custom_fp32_cells)
         logger.info(
