@@ -8,7 +8,7 @@ from mindspore.common.initializer import initializer
 
 from mindone.diffusers.models.activations import get_activation
 from mindone.diffusers.models.attention_processor import Attention, SpatialNorm
-from mindone.diffusers.models.normalization import AdaGroupNorm, RMSNorm
+from mindone.diffusers.models.normalization import AdaGroupNorm, GroupNorm, RMSNorm
 from mindone.diffusers.utils import logging
 
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
@@ -66,16 +66,6 @@ class CausalConv3d(nn.Cell):
             return self.conv(x).to(ms.float32)
         else:
             return self.conv(x)
-
-
-class GroupNormExtend(nn.GroupNorm):
-    # GroupNorm supporting tensors with more than 4 dim
-    def construct(self, x):
-        x_shape = x.shape
-        if x.ndim >= 5:
-            x = x.view(x_shape[0], x_shape[1], x_shape[2], -1)
-        y = super().construct(x)
-        return y.view(x_shape)
 
 
 class LayerNorm(nn.Cell):
@@ -321,7 +311,7 @@ class ResnetBlockCausal3D(nn.Cell):
         elif self.time_embedding_norm == "spatial":
             self.norm1 = SpatialNorm(in_channels, temb_channels)
         else:
-            self.norm1 = GroupNormExtend(num_groups=groups, num_channels=in_channels, eps=eps, affine=True)
+            self.norm1 = GroupNorm(num_groups=groups, num_channels=in_channels, eps=eps, affine=True)
 
         self.conv1 = CausalConv3d(in_channels, out_channels, kernel_size=3, stride=1)
 
@@ -342,7 +332,7 @@ class ResnetBlockCausal3D(nn.Cell):
         elif self.time_embedding_norm == "spatial":
             self.norm2 = SpatialNorm(out_channels, temb_channels)
         else:
-            self.norm2 = GroupNormExtend(num_groups=groups_out, num_channels=out_channels, eps=eps, affine=True)
+            self.norm2 = GroupNorm(num_groups=groups_out, num_channels=out_channels, eps=eps, affine=True)
 
         self.dropout = nn.Dropout(p=dropout)
         conv_3d_out_channels = conv_3d_out_channels or out_channels

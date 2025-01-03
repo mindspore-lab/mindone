@@ -7,7 +7,7 @@ from mindspore import nn
 
 from mindone.diffusers.models.attention_processor import SpatialNorm
 
-from .unet_causal_3d_blocks import CausalConv3d, GroupNormExtend, UNetMidBlockCausal3D, get_down_block3d, get_up_block3d
+from .unet_causal_3d_blocks import CausalConv3d, GroupNorm, UNetMidBlockCausal3D, get_down_block3d, get_up_block3d
 
 
 class EncoderCausal3D(nn.Cell):
@@ -86,7 +86,7 @@ class EncoderCausal3D(nn.Cell):
         )
 
         # out
-        self.conv_norm_out = GroupNormExtend(num_channels=block_out_channels[-1], num_groups=norm_num_groups, eps=1e-6)
+        self.conv_norm_out = GroupNorm(num_channels=block_out_channels[-1], num_groups=norm_num_groups, eps=1e-6)
         self.conv_act = nn.SiLU()
 
         conv_out_channels = 2 * out_channels if double_z else out_channels
@@ -197,9 +197,7 @@ class DecoderCausal3D(nn.Cell):
         if norm_type == "spatial":
             self.conv_norm_out = SpatialNorm(block_out_channels[0], temb_channels)
         else:
-            self.conv_norm_out = GroupNormExtend(
-                num_channels=block_out_channels[0], num_groups=norm_num_groups, eps=1e-6
-            )
+            self.conv_norm_out = GroupNorm(num_channels=block_out_channels[0], num_groups=norm_num_groups, eps=1e-6)
         self.conv_act = nn.SiLU()
         self.conv_out = CausalConv3d(block_out_channels[0], out_channels, kernel_size=3)
 
