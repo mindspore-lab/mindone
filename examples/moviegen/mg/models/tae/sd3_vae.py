@@ -23,14 +23,6 @@ SD3d5_CONFIG = {
 
 
 class SD3d5_VAE(nn.Cell):
-    r"""
-    TAE
-
-    Parameters:
-        config (`dict`): config dict
-        pretrained (`str`): checkpoint path
-    """
-
     def __init__(
         self,
         config: dict = SD3d5_CONFIG,
