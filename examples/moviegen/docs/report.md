@@ -17,7 +17,7 @@ At this moment, we support training MovieGenVideo with the following configurati
 |-------------|-------|------------|------------|
 | 1B          | ✅     | ✅          | ✅          |
 | 5B          | ✅     | ✅          | 🆗         |
-| 30B         | ✅     | 🆗         | TODO       |
+| 30B         | 🆗    | ✅          | TODO       |
 
 Here ✅ means that training accuracy has been verified on a small-scale dataset, and 🆗 means training is supported, but
 the accuracy is under verification.
@@ -102,7 +102,7 @@ The training performance on MindSpore 2.3.1 and Ascend 910* and the accuracy on 
 |    TAE     |   1   |     1      | 256x256x32 |   bf16    |   OFF    |  2.18  | 31.35 | 0.92 |
 |    TAE     |   1   |     1      | 256x256x32 |   bf16    |    ON    |  2.18  | 31.17 | 0.92 |
 
-The hyper-parameters we used are as follows.
+The hyperparameters we used are as follows.
 
 ```yaml
 kl loss weight: 1.0e-06
@@ -165,50 +165,27 @@ Detailed code implementation can be referred to:
 [LLaMa3 Backbone](https://github.com/hadipash/mindone/blob/5aa1e4dc91d71934905319ba984704d4d4a62f8b/examples/moviegen/mg/models/llama/network.py#L273),
 [Transformer Block](https://github.com/hadipash/mindone/blob/5aa1e4dc91d71934905319ba984704d4d4a62f8b/examples/moviegen/mg/models/llama/network.py#L52).
 
-### Mixed Parallelism
+### Sequence Parallelism
 
-Movie Gen employs multiple parallelism to achieve model scaling and training efficiency, including [fully sharded
-data parallelism](https://arxiv.org/abs/2304.11277)(FSDP), [tensor parallelism](https://arxiv.org/abs/1909.08053)(TP),
-[sequence parallelism](https://arxiv.org/abs/2105.13120)(SP), and context parallelism (CP).
+The official [Movie Gen](https://ai.meta.com/research/publications/movie-gen-a-cast-of-media-foundation-models/) employs
+3D parallelism to enable model-level scaling across three dimensions: the number of parameters, input tokens, and
+dataset size, while also allowing horizontal scale-out to additional NPUs. It leverages a combination
+of [fully sharded data parallelism](https://arxiv.org/abs/2304.11277), [tensor parallelism](https://arxiv.org/abs/1909.08053), [sequence parallelism](https://arxiv.org/abs/2205.05198),
+and [context parallelism](https://docs.nvidia.com/megatron-core/developer-guide/latest/api-guide/context_parallel.html).
 
-Currently, our implementation supports MovieGenVideo training with TP, SP, CP, and DP.
-
-- **Tensor-parallelism (TP)**
-  shards the weights of linear layers either along columns or rows, and results in each NPU involved in the sharding
-  performing _tp-size_ less work (FLOPs) and generating _tp-size_ fewer activations for column-parallel shards and
-  consuming _tp-size_ fewer activations for row-parallel shards. The cost of performing such a sharding is the addition
-  of all-reduce communication overheads in both the forward (row-parallel) and backward (column-parallel) passes.
-
-  Our implementation can be referred
-  to [TP](https://github.com/hadipash/mindone/blob/5aa1e4dc91d71934905319ba984704d4d4a62f8b/examples/moviegen/mg/models/llama/block.py#L59)
-  and
-  [FusedTP](https://github.com/hadipash/mindone/blob/5aa1e4dc91d71934905319ba984704d4d4a62f8b/examples/moviegen/mg/models/llama/block.py#L91)
-- **Sequence-parallelism (SP)**
-  builds upon TP to also allow the sharding of the input over the sequence dimension for layers which are replicated and
-  in which each sequence element can be treated independently. Such layers, e.g., LayerNorm, would otherwise perform
-  duplicate compute and generate identical (and thus replicated) activations across the TP-group.
-
-  Our implementation can be referred
-  to [SP](https://github.com/hadipash/mindone/blob/5aa1e4dc91d71934905319ba984704d4d4a62f8b/examples/moviegen/mg/models/llama/network.py#L494)
-- **Context-parallelism (CP)**
-
-  enables a partial sharding over the sequence dimension for the _sequence-dependent softmax-attention operation_. CP
-  leverages the insight that for any given (_source_ (_context_), _target_ (_query_)) sequences pair, _softmax-attention
-  is only sequence-dependent over the context and not the query_. Therefore, in the case of self-attention where the
-  input source and target sequences are identical, CP allows the attention computation to be performed with only an
-  all-gather for the $K$ and $V$ projections (instead of $Q$, $K$, and $V$) in the forward pass, and a reduce-scatter
-  for their associated gradients in the backward.
-
-  Our implementation can be referred
-  to [CP Attention](https://github.com/hadipash/mindone/blob/5aa1e4dc91d71934905319ba984704d4d4a62f8b/examples/moviegen/mg/models/llama/block.py#L210)
-  and
-  [CP FlashAttention](https://github.com/hadipash/mindone/blob/5aa1e4dc91d71934905319ba984704d4d4a62f8b/examples/moviegen/mg/models/llama/block.py#L340)
-- **Fully sharded data parallel (FSDP)** shards the model, optimizer, and gradients across all data-parallel NPUs,
-  synchronously gathering and scattering parameters and gradients throughout each training step.
-
-  In our implementation, we use data parallelism
-  with [Zero3](https://github.com/hadipash/mindone/blob/5aa1e4dc91d71934905319ba984704d4d4a62f8b/mindone/trainers/zero.py#L75)
-  to serve the similar purpose of sharding the model parameters across multiple NPUs and optimize memory usage.
+Inspired by recent developments in long-sequence parallelism ([Ulysses-SP](https://arxiv.org/abs/2309.14509)
+and [USP](https://arxiv.org/abs/2405.07719)), we implement model parallelism
+using [Ulysses-SP](https://arxiv.org/abs/2309.14509) together with [ZeRO-3](https://arxiv.org/abs/1910.02054),instead of
+the approach used in Movie Gen. Ulysses-SP utilizes `All2ALL` communication for segments of the QKV tensors, drastically
+reducing communication costs compared to sequence parallelism implemented
+in [Megatron-LM](https://arxiv.org/abs/2405.07719), [DSP](https://arxiv.org/abs/2403.10266), as well as the sequence
+parallelism mentioned
+in [Movie Gen](https://ai.meta.com/research/publications/movie-gen-a-cast-of-media-foundation-models/). Alongside
+ZeRO-3, it achieves similar memory efficiency to [[Megatron-LM](https://arxiv.org/abs/2405.07719)]. Experimental results
+show that using Ulysses-SP + ZeRO-3, we can train a model of similar scale compared to 3D parallelism, with over 2x
+speed boost in training, corroborating the findings
+in [Megatron-LM](https://arxiv.org/abs/2405.07719), [Ulysses-SP](https://arxiv.org/abs/2309.14509),
+and [DSP](https://arxiv.org/abs/2403.10266).
 
 ### Training Details
 

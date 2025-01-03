@@ -28,7 +28,7 @@ this project!
     - [x] Web Demo (Gradio)
 - Movie Gen 30B (T2I/V)
     - [x] Inference
-    - [x] Mixed parallelism training (support SP + ZeRO-3, under training)
+    - [x] Mixed parallelism training (support Ulysses-SP + ZeRO-3, under training)
 - Video Personalization (PT2V)
     - [ ] Inference
     - [ ] Training
