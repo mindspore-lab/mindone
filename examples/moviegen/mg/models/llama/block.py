@@ -91,8 +91,10 @@ class LlamaAttention(nn.Cell):
         self.o_proj = mint.nn.Linear(self.num_heads * self.head_dim, self.hidden_size, bias=attention_bias, dtype=dtype)
 
         if sp_group := get_sequence_parallel_group() is not None:
-            self.alltoall = ops.AlltoAll(get_group_size(sp_group), 1, 2, group=sp_group)
+            self.sp_group_size = get_group_size(sp_group)
+            self.alltoall = ops.AlltoAll(self.sp_group_size, 1, 2, group=sp_group)
         else:
+            self.sp_group_size = None
             self.alltoall = nn.Identity()
 
     def construct(self, hidden_states: Tensor, encoder_hidden_states: Optional[Tensor] = None) -> Tensor:
