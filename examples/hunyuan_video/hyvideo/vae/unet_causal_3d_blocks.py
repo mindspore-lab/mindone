@@ -2,6 +2,7 @@ import numbers
 from typing import Optional, Tuple, Union
 
 import mindspore as ms
+import mindspore.mint.nn.functional as F
 from mindspore import Parameter, mint, nn, ops
 from mindspore.common.initializer import initializer
 
@@ -94,9 +95,9 @@ class LayerNorm(nn.Cell):
         return x
 
 
-class NearestInterpolate(nn.Cell):
-    def construct(self, x, size):
-        return ops.interpolate(x, size=size, mode="nearest")
+class MSInterpolate(nn.Cell):
+    def construct(self, x, size=None, scale_factor=None, mode="constant"):
+        return F.interpolate(x, size=size, scale_factor=scale_factor, mode=mode)
 
 
 class UpsampleCausal3D(nn.Cell):
@@ -150,7 +151,7 @@ class UpsampleCausal3D(nn.Cell):
             self.conv = conv
         else:
             self.Conv2d_0 = conv
-        self.nearest_interpolate = NearestInterpolate()
+        self.interpolate = MSInterpolate()
 
     def construct(
         self,
@@ -182,12 +183,10 @@ class UpsampleCausal3D(nn.Cell):
             first_h, other_h = mint.split(hidden_states, (1, T - 1), dim=2)
             if output_size is None:
                 if T > 1:
-                    size = (T * self.upsample_factor[0], H * self.upsample_factor[1], W * self.upsample_factor[2])
-                    other_h = self.nearest_interpolate(other_h, size=size)
+                    other_h = self.interpolate(other_h, scale_factor=self.upsample_factor, mode="nearest")
 
                 first_h = first_h.squeeze(2)
-                size = (H * self.upsample_factor[1], W * self.upsample_factor[2])
-                first_h = self.nearest_interpolate(first_h, size=size)
+                first_h = self.interpolate(first_h, scale_factor=self.upsample_factor[1:], mode="nearest")
                 first_h = first_h.unsqueeze(2)
             else:
                 raise NotImplementedError
