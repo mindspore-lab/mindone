@@ -1,4 +1,4 @@
-python eval_tae.py \
+python scripts/eval_tae.py \
 --mode=0 \
 --jit_level=O1 \
 --sample_n_frames=32 \

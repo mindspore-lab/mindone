@@ -13,7 +13,7 @@ from mindspore import get_context, nn, set_context, set_seed
 
 # TODO: remove in future when mindone is ready for install
 __dir__ = os.path.dirname(os.path.abspath(__file__))
-mindone_lib_path = os.path.abspath(os.path.join(__dir__, "../../"))
+mindone_lib_path = os.path.abspath(os.path.join(__dir__, "../../../"))
 sys.path.append(mindone_lib_path)
 
 from mg.acceleration import create_parallel_group

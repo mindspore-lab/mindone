@@ -2,6 +2,7 @@ import datetime
 import glob
 import logging
 import os
+import sys
 import time
 from typing import List, Tuple
 
@@ -9,12 +10,18 @@ import gradio as gr
 import numpy as np
 from jsonargparse import ActionConfigFile, ArgumentParser
 from jsonargparse.typing import path_type
-from mg.models.tae import TemporalAutoencoder
-from mg.pipelines import InferPipeline
-from mg.utils import init_model, to_numpy
 
 import mindspore as ms
 from mindspore import amp, nn
+
+# TODO: remove in future when mindone is ready for install
+__dir__ = os.path.dirname(os.path.abspath(__file__))
+mindone_lib_path = os.path.abspath(os.path.join(__dir__, "../../../"))
+sys.path.append(mindone_lib_path)
+
+from mg.models.tae import TemporalAutoencoder
+from mg.pipelines import InferPipeline
+from mg.utils import init_model, to_numpy
 
 from mindone.utils import init_train_env, set_logger
 from mindone.visualize import save_videos

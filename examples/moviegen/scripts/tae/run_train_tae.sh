@@ -12,7 +12,7 @@ export GLOG_v=2
 
 output_dir=outputs/train_tae
 
-python train_tae.py \
+python scripts/train_tae.py \
 --config configs/tae/train/mixed_256x256x32.yaml \
 --use_outlier_penalty_loss False \
 --csv_path datasets/ucf101_train.csv  \

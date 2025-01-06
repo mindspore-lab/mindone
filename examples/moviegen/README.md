@@ -5,10 +5,6 @@ This repository implements the [Movie Gen](https://arxiv.org/abs/2410.13720) mod
 Movie Gen is a family of foundation models that can natively generate high-fidelity images and videos
 while also possessing the abilities to edit and personalize the videos.
 
-Meta researchers found that scaling the training data, compute, and model parameters of a simple
-Transformer-based ([LLaMa3](https://arxiv.org/abs/2407.21783)) model trained with
-[Flow Matching](https://arxiv.org/abs/2210.02747) yields high quality generative models for video or audio.
-
 We aim to explore an efficient implementation based on MindSpore and Ascend NPUs.
 See our [report](docs/report.md) for more details.
 
@@ -95,7 +91,7 @@ Due to the large memory footprint of the text encoders, the inference and traini
 text embeddings online. Therefore, you need to prepare them in advance by running the following command:
 
 ```shell
-python inference_text_enc.py \
+python scripts/inference_text_enc.py \
 --model_name google/ul2 \
 --prompts_file /path/to/prompts.csv \
 --output_path /path/to/output/directory \
@@ -107,10 +103,10 @@ python inference_text_enc.py \
 
 ### Text-to-Image
 
-For more detailed instructions, please run `python inference.py --help`.
+For more detailed instructions, please run `python scripts/inference.py --help`.
 
 ```shell
-python inference.py \
+python scripts/inference.py \
 --config configs/inference/moviegen_t2i_256px.yaml \
 --model.name llama-5B \
 --model.pretrained_model_path /path/to/llama-5B.ckpt \
@@ -124,7 +120,7 @@ python inference.py \
 ### Text-to-Video
 
 ```shell
-python inference.py \
+python scripts/inference.py \
 --config configs/inference/moviegen_t2i_256px.yaml \
 --model.name llama-5B \
 --model.pretrained_model_path /path/to/llama-5B.ckpt \
@@ -150,7 +146,7 @@ pip install gradio
 2. Run the demo script with the following configuration. The demo provides 80 pre-computed text prompts to choose from:
 
 ```shell
-python gradio_demo.py \
+python scripts/gradio_demo.py \
 --config configs/inference/moviegen_t2i_256px.yaml \
 --model.name llama-5B \
 --model.pretrained_model_path /path/to/llama-5B.ckpt \
@@ -208,7 +204,7 @@ If you have sufficient storage budget, you can cache the video embeddings to spe
 command:
 
 ```shell
-python inference_tae.py \
+python scripts/inference_tae.py \
 --tae.pretrained=/path/to/tae.ckpt \
 --tae.dtype=bf16 \
 --video_data.folder=/path/to/folder/with/videos/ \
@@ -278,7 +274,7 @@ MovieGen paper.
 To launch training, please run
 
 ```shell
-python train_tae.py \
+python scripts/train_tae.py \
 --config configs/tae/train/mixed_256x256x32.yaml \
 --output_path /path/to/save_ckpt_and_log \
 --csv_path /path/to/video_train.csv  \
@@ -288,14 +284,14 @@ python train_tae.py \
 Unlike the paper, we found that OPL loss doesn't benefit the training outcome in our ablation study (with OPL, PSNR is
 31.17). Thus, we disable OPL loss by default. You may enable it by appending `--use_outlier_penalty_loss True`.
 
-For more details on the arguments, please run `python train_tae.py --help`
+For more details on the arguments, please run `python scripts/train_tae.py --help`
 
 ### Evaluation
 
 To run video reconstruction with the trained TAE model and evaluate the PSNR and SSIM on the test set, please run
 
 ```shell
-python eval_tae.py \
+python scripts/eval_tae.py \
 --ckpt_path /path/to/tae.ckpt \
 --batch_size 2 \
 --num_frames 32  \

@@ -6,7 +6,7 @@ from jsonargparse import ActionConfigFile, ArgumentParser
 
 # TODO: remove in future when mindone is ready for install
 __dir__ = os.path.dirname(os.path.abspath(__file__))
-mindone_lib_path = os.path.abspath(os.path.join(__dir__, "../../"))
+mindone_lib_path = os.path.abspath(os.path.join(__dir__, "../../../"))
 sys.path.append(mindone_lib_path)
 
 from mg.dataset.tae_dataset import BatchTransform, VideoDataset

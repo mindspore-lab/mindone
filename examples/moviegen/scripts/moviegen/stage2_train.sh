@@ -11,7 +11,7 @@ export GLOG_v=2
 output_dir=output/stage2_t2iv_256px/$(date +"%Y.%m.%d-%H.%M.%S")
 
 msrun --bind_core=True --master_port=8200 --worker_num=8 --local_worker_num=8 --log_dir="$output_dir"  \
-python train.py \
+python scripts/train.py \
   --config configs/train/stage2_t2iv_256px.yaml \
   --env.mode 0 \
   --env.jit_level O1 \

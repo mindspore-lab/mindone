@@ -288,7 +288,7 @@ export GLOG_v=2
 stage1_dir=output/stage1_t2i_256px/$(date +"%Y.%m.%d-%H.%M.%S")
 
 msrun --bind_core=True --master_port=8200 --worker_num=8 --local_worker_num=8 --log_dir="$stage1_dir"  \
-python train.py \
+python scripts/train.py \
   --config configs/train/stage1_t2i_256px.yaml \
   --env.mode 0 \
   --env.jit_level O1 \
@@ -330,7 +330,7 @@ export GLOG_v=2
 stage2_dir=output/stage2_t2iv_256px/$(date +"%Y.%m.%d-%H.%M.%S")
 
 msrun --bind_core=True --master_port=8200 --worker_num=8 --local_worker_num=8 --log_dir="$stage2_dir"  \
-python train.py \
+python scripts/train.py \
   --config configs/train/stage2_t2iv_256px.yaml \
   --env.mode 0 \
   --env.jit_level O1 \
@@ -374,7 +374,7 @@ export GLOG_v=2
 stage3_dir=output/stage3_t2iv_768px/$(date +"%Y.%m.%d-%H.%M.%S")
 
 msrun --bind_core=True --master_port=8200 --worker_num=8 --local_worker_num=8 --log_dir="$stage3_dir"  \
-python train.py \
+python scripts/train.py \
   --config configs/train/stage3_t2iv_768px.yaml \
   --env.mode 0 \
   --env.jit_level O1 \
