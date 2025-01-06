@@ -109,7 +109,7 @@ class SD35AdaLayerNormZeroX(nn.Cell):
     ) -> Tuple[ms.Tensor, ...]:
         emb = self.linear(self.silu(emb))
         shift_msa, scale_msa, gate_msa, shift_mlp, scale_mlp, gate_mlp, shift_msa2, scale_msa2, gate_msa2 = emb.chunk(
-            9, dim=1
+            9, axis=1
         )
         norm_hidden_states = self.norm(hidden_states)
         hidden_states = norm_hidden_states * (1 + scale_msa[:, None]) + shift_msa[:, None]
