@@ -25,10 +25,16 @@ this project!
 - Movie Gen 30B (T2I/V)
     - [x] Inference
     - [x] Mixed parallelism training (support Ulysses-SP + ZeRO-3, under training)
+    - [x] Training stage 1: T2I 256px
+    - [x] Training stage 2: T2V 256px 256frames
+    - [ ] Training stage 3: T2I/V 768px 256frames
 - Video Personalization (PT2V)
     - [ ] Inference
     - [ ] Training
 - Video Editing
+    - [ ] Inference
+    - [ ] Training
+- Video Super-Resolution
     - [ ] Inference
     - [ ] Training
 
