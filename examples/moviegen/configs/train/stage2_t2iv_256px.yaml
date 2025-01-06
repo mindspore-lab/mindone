@@ -30,7 +30,7 @@ dataset:
   target_size: [ 256, 455 ]
   sample_n_frames: 256  # FIXME: add variable frames support.
   apply_transforms_dataset: True
-  output_columns: ["video", "ul2_caption", "byt5_caption"]
+  output_columns: [ "video", "ul2_caption", "byt5_caption" ]
 
 dataloader:
   batch_size:
@@ -42,6 +42,9 @@ dataloader:
 train:
   steps: 20000
   output_path: ../../output/stage2_t2iv_256px  # the path is relative to this config
+
+  sequence_parallel:
+    shards: 1
 
   lr_scheduler:
     name: constant
@@ -58,7 +61,7 @@ train:
   optimizer:
     name: adamw_re
     eps: 1e-15
-    betas: [0.9, 0.999]
+    betas: [ 0.9, 0.999 ]
     weight_decay: 0.1
 
   loss_scaler:

@@ -104,7 +104,7 @@ class RFlowLossWrapper(nn.Cell):
         self.criteria = nn.MSELoss()
 
         self.broadcast = None
-        if sp_group := get_sequence_parallel_group() is not None:
+        if (sp_group := get_sequence_parallel_group()) is not None:
             logging.info(
                 f"Broadcasting all random variables from rank (0) to current rank ({get_rank(sp_group)}) in group `{sp_group}`."
             )

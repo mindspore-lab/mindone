@@ -90,7 +90,7 @@ class LlamaAttention(nn.Cell):
         )
         self.o_proj = mint.nn.Linear(self.num_heads * self.head_dim, self.hidden_size, bias=attention_bias, dtype=dtype)
 
-        if sp_group := get_sequence_parallel_group() is not None:
+        if (sp_group := get_sequence_parallel_group()) is not None:
             self.sp_group_size = get_group_size(sp_group)
             self.alltoall = ops.AlltoAll(self.sp_group_size, 1, 2, group=sp_group)
         else:

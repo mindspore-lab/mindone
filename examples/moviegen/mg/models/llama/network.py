@@ -227,7 +227,7 @@ class LlamaModel(nn.Cell):
         )
 
         # init sequence parallel
-        if sp_group := get_sequence_parallel_group() is not None:
+        if (sp_group := get_sequence_parallel_group()) is not None:
             _logger.info(f"Initialize Llama model with sequence parallel group `{sp_group}`.")
             self.split_forward_gather_backward = SplitFowardGatherBackward(dim=1, grad_scale="down", group=sp_group)
             self.gather_forward_split_backward = GatherFowardSplitBackward(dim=1, grad_scale="up", group=sp_group)

@@ -8,6 +8,7 @@ from jsonargparse import ActionConfigFile, ArgumentParser
 __dir__ = os.path.dirname(os.path.abspath(__file__))
 mindone_lib_path = os.path.abspath(os.path.join(__dir__, "../../../"))
 sys.path.append(mindone_lib_path)
+sys.path.append(os.path.join(__dir__, ".."))
 
 from mg.dataset.tae_dataset import BatchTransform, VideoDataset
 from mg.models.tae import TemporalAutoencoder
