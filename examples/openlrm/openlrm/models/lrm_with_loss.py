@@ -45,21 +45,6 @@ class ModelLRMWithLoss(nn.Cell):
             os.makedirs(os.path.join(self.logdir, "images"), exist_ok=True)
             os.makedirs(os.path.join(self.logdir, "images_val"), exist_ok=True)
 
-    # TODO: seems no use
-    def prepare_validation_batch_data(self, batch, _use_dataloader=False):
-        """Used during eval/inference, cast all np input into Tensors.
-
-        Args:
-        batch: data that read in from the val dataset.
-        """
-        lrm_generator_input = {}
-        images = batch["source_image"]
-        lrm_generator_input["source_camera"] = batch["source_camera"]  # [1, 12+4]
-        lrm_generator_input["render_camera"] = batch["render_camera"]  # [N, 16+9]
-        lrm_generator_input["source_image"] = batch["source_image"]  # Tensor [N,C,H,W]
-
-        return lrm_generator_input
-
     def construct(
         self,
         source_camera: Tensor,
@@ -91,30 +76,6 @@ class ModelLRMWithLoss(nn.Cell):
         loss = self.compute_loss(planes, images_rgb, render_image)
 
         return loss
-
-    # TODO: to use
-    def forward_nocalloss(
-        self,
-        source_camera: Tensor,
-        render_camera: Tensor,
-        source_image: Tensor,
-        render_anchors: Tensor,
-        render_full_resolutions: Tensor,
-        render_bg_colors: Tensor,
-    ) -> Tensor:
-        """For evaluate()."""
-        outputs = self.lrm_generator(
-            image=source_image,
-            source_camera=source_camera,
-            render_cameras=render_camera,
-            render_anchors=render_anchors,
-            render_resolutions=render_full_resolutions,
-            render_bg_colors=render_bg_colors,
-            render_region_size=self.cfg.dataset.render_image.region,
-        )
-
-        render_images = mint.clamp(outputs["images_rgb"], 0.0, 1.0)
-        return render_images
 
     def compute_loss(self, planes, images_rgb, render_image):
         # NOTE: the rgb value range of OpenLRM is [0, 1]
@@ -164,6 +125,38 @@ class ModelLRMWithLossEval(nn.Cell):
         perceptual_loss_fn = LPIPSLoss(prefech=True)
         tv_loss_fn = TVLoss()
         return pixel_loss_fn, perceptual_loss_fn, tv_loss_fn
+        
+    def forward_nocalloss(
+        self,
+        source_camera: Tensor,
+        render_camera: Tensor,
+        source_image: Tensor,
+        render_size: int
+    ) -> Tensor:
+        """For evaluate()."""
+        planes = self.lrm_generator.forward_planes(source_image, source_camera)
+        N = planes.shape[0] # N=1
+        render_cameras = render_camera.unsqueeze(0).tile((N, 1, 1))  # [N, M, 25]
+        render_anchors = mint.zeros((N, render_cameras.shape[1], 2), dtype=ms.float32)
+        render_resolutions = mint.ones((N, render_cameras.shape[1], 1), dtype=ms.float32) * render_size
+        render_bg_colors = mint.ones((N, render_cameras.shape[1], 1), dtype=ms.float32) * 1.0
+
+        frames = []
+        for i in range(render_camera.shape[1]):
+            frames.append(
+                self.lrm_generator.synthesizer(
+                    planes=planes,
+                    cameras=render_cameras[:, i : i + 1],
+                    anchors=render_anchors[:, i : i + 1],
+                    resolutions=render_resolutions[:, i : i + 1],
+                    bg_colors=render_bg_colors[:, i : i + 1],
+                    region_size=render_size,
+                )
+            )
+        # merge frames
+        outputs = mint.cat([r["images_rgb"] for r in frames], dim=1)
+        render_images = mint.clamp(outputs, 0.0, 1.0)
+        return render_images
 
     def construct(
         self,

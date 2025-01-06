@@ -66,11 +66,11 @@ def wrap_model_hub(model_cls: nn.Cell):
                     model_file = os.path.join(model_id, "ckpt", ckpt_name)
                 else:
                     model_file = os.path.join(model_id, "ckpt", "train_resume.ckpt")
-                print("Loading weights from local pretrained directory: {model_file}")
+                print(f"Loading weights from local pretrained directory: {model_file}")
                 state_dict = ms.load_checkpoint(model_file)
             elif os.path.isdir(model_id) and use_safetensors:  # if single safetensors
                 model_file = os.path.join(model_id, constants.SAFETENSORS_SINGLE_FILE)  # "model.safetensors"
-                print("Loading weights from local directory: {model_file}")
+                print(f"Loading weights from local directory: {model_file}")
                 state_dict = load_file(model_file)
 
             else:

@@ -88,7 +88,6 @@ class LRMTrainer(Trainer):
         lrm_model_with_loss.set_train(True)
         # lrm_model_eval = ModelLRMWithLossEval(cfg) # TODO
 
-        # TBD
         if not self.args.global_bf16:
             lrm_model_with_loss = auto_mixed_precision(
                 lrm_model_with_loss, amp_level=self.args.amp_level, custom_fp32_cells=[MatrixInv]
