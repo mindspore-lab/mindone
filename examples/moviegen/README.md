@@ -28,6 +28,9 @@ this project!
     - [x] Training stage 1: T2I 256px
     - [x] Training stage 2: T2V 256px 256frames
     - [ ] Training stage 3: T2I/V 768px 256frames
+- Training with Buckets
+    - [ ] Support different resolutions and aspect ratios
+    - [ ] Support different number of frames
 - Video Personalization (PT2V)
     - [ ] Inference
     - [ ] Training

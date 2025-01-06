@@ -5,7 +5,6 @@ from mindspore import Tensor
 from mindspore import dtype as mstype
 from mindspore import load_checkpoint, load_param_into_net, mint, nn, ops
 
-from ...utils.model_utils import MODEL_DTYPE
 from .modules import Conv2_5d, Decoder, Encoder
 
 SDXL_CONFIG = {
@@ -71,7 +70,8 @@ class TemporalAutoencoder(nn.Cell):
         self.out_channels = config["z_channels"]
         self.scale_factor = config["scaling_factor"]
         self.shift_factor = config["shift_factor"]
-        self._dtype = MODEL_DTYPE[dtype]  # not used yet, just for CLI initialization convenience
+        # not used yet, just for CLI initialization convenience
+        self._dtype = {"fp32": mstype.float32, "fp16": mstype.float16, "bf16": mstype.bfloat16}[dtype]
 
         # encoder
         self.encoder = Encoder(**config)
