@@ -8,7 +8,6 @@ from .autoencoder_kl_causal_3d import AutoencoderKLCausal3D
 
 def load_vae(
     vae_type: str = "884-16c-hy",
-    vae_precision: str = None,
     sample_size: tuple = None,
     vae_path: str = None,
     logger=None,
@@ -49,9 +48,6 @@ def load_vae(
 
     spatial_compression_ratio = vae.config.spatial_compression_ratio
     time_compression_ratio = vae.config.time_compression_ratio
-
-    if vae_precision is not None:
-        vae = vae.to(dtype=PRECISION_TO_TYPE[vae_precision])
 
     vae.set_train(False)
     for param in vae.trainable_params():

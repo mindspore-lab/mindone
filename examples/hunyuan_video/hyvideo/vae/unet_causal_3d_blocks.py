@@ -30,7 +30,10 @@ def prepare_causal_attention_mask(n_frame: int, n_hw: int, dtype, batch_size: in
 
 class MSPad(nn.Cell):
     def construct(self, x, pad, mode="constant", value=None):
-        return F.pad(x, pad, mode=mode, value=value)
+        if value is not None:
+            return F.pad(x, pad, mode=mode, value=value)
+        else:
+            return F.pad(x, pad, mode=mode)
 
 
 class CausalConv3d(nn.Cell):
@@ -61,7 +64,7 @@ class CausalConv3d(nn.Cell):
             kernel_size - 1,
             0,
         ]  # W, H, T
-        padding = padding[::-1]  # reverse the order for MSPad
+
         self.time_causal_padding = padding
         bias = kwargs.pop("bias", True)
         self.conv = nn.Conv3d(
@@ -133,7 +136,7 @@ class UpsampleCausal3D(nn.Cell):
         self.use_conv_transpose = use_conv_transpose
         self.name = name
         self.interpolate = interpolate
-        self.upsample_factor = upsample_factor
+        self.upsample_factor = tuple([float(x) for x in upsample_factor])
 
         if norm_type == "ln_norm":
             self.norm = LayerNorm(channels, eps, elementwise_affine)
@@ -156,7 +159,7 @@ class UpsampleCausal3D(nn.Cell):
             self.conv = conv
         else:
             self.Conv2d_0 = conv
-        self.interpolate = MSInterpolate()
+        self.ms_interpolate = MSInterpolate()
 
     def construct(
         self,
@@ -188,10 +191,10 @@ class UpsampleCausal3D(nn.Cell):
             first_h, other_h = mint.split(hidden_states, (1, T - 1), dim=2)
             if output_size is None:
                 if T > 1:
-                    other_h = self.interpolate(other_h, scale_factor=self.upsample_factor, mode="nearest")
+                    other_h = self.ms_interpolate(other_h, scale_factor=self.upsample_factor, mode="nearest")
 
                 first_h = first_h.squeeze(2)
-                first_h = self.interpolate(first_h, scale_factor=self.upsample_factor[1:], mode="nearest")
+                first_h = self.ms_interpolate(first_h, scale_factor=self.upsample_factor[1:], mode="nearest")
                 first_h = first_h.unsqueeze(2)
             else:
                 raise NotImplementedError

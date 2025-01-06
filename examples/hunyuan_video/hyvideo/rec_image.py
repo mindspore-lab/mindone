@@ -1,7 +1,7 @@
 """
 Run causal vae reconstruction on a given image
 Usage example:
-python examples/rec_image.py \
+python hyvideo/rec_image.py \
     --image_path test.jpg \
     --rec_path rec.jpg \
     --image_size 512 \
@@ -93,7 +93,6 @@ def main(args):
 
     vae, _, s_ratio, t_ratio = load_vae(
         args.vae,
-        args.vae_precision,
         logger=logger,
         state_dict=state_dict,
     )
@@ -102,9 +101,9 @@ def main(args):
     if args.vae_tiling:
         vae.enable_tiling()
         # vae.tile_overlap_factor = args.tile_overlap_factor
-    if args.precision in ["fp16", "bf16"]:
+    if args.vae_precision in ["fp16", "bf16"]:
         amp_level = "O2"
-        dtype = PRECISION_TO_TYPE[args.precision]
+        dtype = PRECISION_TO_TYPE[args.vae_precision]
         if dtype == ms.float16:
             custom_fp32_cells = [GroupNorm] if args.vae_keep_gn_fp32 else []
         else:
@@ -112,12 +111,12 @@ def main(args):
 
         vae = auto_mixed_precision(vae, amp_level, dtype, custom_fp32_cells=custom_fp32_cells)
         logger.info(
-            f"Set mixed precision to {amp_level} with dtype={args.precision}, custom fp32_cells {custom_fp32_cells}"
+            f"Set mixed precision to {amp_level} with dtype={args.vae_precision}, custom fp32_cells {custom_fp32_cells}"
         )
-    elif args.precision == "fp32":
-        dtype = PRECISION_TO_TYPE[args.precision]
+    elif args.vae_precision == "fp32":
+        dtype = PRECISION_TO_TYPE[args.vae_precision]
     else:
-        raise ValueError(f"Unsupported precision {args.precision}")
+        raise ValueError(f"Unsupported precision {args.vae_precision}")
     input_x = np.array(Image.open(image_path))  # (h w c)
     assert input_x.shape[2], f"Expect the input image has three channels, but got shape {input_x.shape}"
     x_vae = preprocess(input_x, image_size, image_size)  # use image as a single-frame video
@@ -171,14 +170,7 @@ if __name__ == "__main__":
 
     # ms related
     parser.add_argument("--mode", default=0, type=int, help="Specify the mode: 0 for graph mode, 1 for pynative mode")
-    parser.add_argument(
-        "--precision",
-        default="bf16",
-        type=str,
-        choices=["fp32", "fp16", "bf16"],
-        help="mixed precision type, if fp32, all layer precision is float32 (amp_level=O0),  \
-                if bf16 or fp16, amp_level==O2, part of layers will compute in bf16 or fp16 such as matmul, dense, conv.",
-    )
+
     parser.add_argument("--device", type=str, default="Ascend", help="Ascend or GPU")
     parser.add_argument(
         "--precision_mode",

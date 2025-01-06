@@ -13,6 +13,7 @@ import mindspore as ms
 mindone_lib_path = os.path.abspath("../../")
 sys.path.insert(0, mindone_lib_path)
 from mindone.utils.amp import auto_mixed_precision
+from mindone.utils.config import str2bool
 from mindone.utils.logger import set_logger
 
 sys.path.append(".")
@@ -134,7 +135,6 @@ def main(args):
         jit_syntax_level=args.jit_syntax_level,
     )
 
-    dtype = PRECISION_TO_TYPE[args.precision]
     set_logger(name="", output_dir=args.output_path, rank=0)
     if args.ms_checkpoint is not None and os.path.exists(args.ms_checkpoint):
         logger.info(f"Run inference with MindSpore checkpoint {args.ms_checkpoint}")
@@ -148,7 +148,6 @@ def main(args):
         state_dict = None
     vae, _, s_ratio, t_ratio = load_vae(
         args.vae,
-        args.vae_precision,
         logger=logger,
         state_dict=state_dict,
     )
@@ -157,9 +156,9 @@ def main(args):
     if args.vae_tiling:
         vae.enable_tiling()
         # vae.tile_overlap_factor = args.tile_overlap_factor
-    if args.precision in ["fp16", "bf16"]:
+    if args.vae_precision in ["fp16", "bf16"]:
         amp_level = "O2"
-        dtype = PRECISION_TO_TYPE[args.precision]
+        dtype = PRECISION_TO_TYPE[args.vae_precision]
         if dtype == ms.float16:
             custom_fp32_cells = [GroupNorm] if args.vae_keep_gn_fp32 else []
         else:
@@ -167,12 +166,12 @@ def main(args):
 
         vae = auto_mixed_precision(vae, amp_level, dtype, custom_fp32_cells=custom_fp32_cells)
         logger.info(
-            f"Set mixed precision to {amp_level} with dtype={args.precision}, custom fp32_cells {custom_fp32_cells}"
+            f"Set mixed precision to {amp_level} with dtype={args.vae_precision}, custom fp32_cells {custom_fp32_cells}"
         )
-    elif args.precision == "fp32":
-        dtype = PRECISION_TO_TYPE[args.precision]
+    elif args.vae_precision == "fp32":
+        dtype = PRECISION_TO_TYPE[args.vae_precision]
     else:
-        raise ValueError(f"Unsupported precision {args.precision}")
+        raise ValueError(f"Unsupported precision {args.vae_precision}")
     x_vae = preprocess(read_video(args.video_path, args.num_frames, args.sample_rate), args.height, args.width)
 
     x_vae = ms.Tensor(x_vae, dtype).unsqueeze(0)  # b c t h w
@@ -242,14 +241,11 @@ if __name__ == "__main__":
     # ms related
     parser.add_argument("--mode", default=1, type=int, help="Specify the mode: 0 for graph mode, 1 for pynative mode")
     parser.add_argument(
-        "--precision",
-        default="bf16",
-        type=str,
-        choices=["fp32", "fp16", "bf16"],
-        help="mixed precision type, if fp32, all layer precision is float32 (amp_level=O0),  \
-                if bf16 or fp16, amp_level==O2, part of layers will compute in bf16 or fp16 such as matmul, dense, conv.",
+        "--vae_keep_gn_fp32",
+        default=False,
+        type=str2bool,
+        help="whether keep GroupNorm in fp32. Defaults to False in inference, better to set to True when training vae",
     )
-
     parser.add_argument("--device", type=str, default="Ascend", help="Ascend or GPU")
     parser.add_argument(
         "--precision_mode",
