@@ -13,13 +13,14 @@
 # limitations under the License.
 
 
-from abc import ABC, abstractmethod
 import json
-import numpy as np
-from PIL import Image
-from megfile import smart_open, smart_path_join, smart_exists
-import mindspore as ms
+from abc import ABC, abstractmethod
 
+import numpy as np
+from megfile import smart_exists, smart_open, smart_path_join
+from PIL import Image
+
+import mindspore as ms
 import mindspore.dataset.vision as vision
 from mindspore.dataset.vision import Inter
 
@@ -45,25 +46,25 @@ class BaseDataset(ABC):
     @staticmethod
     def _load_uids(meta_path: str):
         # meta_path is a json file
-        with open(meta_path, 'r') as f:
+        with open(meta_path, "r") as f:
             uids = json.load(f)
         return uids
 
     @staticmethod
-    def _load_rgba_image(file_path, bg_color: float = 1.0, resize = None, crop_pos = None, crop_size = None):
-        ''' Load and blend RGBA image to RGB with certain background, 0-1 scaled 
-            Transform image properly (resize, and crop):
-                - resize: int
-                - crop_pos: [int, int]
-                - crop_size: int
-        '''
+    def _load_rgba_image(file_path, bg_color: float = 1.0, resize=None, crop_pos=None, crop_size=None):
+        """Load and blend RGBA image to RGB with certain background, 0-1 scaled
+        Transform image properly (resize, and crop):
+            - resize: int
+            - crop_pos: [int, int]
+            - crop_size: int
+        """
         # read image
-        rgba = np.array(Image.open(smart_open(file_path, 'rb')))
-        
+        rgba = np.array(Image.open(smart_open(file_path, "rb")))
+
         # image transformation
         if resize is not None:
             rgba = vision.Resize([resize, resize], Inter.BICUBIC)(rgba)
-        if (crop_pos is not None) and (crop_size is not None): # rand crop
+        if (crop_pos is not None) and (crop_size is not None):  # rand crop
             assert (crop_pos[0] + crop_size <= rgba.shape[0]) and (crop_pos[1] + crop_size <= rgba.shape[1])
             # print(f"crop rgba: {rgba.shape}")
             rgba = vision.Crop(crop_pos, crop_size)(rgba)
@@ -73,7 +74,7 @@ class BaseDataset(ABC):
         rgba = ms.Tensor(rgba).float() / 255.0
         rgba = rgba.permute((2, 0, 1)).unsqueeze(0)
         rgb = rgba[:, :3, :, :] * rgba[:, 3:4, :, :] + bg_color * (1 - rgba[:, 3:, :, :])
-     
+
         return rgb
 
     @staticmethod

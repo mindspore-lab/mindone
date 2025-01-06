@@ -3,14 +3,15 @@
 Note that the rendering part of instantmesh contains one of the cuda rasterization extensions, thus not implemented at the moment.
 """
 import argparse
-import os, sys
+import os
+import sys
+
 # TODO: debug use delete later
 mindone_lib_path = os.path.abspath("../../")
 sys.path.insert(0, mindone_lib_path)
 sys.path.append("./")
 
 from openlrm.runners.infer import LRMInferrer
-
 
 # def args_parse():
 #     parser = argparse.ArgumentParser()
@@ -109,7 +110,7 @@ if __name__ == "__main__":
     pipeline = InstantMeshPipeline(infer_config, model)
     mesh_out = pipeline(inputs, radius=4.0 * args.scale)
     mesh_path_sample = os.path.join(mesh_path, f"{name}.obj")
-   
+
     sdf = mesh_out
     verts, faces = mcubes.marching_cubes(sdf.asnumpy().squeeze(0), 0)
     mcubes.export_obj(verts, faces, mesh_path_sample)

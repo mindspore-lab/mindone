@@ -13,11 +13,10 @@
 #   licensed under the Apache License, Version 2.0.
 # ******************************************************************************
 
-from functools import partial
-import math
 import logging
-from typing import Sequence, Tuple, Union, Callable
-
+import math
+from functools import partial
+from typing import Callable, Sequence, Tuple, Union
 
 import mindspore as ms
 from mindspore import mint, nn, ops
@@ -25,7 +24,8 @@ from mindspore.common.initializer import Normal, TruncatedNormal, initializer
 
 # ********** Modified by Zexin He in 2023-2024 **********
 # Avoid using nested tensor for now, deprecating usage of NestedTensorBlock
-from ..layers import Mlp, PatchEmbed, SwiGLUFFNFused, MemEffAttention, Block, BlockWithModulation
+from ..layers import Block, BlockWithModulation, MemEffAttention, Mlp, PatchEmbed, SwiGLUFFNFused
+
 # ********************************************************
 
 
@@ -110,6 +110,7 @@ class DinoVisionTransformer(nn.Cell):
         block_norm_layer = None
         if modulation_dim is not None:
             from ....modulate import ModLN
+
             block_norm_layer = partial(ModLN, mod_dim=modulation_dim)
         else:
             block_norm_layer = nn.LayerNorm
@@ -133,7 +134,9 @@ class DinoVisionTransformer(nn.Cell):
         self.pos_embed = ms.Parameter(mint.zeros((1, num_patches + self.num_tokens, embed_dim), dtype=ms.float32))
         assert num_register_tokens >= 0
         self.register_tokens = (
-            ms.Parameter(mint.zeros((1, num_register_tokens, embed_dim), dtype=ms.float32)) if num_register_tokens else None
+            ms.Parameter(mint.zeros((1, num_register_tokens, embed_dim), dtype=ms.float32))
+            if num_register_tokens
+            else None
         )
 
         if drop_path_uniform is True:
@@ -200,7 +203,7 @@ class DinoVisionTransformer(nn.Cell):
     def init_weights(self):
         weight = initializer(TruncatedNormal(sigma=0.02, mean=0.0, a=-2.0, b=2.0), self.pos_embed.shape)
         self.pos_embed.set_data(weight)
-        
+
         weight = initializer(Normal(sigma=1e-6, mean=0.0), self.cls_token.shape)
         self.cls_token.set_data(weight)
 
@@ -230,10 +233,10 @@ class DinoVisionTransformer(nn.Cell):
         sx, sy = float(w0) / sqrt_N, float(h0) / sqrt_N
         patch_pos_embed = ops.interpolate(
             patch_pos_embed.reshape(1, int(sqrt_N), int(sqrt_N), dim).permute(0, 3, 1, 2),
-            scale_factor=(sx, sy), # ms does not support bicubic by directly passing this parameter yet,
+            scale_factor=(sx, sy),  # ms does not support bicubic by directly passing this parameter yet,
             mode="bicubic",
             # antialias=self.interpolate_antialias, # ms not supported
-            recompute_scale_factor=True # to compute scale factor, need to set this True
+            recompute_scale_factor=True,  # to compute scale factor, need to set this True
         )
 
         assert int(w0) == patch_pos_embed.shape[-2]
@@ -308,6 +311,7 @@ class DinoVisionTransformer(nn.Cell):
             "x_prenorm": x,
             "masks": masks,
         }
+
     # ********************************************************
 
     def _get_intermediate_layers_not_chunked(self, x, n=1):
@@ -351,7 +355,7 @@ class DinoVisionTransformer(nn.Cell):
         if norm:
             outputs = [self.norm(out) for out in outputs]
         class_tokens = [out[:, 0] for out in outputs]
-        outputs = [out[:, 1 + self.num_register_tokens:] for out in outputs]
+        outputs = [out[:, 1 + self.num_register_tokens :] for out in outputs]
         if reshape:
             B, _, w, h = x.shape
             outputs = [
@@ -382,6 +386,7 @@ def init_weights_vit_timm(module: nn.Cell, name: str = ""):
 
 # ********** Modified by Zexin He in 2023-2024 **********
 # block class selected from Block and BlockWithModulation
+
 
 def _block_cls(**kwargs):
     modulation_dim = kwargs.get("modulation_dim", None)
@@ -449,5 +454,6 @@ def vit_giant2(patch_size=16, num_register_tokens=0, **kwargs):
         **kwargs,
     )
     return model
+
 
 # ********************************************************

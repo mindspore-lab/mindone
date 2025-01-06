@@ -15,7 +15,7 @@
 
 from mindspore import nn
 
-__all__ = ['PixelLoss']
+__all__ = ["PixelLoss"]
 
 
 class PixelLoss(nn.Cell):
@@ -23,33 +23,33 @@ class PixelLoss(nn.Cell):
     Pixel-wise loss between two images.
     """
 
-    def __init__(self, option: str = 'mse'):
+    def __init__(self, option: str = "mse"):
         super().__init__()
         self.loss_fn = self._build_from_option(option)
 
     @staticmethod
-    def _build_from_option(option: str, reduction: str = 'none'):
-        if option == 'mse':
+    def _build_from_option(option: str, reduction: str = "none"):
+        if option == "mse":
             return nn.MSELoss(reduction=reduction)
-        elif option == 'l1':
+        elif option == "l1":
             return nn.L1Loss(reduction=reduction)
         else:
-            raise NotImplementedError(f'Unknown pixel loss option: {option}')
+            raise NotImplementedError(f"Unknown pixel loss option: {option}")
 
     def construct(self, x, y):
         """
         Assume images are channel first.
-        
+
         Args:
             x: [N, M, C, H, W]
             y: [N, M, C, H, W]
-        
+
         Returns:
             Mean-reduced pixel loss across batch.
         """
         N, M, C, H, W = x.shape
-        x = x.reshape(N*M, C, H, W)
-        y = y.reshape(N*M, C, H, W)
+        x = x.reshape(N * M, C, H, W)
+        y = y.reshape(N * M, C, H, W)
         image_loss = self.loss_fn(x, y).mean(axis=[1, 2, 3])
         batch_loss = image_loss.reshape(N, M).mean(axis=1)
         all_loss = batch_loss.mean()

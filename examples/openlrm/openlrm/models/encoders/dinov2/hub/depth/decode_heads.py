@@ -4,13 +4,14 @@
 # found in the LICENSE file in the root directory of this source tree.
 
 import copy
-from functools import partial
 import math
 import warnings
+from functools import partial
 
 import mindspore as ms
-from mindspore import nn, ops, mint
-from mindspore.common.initializer import initializer, HeNormal
+from mindspore import mint, nn, ops
+from mindspore.common.initializer import HeNormal, initializer
+
 from .ops import resize
 
 
@@ -230,9 +231,13 @@ class BNHead(DepthBaseDecodeHead):
         self.upsample = upsample
         # self.bn = nn.SyncBatchNorm(self.in_channels)
         if self.classify:
-            self.conv_depth = nn.Conv2d(self.channels, self.n_bins, kernel_size=1, padding=0, stride=1, has_bias=True, pad_mode='valid')
+            self.conv_depth = nn.Conv2d(
+                self.channels, self.n_bins, kernel_size=1, padding=0, stride=1, has_bias=True, pad_mode="valid"
+            )
         else:
-            self.conv_depth = nn.Conv2d(self.channels, 1, kernel_size=1, padding=0, stride=1, has_bias=True, pad_mode='valid')
+            self.conv_depth = nn.Conv2d(
+                self.channels, 1, kernel_size=1, padding=0, stride=1, has_bias=True, pad_mode="valid"
+            )
 
     def _transform_inputs(self, inputs):
         """Transform inputs for decoder.
@@ -368,7 +373,7 @@ class ConvModule(nn.Cell):
         order=("conv", "norm", "act"),
     ):
         super(ConvModule, self).__init__()
-        official_padding_mode = ["zeros"] #, "circular"]
+        official_padding_mode = ["zeros"]  # , "circular"]
         self.conv_layer = conv_layer
         self.norm_layer = norm_layer
         self.act_layer = act_layer
@@ -406,7 +411,7 @@ class ConvModule(nn.Cell):
             dilation=dilation,
             groups=groups,
             has_bias=bias,
-            pad_mode="pad"
+            pad_mode="pad",
         )
         # export the attributes of self.conv to a higher level for convenience
         self.in_channels = self.conv.in_channels
@@ -419,7 +424,7 @@ class ConvModule(nn.Cell):
         self.output_padding = self.conv.output_padding
         self.groups = self.conv.groups
 
-        if self.with_spectral_norm: #
+        if self.with_spectral_norm:  #
             print("Do not support spectral_norm yet, bypass it.")
             # self.conv = nn.utils.spectral_norm(self.conv) # TODO
 
@@ -434,12 +439,13 @@ class ConvModule(nn.Cell):
             self.norm_name = "norm"
             # self.add_module("norm", norm)
             if self.with_bias:
-                if (isinstance(norm, nn.InstanceNorm1d) or
-                    isinstance(norm, nn.InstanceNorm2d) or
-                    isinstance(norm, nn.InstanceNorm3d) or
-                    isinstance(norm, nn.BatchNorm1d) or
-                    isinstance(norm, nn.BatchNorm2d) or
-                    isinstance(norm, nn.BatchNorm3d)
+                if (
+                    isinstance(norm, nn.InstanceNorm1d)
+                    or isinstance(norm, nn.InstanceNorm2d)
+                    or isinstance(norm, nn.InstanceNorm3d)
+                    or isinstance(norm, nn.BatchNorm1d)
+                    or isinstance(norm, nn.BatchNorm2d)
+                    or isinstance(norm, nn.BatchNorm3d)
                 ):
                     warnings.warn("Unnecessary conv bias before batch/instance norm")
         else:
@@ -455,7 +461,7 @@ class ConvModule(nn.Cell):
 
         # Use msra init by default
         self.init_weights()
-    
+
         if dim is None:
             if isinstance(
                 module,
@@ -496,8 +502,11 @@ class ConvModule(nn.Cell):
                 nonlinearity = "relu"
                 a = 0
             if hasattr(self.conv, "weight") and self.conv.weight is not None:
-                weight = initializer(init=HeNormal(negative_slope=a, mode='fan_out', nonlinearity=nonlinearity), self.conv.weight.shape)
-                self.conv.weight.set_data(weight)                
+                weight = initializer(
+                    init=HeNormal(negative_slope=a, mode="fan_out", nonlinearity=nonlinearity),
+                    shape=self.conv.weight.shape,
+                )
+                self.conv.weight.set_data(weight)
             if hasattr(self.conv, "bias") and self.conv.bias is not None:
                 bias_weight = initializer("zeros", self.conv.bias.shape)
                 self.conv.bias.set_data(bias_weight)
@@ -534,7 +543,13 @@ class Interpolate(nn.Cell):
         if self.mode == "area":
             x = self.interp(x, scale_factor=self.scale_factor, mode=self.mode, align_corners=self.align_corners)
         else:
-            x = self.interp(x, scale_factor=self.scale_factor, mode=self.mode, align_corners=self.align_corners, recompute_scale_factor=True)
+            x = self.interp(
+                x,
+                scale_factor=self.scale_factor,
+                mode=self.mode,
+                align_corners=self.align_corners,
+                recompute_scale_factor=True,
+            )
         return x
 
 
@@ -542,11 +557,11 @@ class HeadDepth(nn.Cell):
     def __init__(self, features):
         super(HeadDepth, self).__init__()
         self.head = nn.SequentialCell(
-            nn.Conv2d(features, features // 2, kernel_size=3, stride=1, padding=1, has_bias=True, pad_mode='pad'),
+            nn.Conv2d(features, features // 2, kernel_size=3, stride=1, padding=1, has_bias=True, pad_mode="pad"),
             Interpolate(scale_factor=2, mode="bilinear", align_corners=True),
-            nn.Conv2d(features // 2, 32, kernel_size=3, stride=1, padding=1, has_bias=True, pad_mode='pad'),
+            nn.Conv2d(features // 2, 32, kernel_size=3, stride=1, padding=1, has_bias=True, pad_mode="pad"),
             nn.ReLU(),
-            nn.Conv2d(32, 1, kernel_size=1, stride=1, padding=0, has_bias=True, pad_mode='pad'),
+            nn.Conv2d(32, 1, kernel_size=1, stride=1, padding=0, has_bias=True, pad_mode="pad"),
         )
 
     def construct(self, x):
@@ -587,24 +602,41 @@ class ReassembleBlocks(nn.Cell):
         self.resize_layers = nn.CellList(
             [
                 nn.Conv2dTranspose(
-                    in_channels=out_channels[0], out_channels=out_channels[0], kernel_size=4, stride=4, padding=0,
-                    has_bias=True, pad_mode = "valid"
+                    in_channels=out_channels[0],
+                    out_channels=out_channels[0],
+                    kernel_size=4,
+                    stride=4,
+                    padding=0,
+                    has_bias=True,
+                    pad_mode="valid",
                 ),
                 nn.Conv2dTranspose(
-                    in_channels=out_channels[1], out_channels=out_channels[1], kernel_size=2, stride=2, padding=0,
-                    has_bias=True, pad_mode = "valid"
+                    in_channels=out_channels[1],
+                    out_channels=out_channels[1],
+                    kernel_size=2,
+                    stride=2,
+                    padding=0,
+                    has_bias=True,
+                    pad_mode="valid",
                 ),
                 nn.Identity(),
                 nn.Conv2d(
-                    in_channels=out_channels[3], out_channels=out_channels[3], kernel_size=3, stride=2, padding=1,
-                    has_bias=True, pad_mode="pad"
+                    in_channels=out_channels[3],
+                    out_channels=out_channels[3],
+                    kernel_size=3,
+                    stride=2,
+                    padding=1,
+                    has_bias=True,
+                    pad_mode="pad",
                 ),
             ]
         )
         if self.readout_type == "project":
             self.readout_projects = nn.CellList()
             for _ in range(len(self.projects)):
-                self.readout_projects.append(nn.SequentialCell(nn.Dense(2 * in_channels, in_channels), nn.GELU(approximate=False)))
+                self.readout_projects.append(
+                    nn.SequentialCell(nn.Dense(2 * in_channels, in_channels), nn.GELU(approximate=False))
+                )
 
     def construct(self, inputs):
         assert isinstance(inputs, list)

@@ -1,4 +1,4 @@
-# duplicate from mindone.examples.sv3d.models.instantmesh.models.encoder.dino.py 
+# duplicate from mindone.examples.sv3d.models.instantmesh.models.encoder.dino.py
 """ MindSpore ViT model."""
 
 

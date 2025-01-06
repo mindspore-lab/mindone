@@ -14,9 +14,9 @@
 
 
 import math
-from mindspore.experimental.optim.lr_scheduler import LRScheduler
 from logging import getLogger
 
+from mindspore.experimental.optim.lr_scheduler import LRScheduler
 
 logger = getLogger(__name__)
 
@@ -33,7 +33,8 @@ class CosineWarmupScheduler(LRScheduler):
         if self.last_epoch <= self.warmup_iters:
             return [
                 self.initial_lr + (base_lr - self.initial_lr) * self.last_epoch / self.warmup_iters
-                for base_lr in self.base_lrs]
+                for base_lr in self.base_lrs
+            ]
         else:
             cos_iter = self.last_epoch - self.warmup_iters
             cos_max_iter = self.max_iters - self.warmup_iters

@@ -8,18 +8,15 @@
 #   https://github.com/rwightman/pytorch-image-models/tree/master/timm/models/vision_transformer.py
 
 import logging
-import os
-import warnings
 
 import mindspore as ms
 from mindspore import Tensor, nn, ops
-
 
 logger = logging.getLogger("dinov2")
 
 # from mindone.models.modules.flash_attention import FLASH_IS_AVAILABLE, MSFlashAttention
 # from mindone.utils.version_control import check_valid_flash_attention, is_old_ms_version
-XFORMERS_ENABLED = False #FLASH_IS_AVAILABLE
+XFORMERS_ENABLED = False  # FLASH_IS_AVAILABLE
 
 
 class Attention(nn.Cell):
@@ -42,8 +39,10 @@ class Attention(nn.Cell):
         self.attn_drop = nn.Dropout(p=attn_drop)
         self.proj = nn.Dense(dim, dim, has_bias=proj_bias)
         self.proj_drop = nn.Dropout(p=proj_drop)
-        
+
         if XFORMERS_ENABLED:
+            from mindone.models.modules.flash_attention import MSFlashAttention
+
             self.flash_attention = MSFlashAttention(
                 head_dim=head_dim,
                 head_num=self.num_heads,
@@ -67,6 +66,7 @@ class Attention(nn.Cell):
         x = self.proj_drop(x)
         return x
 
+
 # search/xformers/blob/main/xformers/ops/fmha/__init__.py#L194
 class MemEffAttention(Attention):
     def construct(self, x: Tensor, attn_bias=None) -> Tensor:
@@ -84,7 +84,7 @@ class MemEffAttention(Attention):
         v = v.swapaxes(1, 2)
         # 'b n h d' -> (b, h=num_head, n, d) == BNSD
 
-        if attn_bias is not None: # TODO
+        if attn_bias is not None:  # TODO
             raise AssertionError(f"Do not support MemEffAttention in Dinov2 with attn_bias {attn_bias} yet!")
             # q_bias, k_bias, v_bias = attn_bias.chunk(3)
             # q = q + q_bias

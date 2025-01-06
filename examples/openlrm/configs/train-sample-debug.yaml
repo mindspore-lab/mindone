@@ -83,4 +83,3 @@ logger:
     image_monitor:
         train_global_steps: 100
         samples_per_log: 4
-

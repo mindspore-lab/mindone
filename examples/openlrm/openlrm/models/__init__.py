@@ -13,11 +13,7 @@
 # limitations under the License.
 
 
-from .modeling_lrm import ModelLRM
 from .lrm_with_loss import ModelLRMWithLoss
+from .modeling_lrm import ModelLRM
 
-
-model_dict = {
-    'lrm': ModelLRM,
-    'lrmwithloss': ModelLRMWithLoss
-}
+model_dict = {"lrm": ModelLRM, "lrmwithloss": ModelLRMWithLoss}

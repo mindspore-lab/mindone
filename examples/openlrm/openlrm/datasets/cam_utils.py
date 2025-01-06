@@ -14,6 +14,7 @@
 
 
 import math
+
 import mindspore as ms
 from mindspore import mint, ops
 
@@ -39,10 +40,7 @@ def compose_extrinsic_RT(RT: ms.Tensor):
     Compose the standard form extrinsic matrix from RT.
     Batched I/O.
     """
-    return mint.cat([
-        RT,
-        ms.Tensor([[[0, 0, 0, 1]]], dtype=RT.dtype).tile((RT.shape[0], 1, 1))
-        ], dim=1)
+    return mint.cat([RT, ms.Tensor([[[0, 0, 0, 1]]], dtype=RT.dtype).tile((RT.shape[0], 1, 1))], dim=1)
 
 
 def decompose_extrinsic_R_T(E: ms.Tensor):
@@ -64,20 +62,25 @@ def decompose_extrinsic_RT(E: ms.Tensor):
 
 def camera_normalization_objaverse(normed_dist_to_center, poses: ms.Tensor, ret_transform: bool = False):
     assert normed_dist_to_center is not None
-    pivotal_pose = compose_extrinsic_RT(poses[:1]) # 1x4x4
-    if normed_dist_to_center == 'auto':
-        dist_to_center = pivotal_pose[:, :3, 3] # 1x3
+    pivotal_pose = compose_extrinsic_RT(poses[:1])  # 1x4x4
+    if normed_dist_to_center == "auto":
+        dist_to_center = pivotal_pose[:, :3, 3]  # 1x3
         dist_to_center = ops.norm(dist_to_center, dim=-1).item()
     else:
         dist_to_center = normed_dist_to_center
 
     # compute camera norm (new version)
-    canonical_camera_extrinsics = ms.Tensor([[
-        [1, 0, 0, 0],
-        [0, 0, -1, -dist_to_center],
-        [0, 1, 0, 0],
-        [0, 0, 0, 1],
-    ]], dtype=ms.float32)
+    canonical_camera_extrinsics = ms.Tensor(
+        [
+            [
+                [1, 0, 0, 0],
+                [0, 0, -1, -dist_to_center],
+                [0, 1, 0, 0],
+                [0, 0, 0, 1],
+            ]
+        ],
+        dtype=ms.float32,
+    )
     pivotal_pose_inv = mint.inverse(pivotal_pose)
     camera_norm_matrix = mint.bmm(canonical_camera_extrinsics, pivotal_pose_inv)
 
@@ -110,10 +113,16 @@ def build_camera_principle(RT: ms.Tensor, intrinsics: ms.Tensor):
     intrinsics: (N, 3, 2), [[fx, fy], [cx, cy], [width, height]]
     """
     fx, fy, cx, cy = get_normalized_camera_intrinsics(intrinsics)
-    return mint.cat([
-        RT.reshape(-1, 12),
-        fx.unsqueeze(-1), fy.unsqueeze(-1), cx.unsqueeze(-1), cy.unsqueeze(-1),
-    ], dim=-1)
+    return mint.cat(
+        [
+            RT.reshape(-1, 12),
+            fx.unsqueeze(-1),
+            fy.unsqueeze(-1),
+            cx.unsqueeze(-1),
+            cy.unsqueeze(-1),
+        ],
+        dim=-1,
+    )
 
 
 def build_camera_standard(RT: ms.Tensor, intrinsics: ms.Tensor):
@@ -127,20 +136,28 @@ def build_camera_standard(RT: ms.Tensor, intrinsics: ms.Tensor):
     """
     E = compose_extrinsic_RT(RT)
     fx, fy, cx, cy = get_normalized_camera_intrinsics(intrinsics)
-    I = mint.stack([
-        mint.stack([fx, mint.zeros_like(fx, dtype=ms.float32), cx], dim=-1),
-        mint.stack([mint.zeros_like(fy, dtype=ms.float32), fy, cy], dim=-1),
-        ms.Tensor([[0, 0, 1]], dtype=ms.float32).tile((RT.shape[0], 1)),
-    ], dim=1)
-    return mint.cat([
-        E.reshape(-1, 16),
-        I.reshape(-1, 9),
-    ], dim=-1)
+    I = mint.stack(
+        [
+            mint.stack([fx, mint.zeros_like(fx, dtype=ms.float32), cx], dim=-1),
+            mint.stack([mint.zeros_like(fy, dtype=ms.float32), fy, cy], dim=-1),
+            ms.Tensor([[0, 0, 1]], dtype=ms.float32).tile((RT.shape[0], 1)),
+        ],
+        dim=1,
+    )
+    return mint.cat(
+        [
+            E.reshape(-1, 16),
+            I.reshape(-1, 9),
+        ],
+        dim=-1,
+    )
 
 
 def center_looking_at_camera_pose(
-    camera_position: ms.Tensor, look_at: ms.Tensor = None, up_world: ms.Tensor = None,
-    ):
+    camera_position: ms.Tensor,
+    look_at: ms.Tensor = None,
+    up_world: ms.Tensor = None,
+):
     """
     camera_position: (M, 3)
     look_at: (3)
@@ -176,7 +193,7 @@ def surrounding_views_linspace(n_views: int, radius: float = 2.0, height: float 
     assert radius > 0
 
     theta = ops.linspace(-ms.numpy.pi / 2, 3 * ms.numpy.pi / 2, n_views)
-    projected_radius = math.sqrt(radius ** 2 - height ** 2)
+    projected_radius = math.sqrt(radius**2 - height**2)
     x = ops.cos(theta) * projected_radius
     y = ops.sin(theta) * projected_radius
     z = ops.full((n_views,), height, dtype=ms.float32)
@@ -189,10 +206,13 @@ def surrounding_views_linspace(n_views: int, radius: float = 2.0, height: float 
 
 def create_intrinsics(
     f: float,
-    c: float = None, cx: float = None, cy: float = None,
-    w: float = 1., h: float = 1.,
+    c: float = None,
+    cx: float = None,
+    cy: float = None,
+    w: float = 1.0,
+    h: float = 1.0,
     dtype: ms.dtype = ms.float32,
-    ):
+):
     """
     return: (3, 2)
     """
@@ -202,10 +222,13 @@ def create_intrinsics(
         cx = cy = c
     else:
         assert cx is not None and cy is not None, "cx/cy must be provided when c is not provided"
-    fx, fy, cx, cy, w, h = fx/w, fy/h, cx/w, cy/h, 1., 1.
-    intrinsics = ms.Tensor([
-        [fx, fy],
-        [cx, cy],
-        [w, h],
-    ], dtype=dtype)
+    fx, fy, cx, cy, w, h = fx / w, fy / h, cx / w, cy / h, 1.0, 1.0
+    intrinsics = ms.Tensor(
+        [
+            [fx, fy],
+            [cx, cy],
+            [w, h],
+        ],
+        dtype=dtype,
+    )
     return intrinsics

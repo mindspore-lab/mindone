@@ -9,12 +9,14 @@
 #   licensed under the Apache License, Version 2.0.
 # ******************************************************************************
 
+# ********************************************************
+from .attention import MemEffAttention
+
+# ********** Modified by Zexin He in 2023-2024 **********
+# Avoid using nested tensor for now, deprecating usage of NestedTensorBlock
+from .block import Block, BlockWithModulation
+
 # from .dino_head import DINOHead #not use
 from .mlp import Mlp
 from .patch_embed import PatchEmbed
 from .swiglu_ffn import SwiGLUFFN, SwiGLUFFNFused
-# ********** Modified by Zexin He in 2023-2024 **********
-# Avoid using nested tensor for now, deprecating usage of NestedTensorBlock
-from .block import Block, BlockWithModulation
-# ********************************************************
-from .attention import MemEffAttention

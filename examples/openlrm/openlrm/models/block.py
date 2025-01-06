@@ -13,7 +13,7 @@
 # limitations under the License.
 
 
-from mindspore import nn, ops, mint
+from mindspore import nn
 
 from .modulate import ModLN
 
@@ -23,15 +23,23 @@ class BasicBlock(nn.Cell):
     Transformer block that is in its simplest form.
     Designed for PF-LRM architecture.
     """
+
     # Block contains a self-attention layer and an MLP
-    def __init__(self, inner_dim: int, num_heads: int, eps: float,
-                 attn_drop: float = 0., attn_bias: bool = False,
-                 mlp_ratio: float = 4., mlp_drop: float = 0.):
+    def __init__(
+        self,
+        inner_dim: int,
+        num_heads: int,
+        eps: float,
+        attn_drop: float = 0.0,
+        attn_bias: bool = False,
+        mlp_ratio: float = 4.0,
+        mlp_drop: float = 0.0,
+    ):
         super().__init__()
         self.norm1 = nn.LayerNorm((inner_dim,), epsilon=eps)
         self.self_attn = nn.MultiheadAttention(
-            embed_dim=inner_dim, num_heads=num_heads,
-            dropout=attn_drop, has_bias=attn_bias, batch_first=True)
+            embed_dim=inner_dim, num_heads=num_heads, dropout=attn_drop, has_bias=attn_bias, batch_first=True
+        )
         self.norm2 = nn.LayerNorm((inner_dim,), epsilon=eps)
         self.mlp = nn.SequentialCell(
             nn.Dense(inner_dim, int(inner_dim * mlp_ratio)),
@@ -54,19 +62,34 @@ class ConditionBlock(nn.Cell):
     Transformer block that takes in a cross-attention condition.
     Designed for SparseLRM architecture.
     """
+
     # Block contains a cross-attention layer, a self-attention layer, and an MLP
-    def __init__(self, inner_dim: int, cond_dim: int, num_heads: int, eps: float,
-                 attn_drop: float = 0., attn_bias: bool = False,
-                 mlp_ratio: float = 4., mlp_drop: float = 0.):
+    def __init__(
+        self,
+        inner_dim: int,
+        cond_dim: int,
+        num_heads: int,
+        eps: float,
+        attn_drop: float = 0.0,
+        attn_bias: bool = False,
+        mlp_ratio: float = 4.0,
+        mlp_drop: float = 0.0,
+    ):
         super().__init__()
         self.norm1 = nn.LayerNorm((inner_dim,), epsilon=eps)
         self.cross_attn = nn.MultiheadAttention(
-            embed_dim=inner_dim, num_heads=num_heads, kdim=cond_dim, vdim=cond_dim,
-            dropout=attn_drop, has_bias=attn_bias, batch_first=True)
+            embed_dim=inner_dim,
+            num_heads=num_heads,
+            kdim=cond_dim,
+            vdim=cond_dim,
+            dropout=attn_drop,
+            has_bias=attn_bias,
+            batch_first=True,
+        )
         self.norm2 = nn.LayerNorm((inner_dim,), epsilon=eps)
         self.self_attn = nn.MultiheadAttention(
-            embed_dim=inner_dim, num_heads=num_heads,
-            dropout=attn_drop, has_bias=attn_bias, batch_first=True)
+            embed_dim=inner_dim, num_heads=num_heads, dropout=attn_drop, has_bias=attn_bias, batch_first=True
+        )
         self.norm3 = nn.LayerNorm((inner_dim,), epsilon=eps)
         self.mlp = nn.SequentialCell(
             nn.Dense(inner_dim, int(inner_dim * mlp_ratio)),
@@ -91,19 +114,35 @@ class ConditionModulationBlock(nn.Cell):
     Transformer block that takes in a cross-attention condition and another modulation vector applied to sub-blocks.
     Designed for raw LRM architecture.
     """
+
     # Block contains a cross-attention layer, a self-attention layer, and an MLP
-    def __init__(self, inner_dim: int, cond_dim: int, mod_dim: int, num_heads: int, eps: float,
-                 attn_drop: float = 0., attn_bias: bool = False,
-                 mlp_ratio: float = 4., mlp_drop: float = 0.):
+    def __init__(
+        self,
+        inner_dim: int,
+        cond_dim: int,
+        mod_dim: int,
+        num_heads: int,
+        eps: float,
+        attn_drop: float = 0.0,
+        attn_bias: bool = False,
+        mlp_ratio: float = 4.0,
+        mlp_drop: float = 0.0,
+    ):
         super().__init__()
         self.norm1 = ModLN(inner_dim, mod_dim, eps)
         self.cross_attn = nn.MultiheadAttention(
-            embed_dim=inner_dim, num_heads=num_heads, kdim=cond_dim, vdim=cond_dim,
-            dropout=attn_drop, has_bias=attn_bias, batch_first=True)
+            embed_dim=inner_dim,
+            num_heads=num_heads,
+            kdim=cond_dim,
+            vdim=cond_dim,
+            dropout=attn_drop,
+            has_bias=attn_bias,
+            batch_first=True,
+        )
         self.norm2 = ModLN(inner_dim, mod_dim, eps)
         self.self_attn = nn.MultiheadAttention(
-            embed_dim=inner_dim, num_heads=num_heads,
-            dropout=attn_drop, has_bias=attn_bias, batch_first=True)
+            embed_dim=inner_dim, num_heads=num_heads, dropout=attn_drop, has_bias=attn_bias, batch_first=True
+        )
         self.norm3 = ModLN(inner_dim, mod_dim, eps)
         self.mlp = nn.SequentialCell(
             nn.Dense(inner_dim, int(inner_dim * mlp_ratio)),

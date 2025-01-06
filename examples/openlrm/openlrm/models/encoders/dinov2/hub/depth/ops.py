@@ -7,6 +7,7 @@ import warnings
 
 from mindspore import ops
 
+
 def resize(input, size=None, scale_factor=None, mode="nearest", align_corners=None, warning=False):
     if warning:
         if size is not None and align_corners:
@@ -26,6 +27,6 @@ def resize(input, size=None, scale_factor=None, mode="nearest", align_corners=No
                     )
     # interpolate may not perfectly match torch version
     if mode == "area":
-        return ops.interpolate(input, size, scale_factor, mode, align_corners) 
+        return ops.interpolate(input, size, scale_factor, mode, align_corners)
     else:
-        return ops.interpolate(input, size, scale_factor, mode, align_corners, recompute_scale_factor=True) 
+        return ops.interpolate(input, size, scale_factor, mode, align_corners, recompute_scale_factor=True)

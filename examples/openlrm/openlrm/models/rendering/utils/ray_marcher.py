@@ -39,7 +39,7 @@ class MipRayMarcher2(nn.Cell):
 
         alpha = 1 - ops.exp(-density_delta)
 
-        alpha_shifted = mint.cat([mint.ones_like(alpha[:, :, :1], dtype=ms.float32), 1-alpha + 1e-10], -2)
+        alpha_shifted = mint.cat([mint.ones_like(alpha[:, :, :1], dtype=ms.float32), 1 - alpha + 1e-10], -2)
         weights = alpha * ops.cumprod(alpha_shifted, -2)[:, :, :-1]
 
         composite_rgb = mint.sum(weights * colors_mid, -2)
@@ -47,10 +47,10 @@ class MipRayMarcher2(nn.Cell):
         composite_depth = mint.sum(weights * depths_mid, -2) / weight_total
 
         # clip the composite to min/max range of depths
-        composite_depth = ops.nan_to_num(composite_depth, float('inf'))
+        composite_depth = ops.nan_to_num(composite_depth, float("inf"))
         composite_depth = mint.clamp(composite_depth, mint.min(depths), mint.max(depths))
 
-        if rendering_options.get('white_back', False):
+        if rendering_options.get("white_back", False):
             composite_rgb = composite_rgb + 1 - weight_total
         else:
             assert bg_colors is not None, "Must provide bg_colors if white_back is False"
@@ -61,8 +61,9 @@ class MipRayMarcher2(nn.Cell):
 
         return composite_rgb, composite_depth, weights
 
-
     def construct(self, colors, densities, depths, rendering_options, bg_colors=None):
-        composite_rgb, composite_depth, weights = self.run_construct(colors, densities, depths, rendering_options, bg_colors=bg_colors)
+        composite_rgb, composite_depth, weights = self.run_construct(
+            colors, densities, depths, rendering_options, bg_colors=bg_colors
+        )
 
         return composite_rgb, composite_depth, weights

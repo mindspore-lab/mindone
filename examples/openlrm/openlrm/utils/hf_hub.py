@@ -13,22 +13,25 @@
 # limitations under the License.
 
 import os
-import mindspore as ms
-from mindspore import nn
+from pathlib import Path
+from typing import Dict, Optional, Union
+
 from huggingface_hub import ModelHubMixin, constants, hf_hub_download
 from huggingface_hub.errors import EntryNotFoundError
 from huggingface_hub.utils import validate_hf_hub_args
-from typing import Dict, Optional, Union
-from pathlib import Path
+
+import mindspore as ms
+from mindspore import nn
+
 from mindone.safetensors.mindspore import load_file
 
 
 def wrap_model_hub(model_cls: nn.Cell):
+    """
+    1. load config.json to LRMModel
+    2. load model weights to LRMModel
+    """
 
-    '''
-        1. load config.json to LRMModel
-        2. load model weights to LRMModel
-    '''
     class HfModel(model_cls, ModelHubMixin):
         def __init__(self, config: dict):
             super().__init__(**config)
@@ -51,27 +54,28 @@ def wrap_model_hub(model_cls: nn.Cell):
         ):
             use_safetensors = model_kwargs.pop("use_safetensors", None)
             mindspore_dtype = model_kwargs.pop("mindspore_dtype", None)
-            ckpt_name = model_kwargs.pop("ckpt_name", None) # higher priority
+            ckpt_name = model_kwargs.pop("ckpt_name", None)  # higher priority
 
             """Load pretrained weights and return the loaded model."""
             model = cls(**model_kwargs)
             if os.path.isdir(model_id) and (
-                os.path.isfile(os.path.join(model_id, "ckpt", "train_resume.ckpt")) or (ckpt_name is not None and (os.path.isfile(os.path.join(model_id, "ckpt", ckpt_name))))
-                ):  # if trained checkpoint, and saved as a local ms.ckpt
+                os.path.isfile(os.path.join(model_id, "ckpt", "train_resume.ckpt"))
+                or (ckpt_name is not None and (os.path.isfile(os.path.join(model_id, "ckpt", ckpt_name))))
+            ):  # if trained checkpoint, and saved as a local ms.ckpt
                 if ckpt_name is not None:
                     model_file = os.path.join(model_id, "ckpt", ckpt_name)
                 else:
                     model_file = os.path.join(model_id, "ckpt", "train_resume.ckpt")
                 print("Loading weights from local pretrained directory: {model_file}")
                 state_dict = ms.load_checkpoint(model_file)
-            elif os.path.isdir(model_id) and use_safetensors: # if single safetensors
-                model_file = os.path.join(model_id, constants.SAFETENSORS_SINGLE_FILE) # "model.safetensors"
+            elif os.path.isdir(model_id) and use_safetensors:  # if single safetensors
+                model_file = os.path.join(model_id, constants.SAFETENSORS_SINGLE_FILE)  # "model.safetensors"
                 print("Loading weights from local directory: {model_file}")
                 state_dict = load_file(model_file)
-                
+
             else:
                 try:
-                    model_file = hf_hub_download( # download safetensors
+                    model_file = hf_hub_download(  # download safetensors
                         repo_id=model_id,
                         filename=constants.SAFETENSORS_SINGLE_FILE,
                         revision=revision,
@@ -86,7 +90,7 @@ def wrap_model_hub(model_cls: nn.Cell):
                 except EntryNotFoundError:
                     model_file = hf_hub_download(
                         repo_id=model_id,
-                        filename=constants.PYTORCH_WEIGHTS_NAME, #"pytorch_model.bin"
+                        filename=constants.PYTORCH_WEIGHTS_NAME,  # "pytorch_model.bin"
                         revision=revision,
                         cache_dir=cache_dir,
                         force_download=force_download,
@@ -95,21 +99,20 @@ def wrap_model_hub(model_cls: nn.Cell):
                         token=token,
                         local_files_only=local_files_only,
                     )
-                        
+
                     if model_file.endswith(".bin"):
                         raise ValueError(f"Fail to load {model_file}, convert it to model.safetensors first. Stopped.")
 
-            
             # Check loading keys:
             model_state_dict = {k: v for k, v in model.parameters_and_names()}
             state_dict_tmp = {}
             for k, v in state_dict.items():
-                if ('norm' in k) and ('mlp' not in k): # for LayerNorm but not ModLN's mlp
+                if ("norm" in k) and ("mlp" not in k):  # for LayerNorm but not ModLN's mlp
                     k = k.replace(".weight", ".gamma").replace(".bias", ".beta")
-                if ('lrm_generator.' in k): # training model name
+                if "lrm_generator." in k:  # training model name
                     k = k.replace("lrm_generator.", "")
-                if ('adam_' not in k): # not to load optimizer
-                    state_dict_tmp[k]=v
+                if "adam_" not in k:  # not to load optimizer
+                    state_dict_tmp[k] = v
             state_dict = state_dict_tmp
             loaded_keys = list(state_dict.keys())
             expexted_keys = list(model_state_dict.keys())
@@ -140,11 +143,10 @@ def wrap_model_hub(model_cls: nn.Cell):
             param_not_load, ckpt_not_load = ms.load_param_into_net(model, state_dict, strict_load=strict)
             print(f"Loaded checkpoint: param_not_load {param_not_load}, ckpt_not_load {ckpt_not_load}")
 
-
             if mindspore_dtype is not None:
                 model.to(dtype=mindspore_dtype)
                 print(f"Use {mindspore_dtype} for LRMModel.")
-        
+
             return model
 
     return HfModel

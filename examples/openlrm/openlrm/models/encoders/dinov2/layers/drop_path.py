@@ -8,7 +8,7 @@
 #   https://github.com/rwightman/pytorch-image-models/tree/master/timm/layers/drop.py
 
 
-from mindspore import nn
+from mindspore import nn, ops
 
 
 def drop_path(x, drop_prob: float = 0.0, training: bool = False):

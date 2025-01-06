@@ -9,7 +9,7 @@ from typing import Optional, Tuple, Union
 
 from .backbones import _make_dinov2_model
 from .depth import BNHead, DepthEncoderDecoder, DPTHead
-from .utils import _DINOV2_BASE_URL, _make_dinov2_model_name, CenterPadding
+from .utils import _DINOV2_BASE_URL, CenterPadding, _make_dinov2_model_name
 
 
 class Weights(Enum):
@@ -128,6 +128,7 @@ def _make_dinov2_linear_depther(
 
     if pretrained:
         import torch
+
         layers_str = str(layers) if layers == 4 else ""
         weights_str = weights.value.lower()
         url = _DINOV2_BASE_URL + f"/{model_name}/{model_name}_{weights_str}_linear{layers_str}_head.pth"
@@ -217,6 +218,8 @@ def _make_dinov2_dpt_depther(
     model.backbone.register_forward_pre_hook(lambda _, x: CenterPadding(backbone.patch_size)(x[0]))
 
     if pretrained:
+        import torch
+
         weights_str = weights.value.lower()
         url = _DINOV2_BASE_URL + f"/{model_name}/{model_name}_{weights_str}_dpt_head.pth"
         checkpoint = torch.hub.load_state_dict_from_url(url, map_location="cpu")

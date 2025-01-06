@@ -5,10 +5,8 @@
 
 from collections import OrderedDict
 
-
 import mindspore as ms
-from mindspore import nn, ops, mint
-from mindspore.common.initializer import initializer, HeNormal
+from mindspore import mint, nn, ops
 
 from .ops import resize
 
@@ -341,7 +339,7 @@ class DepthEncoderDecoder(nn.Cell):
         log_vars["loss"] = loss
         for loss_name, loss_value in log_vars.items():
             # reduce loss when distributed training
-            
+
             # TODO:
             # if dist.is_available() and dist.is_initialized():
             #     loss_value = loss_value.data.copy()

@@ -20,10 +20,11 @@ from mindspore import nn
 class ModLN(nn.Cell):
     """
     Modulation with adaLN.
-    
+
     References:
     DiT: https://github.com/facebookresearch/DiT/blob/main/models.py#L101
     """
+
     def __init__(self, inner_dim: int, mod_dim: int, epsilon: float):
         super().__init__()
         self.norm = nn.LayerNorm((inner_dim,), epsilon=epsilon)

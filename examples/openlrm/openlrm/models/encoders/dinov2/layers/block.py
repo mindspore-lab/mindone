@@ -15,35 +15,19 @@
 
 import logging
 import os
-from typing import Callable, List, Any, Tuple, Dict
 import warnings
+from typing import Callable
 
-import mindspore as ms
-from mindspore import Tensor, mint, nn, ops
+from mindspore import Tensor, nn, ops
 
-from .attention import Attention, MemEffAttention
+from .attention import Attention  # , MemEffAttention
 from .drop_path import DropPath
 from .layer_scale import LayerScale
 from .mlp import Mlp
 
-
 logger = logging.getLogger("dinov2")
 
 XFORMERS_AVAILABLE = False
-# XFORMERS_ENABLED = os.environ.get("XFORMERS_DISABLED") is None
-# try:
-#     if XFORMERS_ENABLED:
-#         from xformers.ops import fmha, scaled_index_add, index_select_cat
-
-#         XFORMERS_AVAILABLE = True
-#         warnings.warn("xFormers is available (Block)")
-#     else:
-#         warnings.warn("xFormers is disabled (Block)")
-#         raise ImportError
-# except ImportError:
-#     XFORMERS_AVAILABLE = False
-
-#     warnings.warn("xFormers is not available (Block)")
 
 
 class Block(nn.Cell):
@@ -142,6 +126,8 @@ class BlockWithModulation(Block):
             x = x + attn_residual_func(x, mod)
             x = x + ffn_residual_func(x, mod)
         return x
+
+
 # ********************************************************
 
 

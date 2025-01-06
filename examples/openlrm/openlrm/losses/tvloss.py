@@ -15,8 +15,7 @@
 
 from mindspore import nn
 
-
-__all__ = ['TVLoss']
+__all__ = ["TVLoss"]
 
 
 class TVLoss(nn.Cell):
@@ -41,13 +40,13 @@ class TVLoss(nn.Cell):
             Mean-reduced TV loss with element-level scaling.
         """
         N, M, C, H, W = x.shape
-        x = x.reshape(N*M, C, H, W)
+        x = x.reshape(N * M, C, H, W)
         diff_i = x[..., 1:, :] - x[..., :-1, :]
         diff_j = x[..., :, 1:] - x[..., :, :-1]
         div_i = self.numel_excluding_first_dim(diff_i)
         div_j = self.numel_excluding_first_dim(diff_j)
-        tv_i = diff_i.pow(2).sum(axis=[1,2,3]) / div_i
-        tv_j = diff_j.pow(2).sum(axis=[1,2,3]) / div_j
+        tv_i = diff_i.pow(2).sum(axis=[1, 2, 3]) / div_i
+        tv_j = diff_j.pow(2).sum(axis=[1, 2, 3]) / div_j
         tv = tv_i + tv_j
         batch_tv = tv.reshape(N, M).mean(axis=1)
         all_tv = batch_tv.mean()

@@ -13,27 +13,30 @@
 # limitations under the License.
 
 
-import os
-import time
-import math
 import argparse
+import math
+import os
 import shutil
-import mindspore as ms 
-from mindspore import nn, ops, mint
-from mindspore.experimental.optim.lr_scheduler import LRScheduler
-# from mindspore.dataset import GeneratorDataset
-
-import safetensors
-from omegaconf import OmegaConf
+import time
 from abc import abstractmethod
 from contextlib import contextmanager
 from logging import getLogger
-# from accelerate.utils import DistributedDataParallelKwargs, ProjectConfiguration, set_seed
-from openlrm.utils import seed_everything
 
-from openlrm.utils.logging import configure_logger
+import safetensors
+from omegaconf import OmegaConf
+
 # from openlrm.utils.compile import configure_dynamo
 from openlrm.runners.abstract import Runner
+
+# from accelerate.utils import DistributedDataParallelKwargs, ProjectConfiguration, set_seed
+from openlrm.utils import seed_everything
+from openlrm.utils.logging import configure_logger
+
+import mindspore as ms
+from mindspore import mint, nn, ops
+from mindspore.experimental.optim.lr_scheduler import LRScheduler
+
+# from mindspore.dataset import GeneratorDataset
 
 
 logger = getLogger(__name__)
@@ -42,7 +45,7 @@ logger = getLogger(__name__)
 def parse_configs():
     # Define argparse arguments
     parser = argparse.ArgumentParser()
-    parser.add_argument('--config', type=str, default='./assets/config.yaml')
+    parser.add_argument("--config", type=str, default="./assets/config.yaml")
     args, unknown = parser.parse_known_args()
 
     # Load configuration file
@@ -56,7 +59,6 @@ def parse_configs():
 
 
 class Trainer(Runner):
-
     def __init__(self):
         super().__init__()
 
@@ -66,7 +68,7 @@ class Trainer(Runner):
         seed_everything(self.cfg.experiment.seed)
 
         # attributes with defaults
-        self.model : nn.Cell = None
+        self.model: nn.Cell = None
         self.optimizer: nn.optim.Optimizer = None
         self.scheduler: LRScheduler = None
         self.train_loader = None
@@ -124,18 +126,20 @@ class Trainer(Runner):
         #             self.model, self.optimizer, self.train_loader, self.val_loader,
         #         )
         # else:
-            # self.model, self.optimizer, self.train_loader = \
-            #     self.accelerator.prepare(
-            #         self.model, self.optimizer, self.train_loader,
-            #     )
+        # self.model, self.optimizer, self.train_loader = \
+        #     self.accelerator.prepare(
+        #         self.model, self.optimizer, self.train_loader,
+        #     )
         # self.accelerator.register_for_checkpointing(self.scheduler)
 
         # prepare stats
-        N_total_batch_size = self.cfg.train.batch_size * self.cfg.train.accum_steps #* self.accelerator.num_processes
+        N_total_batch_size = self.cfg.train.batch_size * self.cfg.train.accum_steps  # * self.accelerator.num_processes
         self.N_global_steps_per_epoch = math.ceil(len(self.train_loader) / self.cfg.train.accum_steps)
         self.N_max_global_steps = self.N_global_steps_per_epoch * self.cfg.train.epochs
         if self.cfg.train.debug_global_steps is not None:
-            logger.warning(f"Overriding max global steps from {self.N_max_global_steps} to {self.cfg.train.debug_global_steps}")
+            logger.warning(
+                f"Overriding max global steps from {self.N_max_global_steps} to {self.cfg.train.debug_global_steps}"
+            )
             self.N_max_global_steps = self.cfg.train.debug_global_steps
         logger.info(f"======== Statistics ========")
         logger.info(f"** N_max_global_steps: {self.N_max_global_steps}")
@@ -165,7 +169,8 @@ class Trainer(Runner):
     def auto_resume_(self, cfg) -> bool:
         ckpt_root = os.path.join(
             cfg.saver.checkpoint_root,
-            cfg.experiment.parent, cfg.experiment.child,
+            cfg.experiment.parent,
+            cfg.experiment.child,
         )
         if not os.path.exists(ckpt_root):
             return False
@@ -219,11 +224,12 @@ class Trainer(Runner):
     def save_checkpoint(self):
         ckpt_dir = os.path.join(
             self.cfg.saver.checkpoint_root,
-            self.cfg.experiment.parent, self.cfg.experiment.child,
+            self.cfg.experiment.parent,
+            self.cfg.experiment.child,
             f"{self.global_step:06d}",
         )
         # self.accelerator.save_state(output_dir=ckpt_dir, safe_serialization=True)
-        # TODO: save optimizer & grad scaler etc. 
+        # TODO: save optimizer & grad scaler etc.
         os.makedirs(ckpt_dir, exist_ok=True)
         output_model_file = os.path.join(ckpt_dir, "pytorch_model.ckpt")
         ms.save_checkpoint(self.model, output_model_file)
@@ -242,7 +248,9 @@ class Trainer(Runner):
         cur_idx = 0
         while cur_order > 0:
             cur_digit = max_ckpt // ckpt_period // cur_order % ckpt_base
-            while cur_idx < len(ckpt_dirs) and int(ckpt_dirs[cur_idx]) // ckpt_period // cur_order % ckpt_base < cur_digit:
+            while (
+                cur_idx < len(ckpt_dirs) and int(ckpt_dirs[cur_idx]) // ckpt_period // cur_order % ckpt_base < cur_digit
+            ):
                 if int(ckpt_dirs[cur_idx]) // ckpt_period % cur_order != 0:
                     shutil.rmtree(os.path.join(os.path.dirname(ckpt_dir), ckpt_dirs[cur_idx]))
                     logger.info(f"Removed checkpoint {ckpt_dirs[cur_idx]}")
@@ -284,22 +292,22 @@ class Trainer(Runner):
     @staticmethod
     def _get_str_progress(epoch: int = None, step: int = None):
         if epoch is not None:
-            log_type = 'epoch'
+            log_type = "epoch"
             log_progress = epoch
         elif step is not None:
-            log_type = 'step'
+            log_type = "step"
             log_progress = step
         else:
-            raise ValueError('Either epoch or step must be provided')
+            raise ValueError("Either epoch or step must be provided")
         return log_type, log_progress
 
     # @control('on_main_process')
     def log_scalar_kwargs(self, epoch: int = None, step: int = None, split: str = None, **scalar_kwargs):
         log_type, log_progress = self._get_str_progress(epoch, step)
-        split = f'/{split}' if split else ''
+        split = f"/{split}" if split else ""
         for key, value in scalar_kwargs.items():
             # self.accelerator.log({f'{key}{split}/{log_type}': value}, log_progress)
-            logger.info(f'{log_progress} - {key}{split}/{log_type}: {value}')
+            logger.info(f"{log_progress} - {key}{split}/{log_type}: {value}")
 
     # @control('on_main_process')
     def log_images(self, values: dict, step: int | None = None, log_kwargs: dict | None = {}):
@@ -311,30 +319,30 @@ class Trainer(Runner):
     # @control('on_main_process')
     def log_optimizer(self, epoch: int = None, step: int = None, attrs: list[str] = [], group_ids: list[int] = []):
         log_type, log_progress = self._get_str_progress(epoch, step)
-        assert self.optimizer is not None, 'Optimizer is not initialized'
+        assert self.optimizer is not None, "Optimizer is not initialized"
         if not attrs:
-            logger.warning('No optimizer attributes are provided, nothing will be logged')
+            logger.warning("No optimizer attributes are provided, nothing will be logged")
         if not group_ids:
-            logger.warning('No optimizer group ids are provided, nothing will be logged')
+            logger.warning("No optimizer group ids are provided, nothing will be logged")
         for attr in attrs:
-            assert attr in ['lr', 'momentum', 'weight_decay'], f'Invalid optimizer attribute {attr}'
+            assert attr in ["lr", "momentum", "weight_decay"], f"Invalid optimizer attribute {attr}"
             for group_id in group_ids:
                 # self.accelerator.log({f'opt/{attr}/{group_id}': self.optimizer.param_groups[group_id][attr]}, log_progress)
-                logger.info(f'{log_progress} - opt/{attr}/{group_id}: {self.optimizer.param_groups[group_id][attr]}')
+                logger.info(f"{log_progress} - opt/{attr}/{group_id}: {self.optimizer.param_groups[group_id][attr]}")
 
     # @control('on_main_process')
     def log_inital_info(self):
-        assert self.model is not None, 'Model is not initialized'
-        assert self.optimizer is not None, 'Optimizer is not initialized'
-        assert self.scheduler is not None, 'Scheduler is not initialized'
+        assert self.model is not None, "Model is not initialized"
+        assert self.optimizer is not None, "Optimizer is not initialized"
+        assert self.scheduler is not None, "Scheduler is not initialized"
         # self.accelerator.log({'Config': "```\n" + OmegaConf.to_yaml(self.cfg) + "\n```"})
         # self.accelerator.log({'Model': "```\n" + str(self.model) + "\n```"})
         # self.accelerator.log({'Optimizer': "```\n" + str(self.optimizer) + "\n```"})
         # self.accelerator.log({'Scheduler': "```\n" + str(self.scheduler) + "\n```"})
-        logger.info(f'Config: ```\n {OmegaConf.to_yaml(self.cfg)} + \n```')
-        ogger.info(f'Model: ```\n {str(self.model)} \n```')
-        ogger.info(f'Optimizer: ```\n {str(self.optimizer)} \n```')
-        ogger.info(f'Scheduler: ```\n {str(self.scheduler)} \n```')
+        logger.info(f"Config: ```\n {OmegaConf.to_yaml(self.cfg)} + \n```")
+        ogger.info(f"Model: ```\n {str(self.model)} \n```")
+        ogger.info(f"Optimizer: ```\n {str(self.optimizer)} \n```")
+        ogger.info(f"Scheduler: ```\n {str(self.scheduler)} \n```")
 
     def run(self):
         self.train()

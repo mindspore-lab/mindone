@@ -2,11 +2,12 @@ import logging
 import os
 
 import mindcv
-from ..utils.load_models import load_from_pretrained
 
 import mindspore as ms
 import mindspore.nn as nn
 import mindspore.ops as ops
+
+from ..utils.load_models import load_from_pretrained
 
 _logger = logging.getLogger(__name__)
 
@@ -42,7 +43,7 @@ class LPIPS(nn.Cell):
 
         _logger.info("loaded pretrained LPIPS loss from {}".format(ckpt_path))
 
-    def construct(self, input, target, normalize = False):
+    def construct(self, input, target, normalize=False):
         if normalize:
             in0_input, in1_input = (self.scaling_layer(input), self.scaling_layer(target))
         else:

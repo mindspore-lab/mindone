@@ -9,7 +9,6 @@ import math
 import mindspore as ms
 from mindspore import nn, ops
 
-
 _DINOV2_BASE_URL = "https://dl.fbaipublicfiles.com/dinov2"
 
 

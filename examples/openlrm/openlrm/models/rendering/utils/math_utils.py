@@ -23,6 +23,7 @@
 import mindspore as ms
 from mindspore import mint, ops
 
+
 def transform_vectors(matrix: ms.Tensor, vectors4: ms.Tensor) -> ms.Tensor:
     """
     Left-multiplies MxM @ NxM. Returns NxM.
@@ -36,6 +37,7 @@ def normalize_vecs(vectors: ms.Tensor) -> ms.Tensor:
     Normalize vector lengths.
     """
     return vectors / (ops.norm(vectors, dim=-1, keepdim=True))
+
 
 def mindspore_dot(x: ms.Tensor, y: ms.Tensor):
     """
@@ -56,9 +58,8 @@ def get_ray_limits_box(rays_o: ms.Tensor, rays_d: ms.Tensor, box_side_length):
     rays_o = rays_o.reshape(-1, 3)
     rays_d = rays_d.reshape(-1, 3)
 
-
-    bb_min = [-1*(box_side_length/2), -1*(box_side_length/2), -1*(box_side_length/2)]
-    bb_max = [1*(box_side_length/2), 1*(box_side_length/2), 1*(box_side_length/2)]
+    bb_min = [-1 * (box_side_length / 2), -1 * (box_side_length / 2), -1 * (box_side_length / 2)]
+    bb_max = [1 * (box_side_length / 2), 1 * (box_side_length / 2), 1 * (box_side_length / 2)]
     bounds = ms.Tensor([bb_min, bb_max], dtype=rays_o.dtype)
     is_valid = mint.ones(rays_o.shape[:-1], dtype=ms.bool_)
 
@@ -102,7 +103,7 @@ def get_ray_limits_box(rays_o: ms.Tensor, rays_d: ms.Tensor, box_side_length):
 def linspace(start: ms.Tensor, stop: ms.Tensor, num: int):
     """
     Creates a tensor of shape [num, *start.shape] whose values are evenly spaced from start to end, inclusive.
-    Replicates but the multi-dimensional bahaviour of numpy.linspace 
+    Replicates but the multi-dimensional bahaviour of numpy.linspace
     """
     # create a tensor of 'num' steps from 0 to 1
     steps = mint.arange(num, dtype=ms.float32) / (num - 1)

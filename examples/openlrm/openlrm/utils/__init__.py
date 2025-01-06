@@ -14,10 +14,13 @@
 #
 
 
+import importlib
+
 import mindspore as ms
 from mindspore import _no_grad
+
 from mindone.utils.seed import set_random_seed
-import importlib
+
 
 @ms.jit_class
 class no_grad(_no_grad):
@@ -48,7 +51,6 @@ def seed_everything(seed):
 def set_parameter_grad_false(model):
     for p in model.get_parameters():
         p.requires_grad = False
-
 
 
 def instantiate_from_config(config):

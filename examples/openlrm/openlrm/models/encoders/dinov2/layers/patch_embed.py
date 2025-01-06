@@ -61,7 +61,9 @@ class PatchEmbed(nn.Cell):
 
         self.flatten_embedding = flatten_embedding
 
-        self.proj = nn.Conv2d(in_chans, embed_dim, kernel_size=patch_HW, stride=patch_HW, pad_mode="valid", has_bias=True)
+        self.proj = nn.Conv2d(
+            in_chans, embed_dim, kernel_size=patch_HW, stride=patch_HW, pad_mode="valid", has_bias=True
+        )
         self.norm = norm_layer(embed_dim) if norm_layer else nn.Identity()
 
     def construct(self, x: Tensor) -> Tensor:

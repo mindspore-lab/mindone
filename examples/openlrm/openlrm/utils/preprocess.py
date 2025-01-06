@@ -13,9 +13,9 @@
 # limitations under the License.
 
 
+import cv2
 import numpy as np
 import rembg
-import cv2
 
 
 class Preprocessor:
@@ -29,8 +29,16 @@ class Preprocessor:
             providers=["CUDAExecutionProvider", "CPUExecutionProvider"],
         )
 
-    def preprocess(self, image_path: str, save_path: str, rmbg: bool = True, recenter: bool = True, size: int = 512, border_ratio: float = 0.2):
-        image = self.step_load_to_size(image_path=image_path, size=size*2)
+    def preprocess(
+        self,
+        image_path: str,
+        save_path: str,
+        rmbg: bool = True,
+        recenter: bool = True,
+        size: int = 512,
+        border_ratio: float = 0.2,
+    ):
+        image = self.step_load_to_size(image_path=image_path, size=size * 2)
         if rmbg:
             image = self.step_rembg(image_in=image)
         else:

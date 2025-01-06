@@ -22,10 +22,10 @@ dataset:
     subsets:
         -   name: objaverse
             root_dirs:
-                - /home/susan/workspace/datasets/openlrm
+                - /home/susan/workspace/datasets/openlrm_448x448
             meta_path:
-                train: /home/susan/workspace/datasets/openlrm/meta.json
-                val: /home/susan/workspace/datasets/openlrm/meta.json
+                train: /home/susan/workspace/datasets/openlrm_448x448/meta.json
+                val: /home/susan/workspace/datasets/openlrm_448x448/meta.json
             sample_rate: 1.0
     sample_side_views: 3
     source_image_res: 448
@@ -55,7 +55,7 @@ train:
     scheduler:
         # type: cosine_annealing_warm_restarts_lr # args.scheduler
         # warmup_real_iters: 300  # args.warmup_steps
-    batch_size: 1 # REPLACE THIS 
+    batch_size: 1 # REPLACE THIS
     accum_steps: 1  # REPLACE THIS
     epochs: 10000 # 60  # REPLACE THIS
     debug_global_steps: null
@@ -83,4 +83,3 @@ logger:
     image_monitor:
         train_global_steps: 100
         samples_per_log: 4
-

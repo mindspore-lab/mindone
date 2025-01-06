@@ -13,25 +13,23 @@
 # limitations under the License.
 
 
-import mindspore as ms
-from mindspore import nn
 from abc import abstractmethod
 from logging import getLogger
 
 from openlrm.runners.abstract import Runner
 
+from mindspore import nn
 
 logger = getLogger(__name__)
 
 
 class Inferrer(Runner):
-
     EXP_TYPE: str = None
 
     def __init__(self):
         super().__init__()
 
-        self.model : nn.Cell = None
+        self.model: nn.Cell = None
 
     def __enter__(self):
         return self

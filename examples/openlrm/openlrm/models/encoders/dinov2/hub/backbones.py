@@ -6,9 +6,11 @@
 import os
 from enum import Enum
 from typing import Union
-import mindspore as ms
-from mindone.utils.params import load_param_into_net_with_filter, load_checkpoint_to_net
+
 from openlrm.utils.convert_models import torch_to_ms_weight
+
+from mindone.utils.params import load_checkpoint_to_net, load_param_into_net_with_filter
+
 from .utils import _DINOV2_BASE_URL, _make_dinov2_model_name
 
 
@@ -53,30 +55,30 @@ def _make_dinov2_model(
     vit_kwargs.update(**kwargs)
     model = vits.__dict__[arch_name](**vit_kwargs)
 
-    if pretrained: 
+    if pretrained:
         # load mindspore ckpt first
         model_full_name = _make_dinov2_model_name(arch_name, patch_size, num_register_tokens)
         ckpt_dir = os.path.join("checkpoints", f"{model_full_name}_pretrain.ckpt")
         if os.path.isfile(ckpt_dir):
             load_checkpoint_to_net(
-                model, 
-                ckpt_dir,
-                ignore_net_params_not_loaded=False,
-                ensure_all_ckpt_params_loaded=True)
-        else: # otherwise load torch ckpt, then convert to mindspore ckpt
+                model, ckpt_dir, ignore_net_params_not_loaded=False, ensure_all_ckpt_params_loaded=True
+            )
+        else:  # otherwise load torch ckpt, then convert to mindspore ckpt
             import torch
+
             url = _DINOV2_BASE_URL + f"/{model_base_name}/{model_full_name}_pretrain.pth"
             state_dict = torch.hub.load_state_dict_from_url(url, map_location="cpu")
             # ********** Modified by Zexin He in 2023-2024 **********
-            state_dict = {k: v for k, v in state_dict.items() if 'mask_token' not in k}  # DDP concern
+            state_dict = {k: v for k, v in state_dict.items() if "mask_token" not in k}  # DDP concern
             if vit_kwargs.get("modulation_dim") is not None:
                 state_dict = {
-                    k.replace('norm1', 'norm1.norm').replace('norm2', 'norm2.norm'): v
-                    for k, v in state_dict.items()
+                    k.replace("norm1", "norm1.norm").replace("norm2", "norm2.norm"): v for k, v in state_dict.items()
                 }
             # ********************************************************
-            
-            state_dict_ms = torch_to_ms_weight(source_fp=None, target_fp=ckpt_dir, source_data=state_dict) # convert and save ms ckpt
+
+            state_dict_ms = torch_to_ms_weight(
+                source_fp=None, target_fp=ckpt_dir, source_data=state_dict
+            )  # convert and save ms ckpt
             load_param_into_net_with_filter(model, state_dict_ms, strict_load=True)
 
     return model

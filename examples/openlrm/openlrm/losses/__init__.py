@@ -13,6 +13,6 @@
 # limitations under the License.
 
 
-from .pixelwise import *
 from .perceptual import *
+from .pixelwise import *
 from .tvloss import *

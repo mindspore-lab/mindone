@@ -6,8 +6,7 @@
 from enum import Enum
 from typing import Union
 
-import mindspore as ms
-from mindspore import nn, mint
+from mindspore import mint, nn
 
 from .backbones import _make_dinov2_model
 from .utils import _DINOV2_BASE_URL, _make_dinov2_model_name
@@ -40,6 +39,7 @@ def _make_dinov2_linear_classification_head(
 
     if pretrained:
         import torch
+
         model_base_name = _make_dinov2_model_name(arch_name, patch_size)
         model_full_name = _make_dinov2_model_name(arch_name, patch_size, num_register_tokens)
         layers_str = str(layers) if layers == 4 else ""
@@ -200,7 +200,8 @@ def dinov2_vits14_reg_lc(
     *, layers: int = 4, pretrained: bool = True, weights: Union[Weights, str] = Weights.IMAGENET1K, **kwargs
 ):
     """
-    Linear classifier (1 or 4 layers) on top of a DINOv2 ViT-S/14 backbone with registers (optionally) pretrained on the LVD-142M dataset and trained on ImageNet-1k.
+    Linear classifier (1 or 4 layers) on top of a DINOv2 ViT-S/14 backbone with registers (optionally)
+    pretrained on the LVD-142M dataset and trained on ImageNet-1k.
     """
     return _make_dinov2_linear_classifier(
         arch_name="vit_small",
@@ -218,7 +219,8 @@ def dinov2_vitb14_reg_lc(
     *, layers: int = 4, pretrained: bool = True, weights: Union[Weights, str] = Weights.IMAGENET1K, **kwargs
 ):
     """
-    Linear classifier (1 or 4 layers) on top of a DINOv2 ViT-B/14 backbone with registers (optionally) pretrained on the LVD-142M dataset and trained on ImageNet-1k.
+    Linear classifier (1 or 4 layers) on top of a DINOv2 ViT-B/14 backbone with registers (optionally)
+    pretrained on the LVD-142M dataset and trained on ImageNet-1k.
     """
     return _make_dinov2_linear_classifier(
         arch_name="vit_base",
@@ -236,7 +238,8 @@ def dinov2_vitl14_reg_lc(
     *, layers: int = 4, pretrained: bool = True, weights: Union[Weights, str] = Weights.IMAGENET1K, **kwargs
 ):
     """
-    Linear classifier (1 or 4 layers) on top of a DINOv2 ViT-L/14 backbone with registers (optionally) pretrained on the LVD-142M dataset and trained on ImageNet-1k.
+    Linear classifier (1 or 4 layers) on top of a DINOv2 ViT-L/14 backbone with registers (optionally)
+    pretrained on the LVD-142M dataset and trained on ImageNet-1k.
     """
     return _make_dinov2_linear_classifier(
         arch_name="vit_large",
@@ -254,7 +257,8 @@ def dinov2_vitg14_reg_lc(
     *, layers: int = 4, pretrained: bool = True, weights: Union[Weights, str] = Weights.IMAGENET1K, **kwargs
 ):
     """
-    Linear classifier (1 or 4 layers) on top of a DINOv2 ViT-g/14 backbone with registers (optionally) pretrained on the LVD-142M dataset and trained on ImageNet-1k.
+    Linear classifier (1 or 4 layers) on top of a DINOv2 ViT-g/14 backbone with registers (optionally)
+    pretrained on the LVD-142M dataset and trained on ImageNet-1k.
     """
     return _make_dinov2_linear_classifier(
         arch_name="vit_giant2",

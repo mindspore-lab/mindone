@@ -13,23 +13,24 @@
 # limitations under the License.
 
 
-import os
 import math
+import os
+from logging import getLogger
+
+from openlrm.runners import REGISTRY_RUNNERS
+from openlrm.utils.profiler import DummyProfiler
 from tqdm.auto import tqdm
+
 # from torchvision.utils import make_grid
 import mindspore as ms
 from mindspore import nn
-from logging import getLogger
 
 from .base_trainer import Trainer
-from openlrm.utils.profiler import DummyProfiler
-from openlrm.runners import REGISTRY_RUNNERS
-
 
 logger = getLogger(__name__)
 
 
-@REGISTRY_RUNNERS.register('train.lrm')
+@REGISTRY_RUNNERS.register("train.lrm")
 class LRMTrainer(Trainer):
     def __init__(self):
         super().__init__()
@@ -41,9 +42,11 @@ class LRMTrainer(Trainer):
         self.pixel_loss_fn, self.perceptual_loss_fn, self.tv_loss_fn = self._build_loss_fn(self.cfg)
 
     def _build_model(self, cfg):
-        assert cfg.experiment.type == 'lrm', \
-            f"Config type {cfg.experiment.type} does not match with runner {self.__class__.__name__}"
+        assert (
+            cfg.experiment.type == "lrm"
+        ), f"Config type {cfg.experiment.type} does not match with runner {self.__class__.__name__}"
         from openlrm.models import ModelLRM
+
         model = ModelLRM(**cfg.model)
         return model
 
@@ -54,7 +57,7 @@ class LRMTrainer(Trainer):
         for name, module in model.named_modules():
             if isinstance(module, nn.LayerNorm):
                 no_decay_params.extend([p for p in module.parameters()])
-            elif hasattr(module, 'bias') and module.bias is not None:
+            elif hasattr(module, "bias") and module.bias is not None:
                 no_decay_params.append(module.bias)
 
         # add remaining parameters to decay_params
@@ -73,8 +76,8 @@ class LRMTrainer(Trainer):
 
         # Optimizer
         opt_groups = [
-            {'params': decay_params, 'weight_decay': cfg.train.optim.weight_decay},
-            {'params': no_decay_params, 'weight_decay': 0.0},
+            {"params": decay_params, "weight_decay": cfg.train.optim.weight_decay},
+            {"params": no_decay_params, "weight_decay": 0.0},
         ]
         optimizer = torch.optim.AdamW(
             opt_groups,
@@ -90,8 +93,9 @@ class LRMTrainer(Trainer):
         effective_warmup_iters = cfg.train.scheduler.warmup_real_iters
         logger.debug(f"======== Scheduler effective max iters: {total_global_batches} ========")
         logger.debug(f"======== Scheduler effective warmup iters: {effective_warmup_iters} ========")
-        if cfg.train.scheduler.type == 'cosine':
+        if cfg.train.scheduler.type == "cosine":
             from openlrm.utils.scheduler import CosineWarmupScheduler
+
             scheduler = CosineWarmupScheduler(
                 optimizer=optimizer,
                 warmup_iters=effective_warmup_iters,
@@ -152,7 +156,8 @@ class LRMTrainer(Trainer):
         return train_loader, val_loader
 
     def _build_loss_fn(self, cfg):
-        from openlrm.losses import PixelLoss, LPIPSLoss, TVLoss
+        from openlrm.losses import LPIPSLoss, PixelLoss, TVLoss
+
         pixel_loss_fn = PixelLoss()
         with self.accelerator.main_process_first():
             perceptual_loss_fn = LPIPSLoss(device=self.device, prefech=True)
@@ -163,14 +168,13 @@ class LRMTrainer(Trainer):
         pass
 
     def forward_loss_local_step(self, data):
-
-        source_camera = data['source_camera']
-        render_camera = data['render_camera']
-        source_image = data['source_image']
-        render_image = data['render_image']
-        render_anchors = data['render_anchors']
-        render_full_resolutions = data['render_full_resolutions']
-        render_bg_colors = data['render_bg_colors']
+        source_camera = data["source_camera"]
+        render_camera = data["render_camera"]
+        source_image = data["source_image"]
+        render_image = data["render_image"]
+        render_anchors = data["render_anchors"]
+        render_full_resolutions = data["render_full_resolutions"]
+        render_bg_colors = data["render_bg_colors"]
 
         N, M, C, H, W = render_image.shape
 
@@ -186,19 +190,19 @@ class LRMTrainer(Trainer):
         )
 
         # loss calculation
-        loss = 0.
+        loss = 0.0
         loss_pixel = None
         loss_perceptual = None
         loss_tv = None
 
-        if self.cfg.train.loss.pixel_weight > 0.:
-            loss_pixel = self.pixel_loss_fn(outputs['images_rgb'], render_image)
+        if self.cfg.train.loss.pixel_weight > 0.0:
+            loss_pixel = self.pixel_loss_fn(outputs["images_rgb"], render_image)
             loss += loss_pixel * self.cfg.train.loss.pixel_weight
-        if self.cfg.train.loss.perceptual_weight > 0.:
-            loss_perceptual = self.perceptual_loss_fn(outputs['images_rgb'], render_image)
+        if self.cfg.train.loss.perceptual_weight > 0.0:
+            loss_perceptual = self.perceptual_loss_fn(outputs["images_rgb"], render_image)
             loss += loss_perceptual * self.cfg.train.loss.perceptual_weight
-        if self.cfg.train.loss.tv_weight > 0.: 
-            loss_tv = self.tv_loss_fn(outputs['planes'])
+        if self.cfg.train.loss.tv_weight > 0.0:
+            loss_tv = self.tv_loss_fn(outputs["planes"])
             loss += loss_tv * self.cfg.train.loss.tv_weight
 
         return outputs, loss, loss_pixel, loss_perceptual, loss_tv
@@ -211,25 +215,27 @@ class LRMTrainer(Trainer):
 
         logger.debug(f"======== Starting epoch {self.current_epoch} ========")
         for data in loader:
-
             logger.debug(f"======== Starting global step {self.global_step} ========")
             with self.accelerator.accumulate(self.model):
-
                 # forward to loss
                 outs, loss, loss_pixel, loss_perceptual, loss_tv = self.forward_loss_local_step(data)
-                
+
                 # backward
                 self.accelerator.backward(loss)
-                if self.accelerator.sync_gradients and self.cfg.train.optim.clip_grad_norm > 0.:
+                if self.accelerator.sync_gradients and self.cfg.train.optim.clip_grad_norm > 0.0:
                     self.accelerator.clip_grad_norm_(self.model.parameters(), self.cfg.train.optim.clip_grad_norm)
                 self.optimizer.step()
                 self.optimizer.zero_grad()
 
                 # track local losses
-                local_step_losses.append(torch.stack([
-                    _loss.detach() if _loss is not None else ms.Tensor(float('nan'), device=self.device)
-                    for _loss in [loss, loss_pixel, loss_perceptual, loss_tv]
-                ]))
+                local_step_losses.append(
+                    torch.stack(
+                        [
+                            _loss.detach() if _loss is not None else ms.Tensor(float("nan"), device=self.device)
+                            for _loss in [loss, loss_pixel, loss_perceptual, loss_tv]
+                        ]
+                    )
+                )
 
             # track global step
             if self.accelerator.sync_gradients:
@@ -240,16 +246,13 @@ class LRMTrainer(Trainer):
                 global_step_loss = self.accelerator.gather(torch.stack(local_step_losses)).mean(dim=0).cpu()
                 loss, loss_pixel, loss_perceptual, loss_tv = global_step_loss.unbind()
                 loss_kwargs = {
-                    'loss': loss.item(),
-                    'loss_pixel': loss_pixel.item(),
-                    'loss_perceptual': loss_perceptual.item(),
-                    'loss_tv': loss_tv.item(),
+                    "loss": loss.item(),
+                    "loss_pixel": loss_pixel.item(),
+                    "loss_perceptual": loss_perceptual.item(),
+                    "loss_tv": loss_tv.item(),
                 }
-                self.log_scalar_kwargs(
-                    step=self.global_step, split='train',
-                    **loss_kwargs
-                )
-                self.log_optimizer(step=self.global_step, attrs=['lr'], group_ids=[0, 1])
+                self.log_scalar_kwargs(step=self.global_step, split="train", **loss_kwargs)
+                self.log_optimizer(step=self.global_step, attrs=["lr"], group_ids=[0, 1])
                 local_step_losses = []
                 global_step_losses.append(global_step_loss)
 
@@ -257,10 +260,11 @@ class LRMTrainer(Trainer):
                 pbar.update(1)
                 description = {
                     **loss_kwargs,
-                    'lr': self.optimizer.param_groups[0]['lr'],
+                    "lr": self.optimizer.param_groups[0]["lr"],
                 }
-                description = '[TRAIN STEP]' + \
-                    ', '.join(f'{k}={tqdm.format_num(v)}' for k, v in description.items() if not math.isnan(v))
+                description = "[TRAIN STEP]" + ", ".join(
+                    f"{k}={tqdm.format_num(v)}" for k, v in description.items() if not math.isnan(v)
+                )
                 pbar.set_description(description)
 
                 # periodic actions
@@ -271,9 +275,10 @@ class LRMTrainer(Trainer):
                     self.model.train()
                 if self.global_step % self.cfg.logger.image_monitor.train_global_steps == 0:
                     self.log_image_monitor(
-                        step=self.global_step, split='train',
-                        renders=outs['images_rgb'].detach()[:self.cfg.logger.image_monitor.samples_per_log].cpu(),
-                        gts=data['render_image'][:self.cfg.logger.image_monitor.samples_per_log].cpu(),
+                        step=self.global_step,
+                        split="train",
+                        renders=outs["images_rgb"].detach()[: self.cfg.logger.image_monitor.samples_per_log].cpu(),
+                        gts=data["render_image"][: self.cfg.logger.image_monitor.samples_per_log].cpu(),
                     )
 
                 # progress control
@@ -286,22 +291,22 @@ class LRMTrainer(Trainer):
         epoch_losses = torch.stack(global_step_losses).mean(dim=0)
         epoch_loss, epoch_loss_pixel, epoch_loss_perceptual, epoch_loss_tv = epoch_losses.unbind()
         epoch_loss_dict = {
-            'loss': epoch_loss.item(),
-            'loss_pixel': epoch_loss_pixel.item(),
-            'loss_perceptual': epoch_loss_perceptual.item(),
-            'loss_tv': epoch_loss_tv.item(),
+            "loss": epoch_loss.item(),
+            "loss_pixel": epoch_loss_pixel.item(),
+            "loss_perceptual": epoch_loss_perceptual.item(),
+            "loss_tv": epoch_loss_tv.item(),
         }
         self.log_scalar_kwargs(
-            epoch=self.current_epoch, split='train',
+            epoch=self.current_epoch,
+            split="train",
             **epoch_loss_dict,
         )
         logger.info(
-            f'[TRAIN EPOCH] {self.current_epoch}/{self.cfg.train.epochs}: ' + \
-                ', '.join(f'{k}={tqdm.format_num(v)}' for k, v in epoch_loss_dict.items() if not math.isnan(v))
+            f"[TRAIN EPOCH] {self.current_epoch}/{self.cfg.train.epochs}: "
+            + ", ".join(f"{k}={tqdm.format_num(v)}" for k, v in epoch_loss_dict.items() if not math.isnan(v))
         )
 
     def train(self):
-        
         starting_local_step_in_epoch = self.global_step_in_epoch * self.cfg.train.accum_steps
         skipped_loader = self.accelerator.skip_first_batches(self.train_loader, starting_local_step_in_epoch)
         logger.info(f"======== Skipped {starting_local_step_in_epoch} local batches ========")
@@ -311,26 +316,32 @@ class LRMTrainer(Trainer):
             initial=self.global_step,
             disable=(not self.accelerator.is_main_process),
         ) as pbar:
+            profiler = (
+                torch.profiler.profile(
+                    activities=[torch.profiler.ProfilerActivity.CPU, torch.profiler.ProfilerActivity.CUDA],
+                    schedule=torch.profiler.schedule(
+                        wait=10,
+                        warmup=10,
+                        active=100,
+                    ),
+                    on_trace_ready=torch.profiler.tensorboard_trace_handler(
+                        os.path.join(
+                            self.cfg.logger.tracker_root,
+                            self.cfg.experiment.parent,
+                            self.cfg.experiment.child,
+                        )
+                    ),
+                    record_shapes=True,
+                    profile_memory=True,
+                    with_stack=True,
+                )
+                if self.cfg.logger.enable_profiler
+                else DummyProfiler()
+            )
 
-            profiler = torch.profiler.profile(
-                activities=[torch.profiler.ProfilerActivity.CPU, torch.profiler.ProfilerActivity.CUDA],
-                schedule=torch.profiler.schedule(
-                    wait=10, warmup=10, active=100,
-                ),
-                on_trace_ready=torch.profiler.tensorboard_trace_handler(os.path.join(
-                    self.cfg.logger.tracker_root,
-                    self.cfg.experiment.parent, self.cfg.experiment.child,
-                )),
-                record_shapes=True,
-                profile_memory=True,
-                with_stack=True,
-            ) if self.cfg.logger.enable_profiler else DummyProfiler()
-            
             with profiler:
-
                 self.optimizer.zero_grad()
                 for _ in range(self.current_epoch, self.cfg.train.epochs):
-
                     loader = skipped_loader or self.train_loader
                     skipped_loader = None
                     self.train_epoch(pbar=pbar, loader=loader, profiler=profiler)
@@ -353,7 +364,6 @@ class LRMTrainer(Trainer):
         sample_data, sample_outs = None, None
 
         for data in tqdm(self.val_loader, disable=(not self.accelerator.is_main_process), total=max_val_batches):
-
             if len(running_losses) >= max_val_batches:
                 logger.info(f"======== Early stop validation at {len(running_losses)} batches ========")
                 break
@@ -361,60 +371,72 @@ class LRMTrainer(Trainer):
             outs, loss, loss_pixel, loss_perceptual, loss_tv = self.forward_loss_local_step(data)
             sample_data, sample_outs = data, outs
 
-            running_losses.append(torch.stack([
-                _loss if _loss is not None else ms.Tensor(float('nan'), device=self.device)
-                for _loss in [loss, loss_pixel, loss_perceptual, loss_tv]
-            ]))
+            running_losses.append(
+                torch.stack(
+                    [
+                        _loss if _loss is not None else ms.Tensor(float("nan"), device=self.device)
+                        for _loss in [loss, loss_pixel, loss_perceptual, loss_tv]
+                    ]
+                )
+            )
 
         total_losses = self.accelerator.gather(torch.stack(running_losses)).mean(dim=0).cpu()
         total_loss, total_loss_pixel, total_loss_perceptual, total_loss_tv = total_losses.unbind()
         total_loss_dict = {
-            'loss': total_loss.item(),
-            'loss_pixel': total_loss_pixel.item(),
-            'loss_perceptual': total_loss_perceptual.item(),
-            'loss_tv': total_loss_tv.item(),
+            "loss": total_loss.item(),
+            "loss_pixel": total_loss_pixel.item(),
+            "loss_perceptual": total_loss_perceptual.item(),
+            "loss_tv": total_loss_tv.item(),
         }
 
         if epoch is not None:
             self.log_scalar_kwargs(
-                epoch=epoch, split='val',
+                epoch=epoch,
+                split="val",
                 **total_loss_dict,
             )
             logger.info(
-                f'[VAL EPOCH] {epoch}/{self.cfg.train.epochs}: ' + \
-                    ', '.join(f'{k}={tqdm.format_num(v)}' for k, v in total_loss_dict.items() if not math.isnan(v))
+                f"[VAL EPOCH] {epoch}/{self.cfg.train.epochs}: "
+                + ", ".join(f"{k}={tqdm.format_num(v)}" for k, v in total_loss_dict.items() if not math.isnan(v))
             )
             self.log_image_monitor(
-                epoch=epoch, split='val',
-                renders=sample_outs['images_rgb'][:self.cfg.logger.image_monitor.samples_per_log].cpu(),
-                gts=sample_data['render_image'][:self.cfg.logger.image_monitor.samples_per_log].cpu(),
+                epoch=epoch,
+                split="val",
+                renders=sample_outs["images_rgb"][: self.cfg.logger.image_monitor.samples_per_log].cpu(),
+                gts=sample_data["render_image"][: self.cfg.logger.image_monitor.samples_per_log].cpu(),
             )
         else:
             self.log_scalar_kwargs(
-                step=self.global_step, split='val',
+                step=self.global_step,
+                split="val",
                 **total_loss_dict,
             )
             logger.info(
-                f'[VAL STEP] {self.global_step}/{self.N_max_global_steps}: ' + \
-                    ', '.join(f'{k}={tqdm.format_num(v)}' for k, v in total_loss_dict.items() if not math.isnan(v))
+                f"[VAL STEP] {self.global_step}/{self.N_max_global_steps}: "
+                + ", ".join(f"{k}={tqdm.format_num(v)}" for k, v in total_loss_dict.items() if not math.isnan(v))
             )
             self.log_image_monitor(
-                step=self.global_step, split='val',
-                renders=sample_outs['images_rgb'][:self.cfg.logger.image_monitor.samples_per_log].cpu(),
-                gts=sample_data['render_image'][:self.cfg.logger.image_monitor.samples_per_log].cpu(),
+                step=self.global_step,
+                split="val",
+                renders=sample_outs["images_rgb"][: self.cfg.logger.image_monitor.samples_per_log].cpu(),
+                gts=sample_data["render_image"][: self.cfg.logger.image_monitor.samples_per_log].cpu(),
             )
 
     # @Trainer.control('on_main_process')
     def log_image_monitor(
-        self, epoch: int = None, step: int = None, split: str = None,
-        renders: ms.Tensor = None, gts: ms.Tensor = None,
-        ):
+        self,
+        epoch: int = None,
+        step: int = None,
+        split: str = None,
+        renders: ms.Tensor = None,
+        gts: ms.Tensor = None,
+    ):
         M = renders.shape[1]
         merged = mint.stack([renders, gts], dim=1)[0].view((-1, *renders.shape[2:]))
         renders, gts = renders.view((-1, *renders.shape[2:])), gts.view((-1, *gts.shape[2:]))
         # renders, gts, merged = make_grid(renders, nrow=M), make_grid(gts, nrow=M), make_grid(merged, nrow=M)
         log_type, log_progress = self._get_str_progress(epoch, step)
-        split = f'/{split}' if split else ''
+        split = f"/{split}" if split else ""
         # self.log_images({
         #     f'Images_split{split}/rendered': renders.unsqueeze(0),
         #     f'Images_split{split}/gt': gts.unsqueeze(0),
@@ -422,5 +444,3 @@ class LRMTrainer(Trainer):
         # }, log_progress)
 
         # TODO: save images
-
-

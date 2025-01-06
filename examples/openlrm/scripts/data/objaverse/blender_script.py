@@ -15,10 +15,10 @@ import sys
 import time
 import urllib.request
 from typing import Tuple
-from mathutils import Vector
-import numpy as np
-import bpy
 
+import bpy
+import numpy as np
+from mathutils import Vector
 
 parser = argparse.ArgumentParser()
 parser.add_argument(
@@ -28,16 +28,14 @@ parser.add_argument(
     help="Path to the object file",
 )
 parser.add_argument("--output_dir", type=str, default="./views")
-parser.add_argument(
-    "--engine", type=str, default="CYCLES", choices=["CYCLES", "BLENDER_EEVEE"]
-)
+parser.add_argument("--engine", type=str, default="CYCLES", choices=["CYCLES", "BLENDER_EEVEE"])
 parser.add_argument("--num_images", type=int, default=32)
 parser.add_argument("--resolution", type=int, default=1024)
-    
+
 argv = sys.argv[sys.argv.index("--") + 1 :]
 args = parser.parse_args(argv)
 
-print('===================', args.engine, '===================')
+print("===================", args.engine, "===================")
 
 context = bpy.context
 scene = context.scene
@@ -67,8 +65,10 @@ cuda_devices = cycles_preferences.get_devices_for_type("CUDA")
 for device in cuda_devices:
     device.use = True
 
+
 def compose_RT(R, T):
     return np.hstack((R, T.reshape(-1, 1)))
+
 
 def sample_point_on_sphere(radius: float) -> Tuple[float, float, float]:
     theta = random.random() * 2 * math.pi
@@ -79,7 +79,8 @@ def sample_point_on_sphere(radius: float) -> Tuple[float, float, float]:
         radius * math.cos(phi),
     )
 
-def sample_spherical(radius=3.0, maxz=3.0, minz=0.):
+
+def sample_spherical(radius=3.0, maxz=3.0, minz=0.0):
     correct = False
     while not correct:
         vec = np.random.uniform(-1, 1, 3)
@@ -89,57 +90,60 @@ def sample_spherical(radius=3.0, maxz=3.0, minz=0.):
             correct = True
     return vec
 
+
 def sample_spherical(radius_min=1.5, radius_max=2.0, maxz=1.6, minz=-0.75):
     correct = False
     while not correct:
         vec = np.random.uniform(-1, 1, 3)
-#         vec[2] = np.abs(vec[2])
+        #         vec[2] = np.abs(vec[2])
         radius = np.random.uniform(radius_min, radius_max, 1)
         vec = vec / np.linalg.norm(vec, axis=0) * radius[0]
         if maxz > vec[2] > minz:
             correct = True
     return vec
 
-def set_camera_location(camera, option: str):
-    assert option in ['fixed', 'random', 'front']
 
-    if option == 'fixed':
+def set_camera_location(camera, option: str):
+    assert option in ["fixed", "random", "front"]
+
+    if option == "fixed":
         x, y, z = 0, -2.25, 0
-    elif option == 'random':
+    elif option == "random":
         # from https://blender.stackexchange.com/questions/18530/
         x, y, z = sample_spherical(radius_min=1.9, radius_max=2.6, maxz=1.60, minz=-0.75)
-    elif option == 'front':
+    elif option == "front":
         x, y, z = 0, -np.random.uniform(1.9, 2.6, 1)[0], 0
 
     camera.location = x, y, z
 
     # adjust orientation
-    direction = - camera.location
-    rot_quat = direction.to_track_quat('-Z', 'Y')
+    direction = -camera.location
+    rot_quat = direction.to_track_quat("-Z", "Y")
     camera.rotation_euler = rot_quat.to_euler()
     return camera
 
+
 def add_lighting(option: str) -> None:
-    assert option in ['fixed', 'random']
-    
+    assert option in ["fixed", "random"]
+
     # delete the default light
     bpy.data.objects["Light"].select_set(True)
     bpy.ops.object.delete()
-    
+
     # add a new light
     bpy.ops.object.light_add(type="AREA")
     light = bpy.data.lights["Area"]
 
-    if option == 'fixed':
+    if option == "fixed":
         light.energy = 30000
         bpy.data.objects["Area"].location[0] = 0
         bpy.data.objects["Area"].location[1] = 1
         bpy.data.objects["Area"].location[2] = 0.5
 
-    elif option == 'random':
+    elif option == "random":
         light.energy = random.uniform(80000, 120000)
-        bpy.data.objects["Area"].location[0] = random.uniform(-2., 2.)
-        bpy.data.objects["Area"].location[1] = random.uniform(-2., 2.)
+        bpy.data.objects["Area"].location[0] = random.uniform(-2.0, 2.0)
+        bpy.data.objects["Area"].location[1] = random.uniform(-2.0, 2.0)
         bpy.data.objects["Area"].location[2] = random.uniform(1.0, 3.0)
 
     # set light scale
@@ -240,7 +244,7 @@ def save_images(object_file: str) -> None:
     load_object(object_file)
     object_uid = os.path.basename(object_file).split(".")[0]
     normalize_scene(box_scale=2)
-    add_lighting(option='random')
+    add_lighting(option="random")
     camera, cam_constraint = setup_camera()
 
     # create an empty object to track
@@ -249,14 +253,14 @@ def save_images(object_file: str) -> None:
     cam_constraint.target = empty
 
     # prepare to save
-    img_dir = os.path.join(args.output_dir, object_uid, 'rgba')
-    pose_dir = os.path.join(args.output_dir, object_uid, 'pose')
+    img_dir = os.path.join(args.output_dir, object_uid, "rgba")
+    pose_dir = os.path.join(args.output_dir, object_uid, "pose")
     os.makedirs(img_dir, exist_ok=True)
     os.makedirs(pose_dir, exist_ok=True)
 
     for i in range(args.num_images):
         # set the camera position
-        camera_option = 'random' if i > 0 else 'front'
+        camera_option = "random" if i > 0 else "front"
         camera = set_camera_location(camera, option=camera_option)
 
         # render the image
@@ -269,10 +273,10 @@ def save_images(object_file: str) -> None:
         RT = compose_RT(rotation.to_matrix(), np.array(location))
         RT_path = os.path.join(pose_dir, f"{i:03d}.npy")
         np.save(RT_path, RT)
-    
+
     # save the camera intrinsics
     intrinsics = get_calibration_matrix_K_from_blender(camera.data, return_principles=True)
-    with open(os.path.join(args.output_dir, object_uid,'intrinsics.npy'), 'wb') as f_intrinsics:
+    with open(os.path.join(args.output_dir, object_uid, "intrinsics.npy"), "wb") as f_intrinsics:
         np.save(f_intrinsics, intrinsics)
 
 
@@ -293,19 +297,19 @@ def download_object(object_url: str) -> str:
 
 def get_calibration_matrix_K_from_blender(camera, return_principles=False):
     """
-        Get the camera intrinsic matrix from Blender camera.
-        Return also numpy array of principle parameters if specified.
-        
-        Intrinsic matrix K has the following structure in pixels:
-            [fx  0 cx]
-            [0  fy cy]
-            [0   0  1]
-        
-        Specified principle parameters are:
-            [fx, fy] - focal lengths in pixels
-            [cx, cy] - optical centers in pixels
-            [width, height] - image resolution in pixels
-        
+    Get the camera intrinsic matrix from Blender camera.
+    Return also numpy array of principle parameters if specified.
+
+    Intrinsic matrix K has the following structure in pixels:
+        [fx  0 cx]
+        [0  fy cy]
+        [0   0  1]
+
+    Specified principle parameters are:
+        [fx, fy] - focal lengths in pixels
+        [cx, cy] - optical centers in pixels
+        [width, height] - image resolution in pixels
+
     """
     # Render resolution
     render = bpy.context.scene.render
@@ -326,16 +330,16 @@ def get_calibration_matrix_K_from_blender(camera, return_principles=False):
     optical_center_y = height / 2
 
     # Constructing the intrinsic matrix
-    K = np.array([[focal_length_x, 0, optical_center_x],
-                [0, focal_length_y, optical_center_y],
-                [0, 0, 1]])
-    
+    K = np.array([[focal_length_x, 0, optical_center_x], [0, focal_length_y, optical_center_y], [0, 0, 1]])
+
     if return_principles:
-        return np.array([
-            [focal_length_x, focal_length_y],
-            [optical_center_x, optical_center_y],
-            [width, height],
-        ])
+        return np.array(
+            [
+                [focal_length_x, focal_length_y],
+                [optical_center_x, optical_center_y],
+                [width, height],
+            ]
+        )
     else:
         return K
 

@@ -16,41 +16,39 @@
 import math
 from functools import partial
 
-__all__ = ['MixerDataset']
+__all__ = ["MixerDataset"]
 
 
 class MixerDataset:
-
-    def __init__(self, 
-                 split: str,
-                 subsets: list[dict],
-                 **dataset_kwargs,
-                 ):
-        self.subsets = [
-            self._dataset_fn(subset, split)(**dataset_kwargs)
-            for subset in subsets
-        ]
+    def __init__(
+        self,
+        split: str,
+        subsets: list[dict],
+        **dataset_kwargs,
+    ):
+        self.subsets = [self._dataset_fn(subset, split)(**dataset_kwargs) for subset in subsets]
         self.virtual_lens = [
-            math.ceil(subset_config['sample_rate'] * len(subset_obj))
+            math.ceil(subset_config["sample_rate"] * len(subset_obj))
             for subset_config, subset_obj in zip(subsets, self.subsets)
         ]
         self.output_columns = [
-            'source_camera',
-            'render_camera',
-            'source_image',
-            'render_image',
-            'render_anchors',
-            'render_full_resolutions',
-            'render_bg_colors',
+            "source_camera",
+            "render_camera",
+            "source_image",
+            "render_image",
+            "render_anchors",
+            "render_full_resolutions",
+            "render_bg_colors",
         ]
 
     @staticmethod
     def _dataset_fn(subset_config: dict, split: str):
-        name = subset_config['name']
+        name = subset_config["name"]
 
         dataset_cls = None
         if name == "objaverse":
             from .objaverse import ObjaverseDataset
+
             dataset_cls = ObjaverseDataset
         # elif name == 'mvimgnet':
         #     from .mvimgnet import MVImgNetDataset
@@ -60,8 +58,8 @@ class MixerDataset:
 
         return partial(
             dataset_cls,
-            root_dirs=subset_config['root_dirs'],
-            meta_path=subset_config['meta_path'][split],
+            root_dirs=subset_config["root_dirs"],
+            meta_path=subset_config["meta_path"][split],
         )
 
     def __len__(self):

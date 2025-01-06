@@ -1,10 +1,12 @@
 import argparse
 import os
+
 import mindspore as ms
 
 
 def _load_torch_ckpt(ckpt_file):
     import torch
+
     source_data = torch.load(ckpt_file, map_location="cpu")
     if "state_dict" in source_data:
         source_data = source_data["state_dict"]
@@ -31,12 +33,14 @@ def load_torch_ckpt(ckpt_path):
     torch_params = LOAD_PYTORCH_FUNCS[extension](ckpt_path)
     return torch_params
 
+
 def convert_pt_name_to_ms(k):
     if "norm" in k:
         ms_name = k.replace(".weight", ".gamma").replace(".bias", ".beta")
     else:
         ms_name = k
     return ms_name
+
 
 def torch_to_ms_weight(source_fp, target_fp, source_data=None):
     if source_data is None:

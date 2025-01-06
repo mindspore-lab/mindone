@@ -13,15 +13,16 @@
 # limitations under the License.
 
 
+from logging import getLogger
+from typing import Optional
+
+from openlrm.utils import set_parameter_grad_false
+from transformers import ViTImageProcessor
+
 import mindspore as ms
 from mindspore import nn
-import numpy as np
-from transformers import ViTImageProcessor
-from .dino import ViTModel # TODO: add ViTModel/dino to mindone.transformers
-from openlrm.utils import set_parameter_grad_false
 
-from logging import getLogger
-
+from .dino import ViTModel  # TODO: add ViTModel/dino to mindone.transformers
 
 logger = getLogger(__name__)
 
@@ -30,6 +31,7 @@ class DinoWrapper(nn.Cell):
     """
     Dino v1 wrapper using huggingface transformer implementation.
     """
+
     def __init__(self, model_name: str, freeze: bool = True):
         super().__init__()
         self.model, self.processor = self._build_dino(model_name)
@@ -52,7 +54,7 @@ class DinoWrapper(nn.Cell):
         return last_hidden_states
 
     def _freeze(self):
-        logger.warning(f"======== Freezing DinoWrapper ========")
+        logger.warning("======== Freezing DinoWrapper ========")
         self.model.set_train(False)
         set_parameter_grad_false(self.model)
 
@@ -60,10 +62,11 @@ class DinoWrapper(nn.Cell):
         for p in self.get_parameters():
             p.set_dtype(dtype)
         return self
-        
+
     @staticmethod
     def _build_dino(model_name: str, proxy_error_retries: int = 3, proxy_error_cooldown: int = 5):
         import requests
+
         try:
             model = ViTModel.from_pretrained(model_name, add_pooling_layer=False)
             processor = ViTImageProcessor.from_pretrained(model_name)
@@ -72,6 +75,7 @@ class DinoWrapper(nn.Cell):
             if proxy_error_retries > 0:
                 print(f"Huggingface ProxyError: Retrying ({proxy_error_retries}) in {proxy_error_cooldown} seconds...")
                 import time
+
                 time.sleep(proxy_error_cooldown)
                 return DinoWrapper._build_dino(model_name, proxy_error_retries - 1, proxy_error_cooldown)
             else:

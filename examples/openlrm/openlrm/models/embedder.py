@@ -12,18 +12,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-
-import mindspore as ms
 from mindspore import nn
 
 
 class CameraEmbedder(nn.Cell):
     """
     Embed camera features to a high-dimensional vector.
-    
+
     Reference:
     DiT: https://github.com/facebookresearch/DiT/blob/main/models.py#L27
     """
+
     def __init__(self, raw_dim: int, embed_dim: int):
         super().__init__()
         self.mlp = nn.SequentialCell(
