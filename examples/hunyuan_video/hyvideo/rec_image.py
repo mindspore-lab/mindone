@@ -15,7 +15,6 @@ import numpy as np
 from PIL import Image
 
 import mindspore as ms
-from mindspore import nn
 
 mindone_lib_path = os.path.abspath("../../")
 sys.path.insert(0, mindone_lib_path)
@@ -30,7 +29,7 @@ from albumentations import Compose, Lambda, Resize, ToFloat
 from hyvideo.constants import PRECISION_TO_TYPE, PRECISIONS, VAE_PATH
 from hyvideo.utils.ms_utils import init_env
 from hyvideo.vae import load_vae
-from hyvideo.vae.unet_causal_3d_blocks import GroupNorm, MSInterpolate
+from hyvideo.vae.unet_causal_3d_blocks import GroupNorm, MSInterpolate, MSPad
 
 logger = logging.getLogger(__name__)
 
@@ -109,7 +108,7 @@ def main(args):
         if dtype == ms.float16:
             custom_fp32_cells = [GroupNorm] if args.vae_keep_gn_fp32 else []
         else:
-            custom_fp32_cells = [nn.ReplicationPad3d, MSInterpolate]
+            custom_fp32_cells = [MSPad, MSInterpolate]
 
         vae = auto_mixed_precision(vae, amp_level, dtype, custom_fp32_cells=custom_fp32_cells)
         logger.info(

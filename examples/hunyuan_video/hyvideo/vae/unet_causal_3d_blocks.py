@@ -28,6 +28,11 @@ def prepare_causal_attention_mask(n_frame: int, n_hw: int, dtype, batch_size: in
     return mask
 
 
+class MSPad(nn.Cell):
+    def construct(self, x, pad, mode="constant", value=None):
+        return F.pad(x, pad, mode=mode, value=value)
+
+
 class CausalConv3d(nn.Cell):
     """
     Implements a causal 3D convolution layer where each position only depends on previous timesteps and current spatial locations.
@@ -56,7 +61,7 @@ class CausalConv3d(nn.Cell):
             kernel_size - 1,
             0,
         ]  # W, H, T
-        padding = padding[::-1]  # reverse the order for nn.ReplicationPad3d
+        padding = padding[::-1]  # reverse the order for MSPad
         self.time_causal_padding = padding
         bias = kwargs.pop("bias", True)
         self.conv = nn.Conv3d(
@@ -64,10 +69,10 @@ class CausalConv3d(nn.Cell):
         ).to_float(dtype)
         self.dtype = dtype
         assert self.pad_mode == "replicate", f"pad mode {self.pad_mode} is not supported other than `replicate`"
-        self.pad3d = nn.ReplicationPad3d(tuple(self.time_causal_padding))
+        self.pad = MSPad()
 
     def construct(self, x):
-        x = self.pad3d(x)
+        x = self.pad(x, self.time_causal_padding, mode=self.pad_mode)
         if x.dtype == ms.float32:
             return self.conv(x).to(ms.float32)
         else:
