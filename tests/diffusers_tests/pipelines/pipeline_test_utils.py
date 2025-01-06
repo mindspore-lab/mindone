@@ -67,7 +67,13 @@ def randn_tensor(
     # device on which tensor is created defaults to device
     rand_device = device
     batch_size = shape[0]
-    dtype = torch.float32 if dtype == ms.float32 else torch.float16
+    ms_dtype = dtype
+    if dtype == ms.float32:
+        dtype = torch.float32
+    elif dtype == ms.bfloat16:
+        dtype = torch.bfloat16
+    else:
+        dtype = torch.float16
 
     layout = layout or torch.strided
     device = device or torch.device("cpu")
@@ -99,7 +105,7 @@ def randn_tensor(
     else:
         latents = torch.randn(shape, generator=generator, device=rand_device, dtype=dtype, layout=layout).to(device)
 
-    return ms.Tensor(latents.numpy())
+    return ms.Tensor(latents.float().numpy(), dtype=ms_dtype)
 
 
 def get_module(module_path):
