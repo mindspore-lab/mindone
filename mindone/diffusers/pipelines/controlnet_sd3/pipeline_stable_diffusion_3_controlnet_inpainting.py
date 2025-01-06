@@ -27,6 +27,7 @@ from ...image_processor import PipelineImageInput, VaeImageProcessor
 from ...loaders import FromSingleFileMixin, SD3LoraLoaderMixin
 from ...models.autoencoders import AutoencoderKL
 from ...models.controlnet_sd3 import SD3ControlNetModel, SD3MultiControlNetModel
+from ...models.layers_compat import pad
 from ...models.transformers import SD3Transformer2DModel
 from ...schedulers import FlowMatchEulerDiscreteScheduler
 from ...utils import logging, scale_lora_layers, unscale_lora_layers
@@ -458,9 +459,7 @@ class StableDiffusion3ControlNetInpaintingPipeline(DiffusionPipeline, SD3LoraLoa
                 max_sequence_length=max_sequence_length,
             )
 
-            clip_prompt_embeds = ops.pad(
-                clip_prompt_embeds, (0, t5_prompt_embed.shape[-1] - clip_prompt_embeds.shape[-1])
-            )
+            clip_prompt_embeds = pad(clip_prompt_embeds, (0, t5_prompt_embed.shape[-1] - clip_prompt_embeds.shape[-1]))
 
             prompt_embeds = ops.cat([clip_prompt_embeds, t5_prompt_embed], axis=-2)
             pooled_prompt_embeds = ops.cat([pooled_prompt_embed, pooled_prompt_2_embed], axis=-1)
@@ -511,7 +510,7 @@ class StableDiffusion3ControlNetInpaintingPipeline(DiffusionPipeline, SD3LoraLoa
                 max_sequence_length=max_sequence_length,
             )
 
-            negative_clip_prompt_embeds = ops.pad(
+            negative_clip_prompt_embeds = pad(
                 negative_clip_prompt_embeds,
                 (0, t5_negative_prompt_embed.shape[-1] - negative_clip_prompt_embeds.shape[-1]),
             )
