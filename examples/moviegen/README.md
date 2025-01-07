@@ -20,11 +20,11 @@ this project!
     - [x] Inference
     - [x] Training stage 1: T2I 256px
     - [x] Training stage 2: T2I/V 256px 256frames
-    - [ ] Training stage 3: T2I/V 768px 256frames (under training)
+    - [ ] Training stage 3: T2I/V 768px 256frames (under verification)
     - [x] Web Demo (Gradio)
 - Movie Gen 30B (T2I/V)
     - [x] Inference
-    - [x] Mixed parallelism training (support Ulysses-SP + ZeRO-3, under training)
+    - [x] Mixed parallelism training (support Ulysses-SP + ZeRO-3)
     - [x] Training stage 1: T2I 256px
     - [x] Training stage 2: T2V 256px 256frames
     - [ ] Training stage 3: T2I/V 768px 256frames

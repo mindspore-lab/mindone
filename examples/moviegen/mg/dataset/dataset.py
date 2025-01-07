@@ -164,8 +164,8 @@ class ImageVideoDataset(BaseDataset):
 
         if self._tae_latent_folder:
             tae_latent_data = np.load(data["tae_latent"])
-            latent_mean, latent_std = tae_latent_data["latent_mean"], tae_latent_data["latent_std"]
-            if len(latent_mean) < self._min_length:  # TODO: add support for images and buckets
+            latent_mean, latent_std = tae_latent_data["latent_mean"], tae_latent_data["latent_std"]  # C T H W
+            if latent_mean.shape[1] < self._min_length:  # TODO: add support for images and buckets
                 raise ValueError(f"Video is too short: {data['video']}")
 
             start_pos = random.randint(0, len(latent_mean) - self._min_length)
@@ -174,7 +174,8 @@ class ImageVideoDataset(BaseDataset):
             latent_mean, latent_std = latent_mean[batch_index], latent_std[batch_index]
             tae_latent = np.random.normal(latent_mean, latent_std).astype(np.float32)
             tae_latent = (tae_latent - self._tae_shift_factor) * self._tae_scale_factor
-            data["video"] = np.transpose(tae_latent, (1, 0, 2, 3))  # FIXME: remove unnecessary transpose
+            # FIXME: remove unnecessary transpose
+            data["video"] = np.transpose(tae_latent, (1, 0, 2, 3))  # C T H W -> T C H W
 
         else:
             if data["video"].lower().endswith(IMAGE_EXT):
