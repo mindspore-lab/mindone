@@ -1,5 +1,5 @@
 # model
-pretrained_model_path: "models/tae_vae2d.ckpt"
+pretrained: "models/tae_vae2d.ckpt"
 
 # loss
 perceptual_loss_weight: 1.0
@@ -9,18 +9,16 @@ mixed_strategy: "mixed_video_image"
 mixed_image_ratio: 0.2
 
 # data
-dataset_name: "video"
 csv_path: "../videocomposer/datasets/webvid5_copy.csv"
-video_folder: "../videocomposer/datasets/webvid5"
-frame_stride: 1
-num_frames: 16
+folder: "../videocomposer/datasets/webvid5"
+sample_stride: 1
+sample_n_frames: 16
 image_size: 256
 crop_size: 256
 # flip: True
 
 # training recipe
 seed: 42
-use_discriminator: False
 batch_size: 1
 clip_grad: True
 max_grad_norm: 1.0
@@ -29,7 +27,6 @@ scale_lr: False
 weight_decay: 0.
 
 dtype: "fp32"
-amp_level: "O0"
 use_recompute: False
 
 epochs: 2000
@@ -42,5 +39,5 @@ use_ema: False
 
 output_path: "outputs/tae_train"
 
-# ms settting
+# ms setting
 jit_level: O0
