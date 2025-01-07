@@ -13,7 +13,7 @@
 # limitations under the License.
 
 
-from .lrm_with_loss import ModelLRMWithLoss
+from .lrm_with_loss import ModelLRMWithLoss, ModelLRMWithLossEval
 from .modeling_lrm import ModelLRM
 
 model_dict = {"lrm": ModelLRM, "lrmwithloss": ModelLRMWithLoss}

@@ -121,7 +121,7 @@ class ObjaverseDataset(BaseDataset):
             poses = camera_normalization_objaverse(self.normed_dist_to_center, poses)
 
         # build source and target camera features
-        source_camera = build_camera_principle(poses[:1], intrinsics.unsqueeze(0)).squeeze(0)  # [1, 12+4]
+        source_camera = build_camera_principle(poses[:1], intrinsics.unsqueeze(0)).squeeze(0)  # [12+4, ]
         render_camera = build_camera_standard(poses, intrinsics.tile((poses.shape[0], 1, 1)))  # [N, 16+9]
 
         # image value in [0, 1]

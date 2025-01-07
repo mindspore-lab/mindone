@@ -125,18 +125,18 @@ class ModelLRMWithLossEval(nn.Cell):
         perceptual_loss_fn = LPIPSLoss(prefech=True)
         tv_loss_fn = TVLoss()
         return pixel_loss_fn, perceptual_loss_fn, tv_loss_fn
-        
+
     def forward_nocalloss(
         self,
-        source_camera: Tensor,
-        render_camera: Tensor,
-        source_image: Tensor,
-        render_size: int
+        source_camera: Tensor,  # [1, 16]
+        render_camera: Tensor,  # [1, M, 25]
+        source_image: Tensor,  # [1, C, H, W]
+        render_size: int,
     ) -> Tensor:
         """For evaluate()."""
         planes = self.lrm_generator.forward_planes(source_image, source_camera)
-        N = planes.shape[0] # N=1
-        render_cameras = render_camera.unsqueeze(0).tile((N, 1, 1))  # [N, M, 25]
+        N = planes.shape[0]  # N=1
+        render_cameras = render_camera.tile((N, 1, 1))  # [N, M, 25]
         render_anchors = mint.zeros((N, render_cameras.shape[1], 2), dtype=ms.float32)
         render_resolutions = mint.ones((N, render_cameras.shape[1], 1), dtype=ms.float32) * render_size
         render_bg_colors = mint.ones((N, render_cameras.shape[1], 1), dtype=ms.float32) * 1.0
@@ -171,11 +171,28 @@ class ModelLRMWithLossEval(nn.Cell):
         """For evaluation, return loss, pred, and target."""
 
         # compute loss
-        loss, model_pred, target = self.compute_loss(render_image)
+        loss, model_pred, target = self.compute_loss(
+            source_camera,
+            render_camera,
+            source_image,
+            render_image,
+            render_anchors,
+            render_full_resolutions,
+            render_bg_colors,
+        )
 
         return loss, model_pred, target
 
-    def compute_loss(self, render_image):
+    def compute_loss(
+        self,
+        source_camera: Tensor,
+        render_camera: Tensor,
+        source_image: Tensor,
+        render_image: Tensor,
+        render_anchors: Tensor,
+        render_full_resolutions: Tensor,
+        render_bg_colors: Tensor,
+    ):
         # Infer image2triplane + render views
         planes, images_rgb = self.lrm_generator.construct_train(
             image=source_image,
