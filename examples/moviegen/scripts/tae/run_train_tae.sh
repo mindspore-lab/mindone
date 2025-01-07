@@ -16,6 +16,6 @@ python scripts/train_tae.py \
 --config configs/tae/train/mixed_256x256x32.yaml \
 --use_outlier_penalty_loss False \
 --csv_path datasets/ucf101_train.csv  \
---video_folder datasets/UCF-101 \
+--folder datasets/UCF-101 \
 --output_path=$output_dir \
 --epochs=100 --ckpt_save_interval=5 \

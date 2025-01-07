@@ -1,9 +1,15 @@
+import os
 import sys
 
 import numpy as np
 from PIL import Image
 
-sys.path.insert(0, ".")
+import mindspore as ms
+
+# TODO: remove in future when mindone is ready for install
+__dir__ = os.path.dirname(os.path.abspath(__file__))
+mindone_lib_path = os.path.abspath(os.path.join(__dir__, "../../../../"))
+sys.path.append(mindone_lib_path)
 
 from mg.models.tae.modules import (
     Conv2_5d,
@@ -19,8 +25,6 @@ from mg.models.tae.modules import (
 )
 from mg.models.tae.sd3_vae import SD3d5_VAE
 from mg.models.tae.tae import SDXL_CONFIG, TAE_CONFIG, TemporalAutoencoder
-
-import mindspore as ms
 
 
 def get_input_image(img_path="../videocomposer/demo_video/moon_on_water.jpg", W=128, H=128):
