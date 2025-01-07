@@ -239,7 +239,7 @@ if __name__ == "__main__":
     parser.add_argument("--enable_tiling", action="store_true")
     parser.add_argument("--tile_overlap_factor", type=float, default=0.25)
     # ms related
-    parser.add_argument("--mode", default=1, type=int, help="Specify the mode: 0 for graph mode, 1 for pynative mode")
+    parser.add_argument("--mode", default=0, type=int, help="Specify the mode: 0 for graph mode, 1 for pynative mode")
     parser.add_argument(
         "--vae_keep_gn_fp32",
         default=False,
