@@ -1,33 +1,39 @@
-import random
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
 import pandas as pd
-import torch
-import torchvision.transforms as TT
-from accelerate.logging import get_logger
-from torch.utils.data import Dataset, Sampler
-from torchvision import transforms
-from torchvision.transforms import InterpolationMode
-from torchvision.transforms.functional import resize
+from transformers import PreTrainedTokenizer
 
+from mindspore.dataset import transforms, vision
+from mindspore.dataset.vision import Inter as InterpolationMode
+
+from mindone.diffusers.utils import get_logger
+
+from utils import pad_last_frame, prepare_rotary_positional_embeddings  # isort:skip
 
 # Must import after torch because this can sometimes lead to a nasty segmentation fault, or stack smashing error
 # Very few bug reports but it happens. Look in decord Github issues for more relevant information.
 import decord  # isort:skip
 
-decord.bridge.set_bridge("torch")
+decord.bridge.set_bridge("native")
 
 logger = get_logger(__name__)
 
-HEIGHT_BUCKETS = [256, 320, 384, 480, 512, 576, 720, 768, 960, 1024, 1280, 1536]
-WIDTH_BUCKETS = [256, 320, 384, 480, 512, 576, 720, 768, 960, 1024, 1280, 1536]
-FRAME_BUCKETS = [16, 24, 32, 48, 64, 80]
+# Dynamic Shape is not supported right now.
+# HEIGHT_BUCKETS = [256, 320, 384, 480, 512, 576, 720, 768, 960, 1024, 1280, 1536]
+# WIDTH_BUCKETS = [256, 320, 384, 480, 512, 576, 720, 768, 960, 1024, 1280, 1536]
+# FRAME_BUCKETS = [16, 24, 32, 48, 64, 80]
+
+# Default Resolution same as THUDM--CogVideo.sat.configs.sft.data.params.video_size/fps
+HEIGHT_BUCKETS = [480]
+WIDTH_BUCKETS = [720]
+FRAME_BUCKETS = [49]
 
 
-class VideoDataset(Dataset):
+class VideoDataset(object):
     def __init__(
+        # Basic Arguments
         self,
         data_root: str,
         dataset_file: Optional[str] = None,
@@ -41,6 +47,15 @@ class VideoDataset(Dataset):
         load_tensors: bool = False,
         random_flip: Optional[float] = None,
         image_to_video: bool = False,
+        tokenizer: Optional[PreTrainedTokenizer] = None,
+        max_sequence_length: Optional[int] = None,
+        use_rotary_positional_embeddings: bool = False,
+        vae_scale_factor_spatial: Optional[int] = None,
+        patch_size: Optional[int] = None,
+        patch_size_t: Optional[int] = None,
+        attention_head_dim: Optional[int] = None,
+        base_height: int = 480,
+        base_width: int = 720,
     ) -> None:
         super().__init__()
 
@@ -57,9 +72,24 @@ class VideoDataset(Dataset):
         self.random_flip = random_flip
         self.image_to_video = image_to_video
 
+        # Tokenizer to process prompts to tokens
+        self.tokenizer = tokenizer
+        self.max_sequence_length = max_sequence_length
+
+        # Attributes about rotary_positional_embeddings generation
+        self.use_rotary_positional_embeddings = use_rotary_positional_embeddings
+        self.vae_scale_factor_spatial = vae_scale_factor_spatial
+        self.patch_size = patch_size
+        self.patch_size_t = patch_size_t
+        self.attention_head_dim = attention_head_dim
+        self.base_height = base_height
+        self.base_width = base_width
+
         self.resolutions = [
             (f, h, w) for h in self.height_buckets for w in self.width_buckets for f in self.frame_buckets
         ]
+        # We prepare RoPE in dataset
+        self.prepare_ropes()
 
         # Two methods of loading data are supported.
         #   - Using a CSV: caption_column and video_column must be some column in the CSV. One could
@@ -80,16 +110,14 @@ class VideoDataset(Dataset):
 
         if len(self.video_paths) != len(self.prompts):
             raise ValueError(
-                f"Expected length of prompts and videos to be the same but found {len(self.prompts)=} and {len(self.video_paths)=}. Please ensure that the number of caption prompts and videos match in your dataset."
+                f"Expected length of prompts and videos to be the same but found {len(self.prompts)=} and {len(self.video_paths)=}. Please ensure that the number of caption prompts and videos match in your dataset."  # noqa: E501
             )
 
         self.video_transforms = transforms.Compose(
             [
-                transforms.RandomHorizontalFlip(random_flip)
-                if random_flip
-                else transforms.Lambda(self.identity_transform),
-                transforms.Lambda(self.scale_transform),
-                transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5], inplace=True),
+                vision.RandomHorizontalFlip(random_flip) if random_flip else self.identity_transform,
+                self.scale_transform,
+                vision.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5], is_hwc=False),
             ]
         )
 
@@ -123,17 +151,18 @@ class VideoDataset(Dataset):
             # This is hardcoded for now.
             # The VAE's temporal compression ratio is 4.
             # The VAE's spatial compression ratio is 8.
-            latent_num_frames = video_latents.size(1)
+            latent_num_frames = video_latents.shape[1]
             if latent_num_frames % 2 == 0:
                 num_frames = latent_num_frames * 4
             else:
                 num_frames = (latent_num_frames - 1) * 4 + 1
 
-            height = video_latents.size(2) * 8
-            width = video_latents.size(3) * 8
+            height = video_latents.shape[2] * 8
+            width = video_latents.shape[3] * 8
 
             return {
-                "prompt": prompt_embeds,
+                "prompt": None,
+                "text_input_ids": prompt_embeds,
                 "image": image_latents,
                 "video": video_latents,
                 "video_metadata": {
@@ -141,12 +170,25 @@ class VideoDataset(Dataset):
                     "height": height,
                     "width": width,
                 },
+                "rotary_positional_embeddings": self.ropes,
             }
         else:
             image, video, _ = self._preprocess_video(self.video_paths[index])
 
+            prompt = self.id_token + self.prompts[index]
+            text_inputs = self.tokenizer(
+                prompt,
+                padding="max_length",
+                max_length=self.max_sequence_length,
+                truncation=True,
+                add_special_tokens=True,
+                return_tensors="np",
+            )
+            text_input_ids = text_inputs.input_ids
+
             return {
-                "prompt": self.id_token + self.prompts[index],
+                "prompt": prompt,
+                "text_input_ids": text_input_ids.squeeze(),
                 "image": image,
                 "video": video,
                 "video_metadata": {
@@ -154,6 +196,7 @@ class VideoDataset(Dataset):
                     "height": video.shape[2],
                     "width": video.shape[3],
                 },
+                "rotary_positional_embeddings": self.ropes,
             }
 
     def _load_dataset_from_local_path(self) -> Tuple[List[str], List[str]]:
@@ -179,7 +222,7 @@ class VideoDataset(Dataset):
 
         if not self.load_tensors and any(not path.is_file() for path in video_paths):
             raise ValueError(
-                f"Expected `{self.video_column=}` to be a path to a file in `{self.data_root=}` containing line-separated paths to video data but found atleast one path that is not a valid file."
+                f"Expected `{self.video_column=}` to be a path to a file in `{self.data_root=}` containing line-separated paths to video data but found atleast one path that is not a valid file."  # noqa: E501
             )
 
         return prompts, video_paths
@@ -192,12 +235,12 @@ class VideoDataset(Dataset):
 
         if any(not path.is_file() for path in video_paths):
             raise ValueError(
-                f"Expected `{self.video_column=}` to be a path to a file in `{self.data_root=}` containing line-separated paths to video data but found atleast one path that is not a valid file."
+                f"Expected `{self.video_column=}` to be a path to a file in `{self.data_root=}` containing line-separated paths to video data but found atleast one path that is not a valid file."  # noqa: E501
             )
 
         return prompts, video_paths
 
-    def _preprocess_video(self, path: Path) -> Tuple[torch.Tensor, Optional[torch.Tensor]]:
+    def _preprocess_video(self, path: Path) -> Tuple[np.ndarray, Optional[np.ndarray]]:
         r"""
         Loads a single video, or latent and prompt embedding, based on initialization parameters.
 
@@ -214,22 +257,22 @@ class VideoDataset(Dataset):
             video_reader = decord.VideoReader(uri=path.as_posix())
             video_num_frames = len(video_reader)
 
-            indices = list(range(0, video_num_frames, video_num_frames // self.max_num_frames))
-            frames = video_reader.get_batch(indices)
-            frames = frames[: self.max_num_frames].float()
-            frames = frames.permute(0, 3, 1, 2).contiguous()
-            frames = torch.stack([self.video_transforms(frame) for frame in frames], dim=0)
+            indices = list(range(0, video_num_frames, max(1, video_num_frames // self.max_num_frames)))
+            frames = video_reader.get_batch(indices).asnumpy()
+            frames = frames[: self.max_num_frames].astype(np.float32)
+            frames = np.ascontiguousarray(frames.transpose(0, 3, 1, 2))
+            frames = np.stack([self.video_transforms(frame) for frame in frames], axis=0)
 
-            image = frames[:1].clone() if self.image_to_video else None
+            image = frames[:1].copy() if self.image_to_video else None
 
             return image, frames, None
 
-    def _load_preprocessed_latents_and_embeds(self, path: Path) -> Tuple[torch.Tensor, torch.Tensor]:
+    def _load_preprocessed_latents_and_embeds(self, path: Path) -> Tuple[np.ndarray, np.ndarray]:
         filename_without_ext = path.name.split(".")[0]
-        pt_filename = f"{filename_without_ext}.pt"
+        pt_filename = f"{filename_without_ext}.npy"
 
         # The current path is something like: /a/b/c/d/videos/00001.mp4
-        # We need to reach: /a/b/c/d/video_latents/00001.pt
+        # We need to reach: /a/b/c/d/video_latents/00001.npy
         image_latents_path = path.parent.parent.joinpath("image_latents")
         video_latents_path = path.parent.parent.joinpath("video_latents")
         embeds_path = path.parent.parent.joinpath("prompt_embeds")
@@ -240,7 +283,7 @@ class VideoDataset(Dataset):
             or (self.image_to_video and not image_latents_path.exists())
         ):
             raise ValueError(
-                f"When setting the load_tensors parameter to `True`, it is expected that the `{self.data_root=}` contains two folders named `video_latents` and `prompt_embeds`. However, these folders were not found. Please make sure to have prepared your data correctly using `prepare_data.py`. Additionally, if you're training image-to-video, it is expected that an `image_latents` folder is also present."
+                f"When setting the load_tensors parameter to `True`, it is expected that the `{self.data_root=}` contains two folders named `video_latents` and `prompt_embeds`. However, these folders were not found. Please make sure to have prepared your data correctly using `prepare_data.py`. Additionally, if you're training image-to-video, it is expected that an `image_latents` folder is also present."  # noqa: E501
             )
 
         if self.image_to_video:
@@ -254,23 +297,46 @@ class VideoDataset(Dataset):
             video_latent_filepath = video_latent_filepath.as_posix()
             embeds_filepath = embeds_filepath.as_posix()
             raise ValueError(
-                f"The file {video_latent_filepath=} or {embeds_filepath=} could not be found. Please ensure that you've correctly executed `prepare_dataset.py`."
+                f"The file {video_latent_filepath=} or {embeds_filepath=} could not be found. Please ensure that you've correctly executed `prepare_dataset.py`."  # noqa: E501
             )
 
-        images = (
-            torch.load(image_latent_filepath, map_location="cpu", weights_only=True) if self.image_to_video else None
-        )
-        latents = torch.load(video_latent_filepath, map_location="cpu", weights_only=True)
-        embeds = torch.load(embeds_filepath, map_location="cpu", weights_only=True)
+        images = np.load(image_latent_filepath) if self.image_to_video else None
+        latents = np.load(video_latent_filepath)
+        embeds = np.load(embeds_filepath)
 
         return images, latents, embeds
+
+    def prepare_ropes(self):
+        if len(self.resolutions) != 1:
+            raise NotImplementedError("Only support fixed frame and resolution now")
+
+        f, h, w = self.resolutions[0]
+        num_frames = (f - f % 2) / 4 + f % 2
+
+        image_rotary_emb = (
+            prepare_rotary_positional_embeddings(
+                height=h,
+                width=w,
+                num_frames=int(num_frames),
+                vae_scale_factor_spatial=self.vae_scale_factor_spatial,
+                patch_size=self.patch_size,
+                patch_size_t=self.patch_size_t,
+                attention_head_dim=self.attention_head_dim,
+                base_height=self.base_height,
+                base_width=self.base_width,
+            )
+            if self.use_rotary_positional_embeddings
+            else None
+        )
+
+        self.ropes = image_rotary_emb
 
 
 class VideoDatasetWithResizing(VideoDataset):
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
 
-    def _preprocess_video(self, path: Path) -> torch.Tensor:
+    def _preprocess_video(self, path: Path) -> np.ndarray:
         if self.load_tensors:
             return self._load_preprocessed_latents_and_embeds(path)
         else:
@@ -280,17 +346,17 @@ class VideoDatasetWithResizing(VideoDataset):
                 self.frame_buckets, key=lambda x: abs(x - min(video_num_frames, self.max_num_frames))
             )
 
-            frame_indices = list(range(0, video_num_frames, video_num_frames // nearest_frame_bucket))
+            frame_indices = list(range(0, video_num_frames, max(1, video_num_frames // nearest_frame_bucket)))
 
-            frames = video_reader.get_batch(frame_indices)
-            frames = frames[:nearest_frame_bucket].float()
-            frames = frames.permute(0, 3, 1, 2).contiguous()
+            frames = video_reader.get_batch(frame_indices).asnumpy()
+            frames = pad_last_frame(frames, nearest_frame_bucket).astype(np.float32)
 
             nearest_res = self._find_nearest_resolution(frames.shape[2], frames.shape[3])
-            frames_resized = torch.stack([resize(frame, nearest_res) for frame in frames], dim=0)
-            frames = torch.stack([self.video_transforms(frame) for frame in frames_resized], dim=0)
+            frames_resized = np.stack([vision.Resize(size=nearest_res)(frame) for frame in frames], axis=0)
+            frames_resized = np.ascontiguousarray(frames_resized.transpose(0, 3, 1, 2))  # (T, H, W, C) -> (T, C, H, W)
+            frames = np.stack([self.video_transforms(frame) for frame in frames_resized], axis=0)
 
-            image = frames[:1].clone() if self.image_to_video else None
+            image = frames[:1].copy() if self.image_to_video else None
 
             return image, frames, None
 
@@ -307,17 +373,15 @@ class VideoDatasetWithResizeAndRectangleCrop(VideoDataset):
     def _resize_for_rectangle_crop(self, arr, image_size):
         reshape_mode = self.video_reshape_mode
         if arr.shape[3] / arr.shape[2] > image_size[1] / image_size[0]:
-            arr = resize(
-                arr,
+            arr = vision.Resize(
                 size=[image_size[0], int(arr.shape[3] * image_size[0] / arr.shape[2])],
                 interpolation=InterpolationMode.BICUBIC,
-            )
+            )(arr)
         else:
-            arr = resize(
-                arr,
+            arr = vision.Resize(
                 size=[int(arr.shape[2] * image_size[1] / arr.shape[3]), image_size[1]],
                 interpolation=InterpolationMode.BICUBIC,
-            )
+            )(arr)
 
         h, w = arr.shape[2], arr.shape[3]
         arr = arr.squeeze(0)
@@ -332,10 +396,10 @@ class VideoDatasetWithResizeAndRectangleCrop(VideoDataset):
             top, left = delta_h // 2, delta_w // 2
         else:
             raise NotImplementedError
-        arr = TT.functional.crop(arr, top=top, left=left, height=image_size[0], width=image_size[1])
+        arr = vision.Crop(coordinates=(top, left), size=(image_size[0], image_size[1]))(arr)
         return arr
 
-    def _preprocess_video(self, path: Path) -> torch.Tensor:
+    def _preprocess_video(self, path: Path) -> np.ndarray:
         if self.load_tensors:
             return self._load_preprocessed_latents_and_embeds(path)
         else:
@@ -345,84 +409,20 @@ class VideoDatasetWithResizeAndRectangleCrop(VideoDataset):
                 self.frame_buckets, key=lambda x: abs(x - min(video_num_frames, self.max_num_frames))
             )
 
-            frame_indices = list(range(0, video_num_frames, video_num_frames // nearest_frame_bucket))
+            frame_indices = list(range(0, video_num_frames, max(1, video_num_frames // nearest_frame_bucket)))
 
-            frames = video_reader.get_batch(frame_indices)
-            frames = frames[:nearest_frame_bucket].float()
-            frames = frames.permute(0, 3, 1, 2).contiguous()
+            frames = video_reader.get_batch(frame_indices).asnumpy()
+            frames = pad_last_frame(frames, nearest_frame_bucket).astype(np.float32)
 
             nearest_res = self._find_nearest_resolution(frames.shape[2], frames.shape[3])
             frames_resized = self._resize_for_rectangle_crop(frames, nearest_res)
-            frames = torch.stack([self.video_transforms(frame) for frame in frames_resized], dim=0)
+            frames_resized = np.ascontiguousarray(frames_resized.transpose(0, 3, 1, 2))  # (T, H, W, C) -> (T, C, H, W)
+            frames = np.stack([self.video_transforms(frame) for frame in frames_resized], axis=0)
 
-            image = frames[:1].clone() if self.image_to_video else None
+            image = frames[:1].copy() if self.image_to_video else None
 
             return image, frames, None
 
     def _find_nearest_resolution(self, height, width):
         nearest_res = min(self.resolutions, key=lambda x: abs(x[1] - height) + abs(x[2] - width))
         return nearest_res[1], nearest_res[2]
-
-
-class BucketSampler(Sampler):
-    r"""
-    PyTorch Sampler that groups 3D data by height, width and frames.
-
-    Args:
-        data_source (`VideoDataset`):
-            A PyTorch dataset object that is an instance of `VideoDataset`.
-        batch_size (`int`, defaults to `8`):
-            The batch size to use for training.
-        shuffle (`bool`, defaults to `True`):
-            Whether or not to shuffle the data in each batch before dispatching to dataloader.
-        drop_last (`bool`, defaults to `False`):
-            Whether or not to drop incomplete buckets of data after completely iterating over all data
-            in the dataset. If set to True, only batches that have `batch_size` number of entries will
-            be yielded. If set to False, it is guaranteed that all data in the dataset will be processed
-            and batches that do not have `batch_size` number of entries will also be yielded.
-    """
-
-    def __init__(
-        self, data_source: VideoDataset, batch_size: int = 8, shuffle: bool = True, drop_last: bool = False
-    ) -> None:
-        self.data_source = data_source
-        self.batch_size = batch_size
-        self.shuffle = shuffle
-        self.drop_last = drop_last
-
-        self.buckets = {resolution: [] for resolution in data_source.resolutions}
-
-        self._raised_warning_for_drop_last = False
-
-    def __len__(self):
-        if self.drop_last and not self._raised_warning_for_drop_last:
-            self._raised_warning_for_drop_last = True
-            logger.warning(
-                "Calculating the length for bucket sampler is not possible when `drop_last` is set to True. This may cause problems when setting the number of epochs used for training."
-            )
-        return (len(self.data_source) + self.batch_size - 1) // self.batch_size
-
-    def __iter__(self):
-        for index, data in enumerate(self.data_source):
-            video_metadata = data["video_metadata"]
-            f, h, w = video_metadata["num_frames"], video_metadata["height"], video_metadata["width"]
-
-            self.buckets[(f, h, w)].append(data)
-            if len(self.buckets[(f, h, w)]) == self.batch_size:
-                if self.shuffle:
-                    random.shuffle(self.buckets[(f, h, w)])
-                yield self.buckets[(f, h, w)]
-                del self.buckets[(f, h, w)]
-                self.buckets[(f, h, w)] = []
-
-        if self.drop_last:
-            return
-
-        for fhw, bucket in list(self.buckets.items()):
-            if len(bucket) == 0:
-                continue
-            if self.shuffle:
-                random.shuffle(bucket)
-                yield bucket
-                del self.buckets[fhw]
-                self.buckets[fhw] = []

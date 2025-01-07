@@ -720,9 +720,15 @@ def apply_rotary_emb(
         Tuple[ms.Tensor, ms.Tensor]: Tuple of modified query tensor and key tensor with rotary embeddings.
     """
     if use_real:
-        cos, sin = freqs_cis  # [S, D]
-        cos = cos[None, None]
-        sin = sin[None, None]
+        # Support concatenated `freqs_cis` since MindSpore recompute doesn't support calculate tensors' gradient from tuple.
+        if ops.is_tensor(freqs_cis):
+            cos, sin = freqs_cis.chunk(2)  # [1, S, D]
+            cos = cos[None]
+            sin = sin[None]
+        else:
+            cos, sin = freqs_cis  # [S, D]
+            cos = cos[None, None]
+            sin = sin[None, None]
 
         if use_real_unbind_dim == -1:
             # Used for flux, cogvideox, hunyuan-dit

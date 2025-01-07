@@ -3,38 +3,39 @@
 import argparse
 import functools
 import json
-import os
 import pathlib
 import queue
 import traceback
 import uuid
 from concurrent.futures import ThreadPoolExecutor
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional
 
-import torch
-import torch.distributed as dist
-from diffusers import AutoencoderKLCogVideoX
-from diffusers.training_utils import set_seed
-from diffusers.utils import export_to_video, get_logger
-from torch.utils.data import DataLoader
-from torchvision import transforms
+import numpy as np
 from tqdm import tqdm
-from transformers import T5EncoderModel, T5Tokenizer
+from transformers import T5Tokenizer
 
+import mindspore as ms
+from mindspore import ops
+from mindspore.dataset import GeneratorDataset, vision
+
+from mindone.diffusers import AutoencoderKLCogVideoX
+from mindone.diffusers.training_utils import init_distributed_device, is_master, set_seed
+from mindone.diffusers.utils import export_to_video, get_logger
+from mindone.transformers import T5EncoderModel
 
 import decord  # isort:skip
 
-from dataset import BucketSampler, VideoDatasetWithResizing, VideoDatasetWithResizeAndRectangleCrop  # isort:skip
+from dataset import VideoDatasetWithResizing, VideoDatasetWithResizeAndRectangleCrop  # isort:skip
 
 
-decord.bridge.set_bridge("torch")
+decord.bridge.set_bridge("native")
 
 logger = get_logger(__name__)
 
 DTYPE_MAPPING = {
-    "fp32": torch.float32,
-    "fp16": torch.float16,
-    "bf16": torch.bfloat16,
+    "fp32": ms.float32,
+    "fp16": ms.float16,
+    "bf16": ms.bfloat16,
 }
 
 
@@ -68,6 +69,11 @@ def check_frames(x: Any) -> int:
 def get_args() -> Dict[str, Any]:
     parser = argparse.ArgumentParser()
     parser.add_argument(
+        "--distributed",
+        action="store_true",
+        help="Whether or not to distributed process",
+    )
+    parser.add_argument(
         "--model_id",
         type=str,
         default="THUDM/CogVideoX-2b",
@@ -81,13 +87,13 @@ def get_args() -> Dict[str, Any]:
         "--caption_column",
         type=str,
         default="caption",
-        help="If using a CSV file via the `--dataset_file` argument, this should be the name of the column containing the captions. If using the folder structure format for data loading, this should be the name of the file containing line-separated captions (the file should be located in `--data_root`).",
+        help="If using a CSV file via the `--dataset_file` argument, this should be the name of the column containing the captions. If using the folder structure format for data loading, this should be the name of the file containing line-separated captions (the file should be located in `--data_root`).",  # noqa: E501
     )
     parser.add_argument(
         "--video_column",
         type=str,
         default="video",
-        help="If using a CSV file via the `--dataset_file` argument, this should be the name of the column containing the video paths. If using the folder structure format for data loading, this should be the name of the file containing line-separated video paths (the file should be located in `--data_root`).",
+        help="If using a CSV file via the `--dataset_file` argument, this should be the name of the column containing the video paths. If using the folder structure format for data loading, this should be the name of the file containing line-separated video paths (the file should be located in `--data_root`).",  # noqa: E501
     )
     parser.add_argument(
         "--id_token",
@@ -99,13 +105,13 @@ def get_args() -> Dict[str, Any]:
         "--height_buckets",
         nargs="+",
         type=check_height,
-        default=[256, 320, 384, 480, 512, 576, 720, 768, 960, 1024, 1280, 1536],
+        default=[480],
     )
     parser.add_argument(
         "--width_buckets",
         nargs="+",
         type=check_width,
-        default=[256, 320, 384, 480, 512, 576, 720, 768, 960, 1024, 1280, 1536],
+        default=[720],
     )
     parser.add_argument(
         "--frame_buckets",
@@ -122,13 +128,8 @@ def get_args() -> Dict[str, Any]:
     parser.add_argument(
         "--dataloader_num_workers",
         type=int,
-        default=0,
+        default=1,
         help="Number of subprocesses to use for data loading. 0 means that the data will be loaded in the main process.",
-    )
-    parser.add_argument(
-        "--pin_memory",
-        action="store_true",
-        help="Whether or not to use the pinned memory setting in pytorch dataloader.",
     )
     parser.add_argument(
         "--video_reshape_mode",
@@ -139,7 +140,7 @@ def get_args() -> Dict[str, Any]:
     parser.add_argument(
         "--save_image_latents",
         action="store_true",
-        help="Whether or not to encode and store image latents, which are required for image-to-video finetuning. The image latents are the first frame of input videos encoded with the VAE.",
+        help="Whether or not to encode and store image latents, which are required for image-to-video finetuning. The image latents are the first frame of input videos encoded with the VAE.",  # noqa: E501
     )
     parser.add_argument(
         "--output_dir",
@@ -188,110 +189,33 @@ def get_args() -> Dict[str, Any]:
     return parser.parse_args()
 
 
-def _get_t5_prompt_embeds(
-    tokenizer: T5Tokenizer,
+def compute_prompt_embeddings(
     text_encoder: T5EncoderModel,
-    prompt: Union[str, List[str]],
+    text_input_ids: ms.Tensor,
     num_videos_per_prompt: int = 1,
-    max_sequence_length: int = 226,
-    device: Optional[torch.device] = None,
-    dtype: Optional[torch.dtype] = None,
-    text_input_ids=None,
+    dtype: ms.Type = None,
 ):
-    prompt = [prompt] if isinstance(prompt, str) else prompt
-    batch_size = len(prompt)
-
-    if tokenizer is not None:
-        text_inputs = tokenizer(
-            prompt,
-            padding="max_length",
-            max_length=max_sequence_length,
-            truncation=True,
-            add_special_tokens=True,
-            return_tensors="pt",
-        )
-        text_input_ids = text_inputs.input_ids
-    else:
-        if text_input_ids is None:
-            raise ValueError("`text_input_ids` must be provided when the tokenizer is not specified.")
-
-    prompt_embeds = text_encoder(text_input_ids.to(device))[0]
-    prompt_embeds = prompt_embeds.to(dtype=dtype, device=device)
+    batch_size = text_input_ids.shape[0]
+    prompt_embeds = text_encoder(text_input_ids)[0]
+    prompt_embeds = prompt_embeds.to(dtype=dtype)
 
     # duplicate text embeddings for each generation per prompt, using mps friendly method
     _, seq_len, _ = prompt_embeds.shape
-    prompt_embeds = prompt_embeds.repeat(1, num_videos_per_prompt, 1)
+    prompt_embeds = prompt_embeds.tile((1, num_videos_per_prompt, 1))
     prompt_embeds = prompt_embeds.view(batch_size * num_videos_per_prompt, seq_len, -1)
 
     return prompt_embeds
 
 
-def encode_prompt(
-    tokenizer: T5Tokenizer,
-    text_encoder: T5EncoderModel,
-    prompt: Union[str, List[str]],
-    num_videos_per_prompt: int = 1,
-    max_sequence_length: int = 226,
-    device: Optional[torch.device] = None,
-    dtype: Optional[torch.dtype] = None,
-    text_input_ids=None,
-):
-    prompt = [prompt] if isinstance(prompt, str) else prompt
-    prompt_embeds = _get_t5_prompt_embeds(
-        tokenizer,
-        text_encoder,
-        prompt=prompt,
-        num_videos_per_prompt=num_videos_per_prompt,
-        max_sequence_length=max_sequence_length,
-        device=device,
-        dtype=dtype,
-        text_input_ids=text_input_ids,
-    )
-    return prompt_embeds
+to_pil_image = vision.ToPIL()
 
 
-def compute_prompt_embeddings(
-    tokenizer: T5Tokenizer,
-    text_encoder: T5EncoderModel,
-    prompts: List[str],
-    max_sequence_length: int,
-    device: torch.device,
-    dtype: torch.dtype,
-    requires_grad: bool = False,
-):
-    if requires_grad:
-        prompt_embeds = encode_prompt(
-            tokenizer,
-            text_encoder,
-            prompts,
-            num_videos_per_prompt=1,
-            max_sequence_length=max_sequence_length,
-            device=device,
-            dtype=dtype,
-        )
-    else:
-        with torch.no_grad():
-            prompt_embeds = encode_prompt(
-                tokenizer,
-                text_encoder,
-                prompts,
-                num_videos_per_prompt=1,
-                max_sequence_length=max_sequence_length,
-                device=device,
-                dtype=dtype,
-            )
-    return prompt_embeds
-
-
-to_pil_image = transforms.ToPILImage(mode="RGB")
-
-
-def save_image(image: torch.Tensor, path: pathlib.Path) -> None:
+def save_image(image: ms.Tensor, path: pathlib.Path) -> None:
     image = to_pil_image(image)
     image.save(path)
 
 
-def save_video(video: torch.Tensor, path: pathlib.Path, fps: int = 8) -> None:
+def save_video(video: ms.Tensor, path: pathlib.Path, fps: int = 8) -> None:
     video = [to_pil_image(frame) for frame in video]
     export_to_video(video, path, fps=fps)
 
@@ -306,7 +230,6 @@ def save_metadata(metadata: Dict[str, Any], path: pathlib.Path) -> None:
         file.write(json.dumps(metadata))
 
 
-@torch.no_grad()
 def serialize_artifacts(
     batch_size: int,
     fps: int,
@@ -316,23 +239,23 @@ def serialize_artifacts(
     video_latents_dir: Optional[pathlib.Path] = None,
     prompts_dir: Optional[pathlib.Path] = None,
     prompt_embeds_dir: Optional[pathlib.Path] = None,
-    images: Optional[torch.Tensor] = None,
-    image_latents: Optional[torch.Tensor] = None,
-    videos: Optional[torch.Tensor] = None,
-    video_latents: Optional[torch.Tensor] = None,
+    images: Optional[ms.Tensor] = None,
+    image_latents: Optional[ms.Tensor] = None,
+    videos: Optional[ms.Tensor] = None,
+    video_latents: Optional[ms.Tensor] = None,
     prompts: Optional[List[str]] = None,
-    prompt_embeds: Optional[torch.Tensor] = None,
+    prompt_embeds: Optional[ms.Tensor] = None,
 ) -> None:
-    num_frames, height, width = videos.size(1), videos.size(3), videos.size(4)
+    num_frames, height, width = videos.shape[1], videos.shape[3], videos.shape[4]
     metadata = [{"num_frames": num_frames, "height": height, "width": width}]
 
     data_folder_mapper_list = [
         (images, images_dir, lambda img, path: save_image(img[0], path), "png"),
-        (image_latents, image_latents_dir, torch.save, "pt"),
+        (image_latents, image_latents_dir, lambda data, path: np.save(path, data), "npy"),
         (videos, videos_dir, functools.partial(save_video, fps=fps), "mp4"),
-        (video_latents, video_latents_dir, torch.save, "pt"),
+        (video_latents, video_latents_dir, lambda data, path: np.save(path, data), "npy"),
         (prompts, prompts_dir, save_prompt, "txt"),
-        (prompt_embeds, prompt_embeds_dir, torch.save, "pt"),
+        (prompt_embeds, prompt_embeds_dir, lambda data, path: np.save(path, data), "npy"),
         (metadata, videos_dir, save_metadata, "txt"),
     ]
     filenames = [uuid.uuid4() for _ in range(batch_size)]
@@ -341,8 +264,8 @@ def serialize_artifacts(
         if data is None:
             continue
         for slice, filename in zip(data, filenames):
-            if isinstance(slice, torch.Tensor):
-                slice = slice.clone().to("cpu")
+            if isinstance(slice, ms.Tensor):
+                slice = slice.asnumpy()
             path = folder.joinpath(f"{filename}.{extension}")
             save_fn(slice, path)
 
@@ -359,7 +282,6 @@ def save_intermediates(output_queue: queue.Queue) -> None:
             continue
 
 
-@torch.no_grad()
 def main():
     args = get_args()
     set_seed(args.seed)
@@ -376,26 +298,15 @@ def main():
     save_future = save_thread.submit(save_intermediates, output_queue)
 
     # Initialize distributed processing
-    if "LOCAL_RANK" in os.environ:
-        local_rank = int(os.environ["LOCAL_RANK"])
-        torch.cuda.set_device(local_rank)
-        dist.init_process_group(backend="nccl")
-        world_size = dist.get_world_size()
-        rank = dist.get_rank()
-    else:
-        # Single GPU
-        local_rank = 0
-        world_size = 1
-        rank = 0
-        torch.cuda.set_device(rank)
+    init_distributed_device(args)
 
     # Create folders where intermediate tensors from each rank will be saved
-    images_dir = tmp_dir.joinpath(f"images/{rank}")
-    image_latents_dir = tmp_dir.joinpath(f"image_latents/{rank}")
-    videos_dir = tmp_dir.joinpath(f"videos/{rank}")
-    video_latents_dir = tmp_dir.joinpath(f"video_latents/{rank}")
-    prompts_dir = tmp_dir.joinpath(f"prompts/{rank}")
-    prompt_embeds_dir = tmp_dir.joinpath(f"prompt_embeds/{rank}")
+    images_dir = tmp_dir.joinpath(f"images/{args.rank}")
+    image_latents_dir = tmp_dir.joinpath(f"image_latents/{args.rank}")
+    videos_dir = tmp_dir.joinpath(f"videos/{args.rank}")
+    video_latents_dir = tmp_dir.joinpath(f"video_latents/{args.rank}")
+    prompts_dir = tmp_dir.joinpath(f"prompts/{args.rank}")
+    prompt_embeds_dir = tmp_dir.joinpath(f"prompt_embeds/{args.rank}")
 
     images_dir.mkdir(parents=True, exist_ok=True)
     image_latents_dir.mkdir(parents=True, exist_ok=True)
@@ -407,7 +318,21 @@ def main():
     weight_dtype = DTYPE_MAPPING[args.dtype]
     target_fps = args.target_fps
 
-    # 1. Dataset
+    # 1. Prepare models
+    if args.save_latents_and_embeddings:
+        tokenizer = T5Tokenizer.from_pretrained(args.model_id, subfolder="tokenizer")
+        text_encoder = T5EncoderModel.from_pretrained(
+            args.model_id, subfolder="text_encoder", mindspore_dtype=weight_dtype
+        )
+
+        vae = AutoencoderKLCogVideoX.from_pretrained(args.model_id, subfolder="vae", mindspore_dtype=weight_dtype)
+
+        if args.use_slicing:
+            vae.enable_slicing()
+        if args.use_tiling:
+            vae.enable_tiling()
+
+    # 2. Dataset
     dataset_init_kwargs = {
         "data_root": args.data_root,
         "dataset_file": args.dataset_file,
@@ -421,6 +346,9 @@ def main():
         "load_tensors": False,
         "random_flip": args.random_flip,
         "image_to_video": args.save_image_latents,
+        "tokenizer": tokenizer,
+        "max_sequence_length": args.max_sequence_length,
+        "use_rotary_positional_embeddings": False,
     }
     if args.video_reshape_mode is None:
         dataset = VideoDatasetWithResizing(**dataset_init_kwargs)
@@ -432,11 +360,11 @@ def main():
     original_dataset_size = len(dataset)
 
     # Split data among GPUs
-    if world_size > 1:
-        samples_per_gpu = original_dataset_size // world_size
-        start_index = rank * samples_per_gpu
+    if args.world_size > 1:
+        samples_per_gpu = original_dataset_size // args.world_size
+        start_index = args.rank * samples_per_gpu
         end_index = start_index + samples_per_gpu
-        if rank == world_size - 1:
+        if args.rank == args.world_size - 1:
             end_index = original_dataset_size  # Make sure the last GPU gets the remaining data
 
         # Slice the data
@@ -447,58 +375,45 @@ def main():
 
     rank_dataset_size = len(dataset)
 
-    # 2. Dataloader
+    # 3. Dataloader
     def collate_fn(data):
-        prompts = [x["prompt"] for x in data[0]]
+        prompts = [x["prompt"] for x in data]
+        prompts = np.stack(prompts)
 
-        images = None
+        text_input_ids = [x["text_input_ids"] for x in data]
+        text_input_ids = np.stack(text_input_ids)
+
+        videos = [x["video"] for x in data]
+        videos = np.stack(videos)
+
         if args.save_image_latents:
-            images = [x["image"] for x in data[0]]
-            images = torch.stack(images).to(dtype=weight_dtype, non_blocking=True)
+            images = [x["image"] for x in data]
+            images = np.stack(images)
+            return videos, prompts, text_input_ids, images
+        else:
+            return videos, prompts, text_input_ids
 
-        videos = [x["video"] for x in data[0]]
-        videos = torch.stack(videos).to(dtype=weight_dtype, non_blocking=True)
-
-        return {
-            "images": images,
-            "videos": videos,
-            "prompts": prompts,
-        }
-
-    dataloader = DataLoader(
+    dataloader = GeneratorDataset(
         dataset,
+        column_names=["examples"],
+        num_parallel_workers=args.dataloader_num_workers,
+    ).batch(
         batch_size=1,
-        sampler=BucketSampler(dataset, batch_size=args.batch_size, shuffle=True, drop_last=False),
-        collate_fn=collate_fn,
-        num_workers=args.dataloader_num_workers,
-        pin_memory=args.pin_memory,
+        per_batch_map=lambda examples, batch_info: collate_fn(examples),
+        input_columns=["examples"],
+        output_columns=["videos", "prompts", "text_input_ids", "images"]
+        if args.save_image_latents
+        else ["videos", "prompts", "text_input_ids"],
     )
-
-    # 3. Prepare models
-    device = f"cuda:{rank}"
-
-    if args.save_latents_and_embeddings:
-        tokenizer = T5Tokenizer.from_pretrained(args.model_id, subfolder="tokenizer")
-        text_encoder = T5EncoderModel.from_pretrained(
-            args.model_id, subfolder="text_encoder", torch_dtype=weight_dtype
-        )
-        text_encoder = text_encoder.to(device)
-
-        vae = AutoencoderKLCogVideoX.from_pretrained(args.model_id, subfolder="vae", torch_dtype=weight_dtype)
-        vae = vae.to(device)
-
-        if args.use_slicing:
-            vae.enable_slicing()
-        if args.use_tiling:
-            vae.enable_tiling()
+    dataloader_iter = dataloader.create_tuple_iterator()
 
     # 4. Compute latents and embeddings and save
-    if rank == 0:
+    if args.rank == 0:
         iterator = tqdm(
-            dataloader, desc="Encoding", total=(rank_dataset_size + args.batch_size - 1) // args.batch_size
+            dataloader_iter, desc="Encoding", total=(rank_dataset_size + args.batch_size - 1) // args.batch_size
         )
     else:
-        iterator = dataloader
+        iterator = dataloader_iter
 
     for step, batch in enumerate(iterator):
         try:
@@ -508,50 +423,55 @@ def main():
             prompt_embeds = None
 
             if args.save_image_latents:
-                images = batch["images"].to(device, non_blocking=True)
+                images = batch[-1].to(weight_dtype)
                 images = images.permute(0, 2, 1, 3, 4)  # [B, C, F, H, W]
 
-            videos = batch["videos"].to(device, non_blocking=True)
+            videos = batch[0].to(weight_dtype)
             videos = videos.permute(0, 2, 1, 3, 4)  # [B, C, F, H, W]
 
-            prompts = batch["prompts"]
+            prompts = batch[1].asnumpy().tolist()
+
+            text_input_ids = batch[2]
 
             # Encode videos & images
             if args.save_latents_and_embeddings:
                 if args.use_slicing:
                     if args.save_image_latents:
                         encoded_slices = [vae._encode(image_slice) for image_slice in images.split(1)]
-                        image_latents = torch.cat(encoded_slices)
-                        image_latents = image_latents.to(memory_format=torch.contiguous_format, dtype=weight_dtype)
+                        image_latents = ops.cat(encoded_slices)
+                        image_latents = image_latents.to(dtype=weight_dtype).float().asnumpy()
 
                     encoded_slices = [vae._encode(video_slice) for video_slice in videos.split(1)]
-                    video_latents = torch.cat(encoded_slices)
+                    video_latents = ops.cat(encoded_slices)
 
                 else:
                     if args.save_image_latents:
                         image_latents = vae._encode(images)
-                        image_latents = image_latents.to(memory_format=torch.contiguous_format, dtype=weight_dtype)
+                        image_latents = image_latents.to(dtype=weight_dtype).float().asnumpy()
 
                     video_latents = vae._encode(videos)
 
-                video_latents = video_latents.to(memory_format=torch.contiguous_format, dtype=weight_dtype)
+                video_latents = video_latents.to(dtype=weight_dtype).float().asnumpy()
 
                 # Encode prompts
-                prompt_embeds = compute_prompt_embeddings(
-                    tokenizer,
-                    text_encoder,
-                    prompts,
-                    args.max_sequence_length,
-                    device,
-                    weight_dtype,
-                    requires_grad=False,
+                prompt_embeds = (
+                    compute_prompt_embeddings(
+                        text_encoder,
+                        text_input_ids,
+                        dtype=weight_dtype,
+                    )
+                    .float()
+                    .asnumpy()
                 )
 
             if images is not None:
-                images = (images.permute(0, 2, 1, 3, 4) + 1) / 2
+                images = (images.permute(0, 2, 3, 4, 1) + 1) / 2 * 255  # [B, F, H, W, C]
+                images = images.asnumpy().astype(np.uint8)
 
-            videos = (videos.permute(0, 2, 1, 3, 4) + 1) / 2
+            videos = (videos.permute(0, 2, 3, 4, 1) + 1) / 2 * 255  # [B, F, H, W, C]
+            videos = videos.asnumpy().astype(np.uint8)
 
+            # All tensors have been converted to numpy ndarray to save
             output_queue.put(
                 {
                     "batch_size": len(prompts),
@@ -573,21 +493,20 @@ def main():
 
         except Exception:
             print("-------------------------")
-            print(f"An exception occurred while processing data: {rank=}, {world_size=}, {step=}")
+            print(f"An exception occurred while processing data: {args.rank=}, {args.world_size=}, {step=}")
             traceback.print_exc()
             print("-------------------------")
 
     # 5. Complete distributed processing
-    if world_size > 1:
-        dist.barrier()
-        dist.destroy_process_group()
+    if args.world_size > 1:
+        ops.Barrier()()
 
     output_queue.put(None)
     save_thread.shutdown(wait=True)
     save_future.result()
 
     # 6. Combine results from each rank
-    if rank == 0:
+    if is_master(args):
         print(
             f"Completed preprocessing latents and embeddings. Temporary files from all ranks saved to `{tmp_dir.as_posix()}`"
         )
@@ -595,11 +514,11 @@ def main():
         # Move files from each rank to common directory
         for subfolder, extension in [
             ("images", "png"),
-            ("image_latents", "pt"),
+            ("image_latents", "npy"),
             ("videos", "mp4"),
-            ("video_latents", "pt"),
+            ("video_latents", "npy"),
             ("prompts", "txt"),
-            ("prompt_embeds", "pt"),
+            ("prompt_embeds", "npy"),
             ("videos", "txt"),
         ]:
             tmp_subfolder = tmp_dir.joinpath(subfolder)
@@ -651,11 +570,11 @@ def main():
 
                 data = {
                     "prompt": prompt,
-                    "prompt_embed": f"prompt_embeds/{stem}.pt",
+                    "prompt_embed": f"prompt_embeds/{stem}.npy",
                     "image": f"images/{stem}.png",
-                    "image_latent": f"image_latents/{stem}.pt",
+                    "image_latent": f"image_latents/{stem}.npy",
                     "video": f"videos/{stem}.mp4",
-                    "video_latent": f"video_latents/{stem}.pt",
+                    "video_latent": f"video_latents/{stem}.npy",
                     "metadata": metadata,
                 }
                 file.write(json.dumps(data) + "\n")

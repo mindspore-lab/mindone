@@ -611,6 +611,15 @@ class ModelMixin(nn.Cell, PushToHubMixin):
 
             model = cls.from_config(config, **unused_kwargs)
 
+            # Move the model's data type conversion ahead of the weight loading process to avoid unnecessary
+            # data type conversions of weights that can increase computation time in certain situations.
+            if mindspore_dtype is not None and not isinstance(mindspore_dtype, ms.Type):
+                raise ValueError(
+                    f"{mindspore_dtype} needs to be of type `ms.Type`, e.g. `ms.float16`, but is {type(mindspore_dtype)}."
+                )
+            elif mindspore_dtype is not None:
+                model = model.to(mindspore_dtype)
+
             if is_sharded:
                 load_checkpoint_and_dispatch(
                     model,
@@ -636,13 +645,6 @@ class ModelMixin(nn.Cell, PushToHubMixin):
                     "mismatched_keys": mismatched_keys,
                     "error_msgs": error_msgs,
                 }
-
-        if mindspore_dtype is not None and not isinstance(mindspore_dtype, ms.Type):
-            raise ValueError(
-                f"{mindspore_dtype} needs to be of type `ms.Type`, e.g. `ms.float16`, but is {type(mindspore_dtype)}."
-            )
-        elif mindspore_dtype is not None:
-            model = model.to(mindspore_dtype)
 
         model.register_to_config(_name_or_path=pretrained_model_name_or_path)
 

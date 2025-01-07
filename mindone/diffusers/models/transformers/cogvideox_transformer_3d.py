@@ -66,6 +66,7 @@ class CogVideoXBlock(nn.Cell):
             Whether or not to use bias in Attention output projection layer.
     """
 
+    @ms.lazy_inline
     def __init__(
         self,
         dim: int,
@@ -327,12 +328,14 @@ class CogVideoXTransformer3DModel(ModelMixin, ConfigMixin, PeftAdapterMixin):
 
     @gradient_checkpointing.setter
     def gradient_checkpointing(self, value):
-        self._gradient_checkpointing = value
-        for block in self.transformer_blocks:
-            block._recompute(value)
+        if self._gradient_checkpointing != value:
+            self._gradient_checkpointing = value
+            for block in self.transformer_blocks:
+                block.recompute()
 
     def _set_gradient_checkpointing(self, module, value=False):
-        self.gradient_checkpointing = value
+        if hasattr(module, "gradient_checkpointing"):
+            module.gradient_checkpointing = value
 
     @property
     # Copied from diffusers.models.unets.unet_2d_condition.UNet2DConditionModel.attn_processors
