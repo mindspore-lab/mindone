@@ -73,8 +73,9 @@ this project!
 <details>
 <summary><b>TAE</b></summary>
 
-You can download the TAE weights from
-[here](https://download.mindspore.cn/toolkits/mindone/moviegen/tae_ucf101pt_mixkitft-b3b2e364.ckpt).
+Download the TAE weights from
+[here](https://download.mindspore.cn/toolkits/mindone/moviegen/tae_ucf101pt_mixkitft-b3b2e364.ckpt) and save them in the
+`models/` directory.
 
 </details>
 
