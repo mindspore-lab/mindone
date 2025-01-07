@@ -12,7 +12,7 @@ model:
   dtype: bf16
 
 tae:
-  pretrained: ""
+  pretrained: models/tae_ucf101pt_mixkitft-b3b2e364.ckpt
   use_tile: True
   dtype: bf16
 
