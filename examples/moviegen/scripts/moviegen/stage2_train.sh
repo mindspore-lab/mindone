@@ -22,4 +22,5 @@ python scripts/train.py \
   --dataset.video_folder VIDEO_FOLDER \
   --dataset.text_emb_folder.ul2 UL2_FOLDER \
   --dataset.text_emb_folder.byt5 BYT5_FOLDER \
+  --train.ema "" \
   --train.output_path "$output_dir"
