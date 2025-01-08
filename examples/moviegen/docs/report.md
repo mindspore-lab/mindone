@@ -178,13 +178,13 @@ and [USP](https://arxiv.org/abs/2405.07719)), we implement model parallelism
 using [Ulysses-SP](https://arxiv.org/abs/2309.14509) together with [ZeRO-3](https://arxiv.org/abs/1910.02054),instead of
 the approach used in Movie Gen. Ulysses-SP utilizes `All2ALL` communication for segments of the QKV tensors, drastically
 reducing communication costs compared to sequence parallelism implemented
-in [Megatron-LM](https://arxiv.org/abs/2405.07719), [DSP](https://arxiv.org/abs/2403.10266), as well as the sequence
+in [Megatron-LM](https://arxiv.org/abs/2405.07719), as well as the sequence
 parallelism mentioned
 in [Movie Gen](https://ai.meta.com/research/publications/movie-gen-a-cast-of-media-foundation-models/). Alongside
-ZeRO-3, it achieves similar memory efficiency to [[Megatron-LM](https://arxiv.org/abs/2405.07719)]. Experimental results
+ZeRO-3, it achieves similar memory efficiency to [Megatron-LM](https://arxiv.org/abs/2405.07719). Experimental results
 show that using Ulysses-SP + ZeRO-3, we can train a model of similar scale compared to 3D parallelism, with over 2x
 speed boost in training, corroborating the findings
-in [Megatron-LM](https://arxiv.org/abs/2405.07719), [Ulysses-SP](https://arxiv.org/abs/2309.14509),
+in [Ulysses-SP](https://arxiv.org/abs/2309.14509), [USP](https://arxiv.org/abs/2405.07719)
 and [DSP](https://arxiv.org/abs/2403.10266).
 
 ### Training Details
@@ -260,6 +260,7 @@ Experiments were conducted on Ascend 910* using MindSpore 2.3.1 in graph mode.
 
 | Model | Cards |   Stage   |       Batch size        |       Resolution        |        Recompute        | TAE Cache | Time (s/step) |                              Recipe                               |
 |:-----:|:-----:|:---------:|:-----------------------:|:-----------------------:|:-----------------------:|:---------:|:-------------:|:-----------------------------------------------------------------:|
+|  30B  |   8   |  3 (T2V)  |        Video: 1         |      256x576x1024       |           ON            |    ON     |     37.7      | [stage3_t2iv_768px.yaml](../configs/train/stage3_t2iv_768px.yaml) |
 |  30B  |   8   |  2 (T2V)  |        Video: 1         |       256x256x455       |           ON            |    ON     |     4.08      | [stage2_t2iv_256px.yaml](../configs/train/stage2_t2iv_256px.yaml) |
 |  5B   |   8   |  1 (T2I)  |           10            |         256x455         |           ON            |    ON     |     1.29      |  [stage1_t2i_256px.yaml](../configs/train/stage1_t2i_256px.yaml)  |
 |  5B   |   8   | 2 (T2I/V) |  Image: 1<br/>Video: 1  | 256x455<br/>256 frames  | ON<br/>(Every 2 blocks) |    ON     |     5.09      | [stage2_t2iv_256px.yaml](../configs/train/stage2_t2iv_256px.yaml) |
