@@ -1,0 +1,213 @@
+# Scoring and Filtering
+
+- [Scoring and Filtering](#scoring-and-filtering)
+  - [Aesthetic Score](#aesthetic-score)
+  - [Matching Score](#matching-score)
+  - [OCR](#OCR)
+  - [LPIPS Motion Analysis](#lpips-score-motion-analysis)
+  - [Optical Flow Score](#optical-flow-score)
+  - [Filtering](#filtering)
+
+## Aesthetic Score
+
+To evaluate the aesthetic quality of videos, we use the 
+scoring model from [CLIP+MLP Aesthetic Score Predictor](https://github.com/christophschuhmann/improved-aesthetic-predictor). 
+This model is trained on 176K SAC (Simulacra Aesthetic 
+Captions) pairs, 15K LAION-Logos (Logos) pairs, and 
+250K AVA (The Aesthetic Visual Analysis) image-text pairs.
+
+The aesthetic score is between 1 and 10. Empirically, we 
+find that an aesthetic score above 4.5 can be considered
+as fair.
+
+For videos, we extract the first, last, and the middle 
+frames for evaluation. The script also supports image 
+as input.
+
+First, download the CLIP model [here](https://github.com/openai/CLIP).
+By default, you can put them in the folder 
+`./pretrained_models/`.
+
+Then, download the scoring model using the following command to `./pretrained_models/aesthetic.pth`.
+
+```bash
+wget https://github.com/christophschuhmann/improved-aesthetic-predictor/raw/main/sac+logos+ava1-l14-linearMSE.pth -O pretrained_models/aesthetic.pth
+```
+
+Use the following script to convert `.pth` to `.ckpt` for use in MindSpore.
+
+```bash
+python -m tools.pth_to_ckpt --model aesthetic \ 
+ --pth_path 'pretrained_models/aesthetic.pth' \ 
+ --save_path 'pretrained_models/aesthetic.ckpt' \
+ --show_pth --show_ckpt --convert --value
+```
+
+
+Then, run the following command if using CPU. **Make sure** the meta file has column `path` (path to the sample).
+```bash
+python -m scoring.aesthetic.inference /path/to/meta.csv --use_cpu
+```
+If running on Ascend, you may use 
+```bash
+export PYTHONPATH=$(pwd)
+msrun --worker_num=2 --local_worker_num=2 --join=True \
+ --log_dir=msrun_log pipeline/scoring/aesthetic/inference.py \ 
+ /path/to/meta.csv 
+```
+Modify `worker_num` and `local_worker_num` based on your resource.
+
+This should output `/path/to/meta_aes.csv` with column `aes`.
+
+## Matching Score
+
+Matching scores are calculated to evaluate the alignment between an image/video and its caption.
+Here, we use the [CLIP](https://github.com/openai/CLIP) model, which is trained on image-text pairs.
+For videos, we extract the first, last, and the middle frame and compare it with the caption. 
+We record the highest score among the three as the matching score.
+
+First, download the [CLIP ViT-L/14 model](https://ascend-repo-modelzoo.obs.cn-east-2.myhuaweicloud.com/MindFormers/clip/clip_vit_l_14.ckpt) 
+and the [tokenizer](https://github.com/openai/CLIP/blob/main/clip/bpe_simple_vocab_16e6.txt.gz). By default, you can put them in the folder 
+`./pretrained_models/`.
+
+Then, run the following command if using CPU. **Make sure** the meta file has the column `path` (path to the sample).
+For matching scores for captions, the meta file should also have the column `text` (caption of the sample).
+For option filtering, the argument `--option` must be provided
+```bash
+# for option filtering
+python -m pipeline.scoring.matching.inference /path/to/meta.csv --use_cpu --option animal 
+```
+If running on Ascend, you may use 
+```bash
+export PYTHONPATH=$(pwd)
+# calculate the matching scores with captions, the column `text` must be present
+msrun --worker_num=2 --local_worker_num=2 --join=True \
+ --log_dir=msrun_log pipeline/scoring/matching/inference.py \ 
+ /path/to/meta.csv 
+```
+Modify `worker_num` and `local_worker_num` based on your resource.
+
+This should output `/path/to/meta_match.csv` with column `match`. Higher matching scores indicate better image-text/video-text alignment.
+Empirically, a match score higher than 20 can be considered
+as fair.
+
+## OCR
+OCR (Optical Character Recognition) is used to detect and recognize 
+text in images and video frames. We utilize **MindOCR** package for 
+this task, which supports a variety of state-of-the-art OCR 
+algorithms. MindOCR supports both detection and recognition of text 
+in natural scenes. By default, we use DB++ for detection and
+CRNN for recognition. You can check the [MindOCR](https://github.com/mindspore-lab/mindocr/tree/main/tools/infer/text) 
+page for the full list.
+
+Run the following command for inference. **Make sure** the meta file has the column `path` (path to the sample).
+
+Currently, we only support captioning on Ascend on a single chip.
+Data parallelism may be supported in future release. 
+
+```bash
+export PYTHONPATH=$(pwd)
+msrun --worker_num=1 --local_worker_num=1 --join=True \
+ --log_dir=msrun_log pipeline/scoring/ocr/inference.py \
+ /path/to/meta.csv \
+ --num_boxes \
+ --max_single_percentage \ 
+ --total_text_percentage
+```
+
+Note that you must have the `height` and `width` information available in the csv
+file to use the option `max_single_percentage` or 
+`total_text_percentage`. You may get these information by running
+
+```bash
+python -m pipeline.datasets.datautil /path/to/meta.csv --info
+```
+
+You can find the results in the `ocr` column of the csv file. It 
+will be stored in the following format:
+```angular2html
+[{"transcription": "canada", "points": [[430, 148], [540, 148], [540, 171], [430, 171]]}, ...]
+```
+
+We may also have the following columns depending on the options enabled: 
+
+`num_boxes`: Total number of detected text boxes.
+
+`max_single_percentage`: Maximum area percentage occupied by a single text box.
+
+`total_text_percentage`: Total area percentage occupied by all text boxes.
+
+## LPIPS Score (Motion Analysis)
+LPIPS (Learned Perceptual Image Patch Similarity) is a 
+metric used to measure perceptual similarity between 
+images. In the context of videos, we use LPIPS to 
+quantify the perceptual changes between consecutive 
+frames, which can be an indicator of motion smoothness 
+and quality.
+
+The LPIPS score is computed by extracting frames from the 
+video at regular intervals (default every 1 second) and 
+calculating the perceptual similarity between consecutive 
+frames.
+
+The scores are weighted by the time difference between 
+frames to account for variable frame intervals due to 
+extraction issues.
+
+If only one or no frame is extracted from a video, 
+a score of -1 is assigned, indicating insufficient 
+data to compute LPIPS.
+
+
+To calculate the LPIPS score, first download the [LPIPS model](https://download-mindspore.osinfra.cn/toolkits/mindone/autoencoders/lpips_vgg-426bf45c.ckpt). 
+By default, you can put it in the folder `./pretrained_models/` and you may rename the model as `lpips.ckpt`.
+
+Then, run the following command if using CPU. **Make sure** the meta file has the column 
+`path` (path to the sample).
+
+```bash
+python -m scoring.lpips.inference /path/to/meta.csv
+```
+
+If running on Ascend, you may use
+
+```bash
+export PYTHONPATH=$(pwd)
+msrun --worker_num=1 --local_worker_num=1 --join=True \
+ --log_dir=msrun_log pipeline/scoring/lpips/inference.py \
+ /path/to/meta.csv
+```
+
+This should output `/path/to/meta_lpips.csv` with column `lpips`.
+
+## Optical Flow Score
+Optical flow scores are used to assess the motion of a video. 
+Higher optical flow scores indicate larger movement.
+We use the [UniMatch](https://github.com/autonomousvision/unimatch) model for this task.
+
+To calculate the optical flow score, first download the
+model [here](https://s3.eu-central-1.amazonaws.com/avg-projects/unimatch/pretrained/gmflow-scale2-regrefine6-mixdata-train320x576-4e7b215d.pth).
+
+By default, you can put it in the folder `./pretrained_models/` and you may rename the model as `unimatch.ckpt`.
+
+Run the following command if using CPU. **Make sure** the meta file has the column `path` (path to the video):
+```bash
+python -m pipeline.scoring.optical_flow.inference /path/to/meta.csv --use_cpu
+```
+
+If running on Ascend, you may use
+```bash
+export PYTHONPATH=$(pwd)
+msrun --worker_num=1 --local_worker_num=1 --join=True \
+--log_dir=msrun_log pipeline/scoring/optical_flow/inference.py \
+/path/to/meta.csv
+```
+This outputs `/path/to/meta_flow.csv` with a new column `flow`, where a higher score implies greater motion.
+
+## Filtering
+Once scores are obtained, it is simple to filter samples based on these scores. Here is an example to remove
+samples of aesthetic score < 5.0.
+```
+python -m pipeline.datasets.datautil /path/to/meta.csv --aesmin 5
+```
+This should output `/path/to/meta_aesmin5.0.csv` with column `aes` >= 5.0
