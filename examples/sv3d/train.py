@@ -17,7 +17,7 @@ from mindspore import Callback, Model, nn
 
 from mindone.data import create_dataloader
 from mindone.trainers import create_optimizer, create_scheduler
-from mindone.trainers.callback import EvalSaveCallback, OverflowMonitor
+from mindone.trainers.callback import EvalSaveCallback
 from mindone.trainers.train_step import TrainOneStepWrapper
 from mindone.utils.env import init_train_env
 from mindone.utils.logger import set_logger
@@ -94,7 +94,7 @@ def main(args):
         ldm_with_loss, optimizer=optimizer, scale_sense=loss_scaler, **train_cfg.settings
     )
 
-    callbacks = [OverflowMonitor(), SetTrainCallback()]
+    callbacks = [SetTrainCallback()]
 
     if rank_id == 0:
         callbacks.extend(

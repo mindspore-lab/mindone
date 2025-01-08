@@ -283,4 +283,4 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
     print(args)
-    sample(args.input, args.ckpt, mode=int(args.mode), device_id=int(args.device_id), output_folder="")
+    sample(args.input, args.ckpt, mode=int(args.mode), device_id=int(args.device_id), output_folder=".")
