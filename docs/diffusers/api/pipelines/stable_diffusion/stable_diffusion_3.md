@@ -50,6 +50,11 @@ image = pipe(
 image.save("sd3_hello_world.png")
 ```
 
+**Note:** Stable Diffusion 3.5 can also be run using the SD3 pipeline, and all mentioned optimizations and techniques apply to it as well. In total there are three official models in the SD3 family:
+- [`stabilityai/stable-diffusion-3-medium-diffusers`](https://huggingface.co/stabilityai/stable-diffusion-3-medium-diffusers)
+- [`stabilityai/stable-diffusion-3.5-large`](https://huggingface.co/stabilityai/stable-diffusion-3-5-large)
+- [`stabilityai/stable-diffusion-3.5-large-turbo`](https://huggingface.co/stabilityai/stable-diffusion-3-5-large-turbo)
+
 ### Dropping the T5 Text Encoder during Inference
 
 Removing the memory-intensive 4.7B parameter T5-XXL text encoder during inference can significantly decrease the memory requirements for SD3 with only a slight loss in performance.
@@ -166,7 +171,7 @@ image = pipe("a picture of a cat holding a sign that says hello world").images[0
 image.save('sd3-single-file.png')
 ```
 
-### Loading the single file checkpoint without T5
+### Loading the single file checkpoint with T5
 
 ```python
 import mindspore as ms
@@ -179,6 +184,26 @@ pipe = StableDiffusion3Pipeline.from_single_file(
 
 image = pipe("a picture of a cat holding a sign that says hello world")[0][0]
 image.save('sd3-single-file-t5-fp8.png')
+```
+
+### Loading the single file checkpoint for the Stable Diffusion 3.5 Transformer Model
+
+```python
+import mindspore as ms
+from mindone.diffusers import SD3Transformer2DModel, StableDiffusion3Pipeline
+
+transformer = SD3Transformer2DModel.from_single_file(
+    "https://huggingface.co/stabilityai/stable-diffusion-3.5-large-turbo/blob/main/sd3.5_large.safetensors",
+    mindspore_dtype=ms.bfloat16,
+)
+pipe = StableDiffusion3Pipeline.from_pretrained(
+    "stabilityai/stable-diffusion-3.5-large",
+    transformer=transformer,
+    mindspore_dtype=ms.bfloat16,
+)
+
+image = pipe("a cat holding a sign that says hello world")[0][0]
+image.save("sd35.png")
 ```
 
 ::: mindone.diffusers.StableDiffusion3Pipeline
