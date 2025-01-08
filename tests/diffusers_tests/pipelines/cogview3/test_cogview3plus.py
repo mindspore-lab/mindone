@@ -29,8 +29,10 @@ from ..pipeline_test_utils import (
 )
 
 test_cases = [
-    {"mode": ms.PYNATIVE_MODE, "dtype": "float16"},
+    {"mode": ms.PYNATIVE_MODE, "dtype": "float32"},
     {"mode": ms.PYNATIVE_MODE, "dtype": "bfloat16"},
+    {"mode": ms.GRAPH_MODE, "dtype": "float32"},
+    {"mode": ms.GRAPH_MODE, "dtype": "bfloat16"},
 ]
 
 
@@ -127,8 +129,8 @@ class CogView3PlusPipelineFastTests(PipelineTesterMixin, unittest.TestCase):
         ms.set_context(mode=mode)
 
         pt_components, ms_components = self.get_dummy_components()
-        pt_pipe_cls = get_module("diffusers.pipelines.cogvideo.pipeline_cogvideox.CogVideoXPipeline")
-        ms_pipe_cls = get_module("mindone.diffusers.pipelines.cogvideo.pipeline_cogvideox.CogVideoXPipeline")
+        pt_pipe_cls = get_module("diffusers.pipelines.cogview3.pipeline_cogview3plus.CogView3PlusPipeline")
+        ms_pipe_cls = get_module("mindone.diffusers.pipelines.cogview3.pipeline_cogview3plus.CogView3PlusPipeline")
 
         pt_pipe = pt_pipe_cls(**pt_components)
         ms_pipe = ms_pipe_cls(**ms_components)
@@ -143,7 +145,7 @@ class CogView3PlusPipelineFastTests(PipelineTesterMixin, unittest.TestCase):
         inputs = self.get_dummy_inputs()
 
         torch.manual_seed(0)
-        pt_image = pt_pipe(**inputs).frames
+        pt_image = pt_pipe(**inputs).images
         torch.manual_seed(0)
         ms_image = ms_pipe(**inputs)[0]
 

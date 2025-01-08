@@ -222,14 +222,14 @@ class StableDiffusionXLControlNetPAGImg2ImgPipelineFastTests(PipelineTesterMixin
     @data(*test_cases)
     @unpack
     def test_pag_inference(self, mode, dtype):
-        ms.set_context(mode=mode)
+        ms.set_context(mode=mode, jit_syntax_level=ms.STRICT, pynative_synchronize=True)
 
         pt_components, ms_components = self.get_dummy_components()
         pt_pipe_cls = get_module(
-            "diffusers.pipelines.controlnet.pipeline_controlnet_sd_xl_img2img.StableDiffusionXLControlNetImg2ImgPipeline"
+            "diffusers.pipelines.pag.pipeline_pag_controlnet_sd_xl_img2img.StableDiffusionXLControlNetPAGImg2ImgPipeline"
         )
         ms_pipe_cls = get_module(
-            "mindone.diffusers.pipelines.controlnet.pipeline_controlnet_sd_xl_img2img.StableDiffusionXLControlNetImg2ImgPipeline"
+            "mindone.diffusers.pipelines.pag.pipeline_pag_controlnet_sd_xl_img2img.StableDiffusionXLControlNetPAGImg2ImgPipeline"
         )
 
         pt_pipe_pag = pt_pipe_cls(**pt_components, pag_applied_layers=["mid", "up", "down"])
