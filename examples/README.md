@@ -1,4 +1,4 @@
-### multi modal understanding and generation model examples supported by mindone
+### multi-modal understanding and generation model examples supported by mindone
 | project  |  introduction | original repo
 | :---   |  :--  | :-
 | [mindone.diffusers](https://github.com/mindspore-lab/mindone/blob/master/examples/diffusers) | run hf diffusers on mindspore | https://github.com/huggingface/diffusers |
@@ -21,3 +21,6 @@
 | [llava](https://github.com/mindspore-lab/mindone/blob/master/examples/llava)      | Haotian-Liu official | https://github.com/haotian-liu/LLaVA
 | [vila](https://github.com/mindspore-lab/mindone/blob/master/examples/vila)      | Nvidia Lab official | https://github.com/NVlabs/VILA
 | [pllava](https://github.com/mindspore-lab/mindone/blob/master/examples/pllava)      | Magic Research official | https://github.com/magic-research/PLLaVA
+| [dynamicrafter](https://github.com/mindspore-lab/mindone/blob/master/examples/dynamicrafter)     | Tencent Research official | https://github.com/Doubiiu/DynamiCrafter
+| [hunyuan_dit](https://github.com/mindspore-lab/mindone/blob/master/examples/hunyuan_dit)     | Tencent Research official | https://github.com/Tencent/HunyuanDiT
+| [pixart_sigma](https://github.com/mindspore-lab/mindone/blob/master/examples/pixart_sigma)     | Noah Lab official | https://github.com/PixArt-alpha/PixArt-sigma

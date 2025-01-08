@@ -2,7 +2,7 @@
 model_name: "FiT-XL/2"
 vae_checkpoint: "models/sd-vae-ft-mse.ckpt"
 sd_scale_factor: 0.18215
-enable_flash_attention: False
+enable_flash_attention: True
 use_fp16: True
 embed_dim: 72 # 1152 / 16 (num_heads)
 embed_method: "rotate"

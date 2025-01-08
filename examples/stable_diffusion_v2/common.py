@@ -18,9 +18,11 @@ def init_env(
     seed: int = 42,
     distributed: bool = False,
     device_target: Optional[str] = "Ascend",
+    jit_level: str = "O2",
     enable_modelarts: bool = False,
     num_workers: int = 1,
     json_data_path: Optional[str] = None,
+    max_device_memory: Optional[str] = "1024GB",
 ) -> Tuple[int, int, int]:
     """
     Initialize MindSpore environment.
@@ -40,24 +42,37 @@ def init_env(
         A tuple containing the device ID, rank ID and number of devices.
     """
     set_random_seed(seed)
+    if mode == ms.GRAPH_MODE:
+        try:
+            if jit_level in ["O0", "O1", "O2"]:
+                ms.set_context(jit_config={"jit_level": jit_level})
+                _logger.info(f"set jit_level: {jit_level}.")
+            else:
+                _logger.warning(
+                    f"Unsupport jit_level: {jit_level}. The framework automatically selects the execution method"
+                )
+        except Exception:
+            _logger.warning(
+                "The current jit_level is not suitable because current MindSpore version does not match,"
+                "please ensure the MindSpore version >= ms2.3.0."
+            )
 
     if debug and mode == ms.GRAPH_MODE:  # force PyNative mode when debugging
         _logger.warning("Debug mode is on, switching execution mode to PyNative.")
         mode = ms.PYNATIVE_MODE
 
     if distributed:
-        device_id = int(os.getenv("DEVICE_ID"))
         ms.set_context(
             mode=mode,
             device_target=device_target,
-            device_id=device_id,
             ascend_config={"precision_mode": "allow_fp32_to_fp16"},  # Only effective on Ascend 910*
+            max_device_memory=max_device_memory,
         )
         init()
         device_num = get_group_size()
         ParallelConfig.dp = device_num
         rank_id = get_rank()
-        _logger.debug(f"Device_id: {device_id}, rank_id: {rank_id}, device_num: {device_num}")
+        _logger.debug(f"rank_id: {rank_id}, device_num: {device_num}")
         ms.reset_auto_parallel_context()
         ms.set_auto_parallel_context(
             parallel_mode=ms.ParallelMode.DATA_PARALLEL,
@@ -80,6 +95,7 @@ def init_env(
             device_id=device_id,
             ascend_config={"precision_mode": "allow_fp32_to_fp16"},  # Only effective on Ascend 910*
             pynative_synchronize=debug,
+            max_device_memory=max_device_memory,
         )
 
-    return device_id, rank_id, device_num
+    return rank_id, device_num

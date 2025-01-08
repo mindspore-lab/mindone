@@ -19,8 +19,8 @@ class WuerstchenLayerNorm(LayerNorm):
 class TimestepBlock(nn.Cell):
     def __init__(self, c, c_timestep):
         super().__init__()
-        linear_cls = nn.Dense
-        self.mapper = linear_cls(c_timestep, c * 2)
+
+        self.mapper = nn.Dense(c_timestep, c * 2)
 
     def construct(self, x, t):
         a, b = self.mapper(t)[:, :, None, None].chunk(2, axis=1)
@@ -31,15 +31,12 @@ class ResBlock(nn.Cell):
     def __init__(self, c, c_skip=0, kernel_size=3, dropout=0.0):
         super().__init__()
 
-        conv_cls = nn.Conv2d
-        linear_cls = nn.Dense
-
-        self.depthwise = conv_cls(
+        self.depthwise = nn.Conv2d(
             c + c_skip, c, kernel_size=kernel_size, padding=kernel_size // 2, group=c, has_bias=True, pad_mode="pad"
         )
         self.norm = WuerstchenLayerNorm(c, elementwise_affine=False, eps=1e-6)
         self.channelwise = nn.SequentialCell(
-            linear_cls(c, c * 4), nn.GELU(), GlobalResponseNorm(c * 4), nn.Dropout(p=dropout), linear_cls(c * 4, c)
+            nn.Dense(c, c * 4), nn.GELU(), GlobalResponseNorm(c * 4), nn.Dropout(p=dropout), nn.Dense(c * 4, c)
         )
 
     def construct(self, x, x_skip=None):
@@ -68,12 +65,10 @@ class AttnBlock(nn.Cell):
     def __init__(self, c, c_cond, nhead, self_attn=True, dropout=0.0):
         super().__init__()
 
-        linear_cls = nn.Dense
-
         self.self_attn = self_attn
         self.norm = WuerstchenLayerNorm(c, elementwise_affine=False, eps=1e-6)
         self.attention = Attention(query_dim=c, heads=nhead, dim_head=c // nhead, dropout=dropout, bias=True)
-        self.kv_mapper = nn.SequentialCell(SiLU(), linear_cls(c_cond, c))
+        self.kv_mapper = nn.SequentialCell(SiLU(), nn.Dense(c_cond, c))
 
     def construct(self, x, kv):
         kv = self.kv_mapper(kv)

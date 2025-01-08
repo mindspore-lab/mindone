@@ -17,21 +17,13 @@ import math
 
 import numpy as np
 from ldm.util import is_old_ms_version
-from packaging import version
 
 import mindspore as ms
 import mindspore.numpy as msnp
 from mindspore import nn, ops
 from mindspore.common.initializer import initializer
 
-try:
-    from mindspore.nn.layer.flash_attention import FlashAttention
-
-    FLASH_IS_AVAILABLE = True
-    print("flash attention is available.")
-except ImportError:
-    FLASH_IS_AVAILABLE = False
-    print("flash attention is unavailable.")
+from mindone.models.modules.flash_attention import FLASH_IS_AVAILABLE, MSFlashAttention
 
 logger = logging.getLogger()
 
@@ -152,14 +144,12 @@ class CrossAttention(nn.Cell):
             enable_flash_attention and FLASH_IS_AVAILABLE and (ms.context.get_context("device_target") == "Ascend")
         )
         if self.enable_flash_attention:
-            # TODO: how high_precision affect the training or inference quality
-            if version.parse(ms.__version__) <= version.parse("2.2.0"):
-                self.flash_attention = FlashAttention(head_dim=dim_head, high_precision=True)
-                self.fa_mask_dtype = ms.float16  # choose_flash_attention_dtype()
-            else:
-                self.flash_attention = FlashAttention(head_dim=dim_head, head_num=heads, high_precision=True)
-                self.fa_mask_dtype = ms.uint8  # choose_flash_attention_dtype()
-            # logger.info("Flash attention is enabled.")
+            self.flash_attention = MSFlashAttention(
+                head_dim=dim_head,
+                head_num=heads,
+                input_layout="BNSD",
+                dtype=dtype,
+            )
         else:
             self.flash_attention = None
 
@@ -207,8 +197,7 @@ class CrossAttention(nn.Cell):
             q = q.view(q_b, q_n, h, -1).transpose(0, 2, 1, 3)
             k = k.view(k_b, k_n, h, -1).transpose(0, 2, 1, 3)
             v = v.view(v_b, v_n, h, -1).transpose(0, 2, 1, 3)
-            if mask is None:
-                mask = ops.zeros((q_b, q_n, q_n), self.fa_mask_dtype)
+
             # FIXME: a trick to pad sdv1.5 head dimensions from 160 to 256
             if head_dim == 160:
                 # pad to 2**n * 64
@@ -217,9 +206,7 @@ class CrossAttention(nn.Cell):
                 k = msnp.pad(k, ((0, 0), (0, 0), (0, 0), (0, padding_size)), constant_value=0)
                 v = msnp.pad(v, ((0, 0), (0, 0), (0, 0), (0, padding_size)), constant_value=0)
 
-            out = self.flash_attention(
-                q.to(ms.float16), k.to(ms.float16), v.to(ms.float16), mask.to(self.fa_mask_dtype)
-            )
+            out = self.flash_attention(q, k, v, mask=mask)
             if head_dim == 160:
                 out = ops.slice(out, [0, 0, 0, 0], [q_b, h, q_n, head_dim])
             b, h, n, d = out.shape
@@ -298,12 +285,8 @@ class CrossFrameAttention(CrossAttention):
             q = q.view(q_b, q_n, h, -1).transpose(0, 2, 1, 3)
             k = k.view(k_b, k_n, h, -1).transpose(0, 2, 1, 3)
             v = v.view(v_b, v_n, h, -1).transpose(0, 2, 1, 3)
-            if mask is None:
-                mask = ops.zeros((q_b, q_n, q_n), self.fa_mask_dtype)
 
-            out = self.flash_attention(
-                q.to(ms.float16), k.to(ms.float16), v.to(ms.float16), mask.to(self.fa_mask_dtype)
-            )
+            out = self.flash_attention(q, k, v, mask=mask)
 
             b, h, n, d = out.shape
             # reshape FA output to original attn input format, (b h n d) -> (b n h*d)

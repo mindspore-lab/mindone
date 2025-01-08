@@ -17,6 +17,7 @@ ckpt_save_interval: 1
 epochs: 20
 use_ema: True
 clip_grad: False
+enable_flash_attention: True
 
 # lr scheduler
 scheduler: "cosine_decay"

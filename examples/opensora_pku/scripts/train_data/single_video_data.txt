@@ -1,1 +1,0 @@
-/home_host/ddd/workspace/datasets/Open-Sora-Plan-v1.1.0_490/mixkit,/home_host/ddd/workspace/datasets/Open-Sora-Plan-v1.1.0_490/mixkit-t5-emb-len=300,/home_host/ddd/workspace/datasets/Open-Sora-Plan-v1.1.0_490/anno_jsons/video_mixkit_65f_54735.json

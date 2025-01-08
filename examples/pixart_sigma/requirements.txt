@@ -1,0 +1,7 @@
+tqdm>=4.66.5
+pyyaml>=6.0.2
+transformers>=4.44.2
+omegaconf>=2.3.0
+mindcv>=0.3.0
+opencv-python-headless>=4.10.0.84
+sentencepiece>=0.2.0

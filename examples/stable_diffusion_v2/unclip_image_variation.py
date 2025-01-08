@@ -17,11 +17,11 @@ import mindspore.ops as ops
 
 workspace = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(workspace)
+from common import init_env
 from ldm.models.diffusion.ddim import DDIMSampler
 from ldm.models.diffusion.dpm_solver import DPMSolverSampler
 from ldm.modules.logger import set_logger
 from ldm.modules.lora import inject_trainable_lora
-from ldm.modules.train.tools import set_random_seed
 from ldm.util import instantiate_from_config, str2bool
 from utils import model_utils
 from utils.download import download_checkpoint
@@ -130,11 +130,19 @@ def load_image(image: Union[str, Image.Image]) -> ms.Tensor:
 
 
 def main(args):
+    # init
+    rank_id, device_num = init_env(
+        args.ms_mode,
+        seed=args.seed,
+        jit_level=args.jit_level,
+        max_device_memory="30GB",
+    )
+
     # set logger
     set_logger(
         name="",
         output_dir=args.output_path,
-        rank=0,
+        rank=rank_id,
         log_level=eval(args.log_level),
     )
 
@@ -179,12 +187,6 @@ def main(args):
     sample_path = os.path.join(outpath, "samples")
     os.makedirs(sample_path, exist_ok=True)
     base_count = len(os.listdir(sample_path))
-
-    # set ms context
-    device_id = int(os.getenv("DEVICE_ID", 0))
-    ms.context.set_context(mode=args.ms_mode, device_target="Ascend", device_id=device_id, max_device_memory="30GB")
-
-    set_random_seed(args.seed)
 
     # create model
     if not os.path.isabs(args.config):
@@ -319,6 +321,16 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--ms_mode", type=int, default=0, help="Running in GRAPH_MODE(0) or PYNATIVE_MODE(1) (default=0)"
+    )
+    parser.add_argument(
+        "--jit_level",
+        default="O2",
+        type=str,
+        choices=["O0", "O1", "O2"],
+        help="Used to control the compilation optimization level. Supports ['O0', 'O1', 'O2']."
+        "O0: Except for optimizations that may affect functionality, all other optimizations are turned off, adopt KernelByKernel execution mode."
+        "O1: Using commonly used optimizations and automatic operator fusion optimizations, adopt KernelByKernel execution mode."
+        "O2: Ultimate performance optimization, adopt Sink execution mode.",
     )
     parser.add_argument(
         "--data_path",

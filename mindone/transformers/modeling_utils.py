@@ -41,6 +41,7 @@ from transformers.utils import (
     cached_file,
     download_url,
     extract_commit_hash,
+    find_adapter_config_file,
     has_file,
     is_offline_mode,
     is_remote_url,
@@ -1300,7 +1301,7 @@ class MSPreTrainedModel(nn.Cell, ModuleUtilsMixin, PushToHubMixin, PeftAdapterMi
         state_dict = kwargs.pop("state_dict", None)
         from_tf = kwargs.pop("from_tf", False)
         from_flax = kwargs.pop("from_flax", False)
-        resume_download = kwargs.pop("resume_download", False)
+        resume_download = kwargs.pop("resume_download", None)
         proxies = kwargs.pop("proxies", None)
         output_loading_info = kwargs.pop("output_loading_info", False)
         use_auth_token = kwargs.pop("use_auth_token", None)
@@ -1311,6 +1312,8 @@ class MSPreTrainedModel(nn.Cell, ModuleUtilsMixin, PushToHubMixin, PeftAdapterMi
         subfolder = kwargs.pop("subfolder", "")
         commit_hash = kwargs.pop("_commit_hash", None)
         variant = kwargs.pop("variant", None)
+        adapter_kwargs = kwargs.pop("adapter_kwargs", {})
+        adapter_name = kwargs.pop("adapter_name", "default")
 
         if use_auth_token is not None:
             warnings.warn(
@@ -1322,6 +1325,9 @@ class MSPreTrainedModel(nn.Cell, ModuleUtilsMixin, PushToHubMixin, PeftAdapterMi
                     "`token` and `use_auth_token` are both specified. Please set only the argument `token`."
                 )
             token = use_auth_token
+
+        if token is not None and adapter_kwargs is not None and "token" not in adapter_kwargs:
+            adapter_kwargs["token"] = token
 
         if use_safetensors is None and not is_safetensors_available():
             use_safetensors = False
@@ -1347,6 +1353,25 @@ class MSPreTrainedModel(nn.Cell, ModuleUtilsMixin, PushToHubMixin, PeftAdapterMi
                 commit_hash = extract_commit_hash(resolved_config_file, commit_hash)
             else:
                 commit_hash = getattr(config, "_commit_hash", None)
+
+        # Always True: if is_peft_available():
+        _adapter_model_path = adapter_kwargs.pop("_adapter_model_path", None)
+
+        if _adapter_model_path is None:
+            _adapter_model_path = find_adapter_config_file(
+                pretrained_model_name_or_path,
+                cache_dir=cache_dir,
+                force_download=force_download,
+                resume_download=resume_download,
+                proxies=proxies,
+                local_files_only=local_files_only,
+                _commit_hash=commit_hash,
+                **adapter_kwargs,
+            )
+        if _adapter_model_path is not None and os.path.isfile(_adapter_model_path):
+            with open(_adapter_model_path, "r", encoding="utf-8") as f:
+                _adapter_model_path = pretrained_model_name_or_path
+                pretrained_model_name_or_path = json.load(f)["base_model_name_or_path"]
 
         from_pt = not (from_tf | from_flax)
 
@@ -1643,7 +1668,7 @@ class MSPreTrainedModel(nn.Cell, ModuleUtilsMixin, PushToHubMixin, PeftAdapterMi
             with safe_open(resolved_archive_file, framework="np") as f:
                 metadata = f.metadata()
 
-            if metadata.get("format") == "pt":
+            if metadata.get("format") in ("np", "pt"):
                 pass
             elif metadata.get("format") == "tf":
                 from_tf = True
@@ -1740,6 +1765,14 @@ class MSPreTrainedModel(nn.Cell, ModuleUtilsMixin, PushToHubMixin, PeftAdapterMi
                 sharded_metadata=sharded_metadata,
                 dtype=mindspore_dtype,
                 keep_in_fp32_modules=keep_in_fp32_modules,
+            )
+
+        if _adapter_model_path is not None:
+            model.load_adapter(
+                _adapter_model_path,
+                adapter_name=adapter_name,
+                token=token,
+                adapter_kwargs=adapter_kwargs,
             )
 
         # Set model in evaluation mode to deactivate DropOut modules by default

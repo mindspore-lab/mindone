@@ -18,18 +18,17 @@ from mindspore.train.callback import TimeMonitor
 sys.path.append(".")
 mindone_lib_path = os.path.abspath("../../")
 sys.path.insert(0, mindone_lib_path)
-from opensora.models.ae.videobase.causal_vae.modeling_causalvae import CausalVAEModel
-from opensora.models.ae.videobase.dataset_videobase import VideoDataset, create_dataloader
-from opensora.models.ae.videobase.losses.net_with_loss import DiscriminatorWithLoss, GeneratorWithLoss
-from opensora.models.ae.videobase.modules.updownsample import TrilinearInterpolate
-from opensora.models.ae.videobase.utils.model_utils import resolve_str_to_obj
+from opensora.models.causalvideovae.model import EMA, CausalVAEModel
+from opensora.models.causalvideovae.model.dataset_videobase import VideoDataset, create_dataloader
+from opensora.models.causalvideovae.model.losses.net_with_loss import DiscriminatorWithLoss, GeneratorWithLoss
+from opensora.models.causalvideovae.model.modules.updownsample import TrilinearInterpolate
+from opensora.models.causalvideovae.model.utils.model_utils import resolve_str_to_obj
 from opensora.train.commons import create_loss_scaler, parse_args
 from opensora.utils.ms_utils import init_env
 from opensora.utils.utils import get_precision
 
 from mindone.trainers.callback import EvalSaveCallback, OverflowMonitor, ProfilerCallback
 from mindone.trainers.checkpoint import CheckpointManager, resume_train_network
-from mindone.trainers.ema import EMA
 from mindone.trainers.lr_schedule import create_scheduler
 from mindone.trainers.optim import create_optimizer
 from mindone.trainers.train_step import TrainOneStepWrapper
@@ -51,6 +50,7 @@ def main(args):
         max_device_memory=args.max_device_memory,
         parallel_mode=args.parallel_mode,
         jit_level=args.jit_level,
+        jit_syntax_level=args.jit_syntax_level,
     )
     if args.exp_name is not None and len(args.exp_name) > 0:
         args.output_dir = os.path.join(args.output_dir, args.exp_name)
@@ -59,22 +59,22 @@ def main(args):
     # Load Config
     assert os.path.exists(args.model_config), f"{args.model_config} does not exist!"
     model_config = json.load(open(args.model_config, "r"))
-    ae = CausalVAEModel.from_config(model_config)
+    ae = CausalVAEModel.from_config(model_config, use_recompute=args.use_recompute)
     if args.load_from_checkpoint is not None:
         ae.init_from_ckpt(args.load_from_checkpoint)
     # discriminator (D)
-    use_discriminator = args.use_discriminator and (model_config["loss_params"]["disc_weight"] > 0.0)
+    use_discriminator = args.use_discriminator and (args.disc_weight > 0.0)
 
-    if args.use_discriminator and (model_config["loss_params"]["disc_weight"] <= 0.0):
+    if args.use_discriminator and (args.disc_weight <= 0.0):
         logging.warning("use_discriminator is True but disc_weight is 0.")
 
     if use_discriminator:
-        disc_type = model_config["loss_type"]
+        disc_type = args.disc_cls
         if "LPIPSWithDiscriminator3D" in disc_type:
-            disc_type = "opensora.models.ae.videobase.losses.discriminator.NLayerDiscriminator3D"
+            disc_type = "opensora.models.causalvideovae.model.losses.discriminator.NLayerDiscriminator3D"
             use_3d_disc = True
         elif "LPIPSWithDiscriminator" in disc_type:
-            disc_type = "opensora.models.ae.videobase.losses.discriminator.NLayerDiscriminator"
+            disc_type = "opensora.models.causalvideovae.model.losses.discriminator.NLayerDiscriminator"
             use_3d_disc = False
         disc = resolve_str_to_obj(disc_type, append=False)()
     else:
@@ -86,7 +86,7 @@ def main(args):
         amp_level = args.amp_level
         dtype = get_precision(args.precision)
         if dtype == ms.float16:
-            custom_fp32_cells = [nn.GroupNorm, nn.Softmax, nn.SiLU] if args.vae_keep_gn_fp32 else []
+            custom_fp32_cells = [nn.GroupNorm, nn.Softmax, nn.SiLU] if args.vae_keep_gn_fp32 else [nn.Softmax, nn.SiLU]
         else:
             custom_fp32_cells = [nn.AvgPool2d, TrilinearInterpolate, nn.Softmax, nn.SiLU]
         ae = auto_mixed_precision(ae, amp_level=amp_level, dtype=dtype, custom_fp32_cells=custom_fp32_cells)
@@ -108,9 +108,14 @@ def main(args):
         ae,
         discriminator=disc,
         lpips_ckpt_path=os.path.join("pretrained", "lpips_vgg-426bf45c.ckpt"),
-        **model_config["loss_params"],
+        disc_start=args.disc_start,
+        disc_weight=args.disc_weight,
+        kl_weight=args.kl_weight,
+        logvar_init=args.logvar_init,
+        perceptual_weight=args.perceptual_weight,
+        loss_type=args.loss_type,
     )
-    disc_start = model_config["loss_params"]["disc_start"]
+    disc_start = args.disc_start
 
     # D with loss
     if use_discriminator:
@@ -147,7 +152,7 @@ def main(args):
         dataset,
         shuffle=True,
         num_parallel_workers=args.dataloader_num_workers,
-        batch_size=args.batch_size,
+        batch_size=args.train_batch_size,
         drop_remainder=True,
         device_num=device_num,
         rank_id=rank_id,
@@ -158,8 +163,10 @@ def main(args):
     # 5. build training utils
     # torch scale lr by: model.learning_rate = accumulate_grad_batches * ngpu * bs * base_lr
     if args.scale_lr:
-        learning_rate = args.start_learning_rate * args.batch_size * args.gradient_accumulation_steps * device_num
-        end_learning_rate = args.end_learning_rate * args.batch_size * args.gradient_accumulation_steps * device_num
+        learning_rate = args.start_learning_rate * args.train_batch_size * args.gradient_accumulation_steps * device_num
+        end_learning_rate = (
+            args.end_learning_rate * args.train_batch_size * args.gradient_accumulation_steps * device_num
+        )
     else:
         learning_rate = args.start_learning_rate
         end_learning_rate = args.end_learning_rate
@@ -271,16 +278,10 @@ def main(args):
             weight_decay=args.weight_decay,
         )
         loss_scaler_disc = create_loss_scaler(args)
+        scaling_sens_d = loss_scaler_disc.loss_scale_value
 
-    ema = (
-        EMA(
-            ae_with_loss.autoencoder,
-            ema_decay=args.ema_decay,
-        )
-        if args.use_ema
-        else None
-    )
-
+    assert args.ema_start_step == 0, "Now only support to update EMA from the first step"
+    ema = EMA(ae_with_loss.autoencoder, ema_decay=args.ema_decay, offloading=args.ema_offload) if args.use_ema else None
     # resume training states
     # TODO: resume Discriminator if used
     ckpt_dir = os.path.join(args.output_dir, "ckpt")
@@ -345,11 +346,12 @@ def main(args):
                 f"MindSpore mode[GRAPH(0)/PYNATIVE(1)]: {args.mode}",
                 f"Jit level: {args.jit_level}",
                 f"Distributed mode: {args.use_parallel}",
+                f"Recompute: {args.use_recompute}",
                 f"amp level: {amp_level}",
                 f"dtype: {args.precision}",
                 f"Use discriminator: {args.use_discriminator}",
                 f"Learning rate: {learning_rate}",
-                f"Batch size: {args.batch_size}",
+                f"Batch size: {args.train_batch_size}",
                 f"Rescale size: {args.resolution}",
                 f"Crop size: {args.resolution}",
                 f"Number of frames: {args.video_num_frames}",
@@ -443,16 +445,27 @@ def main(args):
 
                 cur_global_step = epoch * dataset_size + step + 1  # starting from 1 for logging
                 if overflow:
-                    logger.warning(f"Overflow occurs in step {cur_global_step}")
+                    logger.warning(
+                        f"Overflow occurs in step {cur_global_step} in autoencoder"
+                        + (", drop update." if args.drop_overflow_update else ", still update.")
+                    )
+                if global_step >= disc_start and overflow_d:
+                    logger.warning(
+                        f"Overflow occurs in step {cur_global_step} in discriminator"
+                        + (", drop update." if args.drop_overflow_update else ", still update.")
+                    )
 
                 # log
                 step_time = time.time() - start_time_s
                 if step % args.log_interval == 0:
                     loss_ae = float(loss_ae_t.asnumpy())
-                    logger.info(f"E: {epoch+1}, S: {step+1}, Loss ae: {loss_ae:.4f}, Step time: {step_time*1000:.2f}ms")
+                    logger.info(
+                        f"E: {epoch+1}, S: {step+1}, Loss ae: {loss_ae:.4f}, ae loss scaler {scaling_sens},"
+                        + f" Step time: {step_time*1000:.2f}ms"
+                    )
                     if global_step >= disc_start:
                         loss_disc = float(loss_disc_t.asnumpy())
-                        logger.info(f"Loss disc: {loss_disc:.4f}")
+                        logger.info(f"Loss disc: {loss_disc:.4f}, disc loss scaler {scaling_sens_d}")
                         loss_log_file.write(f"{cur_global_step}\t{loss_ae:.7f}\t{loss_disc:.7f}\t{step_time:.2f}\n")
                     else:
                         loss_log_file.write(f"{cur_global_step}\t{loss_ae:.7f}\t{0.0}\t{step_time:.2f}\n")
@@ -475,7 +488,7 @@ def main(args):
                                 os.path.join(ckpt_dir, "train_resume.ckpt"),
                                 append_dict={
                                     "epoch_num": cur_epoch - 1,
-                                    "loss_scale": loss_scaler_ae.loss_scale_value,
+                                    "loss_scale": scaling_sens,
                                 },
                             )
                             ms.save_checkpoint(
@@ -483,7 +496,7 @@ def main(args):
                                 os.path.join(ckpt_dir, "train_resume_disc.ckpt"),
                                 append_dict={
                                     "epoch_num": cur_epoch - 1,
-                                    "loss_scale": loss_scaler_disc.loss_scale_value,
+                                    "loss_scale": scaling_sens_d,
                                 },
                             )
                         if ema is not None:
@@ -516,7 +529,7 @@ def main(args):
                             os.path.join(ckpt_dir, "train_resume.ckpt"),
                             append_dict={
                                 "epoch_num": cur_epoch - 1,
-                                "loss_scale": loss_scaler_ae.loss_scale_value,
+                                "loss_scale": scaling_sens,
                             },
                         )
                         ms.save_checkpoint(
@@ -524,7 +537,7 @@ def main(args):
                             os.path.join(ckpt_dir, "train_resume_disc.ckpt"),
                             append_dict={
                                 "epoch_num": cur_epoch - 1,
-                                "loss_scale": loss_scaler_disc.loss_scale_value,
+                                "loss_scale": scaling_sens_d,
                             },
                         )
                     if ema is not None:
@@ -546,10 +559,11 @@ def parse_causalvae_train_args(parser):
         help="Whether to use the discriminator in the training process. "
         "Phase 1 training does not use discriminator, set False to reduce memory cost in graph mode.",
     )
+
     parser.add_argument(
         "--model_config",
         default="scripts/causalvae/release.json",
-        help="the model configuration file for the causalvae.",
+        help="the default model configuration file for the causalvae.",
     )
     parser.add_argument(
         "--vae_keep_gn_fp32",
@@ -597,6 +611,20 @@ def parse_causalvae_train_args(parser):
     parser.add_argument(
         "--save_training_resume", type=str2bool, default=True, help="Whether to save the training resume checkpoint."
     )
+    parser.add_argument("--ema_start_step", type=int, default=0)
+
+    parser.add_argument(
+        "--disc_cls",
+        type=str,
+        default="causalvideovae.model.losses.LPIPSWithDiscriminator3D",
+        help="",
+    )
+    parser.add_argument("--disc_start", type=int, default=5, help="")
+    parser.add_argument("--disc_weight", type=float, default=0.5, help="")
+    parser.add_argument("--kl_weight", type=float, default=1e-06, help="")
+    parser.add_argument("--perceptual_weight", type=float, default=1.0, help="")
+    parser.add_argument("--loss_type", type=str, default="l1", help="")
+    parser.add_argument("--logvar_init", type=float, default=0.0, help="")
     return parser
 
 

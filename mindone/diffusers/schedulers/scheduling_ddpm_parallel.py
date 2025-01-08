@@ -204,7 +204,7 @@ class DDPMParallelScheduler(SchedulerMixin, ConfigMixin):
         sample_max_value: float = 1.0,
         timestep_spacing: str = "leading",
         steps_offset: int = 0,
-        rescale_betas_zero_snr: int = False,
+        rescale_betas_zero_snr: bool = False,
     ):
         if trained_betas is not None:
             self.betas = ms.tensor(trained_betas, dtype=ms.float32)
@@ -223,7 +223,7 @@ class DDPMParallelScheduler(SchedulerMixin, ConfigMixin):
             betas = ms.tensor(np.linspace(-6, 6, num_train_timesteps))
             self.betas = ops.sigmoid(betas) * (beta_end - beta_start) + beta_start
         else:
-            raise NotImplementedError(f"{beta_schedule} does is not implemented for {self.__class__}")
+            raise NotImplementedError(f"{beta_schedule} is not implemented for {self.__class__}")
 
         # Rescale for zero SNR
         if rescale_betas_zero_snr:

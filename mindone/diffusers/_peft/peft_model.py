@@ -325,12 +325,12 @@ class PeftModel(PushToHubMixin, nn.Cell):
             f"trainable params: {trainable_params:,d} || all params: {all_param:,d} || trainable%: {100 * trainable_params / all_param}"
         )
 
-    def __getattr__(self, name: str):
-        """Forward missing attributes to the wrapped module."""
-        try:
-            return super().__getattr__(name)  # defer to nn.Cell's logic
-        except AttributeError:
-            return getattr(self.base_model, name)
+    # def __getattr__(self, name: str):
+    #     """Forward missing attributes to the wrapped module."""
+    #     try:
+    #         return super().__getattr__(name)  # defer to nn.Cell's logic
+    #     except AttributeError:
+    #         return getattr(self.base_model, name)
 
     def construct(self, *args: Any, **kwargs: Any):
         """

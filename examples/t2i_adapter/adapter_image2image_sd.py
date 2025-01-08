@@ -37,7 +37,8 @@ def main(args):
     # set ms context
     device_id = int(os.getenv("DEVICE_ID", 0))
     ms.set_context(mode=args.ms_mode, device_target="Ascend", device_id=device_id)
-
+    if args.ms_mode == ms.GRAPH_MODE:
+        ms.set_context(jit_config={"jit_level": args.jit_level})
     set_random_seed(args.seed)
 
     # create model
@@ -64,7 +65,7 @@ def main(args):
     )
 
     adapters = [
-        get_adapter("sd", a_cond, ckpt, use_fp16=not args.adapter_full_precision)
+        get_adapter("sd", a_cond, ckpt, use_fp16=False)
         for a_cond, ckpt in zip(args.adapter_condition, args.adapter_ckpt_path)
     ]
     adapters = CombinedAdapter(adapters, cond_weights, output_fp16=model.dtype == ms.float16)
@@ -113,7 +114,13 @@ def main(args):
         stdnormal = ms.ops.StandardNormal()
         start_code = stdnormal((args.n_samples, 4, args.H // 8, args.W // 8))
 
-    conds, img_shape = read_images(cond_paths, min(args.H, args.W))
+    flags = []
+    for condition in args.adapter_condition:
+        if condition == "sketch":
+            flags.append(0)
+        else:
+            flags.append(-1)
+    conds, img_shape = read_images(cond_paths, min(args.H, args.W), flags=flags)
     args.H, args.W = img_shape
     adapter_features, context = adapters(conds)
 
@@ -136,7 +143,7 @@ def main(args):
             verbose=False,
             unconditional_guidance_scale=args.scale,
             unconditional_conditioning=uc,
-            features_adapter=adapter_features,
+            features_adapter=tuple(adapter_features) if isinstance(adapter_features, list) else adapter_features,
             append_to_context=context,
             cond_tau=args.cond_tau,
             style_cond_tau=args.style_cond_tau,
@@ -166,6 +173,16 @@ if __name__ == "__main__":
     # Stable Diffusion
     parser.add_argument(
         "--ms_mode", type=int, default=0, help="Running in GRAPH_MODE(0) or PYNATIVE_MODE(1) (default=0)"
+    )
+    parser.add_argument(
+        "--jit_level",
+        default="O0",
+        type=str,
+        choices=["O0", "O1", "O2"],
+        help="Used to control the compilation optimization level. Supports ['O0', 'O1', 'O2']."
+        "O0: Except for optimizations that may affect functionality, all other optimizations are turned off, adopt KernelByKernel execution mode."
+        "O1: Using commonly used optimizations and automatic operator fusion optimizations, adopt KernelByKernel execution mode."
+        "O2: Ultimate performance optimization, adopt Sink execution mode.",
     )
     parser.add_argument("--prompt", type=str, nargs="?", default="best quality", help="added prompt")
     parser.add_argument("--negative_prompt", type=str, nargs="?", default="", help="the negative prompt not to render")
@@ -277,11 +294,6 @@ if __name__ == "__main__":
         help="Path(s) to the adapter checkpoint(s).",
     )
     parser.add_argument(
-        "--adapter_full_precision",
-        action="store_true",
-        help="Execute adapter in full precision (float32). By default is in half-precision (float16).",
-    )
-    parser.add_argument(
         "--condition_image",
         type=str,
         nargs="+",
@@ -318,10 +330,10 @@ if __name__ == "__main__":
         args.config = "../stable_diffusion_v2/configs/v1-inference.yaml"
         ckpt_path = "models/sd_v1.5-d0ab7146.ckpt"
     elif args.version == "2.0":
-        args.config = "../stable_diffusion_v2/v2-inference.yaml"
+        args.config = "../stable_diffusion_v2/configs/v2-inference.yaml"
         ckpt_path = "models/sd_v2_base-57526ee4.ckpt"
     elif args.version == "2.1":
-        args.config = "../stable_diffusion_v2/v2-inference.yaml"
+        args.config = "../stable_diffusion_v2/configs/v2-inference.yaml"
         ckpt_path = "models/sd_v2-1_base-7c8d09ce.ckpt"
     else:
         raise ValueError(f"Unsupported SD version: {args.version}")

@@ -85,8 +85,6 @@ class ResnetBlockCondNorm2D(nn.Cell):
         self.output_scale_factor = output_scale_factor
         self.time_embedding_norm = time_embedding_norm
 
-        conv_cls = nn.Conv2d
-
         if groups_out is None:
             groups_out = groups
 
@@ -97,7 +95,7 @@ class ResnetBlockCondNorm2D(nn.Cell):
         else:
             raise ValueError(f" unsupported time_embedding_norm: {self.time_embedding_norm}")
 
-        self.conv1 = conv_cls(
+        self.conv1 = nn.Conv2d(
             in_channels, out_channels, kernel_size=3, stride=1, pad_mode="pad", padding=1, has_bias=True
         )
 
@@ -111,7 +109,7 @@ class ResnetBlockCondNorm2D(nn.Cell):
         self.dropout = nn.Dropout(p=dropout)
 
         conv_2d_out_channels = conv_2d_out_channels or out_channels
-        self.conv2 = conv_cls(
+        self.conv2 = nn.Conv2d(
             out_channels, conv_2d_out_channels, kernel_size=3, stride=1, pad_mode="pad", padding=1, has_bias=True
         )
 
@@ -127,7 +125,7 @@ class ResnetBlockCondNorm2D(nn.Cell):
 
         self.conv_shortcut = None
         if self.use_in_shortcut:
-            self.conv_shortcut = conv_cls(
+            self.conv_shortcut = nn.Conv2d(
                 in_channels,
                 conv_2d_out_channels,
                 kernel_size=1,
@@ -202,8 +200,8 @@ class ResnetBlock2D(nn.Cell):
         eps (`float`, *optional*, defaults to `1e-6`): The epsilon to use for the normalization.
         non_linearity (`str`, *optional*, default to `"swish"`): the activation function to use.
         time_embedding_norm (`str`, *optional*, default to `"default"` ): Time scale shift config.
-            By default, apply timestep embedding conditioning with a simple shift mechanism. Choose "scale_shift"
-            for a stronger conditioning with scale and shift.
+            By default, apply timestep embedding conditioning with a simple shift mechanism. Choose "scale_shift" for a
+            stronger conditioning with scale and shift.
         kernel (`ms.Tensor`, optional, default to None): FIR filter, see
             [`~models.resnet.FirUpsample2D`] and [`~models.resnet.FirDownsample2D`].
         output_scale_factor (`float`, *optional*, default to be `1.0`): the scale factor to use for the output.
@@ -261,23 +259,20 @@ class ResnetBlock2D(nn.Cell):
         self.time_embedding_norm = time_embedding_norm
         self.skip_time_act = skip_time_act
 
-        linear_cls = nn.Dense
-        conv_cls = nn.Conv2d
-
         if groups_out is None:
             groups_out = groups
 
         self.norm1 = GroupNorm(num_groups=groups, num_channels=in_channels, eps=eps, affine=True)
 
-        self.conv1 = conv_cls(
+        self.conv1 = nn.Conv2d(
             in_channels, out_channels, kernel_size=3, stride=1, pad_mode="pad", padding=1, has_bias=True
         )
 
         if temb_channels is not None:
             if self.time_embedding_norm == "default":
-                self.time_emb_proj = linear_cls(temb_channels, out_channels)
+                self.time_emb_proj = nn.Dense(temb_channels, out_channels)
             elif self.time_embedding_norm == "scale_shift":
-                self.time_emb_proj = linear_cls(temb_channels, 2 * out_channels)
+                self.time_emb_proj = nn.Dense(temb_channels, 2 * out_channels)
             else:
                 raise ValueError(f"unknown time_embedding_norm : {self.time_embedding_norm} ")
         else:
@@ -287,7 +282,7 @@ class ResnetBlock2D(nn.Cell):
 
         self.dropout = nn.Dropout(p=dropout)
         conv_2d_out_channels = conv_2d_out_channels or out_channels
-        self.conv2 = conv_cls(
+        self.conv2 = nn.Conv2d(
             out_channels, conv_2d_out_channels, kernel_size=3, stride=1, pad_mode="pad", padding=1, has_bias=True
         )
 
@@ -315,7 +310,7 @@ class ResnetBlock2D(nn.Cell):
 
         self.conv_shortcut = None
         if self.use_in_shortcut:
-            self.conv_shortcut = conv_cls(
+            self.conv_shortcut = nn.Conv2d(
                 in_channels,
                 conv_2d_out_channels,
                 kernel_size=1,

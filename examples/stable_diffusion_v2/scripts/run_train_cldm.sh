@@ -1,6 +1,4 @@
 export DEVICE_ID=$1
-export MS_ASCEND_CHECK_OVERFLOW_MODE="INFNAN_MODE" # debug
-# export MS_ASCEND_CHECK_OVERFLOW_MODE=1 # debug
 
 task_name=train_cldm_canny_fill1k_e14_constant_ema
 output_dir=outputs/$task_name

@@ -98,6 +98,16 @@ def parse_args():
         help="train config path to load a yaml file that override the default arguments",
     )
     parser.add_argument("--mode", default=0, type=int, help="Specify the mode: 0 for graph mode, 1 for pynative mode")
+    parser.add_argument(
+        "--jit_level",
+        default="O2",
+        type=str,
+        choices=["O0", "O1", "O2"],
+        help="Used to control the compilation optimization level. Supports ['O0', 'O1', 'O2']."
+        "O0: Except for optimizations that may affect functionality, all other optimizations are turned off, adopt KernelByKernel execution mode."
+        "O1: Using commonly used optimizations and automatic operator fusion optimizations, adopt KernelByKernel execution mode."
+        "O2: Ultimate performance optimization, adopt Sink execution mode.",
+    )
     parser.add_argument("--use_parallel", default=False, type=str2bool, help="use parallel")
     parser.add_argument("--use_recompute", default=None, type=str2bool, help="whether use recompute")
     parser.add_argument(
@@ -219,10 +229,11 @@ def main(args):
         args.epochs = 3
 
     # init
-    device_id, rank_id, device_num = init_env(
+    rank_id, device_num = init_env(
         args.mode,
         seed=args.seed,
         distributed=args.use_parallel,
+        jit_level=args.jit_level,
         enable_modelarts=args.enable_modelarts,
         num_workers=args.num_workers,
         json_data_path=args.json_data_path,

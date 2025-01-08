@@ -135,10 +135,11 @@ def load_model_from_config(
 
 def main(args):
     # init
-    device_id, rank_id, device_num = init_env(
+    rank_id, device_num = init_env(
         args.ms_mode,
         seed=args.seed,
         distributed=args.use_parallel,
+        jit_level=args.jit_level,
         device_target=args.device_target,
     )
 
@@ -146,7 +147,7 @@ def main(args):
     set_logger(
         name="",
         output_dir=args.output_path,
-        rank=0,
+        rank=rank_id,
         log_level=eval(args.log_level),
     )
 
@@ -348,6 +349,16 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--ms_mode", type=int, default=0, help="Running in GRAPH_MODE(0) or PYNATIVE_MODE(1) (default=0)"
+    )
+    parser.add_argument(
+        "--jit_level",
+        default="O2",
+        type=str,
+        choices=["O0", "O1", "O2"],
+        help="Used to control the compilation optimization level. Supports ['O0', 'O1', 'O2']."
+        "O0: Except for optimizations that may affect functionality, all other optimizations are turned off, adopt KernelByKernel execution mode."
+        "O1: Using commonly used optimizations and automatic operator fusion optimizations, adopt KernelByKernel execution mode."
+        "O2: Ultimate performance optimization, adopt Sink execution mode.",
     )
     parser.add_argument("--use_parallel", default=False, type=str2bool, help="use parallel")
     parser.add_argument("--device_target", type=str, nargs="?", default="Ascend", help="Ascend, GPU")
