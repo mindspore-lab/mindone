@@ -262,6 +262,7 @@ class TimestepEmbedder(nn.Cell):
         hidden_size: int,
         frequency_embedding_size: int = 256,
         hidden_act: str = "silu",
+        max_period: int = 10000,
         dtype: ms.Type = ms.float32,
     ) -> None:
         super().__init__()
@@ -271,23 +272,22 @@ class TimestepEmbedder(nn.Cell):
             mint.nn.Linear(hidden_size, hidden_size, bias=False, dtype=dtype),
         )
         self.frequency_embedding_size = frequency_embedding_size
+        half = frequency_embedding_size // 2
+        self._freqs = Tensor(np.exp(-np.log(max_period) * np.arange(start=0, stop=half, dtype=np.float32) / half)[None])
         self._dtype = dtype
 
     @property
     def dtype(self):
         return self._dtype
 
-    @staticmethod
-    def timestep_embedding(t: Tensor, dim: int, max_period: int = 10000) -> Tensor:
-        half = dim // 2
-        freqs = mint.exp(-mint.log(Tensor(max_period)) * mint.arange(start=0, end=half, dtype=ms.float32) / half)
-        args = ops.unsqueeze(t, 1).to(ms.float32) * ops.unsqueeze(freqs, 0)
+    def timestep_embedding(self, t: Tensor) -> Tensor:
+        args = ops.unsqueeze(t, 1).to(ms.float32) * self._freqs
         embedding = mint.cat([mint.cos(args), mint.sin(args)], dim=-1)
-        if dim % 2:
+        if self.frequency_embedding_size % 2:
             embedding = mint.cat([embedding, mint.zeros_like(embedding[:, :1])], dim=-1)
         return embedding
 
     def construct(self, t: Tensor) -> Tensor:
-        t_freq = self.timestep_embedding(t, self.frequency_embedding_size)
+        t_freq = self.timestep_embedding(t)
         t_emb = self.mlp(t_freq.to(self.dtype))
         return t_emb
