@@ -94,7 +94,7 @@ class SV3DInferPipeline:
             "cond_frames_without_noise": cond_frames_without_noise,
         }
         batch_uc = {}
-        batch["cond_aug"] = Tensor(self.cond_aug).repeat(math.prod([1, self.num_frames]))
+        batch["cond_aug"] = Tensor(self.cond_aug).repeat_interleave(math.prod([1, self.num_frames]))
 
         for key in batch.keys():
             if key not in batch_uc and isinstance(batch[key], Tensor):
@@ -128,10 +128,10 @@ class SV3DInferPipeline:
 
         for k in ["crossattn", "concat"]:
             uc[k] = self.expand_dims_ops(uc[k], 1)
-            uc[k] = uc[k].repeat(self.num_frames, axis=1)
+            uc[k] = uc[k].repeat_interleave(self.num_frames, dim=1)
             uc[k] = uc[k].flatten(order="C", start_dim=0, end_dim=1)
             c[k] = self.expand_dims_ops(c[k], 1)
-            c[k] = c[k].repeat(self.num_frames, axis=1)
+            c[k] = c[k].repeat_interleave(self.num_frames, dim=1)
             c[k] = c[k].flatten(order="C", start_dim=0, end_dim=1)
 
         randn = Tensor(self.randn_n)

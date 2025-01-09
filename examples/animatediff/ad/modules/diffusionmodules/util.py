@@ -189,7 +189,7 @@ def timestep_embedding(timesteps, dim, max_period=10000, repeat_only=False):
         if dim % 2:
             embedding = ops.concat((embedding, ops.ZerosLike()(embedding[:, :1])), axis=-1)
     else:
-        embedding = ops.reshape(timesteps.repeat(dim), (-1, dim))
+        embedding = ops.reshape(timesteps.repeat_interleave(dim), (-1, dim))
     return embedding
 
 

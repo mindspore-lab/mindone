@@ -284,7 +284,7 @@ class Attention(nn.Cell):
             else:
                 finfo_type = np.float32
             max_neg_value = -np.finfo(finfo_type).max
-            mask = mask.repeat(self.heads, axis=0)
+            mask = mask.repeat_interleave(self.heads, dim=0)
             mask = ops.expand_dims(mask, axis=1)
             sim.masked_fill(mask, max_neg_value)
 

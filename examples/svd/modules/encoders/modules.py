@@ -42,8 +42,8 @@ class VideoPredictionEmbedderWithEncoder(AbstractEmbModel):
             sigmas = self.sigma_sampler(b)
             if self.sigma_cond is not None:
                 sigma_cond = self.sigma_cond(sigmas)
-                sigma_cond = sigma_cond.repeat(self.n_copies, axis=0)  # b d -> (b t) d
-            sigmas = sigmas.repeat(self.n_copies, axis=0)  # b -> (b t)
+                sigma_cond = sigma_cond.repeat_interleave(self.n_copies, dim=0)  # b d -> (b t) d
+            sigmas = sigmas.repeat_interleave(self.n_copies, dim=0)  # b -> (b t)
             noise = ops.randn_like(vid)
             vid = vid + noise * append_dims(sigmas, vid.ndim)
 
@@ -61,7 +61,7 @@ class VideoPredictionEmbedderWithEncoder(AbstractEmbModel):
 
         vid = vid.reshape(-1, self.n_cond_frames, *vid.shape[1:])  # (b t) c h w -> b t c h w
         vid = vid.reshape(vid.shape[0], -1, *vid.shape[3:])  # b t c h w -> b (t c) h w
-        vid = vid.repeat(self.n_copies, axis=0)  # b (t c) h w -> (b s) (t c) h w
+        vid = vid.repeat_interleave(self.n_copies, dim=0)  # b (t c) h w -> (b s) (t c) h w
 
         if self.sigma_cond is not None:
             return vid, sigma_cond
@@ -84,6 +84,6 @@ class FrozenOpenCLIPImagePredictionEmbedder(AbstractEmbModel):
     def construct(self, vid: Tensor) -> Tensor:
         vid = self.open_clip(vid)
         vid = vid.reshape(-1, self.n_cond_frames, vid.shape[1])  # (b t) d -> b t d
-        vid = vid.repeat(self.n_copies, axis=0)  # b t d -> (b s) t d
+        vid = vid.repeat_interleave(self.n_copies, dim=0)  # b t d -> (b s) t d
 
         return vid
