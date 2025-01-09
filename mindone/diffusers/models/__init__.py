@@ -26,7 +26,7 @@ _import_structure = {
     "autoencoders.consistency_decoder_vae": ["ConsistencyDecoderVAE"],
     "autoencoders.vq_model": ["VQModel"],
     "controlnet": ["ControlNetModel"],
-    "controlnet_flux": ["FluxControlNetModel"],
+    "controlnet_flux": ["FluxControlNetModel", "FluxMultiControlNetModel"],
     "controlnet_hunyuan": ["HunyuanDiT2DControlNetModel", "HunyuanDiT2DMultiControlNetModel"],
     "controlnet_sd3": ["SD3ControlNetModel", "SD3MultiControlNetModel"],
     "controlnet_sparsectrl": ["SparseControlNetModel"],
@@ -73,7 +73,7 @@ if TYPE_CHECKING:
         VQModel,
     )
     from .controlnet import ControlNetModel
-    from .controlnet_flux import FluxControlNetModel
+    from .controlnet_flux import FluxControlNetModel, FluxMultiControlNetModel
     from .controlnet_hunyuan import HunyuanDiT2DControlNetModel, HunyuanDiT2DMultiControlNetModel
     from .controlnet_sd3 import SD3ControlNetModel, SD3MultiControlNetModel
     from .controlnet_sparsectrl import SparseControlNetModel
