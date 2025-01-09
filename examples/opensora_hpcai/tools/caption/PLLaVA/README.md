@@ -50,12 +50,12 @@ The inference examples are shown below:
 To test the benchmark, you may use the video `-0og5HrzhpY_0.mp4` under `./examples`
 and run the following command:
 ```bash
-python pllavarun.py --video ./examples/-0og5HrzhpY_0.mp4 --benchmark
+python pllavarun.py --video ./example/-0og5HrzhpY_0.mp4 --benchmark
 ```
 
 |         Model         | Context       | Batch Size | Throughput (tokens/second) |
 |-----------------------|---------------|------------|----------------------------|
-| pllava-7b| D910*x1-MS2.4 |    1       | 8.87                       |
+| pllava-7b| D910*x1-MS2.4 |    1       | 8.89                       |
 
 > Context: {Ascend chip}-{number of NPUs}-{mindspore version}.\
 > Throughput (tokens/second): number of generated tokens per second.\

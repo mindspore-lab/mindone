@@ -12,7 +12,7 @@ def parse_args():
     parser.add_argument("--pretrained_model_name_or_path", type=str, default='./models/pllava-7b')
     parser.add_argument("--num_frames", type=int, default=4)
     parser.add_argument("--max_new_tokens", type=int, default=200)
-    parser.add_argument("--video", type=str, default="video.mp4", help="Path to the video file")
+    parser.add_argument("--video", type=str, default="./examples/-0og5HrzhpY_0.mp4", help="Path to the video file")
     parser.add_argument("--question", type=str, default="What is shown in this video?")
     parser.add_argument("--benchmark", action='store_true')
     return parser.parse_args()
