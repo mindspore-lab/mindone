@@ -233,13 +233,14 @@ class LoraModel(BaseTuner):
 
         return new_module
 
-    # might cause core dump, will fix it latter
-    # def __getattr__(self, name: str):
-    #     """Forward missing attributes to the wrapped module."""
-    #     try:
-    #         return super().__getattr__(name)  # defer to nn.Module's logic
-    #     except AttributeError:
-    #         return getattr(self.model, name)
+    def __getattr__(self, name: str):
+        """Forward missing attributes to the wrapped module."""
+        try:
+            return super().__getattr__(name)  # defer to nn.Module's logic
+        except AttributeError:
+            if name == "model":  # prevent infinite recursion if class is not initialized
+                raise
+            return getattr(self.model, name)
 
     def get_peft_config_as_dict(self, inference: bool = False):
         config_dict = {}
