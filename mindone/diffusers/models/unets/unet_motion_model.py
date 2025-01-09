@@ -178,7 +178,7 @@ class AnimateDiffTransformer3D(nn.Cell):
         # 2. Blocks
         for block in self.transformer_blocks:
             hidden_states = block(
-                hidden_states,
+                hidden_states=hidden_states,
                 encoder_hidden_states=encoder_hidden_states,
                 timestep=timestep,
                 cross_attention_kwargs=cross_attention_kwargs,
@@ -304,14 +304,14 @@ class DownBlockMotion(nn.Cell):
 
         blocks = zip(self.resnets, self.motion_modules)
         for resnet, motion_module in blocks:
-            hidden_states = resnet(hidden_states, temb)
+            hidden_states = resnet(input_tensor=hidden_states, temb=temb)
             hidden_states = motion_module(hidden_states, num_frames=num_frames)
 
             output_states = output_states + (hidden_states,)
 
         if self.downsamplers is not None:
             for downsampler in self.downsamplers:
-                hidden_states = downsampler(hidden_states)
+                hidden_states = downsampler(hidden_states=hidden_states)
 
             output_states = output_states + (hidden_states,)
 
@@ -468,15 +468,16 @@ class CrossAttnDownBlockMotion(nn.Cell):
 
         blocks = list(zip(self.resnets, self.attentions, self.motion_modules))
         for i, (resnet, attn, motion_module) in enumerate(blocks):
-            hidden_states = resnet(hidden_states, temb)
+            hidden_states = resnet(input_tensor=hidden_states, temb=temb)
             hidden_states = attn(
-                hidden_states,
+                hidden_states=hidden_states,
                 encoder_hidden_states=encoder_hidden_states,
                 cross_attention_kwargs=cross_attention_kwargs,
                 attention_mask=attention_mask,
                 encoder_attention_mask=encoder_attention_mask,
                 return_dict=False,
             )[0]
+
             hidden_states = motion_module(
                 hidden_states,
                 num_frames=num_frames,
@@ -490,7 +491,7 @@ class CrossAttnDownBlockMotion(nn.Cell):
 
         if self.downsamplers is not None:
             for downsampler in self.downsamplers:
-                hidden_states = downsampler(hidden_states)
+                hidden_states = downsampler(hidden_states=hidden_states)
 
             output_states = output_states + (hidden_states,)
 
@@ -654,9 +655,10 @@ class CrossAttnUpBlockMotion(nn.Cell):
 
             hidden_states = ops.cat([hidden_states, res_hidden_states], axis=1)
 
-            hidden_states = resnet(hidden_states, temb)
+            hidden_states = resnet(input_tensor=hidden_states, temb=temb)
+
             hidden_states = attn(
-                hidden_states,
+                hidden_states=hidden_states,
                 encoder_hidden_states=encoder_hidden_states,
                 cross_attention_kwargs=cross_attention_kwargs,
                 attention_mask=attention_mask,
@@ -671,7 +673,7 @@ class CrossAttnUpBlockMotion(nn.Cell):
 
         if self.upsamplers is not None:
             for upsampler in self.upsamplers:
-                hidden_states = upsampler(hidden_states, upsample_size)
+                hidden_states = upsampler(hidden_states=hidden_states, output_size=upsample_size)
 
         return hidden_states
 
@@ -784,12 +786,13 @@ class UpBlockMotion(nn.Cell):
 
             hidden_states = ops.cat([hidden_states, res_hidden_states], axis=1)
 
-            hidden_states = resnet(hidden_states, temb)
+            hidden_states = resnet(input_tensor=hidden_states, temb=temb)
+
             hidden_states = motion_module(hidden_states, num_frames=num_frames)
 
         if self.upsamplers is not None:
             for upsampler in self.upsamplers:
-                hidden_states = upsampler(hidden_states, upsample_size)
+                hidden_states = upsampler(hidden_states=hidden_states, output_size=upsample_size)
 
         return hidden_states
 
@@ -931,12 +934,12 @@ class UNetMidBlockCrossAttnMotion(nn.Cell):
         encoder_attention_mask: Optional[ms.Tensor] = None,
         num_frames: int = 1,
     ) -> ms.Tensor:
-        hidden_states = self.resnets[0](hidden_states, temb)
+        hidden_states = self.resnets[0](input_tensor=hidden_states, temb=temb)
 
         blocks = zip(self.attentions, self.resnets[1:], self.motion_modules)
         for attn, resnet, motion_module in blocks:
             hidden_states = attn(
-                hidden_states,
+                hidden_states=hidden_states,
                 encoder_hidden_states=encoder_hidden_states,
                 cross_attention_kwargs=cross_attention_kwargs,
                 attention_mask=attention_mask,
@@ -947,7 +950,7 @@ class UNetMidBlockCrossAttnMotion(nn.Cell):
                 hidden_states,
                 num_frames=num_frames,
             )
-            hidden_states = resnet(hidden_states, temb)
+            hidden_states = resnet(input_tensor=hidden_states, temb=temb)
 
         return hidden_states
 
@@ -1928,7 +1931,6 @@ class UNetMotionModel(ModelMixin, ConfigMixin, UNet2DConditionLoadersMixin, Peft
 
         emb = emb if aug_emb is None else emb + aug_emb
         emb = emb.repeat_interleave(repeats=num_frames, dim=0)
-        encoder_hidden_states = encoder_hidden_states.repeat_interleave(repeats=num_frames, dim=0)
 
         if self.encoder_hid_proj is not None and self.config["encoder_hid_dim_type"] == "ip_image_proj":
             if "image_embeds" not in added_cond_kwargs:

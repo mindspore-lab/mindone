@@ -23,7 +23,7 @@ from mindspore import ops
 
 from ....transformers import CLIPTextModel, T5EncoderModel
 from ...image_processor import VaeImageProcessor
-from ...loaders import FluxLoraLoaderMixin
+from ...loaders import FluxLoraLoaderMixin, FromSingleFileMixin, TextualInversionLoaderMixin
 from ...models.autoencoders import AutoencoderKL
 from ...models.transformers import FluxTransformer2DModel
 from ...schedulers import FlowMatchEulerDiscreteScheduler
@@ -71,7 +71,7 @@ def retrieve_timesteps(
     sigmas: Optional[List[float]] = None,
     **kwargs,
 ):
-    """
+    r"""
     Calls the scheduler's `set_timesteps` method and retrieves timesteps from the scheduler after the call. Handles
     custom timesteps. Any kwargs will be supplied to `scheduler.set_timesteps`.
 
@@ -120,7 +120,12 @@ def retrieve_timesteps(
     return timesteps, num_inference_steps
 
 
-class FluxPipeline(DiffusionPipeline, FluxLoraLoaderMixin):
+class FluxPipeline(
+    DiffusionPipeline,
+    FluxLoraLoaderMixin,
+    FromSingleFileMixin,
+    TextualInversionLoaderMixin,
+):
     r"""
     The Flux pipeline for text-to-image generation.
 
@@ -193,6 +198,9 @@ class FluxPipeline(DiffusionPipeline, FluxLoraLoaderMixin):
         prompt = [prompt] if isinstance(prompt, str) else prompt
         batch_size = len(prompt)
 
+        if isinstance(self, TextualInversionLoaderMixin):
+            prompt = self.maybe_convert_prompt(prompt, self.tokenizer_2)
+
         text_inputs = self.tokenizer_2(
             prompt,
             padding="max_length",
@@ -234,6 +242,9 @@ class FluxPipeline(DiffusionPipeline, FluxLoraLoaderMixin):
     ):
         prompt = [prompt] if isinstance(prompt, str) else prompt
         batch_size = len(prompt)
+
+        if isinstance(self, TextualInversionLoaderMixin):
+            prompt = self.maybe_convert_prompt(prompt, self.tokenizer)
 
         text_inputs = self.tokenizer(
             prompt,
@@ -308,10 +319,6 @@ class FluxPipeline(DiffusionPipeline, FluxLoraLoaderMixin):
                 scale_lora_layers(self.text_encoder_2, lora_scale)
 
         prompt = [prompt] if isinstance(prompt, str) else prompt
-        if prompt is not None:
-            batch_size = len(prompt)
-        else:
-            batch_size = prompt_embeds.shape[0]
 
         if prompt_embeds is None:
             prompt_2 = prompt_2 or prompt
@@ -339,8 +346,7 @@ class FluxPipeline(DiffusionPipeline, FluxLoraLoaderMixin):
                 unscale_lora_layers(self.text_encoder_2, lora_scale)
 
         dtype = self.text_encoder.dtype if self.text_encoder is not None else self.transformer.dtype
-        text_ids = ops.zeros((batch_size, prompt_embeds.shape[1], 3), dtype=dtype)
-        text_ids = text_ids.tile((num_images_per_prompt, 1, 1))
+        text_ids = ops.zeros((prompt_embeds.shape[1], 3), dtype=dtype)
 
         return prompt_embeds, pooled_prompt_embeds, text_ids
 
@@ -400,9 +406,8 @@ class FluxPipeline(DiffusionPipeline, FluxLoraLoaderMixin):
 
         latent_image_id_height, latent_image_id_width, latent_image_id_channels = latent_image_ids.shape
 
-        latent_image_ids = latent_image_ids[None, :].tile((batch_size, 1, 1, 1))
         latent_image_ids = latent_image_ids.reshape(
-            batch_size, latent_image_id_height * latent_image_id_width, latent_image_id_channels
+            latent_image_id_height * latent_image_id_width, latent_image_id_channels
         )
 
         return latent_image_ids.to(dtype=dtype)
@@ -428,6 +433,35 @@ class FluxPipeline(DiffusionPipeline, FluxLoraLoaderMixin):
         latents = latents.reshape(batch_size, channels // (2 * 2), height * 2, width * 2)
 
         return latents
+
+    def enable_vae_slicing(self):
+        r"""
+        Enable sliced VAE decoding. When this option is enabled, the VAE will split the input tensor in slices to
+        compute decoding in several steps. This is useful to save some memory and allow larger batch sizes.
+        """
+        self.vae.enable_slicing()
+
+    def disable_vae_slicing(self):
+        r"""
+        Disable sliced VAE decoding. If `enable_vae_slicing` was previously enabled, this method will go back to
+        computing decoding in one step.
+        """
+        self.vae.disable_slicing()
+
+    def enable_vae_tiling(self):
+        r"""
+        Enable tiled VAE decoding. When this option is enabled, the VAE will split the input tensor into tiles to
+        compute decoding and encoding in several steps. This is useful for saving a large amount of memory and to allow
+        processing larger images.
+        """
+        self.vae.enable_tiling()
+
+    def disable_vae_tiling(self):
+        r"""
+        Disable tiled VAE decoding. If `enable_vae_tiling` was previously enabled, this method will go back to
+        computing decoding in one step.
+        """
+        self.vae.disable_tiling()
 
     def prepare_latents(
         self,
@@ -485,7 +519,7 @@ class FluxPipeline(DiffusionPipeline, FluxLoraLoaderMixin):
         width: Optional[int] = None,
         num_inference_steps: int = 28,
         timesteps: List[int] = None,
-        guidance_scale: float = 7.0,
+        guidance_scale: float = 3.5,
         num_images_per_prompt: Optional[int] = 1,
         generator: Optional[Union[np.random.Generator, List[np.random.Generator]]] = None,
         latents: Optional[ms.Tensor] = None,
@@ -595,7 +629,7 @@ class FluxPipeline(DiffusionPipeline, FluxLoraLoaderMixin):
         else:
             batch_size = prompt_embeds.shape[0]
 
-        lora_scale = self.joint_attention_kwargs.pop("scale", None) if self.joint_attention_kwargs is not None else None
+        lora_scale = self.joint_attention_kwargs.get("scale", None) if self.joint_attention_kwargs is not None else None
         (
             prompt_embeds,
             pooled_prompt_embeds,
@@ -642,14 +676,14 @@ class FluxPipeline(DiffusionPipeline, FluxLoraLoaderMixin):
         num_warmup_steps = max(len(timesteps) - num_inference_steps * self.scheduler.order, 0)
         self._num_timesteps = len(timesteps)
 
-        # 6. Scale lora layers
-        # we're popping the `scale` instead of getting it because otherwise `scale` will be propagated
-        # to the transformer and will raise RuntimeError.
-        if lora_scale is not None:
-            # weight the lora layers by setting `lora_scale` for each PEFT layer
-            scale_lora_layers(self.transformer, lora_scale)
+        # handle guidance
+        if self.transformer.config.guidance_embeds:
+            guidance = ops.full([1], guidance_scale, dtype=ms.float32)
+            guidance = guidance.broadcast_to((latents.shape[0],))
+        else:
+            guidance = None
 
-        # 7. Denoising loop
+        # 6. Denoising loop
         with self.progress_bar(total=num_inference_steps) as progress_bar:
             for i, t in enumerate(timesteps):
                 if self.interrupt:
@@ -658,16 +692,8 @@ class FluxPipeline(DiffusionPipeline, FluxLoraLoaderMixin):
                 # broadcast to batch dimension in a way that's compatible with ONNX/Core ML
                 timestep = t.broadcast_to((latents.shape[0],)).to(latents.dtype)
 
-                # handle guidance
-                if self.transformer.config.guidance_embeds:
-                    guidance = ms.tensor([guidance_scale])
-                    guidance = guidance.broadcast_to((latents.shape[0],))
-                else:
-                    guidance = None
-
                 noise_pred = self.transformer(
                     hidden_states=latents,
-                    # YiYi notes: divide it by 1000 for now because we scale it by 1000 in the transformer model (we should not keep it but I want to keep the inputs same for the model for testing)  # noqa: E501
                     timestep=timestep / 1000,
                     guidance=guidance,
                     pooled_projections=pooled_prompt_embeds,

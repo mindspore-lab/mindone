@@ -134,3 +134,11 @@ image.save("flux.png")
 
 
 ::: mindone.diffusers.pipelines.flux.FluxPipeline
+
+::: mindone.diffusers.FluxImg2ImgPipeline
+
+::: mindone.diffusers.FluxInpaintPipeline
+
+::: mindone.diffusers.FluxControlNetInpaintPipeline
+
+::: mindone.diffusers.FluxControlNetImg2ImgPipeline
