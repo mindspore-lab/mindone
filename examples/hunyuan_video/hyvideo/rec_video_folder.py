@@ -152,20 +152,23 @@ def main(args):
         video_recon = video_recon.permute((0, 2, 1, 3, 4))  # b t c h w
         for idx, video in enumerate(video_recon):
             file_paths = eval(str(file_paths).replace("/n", ","))
-            file_name = os.path.basename(file_paths[idx])
-            if ".avi" in os.path.basename(file_name):
-                file_name = file_name.replace(".avi", ".mp4")
-            output_path = os.path.join(generated_video_dir, file_name)
+            file_path = file_paths[idx]
+            if ".avi" in os.path.basename(file_path):
+                file_path = file_path.replace(".avi", ".mp4")
+            output_path = file_path.replace(
+                real_video_dir, generated_video_dir
+            )  # the same folder structure as the real video folder
             if not os.path.exists(os.path.dirname(output_path)):
-                os.mkdir(os.path.dirname(output_path))
+                os.makedirs(os.path.dirname(output_path), exist_ok=True)
             if args.output_origin:
-                os.makedirs(os.path.join(generated_video_dir, "origin/"), exist_ok=True)
-                origin_output_path = os.path.join(generated_video_dir, "origin/", file_name)
+                origin_output_path = file_path.replace(real_video_dir, generated_video_dir + "_origin/")
+                if not os.path.exists(os.path.dirname(origin_output_path)):
+                    os.makedirs(os.path.dirname(origin_output_path), exist_ok=True)
                 save_data = transform_to_rgb(x[idx : idx + 1].to(ms.float32).asnumpy(), rescale_to_uint8=False)
                 # (b c t h w) -> (b t h w c)
                 save_data = np.transpose(save_data, (0, 2, 3, 4, 1))
                 if not os.path.exists(os.path.dirname(origin_output_path)):
-                    os.mkdir(os.path.dirname(origin_output_path))
+                    os.makedirs(os.path.dirname(origin_output_path), exist_ok=True)
                 save_videos(
                     save_data,
                     origin_output_path,
