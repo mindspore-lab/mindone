@@ -164,16 +164,14 @@ class ImageVideoDataset(BaseDataset):
 
         if self._tae_latent_folder:
             tae_latent_data = np.load(data["tae_latent"])
-            latent_mean, latent_std = tae_latent_data["latent_mean"], tae_latent_data["latent_std"]  # C T H W
-            if latent_mean.shape[1] < self._min_length:  # TODO: add support for images and buckets
+            latent_mean, latent_std = tae_latent_data["latent_mean"], tae_latent_data["latent_std"]  # T C H W
+            if 1 < len(latent_mean) < self._min_length:  # TODO: add support for buckets
                 raise ValueError(f"Video is too short: {data['video']}")
 
             batch_index = np.linspace(0, self._min_length - 1, num_frames, dtype=int)
             latent_mean, latent_std = latent_mean[batch_index], latent_std[batch_index]
             tae_latent = np.random.normal(latent_mean, latent_std).astype(np.float32)
-            tae_latent = (tae_latent - self._tae_shift_factor) * self._tae_scale_factor
-            # FIXME: remove unnecessary transpose
-            data["video"] = np.transpose(tae_latent, (1, 0, 2, 3))  # C T H W -> T C H W
+            data["video"] = (tae_latent - self._tae_shift_factor) * self._tae_scale_factor
 
         else:
             if data["video"].lower().endswith(IMAGE_EXT):
@@ -188,7 +186,7 @@ class ImageVideoDataset(BaseDataset):
                         min_length = (num_frames - 1) * self._stride + 1
                     if len(reader) < min_length:
                         raise ValueError(f"Video is too short: {data['video']}")
-                    data["video"] = reader.fetch_frames(num=num_frames, start_pos=0, step=self._stride)
+                    data["video"] = reader.fetch_frames(num=num_frames, start_pos=0, step=self._stride)  # T H W C
                     data["fps"] = np.array(reader.fps / self._stride, dtype=np.float32)
 
         data["num_frames"] = np.array(num_frames, dtype=np.float32)
@@ -246,7 +244,7 @@ class ImageVideoDataset(BaseDataset):
                         ResizeCrop(target_size, interpolation=interpolation),
                         lambda x: x.astype(np.float32) / 127.5 - 1,
                         lambda x: x[None, ...] if x.ndim == 3 else x,  # if image
-                        lambda x: np.transpose(x, (0, 3, 1, 2)),
+                        lambda x: np.transpose(x, (3, 0, 1, 2)),  # T H W C -> C T H W
                     ],
                     "input_columns": ["video"],
                 }
