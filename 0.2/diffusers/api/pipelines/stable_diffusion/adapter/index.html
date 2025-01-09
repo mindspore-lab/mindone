@@ -7462,7 +7462,7 @@ Please, refer to the <a href="https://huggingface.co/runwayml/stable-diffusion-v
             <span class="n">image</span><span class="p">,</span> <span class="n">has_nsfw_concept</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">run_safety_checker</span><span class="p">(</span><span class="n">image</span><span class="p">,</span> <span class="n">prompt_embeds</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span>
 
             <span class="c1"># 10. Convert to PIL</span>
-            <span class="n">image</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">numpy_to_pil</span><span class="p">(</span><span class="n">image</span><span class="o">.</span><span class="n">numpy</span><span class="p">())</span>
+            <span class="n">image</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">numpy_to_pil</span><span class="p">(</span><span class="n">image</span><span class="p">)</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="c1"># 8. Post-processing</span>
             <span class="n">image</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">decode_latents</span><span class="p">(</span><span class="n">latents</span><span class="p">)</span>
@@ -8506,7 +8506,7 @@ the output of the pre-final layer will be used for computing the prompt embeddin
         <span class="n">image</span><span class="p">,</span> <span class="n">has_nsfw_concept</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">run_safety_checker</span><span class="p">(</span><span class="n">image</span><span class="p">,</span> <span class="n">prompt_embeds</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span>
 
         <span class="c1"># 10. Convert to PIL</span>
-        <span class="n">image</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">numpy_to_pil</span><span class="p">(</span><span class="n">image</span><span class="o">.</span><span class="n">numpy</span><span class="p">())</span>
+        <span class="n">image</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">numpy_to_pil</span><span class="p">(</span><span class="n">image</span><span class="p">)</span>
     <span class="k">else</span><span class="p">:</span>
         <span class="c1"># 8. Post-processing</span>
         <span class="n">image</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">decode_latents</span><span class="p">(</span><span class="n">latents</span><span class="p">)</span>
