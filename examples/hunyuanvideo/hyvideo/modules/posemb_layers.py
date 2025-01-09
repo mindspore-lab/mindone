@@ -30,12 +30,12 @@ def reshape_for_broadcast(
         When using Attention, head_first should be True.
 
     Args:
-        freqs_cis (Union[torch.Tensor, Tuple[torch.Tensor]]): Frequency tensor to be reshaped.
-        x (torch.Tensor): Target tensor for broadcasting compatibility.
+        freqs_cis (Union[ms.Tensor, Tuple[ms.Tensor]]): Frequency tensor to be reshaped.
+        x (ms.Tensor): Target tensor for broadcasting compatibility.
         head_first (bool): head dimension first (except batch dim) or not.
 
     Returns:
-        torch.Tensor: Reshaped frequency tensor.
+        ms.Tensor: Reshaped frequency tensor.
 
     Raises:
         AssertionError: If the frequency tensor doesn't match the expected shape.
@@ -57,22 +57,17 @@ def reshape_for_broadcast(
         #    x.shape[-1],
         # ), f"freqs_cis shape {freqs_cis[0].shape} does not match x shape {x.shape}"
 
-        return freqs_cis[0].view(*shape), freqs_cis[1].view(*shape)
+        return freqs_cis[0].reshape(shape), freqs_cis[1].reshape(shape)
     else:
         # assert freqs_cis.shape == (
         #    x.shape[1],
         #    x.shape[-1],
         # ), f"freqs_cis shape {freqs_cis.shape} does not match x shape {x.shape}"
         # shape = [d if i == 1 or i == ndim - 1 else 1 for i, d in enumerate(x.shape)]
-        return freqs_cis.view(*shape)
+        return freqs_cis.reshape(shape)
 
 
 def rotate_half(x):
-    # x_real, x_imag = (
-    #    x.float().reshape(*x.shape[:-1], -1, 2).unbind(-1)
-    #)  # [B, S, H, D//2]
-    # return torch.stack([-x_imag, x_real], dim=-1).flatten(3)
-
     # [B, S, H, D] -> [B, S, H, D//2, 2]
     x = x.reshape(x.shape[:-1] + (-1, 2))
     # real/image: [B, S, H, D//2, 1]
@@ -84,7 +79,6 @@ def rotate_half(x):
     return x_out.reshape(x_out.shape[:-2] + (-1,))
 
 
-# TODO: for graph mode, may need to convert freqs_cis to one tensor
 def apply_rotary_emb(
     xq: ms.Tensor,
     xk: ms.Tensor,
@@ -100,13 +94,13 @@ def apply_rotary_emb(
     returned as real tensors.
 
     Args:
-        xq (torch.Tensor): Query tensor to apply rotary embeddings. [B, S, H, D]
-        xk (torch.Tensor): Key tensor to apply rotary embeddings.   [B, S, H, D]
-        freqs_cis (torch.Tensor or tuple): Precomputed frequency tensor for complex exponential. can be a complex tensor or a tuple of two tensors (cos, sin) representing a complex
+        xq (ms.Tensor): Query tensor to apply rotary embeddings. [B, S, H, D]
+        xk (ms.Tensor): Key tensor to apply rotary embeddings.   [B, S, H, D]
+        freqs_cis (ms.Tensor or tuple): Precomputed frequency tensor for complex exponential. can be a complex tensor or a tuple of two tensors (cos, sin) representing a complex
         head_first (bool): head dimension first (except batch dim) or not. (true if FA use BNSD format for better speed). not supported.
 
     Returns:
-        Tuple[torch.Tensor, torch.Tensor]: Tuple of modified query tensor and key tensor with rotary embeddings.
+        Tuple[ms.Tensor, ms.Tensor]: Tuple of modified query tensor and key tensor with rotary embeddings.
 
     """
     xk_out = None

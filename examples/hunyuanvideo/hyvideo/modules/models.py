@@ -51,11 +51,9 @@ class MMDoubleStreamBlock(nn.Cell):
             act_layer=get_activation_layer("silu"),
             **factory_kwargs,
         )
-        # TODO: which LayerNorm is optimal in MS now?
         self.img_norm1 = LayerNorm(
             hidden_size, elementwise_affine=False, eps=1e-6, **factory_kwargs
         )
-        # TODO: allow setting nn.Dense dtype
         self.img_attn_qkv = nn.Dense(
             hidden_size, hidden_size * 3, has_bias=qkv_bias)
 
@@ -181,13 +179,11 @@ class MMDoubleStreamBlock(nn.Cell):
             img_modulated, shift=img_mod1_shift, scale=img_mod1_scale
         )
         img_qkv = self.img_attn_qkv(img_modulated)
-        # img_q, img_k, img_v = rearrange(
-        #    img_qkv, "B L (K H D) -> K B L H D", K=3, H=self.heads_num
-        # )
+        # "B L (K H D) -> K B L H D", K=3, H=self.heads_num
         img_q, img_k, img_v = self.rearrange_qkv(img_qkv, self.heads_num)
 
         # Apply QK-Norm if needed
-        # TODO: need to cast to dtype of img_v
+        # TODO: check whether need to cast to dtype of img_v
         img_q = self.img_attn_q_norm(img_q) # .to(img_v)
         img_k = self.img_attn_k_norm(img_k) # .to(img_v)
 
@@ -206,9 +202,7 @@ class MMDoubleStreamBlock(nn.Cell):
         )
         txt_qkv = self.txt_attn_qkv(txt_modulated)
 
-        # txt_q, txt_k, txt_v = rearrange(
-        #     txt_qkv, "B L (K H D) -> K B L H D", K=3, H=self.heads_num
-        # )
+        # "B L (K H D) -> K B L H D", K=3, H=self.heads_num
         txt_q, txt_k, txt_v = self.rearrange_qkv(txt_qkv, self.heads_num)
 
         # Apply QK-Norm if needed.
@@ -222,8 +216,6 @@ class MMDoubleStreamBlock(nn.Cell):
         # assert (
         #    cu_seqlens_q.shape[0] == 2 * img.shape[0] + 1
         # ), f"cu_seqlens_q.shape:{cu_seqlens_q.shape}, img.shape[0]:{img.shape[0]}"
-
-        # print("Dxxx ", q.shape)
 
         # attention computation start
 

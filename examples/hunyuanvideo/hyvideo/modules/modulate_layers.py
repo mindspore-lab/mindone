@@ -28,12 +28,12 @@ def modulate(x, shift=None, scale=None):
     """modulate by shift and scale
 
     Args:
-        x (torch.Tensor): input tensor.
-        shift (torch.Tensor, optional): shift tensor. Defaults to None.
-        scale (torch.Tensor, optional): scale tensor. Defaults to None.
+        x (ms.Tensor): input tensor.
+        shift (ms.Tensor, optional): shift tensor. Defaults to None.
+        scale (ms.Tensor, optional): scale tensor. Defaults to None.
 
     Returns:
-        torch.Tensor: the output tensor after modulate.
+        ms.Tensor: the output tensor after modulate.
     """
     if scale is None and shift is None:
         return x
@@ -49,12 +49,12 @@ def apply_gate(x, gate=None, tanh=False):
     """
 
     Args:
-        x (torch.Tensor): input tensor.
-        gate (torch.Tensor, optional): gate tensor. Defaults to None.
+        x (ms.Tensor): input tensor.
+        gate (ms.Tensor, optional): gate tensor. Defaults to None.
         tanh (bool, optional): whether to use tanh function. Defaults to False.
 
     Returns:
-        torch.Tensor: the output tensor after apply gate.
+        ms.Tensor: the output tensor after apply gate.
     """
     if gate is None:
         return x

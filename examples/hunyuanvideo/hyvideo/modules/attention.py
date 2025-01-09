@@ -44,28 +44,6 @@ def attention(
 
     output: (B S H)
     '''
-    # TODO: add FA here
-    # if mode == "flash":
-        # if attn_mask is not None and attn_mask.dtype != ms.bool_:
-        #    attn_mask = attn_mask.to(q.dtype)
-        # x = F.scaled_dot_product_attention(
-        #    q, k, v, attn_mask=attn_mask, dropout_p=drop_rate, is_causal=causal
-        # )
-    # elif mode == "flash":
-    #    x = flash_attn_varlen_func(
-    #        q,
-    #        k,
-    #        v,
-    #        cu_seqlens_q,
-    #        cu_seqlens_kv,
-    #        max_seqlen_q,
-    #        max_seqlen_kv,
-    #    )
-    #    # x with shape [(bxs), a, d]
-    #    x = x.view(
-    #        batch_size, max_seqlen_q, x.shape[-2], x.shape[-1]
-    #    )  # reshape x to [b, s, a, d]
-
     # vanilla
     # preapre layout. (B S N D) -> (B N S D)
     q = ops.transpose(q, (0, 2, 1, 3))

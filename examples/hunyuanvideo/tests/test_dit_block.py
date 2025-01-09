@@ -58,7 +58,7 @@ def test_dualstream_block():
     img_out, txt_out = block(img, txt, vec, freqs_cis=freqs_cis)
     # out = block(img, txt, vec, freqs_cis_cos=freqs_cis_cos, freqs_cis_sin=freqs_cis_sin)
     print(img_out.shape)
-    print(img_out.mean(), img_out.std())
+    print(img_out.mean(), img_out.std())  # -0.00013358534 1.0066756
     print(txt.shape)
     print(txt_out.mean(), txt_out.std())
 
