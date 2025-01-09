@@ -158,7 +158,7 @@ class LlamaFlashAttention(LlamaAttention):
         )
         num_heads = self.num_heads // self.sp_group_size if self.sp_group_size is not None else self.num_heads
         self.flash_attention = FlashAttentionScore(
-            num_heads, keep_prob=1 - self.attention_dropout, scale_value=self.head_dim**-0.5, input_layout="BSND"
+            num_heads, keep_prob=1 - self.attention_dropout, scale_value=self.head_dim**-0.5, input_layout="BNSD"
         )
 
     def construct(self, hidden_states: Tensor, encoder_hidden_states: Optional[Tensor] = None) -> Tensor:
@@ -185,12 +185,8 @@ class LlamaFlashAttention(LlamaAttention):
         key_states = repeat_kv(key_states, self.num_key_value_groups)
         value_states = repeat_kv(value_states, self.num_key_value_groups)
 
-        # Reshape to the expected shape and dtype for Flash Attention
-        query_states = mint.permute(query_states, (0, 2, 1, 3))
-        key_states = mint.permute(key_states, (0, 2, 1, 3))
-        value_states = mint.permute(value_states, (0, 2, 1, 3))
-
         _, _, _, attn_output = self.flash_attention(query_states, key_states, value_states, None, None, None, None)
+        attn_output = mint.permute(attn_output, (0, 2, 1, 3))
         attn_output = self.alltoall(attn_output)
         attn_output = ops.reshape(attn_output, (bsz, q_len, -1))
         attn_output = self.o_proj(attn_output)
