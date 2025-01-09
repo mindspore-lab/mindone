@@ -19,7 +19,8 @@ from mindspore.train.callback import TimeMonitor
 logger = logging.getLogger(__name__)
 
 from omegaconf import OmegaConf
-from openlrm.models.rendering.utils.renderer import MatrixInv
+from openlrm.models.rendering.utils import MatrixInv, GridSample, NanToNum, CumProd, MeshGrid, SearchSorted
+from openlrm.losses import TVLoss
 from openlrm.runners import REGISTRY_RUNNERS
 from openlrm.utils import seed_everything
 
@@ -84,14 +85,32 @@ class LRMTrainer(Trainer):
         ), f"Config type {cfg.experiment.type} does not match with runner {self.__class__.__name__}"
         from openlrm.models import ModelLRMWithLoss
 
+        # Instantiate model
         lrm_model_with_loss = ModelLRMWithLoss(cfg)
         lrm_model_with_loss.set_train(True)
         # lrm_model_eval = ModelLRMWithLossEval(cfg) # TODO
 
+        # Mixed precision
+        weight_dtype = ms.float32
+        if self.args.dtype == "fp16":
+            weight_dtype = ms.float16
+        elif self.args.dtype == "bf16":
+            weight_dtype = ms.bfloat16
         if not self.args.global_bf16:
-            lrm_model_with_loss = auto_mixed_precision(
-                lrm_model_with_loss, amp_level=self.args.amp_level, custom_fp32_cells=[MatrixInv]
-            )
+            if weight_dtype == ms.bfloat16:
+                lrm_model_with_loss = auto_mixed_precision(
+                    lrm_model_with_loss, 
+                    amp_level=self.args.amp_level, 
+                    dtype=weight_dtype, 
+                    custom_fp32_cells=[MatrixInv, MeshGrid, GridSample, NanToNum, CumProd, SearchSorted, nn.MaxPool1d, nn.AvgPool1d, TVLoss]
+                )
+            else:
+                lrm_model_with_loss = auto_mixed_precision(
+                    lrm_model_with_loss, 
+                    amp_level=self.args.amp_level, 
+                    dtype=weight_dtype, 
+                    custom_fp32_cells=[MatrixInv, TVLoss]
+                )
 
         return lrm_model_with_loss
 
@@ -335,7 +354,7 @@ class LRMTrainer(Trainer):
                     f"\tGrad clipping: {args.clip_grad}",
                     f"\tMax grad norm: {args.max_grad_norm}",
                     f"\tEMA: {args.use_ema}",
-                    # f"\tUse recompute: {args.use_recompute}", #TBD
+                    f"\tUse recompute: {args.use_recompute}", 
                     f"\tDataset sink: {args.dataset_sink_mode}",
                 ]
             )

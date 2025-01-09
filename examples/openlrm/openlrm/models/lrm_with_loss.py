@@ -18,10 +18,11 @@ class ModelLRMWithLoss(nn.Cell):
     def __init__(
         self,
         cfg,
+        use_recompute = False
     ):
         super().__init__()
         self.cfg = cfg
-        self.lrm_generator = ModelLRM(**cfg.model)
+        self.lrm_generator = ModelLRM(**cfg.model, use_recompute=use_recompute)
 
         self.input_size = cfg.dataset.source_image_res
         self.render_image_res_low = cfg.dataset.render_image.low
@@ -39,11 +40,6 @@ class ModelLRMWithLoss(nn.Cell):
         perceptual_loss_fn = LPIPSLoss(prefech=True)
         tv_loss_fn = TVLoss()
         return pixel_loss_fn, perceptual_loss_fn, tv_loss_fn
-
-    def on_fit_start(self):
-        if self.global_rank == 0:
-            os.makedirs(os.path.join(self.logdir, "images"), exist_ok=True)
-            os.makedirs(os.path.join(self.logdir, "images_val"), exist_ok=True)
 
     def construct(
         self,
@@ -106,10 +102,11 @@ class ModelLRMWithLossEval(nn.Cell):
     def __init__(
         self,
         cfg,
+        use_recompute = False
     ):
         super().__init__()
         self.cfg = cfg
-        self.lrm_generator = ModelLRM(**cfg.model)
+        self.lrm_generator = ModelLRM(**cfg.model, use_recompute=use_recompute)
 
         self.input_size = cfg.dataset.source_image_res
         self.render_image_res_low = cfg.dataset.render_image.low
@@ -222,4 +219,4 @@ class ModelLRMWithLossEval(nn.Cell):
 
         logger.info(f"loss: {loss}, loss pixel: {loss_pixel}, loss lpips: {loss_perceptual}, loss tv: {loss_tv}")
 
-        return loss, model_pred, target
+        return loss, images_rgb, render_image

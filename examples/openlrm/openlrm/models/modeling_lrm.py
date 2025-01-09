@@ -46,7 +46,8 @@ class ModelLRM(nn.Cell):
         encoder_type: str = "dino",
         encoder_model_name: str = "facebook/dino-vitb16",
         encoder_feat_dim: int = 768,
-        dtype=ms.float32,
+        # dtype=ms.float32,
+        use_recompute: bool = False
     ):
         super().__init__()
 
@@ -85,6 +86,21 @@ class ModelLRM(nn.Cell):
             triplane_dim=triplane_dim,
             samples_per_ray=rendering_samples_per_ray,
         )
+        
+        if use_recompute:
+            self.recompute(self.encoder)
+            self.recompute(self.camera_embedder)
+            self.recompute(self.transformer)
+            self.recompute(self.upsampler)
+            self.recompute(self.synthesizer)
+
+    def recompute(self, b):
+        if not b._has_config_recompute:
+            b.recompute(parallel_optimizer_comm_recompute=True)
+        if isinstance(b, nn.CellList):
+            self.recompute(b[-1])
+        elif ms.get_context("mode") == ms.GRAPH_MODE:
+            b.add_flags(output_no_recompute=True)
 
     @property
     def dtype(self) -> ms.Type:

@@ -19,7 +19,7 @@ Expects cam2world matrices that use the OpenCV camera coordinate system conventi
 
 import mindspore as ms
 from mindspore import mint, nn, ops
-
+from . import MeshGrid
 
 class RaySampler(nn.Cell):
     def __init__(self):
@@ -31,6 +31,7 @@ class RaySampler(nn.Cell):
             None,
             None,
         )
+        self.mesh_grid = MeshGrid()
 
     def construct(self, cam2world_matrix, intrinsics, resolutions, anchors, region_size):
         """
@@ -54,13 +55,14 @@ class RaySampler(nn.Cell):
         cy = intrinsics[:, 1, 2]
         sk = intrinsics[:, 0, 1]
 
-        uv = mint.stack(
-            ops.meshgrid(
-                mint.arange(region_size, dtype=ms.float32),
-                mint.arange(region_size, dtype=ms.float32),
-                indexing="ij",
-            )
-        )
+        # uv = mint.stack(
+        #     ops.meshgrid(
+        #         mint.arange(region_size, dtype=ms.float32),
+        #         mint.arange(region_size, dtype=ms.float32),
+        #         indexing="ij",
+        #     )
+        # )
+        uv = self.mesh_grid(region_size, region_size)
         uv = uv.flip(dims=(0,)).reshape(2, -1).swapaxes(1, 0)
         uv = uv.unsqueeze(0).tile((cam2world_matrix.shape[0], 1, 1))
 

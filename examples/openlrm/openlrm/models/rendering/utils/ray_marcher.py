@@ -19,12 +19,14 @@ Based off of the implementation in MipNeRF (this one doesn't do any cone tracing
 
 import mindspore as ms
 from mindspore import mint, nn, ops
-
+from . import CumProd, NanToNum
 
 class MipRayMarcher2(nn.Cell):
     def __init__(self, activation_factory):
         super().__init__()
         self.activation_factory = activation_factory
+        self.cum_prod = CumProd()
+        self.nan_to_num = NanToNum()
 
     def run_construct(self, colors, densities, depths, rendering_options, bg_colors=None):
         deltas = depths[:, :, 1:] - depths[:, :, :-1]
@@ -40,14 +42,16 @@ class MipRayMarcher2(nn.Cell):
         alpha = 1 - ops.exp(-density_delta)
 
         alpha_shifted = mint.cat([mint.ones_like(alpha[:, :, :1], dtype=ms.float32), 1 - alpha + 1e-10], -2)
-        weights = alpha * ops.cumprod(alpha_shifted, -2)[:, :, :-1]
+        # weights = alpha * ops.cumprod(alpha_shifted, -2)[:, :, :-1]
+        weights = alpha * self.cum_prod(alpha_shifted, -2)[:, :, :-1]
 
         composite_rgb = mint.sum(weights * colors_mid, -2)
         weight_total = mint.sum(weights, 2)
         composite_depth = mint.sum(weights * depths_mid, -2) / weight_total
 
         # clip the composite to min/max range of depths
-        composite_depth = ops.nan_to_num(composite_depth, float("inf"))
+        # composite_depth = ops.nan_to_num(composite_depth, float("inf"))
+        composite_depth = self.nan_to_num(composite_depth, float("inf"))
         composite_depth = mint.clamp(composite_depth, mint.min(depths), mint.max(depths))
 
         if rendering_options.get("white_back", False):

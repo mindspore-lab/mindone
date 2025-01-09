@@ -151,9 +151,15 @@ def parse_train_args(parser):
         type=float,
         help="max gradient norm for clipping, effective when `clip_grad` enabled.",
     )
+    arser.add_argument(
+        "--use_recompute",
+        default=None,
+        type=False,
+        help="whether use recompute.",
+    )
     parser.add_argument("--start_learning_rate", default=4e-4, type=float, help="The initial learning rate for Adam.")
     parser.add_argument("--end_learning_rate", default=4e-5, type=float, help="The end learning rate for Adam.")
-    parser.add_argument("--decay_steps", default=5e4, type=int, help="lr decay steps.")  # 5 data * epochs
+    parser.add_argument("--decay_steps", default=5e5, type=int, help="lr decay steps.")  # 5 data * epochs
     parser.add_argument("--scheduler", default="cosine_annealing_warm_restarts_lr", type=str, help="scheduler.")
     parser.add_argument("--optim", default="adamw", type=str, help="optimizer")
     parser.add_argument(

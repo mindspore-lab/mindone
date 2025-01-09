@@ -22,7 +22,7 @@ from openlrm.utils import no_grad
 import mindspore as ms
 from mindspore import mint, nn, ops
 
-from . import math_utils
+from . import math_utils, MatrixInv, GridSample, NanToNum, SearchSorted
 from .ray_marcher import MipRayMarcher2
 
 
@@ -38,14 +38,6 @@ def generate_planes():
         [[[1, 0, 0], [0, 1, 0], [0, 0, 1]], [[1, 0, 0], [0, 0, 1], [0, 1, 0]], [[0, 0, 1], [0, 1, 0], [1, 0, 0]]],
         dtype=ms.float32,
     )
-
-
-# inv only support float32
-class MatrixInv(nn.Cell):
-    def construct(self, x):
-        if x.dtype != ms.float32:
-            x = x.float()
-        return mint.linalg.inv(x)
 
 
 def project_onto_planes(planes, coordinates):
@@ -77,8 +69,18 @@ def sample_from_planes(plane_axes, plane_features, coordinates, mode="bilinear",
     coordinates = (2 / box_warp) * coordinates  # add specific box bounds
 
     projected_coordinates = project_onto_planes(plane_axes, coordinates).unsqueeze(1)
-    output_features = (
-        mint.nn.functional.grid_sample(
+    # output_features = (
+    #     mint.nn.functional.grid_sample(
+    #         plane_features.float(),
+    #         projected_coordinates.float(),
+    #         mode=mode,
+    #         padding_mode=padding_mode,
+    #         align_corners=False,
+    #     )
+    #     .permute(0, 3, 2, 1)
+    #     .reshape(N, n_planes, M, C)
+    # )
+    output_features = (GridSample()(
             plane_features.float(),
             projected_coordinates.float(),
             mode=mode,
@@ -126,6 +128,8 @@ class ImportanceRenderer(nn.Cell):
         self.plane_axes = generate_planes()
         self.max_pool1d = nn.MaxPool1d(kernel_size=2, stride=1, padding=1, pad_mode="pad")
         self.avg_pool1d = nn.AvgPool1d(kernel_size=2, stride=1)
+        self.nan_to_num = NanToNum()
+        self.search_sorted = SearchSorted()
 
     def _build_activation_factory(self):
         def activation_factory(options: dict):
@@ -176,8 +180,12 @@ class ImportanceRenderer(nn.Cell):
         SAFE_GUARD = 8
         DATA_TYPE = _out["sigma"].dtype  # float16
         colors_pass = mint.zeros((batch_size, num_rays * samples_per_ray, 3), dtype=DATA_TYPE)
+        # densities_pass = (
+        #     ops.nan_to_num(mint.full((batch_size, num_rays * samples_per_ray, 1), -float("inf"), dtype=DATA_TYPE))
+        #     / SAFE_GUARD
+        # )
         densities_pass = (
-            ops.nan_to_num(mint.full((batch_size, num_rays * samples_per_ray, 1), -float("inf"), dtype=DATA_TYPE))
+            self.nan_to_num(mint.full((batch_size, num_rays * samples_per_ray, 1), -float("inf"), dtype=DATA_TYPE))
             / SAFE_GUARD
         )
         densities_pass = densities_pass.to(DATA_TYPE)
@@ -374,11 +382,12 @@ class ImportanceRenderer(nn.Cell):
             u = mint.rand(N_rays, N_importance)
         u = u.contiguous()
 
-        inds = mint.searchsorted(cdf, u, right=True)
+        # inds = mint.searchsorted(cdf, u, right=True)
+        inds = self.search_sorted(cdf, u, right=True)
         below = mint.clamp(inds - 1, min=0)
         above = mint.clamp(inds, max=N_samples_)
 
-        inds_sampled = mint.stack([below, above], -1).view((N_rays, 2 * N_importance))
+        inds_sampled = mint.stack([below, above], -1).view((N_rays, 2 * N_importance)).int()
         cdf_g = mint.gather(cdf, 1, inds_sampled).view((N_rays, N_importance, 2))
         bins_g = mint.gather(bins, 1, inds_sampled).view((N_rays, N_importance, 2))
 

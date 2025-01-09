@@ -234,7 +234,7 @@ class DinoVisionTransformer(nn.Cell):
         patch_pos_embed = ops.interpolate(
             patch_pos_embed.reshape(1, int(sqrt_N), int(sqrt_N), dim).permute(0, 3, 1, 2),
             scale_factor=(sx, sy),  # ms does not support bicubic by directly passing this parameter yet,
-            mode="bicubic",
+            # mode="bicubic", # not support bf16
             # antialias=self.interpolate_antialias, # ms not supported
             recompute_scale_factor=True,  # to compute scale factor, need to set this True
         )
