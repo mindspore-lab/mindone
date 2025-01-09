@@ -51,8 +51,8 @@ def calc_ssim(img1, img2):
 
 
 def load_data(
-    root_dirs, uid, render_image_res, num_all_views=32, normalize_camera=True, normed_dist_to_center=2.0
-):  # normed_dist_to_center="auto"
+    root_dirs, uid, render_image_res, num_all_views=32, normalize_camera=True, normed_dist_to_center="auto"
+):  
     root_dir = os.path.join(root_dirs, uid)
     pose_dir = os.path.join(root_dir, "pose")
     rgba_dir = os.path.join(root_dir, "rgba")
@@ -180,7 +180,7 @@ def evaluate(args):
     )
     print(f"state_dict.dtype {state_dict[loaded_keys[0]].dtype}")  # float32
     # Instantiate the model
-    param_not_load, ckpt_not_load = ms.load_param_into_net(model, state_dict, strict_load=strict)
+    param_not_load, ckpt_not_load = ms.load_param_into_net(model, state_dict, strict_load=False)
     print(f"Loaded checkpoint: param_not_load {param_not_load}, ckpt_not_load {ckpt_not_load}")
 
     if args.ckpt_name is not None:
@@ -228,8 +228,10 @@ def evaluate(args):
             mean_ssim += calc_ssim(target, pred)
 
             # save mviews outputs
-            im = Image.fromarray(np.clip(pred.transpose(1, 2, 3) * 255, 0, 255).astype(np.uint8))
+            im = Image.fromarray(np.clip(pred.transpose(1, 2, 0) * 255, 0, 255).astype(np.uint8))
             im.save(os.path.join(image_path, f"{uids[index]}_{view_id:03d}.jpg"))
+            # im = Image.fromarray(np.clip(target.transpose(1, 2, 0) * 255, 0, 255).astype(np.uint8))
+            # im.save(os.path.join(image_path, f"{uids[index]}_{view_id:03d}_target.jpg"))
 
         cnt += target_images.shape[0]
 
@@ -302,4 +304,5 @@ def parse_args():
 
 
 if __name__ == "__main__":
+    args = parse_args()
     evaluate(args)
