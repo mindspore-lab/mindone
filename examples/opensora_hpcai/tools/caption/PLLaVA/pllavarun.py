@@ -19,6 +19,8 @@ def parse_args():
 
 def main():
     args = parse_args()
+    print('Loading videos...')
+    frames = load_video(args.video, args.num_frames)  # returns a list of PIL images
 
     print('Initializing PLLaVA model...')
     model, processor = load_pllava(
@@ -26,8 +28,15 @@ def main():
         args.num_frames,
     )
 
-    frames = load_video(args.video, args.num_frames)  # returns a list of PIL images
-    prompt = "<image>\n" + args.question
+    SYSTEM = """You are a powerful Video Magic ChatBot, a large vision-language assistant. 
+    You are able to understand the video content that the user provides and assist the user in a video-language related task.
+    The user might provide you with the video and maybe some extra noisy information to help you out or ask you a question. Make use of the information in a proper way to be competent for the job.
+    ### INSTRUCTIONS:
+    1. Follow the user's instruction.
+    2. Be critical yet believe in yourself.
+    """
+
+    prompt = SYSTEM + "USER: " + args.question + " </s> USER:<image> ASSISTANT:"
 
     output_token, output_text = pllava_answer(
         model, processor, [frames], prompt,
@@ -49,7 +58,7 @@ def main():
         print(f"Time elapsed: {time_elapsed:.4f}")
         print(f'tokens per second: {(output_token.shape[1] / time_elapsed):.4f}')
 
-    print(f"Response: {output_text}")
+    print(f"Response: {output_text.split("ASSISTANT: ", 1)[1]}") # cleaned response
 
 if __name__ == "__main__":
     main()

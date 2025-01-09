@@ -13,8 +13,7 @@ from mindspore import Tensor, Parameter
 logger = logging.getLogger(__name__)
 
 def load(root_path: str) -> Dict[str, Tensor]:
-    # TODO: this method may cause OOM on computer with low memory
-    # use a better solution later
+    # This method may cause OOM on computer with low memory
     pattern = os.path.join(root_path, "*.safetensors")
     filelist = sorted(glob.glob(pattern))
 
@@ -73,7 +72,7 @@ def save(ckpt: Dict[str, Tensor], output: str) -> None:
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Convert LLaVa checkpoints into Mindspore Format")
+    parser = argparse.ArgumentParser(description="Convert PLLaVa checkpoints into Mindspore Format")
     parser.add_argument("src", help="Directory storing the safetensors")
     parser.add_argument(
         "-o", "--output", help="Name of the output Mindspore checkpoint"

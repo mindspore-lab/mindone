@@ -14,7 +14,7 @@ class CLIPVisionEmbeddings(nn.Cell):
         image_size: int = 336,
         patch_size: int = 14,
         num_channels: int = 3,
-        dtype: ms.dtype = ms.bfloat16,
+        dtype: ms.dtype = ms.float32,
     ) -> None:
         super().__init__()
         self.embed_dim = hidden_size
@@ -56,7 +56,7 @@ class CLIPAttention(nn.Cell):
         hidden_size: int = 1024,
         num_attention_heads: int = 16,
         attention_dropout: float = 0.0,
-        dtype: ms.dtype = ms.bfloat16,
+        dtype: ms.dtype = ms.float32,
     ) -> None:
         super().__init__()
         self.embed_dim = hidden_size
@@ -116,7 +116,7 @@ class CLIPMLP(nn.Cell):
         hidden_size: int = 1024,
         intermediate_size: int = 4096,
         hidden_act: str = "quick_gelu",
-        dtype: ms.dtype = ms.bfloat16,
+        dtype: ms.dtype = ms.float32,
     ) -> None:
         super().__init__()
         self.activation_fn = ACT2FN[hidden_act]

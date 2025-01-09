@@ -77,7 +77,7 @@ class PllavaForConditionalGeneration(nn.Cell):
         batch_size, sequence_length = input_ids.shape
         left_padding = not ops.sum(input_ids[:, -1] == ms.Tensor(self.pad_token_id))
         # 1. Create a mask to know where special image tokens are
-        special_image_token_mask = input_ids == self.config.image_token_index
+        special_image_token_mask = (input_ids == self.config.image_token_index).astype(ms.int32)
         num_special_image_tokens = ops.sum(special_image_token_mask, dim=-1)
         # Compute the maximum embed dimension
         max_embed_dim = (num_special_image_tokens.max() * (num_image_patches - 1)).item() + sequence_length
