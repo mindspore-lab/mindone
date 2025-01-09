@@ -6,8 +6,23 @@ import mindspore as ms
 sys.path.insert(0, ".")
 
 from hyvideo.modules.models import MMDoubleStreamBlock
+from hyvideo.modules.attention import attention
+
 
 np.random.seed(42)
+
+def test_attn():
+    x_shape = (B, L, N, D) = (1, 32, 6, 48)
+    q = np.random.normal(size=x_shape).astype(np.float32)
+    k = np.random.normal(size=x_shape).astype(np.float32)
+    v = np.random.normal(size=x_shape).astype(np.float32)
+    q = ms.Tensor(q)
+    k = ms.Tensor(k)
+    v = ms.Tensor(v)
+
+    out = attention(q, k, v, mode='vanilla')
+
+    print(out.shape)
 
 
 def test_dualstream_block():
@@ -29,7 +44,10 @@ def test_dualstream_block():
     txt = ms.Tensor(txt)
     vec = ms.Tensor(vec)
     freqs_cis = (ms.Tensor(freqs_cis_cos), ms.Tensor(freqs_cis_sin))
+    # freqs_cis_cos = ms.Tensor(freqs_cis_cos)
+    # freqs_cis_sin = ms.Tensor(freqs_cis_sin)
 
+    print('input sum: ', img.sum())
     block = MMDoubleStreamBlock(
         hidden_size = hidden_size,
         heads_num=N,
@@ -37,11 +55,8 @@ def test_dualstream_block():
         qkv_bias=True,
     )
 
-
     img_out, txt_out = block(img, txt, vec, freqs_cis=freqs_cis)
-    # out = block(img, txt, vec, freqs_cis=freqs_cis)
-    # print(out.shape)
-
+    # out = block(img, txt, vec, freqs_cis_cos=freqs_cis_cos, freqs_cis_sin=freqs_cis_sin)
     print(img_out.shape)
     print(img_out.mean(), img_out.std())
     print(txt.shape)
@@ -49,6 +64,6 @@ def test_dualstream_block():
 
 
 if __name__ == "__main__":
-    ms.set_context(mode=1)
-
+    ms.set_context(mode=0, jit_syntax_level=ms.STRICT)
     test_dualstream_block()
+    # test_attn()

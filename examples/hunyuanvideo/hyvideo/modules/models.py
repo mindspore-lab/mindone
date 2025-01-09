@@ -11,7 +11,7 @@ from .activation_layers import get_activation_layer
 from .modulate_layers import ModulateDiT, modulate, apply_gate
 from .mlp_layers import MLP # , MLPEmbedder, FinalLayer
 from .posemb_layers import apply_rotary_emb
-from .attention import attention #, parallel_attention, get_cu_seqlens
+from .attention import attention, VanillaAttention #, parallel_attention, get_cu_seqlens
 
 '''
 from .embed_layers import TimestepEmbedder, PatchEmbed, TextProjection
@@ -121,7 +121,9 @@ class MMDoubleStreamBlock(nn.Cell):
             bias=True,
             **factory_kwargs,
         )
-        self.hybrid_seq_parallel_attn = None
+
+        #
+        self.compute_attention = VanillaAttention(head_dim)
 
     def enable_deterministic(self):
         self.deterministic = True
@@ -225,28 +227,9 @@ class MMDoubleStreamBlock(nn.Cell):
 
         # attention computation start
 
-        attn = attention(
-                q,
-                k,
-                v,
-                mode='vanilla',
-            )
-
-
+        attn = self.compute_attention(q, k, v)
         # TODO: support FA and parallel attn
-        '''
-        # self.hybrid_seq_parallel_attn:
-        attn = parallel_attention(
-            self.hybrid_seq_parallel_attn,
-            q,
-            k,
-            v,
-            img_q_len=img_q.shape[1],
-            img_kv_len=img_k.shape[1],
-            cu_seqlens_q=cu_seqlens_q,
-            cu_seqlens_kv=cu_seqlens_kv
-        )
-        '''
+
         # attention computation end
 
         img_attn, txt_attn = attn[:, : img.shape[1]], attn[:, img.shape[1] :]
