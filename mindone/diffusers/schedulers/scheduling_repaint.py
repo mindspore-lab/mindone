@@ -324,7 +324,7 @@ class RePaintScheduler(SchedulerMixin, ConfigMixin):
         )
 
         # 8. Algorithm 1 Line 5 https://arxiv.org/pdf/2201.09865.pdf
-        prev_known_part = (alpha_prod_t_prev**0.5).to(dtype) * original_image + ((1 - alpha_prod_t_prev) ** 0.5).to(
+        prev_known_part = (alpha_prod_t_prev**0.5).to(dtype) * original_image + (1 - alpha_prod_t_prev).to(
             dtype
         ) * noise
 
