@@ -1,5 +1,4 @@
-mindspore==2.3.*
-mindnlp
+mindspore==2.4.*
 numpy
 imageio
 opencv-python

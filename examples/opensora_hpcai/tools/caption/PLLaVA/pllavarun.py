@@ -58,7 +58,8 @@ def main():
         print(f"Time elapsed: {time_elapsed:.4f}")
         print(f'tokens per second: {(output_token.shape[1] / time_elapsed):.4f}')
 
-    print(f"Response: {output_text.split("ASSISTANT: ", 1)[1]}") # cleaned response
+    cleaned_output = output_text.split("ASSISTANT: ", 1)[1]
+    print(f"Response: {cleaned_output}") # cleaned response
 
 if __name__ == "__main__":
     main()
