@@ -36,9 +36,10 @@ We used Blender to render multiview frames for a 3D object in `.obj` for trainin
 
 ```shell
 python simple_video_sample.py \
-    --config configs/sv3d_u.yaml \
     --ckpt PATH_TO_CKPT \
-    --image PATH_TO_INPUT_IMAGE
+    --input PATH_TO_INPUT_IMAGE \
+    --mode 1 \
+    --decoding_t 1
 ```
 More demos can be found below. Input images are from [the Unique 3D repo](https://github.com/AiuniAI/Unique3D/tree/main/app/examples).
 <details>

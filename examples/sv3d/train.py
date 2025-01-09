@@ -9,7 +9,6 @@ from omegaconf import OmegaConf
 sys.path.append("../..")  # FIXME: loading mindone, remove in future when mindone is ready for install
 
 from sgm.helpers import create_model_sv3d
-from sgm.modules.train.callback import LossMonitor
 from sgm.util import get_obj_from_str
 from utils import mixed_precision
 
@@ -99,7 +98,6 @@ def main(args):
     if rank_id == 0:
         callbacks.extend(
             [
-                LossMonitor(),
                 EvalSaveCallback(
                     network=ldm_with_loss,
                     model_name="sv3d",
