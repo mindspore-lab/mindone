@@ -16,64 +16,15 @@ from dataclasses import dataclass
 from typing import Optional, Tuple, Union
 
 import numpy as np
-import mindspore as ms
-from mindspore import ops, nn, Parameter
-import mindspore.numpy as mnp
 
+import mindspore as ms
+from mindspore import Parameter, nn, ops
+
+from ....utils import WeightNorm
 from ...configuration_utils import ConfigMixin, register_to_config
 from ...utils import BaseOutput
-
 from ...utils.mindspore_utils import randn_tensor
 from ..modeling_utils import ModelMixin
-
-def norm_except_dim(v, pow, dim):
-    if dim == -1:
-        return mnp.norm(v, pow)
-    elif dim == 0:
-        output_size = (v.shape[0],) + (1,) * (v.ndim - 1)
-        return mnp.norm(v.view((v.shape[0], -1)), pow, 1).view(output_size)
-    elif dim == (v.ndim - 1):
-        output_size = (1,) * (v.ndim - 1) + (v.shape[v.ndim - 1])
-        return mnp.norm(v.view((-1, v.shape[v.ndim - 1])), pow, 0).view(output_size)
-    else:
-        return norm_except_dim(v.swapaxes(0, dim), pow, dim).swapaxes(0, dim)
-
-
-def _weight_norm(v, g, dim):
-    return v * (g / norm_except_dim(v, 2, dim))
-
-
-class WeightNorm(nn.Cell):
-    def __init__(self, module, dim: int = 0):
-        super().__init__()
-
-        if dim is None:
-            dim = -1
-
-        self.dim = dim
-        self.module = module
-
-        self.assign = ops.Assign()
-        # add g and v as new parameters and express w as g/||v|| * v
-        self.param_g = Parameter(ms.Tensor(norm_except_dim(self.module.weight, 2, dim)))
-        self.param_v = Parameter(ms.Tensor(self.module.weight.data))
-        self.module.weight.set_data(_weight_norm(self.param_v, self.param_g, self.dim))
-
-        self.use_weight_norm = True
-        self.kernel_size = module.kernel_size
-        self.stride = module.stride
-        self.dilation = module.dilation
-
-    def construct(self, *inputs, **kwargs):
-        if not self.use_weight_norm:
-            return self.module(*inputs, **kwargs)
-
-        self.assign(self.module.weight, _weight_norm(self.param_v, self.param_g, self.dim))
-        return self.module(*inputs, **kwargs)
-
-    def remove_weight_norm(self):
-        self.assign(self.module.weight, _weight_norm(self.param_v, self.param_g, self.dim))
-        self.use_weight_norm = False
 
 
 class Snake1d(nn.Cell):
@@ -111,9 +62,13 @@ class OobleckResidualUnit(nn.Cell):
         pad = ((7 - 1) * dilation) // 2
 
         self.snake1 = Snake1d(dimension)
-        self.conv1 = WeightNorm(nn.Conv1d(dimension, dimension, kernel_size=7, pad_mode="pad", dilation=dilation, padding=pad))
+        self.conv1 = WeightNorm(
+            nn.Conv1d(
+                dimension, dimension, kernel_size=7, pad_mode="pad", dilation=dilation, padding=pad, has_bias=True
+            )
+        )
         self.snake2 = Snake1d(dimension)
-        self.conv2 = WeightNorm(nn.Conv1d(dimension, dimension, kernel_size=1))
+        self.conv2 = WeightNorm(nn.Conv1d(dimension, dimension, kernel_size=1, has_bias=True))
 
     def construct(self, hidden_state):
         """
@@ -149,7 +104,15 @@ class OobleckEncoderBlock(nn.Cell):
         self.res_unit3 = OobleckResidualUnit(input_dim, dilation=9)
         self.snake1 = Snake1d(input_dim)
         self.conv1 = WeightNorm(
-            nn.Conv1d(input_dim, output_dim, kernel_size=2 * stride, pad_mode="pad", stride=stride, padding=math.ceil(stride / 2))
+            nn.Conv1d(
+                input_dim,
+                output_dim,
+                kernel_size=2 * stride,
+                pad_mode="pad",
+                stride=stride,
+                padding=math.ceil(stride / 2),
+                has_bias=True,
+            )
         )
 
     def construct(self, hidden_state):
@@ -176,6 +139,7 @@ class OobleckDecoderBlock(nn.Cell):
                 stride=stride,
                 pad_mode="pad",
                 padding=math.ceil(stride / 2),
+                has_bias=True,
             )
         )
         self.res_unit1 = OobleckResidualUnit(output_dim, dilation=1)
@@ -270,7 +234,9 @@ class OobleckEncoder(nn.Cell):
         channel_multiples = [1] + channel_multiples
 
         # Create first convolution
-        self.conv1 = WeightNorm(nn.Conv1d(audio_channels, encoder_hidden_size, kernel_size=7, pad_mode='pad', padding=3))
+        self.conv1 = WeightNorm(
+            nn.Conv1d(audio_channels, encoder_hidden_size, kernel_size=7, pad_mode="pad", padding=3, has_bias=True)
+        )
         self.block = []
         # Create EncoderBlocks that double channels as they downsample by `stride`
         for stride_index, stride in enumerate(strides):
@@ -285,7 +251,9 @@ class OobleckEncoder(nn.Cell):
         self.block = nn.CellList(self.block)
         d_model = encoder_hidden_size * channel_multiples[-1]
         self.snake1 = Snake1d(d_model)
-        self.conv2 = WeightNorm(nn.Conv1d(d_model, encoder_hidden_size, pad_mode="pad", kernel_size=3, padding=1))
+        self.conv2 = WeightNorm(
+            nn.Conv1d(d_model, encoder_hidden_size, pad_mode="pad", kernel_size=3, padding=1, has_bias=True)
+        )
 
     def construct(self, hidden_state):
         hidden_state = self.conv1(hidden_state)
@@ -309,7 +277,16 @@ class OobleckDecoder(nn.Cell):
         channel_multiples = [1] + channel_multiples
 
         # Add first conv layer
-        self.conv1 = WeightNorm(nn.Conv1d(input_channels, channels * channel_multiples[-1], pad_mode="pad", kernel_size=7, padding=3))
+        self.conv1 = WeightNorm(
+            nn.Conv1d(
+                input_channels,
+                channels * channel_multiples[-1],
+                pad_mode="pad",
+                kernel_size=7,
+                padding=3,
+                has_bias=True,
+            )
+        )
         # Add upsampling + MRF blocks
         block = []
         for stride_index, stride in enumerate(strides):
@@ -324,7 +301,9 @@ class OobleckDecoder(nn.Cell):
         self.block = nn.CellList(block)
         output_dim = channels
         self.snake1 = Snake1d(output_dim)
-        self.conv2 = WeightNorm(nn.Conv1d(channels, audio_channels, kernel_size=7, pad_mode="pad", padding=3, has_bias=False))
+        self.conv2 = WeightNorm(
+            nn.Conv1d(channels, audio_channels, kernel_size=7, pad_mode="pad", padding=3, has_bias=False)
+        )
 
     def construct(self, hidden_state):
         hidden_state = self.conv1(hidden_state)
@@ -452,9 +431,7 @@ class AutoencoderOobleck(ModelMixin, ConfigMixin):
 
         return OobleckDecoderOutput(sample=dec)
 
-    def decode(
-        self, z: ms.Tensor, return_dict: bool = True, generator=None
-    ) -> Union[OobleckDecoderOutput, ms.Tensor]:
+    def decode(self, z: ms.Tensor, return_dict: bool = True, generator=None) -> Union[OobleckDecoderOutput, ms.Tensor]:
         """
         Decode a batch of images.
 

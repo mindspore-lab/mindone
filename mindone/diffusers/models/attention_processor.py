@@ -1764,23 +1764,28 @@ class SpatialNorm(nn.Cell):
         return new_f
 
 
+@ms.jit_class
 class StableAudioAttnProcessor2_0:
     r"""
     Processor for implementing scaled dot-product attention (enabled by default if you're using PyTorch 2.0). This is
     used in the Stable Audio model. It applies rotary embedding on query and key vector, and allows MHA, GQA or MQA.
     """
 
+    def __init__(self) -> None:
+        # move importing from __call__ to __init__ as it is not supported in construct()
+        from .embeddings import apply_rotary_emb
+
+        self.apply_rotary_emb = apply_rotary_emb
+
     def apply_partial_rotary_emb(
         self,
         x: ms.Tensor,
         freqs_cis: Tuple[ms.Tensor],
     ) -> ms.Tensor:
-        from .embeddings import apply_rotary_emb
-
         rot_dim = freqs_cis[0].shape[-1]
         x_to_rotate, x_unrotated = x[..., :rot_dim], x[..., rot_dim:]
 
-        x_rotated = apply_rotary_emb(x_to_rotate, freqs_cis, use_real=True, use_real_unbind_dim=-2)
+        x_rotated = self.apply_rotary_emb(x_to_rotate, freqs_cis, use_real=True, use_real_unbind_dim=-2)
 
         out = ops.cat((x_rotated, x_unrotated), dim=-1)
         return out
@@ -1793,12 +1798,11 @@ class StableAudioAttnProcessor2_0:
         attention_mask: Optional[ms.Tensor] = None,
         rotary_emb: Optional[ms.Tensor] = None,
     ) -> ms.Tensor:
-        from .embeddings import apply_rotary_emb
-
         residual = hidden_states
 
         input_ndim = hidden_states.ndim
 
+        batch_size, channel, height, width = (None,) * 4
         if input_ndim == 4:
             batch_size, channel, height, width = hidden_states.shape
             hidden_states = hidden_states.view(batch_size, channel, height * width).transpose(1, 2)
@@ -1851,13 +1855,13 @@ class StableAudioAttnProcessor2_0:
 
             rot_dim = rotary_emb[0].shape[-1]
             query_to_rotate, query_unrotated = query[..., :rot_dim], query[..., rot_dim:]
-            query_rotated = apply_rotary_emb(query_to_rotate, rotary_emb, use_real=True, use_real_unbind_dim=-2)
+            query_rotated = self.apply_rotary_emb(query_to_rotate, rotary_emb, use_real=True, use_real_unbind_dim=-2)
 
             query = ops.cat((query_rotated, query_unrotated), axis=-1)
 
             if not attn.is_cross_attention:
                 key_to_rotate, key_unrotated = key[..., :rot_dim], key[..., rot_dim:]
-                key_rotated = apply_rotary_emb(key_to_rotate, rotary_emb, use_real=True, use_real_unbind_dim=-2)
+                key_rotated = self.apply_rotary_emb(key_to_rotate, rotary_emb, use_real=True, use_real_unbind_dim=-2)
 
                 key = ops.cat((key_rotated, key_unrotated), axis=-1)
 

@@ -50,13 +50,14 @@ _import_structure = {
     "scheduling_unipc_multistep": ["UniPCMultistepScheduler"],
     "scheduling_vq_diffusion": ["VQDiffusionScheduler"],
     "scheduling_utils": ["AysSchedules", "KarrasDiffusionSchedulers", "SchedulerMixin"],
-    "scheduling_cosine_dpmsolver_multistep" : ["CosineDPMSolverMultistepScheduler"],
-    "scheduling_dpmsolver_sde" : ["DPMSolverSDEScheduler"],
+    "scheduling_cosine_dpmsolver_multistep": ["CosineDPMSolverMultistepScheduler"],
+    "scheduling_dpmsolver_sde": ["DPMSolverSDEScheduler"],
 }
 
 if TYPE_CHECKING:
     from .scheduling_consistency_decoder import ConsistencyDecoderScheduler
     from .scheduling_consistency_models import CMStochasticIterativeScheduler
+    from .scheduling_cosine_dpmsolver_multistep import CosineDPMSolverMultistepScheduler
     from .scheduling_ddim import DDIMScheduler
     from .scheduling_ddim_cogvideox import CogVideoXDDIMScheduler
     from .scheduling_ddim_inverse import DDIMInverseScheduler
@@ -68,6 +69,7 @@ if TYPE_CHECKING:
     from .scheduling_dpm_cogvideox import CogVideoXDPMScheduler
     from .scheduling_dpmsolver_multistep import DPMSolverMultistepScheduler
     from .scheduling_dpmsolver_multistep_inverse import DPMSolverMultistepInverseScheduler
+    from .scheduling_dpmsolver_sde import DPMSolverSDEScheduler
     from .scheduling_dpmsolver_singlestep import DPMSolverSinglestepScheduler
     from .scheduling_edm_dpmsolver_multistep import EDMDPMSolverMultistepScheduler
     from .scheduling_edm_euler import EDMEulerScheduler
@@ -89,8 +91,6 @@ if TYPE_CHECKING:
     from .scheduling_unipc_multistep import UniPCMultistepScheduler
     from .scheduling_utils import AysSchedules, KarrasDiffusionSchedulers, SchedulerMixin
     from .scheduling_vq_diffusion import VQDiffusionScheduler
-    from .scheduling_cosine_dpmsolver_multistep import CosineDPMSolverMultistepScheduler
-    from .scheduling_dpmsolver_sde import DPMSolverSDEScheduler
 
 else:
     import sys

@@ -26,7 +26,6 @@ from ..configuration_utils import ConfigMixin, register_to_config
 from ..utils import BaseOutput, is_scipy_available
 from .scheduling_utils import KarrasDiffusionSchedulers, SchedulerMixin
 
-
 if is_scipy_available():
     import scipy.stats
 
@@ -639,7 +638,7 @@ class DPMSolverSDEScheduler(SchedulerMixin, ConfigMixin):
     ) -> ms.Tensor:
         # Make sure sigmas and timesteps have the same device and dtype as original_samples
         sigmas = self.sigmas.to(dtype=original_samples.dtype)
-        
+
         schedule_timesteps = self.timesteps
 
         # self.begin_index is None when scheduler is used for training, or pipeline does not implement set_begin_index

@@ -349,6 +349,7 @@ if TYPE_CHECKING:
         CogVideoXDDIMScheduler,
         CogVideoXDPMScheduler,
         ConsistencyDecoderScheduler,
+        CosineDPMSolverMultistepScheduler,
         DDIMInverseScheduler,
         DDIMParallelScheduler,
         DDIMScheduler,
@@ -379,7 +380,6 @@ if TYPE_CHECKING:
         UnCLIPScheduler,
         UniPCMultistepScheduler,
         VQDiffusionScheduler,
-        CosineDPMSolverMultistepScheduler,
     )
     from .utils import logging
 

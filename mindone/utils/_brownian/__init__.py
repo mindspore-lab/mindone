@@ -12,19 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# We import from `typing` more than what's enough, so that other modules can import from this file and not `typing`.
-from typing import Sequence, Union, Optional, Any, Dict, Tuple, Callable  # noqa: F401
+from .brownian_base import BaseBrownian
+from .brownian_interval import BrownianInterval
 
-import mindspore
-
-Tensor = mindspore.Tensor
-Tensors = Sequence[Tensor]
-TensorOrTensors = Union[Tensor, Tensors]
-
-Scalar = Union[float, Tensor]
-Vector = Union[Sequence[float], Tensor]
-
-Module = mindspore.nn.Cell
-Modules = Sequence[Module]
-ModuleOrModules = Union[Module, Modules]
-
+BrownianInterval.__init__.__annotations__ = {}

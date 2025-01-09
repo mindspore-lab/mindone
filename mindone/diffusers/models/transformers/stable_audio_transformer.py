@@ -13,23 +13,19 @@
 # limitations under the License.
 
 
-from typing import Any, Dict, Optional, Union
+from typing import Dict, Optional, Union
 
 import numpy as np
+
 import mindspore as ms
-from mindspore import ops, nn, Parameter
+from mindspore import Parameter, nn, ops
 
 from ...configuration_utils import ConfigMixin, register_to_config
 from ...models.attention import FeedForward
-from ...models.attention_processor import (
-    Attention,
-    AttentionProcessor,
-    StableAudioAttnProcessor2_0,
-)
+from ...models.attention_processor import Attention, AttentionProcessor, StableAudioAttnProcessor2_0
 from ...models.modeling_utils import ModelMixin
 from ...models.transformers.transformer_2d import Transformer2DModelOutput
 from ...utils import logging
-
 
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
 
@@ -64,7 +60,6 @@ class StableAudioGaussianFourierProjection(nn.Cell):
         else:
             out = ops.cat([ops.sin(x_proj), ops.cos(x_proj)], axis=-1)
         return out
-
 
 
 class StableAudioDiTBlock(nn.Cell):
@@ -412,14 +407,14 @@ class StableAudioDiTModel(ModelMixin, ConfigMixin):
             attention_mask = ops.cat([prepend_mask, attention_mask], axis=-1)
 
         for block in self.transformer_blocks:
-            #todo:add recompute
-                hidden_states = block(
-                    hidden_states=hidden_states,
-                    attention_mask=attention_mask,
-                    encoder_hidden_states=cross_attention_hidden_states,
-                    encoder_attention_mask=encoder_attention_mask,
-                    rotary_embedding=rotary_embedding,
-                )
+            # todo:add recompute
+            hidden_states = block(
+                hidden_states=hidden_states,
+                attention_mask=attention_mask,
+                encoder_hidden_states=cross_attention_hidden_states,
+                encoder_attention_mask=encoder_attention_mask,
+                rotary_embedding=rotary_embedding,
+            )
 
         hidden_states = self.proj_out(hidden_states)
 

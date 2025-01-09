@@ -147,6 +147,8 @@ class CosineDPMSolverMultistepScheduler(SchedulerMixin, ConfigMixin):
     def precondition_inputs(self, sample, sigma):
         c_in = 1 / ((sigma**2 + self.config.sigma_data**2) ** 0.5)
         scaled_sample = sample * c_in
+        # ms.Tensor keeping dtype
+        scaled_sample = scaled_sample.to(sample.dtype)
         return scaled_sample
 
     def precondition_noise(self, sigma):
@@ -235,7 +237,7 @@ class CosineDPMSolverMultistepScheduler(SchedulerMixin, ConfigMixin):
         # add an index counter for schedulers that allow duplicated timesteps
         self._step_index = None
         self._begin_index = None
-        #self.sigmas = self.sigmas  # to avoid too much CPU/GPU communication
+        # self.sigmas = self.sigmas  # to avoid too much CPU/GPU communication
 
         # if a noise sampler is used, reinitialise it
         self.noise_sampler = None
@@ -357,7 +359,7 @@ class CosineDPMSolverMultistepScheduler(SchedulerMixin, ConfigMixin):
             + (alpha_t * (1 - ops.exp(-2.0 * h))) * model_output
             + sigma_t * ops.sqrt(1.0 - ops.exp(-2 * h)) * noise
         )
-
+        x_t = x_t.to(sample.dtype)
         return x_t
 
     def multistep_dpm_solver_second_order_update(
@@ -415,7 +417,7 @@ class CosineDPMSolverMultistepScheduler(SchedulerMixin, ConfigMixin):
                 + (alpha_t * ((1.0 - ops.exp(-2.0 * h)) / (-2.0 * h) + 1.0)) * D1
                 + sigma_t * ops.sqrt(1.0 - ops.exp(-2 * h)) * noise
             )
-
+        x_t = x_t.to(sample.dtype)
         return x_t
 
     # Copied from diffusers.schedulers.scheduling_dpmsolver_multistep.DPMSolverMultistepScheduler.index_for_timestep
@@ -513,7 +515,6 @@ class CosineDPMSolverMultistepScheduler(SchedulerMixin, ConfigMixin):
             )
         noise = self.noise_sampler(self.sigmas[self.step_index], self.sigmas[self.step_index + 1])
 
-
         if self.config.solver_order == 1 or self.lower_order_nums < 1 or lower_order_final:
             prev_sample = self.dpm_solver_first_order_update(model_output, sample=sample, noise=noise)
         elif self.config.solver_order == 2 or self.lower_order_nums < 2 or lower_order_second:
@@ -539,10 +540,9 @@ class CosineDPMSolverMultistepScheduler(SchedulerMixin, ConfigMixin):
     ) -> ms.Tensor:
         # Make sure sigmas and timesteps have the same device and dtype as original_samples
         sigmas = self.sigmas.to(dtype=original_samples.dtype)
-      
+
         schedule_timesteps = self.timesteps.to(dtype=ms.float32)
         timesteps = timesteps.to(dtype=ms.float32)
-       
 
         # self.begin_index is None when scheduler is used for training, or pipeline does not implement set_begin_index
         if self.begin_index is None:

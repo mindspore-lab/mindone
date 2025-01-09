@@ -16,9 +16,10 @@ import inspect
 from typing import Callable, List, Optional, Union
 
 import numpy as np
-import mindspore as ms
-from mindspore import ops, nn
 from transformers import T5Tokenizer, T5TokenizerFast
+
+import mindspore as ms
+from mindspore import ops
 
 from ....transformers import T5EncoderModel
 from ...models import AutoencoderOobleck, StableAudioDiTModel
@@ -28,7 +29,6 @@ from ...utils import logging
 from ...utils.mindspore_utils import randn_tensor
 from ..pipeline_utils import AudioPipelineOutput, DiffusionPipeline
 from .modeling_stable_audio import StableAudioProjectionModel
-
 
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
 
@@ -162,12 +162,8 @@ class StableAudioPipeline(DiffusionPipeline):
             attention_mask = text_inputs.attention_mask
             untruncated_ids = self.tokenizer(prompt, padding="longest", return_tensors="np").input_ids
 
-            if untruncated_ids.shape[-1] >= text_input_ids.shape[-1] and not ops.equal(
-                text_input_ids, untruncated_ids
-            ):
-                removed_text = self.tokenizer.batch_decode(
-                    untruncated_ids[:, self.tokenizer.model_max_length - 1 : -1]
-                )
+            if untruncated_ids.shape[-1] >= text_input_ids.shape[-1] and not ops.equal(text_input_ids, untruncated_ids):
+                removed_text = self.tokenizer.batch_decode(untruncated_ids[:, self.tokenizer.model_max_length - 1 : -1])
                 logger.warning(
                     f"The following part of your input was truncated because {self.text_encoder.config.model_type} can "
                     f"only handle sequences up to {self.tokenizer.model_max_length} tokens: {removed_text}"
@@ -177,7 +173,7 @@ class StableAudioPipeline(DiffusionPipeline):
             attention_mask = ms.Tensor.from_numpy(attention_mask)
 
             # 2. Text encoder forward
-            #self.text_encoder.eval()
+            # self.text_encoder.eval()
             prompt_embeds = self.text_encoder(
                 text_input_ids,
                 attention_mask=attention_mask,
@@ -330,7 +326,8 @@ class StableAudioPipeline(DiffusionPipeline):
             or audio_start_in_s > self.projection_model.config.max_value
         ):
             raise ValueError(
-                f"`audio_start_in_s` must be greater than or equal to {self.projection_model.config.min_value}, and lower than or equal to {self.projection_model.config.max_value} but "
+                f"`audio_start_in_s` must be greater than or equal to {self.projection_model.config.min_value}, \
+                and lower than or equal to {self.projection_model.config.max_value} but "
                 f"is {audio_start_in_s}."
             )
 
@@ -339,7 +336,8 @@ class StableAudioPipeline(DiffusionPipeline):
             or audio_end_in_s > self.projection_model.config.max_value
         ):
             raise ValueError(
-                f"`audio_end_in_s` must be greater than or equal to {self.projection_model.config.min_value}, and lower than or equal to {self.projection_model.config.max_value} but "
+                f"`audio_end_in_s` must be greater than or equal to {self.projection_model.config.min_value}, \
+                    and lower than or equal to {self.projection_model.config.max_value} but "
                 f"is {audio_end_in_s}."
             )
 
@@ -428,7 +426,8 @@ class StableAudioPipeline(DiffusionPipeline):
                 initial_audio_waveforms = initial_audio_waveforms.unsqueeze(1)
             elif initial_audio_waveforms.ndim != 3:
                 raise ValueError(
-                    f"`initial_audio_waveforms` must be of shape `(batch_size, num_channels, audio_length)` or `(batch_size, audio_length)` but has `{initial_audio_waveforms.ndim}` dimensions"
+                    f"`initial_audio_waveforms` must be of shape `(batch_size, num_channels, audio_length)` \
+                        or `(batch_size, audio_length)` but has `{initial_audio_waveforms.ndim}` dimensions"
                 )
 
             audio_vae_length = self.transformer.config.sample_size * self.vae.hop_length
@@ -442,18 +441,21 @@ class StableAudioPipeline(DiffusionPipeline):
 
             if initial_audio_waveforms.shape[:2] != audio_shape[:2]:
                 raise ValueError(
-                    f"`initial_audio_waveforms` must be of shape `(batch_size, num_channels, audio_length)` or `(batch_size, audio_length)` but is of shape `{initial_audio_waveforms.shape}`"
+                    f"`initial_audio_waveforms` must be of shape `(batch_size, num_channels, audio_length)` \
+                        or `(batch_size, audio_length)` but is of shape `{initial_audio_waveforms.shape}`"
                 )
 
             # crop or pad
             audio_length = initial_audio_waveforms.shape[-1]
             if audio_length < audio_vae_length:
                 logger.warning(
-                    f"The provided input waveform is shorter ({audio_length}) than the required audio length ({audio_vae_length}) of the model and will thus be padded."
+                    f"The provided input waveform is shorter ({audio_length}) than the required audio length  \
+                        ({audio_vae_length}) of the model and will thus be padded."
                 )
             elif audio_length > audio_vae_length:
                 logger.warning(
-                    f"The provided input waveform is longer ({audio_length}) than the required audio length ({audio_vae_length}) of the model and will thus be cropped."
+                    f"The provided input waveform is longer ({audio_length}) than the required audio length  \
+                        ({audio_vae_length}) of the model and will thus be cropped."
                 )
 
             audio = initial_audio_waveforms.new_zeros(audio_shape)
@@ -567,7 +569,9 @@ class StableAudioPipeline(DiffusionPipeline):
 
         if audio_end_in_s - audio_start_in_s > max_audio_length_in_s:
             raise ValueError(
-                f"The total audio length requested ({audio_end_in_s-audio_start_in_s}s) is longer than the model maximum possible length ({max_audio_length_in_s}). Make sure that 'audio_end_in_s-audio_start_in_s<={max_audio_length_in_s}'."
+                f"The total audio length requested ({audio_end_in_s-audio_start_in_s}s) is longer  \
+                    than the model maximum possible length ({max_audio_length_in_s}).  \
+                    Make sure that 'audio_end_in_s-audio_start_in_s<={max_audio_length_in_s}'."
             )
 
         waveform_start = int(audio_start_in_s * self.vae.config.sampling_rate)
@@ -631,9 +635,7 @@ class StableAudioPipeline(DiffusionPipeline):
         # In case of classifier free guidance without negative prompt, we need to create unconditional embeddings and
         # to concatenate it to the embeddings
         if do_classifier_free_guidance and negative_prompt_embeds is None and negative_prompt is None:
-            negative_text_audio_duration_embeds = ops.zeros_like(
-                text_audio_duration_embeds
-            )
+            negative_text_audio_duration_embeds = ops.zeros_like(text_audio_duration_embeds)
             text_audio_duration_embeds = ops.cat(
                 [negative_text_audio_duration_embeds, text_audio_duration_embeds], axis=0
             )

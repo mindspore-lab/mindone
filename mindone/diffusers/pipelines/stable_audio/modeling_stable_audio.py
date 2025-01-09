@@ -17,13 +17,11 @@ from math import pi
 from typing import Optional
 
 import mindspore as ms
-from mindspore import ops, nn, Parameter
-
+from mindspore import Parameter, nn, ops
 
 from ...configuration_utils import ConfigMixin, register_to_config
 from ...models.modeling_utils import ModelMixin
 from ...utils import BaseOutput, logging
-
 
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
 
