@@ -6070,6 +6070,14 @@ this issue.</p>
 <td style="text-align: center;"></td>
 </tr>
 <tr>
+<td style="text-align: center;">AnimateDiffPAGPipeline</td>
+<td style="text-align: center;">✅</td>
+<td style="text-align: center;">❌</td>
+<td style="text-align: center;">✅</td>
+<td style="text-align: center;">✅</td>
+<td style="text-align: center;">In FP32 and Pynative mode, this pipeline will run out of memory</td>
+</tr>
+<tr>
 <td style="text-align: center;">AnimateDiffVideoToVideoPipeline</td>
 <td style="text-align: center;">✅</td>
 <td style="text-align: center;">❌</td>
@@ -6196,6 +6204,22 @@ this issue.</p>
 <td style="text-align: center;">✅</td>
 <td style="text-align: center;">✅</td>
 <td style="text-align: center;"></td>
+</tr>
+<tr>
+<td style="text-align: center;">HunyuanDiTControlNetPipeline</td>
+<td style="text-align: center;">✅</td>
+<td style="text-align: center;">✅</td>
+<td style="text-align: center;">✅</td>
+<td style="text-align: center;">✅</td>
+<td style="text-align: center;">Add <code>jit_syntax_level=ms.STRICT</code> in <code>ms.set_context</code> for MindSpore Graph Mode or <code>pynative_synchronize=True</code> in <code>ms.set_context</code> for MindSpore Pynative Mode to avoid issues.</td>
+</tr>
+<tr>
+<td style="text-align: center;">HunyuanDiTPAGPipeline</td>
+<td style="text-align: center;">✅</td>
+<td style="text-align: center;">✅</td>
+<td style="text-align: center;">✅</td>
+<td style="text-align: center;">✅</td>
+<td style="text-align: center;">Add <code>jit_syntax_level=ms.STRICT</code> in <code>ms.set_context</code> for MindSpore Graph Mode or <code>pynative_synchronize=True</code> in <code>ms.set_context</code> for MindSpore Pynative Mode to avoid issues.</td>
 </tr>
 <tr>
 <td style="text-align: center;">Kandinsky3Img2ImgPipeline</td>
@@ -6589,7 +6613,7 @@ this issue.</p>
     <span class="md-icon" title="Last update">
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M21 13.1c-.1 0-.3.1-.4.2l-1 1 2.1 2.1 1-1c.2-.2.2-.6 0-.8l-1.3-1.3c-.1-.1-.2-.2-.4-.2m-1.9 1.8-6.1 6V23h2.1l6.1-6.1zM12.5 7v5.2l4 2.4-1 1L11 13V7zM11 21.9c-5.1-.5-9-4.8-9-9.9C2 6.5 6.5 2 12 2c5.3 0 9.6 4.1 10 9.3-.3-.1-.6-.2-1-.2s-.7.1-1 .2C19.6 7.2 16.2 4 12 4c-4.4 0-8 3.6-8 8 0 4.1 3.1 7.5 7.1 7.9l-.1.2z"/></svg>
     </span>
-    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-date">November 21, 2024</span>
+    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-date">January 9, 2025</span>
   </span>
 
     
@@ -6614,6 +6638,7 @@ this issue.</p>
     </span>
     <nav>
       
+        <a href="mailto:73014084+cui-yshoho@users.noreply.github.com">Cui-yshoho</a>, 
         <a href="mailto:74176172+geniuspatrick@users.noreply.github.com">Genius Patrick</a>, 
         <a href="mailto:53842165+the-truthh@users.noreply.github.com">The-truthh</a>, 
         <a href="mailto:townwish2023@outlook.com">townwish4git</a>
