@@ -676,7 +676,12 @@ class Attention(nn.Cell):
               original data type of `query`.
             - Otherwise, the function falls back to the mathematical formula-based attention.
         """
+        head_dim = query.shape[-1]
+
         if not (self.fa_op_available and self._enable_flash_sdp):
+            return self.math_attention_op(query, key, value, attn_mask)
+        elif head_dim > 512:
+            logger.warning("Flash attention requires that the head dimension must <= 512")
             return self.math_attention_op(query, key, value, attn_mask)
         elif query.dtype in (ms.float16, ms.bfloat16):
             return self.flash_attention_op(query, key, value, attn_mask, keep_prob=1 - dropout_p, scale=scale)

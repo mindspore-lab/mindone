@@ -22,9 +22,12 @@ from transformers import CLIPTextConfig
 
 import mindspore as ms
 
+from mindone.diffusers.utils.testing_utils import load_downloaded_numpy_from_hf_hub, slow
+
 from ..pipeline_test_utils import (
     THRESHOLD_FP16,
     THRESHOLD_FP32,
+    THRESHOLD_PIXEL,
     PipelineTesterMixin,
     get_module,
     get_pipeline_components,
@@ -213,4 +216,38 @@ class StableDiffusionXLPipelineFastTests(PipelineTesterMixin, unittest.TestCase)
         ms_image_slice = ms_image[0][0, -3:, -3:, -1]
 
         threshold = THRESHOLD_FP32 if dtype == "float32" else THRESHOLD_FP16
-        assert np.max(np.linalg.norm(pt_image_slice - ms_image_slice) / np.linalg.norm(pt_image_slice)) < threshold
+        assert np.linalg.norm(pt_image_slice - ms_image_slice) / np.linalg.norm(pt_image_slice) < threshold
+
+
+@slow
+@ddt
+class StableDiffusionXLPipelineIntegrationTests(PipelineTesterMixin, unittest.TestCase):
+    @data(*test_cases)
+    @unpack
+    def test_stable_diffusion_lcm(self, mode, dtype):
+        ms.set_context(mode=mode)
+        ms_dtype = getattr(ms, dtype)
+
+        unet_cls = get_module("mindone.diffusers.models.unets.unet_2d_condition.UNet2DConditionModel")
+        unet = unet_cls.from_pretrained(
+            "latent-consistency/lcm-ssd-1b", mindspore_dtype=ms_dtype, variant="fp16", use_safetensors=True
+        )
+        pipe_cls = get_module("mindone.diffusers.pipelines.stable_diffusion_xl.StableDiffusionXLPipeline")
+        sd_pipe = pipe_cls.from_pretrained(
+            "segmind/SSD-1B", unet=unet, mindspore_dtype=ms_dtype, variant="fp16", use_safetensors=True
+        )
+        scheduler_cls = get_module("mindone.diffusers.schedulers.scheduling_lcm.LCMScheduler")
+        sd_pipe.scheduler = scheduler_cls.from_config(sd_pipe.scheduler.config)
+        sd_pipe.set_progress_bar_config(disable=None)
+
+        prompt = "a red car standing on the side of the street"
+
+        torch.manual_seed(0)
+        image = sd_pipe(prompt, num_inference_steps=4, guidance_scale=8.0)[0][0]
+
+        expected_image = load_downloaded_numpy_from_hf_hub(
+            "The-truth/mindone-testing-arrays",
+            f"t2i_lcm_{dtype}.npy",
+            subfolder="stable_diffusion_xl",
+        )
+        assert np.mean(np.abs(np.array(image, dtype=np.float32) - expected_image)) < THRESHOLD_PIXEL
