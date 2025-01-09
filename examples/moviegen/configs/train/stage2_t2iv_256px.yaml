@@ -48,7 +48,7 @@ train:
 
   lr_scheduler:
     name: constant
-    lr: 6.0e-5
+    lr: 1.0e-4
     warmup_steps: 1000
 
   lr_reduce_on_plateau:
