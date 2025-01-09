@@ -33,7 +33,7 @@ class ImageVideoDataset(BaseDataset):
         tae_scale_factor: float = 1.5305,
         tae_shift_factor: float = 0.0609,
         target_size: Optional[Tuple[int, int]] = None,
-        sample_n_frames: int = 17,
+        sample_n_frames: int = 16,
         sample_stride: int = 1,
         frames_mask_generator: Optional[Callable[[int], np.ndarray]] = None,
         t_compress_func: Optional[Callable[[int], int]] = None,
@@ -168,9 +168,7 @@ class ImageVideoDataset(BaseDataset):
             if latent_mean.shape[1] < self._min_length:  # TODO: add support for images and buckets
                 raise ValueError(f"Video is too short: {data['video']}")
 
-            start_pos = random.randint(0, len(latent_mean) - self._min_length)
-            batch_index = np.linspace(start_pos, start_pos + self._min_length - 1, num_frames, dtype=int)
-
+            batch_index = np.linspace(0, self._min_length - 1, num_frames, dtype=int)
             latent_mean, latent_std = latent_mean[batch_index], latent_std[batch_index]
             tae_latent = np.random.normal(latent_mean, latent_std).astype(np.float32)
             tae_latent = (tae_latent - self._tae_shift_factor) * self._tae_scale_factor
@@ -190,8 +188,7 @@ class ImageVideoDataset(BaseDataset):
                         min_length = (num_frames - 1) * self._stride + 1
                     if len(reader) < min_length:
                         raise ValueError(f"Video is too short: {data['video']}")
-                    start_pos = random.randint(0, len(reader) - min_length)
-                    data["video"] = reader.fetch_frames(num=num_frames, start_pos=start_pos, step=self._stride)
+                    data["video"] = reader.fetch_frames(num=num_frames, start_pos=0, step=self._stride)
                     data["fps"] = np.array(reader.fps / self._stride, dtype=np.float32)
 
         data["num_frames"] = np.array(num_frames, dtype=np.float32)
