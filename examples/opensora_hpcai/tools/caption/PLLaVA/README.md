@@ -1,6 +1,6 @@
 # PLLaVA based on MindSpore
 
-MindSpore implementation of 
+MindSpore implementation of
 [PLLaVA : Parameter-free LLaVA Extension from Images to Videos for Video Dense Captioning
 ](https://arxiv.org/abs/2404.16994).
 

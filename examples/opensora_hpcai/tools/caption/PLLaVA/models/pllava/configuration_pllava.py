@@ -1,6 +1,8 @@
 import json
 import os
+
 import mindspore as ms
+
 
 class PllavaConfig:
     model_type = "llava"
@@ -16,7 +18,7 @@ class PllavaConfig:
         vision_feature_select_strategy="default",
         vision_feature_layer=-2,
         vocab_size=32000,
-        pooling_method='avg',
+        pooling_method="avg",
         pooling_shape=(8, 16, 16),
         frame_shape=(24, 24),
         num_frames=1,
@@ -61,12 +63,12 @@ class PllavaConfig:
                 "model_type": "llama",
                 "vocab_size": self.vocab_size,
                 "gradient_checkpointing": self.gradient_checkpointing,
-                "_attn_implementation":"flash_attention_2"
+                "_attn_implementation": "flash_attention_2",
             }
         self.text_config = text_config
 
     @classmethod
-    def from_pretrained(cls, pretrained_model_name_or_path, vision_hidden_size = None, text_hidden_size = None, **kwargs):
+    def from_pretrained(cls, pretrained_model_name_or_path, vision_hidden_size=None, text_hidden_size=None, **kwargs):
         # load config.json from directory
         config_path = os.path.join(pretrained_model_name_or_path, "config.json")
         with open(config_path, "r", encoding="utf-8") as f:

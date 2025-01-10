@@ -7,6 +7,7 @@ from mindspore import Tensor
 
 logger = logging.getLogger(__name__)
 
+
 class QuickGELU(nn.Cell):
     def construct(self, x: Tensor):
         return x * ops.sigmoid(1.702 * x)

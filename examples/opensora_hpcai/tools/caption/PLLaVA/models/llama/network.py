@@ -4,7 +4,7 @@ from typing import Literal, Optional, Tuple
 import mindspore as ms
 import mindspore.nn as nn
 import mindspore.ops as ops
-from mindspore import Parameter, Tensor
+from mindspore import Tensor
 
 from ..common_layer import Embedding
 from .layer import LlamaAttention, LlamaFlashAttention, LlamaMLP, LlamaRMSNorm

@@ -3,22 +3,22 @@ Processor class for Llava.
 """
 
 from typing import List, Optional, Union
-import PIL.Image
-import numpy as np
 
+import numpy as np
+import PIL.Image
 from transformers.feature_extraction_utils import BatchFeature
+from transformers.image_transforms import get_resize_output_image_size, resize
 from transformers.image_utils import (
-    ImageInput,
-    make_list_of_images,
-    valid_images,
-    infer_channel_dimension_format,
-    to_numpy_array,
-    get_image_size,
     ChannelDimension,
+    ImageInput,
+    PILImageResampling,
+    get_image_size,
+    infer_channel_dimension_format,
+    make_list_of_images,
+    to_numpy_array,
+    valid_images,
 )
-from transformers.image_utils import PILImageResampling
 from transformers.processing_utils import ProcessorMixin
-from transformers.image_transforms import resize, get_resize_output_image_size
 from transformers.tokenization_utils_base import PaddingStrategy, PreTokenizedInput, TextInput, TruncationStrategy
 
 
@@ -40,10 +40,7 @@ class PllavaProcessor(ProcessorMixin):
     image_processor_class = "CLIPImageProcessor"
     tokenizer_class = "AutoTokenizer"
 
-    def __init__(self, image_processor=None, tokenizer=None, 
-                 shortest_edge=336,
-                 longest_edge=762,
-                 center_pad=False):
+    def __init__(self, image_processor=None, tokenizer=None, shortest_edge=336, longest_edge=762, center_pad=False):
         self.shortest_edge = shortest_edge
         self.longest_edge = longest_edge
         self.center_pad = center_pad
@@ -55,7 +52,7 @@ class PllavaProcessor(ProcessorMixin):
         min_long_short_rate = min(long_short_rates)
         min_long_short_video_idx = long_short_rates.index(min_long_short_rate)
 
-        clip_resolution = self.image_processor.size['shortest_edge']
+        clip_resolution = self.image_processor.size["shortest_edge"]
         out_video_spatial_size = video_spatial_sizes[min_long_short_video_idx]
         out_videos_short_edge = max(min(size) for size in video_spatial_sizes)
         resize_longest_edge = max(max(size) for size in video_spatial_sizes)
@@ -63,13 +60,17 @@ class PllavaProcessor(ProcessorMixin):
         out_videos_short_edge = min(out_videos_short_edge, int(resize_longest_edge / min_long_short_rate))
         out_videos_short_edge = max(out_videos_short_edge, clip_resolution)
 
-    
-        if out_video_spatial_size[0] > out_video_spatial_size[1]: # h > w:
-            out_video_spatial_size = (int(out_videos_short_edge * min_long_short_rate), out_videos_short_edge )
+        if out_video_spatial_size[0] > out_video_spatial_size[1]:  # h > w:
+            out_video_spatial_size = (int(out_videos_short_edge * min_long_short_rate), out_videos_short_edge)
         else:
-            out_video_spatial_size = ( out_videos_short_edge, int(out_videos_short_edge * min_long_short_rate) )
+            out_video_spatial_size = (out_videos_short_edge, int(out_videos_short_edge * min_long_short_rate))
         videos = [
-            [self.resize(frame, input_data_format=input_data_format, shortest_edge=out_videos_short_edge, longest_edge=9999) for frame in frames]
+            [
+                self.resize(
+                    frame, input_data_format=input_data_format, shortest_edge=out_videos_short_edge, longest_edge=9999
+                )
+                for frame in frames
+            ]
             for frames in videos
         ]
         out_videos = []
@@ -78,9 +79,12 @@ class PllavaProcessor(ProcessorMixin):
             video_spatial_size = get_image_size(frames[0], input_data_format)
             assert min(video_spatial_size) == out_videos_short_edge
             overhead = (max(video_spatial_size) - max(out_video_spatial_size)) // 2
-            slice_start, slice_end = overhead // 2,   overhead // 2 + max(out_video_spatial_size)
-            hslice, wslice = (slice(slice_start, slice_end), slice(None, None)) if video_spatial_size[0] > video_spatial_size[1] \
-                             else (slice(None, None), slice(slice_start, slice_end)) # h > w
+            slice_start, slice_end = overhead // 2, overhead // 2 + max(out_video_spatial_size)
+            hslice, wslice = (
+                (slice(slice_start, slice_end), slice(None, None))
+                if video_spatial_size[0] > video_spatial_size[1]
+                else (slice(None, None), slice(slice_start, slice_end))
+            )  # h > w
             for frame in frames:
                 if input_data_format == ChannelDimension.FIRST:
                     out_frames.append(frame[..., hslice, wslice])
@@ -96,14 +100,16 @@ class PllavaProcessor(ProcessorMixin):
         resolution = np.array(resolution)
         assert input_shape.max() >= resolution
         num_blocks = np.ceil(input_shape / resolution).astype(np.int32).tolist()
-        overlaps = [0 if size % resolution==0 
-                    else int(np.floor((resolution - size % resolution) / (num_block - 1))) for num_block, size in zip(num_blocks, input_shape)]
+        overlaps = [
+            0 if size % resolution == 0 else int(np.floor((resolution - size % resolution) / (num_block - 1)))
+            for num_block, size in zip(num_blocks, input_shape)
+        ]
         return num_blocks, overlaps
 
     def resize(
         self,
         image: np.ndarray,
-        resample: PILImageResampling = PILImageResampling.BICUBIC, # type: ignore
+        resample: PILImageResampling = PILImageResampling.BICUBIC,  # type: ignore
         data_format: Optional[Union[str, ChannelDimension]] = None,
         input_data_format: Optional[Union[str, ChannelDimension]] = None,
         shortest_edge: int = None,
@@ -126,8 +132,8 @@ class PllavaProcessor(ProcessorMixin):
             input_data_format (`ChannelDimension` or `str`, *optional*):
                 The channel dimension format of the input image. If not provided, it will be inferred.
         """
-        shortest_edge = getattr(self, 'shortest_edge', None) if shortest_edge is None else shortest_edge
-        longest_edge = getattr(self, 'longest_edge', None) if longest_edge is None else longest_edge
+        shortest_edge = getattr(self, "shortest_edge", None) if shortest_edge is None else shortest_edge
+        longest_edge = getattr(self, "longest_edge", None) if longest_edge is None else longest_edge
         default_to_square = False
         output_size = get_resize_output_image_size(
             image,
@@ -136,7 +142,7 @@ class PllavaProcessor(ProcessorMixin):
             max_size=longest_edge,
             input_data_format=input_data_format,
         )
-        clip_resolution = self.image_processor.size['shortest_edge']
+        clip_resolution = self.image_processor.size["shortest_edge"]
         if min(output_size) < clip_resolution:
             output_size = get_resize_output_image_size(
                 image,
@@ -157,7 +163,7 @@ class PllavaProcessor(ProcessorMixin):
         self,
         text: Union[TextInput, PreTokenizedInput, List[TextInput], List[PreTokenizedInput]] = None,
         images: ImageInput = None,
-        center_pad = None,
+        center_pad=None,
         padding: Union[bool, str, PaddingStrategy] = False,
         truncation: Union[bool, str, TruncationStrategy] = None,
         max_length=None,
@@ -205,13 +211,13 @@ class PllavaProcessor(ProcessorMixin):
               `None`).
             - **pixel_values** -- Pixel values to be fed to a model. Returned when `images` is not `None`.
         """
-        data=dict()
+        data = dict()
         if images is not None:
             if isinstance(images, list) and isinstance(images[0], PIL.Image.Image):
-                videos = [images] # one video
+                videos = [images]  # one video
             else:
                 videos = images
-            
+
             pixel_values_list = []
             videos = [[to_numpy_array(image) for image in make_list_of_images(images)] for images in videos]
             # images = [self.resize(image, ) if min(get_image_size(image, input_data_format)) < clip_resolution else image for image in images]
@@ -223,20 +229,20 @@ class PllavaProcessor(ProcessorMixin):
                     raise ValueError(
                         "Invalid image type. Must be of type PIL.Image.Image, numpy.ndarray, "
                         " tf.Tensor or jax.ndarray."
-                    )                
+                    )
 
                 center_pad = center_pad if center_pad is not None else self.center_pad
                 if center_pad:
                     images = [self.pad_to_square(image, 0, input_data_format, input_data_format) for image in images]
 
-                pixel_values = self.image_processor(images, return_tensors='np')["pixel_values"]
+                pixel_values = self.image_processor(images, return_tensors="np")["pixel_values"]
                 pixel_values_list.append(pixel_values)
 
             pixel_values = np.concatenate(pixel_values_list)
             data.update(pixel_values=pixel_values)
-            
+
         else:
-            data.update(pixel_values = None)
+            data.update(pixel_values=None)
 
         if text is not None:
             text_inputs = self.tokenizer(

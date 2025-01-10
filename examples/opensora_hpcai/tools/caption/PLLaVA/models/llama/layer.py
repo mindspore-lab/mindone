@@ -11,6 +11,7 @@ from ..activation import ACT2FN
 
 logger = logging.getLogger(__name__)
 
+
 class LlamaRMSNorm(nn.Cell):
     def __init__(self, hidden_size: int, eps: float = 1e-6, dtype: ms.dtype = ms.float32) -> None:
         super().__init__()

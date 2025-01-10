@@ -1,14 +1,14 @@
 import numpy as np
-from PIL import Image
 from decord import VideoReader, cpu
+from PIL import Image
+
 
 def get_index(num_frames, num_segments):
     seg_size = float(num_frames - 1) / num_segments
     start = int(seg_size / 2)
-    offsets = np.array([
-        start + int(np.round(seg_size * idx)) for idx in range(num_segments)
-    ])
+    offsets = np.array([start + int(np.round(seg_size * idx)) for idx in range(num_segments)])
     return offsets
+
 
 def load_video(video_path, num_segments=8):
     vr = VideoReader(video_path, ctx=cpu(0))

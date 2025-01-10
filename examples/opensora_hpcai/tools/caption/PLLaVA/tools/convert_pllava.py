@@ -8,9 +8,10 @@ from fileio import load_safetensors
 from tqdm import tqdm
 
 import mindspore as ms
-from mindspore import Tensor, Parameter
+from mindspore import Parameter, Tensor
 
 logger = logging.getLogger(__name__)
+
 
 def load(root_path: str) -> Dict[str, Tensor]:
     # This method may cause OOM on computer with low memory
@@ -74,9 +75,7 @@ def save(ckpt: Dict[str, Tensor], output: str) -> None:
 def main():
     parser = argparse.ArgumentParser(description="Convert PLLaVa checkpoints into Mindspore Format")
     parser.add_argument("src", help="Directory storing the safetensors")
-    parser.add_argument(
-        "-o", "--output", help="Name of the output Mindspore checkpoint"
-    )
+    parser.add_argument("-o", "--output", help="Name of the output Mindspore checkpoint")
 
     args = parser.parse_args()
 

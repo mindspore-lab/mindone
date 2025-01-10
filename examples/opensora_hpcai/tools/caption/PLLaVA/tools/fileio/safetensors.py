@@ -6,10 +6,12 @@ import safetensors.numpy
 
 from mindspore import Parameter, Tensor
 
+
 def load_safetensors(filename: Union[str, os.PathLike], force_fp32: bool = True) -> Dict[str, Tensor]:
     flat = safetensors.numpy.load_file(filename)
     output = _np2ms(flat, force_fp32=force_fp32)
     return output
+
 
 def _np2ms(np_dict: Dict[str, np.ndarray], force_fp32: bool = True) -> Dict[str, Tensor]:
     for k, v in np_dict.items():

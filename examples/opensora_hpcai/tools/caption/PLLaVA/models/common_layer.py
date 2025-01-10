@@ -9,6 +9,7 @@ from mindspore.common.initializer import Initializer, initializer
 
 __all__ = ["LayerNorm", "Embedding"]
 
+
 class LayerNorm(nn.LayerNorm):
     def __init__(
         self,
@@ -50,6 +51,7 @@ class LayerNorm(nn.LayerNorm):
         return "normalized_shape={}, begin_norm_axis={}, begin_params_axis={}, gamma{}, beta={}".format(
             self.normalized_shape, self.begin_norm_axis, self.begin_params_axis, self.weight, self.bias
         )
+
 
 class Embedding(nn.Embedding):
     def __init__(

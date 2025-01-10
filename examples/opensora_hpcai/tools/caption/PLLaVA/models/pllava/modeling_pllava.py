@@ -1,31 +1,34 @@
 """ MindSpore PLLaVA model."""
-from typing import Dict, Optional, Tuple
 from functools import reduce
-import mindspore as ms
+from typing import Dict, Optional, Tuple
 
+import mindspore as ms
 import mindspore.nn as nn
 import mindspore.ops as ops
 
 from ..activation import ACT2FN
-from ..padding import pad_along_axis
 from ..clip import CLIPVisionModel
 from ..llama import LlamaForCausalLM
-
-
+from ..padding import pad_along_axis
 from .configuration_pllava import PllavaConfig
+
 
 class PllavaMultiModalProjector(nn.Cell):
     def __init__(self, config: PllavaConfig):
         super().__init__()
         self.use_pooling = config.use_pooling
-        self.frame_shape=config.frame_shape
+        self.frame_shape = config.frame_shape
         self.num_frames = config.num_frames
         self.pooling_shape = config.pooling_shape
-        
+
         self.pooling = nn.AdaptiveAvgPool3d(config.pooling_shape)
-        self.linear_1 = nn.Dense(config.vision_config['hidden_size'], config.text_config['hidden_size'], has_bias=True, dtype=config.dtype)
+        self.linear_1 = nn.Dense(
+            config.vision_config["hidden_size"], config.text_config["hidden_size"], has_bias=True, dtype=config.dtype
+        )
         self.act = ACT2FN[config.projector_hidden_act]
-        self.linear_2 = nn.Dense(config.text_config['hidden_size'], config.text_config['hidden_size'], has_bias=True, dtype=config.dtype)
+        self.linear_2 = nn.Dense(
+            config.text_config["hidden_size"], config.text_config["hidden_size"], has_bias=True, dtype=config.dtype
+        )
 
     def convert_Fembeddings2video(self, input, num_videos, frame_shape):
         num_videos_frames, _, embed_dims = input.shape
@@ -42,8 +45,8 @@ class PllavaMultiModalProjector(nn.Cell):
 
         total_frames, spatial_seqlen, embed_dims = hidden_states.shape
         if total_frames < num_frames and self.use_pooling:
-            multiplier = int(num_frames/total_frames)+1
-            hidden_states= hidden_states.repeat_interleave(multiplier, axis=0)[:num_frames]
+            multiplier = int(num_frames / total_frames) + 1
+            hidden_states = hidden_states.repeat_interleave(multiplier, axis=0)[:num_frames]
             total_frames, spatial_seqlen, embed_dims = hidden_states.shape
 
         assert total_frames % num_frames == 0
@@ -58,6 +61,7 @@ class PllavaMultiModalProjector(nn.Cell):
         hidden_states = ops.swapaxes(hidden_states, 1, 2)
         return hidden_states
 
+
 class PllavaForConditionalGeneration(nn.Cell):
     def __init__(self, config: PllavaConfig):
         super().__init__(config)
@@ -66,8 +70,12 @@ class PllavaForConditionalGeneration(nn.Cell):
         self.multi_modal_projector = PllavaMultiModalProjector(config)
         self.vocab_size = config.vocab_size
         self.language_model = LlamaForCausalLM(**config.text_config)
-        self.pad_token_id = self.config.pad_token_id if self.config.pad_token_id is not None else self.config.text_config.pad_token_id
-        assert self.pad_token_id is not None, 'provide the model with pad_token_id, this would be used to arrange new embedings'
+        self.pad_token_id = (
+            self.config.pad_token_id if self.config.pad_token_id is not None else self.config.text_config.pad_token_id
+        )
+        assert (
+            self.pad_token_id is not None
+        ), "provide the model with pad_token_id, this would be used to arrange new embedings"
 
     def get_input_embeddings(self):
         return self.language_model.get_input_embeddings()
@@ -95,12 +103,8 @@ class PllavaForConditionalGeneration(nn.Cell):
         text_to_overwrite = new_token_positions[batch_indices, non_image_indices]
 
         # 3. Create the full embedding, already padded to the maximum position
-        final_embedding = ops.zeros(
-            (batch_size, max_embed_dim, embed_dim), dtype=inputs_embeds.dtype
-        )
-        final_attention_mask = ops.zeros(
-            (batch_size, max_embed_dim), dtype=attention_mask.dtype
-        )
+        final_embedding = ops.zeros((batch_size, max_embed_dim, embed_dim), dtype=inputs_embeds.dtype)
+        final_attention_mask = ops.zeros((batch_size, max_embed_dim), dtype=attention_mask.dtype)
 
         # 4. Fill the embeddings based on the mask. If we have ["hey" "<image>", "how", "are"]
         # we need to index copy on [0, 577, 578, 579] for the text and [1:576] for the image features
@@ -108,11 +112,12 @@ class PllavaForConditionalGeneration(nn.Cell):
         final_attention_mask[batch_indices, text_to_overwrite] = attention_mask[batch_indices, non_image_indices]
 
         # 5. Fill the embeddings corresponding to the images. Anything that is still zeros needs filling
-        image_to_overwrite = ops.all(final_embedding == 0, axis=-1) # .astype(ms.int32)
-        image_to_overwrite = (image_to_overwrite.int()
-                              & (image_to_overwrite.cumsum(-1) - 1 >= nb_image_pad[:, None]).int()).bool()
+        image_to_overwrite = ops.all(final_embedding == 0, axis=-1)  # .astype(ms.int32)
+        image_to_overwrite = (
+            image_to_overwrite.int() & (image_to_overwrite.cumsum(-1) - 1 >= nb_image_pad[:, None]).int()
+        ).bool()
 
-        if image_to_overwrite.sum() != reduce(lambda x, y: x*y, image_features.shape[:-1]):
+        if image_to_overwrite.sum() != reduce(lambda x, y: x * y, image_features.shape[:-1]):
             raise ValueError(
                 f"The inputs provided to the model are wrong. The number of image tokens is "
                 f"{ops.sum(special_image_token_mask)} while the number of image given to the model"
@@ -126,14 +131,14 @@ class PllavaForConditionalGeneration(nn.Cell):
         return final_embedding, final_attention_mask, position_ids
 
     def construct(
-            self,
-            input_ids: ms.Tensor = None,
-            pixel_values: ms.Tensor = None,
-            attention_mask: Optional[ms.Tensor] = None,
-            position_ids: Optional[ms.Tensor] = None,
-            past_key_cache_list: Optional[ms.Tensor] = None,
-            past_value_cache_list: Optional[ms.Tensor] = None,
-            return_key_value_cache: bool = False,
+        self,
+        input_ids: ms.Tensor = None,
+        pixel_values: ms.Tensor = None,
+        attention_mask: Optional[ms.Tensor] = None,
+        position_ids: Optional[ms.Tensor] = None,
+        past_key_cache_list: Optional[ms.Tensor] = None,
+        past_value_cache_list: Optional[ms.Tensor] = None,
+        return_key_value_cache: bool = False,
     ) -> Tuple[ms.Tensor, Optional[ms.Tensor], Optional[ms.Tensor]]:
         if input_ids is not None:
             # cast to type ms.int32
@@ -153,7 +158,7 @@ class PllavaForConditionalGeneration(nn.Cell):
             _, image_output_hidden_states = self.vision_tower(pixel_values)
             vision_feature_layer = self.config.vision_feature_layer
             vision_feature_select_strategy = self.config.vision_feature_select_strategy
-            selected_image_feature = image_output_hidden_states[vision_feature_layer] # (b, img_seqlen, embed_dim)
+            selected_image_feature = image_output_hidden_states[vision_feature_layer]  # (b, img_seqlen, embed_dim)
 
             if vision_feature_select_strategy == "default":
                 selected_image_feature = selected_image_feature[:, 1:]
@@ -169,14 +174,15 @@ class PllavaForConditionalGeneration(nn.Cell):
                 image_features, inputs_embeds, input_ids, attention_mask
             )
         elif (
-                past_key_cache_list is not None
-                and past_value_cache_list is not None
-                and pixel_values is not None
-                and input_ids.shape[1] == 1
+            past_key_cache_list is not None
+            and past_value_cache_list is not None
+            and pixel_values is not None
+            and input_ids.shape[1] == 1
         ):
             first_layer_past_key_value = past_key_cache_list[0, :, :, :, 0]
-            batch_index, non_attended_tokens = ops.nonzero(first_layer_past_key_value.float().sum(-2) == 0,
-                                                           as_tuple=True)
+            batch_index, non_attended_tokens = ops.nonzero(
+                first_layer_past_key_value.float().sum(-2) == 0, as_tuple=True
+            )
 
             target_length = input_ids.shape[1]
             past_length = first_layer_past_key_value.shape[-1]
@@ -211,34 +217,34 @@ class PllavaForConditionalGeneration(nn.Cell):
         return logits, key_cache_list, value_cache_list
 
     def prepare_inputs_for_generation(
-            self,
-            input_ids: ms.Tensor,
-            pixel_values: Optional[ms.Tensor] = None,
-            attention_mask: Optional[ms.Tensor] = None,
-            past_key_cache_list: Optional[ms.Tensor] = None,
-            past_value_cache_list: Optional[ms.Tensor] = None,
-            return_key_value_cache: bool = False,
-            **kwargs,
+        self,
+        input_ids: ms.Tensor,
+        pixel_values: Optional[ms.Tensor] = None,
+        attention_mask: Optional[ms.Tensor] = None,
+        past_key_cache_list: Optional[ms.Tensor] = None,
+        past_value_cache_list: Optional[ms.Tensor] = None,
+        return_key_value_cache: bool = False,
+        **kwargs,
     ) -> Dict[str, Optional[ms.Tensor]]:
         if past_key_cache_list is not None and past_value_cache_list is not None:
             past_length = past_value_cache_list.shape[-2]
 
             # If attention_mask is longer than input_ids, reduce input_ids:
             if attention_mask is not None and attention_mask.shape[1] > input_ids.shape[1]:
-                input_ids = input_ids[:, -(attention_mask.shape[1] - past_length):]
+                input_ids = input_ids[:, -(attention_mask.shape[1] - past_length) :]
             elif past_length < input_ids.shape[1]:
                 # If we have more input_ids than past_length, discard old tokens
                 input_ids = input_ids[:, past_length:]
             elif self.config.image_token_index in input_ids[0]:
                 # If image token is present, we only take the last token
-                input_ids = input_ids[:, input_ids.shape[1] - 1:]
+                input_ids = input_ids[:, input_ids.shape[1] - 1 :]
 
         position_ids = kwargs.get("position_ids", None)
         if attention_mask is not None and position_ids is None:
             position_ids = attention_mask.astype(ms.int32).cumsum(-1) - 1
             position_ids = position_ids.masked_fill(attention_mask == 0, 1)
             if past_key_cache_list is not None and past_value_cache_list is not None:
-                position_ids = position_ids[:, -input_ids.shape[1]:]
+                position_ids = position_ids[:, -input_ids.shape[1] :]
 
         if pixel_values is not None:
             pixel_values = pixel_values.astype(self.vision_tower.dtype)  # adjust dtype if required

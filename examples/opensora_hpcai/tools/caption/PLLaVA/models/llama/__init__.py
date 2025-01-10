@@ -1,1 +1,1 @@
-from .network import LlamaModel, LlamaForCausalLM
+from .network import LlamaForCausalLM, LlamaModel

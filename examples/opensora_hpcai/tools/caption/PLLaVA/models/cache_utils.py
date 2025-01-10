@@ -7,6 +7,7 @@ from transformers.configuration_utils import PretrainedConfig
 import mindspore as ms
 from mindspore import ops
 
+
 def init_static_cache(config: PretrainedConfig, max_batch_size: int, max_cache_len: int, dtype=None):
     max_cache_len = config.max_position_embeddings if max_cache_len is None else max_cache_len
     # Some model define a custom `head_dim` != config.hidden_size // config.num_attention_heads
