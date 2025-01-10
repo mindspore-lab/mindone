@@ -760,4 +760,3 @@ HUNYUAN_VIDEO_CONFIG = {
         "guidance_embed": True,
     },
 }
-
