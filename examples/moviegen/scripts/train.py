@@ -160,7 +160,10 @@ def main(args):
     # if bucketing is used in Graph mode, activate dynamic inputs
     if mode == GRAPH_MODE and isinstance(args.dataloader.batch_size, dict):
         bs = Symbol(unique=True)
-        video = Tensor(shape=[bs, None, args.model.in_channels if tae is None else 3, None, None], dtype=mstype.float32)
+        if tae is None:
+            video = Tensor(shape=[bs, None, args.model.in_channels, None, None], dtype=mstype.float32)
+        else:  # FIXME: Align TAE to B T C H W order
+            video = Tensor(shape=[bs, 3, None, None, None], dtype=mstype.float32)
         # FIXME: fix sequence length
         ul2_emb = Tensor(shape=[bs, 300, 4096], dtype=mstype.float32)
         byt5_emb = Tensor(shape=[bs, 100, 1472], dtype=mstype.float32)
