@@ -4,11 +4,11 @@ MindSpore implementation of
 [PLLaVA : Parameter-free LLaVA Extension from Images to Videos for Video Dense Captioning
 ](https://arxiv.org/abs/2404.16994).
 
-## Dependencies
+## Requirements
 
-- CANN: 8.0.RC3.beta1 or later
-- Python: 3.9 or later
-- Mindspore: 2.4.1
+| mindspore | ascend driver |    firmware    | cann toolkit/kernel |
+|:---------:|:-------------:|:--------------:|:-------------------:|
+|  2.4.1    |   24.1.RC3    | 7.5.T11.0.B088 |    8.0.RC3.beta1    |
 
 ## Getting Started
 ### Downloading Pretrained Checkpoints
@@ -39,25 +39,26 @@ python pllavarun.py --video path_to_your_video
 
 The inference examples are shown below:
 
-| Video ID | Sample Frame | Caption |
-|----------|--------------|---------|
-| <video src="https://github.com/user-attachments/assets/e79c8b19-b5f6-4391-8bf4-4921e2fede15" /> | <img width="960" alt="2" src="https://github.com/user-attachments/assets/19615fcd-b0e9-431a-b882-fea75b43d84e" /> | The image shows a collection of cake pans inside an oven. Each pan has a different color of frosting, indicating that they are being used to bake cakes with various flavors or colors. The oven appears to be a professional-grade model, suitable for baking large quantities of cakes at once. The pans are arranged on a rack, which is designed to allow for even heat distribution and to prevent the cakes from sticking to the bottom of the oven. |
+| Video ID |  Caption |
+|----------|---------|
+| <video src="https://github.com/user-attachments/assets/e79c8b19-b5f6-4391-8bf4-4921e2fede15" /> | The image shows a collection of cake pans inside an oven. Each pan has a different color of frosting, indicating that they are being used to bake cakes with various flavors or colors. The oven appears to be a professional-grade model, suitable for baking large quantities of cakes at once. The pans are arranged on a rack, which is designed to allow for even heat distribution and to prevent the cakes from sticking to the bottom of the oven. |
 
 
 ## Benchmark
 
 ### Inference
 
-To test the benchmark, you may use the video `-0og5HrzhpY_0.mp4` under `./examples`
+Experiments are tested on ascend 910* with mindspore 2.4.1.
+
+To test the benchmark, you may use the video `-0og5HrzhpY_0.mp4` and place it under `./examples`
 and run the following command:
+
 ```bash
 python pllavarun.py --video ./example/-0og5HrzhpY_0.mp4 --benchmark
 ```
 
-|         Model         | Context       | Batch Size | Throughput (tokens/second) |
-|-----------------------|---------------|------------|----------------------------|
-| pllava-7b| D910*x1-MS2.4 |    1       | 8.89                       |
+| model name | cards | jit level | batch size | throughput (tokens/second) |
+|------------|-------|---------|------------|----------------------------|
+| pllava-7b  | 1     | O1      | 1          | 8.89                       |
 
-> Context: {Ascend chip}-{number of NPUs}-{mindspore version}.\
-> Throughput (tokens/second): number of generated tokens per second.\
 > We use the second round of inference as the benchmark result.
