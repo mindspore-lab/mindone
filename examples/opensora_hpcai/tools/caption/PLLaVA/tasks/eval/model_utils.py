@@ -49,5 +49,3 @@ def pllava_answer(model, processor, img_list, prompt,
     output_text = processor.batch_decode(output_token, skip_special_tokens=True, clean_up_tokenization_spaces=False)[0]
 
     return output_token.asnumpy(), output_text.strip()
-
-
