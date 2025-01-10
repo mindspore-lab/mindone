@@ -1,10 +1,9 @@
-import copy
 import csv
 import logging
 import os
 import random
 from pathlib import Path
-from typing import Dict, List, Literal, Optional, Tuple, Union
+from typing import Dict, List, Literal, Optional, Tuple
 
 import cv2
 import imageio
@@ -13,41 +12,11 @@ from decord import VideoReader
 
 from mindone.data import BaseDataset
 
+from .transforms import HorizontalFlip, ResizeCrop
+
 __all__ = ["VideoDataset", "BatchTransform"]
 
 logger = logging.getLogger()
-
-
-def create_video_transforms(
-    size=384, crop_size=256, interpolation="bicubic", backend="al", random_crop=False, flip=False, num_frames=None
-):
-    if backend == "al":
-        os.environ["NO_ALBUMENTATIONS_UPDATE"] = "1"  # prevent albumentations from being annoying
-        # expect rgb image in range 0-255, shape (h w c)
-        from albumentations import CenterCrop, Compose, HorizontalFlip, RandomCrop, SmallestMaxSize
-
-        if isinstance(crop_size, int):
-            crop_size = (crop_size, crop_size)
-
-        # NOTE: to ensure augment all frames in a video in the same way.
-        assert num_frames is not None, "num_frames must be parsed"
-        targets = {f"image{i}": "image" for i in range(num_frames)}
-        mapping = {"bilinear": cv2.INTER_LINEAR, "bicubic": cv2.INTER_CUBIC}
-        transforms = [
-            SmallestMaxSize(max_size=size, interpolation=mapping[interpolation]),
-            CenterCrop(*crop_size) if not random_crop else RandomCrop(*crop_size),
-        ]
-        if flip:
-            transforms += [HorizontalFlip(p=0.5)]
-
-        pixel_transforms = Compose(
-            transforms,
-            additional_targets=targets,
-        )
-    else:
-        raise NotImplementedError
-
-    return pixel_transforms
 
 
 def get_video_path_list(folder: str, video_column: str) -> List[Dict[str, str]]:
@@ -74,48 +43,38 @@ class VideoDataset(BaseDataset):
         self,
         csv_path: Optional[str],
         folder: str,
-        size: int = 384,
-        crop_size: Union[int, Tuple[int, int]] = 256,
+        size: Tuple[int, int] = (256, 256),
         random_crop: bool = False,
-        flip: bool = False,
+        random_flip: bool = False,
         sample_stride: int = 1,
         sample_n_frames: int = 16,
+        deterministic_sample: bool = False,
         return_image: bool = False,
         video_column: str = "video",
         *,
         output_columns: List[str],
     ):
-        """
-        size: image resize size
-        crop_size: crop size after resize operation
-        """
-        logger.info(f"loading annotations from {csv_path} ...")
-
         if csv_path is not None:
+            logger.info(f"Loading annotations from {csv_path} ...")
             with open(csv_path, "r") as csvfile:
                 self.dataset = [
                     {**item, video_column: os.path.join(folder, item[video_column]), "rel_path": item[video_column]}
                     for item in csv.DictReader(csvfile)
                 ]
         else:
+            logger.info(f"Loading video list from {folder} ...")
             self.dataset = get_video_path_list(folder, video_column)
 
-        self.length = len(self.dataset)
-        logger.info(f"Num data samples: {self.length}")
+        logger.info(f"Num data samples: {len(self.dataset)}")
         logger.info(f"sample_n_frames: {sample_n_frames}")
 
         self.folder = folder
         self.sample_stride = sample_stride
         self.sample_n_frames = sample_n_frames
         self.return_image = return_image
+        self._deterministic = deterministic_sample
 
-        self.pixel_transforms = create_video_transforms(
-            size=size,
-            crop_size=crop_size,
-            random_crop=random_crop,
-            flip=flip,
-            num_frames=sample_n_frames,
-        )
+        self._transforms = self.train_transforms(size=size, random_crop=random_crop, random_flip=random_flip)
         self.video_column = video_column
         self.output_columns = output_columns
 
@@ -126,14 +85,13 @@ class VideoDataset(BaseDataset):
 
     def get_replace_data(self, max_attempts=100):
         replace_data = None
-        attempts = min(max_attempts, self.length)
+        attempts = min(max_attempts, len(self.dataset))
         for idx in range(attempts):
             try:
-                pixel_values = self.get_batch(idx)
-                replace_data = copy.deepcopy(pixel_values)
+                replace_data = self.get_batch(idx)
                 break
             except Exception as e:
-                print("\tError msg: {}".format(e))
+                print(f"\tError msg: {e}")
 
         assert replace_data is not None, f"Fail to preload sample in {attempts} attempts."
 
@@ -145,15 +103,16 @@ class VideoDataset(BaseDataset):
         video_path = video_dict[self.video_column]
 
         video_reader = VideoReader(video_path)
-
         video_length = len(video_reader)
 
         if not self.return_image:
-            clip_length = min(video_length, (self.sample_n_frames - 1) * self.sample_stride + 1)
-            start_idx = random.randint(0, video_length - clip_length)
-            batch_index = np.linspace(start_idx, start_idx + clip_length - 1, self.sample_n_frames, dtype=int)
+            clip_length = video_length
+            if self.sample_n_frames > 0:
+                clip_length = min(video_length, (self.sample_n_frames - 1) * self.sample_stride + 1)
+            start_idx = 0 if self._deterministic else random.randint(0, video_length - clip_length)
+            batch_index = list(range(start_idx, start_idx + clip_length, self.sample_stride))
         else:
-            batch_index = [random.randint(0, video_length - 1)]
+            batch_index = [0] if self._deterministic else [random.randint(0, video_length - 1)]
 
         if video_path.endswith(".gif"):
             video_dict[self.video_column] = video_reader[batch_index]  # shape: (f, h, w, c)
@@ -162,10 +121,12 @@ class VideoDataset(BaseDataset):
 
         del video_reader
 
+        video_dict = self._apply_transforms(video_dict, self._transforms)
+
         return tuple(video_dict[c] for c in self.output_columns)
 
     def __len__(self):
-        return self.length
+        return len(self.dataset)
 
     def __getitem__(self, idx):
         """
@@ -174,46 +135,38 @@ class VideoDataset(BaseDataset):
         """
         try:
             data = self.get_batch(idx)
-            if (self.prev_ok_sample is None) or (self.require_update_prev):
-                self.prev_ok_sample = copy.deepcopy(data)
+            if self.prev_ok_sample is None or self.require_update_prev:
+                self.prev_ok_sample = data
                 self.require_update_prev = False
         except Exception as e:
             logger.warning(f"Fail to get sample of idx {idx}. The corrupted video will be replaced.")
-            print("\tError msg: {}".format(e), flush=True)
+            print(f"\tError msg: {e}", flush=True)
             assert self.prev_ok_sample is not None
             data = self.prev_ok_sample  # unless the first sample is already not ok
             self.require_update_prev = True
 
-            if idx >= self.length:
+            if idx >= len(self.dataset):
                 raise IndexError  # needed for checking the end of dataset iteration
 
-        pixel_values = data[0]
-        num_frames = len(pixel_values)
-        # pixel value: (f, h, w, 3) -> transforms -> (f 3 h' w')
-        # NOTE:it's to ensure augment all frames in a video in the same way.
-        # ref: https://albumentations.ai/docs/examples/example_multi_target/
-
-        inputs = {"image": pixel_values[0]}
-        for i in range(num_frames - 1):
-            inputs[f"image{i}"] = pixel_values[i + 1]
-
-        output = self.pixel_transforms(**inputs)
-
-        pixel_values = np.stack(list(output.values()), axis=0)
-        # (t h w c) -> (c t h w)
-        pixel_values = np.transpose(pixel_values, (3, 0, 1, 2))
-
-        if self.return_image:
-            pixel_values = pixel_values[1]
-
-        pixel_values = (pixel_values / 127.5 - 1.0).astype(np.float32)
-
-        return pixel_values, *data[1:]
+        return data
 
     @staticmethod
-    def train_transforms(**kwargs) -> List[dict]:
-        # train transforms are performed during data reading
-        pass
+    def train_transforms(
+        size: Tuple[int, int],
+        random_crop: bool = False,
+        random_flip: bool = False,
+        interpolation: int = cv2.INTER_CUBIC,
+    ) -> List[dict]:
+        if random_crop:
+            raise NotImplementedError("Random cropping is not supported yet.")
+
+        operations = [ResizeCrop(size, interpolation=interpolation)]
+        if random_flip:
+            operations.append(HorizontalFlip(p=0.5))
+        operations.append(lambda x: np.transpose(x, (3, 0, 1, 2)))  # T H W C -> C T H W
+        operations.append(lambda x: x.astype(np.float32) / 127.5 - 1)
+
+        return [{"operations": operations, "input_columns": ["video"]}]
 
 
 # TODO: parse in config dict

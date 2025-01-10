@@ -223,7 +223,7 @@ class ImageVideoDataset(BaseDataset):
             data["frames_mask"] = self._fmask_gen(self._t_compress_func(num_frames))
 
         if self._transforms:
-            data = self._apply_transforms(data)
+            data = self._apply_transforms(data, self._transforms)
 
         return tuple(data[c] for c in self.output_columns)
 
@@ -246,16 +246,6 @@ class ImageVideoDataset(BaseDataset):
 
     def __len__(self):
         return len(self._data)
-
-    def _apply_transforms(self, data: Dict[str, np.ndarray]) -> Dict[str, np.ndarray]:
-        for transform in self._transforms:
-            input_data = tuple(data[column] for column in transform["input_columns"])
-            for op in transform["operations"]:
-                input_data = op(*input_data)
-                if not isinstance(input_data, tuple):  # wrap numpy array in a tuple
-                    input_data = (input_data,)
-            data.update(zip(transform.get("output_columns", transform["input_columns"]), input_data))
-        return data
 
     def train_transforms(
         self,

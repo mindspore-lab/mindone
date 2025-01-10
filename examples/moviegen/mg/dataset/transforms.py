@@ -1,3 +1,4 @@
+import random
 from typing import Optional, Tuple
 
 import cv2
@@ -25,6 +26,14 @@ class ResizeCrop:
         self._po = preserve_orientation
 
     def __call__(self, x: np.ndarray, size: Optional[Tuple[int, int]] = None) -> np.ndarray:
+        """
+        Args:
+            x: An array containing either an image (h, w, c) or a video (f, h, w, c).
+            size: The target size. If None, the target size must be passed during initialization.
+
+        Returns:
+            A resized and cropped image or video.
+        """
         h, w = x.shape[-3:-1]  # support images and videos
         th, tw = size or self._size
 
@@ -43,4 +52,27 @@ class ResizeCrop:
             i, j = round((x.shape[-3] - th) / 2.0), round((x.shape[-2] - tw) / 2.0)
             x = x[..., i : i + th, j : j + tw, :]
 
+        return x
+
+
+class HorizontalFlip:
+    """
+    Horizontal flip the input image or video.
+
+    Args:
+        p: The probability of horizontal flip.
+    """
+
+    def __init__(self, p: float = 0.5):
+        self._p = p
+
+    def __call__(self, x: np.ndarray) -> np.ndarray:
+        """
+        Args:
+            x: An array containing either an image (h, w, c) or a video (f, h, w, c).
+        Returns:
+            An image or video flipped with probability p.
+        """
+        if random.random() < self._p:
+            x = np.flip(x, axis=-2)
         return x

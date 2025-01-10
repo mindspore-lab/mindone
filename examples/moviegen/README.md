@@ -225,13 +225,17 @@ command:
 
 ```shell
 python scripts/inference_tae.py \
---tae.pretrained=/path/to/tae.ckpt \
+--tae.pretrained=models/tae_ucf101pt_mixkitft-b3b2e364.ckpt \
 --tae.dtype=bf16 \
+--tae.use_tile=True \
 --video_data.folder=/path/to/folder/with/videos/ \
 --output_path=/path/to/output/directory/ \
---video_data.size=256 \
---video_data.crop_size=[256,455]
+--video_data.sample_n_frames=256 \
+--video_data.size=[256,455]
 ```
+
+> [!TIP]
+> Set `video_data.sample_n_frames` to `-1` to encode the full videos.
 
 ### Performance
 

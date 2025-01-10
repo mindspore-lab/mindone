@@ -109,13 +109,12 @@ def main(args):
     dataset = VideoDataset(
         csv_path=args.csv_path,
         folder=args.folder,
-        size=args.image_size,
-        crop_size=args.image_size,
+        size=args.size,
         sample_n_frames=args.sample_n_frames,
         sample_stride=args.sample_stride,
         video_column=args.video_column,
         random_crop=False,
-        flip=False,
+        random_flip=False,
         output_columns=["video"],
     )
     dataset = create_dataloader(

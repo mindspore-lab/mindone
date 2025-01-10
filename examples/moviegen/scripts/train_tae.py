@@ -66,23 +66,15 @@ def main(args):
     set_logger(name="", output_dir=args.output_path, rank=rank_id, log_level=eval(args.log_level))
 
     # 2. build data loader
-    if isinstance(args.image_size, int):
-        image_size = args.image_size
-    else:
-        if len(args.image_size) == 2:
-            assert args.image_size[0] == args.image_size[1], "Currently only h==w is supported"
-        image_size = args.image_size[0]
-
     dataset = VideoDataset(
         csv_path=args.csv_path,
         folder=args.folder,
-        size=args.image_size,
-        crop_size=args.crop_size,
+        size=args.size,
         sample_n_frames=args.sample_n_frames,
         sample_stride=args.sample_stride,
         video_column=args.video_column,
         random_crop=args.random_crop,
-        flip=args.flip,
+        random_flip=args.random_flip,
         output_columns=["video"],
     )
     transform = BatchTransform(mixed_strategy=args.mixed_strategy, mixed_image_ratio=args.mixed_image_ratio)
@@ -220,8 +212,8 @@ def main(args):
     # support dynamic shape in graph mode
     if args.mode == 0 and args.mixed_strategy == "mixed_video_random":
         # (b c t h w), drop_remainder so bs fixed
-        # videos = ms.Tensor(shape=[args.batch_size, 3, None, image_size, image_size], dtype=ms.float32)
-        videos = ms.Tensor(shape=[None, 3, None, image_size, image_size], dtype=ms.float32)
+        # videos = ms.Tensor(shape=[args.batch_size, 3, None, *args.size], dtype=ms.float32)
+        videos = ms.Tensor(shape=[None, 3, None, *args.size], dtype=ms.float32)
         training_step_ae.set_inputs(videos)
         logger.info("Dynamic inputs are initialized for mixed_video_random training in Graph mode!")
 
@@ -237,7 +229,7 @@ def main(args):
                 f"Video folder: {args.video_folder}",
                 f"Learning rate: {learning_rate}",
                 f"Batch size: {args.batch_size}",
-                f"Rescale size: {args.image_size}",
+                f"Rescale size: {args.size}",
                 f"Weight decay: {args.weight_decay}",
                 f"Grad accumulation steps: {args.gradient_accumulation_steps}",
                 f"Num epochs: {args.epochs}",

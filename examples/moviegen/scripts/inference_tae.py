@@ -37,8 +37,8 @@ Path_dr = path_type("dr", docstring="path to a directory that exists and is read
 def encode(args, tae: TemporalAutoencoder, save_dir: Path, rank_id: int, device_num: int, mode: int):
     dataset = VideoDataset(
         **args.video_data.init_args,
-        sample_n_frames=10**5,  # read the full video, limitation of `albumentations` (i.e., `additional_targets`)
-        output_columns=["video", "rel_path"],
+        deterministic_sample=True,
+        output_columns=[args.video_data.init_args.video_column, "rel_path"],
     )
     dataloader = create_dataloader(
         dataset, drop_remainder=False, device_num=device_num, rank_id=rank_id, **args.dataloader
@@ -52,7 +52,6 @@ def encode(args, tae: TemporalAutoencoder, save_dir: Path, rank_id: int, device_
             f"Debug mode: {args.env.debug}",
             f"TAE dtype: {args.tae.dtype}",
             f"Image size: {args.video_data.init_args.size}",
-            f"Crop size: {args.video_data.init_args.crop_size}",
             f"Num of batches: {dataloader.get_dataset_size()}",
         ]
     )
@@ -153,7 +152,7 @@ if __name__ == "__main__":
     parser.add_subclass_arguments(
         VideoDataset,
         "video_data",
-        skip={"random_crop", "flip", "sample_n_frames", "return_image", "output_columns"},
+        skip={"random_crop", "random_flip", "deterministic_sample", "return_image", "output_columns"},
         instantiate=False,
         required=False,
     )
