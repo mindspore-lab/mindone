@@ -51,7 +51,7 @@ from transformers.utils import (
 from transformers.utils.hub import convert_file_size_to_int, get_checkpoint_shard_files
 
 import mindspore as ms
-from mindspore import Tensor, nn, ops, Parameter
+from mindspore import Parameter, Tensor, nn, ops
 
 from .integrations import PeftAdapterMixin
 from .modeling_attn_mask_utils import dtype_to_min
@@ -734,7 +734,7 @@ class MSPreTrainedModel(nn.Cell, ModuleUtilsMixin, PushToHubMixin, PeftAdapterMi
 
     @staticmethod
     def _tie_encoder_decoder_weights(
-            encoder: nn.Cell, decoder: nn.Cell, base_model_prefix: str, base_encoder_name: str
+        encoder: nn.Cell, decoder: nn.Cell, base_model_prefix: str, base_encoder_name: str
     ):
         uninitialized_encoder_weights: List[str] = []
         tied_weights: List[str] = []
@@ -745,14 +745,14 @@ class MSPreTrainedModel(nn.Cell, ModuleUtilsMixin, PushToHubMixin, PeftAdapterMi
             )
 
         def tie_encoder_to_decoder_recursively(
-                decoder_pointer: nn.Cell,
-                encoder_pointer: nn.Cell,
-                module_name: str,
-                base_encoder_name: str,
-                uninitialized_encoder_weights: List[str],
-                depth=0,
-                total_decoder_name="",
-                total_encoder_name="",
+            decoder_pointer: nn.Cell,
+            encoder_pointer: nn.Cell,
+            module_name: str,
+            base_encoder_name: str,
+            uninitialized_encoder_weights: List[str],
+            depth=0,
+            total_decoder_name="",
+            total_encoder_name="",
         ):
             assert isinstance(decoder_pointer, nn.Cell) and isinstance(
                 encoder_pointer, nn.Cell
@@ -771,7 +771,7 @@ class MSPreTrainedModel(nn.Cell, ModuleUtilsMixin, PushToHubMixin, PeftAdapterMi
             decoder_modules = decoder_pointer._modules
             if len(decoder_modules) > 0:
                 assert (
-                        len(encoder_modules) > 0
+                    len(encoder_modules) > 0
                 ), f"Encoder module {encoder_pointer} does not match decoder module {decoder_pointer}"
 
                 all_encoder_weights = {module_name + "/" + sub_name for sub_name in encoder_modules.keys()}
@@ -781,7 +781,7 @@ class MSPreTrainedModel(nn.Cell, ModuleUtilsMixin, PushToHubMixin, PeftAdapterMi
                         encoder_name = str(int(name) + encoder_layer_pos)
                         decoder_name = name
                         if not isinstance(decoder_modules[decoder_name], type(encoder_modules[encoder_name])) and len(
-                                encoder_modules
+                            encoder_modules
                         ) != len(decoder_modules):
                             # this can happen if the name corresponds to the position in a list module list of layers
                             # in this case the decoder has added a cross-attention that the encoder does not have
