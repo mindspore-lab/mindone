@@ -1,6 +1,7 @@
 import json
 import logging
 import os
+from typing import Literal
 
 import mindspore as ms
 from mindspore import nn, ops
@@ -554,13 +555,13 @@ def prepare_train_network(
     clip_grad: bool = False,
     clip_norm: float = 1.0,
     verbose: bool = False,
-    zero_stage: int = 0,
+    zero_stage: Literal[0, 1, 2, 3] = 0,
     optimizer_offload: bool = False,
     op_group: str = None,
     dp_group: str = None,
     comm_fusion: dict = None,
     parallel_modules=None,
-):
+) -> TrainOneStepWrapper:
     """
     Prepare network and optimizer for distributed training.
 
@@ -584,11 +585,6 @@ def prepare_train_network(
         parallel_modules (`dict`, *optional*): A dict of Cells could split parameters in zero3, default is None.
             If None, use `PARALLEL_MODULES` from `mindone.models.modules.parallel`.
     """
-    is_parallel = _get_parallel_mode() == ParallelMode.DATA_PARALLEL
-    if not is_parallel and zero_stage == 0:
-        _logger.info("No need prepare train_network with zero.")
-        return network, optimizer
-
     if zero_stage not in [0, 1, 2, 3]:
         raise ValueError("Not support zero_stage {zero_stage}")
     if op_group is None:
@@ -597,14 +593,20 @@ def prepare_train_network(
     if op_group != GlobalComm.WORLD_COMM_GROUP and dp_group is None:
         raise ValueError("op_group {op_group} and dp_group {dp_group} not full network hccl group coverage")
 
-    new_network = prepare_network(network, zero_stage, op_group, parallel_modules=parallel_modules)
-    zero_helper = ZeroHelper(optimizer, zero_stage, op_group, dp_group, optimizer_offload, comm_fusion)
+    is_parallel = _get_parallel_mode() == ParallelMode.DATA_PARALLEL
+    if not is_parallel and zero_stage == 0:
+        _logger.info("No need prepare train_network with zero.")
+        zero_helper = None
+    else:
+        network = prepare_network(network, zero_stage, op_group, parallel_modules=parallel_modules)
+        zero_helper = ZeroHelper(optimizer, zero_stage, op_group, dp_group, optimizer_offload, comm_fusion)
+
     if ema is not None:
         ema = prepare_ema(ema, zero_stage, op_group)
     if isinstance(scale_sense, float):
         scale_sense = ms.Tensor(scale_sense, ms.float32)
     train_network = TrainOneStepWrapper(
-        new_network,
+        network,
         optimizer,
         scale_sense=scale_sense,
         ema=ema,

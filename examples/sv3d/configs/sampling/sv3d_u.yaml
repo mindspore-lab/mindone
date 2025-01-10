@@ -1,0 +1,154 @@
+model:
+  target: models.diffusion.MultiviewVideoDiffusionEngine
+  params:
+    scale_factor: 0.18215
+    disable_first_stage_amp: True
+    en_and_decode_n_samples_a_time: 7
+
+    denoiser_config:
+      target: sgm.modules.diffusionmodules.denoiser.Denoiser
+      params:
+        weighting_config:
+          target: sgm.modules.diffusionmodules.denoiser_weighting.EDMWeighting
+          params:
+            sigma_data: 1.0
+        scaling_config:
+          target: sgm.modules.diffusionmodules.denoiser_scaling.VScalingWithEDMcNoise
+
+    sampler_config:
+      target: sgm.modules.diffusionmodules.sampler.EulerEDMSampler
+      params:
+        discretization_config:
+          target: sgm.modules.diffusionmodules.discretizer.EDMDiscretization
+          params:
+            sigma_max: 700.0
+
+        guider_config:
+          target: sgm.modules.diffusionmodules.guiders.TrianglePredictionGuider
+          params:
+            max_scale: 2.5
+            num_frames: 21          # for running pretrained sv3d_u ckpt
+            # num_frames: 16        # CFG's scale generation, just to make training and inference the same is ok.
+
+    network_config:
+      target: modules.video_model.VideoUNet
+      params:
+        adm_in_channels: 256
+        num_classes: sequential
+        in_channels: 8
+        out_channels: 4
+        model_channels: 320
+        attention_resolutions: [4, 2, 1]
+        num_res_blocks: 2
+        channel_mult: [1, 2, 4, 4]
+        num_head_channels: 64
+        use_linear_in_transformer: True
+        transformer_depth: 1
+        context_dim: 1024
+        spatial_transformer_attn_type: flash-attention  # cross attn by default for video-unet, other fa below is for self attn
+        extra_ff_mix_layer: True
+        use_spatial_context: True
+        merge_strategy: learned_with_images
+        video_kernel_size: [3, 1, 1]
+
+    conditioner_config:
+      target: sgm.modules.embedders.GeneralConditioner
+      params:
+        emb_models:
+        - is_trainable: False
+          input_key: cond_frames_without_noise
+          target: sgm.modules.embedders.modules.FrozenOpenCLIPImagePredictionEmbedder
+          params:
+            n_cond_frames: 1
+            n_copies: 1
+            open_clip_embedding_config:
+              target: sgm.modules.embedders.modules.FrozenOpenCLIPImageEmbedder
+              params:
+                freeze: True
+
+        - input_key: cond_frames
+          is_trainable: False
+          target: sgm.modules.embedders.modules.VideoPredictionEmbedderWithEncoder
+          params:
+            disable_encoder_autocast: True
+            n_cond_frames: 1
+            n_copies: 1
+            is_ae: True
+            encoder_config:
+              target: sgm.models.autoencoder.AutoencoderKLModeOnly
+              params:
+                embed_dim: 4
+                monitor: val/rec_loss
+                ddconfig:
+                  attn_type: flash-attention
+                  double_z: True
+                  z_channels: 4
+                  resolution: 256
+                  in_channels: 3
+                  out_ch: 3
+                  ch: 128
+                  ch_mult: [1, 2, 4, 4]  # len of this var desides # of downsample_2x
+                  num_res_blocks: 2
+                  attn_resolutions: []
+                  dropout: 0.0
+                lossconfig:
+                  target: mindspore.nn.Identity
+
+        - input_key: cond_aug
+          is_trainable: False
+          target: sgm.modules.embedders.modules.ConcatTimestepEmbedderND
+          params:
+            outdim: 256
+
+    first_stage_config:
+      target: sgm.models.autoencoder.AutoencodingEngine
+      params:
+        loss_config:
+          target: mindspore.nn.Identity
+        regularizer_config:
+          target: sgm.modules.autoencoding.regularizers.DiagonalGaussianRegularizer
+        encoder_config: # vanilla sv3d ckpt, only for inference & pynative mode only: bug with graph mode if using the raw cfg
+          target: torch.nn.Identity
+        decoder_config: # vanilla sv3d ckpt
+          target: sgm.modules.diffusionmodules.model.Decoder
+          params:
+            attn_type: flash-attention
+            double_z: True
+            z_channels: 4
+            resolution: 256
+            in_channels: 3
+            out_ch: 3
+            ch: 128
+            ch_mult: [ 1, 2, 4, 4 ]
+            num_res_blocks: 2
+            attn_resolutions: [ ]
+            dropout: 0.0
+        # encoder_config:   # training: the correct x should be created by this encoder. If using the official vae cfg above pynative training can penetrate, but wrong result preloading svd ckpts. Graph mode will directly fail as the video_model as redudant keys (which is meant to be used with these training setup below)
+        #   target: sgm.modules.diffusionmodules.model.Encoder
+        #   params:
+        #     attn_type: flash-attention
+        #     double_z: True
+        #     z_channels: 4
+        #     resolution: 256
+        #     in_channels: 3
+        #     out_ch: 3
+        #     ch: 128
+        #     ch_mult: [ 1, 2, 4, 4 ]
+        #     num_res_blocks: 2
+        #     attn_resolutions: [ ]
+        #     dropout: 0.0
+        # decoder_config:  # changed for training
+        #   target: modules.temporal_ae.VideoDecoder
+        #   params:
+        #     attn_type: flash-attention
+        #     double_z: True
+        #     z_channels: 4
+        #     resolution: 256
+        #     in_channels: 3
+        #     out_ch: 3
+        #     ch: 128
+        #     ch_mult: [ 1, 2, 4, 4 ]
+        #     num_res_blocks: 2
+        #     attn_resolutions: [ ]
+        #     dropout: 0.0
+        #     video_kernel_size: [ 3, 1, 1 ]

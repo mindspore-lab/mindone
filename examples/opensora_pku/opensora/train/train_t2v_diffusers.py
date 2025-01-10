@@ -624,6 +624,9 @@ def main(args):
         if args.profile:
             callback.append(ProfilerCallbackEpoch(2, 2, "./profile_data"))
     # Train!
+    assert (
+        args.train_sp_batch_size == 1
+    ), "Do not support train_sp_batch_size other than 1. Please set `--train_sp_batch_size 1`"
     total_batch_size = args.train_batch_size * device_num * args.gradient_accumulation_steps
     total_batch_size = total_batch_size // args.sp_size * args.train_sp_batch_size
     # 5. log and save config

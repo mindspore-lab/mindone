@@ -9,8 +9,7 @@ import numpy as np
 from mindspore.dataset.vision import CenterCrop, Resize
 
 sys.path.append("../../")  # FIXME: remove in future when mindone is ready for install
-from mindone.data import BaseDataset
-from mindone.data.video_reader import VideoReader
+from mindone.data import BaseDataset, VideoReader
 
 _logger = logging.getLogger(__name__)
 
@@ -31,7 +30,7 @@ class VideoDataset(BaseDataset):
             for line in file:
                 line = line.strip().split(",", maxsplit=2)
                 data.append(
-                    {"path": os.path.join(data_dir, line[0]), "length": int(line[1]), "motion_bucket_id": line[2]}
+                    {"path": os.path.join(data_dir, line[0]), "length": int(line[1]), "motion_bucket_id": int(line[2])}
                 )
         return data
 
