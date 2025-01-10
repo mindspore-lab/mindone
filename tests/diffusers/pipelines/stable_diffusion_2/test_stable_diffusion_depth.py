@@ -17,6 +17,7 @@ import random
 import unittest
 
 import numpy as np
+import pytest
 import torch
 from ddt import data, ddt, unpack
 from PIL import Image
@@ -24,24 +25,32 @@ from transformers import CLIPTextConfig, DPTConfig
 
 import mindspore as ms
 
+from mindone.diffusers.utils.testing_utils import (
+    fast,
+    load_downloaded_image_from_hf_hub,
+    load_downloaded_numpy_from_hf_hub,
+    slow,
+)
+
 from ..pipeline_test_utils import (
     THRESHOLD_FP16,
     THRESHOLD_FP32,
+    THRESHOLD_PIXEL,
     PipelineTesterMixin,
     floats_tensor,
     get_module,
     get_pipeline_components,
 )
 
-# FIXME: We will add graph mode in the UT after ops.interpolate is fixed
 test_cases = [
     {"mode": ms.PYNATIVE_MODE, "dtype": "float32"},
     {"mode": ms.PYNATIVE_MODE, "dtype": "float16"},
-    # {"mode": ms.GRAPH_MODE, "dtype": "float32"},
-    # {"mode": ms.GRAPH_MODE, "dtype": "float16"},
+    {"mode": ms.GRAPH_MODE, "dtype": "float32"},
+    {"mode": ms.GRAPH_MODE, "dtype": "float16"},
 ]
 
 
+@fast
 @ddt
 class StableDiffusionDepth2ImgPipelineFastTests(PipelineTesterMixin, unittest.TestCase):
     backbone_config = {
@@ -192,9 +201,9 @@ class StableDiffusionDepth2ImgPipelineFastTests(PipelineTesterMixin, unittest.Te
     @unpack
     def test_stable_diffusion_depth2img_default_case(self, mode, dtype):
         if mode == ms.GRAPH_MODE:
-            ms.set_context(mode=mode, jit_syntax_level=ms.STRICT)
-        else:
-            ms.set_context(mode=mode)
+            pytest.skip("add graph mode after ops.interpolate is fixed")
+
+        ms.set_context(mode=mode)
 
         pt_components, ms_components = self.get_dummy_components()
         pt_pipe_cls = get_module("diffusers.pipelines.stable_diffusion.StableDiffusionDepth2ImgPipeline")
@@ -221,4 +230,36 @@ class StableDiffusionDepth2ImgPipelineFastTests(PipelineTesterMixin, unittest.Te
         ms_image_slice = ms_image[0][0, -3:, -3:, -1]
 
         threshold = THRESHOLD_FP32 if dtype == "float32" else THRESHOLD_FP16
-        assert np.max(np.linalg.norm(pt_image_slice - ms_image_slice) / np.linalg.norm(pt_image_slice)) < threshold
+        assert np.linalg.norm(pt_image_slice - ms_image_slice) / np.linalg.norm(pt_image_slice) < threshold
+
+
+@slow
+@ddt
+class StableDiffusionDepth2ImgPipelineNightlyTests(PipelineTesterMixin, unittest.TestCase):
+    @data(*test_cases)
+    @unpack
+    def test_depth2img_pndm(self, mode, dtype):
+        ms.set_context(mode=mode)
+        ms_dtype = getattr(ms, dtype)
+
+        pipe_cls = get_module("mindone.diffusers.pipelines.stable_diffusion.StableDiffusionDepth2ImgPipeline")
+        pipe = pipe_cls.from_pretrained("stabilityai/stable-diffusion-2-depth", mindspore_dtype=ms_dtype)
+        pipe.set_progress_bar_config(disable=None)
+
+        init_image = load_downloaded_image_from_hf_hub(
+            "The-truth/mindone-testing-arrays",
+            "depth2img_input.jpg",
+            subfolder="stable_diffusion_2",
+        )
+        prompt = "two tigers"
+        n_propmt = "bad, deformed, ugly, bad anotomy"
+
+        torch.manual_seed(0)
+        image = pipe(prompt=prompt, image=init_image, negative_prompt=n_propmt, strength=0.7)[0][0]
+
+        expected_image = load_downloaded_numpy_from_hf_hub(
+            "The-truth/mindone-testing-arrays",
+            f"depth2img_pndm_{dtype}.npy",
+            subfolder="stable_diffusion_2",
+        )
+        assert np.mean(np.abs(np.array(image, dtype=np.float32) - expected_image)) < THRESHOLD_PIXEL
