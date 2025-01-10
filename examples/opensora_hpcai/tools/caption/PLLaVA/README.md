@@ -41,7 +41,12 @@ The inference examples are shown below:
 
 | Video ID | Sample Frame                     | Caption                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
 |----------|----------------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| -0og5HrzhpY_0.mp4      | ![Sample Image 1](example/2.png) | The image shows a collection of cake pans inside an oven. Each pan has a different color of frosting, indicating that they are being used to bake cakes with various flavors or colors. The oven appears to be a professional-grade model, suitable for baking large quantities of cakes at once. The pans are arranged on a rack, which is designed to allow for even heat distribution and to prevent the cakes from sticking to the bottom of the oven. |
+| 
+
+https://github.com/user-attachments/assets/0d4734c2-9424-426d-811f-d6984bbaf8f5
+
+    | <img width="960" alt="2" src="https://github.com/user-attachments/assets/19615fcd-b0e9-431a-b882-fea75b43d84e" />
+ | The image shows a collection of cake pans inside an oven. Each pan has a different color of frosting, indicating that they are being used to bake cakes with various flavors or colors. The oven appears to be a professional-grade model, suitable for baking large quantities of cakes at once. The pans are arranged on a rack, which is designed to allow for even heat distribution and to prevent the cakes from sticking to the bottom of the oven. |
 
 ## Benchmark
 
