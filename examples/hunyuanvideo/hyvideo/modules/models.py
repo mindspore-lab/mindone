@@ -1,6 +1,5 @@
 from typing import Any, List, Tuple, Optional, Union, Dict
 import math
-# from einops import rearrange
 
 import mindspore as ms
 from mindspore import nn, ops
@@ -9,30 +8,12 @@ import mindspore.ops.functional as F
 from .norm_layers import LayerNorm, get_norm_layer
 from .activation_layers import get_activation_layer
 from .modulate_layers import ModulateDiT, modulate, apply_gate
-from .mlp_layers import MLP # , MLPEmbedder, FinalLayer
+from .mlp_layers import MLP, MLPEmbedder, FinalLayer
 from .posemb_layers import apply_rotary_emb
-from .attention import attention, VanillaAttention #, parallel_attention, get_cu_seqlens
-
-'''
+from .attention import VanillaAttention #, parallel_attention, get_cu_seqlens
 from .embed_layers import TimestepEmbedder, PatchEmbed, TextProjection
-from .token_refiner import SingleTokenRefiner
-'''
+from .token_refiner import SingleTokenRefiner, rearrange_qkv
 
-def rearrange_qkv(qkv, heads_num):
-    # qkv: shape (B L K*H*D), K=3
-    # B L (K H D) -> B L K H D -> K B L H D
-    # return q/k/v: (B L H D)
-    B, L, KHD = qkv.shape
-    H = heads_num
-    # D = head_dim # KHD // (K * self.heads_num)
-    D = KHD // (3 * H)
-    qkv = ops.reshape(qkv, (B, L, 3, H, D))
-    q, k, v = ops.split(qkv, 1, axis=2)
-    q = ops.squeeze(q, axis=2)
-    k = ops.squeeze(k, axis=2)
-    v = ops.squeeze(v, axis=2)
-
-    return q, k, v
 
 
 class MMDoubleStreamBlock(nn.Cell):
@@ -379,4 +360,376 @@ class MMSingleStreamBlock(nn.Cell):
         output = self.linear2(ops.concat((attn, self.mlp_act(mlp)), axis=2))
         return x + apply_gate(output, gate=mod_gate)
 
+# TODO: inherit ModelMixin, ConfigMixin
+class HYVideoDiffusionTransformer(nn.Cell):
+    """
+    HunyuanVideo Transformer backbone
+
+    Inherited from ModelMixin and ConfigMixin for compatibility with diffusers' sampler StableDiffusionPipeline.
+
+    Reference:
+    [1] Flux.1: https://github.com/black-forest-labs/flux
+    [2] MMDiT: http://arxiv.org/abs/2403.03206
+
+    Parameters
+    ----------
+    args: argparse.Namespace
+        The arguments parsed by argparse.
+    patch_size: list
+        The size of the patch.
+    in_channels: int
+        The number of input channels.
+    out_channels: int
+        The number of output channels.
+    hidden_size: int
+        The hidden size of the transformer backbone.
+    heads_num: int
+        The number of attention heads.
+    mlp_width_ratio: float
+        The ratio of the hidden size of the MLP in the transformer block.
+    mlp_act_type: str
+        The activation function of the MLP in the transformer block.
+    depth_double_blocks: int
+        The number of transformer blocks in the double blocks.
+    depth_single_blocks: int
+        The number of transformer blocks in the single blocks.
+    rope_dim_list: list
+        The dimension of the rotary embedding for t, h, w.
+    qkv_bias: bool
+        Whether to use bias in the qkv linear layer.
+    qk_norm: bool
+        Whether to use qk norm.
+    qk_norm_type: str
+        The type of qk norm.
+    guidance_embed: bool
+        Whether to use guidance embedding for distillation.
+    text_projection: str
+        The type of the text projection, default is single_refiner.
+    use_attention_mask: bool
+        Whether to use attention mask for text encoder.
+    dtype: torch.dtype
+        The dtype of the model.
+    """
+
+    # @register_to_config
+    def __init__(
+        self,
+        args: Any,
+        patch_size: list = [1, 2, 2],
+        in_channels: int = 4,  # Should be VAE.config.latent_channels.
+        out_channels: int = None,
+        hidden_size: int = 3072,
+        heads_num: int = 24,
+        mlp_width_ratio: float = 4.0,
+        mlp_act_type: str = "gelu_tanh",
+        mm_double_blocks_depth: int = 20,
+        mm_single_blocks_depth: int = 40,
+        rope_dim_list: List[int] = [16, 56, 56],
+        qkv_bias: bool = True,
+        qk_norm: bool = True,
+        qk_norm_type: str = "rms",
+        guidance_embed: bool = False,  # For modulation.
+        text_projection: str = "single_refiner",
+        use_attention_mask: bool = True,
+        dtype = None,
+    ):
+        factory_kwargs = {"dtype": dtype}
+        super().__init__()
+
+        self.patch_size = patch_size
+        self.in_channels = in_channels
+        self.out_channels = in_channels if out_channels is None else out_channels
+        self.unpatchify_channels = self.out_channels
+        self.guidance_embed = guidance_embed
+        self.rope_dim_list = rope_dim_list
+
+        # Text projection. Default to linear projection.
+        # Alternative: TokenRefiner. See more details (LI-DiT): http://arxiv.org/abs/2406.11831
+        self.use_attention_mask = use_attention_mask
+        self.text_projection = text_projection
+
+        # TODO: no need to use args, just parse these two params
+        self.text_states_dim = args.text_states_dim
+        self.text_states_dim_2 = args.text_states_dim_2
+
+        if hidden_size % heads_num != 0:
+            raise ValueError(
+                f"Hidden size {hidden_size} must be divisible by heads_num {heads_num}"
+            )
+        pe_dim = hidden_size // heads_num
+        if sum(rope_dim_list) != pe_dim:
+            raise ValueError(
+                f"Got {rope_dim_list} but expected positional dim {pe_dim}"
+            )
+        self.hidden_size = hidden_size
+        self.heads_num = heads_num
+
+        # image projection
+        self.img_in = PatchEmbed(
+            self.patch_size, self.in_channels, self.hidden_size, **factory_kwargs
+        )
+
+        # text projection
+        if self.text_projection == "linear":
+            self.txt_in = TextProjection(
+                self.text_states_dim,
+                self.hidden_size,
+                get_activation_layer("silu"),
+                **factory_kwargs,
+            )
+        elif self.text_projection == "single_refiner":
+            self.txt_in = SingleTokenRefiner(
+                self.text_states_dim, hidden_size, heads_num, depth=2, **factory_kwargs
+            )
+        else:
+            raise NotImplementedError(
+                f"Unsupported text_projection: {self.text_projection}"
+            )
+
+        # time modulation
+        self.time_in = TimestepEmbedder(
+            self.hidden_size, get_activation_layer("silu"), **factory_kwargs
+        )
+
+        # text modulation
+        self.vector_in = MLPEmbedder(
+            self.text_states_dim_2, self.hidden_size, **factory_kwargs
+        )
+
+        # guidance modulation
+        self.guidance_in = (
+            TimestepEmbedder(
+                self.hidden_size, get_activation_layer("silu"), **factory_kwargs
+            )
+            if guidance_embed
+            else None
+        )
+
+        # double blocks
+        self.double_blocks = nn.CellList(
+            [
+                MMDoubleStreamBlock(
+                    self.hidden_size,
+                    self.heads_num,
+                    mlp_width_ratio=mlp_width_ratio,
+                    mlp_act_type=mlp_act_type,
+                    qk_norm=qk_norm,
+                    qk_norm_type=qk_norm_type,
+                    qkv_bias=qkv_bias,
+                    **factory_kwargs,
+                )
+                for _ in range(mm_double_blocks_depth)
+            ]
+        )
+
+        # single blocks
+        self.single_blocks = nn.CellList(
+            [
+                MMSingleStreamBlock(
+                    self.hidden_size,
+                    self.heads_num,
+                    mlp_width_ratio=mlp_width_ratio,
+                    mlp_act_type=mlp_act_type,
+                    qk_norm=qk_norm,
+                    qk_norm_type=qk_norm_type,
+                    **factory_kwargs,
+                )
+                for _ in range(mm_single_blocks_depth)
+            ]
+        )
+
+        self.final_layer = FinalLayer(
+            self.hidden_size,
+            self.patch_size,
+            self.out_channels,
+            get_activation_layer("silu"),
+            **factory_kwargs,
+        )
+
+    def enable_deterministic(self):
+        for block in self.double_blocks:
+            block.enable_deterministic()
+        for block in self.single_blocks:
+            block.enable_deterministic()
+
+    def disable_deterministic(self):
+        for block in self.double_blocks:
+            block.disable_deterministic()
+        for block in self.single_blocks:
+            block.disable_deterministic()
+
+    def construct(
+        self,
+        x: ms.Tensor,
+        t: ms.Tensor,  # Should be in range(0, 1000).
+        text_states: ms.Tensor = None,
+        text_mask: ms.Tensor = None,  # Now we don't use it.
+        text_states_2: Optional[ms.Tensor] = None,  # Text embedding for modulation.
+        freqs_cos: Optional[ms.Tensor] = None,
+        freqs_sin: Optional[ms.Tensor] = None,
+        guidance: ms.Tensor = None,  # Guidance for modulation, should be cfg_scale x 1000.
+    ) -> ms.Tensor:
+        '''
+        x: (B C T H W), video latent
+        t: (B,)
+        text_states: (B S_t D_t); S_t - seq len of padded text tokens, D_t: text feature dim, from LM text encoder
+        text_mask: (B S_t), 1 - retain, 0 - drop
+        text_states_2: (B S_t2 D_t2), from CLIP text encoder, global text feature
+        freqs_cos: (S attn_head_dim), S - seq len of the patchified video latent (T * H //2 * W//2)
+        freqs_sin: (S attn_head_dim)
+        guidance: (B,)
+        '''
+        img = x
+        txt = text_states
+        _, _, ot, oh, ow = x.shape
+        tt, th, tw = (
+            ot // self.patch_size[0],
+            oh // self.patch_size[1],
+            ow // self.patch_size[2],
+        )
+
+        # Prepare modulation vectors.
+        vec = self.time_in(t)
+
+        # text modulation
+        vec = vec + self.vector_in(text_states_2)
+
+        # guidance modulation
+        if self.guidance_embed:
+            if guidance is None:
+                raise ValueError(
+                    "Didn't get guidance strength for guidance distilled model."
+                )
+
+            # our timestep_embedding is merged into guidance_in(TimestepEmbedder)
+            vec = vec + self.guidance_in(guidance)
+
+        # Embed image and text.
+        img = self.img_in(img)
+        if self.text_projection == "linear":
+            txt = self.txt_in(txt)
+        elif self.text_projection == "single_refiner":
+            txt = self.txt_in(txt, t, text_mask if self.use_attention_mask else None)
+        else:
+            raise NotImplementedError(
+                f"Unsupported text_projection: {self.text_projection}"
+            )
+
+        txt_seq_len = txt.shape[1]
+        img_seq_len = img.shape[1]
+
+        # TODO: support setting max_seqlen
+        # Compute cu_squlens and max_seqlen for flash attention
+        # cu_seqlens_q = get_cu_seqlens(text_mask, img_seq_len)
+        # cu_seqlens_kv = cu_seqlens_q
+        # max_seqlen_q = img_seq_len + txt_seq_len
+        # max_seqlen_kv = max_seqlen_q
+
+        freqs_cis = (freqs_cos, freqs_sin) if freqs_cos is not None else None
+        # --------------------- Pass through DiT blocks ------------------------
+        for _, block in enumerate(self.double_blocks):
+            img, txt = block(
+                img,
+                txt,
+                vec,
+                # cu_seqlens_q,
+                # cu_seqlens_kv,
+                # max_seqlen_q,
+                # max_seqlen_kv,
+                freqs_cis,
+                )
+
+        # Merge txt and img to pass through single stream blocks.
+        x = ops.concat((img, txt), axis=1)
+        if len(self.single_blocks) > 0:
+            for _, block in enumerate(self.single_blocks):
+                x = block(
+                    x,
+                    vec,
+                    txt_seq_len,
+                    # cu_seqlens_q,
+                    # cu_seqlens_kv,
+                    # max_seqlen_q,
+                    # max_seqlen_kv,
+                    (freqs_cos, freqs_sin),
+                    )
+
+        # TODO: slicing replaced with
+        img = x[:, :img_seq_len, ...]
+
+        # ---------------------------- Final layer ------------------------------
+        img = self.final_layer(img, vec)  # (N, T, patch_size ** 2 * out_channels)
+
+        img = self.unpatchify(img, tt, th, tw)
+
+        return img
+
+    def unpatchify(self, x, t, h, w):
+        """
+        x: (N, T, patch_size**2 * C)
+        imgs: (N, H, W, C)
+        """
+        c = self.unpatchify_channels
+        pt, ph, pw = self.patch_size
+        # assert t * h * w == x.shape[1]
+
+        x = x.reshape(shape=(x.shape[0], t, h, w, c, pt, ph, pw))
+
+        # x = torch.einsum("nthwcopq->nctohpwq", x)
+        x = ops.reshape(x, (0, 4, 1, 5, 2, 6, 3, 7))
+
+        imgs = x.reshape(shape=(x.shape[0], c, t * pt, h * ph, w * pw))
+
+        return imgs
+
+    def params_count(self):
+        counts = {
+            "double": sum(
+                [
+                    sum(p.numel() for p in block.img_attn_qkv.parameters())
+                    + sum(p.numel() for p in block.img_attn_proj.parameters())
+                    + sum(p.numel() for p in block.img_mlp.parameters())
+                    + sum(p.numel() for p in block.txt_attn_qkv.parameters())
+                    + sum(p.numel() for p in block.txt_attn_proj.parameters())
+                    + sum(p.numel() for p in block.txt_mlp.parameters())
+                    for block in self.double_blocks
+                ]
+            ),
+            "single": sum(
+                [
+                    sum(p.numel() for p in block.linear1.parameters())
+                    + sum(p.numel() for p in block.linear2.parameters())
+                    for block in self.single_blocks
+                ]
+            ),
+            "total": sum(p.numel() for p in self.parameters()),
+        }
+        counts["attn+mlp"] = counts["double"] + counts["single"]
+
+        return counts
+
+
+#################################################################################
+#                             HunyuanVideo Configs                              #
+#################################################################################
+
+HUNYUAN_VIDEO_CONFIG = {
+    "HYVideo-T/2": {
+        "mm_double_blocks_depth": 20,
+        "mm_single_blocks_depth": 40,
+        "rope_dim_list": [16, 56, 56],
+        "hidden_size": 3072,
+        "heads_num": 24,
+        "mlp_width_ratio": 4,
+    },
+    "HYVideo-T/2-cfgdistill": {
+        "mm_double_blocks_depth": 20,
+        "mm_single_blocks_depth": 40,
+        "rope_dim_list": [16, 56, 56],
+        "hidden_size": 3072,
+        "heads_num": 24,
+        "mlp_width_ratio": 4,
+        "guidance_embed": True,
+    },
+}
 

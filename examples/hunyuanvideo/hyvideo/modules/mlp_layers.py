@@ -1,7 +1,10 @@
 from functools import partial
+import mindspore as ms
 from mindspore import nn
 
+from .norm_layers import LayerNorm
 from ..utils.helpers import to_2tuple
+from .modulate_layers import modulate
 
 
 class MLP(nn.Cell):
@@ -55,3 +58,58 @@ class MLP(nn.Cell):
         x = self.drop2(x)
         return x
 
+
+class MLPEmbedder(nn.Cell):
+    def __init__(self, in_dim: int, hidden_dim: int, dtype=None):
+        factory_kwargs = {"dtype": dtype}
+        super().__init__()
+        self.in_layer = nn.Dense(in_dim, hidden_dim, has_bias=True)
+        self.silu = nn.SiLU()
+        self.out_layer = nn.Dense(hidden_dim, hidden_dim, has_bias=True)
+
+    def construct(self, x: ms.Tensor) -> ms.Tensor:
+        return self.out_layer(self.silu(self.in_layer(x)))
+
+
+class FinalLayer(nn.Cell):
+    """The final layer of DiT."""
+
+    def __init__(
+        self, hidden_size, patch_size, out_channels, act_layer, dtype=None
+    ):
+        factory_kwargs = {"dtype": dtype}
+        super().__init__()
+
+        # Just use LayerNorm for the final layer
+        self.norm_final = LayerNorm(
+            hidden_size, elementwise_affine=False, eps=1e-6, **factory_kwargs
+        )
+        if isinstance(patch_size, int):
+            self.linear = nn.Dense(
+                hidden_size,
+                patch_size * patch_size * out_channels,
+                has_bias=True,
+                weight_init='zeros',
+                bais_init='zeros',
+            )
+        else:
+            self.linear = nn.Dense(
+                hidden_size,
+                patch_size[0] * patch_size[1] * patch_size[2] * out_channels,
+                has_bias=True,
+                weight_init='zeros',
+                bais_init='zeros',
+            )
+
+        # Here we don't distinguish between the modulate types. Just use the simple one.
+        self.adaLN_modulation = nn.Sequential(
+            act_layer(),
+            nn.Dense(hidden_size, 2 * hidden_size, has_bias=True, weight_init='zeros', bias_init='zeros'),
+        )
+
+
+    def construct(self, x, c):
+        shift, scale = self.adaLN_modulation(c).chunk(2, axis=1)
+        x = modulate(self.norm_final(x), shift=shift, scale=scale)
+        x = self.linear(x)
+        return x
