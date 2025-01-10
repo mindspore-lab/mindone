@@ -90,7 +90,7 @@ class FinalLayer(nn.Cell):
                 patch_size * patch_size * out_channels,
                 has_bias=True,
                 weight_init='zeros',
-                bais_init='zeros',
+                bias_init='zeros',
             )
         else:
             self.linear = nn.Dense(
@@ -98,11 +98,11 @@ class FinalLayer(nn.Cell):
                 patch_size[0] * patch_size[1] * patch_size[2] * out_channels,
                 has_bias=True,
                 weight_init='zeros',
-                bais_init='zeros',
+                bias_init='zeros',
             )
 
         # Here we don't distinguish between the modulate types. Just use the simple one.
-        self.adaLN_modulation = nn.Sequential(
+        self.adaLN_modulation = nn.SequentialCell(
             act_layer(),
             nn.Dense(hidden_size, 2 * hidden_size, has_bias=True, weight_init='zeros', bias_init='zeros'),
         )

@@ -572,9 +572,9 @@ class HYVideoDiffusionTransformer(nn.Cell):
         '''
         x: (B C T H W), video latent
         t: (B,)
-        text_states: (B S_t D_t); S_t - seq len of padded text tokens, D_t: text feature dim, from LM text encoder
+        text_states: (B S_t D_t); S_t - seq len of padded text tokens, D_t: text feature dim, from LM text encoder, default: S_t=256, D_t = 4096
         text_mask: (B S_t), 1 - retain, 0 - drop
-        text_states_2: (B S_t2 D_t2), from CLIP text encoder, global text feature
+        text_states_2: (B D_t2), from CLIP text encoder, global text feature (fuse 77 tokens), D_t2=768
         freqs_cos: (S attn_head_dim), S - seq len of the patchified video latent (T * H //2 * W//2)
         freqs_sin: (S attn_head_dim)
         guidance: (B,)
@@ -671,14 +671,14 @@ class HYVideoDiffusionTransformer(nn.Cell):
         """
         c = self.unpatchify_channels
         pt, ph, pw = self.patch_size
-        # assert t * h * w == x.shape[1]
-
-        x = x.reshape(shape=(x.shape[0], t, h, w, c, pt, ph, pw))
+        assert t * h * w == x.shape[1]
+        # import pdb; pdb.set_trace()
+        x = x.reshape((x.shape[0], t, h, w, c, pt, ph, pw))
 
         # x = torch.einsum("nthwcopq->nctohpwq", x)
-        x = ops.reshape(x, (0, 4, 1, 5, 2, 6, 3, 7))
+        x = ops.transpose(x, (0, 4, 1, 5, 2, 6, 3, 7))
 
-        imgs = x.reshape(shape=(x.shape[0], c, t * pt, h * ph, w * pw))
+        imgs = x.reshape((x.shape[0], c, t * pt, h * ph, w * pw))
 
         return imgs
 

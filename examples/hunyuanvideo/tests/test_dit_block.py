@@ -158,25 +158,25 @@ def test_token_refiner(pt_fp=None):
         print(diff)
 
 
-def test_hyvtransform():
+def test_hyvtransformer():
     token_shape = (bs, max_text_len, llm_emb_dim) = 1, 32, 64
     latent_shape = (bs, C, T, H, W) = (bs, 4, 5, 8, 8)
     clip_txt_len, clip_emb_dim = 18, 24
     patch_size = 2
     S_vid = T * (H//patch_size) * (W//patch_size)
     num_heads = 6
-    hidden_size = 6*48
-    head_dim = hidden_size // num_heads
+    hidden_size = 6*32
+    pe_dim = head_dim = hidden_size // num_heads
     freqs_cos_shape = (S_vid, head_dim)
 
     video_latent = np.random.normal(size=latent_shape).astype(np.float32)
     t = np.array([1000. for _ in range(bs)], dtype=np.float32)
     text_states = np.random.normal(size=token_shape).astype(np.float32)
-    text_mask = np.zeros(shape=(bs, max_text_len), dtype=np.int32)
-    text_states_2 = np.random.normal(size=(bs, clip_txt_len, clip_emb_dim)).astype(np.float32)
+    text_mask = np.zeros(shape=(bs, max_text_len), dtype=np.int32)  #
+    text_states_2 = np.random.normal(size=(bs, clip_emb_dim)).astype(np.float32) # [1, 768]
     freqs_cos = np.random.normal(size=freqs_cos_shape).astype(np.float32)
     freqs_sin = np.random.normal(size=freqs_cos_shape).astype(np.float32)
-    guidance = np.array([7.0 for _ in range(bs)], dtype=np.float32)
+    guidance = np.array([7.0*1000 for _ in range(bs)], dtype=np.float32)
     text_mask[0, :4] = 1
 
     video_latent = ms.Tensor(video_latent)
@@ -197,7 +197,7 @@ def test_hyvtransform():
         "HYVideo-T/2": {
             "mm_double_blocks_depth": 1,
             "mm_single_blocks_depth": 1,
-            "rope_dim_list": [16, 56, 56],
+            "rope_dim_list": [4, 14, 14], # [16, 56, 56], list sum = head_dim = pe_dim
             "hidden_size":  hidden_size,
             "heads_num": num_heads,
             "mlp_width_ratio": 1,
@@ -206,7 +206,7 @@ def test_hyvtransform():
     factor_kwargs = {'dtype': ms.float32}
 
     block = HYVideoDiffusionTransformer(
-            arg,
+            args,
             in_channels=C,
             **DEBUG_CONFIG[args.model],
             **factor_kwargs,
@@ -219,11 +219,11 @@ def test_hyvtransform():
 
 
 if __name__ == "__main__":
-    ms.set_context(mode=0)
-    # ms.set_context(mode=0, jit_syntax_level=ms.STRICT)
+    # ms.set_context(mode=1)
+    ms.set_context(mode=0, jit_syntax_level=ms.STRICT)
     # test_attn()
     # test_dualstream_block()
     # test_singlestream_block('tests/pt_single_stream.npy')
-    test_token_refiner('tests/pt_token_refiner.npy')
-    # test_token_refiner()
+    # test_token_refiner('tests/pt_token_refiner.npy')
+    test_hyvtransformer()
 
