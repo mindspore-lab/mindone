@@ -13,6 +13,7 @@ class VanillaAttention(nn.Cell):
         q/k/v: (B S N D)
         mask: (B 1 S S),  1 - for retain, 0 - for drop. e.g. [[1, 1, 0, 0 ..], [1, 1, 0, 0 ..]]
         '''
+        input_dtype = q.dtype
         # preapre layout. (B S N D) -> (B N S D)
         q = ops.transpose(q, (0, 2, 1, 3))
         k = ops.transpose(k, (0, 2, 1, 3))
@@ -21,8 +22,8 @@ class VanillaAttention(nn.Cell):
         # q: [B N S D)
         b, num_heads, s, _ = q.shape
         attn = ops.bmm(q, k.transpose(0, 1, 3, 2)) * self.scale_factor
-        # attn= attn.to(ms.float32)  # (B N Sq Sk)
-
+        attn= attn.to(ms.float32)  # (B N Sq Sk)
+        
         if mask is not None:
             # TODO: shape of mask ??
             # mask = self.repeat_interleave(mask.to(ms.int32), h, 0)
@@ -33,7 +34,7 @@ class VanillaAttention(nn.Cell):
             mask = ops.logical_not(mask)  # [1, 1, 0, 0 ..] -> [0, 0, 1, 1, ..]
             attn = ops.masked_fill(attn, mask, -ms.numpy.inf)
 
-        attn = ops.softmax(attn, axis=-1)
+        attn = ops.softmax(attn, axis=-1).to(input_dtype)
         x = ops.bmm(attn.to(v.dtype), v)  # (B N S D)
 
         # prepare output layout

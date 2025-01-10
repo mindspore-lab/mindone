@@ -2,6 +2,7 @@ import os, sys
 import numpy as np
 from PIL import Image
 import mindspore as ms
+from mindspore import amp
 import torch
 from easydict import EasyDict as edict
 
@@ -211,11 +212,13 @@ def test_hyvtransformer():
             **DEBUG_CONFIG[args.model],
             **factor_kwargs,
         )
+    amp.auto_mixed_precision(block, amp_level='O2', dtype=ms.bfloat16)
 
     # run
     out = block(video_latent, t, text_states, text_mask, text_states_2, freqs_cos, freqs_sin, guidance)
 
     print(out.shape)
+    print(out.mean(), out.std())
 
 
 if __name__ == "__main__":
