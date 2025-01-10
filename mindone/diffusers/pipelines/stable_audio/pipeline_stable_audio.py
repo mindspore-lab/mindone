@@ -726,8 +726,6 @@ class StableAudioPipeline(DiffusionPipeline):
         if output_type == "np":
             audio = audio.cpu().float().numpy()
 
-        self.maybe_free_model_hooks()
-
         if not return_dict:
             return (audio,)
 

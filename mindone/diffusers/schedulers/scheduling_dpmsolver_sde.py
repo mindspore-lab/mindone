@@ -21,7 +21,7 @@ import numpy as np
 import mindspore as ms
 from mindspore import ops
 
-from ...sde import BrownianInterval
+from ...utils._brownian import BrownianInterval
 from ..configuration_utils import ConfigMixin, register_to_config
 from ..utils import BaseOutput, is_scipy_available
 from .scheduling_utils import KarrasDiffusionSchedulers, SchedulerMixin

@@ -104,7 +104,7 @@ class CosineDPMSolverMultistepScheduler(SchedulerMixin, ConfigMixin):
 
         self.timesteps = self.precondition_noise(sigmas)
 
-        self.sigmas = ops.cat([sigmas, ops.zeros(1, ms.float64)])
+        self.sigmas = ops.cat([sigmas, ops.zeros(1, sigmas.dtype)])
 
         # setable values
         self.num_inference_steps = None
@@ -262,7 +262,7 @@ class CosineDPMSolverMultistepScheduler(SchedulerMixin, ConfigMixin):
         """
         sigma_min = sigma_min or self.config.sigma_min
         sigma_max = sigma_max or self.config.sigma_max
-        sigmas = ops.flip(ms.Tensor(np.linspace(math.log(sigma_min), math.log(sigma_max), len(ramp))).exp(), (0,))
+        sigmas = ops.flip(ops.linspace(math.log(sigma_min), math.log(sigma_max), len(ramp)).exp(), (0,))
         return sigmas
 
     # Copied from diffusers.schedulers.scheduling_euler_discrete.EulerDiscreteScheduler._sigma_to_t
