@@ -14,6 +14,7 @@ class PatchEmbed(nn.Cell):
         norm_layer=None,
         flatten=True,
         bias=True,
+        use_conv2d=False,
         dtype=None,
     ):
         factory_kwargs = {"dtype": dtype}
@@ -25,25 +26,50 @@ class PatchEmbed(nn.Cell):
         # print('D--: patch_size, ', patch_size)
 
         # TODO: doing here. replace with conv2d. refer to opensora
-        self.proj = nn.Conv3d(
-            in_chans,
-            embed_dim,
-            kernel_size=patch_size,
-            stride=patch_size,
-            has_bias=bias,
-            pad_mode='valid',
-            bias_init='zeros',
-        )
+        self.use_conv2d = use_conv2d
+        if use_conv2d:
+            assert patch_size[0] == 1
+            self.proj = nn.Conv2d(
+                in_chans,
+                embed_dim,
+                kernel_size=patch_size[1:],
+                stride=patch_size[1:],
+                has_bias=bias,
+                pad_mode='valid',
+                bias_init='zeros',
+            )
+        else:
+            self.proj = nn.Conv3d(
+                in_chans,
+                embed_dim,
+                kernel_size=patch_size,
+                stride=patch_size,
+                has_bias=bias,
+                pad_mode='valid',
+                bias_init='zeros',
+            )
         # nn.init.xavier_uniform_(self.proj.weight.view(self.proj.weight.size(0), -1))
+        # nn.init.zeros_(self.proj.bias)
         w = self.proj.weight
         w_flatted = w.reshape(w.shape[0], -1)
         w.set_data(initializer(XavierUniform(), w_flatted.shape, w_flatted.dtype).reshape(w.shape))
-        # nn.init.zeros_(self.proj.bias)
 
         self.norm = norm_layer(embed_dim) if norm_layer else nn.Identity()
 
     def construct(self, x):
-        x = self.proj(x)
+        # x: (B C T H W)
+        if self.use_conv2d:
+            B, C, T, H, W = x.shape
+            # (B C T H W) -> (B*T C H W)
+            x = x.permute(0, 2, 1, 3, 4).reshape((B * T, C, H, W))
+
+        x = self.proj(x)  # (BT C' H' W')
+
+        if self.use_conv2d:
+            _, Co, Ho, Wo = x.shape
+            # (B*T C H W) -> (B C T H W)
+            x = x.reshape(B, T, Co, Ho, Wo).permute(0, 2, 1 ,3, 4)
+
         if self.flatten:
             # (B C T H W) -> (B C THW) -> (B THW C)
             x = x.flatten(start_dim=2).transpose((0, 2, 1))  # BCHW -> BNC

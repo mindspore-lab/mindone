@@ -408,7 +408,7 @@ class HYVideoDiffusionTransformer(nn.Cell):
     use_attention_mask: bool
         Whether to use attention mask for text encoder.
     dtype: torch.dtype
-        The dtype of the model.
+        The dtype of the model, i.e. model parameter dtype
     """
 
     # @register_to_config
@@ -431,6 +431,7 @@ class HYVideoDiffusionTransformer(nn.Cell):
         guidance_embed: bool = False,  # For modulation.
         text_projection: str = "single_refiner",
         use_attention_mask: bool = True,
+        use_conv2d_patchify: bool = False,
         dtype = None,
     ):
         factory_kwargs = {"dtype": dtype}
@@ -442,6 +443,7 @@ class HYVideoDiffusionTransformer(nn.Cell):
         self.unpatchify_channels = self.out_channels
         self.guidance_embed = guidance_embed
         self.rope_dim_list = rope_dim_list
+        self.use_conv2d_patchify = use_conv2d_patchify
 
         # Text projection. Default to linear projection.
         # Alternative: TokenRefiner. See more details (LI-DiT): http://arxiv.org/abs/2406.11831
@@ -466,7 +468,7 @@ class HYVideoDiffusionTransformer(nn.Cell):
 
         # image projection
         self.img_in = PatchEmbed(
-            self.patch_size, self.in_channels, self.hidden_size, **factory_kwargs
+            self.patch_size, self.in_channels, self.hidden_size, use_conv2d=use_conv2d_patchify, **factory_kwargs
         )
 
         # text projection
@@ -681,6 +683,32 @@ class HYVideoDiffusionTransformer(nn.Cell):
         imgs = x.reshape((x.shape[0], c, t * pt, h * ph, w * pw))
 
         return imgs
+
+    def load_from_checkpoint(self, ckpt_path):
+        '''
+        model param dtype
+        '''
+        if ckpt_path.endswith('.pth'):
+            state_dict = torch.load(ckpt_path)
+            load_key = 'module'
+            sd = state_dict[load_key]
+
+            # TODO: support bf16 net params
+            parameter_dict = dict()
+            for pname in sd:
+                parameter_dict[pname] = ms.Parameter(
+                        ms.Tensor(sd[pname].cpu().detach().numpy(), dtype=self.dtype)
+                        )
+            # reshape conv3d weight to conv2d if use conv2d in PatchEmbed
+            if self.use_conv2d_patchify:
+                key_3d = "img_in.proj.weight"
+                assert len(sd[key_3d].shape) == 5 and sd[key_3d].shape[-3] == 1 # c_out, c_in, 1, 2, 2
+                conv3d_weight = sd.pop(key_3d)
+                sd[key_3d] = ms.Parameter(conv3d_weight.squeeze(axis=-3), name=key_3d, dtype=self.dtype)
+
+            param_not_load, ckpt_not_load = ms.load_param_into_net(self, parameter_dict, strict_load=True)
+            print('param not load: ', param_not_load)
+            print('ckpt not load: ', ckpt_not_load)
 
     def params_count(self):
         counts = {

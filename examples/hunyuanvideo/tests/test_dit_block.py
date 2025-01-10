@@ -8,9 +8,10 @@ from easydict import EasyDict as edict
 
 sys.path.insert(0, ".")
 
-from hyvideo.modules.models import MMDoubleStreamBlock, MMSingleStreamBlock, HYVideoDiffusionTransformer
+from hyvideo.modules.models import MMDoubleStreamBlock, MMSingleStreamBlock, HYVideoDiffusionTransformer, HUNYUAN_VIDEO_CONFIG
 from hyvideo.modules.attention import VanillaAttention
 from hyvideo.modules.token_refiner import SingleTokenRefiner
+from hyvideo.modules import load_from_checkpoint
 
 
 np.random.seed(42)
@@ -44,6 +45,7 @@ def _diff_res(ms_val, pt_val, eps=1e-8):
 def _convert_ckpt(pt_ckpt, rename_norm=False):
     # sd = torch.load(pt_ckpt, map_location="CPU")['model_state_dict']
     sd = torch.load(pt_ckpt)["model_state_dict"]
+    state_dict = torch.load(model_path) #, map_location=lambda storage, loc: storage)
     target_data = []
 
     for k in sd:
@@ -159,7 +161,7 @@ def test_token_refiner(pt_fp=None):
         print(diff)
 
 
-def test_hyvtransformer():
+def test_hyvtransformer(pt_fp=None, debug=True):
     token_shape = (bs, max_text_len, llm_emb_dim) = 1, 32, 64
     latent_shape = (bs, C, T, H, W) = (bs, 4, 5, 8, 8)
     clip_txt_len, clip_emb_dim = 18, 24
@@ -194,6 +196,9 @@ def test_hyvtransformer():
     args.text_states_dim = llm_emb_dim
     args.text_states_dim_2 = clip_emb_dim
     args.model = 'HYVideo-T/2'
+    dtype = ms.float32
+    factor_kwargs = {'dtype': dtype}
+
     DEBUG_CONFIG = {
         "HYVideo-T/2": {
             "mm_double_blocks_depth": 1,
@@ -204,18 +209,23 @@ def test_hyvtransformer():
             "mlp_width_ratio": 1,
         },
     }
-    factor_kwargs = {'dtype': ms.float32}
+    model_cfg = DEBUG_CONFIG if debug else HUNYUAN_VIDEO_CONFIG
 
-    block = HYVideoDiffusionTransformer(
+    net = HYVideoDiffusionTransformer(
             args,
             in_channels=C,
-            **DEBUG_CONFIG[args.model],
+            use_conv2d_patchify=True,
+            **model_cfg[args.model],
             **factor_kwargs,
         )
-    amp.auto_mixed_precision(block, amp_level='O2', dtype=ms.bfloat16)
+    if not debug and pt_fp:
+        load_from_checkpoint(net, pt_fp, d)
+
+    # if dtype != ms.float32:
+    #    amp.auto_mixed_precision(net, amp_level='O2', dtype=ms.bfloat16)
 
     # run
-    out = block(video_latent, t, text_states, text_mask, text_states_2, freqs_cos, freqs_sin, guidance)
+    out = net(video_latent, t, text_states, text_mask, text_states_2, freqs_cos, freqs_sin, guidance)
 
     print(out.shape)
     print(out.mean(), out.std())
