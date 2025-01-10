@@ -407,7 +407,7 @@ class HYVideoDiffusionTransformer(nn.Cell):
         The type of the text projection, default is single_refiner.
     use_attention_mask: bool
         Whether to use attention mask for text encoder.
-    dtype: torch.dtype
+    dtype: ms.dtype
         The dtype of the model, i.e. model parameter dtype
     """
 
