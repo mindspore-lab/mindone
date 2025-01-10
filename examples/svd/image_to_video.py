@@ -14,14 +14,13 @@ from jsonargparse import ActionConfigFile, ArgumentParser
 from jsonargparse.typing import Path_fr, path_type
 from omegaconf import OmegaConf
 from PIL import Image
-from utils import mixed_precision
+from utils import mixed_precision, seed_everything
 
 import mindspore as ms
 from mindspore import Tensor, nn, ops
 
-sys.path.append("../stable_diffusion_xl")  # FIXME: loading modules from the SDXL directory
-from gm.helpers import create_model
-from gm.util import seed_everything
+sys.path.append("../../")  # FIXME: loading modules from the SDXL directory
+from modules.helpers import create_model
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -78,7 +77,7 @@ class SVDInferPipeline(nn.Cell):
         if sampling_steps:
             config.model.params.sampler_config.params.num_steps = sampling_steps
 
-        self.model, _ = create_model(config, checkpoints=checkpoint.absolute, freeze=True, amp_level="O0")
+        self.model, _ = create_model(config, checkpoints=checkpoint.absolute, freeze=True, amp_level="O2")
 
         self._num_frames = num_frames
         self._in_channels = self.model.model.diffusion_model.in_channels

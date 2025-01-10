@@ -18,7 +18,7 @@ class IFWatermarker(ModelMixin, ConfigMixin):
         # Set `self.watermark_image` as mindspore.Parameter requiring no grads
         # So that it could be loaded from checkpoint
         self.watermark_image = ms.Parameter(
-            ops.zeros((62, 62, 4), dtype=ms.uint8),
+            ops.zeros((62, 62, 4), dtype=ms.float32),
             name="watermark_image",
             requires_grad=False,
         )

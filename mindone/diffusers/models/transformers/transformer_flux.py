@@ -308,13 +308,12 @@ class FluxTransformer2DModel(ModelMixin, ConfigMixin, PeftAdapterMixin, FromOrig
 
     @gradient_checkpointing.setter
     def gradient_checkpointing(self, value):
-        self._gradient_checkpointing = value
-
-        for block in self.transformer_blocks:
-            block._recompute(value)
-
-        for block in self.single_transformer_blocks:
-            block._recompute(value)
+        if self._gradient_checkpointing != value:
+            self._gradient_checkpointing = value
+            for block in self.transformer_blocks:
+                block.recompute()
+            for block in self.single_transformer_blocks:
+                block.recompute()
 
     def construct(
         self,

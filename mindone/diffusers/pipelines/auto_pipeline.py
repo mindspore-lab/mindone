@@ -18,6 +18,8 @@ from collections import OrderedDict
 from huggingface_hub.utils import validate_hf_hub_args
 
 from ..configuration_utils import ConfigMixin
+from ..utils import is_sentencepiece_available
+from .aura_flow import AuraFlowPipeline
 from .controlnet import (
     StableDiffusionControlNetImg2ImgPipeline,
     StableDiffusionControlNetInpaintPipeline,
@@ -47,6 +49,17 @@ from .kandinsky2_2 import (
 )
 from .kandinsky3 import Kandinsky3Img2ImgPipeline, Kandinsky3Pipeline
 from .latent_consistency_models import LatentConsistencyModelImg2ImgPipeline, LatentConsistencyModelPipeline
+from .pag import (
+    HunyuanDiTPAGPipeline,
+    PixArtSigmaPAGPipeline,
+    StableDiffusion3PAGPipeline,
+    StableDiffusionControlNetPAGPipeline,
+    StableDiffusionPAGPipeline,
+    StableDiffusionXLControlNetPAGPipeline,
+    StableDiffusionXLPAGImg2ImgPipeline,
+    StableDiffusionXLPAGInpaintPipeline,
+    StableDiffusionXLPAGPipeline,
+)
 from .pixart_alpha import PixArtAlphaPipeline, PixArtSigmaPipeline
 from .stable_cascade import StableCascadeCombinedPipeline, StableCascadeDecoderPipeline
 from .stable_diffusion import StableDiffusionImg2ImgPipeline, StableDiffusionInpaintPipeline, StableDiffusionPipeline
@@ -67,8 +80,10 @@ AUTO_TEXT2IMAGE_PIPELINES_MAPPING = OrderedDict(
         ("stable-diffusion", StableDiffusionPipeline),
         ("stable-diffusion-xl", StableDiffusionXLPipeline),
         ("stable-diffusion-3", StableDiffusion3Pipeline),
+        ("stable-diffusion-3-pag", StableDiffusion3PAGPipeline),
         ("if", IFPipeline),
         ("hunyuan", HunyuanDiTPipeline),
+        ("hunyuan-pag", HunyuanDiTPAGPipeline),
         ("kandinsky", KandinskyCombinedPipeline),
         ("kandinsky22", KandinskyV22CombinedPipeline),
         ("kandinsky3", Kandinsky3Pipeline),
@@ -79,6 +94,12 @@ AUTO_TEXT2IMAGE_PIPELINES_MAPPING = OrderedDict(
         ("lcm", LatentConsistencyModelPipeline),
         ("pixart-alpha", PixArtAlphaPipeline),
         ("pixart-sigma", PixArtSigmaPipeline),
+        ("stable-diffusion-pag", StableDiffusionPAGPipeline),
+        ("stable-diffusion-controlnet-pag", StableDiffusionControlNetPAGPipeline),
+        ("stable-diffusion-xl-pag", StableDiffusionXLPAGPipeline),
+        ("stable-diffusion-xl-controlnet-pag", StableDiffusionXLControlNetPAGPipeline),
+        ("pixart-sigma-pag", PixArtSigmaPAGPipeline),
+        ("auraflow", AuraFlowPipeline),
         ("flux", FluxPipeline),
     ]
 )
@@ -94,6 +115,7 @@ AUTO_IMAGE2IMAGE_PIPELINES_MAPPING = OrderedDict(
         ("kandinsky3", Kandinsky3Img2ImgPipeline),
         ("stable-diffusion-controlnet", StableDiffusionControlNetImg2ImgPipeline),
         ("stable-diffusion-xl-controlnet", StableDiffusionXLControlNetImg2ImgPipeline),
+        ("stable-diffusion-xl-pag", StableDiffusionXLPAGImg2ImgPipeline),
         ("lcm", LatentConsistencyModelImg2ImgPipeline),
     ]
 )
@@ -108,6 +130,7 @@ AUTO_INPAINT_PIPELINES_MAPPING = OrderedDict(
         ("kandinsky22", KandinskyV22InpaintCombinedPipeline),
         ("stable-diffusion-controlnet", StableDiffusionControlNetInpaintPipeline),
         ("stable-diffusion-xl-controlnet", StableDiffusionXLControlNetInpaintPipeline),
+        ("stable-diffusion-xl-pag", StableDiffusionXLPAGInpaintPipeline),
     ]
 )
 
@@ -131,6 +154,14 @@ _AUTO_INPAINT_DECODER_PIPELINES_MAPPING = OrderedDict(
         ("kandinsky22", KandinskyV22InpaintPipeline),
     ]
 )
+
+if is_sentencepiece_available():
+    from .kolors import KolorsImg2ImgPipeline, KolorsPipeline
+    from .pag import KolorsPAGPipeline
+
+    AUTO_TEXT2IMAGE_PIPELINES_MAPPING["kolors"] = KolorsPipeline
+    AUTO_TEXT2IMAGE_PIPELINES_MAPPING["kolors-pag"] = KolorsPAGPipeline
+    AUTO_IMAGE2IMAGE_PIPELINES_MAPPING["kolors"] = KolorsImg2ImgPipeline
 
 SUPPORTED_TASKS_MAPPINGS = [
     AUTO_TEXT2IMAGE_PIPELINES_MAPPING,
@@ -314,6 +345,10 @@ class AutoPipelineForText2Image(ConfigMixin):
 
         if "controlnet" in kwargs:
             orig_class_name = config["_class_name"].replace("Pipeline", "ControlNetPipeline")
+        if "enable_pag" in kwargs:
+            enable_pag = kwargs.pop("enable_pag")
+            if enable_pag:
+                orig_class_name = orig_class_name.replace("Pipeline", "PAGPipeline")
 
         text_2_image_cls = _get_task_class(AUTO_TEXT2IMAGE_PIPELINES_MAPPING, orig_class_name)
 
@@ -357,14 +392,28 @@ class AutoPipelineForText2Image(ConfigMixin):
 
         if "controlnet" in kwargs:
             if kwargs["controlnet"] is not None:
+                to_replace = "PAGPipeline" if "PAG" in text_2_image_cls.__name__ else "Pipeline"
                 text_2_image_cls = _get_task_class(
                     AUTO_TEXT2IMAGE_PIPELINES_MAPPING,
-                    text_2_image_cls.__name__.replace("ControlNet", "").replace("Pipeline", "ControlNetPipeline"),
+                    text_2_image_cls.__name__.replace("ControlNet", "").replace(to_replace, "ControlNet" + to_replace),
                 )
             else:
                 text_2_image_cls = _get_task_class(
                     AUTO_TEXT2IMAGE_PIPELINES_MAPPING,
-                    text_2_image_cls.__name__.replace("ControlNetPipeline", "Pipeline"),
+                    text_2_image_cls.__name__.replace("ControlNet", ""),
+                )
+
+        if "enable_pag" in kwargs:
+            enable_pag = kwargs.pop("enable_pag")
+            if enable_pag:
+                text_2_image_cls = _get_task_class(
+                    AUTO_TEXT2IMAGE_PIPELINES_MAPPING,
+                    text_2_image_cls.__name__.replace("PAG", "").replace("Pipeline", "PAGPipeline"),
+                )
+            else:
+                text_2_image_cls = _get_task_class(
+                    AUTO_TEXT2IMAGE_PIPELINES_MAPPING,
+                    text_2_image_cls.__name__.replace("PAG", ""),
                 )
 
         # define expected module and optional kwargs given the pipeline signature
@@ -562,8 +611,17 @@ class AutoPipelineForImage2Image(ConfigMixin):
         config = cls.load_config(pretrained_model_or_path, **load_config_kwargs)
         orig_class_name = config["_class_name"]
 
+        # the `orig_class_name` can be:
+        # `- *Pipeline` (for regular text-to-image checkpoint)
+        # `- *Img2ImgPipeline` (for refiner checkpoint)
+        to_replace = "Img2ImgPipeline" if "Img2Img" in config["_class_name"] else "Pipeline"
+
         if "controlnet" in kwargs:
-            orig_class_name = config["_class_name"].replace("Pipeline", "ControlNetPipeline")
+            orig_class_name = orig_class_name.replace(to_replace, "ControlNet" + to_replace)
+        if "enable_pag" in kwargs:
+            enable_pag = kwargs.pop("enable_pag")
+            if enable_pag:
+                orig_class_name = orig_class_name.replace(to_replace, "PAG" + to_replace)
 
         image_2_image_cls = _get_task_class(AUTO_IMAGE2IMAGE_PIPELINES_MAPPING, orig_class_name)
 
@@ -609,16 +667,30 @@ class AutoPipelineForImage2Image(ConfigMixin):
 
         if "controlnet" in kwargs:
             if kwargs["controlnet"] is not None:
+                to_replace = "Img2ImgPipeline"
+                if "PAG" in image_2_image_cls.__name__:
+                    to_replace = "PAG" + to_replace
                 image_2_image_cls = _get_task_class(
                     AUTO_IMAGE2IMAGE_PIPELINES_MAPPING,
-                    image_2_image_cls.__name__.replace("ControlNet", "").replace(
-                        "Img2ImgPipeline", "ControlNetImg2ImgPipeline"
-                    ),
+                    image_2_image_cls.__name__.replace("ControlNet", "").replace(to_replace, "ControlNet" + to_replace),
                 )
             else:
                 image_2_image_cls = _get_task_class(
                     AUTO_IMAGE2IMAGE_PIPELINES_MAPPING,
-                    image_2_image_cls.__name__.replace("ControlNetImg2ImgPipeline", "Img2ImgPipeline"),
+                    image_2_image_cls.__name__.replace("ControlNet", ""),
+                )
+
+        if "enable_pag" in kwargs:
+            enable_pag = kwargs.pop("enable_pag")
+            if enable_pag:
+                image_2_image_cls = _get_task_class(
+                    AUTO_IMAGE2IMAGE_PIPELINES_MAPPING,
+                    image_2_image_cls.__name__.replace("PAG", "").replace("Img2ImgPipeline", "PAGImg2ImgPipeline"),
+                )
+            else:
+                image_2_image_cls = _get_task_class(
+                    AUTO_IMAGE2IMAGE_PIPELINES_MAPPING,
+                    image_2_image_cls.__name__.replace("PAG", ""),
                 )
 
         # define expected module and optional kwargs given the pipeline signature
@@ -815,9 +887,17 @@ class AutoPipelineForInpainting(ConfigMixin):
         config = cls.load_config(pretrained_model_or_path, **load_config_kwargs)
         orig_class_name = config["_class_name"]
 
-        if "controlnet" in kwargs:
-            orig_class_name = config["_class_name"].replace("Pipeline", "ControlNetPipeline")
+        # The `orig_class_name`` can be:
+        # `- *InpaintPipeline` (for inpaint-specific checkpoint)
+        #  - or *Pipeline (for regular text-to-image checkpoint)
+        to_replace = "InpaintPipeline" if "Inpaint" in config["_class_name"] else "Pipeline"
 
+        if "controlnet" in kwargs:
+            orig_class_name = orig_class_name.replace(to_replace, "ControlNet" + to_replace)
+        if "enable_pag" in kwargs:
+            enable_pag = kwargs.pop("enable_pag")
+            if enable_pag:
+                orig_class_name = orig_class_name.replace(to_replace, "PAG" + to_replace)
         inpainting_cls = _get_task_class(AUTO_INPAINT_PIPELINES_MAPPING, orig_class_name)
 
         kwargs = {**load_config_kwargs, **kwargs}
@@ -871,6 +951,19 @@ class AutoPipelineForInpainting(ConfigMixin):
                 inpainting_cls = _get_task_class(
                     AUTO_INPAINT_PIPELINES_MAPPING,
                     inpainting_cls.__name__.replace("ControlNetInpaintPipeline", "InpaintPipeline"),
+                )
+
+        if "enable_pag" in kwargs:
+            enable_pag = kwargs.pop("enable_pag")
+            if enable_pag:
+                inpainting_cls = _get_task_class(
+                    AUTO_INPAINT_PIPELINES_MAPPING,
+                    inpainting_cls.__name__.replace("PAG", "").replace("InpaintPipeline", "PAGInpaintPipeline"),
+                )
+            else:
+                inpainting_cls = _get_task_class(
+                    AUTO_INPAINT_PIPELINES_MAPPING,
+                    inpainting_cls.__name__.replace("PAGInpaintPipeline", "InpaintPipeline"),
                 )
 
         # define expected module and optional kwargs given the pipeline signature

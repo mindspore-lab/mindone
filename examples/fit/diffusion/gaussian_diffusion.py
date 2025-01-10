@@ -283,7 +283,8 @@ class GaussianDiffusion:
             denoised_fn=denoised_fn,
             model_kwargs=model_kwargs,
         )
-        noise = ops.randn_like(x)
+        # TODO: to mint.randnlike
+        noise = Tensor(np.random.normal(size=x.shape), x.dtype)
         nonzero_mask = (t != 0).float().view(-1, *([1] * (len(x.shape) - 1)))  # no noise when t == 0
         if cond_fn is not None:
             out["mean"] = self.condition_mean(cond_fn, out, x, t, model_kwargs=model_kwargs)
@@ -411,7 +412,8 @@ class GaussianDiffusion:
         alpha_bar_prev = extract_into_tensor(self.alphas_cumprod_prev, t, x.shape)
         sigma = eta * ops.sqrt((1 - alpha_bar_prev) / (1 - alpha_bar)) * ops.sqrt(1 - alpha_bar / alpha_bar_prev)
         # Equation 12.
-        noise = ops.randn_like(x)
+        # TODO: to mint.randn_like
+        noise = Tensor(np.random.normal(size=x.shape), dtype=x.dtype)
         mean_pred = out["pred_xstart"] * ops.sqrt(alpha_bar_prev) + ops.sqrt(1 - alpha_bar_prev - sigma**2) * eps
         nonzero_mask = (t != 0).float().view(-1, *([1] * (len(x.shape) - 1)))  # no noise when t == 0
         sample = mean_pred + nonzero_mask * sigma * noise

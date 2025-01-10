@@ -16,7 +16,7 @@ from typing import Optional, Tuple
 import mindspore as ms
 from mindspore import nn, ops
 
-from .layers_compat import conv_transpose2d, fp32_interpolate
+from .layers_compat import conv_transpose2d, fp32_interpolate, pad
 from .normalization import LayerNorm, RMSNorm
 
 
@@ -341,14 +341,15 @@ class KUpsample2D(nn.Cell):
         self.kernel = kernel_1d.T @ kernel_1d
 
     def construct(self, inputs: ms.Tensor) -> ms.Tensor:
-        inputs = ops.pad(inputs, ((self.pad + 1) // 2,) * 4, self.pad_mode)
+        inputs = pad(inputs, ((self.pad + 1) // 2,) * 4, self.pad_mode)
         weight = inputs.new_zeros(
             [
                 inputs.shape[1],
                 inputs.shape[1],
                 self.kernel.shape[0],
                 self.kernel.shape[1],
-            ]
+            ],
+            dtype=inputs.dtype,
         )
         indices = ops.arange(inputs.shape[1])
         kernel = self.kernel.to(weight.dtype)[None, :].broadcast_to((inputs.shape[1], -1, -1))

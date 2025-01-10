@@ -27,15 +27,20 @@ _import_structure = {
     "autoencoders.consistency_decoder_vae": ["ConsistencyDecoderVAE"],
     "autoencoders.vq_model": ["VQModel"],
     "controlnet": ["ControlNetModel"],
+    "controlnet_hunyuan": ["HunyuanDiT2DControlNetModel", "HunyuanDiT2DMultiControlNetModel"],
     "controlnet_sd3": ["SD3ControlNetModel", "SD3MultiControlNetModel"],
+    "controlnet_sparsectrl": ["SparseControlNetModel"],
     "controlnet_xs": ["ControlNetXSAdapter", "UNetControlNetXSModel"],
     "dual_transformer_2d": ["DualTransformer2DModel"],
     "embeddings": ["ImageProjection"],
     "modeling_utils": ["ModelMixin"],
+    "transformers.auraflow_transformer_2d": ["AuraFlowTransformer2DModel"],
     "transformers.cogvideox_transformer_3d": ["CogVideoXTransformer3DModel"],
     "transformers.dit_transformer_2d": ["DiTTransformer2DModel"],
     "transformers.dual_transformer_2d": ["DualTransformer2DModel"],
     "transformers.hunyuan_transformer_2d": ["HunyuanDiT2DModel"],
+    "transformers.latte_transformer_3d": ["LatteTransformer3DModel"],
+    "transformers.lumina_nextdit2d": ["LuminaNextDiT2DModel"],
     "transformers.pixart_transformer_2d": ["PixArtTransformer2DModel"],
     "transformers.prior_transformer": ["PriorTransformer"],
     "transformers.stable_audio_transformer": ["StableAudioDiTModel"],
@@ -69,16 +74,21 @@ if TYPE_CHECKING:
         VQModel,
     )
     from .controlnet import ControlNetModel
+    from .controlnet_hunyuan import HunyuanDiT2DControlNetModel, HunyuanDiT2DMultiControlNetModel
     from .controlnet_sd3 import SD3ControlNetModel, SD3MultiControlNetModel
+    from .controlnet_sparsectrl import SparseControlNetModel
     from .controlnet_xs import ControlNetXSAdapter, UNetControlNetXSModel
     from .embeddings import ImageProjection
     from .modeling_utils import ModelMixin
     from .transformers import (
+        AuraFlowTransformer2DModel,
         CogVideoXTransformer3DModel,
         DiTTransformer2DModel,
         DualTransformer2DModel,
         FluxTransformer2DModel,
         HunyuanDiT2DModel,
+        LatteTransformer3DModel,
+        LuminaNextDiT2DModel,
         PixArtTransformer2DModel,
         PriorTransformer,
         SD3Transformer2DModel,

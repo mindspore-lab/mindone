@@ -97,11 +97,9 @@ image = pipe(
 
 You can send a different prompt to the CLIP Text Encoders and the T5 Text Encoder to prevent the prompt from being truncated by the CLIP Text Encoders and to improve generation.
 
-<Tip>
+!!! tip
 
-The prompt with the CLIP Text Encoders is still truncated to the 77 token limit.
-
-</Tip>
+    The prompt with the CLIP Text Encoders is still truncated to the 77 token limit.
 
 ```python
 prompt = "A whimsical and creative image depicting a hybrid creature that is a mix of a waffle and a hippopotamus, basking in a river of melted butter amidst a breakfast-themed landscape. A river of warm, melted butter, pancake-like foliage in the background, a towering pepper mill standing in for a tree."
@@ -168,7 +166,7 @@ image = pipe("a picture of a cat holding a sign that says hello world").images[0
 image.save('sd3-single-file.png')
 ```
 
-### Loading the single file checkpoint without T5
+### Loading the single file checkpoint with T5
 
 ```python
 import mindspore as ms
