@@ -91,9 +91,18 @@ def _convert_state_dict(m, state_dict_pt):
 
 
 def get_parameter_dtype(module: nn.Cell) -> ms.Type:
-    params = tuple(module.get_parameters())
-    if len(params) > 0:
-        return params[0].dtype
+    """
+    Returns the first found floating dtype in parameters if there is one, otherwise returns the last dtype it found.
+    """
+    last_dtype = None
+    for param in module.get_parameters():
+        last_dtype = param.dtype
+        if param.is_floating_point():
+            return param.dtype
+
+    if last_dtype is not None:
+        # if no floating dtype was found return whatever the first dtype is
+        return last_dtype
 
 
 class ModelMixin(nn.Cell, PushToHubMixin):
@@ -320,7 +329,7 @@ class ModelMixin(nn.Cell, PushToHubMixin):
 
         if push_to_hub:
             commit_message = kwargs.pop("commit_message", None)
-            private = kwargs.pop("private", False)
+            private = kwargs.pop("private", None)
             create_pr = kwargs.pop("create_pr", False)
             token = kwargs.pop("token", None)
             repo_id = kwargs.pop("repo_id", save_directory.split(os.path.sep)[-1])

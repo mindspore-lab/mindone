@@ -252,6 +252,7 @@ class AdaLayerNormSingle(nn.Cell):
         hidden_dtype=None,
     ) -> Tuple[ms.Tensor, ms.Tensor]:
         # No modulation happening here.
+        added_cond_kwargs = added_cond_kwargs or {"resolution": None, "aspect_ratio": None}
         embedded_timestep = self.emb(timestep, **added_cond_kwargs, batch_size=batch_size, hidden_dtype=hidden_dtype)
         return self.linear(self.silu(embedded_timestep)), embedded_timestep
 
@@ -344,20 +345,21 @@ class LuminaLayerNormContinuous(nn.Cell):
         out_dim: Optional[int] = None,
     ):
         super().__init__()
+
         # AdaLN
         self.silu = nn.SiLU()
         self.linear_1 = nn.Dense(conditioning_embedding_dim, embedding_dim, has_bias=bias)
+
         if norm_type == "layer_norm":
             self.norm = LayerNorm(embedding_dim, eps, elementwise_affine, bias)
+        elif norm_type == "rms_norm":
+            self.norm = RMSNorm(embedding_dim, eps=eps, elementwise_affine=elementwise_affine)
         else:
             raise ValueError(f"unknown norm_type {norm_type}")
-        # linear_2
+
+        self.linear_2 = None
         if out_dim is not None:
-            self.linear_2 = nn.Dense(
-                embedding_dim,
-                out_dim,
-                has_bias=bias,
-            )
+            self.linear_2 = nn.Dense(embedding_dim, out_dim, has_bias=bias)
 
     def construct(
         self,
@@ -634,20 +636,24 @@ class GroupNorm(nn.Cell):
 
 
 class RMSNorm(nn.Cell):
-    def __init__(self, dim, eps: float, elementwise_affine: bool = True):
+    def __init__(self, dim, eps: float, elementwise_affine: bool = True, bias: bool = False):
         super().__init__()
 
         self.eps = eps
+        self.elementwise_affine = elementwise_affine
 
         if isinstance(dim, numbers.Integral):
             dim = (dim,)
 
         self.dim = dim
 
+        self.weight = None
+        self.bias = None
+
         if elementwise_affine:
             self.weight = ms.Parameter(ops.ones(dim), name="weight")
-        else:
-            self.weight = None
+            if bias:
+                self.bias = ms.Parameter(ops.zeros(dim), name="bias")
 
     def construct(self, hidden_states):
         input_dtype = hidden_states.dtype
@@ -659,6 +665,8 @@ class RMSNorm(nn.Cell):
             if self.weight.dtype in [ms.float16, ms.bfloat16]:
                 hidden_states = hidden_states.to(self.weight.dtype)
             hidden_states = hidden_states * self.weight
+            if self.bias is not None:
+                hidden_states = hidden_states + self.bias
         else:
             hidden_states = hidden_states.to(input_dtype)
 
@@ -677,3 +685,33 @@ class GlobalResponseNorm(nn.Cell):
         nx = gx / (gx.mean(axis=-1, keep_dims=True) + 1e-6)
         out = (self.gamma * (x * nx) + self.beta + x).to(x.dtype)
         return out
+
+
+class LpNorm(nn.Cell):
+    def __init__(self, p: int = 2, dim: int = -1, eps: float = 1e-12):
+        super().__init__()
+
+        self.p = p
+        self.dim = dim
+        self.eps = eps
+
+    def construct(self, hidden_states: ms.Tensor) -> ms.Tensor:
+        return hidden_states / ops.LpNorm(axis=self.dim, p=self.p, epsilon=self.eps)(hidden_states)
+
+
+def get_normalization(
+    norm_type: str = "batch_norm",
+    num_features: Optional[int] = None,
+    eps: float = 1e-5,
+    elementwise_affine: bool = True,
+    bias: bool = True,
+) -> nn.Cell:
+    if norm_type == "rms_norm":
+        norm = RMSNorm(num_features, eps=eps, elementwise_affine=elementwise_affine, bias=bias)
+    elif norm_type == "layer_norm":
+        norm = LayerNorm(num_features, eps=eps, elementwise_affine=elementwise_affine, bias=bias)
+    elif norm_type == "batch_norm":
+        norm = nn.BatchNorm2d(num_features, eps=eps, affine=elementwise_affine)
+    else:
+        raise ValueError(f"{norm_type=} is not supported.")
+    return norm

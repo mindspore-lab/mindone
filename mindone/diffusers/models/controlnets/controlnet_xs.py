@@ -19,15 +19,20 @@ from typing import Any, Dict, List, Optional, Tuple, Union
 import mindspore as ms
 from mindspore import nn, ops
 
-from ..configuration_utils import ConfigMixin, register_to_config
-from ..utils import BaseOutput, logging
-from .activations import SiLU
-from .attention_processor import CROSS_ATTENTION_PROCESSORS, AttentionProcessor, AttnProcessor
-from .controlnet import ControlNetConditioningEmbedding
-from .embeddings import TimestepEmbedding, Timesteps
-from .modeling_utils import ModelMixin
-from .normalization import GroupNorm
-from .unets.unet_2d_blocks import (
+from ...configuration_utils import ConfigMixin, register_to_config
+from ...utils import BaseOutput, logging
+from ..activations import SiLU
+from ..attention_processor import (
+    ADDED_KV_ATTENTION_PROCESSORS,
+    CROSS_ATTENTION_PROCESSORS,
+    AttentionProcessor,
+    AttnAddedKVProcessor,
+    AttnProcessor,
+)
+from ..embeddings import TimestepEmbedding, Timesteps
+from ..modeling_utils import ModelMixin
+from ..normalization import GroupNorm
+from ..unets.unet_2d_blocks import (
     CrossAttnDownBlock2D,
     CrossAttnUpBlock2D,
     Downsample2D,
@@ -36,7 +41,8 @@ from .unets.unet_2d_blocks import (
     UNetMidBlock2DCrossAttn,
     Upsample2D,
 )
-from .unets.unet_2d_condition import UNet2DConditionModel
+from ..unets.unet_2d_condition import UNet2DConditionModel
+from .controlnet import ControlNetConditioningEmbedding
 
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
 
@@ -946,7 +952,9 @@ class UNetControlNetXSModel(ModelMixin, ConfigMixin):
         """
         Disables custom attention processors and sets the default attention implementation.
         """
-        if all(proc.__class__ in CROSS_ATTENTION_PROCESSORS for proc in self.attn_processors.values()):
+        if all(proc.__class__ in ADDED_KV_ATTENTION_PROCESSORS for proc in self.attn_processors.values()):
+            processor = AttnAddedKVProcessor()
+        elif all(proc.__class__ in CROSS_ATTENTION_PROCESSORS for proc in self.attn_processors.values()):
             processor = AttnProcessor()
         else:
             raise ValueError(
@@ -999,7 +1007,8 @@ class UNetControlNetXSModel(ModelMixin, ConfigMixin):
             added_cond_kwargs (`dict`):
                 Additional conditions for the Stable Diffusion XL UNet.
             return_dict (`bool`, defaults to `False`):
-                Whether or not to return a [`~models.controlnet.ControlNetOutput`] instead of a plain tuple.
+                Whether or not to return a [`~models.controlnets.controlnet.ControlNetOutput`] instead of a plain
+                tuple.
             apply_control (`bool`, defaults to `True`):
                 If `False`, the input is run only through the base model.
 
