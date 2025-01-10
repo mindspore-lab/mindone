@@ -17,13 +17,13 @@ from typing import Dict, Optional, Union
 import mindspore as ms
 from mindspore import nn, ops
 
-from ..configuration_utils import ConfigMixin, register_to_config
-from ..utils import logging
-from .attention_processor import AttentionProcessor
-from .controlnet import BaseOutput, Tuple
-from .embeddings import HunyuanCombinedTimestepTextSizeStyleEmbedding, PatchEmbed, PixArtAlphaTextProjection
-from .modeling_utils import ModelMixin
-from .transformers.hunyuan_transformer_2d import HunyuanDiTBlock
+from ...configuration_utils import ConfigMixin, register_to_config
+from ...utils import BaseOutput, logging
+from ..attention_processor import AttentionProcessor
+from ..embeddings import HunyuanCombinedTimestepTextSizeStyleEmbedding, PatchEmbed, PixArtAlphaTextProjection
+from ..modeling_utils import ModelMixin
+from ..transformers.hunyuan_transformer_2d import HunyuanDiTBlock
+from .controlnet import Tuple
 
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
 

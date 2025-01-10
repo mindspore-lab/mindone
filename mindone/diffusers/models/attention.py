@@ -17,7 +17,7 @@ import mindspore as ms
 from mindspore import nn, ops
 
 from ..utils import logging
-from .activations import GEGLU, GELU, ApproximateGELU, FP32SiLU, SwiGLU
+from .activations import GEGLU, GELU, ApproximateGELU, FP32SiLU, LinearActivation, SwiGLU
 from .attention_processor import Attention, JointAttnProcessor2_0
 from .embeddings import SinusoidalPositionalEmbedding
 from .normalization import (
@@ -184,7 +184,14 @@ class JointTransformerBlock(nn.Cell):
         self._chunk_size = chunk_size
         self._chunk_dim = dim
 
-    def construct(self, hidden_states: ms.Tensor, encoder_hidden_states: ms.Tensor, temb: ms.Tensor):
+    def construct(
+        self,
+        hidden_states: ms.Tensor,
+        encoder_hidden_states: ms.Tensor,
+        temb: ms.Tensor,
+        joint_attention_kwargs: Optional[Dict[str, Any]] = None,
+    ):
+        joint_attention_kwargs = joint_attention_kwargs or {}
         if self.use_dual_attention:
             norm_hidden_states, gate_msa, shift_mlp, scale_mlp, gate_mlp, norm_hidden_states2, gate_msa2 = self.norm1(
                 hidden_states, emb=temb
@@ -202,7 +209,9 @@ class JointTransformerBlock(nn.Cell):
 
         # Attention.
         attn_output, context_attn_output = self.attn(
-            hidden_states=norm_hidden_states, encoder_hidden_states=norm_encoder_hidden_states
+            hidden_states=norm_hidden_states,
+            encoder_hidden_states=norm_encoder_hidden_states,
+            **joint_attention_kwargs,
         )
 
         # Process attention outputs for the `hidden_states`.
@@ -210,7 +219,7 @@ class JointTransformerBlock(nn.Cell):
         hidden_states = hidden_states + attn_output
 
         if self.use_dual_attention:
-            attn_output2 = self.attn2(hidden_states=norm_hidden_states2)
+            attn_output2 = self.attn2(hidden_states=norm_hidden_states2, **joint_attention_kwargs)
             attn_output2 = gate_msa2.unsqueeze(1) * attn_output2
             hidden_states = hidden_states + attn_output2
 
@@ -883,6 +892,8 @@ class FeedForward(nn.Cell):
             act_fn = ApproximateGELU(dim, inner_dim, bias=bias)
         elif activation_fn == "swiglu":
             act_fn = SwiGLU(dim, inner_dim, bias=bias)
+        elif activation_fn == "linear-silu":
+            act_fn = LinearActivation(dim, inner_dim, bias=bias, activation="silu")
 
         net = []
         # project in

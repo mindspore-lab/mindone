@@ -25,12 +25,15 @@ _import_structure = {
     "autoencoders.autoencoder_tiny": ["AutoencoderTiny"],
     "autoencoders.consistency_decoder_vae": ["ConsistencyDecoderVAE"],
     "autoencoders.vq_model": ["VQModel"],
-    "controlnet": ["ControlNetModel"],
-    "controlnet_flux": ["FluxControlNetModel", "FluxMultiControlNetModel"],
-    "controlnet_hunyuan": ["HunyuanDiT2DControlNetModel", "HunyuanDiT2DMultiControlNetModel"],
-    "controlnet_sd3": ["SD3ControlNetModel", "SD3MultiControlNetModel"],
-    "controlnet_sparsectrl": ["SparseControlNetModel"],
-    "controlnet_xs": ["ControlNetXSAdapter", "UNetControlNetXSModel"],
+    "controlnets.controlnet": ["ControlNetModel"],
+    "controlnets.controlnet_flux": ["FluxControlNetModel", "FluxMultiControlNetModel"],
+    "controlnets.controlnet_hunyuan": [
+        "HunyuanDiT2DControlNetModel",
+        "HunyuanDiT2DMultiControlNetModel",
+    ],
+    "controlnets.controlnet_sd3": ["SD3ControlNetModel", "SD3MultiControlNetModel"],
+    "controlnets.controlnet_sparsectrl": ["SparseControlNetModel"],
+    "controlnets.controlnet_xs": ["ControlNetXSAdapter", "UNetControlNetXSModel"],
     "dual_transformer_2d": ["DualTransformer2DModel"],
     "embeddings": ["ImageProjection"],
     "modeling_utils": ["ModelMixin"],
@@ -72,12 +75,18 @@ if TYPE_CHECKING:
         ConsistencyDecoderVAE,
         VQModel,
     )
-    from .controlnet import ControlNetModel
-    from .controlnet_flux import FluxControlNetModel, FluxMultiControlNetModel
-    from .controlnet_hunyuan import HunyuanDiT2DControlNetModel, HunyuanDiT2DMultiControlNetModel
-    from .controlnet_sd3 import SD3ControlNetModel, SD3MultiControlNetModel
-    from .controlnet_sparsectrl import SparseControlNetModel
-    from .controlnet_xs import ControlNetXSAdapter, UNetControlNetXSModel
+    from .controlnets import (
+        ControlNetModel,
+        ControlNetXSAdapter,
+        FluxControlNetModel,
+        FluxMultiControlNetModel,
+        HunyuanDiT2DControlNetModel,
+        HunyuanDiT2DMultiControlNetModel,
+        SD3ControlNetModel,
+        SD3MultiControlNetModel,
+        SparseControlNetModel,
+        UNetControlNetXSModel,
+    )
     from .embeddings import ImageProjection
     from .modeling_utils import ModelMixin
     from .transformers import (
