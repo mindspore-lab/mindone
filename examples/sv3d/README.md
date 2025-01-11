@@ -15,22 +15,6 @@ ___Notice that the NeRF part for 3D optimization is not released yet. The curren
 src="https://github.com/mindspore-lab/mindone/assets/13991298/ac3d6558-e8d6-4636-9298-f2516fcbe63e"/>
 <br><em>The 3D generation pipeline leveraging the SV3D multiview diffusion model (for more information please refer to <a href="#acknowledgements">[1]</a>).</em></p>
 
-More demos can be found here. Input images are from [the Unique 3D repo](https://github.com/AiuniAI/Unique3D/tree/main/app/examples).
-<details>
-<summary>More Inference Demos
-</summary>
-
-| Input                                                                                                                | Output                     |
-|----------------------------------------------------------------------------------------------------------------------|----------------------------|
-| <p align="center"><img width="300" src="https://github.com/mindspore-lab/mindone/assets/13991298/4f7a0c2f-65c1-4d0a-9861-068b811e0701"/><br/>aaa</p>            | <p align="center"><img width="300" src="https://github.com/mindspore-lab/mindone/assets/13991298/ad492ad6-0a7a-4227-8809-b3c8ecf4db65"/><br/>aaa multiview</p> |
-| <p align="center"><img width="300" src="https://github.com/mindspore-lab/mindone/assets/13991298/64c269c4-dfee-4495-bede-c7841b137895"/><br/>akun</p>           | <p align="center"><img width="300" src="https://github.com/mindspore-lab/mindone/assets/13991298/0588fb26-aa1c-44e0-9b85-e001c6b2e67e"/><br/>akun multiview</p> |
-| <p align="center"><img width="300" src="https://github.com/mindspore-lab/mindone/assets/13991298/9655bf80-559c-40bb-8953-c8bdea2d11a3"/><br/>anya</p>           | <p align="center"><img width="300" src="https://github.com/mindspore-lab/mindone/assets/13991298/95a15c51-6fa7-4587-8e94-4f979270923f"/><br/>anya multiview</p> |
-| <p align="center"><img width="300" src="https://github.com/mindspore-lab/mindone/assets/13991298/8bae9feb-17a1-4cbe-ae56-1f719416e3e8"/><br/>bag</p>            | <p align="center"><img width="300" src="https://github.com/mindspore-lab/mindone/assets/13991298/5abff1b5-494f-4321-ae27-6125409515b8"/><br/>bag multiview</p> |
-| <p align="center"><img width="300" src="https://github.com/mindspore-lab/mindone/assets/13991298/1b6a650a-d203-461c-a60e-fd03e9434ea8"/><br/>groot</p>          | <p align="center"><img width="300" src="https://github.com/mindspore-lab/mindone/assets/13991298/413421b0-79d4-48b3-89a8-13958ff2125d"/><br/>groot multiview</p> |
-| <p align="center"><img width="300" src="https://github.com/mindspore-lab/mindone/assets/13991298/5458d1db-807b-4b2e-9f0a-22415f2a0f5e"/><br/>princess-large</p> | <p align="center"><img width="300" src="https://github.com/mindspore-lab/mindone/assets/13991298/6bf201a8-da31-4424-8304-42eaf6748501"/><br/>princess-large multiview</p> |
-
-</details>
-
 ## Requirements
 1. To kickstart:
 ```bash
@@ -52,10 +36,27 @@ We used Blender to render multiview frames for a 3D object in `.obj` for trainin
 
 ```shell
 python simple_video_sample.py \
-    --config configs/sv3d_u.yaml \
     --ckpt PATH_TO_CKPT \
-    --image PATH_TO_INPUT_IMAGE
+    --input PATH_TO_INPUT_IMAGE \
+    --mode 1 \
+    --decoding_t 1
 ```
+More demos can be found below. Input images are from [the Unique 3D repo](https://github.com/AiuniAI/Unique3D/tree/main/app/examples).
+<details>
+<summary>More Inference Demos
+</summary>
+
+| Input                                                                                                                | Output                     |
+|----------------------------------------------------------------------------------------------------------------------|----------------------------|
+| <p align="center"><img width="300" src="https://github.com/mindspore-lab/mindone/assets/13991298/4f7a0c2f-65c1-4d0a-9861-068b811e0701"/><br/>aaa</p>            | <p align="center"><img width="300" src="https://github.com/mindspore-lab/mindone/assets/13991298/ad492ad6-0a7a-4227-8809-b3c8ecf4db65"/><br/>aaa multiview</p> |
+| <p align="center"><img width="300" src="https://github.com/mindspore-lab/mindone/assets/13991298/64c269c4-dfee-4495-bede-c7841b137895"/><br/>akun</p>           | <p align="center"><img width="300" src="https://github.com/mindspore-lab/mindone/assets/13991298/0588fb26-aa1c-44e0-9b85-e001c6b2e67e"/><br/>akun multiview</p> |
+| <p align="center"><img width="300" src="https://github.com/mindspore-lab/mindone/assets/13991298/9655bf80-559c-40bb-8953-c8bdea2d11a3"/><br/>anya</p>           | <p align="center"><img width="300" src="https://github.com/mindspore-lab/mindone/assets/13991298/95a15c51-6fa7-4587-8e94-4f979270923f"/><br/>anya multiview</p> |
+| <p align="center"><img width="300" src="https://github.com/mindspore-lab/mindone/assets/13991298/8bae9feb-17a1-4cbe-ae56-1f719416e3e8"/><br/>bag</p>            | <p align="center"><img width="300" src="https://github.com/mindspore-lab/mindone/assets/13991298/5abff1b5-494f-4321-ae27-6125409515b8"/><br/>bag multiview</p> |
+| <p align="center"><img width="300" src="https://github.com/mindspore-lab/mindone/assets/13991298/1b6a650a-d203-461c-a60e-fd03e9434ea8"/><br/>groot</p>          | <p align="center"><img width="300" src="https://github.com/mindspore-lab/mindone/assets/13991298/413421b0-79d4-48b3-89a8-13958ff2125d"/><br/>groot multiview</p> |
+| <p align="center"><img width="300" src="https://github.com/mindspore-lab/mindone/assets/13991298/5458d1db-807b-4b2e-9f0a-22415f2a0f5e"/><br/>princess-large</p> | <p align="center"><img width="300" src="https://github.com/mindspore-lab/mindone/assets/13991298/6bf201a8-da31-4424-8304-42eaf6748501"/><br/>princess-large multiview</p> |
+
+</details>
+
 
 ## Training
 1. Prepare the SVD checkpoints as mentioned in the paper. SV3D needs to be finetuned from SVD to cut down training time. See [here](../svd/readme.md)
