@@ -1803,6 +1803,26 @@ class CogVideoXAttnProcessor2_0:
 
         self.apply_rotary_emb = apply_rotary_emb
 
+    def apply_rotary_emb_for_image_part(
+        self,
+        hidden_state: ms.Tensor,
+        image_rotary_emb: ms.Tensor,
+        start_index: int,
+        axis: int = 2,
+    ) -> ms.Tensor:
+        """
+        Equivalence of expression(when axis=2):
+            `hidden_state[:, :, start_index:] = self.apply_rotary_emb(hidden_state[:, :, start_index:], image_rotary_emb)`
+
+        Rewrite it since implement above might call ops.ScatterNdUpdate which is super slow!
+        """
+        hidden_state_text, hidden_state_image = ops.split(
+            hidden_state, (start_index, hidden_state.shape[axis] - start_index), axis=axis
+        )
+        hidden_state_image = self.apply_rotary_emb(hidden_state_image, image_rotary_emb)
+        hidden_state = ops.cat([hidden_state_text, hidden_state_image], axis=axis)
+        return hidden_state
+
     def __call__(
         self,
         attn: Attention,
@@ -1840,10 +1860,11 @@ class CogVideoXAttnProcessor2_0:
             key = attn.norm_k(key)
 
         # Apply RoPE if needed
+        # rewrite the implement for performance, refer to `self.apply_rotary_emb_for_image_part`
         if image_rotary_emb is not None:
-            query[:, :, text_seq_length:] = self.apply_rotary_emb(query[:, :, text_seq_length:], image_rotary_emb)
+            query = self.apply_rotary_emb_for_image_part(query, image_rotary_emb, text_seq_length)
             if not attn.is_cross_attention:
-                key[:, :, text_seq_length:] = self.apply_rotary_emb(key[:, :, text_seq_length:], image_rotary_emb)
+                key = self.apply_rotary_emb_for_image_part(key, image_rotary_emb, text_seq_length)
 
         hidden_states = attn.scaled_dot_product_attention(
             query, key, value, attn_mask=attention_mask, dropout_p=0.0, is_causal=False
