@@ -444,6 +444,7 @@ class HYVideoDiffusionTransformer(nn.Cell):
         self.guidance_embed = guidance_embed
         self.rope_dim_list = rope_dim_list
         self.use_conv2d_patchify = use_conv2d_patchify
+        self.dtype = dtype
 
         # Text projection. Default to linear projection.
         # Alternative: TokenRefiner. See more details (LI-DiT): http://arxiv.org/abs/2406.11831
@@ -688,23 +689,29 @@ class HYVideoDiffusionTransformer(nn.Cell):
         '''
         model param dtype
         '''
-        if ckpt_path.endswith('.pth'):
+        if ckpt_path.endswith('.pt'):
+            import torch
             state_dict = torch.load(ckpt_path)
             load_key = 'module'
             sd = state_dict[load_key]
-
+            param_dtype = ms.float32 if self.dtype is None else self.dtype
             # TODO: support bf16 net params
             parameter_dict = dict()
+            # import pdb; pdb.set_trace()
+
             for pname in sd:
-                parameter_dict[pname] = ms.Parameter(
-                        ms.Tensor(sd[pname].cpu().detach().numpy(), dtype=self.dtype)
-                        )
+                # np doesn't support bf16
+                # print(pname, sd[pname].shape, sd[pname].dtype)
+                np_val = sd[pname].cpu().detach().float().numpy()
+                parameter_dict[pname] = ms.Parameter(ms.Tensor(np_val, dtype=param_dtype))
+
+            # import pdb; pdb.set_trace()
             # reshape conv3d weight to conv2d if use conv2d in PatchEmbed
             if self.use_conv2d_patchify:
                 key_3d = "img_in.proj.weight"
                 assert len(sd[key_3d].shape) == 5 and sd[key_3d].shape[-3] == 1 # c_out, c_in, 1, 2, 2
-                conv3d_weight = sd.pop(key_3d)
-                sd[key_3d] = ms.Parameter(conv3d_weight.squeeze(axis=-3), name=key_3d, dtype=self.dtype)
+                conv3d_weight = parameter_dict.pop(key_3d)
+                parameter_dict[key_3d] = ms.Parameter(conv3d_weight.value().squeeze(axis=-3), name=key_3d)
 
             param_not_load, ckpt_not_load = ms.load_param_into_net(self, parameter_dict, strict_load=True)
             print('param not load: ', param_not_load)
