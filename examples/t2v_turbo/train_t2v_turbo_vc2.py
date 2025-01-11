@@ -246,7 +246,7 @@ def main(args):
         n_samples=args.max_train_samples,
     )
 
-    num_train_examples = args.max_train_samples
+    num_train_examples = min(args.max_train_samples, len(train_dataloader))
     global_batch_size = args.train_batch_size * device_num
     num_worker_batches = math.ceil(num_train_examples / (global_batch_size * num_workers))
 
@@ -277,7 +277,7 @@ def main(args):
     if overrode_max_train_steps:
         args.max_train_steps = args.num_train_epochs * num_update_steps_per_epoch
     # Afterwards we recalculate our number of training epochs
-    args.num_train_epochs = math.ceil(args.max_train_steps / num_update_steps_per_epoch)
+    args.num_train_epochs = min(args.num_train_epochs, math.ceil(args.max_train_steps / num_update_steps_per_epoch))
 
     uncond_prompt, _ = tokenize([""] * args.train_batch_size)
     uncond_prompt = ms.Tensor(np.array(uncond_prompt, dtype=np.int32))
