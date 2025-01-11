@@ -6712,7 +6712,9 @@ saving models.</p>
 <span class="normal">869</span>
 <span class="normal">870</span>
 <span class="normal">871</span>
-<span class="normal">872</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">ModelMixin</span><span class="p">(</span><span class="n">nn</span><span class="o">.</span><span class="n">Cell</span><span class="p">,</span> <span class="n">PushToHubMixin</span><span class="p">):</span>
+<span class="normal">872</span>
+<span class="normal">873</span>
+<span class="normal">874</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">ModelMixin</span><span class="p">(</span><span class="n">nn</span><span class="o">.</span><span class="n">Cell</span><span class="p">,</span> <span class="n">PushToHubMixin</span><span class="p">):</span>
 <span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Base class for all models.</span>
 
@@ -7227,6 +7229,15 @@ saving models.</p>
 
             <span class="n">model</span> <span class="o">=</span> <span class="bp">cls</span><span class="o">.</span><span class="n">from_config</span><span class="p">(</span><span class="n">config</span><span class="p">,</span> <span class="o">**</span><span class="n">unused_kwargs</span><span class="p">)</span>
 
+            <span class="c1"># Move the model&#39;s data type conversion ahead of the weight loading process to avoid unnecessary</span>
+            <span class="c1"># data type conversions of weights that can increase computation time in certain situations.</span>
+            <span class="k">if</span> <span class="n">mindspore_dtype</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">mindspore_dtype</span><span class="p">,</span> <span class="n">ms</span><span class="o">.</span><span class="n">Type</span><span class="p">):</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                    <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">mindspore_dtype</span><span class="si">}</span><span class="s2"> needs to be of type `ms.Type`, e.g. `ms.float16`, but is </span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="n">mindspore_dtype</span><span class="p">)</span><span class="si">}</span><span class="s2">.&quot;</span>
+                <span class="p">)</span>
+            <span class="k">elif</span> <span class="n">mindspore_dtype</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">model</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">mindspore_dtype</span><span class="p">)</span>
+
             <span class="k">if</span> <span class="n">is_sharded</span><span class="p">:</span>
                 <span class="n">load_checkpoint_and_dispatch</span><span class="p">(</span>
                     <span class="n">model</span><span class="p">,</span>
@@ -7252,13 +7263,6 @@ saving models.</p>
                     <span class="s2">&quot;mismatched_keys&quot;</span><span class="p">:</span> <span class="n">mismatched_keys</span><span class="p">,</span>
                     <span class="s2">&quot;error_msgs&quot;</span><span class="p">:</span> <span class="n">error_msgs</span><span class="p">,</span>
                 <span class="p">}</span>
-
-        <span class="k">if</span> <span class="n">mindspore_dtype</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">mindspore_dtype</span><span class="p">,</span> <span class="n">ms</span><span class="o">.</span><span class="n">Type</span><span class="p">):</span>
-            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
-                <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">mindspore_dtype</span><span class="si">}</span><span class="s2"> needs to be of type `ms.Type`, e.g. `ms.float16`, but is </span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="n">mindspore_dtype</span><span class="p">)</span><span class="si">}</span><span class="s2">.&quot;</span>
-            <span class="p">)</span>
-        <span class="k">elif</span> <span class="n">mindspore_dtype</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="n">model</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">mindspore_dtype</span><span class="p">)</span>
 
         <span class="n">model</span><span class="o">.</span><span class="n">register_to_config</span><span class="p">(</span><span class="n">_name_or_path</span><span class="o">=</span><span class="n">pretrained_model_name_or_path</span><span class="p">)</span>
 
@@ -8399,7 +8403,9 @@ You<span class="w"> </span>should<span class="w"> </span>probably<span class="w"
 <span class="normal">651</span>
 <span class="normal">652</span>
 <span class="normal">653</span>
-<span class="normal">654</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@classmethod</span>
+<span class="normal">654</span>
+<span class="normal">655</span>
+<span class="normal">656</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@classmethod</span>
 <span class="nd">@validate_hf_hub_args</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">from_pretrained</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">pretrained_model_name_or_path</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">os</span><span class="o">.</span><span class="n">PathLike</span><span class="p">]],</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
 <span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
@@ -8606,6 +8612,15 @@ You<span class="w"> </span>should<span class="w"> </span>probably<span class="w"
 
         <span class="n">model</span> <span class="o">=</span> <span class="bp">cls</span><span class="o">.</span><span class="n">from_config</span><span class="p">(</span><span class="n">config</span><span class="p">,</span> <span class="o">**</span><span class="n">unused_kwargs</span><span class="p">)</span>
 
+        <span class="c1"># Move the model&#39;s data type conversion ahead of the weight loading process to avoid unnecessary</span>
+        <span class="c1"># data type conversions of weights that can increase computation time in certain situations.</span>
+        <span class="k">if</span> <span class="n">mindspore_dtype</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">mindspore_dtype</span><span class="p">,</span> <span class="n">ms</span><span class="o">.</span><span class="n">Type</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">mindspore_dtype</span><span class="si">}</span><span class="s2"> needs to be of type `ms.Type`, e.g. `ms.float16`, but is </span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="n">mindspore_dtype</span><span class="p">)</span><span class="si">}</span><span class="s2">.&quot;</span>
+            <span class="p">)</span>
+        <span class="k">elif</span> <span class="n">mindspore_dtype</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">model</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">mindspore_dtype</span><span class="p">)</span>
+
         <span class="k">if</span> <span class="n">is_sharded</span><span class="p">:</span>
             <span class="n">load_checkpoint_and_dispatch</span><span class="p">(</span>
                 <span class="n">model</span><span class="p">,</span>
@@ -8631,13 +8646,6 @@ You<span class="w"> </span>should<span class="w"> </span>probably<span class="w"
                 <span class="s2">&quot;mismatched_keys&quot;</span><span class="p">:</span> <span class="n">mismatched_keys</span><span class="p">,</span>
                 <span class="s2">&quot;error_msgs&quot;</span><span class="p">:</span> <span class="n">error_msgs</span><span class="p">,</span>
             <span class="p">}</span>
-
-    <span class="k">if</span> <span class="n">mindspore_dtype</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">mindspore_dtype</span><span class="p">,</span> <span class="n">ms</span><span class="o">.</span><span class="n">Type</span><span class="p">):</span>
-        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
-            <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">mindspore_dtype</span><span class="si">}</span><span class="s2"> needs to be of type `ms.Type`, e.g. `ms.float16`, but is </span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="n">mindspore_dtype</span><span class="p">)</span><span class="si">}</span><span class="s2">.&quot;</span>
-        <span class="p">)</span>
-    <span class="k">elif</span> <span class="n">mindspore_dtype</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-        <span class="n">model</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">mindspore_dtype</span><span class="p">)</span>
 
     <span class="n">model</span><span class="o">.</span><span class="n">register_to_config</span><span class="p">(</span><span class="n">_name_or_path</span><span class="o">=</span><span class="n">pretrained_model_name_or_path</span><span class="p">)</span>
 
@@ -8747,9 +8755,7 @@ You<span class="w"> </span>should<span class="w"> </span>probably<span class="w"
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/models/modeling_utils.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">792</span>
-<span class="normal">793</span>
-<span class="normal">794</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">794</span>
 <span class="normal">795</span>
 <span class="normal">796</span>
 <span class="normal">797</span>
@@ -8783,7 +8789,9 @@ You<span class="w"> </span>should<span class="w"> </span>probably<span class="w"
 <span class="normal">825</span>
 <span class="normal">826</span>
 <span class="normal">827</span>
-<span class="normal">828</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">num_parameters</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">only_trainable</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span> <span class="n">exclude_embeddings</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+<span class="normal">828</span>
+<span class="normal">829</span>
+<span class="normal">830</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">num_parameters</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">only_trainable</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span> <span class="n">exclude_embeddings</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Get number of (trainable or non-embedding) parameters in the module.</span>
 

@@ -14748,7 +14748,11 @@ LoRA parameters then it won't have any effect.</p>
 <span class="normal">657</span>
 <span class="normal">658</span>
 <span class="normal">659</span>
-<span class="normal">660</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">LoraBaseMixin</span><span class="p">:</span>
+<span class="normal">660</span>
+<span class="normal">661</span>
+<span class="normal">662</span>
+<span class="normal">663</span>
+<span class="normal">664</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">LoraBaseMixin</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Utility class for handling LoRAs.&quot;&quot;&quot;</span>
 
     <span class="n">_lora_loadable_modules</span> <span class="o">=</span> <span class="p">[]</span>
@@ -15063,13 +15067,17 @@ LoRA parameters then it won't have any effect.</p>
             <span class="p">)</span>
 
         <span class="n">list_adapters</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_list_adapters</span><span class="p">()</span>  <span class="c1"># eg {&quot;unet&quot;: [&quot;adapter1&quot;, &quot;adapter2&quot;], &quot;text_encoder&quot;: [&quot;adapter2&quot;]}</span>
-        <span class="n">all_adapters</span> <span class="o">=</span> <span class="p">{</span>
-            <span class="n">adapter</span> <span class="k">for</span> <span class="n">adapters</span> <span class="ow">in</span> <span class="n">list_adapters</span><span class="o">.</span><span class="n">values</span><span class="p">()</span> <span class="k">for</span> <span class="n">adapter</span> <span class="ow">in</span> <span class="n">adapters</span>
-        <span class="p">}</span>  <span class="c1"># eg [&quot;adapter1&quot;, &quot;adapter2&quot;]</span>
+        <span class="c1"># eg [&quot;adapter1&quot;, &quot;adapter2&quot;]</span>
+        <span class="n">all_adapters</span> <span class="o">=</span> <span class="p">{</span><span class="n">adapter</span> <span class="k">for</span> <span class="n">adapters</span> <span class="ow">in</span> <span class="n">list_adapters</span><span class="o">.</span><span class="n">values</span><span class="p">()</span> <span class="k">for</span> <span class="n">adapter</span> <span class="ow">in</span> <span class="n">adapters</span><span class="p">}</span>
+        <span class="n">missing_adapters</span> <span class="o">=</span> <span class="nb">set</span><span class="p">(</span><span class="n">adapter_names</span><span class="p">)</span> <span class="o">-</span> <span class="n">all_adapters</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">missing_adapters</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Adapter name(s) </span><span class="si">{</span><span class="n">missing_adapters</span><span class="si">}</span><span class="s2"> not in the list of present adapters: </span><span class="si">{</span><span class="n">all_adapters</span><span class="si">}</span><span class="s2">.&quot;</span><span class="p">)</span>
+
+        <span class="c1"># eg {&quot;adapter1&quot;: [&quot;unet&quot;], &quot;adapter2&quot;: [&quot;unet&quot;, &quot;text_encoder&quot;]}</span>
         <span class="n">invert_list_adapters</span> <span class="o">=</span> <span class="p">{</span>
             <span class="n">adapter</span><span class="p">:</span> <span class="p">[</span><span class="n">part</span> <span class="k">for</span> <span class="n">part</span><span class="p">,</span> <span class="n">adapters</span> <span class="ow">in</span> <span class="n">list_adapters</span><span class="o">.</span><span class="n">items</span><span class="p">()</span> <span class="k">if</span> <span class="n">adapter</span> <span class="ow">in</span> <span class="n">adapters</span><span class="p">]</span>
             <span class="k">for</span> <span class="n">adapter</span> <span class="ow">in</span> <span class="n">all_adapters</span>
-        <span class="p">}</span>  <span class="c1"># eg {&quot;adapter1&quot;: [&quot;unet&quot;], &quot;adapter2&quot;: [&quot;unet&quot;, &quot;text_encoder&quot;]}</span>
+        <span class="p">}</span>
 
         <span class="c1"># Decompose weights into weights for denoiser and text encoders.</span>
         <span class="n">_component_adapter_weights</span> <span class="o">=</span> <span class="p">{}</span>
@@ -15266,11 +15274,7 @@ LoRA parameters then it won't have any effect.</p>
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/loaders/lora_base.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">550</span>
-<span class="normal">551</span>
-<span class="normal">552</span>
-<span class="normal">553</span>
-<span class="normal">554</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">554</span>
 <span class="normal">555</span>
 <span class="normal">556</span>
 <span class="normal">557</span>
@@ -15283,7 +15287,11 @@ LoRA parameters then it won't have any effect.</p>
 <span class="normal">564</span>
 <span class="normal">565</span>
 <span class="normal">566</span>
-<span class="normal">567</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">delete_adapters</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">adapter_names</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span> <span class="nb">str</span><span class="p">]):</span>
+<span class="normal">567</span>
+<span class="normal">568</span>
+<span class="normal">569</span>
+<span class="normal">570</span>
+<span class="normal">571</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">delete_adapters</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">adapter_names</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span> <span class="nb">str</span><span class="p">]):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Args:</span>
 <span class="sd">    Deletes the LoRA layers of `adapter_name` for the unet and text-encoder(s).</span>
@@ -15607,11 +15615,7 @@ LoRA parameters then it won't have any effect.</p>
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/loaders/lora_base.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">569</span>
-<span class="normal">570</span>
-<span class="normal">571</span>
-<span class="normal">572</span>
-<span class="normal">573</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">573</span>
 <span class="normal">574</span>
 <span class="normal">575</span>
 <span class="normal">576</span>
@@ -15633,7 +15637,11 @@ LoRA parameters then it won't have any effect.</p>
 <span class="normal">592</span>
 <span class="normal">593</span>
 <span class="normal">594</span>
-<span class="normal">595</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">get_active_adapters</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
+<span class="normal">595</span>
+<span class="normal">596</span>
+<span class="normal">597</span>
+<span class="normal">598</span>
+<span class="normal">599</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">get_active_adapters</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Gets the list of the current active adapters.</span>
 
@@ -15681,11 +15689,7 @@ LoRA parameters then it won't have any effect.</p>
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/loaders/lora_base.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">597</span>
-<span class="normal">598</span>
-<span class="normal">599</span>
-<span class="normal">600</span>
-<span class="normal">601</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">601</span>
 <span class="normal">602</span>
 <span class="normal">603</span>
 <span class="normal">604</span>
@@ -15696,7 +15700,11 @@ LoRA parameters then it won't have any effect.</p>
 <span class="normal">609</span>
 <span class="normal">610</span>
 <span class="normal">611</span>
-<span class="normal">612</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">get_list_adapters</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]:</span>
+<span class="normal">612</span>
+<span class="normal">613</span>
+<span class="normal">614</span>
+<span class="normal">615</span>
+<span class="normal">616</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">get_list_adapters</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Gets the current list of all available adapters in the pipeline.</span>
 <span class="sd">    &quot;&quot;&quot;</span>

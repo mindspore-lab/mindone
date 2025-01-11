@@ -6446,28 +6446,7 @@ operator.</p>
 
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/models/attention_processor.py</code></summary>
-                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1937</span>
-<span class="normal">1938</span>
-<span class="normal">1939</span>
-<span class="normal">1940</span>
-<span class="normal">1941</span>
-<span class="normal">1942</span>
-<span class="normal">1943</span>
-<span class="normal">1944</span>
-<span class="normal">1945</span>
-<span class="normal">1946</span>
-<span class="normal">1947</span>
-<span class="normal">1948</span>
-<span class="normal">1949</span>
-<span class="normal">1950</span>
-<span class="normal">1951</span>
-<span class="normal">1952</span>
-<span class="normal">1953</span>
-<span class="normal">1954</span>
-<span class="normal">1955</span>
-<span class="normal">1956</span>
-<span class="normal">1957</span>
-<span class="normal">1958</span>
+                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1958</span>
 <span class="normal">1959</span>
 <span class="normal">1960</span>
 <span class="normal">1961</span>
@@ -6559,7 +6538,28 @@ operator.</p>
 <span class="normal">2047</span>
 <span class="normal">2048</span>
 <span class="normal">2049</span>
-<span class="normal">2050</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@ms</span><span class="o">.</span><span class="n">jit_class</span>
+<span class="normal">2050</span>
+<span class="normal">2051</span>
+<span class="normal">2052</span>
+<span class="normal">2053</span>
+<span class="normal">2054</span>
+<span class="normal">2055</span>
+<span class="normal">2056</span>
+<span class="normal">2057</span>
+<span class="normal">2058</span>
+<span class="normal">2059</span>
+<span class="normal">2060</span>
+<span class="normal">2061</span>
+<span class="normal">2062</span>
+<span class="normal">2063</span>
+<span class="normal">2064</span>
+<span class="normal">2065</span>
+<span class="normal">2066</span>
+<span class="normal">2067</span>
+<span class="normal">2068</span>
+<span class="normal">2069</span>
+<span class="normal">2070</span>
+<span class="normal">2071</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@ms</span><span class="o">.</span><span class="n">jit_class</span>
 <span class="k">class</span><span class="w"> </span><span class="nc">XFormersAttnProcessor</span><span class="p">:</span>
 <span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Processor for implementing memory efficient attention using xFormers-like interface.</span>

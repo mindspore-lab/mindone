@@ -6041,7 +6041,7 @@
 
     <div class="doc doc-contents first">
             <p class="doc doc-class-bases">
-              Bases: <code><a class="autorefs autorefs-internal" title="mindone.diffusers.pipelines.pipeline_utils.DiffusionPipeline" href="../overview/#mindone.diffusers.DiffusionPipeline">DiffusionPipeline</a></code></p>
+              Bases: <code><a class="autorefs autorefs-internal" title="mindone.diffusers.pipelines.pipeline_utils.DiffusionPipeline" href="../overview/#mindone.diffusers.DiffusionPipeline">DiffusionPipeline</a></code>, <code><span title="mindone.diffusers.loaders.CogVideoXLoraLoaderMixin">CogVideoXLoraLoaderMixin</span></code></p>
 
 
         <p>Pipeline for text-to-video generation using CogVideoX.</p>
@@ -6135,8 +6135,7 @@ library implements for all the pipelines (such as downloading or saving, running
 
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/pipelines/cogvideo/pipeline_cogvideox.py</code></summary>
-                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">139</span>
-<span class="normal">140</span>
+                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">140</span>
 <span class="normal">141</span>
 <span class="normal">142</span>
 <span class="normal">143</span>
@@ -6706,7 +6705,58 @@ library implements for all the pipelines (such as downloading or saving, running
 <span class="normal">707</span>
 <span class="normal">708</span>
 <span class="normal">709</span>
-<span class="normal">710</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">CogVideoXPipeline</span><span class="p">(</span><span class="n">DiffusionPipeline</span><span class="p">):</span>
+<span class="normal">710</span>
+<span class="normal">711</span>
+<span class="normal">712</span>
+<span class="normal">713</span>
+<span class="normal">714</span>
+<span class="normal">715</span>
+<span class="normal">716</span>
+<span class="normal">717</span>
+<span class="normal">718</span>
+<span class="normal">719</span>
+<span class="normal">720</span>
+<span class="normal">721</span>
+<span class="normal">722</span>
+<span class="normal">723</span>
+<span class="normal">724</span>
+<span class="normal">725</span>
+<span class="normal">726</span>
+<span class="normal">727</span>
+<span class="normal">728</span>
+<span class="normal">729</span>
+<span class="normal">730</span>
+<span class="normal">731</span>
+<span class="normal">732</span>
+<span class="normal">733</span>
+<span class="normal">734</span>
+<span class="normal">735</span>
+<span class="normal">736</span>
+<span class="normal">737</span>
+<span class="normal">738</span>
+<span class="normal">739</span>
+<span class="normal">740</span>
+<span class="normal">741</span>
+<span class="normal">742</span>
+<span class="normal">743</span>
+<span class="normal">744</span>
+<span class="normal">745</span>
+<span class="normal">746</span>
+<span class="normal">747</span>
+<span class="normal">748</span>
+<span class="normal">749</span>
+<span class="normal">750</span>
+<span class="normal">751</span>
+<span class="normal">752</span>
+<span class="normal">753</span>
+<span class="normal">754</span>
+<span class="normal">755</span>
+<span class="normal">756</span>
+<span class="normal">757</span>
+<span class="normal">758</span>
+<span class="normal">759</span>
+<span class="normal">760</span>
+<span class="normal">761</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">CogVideoXPipeline</span><span class="p">(</span><span class="n">DiffusionPipeline</span><span class="p">,</span> <span class="n">CogVideoXLoraLoaderMixin</span><span class="p">):</span>
 <span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Pipeline for text-to-video generation using CogVideoX.</span>
 
@@ -6756,6 +6806,9 @@ library implements for all the pipelines (such as downloading or saving, running
         <span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">vae_scale_factor_temporal</span> <span class="o">=</span> <span class="p">(</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">vae</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">temporal_compression_ratio</span> <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s2">&quot;vae&quot;</span><span class="p">)</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">vae</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="mi">4</span>
+        <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">vae_scaling_factor_image</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">vae</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">scaling_factor</span> <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s2">&quot;vae&quot;</span><span class="p">)</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">vae</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="mf">0.7</span>
         <span class="p">)</span>
 
         <span class="bp">self</span><span class="o">.</span><span class="n">video_processor</span> <span class="o">=</span> <span class="n">VideoProcessor</span><span class="p">(</span><span class="n">vae_scale_factor</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">vae_scale_factor_spatial</span><span class="p">)</span>
@@ -6879,6 +6932,12 @@ library implements for all the pipelines (such as downloading or saving, running
     <span class="k">def</span><span class="w"> </span><span class="nf">prepare_latents</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span> <span class="n">batch_size</span><span class="p">,</span> <span class="n">num_channels_latents</span><span class="p">,</span> <span class="n">num_frames</span><span class="p">,</span> <span class="n">height</span><span class="p">,</span> <span class="n">width</span><span class="p">,</span> <span class="n">dtype</span><span class="p">,</span> <span class="n">generator</span><span class="p">,</span> <span class="n">latents</span><span class="o">=</span><span class="kc">None</span>
     <span class="p">):</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">generator</span><span class="p">,</span> <span class="nb">list</span><span class="p">)</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="n">generator</span><span class="p">)</span> <span class="o">!=</span> <span class="n">batch_size</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;You have passed a list of generators of length </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">generator</span><span class="p">)</span><span class="si">}</span><span class="s2">, but requested an effective batch&quot;</span>
+                <span class="sa">f</span><span class="s2">&quot; size of </span><span class="si">{</span><span class="n">batch_size</span><span class="si">}</span><span class="s2">. Make sure the batch size matches the length of the generators.&quot;</span>
+            <span class="p">)</span>
+
         <span class="n">shape</span> <span class="o">=</span> <span class="p">(</span>
             <span class="n">batch_size</span><span class="p">,</span>
             <span class="p">(</span><span class="n">num_frames</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span> <span class="o">//</span> <span class="bp">self</span><span class="o">.</span><span class="n">vae_scale_factor_temporal</span> <span class="o">+</span> <span class="mi">1</span><span class="p">,</span>
@@ -6886,11 +6945,6 @@ library implements for all the pipelines (such as downloading or saving, running
             <span class="n">height</span> <span class="o">//</span> <span class="bp">self</span><span class="o">.</span><span class="n">vae_scale_factor_spatial</span><span class="p">,</span>
             <span class="n">width</span> <span class="o">//</span> <span class="bp">self</span><span class="o">.</span><span class="n">vae_scale_factor_spatial</span><span class="p">,</span>
         <span class="p">)</span>
-        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">generator</span><span class="p">,</span> <span class="nb">list</span><span class="p">)</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="n">generator</span><span class="p">)</span> <span class="o">!=</span> <span class="n">batch_size</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
-                <span class="sa">f</span><span class="s2">&quot;You have passed a list of generators of length </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">generator</span><span class="p">)</span><span class="si">}</span><span class="s2">, but requested an effective batch&quot;</span>
-                <span class="sa">f</span><span class="s2">&quot; size of </span><span class="si">{</span><span class="n">batch_size</span><span class="si">}</span><span class="s2">. Make sure the batch size matches the length of the generators.&quot;</span>
-            <span class="p">)</span>
 
         <span class="k">if</span> <span class="n">latents</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
             <span class="n">latents</span> <span class="o">=</span> <span class="n">randn_tensor</span><span class="p">(</span><span class="n">shape</span><span class="p">,</span> <span class="n">generator</span><span class="o">=</span><span class="n">generator</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">dtype</span><span class="p">)</span>
@@ -6901,7 +6955,7 @@ library implements for all the pipelines (such as downloading or saving, running
 
     <span class="k">def</span><span class="w"> </span><span class="nf">decode_latents</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">latents</span><span class="p">:</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
         <span class="n">latents</span> <span class="o">=</span> <span class="n">latents</span><span class="o">.</span><span class="n">permute</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">4</span><span class="p">)</span>  <span class="c1"># [batch_size, num_channels, num_frames, height, width]</span>
-        <span class="n">latents</span> <span class="o">=</span> <span class="mi">1</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">vae</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">scaling_factor</span> <span class="o">*</span> <span class="n">latents</span>
+        <span class="n">latents</span> <span class="o">=</span> <span class="mi">1</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">vae_scaling_factor_image</span> <span class="o">*</span> <span class="n">latents</span>
 
         <span class="n">frames</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">vae</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="n">latents</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
         <span class="k">return</span> <span class="n">frames</span>
@@ -6997,19 +7051,36 @@ library implements for all the pipelines (such as downloading or saving, running
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Tuple</span><span class="p">[</span><span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">]:</span>
         <span class="n">grid_height</span> <span class="o">=</span> <span class="n">height</span> <span class="o">//</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">vae_scale_factor_spatial</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">transformer</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">patch_size</span><span class="p">)</span>
         <span class="n">grid_width</span> <span class="o">=</span> <span class="n">width</span> <span class="o">//</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">vae_scale_factor_spatial</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">transformer</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">patch_size</span><span class="p">)</span>
-        <span class="n">base_size_width</span> <span class="o">=</span> <span class="mi">720</span> <span class="o">//</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">vae_scale_factor_spatial</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">transformer</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">patch_size</span><span class="p">)</span>
-        <span class="n">base_size_height</span> <span class="o">=</span> <span class="mi">480</span> <span class="o">//</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">vae_scale_factor_spatial</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">transformer</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">patch_size</span><span class="p">)</span>
 
-        <span class="n">grid_crops_coords</span> <span class="o">=</span> <span class="n">get_resize_crop_region_for_grid</span><span class="p">(</span>
-            <span class="p">(</span><span class="n">grid_height</span><span class="p">,</span> <span class="n">grid_width</span><span class="p">),</span> <span class="n">base_size_width</span><span class="p">,</span> <span class="n">base_size_height</span>
-        <span class="p">)</span>
-        <span class="n">freqs_cos</span><span class="p">,</span> <span class="n">freqs_sin</span> <span class="o">=</span> <span class="n">get_3d_rotary_pos_embed</span><span class="p">(</span>
-            <span class="n">embed_dim</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">transformer</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">attention_head_dim</span><span class="p">,</span>
-            <span class="n">crops_coords</span><span class="o">=</span><span class="n">grid_crops_coords</span><span class="p">,</span>
-            <span class="n">grid_size</span><span class="o">=</span><span class="p">(</span><span class="n">grid_height</span><span class="p">,</span> <span class="n">grid_width</span><span class="p">),</span>
-            <span class="n">temporal_size</span><span class="o">=</span><span class="n">num_frames</span><span class="p">,</span>
-            <span class="n">use_real</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
-        <span class="p">)</span>
+        <span class="n">p</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">transformer</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">patch_size</span>
+        <span class="n">p_t</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">transformer</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">patch_size_t</span>
+
+        <span class="n">base_size_width</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">transformer</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">sample_width</span> <span class="o">//</span> <span class="n">p</span>
+        <span class="n">base_size_height</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">transformer</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">sample_height</span> <span class="o">//</span> <span class="n">p</span>
+
+        <span class="k">if</span> <span class="n">p_t</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="c1"># CogVideoX 1.0</span>
+            <span class="n">grid_crops_coords</span> <span class="o">=</span> <span class="n">get_resize_crop_region_for_grid</span><span class="p">(</span>
+                <span class="p">(</span><span class="n">grid_height</span><span class="p">,</span> <span class="n">grid_width</span><span class="p">),</span> <span class="n">base_size_width</span><span class="p">,</span> <span class="n">base_size_height</span>
+            <span class="p">)</span>
+            <span class="n">freqs_cos</span><span class="p">,</span> <span class="n">freqs_sin</span> <span class="o">=</span> <span class="n">get_3d_rotary_pos_embed</span><span class="p">(</span>
+                <span class="n">embed_dim</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">transformer</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">attention_head_dim</span><span class="p">,</span>
+                <span class="n">crops_coords</span><span class="o">=</span><span class="n">grid_crops_coords</span><span class="p">,</span>
+                <span class="n">grid_size</span><span class="o">=</span><span class="p">(</span><span class="n">grid_height</span><span class="p">,</span> <span class="n">grid_width</span><span class="p">),</span>
+                <span class="n">temporal_size</span><span class="o">=</span><span class="n">num_frames</span><span class="p">,</span>
+            <span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="c1"># CogVideoX 1.5</span>
+            <span class="n">base_num_frames</span> <span class="o">=</span> <span class="p">(</span><span class="n">num_frames</span> <span class="o">+</span> <span class="n">p_t</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span> <span class="o">//</span> <span class="n">p_t</span>
+
+            <span class="n">freqs_cos</span><span class="p">,</span> <span class="n">freqs_sin</span> <span class="o">=</span> <span class="n">get_3d_rotary_pos_embed</span><span class="p">(</span>
+                <span class="n">embed_dim</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">transformer</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">attention_head_dim</span><span class="p">,</span>
+                <span class="n">crops_coords</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                <span class="n">grid_size</span><span class="o">=</span><span class="p">(</span><span class="n">grid_height</span><span class="p">,</span> <span class="n">grid_width</span><span class="p">),</span>
+                <span class="n">temporal_size</span><span class="o">=</span><span class="n">base_num_frames</span><span class="p">,</span>
+                <span class="n">grid_type</span><span class="o">=</span><span class="s2">&quot;slice&quot;</span><span class="p">,</span>
+                <span class="n">max_size</span><span class="o">=</span><span class="p">(</span><span class="n">base_size_height</span><span class="p">,</span> <span class="n">base_size_width</span><span class="p">),</span>
+            <span class="p">)</span>
 
         <span class="k">return</span> <span class="n">freqs_cos</span><span class="p">,</span> <span class="n">freqs_sin</span>
 
@@ -7022,6 +7093,10 @@ library implements for all the pipelines (such as downloading or saving, running
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_num_timesteps</span>
 
     <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">attention_kwargs</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_attention_kwargs</span>
+
+    <span class="nd">@property</span>
     <span class="k">def</span><span class="w"> </span><span class="nf">interrupt</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_interrupt</span>
 
@@ -7029,9 +7104,9 @@ library implements for all the pipelines (such as downloading or saving, running
         <span class="bp">self</span><span class="p">,</span>
         <span class="n">prompt</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">negative_prompt</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-        <span class="n">height</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">480</span><span class="p">,</span>
-        <span class="n">width</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">720</span><span class="p">,</span>
-        <span class="n">num_frames</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">49</span><span class="p">,</span>
+        <span class="n">height</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">width</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">num_frames</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">num_inference_steps</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">50</span><span class="p">,</span>
         <span class="n">timesteps</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="nb">int</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">guidance_scale</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mi">6</span><span class="p">,</span>
@@ -7044,6 +7119,7 @@ library implements for all the pipelines (such as downloading or saving, running
         <span class="n">negative_prompt_embeds</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">output_type</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;pil&quot;</span><span class="p">,</span>
         <span class="n">return_dict</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+        <span class="n">attention_kwargs</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">callback_on_step_end</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span>
             <span class="n">Union</span><span class="p">[</span><span class="n">Callable</span><span class="p">[[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">,</span> <span class="n">Dict</span><span class="p">],</span> <span class="kc">None</span><span class="p">],</span> <span class="n">PipelineCallback</span><span class="p">,</span> <span class="n">MultiPipelineCallbacks</span><span class="p">]</span>
         <span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
@@ -7061,14 +7137,14 @@ library implements for all the pipelines (such as downloading or saving, running
 <span class="sd">                The prompt or prompts not to guide the image generation. If not defined, one has to pass</span>
 <span class="sd">                `negative_prompt_embeds` instead. Ignored when not using guidance (i.e., ignored if `guidance_scale` is</span>
 <span class="sd">                less than `1`).</span>
-<span class="sd">            height (`int`, *optional*, defaults to self.unet.config.sample_size * self.vae_scale_factor):</span>
-<span class="sd">                The height in pixels of the generated image. This is set to 1024 by default for the best results.</span>
-<span class="sd">            width (`int`, *optional*, defaults to self.unet.config.sample_size * self.vae_scale_factor):</span>
-<span class="sd">                The width in pixels of the generated image. This is set to 1024 by default for the best results.</span>
+<span class="sd">            height (`int`, *optional*, defaults to self.transformer.config.sample_height * self.vae_scale_factor_spatial):</span>
+<span class="sd">                The height in pixels of the generated image. This is set to 480 by default for the best results.</span>
+<span class="sd">            width (`int`, *optional*, defaults to self.transformer.config.sample_height * self.vae_scale_factor_spatial):</span>
+<span class="sd">                The width in pixels of the generated image. This is set to 720 by default for the best results.</span>
 <span class="sd">            num_frames (`int`, defaults to `48`):</span>
 <span class="sd">                Number of frames to generate. Must be divisible by self.vae_scale_factor_temporal. Generated video will</span>
 <span class="sd">                contain 1 extra frame because CogVideoX is conditioned with (num_seconds * fps + 1) frames where</span>
-<span class="sd">                num_seconds is 6 and fps is 4. However, since videos can be saved at any fps, the only condition that</span>
+<span class="sd">                num_seconds is 6 and fps is 8. However, since videos can be saved at any fps, the only condition that</span>
 <span class="sd">                needs to be satisfied is that of divisibility mentioned above.</span>
 <span class="sd">            num_inference_steps (`int`, *optional*, defaults to 50):</span>
 <span class="sd">                The number of denoising steps. More denoising steps usually lead to a higher quality image at the</span>
@@ -7105,6 +7181,10 @@ library implements for all the pipelines (such as downloading or saving, running
 <span class="sd">            return_dict (`bool`, *optional*, defaults to `False`):</span>
 <span class="sd">                Whether or not to return a [`~pipelines.stable_diffusion_xl.StableDiffusionXLPipelineOutput`] instead</span>
 <span class="sd">                of a plain tuple.</span>
+<span class="sd">            attention_kwargs (`dict`, *optional*):</span>
+<span class="sd">                A kwargs dictionary that if specified is passed along to the `AttentionProcessor` as defined under</span>
+<span class="sd">                `self.processor` in</span>
+<span class="sd">                [diffusers.models.attention_processor](https://github.com/huggingface/diffusers/blob/main/src/diffusers/models/attention_processor.py).</span>
 <span class="sd">            callback_on_step_end (`Callable`, *optional*):</span>
 <span class="sd">                A function that calls at the end of each denoising steps during the inference. The function is called</span>
 <span class="sd">                with the following arguments: `callback_on_step_end(self: DiffusionPipeline, step: int, timestep: int,</span>
@@ -7126,16 +7206,13 @@ library implements for all the pipelines (such as downloading or saving, running
 <span class="sd">            `tuple`. When returning a tuple, the first element is a list with the generated images.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
 
-        <span class="k">if</span> <span class="n">num_frames</span> <span class="o">&gt;</span> <span class="mi">49</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
-                <span class="s2">&quot;The number of frames must be less than 49 for now due to static positional embeddings. This will be updated in the future to remove this limitation.&quot;</span>  <span class="c1"># noqa: E501</span>
-            <span class="p">)</span>
-
         <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">callback_on_step_end</span><span class="p">,</span> <span class="p">(</span><span class="n">PipelineCallback</span><span class="p">,</span> <span class="n">MultiPipelineCallbacks</span><span class="p">)):</span>
             <span class="n">callback_on_step_end_tensor_inputs</span> <span class="o">=</span> <span class="n">callback_on_step_end</span><span class="o">.</span><span class="n">tensor_inputs</span>
 
-        <span class="n">height</span> <span class="o">=</span> <span class="n">height</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">transformer</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">sample_size</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">vae_scale_factor_spatial</span>
-        <span class="n">width</span> <span class="o">=</span> <span class="n">width</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">transformer</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">sample_size</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">vae_scale_factor_spatial</span>
+        <span class="n">height</span> <span class="o">=</span> <span class="n">height</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">transformer</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">sample_height</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">vae_scale_factor_spatial</span>
+        <span class="n">width</span> <span class="o">=</span> <span class="n">width</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">transformer</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">sample_width</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">vae_scale_factor_spatial</span>
+        <span class="n">num_frames</span> <span class="o">=</span> <span class="n">num_frames</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">transformer</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">sample_frames</span>
+
         <span class="n">num_videos_per_prompt</span> <span class="o">=</span> <span class="mi">1</span>
 
         <span class="c1"># 1. Check inputs. Raise error if not correct</span>
@@ -7149,6 +7226,7 @@ library implements for all the pipelines (such as downloading or saving, running
             <span class="n">negative_prompt_embeds</span><span class="p">,</span>
         <span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_guidance_scale</span> <span class="o">=</span> <span class="n">guidance_scale</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_attention_kwargs</span> <span class="o">=</span> <span class="n">attention_kwargs</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_interrupt</span> <span class="o">=</span> <span class="kc">False</span>
 
         <span class="c1"># 2. Default call parameters</span>
@@ -7181,7 +7259,16 @@ library implements for all the pipelines (such as downloading or saving, running
         <span class="n">timesteps</span><span class="p">,</span> <span class="n">num_inference_steps</span> <span class="o">=</span> <span class="n">retrieve_timesteps</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">scheduler</span><span class="p">,</span> <span class="n">num_inference_steps</span><span class="p">,</span> <span class="n">timesteps</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_num_timesteps</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">timesteps</span><span class="p">)</span>
 
-        <span class="c1"># 5. Prepare latents.</span>
+        <span class="c1"># 5. Prepare latents</span>
+        <span class="n">latent_frames</span> <span class="o">=</span> <span class="p">(</span><span class="n">num_frames</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span> <span class="o">//</span> <span class="bp">self</span><span class="o">.</span><span class="n">vae_scale_factor_temporal</span> <span class="o">+</span> <span class="mi">1</span>
+
+        <span class="c1"># For CogVideoX 1.5, the latent frames should be padded to make it divisible by patch_size_t</span>
+        <span class="n">patch_size_t</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">transformer</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">patch_size_t</span>
+        <span class="n">additional_frames</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="k">if</span> <span class="n">patch_size_t</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">latent_frames</span> <span class="o">%</span> <span class="n">patch_size_t</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">additional_frames</span> <span class="o">=</span> <span class="n">patch_size_t</span> <span class="o">-</span> <span class="n">latent_frames</span> <span class="o">%</span> <span class="n">patch_size_t</span>
+            <span class="n">num_frames</span> <span class="o">+=</span> <span class="n">additional_frames</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">vae_scale_factor_temporal</span>
+
         <span class="n">latent_channels</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">transformer</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">in_channels</span>
         <span class="n">latents</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">prepare_latents</span><span class="p">(</span>
             <span class="n">batch_size</span> <span class="o">*</span> <span class="n">num_videos_per_prompt</span><span class="p">,</span>
@@ -7203,6 +7290,13 @@ library implements for all the pipelines (such as downloading or saving, running
             <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">transformer</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">use_rotary_positional_embeddings</span>
             <span class="k">else</span> <span class="kc">None</span>
         <span class="p">)</span>
+
+        <span class="c1"># we&#39;re popping the `scale` instead of getting it because otherwise `scale` will be propagated</span>
+        <span class="c1"># to the transformer and will raise RuntimeError.</span>
+        <span class="n">lora_scale</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">attention_kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s2">&quot;scale&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">attention_kwargs</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="kc">None</span>
+        <span class="k">if</span> <span class="n">lora_scale</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="c1"># weight the lora layers by setting `lora_scale` for each PEFT layer</span>
+            <span class="n">scale_lora_layers</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">transformer</span><span class="p">,</span> <span class="n">lora_scale</span><span class="p">)</span>
 
         <span class="c1"># 8. Denoising loop</span>
         <span class="n">num_warmup_steps</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">timesteps</span><span class="p">)</span> <span class="o">-</span> <span class="n">num_inference_steps</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">scheduler</span><span class="o">.</span><span class="n">order</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
@@ -7268,7 +7362,13 @@ library implements for all the pipelines (such as downloading or saving, running
                 <span class="k">if</span> <span class="n">i</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span><span class="n">timesteps</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span> <span class="ow">or</span> <span class="p">((</span><span class="n">i</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span> <span class="o">&gt;</span> <span class="n">num_warmup_steps</span> <span class="ow">and</span> <span class="p">(</span><span class="n">i</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">scheduler</span><span class="o">.</span><span class="n">order</span> <span class="o">==</span> <span class="mi">0</span><span class="p">):</span>
                     <span class="n">progress_bar</span><span class="o">.</span><span class="n">update</span><span class="p">()</span>
 
+        <span class="k">if</span> <span class="n">lora_scale</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="c1"># remove `lora_scale` from each PEFT layer</span>
+            <span class="n">unscale_lora_layers</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">transformer</span><span class="p">,</span> <span class="n">lora_scale</span><span class="p">)</span>
+
         <span class="k">if</span> <span class="ow">not</span> <span class="n">output_type</span> <span class="o">==</span> <span class="s2">&quot;latent&quot;</span><span class="p">:</span>
+            <span class="c1"># Discard any padding frames that were added for CogVideoX 1.5</span>
+            <span class="n">latents</span> <span class="o">=</span> <span class="n">latents</span><span class="p">[:,</span> <span class="n">additional_frames</span><span class="p">:]</span>
             <span class="n">video</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">decode_latents</span><span class="p">(</span><span class="n">latents</span><span class="p">)</span>
             <span class="n">video</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">video_processor</span><span class="o">.</span><span class="n">postprocess_video</span><span class="p">(</span><span class="n">video</span><span class="o">=</span><span class="n">video</span><span class="p">,</span> <span class="n">output_type</span><span class="o">=</span><span class="n">output_type</span><span class="p">)</span>
         <span class="k">else</span><span class="p">:</span>
@@ -7297,7 +7397,7 @@ library implements for all the pipelines (such as downloading or saving, running
 
 
 <h3 id="mindone.diffusers.CogVideoXPipeline.__call__" class="doc doc-heading">
-            <code class="highlight language-python"><span class="n">mindone</span><span class="o">.</span><span class="n">diffusers</span><span class="o">.</span><span class="n">CogVideoXPipeline</span><span class="o">.</span><span class="fm">__call__</span><span class="p">(</span><span class="n">prompt</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">negative_prompt</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">height</span><span class="o">=</span><span class="mi">480</span><span class="p">,</span> <span class="n">width</span><span class="o">=</span><span class="mi">720</span><span class="p">,</span> <span class="n">num_frames</span><span class="o">=</span><span class="mi">49</span><span class="p">,</span> <span class="n">num_inference_steps</span><span class="o">=</span><span class="mi">50</span><span class="p">,</span> <span class="n">timesteps</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">guidance_scale</span><span class="o">=</span><span class="mi">6</span><span class="p">,</span> <span class="n">use_dynamic_cfg</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">num_videos_per_prompt</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">eta</span><span class="o">=</span><span class="mf">0.0</span><span class="p">,</span> <span class="n">generator</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">latents</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">prompt_embeds</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">negative_prompt_embeds</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">output_type</span><span class="o">=</span><span class="s1">&#39;pil&#39;</span><span class="p">,</span> <span class="n">return_dict</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">callback_on_step_end</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">callback_on_step_end_tensor_inputs</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;latents&#39;</span><span class="p">],</span> <span class="n">max_sequence_length</span><span class="o">=</span><span class="mi">226</span><span class="p">)</span></code>
+            <code class="highlight language-python"><span class="n">mindone</span><span class="o">.</span><span class="n">diffusers</span><span class="o">.</span><span class="n">CogVideoXPipeline</span><span class="o">.</span><span class="fm">__call__</span><span class="p">(</span><span class="n">prompt</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">negative_prompt</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">height</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">width</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">num_frames</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">num_inference_steps</span><span class="o">=</span><span class="mi">50</span><span class="p">,</span> <span class="n">timesteps</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">guidance_scale</span><span class="o">=</span><span class="mi">6</span><span class="p">,</span> <span class="n">use_dynamic_cfg</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">num_videos_per_prompt</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">eta</span><span class="o">=</span><span class="mf">0.0</span><span class="p">,</span> <span class="n">generator</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">latents</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">prompt_embeds</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">negative_prompt_embeds</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">output_type</span><span class="o">=</span><span class="s1">&#39;pil&#39;</span><span class="p">,</span> <span class="n">return_dict</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">attention_kwargs</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">callback_on_step_end</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">callback_on_step_end_tensor_inputs</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;latents&#39;</span><span class="p">],</span> <span class="n">max_sequence_length</span><span class="o">=</span><span class="mi">226</span><span class="p">)</span></code>
 
 <a href="#mindone.diffusers.CogVideoXPipeline.__call__" class="headerlink" title="Permanent link">&para;</a></h3>
 
@@ -7358,16 +7458,16 @@ less than <code>1</code>).</p>
             <td><code>height</code></td>
             <td class="doc-param-details">
               <div class="doc-md-description">
-                <p>The height in pixels of the generated image. This is set to 1024 by default for the best results.</p>
+                <p>The height in pixels of the generated image. This is set to 480 by default for the best results.</p>
               </div>
               <p>
                   <span class="doc-param-annotation">
                     <b>TYPE:</b>
-                      <code>`int`, *optional*, defaults to self.unet.config.sample_size * self.vae_scale_factor</code>
+                      <code>`int`, *optional*, defaults to self.transformer.config.sample_height * self.vae_scale_factor_spatial</code>
                   </span>
                   <span class="doc-param-default">
                     <b>DEFAULT:</b>
-                      <code>480</code>
+                      <code>None</code>
                   </span>
               </p>
             </td>
@@ -7376,16 +7476,16 @@ less than <code>1</code>).</p>
             <td><code>width</code></td>
             <td class="doc-param-details">
               <div class="doc-md-description">
-                <p>The width in pixels of the generated image. This is set to 1024 by default for the best results.</p>
+                <p>The width in pixels of the generated image. This is set to 720 by default for the best results.</p>
               </div>
               <p>
                   <span class="doc-param-annotation">
                     <b>TYPE:</b>
-                      <code>`int`, *optional*, defaults to self.unet.config.sample_size * self.vae_scale_factor</code>
+                      <code>`int`, *optional*, defaults to self.transformer.config.sample_height * self.vae_scale_factor_spatial</code>
                   </span>
                   <span class="doc-param-default">
                     <b>DEFAULT:</b>
-                      <code>720</code>
+                      <code>None</code>
                   </span>
               </p>
             </td>
@@ -7396,7 +7496,7 @@ less than <code>1</code>).</p>
               <div class="doc-md-description">
                 <p>Number of frames to generate. Must be divisible by self.vae_scale_factor_temporal. Generated video will
 contain 1 extra frame because CogVideoX is conditioned with (num_seconds * fps + 1) frames where
-num_seconds is 6 and fps is 4. However, since videos can be saved at any fps, the only condition that
+num_seconds is 6 and fps is 8. However, since videos can be saved at any fps, the only condition that
 needs to be satisfied is that of divisibility mentioned above.</p>
               </div>
               <p>
@@ -7406,7 +7506,7 @@ needs to be satisfied is that of divisibility mentioned above.</p>
                   </span>
                   <span class="doc-param-default">
                     <b>DEFAULT:</b>
-                      <code>49</code>
+                      <code>None</code>
                   </span>
               </p>
             </td>
@@ -7607,6 +7707,26 @@ of a plain tuple.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
+            <td><code>attention_kwargs</code></td>
+            <td class="doc-param-details">
+              <div class="doc-md-description">
+                <p>A kwargs dictionary that if specified is passed along to the <code>AttentionProcessor</code> as defined under
+<code>self.processor</code> in
+<a href="https://github.com/huggingface/diffusers/blob/main/src/diffusers/models/attention_processor.py">diffusers.models.attention_processor</a>.</p>
+              </div>
+              <p>
+                  <span class="doc-param-annotation">
+                    <b>TYPE:</b>
+                      <code>`dict`, *optional*</code>
+                  </span>
+                  <span class="doc-param-default">
+                    <b>DEFAULT:</b>
+                      <code>None</code>
+                  </span>
+              </p>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
             <td><code>callback_on_step_end</code></td>
             <td class="doc-param-details">
               <div class="doc-md-description">
@@ -7720,33 +7840,7 @@ will be passed as <code>callback_kwargs</code> argument. You will only be able t
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/pipelines/cogvideo/pipeline_cogvideox.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">458</span>
-<span class="normal">459</span>
-<span class="normal">460</span>
-<span class="normal">461</span>
-<span class="normal">462</span>
-<span class="normal">463</span>
-<span class="normal">464</span>
-<span class="normal">465</span>
-<span class="normal">466</span>
-<span class="normal">467</span>
-<span class="normal">468</span>
-<span class="normal">469</span>
-<span class="normal">470</span>
-<span class="normal">471</span>
-<span class="normal">472</span>
-<span class="normal">473</span>
-<span class="normal">474</span>
-<span class="normal">475</span>
-<span class="normal">476</span>
-<span class="normal">477</span>
-<span class="normal">478</span>
-<span class="normal">479</span>
-<span class="normal">480</span>
-<span class="normal">481</span>
-<span class="normal">482</span>
-<span class="normal">483</span>
-<span class="normal">484</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">484</span>
 <span class="normal">485</span>
 <span class="normal">486</span>
 <span class="normal">487</span>
@@ -7972,13 +8066,64 @@ will be passed as <code>callback_kwargs</code> argument. You will only be able t
 <span class="normal">707</span>
 <span class="normal">708</span>
 <span class="normal">709</span>
-<span class="normal">710</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="fm">__call__</span><span class="p">(</span>
+<span class="normal">710</span>
+<span class="normal">711</span>
+<span class="normal">712</span>
+<span class="normal">713</span>
+<span class="normal">714</span>
+<span class="normal">715</span>
+<span class="normal">716</span>
+<span class="normal">717</span>
+<span class="normal">718</span>
+<span class="normal">719</span>
+<span class="normal">720</span>
+<span class="normal">721</span>
+<span class="normal">722</span>
+<span class="normal">723</span>
+<span class="normal">724</span>
+<span class="normal">725</span>
+<span class="normal">726</span>
+<span class="normal">727</span>
+<span class="normal">728</span>
+<span class="normal">729</span>
+<span class="normal">730</span>
+<span class="normal">731</span>
+<span class="normal">732</span>
+<span class="normal">733</span>
+<span class="normal">734</span>
+<span class="normal">735</span>
+<span class="normal">736</span>
+<span class="normal">737</span>
+<span class="normal">738</span>
+<span class="normal">739</span>
+<span class="normal">740</span>
+<span class="normal">741</span>
+<span class="normal">742</span>
+<span class="normal">743</span>
+<span class="normal">744</span>
+<span class="normal">745</span>
+<span class="normal">746</span>
+<span class="normal">747</span>
+<span class="normal">748</span>
+<span class="normal">749</span>
+<span class="normal">750</span>
+<span class="normal">751</span>
+<span class="normal">752</span>
+<span class="normal">753</span>
+<span class="normal">754</span>
+<span class="normal">755</span>
+<span class="normal">756</span>
+<span class="normal">757</span>
+<span class="normal">758</span>
+<span class="normal">759</span>
+<span class="normal">760</span>
+<span class="normal">761</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="fm">__call__</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">prompt</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="n">negative_prompt</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-    <span class="n">height</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">480</span><span class="p">,</span>
-    <span class="n">width</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">720</span><span class="p">,</span>
-    <span class="n">num_frames</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">49</span><span class="p">,</span>
+    <span class="n">height</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">width</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">num_frames</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="n">num_inference_steps</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">50</span><span class="p">,</span>
     <span class="n">timesteps</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="nb">int</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="n">guidance_scale</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mi">6</span><span class="p">,</span>
@@ -7991,6 +8136,7 @@ will be passed as <code>callback_kwargs</code> argument. You will only be able t
     <span class="n">negative_prompt_embeds</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="n">output_type</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;pil&quot;</span><span class="p">,</span>
     <span class="n">return_dict</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+    <span class="n">attention_kwargs</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="n">callback_on_step_end</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span>
         <span class="n">Union</span><span class="p">[</span><span class="n">Callable</span><span class="p">[[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">,</span> <span class="n">Dict</span><span class="p">],</span> <span class="kc">None</span><span class="p">],</span> <span class="n">PipelineCallback</span><span class="p">,</span> <span class="n">MultiPipelineCallbacks</span><span class="p">]</span>
     <span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
@@ -8008,14 +8154,14 @@ will be passed as <code>callback_kwargs</code> argument. You will only be able t
 <span class="sd">            The prompt or prompts not to guide the image generation. If not defined, one has to pass</span>
 <span class="sd">            `negative_prompt_embeds` instead. Ignored when not using guidance (i.e., ignored if `guidance_scale` is</span>
 <span class="sd">            less than `1`).</span>
-<span class="sd">        height (`int`, *optional*, defaults to self.unet.config.sample_size * self.vae_scale_factor):</span>
-<span class="sd">            The height in pixels of the generated image. This is set to 1024 by default for the best results.</span>
-<span class="sd">        width (`int`, *optional*, defaults to self.unet.config.sample_size * self.vae_scale_factor):</span>
-<span class="sd">            The width in pixels of the generated image. This is set to 1024 by default for the best results.</span>
+<span class="sd">        height (`int`, *optional*, defaults to self.transformer.config.sample_height * self.vae_scale_factor_spatial):</span>
+<span class="sd">            The height in pixels of the generated image. This is set to 480 by default for the best results.</span>
+<span class="sd">        width (`int`, *optional*, defaults to self.transformer.config.sample_height * self.vae_scale_factor_spatial):</span>
+<span class="sd">            The width in pixels of the generated image. This is set to 720 by default for the best results.</span>
 <span class="sd">        num_frames (`int`, defaults to `48`):</span>
 <span class="sd">            Number of frames to generate. Must be divisible by self.vae_scale_factor_temporal. Generated video will</span>
 <span class="sd">            contain 1 extra frame because CogVideoX is conditioned with (num_seconds * fps + 1) frames where</span>
-<span class="sd">            num_seconds is 6 and fps is 4. However, since videos can be saved at any fps, the only condition that</span>
+<span class="sd">            num_seconds is 6 and fps is 8. However, since videos can be saved at any fps, the only condition that</span>
 <span class="sd">            needs to be satisfied is that of divisibility mentioned above.</span>
 <span class="sd">        num_inference_steps (`int`, *optional*, defaults to 50):</span>
 <span class="sd">            The number of denoising steps. More denoising steps usually lead to a higher quality image at the</span>
@@ -8052,6 +8198,10 @@ will be passed as <code>callback_kwargs</code> argument. You will only be able t
 <span class="sd">        return_dict (`bool`, *optional*, defaults to `False`):</span>
 <span class="sd">            Whether or not to return a [`~pipelines.stable_diffusion_xl.StableDiffusionXLPipelineOutput`] instead</span>
 <span class="sd">            of a plain tuple.</span>
+<span class="sd">        attention_kwargs (`dict`, *optional*):</span>
+<span class="sd">            A kwargs dictionary that if specified is passed along to the `AttentionProcessor` as defined under</span>
+<span class="sd">            `self.processor` in</span>
+<span class="sd">            [diffusers.models.attention_processor](https://github.com/huggingface/diffusers/blob/main/src/diffusers/models/attention_processor.py).</span>
 <span class="sd">        callback_on_step_end (`Callable`, *optional*):</span>
 <span class="sd">            A function that calls at the end of each denoising steps during the inference. The function is called</span>
 <span class="sd">            with the following arguments: `callback_on_step_end(self: DiffusionPipeline, step: int, timestep: int,</span>
@@ -8073,16 +8223,13 @@ will be passed as <code>callback_kwargs</code> argument. You will only be able t
 <span class="sd">        `tuple`. When returning a tuple, the first element is a list with the generated images.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
-    <span class="k">if</span> <span class="n">num_frames</span> <span class="o">&gt;</span> <span class="mi">49</span><span class="p">:</span>
-        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
-            <span class="s2">&quot;The number of frames must be less than 49 for now due to static positional embeddings. This will be updated in the future to remove this limitation.&quot;</span>  <span class="c1"># noqa: E501</span>
-        <span class="p">)</span>
-
     <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">callback_on_step_end</span><span class="p">,</span> <span class="p">(</span><span class="n">PipelineCallback</span><span class="p">,</span> <span class="n">MultiPipelineCallbacks</span><span class="p">)):</span>
         <span class="n">callback_on_step_end_tensor_inputs</span> <span class="o">=</span> <span class="n">callback_on_step_end</span><span class="o">.</span><span class="n">tensor_inputs</span>
 
-    <span class="n">height</span> <span class="o">=</span> <span class="n">height</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">transformer</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">sample_size</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">vae_scale_factor_spatial</span>
-    <span class="n">width</span> <span class="o">=</span> <span class="n">width</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">transformer</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">sample_size</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">vae_scale_factor_spatial</span>
+    <span class="n">height</span> <span class="o">=</span> <span class="n">height</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">transformer</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">sample_height</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">vae_scale_factor_spatial</span>
+    <span class="n">width</span> <span class="o">=</span> <span class="n">width</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">transformer</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">sample_width</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">vae_scale_factor_spatial</span>
+    <span class="n">num_frames</span> <span class="o">=</span> <span class="n">num_frames</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">transformer</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">sample_frames</span>
+
     <span class="n">num_videos_per_prompt</span> <span class="o">=</span> <span class="mi">1</span>
 
     <span class="c1"># 1. Check inputs. Raise error if not correct</span>
@@ -8096,6 +8243,7 @@ will be passed as <code>callback_kwargs</code> argument. You will only be able t
         <span class="n">negative_prompt_embeds</span><span class="p">,</span>
     <span class="p">)</span>
     <span class="bp">self</span><span class="o">.</span><span class="n">_guidance_scale</span> <span class="o">=</span> <span class="n">guidance_scale</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_attention_kwargs</span> <span class="o">=</span> <span class="n">attention_kwargs</span>
     <span class="bp">self</span><span class="o">.</span><span class="n">_interrupt</span> <span class="o">=</span> <span class="kc">False</span>
 
     <span class="c1"># 2. Default call parameters</span>
@@ -8128,7 +8276,16 @@ will be passed as <code>callback_kwargs</code> argument. You will only be able t
     <span class="n">timesteps</span><span class="p">,</span> <span class="n">num_inference_steps</span> <span class="o">=</span> <span class="n">retrieve_timesteps</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">scheduler</span><span class="p">,</span> <span class="n">num_inference_steps</span><span class="p">,</span> <span class="n">timesteps</span><span class="p">)</span>
     <span class="bp">self</span><span class="o">.</span><span class="n">_num_timesteps</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">timesteps</span><span class="p">)</span>
 
-    <span class="c1"># 5. Prepare latents.</span>
+    <span class="c1"># 5. Prepare latents</span>
+    <span class="n">latent_frames</span> <span class="o">=</span> <span class="p">(</span><span class="n">num_frames</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span> <span class="o">//</span> <span class="bp">self</span><span class="o">.</span><span class="n">vae_scale_factor_temporal</span> <span class="o">+</span> <span class="mi">1</span>
+
+    <span class="c1"># For CogVideoX 1.5, the latent frames should be padded to make it divisible by patch_size_t</span>
+    <span class="n">patch_size_t</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">transformer</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">patch_size_t</span>
+    <span class="n">additional_frames</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="k">if</span> <span class="n">patch_size_t</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">latent_frames</span> <span class="o">%</span> <span class="n">patch_size_t</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="n">additional_frames</span> <span class="o">=</span> <span class="n">patch_size_t</span> <span class="o">-</span> <span class="n">latent_frames</span> <span class="o">%</span> <span class="n">patch_size_t</span>
+        <span class="n">num_frames</span> <span class="o">+=</span> <span class="n">additional_frames</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">vae_scale_factor_temporal</span>
+
     <span class="n">latent_channels</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">transformer</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">in_channels</span>
     <span class="n">latents</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">prepare_latents</span><span class="p">(</span>
         <span class="n">batch_size</span> <span class="o">*</span> <span class="n">num_videos_per_prompt</span><span class="p">,</span>
@@ -8150,6 +8307,13 @@ will be passed as <code>callback_kwargs</code> argument. You will only be able t
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">transformer</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">use_rotary_positional_embeddings</span>
         <span class="k">else</span> <span class="kc">None</span>
     <span class="p">)</span>
+
+    <span class="c1"># we&#39;re popping the `scale` instead of getting it because otherwise `scale` will be propagated</span>
+    <span class="c1"># to the transformer and will raise RuntimeError.</span>
+    <span class="n">lora_scale</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">attention_kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s2">&quot;scale&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">attention_kwargs</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="kc">None</span>
+    <span class="k">if</span> <span class="n">lora_scale</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="c1"># weight the lora layers by setting `lora_scale` for each PEFT layer</span>
+        <span class="n">scale_lora_layers</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">transformer</span><span class="p">,</span> <span class="n">lora_scale</span><span class="p">)</span>
 
     <span class="c1"># 8. Denoising loop</span>
     <span class="n">num_warmup_steps</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">timesteps</span><span class="p">)</span> <span class="o">-</span> <span class="n">num_inference_steps</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">scheduler</span><span class="o">.</span><span class="n">order</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
@@ -8215,7 +8379,13 @@ will be passed as <code>callback_kwargs</code> argument. You will only be able t
             <span class="k">if</span> <span class="n">i</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span><span class="n">timesteps</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span> <span class="ow">or</span> <span class="p">((</span><span class="n">i</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span> <span class="o">&gt;</span> <span class="n">num_warmup_steps</span> <span class="ow">and</span> <span class="p">(</span><span class="n">i</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">scheduler</span><span class="o">.</span><span class="n">order</span> <span class="o">==</span> <span class="mi">0</span><span class="p">):</span>
                 <span class="n">progress_bar</span><span class="o">.</span><span class="n">update</span><span class="p">()</span>
 
+    <span class="k">if</span> <span class="n">lora_scale</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="c1"># remove `lora_scale` from each PEFT layer</span>
+        <span class="n">unscale_lora_layers</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">transformer</span><span class="p">,</span> <span class="n">lora_scale</span><span class="p">)</span>
+
     <span class="k">if</span> <span class="ow">not</span> <span class="n">output_type</span> <span class="o">==</span> <span class="s2">&quot;latent&quot;</span><span class="p">:</span>
+        <span class="c1"># Discard any padding frames that were added for CogVideoX 1.5</span>
+        <span class="n">latents</span> <span class="o">=</span> <span class="n">latents</span><span class="p">[:,</span> <span class="n">additional_frames</span><span class="p">:]</span>
         <span class="n">video</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">decode_latents</span><span class="p">(</span><span class="n">latents</span><span class="p">)</span>
         <span class="n">video</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">video_processor</span><span class="o">.</span><span class="n">postprocess_video</span><span class="p">(</span><span class="n">video</span><span class="o">=</span><span class="n">video</span><span class="p">,</span> <span class="n">output_type</span><span class="o">=</span><span class="n">output_type</span><span class="p">)</span>
     <span class="k">else</span><span class="p">:</span>
@@ -8386,11 +8556,7 @@ torch dtype</p>
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/pipelines/cogvideo/pipeline_cogvideox.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">235</span>
-<span class="normal">236</span>
-<span class="normal">237</span>
-<span class="normal">238</span>
-<span class="normal">239</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">239</span>
 <span class="normal">240</span>
 <span class="normal">241</span>
 <span class="normal">242</span>
@@ -8458,7 +8624,11 @@ torch dtype</p>
 <span class="normal">304</span>
 <span class="normal">305</span>
 <span class="normal">306</span>
-<span class="normal">307</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">encode_prompt</span><span class="p">(</span>
+<span class="normal">307</span>
+<span class="normal">308</span>
+<span class="normal">309</span>
+<span class="normal">310</span>
+<span class="normal">311</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">encode_prompt</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">prompt</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]],</span>
     <span class="n">negative_prompt</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
@@ -8552,10 +8722,10 @@ torch dtype</p>
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/pipelines/cogvideo/pipeline_cogvideox.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">409</span>
-<span class="normal">410</span>
-<span class="normal">411</span>
-<span class="normal">412</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">fuse_qkv_projections</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">414</span>
+<span class="normal">415</span>
+<span class="normal">416</span>
+<span class="normal">417</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">fuse_qkv_projections</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 <span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;Enables fused QKV projections.&quot;&quot;&quot;</span>
     <span class="bp">self</span><span class="o">.</span><span class="n">fusing_transformer</span> <span class="o">=</span> <span class="kc">True</span>
     <span class="bp">self</span><span class="o">.</span><span class="n">transformer</span><span class="o">.</span><span class="n">fuse_qkv_projections</span><span class="p">()</span>
@@ -8580,13 +8750,13 @@ torch dtype</p>
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/pipelines/cogvideo/pipeline_cogvideox.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">414</span>
-<span class="normal">415</span>
-<span class="normal">416</span>
-<span class="normal">417</span>
-<span class="normal">418</span>
-<span class="normal">419</span>
-<span class="normal">420</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">unfuse_qkv_projections</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">419</span>
+<span class="normal">420</span>
+<span class="normal">421</span>
+<span class="normal">422</span>
+<span class="normal">423</span>
+<span class="normal">424</span>
+<span class="normal">425</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">unfuse_qkv_projections</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 <span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;Disable QKV projection fusion if enabled.&quot;&quot;&quot;</span>
     <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">fusing_transformer</span><span class="p">:</span>
         <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;The Transformer was not initially fused for QKV projections. Doing nothing.&quot;</span><span class="p">)</span>
@@ -8620,7 +8790,7 @@ torch dtype</p>
 
     <div class="doc doc-contents first">
             <p class="doc doc-class-bases">
-              Bases: <code><a class="autorefs autorefs-internal" title="mindone.diffusers.pipelines.pipeline_utils.DiffusionPipeline" href="../overview/#mindone.diffusers.DiffusionPipeline">DiffusionPipeline</a></code></p>
+              Bases: <code><a class="autorefs autorefs-internal" title="mindone.diffusers.pipelines.pipeline_utils.DiffusionPipeline" href="../overview/#mindone.diffusers.DiffusionPipeline">DiffusionPipeline</a></code>, <code><span title="mindone.diffusers.loaders.CogVideoXLoraLoaderMixin">CogVideoXLoraLoaderMixin</span></code></p>
 
 
         <p>Pipeline for image-to-video generation using CogVideoX.</p>
@@ -8714,8 +8884,7 @@ library implements for all the pipelines (such as downloading or saving, running
 
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/pipelines/cogvideo/pipeline_cogvideox_image2video.py</code></summary>
-                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">152</span>
-<span class="normal">153</span>
+                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">153</span>
 <span class="normal">154</span>
 <span class="normal">155</span>
 <span class="normal">156</span>
@@ -9361,7 +9530,66 @@ library implements for all the pipelines (such as downloading or saving, running
 <span class="normal">796</span>
 <span class="normal">797</span>
 <span class="normal">798</span>
-<span class="normal">799</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">CogVideoXImageToVideoPipeline</span><span class="p">(</span><span class="n">DiffusionPipeline</span><span class="p">):</span>
+<span class="normal">799</span>
+<span class="normal">800</span>
+<span class="normal">801</span>
+<span class="normal">802</span>
+<span class="normal">803</span>
+<span class="normal">804</span>
+<span class="normal">805</span>
+<span class="normal">806</span>
+<span class="normal">807</span>
+<span class="normal">808</span>
+<span class="normal">809</span>
+<span class="normal">810</span>
+<span class="normal">811</span>
+<span class="normal">812</span>
+<span class="normal">813</span>
+<span class="normal">814</span>
+<span class="normal">815</span>
+<span class="normal">816</span>
+<span class="normal">817</span>
+<span class="normal">818</span>
+<span class="normal">819</span>
+<span class="normal">820</span>
+<span class="normal">821</span>
+<span class="normal">822</span>
+<span class="normal">823</span>
+<span class="normal">824</span>
+<span class="normal">825</span>
+<span class="normal">826</span>
+<span class="normal">827</span>
+<span class="normal">828</span>
+<span class="normal">829</span>
+<span class="normal">830</span>
+<span class="normal">831</span>
+<span class="normal">832</span>
+<span class="normal">833</span>
+<span class="normal">834</span>
+<span class="normal">835</span>
+<span class="normal">836</span>
+<span class="normal">837</span>
+<span class="normal">838</span>
+<span class="normal">839</span>
+<span class="normal">840</span>
+<span class="normal">841</span>
+<span class="normal">842</span>
+<span class="normal">843</span>
+<span class="normal">844</span>
+<span class="normal">845</span>
+<span class="normal">846</span>
+<span class="normal">847</span>
+<span class="normal">848</span>
+<span class="normal">849</span>
+<span class="normal">850</span>
+<span class="normal">851</span>
+<span class="normal">852</span>
+<span class="normal">853</span>
+<span class="normal">854</span>
+<span class="normal">855</span>
+<span class="normal">856</span>
+<span class="normal">857</span>
+<span class="normal">858</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">CogVideoXImageToVideoPipeline</span><span class="p">(</span><span class="n">DiffusionPipeline</span><span class="p">,</span> <span class="n">CogVideoXLoraLoaderMixin</span><span class="p">):</span>
 <span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Pipeline for image-to-video generation using CogVideoX.</span>
 
@@ -9415,6 +9643,9 @@ library implements for all the pipelines (such as downloading or saving, running
         <span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">vae_scale_factor_temporal</span> <span class="o">=</span> <span class="p">(</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">vae</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">temporal_compression_ratio</span> <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s2">&quot;vae&quot;</span><span class="p">)</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">vae</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="mi">4</span>
+        <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">vae_scaling_factor_image</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">vae</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">scaling_factor</span> <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s2">&quot;vae&quot;</span><span class="p">)</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">vae</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="mf">0.7</span>
         <span class="p">)</span>
 
         <span class="bp">self</span><span class="o">.</span><span class="n">video_processor</span> <span class="o">=</span> <span class="n">VideoProcessor</span><span class="p">(</span><span class="n">vae_scale_factor</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">vae_scale_factor_spatial</span><span class="p">)</span>
@@ -9549,6 +9780,12 @@ library implements for all the pipelines (such as downloading or saving, running
         <span class="n">generator</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">Generator</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">latents</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="p">):</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">generator</span><span class="p">,</span> <span class="nb">list</span><span class="p">)</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="n">generator</span><span class="p">)</span> <span class="o">!=</span> <span class="n">batch_size</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;You have passed a list of generators of length </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">generator</span><span class="p">)</span><span class="si">}</span><span class="s2">, but requested an effective batch&quot;</span>
+                <span class="sa">f</span><span class="s2">&quot; size of </span><span class="si">{</span><span class="n">batch_size</span><span class="si">}</span><span class="s2">. Make sure the batch size matches the length of the generators.&quot;</span>
+            <span class="p">)</span>
+
         <span class="n">num_frames</span> <span class="o">=</span> <span class="p">(</span><span class="n">num_frames</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span> <span class="o">//</span> <span class="bp">self</span><span class="o">.</span><span class="n">vae_scale_factor_temporal</span> <span class="o">+</span> <span class="mi">1</span>
         <span class="n">shape</span> <span class="o">=</span> <span class="p">(</span>
             <span class="n">batch_size</span><span class="p">,</span>
@@ -9558,11 +9795,9 @@ library implements for all the pipelines (such as downloading or saving, running
             <span class="n">width</span> <span class="o">//</span> <span class="bp">self</span><span class="o">.</span><span class="n">vae_scale_factor_spatial</span><span class="p">,</span>
         <span class="p">)</span>
 
-        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">generator</span><span class="p">,</span> <span class="nb">list</span><span class="p">)</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="n">generator</span><span class="p">)</span> <span class="o">!=</span> <span class="n">batch_size</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
-                <span class="sa">f</span><span class="s2">&quot;You have passed a list of generators of length </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">generator</span><span class="p">)</span><span class="si">}</span><span class="s2">, but requested an effective batch&quot;</span>
-                <span class="sa">f</span><span class="s2">&quot; size of </span><span class="si">{</span><span class="n">batch_size</span><span class="si">}</span><span class="s2">. Make sure the batch size matches the length of the generators.&quot;</span>
-            <span class="p">)</span>
+        <span class="c1"># For CogVideoX1.5, the latent should add 1 for padding (Not use)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">transformer</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">patch_size_t</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">shape</span> <span class="o">=</span> <span class="n">shape</span><span class="p">[:</span><span class="mi">1</span><span class="p">]</span> <span class="o">+</span> <span class="p">(</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">+</span> <span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">transformer</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">patch_size_t</span><span class="p">,)</span> <span class="o">+</span> <span class="n">shape</span><span class="p">[</span><span class="mi">2</span><span class="p">:]</span>
 
         <span class="n">image</span> <span class="o">=</span> <span class="n">image</span><span class="o">.</span><span class="n">unsqueeze</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span>  <span class="c1"># [B, C, F, H, W]</span>
 
@@ -9577,7 +9812,13 @@ library implements for all the pipelines (such as downloading or saving, running
             <span class="p">]</span>
 
         <span class="n">image_latents</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">cat</span><span class="p">(</span><span class="n">image_latents</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">dtype</span><span class="p">)</span><span class="o">.</span><span class="n">permute</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">4</span><span class="p">)</span>  <span class="c1"># [B, F, C, H, W]</span>
-        <span class="n">image_latents</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">vae</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">scaling_factor</span> <span class="o">*</span> <span class="n">image_latents</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">vae</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">invert_scale_latents</span><span class="p">:</span>
+            <span class="n">image_latents</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">vae_scaling_factor_image</span> <span class="o">*</span> <span class="n">image_latents</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="c1"># This is awkward but required because the CogVideoX team forgot to multiply the</span>
+            <span class="c1"># scaling factor during training :)</span>
+            <span class="n">image_latents</span> <span class="o">=</span> <span class="mi">1</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">vae_scaling_factor_image</span> <span class="o">*</span> <span class="n">image_latents</span>
 
         <span class="n">padding_shape</span> <span class="o">=</span> <span class="p">(</span>
             <span class="n">batch_size</span><span class="p">,</span>
@@ -9586,8 +9827,14 @@ library implements for all the pipelines (such as downloading or saving, running
             <span class="n">height</span> <span class="o">//</span> <span class="bp">self</span><span class="o">.</span><span class="n">vae_scale_factor_spatial</span><span class="p">,</span>
             <span class="n">width</span> <span class="o">//</span> <span class="bp">self</span><span class="o">.</span><span class="n">vae_scale_factor_spatial</span><span class="p">,</span>
         <span class="p">)</span>
+
         <span class="n">latent_padding</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">padding_shape</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">dtype</span><span class="p">)</span>
         <span class="n">image_latents</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">image_latents</span><span class="p">,</span> <span class="n">latent_padding</span><span class="p">],</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+
+        <span class="c1"># Select the first frame along the second dimension</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">transformer</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">patch_size_t</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">first_frame</span> <span class="o">=</span> <span class="n">image_latents</span><span class="p">[:,</span> <span class="p">:</span> <span class="n">image_latents</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">transformer</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">patch_size_t</span><span class="p">,</span> <span class="o">...</span><span class="p">]</span>
+            <span class="n">image_latents</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">first_frame</span><span class="p">,</span> <span class="n">image_latents</span><span class="p">],</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
 
         <span class="k">if</span> <span class="n">latents</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
             <span class="n">latents</span> <span class="o">=</span> <span class="n">randn_tensor</span><span class="p">(</span><span class="n">shape</span><span class="p">,</span> <span class="n">generator</span><span class="o">=</span><span class="n">generator</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">dtype</span><span class="p">)</span>
@@ -9599,7 +9846,7 @@ library implements for all the pipelines (such as downloading or saving, running
     <span class="c1"># Copied from diffusers.pipelines.cogvideo.pipeline_cogvideox.CogVideoXPipeline.decode_latents</span>
     <span class="k">def</span><span class="w"> </span><span class="nf">decode_latents</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">latents</span><span class="p">:</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
         <span class="n">latents</span> <span class="o">=</span> <span class="n">latents</span><span class="o">.</span><span class="n">permute</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">4</span><span class="p">)</span>  <span class="c1"># [batch_size, num_channels, num_frames, height, width]</span>
-        <span class="n">latents</span> <span class="o">=</span> <span class="mi">1</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">vae</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">scaling_factor</span> <span class="o">*</span> <span class="n">latents</span>
+        <span class="n">latents</span> <span class="o">=</span> <span class="mi">1</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">vae_scaling_factor_image</span> <span class="o">*</span> <span class="n">latents</span>
 
         <span class="n">frames</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">vae</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="n">latents</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
         <span class="k">return</span> <span class="n">frames</span>
@@ -9640,7 +9887,6 @@ library implements for all the pipelines (such as downloading or saving, running
         <span class="n">width</span><span class="p">,</span>
         <span class="n">negative_prompt</span><span class="p">,</span>
         <span class="n">callback_on_step_end_tensor_inputs</span><span class="p">,</span>
-        <span class="n">video</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
         <span class="n">latents</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
         <span class="n">prompt_embeds</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
         <span class="n">negative_prompt_embeds</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
@@ -9692,9 +9938,6 @@ library implements for all the pipelines (such as downloading or saving, running
                     <span class="sa">f</span><span class="s2">&quot; </span><span class="si">{</span><span class="n">negative_prompt_embeds</span><span class="o">.</span><span class="n">shape</span><span class="si">}</span><span class="s2">.&quot;</span>
                 <span class="p">)</span>
 
-        <span class="k">if</span> <span class="n">video</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">latents</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Only one of `video` or `latents` should be provided&quot;</span><span class="p">)</span>
-
     <span class="c1"># Copied from diffusers.pipelines.cogvideo.pipeline_cogvideox.CogVideoXPipeline.fuse_qkv_projections</span>
     <span class="k">def</span><span class="w"> </span><span class="nf">fuse_qkv_projections</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 <span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;Enables fused QKV projections.&quot;&quot;&quot;</span>
@@ -9710,7 +9953,6 @@ library implements for all the pipelines (such as downloading or saving, running
             <span class="bp">self</span><span class="o">.</span><span class="n">transformer</span><span class="o">.</span><span class="n">unfuse_qkv_projections</span><span class="p">()</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">fusing_transformer</span> <span class="o">=</span> <span class="kc">False</span>
 
-    <span class="c1"># Copied from diffusers.pipelines.cogvideo.pipeline_cogvideox.CogVideoXPipeline._prepare_rotary_positional_embeddings</span>
     <span class="k">def</span><span class="w"> </span><span class="nf">_prepare_rotary_positional_embeddings</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span>
         <span class="n">height</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
@@ -9719,18 +9961,38 @@ library implements for all the pipelines (such as downloading or saving, running
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Tuple</span><span class="p">[</span><span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">]:</span>
         <span class="n">grid_height</span> <span class="o">=</span> <span class="n">height</span> <span class="o">//</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">vae_scale_factor_spatial</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">transformer</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">patch_size</span><span class="p">)</span>
         <span class="n">grid_width</span> <span class="o">=</span> <span class="n">width</span> <span class="o">//</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">vae_scale_factor_spatial</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">transformer</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">patch_size</span><span class="p">)</span>
-        <span class="n">base_size_width</span> <span class="o">=</span> <span class="mi">720</span> <span class="o">//</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">vae_scale_factor_spatial</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">transformer</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">patch_size</span><span class="p">)</span>
-        <span class="n">base_size_height</span> <span class="o">=</span> <span class="mi">480</span> <span class="o">//</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">vae_scale_factor_spatial</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">transformer</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">patch_size</span><span class="p">)</span>
 
-        <span class="n">grid_crops_coords</span> <span class="o">=</span> <span class="n">get_resize_crop_region_for_grid</span><span class="p">(</span>
-            <span class="p">(</span><span class="n">grid_height</span><span class="p">,</span> <span class="n">grid_width</span><span class="p">),</span> <span class="n">base_size_width</span><span class="p">,</span> <span class="n">base_size_height</span>
-        <span class="p">)</span>
-        <span class="n">freqs_cos</span><span class="p">,</span> <span class="n">freqs_sin</span> <span class="o">=</span> <span class="n">get_3d_rotary_pos_embed</span><span class="p">(</span>
-            <span class="n">embed_dim</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">transformer</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">attention_head_dim</span><span class="p">,</span>
-            <span class="n">crops_coords</span><span class="o">=</span><span class="n">grid_crops_coords</span><span class="p">,</span>
-            <span class="n">grid_size</span><span class="o">=</span><span class="p">(</span><span class="n">grid_height</span><span class="p">,</span> <span class="n">grid_width</span><span class="p">),</span>
-            <span class="n">temporal_size</span><span class="o">=</span><span class="n">num_frames</span><span class="p">,</span>
-        <span class="p">)</span>
+        <span class="n">p</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">transformer</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">patch_size</span>
+        <span class="n">p_t</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">transformer</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">patch_size_t</span>
+
+        <span class="k">if</span> <span class="n">p_t</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="c1"># CogVideoX 1.0 I2V</span>
+            <span class="n">base_size_width</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">transformer</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">sample_width</span> <span class="o">//</span> <span class="n">p</span>
+            <span class="n">base_size_height</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">transformer</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">sample_height</span> <span class="o">//</span> <span class="n">p</span>
+
+            <span class="n">grid_crops_coords</span> <span class="o">=</span> <span class="n">get_resize_crop_region_for_grid</span><span class="p">(</span>
+                <span class="p">(</span><span class="n">grid_height</span><span class="p">,</span> <span class="n">grid_width</span><span class="p">),</span> <span class="n">base_size_width</span><span class="p">,</span> <span class="n">base_size_height</span>
+            <span class="p">)</span>
+            <span class="n">freqs_cos</span><span class="p">,</span> <span class="n">freqs_sin</span> <span class="o">=</span> <span class="n">get_3d_rotary_pos_embed</span><span class="p">(</span>
+                <span class="n">embed_dim</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">transformer</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">attention_head_dim</span><span class="p">,</span>
+                <span class="n">crops_coords</span><span class="o">=</span><span class="n">grid_crops_coords</span><span class="p">,</span>
+                <span class="n">grid_size</span><span class="o">=</span><span class="p">(</span><span class="n">grid_height</span><span class="p">,</span> <span class="n">grid_width</span><span class="p">),</span>
+                <span class="n">temporal_size</span><span class="o">=</span><span class="n">num_frames</span><span class="p">,</span>
+            <span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="c1"># CogVideoX 1.5 I2V</span>
+            <span class="n">base_size_width</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">transformer</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">sample_width</span> <span class="o">//</span> <span class="n">p</span>
+            <span class="n">base_size_height</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">transformer</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">sample_height</span> <span class="o">//</span> <span class="n">p</span>
+            <span class="n">base_num_frames</span> <span class="o">=</span> <span class="p">(</span><span class="n">num_frames</span> <span class="o">+</span> <span class="n">p_t</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span> <span class="o">//</span> <span class="n">p_t</span>
+
+            <span class="n">freqs_cos</span><span class="p">,</span> <span class="n">freqs_sin</span> <span class="o">=</span> <span class="n">get_3d_rotary_pos_embed</span><span class="p">(</span>
+                <span class="n">embed_dim</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">transformer</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">attention_head_dim</span><span class="p">,</span>
+                <span class="n">crops_coords</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                <span class="n">grid_size</span><span class="o">=</span><span class="p">(</span><span class="n">grid_height</span><span class="p">,</span> <span class="n">grid_width</span><span class="p">),</span>
+                <span class="n">temporal_size</span><span class="o">=</span><span class="n">base_num_frames</span><span class="p">,</span>
+                <span class="n">grid_type</span><span class="o">=</span><span class="s2">&quot;slice&quot;</span><span class="p">,</span>
+                <span class="n">max_size</span><span class="o">=</span><span class="p">(</span><span class="n">base_size_height</span><span class="p">,</span> <span class="n">base_size_width</span><span class="p">),</span>
+            <span class="p">)</span>
 
         <span class="k">return</span> <span class="n">freqs_cos</span><span class="p">,</span> <span class="n">freqs_sin</span>
 
@@ -9743,6 +10005,10 @@ library implements for all the pipelines (such as downloading or saving, running
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_num_timesteps</span>
 
     <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">attention_kwargs</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_attention_kwargs</span>
+
+    <span class="nd">@property</span>
     <span class="k">def</span><span class="w"> </span><span class="nf">interrupt</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_interrupt</span>
 
@@ -9751,8 +10017,8 @@ library implements for all the pipelines (such as downloading or saving, running
         <span class="n">image</span><span class="p">:</span> <span class="n">PipelineImageInput</span><span class="p">,</span>
         <span class="n">prompt</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">negative_prompt</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-        <span class="n">height</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">480</span><span class="p">,</span>
-        <span class="n">width</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">720</span><span class="p">,</span>
+        <span class="n">height</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">width</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">num_frames</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">49</span><span class="p">,</span>
         <span class="n">num_inference_steps</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">50</span><span class="p">,</span>
         <span class="n">timesteps</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="nb">int</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
@@ -9766,6 +10032,7 @@ library implements for all the pipelines (such as downloading or saving, running
         <span class="n">negative_prompt_embeds</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">output_type</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;pil&quot;</span><span class="p">,</span>
         <span class="n">return_dict</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+        <span class="n">attention_kwargs</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">callback_on_step_end</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span>
             <span class="n">Union</span><span class="p">[</span><span class="n">Callable</span><span class="p">[[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">,</span> <span class="n">Dict</span><span class="p">],</span> <span class="kc">None</span><span class="p">],</span> <span class="n">PipelineCallback</span><span class="p">,</span> <span class="n">MultiPipelineCallbacks</span><span class="p">]</span>
         <span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
@@ -9777,7 +10044,7 @@ library implements for all the pipelines (such as downloading or saving, running
 
 <span class="sd">        Args:</span>
 <span class="sd">            image (`PipelineImageInput`):</span>
-<span class="sd">                The input video to condition the generation on. Must be an image, a list of images or a `ms.Tensor`.</span>
+<span class="sd">                The input image to condition the generation on. Must be an image, a list of images or a `ms.Tensor`.</span>
 <span class="sd">            prompt (`str` or `List[str]`, *optional*):</span>
 <span class="sd">                The prompt or prompts to guide the image generation. If not defined, one has to pass `prompt_embeds`.</span>
 <span class="sd">                instead.</span>
@@ -9785,14 +10052,14 @@ library implements for all the pipelines (such as downloading or saving, running
 <span class="sd">                The prompt or prompts not to guide the image generation. If not defined, one has to pass</span>
 <span class="sd">                `negative_prompt_embeds` instead. Ignored when not using guidance (i.e., ignored if `guidance_scale` is</span>
 <span class="sd">                less than `1`).</span>
-<span class="sd">            height (`int`, *optional*, defaults to self.unet.config.sample_size * self.vae_scale_factor):</span>
-<span class="sd">                The height in pixels of the generated image. This is set to 1024 by default for the best results.</span>
-<span class="sd">            width (`int`, *optional*, defaults to self.unet.config.sample_size * self.vae_scale_factor):</span>
-<span class="sd">                The width in pixels of the generated image. This is set to 1024 by default for the best results.</span>
+<span class="sd">            height (`int`, *optional*, defaults to self.transformer.config.sample_height * self.vae_scale_factor_spatial):</span>
+<span class="sd">                The height in pixels of the generated image. This is set to 480 by default for the best results.</span>
+<span class="sd">            width (`int`, *optional*, defaults to self.transformer.config.sample_height * self.vae_scale_factor_spatial):</span>
+<span class="sd">                The width in pixels of the generated image. This is set to 720 by default for the best results.</span>
 <span class="sd">            num_frames (`int`, defaults to `48`):</span>
 <span class="sd">                Number of frames to generate. Must be divisible by self.vae_scale_factor_temporal. Generated video will</span>
 <span class="sd">                contain 1 extra frame because CogVideoX is conditioned with (num_seconds * fps + 1) frames where</span>
-<span class="sd">                num_seconds is 6 and fps is 4. However, since videos can be saved at any fps, the only condition that</span>
+<span class="sd">                num_seconds is 6 and fps is 8. However, since videos can be saved at any fps, the only condition that</span>
 <span class="sd">                needs to be satisfied is that of divisibility mentioned above.</span>
 <span class="sd">            num_inference_steps (`int`, *optional*, defaults to 50):</span>
 <span class="sd">                The number of denoising steps. More denoising steps usually lead to a higher quality image at the</span>
@@ -9829,6 +10096,10 @@ library implements for all the pipelines (such as downloading or saving, running
 <span class="sd">            return_dict (`bool`, *optional*, defaults to `False`):</span>
 <span class="sd">                Whether or not to return a [`~pipelines.stable_diffusion_xl.StableDiffusionXLPipelineOutput`] instead</span>
 <span class="sd">                of a plain tuple.</span>
+<span class="sd">            attention_kwargs (`dict`, *optional*):</span>
+<span class="sd">                A kwargs dictionary that if specified is passed along to the `AttentionProcessor` as defined under</span>
+<span class="sd">                `self.processor` in</span>
+<span class="sd">                [diffusers.models.attention_processor](https://github.com/huggingface/diffusers/blob/main/src/diffusers/models/attention_processor.py).</span>
 <span class="sd">            callback_on_step_end (`Callable`, *optional*):</span>
 <span class="sd">                A function that calls at the end of each denoising steps during the inference. The function is called</span>
 <span class="sd">                with the following arguments: `callback_on_step_end(self: DiffusionPipeline, step: int, timestep: int,</span>
@@ -9850,30 +10121,29 @@ library implements for all the pipelines (such as downloading or saving, running
 <span class="sd">            `tuple`. When returning a tuple, the first element is a list with the generated images.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
 
-        <span class="k">if</span> <span class="n">num_frames</span> <span class="o">&gt;</span> <span class="mi">49</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
-                <span class="s2">&quot;The number of frames must be less than 49 for now due to static positional embeddings. This will be updated in the future to remove this limitation.&quot;</span>  <span class="c1"># noqa: E501</span>
-            <span class="p">)</span>
-
         <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">callback_on_step_end</span><span class="p">,</span> <span class="p">(</span><span class="n">PipelineCallback</span><span class="p">,</span> <span class="n">MultiPipelineCallbacks</span><span class="p">)):</span>
             <span class="n">callback_on_step_end_tensor_inputs</span> <span class="o">=</span> <span class="n">callback_on_step_end</span><span class="o">.</span><span class="n">tensor_inputs</span>
 
-        <span class="n">height</span> <span class="o">=</span> <span class="n">height</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">transformer</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">sample_size</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">vae_scale_factor_spatial</span>
-        <span class="n">width</span> <span class="o">=</span> <span class="n">width</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">transformer</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">sample_size</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">vae_scale_factor_spatial</span>
+        <span class="n">height</span> <span class="o">=</span> <span class="n">height</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">transformer</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">sample_height</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">vae_scale_factor_spatial</span>
+        <span class="n">width</span> <span class="o">=</span> <span class="n">width</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">transformer</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">sample_width</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">vae_scale_factor_spatial</span>
+        <span class="n">num_frames</span> <span class="o">=</span> <span class="n">num_frames</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">transformer</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">sample_frames</span>
+
         <span class="n">num_videos_per_prompt</span> <span class="o">=</span> <span class="mi">1</span>
 
         <span class="c1"># 1. Check inputs. Raise error if not correct</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">check_inputs</span><span class="p">(</span>
-            <span class="n">image</span><span class="p">,</span>
-            <span class="n">prompt</span><span class="p">,</span>
-            <span class="n">height</span><span class="p">,</span>
-            <span class="n">width</span><span class="p">,</span>
-            <span class="n">negative_prompt</span><span class="p">,</span>
-            <span class="n">callback_on_step_end_tensor_inputs</span><span class="p">,</span>
-            <span class="n">prompt_embeds</span><span class="p">,</span>
-            <span class="n">negative_prompt_embeds</span><span class="p">,</span>
+            <span class="n">image</span><span class="o">=</span><span class="n">image</span><span class="p">,</span>
+            <span class="n">prompt</span><span class="o">=</span><span class="n">prompt</span><span class="p">,</span>
+            <span class="n">height</span><span class="o">=</span><span class="n">height</span><span class="p">,</span>
+            <span class="n">width</span><span class="o">=</span><span class="n">width</span><span class="p">,</span>
+            <span class="n">negative_prompt</span><span class="o">=</span><span class="n">negative_prompt</span><span class="p">,</span>
+            <span class="n">callback_on_step_end_tensor_inputs</span><span class="o">=</span><span class="n">callback_on_step_end_tensor_inputs</span><span class="p">,</span>
+            <span class="n">latents</span><span class="o">=</span><span class="n">latents</span><span class="p">,</span>
+            <span class="n">prompt_embeds</span><span class="o">=</span><span class="n">prompt_embeds</span><span class="p">,</span>
+            <span class="n">negative_prompt_embeds</span><span class="o">=</span><span class="n">negative_prompt_embeds</span><span class="p">,</span>
         <span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_guidance_scale</span> <span class="o">=</span> <span class="n">guidance_scale</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_attention_kwargs</span> <span class="o">=</span> <span class="n">attention_kwargs</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_interrupt</span> <span class="o">=</span> <span class="kc">False</span>
 
         <span class="c1"># 2. Default call parameters</span>
@@ -9907,6 +10177,15 @@ library implements for all the pipelines (such as downloading or saving, running
         <span class="bp">self</span><span class="o">.</span><span class="n">_num_timesteps</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">timesteps</span><span class="p">)</span>
 
         <span class="c1"># 5. Prepare latents</span>
+        <span class="n">latent_frames</span> <span class="o">=</span> <span class="p">(</span><span class="n">num_frames</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span> <span class="o">//</span> <span class="bp">self</span><span class="o">.</span><span class="n">vae_scale_factor_temporal</span> <span class="o">+</span> <span class="mi">1</span>
+
+        <span class="c1"># For CogVideoX 1.5, the latent frames should be padded to make it divisible by patch_size_t</span>
+        <span class="n">patch_size_t</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">transformer</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">patch_size_t</span>
+        <span class="n">additional_frames</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="k">if</span> <span class="n">patch_size_t</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">latent_frames</span> <span class="o">%</span> <span class="n">patch_size_t</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">additional_frames</span> <span class="o">=</span> <span class="n">patch_size_t</span> <span class="o">-</span> <span class="n">latent_frames</span> <span class="o">%</span> <span class="n">patch_size_t</span>
+            <span class="n">num_frames</span> <span class="o">+=</span> <span class="n">additional_frames</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">vae_scale_factor_temporal</span>
+
         <span class="n">image</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">video_processor</span><span class="o">.</span><span class="n">preprocess</span><span class="p">(</span><span class="n">image</span><span class="p">,</span> <span class="n">height</span><span class="o">=</span><span class="n">height</span><span class="p">,</span> <span class="n">width</span><span class="o">=</span><span class="n">width</span><span class="p">)</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">prompt_embeds</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span>
 
         <span class="n">latent_channels</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">transformer</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">in_channels</span> <span class="o">//</span> <span class="mi">2</span>
@@ -9932,6 +10211,9 @@ library implements for all the pipelines (such as downloading or saving, running
             <span class="k">else</span> <span class="kc">None</span>
         <span class="p">)</span>
 
+        <span class="c1"># 8. Create ofs embeds if required</span>
+        <span class="n">ofs_emb</span> <span class="o">=</span> <span class="kc">None</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">transformer</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">ofs_embed_dim</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">ops</span><span class="o">.</span><span class="n">ones</span><span class="p">((</span><span class="mi">1</span><span class="p">,),</span> <span class="n">dtype</span><span class="o">=</span><span class="n">latents</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span> <span class="o">*</span> <span class="mf">2.0</span>
+
         <span class="c1"># 8. Denoising loop</span>
         <span class="n">num_warmup_steps</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">timesteps</span><span class="p">)</span> <span class="o">-</span> <span class="n">num_inference_steps</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">scheduler</span><span class="o">.</span><span class="n">order</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
 
@@ -9956,7 +10238,9 @@ library implements for all the pipelines (such as downloading or saving, running
                     <span class="n">hidden_states</span><span class="o">=</span><span class="n">latent_model_input</span><span class="p">,</span>
                     <span class="n">encoder_hidden_states</span><span class="o">=</span><span class="n">prompt_embeds</span><span class="p">,</span>
                     <span class="n">timestep</span><span class="o">=</span><span class="n">timestep</span><span class="p">,</span>
+                    <span class="n">ofs</span><span class="o">=</span><span class="n">ofs_emb</span><span class="p">,</span>
                     <span class="n">image_rotary_emb</span><span class="o">=</span><span class="n">image_rotary_emb</span><span class="p">,</span>
+                    <span class="n">attention_kwargs</span><span class="o">=</span><span class="n">attention_kwargs</span><span class="p">,</span>
                     <span class="n">return_dict</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
                 <span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
                 <span class="n">noise_pred</span> <span class="o">=</span> <span class="n">noise_pred</span><span class="o">.</span><span class="n">float</span><span class="p">()</span>
@@ -10000,6 +10284,8 @@ library implements for all the pipelines (such as downloading or saving, running
                     <span class="n">progress_bar</span><span class="o">.</span><span class="n">update</span><span class="p">()</span>
 
         <span class="k">if</span> <span class="ow">not</span> <span class="n">output_type</span> <span class="o">==</span> <span class="s2">&quot;latent&quot;</span><span class="p">:</span>
+            <span class="c1"># Discard any padding frames that were added for CogVideoX 1.5</span>
+            <span class="n">latents</span> <span class="o">=</span> <span class="n">latents</span><span class="p">[:,</span> <span class="n">additional_frames</span><span class="p">:]</span>
             <span class="n">video</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">decode_latents</span><span class="p">(</span><span class="n">latents</span><span class="p">)</span>
             <span class="n">video</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">video_processor</span><span class="o">.</span><span class="n">postprocess_video</span><span class="p">(</span><span class="n">video</span><span class="o">=</span><span class="n">video</span><span class="p">,</span> <span class="n">output_type</span><span class="o">=</span><span class="n">output_type</span><span class="p">)</span>
         <span class="k">else</span><span class="p">:</span>
@@ -10028,7 +10314,7 @@ library implements for all the pipelines (such as downloading or saving, running
 
 
 <h3 id="mindone.diffusers.CogVideoXImageToVideoPipeline.__call__" class="doc doc-heading">
-            <code class="highlight language-python"><span class="n">mindone</span><span class="o">.</span><span class="n">diffusers</span><span class="o">.</span><span class="n">CogVideoXImageToVideoPipeline</span><span class="o">.</span><span class="fm">__call__</span><span class="p">(</span><span class="n">image</span><span class="p">,</span> <span class="n">prompt</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">negative_prompt</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">height</span><span class="o">=</span><span class="mi">480</span><span class="p">,</span> <span class="n">width</span><span class="o">=</span><span class="mi">720</span><span class="p">,</span> <span class="n">num_frames</span><span class="o">=</span><span class="mi">49</span><span class="p">,</span> <span class="n">num_inference_steps</span><span class="o">=</span><span class="mi">50</span><span class="p">,</span> <span class="n">timesteps</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">guidance_scale</span><span class="o">=</span><span class="mi">6</span><span class="p">,</span> <span class="n">use_dynamic_cfg</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">num_videos_per_prompt</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">eta</span><span class="o">=</span><span class="mf">0.0</span><span class="p">,</span> <span class="n">generator</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">latents</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">prompt_embeds</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">negative_prompt_embeds</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">output_type</span><span class="o">=</span><span class="s1">&#39;pil&#39;</span><span class="p">,</span> <span class="n">return_dict</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">callback_on_step_end</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">callback_on_step_end_tensor_inputs</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;latents&#39;</span><span class="p">],</span> <span class="n">max_sequence_length</span><span class="o">=</span><span class="mi">226</span><span class="p">)</span></code>
+            <code class="highlight language-python"><span class="n">mindone</span><span class="o">.</span><span class="n">diffusers</span><span class="o">.</span><span class="n">CogVideoXImageToVideoPipeline</span><span class="o">.</span><span class="fm">__call__</span><span class="p">(</span><span class="n">image</span><span class="p">,</span> <span class="n">prompt</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">negative_prompt</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">height</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">width</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">num_frames</span><span class="o">=</span><span class="mi">49</span><span class="p">,</span> <span class="n">num_inference_steps</span><span class="o">=</span><span class="mi">50</span><span class="p">,</span> <span class="n">timesteps</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">guidance_scale</span><span class="o">=</span><span class="mi">6</span><span class="p">,</span> <span class="n">use_dynamic_cfg</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">num_videos_per_prompt</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">eta</span><span class="o">=</span><span class="mf">0.0</span><span class="p">,</span> <span class="n">generator</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">latents</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">prompt_embeds</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">negative_prompt_embeds</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">output_type</span><span class="o">=</span><span class="s1">&#39;pil&#39;</span><span class="p">,</span> <span class="n">return_dict</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">attention_kwargs</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">callback_on_step_end</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">callback_on_step_end_tensor_inputs</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;latents&#39;</span><span class="p">],</span> <span class="n">max_sequence_length</span><span class="o">=</span><span class="mi">226</span><span class="p">)</span></code>
 
 <a href="#mindone.diffusers.CogVideoXImageToVideoPipeline.__call__" class="headerlink" title="Permanent link">&para;</a></h3>
 
@@ -10050,7 +10336,7 @@ library implements for all the pipelines (such as downloading or saving, running
             <td><code>image</code></td>
             <td class="doc-param-details">
               <div class="doc-md-description">
-                <p>The input video to condition the generation on. Must be an image, a list of images or a <code>ms.Tensor</code>.</p>
+                <p>The input image to condition the generation on. Must be an image, a list of images or a <code>ms.Tensor</code>.</p>
               </div>
               <p>
                   <span class="doc-param-annotation">
@@ -10103,16 +10389,16 @@ less than <code>1</code>).</p>
             <td><code>height</code></td>
             <td class="doc-param-details">
               <div class="doc-md-description">
-                <p>The height in pixels of the generated image. This is set to 1024 by default for the best results.</p>
+                <p>The height in pixels of the generated image. This is set to 480 by default for the best results.</p>
               </div>
               <p>
                   <span class="doc-param-annotation">
                     <b>TYPE:</b>
-                      <code>`int`, *optional*, defaults to self.unet.config.sample_size * self.vae_scale_factor</code>
+                      <code>`int`, *optional*, defaults to self.transformer.config.sample_height * self.vae_scale_factor_spatial</code>
                   </span>
                   <span class="doc-param-default">
                     <b>DEFAULT:</b>
-                      <code>480</code>
+                      <code>None</code>
                   </span>
               </p>
             </td>
@@ -10121,16 +10407,16 @@ less than <code>1</code>).</p>
             <td><code>width</code></td>
             <td class="doc-param-details">
               <div class="doc-md-description">
-                <p>The width in pixels of the generated image. This is set to 1024 by default for the best results.</p>
+                <p>The width in pixels of the generated image. This is set to 720 by default for the best results.</p>
               </div>
               <p>
                   <span class="doc-param-annotation">
                     <b>TYPE:</b>
-                      <code>`int`, *optional*, defaults to self.unet.config.sample_size * self.vae_scale_factor</code>
+                      <code>`int`, *optional*, defaults to self.transformer.config.sample_height * self.vae_scale_factor_spatial</code>
                   </span>
                   <span class="doc-param-default">
                     <b>DEFAULT:</b>
-                      <code>720</code>
+                      <code>None</code>
                   </span>
               </p>
             </td>
@@ -10141,7 +10427,7 @@ less than <code>1</code>).</p>
               <div class="doc-md-description">
                 <p>Number of frames to generate. Must be divisible by self.vae_scale_factor_temporal. Generated video will
 contain 1 extra frame because CogVideoX is conditioned with (num_seconds * fps + 1) frames where
-num_seconds is 6 and fps is 4. However, since videos can be saved at any fps, the only condition that
+num_seconds is 6 and fps is 8. However, since videos can be saved at any fps, the only condition that
 needs to be satisfied is that of divisibility mentioned above.</p>
               </div>
               <p>
@@ -10352,6 +10638,26 @@ of a plain tuple.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
+            <td><code>attention_kwargs</code></td>
+            <td class="doc-param-details">
+              <div class="doc-md-description">
+                <p>A kwargs dictionary that if specified is passed along to the <code>AttentionProcessor</code> as defined under
+<code>self.processor</code> in
+<a href="https://github.com/huggingface/diffusers/blob/main/src/diffusers/models/attention_processor.py">diffusers.models.attention_processor</a>.</p>
+              </div>
+              <p>
+                  <span class="doc-param-annotation">
+                    <b>TYPE:</b>
+                      <code>`dict`, *optional*</code>
+                  </span>
+                  <span class="doc-param-default">
+                    <b>DEFAULT:</b>
+                      <code>None</code>
+                  </span>
+              </p>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
             <td><code>callback_on_step_end</code></td>
             <td class="doc-param-details">
               <div class="doc-md-description">
@@ -10465,46 +10771,7 @@ will be passed as <code>callback_kwargs</code> argument. You will only be able t
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/pipelines/cogvideo/pipeline_cogvideox_image2video.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">537</span>
-<span class="normal">538</span>
-<span class="normal">539</span>
-<span class="normal">540</span>
-<span class="normal">541</span>
-<span class="normal">542</span>
-<span class="normal">543</span>
-<span class="normal">544</span>
-<span class="normal">545</span>
-<span class="normal">546</span>
-<span class="normal">547</span>
-<span class="normal">548</span>
-<span class="normal">549</span>
-<span class="normal">550</span>
-<span class="normal">551</span>
-<span class="normal">552</span>
-<span class="normal">553</span>
-<span class="normal">554</span>
-<span class="normal">555</span>
-<span class="normal">556</span>
-<span class="normal">557</span>
-<span class="normal">558</span>
-<span class="normal">559</span>
-<span class="normal">560</span>
-<span class="normal">561</span>
-<span class="normal">562</span>
-<span class="normal">563</span>
-<span class="normal">564</span>
-<span class="normal">565</span>
-<span class="normal">566</span>
-<span class="normal">567</span>
-<span class="normal">568</span>
-<span class="normal">569</span>
-<span class="normal">570</span>
-<span class="normal">571</span>
-<span class="normal">572</span>
-<span class="normal">573</span>
-<span class="normal">574</span>
-<span class="normal">575</span>
-<span class="normal">576</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">576</span>
 <span class="normal">577</span>
 <span class="normal">578</span>
 <span class="normal">579</span>
@@ -10727,13 +10994,72 @@ will be passed as <code>callback_kwargs</code> argument. You will only be able t
 <span class="normal">796</span>
 <span class="normal">797</span>
 <span class="normal">798</span>
-<span class="normal">799</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="fm">__call__</span><span class="p">(</span>
+<span class="normal">799</span>
+<span class="normal">800</span>
+<span class="normal">801</span>
+<span class="normal">802</span>
+<span class="normal">803</span>
+<span class="normal">804</span>
+<span class="normal">805</span>
+<span class="normal">806</span>
+<span class="normal">807</span>
+<span class="normal">808</span>
+<span class="normal">809</span>
+<span class="normal">810</span>
+<span class="normal">811</span>
+<span class="normal">812</span>
+<span class="normal">813</span>
+<span class="normal">814</span>
+<span class="normal">815</span>
+<span class="normal">816</span>
+<span class="normal">817</span>
+<span class="normal">818</span>
+<span class="normal">819</span>
+<span class="normal">820</span>
+<span class="normal">821</span>
+<span class="normal">822</span>
+<span class="normal">823</span>
+<span class="normal">824</span>
+<span class="normal">825</span>
+<span class="normal">826</span>
+<span class="normal">827</span>
+<span class="normal">828</span>
+<span class="normal">829</span>
+<span class="normal">830</span>
+<span class="normal">831</span>
+<span class="normal">832</span>
+<span class="normal">833</span>
+<span class="normal">834</span>
+<span class="normal">835</span>
+<span class="normal">836</span>
+<span class="normal">837</span>
+<span class="normal">838</span>
+<span class="normal">839</span>
+<span class="normal">840</span>
+<span class="normal">841</span>
+<span class="normal">842</span>
+<span class="normal">843</span>
+<span class="normal">844</span>
+<span class="normal">845</span>
+<span class="normal">846</span>
+<span class="normal">847</span>
+<span class="normal">848</span>
+<span class="normal">849</span>
+<span class="normal">850</span>
+<span class="normal">851</span>
+<span class="normal">852</span>
+<span class="normal">853</span>
+<span class="normal">854</span>
+<span class="normal">855</span>
+<span class="normal">856</span>
+<span class="normal">857</span>
+<span class="normal">858</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="fm">__call__</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">image</span><span class="p">:</span> <span class="n">PipelineImageInput</span><span class="p">,</span>
     <span class="n">prompt</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="n">negative_prompt</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-    <span class="n">height</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">480</span><span class="p">,</span>
-    <span class="n">width</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">720</span><span class="p">,</span>
+    <span class="n">height</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">width</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="n">num_frames</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">49</span><span class="p">,</span>
     <span class="n">num_inference_steps</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">50</span><span class="p">,</span>
     <span class="n">timesteps</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="nb">int</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
@@ -10747,6 +11073,7 @@ will be passed as <code>callback_kwargs</code> argument. You will only be able t
     <span class="n">negative_prompt_embeds</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="n">output_type</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;pil&quot;</span><span class="p">,</span>
     <span class="n">return_dict</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+    <span class="n">attention_kwargs</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="n">callback_on_step_end</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span>
         <span class="n">Union</span><span class="p">[</span><span class="n">Callable</span><span class="p">[[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">,</span> <span class="n">Dict</span><span class="p">],</span> <span class="kc">None</span><span class="p">],</span> <span class="n">PipelineCallback</span><span class="p">,</span> <span class="n">MultiPipelineCallbacks</span><span class="p">]</span>
     <span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
@@ -10758,7 +11085,7 @@ will be passed as <code>callback_kwargs</code> argument. You will only be able t
 
 <span class="sd">    Args:</span>
 <span class="sd">        image (`PipelineImageInput`):</span>
-<span class="sd">            The input video to condition the generation on. Must be an image, a list of images or a `ms.Tensor`.</span>
+<span class="sd">            The input image to condition the generation on. Must be an image, a list of images or a `ms.Tensor`.</span>
 <span class="sd">        prompt (`str` or `List[str]`, *optional*):</span>
 <span class="sd">            The prompt or prompts to guide the image generation. If not defined, one has to pass `prompt_embeds`.</span>
 <span class="sd">            instead.</span>
@@ -10766,14 +11093,14 @@ will be passed as <code>callback_kwargs</code> argument. You will only be able t
 <span class="sd">            The prompt or prompts not to guide the image generation. If not defined, one has to pass</span>
 <span class="sd">            `negative_prompt_embeds` instead. Ignored when not using guidance (i.e., ignored if `guidance_scale` is</span>
 <span class="sd">            less than `1`).</span>
-<span class="sd">        height (`int`, *optional*, defaults to self.unet.config.sample_size * self.vae_scale_factor):</span>
-<span class="sd">            The height in pixels of the generated image. This is set to 1024 by default for the best results.</span>
-<span class="sd">        width (`int`, *optional*, defaults to self.unet.config.sample_size * self.vae_scale_factor):</span>
-<span class="sd">            The width in pixels of the generated image. This is set to 1024 by default for the best results.</span>
+<span class="sd">        height (`int`, *optional*, defaults to self.transformer.config.sample_height * self.vae_scale_factor_spatial):</span>
+<span class="sd">            The height in pixels of the generated image. This is set to 480 by default for the best results.</span>
+<span class="sd">        width (`int`, *optional*, defaults to self.transformer.config.sample_height * self.vae_scale_factor_spatial):</span>
+<span class="sd">            The width in pixels of the generated image. This is set to 720 by default for the best results.</span>
 <span class="sd">        num_frames (`int`, defaults to `48`):</span>
 <span class="sd">            Number of frames to generate. Must be divisible by self.vae_scale_factor_temporal. Generated video will</span>
 <span class="sd">            contain 1 extra frame because CogVideoX is conditioned with (num_seconds * fps + 1) frames where</span>
-<span class="sd">            num_seconds is 6 and fps is 4. However, since videos can be saved at any fps, the only condition that</span>
+<span class="sd">            num_seconds is 6 and fps is 8. However, since videos can be saved at any fps, the only condition that</span>
 <span class="sd">            needs to be satisfied is that of divisibility mentioned above.</span>
 <span class="sd">        num_inference_steps (`int`, *optional*, defaults to 50):</span>
 <span class="sd">            The number of denoising steps. More denoising steps usually lead to a higher quality image at the</span>
@@ -10810,6 +11137,10 @@ will be passed as <code>callback_kwargs</code> argument. You will only be able t
 <span class="sd">        return_dict (`bool`, *optional*, defaults to `False`):</span>
 <span class="sd">            Whether or not to return a [`~pipelines.stable_diffusion_xl.StableDiffusionXLPipelineOutput`] instead</span>
 <span class="sd">            of a plain tuple.</span>
+<span class="sd">        attention_kwargs (`dict`, *optional*):</span>
+<span class="sd">            A kwargs dictionary that if specified is passed along to the `AttentionProcessor` as defined under</span>
+<span class="sd">            `self.processor` in</span>
+<span class="sd">            [diffusers.models.attention_processor](https://github.com/huggingface/diffusers/blob/main/src/diffusers/models/attention_processor.py).</span>
 <span class="sd">        callback_on_step_end (`Callable`, *optional*):</span>
 <span class="sd">            A function that calls at the end of each denoising steps during the inference. The function is called</span>
 <span class="sd">            with the following arguments: `callback_on_step_end(self: DiffusionPipeline, step: int, timestep: int,</span>
@@ -10831,30 +11162,29 @@ will be passed as <code>callback_kwargs</code> argument. You will only be able t
 <span class="sd">        `tuple`. When returning a tuple, the first element is a list with the generated images.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
-    <span class="k">if</span> <span class="n">num_frames</span> <span class="o">&gt;</span> <span class="mi">49</span><span class="p">:</span>
-        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
-            <span class="s2">&quot;The number of frames must be less than 49 for now due to static positional embeddings. This will be updated in the future to remove this limitation.&quot;</span>  <span class="c1"># noqa: E501</span>
-        <span class="p">)</span>
-
     <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">callback_on_step_end</span><span class="p">,</span> <span class="p">(</span><span class="n">PipelineCallback</span><span class="p">,</span> <span class="n">MultiPipelineCallbacks</span><span class="p">)):</span>
         <span class="n">callback_on_step_end_tensor_inputs</span> <span class="o">=</span> <span class="n">callback_on_step_end</span><span class="o">.</span><span class="n">tensor_inputs</span>
 
-    <span class="n">height</span> <span class="o">=</span> <span class="n">height</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">transformer</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">sample_size</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">vae_scale_factor_spatial</span>
-    <span class="n">width</span> <span class="o">=</span> <span class="n">width</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">transformer</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">sample_size</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">vae_scale_factor_spatial</span>
+    <span class="n">height</span> <span class="o">=</span> <span class="n">height</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">transformer</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">sample_height</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">vae_scale_factor_spatial</span>
+    <span class="n">width</span> <span class="o">=</span> <span class="n">width</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">transformer</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">sample_width</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">vae_scale_factor_spatial</span>
+    <span class="n">num_frames</span> <span class="o">=</span> <span class="n">num_frames</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">transformer</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">sample_frames</span>
+
     <span class="n">num_videos_per_prompt</span> <span class="o">=</span> <span class="mi">1</span>
 
     <span class="c1"># 1. Check inputs. Raise error if not correct</span>
     <span class="bp">self</span><span class="o">.</span><span class="n">check_inputs</span><span class="p">(</span>
-        <span class="n">image</span><span class="p">,</span>
-        <span class="n">prompt</span><span class="p">,</span>
-        <span class="n">height</span><span class="p">,</span>
-        <span class="n">width</span><span class="p">,</span>
-        <span class="n">negative_prompt</span><span class="p">,</span>
-        <span class="n">callback_on_step_end_tensor_inputs</span><span class="p">,</span>
-        <span class="n">prompt_embeds</span><span class="p">,</span>
-        <span class="n">negative_prompt_embeds</span><span class="p">,</span>
+        <span class="n">image</span><span class="o">=</span><span class="n">image</span><span class="p">,</span>
+        <span class="n">prompt</span><span class="o">=</span><span class="n">prompt</span><span class="p">,</span>
+        <span class="n">height</span><span class="o">=</span><span class="n">height</span><span class="p">,</span>
+        <span class="n">width</span><span class="o">=</span><span class="n">width</span><span class="p">,</span>
+        <span class="n">negative_prompt</span><span class="o">=</span><span class="n">negative_prompt</span><span class="p">,</span>
+        <span class="n">callback_on_step_end_tensor_inputs</span><span class="o">=</span><span class="n">callback_on_step_end_tensor_inputs</span><span class="p">,</span>
+        <span class="n">latents</span><span class="o">=</span><span class="n">latents</span><span class="p">,</span>
+        <span class="n">prompt_embeds</span><span class="o">=</span><span class="n">prompt_embeds</span><span class="p">,</span>
+        <span class="n">negative_prompt_embeds</span><span class="o">=</span><span class="n">negative_prompt_embeds</span><span class="p">,</span>
     <span class="p">)</span>
     <span class="bp">self</span><span class="o">.</span><span class="n">_guidance_scale</span> <span class="o">=</span> <span class="n">guidance_scale</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_attention_kwargs</span> <span class="o">=</span> <span class="n">attention_kwargs</span>
     <span class="bp">self</span><span class="o">.</span><span class="n">_interrupt</span> <span class="o">=</span> <span class="kc">False</span>
 
     <span class="c1"># 2. Default call parameters</span>
@@ -10888,6 +11218,15 @@ will be passed as <code>callback_kwargs</code> argument. You will only be able t
     <span class="bp">self</span><span class="o">.</span><span class="n">_num_timesteps</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">timesteps</span><span class="p">)</span>
 
     <span class="c1"># 5. Prepare latents</span>
+    <span class="n">latent_frames</span> <span class="o">=</span> <span class="p">(</span><span class="n">num_frames</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span> <span class="o">//</span> <span class="bp">self</span><span class="o">.</span><span class="n">vae_scale_factor_temporal</span> <span class="o">+</span> <span class="mi">1</span>
+
+    <span class="c1"># For CogVideoX 1.5, the latent frames should be padded to make it divisible by patch_size_t</span>
+    <span class="n">patch_size_t</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">transformer</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">patch_size_t</span>
+    <span class="n">additional_frames</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="k">if</span> <span class="n">patch_size_t</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">latent_frames</span> <span class="o">%</span> <span class="n">patch_size_t</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="n">additional_frames</span> <span class="o">=</span> <span class="n">patch_size_t</span> <span class="o">-</span> <span class="n">latent_frames</span> <span class="o">%</span> <span class="n">patch_size_t</span>
+        <span class="n">num_frames</span> <span class="o">+=</span> <span class="n">additional_frames</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">vae_scale_factor_temporal</span>
+
     <span class="n">image</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">video_processor</span><span class="o">.</span><span class="n">preprocess</span><span class="p">(</span><span class="n">image</span><span class="p">,</span> <span class="n">height</span><span class="o">=</span><span class="n">height</span><span class="p">,</span> <span class="n">width</span><span class="o">=</span><span class="n">width</span><span class="p">)</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">prompt_embeds</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span>
 
     <span class="n">latent_channels</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">transformer</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">in_channels</span> <span class="o">//</span> <span class="mi">2</span>
@@ -10913,6 +11252,9 @@ will be passed as <code>callback_kwargs</code> argument. You will only be able t
         <span class="k">else</span> <span class="kc">None</span>
     <span class="p">)</span>
 
+    <span class="c1"># 8. Create ofs embeds if required</span>
+    <span class="n">ofs_emb</span> <span class="o">=</span> <span class="kc">None</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">transformer</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">ofs_embed_dim</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">ops</span><span class="o">.</span><span class="n">ones</span><span class="p">((</span><span class="mi">1</span><span class="p">,),</span> <span class="n">dtype</span><span class="o">=</span><span class="n">latents</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span> <span class="o">*</span> <span class="mf">2.0</span>
+
     <span class="c1"># 8. Denoising loop</span>
     <span class="n">num_warmup_steps</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">timesteps</span><span class="p">)</span> <span class="o">-</span> <span class="n">num_inference_steps</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">scheduler</span><span class="o">.</span><span class="n">order</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
 
@@ -10937,7 +11279,9 @@ will be passed as <code>callback_kwargs</code> argument. You will only be able t
                 <span class="n">hidden_states</span><span class="o">=</span><span class="n">latent_model_input</span><span class="p">,</span>
                 <span class="n">encoder_hidden_states</span><span class="o">=</span><span class="n">prompt_embeds</span><span class="p">,</span>
                 <span class="n">timestep</span><span class="o">=</span><span class="n">timestep</span><span class="p">,</span>
+                <span class="n">ofs</span><span class="o">=</span><span class="n">ofs_emb</span><span class="p">,</span>
                 <span class="n">image_rotary_emb</span><span class="o">=</span><span class="n">image_rotary_emb</span><span class="p">,</span>
+                <span class="n">attention_kwargs</span><span class="o">=</span><span class="n">attention_kwargs</span><span class="p">,</span>
                 <span class="n">return_dict</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
             <span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
             <span class="n">noise_pred</span> <span class="o">=</span> <span class="n">noise_pred</span><span class="o">.</span><span class="n">float</span><span class="p">()</span>
@@ -10981,6 +11325,8 @@ will be passed as <code>callback_kwargs</code> argument. You will only be able t
                 <span class="n">progress_bar</span><span class="o">.</span><span class="n">update</span><span class="p">()</span>
 
     <span class="k">if</span> <span class="ow">not</span> <span class="n">output_type</span> <span class="o">==</span> <span class="s2">&quot;latent&quot;</span><span class="p">:</span>
+        <span class="c1"># Discard any padding frames that were added for CogVideoX 1.5</span>
+        <span class="n">latents</span> <span class="o">=</span> <span class="n">latents</span><span class="p">[:,</span> <span class="n">additional_frames</span><span class="p">:]</span>
         <span class="n">video</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">decode_latents</span><span class="p">(</span><span class="n">latents</span><span class="p">)</span>
         <span class="n">video</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">video_processor</span><span class="o">.</span><span class="n">postprocess_video</span><span class="p">(</span><span class="n">video</span><span class="o">=</span><span class="n">video</span><span class="p">,</span> <span class="n">output_type</span><span class="o">=</span><span class="n">output_type</span><span class="p">)</span>
     <span class="k">else</span><span class="p">:</span>
@@ -11151,11 +11497,7 @@ mindspore dtype</p>
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/pipelines/cogvideo/pipeline_cogvideox_image2video.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">254</span>
-<span class="normal">255</span>
-<span class="normal">256</span>
-<span class="normal">257</span>
-<span class="normal">258</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">258</span>
 <span class="normal">259</span>
 <span class="normal">260</span>
 <span class="normal">261</span>
@@ -11223,7 +11565,11 @@ mindspore dtype</p>
 <span class="normal">323</span>
 <span class="normal">324</span>
 <span class="normal">325</span>
-<span class="normal">326</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">encode_prompt</span><span class="p">(</span>
+<span class="normal">326</span>
+<span class="normal">327</span>
+<span class="normal">328</span>
+<span class="normal">329</span>
+<span class="normal">330</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">encode_prompt</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">prompt</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]],</span>
     <span class="n">negative_prompt</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
@@ -11317,10 +11663,10 @@ mindspore dtype</p>
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/pipelines/cogvideo/pipeline_cogvideox_image2video.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">487</span>
-<span class="normal">488</span>
-<span class="normal">489</span>
-<span class="normal">490</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">fuse_qkv_projections</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">503</span>
+<span class="normal">504</span>
+<span class="normal">505</span>
+<span class="normal">506</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">fuse_qkv_projections</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 <span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;Enables fused QKV projections.&quot;&quot;&quot;</span>
     <span class="bp">self</span><span class="o">.</span><span class="n">fusing_transformer</span> <span class="o">=</span> <span class="kc">True</span>
     <span class="bp">self</span><span class="o">.</span><span class="n">transformer</span><span class="o">.</span><span class="n">fuse_qkv_projections</span><span class="p">()</span>
@@ -11345,13 +11691,13 @@ mindspore dtype</p>
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/pipelines/cogvideo/pipeline_cogvideox_image2video.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">493</span>
-<span class="normal">494</span>
-<span class="normal">495</span>
-<span class="normal">496</span>
-<span class="normal">497</span>
-<span class="normal">498</span>
-<span class="normal">499</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">unfuse_qkv_projections</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">509</span>
+<span class="normal">510</span>
+<span class="normal">511</span>
+<span class="normal">512</span>
+<span class="normal">513</span>
+<span class="normal">514</span>
+<span class="normal">515</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">unfuse_qkv_projections</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 <span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;Disable QKV projection fusion if enabled.&quot;&quot;&quot;</span>
     <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">fusing_transformer</span><span class="p">:</span>
         <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;The Transformer was not initially fused for QKV projections. Doing nothing.&quot;</span><span class="p">)</span>

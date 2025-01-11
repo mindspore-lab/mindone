@@ -6034,85 +6034,7 @@ can be fine-tuned / trained to a lower range without loosing too much precision 
 
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/models/autoencoders/autoencoder_kl_cogvideox.py</code></summary>
-                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"> 869</span>
-<span class="normal"> 870</span>
-<span class="normal"> 871</span>
-<span class="normal"> 872</span>
-<span class="normal"> 873</span>
-<span class="normal"> 874</span>
-<span class="normal"> 875</span>
-<span class="normal"> 876</span>
-<span class="normal"> 877</span>
-<span class="normal"> 878</span>
-<span class="normal"> 879</span>
-<span class="normal"> 880</span>
-<span class="normal"> 881</span>
-<span class="normal"> 882</span>
-<span class="normal"> 883</span>
-<span class="normal"> 884</span>
-<span class="normal"> 885</span>
-<span class="normal"> 886</span>
-<span class="normal"> 887</span>
-<span class="normal"> 888</span>
-<span class="normal"> 889</span>
-<span class="normal"> 890</span>
-<span class="normal"> 891</span>
-<span class="normal"> 892</span>
-<span class="normal"> 893</span>
-<span class="normal"> 894</span>
-<span class="normal"> 895</span>
-<span class="normal"> 896</span>
-<span class="normal"> 897</span>
-<span class="normal"> 898</span>
-<span class="normal"> 899</span>
-<span class="normal"> 900</span>
-<span class="normal"> 901</span>
-<span class="normal"> 902</span>
-<span class="normal"> 903</span>
-<span class="normal"> 904</span>
-<span class="normal"> 905</span>
-<span class="normal"> 906</span>
-<span class="normal"> 907</span>
-<span class="normal"> 908</span>
-<span class="normal"> 909</span>
-<span class="normal"> 910</span>
-<span class="normal"> 911</span>
-<span class="normal"> 912</span>
-<span class="normal"> 913</span>
-<span class="normal"> 914</span>
-<span class="normal"> 915</span>
-<span class="normal"> 916</span>
-<span class="normal"> 917</span>
-<span class="normal"> 918</span>
-<span class="normal"> 919</span>
-<span class="normal"> 920</span>
-<span class="normal"> 921</span>
-<span class="normal"> 922</span>
-<span class="normal"> 923</span>
-<span class="normal"> 924</span>
-<span class="normal"> 925</span>
-<span class="normal"> 926</span>
-<span class="normal"> 927</span>
-<span class="normal"> 928</span>
-<span class="normal"> 929</span>
-<span class="normal"> 930</span>
-<span class="normal"> 931</span>
-<span class="normal"> 932</span>
-<span class="normal"> 933</span>
-<span class="normal"> 934</span>
-<span class="normal"> 935</span>
-<span class="normal"> 936</span>
-<span class="normal"> 937</span>
-<span class="normal"> 938</span>
-<span class="normal"> 939</span>
-<span class="normal"> 940</span>
-<span class="normal"> 941</span>
-<span class="normal"> 942</span>
-<span class="normal"> 943</span>
-<span class="normal"> 944</span>
-<span class="normal"> 945</span>
-<span class="normal"> 946</span>
-<span class="normal"> 947</span>
+                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"> 947</span>
 <span class="normal"> 948</span>
 <span class="normal"> 949</span>
 <span class="normal"> 950</span>
@@ -6525,7 +6447,87 @@ can be fine-tuned / trained to a lower range without loosing too much precision 
 <span class="normal">1357</span>
 <span class="normal">1358</span>
 <span class="normal">1359</span>
-<span class="normal">1360</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">AutoencoderKLCogVideoX</span><span class="p">(</span><span class="n">ModelMixin</span><span class="p">,</span> <span class="n">ConfigMixin</span><span class="p">,</span> <span class="n">FromOriginalModelMixin</span><span class="p">):</span>
+<span class="normal">1360</span>
+<span class="normal">1361</span>
+<span class="normal">1362</span>
+<span class="normal">1363</span>
+<span class="normal">1364</span>
+<span class="normal">1365</span>
+<span class="normal">1366</span>
+<span class="normal">1367</span>
+<span class="normal">1368</span>
+<span class="normal">1369</span>
+<span class="normal">1370</span>
+<span class="normal">1371</span>
+<span class="normal">1372</span>
+<span class="normal">1373</span>
+<span class="normal">1374</span>
+<span class="normal">1375</span>
+<span class="normal">1376</span>
+<span class="normal">1377</span>
+<span class="normal">1378</span>
+<span class="normal">1379</span>
+<span class="normal">1380</span>
+<span class="normal">1381</span>
+<span class="normal">1382</span>
+<span class="normal">1383</span>
+<span class="normal">1384</span>
+<span class="normal">1385</span>
+<span class="normal">1386</span>
+<span class="normal">1387</span>
+<span class="normal">1388</span>
+<span class="normal">1389</span>
+<span class="normal">1390</span>
+<span class="normal">1391</span>
+<span class="normal">1392</span>
+<span class="normal">1393</span>
+<span class="normal">1394</span>
+<span class="normal">1395</span>
+<span class="normal">1396</span>
+<span class="normal">1397</span>
+<span class="normal">1398</span>
+<span class="normal">1399</span>
+<span class="normal">1400</span>
+<span class="normal">1401</span>
+<span class="normal">1402</span>
+<span class="normal">1403</span>
+<span class="normal">1404</span>
+<span class="normal">1405</span>
+<span class="normal">1406</span>
+<span class="normal">1407</span>
+<span class="normal">1408</span>
+<span class="normal">1409</span>
+<span class="normal">1410</span>
+<span class="normal">1411</span>
+<span class="normal">1412</span>
+<span class="normal">1413</span>
+<span class="normal">1414</span>
+<span class="normal">1415</span>
+<span class="normal">1416</span>
+<span class="normal">1417</span>
+<span class="normal">1418</span>
+<span class="normal">1419</span>
+<span class="normal">1420</span>
+<span class="normal">1421</span>
+<span class="normal">1422</span>
+<span class="normal">1423</span>
+<span class="normal">1424</span>
+<span class="normal">1425</span>
+<span class="normal">1426</span>
+<span class="normal">1427</span>
+<span class="normal">1428</span>
+<span class="normal">1429</span>
+<span class="normal">1430</span>
+<span class="normal">1431</span>
+<span class="normal">1432</span>
+<span class="normal">1433</span>
+<span class="normal">1434</span>
+<span class="normal">1435</span>
+<span class="normal">1436</span>
+<span class="normal">1437</span>
+<span class="normal">1438</span>
+<span class="normal">1439</span>
+<span class="normal">1440</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">AutoencoderKLCogVideoX</span><span class="p">(</span><span class="n">ModelMixin</span><span class="p">,</span> <span class="n">ConfigMixin</span><span class="p">,</span> <span class="n">FromOriginalModelMixin</span><span class="p">):</span>
 <span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    A VAE model with KL loss for encoding images into latents and decoding latent representations into images. Used in</span>
 <span class="sd">    [CogVideoX](https://github.com/THUDM/CogVideo).</span>
@@ -6593,6 +6595,7 @@ can be fine-tuned / trained to a lower range without loosing too much precision 
         <span class="n">force_upcast</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
         <span class="n">use_quant_conv</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
         <span class="n">use_post_quant_conv</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+        <span class="n">invert_scale_latents</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
     <span class="p">):</span>
         <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
 
@@ -6666,12 +6669,6 @@ can be fine-tuned / trained to a lower range without loosing too much precision 
         <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">module</span><span class="p">,</span> <span class="p">(</span><span class="n">CogVideoXEncoder3D</span><span class="p">,</span> <span class="n">CogVideoXDecoder3D</span><span class="p">)):</span>
             <span class="n">module</span><span class="o">.</span><span class="n">gradient_checkpointing</span> <span class="o">=</span> <span class="n">value</span>
 
-    <span class="k">def</span><span class="w"> </span><span class="nf">_clear_fake_context_parallel_cache</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">module</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">cells_and_names</span><span class="p">():</span>
-            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">module</span><span class="p">,</span> <span class="n">CogVideoXCausalConv3d</span><span class="p">):</span>
-                <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Clearing fake Context Parallel cache for layer: </span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-                <span class="n">module</span><span class="o">.</span><span class="n">_clear_fake_context_parallel_cache</span><span class="p">()</span>
-
     <span class="k">def</span><span class="w"> </span><span class="nf">enable_tiling</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span>
         <span class="n">tile_sample_min_height</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
@@ -6737,21 +6734,22 @@ can be fine-tuned / trained to a lower range without loosing too much precision 
 
         <span class="n">frame_batch_size</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">num_sample_frames_batch_size</span>
         <span class="c1"># Note: We expect the number of frames to be either `1` or `frame_batch_size * k` or `frame_batch_size * k + 1` for some k.</span>
-        <span class="n">num_batches</span> <span class="o">=</span> <span class="n">num_frames</span> <span class="o">//</span> <span class="n">frame_batch_size</span> <span class="k">if</span> <span class="n">num_frames</span> <span class="o">&gt;</span> <span class="mi">1</span> <span class="k">else</span> <span class="mi">1</span>
+        <span class="c1"># As the extra single frame is handled inside the loop, it is not required to round up here.</span>
+        <span class="n">num_batches</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="n">num_frames</span> <span class="o">//</span> <span class="n">frame_batch_size</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+        <span class="n">conv_cache</span> <span class="o">=</span> <span class="kc">None</span>
         <span class="n">enc</span> <span class="o">=</span> <span class="p">[]</span>
+
         <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">num_batches</span><span class="p">):</span>
             <span class="n">remaining_frames</span> <span class="o">=</span> <span class="n">num_frames</span> <span class="o">%</span> <span class="n">frame_batch_size</span>
             <span class="n">start_frame</span> <span class="o">=</span> <span class="n">frame_batch_size</span> <span class="o">*</span> <span class="n">i</span> <span class="o">+</span> <span class="p">(</span><span class="mi">0</span> <span class="k">if</span> <span class="n">i</span> <span class="o">==</span> <span class="mi">0</span> <span class="k">else</span> <span class="n">remaining_frames</span><span class="p">)</span>
             <span class="n">end_frame</span> <span class="o">=</span> <span class="n">frame_batch_size</span> <span class="o">*</span> <span class="p">(</span><span class="n">i</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span> <span class="o">+</span> <span class="n">remaining_frames</span>
             <span class="n">x_intermediate</span> <span class="o">=</span> <span class="n">x</span><span class="p">[:,</span> <span class="p">:,</span> <span class="n">start_frame</span><span class="p">:</span><span class="n">end_frame</span><span class="p">]</span>
-            <span class="n">x_intermediate</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">encoder</span><span class="p">(</span><span class="n">x_intermediate</span><span class="p">)</span>
+            <span class="n">x_intermediate</span><span class="p">,</span> <span class="n">conv_cache</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">encoder</span><span class="p">(</span><span class="n">x_intermediate</span><span class="p">,</span> <span class="n">conv_cache</span><span class="o">=</span><span class="n">conv_cache</span><span class="p">)</span>
             <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">quant_conv</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
                 <span class="n">x_intermediate</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">quant_conv</span><span class="p">(</span><span class="n">x_intermediate</span><span class="p">)</span>
             <span class="n">enc</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">x_intermediate</span><span class="p">)</span>
 
-        <span class="bp">self</span><span class="o">.</span><span class="n">_clear_fake_context_parallel_cache</span><span class="p">()</span>
         <span class="n">enc</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">cat</span><span class="p">(</span><span class="n">enc</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
-
         <span class="k">return</span> <span class="n">enc</span>
 
     <span class="k">def</span><span class="w"> </span><span class="nf">encode</span><span class="p">(</span>
@@ -6788,8 +6786,10 @@ can be fine-tuned / trained to a lower range without loosing too much precision 
             <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">tiled_decode</span><span class="p">(</span><span class="n">z</span><span class="p">,</span> <span class="n">return_dict</span><span class="o">=</span><span class="n">return_dict</span><span class="p">)</span>
 
         <span class="n">frame_batch_size</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">num_latent_frames_batch_size</span>
-        <span class="n">num_batches</span> <span class="o">=</span> <span class="n">num_frames</span> <span class="o">//</span> <span class="n">frame_batch_size</span>
+        <span class="n">num_batches</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="n">num_frames</span> <span class="o">//</span> <span class="n">frame_batch_size</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+        <span class="n">conv_cache</span> <span class="o">=</span> <span class="kc">None</span>
         <span class="n">dec</span> <span class="o">=</span> <span class="p">[]</span>
+
         <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">num_batches</span><span class="p">):</span>
             <span class="n">remaining_frames</span> <span class="o">=</span> <span class="n">num_frames</span> <span class="o">%</span> <span class="n">frame_batch_size</span>
             <span class="n">start_frame</span> <span class="o">=</span> <span class="n">frame_batch_size</span> <span class="o">*</span> <span class="n">i</span> <span class="o">+</span> <span class="p">(</span><span class="mi">0</span> <span class="k">if</span> <span class="n">i</span> <span class="o">==</span> <span class="mi">0</span> <span class="k">else</span> <span class="n">remaining_frames</span><span class="p">)</span>
@@ -6797,10 +6797,9 @@ can be fine-tuned / trained to a lower range without loosing too much precision 
             <span class="n">z_intermediate</span> <span class="o">=</span> <span class="n">z</span><span class="p">[:,</span> <span class="p">:,</span> <span class="n">start_frame</span><span class="p">:</span><span class="n">end_frame</span><span class="p">]</span>
             <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">post_quant_conv</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
                 <span class="n">z_intermediate</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">post_quant_conv</span><span class="p">(</span><span class="n">z_intermediate</span><span class="p">)</span>
-            <span class="n">z_intermediate</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">decoder</span><span class="p">(</span><span class="n">z_intermediate</span><span class="p">)</span>
+            <span class="n">z_intermediate</span><span class="p">,</span> <span class="n">conv_cache</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">decoder</span><span class="p">(</span><span class="n">z_intermediate</span><span class="p">,</span> <span class="n">conv_cache</span><span class="o">=</span><span class="n">conv_cache</span><span class="p">)</span>
             <span class="n">dec</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">z_intermediate</span><span class="p">)</span>
 
-        <span class="bp">self</span><span class="o">.</span><span class="n">_clear_fake_context_parallel_cache</span><span class="p">()</span>
         <span class="n">dec</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">cat</span><span class="p">(</span><span class="n">dec</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
 
         <span class="k">if</span> <span class="ow">not</span> <span class="n">return_dict</span><span class="p">:</span>
@@ -6823,7 +6822,7 @@ can be fine-tuned / trained to a lower range without loosing too much precision 
 <span class="sd">                returned.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">use_slicing</span> <span class="ow">and</span> <span class="n">z</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
-            <span class="n">decoded_slices</span> <span class="o">=</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">_decode</span><span class="p">(</span><span class="n">z_slice</span><span class="p">)</span><span class="o">.</span><span class="n">sample</span> <span class="k">for</span> <span class="n">z_slice</span> <span class="ow">in</span> <span class="n">z</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="mi">1</span><span class="p">)]</span>
+            <span class="n">decoded_slices</span> <span class="o">=</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">_decode</span><span class="p">(</span><span class="n">z_slice</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span> <span class="k">for</span> <span class="n">z_slice</span> <span class="ow">in</span> <span class="n">z</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="mi">1</span><span class="p">)]</span>
             <span class="n">decoded</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">cat</span><span class="p">(</span><span class="n">decoded_slices</span><span class="p">)</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="n">decoded</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_decode</span><span class="p">(</span><span class="n">z</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
@@ -6882,8 +6881,11 @@ can be fine-tuned / trained to a lower range without loosing too much precision 
             <span class="n">row</span> <span class="o">=</span> <span class="p">[]</span>
             <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">width</span><span class="p">,</span> <span class="n">overlap_width</span><span class="p">):</span>
                 <span class="c1"># Note: We expect the number of frames to be either `1` or `frame_batch_size * k` or `frame_batch_size * k + 1` for some k.</span>
-                <span class="n">num_batches</span> <span class="o">=</span> <span class="n">num_frames</span> <span class="o">//</span> <span class="n">frame_batch_size</span> <span class="k">if</span> <span class="n">num_frames</span> <span class="o">&gt;</span> <span class="mi">1</span> <span class="k">else</span> <span class="mi">1</span>
+                <span class="c1"># As the extra single frame is handled inside the loop, it is not required to round up here.</span>
+                <span class="n">num_batches</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="n">num_frames</span> <span class="o">//</span> <span class="n">frame_batch_size</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+                <span class="n">conv_cache</span> <span class="o">=</span> <span class="kc">None</span>
                 <span class="n">time</span> <span class="o">=</span> <span class="p">[]</span>
+
                 <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">num_batches</span><span class="p">):</span>
                     <span class="n">remaining_frames</span> <span class="o">=</span> <span class="n">num_frames</span> <span class="o">%</span> <span class="n">frame_batch_size</span>
                     <span class="n">start_frame</span> <span class="o">=</span> <span class="n">frame_batch_size</span> <span class="o">*</span> <span class="n">k</span> <span class="o">+</span> <span class="p">(</span><span class="mi">0</span> <span class="k">if</span> <span class="n">k</span> <span class="o">==</span> <span class="mi">0</span> <span class="k">else</span> <span class="n">remaining_frames</span><span class="p">)</span>
@@ -6895,11 +6897,11 @@ can be fine-tuned / trained to a lower range without loosing too much precision 
                         <span class="n">i</span> <span class="p">:</span> <span class="n">i</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">tile_sample_min_height</span><span class="p">,</span>
                         <span class="n">j</span> <span class="p">:</span> <span class="n">j</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">tile_sample_min_width</span><span class="p">,</span>
                     <span class="p">]</span>
-                    <span class="n">tile</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">encoder</span><span class="p">(</span><span class="n">tile</span><span class="p">)</span>
+                    <span class="n">tile</span><span class="p">,</span> <span class="n">conv_cache</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">encoder</span><span class="p">(</span><span class="n">tile</span><span class="p">,</span> <span class="n">conv_cache</span><span class="o">=</span><span class="n">conv_cache</span><span class="p">)</span>
                     <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">quant_conv</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
                         <span class="n">tile</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">quant_conv</span><span class="p">(</span><span class="n">tile</span><span class="p">)</span>
                     <span class="n">time</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">tile</span><span class="p">)</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">_clear_fake_context_parallel_cache</span><span class="p">()</span>
+
                 <span class="n">row</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">ops</span><span class="o">.</span><span class="n">cat</span><span class="p">(</span><span class="n">time</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">2</span><span class="p">))</span>
             <span class="n">rows</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">row</span><span class="p">)</span>
 
@@ -6959,8 +6961,10 @@ can be fine-tuned / trained to a lower range without loosing too much precision 
         <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">height</span><span class="p">,</span> <span class="n">overlap_height</span><span class="p">):</span>
             <span class="n">row</span> <span class="o">=</span> <span class="p">[]</span>
             <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">width</span><span class="p">,</span> <span class="n">overlap_width</span><span class="p">):</span>
-                <span class="n">num_batches</span> <span class="o">=</span> <span class="n">num_frames</span> <span class="o">//</span> <span class="n">frame_batch_size</span>
+                <span class="n">num_batches</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="n">num_frames</span> <span class="o">//</span> <span class="n">frame_batch_size</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+                <span class="n">conv_cache</span> <span class="o">=</span> <span class="kc">None</span>
                 <span class="n">time</span> <span class="o">=</span> <span class="p">[]</span>
+
                 <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">num_batches</span><span class="p">):</span>
                     <span class="n">remaining_frames</span> <span class="o">=</span> <span class="n">num_frames</span> <span class="o">%</span> <span class="n">frame_batch_size</span>
                     <span class="n">start_frame</span> <span class="o">=</span> <span class="n">frame_batch_size</span> <span class="o">*</span> <span class="n">k</span> <span class="o">+</span> <span class="p">(</span><span class="mi">0</span> <span class="k">if</span> <span class="n">k</span> <span class="o">==</span> <span class="mi">0</span> <span class="k">else</span> <span class="n">remaining_frames</span><span class="p">)</span>
@@ -6974,9 +6978,9 @@ can be fine-tuned / trained to a lower range without loosing too much precision 
                     <span class="p">]</span>
                     <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">post_quant_conv</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
                         <span class="n">tile</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">post_quant_conv</span><span class="p">(</span><span class="n">tile</span><span class="p">)</span>
-                    <span class="n">tile</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">decoder</span><span class="p">(</span><span class="n">tile</span><span class="p">)</span>
+                    <span class="n">tile</span><span class="p">,</span> <span class="n">conv_cache</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">decoder</span><span class="p">(</span><span class="n">tile</span><span class="p">,</span> <span class="n">conv_cache</span><span class="o">=</span><span class="n">conv_cache</span><span class="p">)</span>
                     <span class="n">time</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">tile</span><span class="p">)</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">_clear_fake_context_parallel_cache</span><span class="p">()</span>
+
                 <span class="n">row</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">ops</span><span class="o">.</span><span class="n">cat</span><span class="p">(</span><span class="n">time</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">2</span><span class="p">))</span>
             <span class="n">rows</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">row</span><span class="p">)</span>
 
@@ -7117,29 +7121,29 @@ returned.</p>
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/models/autoencoders/autoencoder_kl_cogvideox.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1152</span>
-<span class="normal">1153</span>
-<span class="normal">1154</span>
-<span class="normal">1155</span>
-<span class="normal">1156</span>
-<span class="normal">1157</span>
-<span class="normal">1158</span>
-<span class="normal">1159</span>
-<span class="normal">1160</span>
-<span class="normal">1161</span>
-<span class="normal">1162</span>
-<span class="normal">1163</span>
-<span class="normal">1164</span>
-<span class="normal">1165</span>
-<span class="normal">1166</span>
-<span class="normal">1167</span>
-<span class="normal">1168</span>
-<span class="normal">1169</span>
-<span class="normal">1170</span>
-<span class="normal">1171</span>
-<span class="normal">1172</span>
-<span class="normal">1173</span>
-<span class="normal">1174</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">decode</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">z</span><span class="p">:</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">return_dict</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Union</span><span class="p">[</span><span class="n">DecoderOutput</span><span class="p">,</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">]:</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1227</span>
+<span class="normal">1228</span>
+<span class="normal">1229</span>
+<span class="normal">1230</span>
+<span class="normal">1231</span>
+<span class="normal">1232</span>
+<span class="normal">1233</span>
+<span class="normal">1234</span>
+<span class="normal">1235</span>
+<span class="normal">1236</span>
+<span class="normal">1237</span>
+<span class="normal">1238</span>
+<span class="normal">1239</span>
+<span class="normal">1240</span>
+<span class="normal">1241</span>
+<span class="normal">1242</span>
+<span class="normal">1243</span>
+<span class="normal">1244</span>
+<span class="normal">1245</span>
+<span class="normal">1246</span>
+<span class="normal">1247</span>
+<span class="normal">1248</span>
+<span class="normal">1249</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">decode</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">z</span><span class="p">:</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">return_dict</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Union</span><span class="p">[</span><span class="n">DecoderOutput</span><span class="p">,</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">]:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Decode a batch of images.</span>
 
@@ -7154,7 +7158,7 @@ returned.</p>
 <span class="sd">            returned.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">use_slicing</span> <span class="ow">and</span> <span class="n">z</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
-        <span class="n">decoded_slices</span> <span class="o">=</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">_decode</span><span class="p">(</span><span class="n">z_slice</span><span class="p">)</span><span class="o">.</span><span class="n">sample</span> <span class="k">for</span> <span class="n">z_slice</span> <span class="ow">in</span> <span class="n">z</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="mi">1</span><span class="p">)]</span>
+        <span class="n">decoded_slices</span> <span class="o">=</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">_decode</span><span class="p">(</span><span class="n">z_slice</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span> <span class="k">for</span> <span class="n">z_slice</span> <span class="ow">in</span> <span class="n">z</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="mi">1</span><span class="p">)]</span>
         <span class="n">decoded</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">cat</span><span class="p">(</span><span class="n">decoded_slices</span><span class="p">)</span>
     <span class="k">else</span><span class="p">:</span>
         <span class="n">decoded</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_decode</span><span class="p">(</span><span class="n">z</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
@@ -7184,12 +7188,12 @@ decoding in one step.</p>
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/models/autoencoders/autoencoder_kl_cogvideox.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1066</span>
-<span class="normal">1067</span>
-<span class="normal">1068</span>
-<span class="normal">1069</span>
-<span class="normal">1070</span>
-<span class="normal">1071</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">disable_slicing</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1139</span>
+<span class="normal">1140</span>
+<span class="normal">1141</span>
+<span class="normal">1142</span>
+<span class="normal">1143</span>
+<span class="normal">1144</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">disable_slicing</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 <span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Disable sliced VAE decoding. If `enable_slicing` was previously enabled, this method will go back to computing</span>
 <span class="sd">    decoding in one step.</span>
@@ -7217,12 +7221,12 @@ decoding in one step.</p>
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/models/autoencoders/autoencoder_kl_cogvideox.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1052</span>
-<span class="normal">1053</span>
-<span class="normal">1054</span>
-<span class="normal">1055</span>
-<span class="normal">1056</span>
-<span class="normal">1057</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">disable_tiling</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1125</span>
+<span class="normal">1126</span>
+<span class="normal">1127</span>
+<span class="normal">1128</span>
+<span class="normal">1129</span>
+<span class="normal">1130</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">disable_tiling</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 <span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Disable tiled VAE decoding. If `enable_tiling` was previously enabled, this method will go back to computing</span>
 <span class="sd">    decoding in one step.</span>
@@ -7250,12 +7254,12 @@ compute decoding in several steps. This is useful to save some memory and allow 
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/models/autoencoders/autoencoder_kl_cogvideox.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1059</span>
-<span class="normal">1060</span>
-<span class="normal">1061</span>
-<span class="normal">1062</span>
-<span class="normal">1063</span>
-<span class="normal">1064</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">enable_slicing</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1132</span>
+<span class="normal">1133</span>
+<span class="normal">1134</span>
+<span class="normal">1135</span>
+<span class="normal">1136</span>
+<span class="normal">1137</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">enable_slicing</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 <span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Enable sliced VAE decoding. When this option is enabled, the VAE will split the input tensor in slices to</span>
 <span class="sd">    compute decoding in several steps. This is useful to save some memory and allow larger batch sizes.</span>
@@ -7372,41 +7376,41 @@ value might cause more tiles to be processed leading to slow down of the decodin
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/models/autoencoders/autoencoder_kl_cogvideox.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1016</span>
-<span class="normal">1017</span>
-<span class="normal">1018</span>
-<span class="normal">1019</span>
-<span class="normal">1020</span>
-<span class="normal">1021</span>
-<span class="normal">1022</span>
-<span class="normal">1023</span>
-<span class="normal">1024</span>
-<span class="normal">1025</span>
-<span class="normal">1026</span>
-<span class="normal">1027</span>
-<span class="normal">1028</span>
-<span class="normal">1029</span>
-<span class="normal">1030</span>
-<span class="normal">1031</span>
-<span class="normal">1032</span>
-<span class="normal">1033</span>
-<span class="normal">1034</span>
-<span class="normal">1035</span>
-<span class="normal">1036</span>
-<span class="normal">1037</span>
-<span class="normal">1038</span>
-<span class="normal">1039</span>
-<span class="normal">1040</span>
-<span class="normal">1041</span>
-<span class="normal">1042</span>
-<span class="normal">1043</span>
-<span class="normal">1044</span>
-<span class="normal">1045</span>
-<span class="normal">1046</span>
-<span class="normal">1047</span>
-<span class="normal">1048</span>
-<span class="normal">1049</span>
-<span class="normal">1050</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">enable_tiling</span><span class="p">(</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1089</span>
+<span class="normal">1090</span>
+<span class="normal">1091</span>
+<span class="normal">1092</span>
+<span class="normal">1093</span>
+<span class="normal">1094</span>
+<span class="normal">1095</span>
+<span class="normal">1096</span>
+<span class="normal">1097</span>
+<span class="normal">1098</span>
+<span class="normal">1099</span>
+<span class="normal">1100</span>
+<span class="normal">1101</span>
+<span class="normal">1102</span>
+<span class="normal">1103</span>
+<span class="normal">1104</span>
+<span class="normal">1105</span>
+<span class="normal">1106</span>
+<span class="normal">1107</span>
+<span class="normal">1108</span>
+<span class="normal">1109</span>
+<span class="normal">1110</span>
+<span class="normal">1111</span>
+<span class="normal">1112</span>
+<span class="normal">1113</span>
+<span class="normal">1114</span>
+<span class="normal">1115</span>
+<span class="normal">1116</span>
+<span class="normal">1117</span>
+<span class="normal">1118</span>
+<span class="normal">1119</span>
+<span class="normal">1120</span>
+<span class="normal">1121</span>
+<span class="normal">1122</span>
+<span class="normal">1123</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">enable_tiling</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">tile_sample_min_height</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="n">tile_sample_min_width</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
@@ -7542,32 +7546,32 @@ value might cause more tiles to be processed leading to slow down of the decodin
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/models/autoencoders/autoencoder_kl_cogvideox.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1098</span>
-<span class="normal">1099</span>
-<span class="normal">1100</span>
-<span class="normal">1101</span>
-<span class="normal">1102</span>
-<span class="normal">1103</span>
-<span class="normal">1104</span>
-<span class="normal">1105</span>
-<span class="normal">1106</span>
-<span class="normal">1107</span>
-<span class="normal">1108</span>
-<span class="normal">1109</span>
-<span class="normal">1110</span>
-<span class="normal">1111</span>
-<span class="normal">1112</span>
-<span class="normal">1113</span>
-<span class="normal">1114</span>
-<span class="normal">1115</span>
-<span class="normal">1116</span>
-<span class="normal">1117</span>
-<span class="normal">1118</span>
-<span class="normal">1119</span>
-<span class="normal">1120</span>
-<span class="normal">1121</span>
-<span class="normal">1122</span>
-<span class="normal">1123</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">encode</span><span class="p">(</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1172</span>
+<span class="normal">1173</span>
+<span class="normal">1174</span>
+<span class="normal">1175</span>
+<span class="normal">1176</span>
+<span class="normal">1177</span>
+<span class="normal">1178</span>
+<span class="normal">1179</span>
+<span class="normal">1180</span>
+<span class="normal">1181</span>
+<span class="normal">1182</span>
+<span class="normal">1183</span>
+<span class="normal">1184</span>
+<span class="normal">1185</span>
+<span class="normal">1186</span>
+<span class="normal">1187</span>
+<span class="normal">1188</span>
+<span class="normal">1189</span>
+<span class="normal">1190</span>
+<span class="normal">1191</span>
+<span class="normal">1192</span>
+<span class="normal">1193</span>
+<span class="normal">1194</span>
+<span class="normal">1195</span>
+<span class="normal">1196</span>
+<span class="normal">1197</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">encode</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">:</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">return_dict</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Union</span><span class="p">[</span><span class="n">AutoencoderKLOutput</span><span class="p">,</span> <span class="n">Tuple</span><span class="p">[</span><span class="n">DiagonalGaussianDistribution</span><span class="p">]]:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
@@ -7684,86 +7688,88 @@ returned.</p>
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/models/autoencoders/autoencoder_kl_cogvideox.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1263</span>
-<span class="normal">1264</span>
-<span class="normal">1265</span>
-<span class="normal">1266</span>
-<span class="normal">1267</span>
-<span class="normal">1268</span>
-<span class="normal">1269</span>
-<span class="normal">1270</span>
-<span class="normal">1271</span>
-<span class="normal">1272</span>
-<span class="normal">1273</span>
-<span class="normal">1274</span>
-<span class="normal">1275</span>
-<span class="normal">1276</span>
-<span class="normal">1277</span>
-<span class="normal">1278</span>
-<span class="normal">1279</span>
-<span class="normal">1280</span>
-<span class="normal">1281</span>
-<span class="normal">1282</span>
-<span class="normal">1283</span>
-<span class="normal">1284</span>
-<span class="normal">1285</span>
-<span class="normal">1286</span>
-<span class="normal">1287</span>
-<span class="normal">1288</span>
-<span class="normal">1289</span>
-<span class="normal">1290</span>
-<span class="normal">1291</span>
-<span class="normal">1292</span>
-<span class="normal">1293</span>
-<span class="normal">1294</span>
-<span class="normal">1295</span>
-<span class="normal">1296</span>
-<span class="normal">1297</span>
-<span class="normal">1298</span>
-<span class="normal">1299</span>
-<span class="normal">1300</span>
-<span class="normal">1301</span>
-<span class="normal">1302</span>
-<span class="normal">1303</span>
-<span class="normal">1304</span>
-<span class="normal">1305</span>
-<span class="normal">1306</span>
-<span class="normal">1307</span>
-<span class="normal">1308</span>
-<span class="normal">1309</span>
-<span class="normal">1310</span>
-<span class="normal">1311</span>
-<span class="normal">1312</span>
-<span class="normal">1313</span>
-<span class="normal">1314</span>
-<span class="normal">1315</span>
-<span class="normal">1316</span>
-<span class="normal">1317</span>
-<span class="normal">1318</span>
-<span class="normal">1319</span>
-<span class="normal">1320</span>
-<span class="normal">1321</span>
-<span class="normal">1322</span>
-<span class="normal">1323</span>
-<span class="normal">1324</span>
-<span class="normal">1325</span>
-<span class="normal">1326</span>
-<span class="normal">1327</span>
-<span class="normal">1328</span>
-<span class="normal">1329</span>
-<span class="normal">1330</span>
-<span class="normal">1331</span>
-<span class="normal">1332</span>
-<span class="normal">1333</span>
-<span class="normal">1334</span>
-<span class="normal">1335</span>
-<span class="normal">1336</span>
-<span class="normal">1337</span>
-<span class="normal">1338</span>
-<span class="normal">1339</span>
-<span class="normal">1340</span>
-<span class="normal">1341</span>
-<span class="normal">1342</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">tiled_decode</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">z</span><span class="p">:</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">return_dict</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Union</span><span class="p">[</span><span class="n">DecoderOutput</span><span class="p">,</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">]:</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1341</span>
+<span class="normal">1342</span>
+<span class="normal">1343</span>
+<span class="normal">1344</span>
+<span class="normal">1345</span>
+<span class="normal">1346</span>
+<span class="normal">1347</span>
+<span class="normal">1348</span>
+<span class="normal">1349</span>
+<span class="normal">1350</span>
+<span class="normal">1351</span>
+<span class="normal">1352</span>
+<span class="normal">1353</span>
+<span class="normal">1354</span>
+<span class="normal">1355</span>
+<span class="normal">1356</span>
+<span class="normal">1357</span>
+<span class="normal">1358</span>
+<span class="normal">1359</span>
+<span class="normal">1360</span>
+<span class="normal">1361</span>
+<span class="normal">1362</span>
+<span class="normal">1363</span>
+<span class="normal">1364</span>
+<span class="normal">1365</span>
+<span class="normal">1366</span>
+<span class="normal">1367</span>
+<span class="normal">1368</span>
+<span class="normal">1369</span>
+<span class="normal">1370</span>
+<span class="normal">1371</span>
+<span class="normal">1372</span>
+<span class="normal">1373</span>
+<span class="normal">1374</span>
+<span class="normal">1375</span>
+<span class="normal">1376</span>
+<span class="normal">1377</span>
+<span class="normal">1378</span>
+<span class="normal">1379</span>
+<span class="normal">1380</span>
+<span class="normal">1381</span>
+<span class="normal">1382</span>
+<span class="normal">1383</span>
+<span class="normal">1384</span>
+<span class="normal">1385</span>
+<span class="normal">1386</span>
+<span class="normal">1387</span>
+<span class="normal">1388</span>
+<span class="normal">1389</span>
+<span class="normal">1390</span>
+<span class="normal">1391</span>
+<span class="normal">1392</span>
+<span class="normal">1393</span>
+<span class="normal">1394</span>
+<span class="normal">1395</span>
+<span class="normal">1396</span>
+<span class="normal">1397</span>
+<span class="normal">1398</span>
+<span class="normal">1399</span>
+<span class="normal">1400</span>
+<span class="normal">1401</span>
+<span class="normal">1402</span>
+<span class="normal">1403</span>
+<span class="normal">1404</span>
+<span class="normal">1405</span>
+<span class="normal">1406</span>
+<span class="normal">1407</span>
+<span class="normal">1408</span>
+<span class="normal">1409</span>
+<span class="normal">1410</span>
+<span class="normal">1411</span>
+<span class="normal">1412</span>
+<span class="normal">1413</span>
+<span class="normal">1414</span>
+<span class="normal">1415</span>
+<span class="normal">1416</span>
+<span class="normal">1417</span>
+<span class="normal">1418</span>
+<span class="normal">1419</span>
+<span class="normal">1420</span>
+<span class="normal">1421</span>
+<span class="normal">1422</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">tiled_decode</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">z</span><span class="p">:</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">return_dict</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Union</span><span class="p">[</span><span class="n">DecoderOutput</span><span class="p">,</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">]:</span>
 <span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Decode a batch of images using a tiled decoder.</span>
 
@@ -7803,8 +7809,10 @@ returned.</p>
     <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">height</span><span class="p">,</span> <span class="n">overlap_height</span><span class="p">):</span>
         <span class="n">row</span> <span class="o">=</span> <span class="p">[]</span>
         <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">width</span><span class="p">,</span> <span class="n">overlap_width</span><span class="p">):</span>
-            <span class="n">num_batches</span> <span class="o">=</span> <span class="n">num_frames</span> <span class="o">//</span> <span class="n">frame_batch_size</span>
+            <span class="n">num_batches</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="n">num_frames</span> <span class="o">//</span> <span class="n">frame_batch_size</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+            <span class="n">conv_cache</span> <span class="o">=</span> <span class="kc">None</span>
             <span class="n">time</span> <span class="o">=</span> <span class="p">[]</span>
+
             <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">num_batches</span><span class="p">):</span>
                 <span class="n">remaining_frames</span> <span class="o">=</span> <span class="n">num_frames</span> <span class="o">%</span> <span class="n">frame_batch_size</span>
                 <span class="n">start_frame</span> <span class="o">=</span> <span class="n">frame_batch_size</span> <span class="o">*</span> <span class="n">k</span> <span class="o">+</span> <span class="p">(</span><span class="mi">0</span> <span class="k">if</span> <span class="n">k</span> <span class="o">==</span> <span class="mi">0</span> <span class="k">else</span> <span class="n">remaining_frames</span><span class="p">)</span>
@@ -7818,9 +7826,9 @@ returned.</p>
                 <span class="p">]</span>
                 <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">post_quant_conv</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
                     <span class="n">tile</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">post_quant_conv</span><span class="p">(</span><span class="n">tile</span><span class="p">)</span>
-                <span class="n">tile</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">decoder</span><span class="p">(</span><span class="n">tile</span><span class="p">)</span>
+                <span class="n">tile</span><span class="p">,</span> <span class="n">conv_cache</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">decoder</span><span class="p">(</span><span class="n">tile</span><span class="p">,</span> <span class="n">conv_cache</span><span class="o">=</span><span class="n">conv_cache</span><span class="p">)</span>
                 <span class="n">time</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">tile</span><span class="p">)</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">_clear_fake_context_parallel_cache</span><span class="p">()</span>
+
             <span class="n">row</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">ops</span><span class="o">.</span><span class="n">cat</span><span class="p">(</span><span class="n">time</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">2</span><span class="p">))</span>
         <span class="n">rows</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">row</span><span class="p">)</span>
 
@@ -7920,76 +7928,79 @@ The latent representation of the encoded videos.</p>
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/models/autoencoders/autoencoder_kl_cogvideox.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1192</span>
-<span class="normal">1193</span>
-<span class="normal">1194</span>
-<span class="normal">1195</span>
-<span class="normal">1196</span>
-<span class="normal">1197</span>
-<span class="normal">1198</span>
-<span class="normal">1199</span>
-<span class="normal">1200</span>
-<span class="normal">1201</span>
-<span class="normal">1202</span>
-<span class="normal">1203</span>
-<span class="normal">1204</span>
-<span class="normal">1205</span>
-<span class="normal">1206</span>
-<span class="normal">1207</span>
-<span class="normal">1208</span>
-<span class="normal">1209</span>
-<span class="normal">1210</span>
-<span class="normal">1211</span>
-<span class="normal">1212</span>
-<span class="normal">1213</span>
-<span class="normal">1214</span>
-<span class="normal">1215</span>
-<span class="normal">1216</span>
-<span class="normal">1217</span>
-<span class="normal">1218</span>
-<span class="normal">1219</span>
-<span class="normal">1220</span>
-<span class="normal">1221</span>
-<span class="normal">1222</span>
-<span class="normal">1223</span>
-<span class="normal">1224</span>
-<span class="normal">1225</span>
-<span class="normal">1226</span>
-<span class="normal">1227</span>
-<span class="normal">1228</span>
-<span class="normal">1229</span>
-<span class="normal">1230</span>
-<span class="normal">1231</span>
-<span class="normal">1232</span>
-<span class="normal">1233</span>
-<span class="normal">1234</span>
-<span class="normal">1235</span>
-<span class="normal">1236</span>
-<span class="normal">1237</span>
-<span class="normal">1238</span>
-<span class="normal">1239</span>
-<span class="normal">1240</span>
-<span class="normal">1241</span>
-<span class="normal">1242</span>
-<span class="normal">1243</span>
-<span class="normal">1244</span>
-<span class="normal">1245</span>
-<span class="normal">1246</span>
-<span class="normal">1247</span>
-<span class="normal">1248</span>
-<span class="normal">1249</span>
-<span class="normal">1250</span>
-<span class="normal">1251</span>
-<span class="normal">1252</span>
-<span class="normal">1253</span>
-<span class="normal">1254</span>
-<span class="normal">1255</span>
-<span class="normal">1256</span>
-<span class="normal">1257</span>
-<span class="normal">1258</span>
-<span class="normal">1259</span>
-<span class="normal">1260</span>
-<span class="normal">1261</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">tiled_encode</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">:</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1267</span>
+<span class="normal">1268</span>
+<span class="normal">1269</span>
+<span class="normal">1270</span>
+<span class="normal">1271</span>
+<span class="normal">1272</span>
+<span class="normal">1273</span>
+<span class="normal">1274</span>
+<span class="normal">1275</span>
+<span class="normal">1276</span>
+<span class="normal">1277</span>
+<span class="normal">1278</span>
+<span class="normal">1279</span>
+<span class="normal">1280</span>
+<span class="normal">1281</span>
+<span class="normal">1282</span>
+<span class="normal">1283</span>
+<span class="normal">1284</span>
+<span class="normal">1285</span>
+<span class="normal">1286</span>
+<span class="normal">1287</span>
+<span class="normal">1288</span>
+<span class="normal">1289</span>
+<span class="normal">1290</span>
+<span class="normal">1291</span>
+<span class="normal">1292</span>
+<span class="normal">1293</span>
+<span class="normal">1294</span>
+<span class="normal">1295</span>
+<span class="normal">1296</span>
+<span class="normal">1297</span>
+<span class="normal">1298</span>
+<span class="normal">1299</span>
+<span class="normal">1300</span>
+<span class="normal">1301</span>
+<span class="normal">1302</span>
+<span class="normal">1303</span>
+<span class="normal">1304</span>
+<span class="normal">1305</span>
+<span class="normal">1306</span>
+<span class="normal">1307</span>
+<span class="normal">1308</span>
+<span class="normal">1309</span>
+<span class="normal">1310</span>
+<span class="normal">1311</span>
+<span class="normal">1312</span>
+<span class="normal">1313</span>
+<span class="normal">1314</span>
+<span class="normal">1315</span>
+<span class="normal">1316</span>
+<span class="normal">1317</span>
+<span class="normal">1318</span>
+<span class="normal">1319</span>
+<span class="normal">1320</span>
+<span class="normal">1321</span>
+<span class="normal">1322</span>
+<span class="normal">1323</span>
+<span class="normal">1324</span>
+<span class="normal">1325</span>
+<span class="normal">1326</span>
+<span class="normal">1327</span>
+<span class="normal">1328</span>
+<span class="normal">1329</span>
+<span class="normal">1330</span>
+<span class="normal">1331</span>
+<span class="normal">1332</span>
+<span class="normal">1333</span>
+<span class="normal">1334</span>
+<span class="normal">1335</span>
+<span class="normal">1336</span>
+<span class="normal">1337</span>
+<span class="normal">1338</span>
+<span class="normal">1339</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">tiled_encode</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">:</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
 <span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;Encode a batch of images using a tiled encoder.</span>
 
 <span class="sd">    When this option is enabled, the VAE will split the input tensor into tiles to compute encoding in several</span>
@@ -8023,8 +8034,11 @@ The latent representation of the encoded videos.</p>
         <span class="n">row</span> <span class="o">=</span> <span class="p">[]</span>
         <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">width</span><span class="p">,</span> <span class="n">overlap_width</span><span class="p">):</span>
             <span class="c1"># Note: We expect the number of frames to be either `1` or `frame_batch_size * k` or `frame_batch_size * k + 1` for some k.</span>
-            <span class="n">num_batches</span> <span class="o">=</span> <span class="n">num_frames</span> <span class="o">//</span> <span class="n">frame_batch_size</span> <span class="k">if</span> <span class="n">num_frames</span> <span class="o">&gt;</span> <span class="mi">1</span> <span class="k">else</span> <span class="mi">1</span>
+            <span class="c1"># As the extra single frame is handled inside the loop, it is not required to round up here.</span>
+            <span class="n">num_batches</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="n">num_frames</span> <span class="o">//</span> <span class="n">frame_batch_size</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+            <span class="n">conv_cache</span> <span class="o">=</span> <span class="kc">None</span>
             <span class="n">time</span> <span class="o">=</span> <span class="p">[]</span>
+
             <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">num_batches</span><span class="p">):</span>
                 <span class="n">remaining_frames</span> <span class="o">=</span> <span class="n">num_frames</span> <span class="o">%</span> <span class="n">frame_batch_size</span>
                 <span class="n">start_frame</span> <span class="o">=</span> <span class="n">frame_batch_size</span> <span class="o">*</span> <span class="n">k</span> <span class="o">+</span> <span class="p">(</span><span class="mi">0</span> <span class="k">if</span> <span class="n">k</span> <span class="o">==</span> <span class="mi">0</span> <span class="k">else</span> <span class="n">remaining_frames</span><span class="p">)</span>
@@ -8036,11 +8050,11 @@ The latent representation of the encoded videos.</p>
                     <span class="n">i</span> <span class="p">:</span> <span class="n">i</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">tile_sample_min_height</span><span class="p">,</span>
                     <span class="n">j</span> <span class="p">:</span> <span class="n">j</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">tile_sample_min_width</span><span class="p">,</span>
                 <span class="p">]</span>
-                <span class="n">tile</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">encoder</span><span class="p">(</span><span class="n">tile</span><span class="p">)</span>
+                <span class="n">tile</span><span class="p">,</span> <span class="n">conv_cache</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">encoder</span><span class="p">(</span><span class="n">tile</span><span class="p">,</span> <span class="n">conv_cache</span><span class="o">=</span><span class="n">conv_cache</span><span class="p">)</span>
                 <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">quant_conv</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
                     <span class="n">tile</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">quant_conv</span><span class="p">(</span><span class="n">tile</span><span class="p">)</span>
                 <span class="n">time</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">tile</span><span class="p">)</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">_clear_fake_context_parallel_cache</span><span class="p">()</span>
+
             <span class="n">row</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">ops</span><span class="o">.</span><span class="n">cat</span><span class="p">(</span><span class="n">time</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">2</span><span class="p">))</span>
         <span class="n">rows</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">row</span><span class="p">)</span>
 
