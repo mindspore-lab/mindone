@@ -6,16 +6,16 @@ def extract(ckpt_path, mm_double_blocks_depth=None, mm_single_blocks_depth=None)
     sd = state_dict[load_key]
     pnames = list(sd.keys())
 
-    extract_ckpt = mm_double_blocks_depth is not None mm_single_blocks_depth is not None
+    extract_ckpt = (mm_double_blocks_depth is not None) and  (mm_single_blocks_depth is not None)
     for pname in pnames:
-        print(pname, tuple(sd[pname].shape), sd[pname].dtype)
-        
-        if extract_ckpt: 
+        print("{}\t{}\t{}".format(pname, tuple(sd[pname].shape), sd[pname].dtype))
+
+        if extract_ckpt:
             if pname.startswith('double_blocks'):
                 idx = int(pname.split('.')[1])
                 if idx >= mm_double_blocks_depth:
                     sd.pop(pname)
-             if pname.startswith('single_blocks'):
+            if pname.startswith('single_blocks'):
                 idx = int(pname.split('.')[1])
                 if idx >= mm_single_blocks_depth:
                     sd.pop(pname)
@@ -24,5 +24,6 @@ def extract(ckpt_path, mm_double_blocks_depth=None, mm_single_blocks_depth=None)
         torch.save(state_dict, 'ckpts/dit_small.pt')
 
 if __name__ == '__main__':
-    extract() 
+    # extract("/Users/Samit/Downloads/mp_rank_00_model_states.pt", 1, 1)
+    extract("ckpts/dit_small.pt")
 

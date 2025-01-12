@@ -5,12 +5,15 @@ import mindspore as ms
 from mindspore import amp
 import torch
 from easydict import EasyDict as edict
+import time
 
 sys.path.insert(0, ".")
 
 from hyvideo.modules.models import MMDoubleStreamBlock, MMSingleStreamBlock, HYVideoDiffusionTransformer, HUNYUAN_VIDEO_CONFIG
 from hyvideo.modules.attention import VanillaAttention
 from hyvideo.modules.token_refiner import SingleTokenRefiner
+from hyvideo.utils.helpers import set_model_param_dtype
+
 
 
 np.random.seed(42)
@@ -160,8 +163,21 @@ def test_token_refiner(pt_fp=None):
         print(diff)
 
 
-def test_hyvtransformer(pt_fp=None, debug=True):
+def test_hyvtransformer(pt_fp=None, debug=True, dtype=ms.float16):
+    # args
     args = edict()
+    DEBUG_CONFIG = {
+        "HYVideo-T/2": {
+            "mm_double_blocks_depth": 1,
+            "mm_single_blocks_depth": 1,
+            "rope_dim_list": [4, 14, 14], # [16, 56, 56], list sum = head_dim = pe_dim
+            "hidden_size":  6 * 32,
+            "heads_num": 6,
+            "mlp_width_ratio": 1,
+        },
+    }
+    model_cfg = DEBUG_CONFIG if debug else HUNYUAN_VIDEO_CONFIG
+    args.model = 'HYVideo-T/2'
     if debug:
         args.text_states_dim = 64
         args.text_states_dim_2 = 24
@@ -171,16 +187,18 @@ def test_hyvtransformer(pt_fp=None, debug=True):
         args.text_states_dim_2 = 768
         in_channels = 16
 
-    token_shape = (bs, max_text_len, llm_emb_dim) = 1, 32, args.text_states_dim 
+    # shape
+    token_shape = (bs, max_text_len, llm_emb_dim) = 1, 32, args.text_states_dim
     latent_shape = (bs, C, T, H, W) = (bs, in_channels, 5, 8, 8)
     clip_txt_len, clip_emb_dim = 18, args.text_states_dim_2
     patch_size = 2
     S_vid = T * (H//patch_size) * (W//patch_size)
-    num_heads = 6
-    hidden_size = 6*32
+    num_heads = model_cfg[args.model]["heads_num"]
+    hidden_size = model_cfg[args.model]["hidden_size"]
     pe_dim = head_dim = hidden_size // num_heads
     freqs_cos_shape = (S_vid, head_dim)
 
+    # np
     video_latent = np.random.normal(size=latent_shape).astype(np.float32)
     t = np.array([1000. for _ in range(bs)], dtype=np.float32)
     text_states = np.random.normal(size=token_shape).astype(np.float32)
@@ -191,6 +209,7 @@ def test_hyvtransformer(pt_fp=None, debug=True):
     guidance = np.array([7.0*1000 for _ in range(bs)], dtype=np.float32)
     text_mask[0, :4] = 1
 
+    # tensor
     video_latent = ms.Tensor(video_latent)
     t = ms.Tensor(t)
     text_states = ms.Tensor(text_states)
@@ -201,25 +220,7 @@ def test_hyvtransformer(pt_fp=None, debug=True):
     guidance = ms.Tensor(guidance)
 
     # model
-    args.model = 'HYVideo-T/2'
-    dtype = ms.float32
     factor_kwargs = {'dtype': dtype}
-
-    DEBUG_CONFIG = {
-        "HYVideo-T/2": {
-            "mm_double_blocks_depth": 1,
-            "mm_single_blocks_depth": 1,
-            "rope_dim_list": [4, 14, 14], # [16, 56, 56], list sum = head_dim = pe_dim
-            "hidden_size":  hidden_size,
-            "heads_num": num_heads,
-            "mlp_width_ratio": 1,
-        },
-    }
-    if debug:
-        model_cfg = DEBUG_CONFIG
-    else:
-        model_cfg = HUNYUAN_VIDEO_CONFIG
-
     net = HYVideoDiffusionTransformer(
             args,
             in_channels=C,
@@ -227,25 +228,31 @@ def test_hyvtransformer(pt_fp=None, debug=True):
             **model_cfg[args.model],
             **factor_kwargs,
         )
+    if dtype != ms.float32:
+        set_model_param_dtype(net, dtype=dtype)
+
     if not debug and pt_fp:
         net.load_from_checkpoint(pt_fp)
 
     if dtype != ms.float32:
-        amp.auto_mixed_precision(net, amp_level='O2', dtype=ms.bfloat16)
+        amp.auto_mixed_precision(net, amp_level='O2', dtype=dtype)
 
     # run
+    start = time.time()
     out = net(video_latent, t, text_states, text_mask, text_states_2, freqs_cos, freqs_sin, guidance)
+    print('time cost: ', time.time() - start)
 
     print(out.shape)
     print(out.mean(), out.std())
 
 
 if __name__ == "__main__":
-    # ms.set_context(mode=1)
-    ms.set_context(mode=0, jit_syntax_level=ms.STRICT)
+    ms.set_context(mode=1)
+    # ms.set_context(mode=0, jit_syntax_level=ms.STRICT)
     # test_attn()
     # test_dualstream_block()
     # test_singlestream_block('tests/pt_single_stream.npy')
     # test_token_refiner('tests/pt_token_refiner.npy')
-    test_hyvtransformer(debug=False, pt_fp='ckpts/HunyuanVideo/hunyuan-video-t2v-720p/transformers/mp_rank_00_model_states.pt')
+    test_hyvtransformer(dtype=ms.float16)
+    # test_hyvtransformer(debug=False, pt_fp='ckpts/HunyuanVideo/hunyuan-video-t2v-720p/transformers/mp_rank_00_model_states.pt')
 

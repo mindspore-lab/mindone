@@ -1,6 +1,6 @@
 import collections.abc
-
 from itertools import repeat
+import mindspore as ms
 
 
 def _ntuple(n):
@@ -38,3 +38,26 @@ def as_list_of_2tuple(x):
     for i in range(0, len(x), 2):
         lst.append((x[i], x[i + 1]))
     return lst
+
+
+def set_model_param_dtype(model, dtype=ms.bfloat16, keep_norm_fp32=False):
+    if model is not None:
+        assert isinstance(model, ms.nn.Cell)
+
+        k_num, c_num = 0, 0
+        for _, p in model.parameters_and_names():
+            # filter norm/embedding position_ids param
+            if keep_norm_fp32 and ("norm" in p.name):
+                # print(f"param {p.name} keep {p.dtype}") # disable print
+                k_num += 1
+            elif "position_ids" in p.name:
+                k_num += 1
+            else:
+                c_num += 1
+                p.set_dtype(dtype)
+
+        print(f"Convert `{type(model).__name__}` param to {dtype}, keep/modify num {k_num}/{c_num}.")
+
+    return model
+
+

@@ -37,6 +37,7 @@ class PatchEmbed(nn.Cell):
                 has_bias=bias,
                 pad_mode='valid',
                 bias_init='zeros',
+                **factory_kwargs,
             )
         else:
             self.proj = nn.Conv3d(
@@ -47,6 +48,7 @@ class PatchEmbed(nn.Cell):
                 has_bias=bias,
                 pad_mode='valid',
                 bias_init='zeros',
+                **factory_kwargs,
             )
         # nn.init.xavier_uniform_(self.proj.weight.view(self.proj.weight.size(0), -1))
         # nn.init.zeros_(self.proj.bias)
