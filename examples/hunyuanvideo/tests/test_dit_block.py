@@ -63,6 +63,22 @@ def _convert_ckpt(pt_ckpt, rename_norm=False):
     return save_fn
 
 
+def load_pt_checkpoint(model, ckpt_path, dtype=ms.float32, load_key='model_state_dict'):
+    '''
+    model param dtype
+    '''
+    import torch
+    state_dict = torch.load(ckpt_path)
+    sd = state_dict[load_key]
+    parameter_dict = dict()
+
+    for pname in sd:
+        np_val = sd[pname].cpu().detach().float().numpy()
+        parameter_dict[pname] = ms.Parameter(ms.Tensor(np_val, dtype=dtype))
+
+    param_not_load, ckpt_not_load = ms.load_param_into_net(model, parameter_dict, strict_load=True)
+    print('param not load: ', param_not_load)
+    print('ckpt not load: ', ckpt_not_load)
 
 
 def test_attn():
@@ -79,7 +95,7 @@ def test_attn():
     # print(out.shape)
 
 
-def test_dualstream_block():
+def test_dualstream_block(pt_ckpt=None, pt_np=None):
     img = ms.Tensor(img_)
     txt = ms.Tensor(txt_)
     vec = ms.Tensor(vec_)
@@ -94,16 +110,26 @@ def test_dualstream_block():
         mlp_width_ratio=1,
         qkv_bias=True,
     )
+    if pt_ckpt:
+        load_pt_checkpoint(block, pt_ckpt)
 
     img_out, txt_out = block(img, txt, vec, freqs_cis=freqs_cis)
     # out = block(img, txt, vec, freqs_cis_cos=freqs_cis_cos, freqs_cis_sin=freqs_cis_sin)
     print(img_out.shape)
-    print(img_out.mean(), img_out.std())  # -0.00013358534 1.0066756 for fp32
+    print(img_out.mean(), img_out.std())
     print(txt.shape)
     print(txt_out.mean(), txt_out.std())
 
+    if pt_np:
+        pt_dict = np.load(pt_np)
+        pt_img_out, pt_txt_out = pt_dict['img_out'], pt_dict['txt_out']
+        img_diff = _diff_res(img_out.asnumpy(), pt_img_out)
+        txt_diff = _diff_res(txt_out.asnumpy(), pt_txt_out)
+        print('img diff: ', img_diff)
+        print('txt diff: ', txt_diff)
 
-def test_singlestream_block(pt_fp: str=None):
+
+def test_singlestream_block(pt_ckpt: str=None, pt_np: str=None):
     img = ms.Tensor(img_)
     txt = ms.Tensor(txt_)
     x = ms.ops.concat([img, txt], 1)
@@ -116,19 +142,22 @@ def test_singlestream_block(pt_fp: str=None):
         heads_num=N,
         mlp_width_ratio=1,
     )
+    # load ckpt
+    if pt_ckpt:
+        load_pt_checkpoint(block, pt_ckpt)
 
     out = block(x, vec, L_txt, freqs_cis=freqs_cis)
 
     print(out.shape)
     print(out.mean(), out.std())
 
-    if pt_fp:
-        pt_out = np.load(pt_fp)
+    if pt_np:
+        pt_out = np.load(pt_np)
         diff = _diff_res(out.asnumpy(), pt_out)
         print(diff)
 
 
-def test_token_refiner(pt_fp=None):
+def test_token_refiner(pt_ckpt=None, pt_np=None):
     token_shape = (bs, max_text_len, emb_dim) = 1, 32, 64
     x = np.random.normal(size=token_shape).astype(np.float32)
     t = np.array([1000. for _ in range(bs)], dtype=np.float32)
@@ -146,24 +175,20 @@ def test_token_refiner(pt_fp=None):
         depth=1,
         mlp_width_ratio=1,
     )
-
-    ckpt = _convert_ckpt(f"tests/token_refiner.pth")
-    sd = ms.load_checkpoint(ckpt)
-    m, u = ms.load_param_into_net(block, sd)
-    print("net param not loaded: ", m)
-    print("ckpt param not loaded: ", u)
+    if pt_ckpt:
+        load_pt_checkpoint(block, pt_ckpt)
 
     out = block(x, t, mask)
     print(out.shape)
     print(out.mean(), out.std())
 
-    if pt_fp:
-        pt_out = np.load(pt_fp)
+    if pt_np:
+        pt_out = np.load(pt_np)
         diff = _diff_res(out.asnumpy(), pt_out)
         print(diff)
 
 
-def test_hyvtransformer(pt_fp=None, debug=True, dtype=ms.float16):
+def test_hyvtransformer(pt_ckpt=None, pt_np=None, debug=True, dtype=ms.float32):
     # args
     args = edict()
     DEBUG_CONFIG = {
@@ -231,8 +256,8 @@ def test_hyvtransformer(pt_fp=None, debug=True, dtype=ms.float16):
     if dtype != ms.float32:
         set_model_param_dtype(net, dtype=dtype)
 
-    if not debug and pt_fp:
-        net.load_from_checkpoint(pt_fp)
+    if pt_ckpt:
+        net.load_from_checkpoint(pt_ckpt)
 
     if dtype != ms.float32:
         amp.auto_mixed_precision(net, amp_level='O2', dtype=dtype)
@@ -245,14 +270,21 @@ def test_hyvtransformer(pt_fp=None, debug=True, dtype=ms.float16):
     print(out.shape)
     print(out.mean(), out.std())
 
+    if pt_np:
+        pt_out = np.load(pt_np)
+        diff = _diff_res(out.asnumpy(), pt_out)
+        print(diff)
+
 
 if __name__ == "__main__":
-    ms.set_context(mode=1)
-    # ms.set_context(mode=0, jit_syntax_level=ms.STRICT)
+    # ms.set_context(mode=1)
+    ms.set_context(mode=0, jit_syntax_level=ms.STRICT)
     # test_attn()
-    # test_dualstream_block()
-    # test_singlestream_block('tests/pt_single_stream.npy')
-    # test_token_refiner('tests/pt_token_refiner.npy')
-    test_hyvtransformer(dtype=ms.float16)
-    # test_hyvtransformer(debug=False, pt_fp='ckpts/HunyuanVideo/hunyuan-video-t2v-720p/transformers/mp_rank_00_model_states.pt')
+    # test_dualstream_block('tests/dual_stream.pth', 'tests/pt_dual_stream.npz')
+    # test_singlestream_block('tests/single_stream.pth', 'tests/pt_single_stream.npy')
+    # test_token_refiner('tests/token_refiner.pth', 'tests/pt_token_refiner.npy')
+    test_hyvtransformer('tests/dit_tiny.pt', 'tests/pt_hyvtransformer.npy')
+
+    # test_hyvtransformer(dtype=ms.float16)
+    # test_hyvtransformer(pt_fp='ckpts/HunyuanVideo/hunyuan-video-t2v-720p/transformers/mp_rank_00_model_states.pt', debug=False)
 

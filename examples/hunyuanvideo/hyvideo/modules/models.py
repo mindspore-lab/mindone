@@ -138,8 +138,11 @@ class MMDoubleStreamBlock(nn.Cell):
         max_seqlen_kv: Optional[int] = None,
         freqs_cis: tuple = None,
     ):
-        # img:
-        # txt:
+        '''
+        img: (B S_v HD), HD - hidden_size = (num_heads * head_dim)
+        txt: (B S_t HD)
+        vec: (B HD), projected representation of timestep and global text embed (from CLIP)
+        '''
         (
             img_mod1_shift,
             img_mod1_scale,
@@ -147,7 +150,7 @@ class MMDoubleStreamBlock(nn.Cell):
             img_mod2_shift,
             img_mod2_scale,
             img_mod2_gate,
-        ) = self.img_mod(vec).chunk(6, axis=-1)
+        ) = self.img_mod(vec).chunk(6, axis=-1) # shift, scale, gate are all zeros initially
         (
             txt_mod1_shift,
             txt_mod1_scale,
@@ -194,6 +197,7 @@ class MMDoubleStreamBlock(nn.Cell):
         txt_k = self.txt_attn_k_norm(txt_k) # .to(txt_v)
 
         # Run actual attention.
+        # input hidden states (B, S_v+S_t, H, D)
         q = ops.concat((img_q, txt_q), axis=1)
         k = ops.concat((img_k, txt_k), axis=1)
         v = ops.concat((img_v, txt_v), axis=1)
@@ -208,9 +212,11 @@ class MMDoubleStreamBlock(nn.Cell):
 
         # attention computation end
 
+        # output hidden states (B, S_v+S_t, H, D)
         img_attn, txt_attn = attn[:, : img.shape[1]], attn[:, img.shape[1] :]
 
         # Calculate the img bloks.
+        # residual connection with gate. img = img + img_attn_proj * gate, for simplicity
         img = img + apply_gate(self.img_attn_proj(img_attn), gate=img_mod1_gate)
         img = img + apply_gate(
             self.img_mlp(
@@ -590,7 +596,6 @@ class HYVideoDiffusionTransformer(nn.Cell):
             oh // self.patch_size[1],
             ow // self.patch_size[2],
         )
-
         # Prepare modulation vectors.
         vec = self.time_in(t)
 
@@ -639,7 +644,7 @@ class HYVideoDiffusionTransformer(nn.Cell):
                 # cu_seqlens_kv,
                 # max_seqlen_q,
                 # max_seqlen_kv,
-                freqs_cis,
+                freqs_cis=freqs_cis,
                 )
 
         # Merge txt and img to pass through single stream blocks.
@@ -654,7 +659,7 @@ class HYVideoDiffusionTransformer(nn.Cell):
                     # cu_seqlens_kv,
                     # max_seqlen_q,
                     # max_seqlen_kv,
-                    (freqs_cos, freqs_sin),
+                    freqs_cis=freqs_cis,
                     )
 
         # TODO: slicing replaced with
