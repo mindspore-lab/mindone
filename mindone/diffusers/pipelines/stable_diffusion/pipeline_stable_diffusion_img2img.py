@@ -1010,7 +1010,7 @@ class StableDiffusionImg2ImgPipeline(
         # 5. set timesteps
         timesteps, num_inference_steps = retrieve_timesteps(self.scheduler, num_inference_steps, timesteps, sigmas)
         timesteps, num_inference_steps = self.get_timesteps(num_inference_steps, strength)
-        latent_timestep = timesteps[:1].repeat(batch_size * num_images_per_prompt)
+        latent_timestep = timesteps[:1].tile((batch_size * num_images_per_prompt,))
 
         # 6. Prepare latent variables
         latents = self.prepare_latents(

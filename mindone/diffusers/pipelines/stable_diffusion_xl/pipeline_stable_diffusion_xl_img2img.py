@@ -1199,7 +1199,7 @@ class StableDiffusionXLImg2ImgPipeline(
             strength,
             denoising_start=self.denoising_start if denoising_value_valid(self.denoising_start) else None,
         )
-        latent_timestep = timesteps[:1].repeat(batch_size * num_images_per_prompt)
+        latent_timestep = timesteps[:1].tile((batch_size * num_images_per_prompt,))
 
         add_noise = True if self.denoising_start is None else False
 
