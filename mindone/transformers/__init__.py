@@ -37,6 +37,7 @@ from .models.gemma import (
     GemmaModel,
     GemmaPreTrainedModel,
 )
+from .models.gemma2 import Gemma2Model, Gemma2PreTrainedModel
 from .models.mt5 import (
     MT5_PRETRAINED_MODEL_ARCHIVE_LIST,
     MT5EncoderModel,
