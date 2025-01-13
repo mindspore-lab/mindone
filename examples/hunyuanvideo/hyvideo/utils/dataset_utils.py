@@ -1,6 +1,6 @@
 import csv
 import os
-import os.path as osp
+from pathlib import Path
 
 import decord
 import numpy as np
@@ -237,14 +237,23 @@ class VideoPairDataset:
 
     def combine_without_prefix(self, folder_path, prefix="."):
         folder = []
-        assert os.path.exists(folder_path), f"Expect that {folder_path} exist!"
-        for name in os.listdir(folder_path):
-            if name[0] == prefix or name.split(".")[1] == "txt":
-                continue
-            if osp.isfile(osp.join(folder_path, name)):
-                folder.append(osp.join(folder_path, name))
-        folder = sorted(folder, key=lambda x: os.path.basename(x))
-        return folder
+        try:
+            folder_path = Path(folder_path)
+            if not folder_path.exists():
+                raise FileNotFoundError(f"Expect that {folder_path} exist!")
+
+            for file_path in folder_path.rglob("*"):
+                if file_path.is_file() and not (file_path.name.startswith(prefix) or file_path.suffix == ".txt"):
+                    folder.append(str(file_path))
+
+            folder_with_basename = [(os.path.basename(path), path) for path in folder]
+            folder_sorted = [path for _, path in sorted(folder_with_basename)]
+
+            return folder_sorted
+
+        except Exception as e:
+            print(f"An error occurred: {e}")
+            return []
 
 
 def create_dataloader(
