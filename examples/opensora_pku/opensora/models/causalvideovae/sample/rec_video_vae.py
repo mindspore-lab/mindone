@@ -45,7 +45,7 @@ def main(args: argparse.Namespace):
     # ---- Prepare Dataset ----
     ds_config = dict(
         data_folder=real_video_dir,
-        size=(height, width),
+        size=max(height, width),  # SmallestMaxSize
         crop_size=crop_size,
         disable_flip=True,
         random_crop=False,
