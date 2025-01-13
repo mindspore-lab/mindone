@@ -119,7 +119,6 @@ class MMDoubleStreamBlock(nn.Cell):
             **factory_kwargs,
         )
 
-        print('2 attn_mode ', attn_mode)
         if attn_mode == 'vanilla':
             self.compute_attention = VanillaAttention(head_dim)
         elif attn_mode == 'flash':
@@ -311,7 +310,6 @@ class MMSingleStreamBlock(nn.Cell):
         )
         self.hybrid_seq_parallel_attn = None
 
-        print('3 attn_mode ', attn_mode)
         if attn_mode == 'vanilla':
             self.compute_attention = VanillaAttention(head_dim)
         elif attn_mode == 'flash':
@@ -465,6 +463,7 @@ class HYVideoDiffusionTransformer(nn.Cell):
         self.rope_dim_list = rope_dim_list
         self.use_conv2d_patchify = use_conv2d_patchify
         self.dtype = dtype
+        print('attn_mode: ', attn_mode)
 
         # Text projection. Default to linear projection.
         # Alternative: TokenRefiner. See more details (LI-DiT): http://arxiv.org/abs/2406.11831

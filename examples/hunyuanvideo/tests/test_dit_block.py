@@ -157,7 +157,7 @@ def test_singlestream_block(pt_ckpt: str=None, pt_np: str=None):
         print(diff)
 
 
-def test_token_refiner(pt_ckpt=None, pt_np=None):
+def test_token_refiner(pt_ckpt=None, pt_np=None, attn_mode='vanilla', dtype=ms.float32):
     token_shape = (bs, max_text_len, emb_dim) = 1, 32, 64
     x = np.random.normal(size=token_shape).astype(np.float32)
     t = np.array([1000. for _ in range(bs)], dtype=np.float32)
@@ -174,9 +174,13 @@ def test_token_refiner(pt_ckpt=None, pt_np=None):
         heads_num=8,
         depth=1,
         mlp_width_ratio=1,
+        attn_mode=attn_mode,
     )
     if pt_ckpt:
         load_pt_checkpoint(block, pt_ckpt)
+
+    if dtype != ms.float32:
+        amp.auto_mixed_precision(block, amp_level='O2', dtype=dtype)
 
     out = block(x, t, mask)
     print(out.shape)
@@ -192,22 +196,21 @@ def test_hyvtransformer(pt_ckpt=None, pt_np=None, debug=True, dtype=ms.float32, 
     # args
     args = edict()
     DEBUG_CONFIG = {
-        "HYVideo-T/2": {
+        "HYVideo-T/2-cfgdistill": {
             "mm_double_blocks_depth": 1,
             "mm_single_blocks_depth": 1,
             "rope_dim_list": [4, 14, 14], # [16, 56, 56], list sum = head_dim = pe_dim
             "hidden_size":  6 * 32,
             "heads_num": 6,
             "mlp_width_ratio": 1,
+            "guidance_embed": True,
         },
     }
     model_cfg = DEBUG_CONFIG if debug else HUNYUAN_VIDEO_CONFIG
-    args.model = 'HYVideo-T/2'
+    args.model = 'HYVideo-T/2-cfgdistill'
     if depth is not None:
         model_cfg[args.model]['mm_double_blocks_depth'] = depth
         model_cfg[args.model]['mm_single_blocks_depth'] = depth
-    # TODO: debug using guidance_embed
-    # model_cfg[args.model]['guidance_embed'] = True
 
     if debug:
         args.text_states_dim = 64
@@ -284,15 +287,16 @@ def test_hyvtransformer(pt_ckpt=None, pt_np=None, debug=True, dtype=ms.float32, 
 
 
 if __name__ == "__main__":
-    ms.set_context(mode=1)
+    ms.set_context(mode=0)
     # ms.set_context(mode=0, jit_syntax_level=ms.STRICT)
     # test_attn()
     # test_dualstream_block('tests/dual_stream.pth', 'tests/pt_dual_stream.npz')
     # test_singlestream_block('tests/single_stream.pth', 'tests/pt_single_stream.npy')
     # test_token_refiner('tests/token_refiner.pth', 'tests/pt_token_refiner.npy')
-    test_hyvtransformer('tests/dit_tiny.pt', 'tests/pt_hyvtransformer.npy')
+    test_token_refiner('tests/token_refiner.pth', 'tests/pt_token_refiner.npy', attn_mode='vanilla', dtype=ms.float16)
+    # test_hyvtransformer('tests/dit_tiny.pt', 'tests/pt_hyvtransformer.npy')
 
-    # test_hyvtransformer(dtype=ms.float16)
-    # test_hyvtransformer(pt_ckpt='ckpts/HunyuanVideo/hunyuan-video-t2v-720p/transformers/mp_rank_00_model_states.pt', dtype=ms.float32, debug=False)
+    # test_hyvtransformer()
+    # test_hyvtransformer(pt_ckpt='ckpts/HunyuanVideo/hunyuan-video-t2v-720p/transformers/mp_rank_00_model_states.pt', dtype=ms.bfloat16, debug=False)
     # test_hyvtransformer(pt_ckpt='ckpts/transformer_depth1.pt', pt_np='tests/pt_pretrained_hyvtransformer_ge.npy', dtype=ms.float32, debug=False, depth=1)
 

@@ -85,7 +85,6 @@ class IndividualTokenRefinerBlock(nn.Cell):
             nn.Dense(hidden_size, 2 * hidden_size, has_bias=True, weight_init='zeros', bias_init='zeros'),
         )
 
-        print('1 attn_mode ', attn_mode)
         if attn_mode == 'vanilla':
             self.compute_attention = VanillaAttention(head_dim)
         elif attn_mode == 'flash':
