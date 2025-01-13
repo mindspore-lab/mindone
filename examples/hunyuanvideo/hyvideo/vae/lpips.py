@@ -2,7 +2,6 @@ import logging
 import os
 
 import mindcv
-from hyvideo.utils.ms_utils import load_from_pretrained
 
 import mindspore as ms
 import mindspore.nn as nn
@@ -23,10 +22,6 @@ class LPIPS(nn.Cell):
         self.lin3 = NetLinLayer(self.chns[3], use_dropout=use_dropout)
         self.lin4 = NetLinLayer(self.chns[4], use_dropout=use_dropout)
         # load NetLin metric layers
-        self.load_lpips()
-
-        self.lins = [self.lin0, self.lin1, self.lin2, self.lin3, self.lin4]
-        self.lins = nn.CellList(self.lins)
 
         # create vision backbone and load pretrained weights
         self.net = vgg16(pretrained=True, requires_grad=False)
@@ -35,10 +30,21 @@ class LPIPS(nn.Cell):
         for param in self.trainable_params():
             param.requires_grad = False
 
-    def load_lpips(self, ckpt_path="models/lpips_vgg-426bf45c.ckpt"):
+    def load_from_pretrained(self, ckpt_path):
+        # TODO: just load ms ckpt
         if not os.path.exists(ckpt_path):
-            ckpt_path = "https://download-mindspore.osinfra.cn/toolkits/mindone/autoencoders/lpips_vgg-426bf45c.ckpt"
-            load_from_pretrained(self, ckpt_path)
+            raise ValueError(
+                f"{ckpt_path} not exists. Please download it from https://download-mindspore.osinfra.cn/toolkits/mindone/autoencoders/lpips_vgg-426bf45c.ckpt"
+            )
+
+        state_dict = ms.load_checkpoint(ckpt_path)
+        m, u = ms.load_param_into_net(self, state_dict)
+        if len(m) > 0:
+            print("missing keys:")
+            print(m)
+        if len(u) > 0:
+            print("unexpected keys:")
+            print(u)
 
         _logger.info("loaded pretrained LPIPS loss from {}".format(ckpt_path))
 
@@ -46,11 +52,12 @@ class LPIPS(nn.Cell):
         in0_input, in1_input = (self.scaling_layer(input), self.scaling_layer(target))
         outs0, outs1 = self.net(in0_input), self.net(in1_input)
         val = 0  # ms.Tensor(0, dtype=input.dtype)
+        lins = [self.lin0, self.lin1, self.lin2, self.lin3, self.lin4]
         for kk in range(len(self.chns)):
             diff = (normalize_tensor(outs0[kk]) - normalize_tensor(outs1[kk])) ** 2
             # res += spatial_average(lins[kk](diff), keepdim=True)
             # lin_layer = lins[kk]
-            val += ops.mean(self.lins[kk](diff), axis=[2, 3], keep_dims=True)
+            val += ops.mean(lins[kk](diff), axis=[2, 3], keep_dims=True)
         return val
 
 
