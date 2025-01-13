@@ -41,6 +41,10 @@ def create_video_transforms(
             assert len(size) == 2, "Expect size should be a tuple or integer of (h, w)"
             max_size_hw = size
             size = None
+        elif isinstance(size, int):
+            max_size_hw = None
+        else:
+            raise ValueError("Expect size to be int or tuple of (h, w)")
         transforms_list = [
             SmallestMaxSize(max_size=size, max_size_hw=max_size_hw, interpolation=mapping[interpolation]),
             CenterCrop(h, w) if not random_crop else RandomCrop(h, w),
