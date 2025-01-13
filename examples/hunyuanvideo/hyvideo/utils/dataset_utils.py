@@ -37,8 +37,12 @@ def create_video_transforms(
 
         targets = {"image{}".format(i): "image" for i in range(num_frames)}
         mapping = {"bilinear": cv2.INTER_LINEAR, "bicubic": cv2.INTER_CUBIC}
+        if isinstance(size, (tuple, list)):
+            assert len(size) == 2, "Expect size should be a tuple or integer of (h, w)"
+            max_size_hw = size
+            size = None
         transforms_list = [
-            SmallestMaxSize(max_size=size, interpolation=mapping[interpolation]),
+            SmallestMaxSize(max_size=size, max_size_hw=max_size_hw, interpolation=mapping[interpolation]),
             CenterCrop(h, w) if not random_crop else RandomCrop(h, w),
         ]
         if not disable_flip:
