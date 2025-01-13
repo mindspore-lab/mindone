@@ -10,7 +10,7 @@ from .activation_layers import get_activation_layer
 from .modulate_layers import ModulateDiT, modulate, apply_gate
 from .mlp_layers import MLP, MLPEmbedder, FinalLayer
 from .posemb_layers import apply_rotary_emb
-from .attention import VanillaAttention #, parallel_attention, get_cu_seqlens
+from .attention import VanillaAttention, FlashAttention #, parallel_attention, get_cu_seqlens
 from .embed_layers import TimestepEmbedder, PatchEmbed, TextProjection
 from .token_refiner import SingleTokenRefiner, rearrange_qkv
 
@@ -32,6 +32,7 @@ class MMDoubleStreamBlock(nn.Cell):
         qk_norm: bool = True,
         qk_norm_type: str = "rms",
         qkv_bias: bool = False,
+        attn_mode: str = 'flash',
         dtype = None,
     ):
         factory_kwargs = {"dtype": dtype}
@@ -118,8 +119,13 @@ class MMDoubleStreamBlock(nn.Cell):
             **factory_kwargs,
         )
 
-        #
-        self.compute_attention = VanillaAttention(head_dim)
+        print('2 attn_mode ', attn_mode)
+        if attn_mode == 'vanilla':
+            self.compute_attention = VanillaAttention(head_dim)
+        elif attn_mode == 'flash':
+            self.compute_attention = FlashAttention(heads_num, head_dim)
+        else:
+            raise NotImplementedError
 
     def enable_deterministic(self):
         self.deterministic = True
@@ -257,6 +263,7 @@ class MMSingleStreamBlock(nn.Cell):
         qk_norm: bool = True,
         qk_norm_type: str = "rms",
         qk_scale: float = None,
+        attn_mode: str = 'flash',
         dtype = None,
     ):
         factory_kwargs = {"dtype": dtype}
@@ -304,7 +311,13 @@ class MMSingleStreamBlock(nn.Cell):
         )
         self.hybrid_seq_parallel_attn = None
 
-        self.compute_attention = VanillaAttention(head_dim)
+        print('3 attn_mode ', attn_mode)
+        if attn_mode == 'vanilla':
+            self.compute_attention = VanillaAttention(head_dim)
+        elif attn_mode == 'flash':
+            self.compute_attention = FlashAttention(heads_num, head_dim)
+        else:
+            raise NotImplementedError
 
     def enable_deterministic(self):
         self.deterministic = True
@@ -438,6 +451,7 @@ class HYVideoDiffusionTransformer(nn.Cell):
         text_projection: str = "single_refiner",
         use_attention_mask: bool = True,
         use_conv2d_patchify: bool = False,
+        attn_mode: str = 'flash',
         dtype = None,
     ):
         factory_kwargs = {"dtype": dtype}
@@ -488,7 +502,9 @@ class HYVideoDiffusionTransformer(nn.Cell):
             )
         elif self.text_projection == "single_refiner":
             self.txt_in = SingleTokenRefiner(
-                self.text_states_dim, hidden_size, heads_num, depth=2, **factory_kwargs
+                self.text_states_dim, hidden_size, heads_num, depth=2,
+                attn_mode=attn_mode,
+                **factory_kwargs
             )
         else:
             raise NotImplementedError(
@@ -525,6 +541,7 @@ class HYVideoDiffusionTransformer(nn.Cell):
                     qk_norm=qk_norm,
                     qk_norm_type=qk_norm_type,
                     qkv_bias=qkv_bias,
+                    attn_mode=attn_mode,
                     **factory_kwargs,
                 )
                 for _ in range(mm_double_blocks_depth)
@@ -541,6 +558,7 @@ class HYVideoDiffusionTransformer(nn.Cell):
                     mlp_act_type=mlp_act_type,
                     qk_norm=qk_norm,
                     qk_norm_type=qk_norm_type,
+                    attn_mode=attn_mode,
                     **factory_kwargs,
                 )
                 for _ in range(mm_single_blocks_depth)

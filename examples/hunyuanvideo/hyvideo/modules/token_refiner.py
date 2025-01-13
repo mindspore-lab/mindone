@@ -4,7 +4,7 @@ from mindspore import nn, ops
 from .embed_layers import TimestepEmbedder, TextProjection
 from .norm_layers import LayerNorm
 from .mlp_layers import MLP
-from .attention import VanillaAttention
+from .attention import VanillaAttention, FlashAttention
 from .norm_layers import get_norm_layer
 from .activation_layers import get_activation_layer
 from .modulate_layers import apply_gate
@@ -38,6 +38,7 @@ class IndividualTokenRefinerBlock(nn.Cell):
         qk_norm: bool = False,
         qk_norm_type: str = "layer",
         qkv_bias: bool = True,
+        attn_mode: str = 'flash',
         dtype = None,
     ):
         factory_kwargs = {"dtype": dtype}
@@ -84,7 +85,13 @@ class IndividualTokenRefinerBlock(nn.Cell):
             nn.Dense(hidden_size, 2 * hidden_size, has_bias=True, weight_init='zeros', bias_init='zeros'),
         )
 
-        self.compute_attention = VanillaAttention(head_dim)
+        print('1 attn_mode ', attn_mode)
+        if attn_mode == 'vanilla':
+            self.compute_attention = VanillaAttention(head_dim)
+        elif attn_mode == 'flash':
+            self.compute_attention = FlashAttention(heads_num, head_dim)
+        else:
+            raise NotImplementedError
 
     def construct(
         self,
@@ -129,6 +136,7 @@ class IndividualTokenRefiner(nn.Cell):
         qk_norm: bool = False,
         qk_norm_type: str = "layer",
         qkv_bias: bool = True,
+        attn_mode: str = 'flash',
         dtype = None,
     ):
         factory_kwargs = {"dtype": dtype}
@@ -144,6 +152,7 @@ class IndividualTokenRefiner(nn.Cell):
                     qk_norm=qk_norm,
                     qk_norm_type=qk_norm_type,
                     qkv_bias=qkv_bias,
+                    attn_mode=attn_mode,
                     **factory_kwargs,
                 )
                 for _ in range(depth)
@@ -227,6 +236,7 @@ class SingleTokenRefiner(nn.Cell):
             qk_norm=qk_norm,
             qk_norm_type=qk_norm_type,
             qkv_bias=qkv_bias,
+            attn_mode=attn_mode,
             **factory_kwargs,
         )
 
