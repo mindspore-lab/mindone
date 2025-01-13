@@ -14,11 +14,12 @@
 # limitations under the License.
 
 import math
-import numpy as np
 from typing import Optional, Tuple, Union
 
+import numpy as np
+
 import mindspore as ms
-from mindspore import ops, nn
+from mindspore import nn, ops
 
 from ...configuration_utils import ConfigMixin, register_to_config
 from ..attention_processor import Attention, SpatialNorm
@@ -26,9 +27,9 @@ from ..autoencoders.vae import DecoderOutput, DiagonalGaussianDistribution
 from ..downsampling import Downsample2D
 from ..modeling_outputs import AutoencoderKLOutput
 from ..modeling_utils import ModelMixin
+from ..normalization import GroupNorm
 from ..resnet import ResnetBlock2D
 from ..upsampling import Upsample2D
-from ..normalization import GroupNorm
 
 
 class AllegroTemporalConvLayer(nn.Cell):
@@ -60,36 +61,79 @@ class AllegroTemporalConvLayer(nn.Cell):
             self.conv1 = nn.SequentialCell(
                 GroupNorm(norm_num_groups, in_dim),
                 nn.SiLU(),
-                nn.Conv3d(in_dim, out_dim, (2, stride, stride), stride=(2, 1, 1), padding=(0, pad_h, pad_w), pad_mode="pad", has_bias=True),
+                nn.Conv3d(
+                    in_dim,
+                    out_dim,
+                    (2, stride, stride),
+                    stride=(2, 1, 1),
+                    padding=(0, 0, pad_h, pad_h, pad_w, pad_w),
+                    pad_mode="pad",
+                    has_bias=True,
+                ),
             )
         elif up_sample:
             self.conv1 = nn.SequentialCell(
                 GroupNorm(norm_num_groups, in_dim),
                 nn.SiLU(),
-                nn.Conv3d(in_dim, out_dim * 2, (1, stride, stride), padding=(0, pad_h, pad_w), pad_mode="pad", has_bias=True),
+                nn.Conv3d(
+                    in_dim,
+                    out_dim * 2,
+                    (1, stride, stride),
+                    padding=(0, 0, pad_h, pad_h, pad_w, pad_w),
+                    pad_mode="pad",
+                    has_bias=True,
+                ),
             )
         else:
             self.conv1 = nn.SequentialCell(
                 GroupNorm(norm_num_groups, in_dim),
                 nn.SiLU(),
-                nn.Conv3d(in_dim, out_dim, (3, stride, stride), padding=(pad_t, pad_h, pad_w), pad_mode="pad", has_bias=True),
+                nn.Conv3d(
+                    in_dim,
+                    out_dim,
+                    (3, stride, stride),
+                    padding=(pad_t, pad_t, pad_h, pad_h, pad_w, pad_w),
+                    pad_mode="pad",
+                    has_bias=True,
+                ),
             )
         self.conv2 = nn.SequentialCell(
             GroupNorm(norm_num_groups, out_dim),
             nn.SiLU(),
-            nn.Dropout(dropout),
-            nn.Conv3d(out_dim, in_dim, (3, stride, stride), padding=(pad_t, pad_h, pad_w), pad_mode="pad", has_bias=True),
+            nn.Dropout(p=dropout),
+            nn.Conv3d(
+                out_dim,
+                in_dim,
+                (3, stride, stride),
+                padding=(pad_t, pad_t, pad_h, pad_h, pad_w, pad_w),
+                pad_mode="pad",
+                has_bias=True,
+            ),
         )
         self.conv3 = nn.SequentialCell(
             GroupNorm(norm_num_groups, out_dim),
             nn.SiLU(),
-            nn.Dropout(dropout),
-            nn.Conv3d(out_dim, in_dim, (3, stride, stride), padding=(pad_t, pad_h, pad_h), pad_mode="pad", has_bias=True),
+            nn.Dropout(p=dropout),
+            nn.Conv3d(
+                out_dim,
+                in_dim,
+                (3, stride, stride),
+                padding=(pad_t, pad_t, pad_h, pad_h, pad_h, pad_h),
+                pad_mode="pad",
+                has_bias=True,
+            ),
         )
         self.conv4 = nn.SequentialCell(
             GroupNorm(norm_num_groups, out_dim),
             nn.SiLU(),
-            nn.Conv3d(out_dim, in_dim, (3, stride, stride), padding=(pad_t, pad_h, pad_h), pad_mode="pad", has_bias=True),
+            nn.Conv3d(
+                out_dim,
+                in_dim,
+                (3, stride, stride),
+                padding=(pad_t, pad_t, pad_h, pad_h, pad_h, pad_h),
+                pad_mode="pad",
+                has_bias=True,
+            ),
         )
 
     def _pad_temporal_dim(hidden_states: ms.Tensor) -> ms.Tensor:
@@ -98,7 +142,9 @@ class AllegroTemporalConvLayer(nn.Cell):
         return hidden_states
 
     def construct(self, hidden_states: ms.Tensor, batch_size: int) -> ms.Tensor:
-        hidden_states = hidden_states.reshape(hidden_states.shape[:0] + (batch_size, -1) + hidden_states.shape[1:]).permute(0, 2, 1, 3, 4)
+        hidden_states = hidden_states.reshape(
+            hidden_states.shape[:0] + (batch_size, -1) + hidden_states.shape[1:]
+        ).permute(0, 2, 1, 3, 4)
 
         if self.down_sample:
             identity = hidden_states[:, :, ::2]
@@ -114,7 +160,11 @@ class AllegroTemporalConvLayer(nn.Cell):
             hidden_states = self.conv1(hidden_states)
 
         if self.up_sample:
-            hidden_states = hidden_states.reshape(hidden_states.shape[:1] + (2, -1) + hidden_states.shape[2:]).permute(0, 2, 3, 1, 4, 5).flatten(start_dim=2, end_dim=3)
+            hidden_states = (
+                hidden_states.reshape(hidden_states.shape[:1] + (2, -1) + hidden_states.shape[2:])
+                .permute(0, 2, 3, 1, 4, 5)
+                .flatten(start_dim=2, end_dim=3)
+            )
 
         hidden_states = self._pad_temporal_dim(hidden_states)
         hidden_states = self.conv2(hidden_states)
@@ -214,7 +264,9 @@ class AllegroDownBlock3D(nn.Cell):
             for downsampler in self.downsamplers:
                 hidden_states = downsampler(hidden_states)
 
-        hidden_states = hidden_states.reshape(hidden_states.shape[:0] + (batch_size, -1) + hidden_states.shape[1:]).permute(0, 2, 1, 3, 4)
+        hidden_states = hidden_states.reshape(
+            hidden_states.shape[:0] + (batch_size, -1) + hidden_states.shape[1:]
+        ).permute(0, 2, 1, 3, 4)
         return hidden_states
 
 
@@ -296,7 +348,9 @@ class AllegroUpBlock3D(nn.Cell):
             for upsampler in self.upsamplers:
                 hidden_states = upsampler(hidden_states)
 
-        hidden_states = hidden_states.reshape(hidden_states.shape[:0] + (batch_size, -1) + hidden_states.shape[1:]).permute(0, 2, 1, 3, 4)
+        hidden_states = hidden_states.reshape(
+            hidden_states.shape[:0] + (batch_size, -1) + hidden_states.shape[1:]
+        ).permute(0, 2, 1, 3, 4)
         return hidden_states
 
 
@@ -407,7 +461,9 @@ class AllegroMidBlock3DConv(nn.Cell):
             hidden_states = resnet(hidden_states, temb=None)
             hidden_states = temp_conv(hidden_states, batch_size=batch_size)
 
-        hidden_states = hidden_states.reshape(hidden_states.shape[:0] + (batch_size, -1) + hidden_states.shape[1:]).permute(0, 2, 1, 3, 4)
+        hidden_states = hidden_states.reshape(
+            hidden_states.shape[:0] + (batch_size, -1) + hidden_states.shape[1:]
+        ).permute(0, 2, 1, 3, 4)
         return hidden_states
 
 
@@ -445,7 +501,7 @@ class AllegroEncoder3D(nn.Cell):
             in_channels=block_out_channels[0],
             out_channels=block_out_channels[0],
             kernel_size=(3, 1, 1),
-            padding=(1, 0, 0),
+            padding=(1, 1, 0, 0, 0, 0),
             pad_mode="pad",
             has_bias=True,
         )
@@ -495,8 +551,17 @@ class AllegroEncoder3D(nn.Cell):
 
         conv_out_channels = 2 * out_channels if double_z else out_channels
 
-        self.temp_conv_out = nn.Conv3d(block_out_channels[-1], block_out_channels[-1], (3, 1, 1), padding=(1, 0, 0), pad_mode="pad", has_bias=True)
-        self.conv_out = nn.Conv2d(block_out_channels[-1], conv_out_channels, 3, padding=1, pad_mode="pad", has_bias=True)
+        self.temp_conv_out = nn.Conv3d(
+            block_out_channels[-1],
+            block_out_channels[-1],
+            (3, 1, 1),
+            padding=(1, 1, 0, 0, 0, 0),
+            pad_mode="pad",
+            has_bias=True,
+        )
+        self.conv_out = nn.Conv2d(
+            block_out_channels[-1], conv_out_channels, 3, padding=1, pad_mode="pad", has_bias=True
+        )
 
         self.gradient_checkpointing = False
 
@@ -565,7 +630,14 @@ class AllegroDecoder3D(nn.Cell):
             has_bias=True,
         )
 
-        self.temp_conv_in = nn.Conv3d(block_out_channels[-1], block_out_channels[-1], (3, 1, 1), padding=(1, 0, 0), pad_mode="pad", has_bias=True)
+        self.temp_conv_in = nn.Conv3d(
+            block_out_channels[-1],
+            block_out_channels[-1],
+            (3, 1, 1),
+            padding=(1, 1, 0, 0, 0, 0),
+            pad_mode="pad",
+            has_bias=True,
+        )
 
         self.mid_block = None
         up_blocks = []
@@ -621,7 +693,14 @@ class AllegroDecoder3D(nn.Cell):
 
         self.conv_act = nn.SiLU()
 
-        self.temp_conv_out = nn.Conv3d(block_out_channels[0], block_out_channels[0], (3, 1, 1), padding=(1, 0, 0), pad_mode="pad", has_bias=True)
+        self.temp_conv_out = nn.Conv3d(
+            block_out_channels[0],
+            block_out_channels[0],
+            (3, 1, 1),
+            padding=(1, 1, 0, 0, 0, 0),
+            pad_mode="pad",
+            has_bias=True,
+        )
         self.conv_out = nn.Conv2d(block_out_channels[0], out_channels, 3, padding=1, pad_mode="pad", has_bias=True)
 
         self.upscale_dtype = next(iter(self.up_blocks.get_parameters())).dtype
@@ -1118,11 +1197,7 @@ def _prepare_for_blend(n_param, h_param, w_param, x):
             1 - ops.arange(0, overlap_h).float() / overlap_h
         ).reshape(overlap_h, 1)
     if w > 0:
-        x[:, :, :, :, 0:overlap_w] = x[:, :, :, :, 0:overlap_w] * (
-            ops.arange(0, overlap_w).float() / overlap_w
-        )
+        x[:, :, :, :, 0:overlap_w] = x[:, :, :, :, 0:overlap_w] * (ops.arange(0, overlap_w).float() / overlap_w)
     if w < w_max - 1:
-        x[:, :, :, :, -overlap_w:] = x[:, :, :, :, -overlap_w:] * (
-            1 - ops.arange(0, overlap_w).float() / overlap_w
-        )
+        x[:, :, :, :, -overlap_w:] = x[:, :, :, :, -overlap_w:] * (1 - ops.arange(0, overlap_w).float() / overlap_w)
     return x

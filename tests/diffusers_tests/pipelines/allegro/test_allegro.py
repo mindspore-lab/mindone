@@ -54,7 +54,7 @@ class AllegroPipelineFastTests(PipelineTesterMixin, unittest.TestCase):
                 sample_width=8,
                 sample_height=8,
                 sample_frames=8,
-                caption_channels=24,    
+                caption_channels=24,
             ),
         ],
         [
@@ -117,16 +117,7 @@ class AllegroPipelineFastTests(PipelineTesterMixin, unittest.TestCase):
     ]
 
     def get_dummy_components(self):
-        components = {
-            key: None
-            for key in [
-                "transformer",
-                "vae",
-                "scheduler",
-                "text_encoder",
-                "tokenizer"
-            ]
-        }
+        components = {key: None for key in ["transformer", "vae", "scheduler", "text_encoder", "tokenizer"]}
 
         return get_pipeline_components(components, self.pipeline_config)
 
@@ -167,9 +158,12 @@ class AllegroPipelineFastTests(PipelineTesterMixin, unittest.TestCase):
         pt_video = pt_pipe(**inputs).frames
         torch.manual_seed(0)
         ms_video = ms_pipe(**inputs)[0]
-        
+
         pt_generated_video = pt_video[0]
         ms_generated_video = ms_video[0]
 
         threshold = THRESHOLD_FP32 if dtype == "float32" else THRESHOLD_FP16
-        assert np.max(np.linalg.norm(pt_generated_video - ms_generated_video) / np.linalg.norm(pt_generated_video)) < threshold
+        assert (
+            np.max(np.linalg.norm(pt_generated_video - ms_generated_video) / np.linalg.norm(pt_generated_video))
+            < threshold
+        )

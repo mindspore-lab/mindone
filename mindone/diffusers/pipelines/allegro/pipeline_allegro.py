@@ -20,28 +20,23 @@ import re
 import urllib.parse as ul
 from typing import Callable, Dict, List, Optional, Tuple, Union
 
+import numpy as np
+from transformers import T5Tokenizer
+
 import mindspore as ms
 from mindspore import ops
-import numpy as np
+
 from mindone.transformers import T5EncoderModel
-from transformers import T5Tokenizer
 
 from ...callbacks import MultiPipelineCallbacks, PipelineCallback
 from ...models import AllegroTransformer3DModel, AutoencoderKLAllegro
 from ...models.embeddings import get_3d_rotary_pos_embed_allegro
 from ...pipelines.pipeline_utils import DiffusionPipeline
 from ...schedulers import KarrasDiffusionSchedulers
-from ...utils import (
-    BACKENDS_MAPPING,
-    deprecate,
-    is_bs4_available,
-    is_ftfy_available,
-    logging,
-)
+from ...utils import BACKENDS_MAPPING, deprecate, is_bs4_available, is_ftfy_available, logging
 from ...utils.mindspore_utils import randn_tensor
 from ...video_processor import VideoProcessor
 from .pipeline_output import AllegroPipelineOutput
-
 
 logger = logging.get_logger(__name__)
 
@@ -852,7 +847,10 @@ class AllegroPipeline(DiffusionPipeline):
 
         # 7. Prepare rotary embeddings
         image_rotary_emb = self._prepare_rotary_positional_embeddings(
-            batch_size, height, width, latents.shape[2],
+            batch_size,
+            height,
+            width,
+            latents.shape[2],
         )
 
         # 8. Denoising loop

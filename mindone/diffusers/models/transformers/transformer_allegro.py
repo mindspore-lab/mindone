@@ -16,8 +16,9 @@
 from typing import Any, Dict, Optional, Tuple
 
 import numpy as np
+
 import mindspore as ms
-from mindspore import ops, nn
+from mindspore import nn, ops
 
 from ...configuration_utils import ConfigMixin, register_to_config
 from ...utils import logging
@@ -27,7 +28,6 @@ from ..embeddings import PatchEmbed, PixArtAlphaTextProjection
 from ..modeling_outputs import Transformer2DModelOutput
 from ..modeling_utils import ModelMixin
 from ..normalization import AdaLayerNormSingle, LayerNorm
-
 
 logger = logging.get_logger(__name__)
 
@@ -287,7 +287,9 @@ class AllegroTransformer3DModel(ModelMixin, ConfigMixin):
 
         # 3. Output projection & norm
         self.norm_out = LayerNorm(self.inner_dim, elementwise_affine=False, eps=1e-6)
-        self.scale_shift_table = ms.Parameter(ops.randn(2, self.inner_dim) / self.inner_dim**0.5, name="scale_shift_table")
+        self.scale_shift_table = ms.Parameter(
+            ops.randn(2, self.inner_dim) / self.inner_dim**0.5, name="scale_shift_table"
+        )
         self.proj_out = nn.Dense(self.inner_dim, patch_size * patch_size * out_channels)
 
         # 4. Timestep embeddings
@@ -361,7 +363,9 @@ class AllegroTransformer3DModel(ModelMixin, ConfigMixin):
         # 2. Patch embeddings
         hidden_states = hidden_states.permute(0, 2, 1, 3, 4).flatten(start_dim=0, end_dim=1)
         hidden_states = self.pos_embed(hidden_states)
-        hidden_states = hidden_states.reshape(hidden_states.shape[:0] + (batch_size, -1) + hidden_states.shape[1:]).flatten(start_dim=1, end_dim=2)
+        hidden_states = hidden_states.reshape(
+            hidden_states.shape[:0] + (batch_size, -1) + hidden_states.shape[1:]
+        ).flatten(start_dim=1, end_dim=2)
 
         encoder_hidden_states = self.caption_projection(encoder_hidden_states)
         encoder_hidden_states = encoder_hidden_states.view(batch_size, -1, encoder_hidden_states.shape[-1])

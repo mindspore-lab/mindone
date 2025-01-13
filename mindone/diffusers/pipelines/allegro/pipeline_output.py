@@ -3,6 +3,7 @@ from typing import List, Union
 
 import numpy as np
 import PIL
+
 import mindspore as ms
 
 from mindone.diffusers.utils import BaseOutput
