@@ -4,6 +4,7 @@ from ..utils import _LazyModule
 
 # These modules contain pipelines from multiple libraries/frameworks
 _import_structure = {
+    "allegro": ["AllegroPipeline"],
     "animatediff": [
         "AnimateDiffPipeline",
         "AnimateDiffControlNetPipeline",
@@ -179,6 +180,7 @@ _import_structure = {
 }
 
 if TYPE_CHECKING:
+    from .allegro import AllegroPipeline
     from .animatediff import (
         AnimateDiffControlNetPipeline,
         AnimateDiffPipeline,
