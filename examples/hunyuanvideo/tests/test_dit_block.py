@@ -188,7 +188,7 @@ def test_token_refiner(pt_ckpt=None, pt_np=None):
         print(diff)
 
 
-def test_hyvtransformer(pt_ckpt=None, pt_np=None, debug=True, dtype=ms.float32):
+def test_hyvtransformer(pt_ckpt=None, pt_np=None, debug=True, dtype=ms.float32, depth=None):
     # args
     args = edict()
     DEBUG_CONFIG = {
@@ -203,6 +203,12 @@ def test_hyvtransformer(pt_ckpt=None, pt_np=None, debug=True, dtype=ms.float32):
     }
     model_cfg = DEBUG_CONFIG if debug else HUNYUAN_VIDEO_CONFIG
     args.model = 'HYVideo-T/2'
+    if depth is not None:
+        model_cfg[args.model]['mm_double_blocks_depth'] = depth
+        model_cfg[args.model]['mm_single_blocks_depth'] = depth
+    # TODO: debug using guidance_embed
+    model_cfg[args.model]['guidance_embed'] = True
+
     if debug:
         args.text_states_dim = 64
         args.text_states_dim_2 = 24
@@ -277,14 +283,15 @@ def test_hyvtransformer(pt_ckpt=None, pt_np=None, debug=True, dtype=ms.float32):
 
 
 if __name__ == "__main__":
-    # ms.set_context(mode=1)
-    ms.set_context(mode=0, jit_syntax_level=ms.STRICT)
+    ms.set_context(mode=1)
+    # ms.set_context(mode=0, jit_syntax_level=ms.STRICT)
     # test_attn()
     # test_dualstream_block('tests/dual_stream.pth', 'tests/pt_dual_stream.npz')
     # test_singlestream_block('tests/single_stream.pth', 'tests/pt_single_stream.npy')
     # test_token_refiner('tests/token_refiner.pth', 'tests/pt_token_refiner.npy')
-    test_hyvtransformer('tests/dit_tiny.pt', 'tests/pt_hyvtransformer.npy')
+    # test_hyvtransformer('tests/dit_tiny.pt', 'tests/pt_hyvtransformer.npy')
 
     # test_hyvtransformer(dtype=ms.float16)
-    # test_hyvtransformer(pt_fp='ckpts/HunyuanVideo/hunyuan-video-t2v-720p/transformers/mp_rank_00_model_states.pt', debug=False)
+    # test_hyvtransformer(pt_ckpt='ckpts/HunyuanVideo/hunyuan-video-t2v-720p/transformers/mp_rank_00_model_states.pt', dtype=ms.float32, debug=False)
+    test_hyvtransformer(pt_ckpt='ckpts/transformer_depth1.pt', pt_np='tests/pt_pretrained_hyvtransformer_ge.npy', dtype=ms.float32, debug=False, depth=1)
 
