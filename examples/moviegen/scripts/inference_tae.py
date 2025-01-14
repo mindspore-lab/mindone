@@ -64,9 +64,9 @@ def encode(args, tae: TemporalAutoencoder, save_dir: Path, rank_id: int, device_
         mean, logvar = to_numpy(mean), to_numpy(logvar)
         std = np.exp(0.5 * np.clip(logvar, -30.0, 20.0))
 
-        # C T H W -> T C H W
-        mean = np.transpose(mean, (1, 0, 2, 3))
-        std = np.transpose(std, (1, 0, 2, 3))
+        # B C T H W -> B T C H W
+        mean = np.transpose(mean, (0, 2, 1, 3, 4))
+        std = np.transpose(std, (0, 2, 1, 3, 4))
 
         for m, s, path in zip(mean, std, samples[1].tolist()):
             out_path = save_dir / path
