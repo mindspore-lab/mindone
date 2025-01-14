@@ -8,3 +8,4 @@ imageio==2.34.0
 imageio-ffmpeg==0.5.1
 safetensors==0.4.3
 gradio==5.0.0
+albumentations>=2.0

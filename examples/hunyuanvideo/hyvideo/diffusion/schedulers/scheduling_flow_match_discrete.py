@@ -19,10 +19,10 @@
 
 from dataclasses import dataclass
 from typing import Optional, Tuple, Union
-
 import numpy as np
 
 import mindspore as ms
+from mindspore import mint
 
 from mindone.diffusers.configuration_utils import ConfigMixin, register_to_config
 from mindone.diffusers.schedulers.scheduling_utils import SchedulerMixin
@@ -139,18 +139,14 @@ class FlowMatchDiscreteScheduler(SchedulerMixin, ConfigMixin):
         """
         self.num_inference_steps = num_inference_steps
 
-        # sigmas = torch.linspace(1, 0, num_inference_steps + 1)
-        sigmas = np.linspace(1, 0, num_inference_steps + 1, dtype=np.float32)
+        sigmas = mint.linspace(1, 0, num_inference_steps + 1)
         sigmas = self.sd3_time_shift(sigmas)
 
         if not self.config.reverse:
             sigmas = 1 - sigmas
 
         self.sigmas = sigmas
-        self.timesteps = sigmas[:-1] * self.config.num_train_timesteps
-
-        self.sigmas = ms.Tensor(self.sigmas, dtype=ms.float32)
-        self.timesteps = ms.Tensor(self.timesteps, dtype=ms.float32)
+        self.timesteps = (sigmas[:-1] * self.config.num_train_timesteps).to(dtype=ms.float32)
 
         # Reset step index
         self._step_index = None
@@ -178,7 +174,7 @@ class FlowMatchDiscreteScheduler(SchedulerMixin, ConfigMixin):
     def scale_model_input(self, sample: ms.Tensor, timestep: Optional[int] = None) -> ms.Tensor:
         return sample
 
-    def sd3_time_shift(self, t):
+    def sd3_time_shift(self, t: ms.Tensor):
         return (self.config.shift * t) / (1 + (self.config.shift - 1) * t)
 
     def step(
@@ -199,7 +195,7 @@ class FlowMatchDiscreteScheduler(SchedulerMixin, ConfigMixin):
                 The current discrete timestep in the diffusion chain.
             sample (`ms.Tensor`):
                 A current instance of a sample created by the diffusion process.
-            generator (`ms.Generator`, *optional*):
+            generator (`numpy Generator`, *optional*):
                 A random number generator.
             n_tokens (`int`, *optional*):
                 Number of tokens in the input sequence.

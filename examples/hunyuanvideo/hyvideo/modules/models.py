@@ -17,7 +17,6 @@ from .norm_layers import LayerNorm, get_norm_layer
 from .posemb_layers import apply_rotary_emb
 from .token_refiner import SingleTokenRefiner, rearrange_qkv
 
-
 class MMDoubleStreamBlock(nn.Cell):
     """
     A multimodal dit block with seperate modulation for

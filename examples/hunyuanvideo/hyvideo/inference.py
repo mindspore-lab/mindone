@@ -310,7 +310,6 @@ class HunyuanVideoSampler(Inference):
             rope_dim_list = [head_dim // target_ndim for _ in range(target_ndim)]
         assert sum(rope_dim_list) == head_dim, "sum(rope_dim_list) should equal to head_dim of attention layer"
 
-        # NOTE: make sure rotary embed is computed in fp32
         freqs_cos, freqs_sin = get_nd_rotary_pos_embed(
             rope_dim_list,
             rope_sizes,
@@ -353,7 +352,6 @@ class HunyuanVideoSampler(Inference):
                 guidance_scale (float): The guidance scale for the generation. Default is 6.0.
                 num_images_per_prompt (int): The number of images per prompt. Default is 1.
                 infer_steps (int): The number of inference steps. Default is 100.
-        Returns:
         """
         out_dict = dict()
 

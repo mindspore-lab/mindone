@@ -18,9 +18,9 @@ from mindone.visualize.videos import save_videos
 
 sys.path.append(".")
 from hyvideo.constants import PRECISION_TO_TYPE, PRECISIONS, VAE_PATH
-from hyvideo.train.dataset_videobase import VideoDataset, create_dataloader
-from hyvideo.train.parallel_states import get_sequence_parallel_state, hccl_info
+from hyvideo.dataset.dataset_videobase import VideoDataset, create_dataloader
 from hyvideo.utils.ms_utils import init_env
+from hyvideo.utils.parallel_states import get_sequence_parallel_state, hccl_info
 from hyvideo.vae import load_vae
 from hyvideo.vae.unet_causal_3d_blocks import GroupNorm, MSInterpolate, MSPad
 
