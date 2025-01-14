@@ -8,6 +8,9 @@
 # without an express license agreement from NVIDIA CORPORATION or
 # its affiliates is strictly prohibited.
 
+import mindspore as ms
+from mindspore import nn, mint, ops
+
 # only support fp16, fp32, not support bf16
 class CumProd(nn.Cell):
     def construct(self, x, dim):

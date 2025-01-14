@@ -79,10 +79,10 @@ def parse_train_args(parser):
     parser.add_argument("--max_device_memory", type=str, default=None, help="e.g. `30GB` for 910a, `59GB` for 910b")
     parser.add_argument(
         "--dtype",
-        default="fp32",  # if amp level O0/1, must pass fp32
+        default="fp32",  # if amp level O0/1, must pass fp32; if amp level O2, pass bf16
         type=str,
         choices=["bf16", "fp16", "fp32"],
-        help="what computation data type to use for latte. Default is `fp16`, which corresponds to ms.float16",
+        help="what computation data type to use. Default is `fp32`, which corresponds to ms.float32",
     )
     parser.add_argument(
         "--global_bf16",
@@ -106,10 +106,10 @@ def parse_train_args(parser):
     parser.add_argument(
         "--loss_scaler_type", default=None, type=str, help="dynamic or static"  # loss scale only used in amp O1/O2
     )
-    parser.add_argument("--init_loss_scale", default=65536, type=float, help="loss scale")
+    parser.add_argument("--init_loss_scale", default=16, type=float, help="loss scale")
     parser.add_argument("--loss_scale_factor", default=2, type=float, help="loss scale factor")
-    parser.add_argument("--scale_window", default=1000, type=float, help="scale window")
-    parser.add_argument("--ckpt_max_keep", default=100, type=int, help="Maximum number of checkpoints to keep")
+    parser.add_argument("--scale_window", default=10000, type=float, help="scale window")
+    parser.add_argument("--ckpt_max_keep", default=10, type=int, help="Maximum number of checkpoints to keep")
     parser.add_argument("--output_path", default="outputs/", type=str, help="output directory to save training results")
     parser.add_argument(
         "--log_level",
@@ -151,7 +151,7 @@ def parse_train_args(parser):
         type=float,
         help="max gradient norm for clipping, effective when `clip_grad` enabled.",
     )
-    arser.add_argument(
+    parser.add_argument(
         "--use_recompute",
         default=None,
         type=False,
