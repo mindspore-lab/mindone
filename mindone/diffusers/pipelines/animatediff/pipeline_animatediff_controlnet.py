@@ -25,13 +25,19 @@ from mindone.transformers import CLIPTextModel, CLIPVisionModelWithProjection
 
 from ...image_processor import PipelineImageInput
 from ...loaders import IPAdapterMixin, StableDiffusionLoraLoaderMixin, TextualInversionLoaderMixin
-from ...models import AutoencoderKL, ControlNetModel, ImageProjection, UNet2DConditionModel, UNetMotionModel
+from ...models import (
+    AutoencoderKL,
+    ControlNetModel,
+    ImageProjection,
+    MultiControlNetModel,
+    UNet2DConditionModel,
+    UNetMotionModel,
+)
 from ...models.unets.unet_motion_model import MotionAdapter
 from ...schedulers import KarrasDiffusionSchedulers
 from ...utils import logging, scale_lora_layers, unscale_lora_layers
 from ...utils.mindspore_utils import randn_tensor
 from ...video_processor import VideoProcessor
-from ..controlnet.multicontrolnet import MultiControlNetModel
 from ..pipeline_utils import DiffusionPipeline
 from .pipeline_output import AnimateDiffPipelineOutput
 
