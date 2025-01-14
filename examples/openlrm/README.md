@@ -172,7 +172,7 @@ Experiments are tested on 1 ascend 910* with mindSpore 2.3.1 pynative mode.
 |:---|:---|
 |<img src="https://github.com/user-attachments/assets/baf30c16-384a-44fc-b303-ade6d7a3b8b0"  width="256px"> | <img src="https://github.com/user-attachments/assets/bcb6d8a1-b3f2-41a7-86a0-c222de6b0987"  width="256px">  |
 | <img src="https://github.com/user-attachments/assets/dc96aa17-35cd-4477-b62d-8ba11dd6ba47"  width="256px"> | <img src="https://github.com/user-attachments/assets/ab2da9bb-7fa4-4bc4-9e84-a151b41b7e36"  width="256px"> |
-|  <img src="https://github.com/user-attachments/assets/f4f08604-f5d1-46cb-b69b-d09b41cbad58" width="256px">|  <img src="https://github.com/user-attachments/assets/6362ae00-5a17-4ae6-909b-7777c2aaca0d" width="256px"> | 
+|  <img src="https://github.com/user-attachments/assets/f4f08604-f5d1-46cb-b69b-d09b41cbad58" width="256px">|  <img src="https://github.com/user-attachments/assets/6362ae00-5a17-4ae6-909b-7777c2aaca0d" width="256px"> |
 | <img src="https://github.com/user-attachments/assets/e6cdcf8e-06d1-4890-b78a-908b78d10437" width="256px">| <img src="https://github.com/user-attachments/assets/bf5a8aec-79e6-4429-8f15-d82390d41321"  width="256px"> |
 
 
