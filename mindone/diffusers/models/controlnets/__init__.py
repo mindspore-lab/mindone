@@ -4,3 +4,4 @@ from .controlnet_hunyuan import HunyuanControlNetOutput, HunyuanDiT2DControlNetM
 from .controlnet_sd3 import SD3ControlNetModel, SD3ControlNetOutput, SD3MultiControlNetModel
 from .controlnet_sparsectrl import SparseControlNetConditioningEmbedding, SparseControlNetModel, SparseControlNetOutput
 from .controlnet_xs import ControlNetXSAdapter, ControlNetXSOutput, UNetControlNetXSModel
+from .multicontrolnet import MultiControlNetModel

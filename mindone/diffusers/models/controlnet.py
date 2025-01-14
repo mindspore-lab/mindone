@@ -24,7 +24,7 @@ from .controlnets.controlnet import (  # noqa
 
 class ControlNetOutput(ControlNetOutput):
     def __init__(self, *args, **kwargs):
-        deprecation_message = "Importing `ControlNetOutput` from `diffusers.models.controlnet` is deprecated and this will be removed in a future version. Please use `from diffusers.models.controlnets.controlnet import ControlNetOutput`, instead."
+        deprecation_message = "Importing `ControlNetOutput` from `diffusers.models.controlnet` is deprecated and this will be removed in a future version. Please use `from diffusers.models.controlnets.controlnet import ControlNetOutput`, instead."  # noqa: E501
         deprecate("diffusers.models.controlnet.ControlNetOutput", "0.34", deprecation_message)
         super().__init__(*args, **kwargs)
 
@@ -70,7 +70,7 @@ class ControlNetModel(ControlNetModel):
         global_pool_conditions: bool = False,
         addition_embed_type_num_heads: int = 64,
     ):
-        deprecation_message = "Importing `ControlNetModel` from `diffusers.models.controlnet` is deprecated and this will be removed in a future version. Please use `from diffusers.models.controlnets.controlnet import ControlNetModel`, instead."
+        deprecation_message = "Importing `ControlNetModel` from `diffusers.models.controlnet` is deprecated and this will be removed in a future version. Please use `from diffusers.models.controlnets.controlnet import ControlNetModel`, instead."  # noqa: E501
         deprecate("diffusers.models.controlnet.ControlNetModel", "0.34", deprecation_message)
         super().__init__(
             in_channels=in_channels,
@@ -110,6 +110,6 @@ class ControlNetModel(ControlNetModel):
 
 class ControlNetConditioningEmbedding(ControlNetConditioningEmbedding):
     def __init__(self, *args, **kwargs):
-        deprecation_message = "Importing `ControlNetConditioningEmbedding` from `diffusers.models.controlnet` is deprecated and this will be removed in a future version. Please use `from diffusers.models.controlnets.controlnet import ControlNetConditioningEmbedding`, instead."
+        deprecation_message = "Importing `ControlNetConditioningEmbedding` from `diffusers.models.controlnet` is deprecated and this will be removed in a future version. Please use `from diffusers.models.controlnets.controlnet import ControlNetConditioningEmbedding`, instead."  # noqa: E501
         deprecate("diffusers.models.controlnet.ControlNetConditioningEmbedding", "0.34", deprecation_message)
         super().__init__(*args, **kwargs)
