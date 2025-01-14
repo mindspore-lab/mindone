@@ -128,7 +128,9 @@ class AllegroTransformerBlock(nn.Cell):
         ).chunk(6, axis=1)
         norm_hidden_states = self.norm1(hidden_states)
         norm_hidden_states = norm_hidden_states * (1 + scale_msa) + shift_msa
-        norm_hidden_states = norm_hidden_states.squeeze(1)
+        # If input is of shape: (A×1×B), squeeze(input, 0) leaves the tensor unchanged. This function is not supported in MS.
+        if norm_hidden_states.ndim == 4:
+            norm_hidden_states = norm_hidden_states.squeeze(1)
 
         attn_output = self.attn1(
             norm_hidden_states,
@@ -388,7 +390,9 @@ class AllegroTransformer3DModel(ModelMixin, ConfigMixin):
         # Modulation
         hidden_states = hidden_states * (1 + scale) + shift
         hidden_states = self.proj_out(hidden_states)
-        hidden_states = hidden_states.squeeze(1)
+        # If input is of shape: (A×1×B), squeeze(input, 0) leaves the tensor unchanged. This function is not supported in MS.
+        if hidden_states.ndim == 4:
+            hidden_states = hidden_states.squeeze(1)
 
         # 5. Unpatchify
         hidden_states = hidden_states.reshape(
