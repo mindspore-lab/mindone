@@ -55,13 +55,6 @@ class RaySampler(nn.Cell):
         cy = intrinsics[:, 1, 2]
         sk = intrinsics[:, 0, 1]
 
-        # uv = mint.stack(
-        #     ops.meshgrid(
-        #         mint.arange(region_size, dtype=ms.float32),
-        #         mint.arange(region_size, dtype=ms.float32),
-        #         indexing="ij",
-        #     )
-        # )
         uv = self.mesh_grid(region_size, region_size)
         uv = uv.flip(dims=(0,)).reshape(2, -1).swapaxes(1, 0)
         uv = uv.unsqueeze(0).tile((cam2world_matrix.shape[0], 1, 1))

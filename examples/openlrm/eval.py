@@ -10,8 +10,9 @@ from PIL import Image
 import mindspore as ms
 from mindspore import mint
 
-__dir__ = os.path.dirname(os.path.abspath(__file__))
-sys.path.insert(0, os.path.abspath(os.path.join(__dir__, "../..")))  # for loading mindone
+# __dir__ = os.path.dirname(os.path.abspath(__file__))
+# sys.path.insert(0, os.path.abspath(os.path.join(__dir__, "../..")))  # for loading mindone
+
 import json
 import logging
 from typing import Optional

@@ -54,7 +54,6 @@ def project_onto_planes(planes, coordinates):
     N, M, C = coordinates.shape
     n_planes, _, _ = planes.shape
     coordinates = coordinates.unsqueeze(1).broadcast_to((-1, n_planes, -1, -1)).reshape(N * n_planes, M, 3)
-    # inv_planes = mint.linalg.inv(planes).unsqueeze(0).broadcast_to((N, -1, -1, -1)).reshape(N*n_planes, 3, 3)
     inv_planes = MatrixInv()(planes).unsqueeze(0).broadcast_to((N, -1, -1, -1)).reshape(N * n_planes, 3, 3)
     projections = mint.bmm(coordinates.to(planes.dtype), inv_planes)
     return projections[..., :2].to(coordinates.dtype)
@@ -69,17 +68,6 @@ def sample_from_planes(plane_axes, plane_features, coordinates, mode="bilinear",
     coordinates = (2 / box_warp) * coordinates  # add specific box bounds
 
     projected_coordinates = project_onto_planes(plane_axes, coordinates).unsqueeze(1)
-    # output_features = (
-    #     mint.nn.functional.grid_sample(
-    #         plane_features.float(),
-    #         projected_coordinates.float(),
-    #         mode=mode,
-    #         padding_mode=padding_mode,
-    #         align_corners=False,
-    #     )
-    #     .permute(0, 3, 2, 1)
-    #     .reshape(N, n_planes, M, C)
-    # )
     output_features = (GridSample()(
             plane_features.float(),
             projected_coordinates.float(),
@@ -180,10 +168,6 @@ class ImportanceRenderer(nn.Cell):
         SAFE_GUARD = 8
         DATA_TYPE = _out["sigma"].dtype  # float16
         colors_pass = mint.zeros((batch_size, num_rays * samples_per_ray, 3), dtype=DATA_TYPE)
-        # densities_pass = (
-        #     ops.nan_to_num(mint.full((batch_size, num_rays * samples_per_ray, 1), -float("inf"), dtype=DATA_TYPE))
-        #     / SAFE_GUARD
-        # )
         densities_pass = (
             self.nan_to_num(mint.full((batch_size, num_rays * samples_per_ray, 1), -float("inf"), dtype=DATA_TYPE))
             / SAFE_GUARD
@@ -382,7 +366,6 @@ class ImportanceRenderer(nn.Cell):
             u = mint.rand(N_rays, N_importance)
         u = u.contiguous()
 
-        # inds = mint.searchsorted(cdf, u, right=True)
         inds = self.search_sorted(cdf, u, right=True)
         below = mint.clamp(inds - 1, min=0)
         above = mint.clamp(inds, max=N_samples_)

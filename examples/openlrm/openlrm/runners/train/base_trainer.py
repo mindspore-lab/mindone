@@ -1,18 +1,3 @@
-# Copyright (c) 2023-2024, Zexin He
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     https://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-
-
 import argparse
 import datetime
 import math
@@ -25,7 +10,6 @@ from logging import getLogger
 
 from omegaconf import OmegaConf
 
-# from openlrm.utils.logging import configure_logger
 from openlrm.runners.abstract import Runner
 from openlrm.utils import str2bool
 
@@ -208,139 +192,10 @@ class Trainer(Runner):
         self.current_epoch: int = 0
 
     def __enter__(self):
-        # self.prepare_everything()
-        # self.log_inital_info()
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         pass
-
-    def prepare_everything(self, is_dist_validation: bool = False):
-        # prepare stats
-        N_total_batch_size = self.cfg.train.batch_size * self.cfg.train.accum_steps  # * self.accelerator.num_processes
-        self.N_global_steps_per_epoch = math.ceil(len(self.train_loader) / self.cfg.train.accum_steps)
-        self.N_max_global_steps = self.N_global_steps_per_epoch * self.cfg.train.epochs
-        if self.cfg.train.debug_global_steps is not None:
-            logger.warning(
-                f"Overriding max global steps from {self.N_max_global_steps} to {self.cfg.train.debug_global_steps}"
-            )
-            self.N_max_global_steps = self.cfg.train.debug_global_steps
-        logger.info("======== Statistics ========")
-        logger.info(f"** N_max_global_steps: {self.N_max_global_steps}")
-        logger.info(f"** N_total_batch_size: {N_total_batch_size}")
-        logger.info(f"** N_epochs: {self.cfg.train.epochs}")
-        logger.info(f"** N_global_steps_per_epoch: {self.N_global_steps_per_epoch}")
-        logger.debug(f"** Prepared loader length: {len(self.train_loader)}")
-        logger.info(f"** Distributed validation: {is_dist_validation}")
-        logger.info("============================")
-        logger.info("======== Trainable parameters ========")
-        logger.info(f"** Total: {sum([p.size for p in self.model.get_parameters() if p.requires_grad])}")
-        # for sub_name, sub_module in self.accelerator.unwrap_model(self.model).named_children():
-        #     logger.info(f"** {sub_name}: {sum(p.numel() for p in sub_module.parameters() if p.requires_grad)}")
-        for cell_name, cell in self.model.name_cells().items():
-            logger.info(f"** {cell_name}: {sum(p.size for p in cell.get_parameters() if p.requires_grad)}")
-        logger.info("=====================================")
-
-        # load checkpoint or model
-        self.load_ckpt_or_auto_resume_(self.cfg)
-        # register hooks
-        self.register_hooks()
-
-    @abstractmethod
-    def register_hooks(self):
-        pass
-
-    def auto_resume_(self, cfg) -> bool:
-        ckpt_root = os.path.join(
-            cfg.saver.checkpoint_root,
-            cfg.experiment.parent,
-            cfg.experiment.child,
-        )
-        if not os.path.exists(ckpt_root):
-            return False
-        ckpt_dirs = os.listdir(ckpt_root)
-        if len(ckpt_dirs) == 0:
-            return False
-        ckpt_dirs.sort()
-        latest_ckpt = ckpt_dirs[-1]
-        latest_ckpt_dir = os.path.join(ckpt_root, latest_ckpt)
-        logger.info(f"======== Auto-resume from {latest_ckpt_dir} ========")
-        self.load_ckpt_(latest_ckpt_dir)
-        # self.accelerator.load_state(latest_ckpt_dir)
-        self.global_step = int(latest_ckpt)
-        self.current_epoch = self.global_step // self.N_global_steps_per_epoch
-        return True
-
-    def load_ckpt_(self, ckpt_dir):
-        if ckpt_dir.endswith(".ckpt"):  # ms.ckpt
-            state_dict = ms.load_checkpoint(ckpt_dir)
-        elif ckpt_dir.endswith(".safetensors"):
-            state_dict = load_file(ckpt_dir)
-        else:
-            raise AssertionError(
-                f"Cannot recognize checkpoint file {ckpt_dir}, only support MS *.ckpt and *.safetensors"
-            )
-        param_not_load, ckpt_not_load = ms.load_param_into_net(self.model, state_dict, strict_load=True)
-        print(f"Loaded checkpoint: param_not_load {param_not_load}, ckpt_not_load {ckpt_not_load}")
-
-    def load_model_(self, cfg):
-        logger.info(f"======== Loading model from {cfg.saver.load_model} ========")
-
-        self.load_ckpt_(cfg.saver.load_model)
-
-        logger.info(f"======== Model loaded ========")
-
-    def load_ckpt_or_auto_resume_(self, cfg):
-        # auto resume has higher priority, load model from path if auto resume is not available
-        if cfg.saver.auto_resume:
-            successful_resume = self.auto_resume_(cfg)
-            if successful_resume:
-                return
-        if cfg.saver.load_model:
-            successful_load = self.load_model_(cfg)
-            if successful_load:
-                return
-        logger.debug(f"======== No checkpoint or model is loaded ========")
-
-    def save_checkpoint(self):
-        ckpt_dir = os.path.join(
-            self.cfg.saver.checkpoint_root,
-            self.cfg.experiment.parent,
-            self.cfg.experiment.child,
-            f"{self.global_step:06d}",
-        )
-        # self.accelerator.save_state(output_dir=ckpt_dir, safe_serialization=True)
-        # TODO: save optimizer & grad scaler etc.
-        os.makedirs(ckpt_dir, exist_ok=True)
-        output_model_file = os.path.join(ckpt_dir, "latest.ckpt")
-        ms.save_checkpoint(self.model, output_model_file)
-        logger.info(f"Saved state to {ckpt_dir}")
-
-        logger.info(f"======== Saved checkpoint at global step {self.global_step} ========")
-        # manage stratified checkpoints
-        ckpt_dirs = os.listdir(os.path.dirname(ckpt_dir))
-        ckpt_dirs.sort()
-        max_ckpt = int(ckpt_dirs[-1])
-        ckpt_base = int(self.cfg.saver.checkpoint_keep_level)
-        ckpt_period = self.cfg.saver.checkpoint_global_steps
-        logger.debug(f"Checkpoint base: {ckpt_base}")
-        logger.debug(f"Checkpoint period: {ckpt_period}")
-        cur_order = ckpt_base ** math.floor(math.log(max_ckpt // ckpt_period, ckpt_base))
-        cur_idx = 0
-        while cur_order > 0:
-            cur_digit = max_ckpt // ckpt_period // cur_order % ckpt_base
-            while (
-                cur_idx < len(ckpt_dirs) and int(ckpt_dirs[cur_idx]) // ckpt_period // cur_order % ckpt_base < cur_digit
-            ):
-                if int(ckpt_dirs[cur_idx]) // ckpt_period % cur_order != 0:
-                    shutil.rmtree(os.path.join(os.path.dirname(ckpt_dir), ckpt_dirs[cur_idx]))
-                    logger.info(f"Removed checkpoint {ckpt_dirs[cur_idx]}")
-                cur_idx += 1
-            cur_order //= ckpt_base
-
-    @property
-    def global_step_in_epoch(self):
-        return self.global_step % self.N_global_steps_per_epoch
 
     @abstractmethod
     def _build_model(self):
@@ -357,61 +212,6 @@ class Trainer(Runner):
     @abstractmethod
     def train(self):
         pass
-
-    # @abstractmethod
-    # def evaluate(self):
-    #     pass
-
-    @staticmethod
-    def _get_str_progress(epoch: int = None, step: int = None):
-        if epoch is not None:
-            log_type = "epoch"
-            log_progress = epoch
-        elif step is not None:
-            log_type = "step"
-            log_progress = step
-        else:
-            raise ValueError("Either epoch or step must be provided")
-        return log_type, log_progress
-
-    def log_scalar_kwargs(self, epoch: int = None, step: int = None, split: str = None, **scalar_kwargs):
-        log_type, log_progress = self._get_str_progress(epoch, step)
-        split = f"/{split}" if split else ""
-        for key, value in scalar_kwargs.items():
-            # self.accelerator.log({f'{key}{split}/{log_type}': value}, log_progress)
-            logger.info(f"{log_progress} - {key}{split}/{log_type}: {value}")
-
-    def log_images(self, values: dict, step=None, log_kwargs={}):
-        pass
-        # for tracker in self.accelerator.trackers:
-        #     if hasattr(tracker, 'log_images'):
-        #         tracker.log_images(values, step=step, **log_kwargs.get(tracker.name, {}))
-
-    def log_optimizer(self, epoch: int = None, step: int = None, attrs: list[str] = [], group_ids: list[int] = []):
-        log_type, log_progress = self._get_str_progress(epoch, step)
-        assert self.optimizer is not None, "Optimizer is not initialized"
-        if not attrs:
-            logger.warning("No optimizer attributes are provided, nothing will be logged")
-        if not group_ids:
-            logger.warning("No optimizer group ids are provided, nothing will be logged")
-        for attr in attrs:
-            assert attr in ["lr", "momentum", "weight_decay"], f"Invalid optimizer attribute {attr}"
-            for group_id in group_ids:
-                # self.accelerator.log({f'opt/{attr}/{group_id}': self.optimizer.param_groups[group_id][attr]}, log_progress)
-                logger.info(f"{log_progress} - opt/{attr}/{group_id}: {self.optimizer.param_groups[group_id][attr]}")
-
-    def log_inital_info(self):
-        assert self.model is not None, "Model is not initialized"
-        assert self.optimizer is not None, "Optimizer is not initialized"
-        assert self.scheduler is not None, "Scheduler is not initialized"
-        # self.accelerator.log({'Config': "```\n" + OmegaConf.to_yaml(self.cfg) + "\n```"})
-        # self.accelerator.log({'Model': "```\n" + str(self.model) + "\n```"})
-        # self.accelerator.log({'Optimizer': "```\n" + str(self.optimizer) + "\n```"})
-        # self.accelerator.log({'Scheduler': "```\n" + str(self.scheduler) + "\n```"})
-        logger.info(f"Config: ```\n {OmegaConf.to_yaml(self.cfg)} + \n```")
-        logger.info(f"Model: ```\n {str(self.model)} \n```")
-        logger.info(f"Optimizer: ```\n {str(self.optimizer)} \n```")
-        logger.info(f"Scheduler: ```\n {str(self.scheduler)} \n```")
 
     def run(self):
         self.train(self.args, self.cfg)

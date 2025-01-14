@@ -312,7 +312,6 @@ class DepthEncoderDecoder(nn.Cell):
 
     @staticmethod
     def _parse_losses(losses):
-        # import torch.distributed as dist #
 
         """Parse the raw outputs (losses) of the network.
 

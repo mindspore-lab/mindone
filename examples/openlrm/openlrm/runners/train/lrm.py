@@ -1,9 +1,6 @@
 import os
 import sys
 
-__dir__ = os.path.dirname(os.path.abspath(__file__))
-sys.path.insert(0, os.path.abspath(os.path.join(__dir__, "../..")))  # for mindone
-
 import datetime
 import json
 import logging
@@ -175,18 +172,6 @@ class LRMTrainer(Trainer):
             normed_dist_to_center=cfg.dataset.normed_dist_to_center,
         )
         val_dataset = None
-        # TODO
-        # val_dataset = MixerDataset(
-        #     split="val",
-        #     subsets=cfg.dataset.subsets,
-        #     sample_side_views=cfg.dataset.sample_side_views,
-        #     render_image_res_low=cfg.dataset.render_image.low,
-        #     render_image_res_high=cfg.dataset.render_image.high,
-        #     render_region_size=cfg.dataset.render_image.region,
-        #     source_image_res=cfg.dataset.source_image_res,
-        #     normalize_camera=cfg.dataset.normalize_camera,
-        #     normed_dist_to_center=cfg.dataset.normed_dist_to_center,
-        # )
 
         # build data loader
         train_loader = create_dataloader(
@@ -203,18 +188,6 @@ class LRMTrainer(Trainer):
             debug=True,  # ms213, if False, training would get stuck
         )
         val_loader = None
-        # val_loader = create_dataloader(
-        #     val_dataset,
-        #     batch_size=self.cfg.train.batch_size,
-        #     shuffle=False,
-        #     drop_remainder=False,
-        #     device_num=self.device_num,
-        #     rank_id=self.rank_id,
-        #     num_workers=cfg.dataset.num_val_workers,
-        #     python_multiprocessing=args.data_multiprocessing,
-        #     max_rowsize=args.max_rowsize,
-        #     debug=False,  # ms240_sept4: THIS CANNOT BE TRUE, OTHERWISE loader error
-        # )
 
         # compute total steps and data epochs (in unit of data sink size)
         dataset_size = train_loader.get_dataset_size()
@@ -258,8 +231,6 @@ class LRMTrainer(Trainer):
 
         return train_loader, val_loader
 
-    def register_hooks(self):
-        pass
 
     def train(self, args, cfg):
         # weight loading: load checkpoint when resume
@@ -275,8 +246,6 @@ class LRMTrainer(Trainer):
             self.loss_scaler.last_overflow_iter = last_overflow_iter
         else:
             start_epoch = 0
-            # resume_param = ms.load_checkpoint(config.model.params.lrm_generator_config.openlrm_ckpt)
-            # ms.load_param_into_net(lrm_model, resume_param)
 
         ema = (
             EMA(
@@ -379,105 +348,3 @@ class LRMTrainer(Trainer):
             sink_size=args.sink_size,
             initial_epoch=start_epoch,
         )
-
-        # starting_local_step_in_epoch = self.global_step_in_epoch * self.cfg.train.accum_steps
-        # # skipped_loader = self.accelerator.skip_first_batches(self.train_loader, starting_local_step_in_epoch)
-        # logger.info(f"======== Skipped {starting_local_step_in_epoch} local batches ========")
-
-        # with tqdm(
-        #     range(0, self.N_max_global_steps),
-        #     initial=self.global_step,
-        # ) as pbar:
-
-        # TODO add profiler
-        # profiler = torch.profiler.profile(
-        #     activities=[torch.profiler.ProfilerActivity.CPU, torch.profiler.ProfilerActivity.CUDA],
-        #     schedule=torch.profiler.schedule(
-        #         wait=10, warmup=10, active=100,
-        #     ),
-        #     on_trace_ready=torch.profiler.tensorboard_trace_handler(os.path.join(
-        #         self.cfg.logger.tracker_root,
-        #         self.cfg.experiment.parent, self.cfg.experiment.child,
-        #     )),
-        #     record_shapes=True,
-        #     profile_memory=True,
-        #     with_stack=True,
-        # ) if self.cfg.logger.enable_profiler else DummyProfiler()
-
-        # with profiler:
-
-        #     self.optimizer.zero_grad()
-        #     for _ in range(self.current_epoch, self.cfg.train.epochs):
-
-        #         loader = skipped_loader or self.train_loader
-        #         skipped_loader = None
-        #         self.train_epoch(pbar=pbar, loader=loader, profiler=profiler)
-        #         if self.accelerator.check_trigger():
-        #             break
-
-        # logger.info(f"======== Training finished at global step {self.global_step} ========")
-
-        # final checkpoint and evaluation
-        # self.save_checkpoint()
-        # self.evaluate()
-
-    # TODO
-    # @no_grad()
-    # def evaluate(self, epoch: int = None):
-    #     self.model.lrm_generator.set_Train(False)
-
-    #     max_val_batches = self.cfg.val.debug_batches or len(self.val_loader)
-    #     running_losses = []
-    #     sample_data, sample_outs = None, None
-
-    #     for data in tqdm(self.val_loader, total=max_val_batches):
-
-    #         if len(running_losses) >= max_val_batches:
-    #             logger.info(f"======== Early stop validation at {len(running_losses)} batches ========")
-    #             break
-
-    #         outs, loss, loss_pixel, loss_perceptual, loss_tv = self.forward_loss_local_step(data)
-    #         sample_data, sample_outs = data, outs
-
-    #         running_losses.append(torch.stack([
-    #             _loss if _loss is not None else ms.Tensor(float('nan'), device=self.device)
-    #             for _loss in [loss, loss_pixel, loss_perceptual, loss_tv]
-    #         ]))
-
-    #     total_losses = self.accelerator.gather(torch.stack(running_losses)).mean(dim=0).cpu()
-    #     total_loss, total_loss_pixel, total_loss_perceptual, total_loss_tv = total_losses.unbind()
-    #     total_loss_dict = {
-    #         'loss': total_loss.item(),
-    #         'loss_pixel': total_loss_pixel.item(),
-    #         'loss_perceptual': total_loss_perceptual.item(),
-    #         'loss_tv': total_loss_tv.item(),
-    #     }
-
-    #     if epoch is not None:
-    #         self.log_scalar_kwargs(
-    #             epoch=epoch, split='val',
-    #             **total_loss_dict,
-    #         )
-    #         logger.info(
-    #             f'[VAL EPOCH] {epoch}/{self.cfg.train.epochs}: ' + \
-    #                 ', '.join(f'{k}={tqdm.format_num(v)}' for k, v in total_loss_dict.items() if not math.isnan(v))
-    #         )
-    #         self.log_image_monitor(
-    #             epoch=epoch, split='val',
-    #             renders=sample_outs['images_rgb'][:self.cfg.logger.image_monitor.samples_per_log].cpu(),
-    #             gts=sample_data['render_image'][:self.cfg.logger.image_monitor.samples_per_log].cpu(),
-    #         )
-    #     else:
-    #         self.log_scalar_kwargs(
-    #             step=self.global_step, split='val',
-    #             **total_loss_dict,
-    #         )
-    #         logger.info(
-    #             f'[VAL STEP] {self.global_step}/{self.N_max_global_steps}: ' + \
-    #                 ', '.join(f'{k}={tqdm.format_num(v)}' for k, v in total_loss_dict.items() if not math.isnan(v))
-    #         )
-    #         self.log_image_monitor(
-    #             step=self.global_step, split='val',
-    #             renders=sample_outs['images_rgb'][:self.cfg.logger.image_monitor.samples_per_log].cpu(),
-    #             gts=sample_data['render_image'][:self.cfg.logger.image_monitor.samples_per_log].cpu(),
-    #         )

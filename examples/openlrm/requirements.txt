@@ -8,5 +8,4 @@ megfile
 opencv-python
 rembg
 httpx[socks]
-tensorboard
 mindcv

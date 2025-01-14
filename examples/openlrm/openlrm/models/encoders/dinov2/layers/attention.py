@@ -14,9 +14,7 @@ from mindspore import Tensor, nn, ops
 
 logger = logging.getLogger("dinov2")
 
-# from mindone.models.modules.flash_attention import FLASH_IS_AVAILABLE, MSFlashAttention
-# from mindone.utils.version_control import check_valid_flash_attention, is_old_ms_version
-XFORMERS_ENABLED = False  # FLASH_IS_AVAILABLE
+XFORMERS_ENABLED = False  # Using FlashAttention for inference results are wrong
 
 
 class Attention(nn.Cell):

@@ -22,10 +22,10 @@ dataset:
     subsets:
         -   name: objaverse
             root_dirs:
-                - /home/susan/workspace/datasets/openlrm_336x336
+                - <REPLACE_WITH_RENDERING_ROOT e.g. datasets/openlrm_336x336>
             meta_path:
-                train: /home/susan/workspace/datasets/openlrm_336x336/meta.json
-                val: /home/susan/workspace/datasets/openlrm_336x336/meta.json
+                train: <TRAIN_UIDS_IN_JSON e.g. datasets/openlrm_336x336/meta_train.json>
+                val: <VAL_UIDS_IN_JSON e.g. datasets/openlrm_336x336/meta_val.json>
             sample_rate: 1.0
     sample_side_views: 3
     source_image_res: 336
@@ -40,7 +40,7 @@ dataset:
     pin_mem: true
 
 train:
-    mixed_precision: bf16  # REPLACE THIS BASED ON GPU TYPE
+    # mixed_precision: bf16  # REPLACE THIS BASED ON GPU TYPE
     find_unused_parameters: false
     loss:
         pixel_weight: 1.0
@@ -72,6 +72,7 @@ saver:
     # checkpoint_global_steps: 100 #1000 # args.ckpt_save_steps(unit:step) / args.ckpt_save_interval (unit: epoch)
     checkpoint_keep_level: 5
 
+# Not to use
 logger:
     stream_level: WARNING
     log_level: INFO
