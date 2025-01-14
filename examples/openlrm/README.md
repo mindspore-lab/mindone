@@ -2,7 +2,7 @@
 This is the mindspore re-implementation of the work [LRM: Large Reconstruction Model for Single Image to 3D](https://arxiv.org/abs/2311.04400) based on open source repo [OpenLRM v1.1.1](https://github.com/3DTopia/OpenLRM).
 
 
-<!-- <img src="assets/rendered_video/teaser.gif" width="75%" height="auto"/>
+<!-- 
 
 <div style="text-align: left">
     <img src="assets/mesh_snapshot/crop.owl.ply00.png" width="12%" height="auto"/>
@@ -14,6 +14,9 @@ This is the mindspore re-implementation of the work [LRM: Large Reconstruction M
 </div> -->
 
 ## **Introduction**
+<p align="center">
+  <img src="https://github.com/user-attachments/assets/4f5d4325-1fd5-4421-a958-9a11ecee0192"  width="70%" height="auto">
+</p>
 LRM is the first Large Reconstruction Model that predicts the 3D model of an object from a single input image within just few seconds. In contrast to many previous methods that are trained on small-scale datasets such as ShapeNet in a category-specific fashion, LRM adopts a highly scalable transformer-based architecture with 500 million learnable parameters to directly predict a neural radiance field (NeRF) from the input image. LRM model was trained in an end-to-end manner on massive multi-view data containing around 1 million objects, including both synthetic renderings from Objaverse and real captures from MVImgNet. This combination of a high-capacity model and large-scale training data empowers our model to be highly generalizable and produce high-quality 3D reconstructions from various testing inputs, including real-world in-the-wild captures and images created by generative models.
 
 ## Get Started
@@ -75,7 +78,6 @@ LRM is the first Large Reconstruction Model that predicts the 3D model of an obj
   | small | Objaverse | 12 | 512 | 32 | 224 |
   | base | Objaverse | 12 | 768 | 48 | 336 | 
   | large | Objaverse | 16 | 1024 | 80 | 448 | 
-  |
 
 
 ### Data Preparation
