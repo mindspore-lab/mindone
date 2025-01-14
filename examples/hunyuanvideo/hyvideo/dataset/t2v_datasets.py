@@ -159,7 +159,8 @@ class T2V_dataset:
         self.temporal_sample = temporal_sample
         self.tokenizer_1 = tokenizer_1
         self.tokenizer_2 = tokenizer_2
-        self.model_max_length = args.model_max_length
+        self.model_max_length_1 = args.model_max_length_1
+        self.model_max_length_2 = args.model_max_length_2
         self.cfg = args.cfg
         self.speed_factor = args.speed_factor
         self.max_height = args.max_height
@@ -540,7 +541,7 @@ class T2V_dataset:
 
             text_tokens_and_mask_1 = self.tokenizer_1(
                 text,
-                max_length=self.model_max_length,
+                max_length=self.model_max_length_1,
                 padding="max_length",
                 truncation=True,
                 return_attention_mask=True,
@@ -554,7 +555,7 @@ class T2V_dataset:
             if self.tokenizer_2 is not None:
                 text_tokens_and_mask_2 = self.tokenizer_2(
                     text,
-                    max_length=self.tokenizer_2.model_max_length,
+                    max_length=self.tokenizer_2.model_max_length_2,
                     padding="max_length",
                     truncation=True,
                     return_attention_mask=True,
@@ -615,7 +616,7 @@ class T2V_dataset:
 
             text_tokens_and_mask_1 = self.tokenizer_1(
                 text,
-                max_length=self.model_max_length,
+                max_length=self.model_max_length_1,
                 padding="max_length",
                 truncation=True,
                 return_attention_mask=True,
@@ -629,7 +630,7 @@ class T2V_dataset:
             if self.tokenizer_2 is not None:
                 text_tokens_and_mask_2 = self.tokenizer_2(
                     text,
-                    max_length=self.tokenizer_2.model_max_length,
+                    max_length=self.tokenizer_2.model_max_length_2,
                     padding="max_length",
                     truncation=True,
                     return_attention_mask=True,

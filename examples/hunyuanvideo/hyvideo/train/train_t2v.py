@@ -827,7 +827,8 @@ def parse_t2v_train_args(parser):
 
     # parser.add_argument("--attention_mode", type=str, choices=["xformers", "math", "flash"], default="xformers")
 
-    # parser.add_argument("--model_max_length", type=int, default=512)
+    parser.add_argument("--model_max_length_1", type=int, default=512)
+    parser.add_argument("--model_max_length_2", type=int, default=77)
     parser.add_argument("--multi_scale", action="store_true")
 
     parser.add_argument("--use_image_num", type=int, default=0)

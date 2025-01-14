@@ -8,7 +8,7 @@ from .t2v_datasets import T2V_dataset
 from .transform import TemporalRandomCrop, center_crop_th_tw, maxhxw_resize, spatial_stride_crop_video
 
 
-def getdataset(args):
+def getdataset(args, dataset_file):
     temporal_sample = TemporalRandomCrop(args.num_frames)  # 16 x
     norm_fun = lambda x: 2.0 * x - 1.0
 
