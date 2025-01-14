@@ -7,6 +7,8 @@ from transformers import CLIPTextConfig
 
 import mindspore as ms
 
+from mindone.diffusers.utils.testing_utils import load_downloaded_numpy_from_hf_hub, slow
+
 from ..pipeline_test_utils import (
     THRESHOLD_FP16,
     THRESHOLD_FP32,
@@ -161,4 +163,52 @@ class AnimateDiffPipelineFastTests(PipelineTesterMixin, unittest.TestCase):
         ms_image_slice = ms_frame[0][0][0, -3:, -3:, -1]
 
         threshold = THRESHOLD_FP32 if dtype == "float32" else THRESHOLD_FP16
-        assert np.max(np.linalg.norm(pt_image_slice - ms_image_slice) / np.linalg.norm(pt_image_slice)) < threshold
+        assert np.linalg.norm(pt_image_slice - ms_image_slice) / np.linalg.norm(pt_image_slice) < threshold
+
+
+@slow
+@ddt
+class AnimateDiffPipelineSlowTests(PipelineTesterMixin, unittest.TestCase):
+    @data(*test_cases)
+    @unpack
+    def test_animatediff(self, mode, dtype):
+        ms.set_context(mode=mode)
+        ms_dtype = getattr(ms, dtype)
+
+        adapter_cls = get_module("mindone.diffusers.models.unets.unet_motion_model.MotionAdapter")
+        adapter = adapter_cls.from_pretrained("guoyww/animatediff-motion-adapter-v1-5-2", mindspore_dtype=ms_dtype)
+        pipe_cls = get_module("mindone.diffusers.pipelines.animatediff.AnimateDiffPipeline")
+        pipe = pipe_cls.from_pretrained(
+            "SG161222/Realistic_Vision_V5.1_noVAE", motion_adapter=adapter, mindspore_dtype=ms_dtype
+        )
+        scheduler_cls = get_module("mindone.diffusers.schedulers.scheduling_ddim.DDIMScheduler")
+        pipe.scheduler = scheduler_cls(
+            beta_start=0.00085,
+            beta_end=0.012,
+            beta_schedule="linear",
+            steps_offset=1,
+            clip_sample=False,
+        )
+        pipe.set_progress_bar_config(disable=None)
+
+        prompt = "night, b&w photo of old house, post apocalypse, forest, storm weather, wind, rocks, 8k uhd, dslr, soft lighting, high quality, film grain"
+        negative_prompt = "bad quality, worse quality"
+
+        torch.manual_seed(0)
+        output = pipe(
+            prompt,
+            negative_prompt=negative_prompt,
+            num_frames=8,
+            guidance_scale=7.5,
+            num_inference_steps=3,
+            output_type="np",
+        )
+        image = output[0][0]
+
+        expected_image = load_downloaded_numpy_from_hf_hub(
+            "The-truth/mindone-testing-arrays",
+            f"t2v_{dtype}.npy",
+            subfolder="animatediff",
+        )
+        threshold = THRESHOLD_FP32 if dtype == "float32" else THRESHOLD_FP16
+        assert np.linalg.norm(expected_image - image) / np.linalg.norm(expected_image) < threshold

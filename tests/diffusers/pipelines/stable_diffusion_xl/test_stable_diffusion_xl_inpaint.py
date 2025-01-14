@@ -24,9 +24,16 @@ from transformers import CLIPTextConfig, CLIPVisionConfig
 
 import mindspore as ms
 
+from mindone.diffusers.utils.testing_utils import (
+    load_downloaded_image_from_hf_hub,
+    load_downloaded_numpy_from_hf_hub,
+    slow,
+)
+
 from ..pipeline_test_utils import (
     THRESHOLD_FP16,
     THRESHOLD_FP32,
+    THRESHOLD_PIXEL,
     PipelineTesterMixin,
     floats_tensor,
     get_module,
@@ -267,4 +274,51 @@ class StableDiffusionXLInpaintPipelineFastTests(PipelineTesterMixin, unittest.Te
         ms_image_slice = ms_image[0][0, -3:, -3:, -1]
 
         threshold = THRESHOLD_FP32 if dtype == "float32" else THRESHOLD_FP16
-        assert np.max(np.linalg.norm(pt_image_slice - ms_image_slice) / np.linalg.norm(pt_image_slice)) < threshold
+        assert np.linalg.norm(pt_image_slice - ms_image_slice) / np.linalg.norm(pt_image_slice) < threshold
+
+
+@slow
+@ddt
+class StableDiffusionXLInpaintPipelineIntegrationTests(PipelineTesterMixin, unittest.TestCase):
+    @data(*test_cases)
+    @unpack
+    def test_stable_diffusion_xl_inpaint_default_case(self, mode, dtype):
+        ms.set_context(mode=mode)
+        ms_dtype = getattr(ms, dtype)
+
+        pipe_cls = get_module("mindone.diffusers.pipelines.stable_diffusion_xl.StableDiffusionXLInpaintPipeline")
+        pipe = pipe_cls.from_pretrained(
+            "stabilityai/stable-diffusion-xl-base-1.0",
+            mindspore_dtype=ms_dtype,
+            use_safetensors=True,
+        )
+
+        init_image = load_downloaded_image_from_hf_hub(
+            "The-truth/mindone-testing-arrays",
+            "inpaint_input.png",
+            subfolder="stable_diffusion_xl",
+        ).convert("RGB")
+        mask_image = load_downloaded_image_from_hf_hub(
+            "The-truth/mindone-testing-arrays",
+            "inpaint_mask.png",
+            subfolder="stable_diffusion_xl",
+        ).convert("RGB")
+        prompt = "A majestic tiger sitting on a bench"
+
+        torch.manual_seed(0)
+        image = pipe(
+            prompt=prompt,
+            image=init_image,
+            mask_image=mask_image,
+            num_inference_steps=50,
+            strength=0.80,
+        )[
+            0
+        ][0]
+
+        expected_image = load_downloaded_numpy_from_hf_hub(
+            "The-truth/mindone-testing-arrays",
+            f"inpaint_{dtype}.npy",
+            subfolder="stable_diffusion_xl",
+        )
+        assert np.mean(np.abs(np.array(image, dtype=np.float32) - expected_image)) < THRESHOLD_PIXEL

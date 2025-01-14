@@ -45,18 +45,9 @@ class PixArtInferPipeline:
         self.sampling_method = sampling_method
         self.num_inference_steps = num_inference_steps
 
-        if sampling_method == "iddpm":
-            self.diffusion = create_diffusion(str(num_inference_steps))
-            self.sampling_func = self.diffusion.p_sample_loop
-        elif sampling_method == "ddim":
-            self.diffusion = create_diffusion(str(num_inference_steps))
-            self.sampling_func = self.diffusion.ddim_sample_loop
-        else:
-            self.noise_schedule = create_noise_schedule_dpms()
-            self.diffusion = partial(
-                DPMS, model=self.network.construct_with_dpmsolver, noise_schedule=self.noise_schedule
-            )
-            self.sampling_func = None
+        # Cache for diffusion objects to avoid recreaetion
+        self._diffusion_cache = {}
+        self._init_diffusion()
 
         if force_freeze:
             # freeze all components
@@ -71,6 +62,49 @@ class PixArtInferPipeline:
             self.text_encoder.set_train(False)
             for param in self.text_encoder.trainable_params():
                 param.requires_grad = False
+
+    def _init_diffusion(self):
+        """Initialize or retrieve cached diffusion object"""
+        if self.sampling_method == "dpm":
+            self.noise_schedule = create_noise_schedule_dpms()
+            self.diffusion = partial(
+                DPMS, model=self.network.construct_with_dpmsolver, noise_schedule=self.noise_schedule
+            )
+            self.sampling_func = None
+            return
+
+        # Create cache key for IDDPM/DDIM
+        cache_key = (self.sampling_method, self.num_inference_steps)
+
+        if cache_key not in self._diffusion_cache:
+            diffusion = create_diffusion(str(self.num_inference_steps))
+            sampling_func = diffusion.ddim_sample_loop if self.sampling_method == "ddim" else diffusion.p_sample_loop
+            self._diffusion_cache[cache_key] = (diffusion, sampling_func)
+
+        self.diffusion, self.sampling_func = self._diffusion_cache[cache_key]
+
+    def set_sampling_params(self, sampling_method=None, num_inference_steps=None, guidance_scale=None):
+        """Update sampling parameters and reinitialize diffusion if needed
+
+        Args:
+            sampling_method: New sampling method
+            num_inference_steps: New numbers of inference step (need to recreate the sampling function in iddpm/ddim)
+            guidance_scale: New guidance scale value
+        """
+        updated = False
+        if sampling_method is not None and sampling_method != self.sampling_method:
+            self.sampling_method = sampling_method
+            updated = True
+
+        if num_inference_steps is not None and num_inference_steps != self.num_inference_steps:
+            self.num_inference_steps = num_inference_steps
+            updated = True
+
+        if guidance_scale is not None:
+            self.guidance_scale = Tensor(guidance_scale, dtype=ms.float32)
+
+        if updated:
+            self._init_diffusion()
 
     @ms.jit
     def vae_decode(self, x):

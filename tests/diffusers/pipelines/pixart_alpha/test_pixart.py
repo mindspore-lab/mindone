@@ -21,9 +21,12 @@ from ddt import data, ddt, unpack
 
 import mindspore as ms
 
+from mindone.diffusers.utils.testing_utils import load_downloaded_numpy_from_hf_hub, slow
+
 from ..pipeline_test_utils import (
     THRESHOLD_FP16,
     THRESHOLD_FP32,
+    THRESHOLD_PIXEL,
     PipelineTesterMixin,
     get_module,
     get_pipeline_components,
@@ -154,4 +157,32 @@ class PixArtAlphaPipelineFastTests(PipelineTesterMixin, unittest.TestCase):
         ms_image_slice = ms_image[0][0, -3:, -3:, -1]
 
         threshold = THRESHOLD_FP32 if dtype == "float32" else THRESHOLD_FP16
-        assert np.max(np.linalg.norm(pt_image_slice - ms_image_slice) / np.linalg.norm(pt_image_slice)) < threshold
+        assert np.linalg.norm(pt_image_slice - ms_image_slice) / np.linalg.norm(pt_image_slice) < threshold
+
+
+@slow
+@ddt
+class PixArtAlphaPipelineIntegrationTests(PipelineTesterMixin, unittest.TestCase):
+    ckpt_id_1024 = "PixArt-alpha/PixArt-XL-2-1024-MS"
+    prompt = "A small cactus with a happy face in the Sahara desert."
+
+    @data(*test_cases)
+    @unpack
+    def test_pixart_1024(self, mode, dtype):
+        ms.set_context(mode=mode)
+        ms_dtype = getattr(ms, dtype)
+
+        pipe_cls = get_module("mindone.diffusers.pipelines.pixart_alpha.PixArtAlphaPipeline")
+        pipe = pipe_cls.from_pretrained(self.ckpt_id_1024, mindspore_dtype=ms_dtype)
+
+        prompt = self.prompt
+
+        torch.manual_seed(0)
+        image = pipe(prompt, num_inference_steps=2)[0][0]
+
+        expected_image = load_downloaded_numpy_from_hf_hub(
+            "The-truth/mindone-testing-arrays",
+            f"pixart_1024_{dtype}.npy",
+            subfolder="pixart_alpha",
+        )
+        assert np.mean(np.abs(np.array(image, dtype=np.float32) - expected_image)) < THRESHOLD_PIXEL

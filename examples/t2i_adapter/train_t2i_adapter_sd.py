@@ -10,6 +10,7 @@ from jsonargparse import ActionConfigFile, ArgumentParser
 from omegaconf import OmegaConf
 from pipelines.sd_pipeline import SDAdapterPipeline
 
+import mindspore as ms
 from mindspore import Model, nn
 from mindspore.train.callback import LossMonitor, TimeMonitor
 
@@ -31,7 +32,8 @@ def main(args, initializer):
     # step 1: initialize environment
     logger = logging.getLogger(__name__)
     device_id, rank_id, device_num = init_train_env(**args.environment)
-
+    if args.environment.mode == ms.GRAPH_MODE:
+        ms.set_context(jit_config={"jit_level": args.jit_level})
     output_dir = Path(args.train.output_dir) / args.adapter.condition / datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
     output_dir.mkdir(parents=True, exist_ok=True)
     set_logger(output_dir=str(output_dir), rank=rank_id)
@@ -95,6 +97,7 @@ def main(args, initializer):
             [
                 f"Debugging: {args.environment.debug}",
                 f"MindSpore mode[GRAPH(0)/PYNATIVE(1)]: {args.environment.mode}",
+                f"JIT level: {args.jit_level}",
                 f"Distributed mode: {args.environment.distributed}",
                 "Model: StableDiffusion v2.1",  # Support 1.x
                 f"Num params SD: {num_params:,} (unet: {num_params_unet:,}, text encoder: {num_params_text_encoder:,}, vae: {num_params_vae:,})",
@@ -123,7 +126,7 @@ def main(args, initializer):
         args.train.epochs,
         train_dataloader,
         callbacks=callbacks,
-        dataset_sink_mode=not args.environment.debug,
+        dataset_sink_mode=False,
     )
 
 
@@ -138,11 +141,21 @@ if __name__ == "__main__":
         default="output/t2i_adapter_v2.1/",
         help="Output directory for saving training results.",
     )
+    parser.add_argument(
+        "--jit_level",
+        default="O0",
+        type=str,
+        choices=["O0", "O1", "O2"],
+        help="Used to control the compilation optimization level. Supports ['O0', 'O1', 'O2']."
+        "O0: Except for optimizations that may affect functionality, all other optimizations are turned off, adopt KernelByKernel execution mode."
+        "O1: Using commonly used optimizations and automatic operator fusion optimizations, adopt KernelByKernel execution mode."
+        "O2: Ultimate performance optimization, adopt Sink execution mode.",
+    )
     parser.add_subclass_arguments(CondDataset, "train.dataset")
     parser.add_function_arguments(
         create_dataloader,
         "train.dataloader",
-        skip={"dataset", "transforms", "device_num", "rank_id", "debug", "enable_modelarts"},
+        skip={"dataset", "transforms", "batch_transforms", "device_num", "rank_id", "debug", "enable_modelarts"},
     )
     parser.add_function_arguments(build_optimizer, "train.optimizer", skip={"model"})
     parser.add_class_arguments(
