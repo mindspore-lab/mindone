@@ -6,7 +6,7 @@ from typing import Tuple, Union
 from mindcv.utils.download import DownLoad
 
 import mindspore as ms
-from mindspore import nn
+from mindspore import _no_grad, nn
 from mindspore.communication.management import get_group_size, get_rank, init
 
 from mindone.utils.params import load_param_into_net_with_filter
@@ -231,3 +231,22 @@ def load_from_pretrained(
             if len(param_not_load) > 0:
                 logger.info("Net params not loaded: {}".format([p for p in param_not_load if not p.startswith("adam")]))
         logger.info("Checkpoint params not loaded: {}".format([p for p in ckpt_not_load if not p.startswith("adam")]))
+
+
+@ms.jit_class
+class no_grad(_no_grad):
+    """
+    A context manager that suppresses gradient memory allocation in PyNative mode.
+    """
+
+    def __init__(self):
+        super().__init__()
+        self._pynative = ms.get_context("mode") == ms.PYNATIVE_MODE
+
+    def __enter__(self):
+        if self._pynative:
+            super().__enter__()
+
+    def __exit__(self, *args):
+        if self._pynative:
+            super().__exit__(*args)
