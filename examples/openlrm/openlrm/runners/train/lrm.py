@@ -1,10 +1,8 @@
-import os
-import sys
-
 import datetime
 import json
 import logging
 import math
+import os
 
 import yaml
 
@@ -16,8 +14,8 @@ from mindspore.train.callback import TimeMonitor
 logger = logging.getLogger(__name__)
 
 from omegaconf import OmegaConf
-from openlrm.models.rendering.utils import MatrixInv, GridSample, NanToNum, CumProd, MeshGrid, SearchSorted
 from openlrm.losses import TVLoss
+from openlrm.models.rendering.utils import CumProd, GridSample, MatrixInv, MeshGrid, NanToNum, SearchSorted
 from openlrm.runners import REGISTRY_RUNNERS
 from openlrm.utils import seed_everything
 
@@ -30,7 +28,6 @@ from mindone.trainers.optim import create_optimizer
 from mindone.trainers.train_step import TrainOneStepWrapper
 from mindone.utils import count_params, init_train_env, set_logger
 from mindone.utils.amp import auto_mixed_precision
-from mindone.utils.config import instantiate_from_config
 
 from .base_trainer import Trainer
 
@@ -96,17 +93,27 @@ class LRMTrainer(Trainer):
         if not self.args.global_bf16:
             if weight_dtype == ms.bfloat16:
                 lrm_model_with_loss = auto_mixed_precision(
-                    lrm_model_with_loss, 
-                    amp_level=self.args.amp_level, 
-                    dtype=weight_dtype, 
-                    custom_fp32_cells=[MatrixInv, MeshGrid, GridSample, NanToNum, CumProd, SearchSorted, nn.MaxPool1d, nn.AvgPool1d, TVLoss]
+                    lrm_model_with_loss,
+                    amp_level=self.args.amp_level,
+                    dtype=weight_dtype,
+                    custom_fp32_cells=[
+                        MatrixInv,
+                        MeshGrid,
+                        GridSample,
+                        NanToNum,
+                        CumProd,
+                        SearchSorted,
+                        nn.MaxPool1d,
+                        nn.AvgPool1d,
+                        TVLoss,
+                    ],
                 )
             else:
                 lrm_model_with_loss = auto_mixed_precision(
-                    lrm_model_with_loss, 
-                    amp_level=self.args.amp_level, 
-                    dtype=weight_dtype, 
-                    custom_fp32_cells=[MatrixInv, TVLoss]
+                    lrm_model_with_loss,
+                    amp_level=self.args.amp_level,
+                    dtype=weight_dtype,
+                    custom_fp32_cells=[MatrixInv, TVLoss],
                 )
 
         return lrm_model_with_loss
@@ -171,7 +178,7 @@ class LRMTrainer(Trainer):
             normalize_camera=cfg.dataset.normalize_camera,
             normed_dist_to_center=cfg.dataset.normed_dist_to_center,
         )
-        val_dataset = None
+        # val_dataset = None
 
         # build data loader
         train_loader = create_dataloader(
@@ -230,7 +237,6 @@ class LRMTrainer(Trainer):
         )
 
         return train_loader, val_loader
-
 
     def train(self, args, cfg):
         # weight loading: load checkpoint when resume
@@ -323,7 +329,7 @@ class LRMTrainer(Trainer):
                     f"\tGrad clipping: {args.clip_grad}",
                     f"\tMax grad norm: {args.max_grad_norm}",
                     f"\tEMA: {args.use_ema}",
-                    f"\tUse recompute: {args.use_recompute}", 
+                    f"\tUse recompute: {args.use_recompute}",
                     f"\tDataset sink: {args.dataset_sink_mode}",
                 ]
             )

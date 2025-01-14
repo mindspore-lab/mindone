@@ -9,17 +9,20 @@
 # its affiliates is strictly prohibited.
 
 import mindspore as ms
-from mindspore import nn, mint, ops
+from mindspore import mint, nn, ops
+
 
 # only support fp16, fp32, not support bf16
 class CumProd(nn.Cell):
     def construct(self, x, dim):
         return ops.cumprod(x, dim=dim)
 
+
 # only support fp16, fp32, not support bf16
 class NanToNum(nn.Cell):
     def construct(self, x, nan: float = 0.0):
         return ops.nan_to_num(x, nan)
+
 
 # inv only support float32
 class MatrixInv(nn.Cell):
@@ -28,14 +31,16 @@ class MatrixInv(nn.Cell):
             x = x.float()
         return mint.linalg.inv(x)
 
+
 # only support fp16, fp32, not support bf16
 class GridSample(nn.Cell):
-    def construct(self, 
-            plane_features,
-            projected_coordinates,
-            mode,
-            padding_mode,
-            align_corners,
+    def construct(
+        self,
+        plane_features,
+        projected_coordinates,
+        mode,
+        padding_mode,
+        align_corners,
     ):
         x = mint.nn.functional.grid_sample(
             plane_features,
@@ -46,16 +51,19 @@ class GridSample(nn.Cell):
         )
         return x
 
+
 # not support bf16
 class MeshGrid(nn.Cell):
     def construct(self, x, y):
-        uv = mint.stack(ops.meshgrid(
-            mint.arange(x, dtype=ms.float32),
-            mint.arange(y, dtype=ms.float32),
-            indexing="ij",
+        uv = mint.stack(
+            ops.meshgrid(
+                mint.arange(x, dtype=ms.float32),
+                mint.arange(y, dtype=ms.float32),
+                indexing="ij",
             )
         )
         return uv
+
 
 # not support bf16
 class SearchSorted(nn.Cell):

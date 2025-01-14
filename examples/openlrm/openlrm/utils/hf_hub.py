@@ -18,12 +18,13 @@ from typing import Dict, Optional, Union
 
 from huggingface_hub import ModelHubMixin, constants, hf_hub_download
 from huggingface_hub.errors import EntryNotFoundError
-from huggingface_hub.utils import validate_hf_hub_args
 
 import mindspore as ms
 from mindspore import nn
 
 from mindone.safetensors.mindspore import load_file
+
+# from huggingface_hub.utils import validate_hf_hub_args
 
 
 def wrap_model_hub(model_cls: nn.Cell):

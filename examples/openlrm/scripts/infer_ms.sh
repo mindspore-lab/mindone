@@ -8,6 +8,6 @@ IMAGE_INPUT="sample_input" # <REPLACE_WITH_INPUT_IMAGE_DIR>
 # epoch=None
 # MODEL_CKPT=None
 # or
-epoch=100000 
+epoch=100000
 MODEL_CKPT=openlrm-e${epoch}.ckpt # <REPLACE_WITH_EXACT_CKPT_NAME>
 DEVICE_ID=0 python -m openlrm.launch infer.lrm --infer $INFER_CONFIG model_name=$MODEL_NAME model_ckpt=$MODEL_CKPT epoch=$epoch image_input=$IMAGE_INPUT export_video=$EXPORT_VIDEO export_mesh=$EXPORT_MESH

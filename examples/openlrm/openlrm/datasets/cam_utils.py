@@ -134,9 +134,9 @@ def build_camera_standard(RT: ms.Tensor, intrinsics: ms.Tensor):
             [0, fy, cy],
             [0, 0, 1]]
     """
-    E = compose_extrinsic_RT(RT)
+    Extr_M = compose_extrinsic_RT(RT)
     fx, fy, cx, cy = get_normalized_camera_intrinsics(intrinsics)
-    I = mint.stack(
+    Intr_M = mint.stack(
         [
             mint.stack([fx, mint.zeros_like(fx, dtype=ms.float32), cx], dim=-1),
             mint.stack([mint.zeros_like(fy, dtype=ms.float32), fy, cy], dim=-1),
@@ -146,8 +146,8 @@ def build_camera_standard(RT: ms.Tensor, intrinsics: ms.Tensor):
     )
     return mint.cat(
         [
-            E.reshape(-1, 16),
-            I.reshape(-1, 9),
+            Extr_M.reshape(-1, 16),
+            Intr_M.reshape(-1, 9),
         ],
         dim=-1,
     )

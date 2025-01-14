@@ -15,7 +15,7 @@
 
 from openlrm.utils.registry import Registry
 
-REGISTRY_RUNNERS = Registry()
-
 from .infer import *
 from .train import *
+
+REGISTRY_RUNNERS = Registry()

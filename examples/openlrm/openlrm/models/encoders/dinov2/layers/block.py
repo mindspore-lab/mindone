@@ -14,8 +14,6 @@
 # ******************************************************************************
 
 import logging
-import os
-import warnings
 from typing import Callable
 
 from mindspore import Tensor, nn, ops
@@ -154,4 +152,3 @@ def drop_add_residual_stochastic_depth(
     alpha = residual_scale_factor
     x_plus_residual = ops.index_add(x_flat, axis=0, indices=brange, y=residual.to(dtype=x.dtype) * alpha)
     return x_plus_residual.view_as(x)
-

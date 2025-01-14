@@ -46,7 +46,7 @@ class ModelLRM(nn.Cell):
         encoder_type: str = "dino",
         encoder_model_name: str = "facebook/dino-vitb16",
         encoder_feat_dim: int = 768,
-        use_recompute: bool = False
+        use_recompute: bool = False,
     ):
         super().__init__()
 
@@ -85,7 +85,7 @@ class ModelLRM(nn.Cell):
             triplane_dim=triplane_dim,
             samples_per_ray=rendering_samples_per_ray,
         )
-        
+
         if use_recompute:
             self.recompute(self.encoder)
             self.recompute(self.camera_embedder)

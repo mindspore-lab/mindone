@@ -19,7 +19,9 @@ Based off of the implementation in MipNeRF (this one doesn't do any cone tracing
 
 import mindspore as ms
 from mindspore import mint, nn, ops
+
 from . import CumProd, NanToNum
+
 
 class MipRayMarcher2(nn.Cell):
     def __init__(self, activation_factory):

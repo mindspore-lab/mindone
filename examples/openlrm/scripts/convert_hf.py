@@ -49,7 +49,7 @@ def auto_load_model(cfg, model: nn.Cell) -> int:
 
     if load_model_path.startswith("s3"):
         tmpdir = TemporaryDirectory()
-        tmp_model_path = smart_path_join(tmpdir.name, f"tmp.safetensors")
+        tmp_model_path = smart_path_join(tmpdir.name, "tmp.safetensors")
         smart_copy(load_model_path, tmp_model_path)
         load_model_path = tmp_model_path
 
@@ -77,7 +77,7 @@ if __name__ == "__main__":
     hf_model = hf_model_cls(OmegaConf.to_container(cfg.model))
     loaded_step = auto_load_model(cfg, hf_model)
     dump_path = smart_path_join(
-        f"./exps/releases",
+        "./exps/releases",
         cfg.experiment.parent,
         cfg.experiment.child,
         f"step_{loaded_step:06d}",

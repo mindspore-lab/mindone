@@ -80,15 +80,15 @@ def sample_point_on_sphere(radius: float) -> Tuple[float, float, float]:
     )
 
 
-def sample_spherical(radius=3.0, maxz=3.0, minz=0.0):
-    correct = False
-    while not correct:
-        vec = np.random.uniform(-1, 1, 3)
-        vec[2] = np.abs(vec[2])
-        vec = vec / np.linalg.norm(vec, axis=0) * radius
-        if maxz > vec[2] > minz:
-            correct = True
-    return vec
+# def sample_spherical(radius=3.0, maxz=3.0, minz=0.0):
+#     correct = False
+#     while not correct:
+#         vec = np.random.uniform(-1, 1, 3)
+#         vec[2] = np.abs(vec[2])
+#         vec = vec / np.linalg.norm(vec, axis=0) * radius
+#         if maxz > vec[2] > minz:
+#             correct = True
+#     return vec
 
 
 def sample_spherical(radius_min=1.5, radius_max=2.0, maxz=1.6, minz=-0.75):

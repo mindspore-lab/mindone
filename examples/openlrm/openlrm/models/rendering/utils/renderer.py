@@ -22,7 +22,7 @@ from openlrm.utils import no_grad
 import mindspore as ms
 from mindspore import mint, nn, ops
 
-from . import math_utils, MatrixInv, GridSample, NanToNum, SearchSorted
+from . import GridSample, MatrixInv, NanToNum, SearchSorted, math_utils
 from .ray_marcher import MipRayMarcher2
 
 
@@ -68,7 +68,8 @@ def sample_from_planes(plane_axes, plane_features, coordinates, mode="bilinear",
     coordinates = (2 / box_warp) * coordinates  # add specific box bounds
 
     projected_coordinates = project_onto_planes(plane_axes, coordinates).unsqueeze(1)
-    output_features = (GridSample()(
+    output_features = (
+        GridSample()(
             plane_features.float(),
             projected_coordinates.float(),
             mode=mode,

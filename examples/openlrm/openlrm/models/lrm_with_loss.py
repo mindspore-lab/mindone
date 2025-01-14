@@ -1,13 +1,9 @@
 import logging
-import os
 
 logger = logging.getLogger("")
 
-from PIL import Image
-
 import mindspore as ms
 from mindspore import Tensor, mint, nn
-from mindspore.dataset.vision import ToPIL
 
 from . import ModelLRM
 
@@ -15,11 +11,7 @@ from . import ModelLRM
 class ModelLRMWithLoss(nn.Cell):
     """The training pipeline for LRM model."""
 
-    def __init__(
-        self,
-        cfg,
-        use_recompute = False
-    ):
+    def __init__(self, cfg, use_recompute=False):
         super().__init__()
         self.cfg = cfg
         self.lrm_generator = ModelLRM(**cfg.model, use_recompute=use_recompute)
@@ -99,11 +91,7 @@ class ModelLRMWithLoss(nn.Cell):
 class ModelLRMWithLossEval(nn.Cell):
     """The evaluation pipeline for LRM model."""
 
-    def __init__(
-        self,
-        cfg,
-        use_recompute = False
-    ):
+    def __init__(self, cfg, use_recompute=False):
         super().__init__()
         self.cfg = cfg
         self.lrm_generator = ModelLRM(**cfg.model, use_recompute=use_recompute)

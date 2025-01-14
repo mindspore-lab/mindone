@@ -2,7 +2,7 @@
 This is the mindspore re-implementation of the work [LRM: Large Reconstruction Model for Single Image to 3D](https://arxiv.org/abs/2311.04400) based on open source repo [OpenLRM v1.1.1](https://github.com/3DTopia/OpenLRM).
 
 
-<!-- 
+<!--
 
 <div style="text-align: left">
     <img src="assets/mesh_snapshot/crop.owl.ply00.png" width="12%" height="auto"/>
@@ -45,7 +45,7 @@ LRM is the first Large Reconstruction Model that predicts the 3D model of an obj
   ├── config.json
   └── model.safetensors
   ```
-  
+
 - Please be aware of the [license](LICENSE_WEIGHT) before using the weights.
 
 ### Run Inference on Pretrained Models
@@ -70,14 +70,14 @@ LRM is the first Large Reconstruction Model that predicts the 3D model of an obj
 
 ### Configuration
 - We provide training sample config files under `configs/train-sample-X.yaml`, which defaults to use 1 NPU with `fp32` precision in PYNATIVE_MODE.
-- `configs/train-sample-large.yaml` can use 1 NPU with `bf16` mixed precision for training. 
+- `configs/train-sample-large.yaml` can use 1 NPU with `bf16` mixed precision for training.
 - Currently we only support loading Objaverse data curated by script in `scripts/data/objaverse/blender_script.py`.
 
-  | Model | Dataset | Layers | Feat. Dim | Trip. Dim. | In. Res. | 
+  | Model | Dataset | Layers | Feat. Dim | Trip. Dim. | In. Res. |
   | :--- | :--- | :--- | :--- | :--- | :--- |
   | small | Objaverse | 12 | 512 | 32 | 224 |
-  | base | Objaverse | 12 | 768 | 48 | 336 | 
-  | large | Objaverse | 16 | 1024 | 80 | 448 | 
+  | base | Objaverse | 12 | 768 | 48 | 336 |
+  | large | Objaverse | 16 | 1024 | 80 | 448 |
 
 
 ### Data Preparation
@@ -133,16 +133,16 @@ LRM is the first Large Reconstruction Model that predicts the 3D model of an obj
 - A inference sample script is provided in `scripts/infer_ms.sh` to infer 3D assets and render videos by trained MindSpore checkpoints.
 - An example inference usage is as follows:
 
-  ``` 
+  ```
   # Example usage
   EXPORT_VIDEO=true
   EXPORT_MESH=true
-  INFER_CONFIG="./configs/infer-s.yaml" 
-  MODEL_NAME="outputs/small/2024-12-30T18-24-53" 
-  IMAGE_INPUT="sample_input" 
+  INFER_CONFIG="./configs/infer-s.yaml"
+  MODEL_NAME="outputs/small/2024-12-30T18-24-53"
+  IMAGE_INPUT="sample_input"
 
-  epoch=100000 
-  MODEL_CKPT=openlrm-e${epoch}.ckpt 
+  epoch=100000
+  MODEL_CKPT=openlrm-e${epoch}.ckpt
   DEVICE_ID=0 python -m openlrm.launch infer.lrm --infer $INFER_CONFIG model_name=$MODEL_NAME model_ckpt=$MODEL_CKPT epoch=$epoch image_input=$IMAGE_INPUT export_video=$EXPORT_VIDEO export_mesh=$EXPORT_MESH
   ```
 ## Evaluation
@@ -189,7 +189,7 @@ Experiments are tested on 1 ascend 910* with mindSpore 2.3.1 pynative mode.
 
 |model name	| cards	| batch size	| resolution	| precision| recompute	| loss scaler	| jit level	| s/step	| batch/s|
 |---|---|---|---|---|---|---|---|---|---|
-|small | 1 | 1 | (4x)224x224 | fp32 | OFF | NONE | O0 | 2.00 | 0.50 | 
+|small | 1 | 1 | (4x)224x224 | fp32 | OFF | NONE | O0 | 2.00 | 0.50 |
 |base | 1 | 1 | (4x)336x336 | fp32 | OFF | NONE | O0 | 2.63 | 0.38 |
 |large | 1 | 1 | (4x)448x448 | bf16 | ON | static | O0 | 4.22 | 0.24 |  
 

@@ -19,7 +19,9 @@ Expects cam2world matrices that use the OpenCV camera coordinate system conventi
 
 import mindspore as ms
 from mindspore import mint, nn, ops
+
 from . import MeshGrid
+
 
 class RaySampler(nn.Cell):
     def __init__(self):

@@ -1,33 +1,27 @@
 import argparse
-import datetime
+import json
+import logging
 import os
-import sys
 import time
 
 import numpy as np
-from PIL import Image
-
-import mindspore as ms
-from mindspore import mint
-
-# __dir__ = os.path.dirname(os.path.abspath(__file__))
-# sys.path.insert(0, os.path.abspath(os.path.join(__dir__, "../..")))  # for loading mindone
-
-import json
-import logging
-from typing import Optional
-
 from megfile import smart_open, smart_path_join
 from omegaconf import OmegaConf
 from openlrm.datasets.cam_utils import build_camera_principle, build_camera_standard, camera_normalization_objaverse
 from openlrm.datasets.objaverse import ObjaverseDataset
 from openlrm.utils import seed_everything, str2bool
+from PIL import Image
 from skimage.metrics import peak_signal_noise_ratio as psnr
 from skimage.metrics import structural_similarity as ssim
 
-from mindone.utils.amp import auto_mixed_precision
-from mindone.utils.config import instantiate_from_config
+import mindspore as ms
+from mindspore import mint
+
 from mindone.utils.logger import set_logger
+
+# __dir__ = os.path.dirname(os.path.abspath(__file__))
+# sys.path.insert(0, os.path.abspath(os.path.join(__dir__, "../..")))  # for loading mindone
+
 
 logger = logging.getLogger(__name__)
 
@@ -51,9 +45,7 @@ def calc_ssim(img1, img2):
         raise ValueError("Wrong input image dimensions.")
 
 
-def load_data(
-    root_dirs, uid, render_image_res, num_all_views=32, normalize_camera=True, normed_dist_to_center="auto"
-):  
+def load_data(root_dirs, uid, render_image_res, num_all_views=32, normalize_camera=True, normed_dist_to_center="auto"):
     root_dir = os.path.join(root_dirs, uid)
     pose_dir = os.path.join(root_dir, "pose")
     rgba_dir = os.path.join(root_dir, "rgba")
@@ -107,7 +99,7 @@ def load_data(
 def evaluate(args):
     save_dir = args.output_path
 
-    device_num = 1
+    # device_num = 1
     rank_id = 0
     ms.set_context(
         mode=args.mode,
