@@ -552,18 +552,18 @@ def main(args):
             ema=ema,
         )
 
-    # set dynamic inputs
-    _bs = ms.Symbol(unique=True)
-    video = ms.Tensor(shape=[_bs, 3, None, None, None], dtype=ms.float32)  # (b, c, f, h, w)
-    attention_mask = ms.Tensor(shape=[_bs, None, None, None], dtype=ms.float32)  # (b, f, h, w)
-    text_tokens = (
-        ms.Tensor(shape=[_bs, None, args.model_max_length, None], dtype=ms.float32)
-        if args.text_embed_cache
-        else ms.Tensor(shape=[_bs, None, args.model_max_length], dtype=ms.float32)
-    )
-    encoder_attention_mask = ms.Tensor(shape=[_bs, None, args.model_max_length], dtype=ms.uint8)
-    net_with_grads.set_inputs(video, attention_mask, text_tokens, encoder_attention_mask)
-    logger.info("Dynamic inputs are initialized for training!")
+    # # set dynamic inputs
+    # _bs = ms.Symbol(unique=True)
+    # video = ms.Tensor(shape=[_bs, 3, None, None, None], dtype=ms.float32)  # (b, c, f, h, w)
+    # attention_mask = ms.Tensor(shape=[_bs, None, None, None], dtype=ms.float32)  # (b, f, h, w)
+    # text_tokens = (
+    #     ms.Tensor(shape=[_bs, None, args.model_max_length, None], dtype=ms.float32)
+    #     if args.text_embed_cache
+    #     else ms.Tensor(shape=[_bs, None, args.model_max_length], dtype=ms.float32)
+    # )
+    # encoder_attention_mask = ms.Tensor(shape=[_bs, None, args.model_max_length], dtype=ms.uint8)
+    # net_with_grads.set_inputs(video, attention_mask, text_tokens, encoder_attention_mask)
+    # logger.info("Dynamic inputs are initialized for training!")
 
     if not args.global_bf16:
         model = Model(
@@ -718,7 +718,6 @@ def parse_t2v_train_args(parser):
     # dataset & dataloader
     parser.add_argument("--max_hxw", type=int, default=None)
     parser.add_argument("--min_hxw", type=int, default=None)
-    parser.add_argument("--ood_img_ratio", type=float, default=0.0)
     parser.add_argument("--group_data", action="store_true")
     parser.add_argument("--hw_stride", type=int, default=32)
     parser.add_argument("--force_resolution", action="store_true")
@@ -787,7 +786,7 @@ def parse_t2v_train_args(parser):
         default=None,
         help="The validation dataset text file, same format as the training dataset text file.",
     )
-    parser.add_argument("--cache_dir", type=str, default="./cache_dir")
+    parser.add_argument("--cache_dir", type=str, default="./ckpts")
     parser.add_argument(
         "--filter_nonexistent",
         type=str2bool,
@@ -809,12 +808,9 @@ def parse_t2v_train_args(parser):
         help="Name of the VAE model.",
     )
     parser.add_argument("--model", type=str, choices=list(HUNYUAN_VIDEO_CONFIG.keys()), default="HYVideo-T/2")
-    parser.add_argument("--interpolation_scale_h", type=float, default=1.0)
-    parser.add_argument("--interpolation_scale_w", type=float, default=1.0)
-    parser.add_argument("--interpolation_scale_t", type=float, default=1.0)
+
     parser.add_argument("--downsampler", type=str, default=None)
-    parser.add_argument("--ae", type=str, default="CausalVAEModel_4x8x8")
-    parser.add_argument("--ae_path", type=str, default="LanguageBind/Open-Sora-Plan-v1.1.0")
+
     parser.add_argument("--sample_rate", type=int, default=1)
     parser.add_argument("--train_fps", type=int, default=24)
     parser.add_argument("--drop_short_ratio", type=float, default=1.0)
@@ -827,12 +823,11 @@ def parse_t2v_train_args(parser):
     parser.add_argument("--use_rope", action="store_true")
     parser.add_argument("--pretrained", type=str, default=None)
 
-    parser.add_argument("--tile_overlap_factor", type=float, default=0.25)
     parser.add_argument("--vae_tiling", action="store_true")
 
-    parser.add_argument("--attention_mode", type=str, choices=["xformers", "math", "flash"], default="xformers")
-    # parser.add_argument("--text_encoder_name", type=str, default="DeepFloyd/t5-v1_1-xxl")
-    parser.add_argument("--model_max_length", type=int, default=512)
+    # parser.add_argument("--attention_mode", type=str, choices=["xformers", "math", "flash"], default="xformers")
+
+    # parser.add_argument("--model_max_length", type=int, default=512)
     parser.add_argument("--multi_scale", action="store_true")
 
     parser.add_argument("--use_image_num", type=int, default=0)

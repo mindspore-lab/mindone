@@ -125,6 +125,8 @@ class DiffusionWithLoss(nn.Cell):
         attention_mask: ms.Tensor,
         text_tokens: ms.Tensor,
         encoder_attention_mask: ms.Tensor = None,
+        text_tokens_2: ms.Tensor = None,
+        encoder_attention_mask_2: ms.Tensor = None,
     ):
         """
         Video diffusion model forward and loss computation for training
@@ -150,16 +152,24 @@ class DiffusionWithLoss(nn.Cell):
         # 2. get conditions
         if not self.text_emb_cached:
             text_embed = ops.stop_gradient(self.get_condition_embeddings(text_tokens, encoder_attention_mask))
+            if text_tokens_2 is not None:
+                text_embed_2 = ops.stop_gradient(self.get_condition_embeddings(text_tokens_2, encoder_attention_mask_2))
         else:
             text_embed = text_tokens
-        loss = self.compute_loss(x, attention_mask, text_embed, encoder_attention_mask)
+            if text_tokens_2 is not None:
+                text_embed_2 = text_tokens_2
+        loss = self.compute_loss(
+            x, attention_mask, text_embed, encoder_attention_mask, text_embed_2, encoder_attention_mask_2
+        )
 
         return loss
 
     def apply_model(self, *args, **kwargs):
         return self.network(*args, **kwargs)
 
-    def compute_loss(self, x, attention_mask, text_embed, encoder_attention_mask):
+    def compute_loss(
+        self, x, attention_mask, text_embed, encoder_attention_mask, text_embed_2, encoder_attention_mask_2
+    ):
         use_image_num = self.use_image_num
         noise = ops.randn_like(x)
         bsz = x.shape[0]
@@ -173,10 +183,21 @@ class DiffusionWithLoss(nn.Cell):
                 x,
                 noise,
                 text_embed,
+                text_embed_2,
                 attention_mask,
                 encoder_attention_mask,
+                encoder_attention_mask_2,
                 use_image_num,
-            ) = prepare_parallel_data(x, noise, text_embed, attention_mask, encoder_attention_mask, use_image_num)
+            ) = prepare_parallel_data(
+                x,
+                noise,
+                text_embed,
+                text_embed_2,
+                attention_mask,
+                encoder_attention_mask,
+                encoder_attention_mask_2,
+                use_image_num,
+            )
 
         t = ops.randint(0, self.num_train_timesteps, (x.shape[0],), dtype=ms.int32)
         if get_sequence_parallel_state():
@@ -189,10 +210,12 @@ class DiffusionWithLoss(nn.Cell):
         model_pred = self.apply_model(
             x_t,
             t,
-            encoder_hidden_states=text_embed,
-            attention_mask=attention_mask,
-            encoder_attention_mask=encoder_attention_mask,
-            use_image_num=use_image_num,
+            text_states=text_embed,
+            text_mask=encoder_attention_mask,
+            text_states_2=text_embed_2,
+            text_mask_2=encoder_attention_mask_2,
+            # attention_mask=attention_mask,
+            # use_image_num=use_image_num,
         )
 
         if self.prediction_type == "epsilon":

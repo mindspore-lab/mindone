@@ -4,7 +4,7 @@ import time
 from typing import List, Optional, Union
 
 import numpy as np
-from opensora.utils.ema import EMA, EMA_
+from hyvideo.utils.ema import EMA, EMA_
 
 from mindspore.train import Callback, RunContext
 

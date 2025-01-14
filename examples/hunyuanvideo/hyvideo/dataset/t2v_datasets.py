@@ -14,14 +14,14 @@ from pathlib import Path
 import cv2
 import decord
 import numpy as np
-from opensora.dataset.transform import (
+from hyvideo.dataset.transform import (
     add_aesthetic_notice_image,
     add_aesthetic_notice_video,
     calculate_statistics,
     get_params,
     maxhwresize,
 )
-from opensora.utils.utils import text_preprocessing
+from hyvideo.utils.utils import text_preprocessing
 from PIL import Image
 from tqdm import tqdm
 

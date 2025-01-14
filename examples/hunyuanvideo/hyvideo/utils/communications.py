@@ -62,7 +62,14 @@ class AllToAll_SBH(_SingleAll2ALL):
 
 
 def prepare_parallel_data(
-    hidden_states, noise, encoder_hidden_states, attention_mask, encoder_attention_mask, use_image_num
+    hidden_states,
+    noise,
+    encoder_hidden_states,
+    encoder_hidden_states_2,
+    attention_mask,
+    encoder_attention_mask,
+    encoder_attention_mask_2,
+    use_image_num,
 ):
     # split input data for seq parallelism
     sp_size = hccl_info.world_size
@@ -72,8 +79,12 @@ def prepare_parallel_data(
     # b 1 (n x) h -> b n x h
     b, one_, nx, h = encoder_hidden_states.shape
     encoder_hidden_states = encoder_hidden_states.view((b, sp_size, nx // sp_size, h))
+    if encoder_hidden_states_2 is not None:
+        encoder_hidden_states_2 = encoder_hidden_states_2.view((b, sp_size, nx // sp_size, h))
     attention_mask = attention_mask.tile((1, sp_size, 1, 1))
     encoder_attention_mask = encoder_attention_mask.tile((1, sp_size, 1))
+    if encoder_attention_mask_2 is not None:
+        encoder_attention_mask_2 = encoder_attention_mask_2.tile((1, sp_size, 1))
 
     assert one_ == 1
     assert attention_mask is not None
@@ -81,12 +92,31 @@ def prepare_parallel_data(
 
     assert hidden_states.shape[2] % sp_size == 0
     assert encoder_hidden_states.shape[1] % sp_size == 0
+    if encoder_hidden_states_2 is not None:
+        assert encoder_hidden_states_2.shape[1] % sp_size == 0
     assert attention_mask.shape[1] % sp_size == 0
     assert encoder_attention_mask.shape[1] % sp_size == 0
+    if encoder_attention_mask_2 is not None:
+        assert encoder_attention_mask_2.shape[1] % sp_size == 0
 
     hidden_states = mint.chunk(hidden_states, sp_size, 2)[index]
     noise = mint.chunk(noise, sp_size, 2)[index]
     encoder_hidden_states = mint.chunk(encoder_hidden_states, sp_size, 1)[index]
+    encoder_hidden_states_2 = (
+        mint.chunk(encoder_hidden_states_2, sp_size, 1)[index] if encoder_hidden_states_2 is not None else None
+    )
     encoder_attention_mask = mint.chunk(encoder_attention_mask, sp_size, 1)[index]
+    encoder_attention_mask_2 = (
+        mint.chunk(encoder_attention_mask_2, sp_size, 1)[index] if encoder_attention_mask_2 is not None else None
+    )
     attention_mask = mint.chunk(attention_mask, sp_size, 1)[index]
-    return hidden_states, noise, encoder_hidden_states, attention_mask, encoder_attention_mask, use_image_num
+    return (
+        hidden_states,
+        noise,
+        encoder_hidden_states,
+        encoder_hidden_states_2,
+        attention_mask,
+        encoder_attention_mask,
+        encoder_attention_mask_2,
+        use_image_num,
+    )
