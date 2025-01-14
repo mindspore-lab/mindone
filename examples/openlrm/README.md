@@ -1,18 +1,6 @@
 # OpenLRM: Open-Source Large Reconstruction Models
 This is the mindspore re-implementation of the work [LRM: Large Reconstruction Model for Single Image to 3D](https://arxiv.org/abs/2311.04400) based on open source repo [OpenLRM v1.1.1](https://github.com/3DTopia/OpenLRM).
 
-
-<!--
-
-<div style="text-align: left">
-    <img src="assets/mesh_snapshot/crop.owl.ply00.png" width="12%" height="auto"/>
-    <img src="assets/mesh_snapshot/crop.owl.ply01.png" width="12%" height="auto"/>
-    <img src="assets/mesh_snapshot/crop.building.ply00.png" width="12%" height="auto"/>
-    <img src="assets/mesh_snapshot/crop.building.ply01.png" width="12%" height="auto"/>
-    <img src="assets/mesh_snapshot/crop.rose.ply00.png" width="12%" height="auto"/>
-    <img src="assets/mesh_snapshot/crop.rose.ply01.png" width="12%" height="auto"/>
-</div> -->
-
 ## **Introduction**
 <p align="center">
   <img src="https://github.com/user-attachments/assets/4f5d4325-1fd5-4421-a958-9a11ecee0192"  width="70%" height="auto">
@@ -180,9 +168,13 @@ Experiments are tested on 1 ascend 910* with mindSpore 2.3.1 pynative mode.
 |---|---|---|---|---|---|---|---|---|---|---|
 |openlrm-mix-base-1.1 |  1 | 1 | 336x336 |fp32| O0| OFF |   0.61 | 0.91 |[yaml](./configs/infer-b.yaml)| [weight](https://huggingface.co/zxhezexin/openlrm-mix-base-1.1)|
 
-<!-- |Input| Output |
+|Input| Output |
 |:---|:---|
-| | | -->
+|<img src="https://github.com/user-attachments/assets/baf30c16-384a-44fc-b303-ade6d7a3b8b0"  width="256px"> | <img src="https://github.com/user-attachments/assets/bcb6d8a1-b3f2-41a7-86a0-c222de6b0987"  width="256px">  |
+| <img src="https://github.com/user-attachments/assets/dc96aa17-35cd-4477-b62d-8ba11dd6ba47"  width="256px"> | <img src="https://github.com/user-attachments/assets/ab2da9bb-7fa4-4bc4-9e84-a151b41b7e36"  width="256px"> |
+|  <img src="https://github.com/user-attachments/assets/f4f08604-f5d1-46cb-b69b-d09b41cbad58" width="256px">|  <img src="https://github.com/user-attachments/assets/6362ae00-5a17-4ae6-909b-7777c2aaca0d" width="256px"> | 
+| <img src="https://github.com/user-attachments/assets/e6cdcf8e-06d1-4890-b78a-908b78d10437" width="256px">| <img src="https://github.com/user-attachments/assets/bf5a8aec-79e6-4429-8f15-d82390d41321"  width="256px"> |
+
 
 ### Training Performance
 - Train with objaverse data only:
@@ -200,6 +192,13 @@ Experiments are tested on 1 ascend 910* with mindSpore 2.3.1 pynative mode.
 |---|---|---|---|---|---|---|---|---|---|
 |small | 70k |1 | 1 | 224x224 | fp32  | O0 | 0.99 | 23.75 | 0.88  
 |base | 40k |1 | 1 | 336x336 | fp32  | O0 | 1.90 | 20.79 | 0.86  
+
+|Input| Output (small-ep50k)| Output (base-ep40k) |
+|:---|:---|:---|
+|<img src="https://github.com/user-attachments/assets/102e3a5e-1d78-4c73-8eb7-658ca83fdf3f"  width="256px"> |<img src="https://github.com/user-attachments/assets/88ed101d-6ae6-4192-972f-3c89c5a8c840"  width="256px"> |<img src="https://github.com/user-attachments/assets/50304993-8e59-4419-8084-d1146f4d28c9" width="256px"> |
+|<img src="https://github.com/user-attachments/assets/05c2d0e6-40bd-4be2-8e51-21d01d72c456"  width="256px"> |<img src="https://github.com/user-attachments/assets/be5d3d0a-2d2e-498e-8308-a90b6ef850d4"  width="256px"> |<img src="https://github.com/user-attachments/assets/cd3b4c41-2f57-440d-9b6e-6ce35ee883b2"  width="256px"> |
+|<img src="https://github.com/user-attachments/assets/803e0671-7f29-4467-a9d4-04211fd35b35"  width="256px">|<img src="https://github.com/user-attachments/assets/64189b53-a4a7-4590-b3b5-d30f653f855d" width="256px"> |<img src="https://github.com/user-attachments/assets/ea9d3404-0538-4ce0-ab72-06923e6f1504" width="256px"> |
+|<img src="https://github.com/user-attachments/assets/a8c870b2-b616-415f-829d-a2ab3e581d62"  width="256px"> |<img src="https://github.com/user-attachments/assets/fd023b2b-058b-444d-93d5-3a3e037a3918"  width="256px"> |<img src="https://github.com/user-attachments/assets/fcdcde93-c382-464a-9faa-5bf6350e2bbf"  width="256px">  |
 
 ## License
 
