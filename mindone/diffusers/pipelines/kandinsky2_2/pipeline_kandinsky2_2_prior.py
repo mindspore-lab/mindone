@@ -67,8 +67,8 @@ EXAMPLE_INTERPOLATE_DOC_STRING = """
         ...     "kandinsky-community/kandinsky-2-2-decoder", mindspore_dtype=ms.float16
         ... )
         >>> image = pipe(
-        ...     image_embeds=out.image_embeds,
-        ...     negative_image_embeds=out.negative_image_embeds,
+        ...     image_embeds=out[0],
+        ...     negative_image_embeds=out[1],
         ...     height=768,
         ...     width=768,
         ...     num_inference_steps=50,

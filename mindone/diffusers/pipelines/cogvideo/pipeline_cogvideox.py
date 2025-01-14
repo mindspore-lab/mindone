@@ -15,7 +15,7 @@
 
 import inspect
 import math
-from typing import Callable, Dict, List, Optional, Tuple, Union
+from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 import numpy as np
 from transformers import T5Tokenizer
@@ -25,11 +25,12 @@ from mindspore import ops
 
 from ....transformers import T5EncoderModel
 from ...callbacks import MultiPipelineCallbacks, PipelineCallback
+from ...loaders import CogVideoXLoraLoaderMixin
 from ...models import AutoencoderKLCogVideoX, CogVideoXTransformer3DModel
 from ...models.embeddings import get_3d_rotary_pos_embed
 from ...pipelines.pipeline_utils import DiffusionPipeline
 from ...schedulers import CogVideoXDDIMScheduler, CogVideoXDPMScheduler
-from ...utils import logging
+from ...utils import logging, scale_lora_layers, unscale_lora_layers
 from ...utils.mindspore_utils import randn_tensor
 from ...video_processor import VideoProcessor
 from .pipeline_output import CogVideoXPipelineOutput
@@ -87,7 +88,7 @@ def retrieve_timesteps(
     sigmas: Optional[List[float]] = None,
     **kwargs,
 ):
-    """
+    r"""
     Calls the scheduler's `set_timesteps` method and retrieves timesteps from the scheduler after the call. Handles
     custom timesteps. Any kwargs will be supplied to `scheduler.set_timesteps`.
 
@@ -136,7 +137,7 @@ def retrieve_timesteps(
     return timesteps, num_inference_steps
 
 
-class CogVideoXPipeline(DiffusionPipeline):
+class CogVideoXPipeline(DiffusionPipeline, CogVideoXLoraLoaderMixin):
     r"""
     Pipeline for text-to-video generation using CogVideoX.
 
@@ -186,6 +187,9 @@ class CogVideoXPipeline(DiffusionPipeline):
         )
         self.vae_scale_factor_temporal = (
             self.vae.config.temporal_compression_ratio if hasattr(self, "vae") and self.vae is not None else 4
+        )
+        self.vae_scaling_factor_image = (
+            self.vae.config.scaling_factor if hasattr(self, "vae") and self.vae is not None else 0.7
         )
 
         self.video_processor = VideoProcessor(vae_scale_factor=self.vae_scale_factor_spatial)
@@ -309,6 +313,12 @@ class CogVideoXPipeline(DiffusionPipeline):
     def prepare_latents(
         self, batch_size, num_channels_latents, num_frames, height, width, dtype, generator, latents=None
     ):
+        if isinstance(generator, list) and len(generator) != batch_size:
+            raise ValueError(
+                f"You have passed a list of generators of length {len(generator)}, but requested an effective batch"
+                f" size of {batch_size}. Make sure the batch size matches the length of the generators."
+            )
+
         shape = (
             batch_size,
             (num_frames - 1) // self.vae_scale_factor_temporal + 1,
@@ -316,11 +326,6 @@ class CogVideoXPipeline(DiffusionPipeline):
             height // self.vae_scale_factor_spatial,
             width // self.vae_scale_factor_spatial,
         )
-        if isinstance(generator, list) and len(generator) != batch_size:
-            raise ValueError(
-                f"You have passed a list of generators of length {len(generator)}, but requested an effective batch"
-                f" size of {batch_size}. Make sure the batch size matches the length of the generators."
-            )
 
         if latents is None:
             latents = randn_tensor(shape, generator=generator, dtype=dtype)
@@ -331,7 +336,7 @@ class CogVideoXPipeline(DiffusionPipeline):
 
     def decode_latents(self, latents: ms.Tensor) -> ms.Tensor:
         latents = latents.permute(0, 2, 1, 3, 4)  # [batch_size, num_channels, num_frames, height, width]
-        latents = 1 / self.vae.config.scaling_factor * latents
+        latents = 1 / self.vae_scaling_factor_image * latents
 
         frames = self.vae.decode(latents)[0]
         return frames
@@ -427,19 +432,36 @@ class CogVideoXPipeline(DiffusionPipeline):
     ) -> Tuple[ms.Tensor, ms.Tensor]:
         grid_height = height // (self.vae_scale_factor_spatial * self.transformer.config.patch_size)
         grid_width = width // (self.vae_scale_factor_spatial * self.transformer.config.patch_size)
-        base_size_width = 720 // (self.vae_scale_factor_spatial * self.transformer.config.patch_size)
-        base_size_height = 480 // (self.vae_scale_factor_spatial * self.transformer.config.patch_size)
 
-        grid_crops_coords = get_resize_crop_region_for_grid(
-            (grid_height, grid_width), base_size_width, base_size_height
-        )
-        freqs_cos, freqs_sin = get_3d_rotary_pos_embed(
-            embed_dim=self.transformer.config.attention_head_dim,
-            crops_coords=grid_crops_coords,
-            grid_size=(grid_height, grid_width),
-            temporal_size=num_frames,
-            use_real=True,
-        )
+        p = self.transformer.config.patch_size
+        p_t = self.transformer.config.patch_size_t
+
+        base_size_width = self.transformer.config.sample_width // p
+        base_size_height = self.transformer.config.sample_height // p
+
+        if p_t is None:
+            # CogVideoX 1.0
+            grid_crops_coords = get_resize_crop_region_for_grid(
+                (grid_height, grid_width), base_size_width, base_size_height
+            )
+            freqs_cos, freqs_sin = get_3d_rotary_pos_embed(
+                embed_dim=self.transformer.config.attention_head_dim,
+                crops_coords=grid_crops_coords,
+                grid_size=(grid_height, grid_width),
+                temporal_size=num_frames,
+            )
+        else:
+            # CogVideoX 1.5
+            base_num_frames = (num_frames + p_t - 1) // p_t
+
+            freqs_cos, freqs_sin = get_3d_rotary_pos_embed(
+                embed_dim=self.transformer.config.attention_head_dim,
+                crops_coords=None,
+                grid_size=(grid_height, grid_width),
+                temporal_size=base_num_frames,
+                grid_type="slice",
+                max_size=(base_size_height, base_size_width),
+            )
 
         return freqs_cos, freqs_sin
 
@@ -452,6 +474,10 @@ class CogVideoXPipeline(DiffusionPipeline):
         return self._num_timesteps
 
     @property
+    def attention_kwargs(self):
+        return self._attention_kwargs
+
+    @property
     def interrupt(self):
         return self._interrupt
 
@@ -459,9 +485,9 @@ class CogVideoXPipeline(DiffusionPipeline):
         self,
         prompt: Optional[Union[str, List[str]]] = None,
         negative_prompt: Optional[Union[str, List[str]]] = None,
-        height: int = 480,
-        width: int = 720,
-        num_frames: int = 49,
+        height: Optional[int] = None,
+        width: Optional[int] = None,
+        num_frames: Optional[int] = None,
         num_inference_steps: int = 50,
         timesteps: Optional[List[int]] = None,
         guidance_scale: float = 6,
@@ -474,6 +500,7 @@ class CogVideoXPipeline(DiffusionPipeline):
         negative_prompt_embeds: Optional[ms.Tensor] = None,
         output_type: str = "pil",
         return_dict: bool = False,
+        attention_kwargs: Optional[Dict[str, Any]] = None,
         callback_on_step_end: Optional[
             Union[Callable[[int, int, Dict], None], PipelineCallback, MultiPipelineCallbacks]
         ] = None,
@@ -491,14 +518,14 @@ class CogVideoXPipeline(DiffusionPipeline):
                 The prompt or prompts not to guide the image generation. If not defined, one has to pass
                 `negative_prompt_embeds` instead. Ignored when not using guidance (i.e., ignored if `guidance_scale` is
                 less than `1`).
-            height (`int`, *optional*, defaults to self.unet.config.sample_size * self.vae_scale_factor):
-                The height in pixels of the generated image. This is set to 1024 by default for the best results.
-            width (`int`, *optional*, defaults to self.unet.config.sample_size * self.vae_scale_factor):
-                The width in pixels of the generated image. This is set to 1024 by default for the best results.
+            height (`int`, *optional*, defaults to self.transformer.config.sample_height * self.vae_scale_factor_spatial):
+                The height in pixels of the generated image. This is set to 480 by default for the best results.
+            width (`int`, *optional*, defaults to self.transformer.config.sample_height * self.vae_scale_factor_spatial):
+                The width in pixels of the generated image. This is set to 720 by default for the best results.
             num_frames (`int`, defaults to `48`):
                 Number of frames to generate. Must be divisible by self.vae_scale_factor_temporal. Generated video will
                 contain 1 extra frame because CogVideoX is conditioned with (num_seconds * fps + 1) frames where
-                num_seconds is 6 and fps is 4. However, since videos can be saved at any fps, the only condition that
+                num_seconds is 6 and fps is 8. However, since videos can be saved at any fps, the only condition that
                 needs to be satisfied is that of divisibility mentioned above.
             num_inference_steps (`int`, *optional*, defaults to 50):
                 The number of denoising steps. More denoising steps usually lead to a higher quality image at the
@@ -535,6 +562,10 @@ class CogVideoXPipeline(DiffusionPipeline):
             return_dict (`bool`, *optional*, defaults to `False`):
                 Whether or not to return a [`~pipelines.stable_diffusion_xl.StableDiffusionXLPipelineOutput`] instead
                 of a plain tuple.
+            attention_kwargs (`dict`, *optional*):
+                A kwargs dictionary that if specified is passed along to the `AttentionProcessor` as defined under
+                `self.processor` in
+                [diffusers.models.attention_processor](https://github.com/huggingface/diffusers/blob/main/src/diffusers/models/attention_processor.py).
             callback_on_step_end (`Callable`, *optional*):
                 A function that calls at the end of each denoising steps during the inference. The function is called
                 with the following arguments: `callback_on_step_end(self: DiffusionPipeline, step: int, timestep: int,
@@ -556,16 +587,13 @@ class CogVideoXPipeline(DiffusionPipeline):
             `tuple`. When returning a tuple, the first element is a list with the generated images.
         """
 
-        if num_frames > 49:
-            raise ValueError(
-                "The number of frames must be less than 49 for now due to static positional embeddings. This will be updated in the future to remove this limitation."  # noqa: E501
-            )
-
         if isinstance(callback_on_step_end, (PipelineCallback, MultiPipelineCallbacks)):
             callback_on_step_end_tensor_inputs = callback_on_step_end.tensor_inputs
 
-        height = height or self.transformer.config.sample_size * self.vae_scale_factor_spatial
-        width = width or self.transformer.config.sample_size * self.vae_scale_factor_spatial
+        height = height or self.transformer.config.sample_height * self.vae_scale_factor_spatial
+        width = width or self.transformer.config.sample_width * self.vae_scale_factor_spatial
+        num_frames = num_frames or self.transformer.config.sample_frames
+
         num_videos_per_prompt = 1
 
         # 1. Check inputs. Raise error if not correct
@@ -579,6 +607,7 @@ class CogVideoXPipeline(DiffusionPipeline):
             negative_prompt_embeds,
         )
         self._guidance_scale = guidance_scale
+        self._attention_kwargs = attention_kwargs
         self._interrupt = False
 
         # 2. Default call parameters
@@ -611,7 +640,16 @@ class CogVideoXPipeline(DiffusionPipeline):
         timesteps, num_inference_steps = retrieve_timesteps(self.scheduler, num_inference_steps, timesteps)
         self._num_timesteps = len(timesteps)
 
-        # 5. Prepare latents.
+        # 5. Prepare latents
+        latent_frames = (num_frames - 1) // self.vae_scale_factor_temporal + 1
+
+        # For CogVideoX 1.5, the latent frames should be padded to make it divisible by patch_size_t
+        patch_size_t = self.transformer.config.patch_size_t
+        additional_frames = 0
+        if patch_size_t is not None and latent_frames % patch_size_t != 0:
+            additional_frames = patch_size_t - latent_frames % patch_size_t
+            num_frames += additional_frames * self.vae_scale_factor_temporal
+
         latent_channels = self.transformer.config.in_channels
         latents = self.prepare_latents(
             batch_size * num_videos_per_prompt,
@@ -633,6 +671,13 @@ class CogVideoXPipeline(DiffusionPipeline):
             if self.transformer.config.use_rotary_positional_embeddings
             else None
         )
+
+        # we're popping the `scale` instead of getting it because otherwise `scale` will be propagated
+        # to the transformer and will raise RuntimeError.
+        lora_scale = self.attention_kwargs.pop("scale", None) if self.attention_kwargs is not None else None
+        if lora_scale is not None:
+            # weight the lora layers by setting `lora_scale` for each PEFT layer
+            scale_lora_layers(self.transformer, lora_scale)
 
         # 8. Denoising loop
         num_warmup_steps = max(len(timesteps) - num_inference_steps * self.scheduler.order, 0)
@@ -698,7 +743,13 @@ class CogVideoXPipeline(DiffusionPipeline):
                 if i == len(timesteps) - 1 or ((i + 1) > num_warmup_steps and (i + 1) % self.scheduler.order == 0):
                     progress_bar.update()
 
+        if lora_scale is not None:
+            # remove `lora_scale` from each PEFT layer
+            unscale_lora_layers(self.transformer, lora_scale)
+
         if not output_type == "latent":
+            # Discard any padding frames that were added for CogVideoX 1.5
+            latents = latents[:, additional_frames:]
             video = self.decode_latents(latents)
             video = self.video_processor.postprocess_video(video=video, output_type=output_type)
         else:

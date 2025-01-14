@@ -3,13 +3,11 @@ import os
 import shutil
 import sys
 import time
-from typing import Tuple
 
 import yaml
 
 import mindspore as ms
-from mindspore import Model, nn
-from mindspore.communication.management import get_group_size, get_rank, init
+from mindspore import Model, amp, nn
 from mindspore.nn.wrap.loss_scale import DynamicLossScaleUpdateCell
 from mindspore.train.callback import TimeMonitor
 
@@ -19,21 +17,21 @@ sys.path.insert(0, mindone_lib_path)
 sys.path.insert(0, os.path.abspath(os.path.join(__dir__, "..")))
 
 from args_train_tae import parse_args
-from mg.datasets.tae_dataset import create_dataloader
+from mg.dataset.tae_dataset import BatchTransform, VideoDataset
+from mg.models.tae import TemporalAutoencoder
 from mg.models.tae.losses import GeneratorWithLoss
 from mg.models.tae.modules import SpatialDownsample, SpatialUpsample, TemporalDownsample, TemporalUpsample
-from mg.models.tae.tae import TemporalAutoencoder
 
+from mindone.data import create_dataloader
 from mindone.trainers.callback import EvalSaveCallback, OverflowMonitor, ProfilerCallback
 from mindone.trainers.checkpoint import CheckpointManager, resume_train_network
 from mindone.trainers.ema import EMA
 from mindone.trainers.lr_schedule import create_scheduler
 from mindone.trainers.optim import create_optimizer
 from mindone.trainers.train_step import TrainOneStepWrapper
-from mindone.utils.amp import auto_mixed_precision
+from mindone.utils import init_train_env
 from mindone.utils.logger import set_logger
 from mindone.utils.params import count_params
-from mindone.utils.seed import set_random_seed
 
 os.environ["HCCL_CONNECT_TIMEOUT"] = "6000"
 os.environ["MS_ASCEND_CHECK_OVERFLOW_MODE"] = "INFNAN_MODE"
@@ -54,99 +52,15 @@ def create_loss_scaler(loss_scaler_type, init_loss_scale, loss_scale_factor=2, s
     return loss_scaler
 
 
-def init_env(
-    mode: int = ms.GRAPH_MODE,
-    seed: int = 42,
-    distributed: bool = False,
-    max_device_memory: str = None,
-    device_target: str = "Ascend",
-    parallel_mode: str = "data",
-    jit_level: str = "O2",
-    global_bf16: bool = False,
-    debug: bool = False,
-) -> Tuple[int, int]:
-    """
-    Initialize MindSpore environment.
-
-    Args:
-        mode: MindSpore execution mode. Default is 0 (ms.GRAPH_MODE).
-        seed: The seed value for reproducibility. Default is 42.
-        distributed: Whether to enable distributed training. Default is False.
-    Returns:
-        A tuple containing the device ID, rank ID and number of devices.
-    """
-    set_random_seed(seed)
-
-    if debug and mode == ms.GRAPH_MODE:  # force PyNative mode when debugging
-        logger.warning("Debug mode is on, switching execution mode to PyNative.")
-        mode = ms.PYNATIVE_MODE
-
-    if max_device_memory is not None:
-        ms.set_context(max_device_memory=max_device_memory)
-
-    # ms.set_context(mempool_block_size="55GB")
-    # ms.set_context(pynative_synchronize=True)
-    if distributed:
-        ms.set_context(
-            mode=mode,
-            device_target=device_target,
-        )
-        if parallel_mode == "optim":
-            print("use optim parallel")
-            ms.set_auto_parallel_context(
-                parallel_mode=ms.ParallelMode.SEMI_AUTO_PARALLEL,
-                enable_parallel_optimizer=True,
-            )
-            init()
-            device_num = get_group_size()
-            rank_id = get_rank()
-        else:
-            init()
-            device_num = get_group_size()
-            rank_id = get_rank()
-            logger.debug(f"rank_id: {rank_id}, device_num: {device_num}")
-            ms.reset_auto_parallel_context()
-
-            ms.set_auto_parallel_context(
-                parallel_mode=ms.ParallelMode.DATA_PARALLEL,
-                gradients_mean=True,
-                device_num=device_num,
-            )
-
-        var_info = ["device_num", "rank_id", "device_num / 8", "rank_id / 8"]
-        var_value = [device_num, rank_id, int(device_num / 8), int(rank_id / 8)]
-        logger.info(dict(zip(var_info, var_value)))
-
-    else:
-        device_num = 1
-        rank_id = 0
-        ms.set_context(
-            mode=mode,
-            device_target=device_target,
-            pynative_synchronize=debug,
-        )
-
-    if mode == 0:
-        ms.set_context(jit_config={"jit_level": jit_level})
-
-    if global_bf16:
-        # only effective in GE mode, i.e. jit_level: O2
-        ms.set_context(ascend_config={"precision_mode": "allow_mix_precision_bf16"})
-
-    return rank_id, device_num
-
-
 def main(args):
     # 1. init
-    rank_id, device_num = init_env(
-        args.mode,
+    _, rank_id, device_num = init_train_env(
+        mode=args.mode,
         seed=args.seed,
-        distributed=args.use_parallel,
+        distributed=args.distributed,
         device_target=args.device_target,
         max_device_memory=args.max_device_memory,
-        parallel_mode=args.parallel_mode,
         jit_level=args.jit_level,
-        global_bf16=args.global_bf16,
         debug=args.debug,
     )
     set_logger(name="", output_dir=args.output_path, rank=rank_id, log_level=eval(args.log_level))
@@ -159,23 +73,25 @@ def main(args):
             assert args.image_size[0] == args.image_size[1], "Currently only h==w is supported"
         image_size = args.image_size[0]
 
-    ds_config = dict(
+    dataset = VideoDataset(
         csv_path=args.csv_path,
-        data_folder=args.video_folder,
-        size=image_size,
+        folder=args.folder,
+        size=args.image_size,
         crop_size=args.crop_size,
-        sample_n_frames=args.num_frames,
-        sample_stride=args.frame_stride,
+        sample_n_frames=args.sample_n_frames,
+        sample_stride=args.sample_stride,
         video_column=args.video_column,
         random_crop=args.random_crop,
         flip=args.flip,
+        output_columns=["video"],
     )
+    transform = BatchTransform(mixed_strategy=args.mixed_strategy, mixed_image_ratio=args.mixed_image_ratio)
+    transform = {"operations": transform, "input_columns": ["video"]}
     dataloader = create_dataloader(
-        ds_config,
-        args.batch_size,
-        mixed_strategy=args.mixed_strategy,
-        mixed_image_ratio=args.mixed_image_ratio,
-        num_parallel_workers=args.num_parallel_workers,
+        dataset=dataset,
+        batch_size=args.batch_size,
+        batch_transforms=transform,
+        num_workers=args.num_workers,
         max_rowsize=256,
         shuffle=True,
         device_num=device_num,
@@ -187,26 +103,24 @@ def main(args):
 
     # 3. build models
     ae = TemporalAutoencoder(
-        pretrained=args.pretrained_model_path,
+        pretrained=args.pretrained,
         use_recompute=args.use_recompute,
     )
 
-    if args.use_discriminator:
-        logging.error("Discriminator is not used or supported in OpenSora v1.2")
-
     # mixed precision
     # TODO: set softmax, sigmoid computed in FP32. manually set inside network since they are ops, instead of layers whose precision will be set by AMP level.
-    if args.dtype in ["fp16", "bf16"]:
+    if args.dtype != "fp32":
         dtype = {"fp16": ms.float16, "bf16": ms.bfloat16}[args.dtype]
         # TODO: check ResizeNearest bf16 support for ms>2.3.1
-        ae = auto_mixed_precision(
+        ae = amp.custom_mixed_precision(
             ae,
-            args.amp_level,
-            dtype,
-            custom_fp32_cells=[SpatialDownsample, SpatialUpsample, TemporalDownsample, TemporalUpsample]
-            if args.vae_keep_updown_fp32
-            else [] + ([nn.GroupNorm] if args.vae_keep_gn_fp32 else []),
-            # custom_fp32_cells=[nn.GroupNorm, SpatialUpsample] if args.vae_keep_gn_fp32 else [SpatialUpsample],
+            black_list=amp.get_black_list()
+            + (
+                [SpatialDownsample, SpatialUpsample, TemporalDownsample, TemporalUpsample]
+                if args.vae_keep_updown_fp32
+                else [] + ([nn.GroupNorm] if args.vae_keep_gn_fp32 else [])
+            ),
+            dtype=dtype,
         )
 
     # 4. build net with loss

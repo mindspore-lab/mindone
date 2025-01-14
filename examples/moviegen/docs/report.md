@@ -1,49 +1,61 @@
 # MindSpore Movie Gen Report
 
-[Movie Gen](https://ai.meta.com/static-resource/movie-gen-research-paper) is a family of foundation models that can natively generate high-fidelity images, videos, and audio. Meta researchers found that scaling the training data, compute, and model parameters of the transformer-based ([LLaMa3](https://arxiv.org/abs/2407.21783)) model trained with [Flow Matching](https://arxiv.org/abs/2210.02747) yields high-quality generative models for video or audio.
+[Movie Gen](https://ai.meta.com/static-resource/movie-gen-research-paper) is a family of foundation models that can
+natively generate high-fidelity images, videos, and audio. Meta researchers found that scaling the training data,
+compute, and model parameters of the transformer-based ([LLaMa3](https://arxiv.org/abs/2407.21783)) model trained
+with [Flow Matching](https://arxiv.org/abs/2210.02747) yields high-quality generative models for video or audio.
 
-Movie Gen supports text-to-video/image generation (MovieGenVideo), video personalization  (PersonalizedMovieGen), and video editing  (MovieGenEdit).
+Movie Gen supports text-to-video/image generation (MovieGenVideo), video personalization  (PersonalizedMovieGen), and
+video editing  (MovieGenEdit).
 
-In this report, we will focus on MovieGenVideo and explore how to implement it with MindSpore, enabling model scaling and training efficiency.
+In this report, we will focus on MovieGenVideo and explore how to implement it with MindSpore, enabling model scaling
+and training efficiency.
 
 At this moment, we support training MovieGenVideo with the following configuration.
 
-|  model scale    | image | 256px @256  | 768px @256  |
-| ---- | ----- | --- | --- |
-| 1B | ✅     | ✅   | ✅   |
-| 5B | ✅     | ✅   | 🆗   |
-| 30B | 🆗      | 🆗    | TODO   |
+| model scale | image | 256px @256 | 768px @256 |
+|-------------|-------|------------|------------|
+| 1B          | ✅     | ✅          | ✅          |
+| 5B          | ✅     | ✅          | 🆗         |
+| 30B         | 🆗    | ✅          | TODO       |
 
-Here ✅ means that training accuracy has been verified on a small-scale dataset, and 🆗 means training is supported but the accuracy is under verfication.
-
-
+Here ✅ means that training accuracy has been verified on a small-scale dataset, and 🆗 means training is supported, but
+the accuracy is under verification.
 
 ## Temporal Autoencoder (TAE)
 
-TAE is used to encode the RGB pixel-space videos and images into a spatio-temporally compressed latent space. In particular, the input is compressed by 8x across each spatial dimension H and W, and the temporal dimension T. We follow the framework of Meta Movie Gen [[1](#references)] as below.
+TAE is used to encode the RGB pixel-space videos and images into a spatio-temporally compressed latent space. In
+particular, the input is compressed by 8x across each spatial dimension H and W, and the temporal dimension T. We follow
+the framework of Meta Movie Gen [[1](#references)] as below.
 
 <p align="center"><img width="700" alt="TAE Framework" src="https://github.com/user-attachments/assets/678c2ce6-28b8-4bda-b8a3-fac921595b8a"/>
 <br><em> Figure 1. Video Encoding and Decoding using TAE </em></p>
 
-TAE inflates an image autoencoder by adding 1-D temporal convolution in resnet blocks and attention blocks. Temporal compression is done by injecting temporal downsample and upsample layers.
-
+TAE inflates an image autoencoder by adding 1-D temporal convolution in resnet blocks and attention blocks. Temporal
+compression is done by injecting temporal downsample and upsample layers.
 
 ### Key design & implementation
 
-In this section, we explore the design and implementation details not illustrated in the Movie Gen paper. For example, how to perform padding and initialization for the Conv 2.5-D layers and how to configure the training frames.
+In this section, we explore the design and implementation details not illustrated in the Movie Gen paper. For example,
+how to perform padding and initialization for the Conv 2.5-D layers and how to configure the training frames.
 
 #### SD3.5 VAE as the base image encoder
 
-In TAE, the number of channels of the latent space is 16 (C=16). It can help improve both the reconstruction and the generation performance compared to C=4 used in OpenSora or  SDXL vae.
+In TAE, the number of channels of the latent space is 16 (C=16). It can help improve both the reconstruction and the
+generation performance compared to C=4 used in OpenSora or SDXL vae.
 
-We choose to use the [VAE]() in Stable Diffusion 3.5 as the image encoder to build TAE for it has the same number of latent channels and can generalize well in image generation.
-
+We choose to use the [VAE]() in Stable Diffusion 3.5 as the image encoder to build TAE for it has the same number of
+latent channels and can generalize well in image generation.
 
 #### Conv2.5d implementation
 
-Firstly, we replace the Conv2d in VAE with Conv2.5d, which consists of a 2D spatial convolution followed by a 1D temporal convolution.
+Firstly, we replace the Conv2d in VAE with Conv2.5d, which consists of a 2D spatial convolution followed by a 1D
+temporal convolution.
 
-For 1D temporal convolution, we set kernel size 3, stride 1, symmetric replicate padding with padding size (1, 1), and input/output channels the same as spatial conv. We initialize the kernel weight so as to preserve the spatial features (i.e. preserve image encoding after temporal initialization). Therefore, we propose to use `centric` initialization as illustrated below.  
+For 1D temporal convolution, we set kernel size 3, stride 1, symmetric replicate padding with padding size (1, 1), and
+input/output channels the same as spatial conv. We initialize the kernel weight to preserve the spatial features
+(i.e., preserve image encoding after temporal initialization). Therefore, we propose to use `centric` initialization as
+illustrated below.
 
 ```python
 w = self.conv_temp.weight
@@ -53,43 +65,48 @@ for i in range(ch):
     value[i, i, 0, 1] = 1
 w.set_data(ms.Tensor(value, dtype=ms.float32))
 ```
-#### Temporal Downsampling
 
+#### Temporal Downsampling
 
 Paper: "Temporal downsampling is performed via strided convolution with a stride of 2".
 
-Our implementation: the strided convolution is computed using conv1d of kernel size 3, stride 2, and symmetric replicate padding. `centric` initialization (as mentioned in the above conv2.5 section) is used to initialize the conv kernel weight.
+Our implementation: the strided convolution is computed using conv1d of kernel size 3, stride 2, and symmetric replicate
+padding. `centric` initialization (as mentioned in the above conv2.5 section) is used to initialize the conv kernel
+weight.
 
-To achieve 8x temporal compression, we apply 3 temporal downsampling layers, each placed after the spatial downsampling layer in the first 3 levels.
+To achieve 8x temporal compression, we apply 3 temporal downsampling layers, each placed after the spatial downsampling
+layer in the first 3 levels.
 
 #### Temporal Upsampling
+
 Paper: "upsampling by nearest-neighbor interpolation followed by convolution"
 
 Our design:
-1. nearest-neighbour interpolation along the temporal dimension  
+
+1. nearest-neighbour interpolation along the temporal dimension
 2. conv1d: kernel size 3, stride 1, symmetric replicate padding, and `centric` initialization.
 
-To achieve 8x temporal compression, we apply 3 temporal upsampling layers, each placed after the spatial upsampling layer of the last 3 levels.
-
-
+To achieve 8x temporal compression, we apply 3 temporal upsampling layers, each placed after the spatial upsampling
+layer of the last 3 levels.
 
 ### Evaluation
 
-We conduct experiments to verify our implementation's effectiveness on the [UCF-101](https://www.crcv.ucf.edu/data/UCF101.php) dataset containing 13,320 videos. We split the videos into training and test sets by 8:2.
+We conduct experiments to verify our implementation's effectiveness on
+the [UCF-101](https://www.crcv.ucf.edu/data/UCF101.php) dataset containing 13,320 videos. We split the videos into
+training and test sets by 8:2.
 
 The training performance on MindSpore 2.3.1 and Ascend 910* and the accuracy on the test set are as follows.
 
-| model name      |  cards | batch size | resolution |  precision |   OPL Loss | s/step     | PSNR | SSIM |
-| :--:         | :---:   | :--:       | :--:        | :--:       | :--:      |:--:    | :--:   |:--:   |
-| TAE  |  1     | 1      | 256x256x32   |  bf16       | OFF |   2.18     | 31.35     |   0.92       |
-| TAE  |  1     | 1      | 256x256x32   |  bf16       | ON |   2.18     | 31.17     |   0.92       |
+| model name | cards | batch size | resolution | precision | OPL Loss | s/step | PSNR  | SSIM |
+|:----------:|:-----:|:----------:|:----------:|:---------:|:--------:|:------:|:-----:|:----:|
+|    TAE     |   1   |     1      | 256x256x32 |   bf16    |   OFF    |  2.18  | 31.35 | 0.92 |
+|    TAE     |   1   |     1      | 256x256x32 |   bf16    |    ON    |  2.18  | 31.17 | 0.92 |
 
-
-The hyper-parameters we used are as follows.
+The hyperparameters we used are as follows.
 
 ```yaml
-kl loss weight:  1.0e-06
-perceptual and reconstruction loss weight:  1.0
+kl loss weight: 1.0e-06
+perceptual and reconstruction loss weight: 1.0
 outlier penalty loss weight: 1.0
 optimizer: adamw
 learning rate: 1e-5
@@ -103,7 +120,8 @@ Here is the comparison between the origin videos (left) and the videos reconstru
 <img src=https://github.com/user-attachments/assets/36257aef-72f0-4f4f-8bd3-dc8fb0a33fd8 width="45%" />
 </p>
 
-We further fine-tune the TAE model on the mixkit dataset, a high-quality video dataset in 1080P resolution. Here are the results.
+We further fine-tune the TAE model on the mixkit dataset, a high-quality video dataset in 1080P resolution. Here are the
+results.
 
 <p float="center">
 <img src=https://github.com/user-attachments/assets/7978489b-508b-4204-a4d7-d11dda3f905c width="45%" />
@@ -116,7 +134,8 @@ The fine-tuned TAE is then used in MovieGenVideo transformer training as shown b
 
 ### Architecture
 
-MovieGenVideo uses the [LLaMa3](https://arxiv.org/abs/2407.21783) backbone architecture for the joint image-video generation
+MovieGenVideo uses the [LLaMa3](https://arxiv.org/abs/2407.21783) backbone architecture for the joint image-video
+generation
 model, enabling confident scaling of the model size while maintaining efficient training, as shown in the figure below.
 
 <p align="center">
@@ -142,50 +161,31 @@ We have implemented the MovieGenVideo architecture in the following variations: 
 |  5B   |   32   |      3072       |     8192      |       24        |
 |  30B  |   48   |      6144       |     16384     |       48        |
 
-
 Detailed code implementation can be referred to:
 [LLaMa3 Backbone](https://github.com/hadipash/mindone/blob/5aa1e4dc91d71934905319ba984704d4d4a62f8b/examples/moviegen/mg/models/llama/network.py#L273),
 [Transformer Block](https://github.com/hadipash/mindone/blob/5aa1e4dc91d71934905319ba984704d4d4a62f8b/examples/moviegen/mg/models/llama/network.py#L52).
 
+### Sequence Parallelism
 
-### Mixed Parallelism
+The official [Movie Gen](https://ai.meta.com/research/publications/movie-gen-a-cast-of-media-foundation-models/) employs
+3D parallelism to enable model-level scaling across three dimensions: the number of parameters, input tokens, and
+dataset size, while also allowing horizontal scale-out to additional NPUs. It leverages a combination
+of [fully sharded data parallelism](https://arxiv.org/abs/2304.11277), [tensor parallelism](https://arxiv.org/abs/1909.08053), [sequence parallelism](https://arxiv.org/abs/2205.05198),
+and [context parallelism](https://docs.nvidia.com/megatron-core/developer-guide/latest/api-guide/context_parallel.html).
 
-Movie Gen employs multiple parallelism to achieve model scaling and training efficiency, including [fully sharded
-data parallelism](https://arxiv.org/abs/2304.11277)(FSDP), [tensor parallelism](https://arxiv.org/abs/1909.08053)(TP),
-[sequence parallelism](https://arxiv.org/abs/2105.13120)(SP), and context parallelism (CP).
-
-Currently, our implementation supports MovieGenVideo training with TP, SP, CP, and DP.
-
-- **Tensor-parallelism (TP)**
-  shards the weights of linear layers either along columns or rows, and results in each NPU involved in the sharding
-  performing _tp-size_ less work (FLOPs) and generating _tp-size_ fewer activations for column-parallel shards and
-  consuming _tp-size_ fewer activations for row-parallel shards. The cost of performing such a sharding is the addition
-  of all-reduce communication overheads in both the forward (row-parallel) and backward (column-parallel) passes.
-
-  Our implementation can be referred to [TP](https://github.com/hadipash/mindone/blob/5aa1e4dc91d71934905319ba984704d4d4a62f8b/examples/moviegen/mg/models/llama/block.py#L59) and
-  [FusedTP](https://github.com/hadipash/mindone/blob/5aa1e4dc91d71934905319ba984704d4d4a62f8b/examples/moviegen/mg/models/llama/block.py#L91)
-- **Sequence-parallelism (SP)**
-  builds upon TP to also allow the sharding of the input over the sequence dimension for layers which are replicated and
-  in which each sequence element can be treated independently. Such layers, e.g., LayerNorm, would otherwise perform
-  duplicate compute and generate identical (and thus replicated) activations across the TP-group.
-
-  Our implementation can be referred to [SP](https://github.com/hadipash/mindone/blob/5aa1e4dc91d71934905319ba984704d4d4a62f8b/examples/moviegen/mg/models/llama/network.py#L494)
-- **Context-parallelism (CP)**
-
-  enables a partial sharding over the sequence dimension for the _sequence-dependent softmax-attention operation_. CP
-  leverages the insight that for any given (_source_ (_context_), _target_ (_query_)) sequences pair, _softmax-attention
-  is only sequence-dependent over the context and not the query_. Therefore, in the case of self-attention where the
-  input source and target sequences are identical, CP allows the attention computation to be performed with only an
-  all-gather for the $K$ and $V$ projections (instead of $Q$, $K$, and $V$) in the forward pass, and a reduce-scatter
-  for their associated gradients in the backward.
-
-  Our implementation can be referred to [CP Attention](https://github.com/hadipash/mindone/blob/5aa1e4dc91d71934905319ba984704d4d4a62f8b/examples/moviegen/mg/models/llama/block.py#L210) and
-  [CP FlashAttention](https://github.com/hadipash/mindone/blob/5aa1e4dc91d71934905319ba984704d4d4a62f8b/examples/moviegen/mg/models/llama/block.py#L340)
-- **Fully sharded data parallel (FSDP)** shards the model, optimizer, and gradients across all data-parallel NPUs,
-  synchronously gathering and scattering parameters and gradients throughout each training step.
-
-  In our implementation, we use data parallelism with [Zero3](https://github.com/hadipash/mindone/blob/5aa1e4dc91d71934905319ba984704d4d4a62f8b/mindone/trainers/zero.py#L75) to serve the similar purpose of sharding the model parameters across multiple NPUs and optimize memory usage.
-
+Inspired by recent developments in long-sequence parallelism ([Ulysses-SP](https://arxiv.org/abs/2309.14509)
+and [USP](https://arxiv.org/abs/2405.07719)), we implement model parallelism
+using [Ulysses-SP](https://arxiv.org/abs/2309.14509) together with [ZeRO-3](https://arxiv.org/abs/1910.02054),instead of
+the approach used in Movie Gen. Ulysses-SP utilizes `All2ALL` communication for segments of the QKV tensors, drastically
+reducing communication costs compared to sequence parallelism implemented
+in [Megatron-LM](https://arxiv.org/abs/2405.07719), [DSP](https://arxiv.org/abs/2403.10266), as well as the sequence
+parallelism mentioned
+in [Movie Gen](https://ai.meta.com/research/publications/movie-gen-a-cast-of-media-foundation-models/). Alongside
+ZeRO-3, it achieves similar memory efficiency to [[Megatron-LM](https://arxiv.org/abs/2405.07719)]. Experimental results
+show that using Ulysses-SP + ZeRO-3, we can train a model of similar scale compared to 3D parallelism, with over 2x
+speed boost in training, corroborating the findings
+in [Megatron-LM](https://arxiv.org/abs/2405.07719), [Ulysses-SP](https://arxiv.org/abs/2309.14509),
+and [DSP](https://arxiv.org/abs/2403.10266).
 
 ### Training Details
 
@@ -197,19 +197,20 @@ Training is performed in multiple stages for better efficiency:
 
 - Stage 1: Text-to-image pre-raining on 256 px images.
 - Stage 2: T2I/V joint training on low-resolution images and videos of 256 px.
-   Following the paper, we double the spatial [PE](#learnable-positional-embedding-pe) layers to accommodate
-   various aspect ratios, add new temporal PE layers to support up to 32 latent frames and initialize spatial PE layers
-   from the T2I model with 2x expansion.
+  Following the paper, we double the spatial [PE](#learnable-positional-embedding-pe) layers to accommodate
+  various aspect ratios, add new temporal PE layers to support up to 32 latent frames and initialize spatial PE layers
+  from the T2I model with 2x expansion.
 - Stage 3: T2I/V joint training on high-resolution images and videos of 768 px.  
-   For this stage, we expand the spatial PE layers by 3x.
-
+  For this stage, we expand the spatial PE layers by 3x.
 
 #### Training Objective
 
-Following the paper, we trained the transformer with [Flow Matching](https://arxiv.org/abs/2210.02747) with  a simple linear interpolation scheme.
+Following the paper, we trained the transformer with [Flow Matching](https://arxiv.org/abs/2210.02747) with a simple
+linear interpolation scheme.
 It is trained to predict the velocity $V_t = \frac{dX_t}{dt}$ which teaches it to 'move' the sample $X_t$
 in the direction of the video sample $X_1$. The ground truth velocity is derived by:
-$$V_t = X_1 - (1-\sigma_{min})X_0$$.  Note that this  simple interpolation scheme naturally ensures zero terminal SNR at $t=0$.
+$$V_t = X_1 - (1-\sigma_{min})X_0$$. Note that this simple interpolation scheme naturally ensures zero terminal SNR
+at $t=0$.
 
 #### Learning Rate Scheduling
 
@@ -225,7 +226,9 @@ and monitor the validation loss throughout training.
 
 ### Bucketization for variable duration and size (under verification)
 
-To support training with diverse video lengths and aspect ratios, we have integrated the data bucketing feature in [hpcai-opensora](https://github.com/mindspore-lab/mindone/tree/master/examples/opensora_hpcai#multi-resolution-training). This feature is under verification.
+To support training with diverse video lengths and aspect ratios, we have integrated the data bucketing feature
+in [hpcai-opensora](https://github.com/mindspore-lab/mindone/tree/master/examples/opensora_hpcai#multi-resolution-training).
+This feature is under verification.
 
 ### Inference Details
 
@@ -243,27 +246,28 @@ with 25 quadratically placed steps. The linear-quadratic strategy is predicated 
 inference steps are pivotal in setting up the scene and motion of the video since most changes occur in the first
 solver steps.
 
-Our implementation can be referred to [here](https://github.com/hadipash/mindone/blob/movie_gen/examples/moviegen/mg/schedulers/rectified_flow.py#L55-L61)
+Our implementation can be referred
+to [here](https://github.com/hadipash/mindone/blob/movie_gen/examples/moviegen/mg/schedulers/rectified_flow.py#L55-L61)
 
 [//]: # (TODO: fix the link above)
 
-
-
 ### Evaluation
 
-To verify the effectiveness of our design and implementation, we perform 3-stage training on a [mixkit](https://mixkit.co/) subset, consisting of 100 HQ videos up to 1080P.
+To verify the effectiveness of our design and implementation, we perform 3-stage training on
+a [mixkit](https://mixkit.co/) subset consisting of 100 HQ videos up to 1080P.
 
 Experiments were conducted on Ascend 910* using MindSpore 2.3.1 in graph mode.
 
-
-| model scale | cards |   stage   |       batch size        |       resolution        |        recompute        | TAE Cache | time (s/step) |                              recipe                               |
+| Model | Cards |   Stage   |       Batch size        |       Resolution        |        Recompute        | TAE Cache | Time (s/step) |                              Recipe                               |
 |:-----:|:-----:|:---------:|:-----------------------:|:-----------------------:|:-----------------------:|:---------:|:-------------:|:-----------------------------------------------------------------:|
-|  30B  |   8   |  2 (T2V)  |        Video: 1         |       256x256x455       |           ON            |    ON    |     23.8      | [stage2_t2iv_256px.yaml](../configs/train/stage2_t2iv_256px.yaml) |
-|  5B   |   8   |  1 (T2I)  |           10            |         256x455         |           ON            |    ON    |     1.29      |  [stage1_t2i_256px.yaml](../configs/train/stage1_t2i_256px.yaml)  |
-|  5B   |   8   | 2 (T2I/V) |  Image: 1<br/>Video: 1  | 256x455<br/>256 frames  | ON<br/>(Every 2 blocks) |    ON    |     5.09      | [stage2_t2iv_256px.yaml](../configs/train/stage2_t2iv_256px.yaml) |
-|  5B   |   8   | 3 (T2I/V) |  Image: 1<br/>Video: 1  | 576x1024<br/>256 frames |           ON            |    ON    |     88.5      | [stage3_t2iv_768px.yaml](../configs/train/stage3_t2iv_768px.yaml) |
-|  1B   |   8   |  1 (T2I)  |           10            |         256x455         |           ON            |    ON    |     0.53      |  [stage1_t2i_256px.yaml](../configs/train/stage1_t2i_256px.yaml)  |
-|  1B   |   8   | 2 (T2I/V) | Image: 10<br/>Video: 10 |  256x455<br/>32 frames  |           ON            |    ON    |     2.07      | [stage2_t2iv_256px.yaml](../configs/train/stage2_t2iv_256px.yaml) |
+|  30B  |   8   |  2 (T2V)  |        Video: 1         |       256x256x455       |           ON            |    ON     |     4.08      | [stage2_t2iv_256px.yaml](../configs/train/stage2_t2iv_256px.yaml) |
+|  5B   |   8   |  1 (T2I)  |           10            |         256x455         |           ON            |    ON     |     1.29      |  [stage1_t2i_256px.yaml](../configs/train/stage1_t2i_256px.yaml)  |
+|  5B   |   8   | 2 (T2I/V) |  Image: 1<br/>Video: 1  | 256x455<br/>256 frames  | ON<br/>(Every 2 blocks) |    ON     |     5.09      | [stage2_t2iv_256px.yaml](../configs/train/stage2_t2iv_256px.yaml) |
+|  5B   |   8   | 3 (T2I/V) |  Image: 1<br/>Video: 1  | 576x1024<br/>256 frames |           ON            |    ON     |     88.5      | [stage3_t2iv_768px.yaml](../configs/train/stage3_t2iv_768px.yaml) |
+|  1B   |   8   |  1 (T2I)  |           10            |         256x455         |           ON            |    ON     |     0.53      |  [stage1_t2i_256px.yaml](../configs/train/stage1_t2i_256px.yaml)  |
+|  1B   |   8   | 2 (T2I/V) | Image: 10<br/>Video: 10 |  256x455<br/>32 frames  |           ON            |    ON     |     2.07      | [stage2_t2iv_256px.yaml](../configs/train/stage2_t2iv_256px.yaml) |
+
+> [!NOTE]
 > All the models are trained with BF16 precision.
 
 #### Detailed Training Scripts
@@ -284,7 +288,7 @@ export GLOG_v=2
 stage1_dir=output/stage1_t2i_256px/$(date +"%Y.%m.%d-%H.%M.%S")
 
 msrun --bind_core=True --master_port=8200 --worker_num=8 --local_worker_num=8 --log_dir="$stage1_dir"  \
-python train.py \
+python scripts/train.py \
   --config configs/train/stage1_t2i_256px.yaml \
   --env.mode 0 \
   --env.jit_level O1 \
@@ -326,7 +330,7 @@ export GLOG_v=2
 stage2_dir=output/stage2_t2iv_256px/$(date +"%Y.%m.%d-%H.%M.%S")
 
 msrun --bind_core=True --master_port=8200 --worker_num=8 --local_worker_num=8 --log_dir="$stage2_dir"  \
-python train.py \
+python scripts/train.py \
   --config configs/train/stage2_t2iv_256px.yaml \
   --env.mode 0 \
   --env.jit_level O1 \
@@ -370,7 +374,7 @@ export GLOG_v=2
 stage3_dir=output/stage3_t2iv_768px/$(date +"%Y.%m.%d-%H.%M.%S")
 
 msrun --bind_core=True --master_port=8200 --worker_num=8 --local_worker_num=8 --log_dir="$stage3_dir"  \
-python train.py \
+python scripts/train.py \
   --config configs/train/stage3_t2iv_768px.yaml \
   --env.mode 0 \
   --env.jit_level O1 \
@@ -394,8 +398,6 @@ python train.py \
 
 </details>
 
-
-
 ### Generated Video Examples
 
 |                                                                                                                                                                                                                                                                                                                                         256x256x455                                                                                                                                                                                                                                                                                                                                         |                                                                                                                                                                                                                                                                                                                                                             256x256x455                                                                                                                                                                                                                                                                                                                                                              |
@@ -405,8 +407,8 @@ python train.py \
 |                                                                                                                                                                                                                                                                                               <video src="https://github.com/user-attachments/assets/e89a6be6-1e5b-4508-8980-89d824824e34" />                                                                                                                                                                                                                                                                                               |                                                                                                                                                                                                                                                                                                                   <video src="https://github.com/user-attachments/assets/70cdc452-cad8-4781-9975-1c9feb8b89d6" />                                                                                                                                                                                                                                                                                                                    |
 |                                                              <details><summary>Caption</summary>The video showcases a static image of a bouquet of white roses, with the roses in various stages of bloom. The petals of the roses are delicate and pristine white, contrasting with the soft pink hues visible in their centers. The arrangement is full and lush, with stems protruding outwards. Throughout the video, there are no significant changes in the composition or positioning of the roses, and the background remains consistently blurred, ensuring the floral arrangement remains the focal point.</details>                                                              |                                      <details><summary>Caption</summary>The video showcases a majestic snow-capped mountain range against a cloudy sky, with the peaks covered in pristine white snow and jagged rocky outcrops protruding from the slopes. The mountains cast long shadows across the snow-covered terrain below. Initially, the sky is a vivid blue with wispy white clouds, but as the video progresses, the clouds become slightly more dispersed, revealing more of the blue sky. Throughout the video, the overall composition and grandeur of the mountain vistas remain consistent, maintaining the serene and awe-inspiring natural beauty of the landscape.</details>                                      |
 
-
 ## References
+
 <!--- Guideline: Citation format GB/T 7714 is suggested. -->
 
 [1] The Movie Gen team @ Meta. Movie Gen: A Cast of Media Foundation Models. 2024

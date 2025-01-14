@@ -11,7 +11,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from collections import OrderedDict
 from dataclasses import dataclass
 from math import gcd
 from typing import Any, Dict, List, Optional, Tuple, Union
@@ -21,6 +20,7 @@ from mindspore import nn, ops
 
 from ..configuration_utils import ConfigMixin, register_to_config
 from ..utils import BaseOutput, logging
+from ..utils.mindspore_utils import get_state_dict
 from .activations import SiLU
 from .attention_processor import CROSS_ATTENTION_PROCESSORS, AttentionProcessor, AttnProcessor
 from .controlnet import ControlNetConditioningEmbedding
@@ -1835,24 +1835,6 @@ def find_largest_factor(number, max_factor):
 # =============================
 # Paramater processing
 # =============================
-def get_state_dict(module: nn.Cell, name_prefix="", recurse=True):
-    """
-    A function attempting to achieve an effect similar to torch's `nn.Module.state_dict()`.
-
-    Due to MindSpore's unique parameter naming mechanism, this function performs operations
-    on the prefix of parameter names. This ensures that parameters can be correctly loaded
-    using `mindspore.load_param_into_net()` when there are discrepancies between the parameter
-    names of the target_model and source_model.
-    """
-    param_generator = module.parameters_and_names(name_prefix=name_prefix, expand=recurse)
-
-    param_dict = OrderedDict()
-    for name, param in param_generator:
-        param.name = name
-        param_dict[name] = param
-    return param_dict
-
-
 def sync_dtype(module: nn.Cell, other: nn.Cell):
     """
     Sets the dtype of 'module' to match that of 'other'.
