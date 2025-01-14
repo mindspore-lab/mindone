@@ -31,6 +31,7 @@ class DiffusionWithLoss(nn.Cell):
         noise_scheduler,
         vae: nn.Cell = None,
         text_encoder: nn.Cell = None,
+        text_encoder_2: nn.Cell = None,
         text_emb_cached: bool = True,
         video_emb_cached: bool = False,
         use_image_num: int = 0,
@@ -49,6 +50,7 @@ class DiffusionWithLoss(nn.Cell):
         self.snr_gamma = snr_gamma
 
         self.text_encoder = text_encoder
+        self.text_encoder_2 = text_encoder_2
         self.dtype = dtype
 
         self.text_emb_cached = text_emb_cached
@@ -56,9 +58,8 @@ class DiffusionWithLoss(nn.Cell):
 
         if self.text_emb_cached:
             self.text_encoder = None
+            self.text_encoder_2 = None
             logger.info("Train with text embedding inputs")
-        else:
-            self.text_encoder = text_encoder
 
         self.use_image_num = use_image_num
 
@@ -69,14 +70,20 @@ class DiffusionWithLoss(nn.Cell):
         self.sp_size = 1 if not get_sequence_parallel_state() else hccl_info.world_size
         self.all_gather = None if not get_sequence_parallel_state() else ops.AllGather(group=hccl_info.group)
 
-    def get_condition_embeddings(self, text_tokens, encoder_attention_mask):
+    def get_condition_embeddings(self, text_tokens, encoder_attention_mask, index=0):
         # text conditions inputs for cross-attention
         # optional: for some conditions, concat to latents, or add to time embedding
         # use for loop to avoid OOM?
         B, frame, L = text_tokens.shape  # B T+num_images L = b 1+4, L
         text_emb = []
+        if index == 0:
+            text_encoder = self.text_encoder
+        elif index == 1:
+            text_encoder = self.text_encoder_2
+        else:
+            raise ValueError("Invalid index for text encoder")
         for i in range(frame):
-            t = self.text_encoder(text_tokens[:, i], encoder_attention_mask[:, i])
+            t = text_encoder(text_tokens[:, i], encoder_attention_mask[:, i])
             text_emb.append(t)
         text_emb = ops.stack(text_emb, axis=1)
         return text_emb
@@ -151,9 +158,11 @@ class DiffusionWithLoss(nn.Cell):
 
         # 2. get conditions
         if not self.text_emb_cached:
-            text_embed = ops.stop_gradient(self.get_condition_embeddings(text_tokens, encoder_attention_mask))
+            text_embed = ops.stop_gradient(self.get_condition_embeddings(text_tokens, encoder_attention_mask, index=0))
             if text_tokens_2 is not None:
-                text_embed_2 = ops.stop_gradient(self.get_condition_embeddings(text_tokens_2, encoder_attention_mask_2))
+                text_embed_2 = ops.stop_gradient(
+                    self.get_condition_embeddings(text_tokens_2, encoder_attention_mask_2, index=1)
+                )
         else:
             text_embed = text_tokens
             if text_tokens_2 is not None:

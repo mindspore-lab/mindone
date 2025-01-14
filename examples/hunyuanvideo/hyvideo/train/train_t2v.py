@@ -268,15 +268,13 @@ def main(args):
         noise_scheduler,
         vae=vae,
         text_encoder=text_encoder_1,
+        text_encoder_2=text_encoder_2,
         text_emb_cached=args.text_embed_cache,
         video_emb_cached=False,
         use_image_num=args.use_image_num,
         dtype=model_dtype,
         noise_offset=args.noise_offset,
         snr_gamma=args.snr_gamma,
-        rf_scheduler=args.rf_scheduler,
-        rank_id=rank_id,
-        device_num=device_num,
     )
     latent_diffusion_eval, metrics, eval_indexes = None, None, None
 
