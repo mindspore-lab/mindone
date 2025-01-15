@@ -788,9 +788,4 @@ class T2V_dataset:
         td = np.load(npz)
         text_emb = td["text_emb"]
         mask = td["mask"]
-        if len(text_emb.shape) == 2:
-            text_emb = text_emb[None, ...]
-        if len(mask.shape) == 1:
-            mask = mask[None, ...]
-
-        return text_emb, mask  # (1, L, D), (1, L)
+        return text_emb, mask  # (L, D), (L)

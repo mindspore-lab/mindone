@@ -283,7 +283,7 @@ class DiffusionWithLoss(nn.Cell):
                 mode_scale=self.mode_scale,
             )
             indices = u * self.num_train_timesteps
-            t = self.noise_scheduler.timesteps[indices]
+            t = self.noise_scheduler.timesteps[indices.to(ms.int32)]
 
             # Add noise according to flow matching.
             # zt = (1 - texp) * x + texp * z1
@@ -487,7 +487,7 @@ class DiffusionWithLossEval(DiffusionWithLoss):
                 mode_scale=self.mode_scale,
             )
             indices = u * self.num_train_timesteps
-            t = self.noise_scheduler.timesteps[indices]
+            t = self.noise_scheduler.timesteps[indices.to(ms.int32)]
 
             # Add noise according to flow matching.
             # zt = (1 - texp) * x + texp * z1
