@@ -297,14 +297,15 @@ python scripts/train.py \
   --env.jit_level O1 \
   --env.max_device_memory 59GB \
   --env.distributed True \
-  --train.settings.zero_stage 2 \
+  --train.settings.zero_stage 3 \
+  --model.recompute_every_nth_block "" \
   --dataset.csv_path ../../datasets/mixkit-100videos/video_caption_train.csv \
   --dataset.video_folder ../../datasets/mixkit-100videos/mixkit \
   --dataset.tae_latent_folder ../../datasets/mixkit-100videos/tae_latent_images \
   --dataset.text_emb_folder.ul2 ../../datasets/mixkit-100videos/ul2_emb_300 \
   --dataset.text_emb_folder.byt5 ../../datasets/mixkit-100videos/byt5_emb_100 \
   --dataset.deterministic_sample True \
-  --dataloader.batch_size10 \
+  --dataloader.batch_size 10 \
   --valid.dataset "" \
   --train.ema "" \
   --train.optimizer.weight_decay 0 \
@@ -342,6 +343,7 @@ python scripts/train.py \
   --env.distributed True \
   --model.pretrained_model_path "$stage1_dir"/ckpt/llama-5B-s2000.ckpt\
   --train.settings.zero_stage 2 \
+  --model.not_recompute_fa True \
   --dataset.csv_path ../../datasets/mixkit-100videos/video_caption_train.csv \
   --dataset.video_folder ../../datasets/mixkit-100videos/mixkit \
   --dataset.tae_latent_folder ../../datasets/mixkit-100videos/tae_latent \
