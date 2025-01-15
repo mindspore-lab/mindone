@@ -53,7 +53,7 @@ python launch.py \
         --test \
         resume="PATH_ABOVE/step10000.ckpt" \
 ```
-The gif file [here](#visualization) will be generated. Mesh dumping will also be supported.
+The video [here](#visualization) will be generated. Mesh dumping will also be supported.
 
 
 ## Visualization
@@ -67,9 +67,7 @@ The gif file [here](#visualization) will be generated. Mesh dumping will also be
 ### Training
 | Input Prompt | 3D Generation |
 | --- | :---:     |
-| `an astronaut riding a horse` | https://drive.google.com/file/d/1YuTnxTTiSDuYG9HKfvluKU25G8vSCa2V/view?usp=sharing |
-
-* This is a large gif file thus cannot be directly uploaded to github user attachment.
+| `an astronaut riding a horse` | <video src="https://github.com/user-attachments/assets/5babcf2c-00de-4ad5-8731-d8ae036e2f7f" /> |
 
 ## Performance
 Experiments are tested on ascend 910* with mindspore 2.4.1 pynative mode.
