@@ -67,7 +67,7 @@ The video [here](#visualization) will be generated. Mesh dumping will also be su
 ### Training
 | Input Prompt | 3D Generation |
 | --- | :---:     |
-| `an astronaut riding a horse` | <video src="https://github.com/user-attachments/assets/5babcf2c-00de-4ad5-8731-d8ae036e2f7f" /> |
+| `an astronaut riding a horse` | <video src="https://github.com/user-attachments/assets/f8d00417-96e4-4ddd-aa58-d2c2b7379c8e" /> |
 
 ## Performance
 Experiments are tested on ascend 910* with mindspore 2.4.1 pynative mode.
