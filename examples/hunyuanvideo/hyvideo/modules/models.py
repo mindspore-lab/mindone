@@ -743,7 +743,7 @@ class HYVideoDiffusionTransformer(ModelMixin, ConfigMixin):
         if ckpt_path.endswith(".pt"):
             import torch
 
-            state_dict = torch.load(ckpt_path)
+            state_dict = torch.load(ckpt_path, map_location="cpu", weights_only=True)
             load_key = "module"
             sd = state_dict[load_key]
             # NOTE: self.dtype is get from parameter.dtype in real-time
