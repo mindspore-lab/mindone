@@ -176,7 +176,11 @@ def main(args):
     FA_dtype = get_precision(args.precision) if get_precision(args.precision) != ms.float32 else ms.bfloat16
     model_dtype = PRECISION_TO_TYPE[args.precision]
 
-    factor_kwargs = {"dtype": model_dtype}
+    factor_kwargs = {
+        "dtype": model_dtype,
+        "use_recompute": args.gradient_checkpointing,
+        "num_no_recompute": args.num_no_recompute,
+    }
     model = HYVideoDiffusionTransformer(
         args,
         in_channels=args.latent_channels,
@@ -359,7 +363,14 @@ def main(args):
             prefetch_size=args.dataloader_prefetch_size,
             collate_fn=collate_fn,
             sampler=sampler,
-            column_names=["pixel_values", "attention_mask", "text_embed", "encoder_attention_mask"],
+            column_names=[
+                "pixel_values",
+                "attention_mask",
+                "text_embed",
+                "encoder_attention_mask",
+                "text_embed_2",
+                "encoder_attention_mask_2",
+            ],
         )
         val_dataloader_size = val_dataloader.get_dataset_size()
         assert (
@@ -871,8 +882,9 @@ def parse_t2v_train_args(parser):
         "--num_no_recompute",
         type=int,
         default=0,
-        help="If use_recompute is True, `num_no_recompute` blocks will be removed from the recomputation list."
-        "This is a positive integer which can be tuned based on the memory usage.",
+        nargs="+",
+        help="If gradient_checkpointing is True, `num_no_recompute` single_blocks and `num_no_recompute` double_blocks will be removed from recomputation list."
+        "if it is a positive integer. If it is a tuple (m, n), the m single_blocks and n double_blocks will be removed from recomputation list.",
     )
     parser.add_argument("--dataloader_prefetch_size", type=int, default=None, help="minddata prefetch size setting")
     parser.add_argument("--sp_size", type=int, default=1, help="For sequence parallel")

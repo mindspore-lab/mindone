@@ -1,3 +1,4 @@
+import logging
 from typing import Any, List, Optional, Tuple
 
 import mindspore as ms
@@ -16,6 +17,9 @@ from .norm_layers import LayerNorm, get_norm_layer
 # from .norm_layers import FP32LayerNorm
 from .posemb_layers import apply_rotary_emb
 from .token_refiner import SingleTokenRefiner, rearrange_qkv
+
+logger = logging.getLogger(__name__)
+
 
 class MMDoubleStreamBlock(nn.Cell):
     """
@@ -411,6 +415,10 @@ class HYVideoDiffusionTransformer(ModelMixin, ConfigMixin):
         Whether to use attention mask for text encoder.
     dtype: ms.dtype
         The dtype of the model, i.e. model parameter dtype
+    use_recompute: bool, default=False
+        Whether to use recompute.
+    num_no_recompute: int or tuple(list) of int, default=0
+        The number of blocks to not use recompute.
     """
 
     @register_to_config
@@ -436,6 +444,8 @@ class HYVideoDiffusionTransformer(ModelMixin, ConfigMixin):
         use_conv2d_patchify: bool = False,
         attn_mode: str = "flash",
         dtype=None,
+        use_recompute=False,
+        num_no_recompute: int = 0,
     ):
         factory_kwargs = {"dtype": dtype}
         super().__init__()
@@ -448,6 +458,8 @@ class HYVideoDiffusionTransformer(ModelMixin, ConfigMixin):
         self.rope_dim_list = rope_dim_list
         self.use_conv2d_patchify = use_conv2d_patchify
         # self.dtype = dtype
+        self.use_recompute = use_recompute
+        self.num_no_recompute = num_no_recompute
         print("attn_mode: ", attn_mode)
 
         # Text projection. Default to linear projection.
@@ -544,6 +556,43 @@ class HYVideoDiffusionTransformer(ModelMixin, ConfigMixin):
             get_activation_layer("silu"),
             **factory_kwargs,
         )
+
+        if self.use_recompute:
+            num_no_recompute = self.num_no_recompute
+            if isinstance(num_no_recompute, int):
+                num_no_recompute = (num_no_recompute, num_no_recompute)
+            elif isinstance(num_no_recompute, (list, tuple)):
+                assert (
+                    len(num_no_recompute) == 2
+                    and isinstance(num_no_recompute[0], int)
+                    and isinstance(num_no_recompute[1], int)
+                ), "Expect to have num_no_recompute as a list or tuple of two integers."
+
+            num_blocks = len(self.single_blocks)
+            assert (
+                num_no_recompute[0] <= num_no_recompute[1] <= num_blocks
+            ), f"num_no_recompute should be in [0, {num_blocks}], but got {num_no_recompute}"
+            logger.info(f"Excluding {num_no_recompute} single_blocks from the recomputation list.")
+            for bidx, block in enumerate(self.single_blocks):
+                if bidx < num_blocks - num_no_recompute[0]:
+                    self.recompute(block)
+
+            num_blocks = len(self.double_blocks)
+            assert (
+                num_no_recompute[1] <= num_blocks
+            ), f"num_no_recompute should be in [0, {num_blocks}], but got {num_no_recompute}"
+            logger.info(f"Excluding {num_no_recompute} double_blocks from the recomputation list.")
+            for bidx, block in enumerate(self.double_blocks):
+                if bidx < num_blocks - num_no_recompute[1]:
+                    self.recompute(block)
+
+    def recompute(self, b):
+        if not b._has_config_recompute:
+            b.recompute(parallel_optimizer_comm_recompute=True)
+        if isinstance(b, nn.CellList):
+            self.recompute(b[-1])
+        elif ms.get_context("mode") == ms.GRAPH_MODE:
+            b.add_flags(output_no_recompute=True)
 
     def enable_deterministic(self):
         for block in self.double_blocks:
