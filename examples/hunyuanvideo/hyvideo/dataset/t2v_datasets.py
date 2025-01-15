@@ -786,6 +786,6 @@ class T2V_dataset:
                 f"text embedding file {npz} not found. Please check the text_emb_folder and make sure the text embeddings are already generated"
             )
         td = np.load(npz)
-        text_emb = td["text_emb"]
-        mask = td["mask"]
+        text_emb = td["text_emb"].astype(np.float32)
+        mask = td["mask"].astype(np.uint8)
         return text_emb, mask  # (L, D), (L)

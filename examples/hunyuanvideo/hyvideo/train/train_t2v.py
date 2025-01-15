@@ -564,16 +564,16 @@ def main(args):
     video = ms.Tensor(shape=[_bs, 3, None, None, None], dtype=ms.float32)  # (b, c, f, h, w)
     attention_mask = ms.Tensor(shape=[_bs, None, None, None], dtype=ms.float32)  # (b, f, h, w)
     text_tokens = (
-        ms.Tensor(shape=[_bs, None, args.model_max_length_1, None], dtype=ms.float32)
+        ms.Tensor(shape=[_bs, args.model_max_length_1, None], dtype=ms.float32)
         if args.text_embed_cache
-        else ms.Tensor(shape=[_bs, None, args.model_max_length_1], dtype=ms.float32)
+        else ms.Tensor(shape=[_bs, args.model_max_length_1], dtype=ms.float32)
     )
-    encoder_attention_mask = ms.Tensor(shape=[_bs, None, args.model_max_length_1], dtype=ms.uint8)
+    encoder_attention_mask = ms.Tensor(shape=[_bs, args.model_max_length_1], dtype=ms.uint8)
 
     text_tokens_2 = (
-        ms.Tensor(shape=[_bs, None, args.model_max_length_2, None], dtype=ms.float32)
+        ms.Tensor(shape=[_bs, None], dtype=ms.float32)  # pooled hidden states
         if args.text_embed_cache
-        else ms.Tensor(shape=[_bs, None, args.model_max_length_2], dtype=ms.float32)
+        else ms.Tensor(shape=[_bs, args.model_max_length_2], dtype=ms.float32)
     )
     encoder_attention_mask_2 = ms.Tensor(shape=[_bs, args.model_max_length_2], dtype=ms.uint8)
     net_with_grads.set_inputs(
