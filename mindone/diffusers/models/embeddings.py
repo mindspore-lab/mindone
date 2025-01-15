@@ -509,9 +509,9 @@ class PatchEmbed(nn.Cell):
             )
             persistent = True if pos_embed_max_size else False
             if persistent:
-                self.pos_embed = ms.Parameter(pos_embed, name="pos_embed")
+                self.pos_embed = ms.Parameter(pos_embed.float().unsqueeze(0), name="pos_embed")
             else:
-                self.pos_embed = pos_embed
+                self.pos_embed = pos_embed.float().unsqueeze(0)
         else:
             raise ValueError(f"Unsupported pos_embed_type: {pos_embed_type}")
 
@@ -2316,7 +2316,7 @@ class IPAdapterTimeImageProjectionBlock(nn.Cell):
         latents = self.attn.to_out[1](latents)
         latents = latents + residual
 
-        ## FeedForward
+        # FeedForward
         residual = latents
         latents = self.adaln_norm(latents) * (1 + scale_mlp[:, None]) + shift_mlp[:, None]
         return self.ff(latents) + residual
