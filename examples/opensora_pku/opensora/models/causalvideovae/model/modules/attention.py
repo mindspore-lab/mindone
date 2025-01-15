@@ -97,7 +97,7 @@ class AttnBlock3DFix(nn.Cell):
             key,
             value,
             attention_mask=None,
-            input_layout="BSH",
+            input_layout="BNSD",
             head_dim=c // 2,
             head_num=2,  # FIXME: different from torch. To make head_dim 256 instead of 512
         )

@@ -329,7 +329,7 @@ class OpenSoraAttnProcessor2_0:
         key = key.swapaxes(0, 1)
         value = value.swapaxes(0, 1)
         hidden_states = npu_config.run_attention(
-            query, key, value, attention_mask, input_layout="BSH", head_dim=head_dim, head_num=FA_head_num
+            query, key, value, attention_mask, input_layout="BNSD", head_dim=head_dim, head_num=FA_head_num
         )
         hidden_states = hidden_states.swapaxes(0, 1)  # BSH -> SBH
 
