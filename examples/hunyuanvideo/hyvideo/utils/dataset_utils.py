@@ -573,7 +573,7 @@ def split_to_even_chunks(megabatch, lengths, world_size, batch_size):
                 chunk = chunk + [random.choice(chunk) for _ in range(batch_size - len(chunk))]
             else:
                 chunk = random.choice(pad_chunks)  # [[1], []] -> [[1], [1]]
-                print(chunks[idx], "->", chunk)
+                # print(chunks[idx], "->", chunk)
         pad_chunks.append(chunk)
     return pad_chunks
 
@@ -649,7 +649,8 @@ def get_length_grouped_indices(
     # print('shuffled_megabatches[:10]', shuffled_megabatches[:10])
     # print('have been trained idx:', shuffled_megabatches[:initial_global_step])
     shuffled_megabatches = shuffled_megabatches[initial_global_step:]
-    print(f"Skip the data of {initial_global_step} step!")
+    if initial_global_step != 0:
+        print(f"Skip the data of {initial_global_step} step!")
     # print('after shuffled_megabatches', len(shuffled_megabatches))
     # print('after shuffled_megabatches[:10]', shuffled_megabatches[:10])
 
