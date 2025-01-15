@@ -1,4 +1,5 @@
 import csv
+import logging
 import math
 import os
 import random
@@ -11,6 +12,8 @@ import numpy as np
 from decord import VideoReader
 
 import mindspore as ms
+
+logger = logging.getLogger(__name__)
 
 
 def create_video_transforms(
@@ -686,10 +689,24 @@ class LengthGroupedSampler:
         self.generator = generator
         # print('self.lengths, self.initial_global_step, self.batch_size, self.world_size, self.gradient_accumulation_size',
         #       len(self.lengths), self.initial_global_step, self.batch_size, self.world_size, self.gradient_accumulation_size)
+        self.example_indices = get_length_grouped_indices(
+            self.lengths,
+            self.batch_size,
+            self.world_size,
+            self.gradient_accumulation_size,
+            self.initial_global_step,
+            group_data=self.group_data,
+            generator=self.generator,
+        )
+        if len(self.example_indices) != len(self.lengths):
+            logger.info(
+                "Due to the video length grouped sampler, some samples will be repeated, "
+                + f"causing the number of samples to be {len(self.example_indices)} instead of {len(self.lengths)}."
+            )
 
     def __len__(self):
         return (
-            len(self.lengths)
+            len(self.example_indices)
             - self.initial_global_step * self.batch_size * self.world_size * self.gradient_accumulation_size
         )
 
