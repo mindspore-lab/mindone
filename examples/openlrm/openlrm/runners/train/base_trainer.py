@@ -127,8 +127,8 @@ def parse_train_args(parser):
     )
     parser.add_argument(
         "--use_recompute",
-        default=None,
-        type=False,
+        default=False,
+        type=str2bool,
         help="whether use recompute.",
     )
     parser.add_argument("--start_learning_rate", default=4e-4, type=float, help="The initial learning rate for Adam.")

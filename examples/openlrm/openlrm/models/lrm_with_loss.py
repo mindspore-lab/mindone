@@ -5,7 +5,7 @@ logger = logging.getLogger("")
 import mindspore as ms
 from mindspore import Tensor, mint, nn
 
-from . import ModelLRM
+from .modeling_lrm import ModelLRM
 
 
 class ModelLRMWithLoss(nn.Cell):

@@ -12,10 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-
-from openlrm.utils.registry import Registry
-
+from .abstract_runners import REGISTRY_RUNNERS  # must import before importing infer and train
 from .infer import *
 from .train import *
-
-REGISTRY_RUNNERS = Registry()

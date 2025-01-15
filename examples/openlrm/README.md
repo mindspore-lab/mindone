@@ -40,7 +40,7 @@ LRM is the first Large Reconstruction Model that predicts the 3D model of an obj
 - Run the inference script for image-to-3D.
 - You may specify which form of output to generate by setting the flags `EXPORT_VIDEO=true` and `EXPORT_MESH=true`.
 - Please set default `INFER_CONFIG` according to the model you want to use: `infer-s.yaml` for small models, `infer-b.yaml` for base models and `infer-l.yaml` for large models.
-- An example usage is as follows:
+- A sample script is provided in `scripts/infer_hf.sh`. An example usage is as follows:
 
   ```
   # Example usage
@@ -50,7 +50,7 @@ LRM is the first Large Reconstruction Model that predicts the 3D model of an obj
   MODEL_NAME="zxhezexin/openlrm-mix-base-1.1"
   IMAGE_INPUT="./assets/sample_input/owl.png"
 
-  python -m openlrm.launch infer.lrm --infer $INFER_CONFIG model_name=$MODEL_NAME image_input=$IMAGE_INPUT export_video=$EXPORT_VIDEO export_mesh=$EXPORT_MESH
+  python -m openlrm.launch infer.lrm --infer $INFER_CONFIG model_name=$MODEL_NAME image_input=$IMAGE_INPUT export_video=$EXPORT_VIDEO export_mesh=$EXPORT_MESH model_ckpt=None
   ```
 
 
@@ -114,7 +114,7 @@ LRM is the first Large Reconstruction Model that predicts the 3D model of an obj
   export DEVICE_ID=0
   EPOCH=100000
   OUTPUT_PATH=./outputs/train_small_e$EPOCH
-  python -m openlrm.launch train.lrm --config $INFER_CONFIG --mode 1 --num_parallel_workers 1 --epochs $EPOCH
+  python -m openlrm.launch train.lrm --config $TRAIN_CONFIG --mode 1 --num_parallel_workers 1 --epochs $EPOCH
   ```
 
 ### Run Inference on Trained MindSpore Models

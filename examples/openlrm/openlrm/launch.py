@@ -12,9 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# import os
-# __dir__ = os.path.dirname(os.path.abspath(__file__))
-# sys.path.insert(0, os.path.abspath(os.path.join(__dir__, "../..")))  # for mindone
+# import os, sys
+# sys.path.insert(0, os.path.abspath("../.."))  # for mindone
 
 import argparse
 
