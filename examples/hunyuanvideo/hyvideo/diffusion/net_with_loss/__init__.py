@@ -216,10 +216,14 @@ class DiffusionWithLoss(nn.Cell):
                     text_embed_2 = ops.stop_gradient(
                         self.get_condition_embeddings(text_tokens_2, encoder_attention_mask_2, index=1)
                     )
+                else:
+                    text_embed_2 = None
             else:
                 text_embed = text_tokens
                 if text_tokens_2 is not None:
                     text_embed_2 = text_tokens_2
+                else:
+                    text_embed_2 = None
         loss = self.compute_loss(
             x, attention_mask, text_embed, encoder_attention_mask, text_embed_2, encoder_attention_mask_2
         )

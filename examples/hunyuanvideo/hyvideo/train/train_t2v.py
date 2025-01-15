@@ -559,18 +559,27 @@ def main(args):
             ema=ema,
         )
 
-    # # set dynamic inputs
-    # _bs = ms.Symbol(unique=True)
-    # video = ms.Tensor(shape=[_bs, 3, None, None, None], dtype=ms.float32)  # (b, c, f, h, w)
-    # attention_mask = ms.Tensor(shape=[_bs, None, None, None], dtype=ms.float32)  # (b, f, h, w)
-    # text_tokens = (
-    #     ms.Tensor(shape=[_bs, None, args.model_max_length, None], dtype=ms.float32)
-    #     if args.text_embed_cache
-    #     else ms.Tensor(shape=[_bs, None, args.model_max_length], dtype=ms.float32)
-    # )
-    # encoder_attention_mask = ms.Tensor(shape=[_bs, None, args.model_max_length], dtype=ms.uint8)
-    # net_with_grads.set_inputs(video, attention_mask, text_tokens, encoder_attention_mask)
-    # logger.info("Dynamic inputs are initialized for training!")
+    # set dynamic inputs
+    _bs = ms.Symbol(unique=True)
+    video = ms.Tensor(shape=[_bs, 3, None, None, None], dtype=ms.float32)  # (b, c, f, h, w)
+    attention_mask = ms.Tensor(shape=[_bs, None, None, None], dtype=ms.float32)  # (b, f, h, w)
+    text_tokens = (
+        ms.Tensor(shape=[_bs, None, args.model_max_length_1, None], dtype=ms.float32)
+        if args.text_embed_cache
+        else ms.Tensor(shape=[_bs, None, args.model_max_length_1], dtype=ms.float32)
+    )
+    encoder_attention_mask = ms.Tensor(shape=[_bs, None, args.model_max_length_1], dtype=ms.uint8)
+
+    text_tokens_2 = (
+        ms.Tensor(shape=[_bs, None, args.model_max_length_2, None], dtype=ms.float32)
+        if args.text_embed_cache
+        else ms.Tensor(shape=[_bs, None, args.model_max_length_2], dtype=ms.float32)
+    )
+    encoder_attention_mask_2 = ms.Tensor(shape=[_bs, args.model_max_length_2], dtype=ms.uint8)
+    net_with_grads.set_inputs(
+        video, attention_mask, text_tokens, encoder_attention_mask, text_tokens_2, encoder_attention_mask_2
+    )
+    logger.info("Dynamic inputs are initialized for training!")
 
     if not args.global_bf16:
         model = Model(
