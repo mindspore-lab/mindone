@@ -23,7 +23,7 @@ from ...configuration_utils import ConfigMixin, register_to_config
 from ...loaders import FromOriginalModelMixin, PeftAdapterMixin
 from ...utils import logging
 from ..attention import JointTransformerBlock
-from ..attention_processor import Attention, AttentionProcessor, FusedJointAttnProcessor2_0
+from ..attention_processor import AttentionProcessor
 from ..embeddings import CombinedTimestepTextProjEmbeddings, PatchEmbed
 from ..modeling_outputs import Transformer2DModelOutput
 from ..modeling_utils import ModelMixin
