@@ -836,7 +836,6 @@ def parse_t2v_train_args(parser):
     parser.add_argument("--max_width", type=int, default=240)
     parser.add_argument("--group_frame", action="store_true")
     parser.add_argument("--group_resolution", action="store_true")
-    parser.add_argument("--use_rope", action="store_true")
     parser.add_argument("--pretrained", type=str, default=None)
 
     parser.add_argument("--vae_tiling", action="store_true")

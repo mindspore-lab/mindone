@@ -1,0 +1,15 @@
+python tests/test_data.py \
+    --dataset t2v \
+    --data "train_data/mixkit.txt" \
+    --sample_rate 1 \
+    --num_frames 29 \
+    --max_height 256 \
+    --max_width 256 \
+    --train_batch_size 1 \
+    --dataloader_num_workers 1 \
+    --seed=10 \
+    --output_dir="t2v-video3d-29x256p/" \
+    --cfg 0.1 \
+    --speed_factor 1.0 \
+    --drop_short_ratio 1.0 \
+    --force_resolution \
