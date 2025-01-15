@@ -10,6 +10,7 @@ model:
   pretrained_model_path:
   enable_flash_attention: True
   recompute_every_nth_block: 1
+  not_recompute_fa: False
   dtype: bf16
 
 tae:

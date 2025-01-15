@@ -146,6 +146,7 @@ class LlamaFlashAttention(LlamaAttention):
         num_key_value_heads: int = 8,
         attention_dropout: float = 0.0,
         attention_bias: bool = False,
+        not_recompute_fa: bool = False,
         dtype: ms.Type = ms.float32,
     ) -> None:
         super().__init__(
@@ -160,6 +161,8 @@ class LlamaFlashAttention(LlamaAttention):
         self.flash_attention = FlashAttentionScore(
             num_heads, keep_prob=1 - self.attention_dropout, scale_value=self.head_dim**-0.5, input_layout="BNSD"
         )
+        if not_recompute_fa:
+            self.flash_attention.recompute(False)
 
     def construct(self, hidden_states: Tensor, encoder_hidden_states: Optional[Tensor] = None) -> Tensor:
         bsz, q_len, _ = hidden_states.shape

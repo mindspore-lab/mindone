@@ -258,17 +258,17 @@ a [mixkit](https://mixkit.co/) subset consisting of 100 HQ videos up to 1080P.
 
 Experiments were conducted on Ascend 910* using MindSpore 2.3.1 in graph mode.
 
-| Model | Cards |   Stage   |      Batch size       |       Resolution        |        Recompute        | TAE Cache | Sequence Parallel | Time (s/step) |                              Recipe                               |
-|:-----:|:-----:|:---------:|:---------------------:|:-----------------------:|:-----------------------:|:---------:|:-----------------:|:-------------:|:-----------------------------------------------------------------:|
-|  30B  |   8   |  1 (T2I)  |          10           |         256x455         |           ON            |    ON     |        NO         |     5.14      |  [stage1_t2i_256px.yaml](../configs/train/stage1_t2i_256px.yaml)  |
-|  30B  |   8   |  2 (T2V)  |       Video: 1        |       256x256x455       |           ON            |    ON     |     8 shards      |     4.04      | [stage2_t2iv_256px.yaml](../configs/train/stage2_t2iv_256px.yaml) |
-|  30B  |   8   |  3 (T2V)  |       Video: 1        |      256x576x1024       |           ON            |    ON     |     8 shards      |     37.7      | [stage3_t2iv_768px.yaml](../configs/train/stage3_t2iv_768px.yaml) |
-|  5B   |   8   |  1 (T2I)  |          10           |         256x455         | ON<br/>(Every 2 blocks) |    ON     |        NO         |     1.08      |  [stage1_t2i_256px.yaml](../configs/train/stage1_t2i_256px.yaml)  |
-|  5B   |   8   | 2 (T2I/V) | Image: 1<br/>Video: 1 | 256x455<br/>256 frames  | ON<br/>(Every 2 blocks) |    ON     |        NO         |     4.71      | [stage2_t2iv_256px.yaml](../configs/train/stage2_t2iv_256px.yaml) |
-|  5B   |   8   | 3 (T2I/V) | Image: 1<br/>Video: 1 | 576x1024<br/>256 frames |           ON            |    ON     |        NO         |     83.2      | [stage3_t2iv_768px.yaml](../configs/train/stage3_t2iv_768px.yaml) |
-|  1B   |   8   |  1 (T2I)  |          10           |         256x455         |           OFF           |    ON     |        NO         |     0.32      |  [stage1_t2i_256px.yaml](../configs/train/stage1_t2i_256px.yaml)  |
-|  1B   |   8   | 2 (T2I/V) | Image: 1<br/>Video: 1 | 256x455<br/>256 frames  |           OFF           |    ON     |        NO         |     2.12      | [stage2_t2iv_256px.yaml](../configs/train/stage2_t2iv_256px.yaml) |
-|  1B   |   8   | 3 (T2I/V) | Image: 1<br/>Video: 1 | 576x1024<br/>256 frames |           ON            |    ON     |        NO         |     55.7      | [stage3_t2iv_768px.yaml](../configs/train/stage3_t2iv_768px.yaml) |
+| Model | Cards |   Stage   |      Batch size       |       Resolution        |        Recompute         | TAE Cache | Sequence Parallel | Time (s/step) |                              Recipe                               |
+|:-----:|:-----:|:---------:|:---------------------:|:-----------------------:|:------------------------:|:---------:|:-----------------:|:-------------:|:-----------------------------------------------------------------:|
+|  30B  |   8   |  1 (T2I)  |          10           |         256x455         |            ON            |    ON     |        NO         |     5.14      |  [stage1_t2i_256px.yaml](../configs/train/stage1_t2i_256px.yaml)  |
+|  30B  |   8   |  2 (T2V)  |       Video: 1        |       256x256x455       |            ON            |    ON     |     8 shards      |     4.04      | [stage2_t2iv_256px.yaml](../configs/train/stage2_t2iv_256px.yaml) |
+|  30B  |   8   |  3 (T2V)  |       Video: 1        |      256x576x1024       |            ON            |    ON     |     8 shards      |     37.7      | [stage3_t2iv_768px.yaml](../configs/train/stage3_t2iv_768px.yaml) |
+|  5B   |   8   |  1 (T2I)  |          10           |         256x455         |           OFF            |    ON     |        NO         |     0.82      |  [stage1_t2i_256px.yaml](../configs/train/stage1_t2i_256px.yaml)  |
+|  5B   |   8   | 2 (T2I/V) | Image: 1<br/>Video: 1 | 256x455<br/>256 frames  | ON<br/>(No FA recompute) |    ON     |        NO         |     4.12      | [stage2_t2iv_256px.yaml](../configs/train/stage2_t2iv_256px.yaml) |
+|  5B   |   8   | 3 (T2I/V) | Image: 1<br/>Video: 1 | 576x1024<br/>256 frames |            ON            |    ON     |        NO         |     83.2      | [stage3_t2iv_768px.yaml](../configs/train/stage3_t2iv_768px.yaml) |
+|  1B   |   8   |  1 (T2I)  |          10           |         256x455         |           OFF            |    ON     |        NO         |     0.32      |  [stage1_t2i_256px.yaml](../configs/train/stage1_t2i_256px.yaml)  |
+|  1B   |   8   | 2 (T2I/V) | Image: 1<br/>Video: 1 | 256x455<br/>256 frames  |           OFF            |    ON     |        NO         |     2.12      | [stage2_t2iv_256px.yaml](../configs/train/stage2_t2iv_256px.yaml) |
+|  1B   |   8   | 3 (T2I/V) | Image: 1<br/>Video: 1 | 576x1024<br/>256 frames | ON<br/>(No FA recompute) |    ON     |        NO         |     23.2      | [stage3_t2iv_768px.yaml](../configs/train/stage3_t2iv_768px.yaml) |
 
 > [!NOTE]
 > All the models are trained with BF16 precision.
