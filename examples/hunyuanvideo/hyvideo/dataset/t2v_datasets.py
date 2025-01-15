@@ -178,7 +178,7 @@ class T2V_dataset:
         self.seed = args.seed
         self.generator = np.random.default_rng(self.seed)
         self.hw_aspect_thr = 2.0  # just a threshold
-        self.too_long_factor = 10.0  # set this threshold larger for longer video datasets
+        self.too_long_factor = 100.0  # set this threshold larger for longer video datasets
         self.filter_nonexistent = filter_nonexistent
         self.return_text_emb = return_text_emb
         if self.return_text_emb and self.cfg > 0:

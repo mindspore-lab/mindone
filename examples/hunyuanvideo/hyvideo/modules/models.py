@@ -572,7 +572,7 @@ class HYVideoDiffusionTransformer(ModelMixin, ConfigMixin):
             assert (
                 num_no_recompute[0] <= num_no_recompute[1] <= num_blocks
             ), f"num_no_recompute should be in [0, {num_blocks}], but got {num_no_recompute}"
-            logger.info(f"Excluding {num_no_recompute} single_blocks from the recomputation list.")
+            logger.info(f"Excluding {num_no_recompute[0]} single_blocks from the recomputation list.")
             for bidx, block in enumerate(self.single_blocks):
                 if bidx < num_blocks - num_no_recompute[0]:
                     self.recompute(block)
@@ -581,7 +581,7 @@ class HYVideoDiffusionTransformer(ModelMixin, ConfigMixin):
             assert (
                 num_no_recompute[1] <= num_blocks
             ), f"num_no_recompute should be in [0, {num_blocks}], but got {num_no_recompute}"
-            logger.info(f"Excluding {num_no_recompute} double_blocks from the recomputation list.")
+            logger.info(f"Excluding {num_no_recompute[1]} double_blocks from the recomputation list.")
             for bidx, block in enumerate(self.double_blocks):
                 if bidx < num_blocks - num_no_recompute[1]:
                     self.recompute(block)
