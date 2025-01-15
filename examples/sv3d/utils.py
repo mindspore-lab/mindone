@@ -21,5 +21,5 @@ def mixed_precision(net):
         ):
             setattr(net, cell, _mixed_precision(cells[cell]))
     for emb in net.conditioner.embedders:
-        if not (isinstance(emb, VideoPredictionEmbedderWithEncoder) and emb.disable_encoder_amp):
+        if not (isinstance(emb, VideoPredictionEmbedderWithEncoder) and emb.disable_encoder_autocast):
             _mixed_precision(emb)

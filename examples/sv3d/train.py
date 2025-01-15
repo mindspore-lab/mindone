@@ -127,9 +127,9 @@ def main(args):
             [
                 f"Debugging: {_debug}",
                 f"MindSpore mode[GRAPH(0)/PYNATIVE(1)]: {_mode}",
-                f"Num params sv3d: {num_params: , } (unet: {num_params_unet: , }, \
-                    text encoder: {num_params_text_encoder: , }, vae: {num_params_vae: , })",
-                f"Num trainable params: {num_trainable_params: , }",
+                f"Num params sv3d: {num_params:,} (unet: {num_params_unet:,}, \
+                    text encoder: {num_params_text_encoder:,}, vae: {num_params_vae:,})",
+                f"Num trainable params: {num_trainable_params:,}",
                 f"Precision sv3d: {train_cfg.amp_level}",
                 f"Num epochs: {train_cfg.epochs}",
                 f"Learning rate: {train_cfg.scheduler.lr}",
