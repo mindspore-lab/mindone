@@ -8,8 +8,8 @@ MVDream is a diffusion model that is able to generate consistent multiview image
 
 There are two main folders for the mvdream developments. They are respectively:
 
-* [__mvdream__](https://github.com/bytedance/MVDream): This is an implementation of the t2i sampling pipeline, which can be used as either a t2i inference script or the multiview guidance during the 3D per-scene optimization training.
-* [__mvdream-threestudio__](https://github.com/bytedance/MVDream-threestudio): This is an implementation of the 3D per-scene optimization training pipeline, highly modular. With our ms implementation of [threestudio](https://github.com/threestudio-project/threestudio), many other 3D content creation projects listed there can be seamlessly supported.
+* [__MVDream__](https://github.com/bytedance/MVDream): This is an implementation of the t2i sampling pipeline, which can be used as either a t2i inference script or the multiview guidance during the 3D per-scene optimization training.
+* [__MVDream-threestudio__](https://github.com/bytedance/MVDream-threestudio): This is an implementation of the 3D per-scene optimization training pipeline, highly modular. With our ms implementation of [threestudio](https://github.com/threestudio-project/threestudio), many other 3D content creation projects listed there can be seamlessly supported.
 
 ## Requirements
 ```bash
@@ -20,27 +20,28 @@ pip install -r requirements.txt
 | 2.4.1	    | 24.1.RC2 | 7.3.0.1.231	| 8.0.RC2.beta1 |
 
 ## Inference
-The pretrained stable-diffusion-v2.1 model with multiview finetuning will be automatically downloaded out-of-box with the inference t2i script, no need to explicitly download. Users are expected to do the _th-ms_ ckpt conversion.
+The pretrained stable-diffusion-v2.1 model with multiview finetuning will be automatically downloaded out-of-box with the inference t2i script via huggingface, no need to explicitly doing a mannual download. Users are expected to do the _th-ms_ ckpt conversion.
 ```bash
 cd MVDream
 python scripts/t2i.py --num_frames 4
-python ../../instantmesh/tools/convert_pt2ms.py --src sd-v2.1-base-4view.pt --trgt sd-v2.1-base-4view.ckpt
+python ../../instantmesh/tools/convert_pt2ms.py --src YOUR_HF_PATH/sd-v2.1-base-4view.pt --trgt ./sd-v2.1-base-4view.ckpt  # run t2i again with the converted ckpt
 ```
 
 You can also finetune your own multiview t2i sd model, theoretically it is mostly similar to the `sv3d_p` training under [SV3D](../sv3d) but with text tokenizer. Our focus in this project is the 3D generation via x0-SDS training rather than finetuning a multiview image/frames/video generation model as in [SV3D](../sv3d).
 
 ## Training
+We follow the original repo to train the x0-sds optimization pipeline for a given prompt's 3D asset generation for 10k steps.
 ```bash
 cd MVDream-threestudio
 
-# train low res 64x64 with batch_size 8
+# train low res 64x64 with batch_size 8 for 5k steps
 python launch.py \
         --train \
 
-# train high res 256x256 with batch_size 4
+# train high res 256x256 with batch_size 4 for another 5k steps
 python launch.py \
         --train \
-        --resume_ckpt CKPT_OUTPUT_ABOVE \
+        --resume_ckpt PATH_CKPT_OUTPUT/step_4999.ckpt \
         --train_highres \
         system.use_recompute=true \
 ```
@@ -53,7 +54,7 @@ python launch.py \
         --test \
         resume="PATH_ABOVE/step10000.ckpt" \
 ```
-The video [here](#visualization) will be generated. Mesh dumping will also be supported.
+The video [here](#visualization) will be generated. Mesh extraction will also be supported.
 
 
 ## Visualization
