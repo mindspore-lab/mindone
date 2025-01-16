@@ -185,7 +185,7 @@ def main(args):
         args,
         in_channels=args.latent_channels,
         use_conv2d_patchify=True,
-        attn_mode="vanilla",
+        attn_mode=args.attention_mode,
         **HUNYUAN_VIDEO_CONFIG[args.model],
         **factor_kwargs,
     )
@@ -694,6 +694,7 @@ def main(args):
                 f"Transformer AMP level: {args.amp_level}" if not args.global_bf16 else "Global BF16: True",
                 f"VAE dtype: {vae_dtype}"
                 + (f"\nText encoder dtype: {text_encoder_dtype}" if text_encoder_dtype is not None else ""),
+                f"Attention mode: {args.attention_mode}",
                 f"Learning rate: {learning_rate}",
                 f"Instantaneous batch size per device: {args.train_batch_size}",
                 f"Total train batch size (w. parallel, distributed & accumulation): {total_batch_size}",
@@ -851,7 +852,7 @@ def parse_t2v_train_args(parser):
 
     parser.add_argument("--vae_tiling", action="store_true")
 
-    # parser.add_argument("--attention_mode", type=str, choices=["xformers", "math", "flash"], default="xformers")
+    parser.add_argument("--attention_mode", type=str, choices=["vanilla", "flash"], default="flash")
 
     parser.add_argument("--model_max_length_1", type=int, default=315)  # llava llama text encoder
     parser.add_argument(
