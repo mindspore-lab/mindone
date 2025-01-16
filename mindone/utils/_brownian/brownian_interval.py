@@ -31,6 +31,7 @@ _r12 = 1 / 12
 
 def _randn(size, dtype, seed):
     # generator = np.random.Generator(np.random.PCG64(seed))
+    np.random.seed(seed)
     return ms.Tensor(np.random.randn(*size), dtype=dtype)
 
 
