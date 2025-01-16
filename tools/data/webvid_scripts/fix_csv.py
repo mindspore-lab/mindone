@@ -1,7 +1,9 @@
 import argparse
-import os
-import pandas as pd
 import io
+import os
+
+import pandas as pd
+
 
 def filter_valid_lines(input_file, output_file, expected_fields=6):
     """
@@ -17,7 +19,7 @@ def filter_valid_lines(input_file, output_file, expected_fields=6):
     valid_rows = []
     buffer = ""
 
-    with open(input_file, 'r', encoding='utf-8') as infile:
+    with open(input_file, "r", encoding="utf-8") as infile:
         header = infile.readline().strip()
         valid_rows.append(header)
         total_lines += 1
@@ -26,7 +28,7 @@ def filter_valid_lines(input_file, output_file, expected_fields=6):
             total_lines += 1
             buffer += line.strip()
 
-            if buffer.count(',') >= expected_fields - 1:
+            if buffer.count(",") >= expected_fields - 1:
                 try:
                     pd.read_csv(io.StringIO(buffer), header=None)
                     valid_rows.append(buffer)
@@ -37,11 +39,12 @@ def filter_valid_lines(input_file, output_file, expected_fields=6):
             else:
                 buffer += " "
 
-    with open(output_file, 'w', encoding='utf-8') as outfile:
+    with open(output_file, "w", encoding="utf-8") as outfile:
         for row in valid_rows:
-            outfile.write(row + '\n')
+            outfile.write(row + "\n")
 
     return total_lines, valid_lines
+
 
 def filter_valid_lines_old(input_file, output_file):
     """
@@ -55,7 +58,7 @@ def filter_valid_lines_old(input_file, output_file):
     valid_lines = 0
     valid_rows = []
 
-    with open(input_file, 'r', encoding='utf-8') as infile:
+    with open(input_file, "r", encoding="utf-8") as infile:
         header = infile.readline().strip()
         valid_rows.append(header)
         total_lines += 1
@@ -69,9 +72,9 @@ def filter_valid_lines_old(input_file, output_file):
                 print(line)
                 continue
 
-    with open(output_file, 'w', encoding='utf-8') as outfile:
+    with open(output_file, "w", encoding="utf-8") as outfile:
         for row in valid_rows:
-            outfile.write(row + '\n')
+            outfile.write(row + "\n")
 
     return total_lines, valid_lines
 
@@ -94,11 +97,12 @@ def main(root, set_type, part):
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description='Filter a CSV file to ensure proper formatting.')
-    parser.add_argument('--root', type=str, default="./webvid-10m", help='Root directory path')
-    parser.add_argument('--set', type=str, required=True, choices=['2M_train', '2M_val', '10M_train', '10M_val'],
-                        help='Dataset type')
-    parser.add_argument('--part', type=int, required=True, help='Part number of the CSV file')
+    parser = argparse.ArgumentParser(description="Filter a CSV file to ensure proper formatting.")
+    parser.add_argument("--root", type=str, default="./webvid-10m", help="Root directory path")
+    parser.add_argument(
+        "--set", type=str, required=True, choices=["2M_train", "2M_val", "10M_train", "10M_val"], help="Dataset type"
+    )
+    parser.add_argument("--part", type=int, required=True, help="Part number of the CSV file")
 
     args = parser.parse_args()
     main(args.root, args.set, args.part)

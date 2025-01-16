@@ -1,14 +1,23 @@
 import argparse
 import json
 import os
+
 from tqdm import tqdm
+
 
 def parse_args():
     parser = argparse.ArgumentParser(description="WebVid Data Check")
-    parser.add_argument("--set", type=str, required=True, choices=["10M_train", "10M_val", "2M_train", "2M_val"], help="Dataset set name")
+    parser.add_argument(
+        "--set",
+        type=str,
+        required=True,
+        choices=["10M_train", "10M_val", "2M_train", "2M_val"],
+        help="Dataset set name",
+    )
     parser.add_argument("--part", type=str, help="Part ID of the dataset to check, required for train sets")
     parser.add_argument("--root", type=str, default="./webvid-10m", help="Root directory of the dataset")
     return parser.parse_args()
+
 
 def main():
     args = parse_args()
@@ -55,7 +64,8 @@ def main():
             ).read()  # If error message appears, the tar file is invalid. Please download again.
             if int(r) % 3 != 0:
                 raise Exception(
-                    f"Broken tar file: {filepath}. Please download the whole {args.set}/part{args.part} again.")
+                    f"Broken tar file: {filepath}. Please download the whole {args.set}/part{args.part} again."
+                )
 
             download_video_num += int(r) // 3  # one video data consists of three parts: json, txt, mp4.
             tar_num += 1
@@ -77,6 +87,7 @@ def main():
     print(f"Number of downloaded files: {download_video_num}")
     print(f"Number of tar files: {tar_num}")
     print(f"Downloading success rate: {success_rate:.2%}")
+
 
 if __name__ == "__main__":
     main()

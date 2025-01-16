@@ -1,6 +1,8 @@
-import os
 import argparse
+import os
+
 import pandas as pd
+
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Split one large CSV to smaller ones")
@@ -9,6 +11,7 @@ def parse_args():
     parser.add_argument("--root_dir", type=str, default="./", help="Root directory for reading the metadata file")
     parser.add_argument("--output_dir", type=str, default="./", help="Output directory for split CSV files")
     return parser.parse_args()
+
 
 def main():
     args = parse_args()
@@ -37,6 +40,7 @@ def main():
         partid == expected_parts
     ), f"The metadata file should be split into {expected_parts} parts, but got {partid} parts."
     print(f"Finished! The metadata file is split into {partid} parts, saved in '{output_dir}'.")
+
 
 if __name__ == "__main__":
     main()
