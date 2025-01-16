@@ -388,7 +388,7 @@ class PromptProcessor(BaseObject):
         view_ids = tokenizer(" ".join(views), return_tensors="pt").input_ids[0]
         view_ids = view_ids[1:5]
 
-        def modulate(prompt):
+        def modulate(prompt, tokenizer, model):
             prompt_vd = f"This image is depicting a [MASK] view of {prompt}"
             tokens = tokenizer(
                 prompt_vd,
@@ -406,7 +406,7 @@ class PromptProcessor(BaseObject):
             return probes
 
         prompts = [prompt.split(" ") for _ in range(4)]
-        full_probe = modulate(prompt)
+        full_probe = modulate(prompt, tokenizer, model)
         n_words = len(prompt.split(" "))
         prompt_debiasing_mask_ids = (
             self.cfg.prompt_debiasing_mask_ids
@@ -418,7 +418,7 @@ class PromptProcessor(BaseObject):
         for idx in prompt_debiasing_mask_ids:
             words = prompt.split(" ")
             prompt_ = " ".join(words[:idx] + words[(idx + 1) :])
-            part_probe = modulate(prompt_)
+            part_probe = modulate(prompt_, tokenizer, model)
 
             pmi = full_probe / mint.lerp(part_probe, full_probe, 0.5)
             for i in range(pmi.shape[0]):

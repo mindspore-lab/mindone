@@ -1,6 +1,6 @@
 import os
 import re
-from typing import Any, Callable
+from typing import Any, Callable, Tuple
 
 from packaging import version
 from threestudio.utils.config import config_to_primitive

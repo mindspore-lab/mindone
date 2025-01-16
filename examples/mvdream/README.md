@@ -70,6 +70,8 @@ The video [here](#visualization) will be generated. Mesh extraction will also be
 | --- | :---:     |
 | `an astronaut riding a horse` | <video src="https://github.com/user-attachments/assets/f8d00417-96e4-4ddd-aa58-d2c2b7379c8e" /> |
 
+This video is a rendered frame sequence of the generated 3D implcit field by MVDream.
+
 ## Performance
 Experiments are tested on ascend 910* with mindspore 2.4.1 pynative mode.
 
