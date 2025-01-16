@@ -42,7 +42,6 @@ class SV3DInferPipeline:
         model_config: str,
         ckpt_path: str,
         num_frames: Optional[int],
-        device: str,
         num_steps: int,
         version: str,
         cond_aug: float,
@@ -75,7 +74,6 @@ class SV3DInferPipeline:
         self.cond_aug = cond_aug
         self.num_frames = num_frames
         self.version = version
-        self.device = device
 
         # preproc for graph mode
         self.expand_dims_ops = ops.ExpandDims()
@@ -152,8 +150,6 @@ def sample(
     seed: int = 42,
     decoding_t: int = 7,  # Number of frames decoded at a time! This eats most VRAM. Reduce if necessary.
     mode: int = 1,
-    device: str = "Ascend",
-    device_id: int = 0,
     output_folder: Optional[str] = None,
     image_frame_ratio: Optional[float] = None,
 ):
@@ -179,10 +175,10 @@ def sample(
     )  # all the logger needs to follow name, to use the mindone callbacks directly, need to put name as ""
     logger.info("program started")
 
-    ms.context.set_context(mode=mode, device_target=device, device_id=device_id)
+    ms.context.set_context(mode=mode, device_target="Ascend")
     set_random_seed(seed)
     path = Path(input_path)
-    pipeline = SV3DInferPipeline(model_config, ckpt_path, num_frames, device, num_steps, version, cond_aug, decoding_t)
+    pipeline = SV3DInferPipeline(model_config, ckpt_path, num_frames, num_steps, version, cond_aug, decoding_t)
     all_img_paths = []
     logger.info(f"path posix: {path}")
     if path.is_file():
@@ -280,9 +276,8 @@ if __name__ == "__main__":
     parser.add_argument(
         "--mode", default=1, type=int, help="MindSpore execution mode: Graph mode[0] or Pynative mode[1]"
     )
-    parser.add_argument("--device_id", default=2, type=int, help="MindSpore HW device id")
     parser.add_argument("--decoding_t", default=7, type=int, help="# of decoding steps")
     parser.add_argument("--version", default="sv3d_u", choices=["sv3d_u", "sv3d_u_overfitted_ckpt"], type=str)
     args = parser.parse_args()
     print(args)
-    sample(args.input, args.ckpt, args.version, decoding_t=args.decoding_t, mode=args.mode, device_id=args.device_id)
+    sample(args.input, args.ckpt, args.version, decoding_t=args.decoding_t, mode=args.mode)
