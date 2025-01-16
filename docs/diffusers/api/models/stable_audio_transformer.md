@@ -15,4 +15,4 @@ specific language governing permissions and limitations under the License.
 A Transformer model for audio waveforms from [Stable Audio Open](https://huggingface.co/papers/2407.14358).
 
 
-::: mindone.diffusersStableAudioDiTModel
+::: mindone.diffusers.StableAudioDiTModel

@@ -56,7 +56,7 @@ class BatchedBrownianTree:
         t0, t1, self.sign = self.sort(t0, t1)
         w0 = kwargs.get("w0", ops.zeros_like(x))
         if seed is None:
-            seed = ops.randint(0, 10000, ()).item()
+            seed = np.random.randint(0, 2**63 - 1, ()).item()
         self.batched = True
         try:
             assert len(seed) == x.shape[0]
@@ -227,10 +227,10 @@ class DPMSolverSDEScheduler(SchedulerMixin, ConfigMixin):
         if trained_betas is not None:
             self.betas = ms.Tensor(trained_betas, dtype=ms.float32)
         elif beta_schedule == "linear":
-            self.betas = ops.linspace(beta_start, beta_end, num_train_timesteps, dtype=ms.float32)
+            self.betas = ops.linspace(beta_start, beta_end, num_train_timesteps)
         elif beta_schedule == "scaled_linear":
             # this schedule is very specific to the latent diffusion model.
-            self.betas = ops.linspace(beta_start**0.5, beta_end**0.5, num_train_timesteps, dtype=ms.float32) ** 2
+            self.betas = ops.linspace(beta_start**0.5, beta_end**0.5, num_train_timesteps) ** 2
         elif beta_schedule == "squaredcos_cap_v2":
             # Glide cosine schedule
             self.betas = betas_for_alpha_bar(num_train_timesteps)
@@ -241,28 +241,35 @@ class DPMSolverSDEScheduler(SchedulerMixin, ConfigMixin):
         self.alphas_cumprod = ops.cumprod(self.alphas, dim=0)
 
         #  set all values
-        self.set_timesteps(num_train_timesteps, None, num_train_timesteps)
+        self.set_timesteps(num_train_timesteps, num_train_timesteps)
         self.use_karras_sigmas = use_karras_sigmas
         self.noise_sampler = None
         self.noise_sampler_seed = noise_sampler_seed
         self._step_index = None
         self._begin_index = None
-        self.sigmas = self.sigmas.to("cpu")  # to avoid too much CPU/GPU communication
+        # self.sigmas = self.sigmas.to("cpu")  # to avoid too much CPU/GPU communication
 
     # Copied from diffusers.schedulers.scheduling_euler_discrete.EulerDiscreteScheduler.index_for_timestep
     def index_for_timestep(self, timestep, schedule_timesteps=None):
         if schedule_timesteps is None:
             schedule_timesteps = self.timesteps
 
-        indices = (schedule_timesteps == timestep).nonzero()
+        index_candidates_num = (schedule_timesteps == timestep).sum()
 
+        if index_candidates_num == 0:
+            step_index = len(self.timesteps) - 1
         # The sigma index that is taken for the **very** first `step`
         # is always the second index (or the last index if there is only 1)
         # This way we can ensure we don't accidentally skip a sigma in
         # case we start in the middle of the denoising schedule (e.g. for image-to-image)
-        pos = 1 if len(indices) > 1 else 0
+        else:
+            if index_candidates_num > 1:
+                pos = 1
+            else:
+                pos = 0
+            step_index = int((schedule_timesteps == timestep).nonzero()[pos])
 
-        return indices[pos].item()
+        return step_index
 
     # Copied from diffusers.schedulers.scheduling_euler_discrete.EulerDiscreteScheduler._init_step_index
     def _init_step_index(self, timestep):
@@ -325,13 +332,14 @@ class DPMSolverSDEScheduler(SchedulerMixin, ConfigMixin):
             `ms.Tensor`:
                 A scaled input sample.
         """
+        sample_dtype = sample.dtype
         if self.step_index is None:
             self._init_step_index(timestep)
 
         sigma = self.sigmas[self.step_index]
         sigma_input = sigma if self.state_in_first_order else self.mid_point_sigma
         sample = sample / ((sigma_input**2 + 1) ** 0.5)
-        return sample
+        return sample.to(sample_dtype)
 
     def set_timesteps(
         self,
@@ -369,6 +377,8 @@ class DPMSolverSDEScheduler(SchedulerMixin, ConfigMixin):
                 f"{self.config.timestep_spacing} is not supported. Please make sure to choose one of 'linspace', 'leading' or 'trailing'."
             )
 
+        if ops.is_tensor(self.alphas_cumprod):
+            self.alphas_cumprod = self.alphas_cumprod.asnumpy()
         sigmas = np.array(((1 - self.alphas_cumprod) / self.alphas_cumprod) ** 0.5)
         log_sigmas = np.log(sigmas)
         sigmas = np.interp(timesteps, np.arange(0, len(sigmas)), sigmas)
@@ -394,13 +404,14 @@ class DPMSolverSDEScheduler(SchedulerMixin, ConfigMixin):
         timesteps = ops.cat([timesteps[:1], timesteps[1:].repeat_interleave(2)])
         timesteps[1::2] = second_order_timesteps
 
+        self.timesteps = timesteps
         # empty first order variables
         self.sample = None
         self.mid_point_sigma = None
 
         self._step_index = None
         self._begin_index = None
-        self.sigmas = self.sigmas.to("cpu")  # to avoid too much CPU/GPU communication
+        # self.sigmas = self.sigmas.to("cpu")  # to avoid too much CPU/GPU communication
         self.noise_sampler = None
 
     def _second_order_timesteps(self, sigmas, log_sigmas):
@@ -604,10 +615,12 @@ class DPMSolverSDEScheduler(SchedulerMixin, ConfigMixin):
             sigma_up = min(sigma_to, (sigma_to**2 * (sigma_from**2 - sigma_to**2) / sigma_from**2) ** 0.5)
             sigma_down = (sigma_to**2 - sigma_up**2) ** 0.5
             ancestral_t = t_fn(sigma_down)
-            prev_sample = (sigma_fn(ancestral_t) / sigma_fn(t)) * sample - (
-                t - ancestral_t
-            ).expm1() * pred_original_sample
-            prev_sample = prev_sample + self.noise_sampler(sigma_fn(t), sigma_fn(t_next)) * s_noise * sigma_up
+            prev_sample = (
+                (sigma_fn(ancestral_t) / sigma_fn(t)) * sample - (t - ancestral_t).expm1() * pred_original_sample
+            ).to(model_output.dtype)
+            prev_sample = prev_sample + (self.noise_sampler(sigma_fn(t), sigma_fn(t_next)) * s_noise * sigma_up).to(
+                model_output.dtype
+            )
 
             if self.state_in_first_order:
                 # store for 2nd order step
@@ -637,6 +650,7 @@ class DPMSolverSDEScheduler(SchedulerMixin, ConfigMixin):
         timesteps: ms.Tensor,
     ) -> ms.Tensor:
         # Make sure sigmas and timesteps have the same device and dtype as original_samples
+        broadcast_shape = original_samples.shape
         sigmas = self.sigmas.to(dtype=original_samples.dtype)
 
         schedule_timesteps = self.timesteps
@@ -652,8 +666,9 @@ class DPMSolverSDEScheduler(SchedulerMixin, ConfigMixin):
             step_indices = [self.begin_index] * timesteps.shape[0]
 
         sigma = sigmas[step_indices].flatten()
-        while len(sigma.shape) < len(original_samples.shape):
-            sigma = sigma.unsqueeze(-1)
+        # while len(sigma.shape) < len(original_samples.shape):
+        #     sigma = sigma.unsqueeze(-1)
+        sigma = ops.reshape(sigma, (timesteps.shape[0],) + (1,) * (len(broadcast_shape) - 1))
 
         noisy_samples = original_samples + noise * sigma
         return noisy_samples

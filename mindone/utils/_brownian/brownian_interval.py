@@ -224,7 +224,7 @@ class _Interval:
             else:
                 # Don't compute space-time Levy area unless we need to
 
-                mean = left_diff * W * h_reciprocal
+                mean = left_diff * W.to(ms.float32) * h_reciprocal
                 # mindspore overflow
                 mean = ops.nan_to_num(mean, 0.0)
                 var = left_diff * right_diff * h_reciprocal

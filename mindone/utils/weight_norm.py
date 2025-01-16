@@ -30,9 +30,9 @@ class WeightNorm(nn.Cell):
         self.weight_norm_cell = weight_norm_cell
 
         # add g and v as new parameters and express w as g/||v|| * v
-        self.param_g = Parameter(ms.Tensor(norm_except_dim(self.weight_norm_cell.weight, 2, dim)))
-        self.param_v = Parameter(ms.Tensor(self.weight_norm_cell.weight.data))
-        self.weight_norm_cell.weight.set_data(_weight_norm(self.param_v, self.param_g, self.dim))
+        self.weight_g = Parameter(ms.Tensor(norm_except_dim(self.weight_norm_cell.weight, 2, dim)))
+        self.weight_v = Parameter(ms.Tensor(self.weight_norm_cell.weight.data))
+        self.weight_norm_cell.weight.set_data(_weight_norm(self.weight_v, self.weight_g, self.dim))
 
         self.use_weight_norm = True
         self.kernel_size = weight_norm_cell.kernel_size
@@ -43,9 +43,9 @@ class WeightNorm(nn.Cell):
         if not self.use_weight_norm:
             return self.weight_norm_cell(*inputs, **kwargs)
 
-        ops.assign(self.weight_norm_cell.weight, _weight_norm(self.param_v, self.param_g, self.dim))
+        ops.assign(self.weight_norm_cell.weight, _weight_norm(self.weight_v, self.weight_g, self.dim))
         return self.weight_norm_cell(*inputs, **kwargs)
 
     def remove_weight_norm(self):
-        self.assign(self.weight_norm_cell.weight, _weight_norm(self.param_v, self.param_g, self.dim))
+        self.assign(self.weight_norm_cell.weight, _weight_norm(self.weight_v, self.weight_g, self.dim))
         self.use_weight_norm = False

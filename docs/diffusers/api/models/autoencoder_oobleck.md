@@ -23,6 +23,4 @@ The abstract from the paper is:
 
 ::: mindone.diffusers.models.autoencoders.autoencoder_oobleck.OobleckDecoderOutput
 
-::: mindone.diffusers.models.autoencoders.autoencoder_oobleck.OobleckDecoderOutput
-
 ::: mindone.diffusers.models.autoencoders.autoencoder_oobleck.AutoencoderOobleckOutput

@@ -36,20 +36,20 @@ EXAMPLE_DOC_STRING = """
     Examples:
         ```py
         >>> import scipy
-        >>> import torch
         >>> import soundfile as sf
-        >>> from diffusers import StableAudioPipeline
+        >>> from mindone.diffusers import StableAudioPipeline
+        >>> import mindspore as ms
+        >>> import numpy as np
 
         >>> repo_id = "stabilityai/stable-audio-open-1.0"
-        >>> pipe = StableAudioPipeline.from_pretrained(repo_id, torch_dtype=torch.float16)
-        >>> pipe = pipe.to("cuda")
+        >>> pipe = StableAudioPipeline.from_pretrained(repo_id, mindspore_dtype=torch.float32)
 
         >>> # define the prompts
         >>> prompt = "The sound of a hammer hitting a wooden surface."
         >>> negative_prompt = "Low quality."
 
         >>> # set the seed for generator
-        >>> generator = np.random.Generator("cuda").manual_seed(0)
+        >>> generator = np.random.Generator(np.random.PCG64(43))
 
         >>> # run the generation
         >>> audio = pipe(
@@ -61,7 +61,7 @@ EXAMPLE_DOC_STRING = """
         ...     generator=generator,
         ... ).audios
 
-        >>> output = audio[0].T.float().cpu().numpy()
+        >>> output = audio[0].T.asnumpy()
         >>> sf.write("hammer.wav", output, pipe.vae.sampling_rate)
         ```
 """
