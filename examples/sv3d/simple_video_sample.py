@@ -175,7 +175,8 @@ def sample(
     )  # all the logger needs to follow name, to use the mindone callbacks directly, need to put name as ""
     logger.info("program started")
 
-    ms.context.set_context(mode=mode, device_target="Ascend")
+    device_id = int(os.getenv("DEVICE_ID", 0))
+    ms.context.set_context(mode=mode, device_target="Ascend", device_id=device_id)
     set_random_seed(seed)
     path = Path(input_path)
     pipeline = SV3DInferPipeline(model_config, ckpt_path, num_frames, num_steps, version, cond_aug, decoding_t)
