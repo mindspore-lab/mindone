@@ -10,7 +10,7 @@ export GLOG_v=2
 
 output_dir=output/stage2_t2iv_256px/$(date +"%Y.%m.%d-%H.%M.%S")
 
-msrun --bind_core=True --master_port=8200 --worker_num=8 --local_worker_num=8 --log_dir="$output_dir"  \
+msrun --bind_core=True --master_port=8200 --worker_num=8 --local_worker_num=8 --log_dir="$output_dir" \
 python scripts/train.py \
   --config configs/train/stage2_t2iv_256px.yaml \
   --env.mode 0 \
@@ -25,6 +25,7 @@ python scripts/train.py \
   --dataset.tae_latent_folder TAE_LATENT_FOLDER \
   --dataset.text_emb_folder.ul2 UL2_FOLDER \
   --dataset.text_emb_folder.byt5 BYT5_FOLDER \
+  --dataset.sample_n_frames 32 \
   --dataloader.batch_size 1 \
   --train.ema "" \
   --train.output_path "$output_dir"

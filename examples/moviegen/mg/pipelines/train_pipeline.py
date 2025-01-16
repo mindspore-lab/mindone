@@ -48,14 +48,12 @@ class DiffusionWithLoss(nn.Cell):
         return text_emb
 
     def get_latents(self, video_tokens: Tensor) -> Tensor:
-        if self.video_emb_cached:
+        if self.video_emb_cached:  # (B, T, C, H, W)
             return video_tokens
-        with no_grad():
-            # (b c f h w) shape is expected. FIXME: remove this redundancy
-            video_tokens = mint.permute(video_tokens, (0, 2, 1, 3, 4))
+        with no_grad():  # (B, C, T, H, W)
             video_emb = ops.stop_gradient(self.tae.encode(video_tokens)[0]).to(ms.float32)
             video_emb = (video_emb - self.tae.shift_factor) * self.tae.scale_factor
-            video_emb = mint.permute(video_emb, (0, 2, 1, 3, 4))  # FIXME
+            video_emb = mint.permute(video_emb, (0, 2, 1, 3, 4))  # FIXME: move inside `Encoder`
         return video_emb
 
     def set_train(self, mode=True):

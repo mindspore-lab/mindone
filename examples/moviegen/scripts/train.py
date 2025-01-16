@@ -42,7 +42,6 @@ def initialize_dataset(
         dataset.train_transforms(dataset_args.target_size) if not dataset_args.apply_transforms_dataset else None
     )
 
-    logger.info(f"Initializing the dataloader: assigning shard ID {shard_rank_id} out of {device_num} total shards.")
     dataloader_args = dataloader_args.as_dict()
     batch_size = dataloader_args.pop("batch_size")
     dataloader = create_dataloader(
@@ -78,10 +77,10 @@ def main(args):
 
     # 1.1 init model parallel
     shard_rank_id = rank_id
-    if (shards := args.train.sequence_parallel.shards) > 1:
+    if args.train.sequence_parallel.shards > 1:
         create_parallel_group(**args.train.sequence_parallel)
-        device_num = device_num // shards
-        shard_rank_id = rank_id // shards
+        device_num = device_num // args.train.sequence_parallel.shards
+        shard_rank_id = rank_id // args.train.sequence_parallel.shards
 
     # FIXME: Improve seed setting
     set_seed(args.env.seed + shard_rank_id)  # set different seeds per NPU for sampling different timesteps
@@ -126,6 +125,10 @@ def main(args):
     )
 
     # 4. build train & val datasets
+    if args.train.sequence_parallel.shards > 1:
+        logger.info(
+            f"Initializing the dataloader: assigning shard ID {shard_rank_id} out of {device_num} total shards."
+        )
     dataloader, dataset_len = initialize_dataset(args.dataset, args.dataloader, device_num, shard_rank_id)
 
     eval_diffusion_with_loss, val_dataloader = None, None
@@ -160,7 +163,10 @@ def main(args):
     # if bucketing is used in Graph mode, activate dynamic inputs
     if mode == GRAPH_MODE and isinstance(args.dataloader.batch_size, dict):
         bs = Symbol(unique=True)
-        video = Tensor(shape=[bs, None, args.model.in_channels if tae is None else 3, None, None], dtype=mstype.float32)
+        if tae is None:
+            video = Tensor(shape=[bs, None, args.model.in_channels, None, None], dtype=mstype.float32)
+        else:  # FIXME: Align TAE to B T C H W order
+            video = Tensor(shape=[bs, 3, None, None, None], dtype=mstype.float32)
         # FIXME: fix sequence length
         ul2_emb = Tensor(shape=[bs, 300, 4096], dtype=mstype.float32)
         byt5_emb = Tensor(shape=[bs, 100, 1472], dtype=mstype.float32)

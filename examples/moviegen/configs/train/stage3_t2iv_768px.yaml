@@ -10,6 +10,7 @@ model:
   pretrained_model_path:
   enable_flash_attention: True
   recompute_every_nth_block: 1
+  not_recompute_fa: False
   dtype: bf16
 
 tae:
@@ -26,6 +27,7 @@ dataset:
   empty_text_emb:
     ul2: EMPTY_TEXT_EMB
     byt5: EMPTY_TEXT_EMB
+  deterministic_sample: False
   text_drop_prob: 0.2
   target_size: [ 576, 1024 ]
   sample_n_frames: 256  # FIXME: add variable frames support.
@@ -48,7 +50,7 @@ train:
 
   lr_scheduler:
     name: constant
-    lr: 6.0e-5
+    lr: 1.0e-4
     warmup_steps: 1000
 
   lr_reduce_on_plateau:
@@ -81,7 +83,7 @@ train:
 
   save:
     ckpt_save_policy: latest_k
-    ckpt_save_interval: &save_interval 100
+    ckpt_save_interval: &save_interval 500
     ckpt_max_keep: 10
     log_interval: 1
     save_ema_only: False

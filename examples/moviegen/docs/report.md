@@ -178,13 +178,13 @@ and [USP](https://arxiv.org/abs/2405.07719)), we implement model parallelism
 using [Ulysses-SP](https://arxiv.org/abs/2309.14509) together with [ZeRO-3](https://arxiv.org/abs/1910.02054),instead of
 the approach used in Movie Gen. Ulysses-SP utilizes `All2ALL` communication for segments of the QKV tensors, drastically
 reducing communication costs compared to sequence parallelism implemented
-in [Megatron-LM](https://arxiv.org/abs/2405.07719), [DSP](https://arxiv.org/abs/2403.10266), as well as the sequence
+in [Megatron-LM](https://arxiv.org/abs/2405.07719), as well as the sequence
 parallelism mentioned
 in [Movie Gen](https://ai.meta.com/research/publications/movie-gen-a-cast-of-media-foundation-models/). Alongside
-ZeRO-3, it achieves similar memory efficiency to [[Megatron-LM](https://arxiv.org/abs/2405.07719)]. Experimental results
+ZeRO-3, it achieves similar memory efficiency to [Megatron-LM](https://arxiv.org/abs/2405.07719). Experimental results
 show that using Ulysses-SP + ZeRO-3, we can train a model of similar scale compared to 3D parallelism, with over 2x
 speed boost in training, corroborating the findings
-in [Megatron-LM](https://arxiv.org/abs/2405.07719), [Ulysses-SP](https://arxiv.org/abs/2309.14509),
+in [Ulysses-SP](https://arxiv.org/abs/2309.14509), [USP](https://arxiv.org/abs/2405.07719)
 and [DSP](https://arxiv.org/abs/2403.10266).
 
 ### Training Details
@@ -258,14 +258,17 @@ a [mixkit](https://mixkit.co/) subset consisting of 100 HQ videos up to 1080P.
 
 Experiments were conducted on Ascend 910* using MindSpore 2.3.1 in graph mode.
 
-| Model | Cards |   Stage   |       Batch size        |       Resolution        |        Recompute        | TAE Cache | Time (s/step) |                              Recipe                               |
-|:-----:|:-----:|:---------:|:-----------------------:|:-----------------------:|:-----------------------:|:---------:|:-------------:|:-----------------------------------------------------------------:|
-|  30B  |   8   |  2 (T2V)  |        Video: 1         |       256x256x455       |           ON            |    ON     |     4.08      | [stage2_t2iv_256px.yaml](../configs/train/stage2_t2iv_256px.yaml) |
-|  5B   |   8   |  1 (T2I)  |           10            |         256x455         |           ON            |    ON     |     1.29      |  [stage1_t2i_256px.yaml](../configs/train/stage1_t2i_256px.yaml)  |
-|  5B   |   8   | 2 (T2I/V) |  Image: 1<br/>Video: 1  | 256x455<br/>256 frames  | ON<br/>(Every 2 blocks) |    ON     |     5.09      | [stage2_t2iv_256px.yaml](../configs/train/stage2_t2iv_256px.yaml) |
-|  5B   |   8   | 3 (T2I/V) |  Image: 1<br/>Video: 1  | 576x1024<br/>256 frames |           ON            |    ON     |     88.5      | [stage3_t2iv_768px.yaml](../configs/train/stage3_t2iv_768px.yaml) |
-|  1B   |   8   |  1 (T2I)  |           10            |         256x455         |           ON            |    ON     |     0.53      |  [stage1_t2i_256px.yaml](../configs/train/stage1_t2i_256px.yaml)  |
-|  1B   |   8   | 2 (T2I/V) | Image: 10<br/>Video: 10 |  256x455<br/>32 frames  |           ON            |    ON     |     2.07      | [stage2_t2iv_256px.yaml](../configs/train/stage2_t2iv_256px.yaml) |
+| Model | Cards |   Stage   |      Batch size       |       Resolution        |        Recompute         | TAE Cache | Sequence Parallel | Time (s/step) |                              Recipe                               |
+|:-----:|:-----:|:---------:|:---------------------:|:-----------------------:|:------------------------:|:---------:|:-----------------:|:-------------:|:-----------------------------------------------------------------:|
+|  30B  |   8   |  1 (T2I)  |          10           |         256x455         |            ON            |    ON     |        NO         |     5.14      |  [stage1_t2i_256px.yaml](../configs/train/stage1_t2i_256px.yaml)  |
+|  30B  |   8   |  2 (T2V)  |       Video: 1        |       256x256x455       |            ON            |    ON     |     8 shards      |     4.04      | [stage2_t2iv_256px.yaml](../configs/train/stage2_t2iv_256px.yaml) |
+|  30B  |   8   |  3 (T2V)  |       Video: 1        |      256x576x1024       |            ON            |    ON     |     8 shards      |     37.7      | [stage3_t2iv_768px.yaml](../configs/train/stage3_t2iv_768px.yaml) |
+|  5B   |   8   |  1 (T2I)  |          10           |         256x455         |           OFF            |    ON     |        NO         |     0.82      |  [stage1_t2i_256px.yaml](../configs/train/stage1_t2i_256px.yaml)  |
+|  5B   |   8   | 2 (T2I/V) | Image: 1<br/>Video: 1 | 256x455<br/>256 frames  | ON<br/>(No FA recompute) |    ON     |        NO         |     4.12      | [stage2_t2iv_256px.yaml](../configs/train/stage2_t2iv_256px.yaml) |
+|  5B   |   8   | 3 (T2I/V) | Image: 1<br/>Video: 1 | 576x1024<br/>256 frames |            ON            |    ON     |        NO         |     83.2      | [stage3_t2iv_768px.yaml](../configs/train/stage3_t2iv_768px.yaml) |
+|  1B   |   8   |  1 (T2I)  |          10           |         256x455         |           OFF            |    ON     |        NO         |     0.32      |  [stage1_t2i_256px.yaml](../configs/train/stage1_t2i_256px.yaml)  |
+|  1B   |   8   | 2 (T2I/V) | Image: 1<br/>Video: 1 | 256x455<br/>256 frames  |           OFF            |    ON     |        NO         |     2.12      | [stage2_t2iv_256px.yaml](../configs/train/stage2_t2iv_256px.yaml) |
+|  1B   |   8   | 3 (T2I/V) | Image: 1<br/>Video: 1 | 576x1024<br/>256 frames | ON<br/>(No FA recompute) |    ON     |        NO         |     23.2      | [stage3_t2iv_768px.yaml](../configs/train/stage3_t2iv_768px.yaml) |
 
 > [!NOTE]
 > All the models are trained with BF16 precision.
@@ -294,13 +297,15 @@ python scripts/train.py \
   --env.jit_level O1 \
   --env.max_device_memory 59GB \
   --env.distributed True \
-  --train.settings.zero_stage 2 \
+  --train.settings.zero_stage 3 \
+  --model.recompute_every_nth_block "" \
   --dataset.csv_path ../../datasets/mixkit-100videos/video_caption_train.csv \
   --dataset.video_folder ../../datasets/mixkit-100videos/mixkit \
   --dataset.tae_latent_folder ../../datasets/mixkit-100videos/tae_latent_images \
   --dataset.text_emb_folder.ul2 ../../datasets/mixkit-100videos/ul2_emb_300 \
   --dataset.text_emb_folder.byt5 ../../datasets/mixkit-100videos/byt5_emb_100 \
-  --dataloader.batch_size10 \
+  --dataset.deterministic_sample True \
+  --dataloader.batch_size 10 \
   --valid.dataset "" \
   --train.ema "" \
   --train.optimizer.weight_decay 0 \
@@ -338,11 +343,13 @@ python scripts/train.py \
   --env.distributed True \
   --model.pretrained_model_path "$stage1_dir"/ckpt/llama-5B-s2000.ckpt\
   --train.settings.zero_stage 2 \
+  --model.not_recompute_fa True \
   --dataset.csv_path ../../datasets/mixkit-100videos/video_caption_train.csv \
   --dataset.video_folder ../../datasets/mixkit-100videos/mixkit \
   --dataset.tae_latent_folder ../../datasets/mixkit-100videos/tae_latent \
   --dataset.text_emb_folder.ul2 ../../datasets/mixkit-100videos/ul2_emb_300 \
   --dataset.text_emb_folder.byt5 ../../datasets/mixkit-100videos/byt5_emb_100 \
+  --dataset.deterministic_sample True \
   --dataloader.batch_size.image_batch_size 1 \
   --dataloader.batch_size.video_batch_size 1 \
   --train.ema "" \
@@ -387,6 +394,7 @@ python scripts/train.py \
   --dataset.tae_latent_folder ../../datasets/mixkit-100videos/high_tae_latent \
   --dataset.text_emb_folder.ul2 ../../datasets/mixkit-100videos/ul2_emb_300 \
   --dataset.text_emb_folder.byt5 ../../datasets/mixkit-100videos/byt5_emb_100 \
+  --dataset.deterministic_sample True \
   --dataloader.batch_size.image_batch_size 1 \
   --dataloader.batch_size.video_batch_size 1 \
   --train.ema "" \
@@ -400,12 +408,21 @@ python scripts/train.py \
 
 ### Generated Video Examples
 
+#### 5B Model Stage 2
+
 |                                                                                                                                                                                                                                                                                                                                         256x256x455                                                                                                                                                                                                                                                                                                                                         |                                                                                                                                                                                                                                                                                                                                                             256x256x455                                                                                                                                                                                                                                                                                                                                                              |
 |:-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------:|:------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------:|
 |                                                                                                                                                                                                                                                                                               <video src="https://github.com/user-attachments/assets/84264678-a2c4-4605-93c7-4efce8b4647a" />                                                                                                                                                                                                                                                                                               |                                                                                                                                                                                                                                                                                                                   <video src="https://github.com/user-attachments/assets/357c93f1-b129-4441-80dc-adbe0d089a3a" />                                                                                                                                                                                                                                                                                                                    |
 | <details><summary>Caption</summary>The video showcases a person wearing a blue cap and a plaid shirt, sitting on the ground with a golden retriever dog. The person is seen engaging in an affectionate interaction with the dog, gently stroking its fur and at one point, caressing or scratching behind the dog's ears. Throughout the video, the dog remains relaxed and content, with its mouth slightly open as if panting or smiling. The setting is an outdoor grassy area with fallen leaves or twigs scattered on the ground, under warm lighting that creates a cozy, intimate atmosphere focused on the bonding moment between the person and their canine companion.</details> | <details><summary>Caption</summary>The video features a close-up view of a cat with striking blue eyes and a white furry face adorned with brown and black stripes on its head. Initially, the cat is seen looking directly at the camera with an attentive expression, held gently by a human hand around its neck area against a blurred indoor background with a brown surface. As the video progresses, the cat's gaze becomes more intense and focused, with its whiskers appearing more prominent and alert. The camera zooms in slightly, cropping out some of the surrounding area to bring the cat's face into closer view, maintaining the attentive and engaged demeanor of the feline throughout the sequence.</details> |
 |                                                                                                                                                                                                                                                                                               <video src="https://github.com/user-attachments/assets/e89a6be6-1e5b-4508-8980-89d824824e34" />                                                                                                                                                                                                                                                                                               |                                                                                                                                                                                                                                                                                                                   <video src="https://github.com/user-attachments/assets/70cdc452-cad8-4781-9975-1c9feb8b89d6" />                                                                                                                                                                                                                                                                                                                    |
 |                                                              <details><summary>Caption</summary>The video showcases a static image of a bouquet of white roses, with the roses in various stages of bloom. The petals of the roses are delicate and pristine white, contrasting with the soft pink hues visible in their centers. The arrangement is full and lush, with stems protruding outwards. Throughout the video, there are no significant changes in the composition or positioning of the roses, and the background remains consistently blurred, ensuring the floral arrangement remains the focal point.</details>                                                              |                                      <details><summary>Caption</summary>The video showcases a majestic snow-capped mountain range against a cloudy sky, with the peaks covered in pristine white snow and jagged rocky outcrops protruding from the slopes. The mountains cast long shadows across the snow-covered terrain below. Initially, the sky is a vivid blue with wispy white clouds, but as the video progresses, the clouds become slightly more dispersed, revealing more of the blue sky. Throughout the video, the overall composition and grandeur of the mountain vistas remain consistent, maintaining the serene and awe-inspiring natural beauty of the landscape.</details>                                      |
+
+#### 30B Model Stage 2
+
+|                                                                                                                                                                                                                                                                                                                              256x256x455                                                                                                                                                                                                                                                                                                                              |                                                                                                                                                                                                                                  256x256x455                                                                                                                                                                                                                                  |
+|:---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------:|:-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------:|
+|                                                                                                                                                                                                                                                                                    <video src="https://github.com/user-attachments/assets/e5558081-8710-4474-a522-a19a573a22e4" />                                                                                                                                                                                                                                                                                    |                                                                                                                                                                                        <video src="https://github.com/user-attachments/assets/d4625360-75f4-489a-893d-e4341b644be1" />                                                                                                                                                                                        |
+| <details><summary>Caption</summary>The video showcases a serene aerial view of a mountainous landscape, consistently blanketed in snow and clouds throughout its duration. The foreground prominently features rugged, snow-capped peaks with jagged rock formations piercing through the pristine white snow. The background is consistently filled with a vast expanse of billowing clouds, interspersed with patches of blue sky above. The overall scene maintains a sense of tranquility and natural beauty, highlighting the grandeur of the mountainous terrain without any noticeable changes in the composition or perspective of the aerial view.</details> | <details><summary>Caption</summary>The video begins with a serene winter landscape featuring a frozen body of water in the foreground. The ice-covered surface is smooth and reflective, with patches of exposed water visible. In the background, a dense forest of evergreen trees lines the far shore, their branches covered in snow. The scene is hazy, with a grayish tint suggesting overcast or foggy conditions, maintaining a wintry ambiance throughout.</details> |  
 
 ## References
 
