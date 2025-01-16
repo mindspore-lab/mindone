@@ -1504,6 +1504,8 @@ class AllegroAttnProcessor2_0:
         if input_ndim == 4:
             batch_size, channel, height, width = hidden_states.shape
             hidden_states = hidden_states.view(batch_size, channel, height * width).swapaxes(1, 2)
+        else:
+            batch_size, channel, height, width = None, None, None, None
 
         batch_size, sequence_length, _ = (
             hidden_states.shape if encoder_hidden_states is None else encoder_hidden_states.shape

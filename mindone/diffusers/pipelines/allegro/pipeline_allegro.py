@@ -196,7 +196,7 @@ class AllegroPipeline(DiffusionPipeline):
 
         self.video_processor = VideoProcessor(vae_scale_factor=self.vae_scale_factor_spatial)
 
-    # Copied from diffusers.pipelines.pixart_alpha.pipeline_pixart_alpha.PixArtAlphaPipeline.encode_prompt with 120->512, num_images_per_prompt->num_videos_per_prompt
+    # Copied from diffusers.pipelines.pixart_alpha.pipeline_pixart_alpha.PixArtAlphaPipeline.encode_prompt with 120->512, num_images_per_prompt->num_videos_per_prompt # noqa: E501
     def encode_prompt(
         self,
         prompt: Union[str, List[str]],
@@ -237,7 +237,7 @@ class AllegroPipeline(DiffusionPipeline):
         """
 
         if "mask_feature" in kwargs:
-            deprecation_message = "The use of `mask_feature` is deprecated. It is no longer used in any computation and that doesn't affect the end results. It will be removed in a future version."
+            deprecation_message = "The use of `mask_feature` is deprecated. It is no longer used in any computation and that doesn't affect the end results. It will be removed in a future version."  # noqa: E501
             deprecate("mask_feature", "1.0.0", deprecation_message, standard_warn=False)
 
         # See Section 3.1. of the paper.
@@ -364,7 +364,7 @@ class AllegroPipeline(DiffusionPipeline):
             k in self._callback_tensor_inputs for k in callback_on_step_end_tensor_inputs
         ):
             raise ValueError(
-                f"`callback_on_step_end_tensor_inputs` has to be in {self._callback_tensor_inputs}, but found {[k for k in callback_on_step_end_tensor_inputs if k not in self._callback_tensor_inputs]}"
+                f"`callback_on_step_end_tensor_inputs` has to be in {self._callback_tensor_inputs}, but found {[k for k in callback_on_step_end_tensor_inputs if k not in self._callback_tensor_inputs]}"  # noqa: E501
             )
 
         if prompt is not None and prompt_embeds is not None:

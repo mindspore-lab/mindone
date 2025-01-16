@@ -1194,8 +1194,11 @@ def apply_rotary_emb(
 def apply_rotary_emb_allegro(x: ms.Tensor, freqs_cis, positions):
     # TODO(aryan): rewrite
     def apply_1d_rope(tokens, pos, cos, sin):
-        cos = ops.embedding(pos, ms.Parameter(cos))[:, None, :, :]
-        sin = ops.embedding(pos, ms.Parameter(sin))[:, None, :, :]
+        # cos = ops.embedding(pos, ms.Parameter(cos))[:, None, :, :]
+        # sin = ops.embedding(pos, ms.Parameter(sin))[:, None, :, :]
+        # In `ops.embedding`, weight should be a Parameter, but we do not support `parameter` in graph mode.
+        cos = cos[pos][:, None, :, :]
+        sin = sin[pos][:, None, :, :]
         x1, x2 = tokens[..., : tokens.shape[-1] // 2], tokens[..., tokens.shape[-1] // 2 :]
         tokens_rotated = ops.cat((-x2, x1), axis=-1)
         return (tokens.float() * cos + tokens_rotated.float() * sin).to(tokens.dtype)

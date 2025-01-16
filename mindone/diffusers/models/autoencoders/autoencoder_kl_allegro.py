@@ -136,6 +136,7 @@ class AllegroTemporalConvLayer(nn.Cell):
             ),
         )
 
+    @staticmethod
     def _pad_temporal_dim(hidden_states: ms.Tensor) -> ms.Tensor:
         hidden_states = ops.cat((hidden_states[:, :, 0:1], hidden_states), axis=2)
         hidden_states = ops.cat((hidden_states, hidden_states[:, :, -1:]), axis=2)
@@ -718,7 +719,8 @@ class AllegroDecoder3D(nn.Cell):
         sample = self.temp_conv_in(sample)
         sample = sample + residual
 
-        upscale_dtype = self.upscale_dtype
+        # In graph mode, we do not support `get_parameters()` in `construct`.
+        upscale_dtype = self.up_blocks[0].resnets[0].norm1.weight.dtype
 
         # Mid block
         sample = self.mid_block(sample)
@@ -990,9 +992,12 @@ class AutoencoderKLAllegro(ModelMixin, ConfigMixin):
                 self.kernel[0] // rt,
                 self.kernel[1] // rs,
                 self.kernel[2] // rs,
-            )
+            ),
+            dtype=x.dtype,
         )
-        vae_batch_input = x.new_zeros((local_batch_size, num_channels, self.kernel[0], self.kernel[1], self.kernel[2]))
+        vae_batch_input = x.new_zeros(
+            (local_batch_size, num_channels, self.kernel[0], self.kernel[1], self.kernel[2]), dtype=x.dtype
+        )
 
         for i in range(output_num_frames):
             for j in range(output_height):
@@ -1019,13 +1024,15 @@ class AutoencoderKLAllegro(ModelMixin, ConfigMixin):
                             output_latent[count - local_batch_size + 1 : count + 1] = latent
 
                         vae_batch_input = x.new_zeros(
-                            (local_batch_size, num_channels, self.kernel[0], self.kernel[1], self.kernel[2])
+                            (local_batch_size, num_channels, self.kernel[0], self.kernel[1], self.kernel[2]),
+                            dtype=x.dtype,
                         )
 
                     count += 1
 
         latent = x.new_zeros(
-            (batch_size, 2 * self.config["latent_channels"], num_frames // rt, height // rs, width // rs)
+            (batch_size, 2 * self.config["latent_channels"], num_frames // rt, height // rs, width // rs),
+            dtype=x.dtype,
         )
         output_kernel = self.kernel[0] // rt, self.kernel[1] // rs, self.kernel[2] // rs
         output_stride = self.stride[0] // rt, self.stride[1] // rs, self.stride[2] // rs
@@ -1064,7 +1071,7 @@ class AutoencoderKLAllegro(ModelMixin, ConfigMixin):
 
         batch_size, num_channels, num_frames, height, width = z.shape
 
-        ## post quant conv (a mapping)
+        # post quant conv (a mapping)
         z = z.permute(0, 2, 1, 3, 4).flatten(start_dim=0, end_dim=1)
         z = self.post_quant_conv(z)
         z = z.reshape(z.shape[:0] + (batch_size, -1) + z.shape[1:]).permute(0, 2, 1, 3, 4)
@@ -1081,10 +1088,11 @@ class AutoencoderKLAllegro(ModelMixin, ConfigMixin):
                 self.kernel[0],
                 self.kernel[1],
                 self.kernel[2],
-            )
+            ),
+            dtype=z.dtype,
         )
         vae_batch_input = z.new_zeros(
-            (local_batch_size, num_channels, latent_kernel[0], latent_kernel[1], latent_kernel[2])
+            (local_batch_size, num_channels, latent_kernel[0], latent_kernel[1], latent_kernel[2]), dtype=z.dtype
         )
 
         for i in range(output_num_frames):
@@ -1095,7 +1103,8 @@ class AutoencoderKLAllegro(ModelMixin, ConfigMixin):
                     w_start, w_end = k * latent_stride[2], k * latent_stride[2] + latent_kernel[2]
 
                     current_latent = z[:, :, n_start:n_end, h_start:h_end, w_start:w_end]
-                    vae_batch_input[count % local_batch_size] = current_latent
+                    # In MS, if x.shape == y.shape, x[0] = y will result in an error, so we add `squeeze`.
+                    vae_batch_input[count % local_batch_size] = current_latent.squeeze()
 
                     if (
                         count % local_batch_size == local_batch_size - 1
@@ -1114,12 +1123,15 @@ class AutoencoderKLAllegro(ModelMixin, ConfigMixin):
                             decoded_videos[count - local_batch_size + 1 : count + 1] = current_video
 
                         vae_batch_input = z.new_zeros(
-                            (local_batch_size, num_channels, latent_kernel[0], latent_kernel[1], latent_kernel[2])
+                            (local_batch_size, num_channels, latent_kernel[0], latent_kernel[1], latent_kernel[2]),
+                            dtype=z.dtype,
                         )
 
                     count += 1
 
-        video = z.new_zeros((batch_size, self.config["out_channels"], num_frames * rt, height * rs, width * rs))
+        video = z.new_zeros(
+            (batch_size, self.config["out_channels"], num_frames * rt, height * rs, width * rs), dtype=z.dtype
+        )
         video_overlap = (
             self.kernel[0] - self.stride[0],
             self.kernel[1] - self.stride[1],
