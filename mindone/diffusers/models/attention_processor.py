@@ -20,6 +20,7 @@ from mindspore import nn, ops
 from ..image_processor import IPAdapterMaskProcessor
 from ..utils import deprecate, is_mindspore_version, logging
 from ..utils.mindspore_utils import dtype_to_min
+from .layers_compat import pad, unflatten
 
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
 
@@ -765,6 +766,231 @@ class Attention(nn.Cell):
         return ops.operations.nn_ops.FlashAttentionScore(
             head_num=head_num, keep_prob=keep_prob, scale_value=scale or self.scale, input_layout=input_layout
         )(query, key, value, None, None, None, attn_mask)[3]
+
+
+class MochiAttention(nn.Cell):
+    def __init__(
+        self,
+        query_dim: int,
+        added_kv_proj_dim: int,
+        processor: "MochiAttnProcessor2_0",
+        heads: int = 8,
+        dim_head: int = 64,
+        dropout: float = 0.0,
+        bias: bool = False,
+        added_proj_bias: bool = True,
+        out_dim: Optional[int] = None,
+        out_context_dim: Optional[int] = None,
+        out_bias: bool = True,
+        context_pre_only: bool = False,
+        eps: float = 1e-5,
+    ):
+        super().__init__(query_dim=query_dim)
+        from .normalization import MochiRMSNorm
+
+        self.inner_dim = out_dim if out_dim is not None else dim_head * heads
+        self.out_dim = out_dim if out_dim is not None else query_dim
+        self.out_context_dim = out_context_dim if out_context_dim else query_dim
+        self.context_pre_only = context_pre_only
+
+        self.heads = out_dim // dim_head if out_dim is not None else heads
+
+        self.norm_q = MochiRMSNorm(dim_head, eps, True)
+        self.norm_k = MochiRMSNorm(dim_head, eps, True)
+        self.norm_added_q = MochiRMSNorm(dim_head, eps, True)
+        self.norm_added_k = MochiRMSNorm(dim_head, eps, True)
+
+        self.to_q = nn.Dense(query_dim, self.inner_dim, has_bias=bias)
+        self.to_k = nn.Dense(query_dim, self.inner_dim, has_bias=bias)
+        self.to_v = nn.Dense(query_dim, self.inner_dim, has_bias=bias)
+
+        self.add_k_proj = nn.Dense(added_kv_proj_dim, self.inner_dim, has_bias=added_proj_bias)
+        self.add_v_proj = nn.Dense(added_kv_proj_dim, self.inner_dim, has_bias=added_proj_bias)
+        if self.context_pre_only is not None:
+            self.add_q_proj = nn.Dense(added_kv_proj_dim, self.inner_dim, has_bias=added_proj_bias)
+
+        self.to_out = nn.CellList([nn.Dense(self.inner_dim, self.out_dim, has_bias=out_bias), nn.Dropout(dropout)])
+
+        if not self.context_pre_only:
+            self.to_add_out = nn.Dense(self.inner_dim, self.out_context_dim, has_bias=out_bias)
+
+        self.processor = processor
+
+    def scaled_dot_product_attention(
+        self,
+        query: ms.Tensor,
+        key: ms.Tensor,
+        value: ms.Tensor,
+        attn_mask: Optional[ms.Tensor] = None,
+        dropout_p: float = 0.0,
+        is_causal: bool = False,
+        scale: Optional[float] = None,
+    ):
+        if query.dtype in (ms.float16, ms.bfloat16):
+            return self.flash_attention_op(query, key, value, attn_mask, keep_prob=1 - dropout_p, scale=scale)
+        else:
+            return self.flash_attention_op(
+                query.to(ms.float16),
+                key.to(ms.float16),
+                value.to(ms.float16),
+                attn_mask,
+                keep_prob=1 - dropout_p,
+                scale=scale,
+            ).to(query.dtype)
+
+    def flash_attention_op(
+        self,
+        query: ms.Tensor,
+        key: ms.Tensor,
+        value: ms.Tensor,
+        attn_mask: Optional[ms.Tensor] = None,
+        keep_prob: float = 1.0,
+        scale: Optional[float] = None,
+    ):
+        # For most scenarios, qkv has been processed into a BNSD layout before sdp
+        input_layout = "BNSD"
+        head_num = self.heads
+
+        # In case qkv is 3-dim after `head_to_batch_dim`
+        if query.ndim == 3:
+            input_layout = "BSH"
+            head_num = 1
+
+        # process `attn_mask` as logic is different between PyTorch and Mindspore
+        # In MindSpore, False indicates retention and True indicates discard, in PyTorch it is the opposite
+        if attn_mask is not None:
+            attn_mask = ops.logical_not(attn_mask) if attn_mask.dtype == ms.bool_ else attn_mask.bool()
+            attn_mask = ops.broadcast_to(
+                attn_mask, (attn_mask.shape[0], attn_mask.shape[1], query.shape[-2], key.shape[-2])
+            )[:, :1, :, :]
+
+        return ops.operations.nn_ops.FlashAttentionScore(
+            head_num=head_num, keep_prob=keep_prob, scale_value=scale or self.scale, input_layout=input_layout
+        )(query, key, value, None, None, None, attn_mask)[3]
+
+    def construct(
+        self,
+        hidden_states: ms.Tensor,
+        encoder_hidden_states: Optional[ms.Tensor] = None,
+        attention_mask: Optional[ms.Tensor] = None,
+        **kwargs,
+    ):
+        return self.processor(
+            self,
+            hidden_states,
+            encoder_hidden_states=encoder_hidden_states,
+            attention_mask=attention_mask,
+            **kwargs,
+        )
+
+
+@ms.jit_class
+class MochiAttnProcessor2_0:
+    """Attention processor used in Mochi."""
+
+    def __init__(self):
+        pass
+
+    def apply_rotary_emb(self, x, freqs_cos, freqs_sin):
+        x_even = x[..., 0::2].float()
+        x_odd = x[..., 1::2].float()
+
+        cos = (x_even * freqs_cos - x_odd * freqs_sin).to(x.dtype)
+        sin = (x_even * freqs_sin + x_odd * freqs_cos).to(x.dtype)
+
+        return ops.stack([cos, sin], axis=-1).flatten(start_dim=-2)
+
+    def __call__(
+        self,
+        attn: "MochiAttention",
+        hidden_states: ms.Tensor,
+        encoder_hidden_states: ms.Tensor,
+        attention_mask: ms.Tensor,
+        image_rotary_emb: Optional[ms.Tensor] = None,
+    ) -> ms.Tensor:
+        query = attn.to_q(hidden_states)
+        key = attn.to_k(hidden_states)
+        value = attn.to_v(hidden_states)
+
+        query = unflatten(query, 2, (attn.heads, -1))
+        key = unflatten(key, 2, (attn.heads, -1))
+        value = unflatten(value, 2, (attn.heads, -1))
+
+        if attn.norm_q is not None:
+            query = attn.norm_q(query)
+        if attn.norm_k is not None:
+            key = attn.norm_k(key)
+
+        encoder_query = attn.add_q_proj(encoder_hidden_states)
+        encoder_key = attn.add_k_proj(encoder_hidden_states)
+        encoder_value = attn.add_v_proj(encoder_hidden_states)
+
+        encoder_query = unflatten(encoder_query, 2, (attn.heads, -1))
+        encoder_key = unflatten(encoder_key, 2, (attn.heads, -1))
+        encoder_value = unflatten(encoder_value, 2, (attn.heads, -1))
+
+        if attn.norm_added_q is not None:
+            encoder_query = attn.norm_added_q(encoder_query)
+        if attn.norm_added_k is not None:
+            encoder_key = attn.norm_added_k(encoder_key)
+
+        if image_rotary_emb is not None:
+            query = self.apply_rotary_emb(query, *image_rotary_emb)
+            key = self.apply_rotary_emb(key, *image_rotary_emb)
+
+        query, key, value = query.swapaxes(1, 2), key.swapaxes(1, 2), value.swapaxes(1, 2)
+        encoder_query, encoder_key, encoder_value = (
+            encoder_query.swapaxes(1, 2),
+            encoder_key.swapaxes(1, 2),
+            encoder_value.swapaxes(1, 2),
+        )
+
+        sequence_length = query.shape[2]
+        encoder_sequence_length = encoder_query.shape[2]
+        total_length = sequence_length + encoder_sequence_length
+
+        batch_size, heads, _, dim = query.shape
+        attn_outputs = []
+        for idx in range(batch_size):
+            mask = attention_mask[idx][None, :]
+            valid_prompt_token_indices = ops.nonzero(mask.flatten(), as_tuple=False).flatten()
+
+            valid_encoder_query = encoder_query[idx : idx + 1, :, valid_prompt_token_indices, :]
+            valid_encoder_key = encoder_key[idx : idx + 1, :, valid_prompt_token_indices, :]
+            valid_encoder_value = encoder_value[idx : idx + 1, :, valid_prompt_token_indices, :]
+
+            valid_query = ops.cat([query[idx : idx + 1], valid_encoder_query], axis=2)
+            valid_key = ops.cat([key[idx : idx + 1], valid_encoder_key], axis=2)
+            valid_value = ops.cat([value[idx : idx + 1], valid_encoder_value], axis=2)
+
+            attn_output = attn.scaled_dot_product_attention(
+                valid_query, valid_key, valid_value, dropout_p=0.0, is_causal=False
+            )
+            valid_sequence_length = attn_output.shape[2]
+            attn_output = pad(attn_output, (0, 0, 0, total_length - valid_sequence_length))
+            attn_outputs.append(attn_output)
+
+        hidden_states = ops.cat(attn_outputs, axis=0)
+        hidden_states = hidden_states.transpose(1, 2).flatten(start_dim=2, end_dim=3)
+
+        # TODO check dim here
+        hidden_states, encoder_hidden_states = (
+            hidden_states[:, :sequence_length, :, :],
+            hidden_states[:, sequence_length:, :, :],
+        )
+        # hidden_states, encoder_hidden_states = hidden_states.split_with_sizes(
+        #     (sequence_length, encoder_sequence_length), dim=1
+        # )
+
+        # linear proj
+        hidden_states = attn.to_out[0](hidden_states)
+        # dropout
+        hidden_states = attn.to_out[1](hidden_states)
+
+        if hasattr(attn, "to_add_out"):
+            encoder_hidden_states = attn.to_add_out(encoder_hidden_states)
+
+        return hidden_states, encoder_hidden_states
 
 
 @ms.jit_class
@@ -2326,6 +2552,91 @@ class AttnProcessor2_0:
 
         if input_ndim == 4:
             hidden_states = hidden_states.swapaxes(-1, -2).reshape(batch_size, channel, height, width)
+
+        if attn.residual_connection:
+            hidden_states = hidden_states + residual
+
+        hidden_states = hidden_states / attn.rescale_output_factor
+
+        return hidden_states
+
+
+@ms.jit_class
+class MochiVaeAttnProcessor2_0:
+    r"""
+    Attention processor used in Mochi VAE.
+    """
+
+    def __init__(self) -> None:
+        pass
+
+    def __call__(
+        self,
+        attn: Attention,
+        hidden_states: ms.Tensor,
+        encoder_hidden_states: Optional[ms.Tensor] = None,
+        attention_mask: Optional[ms.Tensor] = None,
+    ) -> ms.Tensor:
+        residual = hidden_states
+        is_single_frame = hidden_states.shape[1] == 1
+
+        batch_size, sequence_length, _ = (
+            hidden_states.shape if encoder_hidden_states is None else encoder_hidden_states.shape
+        )
+
+        if attention_mask is not None:
+            attention_mask = attn.prepare_attention_mask(attention_mask, sequence_length, batch_size)
+            # scaled_dot_product_attention expects attention_mask shape to be
+            # (batch, heads, source_length, target_length)
+            attention_mask = attention_mask.view(batch_size, attn.heads, -1, attention_mask.shape[-1])
+
+        if is_single_frame:
+            hidden_states = attn.to_v(hidden_states)
+
+            # linear proj
+            hidden_states = attn.to_out[0](hidden_states)
+            # dropout
+            hidden_states = attn.to_out[1](hidden_states)
+
+            if attn.residual_connection:
+                hidden_states = hidden_states + residual
+
+            hidden_states = hidden_states / attn.rescale_output_factor
+            return hidden_states
+
+        query = attn.to_q(hidden_states)
+
+        if encoder_hidden_states is None:
+            encoder_hidden_states = hidden_states
+
+        key = attn.to_k(encoder_hidden_states)
+        value = attn.to_v(encoder_hidden_states)
+
+        inner_dim = key.shape[-1]
+        head_dim = inner_dim // attn.heads
+
+        query = query.view(batch_size, -1, attn.heads, head_dim).swapaxes(1, 2)
+        key = key.view(batch_size, -1, attn.heads, head_dim).swapaxes(1, 2)
+        value = value.view(batch_size, -1, attn.heads, head_dim).swapaxes(1, 2)
+
+        if attn.norm_q is not None:
+            query = attn.norm_q(query)
+        if attn.norm_k is not None:
+            key = attn.norm_k(key)
+
+        # the output of sdp = (batch, num_heads, seq_len, head_dim)
+        # TODO: add support for attn.scale when we move to Torch 2.1
+        hidden_states = attn.scaled_dot_product_attention(
+            query, key, value, attn_mask=attention_mask, dropout_p=0.0, is_causal=attn.is_causal
+        )
+
+        hidden_states = hidden_states.swapaxes(1, 2).reshape(batch_size, -1, attn.heads * head_dim)
+        hidden_states = hidden_states.to(query.dtype)
+
+        # linear proj
+        hidden_states = attn.to_out[0](hidden_states)
+        # dropout
+        hidden_states = attn.to_out[1](hidden_states)
 
         if attn.residual_connection:
             hidden_states = hidden_states + residual

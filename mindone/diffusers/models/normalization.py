@@ -673,6 +673,36 @@ class RMSNorm(nn.Cell):
         return hidden_states
 
 
+# TODO: (Dhruv) This can be replaced with regular RMSNorm in Mochi once `_keep_in_fp32_modules` is supported
+# for sharded checkpoints, see: https://github.com/huggingface/diffusers/issues/10013
+class MochiRMSNorm(nn.Cell):
+    def __init__(self, dim, eps: float, elementwise_affine: bool = True):
+        super().__init__()
+
+        self.eps = eps
+
+        if isinstance(dim, numbers.Integral):
+            dim = (dim,)
+
+        self.dim = dim
+
+        if elementwise_affine:
+            self.weight = ms.Parameter(ops.ones(dim), name="weight")
+        else:
+            self.weight = None
+
+    def construct(self, hidden_states):
+        input_dtype = hidden_states.dtype
+        variance = hidden_states.to(ms.float32).pow(2).mean(-1, keep_dims=True)
+        hidden_states = hidden_states * ops.rsqrt(variance + self.eps)
+
+        if self.weight is not None:
+            hidden_states = hidden_states * self.weight
+        hidden_states = hidden_states.to(input_dtype)
+
+        return hidden_states
+
+
 class GlobalResponseNorm(nn.Cell):
     # Taken from https://github.com/facebookresearch/ConvNeXt-V2/blob/3608f67cc1dae164790c5d0aead7bf2d73d9719b/models/utils.py#L105
     def __init__(self, dim):

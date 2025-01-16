@@ -34,6 +34,7 @@ Todo:
     - ...
 """
 
+import numpy as np
 from packaging.version import parse
 
 import mindspore as ms
@@ -51,6 +52,7 @@ __all__ = [
     "multinomial",
     "pad",
     "view_as_complex",
+    "unflatten",
 ]
 
 MINDSPORE_VERSION = parse(ms.__version__)
@@ -503,3 +505,43 @@ def _view_as_complex(input: ms.Tensor) -> ms.Tensor:
 
 
 view_as_complex = _view_as_complex
+
+
+# ================================================================================
+# unflatten
+# ================================================================================
+def _unflatten(input, dim, sizes):
+    """
+    # Equivalence of torch.unflatten
+
+    Args:
+        tensor (ms.Tensor): The input tensor to unflatten.
+        dim (int): The dimension to unflatten.
+        sizes (tuple[int]): The target shape for the specified dimension.
+
+    Returns:
+        Tensor: A tensor with the specified dimension unflattened into the target shape.
+
+    Raises:
+        ValueError: If the specified dimension is out of range or if the product
+                    of sizes does not match the size of the given dimension.
+    """
+    shape = input.shape
+
+    dim = dim if dim >= 0 else dim + input.ndim
+
+    # check validation of dim
+    if dim < 0 or dim >= len(shape):
+        raise ValueError(f"Invalid dimension {dim} for tensor with shape {input.shape}")
+
+    # check validation of sizes
+    sizes = tuple(int(shape[dim] // np.prod([s for s in sizes if s != -1])) if s == -1 else s for s in sizes)
+    if shape[dim] != np.prod(sizes):
+        raise ValueError(f"Cannot unflatten dimension {dim} of size {shape[dim]} into shape {sizes}")
+
+    new_shape = shape[:dim] + sizes + shape[dim + 1 :]
+
+    return input.reshape(new_shape)
+
+
+unflatten = _unflatten
