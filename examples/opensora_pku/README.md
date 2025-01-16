@@ -442,8 +442,8 @@ As introduced in the [Open-Sora Plan Arxiv paper](https://arxiv.org/abs/2412.001
 | Stage |  Resolution | Num of frames | Datasets | Batch size  | Train Steps | LR |  Attention |
 |:---   |:---         |:---           |:--- |:---         |:---         |:---          |:---                |
 | 1 (T2I)    | 256x256     | 1             | SAM, AnyText, Human Images      |  1024 |   150K (full-attention) + 100K (skiparse attention)     | 2e-5         |  Full 3D -> Skiparse             |
-| 2  (T2I&T2V)   |  maximumly 93×640×640     | 49            | SAM, Panda70M                   |  1024 |   200K     | 2e-5         | Skiparse           |
-| 3  (T2V)   | 93x352x640   | 49            | filtered Panda70M, high-quality data  | 1024 |   100K~200K     | 1e-5         | Skiparse            |
+| 2  (T2I&T2V)   |  maximumly 93×640×640     | 93            | SAM, Panda70M                   |  1024 |   200K     | 2e-5         | Skiparse           |
+| 3  (T2V)   | 93x352x640   | 93            | filtered Panda70M, high-quality data  | 1024 |   100K~200K     | 1e-5         | Skiparse            |
 
 
 #### Example of Training Scripts
