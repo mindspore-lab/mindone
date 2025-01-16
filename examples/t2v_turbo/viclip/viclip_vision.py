@@ -219,11 +219,11 @@ def inflate_weight(weight_2d, time_dim, center=True):
     logger.info(f"Init center: {center}")
     if center:
         weight_3d = ops.zeros(*weight_2d.shape)
-        weight_3d = weight_3d.unsqueeze(2).repeat_interleave((1, 1, time_dim, 1, 1))
+        weight_3d = weight_3d.unsqueeze(2).repeat_interleave(time_dim, dim=2)
         middle_idx = time_dim // 2
         weight_3d[:, :, middle_idx, :, :] = weight_2d
     else:
-        weight_3d = weight_2d.unsqueeze(2).repeat_interleave((1, 1, time_dim, 1, 1))
+        weight_3d = weight_2d.unsqueeze(2).repeat_interleave(time_dim, dim=2)
         weight_3d = weight_3d / time_dim
     return weight_3d
 

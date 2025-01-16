@@ -195,7 +195,7 @@ class TriplaneSynthesizer(nn.Cell):
                     dtype=planes.dtype,
                 )
                 .unsqueeze(0)
-                .repeat_interleave((planes.shape[0], 1, 1))
+                .repeat_interleave(planes.shape[0], dim=0)
             )
         assert planes.shape[0] == aabb.shape[0], "Batch size mismatch for planes and aabb"
         N = planes.shape[0]
