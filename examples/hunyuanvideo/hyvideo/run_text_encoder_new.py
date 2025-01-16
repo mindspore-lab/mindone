@@ -2,7 +2,7 @@ from typing import List, Optional, Tuple, Union
 
 import mindspore as ms
 
-from hyvideo.text_encoder import TextEncoder
+from text_encoder import TextEncoder
 from constants import PROMPT_TEMPLATE, NEGATIVE_PROMPT
 
 
