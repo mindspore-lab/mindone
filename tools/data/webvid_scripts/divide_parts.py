@@ -1,8 +1,6 @@
 import argparse
 import os
 
-import pandas as pd
-
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Split one large CSV to smaller ones")
