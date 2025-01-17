@@ -9,6 +9,14 @@
 
 Please download all checkpoints and convert them into MindSpore checkpoints following this [instruction](./ckpts/README.md).
 
+### Run text encoder
+
+```bash
+cd hyvideo
+python run_text_encoder.py
+```
+
+
 ### Run VAE reconstruction
 
 To run a video reconstruction using the CausalVAE, please use the following command:

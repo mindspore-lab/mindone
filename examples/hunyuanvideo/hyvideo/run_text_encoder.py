@@ -44,7 +44,7 @@ text_encoder_precision = "fp32"    # fp16 may get bad results
 text_encoder_2_name = "clipL"
 tokenizer_2 = "clipL"
 text_len_2 = 77
-text_encoder_precision_2 = "fp16"
+text_encoder_precision_2 = "fp32"
 
 text_encoder_path = ""
 tokenizer_path = ""
@@ -128,7 +128,7 @@ if __name__ == "__main__":
     if mode == 0:
         ms.set_context(jit_config={"jit_level": jit_level})
 
-    text_encoder_choices = ["llm"]  # ["clipL", "llm"]
+    text_encoder_choices = ["llm", "clipL"]
     text = ["hello world"]
     output, output_2 = encode(text, text_encoder_choices)
     print(output)
